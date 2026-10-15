@@ -17,7 +17,11 @@ function actionText(kind: Notification["kind"]) {
 }
 
 export function NotificationsView() {
-  const { ready, user, profiles, notifications, unreadCount, markNotificationsRead } = useSocial();
+  const { ready, user, profiles, notifications, unreadCount, markNotificationsRead, refresh } = useSocial();
+
+  useEffect(() => {
+    if (ready && user) void refresh();
+  }, [ready, refresh, user]);
 
   useEffect(() => {
     if (ready && user && unreadCount > 0) markNotificationsRead();

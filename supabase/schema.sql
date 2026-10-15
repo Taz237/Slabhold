@@ -157,9 +157,39 @@ alter table public.cards add column if not exists accent text not null default '
 alter table public.cards add column if not exists is_public boolean not null default false;
 alter table public.cards add column if not exists updated_at timestamptz not null default now();
 
+create table if not exists public.comments (
+  id uuid primary key default gen_random_uuid(),
+  post_id uuid not null references public.posts (id) on delete cascade,
+  user_id uuid not null references public.profiles (id) on delete cascade,
+  body text not null,
+  created_at timestamptz not null default now(),
+  constraint comments_body_len check (char_length(btrim(body)) between 1 and 280)
+);
+
+create table if not exists public.notifications (
+  id uuid primary key default gen_random_uuid(),
+  recipient_id uuid not null references public.profiles (id) on delete cascade,
+  actor_id uuid not null references public.profiles (id) on delete cascade,
+  kind text not null,
+  post_id uuid references public.posts (id) on delete cascade,
+  preview text,
+  read boolean not null default false,
+  created_at timestamptz not null default now(),
+  constraint notifications_kind check (kind in ('like', 'comment', 'follow')),
+  constraint notifications_not_self check (actor_id <> recipient_id)
+);
+
 create unique index if not exists profiles_username_idx on public.profiles (lower(username));
 create index if not exists posts_user_id_idx on public.posts (user_id, created_at desc);
 create index if not exists cards_user_id_idx on public.cards (user_id);
+create index if not exists comments_post_id_idx on public.comments (post_id, created_at);
+create index if not exists notifications_recipient_idx on public.notifications (recipient_id, created_at desc);
+create unique index if not exists notifications_like_once
+  on public.notifications (actor_id, post_id)
+  where kind = 'like' and post_id is not null;
+create unique index if not exists notifications_follow_once
+  on public.notifications (actor_id, recipient_id)
+  where kind = 'follow';
 
 create or replace function public.handle_new_user()
 returns trigger
@@ -194,6 +224,8 @@ alter table public.profiles enable row level security;
 alter table public.follows enable row level security;
 alter table public.posts enable row level security;
 alter table public.cards enable row level security;
+alter table public.comments enable row level security;
+alter table public.notifications enable row level security;
 
 grant select on public.profiles to anon, authenticated;
 grant insert, update, delete on public.profiles to authenticated;
@@ -203,6 +235,10 @@ grant select on public.posts to anon, authenticated;
 grant insert, update, delete on public.posts to authenticated;
 grant select on public.cards to anon, authenticated;
 grant insert, update, delete on public.cards to authenticated;
+grant select on public.comments to anon, authenticated;
+grant insert, delete on public.comments to authenticated;
+grant select on public.notifications to anon, authenticated;
+grant insert, update, delete on public.notifications to authenticated;
 
 drop policy if exists "Profiles are public" on public.profiles;
 drop policy if exists "Users insert own profile" on public.profiles;
@@ -237,6 +273,26 @@ create policy "Anyone can view public cards" on public.cards for select using (i
 create policy "Users can insert own cards" on public.cards for insert with check (auth.uid() = user_id);
 create policy "Users can update own cards" on public.cards for update using (auth.uid() = user_id);
 create policy "Users can delete own cards" on public.cards for delete using (auth.uid() = user_id);
+
+drop policy if exists "Comments are public" on public.comments;
+drop policy if exists "Comment as yourself" on public.comments;
+drop policy if exists "Delete own comments" on public.comments;
+create policy "Comments are public" on public.comments for select using (true);
+create policy "Comment as yourself" on public.comments for insert with check (auth.uid() = user_id);
+create policy "Delete own comments" on public.comments for delete using (auth.uid() = user_id);
+
+drop policy if exists "Read related notifications" on public.notifications;
+drop policy if exists "Create notifications as yourself" on public.notifications;
+drop policy if exists "Mark own notifications read" on public.notifications;
+drop policy if exists "Delete notifications you sent" on public.notifications;
+create policy "Read related notifications" on public.notifications
+  for select using (auth.uid() = recipient_id or auth.uid() = actor_id);
+create policy "Create notifications as yourself" on public.notifications
+  for insert with check (auth.uid() = actor_id and actor_id <> recipient_id);
+create policy "Mark own notifications read" on public.notifications
+  for update using (auth.uid() = recipient_id) with check (auth.uid() = recipient_id);
+create policy "Delete notifications you sent" on public.notifications
+  for delete using (auth.uid() = actor_id);
 
 insert into storage.buckets (id, name, public)
 values
@@ -298,3 +354,18 @@ create policy "Users can upload post images"
 create policy "Public can view post images"
   on storage.objects for select
   using (bucket_id = 'post-images');
+
+-- Best-effort: live updates for comments and notifications. Ignore if realtime is off.
+do $$
+begin
+  begin
+    alter publication supabase_realtime add table public.comments;
+  exception when others then
+    null;
+  end;
+  begin
+    alter publication supabase_realtime add table public.notifications;
+  exception when others then
+    null;
+  end;
+end $$;

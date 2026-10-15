@@ -13,7 +13,7 @@ import { COMMENT_LIMIT } from "@/lib/social/types";
 
 export function PostView({ id }: { id: string }) {
   const router = useRouter();
-  const { ready, user, posts, profiles, commentsFor, addComment } = useSocial();
+  const { ready, user, posts, profiles, commentsFor, addComment, refresh } = useSocial();
   const post = posts.find((item) => item.id === id);
   const author = post ? profiles.find((profile) => profile.id === post.authorId) : undefined;
   const replies = commentsFor(id);
@@ -21,6 +21,12 @@ export function PostView({ id }: { id: string }) {
   const replyRef = useRef<HTMLTextAreaElement>(null);
   const [draft, setDraft] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [pending, setPending] = useState(false);
+
+  useEffect(() => {
+    if (!ready) return;
+    void refresh();
+  }, [ready, id, refresh]);
 
   useEffect(() => {
     if (!ready || !user || window.location.hash !== "#reply") return;
@@ -36,19 +42,22 @@ export function PostView({ id }: { id: string }) {
     requestAnimationFrame(() => replyRef.current?.focus());
   }
 
-  function submit(e: React.FormEvent) {
+  async function submit(e: React.FormEvent) {
     e.preventDefault();
+    if (pending) return;
     if (!user) {
       router.push("/login");
       return;
     }
-    const result = addComment(id, draft);
+    setPending(true);
+    const result = await addComment(id, draft);
+    setPending(false);
     if (result.error) {
       setError(result.error);
       return;
     }
     setDraft("");
-    setError(null);
+    setError(result.notice ?? null);
     if (replyRef.current) replyRef.current.style.height = "auto";
   }
 
@@ -162,7 +171,7 @@ export function PostView({ id }: { id: string }) {
             />
             <button
               type="submit"
-              disabled={!draft.trim()}
+              disabled={pending || !draft.trim()}
               className={`${solidButton} mb-1`}
             >
               Reply

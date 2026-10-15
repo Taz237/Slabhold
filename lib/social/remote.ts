@@ -4,13 +4,17 @@ import { mapPublicCard } from "./cards";
 import type {
   AuthResult,
   FollowEdge,
+  Notification,
+  NotificationKind,
   Post,
+  PostComment,
   Profile,
   ProfilePatch,
   PublicCard,
   SignUpInput,
   SocialSnapshot,
 } from "./types";
+import { COMMENT_LIMIT } from "./types";
 import { normalizeUsername, usernameError } from "./local-db";
 
 type ProfileRow = {
@@ -39,6 +43,25 @@ type FollowRow = {
   created_at: string;
 };
 
+type CommentRow = {
+  id: string;
+  post_id: string;
+  user_id: string;
+  body: string;
+  created_at: string;
+};
+
+type NotificationRow = {
+  id: string;
+  recipient_id: string;
+  actor_id: string;
+  kind: NotificationKind;
+  post_id: string | null;
+  preview: string | null;
+  read: boolean;
+  created_at: string;
+};
+
 type PublicCardRow = {
   id: string;
   user_id: string;
@@ -62,6 +85,17 @@ type PublicCardRow = {
   updated_at: string | null;
 };
 
+function previewText(value: string) {
+  const text = value.trim();
+  if (!text) return null;
+  return text.length > 80 ? `${text.slice(0, 77)}…` : text;
+}
+
+function missingTable(error: { code?: string; message?: string } | null) {
+  if (!error) return false;
+  return error.code === "PGRST205" || error.code === "42P01" || /schema cache/i.test(error.message ?? "");
+}
+
 function mapProfile(row: ProfileRow, email = ""): Profile {
   return {
     id: row.id,
@@ -79,14 +113,20 @@ function mapProfile(row: ProfileRow, email = ""): Profile {
 export async function loadSupabaseSocial(supabase: SupabaseClient): Promise<SocialSnapshot> {
   const { data: sessionData } = await supabase.auth.getSession();
   const session = sessionData.session;
-  const [profilesRes, postsRes, followsRes, cardsRes] = await Promise.all([
+  const [profilesRes, postsRes, followsRes, cardsRes, commentsRes, notificationsRes] = await Promise.all([
     supabase.from("profiles").select("*"),
     supabase.from("posts").select("*").order("created_at", { ascending: false }).limit(100),
     supabase.from("follows").select("*"),
     supabase.from("cards").select("*").eq("is_public", true),
+    supabase.from("comments").select("*").order("created_at", { ascending: true }),
+    supabase.from("notifications").select("*").order("created_at", { ascending: false }),
   ]);
   const failure = profilesRes.error || postsRes.error || followsRes.error || cardsRes.error;
   if (failure) throw new Error(failure.message);
+  if (commentsRes.error && !missingTable(commentsRes.error)) throw new Error(commentsRes.error.message);
+  if (notificationsRes.error && !missingTable(notificationsRes.error)) {
+    throw new Error(notificationsRes.error.message);
+  }
 
   const profiles = ((profilesRes.data ?? []) as ProfileRow[]).map((row) =>
     mapProfile(row, row.id === session?.user.id ? (session.user.email ?? "") : ""),
@@ -109,6 +149,27 @@ export async function loadSupabaseSocial(supabase: SupabaseClient): Promise<Soci
     }),
   );
   const publicCards = ((cardsRes.data ?? []) as PublicCardRow[]).map(mapPublicCard);
+  const comments = ((commentsRes.data ?? []) as CommentRow[]).map(
+    (row): PostComment => ({
+      id: row.id,
+      postId: row.post_id,
+      authorId: row.user_id,
+      body: row.body,
+      createdAt: row.created_at,
+    }),
+  );
+  const notifications = ((notificationsRes.data ?? []) as NotificationRow[]).map(
+    (row): Notification => ({
+      id: row.id,
+      recipientId: row.recipient_id,
+      actorId: row.actor_id,
+      kind: row.kind,
+      postId: row.post_id,
+      preview: row.preview,
+      createdAt: row.created_at,
+      read: row.read,
+    }),
+  );
 
   return {
     user: profiles.find((profile) => profile.id === session?.user.id) ?? null,
@@ -117,8 +178,8 @@ export async function loadSupabaseSocial(supabase: SupabaseClient): Promise<Soci
     follows,
     likes: [],
     reposts: [],
-    comments: [],
-    notifications: [],
+    comments,
+    notifications,
     publicCards,
   };
 }
@@ -207,19 +268,124 @@ export async function remoteToggleFollow(
   followerId: string,
   followingId: string,
   following: boolean,
-) {
+): Promise<AuthResult> {
+  if (followerId === followingId) return {};
   if (following) {
-    await supabase
+    const { error } = await supabase
       .from("follows")
       .delete()
       .eq("follower_id", followerId)
       .eq("following_id", followingId);
-    return;
+    if (error) return { error: error.message };
+    const { error: noteError } = await supabase
+      .from("notifications")
+      .delete()
+      .eq("actor_id", followerId)
+      .eq("recipient_id", followingId)
+      .eq("kind", "follow");
+    if (noteError && !missingTable(noteError)) return { error: noteError.message };
+    return {};
   }
-  await supabase.from("follows").insert({
+  const { error } = await supabase.from("follows").insert({
     follower_id: followerId,
     following_id: followingId,
   });
+  if (error) return { error: error.message };
+  const { error: noteError } = await supabase.from("notifications").insert({
+    recipient_id: followingId,
+    actor_id: followerId,
+    kind: "follow",
+    post_id: null,
+    preview: null,
+  });
+  if (noteError && noteError.code !== "23505" && !missingTable(noteError)) {
+    return { notice: noteError.message };
+  }
+  return {};
+}
+
+export async function remoteAddComment(
+  supabase: SupabaseClient,
+  authorId: string,
+  postId: string,
+  body: string,
+  postAuthorId: string | null,
+): Promise<AuthResult> {
+  const text = body.trim().slice(0, COMMENT_LIMIT);
+  if (!text) return { error: "Write a comment." };
+  const { error } = await supabase.from("comments").insert({
+    post_id: postId,
+    user_id: authorId,
+    body: text,
+  });
+  if (error) {
+    if (missingTable(error)) {
+      return { error: "Comments are not set up yet. Run supabase/schema.sql in the Supabase SQL editor." };
+    }
+    return { error: error.message };
+  }
+
+  let recipientId = postAuthorId;
+  if (!recipientId) {
+    const { data } = await supabase.from("posts").select("user_id").eq("id", postId).maybeSingle();
+    recipientId = (data?.user_id as string | undefined) ?? null;
+  }
+  if (!recipientId || recipientId === authorId) return {};
+
+  const { error: noteError } = await supabase.from("notifications").insert({
+    recipient_id: recipientId,
+    actor_id: authorId,
+    kind: "comment",
+    post_id: postId,
+    preview: previewText(text),
+  });
+  if (noteError && !missingTable(noteError)) return { notice: noteError.message };
+  return {};
+}
+
+export async function remoteSyncLikeNotification(
+  supabase: SupabaseClient,
+  input: {
+    actorId: string;
+    recipientId: string;
+    postId: string;
+    preview: string;
+    liked: boolean;
+  },
+): Promise<AuthResult> {
+  if (input.actorId === input.recipientId) return {};
+  if (!input.liked) {
+    const { error } = await supabase
+      .from("notifications")
+      .delete()
+      .eq("actor_id", input.actorId)
+      .eq("post_id", input.postId)
+      .eq("kind", "like");
+    if (error && !missingTable(error)) return { error: error.message };
+    return {};
+  }
+  const { error } = await supabase.from("notifications").insert({
+    recipient_id: input.recipientId,
+    actor_id: input.actorId,
+    kind: "like",
+    post_id: input.postId,
+    preview: previewText(input.preview),
+  });
+  if (error && error.code !== "23505" && !missingTable(error)) return { error: error.message };
+  return {};
+}
+
+export async function remoteMarkNotificationsRead(
+  supabase: SupabaseClient,
+  userId: string,
+): Promise<AuthResult> {
+  const { error } = await supabase
+    .from("notifications")
+    .update({ read: true })
+    .eq("recipient_id", userId)
+    .eq("read", false);
+  if (error && !missingTable(error)) return { error: error.message };
+  return {};
 }
 
 export async function remoteCreatePost(

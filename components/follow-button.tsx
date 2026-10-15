@@ -41,6 +41,7 @@ export function FollowButton({ userId }: { userId: string }) {
         setOptimistic(!following);
         void toggleFollow(userId).finally(() => {
           busy.current = false;
+          setOptimistic(null);
         });
       }}
       className={

@@ -31,11 +31,14 @@ import {
 } from "@/lib/social/local-db";
 import {
   loadSupabaseSocial,
+  remoteAddComment,
   remoteCreatePost,
   remoteDeletePost,
+  remoteMarkNotificationsRead,
   remoteSignIn,
   remoteSignOut,
   remoteSignUp,
+  remoteSyncLikeNotification,
   remoteToggleFollow,
   remoteUpdatePost,
   remoteUpdateProfile,
@@ -83,7 +86,7 @@ type SocialContextValue = {
   deletePost: (postId: string) => Promise<AuthResult>;
   toggleLike: (postId: string) => void;
   toggleRepost: (postId: string) => void;
-  addComment: (postId: string, body: string) => AuthResult;
+  addComment: (postId: string, body: string) => Promise<AuthResult>;
   isLiked: (postId: string) => boolean;
   isReposted: (postId: string) => boolean;
   likeCount: (postId: string) => number;
@@ -120,6 +123,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
   const [activity, setActivity] = useState<ActivityStore>(emptyActivity);
   const supabaseRef = useRef<SupabaseClient | null>(null);
   const localRef = useRef<LocalDb | null>(null);
+  const likeQueue = useRef(Promise.resolve());
   localRef.current = local;
 
   const refreshRemote = useCallback(async (client: SupabaseClient) => {
@@ -148,6 +152,9 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
     supabaseRef.current = client;
     setMode("supabase");
     refreshRemote(client)
+      .then(() => {
+        if (!cancelled) setStatus(null);
+      })
       .catch((error: unknown) => {
         if (!cancelled) {
           setStatus(error instanceof Error ? error.message : "Could not reach Supabase.");
@@ -159,9 +166,11 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
 
     const { data } = client.auth.onAuthStateChange(() => {
       setTimeout(() => {
-        refreshRemote(client).catch((error: unknown) => {
-          setStatus(error instanceof Error ? error.message : "Could not reach Supabase.");
-        });
+        refreshRemote(client)
+          .then(() => setStatus(null))
+          .catch((error: unknown) => {
+            setStatus(error instanceof Error ? error.message : "Could not reach Supabase.");
+          });
       }, 0);
     });
 
@@ -171,6 +180,30 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
     };
   }, [refreshRemote]);
 
+  useEffect(() => {
+    if (mode !== "supabase" || !ready) return;
+    const client = supabaseRef.current;
+    if (!client) return;
+    let timer = 0;
+    const schedule = () => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => {
+        refreshRemote(client).catch((error: unknown) => {
+          setStatus(error instanceof Error ? error.message : "Could not reach Supabase.");
+        });
+      }, 250);
+    };
+    const channel = client
+      .channel("social-comments-notifications")
+      .on("postgres_changes", { event: "*", schema: "public", table: "comments" }, schedule)
+      .on("postgres_changes", { event: "*", schema: "public", table: "notifications" }, schedule)
+      .subscribe();
+    return () => {
+      window.clearTimeout(timer);
+      void client.removeChannel(channel);
+    };
+  }, [mode, ready, refreshRemote]);
+
   const baseSnapshot = mode === "local" && local ? snapshotFromLocal(local) : remote;
   const snapshot =
     mode === "supabase"
@@ -178,8 +211,6 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
           ...baseSnapshot,
           likes: activity.likes,
           reposts: activity.reposts,
-          comments: activity.comments,
-          notifications: activity.notifications,
         }
       : baseSnapshot;
   const snapshotRef = useRef(snapshot);
@@ -306,17 +337,25 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
 
   const toggleFollow = useCallback(
     async (userId: string) => {
-      if (!snapshot.user || snapshot.user.id === userId) return;
+      const current = snapshotRef.current;
+      if (!current.user || current.user.id === userId) return;
       const client = supabaseRef.current;
       if (mode === "supabase" && client) {
-        rememberActivity(localToggleFollow(activityShell(), userId));
-        await remoteToggleFollow(client, snapshot.user.id, userId, isFollowing(userId));
-        await refreshRemote(client);
+        const following = current.follows.some(
+          (edge) => edge.followerId === current.user?.id && edge.followingId === userId,
+        );
+        try {
+          const result = await remoteToggleFollow(client, current.user.id, userId, following);
+          await refreshRemote(client);
+          setStatus(result.error ?? result.notice ?? null);
+        } catch (error) {
+          setStatus(error instanceof Error ? error.message : "Could not update that follow.");
+        }
         return;
       }
       if (localRef.current) commitLocal(localToggleFollow(localRef.current, userId));
     },
-    [commitLocal, isFollowing, mode, refreshRemote, snapshot.user],
+    [commitLocal, mode, refreshRemote],
   );
 
   const createPost = useCallback(
@@ -394,15 +433,39 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
 
   const toggleLike = useCallback(
     (postId: string) => {
-      if (!snapshot.user) return;
+      const current = snapshotRef.current;
+      if (!current.user) return;
       if (mode === "supabase") {
+        const wasLiked = current.likes.some(
+          (like) => like.postId === postId && like.userId === current.user?.id,
+        );
+        const post = current.posts.find((item) => item.id === postId);
         rememberActivity(localToggleLike(activityShell(), postId));
+        const client = supabaseRef.current;
+        if (!client || !post) return;
+        const actorId = current.user.id;
+        likeQueue.current = likeQueue.current
+          .catch(() => undefined)
+          .then(async () => {
+            const result = await remoteSyncLikeNotification(client, {
+              actorId,
+              recipientId: post.authorId,
+              postId,
+              preview: post.body,
+              liked: !wasLiked,
+            });
+            if (result.error) {
+              setStatus(result.error);
+              return;
+            }
+            await refreshRemote(client);
+          });
         return;
       }
       if (!localRef.current) return;
       commitLocal(localToggleLike(localRef.current, postId));
     },
-    [commitLocal, mode, snapshot.user],
+    [activityShell, commitLocal, mode, refreshRemote, rememberActivity],
   );
 
   const toggleRepost = useCallback(
@@ -419,19 +482,36 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
   );
 
   const addComment = useCallback(
-    (postId: string, body: string): AuthResult => {
+    async (postId: string, body: string): Promise<AuthResult> => {
       if (mode === "supabase") {
-        if (!snapshot.user) return { error: "Log in to comment." };
-        const result = localAddComment(activityShell(), postId, body);
-        if (!result.error) rememberActivity(result.db);
-        return { error: result.error };
+        const client = supabaseRef.current;
+        const current = snapshotRef.current;
+        if (!client) return { error: "Still loading." };
+        if (!current.user) return { error: "Log in to comment." };
+        const post = current.posts.find((item) => item.id === postId);
+        try {
+          const result = await remoteAddComment(
+            client,
+            current.user.id,
+            postId,
+            body,
+            post?.authorId ?? null,
+          );
+          if (!result.error) {
+            await refreshRemote(client);
+            if (result.notice) setStatus(result.notice);
+          }
+          return result;
+        } catch (error) {
+          return { error: error instanceof Error ? error.message : "Could not post that comment." };
+        }
       }
       if (!localRef.current) return { error: "Still loading." };
       const result = localAddComment(localRef.current, postId, body);
       if (!result.error) commitLocal(result.db);
       return { error: result.error };
     },
-    [commitLocal, mode, snapshot.user],
+    [commitLocal, mode, refreshRemote],
   );
 
   const isLiked = useCallback(
@@ -474,17 +554,27 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
   const unreadCount = notifications.filter((note) => !note.read).length;
 
   const markNotificationsRead = useCallback(() => {
-    if (!snapshot.user) return;
-    if (!snapshot.notifications.some((note) => note.recipientId === snapshot.user?.id && !note.read)) {
-      return;
-    }
+    const current = snapshotRef.current;
+    if (!current.user) return;
+    const userId = current.user.id;
+    if (!current.notifications.some((note) => note.recipientId === userId && !note.read)) return;
     if (mode === "supabase") {
-      rememberActivity(localMarkNotificationsRead(activityShell()));
+      setRemote((existing) => ({
+        ...existing,
+        notifications: existing.notifications.map((note) =>
+          note.recipientId === userId ? { ...note, read: true } : note,
+        ),
+      }));
+      const client = supabaseRef.current;
+      if (!client) return;
+      void remoteMarkNotificationsRead(client, userId).then((result) => {
+        if (result.error) setStatus(result.error);
+      });
       return;
     }
     if (!localRef.current) return;
     commitLocal(localMarkNotificationsRead(localRef.current));
-  }, [commitLocal, mode, snapshot.notifications, snapshot.user]);
+  }, [commitLocal, mode]);
 
   const commentsFor = useCallback(
     (postId: string) =>
