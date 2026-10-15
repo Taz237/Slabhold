@@ -59,7 +59,7 @@ export type PostComment = {
   createdAt: string;
 };
 
-export type NotificationKind = "like" | "comment" | "follow";
+export type NotificationKind = "like" | "comment" | "follow" | "repost";
 
 export type Notification = {
   id: string;

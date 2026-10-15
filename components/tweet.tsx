@@ -14,11 +14,13 @@ export function Tweet({
   author,
   variant = "feed",
   onReply,
+  repostedBy = null,
 }: {
   post: Post;
   author: Profile;
   variant?: "feed" | "detail";
   onReply?: () => void;
+  repostedBy?: Profile | null;
 }) {
   const router = useRouter();
   const { commentsFor } = useSocial();
@@ -45,10 +47,20 @@ export function Tweet({
   return (
     <article
       onClick={openPost}
-      className={`flex gap-3 border-b border-zinc-200 px-4 py-3 dark:border-white/10 ${
-        variant === "feed" ? "cursor-pointer" : ""
-      }`}
+      className={`border-b border-zinc-200 dark:border-white/10 ${variant === "feed" ? "cursor-pointer" : ""}`}
     >
+      {repostedBy ? (
+        <Link
+          href={`/u/${repostedBy.username}`}
+          className="flex items-center gap-3 px-4 pt-3 text-[13px] font-bold text-zinc-500"
+        >
+          <span className="grid w-10 shrink-0 place-items-center">
+            <Repeat2 className="h-4 w-4" />
+          </span>
+          <span className="truncate hover:underline">{repostedBy.displayName} reposted</span>
+        </Link>
+      ) : null}
+      <div className={`flex gap-3 px-4 ${repostedBy ? "pt-1 pb-3" : "py-3"}`}>
       <Link href={`/u/${author.username}`} className="shrink-0">
         <Avatar name={author.displayName} image={author.avatarDataUrl} accent={author.accent} />
       </Link>
@@ -73,6 +85,7 @@ export function Tweet({
         ) : null}
         {post.card ? <CardMedia card={post.card} /> : null}
         <Engagement targetId={post.id} replyCount={comments.length} onReply={openReplies} />
+      </div>
       </div>
     </article>
   );

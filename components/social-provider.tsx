@@ -44,9 +44,11 @@ import {
   remoteSignUp,
   remoteSyncLikeNotification,
   remoteToggleFollow,
+  remoteToggleRepost,
   remoteUpdatePost,
   remoteUpdateProfile,
 } from "@/lib/social/remote";
+import { followingTimeline, type TimelineItem } from "@/lib/social/timeline";
 import { createSupabaseBrowser } from "@/lib/supabase/browser";
 import { getSupabaseConfig } from "@/lib/supabase/client";
 import type {
@@ -55,6 +57,7 @@ import type {
   Notification,
   Post,
   PostComment,
+  PostRepost,
   Profile,
   ProfilePatch,
   PublicCard,
@@ -98,6 +101,7 @@ type SocialContextValue = {
   isReposted: (postId: string) => boolean;
   likeCount: (postId: string) => number;
   repostCount: (postId: string) => number;
+  reposts: PostRepost[];
   commentsFor: (postId: string) => PostComment[];
   notifications: Notification[];
   unreadCount: number;
@@ -106,7 +110,7 @@ type SocialContextValue = {
   unreadMessageCount: number;
   sendMessage: (receiverId: string, content: string) => Promise<AuthResult>;
   markThreadRead: (partnerId: string) => void;
-  feed: Post[];
+  feed: TimelineItem[];
   suggestions: Profile[];
   profileByUsername: (username: string) => Profile | undefined;
 };
@@ -136,6 +140,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
   const supabaseRef = useRef<SupabaseClient | null>(null);
   const localRef = useRef<LocalDb | null>(null);
   const likeQueue = useRef(Promise.resolve());
+  const repostQueue = useRef(Promise.resolve());
   localRef.current = local;
 
   const refreshRemote = useCallback(async (client: SupabaseClient) => {
@@ -211,19 +216,28 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       .on("postgres_changes", { event: "*", schema: "public", table: "notifications" }, schedule)
       .on("postgres_changes", { event: "*", schema: "public", table: "messages" }, schedule)
       .subscribe();
+    const reposts = client
+      .channel("social-reposts")
+      .on("postgres_changes", { event: "*", schema: "public", table: "reposts" }, schedule)
+      .subscribe();
     return () => {
       window.clearTimeout(timer);
       void client.removeChannel(channel);
+      void client.removeChannel(reposts);
     };
   }, [mode, ready, refreshRemote]);
 
   const baseSnapshot = mode === "local" && local ? snapshotFromLocal(local) : remote;
+  const postIds = new Set(baseSnapshot.posts.map((post) => post.id));
   const snapshot =
     mode === "supabase"
       ? {
           ...baseSnapshot,
           likes: activity.likes,
-          reposts: activity.reposts,
+          reposts: [
+            ...baseSnapshot.reposts,
+            ...activity.reposts.filter((repost) => !postIds.has(repost.postId)),
+          ],
         }
       : baseSnapshot;
   const snapshotRef = useRef(snapshot);
@@ -484,15 +498,52 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
 
   const toggleRepost = useCallback(
     (postId: string) => {
-      if (!snapshot.user) return;
+      const current = snapshotRef.current;
+      if (!current.user) return;
       if (mode === "supabase") {
-        rememberActivity(localToggleRepost(activityShell(), postId));
+        const client = supabaseRef.current;
+        if (!client) return;
+        const userId = current.user.id;
+        const post = current.posts.find((item) => item.id === postId);
+        if (!post) {
+          rememberActivity(localToggleRepost(activityShell(), postId));
+          return;
+        }
+        const reposted = current.reposts.some(
+          (repost) => repost.postId === postId && repost.userId === userId,
+        );
+        const reposts = reposted
+          ? current.reposts.filter((repost) => !(repost.postId === postId && repost.userId === userId))
+          : [...current.reposts, { postId, userId, createdAt: new Date().toISOString() }];
+        const knownPosts = new Set(current.posts.map((item) => item.id));
+        snapshotRef.current = { ...current, reposts };
+        setRemote((existing) => ({
+          ...existing,
+          reposts: reposts.filter((repost) => knownPosts.has(repost.postId)),
+        }));
+        repostQueue.current = repostQueue.current
+          .catch(() => undefined)
+          .then(async () => {
+            const result = await remoteToggleRepost(client, {
+              userId,
+              postId,
+              authorId: post.authorId,
+              preview: post.body,
+              reposted,
+            });
+            if (result.error || result.notice) setStatus(result.error ?? result.notice ?? null);
+            await refreshRemote(client);
+          })
+          .catch((error: unknown) => {
+            setStatus(error instanceof Error ? error.message : "Could not update that repost.");
+            return refreshRemote(client).catch(() => undefined);
+          });
         return;
       }
       if (!localRef.current) return;
       commitLocal(localToggleRepost(localRef.current, postId));
     },
-    [commitLocal, mode, snapshot.user],
+    [activityShell, commitLocal, mode, refreshRemote, rememberActivity],
   );
 
   const addComment = useCallback(
@@ -703,13 +754,15 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
   );
 
   const feed = useMemo(() => {
-    if (!snapshot.user) return snapshot.posts;
-    const ids = new Set<string>([snapshot.user.id]);
-    for (const edge of snapshot.follows) {
-      if (edge.followerId === snapshot.user.id) ids.add(edge.followingId);
-    }
-    return snapshot.posts.filter((post) => ids.has(post.authorId));
-  }, [snapshot.follows, snapshot.posts, snapshot.user]);
+    if (!snapshot.user) return [];
+    return followingTimeline(
+      snapshot.posts,
+      snapshot.reposts,
+      snapshot.profiles,
+      snapshot.follows,
+      snapshot.user.id,
+    );
+  }, [snapshot.follows, snapshot.posts, snapshot.profiles, snapshot.reposts, snapshot.user]);
 
   const suggestions = useMemo(() => {
     if (!snapshot.user) return snapshot.profiles;
@@ -754,6 +807,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       isReposted,
       likeCount,
       repostCount,
+      reposts: snapshot.reposts,
       commentsFor,
       notifications,
       unreadCount,
@@ -784,6 +838,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       isReposted,
       likeCount,
       repostCount,
+      snapshot.reposts,
       followingCount,
       isFollowing,
       mode,

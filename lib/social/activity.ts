@@ -2,7 +2,7 @@ import type { Notification, PostComment, PostLike, PostRepost } from "./types";
 
 const STORAGE_KEY = "slabhold.activity.v1";
 
-/** Likes and reposts stay on-device. Comments and notifications are stored in Supabase when it is configured. */
+/** Likes stay on-device. Reposts, comments, notifications, and messages are stored in Supabase when it is configured. */
 export type ActivityStore = {
   likes: PostLike[];
   reposts: PostRepost[];

@@ -90,6 +90,20 @@ export function notificationsFromActivity(db: LocalDb): Notification[] {
       read: false,
     });
   }
+  for (const repost of db.reposts ?? []) {
+    const post = db.posts.find((item) => item.id === repost.postId);
+    if (!post || post.authorId === repost.userId) continue;
+    notes.push({
+      id: `note-repost-${repost.postId}-${repost.userId}`,
+      recipientId: post.authorId,
+      actorId: repost.userId,
+      kind: "repost",
+      postId: post.id,
+      preview: previewText(post.body),
+      createdAt: repost.createdAt,
+      read: false,
+    });
+  }
   for (const edge of db.follows) {
     if (edge.followerId === edge.followingId) continue;
     notes.push({
@@ -504,13 +518,35 @@ export function localToggleRepost(db: LocalDb, postId: string): LocalDb {
   const existing = reposts.some(
     (repost) => repost.postId === postId && repost.userId === db.sessionUserId,
   );
-  return {
+  const post = db.posts.find((item) => item.id === postId);
+  if (existing) {
+    return {
+      ...db,
+      reposts: reposts.filter(
+        (repost) => !(repost.postId === postId && repost.userId === db.sessionUserId),
+      ),
+      notifications: (db.notifications ?? []).filter(
+        (note) =>
+          !(note.kind === "repost" && note.actorId === db.sessionUserId && note.postId === postId),
+      ),
+    };
+  }
+  const createdAt = new Date().toISOString();
+  const next: LocalDb = {
     ...db,
-    reposts: existing
-      ? reposts.filter(
-          (repost) => !(repost.postId === postId && repost.userId === db.sessionUserId),
-        )
-      : [...reposts, { postId, userId: db.sessionUserId, createdAt: new Date().toISOString() }],
+    reposts: [...reposts, { postId, userId: db.sessionUserId, createdAt }],
+  };
+  if (!post) return next;
+  return {
+    ...next,
+    notifications: addNotification(next, {
+      recipientId: post.authorId,
+      actorId: db.sessionUserId,
+      kind: "repost",
+      postId,
+      preview: previewText(post.body),
+      createdAt,
+    }),
   };
 }
 

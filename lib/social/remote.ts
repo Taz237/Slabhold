@@ -9,6 +9,7 @@ import type {
   NotificationKind,
   Post,
   PostComment,
+  PostRepost,
   Profile,
   ProfilePatch,
   PublicCard,
@@ -41,6 +42,12 @@ type PostRow = {
 type FollowRow = {
   follower_id: string;
   following_id: string;
+  created_at: string;
+};
+
+type RepostRow = {
+  user_id: string;
+  post_id: string;
   created_at: string;
 };
 
@@ -106,6 +113,17 @@ function missingTable(error: { code?: string; message?: string } | null) {
   return error.code === "PGRST205" || error.code === "42P01" || /schema cache/i.test(error.message ?? "");
 }
 
+function mapPost(row: PostRow): Post {
+  return {
+    id: row.id,
+    authorId: row.user_id,
+    body: row.content ?? "",
+    imageDataUrl: row.image_url,
+    card: row.card,
+    createdAt: row.created_at,
+  };
+}
+
 function mapProfile(row: ProfileRow, email = ""): Profile {
   return {
     id: row.id,
@@ -123,7 +141,7 @@ function mapProfile(row: ProfileRow, email = ""): Profile {
 export async function loadSupabaseSocial(supabase: SupabaseClient): Promise<SocialSnapshot> {
   const { data: sessionData } = await supabase.auth.getSession();
   const session = sessionData.session;
-  const [profilesRes, postsRes, followsRes, cardsRes, commentsRes, notificationsRes, messagesRes] =
+  const [profilesRes, postsRes, followsRes, cardsRes, commentsRes, notificationsRes, messagesRes, repostsRes] =
     await Promise.all([
       supabase.from("profiles").select("*"),
       supabase.from("posts").select("*").order("created_at", { ascending: false }).limit(100),
@@ -132,6 +150,7 @@ export async function loadSupabaseSocial(supabase: SupabaseClient): Promise<Soci
       supabase.from("comments").select("*").order("created_at", { ascending: true }),
       supabase.from("notifications").select("*").order("created_at", { ascending: false }),
       supabase.from("messages").select("*").order("created_at", { ascending: true }),
+      supabase.from("reposts").select("*").order("created_at", { ascending: false }),
     ]);
   const failure = profilesRes.error || postsRes.error || followsRes.error || cardsRes.error;
   if (failure) throw new Error(failure.message);
@@ -140,20 +159,29 @@ export async function loadSupabaseSocial(supabase: SupabaseClient): Promise<Soci
     throw new Error(notificationsRes.error.message);
   }
   if (messagesRes.error && !missingTable(messagesRes.error)) throw new Error(messagesRes.error.message);
+  if (repostsRes.error && !missingTable(repostsRes.error)) throw new Error(repostsRes.error.message);
 
   const profiles = ((profilesRes.data ?? []) as ProfileRow[]).map((row) =>
     mapProfile(row, row.id === session?.user.id ? (session.user.email ?? "") : ""),
   );
-  const posts = ((postsRes.data ?? []) as PostRow[]).map(
-    (row): Post => ({
-      id: row.id,
-      authorId: row.user_id,
-      body: row.content ?? "",
-      imageDataUrl: row.image_url,
-      card: row.card,
+  const posts = ((postsRes.data ?? []) as PostRow[]).map(mapPost);
+  const reposts = ((repostsRes.data ?? []) as RepostRow[]).map(
+    (row): PostRepost => ({
+      postId: row.post_id,
+      userId: row.user_id,
       createdAt: row.created_at,
     }),
   );
+  const knownPostIds = new Set(posts.map((post) => post.id));
+  const missingPostIds = [...new Set(reposts.map((repost) => repost.postId))].filter(
+    (id) => !knownPostIds.has(id),
+  );
+  if (missingPostIds.length > 0) {
+    const extra = await supabase.from("posts").select("*").in("id", missingPostIds);
+    if (extra.error && !missingTable(extra.error)) throw new Error(extra.error.message);
+    for (const row of (extra.data ?? []) as PostRow[]) posts.push(mapPost(row));
+    posts.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }
   const follows = ((followsRes.data ?? []) as FollowRow[]).map(
     (row): FollowEdge => ({
       followerId: row.follower_id,
@@ -200,7 +228,7 @@ export async function loadSupabaseSocial(supabase: SupabaseClient): Promise<Soci
     posts,
     follows,
     likes: [],
-    reposts: [],
+    reposts,
     comments,
     notifications,
     messages,
@@ -321,6 +349,66 @@ export async function remoteToggleFollow(
     kind: "follow",
     post_id: null,
     preview: null,
+  });
+  if (noteError && noteError.code !== "23505" && !missingTable(noteError)) {
+    return { notice: noteError.message };
+  }
+  return {};
+}
+
+export async function remoteToggleRepost(
+  supabase: SupabaseClient,
+  input: {
+    userId: string;
+    postId: string;
+    authorId: string | null;
+    preview: string;
+    reposted: boolean;
+  },
+): Promise<AuthResult> {
+  if (input.reposted) {
+    const { error } = await supabase
+      .from("reposts")
+      .delete()
+      .eq("user_id", input.userId)
+      .eq("post_id", input.postId);
+    if (error) {
+      if (missingTable(error)) {
+        return { error: "Reposts are not set up yet. Run supabase/schema.sql in the Supabase SQL editor." };
+      }
+      return { error: error.message };
+    }
+    if (input.authorId && input.authorId !== input.userId) {
+      const { error: noteError } = await supabase
+        .from("notifications")
+        .delete()
+        .eq("actor_id", input.userId)
+        .eq("post_id", input.postId)
+        .eq("kind", "repost");
+      if (noteError && !missingTable(noteError)) return { notice: noteError.message };
+    }
+    return {};
+  }
+
+  const { error } = await supabase.from("reposts").insert({
+    user_id: input.userId,
+    post_id: input.postId,
+  });
+  if (error) {
+    if (missingTable(error)) {
+      return { error: "Reposts are not set up yet. Run supabase/schema.sql in the Supabase SQL editor." };
+    }
+    if (error.code === "23505") return {};
+    return { error: error.message };
+  }
+
+  if (!input.authorId || input.authorId === input.userId) return {};
+  const { error: noteError } = await supabase.from("notifications").insert({
+    recipient_id: input.authorId,
+    actor_id: input.userId,
+    kind: "repost",
+    post_id: input.postId,
+    preview: previewText(input.preview),
   });
   if (noteError && noteError.code !== "23505" && !missingTable(noteError)) {
     return { notice: noteError.message };

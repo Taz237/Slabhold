@@ -16,13 +16,15 @@ import { useSocial } from "@/components/social-provider";
 import { Tweet } from "@/components/tweet";
 import { money } from "@/lib/format";
 import { normalizeUsername } from "@/lib/social/local-db";
+import { profileTimeline } from "@/lib/social/timeline";
 import type { PublicCard } from "@/lib/social/types";
 
 export function ProfileView({ username }: { username?: string }) {
   const router = useRouter();
   const social = useSocial();
   const { cards, reload } = useCollection();
-  const { ready, user, posts, publicCards, followerCount, followingCount, refresh } = social;
+  const { ready, user, posts, reposts, profiles, publicCards, followerCount, followingCount, refresh } =
+    social;
 
   const profile = username ? social.profileByUsername(username) : user;
   const isOwn = Boolean(profile && user && profile.id === user.id);
@@ -95,7 +97,8 @@ export function ProfileView({ username }: { username?: string }) {
       return true;
     }),
   ];
-  const activity = posts.filter((post) => post.authorId === profile.id);
+  const activity = profileTimeline(posts, reposts, profiles, profile.id);
+  const authors = new Map(profiles.map((person) => [person.id, person]));
 
   return (
     <>
@@ -190,7 +193,18 @@ export function ProfileView({ username }: { username?: string }) {
             ) : null}
           </EmptyState>
         ) : (
-          activity.map((post) => <Tweet key={post.id} post={post} author={profile} />)
+          activity.map((item) => {
+            const author = authors.get(item.post.authorId);
+            if (!author) return null;
+            return (
+              <Tweet
+                key={item.key}
+                post={item.post}
+                author={author}
+                repostedBy={item.repostedBy}
+              />
+            );
+          })
         )
       ) : (
         <div className="px-4 py-4">

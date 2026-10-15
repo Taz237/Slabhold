@@ -13,10 +13,11 @@ import { EmptyState, TimelineSkeleton } from "@/components/status";
 import { Tweet } from "@/components/tweet";
 import { takeCompose } from "@/lib/capture";
 import { fileToDataUrl } from "@/lib/storage";
+import { publicTimeline } from "@/lib/social/timeline";
 import { POST_LIMIT, type PublicCard } from "@/lib/social/types";
 
 export function FeedView() {
-  const { ready, user, feed, posts, suggestions, profiles, followingCount, refresh } = useSocial();
+  const { ready, user, feed, posts, reposts, suggestions, profiles, followingCount, refresh } = useSocial();
   const [lane, setLane] = useState<"following" | "foryou">("foryou");
   const pickedLane = useRef(false);
   const suggestionIds = useRef<string[] | null>(null);
@@ -27,7 +28,8 @@ export function FeedView() {
     .map((id) => profiles.find((profile) => profile.id === id))
     .filter((profile) => profile != null);
   const authors = new Map(profiles.map((profile) => [profile.id, profile]));
-  const visible = !user ? (lane === "following" ? [] : posts) : lane === "following" ? feed : posts;
+  const everyone = publicTimeline(posts, reposts, profiles);
+  const visible = !user ? (lane === "following" ? [] : everyone) : lane === "following" ? feed : everyone;
 
   useEffect(() => {
     if (!ready || pickedLane.current || !user) return;
@@ -111,10 +113,17 @@ export function FeedView() {
             )}
           </EmptyState>
         ) : (
-          visible.map((post) => {
-            const author = authors.get(post.authorId);
+          visible.map((item) => {
+            const author = authors.get(item.post.authorId);
             if (!author) return null;
-            return <Tweet key={post.id} post={post} author={author} />;
+            return (
+              <Tweet
+                key={item.key}
+                post={item.post}
+                author={author}
+                repostedBy={item.repostedBy}
+              />
+            );
           })
         )}
       </div>

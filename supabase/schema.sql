@@ -175,7 +175,7 @@ create table if not exists public.notifications (
   preview text,
   read boolean not null default false,
   created_at timestamptz not null default now(),
-  constraint notifications_kind check (kind in ('like', 'comment', 'follow')),
+  constraint notifications_kind check (kind in ('like', 'comment', 'follow', 'repost')),
   constraint notifications_not_self check (actor_id <> recipient_id)
 );
 
@@ -204,6 +204,25 @@ create table if not exists public.messages (
 
 create index if not exists messages_sender_idx on public.messages (sender_id, created_at desc);
 create index if not exists messages_receiver_idx on public.messages (receiver_id, created_at desc);
+
+create table if not exists public.reposts (
+  user_id uuid not null references public.profiles (id) on delete cascade,
+  post_id uuid not null references public.posts (id) on delete cascade,
+  created_at timestamptz not null default now(),
+  primary key (user_id, post_id)
+);
+
+create index if not exists reposts_post_id_idx on public.reposts (post_id);
+create index if not exists reposts_user_created_idx on public.reposts (user_id, created_at desc);
+
+alter table public.notifications drop constraint if exists notifications_kind;
+alter table public.notifications
+  add constraint notifications_kind
+  check (kind in ('like', 'comment', 'follow', 'repost'));
+
+create unique index if not exists notifications_repost_once
+  on public.notifications (actor_id, post_id)
+  where kind = 'repost' and post_id is not null;
 
 create or replace function public.handle_new_user()
 returns trigger
@@ -241,6 +260,7 @@ alter table public.cards enable row level security;
 alter table public.comments enable row level security;
 alter table public.notifications enable row level security;
 alter table public.messages enable row level security;
+alter table public.reposts enable row level security;
 
 grant select on public.profiles to anon, authenticated;
 grant insert, update, delete on public.profiles to authenticated;
@@ -256,6 +276,8 @@ grant select on public.notifications to anon, authenticated;
 grant insert, update, delete on public.notifications to authenticated;
 grant select on public.messages to anon, authenticated;
 grant insert, update on public.messages to authenticated;
+grant select on public.reposts to anon, authenticated;
+grant insert, delete on public.reposts to authenticated;
 
 drop policy if exists "Profiles are public" on public.profiles;
 drop policy if exists "Users insert own profile" on public.profiles;
@@ -320,6 +342,13 @@ create policy "Send messages as yourself" on public.messages
   for insert with check (auth.uid() = sender_id and sender_id <> receiver_id);
 create policy "Mark received messages read" on public.messages
   for update using (auth.uid() = receiver_id) with check (auth.uid() = receiver_id);
+
+drop policy if exists "Reposts are public" on public.reposts;
+drop policy if exists "Repost as yourself" on public.reposts;
+drop policy if exists "Undo own repost" on public.reposts;
+create policy "Reposts are public" on public.reposts for select using (true);
+create policy "Repost as yourself" on public.reposts for insert with check (auth.uid() = user_id);
+create policy "Undo own repost" on public.reposts for delete using (auth.uid() = user_id);
 
 create or replace function public.protect_message_rows()
 returns trigger
@@ -418,6 +447,11 @@ begin
   end;
   begin
     alter publication supabase_realtime add table public.messages;
+  exception when others then
+    null;
+  end;
+  begin
+    alter publication supabase_realtime add table public.reposts;
   exception when others then
     null;
   end;

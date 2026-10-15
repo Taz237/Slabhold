@@ -1,0 +1,84 @@
+import type { FollowEdge, Post, PostRepost, Profile } from "./types";
+
+export type TimelineItem = {
+  key: string;
+  post: Post;
+  at: string;
+  repostedBy: Profile | null;
+};
+
+function byRecent(a: TimelineItem, b: TimelineItem) {
+  return b.at.localeCompare(a.at) || a.key.localeCompare(b.key);
+}
+
+function postItem(post: Post): TimelineItem {
+  return { key: `post:${post.id}`, post, at: post.createdAt, repostedBy: null };
+}
+
+function repostItems(
+  reposts: PostRepost[],
+  postsById: Map<string, Post>,
+  profilesById: Map<string, Profile>,
+  include: (repost: PostRepost) => boolean,
+): TimelineItem[] {
+  const items: TimelineItem[] = [];
+  for (const repost of reposts) {
+    if (!include(repost)) continue;
+    const post = postsById.get(repost.postId);
+    const repostedBy = profilesById.get(repost.userId);
+    const author = post ? profilesById.get(post.authorId) : undefined;
+    if (!post || !repostedBy || !author) continue;
+    items.push({
+      key: `repost:${repost.userId}:${repost.postId}`,
+      post,
+      at: repost.createdAt,
+      repostedBy,
+    });
+  }
+  return items;
+}
+
+function indexes(posts: Post[], profiles: Profile[]) {
+  return {
+    postsById: new Map(posts.map((post) => [post.id, post])),
+    profilesById: new Map(profiles.map((profile) => [profile.id, profile])),
+  };
+}
+
+export function profileTimeline(
+  posts: Post[],
+  reposts: PostRepost[],
+  profiles: Profile[],
+  userId: string,
+): TimelineItem[] {
+  const { postsById, profilesById } = indexes(posts, profiles);
+  const items = posts.filter((post) => post.authorId === userId).map(postItem);
+  items.push(
+    ...repostItems(reposts, postsById, profilesById, (repost) => repost.userId === userId),
+  );
+  return items.sort(byRecent);
+}
+
+export function followingTimeline(
+  posts: Post[],
+  reposts: PostRepost[],
+  profiles: Profile[],
+  follows: FollowEdge[],
+  userId: string,
+): TimelineItem[] {
+  const ids = new Set<string>([userId]);
+  for (const edge of follows) {
+    if (edge.followerId === userId) ids.add(edge.followingId);
+  }
+  const { postsById, profilesById } = indexes(posts, profiles);
+  const items = posts.filter((post) => ids.has(post.authorId)).map(postItem);
+  items.push(...repostItems(reposts, postsById, profilesById, (repost) => ids.has(repost.userId)));
+  return items.sort(byRecent);
+}
+
+export function publicTimeline(posts: Post[], reposts: PostRepost[], profiles: Profile[]): TimelineItem[] {
+  const { postsById, profilesById } = indexes(posts, profiles);
+  const items = posts.map(postItem);
+  items.push(...repostItems(reposts, postsById, profilesById, () => true));
+  return items.sort(byRecent);
+}
