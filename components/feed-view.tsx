@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { Compass, ImagePlus, Plus, X } from "lucide-react";
 import { Avatar } from "@/components/avatar";
+import { MentionTextarea } from "@/components/mention-textarea";
 import { solidButton } from "@/components/button-styles";
 import { FollowButton } from "@/components/follow-button";
 import { useCollection } from "@/components/collection-provider";
@@ -228,12 +229,13 @@ function Composer() {
         />
       ) : null}
       <div className="min-w-0 flex-1">
-        <textarea
+        <MentionTextarea
           value={body}
-          onChange={(e) => setBody(e.target.value.slice(0, POST_LIMIT))}
+          onChange={setBody}
+          maxLength={POST_LIMIT}
           rows={2}
           placeholder="What's happening?"
-          className="w-full resize-none bg-transparent text-[15px] outline-none placeholder:text-zinc-500"
+          className="w-full resize-none bg-transparent text-[15px] leading-5 outline-none placeholder:text-zinc-500"
         />
         {image ? (
           <div className="relative mt-2">

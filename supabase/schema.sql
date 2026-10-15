@@ -175,7 +175,7 @@ create table if not exists public.notifications (
   preview text,
   read boolean not null default false,
   created_at timestamptz not null default now(),
-  constraint notifications_kind check (kind in ('like', 'comment', 'follow', 'repost')),
+  constraint notifications_kind check (kind in ('like', 'comment', 'follow', 'repost', 'mention')),
   constraint notifications_not_self check (actor_id <> recipient_id)
 );
 
@@ -218,11 +218,15 @@ create index if not exists reposts_user_created_idx on public.reposts (user_id, 
 alter table public.notifications drop constraint if exists notifications_kind;
 alter table public.notifications
   add constraint notifications_kind
-  check (kind in ('like', 'comment', 'follow', 'repost'));
+  check (kind in ('like', 'comment', 'follow', 'repost', 'mention'));
 
 create unique index if not exists notifications_repost_once
   on public.notifications (actor_id, post_id)
   where kind = 'repost' and post_id is not null;
+
+create unique index if not exists notifications_mention_once
+  on public.notifications (actor_id, recipient_id, post_id)
+  where kind = 'mention' and post_id is not null;
 
 create or replace function public.handle_new_user()
 returns trigger

@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { Ellipsis, Heart, MessageCircle, Repeat2 } from "lucide-react";
 import { Avatar } from "@/components/avatar";
+import { MentionText } from "@/components/mention-text";
 import { useSocial } from "@/components/social-provider";
 import { exactTime, initials, money, timeAgo } from "@/lib/format";
 import type { Post, PostComment, Profile, PublicCard } from "@/lib/social/types";
@@ -74,7 +75,11 @@ export function Tweet({
           />
           <PostMenu post={post} />
         </div>
-        {post.body ? <p className={`whitespace-pre-wrap ${bodyClass}`}>{post.body}</p> : null}
+        {post.body ? (
+          <p className={`whitespace-pre-wrap ${bodyClass}`}>
+            <MentionText text={post.body} />
+          </p>
+        ) : null}
         {post.imageDataUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -127,7 +132,7 @@ function CommentPreview({ postId, comments }: { postId: string; comments: PostCo
                 <p className="truncate text-[13px] leading-5 font-bold">{name}</p>
               )}
               <p className="line-clamp-2 text-[13px] leading-5 text-zinc-600 dark:text-zinc-300">
-                {comment.body}
+                <MentionText text={comment.body} />
               </p>
             </div>
           </div>

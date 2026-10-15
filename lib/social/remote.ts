@@ -17,6 +17,7 @@ import type {
   SocialSnapshot,
 } from "./types";
 import { COMMENT_LIMIT, MESSAGE_LIMIT } from "./types";
+import { mentionUsernames } from "./mentions";
 import { normalizeUsername, usernameError } from "./local-db";
 
 type ProfileRow = {
@@ -552,13 +553,19 @@ export async function remoteCreatePost(
   if (image.error) return { error: image.error };
   const card = await storedCard(supabase, authorId, input.card);
   if (card.error) return { error: card.error };
-  const { error } = await supabase.from("posts").insert({
-    user_id: authorId,
-    content: body,
-    image_url: image.url,
-    card: card.card,
-  });
-  if (error) return { error: error.message };
+  const { data: created, error } = await supabase
+    .from("posts")
+    .insert({
+      user_id: authorId,
+      content: body,
+      image_url: image.url,
+      card: card.card,
+    })
+    .select("id")
+    .single();
+  if (error || !created) return { error: error?.message ?? "Could not save that post." };
+  const mentionProblem = await syncMentionNotifications(supabase, authorId, created.id, body);
+  if (mentionProblem) return { notice: mentionProblem };
   return {};
 }
 
@@ -578,7 +585,72 @@ export async function remoteUpdatePost(
     .eq("id", postId)
     .eq("user_id", authorId);
   if (error) return { error: error.message };
+  const mentionProblem = await syncMentionNotifications(supabase, authorId, postId, body);
+  if (mentionProblem) return { notice: mentionProblem };
   return {};
+}
+
+async function syncMentionNotifications(
+  supabase: SupabaseClient,
+  actorId: string,
+  postId: string,
+  body: string,
+): Promise<string | null> {
+  const handles = mentionUsernames(body);
+  const existing = await supabase
+    .from("notifications")
+    .select("recipient_id")
+    .eq("actor_id", actorId)
+    .eq("post_id", postId)
+    .eq("kind", "mention");
+  if (existing.error) {
+    if (missingTable(existing.error)) return null;
+    return existing.error.message;
+  }
+
+  const already = new Set((existing.data ?? []).map((row) => row.recipient_id as string));
+  let recipientIds: string[] = [];
+  if (handles.length > 0) {
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("id, username")
+      .or(handles.map((name) => `username.ilike.${name}`).join(","));
+    if (error) return error.message;
+    const wanted = new Set(handles);
+    recipientIds = ((data ?? []) as { id: string; username: string }[])
+      .filter((row) => row.id !== actorId && wanted.has(row.username.toLowerCase()))
+      .map((row) => row.id);
+  }
+
+  const next = new Set(recipientIds);
+  const remove = [...already].filter((id) => !next.has(id));
+  if (remove.length > 0) {
+    const { error } = await supabase
+      .from("notifications")
+      .delete()
+      .eq("actor_id", actorId)
+      .eq("post_id", postId)
+      .eq("kind", "mention")
+      .in("recipient_id", remove);
+    if (error && !missingTable(error)) return error.message;
+  }
+
+  const add = recipientIds.filter((id) => !already.has(id));
+  if (add.length === 0) return null;
+  const { error } = await supabase.from("notifications").insert(
+    add.map((recipientId) => ({
+      recipient_id: recipientId,
+      actor_id: actorId,
+      kind: "mention",
+      post_id: postId,
+      preview: previewText(body),
+    })),
+  );
+  if (!error || error.code === "23505" || missingTable(error)) return null;
+  if (error.code === "23514" || /notifications_kind/i.test(error.message ?? "")) {
+    return "Your post was saved. Re-run supabase/schema.sql so mention notifications can be delivered.";
+  }
+  return error.message;
 }
 
 export async function remoteDeletePost(supabase: SupabaseClient, authorId: string, postId: string) {

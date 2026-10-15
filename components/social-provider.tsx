@@ -396,7 +396,10 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       if (mode === "supabase" && client && snapshot.user) {
         try {
           const result = await remoteCreatePost(client, snapshot.user.id, input);
-          if (!result.error) await refreshRemote(client);
+          if (!result.error) {
+            await refreshRemote(client);
+            if (result.notice) setStatus(result.notice);
+          }
           return result;
         } catch (error) {
           return { error: error instanceof Error ? error.message : "Could not publish that post." };
@@ -420,7 +423,10 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       if (mode === "supabase" && client && snapshot.user) {
         try {
           const result = await remoteUpdatePost(client, snapshot.user.id, postId, input);
-          if (!result.error) await refreshRemote(client);
+          if (!result.error) {
+            await refreshRemote(client);
+            if (result.notice) setStatus(result.notice);
+          }
           return result;
         } catch (error) {
           return { error: error instanceof Error ? error.message : "Could not update that post." };

@@ -7,6 +7,7 @@ import { ArrowLeft } from "lucide-react";
 import { Avatar } from "@/components/avatar";
 import { EmptyState, LoadingRows } from "@/components/status";
 import { solidButton } from "@/components/button-styles";
+import { MentionText } from "@/components/mention-text";
 import { AuthorLine, Engagement, Tweet } from "@/components/tweet";
 import { useSocial } from "@/components/social-provider";
 import { COMMENT_LIMIT } from "@/lib/social/types";
@@ -131,7 +132,9 @@ export function PostView({ id }: { id: string }) {
                       @{author.username}
                     </Link>
                   </p>
-                  <p className="mt-0.5 text-[15px] leading-5 whitespace-pre-wrap">{reply.body}</p>
+                  <p className="mt-0.5 text-[15px] leading-5 whitespace-pre-wrap">
+                    <MentionText text={reply.body} />
+                  </p>
                   <Engagement
                     targetId={reply.id}
                     onReply={() => focusReply(commenter?.username)}

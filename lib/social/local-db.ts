@@ -12,6 +12,7 @@ import type {
   SignUpInput,
   SocialSnapshot,
 } from "./types";
+import { mentionUsernames } from "./mentions";
 import { COMMENT_LIMIT, MESSAGE_LIMIT } from "./types";
 
 const STORAGE_KEY = "cardflip.social.v1";
@@ -635,7 +636,13 @@ export function localCreatePost(
     card: input.card,
     createdAt: new Date().toISOString(),
   };
-  return { db: { ...db, posts: [post, ...db.posts] } };
+  return {
+    db: {
+      ...db,
+      posts: [post, ...db.posts],
+      notifications: withMentionNotifications(db, db.sessionUserId, post.id, body, post.createdAt),
+    },
+  };
 }
 
 export function localUpdatePost(
@@ -658,8 +665,56 @@ export function localUpdatePost(
       posts: db.posts.map((item) =>
         item.id === postId ? { ...item, body, imageDataUrl: input.imageDataUrl } : item,
       ),
+      notifications: withMentionNotifications(
+        db,
+        db.sessionUserId,
+        postId,
+        body,
+        new Date().toISOString(),
+      ),
     },
   };
+}
+
+function withMentionNotifications(
+  db: LocalDb,
+  actorId: string,
+  postId: string,
+  body: string,
+  createdAt: string,
+): Notification[] {
+  const wanted = new Set(mentionUsernames(body));
+  const recipientIds = new Set(
+    db.users
+      .filter((person) => person.id !== actorId && wanted.has(person.username))
+      .map((person) => person.id),
+  );
+  const current = db.notifications ?? [];
+  const kept = current.flatMap((note) => {
+    if (note.kind !== "mention" || note.postId !== postId || note.actorId !== actorId) return [note];
+    if (!recipientIds.has(note.recipientId)) return [];
+    return [{ ...note, preview: previewText(body) }];
+  });
+  const already = new Set(
+    kept
+      .filter((note) => note.kind === "mention" && note.postId === postId && note.actorId === actorId)
+      .map((note) => note.recipientId),
+  );
+  const added: Notification[] = [];
+  for (const recipientId of recipientIds) {
+    if (already.has(recipientId)) continue;
+    added.push({
+      id: `note-mention-${postId}-${recipientId}-${createdAt}`,
+      recipientId,
+      actorId,
+      kind: "mention",
+      postId,
+      preview: previewText(body),
+      createdAt,
+      read: false,
+    });
+  }
+  return [...added, ...kept];
 }
 
 export function localDeletePost(db: LocalDb, postId: string): { db: LocalDb; error?: string } {

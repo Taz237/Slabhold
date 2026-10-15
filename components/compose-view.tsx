@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { Camera, ImagePlus, X } from "lucide-react";
 import { Avatar } from "@/components/avatar";
+import { MentionTextarea } from "@/components/mention-textarea";
 import { LoadingRows } from "@/components/status";
 import { useSocial } from "@/components/social-provider";
 import { takeCompose } from "@/lib/capture";
@@ -119,11 +120,13 @@ export function ComposeView() {
           className="h-10 w-10"
         />
         <div className="min-w-0 flex-1">
-          <textarea
+          <MentionTextarea
             value={body}
-            onChange={(e) => setBody(e.target.value.slice(0, POST_LIMIT))}
+            onChange={setBody}
+            maxLength={POST_LIMIT}
             rows={6}
             autoFocus
+            menu="docked"
             placeholder="What's happening?"
             className="w-full resize-none bg-transparent text-[17px] leading-6 outline-none placeholder:text-zinc-500"
           />

@@ -34,10 +34,12 @@ function Shell({
   children,
   unreadCount,
   unreadMessageCount,
+  status,
 }: {
   children: React.ReactNode;
   unreadCount: number;
   unreadMessageCount: number;
+  status: string | null;
 }) {
   const pathname = usePathname();
 
@@ -83,6 +85,11 @@ function Shell({
           </div>
         </div>
       </header>
+      {status ? (
+        <p className="border-b border-amber-200 bg-amber-50 px-4 py-2 text-center text-sm text-amber-950 dark:border-amber-400/20 dark:bg-amber-400/10 dark:text-amber-100">
+          {status}
+        </p>
+      ) : null}
       <main className="relative mx-auto w-full max-w-lg px-4 py-5 pb-28">{children}</main>
       <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-zinc-200 bg-[color-mix(in_oklab,var(--background)_92%,transparent)] backdrop-blur-xl dark:border-white/10">
         <div className="mx-auto flex max-w-lg items-end justify-between px-1 pt-1 pb-[max(0.45rem,env(safe-area-inset-bottom))]">
@@ -137,12 +144,18 @@ function Shell({
 }
 
 export function AppShell({ children }: { children: React.ReactNode }) {
-  const { unreadCount, unreadMessageCount, ready, user } = useSocial();
+  const { unreadCount, unreadMessageCount, ready, user, status } = useSocial();
 
-  if (!ready) return <Shell unreadCount={0} unreadMessageCount={0}>{children}</Shell>;
+  if (!ready) {
+    return (
+      <Shell unreadCount={0} unreadMessageCount={0} status={null}>
+        {children}
+      </Shell>
+    );
+  }
   if (!user) return <WelcomeView />;
   return (
-    <Shell unreadCount={unreadCount} unreadMessageCount={unreadMessageCount}>
+    <Shell unreadCount={unreadCount} unreadMessageCount={unreadMessageCount} status={status}>
       {children}
     </Shell>
   );

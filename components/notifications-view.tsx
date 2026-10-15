@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect } from "react";
-import { Bell, Heart, MessageCircle, Repeat2, UserPlus } from "lucide-react";
+import { AtSign, Bell, Heart, MessageCircle, Repeat2, UserPlus } from "lucide-react";
 import { Avatar } from "@/components/avatar";
 import { solidButton } from "@/components/button-styles";
 import { EmptyState, LoadingRows } from "@/components/status";
@@ -14,6 +14,7 @@ function actionText(kind: Notification["kind"]) {
   if (kind === "like") return "liked your post";
   if (kind === "comment") return "commented on your post";
   if (kind === "repost") return "reposted your post";
+  if (kind === "mention") return "mentioned you";
   return "followed you";
 }
 
@@ -43,7 +44,7 @@ export function NotificationsView() {
         <EmptyState
           icon={<Bell className="h-5 w-5" />}
           title="Nothing to see yet"
-          detail="Log in to see likes, replies, and new followers."
+          detail="Log in to see likes, replies, mentions, and new followers."
         >
           <Link href="/login" className={solidButton}>
             Log in
@@ -62,7 +63,7 @@ export function NotificationsView() {
         <EmptyState
           icon={<Bell className="h-5 w-5" />}
           title="No notifications yet"
-          detail="Likes, replies, and new followers will show up here."
+          detail="Likes, replies, mentions, and new followers will show up here."
         >
           <Link href="/search" className={solidButton}>
             Find collectors
@@ -87,7 +88,9 @@ export function NotificationsView() {
                   ? MessageCircle
                   : note.kind === "repost"
                     ? Repeat2
-                    : UserPlus;
+                    : note.kind === "mention"
+                      ? AtSign
+                      : UserPlus;
             const stamp = timeAgo(note.createdAt);
             return (
               <li key={note.id}>
