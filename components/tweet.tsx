@@ -7,7 +7,7 @@ import { Ellipsis, Heart, MessageCircle, Repeat2 } from "lucide-react";
 import { Avatar } from "@/components/avatar";
 import { useSocial } from "@/components/social-provider";
 import { exactTime, initials, money, timeAgo } from "@/lib/format";
-import type { Post, Profile, PublicCard } from "@/lib/social/types";
+import type { Post, PostComment, Profile, PublicCard } from "@/lib/social/types";
 
 export function Tweet({
   post,
@@ -85,9 +85,63 @@ export function Tweet({
         ) : null}
         {post.card ? <CardMedia card={post.card} /> : null}
         <Engagement targetId={post.id} replyCount={comments.length} onReply={openReplies} />
+        {variant === "feed" ? <CommentPreview postId={post.id} comments={comments} /> : null}
       </div>
       </div>
     </article>
+  );
+}
+
+function CommentPreview({ postId, comments }: { postId: string; comments: PostComment[] }) {
+  const { profiles } = useSocial();
+  if (comments.length === 0) return null;
+  const preview = comments.slice(-2);
+  const authors = new Map(profiles.map((profile) => [profile.id, profile]));
+
+  return (
+    <div className="mt-2 space-y-2 border-l-2 border-zinc-200 pl-2.5 dark:border-white/10">
+      {preview.map((comment) => {
+        const person = authors.get(comment.authorId);
+        const name = person?.displayName ?? "Collector";
+        const href = person ? `/u/${person.username}` : null;
+        return (
+          <div key={comment.id} className="flex min-w-0 gap-2">
+            {href ? (
+              <Link href={href} className="mt-0.5 shrink-0">
+                <Avatar
+                  name={name}
+                  image={person?.avatarDataUrl}
+                  accent={person?.accent}
+                  className="h-6 w-6 text-[9px]"
+                />
+              </Link>
+            ) : (
+              <Avatar name={name} className="mt-0.5 h-6 w-6 text-[9px]" />
+            )}
+            <div className="min-w-0">
+              {href ? (
+                <Link href={href} className="block truncate text-[13px] leading-5 font-bold hover:underline">
+                  {name}
+                </Link>
+              ) : (
+                <p className="truncate text-[13px] leading-5 font-bold">{name}</p>
+              )}
+              <p className="line-clamp-2 text-[13px] leading-5 text-zinc-600 dark:text-zinc-300">
+                {comment.body}
+              </p>
+            </div>
+          </div>
+        );
+      })}
+      {comments.length > preview.length ? (
+        <Link
+          href={`/posts/${postId}`}
+          className="inline-block text-[13px] font-medium text-sky-600 hover:underline dark:text-sky-400"
+        >
+          View all comments
+        </Link>
+      ) : null}
+    </div>
   );
 }
 
