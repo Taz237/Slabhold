@@ -4,9 +4,22 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Camera, ImagePlus, Loader2, ScanSearch, X } from "lucide-react";
 import { useCollection, useDefaultAccent } from "@/components/collection-provider";
+import { NativeSelect, SearchSelect } from "@/components/search-select";
 import { useSocial } from "@/components/social-provider";
 import { takeScan } from "@/lib/capture";
 import { CompsList } from "@/components/comps-list";
+import {
+  CARD_YEARS,
+  GRADE_COMPANIES,
+  GRADE_NUMBERS,
+  PARALLELS,
+  RAW_GRADE,
+  SETS,
+  SPORTS,
+  formatGrade,
+  optionsWithCurrent,
+  parseGrade,
+} from "@/lib/card-options";
 import { averageComp, identifyFromPhoto, mockCompsForCard } from "@/lib/comps";
 import { fileToDataUrl } from "@/lib/storage";
 import type { IdentifyResult, SportsCard } from "@/lib/types";
@@ -35,12 +48,16 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
   const [share, setShare] = useState(Boolean(existing?.isPublic));
   const [scanning, setScanning] = useState(false);
   const [identified, setIdentified] = useState<IdentifyResult | null>(null);
+  const initialGrade = parseGrade(existing?.grade ?? "");
+  const [gradeCompany, setGradeCompany] = useState(initialGrade.company);
+  const [gradeNumber, setGradeNumber] = useState(initialGrade.number);
+  const [gradeTouched, setGradeTouched] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
   const [form, setForm] = useState({
     playerName: existing?.playerName ?? "",
     year: existing?.year ?? new Date().getFullYear(),
     setBrand: existing?.setBrand ?? "",
     cardNumber: existing?.cardNumber ?? "",
-    grade: existing?.grade ?? "",
     parallel: existing?.parallel ?? "",
     sport: existing?.sport ?? "Basketball",
     purchasePrice: existing ? String(existing.purchasePrice) : "",
@@ -50,6 +67,8 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
     sellDate: existing?.sellDate ?? "",
     notes: existing?.notes ?? "",
   });
+  const gradeChoices = GRADE_NUMBERS[gradeCompany] ?? [];
+  const needsGradeNumber = Boolean(gradeCompany && gradeCompany !== RAW_GRADE);
 
   const previewComps = useMemo(() => {
     if (identified) return identified.comps;
@@ -90,14 +109,38 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
     setIdentified(result);
   }
 
+  function chooseGradeCompany(company: string) {
+    setGradeTouched(true);
+    setGradeCompany(company);
+    setGradeNumber((current) => {
+      const allowed = GRADE_NUMBERS[company] ?? [];
+      return allowed.includes(current) ? current : "";
+    });
+  }
+
+  function savedGrade() {
+    const legacy = existing?.grade.trim() ?? "";
+    if (!gradeTouched && !initialGrade.recognized) return legacy;
+    return formatGrade(gradeCompany, gradeNumber);
+  }
+
   function submit(e: React.FormEvent) {
     e.preventDefault();
+    if (!form.setBrand.trim()) {
+      setFormError("Choose a set.");
+      return;
+    }
+    if (needsGradeNumber && !gradeNumber) {
+      setFormError("Choose a grade number.");
+      return;
+    }
+    setFormError(null);
     const payload = {
       playerName: form.playerName.trim(),
       year: Number(form.year),
       setBrand: form.setBrand.trim(),
       cardNumber: form.cardNumber.trim(),
-      grade: form.grade.trim(),
+      grade: savedGrade(),
       parallel: form.parallel.trim(),
       sport: form.sport,
       purchasePrice: Number(form.purchasePrice) || 0,
@@ -170,10 +213,8 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
             {scanning && (
               <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/75 px-2 text-center">
                 <Loader2 className="mb-2 animate-spin text-violet-300" size={20} />
-                <p className="text-xs font-medium">Searching comps…</p>
-                <p className="mt-1 text-[10px] text-zinc-400">
-                  Matching recent eBay sold listings
-                </p>
+                <p className="text-xs font-medium">Demo lookup…</p>
+                <p className="mt-1 text-[10px] text-zinc-400">Sample match, not a real scan</p>
               </div>
             )}
           </div>
@@ -208,12 +249,15 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
               className="inline-flex items-center justify-center gap-2 rounded-full border border-zinc-200 px-4 py-2.5 text-sm text-zinc-700 hover:bg-zinc-50 dark:border-white/10 dark:text-zinc-200 dark:hover:bg-white/5"
             >
               <ScanSearch size={16} />
-              Mock identify
+              Demo identify
             </button>
+            <p className="text-xs leading-5 text-zinc-500">
+              Demo only. This doesn’t read the photo yet.
+            </p>
             {identified && (
               <div className="rounded-xl border border-violet-400/30 bg-violet-500/10 p-3">
                 <p className="text-[11px] uppercase tracking-wider text-violet-700 dark:text-violet-300">
-                  Possible match · {Math.round(identified.confidence * 100)}%
+                  Demo match · {Math.round(identified.confidence * 100)}%
                 </p>
                 <p className="mt-1 text-sm font-medium">
                   {identified.year} {identified.setBrand} {identified.playerName} #
@@ -244,26 +288,32 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
 
       <div className="grid grid-cols-2 gap-3">
         <Field label="Year">
-          <input
-            required
-            type="number"
-            min={1900}
-            max={2100}
-            value={form.year}
-            onChange={(e) => setForm((prev) => ({ ...prev, year: Number(e.target.value) }))}
-            className={inputClass}
+          <SearchSelect
+            label="Year"
+            value={String(form.year)}
+            options={optionsWithCurrent(CARD_YEARS, String(form.year))}
+            onChange={(year) => setForm((prev) => ({ ...prev, year: Number(year) }))}
           />
         </Field>
-        <Field label="Set / brand">
-          <input
-            required
-            value={form.setBrand}
-            onChange={(e) => setForm((prev) => ({ ...prev, setBrand: e.target.value }))}
-            className={inputClass}
-            placeholder="Panini Prizm"
+        <Field label="Sport">
+          <NativeSelect
+            label="Sport"
+            value={form.sport}
+            options={optionsWithCurrent(SPORTS, form.sport)}
+            onChange={(sport) => setForm((prev) => ({ ...prev, sport }))}
           />
         </Field>
       </div>
+
+      <Field label="Set / brand">
+        <SearchSelect
+          label="Set / brand"
+          value={form.setBrand}
+          options={optionsWithCurrent(SETS, form.setBrand)}
+          placeholder="Select a set"
+          onChange={(setBrand) => setForm((prev) => ({ ...prev, setBrand }))}
+        />
+      </Field>
 
       <div className="grid grid-cols-2 gap-3">
         <Field label="Card number">
@@ -272,43 +322,48 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
             onChange={(e) => setForm((prev) => ({ ...prev, cardNumber: e.target.value }))}
             className={inputClass}
             placeholder="136"
+            aria-label="Card number"
           />
         </Field>
-        <Field label="Sport">
-          <select
-            value={form.sport}
-            onChange={(e) => setForm((prev) => ({ ...prev, sport: e.target.value }))}
-            className={inputClass}
-          >
-            {["Basketball", "Football", "Baseball", "Hockey", "Soccer", "Other"].map(
-              (sport) => (
-                <option key={sport} value={sport}>
-                  {sport}
-                </option>
-              ),
-            )}
-          </select>
+        <Field label="Parallel">
+          <SearchSelect
+            label="Parallel"
+            value={form.parallel}
+            options={optionsWithCurrent(PARALLELS, form.parallel)}
+            placeholder="Select a parallel"
+            allowEmpty
+            onChange={(parallel) => setForm((prev) => ({ ...prev, parallel }))}
+          />
         </Field>
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Grade">
-          <input
-            value={form.grade}
-            onChange={(e) => setForm((prev) => ({ ...prev, grade: e.target.value }))}
-            className={inputClass}
-            placeholder="PSA 10, BGS 9.5, Raw"
+        <Field label="Grade company">
+          <NativeSelect
+            label="Grade company"
+            value={gradeCompany}
+            options={GRADE_COMPANIES}
+            placeholder="None"
+            onChange={chooseGradeCompany}
           />
         </Field>
-        <Field label="Parallel">
-          <input
-            value={form.parallel}
-            onChange={(e) => setForm((prev) => ({ ...prev, parallel: e.target.value }))}
-            className={inputClass}
-            placeholder="Silver, Refractor, /99"
+        <Field label="Grade number">
+          <NativeSelect
+            label="Grade number"
+            value={gradeNumber}
+            options={gradeChoices}
+            placeholder={needsGradeNumber ? "Select" : "Ungraded"}
+            disabled={!needsGradeNumber}
+            onChange={(number) => {
+              setGradeTouched(true);
+              setGradeNumber(number);
+            }}
           />
         </Field>
       </div>
+      {!initialGrade.recognized && existing?.grade.trim() && !gradeTouched ? (
+        <p className="-mt-3 text-xs text-zinc-500">Saved grade: {existing.grade.trim()}</p>
+      ) : null}
 
       <div className="grid grid-cols-2 gap-3">
         <Field label="Purchase date">
@@ -411,6 +466,8 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
         </section>
       )}
 
+      {formError ? <p className="text-sm text-rose-600 dark:text-rose-400">{formError}</p> : null}
+
       <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-between">
         {existing ? (
           <button
@@ -447,10 +504,10 @@ function Field({
   children: React.ReactNode;
 }) {
   return (
-    <label className="block">
-      <span className="mb-1.5 block text-sm text-zinc-400">{label}</span>
+    <div>
+      <p className="mb-1.5 text-sm text-zinc-500">{label}</p>
       {children}
-    </label>
+    </div>
   );
 }
 
