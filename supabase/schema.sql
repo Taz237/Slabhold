@@ -191,6 +191,20 @@ create unique index if not exists notifications_follow_once
   on public.notifications (actor_id, recipient_id)
   where kind = 'follow';
 
+create table if not exists public.messages (
+  id uuid primary key default gen_random_uuid(),
+  sender_id uuid not null references public.profiles (id) on delete cascade,
+  receiver_id uuid not null references public.profiles (id) on delete cascade,
+  content text not null,
+  created_at timestamptz not null default now(),
+  read boolean not null default false,
+  constraint messages_content_len check (char_length(btrim(content)) between 1 and 1000),
+  constraint messages_not_self check (sender_id <> receiver_id)
+);
+
+create index if not exists messages_sender_idx on public.messages (sender_id, created_at desc);
+create index if not exists messages_receiver_idx on public.messages (receiver_id, created_at desc);
+
 create or replace function public.handle_new_user()
 returns trigger
 language plpgsql
@@ -226,6 +240,7 @@ alter table public.posts enable row level security;
 alter table public.cards enable row level security;
 alter table public.comments enable row level security;
 alter table public.notifications enable row level security;
+alter table public.messages enable row level security;
 
 grant select on public.profiles to anon, authenticated;
 grant insert, update, delete on public.profiles to authenticated;
@@ -239,6 +254,8 @@ grant select on public.comments to anon, authenticated;
 grant insert, delete on public.comments to authenticated;
 grant select on public.notifications to anon, authenticated;
 grant insert, update, delete on public.notifications to authenticated;
+grant select on public.messages to anon, authenticated;
+grant insert, update on public.messages to authenticated;
 
 drop policy if exists "Profiles are public" on public.profiles;
 drop policy if exists "Users insert own profile" on public.profiles;
@@ -293,6 +310,37 @@ create policy "Mark own notifications read" on public.notifications
   for update using (auth.uid() = recipient_id) with check (auth.uid() = recipient_id);
 create policy "Delete notifications you sent" on public.notifications
   for delete using (auth.uid() = actor_id);
+
+drop policy if exists "Read own messages" on public.messages;
+drop policy if exists "Send messages as yourself" on public.messages;
+drop policy if exists "Mark received messages read" on public.messages;
+create policy "Read own messages" on public.messages
+  for select using (auth.uid() = sender_id or auth.uid() = receiver_id);
+create policy "Send messages as yourself" on public.messages
+  for insert with check (auth.uid() = sender_id and sender_id <> receiver_id);
+create policy "Mark received messages read" on public.messages
+  for update using (auth.uid() = receiver_id) with check (auth.uid() = receiver_id);
+
+create or replace function public.protect_message_rows()
+returns trigger
+language plpgsql
+as $$
+begin
+  if new.id is distinct from old.id
+    or new.sender_id is distinct from old.sender_id
+    or new.receiver_id is distinct from old.receiver_id
+    or new.content is distinct from old.content
+    or new.created_at is distinct from old.created_at then
+    raise exception 'Only the read status of a message can change';
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists protect_message_rows on public.messages;
+create trigger protect_message_rows
+  before update on public.messages
+  for each row execute function public.protect_message_rows();
 
 insert into storage.buckets (id, name, public)
 values
@@ -365,6 +413,11 @@ begin
   end;
   begin
     alter publication supabase_realtime add table public.notifications;
+  exception when others then
+    null;
+  end;
+  begin
+    alter publication supabase_realtime add table public.messages;
   exception when others then
     null;
   end;

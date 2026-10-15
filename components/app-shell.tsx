@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bell, Camera, CircleUser, Compass, Ellipsis, Search, WalletCards } from "lucide-react";
+import { Bell, Camera, CircleUser, Compass, Ellipsis, Mail, Search, WalletCards } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { useSocial } from "@/components/social-provider";
 import { WelcomeView } from "@/components/welcome-view";
@@ -32,9 +32,11 @@ function isActive(pathname: string, href: string) {
 function Shell({
   children,
   unreadCount,
+  unreadMessageCount,
 }: {
   children: React.ReactNode;
   unreadCount: number;
+  unreadMessageCount: number;
 }) {
   const pathname = usePathname();
 
@@ -48,6 +50,25 @@ function Shell({
             <span className="text-[17px] font-bold tracking-tight">Slabhold</span>
           </Link>
           <div className="flex items-center gap-1">
+            <Link
+              href="/messages"
+              aria-label={
+                unreadMessageCount > 0 ? `Messages, ${unreadMessageCount} unread` : "Messages"
+              }
+              aria-current={pathname.startsWith("/messages") ? "page" : undefined}
+              className={`relative grid h-9 w-9 place-items-center rounded-full ${
+                pathname.startsWith("/messages")
+                  ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-950"
+                  : "text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-white/10"
+              }`}
+            >
+              <Mail className="h-5 w-5" />
+              {unreadMessageCount > 0 ? (
+                <span className="absolute top-0 right-0 grid h-4 min-w-4 place-items-center rounded-full bg-violet-600 px-1 text-[10px] font-bold leading-none text-white">
+                  {unreadMessageCount > 9 ? "9+" : unreadMessageCount}
+                </span>
+              ) : null}
+            </Link>
             <Link
               href="/notifications"
               aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : "Notifications"}
@@ -122,9 +143,13 @@ function Shell({
 }
 
 export function AppShell({ children }: { children: React.ReactNode }) {
-  const { unreadCount, ready, user } = useSocial();
+  const { unreadCount, unreadMessageCount, ready, user } = useSocial();
 
-  if (!ready) return <Shell unreadCount={0}>{children}</Shell>;
+  if (!ready) return <Shell unreadCount={0} unreadMessageCount={0}>{children}</Shell>;
   if (!user) return <WelcomeView />;
-  return <Shell unreadCount={unreadCount}>{children}</Shell>;
+  return (
+    <Shell unreadCount={unreadCount} unreadMessageCount={unreadMessageCount}>
+      {children}
+    </Shell>
+  );
 }

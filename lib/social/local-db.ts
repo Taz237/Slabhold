@@ -1,4 +1,5 @@
 import type {
+  DirectMessage,
   FollowEdge,
   Notification,
   Post,
@@ -11,7 +12,7 @@ import type {
   SignUpInput,
   SocialSnapshot,
 } from "./types";
-import { COMMENT_LIMIT } from "./types";
+import { COMMENT_LIMIT, MESSAGE_LIMIT } from "./types";
 
 const STORAGE_KEY = "cardflip.social.v1";
 
@@ -26,6 +27,7 @@ export type LocalDb = {
   reposts: PostRepost[];
   comments: PostComment[];
   notifications: Notification[];
+  messages: DirectMessage[];
   collections: Record<string, PublicCard[]>;
 };
 
@@ -147,6 +149,7 @@ export function snapshotFromLocal(db: LocalDb): SocialSnapshot {
     reposts: db.reposts ?? [],
     comments: db.comments ?? [],
     notifications: db.notifications ?? [],
+    messages: db.messages ?? [],
     publicCards,
   };
 }
@@ -292,6 +295,7 @@ async function createSeed(): Promise<LocalDb> {
       },
     ],
     notifications: [],
+    messages: [],
     collections: {
       [maya.id]: [wemby],
       [jordan.id]: [mahomes],
@@ -319,6 +323,7 @@ export async function loadOrCreateLocalDb(): Promise<LocalDb> {
     parsed.likes = parsed.likes ?? [];
     parsed.reposts = parsed.reposts ?? [];
     parsed.comments = parsed.comments ?? [];
+    parsed.messages = parsed.messages ?? [];
     if (!Array.isArray(parsed.notifications)) {
       parsed.notifications = notificationsFromActivity(parsed);
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
@@ -540,6 +545,39 @@ export function localAddComment(
         createdAt: comment.createdAt,
       }),
     },
+  };
+}
+
+export function localSendMessage(
+  db: LocalDb,
+  receiverId: string,
+  content: string,
+): { db: LocalDb; error?: string } {
+  if (!db.sessionUserId) return { db, error: "Log in to send a message." };
+  if (db.sessionUserId === receiverId) return { db, error: "You can't message yourself." };
+  const text = content.trim().slice(0, MESSAGE_LIMIT);
+  if (!text) return { db, error: "Write a message." };
+  if (!db.users.some((user) => user.id === receiverId)) return { db, error: "That collector is gone." };
+  const message: DirectMessage = {
+    id: `msg-${Date.now().toString(36)}`,
+    senderId: db.sessionUserId,
+    receiverId,
+    content: text,
+    createdAt: new Date().toISOString(),
+    read: false,
+  };
+  return { db: { ...db, messages: [...(db.messages ?? []), message] } };
+}
+
+export function localMarkThreadRead(db: LocalDb, partnerId: string): LocalDb {
+  if (!db.sessionUserId) return db;
+  return {
+    ...db,
+    messages: (db.messages ?? []).map((message) =>
+      message.senderId === partnerId && message.receiverId === db.sessionUserId
+        ? { ...message, read: true }
+        : message,
+    ),
   };
 }
 

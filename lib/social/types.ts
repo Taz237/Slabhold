@@ -72,6 +72,15 @@ export type Notification = {
   read: boolean;
 };
 
+export type DirectMessage = {
+  id: string;
+  senderId: string;
+  receiverId: string;
+  content: string;
+  createdAt: string;
+  read: boolean;
+};
+
 export type SocialSnapshot = {
   user: Profile | null;
   profiles: Profile[];
@@ -81,6 +90,7 @@ export type SocialSnapshot = {
   reposts: PostRepost[];
   comments: PostComment[];
   notifications: Notification[];
+  messages: DirectMessage[];
   publicCards: OwnedCard[];
 };
 
@@ -106,3 +116,4 @@ export type AuthResult = {
 
 export const POST_LIMIT = 280;
 export const COMMENT_LIMIT = 280;
+export const MESSAGE_LIMIT = 1000;

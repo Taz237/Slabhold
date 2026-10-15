@@ -17,6 +17,8 @@ import {
   localCreatePost,
   localDeletePost,
   localMarkNotificationsRead,
+  localMarkThreadRead,
+  localSendMessage,
   localUpdatePost,
   localSignIn,
   localSignOut,
@@ -35,6 +37,8 @@ import {
   remoteCreatePost,
   remoteDeletePost,
   remoteMarkNotificationsRead,
+  remoteMarkThreadRead,
+  remoteSendMessage,
   remoteSignIn,
   remoteSignOut,
   remoteSignUp,
@@ -47,6 +51,7 @@ import { createSupabaseBrowser } from "@/lib/supabase/browser";
 import { getSupabaseConfig } from "@/lib/supabase/client";
 import type {
   AuthResult,
+  DirectMessage,
   Notification,
   Post,
   PostComment,
@@ -95,6 +100,10 @@ type SocialContextValue = {
   notifications: Notification[];
   unreadCount: number;
   markNotificationsRead: () => void;
+  messages: DirectMessage[];
+  unreadMessageCount: number;
+  sendMessage: (receiverId: string, content: string) => Promise<AuthResult>;
+  markThreadRead: (partnerId: string) => void;
   feed: Post[];
   suggestions: Profile[];
   profileByUsername: (username: string) => Profile | undefined;
@@ -111,6 +120,7 @@ const emptySnapshot: SocialSnapshot = {
   reposts: [],
   comments: [],
   notifications: [],
+  messages: [],
   publicCards: [],
 };
 
@@ -197,6 +207,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       .channel("social-comments-notifications")
       .on("postgres_changes", { event: "*", schema: "public", table: "comments" }, schedule)
       .on("postgres_changes", { event: "*", schema: "public", table: "notifications" }, schedule)
+      .on("postgres_changes", { event: "*", schema: "public", table: "messages" }, schedule)
       .subscribe();
     return () => {
       window.clearTimeout(timer);
@@ -233,6 +244,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       reposts: current.reposts,
       comments: current.comments,
       notifications: current.notifications,
+      messages: current.messages ?? [],
       collections: {},
     };
   }, []);
@@ -576,6 +588,72 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
     commitLocal(localMarkNotificationsRead(localRef.current));
   }, [commitLocal, mode]);
 
+  const messages = useMemo(() => {
+    if (!snapshot.user) return [];
+    const id = snapshot.user.id;
+    return (snapshot.messages ?? [])
+      .filter((message) => message.senderId === id || message.receiverId === id)
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  }, [snapshot.messages, snapshot.user]);
+
+  const unreadMessageCount = messages.filter(
+    (message) => message.receiverId === snapshot.user?.id && !message.read,
+  ).length;
+
+  const sendMessage = useCallback(
+    async (receiverId: string, content: string): Promise<AuthResult> => {
+      if (mode === "supabase") {
+        const client = supabaseRef.current;
+        const current = snapshotRef.current;
+        if (!client) return { error: "Still loading." };
+        if (!current.user) return { error: "Log in to send a message." };
+        try {
+          const result = await remoteSendMessage(client, current.user.id, receiverId, content);
+          if (!result.error) await refreshRemote(client);
+          return result;
+        } catch (error) {
+          return { error: error instanceof Error ? error.message : "Could not send that message." };
+        }
+      }
+      if (!localRef.current) return { error: "Still loading." };
+      const result = localSendMessage(localRef.current, receiverId, content);
+      if (!result.error) commitLocal(result.db);
+      return { error: result.error };
+    },
+    [commitLocal, mode, refreshRemote],
+  );
+
+  const markThreadRead = useCallback(
+    (partnerId: string) => {
+      const current = snapshotRef.current;
+      if (!current.user) return;
+      const userId = current.user.id;
+      const hasUnread = (current.messages ?? []).some(
+        (message) => message.senderId === partnerId && message.receiverId === userId && !message.read,
+      );
+      if (!hasUnread) return;
+      if (mode === "supabase") {
+        setRemote((existing) => ({
+          ...existing,
+          messages: (existing.messages ?? []).map((message) =>
+            message.senderId === partnerId && message.receiverId === userId
+              ? { ...message, read: true }
+              : message,
+          ),
+        }));
+        const client = supabaseRef.current;
+        if (!client) return;
+        void remoteMarkThreadRead(client, userId, partnerId).then((result) => {
+          if (result.error) setStatus(result.error);
+        });
+        return;
+      }
+      if (!localRef.current) return;
+      commitLocal(localMarkThreadRead(localRef.current, partnerId));
+    },
+    [commitLocal, mode],
+  );
+
   const commentsFor = useCallback(
     (postId: string) =>
       snapshot.comments
@@ -647,6 +725,10 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       notifications,
       unreadCount,
       markNotificationsRead,
+      messages,
+      unreadMessageCount,
+      sendMessage,
+      markThreadRead,
       feed,
       suggestions,
       profileByUsername,
@@ -655,6 +737,8 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       addComment,
       commentsFor,
       markNotificationsRead,
+      markThreadRead,
+      messages,
       notifications,
       createPost,
       updatePost,
@@ -673,6 +757,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       refresh,
       signIn,
       signOut,
+      sendMessage,
       signUp,
       snapshot.posts,
       snapshot.profiles,
@@ -684,6 +769,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       toggleLike,
       toggleRepost,
       unreadCount,
+      unreadMessageCount,
       updateProfile,
     ],
   );

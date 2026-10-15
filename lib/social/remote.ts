@@ -4,6 +4,7 @@ import { mapPublicCard } from "./cards";
 import type {
   AuthResult,
   FollowEdge,
+  DirectMessage,
   Notification,
   NotificationKind,
   Post,
@@ -14,7 +15,7 @@ import type {
   SignUpInput,
   SocialSnapshot,
 } from "./types";
-import { COMMENT_LIMIT } from "./types";
+import { COMMENT_LIMIT, MESSAGE_LIMIT } from "./types";
 import { normalizeUsername, usernameError } from "./local-db";
 
 type ProfileRow = {
@@ -60,6 +61,15 @@ type NotificationRow = {
   preview: string | null;
   read: boolean;
   created_at: string;
+};
+
+type MessageRow = {
+  id: string;
+  sender_id: string;
+  receiver_id: string;
+  content: string;
+  created_at: string;
+  read: boolean;
 };
 
 type PublicCardRow = {
@@ -113,20 +123,23 @@ function mapProfile(row: ProfileRow, email = ""): Profile {
 export async function loadSupabaseSocial(supabase: SupabaseClient): Promise<SocialSnapshot> {
   const { data: sessionData } = await supabase.auth.getSession();
   const session = sessionData.session;
-  const [profilesRes, postsRes, followsRes, cardsRes, commentsRes, notificationsRes] = await Promise.all([
-    supabase.from("profiles").select("*"),
-    supabase.from("posts").select("*").order("created_at", { ascending: false }).limit(100),
-    supabase.from("follows").select("*"),
-    supabase.from("cards").select("*").eq("is_public", true),
-    supabase.from("comments").select("*").order("created_at", { ascending: true }),
-    supabase.from("notifications").select("*").order("created_at", { ascending: false }),
-  ]);
+  const [profilesRes, postsRes, followsRes, cardsRes, commentsRes, notificationsRes, messagesRes] =
+    await Promise.all([
+      supabase.from("profiles").select("*"),
+      supabase.from("posts").select("*").order("created_at", { ascending: false }).limit(100),
+      supabase.from("follows").select("*"),
+      supabase.from("cards").select("*").eq("is_public", true),
+      supabase.from("comments").select("*").order("created_at", { ascending: true }),
+      supabase.from("notifications").select("*").order("created_at", { ascending: false }),
+      supabase.from("messages").select("*").order("created_at", { ascending: true }),
+    ]);
   const failure = profilesRes.error || postsRes.error || followsRes.error || cardsRes.error;
   if (failure) throw new Error(failure.message);
   if (commentsRes.error && !missingTable(commentsRes.error)) throw new Error(commentsRes.error.message);
   if (notificationsRes.error && !missingTable(notificationsRes.error)) {
     throw new Error(notificationsRes.error.message);
   }
+  if (messagesRes.error && !missingTable(messagesRes.error)) throw new Error(messagesRes.error.message);
 
   const profiles = ((profilesRes.data ?? []) as ProfileRow[]).map((row) =>
     mapProfile(row, row.id === session?.user.id ? (session.user.email ?? "") : ""),
@@ -170,6 +183,16 @@ export async function loadSupabaseSocial(supabase: SupabaseClient): Promise<Soci
       read: row.read,
     }),
   );
+  const messages = ((messagesRes.data ?? []) as MessageRow[]).map(
+    (row): DirectMessage => ({
+      id: row.id,
+      senderId: row.sender_id,
+      receiverId: row.receiver_id,
+      content: row.content,
+      createdAt: row.created_at,
+      read: row.read,
+    }),
+  );
 
   return {
     user: profiles.find((profile) => profile.id === session?.user.id) ?? null,
@@ -180,6 +203,7 @@ export async function loadSupabaseSocial(supabase: SupabaseClient): Promise<Soci
     reposts: [],
     comments,
     notifications,
+    messages,
     publicCards,
   };
 }
@@ -372,6 +396,44 @@ export async function remoteSyncLikeNotification(
     preview: previewText(input.preview),
   });
   if (error && error.code !== "23505" && !missingTable(error)) return { error: error.message };
+  return {};
+}
+
+export async function remoteSendMessage(
+  supabase: SupabaseClient,
+  senderId: string,
+  receiverId: string,
+  content: string,
+): Promise<AuthResult> {
+  const text = content.trim().slice(0, MESSAGE_LIMIT);
+  if (!text) return { error: "Write a message." };
+  if (senderId === receiverId) return { error: "You can't message yourself." };
+  const { error } = await supabase.from("messages").insert({
+    sender_id: senderId,
+    receiver_id: receiverId,
+    content: text,
+  });
+  if (error) {
+    if (missingTable(error)) {
+      return { error: "Messages are not set up yet. Run supabase/schema.sql in the Supabase SQL editor." };
+    }
+    return { error: error.message };
+  }
+  return {};
+}
+
+export async function remoteMarkThreadRead(
+  supabase: SupabaseClient,
+  userId: string,
+  partnerId: string,
+): Promise<AuthResult> {
+  const { error } = await supabase
+    .from("messages")
+    .update({ read: true })
+    .eq("receiver_id", userId)
+    .eq("sender_id", partnerId)
+    .eq("read", false);
+  if (error && !missingTable(error)) return { error: error.message };
   return {};
 }
 

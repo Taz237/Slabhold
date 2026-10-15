@@ -138,7 +138,10 @@ export function ProfileView({ username }: { username?: string }) {
               Edit profile
             </button>
           ) : (
-            <div className="mb-1">
+            <div className="mb-1 flex flex-wrap justify-end gap-2">
+              <Link href={`/messages/${profile.username}`} className={outlineButton}>
+                Message
+              </Link>
               <FollowButton userId={profile.id} />
             </div>
           )}
