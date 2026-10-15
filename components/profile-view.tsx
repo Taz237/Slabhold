@@ -149,11 +149,17 @@ export function ProfileView({ username }: { username?: string }) {
         <h1 className="mt-3 text-xl font-bold tracking-tight">{profile.displayName}</h1>
         <p className="text-[15px] text-zinc-500">@{profile.username}</p>
         {profile.bio ? <p className="mt-3 text-[15px] leading-5">{profile.bio}</p> : null}
-        <p className="mt-3 text-sm">
-          <span className="font-bold">{followingCount(profile.id)}</span>{" "}
-          <span className="text-zinc-500">Following</span>
-          <span className="ml-4 font-bold">{followerCount(profile.id)}</span>{" "}
-          <span className="text-zinc-500">Followers</span>
+        <p className="mt-3 flex gap-4 text-sm">
+          <CountLink
+            href={`${username ? `/u/${profile.username}` : "/profile"}/following`}
+            count={followingCount(profile.id)}
+            label="Following"
+          />
+          <CountLink
+            href={`${username ? `/u/${profile.username}` : "/profile"}/followers`}
+            count={followerCount(profile.id)}
+            label="Followers"
+          />
         </p>
       </div>
 
@@ -250,6 +256,14 @@ export function ProfileView({ username }: { username?: string }) {
       />
     ) : null}
     </>
+  );
+}
+
+function CountLink({ href, count, label }: { href: string; count: number; label: string }) {
+  return (
+    <Link href={href} className="rounded-md py-1 hover:underline">
+      <span className="font-bold">{count}</span> <span className="text-zinc-500">{label}</span>
+    </Link>
   );
 }
 

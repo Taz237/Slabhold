@@ -79,6 +79,8 @@ type SocialContextValue = {
   isFollowing: (userId: string) => boolean;
   followerCount: (userId: string) => number;
   followingCount: (userId: string) => number;
+  followersOf: (userId: string) => Profile[];
+  followingOf: (userId: string) => Profile[];
   createPost: (input: {
     body: string;
     imageDataUrl: string | null;
@@ -671,6 +673,35 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
     [snapshot.follows],
   );
 
+  const profilesById = useMemo(
+    () => new Map(snapshot.profiles.map((profile) => [profile.id, profile])),
+    [snapshot.profiles],
+  );
+
+  const followersOf = useCallback(
+    (userId: string) =>
+      snapshot.follows
+        .filter((edge) => edge.followingId === userId)
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+        .flatMap((edge) => {
+          const profile = profilesById.get(edge.followerId);
+          return profile ? [profile] : [];
+        }),
+    [profilesById, snapshot.follows],
+  );
+
+  const followingOf = useCallback(
+    (userId: string) =>
+      snapshot.follows
+        .filter((edge) => edge.followerId === userId)
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+        .flatMap((edge) => {
+          const profile = profilesById.get(edge.followingId);
+          return profile ? [profile] : [];
+        }),
+    [profilesById, snapshot.follows],
+  );
+
   const feed = useMemo(() => {
     if (!snapshot.user) return snapshot.posts;
     const ids = new Set<string>([snapshot.user.id]);
@@ -711,6 +742,8 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       isFollowing,
       followerCount,
       followingCount,
+      followersOf,
+      followingOf,
       createPost,
       updatePost,
       deletePost,
@@ -745,6 +778,8 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       deletePost,
       feed,
       followerCount,
+      followersOf,
+      followingOf,
       isLiked,
       isReposted,
       likeCount,
