@@ -11,6 +11,7 @@ const TABS = [
   { href: "/profile", label: "Profile", icon: CircleUser },
   { href: "/", label: "Timeline", icon: Compass },
   { href: "/scan", label: "Scan", icon: Camera },
+  { href: "/messages", label: "Messages", icon: Mail },
   { href: "/collection", label: "Collection", icon: WalletCards },
   { href: "/more", label: "More", icon: Ellipsis },
 ] as const;
@@ -51,25 +52,6 @@ function Shell({
           </Link>
           <div className="flex items-center gap-1">
             <Link
-              href="/messages"
-              aria-label={
-                unreadMessageCount > 0 ? `Messages, ${unreadMessageCount} unread` : "Messages"
-              }
-              aria-current={pathname.startsWith("/messages") ? "page" : undefined}
-              className={`relative grid h-9 w-9 place-items-center rounded-full ${
-                pathname.startsWith("/messages")
-                  ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-950"
-                  : "text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-white/10"
-              }`}
-            >
-              <Mail className="h-5 w-5" />
-              {unreadMessageCount > 0 ? (
-                <span className="absolute top-0 right-0 grid h-4 min-w-4 place-items-center rounded-full bg-violet-600 px-1 text-[10px] font-bold leading-none text-white">
-                  {unreadMessageCount > 9 ? "9+" : unreadMessageCount}
-                </span>
-              ) : null}
-            </Link>
-            <Link
               href="/notifications"
               aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : "Notifications"}
               aria-current={pathname === "/notifications" ? "page" : undefined}
@@ -103,7 +85,7 @@ function Shell({
       </header>
       <main className="relative mx-auto w-full max-w-lg px-4 py-5 pb-28">{children}</main>
       <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-zinc-200 bg-[color-mix(in_oklab,var(--background)_92%,transparent)] backdrop-blur-xl dark:border-white/10">
-        <div className="mx-auto flex max-w-lg items-end justify-between px-2 pt-1 pb-[max(0.45rem,env(safe-area-inset-bottom))]">
+        <div className="mx-auto flex max-w-lg items-end justify-between px-1 pt-1 pb-[max(0.45rem,env(safe-area-inset-bottom))]">
           {TABS.map((tab) => {
             const active = isActive(pathname, tab.href);
             const Icon = tab.icon;
@@ -113,25 +95,37 @@ function Shell({
                   key={tab.href}
                   href={tab.href}
                   aria-label="Scan a card"
-                  className={`grid h-14 w-14 -translate-y-4 place-items-center rounded-full shadow-lg ring-4 ring-[var(--background)] ${
+                  className={`grid h-12 w-12 -translate-y-3 place-items-center rounded-full shadow-lg ring-4 ring-[var(--background)] ${
                     active
                       ? "bg-violet-600 text-white"
                       : "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-950"
                   }`}
                 >
-                  <Camera className="h-6 w-6" />
+                  <Camera className="h-5 w-5" />
                 </Link>
               );
             }
+            const messageBadge = tab.href === "/messages" ? unreadMessageCount : 0;
             return (
               <Link
                 key={tab.href}
                 href={tab.href}
-                className={`flex min-w-14 flex-col items-center gap-0.5 px-1 py-1 text-[10px] font-medium ${
+                aria-label={
+                  messageBadge > 0 ? `Messages, ${messageBadge} unread` : tab.label
+                }
+                aria-current={active ? "page" : undefined}
+                className={`relative flex min-w-0 flex-1 flex-col items-center gap-0.5 px-0.5 py-1 text-[10px] font-medium leading-none ${
                   active ? "text-zinc-900 dark:text-white" : "text-zinc-500"
                 }`}
               >
-                <Icon className="h-5 w-5" />
+                <span className="relative">
+                  <Icon className="h-5 w-5" />
+                  {messageBadge > 0 ? (
+                    <span className="absolute -top-1.5 -right-2.5 grid h-4 min-w-4 place-items-center rounded-full bg-red-500 px-1 text-[10px] font-bold leading-none text-white">
+                      {messageBadge > 9 ? "9+" : messageBadge}
+                    </span>
+                  ) : null}
+                </span>
                 {tab.label}
               </Link>
             );
