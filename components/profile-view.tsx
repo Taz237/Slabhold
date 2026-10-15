@@ -13,6 +13,7 @@ import { EmptyState, ProfileSkeleton } from "@/components/status";
 import { FollowButton } from "@/components/follow-button";
 import { useCollection } from "@/components/collection-provider";
 import { useSocial } from "@/components/social-provider";
+import { ShareIconButton } from "@/components/share-button";
 import { Tweet } from "@/components/tweet";
 import { money } from "@/lib/format";
 import { normalizeUsername } from "@/lib/social/local-db";
@@ -132,22 +133,25 @@ export function ProfileView({ username }: { username?: string }) {
             accent={profile.accent}
             className="-mt-14 h-24 w-24 text-xl ring-4 ring-[var(--background)]"
           />
-          {isOwn ? (
-            <button
-              type="button"
-              onClick={() => setEditing(true)}
-              className={`${outlineButton} mb-1`}
-            >
-              Edit profile
-            </button>
-          ) : (
-            <div className="mb-1 flex flex-wrap justify-end gap-2">
-              <Link href={`/messages/${profile.username}`} className={outlineButton}>
-                Message
-              </Link>
-              <FollowButton userId={profile.id} />
-            </div>
-          )}
+          <div className="mb-1 flex max-w-[17rem] flex-wrap items-center justify-end gap-2">
+            <ShareIconButton
+              path={`/u/${profile.username}`}
+              title={`${profile.displayName} (@${profile.username})`}
+              label={`Share ${profile.displayName}`}
+            />
+            {isOwn ? (
+              <button type="button" onClick={() => setEditing(true)} className={outlineButton}>
+                Edit profile
+              </button>
+            ) : (
+              <>
+                <Link href={`/messages/${profile.username}`} className={outlineButton}>
+                  Message
+                </Link>
+                <FollowButton userId={profile.id} />
+              </>
+            )}
+          </div>
         </div>
         <h1 className="mt-3 text-xl font-bold tracking-tight">{profile.displayName}</h1>
         <p className="text-[15px] text-zinc-500">@{profile.username}</p>

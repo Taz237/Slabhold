@@ -143,7 +143,12 @@ function Shell({
   );
 }
 
+function isSharedPage(pathname: string) {
+  return pathname.startsWith("/posts/") || pathname.startsWith("/u/");
+}
+
 export function AppShell({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
   const { unreadCount, unreadMessageCount, ready, user, status } = useSocial();
 
   if (!ready) {
@@ -153,7 +158,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </Shell>
     );
   }
-  if (!user) return <WelcomeView />;
+  if (!user && !isSharedPage(pathname)) return <WelcomeView />;
   return (
     <Shell unreadCount={unreadCount} unreadMessageCount={unreadMessageCount} status={status}>
       {children}

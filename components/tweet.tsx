@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { Ellipsis, Heart, MessageCircle, Repeat2 } from "lucide-react";
 import { Avatar } from "@/components/avatar";
 import { MentionText } from "@/components/mention-text";
+import { ShareAction } from "@/components/share-button";
 import { useSocial } from "@/components/social-provider";
 import { exactTime, initials, money, timeAgo } from "@/lib/format";
 import type { Post, PostComment, Profile, PublicCard } from "@/lib/social/types";
@@ -89,7 +90,13 @@ export function Tweet({
           />
         ) : null}
         {post.card ? <CardMedia card={post.card} /> : null}
-        <Engagement targetId={post.id} replyCount={comments.length} onReply={openReplies} />
+        <Engagement
+          targetId={post.id}
+          replyCount={comments.length}
+          onReply={openReplies}
+          sharePath={`/posts/${post.id}`}
+          shareTitle={author.displayName}
+        />
         {variant === "feed" ? <CommentPreview postId={post.id} comments={comments} /> : null}
       </div>
       </div>
@@ -295,10 +302,14 @@ export function Engagement({
   targetId,
   replyCount = 0,
   onReply,
+  sharePath,
+  shareTitle,
 }: {
   targetId: string;
   replyCount?: number;
   onReply: () => void;
+  sharePath?: string;
+  shareTitle?: string;
 }) {
   const router = useRouter();
   const { user, toggleLike, toggleRepost, isLiked, isReposted, likeCount, repostCount } = useSocial();
@@ -340,6 +351,7 @@ export function Engagement({
       >
         <Heart className={`h-[18px] w-[18px] ${liked ? "fill-current" : ""}`} />
       </ActionButton>
+      {sharePath ? <ShareAction path={sharePath} title={shareTitle ?? "Slabhold"} /> : null}
     </div>
   );
 }
