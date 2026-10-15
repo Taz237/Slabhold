@@ -1,0 +1,38 @@
+import type { Metadata } from "next";
+import { Geist, Geist_Mono } from "next/font/google";
+import { AppShell } from "@/components/app-shell";
+import { CollectionProvider } from "@/components/collection-provider";
+import { SocialProvider } from "@/components/social-provider";
+import "./globals.css";
+
+const geistSans = Geist({
+  variable: "--font-geist-sans",
+  subsets: ["latin"],
+});
+
+const geistMono = Geist_Mono({
+  variable: "--font-geist-mono",
+  subsets: ["latin"],
+});
+
+export const metadata: Metadata = {
+  title: "Slabhold",
+  description: "Sports card portfolio, flips, and a feed of collectors",
+};
+
+export default function RootLayout({ children }: LayoutProps<"/">) {
+  return (
+    <html
+      lang="en"
+      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+    >
+      <body className="min-h-full font-sans">
+        <SocialProvider>
+          <CollectionProvider>
+            <AppShell>{children}</AppShell>
+          </CollectionProvider>
+        </SocialProvider>
+      </body>
+    </html>
+  );
+}

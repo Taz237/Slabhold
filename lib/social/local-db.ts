@@ -1,0 +1,616 @@
+import type {
+  FollowEdge,
+  Notification,
+  Post,
+  PostComment,
+  PostLike,
+  PostRepost,
+  Profile,
+  ProfilePatch,
+  PublicCard,
+  SignUpInput,
+  SocialSnapshot,
+} from "./types";
+import { COMMENT_LIMIT } from "./types";
+
+const STORAGE_KEY = "cardflip.social.v1";
+
+type StoredUser = Profile & { passwordHash: string };
+
+export type LocalDb = {
+  users: StoredUser[];
+  sessionUserId: string | null;
+  follows: FollowEdge[];
+  posts: Post[];
+  likes: PostLike[];
+  reposts: PostRepost[];
+  comments: PostComment[];
+  notifications: Notification[];
+  collections: Record<string, PublicCard[]>;
+};
+
+const USERNAME = /^[a-z0-9_]{3,20}$/;
+
+export function normalizeUsername(value: string) {
+  return value.trim().toLowerCase();
+}
+
+export function usernameError(value: string) {
+  if (!USERNAME.test(value)) {
+    return "Usernames are 3–20 characters: letters, numbers, underscores.";
+  }
+  return null;
+}
+
+async function hashPassword(password: string) {
+  const data = new TextEncoder().encode(`cardflip.v1:${password}`);
+  const digest = await crypto.subtle.digest("SHA-256", data);
+  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+function hoursAgo(hours: number) {
+  return new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
+}
+
+function previewText(value: string) {
+  const text = value.trim();
+  if (!text) return null;
+  return text.length > 80 ? `${text.slice(0, 77)}…` : text;
+}
+
+export function notificationsFromActivity(db: LocalDb): Notification[] {
+  const notes: Notification[] = [];
+  for (const like of db.likes ?? []) {
+    const post = db.posts.find((item) => item.id === like.postId);
+    if (!post || post.authorId === like.userId) continue;
+    notes.push({
+      id: `note-like-${like.postId}-${like.userId}`,
+      recipientId: post.authorId,
+      actorId: like.userId,
+      kind: "like",
+      postId: post.id,
+      preview: previewText(post.body),
+      createdAt: like.createdAt,
+      read: false,
+    });
+  }
+  for (const comment of db.comments ?? []) {
+    const post = db.posts.find((item) => item.id === comment.postId);
+    if (!post || post.authorId === comment.authorId) continue;
+    notes.push({
+      id: `note-comment-${comment.id}`,
+      recipientId: post.authorId,
+      actorId: comment.authorId,
+      kind: "comment",
+      postId: post.id,
+      preview: previewText(comment.body),
+      createdAt: comment.createdAt,
+      read: false,
+    });
+  }
+  for (const edge of db.follows) {
+    if (edge.followerId === edge.followingId) continue;
+    notes.push({
+      id: `note-follow-${edge.followerId}-${edge.followingId}`,
+      recipientId: edge.followingId,
+      actorId: edge.followerId,
+      kind: "follow",
+      postId: null,
+      preview: null,
+      createdAt: edge.createdAt,
+      read: false,
+    });
+  }
+  return notes.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+}
+
+function addNotification(
+  db: LocalDb,
+  note: Omit<Notification, "id" | "read">,
+): Notification[] {
+  if (note.actorId === note.recipientId) return db.notifications ?? [];
+  return [
+    {
+      ...note,
+      id: `note-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
+      read: false,
+    },
+    ...(db.notifications ?? []),
+  ];
+}
+
+function toProfile(user: StoredUser): Profile {
+  return {
+    id: user.id,
+    email: user.email,
+    username: user.username,
+    displayName: user.displayName,
+    bio: user.bio,
+    avatarDataUrl: user.avatarDataUrl ?? null,
+    coverDataUrl: user.coverDataUrl ?? null,
+    accent: user.accent,
+    createdAt: user.createdAt,
+  };
+}
+
+export function snapshotFromLocal(db: LocalDb): SocialSnapshot {
+  const session = db.users.find((user) => user.id === db.sessionUserId) ?? null;
+  const publicCards = Object.entries(db.collections).flatMap(([ownerId, cards]) =>
+    cards.map((card) => ({ ...card, ownerId })),
+  );
+  return {
+    user: session ? toProfile(session) : null,
+    profiles: db.users.map(toProfile),
+    posts: [...db.posts].sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+    follows: db.follows,
+    likes: db.likes ?? [],
+    reposts: db.reposts ?? [],
+    comments: db.comments ?? [],
+    notifications: db.notifications ?? [],
+    publicCards,
+  };
+}
+
+async function createSeed(): Promise<LocalDb> {
+  const passwordHash = await hashPassword("demo1234");
+  const maya: StoredUser = {
+    id: "user-maya",
+    email: "maya@cardflip.app",
+    username: "waxroom",
+    displayName: "Maya Chen",
+    bio: "Chasing rookies and clean flips.",
+    avatarDataUrl: null,
+    coverDataUrl: null,
+    accent: "#7c5cff",
+    createdAt: hoursAgo(24 * 40),
+    passwordHash,
+  };
+  const jordan: StoredUser = {
+    id: "user-jordan",
+    email: "jordan@cardflip.app",
+    username: "flipcity",
+    displayName: "Jordan Hale",
+    bio: "Buy the dip. Sell the hype.",
+    avatarDataUrl: null,
+    coverDataUrl: null,
+    accent: "#f43f5e",
+    createdAt: hoursAgo(24 * 30),
+    passwordHash,
+  };
+  const sam: StoredUser = {
+    id: "user-sam",
+    email: "sam@cardflip.app",
+    username: "boxbreak",
+    displayName: "Sam Ortiz",
+    bio: "WNBA and baseball. That's the book.",
+    avatarDataUrl: null,
+    coverDataUrl: null,
+    accent: "#fbbf24",
+    createdAt: hoursAgo(24 * 20),
+    passwordHash,
+  };
+
+  const wemby: PublicCard = {
+    id: "maya-wemby",
+    playerName: "Victor Wembanyama",
+    year: 2023,
+    setBrand: "Panini Prizm",
+    cardNumber: "136",
+    sport: "Basketball",
+    photoDataUrl: null,
+    accent: "#7c5cff",
+    estimatedSellPrice: 185,
+  };
+  const mahomes: PublicCard = {
+    id: "jordan-mahomes",
+    playerName: "Patrick Mahomes",
+    year: 2017,
+    setBrand: "Panini Prizm",
+    cardNumber: "269",
+    sport: "Football",
+    photoDataUrl: null,
+    accent: "#f43f5e",
+    estimatedSellPrice: 255,
+  };
+  const clark: PublicCard = {
+    id: "sam-clark",
+    playerName: "Caitlin Clark",
+    year: 2024,
+    setBrand: "Panini Prizm WNBA",
+    cardNumber: "101",
+    sport: "Basketball",
+    photoDataUrl: null,
+    accent: "#fbbf24",
+    estimatedSellPrice: 265,
+  };
+
+  const posts: Post[] = [
+    {
+      id: "post-maya-1",
+      authorId: maya.id,
+      body: "Raw Wemby Prizm still feels like the hold. Corners are sharp. Waiting on a grading window.",
+      imageDataUrl: null,
+      card: wemby,
+      createdAt: hoursAgo(2),
+    },
+    {
+      id: "post-jordan-1",
+      authorId: jordan.id,
+      body: "Moved a Mahomes Prizm for a small loss. Cash is back in the stack for football.",
+      imageDataUrl: null,
+      card: mahomes,
+      createdAt: hoursAgo(5),
+    },
+    {
+      id: "post-sam-1",
+      authorId: sam.id,
+      body: "Clark Prizm comps are still sticky. Not listing mine.",
+      imageDataUrl: null,
+      card: clark,
+      createdAt: hoursAgo(8),
+    },
+    {
+      id: "post-maya-2",
+      authorId: maya.id,
+      body: "If you're buying rookies this week, buy the card you'd still want if the market went quiet.",
+      imageDataUrl: null,
+      card: null,
+      createdAt: hoursAgo(26),
+    },
+    {
+      id: "post-jordan-2",
+      authorId: jordan.id,
+      body: "Centering is the whole game on modern Prizm. 60/40 is a pass for me now.",
+      imageDataUrl: null,
+      card: null,
+      createdAt: hoursAgo(50),
+    },
+  ];
+
+  const db: LocalDb = {
+    users: [maya, jordan, sam],
+    sessionUserId: null,
+    follows: [
+      { followerId: maya.id, followingId: jordan.id, createdAt: hoursAgo(10) },
+      { followerId: maya.id, followingId: sam.id, createdAt: hoursAgo(10) },
+      { followerId: jordan.id, followingId: maya.id, createdAt: hoursAgo(12) },
+      { followerId: sam.id, followingId: maya.id, createdAt: hoursAgo(14) },
+      { followerId: sam.id, followingId: jordan.id, createdAt: hoursAgo(14) },
+    ],
+    posts,
+    likes: [
+      { postId: "post-maya-1", userId: jordan.id, createdAt: hoursAgo(1) },
+    ],
+    reposts: [],
+    comments: [
+      {
+        id: "comment-seed-maya-1",
+        postId: "post-maya-1",
+        authorId: sam.id,
+        body: "Corners look clean. I'd hold it too.",
+        createdAt: hoursAgo(1.5),
+      },
+    ],
+    notifications: [],
+    collections: {
+      [maya.id]: [wemby],
+      [jordan.id]: [mahomes],
+      [sam.id]: [clark],
+    },
+  };
+  return { ...db, notifications: notificationsFromActivity(db) };
+}
+
+export async function loadOrCreateLocalDb(): Promise<LocalDb> {
+  if (typeof window === "undefined") return createSeed();
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (!raw) {
+      const seeded = await createSeed();
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(seeded));
+      return seeded;
+    }
+    const parsed = JSON.parse(raw) as LocalDb;
+    if (!parsed?.users || !parsed.posts || !parsed.follows) {
+      const seeded = await createSeed();
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(seeded));
+      return seeded;
+    }
+    parsed.likes = parsed.likes ?? [];
+    parsed.reposts = parsed.reposts ?? [];
+    parsed.comments = parsed.comments ?? [];
+    if (!Array.isArray(parsed.notifications)) {
+      parsed.notifications = notificationsFromActivity(parsed);
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
+    }
+    return parsed;
+  } catch {
+    return createSeed();
+  }
+}
+
+export function saveLocalDb(db: LocalDb) {
+  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
+}
+
+export async function localSignUp(db: LocalDb, input: SignUpInput): Promise<{ db: LocalDb; error?: string }> {
+  const email = input.email.trim().toLowerCase();
+  const username = normalizeUsername(input.username);
+  const displayName = input.displayName.trim() || username;
+  if (!email.includes("@")) return { db, error: "Enter a valid email." };
+  if (input.password.length < 6) return { db, error: "Use at least 6 characters." };
+  const nameError = usernameError(username);
+  if (nameError) return { db, error: nameError };
+  if (db.users.some((user) => user.email === email)) return { db, error: "That email is already in use." };
+  if (db.users.some((user) => user.username === username)) {
+    return { db, error: "That username is taken." };
+  }
+  const user: StoredUser = {
+    id: `user-${Date.now().toString(36)}`,
+    email,
+    username,
+    displayName,
+    bio: "",
+    avatarDataUrl: null,
+    coverDataUrl: null,
+    accent: "#2dd4bf",
+    createdAt: new Date().toISOString(),
+    passwordHash: await hashPassword(input.password),
+  };
+  return {
+    db: {
+      ...db,
+      users: [...db.users, user],
+      sessionUserId: user.id,
+      collections: { ...db.collections, [user.id]: [] },
+    },
+  };
+}
+
+export async function localSignIn(
+  db: LocalDb,
+  email: string,
+  password: string,
+): Promise<{ db: LocalDb; error?: string }> {
+  const match = db.users.find((user) => user.email === email.trim().toLowerCase());
+  if (!match) return { db, error: "No account for that email." };
+  const passwordHash = await hashPassword(password);
+  if (passwordHash !== match.passwordHash) return { db, error: "Wrong password." };
+  return { db: { ...db, sessionUserId: match.id } };
+}
+
+export function localSignOut(db: LocalDb): LocalDb {
+  return { ...db, sessionUserId: null };
+}
+
+export function localUpdateProfile(
+  db: LocalDb,
+  patch: ProfilePatch,
+): { db: LocalDb; error?: string } {
+  if (!db.sessionUserId) return { db, error: "Log in first." };
+  const username = normalizeUsername(patch.username);
+  const nameError = usernameError(username);
+  if (nameError) return { db, error: nameError };
+  const displayName = patch.displayName.trim();
+  if (!displayName) return { db, error: "Add a display name." };
+  if (db.users.some((user) => user.username === username && user.id !== db.sessionUserId)) {
+    return { db, error: "That username is taken." };
+  }
+  return {
+    db: {
+      ...db,
+      users: db.users.map((user) =>
+        user.id === db.sessionUserId
+          ? {
+              ...user,
+              username,
+              displayName,
+              bio: patch.bio.trim().slice(0, 160),
+              avatarDataUrl: patch.avatarDataUrl,
+              coverDataUrl: patch.coverDataUrl,
+            }
+          : user,
+      ),
+    },
+  };
+}
+
+export function localToggleFollow(db: LocalDb, followingId: string): LocalDb {
+  if (!db.sessionUserId || db.sessionUserId === followingId) return db;
+  const exists = db.follows.some(
+    (edge) => edge.followerId === db.sessionUserId && edge.followingId === followingId,
+  );
+  if (exists) {
+    return {
+      ...db,
+      follows: db.follows.filter(
+        (edge) => !(edge.followerId === db.sessionUserId && edge.followingId === followingId),
+      ),
+      notifications: (db.notifications ?? []).filter(
+        (note) =>
+          !(
+            note.kind === "follow" &&
+            note.actorId === db.sessionUserId &&
+            note.recipientId === followingId
+          ),
+      ),
+    };
+  }
+  const createdAt = new Date().toISOString();
+  const next: LocalDb = {
+    ...db,
+    follows: [
+      ...db.follows,
+      { followerId: db.sessionUserId, followingId, createdAt },
+    ],
+  };
+  return {
+    ...next,
+    notifications: addNotification(next, {
+      recipientId: followingId,
+      actorId: db.sessionUserId,
+      kind: "follow",
+      postId: null,
+      preview: null,
+      createdAt,
+    }),
+  };
+}
+
+export function localToggleLike(db: LocalDb, postId: string): LocalDb {
+  if (!db.sessionUserId) return db;
+  const likes = db.likes ?? [];
+  const existing = likes.some(
+    (like) => like.postId === postId && like.userId === db.sessionUserId,
+  );
+  const post = db.posts.find((item) => item.id === postId);
+  if (existing) {
+    return {
+      ...db,
+      likes: likes.filter((like) => !(like.postId === postId && like.userId === db.sessionUserId)),
+      notifications: (db.notifications ?? []).filter(
+        (note) =>
+          !(note.kind === "like" && note.actorId === db.sessionUserId && note.postId === postId),
+      ),
+    };
+  }
+  const createdAt = new Date().toISOString();
+  const next: LocalDb = {
+    ...db,
+    likes: [...likes, { postId, userId: db.sessionUserId, createdAt }],
+  };
+  if (!post) return next;
+  return {
+    ...next,
+    notifications: addNotification(next, {
+      recipientId: post.authorId,
+      actorId: db.sessionUserId,
+      kind: "like",
+      postId,
+      preview: previewText(post.body),
+      createdAt,
+    }),
+  };
+}
+
+export function localToggleRepost(db: LocalDb, postId: string): LocalDb {
+  if (!db.sessionUserId) return db;
+  const reposts = db.reposts ?? [];
+  const existing = reposts.some(
+    (repost) => repost.postId === postId && repost.userId === db.sessionUserId,
+  );
+  return {
+    ...db,
+    reposts: existing
+      ? reposts.filter(
+          (repost) => !(repost.postId === postId && repost.userId === db.sessionUserId),
+        )
+      : [...reposts, { postId, userId: db.sessionUserId, createdAt: new Date().toISOString() }],
+  };
+}
+
+export function localAddComment(
+  db: LocalDb,
+  postId: string,
+  body: string,
+): { db: LocalDb; error?: string } {
+  if (!db.sessionUserId) return { db, error: "Log in to comment." };
+  const text = body.trim().slice(0, COMMENT_LIMIT);
+  if (!text) return { db, error: "Write a comment." };
+  if (!db.posts.some((post) => post.id === postId)) return { db, error: "That post is gone." };
+  const comment: PostComment = {
+    id: `comment-${Date.now().toString(36)}`,
+    postId,
+    authorId: db.sessionUserId,
+    body: text,
+    createdAt: new Date().toISOString(),
+  };
+  const next: LocalDb = { ...db, comments: [...(db.comments ?? []), comment] };
+  const post = db.posts.find((item) => item.id === postId);
+  if (!post) return { db: next };
+  return {
+    db: {
+      ...next,
+      notifications: addNotification(next, {
+        recipientId: post.authorId,
+        actorId: db.sessionUserId,
+        kind: "comment",
+        postId,
+        preview: previewText(text),
+        createdAt: comment.createdAt,
+      }),
+    },
+  };
+}
+
+export function localCreatePost(
+  db: LocalDb,
+  input: { body: string; imageDataUrl: string | null; card: PublicCard | null },
+): { db: LocalDb; error?: string } {
+  if (!db.sessionUserId) return { db, error: "Log in to post." };
+  const body = input.body.trim();
+  if (!body && !input.imageDataUrl && !input.card) {
+    return { db, error: "Write something, add a photo, or attach a card." };
+  }
+  if (body.length > 280) return { db, error: "Keep it to 280 characters." };
+  const post: Post = {
+    id: `post-${Date.now().toString(36)}`,
+    authorId: db.sessionUserId,
+    body,
+    imageDataUrl: input.imageDataUrl,
+    card: input.card,
+    createdAt: new Date().toISOString(),
+  };
+  return { db: { ...db, posts: [post, ...db.posts] } };
+}
+
+export function localUpdatePost(
+  db: LocalDb,
+  postId: string,
+  input: { body: string; imageDataUrl: string | null },
+): { db: LocalDb; error?: string } {
+  if (!db.sessionUserId) return { db, error: "Log in to edit." };
+  const post = db.posts.find((item) => item.id === postId);
+  if (!post) return { db, error: "That post is gone." };
+  if (post.authorId !== db.sessionUserId) return { db, error: "You can only edit your own posts." };
+  const body = input.body.trim();
+  if (!body && !input.imageDataUrl && !post.card) {
+    return { db, error: "Write something or add a photo." };
+  }
+  if (body.length > 280) return { db, error: "Keep it to 280 characters." };
+  return {
+    db: {
+      ...db,
+      posts: db.posts.map((item) =>
+        item.id === postId ? { ...item, body, imageDataUrl: input.imageDataUrl } : item,
+      ),
+    },
+  };
+}
+
+export function localDeletePost(db: LocalDb, postId: string): { db: LocalDb; error?: string } {
+  if (!db.sessionUserId) return { db, error: "Log in to delete." };
+  const post = db.posts.find((item) => item.id === postId);
+  if (!post) return { db, error: "That post is gone." };
+  if (post.authorId !== db.sessionUserId) return { db, error: "You can only delete your own posts." };
+  return {
+    db: {
+      ...db,
+      posts: db.posts.filter((item) => item.id !== postId),
+      comments: (db.comments ?? []).filter((comment) => comment.postId !== postId),
+      likes: (db.likes ?? []).filter((like) => like.postId !== postId),
+      reposts: (db.reposts ?? []).filter((repost) => repost.postId !== postId),
+      notifications: (db.notifications ?? []).filter((note) => note.postId !== postId),
+    },
+  };
+}
+
+export function localMarkNotificationsRead(db: LocalDb): LocalDb {
+  if (!db.sessionUserId) return db;
+  return {
+    ...db,
+    notifications: (db.notifications ?? []).map((note) =>
+      note.recipientId === db.sessionUserId ? { ...note, read: true } : note,
+    ),
+  };
+}
