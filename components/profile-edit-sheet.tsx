@@ -186,6 +186,7 @@ export function ProfileEditSheet({
                     image={avatar}
                     accent={profile.accent}
                     className="h-20 w-20 text-lg ring-4 ring-[var(--background)]"
+                    expandable={false}
                   />
                   <span className="absolute right-0 bottom-0 grid h-7 w-7 place-items-center rounded-full bg-zinc-900 text-white ring-2 ring-[var(--background)] dark:bg-zinc-100 dark:text-zinc-950">
                     <Camera className="h-3.5 w-3.5" />

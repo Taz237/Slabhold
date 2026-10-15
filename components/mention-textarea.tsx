@@ -164,6 +164,7 @@ export function MentionTextarea({
               image={person.avatarDataUrl}
               accent={person.accent}
               className="h-9 w-9 shrink-0"
+              expandable={false}
             />
             <span className="min-w-0">
               <span className="block truncate text-[15px] leading-5 font-bold">

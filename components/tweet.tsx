@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { Ellipsis, Heart, MessageCircle, Repeat2 } from "lucide-react";
 import { Avatar } from "@/components/avatar";
+import { useImageLightbox } from "@/components/image-lightbox";
 import { MentionText } from "@/components/mention-text";
 import { ShareAction } from "@/components/share-button";
 import { useSocial } from "@/components/social-provider";
@@ -25,6 +26,7 @@ export function Tweet({
   repostedBy?: Profile | null;
 }) {
   const router = useRouter();
+  const openImage = useImageLightbox();
   const { commentsFor } = useSocial();
   const comments = commentsFor(post.id);
 
@@ -82,12 +84,7 @@ export function Tweet({
           </p>
         ) : null}
         {post.imageDataUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={post.imageDataUrl}
-            alt=""
-            className="mt-3 max-h-80 w-full rounded-2xl border border-zinc-200 object-cover dark:border-white/10"
-          />
+          <PostPhoto src={post.imageDataUrl} onOpen={openImage} />
         ) : null}
         {post.card ? <CardMedia card={post.card} /> : null}
         <Engagement
@@ -101,6 +98,34 @@ export function Tweet({
       </div>
       </div>
     </article>
+  );
+}
+
+function PostPhoto({
+  src,
+  onOpen,
+}: {
+  src: string;
+  onOpen: (src: string, alt: string) => void;
+}) {
+  return (
+    <button
+      type="button"
+      aria-label="View image"
+      onClick={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        onOpen(src, "Post image");
+      }}
+      className="mt-3 block w-full cursor-zoom-in"
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={src}
+        alt=""
+        className="max-h-80 w-full rounded-2xl border border-zinc-200 object-cover dark:border-white/10"
+      />
+    </button>
   );
 }
 

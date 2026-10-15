@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { AppShell } from "@/components/app-shell";
 import { CollectionProvider } from "@/components/collection-provider";
+import { ImageLightboxProvider } from "@/components/image-lightbox";
 import { SocialProvider } from "@/components/social-provider";
 import "./globals.css";
 
@@ -27,11 +28,13 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full font-sans">
-        <SocialProvider>
-          <CollectionProvider>
-            <AppShell>{children}</AppShell>
-          </CollectionProvider>
-        </SocialProvider>
+        <ImageLightboxProvider>
+          <SocialProvider>
+            <CollectionProvider>
+              <AppShell>{children}</AppShell>
+            </CollectionProvider>
+          </SocialProvider>
+        </ImageLightboxProvider>
       </body>
     </html>
   );
