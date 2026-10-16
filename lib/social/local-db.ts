@@ -218,6 +218,9 @@ async function createSeed(): Promise<LocalDb> {
     photoDataUrl: null,
     accent: "#7c5cff",
     estimatedSellPrice: 185,
+    grade: "PSA 10",
+    parallel: "Silver",
+    purchasePrice: 140,
   };
   const mahomes: PublicCard = {
     id: "jordan-mahomes",
@@ -229,6 +232,9 @@ async function createSeed(): Promise<LocalDb> {
     photoDataUrl: null,
     accent: "#f43f5e",
     estimatedSellPrice: 255,
+    grade: "PSA 9",
+    parallel: "Base",
+    purchasePrice: 180,
   };
   const clark: PublicCard = {
     id: "sam-clark",
@@ -240,6 +246,9 @@ async function createSeed(): Promise<LocalDb> {
     photoDataUrl: null,
     accent: "#fbbf24",
     estimatedSellPrice: 265,
+    grade: "Raw",
+    parallel: "Silver",
+    purchasePrice: 90,
   };
 
   const posts: Post[] = [

@@ -71,6 +71,9 @@ export function mapPublicCard(row: CardRow): OwnedCard {
     photoDataUrl: card.photoDataUrl,
     accent: card.accent,
     estimatedSellPrice: card.estimatedSellPrice,
+    grade: card.grade,
+    parallel: card.parallel,
+    purchasePrice: row.paid_price == null ? null : Number(row.paid_price),
   };
 }
 

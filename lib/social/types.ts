@@ -20,6 +20,9 @@ export type PublicCard = {
   photoDataUrl: string | null;
   accent: string;
   estimatedSellPrice: number;
+  grade?: string;
+  parallel?: string;
+  purchasePrice?: number | null;
 };
 
 export type OwnedCard = PublicCard & { ownerId: string };

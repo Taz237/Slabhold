@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { MessageCircle, WalletCards } from "lucide-react";
 import { Avatar } from "@/components/avatar";
@@ -29,8 +29,11 @@ export function ProfileView({ username }: { username?: string }) {
 
   const profile = username ? social.profileByUsername(username) : user;
   const isOwn = Boolean(profile && user && profile.id === user.id);
+  const searchParams = useSearchParams();
   const [editing, setEditing] = useState(false);
-  const [tab, setTab] = useState<"posts" | "collection">("posts");
+  const [tab, setTab] = useState<"posts" | "collection">(
+    searchParams.get("tab") === "collection" ? "collection" : "posts",
+  );
 
   if (!ready) return <ProfileSkeleton />;
 
@@ -83,6 +86,9 @@ export function ProfileView({ username }: { username?: string }) {
           photoDataUrl: card.photoDataUrl,
           accent: card.accent,
           estimatedSellPrice: card.estimatedSellPrice,
+          grade: card.grade,
+          parallel: card.parallel,
+          purchasePrice: card.purchasePrice,
         }))
     : [];
   const listed = publicCards.filter((card) => card.ownerId === profile.id);
@@ -241,18 +247,20 @@ export function ProfileView({ username }: { username?: string }) {
           ) : (
             <ul className="grid grid-cols-2 gap-3">
               {collection.map((card) => (
-                <li
-                  key={card.id}
-                  className="overflow-hidden rounded-2xl border border-zinc-200 dark:border-white/10"
-                >
-                  <CardThumb card={card} className="h-36 w-full" />
-                  <div className="px-2.5 py-2">
-                    <p className="truncate text-sm font-bold">{card.playerName}</p>
-                    <p className="truncate text-xs text-zinc-500">
-                      {card.year} {card.setBrand}
-                    </p>
-                    <p className="text-xs text-zinc-500">Est. {money(card.estimatedSellPrice)}</p>
-                  </div>
+                <li key={card.id}>
+                  <Link
+                    href={`/u/${profile.username}/cards/${card.id}`}
+                    className="block overflow-hidden rounded-2xl border border-zinc-200 transition hover:border-zinc-300 active:bg-zinc-50 dark:border-white/10 dark:hover:border-white/20 dark:active:bg-white/[0.04]"
+                  >
+                    <CardThumb card={card} className="h-36 w-full" />
+                    <div className="px-2.5 py-2">
+                      <p className="truncate text-sm font-bold">{card.playerName}</p>
+                      <p className="truncate text-xs text-zinc-500">
+                        {card.year} {card.setBrand}
+                      </p>
+                      <p className="text-xs text-zinc-500">Est. {money(card.estimatedSellPrice)}</p>
+                    </div>
+                  </Link>
                 </li>
               ))}
             </ul>
