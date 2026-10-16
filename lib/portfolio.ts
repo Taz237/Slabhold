@@ -1,5 +1,6 @@
+import { cardCategory } from "./card-category";
 import { currentValue, isSold, profit } from "./format";
-import type { PortfolioFilter, SportsCard } from "./types";
+import type { CardCategory, PortfolioFilter, SportsCard } from "./types";
 
 export type PortfolioTotals = {
   invested: number;
@@ -41,6 +42,7 @@ export function matchesQuery(card: SportsCard, query: string) {
     card.parallel,
     card.sport,
     card.notes,
+    cardCategory(card) === "pc" ? "pc personal collection" : "flipping for sale",
   ]
     .join(" ")
     .toLowerCase()
@@ -61,6 +63,11 @@ export function matchesFilter(card: SportsCard, filter: PortfolioFilter) {
     default:
       return true;
   }
+}
+
+export function matchesCategory(card: SportsCard, category: "all" | CardCategory) {
+  if (category === "all") return true;
+  return cardCategory(card) === category;
 }
 
 export function sortCards(cards: SportsCard[]) {

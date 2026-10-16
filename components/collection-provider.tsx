@@ -10,6 +10,7 @@ import {
   useState,
 } from "react";
 import { useSocial } from "@/components/social-provider";
+import { mergeCategories } from "@/lib/card-category";
 import { loadUserCards, removeUserCard, saveUserCard } from "@/lib/social/cards";
 import { loadCollection, newId, nextAccent, saveCollection } from "@/lib/storage";
 import { createSupabaseBrowser } from "@/lib/supabase/browser";
@@ -71,8 +72,20 @@ export function CollectionProvider({ children }: { children: React.ReactNode }) 
     loadUserCards(client, userId)
       .then((rows) => {
         if (cancelled) return;
-        setCards(rows);
+        const { cards: merged, dirty } = mergeCategories(rows);
+        cardsRef.current = merged;
+        setCards(merged);
         setSyncError(null);
+        for (const card of dirty) {
+          enqueue(card.id, async () => {
+            try {
+              await saveUserCard(client, userId, card);
+              setSyncError(null);
+            } catch (error) {
+              report(error);
+            }
+          });
+        }
       })
       .catch((error: unknown) => {
         if (cancelled) return;
@@ -86,7 +99,7 @@ export function CollectionProvider({ children }: { children: React.ReactNode }) 
     return () => {
       cancelled = true;
     };
-  }, [mode, remote, report, socialReady, userId]);
+  }, [enqueue, mode, remote, report, socialReady, userId]);
 
   useEffect(() => {
     if (ready && mode === "local") saveCollection(cards);
@@ -180,8 +193,9 @@ export function CollectionProvider({ children }: { children: React.ReactNode }) 
       if (!client) return;
       void loadUserCards(client, userId)
         .then((rows) => {
-          cardsRef.current = rows;
-          setCards(rows);
+          const { cards: merged } = mergeCategories(rows);
+          cardsRef.current = merged;
+          setCards(merged);
           setSyncError(null);
         })
         .catch(report);

@@ -56,6 +56,7 @@ create table if not exists public.cards (
   notes text not null default '',
   accent text not null default '#7c5cff',
   is_public boolean not null default false,
+  category text not null default 'flipping',
   updated_at timestamptz not null default now()
 );
 
@@ -155,6 +156,9 @@ alter table public.cards add column if not exists sell_date date;
 alter table public.cards add column if not exists notes text not null default '';
 alter table public.cards add column if not exists accent text not null default '#7c5cff';
 alter table public.cards add column if not exists is_public boolean not null default false;
+alter table public.cards add column if not exists category text not null default 'flipping';
+alter table public.cards drop constraint if exists cards_category;
+alter table public.cards add constraint cards_category check (category in ('flipping', 'pc'));
 alter table public.cards add column if not exists updated_at timestamptz not null default now();
 
 create table if not exists public.comments (

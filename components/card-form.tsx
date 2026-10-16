@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Camera, ImagePlus, Loader2, ScanSearch, X } from "lucide-react";
+import { CategoryPicker } from "@/components/category-picker";
 import { useCollection, useDefaultAccent } from "@/components/collection-provider";
 import { NativeSelect, SearchSelect } from "@/components/search-select";
 import { useSocial } from "@/components/social-provider";
@@ -21,8 +22,9 @@ import {
   parseGrade,
 } from "@/lib/card-options";
 import { averageComp, identifyFromPhoto, mockCompsForCard } from "@/lib/comps";
+import { cardCategory } from "@/lib/card-category";
 import { fileToDataUrl } from "@/lib/storage";
-import type { IdentifyResult, SportsCard } from "@/lib/types";
+import type { CardCategory, IdentifyResult, SportsCard } from "@/lib/types";
 
 function localToday() {
   const date = new Date();
@@ -46,6 +48,7 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
   }, [existing]);
   const [sold, setSold] = useState(Boolean(existing?.sellPrice));
   const [share, setShare] = useState(Boolean(existing?.isPublic));
+  const [category, setCategory] = useState<CardCategory>(existing ? cardCategory(existing) : "flipping");
   const [scanning, setScanning] = useState(false);
   const [identified, setIdentified] = useState<IdentifyResult | null>(null);
   const initialGrade = parseGrade(existing?.grade ?? "");
@@ -153,6 +156,7 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
       notes: form.notes.trim(),
       photoDataUrl: photo,
       accent: existing?.accent ?? accent,
+      category,
       isPublic: share,
     };
 
@@ -179,6 +183,8 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
           {mode === "supabase" ? "Saved to your account." : "Saved in this browser."}
         </p>
       </div>
+
+      <CategoryPicker value={category} onChange={setCategory} />
 
       <section className="rounded-2xl border border-zinc-200 bg-white dark:border-white/10 dark:bg-white/[0.03] p-4">
         <div className="flex items-start justify-between gap-3">

@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { cardCategory, rememberCategory } from "@/lib/card-category";
 import { uploadMedia } from "@/lib/supabase/media";
 import type { SportsCard } from "@/lib/types";
 import type { OwnedCard } from "./types";
@@ -22,6 +23,7 @@ type CardRow = {
   notes: string | null;
   accent: string | null;
   is_public: boolean | null;
+  category?: string | null;
   created_at: string;
   updated_at: string | null;
 };
@@ -49,6 +51,7 @@ export function mapCardRow(row: CardRow): SportsCard {
     notes: row.notes ?? "",
     photoDataUrl: row.image_url,
     accent: row.accent ?? "#7c5cff",
+    category: row.category === "pc" || row.category === "flipping" ? row.category : undefined,
     isPublic: Boolean(row.is_public),
     createdAt: row.created_at,
     updatedAt: row.updated_at ?? row.created_at,
@@ -81,10 +84,20 @@ export async function loadUserCards(supabase: SupabaseClient, userId: string) {
   return ((data ?? []) as CardRow[]).map(mapCardRow);
 }
 
+function missingCategoryColumn(error: { code?: string; message?: string }) {
+  const message = error.message ?? "";
+  return (
+    /category/i.test(message) &&
+    (error.code === "PGRST204" || error.code === "42703" || /schema cache|column/i.test(message))
+  );
+}
+
 export async function saveUserCard(supabase: SupabaseClient, userId: string, card: SportsCard) {
   const uploaded = await uploadMedia(supabase, "card-photos", userId, card.photoDataUrl);
   if (uploaded.error) throw new Error(uploaded.error);
-  const { error } = await supabase.from("cards").upsert({
+  const category = cardCategory(card);
+  rememberCategory(card.id, category);
+  const payload = {
     id: card.id,
     user_id: userId,
     player: card.playerName,
@@ -105,7 +118,11 @@ export async function saveUserCard(supabase: SupabaseClient, userId: string, car
     is_public: Boolean(card.isPublic),
     created_at: card.createdAt,
     updated_at: card.updatedAt,
-  });
+  };
+  const withCategory = await supabase.from("cards").upsert({ ...payload, category });
+  if (!withCategory.error) return;
+  if (!missingCategoryColumn(withCategory.error)) throw new Error(withCategory.error.message);
+  const { error } = await supabase.from("cards").upsert(payload);
   if (error) throw new Error(error.message);
 }
 

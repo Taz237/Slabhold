@@ -4,10 +4,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { ArrowLeft, Pencil, Trash2 } from "lucide-react";
+import { CategoryBadge, CategoryPicker } from "@/components/category-picker";
 import { useCollection } from "@/components/collection-provider";
 import { CardThumb } from "@/components/card-thumb";
 import { CompsList } from "@/components/comps-list";
 import { ValueChart } from "@/components/value-chart";
+import { cardCategory } from "@/lib/card-category";
 import { averageComp, mockCompsForCard } from "@/lib/comps";
 import {
   cardSubtitle,
@@ -100,7 +102,10 @@ export function CardDetail({ id }: { id: string }) {
           className="mx-auto h-72 w-48 rounded-2xl shadow-xl shadow-black/20 md:mx-0"
         />
         <div>
-          <p className="text-sm text-zinc-500">{cardTitle(card)}</p>
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-sm text-zinc-500">{cardTitle(card)}</p>
+            <CategoryBadge card={card} />
+          </div>
           <h1 className="mt-1 text-3xl font-semibold tracking-tight">
             {card.playerName}
           </h1>
@@ -122,6 +127,14 @@ export function CardDetail({ id }: { id: string }) {
               label="Profit"
               value={`${signedMoney(delta, true)} ${pct(profitPct(card))}`}
               tone={delta >= 0 ? "up" : "down"}
+            />
+          </div>
+
+          <div className="mt-5 max-w-sm">
+            <p className="mb-2 text-sm text-zinc-500">Move this card</p>
+            <CategoryPicker
+              value={cardCategory(card)}
+              onChange={(category) => updateCard(card.id, { category })}
             />
           </div>
 

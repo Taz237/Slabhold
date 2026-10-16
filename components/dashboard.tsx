@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { Search, TrendingDown, TrendingUp, WalletCards } from "lucide-react";
 import { outlineButton, solidButton } from "@/components/button-styles";
+import { CategoryBadge } from "@/components/category-picker";
 import { useCollection } from "@/components/collection-provider";
 import { CardThumb } from "@/components/card-thumb";
 import { CollectionSkeleton, EmptyState } from "@/components/status";
@@ -17,13 +18,21 @@ import {
   profitPct,
   signedMoney,
 } from "@/lib/format";
+import { categoryLabel } from "@/lib/card-category";
 import {
+  matchesCategory,
   matchesFilter,
   matchesQuery,
   sortCards,
   summarize,
 } from "@/lib/portfolio";
-import type { PortfolioFilter } from "@/lib/types";
+import type { CardCategory, PortfolioFilter } from "@/lib/types";
+
+const LANES: { id: "all" | CardCategory; label: string }[] = [
+  { id: "all", label: "All" },
+  { id: "flipping", label: "Flipping" },
+  { id: "pc", label: "PC" },
+];
 
 const FILTERS: { id: PortfolioFilter; label: string }[] = [
   { id: "all", label: "All" },
@@ -37,17 +46,20 @@ export function Dashboard() {
   const { cards, ready, syncError } = useCollection();
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<PortfolioFilter>("all");
+  const [lane, setLane] = useState<(typeof LANES)[number]["id"]>("all");
 
-  const totals = useMemo(() => summarize(cards), [cards]);
+  const inLane = useMemo(
+    () => cards.filter((card) => matchesCategory(card, lane)),
+    [cards, lane],
+  );
+  const totals = useMemo(() => summarize(inLane), [inLane]);
   const profitTotal = totals.unrealizedProfit + totals.realizedProfit;
   const visible = useMemo(
     () =>
       sortCards(
-        cards.filter(
-          (card) => matchesQuery(card, query) && matchesFilter(card, filter),
-        ),
+        inLane.filter((card) => matchesQuery(card, query) && matchesFilter(card, filter)),
       ),
-    [cards, query, filter],
+    [inLane, query, filter],
   );
 
   if (!ready) return <CollectionSkeleton />;
@@ -60,6 +72,27 @@ export function Dashboard() {
         {syncError ? (
           <p className="mt-2 text-sm text-rose-600 dark:text-rose-400">{syncError}</p>
         ) : null}
+      </div>
+      <div className="grid grid-cols-3 rounded-full bg-zinc-100 p-1 dark:bg-white/10" role="tablist" aria-label="Collection">
+        {LANES.map((item) => {
+          const selected = lane === item.id;
+          return (
+            <button
+              key={item.id}
+              type="button"
+              role="tab"
+              aria-selected={selected}
+              onClick={() => setLane(item.id)}
+              className={`min-h-11 rounded-full text-sm font-bold ${
+                selected
+                  ? "bg-white text-zinc-950 shadow-sm dark:bg-zinc-950 dark:text-zinc-100"
+                  : "text-zinc-500"
+              }`}
+            >
+              {item.label}
+            </button>
+          );
+        })}
       </div>
       <section className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <Stat
@@ -111,17 +144,29 @@ export function Dashboard() {
       {visible.length === 0 ? (
         <EmptyState
           icon={<WalletCards className="h-5 w-5" />}
-          title={cards.length === 0 ? "No cards yet" : "No cards match"}
+          title={
+            cards.length === 0
+              ? "No cards yet"
+              : inLane.length === 0
+                ? `No ${categoryLabel(lane === "pc" ? "pc" : "flipping")} cards`
+                : "No cards match"
+          }
           detail={
             cards.length === 0
               ? "Add a pickup to start tracking what you paid and what it's worth."
-              : "Nothing in your book matches that search or filter."
+              : inLane.length === 0
+                ? "Cards you add here will show up in this tab."
+                : "Nothing in this tab matches that search or filter."
           }
         >
           {cards.length === 0 ? (
             <Link href="/cards/new" className={solidButton}>
               Add your first card
             </Link>
+          ) : inLane.length === 0 ? (
+            <button type="button" onClick={() => setLane("all")} className={outlineButton}>
+              Show all cards
+            </button>
           ) : (
             <button
               type="button"
@@ -161,15 +206,18 @@ export function Dashboard() {
                           {cardSubtitle(card)}
                         </p>
                       </div>
-                      <span
-                        className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
-                          sold
-                            ? "bg-sky-500/15 text-sky-700 dark:text-sky-300"
-                            : "bg-violet-500/15 text-violet-700 dark:text-violet-300"
-                        }`}
-                      >
-                        {sold ? "Sold" : "Held"}
-                      </span>
+                      <div className="flex shrink-0 flex-col items-end gap-1">
+                        <CategoryBadge card={card} />
+                        <span
+                          className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                            sold
+                              ? "bg-sky-500/15 text-sky-700 dark:text-sky-300"
+                              : "bg-violet-500/15 text-violet-700 dark:text-violet-300"
+                          }`}
+                        >
+                          {sold ? "Sold" : "Held"}
+                        </span>
+                      </div>
                     </div>
                     <div className="mt-3 flex items-center justify-between text-sm">
                       <span className="text-zinc-400">

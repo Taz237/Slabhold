@@ -1,5 +1,7 @@
 export type CardStatus = "held" | "sold";
 
+export type CardCategory = "flipping" | "pc";
+
 export type SportsCard = {
   id: string;
   playerName: string;
@@ -17,6 +19,7 @@ export type SportsCard = {
   notes: string;
   photoDataUrl: string | null;
   accent: string;
+  category?: CardCategory;
   isPublic?: boolean;
   createdAt: string;
   updatedAt: string;

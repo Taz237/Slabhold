@@ -18,6 +18,7 @@ export function loadCollection(): SportsCard[] {
       cardNumber: card.cardNumber ?? "",
       grade: card.grade ?? "",
       parallel: card.parallel ?? "",
+      category: card.category === "pc" ? "pc" : "flipping",
       isPublic: Boolean(card.isPublic),
     }));
   } catch {
