@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { Search, TrendingDown, TrendingUp, WalletCards } from "lucide-react";
 import { outlineButton, solidButton } from "@/components/button-styles";
 import { CategoryBadge } from "@/components/category-picker";
+import { CollectionValueHistory } from "@/components/collection-value-history";
 import { useCollection } from "@/components/collection-provider";
 import { CardThumb } from "@/components/card-thumb";
 import { CollectionSkeleton, EmptyState } from "@/components/status";
@@ -100,6 +101,7 @@ export function Dashboard() {
           <p className="mt-2 text-sm text-rose-600 dark:text-rose-400">{syncError}</p>
         ) : null}
       </div>
+      <CollectionValueHistory currentValue={totals.estimatedValue} />
       <div className="grid grid-cols-3 rounded-full bg-zinc-100 p-1 dark:bg-white/10" role="tablist" aria-label="Collection">
         {LANES.map((item) => {
           const selected = lane === item.id;

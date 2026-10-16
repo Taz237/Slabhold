@@ -3,6 +3,10 @@
     {
       "path": "/api/cron/refresh-card-values",
       "schedule": "0 9 * * *"
+    },
+    {
+      "path": "/api/cron/collection-snapshots",
+      "schedule": "0 10 * * *"
     }
   ]
 }
