@@ -206,7 +206,7 @@ export function Dashboard() {
         <ul
           className="grid gap-3"
           style={{
-            gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
+            gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))",
           }}
         >
           {visible.map((card) => {
@@ -217,7 +217,11 @@ export function Dashboard() {
             const paid = card.purchasePrice;
             const valuePending = !sold && valuesLoading;
             const showProfit =
-              !valuePending && paid > 0 && p != null && pPct != null;
+              !valuePending &&
+              paid != null &&
+              paid > 0 &&
+              p != null &&
+              pPct != null;
             const valueLabel = sold
               ? card.sellPrice != null
                 ? money(card.sellPrice)
@@ -314,6 +318,8 @@ export function Dashboard() {
                               {signedMoney(p)} {pct(pPct)}
                             </span>
                           </p>
+                        ) : !valuePending && (paid == null || paid <= 0) ? (
+                          <p className="mt-0.5 text-xs text-zinc-400">—</p>
                         ) : null}
                       </div>
                     </div>

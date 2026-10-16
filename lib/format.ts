@@ -17,9 +17,14 @@ export function money(value: number, exact = false) {
   return (exact ? usdExact : usd).format(value);
 }
 
-/** Paid amount for tiles and card page — empty/zero shows an em dash. */
-export function formatPaidLabel(purchasePrice: number, exact = false) {
-  return purchasePrice > 0 ? money(purchasePrice, exact) : "—";
+/** Paid amount for tiles and card page — empty/null/zero shows an em dash. */
+export function formatPaidLabel(
+  purchasePrice: number | null | undefined,
+  exact = false,
+) {
+  return purchasePrice != null && purchasePrice > 0
+    ? money(purchasePrice, exact)
+    : "—";
 }
 
 export function signedMoney(value: number, exact = false) {
@@ -67,11 +72,12 @@ export function currentValue(card: SportsCard) {
 }
 
 export function profit(card: SportsCard) {
+  if (card.purchasePrice == null) return 0;
   return currentValue(card) - card.purchasePrice;
 }
 
 export function profitPct(card: SportsCard) {
-  if (card.purchasePrice === 0) return 0;
+  if (card.purchasePrice == null || card.purchasePrice === 0) return 0;
   return profit(card) / card.purchasePrice;
 }
 

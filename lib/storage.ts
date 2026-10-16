@@ -4,6 +4,12 @@ import type { ConditionType, SportsCard } from "./types";
 
 export const STORAGE_KEY = "cardflip.cards.v1";
 
+function optionalMoney(value: unknown): number | null {
+  if (value == null || value === "") return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
 function normalizeCard(card: Partial<SportsCard> & { id: string }): SportsCard {
   const parsed = parseGrade(card.grade ?? "");
   const conditionType: ConditionType =
@@ -33,7 +39,7 @@ function normalizeCard(card: Partial<SportsCard> & { id: string }): SportsCard {
     gradeQualifier: card.gradeQualifier ?? "",
     certNumber: card.certNumber ?? "",
     sport: card.sport ?? "Basketball",
-    purchasePrice: Number(card.purchasePrice) || 0,
+    purchasePrice: optionalMoney(card.purchasePrice),
     purchaseDate: card.purchaseDate ?? "",
     estimatedSellPrice: Number(card.estimatedSellPrice) || 0,
     sellPrice: card.sellPrice ?? null,

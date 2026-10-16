@@ -104,11 +104,13 @@ export function CardDetail({ id }: { id: string }) {
     ? card.sellPrice!
     : resolveEstSell(cardValue, valueLoading);
 
-  const delta = estSell != null ? estSell - card.purchasePrice : 0;
+  const paid = card.purchasePrice;
+  const delta =
+    estSell != null && paid != null ? estSell - paid : 0;
   const showProfit =
-    (cardSold || estSell != null) && Boolean(card.purchasePrice);
-  const profitPctValue = showProfit ? delta / card.purchasePrice : null;
-  const max = Math.max(card.purchasePrice, estSell ?? 0, 1);
+    (cardSold || estSell != null) && paid != null && paid > 0;
+  const profitPctValue = showProfit && paid > 0 ? delta / paid : null;
+  const max = Math.max(paid ?? 0, estSell ?? 0, 1);
   const valueStatusLabel = cardSold
     ? null
     : valueLoading
@@ -284,10 +286,10 @@ export function CardDetail({ id }: { id: string }) {
         <div className="mt-5 space-y-3">
           <Bar
             label="Paid"
-            value={card.purchasePrice}
+            value={paid ?? 0}
             max={max}
             color="bg-zinc-400 dark:bg-zinc-500"
-            empty={!card.purchasePrice}
+            empty={paid == null || paid <= 0}
           />
           <Bar
             label={cardSold ? "Sold" : "Estimated sell"}
@@ -314,7 +316,7 @@ export function CardDetail({ id }: { id: string }) {
           card={{
             id: card.id,
             estimatedSellPrice: estSell ?? card.estimatedSellPrice,
-            purchasePrice: card.purchasePrice,
+            purchasePrice: paid ?? 0,
           }}
           points={usingLive ? sold.data?.history : null}
           source={sold.data?.source ?? (usingSample ? "sample" : "trawl")}

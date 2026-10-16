@@ -6,6 +6,61 @@ export type ActiveMention = {
   query: string;
 };
 
+/** Public profile fields used by @mention autocomplete (no email/bio). */
+export type MentionCandidate = {
+  id: string;
+  username: string;
+  displayName: string;
+  avatarDataUrl: string | null;
+  accent: string;
+};
+
+/**
+ * Rank @mention matches: people you follow first, then prefix matches on
+ * username/display name, then contains. Case-insensitive. Cap at `limit`.
+ */
+export function rankMentionMatches(
+  people: MentionCandidate[],
+  query: string,
+  followingIds: ReadonlySet<string>,
+  limit = 8,
+): MentionCandidate[] {
+  const q = query.trim().toLowerCase();
+  const scored: Array<{
+    person: MentionCandidate;
+    following: number;
+    tier: number;
+    name: string;
+  }> = [];
+
+  for (const person of people) {
+    const username = person.username.toLowerCase();
+    const display = person.displayName.toLowerCase();
+    let tier = 0;
+    if (q) {
+      if (username.startsWith(q)) tier = 0;
+      else if (display.startsWith(q)) tier = 1;
+      else if (username.includes(q)) tier = 2;
+      else if (display.includes(q)) tier = 3;
+      else continue;
+    }
+    scored.push({
+      person,
+      following: followingIds.has(person.id) ? 0 : 1,
+      tier,
+      name: username,
+    });
+  }
+
+  scored.sort(
+    (a, b) =>
+      a.following - b.following ||
+      a.tier - b.tier ||
+      a.name.localeCompare(b.name),
+  );
+  return scored.slice(0, limit).map((entry) => entry.person);
+}
+
 /** Usernames typed as @name, ignoring emails and partial handles. */
 export function mentionUsernames(body: string): string[] {
   const found: string[] = [];

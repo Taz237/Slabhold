@@ -3,8 +3,32 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Avatar } from "@/components/avatar";
 import { useSocial } from "@/components/social-provider";
-import { activeMention, insertMention } from "@/lib/social/mentions";
-import type { Profile } from "@/lib/social/types";
+import {
+  activeMention,
+  insertMention,
+  rankMentionMatches,
+  type MentionCandidate,
+} from "@/lib/social/mentions";
+import { searchProfilesForMention } from "@/lib/social/remote";
+import { createSupabaseBrowser } from "@/lib/supabase/browser";
+
+const DEBOUNCE_MS = 150;
+
+function toCandidate(person: {
+  id: string;
+  username: string;
+  displayName: string;
+  avatarDataUrl: string | null;
+  accent: string;
+}): MentionCandidate {
+  return {
+    id: person.id,
+    username: person.username,
+    displayName: person.displayName,
+    avatarDataUrl: person.avatarDataUrl,
+    accent: person.accent,
+  };
+}
 
 export function MentionTextarea({
   value,
@@ -28,7 +52,7 @@ export function MentionTextarea({
   /** `docked` pins the list above the compose toolbar so it stays reachable on a phone. */
   menu?: "inline" | "docked";
 }) {
-  const { user, followersOf, followingOf } = useSocial();
+  const { user, mode, profiles, followingOf } = useSocial();
   const rootRef = useRef<HTMLDivElement>(null);
   const fieldRef = useRef<HTMLTextAreaElement>(null);
   const optionRefs = useRef<Array<HTMLButtonElement | null>>([]);
@@ -37,35 +61,70 @@ export function MentionTextarea({
   const [active, setActive] = useState(0);
   const [trackedQuery, setTrackedQuery] = useState("");
   const [pendingCaret, setPendingCaret] = useState<{ id: number; caret: number } | null>(null);
+  const [debouncedQuery, setDebouncedQuery] = useState("");
+  const [remotePeople, setRemotePeople] = useState<MentionCandidate[] | null>(null);
+
   const mention = activeMention(value, cursor);
   const queryKey = mention ? `${mention.start}:${mention.query}` : "";
   const open = Boolean(mention) && dismissedKey !== queryKey;
-
-  const people = useMemo(() => {
-    if (!user) return [];
-    const map = new Map<string, Profile>();
-    for (const person of followingOf(user.id)) map.set(person.id, person);
-    for (const person of followersOf(user.id)) {
-      if (!map.has(person.id)) map.set(person.id, person);
-    }
-    map.delete(user.id);
-    return [...map.values()];
-  }, [followersOf, followingOf, user]);
-
   const query = mention?.query ?? "";
-  const matches = people
-    .filter((person) => {
-      if (!query) return true;
-      return (
-        person.username.includes(query) || person.displayName.toLowerCase().includes(query)
-      );
-    })
-    .slice(0, 8);
-  if (query !== trackedQuery) {
-    setTrackedQuery(query);
+
+  useEffect(() => {
+    if (!mention) {
+      setDebouncedQuery("");
+      return;
+    }
+    const handle = window.setTimeout(() => setDebouncedQuery(query), DEBOUNCE_MS);
+    return () => window.clearTimeout(handle);
+  }, [mention, query]);
+
+  const followingIds = useMemo(() => {
+    if (!user) return new Set<string>();
+    return new Set(followingOf(user.id).map((person) => person.id));
+  }, [followingOf, user]);
+
+  const localPeople = useMemo(() => {
+    if (!user) return [] as MentionCandidate[];
+    return profiles
+      .filter((person) => person.id !== user.id)
+      .map(toCandidate);
+  }, [profiles, user]);
+
+  useEffect(() => {
+    if (!open || mode !== "supabase") {
+      setRemotePeople(null);
+      return;
+    }
+    let cancelled = false;
+    const client = createSupabaseBrowser();
+    if (!client) {
+      setRemotePeople(null);
+      return;
+    }
+    searchProfilesForMention(client, debouncedQuery)
+      .then((rows) => {
+        if (cancelled) return;
+        setRemotePeople(rows.filter((person) => person.id !== user?.id));
+      })
+      .catch(() => {
+        if (!cancelled) setRemotePeople(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [debouncedQuery, mode, open, user?.id]);
+
+  const pool = remotePeople ?? localPeople;
+  const matches = useMemo(
+    () => rankMentionMatches(pool, debouncedQuery, followingIds, 8),
+    [debouncedQuery, followingIds, pool],
+  );
+
+  if (debouncedQuery !== trackedQuery) {
+    setTrackedQuery(debouncedQuery);
     setActive(0);
   }
-  const highlighted = query === trackedQuery ? active : 0;
+  const highlighted = debouncedQuery === trackedQuery ? active : 0;
   const index = matches.length === 0 ? 0 : Math.min(highlighted, matches.length - 1);
 
   useEffect(() => {
@@ -83,7 +142,7 @@ export function MentionTextarea({
     return () => document.removeEventListener("pointerdown", onPointer);
   }, [open, queryKey]);
 
-  function choose(person: Profile) {
+  function choose(person: MentionCandidate) {
     if (!mention) return;
     const next = insertMention(value, mention, person.username, maxLength);
     onChange(next.body);
@@ -138,9 +197,7 @@ export function MentionTextarea({
         Tag someone
       </p>
       {matches.length === 0 ? (
-        <p className="px-3 pt-1 pb-3 text-sm text-zinc-500">
-          {people.length === 0 ? "Follow someone to mention them." : "No matches."}
-        </p>
+        <p className="px-3 pt-1 pb-3 text-sm text-zinc-500">No matches.</p>
       ) : (
         matches.map((person, optionIndex) => (
           <button

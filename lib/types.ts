@@ -26,7 +26,8 @@ export type SportsCard = {
   gradeQualifier: string;
   certNumber: string;
   sport: string;
-  purchasePrice: number;
+  /** Null when the owner left "What you paid" empty. */
+  purchasePrice: number | null;
   purchaseDate: string;
   estimatedSellPrice: number;
   sellPrice: number | null;

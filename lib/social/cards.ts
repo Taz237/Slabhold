@@ -101,7 +101,10 @@ export function mapCardRow(row: CardRow): SportsCard {
     gradeQualifier: row.grade_qualifier ?? "",
     certNumber: row.cert_number ?? "",
     sport: row.sport ?? "Basketball",
-    purchasePrice: Number(row.paid_price) || 0,
+    purchasePrice:
+      row.paid_price == null || !Number.isFinite(Number(row.paid_price))
+        ? null
+        : Number(row.paid_price),
     purchaseDate: dateOnly(row.purchase_date, row.created_at),
     estimatedSellPrice: Number(row.estimated_value) || 0,
     sellPrice: row.sell_price == null ? null : Number(row.sell_price),

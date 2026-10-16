@@ -53,6 +53,13 @@ function negativePrice(value: string): boolean {
   return Number.isFinite(n) && n < 0;
 }
 
+function parseOptionalPrice(value: string): number | null {
+  const trimmed = value.trim();
+  if (trimmed === "") return null;
+  const n = Number(trimmed);
+  return Number.isFinite(n) ? n : null;
+}
+
 export function CardForm({ existing }: { existing?: SportsCard }) {
   const router = useRouter();
   const { addCard, updateCard, removeCard } = useCollection();
@@ -119,7 +126,8 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
     serialRun: existing?.serialRun != null ? String(existing.serialRun) : "",
     serialNo: existing?.serialNo != null ? String(existing.serialNo) : "",
     sport: existing?.sport ?? "Basketball",
-    purchasePrice: existing ? String(existing.purchasePrice) : "",
+    purchasePrice:
+      existing?.purchasePrice != null ? String(existing.purchasePrice) : "",
     purchaseDate: existing?.purchaseDate ?? localToday(),
     estimatedSellPrice: existing ? String(existing.estimatedSellPrice) : "",
     sellPrice: existing?.sellPrice != null ? String(existing.sellPrice) : "",
@@ -351,7 +359,7 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
       gradeQualifier: conditionType === "graded" ? gradeQualifier : "",
       certNumber: conditionType === "graded" ? certNumber.trim() : "",
       sport: form.sport,
-      purchasePrice: Number(form.purchasePrice) || 0,
+      purchasePrice: parseOptionalPrice(form.purchasePrice),
       purchaseDate: form.purchaseDate,
       estimatedSellPrice: Number(form.estimatedSellPrice) || 0,
       sellPrice: sold && form.sellPrice ? Number(form.sellPrice) : null,
@@ -526,7 +534,11 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
           label="Year"
           required
           error={
-            touched.yearLabel && !yearOk ? "Use 2026 or 2023-24" : null
+            touched.yearLabel && !yearOk
+              ? form.yearLabel.trim() === ""
+                ? "Year is required"
+                : "Use 2026 or 2023-24"
+              : null
           }
         >
           <SearchSelect

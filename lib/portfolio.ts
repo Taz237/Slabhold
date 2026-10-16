@@ -31,10 +31,12 @@ export function summarize(
   const held = cards.filter((c) => !isSold(c));
   const sold = cards.filter(isSold);
 
-  const invested = held.reduce((sum, c) => sum + c.purchasePrice, 0);
+  const invested = held.reduce((sum, c) => sum + (c.purchasePrice ?? 0), 0);
 
   let estimatedValue = 0;
   let withoutValueCount = 0;
+  let profitValue = 0;
+  let valuedInvested = 0;
   for (const card of held) {
     const amount = marketValue(card, values);
     if (amount == null) {
@@ -42,14 +44,17 @@ export function summarize(
       continue;
     }
     estimatedValue += amount;
+    if (card.purchasePrice != null) {
+      profitValue += amount;
+      valuedInvested += card.purchasePrice;
+    }
   }
 
-  const realizedProfit = sold.reduce((sum, c) => sum + profit(c), 0);
-  const valuedInvested = held.reduce((sum, c) => {
-    const amount = marketValue(c, values);
-    return amount == null ? sum : sum + c.purchasePrice;
+  const realizedProfit = sold.reduce((sum, c) => {
+    if (c.purchasePrice == null) return sum;
+    return sum + profit(c);
   }, 0);
-  const unrealizedProfit = estimatedValue - valuedInvested;
+  const unrealizedProfit = profitValue - valuedInvested;
 
   return {
     invested,
@@ -66,6 +71,7 @@ export function cardProfit(
   card: SportsCard,
   values?: Map<string, CardValueResult>,
 ): number | null {
+  if (card.purchasePrice == null) return null;
   if (isSold(card)) return profit(card);
   const amount = marketValue(card, values);
   if (amount == null) return null;

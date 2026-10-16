@@ -46,7 +46,7 @@ create table if not exists public.cards (
   "set" text not null,
   grade text not null default '',
   parallel text not null default '',
-  paid_price numeric(12, 2) not null default 0,
+  paid_price numeric(12, 2) default null,
   estimated_value numeric(12, 2) not null default 0,
   image_url text,
   created_at timestamptz not null default now(),
@@ -147,7 +147,7 @@ alter table public.posts add column if not exists card jsonb;
 
 alter table public.cards add column if not exists grade text not null default '';
 alter table public.cards add column if not exists parallel text not null default '';
-alter table public.cards add column if not exists paid_price numeric(12, 2) not null default 0;
+alter table public.cards add column if not exists paid_price numeric(12, 2) default null;
 alter table public.cards add column if not exists estimated_value numeric(12, 2) not null default 0;
 alter table public.cards add column if not exists image_url text;
 alter table public.cards add column if not exists card_number text not null default '';

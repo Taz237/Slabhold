@@ -294,7 +294,7 @@ function toPublicCard(card: {
   estimatedSellPrice: number;
   grade: string;
   parallel: string;
-  purchasePrice: number;
+  purchasePrice: number | null;
 }): PublicCard {
   return {
     id: card.id,
