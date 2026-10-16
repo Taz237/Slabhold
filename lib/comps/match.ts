@@ -18,10 +18,11 @@ export type MatchCard = {
   /** Combined grade text e.g. "PSA 10" or "Raw". */
   grade?: string;
   gradeQualifier?: string | null;
+  isRookie?: boolean;
 };
 
 const TITLE_JUNK =
-  /\b(?:lot|lots|proxy|reprint|custom|candidate|worthy|you\s+pick|RP)\b/i;
+  /\b(?:lot|lots|proxy|reprint|custom|candidate|worthy|you\s+pick|RP|bundle|complete\s+set|base\s+set|team\s+set|set)\b|\bx[2-9]\b|\b\d+\s*x\b|\b\d+\s*cards?\b/i;
 
 const AUTO_RE = /\b(?:auto|autograph|autographed|signed)\b/i;
 const RELIC_RE = /\b(?:patch|relic)\b/i;
@@ -173,7 +174,7 @@ function isRawCard(card: MatchCard): boolean {
 
 /**
  * Human-readable comps search / preview line.
- * e.g. "2023-24 Panini Prizm #136 Victor Wembanyama, Base, PSA 10"
+ * e.g. "2023-24 Panini Prizm #136 Victor Wembanyama RC, Base, PSA 10"
  */
 export function buildCompsQuery(card: MatchCard): string {
   const year = yearLabelOf(card);
@@ -192,8 +193,9 @@ export function buildCompsQuery(card: MatchCard): string {
     return "";
   })();
   const qualifier = (card.gradeQualifier ?? "").trim().toUpperCase();
+  const playerPart = [player, card.isRookie ? "RC" : ""].filter(Boolean).join(" ");
 
-  const head = [year, set, numberPart, player].filter(Boolean).join(" ");
+  const head = [year, set, numberPart, playerPart].filter(Boolean).join(" ");
   const tail = [
     parallelIsBase(parallel) ? "Base" : parallel,
     serial,
@@ -459,11 +461,18 @@ export function gradesMatchCard(
   title: string,
 ): boolean {
   if (isRawCard(card)) {
-    return !detailsGrader && !detailsGrade && !GRADED_CUE_RE.test(title);
+    // Raw cards reject any professional grader+grade in details or title.
+    if (detailsGrader?.trim() && detailsGrade != null && String(detailsGrade).trim() !== "") {
+      return false;
+    }
+    if (parseGradeFromTitle(title)) return false;
+    return !GRADED_CUE_RE.test(title);
   }
 
   const parsed = parseGrade(card.grade ?? "");
-  if (!parsed.company || parsed.company === RAW_GRADE) return false;
+  if (!parsed.company || parsed.company === RAW_GRADE || !parsed.number) {
+    return false;
+  }
   if (!detailsGrader || detailsGrade == null || detailsGrade === "") {
     return false;
   }

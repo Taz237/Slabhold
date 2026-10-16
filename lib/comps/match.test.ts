@@ -6,7 +6,7 @@ import {
   titleMatchesCard,
   type MatchCard,
 } from "./match";
-import type { TrawlSoldResult } from "./types";
+import type { CleanedSale, TrawlSoldResult } from "./types";
 
 function rawResult(
   title: string,
@@ -100,6 +100,18 @@ describe("shared comps match", () => {
     grade: "Raw",
   };
 
+  const WEMBY_PSA10: MatchCard = {
+    playerName: "Victor Wembanyama",
+    year: 2023,
+    yearLabel: "2023-24",
+    setBrand: "Panini Prizm",
+    cardNumber: "136",
+    parallel: "Base",
+    conditionType: "graded",
+    grade: "PSA 10",
+    isRookie: true,
+  };
+
   const GOLD_SERIAL: MatchCard = {
     playerName: "Victor Wembanyama",
     year: 2023,
@@ -151,6 +163,87 @@ describe("shared comps match", () => {
     );
   });
 
+  it("Wemby Prizm #136 PSA 10 rejects raw, PSA 9, BGS 10, and lots; accepts PSA 10", () => {
+    const accept = "2023 Prizm Wembanyama #136 PSA 10";
+    const rawTitle = "2023-24 Panini Prizm Victor Wembanyama #136";
+    const psa9 = "2023 Panini Prizm Victor Wembanyama #136 PSA 9";
+    const bgs10 = "2023 Panini Prizm Victor Wembanyama #136 BGS 10";
+    const lot = "2023 Prizm base set lot";
+
+    assert.equal(titleMatchesCard(accept, WEMBY_PSA10), true);
+    assert.equal(titleMatchesCard(lot, WEMBY_PSA10), false);
+
+    const sales = filterComps(WEMBY_PSA10, [
+      gradedResult(accept, "PSA", "10", "ok"),
+      rawResult(rawTitle, { item_id: "raw" }),
+      gradedResult(psa9, "PSA", "9", "p9"),
+      gradedResult(bgs10, "BGS", "10", "b10"),
+      rawResult(lot, { item_id: "lot", sale_price: 200 }),
+    ]);
+    assert.equal(sales.length, 1);
+    assert.equal(sales[0].itemId, "ok");
+  });
+
+  it('raw card rejects any "PSA 10" title', () => {
+    const title = "2023 Panini Prizm Victor Wembanyama #136 PSA 10";
+    assert.equal(titleMatchesCard(title, WEMBY_RAW), false);
+    assert.equal(
+      filterComps(WEMBY_RAW, [gradedResult(title, "PSA", "10")]).length,
+      0,
+    );
+    assert.equal(
+      filterComps(WEMBY_RAW, [
+        rawResult(title, {
+          grading: {
+            graded: false,
+            grader: null,
+            grade: null,
+            condition: null,
+          },
+        }),
+      ]).length,
+      0,
+    );
+  });
+
+  it("re-filters cached CleanedSale rows (lots and wrong grades drop)", () => {
+    const cached: CleanedSale[] = [
+      {
+        itemId: "ok",
+        title: "2023 Prizm Wembanyama #136 PSA 10",
+        price: 100,
+        currency: "$",
+        soldAt: "2026-09-01T00:00:00.000Z",
+        grader: "PSA",
+        grade: "10",
+        url: "https://www.ebay.com/itm/ok",
+      },
+      {
+        itemId: "lot",
+        title: "2023 Prizm base set lot",
+        price: 200,
+        currency: "$",
+        soldAt: "2026-09-01T00:00:00.000Z",
+        grader: "PSA",
+        grade: "10",
+        url: "https://www.ebay.com/itm/lot",
+      },
+      {
+        itemId: "raw",
+        title: "2023-24 Panini Prizm Victor Wembanyama #136",
+        price: 40,
+        currency: "$",
+        soldAt: "2026-09-01T00:00:00.000Z",
+        grader: null,
+        grade: null,
+        url: "https://www.ebay.com/itm/raw",
+      },
+    ];
+    const sales = filterComps(WEMBY_PSA10, cached);
+    assert.equal(sales.length, 1);
+    assert.equal(sales[0].itemId, "ok");
+  });
+
   it("Gold /10 requires /10 in the title", () => {
     const withSerial = "2023 Panini Prizm Gold Victor Wembanyama #136 /10";
     const noSerial = "2023 Panini Prizm Gold Victor Wembanyama #136";
@@ -161,7 +254,7 @@ describe("shared comps match", () => {
     assert.equal(titleMatchesCard(wrongSerial, GOLD_SERIAL), false);
   });
 
-  it("buildCompsQuery builds the preview line", () => {
+  it("buildCompsQuery builds the preview line with RC", () => {
     assert.equal(
       buildCompsQuery({
         playerName: "Victor Wembanyama",
@@ -172,8 +265,9 @@ describe("shared comps match", () => {
         parallel: "Base",
         conditionType: "graded",
         grade: "PSA 10",
+        isRookie: true,
       }),
-      "2023-24 Panini Prizm #136 Victor Wembanyama, Base, PSA 10",
+      "2023-24 Panini Prizm #136 Victor Wembanyama RC, Base, PSA 10",
     );
   });
 

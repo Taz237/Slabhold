@@ -189,7 +189,16 @@ function PublicCardAnalytics({
             </span>
           ) : null}
         </div>
-        {showPaid ? <Metric label="Paid" value={money(card.purchasePrice ?? 0, true)} /> : null}
+        {showPaid ? (
+          <Metric
+            label="Paid"
+            value={
+              card.purchasePrice
+                ? money(card.purchasePrice, true)
+                : "—"
+            }
+          />
+        ) : null}
       </section>
 
       {authRequired ? null : unavailable || rateLimited ? (
@@ -211,9 +220,7 @@ function PublicCardAnalytics({
           p75={cardValue?.high ?? null}
           count={cardValue?.nSales ?? 0}
           sample={usingSample || cardValue?.status === "sample"}
-          noSalesLabel={
-            cardValue?.status === "no_sales" ? "No sales yet" : undefined
-          }
+          hideStatusLabel
         />
       ) : null}
 
@@ -230,7 +237,7 @@ function PublicCardAnalytics({
                     ? "Sold data unavailable, try again shortly"
                     : usingLive
                       ? liveCount === 0
-                        ? "No sales yet"
+                        ? "Matching sold listings"
                         : `Based on ${liveCount} sale${liveCount === 1 ? "" : "s"}${
                             sold.data?.fetchedAt
                               ? ` · Updated ${formatRelativeTime(sold.data.fetchedAt)}`

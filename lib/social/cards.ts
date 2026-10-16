@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { cardCategory, rememberCategory } from "@/lib/card-category";
-import { parseGrade, RAW_GRADE } from "@/lib/card-options";
+import { formatGrade, parseGrade, RAW_GRADE } from "@/lib/card-options";
 import { uploadMedia } from "@/lib/supabase/media";
 import type { ConditionType, SportsCard } from "@/lib/types";
 import type { OwnedCard } from "./types";
@@ -38,6 +38,7 @@ export type CardRow = {
   is_auto?: boolean | null;
   is_relic?: boolean | null;
   condition_type?: string | null;
+  grader?: string | null;
   grade_qualifier?: string | null;
   cert_number?: string | null;
 };
@@ -58,6 +59,18 @@ function inferConditionType(
   return "raw";
 }
 
+function displayGrade(row: CardRow): string {
+  const grader = (row.grader ?? "").trim();
+  const gradeText = (row.grade ?? "").trim();
+  if (grader) {
+    const numberOnly = /^\d+(?:\.\d+)?$/.test(gradeText)
+      ? gradeText
+      : parseGrade(gradeText).number;
+    return formatGrade(grader, numberOnly);
+  }
+  return gradeText;
+}
+
 export function mapCardRow(row: CardRow): SportsCard {
   const setBrand = (row.set_name || row.set || "").trim();
   const yearLabel =
@@ -71,7 +84,7 @@ export function mapCardRow(row: CardRow): SportsCard {
     setIsCustom: Boolean(row.set_is_custom),
     cardNumber: row.card_number ?? "",
     noNumber: Boolean(row.no_number),
-    grade: row.grade ?? "",
+    grade: displayGrade(row),
     parallel: row.parallel ?? "Base",
     parallelIsCustom: Boolean(row.parallel_is_custom),
     serialRun: row.serial_run ?? null,
@@ -154,13 +167,25 @@ export async function saveUserCard(
   const category = cardCategory(card);
   rememberCategory(card.id, category);
 
+  const parsed = parseGrade(card.grade);
+  const graded = card.conditionType === "graded";
+  const grader =
+    graded && parsed.company && parsed.company !== RAW_GRADE
+      ? parsed.company
+      : null;
+  const gradeValue = graded
+    ? parsed.number || ""
+    : parsed.company === RAW_GRADE || !card.grade.trim()
+      ? "Raw"
+      : card.grade;
+
   const base = {
     id: card.id,
     user_id: userId,
     player: card.playerName,
     year: card.year,
     set: card.setBrand,
-    grade: card.grade,
+    grade: gradeValue,
     parallel: card.parallel || "Base",
     paid_price: card.purchasePrice,
     estimated_value: card.estimatedSellPrice,
@@ -191,6 +216,7 @@ export async function saveUserCard(
     is_auto: Boolean(card.isAuto),
     is_relic: Boolean(card.isRelic),
     condition_type: card.conditionType,
+    grader,
     grade_qualifier: card.gradeQualifier || null,
     cert_number: card.certNumber || null,
   };

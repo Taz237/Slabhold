@@ -78,7 +78,7 @@ export function cardProfitPct(
 ): number | null {
   const p = cardProfit(card, values);
   if (p == null) return null;
-  if (card.purchasePrice === 0) return 0;
+  if (!card.purchasePrice) return null;
   return p / card.purchasePrice;
 }
 

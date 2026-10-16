@@ -25,6 +25,7 @@ export function ValueChart({
   sample = true,
   unavailable = false,
   noSalesLabel,
+  hideStatusLabel = false,
 }: {
   card: { id: string; estimatedSellPrice: number; purchasePrice: number };
   points?: ValuePoint[] | null;
@@ -37,6 +38,8 @@ export function ValueChart({
   sample?: boolean;
   unavailable?: boolean;
   noSalesLabel?: string;
+  /** When true, skip the status headline (card page shows one label elsewhere). */
+  hideStatusLabel?: boolean;
 }) {
   if (unavailable && !loading) {
     return null;
@@ -81,9 +84,11 @@ export function ValueChart({
             {usingLive ? "Sold comps" : "Estimated value"}
           </p>
           {noSales ? (
-            <p className="mt-1 text-lg font-semibold tracking-tight">
-              {noSalesLabel ?? "No sales yet"}
-            </p>
+            hideStatusLabel ? null : (
+              <p className="mt-1 text-lg font-semibold tracking-tight">
+                {noSalesLabel ?? "No sales yet"}
+              </p>
+            )
           ) : (
             <p className="mt-1 text-3xl font-semibold tracking-tight tabular-nums">
               {money(displayMedian)}

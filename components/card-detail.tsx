@@ -27,7 +27,7 @@ import {
   formatCardValueLabel,
   isLowConfidenceValue,
 } from "@/lib/value/format";
-import { cardNeedsDetails } from "@/lib/types";
+import { needsDetails } from "@/lib/types";
 import type { CardValueResult } from "@/lib/value/types";
 import { useCardValue } from "@/lib/value/use-card-values";
 
@@ -103,11 +103,16 @@ export function CardDetail({ id }: { id: string }) {
     ? card.sellPrice!
     : resolveEstSell(cardValue, valueLoading);
 
-  const compare = estSell ?? 0;
   const delta = estSell != null ? estSell - card.purchasePrice : 0;
-  const profitPctValue =
-    card.purchasePrice === 0 ? 0 : delta / card.purchasePrice;
-  const max = Math.max(card.purchasePrice, compare || 0, 1);
+  const showProfit =
+    (cardSold || estSell != null) && Boolean(card.purchasePrice);
+  const profitPctValue = showProfit ? delta / card.purchasePrice : null;
+  const max = Math.max(card.purchasePrice, estSell ?? 0, 1);
+  const valueStatusLabel = cardSold
+    ? null
+    : valueLoading
+      ? null
+      : formatCardValueLabel(cardValue);
 
   function markSold() {
     const price = Number(sellPrice);
@@ -161,18 +166,23 @@ export function CardDetail({ id }: { id: string }) {
           <div className="flex flex-wrap items-center gap-2">
             <p className="text-sm text-zinc-500">{cardTitle(card)}</p>
             <CategoryBadge card={card} />
+            {card.isRookie ? (
+              <span className="rounded-full bg-sky-500/15 px-2 py-0.5 text-[11px] font-medium text-sky-800 dark:text-sky-300">
+                Rookie
+              </span>
+            ) : null}
           </div>
           <h1 className="mt-1 text-3xl font-semibold tracking-tight">
             {card.playerName}
           </h1>
           <p className="mt-1 text-sm text-zinc-500">{cardSubtitle(card)}</p>
-          {cardNeedsDetails(card) ? (
-            <p className="mt-2 text-sm text-amber-800 dark:text-amber-300">
+          {needsDetails(card) ? (
+            <p className="mt-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
               <Link
                 href={`/cards/${card.id}/edit`}
-                className="underline underline-offset-2 hover:text-amber-950 dark:hover:text-amber-200"
+                className="underline underline-offset-2 hover:text-amber-950 dark:hover:text-amber-100"
               >
-                Add the card number for accurate prices
+                Add missing details for accurate prices
               </Link>
             </p>
           ) : null}
@@ -184,24 +194,32 @@ export function CardDetail({ id }: { id: string }) {
           ) : null}
 
           <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
-            <Metric label="Paid" value={money(card.purchasePrice, true)} />
+            <Metric
+              label="Paid"
+              value={
+                card.purchasePrice
+                  ? money(card.purchasePrice, true)
+                  : "—"
+              }
+            />
             <EstSellMetric
               cardSold={cardSold}
               soldPrice={card.sellPrice}
               loading={valueLoading && !cardSold}
               value={cardValue}
+              statusLabel={valueStatusLabel}
             />
             <Metric
               label="Profit"
               value={
-                cardSold || estSell != null
+                showProfit && profitPctValue != null
                   ? `${signedMoney(delta, true)} ${pct(profitPctValue)}`
                   : valueLoading
                     ? "…"
                     : "—"
               }
               tone={
-                estSell == null ? undefined : delta >= 0 ? "up" : "down"
+                !showProfit ? undefined : delta >= 0 ? "up" : "down"
               }
             />
           </div>
@@ -260,12 +278,9 @@ export function CardDetail({ id }: { id: string }) {
           <div>
             <h2 className="font-semibold">Paid vs {cardSold ? "sold" : "estimate"}</h2>
             <p className="text-xs text-zinc-500">
-              {cardSold
-                ? "Closed flip"
-                : estSell != null
-                  ? "Open position"
-                  : "Open position"}{" "}
-              · {estSell != null ? signedMoney(delta, true) : "—"}
+              {cardSold ? "Closed flip" : "Open position"}
+              {" · "}
+              {showProfit ? signedMoney(delta, true) : "—"}
             </p>
           </div>
         </div>
@@ -275,12 +290,20 @@ export function CardDetail({ id }: { id: string }) {
             value={card.purchasePrice}
             max={max}
             color="bg-zinc-400 dark:bg-zinc-500"
+            empty={!card.purchasePrice}
           />
           <Bar
             label={cardSold ? "Sold" : "Estimated sell"}
-            value={compare}
+            value={estSell ?? 0}
             max={max}
-            color={delta >= 0 ? "bg-emerald-500" : "bg-rose-500"}
+            color={
+              estSell == null
+                ? "bg-zinc-300 dark:bg-zinc-600"
+                : delta >= 0
+                  ? "bg-emerald-500"
+                  : "bg-rose-500"
+            }
+            empty={!cardSold && estSell == null}
           />
         </div>
       </section>
@@ -329,9 +352,7 @@ export function CardDetail({ id }: { id: string }) {
           }
           sample={usingSample || cardValue?.status === "sample"}
           unavailable={false}
-          noSalesLabel={
-            cardValue?.status === "no_sales" ? "No sales yet" : undefined
-          }
+          hideStatusLabel
         />
       )}
 
@@ -348,7 +369,7 @@ export function CardDetail({ id }: { id: string }) {
                     ? "Sold data unavailable, try again shortly"
                     : usingLive
                       ? liveCount === 0
-                        ? "No sales yet"
+                        ? "Matching sold listings"
                         : `Based on ${liveCount} sale${liveCount === 1 ? "" : "s"}${
                             liveCount < 5 || sold.data?.lowConfidence
                               ? " · Low confidence"
@@ -418,25 +439,30 @@ function EstSellMetric({
   soldPrice,
   loading,
   value,
+  statusLabel,
 }: {
   cardSold: boolean;
   soldPrice: number | null;
   loading: boolean;
   value: CardValueResult | null;
+  statusLabel: string | null;
 }) {
   if (cardSold) {
-    return <Metric label="Sold" value={money(soldPrice ?? 0, true)} />;
+    return (
+      <Metric
+        label="Sold"
+        value={soldPrice != null ? money(soldPrice, true) : "—"}
+      />
+    );
   }
   if (loading) {
     return <Metric label="Est. sell" value="…" />;
   }
 
-  const label = formatCardValueLabel(value);
   const showAmount =
     value &&
     (value.status === "ok" || value.status === "sample") &&
     value.median != null;
-  const showNoSales = value?.status === "no_sales";
   const sample = value?.status === "sample";
   const lowConfidence = isLowConfidenceValue(value);
 
@@ -459,16 +485,7 @@ function EstSellMetric({
     );
   }
 
-  if (showNoSales) {
-    return (
-      <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-3 dark:border-white/10 dark:bg-black/20">
-        <p className="text-[11px] tracking-wide text-zinc-500 uppercase">Est. sell</p>
-        <p className="mt-1 text-lg font-semibold">No sales yet</p>
-      </div>
-    );
-  }
-
-  return <Metric label="Est. sell" value={label} />;
+  return <Metric label="Est. sell" value={statusLabel ?? "—"} />;
 }
 
 function CardSpecs({
@@ -531,24 +548,28 @@ function Bar({
   value,
   max,
   color,
+  empty = false,
 }: {
   label: string;
   value: number;
   max: number;
   color: string;
+  empty?: boolean;
 }) {
   return (
     <div>
       <div className="mb-1 flex justify-between text-xs text-zinc-500">
         <span>{label}</span>
         <span className="tabular-nums text-zinc-800 dark:text-zinc-200">
-          {money(value, true)}
+          {empty ? "—" : money(value, true)}
         </span>
       </div>
       <div className="h-2 overflow-hidden rounded-full bg-zinc-200 dark:bg-white/10">
         <div
           className={`h-full rounded-full ${color}`}
-          style={{ width: `${Math.min(100, (value / max) * 100)}%` }}
+          style={{
+            width: empty ? "0%" : `${Math.min(100, (value / max) * 100)}%`,
+          }}
         />
       </div>
     </div>

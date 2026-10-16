@@ -27,7 +27,7 @@ import {
   summarize,
 } from "@/lib/portfolio";
 import {
-  cardNeedsDetails,
+  needsDetails,
   type CardCategory,
   type PortfolioFilter,
 } from "@/lib/types";
@@ -226,7 +226,7 @@ export function Dashboard() {
                       </div>
                       <div className="flex shrink-0 flex-col items-end gap-1">
                         <CategoryBadge card={card} />
-                        {cardNeedsDetails(card) ? (
+                        {needsDetails(card) ? (
                           <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] font-medium text-amber-800 dark:text-amber-300">
                             Needs details
                           </span>

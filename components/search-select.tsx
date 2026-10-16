@@ -14,6 +14,7 @@ export function SearchSelect({
   placeholder = "Select",
   allowEmpty = false,
   allowCustom = false,
+  dataField,
 }: {
   label: string;
   value: string;
@@ -23,6 +24,7 @@ export function SearchSelect({
   allowEmpty?: boolean;
   /** Show Use "…" when the typed query is not in the list. */
   allowCustom?: boolean;
+  dataField?: string;
 }) {
   const titleId = useId();
   const searchRef = useRef<HTMLInputElement>(null);
@@ -76,6 +78,7 @@ export function SearchSelect({
         aria-haspopup="dialog"
         aria-expanded={open}
         aria-label={label}
+        data-field={dataField}
         onClick={() => setOpen(true)}
         className={controlClass}
       >
@@ -190,6 +193,7 @@ export function NativeSelect({
   onChange,
   placeholder,
   disabled = false,
+  dataField,
 }: {
   label: string;
   value: string;
@@ -197,12 +201,14 @@ export function NativeSelect({
   onChange: (value: string) => void;
   placeholder?: string;
   disabled?: boolean;
+  dataField?: string;
 }) {
   return (
     <div className="relative">
       <select
         aria-label={label}
         disabled={disabled}
+        data-field={dataField}
         value={value}
         onChange={(event) => onChange(event.target.value)}
         className="w-full appearance-none rounded-xl border border-zinc-200 bg-white px-3 py-2.5 pr-9 text-sm text-zinc-900 outline-none focus:border-violet-500 disabled:opacity-60 dark:border-white/10 dark:bg-white/5 dark:text-zinc-100 dark:[color-scheme:dark]"

@@ -67,9 +67,45 @@ export type IdentifyResult = {
 
 export type PortfolioFilter = "all" | "held" | "sold" | "profit" | "loss";
 
-/** True when the card is missing a number and the user did not opt out. */
-export function cardNeedsDetails(
-  card: Pick<SportsCard, "cardNumber" | "noNumber">,
+/**
+ * True when pricing needs more identity details: missing number (unless
+ * no_number), graded without grader/grade, or missing year.
+ */
+export function needsDetails(
+  card: Pick<
+    SportsCard,
+    | "cardNumber"
+    | "noNumber"
+    | "conditionType"
+    | "grade"
+    | "year"
+    | "yearLabel"
+  >,
 ): boolean {
-  return !card.noNumber && !card.cardNumber.trim();
+  if (!card.noNumber && !card.cardNumber.trim()) return true;
+  if (card.conditionType === "graded") {
+    const text = (card.grade ?? "").trim();
+    if (!text || /^raw/i.test(text)) return true;
+    const hasCompany = /\b(PSA|BGS|SGC|CGC|TAG|HGA|Other)\b/i.test(text);
+    const hasNumber = /\d+(?:\.\d+)?/.test(text);
+    if (!hasCompany || !hasNumber) return true;
+  }
+  const label = (card.yearLabel ?? "").trim();
+  if (!label && !(card.year > 0)) return true;
+  return false;
+}
+
+/** @deprecated Prefer needsDetails */
+export function cardNeedsDetails(
+  card: Pick<
+    SportsCard,
+    | "cardNumber"
+    | "noNumber"
+    | "conditionType"
+    | "grade"
+    | "year"
+    | "yearLabel"
+  >,
+): boolean {
+  return needsDetails(card);
 }

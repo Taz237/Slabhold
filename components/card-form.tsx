@@ -59,7 +59,9 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
   const { mode } = useSocial();
   const accent = useDefaultAccent();
   const fileRef = useRef<HTMLInputElement>(null);
+  const formRef = useRef<HTMLFormElement>(null);
   const [photo, setPhoto] = useState<string | null>(existing?.photoDataUrl ?? null);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (existing) return;
@@ -175,6 +177,7 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
       conditionType,
       grade,
       gradeQualifier: gradeQualifier || null,
+      isRookie,
     });
   }, [
     parsedYear,
@@ -187,6 +190,7 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
     noNumber,
     isAuto,
     isRelic,
+    isRookie,
     conditionType,
     gradeCompany,
     gradeNumber,
@@ -195,6 +199,27 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
 
   function markTouched(key: string) {
     setTouched((prev) => ({ ...prev, [key]: true }));
+  }
+
+  function focusFirstInvalid() {
+    const order = [
+      !playerOk ? "playerName" : null,
+      !yearOk ? "yearLabel" : null,
+      !setOk ? "setBrand" : null,
+      !cardNumberOk ? "cardNumber" : null,
+      !gradeOk ? "grade" : null,
+      purchaseNeg ? "purchasePrice" : null,
+      estNeg ? "estimatedSellPrice" : null,
+      sellNeg ? "sellPrice" : null,
+      !form.purchaseDate ? "purchaseDate" : null,
+      sold && !form.sellDate ? "sellDate" : null,
+    ].filter(Boolean) as string[];
+    const key = order[0];
+    if (!key || !formRef.current) return;
+    const el = formRef.current.querySelector<HTMLElement>(
+      `[data-field="${key}"]`,
+    );
+    el?.focus();
   }
 
   async function scanFile(file: File | undefined) {
@@ -256,6 +281,7 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
+    if (saving) return;
     setTouched({
       playerName: true,
       yearLabel: true,
@@ -265,8 +291,13 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
       purchasePrice: true,
       estimatedSellPrice: true,
       sellPrice: true,
+      purchaseDate: true,
+      sellDate: true,
     });
-    if (!formValid || !parsedYear) return;
+    if (!formValid || !parsedYear) {
+      requestAnimationFrame(() => focusFirstInvalid());
+      return;
+    }
 
     const grade =
       conditionType === "raw"
@@ -307,17 +338,22 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
       isPublic: share,
     };
 
-    if (existing) {
-      updateCard(existing.id, payload);
-      router.push(`/cards/${existing.id}`);
-    } else {
-      const created = addCard(payload);
-      router.push(`/cards/${created.id}`);
+    setSaving(true);
+    try {
+      if (existing) {
+        updateCard(existing.id, payload);
+        router.push(`/cards/${existing.id}`);
+      } else {
+        const created = addCard(payload);
+        router.push(`/cards/${created.id}`);
+      }
+    } finally {
+      setSaving(false);
     }
   }
 
   return (
-    <form onSubmit={submit} className="mx-auto max-w-xl space-y-5">
+    <form ref={formRef} onSubmit={submit} className="mx-auto max-w-xl space-y-5">
       <div>
         <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">
           {existing ? "Update position" : "New position"}
@@ -448,6 +484,7 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
       >
         <input
           required
+          data-field="playerName"
           value={form.playerName}
           onBlur={() => markTouched("playerName")}
           onChange={(e) =>
@@ -463,9 +500,7 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
           label="Year"
           required
           error={
-            touched.yearLabel && !yearOk
-              ? "Use a year (2026) or season (2023-24)"
-              : null
+            touched.yearLabel && !yearOk ? "Use 2026 or 2023-24" : null
           }
         >
           <SearchSelect
@@ -473,6 +508,7 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
             value={form.yearLabel}
             options={optionsWithCurrent(yearOptions, form.yearLabel)}
             allowCustom
+            dataField="yearLabel"
             onChange={(yearLabel) => {
               markTouched("yearLabel");
               setForm((prev) => ({ ...prev, yearLabel }));
@@ -508,6 +544,7 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
           options={optionsWithCurrent(SETS, form.setBrand)}
           placeholder="Select a set"
           allowCustom
+          dataField="setBrand"
           onChange={(setBrand) => {
             markTouched("setBrand");
             const known = SETS.some(
@@ -532,6 +569,7 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
           <input
             value={form.cardNumber}
             disabled={noNumber}
+            data-field="cardNumber"
             onBlur={() => markTouched("cardNumber")}
             onChange={(e) =>
               setForm((prev) => ({
@@ -663,6 +701,7 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
                 label="Grader"
                 value={gradeCompany}
                 options={GRADE_COMPANIES}
+                dataField="grade"
                 onChange={chooseGradeCompany}
               />
             </Field>
@@ -678,6 +717,7 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
                 value={gradeNumber}
                 options={gradeChoices}
                 placeholder="Select"
+                dataField="grade"
                 onChange={(number) => {
                   markTouched("grade");
                   setGradeNumber(number);
@@ -863,10 +903,20 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
         )}
         <button
           type="submit"
-          disabled={!formValid}
+          disabled={saving}
+          onMouseDown={(e) => {
+            // Keep focus so onBlur validation cannot swallow the first click.
+            if (e.button === 0) e.preventDefault();
+          }}
           className="rounded-full bg-zinc-900 px-6 py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40 dark:bg-zinc-100 dark:text-zinc-950"
         >
-          {existing ? "Save changes" : "Add to collection"}
+          {saving
+            ? existing
+              ? "Saving…"
+              : "Adding…"
+            : existing
+              ? "Save changes"
+              : "Add to collection"}
         </button>
       </div>
     </form>

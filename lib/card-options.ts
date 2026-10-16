@@ -1,5 +1,5 @@
-export const CARD_YEAR_MAX = 2026;
-export const CARD_YEAR_MIN = 1970;
+export const CARD_YEAR_MAX = new Date().getFullYear() + 1;
+export const CARD_YEAR_MIN = 1900;
 
 export const CARD_YEARS = Array.from(
   { length: CARD_YEAR_MAX - CARD_YEAR_MIN + 1 },
@@ -183,18 +183,22 @@ export function parseYearLabel(value: string): {
   yearLabel: string;
 } | null {
   const trimmed = value.trim();
-  const season = trimmed.match(/^(19|20)\d{2}\s*[-/]\s*(\d{2}|\d{4})$/);
+  const maxYear = new Date().getFullYear() + 1;
+  const season = trimmed.match(/^(\d{4})\s*[-/]\s*(\d{2}|\d{4})$/);
   if (season) {
-    const start = Number(trimmed.slice(0, 4));
-    if (!Number.isFinite(start)) return null;
+    const start = Number(season[1]);
+    if (!Number.isFinite(start) || start < 1900 || start > maxYear) return null;
     const endRaw = season[2];
     const endTwo =
       endRaw.length === 4 ? endRaw.slice(-2) : endRaw.padStart(2, "0");
+    const expected = String((start + 1) % 100).padStart(2, "0");
+    if (endTwo !== expected) return null;
     return { year: start, yearLabel: `${start}-${endTwo}` };
   }
-  const single = trimmed.match(/^(19|20)\d{2}$/);
+  const single = trimmed.match(/^(\d{4})$/);
   if (single) {
-    const year = Number(trimmed);
+    const year = Number(single[1]);
+    if (year < 1900 || year > maxYear) return null;
     return { year, yearLabel: trimmed };
   }
   return null;
