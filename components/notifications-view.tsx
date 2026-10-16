@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect } from "react";
-import { AtSign, Bell, Heart, MessageCircle, Repeat2, UserPlus } from "lucide-react";
+import { AtSign, Bell, Heart, MessageCircle, Quote, Repeat2, UserPlus } from "lucide-react";
 import { Avatar } from "@/components/avatar";
 import { solidButton } from "@/components/button-styles";
 import { EmptyState, LoadingRows } from "@/components/status";
@@ -14,6 +14,7 @@ function actionText(kind: Notification["kind"]) {
   if (kind === "like") return "liked your post";
   if (kind === "comment") return "commented on your post";
   if (kind === "repost") return "reposted your post";
+  if (kind === "quote") return "quoted your post";
   if (kind === "mention") return "mentioned you";
   return "followed you";
 }
@@ -88,9 +89,11 @@ export function NotificationsView() {
                   ? MessageCircle
                   : note.kind === "repost"
                     ? Repeat2
-                    : note.kind === "mention"
-                      ? AtSign
-                      : UserPlus;
+                    : note.kind === "quote"
+                      ? Quote
+                      : note.kind === "mention"
+                        ? AtSign
+                        : UserPlus;
             const stamp = timeAgo(note.createdAt);
             return (
               <li key={note.id}>

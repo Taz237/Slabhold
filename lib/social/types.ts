@@ -33,6 +33,8 @@ export type Post = {
   body: string;
   imageDataUrl: string | null;
   card: PublicCard | null;
+  /** Original post this quote references, if any. */
+  quotedPostId: string | null;
   createdAt: string;
 };
 
@@ -62,7 +64,13 @@ export type PostComment = {
   createdAt: string;
 };
 
-export type NotificationKind = "like" | "comment" | "follow" | "repost" | "mention";
+export type NotificationKind =
+  | "like"
+  | "comment"
+  | "follow"
+  | "repost"
+  | "mention"
+  | "quote";
 
 export type Notification = {
   id: string;

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import { Avatar } from "@/components/avatar";
 import { EmptyState, LoadingRows } from "@/components/status";
@@ -11,7 +11,10 @@ import { MentionText } from "@/components/mention-text";
 import { MentionTextarea } from "@/components/mention-textarea";
 import { AuthorLine, Engagement, Tweet } from "@/components/tweet";
 import { useSocial } from "@/components/social-provider";
+import { quotesOf } from "@/lib/social/quotes";
 import { COMMENT_LIMIT } from "@/lib/social/types";
+
+const PAGE_SIZE = 20;
 
 export function PostView({ id }: { id: string }) {
   const router = useRouter();
@@ -24,6 +27,11 @@ export function PostView({ id }: { id: string }) {
   const [draft, setDraft] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [lane, setLane] = useState<"replies" | "quotes">("replies");
+  const [quoteLimit, setQuoteLimit] = useState(PAGE_SIZE);
+
+  const quotes = useMemo(() => quotesOf(posts, id), [id, posts]);
+  const visibleQuotes = quotes.slice(0, quoteLimit);
 
   useEffect(() => {
     if (!ready) return;
@@ -35,8 +43,14 @@ export function PostView({ id }: { id: string }) {
     replyRef.current?.focus();
   }, [ready, user, id]);
 
+  useEffect(() => {
+    setLane("replies");
+    setQuoteLimit(PAGE_SIZE);
+  }, [id]);
+
   function focusReply(username?: string) {
     if (!user) return;
+    setLane("replies");
     if (username) {
       const mention = `@${username} `;
       setDraft((current) => (current.startsWith(mention) ? current : `${mention}${current}`));
@@ -107,9 +121,45 @@ export function PostView({ id }: { id: string }) {
         <h1 className="text-lg font-bold">Post</h1>
       </div>
 
-      <Tweet post={post} author={author} variant="detail" onReply={() => focusReply()} />
+      <Tweet
+        post={post}
+        author={author}
+        variant="detail"
+        onReply={() => focusReply()}
+        onQuotesClick={() => setLane("quotes")}
+      />
 
-      {replies.length === 0 ? (
+      <div className="grid grid-cols-2 border-b border-zinc-200 text-[15px] dark:border-white/10">
+        <LaneTab active={lane === "replies"} onClick={() => setLane("replies")}>
+          Replies{replies.length > 0 ? ` · ${replies.length}` : ""}
+        </LaneTab>
+        <LaneTab active={lane === "quotes"} onClick={() => setLane("quotes")}>
+          {quotes.length} Quote{quotes.length === 1 ? "" : "s"}
+        </LaneTab>
+      </div>
+
+      {lane === "quotes" ? (
+        visibleQuotes.length === 0 ? (
+          <EmptyState title="No quotes yet" detail="Quote this post to share your take." />
+        ) : (
+          <div>
+            {visibleQuotes.map((quote) => {
+              const quoteAuthor = authors.get(quote.authorId);
+              if (!quoteAuthor) return null;
+              return <Tweet key={quote.id} post={quote} author={quoteAuthor} />;
+            })}
+            {quotes.length > visibleQuotes.length ? (
+              <button
+                type="button"
+                onClick={() => setQuoteLimit((n) => n + PAGE_SIZE)}
+                className="w-full py-3 text-sm font-semibold text-sky-600 dark:text-sky-400"
+              >
+                Show more
+              </button>
+            ) : null}
+          </div>
+        )
+      ) : replies.length === 0 ? (
         <EmptyState title="No replies yet" detail="Start the conversation." />
       ) : (
         <ul>
@@ -145,12 +195,13 @@ export function PostView({ id }: { id: string }) {
                       @{author.username}
                     </Link>
                   </p>
-                  <p className="mt-0.5 text-[15px] leading-5 whitespace-pre-wrap">
+                  <p className="mt-0.5 text-[15px] leading-5 break-words whitespace-pre-wrap">
                     <MentionText text={reply.body} />
                   </p>
                   <Engagement
                     targetId={reply.id}
                     onReply={() => focusReply(commenter?.username)}
+                    quoteAvailable={false}
                   />
                 </div>
               </li>
@@ -159,7 +210,7 @@ export function PostView({ id }: { id: string }) {
         </ul>
       )}
 
-      {user ? (
+      {user && lane === "replies" ? (
         <form
           onSubmit={submit}
           className="fixed inset-x-0 bottom-[calc(6.15rem+env(safe-area-inset-bottom))] z-20 mx-auto w-full max-w-lg border-t border-zinc-200 bg-[color-mix(in_oklab,var(--background)_92%,transparent)] px-3 py-2 backdrop-blur-xl dark:border-white/10"
@@ -192,17 +243,39 @@ export function PostView({ id }: { id: string }) {
           </div>
           {error ? <p className="mt-1 pl-10 text-xs text-rose-600 dark:text-rose-400">{error}</p> : null}
         </form>
-      ) : (
+      ) : !user && lane === "replies" ? (
         <div className="fixed inset-x-0 bottom-[calc(6.15rem+env(safe-area-inset-bottom))] z-20 mx-auto flex w-full max-w-lg items-center justify-between gap-3 border-t border-zinc-200 bg-[color-mix(in_oklab,var(--background)_92%,transparent)] px-4 py-3 backdrop-blur-xl dark:border-white/10">
           <p className="text-sm text-zinc-500">Log in to reply</p>
-          <Link
-            href="/login"
-            className={solidButton}
-          >
+          <Link href="/login" className={solidButton}>
             Log in
           </Link>
         </div>
-      )}
+      ) : null}
     </div>
+  );
+}
+
+function LaneTab({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`relative py-3 font-medium ${
+        active ? "font-bold text-zinc-900 dark:text-white" : "text-zinc-500"
+      }`}
+    >
+      {children}
+      {active ? (
+        <span className="absolute inset-x-8 bottom-0 h-1 rounded-full bg-violet-600" />
+      ) : null}
+    </button>
   );
 }

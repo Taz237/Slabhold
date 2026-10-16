@@ -55,6 +55,7 @@ describe("filterLoadedPostsForCard", () => {
         accent: "#7c5cff",
         estimatedSellPrice: 1,
       },
+      quotedPostId: null,
       createdAt: "2026-10-16T12:00:00.000Z",
     },
     {
@@ -73,6 +74,7 @@ describe("filterLoadedPostsForCard", () => {
         accent: "#7c5cff",
         estimatedSellPrice: 1,
       },
+      quotedPostId: null,
       createdAt: "2026-10-15T12:00:00.000Z",
     },
     {
@@ -91,6 +93,7 @@ describe("filterLoadedPostsForCard", () => {
         accent: "#7c5cff",
         estimatedSellPrice: 1,
       },
+      quotedPostId: null,
       createdAt: "2026-10-17T12:00:00.000Z",
     },
   ];

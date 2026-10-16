@@ -23,6 +23,7 @@ import {
   type MentionCandidate,
 } from "./mentions";
 import { normalizeUsername, usernameError } from "./local-db";
+import { shouldNotifyQuoteAuthor, validateQuoteContent } from "./quotes";
 
 /** Public columns only — used by @mention autocomplete. */
 const MENTION_PROFILE_SELECT = "id, username, display_name, avatar_url";
@@ -44,6 +45,7 @@ type PostRow = {
   content: string;
   image_url: string | null;
   card: PublicCard | null;
+  quoted_post_id?: string | null;
   created_at: string;
 };
 
@@ -126,6 +128,7 @@ function mapPost(row: PostRow): Post {
     body: row.content ?? "",
     imageDataUrl: row.image_url,
     card: row.card,
+    quotedPostId: row.quoted_post_id ?? null,
     createdAt: row.created_at,
   };
 }
@@ -179,13 +182,38 @@ export async function loadSupabaseSocial(supabase: SupabaseClient): Promise<Soci
     }),
   );
   const knownPostIds = new Set(posts.map((post) => post.id));
-  const missingPostIds = [...new Set(reposts.map((repost) => repost.postId))].filter(
+  const missingFromReposts = [...new Set(reposts.map((repost) => repost.postId))].filter(
     (id) => !knownPostIds.has(id),
   );
+  const missingQuoted = [
+    ...new Set(
+      posts
+        .map((post) => post.quotedPostId)
+        .filter((id): id is string => Boolean(id) && !knownPostIds.has(id!)),
+    ),
+  ];
+  const missingPostIds = [...new Set([...missingFromReposts, ...missingQuoted])];
   if (missingPostIds.length > 0) {
     const extra = await supabase.from("posts").select("*").in("id", missingPostIds);
     if (extra.error && !missingTable(extra.error)) throw new Error(extra.error.message);
-    for (const row of (extra.data ?? []) as PostRow[]) posts.push(mapPost(row));
+    for (const row of (extra.data ?? []) as PostRow[]) {
+      const mapped = mapPost(row);
+      posts.push(mapped);
+      knownPostIds.add(mapped.id);
+    }
+    // One more hop for nested quote targets referenced by freshly loaded quotes.
+    const nestedMissing = [
+      ...new Set(
+        posts
+          .map((post) => post.quotedPostId)
+          .filter((id): id is string => Boolean(id) && !knownPostIds.has(id!)),
+      ),
+    ];
+    if (nestedMissing.length > 0) {
+      const nested = await supabase.from("posts").select("*").in("id", nestedMissing);
+      if (nested.error && !missingTable(nested.error)) throw new Error(nested.error.message);
+      for (const row of (nested.data ?? []) as PostRow[]) posts.push(mapPost(row));
+    }
     posts.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   }
   const follows = ((followsRes.data ?? []) as FollowRow[]).map(
@@ -549,13 +577,39 @@ export async function remoteMarkNotificationsRead(
 export async function remoteCreatePost(
   supabase: SupabaseClient,
   authorId: string,
-  input: { body: string; imageDataUrl: string | null; card: PublicCard | null },
+  input: {
+    body: string;
+    imageDataUrl: string | null;
+    card: PublicCard | null;
+    quotedPostId?: string | null;
+  },
 ): Promise<AuthResult> {
   const body = input.body.trim();
-  if (!body && !input.imageDataUrl && !input.card) {
+  const quotedPostId = input.quotedPostId?.trim() || null;
+  if (quotedPostId) {
+    const quoteError = validateQuoteContent({
+      body,
+      imageDataUrl: input.imageDataUrl,
+      card: input.card,
+    });
+    if (quoteError) return { error: quoteError };
+  } else if (!body && !input.imageDataUrl && !input.card) {
     return { error: "Write something, add a photo, or attach a card." };
   }
   if (body.length > 280) return { error: "Keep it to 280 characters." };
+
+  let quotedAuthorId: string | null = null;
+  if (quotedPostId) {
+    const { data: quoted, error: quotedError } = await supabase
+      .from("posts")
+      .select("id, user_id, content")
+      .eq("id", quotedPostId)
+      .maybeSingle();
+    if (quotedError) return { error: quotedError.message };
+    if (!quoted) return { error: "That post is unavailable." };
+    quotedAuthorId = quoted.user_id as string;
+  }
+
   const image = await uploadMedia(supabase, "post-images", authorId, input.imageDataUrl);
   if (image.error) return { error: image.error };
   const card = await storedCard(supabase, authorId, input.card);
@@ -567,13 +621,47 @@ export async function remoteCreatePost(
       content: body,
       image_url: image.url,
       card: card.card,
+      quoted_post_id: quotedPostId,
     })
     .select("id")
     .single();
   if (error || !created) return { error: error?.message ?? "Could not save that post." };
+
   const mentionProblem = await syncMentionNotifications(supabase, authorId, created.id, body);
+  const quoteProblem = await syncQuoteNotification(
+    supabase,
+    authorId,
+    created.id,
+    quotedAuthorId,
+    body || "Quoted your post",
+  );
   if (mentionProblem) return { notice: mentionProblem };
+  if (quoteProblem) return { notice: quoteProblem };
   return {};
+}
+
+async function syncQuoteNotification(
+  supabase: SupabaseClient,
+  actorId: string,
+  quotePostId: string,
+  originalAuthorId: string | null,
+  preview: string,
+): Promise<string | null> {
+  if (!shouldNotifyQuoteAuthor(actorId, originalAuthorId) || !originalAuthorId) {
+    return null;
+  }
+  const { error } = await supabase.from("notifications").insert({
+    recipient_id: originalAuthorId,
+    actor_id: actorId,
+    kind: "quote",
+    post_id: quotePostId,
+    preview: previewText(preview),
+  });
+  if (!error || error.code === "23505" || missingTable(error)) return null;
+  if (error.code === "23514" || /notifications_kind/i.test(error.message ?? "")) {
+    return "Your quote was saved. Re-run the quote migration so quote notifications can be delivered.";
+  }
+  return error.message;
 }
 
 export async function remoteUpdatePost(

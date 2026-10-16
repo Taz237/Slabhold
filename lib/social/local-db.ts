@@ -13,6 +13,7 @@ import type {
   SocialSnapshot,
 } from "./types";
 import { mentionUsernames } from "./mentions";
+import { shouldNotifyQuoteAuthor, validateQuoteContent } from "./quotes";
 import { COMMENT_LIMIT, MESSAGE_LIMIT } from "./types";
 
 const STORAGE_KEY = "cardflip.social.v1";
@@ -258,6 +259,7 @@ async function createSeed(): Promise<LocalDb> {
       body: "Raw Wemby Prizm still feels like the hold. Corners are sharp. Waiting on a grading window.",
       imageDataUrl: null,
       card: wemby,
+      quotedPostId: null,
       createdAt: hoursAgo(2),
     },
     {
@@ -266,6 +268,7 @@ async function createSeed(): Promise<LocalDb> {
       body: "Moved a Mahomes Prizm for a small loss. Cash is back in the stack for football.",
       imageDataUrl: null,
       card: mahomes,
+      quotedPostId: null,
       createdAt: hoursAgo(5),
     },
     {
@@ -274,6 +277,7 @@ async function createSeed(): Promise<LocalDb> {
       body: "Clark Prizm comps are still sticky. Not listing mine.",
       imageDataUrl: null,
       card: clark,
+      quotedPostId: null,
       createdAt: hoursAgo(8),
     },
     {
@@ -282,6 +286,7 @@ async function createSeed(): Promise<LocalDb> {
       body: "If you're buying rookies this week, buy the card you'd still want if the market went quiet.",
       imageDataUrl: null,
       card: null,
+      quotedPostId: null,
       createdAt: hoursAgo(26),
     },
     {
@@ -290,6 +295,7 @@ async function createSeed(): Promise<LocalDb> {
       body: "Centering is the whole game on modern Prizm. 60/40 is a pass for me now.",
       imageDataUrl: null,
       card: null,
+      quotedPostId: null,
       createdAt: hoursAgo(50),
     },
   ];
@@ -348,6 +354,10 @@ export async function loadOrCreateLocalDb(): Promise<LocalDb> {
     parsed.reposts = parsed.reposts ?? [];
     parsed.comments = parsed.comments ?? [];
     parsed.messages = parsed.messages ?? [];
+    parsed.posts = parsed.posts.map((post) => ({
+      ...post,
+      quotedPostId: post.quotedPostId ?? null,
+    }));
     if (!Array.isArray(parsed.notifications)) {
       parsed.notifications = notificationsFromActivity(parsed);
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
@@ -629,27 +639,72 @@ export function localMarkThreadRead(db: LocalDb, partnerId: string): LocalDb {
 
 export function localCreatePost(
   db: LocalDb,
-  input: { body: string; imageDataUrl: string | null; card: PublicCard | null },
+  input: {
+    body: string;
+    imageDataUrl: string | null;
+    card: PublicCard | null;
+    quotedPostId?: string | null;
+  },
 ): { db: LocalDb; error?: string } {
   if (!db.sessionUserId) return { db, error: "Log in to post." };
   const body = input.body.trim();
-  if (!body && !input.imageDataUrl && !input.card) {
+  const quotedPostId = input.quotedPostId?.trim() || null;
+  if (quotedPostId) {
+    const quoteError = validateQuoteContent({
+      body,
+      imageDataUrl: input.imageDataUrl,
+      card: input.card,
+    });
+    if (quoteError) return { db, error: quoteError };
+    const original = db.posts.find((item) => item.id === quotedPostId);
+    if (!original) return { db, error: "That post is unavailable." };
+  } else if (!body && !input.imageDataUrl && !input.card) {
     return { db, error: "Write something, add a photo, or attach a card." };
   }
   if (body.length > 280) return { db, error: "Keep it to 280 characters." };
+  const createdAt = new Date().toISOString();
   const post: Post = {
     id: `post-${Date.now().toString(36)}`,
     authorId: db.sessionUserId,
     body,
     imageDataUrl: input.imageDataUrl,
     card: input.card,
-    createdAt: new Date().toISOString(),
+    quotedPostId,
+    createdAt,
   };
+  let notifications = withMentionNotifications(
+    db,
+    db.sessionUserId,
+    post.id,
+    body,
+    createdAt,
+  );
+  if (quotedPostId) {
+    const original = db.posts.find((item) => item.id === quotedPostId);
+    if (
+      original &&
+      shouldNotifyQuoteAuthor(db.sessionUserId, original.authorId)
+    ) {
+      notifications = [
+        {
+          id: `note-quote-${post.id}`,
+          recipientId: original.authorId,
+          actorId: db.sessionUserId,
+          kind: "quote",
+          postId: post.id,
+          preview: previewText(body || "Quoted your post"),
+          createdAt,
+          read: false,
+        },
+        ...notifications,
+      ];
+    }
+  }
   return {
     db: {
       ...db,
       posts: [post, ...db.posts],
-      notifications: withMentionNotifications(db, db.sessionUserId, post.id, body, post.createdAt),
+      notifications,
     },
   };
 }

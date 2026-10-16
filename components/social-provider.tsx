@@ -88,6 +88,7 @@ type SocialContextValue = {
     body: string;
     imageDataUrl: string | null;
     card: PublicCard | null;
+    quotedPostId?: string | null;
   }) => Promise<AuthResult>;
   updatePost: (
     postId: string,
@@ -391,6 +392,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       body: string;
       imageDataUrl: string | null;
       card: PublicCard | null;
+      quotedPostId?: string | null;
     }): Promise<AuthResult> => {
       const client = supabaseRef.current;
       if (mode === "supabase" && client && snapshot.user) {

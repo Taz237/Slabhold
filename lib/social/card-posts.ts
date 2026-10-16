@@ -48,13 +48,14 @@ export function sanitizeAttachedCard(raw: unknown): PublicCard | null {
   };
 }
 
-function mapPostRow(row: PostRow): Post {
+function mapPostRow(row: PostRow & { quoted_post_id?: string | null }): Post {
   return {
     id: row.id,
     authorId: row.user_id,
     body: row.content ?? "",
     imageDataUrl: row.image_url,
     card: sanitizeAttachedCard(row.card),
+    quotedPostId: row.quoted_post_id ?? null,
     createdAt: row.created_at,
   };
 }

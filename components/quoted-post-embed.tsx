@@ -1,0 +1,161 @@
+"use client";
+
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useMemo } from "react";
+import { X } from "lucide-react";
+import { Avatar } from "@/components/avatar";
+import { MentionText } from "@/components/mention-text";
+import { useSocial } from "@/components/social-provider";
+import { initials, timeAgo } from "@/lib/format";
+import { sanitizeAttachedCard } from "@/lib/social/card-posts";
+import { resolveQuoteEmbedState } from "@/lib/social/quotes";
+import type { PublicCard } from "@/lib/social/types";
+
+export function QuotedPostEmbed({
+  quotedPostId,
+  className = "",
+}: {
+  quotedPostId: string | null | undefined;
+  className?: string;
+}) {
+  const router = useRouter();
+  const { posts, profiles } = useSocial();
+
+  const postsById = useMemo(
+    () => new Map(posts.map((post) => [post.id, post])),
+    [posts],
+  );
+  const profilesById = useMemo(
+    () => new Map(profiles.map((profile) => [profile.id, profile])),
+    [profiles],
+  );
+
+  const state = resolveQuoteEmbedState(quotedPostId, postsById, profilesById);
+
+  if (state.kind === "unavailable") {
+    return (
+      <div
+        className={`mt-3 rounded-2xl border border-zinc-200 bg-zinc-50 px-3 py-3 text-sm text-zinc-500 dark:border-white/10 dark:bg-white/5 ${className}`}
+      >
+        This post is unavailable.
+      </div>
+    );
+  }
+
+  const { post, author, nestedLink } = state;
+  const card = sanitizeAttachedCard(post.card);
+  const relative = timeAgo(post.createdAt);
+
+  return (
+    <div
+      role="link"
+      tabIndex={0}
+      onClick={(event) => {
+        event.stopPropagation();
+        const target = event.target as HTMLElement;
+        if (target.closest("a, button")) return;
+        router.push(`/posts/${post.id}`);
+      }}
+      onKeyDown={(event) => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        event.preventDefault();
+        event.stopPropagation();
+        router.push(`/posts/${post.id}`);
+      }}
+      className={`mt-3 cursor-pointer overflow-hidden rounded-2xl border border-zinc-200 transition hover:bg-zinc-50 dark:border-white/10 dark:hover:bg-white/[0.04] ${className}`}
+    >
+      <div className="flex gap-2.5 px-3 pt-3 pb-2">
+        <Avatar
+          name={author.displayName}
+          image={author.avatarDataUrl}
+          accent={author.accent}
+          className="h-8 w-8 shrink-0"
+        />
+        <div className="min-w-0 flex-1">
+          <div className="flex min-w-0 flex-wrap items-baseline gap-x-1 text-[13px]">
+            <span className="max-w-[40%] truncate font-bold">{author.displayName}</span>
+            <span className="truncate text-zinc-500">@{author.username}</span>
+            {relative ? (
+              <span className="shrink-0 text-zinc-500">· {relative}</span>
+            ) : null}
+          </div>
+          {post.body ? (
+            <p className="mt-0.5 line-clamp-3 break-words text-[14px] leading-5 whitespace-pre-wrap">
+              <MentionText text={post.body} />
+            </p>
+          ) : null}
+          {nestedLink ? (
+            <p className="mt-1 text-[13px] text-zinc-500">
+              Quoting{" "}
+              <Link
+                href={nestedLink.href}
+                onClick={(event) => event.stopPropagation()}
+                className="font-medium break-words text-sky-600 hover:underline dark:text-sky-400"
+              >
+                @{nestedLink.handle}
+              </Link>
+            </p>
+          ) : null}
+        </div>
+        {post.imageDataUrl || card ? (
+          <EmbedThumb imageUrl={post.imageDataUrl} card={card} />
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function EmbedThumb({
+  imageUrl,
+  card,
+}: {
+  imageUrl: string | null;
+  card: PublicCard | null;
+}) {
+  const src = imageUrl || card?.photoDataUrl || null;
+  if (src) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={src}
+        alt=""
+        className="h-14 w-14 shrink-0 rounded-xl object-cover"
+      />
+    );
+  }
+  if (card) {
+    return (
+      <div
+        className="grid h-14 w-14 shrink-0 place-items-center rounded-xl text-[11px] font-semibold text-white"
+        style={{ background: `linear-gradient(160deg, ${card.accent}, #18181b)` }}
+      >
+        {initials(card.playerName)}
+      </div>
+    );
+  }
+  return null;
+}
+
+/** Compact preview used in the composer when drafting a quote. */
+export function QuoteComposePreview({
+  quotedPostId,
+  onRemove,
+}: {
+  quotedPostId: string;
+  onRemove: () => void;
+}) {
+  return (
+    <div className="relative mt-3">
+      <QuotedPostEmbed quotedPostId={quotedPostId} className="mt-0 pr-10" />
+      <button
+        type="button"
+        onClick={onRemove}
+        aria-label="Remove quote"
+        className="absolute top-2 right-2 grid h-8 w-8 place-items-center rounded-full bg-black/70 text-white"
+      >
+        <X className="h-4 w-4" />
+      </button>
+    </div>
+  );
+}

@@ -3,13 +3,15 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { Ellipsis, Heart, MessageCircle, Repeat2 } from "lucide-react";
+import { Ellipsis, Heart, MessageCircle, Quote, Repeat2 } from "lucide-react";
 import { Avatar } from "@/components/avatar";
 import { useImageLightbox } from "@/components/image-lightbox";
 import { MentionText } from "@/components/mention-text";
+import { QuotedPostEmbed } from "@/components/quoted-post-embed";
 import { ShareAction } from "@/components/share-button";
 import { useSocial } from "@/components/social-provider";
 import { exactTime, initials, money, timeAgo } from "@/lib/format";
+import { quoteCount } from "@/lib/social/quotes";
 import type { Post, PostComment, Profile, PublicCard } from "@/lib/social/types";
 
 export function Tweet({
@@ -17,18 +19,21 @@ export function Tweet({
   author,
   variant = "feed",
   onReply,
+  onQuotesClick,
   repostedBy = null,
 }: {
   post: Post;
   author: Profile;
   variant?: "feed" | "detail";
   onReply?: () => void;
+  onQuotesClick?: () => void;
   repostedBy?: Profile | null;
 }) {
   const router = useRouter();
   const openImage = useImageLightbox();
-  const { commentsFor } = useSocial();
+  const { commentsFor, posts } = useSocial();
   const comments = commentsFor(post.id);
+  const quoteAvailable = posts.some((item) => item.id === post.id);
 
   function openPost(event: React.MouseEvent<HTMLElement>) {
     if (variant !== "feed") return;
@@ -87,12 +92,17 @@ export function Tweet({
           <PostPhoto src={post.imageDataUrl} onOpen={openImage} />
         ) : null}
         {post.card ? <CardMedia card={post.card} /> : null}
+        {post.quotedPostId ? (
+          <QuotedPostEmbed quotedPostId={post.quotedPostId} />
+        ) : null}
         <Engagement
           targetId={post.id}
           replyCount={comments.length}
           onReply={openReplies}
           sharePath={`/posts/${post.id}`}
           shareTitle={author.displayName}
+          quoteAvailable={quoteAvailable}
+          onQuotesClick={variant === "detail" ? onQuotesClick : undefined}
         />
         {variant === "feed" ? <CommentPreview postId={post.id} comments={comments} /> : null}
       </div>
@@ -329,17 +339,52 @@ export function Engagement({
   onReply,
   sharePath,
   shareTitle,
+  quoteAvailable = true,
+  onQuotesClick,
 }: {
   targetId: string;
   replyCount?: number;
   onReply: () => void;
   sharePath?: string;
   shareTitle?: string;
+  /** False when the post is unavailable and Quote should be disabled. */
+  quoteAvailable?: boolean;
+  onQuotesClick?: () => void;
 }) {
   const router = useRouter();
-  const { user, toggleLike, toggleRepost, isLiked, isReposted, likeCount, repostCount } = useSocial();
+  const {
+    user,
+    posts,
+    toggleLike,
+    toggleRepost,
+    isLiked,
+    isReposted,
+    likeCount,
+    repostCount,
+  } = useSocial();
   const liked = isLiked(targetId);
   const reposted = isReposted(targetId);
+  const quotes = quoteCount(posts, targetId);
+  const [repostMenuOpen, setRepostMenuOpen] = useState(false);
+  const repostMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!repostMenuOpen) return;
+    function onPointer(event: MouseEvent) {
+      if (!repostMenuRef.current?.contains(event.target as Node)) {
+        setRepostMenuOpen(false);
+      }
+    }
+    function onKey(event: KeyboardEvent) {
+      if (event.key === "Escape") setRepostMenuOpen(false);
+    }
+    document.addEventListener("mousedown", onPointer);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onPointer);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [repostMenuOpen]);
 
   function requireUser() {
     if (user) return true;
@@ -352,18 +397,54 @@ export function Engagement({
       <ActionButton label="Reply" count={replyCount} active={false} tone="sky" onClick={onReply}>
         <MessageCircle className="h-[18px] w-[18px]" />
       </ActionButton>
-      <ActionButton
-        label={reposted ? "Undo repost" : "Repost"}
-        count={repostCount(targetId)}
-        active={reposted}
-        pressed={reposted}
-        tone="emerald"
-        onClick={() => {
-          if (requireUser()) toggleRepost(targetId);
-        }}
-      >
-        <Repeat2 className="h-[18px] w-[18px]" />
-      </ActionButton>
+      <div ref={repostMenuRef} className="relative flex min-h-9 flex-1 items-center">
+        <ActionButton
+          label={reposted ? "Repost options" : "Repost"}
+          count={repostCount(targetId)}
+          active={reposted}
+          pressed={reposted}
+          tone="emerald"
+          onClick={() => {
+            if (!requireUser()) return;
+            setRepostMenuOpen((open) => !open);
+          }}
+        >
+          <Repeat2 className="h-[18px] w-[18px]" />
+        </ActionButton>
+        {repostMenuOpen ? (
+          <div
+            role="menu"
+            className="absolute bottom-10 left-0 z-30 w-44 overflow-hidden rounded-2xl border border-zinc-200 bg-[var(--background)] py-1 shadow-lg dark:border-white/10"
+          >
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                setRepostMenuOpen(false);
+                toggleRepost(targetId);
+              }}
+              className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-[15px] font-bold hover:bg-zinc-100 dark:hover:bg-white/10"
+            >
+              <Repeat2 className="h-4 w-4" />
+              {reposted ? "Undo repost" : "Repost"}
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              disabled={!quoteAvailable}
+              onClick={() => {
+                if (!quoteAvailable) return;
+                setRepostMenuOpen(false);
+                router.push(`/compose?quote=${encodeURIComponent(targetId)}`);
+              }}
+              className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-[15px] font-bold hover:bg-zinc-100 disabled:opacity-40 dark:hover:bg-white/10"
+            >
+              <Quote className="h-4 w-4" />
+              Quote
+            </button>
+          </div>
+        ) : null}
+      </div>
       <ActionButton
         label={liked ? "Unlike" : "Like"}
         count={likeCount(targetId)}
@@ -376,6 +457,17 @@ export function Engagement({
       >
         <Heart className={`h-[18px] w-[18px] ${liked ? "fill-current" : ""}`} />
       </ActionButton>
+      {onQuotesClick ? (
+        <ActionButton
+          label="Quotes"
+          count={quotes}
+          active={false}
+          tone="sky"
+          onClick={onQuotesClick}
+        >
+          <Quote className="h-[18px] w-[18px]" />
+        </ActionButton>
+      ) : null}
       {sharePath ? <ShareAction path={sharePath} title={shareTitle ?? "Slabhold"} /> : null}
     </div>
   );

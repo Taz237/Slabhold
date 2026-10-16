@@ -5,11 +5,13 @@ import { useEffect, useRef, useState } from "react";
 import { Camera, ImagePlus, X } from "lucide-react";
 import { Avatar } from "@/components/avatar";
 import { useCollection } from "@/components/collection-provider";
+import { QuoteComposePreview } from "@/components/quoted-post-embed";
 import { MentionTextarea } from "@/components/mention-textarea";
 import { LoadingRows } from "@/components/status";
 import { useSocial } from "@/components/social-provider";
 import { takeCompose } from "@/lib/capture";
 import { fileToDataUrl } from "@/lib/storage";
+import { QUOTE_EMPTY_ERROR, validateQuoteContent } from "@/lib/social/quotes";
 import { POST_LIMIT, type PublicCard } from "@/lib/social/types";
 
 export function ComposeView() {
@@ -17,6 +19,7 @@ export function ComposeView() {
   const params = useSearchParams();
   const editId = params.get("edit");
   const attachCardParam = params.get("card");
+  const quoteParam = params.get("quote");
   const { ready, user, posts, createPost, updatePost } = useSocial();
   const { cards } = useCollection();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -24,6 +27,7 @@ export function ComposeView() {
   const [body, setBody] = useState("");
   const [image, setImage] = useState<string | null>(null);
   const [cardId, setCardId] = useState("");
+  const [quoteId, setQuoteId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const editing = posts.find((post) => post.id === editId && post.authorId === user?.id);
@@ -50,6 +54,18 @@ export function ComposeView() {
       setCardId(attachCardParam);
     }
   }, [attachCardParam, cards, editId, ready, user]);
+
+  useEffect(() => {
+    if (!ready || !user || editId || !quoteParam) return;
+    const original = posts.find((post) => post.id === quoteParam);
+    if (!original) {
+      setQuoteId(null);
+      setError("That post is unavailable.");
+      return;
+    }
+    setQuoteId(quoteParam);
+    setError(null);
+  }, [editId, posts, quoteParam, ready, user]);
 
   useEffect(() => {
     if (ready && !user) router.replace("/login");
@@ -93,17 +109,38 @@ export function ComposeView() {
           estimatedSellPrice: selected.estimatedSellPrice,
         }
       : null;
-    if (!body.trim() && !image && !card) {
+
+    if (quoteId) {
+      const quoteError = validateQuoteContent({
+        body,
+        imageDataUrl: image,
+        card,
+      });
+      if (quoteError) {
+        setError(quoteError);
+        return;
+      }
+      if (!posts.some((post) => post.id === quoteId)) {
+        setError("That post is unavailable.");
+        return;
+      }
+    } else if (!body.trim() && !image && !card) {
       setError("Write something, add a photo, or attach a card.");
       return;
     }
+
     setSending(true);
     const result = editing
       ? await updatePost(editing.id, { body, imageDataUrl: image })
-      : await createPost({ body, imageDataUrl: image, card });
+      : await createPost({
+          body,
+          imageDataUrl: image,
+          card,
+          quotedPostId: quoteId,
+        });
     setSending(false);
     if (result.error) {
-      setError(result.error);
+      setError(result.error === QUOTE_EMPTY_ERROR ? QUOTE_EMPTY_ERROR : result.error);
       return;
     }
     router.push(editing ? `/posts/${editing.id}` : "/");
@@ -135,7 +172,15 @@ export function ComposeView() {
           disabled={!canPost}
           className="rounded-full bg-violet-600 px-4 py-1.5 text-sm font-bold text-white disabled:opacity-40"
         >
-          {sending ? (editing ? "Saving…" : "Posting…") : editing ? "Save" : "Post"}
+          {sending
+            ? editing
+              ? "Saving…"
+              : "Posting…"
+            : editing
+              ? "Save"
+              : quoteId
+                ? "Quote"
+                : "Post"}
         </button>
       </div>
 
@@ -154,7 +199,7 @@ export function ComposeView() {
             rows={6}
             autoFocus
             menu="docked"
-            placeholder="What's happening?"
+            placeholder={quoteId ? "Add a comment" : "What's happening?"}
             className="w-full resize-none bg-transparent text-[17px] leading-6 outline-none placeholder:text-zinc-500"
           />
           {image ? (
@@ -174,6 +219,15 @@ export function ComposeView() {
                 <X className="h-4 w-4" />
               </button>
             </div>
+          ) : null}
+          {quoteId ? (
+            <QuoteComposePreview
+              quotedPostId={quoteId}
+              onRemove={() => {
+                setQuoteId(null);
+                router.replace("/compose", { scroll: false });
+              }}
+            />
           ) : null}
           {error ? <p className="mt-3 text-sm text-rose-600 dark:text-rose-400">{error}</p> : null}
         </div>
