@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowLeft, Pencil, Trash2 } from "lucide-react";
 import { CategoryBadge, CategoryPicker } from "@/components/category-picker";
 import { useCollection } from "@/components/collection-provider";
@@ -11,8 +11,6 @@ import { CompsList } from "@/components/comps-list";
 import { ValueChart } from "@/components/value-chart";
 import { useSocial } from "@/components/social-provider";
 import { cardCategory } from "@/lib/card-category";
-import { mockCompsForCard } from "@/lib/comps/sample";
-import { middleFifty } from "@/lib/comps/stats";
 import { useSoldComps } from "@/lib/comps/use-sold-comps";
 import {
   cardSubtitle,
@@ -21,8 +19,6 @@ import {
   isSold,
   money,
   pct,
-  profit,
-  profitPct,
   signedMoney,
 } from "@/lib/format";
 import { formatRelativeTime } from "@/lib/relative-time";
@@ -58,42 +54,15 @@ export function CardDetail({ id }: { id: string }) {
     };
   }, [user?.id, card?.id]);
 
-  const soldQuery = useMemo(
-    () =>
-      card
-        ? {
-            id: card.id,
-            playerName: card.playerName,
-            year: card.year,
-            setBrand: card.setBrand,
-            cardNumber: card.cardNumber,
-            grade: card.grade,
-            parallel: card.parallel,
-            estimatedSellPrice: card.estimatedSellPrice,
-          }
-        : null,
-    [card],
-  );
-  const sold = useSoldComps(soldQuery);
-  const sampleComps = useMemo(() => (card ? mockCompsForCard(card) : []), [card]);
+  const sold = useSoldComps(card?.id ?? null);
 
-  const authRequired = sold.status === "auth_required";
-  const rateLimited = sold.status === "rate_limited";
-  const usingLive = sold.data?.source === "trawl" && !sold.data.sample;
-  const showSampleBanner = !usingLive && !authRequired && !rateLimited;
-  const liveComps = usingLive ? sold.data!.comps : null;
-  const compsLoading = sold.status === "loading";
-
-  const compsForList = useMemo(() => {
-    const base = usingLive ? (liveComps ?? []).slice(0, 15) : sampleComps;
-    return base.filter((c) => !flaggedIds.has(c.itemId));
-  }, [usingLive, liveComps, sampleComps, flaggedIds]);
-
-  const liveStats = useMemo(() => {
-    if (!usingLive) return null;
-    const prices = compsForList.map((c) => c.soldPrice);
-    return middleFifty(prices);
-  }, [usingLive, compsForList]);
+  useEffect(() => {
+    if (!card || sold.status !== "ready" || !sold.data) return;
+    if (sold.data.sample || sold.data.source !== "trawl") return;
+    if (sold.data.count < 1 || sold.data.median == null) return;
+    if (card.estimatedSellPrice === sold.data.median) return;
+    updateCard(card.id, { estimatedSellPrice: sold.data.median });
+  }, [card, sold.status, sold.data, updateCard]);
 
   if (!ready) {
     return (
@@ -113,9 +82,42 @@ export function CardDetail({ id }: { id: string }) {
   }
 
   const cardSold = isSold(card);
-  const delta = profit(card);
-  const compare = cardSold ? card.sellPrice! : card.estimatedSellPrice;
-  const max = Math.max(card.purchasePrice, compare, 1);
+  const authRequired = sold.status === "auth_required";
+  const rateLimited = sold.status === "rate_limited";
+  const unavailable = sold.status === "unavailable";
+  const compsLoading = sold.status === "loading";
+  const usingLive = sold.data?.source === "trawl" && !sold.data.sample;
+  const usingSample =
+    sold.status === "ready" &&
+    (sold.data?.sample === true ||
+      sold.data?.source === "sample" ||
+      sold.data?.source === "off");
+
+  const liveCount = usingLive ? (sold.data?.count ?? 0) : 0;
+  const liveMedian = usingLive ? (sold.data?.median ?? null) : null;
+  const liveP25 = usingLive ? (sold.data?.p25 ?? null) : null;
+  const liveP75 = usingLive ? (sold.data?.p75 ?? null) : null;
+  const liveComps = usingLive ? (sold.data?.comps ?? []) : [];
+
+  const estSell = cardSold
+    ? card.sellPrice!
+    : unavailable || rateLimited
+      ? null
+      : usingLive
+        ? liveCount >= 1 && liveMedian != null
+          ? liveMedian
+          : null
+        : usingSample
+          ? card.estimatedSellPrice
+          : compsLoading
+            ? null
+            : null;
+
+  const compare = estSell ?? 0;
+  const delta = compare - card.purchasePrice;
+  const profitPctValue =
+    card.purchasePrice === 0 ? 0 : delta / card.purchasePrice;
+  const max = Math.max(card.purchasePrice, compare || 0, 1);
 
   function markSold() {
     const price = Number(sellPrice);
@@ -126,14 +128,6 @@ export function CardDetail({ id }: { id: string }) {
     });
     setSellPrice("");
   }
-
-  const liveCount = compsForList.length;
-  const liveMedian =
-    liveStats?.median != null ? Math.round(liveStats.median) : sold.data?.median ?? null;
-  const liveP25 =
-    liveStats?.p25 != null ? Math.round(liveStats.p25) : sold.data?.p25 ?? null;
-  const liveP75 =
-    liveStats?.p75 != null ? Math.round(liveStats.p75) : sold.data?.p75 ?? null;
 
   return (
     <div className="space-y-6">
@@ -191,14 +185,29 @@ export function CardDetail({ id }: { id: string }) {
 
           <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
             <Metric label="Paid" value={money(card.purchasePrice, true)} />
-            <Metric
-              label={cardSold ? "Sold" : "Est. sell"}
-              value={money(compare, true)}
+            <EstSellMetric
+              cardSold={cardSold}
+              soldPrice={card.sellPrice}
+              loading={compsLoading && !cardSold}
+              unavailable={(unavailable || rateLimited) && !cardSold}
+              usingLive={usingLive}
+              count={liveCount}
+              median={liveMedian}
+              lowConfidence={Boolean(sold.data?.lowConfidence) || liveCount < 5}
+              fallback={usingSample ? card.estimatedSellPrice : null}
             />
             <Metric
               label="Profit"
-              value={`${signedMoney(delta, true)} ${pct(profitPct(card))}`}
-              tone={delta >= 0 ? "up" : "down"}
+              value={
+                cardSold || estSell != null
+                  ? `${signedMoney(delta, true)} ${pct(profitPctValue)}`
+                  : compsLoading
+                    ? "…"
+                    : "—"
+              }
+              tone={
+                estSell == null ? undefined : delta >= 0 ? "up" : "down"
+              }
             />
           </div>
 
@@ -256,7 +265,12 @@ export function CardDetail({ id }: { id: string }) {
           <div>
             <h2 className="font-semibold">Paid vs {cardSold ? "sold" : "estimate"}</h2>
             <p className="text-xs text-zinc-500">
-              {cardSold ? "Closed flip" : "Open position"} · {signedMoney(delta, true)}
+              {cardSold
+                ? "Closed flip"
+                : estSell != null
+                  ? "Open position"
+                  : "Open position"}{" "}
+              · {estSell != null ? signedMoney(delta, true) : "—"}
             </p>
           </div>
         </div>
@@ -276,18 +290,24 @@ export function CardDetail({ id }: { id: string }) {
         </div>
       </section>
 
-      <ValueChart
-        card={card}
-        points={usingLive ? sold.data?.history : null}
-        source={sold.data?.source ?? "sample"}
-        loading={compsLoading}
-        median={usingLive ? liveMedian : null}
-        p25={usingLive ? liveP25 : null}
-        p75={usingLive ? liveP75 : null}
-        count={usingLive ? liveCount : 0}
-        fetchedAt={sold.data?.fetchedAt ?? null}
-        sample={!usingLive}
-      />
+      {unavailable || rateLimited ? (
+        <p className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
+          Sold data unavailable, try again shortly
+        </p>
+      ) : (
+        <ValueChart
+          card={card}
+          points={usingLive ? sold.data?.history : null}
+          source={sold.data?.source ?? (usingSample ? "sample" : "trawl")}
+          loading={compsLoading}
+          median={usingLive ? liveMedian : null}
+          p25={usingLive ? liveP25 : null}
+          p75={usingLive ? liveP75 : null}
+          count={usingLive ? liveCount : 0}
+          sample={usingSample}
+          unavailable={false}
+        />
+      )}
 
       <section className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-white/10 dark:bg-white/[0.03] sm:p-5">
         <div className="flex flex-wrap items-end justify-between gap-2">
@@ -298,8 +318,8 @@ export function CardDetail({ id }: { id: string }) {
                 ? "Loading sold listings…"
                 : authRequired
                   ? "Log in to see sold comps"
-                  : rateLimited
-                    ? sold.message ?? "Too many requests — try again shortly."
+                  : unavailable || rateLimited
+                    ? "Sold data unavailable, try again shortly"
                     : usingLive
                       ? liveCount === 0
                         ? "No matching sales found"
@@ -312,7 +332,9 @@ export function CardDetail({ id }: { id: string }) {
                               ? ` · Updated ${formatRelativeTime(sold.data.fetchedAt)}`
                               : ""
                           }`
-                      : "Sample listings"}
+                      : usingSample
+                        ? "Sample listings"
+                        : ""}
             </p>
           </div>
         </div>
@@ -321,22 +343,9 @@ export function CardDetail({ id }: { id: string }) {
             Log in to see sold comps
           </p>
         ) : null}
-        {rateLimited && !compsLoading ? (
-          <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
-            {sold.message ?? "You're checking sold comps too quickly. Please wait a bit and try again."}
-          </p>
-        ) : null}
-        {showSampleBanner && !compsLoading ? (
-          <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
-            Showing sample data until live results are available.
-          </p>
-        ) : null}
         {usingLive && !compsLoading ? (
           <p className="mt-3 text-[11px] text-zinc-400">
             Sold data via Trawl (third-party, not affiliated with eBay)
-            {sold.data?.fetchedAt
-              ? ` · Updated ${formatRelativeTime(sold.data.fetchedAt)}`
-              : null}
           </p>
         ) : null}
         {compsLoading ? (
@@ -348,9 +357,9 @@ export function CardDetail({ id }: { id: string }) {
               />
             ))}
           </div>
-        ) : authRequired || rateLimited ? null : (
+        ) : authRequired || unavailable || rateLimited ? null : usingLive ? (
           <CompsList
-            comps={usingLive ? (liveComps ?? []).slice(0, 15) : sampleComps}
+            comps={liveComps}
             cardId={card.id}
             userId={user?.id ?? null}
             flaggedIds={flaggedIds}
@@ -358,10 +367,67 @@ export function CardDetail({ id }: { id: string }) {
               setFlaggedIds((prev) => new Set(prev).add(itemId))
             }
           />
-        )}
+        ) : usingSample ? (
+          <CompsList comps={sold.data?.comps ?? []} />
+        ) : null}
       </section>
     </div>
   );
+}
+
+function EstSellMetric({
+  cardSold,
+  soldPrice,
+  loading,
+  unavailable,
+  usingLive,
+  count,
+  median,
+  lowConfidence,
+  fallback,
+}: {
+  cardSold: boolean;
+  soldPrice: number | null;
+  loading: boolean;
+  unavailable: boolean;
+  usingLive: boolean;
+  count: number;
+  median: number | null;
+  lowConfidence: boolean;
+  fallback: number | null;
+}) {
+  if (cardSold) {
+    return <Metric label="Sold" value={money(soldPrice ?? 0, true)} />;
+  }
+  if (loading) {
+    return <Metric label="Est. sell" value="…" />;
+  }
+  if (unavailable) {
+    return <Metric label="Est. sell" value="—" />;
+  }
+  if (usingLive) {
+    if (count < 1 || median == null) {
+      return <Metric label="Est. sell" value="Not enough sales" />;
+    }
+    return (
+      <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-3 dark:border-white/10 dark:bg-black/20">
+        <p className="text-[11px] tracking-wide text-zinc-500 uppercase">Est. sell</p>
+        <p className="mt-1 text-lg font-semibold">{money(median, true)}</p>
+        <p className="mt-0.5 text-[11px] text-zinc-500">
+          Based on {count} sale{count === 1 ? "" : "s"}
+        </p>
+        {lowConfidence ? (
+          <span className="mt-1 inline-block rounded-md bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800 dark:text-amber-200">
+            Low confidence
+          </span>
+        ) : null}
+      </div>
+    );
+  }
+  if (fallback != null) {
+    return <Metric label="Est. sell" value={money(fallback, true)} />;
+  }
+  return <Metric label="Est. sell" value="—" />;
 }
 
 function CardSpecs({

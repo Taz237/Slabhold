@@ -75,22 +75,26 @@ export function CompsList({
       {visible.map((comp) => (
         <li key={comp.id} className="flex items-start justify-between gap-4 py-3">
           <div className="min-w-0">
-            <p className="text-sm tabular-nums text-zinc-900 dark:text-zinc-100">
-              {formatDate(comp.soldDate)}
-              {comp.condition && comp.condition !== "—" ? (
-                <span className="text-zinc-500"> · {comp.condition}</span>
-              ) : null}
-            </p>
             {comp.url ? (
               <a
                 href={comp.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="mt-0.5 inline-block text-xs text-violet-700 hover:underline dark:text-violet-300"
+                className="block text-sm text-zinc-900 hover:underline dark:text-zinc-100"
               >
-                View listing
+                {comp.title || "View listing"}
               </a>
-            ) : null}
+            ) : (
+              <p className="text-sm text-zinc-900 dark:text-zinc-100">
+                {comp.title || "Sale"}
+              </p>
+            )}
+            <p className="mt-0.5 text-xs tabular-nums text-zinc-500">
+              {formatDate(comp.soldDate)}
+              {comp.condition && comp.condition !== "—"
+                ? ` · ${comp.condition}`
+                : null}
+            </p>
           </div>
           <div className="flex shrink-0 flex-col items-end gap-1">
             <p className="text-sm font-medium tabular-nums">

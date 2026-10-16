@@ -1,30 +1,30 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { SoldCompCard, SoldCompsPayload } from "./types";
+import type { SoldCompsPayload } from "./types";
 
-type SoldCompsState = {
-  status: "idle" | "loading" | "ready" | "auth_required" | "rate_limited";
+export type SoldCompsState = {
+  status:
+    | "idle"
+    | "loading"
+    | "ready"
+    | "auth_required"
+    | "rate_limited"
+    | "unavailable";
   data: SoldCompsPayload | null;
   message: string | null;
 };
 
 const empty: SoldCompsState = { status: "idle", data: null, message: null };
 
-export function useSoldComps(card: SoldCompCard | null) {
+const UNAVAILABLE = "Sold data unavailable, try again shortly";
+
+/** Fetch comps once per card id. Card details are loaded server-side. */
+export function useSoldComps(cardId: string | null) {
   const [state, setState] = useState<SoldCompsState>(empty);
 
-  const id = card?.id ?? "";
-  const playerName = card?.playerName ?? "";
-  const year = card?.year ?? 0;
-  const setBrand = card?.setBrand ?? "";
-  const cardNumber = card?.cardNumber ?? "";
-  const grade = card?.grade ?? "";
-  const parallel = card?.parallel ?? "";
-  const estimatedSellPrice = card?.estimatedSellPrice ?? 0;
-
   useEffect(() => {
-    if (!id || !playerName || !setBrand || !year) {
+    if (!cardId) {
       setState(empty);
       return;
     }
@@ -32,18 +32,9 @@ export function useSoldComps(card: SoldCompCard | null) {
     const controller = new AbortController();
     setState({ status: "loading", data: null, message: null });
 
-    const params = new URLSearchParams({
-      id,
-      player: playerName,
-      year: String(year),
-      set: setBrand,
-    });
-    if (cardNumber) params.set("number", cardNumber);
-    if (grade) params.set("grade", grade);
-    if (parallel) params.set("parallel", parallel);
-    if (estimatedSellPrice) params.set("est", String(estimatedSellPrice));
-
-    fetch(`/api/comps/sold?${params}`, { signal: controller.signal })
+    fetch(`/api/comps/sold?id=${encodeURIComponent(cardId)}`, {
+      signal: controller.signal,
+    })
       .then(async (res) => {
         const body = (await res.json()) as SoldCompsPayload & { error?: string };
         if (controller.signal.aborted) return;
@@ -60,50 +51,31 @@ export function useSoldComps(card: SoldCompCard | null) {
           setState({
             status: "rate_limited",
             data: null,
-            message:
-              body.error ||
-              "You're checking sold comps too quickly. Please wait a bit and try again.",
+            message: body.error || UNAVAILABLE,
           });
           return;
         }
         if (!res.ok) {
-          throw new Error(body.error || "Could not load sold comps");
+          setState({
+            status: "unavailable",
+            data: null,
+            message: body.error || UNAVAILABLE,
+          });
+          return;
         }
         setState({ status: "ready", data: body, message: null });
       })
       .catch(() => {
         if (controller.signal.aborted) return;
         setState({
-          status: "ready",
-          data: {
-            comps: [],
-            history: [],
-            median: null,
-            p25: null,
-            p75: null,
-            count: 0,
-            source: "sample",
-            cached: false,
-            fetchedAt: null,
-            query: "",
-            lowConfidence: true,
-            sample: true,
-          },
-          message: null,
+          status: "unavailable",
+          data: null,
+          message: UNAVAILABLE,
         });
       });
 
     return () => controller.abort();
-  }, [
-    id,
-    playerName,
-    year,
-    setBrand,
-    cardNumber,
-    grade,
-    parallel,
-    estimatedSellPrice,
-  ]);
+  }, [cardId]);
 
   return state;
 }

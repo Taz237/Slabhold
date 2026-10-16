@@ -13,6 +13,7 @@ export type CachedSoldBatch = {
 
 type CacheRow = {
   item_id: string;
+  title: string | null;
   price: number;
   currency: string | null;
   sold_at: string | null;
@@ -23,7 +24,7 @@ type CacheRow = {
 };
 
 export async function readSoldCompsCache(
-  cardId: string,
+  queryKey: string,
 ): Promise<CachedSoldBatch | null> {
   const client = createSupabaseAdmin();
   if (!client) return null;
@@ -31,7 +32,7 @@ export async function readSoldCompsCache(
   const { data: latest, error: latestError } = await client
     .from("sold_comps_cache")
     .select("fetched_at")
-    .eq("card_id", cardId)
+    .eq("query_key", queryKey)
     .order("fetched_at", { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -44,8 +45,10 @@ export async function readSoldCompsCache(
 
   const { data, error } = await client
     .from("sold_comps_cache")
-    .select("item_id, price, currency, sold_at, grader, grade, url, fetched_at")
-    .eq("card_id", cardId)
+    .select(
+      "item_id, title, price, currency, sold_at, grader, grade, url, fetched_at",
+    )
+    .eq("query_key", queryKey)
     .eq("fetched_at", fetchedAt);
 
   if (error || !data?.length) {
@@ -63,7 +66,7 @@ function rowsToSales(data: CacheRow[], fetchedAt: string): CleanedSale[] {
     .filter((row) => row.item_id !== "__empty__")
     .map((row) => ({
       itemId: row.item_id,
-      title: "",
+      title: row.title?.trim() || "",
       price: Number(row.price),
       currency: row.currency,
       soldAt: row.sold_at ?? fetchedAt,
@@ -73,40 +76,9 @@ function rowsToSales(data: CacheRow[], fetchedAt: string): CleanedSale[] {
     }));
 }
 
-/** Stale-but-present cache for 429 / out-of-credits fallback (any age). */
-export async function readSoldCompsCacheAny(
-  cardId: string,
-): Promise<CachedSoldBatch | null> {
-  const client = createSupabaseAdmin();
-  if (!client) return null;
-
-  const { data: latest, error: latestError } = await client
-    .from("sold_comps_cache")
-    .select("fetched_at")
-    .eq("card_id", cardId)
-    .order("fetched_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (latestError || !latest?.fetched_at) return null;
-  const fetchedAt = latest.fetched_at as string;
-
-  const { data, error } = await client
-    .from("sold_comps_cache")
-    .select("item_id, price, currency, sold_at, grader, grade, url, fetched_at")
-    .eq("card_id", cardId)
-    .eq("fetched_at", fetchedAt);
-
-  if (error) return null;
-
-  return {
-    sales: rowsToSales((data ?? []) as CacheRow[], fetchedAt),
-    fetchedAt,
-  };
-}
-
 export async function writeSoldCompsCache(
   cardId: string,
+  queryKey: string,
   sales: CleanedSale[],
 ): Promise<string | null> {
   const client = createSupabaseAdmin();
@@ -117,7 +89,7 @@ export async function writeSoldCompsCache(
   const { error: deleteError } = await client
     .from("sold_comps_cache")
     .delete()
-    .eq("card_id", cardId);
+    .eq("query_key", queryKey);
 
   if (deleteError) {
     console.warn("[sold_comps_cache] delete failed:", deleteError.message);
@@ -127,7 +99,9 @@ export async function writeSoldCompsCache(
     sales.length > 0
       ? sales.map((sale) => ({
           card_id: cardId,
+          query_key: queryKey,
           item_id: sale.itemId,
+          title: sale.title || null,
           price: sale.price,
           currency: sale.currency,
           sold_at: sale.soldAt,
@@ -139,7 +113,9 @@ export async function writeSoldCompsCache(
       : [
           {
             card_id: cardId,
+            query_key: queryKey,
             item_id: "__empty__",
+            title: null,
             price: 0,
             currency: null,
             sold_at: fetchedAt,

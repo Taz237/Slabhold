@@ -29,3 +29,13 @@ export function middleFifty(values: number[]): {
     p75: percentile(sorted, 75),
   };
 }
+
+/** Drop sales more than 2.5× or less than 0.4× the median price. */
+export function filterPriceOutliers<T extends { price: number }>(sales: T[]): T[] {
+  if (sales.length < 2) return sales;
+  const mid = median(sales.map((s) => s.price));
+  if (mid == null || mid <= 0) return sales;
+  const lo = mid * 0.4;
+  const hi = mid * 2.5;
+  return sales.filter((s) => s.price >= lo && s.price <= hi);
+}

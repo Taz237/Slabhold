@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Camera, ImagePlus, Loader2, ScanSearch, X } from "lucide-react";
 import { CardSearch } from "@/components/card-search";
 import { CategoryPicker } from "@/components/category-picker";
@@ -9,7 +9,6 @@ import { useCollection, useDefaultAccent } from "@/components/collection-provide
 import { NativeSelect, SearchSelect } from "@/components/search-select";
 import { useSocial } from "@/components/social-provider";
 import { takeScan } from "@/lib/capture";
-import { CompsList } from "@/components/comps-list";
 import type { CatalogCard } from "@/lib/card-catalog";
 import {
   CARD_YEARS,
@@ -23,7 +22,7 @@ import {
   optionsWithCurrent,
   parseGrade,
 } from "@/lib/card-options";
-import { averageComp, identifyFromPhoto, mockCompsForCard } from "@/lib/comps/sample";
+import { identifyFromPhoto } from "@/lib/comps/sample";
 import { cardCategory } from "@/lib/card-category";
 import { fileToDataUrl } from "@/lib/storage";
 import type { CardCategory, IdentifyResult, SportsCard } from "@/lib/types";
@@ -74,18 +73,6 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
   });
   const gradeChoices = GRADE_NUMBERS[gradeCompany] ?? [];
   const needsGradeNumber = Boolean(gradeCompany && gradeCompany !== RAW_GRADE);
-
-  const previewComps = useMemo(() => {
-    if (identified) return identified.comps;
-    if (!form.playerName) return [];
-    return mockCompsForCard({
-      playerName: form.playerName,
-      year: Number(form.year) || 2020,
-      setBrand: form.setBrand || "Unknown",
-      cardNumber: form.cardNumber || "—",
-      estimatedSellPrice: Number(form.estimatedSellPrice) || 120,
-    });
-  }, [form, identified]);
 
   async function scanFile(file: File | undefined) {
     if (!file) return;
@@ -163,9 +150,7 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
       sport: form.sport,
       purchasePrice: Number(form.purchasePrice) || 0,
       purchaseDate: form.purchaseDate,
-      estimatedSellPrice:
-        Number(form.estimatedSellPrice) ||
-        (previewComps.length ? averageComp(previewComps) : 0),
+      estimatedSellPrice: Number(form.estimatedSellPrice) || 0,
       sellPrice: sold && form.sellPrice ? Number(form.sellPrice) : null,
       sellDate: sold && form.sellDate ? form.sellDate : null,
       notes: form.notes.trim(),
@@ -400,14 +385,13 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
         </Field>
         <Field label="What you paid">
           <input
-            required
             type="number"
             min={0}
             step="0.01"
             value={form.purchasePrice}
             onChange={(e) => setForm((prev) => ({ ...prev, purchasePrice: e.target.value }))}
             className={inputClass}
-            placeholder="95"
+            placeholder="Optional"
           />
         </Field>
       </div>
@@ -478,16 +462,6 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
           placeholder="Condition, centering, why you bought it…"
         />
       </Field>
-
-      {previewComps.length > 0 && (
-        <section className="rounded-2xl border border-zinc-200 bg-white dark:border-white/10 dark:bg-white/[0.03] p-4">
-          <p className="text-sm font-medium">Recent comps (mock eBay sold)</p>
-          <p className="mt-1 text-xs text-zinc-500">
-            Avg {averageComp(previewComps).toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 })}
-          </p>
-          <CompsList comps={previewComps} />
-        </section>
-      )}
 
       {formError ? <p className="text-sm text-rose-600 dark:text-rose-400">{formError}</p> : null}
 

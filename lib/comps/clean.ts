@@ -1,9 +1,10 @@
 import { parseGrade, RAW_GRADE } from "@/lib/card-options";
+import { filterPriceOutliers } from "./stats";
 import type { CleanedSale, TrawlSoldResult } from "./types";
 
 /** Whole-word title exclusions (case-insensitive). */
 const TITLE_EXCLUDE =
-  /\b(?:lot|lots|proxy|reprint|custom|candidate|worthy|you\s+pick|RP)\b/i;
+  /\b(?:lot|lots|auto|autograph|autographed|proxy|reprint|custom|candidate|worthy|you\s+pick|RP)\b/i;
 
 /** Competing product lines — reject when not part of the card's own set. */
 const SET_KEYWORDS = [
@@ -288,4 +289,12 @@ export function cleanTrawlResults(
   cardOrGrade?: CleanCardFilter | string,
 ): CleanedSale[] {
   return results.flatMap((result) => cleanTrawlResult(result, cardOrGrade));
+}
+
+/** Title/grade filters then price-outlier rejection — the list stats are computed from. */
+export function prepareSales(
+  results: TrawlSoldResult[],
+  card: CleanCardFilter,
+): CleanedSale[] {
+  return filterPriceOutliers(cleanTrawlResults(results, card));
 }

@@ -10,7 +10,6 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { formatRelativeTime } from "@/lib/relative-time";
 import { money } from "@/lib/format";
 import { mockValueHistory, type ValuePoint } from "@/lib/value-history";
 
@@ -23,8 +22,8 @@ export function ValueChart({
   p25 = null,
   p75 = null,
   count = 0,
-  fetchedAt = null,
   sample = true,
+  unavailable = false,
 }: {
   card: { id: string; estimatedSellPrice: number; purchasePrice: number };
   points?: ValuePoint[] | null;
@@ -34,14 +33,31 @@ export function ValueChart({
   p25?: number | null;
   p75?: number | null;
   count?: number;
-  fetchedAt?: string | null;
   sample?: boolean;
+  unavailable?: boolean;
 }) {
+  if (unavailable && !loading) {
+    return null;
+  }
+
+  if (loading) {
+    return (
+      <section className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-white/10 dark:bg-white/[0.03] sm:p-5">
+        <p className="text-[11px] tracking-wide text-zinc-500 uppercase">
+          Sold comps
+        </p>
+        <p className="mt-2 text-sm text-zinc-500">Loading sold prices…</p>
+        <div className="mt-3 h-44 animate-pulse rounded-xl bg-zinc-100 dark:bg-white/5" />
+      </section>
+    );
+  }
+
   const usingLive = source === "trawl" && !sample;
+  const showSample = sample || source === "sample" || source === "off";
   const points =
     usingLive && pointsProp && pointsProp.length > 0
       ? pointsProp
-      : sample || source !== "trawl"
+      : showSample
         ? mockValueHistory(card)
         : [];
 
@@ -63,7 +79,9 @@ export function ValueChart({
             {usingLive ? "Sold comps" : "Estimated value"}
           </p>
           {noSales ? (
-            <p className="mt-1 text-lg font-semibold tracking-tight">No matching sales found</p>
+            <p className="mt-1 text-lg font-semibold tracking-tight">
+              No matching sales found
+            </p>
           ) : (
             <p className="mt-1 text-3xl font-semibold tracking-tight tabular-nums">
               {money(displayMedian)}
@@ -89,16 +107,12 @@ export function ValueChart({
         </div>
       </div>
 
-      <p className="mt-2 text-xs text-zinc-500">
-        {loading
-          ? "Loading sold prices…"
-          : usingLive
-            ? `Sold data via Trawl (third-party, not affiliated with eBay) · Updated ${formatRelativeTime(fetchedAt)}`
-            : "Sample history from recent months"}
-      </p>
+      {!usingLive ? (
+        <p className="mt-2 text-xs text-zinc-500">Sample history from recent months</p>
+      ) : null}
 
-      {!noSales ? (
-        <div className={`mt-3 h-44 w-full ${loading ? "opacity-50" : ""}`}>
+      {!noSales && points.length > 0 ? (
+        <div className="mt-3 h-44 w-full">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={points} margin={{ top: 8, right: 4, left: 0, bottom: 0 }}>
               <defs>

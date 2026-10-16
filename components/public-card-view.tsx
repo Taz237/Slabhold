@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import { CardThumb } from "@/components/card-thumb";
 import { CompsList } from "@/components/comps-list";
@@ -9,8 +9,6 @@ import { useCollection } from "@/components/collection-provider";
 import { ProfileSkeleton } from "@/components/status";
 import { useSocial } from "@/components/social-provider";
 import { ValueChart } from "@/components/value-chart";
-import { mockCompsForCard } from "@/lib/comps/sample";
-import { middleFifty } from "@/lib/comps/stats";
 import { useSoldComps } from "@/lib/comps/use-sold-comps";
 import { cardTitle, money } from "@/lib/format";
 import { formatRelativeTime } from "@/lib/relative-time";
@@ -84,33 +82,8 @@ function PublicCardAnalytics({
     card.grade?.trim() ? { label: "Grade", value: card.grade.trim() } : null,
   ].filter((spec): spec is { label: string; value: string } => Boolean(spec));
   const showPaid = typeof card.purchasePrice === "number";
-  const showChart = card.estimatedSellPrice > 0;
 
-  const soldQuery = useMemo(
-    () => ({
-      id: card.id,
-      playerName: card.playerName,
-      year: card.year,
-      setBrand: card.setBrand,
-      cardNumber: card.cardNumber,
-      grade: card.grade,
-      parallel: card.parallel,
-      estimatedSellPrice: card.estimatedSellPrice,
-    }),
-    [card],
-  );
-  const sold = useSoldComps(soldQuery);
-  const sampleComps = useMemo(
-    () =>
-      mockCompsForCard({
-        playerName: card.playerName,
-        year: card.year,
-        setBrand: card.setBrand,
-        cardNumber: card.cardNumber,
-        estimatedSellPrice: card.estimatedSellPrice,
-      }),
-    [card],
-  );
+  const sold = useSoldComps(card.id);
 
   useEffect(() => {
     if (!userId) {
@@ -136,25 +109,26 @@ function PublicCardAnalytics({
 
   const authRequired = sold.status === "auth_required";
   const rateLimited = sold.status === "rate_limited";
+  const unavailable = sold.status === "unavailable";
   const usingLive = sold.data?.source === "trawl" && !sold.data.sample;
-  const showSampleBanner = !usingLive && !authRequired && !rateLimited;
-  const liveComps = usingLive ? sold.data!.comps : null;
+  const usingSample =
+    sold.status === "ready" &&
+    (sold.data?.sample === true ||
+      sold.data?.source === "sample" ||
+      sold.data?.source === "off");
   const compsLoading = sold.status === "loading";
-  const compsForList = useMemo(() => {
-    const base = usingLive ? (liveComps ?? []).slice(0, 15) : sampleComps;
-    return base.filter((c) => !flaggedIds.has(c.itemId));
-  }, [usingLive, liveComps, sampleComps, flaggedIds]);
-  const liveStats = useMemo(() => {
-    if (!usingLive) return null;
-    return middleFifty(compsForList.map((c) => c.soldPrice));
-  }, [usingLive, compsForList]);
-  const liveCount = compsForList.length;
-  const liveMedian =
-    liveStats?.median != null ? Math.round(liveStats.median) : sold.data?.median ?? null;
-  const liveP25 =
-    liveStats?.p25 != null ? Math.round(liveStats.p25) : sold.data?.p25 ?? null;
-  const liveP75 =
-    liveStats?.p75 != null ? Math.round(liveStats.p75) : sold.data?.p75 ?? null;
+  const liveCount = usingLive ? (sold.data?.count ?? 0) : 0;
+  const liveMedian = usingLive ? (sold.data?.median ?? null) : null;
+  const liveP25 = usingLive ? (sold.data?.p25 ?? null) : null;
+  const liveP75 = usingLive ? (sold.data?.p75 ?? null) : null;
+  const liveComps = usingLive ? (sold.data?.comps ?? []) : [];
+  const displayEst =
+    usingLive && liveCount >= 1 && liveMedian != null
+      ? liveMedian
+      : usingSample
+        ? card.estimatedSellPrice
+        : card.estimatedSellPrice;
+  const showChart = !unavailable && !rateLimited;
 
   return (
     <div className="space-y-6">
@@ -190,26 +164,40 @@ function PublicCardAnalytics({
       </div>
 
       <section className={`grid gap-3 ${showPaid ? "grid-cols-2" : "grid-cols-1"}`}>
-        <Metric label="Estimated value" value={money(card.estimatedSellPrice, true)} />
+        <Metric
+          label="Estimated value"
+          value={
+            compsLoading
+              ? "…"
+              : unavailable || rateLimited
+                ? "—"
+                : usingLive && liveCount < 1
+                  ? "Not enough sales"
+                  : money(displayEst, true)
+          }
+        />
         {showPaid ? <Metric label="Paid" value={money(card.purchasePrice ?? 0, true)} /> : null}
       </section>
 
-      {showChart ? (
+      {unavailable || rateLimited ? (
+        <p className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
+          Sold data unavailable, try again shortly
+        </p>
+      ) : showChart ? (
         <ValueChart
           card={{
             id: card.id,
-            estimatedSellPrice: card.estimatedSellPrice,
+            estimatedSellPrice: displayEst,
             purchasePrice: card.purchasePrice ?? 0,
           }}
           points={usingLive ? sold.data?.history : null}
-          source={sold.data?.source ?? "sample"}
+          source={sold.data?.source ?? (usingSample ? "sample" : "trawl")}
           loading={compsLoading}
           median={usingLive ? liveMedian : null}
           p25={usingLive ? liveP25 : null}
           p75={usingLive ? liveP75 : null}
           count={usingLive ? liveCount : 0}
-          fetchedAt={sold.data?.fetchedAt ?? null}
-          sample={!usingLive}
+          sample={usingSample}
         />
       ) : null}
 
@@ -222,13 +210,19 @@ function PublicCardAnalytics({
                 ? "Loading sold listings…"
                 : authRequired
                   ? "Log in to see sold comps"
-                  : rateLimited
-                    ? sold.message ?? "Too many requests — try again shortly."
+                  : unavailable || rateLimited
+                    ? "Sold data unavailable, try again shortly"
                     : usingLive
                       ? liveCount === 0
                         ? "No matching sales found"
-                        : `Based on ${liveCount} sale${liveCount === 1 ? "" : "s"}`
-                      : "Sample listings"}
+                        : `Based on ${liveCount} sale${liveCount === 1 ? "" : "s"}${
+                            sold.data?.fetchedAt
+                              ? ` · Updated ${formatRelativeTime(sold.data.fetchedAt)}`
+                              : ""
+                          }`
+                      : usingSample
+                        ? "Sample listings"
+                        : ""}
             </p>
           </div>
         </div>
@@ -237,22 +231,9 @@ function PublicCardAnalytics({
             Log in to see sold comps
           </p>
         ) : null}
-        {rateLimited && !compsLoading ? (
-          <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
-            {sold.message ?? "You're checking sold comps too quickly. Please wait a bit and try again."}
-          </p>
-        ) : null}
-        {showSampleBanner && !compsLoading ? (
-          <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
-            Showing sample data until live results are available.
-          </p>
-        ) : null}
         {usingLive && !compsLoading ? (
           <p className="mt-3 text-[11px] text-zinc-400">
             Sold data via Trawl (third-party, not affiliated with eBay)
-            {sold.data?.fetchedAt
-              ? ` · Updated ${formatRelativeTime(sold.data.fetchedAt)}`
-              : null}
           </p>
         ) : null}
         {compsLoading ? (
@@ -264,9 +245,9 @@ function PublicCardAnalytics({
               />
             ))}
           </div>
-        ) : authRequired || rateLimited ? null : (
+        ) : authRequired || unavailable || rateLimited ? null : usingLive ? (
           <CompsList
-            comps={usingLive ? (liveComps ?? []).slice(0, 15) : sampleComps}
+            comps={liveComps}
             cardId={card.id}
             userId={userId}
             flaggedIds={flaggedIds}
@@ -274,7 +255,9 @@ function PublicCardAnalytics({
               setFlaggedIds((prev) => new Set(prev).add(itemId))
             }
           />
-        )}
+        ) : usingSample ? (
+          <CompsList comps={sold.data?.comps ?? []} />
+        ) : null}
       </section>
     </div>
   );
