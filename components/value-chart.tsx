@@ -24,6 +24,7 @@ export function ValueChart({
   count = 0,
   sample = true,
   unavailable = false,
+  noSalesLabel,
 }: {
   card: { id: string; estimatedSellPrice: number; purchasePrice: number };
   points?: ValuePoint[] | null;
@@ -35,6 +36,7 @@ export function ValueChart({
   count?: number;
   sample?: boolean;
   unavailable?: boolean;
+  noSalesLabel?: string;
 }) {
   if (unavailable && !loading) {
     return null;
@@ -80,7 +82,7 @@ export function ValueChart({
           </p>
           {noSales ? (
             <p className="mt-1 text-lg font-semibold tracking-tight">
-              No matching sales found
+              {noSalesLabel ?? "No sales yet"}
             </p>
           ) : (
             <p className="mt-1 text-3xl font-semibold tracking-tight tabular-nums">
@@ -99,7 +101,7 @@ export function ValueChart({
               Based on {n} sale{n === 1 ? "" : "s"}
             </p>
           ) : null}
-          {lowConfidence ? (
+          {lowConfidence && !noSales ? (
             <span className="mt-1 inline-block rounded-md bg-amber-500/15 px-2 py-0.5 text-[11px] font-semibold text-amber-800 dark:text-amber-200">
               Low confidence
             </span>

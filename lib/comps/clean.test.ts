@@ -3,17 +3,21 @@ import { describe, it } from "node:test";
 import {
   cleanTrawlResult,
   cleanTrawlResults,
+  dedupeSales,
   gradesMatch,
   isLowConfidence,
+  listingLooksProfessionallyGraded,
   parseGradeFromTitle,
   prepareSales,
   resolveListingGrade,
   titleHasCardNumber,
   titleHasDisallowedParallel,
+  titleHashCardNumbers,
   titleLooksExcluded,
   titleMatchesCard,
   titleNamesWrongSet,
 } from "./clean";
+import { RAW_GRADE } from "@/lib/card-options";
 import { cleanedToCompListings } from "./map";
 import { filterPriceOutliers, middleFifty } from "./stats";
 import type { CleanedSale, TrawlSoldResult } from "./types";
@@ -263,7 +267,7 @@ describe("grade resolution", () => {
     assert.equal(cleaned[0].grade, "10");
   });
 
-  it("drops comps when grade cannot be determined", () => {
+  it("drops graded-card comps when listing grade cannot be determined", () => {
     const result = baseResult({
       title: "2023 Panini Prizm Victor Wembanyama #136",
       details: {
@@ -279,8 +283,154 @@ describe("grade resolution", () => {
         ],
       },
     });
-    assert.equal(resolveListingGrade(result), null);
+    assert.deepEqual(resolveListingGrade(result), {
+      grader: null,
+      grade: null,
+    });
     assert.deepEqual(cleanTrawlResult(result, WEMBY_BASE), []);
+  });
+});
+
+describe("strict card number #token matching", () => {
+  it("rejects a different set code #token", () => {
+    assert.equal(titleHashCardNumbers("Topps Now #AS22 PSA 10")[0], "AS22");
+    assert.equal(titleHasCardNumber("Topps Now Jaylen Brown #AS22", "196"), false);
+    assert.equal(titleHasCardNumber("LeBron #OS3 CGC 10", "196"), false);
+    assert.equal(titleHasCardNumber("LeBron #196 raw", "196"), true);
+  });
+});
+
+describe("raw card graded exclusions", () => {
+  const JAYLEN_RAW = {
+    grade: RAW_GRADE,
+    cardNumber: "45",
+    setBrand: "Topps",
+    parallel: "Base",
+  } as const;
+
+  const LEBRON_RAW = {
+    grade: RAW_GRADE,
+    cardNumber: "196",
+    setBrand: "Topps",
+    parallel: "Base",
+  } as const;
+
+  function rawResult(
+    title: string,
+    opts: {
+      item_id?: string;
+      sale_price?: number;
+      grading?: {
+        graded: boolean;
+        grader: string | null;
+        grade: string | null;
+        condition: string | null;
+      };
+    } = {},
+  ): TrawlSoldResult {
+    return {
+      title,
+      sale_price: opts.sale_price ?? 20,
+      shipping_price: 0,
+      currency: "$",
+      condition: "used",
+      condition_raw: "Pre-Owned",
+      date_sold: "2026-09-01T00:00:00.000Z",
+      buying_format: "Buy It Now",
+      item_id: opts.item_id ?? "r1",
+      item_link: "https://www.ebay.com/itm/r1",
+      image_url: null,
+      details: {
+        listing_state: "sold",
+        grading: opts.grading ?? {
+          graded: false,
+          grader: null,
+          grade: null,
+          condition: null,
+        },
+        sales: [
+          {
+            date_sold: "2026-09-01T00:00:00.000Z",
+            sale_price: opts.sale_price ?? 20,
+            shipping_price: 0,
+            currency: "$",
+          },
+        ],
+      },
+    };
+  }
+
+  it("raw Jaylen Brown 2026 Topps rejects Topps Now #AS22 PSA 10", () => {
+    const result = rawResult(
+      "2026 Topps Now Jaylen Brown #AS22 PSA 10",
+      {
+        grading: { graded: true, grader: "PSA", grade: "10", condition: null },
+      },
+    );
+    assert.equal(listingLooksProfessionallyGraded(result), true);
+    assert.equal(titleHasCardNumber(result.title, JAYLEN_RAW.cardNumber), false);
+    assert.deepEqual(cleanTrawlResult(result, JAYLEN_RAW), []);
+  });
+
+  it("raw LeBron #196 rejects BGS 10 and #OS3 CGC 10", () => {
+    const bgs = rawResult("2024 Topps LeBron James #196 BGS 10", {
+      item_id: "bgs",
+      grading: { graded: true, grader: "BGS", grade: "10", condition: null },
+    });
+    const os3 = rawResult("2024 Topps LeBron James #OS3 CGC 10", {
+      item_id: "os3",
+      grading: { graded: true, grader: "CGC", grade: "10", condition: null },
+    });
+    assert.deepEqual(cleanTrawlResult(bgs, LEBRON_RAW), []);
+    assert.deepEqual(cleanTrawlResult(os3, LEBRON_RAW), []);
+  });
+
+  it("raw LeBron keeps a true raw #196 sale", () => {
+    const result = rawResult("2024 Topps LeBron James #196", {
+      sale_price: 18,
+    });
+    const cleaned = cleanTrawlResult(result, LEBRON_RAW);
+    assert.equal(cleaned.length, 1);
+    assert.equal(cleaned[0].grader, null);
+    assert.equal(cleaned[0].grade, null);
+  });
+
+  it("dedupes identical title + price + sold date", () => {
+    const a = rawResult("2024 Topps LeBron James #196", {
+      item_id: "d1",
+      sale_price: 18,
+    });
+    const b = rawResult("2024 Topps LeBron James #196", {
+      item_id: "d2",
+      sale_price: 18,
+    });
+    const sales = prepareSales([a, b], LEBRON_RAW);
+    assert.equal(sales.length, 1);
+    assert.equal(
+      dedupeSales([
+        {
+          itemId: "1",
+          title: "2024 Topps LeBron James #196",
+          price: 18,
+          currency: "$",
+          soldAt: "2026-09-01T12:00:00.000Z",
+          grader: null,
+          grade: null,
+          url: "",
+        },
+        {
+          itemId: "2",
+          title: "2024  Topps  LeBron James #196",
+          price: 18,
+          currency: "$",
+          soldAt: "2026-09-01T18:00:00.000Z",
+          grader: null,
+          grade: null,
+          url: "",
+        },
+      ]).length,
+      1,
+    );
   });
 });
 

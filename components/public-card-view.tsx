@@ -14,6 +14,11 @@ import { cardTitle, money } from "@/lib/format";
 import { formatRelativeTime } from "@/lib/relative-time";
 import type { PublicCard } from "@/lib/social/types";
 import { createSupabaseBrowser } from "@/lib/supabase/browser";
+import {
+  formatCardValueLabel,
+  isLowConfidenceValue,
+} from "@/lib/value/format";
+import { useCardValue } from "@/lib/value/use-card-values";
 
 export function PublicCardView({ username, id }: { username: string; id: string }) {
   const social = useSocial();
@@ -83,7 +88,8 @@ function PublicCardAnalytics({
   ].filter((spec): spec is { label: string; value: string } => Boolean(spec));
   const showPaid = typeof card.purchasePrice === "number";
 
-  const sold = useSoldComps(card.id);
+  const { value: cardValue, loading: valueLoading } = useCardValue(card.id);
+  const sold = useSoldComps(userId ? card.id : null);
 
   useEffect(() => {
     if (!userId) {
@@ -107,7 +113,7 @@ function PublicCardAnalytics({
     };
   }, [userId, card.id]);
 
-  const authRequired = sold.status === "auth_required";
+  const authRequired = !userId || sold.status === "auth_required";
   const rateLimited = sold.status === "rate_limited";
   const unavailable = sold.status === "unavailable";
   const usingLive = sold.data?.source === "trawl" && !sold.data.sample;
@@ -116,19 +122,14 @@ function PublicCardAnalytics({
     (sold.data?.sample === true ||
       sold.data?.source === "sample" ||
       sold.data?.source === "off");
-  const compsLoading = sold.status === "loading";
+  const compsLoading = Boolean(userId) && sold.status === "loading";
   const liveCount = usingLive ? (sold.data?.count ?? 0) : 0;
-  const liveMedian = usingLive ? (sold.data?.median ?? null) : null;
-  const liveP25 = usingLive ? (sold.data?.p25 ?? null) : null;
-  const liveP75 = usingLive ? (sold.data?.p75 ?? null) : null;
   const liveComps = usingLive ? (sold.data?.comps ?? []) : [];
   const displayEst =
-    usingLive && liveCount >= 1 && liveMedian != null
-      ? liveMedian
-      : usingSample
-        ? card.estimatedSellPrice
-        : card.estimatedSellPrice;
-  const showChart = !unavailable && !rateLimited;
+    cardValue?.status === "ok" || cardValue?.status === "sample"
+      ? cardValue.median
+      : null;
+  const showChart = !authRequired && !unavailable && !rateLimited;
 
   return (
     <div className="space-y-6">
@@ -164,22 +165,34 @@ function PublicCardAnalytics({
       </div>
 
       <section className={`grid gap-3 ${showPaid ? "grid-cols-2" : "grid-cols-1"}`}>
-        <Metric
-          label="Estimated value"
-          value={
-            compsLoading
+        <div className="rounded-2xl border border-zinc-200 bg-white px-4 py-4 dark:border-white/10 dark:bg-white/[0.03]">
+          <p className="text-[11px] tracking-wide text-zinc-500 uppercase">Estimated value</p>
+          <p className="mt-1 text-2xl font-semibold tracking-tight tabular-nums">
+            {valueLoading
               ? "…"
-              : unavailable || rateLimited
-                ? "—"
-                : usingLive && liveCount < 1
-                  ? "Not enough sales"
-                  : money(displayEst, true)
-          }
-        />
+              : cardValue?.status === "no_sales"
+                ? "No sales yet"
+                : displayEst != null
+                  ? money(displayEst, true)
+                  : formatCardValueLabel(cardValue)}
+          </p>
+          {displayEst != null && cardValue ? (
+            <p className="mt-1 text-xs text-zinc-500">
+              {cardValue.status === "sample"
+                ? "Sample estimate"
+                : `Based on ${cardValue.nSales} sale${cardValue.nSales === 1 ? "" : "s"}`}
+            </p>
+          ) : null}
+          {isLowConfidenceValue(cardValue) ? (
+            <span className="mt-1 inline-block rounded-md bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800 dark:text-amber-200">
+              Low confidence
+            </span>
+          ) : null}
+        </div>
         {showPaid ? <Metric label="Paid" value={money(card.purchasePrice ?? 0, true)} /> : null}
       </section>
 
-      {unavailable || rateLimited ? (
+      {authRequired ? null : unavailable || rateLimited ? (
         <p className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
           Sold data unavailable, try again shortly
         </p>
@@ -187,17 +200,20 @@ function PublicCardAnalytics({
         <ValueChart
           card={{
             id: card.id,
-            estimatedSellPrice: displayEst,
+            estimatedSellPrice: displayEst ?? card.estimatedSellPrice,
             purchasePrice: card.purchasePrice ?? 0,
           }}
           points={usingLive ? sold.data?.history : null}
           source={sold.data?.source ?? (usingSample ? "sample" : "trawl")}
           loading={compsLoading}
-          median={usingLive ? liveMedian : null}
-          p25={usingLive ? liveP25 : null}
-          p75={usingLive ? liveP75 : null}
-          count={usingLive ? liveCount : 0}
-          sample={usingSample}
+          median={displayEst}
+          p25={cardValue?.low ?? null}
+          p75={cardValue?.high ?? null}
+          count={cardValue?.nSales ?? 0}
+          sample={usingSample || cardValue?.status === "sample"}
+          noSalesLabel={
+            cardValue?.status === "no_sales" ? "No sales yet" : undefined
+          }
         />
       ) : null}
 
@@ -206,15 +222,15 @@ function PublicCardAnalytics({
           <div>
             <h2 className="font-semibold">Recent sales</h2>
             <p className="text-xs text-zinc-500">
-              {compsLoading
-                ? "Loading sold listings…"
-                : authRequired
-                  ? "Log in to see sold comps"
+              {authRequired
+                ? "Log in to see sold comps"
+                : compsLoading
+                  ? "Loading sold listings…"
                   : unavailable || rateLimited
                     ? "Sold data unavailable, try again shortly"
                     : usingLive
                       ? liveCount === 0
-                        ? "No matching sales found"
+                        ? "No sales yet"
                         : `Based on ${liveCount} sale${liveCount === 1 ? "" : "s"}${
                             sold.data?.fetchedAt
                               ? ` · Updated ${formatRelativeTime(sold.data.fetchedAt)}`
@@ -226,17 +242,17 @@ function PublicCardAnalytics({
             </p>
           </div>
         </div>
-        {authRequired && !compsLoading ? (
+        {authRequired ? (
           <p className="mt-3 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-700 dark:border-white/10 dark:bg-white/5 dark:text-zinc-300">
             Log in to see sold comps
           </p>
         ) : null}
-        {usingLive && !compsLoading ? (
+        {usingLive && !compsLoading && !authRequired ? (
           <p className="mt-3 text-[11px] text-zinc-400">
             Sold data via Trawl (third-party, not affiliated with eBay)
           </p>
         ) : null}
-        {compsLoading ? (
+        {authRequired ? null : compsLoading ? (
           <div className="mt-3 space-y-3">
             {Array.from({ length: 4 }, (_, i) => (
               <div
@@ -245,7 +261,7 @@ function PublicCardAnalytics({
               />
             ))}
           </div>
-        ) : authRequired || unavailable || rateLimited ? null : usingLive ? (
+        ) : unavailable || rateLimited ? null : usingLive ? (
           <CompsList
             comps={liveComps}
             cardId={card.id}

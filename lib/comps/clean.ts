@@ -61,7 +61,13 @@ const PARALLEL_KEYWORDS = [
 ] as const;
 
 const SERIAL_RE = /\/\d+\b/;
-const TITLE_GRADE_RE = /\b(PSA|BGS|SGC|CGC)\s*(\d+(?:\.\d+)?)\b/i;
+const TITLE_GRADE_RE =
+  /\b(PSA|BGS|SGC|CGC|TAG|HGA)\s*(\d+(?:\.\d+)?)\b/i;
+/** Professional grade cues in titles (raw cards must exclude these). */
+const TITLE_GRADER_CUE_RE =
+  /\b(?:PSA|BGS|SGC|CGC|TAG|HGA)\b|\bGem\s*Mint\s*10\b/i;
+/** #token in titles — set codes like #AS22 / #OS3 must match exactly. */
+const TITLE_HASH_NUMBER_RE = /#([A-Za-z0-9]+(?:-[A-Za-z0-9]+)*)/g;
 
 export type CleanCardFilter = {
   grade?: string;
@@ -82,13 +88,44 @@ export function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-/** Title must contain #N or N as its own token. */
+/** Normalize a card number for exact comparison (#196 → 196). */
+export function normalizeCardNumber(value: string | undefined | null): string {
+  return (value ?? "").replace(/^#/, "").trim().toUpperCase();
+}
+
+/** All #tokens in a title (e.g. #AS22, #196). */
+export function titleHashCardNumbers(title: string): string[] {
+  const out: string[] = [];
+  TITLE_HASH_NUMBER_RE.lastIndex = 0;
+  let match: RegExpExecArray | null;
+  while ((match = TITLE_HASH_NUMBER_RE.exec(title)) !== null) {
+    out.push(match[1].toUpperCase());
+  }
+  return out;
+}
+
+/**
+ * Card number must match exactly from a title #token when present.
+ * A different set code (#AS22 or #OS3 vs #196) does not match.
+ * If the title has no #token, fall back to a bare whole-token match.
+ */
 export function titleHasCardNumber(title: string, cardNumber?: string): boolean {
-  const num = (cardNumber ?? "").replace(/^#/, "").trim();
+  const num = normalizeCardNumber(cardNumber);
   if (!num) return true;
+
+  const hashTokens = titleHashCardNumbers(title);
+  if (hashTokens.length > 0) {
+    return hashTokens.some((token) => token === num);
+  }
+
   const escaped = escapeRegExp(num);
-  const re = new RegExp(`(?:#${escaped}\\b|(?<![\\w#])${escaped}\\b)`, "i");
+  const re = new RegExp(`(?<![\\w#])${escaped}\\b`, "i");
   return re.test(title);
+}
+
+export function isRawCardGrade(cardGrade: string | undefined): boolean {
+  const parsed = parseGrade(cardGrade ?? "");
+  return parsed.company === RAW_GRADE;
 }
 
 function normalizeSetToken(value: string): string {
@@ -162,13 +199,30 @@ export function parseGradeFromTitle(
 }
 
 /**
- * Prefer Trawl grading details; otherwise parse PSA/BGS/SGC/CGC + number from the title.
- * Returns null when grade cannot be determined (caller should drop the comp).
+ * True when details or title indicate a professionally graded listing.
+ * Used so RAW cards reject PSA/BGS/SGC/CGC/TAG/HGA / "Gem Mint 10".
+ */
+export function listingLooksProfessionallyGraded(
+  result: TrawlSoldResult,
+): boolean {
+  const details = result.details?.grading;
+  if (details?.graded === true) return true;
+  if (details?.grader?.trim()) return true;
+  if (details?.grade != null && String(details.grade).trim() !== "") {
+    return true;
+  }
+  if (TITLE_GRADER_CUE_RE.test(result.title)) return true;
+  return false;
+}
+
+/**
+ * Prefer Trawl grading details; otherwise parse grader + number from the title.
+ * Ungraded listings return { grader: null, grade: null } (kept for RAW cards).
  */
 export function resolveListingGrade(result: TrawlSoldResult): {
   grader: string | null;
   grade: string | null;
-} | null {
+} {
   const details = result.details?.grading;
   const grader = details?.grader?.trim() || null;
   const grade =
@@ -182,7 +236,7 @@ export function resolveListingGrade(result: TrawlSoldResult): {
 
   const fromTitle = parseGradeFromTitle(result.title);
   if (fromTitle) return fromTitle;
-  return null;
+  return { grader: null, grade: null };
 }
 
 export function gradesMatch(
@@ -237,10 +291,19 @@ export function cleanTrawlResult(
   if (details?.listing_state === "removed") return [];
   if (!titleMatchesCard(result.title, card)) return [];
 
-  const resolved = resolveListingGrade(result);
-  if (!resolved) return [];
+  // RAW cards: exclude any professionally graded listing (details or title cues).
+  if (isRawCardGrade(card?.grade) && listingLooksProfessionallyGraded(result)) {
+    return [];
+  }
 
+  const resolved = resolveListingGrade(result);
   const { grader, grade } = resolved;
+
+  // Graded cards require a resolvable grader + grade that matches exactly.
+  if (!isRawCardGrade(card?.grade)) {
+    if (!grader || grade == null || grade === "") return [];
+  }
+
   if (!gradesMatch(card?.grade, grader, grade)) return [];
 
   const url = result.item_link || details?.item_link || "";
@@ -291,10 +354,25 @@ export function cleanTrawlResults(
   return results.flatMap((result) => cleanTrawlResult(result, cardOrGrade));
 }
 
-/** Title/grade filters then price-outlier rejection — the list stats are computed from. */
+/** Dedupe by normalized title + price + sold date (calendar day). */
+export function dedupeSales(sales: CleanedSale[]): CleanedSale[] {
+  const seen = new Set<string>();
+  const out: CleanedSale[] = [];
+  for (const sale of sales) {
+    const title = sale.title.toLowerCase().replace(/\s+/g, " ").trim();
+    const day = sale.soldAt.slice(0, 10);
+    const key = `${title}|${sale.price}|${day}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(sale);
+  }
+  return out;
+}
+
+/** Title/grade filters then dedupe + price-outlier rejection — the list stats are computed from. */
 export function prepareSales(
   results: TrawlSoldResult[],
   card: CleanCardFilter,
 ): CleanedSale[] {
-  return filterPriceOutliers(cleanTrawlResults(results, card));
+  return filterPriceOutliers(dedupeSales(cleanTrawlResults(results, card)));
 }

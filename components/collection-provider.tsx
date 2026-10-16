@@ -15,6 +15,27 @@ import { loadUserCards, removeUserCard, saveUserCard } from "@/lib/social/cards"
 import { loadCollection, newId, nextAccent, saveCollection } from "@/lib/storage";
 import { createSupabaseBrowser } from "@/lib/supabase/browser";
 import type { CardInput, SportsCard } from "@/lib/types";
+import { scheduleCardValueRefresh } from "@/lib/value/use-card-values";
+
+const VALUE_DETAIL_KEYS = [
+  "playerName",
+  "year",
+  "setBrand",
+  "cardNumber",
+  "grade",
+  "parallel",
+] as const;
+
+function detailsAffectValue(
+  before: SportsCard | undefined,
+  after: SportsCard,
+  patch: Partial<SportsCard>,
+): boolean {
+  if (!before) return true;
+  return VALUE_DETAIL_KEYS.some(
+    (key) => key in patch && before[key] !== after[key],
+  );
+}
 
 type CollectionContextValue = {
   ready: boolean;
@@ -129,6 +150,7 @@ export function CollectionProvider({ children }: { children: React.ReactNode }) 
             try {
               await saveUserCard(client, userId, card);
               setSyncError(null);
+              scheduleCardValueRefresh(card.id);
             } catch (error) {
               report(error);
             }
@@ -142,6 +164,7 @@ export function CollectionProvider({ children }: { children: React.ReactNode }) 
 
   const updateCard = useCallback(
     (id: string, patch: Partial<SportsCard>) => {
+      const before = cardsRef.current.find((card) => card.id === id);
       const next = cardsRef.current.map((card) =>
         card.id === id ? { ...card, ...patch, updatedAt: new Date().toISOString() } : card,
       );
@@ -151,10 +174,12 @@ export function CollectionProvider({ children }: { children: React.ReactNode }) 
       if (remote && userId && updated) {
         const client = createSupabaseBrowser();
         if (client) {
+          const shouldRefresh = detailsAffectValue(before, updated, patch);
           enqueue(id, async () => {
             try {
               await saveUserCard(client, userId, updated);
               setSyncError(null);
+              if (shouldRefresh) scheduleCardValueRefresh(id);
             } catch (error) {
               report(error);
             }

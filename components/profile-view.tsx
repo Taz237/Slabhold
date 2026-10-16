@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { MessageCircle, WalletCards } from "lucide-react";
 import { Avatar } from "@/components/avatar";
 import { outlineButton, solidButton } from "@/components/button-styles";
@@ -15,10 +15,11 @@ import { useCollection } from "@/components/collection-provider";
 import { useSocial } from "@/components/social-provider";
 import { ShareIconButton } from "@/components/share-button";
 import { Tweet } from "@/components/tweet";
-import { money } from "@/lib/format";
 import { normalizeUsername } from "@/lib/social/local-db";
 import { profileTimeline } from "@/lib/social/timeline";
 import type { PublicCard } from "@/lib/social/types";
+import { formatCardValueLabel } from "@/lib/value/format";
+import { useCardValues } from "@/lib/value/use-card-values";
 
 export function ProfileView({ username }: { username?: string }) {
   const router = useRouter();
@@ -34,6 +35,51 @@ export function ProfileView({ username }: { username?: string }) {
   const [tab, setTab] = useState<"posts" | "collection">(
     searchParams.get("tab") === "collection" ? "collection" : "posts",
   );
+
+  const collection = useMemo(() => {
+    if (!profile) return [] as PublicCard[];
+    const sharedFromBook: PublicCard[] = isOwn
+      ? cards
+          .filter((card) => card.isPublic)
+          .map((card) => ({
+            id: card.id,
+            playerName: card.playerName,
+            year: card.year,
+            setBrand: card.setBrand,
+            cardNumber: card.cardNumber,
+            sport: card.sport,
+            photoDataUrl: card.photoDataUrl,
+            accent: card.accent,
+            estimatedSellPrice: card.estimatedSellPrice,
+            grade: card.grade,
+            parallel: card.parallel,
+            purchasePrice: card.purchasePrice,
+          }))
+      : [];
+    const listed = publicCards.filter((card) => card.ownerId === profile.id);
+    const seen = new Set(
+      listed.map(
+        (card) =>
+          `${card.year}|${card.playerName}|${card.cardNumber}`.toLowerCase(),
+      ),
+    );
+    return [
+      ...listed,
+      ...sharedFromBook.filter((card) => {
+        const key =
+          `${card.year}|${card.playerName}|${card.cardNumber}`.toLowerCase();
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      }),
+    ];
+  }, [cards, isOwn, profile, publicCards]);
+
+  const collectionIds = useMemo(
+    () => collection.map((card) => card.id),
+    [collection],
+  );
+  const { values: cardValues } = useCardValues(collectionIds);
 
   if (!ready) return <ProfileSkeleton />;
 
@@ -73,37 +119,6 @@ export function ProfileView({ username }: { username?: string }) {
     );
   }
 
-  const sharedFromBook: PublicCard[] = isOwn
-    ? cards
-        .filter((card) => card.isPublic)
-        .map((card) => ({
-          id: card.id,
-          playerName: card.playerName,
-          year: card.year,
-          setBrand: card.setBrand,
-          cardNumber: card.cardNumber,
-          sport: card.sport,
-          photoDataUrl: card.photoDataUrl,
-          accent: card.accent,
-          estimatedSellPrice: card.estimatedSellPrice,
-          grade: card.grade,
-          parallel: card.parallel,
-          purchasePrice: card.purchasePrice,
-        }))
-    : [];
-  const listed = publicCards.filter((card) => card.ownerId === profile.id);
-  const seen = new Set(
-    listed.map((card) => `${card.year}|${card.playerName}|${card.cardNumber}`.toLowerCase()),
-  );
-  const collection = [
-    ...listed,
-    ...sharedFromBook.filter((card) => {
-      const key = `${card.year}|${card.playerName}|${card.cardNumber}`.toLowerCase();
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    }),
-  ];
   const activity = profileTimeline(posts, reposts, profiles, profile.id);
   const authors = new Map(profiles.map((person) => [person.id, person]));
 
@@ -258,7 +273,20 @@ export function ProfileView({ username }: { username?: string }) {
                       <p className="truncate text-xs text-zinc-500">
                         {card.year} {card.setBrand}
                       </p>
-                      <p className="text-xs text-zinc-500">Est. {money(card.estimatedSellPrice)}</p>
+                      <p className="text-xs text-zinc-500">
+                        {(() => {
+                          const v = cardValues.get(card.id);
+                          const label = formatCardValueLabel(v);
+                          if (
+                            v?.status === "no_sales" ||
+                            label === "Value updating" ||
+                            label === "No sales yet"
+                          ) {
+                            return label;
+                          }
+                          return `Est. ${label}`;
+                        })()}
+                      </p>
                     </div>
                   </Link>
                 </li>

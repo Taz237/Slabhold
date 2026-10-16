@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/refresh-card-values",
+      "schedule": "0 9 * * *"
+    }
+  ]
+}

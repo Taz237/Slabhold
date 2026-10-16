@@ -14,12 +14,12 @@ import {
   isSold,
   money,
   pct,
-  profit,
-  profitPct,
   signedMoney,
 } from "@/lib/format";
 import { categoryLabel } from "@/lib/card-category";
 import {
+  cardProfit,
+  cardProfitPct,
   matchesCategory,
   matchesFilter,
   matchesQuery,
@@ -27,6 +27,7 @@ import {
   summarize,
 } from "@/lib/portfolio";
 import type { CardCategory, PortfolioFilter } from "@/lib/types";
+import { useCardValues } from "@/lib/value/use-card-values";
 
 const LANES: { id: "all" | CardCategory; label: string }[] = [
   { id: "all", label: "All" },
@@ -48,21 +49,33 @@ export function Dashboard() {
   const [filter, setFilter] = useState<PortfolioFilter>("all");
   const [lane, setLane] = useState<(typeof LANES)[number]["id"]>("all");
 
+  const cardIds = useMemo(() => cards.map((card) => card.id), [cards]);
+  const { values } = useCardValues(cardIds);
+
   const inLane = useMemo(
     () => cards.filter((card) => matchesCategory(card, lane)),
     [cards, lane],
   );
-  const totals = useMemo(() => summarize(inLane), [inLane]);
+  const totals = useMemo(() => summarize(inLane, values), [inLane, values]);
   const profitTotal = totals.unrealizedProfit + totals.realizedProfit;
   const visible = useMemo(
     () =>
       sortCards(
-        inLane.filter((card) => matchesQuery(card, query) && matchesFilter(card, filter)),
+        inLane.filter(
+          (card) =>
+            matchesQuery(card, query) && matchesFilter(card, filter, values),
+        ),
+        values,
       ),
-    [inLane, query, filter],
+    [inLane, query, filter, values],
   );
 
   if (!ready) return <CollectionSkeleton />;
+
+  const valueHint =
+    totals.withoutValueCount > 0
+      ? `${totals.withoutValueCount} card${totals.withoutValueCount === 1 ? "" : "s"} without a value yet`
+      : "Held book value";
 
   return (
     <div className="space-y-6">
@@ -103,7 +116,7 @@ export function Dashboard() {
         <Stat
           label="Estimated value"
           value={money(totals.estimatedValue)}
-          hint="Held book value"
+          hint={valueHint}
         />
         <Stat
           label="Profit"
@@ -183,7 +196,8 @@ export function Dashboard() {
       ) : (
         <ul className="grid grid-cols-1 gap-3 md:grid-cols-2">
           {visible.map((card) => {
-            const p = profit(card);
+            const p = cardProfit(card, values);
+            const pPct = cardProfitPct(card, values);
             const sold = isSold(card);
             return (
               <li key={card.id}>
@@ -223,20 +237,24 @@ export function Dashboard() {
                       <span className="text-zinc-400">
                         Paid {money(card.purchasePrice)}
                       </span>
-                      <span
-                        className={`inline-flex items-center gap-1 font-medium ${
-                          p >= 0
-                            ? "text-emerald-600 dark:text-emerald-400"
-                            : "text-rose-600 dark:text-rose-400"
-                        }`}
-                      >
-                        {p >= 0 ? (
-                          <TrendingUp className="h-3.5 w-3.5" />
-                        ) : (
-                          <TrendingDown className="h-3.5 w-3.5" />
-                        )}
-                        {signedMoney(p)} {pct(profitPct(card))}
-                      </span>
+                      {p == null || pPct == null ? (
+                        <span className="text-zinc-400">—</span>
+                      ) : (
+                        <span
+                          className={`inline-flex items-center gap-1 font-medium ${
+                            p >= 0
+                              ? "text-emerald-600 dark:text-emerald-400"
+                              : "text-rose-600 dark:text-rose-400"
+                          }`}
+                        >
+                          {p >= 0 ? (
+                            <TrendingUp className="h-3.5 w-3.5" />
+                          ) : (
+                            <TrendingDown className="h-3.5 w-3.5" />
+                          )}
+                          {signedMoney(p)} {pct(pPct)}
+                        </span>
+                      )}
                     </div>
                   </div>
                 </Link>
