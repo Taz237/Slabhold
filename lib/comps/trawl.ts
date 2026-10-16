@@ -1,5 +1,6 @@
 import "server-only";
 
+import { buildSoldSearchQuery, type MatchCard } from "./match";
 import type { TrawlSoldResponse } from "./types";
 
 const TRAWL_SOLD_URL = "https://api.trawl.dev/ebay/v1/sold";
@@ -25,26 +26,9 @@ function daysAgoIso(days: number): string {
   return d.toISOString().slice(0, 10);
 }
 
-export function buildSoldQuery(card: {
-  playerName: string;
-  year: number;
-  setBrand: string;
-  cardNumber?: string;
-  grade?: string;
-}): string {
-  const number = (card.cardNumber ?? "").replace(/^#/, "").trim();
-  const parts = [
-    String(card.year),
-    card.setBrand.trim(),
-    card.playerName.trim(),
-    number ? `#${number}` : "",
-    (card.grade ?? "").trim(),
-  ];
-  return parts
-    .filter(Boolean)
-    .join(" ")
-    .replace(/\s+/g, " ")
-    .trim();
+/** Trawl search string — shared with match.buildSoldSearchQuery. */
+export function buildSoldQuery(card: MatchCard): string {
+  return buildSoldSearchQuery(card);
 }
 
 export async function fetchTrawlSold(

@@ -4,29 +4,7 @@ import { mapCardRow } from "@/lib/social/cards";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import type { SoldCompCard } from "./types";
 
-type CardRow = {
-  id: string;
-  user_id: string;
-  player: string;
-  year: number;
-  set: string;
-  grade: string | null;
-  parallel: string | null;
-  paid_price: number | null;
-  estimated_value: number | null;
-  image_url: string | null;
-  card_number: string | null;
-  sport: string | null;
-  purchase_date: string | null;
-  sell_price: number | null;
-  sell_date: string | null;
-  notes: string | null;
-  accent: string | null;
-  is_public: boolean | null;
-  category?: string | null;
-  created_at: string;
-  updated_at: string | null;
-};
+type CardRow = Parameters<typeof mapCardRow>[0];
 
 /** Load card details from the DB by id. Never trust client-supplied fields. */
 export async function loadSoldCompCard(
@@ -48,10 +26,17 @@ export async function loadSoldCompCard(
     id: card.id,
     playerName: card.playerName,
     year: card.year,
+    yearLabel: card.yearLabel,
     setBrand: card.setBrand,
     cardNumber: card.cardNumber || undefined,
+    noNumber: card.noNumber,
     grade: card.grade || undefined,
     parallel: card.parallel || undefined,
+    serialRun: card.serialRun,
+    isAuto: card.isAuto,
+    isRelic: card.isRelic,
+    conditionType: card.conditionType,
+    gradeQualifier: card.gradeQualifier || null,
     estimatedSellPrice: card.estimatedSellPrice || undefined,
   };
 }

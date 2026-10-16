@@ -202,7 +202,8 @@ export async function refreshCardValue(
   else if (!hasSales) status = "no_sales";
   else status = "ok";
 
-  const matchedAt = payload.fetchedAt ?? new Date().toISOString();
+  // Always stamp matched_at = now on every recompute (including 0 sales).
+  const matchedAt = new Date().toISOString();
   const row: CardValueRow = {
     card_id: cardId,
     median: hasSales ? payload.median : null,
@@ -267,7 +268,7 @@ export async function listStaleCardIds(
 
   const { data: cards, error } = await client
     .from("cards")
-    .select("id, card_number, grade, parallel");
+    .select("*");
 
   if (error || !cards?.length) {
     if (error) console.warn("[card_values] list cards failed:", error.message);
@@ -291,9 +292,22 @@ export async function listStaleCardIds(
     const id = card.id as string;
     const expected = buildQueryKey({
       id,
+      year: card.year as number,
+      yearLabel: (card.year_label as string) || undefined,
+      setBrand:
+        ((card.set_name as string) || (card.set as string) || undefined) ??
+        undefined,
       cardNumber: (card.card_number as string) || undefined,
       grade: (card.grade as string) || undefined,
       parallel: (card.parallel as string) || undefined,
+      serialRun: (card.serial_run as number) ?? null,
+      isAuto: Boolean(card.is_auto),
+      isRelic: Boolean(card.is_relic),
+      gradeQualifier: (card.grade_qualifier as string) || null,
+      conditionType:
+        card.condition_type === "graded" || card.condition_type === "raw"
+          ? card.condition_type
+          : undefined,
     });
     const row = valueById.get(id);
     if (!row) {

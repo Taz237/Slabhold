@@ -33,8 +33,11 @@ export function formatDate(iso: string | null) {
   });
 }
 
-export function cardTitle(card: Pick<SportsCard, "year" | "setBrand">) {
-  return `${card.year} ${card.setBrand}`;
+export function cardTitle(
+  card: Pick<SportsCard, "year" | "setBrand"> & { yearLabel?: string },
+) {
+  const year = (card.yearLabel ?? "").trim() || String(card.year);
+  return `${year} ${card.setBrand}`;
 }
 
 export function cardSubtitle(

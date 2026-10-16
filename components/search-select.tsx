@@ -13,6 +13,7 @@ export function SearchSelect({
   onChange,
   placeholder = "Select",
   allowEmpty = false,
+  allowCustom = false,
 }: {
   label: string;
   value: string;
@@ -20,6 +21,8 @@ export function SearchSelect({
   onChange: (value: string) => void;
   placeholder?: string;
   allowEmpty?: boolean;
+  /** Show Use "…" when the typed query is not in the list. */
+  allowCustom?: boolean;
 }) {
   const titleId = useId();
   const searchRef = useRef<HTMLInputElement>(null);
@@ -31,6 +34,14 @@ export function SearchSelect({
     if (!needle) return options;
     return options.filter((option) => option.toLowerCase().includes(needle));
   }, [options, query]);
+
+  const customValue = query.trim();
+  const showCustom =
+    allowCustom &&
+    Boolean(customValue) &&
+    !options.some(
+      (option) => option.toLowerCase() === customValue.toLowerCase(),
+    );
 
   useEffect(() => {
     if (!open) return;
@@ -120,7 +131,17 @@ export function SearchSelect({
                   </OptionButton>
                 </li>
               ) : null}
-              {filtered.length === 0 ? (
+              {showCustom ? (
+                <li>
+                  <OptionButton
+                    selected={false}
+                    onClick={() => choose(customValue)}
+                  >
+                    {`Use "${customValue}"`}
+                  </OptionButton>
+                </li>
+              ) : null}
+              {filtered.length === 0 && !showCustom ? (
                 <li className="px-3 py-6 text-center text-sm text-zinc-500">No matches</li>
               ) : (
                 filtered.map((option) => (

@@ -57,10 +57,17 @@ export type SoldCompCard = {
   id: string;
   playerName: string;
   year: number;
+  yearLabel?: string;
   setBrand: string;
   cardNumber?: string;
+  noNumber?: boolean;
   grade?: string;
   parallel?: string;
+  serialRun?: number | null;
+  isAuto?: boolean;
+  isRelic?: boolean;
+  conditionType?: "raw" | "graded";
+  gradeQualifier?: string | null;
   estimatedSellPrice?: number;
 };
 

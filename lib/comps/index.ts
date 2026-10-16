@@ -2,16 +2,22 @@ import "server-only";
 
 import { mockValueHistory } from "@/lib/value-history";
 import { readSoldCompsCache, writeSoldCompsCache } from "./cache";
-import { isLowConfidence, prepareSales } from "./clean";
+import { isLowConfidence } from "./clean";
 import { cleanedToCompListings, historyFromSales } from "./map";
+import {
+  buildSoldSearchQuery,
+  filterComps,
+  type MatchCard,
+} from "./match";
 import { buildQueryKey } from "./query-key";
 import { mockCompsForCard } from "./sample";
 import { middleFifty } from "./stats";
-import { buildSoldQuery, fetchTrawlSold, getTrawlApiKey } from "./trawl";
+import { fetchTrawlSold, getTrawlApiKey } from "./trawl";
 import type { CleanedSale, SoldCompCard, SoldCompsPayload } from "./types";
 
 export type { CleanedSale, SoldCompCard, SoldCompsPayload } from "./types";
-export { isLowConfidence, prepareSales } from "./clean";
+export { isLowConfidence } from "./clean";
+export { filterComps, buildCompsQuery, prepareSales } from "./match";
 export { buildQueryKey } from "./query-key";
 export { filterPriceOutliers } from "./stats";
 
@@ -33,6 +39,24 @@ export function getCompsSource(): CompsSource {
   const raw = process.env.COMPS_SOURCE?.trim().toLowerCase();
   if (raw === "trawl" || raw === "sample" || raw === "off") return raw;
   return "sample";
+}
+
+function toMatchCard(card: SoldCompCard): MatchCard {
+  return {
+    playerName: card.playerName,
+    year: card.year,
+    yearLabel: card.yearLabel,
+    setBrand: card.setBrand,
+    cardNumber: card.cardNumber,
+    noNumber: card.noNumber,
+    parallel: card.parallel,
+    serialRun: card.serialRun,
+    isAuto: card.isAuto,
+    isRelic: card.isRelic,
+    conditionType: card.conditionType,
+    grade: card.grade,
+    gradeQualifier: card.gradeQualifier,
+  };
 }
 
 function samplePayload(card: SoldCompCard): SoldCompsPayload {
@@ -59,7 +83,7 @@ function samplePayload(card: SoldCompCard): SoldCompsPayload {
     source: getCompsSource() === "off" ? "off" : "sample",
     cached: false,
     fetchedAt: null,
-    query: buildSoldQuery(card),
+    query: buildSoldSearchQuery(toMatchCard(card)),
     lowConfidence: isLowConfidence(comps.length),
     sample: true,
   };
@@ -95,8 +119,7 @@ function payloadFromSales(
 
 /**
  * Generic sold-comps resolver. Trawl key stays server-side.
- * Kill switch: COMPS_SOURCE = trawl | sample | off (default sample).
- * Cache is read/written with the service-role client only.
+ * Always re-applies filterComps (shared with refreshCardValue).
  */
 export async function getSoldComps(
   card: SoldCompCard,
@@ -107,7 +130,8 @@ export async function getSoldComps(
     return { ok: true, payload: samplePayload(card) };
   }
 
-  const query = buildSoldQuery(card);
+  const matchCard = toMatchCard(card);
+  const query = buildSoldSearchQuery(matchCard);
   if (!query || !card.id) {
     return { ok: false, unavailable: true };
   }
@@ -119,9 +143,11 @@ export async function getSoldComps(
   const queryKey = buildQueryKey(card);
   const cached = await readSoldCompsCache(queryKey);
   if (cached) {
+    // Re-filter cached rows with the current shared rules.
+    const sales = filterComps(matchCard, cached.sales);
     return {
       ok: true,
-      payload: payloadFromSales(cached.sales, {
+      payload: payloadFromSales(sales, {
         source: "trawl",
         cached: true,
         fetchedAt: cached.fetchedAt,
@@ -147,7 +173,7 @@ export async function getSoldComps(
       return { ok: false, unavailable: true };
     }
 
-    const sales = prepareSales(result.body.results ?? [], card);
+    const sales = filterComps(matchCard, result.body.results ?? []);
     const fetchedAt =
       (await writeSoldCompsCache(card.id, queryKey, sales)) ??
       new Date().toISOString();

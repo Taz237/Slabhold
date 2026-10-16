@@ -1,10 +1,52 @@
+import { parseGrade, RAW_GRADE } from "./card-options";
 import type { SportsCard } from "./types";
 
+function seed(
+  partial: Omit<
+    SportsCard,
+    | "yearLabel"
+    | "setIsCustom"
+    | "noNumber"
+    | "parallelIsCustom"
+    | "serialRun"
+    | "serialNo"
+    | "isRookie"
+    | "isAuto"
+    | "isRelic"
+    | "conditionType"
+    | "gradeQualifier"
+    | "certNumber"
+  > &
+    Partial<SportsCard>,
+): SportsCard {
+  const parsed = parseGrade(partial.grade ?? "");
+  const conditionType =
+    partial.conditionType ??
+    (parsed.company && parsed.company !== RAW_GRADE ? "graded" : "raw");
+  return {
+    ...partial,
+    yearLabel: partial.yearLabel ?? String(partial.year),
+    setIsCustom: partial.setIsCustom ?? false,
+    noNumber: partial.noNumber ?? false,
+    parallel: partial.parallel || "Base",
+    parallelIsCustom: partial.parallelIsCustom ?? false,
+    serialRun: partial.serialRun ?? null,
+    serialNo: partial.serialNo ?? null,
+    isRookie: partial.isRookie ?? false,
+    isAuto: partial.isAuto ?? false,
+    isRelic: partial.isRelic ?? false,
+    conditionType,
+    gradeQualifier: partial.gradeQualifier ?? "",
+    certNumber: partial.certNumber ?? "",
+  };
+}
+
 export const SEED_CARDS: SportsCard[] = [
-  {
+  seed({
     id: "wemby-prizm-136",
     playerName: "Victor Wembanyama",
     year: 2023,
+    yearLabel: "2023-24",
     setBrand: "Panini Prizm",
     cardNumber: "136",
     grade: "Raw",
@@ -20,11 +62,12 @@ export const SEED_CARDS: SportsCard[] = [
     accent: "#7c5cff",
     createdAt: "2025-11-02T14:00:00.000Z",
     updatedAt: "2026-03-12T10:00:00.000Z",
-  },
-  {
+  }),
+  seed({
     id: "luka-optic-rr",
     playerName: "Luka Doncic",
     year: 2018,
+    yearLabel: "2018-19",
     setBrand: "Donruss Optic Rated Rookie",
     cardNumber: "177",
     grade: "PSA 9",
@@ -40,8 +83,8 @@ export const SEED_CARDS: SportsCard[] = [
     accent: "#2dd4bf",
     createdAt: "2024-08-18T18:20:00.000Z",
     updatedAt: "2026-02-01T09:00:00.000Z",
-  },
-  {
+  }),
+  seed({
     id: "mahomes-prizm",
     playerName: "Patrick Mahomes",
     year: 2017,
@@ -60,15 +103,16 @@ export const SEED_CARDS: SportsCard[] = [
     accent: "#f43f5e",
     createdAt: "2025-01-09T12:00:00.000Z",
     updatedAt: "2026-01-21T16:40:00.000Z",
-  },
-  {
+  }),
+  seed({
     id: "clark-prizm",
     playerName: "Caitlin Clark",
     year: 2024,
+    yearLabel: "2024",
     setBrand: "Panini Prizm WNBA",
     cardNumber: "101",
     grade: "Raw",
-    parallel: "",
+    parallel: "Base",
     sport: "Basketball",
     purchasePrice: 140,
     purchaseDate: "2025-06-04",
@@ -80,15 +124,15 @@ export const SEED_CARDS: SportsCard[] = [
     accent: "#fbbf24",
     createdAt: "2025-06-04T11:10:00.000Z",
     updatedAt: "2026-04-02T08:00:00.000Z",
-  },
-  {
+  }),
+  seed({
     id: "ohtani-update",
     playerName: "Shohei Ohtani",
     year: 2018,
     setBrand: "Topps Update",
     cardNumber: "US1",
     grade: "BGS 9.5",
-    parallel: "",
+    parallel: "Base",
     sport: "Baseball",
     purchasePrice: 175,
     purchaseDate: "2025-03-22",
@@ -100,8 +144,8 @@ export const SEED_CARDS: SportsCard[] = [
     accent: "#38bdf8",
     createdAt: "2025-03-22T15:00:00.000Z",
     updatedAt: "2025-12-11T19:05:00.000Z",
-  },
-  {
+  }),
+  seed({
     id: "herbert-prizm",
     playerName: "Justin Herbert",
     year: 2020,
@@ -120,5 +164,5 @@ export const SEED_CARDS: SportsCard[] = [
     accent: "#22c55e",
     createdAt: "2026-02-14T13:30:00.000Z",
     updatedAt: "2026-08-01T10:00:00.000Z",
-  },
+  }),
 ];

@@ -23,11 +23,15 @@ import { filterPriceOutliers, middleFifty } from "./stats";
 import type { CleanedSale, TrawlSoldResult } from "./types";
 
 const WEMBY_BASE = {
+  playerName: "Victor Wembanyama",
+  year: 2023,
+  yearLabel: "2023",
   grade: "PSA 10",
   cardNumber: "136",
   setBrand: "Panini Prizm",
   parallel: "Base",
-} as const;
+  conditionType: "graded" as const,
+};
 
 function baseResult(
   overrides: Partial<TrawlSoldResult> & {
@@ -74,7 +78,6 @@ describe("titleLooksExcluded", () => {
     assert.equal(titleLooksExcluded("custom slab"), true);
     assert.equal(titleLooksExcluded("PSA 10 Candidate"), true);
     assert.equal(titleLooksExcluded("worthy auto"), true);
-    assert.equal(titleLooksExcluded("Wemby autograph PSA 10"), true);
     assert.equal(titleLooksExcluded("you pick the card"), true);
     assert.equal(titleLooksExcluded("Wemby RP PSA 10"), true);
   });
@@ -125,7 +128,7 @@ describe("Wemby Prizm #136 PSA 10 matching", () => {
 
   it("rejects Silver Prizm, lots, autos, and /99 for the base card", () => {
     const rejects = [
-      "2023 Prizm Silver Wembanyama #136 PSA 10",
+      "2023 Prizm Silver Victor Wembanyama #136 PSA 10",
       "2023 Panini Prizm Victor Wembanyama #136 PSA 10 lot of 2",
       "2023 Panini Prizm Victor Wembanyama #136 PSA 10 auto",
       "2023 Panini Prizm Victor Wembanyama Autograph #136 PSA 10",
@@ -302,17 +305,24 @@ describe("strict card number #token matching", () => {
 
 describe("raw card graded exclusions", () => {
   const JAYLEN_RAW = {
+    playerName: "Jaylen Brown",
+    year: 2026,
     grade: RAW_GRADE,
+    cardNumber: "1",
     setBrand: "Topps",
     parallel: "Base",
-  } as const;
+    conditionType: "raw" as const,
+  };
 
   const LEBRON_RAW = {
+    playerName: "LeBron James",
+    year: 2024,
     grade: RAW_GRADE,
     cardNumber: "196",
     setBrand: "Topps",
     parallel: "Base",
-  } as const;
+    conditionType: "raw" as const,
+  };
 
   function rawResult(
     title: string,

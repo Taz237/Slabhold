@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Camera, ImagePlus, Loader2, ScanSearch, X } from "lucide-react";
 import { CardSearch } from "@/components/card-search";
 import { CategoryPicker } from "@/components/category-picker";
@@ -11,27 +11,46 @@ import { useSocial } from "@/components/social-provider";
 import { takeScan } from "@/lib/capture";
 import type { CatalogCard } from "@/lib/card-catalog";
 import {
-  CARD_YEARS,
   GRADE_COMPANIES,
   GRADE_NUMBERS,
+  GRADE_QUALIFIERS,
   PARALLELS,
-  RAW_GRADE,
   SETS,
   SPORTS,
+  defaultYearLabelForSport,
   formatGrade,
+  isValidCardNumber,
+  normalizeCardNumberInput,
   optionsWithCurrent,
   parseGrade,
+  parseYearLabel,
+  yearOptionsForSport,
 } from "@/lib/card-options";
+import { buildCompsQuery } from "@/lib/comps/match";
 import { identifyFromPhoto } from "@/lib/comps/sample";
 import { cardCategory } from "@/lib/card-category";
 import { fileToDataUrl } from "@/lib/storage";
-import type { CardCategory, IdentifyResult, SportsCard } from "@/lib/types";
+import type {
+  CardCategory,
+  ConditionType,
+  IdentifyResult,
+  SportsCard,
+} from "@/lib/types";
+
+const DEMO_IDENTIFY =
+  process.env.NEXT_PUBLIC_ENABLE_DEMO_IDENTIFY === "true";
 
 function localToday() {
   const date = new Date();
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
   return `${date.getFullYear()}-${month}-${day}`;
+}
+
+function negativePrice(value: string): boolean {
+  if (value.trim() === "") return false;
+  const n = Number(value);
+  return Number.isFinite(n) && n < 0;
 }
 
 export function CardForm({ existing }: { existing?: SportsCard }) {
@@ -47,22 +66,56 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
     const scanned = takeScan();
     if (scanned) setPhoto(scanned);
   }, [existing]);
+
   const [sold, setSold] = useState(Boolean(existing?.sellPrice));
   const [share, setShare] = useState(Boolean(existing?.isPublic));
-  const [category, setCategory] = useState<CardCategory>(existing ? cardCategory(existing) : "flipping");
+  const [category, setCategory] = useState<CardCategory>(
+    existing ? cardCategory(existing) : "flipping",
+  );
   const [scanning, setScanning] = useState(false);
   const [identified, setIdentified] = useState<IdentifyResult | null>(null);
+
   const initialGrade = parseGrade(existing?.grade ?? "");
-  const [gradeCompany, setGradeCompany] = useState(initialGrade.company);
+  const initialCondition: ConditionType =
+    existing?.conditionType ??
+    (initialGrade.company && initialGrade.company !== "Raw"
+      ? "graded"
+      : "raw");
+
+  const [conditionType, setConditionType] =
+    useState<ConditionType>(initialCondition);
+  const [gradeCompany, setGradeCompany] = useState(
+    initialCondition === "graded" ? initialGrade.company || "PSA" : "PSA",
+  );
   const [gradeNumber, setGradeNumber] = useState(initialGrade.number);
-  const [gradeTouched, setGradeTouched] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
+  const [gradeQualifier, setGradeQualifier] = useState(
+    existing?.gradeQualifier ?? "",
+  );
+  const [certNumber, setCertNumber] = useState(existing?.certNumber ?? "");
+  const [noNumber, setNoNumber] = useState(Boolean(existing?.noNumber));
+  const [setIsCustom, setSetIsCustom] = useState(
+    Boolean(existing?.setIsCustom),
+  );
+  const [parallelIsCustom, setParallelIsCustom] = useState(
+    Boolean(existing?.parallelIsCustom),
+  );
+  const [isRookie, setIsRookie] = useState(Boolean(existing?.isRookie));
+  const [isAuto, setIsAuto] = useState(Boolean(existing?.isAuto));
+  const [isRelic, setIsRelic] = useState(Boolean(existing?.isRelic));
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
+
+  const defaultYear = existing
+    ? existing.yearLabel || String(existing.year)
+    : defaultYearLabelForSport("Basketball");
+
   const [form, setForm] = useState({
     playerName: existing?.playerName ?? "",
-    year: existing?.year ?? new Date().getFullYear(),
+    yearLabel: defaultYear,
     setBrand: existing?.setBrand ?? "",
     cardNumber: existing?.cardNumber ?? "",
-    parallel: existing?.parallel ?? "",
+    parallel: existing?.parallel || "Base",
+    serialRun: existing?.serialRun != null ? String(existing.serialRun) : "",
+    serialNo: existing?.serialNo != null ? String(existing.serialNo) : "",
     sport: existing?.sport ?? "Basketball",
     purchasePrice: existing ? String(existing.purchasePrice) : "",
     purchaseDate: existing?.purchaseDate ?? localToday(),
@@ -71,13 +124,84 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
     sellDate: existing?.sellDate ?? "",
     notes: existing?.notes ?? "",
   });
-  const gradeChoices = GRADE_NUMBERS[gradeCompany] ?? [];
-  const needsGradeNumber = Boolean(gradeCompany && gradeCompany !== RAW_GRADE);
+
+  const gradeChoices = GRADE_NUMBERS[gradeCompany] ?? GRADE_NUMBERS.Other;
+  const yearOptions = yearOptionsForSport(form.sport);
+
+  const parsedYear = parseYearLabel(form.yearLabel);
+  const cardNumberOk =
+    noNumber || isValidCardNumber(form.cardNumber);
+  const setOk = Boolean(form.setBrand.trim());
+  const playerOk = Boolean(form.playerName.trim());
+  const yearOk = Boolean(parsedYear);
+  const gradeOk =
+    conditionType === "raw" ||
+    (Boolean(gradeCompany) && Boolean(gradeNumber));
+  const purchaseNeg = negativePrice(form.purchasePrice);
+  const estNeg = negativePrice(form.estimatedSellPrice);
+  const sellNeg = sold && negativePrice(form.sellPrice);
+
+  const formValid =
+    playerOk &&
+    yearOk &&
+    setOk &&
+    cardNumberOk &&
+    gradeOk &&
+    !purchaseNeg &&
+    !estNeg &&
+    !sellNeg &&
+    Boolean(form.purchaseDate) &&
+    (!sold || (Boolean(form.sellPrice) && Boolean(form.sellDate) && !sellNeg));
+
+  const preview = useMemo(() => {
+    const year = parsedYear?.year ?? new Date().getFullYear();
+    const grade =
+      conditionType === "raw"
+        ? "Raw"
+        : formatGrade(gradeCompany, gradeNumber);
+    return buildCompsQuery({
+      playerName: form.playerName.trim() || "Player",
+      year,
+      yearLabel: parsedYear?.yearLabel || form.yearLabel,
+      setBrand: form.setBrand.trim() || "Set",
+      cardNumber: noNumber
+        ? undefined
+        : normalizeCardNumberInput(form.cardNumber) || undefined,
+      noNumber,
+      parallel: form.parallel.trim() || "Base",
+      serialRun: form.serialRun ? Number(form.serialRun) : null,
+      isAuto,
+      isRelic,
+      conditionType,
+      grade,
+      gradeQualifier: gradeQualifier || null,
+    });
+  }, [
+    parsedYear,
+    form.playerName,
+    form.yearLabel,
+    form.setBrand,
+    form.cardNumber,
+    form.parallel,
+    form.serialRun,
+    noNumber,
+    isAuto,
+    isRelic,
+    conditionType,
+    gradeCompany,
+    gradeNumber,
+    gradeQualifier,
+  ]);
+
+  function markTouched(key: string) {
+    setTouched((prev) => ({ ...prev, [key]: true }));
+  }
 
   async function scanFile(file: File | undefined) {
     if (!file) return;
     const dataUrl = await fileToDataUrl(file);
     setPhoto(dataUrl);
+    if (!DEMO_IDENTIFY) return;
     setScanning(true);
     setIdentified(null);
     try {
@@ -89,15 +213,17 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
   }
 
   function applyIdentify(result: IdentifyResult) {
+    const yl = String(result.year);
     setForm((prev) => ({
       ...prev,
       playerName: result.playerName,
-      year: result.year,
+      yearLabel: yl,
       setBrand: result.setBrand,
       cardNumber: result.cardNumber,
       sport: result.sport,
       estimatedSellPrice: String(result.estimatedSellPrice),
     }));
+    setSetIsCustom(!SETS.some((s) => s === result.setBrand));
     setIdentified(result);
   }
 
@@ -105,17 +231,22 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
     setForm((prev) => ({
       ...prev,
       playerName: card.playerName,
-      year: card.year,
+      yearLabel: String(card.year),
       setBrand: card.setBrand,
       cardNumber: card.cardNumber,
       sport: card.sport,
-      parallel: card.parallel,
+      parallel: card.parallel || "Base",
     }));
+    setSetIsCustom(!SETS.some((s) => s === card.setBrand));
+    setParallelIsCustom(
+      !PARALLELS.some(
+        (p) => p.toLowerCase() === (card.parallel || "base").toLowerCase(),
+      ),
+    );
     setIdentified(null);
   }
 
   function chooseGradeCompany(company: string) {
-    setGradeTouched(true);
     setGradeCompany(company);
     setGradeNumber((current) => {
       const allowed = GRADE_NUMBERS[company] ?? [];
@@ -123,30 +254,46 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
     });
   }
 
-  function savedGrade() {
-    const legacy = existing?.grade.trim() ?? "";
-    if (!gradeTouched && !initialGrade.recognized) return legacy;
-    return formatGrade(gradeCompany, gradeNumber);
-  }
-
   function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!form.setBrand.trim()) {
-      setFormError("Choose a set.");
-      return;
-    }
-    if (needsGradeNumber && !gradeNumber) {
-      setFormError("Choose a grade number.");
-      return;
-    }
-    setFormError(null);
+    setTouched({
+      playerName: true,
+      yearLabel: true,
+      setBrand: true,
+      cardNumber: true,
+      grade: true,
+      purchasePrice: true,
+      estimatedSellPrice: true,
+      sellPrice: true,
+    });
+    if (!formValid || !parsedYear) return;
+
+    const grade =
+      conditionType === "raw"
+        ? "Raw"
+        : formatGrade(gradeCompany, gradeNumber);
+
     const payload = {
       playerName: form.playerName.trim(),
-      year: Number(form.year),
+      year: parsedYear.year,
+      yearLabel: parsedYear.yearLabel,
       setBrand: form.setBrand.trim(),
-      cardNumber: form.cardNumber.trim(),
-      grade: savedGrade(),
-      parallel: form.parallel.trim(),
+      setIsCustom,
+      cardNumber: noNumber
+        ? ""
+        : normalizeCardNumberInput(form.cardNumber),
+      noNumber,
+      grade,
+      parallel: (form.parallel.trim() || "Base"),
+      parallelIsCustom,
+      serialRun: form.serialRun ? Number(form.serialRun) : null,
+      serialNo: form.serialNo ? Number(form.serialNo) : null,
+      isRookie,
+      isAuto,
+      isRelic,
+      conditionType,
+      gradeQualifier: conditionType === "graded" ? gradeQualifier : "",
+      certNumber: conditionType === "graded" ? certNumber.trim() : "",
       sport: form.sport,
       purchasePrice: Number(form.purchasePrice) || 0,
       purchaseDate: form.purchaseDate,
@@ -180,7 +327,9 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
         </h1>
         <p className="mt-1 text-sm text-zinc-500">
           Player, set, what you paid, and a photo.{" "}
-          {mode === "supabase" ? "Saved to your account." : "Saved in this browser."}
+          {mode === "supabase"
+            ? "Saved to your account."
+            : "Saved in this browser."}
         </p>
       </div>
 
@@ -222,7 +371,9 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
               <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/75 px-2 text-center">
                 <Loader2 className="mb-2 animate-spin text-violet-300" size={20} />
                 <p className="text-xs font-medium">Demo lookup…</p>
-                <p className="mt-1 text-[10px] text-zinc-400">Sample match, not a real scan</p>
+                <p className="mt-1 text-[10px] text-zinc-400">
+                  Sample match, not a real scan
+                </p>
               </div>
             )}
           </div>
@@ -244,63 +395,88 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
               <Camera size={16} />
               Camera / upload
             </button>
-            <button
-              type="button"
-              onClick={async () => {
-                setScanning(true);
-                try {
-                  applyIdentify(await identifyFromPhoto());
-                } finally {
-                  setScanning(false);
-                }
-              }}
-              className="inline-flex items-center justify-center gap-2 rounded-full border border-zinc-200 px-4 py-2.5 text-sm text-zinc-700 hover:bg-zinc-50 dark:border-white/10 dark:text-zinc-200 dark:hover:bg-white/5"
-            >
-              <ScanSearch size={16} />
-              Demo identify
-            </button>
-            <p className="text-xs leading-5 text-zinc-500">
-              Demo only. This doesn’t read the photo yet.
-            </p>
-            {identified && (
-              <div className="rounded-xl border border-violet-400/30 bg-violet-500/10 p-3">
-                <p className="text-[11px] uppercase tracking-wider text-violet-700 dark:text-violet-300">
-                  Demo match · {Math.round(identified.confidence * 100)}%
-                </p>
-                <p className="mt-1 text-sm font-medium">
-                  {identified.year} {identified.setBrand} {identified.playerName} #
-                  {identified.cardNumber}
-                </p>
+            {DEMO_IDENTIFY ? (
+              <>
                 <button
                   type="button"
-                  onClick={() => applyIdentify(identified)}
-                  className="mt-2 text-xs font-medium text-violet-700 dark:text-violet-300"
+                  onClick={async () => {
+                    setScanning(true);
+                    try {
+                      applyIdentify(await identifyFromPhoto());
+                    } finally {
+                      setScanning(false);
+                    }
+                  }}
+                  className="inline-flex items-center justify-center gap-2 rounded-full border border-zinc-200 px-4 py-2.5 text-sm text-zinc-700 hover:bg-zinc-50 dark:border-white/10 dark:text-zinc-200 dark:hover:bg-white/5"
                 >
-                  Confirm this card
+                  <ScanSearch size={16} />
+                  Demo identify
                 </button>
-              </div>
-            )}
+                <p className="text-xs leading-5 text-zinc-500">
+                  Demo only. This doesn’t read the photo yet.
+                </p>
+                {identified && (
+                  <div className="rounded-xl border border-violet-400/30 bg-violet-500/10 p-3">
+                    <p className="text-[11px] uppercase tracking-wider text-violet-700 dark:text-violet-300">
+                      Demo match · {Math.round(identified.confidence * 100)}%
+                    </p>
+                    <p className="mt-1 text-sm font-medium">
+                      {identified.year} {identified.setBrand}{" "}
+                      {identified.playerName} #{identified.cardNumber}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => applyIdentify(identified)}
+                      className="mt-2 text-xs font-medium text-violet-700 dark:text-violet-300"
+                    >
+                      Confirm this card
+                    </button>
+                  </div>
+                )}
+              </>
+            ) : null}
           </div>
         </div>
       </section>
 
-      <Field label="Player name">
+      <Field
+        label="Player name"
+        required
+        error={
+          touched.playerName && !playerOk ? "Player name is required" : null
+        }
+      >
         <input
           required
           value={form.playerName}
-          onChange={(e) => setForm((prev) => ({ ...prev, playerName: e.target.value }))}
+          onBlur={() => markTouched("playerName")}
+          onChange={(e) =>
+            setForm((prev) => ({ ...prev, playerName: e.target.value }))
+          }
           className={inputClass}
           placeholder="Victor Wembanyama"
         />
       </Field>
 
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Year">
+        <Field
+          label="Year"
+          required
+          error={
+            touched.yearLabel && !yearOk
+              ? "Use a year (2026) or season (2023-24)"
+              : null
+          }
+        >
           <SearchSelect
             label="Year"
-            value={String(form.year)}
-            options={optionsWithCurrent(CARD_YEARS, String(form.year))}
-            onChange={(year) => setForm((prev) => ({ ...prev, year: Number(year) }))}
+            value={form.yearLabel}
+            options={optionsWithCurrent(yearOptions, form.yearLabel)}
+            allowCustom
+            onChange={(yearLabel) => {
+              markTouched("yearLabel");
+              setForm((prev) => ({ ...prev, yearLabel }));
+            }}
           />
         </Field>
         <Field label="Sport">
@@ -308,101 +484,284 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
             label="Sport"
             value={form.sport}
             options={optionsWithCurrent(SPORTS, form.sport)}
-            onChange={(sport) => setForm((prev) => ({ ...prev, sport }))}
+            onChange={(sport) => {
+              setForm((prev) => {
+                const next = { ...prev, sport };
+                if (!existing && !touched.yearLabel) {
+                  next.yearLabel = defaultYearLabelForSport(sport);
+                }
+                return next;
+              });
+            }}
           />
         </Field>
       </div>
 
-      <Field label="Set / brand">
+      <Field
+        label="Set / product"
+        required
+        error={touched.setBrand && !setOk ? "Set is required" : null}
+      >
         <SearchSelect
-          label="Set / brand"
+          label="Set / product"
           value={form.setBrand}
           options={optionsWithCurrent(SETS, form.setBrand)}
           placeholder="Select a set"
-          onChange={(setBrand) => setForm((prev) => ({ ...prev, setBrand }))}
+          allowCustom
+          onChange={(setBrand) => {
+            markTouched("setBrand");
+            const known = SETS.some(
+              (s) => s.toLowerCase() === setBrand.toLowerCase(),
+            );
+            setSetIsCustom(!known);
+            setForm((prev) => ({ ...prev, setBrand }));
+          }}
         />
       </Field>
 
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="Card number">
+      <div className="space-y-2">
+        <Field
+          label="Card number"
+          required={!noNumber}
+          error={
+            touched.cardNumber && !noNumber && !cardNumberOk
+              ? "Enter a card number (letters, digits, dashes) or check No number"
+              : null
+          }
+        >
           <input
             value={form.cardNumber}
-            onChange={(e) => setForm((prev) => ({ ...prev, cardNumber: e.target.value }))}
-            className={inputClass}
-            placeholder="136"
+            disabled={noNumber}
+            onBlur={() => markTouched("cardNumber")}
+            onChange={(e) =>
+              setForm((prev) => ({
+                ...prev,
+                cardNumber: e.target.value.replace(/^#/, ""),
+              }))
+            }
+            className={`${inputClass} disabled:opacity-50`}
+            placeholder="AS22, BCP-1, 136"
             aria-label="Card number"
           />
         </Field>
+        <label className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-400">
+          <input
+            type="checkbox"
+            checked={noNumber}
+            onChange={(e) => {
+              setNoNumber(e.target.checked);
+              if (e.target.checked) {
+                setForm((prev) => ({ ...prev, cardNumber: "" }));
+              }
+            }}
+            className="accent-violet-500"
+          />
+          No number on card
+        </label>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
         <Field label="Parallel">
           <SearchSelect
             label="Parallel"
             value={form.parallel}
             options={optionsWithCurrent(PARALLELS, form.parallel)}
-            placeholder="Select a parallel"
-            allowEmpty
-            onChange={(parallel) => setForm((prev) => ({ ...prev, parallel }))}
-          />
-        </Field>
-      </div>
-
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="Grade company">
-          <NativeSelect
-            label="Grade company"
-            value={gradeCompany}
-            options={GRADE_COMPANIES}
-            placeholder="None"
-            onChange={chooseGradeCompany}
-          />
-        </Field>
-        <Field label="Grade number">
-          <NativeSelect
-            label="Grade number"
-            value={gradeNumber}
-            options={gradeChoices}
-            placeholder={needsGradeNumber ? "Select" : "Ungraded"}
-            disabled={!needsGradeNumber}
-            onChange={(number) => {
-              setGradeTouched(true);
-              setGradeNumber(number);
+            placeholder="Base"
+            allowCustom
+            onChange={(parallel) => {
+              const known = PARALLELS.some(
+                (p) => p.toLowerCase() === parallel.toLowerCase(),
+              );
+              setParallelIsCustom(Boolean(parallel) && !known);
+              setForm((prev) => ({
+                ...prev,
+                parallel: parallel || "Base",
+              }));
             }}
           />
         </Field>
+        <Field label="Serial run">
+          <div className="flex items-center gap-1">
+            <span className="text-sm text-zinc-500">/</span>
+            <input
+              type="number"
+              min={1}
+              step={1}
+              value={form.serialRun}
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, serialRun: e.target.value }))
+              }
+              className={inputClass}
+              placeholder="10"
+              aria-label="Serial run"
+            />
+          </div>
+        </Field>
       </div>
-      {!initialGrade.recognized && existing?.grade.trim() && !gradeTouched ? (
-        <p className="-mt-3 text-xs text-zinc-500">Saved grade: {existing.grade.trim()}</p>
+
+      <Field label="Serial number">
+        <input
+          type="number"
+          min={1}
+          step={1}
+          value={form.serialNo}
+          onChange={(e) =>
+            setForm((prev) => ({ ...prev, serialNo: e.target.value }))
+          }
+          className={inputClass}
+          placeholder="7 (optional)"
+        />
+      </Field>
+
+      <div className="flex flex-wrap gap-4">
+        <Toggle
+          label="Rookie"
+          checked={isRookie}
+          onChange={setIsRookie}
+        />
+        <Toggle label="Auto" checked={isAuto} onChange={setIsAuto} />
+        <Toggle
+          label="Patch / Relic"
+          checked={isRelic}
+          onChange={setIsRelic}
+        />
+      </div>
+
+      <div>
+        <p className="mb-1.5 text-sm text-zinc-500">
+          Condition <span className="text-rose-500">*</span>
+        </p>
+        <div className="grid grid-cols-2 gap-2">
+          {(["raw", "graded"] as const).map((type) => (
+            <button
+              key={type}
+              type="button"
+              onClick={() => setConditionType(type)}
+              className={`rounded-xl border px-3 py-2.5 text-sm font-medium capitalize ${
+                conditionType === type
+                  ? "border-zinc-900 bg-zinc-900 text-white dark:border-zinc-100 dark:bg-zinc-100 dark:text-zinc-950"
+                  : "border-zinc-200 bg-white text-zinc-700 dark:border-white/10 dark:bg-white/[0.03] dark:text-zinc-200"
+              }`}
+            >
+              {type}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {conditionType === "graded" ? (
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <Field
+              label="Grader"
+              required
+              error={
+                touched.grade && !gradeCompany ? "Choose a grader" : null
+              }
+            >
+              <NativeSelect
+                label="Grader"
+                value={gradeCompany}
+                options={GRADE_COMPANIES}
+                onChange={chooseGradeCompany}
+              />
+            </Field>
+            <Field
+              label="Grade"
+              required
+              error={
+                touched.grade && !gradeNumber ? "Choose a grade" : null
+              }
+            >
+              <NativeSelect
+                label="Grade"
+                value={gradeNumber}
+                options={gradeChoices}
+                placeholder="Select"
+                onChange={(number) => {
+                  markTouched("grade");
+                  setGradeNumber(number);
+                }}
+              />
+            </Field>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Cert #">
+              <input
+                value={certNumber}
+                onChange={(e) => setCertNumber(e.target.value)}
+                className={inputClass}
+                placeholder="Optional"
+              />
+            </Field>
+            <Field label="Qualifier">
+              <NativeSelect
+                label="Qualifier"
+                value={gradeQualifier}
+                options={GRADE_QUALIFIERS}
+                placeholder="None"
+                onChange={setGradeQualifier}
+              />
+            </Field>
+          </div>
+        </div>
       ) : null}
 
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Purchase date">
+        <Field label="Purchase date" required>
           <input
             required
             type="date"
             value={form.purchaseDate}
-            onChange={(e) => setForm((prev) => ({ ...prev, purchaseDate: e.target.value }))}
+            onChange={(e) =>
+              setForm((prev) => ({ ...prev, purchaseDate: e.target.value }))
+            }
             className={inputClass}
           />
         </Field>
-        <Field label="What you paid">
+        <Field
+          label="What you paid"
+          error={
+            touched.purchasePrice && purchaseNeg
+              ? "Price can't be negative"
+              : null
+          }
+        >
           <input
             type="number"
             min={0}
             step="0.01"
             value={form.purchasePrice}
-            onChange={(e) => setForm((prev) => ({ ...prev, purchasePrice: e.target.value }))}
+            onBlur={() => markTouched("purchasePrice")}
+            onChange={(e) =>
+              setForm((prev) => ({ ...prev, purchasePrice: e.target.value }))
+            }
             className={inputClass}
             placeholder="Optional"
           />
         </Field>
       </div>
 
-      <Field label="Estimated sell price">
+      <Field
+        label="Estimated sell price"
+        error={
+          touched.estimatedSellPrice && estNeg
+            ? "Price can't be negative"
+            : null
+        }
+      >
         <input
           type="number"
           min={0}
           step="0.01"
           value={form.estimatedSellPrice}
-          onChange={(e) => setForm((prev) => ({ ...prev, estimatedSellPrice: e.target.value }))}
+          onBlur={() => markTouched("estimatedSellPrice")}
+          onChange={(e) =>
+            setForm((prev) => ({
+              ...prev,
+              estimatedSellPrice: e.target.value,
+            }))
+          }
           className={inputClass}
           placeholder="185"
         />
@@ -430,23 +789,36 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
 
       {sold && (
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Actual sell price">
+          <Field
+            label="Actual sell price"
+            required
+            error={
+              touched.sellPrice && sellNeg
+                ? "Price can't be negative"
+                : null
+            }
+          >
             <input
               required={sold}
               type="number"
               min={0}
               step="0.01"
               value={form.sellPrice}
-              onChange={(e) => setForm((prev) => ({ ...prev, sellPrice: e.target.value }))}
+              onBlur={() => markTouched("sellPrice")}
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, sellPrice: e.target.value }))
+              }
               className={inputClass}
             />
           </Field>
-          <Field label="Sell date">
+          <Field label="Sell date" required>
             <input
               required={sold}
               type="date"
               value={form.sellDate}
-              onChange={(e) => setForm((prev) => ({ ...prev, sellDate: e.target.value }))}
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, sellDate: e.target.value }))
+              }
               className={inputClass}
             />
           </Field>
@@ -457,13 +829,20 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
         <textarea
           rows={4}
           value={form.notes}
-          onChange={(e) => setForm((prev) => ({ ...prev, notes: e.target.value }))}
+          onChange={(e) =>
+            setForm((prev) => ({ ...prev, notes: e.target.value }))
+          }
           className={`${inputClass} resize-y`}
           placeholder="Condition, centering, why you bought it…"
         />
       </Field>
 
-      {formError ? <p className="text-sm text-rose-600 dark:text-rose-400">{formError}</p> : null}
+      <p className="rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-700 dark:border-white/10 dark:bg-white/[0.04] dark:text-zinc-200">
+        <span className="text-xs tracking-wide text-zinc-500 uppercase">
+          Preview
+        </span>
+        <span className="mt-1 block font-medium">{preview}</span>
+      </p>
 
       <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-between">
         {existing ? (
@@ -484,7 +863,8 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
         )}
         <button
           type="submit"
-          className="rounded-full bg-zinc-900 px-6 py-3 text-sm font-semibold text-white dark:bg-zinc-100 dark:text-zinc-950"
+          disabled={!formValid}
+          className="rounded-full bg-zinc-900 px-6 py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40 dark:bg-zinc-100 dark:text-zinc-950"
         >
           {existing ? "Save changes" : "Add to collection"}
         </button>
@@ -493,17 +873,49 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
   );
 }
 
+function Toggle({
+  label,
+  checked,
+  onChange,
+}: {
+  label: string;
+  checked: boolean;
+  onChange: (value: boolean) => void;
+}) {
+  return (
+    <label className="flex items-center gap-2 text-sm">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        className="accent-violet-500"
+      />
+      {label}
+    </label>
+  );
+}
+
 function Field({
   label,
   children,
+  required,
+  error,
 }: {
   label: string;
   children: React.ReactNode;
+  required?: boolean;
+  error?: string | null;
 }) {
   return (
     <div>
-      <p className="mb-1.5 text-sm text-zinc-500">{label}</p>
+      <p className="mb-1.5 text-sm text-zinc-500">
+        {label}
+        {required ? <span className="text-rose-500"> *</span> : null}
+      </p>
       {children}
+      {error ? (
+        <p className="mt-1 text-xs text-rose-600 dark:text-rose-400">{error}</p>
+      ) : null}
     </div>
   );
 }

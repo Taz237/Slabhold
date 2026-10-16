@@ -20,10 +20,17 @@ import { scheduleCardValueRefresh } from "@/lib/value/use-card-values";
 const VALUE_DETAIL_KEYS = [
   "playerName",
   "year",
+  "yearLabel",
   "setBrand",
   "cardNumber",
+  "noNumber",
   "grade",
   "parallel",
+  "serialRun",
+  "isAuto",
+  "isRelic",
+  "conditionType",
+  "gradeQualifier",
 ] as const;
 
 function detailsAffectValue(

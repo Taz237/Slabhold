@@ -27,6 +27,7 @@ import {
   formatCardValueLabel,
   isLowConfidenceValue,
 } from "@/lib/value/format";
+import { cardNeedsDetails } from "@/lib/types";
 import type { CardValueResult } from "@/lib/value/types";
 import { useCardValue } from "@/lib/value/use-card-values";
 
@@ -165,6 +166,16 @@ export function CardDetail({ id }: { id: string }) {
             {card.playerName}
           </h1>
           <p className="mt-1 text-sm text-zinc-500">{cardSubtitle(card)}</p>
+          {cardNeedsDetails(card) ? (
+            <p className="mt-2 text-sm text-amber-800 dark:text-amber-300">
+              <Link
+                href={`/cards/${card.id}/edit`}
+                className="underline underline-offset-2 hover:text-amber-950 dark:hover:text-amber-200"
+              >
+                Add the card number for accurate prices
+              </Link>
+            </p>
+          ) : null}
           <CardSpecs card={card} />
           {card.notes ? (
             <p className="mt-4 max-w-xl text-sm leading-6 text-zinc-700 dark:text-zinc-300">

@@ -1,10 +1,11 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { cardCategory, rememberCategory } from "@/lib/card-category";
+import { parseGrade, RAW_GRADE } from "@/lib/card-options";
 import { uploadMedia } from "@/lib/supabase/media";
-import type { SportsCard } from "@/lib/types";
+import type { ConditionType, SportsCard } from "@/lib/types";
 import type { OwnedCard } from "./types";
 
-type CardRow = {
+export type CardRow = {
   id: string;
   user_id: string;
   player: string;
@@ -26,6 +27,19 @@ type CardRow = {
   category?: string | null;
   created_at: string;
   updated_at: string | null;
+  no_number?: boolean | null;
+  year_label?: string | null;
+  set_name?: string | null;
+  set_is_custom?: boolean | null;
+  parallel_is_custom?: boolean | null;
+  serial_run?: number | null;
+  serial_no?: number | null;
+  is_rookie?: boolean | null;
+  is_auto?: boolean | null;
+  is_relic?: boolean | null;
+  condition_type?: string | null;
+  grade_qualifier?: string | null;
+  cert_number?: string | null;
 };
 
 function dateOnly(value: string | null, fallback: string) {
@@ -33,15 +47,41 @@ function dateOnly(value: string | null, fallback: string) {
   return value.slice(0, 10);
 }
 
+function inferConditionType(
+  row: CardRow,
+): ConditionType {
+  if (row.condition_type === "raw" || row.condition_type === "graded") {
+    return row.condition_type;
+  }
+  const parsed = parseGrade(row.grade ?? "");
+  if (parsed.company && parsed.company !== RAW_GRADE) return "graded";
+  return "raw";
+}
+
 export function mapCardRow(row: CardRow): SportsCard {
+  const setBrand = (row.set_name || row.set || "").trim();
+  const yearLabel =
+    (row.year_label || "").trim() || String(row.year);
   return {
     id: row.id,
     playerName: row.player,
     year: row.year,
-    setBrand: row.set,
+    yearLabel,
+    setBrand,
+    setIsCustom: Boolean(row.set_is_custom),
     cardNumber: row.card_number ?? "",
+    noNumber: Boolean(row.no_number),
     grade: row.grade ?? "",
-    parallel: row.parallel ?? "",
+    parallel: row.parallel ?? "Base",
+    parallelIsCustom: Boolean(row.parallel_is_custom),
+    serialRun: row.serial_run ?? null,
+    serialNo: row.serial_no ?? null,
+    isRookie: Boolean(row.is_rookie),
+    isAuto: Boolean(row.is_auto),
+    isRelic: Boolean(row.is_relic),
+    conditionType: inferConditionType(row),
+    gradeQualifier: row.grade_qualifier ?? "",
+    certNumber: row.cert_number ?? "",
     sport: row.sport ?? "Basketball",
     purchasePrice: Number(row.paid_price) || 0,
     purchaseDate: dateOnly(row.purchase_date, row.created_at),
@@ -51,7 +91,10 @@ export function mapCardRow(row: CardRow): SportsCard {
     notes: row.notes ?? "",
     photoDataUrl: row.image_url,
     accent: row.accent ?? "#7c5cff",
-    category: row.category === "pc" || row.category === "flipping" ? row.category : undefined,
+    category:
+      row.category === "pc" || row.category === "flipping"
+        ? row.category
+        : undefined,
     isPublic: Boolean(row.is_public),
     createdAt: row.created_at,
     updatedAt: row.updated_at ?? row.created_at,
@@ -87,27 +130,38 @@ export async function loadUserCards(supabase: SupabaseClient, userId: string) {
   return ((data ?? []) as CardRow[]).map(mapCardRow);
 }
 
-function missingCategoryColumn(error: { code?: string; message?: string }) {
+function missingColumnError(error: { code?: string; message?: string }) {
   const message = error.message ?? "";
   return (
-    /category/i.test(message) &&
-    (error.code === "PGRST204" || error.code === "42703" || /schema cache|column/i.test(message))
+    error.code === "PGRST204" ||
+    error.code === "42703" ||
+    /schema cache|column/i.test(message)
   );
 }
 
-export async function saveUserCard(supabase: SupabaseClient, userId: string, card: SportsCard) {
-  const uploaded = await uploadMedia(supabase, "card-photos", userId, card.photoDataUrl);
+export async function saveUserCard(
+  supabase: SupabaseClient,
+  userId: string,
+  card: SportsCard,
+) {
+  const uploaded = await uploadMedia(
+    supabase,
+    "card-photos",
+    userId,
+    card.photoDataUrl,
+  );
   if (uploaded.error) throw new Error(uploaded.error);
   const category = cardCategory(card);
   rememberCategory(card.id, category);
-  const payload = {
+
+  const base = {
     id: card.id,
     user_id: userId,
     player: card.playerName,
     year: card.year,
     set: card.setBrand,
     grade: card.grade,
-    parallel: card.parallel,
+    parallel: card.parallel || "Base",
     paid_price: card.purchasePrice,
     estimated_value: card.estimatedSellPrice,
     image_url: uploaded.url,
@@ -122,14 +176,50 @@ export async function saveUserCard(supabase: SupabaseClient, userId: string, car
     created_at: card.createdAt,
     updated_at: card.updatedAt,
   };
-  const withCategory = await supabase.from("cards").upsert({ ...payload, category });
+
+  const extended = {
+    ...base,
+    category,
+    no_number: Boolean(card.noNumber),
+    year_label: card.yearLabel || String(card.year),
+    set_name: card.setBrand,
+    set_is_custom: Boolean(card.setIsCustom),
+    parallel_is_custom: Boolean(card.parallelIsCustom),
+    serial_run: card.serialRun,
+    serial_no: card.serialNo,
+    is_rookie: Boolean(card.isRookie),
+    is_auto: Boolean(card.isAuto),
+    is_relic: Boolean(card.isRelic),
+    condition_type: card.conditionType,
+    grade_qualifier: card.gradeQualifier || null,
+    cert_number: card.certNumber || null,
+  };
+
+  const full = await supabase.from("cards").upsert(extended);
+  if (!full.error) return;
+  if (!missingColumnError(full.error)) throw new Error(full.error.message);
+
+  // Fallback if migration not applied yet
+  const withCategory = await supabase
+    .from("cards")
+    .upsert({ ...base, category });
   if (!withCategory.error) return;
-  if (!missingCategoryColumn(withCategory.error)) throw new Error(withCategory.error.message);
-  const { error } = await supabase.from("cards").upsert(payload);
+  if (!missingColumnError(withCategory.error)) {
+    throw new Error(withCategory.error.message);
+  }
+  const { error } = await supabase.from("cards").upsert(base);
   if (error) throw new Error(error.message);
 }
 
-export async function removeUserCard(supabase: SupabaseClient, userId: string, cardId: string) {
-  const { error } = await supabase.from("cards").delete().eq("id", cardId).eq("user_id", userId);
+export async function removeUserCard(
+  supabase: SupabaseClient,
+  userId: string,
+  cardId: string,
+) {
+  const { error } = await supabase
+    .from("cards")
+    .delete()
+    .eq("id", cardId)
+    .eq("user_id", userId);
   if (error) throw new Error(error.message);
 }
