@@ -218,7 +218,7 @@ function Composer() {
   return (
     <form
       onSubmit={(e) => void submit(e)}
-      className="flex gap-3 border-b border-zinc-200 px-4 py-3 dark:border-white/10"
+      className="hidden gap-3 border-b border-zinc-200 px-4 py-3 md:flex dark:border-white/10"
     >
       {user ? (
         <Avatar

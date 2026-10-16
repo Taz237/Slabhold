@@ -4,22 +4,25 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { Camera, ImagePlus, X } from "lucide-react";
 import { Avatar } from "@/components/avatar";
+import { useCollection } from "@/components/collection-provider";
 import { MentionTextarea } from "@/components/mention-textarea";
 import { LoadingRows } from "@/components/status";
 import { useSocial } from "@/components/social-provider";
 import { takeCompose } from "@/lib/capture";
 import { fileToDataUrl } from "@/lib/storage";
-import { POST_LIMIT } from "@/lib/social/types";
+import { POST_LIMIT, type PublicCard } from "@/lib/social/types";
 
 export function ComposeView() {
   const router = useRouter();
   const params = useSearchParams();
   const editId = params.get("edit");
   const { ready, user, posts, createPost, updatePost } = useSocial();
+  const { cards } = useCollection();
   const fileRef = useRef<HTMLInputElement>(null);
   const started = useRef(false);
   const [body, setBody] = useState("");
   const [image, setImage] = useState<string | null>(null);
+  const [cardId, setCardId] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const editing = posts.find((post) => post.id === editId && post.authorId === user?.id);
@@ -67,14 +70,28 @@ export function ComposeView() {
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!body.trim() && !image) {
-      setError("Write something or add a photo.");
+    const selected = cards.find((card) => card.id === cardId);
+    const card: PublicCard | null = selected
+      ? {
+          id: selected.id,
+          playerName: selected.playerName,
+          year: selected.year,
+          setBrand: selected.setBrand,
+          cardNumber: selected.cardNumber,
+          sport: selected.sport,
+          photoDataUrl: selected.photoDataUrl,
+          accent: selected.accent,
+          estimatedSellPrice: selected.estimatedSellPrice,
+        }
+      : null;
+    if (!body.trim() && !image && !card) {
+      setError("Write something, add a photo, or attach a card.");
       return;
     }
     setSending(true);
     const result = editing
       ? await updatePost(editing.id, { body, imageDataUrl: image })
-      : await createPost({ body, imageDataUrl: image, card: null });
+      : await createPost({ body, imageDataUrl: image, card });
     setSending(false);
     if (result.error) {
       setError(result.error);
@@ -91,7 +108,8 @@ export function ComposeView() {
     );
   }
 
-  const canPost = (body.trim().length > 0 || Boolean(image)) && !sending;
+  const canPost =
+    (body.trim().length > 0 || Boolean(image) || Boolean(cardId)) && !sending;
 
   return (
     <form onSubmit={(e) => void submit(e)} className="-mx-4 -mt-5 flex flex-col pb-16">
@@ -179,6 +197,21 @@ export function ComposeView() {
           <ImagePlus className="h-5 w-5" />
           Library
         </button>
+        {!editing ? (
+          <select
+            value={cardId}
+            onChange={(e) => setCardId(e.target.value)}
+            aria-label="Attach a card"
+            className="max-w-[140px] truncate rounded-full border border-zinc-200 bg-transparent px-2 py-1.5 text-xs text-zinc-600 dark:border-white/10 dark:text-zinc-300"
+          >
+            <option value="">Attach a card</option>
+            {cards.map((card) => (
+              <option key={card.id} value={card.id}>
+                {card.year} {card.playerName}
+              </option>
+            ))}
+          </select>
+        ) : null}
         <span
           className={`ml-auto pr-2 text-xs tabular-nums ${
             body.length > POST_LIMIT - 20 ? "text-rose-500" : "text-zinc-400"
