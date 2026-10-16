@@ -3,12 +3,14 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Camera, ImagePlus, Loader2, ScanSearch, X } from "lucide-react";
+import { CardSearch } from "@/components/card-search";
 import { CategoryPicker } from "@/components/category-picker";
 import { useCollection, useDefaultAccent } from "@/components/collection-provider";
 import { NativeSelect, SearchSelect } from "@/components/search-select";
 import { useSocial } from "@/components/social-provider";
 import { takeScan } from "@/lib/capture";
 import { CompsList } from "@/components/comps-list";
+import type { CatalogCard } from "@/lib/card-catalog";
 import {
   CARD_YEARS,
   GRADE_COMPANIES,
@@ -21,7 +23,7 @@ import {
   optionsWithCurrent,
   parseGrade,
 } from "@/lib/card-options";
-import { averageComp, identifyFromPhoto, mockCompsForCard } from "@/lib/comps";
+import { averageComp, identifyFromPhoto, mockCompsForCard } from "@/lib/comps/sample";
 import { cardCategory } from "@/lib/card-category";
 import { fileToDataUrl } from "@/lib/storage";
 import type { CardCategory, IdentifyResult, SportsCard } from "@/lib/types";
@@ -112,6 +114,19 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
     setIdentified(result);
   }
 
+  function applyCatalog(card: CatalogCard) {
+    setForm((prev) => ({
+      ...prev,
+      playerName: card.playerName,
+      year: card.year,
+      setBrand: card.setBrand,
+      cardNumber: card.cardNumber,
+      sport: card.sport,
+      parallel: card.parallel,
+    }));
+    setIdentified(null);
+  }
+
   function chooseGradeCompany(company: string) {
     setGradeTouched(true);
     setGradeCompany(company);
@@ -185,6 +200,8 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
       </div>
 
       <CategoryPicker value={category} onChange={setCategory} />
+
+      {!existing ? <CardSearch onSelect={applyCatalog} /> : null}
 
       <section className="rounded-2xl border border-zinc-200 bg-white dark:border-white/10 dark:bg-white/[0.03] p-4">
         <div className="flex items-start justify-between gap-3">

@@ -2,15 +2,18 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, Pencil, Trash2 } from "lucide-react";
 import { CategoryBadge, CategoryPicker } from "@/components/category-picker";
 import { useCollection } from "@/components/collection-provider";
 import { CardThumb } from "@/components/card-thumb";
 import { CompsList } from "@/components/comps-list";
 import { ValueChart } from "@/components/value-chart";
+import { useSocial } from "@/components/social-provider";
 import { cardCategory } from "@/lib/card-category";
-import { averageComp, mockCompsForCard } from "@/lib/comps";
+import { mockCompsForCard } from "@/lib/comps/sample";
+import { middleFifty } from "@/lib/comps/stats";
+import { useSoldComps } from "@/lib/comps/use-sold-comps";
 import {
   cardSubtitle,
   cardTitle,
@@ -22,14 +25,72 @@ import {
   profitPct,
   signedMoney,
 } from "@/lib/format";
+import { formatRelativeTime } from "@/lib/relative-time";
+import { createSupabaseBrowser } from "@/lib/supabase/browser";
 
 export function CardDetail({ id }: { id: string }) {
   const router = useRouter();
+  const { user } = useSocial();
   const { ready, getCard, updateCard, removeCard } = useCollection();
   const card = getCard(id);
   const [sellPrice, setSellPrice] = useState("");
-  const comps = useMemo(() => (card ? mockCompsForCard(card) : []), [card]);
-  const avg = averageComp(comps);
+  const [flaggedIds, setFlaggedIds] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (!user?.id || !card?.id) {
+      setFlaggedIds(new Set());
+      return;
+    }
+    const supabase = createSupabaseBrowser();
+    if (!supabase) return;
+    let cancelled = false;
+    supabase
+      .from("comp_flags")
+      .select("item_id")
+      .eq("card_id", card.id)
+      .eq("user_id", user.id)
+      .then(({ data }) => {
+        if (cancelled || !data) return;
+        setFlaggedIds(new Set(data.map((row) => row.item_id as string)));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, card?.id]);
+
+  const soldQuery = useMemo(
+    () =>
+      card
+        ? {
+            id: card.id,
+            playerName: card.playerName,
+            year: card.year,
+            setBrand: card.setBrand,
+            cardNumber: card.cardNumber,
+            grade: card.grade,
+            estimatedSellPrice: card.estimatedSellPrice,
+          }
+        : null,
+    [card],
+  );
+  const sold = useSoldComps(soldQuery);
+  const sampleComps = useMemo(() => (card ? mockCompsForCard(card) : []), [card]);
+
+  const usingLive = sold.data?.source === "trawl" && !sold.data.sample;
+  const showSampleBanner = !usingLive;
+  const liveComps = usingLive ? sold.data!.comps : null;
+  const compsLoading = sold.status === "loading";
+
+  const compsForList = useMemo(() => {
+    const base = usingLive ? (liveComps ?? []).slice(0, 15) : sampleComps;
+    return base.filter((c) => !flaggedIds.has(c.itemId));
+  }, [usingLive, liveComps, sampleComps, flaggedIds]);
+
+  const liveStats = useMemo(() => {
+    if (!usingLive) return null;
+    const prices = compsForList.map((c) => c.soldPrice);
+    return middleFifty(prices);
+  }, [usingLive, compsForList]);
 
   if (!ready) {
     return (
@@ -48,9 +109,9 @@ export function CardDetail({ id }: { id: string }) {
     );
   }
 
-  const sold = isSold(card);
+  const cardSold = isSold(card);
   const delta = profit(card);
-  const compare = sold ? card.sellPrice! : card.estimatedSellPrice;
+  const compare = cardSold ? card.sellPrice! : card.estimatedSellPrice;
   const max = Math.max(card.purchasePrice, compare, 1);
 
   function markSold() {
@@ -62,6 +123,14 @@ export function CardDetail({ id }: { id: string }) {
     });
     setSellPrice("");
   }
+
+  const liveCount = compsForList.length;
+  const liveMedian =
+    liveStats?.median != null ? Math.round(liveStats.median) : sold.data?.median ?? null;
+  const liveP25 =
+    liveStats?.p25 != null ? Math.round(liveStats.p25) : sold.data?.p25 ?? null;
+  const liveP75 =
+    liveStats?.p75 != null ? Math.round(liveStats.p75) : sold.data?.p75 ?? null;
 
   return (
     <div className="space-y-6">
@@ -120,7 +189,7 @@ export function CardDetail({ id }: { id: string }) {
           <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
             <Metric label="Paid" value={money(card.purchasePrice, true)} />
             <Metric
-              label={sold ? "Sold" : "Est. sell"}
+              label={cardSold ? "Sold" : "Est. sell"}
               value={money(compare, true)}
             />
             <Metric
@@ -141,7 +210,7 @@ export function CardDetail({ id }: { id: string }) {
           <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-zinc-500">
             <span>
               Bought {formatDate(card.purchaseDate)}
-              {sold ? ` · Sold ${formatDate(card.sellDate)}` : " · Still held"}
+              {cardSold ? ` · Sold ${formatDate(card.sellDate)}` : " · Still held"}
             </span>
             <button
               type="button"
@@ -156,7 +225,7 @@ export function CardDetail({ id }: { id: string }) {
             </button>
           </div>
 
-          {!sold && (
+          {!cardSold && (
             <div className="mt-6 flex flex-col gap-2 sm:flex-row">
               <input
                 type="number"
@@ -182,9 +251,9 @@ export function CardDetail({ id }: { id: string }) {
       <section className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-white/10 dark:bg-white/[0.03] sm:p-5">
         <div className="flex items-end justify-between gap-3">
           <div>
-            <h2 className="font-semibold">Paid vs {sold ? "sold" : "estimate"}</h2>
+            <h2 className="font-semibold">Paid vs {cardSold ? "sold" : "estimate"}</h2>
             <p className="text-xs text-zinc-500">
-              {sold ? "Closed flip" : "Open position"} · {signedMoney(delta, true)}
+              {cardSold ? "Closed flip" : "Open position"} · {signedMoney(delta, true)}
             </p>
           </div>
         </div>
@@ -196,7 +265,7 @@ export function CardDetail({ id }: { id: string }) {
             color="bg-zinc-400 dark:bg-zinc-500"
           />
           <Bar
-            label={sold ? "Sold" : "Estimated sell"}
+            label={cardSold ? "Sold" : "Estimated sell"}
             value={compare}
             max={max}
             color={delta >= 0 ? "bg-emerald-500" : "bg-rose-500"}
@@ -204,12 +273,73 @@ export function CardDetail({ id }: { id: string }) {
         </div>
       </section>
 
-      <ValueChart card={card} />
+      <ValueChart
+        card={card}
+        points={usingLive ? sold.data?.history : null}
+        source={sold.data?.source ?? "sample"}
+        loading={compsLoading}
+        median={usingLive ? liveMedian : null}
+        p25={usingLive ? liveP25 : null}
+        p75={usingLive ? liveP75 : null}
+        count={usingLive ? liveCount : 0}
+        fetchedAt={sold.data?.fetchedAt ?? null}
+        sample={!usingLive}
+      />
 
       <section className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-white/10 dark:bg-white/[0.03] sm:p-5">
-        <h2 className="font-semibold">eBay sold comps</h2>
-        <p className="text-xs text-zinc-500">Mock listings for now · avg {money(avg)}</p>
-        <CompsList comps={comps} />
+        <div className="flex flex-wrap items-end justify-between gap-2">
+          <div>
+            <h2 className="font-semibold">Recent sales</h2>
+            <p className="text-xs text-zinc-500">
+              {compsLoading
+                ? "Loading sold listings…"
+                : usingLive
+                  ? liveCount === 0
+                    ? "No recent sales found"
+                    : `Based on ${liveCount} sale${liveCount === 1 ? "" : "s"}${
+                        liveCount < 5 ? " · Low confidence" : ""
+                      }${
+                        sold.data?.fetchedAt
+                          ? ` · Updated ${formatRelativeTime(sold.data.fetchedAt)}`
+                          : ""
+                      }`
+                  : "Sample listings"}
+            </p>
+          </div>
+        </div>
+        {showSampleBanner && !compsLoading ? (
+          <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
+            Showing sample data until live results are available.
+          </p>
+        ) : null}
+        {usingLive && !compsLoading ? (
+          <p className="mt-3 text-[11px] text-zinc-400">
+            Sold data via Trawl (third-party, not affiliated with eBay)
+            {sold.data?.fetchedAt
+              ? ` · Updated ${formatRelativeTime(sold.data.fetchedAt)}`
+              : null}
+          </p>
+        ) : null}
+        {compsLoading ? (
+          <div className="mt-3 space-y-3">
+            {Array.from({ length: 4 }, (_, i) => (
+              <div
+                key={i}
+                className="h-12 animate-pulse rounded-xl bg-zinc-100 dark:bg-white/5"
+              />
+            ))}
+          </div>
+        ) : (
+          <CompsList
+            comps={usingLive ? (liveComps ?? []).slice(0, 15) : sampleComps}
+            cardId={card.id}
+            userId={user?.id ?? null}
+            flaggedIds={flaggedIds}
+            onFlagged={(itemId) =>
+              setFlaggedIds((prev) => new Set(prev).add(itemId))
+            }
+          />
+        )}
       </section>
     </div>
   );

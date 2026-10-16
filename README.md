@@ -17,7 +17,7 @@ Open [http://localhost:3000](http://localhost:3000).
 
 - `/` — portfolio dashboard, search, filters
 - `/cards/new` — add a card, camera/upload, mock comps
-- `/cards/[id]` — paid vs sold, profit, mock eBay sold listings
+- `/cards/[id]` — paid vs sold, profit, cleaned sold comps (Trawl)
 - `/cards/[id]/edit` — edit or delete
 
 ## Supabase
@@ -26,9 +26,16 @@ The app reads these variables from `.env.local`:
 
 - `NEXT_PUBLIC_SUPABASE_URL` — project URL (`https://<project-ref>.supabase.co`)
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY` — the project's publishable anon key
+- `TRAWL_API_KEY` — Trawl API key for live sold listings ([console](https://trawl.dev/console/keys)); server-only
+- `COMPS_SOURCE` — `trawl` | `sample` | `off` (defaults to `sample` when unset)
+- `SUPABASE_SERVICE_ROLE_KEY` — required for `sold_comps_cache` writes under RLS
 
-1. Copy `.env.example` to `.env.local` and paste both values in full.
-2. Run `supabase/schema.sql` in the Supabase SQL editor. That creates `profiles`, `posts`, `follows`, `reposts`, `comments`, `notifications`, `messages`, and `cards`, plus Storage buckets for avatars, cover photos, post images, and card photos. Re-run it after pulling when those tables change.
+1. Copy `.env.example` to `.env.local` and paste the values in full.
+2. Run `supabase/schema.sql` in the Supabase SQL editor, then the latest file under `supabase/migrations/` (sold comps cache + comp flags).
 3. Restart `npm run dev`.
 
 Sign up and log in then use Supabase Auth. Profile photos and cover photos upload to Storage, and the profile row stores those URLs. Posts are written to `posts`. Reposts are written to `reposts`. The Timeline **Following** tab shows posts and reposts from you and people you follow.
+
+### Sold comps (Trawl)
+
+Card analytics (`/cards/[id]`) loads cleaned sold listings from Trawl (`details=1`), matched on grader/grade, with median and middle-50% range. Results are cached per card in `sold_comps_cache` (6h TTL). Set `COMPS_SOURCE=sample` or `off` (or omit it) to show the sample-data banner without calling Trawl.

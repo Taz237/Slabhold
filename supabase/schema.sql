@@ -4,6 +4,8 @@
 -- The app reads these environment variables from `.env.local`:
 --   NEXT_PUBLIC_SUPABASE_URL
 --   NEXT_PUBLIC_SUPABASE_ANON_KEY
+--   TRAWL_API_KEY (server-only; live eBay sold comps via Trawl)
+--   SUPABASE_SERVICE_ROLE_KEY (optional; preferred for trawl_sold_cache writes)
 -- Restart the dev server after setting them. See the README.
 
 create extension if not exists "pgcrypto";
@@ -439,6 +441,34 @@ create policy "Users can upload post images"
 create policy "Public can view post images"
   on storage.objects for select
   using (bucket_id = 'post-images');
+
+-- Cached Trawl eBay sold comps (shared across users; refreshed by the Next.js API route).
+create table if not exists public.trawl_sold_cache (
+  cache_key text primary key,
+  query text not null,
+  player_name text not null,
+  year integer not null,
+  set_brand text not null,
+  results jsonb not null default '[]'::jsonb,
+  fetched_at timestamptz not null default now()
+);
+
+create index if not exists trawl_sold_cache_fetched_at_idx
+  on public.trawl_sold_cache (fetched_at desc);
+
+alter table public.trawl_sold_cache enable row level security;
+
+grant select, insert, update on public.trawl_sold_cache to anon, authenticated;
+
+drop policy if exists "Anyone can read trawl sold cache" on public.trawl_sold_cache;
+drop policy if exists "Anyone can insert trawl sold cache" on public.trawl_sold_cache;
+drop policy if exists "Anyone can update trawl sold cache" on public.trawl_sold_cache;
+create policy "Anyone can read trawl sold cache"
+  on public.trawl_sold_cache for select using (true);
+create policy "Anyone can insert trawl sold cache"
+  on public.trawl_sold_cache for insert with check (true);
+create policy "Anyone can update trawl sold cache"
+  on public.trawl_sold_cache for update using (true) with check (true);
 
 -- Best-effort: live updates for comments and notifications. Ignore if realtime is off.
 do $$

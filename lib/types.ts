@@ -29,12 +29,14 @@ export type CardInput = Omit<SportsCard, "id" | "createdAt" | "updatedAt">;
 
 export type CompListing = {
   id: string;
+  itemId: string;
   title: string;
   soldPrice: number;
   soldDate: string;
   platform: "eBay";
   condition: string;
   shipping: number | null;
+  url: string;
 };
 
 export type IdentifyResult = {
