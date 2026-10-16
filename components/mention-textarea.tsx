@@ -13,6 +13,7 @@ import { useSocial } from "@/components/social-provider";
 import {
   activeMention,
   insertMention,
+  mentionQueryAt,
   rankMentionMatches,
   type MentionCandidate,
 } from "@/lib/social/mentions";
@@ -74,31 +75,37 @@ export const MentionTextarea = forwardRef<
   const [active, setActive] = useState(0);
   const [trackedQuery, setTrackedQuery] = useState("");
   const [pendingCaret, setPendingCaret] = useState<{ id: number; caret: number } | null>(null);
-  const [debouncedQuery, setDebouncedQuery] = useState("");
-  const [remotePeople, setRemotePeople] = useState<MentionCandidate[] | null>(null);
+  const [debouncedQuery, setDebouncedQuery] = useState<string | null>(null);
+  const [remoteMatches, setRemoteMatches] = useState<MentionCandidate[]>([]);
+  const [remoteForQuery, setRemoteForQuery] = useState<string | null>(null);
 
   useImperativeHandle(ref, () => fieldRef.current as HTMLTextAreaElement);
 
   const mention = activeMention(value, cursor);
-  const queryKey = mention ? `${mention.start}:${mention.query}` : "";
+  const query = mentionQueryAt(value, cursor) ?? "";
+  const queryKey = mention ? `${mention.start}:${query}` : "";
   const open = Boolean(mention) && dismissedKey !== queryKey;
-  const query = mention?.query ?? "";
 
   useEffect(() => {
     if (!mention) {
-      setDebouncedQuery("");
+      setDebouncedQuery(null);
       return;
     }
     const handle = window.setTimeout(() => setDebouncedQuery(query), DEBOUNCE_MS);
     return () => window.clearTimeout(handle);
   }, [mention, query]);
 
-  const followingIds = useMemo(() => {
-    if (!user) return new Set<string>();
-    return new Set(followingOf(user.id).map((person) => person.id));
+  const following = useMemo(() => {
+    if (!user) return [] as MentionCandidate[];
+    return followingOf(user.id).map(toCandidate);
   }, [followingOf, user]);
 
-  const localPeople = useMemo(() => {
+  const followingIds = useMemo(
+    () => new Set(following.map((person) => person.id)),
+    [following],
+  );
+
+  const localPool = useMemo(() => {
     if (!user) return [] as MentionCandidate[];
     return profiles
       .filter((person) => person.id !== user.id)
@@ -106,40 +113,80 @@ export const MentionTextarea = forwardRef<
   }, [profiles, user]);
 
   useEffect(() => {
-    if (!open || mode !== "supabase") {
-      setRemotePeople(null);
+    if (!open || debouncedQuery === null) {
+      setRemoteMatches([]);
+      setRemoteForQuery(null);
       return;
     }
-    let cancelled = false;
+    if (!debouncedQuery) {
+      // Bare "@" — followed only; no remote fetch / no full-list cache.
+      setRemoteMatches([]);
+      setRemoteForQuery("");
+      return;
+    }
+    if (mode !== "supabase") {
+      setRemoteMatches([]);
+      setRemoteForQuery(debouncedQuery);
+      return;
+    }
+
     const client = createSupabaseBrowser();
     if (!client) {
-      setRemotePeople(null);
+      setRemoteMatches([]);
+      setRemoteForQuery(debouncedQuery);
       return;
     }
-    searchProfilesForMention(client, debouncedQuery)
+
+    const requestQuery = debouncedQuery;
+    const controller = new AbortController();
+    searchProfilesForMention(client, requestQuery, 8, controller.signal)
       .then((rows) => {
-        if (cancelled) return;
-        setRemotePeople(rows.filter((person) => person.id !== user?.id));
+        if (controller.signal.aborted) return;
+        setRemoteMatches(rows.filter((person) => person.id !== user?.id));
+        setRemoteForQuery(requestQuery);
       })
       .catch(() => {
-        if (!cancelled) setRemotePeople(null);
+        if (controller.signal.aborted) return;
+        setRemoteMatches([]);
+        setRemoteForQuery(requestQuery);
       });
+
     return () => {
-      cancelled = true;
+      controller.abort();
     };
   }, [debouncedQuery, mode, open, user?.id]);
 
-  const pool = remotePeople ?? localPeople;
-  const matches = useMemo(
-    () => rankMentionMatches(pool, debouncedQuery, followingIds, 8),
-    [debouncedQuery, followingIds, pool],
-  );
+  const matches = useMemo(() => {
+    if (!open || debouncedQuery === null) return [];
 
-  if (debouncedQuery !== trackedQuery) {
-    setTrackedQuery(debouncedQuery);
+    // Bare "@": followed users only.
+    if (!debouncedQuery) {
+      return rankMentionMatches(following, "", followingIds, 8);
+    }
+
+    // Ignore stale remote payloads that do not match the debounced query.
+    if (mode === "supabase") {
+      if (remoteForQuery !== debouncedQuery) return [];
+      return rankMentionMatches(remoteMatches, debouncedQuery, followingIds, 8);
+    }
+
+    return rankMentionMatches(localPool, debouncedQuery, followingIds, 8);
+  }, [
+    debouncedQuery,
+    following,
+    followingIds,
+    localPool,
+    mode,
+    open,
+    remoteForQuery,
+    remoteMatches,
+  ]);
+
+  if (query !== trackedQuery) {
+    setTrackedQuery(query);
     setActive(0);
   }
-  const highlighted = debouncedQuery === trackedQuery ? active : 0;
+  const highlighted = query === trackedQuery ? active : 0;
   const index = matches.length === 0 ? 0 : Math.min(highlighted, matches.length - 1);
 
   useEffect(() => {

@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { rankMentionMatches, type MentionCandidate } from "./mentions";
+import {
+  escapeIlike,
+  mentionQueryAt,
+  rankMentionMatches,
+  type MentionCandidate,
+} from "./mentions";
 
 function person(
   id: string,
@@ -16,39 +21,82 @@ function person(
   };
 }
 
+describe("mentionQueryAt", () => {
+  it("extracts the text after @ up to the cursor", () => {
+    assert.equal(mentionQueryAt("@", 1), "");
+    assert.equal(mentionQueryAt("@d", 2), "d");
+    assert.equal(mentionQueryAt("@do", 3), "do");
+    assert.equal(mentionQueryAt("hey @do", 7), "do");
+    assert.equal(mentionQueryAt("hey @do more", 7), "do");
+  });
+
+  it("returns null when the caret is not in a mention", () => {
+    assert.equal(mentionQueryAt("hello", 5), null);
+    assert.equal(mentionQueryAt("a@b.com", 4), null);
+    assert.equal(mentionQueryAt("@do ", 4), null);
+  });
+});
+
+describe("escapeIlike", () => {
+  it("escapes %, _, and strips commas", () => {
+    assert.equal(escapeIlike("a%b_c,d"), "a\\%b\\_cd");
+  });
+});
+
 describe("rankMentionMatches", () => {
   const alice = person("1", "alice", "Alice Wonder");
   const wonder = person("2", "wonderkid", "Sam");
   const bob = person("3", "bobby", "Wonder Bob");
+  const don = person("5", "donnie", "Don Smith");
+  const dale = person("6", "dale", "Dale");
   const carl = person("4", "carl", "Carl");
-  const all = [alice, wonder, bob, carl];
 
-  it("matches username and display name case-insensitively", () => {
-    const hits = rankMentionMatches(all, "WO", new Set(), 8);
+  it("ranks prefix before contains; followed first within each tier", () => {
+    // prefix: bobby (display), wonderkid (username); contains: alice (followed)
+    const hits = rankMentionMatches(
+      [alice, wonder, bob, carl],
+      "wo",
+      new Set(["1"]),
+      8,
+    );
     assert.deepEqual(
       hits.map((p) => p.id),
-      ["2", "3", "1"],
+      ["3", "2", "1"],
     );
   });
 
-  it("ranks following first, then prefix over contains", () => {
-    const hits = rankMentionMatches(all, "wo", new Set(["1"]), 8);
+  it("filters by typed query so @d and @do differ", () => {
+    const pool = [
+      person("1", "alice", "Alice"),
+      carl,
+      don,
+      dale,
+    ];
     assert.deepEqual(
-      hits.map((p) => p.id),
-      ["1", "2", "3"],
+      rankMentionMatches(pool, "d", new Set(), 8).map((p) => p.username),
+      ["dale", "donnie"],
+    );
+    assert.deepEqual(
+      rankMentionMatches(pool, "do", new Set(), 8).map((p) => p.username),
+      ["donnie"],
     );
   });
 
-  it("prefers prefix matches before contains among non-followed", () => {
-    const hits = rankMentionMatches(all, "wo", new Set(), 8);
+  it("empty query returns followed users only", () => {
+    const hits = rankMentionMatches(
+      [alice, wonder, bob, carl, don],
+      "",
+      new Set(["4", "5"]),
+      8,
+    );
     assert.deepEqual(
       hits.map((p) => p.id),
-      ["2", "3", "1"],
+      ["4", "5"],
     );
   });
 
   it("caps at 8 and excludes non-matches", () => {
-    const hits = rankMentionMatches(all, "zz", new Set(), 8);
+    const hits = rankMentionMatches([alice, wonder, bob, carl], "zz", new Set(), 8);
     assert.equal(hits.length, 0);
   });
 });

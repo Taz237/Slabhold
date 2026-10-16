@@ -15,9 +15,27 @@ export type MentionCandidate = {
   accent: string;
 };
 
+/** Escape `%`, `_`, and commas for PostgREST `ilike` / `.or()` filter values. */
+export function escapeIlike(value: string): string {
+  return value
+    .replace(/\\/g, "\\\\")
+    .replace(/%/g, "\\%")
+    .replace(/_/g, "\\_")
+    .replace(/,/g, "");
+}
+
 /**
- * Rank @mention matches: people you follow first, then prefix matches on
- * username/display name, then contains. Case-insensitive. Cap at `limit`.
+ * Text typed after `@` up to the cursor when an active mention is open.
+ * Returns `null` when the caret is not inside a mention.
+ */
+export function mentionQueryAt(body: string, cursor: number): string | null {
+  return activeMention(body, cursor)?.query ?? null;
+}
+
+/**
+ * Rank @mention matches: prefix before contains; followed users first within
+ * each tier. Case-insensitive. Cap at `limit`.
+ * When `query` is empty, only people in `followingIds` are returned.
  */
 export function rankMentionMatches(
   people: MentionCandidate[],
@@ -28,34 +46,43 @@ export function rankMentionMatches(
   const q = query.trim().toLowerCase();
   const scored: Array<{
     person: MentionCandidate;
-    following: number;
     tier: number;
+    following: number;
     name: string;
   }> = [];
 
   for (const person of people) {
+    const followed = followingIds.has(person.id);
+    if (!q) {
+      if (!followed) continue;
+      scored.push({
+        person,
+        tier: 0,
+        following: 0,
+        name: person.username.toLowerCase(),
+      });
+      continue;
+    }
+
     const username = person.username.toLowerCase();
     const display = person.displayName.toLowerCase();
-    let tier = 0;
-    if (q) {
-      if (username.startsWith(q)) tier = 0;
-      else if (display.startsWith(q)) tier = 1;
-      else if (username.includes(q)) tier = 2;
-      else if (display.includes(q)) tier = 3;
-      else continue;
-    }
+    let tier: number;
+    if (username.startsWith(q) || display.startsWith(q)) tier = 0;
+    else if (username.includes(q) || display.includes(q)) tier = 1;
+    else continue;
+
     scored.push({
       person,
-      following: followingIds.has(person.id) ? 0 : 1,
       tier,
+      following: followed ? 0 : 1,
       name: username,
     });
   }
 
   scored.sort(
     (a, b) =>
-      a.following - b.following ||
       a.tier - b.tier ||
+      a.following - b.following ||
       a.name.localeCompare(b.name),
   );
   return scored.slice(0, limit).map((entry) => entry.person);

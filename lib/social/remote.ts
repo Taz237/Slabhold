@@ -17,11 +17,15 @@ import type {
   SocialSnapshot,
 } from "./types";
 import { COMMENT_LIMIT, MESSAGE_LIMIT } from "./types";
-import { mentionUsernames, type MentionCandidate } from "./mentions";
+import {
+  escapeIlike,
+  mentionUsernames,
+  type MentionCandidate,
+} from "./mentions";
 import { normalizeUsername, usernameError } from "./local-db";
 
 /** Public columns only — used by @mention autocomplete. */
-const MENTION_PROFILE_SELECT = "id, username, display_name, avatar_url, accent";
+const MENTION_PROFILE_SELECT = "id, username, display_name, avatar_url";
 
 type ProfileRow = {
   id: string;
@@ -657,34 +661,37 @@ async function syncMentionNotifications(
 }
 
 /**
- * Search all public profiles for @mention autocomplete.
- * Only selects public columns; query is sanitized to [a-z0-9_].
+ * Search public profiles for @mention autocomplete by username / display_name.
+ * Empty query returns [] — callers should show followed users locally instead.
  */
 export async function searchProfilesForMention(
   supabase: SupabaseClient,
   query: string,
-  limit = 24,
+  limit = 8,
+  signal?: AbortSignal,
 ): Promise<MentionCandidate[]> {
-  const q = query.trim().toLowerCase().replace(/[^a-z0-9_]/g, "").slice(0, 20);
-  let req = supabase
+  const raw = query.trim().toLowerCase().slice(0, 20);
+  if (!raw) return [];
+  const q = escapeIlike(raw);
+  const req = supabase
     .from("profiles")
     .select(MENTION_PROFILE_SELECT)
-    .order("username", { ascending: true })
+    .or(`username.ilike.%${q}%,display_name.ilike.%${q}%`)
     .limit(limit);
-  if (q) {
-    req = req.or(
-      `username.ilike.${q}%,username.ilike.%${q}%,display_name.ilike.${q}%,display_name.ilike.%${q}%`,
-    );
+  if (signal) {
+    req.abortSignal(signal);
   }
   const { data, error } = await req;
   if (error || !data) return [];
-  return (data as ProfileRow[]).map((row) => ({
-    id: row.id,
-    username: row.username,
-    displayName: row.display_name,
-    avatarDataUrl: row.avatar_url,
-    accent: row.accent ?? "#7c5cff",
-  }));
+  return (data as Pick<ProfileRow, "id" | "username" | "display_name" | "avatar_url">[]).map(
+    (row) => ({
+      id: row.id,
+      username: row.username,
+      displayName: row.display_name,
+      avatarDataUrl: row.avatar_url,
+      accent: "#7c5cff",
+    }),
+  );
 }
 
 export async function remoteDeletePost(supabase: SupabaseClient, authorId: string, postId: string) {
