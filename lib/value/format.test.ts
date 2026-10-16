@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 import {
   VALUE_UPDATING_WINDOW_MS,
   formatCardValueLabel,
+  isLowConfidenceValue,
 } from "./format";
 import type { CardValueResult } from "./types";
 
@@ -61,5 +62,18 @@ describe("formatCardValueLabel", () => {
 
   it("shows No sales yet for missing row without createdAt", () => {
     assert.equal(formatCardValueLabel(undefined), "No sales yet");
+  });
+});
+
+describe("isLowConfidenceValue", () => {
+  it("is false for zero sales and no_sales", () => {
+    assert.equal(isLowConfidenceValue(value({ status: "no_sales", nSales: 0 })), false);
+    assert.equal(isLowConfidenceValue(value({ status: "ok", median: 10, nSales: 0 })), false);
+  });
+
+  it("is true only when 0 < N < 5", () => {
+    assert.equal(isLowConfidenceValue(value({ status: "ok", median: 10, nSales: 1 })), true);
+    assert.equal(isLowConfidenceValue(value({ status: "ok", median: 10, nSales: 4 })), true);
+    assert.equal(isLowConfidenceValue(value({ status: "ok", median: 10, nSales: 5 })), false);
   });
 });

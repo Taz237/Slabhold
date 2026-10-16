@@ -72,7 +72,7 @@ export function ValueChart({
   const displayP25 = usingLive ? p25 : null;
   const displayP75 = usingLive ? p75 : null;
   const n = usingLive ? count : points.length;
-  const lowConfidence = usingLive && n < 5;
+  const lowConfidence = usingLive && n > 0 && n < 5;
   const noSales = usingLive && n === 0;
 
   return (

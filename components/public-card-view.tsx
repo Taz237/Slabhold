@@ -224,10 +224,9 @@ function PublicCardAnalytics({
         <div className="flex flex-wrap items-end justify-between gap-2">
           <div>
             <h2 className="font-semibold">Recent sales</h2>
-            <p className="text-xs text-zinc-500">
-              {authRequired
-                ? "Log in to see sold comps"
-                : compsLoading
+            {authRequired ? null : (
+              <p className="text-xs text-zinc-500">
+                {compsLoading
                   ? "Loading sold listings…"
                   : unavailable || rateLimited
                     ? "Sold data unavailable, try again shortly"
@@ -242,12 +241,16 @@ function PublicCardAnalytics({
                       : usingSample
                         ? "Sample listings"
                         : ""}
-            </p>
+              </p>
+            )}
           </div>
         </div>
         {authRequired ? (
           <p className="mt-3 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-700 dark:border-white/10 dark:bg-white/5 dark:text-zinc-300">
-            Log in to see sold comps
+            <Link href="/login" className="font-semibold underline underline-offset-2">
+              Log in
+            </Link>{" "}
+            to see sold comps
           </p>
         ) : null}
         {usingLive && !compsLoading && !authRequired ? (

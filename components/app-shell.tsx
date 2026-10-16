@@ -6,6 +6,7 @@ import { Bell, Camera, CircleUser, Compass, Ellipsis, Mail, Search, WalletCards 
 import { Logo } from "@/components/logo";
 import { useSocial } from "@/components/social-provider";
 import { WelcomeView } from "@/components/welcome-view";
+import type { Profile } from "@/lib/social/types";
 
 const TABS = [
   { href: "/profile", label: "Profile", icon: CircleUser },
@@ -16,9 +17,20 @@ const TABS = [
   { href: "/more", label: "More", icon: Ellipsis },
 ] as const;
 
-function isActive(pathname: string, href: string) {
+function profileUsernameFromPath(pathname: string): string | null {
+  if (!pathname.startsWith("/u/")) return null;
+  const segment = pathname.split("/")[2];
+  return segment ? decodeURIComponent(segment) : null;
+}
+
+function isActive(pathname: string, href: string, user: Profile | null) {
   if (href === "/") return pathname === "/";
-  if (href === "/profile") return pathname.startsWith("/profile") || pathname.startsWith("/u/");
+  if (href === "/profile") {
+    if (pathname.startsWith("/profile")) return true;
+    const routeUsername = profileUsernameFromPath(pathname);
+    if (!routeUsername || !user) return false;
+    return routeUsername.toLowerCase() === user.username.toLowerCase();
+  }
   if (href === "/collection") {
     return (
       pathname.startsWith("/collection") ||
@@ -35,11 +47,13 @@ function Shell({
   unreadCount,
   unreadMessageCount,
   status,
+  user,
 }: {
   children: React.ReactNode;
   unreadCount: number;
   unreadMessageCount: number;
   status: string | null;
+  user: Profile | null;
 }) {
   const pathname = usePathname();
   /** Collection needs a wider desktop column; feed/timeline stay max-w-lg. */
@@ -100,7 +114,7 @@ function Shell({
       <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-zinc-200 bg-[color-mix(in_oklab,var(--background)_92%,transparent)] backdrop-blur-xl dark:border-white/10">
         <div className="mx-auto flex max-w-lg items-end justify-between px-1 pt-1 pb-[max(0.45rem,env(safe-area-inset-bottom))]">
           {TABS.map((tab) => {
-            const active = isActive(pathname, tab.href);
+            const active = isActive(pathname, tab.href, user);
             const Icon = tab.icon;
             if (tab.href === "/scan") {
               return (
@@ -159,14 +173,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   if (!ready) {
     return (
-      <Shell unreadCount={0} unreadMessageCount={0} status={null}>
+      <Shell unreadCount={0} unreadMessageCount={0} status={null} user={null}>
         {children}
       </Shell>
     );
   }
   if (!user && !isSharedPage(pathname)) return <WelcomeView />;
   return (
-    <Shell unreadCount={unreadCount} unreadMessageCount={unreadMessageCount} status={status}>
+    <Shell
+      unreadCount={unreadCount}
+      unreadMessageCount={unreadMessageCount}
+      status={status}
+      user={user}
+    >
       {children}
     </Shell>
   );

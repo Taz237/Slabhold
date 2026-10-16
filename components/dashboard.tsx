@@ -257,11 +257,11 @@ export function Dashboard() {
                     <p className="text-sm text-zinc-400" title={subtitleText}>
                       {subtitleText}
                     </p>
-                    <div className="mt-1.5 flex flex-wrap gap-1">
+                    <div className="mt-1.5 flex min-w-0 flex-wrap gap-1">
                       <CategoryBadge card={card} />
                       {needsDetails(card) ? (
                         <span
-                          className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] font-medium text-amber-800 dark:text-amber-300"
+                          className="max-w-full truncate rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] font-medium text-amber-800 dark:text-amber-300"
                           title="Needs details"
                         >
                           Needs details
@@ -273,12 +273,15 @@ export function Dashboard() {
                         </span>
                       ) : null}
                       {grade ? (
-                        <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-medium text-zinc-600 dark:bg-white/10 dark:text-zinc-300">
+                        <span
+                          className="max-w-full truncate rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-medium text-zinc-600 dark:bg-white/10 dark:text-zinc-300"
+                          title={grade}
+                        >
                           {grade}
                         </span>
                       ) : null}
                       <span
-                        className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                        className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium whitespace-nowrap ${
                           sold
                             ? "bg-sky-500/15 text-sky-700 dark:text-sky-300"
                             : "bg-violet-500/15 text-violet-700 dark:text-violet-300"

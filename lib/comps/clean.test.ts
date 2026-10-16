@@ -97,8 +97,9 @@ describe("gradesMatch", () => {
 });
 
 describe("isLowConfidence", () => {
-  it("is true when N < 5 including zero", () => {
-    assert.equal(isLowConfidence(0), true);
+  it("is true only when 0 < N < 5", () => {
+    assert.equal(isLowConfidence(0), false);
+    assert.equal(isLowConfidence(1), true);
     assert.equal(isLowConfidence(4), true);
     assert.equal(isLowConfidence(5), false);
   });

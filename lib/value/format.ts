@@ -70,5 +70,5 @@ export function isLowConfidenceValue(
   if (!value) return false;
   if (value.status === "no_sales") return false;
   if (value.status !== "ok" && value.status !== "sample") return false;
-  return value.nSales < 5;
+  return value.nSales > 0 && value.nSales < 5;
 }

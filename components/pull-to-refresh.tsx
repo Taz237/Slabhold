@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 
 const THRESHOLD = 68;
 const HOLD = 44;
+const TOUCH_OR_NARROW = "(max-width: 767px), (pointer: coarse)";
 
 function blockedTarget(target: EventTarget | null) {
   return (
@@ -16,9 +17,24 @@ function blockedTarget(target: EventTarget | null) {
   );
 }
 
+function usePullEnabled() {
+  const [enabled, setEnabled] = useState(false);
+
+  useEffect(() => {
+    const mq = window.matchMedia(TOUCH_OR_NARROW);
+    const sync = () => setEnabled(mq.matches);
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, []);
+
+  return enabled;
+}
+
 /**
  * Pull down at the top of the page to reload.
  * onRefresh re-reads the current store (local browser data, or Supabase when configured).
+ * Shown only on touch devices or small screens — hidden on desktop with a fine pointer.
  */
 export function PullToRefresh({
   onRefresh,
@@ -34,6 +50,7 @@ export function PullToRefresh({
   const [distance, setDistance] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const [dragging, setDragging] = useState(false);
+  const pullEnabled = usePullEnabled();
   const startY = useRef(0);
   const startX = useRef(0);
   const tracking = useRef(false);
@@ -41,9 +58,11 @@ export function PullToRefresh({
   const onRefreshRef = useRef(onRefresh);
   const disabledRef = useRef(disabled);
   const refreshingRef = useRef(false);
+  const enabledRef = useRef(pullEnabled);
   const mounted = useRef(true);
   onRefreshRef.current = onRefresh;
   disabledRef.current = disabled;
+  enabledRef.current = pullEnabled;
 
   useEffect(() => {
     mounted.current = true;
@@ -53,8 +72,23 @@ export function PullToRefresh({
   }, []);
 
   useEffect(() => {
+    if (!pullEnabled) {
+      tracking.current = false;
+      distanceRef.current = 0;
+      setDragging(false);
+      setDistance(0);
+      return;
+    }
+
     function arm(clientX: number, clientY: number) {
-      if (disabledRef.current || refreshingRef.current || window.scrollY > 4) return false;
+      if (
+        !enabledRef.current ||
+        disabledRef.current ||
+        refreshingRef.current ||
+        window.scrollY > 4
+      ) {
+        return false;
+      }
       startX.current = clientX;
       startY.current = clientY;
       tracking.current = true;
@@ -161,9 +195,9 @@ export function PullToRefresh({
       window.removeEventListener("touchend", finish);
       window.removeEventListener("touchcancel", finish);
     };
-  }, []);
+  }, [pullEnabled]);
 
-  const shown = refreshing ? HOLD : distance;
+  const shown = pullEnabled ? (refreshing ? HOLD : distance) : 0;
 
   return (
     <div className={className}>

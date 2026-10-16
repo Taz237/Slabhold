@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState, useSyncExternalStore } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { Clock, Search, X } from "lucide-react";
 import { Avatar } from "@/components/avatar";
 import { CardThumb } from "@/components/card-thumb";
@@ -52,13 +53,35 @@ function useRecentSearches() {
   return useMemo(() => parseRecent(raw), [raw]);
 }
 
+function searchHref(term: string) {
+  const trimmed = term.trim();
+  if (!trimmed) return "/search";
+  return `/search?q=${encodeURIComponent(trimmed)}`;
+}
+
 export function SearchView() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const urlQ = searchParams.get("q") ?? "";
   const { ready: socialReady, profiles, posts, user } = useSocial();
   const { ready: cardsReady, cards } = useCollection();
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(urlQ);
   const recent = useRecentSearches();
   const typed = query.trim();
   const q = typed.toLowerCase().replace(/^@/, "");
+
+  useEffect(() => {
+    setQuery(urlQ);
+  }, [urlQ]);
+
+  function setSearchQuery(next: string) {
+    setQuery(next);
+    const href = searchHref(next);
+    const current = searchHref(urlQ);
+    if (href !== current) {
+      router.replace(href, { scroll: false });
+    }
+  }
 
   const people = useMemo(() => {
     if (!q) return [];
@@ -133,7 +156,7 @@ export function SearchView() {
           <Search className="h-5 w-5 shrink-0 text-zinc-500" />
           <input
             value={query}
-            onChange={(event) => setQuery(event.target.value)}
+            onChange={(event) => setSearchQuery(event.target.value)}
             autoFocus
             type="search"
             enterKeyHint="search"
@@ -144,7 +167,7 @@ export function SearchView() {
           {query ? (
             <button
               type="button"
-              onClick={() => setQuery("")}
+              onClick={() => setSearchQuery("")}
               aria-label="Clear search"
               className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-zinc-500 hover:bg-zinc-200/80 dark:hover:bg-white/10"
             >
@@ -181,7 +204,7 @@ export function SearchView() {
                 >
                   <button
                     type="button"
-                    onClick={() => setQuery(term)}
+                    onClick={() => setSearchQuery(term)}
                     className="flex min-h-12 min-w-0 flex-1 items-center gap-3 px-4 text-left"
                   >
                     <Clock className="h-5 w-5 shrink-0 text-zinc-400" />

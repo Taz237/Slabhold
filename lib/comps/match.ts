@@ -693,5 +693,5 @@ export function prepareSales(
 }
 
 export function isLowConfidence(count: number): boolean {
-  return count < 5;
+  return count > 0 && count < 5;
 }

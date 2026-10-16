@@ -250,7 +250,7 @@ export function CardDetail({ id }: { id: string }) {
           </div>
 
           {!cardSold && (
-            <div className="mt-6 flex flex-col gap-2 sm:flex-row">
+            <div className="mt-6 flex max-w-sm flex-col gap-2">
               <input
                 type="number"
                 min={0}
@@ -263,7 +263,7 @@ export function CardDetail({ id }: { id: string }) {
               <button
                 type="button"
                 onClick={markSold}
-                className="rounded-full bg-zinc-900 px-5 py-2.5 text-sm font-medium text-white dark:bg-zinc-100 dark:text-zinc-950"
+                className="w-full rounded-full bg-zinc-900 px-5 py-2.5 text-sm font-medium whitespace-nowrap text-white dark:bg-zinc-100 dark:text-zinc-950"
               >
                 Mark as sold
               </button>
@@ -359,10 +359,9 @@ export function CardDetail({ id }: { id: string }) {
         <div className="flex flex-wrap items-end justify-between gap-2">
           <div>
             <h2 className="font-semibold">Recent sales</h2>
-            <p className="text-xs text-zinc-500">
-              {authRequired
-                ? "Log in to see sold comps"
-                : compsLoading
+            {authRequired ? null : (
+              <p className="text-xs text-zinc-500">
+                {compsLoading
                   ? "Loading sold listings…"
                   : unavailable || rateLimited
                     ? "Sold data unavailable, try again shortly"
@@ -370,7 +369,8 @@ export function CardDetail({ id }: { id: string }) {
                       ? liveCount === 0
                         ? "Matching sold listings"
                         : `Based on ${liveCount} sale${liveCount === 1 ? "" : "s"}${
-                            liveCount < 5 || sold.data?.lowConfidence
+                            liveCount > 0 &&
+                            (liveCount < 5 || sold.data?.lowConfidence)
                               ? " · Low confidence"
                               : ""
                           }${
@@ -381,12 +381,16 @@ export function CardDetail({ id }: { id: string }) {
                       : usingSample
                         ? "Sample listings"
                         : ""}
-            </p>
+              </p>
+            )}
           </div>
         </div>
         {authRequired ? (
           <p className="mt-3 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-700 dark:border-white/10 dark:bg-white/5 dark:text-zinc-300">
-            Log in to see sold comps
+            <Link href="/login" className="font-semibold underline underline-offset-2">
+              Log in
+            </Link>{" "}
+            to see sold comps
           </p>
         ) : null}
         {usingLive && !compsLoading && !authRequired ? (
