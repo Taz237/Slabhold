@@ -17,14 +17,27 @@ export function money(value: number, exact = false) {
   return (exact ? usdExact : usd).format(value);
 }
 
+/** True when the owner recorded a positive purchase price. */
+export function hasPaid(
+  value:
+    | number
+    | null
+    | undefined
+    | { purchasePrice?: number | null },
+): boolean {
+  const paid =
+    typeof value === "object" && value != null
+      ? value.purchasePrice
+      : value;
+  return paid != null && paid > 0;
+}
+
 /** Paid amount for tiles and card page — empty/null/zero shows an em dash. */
 export function formatPaidLabel(
   purchasePrice: number | null | undefined,
   exact = false,
 ) {
-  return purchasePrice != null && purchasePrice > 0
-    ? money(purchasePrice, exact)
-    : "—";
+  return hasPaid(purchasePrice) ? money(purchasePrice as number, exact) : "—";
 }
 
 export function signedMoney(value: number, exact = false) {
@@ -72,13 +85,13 @@ export function currentValue(card: SportsCard) {
 }
 
 export function profit(card: SportsCard) {
-  if (card.purchasePrice == null) return 0;
-  return currentValue(card) - card.purchasePrice;
+  if (!hasPaid(card)) return 0;
+  return currentValue(card) - (card.purchasePrice as number);
 }
 
 export function profitPct(card: SportsCard) {
-  if (card.purchasePrice == null || card.purchasePrice === 0) return 0;
-  return profit(card) / card.purchasePrice;
+  if (!hasPaid(card)) return 0;
+  return profit(card) / (card.purchasePrice as number);
 }
 
 export function pct(value: number) {

@@ -29,6 +29,7 @@ import {
 import { buildCompsQuery } from "@/lib/comps/match";
 import { identifyFromPhoto } from "@/lib/comps/sample";
 import { cardCategory } from "@/lib/card-category";
+import { hasPaid } from "@/lib/format";
 import { fileToDataUrl } from "@/lib/storage";
 import type {
   CardCategory,
@@ -57,7 +58,8 @@ function parseOptionalPrice(value: string): number | null {
   const trimmed = value.trim();
   if (trimmed === "") return null;
   const n = Number(trimmed);
-  return Number.isFinite(n) ? n : null;
+  if (!Number.isFinite(n) || n === 0) return null;
+  return n;
 }
 
 export function CardForm({ existing }: { existing?: SportsCard }) {
@@ -126,8 +128,7 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
     serialRun: existing?.serialRun != null ? String(existing.serialRun) : "",
     serialNo: existing?.serialNo != null ? String(existing.serialNo) : "",
     sport: existing?.sport ?? "Basketball",
-    purchasePrice:
-      existing?.purchasePrice != null ? String(existing.purchasePrice) : "",
+    purchasePrice: hasPaid(existing) ? String(existing!.purchasePrice) : "",
     purchaseDate: existing?.purchaseDate ?? localToday(),
     estimatedSellPrice: existing ? String(existing.estimatedSellPrice) : "",
     sellPrice: existing?.sellPrice != null ? String(existing.sellPrice) : "",

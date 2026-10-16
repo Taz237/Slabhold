@@ -1,5 +1,5 @@
 import { cardCategory } from "./card-category";
-import { isSold, profit } from "./format";
+import { hasPaid, isSold, profit } from "./format";
 import type { CardCategory, PortfolioFilter, SportsCard } from "./types";
 import { cardValueHasAmount } from "./value/format";
 import type { CardValueResult } from "./value/types";
@@ -12,6 +12,8 @@ export type PortfolioTotals = {
   heldCount: number;
   soldCount: number;
   withoutValueCount: number;
+  /** Cards excluded from Invested / Profit because hasPaid is false. */
+  unpaidExcludedCount: number;
 };
 
 function marketValue(
@@ -31,7 +33,12 @@ export function summarize(
   const held = cards.filter((c) => !isSold(c));
   const sold = cards.filter(isSold);
 
-  const invested = held.reduce((sum, c) => sum + (c.purchasePrice ?? 0), 0);
+  const unpaidExcludedCount = cards.filter((c) => !hasPaid(c)).length;
+
+  const invested = held.reduce(
+    (sum, c) => (hasPaid(c) ? sum + (c.purchasePrice as number) : sum),
+    0,
+  );
 
   let estimatedValue = 0;
   let withoutValueCount = 0;
@@ -44,14 +51,14 @@ export function summarize(
       continue;
     }
     estimatedValue += amount;
-    if (card.purchasePrice != null) {
+    if (hasPaid(card)) {
       profitValue += amount;
-      valuedInvested += card.purchasePrice;
+      valuedInvested += card.purchasePrice as number;
     }
   }
 
   const realizedProfit = sold.reduce((sum, c) => {
-    if (c.purchasePrice == null) return sum;
+    if (!hasPaid(c)) return sum;
     return sum + profit(c);
   }, 0);
   const unrealizedProfit = profitValue - valuedInvested;
@@ -64,6 +71,7 @@ export function summarize(
     heldCount: held.length,
     soldCount: sold.length,
     withoutValueCount,
+    unpaidExcludedCount,
   };
 }
 
@@ -71,11 +79,11 @@ export function cardProfit(
   card: SportsCard,
   values?: Map<string, CardValueResult>,
 ): number | null {
-  if (card.purchasePrice == null) return null;
+  if (!hasPaid(card)) return null;
   if (isSold(card)) return profit(card);
   const amount = marketValue(card, values);
   if (amount == null) return null;
-  return amount - card.purchasePrice;
+  return amount - (card.purchasePrice as number);
 }
 
 export function cardProfitPct(
@@ -83,9 +91,8 @@ export function cardProfitPct(
   values?: Map<string, CardValueResult>,
 ): number | null {
   const p = cardProfit(card, values);
-  if (p == null) return null;
-  if (!card.purchasePrice) return null;
-  return p / card.purchasePrice;
+  if (p == null || !hasPaid(card)) return null;
+  return p / (card.purchasePrice as number);
 }
 
 export function matchesQuery(card: SportsCard, query: string) {

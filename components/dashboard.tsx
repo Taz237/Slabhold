@@ -11,6 +11,7 @@ import { CollectionSkeleton, EmptyState } from "@/components/status";
 import {
   cardTitle,
   formatPaidLabel,
+  hasPaid,
   isSold,
   money,
   pct,
@@ -83,6 +84,12 @@ export function Dashboard() {
     totals.withoutValueCount > 0
       ? `${totals.withoutValueCount} card${totals.withoutValueCount === 1 ? "" : "s"} without a value yet`
       : "Held book value";
+  const unpaidNote =
+    totals.unpaidExcludedCount > 0
+      ? `Profit excludes ${totals.unpaidExcludedCount} card${
+          totals.unpaidExcludedCount === 1 ? "" : "s"
+        } with no price paid`
+      : null;
 
   return (
     <div className="space-y-6">
@@ -134,6 +141,9 @@ export function Dashboard() {
           loading={valuesLoading}
         />
       </section>
+      {unpaidNote ? (
+        <p className="-mt-2 text-xs text-zinc-500">{unpaidNote}</p>
+      ) : null}
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <label className="relative flex-1">
@@ -217,11 +227,7 @@ export function Dashboard() {
             const paid = card.purchasePrice;
             const valuePending = !sold && valuesLoading;
             const showProfit =
-              !valuePending &&
-              paid != null &&
-              paid > 0 &&
-              p != null &&
-              pPct != null;
+              !valuePending && hasPaid(card) && p != null && pPct != null;
             const valueLabel = sold
               ? card.sellPrice != null
                 ? money(card.sellPrice)
@@ -318,7 +324,7 @@ export function Dashboard() {
                               {signedMoney(p)} {pct(pPct)}
                             </span>
                           </p>
-                        ) : !valuePending && (paid == null || paid <= 0) ? (
+                        ) : !valuePending && !hasPaid(card) ? (
                           <p className="mt-0.5 text-xs text-zinc-400">—</p>
                         ) : null}
                       </div>

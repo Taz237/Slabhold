@@ -8,6 +8,7 @@ import { Avatar } from "@/components/avatar";
 import { EmptyState, LoadingRows } from "@/components/status";
 import { solidButton } from "@/components/button-styles";
 import { MentionText } from "@/components/mention-text";
+import { MentionTextarea } from "@/components/mention-textarea";
 import { AuthorLine, Engagement, Tweet } from "@/components/tweet";
 import { useSocial } from "@/components/social-provider";
 import { COMMENT_LIMIT } from "@/lib/social/types";
@@ -59,7 +60,19 @@ export function PostView({ id }: { id: string }) {
     }
     setDraft("");
     setError(result.notice ?? null);
-    if (replyRef.current) replyRef.current.style.height = "auto";
+    if (replyRef.current) {
+      replyRef.current.style.height = "auto";
+    }
+  }
+
+  function updateDraft(next: string) {
+    setDraft(next);
+    requestAnimationFrame(() => {
+      const field = replyRef.current;
+      if (!field) return;
+      field.style.height = "auto";
+      field.style.height = `${field.scrollHeight}px`;
+    });
   }
 
   if (!ready) {
@@ -158,19 +171,16 @@ export function PostView({ id }: { id: string }) {
               accent={user.accent}
               className="mb-1 h-8 w-8"
             />
-            <textarea
+            <MentionTextarea
               ref={replyRef}
               id="reply"
               value={draft}
-              onChange={(e) => {
-                setDraft(e.target.value.slice(0, COMMENT_LIMIT));
-                const field = e.target;
-                field.style.height = "auto";
-                field.style.height = `${field.scrollHeight}px`;
-              }}
+              onChange={updateDraft}
+              maxLength={COMMENT_LIMIT}
               rows={1}
+              menu="docked"
               placeholder="Post your reply"
-              className="max-h-32 min-h-9 flex-1 resize-none bg-transparent py-2 text-[15px] leading-5 outline-none placeholder:text-zinc-500"
+              className="max-h-32 min-h-9 w-full resize-none bg-transparent py-2 text-[15px] leading-5 outline-none placeholder:text-zinc-500"
             />
             <button
               type="submit"

@@ -17,6 +17,7 @@ import {
   cardTitle,
   formatDate,
   formatPaidLabel,
+  hasPaid,
   isSold,
   money,
   pct,
@@ -105,12 +106,11 @@ export function CardDetail({ id }: { id: string }) {
     : resolveEstSell(cardValue, valueLoading);
 
   const paid = card.purchasePrice;
-  const delta =
-    estSell != null && paid != null ? estSell - paid : 0;
-  const showProfit =
-    (cardSold || estSell != null) && paid != null && paid > 0;
-  const profitPctValue = showProfit && paid > 0 ? delta / paid : null;
-  const max = Math.max(paid ?? 0, estSell ?? 0, 1);
+  const paidKnown = hasPaid(card);
+  const delta = estSell != null && paidKnown ? estSell - (paid as number) : 0;
+  const showProfit = (cardSold || estSell != null) && paidKnown;
+  const profitPctValue = showProfit ? delta / (paid as number) : null;
+  const max = Math.max(paidKnown ? (paid as number) : 0, estSell ?? 0, 1);
   const valueStatusLabel = cardSold
     ? null
     : valueLoading
@@ -289,7 +289,7 @@ export function CardDetail({ id }: { id: string }) {
             value={paid ?? 0}
             max={max}
             color="bg-zinc-400 dark:bg-zinc-500"
-            empty={paid == null || paid <= 0}
+            empty={!paidKnown}
           />
           <Bar
             label={cardSold ? "Sold" : "Estimated sell"}

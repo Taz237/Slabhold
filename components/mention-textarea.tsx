@@ -1,6 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  forwardRef,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { Avatar } from "@/components/avatar";
 import { useSocial } from "@/components/social-provider";
 import {
@@ -30,28 +37,34 @@ function toCandidate(person: {
   };
 }
 
-export function MentionTextarea({
-  value,
-  onChange,
-  maxLength,
-  rows = 3,
-  autoFocus = false,
-  placeholder,
-  className,
-  id,
-  menu = "inline",
-}: {
-  value: string;
-  onChange: (value: string) => void;
-  maxLength: number;
-  rows?: number;
-  autoFocus?: boolean;
-  placeholder?: string;
-  className?: string;
-  id?: string;
-  /** `docked` pins the list above the compose toolbar so it stays reachable on a phone. */
-  menu?: "inline" | "docked";
-}) {
+export const MentionTextarea = forwardRef<
+  HTMLTextAreaElement,
+  {
+    value: string;
+    onChange: (value: string) => void;
+    maxLength: number;
+    rows?: number;
+    autoFocus?: boolean;
+    placeholder?: string;
+    className?: string;
+    id?: string;
+    /** `docked` pins the list above the compose toolbar so it stays reachable on a phone. */
+    menu?: "inline" | "docked";
+  }
+>(function MentionTextarea(
+  {
+    value,
+    onChange,
+    maxLength,
+    rows = 3,
+    autoFocus = false,
+    placeholder,
+    className,
+    id,
+    menu = "inline",
+  },
+  ref,
+) {
   const { user, mode, profiles, followingOf } = useSocial();
   const rootRef = useRef<HTMLDivElement>(null);
   const fieldRef = useRef<HTMLTextAreaElement>(null);
@@ -63,6 +76,8 @@ export function MentionTextarea({
   const [pendingCaret, setPendingCaret] = useState<{ id: number; caret: number } | null>(null);
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [remotePeople, setRemotePeople] = useState<MentionCandidate[] | null>(null);
+
+  useImperativeHandle(ref, () => fieldRef.current as HTMLTextAreaElement);
 
   const mention = activeMention(value, cursor);
   const queryKey = mention ? `${mention.start}:${mention.query}` : "";
@@ -236,7 +251,7 @@ export function MentionTextarea({
   ) : null;
 
   return (
-    <div ref={rootRef}>
+    <div ref={rootRef} className="min-w-0 flex-1">
       <textarea
         ref={fieldRef}
         id={id}
@@ -270,4 +285,4 @@ export function MentionTextarea({
       )}
     </div>
   );
-}
+});
