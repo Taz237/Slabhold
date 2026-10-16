@@ -42,6 +42,10 @@ function Shell({
   status: string | null;
 }) {
   const pathname = usePathname();
+  /** Collection needs a wider desktop column; feed/timeline stay max-w-lg. */
+  const wideMain =
+    pathname.startsWith("/collection") || pathname.startsWith("/portfolio");
+  const mainMax = wideMain ? "max-w-5xl" : "max-w-lg";
 
   return (
     <div className="min-h-full bg-[var(--background)] text-[var(--foreground)]">
@@ -90,7 +94,9 @@ function Shell({
           {status}
         </p>
       ) : null}
-      <main className="relative mx-auto w-full max-w-lg px-4 py-5 pb-28">{children}</main>
+      <main className={`relative mx-auto w-full ${mainMax} px-4 py-5 pb-28`}>
+        {children}
+      </main>
       <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-zinc-200 bg-[color-mix(in_oklab,var(--background)_92%,transparent)] backdrop-blur-xl dark:border-white/10">
         <div className="mx-auto flex max-w-lg items-end justify-between px-1 pt-1 pb-[max(0.45rem,env(safe-area-inset-bottom))]">
           {TABS.map((tab) => {

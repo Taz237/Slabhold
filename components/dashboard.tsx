@@ -9,7 +9,6 @@ import { useCollection } from "@/components/collection-provider";
 import { CardThumb } from "@/components/card-thumb";
 import { CollectionSkeleton, EmptyState } from "@/components/status";
 import {
-  cardSubtitle,
   cardTitle,
   formatPaidLabel,
   isSold,
@@ -74,7 +73,6 @@ export function Dashboard() {
           (card) =>
             matchesQuery(card, query) && matchesFilter(card, filter, values),
         ),
-        values,
       ),
     [inLane, query, filter, values],
   );
@@ -126,12 +124,14 @@ export function Dashboard() {
           label="Estimated value"
           value={money(totals.estimatedValue)}
           hint={valueHint}
+          loading={valuesLoading}
         />
         <Stat
           label="Profit"
           value={signedMoney(profitTotal)}
           hint={`${signedMoney(totals.unrealizedProfit)} open · ${signedMoney(totals.realizedProfit)} realized`}
           tone={profitTotal >= 0 ? "up" : "down"}
+          loading={valuesLoading}
         />
       </section>
 
@@ -229,6 +229,7 @@ export function Dashboard() {
                   : formatCardValueLabel(value, { createdAt: card.createdAt });
             const titleText = card.playerName;
             const subtitleText = cardTitle(card);
+            const grade = card.grade.trim();
             return (
               <li key={card.id}>
                 <Link
@@ -239,49 +240,46 @@ export function Dashboard() {
                     card={card}
                     className="h-24 w-[68px] shrink-0 rounded-lg"
                   />
-                  <div className="min-w-0 flex-1 overflow-hidden">
-                    <div className="flex min-w-0 items-start justify-between gap-2">
-                      <div className="min-w-0 flex-1">
-                        <p
-                          className="line-clamp-2 font-semibold"
-                          title={titleText}
-                        >
-                          {titleText}
-                        </p>
-                        <p
-                          className="text-sm text-zinc-400"
-                          title={subtitleText}
-                        >
-                          {subtitleText}
-                        </p>
-                        <p className="text-xs text-zinc-500">
-                          {cardSubtitle(card)}
-                        </p>
-                      </div>
-                      <div className="flex shrink-0 flex-col items-end gap-1">
-                        <CategoryBadge card={card} />
-                        {needsDetails(card) ? (
-                          <span
-                            className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] font-medium whitespace-nowrap text-amber-800 dark:text-amber-300"
-                            title="Needs details"
-                          >
-                            Needs details
-                          </span>
-                        ) : null}
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold" title={titleText}>
+                      {titleText}
+                    </p>
+                    <p className="text-sm text-zinc-400" title={subtitleText}>
+                      {subtitleText}
+                    </p>
+                    <div className="mt-1.5 flex flex-wrap gap-1">
+                      <CategoryBadge card={card} />
+                      {needsDetails(card) ? (
                         <span
-                          className={`rounded-full px-2 py-0.5 text-[11px] font-medium whitespace-nowrap ${
-                            sold
-                              ? "bg-sky-500/15 text-sky-700 dark:text-sky-300"
-                              : "bg-violet-500/15 text-violet-700 dark:text-violet-300"
-                          }`}
-                          title={sold ? "Sold" : "Held"}
+                          className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] font-medium text-amber-800 dark:text-amber-300"
+                          title="Needs details"
                         >
-                          {sold ? "Sold" : "Held"}
+                          Needs details
                         </span>
-                      </div>
+                      ) : null}
+                      {card.isRookie ? (
+                        <span className="rounded-full bg-zinc-900/10 px-2 py-0.5 text-[11px] font-medium text-zinc-700 dark:bg-white/10 dark:text-zinc-200">
+                          RC
+                        </span>
+                      ) : null}
+                      {grade ? (
+                        <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-medium text-zinc-600 dark:bg-white/10 dark:text-zinc-300">
+                          {grade}
+                        </span>
+                      ) : null}
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                          sold
+                            ? "bg-sky-500/15 text-sky-700 dark:text-sky-300"
+                            : "bg-violet-500/15 text-violet-700 dark:text-violet-300"
+                        }`}
+                        title={sold ? "Sold" : "Held"}
+                      >
+                        {sold ? "Sold" : "Held"}
+                      </span>
                     </div>
                     <div className="mt-3 flex min-w-0 items-start justify-between gap-2 text-sm">
-                      <span className="text-zinc-400 whitespace-nowrap">
+                      <span className="text-zinc-400">
                         Paid {formatPaidLabel(paid)}
                       </span>
                       <div className="min-w-0 text-right">
@@ -292,7 +290,7 @@ export function Dashboard() {
                           />
                         ) : (
                           <p
-                            className="font-medium whitespace-nowrap tabular-nums"
+                            className="font-medium tabular-nums"
                             title={valueLabel ?? undefined}
                           >
                             {valueLabel}
@@ -300,7 +298,7 @@ export function Dashboard() {
                         )}
                         {showProfit ? (
                           <p
-                            className={`mt-0.5 text-xs font-medium whitespace-nowrap ${
+                            className={`mt-0.5 text-xs font-medium ${
                               p >= 0
                                 ? "text-emerald-600 dark:text-emerald-400"
                                 : "text-rose-600 dark:text-rose-400"
@@ -335,27 +333,45 @@ function Stat({
   value,
   hint,
   tone,
+  loading,
 }: {
   label: string;
   value: string;
   hint: string;
   tone?: "up" | "down";
+  loading?: boolean;
 }) {
   return (
     <div className="rounded-2xl border border-zinc-200 bg-white px-4 py-4 dark:border-white/10 dark:bg-white/[0.03]">
       <p className="text-xs tracking-wide text-zinc-400 uppercase">{label}</p>
-      <p
-        className={`mt-1 text-2xl font-semibold tracking-tight ${
-          tone === "up"
-            ? "text-emerald-600 dark:text-emerald-400"
-            : tone === "down"
-              ? "text-rose-600 dark:text-rose-400"
-              : ""
-        }`}
-      >
-        {value}
-      </p>
-      <p className="mt-1 text-xs text-zinc-500">{hint}</p>
+      {loading ? (
+        <>
+          <div
+            className="mt-2 h-8 w-24 animate-pulse rounded-md bg-zinc-200/80 dark:bg-white/10"
+            aria-hidden
+          />
+          <div
+            className="mt-2 h-3 w-36 max-w-full animate-pulse rounded-full bg-zinc-200/70 dark:bg-white/[0.06]"
+            aria-hidden
+          />
+          <span className="sr-only">Loading {label}</span>
+        </>
+      ) : (
+        <>
+          <p
+            className={`mt-1 text-2xl font-semibold tracking-tight ${
+              tone === "up"
+                ? "text-emerald-600 dark:text-emerald-400"
+                : tone === "down"
+                  ? "text-rose-600 dark:text-rose-400"
+                  : ""
+            }`}
+          >
+            {value}
+          </p>
+          <p className="mt-1 text-xs text-zinc-500">{hint}</p>
+        </>
+      )}
     </div>
   );
 }

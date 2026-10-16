@@ -126,13 +126,11 @@ export function matchesCategory(card: SportsCard, category: "all" | CardCategory
   return cardCategory(card) === category;
 }
 
-export function sortCards(
-  cards: SportsCard[],
-  values?: Map<string, CardValueResult>,
-) {
+/** Stable newest-first order (not by market value). */
+export function sortCards(cards: SportsCard[]) {
   return [...cards].sort((a, b) => {
-    const aVal = marketValue(a, values) ?? -Infinity;
-    const bVal = marketValue(b, values) ?? -Infinity;
-    return bVal - aVal;
+    const byDate = b.createdAt.localeCompare(a.createdAt);
+    if (byDate !== 0) return byDate;
+    return a.id.localeCompare(b.id);
   });
 }
