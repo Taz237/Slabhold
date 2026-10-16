@@ -29,8 +29,18 @@ export function buildSoldQuery(card: {
   playerName: string;
   year: number;
   setBrand: string;
+  cardNumber?: string;
+  grade?: string;
 }): string {
-  return [String(card.year), card.setBrand.trim(), card.playerName.trim()]
+  const number = (card.cardNumber ?? "").replace(/^#/, "").trim();
+  const parts = [
+    String(card.year),
+    card.setBrand.trim(),
+    card.playerName.trim(),
+    number ? `#${number}` : "",
+    (card.grade ?? "").trim(),
+  ];
+  return parts
     .filter(Boolean)
     .join(" ")
     .replace(/\s+/g, " ")

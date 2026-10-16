@@ -52,7 +52,7 @@ export function ValueChart({
   const displayP25 = usingLive ? p25 : null;
   const displayP75 = usingLive ? p75 : null;
   const n = usingLive ? count : points.length;
-  const lowConfidence = usingLive && n > 0 && n < 5;
+  const lowConfidence = usingLive && n < 5;
   const noSales = usingLive && n === 0;
 
   return (
@@ -63,7 +63,7 @@ export function ValueChart({
             {usingLive ? "Sold comps" : "Estimated value"}
           </p>
           {noSales ? (
-            <p className="mt-1 text-lg font-semibold tracking-tight">No recent sales found</p>
+            <p className="mt-1 text-lg font-semibold tracking-tight">No matching sales found</p>
           ) : (
             <p className="mt-1 text-3xl font-semibold tracking-tight tabular-nums">
               {money(displayMedian)}

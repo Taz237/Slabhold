@@ -4,11 +4,12 @@ import { useEffect, useState } from "react";
 import type { SoldCompCard, SoldCompsPayload } from "./types";
 
 type SoldCompsState = {
-  status: "idle" | "loading" | "ready";
+  status: "idle" | "loading" | "ready" | "auth_required" | "rate_limited";
   data: SoldCompsPayload | null;
+  message: string | null;
 };
 
-const empty: SoldCompsState = { status: "idle", data: null };
+const empty: SoldCompsState = { status: "idle", data: null, message: null };
 
 export function useSoldComps(card: SoldCompCard | null) {
   const [state, setState] = useState<SoldCompsState>(empty);
@@ -19,6 +20,7 @@ export function useSoldComps(card: SoldCompCard | null) {
   const setBrand = card?.setBrand ?? "";
   const cardNumber = card?.cardNumber ?? "";
   const grade = card?.grade ?? "";
+  const parallel = card?.parallel ?? "";
   const estimatedSellPrice = card?.estimatedSellPrice ?? 0;
 
   useEffect(() => {
@@ -28,7 +30,7 @@ export function useSoldComps(card: SoldCompCard | null) {
     }
 
     const controller = new AbortController();
-    setState({ status: "loading", data: null });
+    setState({ status: "loading", data: null, message: null });
 
     const params = new URLSearchParams({
       id,
@@ -38,21 +40,39 @@ export function useSoldComps(card: SoldCompCard | null) {
     });
     if (cardNumber) params.set("number", cardNumber);
     if (grade) params.set("grade", grade);
+    if (parallel) params.set("parallel", parallel);
     if (estimatedSellPrice) params.set("est", String(estimatedSellPrice));
 
     fetch(`/api/comps/sold?${params}`, { signal: controller.signal })
       .then(async (res) => {
-        const body = (await res.json()) as SoldCompsPayload;
+        const body = (await res.json()) as SoldCompsPayload & { error?: string };
+        if (controller.signal.aborted) return;
+
+        if (res.status === 401) {
+          setState({
+            status: "auth_required",
+            data: null,
+            message: body.error || "Log in to see sold comps",
+          });
+          return;
+        }
+        if (res.status === 429) {
+          setState({
+            status: "rate_limited",
+            data: null,
+            message:
+              body.error ||
+              "You're checking sold comps too quickly. Please wait a bit and try again.",
+          });
+          return;
+        }
         if (!res.ok) {
-          throw new Error("Could not load sold comps");
+          throw new Error(body.error || "Could not load sold comps");
         }
-        if (!controller.signal.aborted) {
-          setState({ status: "ready", data: body });
-        }
+        setState({ status: "ready", data: body, message: null });
       })
       .catch(() => {
         if (controller.signal.aborted) return;
-        // Silent fallback: UI treats null/sample as sample banner.
         setState({
           status: "ready",
           data: {
@@ -69,11 +89,21 @@ export function useSoldComps(card: SoldCompCard | null) {
             lowConfidence: true,
             sample: true,
           },
+          message: null,
         });
       });
 
     return () => controller.abort();
-  }, [id, playerName, year, setBrand, cardNumber, grade, estimatedSellPrice]);
+  }, [
+    id,
+    playerName,
+    year,
+    setBrand,
+    cardNumber,
+    grade,
+    parallel,
+    estimatedSellPrice,
+  ]);
 
   return state;
 }

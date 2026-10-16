@@ -6,7 +6,7 @@ import {
   readSoldCompsCacheAny,
   writeSoldCompsCache,
 } from "./cache";
-import { cleanTrawlResults } from "./clean";
+import { cleanTrawlResults, isLowConfidence } from "./clean";
 import { cleanedToCompListings, historyFromSales } from "./map";
 import { mockCompsForCard } from "./sample";
 import { middleFifty } from "./stats";
@@ -14,8 +14,18 @@ import { buildSoldQuery, fetchTrawlSold, getTrawlApiKey } from "./trawl";
 import type { SoldCompCard, SoldCompsPayload } from "./types";
 
 export type { CleanedSale, SoldCompCard, SoldCompsPayload } from "./types";
+export { isLowConfidence } from "./clean";
 
 export type CompsSource = "trawl" | "sample" | "off";
+
+export type GetSoldCompsOptions = {
+  /** Called only when about to hit Trawl (cache miss). Return false to abort with rate limit. */
+  beforeTrawl?: () => Promise<boolean>;
+};
+
+export type GetSoldCompsResult =
+  | { ok: true; payload: SoldCompsPayload }
+  | { ok: false; rateLimited: true };
 
 export function getCompsSource(): CompsSource {
   const raw = process.env.COMPS_SOURCE?.trim().toLowerCase();
@@ -48,7 +58,7 @@ function samplePayload(card: SoldCompCard): SoldCompsPayload {
     cached: false,
     fetchedAt: null,
     query: buildSoldQuery(card),
-    lowConfidence: comps.length < 5,
+    lowConfidence: isLowConfidence(comps.length),
     sample: true,
   };
 }
@@ -76,7 +86,7 @@ function payloadFromSales(
     cached: opts.cached,
     fetchedAt: opts.fetchedAt,
     query: opts.query,
-    lowConfidence: comps.length > 0 && comps.length < 5,
+    lowConfidence: isLowConfidence(comps.length),
     sample: false,
   };
 }
@@ -84,30 +94,42 @@ function payloadFromSales(
 /**
  * Generic sold-comps resolver. Trawl key stays server-side.
  * Kill switch: COMPS_SOURCE = trawl | sample | off (default sample).
+ * Cache is read/written with the service-role client only.
  */
-export async function getSoldComps(card: SoldCompCard): Promise<SoldCompsPayload> {
+export async function getSoldComps(
+  card: SoldCompCard,
+  options?: GetSoldCompsOptions,
+): Promise<GetSoldCompsResult> {
   const source = getCompsSource();
   if (source === "sample" || source === "off") {
-    return samplePayload(card);
+    return { ok: true, payload: samplePayload(card) };
   }
 
   const query = buildSoldQuery(card);
   if (!query || !card.id) {
-    return samplePayload(card);
+    return { ok: true, payload: samplePayload(card) };
   }
 
   if (!getTrawlApiKey()) {
-    return samplePayload(card);
+    return { ok: true, payload: samplePayload(card) };
   }
 
   const cached = await readSoldCompsCache(card.id);
   if (cached) {
-    return payloadFromSales(cached.sales, {
-      source: "trawl",
-      cached: true,
-      fetchedAt: cached.fetchedAt,
-      query,
-    });
+    return {
+      ok: true,
+      payload: payloadFromSales(cached.sales, {
+        source: "trawl",
+        cached: true,
+        fetchedAt: cached.fetchedAt,
+        query,
+      }),
+    };
+  }
+
+  if (options?.beforeTrawl) {
+    const allowed = await options.beforeTrawl();
+    if (!allowed) return { ok: false, rateLimited: true };
   }
 
   try {
@@ -117,27 +139,38 @@ export async function getSoldComps(card: SoldCompCard): Promise<SoldCompsPayload
       if (result.outOfCredits || result.status === 429) {
         const stale = await readSoldCompsCacheAny(card.id);
         if (stale) {
-          return payloadFromSales(stale.sales, {
-            source: "trawl",
-            cached: true,
-            fetchedAt: stale.fetchedAt,
-            query,
-          });
+          return {
+            ok: true,
+            payload: payloadFromSales(stale.sales, {
+              source: "trawl",
+              cached: true,
+              fetchedAt: stale.fetchedAt,
+              query,
+            }),
+          };
         }
       }
-      return samplePayload(card);
+      return { ok: true, payload: samplePayload(card) };
     }
 
-    const sales = cleanTrawlResults(result.body.results ?? [], card.grade);
+    const sales = cleanTrawlResults(result.body.results ?? [], {
+      grade: card.grade,
+      cardNumber: card.cardNumber,
+      setBrand: card.setBrand,
+      parallel: card.parallel,
+    });
     const fetchedAt =
       (await writeSoldCompsCache(card.id, sales)) ?? new Date().toISOString();
 
-    return payloadFromSales(sales, {
-      source: "trawl",
-      cached: false,
-      fetchedAt,
-      query,
-    });
+    return {
+      ok: true,
+      payload: payloadFromSales(sales, {
+        source: "trawl",
+        cached: false,
+        fetchedAt,
+        query,
+      }),
+    };
   } catch (err) {
     console.warn(
       "[comps] Trawl error:",
@@ -145,13 +178,16 @@ export async function getSoldComps(card: SoldCompCard): Promise<SoldCompsPayload
     );
     const stale = await readSoldCompsCacheAny(card.id);
     if (stale) {
-      return payloadFromSales(stale.sales, {
-        source: "trawl",
-        cached: true,
-        fetchedAt: stale.fetchedAt,
-        query,
-      });
+      return {
+        ok: true,
+        payload: payloadFromSales(stale.sales, {
+          source: "trawl",
+          cached: true,
+          fetchedAt: stale.fetchedAt,
+          query,
+        }),
+      };
     }
-    return samplePayload(card);
+    return { ok: true, payload: samplePayload(card) };
   }
 }

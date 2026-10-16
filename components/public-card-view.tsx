@@ -94,6 +94,7 @@ function PublicCardAnalytics({
       setBrand: card.setBrand,
       cardNumber: card.cardNumber,
       grade: card.grade,
+      parallel: card.parallel,
       estimatedSellPrice: card.estimatedSellPrice,
     }),
     [card],
@@ -133,8 +134,10 @@ function PublicCardAnalytics({
     };
   }, [userId, card.id]);
 
+  const authRequired = sold.status === "auth_required";
+  const rateLimited = sold.status === "rate_limited";
   const usingLive = sold.data?.source === "trawl" && !sold.data.sample;
-  const showSampleBanner = !usingLive;
+  const showSampleBanner = !usingLive && !authRequired && !rateLimited;
   const liveComps = usingLive ? sold.data!.comps : null;
   const compsLoading = sold.status === "loading";
   const compsForList = useMemo(() => {
@@ -217,14 +220,28 @@ function PublicCardAnalytics({
             <p className="text-xs text-zinc-500">
               {compsLoading
                 ? "Loading sold listings…"
-                : usingLive
-                  ? liveCount === 0
-                    ? "No recent sales found"
-                    : `Based on ${liveCount} sale${liveCount === 1 ? "" : "s"}`
-                  : "Sample listings"}
+                : authRequired
+                  ? "Log in to see sold comps"
+                  : rateLimited
+                    ? sold.message ?? "Too many requests — try again shortly."
+                    : usingLive
+                      ? liveCount === 0
+                        ? "No matching sales found"
+                        : `Based on ${liveCount} sale${liveCount === 1 ? "" : "s"}`
+                      : "Sample listings"}
             </p>
           </div>
         </div>
+        {authRequired && !compsLoading ? (
+          <p className="mt-3 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-700 dark:border-white/10 dark:bg-white/5 dark:text-zinc-300">
+            Log in to see sold comps
+          </p>
+        ) : null}
+        {rateLimited && !compsLoading ? (
+          <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
+            {sold.message ?? "You're checking sold comps too quickly. Please wait a bit and try again."}
+          </p>
+        ) : null}
         {showSampleBanner && !compsLoading ? (
           <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
             Showing sample data until live results are available.
@@ -247,7 +264,7 @@ function PublicCardAnalytics({
               />
             ))}
           </div>
-        ) : (
+        ) : authRequired || rateLimited ? null : (
           <CompsList
             comps={usingLive ? (liveComps ?? []).slice(0, 15) : sampleComps}
             cardId={card.id}

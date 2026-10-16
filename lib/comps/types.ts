@@ -60,6 +60,7 @@ export type SoldCompCard = {
   setBrand: string;
   cardNumber?: string;
   grade?: string;
+  parallel?: string;
   estimatedSellPrice?: number;
 };
 
