@@ -187,6 +187,8 @@ create table if not exists public.notifications (
 
 create unique index if not exists profiles_username_idx on public.profiles (lower(username));
 create index if not exists posts_user_id_idx on public.posts (user_id, created_at desc);
+create index if not exists posts_card_id_idx on public.posts ((card->>'id'));
+
 create index if not exists cards_user_id_idx on public.cards (user_id);
 create index if not exists comments_post_id_idx on public.comments (post_id, created_at);
 create index if not exists notifications_recipient_idx on public.notifications (recipient_id, created_at desc);

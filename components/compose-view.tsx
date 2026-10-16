@@ -16,6 +16,7 @@ export function ComposeView() {
   const router = useRouter();
   const params = useSearchParams();
   const editId = params.get("edit");
+  const attachCardParam = params.get("card");
   const { ready, user, posts, createPost, updatePost } = useSocial();
   const { cards } = useCollection();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -41,6 +42,14 @@ export function ComposeView() {
     const captured = takeCompose();
     if (captured) setImage(captured);
   }, [editId, posts, ready, user]);
+
+  useEffect(() => {
+    if (!ready || !user || editId) return;
+    if (!attachCardParam) return;
+    if (cards.some((card) => card.id === attachCardParam)) {
+      setCardId(attachCardParam);
+    }
+  }, [attachCardParam, cards, editId, ready, user]);
 
   useEffect(() => {
     if (ready && !user) router.replace("/login");

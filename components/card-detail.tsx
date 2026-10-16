@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ArrowLeft, Pencil, Trash2 } from "lucide-react";
+import { CardCollectorsSaying } from "@/components/card-collectors-saying";
 import { CategoryBadge, CategoryPicker } from "@/components/category-picker";
 import { useCollection } from "@/components/collection-provider";
 import { CardThumb } from "@/components/card-thumb";
@@ -421,6 +422,8 @@ export function CardDetail({ id }: { id: string }) {
           <CompsList comps={sold.data?.comps ?? []} />
         ) : null}
       </section>
+
+      <CardCollectorsSaying cardId={card.id} />
     </div>
   );
 }
