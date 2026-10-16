@@ -303,7 +303,6 @@ describe("strict card number #token matching", () => {
 describe("raw card graded exclusions", () => {
   const JAYLEN_RAW = {
     grade: RAW_GRADE,
-    cardNumber: "45",
     setBrand: "Topps",
     parallel: "Base",
   } as const;
@@ -360,15 +359,15 @@ describe("raw card graded exclusions", () => {
     };
   }
 
-  it("raw Jaylen Brown 2026 Topps rejects Topps Now #AS22 PSA 10", () => {
+  it('raw "2026 Topps Jaylen Brown" rejects Topps Now All-Star PSA 10', () => {
     const result = rawResult(
-      "2026 Topps Now Jaylen Brown #AS22 PSA 10",
+      "2026 Topps Now All-Star Game #AS22 Jaylen Brown PSA 10",
       {
         grading: { graded: true, grader: "PSA", grade: "10", condition: null },
       },
     );
     assert.equal(listingLooksProfessionallyGraded(result), true);
-    assert.equal(titleHasCardNumber(result.title, JAYLEN_RAW.cardNumber), false);
+    assert.equal(titleNamesWrongSet(result.title, JAYLEN_RAW.setBrand), true);
     assert.deepEqual(cleanTrawlResult(result, JAYLEN_RAW), []);
   });
 

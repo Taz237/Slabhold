@@ -1,7 +1,11 @@
 import { after } from "next/server";
-import { consumeTrawlLimit } from "@/lib/comps/rate-limit";
-import { refreshCardValue } from "@/lib/value/getCardValue";
+import {
+  consumeRequestLimit,
+  consumeTrawlLimit,
+} from "@/lib/comps/rate-limit";
+import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { getAuthUserId } from "@/lib/supabase/server";
+import { refreshCardValue } from "@/lib/value/getCardValue";
 
 export const runtime = "nodejs";
 
@@ -27,9 +31,30 @@ export async function POST(request: Request) {
     return Response.json({ error: "id is required" }, { status: 400 });
   }
 
+  const client = createSupabaseAdmin();
+  if (!client) {
+    return Response.json({ error: "Unavailable" }, { status: 503 });
+  }
+
+  const { data: owned, error } = await client
+    .from("cards")
+    .select("id")
+    .eq("id", id)
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (error) {
+    console.warn("[card_values] ownership check failed:", error.message);
+    return Response.json({ error: "Unavailable" }, { status: 503 });
+  }
+  if (!owned) {
+    return Response.json({ error: "Card not found" }, { status: 404 });
+  }
+
   after(async () => {
     try {
       await refreshCardValue(id, {
+        beforeRequest: () => consumeRequestLimit(userId),
         beforeTrawl: () => consumeTrawlLimit(userId),
       });
     } catch (err) {

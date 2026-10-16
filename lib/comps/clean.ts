@@ -28,6 +28,7 @@ const SET_KEYWORDS = [
   "prizm",
   "bowman",
   "topps chrome",
+  "topps now",
   "topps",
   "upper deck",
   "fleer",
@@ -63,9 +64,9 @@ const PARALLEL_KEYWORDS = [
 const SERIAL_RE = /\/\d+\b/;
 const TITLE_GRADE_RE =
   /\b(PSA|BGS|SGC|CGC|TAG|HGA)\s*(\d+(?:\.\d+)?)\b/i;
-/** Professional grade cues in titles (raw cards must exclude these). */
-const TITLE_GRADER_CUE_RE =
-  /\b(?:PSA|BGS|SGC|CGC|TAG|HGA)\b|\bGem\s*Mint\s*10\b/i;
+/** Professional grade cues in title or grading details (raw cards must exclude). */
+const GRADED_CUE_RE =
+  /\b(?:PSA|BGS|SGC|CGC|TAG|HGA|graded)\b|\bGem\s*Mint\b/i;
 /** #token in titles — set codes like #AS22 / #OS3 must match exactly. */
 const TITLE_HASH_NUMBER_RE = /#([A-Za-z0-9]+(?:-[A-Za-z0-9]+)*)/g;
 
@@ -198,9 +199,17 @@ export function parseGradeFromTitle(
   return { grader: match[1].toUpperCase(), grade: match[2] };
 }
 
+function gradingDetailsCueText(result: TrawlSoldResult): string {
+  const details = result.details?.grading;
+  if (!details) return "";
+  return [details.grader, details.grade, details.condition]
+    .filter((part) => part != null && String(part).trim() !== "")
+    .join(" ");
+}
+
 /**
  * True when details or title indicate a professionally graded listing.
- * Used so RAW cards reject PSA/BGS/SGC/CGC/TAG/HGA / "Gem Mint 10".
+ * Used so RAW cards reject PSA/BGS/SGC/CGC/TAG/HGA / "graded" / "Gem Mint".
  */
 export function listingLooksProfessionallyGraded(
   result: TrawlSoldResult,
@@ -211,7 +220,8 @@ export function listingLooksProfessionallyGraded(
   if (details?.grade != null && String(details.grade).trim() !== "") {
     return true;
   }
-  if (TITLE_GRADER_CUE_RE.test(result.title)) return true;
+  if (GRADED_CUE_RE.test(result.title)) return true;
+  if (GRADED_CUE_RE.test(gradingDetailsCueText(result))) return true;
   return false;
 }
 
