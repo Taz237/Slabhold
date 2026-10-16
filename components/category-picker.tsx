@@ -50,7 +50,7 @@ export function CategoryBadge({ card }: { card: { category?: string | null } }) 
   return (
     <span
       title={label}
-      className={`inline-block max-w-full truncate rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+      className={`inline-block rounded-full px-2 py-0.5 text-[11px] font-semibold whitespace-nowrap ${
         pc
           ? "bg-amber-500/15 text-amber-800 dark:text-amber-200"
           : "bg-emerald-500/15 text-emerald-800 dark:text-emerald-200"

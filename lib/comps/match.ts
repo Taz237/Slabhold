@@ -149,7 +149,8 @@ export function normalizeCardNumber(value: string | undefined | null): string {
 export function yearLabelOf(card: MatchCard): string {
   const label = (card.yearLabel ?? "").trim();
   if (label) return label;
-  return String(card.year);
+  if (card.year > 0) return String(card.year);
+  return "";
 }
 
 export function startYearOf(card: MatchCard): string {

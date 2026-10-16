@@ -271,6 +271,22 @@ describe("shared comps match", () => {
     );
   });
 
+  it("buildCompsQuery omits year when empty", () => {
+    assert.equal(
+      buildCompsQuery({
+        playerName: "Victor Wembanyama",
+        year: 0,
+        yearLabel: "",
+        setBrand: "Panini Prizm",
+        cardNumber: "136",
+        parallel: "Base",
+        conditionType: "graded",
+        grade: "PSA 10",
+      }),
+      "Panini Prizm #136 Victor Wembanyama, Base, PSA 10",
+    );
+  });
+
   it("base card excludes titles with a serial run", () => {
     assert.equal(
       titleMatchesCard(

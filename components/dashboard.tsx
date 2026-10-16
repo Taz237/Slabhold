@@ -59,7 +59,7 @@ export function Dashboard() {
   const [lane, setLane] = useState<(typeof LANES)[number]["id"]>("all");
 
   const cardIds = useMemo(() => cards.map((card) => card.id), [cards]);
-  const { values } = useCardValues(cardIds);
+  const { values, loading: valuesLoading } = useCardValues(cardIds);
 
   const inLane = useMemo(
     () => cards.filter((card) => matchesCategory(card, lane)),
@@ -203,21 +203,30 @@ export function Dashboard() {
           )}
         </EmptyState>
       ) : (
-        <ul className="grid grid-cols-1 gap-3 md:grid-cols-2">
+        <ul
+          className="grid gap-3"
+          style={{
+            gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
+          }}
+        >
           {visible.map((card) => {
             const value = values.get(card.id);
             const p = cardProfit(card, values);
             const pPct = cardProfitPct(card, values);
             const sold = isSold(card);
             const paid = card.purchasePrice;
-            const showProfit = paid > 0 && p != null && pPct != null;
+            const valuePending = !sold && valuesLoading;
+            const showProfit =
+              !valuePending && paid > 0 && p != null && pPct != null;
             const valueLabel = sold
               ? card.sellPrice != null
                 ? money(card.sellPrice)
                 : "—"
-              : cardValueHasAmount(value)
-                ? money(value.median)
-                : formatCardValueLabel(value, { createdAt: card.createdAt });
+              : valuePending
+                ? null
+                : cardValueHasAmount(value)
+                  ? money(value.median)
+                  : formatCardValueLabel(value, { createdAt: card.createdAt });
             const titleText = card.playerName;
             const subtitleText = cardTitle(card);
             return (
@@ -234,33 +243,33 @@ export function Dashboard() {
                     <div className="flex min-w-0 items-start justify-between gap-2">
                       <div className="min-w-0 flex-1">
                         <p
-                          className="truncate font-semibold"
+                          className="line-clamp-2 font-semibold"
                           title={titleText}
                         >
                           {titleText}
                         </p>
                         <p
-                          className="truncate text-sm text-zinc-400"
+                          className="text-sm text-zinc-400"
                           title={subtitleText}
                         >
                           {subtitleText}
                         </p>
-                        <p className="truncate text-xs text-zinc-500">
+                        <p className="text-xs text-zinc-500">
                           {cardSubtitle(card)}
                         </p>
                       </div>
-                      <div className="flex min-w-0 max-w-[45%] shrink-0 flex-col items-end gap-1">
+                      <div className="flex shrink-0 flex-col items-end gap-1">
                         <CategoryBadge card={card} />
                         {needsDetails(card) ? (
                           <span
-                            className="max-w-full truncate rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] font-medium text-amber-800 dark:text-amber-300"
+                            className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] font-medium whitespace-nowrap text-amber-800 dark:text-amber-300"
                             title="Needs details"
                           >
                             Needs details
                           </span>
                         ) : null}
                         <span
-                          className={`max-w-full truncate rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                          className={`rounded-full px-2 py-0.5 text-[11px] font-medium whitespace-nowrap ${
                             sold
                               ? "bg-sky-500/15 text-sky-700 dark:text-sky-300"
                               : "bg-violet-500/15 text-violet-700 dark:text-violet-300"
@@ -272,19 +281,26 @@ export function Dashboard() {
                       </div>
                     </div>
                     <div className="mt-3 flex min-w-0 items-start justify-between gap-2 text-sm">
-                      <span className="min-w-0 truncate text-zinc-400">
+                      <span className="text-zinc-400 whitespace-nowrap">
                         Paid {formatPaidLabel(paid)}
                       </span>
-                      <div className="min-w-0 max-w-[60%] text-right">
-                        <p
-                          className="truncate font-medium tabular-nums"
-                          title={valueLabel}
-                        >
-                          {valueLabel}
-                        </p>
+                      <div className="min-w-0 text-right">
+                        {valuePending ? (
+                          <span
+                            className="mt-0.5 inline-block h-4 w-20 animate-pulse rounded bg-zinc-200/80 dark:bg-white/10"
+                            aria-hidden
+                          />
+                        ) : (
+                          <p
+                            className="font-medium whitespace-nowrap tabular-nums"
+                            title={valueLabel ?? undefined}
+                          >
+                            {valueLabel}
+                          </p>
+                        )}
                         {showProfit ? (
                           <p
-                            className={`mt-0.5 truncate text-xs font-medium ${
+                            className={`mt-0.5 text-xs font-medium whitespace-nowrap ${
                               p >= 0
                                 ? "text-emerald-600 dark:text-emerald-400"
                                 : "text-rose-600 dark:text-rose-400"

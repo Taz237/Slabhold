@@ -15,17 +15,17 @@ export function useCardValues(cardIds: string[]) {
   }, [cardIds]);
 
   const [values, setValues] = useState<Map<string, CardValueResult>>(emptyMap);
-  const [loading, setLoading] = useState(false);
+  /** Last key whose fetch settled — keeps loading true on first paint / key change. */
+  const [settledKey, setSettledKey] = useState("");
 
   useEffect(() => {
     if (!key) {
       setValues(emptyMap);
-      setLoading(false);
+      setSettledKey("");
       return;
     }
 
     const controller = new AbortController();
-    setLoading(true);
 
     fetch(`/api/card-values?ids=${encodeURIComponent(key)}`, {
       signal: controller.signal,
@@ -47,11 +47,13 @@ export function useCardValues(cardIds: string[]) {
         setValues(emptyMap);
       })
       .finally(() => {
-        if (!controller.signal.aborted) setLoading(false);
+        if (!controller.signal.aborted) setSettledKey(key);
       });
 
     return () => controller.abort();
   }, [key]);
+
+  const loading = Boolean(key) && settledKey !== key;
 
   return { values, loading };
 }

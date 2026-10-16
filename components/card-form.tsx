@@ -156,15 +156,14 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
     (!sold || (Boolean(form.sellPrice) && Boolean(form.sellDate) && !sellNeg));
 
   const preview = useMemo(() => {
-    const year = parsedYear?.year ?? new Date().getFullYear();
     const grade =
       conditionType === "raw"
         ? "Raw"
         : formatGrade(gradeCompany, gradeNumber);
     return buildCompsQuery({
       playerName: form.playerName.trim() || "Player",
-      year,
-      yearLabel: parsedYear?.yearLabel || form.yearLabel,
+      year: parsedYear?.year ?? 0,
+      yearLabel: parsedYear?.yearLabel,
       setBrand: form.setBrand.trim() || "Set",
       cardNumber: noNumber
         ? undefined
@@ -182,7 +181,6 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
   }, [
     parsedYear,
     form.playerName,
-    form.yearLabel,
     form.setBrand,
     form.cardNumber,
     form.parallel,
