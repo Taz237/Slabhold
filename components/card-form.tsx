@@ -276,12 +276,17 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
     yearLabel: string;
     cardNumber: string;
   }) {
+    // Clear catalog leftovers, then prefill only what the query parsed.
     setForm((prev) => ({
       ...prev,
-      playerName: prefill.playerName || prev.playerName,
-      yearLabel: prefill.yearLabel || prev.yearLabel,
-      cardNumber: prefill.cardNumber || prev.cardNumber,
+      playerName: prefill.playerName,
+      yearLabel: prefill.yearLabel,
+      setBrand: "",
+      cardNumber: prefill.cardNumber,
+      parallel: "Base",
     }));
+    setSetIsCustom(false);
+    setParallelIsCustom(false);
     setIdentified(null);
     requestAnimationFrame(() => {
       const el = document.querySelector<HTMLInputElement>(

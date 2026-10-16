@@ -149,8 +149,27 @@ export function CardSearch({
   }
 
   function onKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      if (!showList) {
+        if (query.trim().length >= 1) setOpen(true);
+        return;
+      }
+      if (active >= results.length) chooseManual();
+      else {
+        const pick = results[active] ?? results[0];
+        if (pick) choose(pick);
+        else chooseManual();
+      }
+      return;
+    }
     if (!showList) {
-      if (event.key === "Escape") setOpen(false);
+      if (event.key === "ArrowDown") {
+        event.preventDefault();
+        if (query.trim().length >= 1) setOpen(true);
+      } else if (event.key === "Escape") {
+        setOpen(false);
+      }
       return;
     }
     if (event.key === "ArrowDown") {
@@ -159,14 +178,6 @@ export function CardSearch({
     } else if (event.key === "ArrowUp") {
       event.preventDefault();
       setActive((index) => (index - 1 + optionCount) % optionCount);
-    } else if (event.key === "Enter") {
-      event.preventDefault();
-      if (active >= results.length) chooseManual();
-      else {
-        const pick = results[active] ?? results[0];
-        if (pick) choose(pick);
-        else chooseManual();
-      }
     } else if (event.key === "Escape") {
       setOpen(false);
     }

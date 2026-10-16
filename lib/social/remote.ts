@@ -80,6 +80,7 @@ type MessageRow = {
   read: boolean;
 };
 
+/** Row from public.public_cards — no paid_price / purchase_date / notes / cert_number. */
 type PublicCardRow = {
   id: string;
   user_id: string;
@@ -88,19 +89,16 @@ type PublicCardRow = {
   set: string;
   grade: string | null;
   parallel: string | null;
-  paid_price: number | null;
   estimated_value: number | null;
   image_url: string | null;
   card_number: string | null;
   sport: string | null;
-  purchase_date: string | null;
-  sell_price: number | null;
-  sell_date: string | null;
-  notes: string | null;
   accent: string | null;
   is_public: boolean | null;
   created_at: string;
   updated_at: string | null;
+  year_label?: string | null;
+  set_name?: string | null;
 };
 
 function previewText(value: string) {
@@ -147,7 +145,7 @@ export async function loadSupabaseSocial(supabase: SupabaseClient): Promise<Soci
       supabase.from("profiles").select("*"),
       supabase.from("posts").select("*").order("created_at", { ascending: false }).limit(100),
       supabase.from("follows").select("*"),
-      supabase.from("cards").select("*").eq("is_public", true),
+      supabase.from("public_cards").select("*"),
       supabase.from("comments").select("*").order("created_at", { ascending: true }),
       supabase.from("notifications").select("*").order("created_at", { ascending: false }),
       supabase.from("messages").select("*").order("created_at", { ascending: true }),
@@ -190,7 +188,9 @@ export async function loadSupabaseSocial(supabase: SupabaseClient): Promise<Soci
       createdAt: row.created_at,
     }),
   );
-  const publicCards = ((cardsRes.data ?? []) as PublicCardRow[]).map(mapPublicCard);
+  const publicCards = ((cardsRes.data ?? []) as PublicCardRow[]).map((row) =>
+    mapPublicCard(row),
+  );
   const comments = ((commentsRes.data ?? []) as CommentRow[]).map(
     (row): PostComment => ({
       id: row.id,

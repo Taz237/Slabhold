@@ -88,13 +88,29 @@ describe("searchCatalog ranking", () => {
     assert.equal(hits[0]!.playerName, "Luka Dončić");
   });
 
-  it("prizm 136 returns Prizm #136 with Base first", () => {
+  it("prizm 136 ranks all #136 cards (Base then parallels) above other Prizm", () => {
     const hits = searchCatalog("prizm 136");
     assert.ok(hits.length > 0);
     assert.equal(hits[0]!.setBrand, "Panini Prizm");
     assert.equal(hits[0]!.cardNumber, "136");
     assert.equal(hits[0]!.parallel, "Base");
     assert.equal(hits[0]!.playerName, "Victor Wembanyama");
+
+    const firstNon136 = hits.findIndex((h) => h.cardNumber !== "136");
+    const last136 = hits.reduce(
+      (last, h, i) => (h.cardNumber === "136" ? i : last),
+      -1,
+    );
+    assert.ok(last136 >= 0);
+    if (firstNon136 >= 0) {
+      assert.ok(
+        last136 < firstNon136,
+        "every #136 must rank above non-#136 Prizm cards",
+      );
+    }
+    const among136 = hits.filter((h) => h.cardNumber === "136");
+    assert.ok(among136.length >= 1);
+    assert.equal(among136[0]!.parallel, "Base");
   });
 
   it("SGA and Ant return the right players", () => {

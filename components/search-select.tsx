@@ -92,6 +92,12 @@ export function SearchSelect({
         aria-label={label}
         data-field={dataField}
         onClick={() => setOpen(true)}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === "ArrowDown") {
+            event.preventDefault();
+            setOpen(true);
+          }
+        }}
         className={controlClass}
       >
         <span className={`min-w-0 truncate ${value ? "" : "text-zinc-400 dark:text-zinc-500"}`}>
@@ -129,9 +135,10 @@ export function SearchSelect({
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 onKeyDown={(event) => {
-                  if (event.key === "Enter" && filtered[0]) {
+                  if (event.key === "Enter") {
                     event.preventDefault();
-                    choose(filtered[0]);
+                    if (filtered[0]) choose(filtered[0]);
+                    else if (showCustom) choose(customValue);
                   }
                 }}
                 placeholder={`Search ${label.toLowerCase()}`}

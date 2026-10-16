@@ -86,7 +86,9 @@ function PublicCardAnalytics({
     card.parallel?.trim() ? { label: "Parallel", value: card.parallel.trim() } : null,
     card.grade?.trim() ? { label: "Grade", value: card.grade.trim() } : null,
   ].filter((spec): spec is { label: string; value: string } => Boolean(spec));
-  const showPaid = typeof card.purchasePrice === "number";
+  // Paid is private — only present when viewing your own card from the collection.
+  const showPaid =
+    typeof card.purchasePrice === "number" && Number.isFinite(card.purchasePrice);
 
   const { value: cardValue, loading: valueLoading } = useCardValue(card.id);
   const sold = useSoldComps(userId ? card.id : null);

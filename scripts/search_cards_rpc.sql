@@ -13,6 +13,7 @@ language plpgsql
 stable
 security invoker
 set search_path = public, extensions
+set statement_timeout = '1s'
 as $$
 declare
   nq text;
@@ -38,6 +39,10 @@ declare
   best_sim double precision;
 begin
   if q is null or length(trim(q)) = 0 then
+    return;
+  end if;
+
+  if length(q) > 100 then
     return;
   end if;
 
@@ -194,6 +199,7 @@ begin
       ) >= 0.3
       or (card_num is not null and upper(c.card_number) = card_num)
     order by
+      (card_num is not null and upper(c.card_number) = card_num) desc,
       (lower(coalesce(c.parallel, '')) = 'base') desc,
       rscore desc,
       c.player asc

@@ -119,22 +119,53 @@ export function mapCardRow(row: CardRow): SportsCard {
   };
 }
 
-export function mapPublicCard(row: CardRow): OwnedCard {
-  const card = mapCardRow(row);
+/** Map a public_cards (or safe) row — never expose paid/notes/cert/purchase date. */
+export function mapPublicCard(
+  row: Pick<
+    CardRow,
+    | "id"
+    | "user_id"
+    | "player"
+    | "year"
+    | "set"
+    | "grade"
+    | "parallel"
+    | "estimated_value"
+    | "image_url"
+    | "card_number"
+    | "sport"
+    | "accent"
+    | "year_label"
+    | "set_name"
+    | "grader"
+  >,
+): OwnedCard {
+  const setBrand = (row.set_name || row.set || "").trim();
+  const yearLabel = (row.year_label || "").trim() || String(row.year);
+  const grader = (row.grader ?? "").trim();
+  const gradeText = (row.grade ?? "").trim();
+  const grade = grader
+    ? formatGrade(
+        grader,
+        /^\d+(?:\.\d+)?$/.test(gradeText)
+          ? gradeText
+          : parseGrade(gradeText).number,
+      )
+    : gradeText;
   return {
     ownerId: row.user_id,
-    id: card.id,
-    playerName: card.playerName,
-    year: card.year,
-    setBrand: card.setBrand,
-    cardNumber: card.cardNumber,
-    sport: card.sport,
-    photoDataUrl: card.photoDataUrl,
-    accent: card.accent,
-    estimatedSellPrice: card.estimatedSellPrice,
-    grade: card.grade,
-    parallel: card.parallel,
-    purchasePrice: row.paid_price == null ? null : Number(row.paid_price),
+    id: row.id,
+    playerName: row.player,
+    year: row.year,
+    setBrand,
+    cardNumber: row.card_number ?? "",
+    sport: row.sport ?? "Basketball",
+    photoDataUrl: row.image_url,
+    accent: row.accent ?? "#7c5cff",
+    estimatedSellPrice: Number(row.estimated_value) || 0,
+    grade,
+    parallel: row.parallel ?? "Base",
+    purchasePrice: null,
   };
 }
 

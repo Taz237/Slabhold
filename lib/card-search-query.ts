@@ -324,10 +324,21 @@ export function searchCardsLocal(
     // still allow short aliases; fall through for fuzzy
   }
 
+  const wantNum = parsed.cardNumber
+    ? normalizeSearchText(parsed.cardNumber)
+    : null;
+
   const ranked = cards
     .map((card) => ({ card, score: scoreCard(card, parsed) }))
     .filter((row) => row.score >= SCORE_THRESHOLD)
     .sort((a, b) => {
+      if (wantNum) {
+        const aNum =
+          normalizeSearchText(a.card.cardNumber) === wantNum ? 1 : 0;
+        const bNum =
+          normalizeSearchText(b.card.cardNumber) === wantNum ? 1 : 0;
+        if (bNum !== aNum) return bNum - aNum;
+      }
       const aBase = a.card.parallel.toLowerCase() === "base" ? 1 : 0;
       const bBase = b.card.parallel.toLowerCase() === "base" ? 1 : 0;
       if (bBase !== aBase) return bBase - aBase;
