@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "tsx --test lib/comps/clean.test.ts lib/comps/match.test.ts lib/card-options.test.ts lib/value/format.test.ts lib/card-search-query.test.ts lib/social/public-card-privacy.test.ts lib/social/mentions.test.ts lib/social/card-posts.test.ts lib/social/quotes.test.ts lib/portfolio.test.ts lib/collection/totals.test.ts"
+    "test": "tsx --test lib/comps/clean.test.ts lib/comps/match.test.ts lib/card-options.test.ts lib/value/format.test.ts lib/card-search-query.test.ts lib/social/public-card-privacy.test.ts lib/social/mentions.test.ts lib/social/card-posts.test.ts lib/social/quotes.test.ts lib/social/posts-rls.test.ts lib/portfolio.test.ts lib/collection/totals.test.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",

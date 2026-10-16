@@ -368,28 +368,11 @@ drop policy if exists "Create own posts" on public.posts;
 drop policy if exists "Update own posts" on public.posts;
 drop policy if exists "Delete own posts" on public.posts;
 create policy "Posts are public" on public.posts for select using (true);
-create policy "Create own posts" on public.posts for insert with check (
-  auth.uid() = user_id
-  and (
-    quoted_post_id is null
-    or exists (
-      select 1 from public.posts as original
-      where original.id = quoted_post_id
-    )
-  )
-);
-create policy "Update own posts" on public.posts for update
-  using (auth.uid() = user_id)
-  with check (
-    auth.uid() = user_id
-    and (
-      quoted_post_id is null
-      or exists (
-        select 1 from public.posts as original
-        where original.id = quoted_post_id
-      )
-    )
-  );
+create policy "Create own posts" on public.posts
+  for insert with check (auth.uid() = user_id);
+create policy "Update own posts" on public.posts
+  for update using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
 create policy "Delete own posts" on public.posts for delete using (auth.uid() = user_id);
 
 drop policy if exists "Users can view own cards" on public.cards;
