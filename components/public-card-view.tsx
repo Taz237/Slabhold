@@ -10,7 +10,7 @@ import { ProfileSkeleton } from "@/components/status";
 import { useSocial } from "@/components/social-provider";
 import { ValueChart } from "@/components/value-chart";
 import { useSoldComps } from "@/lib/comps/use-sold-comps";
-import { cardTitle, money } from "@/lib/format";
+import { cardTitle, formatPaidLabel, money } from "@/lib/format";
 import { formatRelativeTime } from "@/lib/relative-time";
 import type { PublicCard } from "@/lib/social/types";
 import { createSupabaseBrowser } from "@/lib/supabase/browser";
@@ -170,11 +170,9 @@ function PublicCardAnalytics({
           <p className="mt-1 text-2xl font-semibold tracking-tight tabular-nums">
             {valueLoading
               ? "…"
-              : cardValue?.status === "no_sales"
-                ? "No sales yet"
-                : displayEst != null
-                  ? money(displayEst, true)
-                  : formatCardValueLabel(cardValue)}
+              : displayEst != null
+                ? money(displayEst, true)
+                : formatCardValueLabel(cardValue)}
           </p>
           {displayEst != null && cardValue ? (
             <p className="mt-1 text-xs text-zinc-500">
@@ -192,11 +190,7 @@ function PublicCardAnalytics({
         {showPaid ? (
           <Metric
             label="Paid"
-            value={
-              card.purchasePrice
-                ? money(card.purchasePrice, true)
-                : "—"
-            }
+            value={formatPaidLabel(card.purchasePrice ?? 0, true)}
           />
         ) : null}
       </section>

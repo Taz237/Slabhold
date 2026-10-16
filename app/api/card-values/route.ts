@@ -44,15 +44,8 @@ export async function GET(request: Request) {
 
   const map = await getCardValues(ids);
   const values: Record<string, CardValueResult> = {};
-  for (const id of ids) {
-    values[id] = map.get(id) ?? {
-      status: "unavailable",
-      median: null,
-      low: null,
-      high: null,
-      nSales: 0,
-      matchedAt: null,
-    };
+  for (const [id, value] of map) {
+    values[id] = value;
   }
 
   return Response.json({ values });

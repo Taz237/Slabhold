@@ -11,6 +11,7 @@ import { CollectionSkeleton, EmptyState } from "@/components/status";
 import {
   cardSubtitle,
   cardTitle,
+  formatPaidLabel,
   isSold,
   money,
   pct,
@@ -31,6 +32,10 @@ import {
   type CardCategory,
   type PortfolioFilter,
 } from "@/lib/types";
+import {
+  cardValueHasAmount,
+  formatCardValueLabel,
+} from "@/lib/value/format";
 import { useCardValues } from "@/lib/value/use-card-values";
 
 const LANES: { id: "all" | CardCategory; label: string }[] = [
@@ -200,9 +205,21 @@ export function Dashboard() {
       ) : (
         <ul className="grid grid-cols-1 gap-3 md:grid-cols-2">
           {visible.map((card) => {
+            const value = values.get(card.id);
             const p = cardProfit(card, values);
             const pPct = cardProfitPct(card, values);
             const sold = isSold(card);
+            const paid = card.purchasePrice;
+            const showProfit = paid > 0 && p != null && pPct != null;
+            const valueLabel = sold
+              ? card.sellPrice != null
+                ? money(card.sellPrice)
+                : "—"
+              : cardValueHasAmount(value)
+                ? money(value.median)
+                : formatCardValueLabel(value, { createdAt: card.createdAt });
+            const titleText = card.playerName;
+            const subtitleText = cardTitle(card);
             return (
               <li key={card.id}>
                 <Link
@@ -213,57 +230,78 @@ export function Dashboard() {
                     card={card}
                     className="h-24 w-[68px] shrink-0 rounded-lg"
                   />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <p className="truncate font-semibold">{card.playerName}</p>
-                        <p className="truncate text-sm text-zinc-400">
-                          {cardTitle(card)}
+                  <div className="min-w-0 flex-1 overflow-hidden">
+                    <div className="flex min-w-0 items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <p
+                          className="truncate font-semibold"
+                          title={titleText}
+                        >
+                          {titleText}
                         </p>
-                        <p className="text-xs text-zinc-500">
+                        <p
+                          className="truncate text-sm text-zinc-400"
+                          title={subtitleText}
+                        >
+                          {subtitleText}
+                        </p>
+                        <p className="truncate text-xs text-zinc-500">
                           {cardSubtitle(card)}
                         </p>
                       </div>
-                      <div className="flex shrink-0 flex-col items-end gap-1">
+                      <div className="flex min-w-0 max-w-[45%] shrink-0 flex-col items-end gap-1">
                         <CategoryBadge card={card} />
                         {needsDetails(card) ? (
-                          <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] font-medium text-amber-800 dark:text-amber-300">
+                          <span
+                            className="max-w-full truncate rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] font-medium text-amber-800 dark:text-amber-300"
+                            title="Needs details"
+                          >
                             Needs details
                           </span>
                         ) : null}
                         <span
-                          className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                          className={`max-w-full truncate rounded-full px-2 py-0.5 text-[11px] font-medium ${
                             sold
                               ? "bg-sky-500/15 text-sky-700 dark:text-sky-300"
                               : "bg-violet-500/15 text-violet-700 dark:text-violet-300"
                           }`}
+                          title={sold ? "Sold" : "Held"}
                         >
                           {sold ? "Sold" : "Held"}
                         </span>
                       </div>
                     </div>
-                    <div className="mt-3 flex items-center justify-between text-sm">
-                      <span className="text-zinc-400">
-                        Paid {money(card.purchasePrice)}
+                    <div className="mt-3 flex min-w-0 items-start justify-between gap-2 text-sm">
+                      <span className="min-w-0 truncate text-zinc-400">
+                        Paid {formatPaidLabel(paid)}
                       </span>
-                      {p == null || pPct == null ? (
-                        <span className="text-zinc-400">—</span>
-                      ) : (
-                        <span
-                          className={`inline-flex items-center gap-1 font-medium ${
-                            p >= 0
-                              ? "text-emerald-600 dark:text-emerald-400"
-                              : "text-rose-600 dark:text-rose-400"
-                          }`}
+                      <div className="min-w-0 max-w-[60%] text-right">
+                        <p
+                          className="truncate font-medium tabular-nums"
+                          title={valueLabel}
                         >
-                          {p >= 0 ? (
-                            <TrendingUp className="h-3.5 w-3.5" />
-                          ) : (
-                            <TrendingDown className="h-3.5 w-3.5" />
-                          )}
-                          {signedMoney(p)} {pct(pPct)}
-                        </span>
-                      )}
+                          {valueLabel}
+                        </p>
+                        {showProfit ? (
+                          <p
+                            className={`mt-0.5 truncate text-xs font-medium ${
+                              p >= 0
+                                ? "text-emerald-600 dark:text-emerald-400"
+                                : "text-rose-600 dark:text-rose-400"
+                            }`}
+                            title={`${signedMoney(p)} ${pct(pPct)}`}
+                          >
+                            <span className="inline-flex items-center gap-0.5">
+                              {p >= 0 ? (
+                                <TrendingUp className="h-3 w-3 shrink-0" />
+                              ) : (
+                                <TrendingDown className="h-3 w-3 shrink-0" />
+                              )}
+                              {signedMoney(p)} {pct(pPct)}
+                            </span>
+                          </p>
+                        ) : null}
+                      </div>
                     </div>
                   </div>
                 </Link>

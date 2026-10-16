@@ -276,11 +276,16 @@ export function ProfileView({ username }: { username?: string }) {
                       <p className="text-xs text-zinc-500">
                         {(() => {
                           const v = cardValues.get(card.id);
-                          const label = formatCardValueLabel(v);
+                          const label = formatCardValueLabel(v, {
+                            createdAt:
+                              "createdAt" in card
+                                ? (card.createdAt as string)
+                                : null,
+                          });
                           if (
-                            v?.status === "no_sales" ||
                             label === "Value updating" ||
-                            label === "No sales yet"
+                            label === "No sales yet" ||
+                            label === "Value unavailable right now"
                           ) {
                             return label;
                           }

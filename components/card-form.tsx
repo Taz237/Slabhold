@@ -17,9 +17,9 @@ import {
   PARALLELS,
   SETS,
   SPORTS,
-  defaultYearLabelForSport,
   formatGrade,
   isValidCardNumber,
+  isValidYear,
   normalizeCardNumberInput,
   optionsWithCurrent,
   parseGrade,
@@ -108,7 +108,7 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
 
   const defaultYear = existing
     ? existing.yearLabel || String(existing.year)
-    : defaultYearLabelForSport("Basketball");
+    : "";
 
   const [form, setForm] = useState({
     playerName: existing?.playerName ?? "",
@@ -204,8 +204,8 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
   function focusFirstInvalid() {
     const order = [
       !playerOk ? "playerName" : null,
-      !yearOk ? "yearLabel" : null,
       !setOk ? "setBrand" : null,
+      !yearOk ? "yearLabel" : null,
       !cardNumberOk ? "cardNumber" : null,
       !gradeOk ? "grade" : null,
       purchaseNeg ? "purchasePrice" : null,
@@ -219,7 +219,9 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
     const el = formRef.current.querySelector<HTMLElement>(
       `[data-field="${key}"]`,
     );
-    el?.focus();
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    el.focus();
   }
 
   async function scanFile(file: File | undefined) {
@@ -483,7 +485,6 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
         }
       >
         <input
-          required
           data-field="playerName"
           value={form.playerName}
           onBlur={() => markTouched("playerName")}
@@ -506,8 +507,15 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
           <SearchSelect
             label="Year"
             value={form.yearLabel}
-            options={optionsWithCurrent(yearOptions, form.yearLabel)}
+            options={
+              form.yearLabel && isValidYear(form.yearLabel)
+                ? optionsWithCurrent(yearOptions, form.yearLabel)
+                : yearOptions
+            }
+            placeholder="Select"
             allowCustom
+            isCustomValid={isValidYear}
+            customInvalidHint="Use 2026 or 2023-24"
             dataField="yearLabel"
             onChange={(yearLabel) => {
               markTouched("yearLabel");
@@ -521,13 +529,7 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
             value={form.sport}
             options={optionsWithCurrent(SPORTS, form.sport)}
             onChange={(sport) => {
-              setForm((prev) => {
-                const next = { ...prev, sport };
-                if (!existing && !touched.yearLabel) {
-                  next.yearLabel = defaultYearLabelForSport(sport);
-                }
-                return next;
-              });
+              setForm((prev) => ({ ...prev, sport }));
             }}
           />
         </Field>
@@ -750,9 +752,10 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
       <div className="grid grid-cols-2 gap-3">
         <Field label="Purchase date" required>
           <input
-            required
             type="date"
+            data-field="purchaseDate"
             value={form.purchaseDate}
+            onBlur={() => markTouched("purchaseDate")}
             onChange={(e) =>
               setForm((prev) => ({ ...prev, purchaseDate: e.target.value }))
             }
@@ -839,10 +842,10 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
             }
           >
             <input
-              required={sold}
               type="number"
               min={0}
               step="0.01"
+              data-field="sellPrice"
               value={form.sellPrice}
               onBlur={() => markTouched("sellPrice")}
               onChange={(e) =>
@@ -853,9 +856,10 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
           </Field>
           <Field label="Sell date" required>
             <input
-              required={sold}
               type="date"
+              data-field="sellDate"
               value={form.sellDate}
+              onBlur={() => markTouched("sellDate")}
               onChange={(e) =>
                 setForm((prev) => ({ ...prev, sellDate: e.target.value }))
               }

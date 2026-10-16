@@ -14,6 +14,8 @@ export function SearchSelect({
   placeholder = "Select",
   allowEmpty = false,
   allowCustom = false,
+  isCustomValid,
+  customInvalidHint,
   dataField,
 }: {
   label: string;
@@ -24,6 +26,10 @@ export function SearchSelect({
   allowEmpty?: boolean;
   /** Show Use "…" when the typed query is not in the list. */
   allowCustom?: boolean;
+  /** When set, Use "…" only appears for values that pass. */
+  isCustomValid?: (value: string) => boolean;
+  /** Shown instead of Use "…" when the typed value fails isCustomValid. */
+  customInvalidHint?: string;
   dataField?: string;
 }) {
   const titleId = useId();
@@ -38,12 +44,18 @@ export function SearchSelect({
   }, [options, query]);
 
   const customValue = query.trim();
-  const showCustom =
+  const customCandidate =
     allowCustom &&
     Boolean(customValue) &&
     !options.some(
       (option) => option.toLowerCase() === customValue.toLowerCase(),
     );
+  const customOk =
+    !isCustomValid || (customValue ? isCustomValid(customValue) : false);
+  const showCustom = Boolean(customCandidate && customOk);
+  const showCustomInvalid = Boolean(
+    customCandidate && !customOk && customInvalidHint,
+  );
 
   useEffect(() => {
     if (!open) return;
@@ -144,7 +156,12 @@ export function SearchSelect({
                   </OptionButton>
                 </li>
               ) : null}
-              {filtered.length === 0 && !showCustom ? (
+              {showCustomInvalid ? (
+                <li className="px-3 py-3 text-center text-sm text-rose-600 dark:text-rose-400">
+                  {customInvalidHint}
+                </li>
+              ) : null}
+              {filtered.length === 0 && !showCustom && !showCustomInvalid ? (
                 <li className="px-3 py-6 text-center text-sm text-zinc-500">No matches</li>
               ) : (
                 filtered.map((option) => (

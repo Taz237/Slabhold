@@ -69,8 +69,11 @@ function rowToResult(
 
 /**
  * Read trusted value for one card. Never calls Trawl.
+ * Returns null when no card_values row exists.
  */
-export async function getCardValue(cardId: string): Promise<CardValueResult> {
+export async function getCardValue(
+  cardId: string,
+): Promise<CardValueResult | null> {
   if (!cardId) return emptyResult("unavailable");
 
   const client = createSupabaseAdmin();
@@ -96,17 +99,14 @@ export async function getCardValue(cardId: string): Promise<CardValueResult> {
       source === "sample" || source === "off" ? "sample" : "unavailable",
     );
   }
-  if (!data) {
-    return emptyResult(
-      source === "sample" || source === "off" ? "sample" : "unavailable",
-    );
-  }
+  if (!data) return null;
 
   return rowToResult(data as CardValueRow, { expectedQueryKey: expectedKey });
 }
 
 /**
  * Read trusted values for many cards in ONE query. Never calls Trawl.
+ * Only ids with a card_values row appear in the map.
  */
 export async function getCardValues(
   cardIds: string[],
@@ -116,13 +116,12 @@ export async function getCardValues(
   if (!ids.length) return out;
 
   const source = getCompsSource();
-  const fallback = emptyResult(
-    source === "sample" || source === "off" ? "sample" : "unavailable",
-  );
-
   const client = createSupabaseAdmin();
   if (!client) {
-    for (const id of ids) out.set(id, fallback);
+    if (source === "sample" || source === "off") {
+      const sample = emptyResult("sample");
+      for (const id of ids) out.set(id, sample);
+    }
     return out;
   }
 
@@ -133,17 +132,11 @@ export async function getCardValues(
 
   if (error) {
     console.warn("[card_values] read failed:", error.message);
-    for (const id of ids) out.set(id, fallback);
     return out;
   }
 
-  const rows = new Map(
-    ((data ?? []) as CardValueRow[]).map((row) => [row.card_id, row]),
-  );
-
-  for (const id of ids) {
-    const row = rows.get(id);
-    out.set(id, row ? rowToResult(row) : fallback);
+  for (const row of (data ?? []) as CardValueRow[]) {
+    out.set(row.card_id, rowToResult(row));
   }
 
   return out;
@@ -177,8 +170,13 @@ export async function refreshCardValue(
 
   if (!result.ok) {
     if ("rateLimited" in result && result.rateLimited) {
-      return getCardValue(cardId);
+      return (await getCardValue(cardId)) ?? emptyResult("unavailable");
     }
+    // Keep any existing row unchanged on Trawl errors.
+    const existing = await getCardValue(cardId);
+    if (existing) return existing;
+
+    const matchedAt = new Date().toISOString();
     await upsertCardValue(client, {
       card_id: cardId,
       median: null,
@@ -187,7 +185,7 @@ export async function refreshCardValue(
       n_sales: 0,
       status: "unavailable",
       query_key: queryKey,
-      matched_at: new Date().toISOString(),
+      matched_at: matchedAt,
     });
     return emptyResult("unavailable");
   }

@@ -177,12 +177,21 @@ function normalizeGradeNumber(value: string) {
   return Number.isInteger(amount) ? String(amount) : amount.toFixed(1);
 }
 
+/**
+ * Accept only YYYY (1900…next calendar year) or YYYY-YY where
+ * YY === (YYYY + 1) % 100 (e.g. 2023-24, 1999-00).
+ */
+export function isValidYear(value: string): boolean {
+  return parseYearLabel(value) != null;
+}
+
 /** Parse "2023" or "2023-24" into start year + label. */
 export function parseYearLabel(value: string): {
   year: number;
   yearLabel: string;
 } | null {
   const trimmed = value.trim();
+  if (!trimmed) return null;
   const maxYear = new Date().getFullYear() + 1;
   const season = trimmed.match(/^(\d{4})\s*[-/]\s*(\d{2}|\d{4})$/);
   if (season) {

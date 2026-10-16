@@ -17,6 +17,11 @@ export function money(value: number, exact = false) {
   return (exact ? usdExact : usd).format(value);
 }
 
+/** Paid amount for tiles and card page — empty/zero shows an em dash. */
+export function formatPaidLabel(purchasePrice: number, exact = false) {
+  return purchasePrice > 0 ? money(purchasePrice, exact) : "—";
+}
+
 export function signedMoney(value: number, exact = false) {
   const formatted = money(Math.abs(value), exact);
   if (value > 0) return `+${formatted}`;

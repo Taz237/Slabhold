@@ -1,6 +1,11 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { cardCategory, rememberCategory } from "@/lib/card-category";
-import { formatGrade, parseGrade, RAW_GRADE } from "@/lib/card-options";
+import {
+  formatGrade,
+  isValidYear,
+  parseGrade,
+  RAW_GRADE,
+} from "@/lib/card-options";
 import { uploadMedia } from "@/lib/supabase/media";
 import type { ConditionType, SportsCard } from "@/lib/types";
 import type { OwnedCard } from "./types";
@@ -157,6 +162,11 @@ export async function saveUserCard(
   userId: string,
   card: SportsCard,
 ) {
+  const yearText = (card.yearLabel || String(card.year || "")).trim();
+  if (!isValidYear(yearText)) {
+    throw new Error("Use 2026 or 2023-24");
+  }
+
   const uploaded = await uploadMedia(
     supabase,
     "card-photos",

@@ -16,6 +16,7 @@ import {
   cardSubtitle,
   cardTitle,
   formatDate,
+  formatPaidLabel,
   isSold,
   money,
   pct,
@@ -112,7 +113,7 @@ export function CardDetail({ id }: { id: string }) {
     ? null
     : valueLoading
       ? null
-      : formatCardValueLabel(cardValue);
+      : formatCardValueLabel(cardValue, { createdAt: card.createdAt });
 
   function markSold() {
     const price = Number(sellPrice);
@@ -196,11 +197,7 @@ export function CardDetail({ id }: { id: string }) {
           <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
             <Metric
               label="Paid"
-              value={
-                card.purchasePrice
-                  ? money(card.purchasePrice, true)
-                  : "—"
-              }
+              value={formatPaidLabel(card.purchasePrice, true)}
             />
             <EstSellMetric
               cardSold={cardSold}
