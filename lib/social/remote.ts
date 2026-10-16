@@ -23,7 +23,7 @@ import {
   type MentionCandidate,
 } from "./mentions";
 import { normalizeUsername, usernameError } from "./local-db";
-import { shouldNotifyQuoteAuthor, validateQuoteContent } from "./quotes";
+import { validateQuoteContent } from "./quotes";
 
 /** Public columns only — used by @mention autocomplete. */
 const MENTION_PROFILE_SELECT = "id, username, display_name, avatar_url";
@@ -598,16 +598,14 @@ export async function remoteCreatePost(
   }
   if (body.length > 280) return { error: "Keep it to 280 characters." };
 
-  let quotedAuthorId: string | null = null;
   if (quotedPostId) {
     const { data: quoted, error: quotedError } = await supabase
       .from("posts")
-      .select("id, user_id, content")
+      .select("id")
       .eq("id", quotedPostId)
       .maybeSingle();
     if (quotedError) return { error: quotedError.message };
     if (!quoted) return { error: "That post is unavailable." };
-    quotedAuthorId = quoted.user_id as string;
   }
 
   const image = await uploadMedia(supabase, "post-images", authorId, input.imageDataUrl);
@@ -627,41 +625,11 @@ export async function remoteCreatePost(
     .single();
   if (error || !created) return { error: error?.message ?? "Could not save that post." };
 
+  // Quote notifications are created by a DB trigger on posts insert.
+  // Mentions stay client-side so edit/sync can add/remove them.
   const mentionProblem = await syncMentionNotifications(supabase, authorId, created.id, body);
-  const quoteProblem = await syncQuoteNotification(
-    supabase,
-    authorId,
-    created.id,
-    quotedAuthorId,
-    body || "Quoted your post",
-  );
   if (mentionProblem) return { notice: mentionProblem };
-  if (quoteProblem) return { notice: quoteProblem };
   return {};
-}
-
-async function syncQuoteNotification(
-  supabase: SupabaseClient,
-  actorId: string,
-  quotePostId: string,
-  originalAuthorId: string | null,
-  preview: string,
-): Promise<string | null> {
-  if (!shouldNotifyQuoteAuthor(actorId, originalAuthorId) || !originalAuthorId) {
-    return null;
-  }
-  const { error } = await supabase.from("notifications").insert({
-    recipient_id: originalAuthorId,
-    actor_id: actorId,
-    kind: "quote",
-    post_id: quotePostId,
-    preview: previewText(preview),
-  });
-  if (!error || error.code === "23505" || missingTable(error)) return null;
-  if (error.code === "23514" || /notifications_kind/i.test(error.message ?? "")) {
-    return "Your quote was saved. Re-run the quote migration so quote notifications can be delivered.";
-  }
-  return error.message;
 }
 
 export async function remoteUpdatePost(

@@ -16,6 +16,7 @@ const PREVIEW_LIMIT = 5;
 export function CardCollectorsSaying({ cardId }: { cardId: string }) {
   const { user, posts: loadedPosts, profiles, publicCards, ready } = useSocial();
   const [posts, setPosts] = useState<Post[]>([]);
+  const [relatedPosts, setRelatedPosts] = useState<Post[]>([]);
   const [authors, setAuthors] = useState<Map<string, Profile>>(new Map());
   const [hasMore, setHasMore] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -43,6 +44,7 @@ export function CardCollectorsSaying({ cardId }: { cardId: string }) {
           });
           if (cancelled) return;
           setPosts(result.posts);
+          setRelatedPosts(result.relatedPosts);
           setAuthors(result.authors);
           setHasMore(result.hasMore);
           return;
@@ -55,6 +57,7 @@ export function CardCollectorsSaying({ cardId }: { cardId: string }) {
         );
         if (cancelled) return;
         setPosts(fallback.posts);
+        setRelatedPosts([]);
         setAuthors(profileMap);
         setHasMore(fallback.hasMore);
       } catch {
@@ -66,6 +69,7 @@ export function CardCollectorsSaying({ cardId }: { cardId: string }) {
           PREVIEW_LIMIT,
         );
         setPosts(fallback.posts);
+        setRelatedPosts([]);
         setAuthors(profileMap);
         setHasMore(fallback.hasMore);
       } finally {
@@ -120,7 +124,15 @@ export function CardCollectorsSaying({ cardId }: { cardId: string }) {
             const author =
               authors.get(post.authorId) ?? profileMap.get(post.authorId);
             if (!author) return null;
-            return <Tweet key={post.id} post={post} author={author} />;
+            return (
+              <Tweet
+                key={post.id}
+                post={post}
+                author={author}
+                extraPosts={relatedPosts}
+                extraProfiles={[...authors.values()]}
+              />
+            );
           })}
           {hasMore ? (
             <div className="px-4 py-3">

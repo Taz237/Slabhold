@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Post, Profile, PublicCard } from "./types";
 
-const POST_SELECT = "id, user_id, content, image_url, card, created_at";
+const POST_SELECT = "id, user_id, content, image_url, card, quoted_post_id, created_at";
 const PROFILE_SELECT =
   "id, username, display_name, bio, avatar_url, cover_url, accent, created_at";
 
@@ -11,6 +11,7 @@ type PostRow = {
   content: string;
   image_url: string | null;
   card: unknown;
+  quoted_post_id?: string | null;
   created_at: string;
 };
 
@@ -48,7 +49,7 @@ export function sanitizeAttachedCard(raw: unknown): PublicCard | null {
   };
 }
 
-function mapPostRow(row: PostRow & { quoted_post_id?: string | null }): Post {
+function mapPostRow(row: PostRow): Post {
   return {
     id: row.id,
     authorId: row.user_id,
@@ -74,6 +75,64 @@ function mapProfileRow(row: ProfileRow): Profile {
   };
 }
 
+async function loadProfilesById(
+  supabase: SupabaseClient,
+  authorIds: string[],
+): Promise<Map<string, Profile>> {
+  const authors = new Map<string, Profile>();
+  if (authorIds.length === 0) return authors;
+  const { data: profileRows, error: profileError } = await supabase
+    .from("profiles")
+    .select(PROFILE_SELECT)
+    .in("id", authorIds);
+  if (profileError) throw new Error(profileError.message);
+  for (const row of (profileRows ?? []) as ProfileRow[]) {
+    authors.set(row.id, mapProfileRow(row));
+  }
+  return authors;
+}
+
+/** Fetch missing quoted posts (one nested hop) so quote embeds can resolve. */
+async function loadQuotedPosts(
+  supabase: SupabaseClient,
+  posts: Post[],
+): Promise<Post[]> {
+  const known = new Set(posts.map((post) => post.id));
+  const missing = [
+    ...new Set(
+      posts
+        .map((post) => post.quotedPostId)
+        .filter((id): id is string => Boolean(id) && !known.has(id!)),
+    ),
+  ];
+  if (missing.length === 0) return [];
+
+  const related: Post[] = [];
+  const { data, error } = await supabase.from("posts").select(POST_SELECT).in("id", missing);
+  if (error) throw new Error(error.message);
+  for (const row of (data ?? []) as PostRow[]) {
+    const mapped = mapPostRow(row);
+    related.push(mapped);
+    known.add(mapped.id);
+  }
+
+  const nestedMissing = [
+    ...new Set(
+      related
+        .map((post) => post.quotedPostId)
+        .filter((id): id is string => Boolean(id) && !known.has(id!)),
+    ),
+  ];
+  if (nestedMissing.length > 0) {
+    const nested = await supabase.from("posts").select(POST_SELECT).in("id", nestedMissing);
+    if (nested.error) throw new Error(nested.error.message);
+    for (const row of (nested.data ?? []) as PostRow[]) {
+      related.push(mapPostRow(row));
+    }
+  }
+  return related;
+}
+
 /**
  * Posts that attach this card, newest first.
  * Only returns rows when the card is visible via public_cards (RLS/view).
@@ -83,7 +142,12 @@ export async function loadPostsForCard(
   supabase: SupabaseClient,
   cardId: string,
   options?: { limit?: number },
-): Promise<{ posts: Post[]; authors: Map<string, Profile>; hasMore: boolean }> {
+): Promise<{
+  posts: Post[];
+  relatedPosts: Post[];
+  authors: Map<string, Profile>;
+  hasMore: boolean;
+}> {
   const limit = Math.max(1, options?.limit ?? 5);
 
   const { data: visible, error: visibleError } = await supabase
@@ -93,7 +157,7 @@ export async function loadPostsForCard(
     .maybeSingle();
   if (visibleError) throw new Error(visibleError.message);
   if (!visible) {
-    return { posts: [], authors: new Map(), hasMore: false };
+    return { posts: [], relatedPosts: [], authors: new Map(), hasMore: false };
   }
 
   const { data, error } = await supabase
@@ -107,21 +171,14 @@ export async function loadPostsForCard(
   const rows = (data ?? []) as PostRow[];
   const hasMore = rows.length > limit;
   const sliced = rows.slice(0, limit).map(mapPostRow);
+  const relatedPosts = await loadQuotedPosts(supabase, sliced);
 
-  const authorIds = [...new Set(sliced.map((post) => post.authorId))];
-  const authors = new Map<string, Profile>();
-  if (authorIds.length > 0) {
-    const { data: profileRows, error: profileError } = await supabase
-      .from("profiles")
-      .select(PROFILE_SELECT)
-      .in("id", authorIds);
-    if (profileError) throw new Error(profileError.message);
-    for (const row of (profileRows ?? []) as ProfileRow[]) {
-      authors.set(row.id, mapProfileRow(row));
-    }
-  }
+  const authorIds = [
+    ...new Set([...sliced, ...relatedPosts].map((post) => post.authorId)),
+  ];
+  const authors = await loadProfilesById(supabase, authorIds);
 
-  return { posts: sliced, authors, hasMore };
+  return { posts: sliced, relatedPosts, authors, hasMore };
 }
 
 /** Client/local fallback: filter already-loaded posts when the card is public. */

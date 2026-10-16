@@ -10,26 +10,33 @@ import { useSocial } from "@/components/social-provider";
 import { initials, timeAgo } from "@/lib/format";
 import { sanitizeAttachedCard } from "@/lib/social/card-posts";
 import { resolveQuoteEmbedState } from "@/lib/social/quotes";
-import type { PublicCard } from "@/lib/social/types";
+import type { Post, Profile, PublicCard } from "@/lib/social/types";
 
 export function QuotedPostEmbed({
   quotedPostId,
   className = "",
+  extraPosts,
+  extraProfiles,
 }: {
   quotedPostId: string | null | undefined;
   className?: string;
+  /** Posts loaded outside the main social snapshot (e.g. card collectors feed). */
+  extraPosts?: Post[];
+  extraProfiles?: Profile[];
 }) {
   const router = useRouter();
   const { posts, profiles } = useSocial();
 
-  const postsById = useMemo(
-    () => new Map(posts.map((post) => [post.id, post])),
-    [posts],
-  );
-  const profilesById = useMemo(
-    () => new Map(profiles.map((profile) => [profile.id, profile])),
-    [profiles],
-  );
+  const postsById = useMemo(() => {
+    const map = new Map(posts.map((post) => [post.id, post]));
+    for (const post of extraPosts ?? []) map.set(post.id, post);
+    return map;
+  }, [extraPosts, posts]);
+  const profilesById = useMemo(() => {
+    const map = new Map(profiles.map((profile) => [profile.id, profile]));
+    for (const profile of extraProfiles ?? []) map.set(profile.id, profile);
+    return map;
+  }, [extraProfiles, profiles]);
 
   const state = resolveQuoteEmbedState(quotedPostId, postsById, profilesById);
 

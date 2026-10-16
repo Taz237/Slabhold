@@ -17,6 +17,7 @@ const PAGE_LIMIT = 40;
 export function CardPostsList({ cardId }: { cardId: string }) {
   const { user, posts: loadedPosts, profiles, publicCards, ready } = useSocial();
   const [posts, setPosts] = useState<Post[]>([]);
+  const [relatedPosts, setRelatedPosts] = useState<Post[]>([]);
   const [authors, setAuthors] = useState<Map<string, Profile>>(new Map());
   const [loading, setLoading] = useState(true);
 
@@ -43,6 +44,7 @@ export function CardPostsList({ cardId }: { cardId: string }) {
           });
           if (cancelled) return;
           setPosts(result.posts);
+          setRelatedPosts(result.relatedPosts);
           setAuthors(result.authors);
           return;
         }
@@ -54,6 +56,7 @@ export function CardPostsList({ cardId }: { cardId: string }) {
         );
         if (cancelled) return;
         setPosts(fallback.posts);
+        setRelatedPosts([]);
         setAuthors(profileMap);
       } catch {
         if (cancelled) return;
@@ -64,6 +67,7 @@ export function CardPostsList({ cardId }: { cardId: string }) {
           PAGE_LIMIT,
         );
         setPosts(fallback.posts);
+        setRelatedPosts([]);
         setAuthors(profileMap);
       } finally {
         if (!cancelled) setLoading(false);
@@ -128,7 +132,15 @@ export function CardPostsList({ cardId }: { cardId: string }) {
             const author =
               authors.get(post.authorId) ?? profileMap.get(post.authorId);
             if (!author) return null;
-            return <Tweet key={post.id} post={post} author={author} />;
+            return (
+              <Tweet
+                key={post.id}
+                post={post}
+                author={author}
+                extraPosts={relatedPosts}
+                extraProfiles={[...authors.values()]}
+              />
+            );
           })}
         </div>
       )}

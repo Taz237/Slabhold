@@ -21,6 +21,8 @@ export function Tweet({
   onReply,
   onQuotesClick,
   repostedBy = null,
+  extraPosts,
+  extraProfiles,
 }: {
   post: Post;
   author: Profile;
@@ -28,6 +30,8 @@ export function Tweet({
   onReply?: () => void;
   onQuotesClick?: () => void;
   repostedBy?: Profile | null;
+  extraPosts?: Post[];
+  extraProfiles?: Profile[];
 }) {
   const router = useRouter();
   const openImage = useImageLightbox();
@@ -93,7 +97,11 @@ export function Tweet({
         ) : null}
         {post.card ? <CardMedia card={post.card} /> : null}
         {post.quotedPostId ? (
-          <QuotedPostEmbed quotedPostId={post.quotedPostId} />
+          <QuotedPostEmbed
+            quotedPostId={post.quotedPostId}
+            extraPosts={extraPosts}
+            extraProfiles={extraProfiles}
+          />
         ) : null}
         <Engagement
           targetId={post.id}

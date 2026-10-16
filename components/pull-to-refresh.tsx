@@ -197,27 +197,31 @@ export function PullToRefresh({
     };
   }, [pullEnabled]);
 
-  const shown = pullEnabled ? (refreshing ? HOLD : distance) : 0;
+  const shown = refreshing ? HOLD : distance;
 
   return (
     <div className={className}>
-      <div
-        aria-hidden={shown === 0}
-        className="flex items-center justify-center overflow-hidden"
-        style={{ height: shown, transition: dragging ? "none" : "height 180ms ease" }}
-      >
-        <span
-          role="status"
-          className={`h-5 w-5 rounded-full border-2 border-zinc-300 border-t-zinc-900 dark:border-white/20 dark:border-t-zinc-100 ${
-            refreshing ? "animate-spin" : ""
-          }`}
-          style={
-            refreshing ? undefined : { transform: `rotate(${Math.min(distance / THRESHOLD, 1) * 280}deg)` }
-          }
+      {pullEnabled ? (
+        <div
+          aria-hidden={shown === 0}
+          className="flex items-center justify-center overflow-hidden"
+          style={{ height: shown, transition: dragging ? "none" : "height 180ms ease" }}
         >
-          <span className="sr-only">{refreshing ? "Refreshing" : "Pull to refresh"}</span>
-        </span>
-      </div>
+          <span
+            role="status"
+            className={`h-5 w-5 rounded-full border-2 border-zinc-300 border-t-zinc-900 dark:border-white/20 dark:border-t-zinc-100 ${
+              refreshing ? "animate-spin" : ""
+            }`}
+            style={
+              refreshing
+                ? undefined
+                : { transform: `rotate(${Math.min(distance / THRESHOLD, 1) * 280}deg)` }
+            }
+          >
+            <span className="sr-only">{refreshing ? "Refreshing" : "Pull to refresh"}</span>
+          </span>
+        </div>
+      ) : null}
       {children}
     </div>
   );

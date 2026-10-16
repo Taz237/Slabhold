@@ -275,6 +275,54 @@ create trigger on_auth_user_created
   after insert on auth.users
   for each row execute function public.handle_new_user();
 
+create or replace function public.notify_quote_on_post()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  original_author uuid;
+  preview text;
+begin
+  if new.quoted_post_id is null then
+    return new;
+  end if;
+
+  select user_id into original_author
+  from public.posts
+  where id = new.quoted_post_id;
+
+  if original_author is null or original_author = new.user_id then
+    return new;
+  end if;
+
+  preview := nullif(btrim(coalesce(new.content, '')), '');
+  if preview is not null and char_length(preview) > 80 then
+    preview := left(preview, 77) || '…';
+  end if;
+  if preview is null then
+    preview := 'Quoted your post';
+  end if;
+
+  begin
+    insert into public.notifications (recipient_id, actor_id, kind, post_id, preview)
+    values (original_author, new.user_id, 'quote', new.id, preview);
+  exception
+    when unique_violation then
+      null;
+  end;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists on_post_quote_notify on public.posts;
+create trigger on_post_quote_notify
+  after insert on public.posts
+  for each row
+  execute function public.notify_quote_on_post();
+
 alter table public.profiles enable row level security;
 alter table public.follows enable row level security;
 alter table public.posts enable row level security;
@@ -369,7 +417,11 @@ drop policy if exists "Delete notifications you sent" on public.notifications;
 create policy "Read related notifications" on public.notifications
   for select using (auth.uid() = recipient_id or auth.uid() = actor_id);
 create policy "Create notifications as yourself" on public.notifications
-  for insert with check (auth.uid() = actor_id and actor_id <> recipient_id);
+  for insert with check (
+    auth.uid() = actor_id
+    and actor_id <> recipient_id
+    and kind <> 'quote'
+  );
 create policy "Mark own notifications read" on public.notifications
   for update using (auth.uid() = recipient_id) with check (auth.uid() = recipient_id);
 create policy "Delete notifications you sent" on public.notifications

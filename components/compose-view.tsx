@@ -154,15 +154,25 @@ export function ComposeView() {
     );
   }
 
-  const canPost =
-    (body.trim().length > 0 || Boolean(image) || Boolean(cardId)) && !sending;
+  // Quotes stay clickable when empty so submit can show the inline error.
+  const canPost = quoteId
+    ? !sending
+    : (body.trim().length > 0 || Boolean(image) || Boolean(cardId)) && !sending;
+
+  function onCancel() {
+    if (typeof window !== "undefined" && window.history.length > 1) {
+      router.back();
+      return;
+    }
+    router.push("/");
+  }
 
   return (
     <form onSubmit={(e) => void submit(e)} className="-mx-4 -mt-5 flex flex-col pb-16">
       <div className="flex items-center justify-between border-b border-zinc-200 px-4 py-2.5 dark:border-white/10">
         <button
           type="button"
-          onClick={() => router.push("/")}
+          onClick={onCancel}
           className="rounded-full px-2 py-1.5 text-sm font-medium text-zinc-600 dark:text-zinc-300"
         >
           Cancel
