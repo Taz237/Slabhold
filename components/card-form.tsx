@@ -256,7 +256,7 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
     setForm((prev) => ({
       ...prev,
       playerName: card.playerName,
-      yearLabel: String(card.year),
+      yearLabel: card.yearLabel,
       setBrand: card.setBrand,
       cardNumber: card.cardNumber,
       sport: card.sport,
@@ -269,6 +269,26 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
       ),
     );
     setIdentified(null);
+  }
+
+  function applyManualSearch(prefill: {
+    playerName: string;
+    yearLabel: string;
+    cardNumber: string;
+  }) {
+    setForm((prev) => ({
+      ...prev,
+      playerName: prefill.playerName || prev.playerName,
+      yearLabel: prefill.yearLabel || prev.yearLabel,
+      cardNumber: prefill.cardNumber || prev.cardNumber,
+    }));
+    setIdentified(null);
+    requestAnimationFrame(() => {
+      const el = document.querySelector<HTMLInputElement>(
+        '[data-field="playerName"]',
+      );
+      el?.focus();
+    });
   }
 
   function chooseGradeCompany(company: string) {
@@ -371,7 +391,9 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
 
       <CategoryPicker value={category} onChange={setCategory} />
 
-      {!existing ? <CardSearch onSelect={applyCatalog} /> : null}
+      {!existing ? (
+        <CardSearch onSelect={applyCatalog} onManual={applyManualSearch} />
+      ) : null}
 
       <section className="rounded-2xl border border-zinc-200 bg-white dark:border-white/10 dark:bg-white/[0.03] p-4">
         <div className="flex items-start justify-between gap-3">

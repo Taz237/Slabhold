@@ -1,22 +1,126 @@
 "use client";
 
-import { useDeferredValue, useEffect, useId, useRef, useState } from "react";
-import { Search, X } from "lucide-react";
-import { catalogLabel, searchCatalog, type CatalogCard } from "@/lib/card-catalog";
+import { useEffect, useId, useRef, useState } from "react";
+import { Loader2, Search, X } from "lucide-react";
+import {
+  catalogLabel,
+  searchCatalog,
+  type CatalogCard,
+} from "@/lib/card-catalog";
+import { parseManualPrefill } from "@/lib/card-search-query";
+import { createSupabaseBrowser } from "@/lib/supabase/browser";
 
-export function CardSearch({ onSelect }: { onSelect: (card: CatalogCard) => void }) {
+export type ManualPrefill = {
+  playerName: string;
+  yearLabel: string;
+  cardNumber: string;
+};
+
+type RpcRow = {
+  id: string;
+  player: string;
+  year_label: string | null;
+  set_name: string | null;
+  card_number: string | null;
+  parallel: string | null;
+  sport: string | null;
+};
+
+function rowToCard(row: RpcRow): CatalogCard {
+  return {
+    id: row.id,
+    playerName: row.player,
+    yearLabel: row.year_label ?? "",
+    setBrand: row.set_name ?? "",
+    cardNumber: row.card_number ?? "",
+    sport: row.sport ?? "",
+    parallel: row.parallel || "Base",
+  };
+}
+
+async function searchRemote(
+  query: string,
+  signal: AbortSignal,
+): Promise<CatalogCard[] | null> {
+  const supabase = createSupabaseBrowser();
+  if (!supabase) return null;
+
+  const builder = supabase.rpc("search_cards", {
+    q: query,
+    max_results: 20,
+  });
+
+  const withAbort =
+    typeof (builder as { abortSignal?: (s: AbortSignal) => typeof builder })
+      .abortSignal === "function"
+      ? (
+          builder as { abortSignal: (s: AbortSignal) => typeof builder }
+        ).abortSignal(signal)
+      : builder;
+
+  const { data, error } = await withAbort;
+  if (signal.aborted) return null;
+  if (error) {
+    console.warn("search_cards rpc failed, using local fallback", error.message);
+    return null;
+  }
+  return ((data as RpcRow[]) ?? []).map(rowToCard);
+}
+
+export function CardSearch({
+  onSelect,
+  onManual,
+}: {
+  onSelect: (card: CatalogCard) => void;
+  onManual: (prefill: ManualPrefill) => void;
+}) {
   const listId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
+  const requestId = useRef(0);
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
-  const deferred = useDeferredValue(query.trim());
-  const results = deferred.length >= 1 ? searchCatalog(deferred) : [];
-  const showList = open && deferred.length >= 1;
+  const [results, setResults] = useState<CatalogCard[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  const showList = open && query.trim().length >= 1;
+  // results + always-present manual row
+  const optionCount = results.length + 1;
+
+  useEffect(() => {
+    const q = query.trim();
+    if (q.length < 1) {
+      setResults([]);
+      setLoading(false);
+      return;
+    }
+
+    const controller = new AbortController();
+    const id = ++requestId.current;
+    setLoading(true);
+
+    const timer = window.setTimeout(async () => {
+      try {
+        const remote = await searchRemote(q, controller.signal);
+        if (controller.signal.aborted || id !== requestId.current) return;
+        setResults(remote ?? searchCatalog(q, 20));
+      } catch {
+        if (controller.signal.aborted || id !== requestId.current) return;
+        setResults(searchCatalog(q, 20));
+      } finally {
+        if (id === requestId.current) setLoading(false);
+      }
+    }, 150);
+
+    return () => {
+      controller.abort();
+      window.clearTimeout(timer);
+    };
+  }, [query]);
 
   useEffect(() => {
     setActive(0);
-  }, [deferred]);
+  }, [query, results]);
 
   useEffect(() => {
     function onPointer(event: MouseEvent | TouchEvent) {
@@ -38,25 +142,37 @@ export function CardSearch({ onSelect }: { onSelect: (card: CatalogCard) => void
     setOpen(false);
   }
 
+  function chooseManual() {
+    onManual(parseManualPrefill(query));
+    setQuery("");
+    setOpen(false);
+  }
+
   function onKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
-    if (!showList || results.length === 0) {
+    if (!showList) {
       if (event.key === "Escape") setOpen(false);
       return;
     }
     if (event.key === "ArrowDown") {
       event.preventDefault();
-      setActive((index) => (index + 1) % results.length);
+      setActive((index) => (index + 1) % optionCount);
     } else if (event.key === "ArrowUp") {
       event.preventDefault();
-      setActive((index) => (index - 1 + results.length) % results.length);
+      setActive((index) => (index - 1 + optionCount) % optionCount);
     } else if (event.key === "Enter") {
       event.preventDefault();
-      const pick = results[active] ?? results[0];
-      if (pick) choose(pick);
+      if (active >= results.length) chooseManual();
+      else {
+        const pick = results[active] ?? results[0];
+        if (pick) choose(pick);
+        else chooseManual();
+      }
     } else if (event.key === "Escape") {
       setOpen(false);
     }
   }
+
+  const manualSelected = active === results.length || results.length === 0;
 
   return (
     <section className="relative" ref={rootRef}>
@@ -75,10 +191,19 @@ export function CardSearch({ onSelect }: { onSelect: (card: CatalogCard) => void
           aria-expanded={showList}
           aria-controls={listId}
           aria-autocomplete="list"
-          aria-activedescendant={showList && results[active] ? `${listId}-${results[active].id}` : undefined}
-          placeholder="Player, year, or set"
+          aria-activedescendant={
+            showList
+              ? active < results.length && results[active]
+                ? `${listId}-${results[active].id}`
+                : `${listId}-manual`
+              : undefined
+          }
+          placeholder="Player, year, set, or #number"
           className="min-w-0 flex-1 bg-transparent text-sm text-zinc-900 outline-none placeholder:text-zinc-400 dark:text-zinc-100 dark:placeholder:text-zinc-500"
         />
+        {loading ? (
+          <Loader2 className="h-4 w-4 shrink-0 animate-spin text-zinc-400" aria-label="Searching" />
+        ) : null}
         {query ? (
           <button
             type="button"
@@ -93,36 +218,50 @@ export function CardSearch({ onSelect }: { onSelect: (card: CatalogCard) => void
           </button>
         ) : null}
       </label>
-      <p className="mt-1.5 text-xs text-zinc-500">Pick a match to fill the fields below, or enter details manually.</p>
+      <p className="mt-1.5 text-xs text-zinc-500">
+        Pick a match to fill the fields below, or enter details manually.
+      </p>
 
       {showList ? (
         <ul
           id={listId}
           role="listbox"
-          className="absolute z-20 mt-2 max-h-64 w-full overflow-y-auto rounded-2xl border border-zinc-200 bg-[var(--background)] py-1 shadow-lg dark:border-white/10"
+          className="absolute z-20 mt-2 max-h-72 w-full overflow-y-auto rounded-2xl border border-zinc-200 bg-[var(--background)] py-1 shadow-lg dark:border-white/10"
         >
-          {results.length === 0 ? (
-            <li className="px-3 py-4 text-center text-sm text-zinc-500">No matches — fill in the form below</li>
-          ) : (
-            results.map((card, index) => {
-              const selected = index === active;
-              return (
-                <li key={card.id} role="option" id={`${listId}-${card.id}`} aria-selected={selected}>
-                  <button
-                    type="button"
-                    onMouseEnter={() => setActive(index)}
-                    onClick={() => choose(card)}
-                    className={`flex w-full flex-col gap-0.5 px-3 py-2.5 text-left ${
-                      selected ? "bg-violet-500/10" : "hover:bg-zinc-100 dark:hover:bg-white/5"
-                    }`}
-                  >
-                    <span className="text-sm font-medium text-zinc-900 dark:text-zinc-100">{card.playerName}</span>
-                    <span className="truncate text-xs text-zinc-500">{catalogLabel(card)}</span>
-                  </button>
-                </li>
-              );
-            })
-          )}
+          {loading && results.length === 0 ? (
+            <li className="px-3 py-3 text-sm text-zinc-500">Searching…</li>
+          ) : null}
+          {results.map((card, index) => {
+            const selected = index === active;
+            return (
+              <li key={card.id} role="option" id={`${listId}-${card.id}`} aria-selected={selected}>
+                <button
+                  type="button"
+                  onMouseEnter={() => setActive(index)}
+                  onClick={() => choose(card)}
+                  className={`flex w-full px-3 py-2.5 text-left text-sm ${
+                    selected ? "bg-violet-500/10" : "hover:bg-zinc-100 dark:hover:bg-white/5"
+                  }`}
+                >
+                  <span className="text-zinc-900 dark:text-zinc-100">{catalogLabel(card)}</span>
+                </button>
+              </li>
+            );
+          })}
+          <li role="option" id={`${listId}-manual`} aria-selected={manualSelected}>
+            <button
+              type="button"
+              onMouseEnter={() => setActive(results.length)}
+              onClick={chooseManual}
+              className={`flex w-full px-3 py-2.5 text-left text-sm font-medium ${
+                manualSelected
+                  ? "bg-violet-500/10 text-zinc-900 dark:text-zinc-100"
+                  : "text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-white/5"
+              }`}
+            >
+              Can&apos;t find it? Enter it manually
+            </button>
+          </li>
         </ul>
       ) : null}
     </section>

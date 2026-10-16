@@ -1,9 +1,16 @@
-/** Lightweight local catalog for Add Card autocomplete (no paid API). */
+/** Local catalog seeds for Add Card search (fallback + migration source). */
+
+import {
+  buildSearchText,
+  formatCatalogResultLabel,
+  searchCardsLocal,
+  type SearchableCard,
+} from "@/lib/card-search-query";
 
 export type CatalogCard = {
   id: string;
   playerName: string;
-  year: number;
+  yearLabel: string;
   setBrand: string;
   cardNumber: string;
   sport: string;
@@ -12,14 +19,31 @@ export type CatalogCard = {
 
 type CatalogSeed = Omit<CatalogCard, "id">;
 
-const SEEDS: CatalogSeed[] = [
+function seasonLabel(startYear: number): string {
+  return `${startYear}-${String((startYear + 1) % 100).padStart(2, "0")}`;
+}
+
+function yearForSport(year: number, sport: string): string {
+  if (sport === "Basketball" || sport === "Hockey") return seasonLabel(year);
+  return String(year);
+}
+
+/** Raw seeds: year is calendar start year; converted to year_label by sport. */
+const RAW: Array<{
+  playerName: string;
+  year: number;
+  setBrand: string;
+  cardNumber: string;
+  sport: string;
+  parallel: string;
+}> = [
   { playerName: "Victor Wembanyama", year: 2023, setBrand: "Panini Prizm", cardNumber: "136", sport: "Basketball", parallel: "Silver" },
   { playerName: "Victor Wembanyama", year: 2023, setBrand: "Panini Select", cardNumber: "1", sport: "Basketball", parallel: "Base" },
   { playerName: "Victor Wembanyama", year: 2023, setBrand: "Hoops", cardNumber: "277", sport: "Basketball", parallel: "Base" },
   { playerName: "Caitlin Clark", year: 2024, setBrand: "Panini Prizm WNBA", cardNumber: "101", sport: "Basketball", parallel: "Base" },
   { playerName: "Caitlin Clark", year: 2024, setBrand: "Panini Donruss", cardNumber: "1", sport: "Basketball", parallel: "Base" },
-  { playerName: "Luka Doncic", year: 2018, setBrand: "Panini Optic", cardNumber: "177", sport: "Basketball", parallel: "Holo" },
-  { playerName: "Luka Doncic", year: 2018, setBrand: "Panini Prizm", cardNumber: "280", sport: "Basketball", parallel: "Silver" },
+  { playerName: "Luka Dončić", year: 2018, setBrand: "Panini Optic", cardNumber: "177", sport: "Basketball", parallel: "Holo" },
+  { playerName: "Luka Dončić", year: 2018, setBrand: "Panini Prizm", cardNumber: "280", sport: "Basketball", parallel: "Silver" },
   { playerName: "Stephen Curry", year: 2009, setBrand: "Topps", cardNumber: "321", sport: "Basketball", parallel: "Base" },
   { playerName: "LeBron James", year: 2003, setBrand: "Topps Chrome", cardNumber: "111", sport: "Basketball", parallel: "Refractor" },
   { playerName: "Anthony Edwards", year: 2020, setBrand: "Panini Prizm", cardNumber: "258", sport: "Basketball", parallel: "Silver" },
@@ -29,6 +53,10 @@ const SEEDS: CatalogSeed[] = [
   { playerName: "Zion Williamson", year: 2019, setBrand: "Panini Prizm", cardNumber: "248", sport: "Basketball", parallel: "Silver" },
   { playerName: "Jayson Tatum", year: 2017, setBrand: "Panini Prizm", cardNumber: "16", sport: "Basketball", parallel: "Silver" },
   { playerName: "Michael Jordan", year: 1986, setBrand: "Fleer", cardNumber: "57", sport: "Basketball", parallel: "Base" },
+  { playerName: "Shai Gilgeous-Alexander", year: 2023, setBrand: "Panini Prizm", cardNumber: "230", sport: "Basketball", parallel: "Base" },
+  { playerName: "Giannis Antetokounmpo", year: 2013, setBrand: "Panini Prizm", cardNumber: "290", sport: "Basketball", parallel: "Base" },
+  { playerName: "Kevin Durant", year: 2007, setBrand: "Topps", cardNumber: "2", sport: "Basketball", parallel: "Base" },
+  { playerName: "Nikola Jokic", year: 2015, setBrand: "Panini Prizm", cardNumber: "335", sport: "Basketball", parallel: "Base" },
   { playerName: "Shohei Ohtani", year: 2018, setBrand: "Topps Update", cardNumber: "US1", sport: "Baseball", parallel: "Base" },
   { playerName: "Shohei Ohtani", year: 2018, setBrand: "Topps Chrome", cardNumber: "150", sport: "Baseball", parallel: "Refractor" },
   { playerName: "Shohei Ohtani", year: 2024, setBrand: "Topps Series 1", cardNumber: "1", sport: "Baseball", parallel: "Base" },
@@ -67,64 +95,109 @@ function slug(parts: string[]) {
   return parts
     .join("-")
     .toLowerCase()
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "");
 }
 
-export const CARD_CATALOG: CatalogCard[] = SEEDS.map((card) => ({
-  ...card,
-  id: slug([card.playerName, String(card.year), card.setBrand, card.cardNumber, card.parallel]),
-}));
-
-type Ranked = { card: CatalogCard; score: number };
-
-function searchable(card: CatalogCard) {
-  return [
-    card.playerName,
-    String(card.year),
-    card.setBrand,
-    card.cardNumber,
-    card.sport,
-    card.parallel,
-  ]
-    .join(" ")
-    .toLowerCase();
+function toSeed(row: (typeof RAW)[number]): CatalogSeed {
+  return {
+    playerName: row.playerName,
+    yearLabel: yearForSport(row.year, row.sport),
+    setBrand: row.setBrand,
+    cardNumber: row.cardNumber,
+    sport: row.sport,
+    parallel: row.parallel,
+  };
 }
 
-/** Ranked local matches for player, year, set, or card number. */
-export function searchCatalog(query: string, limit = 8): CatalogCard[] {
-  const needle = query.trim().toLowerCase();
-  if (needle.length < 1) return [];
-
-  const tokens = needle.split(/\s+/).filter(Boolean);
-  const ranked: Ranked[] = [];
-
-  for (const card of CARD_CATALOG) {
-    const hay = searchable(card);
-    if (!tokens.every((token) => hay.includes(token))) continue;
-
-    const player = card.playerName.toLowerCase();
-    const set = card.setBrand.toLowerCase();
-    const year = String(card.year);
-    let score = 100;
-
-    if (player === needle) score = 0;
-    else if (player.startsWith(needle)) score = 1;
-    else if (player.includes(needle)) score = 2;
-    else if (year === needle || year.startsWith(needle)) score = 3;
-    else if (set.startsWith(needle) || set.includes(needle)) score = 4;
-    else score = 5;
-
-    // Prefer shorter titles when scores tie (more specific hits feel better).
-    score += Math.min(hay.length / 200, 1);
-    ranked.push({ card, score });
+/** Original seeds plus Base row when only a parallel exists for that identity. */
+function withBaseVersions(seeds: CatalogSeed[]): CatalogSeed[] {
+  const key = (c: CatalogSeed) =>
+    [c.playerName, c.yearLabel, c.setBrand, c.cardNumber].join("|").toLowerCase();
+  const byKey = new Map<string, CatalogSeed[]>();
+  for (const seed of seeds) {
+    const k = key(seed);
+    const list = byKey.get(k) ?? [];
+    list.push(seed);
+    byKey.set(k, list);
   }
+  const out = [...seeds];
+  for (const [, list] of byKey) {
+    const hasBase = list.some((c) => c.parallel.toLowerCase() === "base");
+    if (!hasBase && list[0]) {
+      out.push({ ...list[0], parallel: "Base" });
+    }
+  }
+  return out;
+}
 
-  ranked.sort((a, b) => a.score - b.score || a.card.playerName.localeCompare(b.card.playerName));
-  return ranked.slice(0, limit).map((item) => item.card);
+const SEEDS: CatalogSeed[] = withBaseVersions(RAW.map(toSeed));
+
+export const CARD_CATALOG: CatalogCard[] = SEEDS.map((card) => ({
+  ...card,
+  id: slug([
+    card.playerName,
+    card.yearLabel,
+    card.setBrand,
+    card.cardNumber,
+    card.parallel,
+  ]),
+}));
+
+export function toSearchableCard(card: CatalogCard): SearchableCard {
+  return {
+    id: card.id,
+    player: card.playerName,
+    yearLabel: card.yearLabel,
+    setName: card.setBrand,
+    cardNumber: card.cardNumber,
+    parallel: card.parallel,
+    sport: card.sport,
+    searchText: buildSearchText({
+      player: card.playerName,
+      yearLabel: card.yearLabel,
+      setName: card.setBrand,
+      cardNumber: card.cardNumber,
+    }),
+  };
+}
+
+const SEARCHABLE = CARD_CATALOG.map(toSearchableCard);
+
+/** Ranked local matches (typo/alias aware). Default 20 for Add Card. */
+export function searchCatalog(query: string, limit = 20): CatalogCard[] {
+  const hits = searchCardsLocal(query, SEARCHABLE, limit);
+  const byId = new Map(CARD_CATALOG.map((c) => [c.id, c]));
+  return hits.map((h) => byId.get(h.id)!).filter(Boolean);
 }
 
 export function catalogLabel(card: CatalogCard) {
-  const parallel = card.parallel && card.parallel !== "Base" ? ` · ${card.parallel}` : "";
-  return `${card.year} ${card.setBrand} ${card.playerName} #${card.cardNumber}${parallel}`;
+  return formatCatalogResultLabel({
+    player: card.playerName,
+    yearLabel: card.yearLabel,
+    setName: card.setBrand,
+    cardNumber: card.cardNumber,
+    parallel: card.parallel,
+  });
+}
+
+/** SQL value list for migrations / tooling. */
+export function catalogSeedRows(): Array<{
+  player: string;
+  year_label: string;
+  set_name: string;
+  card_number: string;
+  parallel: string;
+  sport: string;
+}> {
+  return SEEDS.map((c) => ({
+    player: c.playerName,
+    year_label: c.yearLabel,
+    set_name: c.setBrand,
+    card_number: c.cardNumber,
+    parallel: c.parallel,
+    sport: c.sport,
+  }));
 }
