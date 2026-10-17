@@ -11,16 +11,16 @@ export const runtime = "nodejs";
 /**
  * Read trusted card values (card_values only — never Trawl).
  * GET ?id=  or  GET ?ids=a,b,c
+ * Public: post attachments and signed-out feeds use the same helper.
+ * Signed-in callers are still rate limited.
  */
 export async function GET(request: Request) {
   const userId = await getAuthUserId();
-  if (!userId) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const allowed = await consumeRequestLimit(userId);
-  if (!allowed) {
-    return Response.json({ error: RATE_LIMIT_MESSAGE }, { status: 429 });
+  if (userId) {
+    const allowed = await consumeRequestLimit(userId);
+    if (!allowed) {
+      return Response.json({ error: RATE_LIMIT_MESSAGE }, { status: 429 });
+    }
   }
 
   const { searchParams } = new URL(request.url);

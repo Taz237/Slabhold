@@ -243,7 +243,7 @@ export function ComposeView() {
         </div>
       </div>
 
-      <div className="fixed inset-x-0 bottom-[calc(6.15rem+env(safe-area-inset-bottom))] z-20 mx-auto flex w-full max-w-lg items-center gap-1 border-t border-zinc-200 bg-[var(--background)] px-3 py-2 dark:border-white/10">
+      <div className="fixed inset-x-0 bottom-[calc(6.15rem+env(safe-area-inset-bottom))] z-20 mx-auto flex w-full min-w-0 max-w-lg items-center gap-1 overflow-hidden border-t border-zinc-200 bg-[var(--background)] px-2 py-2 dark:border-white/10">
         <input
           ref={fileRef}
           type="file"
@@ -257,25 +257,25 @@ export function ComposeView() {
         <button
           type="button"
           onClick={() => openPicker(true)}
-          className="inline-flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium text-violet-700 dark:text-violet-300"
+          className="inline-flex min-w-0 shrink items-center gap-1.5 rounded-full px-2 py-2 text-sm font-medium text-violet-700 dark:text-violet-300"
         >
-          <Camera className="h-5 w-5" />
-          Camera
+          <Camera className="h-5 w-5 shrink-0" />
+          <span className="truncate">Camera</span>
         </button>
         <button
           type="button"
           onClick={() => openPicker(false)}
-          className="inline-flex items-center gap-1.5 rounded-full px-3 py-2 text-sm font-medium text-violet-700 dark:text-violet-300"
+          className="inline-flex min-w-0 shrink items-center gap-1.5 rounded-full px-2 py-2 text-sm font-medium text-violet-700 dark:text-violet-300"
         >
-          <ImagePlus className="h-5 w-5" />
-          Library
+          <ImagePlus className="h-5 w-5 shrink-0" />
+          <span className="truncate">Library</span>
         </button>
         {!editing ? (
           <select
             value={cardId}
             onChange={(e) => setCardId(e.target.value)}
             aria-label="Attach a card"
-            className="max-w-[140px] truncate rounded-full border border-zinc-200 bg-transparent px-2 py-1.5 text-xs text-zinc-600 dark:border-white/10 dark:text-zinc-300"
+            className="min-w-0 flex-1 truncate rounded-full border border-zinc-200 bg-transparent px-2 py-1.5 text-xs text-zinc-600 dark:border-white/10 dark:text-zinc-300"
           >
             <option value="">Attach a card</option>
             {cards.map((card) => (
@@ -286,7 +286,7 @@ export function ComposeView() {
           </select>
         ) : null}
         <span
-          className={`ml-auto pr-2 text-xs tabular-nums ${
+          className={`ml-auto shrink-0 pr-1 text-xs whitespace-nowrap tabular-nums ${
             body.length > POST_LIMIT - 20 ? "text-rose-500" : "text-zinc-400"
           }`}
         >

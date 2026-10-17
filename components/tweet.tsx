@@ -10,9 +10,11 @@ import { MentionText } from "@/components/mention-text";
 import { QuotedPostEmbed } from "@/components/quoted-post-embed";
 import { ShareAction } from "@/components/share-button";
 import { useSocial } from "@/components/social-provider";
-import { exactTime, initials, money, timeAgo } from "@/lib/format";
+import { exactTime, initials, timeAgo } from "@/lib/format";
 import { quoteCount } from "@/lib/social/quotes";
 import type { Post, PostComment, Profile, PublicCard } from "@/lib/social/types";
+import { useAttachmentLabel } from "@/lib/social/use-attachment-label";
+import type { CardValueResult } from "@/lib/value/types";
 
 export function Tweet({
   post,
@@ -23,6 +25,8 @@ export function Tweet({
   repostedBy = null,
   extraPosts,
   extraProfiles,
+  cardValues,
+  cardValuesLoading,
 }: {
   post: Post;
   author: Profile;
@@ -32,6 +36,9 @@ export function Tweet({
   repostedBy?: Profile | null;
   extraPosts?: Post[];
   extraProfiles?: Profile[];
+  /** Extra trusted values when posts were loaded outside the main feed batch. */
+  cardValues?: Map<string, CardValueResult>;
+  cardValuesLoading?: boolean;
 }) {
   const router = useRouter();
   const openImage = useImageLightbox();
@@ -95,12 +102,20 @@ export function Tweet({
         {post.imageDataUrl ? (
           <PostPhoto src={post.imageDataUrl} onOpen={openImage} />
         ) : null}
-        {post.card ? <CardMedia card={post.card} /> : null}
+        {post.card ? (
+          <CardMedia
+            card={post.card}
+            cardValues={cardValues}
+            cardValuesLoading={cardValuesLoading}
+          />
+        ) : null}
         {post.quotedPostId ? (
           <QuotedPostEmbed
             quotedPostId={post.quotedPostId}
             extraPosts={extraPosts}
             extraProfiles={extraProfiles}
+            cardValues={cardValues}
+            cardValuesLoading={cardValuesLoading}
           />
         ) : null}
         <Engagement
@@ -527,7 +542,19 @@ function ActionButton({
   );
 }
 
-function CardMedia({ card }: { card: PublicCard }) {
+function CardMedia({
+  card,
+  cardValues,
+  cardValuesLoading,
+}: {
+  card: PublicCard;
+  cardValues?: Map<string, CardValueResult>;
+  cardValuesLoading?: boolean;
+}) {
+  const valueLabel = useAttachmentLabel(card, {
+    values: cardValues,
+    loading: cardValuesLoading,
+  });
   return (
     <div className="mt-3 overflow-hidden rounded-2xl border border-zinc-200 dark:border-white/10">
       {card.photoDataUrl ? (
@@ -545,7 +572,8 @@ function CardMedia({ card }: { card: PublicCard }) {
         <p className="truncate text-sm font-semibold">{card.playerName}</p>
         <p className="truncate text-xs text-zinc-500">
           {card.year} {card.setBrand}
-          {card.cardNumber ? ` · #${card.cardNumber}` : ""} · Est. {money(card.estimatedSellPrice)}
+          {card.cardNumber ? ` · #${card.cardNumber}` : ""}
+          {valueLabel ? ` · ${valueLabel}` : ""}
         </p>
       </div>
     </div>

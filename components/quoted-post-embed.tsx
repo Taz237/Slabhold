@@ -11,18 +11,24 @@ import { initials, timeAgo } from "@/lib/format";
 import { sanitizeAttachedCard } from "@/lib/social/card-posts";
 import { resolveQuoteEmbedState } from "@/lib/social/quotes";
 import type { Post, Profile, PublicCard } from "@/lib/social/types";
+import { useAttachmentLabel } from "@/lib/social/use-attachment-label";
+import type { CardValueResult } from "@/lib/value/types";
 
 export function QuotedPostEmbed({
   quotedPostId,
   className = "",
   extraPosts,
   extraProfiles,
+  cardValues,
+  cardValuesLoading,
 }: {
   quotedPostId: string | null | undefined;
   className?: string;
   /** Posts loaded outside the main social snapshot (e.g. card collectors feed). */
   extraPosts?: Post[];
   extraProfiles?: Profile[];
+  cardValues?: Map<string, CardValueResult>;
+  cardValuesLoading?: boolean;
 }) {
   const router = useRouter();
   const { posts, profiles } = useSocial();
@@ -39,6 +45,12 @@ export function QuotedPostEmbed({
   }, [extraProfiles, profiles]);
 
   const state = resolveQuoteEmbedState(quotedPostId, postsById, profilesById);
+  const card =
+    state.kind === "ok" ? sanitizeAttachedCard(state.post.card) : null;
+  const valueLabel = useAttachmentLabel(card, {
+    values: cardValues,
+    loading: cardValuesLoading,
+  });
 
   if (state.kind === "unavailable") {
     return (
@@ -51,7 +63,6 @@ export function QuotedPostEmbed({
   }
 
   const { post, author, nestedLink } = state;
-  const card = sanitizeAttachedCard(post.card);
   const relative = timeAgo(post.createdAt);
 
   return (
@@ -102,6 +113,11 @@ export function QuotedPostEmbed({
               >
                 @{nestedLink.handle}
               </Link>
+            </p>
+          ) : null}
+          {card && valueLabel ? (
+            <p className="mt-1 truncate text-[13px] text-zinc-500">
+              {card.playerName} · {valueLabel}
             </p>
           ) : null}
         </div>

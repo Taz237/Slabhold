@@ -141,7 +141,7 @@ export function mapPublicCard(
     | "year_label"
     | "set_name"
     | "grader"
-  >,
+  > & { created_at?: string | null },
 ): OwnedCard {
   const setBrand = (row.set_name || row.set || "").trim();
   const yearLabel = (row.year_label || "").trim() || String(row.year);
@@ -166,6 +166,7 @@ export function mapPublicCard(
     photoDataUrl: row.image_url,
     accent: row.accent ?? "#7c5cff",
     estimatedSellPrice: Number(row.estimated_value) || 0,
+    createdAt: row.created_at || undefined,
     grade,
     parallel: row.parallel ?? "Base",
     purchasePrice: null,

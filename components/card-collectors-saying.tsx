@@ -9,7 +9,9 @@ import {
   loadPostsForCard,
 } from "@/lib/social/card-posts";
 import type { Post, Profile } from "@/lib/social/types";
+import { collectAttachedCardIds } from "@/lib/social/post-card-value";
 import { createSupabaseBrowser } from "@/lib/supabase/browser";
+import { useCardValues } from "@/lib/value/use-card-values";
 
 const PREVIEW_LIMIT = 5;
 
@@ -29,6 +31,11 @@ export function CardCollectorsSaying({ cardId }: { cardId: string }) {
     () => new Set(publicCards.map((card) => card.id)),
     [publicCards],
   );
+  const attachedIds = useMemo(
+    () => collectAttachedCardIds([...posts, ...relatedPosts]),
+    [posts, relatedPosts],
+  );
+  const { values: cardValues, loading: cardValuesLoading } = useCardValues(attachedIds);
 
   useEffect(() => {
     if (!ready) return;
@@ -131,6 +138,8 @@ export function CardCollectorsSaying({ cardId }: { cardId: string }) {
                 author={author}
                 extraPosts={relatedPosts}
                 extraProfiles={[...authors.values()]}
+                cardValues={cardValues}
+                cardValuesLoading={cardValuesLoading}
               />
             );
           })}

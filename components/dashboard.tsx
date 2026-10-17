@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { Search, TrendingDown, TrendingUp, WalletCards } from "lucide-react";
+import { Info, Search, TrendingDown, TrendingUp, WalletCards } from "lucide-react";
 import { outlineButton, solidButton } from "@/components/button-styles";
 import { CategoryBadge } from "@/components/category-picker";
 import { CollectionValueHistory } from "@/components/collection-value-history";
@@ -33,6 +33,11 @@ import {
   type CardCategory,
   type PortfolioFilter,
 } from "@/lib/types";
+import {
+  investedCardLabel,
+  profitAmountTone,
+  profitCardLabel,
+} from "@/lib/collection/profit-label";
 import {
   cardValueHasAmount,
   formatCardValueLabel,
@@ -68,6 +73,9 @@ export function Dashboard() {
   );
   const totals = useMemo(() => summarize(inLane, values), [inLane, values]);
   const profitTotal = totals.unrealizedProfit + totals.realizedProfit;
+  const pricedCount = totals.pricedCount;
+  const cardCount = inLane.length;
+  const profitTone = profitAmountTone(pricedCount, profitTotal);
   const visible = useMemo(
     () =>
       sortCards(
@@ -85,12 +93,8 @@ export function Dashboard() {
     totals.withoutValueCount > 0
       ? `${totals.withoutValueCount} card${totals.withoutValueCount === 1 ? "" : "s"} without a value yet`
       : "Held book value";
-  const unpaidNote =
-    totals.unpaidExcludedCount > 0
-      ? `Profit excludes ${totals.unpaidExcludedCount} card${
-          totals.unpaidExcludedCount === 1 ? "" : "s"
-        } with no price paid`
-      : null;
+  const investedLabel = investedCardLabel(pricedCount, cardCount);
+  const profitLabel = profitCardLabel(pricedCount, cardCount);
 
   return (
     <div className="space-y-6">
@@ -126,8 +130,10 @@ export function Dashboard() {
       <section className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <Stat
           label="Total invested"
-          value={money(totals.invested)}
-          hint={`${totals.heldCount} cards in hand`}
+          value={pricedCount > 0 ? money(totals.pricedInvested) : "—"}
+          hint={investedLabel === "—" ? "" : investedLabel}
+          tone={pricedCount > 0 ? undefined : "neutral"}
+          loading={valuesLoading}
         />
         <Stat
           label="Estimated value"
@@ -137,15 +143,16 @@ export function Dashboard() {
         />
         <Stat
           label="Profit"
-          value={signedMoney(profitTotal)}
-          hint={`${signedMoney(totals.unrealizedProfit)} open · ${signedMoney(totals.realizedProfit)} realized`}
-          tone={profitTotal >= 0 ? "up" : "down"}
+          value={pricedCount > 0 ? signedMoney(profitTotal) : "—"}
+          hint={profitLabel === "—" ? "" : profitLabel}
+          tone={profitTone}
           loading={valuesLoading}
         />
       </section>
-      {unpaidNote ? (
-        <p className="-mt-2 text-xs text-zinc-500">{unpaidNote}</p>
-      ) : null}
+      <p className="flex items-start gap-1.5 text-xs text-zinc-500">
+        <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+        Only cards with a price paid and a current value are included.
+      </p>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <label className="relative flex-1">
@@ -355,9 +362,17 @@ function Stat({
   label: string;
   value: string;
   hint: string;
-  tone?: "up" | "down";
+  tone?: "up" | "down" | "neutral";
   loading?: boolean;
 }) {
+  const toneClass =
+    tone === "up"
+      ? "text-emerald-600 dark:text-emerald-400"
+      : tone === "down"
+        ? "text-rose-600 dark:text-rose-400"
+        : tone === "neutral"
+          ? "text-zinc-500"
+          : "";
   return (
     <div className="rounded-2xl border border-zinc-200 bg-white px-4 py-4 dark:border-white/10 dark:bg-white/[0.03]">
       <p className="text-xs tracking-wide text-zinc-400 uppercase">{label}</p>
@@ -375,18 +390,10 @@ function Stat({
         </>
       ) : (
         <>
-          <p
-            className={`mt-1 text-2xl font-semibold tracking-tight ${
-              tone === "up"
-                ? "text-emerald-600 dark:text-emerald-400"
-                : tone === "down"
-                  ? "text-rose-600 dark:text-rose-400"
-                  : ""
-            }`}
-          >
+          <p className={`mt-1 text-2xl font-semibold tracking-tight ${toneClass}`}>
             {value}
           </p>
-          <p className="mt-1 text-xs text-zinc-500">{hint}</p>
+          {hint ? <p className="mt-1 text-xs text-zinc-500">{hint}</p> : null}
         </>
       )}
     </div>

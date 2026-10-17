@@ -9,12 +9,15 @@ export function CompsList({
   comps,
   cardId,
   userId,
+  canFlag = false,
   flaggedIds,
   onFlagged,
 }: {
   comps: CompListing[];
   cardId?: string;
   userId?: string | null;
+  /** Signed-in owner only. Other viewers and signed-out users never see the control. */
+  canFlag?: boolean;
   flaggedIds?: Set<string>;
   onFlagged?: (itemId: string) => void;
 }) {
@@ -23,7 +26,7 @@ export function CompsList({
   const hidden = flaggedIds ?? localHidden;
 
   useEffect(() => {
-    if (!userId || !cardId || flaggedIds) return;
+    if (!canFlag || !userId || !cardId || flaggedIds) return;
     const supabase = createSupabaseBrowser();
     if (!supabase) return;
 
@@ -41,26 +44,22 @@ export function CompsList({
     return () => {
       cancelled = true;
     };
-  }, [userId, cardId, flaggedIds]);
+  }, [canFlag, userId, cardId, flaggedIds]);
 
   const visible = comps.filter((comp) => !hidden.has(comp.itemId));
 
   async function flagNotAMatch(comp: CompListing) {
-    if (!userId || !cardId) return;
-    if (!flaggedIds) setLocalHidden((prev) => new Set(prev).add(comp.itemId));
-    onFlagged?.(comp.itemId);
+    if (!canFlag || !cardId) return;
     setFlagging(comp.itemId);
     try {
-      const supabase = createSupabaseBrowser();
-      if (!supabase) return;
-      await supabase.from("comp_flags").upsert(
-        {
-          user_id: userId,
-          card_id: cardId,
-          item_id: comp.itemId,
-        },
-        { onConflict: "user_id,card_id,item_id" },
-      );
+      const res = await fetch("/api/comps/flags", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cardId, itemId: comp.itemId }),
+      });
+      if (!res.ok) return;
+      if (!flaggedIds) setLocalHidden((prev) => new Set(prev).add(comp.itemId));
+      onFlagged?.(comp.itemId);
     } finally {
       setFlagging(null);
     }
@@ -100,7 +99,7 @@ export function CompsList({
             <p className="text-sm font-medium tabular-nums">
               {money(comp.soldPrice, true)}
             </p>
-            {userId && cardId ? (
+            {canFlag && cardId ? (
               <button
                 type="button"
                 disabled={flagging === comp.itemId}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Area,
   AreaChart,
@@ -10,17 +10,21 @@ import {
   YAxis,
 } from "recharts";
 import { money, signedMoney } from "@/lib/format";
+import {
+  HISTORY_RANGE_DISABLED,
+  HISTORY_RANGES,
+  compactCurrency,
+  distinctHistoryDays,
+  formatTrackingSince,
+  historyBadge,
+  isHistoryRangeEnabled,
+  pointsInHistoryRange,
+  valueAxisDomain,
+  type HistoryRangeId,
+} from "@/lib/collection/chart-range";
 import { snapshotDateInNewYork } from "@/lib/collection/totals-shared";
 import type { ValuePoint } from "@/lib/value-history";
 import { createSupabaseBrowser } from "@/lib/supabase/browser";
-
-type RangeId = "7d" | "30d" | "all";
-
-const RANGES: { id: RangeId; label: string; days: number | null; phrase: string }[] = [
-  { id: "7d", label: "7D", days: 7, phrase: "this week" },
-  { id: "30d", label: "30D", days: 30, phrase: "this month" },
-  { id: "all", label: "All", days: null, phrase: "all time" },
-];
 
 type SnapshotRow = {
   snapshot_date: string;
@@ -37,10 +41,15 @@ function formatLabel(isoDate: string) {
   });
 }
 
-function addDaysToYmd(ymd: string, delta: number): string {
-  const [y, m, d] = ymd.split("-").map(Number);
-  const dt = new Date(Date.UTC(y, m - 1, d + delta));
-  return dt.toISOString().slice(0, 10);
+function readIndex(state: {
+  activeTooltipIndex?: number | string | null;
+} | null): number | null {
+  const raw = state?.activeTooltipIndex;
+  if (typeof raw === "number" && raw >= 0) return raw;
+  if (typeof raw === "string" && raw !== "" && Number.isFinite(Number(raw))) {
+    return Number(raw);
+  }
+  return null;
 }
 
 export function CollectionValueHistory({
@@ -49,9 +58,12 @@ export function CollectionValueHistory({
   /** Live estimated value from Collection summary — fills today if cron hasn't written yet. */
   currentValue: number;
 }) {
-  const [range, setRange] = useState<RangeId>("30d");
+  const [range, setRange] = useState<HistoryRangeId>("7d");
   const [rows, setRows] = useState<SnapshotRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeIndex, setActiveIndex] = useState<number | null>(null);
+  const pinned = useRef(false);
+  const touchedAt = useRef(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -85,37 +97,51 @@ export function CollectionValueHistory({
     };
   }, []);
 
-  const points = useMemo(() => {
-    const today = snapshotDateInNewYork();
+  const today = snapshotDateInNewYork();
+
+  const allPoints = useMemo(() => {
     const byDate = new Map(rows.map((row) => [row.snapshot_date, row.value]));
     if (!byDate.has(today)) {
       byDate.set(today, currentValue);
     }
-
-    let series = [...byDate.entries()]
+    return [...byDate.entries()]
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([date, value]): ValuePoint => ({
         date,
         label: formatLabel(date),
         value,
       }));
+  }, [currentValue, rows, today]);
 
-    const selected = RANGES.find((item) => item.id === range);
-    if (selected?.days != null) {
-      const start = addDaysToYmd(today, -(selected.days - 1));
-      series = series.filter((point) => point.date >= start);
-    }
-    return series;
-  }, [currentValue, range, rows]);
+  const historyDays = distinctHistoryDays(allPoints.map((point) => point.date));
+  const selected: HistoryRangeId = isHistoryRangeEnabled(range, historyDays)
+    ? range
+    : "7d";
+  const points = useMemo(
+    () => pointsInHistoryRange(allPoints, selected, today),
+    [allPoints, selected, today],
+  );
+  const canChart = allPoints.length >= 2;
+  const tracking =
+    canChart && historyDays < 7
+      ? formatTrackingSince(allPoints[0]?.date ?? "")
+      : null;
+  const badge =
+    canChart && !tracking ? historyBadge(allPoints, selected, today) : null;
+  const phrase = HISTORY_RANGES.find((item) => item.id === selected)?.phrase ?? "";
+  const last = points[points.length - 1]?.value ?? allPoints[allPoints.length - 1]?.value ?? 0;
+  const domain = valueAxisDomain(points.map((point) => point.value));
+  const tip = activeIndex != null ? points[activeIndex] : null;
 
-  const selected = RANGES.find((item) => item.id === range)!;
-  const canChart = points.length >= 2;
-  const first = points[0]?.value ?? 0;
-  const last = points[points.length - 1]?.value ?? 0;
-  const delta = last - first;
-  const pct =
-    first === 0 ? null : Math.round((delta / Math.abs(first)) * 100);
-  const up = delta >= 0;
+  function showIndex(
+    state: { activeTooltipIndex?: number | string | null } | null,
+    pin: boolean,
+  ) {
+    const index = readIndex(state);
+    if (index == null || index >= points.length) return;
+    if (pin) pinned.current = true;
+    setActiveIndex(index);
+  }
 
   return (
     <section className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-white/10 dark:bg-white/[0.03] sm:p-5">
@@ -127,35 +153,55 @@ export function CollectionValueHistory({
           <p className="mt-1 text-2xl font-semibold tracking-tight tabular-nums">
             {money(last)}
           </p>
-          {canChart ? (
+          {tracking ? (
+            <p className="mt-1 text-sm font-medium text-zinc-500">{tracking}</p>
+          ) : badge ? (
             <p
               className={`mt-1 text-sm font-medium ${
-                up
+                badge.delta > 0
                   ? "text-emerald-600 dark:text-emerald-400"
-                  : "text-rose-600 dark:text-rose-400"
+                  : badge.delta < 0
+                    ? "text-rose-600 dark:text-rose-400"
+                    : "text-zinc-500"
               }`}
             >
-              {signedMoney(delta)}
-              {pct != null ? ` (${pct > 0 ? "+" : ""}${pct}%)` : ""} {selected.phrase}
+              {signedMoney(badge.delta)}
+              {badge.pct != null ? ` (${badge.pct > 0 ? "+" : ""}${badge.pct}%)` : ""}{" "}
+              {phrase}
             </p>
           ) : null}
         </div>
         <div className="flex gap-1 rounded-full bg-zinc-100 p-1 dark:bg-white/10">
-          {RANGES.map((item) => {
-            const active = range === item.id;
+          {HISTORY_RANGES.map((item) => {
+            const enabled = isHistoryRangeEnabled(item.id, historyDays);
+            const active = selected === item.id && enabled;
             return (
-              <button
+              <span
                 key={item.id}
-                type="button"
-                onClick={() => setRange(item.id)}
-                className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                  active
-                    ? "bg-white text-zinc-950 shadow-sm dark:bg-zinc-950 dark:text-zinc-100"
-                    : "text-zinc-500"
-                }`}
+                title={enabled ? undefined : HISTORY_RANGE_DISABLED}
+                className="inline-flex"
               >
-                {item.label}
-              </button>
+                <button
+                  type="button"
+                  disabled={!enabled}
+                  aria-disabled={!enabled}
+                  onClick={() => {
+                    if (!enabled) return;
+                    setActiveIndex(null);
+                    pinned.current = false;
+                    setRange(item.id);
+                  }}
+                  className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                    active
+                      ? "bg-white text-zinc-950 shadow-sm dark:bg-zinc-950 dark:text-zinc-100"
+                      : enabled
+                        ? "text-zinc-500"
+                        : "cursor-not-allowed text-zinc-400"
+                  }`}
+                >
+                  {item.label}
+                </button>
+              </span>
             );
           })}
         </div>
@@ -168,15 +214,31 @@ export function CollectionValueHistory({
           Your value history starts today. Check back tomorrow.
         </p>
       ) : (
-        <div className="mt-3 h-44 w-full">
+        <div className="relative mt-3 h-44 w-full">
+          {tip ? (
+            <div className="pointer-events-none absolute top-0 right-0 z-10">
+              <HistoryTip point={tip} />
+            </div>
+          ) : null}
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={points} margin={{ top: 8, right: 4, left: 0, bottom: 0 }}>
-              <defs>
-                <linearGradient id="collection-value-fill" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#10b981" stopOpacity={0.28} />
-                  <stop offset="100%" stopColor="#10b981" stopOpacity={0} />
-                </linearGradient>
-              </defs>
+            <AreaChart
+              data={points}
+              margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
+              onMouseMove={(state) => {
+                if (Date.now() - touchedAt.current < 700) return;
+                pinned.current = false;
+                showIndex(state, false);
+              }}
+              onMouseLeave={() => {
+                if (pinned.current) return;
+                setActiveIndex(null);
+              }}
+              onClick={(state) => showIndex(state, true)}
+              onTouchStart={(state) => {
+                touchedAt.current = Date.now();
+                showIndex(state, true);
+              }}
+            >
               <XAxis
                 dataKey="label"
                 tick={{ fill: "#71717a", fontSize: 11 }}
@@ -184,8 +246,25 @@ export function CollectionValueHistory({
                 axisLine={false}
                 minTickGap={28}
               />
-              <YAxis hide domain={["dataMin - 10", "dataMax + 10"]} />
-              <Tooltip content={<HistoryTip />} cursor={{ stroke: "#a1a1aa", strokeDasharray: "3 3" }} />
+              <YAxis
+                width={52}
+                domain={domain}
+                tickFormatter={compactCurrency}
+                tick={{ fill: "#71717a", fontSize: 11 }}
+                tickLine={false}
+                axisLine={false}
+                tickCount={4}
+              />
+              <Tooltip
+                content={() => null}
+                cursor={{ stroke: "#a1a1aa", strokeDasharray: "3 3" }}
+              />
+              <defs>
+                <linearGradient id="collection-value-fill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#10b981" stopOpacity={0.28} />
+                  <stop offset="100%" stopColor="#10b981" stopOpacity={0} />
+                </linearGradient>
+              </defs>
               <Area
                 type="monotone"
                 dataKey="value"
@@ -203,15 +282,7 @@ export function CollectionValueHistory({
   );
 }
 
-function HistoryTip({
-  active,
-  payload,
-}: {
-  active?: boolean;
-  payload?: Array<{ payload?: ValuePoint }>;
-}) {
-  const point = payload?.[0]?.payload;
-  if (!active || !point) return null;
+function HistoryTip({ point }: { point: ValuePoint }) {
   return (
     <div className="rounded-xl border border-zinc-200 bg-white px-2.5 py-1.5 text-xs shadow-sm dark:border-white/10 dark:bg-zinc-900">
       <p className="text-zinc-500">{point.label}</p>

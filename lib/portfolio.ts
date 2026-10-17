@@ -14,6 +14,10 @@ export type PortfolioTotals = {
   withoutValueCount: number;
   /** Cards excluded from Invested / Profit because hasPaid is false. */
   unpaidExcludedCount: number;
+  /** Cards with hasPaid and a current value (market median or sold price). */
+  pricedCount: number;
+  /** Purchase prices of pricedCount cards. Matches the profit inclusion set. */
+  pricedInvested: number;
 };
 
 function marketValue(
@@ -44,6 +48,8 @@ export function summarize(
   let withoutValueCount = 0;
   let profitValue = 0;
   let valuedInvested = 0;
+  let pricedCount = 0;
+  let pricedInvested = 0;
   for (const card of held) {
     const amount = marketValue(card, values);
     if (amount == null) {
@@ -54,7 +60,15 @@ export function summarize(
     if (hasPaid(card)) {
       profitValue += amount;
       valuedInvested += card.purchasePrice as number;
+      pricedCount += 1;
+      pricedInvested += card.purchasePrice as number;
     }
+  }
+
+  for (const card of sold) {
+    if (!hasPaid(card) || card.sellPrice == null) continue;
+    pricedCount += 1;
+    pricedInvested += card.purchasePrice as number;
   }
 
   const realizedProfit = sold.reduce((sum, c) => {
@@ -72,6 +86,8 @@ export function summarize(
     soldCount: sold.length,
     withoutValueCount,
     unpaidExcludedCount,
+    pricedCount,
+    pricedInvested,
   };
 }
 

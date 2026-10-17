@@ -48,9 +48,12 @@ import {
   remoteUpdatePost,
   remoteUpdateProfile,
 } from "@/lib/social/remote";
+import { collectAttachedCardIds } from "@/lib/social/post-card-value";
 import { followingTimeline, type TimelineItem } from "@/lib/social/timeline";
 import { createSupabaseBrowser } from "@/lib/supabase/browser";
 import { getSupabaseConfig } from "@/lib/supabase/client";
+import type { CardValueResult } from "@/lib/value/types";
+import { useCardValues } from "@/lib/value/use-card-values";
 import type {
   AuthResult,
   DirectMessage,
@@ -114,6 +117,9 @@ type SocialContextValue = {
   feed: TimelineItem[];
   suggestions: Profile[];
   profileByUsername: (username: string) => Profile | undefined;
+  /** Trusted card_values for every card attached to a loaded post, one batch. */
+  postCardValues: Map<string, CardValueResult>;
+  postCardValuesLoading: boolean;
 };
 
 const SocialContext = createContext<SocialContextValue | null>(null);
@@ -243,6 +249,13 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       : baseSnapshot;
   const snapshotRef = useRef(snapshot);
   snapshotRef.current = snapshot;
+
+  const postCardIds = useMemo(
+    () => collectAttachedCardIds(snapshot.posts),
+    [snapshot.posts],
+  );
+  const { values: postCardValues, loading: postCardValuesLoading } =
+    useCardValues(postCardIds);
 
   const rememberActivity = useCallback((db: LocalDb) => {
     const next = activityFrom(db);
@@ -827,6 +840,8 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       feed,
       suggestions,
       profileByUsername,
+      postCardValues,
+      postCardValuesLoading,
     }),
     [
       addComment,
@@ -851,6 +866,8 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       isFollowing,
       mode,
       profileByUsername,
+      postCardValues,
+      postCardValuesLoading,
       ready,
       refresh,
       signIn,

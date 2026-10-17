@@ -9,6 +9,7 @@ import { useCollection } from "@/components/collection-provider";
 import { ProfileSkeleton } from "@/components/status";
 import { useSocial } from "@/components/social-provider";
 import { ValueChart } from "@/components/value-chart";
+import { isCardOwner } from "@/lib/comps/ownership";
 import { useSoldComps } from "@/lib/comps/use-sold-comps";
 import { cardTitle, formatPaidLabel, money } from "@/lib/format";
 import { formatRelativeTime } from "@/lib/relative-time";
@@ -62,6 +63,7 @@ export function PublicCardView({ username, id }: { username: string; id: string 
       displayName={profile.displayName}
       backHref={backHref}
       userId={social.user?.id ?? null}
+      canFlag={isCardOwner(profile.id, social.user?.id ?? null)}
     />
   );
 }
@@ -71,11 +73,13 @@ function PublicCardAnalytics({
   displayName,
   backHref,
   userId,
+  canFlag,
 }: {
   card: PublicCard;
   displayName: string;
   backHref: string;
   userId: string | null;
+  canFlag: boolean;
 }) {
   const [flaggedIds, setFlaggedIds] = useState<Set<string>>(new Set());
   const specs = [
@@ -94,7 +98,7 @@ function PublicCardAnalytics({
   const sold = useSoldComps(userId ? card.id : null);
 
   useEffect(() => {
-    if (!userId) {
+    if (!canFlag || !userId) {
       setFlaggedIds(new Set());
       return;
     }
@@ -113,7 +117,7 @@ function PublicCardAnalytics({
     return () => {
       cancelled = true;
     };
-  }, [userId, card.id]);
+  }, [canFlag, userId, card.id]);
 
   const authRequired = !userId || sold.status === "auth_required";
   const rateLimited = sold.status === "rate_limited";
@@ -272,6 +276,7 @@ function PublicCardAnalytics({
             comps={liveComps}
             cardId={card.id}
             userId={userId}
+            canFlag={canFlag}
             flaggedIds={flaggedIds}
             onFlagged={(itemId) =>
               setFlaggedIds((prev) => new Set(prev).add(itemId))

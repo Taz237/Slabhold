@@ -20,6 +20,8 @@ export type PublicCard = {
   photoDataUrl: string | null;
   accent: string;
   estimatedSellPrice: number;
+  /** From public_cards.created_at when known. Not a value. */
+  createdAt?: string;
   grade?: string;
   parallel?: string;
   purchasePrice?: number | null;

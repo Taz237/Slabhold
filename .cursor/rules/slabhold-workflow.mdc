@@ -13,4 +13,5 @@ alwaysApply: true
   4. If pricing/comps/card_values logic changed, wait ~90 seconds for Vercel, then run:
      $s = (Select-String CRON_SECRET .env.local).Line.Split('=',2)[1].Trim(); Invoke-RestMethod https://slabhold.vercel.app/api/cron/refresh-card-values -Headers @{Authorization="Bearer $s"}
 - Never print, commit or paste secrets from .env.local.
+- Never run test scripts that insert or delete data as real users on production.
 - At the end, give me a 2-line summary: what changed, and "Ready for QA".

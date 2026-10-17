@@ -413,6 +413,7 @@ export function CardDetail({ id }: { id: string }) {
             comps={liveComps}
             cardId={card.id}
             userId={user?.id ?? null}
+            canFlag={Boolean(user)}
             flaggedIds={flaggedIds}
             onFlagged={(itemId) =>
               setFlaggedIds((prev) => new Set(prev).add(itemId))
