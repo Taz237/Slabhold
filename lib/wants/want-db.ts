@@ -1,8 +1,11 @@
 import "server-only";
 
-import { supabaseSafety } from "@/lib/safety/can-notify";
+import type { SafetyRelations } from "@/lib/safety/can-notify";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import type { WantAlertDb, WantMatchEvent, WantRow } from "./notify-want-matches";
+
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 type CardLink = {
   id: string;
@@ -44,6 +47,24 @@ async function loadCardLink(
   };
   cache.set(id, link);
   return link;
+}
+
+function blockSafety(admin: NonNullable<ReturnType<typeof createSupabaseAdmin>>): SafetyRelations {
+  return {
+    async isBlocked(a, b) {
+      if (!UUID_RE.test(a) || !UUID_RE.test(b)) return true;
+      if (a === b) return false;
+      const { data, error } = await admin
+        .from("blocks")
+        .select("blocker_id")
+        .or(
+          `and(blocker_id.eq.${a},blocked_id.eq.${b}),and(blocker_id.eq.${b},blocked_id.eq.${a})`,
+        )
+        .limit(1);
+      if (error) return true;
+      return (data?.length ?? 0) > 0;
+    },
+  };
 }
 
 function saleHref(want: WantRow, link: CardLink | null, fallback: string): string {
@@ -129,7 +150,7 @@ export function createSupabaseWantDb(): WantAlertDb | null {
         .eq("source_id", sourceId);
     },
 
-    safety: supabaseSafety(admin),
+    safety: blockSafety(admin),
 
     async hrefFor(want, event: WantMatchEvent) {
       const id = want.sourceCardId || event.cardId || "";

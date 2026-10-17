@@ -1,11 +1,11 @@
 export type SafetyRelations = {
+  /** True when either person blocked the other. */
   isBlocked(a: string, b: string): Promise<boolean>;
-  /** True when `viewer` muted `author`. One direction only. */
-  isMuted(viewer: string, author: string): Promise<boolean>;
 };
 
 /**
- * False when either person blocked the other, or the recipient muted the actor.
+ * False when either person blocked the other.
+ * Mute is applied when the recipient reads, not from the sender's browser.
  * A missing actor (a sale alert) can still notify.
  */
 export async function canNotify(
@@ -16,7 +16,6 @@ export async function canNotify(
   if (!actorId) return true;
   if (actorId === recipientId) return false;
   if (await relations.isBlocked(actorId, recipientId)) return false;
-  if (await relations.isMuted(recipientId, actorId)) return false;
   return true;
 }
 
@@ -34,20 +33,18 @@ function missingFunction(error: RpcError | null) {
   return error.code === "PGRST202" || /could not find the function/i.test(error.message ?? "");
 }
 
-/** Adapter for canNotify. A failed check blocks the notification. */
+/**
+ * Adapter for canNotify. Uses can_interact, which checks auth.uid() against
+ * the other id and returns whether that pair is clear to interact.
+ * A failed check blocks the notification.
+ */
 export function supabaseSafety(supabase: SafetyRpc): SafetyRelations {
   return {
-    async isBlocked(a, b) {
-      const { data, error } = await supabase.rpc("is_blocked", { a, b });
+    async isBlocked(_actorId, otherId) {
+      const { data, error } = await supabase.rpc("can_interact", { other: otherId });
       if (missingFunction(error)) return false;
       if (error) return true;
-      return data === true;
-    },
-    async isMuted(viewer, author) {
-      const { data, error } = await supabase.rpc("is_muted", { viewer, author });
-      if (missingFunction(error)) return false;
-      if (error) return true;
-      return data === true;
+      return data !== true;
     },
   };
 }

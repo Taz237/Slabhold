@@ -12,13 +12,10 @@ const VIEWER = "11111111-1111-4111-8111-111111111111";
 const AUTHOR = "22222222-2222-4222-8222-222222222222";
 const MUTED = "33333333-3333-4333-8333-333333333333";
 
-function relations(flags: { blocked?: boolean; muted?: boolean }) {
+function relations(flags: { blocked?: boolean }) {
   return {
     async isBlocked() {
       return flags.blocked === true;
-    },
-    async isMuted() {
-      return flags.muted === true;
     },
   };
 }
@@ -26,10 +23,6 @@ function relations(flags: { blocked?: boolean; muted?: boolean }) {
 describe("canNotify", () => {
   it("returns false when either person blocked the other", async () => {
     assert.equal(await canNotify(relations({ blocked: true }), "actor", "recipient"), false);
-  });
-
-  it("returns false when the recipient muted the actor", async () => {
-    assert.equal(await canNotify(relations({ muted: true }), "actor", "recipient"), false);
   });
 
   it("returns true for a normal pair", async () => {
@@ -180,5 +173,25 @@ describe("safety migration", () => {
       assert.match(sql, new RegExp(`alter table public\\.${table} enable row level security`, "i"));
     }
     assert.doesNotMatch(sql, /drop column/i);
+  });
+
+  it("moves pair checks out of the public API", () => {
+    const sql = readFileSync(
+      join(process.cwd(), "supabase/migrations/20261017250000_private_safety_functions.sql"),
+      "utf8",
+    );
+    assert.match(sql, /create schema if not exists private/i);
+    assert.match(sql, /grant usage on schema private to anon, authenticated/i);
+    assert.match(sql, /function private\.is_blocked/i);
+    assert.match(sql, /function private\.is_muted/i);
+    assert.match(sql, /function private\.post_author/i);
+    assert.match(sql, /function public\.can_interact/i);
+    assert.match(sql, /drop function if exists public\.is_blocked/i);
+    assert.match(sql, /drop function if exists public\.is_muted/i);
+    assert.match(sql, /drop function if exists public\.post_author/i);
+    assert.doesNotMatch(sql, /blocked_id\s*=\s*auth\.uid\(\)/i);
+    assert.match(sql, /not private\.is_muted\(auth\.uid\(\), actor_id\)/i);
+    assert.match(sql, /Create notifications as yourself[\s\S]*private\.is_blocked/i);
+    assert.match(sql, /Repost as yourself[\s\S]*private\.is_blocked/i);
   });
 });

@@ -56,7 +56,7 @@ export type WantAlertDb = {
   deleteAlert(wantId: string, sourceType: WantSourceType, sourceId: string): Promise<void>;
   /** Sale links can differ per wanter. Posts and listings ignore this. */
   hrefFor?(want: WantRow, event: WantMatchEvent): Promise<string>;
-  /** When set, blocked or muted actors do not notify. */
+  /** When set, a blocked actor does not notify. Mutes are hidden on read. */
   safety?: SafetyRelations;
 };
 

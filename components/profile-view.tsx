@@ -421,9 +421,9 @@ function MissingProfile({
         setState("missing");
         return;
       }
-      const blocked = await supabase.rpc("is_blocked", { a: me, b: data.id as string });
+      const interact = await supabase.rpc("can_interact", { other: data.id as string });
       if (cancelled) return;
-      setState(blocked.data === true ? "unavailable" : "missing");
+      setState(interact.data === false ? "unavailable" : "missing");
     })();
     return () => {
       cancelled = true;

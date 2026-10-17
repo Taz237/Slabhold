@@ -27,7 +27,7 @@ export default function TermsPage() {
             .
           </>
         ) : (
-          <>Contact support. {/* TODO: set SUPPORT_EMAIL in lib/support.ts */}</>
+          <>Contact support.</>
         )}
       </p>
       <p>

@@ -218,8 +218,12 @@ export async function loadSupabaseSocial(supabase: SupabaseClient): Promise<Soci
         mutedHidden,
         { mute: true },
       ),
-      supabase.from("blocks").select("blocked_id"),
-      supabase.from("mutes").select("muted_id"),
+      viewerId
+        ? supabase.from("blocks").select("blocked_id")
+        : Promise.resolve({ data: [], error: null }),
+      viewerId
+        ? supabase.from("mutes").select("muted_id")
+        : Promise.resolve({ data: [], error: null }),
     ]);
   const failure =
     profilesRes.error || postsRes.error || homePostsRes.error || followsRes.error || cardsRes.error;
@@ -543,7 +547,7 @@ export async function remoteToggleRepost(
       return { error: "Reposts are not set up yet. Run supabase/schema.sql in the Supabase SQL editor." };
     }
     if (error.code === "23505") return {};
-    return { error: error.message };
+    return { error: rlsBlocked(error) ? BLOCKED_INTERACTION : error.message };
   }
 
   if (!input.authorId || input.authorId === input.userId) return {};
@@ -723,12 +727,6 @@ export async function remoteCreatePost(
       .maybeSingle();
     if (quotedError) return { error: quotedError.message };
     if (!quoted) return { error: "That post is unavailable." };
-    const quotedAuthor = await supabase.rpc("post_author", { post_id: quotedPostId });
-    const author =
-      typeof quotedAuthor.data === "string" ? quotedAuthor.data : null;
-    if (author && (await supabaseSafety(supabase).isBlocked(authorId, author))) {
-      return { error: BLOCKED_INTERACTION };
-    }
   }
 
   const image = await uploadMedia(supabase, "post-images", authorId, input.imageDataUrl);

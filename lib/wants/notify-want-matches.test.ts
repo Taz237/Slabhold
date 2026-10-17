@@ -135,14 +135,11 @@ describe("notifyWantMatches", () => {
     assert.equal(notifications.length, 0);
   });
 
-  it("does not notify a blocked or muted actor", async () => {
+  it("does not notify a blocked actor", async () => {
     const blocked = memoryDb();
     blocked.db.safety = {
       async isBlocked() {
         return true;
-      },
-      async isMuted() {
-        return false;
       },
     };
     const blockedCount = await notifyWantMatches(
@@ -160,28 +157,25 @@ describe("notifyWantMatches", () => {
     assert.equal(blocked.notifications.length, 0);
     assert.equal(blocked.alerts.length, 0);
 
-    const muted = memoryDb();
-    muted.db.safety = {
+    const clear = memoryDb();
+    clear.db.safety = {
       async isBlocked() {
         return false;
       },
-      async isMuted(viewer, author) {
-        return viewer === "wanter" && author === "seller";
-      },
     };
-    const mutedCount = await notifyWantMatches(
+    const clearCount = await notifyWantMatches(
       sale({
         sourceType: "listing",
-        sourceId: "card-muted",
+        sourceId: "card-clear",
         actorId: "seller",
         actorUsername: "seller",
         price: null,
         soldAt: null,
       }),
-      muted.db,
+      clear.db,
     );
-    assert.equal(mutedCount, 0);
-    assert.equal(muted.notifications.length, 0);
+    assert.equal(clearCount, 1);
+    assert.equal(clear.notifications.length, 1);
   });
 
   it("holds the daily cap at 20", async () => {
