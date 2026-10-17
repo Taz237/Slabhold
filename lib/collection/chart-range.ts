@@ -1,3 +1,5 @@
+import { money } from "@/lib/format";
+
 export type HistoryRangeId = "7d" | "30d" | "all";
 
 export const HISTORY_RANGES: {
@@ -100,6 +102,73 @@ export function compactCurrency(value: number): string {
 function trimCompact(n: number): string {
   if (n >= 10) return String(Math.round(n));
   return n.toFixed(1).replace(/\.0$/, "");
+}
+
+function niceStep(span: number, intervals: number): number {
+  const rough = span / Math.max(intervals, 1);
+  if (!(rough > 0) || !Number.isFinite(rough)) return 1;
+  const mag = 10 ** Math.floor(Math.log10(rough));
+  const normalized = rough / mag;
+  const base = [1, 2, 2.5, 5, 10].find((step) => normalized <= step + 1e-9) ?? 10;
+  return base * mag;
+}
+
+function roundTo(value: number, step: number): number {
+  const digits = step >= 1 ? 0 : Math.min(2, Math.ceil(-Math.log10(step)));
+  const factor = 10 ** digits;
+  return Math.round(value * factor) / factor;
+}
+
+function collectTicks(
+  low: number,
+  high: number,
+  step: number,
+  maxTicks: number,
+): number[] {
+  if (!(step > 0)) return [];
+  const start = Math.ceil(low / step - 1e-9) * step;
+  const ticks: number[] = [];
+  const limit = Math.ceil((high - start) / step) + 1;
+  for (let i = 0; i < limit && ticks.length < maxTicks; i += 1) {
+    const value = roundTo(start + i * step, step);
+    if (value < low - step * 1e-6) continue;
+    if (value > high + step * 1e-6) break;
+    const previous = ticks[ticks.length - 1];
+    if (previous != null && Math.abs(previous - value) < step * 1e-6) continue;
+    ticks.push(value);
+  }
+  return ticks;
+}
+
+/**
+ * Axis text for a domain span. Small ranges use cents or whole dollars so
+ * nearby ticks do not collapse to the same compact label.
+ */
+export function formatAxisTick(value: number, span: number): string {
+  if (!Number.isFinite(value)) return "";
+  if (span < 1) return money(value, true);
+  if (span < 100 || Math.abs(value) < 1000) return money(Math.round(value));
+  return compactCurrency(value);
+}
+
+/** At most four ticks whose formatted labels are unique. */
+export function valueAxisTicks(
+  domain: [number, number],
+  maxTicks = 4,
+): number[] {
+  const low = domain[0];
+  const high = domain[1];
+  const span = high - low;
+  if (!(span > 0) || !Number.isFinite(span)) return [low];
+
+  for (let intervals = Math.max(maxTicks - 1, 1); intervals >= 1; intervals -= 1) {
+    const step = niceStep(span, intervals);
+    const ticks = collectTicks(low, high, step, maxTicks);
+    const labels = ticks.map((tick) => formatAxisTick(tick, span));
+    if (ticks.length > 0 && new Set(labels).size === labels.length) return ticks;
+  }
+
+  return [roundTo((low + high) / 2, niceStep(span, 1))];
 }
 
 /** Pad around the data. Leave 0 out when the series sits well above it. */

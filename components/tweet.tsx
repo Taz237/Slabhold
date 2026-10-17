@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { Ellipsis, Heart, MessageCircle, Quote, Repeat2 } from "lucide-react";
 import { Avatar } from "@/components/avatar";
+import { useCollection } from "@/components/collection-provider";
 import { useImageLightbox } from "@/components/image-lightbox";
 import { MentionText } from "@/components/mention-text";
 import { QuotedPostEmbed } from "@/components/quoted-post-embed";
@@ -105,6 +106,7 @@ export function Tweet({
         {post.card ? (
           <CardMedia
             card={post.card}
+            username={author.username}
             cardValues={cardValues}
             cardValuesLoading={cardValuesLoading}
           />
@@ -544,19 +546,29 @@ function ActionButton({
 
 function CardMedia({
   card,
+  username,
   cardValues,
   cardValuesLoading,
 }: {
   card: PublicCard;
+  username: string;
   cardValues?: Map<string, CardValueResult>;
   cardValuesLoading?: boolean;
 }) {
+  const { cards } = useCollection();
   const valueLabel = useAttachmentLabel(card, {
     values: cardValues,
     loading: cardValuesLoading,
   });
+  const owned = cards.some((item) => item.id === card.id);
+  const href = owned
+    ? `/cards/${card.id}`
+    : `/u/${username}/cards/${card.id}`;
   return (
-    <div className="mt-3 overflow-hidden rounded-2xl border border-zinc-200 dark:border-white/10">
+    <Link
+      href={href}
+      className="mt-3 block overflow-hidden rounded-2xl border border-zinc-200 hover:bg-zinc-50 dark:border-white/10 dark:hover:bg-white/[0.04]"
+    >
       {card.photoDataUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={card.photoDataUrl} alt="" className="max-h-80 w-full object-cover" />
@@ -576,6 +588,6 @@ function CardMedia({
           {valueLabel ? ` · ${valueLabel}` : ""}
         </p>
       </div>
-    </div>
+    </Link>
   );
 }

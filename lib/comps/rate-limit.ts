@@ -1,9 +1,11 @@
 import "server-only";
 
+import { createHash } from "node:crypto";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 
 const REQUESTS_BUCKET = "requests";
 const TRAWL_BUCKET = "trawl";
+const ANON_CARD_VALUES_BUCKET = "card_values";
 
 /** Max API hits per user per 10-minute window. */
 export const REQUESTS_LIMIT = 20;
@@ -13,8 +15,15 @@ export const REQUESTS_WINDOW_MS = 10 * 60 * 1000;
 export const TRAWL_LIMIT = 5;
 export const TRAWL_WINDOW_MS = 60 * 60 * 1000;
 
+/** Logged-out card-value reads per IP hash per 10-minute window. */
+export const ANON_CARD_VALUES_LIMIT = 60;
+export const ANON_CARD_VALUES_WINDOW_MS = 10 * 60 * 1000;
+
 export const RATE_LIMIT_MESSAGE =
   "You're checking sold comps too quickly. Please wait a bit and try again.";
+
+export const ANON_RATE_LIMIT_MESSAGE =
+  "Too many requests. Please wait a bit and try again.";
 
 function alignedWindowStart(periodMs: number): string {
   const ms = Math.floor(Date.now() / periodMs) * periodMs;
@@ -25,8 +34,10 @@ function alignedWindowStart(periodMs: number): string {
  * Atomically-ish increment a rate-limit bucket. Returns false when over the limit.
  * Fail-open if the service-role client or table is unavailable (cache still works).
  */
-export async function consumeRateLimit(
-  userId: string,
+async function consumeBucket(
+  table: "comps_rate_limits" | "anon_rate_limits",
+  subjectColumn: "user_id" | "subject",
+  subject: string,
   bucket: string,
   windowMs: number,
   limit: number,
@@ -37,15 +48,15 @@ export async function consumeRateLimit(
   const windowStart = alignedWindowStart(windowMs);
 
   const { data: existing, error: readError } = await client
-    .from("comps_rate_limits")
+    .from(table)
     .select("count")
-    .eq("user_id", userId)
+    .eq(subjectColumn, subject)
     .eq("bucket", bucket)
     .eq("window_start", windowStart)
     .maybeSingle();
 
   if (readError) {
-    console.warn("[comps_rate_limits] read failed:", readError.message);
+    console.warn(`[${table}] read failed:`, readError.message);
     return true;
   }
 
@@ -53,22 +64,61 @@ export async function consumeRateLimit(
   if (current >= limit) return false;
 
   const next = current + 1;
-  const { error: writeError } = await client.from("comps_rate_limits").upsert(
+  const { error: writeError } = await client.from(table).upsert(
     {
-      user_id: userId,
+      [subjectColumn]: subject,
       bucket,
       window_start: windowStart,
       count: next,
     },
-    { onConflict: "user_id,bucket,window_start" },
+    { onConflict: `${subjectColumn},bucket,window_start` },
   );
 
   if (writeError) {
-    console.warn("[comps_rate_limits] write failed:", writeError.message);
+    console.warn(`[${table}] write failed:`, writeError.message);
     return true;
   }
 
   return true;
+}
+
+export async function consumeRateLimit(
+  userId: string,
+  bucket: string,
+  windowMs: number,
+  limit: number,
+): Promise<boolean> {
+  return consumeBucket(
+    "comps_rate_limits",
+    "user_id",
+    userId,
+    bucket,
+    windowMs,
+    limit,
+  );
+}
+
+/** Hash so anon_rate_limits stores a subject key, not the raw IP. */
+export function anonymousSubject(request: Request): string {
+  const forwarded = request.headers.get("x-forwarded-for");
+  const ip =
+    forwarded?.split(",")[0]?.trim() ||
+    request.headers.get("x-real-ip")?.trim() ||
+    "unknown";
+  return createHash("sha256").update(`card-values:${ip}`).digest("hex");
+}
+
+export async function consumeAnonymousCardValueLimit(
+  request: Request,
+): Promise<boolean> {
+  return consumeBucket(
+    "anon_rate_limits",
+    "subject",
+    anonymousSubject(request),
+    ANON_CARD_VALUES_BUCKET,
+    ANON_CARD_VALUES_WINDOW_MS,
+    ANON_CARD_VALUES_LIMIT,
+  );
 }
 
 export async function consumeRequestLimit(userId: string): Promise<boolean> {

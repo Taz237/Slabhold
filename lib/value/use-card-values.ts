@@ -1,12 +1,36 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { MAX_CARD_VALUE_IDS } from "./card-value-access";
 import type { CardValueResult } from "./types";
 
 const emptyMap = new Map<string, CardValueResult>();
 
+async function loadCardValues(
+  key: string,
+  signal: AbortSignal,
+): Promise<Map<string, CardValueResult>> {
+  const ids = key.split(",").filter(Boolean);
+  const next = new Map<string, CardValueResult>();
+  for (let index = 0; index < ids.length; index += MAX_CARD_VALUE_IDS) {
+    if (signal.aborted) return next;
+    const batch = ids.slice(index, index + MAX_CARD_VALUE_IDS).join(",");
+    const res = await fetch(`/api/card-values?ids=${encodeURIComponent(batch)}`, {
+      signal,
+    });
+    if (!res.ok) throw new Error("failed");
+    const body = (await res.json()) as {
+      values?: Record<string, CardValueResult>;
+    };
+    for (const [id, value] of Object.entries(body.values ?? {})) {
+      next.set(id, value);
+    }
+  }
+  return next;
+}
+
 /**
- * Load trusted values for many cards in one request (no Trawl).
+ * Load trusted values for many cards (no Trawl). Requests stay at 100 ids.
  */
 export function useCardValues(cardIds: string[]) {
   const key = useMemo(() => {
@@ -27,19 +51,9 @@ export function useCardValues(cardIds: string[]) {
 
     const controller = new AbortController();
 
-    fetch(`/api/card-values?ids=${encodeURIComponent(key)}`, {
-      signal: controller.signal,
-    })
-      .then(async (res) => {
-        if (!res.ok) throw new Error("failed");
-        const body = (await res.json()) as {
-          values?: Record<string, CardValueResult>;
-        };
+    loadCardValues(key, controller.signal)
+      .then((next) => {
         if (controller.signal.aborted) return;
-        const next = new Map<string, CardValueResult>();
-        for (const [id, value] of Object.entries(body.values ?? {})) {
-          next.set(id, value);
-        }
         setValues(next);
       })
       .catch(() => {

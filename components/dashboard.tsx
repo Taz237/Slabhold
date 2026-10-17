@@ -34,9 +34,12 @@ import {
   type PortfolioFilter,
 } from "@/lib/types";
 import {
+  investedAmountLabel,
   investedCardLabel,
+  profitAmountLabel,
   profitAmountTone,
   profitCardLabel,
+  sumPaid,
 } from "@/lib/collection/profit-label";
 import {
   cardValueHasAmount,
@@ -75,6 +78,8 @@ export function Dashboard() {
   const profitTotal = totals.unrealizedProfit + totals.realizedProfit;
   const pricedCount = totals.pricedCount;
   const cardCount = inLane.length;
+  const paidCount = inLane.filter((card) => hasPaid(card)).length;
+  const investedAmount = sumPaid(inLane);
   const profitTone = profitAmountTone(pricedCount, profitTotal);
   const visible = useMemo(
     () =>
@@ -93,7 +98,7 @@ export function Dashboard() {
     totals.withoutValueCount > 0
       ? `${totals.withoutValueCount} card${totals.withoutValueCount === 1 ? "" : "s"} without a value yet`
       : "Held book value";
-  const investedLabel = investedCardLabel(pricedCount, cardCount);
+  const investedLabel = investedCardLabel(paidCount, cardCount);
   const profitLabel = profitCardLabel(pricedCount, cardCount);
 
   return (
@@ -130,10 +135,9 @@ export function Dashboard() {
       <section className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <Stat
           label="Total invested"
-          value={pricedCount > 0 ? money(totals.pricedInvested) : "—"}
-          hint={investedLabel === "—" ? "" : investedLabel}
-          tone={pricedCount > 0 ? undefined : "neutral"}
-          loading={valuesLoading}
+          value={investedAmountLabel(investedAmount)}
+          hint={investedLabel}
+          tone={paidCount > 0 ? undefined : "neutral"}
         />
         <Stat
           label="Estimated value"
@@ -143,7 +147,7 @@ export function Dashboard() {
         />
         <Stat
           label="Profit"
-          value={pricedCount > 0 ? signedMoney(profitTotal) : "—"}
+          value={profitAmountLabel(pricedCount, profitTotal)}
           hint={profitLabel === "—" ? "" : profitLabel}
           tone={profitTone}
           loading={valuesLoading}
@@ -151,7 +155,7 @@ export function Dashboard() {
       </section>
       <p className="flex items-start gap-1.5 text-xs text-zinc-500">
         <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
-        Only cards with a price paid and a current value are included.
+        Profit only includes cards with a price paid and a current value.
       </p>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

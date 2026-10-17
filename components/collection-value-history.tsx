@@ -13,13 +13,14 @@ import { money, signedMoney } from "@/lib/format";
 import {
   HISTORY_RANGE_DISABLED,
   HISTORY_RANGES,
-  compactCurrency,
   distinctHistoryDays,
+  formatAxisTick,
   formatTrackingSince,
   historyBadge,
   isHistoryRangeEnabled,
   pointsInHistoryRange,
   valueAxisDomain,
+  valueAxisTicks,
   type HistoryRangeId,
 } from "@/lib/collection/chart-range";
 import { snapshotDateInNewYork } from "@/lib/collection/totals-shared";
@@ -131,6 +132,8 @@ export function CollectionValueHistory({
   const phrase = HISTORY_RANGES.find((item) => item.id === selected)?.phrase ?? "";
   const last = points[points.length - 1]?.value ?? allPoints[allPoints.length - 1]?.value ?? 0;
   const domain = valueAxisDomain(points.map((point) => point.value));
+  const yTicks = valueAxisTicks(domain);
+  const ySpan = domain[1] - domain[0];
   const tip = activeIndex != null ? points[activeIndex] : null;
 
   function showIndex(
@@ -247,13 +250,14 @@ export function CollectionValueHistory({
                 minTickGap={28}
               />
               <YAxis
-                width={52}
+                width={56}
                 domain={domain}
-                tickFormatter={compactCurrency}
+                ticks={yTicks}
+                interval={0}
+                tickFormatter={(value) => formatAxisTick(Number(value), ySpan)}
                 tick={{ fill: "#71717a", fontSize: 11 }}
                 tickLine={false}
                 axisLine={false}
-                tickCount={4}
               />
               <Tooltip
                 content={() => null}

@@ -7,8 +7,10 @@ import {
   formatTrackingSince,
   historyBadge,
   isHistoryRangeEnabled,
+  formatAxisTick,
   pointsInHistoryRange,
   valueAxisDomain,
+  valueAxisTicks,
 } from "./chart-range";
 
 function series(start: string, count: number, valueAt: (index: number) => number) {
@@ -56,5 +58,21 @@ describe("collection chart ranges", () => {
     assert.ok(low > 0);
     assert.ok(low < 350);
     assert.ok(high > 360);
+  });
+
+  it("does not repeat y-axis labels when the range is small", () => {
+    for (const values of [
+      [13, 13.4],
+      [1200, 1210],
+      [350, 360],
+    ]) {
+      const domain = valueAxisDomain(values);
+      const ticks = valueAxisTicks(domain);
+      const span = domain[1] - domain[0];
+      const labels = ticks.map((tick) => formatAxisTick(tick, span));
+      assert.ok(labels.length >= 1, labels.join(","));
+      assert.ok(labels.length <= 4, labels.join(","));
+      assert.equal(new Set(labels).size, labels.length, labels.join(","));
+    }
   });
 });
