@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Avatar } from "@/components/avatar";
 import { LoadingRows } from "@/components/status";
+import { DeleteAccount } from "@/components/delete-account";
 import { useSocial } from "@/components/social-provider";
 
 export function MoreView() {
@@ -119,6 +120,8 @@ export function MoreView() {
           </p>
         ) : null}
       </section>
+
+      {user ? <DeleteAccount /> : null}
     </div>
   );
 }

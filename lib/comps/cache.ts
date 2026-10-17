@@ -61,6 +61,59 @@ export async function readSoldCompsCache(
   };
 }
 
+/** Item ids already stored for this query, including stale batches. Null on read error. */
+export async function listCachedItemIds(
+  queryKey: string,
+): Promise<Set<string> | null> {
+  const client = createSupabaseAdmin();
+  if (!client || !queryKey) return new Set();
+
+  const { data, error } = await client
+    .from("sold_comps_cache")
+    .select("item_id")
+    .eq("query_key", queryKey);
+
+  if (error) {
+    console.warn("[sold_comps_cache] list failed:", error.message);
+    return null;
+  }
+
+  const ids = new Set<string>();
+  for (const row of data ?? []) {
+    const itemId = row.item_id as string;
+    if (itemId && itemId !== "__empty__") ids.add(itemId);
+  }
+  return ids;
+}
+
+/** Latest stored matched sales, even when the 6h cache TTL has passed. */
+export async function readLatestSoldComps(queryKey: string): Promise<CleanedSale[]> {
+  const client = createSupabaseAdmin();
+  if (!client || !queryKey) return [];
+
+  const { data: latest, error: latestError } = await client
+    .from("sold_comps_cache")
+    .select("fetched_at")
+    .eq("query_key", queryKey)
+    .order("fetched_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (latestError || !latest?.fetched_at) return [];
+
+  const fetchedAt = latest.fetched_at as string;
+  const { data, error } = await client
+    .from("sold_comps_cache")
+    .select(
+      "item_id, title, price, currency, sold_at, grader, grade, url, fetched_at",
+    )
+    .eq("query_key", queryKey)
+    .eq("fetched_at", fetchedAt);
+
+  if (error || !data?.length) return [];
+  return rowsToSales(data as CacheRow[], fetchedAt);
+}
+
 function rowsToSales(data: CacheRow[], fetchedAt: string): CleanedSale[] {
   return data
     .filter((row) => row.item_id !== "__empty__")

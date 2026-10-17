@@ -46,11 +46,13 @@ import {
   formatCardValueLabel,
 } from "@/lib/value/format";
 import { useCardValues } from "@/lib/value/use-card-values";
+import { WantList } from "@/components/want-list";
 
-const LANES: { id: "all" | CardCategory; label: string }[] = [
+const LANES: { id: "all" | CardCategory | "wants"; label: string }[] = [
   { id: "all", label: "All" },
   { id: "flipping", label: "Flipping" },
   { id: "pc", label: "PC" },
+  { id: "wants", label: "Want list" },
 ];
 
 const FILTERS: { id: PortfolioFilter; label: string }[] = [
@@ -66,6 +68,7 @@ export function Dashboard() {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<PortfolioFilter>("all");
   const [lane, setLane] = useState<(typeof LANES)[number]["id"]>("all");
+  const summaryLane = lane === "wants" ? "all" : lane;
 
   const cardIds = useMemo(() => cards.map((card) => card.id), [cards]);
   const {
@@ -77,8 +80,8 @@ export function Dashboard() {
   const valuesFailed = valuesError && !valuesLoading;
 
   const inLane = useMemo(
-    () => cards.filter((card) => matchesCategory(card, lane)),
-    [cards, lane],
+    () => cards.filter((card) => matchesCategory(card, summaryLane)),
+    [cards, summaryLane],
   );
   const totals = useMemo(() => summarize(inLane, values), [inLane, values]);
   const profitTotal = totals.unrealizedProfit + totals.realizedProfit;
@@ -120,8 +123,9 @@ export function Dashboard() {
         currentValue={totals.estimatedValue}
         valueLoading={valuesLoading}
         valueError={valuesFailed}
+        onRetry={retryValues}
       />
-      <div className="grid grid-cols-3 rounded-full bg-zinc-100 p-1 dark:bg-white/10" role="tablist" aria-label="Collection">
+      <div className="grid grid-cols-4 rounded-full bg-zinc-100 p-1 dark:bg-white/10" role="tablist" aria-label="Collection">
         {LANES.map((item) => {
           const selected = lane === item.id;
           return (
@@ -131,7 +135,7 @@ export function Dashboard() {
               role="tab"
               aria-selected={selected}
               onClick={() => setLane(item.id)}
-              className={`min-h-11 rounded-full text-sm font-bold ${
+              className={`min-h-11 rounded-full px-1 text-[11px] font-bold sm:text-sm ${
                 selected
                   ? "bg-white text-zinc-950 shadow-sm dark:bg-zinc-950 dark:text-zinc-100"
                   : "text-zinc-500"
@@ -171,6 +175,10 @@ export function Dashboard() {
         Profit only includes cards with a price paid and a current value.
       </p>
 
+      {lane === "wants" ? (
+        <WantList />
+      ) : (
+      <>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <label className="relative flex-1">
           <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-zinc-500" />
@@ -366,6 +374,8 @@ export function Dashboard() {
             );
           })}
         </ul>
+      )}
+      </>
       )}
     </div>
   );

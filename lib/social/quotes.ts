@@ -2,6 +2,24 @@ import type { Post, Profile, PublicCard } from "./types";
 
 export const QUOTE_EMPTY_ERROR = "Add a comment to your quote";
 
+/** Quote stays disabled until there is text, a photo, or a card. */
+export function isQuoteSubmitDisabled(input: {
+  body: string;
+  imageDataUrl?: string | null;
+  card?: PublicCard | null;
+}): boolean {
+  return validateQuoteContent(input) != null;
+}
+
+/** Cancel asks to discard only when the draft has text, a photo, or a card. */
+export function shouldConfirmDiscard(input: {
+  body: string;
+  imageDataUrl?: string | null;
+  hasCard?: boolean;
+}): boolean {
+  return Boolean(input.body.trim() || input.imageDataUrl || input.hasCard);
+}
+
 /** Quote text is required unless a card or image is attached. */
 export function validateQuoteContent(input: {
   body: string;

@@ -1,7 +1,8 @@
 import "server-only";
 
 import { mockValueHistory } from "@/lib/value-history";
-import { readSoldCompsCache, writeSoldCompsCache } from "./cache";
+import { notifyMatchedSales } from "@/lib/wants/dispatch";
+import { listCachedItemIds, readSoldCompsCache, writeSoldCompsCache } from "./cache";
 import { isLowConfidence } from "./clean";
 import { cleanedToCompListings, historyFromSales } from "./map";
 import {
@@ -174,9 +175,25 @@ export async function getSoldComps(
     }
 
     const sales = filterComps(matchCard, result.body.results ?? []);
-    const fetchedAt =
-      (await writeSoldCompsCache(card.id, queryKey, sales)) ??
-      new Date().toISOString();
+    const previousIds = await listCachedItemIds(queryKey);
+    const writtenAt = await writeSoldCompsCache(card.id, queryKey, sales);
+    const fetchedAt = writtenAt ?? new Date().toISOString();
+
+    if (writtenAt && previousIds) {
+      const fresh = sales.filter(
+        (sale) => sale.itemId && sale.itemId !== "__empty__" && !previousIds.has(sale.itemId),
+      );
+      if (fresh.length > 0) {
+        try {
+          await notifyMatchedSales(card, fresh);
+        } catch (err) {
+          console.warn(
+            "[want_alerts]",
+            err instanceof Error ? err.message : "sale alerts failed",
+          );
+        }
+      }
+    }
 
     return {
       ok: true,

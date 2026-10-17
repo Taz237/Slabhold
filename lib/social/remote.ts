@@ -24,6 +24,7 @@ import {
 } from "./mentions";
 import { normalizeUsername, usernameError } from "./local-db";
 import { validateQuoteContent } from "./quotes";
+import { pingWantMatch } from "@/lib/wants/ping";
 
 /** Public columns only — used by @mention autocomplete. */
 const MENTION_PROFILE_SELECT = "id, username, display_name, avatar_url";
@@ -72,10 +73,11 @@ type CommentRow = {
 type NotificationRow = {
   id: string;
   recipient_id: string;
-  actor_id: string;
+  actor_id: string | null;
   kind: NotificationKind;
   post_id: string | null;
   preview: string | null;
+  href?: string | null;
   read: boolean;
   created_at: string;
 };
@@ -243,6 +245,7 @@ export async function loadSupabaseSocial(supabase: SupabaseClient): Promise<Soci
       kind: row.kind,
       postId: row.post_id,
       preview: row.preview,
+      href: row.href ?? null,
       createdAt: row.created_at,
       read: row.read,
     }),
@@ -624,6 +627,8 @@ export async function remoteCreatePost(
     .select("id")
     .single();
   if (error || !created) return { error: error?.message ?? "Could not save that post." };
+
+  if (input.card) pingWantMatch("post", created.id);
 
   // Quote notifications are created by a DB trigger on posts insert.
   // Mentions stay client-side so edit/sync can add/remove them.

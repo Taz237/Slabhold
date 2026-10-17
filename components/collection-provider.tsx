@@ -16,6 +16,8 @@ import { loadCollection, newId, nextAccent, saveCollection } from "@/lib/storage
 import { createSupabaseBrowser } from "@/lib/supabase/browser";
 import type { CardInput, SportsCard } from "@/lib/types";
 import { scheduleCardValueRefresh } from "@/lib/value/use-card-values";
+import { isPublicForSaleListing } from "@/lib/wants/listing";
+import { pingWantMatch } from "@/lib/wants/ping";
 
 const VALUE_DETAIL_KEYS = [
   "playerName",
@@ -108,6 +110,7 @@ export function CollectionProvider({ children }: { children: React.ReactNode }) 
           enqueue(card.id, async () => {
             try {
               await saveUserCard(client, userId, card);
+              if (isPublicForSaleListing(card)) pingWantMatch("listing", card.id);
               setSyncError(null);
             } catch (error) {
               report(error);
@@ -156,6 +159,7 @@ export function CollectionProvider({ children }: { children: React.ReactNode }) 
           enqueue(card.id, async () => {
             try {
               await saveUserCard(client, userId, card);
+              if (isPublicForSaleListing(card)) pingWantMatch("listing", card.id);
               setSyncError(null);
               scheduleCardValueRefresh(card.id);
             } catch (error) {
@@ -185,6 +189,7 @@ export function CollectionProvider({ children }: { children: React.ReactNode }) 
           enqueue(id, async () => {
             try {
               await saveUserCard(client, userId, updated);
+              if (isPublicForSaleListing(updated)) pingWantMatch("listing", updated.id);
               setSyncError(null);
               if (shouldRefresh) scheduleCardValueRefresh(id);
             } catch (error) {

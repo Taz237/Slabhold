@@ -76,15 +76,18 @@ export type NotificationKind =
   | "follow"
   | "repost"
   | "mention"
-  | "quote";
+  | "quote"
+  | "want_alert";
 
 export type Notification = {
   id: string;
   recipientId: string;
-  actorId: string;
+  actorId: string | null;
   kind: NotificationKind;
   postId: string | null;
   preview: string | null;
+  /** Card, post, or listing path for want alerts. */
+  href?: string | null;
   createdAt: string;
   read: boolean;
 };

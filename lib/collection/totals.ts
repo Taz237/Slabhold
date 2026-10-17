@@ -22,13 +22,9 @@ export { hasPaid };
  * Reuses Collection summary math (summarize + cached card_values).
  * Never calls Trawl.
  */
-export async function computeCollectionTotals(
-  userId: string,
-): Promise<CollectionTotals> {
-  if (!userId) return { value: 0, invested: 0, profit: 0 };
-
+async function loadUserCollection(userId: string) {
   const admin = createSupabaseAdmin();
-  if (!admin) return { value: 0, invested: 0, profit: 0 };
+  if (!admin || !userId) return null;
 
   const { data, error } = await admin
     .from("cards")
@@ -38,7 +34,16 @@ export async function computeCollectionTotals(
 
   const cards = ((data ?? []) as CardRow[]).map(mapCardRow);
   const values = await getCardValues(cards.map((card) => card.id));
-  return collectionTotalsFromSummarize(summarize(cards, values));
+  return { admin, cards, values };
+}
+
+export async function computeCollectionTotals(
+  userId: string,
+): Promise<CollectionTotals> {
+  if (!userId) return { value: 0, invested: 0, profit: 0 };
+  const loaded = await loadUserCollection(userId);
+  if (!loaded) return { value: 0, invested: 0, profit: 0 };
+  return collectionTotalsFromSummarize(summarize(loaded.cards, loaded.values));
 }
 
 /**
@@ -49,13 +54,15 @@ export async function upsertTodaysCollectionSnapshot(
   userId: string,
 ): Promise<CollectionTotals | null> {
   if (!userId) return null;
-  const admin = createSupabaseAdmin();
-  if (!admin) return null;
+  const loaded = await loadUserCollection(userId);
+  if (!loaded) return null;
 
-  const totals = await computeCollectionTotals(userId);
+  const totals = collectionTotalsFromSummarize(
+    summarize(loaded.cards, loaded.values),
+  );
   const snapshotDate = snapshotDateInNewYork();
 
-  const { error } = await admin.from("collection_snapshots").upsert(
+  const { error } = await loaded.admin.from("collection_snapshots").upsert(
     {
       user_id: userId,
       snapshot_date: snapshotDate,
@@ -66,5 +73,25 @@ export async function upsertTodaysCollectionSnapshot(
     { onConflict: "user_id,snapshot_date" },
   );
   if (error) throw new Error(error.message);
+
+  const cardRows = loaded.cards.map((card) => {
+    const value = loaded.values.get(card.id);
+    const median =
+      value && typeof value.median === "number" && Number.isFinite(value.median)
+        ? value.median
+        : null;
+    return {
+      card_id: card.id,
+      snapshot_date: snapshotDate,
+      median,
+    };
+  });
+  if (cardRows.length > 0) {
+    const { error: cardError } = await loaded.admin
+      .from("card_value_snapshots")
+      .upsert(cardRows, { onConflict: "card_id,snapshot_date" });
+    if (cardError) throw new Error(cardError.message);
+  }
+
   return totals;
 }

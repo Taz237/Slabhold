@@ -11,6 +11,7 @@ import { useCollection } from "@/components/collection-provider";
 import { useSocial } from "@/components/social-provider";
 import { PullToRefresh } from "@/components/pull-to-refresh";
 import { EmptyState, TimelineSkeleton } from "@/components/status";
+import { CollectionToday } from "@/components/collection-today";
 import { Tweet } from "@/components/tweet";
 import { takeCompose } from "@/lib/capture";
 import { fileToDataUrl } from "@/lib/storage";
@@ -42,6 +43,8 @@ export function FeedView() {
 
   return (
     <PullToRefresh onRefresh={refresh} className="-mx-4 -mt-5">
+      {user ? <CollectionToday /> : null}
+
       <div className="grid grid-cols-2 border-b border-zinc-200 text-[15px] dark:border-white/10">
         <LaneTab active={lane === "foryou"} onClick={() => setLane("foryou")}>
           For You
@@ -81,7 +84,14 @@ export function FeedView() {
       <Link
         href={user ? "/compose" : "/login"}
         aria-label="New post"
-        className="fixed right-[calc(max(0px,50vw-16rem)+1rem)] bottom-[calc(5.25rem+env(safe-area-inset-bottom))] z-40 grid h-14 w-14 place-items-center rounded-full bg-violet-600 text-white shadow-lg shadow-violet-600/30"
+        className="fixed right-[calc(max(0px,50vw-16rem)+1rem)] bottom-[calc(5.25rem+env(safe-area-inset-bottom))] z-40 grid h-14 w-14 place-items-center rounded-full bg-violet-600 text-white shadow-lg shadow-violet-600/30 md:hidden"
+      >
+        <Plus className="h-7 w-7" strokeWidth={2.25} />
+      </Link>
+      <Link
+        href={user ? "/compose" : "/login"}
+        aria-label="New post"
+        className="fixed bottom-24 left-4 z-40 hidden h-14 w-14 place-items-center rounded-full bg-violet-600 text-white shadow-lg shadow-violet-600/30 md:grid"
       >
         <Plus className="h-7 w-7" strokeWidth={2.25} />
       </Link>

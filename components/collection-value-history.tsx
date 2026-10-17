@@ -57,6 +57,7 @@ export function CollectionValueHistory({
   currentValue,
   valueLoading = false,
   valueError = false,
+  onRetry,
 }: {
   /** Live estimated value from Collection summary — fills today if cron hasn't written yet. */
   currentValue: number;
@@ -64,6 +65,8 @@ export function CollectionValueHistory({
   valueLoading?: boolean;
   /** True when the live read failed. Headline stays on the saved snapshot. */
   valueError?: boolean;
+  /** Retry the live value read. Shown with an em dash when today has no snapshot. */
+  onRetry?: () => void;
 }) {
   const [range, setRange] = useState<HistoryRangeId>("7d");
   const [rows, setRows] = useState<SnapshotRow[]>([]);
@@ -108,6 +111,8 @@ export function CollectionValueHistory({
   const liveReady = !valueLoading && !valueError;
   const todaySnapshot = rows.find((row) => row.snapshot_date === today)?.value ?? null;
   const headline = liveReady ? currentValue : todaySnapshot;
+  const snapshotsReady = !loading;
+  const showUnavailable = Boolean(valueError) && snapshotsReady && todaySnapshot == null;
 
   const allPoints = useMemo(() => {
     const byDate = new Map(rows.map((row) => [row.snapshot_date, row.value]));
@@ -159,7 +164,20 @@ export function CollectionValueHistory({
           <p className="text-[11px] tracking-wide text-zinc-500 uppercase">
             Collection value
           </p>
-          {headline == null ? (
+          {showUnavailable ? (
+            <div className="mt-1 flex items-baseline gap-3">
+              <p className="text-2xl font-semibold tracking-tight tabular-nums">—</p>
+              {onRetry ? (
+                <button
+                  type="button"
+                  onClick={onRetry}
+                  className="text-sm font-semibold underline"
+                >
+                  Retry
+                </button>
+              ) : null}
+            </div>
+          ) : headline == null ? (
             <div
               className="mt-1 h-8 w-28 animate-pulse rounded-md bg-zinc-200/80 dark:bg-white/10"
               aria-hidden
@@ -169,7 +187,9 @@ export function CollectionValueHistory({
               {money(liveReady ? currentValue : headline)}
             </p>
           )}
-          {headline == null ? <span className="sr-only">Loading collection value</span> : null}
+          {headline == null && !showUnavailable ? (
+            <span className="sr-only">Loading collection value</span>
+          ) : null}
           {liveReady && tracking ? (
             <p className="mt-1 text-sm font-medium text-zinc-500">{tracking}</p>
           ) : liveReady && badge ? (

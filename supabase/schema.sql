@@ -181,14 +181,15 @@ create table if not exists public.comments (
 create table if not exists public.notifications (
   id uuid primary key default gen_random_uuid(),
   recipient_id uuid not null references public.profiles (id) on delete cascade,
-  actor_id uuid not null references public.profiles (id) on delete cascade,
+  actor_id uuid references public.profiles (id) on delete set null,
   kind text not null,
-  post_id uuid references public.posts (id) on delete cascade,
+  post_id uuid references public.posts (id) on delete set null,
+  href text,
   preview text,
   read boolean not null default false,
   created_at timestamptz not null default now(),
-  constraint notifications_kind check (kind in ('like', 'comment', 'follow', 'repost', 'mention', 'quote')),
-  constraint notifications_not_self check (actor_id <> recipient_id)
+  constraint notifications_kind check (kind in ('like', 'comment', 'follow', 'repost', 'mention', 'quote', 'want_alert')),
+  check (actor_id is null or actor_id <> recipient_id)
 );
 
 create unique index if not exists profiles_username_idx on public.profiles (lower(username));
@@ -232,7 +233,7 @@ create index if not exists reposts_user_created_idx on public.reposts (user_id, 
 alter table public.notifications drop constraint if exists notifications_kind;
 alter table public.notifications
   add constraint notifications_kind
-  check (kind in ('like', 'comment', 'follow', 'repost', 'mention', 'quote'));
+  check (kind in ('like', 'comment', 'follow', 'repost', 'mention', 'quote', 'want_alert'));
 
 create unique index if not exists notifications_repost_once
   on public.notifications (actor_id, post_id)
@@ -404,6 +405,7 @@ create policy "Create notifications as yourself" on public.notifications
     auth.uid() = actor_id
     and actor_id <> recipient_id
     and kind <> 'quote'
+    and kind <> 'want_alert'
   );
 create policy "Mark own notifications read" on public.notifications
   for update using (auth.uid() = recipient_id) with check (auth.uid() = recipient_id);

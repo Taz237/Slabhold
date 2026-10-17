@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { Bell, Camera, CircleUser, Compass, Ellipsis, Mail, Search, WalletCards } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { useSocial } from "@/components/social-provider";
+import { AccountDeletedToast } from "@/components/account-deleted-toast";
 import { WelcomeView } from "@/components/welcome-view";
 import type { Profile } from "@/lib/social/types";
 
@@ -108,7 +109,7 @@ function Shell({
           {status}
         </p>
       ) : null}
-      <main className={`relative mx-auto w-full ${mainMax} px-4 py-5 pb-28`}>
+      <main className={`relative mx-auto w-full ${mainMax} px-4 py-5 pb-28 md:pb-40`}>
         {children}
       </main>
       <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-zinc-200 bg-[color-mix(in_oklab,var(--background)_92%,transparent)] backdrop-blur-xl dark:border-white/10">
@@ -177,20 +178,33 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   if (!ready) {
     return (
-      <Shell unreadCount={0} unreadMessageCount={0} status={null} user={null}>
-        {children}
-      </Shell>
+      <>
+        <AccountDeletedToast />
+        <Shell unreadCount={0} unreadMessageCount={0} status={null} user={null}>
+          {children}
+        </Shell>
+      </>
     );
   }
-  if (!user && !isSharedPage(pathname)) return <WelcomeView />;
+  if (!user && !isSharedPage(pathname)) {
+    return (
+      <>
+        <AccountDeletedToast />
+        <WelcomeView />
+      </>
+    );
+  }
   return (
-    <Shell
-      unreadCount={unreadCount}
-      unreadMessageCount={unreadMessageCount}
-      status={status}
-      user={user}
-    >
-      {children}
-    </Shell>
+    <>
+      <AccountDeletedToast />
+      <Shell
+        unreadCount={unreadCount}
+        unreadMessageCount={unreadMessageCount}
+        status={status}
+        user={user}
+      >
+        {children}
+      </Shell>
+    </>
   );
 }

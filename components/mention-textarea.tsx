@@ -298,7 +298,7 @@ export const MentionTextarea = forwardRef<
   ) : null;
 
   return (
-    <div ref={rootRef} className="min-w-0 flex-1">
+    <div ref={rootRef} className="relative min-w-0 flex-1">
       <textarea
         ref={fieldRef}
         id={id}
@@ -327,9 +327,9 @@ export const MentionTextarea = forwardRef<
         <div className="fixed inset-x-0 bottom-[calc(9.75rem+env(safe-area-inset-bottom))] z-40 mx-auto w-full max-w-lg px-3">
           {menuPanel}
         </div>
-      ) : (
-        menuPanel
-      )}
+      ) : menuPanel ? (
+        <div className="absolute top-full right-0 left-0 z-30 mt-1">{menuPanel}</div>
+      ) : null}
     </div>
   );
 });

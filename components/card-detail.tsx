@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ArrowLeft, Pencil, Trash2 } from "lucide-react";
 import { CardCollectorsSaying } from "@/components/card-collectors-saying";
+import { WantButton } from "@/components/want-button";
 import { CategoryBadge, CategoryPicker } from "@/components/category-picker";
 import { useCollection } from "@/components/collection-provider";
 import { CardThumb } from "@/components/card-thumb";
@@ -179,6 +180,9 @@ export function CardDetail({ id }: { id: string }) {
           <h1 className="mt-1 text-3xl font-semibold tracking-tight">
             {card.playerName}
           </h1>
+          <div className="mt-3">
+            <WantButton card={card} />
+          </div>
           <p className="mt-1 text-sm text-zinc-500">{cardSubtitle(card)}</p>
           {needsDetails(card) ? (
             <p className="mt-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">

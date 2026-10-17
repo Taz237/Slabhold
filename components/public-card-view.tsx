@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import { CardCollectorsSaying } from "@/components/card-collectors-saying";
+import { WantButton } from "@/components/want-button";
 import { CardThumb } from "@/components/card-thumb";
 import { CompsList } from "@/components/comps-list";
 import { useCollection } from "@/components/collection-provider";
@@ -155,7 +156,10 @@ function PublicCardAnalytics({
 
       <div>
         <p className="text-sm text-zinc-500">{cardTitle(card)}</p>
-        <h1 className="mt-1 text-3xl font-semibold tracking-tight">{card.playerName}</h1>
+        <div className="flex items-start justify-between gap-3">
+          <h1 className="mt-1 text-3xl font-semibold tracking-tight">{card.playerName}</h1>
+          <WantButton card={card} />
+        </div>
         {specs.length > 0 ? (
           <dl className="mt-3 flex flex-wrap gap-2">
             {specs.map((spec) => (

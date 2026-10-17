@@ -18,6 +18,13 @@ const love: IdentityCard = {
 };
 
 describe("cardIdentityKey", () => {
+  it("is the same for two owners of the same card", () => {
+    const ownerA = { ...love, ownerId: "user-a" };
+    const ownerB = { ...love, ownerId: "user-b" };
+    assert.equal(cardIdentityKey(ownerA), cardIdentityKey(ownerB));
+    assert.notEqual(ownerA.ownerId, ownerB.ownerId);
+  });
+
   it("treats a leading # on the card number as the same number", () => {
     assert.equal(
       cardIdentityKey({ ...love, cardNumber: "#47" }),

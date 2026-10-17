@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect } from "react";
-import { AtSign, Bell, Heart, MessageCircle, Quote, Repeat2, UserPlus } from "lucide-react";
+import { AtSign, Bell, Heart, MessageCircle, Quote, Repeat2, Star, UserPlus } from "lucide-react";
 import { Avatar } from "@/components/avatar";
 import { solidButton } from "@/components/button-styles";
 import { EmptyState, LoadingRows } from "@/components/status";
@@ -16,6 +16,7 @@ function actionText(kind: Notification["kind"]) {
   if (kind === "repost") return "reposted your post";
   if (kind === "quote") return "quoted your post";
   if (kind === "mention") return "mentioned you";
+  if (kind === "want_alert") return "matched a card you want";
   return "followed you";
 }
 
@@ -73,15 +74,17 @@ export function NotificationsView() {
       ) : (
         <ul className="mt-3 divide-y divide-zinc-200 dark:divide-white/10">
           {notifications.map((note) => {
-            const actor = authors.get(note.actorId);
+            const actor = note.actorId ? authors.get(note.actorId) : undefined;
             const href =
-              note.kind === "follow"
-                ? actor
-                  ? `/u/${actor.username}`
-                  : "/profile"
-                : note.postId
-                  ? `/posts/${note.postId}`
-                  : "/";
+              note.kind === "want_alert"
+                ? note.href || (note.postId ? `/posts/${note.postId}` : "/collection")
+                : note.kind === "follow"
+                  ? actor
+                    ? `/u/${actor.username}`
+                    : "/profile"
+                  : note.postId
+                    ? `/posts/${note.postId}`
+                    : "/";
             const Icon =
               note.kind === "like"
                 ? Heart
@@ -93,7 +96,9 @@ export function NotificationsView() {
                       ? Quote
                       : note.kind === "mention"
                         ? AtSign
-                        : UserPlus;
+                        : note.kind === "want_alert"
+                          ? Star
+                          : UserPlus;
             const stamp = timeAgo(note.createdAt);
             return (
               <li key={note.id}>
@@ -105,8 +110,14 @@ export function NotificationsView() {
                   />
                   <span className="min-w-0 flex-1">
                     <span className="block text-[15px] leading-5">
-                      <span className="font-bold">{actor?.displayName ?? "Someone"}</span>{" "}
-                      {actionText(note.kind)}
+                      {note.kind === "want_alert" ? (
+                        <span>{note.preview}</span>
+                      ) : (
+                        <>
+                          <span className="font-bold">{actor?.displayName ?? "Someone"}</span>{" "}
+                          {actionText(note.kind)}
+                        </>
+                      )}
                       {stamp ? (
                         <time
                           dateTime={note.createdAt}
@@ -117,7 +128,7 @@ export function NotificationsView() {
                         </time>
                       ) : null}
                     </span>
-                    {note.preview ? (
+                    {note.preview && note.kind !== "want_alert" ? (
                       <span className="mt-0.5 block truncate text-sm text-zinc-500">{note.preview}</span>
                     ) : null}
                   </span>

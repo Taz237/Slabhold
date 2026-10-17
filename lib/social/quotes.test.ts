@@ -2,8 +2,10 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   QUOTE_EMPTY_ERROR,
+  isQuoteSubmitDisabled,
   quoteCount,
   resolveQuoteEmbedState,
+  shouldConfirmDiscard,
   shouldNotifyQuoteAuthor,
   validateQuoteContent,
 } from "./quotes";
@@ -73,6 +75,29 @@ describe("validateQuoteContent", () => {
 
   it("allows non-empty text alone", () => {
     assert.equal(validateQuoteContent({ body: "Nice pull" }), null);
+  });
+});
+
+describe("quote composer actions", () => {
+  it("disables Quote when the draft is empty", () => {
+    assert.equal(isQuoteSubmitDisabled({ body: "   " }), true);
+    assert.equal(isQuoteSubmitDisabled({ body: "", imageDataUrl: null, card: null }), true);
+  });
+
+  it("enables Quote when there is text, a card, or an image", () => {
+    assert.equal(isQuoteSubmitDisabled({ body: "Nice pull" }), false);
+    assert.equal(
+      isQuoteSubmitDisabled({ body: "", imageDataUrl: "data:image/png;base64,xx" }),
+      false,
+    );
+  });
+
+  it("asks to discard only when there is content", () => {
+    assert.equal(shouldConfirmDiscard({ body: "" }), false);
+    assert.equal(shouldConfirmDiscard({ body: "   ", imageDataUrl: null, hasCard: false }), false);
+    assert.equal(shouldConfirmDiscard({ body: "hold" }), true);
+    assert.equal(shouldConfirmDiscard({ body: "", imageDataUrl: "data:image/png;base64,xx" }), true);
+    assert.equal(shouldConfirmDiscard({ body: "", hasCard: true }), true);
   });
 });
 

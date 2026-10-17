@@ -14,7 +14,7 @@ import { initials } from "@/lib/format";
 import { fileToDataUrl } from "@/lib/storage";
 import { mapPublicCard, PUBLIC_CARD_SELECT } from "@/lib/social/cards";
 import { toPublicAttachment } from "@/lib/social/card-posts";
-import { QUOTE_EMPTY_ERROR, validateQuoteContent } from "@/lib/social/quotes";
+import { QUOTE_EMPTY_ERROR, isQuoteSubmitDisabled, shouldConfirmDiscard, validateQuoteContent } from "@/lib/social/quotes";
 import { POST_LIMIT, type PublicCard } from "@/lib/social/types";
 import { createSupabaseBrowser } from "@/lib/supabase/browser";
 import { isUuid } from "@/lib/value/card-value-access";
@@ -36,6 +36,7 @@ export function ComposeView() {
   const [quoteId, setQuoteId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
   const editing = posts.find((post) => post.id === editId && post.authorId === user?.id);
   const attachedIsOwned = Boolean(
     attachCardParam && cards.some((card) => card.id === attachCardParam),
@@ -181,17 +182,34 @@ export function ComposeView() {
         ? externalCard
         : null;
 
-  // Quotes stay clickable when empty so submit can show the inline error.
   const canPost = quoteId
-    ? !sending
+    ? !isQuoteSubmitDisabled({
+        body,
+        imageDataUrl: image,
+        card: attachedPreview,
+      }) && !sending
     : (body.trim().length > 0 || Boolean(image) || Boolean(cardId)) && !sending;
 
-  function onCancel() {
+  function leave() {
     if (typeof window !== "undefined" && window.history.length > 1) {
       router.back();
       return;
     }
     router.push("/");
+  }
+
+  function onCancel() {
+    if (
+      shouldConfirmDiscard({
+        body,
+        imageDataUrl: image,
+        hasCard: Boolean(attachedPreview),
+      })
+    ) {
+      setConfirmDiscard(true);
+      return;
+    }
+    leave();
   }
 
   return (
@@ -221,52 +239,30 @@ export function ComposeView() {
         </button>
       </div>
 
-      <div className="flex flex-1 gap-3 px-4 py-4">
-        <Avatar
-          name={user.displayName}
-          image={user.avatarDataUrl}
-          accent={user.accent}
-          className="h-10 w-10"
-        />
-        <div className="min-w-0 flex-1">
-          <MentionTextarea
-            value={body}
-            onChange={setBody}
-            maxLength={POST_LIMIT}
-            rows={6}
-            autoFocus
-            menu="docked"
-            placeholder={quoteId ? "Add a comment" : "What's happening?"}
-            className="w-full resize-none bg-transparent text-[17px] leading-6 outline-none placeholder:text-zinc-500"
+      <div className="px-4 py-4">
+        <div className="flex gap-3">
+          <Avatar
+            name={user.displayName}
+            image={user.avatarDataUrl}
+            accent={user.accent}
+            className="h-10 w-10"
           />
-          {image ? (
-            <div className="relative mt-2">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={image}
-                alt=""
-                className="max-h-72 w-full rounded-2xl border border-zinc-200 object-cover dark:border-white/10"
-              />
-              <button
-                type="button"
-                onClick={() => setImage(null)}
-                aria-label="Remove photo"
-                className="absolute top-2 right-2 grid h-8 w-8 place-items-center rounded-full bg-black/70 text-white"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-          ) : null}
-          {attachedPreview ? (
-            <ComposeCardPreview
-              card={attachedPreview}
-              onRemove={() => {
-                setCardId("");
-                setExternalCard(null);
-              }}
+          <div className="min-w-0 flex-1">
+            <MentionTextarea
+              value={body}
+              onChange={setBody}
+              maxLength={POST_LIMIT}
+              rows={6}
+              autoFocus
+              menu="inline"
+              placeholder={quoteId ? "Add a comment" : "What's happening?"}
+              className="w-full resize-none bg-transparent text-[17px] leading-6 outline-none placeholder:text-zinc-500"
             />
-          ) : null}
-          {quoteId ? (
+            {error ? <p className="mt-3 text-sm text-rose-600 dark:text-rose-400">{error}</p> : null}
+          </div>
+        </div>
+        {quoteId ? (
+          <div className="mt-3 w-full">
             <QuoteComposePreview
               quotedPostId={quoteId}
               onRemove={() => {
@@ -274,9 +270,35 @@ export function ComposeView() {
                 router.replace("/compose", { scroll: false });
               }}
             />
-          ) : null}
-          {error ? <p className="mt-3 text-sm text-rose-600 dark:text-rose-400">{error}</p> : null}
-        </div>
+          </div>
+        ) : null}
+        {image ? (
+          <div className="relative mt-3">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={image}
+              alt=""
+              className="max-h-72 w-full rounded-2xl border border-zinc-200 object-cover dark:border-white/10"
+            />
+            <button
+              type="button"
+              onClick={() => setImage(null)}
+              aria-label="Remove photo"
+              className="absolute top-2 right-2 grid h-8 w-8 place-items-center rounded-full bg-black/70 text-white"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        ) : null}
+        {attachedPreview ? (
+          <ComposeCardPreview
+            card={attachedPreview}
+            onRemove={() => {
+              setCardId("");
+              setExternalCard(null);
+            }}
+          />
+        ) : null}
       </div>
 
       <div className="fixed inset-x-0 bottom-[calc(6.15rem+env(safe-area-inset-bottom))] z-20 mx-auto flex w-full min-w-0 max-w-lg items-center gap-1 overflow-hidden border-t border-zinc-200 bg-[var(--background)] px-2 py-2 dark:border-white/10">
@@ -329,6 +351,36 @@ export function ComposeView() {
           {body.length}/{POST_LIMIT}
         </span>
       </div>
+      {confirmDiscard ? (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 px-4">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="discard-post-title"
+            className="w-full max-w-sm rounded-2xl bg-white p-5 dark:bg-zinc-950"
+          >
+            <h2 id="discard-post-title" className="text-lg font-bold">
+              Discard post?
+            </h2>
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setConfirmDiscard(false)}
+                className="rounded-full px-3 py-1.5 text-sm font-semibold"
+              >
+                Keep editing
+              </button>
+              <button
+                type="button"
+                onClick={leave}
+                className="rounded-full bg-zinc-900 px-3 py-1.5 text-sm font-bold text-white dark:bg-zinc-100 dark:text-zinc-950"
+              >
+                Discard
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </form>
   );
 }
