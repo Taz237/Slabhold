@@ -328,7 +328,9 @@ export const MentionTextarea = forwardRef<
           {menuPanel}
         </div>
       ) : menuPanel ? (
-        <div className="absolute top-full right-0 left-0 z-30 mt-1">{menuPanel}</div>
+        <div className="absolute top-full right-0 left-0 z-50 mt-1 rounded-2xl bg-[var(--background)] shadow-lg">
+          {menuPanel}
+        </div>
       ) : null}
     </div>
   );

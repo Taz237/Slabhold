@@ -50,19 +50,19 @@ export type AccountDeleteResult = {
   body: { ok?: boolean; error?: string };
 };
 
-async function removeStorage(admin: AccountAdmin, userId: string): Promise<string | null> {
+export async function removeStorage(
+  admin: AccountAdmin,
+  userId: string,
+): Promise<string | null> {
   for (const bucket of BUCKETS) {
     const folder = admin.storage.from(bucket);
-    let offset = 0;
     for (;;) {
-      const listed = await folder.list(userId, { limit: 100, offset });
+      const listed = await folder.list(userId, { limit: 100, offset: 0 });
       if (listed.error) return listed.error.message;
       const names = (listed.data ?? []).map((file) => file.name).filter(Boolean);
       if (names.length === 0) break;
       const removed = await folder.remove(names.map((name) => `${userId}/${name}`));
       if (removed.error) return removed.error.message;
-      if (names.length < 100) break;
-      offset += names.length;
     }
   }
   return null;

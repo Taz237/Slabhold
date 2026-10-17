@@ -1,21 +1,30 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { runAccountDelete, type AccountAdmin } from "./delete-account";
+import { removeStorage, runAccountDelete, type AccountAdmin } from "./delete-account";
 
 function admin(opts?: { storageError?: boolean; rowError?: boolean }) {
   const calls: string[] = [];
   let deleted: string | null = null;
+  const remaining = new Map<string, { name: string }[]>();
   const client: AccountAdmin = {
     storage: {
-      from() {
+      from(bucket: string) {
+        if (!remaining.has(bucket)) {
+          remaining.set(bucket, opts?.storageError ? [] : [{ name: "photo.jpg" }]);
+        }
         return {
           async list() {
             calls.push("storage.list");
             if (opts?.storageError) return { data: null, error: { message: "list failed" } };
-            return { data: [{ name: "photo.jpg" }], error: null };
+            return { data: remaining.get(bucket) ?? [], error: null };
           },
-          async remove() {
+          async remove(paths: string[]) {
             calls.push("storage.remove");
+            const gone = new Set(paths.map((path) => path.split("/").pop()));
+            remaining.set(
+              bucket,
+              (remaining.get(bucket) ?? []).filter((file) => !gone.has(file.name)),
+            );
             return { error: null };
           },
         };
@@ -111,5 +120,38 @@ describe("account delete", () => {
     assert.equal(result.status, 500);
     assert.equal(fake.deleted(), null);
     assert.equal(fake.calls.includes("delete:want_alerts"), true);
+  });
+
+  it("deletes 250 storage files across pages from offset 0", async () => {
+    const files = Array.from({ length: 250 }, (_, index) => ({ name: `file-${index}.jpg` }));
+    const removed: string[] = [];
+    const offsets: number[] = [];
+    const client: AccountAdmin = {
+      storage: {
+        from(bucket: string) {
+          return {
+            async list(_folder: string, opts?: { offset?: number }) {
+              offsets.push(opts?.offset ?? 0);
+              if (bucket !== "card-photos") return { data: [], error: null };
+              return { data: files.slice(0, 100), error: null };
+            },
+            async remove(paths: string[]) {
+              removed.push(...paths);
+              files.splice(0, paths.length);
+              return { error: null };
+            },
+          };
+        },
+      },
+      from() {
+        throw new Error("rows should not run in this test");
+      },
+      auth: { admin: { async deleteUser() { throw new Error("auth should not run"); } } },
+    };
+    const error = await removeStorage(client, "user-1");
+    assert.equal(error, null);
+    assert.equal(removed.length, 250);
+    assert.ok(offsets.every((offset) => offset === 0));
+    assert.ok(offsets.length > 3);
   });
 });

@@ -240,7 +240,7 @@ export function ComposeView() {
       </div>
 
       <div className="px-4 py-4">
-        <div className="flex gap-3">
+        <div className="relative z-20 flex gap-3">
           <Avatar
             name={user.displayName}
             image={user.avatarDataUrl}
