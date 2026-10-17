@@ -50,20 +50,39 @@ export type AccountDeleteResult = {
   body: { ok?: boolean; error?: string };
 };
 
+const MAX_STORAGE_PASSES = 50;
+const STORAGE_NO_PROGRESS = "storage cleanup made no progress";
+
+function listedNames(data: { name: string }[] | null): string[] {
+  return (data ?? [])
+    .map((file) => file.name)
+    .filter(Boolean)
+    .sort();
+}
+
 export async function removeStorage(
   admin: AccountAdmin,
   userId: string,
 ): Promise<string | null> {
   for (const bucket of BUCKETS) {
     const folder = admin.storage.from(bucket);
-    for (;;) {
+    let previous: string | null = null;
+    let finished = false;
+    for (let pass = 0; pass < MAX_STORAGE_PASSES; pass++) {
       const listed = await folder.list(userId, { limit: 100, offset: 0 });
       if (listed.error) return listed.error.message;
-      const names = (listed.data ?? []).map((file) => file.name).filter(Boolean);
-      if (names.length === 0) break;
+      const names = listedNames(listed.data);
+      if (names.length === 0) {
+        finished = true;
+        break;
+      }
+      const signature = names.join("\0");
+      if (signature === previous) return STORAGE_NO_PROGRESS;
       const removed = await folder.remove(names.map((name) => `${userId}/${name}`));
       if (removed.error) return removed.error.message;
+      previous = signature;
     }
+    if (!finished) return STORAGE_NO_PROGRESS;
   }
   return null;
 }

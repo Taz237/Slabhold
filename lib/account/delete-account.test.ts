@@ -154,4 +154,46 @@ describe("account delete", () => {
     assert.ok(offsets.every((offset) => offset === 0));
     assert.ok(offsets.length > 3);
   });
+
+  it("errors instead of hanging when remove leaves the same files", async () => {
+    let lists = 0;
+    let removes = 0;
+    const client: AccountAdmin = {
+      storage: {
+        from() {
+          return {
+            async list() {
+              lists += 1;
+              return { data: [{ name: "stuck.jpg" }, { name: "also.jpg" }], error: null };
+            },
+            async remove() {
+              removes += 1;
+              return { error: null };
+            },
+          };
+        },
+      },
+      from() {
+        throw new Error("rows should not run");
+      },
+      auth: {
+        admin: {
+          async deleteUser() {
+            throw new Error("deleteUser should not run");
+          },
+        },
+      },
+    };
+    const error = await removeStorage(client, "user-1");
+    assert.match(error ?? "", /storage cleanup made no progress/);
+    assert.equal(removes, 1);
+    assert.equal(lists, 2);
+
+    const result = await runAccountDelete({
+      sessionUserId: "real-user",
+      body: { userId: "someone-else" },
+      admin: client,
+    });
+    assert.equal(result.status, 500);
+  });
 });
