@@ -110,7 +110,10 @@ export function Dashboard() {
           <p className="mt-2 text-sm text-rose-600 dark:text-rose-400">{syncError}</p>
         ) : null}
       </div>
-      <CollectionValueHistory currentValue={totals.estimatedValue} />
+      <CollectionValueHistory
+        currentValue={totals.estimatedValue}
+        valueLoading={valuesLoading}
+      />
       <div className="grid grid-cols-3 rounded-full bg-zinc-100 p-1 dark:bg-white/10" role="tablist" aria-label="Collection">
         {LANES.map((item) => {
           const selected = lane === item.id;
@@ -138,6 +141,7 @@ export function Dashboard() {
           value={investedAmountLabel(investedAmount)}
           hint={investedLabel}
           tone={paidCount > 0 ? undefined : "neutral"}
+          loading={valuesLoading}
         />
         <Stat
           label="Estimated value"

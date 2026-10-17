@@ -50,17 +50,20 @@ export function CardCollectorsSaying({ cardId }: { cardId: string }) {
             limit: PREVIEW_LIMIT,
           });
           if (cancelled) return;
-          setPosts(result.posts);
-          setRelatedPosts(result.relatedPosts);
-          setAuthors(result.authors);
-          setHasMore(result.hasMore);
-          return;
+          if (result) {
+            setPosts(result.posts);
+            setRelatedPosts(result.relatedPosts);
+            setAuthors(result.authors);
+            setHasMore(result.hasMore);
+            return;
+          }
         }
         const fallback = filterLoadedPostsForCard(
           loadedPosts,
           cardId,
           publicIds,
           PREVIEW_LIMIT,
+          { publicCards },
         );
         if (cancelled) return;
         setPosts(fallback.posts);
@@ -74,6 +77,7 @@ export function CardCollectorsSaying({ cardId }: { cardId: string }) {
           cardId,
           publicIds,
           PREVIEW_LIMIT,
+          { publicCards },
         );
         setPosts(fallback.posts);
         setRelatedPosts([]);
@@ -88,14 +92,14 @@ export function CardCollectorsSaying({ cardId }: { cardId: string }) {
     return () => {
       cancelled = true;
     };
-  }, [cardId, loadedPosts, profileMap, publicIds, ready]);
+  }, [cardId, loadedPosts, profileMap, publicCards, publicIds, ready]);
 
   return (
     <section className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-white/10 dark:bg-white/[0.03] sm:p-5">
       <div className="flex flex-wrap items-end justify-between gap-2">
         <div>
           <h2 className="font-semibold">What collectors are saying</h2>
-          <p className="text-xs text-zinc-500">Posts that attach this card</p>
+          <p className="text-xs text-zinc-500">Posts about this card</p>
         </div>
         {user ? (
           <Link

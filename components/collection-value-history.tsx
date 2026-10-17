@@ -55,9 +55,12 @@ function readIndex(state: {
 
 export function CollectionValueHistory({
   currentValue,
+  valueLoading = false,
 }: {
   /** Live estimated value from Collection summary — fills today if cron hasn't written yet. */
   currentValue: number;
+  /** True while card values are still loading. Keeps $0 off the headline. */
+  valueLoading?: boolean;
 }) {
   const [range, setRange] = useState<HistoryRangeId>("7d");
   const [rows, setRows] = useState<SnapshotRow[]>([]);
@@ -153,12 +156,20 @@ export function CollectionValueHistory({
           <p className="text-[11px] tracking-wide text-zinc-500 uppercase">
             Collection value
           </p>
-          <p className="mt-1 text-2xl font-semibold tracking-tight tabular-nums">
-            {money(last)}
-          </p>
-          {tracking ? (
+          {valueLoading ? (
+            <div
+              className="mt-1 h-8 w-28 animate-pulse rounded-md bg-zinc-200/80 dark:bg-white/10"
+              aria-hidden
+            />
+          ) : (
+            <p className="mt-1 text-2xl font-semibold tracking-tight tabular-nums">
+              {money(last)}
+            </p>
+          )}
+          {valueLoading ? <span className="sr-only">Loading collection value</span> : null}
+          {!valueLoading && tracking ? (
             <p className="mt-1 text-sm font-medium text-zinc-500">{tracking}</p>
-          ) : badge ? (
+          ) : !valueLoading && badge ? (
             <p
               className={`mt-1 text-sm font-medium ${
                 badge.delta > 0
@@ -210,7 +221,7 @@ export function CollectionValueHistory({
         </div>
       </div>
 
-      {loading ? (
+      {loading || valueLoading ? (
         <div className="mt-3 h-44 animate-pulse rounded-xl bg-zinc-100 dark:bg-white/5" />
       ) : !canChart ? (
         <p className="mt-4 text-sm text-zinc-500">

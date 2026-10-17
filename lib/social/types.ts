@@ -24,6 +24,10 @@ export type PublicCard = {
   createdAt?: string;
   grade?: string;
   parallel?: string;
+  /** Season label when it differs from year, e.g. "2023-24". */
+  yearLabel?: string;
+  conditionType?: "raw" | "graded";
+  grader?: string;
   purchasePrice?: number | null;
 };
 

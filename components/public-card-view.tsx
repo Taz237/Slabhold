@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { ArrowLeft } from "lucide-react";
+import { CardCollectorsSaying } from "@/components/card-collectors-saying";
 import { CardThumb } from "@/components/card-thumb";
 import { CompsList } from "@/components/comps-list";
 import { useCollection } from "@/components/collection-provider";
@@ -286,6 +287,8 @@ function PublicCardAnalytics({
           <CompsList comps={sold.data?.comps ?? []} />
         ) : null}
       </section>
+
+      <CardCollectorsSaying cardId={card.id} />
     </div>
   );
 }

@@ -141,6 +141,7 @@ export function mapPublicCard(
     | "year_label"
     | "set_name"
     | "grader"
+    | "condition_type"
   > & { created_at?: string | null },
 ): OwnedCard {
   const setBrand = (row.set_name || row.set || "").trim();
@@ -169,9 +170,19 @@ export function mapPublicCard(
     createdAt: row.created_at || undefined,
     grade,
     parallel: row.parallel ?? "Base",
+    yearLabel,
+    conditionType:
+      row.condition_type === "graded" || row.condition_type === "raw"
+        ? row.condition_type
+        : undefined,
+    grader: grader || undefined,
     purchasePrice: null,
   };
 }
+
+/** Columns a logged-out reader may select from public_cards. */
+export const PUBLIC_CARD_SELECT =
+  "id, user_id, player, year, year_label, set, set_name, grade, grader, parallel, condition_type, estimated_value, image_url, card_number, sport, accent, created_at";
 
 export async function loadUserCards(supabase: SupabaseClient, userId: string) {
   const { data, error } = await supabase

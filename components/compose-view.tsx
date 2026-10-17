@@ -11,8 +11,12 @@ import { LoadingRows } from "@/components/status";
 import { useSocial } from "@/components/social-provider";
 import { takeCompose } from "@/lib/capture";
 import { fileToDataUrl } from "@/lib/storage";
+import { mapPublicCard, PUBLIC_CARD_SELECT } from "@/lib/social/cards";
+import { toPublicAttachment } from "@/lib/social/card-posts";
 import { QUOTE_EMPTY_ERROR, validateQuoteContent } from "@/lib/social/quotes";
 import { POST_LIMIT, type PublicCard } from "@/lib/social/types";
+import { createSupabaseBrowser } from "@/lib/supabase/browser";
+import { isUuid } from "@/lib/value/card-value-access";
 
 export function ComposeView() {
   const router = useRouter();
@@ -27,10 +31,14 @@ export function ComposeView() {
   const [body, setBody] = useState("");
   const [image, setImage] = useState<string | null>(null);
   const [cardId, setCardId] = useState("");
+  const [externalCard, setExternalCard] = useState<PublicCard | null>(null);
   const [quoteId, setQuoteId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const editing = posts.find((post) => post.id === editId && post.authorId === user?.id);
+  const attachedIsOwned = Boolean(
+    attachCardParam && cards.some((card) => card.id === attachCardParam),
+  );
 
   useEffect(() => {
     if (!ready || !user || started.current) return;
@@ -48,12 +56,31 @@ export function ComposeView() {
   }, [editId, posts, ready, user]);
 
   useEffect(() => {
-    if (!ready || !user || editId) return;
-    if (!attachCardParam) return;
-    if (cards.some((card) => card.id === attachCardParam)) {
+    if (!ready || !user || editId || !attachCardParam) return;
+    if (attachedIsOwned) {
       setCardId(attachCardParam);
+      setExternalCard(null);
+      return;
     }
-  }, [attachCardParam, cards, editId, ready, user]);
+    if (!isUuid(attachCardParam)) return;
+    let cancelled = false;
+    const supabase = createSupabaseBrowser();
+    if (!supabase) return;
+    void supabase
+      .from("public_cards")
+      .select(PUBLIC_CARD_SELECT)
+      .eq("id", attachCardParam)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (cancelled || !data) return;
+        const mapped = toPublicAttachment(mapPublicCard(data));
+        setExternalCard(mapped);
+        setCardId(mapped.id);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [attachCardParam, attachedIsOwned, editId, ready, user]);
 
   useEffect(() => {
     if (!ready || !user || editId || !quoteParam) return;
@@ -96,19 +123,9 @@ export function ComposeView() {
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     const selected = cards.find((card) => card.id === cardId);
-    const card: PublicCard | null = selected
-      ? {
-          id: selected.id,
-          playerName: selected.playerName,
-          year: selected.year,
-          setBrand: selected.setBrand,
-          cardNumber: selected.cardNumber,
-          sport: selected.sport,
-          photoDataUrl: selected.photoDataUrl,
-          accent: selected.accent,
-          estimatedSellPrice: selected.estimatedSellPrice,
-        }
-      : null;
+    const source =
+      selected ?? (externalCard?.id === cardId ? externalCard : null);
+    const card: PublicCard | null = source ? toPublicAttachment(source) : null;
 
     if (quoteId) {
       const quoteError = validateQuoteContent({
@@ -270,7 +287,11 @@ export function ComposeView() {
           <ImagePlus className="h-5 w-5 shrink-0" />
           <span className="truncate">Library</span>
         </button>
-        {!editing ? (
+        {!editing && externalCard ? (
+          <p className="min-w-0 flex-1 truncate px-2 text-xs font-semibold text-zinc-700 dark:text-zinc-200">
+            {externalCard.year} {externalCard.playerName}
+          </p>
+        ) : !editing ? (
           <select
             value={cardId}
             onChange={(e) => setCardId(e.target.value)}

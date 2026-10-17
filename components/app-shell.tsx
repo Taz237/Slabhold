@@ -164,7 +164,11 @@ function Shell({
 }
 
 function isSharedPage(pathname: string) {
-  return pathname.startsWith("/posts/") || pathname.startsWith("/u/");
+  return (
+    pathname.startsWith("/posts/") ||
+    pathname.startsWith("/u/") ||
+    /^\/cards\/[^/]+\/posts\/?$/.test(pathname)
+  );
 }
 
 export function AppShell({ children }: { children: React.ReactNode }) {
