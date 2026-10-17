@@ -13,8 +13,17 @@ import { MESSAGE_LIMIT } from "@/lib/social/types";
 
 export function MessageThread({ username }: { username: string }) {
   const router = useRouter();
-  const { ready, user, profiles, messages, profileByUsername, sendMessage, markThreadRead, refresh } =
-    useSocial();
+  const {
+    ready,
+    user,
+    messages,
+    profileByUsername,
+    sendMessage,
+    markThreadRead,
+    refresh,
+    blockedIds,
+    safetyAccounts,
+  } = useSocial();
   const partner = profileByUsername(username);
   const [draft, setDraft] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -67,6 +76,23 @@ export function MessageThread({ username }: { username: string }) {
       <div className="-mx-4 -mt-5">
         <LoadingRows count={2} />
       </div>
+    );
+  }
+
+  const blockedPartner = safetyAccounts.find(
+    (person) =>
+      blockedIds.includes(person.id) && person.username.toLowerCase() === username.toLowerCase(),
+  );
+  if (blockedPartner) {
+    return (
+      <EmptyState
+        title={`You've blocked @${blockedPartner.username}`}
+        detail="You can't interact with this account."
+      >
+        <Link href="/messages" className="text-sm font-bold">
+          Back to Messages
+        </Link>
+      </EmptyState>
     );
   }
 

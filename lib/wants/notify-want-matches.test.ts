@@ -135,6 +135,55 @@ describe("notifyWantMatches", () => {
     assert.equal(notifications.length, 0);
   });
 
+  it("does not notify a blocked or muted actor", async () => {
+    const blocked = memoryDb();
+    blocked.db.safety = {
+      async isBlocked() {
+        return true;
+      },
+      async isMuted() {
+        return false;
+      },
+    };
+    const blockedCount = await notifyWantMatches(
+      sale({
+        sourceType: "post",
+        sourceId: "post-blocked",
+        actorId: "seller",
+        actorUsername: "seller",
+        price: null,
+        soldAt: null,
+      }),
+      blocked.db,
+    );
+    assert.equal(blockedCount, 0);
+    assert.equal(blocked.notifications.length, 0);
+    assert.equal(blocked.alerts.length, 0);
+
+    const muted = memoryDb();
+    muted.db.safety = {
+      async isBlocked() {
+        return false;
+      },
+      async isMuted(viewer, author) {
+        return viewer === "wanter" && author === "seller";
+      },
+    };
+    const mutedCount = await notifyWantMatches(
+      sale({
+        sourceType: "listing",
+        sourceId: "card-muted",
+        actorId: "seller",
+        actorUsername: "seller",
+        price: null,
+        soldAt: null,
+      }),
+      muted.db,
+    );
+    assert.equal(mutedCount, 0);
+    assert.equal(muted.notifications.length, 0);
+  });
+
   it("holds the daily cap at 20", async () => {
     const existing = Array.from({ length: 20 }, (_, index) => ({
       wantId: "want-1",

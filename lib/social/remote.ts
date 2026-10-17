@@ -25,6 +25,9 @@ import {
 import { normalizeUsername, usernameError } from "./local-db";
 import { validateQuoteContent } from "./quotes";
 import { pingWantMatch } from "@/lib/wants/ping";
+import { BLOCKED_INTERACTION } from "@/lib/safety/block";
+import { canNotify, supabaseSafety } from "@/lib/safety/can-notify";
+import { applyAuthorSafety, loadHiddenAuthorIds, withAuthorSafety } from "@/lib/safety/filters";
 
 /** Public columns only — used by @mention autocomplete. */
 const MENTION_PROFILE_SELECT = "id, username, display_name, avatar_url";
@@ -123,6 +126,18 @@ function missingTable(error: { code?: string; message?: string } | null) {
   return error.code === "PGRST205" || error.code === "42P01" || /schema cache/i.test(error.message ?? "");
 }
 
+function rlsBlocked(error: { message?: string } | null) {
+  return /row-level security|violates row-level/i.test(error?.message ?? "");
+}
+
+async function allowNotice(
+  supabase: SupabaseClient,
+  actorId: string,
+  recipientId: string,
+) {
+  return canNotify(supabaseSafety(supabase), actorId, recipientId);
+}
+
 function mapPost(row: PostRow): Post {
   return {
     id: row.id,
@@ -152,18 +167,62 @@ function mapProfile(row: ProfileRow, email = ""): Profile {
 export async function loadSupabaseSocial(supabase: SupabaseClient): Promise<SocialSnapshot> {
   const { data: sessionData } = await supabase.auth.getSession();
   const session = sessionData.session;
-  const [profilesRes, postsRes, followsRes, cardsRes, commentsRes, notificationsRes, messagesRes, repostsRes] =
+  const viewerId = session?.user.id ?? null;
+  const [blockedHidden, mutedHidden] = viewerId
+    ? await Promise.all([
+        loadHiddenAuthorIds(supabase, false),
+        loadHiddenAuthorIds(supabase, true),
+      ])
+    : [[], []];
+  const guard = <Q extends Parameters<typeof applyAuthorSafety>[0]>(
+    query: Q,
+    ids: readonly string[],
+    options?: Parameters<typeof applyAuthorSafety>[3],
+  ) => applyAuthorSafety(query, viewerId, ids, options);
+
+  let messagesQuery = supabase.from("messages").select("*").order("created_at", { ascending: true });
+  messagesQuery = guard(messagesQuery, blockedHidden, { authorColumn: "sender_id" });
+  messagesQuery = guard(messagesQuery, blockedHidden, { authorColumn: "receiver_id" });
+
+  const [profilesRes, postsRes, homePostsRes, followsRes, cardsRes, commentsRes, notificationsRes, messagesRes, repostsRes, homeRepostsRes, myBlocksRes, myMutesRes] =
     await Promise.all([
-      supabase.from("profiles").select("*"),
-      supabase.from("posts").select("*").order("created_at", { ascending: false }).limit(100),
+      guard(supabase.from("profiles").select("*"), blockedHidden, { authorColumn: "id" }),
+      guard(
+        supabase.from("posts").select("*").order("created_at", { ascending: false }).limit(100),
+        blockedHidden,
+      ),
+      guard(
+        supabase.from("posts").select("*").order("created_at", { ascending: false }).limit(100),
+        mutedHidden,
+        { mute: true },
+      ),
       supabase.from("follows").select("*"),
       supabase.from("public_cards").select("*"),
-      supabase.from("comments").select("*").order("created_at", { ascending: true }),
-      supabase.from("notifications").select("*").order("created_at", { ascending: false }),
-      supabase.from("messages").select("*").order("created_at", { ascending: true }),
-      supabase.from("reposts").select("*").order("created_at", { ascending: false }),
+      guard(
+        supabase.from("comments").select("*").order("created_at", { ascending: true }),
+        mutedHidden,
+        { mute: true },
+      ),
+      guard(
+        supabase.from("notifications").select("*").order("created_at", { ascending: false }),
+        mutedHidden,
+        { authorColumn: "actor_id", mute: true, keepNullAuthor: true },
+      ),
+      messagesQuery,
+      guard(
+        supabase.from("reposts").select("*").order("created_at", { ascending: false }),
+        blockedHidden,
+      ),
+      guard(
+        supabase.from("reposts").select("*").order("created_at", { ascending: false }),
+        mutedHidden,
+        { mute: true },
+      ),
+      supabase.from("blocks").select("blocked_id"),
+      supabase.from("mutes").select("muted_id"),
     ]);
-  const failure = profilesRes.error || postsRes.error || followsRes.error || cardsRes.error;
+  const failure =
+    profilesRes.error || postsRes.error || homePostsRes.error || followsRes.error || cardsRes.error;
   if (failure) throw new Error(failure.message);
   if (commentsRes.error && !missingTable(commentsRes.error)) throw new Error(commentsRes.error.message);
   if (notificationsRes.error && !missingTable(notificationsRes.error)) {
@@ -171,6 +230,11 @@ export async function loadSupabaseSocial(supabase: SupabaseClient): Promise<Soci
   }
   if (messagesRes.error && !missingTable(messagesRes.error)) throw new Error(messagesRes.error.message);
   if (repostsRes.error && !missingTable(repostsRes.error)) throw new Error(repostsRes.error.message);
+  if (homeRepostsRes.error && !missingTable(homeRepostsRes.error)) {
+    throw new Error(homeRepostsRes.error.message);
+  }
+  if (myBlocksRes.error && !missingTable(myBlocksRes.error)) throw new Error(myBlocksRes.error.message);
+  if (myMutesRes.error && !missingTable(myMutesRes.error)) throw new Error(myMutesRes.error.message);
 
   const profiles = ((profilesRes.data ?? []) as ProfileRow[]).map((row) =>
     mapProfile(row, row.id === session?.user.id ? (session.user.email ?? "") : ""),
@@ -196,7 +260,10 @@ export async function loadSupabaseSocial(supabase: SupabaseClient): Promise<Soci
   ];
   const missingPostIds = [...new Set([...missingFromReposts, ...missingQuoted])];
   if (missingPostIds.length > 0) {
-    const extra = await supabase.from("posts").select("*").in("id", missingPostIds);
+    const extra = await guard(
+      supabase.from("posts").select("*").in("id", missingPostIds),
+      blockedHidden,
+    );
     if (extra.error && !missingTable(extra.error)) throw new Error(extra.error.message);
     for (const row of (extra.data ?? []) as PostRow[]) {
       const mapped = mapPost(row);
@@ -212,7 +279,10 @@ export async function loadSupabaseSocial(supabase: SupabaseClient): Promise<Soci
       ),
     ];
     if (nestedMissing.length > 0) {
-      const nested = await supabase.from("posts").select("*").in("id", nestedMissing);
+      const nested = await guard(
+        supabase.from("posts").select("*").in("id", nestedMissing),
+        blockedHidden,
+      );
       if (nested.error && !missingTable(nested.error)) throw new Error(nested.error.message);
       for (const row of (nested.data ?? []) as PostRow[]) posts.push(mapPost(row));
     }
@@ -260,6 +330,32 @@ export async function loadSupabaseSocial(supabase: SupabaseClient): Promise<Soci
       read: row.read,
     }),
   );
+  const homePosts = ((homePostsRes.data ?? []) as PostRow[]).map(mapPost);
+  const homeReposts = ((homeRepostsRes.data ?? []) as RepostRow[]).map(
+    (row): PostRepost => ({
+      postId: row.post_id,
+      userId: row.user_id,
+      createdAt: row.created_at,
+    }),
+  );
+  const blockedIds = ((myBlocksRes.data ?? []) as { blocked_id: string }[]).map(
+    (row) => row.blocked_id,
+  );
+  const mutedIds = ((myMutesRes.data ?? []) as { muted_id: string }[]).map((row) => row.muted_id);
+  const safetyIds = [...new Set([...blockedIds, ...mutedIds])];
+  let safetyAccounts: Profile[] = profiles.filter((profile) => safetyIds.includes(profile.id));
+  const missingSafety = safetyIds.filter((id) => !safetyAccounts.some((profile) => profile.id === id));
+  if (missingSafety.length > 0) {
+    const extraProfiles = await supabase
+      .from("profiles")
+      .select("*")
+      .in("id", missingSafety);
+    if (extraProfiles.error) throw new Error(extraProfiles.error.message);
+    safetyAccounts = [
+      ...safetyAccounts,
+      ...((extraProfiles.data ?? []) as ProfileRow[]).map((row) => mapProfile(row)),
+    ];
+  }
 
   return {
     user: profiles.find((profile) => profile.id === session?.user.id) ?? null,
@@ -272,6 +368,11 @@ export async function loadSupabaseSocial(supabase: SupabaseClient): Promise<Soci
     notifications,
     messages,
     publicCards,
+    homePosts,
+    homeReposts,
+    blockedIds,
+    mutedIds,
+    safetyAccounts,
   };
 }
 
@@ -377,11 +478,15 @@ export async function remoteToggleFollow(
     if (noteError && !missingTable(noteError)) return { error: noteError.message };
     return {};
   }
+  if (await supabaseSafety(supabase).isBlocked(followerId, followingId)) {
+    return { error: BLOCKED_INTERACTION };
+  }
   const { error } = await supabase.from("follows").insert({
     follower_id: followerId,
     following_id: followingId,
   });
-  if (error) return { error: error.message };
+  if (error) return { error: rlsBlocked(error) ? BLOCKED_INTERACTION : error.message };
+  if (!(await allowNotice(supabase, followerId, followingId))) return {};
   const { error: noteError } = await supabase.from("notifications").insert({
     recipient_id: followingId,
     actor_id: followerId,
@@ -442,6 +547,7 @@ export async function remoteToggleRepost(
   }
 
   if (!input.authorId || input.authorId === input.userId) return {};
+  if (!(await allowNotice(supabase, input.userId, input.authorId))) return {};
   const { error: noteError } = await supabase.from("notifications").insert({
     recipient_id: input.authorId,
     actor_id: input.userId,
@@ -464,6 +570,9 @@ export async function remoteAddComment(
 ): Promise<AuthResult> {
   const text = body.trim().slice(0, COMMENT_LIMIT);
   if (!text) return { error: "Write a comment." };
+  if (postAuthorId && (await supabaseSafety(supabase).isBlocked(authorId, postAuthorId))) {
+    return { error: BLOCKED_INTERACTION };
+  }
   const { error } = await supabase.from("comments").insert({
     post_id: postId,
     user_id: authorId,
@@ -473,7 +582,7 @@ export async function remoteAddComment(
     if (missingTable(error)) {
       return { error: "Comments are not set up yet. Run supabase/schema.sql in the Supabase SQL editor." };
     }
-    return { error: error.message };
+    return { error: rlsBlocked(error) ? BLOCKED_INTERACTION : error.message };
   }
 
   let recipientId = postAuthorId;
@@ -482,6 +591,7 @@ export async function remoteAddComment(
     recipientId = (data?.user_id as string | undefined) ?? null;
   }
   if (!recipientId || recipientId === authorId) return {};
+  if (!(await allowNotice(supabase, authorId, recipientId))) return {};
 
   const { error: noteError } = await supabase.from("notifications").insert({
     recipient_id: recipientId,
@@ -515,6 +625,7 @@ export async function remoteSyncLikeNotification(
     if (error && !missingTable(error)) return { error: error.message };
     return {};
   }
+  if (!(await allowNotice(supabase, input.actorId, input.recipientId))) return {};
   const { error } = await supabase.from("notifications").insert({
     recipient_id: input.recipientId,
     actor_id: input.actorId,
@@ -535,6 +646,9 @@ export async function remoteSendMessage(
   const text = content.trim().slice(0, MESSAGE_LIMIT);
   if (!text) return { error: "Write a message." };
   if (senderId === receiverId) return { error: "You can't message yourself." };
+  if (await supabaseSafety(supabase).isBlocked(senderId, receiverId)) {
+    return { error: BLOCKED_INTERACTION };
+  }
   const { error } = await supabase.from("messages").insert({
     sender_id: senderId,
     receiver_id: receiverId,
@@ -544,7 +658,7 @@ export async function remoteSendMessage(
     if (missingTable(error)) {
       return { error: "Messages are not set up yet. Run supabase/schema.sql in the Supabase SQL editor." };
     }
-    return { error: error.message };
+    return { error: rlsBlocked(error) ? BLOCKED_INTERACTION : error.message };
   }
   return {};
 }
@@ -609,6 +723,12 @@ export async function remoteCreatePost(
       .maybeSingle();
     if (quotedError) return { error: quotedError.message };
     if (!quoted) return { error: "That post is unavailable." };
+    const quotedAuthor = await supabase.rpc("post_author", { post_id: quotedPostId });
+    const author =
+      typeof quotedAuthor.data === "string" ? quotedAuthor.data : null;
+    if (author && (await supabaseSafety(supabase).isBlocked(authorId, author))) {
+      return { error: BLOCKED_INTERACTION };
+    }
   }
 
   const image = await uploadMedia(supabase, "post-images", authorId, input.imageDataUrl);
@@ -626,7 +746,11 @@ export async function remoteCreatePost(
     })
     .select("id")
     .single();
-  if (error || !created) return { error: error?.message ?? "Could not save that post." };
+  if (error || !created) {
+    return {
+      error: rlsBlocked(error) ? BLOCKED_INTERACTION : (error?.message ?? "Could not save that post."),
+    };
+  }
 
   if (input.card) pingWantMatch("post", created.id);
 
@@ -679,10 +803,16 @@ async function syncMentionNotifications(
   const already = new Set((existing.data ?? []).map((row) => row.recipient_id as string));
   let recipientIds: string[] = [];
   if (handles.length > 0) {
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("id, username")
-      .or(handles.map((name) => `username.ilike.${name}`).join(","));
+    const { query: profileQuery } = await withAuthorSafety(
+      supabase,
+      supabase
+        .from("profiles")
+        .select("id, username")
+        .or(handles.map((name) => `username.ilike.${name}`).join(",")),
+      actorId,
+      { authorColumn: "id" },
+    );
+    const { data, error } = await profileQuery;
     if (error) return error.message;
     const wanted = new Set(handles);
     recipientIds = ((data ?? []) as { id: string; username: string }[])
@@ -703,7 +833,11 @@ async function syncMentionNotifications(
     if (error && !missingTable(error)) return error.message;
   }
 
-  const add = recipientIds.filter((id) => !already.has(id));
+  const candidates = recipientIds.filter((id) => !already.has(id));
+  const add: string[] = [];
+  for (const recipientId of candidates) {
+    if (await allowNotice(supabase, actorId, recipientId)) add.push(recipientId);
+  }
   if (add.length === 0) return null;
   const { error } = await supabase.from("notifications").insert(
     add.map((recipientId) => ({
@@ -734,11 +868,17 @@ export async function searchProfilesForMention(
   const raw = query.trim().toLowerCase().slice(0, 20);
   if (!raw) return [];
   const q = escapeIlike(raw);
-  const req = supabase
-    .from("profiles")
-    .select(MENTION_PROFILE_SELECT)
-    .or(`username.ilike.%${q}%,display_name.ilike.%${q}%`)
-    .limit(limit);
+  const { data: sessionData } = await supabase.auth.getSession();
+  const { query: req } = await withAuthorSafety(
+    supabase,
+    supabase
+      .from("profiles")
+      .select(MENTION_PROFILE_SELECT)
+      .or(`username.ilike.%${q}%,display_name.ilike.%${q}%`)
+      .limit(limit),
+    sessionData.session?.user.id ?? null,
+    { authorColumn: "id" },
+  );
   if (signal) {
     req.abortSignal(signal);
   }

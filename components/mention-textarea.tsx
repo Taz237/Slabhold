@@ -66,7 +66,7 @@ export const MentionTextarea = forwardRef<
   },
   ref,
 ) {
-  const { user, mode, profiles, followingOf } = useSocial();
+  const { user, mode, profiles, followingOf, blockedIds } = useSocial();
   const rootRef = useRef<HTMLDivElement>(null);
   const fieldRef = useRef<HTMLTextAreaElement>(null);
   const optionRefs = useRef<Array<HTMLButtonElement | null>>([]);
@@ -97,8 +97,11 @@ export const MentionTextarea = forwardRef<
 
   const following = useMemo(() => {
     if (!user) return [] as MentionCandidate[];
-    return followingOf(user.id).map(toCandidate);
-  }, [followingOf, user]);
+    const hidden = new Set(blockedIds);
+    return followingOf(user.id)
+      .filter((person) => !hidden.has(person.id))
+      .map(toCandidate);
+  }, [blockedIds, followingOf, user]);
 
   const followingIds = useMemo(
     () => new Set(following.map((person) => person.id)),
@@ -107,10 +110,11 @@ export const MentionTextarea = forwardRef<
 
   const localPool = useMemo(() => {
     if (!user) return [] as MentionCandidate[];
+    const hidden = new Set(blockedIds);
     return profiles
-      .filter((person) => person.id !== user.id)
+      .filter((person) => person.id !== user.id && !hidden.has(person.id))
       .map(toCandidate);
-  }, [profiles, user]);
+  }, [blockedIds, profiles, user]);
 
   useEffect(() => {
     if (!open || debouncedQuery === null) {
@@ -142,7 +146,8 @@ export const MentionTextarea = forwardRef<
     searchProfilesForMention(client, requestQuery, 8, controller.signal)
       .then((rows) => {
         if (controller.signal.aborted) return;
-        setRemoteMatches(rows.filter((person) => person.id !== user?.id));
+        const hidden = new Set(blockedIds);
+        setRemoteMatches(rows.filter((person) => person.id !== user?.id && !hidden.has(person.id)));
         setRemoteForQuery(requestQuery);
       })
       .catch(() => {
@@ -154,7 +159,7 @@ export const MentionTextarea = forwardRef<
     return () => {
       controller.abort();
     };
-  }, [debouncedQuery, mode, open, user?.id]);
+  }, [blockedIds, debouncedQuery, mode, open, user?.id]);
 
   const matches = useMemo(() => {
     if (!open || debouncedQuery === null) return [];

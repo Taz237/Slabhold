@@ -115,6 +115,15 @@ type SocialContextValue = {
   sendMessage: (receiverId: string, content: string) => Promise<AuthResult>;
   markThreadRead: (partnerId: string) => void;
   feed: TimelineItem[];
+  homePosts: Post[];
+  homeReposts: PostRepost[];
+  blockedIds: string[];
+  mutedIds: string[];
+  safetyAccounts: Profile[];
+  applySafetyChange: (change: {
+    type: "block" | "unblock" | "mute" | "unmute";
+    userId: string;
+  }) => void;
   suggestions: Profile[];
   profileByUsername: (username: string) => Profile | undefined;
   /** Trusted card_values for every card attached to a loaded post, one batch. */
@@ -779,16 +788,80 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
     [profilesById, snapshot.follows],
   );
 
+  const homePosts = snapshot.homePosts ?? snapshot.posts;
+  const homeReposts = snapshot.homeReposts ?? snapshot.reposts;
+  const blockedIds = snapshot.blockedIds ?? [];
+  const mutedIds = snapshot.mutedIds ?? [];
+  const safetyAccounts = snapshot.safetyAccounts ?? [];
+
+  const applySafetyChange = useCallback(
+    (change: { type: "block" | "unblock" | "mute" | "unmute"; userId: string }) => {
+      setRemote((existing) => {
+        const blocked = new Set(existing.blockedIds ?? []);
+        const muted = new Set(existing.mutedIds ?? []);
+        if (change.type === "block") blocked.add(change.userId);
+        if (change.type === "unblock") blocked.delete(change.userId);
+        if (change.type === "mute") muted.add(change.userId);
+        if (change.type === "unmute") muted.delete(change.userId);
+        const me = existing.user?.id;
+        const person =
+          existing.profiles.find((profile) => profile.id === change.userId) ??
+          existing.safetyAccounts?.find((profile) => profile.id === change.userId);
+        const accounts = new Map(
+          (existing.safetyAccounts ?? []).map((profile) => [profile.id, profile]),
+        );
+        if (person && (change.type === "block" || change.type === "mute")) {
+          accounts.set(person.id, person);
+        }
+        if (change.type === "unblock" || change.type === "unmute") {
+          const still = blocked.has(change.userId) || muted.has(change.userId);
+          if (!still) accounts.delete(change.userId);
+        }
+        return {
+          ...existing,
+          blockedIds: [...blocked],
+          mutedIds: [...muted],
+          safetyAccounts: [...accounts.values()],
+          profiles: existing.profiles.filter((profile) => !blocked.has(profile.id)),
+          posts: existing.posts.filter((post) => !blocked.has(post.authorId)),
+          homePosts: (existing.homePosts ?? existing.posts).filter(
+            (post) => !blocked.has(post.authorId) && !muted.has(post.authorId),
+          ),
+          homeReposts: (existing.homeReposts ?? existing.reposts).filter(
+            (repost) => !blocked.has(repost.userId) && !muted.has(repost.userId),
+          ),
+          reposts: existing.reposts.filter((repost) => !blocked.has(repost.userId)),
+          comments: existing.comments.filter(
+            (comment) => !blocked.has(comment.authorId) && !muted.has(comment.authorId),
+          ),
+          notifications: existing.notifications.filter(
+            (note) => !note.actorId || (!blocked.has(note.actorId) && !muted.has(note.actorId)),
+          ),
+          follows:
+            change.type === "block" && me
+              ? existing.follows.filter((edge) => {
+                  const pair =
+                    (edge.followerId === me && edge.followingId === change.userId) ||
+                    (edge.followerId === change.userId && edge.followingId === me);
+                  return !pair;
+                })
+              : existing.follows,
+        };
+      });
+    },
+    [],
+  );
+
   const feed = useMemo(() => {
     if (!snapshot.user) return [];
     return followingTimeline(
-      snapshot.posts,
-      snapshot.reposts,
+      homePosts,
+      homeReposts,
       snapshot.profiles,
       snapshot.follows,
       snapshot.user.id,
     );
-  }, [snapshot.follows, snapshot.posts, snapshot.profiles, snapshot.reposts, snapshot.user]);
+  }, [homePosts, homeReposts, snapshot.follows, snapshot.profiles, snapshot.user]);
 
   const suggestions = useMemo(() => {
     if (!snapshot.user) return snapshot.profiles;
@@ -834,6 +907,12 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       likeCount,
       repostCount,
       reposts: snapshot.reposts,
+      homePosts,
+      homeReposts,
+      blockedIds,
+      mutedIds,
+      safetyAccounts,
+      applySafetyChange,
       commentsFor,
       notifications,
       unreadCount,
@@ -850,6 +929,8 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
     }),
     [
       addComment,
+      applySafetyChange,
+      blockedIds,
       commentsFor,
       markNotificationsRead,
       markThreadRead,
@@ -868,8 +949,11 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       repostCount,
       snapshot.reposts,
       followingCount,
+      homePosts,
+      homeReposts,
       isFollowing,
       mode,
+      mutedIds,
       profileByUsername,
       postCardValues,
       postCardValuesLoading,
@@ -877,6 +961,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       refresh,
       signIn,
       signOut,
+      safetyAccounts,
       sendMessage,
       signUp,
       snapshot.posts,

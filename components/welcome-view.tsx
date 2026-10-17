@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { ArrowLeft } from "lucide-react";
@@ -170,6 +171,14 @@ export function WelcomeView() {
               <button type="submit" disabled={busy} className={primaryButton}>
                 {busy ? "Please wait…" : step === "signup" ? "Sign up" : "Log in"}
               </button>
+              {step === "signup" ? (
+                <p className="text-center text-xs text-zinc-500">
+                  By signing up you agree to the{" "}
+                  <Link href="/terms" className="font-bold underline">
+                    Terms
+                  </Link>
+                </p>
+              ) : null}
               <button
                 type="button"
                 onClick={() => open(step === "signup" ? "login" : "signup")}

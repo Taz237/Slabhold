@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Avatar } from "@/components/avatar";
 import { LoadingRows } from "@/components/status";
+import { AdminNavLink } from "@/components/admin-nav-link";
 import { DeleteAccount } from "@/components/delete-account";
 import { useSocial } from "@/components/social-provider";
 
@@ -103,6 +104,22 @@ export function MoreView() {
               Open collection
             </Link>
           </li>
+          <li>
+            <Link href="/settings/privacy" className="block py-3">
+              Privacy & safety
+            </Link>
+          </li>
+          <li>
+            <Link href="/about" className="block py-3">
+              About
+            </Link>
+          </li>
+          <li>
+            <Link href="/terms" className="block py-3">
+              Terms
+            </Link>
+          </li>
+          <AdminNavLink item className="block py-3" />
         </ul>
       </section>
 

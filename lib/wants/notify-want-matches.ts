@@ -1,4 +1,5 @@
 import { money } from "@/lib/format";
+import { canNotify, type SafetyRelations } from "@/lib/safety/can-notify";
 import { newYorkDayStartIso } from "./ny-day";
 
 export const WANT_ALERTS_PER_DAY = 20;
@@ -55,6 +56,8 @@ export type WantAlertDb = {
   deleteAlert(wantId: string, sourceType: WantSourceType, sourceId: string): Promise<void>;
   /** Sale links can differ per wanter. Posts and listings ignore this. */
   hrefFor?(want: WantRow, event: WantMatchEvent): Promise<string>;
+  /** When set, blocked or muted actors do not notify. */
+  safety?: SafetyRelations;
 };
 
 export function wantAlertPreview(event: WantMatchEvent, want: WantRow): string {
@@ -100,6 +103,10 @@ export async function notifyWantMatches(
   for (const want of wants) {
     if (want.cardKey !== event.cardKey) continue;
     if (event.actorId && event.actorId === want.userId) continue;
+    if (event.actorId && db.safety) {
+      const allowed = await canNotify(db.safety, event.actorId, want.userId);
+      if (!allowed) continue;
+    }
     if (!saleQualifies(want, event)) continue;
 
     const today = await db.alertsToday(want.userId, since);

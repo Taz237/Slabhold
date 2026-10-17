@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { withAuthorSafety } from "@/lib/safety/filters";
 import { formatGrade, parseGrade } from "@/lib/card-options";
 import { isUuid } from "@/lib/value/card-value-access";
 import { cardIdentityKey, type IdentityCard } from "./card-identity";
@@ -158,7 +159,14 @@ async function loadQuotedPosts(
   if (missing.length === 0) return [];
 
   const related: Post[] = [];
-  const { data, error } = await supabase.from("posts").select(POST_SELECT).in("id", missing);
+  const { data: sessionData } = await supabase.auth.getSession();
+  const viewerId = sessionData.session?.user.id ?? null;
+  const { query: quotedQuery } = await withAuthorSafety(
+    supabase,
+    supabase.from("posts").select(POST_SELECT).in("id", missing),
+    viewerId,
+  );
+  const { data, error } = await quotedQuery;
   if (error) throw new Error(error.message);
   for (const row of (data ?? []) as PostRow[]) {
     const mapped = mapPostRow(row);
@@ -174,7 +182,12 @@ async function loadQuotedPosts(
     ),
   ];
   if (nestedMissing.length > 0) {
-    const nested = await supabase.from("posts").select(POST_SELECT).in("id", nestedMissing);
+    const { query: nestedQuery } = await withAuthorSafety(
+      supabase,
+      supabase.from("posts").select(POST_SELECT).in("id", nestedMissing),
+      viewerId,
+    );
+    const nested = await nestedQuery;
     if (nested.error) throw new Error(nested.error.message);
     for (const row of (nested.data ?? []) as PostRow[]) {
       related.push(mapPostRow(row));

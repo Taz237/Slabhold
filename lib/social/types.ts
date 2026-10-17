@@ -112,6 +112,16 @@ export type SocialSnapshot = {
   notifications: Notification[];
   messages: DirectMessage[];
   publicCards: OwnedCard[];
+  /** Feed/search posts. Muted authors are already excluded in SQL. */
+  homePosts?: Post[];
+  /** Feed reposts. Muted reposters are already excluded in SQL. */
+  homeReposts?: PostRepost[];
+  /** Accounts the viewer blocked. */
+  blockedIds?: string[];
+  /** Accounts the viewer muted. */
+  mutedIds?: string[];
+  /** Profiles for the block and mute lists, including people hidden from the feed. */
+  safetyAccounts?: Profile[];
 };
 
 export type SignUpInput = {

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { MessageCircle, WalletCards } from "lucide-react";
 import { Avatar } from "@/components/avatar";
 import { outlineButton, solidButton } from "@/components/button-styles";
@@ -11,6 +11,9 @@ import { ProfileEditSheet } from "@/components/profile-edit-sheet";
 import { PullToRefresh } from "@/components/pull-to-refresh";
 import { EmptyState, ProfileSkeleton } from "@/components/status";
 import { FollowButton } from "@/components/follow-button";
+import { SafetyMenu } from "@/components/safety-menu";
+import { unblockAccount } from "@/lib/safety/actions";
+import { createSupabaseBrowser } from "@/lib/supabase/browser";
 import { useCollection } from "@/components/collection-provider";
 import { useSocial } from "@/components/social-provider";
 import { ShareIconButton } from "@/components/share-button";
@@ -25,8 +28,20 @@ export function ProfileView({ username }: { username?: string }) {
   const router = useRouter();
   const social = useSocial();
   const { cards, reload } = useCollection();
-  const { ready, user, posts, reposts, profiles, publicCards, followerCount, followingCount, refresh } =
-    social;
+  const {
+    ready,
+    user,
+    posts,
+    reposts,
+    profiles,
+    publicCards,
+    followerCount,
+    followingCount,
+    refresh,
+    blockedIds,
+    safetyAccounts,
+    applySafetyChange,
+  } = social;
 
   const profile = username ? social.profileByUsername(username) : user;
   const isOwn = Boolean(profile && user && profile.id === user.id);
@@ -102,21 +117,31 @@ export function ProfileView({ username }: { username?: string }) {
     );
   }
 
-  if (!profile) {
+  const blockedProfile = username
+    ? safetyAccounts.find(
+        (person) =>
+          blockedIds.includes(person.id) &&
+          person.username.toLowerCase() === username.toLowerCase(),
+      )
+    : undefined;
+
+  if (blockedProfile) {
     return (
-      <EmptyState
-        title={`No collector named @${username}`}
-        detail={
-          social.mode === "supabase"
-            ? "That profile isn't on Slabhold."
-            : "That profile isn't on this device."
-        }
-      >
-        <Link href="/" className="text-sm font-bold">
-          Back to Timeline
-        </Link>
-      </EmptyState>
+      <BlockedAccount
+        username={blockedProfile.username}
+        onUnblock={async () => {
+          const result = await unblockAccount(blockedProfile.id);
+          if (!result.ok) return result.error;
+          applySafetyChange({ type: "unblock", userId: blockedProfile.id });
+          await refresh();
+          return null;
+        }}
+      />
     );
+  }
+
+  if (!profile) {
+    return <MissingProfile username={username ?? ""} mode={social.mode} />;
   }
 
   const activity = profileTimeline(posts, reposts, profiles, profile.id);
@@ -166,6 +191,12 @@ export function ProfileView({ username }: { username?: string }) {
               </button>
             ) : (
               <>
+                <SafetyMenu
+                  targetType="user"
+                  targetId={profile.id}
+                  reportedUserId={profile.id}
+                  username={profile.username}
+                />
                 <Link href={`/messages/${profile.username}`} className={outlineButton}>
                   Message
                 </Link>
@@ -323,6 +354,105 @@ function CountLink({ href, count, label }: { href: string; count: number; label:
     <Link href={href} className="rounded-md py-1 hover:underline">
       <span className="font-bold">{count}</span> <span className="text-zinc-500">{label}</span>
     </Link>
+  );
+}
+
+function BlockedAccount({
+  username,
+  onUnblock,
+}: {
+  username: string;
+  onUnblock: () => Promise<string | null>;
+}) {
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  return (
+    <EmptyState title={`You've blocked @${username}`} detail="You can't interact with this account.">
+      <button
+        type="button"
+        disabled={busy}
+        onClick={() => {
+          setBusy(true);
+          void onUnblock().then((message) => {
+            setBusy(false);
+            setError(message);
+          });
+        }}
+        className={outlineButton}
+      >
+        Unblock
+      </button>
+      {error ? <p className="text-sm text-rose-600">{error}</p> : null}
+    </EmptyState>
+  );
+}
+
+function MissingProfile({
+  username,
+  mode,
+}: {
+  username: string;
+  mode: "local" | "supabase";
+}) {
+  const [state, setState] = useState<"loading" | "missing" | "unavailable">("loading");
+
+  useEffect(() => {
+    let cancelled = false;
+    const supabase = createSupabaseBrowser();
+    if (!supabase || mode !== "supabase") {
+      setState("missing");
+      return;
+    }
+    void (async () => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("id")
+        .ilike("username", username)
+        .maybeSingle();
+      if (cancelled) return;
+      if (!data?.id) {
+        setState("missing");
+        return;
+      }
+      const { data: sessionData } = await supabase.auth.getSession();
+      const me = sessionData.session?.user.id;
+      if (!me) {
+        setState("missing");
+        return;
+      }
+      const blocked = await supabase.rpc("is_blocked", { a: me, b: data.id as string });
+      if (cancelled) return;
+      setState(blocked.data === true ? "unavailable" : "missing");
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [mode, username]);
+
+  if (state === "loading") return <ProfileSkeleton />;
+  if (state === "unavailable") {
+    return (
+      <EmptyState title="This account isn't available" detail="You can't interact with this account.">
+        <Link href="/" className="text-sm font-bold">
+          Back to Timeline
+        </Link>
+      </EmptyState>
+    );
+  }
+  return (
+    <EmptyState
+      title={`No collector named @${username}`}
+      detail={
+        mode === "supabase"
+          ? "That profile isn't on Slabhold."
+          : "That profile isn't on this device."
+      }
+    >
+      <Link href="/" className="text-sm font-bold">
+        Back to Timeline
+      </Link>
+    </EmptyState>
   );
 }
 

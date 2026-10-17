@@ -19,7 +19,8 @@ import { publicTimeline } from "@/lib/social/timeline";
 import { POST_LIMIT, type PublicCard } from "@/lib/social/types";
 
 export function FeedView() {
-  const { ready, user, feed, posts, reposts, suggestions, profiles, followingCount, refresh } = useSocial();
+  const { ready, user, feed, homePosts, homeReposts, suggestions, profiles, followingCount, refresh } =
+    useSocial();
   const [lane, setLane] = useState<"following" | "foryou">("foryou");
   const pickedLane = useRef(false);
   const suggestionIds = useRef<string[] | null>(null);
@@ -30,7 +31,7 @@ export function FeedView() {
     .map((id) => profiles.find((profile) => profile.id === id))
     .filter((profile) => profile != null);
   const authors = new Map(profiles.map((profile) => [profile.id, profile]));
-  const everyone = publicTimeline(posts, reposts, profiles);
+  const everyone = publicTimeline(homePosts, homeReposts, profiles);
   const visible = !user ? (lane === "following" ? [] : everyone) : lane === "following" ? feed : everyone;
 
   useEffect(() => {

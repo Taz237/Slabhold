@@ -16,7 +16,7 @@ import { useCardValues } from "@/lib/value/use-card-values";
 const PREVIEW_LIMIT = 5;
 
 export function CardCollectorsSaying({ cardId }: { cardId: string }) {
-  const { user, posts: loadedPosts, profiles, publicCards, ready } = useSocial();
+  const { user, homePosts: loadedPosts, profiles, publicCards, ready } = useSocial();
   const [posts, setPosts] = useState<Post[]>([]);
   const [relatedPosts, setRelatedPosts] = useState<Post[]>([]);
   const [authors, setAuthors] = useState<Map<string, Profile>>(new Map());

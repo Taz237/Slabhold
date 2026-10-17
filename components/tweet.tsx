@@ -9,6 +9,7 @@ import { useCollection } from "@/components/collection-provider";
 import { useImageLightbox } from "@/components/image-lightbox";
 import { MentionText } from "@/components/mention-text";
 import { QuotedPostEmbed } from "@/components/quoted-post-embed";
+import { SafetyMenu } from "@/components/safety-menu";
 import { ShareAction } from "@/components/share-button";
 import { useSocial } from "@/components/social-provider";
 import { exactTime, initials, timeAgo } from "@/lib/format";
@@ -253,7 +254,8 @@ export function AuthorLine({
 function PostMenu({ post }: { post: Post }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { user, deletePost } = useSocial();
+  const { user, profiles, deletePost } = useSocial();
+  const author = profiles.find((profile) => profile.id === post.authorId);
   const [open, setOpen] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -280,6 +282,19 @@ function PostMenu({ post }: { post: Post }) {
       document.removeEventListener("keydown", onKey);
     };
   }, [open]);
+
+  if (!user) return null;
+  if (!mine) {
+    if (!author) return null;
+    return (
+      <SafetyMenu
+        targetType="post"
+        targetId={post.id}
+        reportedUserId={author.id}
+        username={author.username}
+      />
+    );
+  }
 
   function close() {
     setOpen(false);

@@ -1,5 +1,6 @@
 import "server-only";
 
+import { supabaseSafety } from "@/lib/safety/can-notify";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import type { WantAlertDb, WantMatchEvent, WantRow } from "./notify-want-matches";
 
@@ -127,6 +128,8 @@ export function createSupabaseWantDb(): WantAlertDb | null {
         .eq("source_type", sourceType)
         .eq("source_id", sourceId);
     },
+
+    safety: supabaseSafety(admin),
 
     async hrefFor(want, event: WantMatchEvent) {
       const id = want.sourceCardId || event.cardId || "";

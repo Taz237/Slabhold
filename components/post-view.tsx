@@ -9,6 +9,7 @@ import { EmptyState, LoadingRows } from "@/components/status";
 import { solidButton } from "@/components/button-styles";
 import { MentionText } from "@/components/mention-text";
 import { MentionTextarea } from "@/components/mention-textarea";
+import { SafetyMenu } from "@/components/safety-menu";
 import { AuthorLine, Engagement, Tweet } from "@/components/tweet";
 import { useSocial } from "@/components/social-provider";
 import { quotesOf } from "@/lib/social/quotes";
@@ -18,7 +19,7 @@ const PAGE_SIZE = 20;
 
 export function PostView({ id }: { id: string }) {
   const router = useRouter();
-  const { ready, user, posts, profiles, commentsFor, addComment, refresh } = useSocial();
+  const { ready, user, posts, profiles, commentsFor, addComment, refresh, blockedIds } = useSocial();
   const post = posts.find((item) => item.id === id);
   const author = post ? profiles.find((profile) => profile.id === post.authorId) : undefined;
   const replies = commentsFor(id);
@@ -180,12 +181,20 @@ export function PostView({ id }: { id: string }) {
                   />
                 </Link>
                 <div className="min-w-0 flex-1">
-                  <AuthorLine
-                    name={name}
-                    username={username}
-                    href={commenter ? `/u/${commenter.username}` : "/"}
-                    createdAt={reply.createdAt}
-                  />
+                  <div className="flex items-start gap-2">
+                    <AuthorLine
+                      name={name}
+                      username={username}
+                      href={commenter ? `/u/${commenter.username}` : "/"}
+                      createdAt={reply.createdAt}
+                    />
+                    <SafetyMenu
+                      targetType="reply"
+                      targetId={reply.id}
+                      reportedUserId={reply.authorId}
+                      username={username}
+                    />
+                  </div>
                   <p className="text-[13px] text-zinc-500">
                     Replying to{" "}
                     <Link
@@ -210,7 +219,11 @@ export function PostView({ id }: { id: string }) {
         </ul>
       )}
 
-      {user && lane === "replies" ? (
+      {user && lane === "replies" && blockedIds.includes(author.id) ? (
+        <div className="fixed inset-x-0 bottom-[calc(6.15rem+env(safe-area-inset-bottom))] z-20 mx-auto w-full max-w-lg border-t border-zinc-200 bg-[color-mix(in_oklab,var(--background)_92%,transparent)] px-4 py-3 text-sm text-zinc-500 backdrop-blur-xl dark:border-white/10">
+          You can&apos;t interact with this account.
+        </div>
+      ) : user && lane === "replies" ? (
         <form
           onSubmit={submit}
           className="fixed inset-x-0 bottom-[calc(6.15rem+env(safe-area-inset-bottom))] z-20 mx-auto w-full max-w-lg border-t border-zinc-200 bg-[color-mix(in_oklab,var(--background)_92%,transparent)] px-3 py-2 backdrop-blur-xl dark:border-white/10"

@@ -6,6 +6,7 @@ import { Bell, Camera, CircleUser, Compass, Ellipsis, Mail, Search, WalletCards 
 import { Logo } from "@/components/logo";
 import { useSocial } from "@/components/social-provider";
 import { AccountDeletedToast } from "@/components/account-deleted-toast";
+import { AdminNavLink } from "@/components/admin-nav-link";
 import { WelcomeView } from "@/components/welcome-view";
 import type { Profile } from "@/lib/social/types";
 
@@ -89,6 +90,7 @@ function Shell({
                 </span>
               ) : null}
             </Link>
+            <AdminNavLink className="rounded-full px-2 py-1 text-sm font-bold text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-white/10" />
             <Link
               href="/search"
               aria-label="Search"
@@ -168,6 +170,8 @@ function isSharedPage(pathname: string) {
   return (
     pathname.startsWith("/posts/") ||
     pathname.startsWith("/u/") ||
+    pathname === "/terms" ||
+    pathname === "/about" ||
     /^\/cards\/[^/]+\/posts\/?$/.test(pathname)
   );
 }

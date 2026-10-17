@@ -63,7 +63,7 @@ export function SearchView() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const urlQ = searchParams.get("q") ?? "";
-  const { ready: socialReady, profiles, posts, user } = useSocial();
+  const { ready: socialReady, profiles, homePosts, blockedIds, user } = useSocial();
   const { ready: cardsReady, cards } = useCollection();
   const [query, setQuery] = useState(urlQ);
   const recent = useRecentSearches();
@@ -85,7 +85,9 @@ export function SearchView() {
 
   const people = useMemo(() => {
     if (!q) return [];
+    const hidden = new Set(blockedIds);
     return profiles
+      .filter((profile) => !hidden.has(profile.id))
       .filter(
         (profile) =>
           profile.username.toLowerCase().includes(q) ||
@@ -101,12 +103,12 @@ export function SearchView() {
         };
         return score(a) - score(b);
       });
-  }, [profiles, q]);
+  }, [blockedIds, profiles, q]);
 
   const matchedPosts = useMemo(() => {
     if (!q) return [];
-    return posts.filter((post) => post.body.toLowerCase().includes(q));
-  }, [posts, q]);
+    return homePosts.filter((post) => post.body.toLowerCase().includes(q));
+  }, [homePosts, q]);
 
   const matchedCards = useMemo(() => {
     if (!q) return [];

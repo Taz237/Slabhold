@@ -114,6 +114,14 @@ export function AuthForm() {
         >
           {tab === "login" ? "Log in" : "Sign up"}
         </button>
+        {tab === "signup" ? (
+          <p className="text-center text-xs text-zinc-500">
+            By signing up you agree to the{" "}
+            <Link href="/terms" className="font-bold underline">
+              Terms
+            </Link>
+          </p>
+        ) : null}
       </form>
 
       {mode === "local" && (
