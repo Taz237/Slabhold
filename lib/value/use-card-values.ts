@@ -1,10 +1,21 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { MAX_CARD_VALUE_IDS } from "./card-value-access";
 import type { CardValueResult } from "./types";
 
 const emptyMap = new Map<string, CardValueResult>();
+
+/** One automatic retry after a failed card-value read. */
+export const CARD_VALUES_RETRY_MS = 2000;
+
+/**
+ * A failed read (non-OK, 429, network) keeps the last good map.
+ * Callers surface `error` instead of treating the miss as $0.
+ */
+export function cardValuesAfterFailure<T>(previous: Map<string, T>): Map<string, T> {
+  return previous;
+}
 
 async function loadCardValues(
   key: string,
@@ -31,6 +42,7 @@ async function loadCardValues(
 
 /**
  * Load trusted values for many cards (no Trawl). Requests stay at 100 ids.
+ * Failures keep the previous map, set `error`, and retry once.
  */
 export function useCardValues(cardIds: string[]) {
   const key = useMemo(() => {
@@ -41,43 +53,77 @@ export function useCardValues(cardIds: string[]) {
   const [values, setValues] = useState<Map<string, CardValueResult>>(emptyMap);
   /** Last key whose fetch settled — keeps loading true on first paint / key change. */
   const [settledKey, setSettledKey] = useState("");
+  const [error, setError] = useState(false);
+  const [pending, setPending] = useState(false);
+  const [attempt, setAttempt] = useState(0);
+
+  const retry = useCallback(() => {
+    setAttempt((current) => current + 1);
+  }, []);
 
   useEffect(() => {
     if (!key) {
       setValues(emptyMap);
       setSettledKey("");
+      setError(false);
+      setPending(false);
       return;
     }
 
     const controller = new AbortController();
+    let retryTimer = 0;
+    let cancelled = false;
+    setPending(true);
 
-    loadCardValues(key, controller.signal)
-      .then((next) => {
-        if (controller.signal.aborted) return;
-        setValues(next);
-      })
-      .catch(() => {
-        if (controller.signal.aborted) return;
-        setValues(emptyMap);
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setSettledKey(key);
-      });
+    const settle = (failed: boolean) => {
+      if (cancelled) return;
+      setPending(false);
+      setError(failed);
+      setSettledKey(key);
+    };
 
-    return () => controller.abort();
-  }, [key]);
+    const run = (isRetry: boolean) => {
+      loadCardValues(key, controller.signal)
+        .then((next) => {
+          if (cancelled || controller.signal.aborted) return;
+          setValues(next);
+          settle(false);
+        })
+        .catch(() => {
+          if (cancelled || controller.signal.aborted) return;
+          setValues((current) => cardValuesAfterFailure(current));
+          if (!isRetry) {
+            retryTimer = window.setTimeout(() => {
+              if (!cancelled) run(true);
+            }, CARD_VALUES_RETRY_MS);
+            return;
+          }
+          settle(true);
+        });
+    };
 
-  const loading = Boolean(key) && settledKey !== key;
+    run(false);
 
-  return { values, loading };
+    return () => {
+      cancelled = true;
+      window.clearTimeout(retryTimer);
+      controller.abort();
+    };
+  }, [attempt, key]);
+
+  const loading = Boolean(key) && (settledKey !== key || pending);
+
+  return { values, loading, error, retry };
 }
 
 export function useCardValue(cardId: string | null) {
   const ids = useMemo(() => (cardId ? [cardId] : []), [cardId]);
-  const { values, loading } = useCardValues(ids);
+  const { values, loading, error, retry } = useCardValues(ids);
   return {
     value: cardId ? (values.get(cardId) ?? null) : null,
     loading,
+    error,
+    retry,
   };
 }
 

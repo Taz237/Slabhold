@@ -283,12 +283,18 @@ export function titleHasYear(title: string, card: MatchCard): boolean {
   return re.test(title);
 }
 
+/**
+ * Manufacturer words dropped from a set name so "Select" and "Panini Select"
+ * share one identity. card_identity_key() in SQL must list the same words.
+ */
+export const SET_MANUFACTURER_WORDS = ["panini"] as const;
+
 function normalizeSetToken(value: string): string {
-  return value
-    .toLowerCase()
-    .replace(/\bpanini\b/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
+  let token = value.toLowerCase();
+  for (const word of SET_MANUFACTURER_WORDS) {
+    token = token.replace(new RegExp(`\\b${word}\\b`, "g"), "");
+  }
+  return token.replace(/\s+/g, " ").trim();
 }
 
 export function setMatchPhrase(setBrand?: string): string {

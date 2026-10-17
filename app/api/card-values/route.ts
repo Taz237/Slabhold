@@ -1,7 +1,7 @@
 import {
   ANON_RATE_LIMIT_MESSAGE,
   consumeAnonymousCardValueLimit,
-  consumeRequestLimit,
+  consumeCardValueLimit,
   RATE_LIMIT_MESSAGE,
 } from "@/lib/comps/rate-limit";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
@@ -26,7 +26,7 @@ export const runtime = "nodejs";
 export async function GET(request: Request) {
   const userId = await getAuthUserId();
   if (userId) {
-    const allowed = await consumeRequestLimit(userId);
+    const allowed = await consumeCardValueLimit(userId);
     if (!allowed) {
       return Response.json({ error: RATE_LIMIT_MESSAGE }, { status: 429 });
     }

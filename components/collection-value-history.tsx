@@ -56,11 +56,14 @@ function readIndex(state: {
 export function CollectionValueHistory({
   currentValue,
   valueLoading = false,
+  valueError = false,
 }: {
   /** Live estimated value from Collection summary — fills today if cron hasn't written yet. */
   currentValue: number;
   /** True while card values are still loading. Keeps $0 off the headline. */
   valueLoading?: boolean;
+  /** True when the live read failed. Headline stays on the saved snapshot. */
+  valueError?: boolean;
 }) {
   const [range, setRange] = useState<HistoryRangeId>("7d");
   const [rows, setRows] = useState<SnapshotRow[]>([]);
@@ -102,12 +105,13 @@ export function CollectionValueHistory({
   }, []);
 
   const today = snapshotDateInNewYork();
+  const liveReady = !valueLoading && !valueError;
+  const todaySnapshot = rows.find((row) => row.snapshot_date === today)?.value ?? null;
+  const headline = liveReady ? currentValue : todaySnapshot;
 
   const allPoints = useMemo(() => {
     const byDate = new Map(rows.map((row) => [row.snapshot_date, row.value]));
-    if (!byDate.has(today)) {
-      byDate.set(today, currentValue);
-    }
+    if (liveReady) byDate.set(today, currentValue);
     return [...byDate.entries()]
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([date, value]): ValuePoint => ({
@@ -115,7 +119,7 @@ export function CollectionValueHistory({
         label: formatLabel(date),
         value,
       }));
-  }, [currentValue, rows, today]);
+  }, [currentValue, liveReady, rows, today]);
 
   const historyDays = distinctHistoryDays(allPoints.map((point) => point.date));
   const selected: HistoryRangeId = isHistoryRangeEnabled(range, historyDays)
@@ -133,7 +137,6 @@ export function CollectionValueHistory({
   const badge =
     canChart && !tracking ? historyBadge(allPoints, selected, today) : null;
   const phrase = HISTORY_RANGES.find((item) => item.id === selected)?.phrase ?? "";
-  const last = points[points.length - 1]?.value ?? allPoints[allPoints.length - 1]?.value ?? 0;
   const domain = valueAxisDomain(points.map((point) => point.value));
   const yTicks = valueAxisTicks(domain);
   const ySpan = domain[1] - domain[0];
@@ -156,20 +159,20 @@ export function CollectionValueHistory({
           <p className="text-[11px] tracking-wide text-zinc-500 uppercase">
             Collection value
           </p>
-          {valueLoading ? (
+          {headline == null ? (
             <div
               className="mt-1 h-8 w-28 animate-pulse rounded-md bg-zinc-200/80 dark:bg-white/10"
               aria-hidden
             />
           ) : (
             <p className="mt-1 text-2xl font-semibold tracking-tight tabular-nums">
-              {money(last)}
+              {money(liveReady ? currentValue : headline)}
             </p>
           )}
-          {valueLoading ? <span className="sr-only">Loading collection value</span> : null}
-          {!valueLoading && tracking ? (
+          {headline == null ? <span className="sr-only">Loading collection value</span> : null}
+          {liveReady && tracking ? (
             <p className="mt-1 text-sm font-medium text-zinc-500">{tracking}</p>
-          ) : !valueLoading && badge ? (
+          ) : liveReady && badge ? (
             <p
               className={`mt-1 text-sm font-medium ${
                 badge.delta > 0

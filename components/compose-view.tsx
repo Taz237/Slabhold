@@ -10,6 +10,7 @@ import { MentionTextarea } from "@/components/mention-textarea";
 import { LoadingRows } from "@/components/status";
 import { useSocial } from "@/components/social-provider";
 import { takeCompose } from "@/lib/capture";
+import { initials } from "@/lib/format";
 import { fileToDataUrl } from "@/lib/storage";
 import { mapPublicCard, PUBLIC_CARD_SELECT } from "@/lib/social/cards";
 import { toPublicAttachment } from "@/lib/social/card-posts";
@@ -171,6 +172,15 @@ export function ComposeView() {
     );
   }
 
+  const ownedAttachment = cards.find((card) => card.id === cardId);
+  const attachedPreview = editing
+    ? null
+    : ownedAttachment
+      ? toPublicAttachment(ownedAttachment)
+      : externalCard?.id === cardId
+        ? externalCard
+        : null;
+
   // Quotes stay clickable when empty so submit can show the inline error.
   const canPost = quoteId
     ? !sending
@@ -247,6 +257,15 @@ export function ComposeView() {
               </button>
             </div>
           ) : null}
+          {attachedPreview ? (
+            <ComposeCardPreview
+              card={attachedPreview}
+              onRemove={() => {
+                setCardId("");
+                setExternalCard(null);
+              }}
+            />
+          ) : null}
           {quoteId ? (
             <QuoteComposePreview
               quotedPostId={quoteId}
@@ -287,11 +306,7 @@ export function ComposeView() {
           <ImagePlus className="h-5 w-5 shrink-0" />
           <span className="truncate">Library</span>
         </button>
-        {!editing && externalCard ? (
-          <p className="min-w-0 flex-1 truncate px-2 text-xs font-semibold text-zinc-700 dark:text-zinc-200">
-            {externalCard.year} {externalCard.playerName}
-          </p>
-        ) : !editing ? (
+        {!editing && externalCard ? null : !editing ? (
           <select
             value={cardId}
             onChange={(e) => setCardId(e.target.value)}
@@ -315,5 +330,46 @@ export function ComposeView() {
         </span>
       </div>
     </form>
+  );
+}
+
+function ComposeCardPreview({
+  card,
+  onRemove,
+}: {
+  card: PublicCard;
+  onRemove: () => void;
+}) {
+  const grade = card.grade?.trim();
+  return (
+    <div className="relative mt-3 overflow-hidden rounded-2xl border border-zinc-200 dark:border-white/10">
+      {card.photoDataUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={card.photoDataUrl} alt="" className="max-h-80 w-full object-cover" />
+      ) : (
+        <div
+          className="grid h-36 place-items-center text-lg font-semibold text-white"
+          style={{ background: `linear-gradient(160deg, ${card.accent}, #18181b)` }}
+        >
+          {initials(card.playerName)}
+        </div>
+      )}
+      <div className="px-3 py-2 pr-12">
+        <p className="truncate text-sm font-semibold">{card.playerName}</p>
+        <p className="truncate text-xs text-zinc-500">
+          {card.year} {card.setBrand}
+          {card.cardNumber ? ` · #${card.cardNumber}` : ""}
+          {grade ? ` · ${grade}` : ""}
+        </p>
+      </div>
+      <button
+        type="button"
+        onClick={onRemove}
+        aria-label="Remove card"
+        className="absolute top-2 right-2 grid h-8 w-8 place-items-center rounded-full bg-black/70 text-white"
+      >
+        <X className="h-4 w-4" />
+      </button>
+    </div>
   );
 }

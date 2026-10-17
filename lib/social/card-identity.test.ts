@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
+import { join } from "node:path";
+import { SET_MANUFACTURER_WORDS, setMatchPhrase } from "@/lib/comps/match";
 import { cardIdentityKey, type IdentityCard } from "./card-identity";
 
 const love: IdentityCard = {
@@ -84,4 +87,61 @@ describe("cardIdentityKey", () => {
       "jordan love|2020|select|47|base|psa 10",
     );
   });
+
+  it("keeps SQL set aliases in parity with cardIdentityKey", () => {
+    const sql = readFileSync(
+      join(
+        process.cwd(),
+        "supabase/migrations/20261017180000_set_aliases_and_comp_flags_anon.sql",
+      ),
+      "utf8",
+    );
+    const block = sql.match(
+      /-- BEGIN set_identity_aliases\s*([\s\S]*?)-- END set_identity_aliases/,
+    );
+    assert.ok(block);
+    const aliases = block[1]
+      .split("\n")
+      .map((line) => line.replace(/^--\s*/, "").trim())
+      .filter(Boolean);
+    assert.deepEqual(aliases, [...SET_MANUFACTURER_WORDS]);
+    assert.match(sql, new RegExp(`\\(\\?:${aliases.join("|")}\\)`));
+
+    const samples = [
+      "Select",
+      "Panini Select",
+      "panini select",
+      "  Panini   Select ",
+      "Prizm",
+      "Panini Prizm",
+      "Topps Chrome",
+      "Panini",
+      "Donruss Optic",
+      "Panini Donruss Optic",
+    ];
+    for (const sample of samples) {
+      assert.equal(sqlStyleSet(sample, aliases), setMatchPhrase(sample), sample);
+    }
+    assert.equal(
+      cardIdentityKey({ ...love, setBrand: "Select" }),
+      cardIdentityKey({ ...love, setBrand: "Panini Select" }),
+    );
+    assert.match(sql, /revoke all on public\.comp_flags from anon/i);
+  });
 });
+
+/** Same whole-word strip the card_identity_key set clause applies. */
+function sqlStyleSet(setBrand: string, aliases: string[]): string {
+  const raw = setBrand.trim();
+  if (!raw) return "";
+  const pattern = new RegExp(
+    `(^|[^a-z0-9_])(?:${aliases.join("|")})([^a-z0-9_]|$)`,
+    "g",
+  );
+  const stripped = raw
+    .toLowerCase()
+    .replace(pattern, "$1$2")
+    .replace(/\s+/g, " ")
+    .trim();
+  return stripped || raw.toLowerCase();
+}

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { Info, Search, TrendingDown, TrendingUp, WalletCards } from "lucide-react";
 import { outlineButton, solidButton } from "@/components/button-styles";
 import { CategoryBadge } from "@/components/category-picker";
@@ -68,7 +68,13 @@ export function Dashboard() {
   const [lane, setLane] = useState<(typeof LANES)[number]["id"]>("all");
 
   const cardIds = useMemo(() => cards.map((card) => card.id), [cards]);
-  const { values, loading: valuesLoading } = useCardValues(cardIds);
+  const {
+    values,
+    loading: valuesLoading,
+    error: valuesError,
+    retry: retryValues,
+  } = useCardValues(cardIds);
+  const valuesFailed = valuesError && !valuesLoading;
 
   const inLane = useMemo(
     () => cards.filter((card) => matchesCategory(card, lane)),
@@ -113,6 +119,7 @@ export function Dashboard() {
       <CollectionValueHistory
         currentValue={totals.estimatedValue}
         valueLoading={valuesLoading}
+        valueError={valuesFailed}
       />
       <div className="grid grid-cols-3 rounded-full bg-zinc-100 p-1 dark:bg-white/10" role="tablist" aria-label="Collection">
         {LANES.map((item) => {
@@ -145,15 +152,17 @@ export function Dashboard() {
         />
         <Stat
           label="Estimated value"
-          value={money(totals.estimatedValue)}
-          hint={valueHint}
+          value={valuesFailed ? "" : money(totals.estimatedValue)}
+          hint={valuesFailed ? "" : valueHint}
+          message={valuesFailed ? <ValuesRetry onRetry={retryValues} /> : undefined}
           loading={valuesLoading}
         />
         <Stat
           label="Profit"
-          value={profitAmountLabel(pricedCount, profitTotal)}
-          hint={profitLabel === "—" ? "" : profitLabel}
+          value={valuesFailed ? "" : profitAmountLabel(pricedCount, profitTotal)}
+          hint={valuesFailed || profitLabel === "—" ? "" : profitLabel}
           tone={profitTone}
+          message={valuesFailed ? <ValuesRetry onRetry={retryValues} /> : undefined}
           loading={valuesLoading}
         />
       </section>
@@ -253,7 +262,9 @@ export function Dashboard() {
                 ? null
                 : cardValueHasAmount(value)
                   ? money(value.median)
-                  : formatCardValueLabel(value, { createdAt: card.createdAt });
+                  : valuesFailed
+                    ? "—"
+                    : formatCardValueLabel(value, { createdAt: card.createdAt });
             const titleText = card.playerName;
             const subtitleText = cardTitle(card);
             const grade = card.grade.trim();
@@ -360,18 +371,31 @@ export function Dashboard() {
   );
 }
 
+function ValuesRetry({ onRetry }: { onRetry: () => void }) {
+  return (
+    <p>
+      Couldn&apos;t load values.{" "}
+      <button type="button" onClick={onRetry} className="font-semibold underline">
+        Retry
+      </button>
+    </p>
+  );
+}
+
 function Stat({
   label,
   value,
   hint,
   tone,
   loading,
+  message,
 }: {
   label: string;
   value: string;
   hint: string;
   tone?: "up" | "down" | "neutral";
   loading?: boolean;
+  message?: ReactNode;
 }) {
   const toneClass =
     tone === "up"
@@ -396,6 +420,10 @@ function Stat({
           />
           <span className="sr-only">Loading {label}</span>
         </>
+      ) : message ? (
+        <div className="mt-1 text-sm font-medium leading-snug text-zinc-800 dark:text-zinc-100">
+          {message}
+        </div>
       ) : (
         <>
           <p className={`mt-1 text-2xl font-semibold tracking-tight ${toneClass}`}>

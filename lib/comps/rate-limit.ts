@@ -6,10 +6,16 @@ import { createSupabaseAdmin } from "@/lib/supabase/admin";
 const REQUESTS_BUCKET = "requests";
 const TRAWL_BUCKET = "trawl";
 const ANON_CARD_VALUES_BUCKET = "card_values";
+/** Signed-in card value reads. Separate from the comps "requests" bucket. */
+const CARD_VALUES_BUCKET = "card_values";
 
-/** Max API hits per user per 10-minute window. */
+/** Max comps API hits per user per 10-minute window. */
 export const REQUESTS_LIMIT = 20;
 export const REQUESTS_WINDOW_MS = 10 * 60 * 1000;
+
+/** Signed-in card value reads per user per 10-minute window. */
+export const CARD_VALUES_LIMIT = 120;
+export const CARD_VALUES_WINDOW_MS = 10 * 60 * 1000;
 
 /** Max actual Trawl fetches per user per hour. */
 export const TRAWL_LIMIT = 5;
@@ -127,6 +133,16 @@ export async function consumeRequestLimit(userId: string): Promise<boolean> {
     REQUESTS_BUCKET,
     REQUESTS_WINDOW_MS,
     REQUESTS_LIMIT,
+  );
+}
+
+/** Signed-in GET /api/card-values. Does not consume the comps "requests" bucket. */
+export async function consumeCardValueLimit(userId: string): Promise<boolean> {
+  return consumeRateLimit(
+    userId,
+    CARD_VALUES_BUCKET,
+    CARD_VALUES_WINDOW_MS,
+    CARD_VALUES_LIMIT,
   );
 }
 

@@ -250,9 +250,14 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
   const snapshotRef = useRef(snapshot);
   snapshotRef.current = snapshot;
 
+  const postCardIdKey = useMemo(() => {
+    const ids = collectAttachedCardIds(snapshot.posts);
+    if (ids.length === 0) return "";
+    return [...ids].sort().join(",");
+  }, [snapshot.posts]);
   const postCardIds = useMemo(
-    () => collectAttachedCardIds(snapshot.posts),
-    [snapshot.posts],
+    () => (postCardIdKey ? postCardIdKey.split(",") : []),
+    [postCardIdKey],
   );
   const { values: postCardValues, loading: postCardValuesLoading } =
     useCardValues(postCardIds);
