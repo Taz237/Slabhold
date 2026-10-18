@@ -1,4 +1,5 @@
 import type { FollowEdge, Post, PostRepost, Profile } from "./types";
+import { collapseWantListPosts } from "./want-posts";
 
 export type TimelineItem = {
   key: string;
@@ -74,8 +75,9 @@ export function profileTimeline(
   profiles: Profile[],
   userId: string,
 ): TimelineItem[] {
-  const { postsById, profilesById } = indexes(posts, profiles);
-  const items = posts.filter((post) => post.authorId === userId).map(postItem);
+  const visiblePosts = collapseWantListPosts(posts);
+  const { postsById, profilesById } = indexes(visiblePosts, profiles);
+  const items = visiblePosts.filter((post) => post.authorId === userId).map(postItem);
   items.push(
     ...repostItems(reposts, postsById, profilesById, (repost) => repost.userId === userId),
   );
@@ -93,15 +95,17 @@ export function followingTimeline(
   for (const edge of follows) {
     if (edge.followerId === userId) ids.add(edge.followingId);
   }
-  const { postsById, profilesById } = indexes(posts, profiles);
-  const items = posts.filter((post) => ids.has(post.authorId)).map(postItem);
+  const visiblePosts = collapseWantListPosts(posts);
+  const { postsById, profilesById } = indexes(visiblePosts, profiles);
+  const items = visiblePosts.filter((post) => ids.has(post.authorId)).map(postItem);
   items.push(...repostItems(reposts, postsById, profilesById, (repost) => ids.has(repost.userId)));
   return preferRepostOnce(items);
 }
 
 export function publicTimeline(posts: Post[], reposts: PostRepost[], profiles: Profile[]): TimelineItem[] {
-  const { postsById, profilesById } = indexes(posts, profiles);
-  const items = posts.map(postItem);
+  const visiblePosts = collapseWantListPosts(posts);
+  const { postsById, profilesById } = indexes(visiblePosts, profiles);
+  const items = visiblePosts.map(postItem);
   items.push(...repostItems(reposts, postsById, profilesById, () => true));
   return preferRepostOnce(items);
 }

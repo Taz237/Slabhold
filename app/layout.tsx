@@ -16,9 +16,29 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+function metadataBaseUrl(): URL {
+  const production = process.env.VERCEL_PROJECT_PRODUCTION_URL?.replace(/^https?:\/\//, "").trim();
+  if (production) return new URL(`https://${production}`);
+  const current = process.env.VERCEL_URL?.replace(/^https?:\/\//, "").trim();
+  if (current) return new URL(`https://${current}`);
+  return new URL("https://slabhold.vercel.app");
+}
+
 export const metadata: Metadata = {
+  metadataBase: metadataBaseUrl(),
   title: "Slabhold",
   description: "Sports card portfolio, flips, and a feed of collectors",
+  openGraph: {
+    title: "Slabhold",
+    description: "Sports card portfolio, flips, and a feed of collectors",
+    siteName: "Slabhold",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Slabhold",
+    description: "Sports card portfolio, flips, and a feed of collectors",
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

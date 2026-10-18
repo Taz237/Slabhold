@@ -181,7 +181,7 @@ export function CardDetail({ id }: { id: string }) {
             {card.playerName}
           </h1>
           <div className="mt-3">
-            <WantButton card={card} />
+            <WantButton card={card} isPublic={card.isPublic} />
           </div>
           <p className="mt-1 text-sm text-zinc-500">{cardSubtitle(card)}</p>
           {needsDetails(card) ? (

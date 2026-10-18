@@ -1,0 +1,151 @@
+/** Share-card copy. Private cards never contribute a name, photo, or value. */
+
+export type LinkPreview = {
+  title: string;
+  description: string;
+  imageUrl: string | null;
+  /** Second line on the share image. Empty when there is nothing public to add. */
+  detail: string;
+};
+
+const PRIVATE_CARD: LinkPreview = {
+  title: "Private card",
+  description: "This card isn't public on Slabhold.",
+  imageUrl: null,
+  detail: "",
+};
+
+export function clipText(value: string, max: number): string {
+  const text = value.replace(/\s+/g, " ").trim();
+  if (text.length <= max) return text;
+  return `${text.slice(0, Math.max(1, max - 1)).trimEnd()}…`;
+}
+
+/** https images and image data URLs only. Drops anything else. */
+export function cleanImageUrl(url: string | null | undefined): string | null {
+  if (!url) return null;
+  const value = url.trim();
+  if (/^data:image\/[a-z0-9.+-]+;/i.test(value)) return value;
+  if (/^https:\/\//i.test(value)) return value;
+  return null;
+}
+
+export function collectionSizeLabel(count: number): string {
+  const safe = Number.isFinite(count) && count > 0 ? Math.floor(count) : 0;
+  return safe === 1 ? "1 card" : `${safe} cards`;
+}
+
+/**
+ * Public cards show the name, photo, and value.
+ * A private or missing card returns the same generic card with none of those.
+ */
+export function cardLinkPreview(input: {
+  isPublic: boolean;
+  name?: string | null;
+  imageUrl?: string | null;
+  valueLabel?: string | null;
+}): LinkPreview {
+  if (!input.isPublic) return { ...PRIVATE_CARD };
+  const name = clipText(input.name?.trim() || "Card", 140);
+  const value = input.valueLabel?.replace(/\s+/g, " ").trim() || "";
+  return {
+    title: name,
+    description: value ? `${name} · ${value}` : `${name} on Slabhold.`,
+    imageUrl: cleanImageUrl(input.imageUrl),
+    detail: value,
+  };
+}
+
+/** Username plus the public collection count. There is no private-count field. */
+export function profileLinkPreview(input: {
+  found: boolean;
+  username?: string | null;
+  displayName?: string | null;
+  avatarUrl?: string | null;
+  publicCardCount?: number | null;
+}): LinkPreview {
+  const username = input.username?.trim().replace(/^@/, "") || "";
+  if (!input.found || !username) {
+    return {
+      title: "Profile",
+      description: "Collectors on Slabhold.",
+      imageUrl: null,
+      detail: "",
+    };
+  }
+  const display = input.displayName?.replace(/\s+/g, " ").trim() || "";
+  const title = display || `@${username}`;
+  const count =
+    input.publicCardCount == null || !Number.isFinite(input.publicCardCount)
+      ? null
+      : Math.max(0, Math.floor(input.publicCardCount));
+  const size = count == null ? "" : collectionSizeLabel(count);
+  return {
+    title: clipText(title, 80),
+    description: size ? `@${username} · ${size}` : `@${username} on Slabhold.`,
+    imageUrl: cleanImageUrl(input.avatarUrl),
+    detail: size,
+  };
+}
+
+/**
+ * Post previews are the post text.
+ * A card photo is used only when that card is public and the post has no photo of its own.
+ */
+export function postPreviewImage(input: {
+  postImageUrl?: string | null;
+  cardImageUrl?: string | null;
+  cardIsPublic: boolean;
+}): string | null {
+  const postImage = cleanImageUrl(input.postImageUrl);
+  if (postImage) return postImage;
+  if (!input.cardIsPublic) return null;
+  return cleanImageUrl(input.cardImageUrl);
+}
+
+export function postLinkPreview(input: {
+  found: boolean;
+  body?: string | null;
+  imageUrl?: string | null;
+}): LinkPreview {
+  if (!input.found) {
+    return {
+      title: "Post",
+      description: "A post on Slabhold.",
+      imageUrl: null,
+      detail: "",
+    };
+  }
+  const text = input.body?.replace(/\s+/g, " ").trim() || "";
+  if (!text) {
+    return {
+      title: "Post",
+      description: "A post on Slabhold.",
+      imageUrl: cleanImageUrl(input.imageUrl),
+      detail: "",
+    };
+  }
+  return {
+    title: clipText(text, 90),
+    description: clipText(text, 220),
+    imageUrl: cleanImageUrl(input.imageUrl),
+    detail: "",
+  };
+}
+
+export function previewMetadata(preview: LinkPreview) {
+  return {
+    title: `${preview.title} · Slabhold`,
+    description: preview.description,
+    openGraph: {
+      title: preview.title,
+      description: preview.description,
+      siteName: "Slabhold",
+    },
+    twitter: {
+      card: "summary_large_image" as const,
+      title: preview.title,
+      description: preview.description,
+    },
+  };
+}
