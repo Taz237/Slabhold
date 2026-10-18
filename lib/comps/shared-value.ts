@@ -1,3 +1,4 @@
+import { money } from "@/lib/format";
 import type { CompListing } from "@/lib/types";
 import {
   cardValueHasAmount,
@@ -5,7 +6,7 @@ import {
 } from "@/lib/value/format";
 import type { CardValueResult } from "@/lib/value/types";
 import { cleanedToCompListings } from "./map";
-import { filterComps, type MatchCard } from "./match";
+import { filterComps, matchComps, type MatchCard } from "./match";
 import { middleFifty } from "./stats";
 import type { CleanedSale, TrawlSoldResult } from "./types";
 
@@ -142,13 +143,29 @@ export function screenValueFromComps(
   };
 }
 
-/** Run the shared filter on listings, then keep that exact set. */
+/**
+ * Dollar label for the same rounded median the card page shows.
+ * Empty when the shared filter kept no sales.
+ */
+export function displayedCompLabel(
+  card: MatchCard,
+  comps: TrawlSoldResult[] | CleanedSale[],
+): string {
+  const valued = sharedCompValue(card, comps);
+  if (valued.median == null || valued.count < 1) return NOT_ENOUGH_SALES_LABEL;
+  return money(valued.median, true);
+}
+
+/**
+ * Re-match listings to this card. Skips the price-outlier pass because
+ * sharedCompValue already ran it once on the server payload.
+ */
 export function listingsForCard(
   card: MatchCard,
   comps: CompListing[],
 ): CompListing[] {
-  const valued = sharedCompValue(card, comps.map(compListingToCleaned));
-  return cleanedToCompListings(valued.sales);
+  const sales = matchComps(card, comps.map(compListingToCleaned));
+  return cleanedToCompListings(sales);
 }
 
 export function basedOnSalesLabel(count: number): string {
@@ -185,7 +202,7 @@ export type ResolvedCardValue = {
 export function resolveCardScreenValue(input: {
   phase: "loading" | "ready" | "auth" | "unavailable" | "idle";
   comps: CompListing[] | null;
-  /** When set, listings are passed through sharedCompValue before pricing. */
+  /** When set, listings are re-matched (no second outlier pass) before pricing. */
   card?: MatchCard | null;
   hiddenItemIds?: ReadonlySet<string>;
   stored?: CardValueResult | null;

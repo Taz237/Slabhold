@@ -9,6 +9,7 @@ import { CollectionValueHistory } from "@/components/collection-value-history";
 import { useCollection } from "@/components/collection-provider";
 import { CardThumb } from "@/components/card-thumb";
 import { FirstCardWelcome } from "@/components/first-card-welcome";
+import { shouldShowFirstCardWelcome } from "@/lib/collection/welcome";
 import { CollectionSkeleton, EmptyState } from "@/components/status";
 import {
   cardTitle,
@@ -188,7 +189,11 @@ export function Dashboard() {
       )}
 
       {cards.length === 0 ? (
-        lane === "wants" ? <WantList /> : <FirstCardWelcome />
+        lane === "wants" ? (
+          <WantList />
+        ) : shouldShowFirstCardWelcome({ cardCount: cards.length, ready, syncError }) ? (
+          <FirstCardWelcome />
+        ) : null
       ) : lane === "wants" ? (
         <WantList />
       ) : (

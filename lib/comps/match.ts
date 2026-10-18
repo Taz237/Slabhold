@@ -136,6 +136,30 @@ const PARALLEL_KEYWORDS = [
   "camo",
   "tie-dye",
   "disco",
+  "lazer",
+  "laser",
+  "hyper",
+  "pulsar",
+  "neon",
+  "snakeskin",
+  "ice",
+  "sparkle",
+  "velocity",
+  "ruby",
+  "press proof",
+  "no huddle",
+  "choice",
+  "fotl",
+  "zebra",
+  "tiger",
+  "dragon",
+  "color blast",
+  "kaboom",
+  "downtown",
+  "variation",
+  "ssp",
+  "sp",
+  "parallel",
 ] as const;
 
 export function escapeRegExp(value: string): string {
@@ -355,6 +379,28 @@ export function titleNamesWrongSet(title: string, setBrand?: string): boolean {
   return false;
 }
 
+/**
+ * "Prizm" is the set name in "Panini Prizm #332". It is a parallel cue only
+ * when a parallel word sits immediately before it ("Silver Prizm", "Lazer Prizm")
+ * or a #card-number already appeared ("#332 ... Prizm").
+ */
+function titleHasPrizmParallelCue(title: string): boolean {
+  const lower = title.toLowerCase();
+  const re = /\bprizm\b/gi;
+  let match: RegExpExecArray | null;
+  while ((match = re.exec(lower)) !== null) {
+    const before = lower.slice(0, match.index).replace(/[\s,./|-]+$/g, "");
+    const afterParallel = PARALLEL_KEYWORDS.some((keyword) =>
+      new RegExp(`(?:^|[^a-z0-9])${escapeRegExp(keyword)}$`, "i").test(before),
+    );
+    if (afterParallel) return true;
+    if (/#([a-z0-9]+(?:-[a-z0-9]+)*)/i.test(lower.slice(0, match.index))) {
+      return true;
+    }
+  }
+  return false;
+}
+
 export function titleHasDisallowedParallel(
   title: string,
   parallel?: string,
@@ -367,15 +413,16 @@ export function titleHasDisallowedParallel(
     const re = new RegExp(`\\b${escapeRegExp(keyword)}\\b`, "i");
     if (!re.test(lower)) continue;
     if (base) return true;
+    // "Parallel" names the category. A Silver card can still say "Silver Parallel".
+    if (keyword === "parallel") continue;
     if (allowed !== keyword && !allowed.includes(keyword)) return true;
   }
 
+  if (base && titleHasPrizmParallelCue(title)) return true;
+
   if (!base && allowed) {
     const word = allowed.replace(/^\/\d+$/, "").trim();
-    if (word && !PARALLEL_KEYWORDS.includes(word as (typeof PARALLEL_KEYWORDS)[number])) {
-      const re = new RegExp(`\\b${escapeRegExp(word)}\\b`, "i");
-      if (!re.test(lower)) return true;
-    } else if (word) {
+    if (word) {
       const re = new RegExp(`\\b${escapeRegExp(word)}\\b`, "i");
       if (!re.test(lower)) return true;
     }
@@ -634,10 +681,11 @@ export function dedupeSales(sales: CleanedSale[]): CleanedSale[] {
 }
 
 /**
- * Shared comps filter used by /api/comps/sold and refreshCardValue.
- * Accepts raw Trawl results (preferred) or already-cleaned sales (cache re-filter).
+ * Player, set, parallel, and grade match, then dedupe.
+ * Does not drop price outliers. The card page re-filters through this so a
+ * second outlier pass cannot shrink the list the server already priced.
  */
-export function filterComps(
+export function matchComps(
   card: MatchCard,
   comps: TrawlSoldResult[] | CleanedSale[],
 ): CleanedSale[] {
@@ -687,7 +735,19 @@ export function filterComps(
     });
   }
 
-  return filterPriceOutliers(dedupeSales(sales));
+  return dedupeSales(sales);
+}
+
+/**
+ * Shared comps filter used by /api/comps/sold and refreshCardValue.
+ * Parallel matching runs first. Price outliers run once, on that set only.
+ * Accepts raw Trawl results (preferred) or already-cleaned sales (cache re-filter).
+ */
+export function filterComps(
+  card: MatchCard,
+  comps: TrawlSoldResult[] | CleanedSale[],
+): CleanedSale[] {
+  return filterPriceOutliers(matchComps(card, comps));
 }
 
 /** @deprecated Use filterComps — kept as alias while callers migrate. */

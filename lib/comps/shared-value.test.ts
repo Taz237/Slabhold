@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import { money } from "@/lib/format";
 import { NOT_ENOUGH_SALES_LABEL } from "@/lib/value/format";
 import type { CompListing } from "@/lib/types";
 import type { CardValueResult } from "@/lib/value/types";
 import {
+  displayedCompLabel,
   resolveCardScreenValue,
   sharedCompValue,
 } from "./shared-value";
@@ -270,5 +272,139 @@ describe("resolveCardScreenValue", () => {
     assert.equal(resolved.amount, null);
     assert.equal(resolved.emptyLabel, NOT_ENOUGH_SALES_LABEL);
     assert.equal(resolved.count, 0);
+  });
+});
+
+const DART_BASE: MatchCard = {
+  playerName: "Jaxson Dart",
+  year: 2025,
+  yearLabel: "2025",
+  setBrand: "Panini Prizm",
+  cardNumber: "332",
+  parallel: "Base",
+  conditionType: "raw",
+  grade: "Raw",
+};
+
+const DART_PREFIX = "2025 Panini Prizm Jaxson Dart";
+
+function dartSale(title: string, price: number, itemId: string): TrawlSoldResult {
+  return rawResult(`${DART_PREFIX} ${title}`, { item_id: itemId, sale_price: price });
+}
+
+const DART_SALES: TrawlSoldResult[] = [
+  dartSale("#332 Rookie RC Giants", 3, "base-giants"),
+  rawResult("2025 Panini Prizm #332 Jaxson Dart RC Base", {
+    item_id: "base-named",
+    sale_price: 2.5,
+  }),
+  dartSale("#332 Lazer Prizm", 15, "lazer-prizm"),
+  dartSale("#332 Lazer Rookie", 13, "lazer"),
+  dartSale("#332 RC Hyper Prizm", 12, "hyper"),
+  dartSale("#332 RC Pulsar", 17, "pulsar"),
+  dartSale("#332 RC Neon Green", 19, "neon"),
+  dartSale("#332 RC Silver Prizm", 9, "silver"),
+  dartSale("#332 RC Snakeskin", 14, "snakeskin"),
+];
+
+describe("Jaxson Dart Prizm parallels stay off Base", () => {
+  it("keeps only the two base sales and a median of about 3", () => {
+    const valued = sharedCompValue(DART_BASE, DART_SALES);
+    assert.deepEqual(
+      valued.sales.map((sale) => sale.price).sort((a, b) => a - b),
+      [2.5, 3],
+    );
+    assert.equal(valued.count, 2);
+    assert.equal(valued.median, 3);
+
+    const blankParallel = sharedCompValue({ ...DART_BASE, parallel: "" }, DART_SALES);
+    assert.equal(blankParallel.median, 3);
+    assert.equal(blankParallel.count, 2);
+  });
+
+  it("keeps only the Silver sale when the card is Silver", () => {
+    const valued = sharedCompValue({ ...DART_BASE, parallel: "Silver" }, DART_SALES);
+    assert.deepEqual(
+      valued.sales.map((sale) => sale.price),
+      [9],
+    );
+    assert.equal(valued.count, 1);
+    assert.equal(valued.median, 9);
+  });
+
+  it("prices the on-screen list from those same base sales", () => {
+    const resolved = resolveCardScreenValue({
+      phase: "ready",
+      card: DART_BASE,
+      comps: DART_SALES.map((sale) => ({
+        id: sale.item_id,
+        itemId: sale.item_id,
+        title: sale.title,
+        soldPrice: sale.sale_price,
+        soldDate: sale.date_sold.slice(0, 10),
+        platform: "eBay",
+        condition: "Raw",
+        shipping: null,
+        url: sale.item_link,
+      })),
+    });
+    assert.equal(resolved.amount, 3);
+    assert.equal(resolved.count, 2);
+    assert.deepEqual(
+      resolved.basis.map((sale) => sale.price).sort((a, b) => a - b),
+      [2.5, 3],
+    );
+    assert.equal(displayedCompLabel(DART_BASE, DART_SALES), money(resolved.amount!, true));
+  });
+});
+
+describe("Jordan Love PSA 10", () => {
+  const love: MatchCard = {
+    playerName: "Jordan Love",
+    year: 2020,
+    yearLabel: "2020",
+    setBrand: "Panini Select",
+    cardNumber: "47",
+    parallel: "Base",
+    conditionType: "graded",
+    grade: "PSA 10",
+  };
+
+  const sales: TrawlSoldResult[] = [
+    ...Array.from({ length: 9 }, (_, index) =>
+      gradedResult(
+        "2020 Panini Select Jordan Love #47 PSA 10",
+        "PSA",
+        "10",
+        `love-${index}`,
+        35,
+        `2026-08-${String(index + 1).padStart(2, "0")}T00:00:00.000Z`,
+      ),
+    ),
+    gradedResult(
+      "2020 Panini Select Jordan Love #47 PSA 9",
+      "PSA",
+      "9",
+      "love-psa9",
+      18,
+      "2026-08-10T00:00:00.000Z",
+    ),
+    gradedResult(
+      "2020 Panini Select Silver Jordan Love #47 PSA 10",
+      "PSA",
+      "10",
+      "love-silver",
+      90,
+      "2026-08-11T00:00:00.000Z",
+    ),
+  ];
+
+  it("keeps 9 PSA 10 base sales at $35 and drops PSA 9 and Silver", () => {
+    const valued = sharedCompValue(love, sales);
+    assert.equal(valued.count, 9);
+    assert.equal(valued.median, 35);
+    assert.equal(valued.sales.length, 9);
+    assert.ok(valued.basis.every((sale) => sale.grade === "PSA 10" && sale.price === 35));
+    assert.equal(displayedCompLabel(love, sales), money(35, true));
   });
 });

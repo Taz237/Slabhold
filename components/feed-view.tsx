@@ -13,6 +13,7 @@ import { useSocial } from "@/components/social-provider";
 import { PullToRefresh } from "@/components/pull-to-refresh";
 import { EmptyState, TimelineSkeleton } from "@/components/status";
 import { CollectionToday } from "@/components/collection-today";
+import { shouldShowFirstCardWelcome } from "@/lib/collection/welcome";
 import { Tweet } from "@/components/tweet";
 import { takeCompose } from "@/lib/capture";
 import { fileToDataUrl } from "@/lib/storage";
@@ -22,8 +23,14 @@ import { POST_LIMIT, type PublicCard } from "@/lib/social/types";
 export function FeedView() {
   const { ready, user, feed, homePosts, homeReposts, suggestions, profiles, followingCount, refresh } =
     useSocial();
-  const { cards, ready: cardsReady } = useCollection();
-  const showWelcome = Boolean(user) && cardsReady && cards.length === 0;
+  const { cards, ready: cardsReady, syncError } = useCollection();
+  const showWelcome =
+    Boolean(user) &&
+    shouldShowFirstCardWelcome({
+      cardCount: cards.length,
+      ready: cardsReady,
+      syncError,
+    });
   const [lane, setLane] = useState<"following" | "foryou">("foryou");
   const pickedLane = useRef(false);
   const suggestionIds = useRef<string[] | null>(null);
