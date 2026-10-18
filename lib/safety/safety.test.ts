@@ -194,4 +194,52 @@ describe("safety migration", () => {
     assert.match(sql, /Create notifications as yourself[\s\S]*private\.is_blocked/i);
     assert.match(sql, /Repost as yourself[\s\S]*private\.is_blocked/i);
   });
+
+  it("creates quote notifications even when the recipient muted the actor", () => {
+    const sql = readFileSync(
+      join(process.cwd(), "supabase/migrations/20261017260000_notification_mute_on_read.sql"),
+      "utf8",
+    );
+    const fn = sql.slice(
+      sql.search(/function public\.notify_quote_on_post/i),
+      sql.search(/drop policy if exists "Read related notifications"/i),
+    );
+    assert.match(fn, /if private\.is_blocked\(new\.user_id, original_author\) then/i);
+    assert.doesNotMatch(fn, /is_muted/i);
+    assert.match(sql, /auth\.uid\(\) = recipient_id/i);
+    assert.match(sql, /not private\.is_muted\(auth\.uid\(\), actor_id\)/i);
+    assert.match(sql, /auth\.uid\(\) = actor_id[\s\S]*kind <> 'want_alert'/i);
+  });
+});
+
+describe("notification inserts ignore mutes", () => {
+  it("does not skip want alerts or client notices because someone is muted", () => {
+    for (const file of [
+      "lib/safety/can-notify.ts",
+      "lib/wants/notify-want-matches.ts",
+      "lib/wants/want-db.ts",
+      "lib/social/remote.ts",
+    ]) {
+      const source = readFileSync(join(process.cwd(), file), "utf8");
+      assert.doesNotMatch(source, /is_muted|isMuted/);
+    }
+  });
+
+  it("maps a quote insert blocked by row-level security to a plain message", () => {
+    const source = readFileSync(join(process.cwd(), "lib/social/remote.ts"), "utf8");
+    const fn = source.slice(source.indexOf("export async function remoteCreatePost"));
+    assert.match(fn, /quoted_post_id: quotedPostId/);
+    assert.match(fn, /rlsBlocked\(error\) \? BLOCKED_INTERACTION/);
+  });
+});
+
+describe("support email", () => {
+  it("shows the support address as a mailto link on terms", () => {
+    const support = readFileSync(join(process.cwd(), "lib/support.ts"), "utf8");
+    const terms = readFileSync(join(process.cwd(), "app/terms/page.tsx"), "utf8");
+    assert.match(support, /slabholdapp@gmail\.com/);
+    assert.doesNotMatch(support, /TODO/);
+    assert.match(terms, /Contact support:/);
+    assert.match(terms, /mailto:\$\{SUPPORT_EMAIL\}/);
+  });
 });

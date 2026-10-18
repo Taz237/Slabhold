@@ -18,17 +18,10 @@ export default function TermsPage() {
         and may hide or delete posts.
       </p>
       <p>
-        {SUPPORT_EMAIL ? (
-          <>
-            Contact{" "}
-            <a className="font-bold underline" href={`mailto:${SUPPORT_EMAIL}`}>
-              {SUPPORT_EMAIL}
-            </a>
-            .
-          </>
-        ) : (
-          <>Contact support.</>
-        )}
+        Contact support:{" "}
+        <a className="font-bold underline" href={`mailto:${SUPPORT_EMAIL}`}>
+          {SUPPORT_EMAIL}
+        </a>
       </p>
       <p>
         <Link href="/about" className="font-bold underline">
