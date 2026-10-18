@@ -507,6 +507,30 @@ describe("base cards ignore set and player words", () => {
     });
   }
 
+  it("keeps a second Prizm when the word before it is Base", () => {
+    const valued = sharedCompValue(dart, [
+      rawBase(dart, "2025 Panini Prizm Jaxson Dart #332 Base Prizm", 4),
+    ]);
+    assert.equal(valued.count, 1);
+  });
+
+  it("still counts a parallel word that is not part of the full player name", () => {
+    const tiger = {
+      playerName: "Tiger Woods",
+      year: 2001,
+      yearLabel: "2001",
+      setBrand: "Upper Deck",
+      cardNumber: "1",
+      parallel: "Base",
+      conditionType: "raw" as const,
+      grade: "Raw",
+    };
+    const valued = sharedCompValue(tiger, [
+      rawBase(tiger, "2001 Upper Deck Tiger Woods #1 Tiger RC", 12),
+    ]);
+    assert.equal(valued.count, 0);
+  });
+
   it("matches a parallel's words in any order, ignoring and", () => {
     const pulsar = sharedCompValue(
       { ...dart, parallel: "Pulsar Green" },
@@ -531,32 +555,36 @@ describe("base cards ignore set and player words", () => {
 });
 
 describe("refreshCardValue keeps a good median", () => {
-  it("keeps an ok $50 row when the new run has no sales", () => {
-    const next = refreshCardValueResult(
-      {
-        status: "ok",
-        median: 50,
-        low: 40,
-        high: 60,
-        nSales: 4,
-        matchedAt: "2026-09-01T00:00:00.000Z",
-      },
-      {
-        status: "no_sales",
-        median: null,
-        low: null,
-        high: null,
-        nSales: 0,
-        matchedAt: "2026-10-18T00:00:00.000Z",
-        queryKey: "card|2025|prizm|332|Raw||Base|||",
-      },
-    );
+  const previous = {
+    status: "ok" as const,
+    median: 50,
+    low: 40,
+    high: 60,
+    nSales: 4,
+    matchedAt: "2026-09-01T00:00:00.000Z",
+    queryKey: "card|2025|prizm|332|Raw||Base|||",
+  };
+  const emptyRun = {
+    status: "no_sales" as const,
+    median: null,
+    low: null,
+    high: null,
+    nSales: 0,
+    matchedAt: "2026-10-18T00:00:00.000Z",
+    queryKey: previous.queryKey,
+  };
+
+  it("keeps $50 and stamps matched_at when the query key is unchanged", () => {
+    const decision = refreshCardValueResult(previous, emptyRun);
+    const next = decision.value;
+    assert.equal(decision.keptPreviousMedian, true);
     assert.equal(next.median, 50);
     assert.equal(next.low, 40);
     assert.equal(next.high, 60);
     assert.equal(next.nSales, 4);
     assert.equal(next.status, "ok");
-    assert.equal(next.matchedAt, "2026-09-01T00:00:00.000Z");
+    assert.equal(next.matchedAt, "2026-10-18T00:00:00.000Z");
+    assert.notEqual(next.matchedAt, previous.matchedAt);
     assert.equal(
       amountFromStoredCompValue({
         status: next.status,
@@ -568,5 +596,24 @@ describe("refreshCardValue keeps a good median", () => {
       }),
       50,
     );
+  });
+
+  it("writes no_sales when the query key changed", () => {
+    const decision = refreshCardValueResult(previous, {
+      ...emptyRun,
+      queryKey: "card|2025|prizm|332|PSA|10|Silver|||",
+    });
+    assert.equal(decision.keptPreviousMedian, false);
+    assert.equal(decision.value.status, "no_sales");
+    assert.equal(decision.value.median, null);
+    assert.equal(decision.value.nSales, 0);
+  });
+
+  it("writes no_sales when the card has no previous row", () => {
+    const decision = refreshCardValueResult(null, emptyRun);
+    assert.equal(decision.keptPreviousMedian, false);
+    assert.equal(decision.value.status, "no_sales");
+    assert.equal(decision.value.median, null);
+    assert.equal(decision.value.nSales, 0);
   });
 });

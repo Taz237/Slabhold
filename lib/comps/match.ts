@@ -416,9 +416,8 @@ function setNamePhrases(setBrand?: string): string[] {
 }
 
 /**
- * Drop the card's own set name and player tokens before the parallel scan.
- * "SP" in "SP Authentic", "Ice" in "Upper Deck Ice", and "Tiger" in "Tiger Woods"
- * belong to the card, not to a parallel.
+ * Drop the card's own set name, and the player name only where the full name
+ * matches. A lone "Tiger" beside "Tiger Woods" is still a parallel.
  */
 function stripSetAndPlayer(
   title: string,
@@ -431,9 +430,9 @@ function stripSetAndPlayer(
     text = text.replace(new RegExp(`\\b${pattern}\\b`, "gi"), " ");
   }
   const player = (identity?.playerName ?? "").trim();
-  for (const token of player.split(/\s+/)) {
-    if (token.length < 2) continue;
-    text = text.replace(new RegExp(`\\b${escapeRegExp(token)}\\b`, "gi"), " ");
+  const playerPattern = phrasePattern(player);
+  if (playerPattern) {
+    text = text.replace(new RegExp(`\\b${playerPattern}\\b`, "gi"), " ");
   }
   return text;
 }
@@ -464,7 +463,18 @@ function titleHasPrizmParallelCue(title: string, setBrand?: string): boolean {
   const setRe = new RegExp(`\\b${phrasePattern(phrase)}\\b`, "i");
   const setMatch = setRe.exec(lower);
   if (!setMatch) return false;
-  return /\bprizm\b/i.test(lower.slice(setMatch.index + setMatch[0].length));
+  const after = lower.slice(setMatch.index + setMatch[0].length);
+  const again = /\bprizm\b/gi;
+  let later: RegExpExecArray | null;
+  while ((later = again.exec(after)) !== null) {
+    const word = after
+      .slice(0, later.index)
+      .replace(/[\s,./|&-]+$/g, "")
+      .match(/([a-z0-9]+)$/i);
+    if (word?.[1] === "base") continue;
+    return true;
+  }
+  return false;
 }
 
 /** "Red White & Blue" and "Red and White Blue" share the words red, white, blue. */

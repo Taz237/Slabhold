@@ -204,7 +204,7 @@ export async function refreshCardValue(
   const matchedAt = new Date().toISOString();
   const { data: previousRow, error: previousError } = await client
     .from("card_values")
-    .select("median, low, high, n_sales, status, matched_at")
+    .select("median, low, high, n_sales, status, matched_at, query_key")
     .eq("card_id", cardId)
     .maybeSingle();
 
@@ -213,7 +213,7 @@ export async function refreshCardValue(
     if (!hasSales) return emptyResult(isSample ? "sample" : "no_sales");
   }
 
-  const merged = refreshCardValueResult(
+  const decision = refreshCardValueResult(
     previousRow
       ? {
           status: ((previousRow.status as CardValueStatus) || "unavailable"),
@@ -225,6 +225,7 @@ export async function refreshCardValue(
               ? 0
               : Number(previousRow.n_sales),
           matchedAt: (previousRow.matched_at as string | null) ?? null,
+          queryKey: (previousRow.query_key as string | null) ?? null,
         }
       : null,
     {
@@ -237,6 +238,12 @@ export async function refreshCardValue(
       queryKey,
     },
   );
+  const merged = decision.value;
+  if (decision.keptPreviousMedian) {
+    console.log(
+      `[card_values] kept previous median for ${cardId}: new run had 0 sales`,
+    );
+  }
 
   const row: CardValueRow = {
     card_id: cardId,
