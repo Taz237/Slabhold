@@ -156,11 +156,12 @@ const PARALLEL_KEYWORDS = [
   "color blast",
   "kaboom",
   "downtown",
-  "variation",
   "ssp",
-  "sp",
   "parallel",
 ] as const;
+
+/** Counted only as their own word after the card number, and only if the set name did not already use them. */
+const PARALLEL_AFTER_NUMBER = ["sp", "variation"] as const;
 
 export function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -352,7 +353,10 @@ export function titleNamesWrongSet(title: string, setBrand?: string): boolean {
       `\\b${escapeRegExp(keyword).replace(/\s+/g, "\\s+")}\\b`,
       "i",
     );
-    if (re.test(lower)) return true;
+    if (!re.test(lower)) continue;
+    // "Upper Deck SP Authentic" is the SP Authentic set, not a different Upper Deck product.
+    if (manufacturerBeforeSet(lower, keyword, cardSet)) continue;
+    return true;
   }
 
   for (const { family, members } of SET_FAMILIES) {
@@ -379,52 +383,153 @@ export function titleNamesWrongSet(title: string, setBrand?: string): boolean {
   return false;
 }
 
+function phrasePattern(phrase: string): string {
+  return phrase
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((part) => escapeRegExp(part))
+    .join("\\s+");
+}
+
+/** "Upper Deck" printed immediately in front of this card's own set name. */
+function manufacturerBeforeSet(
+  title: string,
+  keyword: string,
+  cardSet: string,
+): boolean {
+  if (keyword !== "upper deck") return false;
+  if (!cardSet || cardSet.includes(keyword)) return false;
+  const pattern = phrasePattern(keyword);
+  const setPattern = phrasePattern(cardSet);
+  if (!pattern || !setPattern) return false;
+  return new RegExp(`\\b${pattern}\\s+${setPattern}\\b`, "i").test(title);
+}
+
+function setNamePhrases(setBrand?: string): string[] {
+  const raw = (setBrand ?? "").trim();
+  if (!raw) return [];
+  const phrases = [raw];
+  const shortened = setMatchPhrase(raw);
+  if (shortened && shortened !== raw.toLowerCase()) phrases.push(shortened);
+  return phrases;
+}
+
 /**
- * "Prizm" is the set name in "Panini Prizm #332". It is a parallel cue only
- * when a parallel word sits immediately before it ("Silver Prizm", "Lazer Prizm")
- * or a #card-number already appeared ("#332 ... Prizm").
+ * Drop the card's own set name and player tokens before the parallel scan.
+ * "SP" in "SP Authentic", "Ice" in "Upper Deck Ice", and "Tiger" in "Tiger Woods"
+ * belong to the card, not to a parallel.
  */
-function titleHasPrizmParallelCue(title: string): boolean {
+function stripSetAndPlayer(
+  title: string,
+  identity?: { setBrand?: string; playerName?: string },
+): string {
+  let text = title;
+  for (const phrase of setNamePhrases(identity?.setBrand)) {
+    const pattern = phrasePattern(phrase);
+    if (!pattern) continue;
+    text = text.replace(new RegExp(`\\b${pattern}\\b`, "gi"), " ");
+  }
+  const player = (identity?.playerName ?? "").trim();
+  for (const token of player.split(/\s+/)) {
+    if (token.length < 2) continue;
+    text = text.replace(new RegExp(`\\b${escapeRegExp(token)}\\b`, "gi"), " ");
+  }
+  return text;
+}
+
+function parallelKeywordImmediatelyBefore(before: string): boolean {
+  const trimmed = before.replace(/[\s,./|&-]+$/g, "");
+  return PARALLEL_KEYWORDS.some((keyword) =>
+    new RegExp(`(?:^|[^a-z0-9])${phrasePattern(keyword)}$`, "i").test(trimmed),
+  );
+}
+
+/**
+ * "Prizm" in "Panini Prizm #332" is the set. It is a parallel only when a
+ * parallel word sits directly in front of it ("Silver Prizm", "Lazer Prizm"),
+ * or the word shows up again after that set name was already matched
+ * ("2025 Panini Prizm ... Hyper Prizm").
+ */
+function titleHasPrizmParallelCue(title: string, setBrand?: string): boolean {
   const lower = title.toLowerCase();
   const re = /\bprizm\b/gi;
   let match: RegExpExecArray | null;
   while ((match = re.exec(lower)) !== null) {
-    const before = lower.slice(0, match.index).replace(/[\s,./|-]+$/g, "");
-    const afterParallel = PARALLEL_KEYWORDS.some((keyword) =>
-      new RegExp(`(?:^|[^a-z0-9])${escapeRegExp(keyword)}$`, "i").test(before),
-    );
-    if (afterParallel) return true;
-    if (/#([a-z0-9]+(?:-[a-z0-9]+)*)/i.test(lower.slice(0, match.index))) {
-      return true;
-    }
+    if (parallelKeywordImmediatelyBefore(lower.slice(0, match.index))) return true;
   }
-  return false;
+
+  const phrase = setMatchPhrase(setBrand);
+  if (!phrase || !/\bprizm\b/i.test(phrase)) return false;
+  const setRe = new RegExp(`\\b${phrasePattern(phrase)}\\b`, "i");
+  const setMatch = setRe.exec(lower);
+  if (!setMatch) return false;
+  return /\bprizm\b/i.test(lower.slice(setMatch.index + setMatch[0].length));
+}
+
+/** "Red White & Blue" and "Red and White Blue" share the words red, white, blue. */
+function parallelNameWords(parallel: string): string[] {
+  return parallel
+    .toLowerCase()
+    .replace(/&/g, " ")
+    .split(/[^a-z0-9]+/)
+    .filter((word) => word.length > 0 && word !== "and");
+}
+
+function titleHasWord(title: string, word: string): boolean {
+  return new RegExp(`\\b${escapeRegExp(word)}\\b`, "i").test(title);
+}
+
+function wordAfterCardNumber(
+  title: string,
+  cardNumber: string | undefined,
+  word: string,
+): boolean {
+  const num = normalizeCardNumber(cardNumber);
+  if (!num) return false;
+  const hash = new RegExp(`#${escapeRegExp(num)}\\b`, "i").exec(title);
+  const bare = new RegExp(`(?<![\\w#])${escapeRegExp(num)}\\b`, "i").exec(title);
+  const found = hash ?? bare;
+  if (!found) return false;
+  return titleHasWord(title.slice(found.index + found[0].length), word);
 }
 
 export function titleHasDisallowedParallel(
   title: string,
   parallel?: string,
+  identity?: { setBrand?: string; playerName?: string; cardNumber?: string },
 ): boolean {
   const lower = title.toLowerCase();
+  const scan = stripSetAndPlayer(lower, identity);
   const allowed = (parallel ?? "").trim().toLowerCase();
+  const allowedWords = new Set(parallelNameWords(allowed));
   const base = parallelIsBase(parallel);
 
   for (const keyword of PARALLEL_KEYWORDS) {
-    const re = new RegExp(`\\b${escapeRegExp(keyword)}\\b`, "i");
-    if (!re.test(lower)) continue;
+    if (!new RegExp(`\\b${phrasePattern(keyword)}\\b`, "i").test(scan)) continue;
     if (base) return true;
     // "Parallel" names the category. A Silver card can still say "Silver Parallel".
     if (keyword === "parallel") continue;
-    if (allowed !== keyword && !allowed.includes(keyword)) return true;
+    if (allowedWords.has(keyword)) continue;
+    const keywordWords = parallelNameWords(keyword);
+    if (keywordWords.length > 0 && keywordWords.every((word) => allowedWords.has(word))) {
+      continue;
+    }
+    return true;
   }
 
-  if (base && titleHasPrizmParallelCue(title)) return true;
+  if (base && titleHasPrizmParallelCue(title, identity?.setBrand)) return true;
+
+  if (base) {
+    for (const word of PARALLEL_AFTER_NUMBER) {
+      if (wordAfterCardNumber(scan, identity?.cardNumber, word)) return true;
+    }
+  }
 
   if (!base && allowed) {
-    const word = allowed.replace(/^\/\d+$/, "").trim();
-    if (word) {
-      const re = new RegExp(`\\b${escapeRegExp(word)}\\b`, "i");
-      if (!re.test(lower)) return true;
+    const words = parallelNameWords(allowed);
+    if (words.length > 0 && words.some((word) => !titleHasWord(lower, word))) {
+      return true;
     }
   }
 
@@ -570,7 +675,15 @@ export function titleMatchesCard(title: string, card: MatchCard): boolean {
     if (!titleHasCardNumber(title, num)) return false;
   }
 
-  if (titleHasDisallowedParallel(title, card.parallel)) return false;
+  if (
+    titleHasDisallowedParallel(title, card.parallel, {
+      setBrand: card.setBrand,
+      playerName: card.playerName,
+      cardNumber: card.cardNumber,
+    })
+  ) {
+    return false;
+  }
   if (!titleSerialOk(title, card.serialRun)) return false;
 
   if (card.isAuto) {

@@ -4,7 +4,9 @@ import { money } from "@/lib/format";
 import { NOT_ENOUGH_SALES_LABEL } from "@/lib/value/format";
 import type { CompListing } from "@/lib/types";
 import type { CardValueResult } from "@/lib/value/types";
+import { refreshCardValueResult } from "@/lib/value/refresh-result";
 import {
+  amountFromStoredCompValue,
   displayedCompLabel,
   resolveCardScreenValue,
   sharedCompValue,
@@ -406,5 +408,165 @@ describe("Jordan Love PSA 10", () => {
     assert.equal(valued.sales.length, 9);
     assert.ok(valued.basis.every((sale) => sale.grade === "PSA 10" && sale.price === 35));
     assert.equal(displayedCompLabel(love, sales), money(35, true));
+  });
+});
+
+function rawBase(card: MatchCard, title: string, price = 8): TrawlSoldResult {
+  return rawResult(title, { item_id: title, sale_price: price });
+}
+
+describe("base cards ignore set and player words", () => {
+  const dart: MatchCard = { ...DART_BASE, parallel: "Base" };
+  const keeps = [
+    {
+      card: dart,
+      title: "2025 Jaxson Dart #332 Panini Prizm Rookie RC",
+    },
+    {
+      card: {
+        playerName: "Victor Wembanyama",
+        year: 2023,
+        yearLabel: "2023-24",
+        setBrand: "Panini Prizm",
+        cardNumber: "136",
+        parallel: "Base",
+        conditionType: "raw" as const,
+        grade: "Raw",
+      },
+      title: "Victor Wembanyama 2023-24 #136 Panini Prizm Rookie",
+    },
+    {
+      card: {
+        playerName: "Paul Skenes",
+        year: 2024,
+        yearLabel: "2024",
+        setBrand: "SP Authentic",
+        cardNumber: "10",
+        parallel: "Base",
+        conditionType: "raw" as const,
+        grade: "Raw",
+      },
+      title: "2024 Upper Deck SP Authentic Paul Skenes #10 RC",
+    },
+    {
+      card: {
+        playerName: "Connor Bedard",
+        year: 2023,
+        yearLabel: "2023-24",
+        setBrand: "Upper Deck Ice",
+        cardNumber: "101",
+        parallel: "Base",
+        conditionType: "raw" as const,
+        grade: "Raw",
+      },
+      title: "2023-24 Upper Deck Ice Connor Bedard #101 RC",
+    },
+    {
+      card: {
+        playerName: "Tiger Woods",
+        year: 2001,
+        yearLabel: "2001",
+        setBrand: "Upper Deck",
+        cardNumber: "1",
+        parallel: "Base",
+        conditionType: "raw" as const,
+        grade: "Raw",
+      },
+      title: "2001 Upper Deck Tiger Woods #1 RC",
+    },
+  ];
+
+  for (const { card, title } of keeps) {
+    it(`keeps ${title}`, () => {
+      const valued = sharedCompValue(card, [rawBase(card, title, 6)]);
+      assert.equal(valued.count, 1);
+      assert.equal(valued.sales[0]?.title, title);
+    });
+  }
+
+  const rejects = [
+    "2025 Panini Prizm Jaxson Dart #332 Lazer",
+    "2025 Panini Prizm Jaxson Dart #332 Hyper",
+    "2025 Panini Prizm Jaxson Dart #332 Pulsar",
+    "2025 Panini Prizm Jaxson Dart #332 Snakeskin",
+    "2025 Panini Prizm Jaxson Dart #332 Neon Green",
+    "2025 Panini Prizm Jaxson Dart #332 Silver Prizm",
+    "2025 Panini Prizm Jaxson Dart #332 Red White Blue",
+    "2025 Panini Prizm Jaxson Dart #332 Red White & Blue",
+    "2025 Panini Prizm Jaxson Dart #332 Choice",
+    "2025 Panini Prizm Jaxson Dart #332 No Huddle",
+    "2025 Panini Prizm Jaxson Dart #332 /99",
+    "2025 Panini Prizm Jaxson Dart #332 SP",
+    "2025 Panini Prizm Jaxson Dart #332 Variation",
+  ];
+
+  for (const title of rejects) {
+    it(`rejects ${title}`, () => {
+      const valued = sharedCompValue(dart, [rawBase(dart, title, 20)]);
+      assert.equal(valued.count, 0);
+    });
+  }
+
+  it("matches a parallel's words in any order, ignoring and", () => {
+    const pulsar = sharedCompValue(
+      { ...dart, parallel: "Pulsar Green" },
+      [
+        rawBase(dart, "2025 Panini Prizm Jaxson Dart #332 Green Pulsar", 17),
+        rawBase(dart, "2025 Panini Prizm Jaxson Dart #332 Pulsar", 13),
+      ],
+    );
+    assert.equal(pulsar.count, 1);
+    assert.equal(pulsar.median, 17);
+
+    const flag = sharedCompValue(
+      { ...dart, parallel: "Red White & Blue" },
+      [
+        rawBase(dart, "2025 Panini Prizm Jaxson Dart #332 Blue Red and White", 11),
+        rawBase(dart, "2025 Panini Prizm Jaxson Dart #332 Red White", 8),
+      ],
+    );
+    assert.equal(flag.count, 1);
+    assert.equal(flag.median, 11);
+  });
+});
+
+describe("refreshCardValue keeps a good median", () => {
+  it("keeps an ok $50 row when the new run has no sales", () => {
+    const next = refreshCardValueResult(
+      {
+        status: "ok",
+        median: 50,
+        low: 40,
+        high: 60,
+        nSales: 4,
+        matchedAt: "2026-09-01T00:00:00.000Z",
+      },
+      {
+        status: "no_sales",
+        median: null,
+        low: null,
+        high: null,
+        nSales: 0,
+        matchedAt: "2026-10-18T00:00:00.000Z",
+        queryKey: "card|2025|prizm|332|Raw||Base|||",
+      },
+    );
+    assert.equal(next.median, 50);
+    assert.equal(next.low, 40);
+    assert.equal(next.high, 60);
+    assert.equal(next.nSales, 4);
+    assert.equal(next.status, "ok");
+    assert.equal(next.matchedAt, "2026-09-01T00:00:00.000Z");
+    assert.equal(
+      amountFromStoredCompValue({
+        status: next.status,
+        median: next.median,
+        low: next.low,
+        high: next.high,
+        nSales: next.nSales,
+        matchedAt: next.matchedAt,
+      }),
+      50,
+    );
   });
 });
