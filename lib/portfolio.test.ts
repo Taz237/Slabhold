@@ -52,6 +52,17 @@ function okValue(median: number): CardValueResult {
   };
 }
 
+describe("summarize uses sales-backed values", () => {
+  it("skips a median that has no matching sales", () => {
+    const held = card({ id: "bare", purchasePrice: 20 });
+    const values = new Map<string, CardValueResult>([
+      ["bare", { ...okValue(80), nSales: 0 }],
+    ]);
+    assert.equal(summarize([held], values).estimatedValue, 0);
+    assert.equal(summarize([held], values).withoutValueCount, 1);
+  });
+});
+
 describe("hasPaid", () => {
   it("is false for null, undefined, and 0", () => {
     assert.equal(hasPaid(null), false);

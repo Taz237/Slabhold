@@ -1,7 +1,7 @@
 import { cardCategory } from "./card-category";
+import { amountFromStoredCompValue } from "./comps/shared-value";
 import { hasPaid, isSold, profit } from "./format";
 import type { CardCategory, PortfolioFilter, SportsCard } from "./types";
-import { cardValueHasAmount } from "./value/format";
 import type { CardValueResult } from "./value/types";
 
 export type PortfolioTotals = {
@@ -25,9 +25,7 @@ function marketValue(
   values?: Map<string, CardValueResult>,
 ): number | null {
   if (isSold(card)) return card.sellPrice;
-  const v = values?.get(card.id);
-  if (cardValueHasAmount(v)) return v.median;
-  return null;
+  return amountFromStoredCompValue(values?.get(card.id));
 }
 
 export function summarize(

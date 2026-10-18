@@ -21,7 +21,7 @@ import { Tweet } from "@/components/tweet";
 import { normalizeUsername } from "@/lib/social/local-db";
 import { profileTimeline } from "@/lib/social/timeline";
 import type { PublicCard } from "@/lib/social/types";
-import { formatCardValueLabel } from "@/lib/value/format";
+import { formatCardValueLabel, NOT_ENOUGH_SALES_LABEL } from "@/lib/value/format";
 import { useCardValues } from "@/lib/value/use-card-values";
 
 export function ProfileView({ username }: { username?: string }) {
@@ -315,7 +315,7 @@ export function ProfileView({ username }: { username?: string }) {
                           });
                           if (
                             label === "Value updating" ||
-                            label === "No sales yet" ||
+                            label === NOT_ENOUGH_SALES_LABEL ||
                             label === "Value unavailable right now"
                           ) {
                             return label;

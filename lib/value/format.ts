@@ -1,6 +1,9 @@
 import { money } from "@/lib/format";
 import type { CardValueResult } from "./types";
 
+/** Shown instead of a dollar amount when no matching sales were kept. */
+export const NOT_ENOUGH_SALES_LABEL = "Not enough sales yet";
+
 /** Fresh cards without a card_values row show "Value updating" this long. */
 export const VALUE_UPDATING_WINDOW_MS = 10 * 60 * 1000;
 
@@ -25,33 +28,36 @@ function ageMs(
 /**
  * Shared status / amount label for collection tiles and the card page.
  * "Value updating" only when there is no card_values row and the card is
- * younger than 10 minutes; otherwise missing → "No sales yet".
+ * younger than 10 minutes; otherwise missing → "Not enough sales yet".
  */
 export function formatCardValueLabel(
   value: CardValueResult | null | undefined,
   options?: FormatCardValueLabelOptions,
 ): string {
   if (value) {
-    if (value.status === "no_sales") return "No sales yet";
+    if (value.status === "no_sales") return NOT_ENOUGH_SALES_LABEL;
     if (value.status === "unavailable") return "Value unavailable right now";
     if (value.status === "sample") {
-      return value.median != null ? money(value.median) : "No sales yet";
+      return value.median != null && value.nSales >= 1
+        ? money(value.median)
+        : NOT_ENOUGH_SALES_LABEL;
     }
     if (value.status === "ok" && value.median != null) {
-      return money(value.median);
+      return value.nSales >= 1 ? money(value.median) : NOT_ENOUGH_SALES_LABEL;
     }
     if (value.status === "stale") {
-      if (value.median != null) return money(value.median);
+      if (value.median != null && value.nSales >= 1) return money(value.median);
+      if (value.median != null) return NOT_ENOUGH_SALES_LABEL;
       return "Value unavailable right now";
     }
-    if (value.median != null) return money(value.median);
+    if (value.median != null && value.nSales >= 1) return money(value.median);
   }
 
   const age = ageMs(options?.createdAt, options?.now);
   if (age != null && age < VALUE_UPDATING_WINDOW_MS) {
     return "Value updating";
   }
-  return "No sales yet";
+  return NOT_ENOUGH_SALES_LABEL;
 }
 
 export function cardValueHasAmount(
@@ -60,6 +66,7 @@ export function cardValueHasAmount(
   return (
     value != null &&
     value.median != null &&
+    value.nSales >= 1 &&
     (value.status === "ok" || value.status === "sample")
   );
 }

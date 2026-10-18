@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { X } from "lucide-react";
 import { CardThumb } from "@/components/card-thumb";
 import { useCollection } from "@/components/collection-provider";
+import { displayedCollectionTotal } from "@/lib/collection/displayed-value";
 import {
   collectionDayChange,
   collectionTodayDismissKey,
@@ -14,12 +15,14 @@ import {
 } from "@/lib/collection/today";
 import { money, signedMoney } from "@/lib/format";
 import { createSupabaseBrowser } from "@/lib/supabase/browser";
+import { useCardValues } from "@/lib/value/use-card-values";
 
 type DayRow = { date: string; value: number };
 type SnapRow = { cardId: string; date: string; median: number | null };
 
 export function CollectionToday() {
   const { cards } = useCollection();
+  const cardIds = useMemo(() => cards.map((card) => card.id), [cards]);
   const [dismissed, setDismissed] = useState<boolean | null>(null);
   const [days, setDays] = useState<DayRow[] | null>(null);
   const [snaps, setSnaps] = useState<SnapRow[] | null>(null);
@@ -81,10 +84,21 @@ export function CollectionToday() {
     };
   }, [dismissed]);
 
+  const { values, loading: valuesLoading, error: valuesError } = useCardValues(
+    dismissed === false ? cardIds : [],
+  );
+  const liveValue = useMemo(
+    () => displayedCollectionTotal(cards, values),
+    [cards, values],
+  );
+
   if (dismissed !== false || !days || !snaps) return null;
 
   const change = collectionDayChange(days);
   if (!change) return null;
+  const todayValue =
+    valuesLoading || valuesError ? change.latest : liveValue;
+  const delta = todayValue - change.previous;
   const latestMedians = snaps
     .filter((row) => row.date === change.latestDate)
     .map((row) => row.median);
@@ -93,15 +107,15 @@ export function CollectionToday() {
   const movers = topCollectionMovers(snaps, change.latestDate, change.previousDate);
   const byId = new Map(cards.map((card) => [card.id, card]));
   const phrase =
-    change.delta > 0
-      ? `up ${money(change.delta)} since yesterday`
-      : change.delta < 0
-        ? `down ${money(Math.abs(change.delta))} since yesterday`
+    delta > 0
+      ? `up ${money(delta)} since yesterday`
+      : delta < 0
+        ? `down ${money(Math.abs(delta))} since yesterday`
         : "flat since yesterday";
   const tone =
-    change.delta > 0
+    delta > 0
       ? "text-emerald-600 dark:text-emerald-400"
-      : change.delta < 0
+      : delta < 0
         ? "text-rose-600 dark:text-rose-400"
         : "text-zinc-500";
 
@@ -148,7 +162,7 @@ export function CollectionToday() {
         </button>
         <Link href="/collection" className="block pr-8">
           <p className="text-sm leading-5">
-            <span className="font-semibold">Your collection today:</span> {money(change.latest)},{" "}
+            <span className="font-semibold">Your collection today:</span> {money(todayValue)},{" "}
             <span className={`font-semibold ${tone}`}>{phrase}</span>
           </p>
           {movers.gainers.length > 0 || movers.losers.length > 0 ? (

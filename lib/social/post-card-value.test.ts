@@ -28,14 +28,14 @@ describe("attachmentValueLabel", () => {
   });
 
   it("uses the shared status labels", () => {
-    assert.equal(attachmentValueLabel(value({ status: "no_sales" })), "No sales yet");
+    assert.equal(attachmentValueLabel(value({ status: "no_sales" })), "Not enough sales yet");
     assert.equal(
       attachmentValueLabel(value({ status: "unavailable" })),
       "Value unavailable right now",
     );
     const createdAt = new Date(now - VALUE_UPDATING_WINDOW_MS + 60_000).toISOString();
     assert.equal(attachmentValueLabel(null, { createdAt, now }), "Value updating");
-    assert.equal(attachmentValueLabel(null), "No sales yet");
+    assert.equal(attachmentValueLabel(null), "Not enough sales yet");
   });
 });
 
