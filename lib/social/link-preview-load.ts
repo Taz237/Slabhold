@@ -3,14 +3,15 @@ import "server-only";
 import { cache } from "react";
 import { readLatestSoldCompsBatch } from "@/lib/comps/cache";
 import { loadSoldCompCard } from "@/lib/comps/load-card";
-import { buildQueryKey } from "@/lib/comps/query-key";
-import { displayedCompLabel } from "@/lib/comps/shared-value";
 import type { MatchCard } from "@/lib/comps/match";
+import { previewValueLabelFromSources } from "@/lib/comps/preview-value";
+import { buildQueryKey } from "@/lib/comps/query-key";
 import type { SoldCompCard } from "@/lib/comps/types";
 import { wantLabel } from "@/lib/wants/label";
 import { formatCardValueLabel } from "@/lib/value/format";
 import { getCardValue } from "@/lib/value/getCardValue";
 import { isUuid } from "@/lib/value/card-value-access";
+import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { mapPublicCard, PUBLIC_CARD_SELECT } from "./cards";
 import {
   cardLinkPreview,
@@ -52,7 +53,7 @@ export const loadPublicCardPreview = cache(async (id: string): Promise<LinkPrevi
     isPublic: true,
     name: wantLabel(card) || card.playerName,
     imageUrl: card.photoDataUrl,
-    valueLabel: await previewValueLabel(card.id, card.createdAt),
+    valueLabel: await previewValueLabel(card.id, card.ownerId, card.createdAt),
   });
 });
 
@@ -74,21 +75,56 @@ function matchCardOf(card: SoldCompCard): MatchCard {
   };
 }
 
+/** Owner "Not a match" flags — same exclusions as the card page comps list. */
+async function loadOwnerCompFlagIds(
+  cardId: string,
+  ownerId: string,
+): Promise<Set<string>> {
+  const client = createSupabaseAdmin();
+  if (!client || !cardId || !ownerId) return new Set();
+  const { data, error } = await client
+    .from("comp_flags")
+    .select("item_id")
+    .eq("card_id", cardId)
+    .eq("user_id", ownerId);
+  if (error || !data) return new Set();
+  return new Set(
+    data
+      .map((row) => row.item_id as string)
+      .filter((itemId) => Boolean(itemId)),
+  );
+}
+
 /**
- * Same rounded median the card page shows, from the stored comps cache.
- * No Trawl call. Without a cache batch, fall back to the card_values label.
+ * Same comps source and freshness as the card page (query key + 6h window).
+ * No Trawl call. Stale / other-key batches fall back to card_values.
  */
 async function previewValueLabel(
   cardId: string,
+  ownerId: string,
   createdAt: string | undefined,
 ): Promise<string> {
   const stored = await getCardValue(cardId);
   const full = await loadSoldCompCard(cardId);
-  if (full) {
-    const batch = await readLatestSoldCompsBatch(buildQueryKey(full));
-    if (batch) return displayedCompLabel(matchCardOf(full), batch.sales);
-  }
-  return formatCardValueLabel(stored, { createdAt });
+  if (!full) return formatCardValueLabel(stored, { createdAt });
+
+  const expectedQueryKey = buildQueryKey(full);
+  const latest = await readLatestSoldCompsBatch(expectedQueryKey);
+  const hiddenItemIds = await loadOwnerCompFlagIds(cardId, ownerId);
+  return previewValueLabelFromSources({
+    card: matchCardOf(full),
+    expectedQueryKey,
+    batch: latest
+      ? {
+          queryKey: expectedQueryKey,
+          sales: latest.sales,
+          fetchedAt: latest.fetchedAt,
+        }
+      : null,
+    hiddenItemIds,
+    stored,
+    createdAt,
+  });
 }
 
 export const loadProfilePreview = cache(async (username: string): Promise<LinkPreview> => {

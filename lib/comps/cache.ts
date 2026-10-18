@@ -1,10 +1,10 @@
 import "server-only";
 
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
+import { CACHE_TTL_MS } from "./cache-ttl";
 import type { CleanedSale } from "./types";
 
-/** Refresh from Trawl only when the newest fetched_at is older than this. */
-export const CACHE_TTL_MS = 6 * 60 * 60 * 1000;
+export { CACHE_TTL_MS };
 
 export type CachedSoldBatch = {
   sales: CleanedSale[];
