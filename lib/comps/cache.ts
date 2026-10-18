@@ -86,10 +86,12 @@ export async function listCachedItemIds(
   return ids;
 }
 
-/** Latest stored matched sales, even when the 6h cache TTL has passed. */
-export async function readLatestSoldComps(queryKey: string): Promise<CleanedSale[]> {
+/** Latest stored batch, even when the 6h cache TTL has passed. Null when none exists. */
+export async function readLatestSoldCompsBatch(
+  queryKey: string,
+): Promise<CachedSoldBatch | null> {
   const client = createSupabaseAdmin();
-  if (!client || !queryKey) return [];
+  if (!client || !queryKey) return null;
 
   const { data: latest, error: latestError } = await client
     .from("sold_comps_cache")
@@ -99,7 +101,7 @@ export async function readLatestSoldComps(queryKey: string): Promise<CleanedSale
     .limit(1)
     .maybeSingle();
 
-  if (latestError || !latest?.fetched_at) return [];
+  if (latestError || !latest?.fetched_at) return null;
 
   const fetchedAt = latest.fetched_at as string;
   const { data, error } = await client
@@ -110,8 +112,14 @@ export async function readLatestSoldComps(queryKey: string): Promise<CleanedSale
     .eq("query_key", queryKey)
     .eq("fetched_at", fetchedAt);
 
-  if (error || !data?.length) return [];
-  return rowsToSales(data as CacheRow[], fetchedAt);
+  if (error || !data?.length) return { sales: [], fetchedAt };
+  return { sales: rowsToSales(data as CacheRow[], fetchedAt), fetchedAt };
+}
+
+/** Latest stored matched sales, even when the 6h cache TTL has passed. */
+export async function readLatestSoldComps(queryKey: string): Promise<CleanedSale[]> {
+  const batch = await readLatestSoldCompsBatch(queryKey);
+  return batch?.sales ?? [];
 }
 
 function rowsToSales(data: CacheRow[], fetchedAt: string): CleanedSale[] {

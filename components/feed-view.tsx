@@ -8,10 +8,12 @@ import { MentionTextarea } from "@/components/mention-textarea";
 import { solidButton } from "@/components/button-styles";
 import { FollowButton } from "@/components/follow-button";
 import { useCollection } from "@/components/collection-provider";
+import { FirstCardWelcome } from "@/components/first-card-welcome";
 import { useSocial } from "@/components/social-provider";
 import { PullToRefresh } from "@/components/pull-to-refresh";
 import { EmptyState, TimelineSkeleton } from "@/components/status";
 import { CollectionToday } from "@/components/collection-today";
+import { shouldShowFirstCardWelcome } from "@/lib/collection/welcome";
 import { Tweet } from "@/components/tweet";
 import { takeCompose } from "@/lib/capture";
 import { fileToDataUrl } from "@/lib/storage";
@@ -21,6 +23,14 @@ import { POST_LIMIT, type PublicCard } from "@/lib/social/types";
 export function FeedView() {
   const { ready, user, feed, homePosts, homeReposts, suggestions, profiles, followingCount, refresh } =
     useSocial();
+  const { cards, ready: cardsReady, syncError } = useCollection();
+  const showWelcome =
+    Boolean(user) &&
+    shouldShowFirstCardWelcome({
+      cardCount: cards.length,
+      ready: cardsReady,
+      syncError,
+    });
   const [lane, setLane] = useState<"following" | "foryou">("foryou");
   const pickedLane = useRef(false);
   const suggestionIds = useRef<string[] | null>(null);
@@ -44,7 +54,7 @@ export function FeedView() {
 
   return (
     <PullToRefresh onRefresh={refresh} className="-mx-4 -mt-5">
-      {user ? <CollectionToday /> : null}
+      {showWelcome ? <FirstCardWelcome /> : user ? <CollectionToday /> : null}
 
       <div className="grid grid-cols-2 border-b border-zinc-200 text-[15px] dark:border-white/10">
         <LaneTab active={lane === "foryou"} onClick={() => setLane("foryou")}>
@@ -98,7 +108,7 @@ export function FeedView() {
       </Link>
 
       <div>
-        {visible.length === 0 ? (
+        {visible.length === 0 && !showWelcome ? (
           <EmptyState
             icon={<Compass className="h-5 w-5" />}
             title="No posts yet"

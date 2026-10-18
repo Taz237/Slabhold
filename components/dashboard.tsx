@@ -3,11 +3,13 @@
 import Link from "next/link";
 import { useMemo, useState, type ReactNode } from "react";
 import { Info, Search, TrendingDown, TrendingUp, WalletCards } from "lucide-react";
-import { outlineButton, solidButton } from "@/components/button-styles";
+import { outlineButton } from "@/components/button-styles";
 import { CategoryBadge } from "@/components/category-picker";
 import { CollectionValueHistory } from "@/components/collection-value-history";
 import { useCollection } from "@/components/collection-provider";
 import { CardThumb } from "@/components/card-thumb";
+import { FirstCardWelcome } from "@/components/first-card-welcome";
+import { shouldShowFirstCardWelcome } from "@/lib/collection/welcome";
 import { CollectionSkeleton, EmptyState } from "@/components/status";
 import {
   cardTitle,
@@ -33,6 +35,7 @@ import {
   type CardCategory,
   type PortfolioFilter,
 } from "@/lib/types";
+import { displayedCollectionTotal } from "@/lib/collection/displayed-value";
 import {
   investedAmountLabel,
   investedCardLabel,
@@ -84,6 +87,10 @@ export function Dashboard() {
     [cards, summaryLane],
   );
   const totals = useMemo(() => summarize(inLane, values), [inLane, values]);
+  const collectionValue = useMemo(
+    () => displayedCollectionTotal(inLane, values),
+    [inLane, values],
+  );
   const profitTotal = totals.unrealizedProfit + totals.realizedProfit;
   const pricedCount = totals.pricedCount;
   const cardCount = inLane.length;
@@ -119,12 +126,14 @@ export function Dashboard() {
           <p className="mt-2 text-sm text-rose-600 dark:text-rose-400">{syncError}</p>
         ) : null}
       </div>
-      <CollectionValueHistory
-        currentValue={totals.estimatedValue}
-        valueLoading={valuesLoading}
-        valueError={valuesFailed}
-        onRetry={retryValues}
-      />
+      {cards.length === 0 ? null : (
+        <CollectionValueHistory
+          currentValue={collectionValue}
+          valueLoading={valuesLoading}
+          valueError={valuesFailed}
+          onRetry={retryValues}
+        />
+      )}
       <div className="grid grid-cols-4 rounded-full bg-zinc-100 p-1 dark:bg-white/10" role="tablist" aria-label="Collection">
         {LANES.map((item) => {
           const selected = lane === item.id;
@@ -146,6 +155,8 @@ export function Dashboard() {
           );
         })}
       </div>
+      {cards.length === 0 ? null : (
+      <>
       <section className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <Stat
           label="Total invested"
@@ -156,7 +167,7 @@ export function Dashboard() {
         />
         <Stat
           label="Estimated value"
-          value={valuesFailed ? "" : money(totals.estimatedValue)}
+          value={valuesFailed ? "" : money(collectionValue)}
           hint={valuesFailed ? "" : valueHint}
           message={valuesFailed ? <ValuesRetry onRetry={retryValues} /> : undefined}
           loading={valuesLoading}
@@ -174,8 +185,16 @@ export function Dashboard() {
         <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
         Profit only includes cards with a price paid and a current value.
       </p>
+      </>
+      )}
 
-      {lane === "wants" ? (
+      {cards.length === 0 ? (
+        lane === "wants" ? (
+          <WantList />
+        ) : shouldShowFirstCardWelcome({ cardCount: cards.length, ready, syncError }) ? (
+          <FirstCardWelcome />
+        ) : null
+      ) : lane === "wants" ? (
         <WantList />
       ) : (
       <>
@@ -211,25 +230,17 @@ export function Dashboard() {
         <EmptyState
           icon={<WalletCards className="h-5 w-5" />}
           title={
-            cards.length === 0
-              ? "No cards yet"
-              : inLane.length === 0
-                ? `No ${categoryLabel(lane === "pc" ? "pc" : "flipping")} cards`
-                : "No cards match"
+            inLane.length === 0
+              ? `No ${categoryLabel(lane === "pc" ? "pc" : "flipping")} cards`
+              : "No cards match"
           }
           detail={
-            cards.length === 0
-              ? "Add a pickup to start tracking what you paid and what it's worth."
-              : inLane.length === 0
-                ? "Cards you add here will show up in this tab."
-                : "Nothing in this tab matches that search or filter."
+            inLane.length === 0
+              ? "Cards you add here will show up in this tab."
+              : "Nothing in this tab matches that search or filter."
           }
         >
-          {cards.length === 0 ? (
-            <Link href="/cards/new" className={solidButton}>
-              Add your first card
-            </Link>
-          ) : inLane.length === 0 ? (
+          {inLane.length === 0 ? (
             <button type="button" onClick={() => setLane("all")} className={outlineButton}>
               Show all cards
             </button>

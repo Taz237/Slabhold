@@ -554,6 +554,21 @@ describe("filterPriceOutliers", () => {
       [100, 105, 110],
     );
   });
+
+  it("keeps the set when the band would not be a strict majority", () => {
+    const sales: CleanedSale[] = [
+      saleAt(1),
+      saleAt(2),
+      saleAt(3),
+      saleAt(10),
+      saleAt(30),
+    ];
+    const filtered = filterPriceOutliers(sales);
+    assert.deepEqual(
+      filtered.map((s) => s.price).sort((a, b) => a - b),
+      [1, 2, 3, 10, 30],
+    );
+  });
 });
 
 describe("prepareSales stats match filtered list", () => {

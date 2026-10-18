@@ -30,10 +30,10 @@ describe("formatCardValueLabel", () => {
     );
   });
 
-  it("shows No sales yet for no_sales", () => {
+  it("shows Not enough sales yet for no_sales", () => {
     assert.equal(
       formatCardValueLabel(value({ status: "no_sales" })),
-      "No sales yet",
+      "Not enough sales yet",
     );
   });
 
@@ -52,16 +52,23 @@ describe("formatCardValueLabel", () => {
     );
   });
 
-  it("shows No sales yet for missing row older than 10 minutes", () => {
+  it("shows Not enough sales yet for missing row older than 10 minutes", () => {
     const createdAt = new Date(now - VALUE_UPDATING_WINDOW_MS - 1).toISOString();
     assert.equal(
       formatCardValueLabel(null, { createdAt, now }),
-      "No sales yet",
+      "Not enough sales yet",
     );
   });
 
-  it("shows No sales yet for missing row without createdAt", () => {
-    assert.equal(formatCardValueLabel(undefined), "No sales yet");
+  it("shows Not enough sales yet for missing row without createdAt", () => {
+    assert.equal(formatCardValueLabel(undefined), "Not enough sales yet");
+  });
+
+  it("hides a median that is not backed by a matching sale", () => {
+    assert.equal(
+      formatCardValueLabel(value({ status: "ok", median: 80, nSales: 0 })),
+      "Not enough sales yet",
+    );
   });
 });
 

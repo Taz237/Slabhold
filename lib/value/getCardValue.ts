@@ -4,6 +4,7 @@ import { getCompsSource, getSoldComps } from "@/lib/comps";
 import { loadSoldCompCard } from "@/lib/comps/load-card";
 import { buildQueryKey } from "@/lib/comps/query-key";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
+import { refreshCardValueResult } from "./refresh-result";
 import type { CardValueResult, CardValueStatus } from "./types";
 import { VALUE_STALE_AFTER_MS } from "./types";
 
@@ -200,17 +201,59 @@ export async function refreshCardValue(
   else if (!hasSales) status = "no_sales";
   else status = "ok";
 
-  // Always stamp matched_at = now on every recompute (including 0 sales).
   const matchedAt = new Date().toISOString();
+  const { data: previousRow, error: previousError } = await client
+    .from("card_values")
+    .select("median, low, high, n_sales, status, matched_at, query_key")
+    .eq("card_id", cardId)
+    .maybeSingle();
+
+  if (previousError) {
+    console.warn("[card_values] previous read failed:", previousError.message);
+    if (!hasSales) return emptyResult(isSample ? "sample" : "no_sales");
+  }
+
+  const decision = refreshCardValueResult(
+    previousRow
+      ? {
+          status: ((previousRow.status as CardValueStatus) || "unavailable"),
+          median: previousRow.median != null ? Number(previousRow.median) : null,
+          low: previousRow.low != null ? Number(previousRow.low) : null,
+          high: previousRow.high != null ? Number(previousRow.high) : null,
+          nSales:
+            previousRow.n_sales == null || Number.isNaN(Number(previousRow.n_sales))
+              ? 0
+              : Number(previousRow.n_sales),
+          matchedAt: (previousRow.matched_at as string | null) ?? null,
+          queryKey: (previousRow.query_key as string | null) ?? null,
+        }
+      : null,
+    {
+      status,
+      median: hasSales ? payload.median : null,
+      low: hasSales ? payload.p25 : null,
+      high: hasSales ? payload.p75 : null,
+      nSales,
+      matchedAt,
+      queryKey,
+    },
+  );
+  const merged = decision.value;
+  if (decision.keptPreviousMedian) {
+    console.log(
+      `[card_values] kept previous median for ${cardId}: new run had 0 sales`,
+    );
+  }
+
   const row: CardValueRow = {
     card_id: cardId,
-    median: hasSales ? payload.median : null,
-    low: hasSales ? payload.p25 : null,
-    high: hasSales ? payload.p75 : null,
-    n_sales: nSales,
-    status,
-    query_key: queryKey,
-    matched_at: matchedAt,
+    median: merged.median,
+    low: merged.low,
+    high: merged.high,
+    n_sales: merged.nSales,
+    status: merged.status,
+    query_key: merged.queryKey,
+    matched_at: merged.matchedAt,
   };
 
   await upsertCardValue(client, {
@@ -218,10 +261,10 @@ export async function refreshCardValue(
     median: row.median,
     low: row.low,
     high: row.high,
-    n_sales: nSales,
-    status,
-    query_key: queryKey,
-    matched_at: matchedAt,
+    n_sales: row.n_sales ?? 0,
+    status: row.status,
+    query_key: row.query_key ?? queryKey,
+    matched_at: row.matched_at ?? matchedAt,
   });
 
   return rowToResult(row);

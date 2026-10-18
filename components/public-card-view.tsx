@@ -6,12 +6,14 @@ import { ArrowLeft } from "lucide-react";
 import { CardCollectorsSaying } from "@/components/card-collectors-saying";
 import { WantButton } from "@/components/want-button";
 import { CardThumb } from "@/components/card-thumb";
+import { CompBasis } from "@/components/comp-basis";
 import { CompsList } from "@/components/comps-list";
 import { useCollection } from "@/components/collection-provider";
 import { ProfileSkeleton } from "@/components/status";
 import { useSocial } from "@/components/social-provider";
 import { ValueChart } from "@/components/value-chart";
 import { isCardOwner } from "@/lib/comps/ownership";
+import { basedOnSalesLabel, resolveCardScreenValue } from "@/lib/comps/shared-value";
 import { useSoldComps } from "@/lib/comps/use-sold-comps";
 import { cardTitle, formatPaidLabel, money } from "@/lib/format";
 import { formatRelativeTime } from "@/lib/relative-time";
@@ -19,7 +21,7 @@ import type { PublicCard } from "@/lib/social/types";
 import { createSupabaseBrowser } from "@/lib/supabase/browser";
 import {
   formatCardValueLabel,
-  isLowConfidenceValue,
+  NOT_ENOUGH_SALES_LABEL,
 } from "@/lib/value/format";
 import { useCardValue } from "@/lib/value/use-card-values";
 
@@ -130,13 +132,23 @@ function PublicCardAnalytics({
     (sold.data?.sample === true ||
       sold.data?.source === "sample" ||
       sold.data?.source === "off");
-  const compsLoading = Boolean(userId) && sold.status === "loading";
-  const liveCount = usingLive ? (sold.data?.count ?? 0) : 0;
-  const liveComps = usingLive ? (sold.data?.comps ?? []) : [];
-  const displayEst =
-    cardValue?.status === "ok" || cardValue?.status === "sample"
-      ? cardValue.median
-      : null;
+  const compsPhase =
+    authRequired
+      ? "auth"
+      : sold.status === "ready"
+        ? "ready"
+        : unavailable || rateLimited
+          ? "unavailable"
+          : "loading";
+  const priced = resolveCardScreenValue({
+    phase: compsPhase,
+    comps: sold.status === "ready" ? (sold.data?.comps ?? []) : null,
+    hiddenItemIds: flaggedIds,
+    stored: cardValue,
+  });
+  const compsLoading = priced.phase === "loading";
+  const onScreenComps = priced.phase === "comps" ? (priced.comps ?? []) : [];
+  const displayEst = priced.amount;
   const showChart = !authRequired && !unavailable && !rateLimited;
 
   return (
@@ -179,20 +191,23 @@ function PublicCardAnalytics({
         <div className="rounded-2xl border border-zinc-200 bg-white px-4 py-4 dark:border-white/10 dark:bg-white/[0.03]">
           <p className="text-[11px] tracking-wide text-zinc-500 uppercase">Estimated value</p>
           <p className="mt-1 text-2xl font-semibold tracking-tight tabular-nums">
-            {valueLoading
+            {compsLoading || (priced.phase !== "comps" && valueLoading)
               ? "…"
               : displayEst != null
                 ? money(displayEst, true)
-                : formatCardValueLabel(cardValue)}
+                : priced.phase === "comps"
+                  ? NOT_ENOUGH_SALES_LABEL
+                  : formatCardValueLabel(cardValue)}
           </p>
-          {displayEst != null && cardValue ? (
-            <p className="mt-1 text-xs text-zinc-500">
-              {cardValue.status === "sample"
-                ? "Sample estimate"
-                : `Based on ${cardValue.nSales} sale${cardValue.nSales === 1 ? "" : "s"}`}
-            </p>
+          {displayEst != null ? (
+            <>
+              {usingSample ? (
+                <p className="mt-1 text-xs text-zinc-500">Sample estimate</p>
+              ) : null}
+              <CompBasis count={priced.count} basis={priced.basis} />
+            </>
           ) : null}
-          {isLowConfidenceValue(cardValue) ? (
+          {priced.phase === "comps" && priced.count > 0 && priced.count < 5 ? (
             <span className="mt-1 inline-block rounded-md bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800 dark:text-amber-200">
               Low confidence
             </span>
@@ -217,14 +232,16 @@ function PublicCardAnalytics({
             estimatedSellPrice: displayEst ?? card.estimatedSellPrice,
             purchasePrice: card.purchasePrice ?? 0,
           }}
-          points={usingLive ? sold.data?.history : null}
+          points={priced.phase === "comps" && usingLive ? sold.data?.history : null}
           source={sold.data?.source ?? (usingSample ? "sample" : "trawl")}
           loading={compsLoading}
-          median={displayEst}
-          p25={cardValue?.low ?? null}
-          p75={cardValue?.high ?? null}
-          count={cardValue?.nSales ?? 0}
-          sample={usingSample || cardValue?.status === "sample"}
+          median={priced.amount}
+          p25={priced.low}
+          p75={priced.high}
+          count={priced.count}
+          sample={usingSample}
+          lockedToComps={priced.phase === "comps"}
+          noSalesLabel={NOT_ENOUGH_SALES_LABEL}
           hideStatusLabel
         />
       ) : null}
@@ -239,10 +256,10 @@ function PublicCardAnalytics({
                   ? "Loading sold listings…"
                   : unavailable || rateLimited
                     ? "Sold data unavailable, try again shortly"
-                    : usingLive
-                      ? liveCount === 0
-                        ? "Matching sold listings"
-                        : `Based on ${liveCount} sale${liveCount === 1 ? "" : "s"}${
+                    : priced.phase === "comps"
+                      ? priced.count === 0
+                        ? NOT_ENOUGH_SALES_LABEL
+                        : `${basedOnSalesLabel(priced.count)}${
                             sold.data?.fetchedAt
                               ? ` · Updated ${formatRelativeTime(sold.data.fetchedAt)}`
                               : ""
@@ -276,9 +293,9 @@ function PublicCardAnalytics({
               />
             ))}
           </div>
-        ) : unavailable || rateLimited ? null : usingLive ? (
+        ) : unavailable || rateLimited ? null : priced.phase === "comps" && onScreenComps.length > 0 ? (
           <CompsList
-            comps={liveComps}
+            comps={onScreenComps}
             cardId={card.id}
             userId={userId}
             canFlag={canFlag}
@@ -287,8 +304,6 @@ function PublicCardAnalytics({
               setFlaggedIds((prev) => new Set(prev).add(itemId))
             }
           />
-        ) : usingSample ? (
-          <CompsList comps={sold.data?.comps ?? []} />
         ) : null}
       </section>
 

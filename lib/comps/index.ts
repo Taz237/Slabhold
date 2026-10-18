@@ -7,18 +7,22 @@ import { isLowConfidence } from "./clean";
 import { cleanedToCompListings, historyFromSales } from "./map";
 import {
   buildSoldSearchQuery,
-  filterComps,
   type MatchCard,
 } from "./match";
 import { buildQueryKey } from "./query-key";
 import { mockCompsForCard } from "./sample";
-import { middleFifty } from "./stats";
+import {
+  compListingToCleaned,
+  screenValueFromComps,
+  sharedCompValue,
+} from "./shared-value";
 import { fetchTrawlSold, getTrawlApiKey } from "./trawl";
 import type { CleanedSale, SoldCompCard, SoldCompsPayload } from "./types";
 
 export type { CleanedSale, SoldCompCard, SoldCompsPayload } from "./types";
 export { isLowConfidence } from "./clean";
 export { filterComps, buildCompsQuery, prepareSales } from "./match";
+export { sharedCompValue, screenValueFromComps } from "./shared-value";
 export { buildQueryKey } from "./query-key";
 export { filterPriceOutliers } from "./stats";
 
@@ -61,31 +65,32 @@ function toMatchCard(card: SoldCompCard): MatchCard {
 }
 
 function samplePayload(card: SoldCompCard): SoldCompsPayload {
-  const comps = mockCompsForCard({
+  const matchCard = toMatchCard(card);
+  const mocks = mockCompsForCard({
     playerName: card.playerName,
     year: card.year,
     setBrand: card.setBrand,
     cardNumber: card.cardNumber || "—",
     estimatedSellPrice: card.estimatedSellPrice ?? 120,
   });
-  const prices = comps.map((c) => c.soldPrice);
-  const stats = middleFifty(prices);
+  const valued = sharedCompValue(matchCard, mocks.map(compListingToCleaned));
+  const priced = screenValueFromComps(cleanedToCompListings(valued.sales));
   return {
-    comps,
+    comps: priced.comps,
     history: mockValueHistory({
       id: card.id || `${card.playerName}-${card.year}-${card.setBrand}`,
-      estimatedSellPrice: stats.median ?? comps[0]?.soldPrice ?? 120,
-      purchasePrice: comps[0]?.soldPrice ?? 100,
+      estimatedSellPrice: priced.median ?? mocks[0]?.soldPrice ?? 120,
+      purchasePrice: priced.comps[0]?.soldPrice ?? mocks[0]?.soldPrice ?? 100,
     }),
-    median: stats.median != null ? Math.round(stats.median) : null,
-    p25: stats.p25 != null ? Math.round(stats.p25) : null,
-    p75: stats.p75 != null ? Math.round(stats.p75) : null,
-    count: comps.length,
+    median: priced.median,
+    p25: priced.low,
+    p75: priced.high,
+    count: priced.count,
     source: getCompsSource() === "off" ? "off" : "sample",
     cached: false,
     fetchedAt: null,
-    query: buildSoldSearchQuery(toMatchCard(card)),
-    lowConfidence: isLowConfidence(comps.length),
+    query: buildSoldSearchQuery(matchCard),
+    lowConfidence: isLowConfidence(priced.count),
     sample: true,
   };
 }
@@ -99,28 +104,26 @@ function payloadFromSales(
     query: string;
   },
 ): SoldCompsPayload {
-  const comps = cleanedToCompListings(sales);
-  const prices = comps.map((c) => c.soldPrice);
-  const stats = middleFifty(prices);
+  const priced = screenValueFromComps(cleanedToCompListings(sales));
   return {
-    comps,
+    comps: priced.comps,
     history: historyFromSales(sales),
-    median: stats.median != null ? Math.round(stats.median) : null,
-    p25: stats.p25 != null ? Math.round(stats.p25) : null,
-    p75: stats.p75 != null ? Math.round(stats.p75) : null,
-    count: comps.length,
+    median: priced.median,
+    p25: priced.low,
+    p75: priced.high,
+    count: priced.count,
     source: opts.source,
     cached: opts.cached,
     fetchedAt: opts.fetchedAt,
     query: opts.query,
-    lowConfidence: isLowConfidence(comps.length),
+    lowConfidence: isLowConfidence(priced.count),
     sample: false,
   };
 }
 
 /**
  * Generic sold-comps resolver. Trawl key stays server-side.
- * Always re-applies filterComps (shared with refreshCardValue).
+ * Always re-applies sharedCompValue (shared with refreshCardValue).
  */
 export async function getSoldComps(
   card: SoldCompCard,
@@ -145,7 +148,7 @@ export async function getSoldComps(
   const cached = await readSoldCompsCache(queryKey);
   if (cached) {
     // Re-filter cached rows with the current shared rules.
-    const sales = filterComps(matchCard, cached.sales);
+    const sales = sharedCompValue(matchCard, cached.sales).sales;
     return {
       ok: true,
       payload: payloadFromSales(sales, {
@@ -174,7 +177,7 @@ export async function getSoldComps(
       return { ok: false, unavailable: true };
     }
 
-    const sales = filterComps(matchCard, result.body.results ?? []);
+    const sales = sharedCompValue(matchCard, result.body.results ?? []).sales;
     const previousIds = await listCachedItemIds(queryKey);
     const writtenAt = await writeSoldCompsCache(card.id, queryKey, sales);
     const fetchedAt = writtenAt ?? new Date().toISOString();

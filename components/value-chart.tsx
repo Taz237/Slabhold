@@ -11,6 +11,7 @@ import {
   YAxis,
 } from "recharts";
 import { money } from "@/lib/format";
+import { NOT_ENOUGH_SALES_LABEL } from "@/lib/value/format";
 import { mockValueHistory, type ValuePoint } from "@/lib/value-history";
 
 export function ValueChart({
@@ -25,6 +26,8 @@ export function ValueChart({
   sample = true,
   unavailable = false,
   noSalesLabel,
+  /** Headline and count come from the comps on this card, not a separate estimate. */
+  lockedToComps = false,
 }: {
   card: { id: string; estimatedSellPrice: number; purchasePrice: number };
   points?: ValuePoint[] | null;
@@ -37,7 +40,8 @@ export function ValueChart({
   sample?: boolean;
   unavailable?: boolean;
   noSalesLabel?: string;
-  /** Kept for callers; empty comps always show "No sales yet". */
+  lockedToComps?: boolean;
+  /** Kept for callers; empty comps show "Not enough sales yet". */
   hideStatusLabel?: boolean;
 }) {
   if (unavailable && !loading) {
@@ -57,23 +61,24 @@ export function ValueChart({
   }
 
   const usingLive = source === "trawl" && !sample;
-  const showSample = sample || source === "sample" || source === "off";
+  const showSample = !lockedToComps && (sample || source === "sample" || source === "off");
   const points =
-    usingLive && pointsProp && pointsProp.length > 0
+    (usingLive || lockedToComps) && pointsProp && pointsProp.length > 0
       ? pointsProp
       : showSample
         ? mockValueHistory(card)
         : [];
 
-  const displayMedian =
-    usingLive && median != null
+  const displayMedian = lockedToComps
+    ? median
+    : usingLive && median != null
       ? median
       : (points[points.length - 1]?.value ?? card.estimatedSellPrice);
-  const displayP25 = usingLive ? p25 : null;
-  const displayP75 = usingLive ? p75 : null;
-  const n = usingLive ? count : points.length;
-  const lowConfidence = usingLive && n > 0 && n < 5;
-  const noSales = usingLive && n === 0;
+  const displayP25 = usingLive || lockedToComps ? p25 : null;
+  const displayP75 = usingLive || lockedToComps ? p75 : null;
+  const n = usingLive || lockedToComps ? count : points.length;
+  const lowConfidence = (usingLive || lockedToComps) && n > 0 && n < 5;
+  const noSales = (usingLive || lockedToComps) && (n === 0 || displayMedian == null);
 
   return (
     <section className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-white/10 dark:bg-white/[0.03] sm:p-5">
@@ -84,21 +89,21 @@ export function ValueChart({
           </p>
           {noSales ? (
             <p className="mt-1 text-lg font-semibold tracking-tight">
-              {noSalesLabel ?? "No sales yet"}
+              {noSalesLabel ?? NOT_ENOUGH_SALES_LABEL}
             </p>
           ) : (
             <p className="mt-1 text-3xl font-semibold tracking-tight tabular-nums">
-              {money(displayMedian)}
+              {money(displayMedian ?? 0)}
             </p>
           )}
-          {usingLive && !noSales && displayP25 != null && displayP75 != null ? (
+          {(usingLive || lockedToComps) && !noSales && displayP25 != null && displayP75 != null ? (
             <p className="mt-1 text-sm text-zinc-500 tabular-nums">
               Middle 50%: {money(displayP25)} – {money(displayP75)}
             </p>
           ) : null}
         </div>
         <div className="text-right">
-          {usingLive && !noSales ? (
+          {(usingLive || lockedToComps) && !noSales ? (
             <p className="text-sm font-medium text-zinc-700 dark:text-zinc-200">
               Based on {n} sale{n === 1 ? "" : "s"}
             </p>
@@ -111,7 +116,7 @@ export function ValueChart({
         </div>
       </div>
 
-      {!usingLive ? (
+      {showSample ? (
         <p className="mt-2 text-xs text-zinc-500">Sample history from recent months</p>
       ) : null}
 
@@ -134,10 +139,10 @@ export function ValueChart({
               />
               <YAxis hide domain={["dataMin - 10", "dataMax + 10"]} />
               <Tooltip content={<ValueTip />} cursor={{ stroke: "#a1a1aa", strokeDasharray: "3 3" }} />
-              {usingLive && displayP25 != null && displayP75 != null ? (
+              {(usingLive || lockedToComps) && displayP25 != null && displayP75 != null ? (
                 <ReferenceArea y1={displayP25} y2={displayP75} fill="#10b981" fillOpacity={0.12} />
               ) : null}
-              {usingLive && displayMedian != null ? (
+              {(usingLive || lockedToComps) && displayMedian != null ? (
                 <ReferenceLine
                   y={displayMedian}
                   stroke="#059669"
@@ -151,7 +156,7 @@ export function ValueChart({
                 stroke="#10b981"
                 strokeWidth={2.5}
                 fill={`url(#value-fill-${card.id})`}
-                dot={usingLive}
+                dot={usingLive || lockedToComps}
                 activeDot={{ r: 4, strokeWidth: 0, fill: "#10b981" }}
               />
             </AreaChart>

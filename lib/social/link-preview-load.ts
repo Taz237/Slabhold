@@ -1,6 +1,12 @@
 import "server-only";
 
 import { cache } from "react";
+import { readLatestSoldCompsBatch } from "@/lib/comps/cache";
+import { loadSoldCompCard } from "@/lib/comps/load-card";
+import { buildQueryKey } from "@/lib/comps/query-key";
+import { displayedCompLabel } from "@/lib/comps/shared-value";
+import type { MatchCard } from "@/lib/comps/match";
+import type { SoldCompCard } from "@/lib/comps/types";
 import { wantLabel } from "@/lib/wants/label";
 import { formatCardValueLabel } from "@/lib/value/format";
 import { getCardValue } from "@/lib/value/getCardValue";
@@ -42,14 +48,48 @@ export const loadPublicCardPreview = cache(async (id: string): Promise<LinkPrevi
   if (error || !data) return cardLinkPreview({ isPublic: false });
 
   const card = mapPublicCard(data);
-  const value = await getCardValue(card.id);
   return cardLinkPreview({
     isPublic: true,
     name: wantLabel(card) || card.playerName,
     imageUrl: card.photoDataUrl,
-    valueLabel: formatCardValueLabel(value, { createdAt: card.createdAt }),
+    valueLabel: await previewValueLabel(card.id, card.createdAt),
   });
 });
+
+function matchCardOf(card: SoldCompCard): MatchCard {
+  return {
+    playerName: card.playerName,
+    year: card.year,
+    yearLabel: card.yearLabel,
+    setBrand: card.setBrand,
+    cardNumber: card.cardNumber,
+    noNumber: card.noNumber,
+    parallel: card.parallel,
+    serialRun: card.serialRun,
+    isAuto: card.isAuto,
+    isRelic: card.isRelic,
+    conditionType: card.conditionType,
+    grade: card.grade,
+    gradeQualifier: card.gradeQualifier,
+  };
+}
+
+/**
+ * Same rounded median the card page shows, from the stored comps cache.
+ * No Trawl call. Without a cache batch, fall back to the card_values label.
+ */
+async function previewValueLabel(
+  cardId: string,
+  createdAt: string | undefined,
+): Promise<string> {
+  const stored = await getCardValue(cardId);
+  const full = await loadSoldCompCard(cardId);
+  if (full) {
+    const batch = await readLatestSoldCompsBatch(buildQueryKey(full));
+    if (batch) return displayedCompLabel(matchCardOf(full), batch.sales);
+  }
+  return formatCardValueLabel(stored, { createdAt });
+}
 
 export const loadProfilePreview = cache(async (username: string): Promise<LinkPreview> => {
   const supabase = await createSupabaseServer();
