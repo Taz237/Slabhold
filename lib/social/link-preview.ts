@@ -21,13 +21,57 @@ export function clipText(value: string, max: number): string {
   return `${text.slice(0, Math.max(1, max - 1)).trimEnd()}…`;
 }
 
-/** https images and image data URLs only. Drops anything else. */
+const MAX_DATA_BYTES = 2 * 1024 * 1024;
+const MAX_DATA_URL_CHARS = 3 * 1024 * 1024;
+const DATA_IMAGE =
+  /^data:image\/(png|jpeg|webp|gif);base64,([A-Za-z0-9+/]+={0,2})$/i;
+
+function supabaseStorageHost(): string | null {
+  const raw = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+  if (!raw) return null;
+  try {
+    return new URL(raw).host;
+  } catch {
+    return null;
+  }
+}
+
+function dataImageUrl(value: string): string | null {
+  if (value.length > MAX_DATA_URL_CHARS) return null;
+  const match = DATA_IMAGE.exec(value);
+  if (!match) return null;
+  const payload = match[2];
+  if (payload.length % 4 !== 0) return null;
+  const padding = payload.endsWith("==") ? 2 : payload.endsWith("=") ? 1 : 0;
+  const bytes = (payload.length / 4) * 3 - padding;
+  if (bytes <= 0 || bytes > MAX_DATA_BYTES) return null;
+  return value;
+}
+
+function storageImageUrl(value: string): string | null {
+  let parsed: URL;
+  try {
+    parsed = new URL(value);
+  } catch {
+    return null;
+  }
+  if (parsed.protocol !== "https:") return null;
+  if (parsed.username || parsed.password) return null;
+  const host = supabaseStorageHost();
+  if (!host || parsed.host !== host) return null;
+  if (!parsed.pathname.startsWith("/storage/v1/object/public/")) return null;
+  return value;
+}
+
+/**
+ * Share images are a small png/jpeg/webp/gif data URL, or an https object in
+ * this project's public Supabase storage. Every other URL is dropped.
+ */
 export function cleanImageUrl(url: string | null | undefined): string | null {
   if (!url) return null;
   const value = url.trim();
-  if (/^data:image\/[a-z0-9.+-]+;/i.test(value)) return value;
-  if (/^https:\/\//i.test(value)) return value;
-  return null;
+  if (value.startsWith("data:")) return dataImageUrl(value);
+  return storageImageUrl(value);
 }
 
 export function collectionSizeLabel(count: number): string {

@@ -1,18 +1,36 @@
 import { ImageResponse } from "next/og";
-import { clipText, type LinkPreview } from "@/lib/social/link-preview";
+import { cleanImageUrl, clipText, type LinkPreview } from "@/lib/social/link-preview";
 
 export const ogSize = { width: 1200, height: 630 };
 export const ogContentType = "image/png";
 
+const MAX_FETCH_BYTES = 5 * 1024 * 1024;
+
+/** Confirm a cleaned image URL. Redirects are not followed. */
 export async function reachableImage(url: string | null): Promise<string | null> {
-  if (!url) return null;
-  if (url.startsWith("data:image/")) return url;
+  const safe = cleanImageUrl(url);
+  if (!safe) return null;
+  if (safe.startsWith("data:")) return safe;
   try {
-    const response = await fetch(url, { redirect: "follow" });
-    if (!response.ok) return null;
-    const type = response.headers.get("content-type") ?? "";
-    if (type && !type.startsWith("image/")) return null;
-    return url;
+    const response = await fetch(safe, {
+      redirect: "manual",
+      signal: AbortSignal.timeout(3000),
+    });
+    try {
+      if (response.type === "opaqueredirect") return null;
+      if (response.status >= 300 && response.status < 400) return null;
+      if (!response.ok) return null;
+      const lengthHeader = response.headers.get("content-length");
+      if (lengthHeader != null) {
+        const length = Number(lengthHeader);
+        if (!Number.isFinite(length) || length > MAX_FETCH_BYTES) return null;
+      }
+      const type = (response.headers.get("content-type") ?? "").toLowerCase();
+      if (type && !type.startsWith("image/")) return null;
+      return safe;
+    } finally {
+      await response.body?.cancel().catch(() => undefined);
+    }
   } catch {
     return null;
   }
@@ -22,6 +40,7 @@ export function renderOg(preview: LinkPreview, kicker: string) {
   const title = clipText(preview.title, 90);
   const detail = clipText(preview.detail, 80);
   const titleSize = title.length > 70 ? 40 : title.length > 42 ? 52 : 64;
+  const imageUrl = cleanImageUrl(preview.imageUrl);
 
   return new ImageResponse(
     (
@@ -68,7 +87,7 @@ export function renderOg(preview: LinkPreview, kicker: string) {
             ) : null}
           </div>
         </div>
-        {preview.imageUrl ? (
+        {imageUrl ? (
           <div
             style={{
               display: "flex",
@@ -81,7 +100,7 @@ export function renderOg(preview: LinkPreview, kicker: string) {
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src={preview.imageUrl}
+              src={imageUrl}
               alt=""
               width={360}
               height={480}

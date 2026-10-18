@@ -1,16 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Star } from "lucide-react";
 import { useSocial } from "@/components/social-provider";
 import { cardIdentityKey, type IdentityCard } from "@/lib/social/card-identity";
-import { toPublicAttachment } from "@/lib/social/card-posts";
-import type { PublicCard } from "@/lib/social/types";
-import {
-  hasWantListPost,
-  shouldPublishWantPost,
-  wantListPostBody,
-} from "@/lib/social/want-posts";
 import { createSupabaseBrowser } from "@/lib/supabase/browser";
 import { isUuid } from "@/lib/value/card-value-access";
 import { wantLabel } from "@/lib/wants/label";
@@ -21,47 +14,8 @@ type SavedWant = {
   targetPrice: number | null;
 };
 
-type WantCard = IdentityCard & {
-  id: string;
-  photoDataUrl?: string | null;
-  accent?: string;
-  sport?: string;
-  estimatedSellPrice?: number;
-};
-
-function wantAttachment(card: WantCard): PublicCard {
-  const condition =
-    card.conditionType === "raw" || card.conditionType === "graded"
-      ? card.conditionType
-      : undefined;
-  return toPublicAttachment({
-    id: card.id,
-    playerName: card.playerName ?? "",
-    year: Number(card.year) || 0,
-    yearLabel: card.yearLabel || undefined,
-    setBrand: card.setBrand ?? "",
-    cardNumber: card.cardNumber ?? "",
-    sport: card.sport || "Basketball",
-    photoDataUrl: card.photoDataUrl ?? null,
-    accent: card.accent || "#7c5cff",
-    estimatedSellPrice: card.estimatedSellPrice ?? 0,
-    grade: card.grade || undefined,
-    parallel: card.parallel || undefined,
-    conditionType: condition,
-    grader: card.grader,
-  });
-}
-
-export function WantButton({
-  card,
-  isPublic = false,
-}: {
-  card: WantCard;
-  /** Public cards are announced once. Private cards stay off the feed. */
-  isPublic?: boolean;
-}) {
-  const { user, posts, createPost } = useSocial();
-  const announcing = useRef(false);
+export function WantButton({ card }: { card: IdentityCard & { id: string } }) {
+  const { user } = useSocial();
   const [want, setWant] = useState<SavedWant | null>(null);
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState("");
@@ -145,36 +99,6 @@ export function WantButton({
     });
     setError(null);
     setOpen(false);
-    const label = wantLabel(card) || card.playerName || "Card";
-    void announceWant(label);
-  }
-
-  async function announceWant(label: string) {
-    if (!user || announcing.current) return;
-    const already = hasWantListPost(posts, user.id, card.id);
-    if (!shouldPublishWantPost({ isPublic, alreadyPosted: already })) return;
-    const body = wantListPostBody(label);
-    const supabase = createSupabaseBrowser();
-    if (supabase && isUuid(card.id)) {
-      const { data: existing, error: lookupError } = await supabase
-        .from("posts")
-        .select("id")
-        .eq("user_id", user.id)
-        .eq("card->>id", card.id)
-        .like("content", "Added % to my want list")
-        .limit(1);
-      if (lookupError || (existing && existing.length > 0)) return;
-    }
-    announcing.current = true;
-    try {
-      await createPost({
-        body,
-        imageDataUrl: null,
-        card: wantAttachment(card),
-      });
-    } finally {
-      announcing.current = false;
-    }
   }
 
   async function remove() {
