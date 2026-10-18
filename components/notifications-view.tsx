@@ -8,17 +8,12 @@ import { solidButton } from "@/components/button-styles";
 import { EmptyState, LoadingRows } from "@/components/status";
 import { useSocial } from "@/components/social-provider";
 import { exactTime, timeAgo } from "@/lib/format";
-import type { Notification } from "@/lib/social/types";
-
-function actionText(kind: Notification["kind"]) {
-  if (kind === "like") return "liked your post";
-  if (kind === "comment") return "commented on your post";
-  if (kind === "repost") return "reposted your post";
-  if (kind === "quote") return "quoted your post";
-  if (kind === "mention") return "mentioned you";
-  if (kind === "want_alert") return "matched a card you want";
-  return "followed you";
-}
+import {
+  groupHeadlineParts,
+  groupNotifications,
+  type NotificationGroup,
+} from "@/lib/social/group-notifications";
+import type { NotificationKind, Profile } from "@/lib/social/types";
 
 export function NotificationsView() {
   const { ready, user, profiles, notifications, unreadCount, markNotificationsRead, refresh } = useSocial();
@@ -57,6 +52,7 @@ export function NotificationsView() {
   }
 
   const authors = new Map(profiles.map((profile) => [profile.id, profile]));
+  const groups = groupNotifications(notifications);
 
   return (
     <div className="-mx-4 -mt-5">
@@ -73,63 +69,63 @@ export function NotificationsView() {
         </EmptyState>
       ) : (
         <ul className="mt-3 divide-y divide-zinc-200 dark:divide-white/10">
-          {notifications.map((note) => {
-            const actor = note.actorId ? authors.get(note.actorId) : undefined;
-            const href =
-              note.kind === "want_alert"
-                ? note.href || (note.postId ? `/posts/${note.postId}` : "/collection")
-                : note.kind === "follow"
-                  ? actor
-                    ? `/u/${actor.username}`
-                    : "/profile"
-                  : note.postId
-                    ? `/posts/${note.postId}`
-                    : "/";
-            const Icon =
-              note.kind === "like"
-                ? Heart
-                : note.kind === "comment"
-                  ? MessageCircle
-                  : note.kind === "repost"
-                    ? Repeat2
-                    : note.kind === "quote"
-                      ? Quote
-                      : note.kind === "mention"
-                        ? AtSign
-                        : note.kind === "want_alert"
-                          ? Star
-                          : UserPlus;
-            const stamp = timeAgo(note.createdAt);
+          {groups.map((group) => {
+            const href = groupHref(group, authors);
+            const Icon = groupIcon(group.kind);
+            const stamp = timeAgo(group.createdAt);
+            const names = group.actorIds.map(
+              (id) => authors.get(id)?.displayName?.trim() || "Someone",
+            );
+            const headline = groupHeadlineParts(group.kind, names);
+            const lead = authors.get(group.actorIds[0] ?? "");
+            const faces = group.actorIds.slice(0, 2);
             return (
-              <li key={note.id}>
+              <li key={group.key}>
                 <Link href={href} className="flex gap-3 px-4 py-3">
-                  <Avatar
-                    name={actor?.displayName ?? "Collector"}
-                    image={actor?.avatarDataUrl}
-                    accent={actor?.accent}
-                  />
+                  {faces.length > 1 ? (
+                    <span className="flex shrink-0 -space-x-3">
+                      {faces.map((id) => {
+                        const person = authors.get(id);
+                        return (
+                          <Avatar
+                            key={id}
+                            name={person?.displayName ?? "Collector"}
+                            image={person?.avatarDataUrl}
+                            accent={person?.accent}
+                            className="h-8 w-8 text-[10px] ring-2 ring-[var(--background)]"
+                          />
+                        );
+                      })}
+                    </span>
+                  ) : (
+                    <Avatar
+                      name={lead?.displayName ?? "Collector"}
+                      image={lead?.avatarDataUrl}
+                      accent={lead?.accent}
+                    />
+                  )}
                   <span className="min-w-0 flex-1">
                     <span className="block text-[15px] leading-5">
-                      {note.kind === "want_alert" ? (
-                        <span>{note.preview}</span>
+                      {group.kind === "want_alert" ? (
+                        <span>{group.preview}</span>
                       ) : (
                         <>
-                          <span className="font-bold">{actor?.displayName ?? "Someone"}</span>{" "}
-                          {actionText(note.kind)}
+                          <span className="font-bold">{headline.lead}</span>
+                          {headline.rest}
                         </>
                       )}
                       {stamp ? (
                         <time
-                          dateTime={note.createdAt}
-                          title={exactTime(note.createdAt)}
+                          dateTime={group.createdAt}
+                          title={exactTime(group.createdAt)}
                           className="whitespace-nowrap text-zinc-500"
                         >
                           {" "}· {stamp}
                         </time>
                       ) : null}
                     </span>
-                    {note.preview && note.kind !== "want_alert" ? (
-                      <span className="mt-0.5 block truncate text-sm text-zinc-500">{note.preview}</span>
+                    {group.preview && group.kind !== "want_alert" ? (
+                      <span className="mt-0.5 block truncate text-sm text-zinc-500">{group.preview}</span>
                     ) : null}
                   </span>
                   <Icon className="mt-1 h-4 w-4 shrink-0 text-zinc-400" />
@@ -141,4 +137,25 @@ export function NotificationsView() {
       )}
     </div>
   );
+}
+
+function groupHref(group: NotificationGroup, authors: Map<string, Profile>) {
+  const note = group.notes[0];
+  const actor = group.actorIds[0] ? authors.get(group.actorIds[0]) : undefined;
+  if (!note) return "/";
+  if (note.kind === "want_alert") {
+    return note.href || (note.postId ? `/posts/${note.postId}` : "/collection");
+  }
+  if (note.kind === "follow") return actor ? `/u/${actor.username}` : "/profile";
+  return note.postId ? `/posts/${note.postId}` : "/";
+}
+
+function groupIcon(kind: NotificationKind) {
+  if (kind === "like") return Heart;
+  if (kind === "comment") return MessageCircle;
+  if (kind === "repost") return Repeat2;
+  if (kind === "quote") return Quote;
+  if (kind === "mention") return AtSign;
+  if (kind === "want_alert") return Star;
+  return UserPlus;
 }

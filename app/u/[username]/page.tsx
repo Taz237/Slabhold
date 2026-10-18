@@ -1,13 +1,19 @@
-"use client";
-
+import type { Metadata } from "next";
 import { Suspense } from "react";
-import { useParams } from "next/navigation";
 import { ProfileView } from "@/components/profile-view";
 import { ProfileSkeleton } from "@/components/status";
+import { previewMetadata } from "@/lib/social/link-preview";
+import { loadProfilePreview } from "@/lib/social/link-preview-load";
 
-export default function PublicProfilePage() {
-  const params = useParams<{ username: string }>();
-  const username = Array.isArray(params.username) ? params.username[0] : params.username;
+type Props = { params: Promise<{ username: string }> };
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { username } = await params;
+  return previewMetadata(await loadProfilePreview(username));
+}
+
+export default async function PublicProfilePage({ params }: Props) {
+  const { username } = await params;
   return (
     <Suspense fallback={<ProfileSkeleton />}>
       <ProfileView username={username} />

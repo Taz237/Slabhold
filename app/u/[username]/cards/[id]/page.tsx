@@ -1,11 +1,16 @@
-"use client";
-
-import { useParams } from "next/navigation";
+import type { Metadata } from "next";
 import { PublicCardView } from "@/components/public-card-view";
+import { previewMetadata } from "@/lib/social/link-preview";
+import { loadPublicCardPreview } from "@/lib/social/link-preview-load";
 
-export default function PublicCardPage() {
-  const params = useParams<{ username: string; id: string }>();
-  const username = Array.isArray(params.username) ? params.username[0] : params.username;
-  const id = Array.isArray(params.id) ? params.id[0] : params.id;
+type Props = { params: Promise<{ username: string; id: string }> };
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { id } = await params;
+  return previewMetadata(await loadPublicCardPreview(id));
+}
+
+export default async function PublicCardPage({ params }: Props) {
+  const { username, id } = await params;
   return <PublicCardView username={username} id={id} />;
 }

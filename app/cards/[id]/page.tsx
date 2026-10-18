@@ -1,9 +1,16 @@
-"use client";
-
-import { useParams } from "next/navigation";
+import type { Metadata } from "next";
 import { CardDetail } from "@/components/card-detail";
+import { previewMetadata } from "@/lib/social/link-preview";
+import { loadPublicCardPreview } from "@/lib/social/link-preview-load";
 
-export default function CardDetailPage() {
-  const { id } = useParams<{ id: string }>();
+type Props = { params: Promise<{ id: string }> };
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { id } = await params;
+  return previewMetadata(await loadPublicCardPreview(id));
+}
+
+export default async function CardDetailPage({ params }: Props) {
+  const { id } = await params;
   return <CardDetail id={id} />;
 }
