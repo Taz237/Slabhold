@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Avatar } from "@/components/avatar";
 import { LoadingRows } from "@/components/status";
-import { AdminNavLink } from "@/components/admin-nav-link";
+import { AdminMoreSection } from "@/components/admin-nav-link";
 import { DeleteAccount } from "@/components/delete-account";
 import { useSocial } from "@/components/social-provider";
 
@@ -119,9 +119,10 @@ export function MoreView() {
               Terms
             </Link>
           </li>
-          <AdminNavLink item className="block py-3" />
         </ul>
       </section>
+
+      <AdminMoreSection />
 
       <section className="mt-4 rounded-3xl border border-zinc-200 bg-white p-4 dark:border-white/10 dark:bg-white/[0.03]">
         <h2 className="text-sm font-bold">Appearance</h2>
