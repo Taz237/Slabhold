@@ -14,6 +14,7 @@ import {
   mailDayMeta,
   mailDayPaidAmount,
   mailDayPhotoOwnedBy,
+  mailDayPhotosToRemove,
   mailDaySubmitBlocker,
   mailDaySubmitError,
   mailDayVisibility,
@@ -652,36 +653,132 @@ describe("mail day photo upload", () => {
     assert.match(sql, /mail_day_photo_ok\(photo, new\.user_id\)/);
     assert.match(sql, /card-photos\/'/);
     assert.match(sql, /drop function if exists public\.mail_day_photo_ok\(text\)/);
+    assert.match(actions, /mailDayPhotosToRemove\(/);
+    assert.match(form, /mailDayPhotosToRemove\(/);
     assert.match(actions, /removeMailDayPhotos\(/);
-    assert.match(form, /MAIL_DAY_POST_FAILED/);
     assert.match(form, /removeMailDayPhotos\(/);
+    assert.doesNotMatch(actions, /MAIL_DAY_POST_FAILED/);
+    assert.doesNotMatch(form, /MAIL_DAY_POST_FAILED/);
+  });
+
+  it("keeps saved cards' photos and drops only unsaved uploads", () => {
+    const saved = `${photo.replace(file, "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa.jpg")}`;
+    const unsaved = photo;
+    const kept = mailDayPhotosToRemove(
+      { cardSaved: true, error: MAIL_DAY_POST_FAILED, cardIds: ["card-1", "card-2"] },
+      [
+        { id: "card-1", photos: [saved] },
+        { id: "card-2", photos: [unsaved] },
+      ],
+      [saved, unsaved],
+    );
+    assert.deepEqual(kept, []);
+    const partial = mailDayPhotosToRemove(
+      { cardSaved: true, error: "Could not save that card.", cardIds: ["card-1"] },
+      [
+        { id: "card-1", photos: [saved] },
+        { id: "card-2", photos: [unsaved] },
+      ],
+      [saved, unsaved],
+    );
+    assert.deepEqual(partial, [unsaved]);
+    const formPartial = mailDayPhotosToRemove(
+      { cardSaved: true, error: "Could not save that card.", cardIds: ["card-1"] },
+      [{ photos: [saved] }, { photos: [unsaved] }],
+      [saved, unsaved],
+    );
+    assert.deepEqual(formPartial, [unsaved]);
+    const shared = mailDayPhotosToRemove(
+      { cardSaved: true, error: "Could not save that card.", cardIds: ["card-1"] },
+      [
+        { id: "card-1", photos: [saved] },
+        { id: "card-2", photos: [saved, unsaved] },
+      ],
+      [saved, unsaved],
+    );
+    assert.deepEqual(shared, [unsaved]);
+    const none = mailDayPhotosToRemove(
+      { cardSaved: false, error: "Could not save that card.", cardIds: [] },
+      [{ photos: [saved] }, { photos: [unsaved] }],
+      [saved, unsaved],
+    );
+    assert.deepEqual(none, [saved, unsaved]);
+    const retry = mailDayPhotosToRemove(
+      { cardSaved: true, error: "Could not save that card.", cardIds: ["card-1"] },
+      [
+        { photos: [saved] },
+        { photos: [unsaved] },
+      ],
+      [],
+    );
+    assert.deepEqual(retry, []);
   });
 
   it("deletes only this user's uploaded jpg when the post fails", async () => {
     const removed: string[][] = [];
-    await removeMailDayPhotos(
-      {
-        storage: {
-          from(bucket: string) {
-            assert.equal(bucket, "card-photos");
-            return {
-              async remove(paths: string[]) {
-                removed.push(paths);
-                return { error: null };
-              },
-            };
+    const warnings: unknown[][] = [];
+    const original = console.warn;
+    console.warn = (...args: unknown[]) => {
+      warnings.push(args);
+    };
+    try {
+      await removeMailDayPhotos(
+        {
+          storage: {
+            from(bucket: string) {
+              assert.equal(bucket, "card-photos");
+              return {
+                async remove(paths: string[]) {
+                  removed.push(paths);
+                  return { data: paths.map((name) => ({ name })), error: null };
+                },
+              };
+            },
           },
         },
-      },
-      userId,
-      [
-        photo,
-        photo,
-        photo.replace(userId, "33333333-3333-4333-8333-333333333333"),
-        "https://example.com/outside.jpg",
-      ],
-    );
+        userId,
+        [
+          photo,
+          photo,
+          photo.replace(userId, "33333333-3333-4333-8333-333333333333"),
+          "https://example.com/outside.jpg",
+        ],
+      );
+    } finally {
+      console.warn = original;
+    }
     assert.deepEqual(removed, [[`${userId}/${file}`]]);
+    assert.deepEqual(warnings, []);
+  });
+
+  it("logs when storage removes fewer files than asked", async () => {
+    const warnings: unknown[][] = [];
+    const original = console.warn;
+    console.warn = (...args: unknown[]) => {
+      warnings.push(args);
+    };
+    try {
+      await removeMailDayPhotos(
+        {
+          storage: {
+            from() {
+              return {
+                async remove() {
+                  return { data: [], error: null };
+                },
+              };
+            },
+          },
+        },
+        userId,
+        [photo, photo],
+      );
+    } finally {
+      console.warn = original;
+    }
+    assert.equal(warnings.length, 1);
+    assert.match(String(warnings[0]?.[0]), /photo cleanup/);
+    assert.match(String(warnings[0]?.[1]), /removed 0 of 1/);
   });
 });
 
@@ -703,5 +800,24 @@ describe("photo storage privacy", () => {
     assert.match(sql, /bucket_id = 'card-photos'/);
     assert.match(sql, /auth\.uid\(\)::text = \(storage\.foldername\(name\)\)\[1\]/);
     assert.match(sql, /mail_day_photo_ok\(new\.card->>'photoDataUrl', new\.user_id\)/);
+  });
+});
+
+describe("card photo owner read", () => {
+  const sql = readFileSync(
+    join(process.cwd(), "supabase/migrations/20261019270000_card_photos_owner_read.sql"),
+    "utf8",
+  );
+
+  it("lets a signed-in user read only their own card-photos folder", () => {
+    assert.match(sql, /on storage\.objects for select/);
+    assert.match(sql, /to authenticated/);
+    assert.match(sql, /bucket_id = 'card-photos'/);
+    assert.match(sql, /auth\.uid\(\)::text = \(storage\.foldername\(name\)\)\[1\]/);
+    assert.doesNotMatch(sql, /bucket_id = 'avatars'/);
+    assert.doesNotMatch(sql, /bucket_id = 'covers'/);
+    assert.doesNotMatch(sql, /bucket_id = 'post-images'/);
+    assert.doesNotMatch(sql, /create policy "Public can view/);
+    assert.doesNotMatch(sql, /set public = false/i);
   });
 });

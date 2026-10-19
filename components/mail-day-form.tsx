@@ -22,11 +22,11 @@ import {
 import { parallelAfterSetChange, parallelIsListed, parallelsForSet } from "@/lib/cards/parallels";
 import {
   MAIL_DAY_MAX_CARDS,
-  MAIL_DAY_POST_FAILED,
   MAIL_DAY_SPORTS,
   SOURCE_LABELS,
   isMailDaySport,
   mailDayIsDirty,
+  mailDayPhotosToRemove,
   mailDaySportLabel,
   mailDaySubmitBlocker,
   mailDaySubmitError,
@@ -202,9 +202,19 @@ export function MailDayForm() {
         acquiredAt: today(),
       });
       if (!result.ok) {
-        if (!result.cardSaved || result.error === MAIL_DAY_POST_FAILED) {
-          await removeMailDayPhotos(createSupabaseBrowser(), user.id, created);
-        }
+        await removeMailDayPhotos(
+          createSupabaseBrowser(),
+          user.id,
+          mailDayPhotosToRemove(
+            {
+              cardSaved: result.cardSaved,
+              error: result.error,
+              cardIds: result.cardSaved ? result.cardIds : [],
+            },
+            cards,
+            created,
+          ),
+        );
         setError(result.error);
         if (result.cardSaved) {
           setSavedCardIds(result.cardIds);

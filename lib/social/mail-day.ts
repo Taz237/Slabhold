@@ -53,10 +53,45 @@ function mailDayPhotoStoragePath(url: string, userId: string): string | null {
 type MailDayPhotoStorage = {
   storage: {
     from: (bucket: string) => {
-      remove: (paths: string[]) => Promise<{ error: { message: string } | null }>;
+      remove: (paths: string[]) => Promise<{
+        data?: readonly unknown[] | null;
+        error: { message: string } | null;
+      }>;
     };
   };
 };
+
+/**
+ * Photos to delete after a failed Mail Day save.
+ * A saved card keeps its photos, including when the post itself failed.
+ * A partial save deletes only photos uploaded for cards that were not saved.
+ * Nothing saved deletes only the files uploaded on this attempt.
+ */
+export function mailDayPhotosToRemove(
+  result: { cardSaved: boolean; error: string; cardIds: readonly string[] },
+  cards: readonly { id?: string; photos: readonly string[] }[],
+  uploadedNow: readonly string[],
+): string[] {
+  if (!result.cardSaved) return [...uploadedNow];
+  if (result.error === MAIL_DAY_POST_FAILED) return [];
+  const savedIds = new Set(result.cardIds);
+  const identified = cards.some((card) => card.id);
+  const savedCards = identified
+    ? cards.filter((card) => card.id != null && savedIds.has(card.id))
+    : cards.slice(0, result.cardIds.length);
+  const unsavedCards = identified
+    ? cards.filter((card) => card.id == null || !savedIds.has(card.id))
+    : cards.slice(result.cardIds.length);
+  const savedPhotos = new Set(savedCards.flatMap((card) => card.photos));
+  const fresh = new Set(uploadedNow);
+  return [
+    ...new Set(
+      unsavedCards
+        .flatMap((card) => card.photos)
+        .filter((url) => fresh.has(url) && !savedPhotos.has(url)),
+    ),
+  ];
+}
 
 /** Delete card-photos this user just uploaded. Other people's URLs are left alone. */
 export async function removeMailDayPhotos(
@@ -74,8 +109,12 @@ export async function removeMailDayPhotos(
   ];
   if (paths.length === 0) return;
   try {
-    const { error } = await supabase.storage.from("card-photos").remove(paths);
+    const { data, error } = await supabase.storage.from("card-photos").remove(paths);
     if (error) console.warn("[mail_day] photo cleanup:", error.message);
+    const removed = Array.isArray(data) ? data.length : 0;
+    if (removed !== paths.length) {
+      console.warn("[mail_day] photo cleanup:", `removed ${removed} of ${paths.length}`);
+    }
   } catch (err) {
     console.warn("[mail_day] photo cleanup:", err instanceof Error ? err.message : err);
   }

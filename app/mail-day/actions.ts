@@ -4,10 +4,10 @@ import { after } from "next/server";
 import { consumeRequestLimit, consumeTrawlLimit } from "@/lib/comps/rate-limit";
 import { toPublicAttachment } from "@/lib/social/card-posts";
 import {
-  MAIL_DAY_POST_FAILED,
   mailDayCardRecord,
   mailDayMeta,
   mailDayPhotoOwnedBy,
+  mailDayPhotosToRemove,
   removeMailDayPhotos,
   runMailDaySave,
   validateMailDayDraft,
@@ -171,14 +171,20 @@ export async function createMailDayPost(input: MailDayInput): Promise<MailDayAct
     },
   });
 
-  if (!result.ok && result.error === MAIL_DAY_POST_FAILED) {
+  if (!result.ok) {
     await removeMailDayPhotos(
       supabase,
       userId,
-      created.length ? created : uploaded.flatMap((card) => card.photos),
+      mailDayPhotosToRemove(
+        {
+          cardSaved: result.cardSaved,
+          error: result.error,
+          cardIds: result.cardSaved ? result.cardIds : [],
+        },
+        uploaded,
+        created,
+      ),
     );
-  } else if (!result.ok && !result.cardSaved) {
-    await removeMailDayPhotos(supabase, userId, created);
   }
   if (result.ok || result.cardSaved) scheduleRefresh(userId, result.cardIds);
   if (result.ok) {

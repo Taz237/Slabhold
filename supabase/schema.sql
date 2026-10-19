@@ -468,6 +468,7 @@ drop policy if exists "Public can view covers" on storage.objects;
 drop policy if exists "Users can upload post images" on storage.objects;
 drop policy if exists "Public can view post images" on storage.objects;
 drop policy if exists "Users can delete own card photos" on storage.objects;
+drop policy if exists "Users can view own card photos" on storage.objects;
 
 create policy "Users can upload card photos"
   on storage.objects for insert
@@ -478,6 +479,14 @@ create policy "Users can upload card photos"
 
 create policy "Users can delete own card photos"
   on storage.objects for delete
+  using (
+    bucket_id = 'card-photos'
+    and auth.uid()::text = (storage.foldername(name))[1]
+  );
+
+create policy "Users can view own card photos"
+  on storage.objects for select
+  to authenticated
   using (
     bucket_id = 'card-photos'
     and auth.uid()::text = (storage.foldername(name))[1]
