@@ -9,10 +9,18 @@ export function collectAttachedCardIds(
   posts: Iterable<{
     card?: { id?: string | null } | null;
     mailDay?: { showValue?: boolean } | null;
+    mailDayCards?: { showValue?: boolean; card?: { id?: string | null } | null }[] | null;
   }>,
 ): string[] {
   const ids = new Set<string>();
   for (const post of posts) {
+    if (post.mailDayCards?.length) {
+      for (const item of post.mailDayCards) {
+        if (item.showValue === false) continue;
+        if (item.card?.id) ids.add(item.card.id);
+      }
+      continue;
+    }
     if (post.mailDay && post.mailDay.showValue === false) continue;
     const id = post.card?.id;
     if (id) ids.add(id);

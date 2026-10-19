@@ -106,6 +106,7 @@ export function Tweet({
           <MailDayCard
             post={post}
             username={author.username}
+            variant={variant}
             cardValues={cardValues}
             cardValuesLoading={cardValuesLoading}
           />

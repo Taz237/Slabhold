@@ -3,9 +3,9 @@ import { withAuthorSafety } from "@/lib/safety/filters";
 import { formatGrade, parseGrade } from "@/lib/card-options";
 import { isUuid } from "@/lib/value/card-value-access";
 import { cardIdentityKey, type IdentityCard } from "./card-identity";
-import { loadMailDayPaid, presentMailDay } from "./mail-day";
+import { loadMailDayViews } from "./mail-day";
 import { mapPublicCard, PUBLIC_CARD_SELECT, type CardRow } from "./cards";
-import type { Post, Profile, PublicCard } from "./types";
+import type { MailDayCardView, Post, Profile, PublicCard } from "./types";
 
 export type CardPostsCursor = {
   createdAt: string;
@@ -105,22 +105,9 @@ export function sanitizeAttachedCard(raw: unknown): PublicCard | null {
   };
 }
 
-function mapPostRow(
-  row: PostRow,
-  viewerId: string | null,
-  publicIds: ReadonlySet<string>,
-  paid: number | null,
-): Post {
+function mapPostRow(row: PostRow, mailDayCards: MailDayCardView[]): Post {
   const card = sanitizeAttachedCard(row.card);
-  const mailDay = presentMailDay({
-    postType: row.post_type,
-    showPaid: row.show_paid,
-    meta: row.meta,
-    authorId: row.user_id,
-    viewerId,
-    cardIsPublic: Boolean(card && publicIds.has(card.id)),
-    paid,
-  });
+  const first = mailDayCards[0];
   return {
     id: row.id,
     authorId: row.user_id,
@@ -131,7 +118,16 @@ function mapPostRow(
     createdAt: row.created_at,
     postType: row.post_type === "mail_day" ? "mail_day" : "post",
     showPaid: row.show_paid === true,
-    mailDay,
+    mailDay: first
+      ? {
+          source: first.source,
+          photos: first.photos,
+          paid: first.paid,
+          isPublic: first.isPublic,
+          showValue: first.showValue,
+        }
+      : null,
+    mailDayCards,
   };
 }
 
@@ -170,32 +166,20 @@ async function mapPostRows(
   supabase: SupabaseClient,
   rows: PostRow[],
   viewerId: string | null,
-  publicIds: ReadonlySet<string>,
 ): Promise<Post[]> {
-  const paidByPost = await loadMailDayPaid(
+  const views = await loadMailDayViews(
     supabase,
-    rows.filter((row) => row.post_type === "mail_day").map((row) => row.id),
+    rows.map((row) => ({
+      id: row.id,
+      user_id: row.user_id,
+      post_type: row.post_type,
+      show_paid: row.show_paid,
+      meta: row.meta,
+      card: sanitizeAttachedCard(row.card),
+    })),
+    viewerId,
   );
-  return rows.map((row) =>
-    mapPostRow(row, viewerId, publicIds, paidByPost.get(row.id) ?? null),
-  );
-}
-
-async function publicIdsFor(
-  supabase: SupabaseClient,
-  rows: PostRow[],
-): Promise<Set<string>> {
-  const ids = [
-    ...new Set(
-      rows
-        .map((row) => sanitizeAttachedCard(row.card)?.id)
-        .filter((id): id is string => Boolean(id && isUuid(id))),
-    ),
-  ];
-  if (ids.length === 0) return new Set();
-  const { data, error } = await supabase.from("public_cards").select("id").in("id", ids);
-  if (error) return new Set();
-  return new Set(((data ?? []) as { id: string }[]).map((row) => row.id));
+  return rows.map((row) => mapPostRow(row, views.get(row.id) ?? []));
 }
 
 /** Fetch missing quoted posts (one nested hop) so quote embeds can resolve. */
@@ -224,8 +208,7 @@ async function loadQuotedPosts(
   const { data, error } = await quotedQuery;
   if (error) throw new Error(error.message);
   const quotedRows = (data ?? []) as PostRow[];
-  const publicIds = await publicIdsFor(supabase, quotedRows);
-  const quotedPosts = await mapPostRows(supabase, quotedRows, viewerId, publicIds);
+  const quotedPosts = await mapPostRows(supabase, quotedRows, viewerId);
   for (const mapped of quotedPosts) {
     related.push(mapped);
     known.add(mapped.id);
@@ -247,8 +230,7 @@ async function loadQuotedPosts(
     const nested = await nestedQuery;
     if (nested.error) throw new Error(nested.error.message);
     const nestedRows = (nested.data ?? []) as PostRow[];
-    const nestedPublicIds = await publicIdsFor(supabase, nestedRows);
-    related.push(...(await mapPostRows(supabase, nestedRows, viewerId, nestedPublicIds)));
+    related.push(...(await mapPostRows(supabase, nestedRows, viewerId)));
   }
   return related;
 }
@@ -356,21 +338,22 @@ export async function loadPostsForCard(
   const { data: sessionData } = await supabase.auth.getSession();
   const viewerId = sessionData.session?.user.id ?? null;
   const aboutRows = (data ?? []) as AboutCardRow[];
-  const paidByPost = await loadMailDayPaid(
+  const views = await loadMailDayViews(
     supabase,
-    aboutRows.filter((row) => row.post_type === "mail_day").map((row) => row.id),
+    aboutRows.map((row) => ({
+      id: row.id,
+      user_id: row.user_id,
+      post_type: row.post_type,
+      show_paid: row.show_paid,
+      meta: row.meta,
+      card: row.post_type === "mail_day" ? attachedCard(row) : null,
+    })),
+    viewerId,
   );
   const rows = aboutRows.map((row) => {
     const card = attachedCard(row);
-    const mailDay = presentMailDay({
-      postType: row.post_type,
-      showPaid: row.show_paid,
-      meta: row.meta,
-      authorId: row.user_id,
-      viewerId,
-      cardIsPublic: row.attached_is_public === true,
-      paid: paidByPost.get(row.id) ?? null,
-    });
+    const mailDayCards = views.get(row.id) ?? [];
+    const first = mailDayCards[0];
     return {
       id: row.id,
       authorId: row.user_id,
@@ -381,7 +364,16 @@ export async function loadPostsForCard(
       createdAt: row.created_at,
       postType: row.post_type === "mail_day" ? ("mail_day" as const) : ("post" as const),
       showPaid: row.show_paid === true,
-      mailDay,
+      mailDay: first
+        ? {
+            source: first.source,
+            photos: first.photos,
+            paid: first.paid,
+            isPublic: first.isPublic,
+            showValue: first.showValue,
+          }
+        : null,
+      mailDayCards,
     };
   });
   const unique = dedupePosts(rows);
@@ -460,7 +452,12 @@ export function filterLoadedPostsForCard(
   const allowed = allowedPublicIds(cardId, publicCardIds, options?.publicCards);
   const matched = dedupePosts(
     posts
-      .filter((post) => (post.card?.id ? allowed.has(post.card.id) : false))
+      .filter((post) => {
+        if (post.card?.id && allowed.has(post.card.id)) return true;
+        return (post.mailDayCards ?? []).some(
+          (item) => item.showValue && item.card.id && allowed.has(item.card.id),
+        );
+      })
       .filter((post) => {
         if (!cursor) return true;
         if (post.createdAt < cursor.createdAt) return true;

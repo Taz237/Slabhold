@@ -56,6 +56,8 @@ export type WantAlertInsert = {
   userId: string;
   sourceType: WantSourceType;
   sourceId: string;
+  /** Mail Day card. Null for sales and listings, which dedupe on source id alone. */
+  cardId?: string | null;
   createdAt: string;
 };
 
@@ -65,7 +67,12 @@ export type WantAlertDb = {
   /** True only when a new dedupe row was inserted. */
   insertAlert(row: WantAlertInsert): Promise<boolean>;
   insertNotification(row: WantNotificationInsert): Promise<void>;
-  deleteAlert(wantId: string, sourceType: WantSourceType, sourceId: string): Promise<void>;
+  deleteAlert(
+    wantId: string,
+    sourceType: WantSourceType,
+    sourceId: string,
+    cardId?: string | null,
+  ): Promise<void>;
   /** Sale links can differ per wanter. Posts and listings ignore this. */
   hrefFor?(want: WantRow, event: WantMatchEvent): Promise<string>;
   /** True when userId follows actorId. */
@@ -182,11 +189,13 @@ export async function notifyWantMatches(
     const today = await db.alertsToday(want.userId, since);
     if (today >= WANT_ALERTS_PER_DAY) continue;
 
+    const alertCardId = event.mailDay ? event.cardId ?? null : null;
     const inserted = await db.insertAlert({
       wantId: want.id,
       userId: want.userId,
       sourceType: event.sourceType,
       sourceId: event.sourceId,
+      cardId: alertCardId,
       createdAt: now.toISOString(),
     });
     if (!inserted) continue;
@@ -208,7 +217,7 @@ export async function notifyWantMatches(
       });
       notified += 1;
     } catch {
-      await db.deleteAlert(want.id, event.sourceType, event.sourceId);
+      await db.deleteAlert(want.id, event.sourceType, event.sourceId, alertCardId);
     }
   }
 

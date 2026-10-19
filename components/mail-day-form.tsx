@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useRef, useState } from "react";
-import { ImagePlus, X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ChevronDown, ImagePlus, Plus, X } from "lucide-react";
 import { createMailDayPost } from "@/app/mail-day/actions";
 import { outlineButton, solidButton } from "@/components/button-styles";
 import { CardSearch } from "@/components/card-search";
 import { CategoryPicker } from "@/components/category-picker";
 import { useCollection } from "@/components/collection-provider";
+import { MailDayCard } from "@/components/mail-day-card";
 import { useSocial } from "@/components/social-provider";
 import { NativeSelect, SearchSelect } from "@/components/search-select";
 import {
@@ -16,9 +17,21 @@ import {
   GRADE_NUMBERS,
   PARALLELS,
   SETS,
+  optionsWithCurrent,
   yearOptionsForSport,
 } from "@/lib/card-options";
-import { SOURCE_LABELS, type AcquiredSource, type MailDayInput } from "@/lib/social/mail-day";
+import {
+  MAIL_DAY_MAX_CARDS,
+  MAIL_DAY_SPORTS,
+  SOURCE_LABELS,
+  isMailDaySport,
+  mailDayIsDirty,
+  mailDaySportLabel,
+  mailDaySubmitBlocker,
+  previewMailDayPost,
+  type AcquiredSource,
+  type MailDayDraftCard,
+} from "@/lib/social/mail-day";
 import { POST_LIMIT } from "@/lib/social/types";
 import { fileToDataUrl } from "@/lib/storage";
 import type { CardCategory, ConditionType } from "@/lib/types";
@@ -33,133 +46,377 @@ function today() {
   return `${date.getFullYear()}-${month}-${day}`;
 }
 
+function blankCard(): MailDayDraftCard & { key: string; open: boolean; parallelNote: string } {
+  return {
+    key: crypto.randomUUID(),
+    open: true,
+    parallelNote: "",
+    playerName: "",
+    yearLabel: "",
+    setBrand: "",
+    setIsCustom: false,
+    cardNumber: "",
+    parallel: "Base",
+    parallelIsCustom: false,
+    sport: "",
+    conditionType: "raw",
+    grader: "PSA",
+    grade: "10",
+    paid: "",
+    source: "",
+    category: "flipping",
+    isPublic: false,
+    showPaid: false,
+    photos: [],
+  };
+}
+
+type Section = ReturnType<typeof blankCard>;
+
 export function MailDayForm() {
   const router = useRouter();
-  const { refresh } = useSocial();
+  const { refresh, user } = useSocial();
   const { reload } = useCollection();
   const fileRef = useRef<HTMLInputElement>(null);
-  const [photos, setPhotos] = useState<string[]>([]);
-  const [playerName, setPlayerName] = useState("");
-  const [yearLabel, setYearLabel] = useState("");
-  const [setBrand, setSetBrand] = useState("");
-  const [cardNumber, setCardNumber] = useState("");
-  const [parallel, setParallel] = useState("Base");
-  const [sport, setSport] = useState("Basketball");
-  const [conditionType, setConditionType] = useState<ConditionType>("raw");
-  const [grader, setGrader] = useState("PSA");
-  const [grade, setGrade] = useState("10");
-  const [paid, setPaid] = useState("");
-  const [source, setSource] = useState<AcquiredSource | "">("");
-  const [category, setCategory] = useState<CardCategory>("flipping");
-  const [isPublic, setIsPublic] = useState(false);
-  const [showPaid, setShowPaid] = useState(false);
+  const allowLeave = useRef(false);
+  const [sections, setSections] = useState<Section[]>(() => [blankCard()]);
+  const [active, setActive] = useState(0);
+  const [photoTarget, setPhotoTarget] = useState(0);
   const [caption, setCaption] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [savedCardId, setSavedCardId] = useState<string | null>(null);
+  const [savedCardIds, setSavedCardIds] = useState<string[]>([]);
   const [sending, setSending] = useState(false);
+  const [discardOpen, setDiscardOpen] = useState(false);
 
-  const years = useMemo(() => yearOptionsForSport(sport), [sport]);
-  const grades = GRADE_NUMBERS[grader] ?? GRADE_NUMBERS.Other;
+  const drafts = useMemo<MailDayDraftCard[]>(
+    () => sections.map(({ key: _key, open: _open, parallelNote: _note, ...card }) => card),
+    [sections],
+  );
+  const dirty = mailDayIsDirty(drafts, caption);
+  const blocker = mailDaySubmitBlocker(drafts);
+  const preview = useMemo(
+    () => previewMailDayPost({ authorId: user?.id ?? "preview", caption, cards: drafts }),
+    [user?.id, caption, drafts],
+  );
+
+  useEffect(() => {
+    if (!dirty || allowLeave.current) return;
+    const onLeave = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", onLeave);
+    return () => window.removeEventListener("beforeunload", onLeave);
+  }, [dirty]);
+
+  function update(index: number, patch: Partial<Section>) {
+    setSections((current) =>
+      current.map((section, item) => (item === index ? { ...section, ...patch } : section)),
+    );
+  }
+
+  function askToLeave() {
+    if (!dirty) {
+      router.push("/");
+      return;
+    }
+    setDiscardOpen(true);
+  }
 
   async function addPhotos(files: FileList | null) {
     if (!files?.length) return;
-    const next = [...photos];
+    const index = photoTarget;
+    const next = [...sections[index].photos];
     for (const file of Array.from(files)) {
       if (next.length >= 4) break;
       next.push(await fileToDataUrl(file, 960));
     }
-    setPhotos(next);
+    update(index, { photos: next, open: true });
   }
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
+    if (blocker) return;
     setError(null);
-    setSavedCardId(null);
-    const input: MailDayInput = {
-      playerName,
-      yearLabel,
-      setBrand,
-      cardNumber,
-      parallel,
-      sport,
-      conditionType,
-      grader,
-      grade,
-      paid,
-      source,
-      category,
-      isPublic,
-      showPaid,
-      caption,
-      photos,
-      acquiredAt: today(),
-    };
+    setSavedCardIds([]);
     setSending(true);
-    const result = await createMailDayPost(input);
+    const result = await createMailDayPost({
+      caption,
+      cards: drafts,
+      acquiredAt: today(),
+    });
     setSending(false);
     if (!result.ok) {
       setError(result.error);
       if (result.cardSaved) {
-        setSavedCardId(result.cardId);
+        setSavedCardIds(result.cardIds);
         reload();
       }
       return;
     }
+    allowLeave.current = true;
     reload();
     await refresh();
     router.push("/");
   }
 
   return (
-    <form onSubmit={(event) => void submit(event)} className="space-y-5">
-      <div>
-        <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">Pickup</p>
-        <h1 className="mt-1 text-2xl font-bold tracking-tight">Mail Day</h1>
-      </div>
+    <div className="space-y-8">
+      <form onSubmit={(event) => void submit(event)} className="space-y-5">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">Pickup</p>
+            <h1 className="mt-1 text-2xl font-bold tracking-tight">Mail Day</h1>
+          </div>
+          <button type="button" onClick={askToLeave} className={outlineButton}>
+            Back
+          </button>
+        </div>
 
-      <CardSearch
-        onSelect={(card) => {
-          setPlayerName(card.playerName);
-          setYearLabel(card.yearLabel);
-          setSetBrand(card.setBrand);
-          setCardNumber(card.cardNumber);
-          setParallel(card.parallel || "Base");
-          if (card.sport) setSport(card.sport);
-        }}
-        onManual={(prefill) => {
-          if (prefill.playerName) setPlayerName(prefill.playerName);
-          if (prefill.yearLabel) setYearLabel(prefill.yearLabel);
-          if (prefill.cardNumber) setCardNumber(prefill.cardNumber);
-        }}
-      />
-
-      <div>
-        <p className="mb-2 text-sm font-semibold">Photos</p>
-        <div className="grid grid-cols-4 gap-2">
-          {photos.map((src) => (
-            <div key={src} className="relative">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={src} alt="" className="aspect-square w-full rounded-xl object-cover" />
+        {sections.map((section, index) => (
+          <section
+            key={section.key}
+            className="rounded-2xl border border-zinc-200 dark:border-white/10"
+            onFocus={() => setActive(index)}
+          >
+            <div className="flex items-center gap-2 px-3 py-3">
               <button
                 type="button"
-                aria-label="Remove photo"
-                onClick={() => setPhotos((current) => current.filter((item) => item !== src))}
-                className="absolute top-1 right-1 grid h-6 w-6 place-items-center rounded-full bg-black/70 text-white"
+                aria-expanded={section.open}
+                onClick={() => update(index, { open: !section.open })}
+                className="flex min-w-0 flex-1 items-center gap-2 text-left"
               >
-                <X className="h-3.5 w-3.5" />
+                <ChevronDown className={`h-4 w-4 shrink-0 ${section.open ? "" : "-rotate-90"}`} />
+                <span className="truncate text-sm font-bold">
+                  Card {index + 1}
+                  {section.playerName.trim() ? ` · ${section.playerName.trim()}` : ""}
+                </span>
               </button>
+              {sections.length > 1 ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSections((current) => current.filter((item) => item.key !== section.key));
+                    setActive(0);
+                  }}
+                  className="text-sm font-semibold text-zinc-500"
+                >
+                  Remove
+                </button>
+              ) : null}
             </div>
-          ))}
-          {photos.length < 4 ? (
-            <button
-              type="button"
-              onClick={() => fileRef.current?.click()}
-              className="grid aspect-square place-items-center rounded-xl border border-dashed border-zinc-300 text-zinc-500 dark:border-white/15"
-            >
-              <ImagePlus className="h-5 w-5" />
-            </button>
-          ) : null}
-        </div>
+            {section.open ? (
+              <div className="space-y-4 px-3 pb-4">
+                <CardSearch
+                  onSelect={(card) => {
+                    setActive(index);
+                    update(index, {
+                      playerName: card.playerName,
+                      yearLabel: card.yearLabel,
+                      setBrand: card.setBrand,
+                      setIsCustom: !SETS.some((item) => item === card.setBrand),
+                      cardNumber: card.cardNumber,
+                      parallel: card.parallel || "Base",
+                      parallelIsCustom: !PARALLELS.some(
+                        (item) => item.toLowerCase() === (card.parallel || "base").toLowerCase(),
+                      ),
+                      sport: isMailDaySport(card.sport) ? card.sport : section.sport,
+                    });
+                  }}
+                  onManual={(prefill) => {
+                    setActive(index);
+                    update(index, {
+                      playerName: prefill.playerName || section.playerName,
+                      yearLabel: prefill.yearLabel || section.yearLabel,
+                      cardNumber: prefill.cardNumber || section.cardNumber,
+                    });
+                  }}
+                />
+                <PhotoRow
+                  photos={section.photos}
+                  onRemove={(src) =>
+                    update(index, { photos: section.photos.filter((item) => item !== src) })
+                  }
+                  onAdd={() => {
+                    setPhotoTarget(index);
+                    setActive(index);
+                    fileRef.current?.click();
+                  }}
+                />
+                <label className="block text-sm font-semibold">
+                  Player
+                  <input
+                    value={section.playerName}
+                    onChange={(event) => update(index, { playerName: event.target.value })}
+                    className={`${inputClass} mt-1`}
+                  />
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <p className="mb-1 text-sm font-semibold">Year</p>
+                    <SearchSelect
+                      label="Year"
+                      value={section.yearLabel}
+                      options={yearOptionsForSport(section.sport || "Baseball")}
+                      allowCustom
+                      onChange={(yearLabel) => update(index, { yearLabel })}
+                    />
+                  </div>
+                  <label className="block text-sm font-semibold">
+                    Sport
+                    <select
+                      value={section.sport}
+                      onChange={(event) => update(index, { sport: event.target.value })}
+                      className={`${inputClass} mt-1`}
+                      aria-label={`Sport for card ${index + 1}`}
+                    >
+                      <option value="">Choose a sport</option>
+                      {MAIL_DAY_SPORTS.map((sport) => (
+                        <option key={sport} value={sport}>
+                          {mailDaySportLabel(sport)}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+                <label className="block text-sm font-semibold">
+                  Number
+                  <input
+                    value={section.cardNumber}
+                    onChange={(event) => update(index, { cardNumber: event.target.value })}
+                    className={`${inputClass} mt-1`}
+                  />
+                </label>
+                <div>
+                  <p className="mb-1 text-sm font-semibold">Set</p>
+                  <SearchSelect
+                    label="Set"
+                    value={section.setBrand}
+                    options={optionsWithCurrent(SETS, section.setBrand)}
+                    allowCustom
+                    onChange={(setBrand) => {
+                      const known = SETS.some((item) => item.toLowerCase() === setBrand.toLowerCase());
+                      update(index, { setBrand, setIsCustom: Boolean(setBrand) && !known });
+                    }}
+                  />
+                </div>
+                <div>
+                  <p className="mb-1 text-sm font-semibold">Parallel</p>
+                  <SearchSelect
+                    label="Parallel"
+                    value={section.parallel}
+                    options={optionsWithCurrent(PARALLELS, section.parallel)}
+                    allowCustom
+                    onChange={(parallel) => {
+                      const known = PARALLELS.some(
+                        (item) => item.toLowerCase() === parallel.toLowerCase(),
+                      );
+                      update(index, {
+                        parallel: parallel || "Base",
+                        parallelIsCustom: Boolean(parallel) && !known,
+                        parallelNote: "",
+                      });
+                    }}
+                  />
+                  {section.parallelNote ? (
+                    <p className="mt-1 text-xs text-zinc-500">{section.parallelNote}</p>
+                  ) : null}
+                </div>
+                <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Condition">
+                  {(["raw", "graded"] as const).map((option) => (
+                    <button
+                      key={option}
+                      type="button"
+                      role="radio"
+                      aria-checked={section.conditionType === option}
+                      onClick={() => update(index, { conditionType: option as ConditionType })}
+                      className={`min-h-11 rounded-full text-sm font-bold ${
+                        section.conditionType === option
+                          ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-950"
+                          : "border border-zinc-200 dark:border-white/10"
+                      }`}
+                    >
+                      {option === "raw" ? "Raw" : "Graded"}
+                    </button>
+                  ))}
+                </div>
+                {section.conditionType === "graded" ? (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <p className="mb-1 text-sm font-semibold">Grader</p>
+                      <NativeSelect
+                        label="Grader"
+                        value={section.grader}
+                        options={[...GRADE_COMPANIES]}
+                        onChange={(grader) => update(index, { grader })}
+                      />
+                    </div>
+                    <div>
+                      <p className="mb-1 text-sm font-semibold">Grade</p>
+                      <NativeSelect
+                        label="Grade"
+                        value={section.grade}
+                        options={GRADE_NUMBERS[section.grader] ?? GRADE_NUMBERS.Other}
+                        onChange={(grade) => update(index, { grade })}
+                      />
+                    </div>
+                  </div>
+                ) : null}
+                <label className="block text-sm font-semibold">
+                  Price paid
+                  <input
+                    inputMode="decimal"
+                    value={section.paid}
+                    onChange={(event) => update(index, { paid: event.target.value })}
+                    placeholder="0.00"
+                    className={`${inputClass} mt-1`}
+                  />
+                </label>
+                <label className="block text-sm font-semibold">
+                  Source
+                  <select
+                    value={section.source}
+                    onChange={(event) =>
+                      update(index, { source: event.target.value as AcquiredSource | "" })
+                    }
+                    className={`${inputClass} mt-1`}
+                  >
+                    <option value="">Where did you get it?</option>
+                    {(Object.keys(SOURCE_LABELS) as AcquiredSource[]).map((id) => (
+                      <option key={id} value={id}>
+                        {SOURCE_LABELS[id]}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <CategoryPicker
+                  value={section.category}
+                  onChange={(category: CardCategory) => update(index, { category })}
+                />
+                <label className="flex items-center justify-between gap-3 text-sm font-semibold">
+                  Public card
+                  <input
+                    type="checkbox"
+                    checked={section.isPublic}
+                    onChange={(event) => update(index, { isPublic: event.target.checked })}
+                  />
+                </label>
+                <label className="flex items-center justify-between gap-3 text-sm font-semibold">
+                  Show what I paid
+                  <input
+                    type="checkbox"
+                    checked={section.showPaid}
+                    onChange={(event) => update(index, { showPaid: event.target.checked })}
+                  />
+                </label>
+                <p className="text-xs text-zinc-500">
+                  Paid stays on your card. It shows on the post only when this is on, and never when the card is private.
+                </p>
+              </div>
+            ) : null}
+          </section>
+        ))}
+
         <input
           ref={fileRef}
           type="file"
@@ -171,134 +428,130 @@ export function MailDayForm() {
             event.target.value = "";
           }}
         />
-        <p className="mt-1 text-xs text-zinc-500">1 to 4 photos</p>
-      </div>
 
-      <label className="block text-sm font-semibold">
-        Player
-        <input value={playerName} onChange={(event) => setPlayerName(event.target.value)} className={`${inputClass} mt-1`} />
-      </label>
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <p className="mb-1 text-sm font-semibold">Year</p>
-          <SearchSelect
-            label="Year"
-            value={yearLabel}
-            options={years}
-            allowCustom
-            onChange={setYearLabel}
-          />
-        </div>
-        <label className="block text-sm font-semibold">
-          Number
-          <input value={cardNumber} onChange={(event) => setCardNumber(event.target.value)} className={`${inputClass} mt-1`} />
-        </label>
-      </div>
-      <div>
-        <p className="mb-1 text-sm font-semibold">Set</p>
-        <SearchSelect label="Set" value={setBrand} options={SETS} allowCustom onChange={setSetBrand} />
-      </div>
-      <div>
-        <p className="mb-1 text-sm font-semibold">Parallel</p>
-        <SearchSelect label="Parallel" value={parallel} options={PARALLELS} allowCustom onChange={setParallel} />
-      </div>
-
-      <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Condition">
-        {(["raw", "graded"] as const).map((option) => (
+        {sections.length < MAIL_DAY_MAX_CARDS ? (
           <button
-            key={option}
             type="button"
-            role="radio"
-            aria-checked={conditionType === option}
-            onClick={() => setConditionType(option)}
-            className={`min-h-11 rounded-full text-sm font-bold ${
-              conditionType === option
-                ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-950"
-                : "border border-zinc-200 dark:border-white/10"
-            }`}
+            onClick={() => {
+              const next = blankCard();
+              setSections((current) => [...current, next]);
+              setActive(sections.length);
+            }}
+            className={`${outlineButton} gap-2`}
           >
-            {option === "raw" ? "Raw" : "Graded"}
+            <Plus className="h-4 w-4" />
+            Add another card
           </button>
+        ) : null}
+
+        <label className="block text-sm font-semibold">
+          Caption
+          <textarea
+            value={caption}
+            maxLength={POST_LIMIT}
+            rows={3}
+            onChange={(event) => setCaption(event.target.value)}
+            placeholder="Optional, for the whole post"
+            className={`${inputClass} mt-1 resize-none`}
+          />
+        </label>
+
+        {blocker ? (
+          <p className="text-sm text-zinc-500" role="status">
+            {blocker}
+          </p>
+        ) : null}
+        {error ? <p className="text-sm text-rose-600 dark:text-rose-400">{error}</p> : null}
+        {savedCardIds.map((id) => (
+          <Link key={id} href={`/cards/${id}`} className={outlineButton}>
+            Open the saved card
+          </Link>
         ))}
-      </div>
-      {conditionType === "graded" ? (
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <p className="mb-1 text-sm font-semibold">Grader</p>
-            <NativeSelect label="Grader" value={grader} options={[...GRADE_COMPANIES]} onChange={setGrader} />
-          </div>
-          <div>
-            <p className="mb-1 text-sm font-semibold">Grade</p>
-            <NativeSelect label="Grade" value={grade} options={grades} onChange={setGrade} />
+        <button type="submit" disabled={sending || Boolean(blocker)} className={solidButton}>
+          {sending ? "Saving…" : "Log Mail Day"}
+        </button>
+      </form>
+
+      <section aria-label="Preview" className="space-y-2">
+        <h2 className="text-sm font-bold">Preview</h2>
+        <p className="text-xs text-zinc-500">This is what other people will see.</p>
+        <div className="pointer-events-none overflow-hidden rounded-2xl border border-zinc-200 dark:border-white/10">
+          <MailDayCard post={preview} username={user?.username ?? ""} variant="feed" asViewer="other" />
+        </div>
+      </section>
+
+      {discardOpen ? (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="discard-mail-day"
+          className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4"
+        >
+          <div className="w-full max-w-sm rounded-2xl bg-white p-5 dark:bg-zinc-900">
+            <h2 id="discard-mail-day" className="text-lg font-bold">
+              Discard Mail Day?
+            </h2>
+            <div className="mt-4 flex justify-end gap-2">
+              <button type="button" onClick={() => setDiscardOpen(false)} className={outlineButton}>
+                Keep editing
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  allowLeave.current = true;
+                  router.push("/");
+                }}
+                className={solidButton}
+              >
+                Discard
+              </button>
+            </div>
           </div>
         </div>
       ) : null}
+      <span className="sr-only">Active card {active + 1}</span>
+    </div>
+  );
+}
 
-      <label className="block text-sm font-semibold">
-        Price paid
-        <input
-          inputMode="decimal"
-          value={paid}
-          onChange={(event) => setPaid(event.target.value)}
-          placeholder="0.00"
-          className={`${inputClass} mt-1`}
-        />
-      </label>
-      <label className="block text-sm font-semibold">
-        Source
-        <select
-          value={source}
-          onChange={(event) => setSource(event.target.value as AcquiredSource | "")}
-          className={`${inputClass} mt-1`}
-        >
-          <option value="">Where did you get it?</option>
-          {(Object.keys(SOURCE_LABELS) as AcquiredSource[]).map((id) => (
-            <option key={id} value={id}>
-              {SOURCE_LABELS[id]}
-            </option>
-          ))}
-        </select>
-      </label>
-
-      <CategoryPicker value={category} onChange={setCategory} />
-
-      <label className="flex items-center justify-between gap-3 text-sm font-semibold">
-        Public card
-        <input type="checkbox" checked={isPublic} onChange={(event) => setIsPublic(event.target.checked)} />
-      </label>
-      <label className="flex items-center justify-between gap-3 text-sm font-semibold">
-        Show what I paid
-        <input
-          type="checkbox"
-          checked={showPaid}
-          onChange={(event) => setShowPaid(event.target.checked)}
-        />
-      </label>
-      <p className="text-xs text-zinc-500">
-        Paid stays on your card. It shows on the post only when this is on, and never when the card is private.
-      </p>
-
-      <label className="block text-sm font-semibold">
-        Caption
-        <textarea
-          value={caption}
-          maxLength={POST_LIMIT}
-          rows={3}
-          onChange={(event) => setCaption(event.target.value)}
-          placeholder="Optional"
-          className={`${inputClass} mt-1 resize-none`}
-        />
-      </label>
-
-      {error ? <p className="text-sm text-rose-600 dark:text-rose-400">{error}</p> : null}
-      {savedCardId ? (
-        <Link href={`/cards/${savedCardId}`} className={outlineButton}>
-          Open the saved card
-        </Link>
-      ) : null}
-      <button type="submit" disabled={sending} className={solidButton}>
-        {sending ? "Saving…" : "Log Mail Day"}
-      </button>
-    </form>
+function PhotoRow({
+  photos,
+  onRemove,
+  onAdd,
+}: {
+  photos: string[];
+  onRemove: (src: string) => void;
+  onAdd: () => void;
+}) {
+  return (
+    <div>
+      <p className="mb-2 text-sm font-semibold">Photos</p>
+      <div className="grid grid-cols-4 gap-2">
+        {photos.map((src, index) => (
+          <div key={`${src.slice(0, 32)}-${index}`} className="relative">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={src} alt="" className="aspect-square w-full rounded-xl object-cover" />
+            <button
+              type="button"
+              aria-label="Remove photo"
+              onClick={() => onRemove(src)}
+              className="absolute top-1 right-1 grid h-6 w-6 place-items-center rounded-full bg-black/70 text-white"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        ))}
+        {photos.length < 4 ? (
+          <button
+            type="button"
+            onClick={onAdd}
+            className="grid aspect-square place-items-center rounded-xl border border-dashed border-zinc-300 text-zinc-500 dark:border-white/15"
+          >
+            <ImagePlus className="h-5 w-5" />
+          </button>
+        ) : null}
+      </div>
+      <p className="mt-1 text-xs text-zinc-500">1 to 4 photos</p>
+    </div>
   );
 }

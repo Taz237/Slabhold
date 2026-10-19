@@ -49,4 +49,17 @@ describe("collectAttachedCardIds", () => {
     ]);
     assert.deepEqual(ids.sort(), ["jordan", "wemby"]);
   });
+
+  it("skips private mail day cards and keeps each public card", () => {
+    const ids = collectAttachedCardIds([
+      {
+        card: { id: "first" },
+        mailDayCards: [
+          { showValue: true, card: { id: "public-card" } },
+          { showValue: false, card: { id: "private-card" } },
+        ],
+      },
+    ]);
+    assert.deepEqual(ids, ["public-card"]);
+  });
 });

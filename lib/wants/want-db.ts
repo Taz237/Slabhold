@@ -129,6 +129,7 @@ export function createSupabaseWantDb(): WantAlertDb | null {
           user_id: row.userId,
           source_type: row.sourceType,
           source_id: row.sourceId,
+          card_id: row.cardId ?? null,
           created_at: row.createdAt,
         })
         .select("id")
@@ -153,13 +154,15 @@ export function createSupabaseWantDb(): WantAlertDb | null {
       if (error) throw new Error(error.message);
     },
 
-    async deleteAlert(wantId, sourceType, sourceId) {
-      await admin
+    async deleteAlert(wantId, sourceType, sourceId, cardId) {
+      let query = admin
         .from("want_alerts")
         .delete()
         .eq("want_id", wantId)
         .eq("source_type", sourceType)
         .eq("source_id", sourceId);
+      query = cardId ? query.eq("card_id", cardId) : query.is("card_id", null);
+      await query;
     },
 
     safety: blockSafety(admin),

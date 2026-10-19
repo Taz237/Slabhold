@@ -42,6 +42,16 @@ export type MailDayInfo = {
   showValue: boolean;
 };
 
+/** One card on a Mail Day post, already filtered for this viewer. */
+export type MailDayCardView = {
+  card: PublicCard;
+  photos: string[];
+  source: string | null;
+  paid: number | null;
+  isPublic: boolean;
+  showValue: boolean;
+};
+
 export type Post = {
   id: string;
   authorId: string;
@@ -54,6 +64,8 @@ export type Post = {
   postType?: "post" | "mail_day";
   showPaid?: boolean;
   mailDay?: MailDayInfo | null;
+  /** Every card on a Mail Day post. Empty for a normal post. */
+  mailDayCards?: MailDayCardView[];
 };
 
 export type FollowEdge = {

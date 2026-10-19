@@ -58,7 +58,8 @@ function memoryDb(seed?: { wants?: WantRow[]; alerts?: WantAlertInsert[] }) {
         (item) =>
           item.wantId === row.wantId &&
           item.sourceType === row.sourceType &&
-          item.sourceId === row.sourceId,
+          item.sourceId === row.sourceId &&
+          (item.cardId ?? "") === (row.cardId ?? ""),
       );
       if (exists) return false;
       alerts.push(row);
@@ -67,10 +68,13 @@ function memoryDb(seed?: { wants?: WantRow[]; alerts?: WantAlertInsert[] }) {
     async insertNotification(row) {
       notifications.push(row);
     },
-    async deleteAlert(wantId, sourceType, sourceId) {
+    async deleteAlert(wantId, sourceType, sourceId, cardId) {
       const index = alerts.findIndex(
         (item) =>
-          item.wantId === wantId && item.sourceType === sourceType && item.sourceId === sourceId,
+          item.wantId === wantId &&
+          item.sourceType === sourceType &&
+          item.sourceId === sourceId &&
+          (item.cardId ?? "") === (cardId ?? ""),
       );
       if (index >= 0) alerts.splice(index, 1);
     },
@@ -233,6 +237,47 @@ describe("notifyWantMatches", () => {
     above.db.isFollower = async () => true;
     await notifyWantMatches(mail({ sourceId: "post-above", cardValue: 40 }), above.db);
     assert.match(above.notifications[0]?.preview ?? "", /above your \$35\.00 target/);
+  });
+
+  it("alerts once per matching card and skips a re-run", async () => {
+    const db = memoryDb({
+      wants: [
+        want({ id: "want-a", cardKey: "card-a" }),
+        want({ id: "want-b", cardKey: "card-b" }),
+      ],
+    });
+    db.db.isFollower = async () => true;
+    function mail(cardId: string, cardKey: string): WantMatchEvent {
+      return sale({
+        sourceType: "post",
+        sourceId: "post-1",
+        cardId,
+        cardKey,
+        actorId: "poster",
+        actorUsername: "poster",
+        price: null,
+        soldAt: null,
+        mailDay: true,
+        followersOnly: true,
+        cardIsPublic: true,
+        cardValue: 30,
+      });
+    }
+    assert.equal(await notifyWantMatches(mail("card-a", "card-a"), db.db), 1);
+    assert.equal(await notifyWantMatches(mail("card-b", "card-b"), db.db), 1);
+    assert.equal(await notifyWantMatches(mail("card-a", "card-a"), db.db), 0);
+    assert.equal(db.notifications.length, 2);
+    assert.deepEqual(
+      db.alerts.map((row) => row.cardId),
+      ["card-a", "card-b"],
+    );
+
+    const own = memoryDb({ wants: [want({ userId: "poster", cardKey: "card-a" })] });
+    own.db.isFollower = async () => true;
+    assert.equal(
+      await notifyWantMatches(mail("card-a", "card-a"), own.db),
+      0,
+    );
   });
 
   it("does not notify a blocked or muted actor", async () => {
