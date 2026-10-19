@@ -2,7 +2,11 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { money } from "@/lib/format";
 import { NOT_ENOUGH_SALES_LABEL } from "@/lib/value/format";
-import { fairPriceCheck, fairPriceShareBody } from "./fair-price";
+import {
+  canShareFairPrice,
+  fairPriceCheck,
+  fairPriceShareBody,
+} from "./fair-price";
 
 describe("fairPriceCheck", () => {
   // Sorted: 2.50, 3.00, 3.50, 4.00 → p25=2.875, p75=3.625
@@ -73,4 +77,38 @@ describe("fairPriceCheck", () => {
     assert.match(body, /^Price check: \$5\.00 for 2025 Prizm Jaxson Dart #332 Raw/);
     assert.match(body, /Slabhold says Above \(recent \$/);
   });
+
+  it("strips @ from share body fields so posts cannot @mention", () => {
+    const result = fairPriceCheck(5, sales);
+    assert.equal(result.status, "ready");
+    if (result.status !== "ready") return;
+    const body = fairPriceShareBody({
+      price: 5,
+      yearLabel: "2025",
+      setBrand: "@Prizm",
+      playerName: "@bob Smith",
+      cardNumber: "@332",
+      grade: "@Raw",
+      result,
+    });
+    assert.equal(body.includes("@"), false);
+    assert.match(body, /for 2025 Prizm bob Smith #332 Raw/);
+  });
 });
+
+describe("canShareFairPrice", () => {
+  it("hides share for a private card (Share to feed is a no-op)", () => {
+    assert.equal(canShareFairPrice({ isPublic: false }), false);
+    assert.equal(canShareFairPrice({ isPublic: false }, { isPublic: false }), false);
+    assert.equal(canShareFairPrice({ isPublic: true }, { isPublic: false }), false);
+    assert.equal(canShareFairPrice({ isPublic: undefined }, { isPublic: false }), false);
+  });
+
+  it("allows share only when the card (and owned copy) are public", () => {
+    assert.equal(canShareFairPrice({ isPublic: true }), true);
+    assert.equal(canShareFairPrice({ isPublic: true }, { isPublic: true }), true);
+    assert.equal(canShareFairPrice({ isPublic: undefined }, null), true);
+    assert.equal(canShareFairPrice({}, undefined), true);
+  });
+});
+

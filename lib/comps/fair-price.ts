@@ -61,6 +61,24 @@ export function fairPriceCheck(
   };
 }
 
+/** Strip @ so share copy cannot create @mentions from card fields. */
+export function stripAtMentions(value: string): string {
+  return value.replace(/@/g, "");
+}
+
+/**
+ * Share to feed is only for public cards.
+ * If the viewer owns a copy, that owned row must also be public.
+ */
+export function canShareFairPrice(
+  card: { isPublic?: boolean | null },
+  owned?: { isPublic?: boolean | null } | null,
+): boolean {
+  if (card.isPublic === false) return false;
+  if (owned && owned.isPublic === false) return false;
+  return true;
+}
+
 /** Feed copy for a price check, e.g. for Share to feed. */
 export function fairPriceShareBody(input: {
   price: number;
@@ -71,12 +89,13 @@ export function fairPriceShareBody(input: {
   grade: string;
   result: Extract<FairPriceResult, { status: "ready" }>;
 }): string {
-  const year = input.yearLabel.trim() || "";
-  const set = input.setBrand.trim();
-  const player = input.playerName.trim();
-  const num = input.cardNumber.trim();
+  const year = stripAtMentions(input.yearLabel).trim() || "";
+  const set = stripAtMentions(input.setBrand).trim();
+  const player = stripAtMentions(input.playerName).trim();
+  const num = stripAtMentions(input.cardNumber).trim();
   const numPart = num && num !== "—" ? `#${num.replace(/^#/, "")}` : "";
-  const grade = (input.grade || "Raw").trim() || "Raw";
+  const grade =
+    stripAtMentions((input.grade || "Raw").trim() || "Raw") || "Raw";
   const cardLine = [year, set, player, numPart, grade].filter(Boolean).join(" ");
   return `Price check: ${money(input.price)} for ${cardLine}. Slabhold says ${input.result.verdict} (recent ${money(input.result.low)} to ${money(input.result.high)})`;
 }

@@ -7,6 +7,7 @@ import { solidButton } from "@/components/button-styles";
 import { useCollection } from "@/components/collection-provider";
 import { useSocial } from "@/components/social-provider";
 import {
+  canShareFairPrice,
   fairPriceCheck,
   fairPriceShareBody,
   type FairPriceResult,
@@ -36,6 +37,7 @@ type FairPriceCard = {
  * "Is this a fair price?" — compares a typed price to the middle-50% of the
  * same matched comps already shown on the card page.
  * Hidden for private cards when the viewer is not the owner.
+ * Share to feed only appears for public cards (never attaches private value).
  */
 export function FairPriceCheck({
   card,
@@ -64,6 +66,8 @@ export function FairPriceCheck({
 
   const price = Number(raw);
   const hasPrice = raw.trim() !== "" && Number.isFinite(price) && price >= 0;
+  const owned = cards.find((item) => item.id === card.id);
+  const allowShare = canShareFairPrice(card, owned ?? null);
 
   const result: FairPriceResult | null = useMemo(() => {
     if (!compsReady || !hasPrice) return null;
@@ -73,6 +77,8 @@ export function FairPriceCheck({
   if (!canShow) return null;
 
   async function shareToFeed() {
+    // Private cards: never post value info or attach the card.
+    if (!allowShare) return;
     if (!result || result.status !== "ready" || !hasPrice) return;
     if (!user) {
       router.push("/login");
@@ -89,27 +95,30 @@ export function FairPriceCheck({
       grade: card.grade || "Raw",
       result,
     });
-    const owned = cards.find((item) => item.id === card.id);
-    const attachment: PublicCard | null = owned
-      ? toPublicAttachment(owned)
-      : card.isPublic === false
-        ? null
-        : toPublicAttachment({
-            id: card.id,
-            playerName: card.playerName,
-            year: card.year,
-            yearLabel: card.yearLabel,
-            setBrand: card.setBrand,
-            cardNumber: card.cardNumber,
-            sport: card.sport || "Basketball",
-            photoDataUrl: card.photoDataUrl ?? null,
-            accent: card.accent || "#7c5cff",
-            estimatedSellPrice: card.estimatedSellPrice ?? 0,
-            grade: card.grade,
-            parallel: card.parallel,
-            conditionType: card.conditionType,
-            grader: card.grader,
-          });
+    // Re-check owned publicity before attaching — private copies stay off the feed.
+    const ownedNow = cards.find((item) => item.id === card.id);
+    if (!canShareFairPrice(card, ownedNow ?? null)) {
+      setSharing(false);
+      return;
+    }
+    const attachment: PublicCard | null = ownedNow
+      ? toPublicAttachment(ownedNow)
+      : toPublicAttachment({
+          id: card.id,
+          playerName: card.playerName,
+          year: card.year,
+          yearLabel: card.yearLabel,
+          setBrand: card.setBrand,
+          cardNumber: card.cardNumber,
+          sport: card.sport || "Basketball",
+          photoDataUrl: card.photoDataUrl ?? null,
+          accent: card.accent || "#7c5cff",
+          estimatedSellPrice: card.estimatedSellPrice ?? 0,
+          grade: card.grade,
+          parallel: card.parallel,
+          conditionType: card.conditionType,
+          grader: card.grader,
+        });
     const posted = await createPost({
       body,
       imageDataUrl: null,
@@ -149,7 +158,7 @@ export function FairPriceCheck({
             className="w-36 rounded-xl border border-zinc-200 bg-zinc-50 py-2.5 pr-3 pl-7 text-sm tabular-nums outline-none focus:border-zinc-400 dark:border-white/10 dark:bg-white/5 dark:focus:border-white/25"
           />
         </div>
-        {result?.status === "ready" ? (
+        {allowShare && result?.status === "ready" ? (
           <button
             type="button"
             disabled={sharing}
