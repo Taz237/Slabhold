@@ -227,7 +227,6 @@ export function MailDayForm() {
       await refresh();
       router.push("/");
     } catch (err) {
-      if (user?.id) await removeMailDayPhotos(createSupabaseBrowser(), user.id, created);
       setError(mailDaySubmitError(err));
     } finally {
       setSending(false);

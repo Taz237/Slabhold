@@ -647,6 +647,9 @@ describe("mail day photo upload", () => {
       form,
       /try \{[\s\S]*uploadMailDayPhotos[\s\S]*createMailDayPost\([\s\S]*\} catch \(err\) \{[\s\S]*mailDaySubmitError\(err\)[\s\S]*\} finally \{[\s\S]*setSending\(false\)/,
     );
+    const catchBlock = form.slice(form.indexOf("} catch (err) {"), form.indexOf("} finally {"));
+    assert.match(catchBlock, /mailDaySubmitError\(err\)/);
+    assert.doesNotMatch(catchBlock, /removeMailDayPhotos/);
     assert.match(actions, /mailDayPhotoOwnedBy\(photo, userId\)/);
     assert.match(sql, /auth\.uid\(\)::text = \(storage\.foldername\(name\)\)\[1\]/);
     assert.match(sql, /mail_day_photo_ok\(new\.image_url, new\.user_id\)/);
