@@ -4,9 +4,11 @@ import { after } from "next/server";
 import { consumeRequestLimit, consumeTrawlLimit } from "@/lib/comps/rate-limit";
 import { toPublicAttachment } from "@/lib/social/card-posts";
 import {
+  MAIL_DAY_POST_FAILED,
   mailDayCardRecord,
   mailDayMeta,
   mailDayPhotoOwnedBy,
+  removeMailDayPhotos,
   runMailDaySave,
   validateMailDayDraft,
   type MailDayInput,
@@ -51,6 +53,7 @@ export async function createMailDayPost(input: MailDayInput): Promise<MailDayAct
   const prepared = validateMailDayDraft(input);
   if (!prepared.ok) return { ok: false, cardSaved: false, error: prepared.error };
 
+  const created: string[] = [];
   const uploaded: (PreparedMailDayCard & { id: string })[] = [];
   for (const card of prepared.cards) {
     const photos: string[] = [];
@@ -58,16 +61,19 @@ export async function createMailDayPost(input: MailDayInput): Promise<MailDayAct
       if (photo.startsWith("data:")) {
         const stored = await uploadMedia(supabase, "card-photos", userId, photo);
         if (stored.error || !stored.url || !mailDayPhotoOwnedBy(stored.url, userId)) {
+          await removeMailDayPhotos(supabase, userId, created);
           return {
             ok: false,
             cardSaved: false,
             error: stored.error || "Could not upload that photo.",
           };
         }
+        created.push(stored.url);
         photos.push(stored.url);
         continue;
       }
       if (!mailDayPhotoOwnedBy(photo, userId)) {
+        await removeMailDayPhotos(supabase, userId, created);
         return { ok: false, cardSaved: false, error: "Could not upload that photo." };
       }
       photos.push(photo);
@@ -165,6 +171,15 @@ export async function createMailDayPost(input: MailDayInput): Promise<MailDayAct
     },
   });
 
+  if (!result.ok && result.error === MAIL_DAY_POST_FAILED) {
+    await removeMailDayPhotos(
+      supabase,
+      userId,
+      created.length ? created : uploaded.flatMap((card) => card.photos),
+    );
+  } else if (!result.ok && !result.cardSaved) {
+    await removeMailDayPhotos(supabase, userId, created);
+  }
   if (result.ok || result.cardSaved) scheduleRefresh(userId, result.cardIds);
   if (result.ok) {
     const mentionProblem = await syncMentionNotifications(

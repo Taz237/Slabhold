@@ -467,6 +467,7 @@ drop policy if exists "Users can upload covers" on storage.objects;
 drop policy if exists "Public can view covers" on storage.objects;
 drop policy if exists "Users can upload post images" on storage.objects;
 drop policy if exists "Public can view post images" on storage.objects;
+drop policy if exists "Users can delete own card photos" on storage.objects;
 
 create policy "Users can upload card photos"
   on storage.objects for insert
@@ -475,9 +476,12 @@ create policy "Users can upload card photos"
     and auth.uid()::text = (storage.foldername(name))[1]
   );
 
-create policy "Public can view card photos"
-  on storage.objects for select
-  using (bucket_id = 'card-photos');
+create policy "Users can delete own card photos"
+  on storage.objects for delete
+  using (
+    bucket_id = 'card-photos'
+    and auth.uid()::text = (storage.foldername(name))[1]
+  );
 
 create policy "Users can upload avatars"
   on storage.objects for insert
@@ -486,10 +490,6 @@ create policy "Users can upload avatars"
     and auth.uid()::text = (storage.foldername(name))[1]
   );
 
-create policy "Public can view avatars"
-  on storage.objects for select
-  using (bucket_id = 'avatars');
-
 create policy "Users can upload covers"
   on storage.objects for insert
   with check (
@@ -497,20 +497,12 @@ create policy "Users can upload covers"
     and auth.uid()::text = (storage.foldername(name))[1]
   );
 
-create policy "Public can view covers"
-  on storage.objects for select
-  using (bucket_id = 'covers');
-
 create policy "Users can upload post images"
   on storage.objects for insert
   with check (
     bucket_id = 'post-images'
     and auth.uid()::text = (storage.foldername(name))[1]
   );
-
-create policy "Public can view post images"
-  on storage.objects for select
-  using (bucket_id = 'post-images');
 
 -- Cached Trawl eBay sold comps (shared across users; refreshed by the Next.js API route).
 create table if not exists public.trawl_sold_cache (

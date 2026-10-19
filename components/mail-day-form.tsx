@@ -22,6 +22,7 @@ import {
 import { parallelAfterSetChange, parallelIsListed, parallelsForSet } from "@/lib/cards/parallels";
 import {
   MAIL_DAY_MAX_CARDS,
+  MAIL_DAY_POST_FAILED,
   MAIL_DAY_SPORTS,
   SOURCE_LABELS,
   isMailDaySport,
@@ -30,6 +31,7 @@ import {
   mailDaySubmitBlocker,
   mailDaySubmitError,
   previewMailDayPost,
+  removeMailDayPhotos,
   type AcquiredSource,
   type MailDayDraftCard,
 } from "@/lib/social/mail-day";
@@ -101,6 +103,7 @@ function sectionDraft(section: Section): MailDayDraftCard {
 async function uploadMailDayPhotos(
   userId: string,
   cards: readonly MailDayDraftCard[],
+  created: string[],
 ): Promise<MailDayDraftCard[]> {
   const supabase = createSupabaseBrowser();
   if (!supabase) throw new Error("Accounts are not available right now.");
@@ -114,6 +117,7 @@ async function uploadMailDayPhotos(
       }
       const stored = await uploadMedia(supabase, "card-photos", userId, photo);
       if (!stored.url) throw new Error(stored.error || "Could not upload that photo.");
+      created.push(stored.url);
       photos.push(stored.url);
     }
     uploaded.push({ ...card, photos });
@@ -188,15 +192,19 @@ export function MailDayForm() {
     setError(null);
     setSavedCardIds([]);
     setSending(true);
+    const created: string[] = [];
     try {
       if (!user?.id) throw new Error("Log in to log a Mail Day.");
-      const cards = await uploadMailDayPhotos(user.id, drafts);
+      const cards = await uploadMailDayPhotos(user.id, drafts, created);
       const result = await createMailDayPost({
         caption,
         cards,
         acquiredAt: today(),
       });
       if (!result.ok) {
+        if (!result.cardSaved || result.error === MAIL_DAY_POST_FAILED) {
+          await removeMailDayPhotos(createSupabaseBrowser(), user.id, created);
+        }
         setError(result.error);
         if (result.cardSaved) {
           setSavedCardIds(result.cardIds);
@@ -209,6 +217,7 @@ export function MailDayForm() {
       await refresh();
       router.push("/");
     } catch (err) {
+      if (user?.id) await removeMailDayPhotos(createSupabaseBrowser(), user.id, created);
       setError(mailDaySubmitError(err));
     } finally {
       setSending(false);

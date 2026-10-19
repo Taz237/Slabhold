@@ -43,6 +43,44 @@ export function mailDayPhotoOwnedBy(url: string, userId: string): boolean {
   return parts.folder.toLowerCase() === userId.toLowerCase();
 }
 
+function mailDayPhotoStoragePath(url: string, userId: string): string | null {
+  if (!mailDayPhotoOwnedBy(url, userId)) return null;
+  const parts = mailDayPhotoParts(url);
+  if (!parts) return null;
+  return `${parts.folder}/${parts.file}`;
+}
+
+type MailDayPhotoStorage = {
+  storage: {
+    from: (bucket: string) => {
+      remove: (paths: string[]) => Promise<{ error: { message: string } | null }>;
+    };
+  };
+};
+
+/** Delete card-photos this user just uploaded. Other people's URLs are left alone. */
+export async function removeMailDayPhotos(
+  supabase: MailDayPhotoStorage | null,
+  userId: string,
+  urls: readonly string[],
+): Promise<void> {
+  if (!supabase) return;
+  const paths = [
+    ...new Set(
+      urls
+        .map((url) => mailDayPhotoStoragePath(url, userId))
+        .filter((path): path is string => path != null),
+    ),
+  ];
+  if (paths.length === 0) return;
+  try {
+    const { error } = await supabase.storage.from("card-photos").remove(paths);
+    if (error) console.warn("[mail_day] photo cleanup:", error.message);
+  } catch (err) {
+    console.warn("[mail_day] photo cleanup:", err instanceof Error ? err.message : err);
+  }
+}
+
 /** Shown when Log Mail Day throws, including Next's server-action body limit. */
 export function mailDaySubmitError(err: unknown): string {
   const message =

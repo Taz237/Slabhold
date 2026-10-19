@@ -20,6 +20,7 @@ import {
   parseAcquiredSource,
   presentMailDay,
   previewMailDayPost,
+  removeMailDayPhotos,
   runMailDaySave,
   validateMailDayDraft,
   type MailDayDraftCard,
@@ -651,5 +652,56 @@ describe("mail day photo upload", () => {
     assert.match(sql, /mail_day_photo_ok\(photo, new\.user_id\)/);
     assert.match(sql, /card-photos\/'/);
     assert.match(sql, /drop function if exists public\.mail_day_photo_ok\(text\)/);
+    assert.match(actions, /removeMailDayPhotos\(/);
+    assert.match(form, /MAIL_DAY_POST_FAILED/);
+    assert.match(form, /removeMailDayPhotos\(/);
+  });
+
+  it("deletes only this user's uploaded jpg when the post fails", async () => {
+    const removed: string[][] = [];
+    await removeMailDayPhotos(
+      {
+        storage: {
+          from(bucket: string) {
+            assert.equal(bucket, "card-photos");
+            return {
+              async remove(paths: string[]) {
+                removed.push(paths);
+                return { error: null };
+              },
+            };
+          },
+        },
+      },
+      userId,
+      [
+        photo,
+        photo,
+        photo.replace(userId, "33333333-3333-4333-8333-333333333333"),
+        "https://example.com/outside.jpg",
+      ],
+    );
+    assert.deepEqual(removed, [[`${userId}/${file}`]]);
+  });
+});
+
+describe("photo storage privacy", () => {
+  const sql = readFileSync(
+    join(process.cwd(), "supabase/migrations/20261019260000_photo_storage_privacy.sql"),
+    "utf8",
+  );
+
+  it("drops public list rules, lets the owner delete card photos, and checks photoDataUrl", () => {
+    assert.match(sql, /drop policy if exists "Public can view card photos"/);
+    assert.match(sql, /drop policy if exists "Public can view avatars"/);
+    assert.match(sql, /drop policy if exists "Public can view covers"/);
+    assert.match(sql, /drop policy if exists "Public can view post images"/);
+    assert.doesNotMatch(sql, /create policy "Public can view/);
+    assert.doesNotMatch(sql, /set public = false/i);
+    assert.match(sql, /Users can delete own card photos/);
+    assert.match(sql, /on storage\.objects for delete/);
+    assert.match(sql, /bucket_id = 'card-photos'/);
+    assert.match(sql, /auth\.uid\(\)::text = \(storage\.foldername\(name\)\)\[1\]/);
+    assert.match(sql, /mail_day_photo_ok\(new\.card->>'photoDataUrl', new\.user_id\)/);
   });
 });
