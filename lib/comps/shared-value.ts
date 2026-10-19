@@ -196,8 +196,8 @@ export type ResolvedCardValue = {
 };
 
 /**
- * Card-page estimate. When sold comps are ready, the number is the median of
- * the listings passed in — never a separate card_values figure.
+ * Card-page sales list plus the persisted card_values amount.
+ * The dollar amount is never recomputed from the listings on screen.
  */
 export function resolveCardScreenValue(input: {
   phase: "loading" | "ready" | "auth" | "unavailable" | "idle";
@@ -223,16 +223,18 @@ export function resolveCardScreenValue(input: {
   if (input.phase === "ready") {
     const source = input.comps ?? [];
     const matched = input.card ? listingsForCard(input.card, source) : source;
-    const screen = screenValueFromComps(matched, input.hiddenItemIds);
-    const amount = screen.count > 0 ? screen.median : null;
+    const visible = input.hiddenItemIds
+      ? matched.filter((comp) => !input.hiddenItemIds!.has(comp.itemId))
+      : matched;
+    const amount = amountFromStoredCompValue(input.stored);
     return {
       phase: "comps",
-      comps: screen.comps,
-      basis: screen.basis,
+      comps: visible,
+      basis: [],
       amount,
-      low: amount != null ? screen.low : null,
-      high: amount != null ? screen.high : null,
-      count: screen.count,
+      low: amount != null ? (input.stored?.low ?? null) : null,
+      high: amount != null ? (input.stored?.high ?? null) : null,
+      count: amount != null ? (input.stored?.nSales ?? 0) : 0,
       emptyLabel: amount == null ? NOT_ENOUGH_SALES_LABEL : null,
     };
   }

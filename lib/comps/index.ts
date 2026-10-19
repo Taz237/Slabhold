@@ -80,6 +80,7 @@ function toMatchCard(card: SoldCompCard): MatchCard {
     conditionType: card.conditionType,
     grade: card.grade,
     gradeQualifier: card.gradeQualifier,
+    sport: card.sport,
   };
 }
 

@@ -1,10 +1,19 @@
 import "server-only";
 
-import { getCompsSource, getSoldComps, type CompClassification } from "@/lib/comps";
+import {
+  getCompsSource,
+  getSoldComps,
+  type CompClassification,
+  type SoldCompsPayload,
+} from "@/lib/comps";
 import { loadSoldCompCard } from "@/lib/comps/load-card";
 import { buildQueryKey } from "@/lib/comps/query-key";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
-import { preserveValueOnFailedAttempt, refreshCardValueResult } from "./refresh-result";
+import {
+  preserveValueOnFailedAttempt,
+  refreshCardValueResult,
+  valueAfterRefreshError,
+} from "./refresh-result";
 import type { CardRefreshReason, CardRefreshResult, RefreshQueueCard } from "./refresh-queue";
 import type { CardValueResult, CardValueStatus } from "./types";
 
@@ -19,7 +28,11 @@ export type RefreshAttempt = {
   droppedTitles: string[];
 };
 
-export type RefreshCardValueResult = CardValueResult & { attempt: RefreshAttempt };
+export type RefreshCardValueResult = CardValueResult & {
+  attempt: RefreshAttempt;
+  /** Sold comps from this refresh, when the fetch succeeded. */
+  payload: SoldCompsPayload | null;
+};
 
 type CardValueRow = {
   card_id: string;
@@ -49,8 +62,9 @@ function emptyAttempt(
 function finish(
   result: CardValueResult,
   attempt: RefreshAttempt,
+  payload: SoldCompsPayload | null = null,
 ): RefreshCardValueResult {
-  return { ...result, attempt };
+  return { ...result, attempt, payload };
 }
 
 function emptyResult(status: CardValueStatus): CardValueResult {
@@ -83,6 +97,18 @@ function rowToResult(
     status = "stale";
   }
   status = applySourceStatus(status);
+
+  // A changed query_key must not surface the previous card's price.
+  if (status === "stale") {
+    return {
+      status,
+      median: null,
+      low: null,
+      high: null,
+      nSales: 0,
+      matchedAt: row.matched_at,
+    };
+  }
 
   return {
     status,
@@ -211,7 +237,8 @@ export async function refreshCardValue(
         emptyAttempt("skipped", "budget_exhausted"),
       );
     }
-    // Trawl failed. Keep the stored price and move matched_at so the queue rotates.
+    // Trawl failed. Keep the stored price only when this card's query_key
+    // did not change, and move matched_at so the queue rotates.
     const failedAt = new Date().toISOString();
     const { data: previousRow, error: previousError } = await client
       .from("card_values")
@@ -221,23 +248,42 @@ export async function refreshCardValue(
     if (previousError) {
       console.warn("[card_values] previous read failed:", previousError.message);
     }
-    if (previousRow) {
+    const onError = valueAfterRefreshError(
+      previousRow
+        ? {
+            status: ((previousRow.status as CardValueStatus) || "unavailable"),
+            median: previousRow.median != null ? Number(previousRow.median) : null,
+            low: previousRow.low != null ? Number(previousRow.low) : null,
+            high: previousRow.high != null ? Number(previousRow.high) : null,
+            nSales:
+              previousRow.n_sales == null || Number.isNaN(Number(previousRow.n_sales))
+                ? 0
+                : Number(previousRow.n_sales),
+            matchedAt: (previousRow.matched_at as string | null) ?? null,
+            queryKey: (previousRow.query_key as string | null) ?? null,
+          }
+        : null,
+      queryKey,
+      failedAt,
+    );
+    if (onError.keep && previousRow) {
       const preserved = preserveValueOnFailedAttempt(
         {
-          median: previousRow.median != null ? Number(previousRow.median) : null,
-          low: previousRow.low != null ? Number(previousRow.low) : null,
-          high: previousRow.high != null ? Number(previousRow.high) : null,
-          nSales:
-            previousRow.n_sales == null || Number.isNaN(Number(previousRow.n_sales))
-              ? 0
-              : Number(previousRow.n_sales),
+          median: onError.median,
+          low: onError.low,
+          high: onError.high,
+          nSales: onError.nSales,
           matchedAt: (previousRow.matched_at as string | null) ?? null,
         },
-        failedAt,
+        onError.matchedAt,
       );
-      await markCardChecked(cardId, preserved.matchedAt ?? failedAt);
+      await markCardChecked(cardId, preserved.matchedAt ?? onError.matchedAt);
       return finish(
-        rowToResult({ ...(previousRow as CardValueRow), matched_at: preserved.matchedAt }),
+        rowToResult({
+          ...(previousRow as CardValueRow),
+          matched_at: preserved.matchedAt,
+          query_key: onError.queryKey,
+        }),
         emptyAttempt("kept", "trawl_error", titles),
       );
     }
@@ -254,7 +300,7 @@ export async function refreshCardValue(
     });
     return finish(
       emptyResult("unavailable"),
-      emptyAttempt("kept", "trawl_error", titles),
+      emptyAttempt(previousRow ? "re-priced" : "kept", "trawl_error", titles),
     );
   }
 
@@ -353,7 +399,7 @@ export async function refreshCardValue(
     action = samePrice ? "kept" : "re-priced";
   }
 
-  return finish(rowToResult(row), emptyAttempt(action, reason, titles));
+  return finish(rowToResult(row), emptyAttempt(action, reason, titles), payload);
 }
 
 /** Move matched_at without changing the stored price. */

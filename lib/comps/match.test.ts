@@ -287,6 +287,100 @@ describe("shared comps match", () => {
     );
   });
 
+  it("plain Fleer rejects Ultra and Traditions Crystal and keeps base Fleer", () => {
+    const jordan: MatchCard = {
+      playerName: "Michael Jordan",
+      year: 1997,
+      yearLabel: "1997-98",
+      setBrand: "Fleer",
+      cardNumber: "23",
+      parallel: "Base",
+      conditionType: "graded",
+      grade: "PSA 9",
+    };
+    const ultra = "1997-98 Fleer Ultra Michael Jordan #23 PSA 9";
+    const crystal = "Fleer Traditions Crystal Michael Jordan PSA 9";
+    const base = "1997-98 Fleer Michael Jordan #23 PSA 9";
+    assert.equal(titleMatchesCard(ultra, jordan), false);
+    assert.equal(titleMatchesCard(crystal, jordan), false);
+    assert.equal(
+      titleMatchesCard("1997-98 Fleer Traditions Crystal Michael Jordan #23 PSA 9", jordan),
+      false,
+    );
+    assert.equal(titleMatchesCard(base, jordan), true);
+    assert.equal(titleMatchesCard("1997 Fleers Michael Jordan #23 PSA 9", jordan), false);
+    assert.deepEqual(
+      filterComps(jordan, [
+        gradedResult(ultra, "PSA", "9", "ultra"),
+        gradedResult(crystal, "PSA", "9", "crystal"),
+        gradedResult(base, "PSA", "9", "base"),
+      ]).map((sale) => sale.itemId),
+      ["base"],
+    );
+  });
+
+  it("Fleer Ultra accepts a Fleer Ultra title", () => {
+    const jordan: MatchCard = {
+      playerName: "Michael Jordan",
+      year: 1997,
+      yearLabel: "1997-98",
+      setBrand: "Fleer Ultra",
+      cardNumber: "23",
+      parallel: "Base",
+      conditionType: "graded",
+      grade: "PSA 9",
+    };
+    const title = "1997-98 Fleer Ultra Michael Jordan #23 PSA 9";
+    assert.equal(titleMatchesCard(title, jordan), true);
+    assert.equal(filterComps(jordan, [gradedResult(title, "PSA", "9")]).length, 1);
+  });
+
+  it("plain Topps rejects Chrome and Now and keeps plain Topps", () => {
+    const card: MatchCard = {
+      playerName: "LeBron James",
+      year: 2024,
+      yearLabel: "2024",
+      setBrand: "Topps",
+      cardNumber: "1",
+      parallel: "Base",
+      conditionType: "graded",
+      grade: "PSA 9",
+    };
+    assert.equal(
+      titleMatchesCard("2024 Topps Chrome LeBron James #1 PSA 9", card),
+      false,
+    );
+    assert.equal(
+      titleMatchesCard("2024 Topps Now LeBron James #1 PSA 9", card),
+      false,
+    );
+    assert.equal(
+      titleMatchesCard("2024 Topps LeBron James #1 PSA 9", card),
+      true,
+    );
+  });
+
+  it("plain Prizm rejects Prizm Draft Picks", () => {
+    const card: MatchCard = {
+      playerName: "Victor Wembanyama",
+      year: 2023,
+      yearLabel: "2023-24",
+      setBrand: "Prizm",
+      cardNumber: "136",
+      parallel: "Base",
+      conditionType: "graded",
+      grade: "PSA 9",
+    };
+    assert.equal(
+      titleMatchesCard("2023-24 Prizm Draft Picks Victor Wembanyama #136 PSA 9", card),
+      false,
+    );
+    assert.equal(
+      titleMatchesCard("2023-24 Prizm Victor Wembanyama #136 PSA 9", card),
+      true,
+    );
+  });
+
   it("base card excludes titles with a serial run", () => {
     assert.equal(
       titleMatchesCard(

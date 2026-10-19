@@ -64,6 +64,22 @@ describe("formatCardValueLabel", () => {
     assert.equal(formatCardValueLabel(undefined), "Not enough sales yet");
   });
 
+  it("hides a stale median from a changed query key", () => {
+    assert.equal(
+      formatCardValueLabel(
+        value({ status: "stale", median: 50, nSales: 4, matchedAt: "2026-10-16T11:00:00.000Z" }),
+      ),
+      "Value unavailable right now",
+    );
+  });
+
+  it("formats 112.50 with cents, not a rounded dollar", () => {
+    assert.equal(
+      formatCardValueLabel(value({ status: "ok", median: 112.5, nSales: 4 })),
+      "$112.50",
+    );
+  });
+
   it("hides a median that is not backed by a matching sale", () => {
     assert.equal(
       formatCardValueLabel(value({ status: "ok", median: 80, nSales: 0 })),

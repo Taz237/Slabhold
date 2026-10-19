@@ -1,12 +1,15 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { money } from "@/lib/format";
-import { NOT_ENOUGH_SALES_LABEL } from "@/lib/value/format";
+import { formatCardValueLabel, NOT_ENOUGH_SALES_LABEL } from "@/lib/value/format";
+import { attachmentValueLabel } from "@/lib/social/post-card-value";
+import { previewValueLabelFromSources } from "@/lib/comps/preview-value";
 import type { CompListing } from "@/lib/types";
 import type { CardValueResult } from "@/lib/value/types";
 import {
   preserveValueOnFailedAttempt,
   refreshCardValueResult,
+  valueAfterRefreshError,
 } from "@/lib/value/refresh-result";
 import {
   amountFromStoredCompValue,
@@ -191,7 +194,7 @@ describe("resolveCardScreenValue", () => {
     matchedAt: "2026-09-01T00:00:00.000Z",
   };
 
-  it("prices the listed sales even when the stored value says no sales", () => {
+  it("keeps the stored row when the on-screen list would price differently", () => {
     const resolved = resolveCardScreenValue({
       phase: "ready",
       comps: [
@@ -201,17 +204,13 @@ describe("resolveCardScreenValue", () => {
       stored: storedNoSales,
     });
     assert.equal(resolved.phase, "comps");
-    assert.equal(resolved.amount, 110);
-    assert.equal(resolved.count, 2);
-    assert.equal(resolved.emptyLabel, null);
+    assert.equal(resolved.amount, null);
+    assert.equal(resolved.count, 0);
+    assert.equal(resolved.emptyLabel, NOT_ENOUGH_SALES_LABEL);
     assert.equal(resolved.comps?.length, 2);
-    assert.deepEqual(resolved.basis, [
-      { date: "2026-09-01", price: 100, grade: "PSA 10" },
-      { date: "2026-09-02", price: 120, grade: "PSA 10" },
-    ]);
   });
 
-  it("hides a flagged sale from both the list and the estimate", () => {
+  it("hides a flagged sale from the list and keeps the stored estimate", () => {
     const resolved = resolveCardScreenValue({
       phase: "ready",
       comps: [
@@ -228,15 +227,15 @@ describe("resolveCardScreenValue", () => {
         matchedAt: null,
       },
     });
-    assert.equal(resolved.amount, 80);
+    assert.equal(resolved.amount, 240);
+    assert.equal(resolved.count, 2);
     assert.deepEqual(
       resolved.comps?.map((comp) => comp.itemId),
       ["keep"],
     );
-    assert.equal(resolved.basis[0]?.grade, "PSA 10");
   });
 
-  it("drops a different grade before pricing the list", () => {
+  it("drops a different grade from the list without recomputing the price", () => {
     const resolved = resolveCardScreenValue({
       phase: "ready",
       card: PSA10,
@@ -254,14 +253,22 @@ describe("resolveCardScreenValue", () => {
           condition: "PSA 9",
         }),
       ],
+      stored: {
+        status: "ok",
+        median: 100,
+        low: 100,
+        high: 100,
+        nSales: 1,
+        matchedAt: null,
+      },
     });
-    assert.equal(resolved.count, 1);
+    assert.equal(resolved.comps?.length, 1);
     assert.equal(resolved.amount, 100);
-    assert.equal(resolved.basis[0]?.grade, "PSA 10");
+    assert.equal(resolved.count, 1);
     assert.equal(resolved.emptyLabel, null);
   });
 
-  it("says there are not enough sales when the list is empty", () => {
+  it("shows the stored price when the on-screen list is empty", () => {
     const resolved = resolveCardScreenValue({
       phase: "ready",
       comps: [],
@@ -274,9 +281,9 @@ describe("resolveCardScreenValue", () => {
         matchedAt: null,
       },
     });
-    assert.equal(resolved.amount, null);
-    assert.equal(resolved.emptyLabel, NOT_ENOUGH_SALES_LABEL);
-    assert.equal(resolved.count, 0);
+    assert.equal(resolved.amount, 500);
+    assert.equal(resolved.emptyLabel, null);
+    assert.equal(resolved.count, 4);
   });
 });
 
@@ -337,17 +344,26 @@ describe("Jaxson Dart Prizm parallels stay off Base", () => {
     assert.equal(valued.median, 9);
   });
 
-  it("prices the on-screen list from those same base sales", () => {
+  it("shows the stored median for the same base sales the helper priced", () => {
+    const stored = {
+      status: "ok" as const,
+      median: 3,
+      low: 2.5,
+      high: 3,
+      nSales: 2,
+      matchedAt: "2026-10-18T00:00:00.000Z",
+    };
     const resolved = resolveCardScreenValue({
       phase: "ready",
       card: DART_BASE,
+      stored,
       comps: DART_SALES.map((sale) => ({
         id: sale.item_id,
         itemId: sale.item_id,
         title: sale.title,
         soldPrice: sale.sale_price,
         soldDate: sale.date_sold.slice(0, 10),
-        platform: "eBay",
+        platform: "eBay" as const,
         condition: "Raw",
         shipping: null,
         url: sale.item_link,
@@ -355,11 +371,8 @@ describe("Jaxson Dart Prizm parallels stay off Base", () => {
     });
     assert.equal(resolved.amount, 3);
     assert.equal(resolved.count, 2);
-    assert.deepEqual(
-      resolved.basis.map((sale) => sale.price).sort((a, b) => a - b),
-      [2.5, 3],
-    );
-    assert.equal(displayedCompLabel(DART_BASE, DART_SALES), money(resolved.amount!, true));
+    assert.equal(resolved.comps?.length, 2);
+    assert.equal(displayedCompLabel(DART_BASE, DART_SALES), money(stored.median, true));
   });
 });
 
@@ -627,5 +640,96 @@ describe("refreshCardValue keeps a good median", () => {
     assert.equal(stamped.nSales, 4);
     assert.equal(stamped.matchedAt, "2026-10-19T09:00:00.000Z");
     assert.notEqual(stamped.matchedAt, previous.matchedAt);
+  });
+
+  it("keeps the last good price when a refresh errors and the query key is unchanged", () => {
+    const kept = valueAfterRefreshError(previous, previous.queryKey, "2026-10-19T09:00:00.000Z");
+    assert.equal(kept.keep, true);
+    assert.equal(kept.median, 50);
+    assert.equal(kept.nSales, 4);
+    assert.equal(kept.status, "ok");
+    assert.equal(kept.queryKey, previous.queryKey);
+    assert.equal(
+      formatCardValueLabel({
+        status: kept.status,
+        median: kept.median,
+        low: kept.low,
+        high: kept.high,
+        nSales: kept.nSales,
+        matchedAt: kept.matchedAt,
+      }),
+      "$50.00",
+    );
+  });
+
+  it("never shows the old price when a refresh errors and the query key changed", () => {
+    const dropped = valueAfterRefreshError(
+      previous,
+      "card|2025|prizm|332|PSA|10|Silver|||",
+      "2026-10-19T09:00:00.000Z",
+    );
+    assert.equal(dropped.keep, false);
+    assert.equal(dropped.median, null);
+    assert.equal(dropped.nSales, 0);
+    assert.equal(dropped.status, "unavailable");
+    assert.equal(
+      formatCardValueLabel({
+        status: dropped.status,
+        median: dropped.median,
+        low: dropped.low,
+        high: dropped.high,
+        nSales: dropped.nSales,
+        matchedAt: dropped.matchedAt,
+      }),
+      "Value unavailable right now",
+    );
+    assert.equal(
+      formatCardValueLabel({
+        status: "stale",
+        median: previous.median,
+        low: previous.low,
+        high: previous.high,
+        nSales: previous.nSales,
+        matchedAt: previous.matchedAt,
+      }),
+      "Value unavailable right now",
+    );
+  });
+});
+
+describe("one price for Jaxson Dart", () => {
+  const dartId = "ba95893e-89fe-4735-be3f-1509b6b6f3b9";
+  const queryKey = `${dartId}|2025|panini prizm|332|Raw||Base|||`;
+  const halfDollar = {
+    status: "ok" as const,
+    median: 112.5,
+    low: 100,
+    high: 130,
+    nSales: 4,
+    matchedAt: "2026-10-19T12:00:00.000Z",
+    queryKey,
+  };
+
+  it("persists 112.50 and formats it the same on the page, grid, and preview", () => {
+    const decision = refreshCardValueResult(null, halfDollar);
+    assert.equal(decision.keptPreviousMedian, false);
+    assert.equal(decision.value.median, 112.5);
+    const stored = {
+      status: decision.value.status,
+      median: decision.value.median,
+      low: decision.value.low,
+      high: decision.value.high,
+      nSales: decision.value.nSales,
+      matchedAt: decision.value.matchedAt,
+    };
+    const page = formatCardValueLabel(stored);
+    const grid = formatCardValueLabel(stored);
+    const preview = previewValueLabelFromSources({ stored });
+    const attachment = attachmentValueLabel(stored);
+    assert.equal(page, "$112.50");
+    assert.equal(grid, page);
+    assert.equal(preview, page);
+    assert.equal(attachment, page);
+    assert.equal(money(decision.value.median!), page);
   });
 });

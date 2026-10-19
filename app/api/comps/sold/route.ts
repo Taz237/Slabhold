@@ -1,4 +1,3 @@
-import { getSoldComps } from "@/lib/comps";
 import { loadSoldCompCard } from "@/lib/comps/load-card";
 import {
   consumeRequestLimit,
@@ -6,6 +5,7 @@ import {
   RATE_LIMIT_MESSAGE,
 } from "@/lib/comps/rate-limit";
 import { getAuthUserId } from "@/lib/supabase/server";
+import { refreshCardValue } from "@/lib/value/getCardValue";
 
 export const UNAVAILABLE_MESSAGE =
   "Sold data unavailable, try again shortly";
@@ -27,17 +27,17 @@ export async function GET(request: Request) {
     return Response.json({ error: "Card not found" }, { status: 404 });
   }
 
-  const result = await getSoldComps(card, {
+  const refreshed = await refreshCardValue(id, {
     beforeRequest: () => consumeRequestLimit(userId),
     beforeTrawl: () => consumeTrawlLimit(userId),
   });
 
-  if (!result.ok) {
-    if ("rateLimited" in result && result.rateLimited) {
-      return Response.json({ error: RATE_LIMIT_MESSAGE }, { status: 429 });
-    }
+  if (refreshed.attempt.reason === "budget_exhausted") {
+    return Response.json({ error: RATE_LIMIT_MESSAGE }, { status: 429 });
+  }
+  if (!refreshed.payload) {
     return Response.json({ error: UNAVAILABLE_MESSAGE }, { status: 503 });
   }
 
-  return Response.json(result.payload);
+  return Response.json(refreshed.payload);
 }

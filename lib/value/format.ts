@@ -46,8 +46,6 @@ export function formatCardValueLabel(
       return value.nSales >= 1 ? money(value.median) : NOT_ENOUGH_SALES_LABEL;
     }
     if (value.status === "stale") {
-      if (value.median != null && value.nSales >= 1) return money(value.median);
-      if (value.median != null) return NOT_ENOUGH_SALES_LABEL;
       return "Value unavailable right now";
     }
     if (value.median != null && value.nSales >= 1) return money(value.median);

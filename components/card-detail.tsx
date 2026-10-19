@@ -16,7 +16,7 @@ import { FairPriceCheck } from "@/components/fair-price-check";
 import { ValueChart } from "@/components/value-chart";
 import { useSocial } from "@/components/social-provider";
 import { cardCategory } from "@/lib/card-category";
-import { basedOnSalesLabel, resolveCardScreenValue } from "@/lib/comps/shared-value";
+import { basedOnSalesLabel } from "@/lib/comps/shared-value";
 import { useSoldComps } from "@/lib/comps/use-sold-comps";
 import {
   cardSubtitle,
@@ -32,7 +32,9 @@ import {
 import { formatRelativeTime } from "@/lib/relative-time";
 import { createSupabaseBrowser } from "@/lib/supabase/browser";
 import {
+  cardValueHasAmount,
   formatCardValueLabel,
+  isLowConfidenceValue,
   NOT_ENOUGH_SALES_LABEL,
 } from "@/lib/value/format";
 import { needsDetails } from "@/lib/types";
@@ -68,8 +70,20 @@ export function CardDetail({ id }: { id: string }) {
     };
   }, [user?.id, card?.id]);
 
-  const { value: cardValue, loading: valueLoading } = useCardValue(card?.id ?? null);
+  const { value: cardValue, loading: valueLoading, retry: retryValue } = useCardValue(
+    card?.id ?? null,
+  );
   const sold = useSoldComps(user ? (card?.id ?? null) : null);
+
+  useEffect(() => {
+    if (
+      sold.status === "ready" ||
+      sold.status === "unavailable" ||
+      sold.status === "rate_limited"
+    ) {
+      retryValue();
+    }
+  }, [retryValue, sold.data?.fetchedAt, sold.status]);
 
   if (!ready) {
     return (
@@ -98,40 +112,14 @@ export function CardDetail({ id }: { id: string }) {
     (sold.data?.sample === true ||
       sold.data?.source === "sample" ||
       sold.data?.source === "off");
-  const compsPhase =
-    authRequired
-      ? "auth"
-      : sold.status === "ready"
-        ? "ready"
-        : unavailable || rateLimited
-          ? "unavailable"
-          : "loading";
-  const priced = resolveCardScreenValue({
-    phase: compsPhase,
-    comps: sold.status === "ready" ? (sold.data?.comps ?? []) : null,
-    card: {
-      playerName: card.playerName,
-      year: card.year,
-      yearLabel: card.yearLabel,
-      setBrand: card.setBrand,
-      cardNumber: card.cardNumber,
-      noNumber: card.noNumber,
-      parallel: card.parallel,
-      serialRun: card.serialRun,
-      isAuto: card.isAuto,
-      isRelic: card.isRelic,
-      conditionType: card.conditionType,
-      grade: card.grade,
-      gradeQualifier: card.gradeQualifier,
-      isRookie: card.isRookie,
-    },
-    hiddenItemIds: flaggedIds,
-    stored: cardValue,
-  });
-  const compsLoading = priced.phase === "loading";
-  const onScreenComps = priced.phase === "comps" ? (priced.comps ?? []) : [];
+  const compsLoading = Boolean(user) && (sold.status === "loading" || sold.status === "idle");
+  const onScreenComps =
+    sold.status === "ready"
+      ? (sold.data?.comps ?? []).filter((comp) => !flaggedIds.has(comp.itemId))
+      : [];
+  const storedAmount = cardValueHasAmount(cardValue) ? cardValue.median : null;
 
-  const estSell = cardSold ? card.sellPrice! : priced.amount;
+  const estSell = cardSold ? card.sellPrice! : storedAmount;
 
   const paid = card.purchasePrice;
   const paidKnown = hasPaid(card);
@@ -141,11 +129,9 @@ export function CardDetail({ id }: { id: string }) {
   const max = Math.max(paidKnown ? (paid as number) : 0, estSell ?? 0, 1);
   const valueStatusLabel = cardSold
     ? null
-    : priced.phase === "comps"
-      ? priced.emptyLabel
-      : compsLoading || valueLoading
-        ? null
-        : formatCardValueLabel(cardValue, { createdAt: card.createdAt });
+    : valueLoading
+      ? null
+      : formatCardValueLabel(cardValue, { createdAt: card.createdAt });
 
   function markSold() {
     const price = Number(sellPrice);
@@ -237,26 +223,18 @@ export function CardDetail({ id }: { id: string }) {
             <EstSellMetric
               cardSold={cardSold}
               soldPrice={card.sellPrice}
-              loading={!cardSold && (compsLoading || (priced.phase !== "comps" && valueLoading))}
-              amount={priced.amount}
-              count={priced.count}
-              basis={priced.basis}
-              sample={usingSample}
-              lowConfidence={
-                priced.phase === "comps" && priced.count > 0 && priced.count < 5
-              }
-              statusLabel={
-                priced.phase === "comps"
-                  ? (priced.emptyLabel ?? NOT_ENOUGH_SALES_LABEL)
-                  : valueStatusLabel
-              }
+              loading={!cardSold && valueLoading}
+              label={valueStatusLabel}
+              count={storedAmount != null ? (cardValue?.nSales ?? 0) : 0}
+              sample={cardValue?.status === "sample"}
+              lowConfidence={isLowConfidenceValue(cardValue)}
             />
             <Metric
               label="Profit"
               value={
                 showProfit && profitPctValue != null
                   ? `${signedMoney(delta, true)} ${pct(profitPctValue)}`
-                  : compsLoading || valueLoading
+                  : valueLoading
                     ? "…"
                     : "—"
               }
@@ -358,18 +336,18 @@ export function CardDetail({ id }: { id: string }) {
         <ValueChart
           card={{
             id: card.id,
-            estimatedSellPrice: estSell ?? card.estimatedSellPrice,
+            estimatedSellPrice: storedAmount ?? 0,
             purchasePrice: paid ?? 0,
           }}
-          points={priced.phase === "comps" && usingLive ? sold.data?.history : null}
+          points={sold.status === "ready" && usingLive ? sold.data?.history : null}
           source={sold.data?.source ?? (usingSample ? "sample" : "trawl")}
-          loading={compsLoading}
-          median={priced.amount}
-          p25={priced.low}
-          p75={priced.high}
-          count={priced.count}
-          sample={usingSample}
-          lockedToComps={priced.phase === "comps"}
+          loading={valueLoading}
+          median={storedAmount}
+          p25={storedAmount != null ? (cardValue?.low ?? null) : null}
+          p75={storedAmount != null ? (cardValue?.high ?? null) : null}
+          count={storedAmount != null ? (cardValue?.nSales ?? 0) : 0}
+          sample={cardValue?.status === "sample"}
+          lockedToComps
           noSalesLabel={NOT_ENOUGH_SALES_LABEL}
           unavailable={false}
           hideStatusLabel
@@ -386,11 +364,11 @@ export function CardDetail({ id }: { id: string }) {
                   ? "Loading sold listings…"
                   : unavailable || rateLimited
                     ? "Sold data unavailable, try again shortly"
-                    : priced.phase === "comps"
-                      ? priced.count === 0
+                    : sold.status === "ready"
+                      ? onScreenComps.length === 0
                         ? NOT_ENOUGH_SALES_LABEL
-                        : `${basedOnSalesLabel(priced.count)}${
-                            priced.count < 5 ? " · Low confidence" : ""
+                        : `${basedOnSalesLabel(onScreenComps.length)}${
+                            onScreenComps.length < 5 ? " · Low confidence" : ""
                           }${
                             sold.data?.fetchedAt
                               ? ` · Updated ${formatRelativeTime(sold.data.fetchedAt)}`
@@ -425,7 +403,7 @@ export function CardDetail({ id }: { id: string }) {
               />
             ))}
           </div>
-        ) : unavailable || rateLimited ? null : priced.phase === "comps" && onScreenComps.length > 0 ? (
+        ) : unavailable || rateLimited ? null : sold.status === "ready" && onScreenComps.length > 0 ? (
           <CompsList
             comps={onScreenComps}
             cardId={card.id}
@@ -458,7 +436,7 @@ export function CardDetail({ id }: { id: string }) {
         }}
         salePrices={onScreenComps.map((comp) => comp.soldPrice)}
         canShow
-        compsReady={priced.phase === "comps"}
+        compsReady={sold.status === "ready"}
         compsLoading={compsLoading}
         needsLogin={!user}
       />
@@ -486,22 +464,18 @@ function EstSellMetric({
   cardSold,
   soldPrice,
   loading,
-  amount,
+  label,
   count,
-  basis,
   lowConfidence,
   sample = false,
-  statusLabel,
 }: {
   cardSold: boolean;
   soldPrice: number | null;
   loading: boolean;
-  amount: number | null;
+  label: string | null;
   count: number;
-  basis: { date: string; price: number; grade: string }[];
   lowConfidence: boolean;
   sample?: boolean;
-  statusLabel: string | null;
 }) {
   if (cardSold) {
     return (
@@ -515,15 +489,15 @@ function EstSellMetric({
     return <Metric label="Est. sell" value="…" />;
   }
 
-  if (amount != null) {
+  if (label?.startsWith("$")) {
     return (
       <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-3 dark:border-white/10 dark:bg-black/20">
         <p className="text-[11px] tracking-wide text-zinc-500 uppercase">Est. sell</p>
-        <p className="mt-1 text-lg font-semibold">{money(amount, true)}</p>
+        <p className="mt-1 text-lg font-semibold">{label}</p>
         {sample ? (
           <p className="mt-0.5 text-[11px] text-zinc-500">Sample estimate</p>
         ) : null}
-        <CompBasis count={count} basis={basis} />
+        <CompBasis count={count} basis={[]} />
         {lowConfidence ? (
           <span className="mt-1 inline-block rounded-md bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800 dark:text-amber-200">
             Low confidence
@@ -533,7 +507,7 @@ function EstSellMetric({
     );
   }
 
-  return <Metric label="Est. sell" value={statusLabel ?? NOT_ENOUGH_SALES_LABEL} />;
+  return <Metric label="Est. sell" value={label ?? NOT_ENOUGH_SALES_LABEL} />;
 }
 
 function CardSpecs({

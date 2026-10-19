@@ -38,5 +38,6 @@ export async function loadSoldCompCard(
     conditionType: card.conditionType,
     gradeQualifier: card.gradeQualifier || null,
     estimatedSellPrice: card.estimatedSellPrice || undefined,
+    sport: card.sport || undefined,
   };
 }

@@ -69,6 +69,7 @@ export type SoldCompCard = {
   conditionType?: "raw" | "graded";
   gradeQualifier?: string | null;
   estimatedSellPrice?: number;
+  sport?: string;
 };
 
 export type CleanedSale = {

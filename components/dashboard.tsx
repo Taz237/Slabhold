@@ -44,10 +44,7 @@ import {
   profitCardLabel,
   sumPaid,
 } from "@/lib/collection/profit-label";
-import {
-  cardValueHasAmount,
-  formatCardValueLabel,
-} from "@/lib/value/format";
+import { formatCardValueLabel } from "@/lib/value/format";
 import { useCardValues } from "@/lib/value/use-card-values";
 import { WantList } from "@/components/want-list";
 
@@ -284,11 +281,9 @@ export function Dashboard() {
                 : "—"
               : valuePending
                 ? null
-                : cardValueHasAmount(value)
-                  ? money(value.median)
-                  : valuesFailed
-                    ? "—"
-                    : formatCardValueLabel(value, { createdAt: card.createdAt });
+                : valuesFailed
+                  ? "—"
+                  : formatCardValueLabel(value, { createdAt: card.createdAt });
             const titleText = card.playerName;
             const subtitleText = cardTitle(card);
             const grade = card.grade.trim();

@@ -19,6 +19,8 @@ export type MatchCard = {
   grade?: string;
   gradeQualifier?: string | null;
   isRookie?: boolean;
+  /** Used so a WNBA Prizm card can keep WNBA titles. */
+  sport?: string;
 };
 
 const TITLE_JUNK =
@@ -83,6 +85,65 @@ const SET_FAMILIES: { family: string; members: string[] }[] = [
     ],
   },
 ];
+
+/**
+ * Product names that are not the plain base set.
+ * Used only when the saved set is that base (Fleer, not Fleer Ultra).
+ */
+export const SET_SUB_BRANDS: Record<string, readonly string[]> = {
+  fleer: [
+    "ultra",
+    "tradition",
+    "traditions",
+    "crystal",
+    "metal",
+    "metal universe",
+    "flair",
+    "showcase",
+    "e-x",
+    "e-x2000",
+    "skybox",
+    "sky box",
+    "focus",
+    "mystique",
+    "genuine",
+    "authentix",
+    "platinum",
+    "tradition update",
+    "greats",
+  ],
+  topps: [
+    "chrome",
+    "now",
+    "update",
+    "cosmic",
+    "heritage",
+    "finest",
+    "stadium club",
+    "bowman",
+    "archives",
+    "gallery",
+    "gold label",
+    "tribute",
+    "inception",
+    "museum",
+    "allen & ginter",
+    "gypsy queen",
+    "sapphire",
+  ],
+  prizm: ["draft", "draft picks", "prizm monopoly", "monopoly", "wnba"],
+  donruss: ["optic", "elite", "clearly"],
+  bowman: ["chrome", "draft", "best", "sterling", "platinum"],
+  "upper deck": [
+    "sp",
+    "spx",
+    "sp authentic",
+    "exquisite",
+    "ultimate",
+    "black diamond",
+    "mvp",
+  ],
+};
 
 const SET_KEYWORDS = [
   "select",
@@ -336,21 +397,78 @@ export function setMatchPhrase(setBrand?: string): string {
   return withoutPanini || raw.toLowerCase();
 }
 
+/** Whole words of a set name. Hyphens stay inside a token so "E-X" is not "E" + "X". */
+export function setNameTokens(value: string): string[] {
+  return normalizeSetToken(value)
+    .replace(/&/g, " ")
+    .split(/\s+/)
+    .map((part) => part.replace(/^[^a-z0-9]+|[^a-z0-9]+$/g, ""))
+    .filter(Boolean);
+}
+
+/**
+ * Tokens as whole words, in order. "Fleer" matches "Fleer" and not "Fleers".
+ * Words may sit between the tokens; they still have to appear in this order.
+ */
+export function tokensInOrder(title: string, tokens: string[]): boolean {
+  if (!tokens.length) return false;
+  let from = 0;
+  const lower = title.toLowerCase();
+  for (const token of tokens) {
+    const re = new RegExp(`\\b${escapeRegExp(token)}\\b`, "ig");
+    re.lastIndex = from;
+    const match = re.exec(lower);
+    if (!match) return false;
+    from = match.index + match[0].length;
+  }
+  return true;
+}
+
 export function titleHasSetName(title: string, setBrand?: string): boolean {
   const phrase = setMatchPhrase(setBrand);
   if (!phrase) return true;
-  const re = new RegExp(
-    `\\b${escapeRegExp(phrase).replace(/\s+/g, "\\s+")}\\b`,
-    "i",
-  );
-  return re.test(title);
+  const tokens = setNameTokens(phrase);
+  if (!tokens.length) return true;
+  return tokensInOrder(title, tokens);
+}
+
+function sportIsWnba(sport?: string): boolean {
+  return (sport ?? "").trim().toLowerCase() === "wnba";
+}
+
+function plainBaseKey(cardSet: string): string | null {
+  return Object.prototype.hasOwnProperty.call(SET_SUB_BRANDS, cardSet)
+    ? cardSet
+    : null;
+}
+
+function knownSetNames(): string[] {
+  const names = new Set<string>();
+  for (const keyword of SET_KEYWORDS) names.add(keyword);
+  for (const { members } of SET_FAMILIES) {
+    for (const member of members) names.add(member);
+  }
+  for (const [base, subs] of Object.entries(SET_SUB_BRANDS)) {
+    names.add(base);
+    for (const sub of subs) {
+      names.add(sub);
+      names.add(`${base} ${sub}`);
+    }
+  }
+  return [...names];
 }
 
 /**
  * Family logic: base "Topps" excludes Now/Chrome/Update/etc.
- * "Topps Now" requires Now. Same idea for Prizm/Select/Optic families.
+ * "Topps Now" requires Now. Same idea for Prizm/Select/Optic/Fleer families.
+ * Plain base sets also drop sub-brands and any longer known set that starts
+ * with that base name ("Fleer Ultra" is not "Fleer").
  */
-export function titleNamesWrongSet(title: string, setBrand?: string): boolean {
+export function titleNamesWrongSet(
+  title: string,
+  setBrand?: string,
+  sport?: string,
+): boolean {
   const cardSet = normalizeSetToken(setBrand ?? "");
   const lower = title.toLowerCase();
 
@@ -374,11 +492,29 @@ export function titleNamesWrongSet(title: string, setBrand?: string): boolean {
     if (!cardIsBaseFamily) continue;
     for (const member of members) {
       if (cardSet.includes(member)) continue;
+      if (sportIsWnba(sport) && /\bwnba\b/.test(member)) continue;
       const re = new RegExp(
         `\\b${escapeRegExp(member).replace(/\s+/g, "\\s+")}\\b`,
         "i",
       );
       if (re.test(lower)) return true;
+    }
+  }
+
+  const base = plainBaseKey(cardSet);
+  if (base) {
+    for (const sub of SET_SUB_BRANDS[base]) {
+      if (sub === "wnba" && sportIsWnba(sport)) continue;
+      if (tokensInOrder(lower, setNameTokens(sub))) return true;
+    }
+  }
+
+  if (cardSet) {
+    for (const name of knownSetNames()) {
+      const normalized = normalizeSetToken(name);
+      if (!normalized.startsWith(`${cardSet} `)) continue;
+      if (sportIsWnba(sport) && /\bwnba\b/.test(normalized)) continue;
+      if (tokensInOrder(lower, setNameTokens(normalized))) return true;
     }
   }
 
@@ -684,7 +820,7 @@ export function titleMatchesCard(title: string, card: MatchCard): boolean {
     return false;
   }
   if (!titleHasSetName(title, card.setBrand)) return false;
-  if (titleNamesWrongSet(title, card.setBrand)) return false;
+  if (titleNamesWrongSet(title, card.setBrand, card.sport)) return false;
 
   const num = normalizeCardNumber(card.cardNumber);
   if (!card.noNumber) {
