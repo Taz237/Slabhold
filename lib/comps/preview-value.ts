@@ -34,7 +34,7 @@ export function selectFreshMatchingCompsSales(input: {
 
 /**
  * Share-preview dollar label: price a fresh same-key comps batch the same way
- * the card page does (including owner "Not a match" exclusions). Without a
+ * the card page does (including owner "Report wrong sale" exclusions). Without a
  * usable batch, use the stored card_values label (/api/card-values).
  */
 export function previewValueLabelFromSources(input: {

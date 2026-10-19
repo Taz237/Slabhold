@@ -1,20 +1,20 @@
 import type { SportsCard } from "./types";
 
+/** Shared display format for card pages, collection, Home, and share previews. */
 const usd = new Intl.NumberFormat("en-US", {
-  style: "currency",
-  currency: "USD",
-  maximumFractionDigits: 0,
-});
-
-const usdExact = new Intl.NumberFormat("en-US", {
   style: "currency",
   currency: "USD",
   minimumFractionDigits: 2,
   maximumFractionDigits: 2,
 });
 
-export function money(value: number, exact = false) {
-  return (exact ? usdExact : usd).format(value);
+/**
+ * Always `$35.00` style (two decimal places).
+ * The second argument is ignored and kept for call-site compatibility.
+ */
+export function money(value: number, exact = true) {
+  void exact;
+  return usd.format(value);
 }
 
 /** True when the owner recorded a positive purchase price. */

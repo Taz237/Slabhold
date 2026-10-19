@@ -106,7 +106,7 @@ export function CompsList({
                 onClick={() => flagNotAMatch(comp)}
                 className="text-[11px] text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200"
               >
-                Not a match
+                Report wrong sale
               </button>
             ) : null}
           </div>

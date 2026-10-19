@@ -73,7 +73,7 @@ describe("share preview comps freshness", () => {
       stored: STORED_THREE,
       nowMs,
     });
-    assert.equal(label, "$3");
+    assert.equal(label, "$3.00");
     assert.equal(
       selectFreshMatchingCompsSales({
         expectedQueryKey: BASE_KEY,
@@ -101,10 +101,10 @@ describe("share preview comps freshness", () => {
       stored: STORED_THREE,
       nowMs,
     });
-    assert.equal(label, "$3");
+    assert.equal(label, "$3.00");
   });
 
-  it("excludes owner Not a match sales before pricing a fresh batch", () => {
+  it("excludes owner Report wrong sale flags before pricing a fresh batch", () => {
     const freshFetchedAt = new Date(nowMs - 60_000).toISOString();
     const baseSales = [
       sale("2025 Panini Prizm Jaxson Dart #332 Rookie RC Giants", 3, "keep-a"),

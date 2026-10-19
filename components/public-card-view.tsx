@@ -4,10 +4,12 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import { CardCollectorsSaying } from "@/components/card-collectors-saying";
+import { CardOwnersSection } from "@/components/card-owners";
 import { WantButton } from "@/components/want-button";
 import { CardThumb } from "@/components/card-thumb";
 import { CompBasis } from "@/components/comp-basis";
 import { CompsList } from "@/components/comps-list";
+import { FairPriceCheck } from "@/components/fair-price-check";
 import { useCollection } from "@/components/collection-provider";
 import { ProfileSkeleton } from "@/components/status";
 import { useSocial } from "@/components/social-provider";
@@ -306,6 +308,45 @@ function PublicCardAnalytics({
           />
         ) : null}
       </section>
+
+      <FairPriceCheck
+        card={{
+          id: card.id,
+          playerName: card.playerName,
+          year: card.year,
+          yearLabel: card.yearLabel,
+          setBrand: card.setBrand,
+          cardNumber: card.cardNumber,
+          grade: card.grade,
+          parallel: card.parallel,
+          sport: card.sport,
+          photoDataUrl: card.photoDataUrl,
+          accent: card.accent,
+          estimatedSellPrice: card.estimatedSellPrice,
+          conditionType: card.conditionType,
+          grader: card.grader,
+          isPublic: true,
+        }}
+        salePrices={onScreenComps.map((comp) => comp.soldPrice)}
+        canShow
+        compsReady={priced.phase === "comps"}
+        authRequired={authRequired}
+      />
+
+      <CardOwnersSection
+        card={{
+          id: card.id,
+          playerName: card.playerName,
+          year: card.year,
+          yearLabel: card.yearLabel,
+          setBrand: card.setBrand,
+          cardNumber: card.cardNumber,
+          parallel: card.parallel,
+          grade: card.grade,
+          conditionType: card.conditionType,
+          grader: card.grader,
+        }}
+      />
 
       <CardCollectorsSaying cardId={card.id} />
     </div>

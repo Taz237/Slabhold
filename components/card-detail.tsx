@@ -5,12 +5,14 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ArrowLeft, Pencil, Trash2 } from "lucide-react";
 import { CardCollectorsSaying } from "@/components/card-collectors-saying";
+import { CardOwnersSection } from "@/components/card-owners";
 import { WantButton } from "@/components/want-button";
 import { CategoryBadge, CategoryPicker } from "@/components/category-picker";
 import { useCollection } from "@/components/collection-provider";
 import { CardThumb } from "@/components/card-thumb";
 import { CompBasis } from "@/components/comp-basis";
 import { CompsList } from "@/components/comps-list";
+import { FairPriceCheck } from "@/components/fair-price-check";
 import { ValueChart } from "@/components/value-chart";
 import { useSocial } from "@/components/social-provider";
 import { cardCategory } from "@/lib/card-category";
@@ -436,6 +438,43 @@ export function CardDetail({ id }: { id: string }) {
           />
         ) : null}
       </section>
+
+      <FairPriceCheck
+        card={{
+          id: card.id,
+          playerName: card.playerName,
+          year: card.year,
+          yearLabel: card.yearLabel,
+          setBrand: card.setBrand,
+          cardNumber: card.cardNumber,
+          grade: card.grade,
+          parallel: card.parallel,
+          sport: card.sport,
+          photoDataUrl: card.photoDataUrl,
+          accent: card.accent,
+          estimatedSellPrice: card.estimatedSellPrice,
+          conditionType: card.conditionType,
+          isPublic: card.isPublic,
+        }}
+        salePrices={onScreenComps.map((comp) => comp.soldPrice)}
+        canShow
+        compsReady={priced.phase === "comps"}
+        authRequired={authRequired}
+      />
+
+      <CardOwnersSection
+        card={{
+          id: card.id,
+          playerName: card.playerName,
+          year: card.year,
+          yearLabel: card.yearLabel,
+          setBrand: card.setBrand,
+          cardNumber: card.cardNumber,
+          parallel: card.parallel,
+          grade: card.grade,
+          conditionType: card.conditionType,
+        }}
+      />
 
       <CardCollectorsSaying cardId={card.id} />
     </div>

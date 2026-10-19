@@ -75,7 +75,7 @@ function matchCardOf(card: SoldCompCard): MatchCard {
   };
 }
 
-/** Owner "Not a match" flags — same exclusions as the card page comps list. */
+/** Owner "Report wrong sale" flags — same exclusions as the card page comps list. */
 async function loadOwnerCompFlagIds(
   cardId: string,
   ownerId: string,

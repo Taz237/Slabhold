@@ -405,6 +405,25 @@ describe("raw card graded exclusions", () => {
     assert.equal(cleaned[0].grade, null);
   });
 
+  it('raw filter drops "... STUDIOS 10" and "PSA 10" titles but keeps plain raw', () => {
+    const studios = rawResult("2024 Topps LeBron James #196 STUDIOS 10", {
+      item_id: "studios",
+    });
+    const psa = rawResult("2024 Topps LeBron James #196 PSA 10", {
+      item_id: "psa",
+      grading: { graded: true, grader: "PSA", grade: "10", condition: null },
+    });
+    const plain = rawResult("2024 Topps LeBron James #196", {
+      item_id: "plain",
+      sale_price: 18,
+    });
+    assert.deepEqual(cleanTrawlResult(studios, LEBRON_RAW), []);
+    assert.deepEqual(cleanTrawlResult(psa, LEBRON_RAW), []);
+    assert.equal(cleanTrawlResult(plain, LEBRON_RAW).length, 1);
+    assert.equal(listingLooksProfessionallyGraded(studios), true);
+    assert.equal(titleMatchesCard(studios.title, LEBRON_RAW), false);
+  });
+
   it("dedupes identical title + price + sold date", () => {
     const a = rawResult("2024 Topps LeBron James #196", {
       item_id: "d1",
