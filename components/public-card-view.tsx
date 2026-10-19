@@ -330,7 +330,8 @@ function PublicCardAnalytics({
         salePrices={onScreenComps.map((comp) => comp.soldPrice)}
         canShow
         compsReady={priced.phase === "comps"}
-        authRequired={authRequired}
+        compsLoading={compsLoading}
+        needsLogin={!userId}
       />
 
       <CardOwnersSection

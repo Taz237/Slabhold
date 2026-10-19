@@ -213,6 +213,7 @@ async function createSeed(): Promise<LocalDb> {
     id: "maya-wemby",
     playerName: "Victor Wembanyama",
     year: 2023,
+    yearLabel: "2023-24",
     setBrand: "Panini Prizm",
     cardNumber: "136",
     sport: "Basketball",
@@ -236,6 +237,22 @@ async function createSeed(): Promise<LocalDb> {
     grade: "PSA 9",
     parallel: "Base",
     purchasePrice: 180,
+  };
+  /** Same card as Maya's Wemby, different grade — powers the Owned by demo. */
+  const jordanWemby: PublicCard = {
+    id: "jordan-wemby",
+    playerName: "Victor Wembanyama",
+    year: 2023,
+    yearLabel: "2023-24",
+    setBrand: "Panini Prizm",
+    cardNumber: "136",
+    sport: "Basketball",
+    photoDataUrl: null,
+    accent: "#f43f5e",
+    estimatedSellPrice: 160,
+    grade: "PSA 9",
+    parallel: "Silver",
+    purchasePrice: 110,
   };
   const clark: PublicCard = {
     id: "sam-clark",
@@ -328,7 +345,7 @@ async function createSeed(): Promise<LocalDb> {
     messages: [],
     collections: {
       [maya.id]: [wemby],
-      [jordan.id]: [mahomes],
+      [jordan.id]: [mahomes, jordanWemby],
       [sam.id]: [clark],
     },
   };

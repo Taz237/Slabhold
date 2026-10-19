@@ -42,7 +42,8 @@ export function FairPriceCheck({
   salePrices,
   canShow,
   compsReady,
-  authRequired = false,
+  compsLoading = false,
+  needsLogin = false,
 }: {
   card: FairPriceCard;
   /** Prices from the on-screen matched comps (same helper as the card page). */
@@ -50,8 +51,9 @@ export function FairPriceCheck({
   /** Owner of a private card, or any viewer of a public card. */
   canShow: boolean;
   compsReady: boolean;
-  /** Sold comps (and therefore the fair-price band) need a signed-in session. */
-  authRequired?: boolean;
+  compsLoading?: boolean;
+  /** Logged-out: comps (and the fair-price band) need a session. */
+  needsLogin?: boolean;
 }) {
   const router = useRouter();
   const { user, createPost } = useSocial();
@@ -158,15 +160,19 @@ export function FairPriceCheck({
           </button>
         ) : null}
       </div>
-      {authRequired ? (
+      {needsLogin ? (
         <p className="mt-3 text-sm text-zinc-500">
           <Link href="/login" className="font-semibold underline underline-offset-2">
             Sign in
           </Link>{" "}
           to compare against recent sales
         </p>
-      ) : !compsReady ? (
+      ) : compsLoading ? (
         <p className="mt-3 text-sm text-zinc-500">Loading sales…</p>
+      ) : !compsReady ? (
+        <p className="mt-3 text-sm text-zinc-500">
+          {hasPrice ? "Not enough sales yet" : "Enter a price to check"}
+        </p>
       ) : hasPrice && result ? (
         <p
           className={`mt-3 text-sm font-medium ${

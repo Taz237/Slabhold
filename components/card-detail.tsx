@@ -459,7 +459,8 @@ export function CardDetail({ id }: { id: string }) {
         salePrices={onScreenComps.map((comp) => comp.soldPrice)}
         canShow
         compsReady={priced.phase === "comps"}
-        authRequired={authRequired}
+        compsLoading={compsLoading}
+        needsLogin={!user}
       />
 
       <CardOwnersSection
