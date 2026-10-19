@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 import {
   MAX_CARD_VALUE_IDS,
   parseCardValueIds,
+  soldCompsAccess,
   visibleCardIds,
 } from "./card-value-access";
 
@@ -28,6 +29,24 @@ describe("card value id visibility", () => {
       new Set(["mine"]),
     );
     assert.deepEqual(visible, ["mine"]);
+  });
+
+  it("hides someone else's private card from sold comps", () => {
+    assert.equal(
+      soldCompsAccess("their-private-card", new Set(), new Set(["my-card"])),
+      "hidden",
+    );
+  });
+
+  it("lets the owner save a refresh and a public viewer only read", () => {
+    assert.equal(
+      soldCompsAccess("mine", new Set(["mine"]), new Set(["mine"])),
+      "owner",
+    );
+    assert.equal(
+      soldCompsAccess("public-card", new Set(["public-card"]), new Set()),
+      "public",
+    );
   });
 
   it("keeps public ids and the owner's private ids together", () => {

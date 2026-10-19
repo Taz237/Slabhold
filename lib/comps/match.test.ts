@@ -360,6 +360,104 @@ describe("shared comps match", () => {
     );
   });
 
+  it("plain sets keep ordinary title words and still reject the full product", () => {
+    const prizm: MatchCard = {
+      playerName: "Jaxson Dart",
+      year: 2025,
+      yearLabel: "2025",
+      setBrand: "Panini Prizm",
+      cardNumber: "332",
+      parallel: "Base",
+      conditionType: "raw",
+      grade: "Raw",
+    };
+    assert.equal(
+      titleMatchesCard(
+        "2025 Panini Prizm Jaxson Dart #332 RC Giants 1st Round Draft",
+        prizm,
+      ),
+      true,
+    );
+    assert.equal(
+      titleMatchesCard("2025 Panini Prizm Draft Picks Jaxson Dart #332 RC", prizm),
+      false,
+    );
+
+    const bowman: MatchCard = {
+      playerName: "Jackson Holliday",
+      year: 2024,
+      yearLabel: "2024",
+      setBrand: "Bowman",
+      cardNumber: "1",
+      parallel: "Base",
+      conditionType: "raw",
+      grade: "Raw",
+    };
+    assert.equal(
+      titleMatchesCard("2024 Bowman Jackson Holliday #1 RC Best Rookie Card", bowman),
+      true,
+    );
+    assert.equal(
+      titleMatchesCard("2024 Bowman's Best Jackson Holliday #1 RC", bowman),
+      false,
+    );
+    assert.equal(
+      titleMatchesCard("2024 Bowman Bowmans Best Jackson Holliday #1 RC", bowman),
+      false,
+    );
+
+    const topps: MatchCard = {
+      playerName: "Shohei Ohtani",
+      year: 2024,
+      yearLabel: "2024",
+      setBrand: "Topps",
+      cardNumber: "50",
+      parallel: "Base",
+      conditionType: "raw",
+      grade: "Raw",
+    };
+    assert.equal(
+      titleMatchesCard("2024 Topps Shohei Ohtani #50 RC Now", topps),
+      true,
+    );
+    assert.equal(
+      titleMatchesCard("2024 Topps Now Shohei Ohtani #50 RC", topps),
+      false,
+    );
+
+    const upperDeck: MatchCard = {
+      playerName: "Alexander Ovechkin",
+      year: 2005,
+      yearLabel: "2005-06",
+      setBrand: "Upper Deck",
+      cardNumber: "201",
+      parallel: "Base",
+      conditionType: "raw",
+      grade: "Raw",
+    };
+    assert.equal(
+      titleMatchesCard(
+        "2005-06 Upper Deck Alexander Ovechkin #201 Young Guns RC SP",
+        upperDeck,
+      ),
+      true,
+    );
+    assert.equal(
+      titleMatchesCard(
+        "2005-06 Upper Deck SP Authentic Alexander Ovechkin #201 RC",
+        upperDeck,
+      ),
+      false,
+    );
+    assert.equal(
+      titleMatchesCard(
+        "2005-06 Upper Deck SPX Alexander Ovechkin #201 RC",
+        upperDeck,
+      ),
+      false,
+    );
+  });
+
   it("plain Prizm rejects Prizm Draft Picks", () => {
     const card: MatchCard = {
       playerName: "Victor Wembanyama",

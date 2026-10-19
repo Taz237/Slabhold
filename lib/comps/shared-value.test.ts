@@ -13,7 +13,9 @@ import {
 } from "@/lib/value/refresh-result";
 import {
   amountFromStoredCompValue,
+  countForSalesLabel,
   displayedCompLabel,
+  pricePayloadWithoutFlags,
   resolveCardScreenValue,
   sharedCompValue,
 } from "./shared-value";
@@ -208,6 +210,37 @@ describe("resolveCardScreenValue", () => {
     assert.equal(resolved.count, 0);
     assert.equal(resolved.emptyLabel, NOT_ENOUGH_SALES_LABEL);
     assert.equal(resolved.comps?.length, 2);
+  });
+
+  it("drops a flagged sale from the price and the count together", () => {
+    const comps = [
+      listing({ itemId: "keep", soldPrice: 80, condition: "PSA 10" }),
+      listing({ itemId: "drop", soldPrice: 400, condition: "PSA 10" }),
+    ];
+    const payload = {
+      comps,
+      history: [],
+      median: 240,
+      p25: 80,
+      p75: 400,
+      count: 2,
+      source: "trawl" as const,
+      cached: true,
+      fetchedAt: "2026-10-19T00:00:00.000Z",
+      query: "test",
+      lowConfidence: true,
+      sample: false,
+    };
+    const priced = pricePayloadWithoutFlags(payload, new Set(["drop"]));
+    assert.equal(priced.count, 1);
+    assert.equal(priced.comps.length, priced.count);
+    assert.equal(priced.median, 80);
+    assert.notEqual(priced.median, payload.median);
+    assert.equal(countForSalesLabel(priced.count, priced.comps.length), priced.count);
+    assert.deepEqual(
+      priced.comps.map((comp) => comp.itemId),
+      ["keep"],
+    );
   });
 
   it("hides a flagged sale from the list and keeps the stored estimate", () => {
@@ -649,6 +682,31 @@ describe("refreshCardValue keeps a good median", () => {
     assert.equal(kept.nSales, 4);
     assert.equal(kept.status, "ok");
     assert.equal(kept.queryKey, previous.queryKey);
+    assert.equal(
+      formatCardValueLabel({
+        status: kept.status,
+        median: kept.median,
+        low: kept.low,
+        high: kept.high,
+        nSales: kept.nSales,
+        matchedAt: kept.matchedAt,
+      }),
+      "$50.00",
+    );
+  });
+
+  it("keeps the old price when a refresh errors and the saved row has no card key", () => {
+    const kept = valueAfterRefreshError(
+      { ...previous, queryKey: null },
+      previous.queryKey,
+      "2026-10-19T09:00:00.000Z",
+    );
+    assert.equal(kept.keep, true);
+    assert.equal(kept.median, 50);
+    assert.equal(kept.low, 40);
+    assert.equal(kept.high, 60);
+    assert.equal(kept.nSales, 4);
+    assert.equal(kept.status, "ok");
     assert.equal(
       formatCardValueLabel({
         status: kept.status,

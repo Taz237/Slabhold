@@ -4,7 +4,9 @@ import {
   consumeTrawlLimit,
   RATE_LIMIT_MESSAGE,
 } from "@/lib/comps/rate-limit";
+import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { getAuthUserId } from "@/lib/supabase/server";
+import { soldCompsAccess } from "@/lib/value/card-value-access";
 import { refreshCardValue } from "@/lib/value/getCardValue";
 
 export const UNAVAILABLE_MESSAGE =
@@ -27,7 +29,16 @@ export async function GET(request: Request) {
     return Response.json({ error: "Card not found" }, { status: 404 });
   }
 
+  const access = await lookupSoldCompsAccess(id, userId);
+  if (access === "unavailable") {
+    return Response.json({ error: UNAVAILABLE_MESSAGE }, { status: 503 });
+  }
+  if (access === "hidden") {
+    return Response.json({ error: "Card not found" }, { status: 404 });
+  }
+
   const refreshed = await refreshCardValue(id, {
+    save: access === "owner",
     beforeRequest: () => consumeRequestLimit(userId),
     beforeTrawl: () => consumeTrawlLimit(userId),
   });
@@ -40,4 +51,33 @@ export async function GET(request: Request) {
   }
 
   return Response.json(refreshed.payload);
+}
+
+/** Public cards, plus the signed-in user's own row. Fail closed on lookup errors. */
+async function lookupSoldCompsAccess(
+  cardId: string,
+  userId: string,
+): Promise<"owner" | "public" | "hidden" | "unavailable"> {
+  const admin = createSupabaseAdmin();
+  if (!admin) return "unavailable";
+
+  const [{ data: publicRow, error: publicError }, { data: ownedRow, error: ownedError }] =
+    await Promise.all([
+      admin.from("public_cards").select("id").eq("id", cardId).maybeSingle(),
+      admin.from("cards").select("id").eq("id", cardId).eq("user_id", userId).maybeSingle(),
+    ]);
+
+  if (publicError || ownedError) {
+    console.warn(
+      "[comps/sold] visibility check failed:",
+      publicError?.message ?? ownedError?.message,
+    );
+    return "unavailable";
+  }
+
+  return soldCompsAccess(
+    cardId,
+    new Set(publicRow ? [cardId] : []),
+    new Set(ownedRow ? [cardId] : []),
+  );
 }

@@ -5,10 +5,10 @@ import {
   NOT_ENOUGH_SALES_LABEL,
 } from "@/lib/value/format";
 import type { CardValueResult } from "@/lib/value/types";
-import { cleanedToCompListings } from "./map";
-import { filterComps, matchComps, type MatchCard } from "./match";
+import { cleanedToCompListings, historyFromSales } from "./map";
+import { filterComps, isLowConfidence, matchComps, type MatchCard } from "./match";
 import { middleFifty } from "./stats";
-import type { CleanedSale, TrawlSoldResult } from "./types";
+import type { CleanedSale, SoldCompsPayload, TrawlSoldResult } from "./types";
 
 export { NOT_ENOUGH_SALES_LABEL };
 
@@ -170,6 +170,38 @@ export function listingsForCard(
 
 export function basedOnSalesLabel(count: number): string {
   return `Based on ${count} sale${count === 1 ? "" : "s"}`;
+}
+
+/**
+ * "Based on N sales" uses the saved n_sales once a price exists.
+ * That count is the flagged-sale list refreshCardValue priced.
+ * Before a saved count, use the filtered list on screen.
+ */
+export function countForSalesLabel(
+  storedNSales: number | null | undefined,
+  filteredCount: number,
+): number {
+  if (typeof storedNSales === "number" && storedNSales > 0) return storedNSales;
+  return filteredCount;
+}
+
+/** Drop the owner's flagged sales, then price that same list. */
+export function pricePayloadWithoutFlags(
+  payload: SoldCompsPayload,
+  flaggedItemIds: ReadonlySet<string>,
+): SoldCompsPayload {
+  if (!flaggedItemIds.size) return payload;
+  const priced = screenValueFromComps(payload.comps, flaggedItemIds);
+  return {
+    ...payload,
+    comps: priced.comps,
+    history: historyFromSales(priced.comps.map(compListingToCleaned)),
+    median: priced.median,
+    p25: priced.low,
+    p75: priced.high,
+    count: priced.count,
+    lowConfidence: isLowConfidence(priced.count),
+  };
 }
 
 /**

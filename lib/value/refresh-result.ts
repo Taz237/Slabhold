@@ -71,19 +71,19 @@ export type StoredValueOnError = {
 };
 
 /**
- * A refresh error keeps the last stored price only when query_key is unchanged.
- * A new key writes an empty unavailable row so the old price is never shown.
+ * A refresh error keeps the last stored price when query_key is unchanged
+ * or the saved row has no card key. A different key writes an empty
+ * unavailable row so the old price is never shown.
  */
 export function valueAfterRefreshError(
   previous: StoredValueOnError | null,
   queryKey: string,
   attemptedAt: string,
 ): StoredValueOnError & { keep: boolean; matchedAt: string; queryKey: string } {
-  const sameKey =
+  const keepPrevious =
     previous != null &&
-    previous.queryKey != null &&
-    previous.queryKey === queryKey;
-  if (sameKey && previous) {
+    (previous.queryKey == null || previous.queryKey === queryKey);
+  if (keepPrevious && previous) {
     return {
       keep: true,
       status: previous.status,

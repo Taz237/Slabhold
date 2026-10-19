@@ -114,7 +114,7 @@ export const SET_SUB_BRANDS: Record<string, readonly string[]> = {
   ],
   topps: [
     "chrome",
-    "now",
+    "topps now",
     "update",
     "cosmic",
     "heritage",
@@ -131,11 +131,10 @@ export const SET_SUB_BRANDS: Record<string, readonly string[]> = {
     "gypsy queen",
     "sapphire",
   ],
-  prizm: ["draft", "draft picks", "prizm monopoly", "monopoly", "wnba"],
+  prizm: ["draft picks", "prizm monopoly", "monopoly", "wnba"],
   donruss: ["optic", "elite", "clearly"],
-  bowman: ["chrome", "draft", "best", "sterling", "platinum"],
+  bowman: ["chrome", "draft", "bowman's best", "bowmans best", "sterling", "platinum"],
   "upper deck": [
-    "sp",
     "spx",
     "sp authentic",
     "exquisite",
@@ -424,6 +423,15 @@ export function tokensInOrder(title: string, tokens: string[]): boolean {
   return true;
 }
 
+/**
+ * "Topps Now" is the product name. Words may sit between other sub-brand
+ * tokens ("Topps" … "Chrome"), but a later "now" is not Topps Now.
+ */
+function titleHasSubBrand(title: string, sub: string): boolean {
+  if (normalizeSetToken(sub) === "topps now") return /\btopps\s+now\b/i.test(title);
+  return tokensInOrder(title, setNameTokens(sub));
+}
+
 export function titleHasSetName(title: string, setBrand?: string): boolean {
   const phrase = setMatchPhrase(setBrand);
   if (!phrase) return true;
@@ -505,7 +513,7 @@ export function titleNamesWrongSet(
   if (base) {
     for (const sub of SET_SUB_BRANDS[base]) {
       if (sub === "wnba" && sportIsWnba(sport)) continue;
-      if (tokensInOrder(lower, setNameTokens(sub))) return true;
+      if (titleHasSubBrand(lower, sub)) return true;
     }
   }
 
@@ -514,7 +522,7 @@ export function titleNamesWrongSet(
       const normalized = normalizeSetToken(name);
       if (!normalized.startsWith(`${cardSet} `)) continue;
       if (sportIsWnba(sport) && /\bwnba\b/.test(normalized)) continue;
-      if (tokensInOrder(lower, setNameTokens(normalized))) return true;
+      if (titleHasSubBrand(lower, normalized)) return true;
     }
   }
 
@@ -674,7 +682,10 @@ export function titleHasDisallowedParallel(
   if (base && titleHasPrizmParallelCue(title, identity?.setBrand)) return true;
 
   if (base) {
+    const setKey = normalizeSetToken(identity?.setBrand ?? "");
     for (const word of PARALLEL_AFTER_NUMBER) {
+      // Trailing "RC SP" on base Upper Deck is the Young Guns card. SP Authentic and SPX stay sub-brands.
+      if (word === "sp" && setKey === "upper deck") continue;
       if (wordAfterCardNumber(scan, identity?.cardNumber, word)) return true;
     }
   }

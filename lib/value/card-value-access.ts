@@ -41,3 +41,19 @@ export function visibleCardIds(
 ): string[] {
   return requested.filter((id) => publicIds.has(id) || ownedIds.has(id));
 }
+
+/**
+ * Who may open /api/comps/sold for this card.
+ * hidden: not public and not the signed-in user's card → 404.
+ * owner: save the refresh. public: return comps and do not write card_values.
+ */
+export function soldCompsAccess(
+  cardId: string,
+  publicIds: ReadonlySet<string>,
+  ownedIds: ReadonlySet<string>,
+): "owner" | "public" | "hidden" {
+  if (!visibleCardIds([cardId], publicIds, ownedIds).includes(cardId)) {
+    return "hidden";
+  }
+  return ownedIds.has(cardId) ? "owner" : "public";
+}

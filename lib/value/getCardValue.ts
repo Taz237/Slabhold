@@ -8,6 +8,7 @@ import {
 } from "@/lib/comps";
 import { loadSoldCompCard } from "@/lib/comps/load-card";
 import { buildQueryKey } from "@/lib/comps/query-key";
+import { pricePayloadWithoutFlags } from "@/lib/comps/shared-value";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import {
   preserveValueOnFailedAttempt,
@@ -198,6 +199,8 @@ export async function getCardValues(
 export type RefreshCardValueOptions = {
   beforeRequest?: () => Promise<boolean>;
   beforeTrawl?: () => Promise<boolean>;
+  /** False when a public viewer may see comps but must not write card_values. */
+  save?: boolean;
 };
 
 /**
@@ -219,6 +222,7 @@ export async function refreshCardValue(
 
   const queryKey = buildQueryKey(card);
   const source = getCompsSource();
+  const save = options?.save !== false;
   let titles: CompClassification = { keptTitles: [], droppedTitles: [], matched: 0 };
 
   const result = await getSoldComps(card, {
@@ -277,7 +281,7 @@ export async function refreshCardValue(
         },
         onError.matchedAt,
       );
-      await markCardChecked(cardId, preserved.matchedAt ?? onError.matchedAt);
+      if (save) await markCardChecked(cardId, preserved.matchedAt ?? onError.matchedAt);
       return finish(
         rowToResult({
           ...(previousRow as CardValueRow),
@@ -288,23 +292,28 @@ export async function refreshCardValue(
       );
     }
 
-    await upsertCardValue(client, {
-      card_id: cardId,
-      median: null,
-      low: null,
-      high: null,
-      n_sales: 0,
-      status: "unavailable",
-      query_key: queryKey,
-      matched_at: failedAt,
-    });
+    if (save) {
+      await upsertCardValue(client, {
+        card_id: cardId,
+        median: null,
+        low: null,
+        high: null,
+        n_sales: 0,
+        status: "unavailable",
+        query_key: queryKey,
+        matched_at: failedAt,
+      });
+    }
     return finish(
       emptyResult("unavailable"),
       emptyAttempt(previousRow ? "re-priced" : "kept", "trawl_error", titles),
     );
   }
 
-  const payload = result.payload;
+  const payload = pricePayloadWithoutFlags(
+    result.payload,
+    await loadOwnerFlaggedItemIds(client, cardId),
+  );
   const isSample = source === "sample" || source === "off" || payload.sample;
   const nSales = payload.count;
   const hasSales = nSales >= 1 && payload.median != null;
@@ -324,7 +333,7 @@ export async function refreshCardValue(
   if (previousError) {
     console.warn("[card_values] previous read failed:", previousError.message);
     if (!hasSales) {
-      await markCardChecked(cardId, matchedAt);
+      if (save) await markCardChecked(cardId, matchedAt);
       return finish(
         emptyResult(isSample ? "sample" : "no_sales"),
         emptyAttempt("kept", "no_matches", titles),
@@ -375,16 +384,18 @@ export async function refreshCardValue(
     matched_at: merged.matchedAt,
   };
 
-  await upsertCardValue(client, {
-    card_id: cardId,
-    median: row.median,
-    low: row.low,
-    high: row.high,
-    n_sales: row.n_sales ?? 0,
-    status: row.status,
-    query_key: row.query_key ?? queryKey,
-    matched_at: row.matched_at ?? matchedAt,
-  });
+  if (save) {
+    await upsertCardValue(client, {
+      card_id: cardId,
+      median: row.median,
+      low: row.low,
+      high: row.high,
+      n_sales: row.n_sales ?? 0,
+      status: row.status,
+      query_key: row.query_key ?? queryKey,
+      matched_at: row.matched_at ?? matchedAt,
+    });
+  }
 
   const previousMedian =
     previousRow && previousRow.median != null ? Number(previousRow.median) : null;
@@ -414,6 +425,38 @@ export async function markCardChecked(
     .update({ matched_at: at })
     .eq("card_id", cardId);
   if (error) console.warn("[card_values] matched_at update failed:", error.message);
+}
+
+async function loadOwnerFlaggedItemIds(
+  client: NonNullable<ReturnType<typeof createSupabaseAdmin>>,
+  cardId: string,
+): Promise<Set<string>> {
+  const { data: ownerRow, error: ownerError } = await client
+    .from("cards")
+    .select("user_id")
+    .eq("id", cardId)
+    .maybeSingle();
+  if (ownerError) {
+    console.warn("[comp_flags] owner read failed:", ownerError.message);
+    return new Set();
+  }
+  const ownerId = ownerRow?.user_id ? String(ownerRow.user_id) : "";
+  if (!ownerId) return new Set();
+
+  const { data, error } = await client
+    .from("comp_flags")
+    .select("item_id")
+    .eq("card_id", cardId)
+    .eq("user_id", ownerId);
+  if (error) {
+    console.warn("[comp_flags] read failed:", error.message);
+    return new Set();
+  }
+  return new Set(
+    (data ?? [])
+      .map((row) => String((row as { item_id?: string }).item_id ?? ""))
+      .filter(Boolean),
+  );
 }
 
 async function upsertCardValue(

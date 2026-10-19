@@ -16,7 +16,7 @@ import { FairPriceCheck } from "@/components/fair-price-check";
 import { ValueChart } from "@/components/value-chart";
 import { useSocial } from "@/components/social-provider";
 import { cardCategory } from "@/lib/card-category";
-import { basedOnSalesLabel } from "@/lib/comps/shared-value";
+import { basedOnSalesLabel, countForSalesLabel } from "@/lib/comps/shared-value";
 import { useSoldComps } from "@/lib/comps/use-sold-comps";
 import {
   cardSubtitle,
@@ -117,6 +117,10 @@ export function CardDetail({ id }: { id: string }) {
     sold.status === "ready"
       ? (sold.data?.comps ?? []).filter((comp) => !flaggedIds.has(comp.itemId))
       : [];
+  const salesCount = countForSalesLabel(
+    cardValueHasAmount(cardValue) ? cardValue.nSales : null,
+    onScreenComps.length,
+  );
   const storedAmount = cardValueHasAmount(cardValue) ? cardValue.median : null;
 
   const estSell = cardSold ? card.sellPrice! : storedAmount;
@@ -367,8 +371,8 @@ export function CardDetail({ id }: { id: string }) {
                     : sold.status === "ready"
                       ? onScreenComps.length === 0
                         ? NOT_ENOUGH_SALES_LABEL
-                        : `${basedOnSalesLabel(onScreenComps.length)}${
-                            onScreenComps.length < 5 ? " · Low confidence" : ""
+                        : `${basedOnSalesLabel(salesCount)}${
+                            salesCount < 5 ? " · Low confidence" : ""
                           }${
                             sold.data?.fetchedAt
                               ? ` · Updated ${formatRelativeTime(sold.data.fetchedAt)}`
@@ -410,9 +414,10 @@ export function CardDetail({ id }: { id: string }) {
             userId={user?.id ?? null}
             canFlag={Boolean(user)}
             flaggedIds={flaggedIds}
-            onFlagged={(itemId) =>
-              setFlaggedIds((prev) => new Set(prev).add(itemId))
-            }
+            onFlagged={(itemId) => {
+              setFlaggedIds((prev) => new Set(prev).add(itemId));
+              retryValue();
+            }}
           />
         ) : null}
       </section>

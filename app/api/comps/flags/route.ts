@@ -1,6 +1,7 @@
 import { isCardOwner } from "@/lib/comps/ownership";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { getAuthUserId } from "@/lib/supabase/server";
+import { refreshCardValue } from "@/lib/value/getCardValue";
 
 export const runtime = "nodejs";
 
@@ -57,6 +58,17 @@ export async function POST(request: Request) {
   if (writeError) {
     console.warn("[comp_flags] upsert failed:", writeError.message);
     return Response.json({ error: "Could not save flag" }, { status: 500 });
+  }
+
+  try {
+    await refreshCardValue(cardId, {
+      beforeTrawl: async () => false,
+    });
+  } catch (err) {
+    console.warn(
+      "[comp_flags] reprice failed:",
+      err instanceof Error ? err.message : err,
+    );
   }
 
   return Response.json({ ok: true });
