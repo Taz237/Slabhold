@@ -93,6 +93,38 @@ export function mailDayPhotosToRemove(
   ];
 }
 
+export type MailDayPhotoUploader = (
+  photo: string,
+) => Promise<{ url: string | null; error?: string }>;
+
+/**
+ * Replace data-url photos with stored urls.
+ * Each new url is appended to created. An upload failure throws and leaves those urls in created.
+ * Urls that are already stored pass through and are not added to created.
+ */
+export async function uploadMailDayPhotosWith(
+  uploader: MailDayPhotoUploader,
+  cards: readonly MailDayDraftCard[],
+  created: string[],
+): Promise<MailDayDraftCard[]> {
+  const uploaded: MailDayDraftCard[] = [];
+  for (const card of cards) {
+    const photos: string[] = [];
+    for (const photo of card.photos.filter(Boolean).slice(0, 4)) {
+      if (!photo.startsWith("data:")) {
+        photos.push(photo);
+        continue;
+      }
+      const stored = await uploader(photo);
+      if (!stored.url) throw new Error(stored.error || "Could not upload that photo.");
+      created.push(stored.url);
+      photos.push(stored.url);
+    }
+    uploaded.push({ ...card, photos });
+  }
+  return uploaded;
+}
+
 /** Delete card-photos this user just uploaded. Other people's URLs are left alone. */
 export async function removeMailDayPhotos(
   supabase: MailDayPhotoStorage | null,

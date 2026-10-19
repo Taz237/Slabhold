@@ -23,8 +23,10 @@ import {
   previewMailDayPost,
   removeMailDayPhotos,
   runMailDaySave,
+  uploadMailDayPhotosWith,
   validateMailDayDraft,
   type MailDayDraftCard,
+  type MailDayPhotoUploader,
 } from "./mail-day";
 
 describe("mail day privacy", () => {
@@ -643,13 +645,18 @@ describe("mail day photo upload", () => {
     assert.equal(form.includes("_open"), false);
     assert.equal(form.includes("_note"), false);
     assert.match(form, /uploadMedia\(/);
+    assert.match(form, /uploadMailDayPhotosWith\(/);
     assert.match(
       form,
       /try \{[\s\S]*uploadMailDayPhotos[\s\S]*createMailDayPost\([\s\S]*\} catch \(err\) \{[\s\S]*mailDaySubmitError\(err\)[\s\S]*\} finally \{[\s\S]*setSending\(false\)/,
     );
-    const catchBlock = form.slice(form.indexOf("} catch (err) {"), form.indexOf("} finally {"));
+    const catchBlock = form.slice(form.lastIndexOf("} catch (err) {"), form.indexOf("} finally {"));
     assert.match(catchBlock, /mailDaySubmitError\(err\)/);
     assert.doesNotMatch(catchBlock, /removeMailDayPhotos/);
+    assert.match(
+      form,
+      /try \{\s*cards = await uploadMailDayPhotos\(user\.id, drafts, created\);\s*\} catch \(err\) \{\s*await removeMailDayPhotos\(\s*createSupabaseBrowser\(\),\s*user\.id,\s*created\s*\);\s*setError\(mailDaySubmitError\(err\)\);\s*return;\s*\}/,
+    );
     assert.match(actions, /mailDayPhotoOwnedBy\(photo, userId\)/);
     assert.match(sql, /auth\.uid\(\)::text = \(storage\.foldername\(name\)\)\[1\]/);
     assert.match(sql, /mail_day_photo_ok\(new\.image_url, new\.user_id\)/);
@@ -662,6 +669,150 @@ describe("mail day photo upload", () => {
     assert.match(form, /removeMailDayPhotos\(/);
     assert.doesNotMatch(actions, /MAIL_DAY_POST_FAILED/);
     assert.doesNotMatch(form, /MAIL_DAY_POST_FAILED/);
+  });
+
+  async function saveMailDayClient(input: {
+    cards: MailDayDraftCard[];
+    uploader: MailDayPhotoUploader;
+    server: (cards: MailDayDraftCard[]) => Promise<void>;
+    remove: (urls: readonly string[]) => Promise<void>;
+  }) {
+    const created: string[] = [];
+    const state = { sending: true, error: null as string | null };
+    try {
+      let cards: MailDayDraftCard[];
+      try {
+        cards = await uploadMailDayPhotosWith(input.uploader, input.cards, created);
+      } catch (err) {
+        await input.remove(created);
+        state.error = mailDaySubmitError(err);
+        return state;
+      }
+      await input.server(cards);
+      return state;
+    } catch (err) {
+      state.error = mailDaySubmitError(err);
+      return state;
+    } finally {
+      state.sending = false;
+    }
+  }
+
+  function photoFileUrl(name: string) {
+    return `https://knuwflptobyutrauxblj.supabase.co/storage/v1/object/public/card-photos/${userId}/${name}`;
+  }
+
+  it("deletes photos 1–2 when photo 3 fails to upload and never calls the server", async () => {
+    const files = [
+      "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1.jpg",
+      "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa2.jpg",
+      "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa3.jpg",
+    ];
+    const urls = files.map((name) => photoFileUrl(name));
+    const removed: string[][] = [];
+    let uploads = 0;
+    let serverCalls = 0;
+    const result = await saveMailDayClient({
+      cards: [
+        draft({
+          photos: [
+            "data:image/jpeg;base64,one",
+            "data:image/jpeg;base64,two",
+            "data:image/jpeg;base64,three",
+          ],
+        }),
+      ],
+      uploader: async () => {
+        const index = uploads;
+        uploads += 1;
+        if (index === 2) return { url: null, error: "Could not upload that photo." };
+        return { url: urls[index] ?? null };
+      },
+      server: async () => {
+        serverCalls += 1;
+      },
+      remove: (uploaded) =>
+        removeMailDayPhotos(
+          {
+            storage: {
+              from(bucket: string) {
+                assert.equal(bucket, "card-photos");
+                return {
+                  async remove(paths: string[]) {
+                    removed.push(paths);
+                    return { data: paths.map((name) => ({ name })), error: null };
+                  },
+                };
+              },
+            },
+          },
+          userId,
+          uploaded,
+        ),
+    });
+    assert.equal(uploads, 3);
+    assert.equal(serverCalls, 0);
+    assert.deepEqual(removed, [[`${userId}/${files[0]}`, `${userId}/${files[1]}`]]);
+    assert.equal(result.error, "Could not upload that photo.");
+    assert.equal(result.sending, false);
+    const form = readFileSync(join(process.cwd(), "components/mail-day-form.tsx"), "utf8");
+    assert.match(form, /disabled=\{sending \|\| Boolean\(blocker\)\}/);
+    assert.match(form, /\{error \? <p className="text-sm text-rose-600/);
+    assert.match(form, /finally \{\s*setSending\(false\);\s*\}/);
+    assert.match(
+      form,
+      /catch \(err\) \{\s*await removeMailDayPhotos\(\s*createSupabaseBrowser\(\),\s*user\.id,\s*created\s*\);\s*setError\(mailDaySubmitError\(err\)\);\s*return;/,
+    );
+  });
+
+  it("leaves photos in place when the server throws after cards are saved", async () => {
+    const files = [
+      "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb1.jpg",
+      "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb2.jpg",
+      "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb3.jpg",
+    ];
+    const urls = files.map((name) => photoFileUrl(name));
+    let uploads = 0;
+    let serverCalls = 0;
+    let removeCalls = 0;
+    let posted: string[] = [];
+    const result = await saveMailDayClient({
+      cards: [
+        draft({
+          photos: [
+            "data:image/jpeg;base64,one",
+            "data:image/jpeg;base64,two",
+            "data:image/jpeg;base64,three",
+          ],
+        }),
+      ],
+      uploader: async () => {
+        const url = urls[uploads] ?? null;
+        uploads += 1;
+        return { url };
+      },
+      server: async (cards) => {
+        serverCalls += 1;
+        posted = cards.flatMap((card) => card.photos);
+        throw new Error("Could not reach Mail Day.");
+      },
+      remove: async () => {
+        removeCalls += 1;
+      },
+    });
+    assert.equal(uploads, 3);
+    assert.equal(serverCalls, 1);
+    assert.deepEqual(posted, urls);
+    assert.equal(removeCalls, 0);
+    assert.equal(result.error, "Could not reach Mail Day.");
+    assert.equal(result.sending, false);
+    const form = readFileSync(join(process.cwd(), "components/mail-day-form.tsx"), "utf8");
+    const outerCatch = form.slice(form.lastIndexOf("} catch (err) {"), form.indexOf("} finally {"));
+    assert.match(outerCatch, /setError\(mailDaySubmitError\(err\)\)/);
+    assert.doesNotMatch(outerCatch, /removeMailDayPhotos/);
+    assert.match(form, /finally \{\s*setSending\(false\);\s*\}/);
+    assert.match(form, /disabled=\{sending \|\| Boolean\(blocker\)\}/);
+    assert.match(form, /\{error \? <p className="text-sm text-rose-600/);
   });
 
   it("keeps saved cards' photos and drops only unsaved uploads", () => {

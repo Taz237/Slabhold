@@ -32,6 +32,7 @@ import {
   mailDaySubmitError,
   previewMailDayPost,
   removeMailDayPhotos,
+  uploadMailDayPhotosWith,
   type AcquiredSource,
   type MailDayDraftCard,
 } from "@/lib/social/mail-day";
@@ -107,22 +108,11 @@ async function uploadMailDayPhotos(
 ): Promise<MailDayDraftCard[]> {
   const supabase = createSupabaseBrowser();
   if (!supabase) throw new Error("Accounts are not available right now.");
-  const uploaded: MailDayDraftCard[] = [];
-  for (const card of cards) {
-    const photos: string[] = [];
-    for (const photo of card.photos.filter(Boolean).slice(0, 4)) {
-      if (!photo.startsWith("data:")) {
-        photos.push(photo);
-        continue;
-      }
-      const stored = await uploadMedia(supabase, "card-photos", userId, photo);
-      if (!stored.url) throw new Error(stored.error || "Could not upload that photo.");
-      created.push(stored.url);
-      photos.push(stored.url);
-    }
-    uploaded.push({ ...card, photos });
-  }
-  return uploaded;
+  return uploadMailDayPhotosWith(
+    (photo) => uploadMedia(supabase, "card-photos", userId, photo),
+    cards,
+    created,
+  );
 }
 
 export function MailDayForm() {
@@ -195,7 +185,14 @@ export function MailDayForm() {
     const created: string[] = [];
     try {
       if (!user?.id) throw new Error("Log in to log a Mail Day.");
-      const cards = await uploadMailDayPhotos(user.id, drafts, created);
+      let cards: MailDayDraftCard[];
+      try {
+        cards = await uploadMailDayPhotos(user.id, drafts, created);
+      } catch (err) {
+        await removeMailDayPhotos(createSupabaseBrowser(), user.id, created);
+        setError(mailDaySubmitError(err));
+        return;
+      }
       const result = await createMailDayPost({
         caption,
         cards,
