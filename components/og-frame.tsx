@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { ImageResponse } from "next/og";
 import { cleanImageUrl, clipText, type LinkPreview } from "@/lib/social/link-preview";
 
@@ -5,6 +7,9 @@ export const ogSize = { width: 1200, height: 630 };
 export const ogContentType = "image/png";
 
 const MAX_FETCH_BYTES = 5 * 1024 * 1024;
+
+/** Same `public/logo.svg` the header and favicon use. */
+const logoSrc = `data:image/svg+xml;base64,${readFileSync(join(process.cwd(), "public/logo.svg")).toString("base64")}`;
 
 /** Confirm a cleaned image URL. Redirects are not followed. */
 export async function reachableImage(url: string | null): Promise<string | null> {
@@ -62,8 +67,12 @@ export function renderOg(preview: LinkPreview, kicker: string) {
             padding: "64px",
           }}
         >
-          <div style={{ display: "flex", fontSize: 28, letterSpacing: 3, color: "#c4b5fd" }}>
-            SLABHOLD
+          <div style={{ display: "flex", alignItems: "center" }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={logoSrc} alt="" width={48} height={48} style={{ marginRight: 16 }} />
+            <div style={{ display: "flex", fontSize: 28, letterSpacing: 3, color: "#c4b5fd" }}>
+              SLABHOLD
+            </div>
           </div>
           <div style={{ display: "flex", flexDirection: "column" }}>
             <div style={{ display: "flex", fontSize: 22, color: "#a1a1aa", marginBottom: 16 }}>

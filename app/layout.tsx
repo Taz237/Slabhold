@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { AppShell } from "@/components/app-shell";
+import { LOGO_SRC } from "@/components/logo";
 import { CollectionProvider } from "@/components/collection-provider";
 import { ImageLightboxProvider } from "@/components/image-lightbox";
 import { SocialProvider } from "@/components/social-provider";
@@ -38,6 +39,9 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Slabhold",
     description: "Sports card portfolio, flips, and a feed of collectors",
+  },
+  icons: {
+    icon: { url: LOGO_SRC, type: "image/svg+xml", sizes: "any" },
   },
 };
 
