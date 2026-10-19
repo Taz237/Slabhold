@@ -119,13 +119,18 @@ export function Dashboard() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">Your book</p>
-        <h1 className="mt-1 text-2xl font-bold tracking-tight">Collection</h1>
-        {syncError ? (
-          <p className="mt-2 text-sm text-rose-600 dark:text-rose-400">{syncError}</p>
-        ) : null}
+      <div className="flex items-end justify-between gap-3">
+        <div>
+          <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">Your book</p>
+          <h1 className="mt-1 text-2xl font-bold tracking-tight">Collection</h1>
+        </div>
+        <Link href="/mail-day" className={outlineButton}>
+          Mail Day
+        </Link>
       </div>
+      {syncError ? (
+        <p className="text-sm text-rose-600 dark:text-rose-400">{syncError}</p>
+      ) : null}
       {cards.length === 0 ? null : (
         <CollectionValueHistory
           currentValue={collectionValue}

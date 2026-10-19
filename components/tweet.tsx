@@ -15,6 +15,7 @@ import { useSocial } from "@/components/social-provider";
 import { exactTime, initials, timeAgo } from "@/lib/format";
 import { quoteCount } from "@/lib/social/quotes";
 import type { Post, PostComment, Profile, PublicCard } from "@/lib/social/types";
+import { MailDayCard } from "@/components/mail-day-card";
 import { useAttachmentLabel } from "@/lib/social/use-attachment-label";
 import type { CardValueResult } from "@/lib/value/types";
 
@@ -101,17 +102,28 @@ export function Tweet({
             <MentionText text={post.body} />
           </p>
         ) : null}
-        {post.imageDataUrl ? (
-          <PostPhoto src={post.imageDataUrl} onOpen={openImage} />
-        ) : null}
-        {post.card ? (
-          <CardMedia
-            card={post.card}
+        {post.postType === "mail_day" && post.card ? (
+          <MailDayCard
+            post={post}
             username={author.username}
             cardValues={cardValues}
             cardValuesLoading={cardValuesLoading}
           />
-        ) : null}
+        ) : (
+          <>
+            {post.imageDataUrl ? (
+              <PostPhoto src={post.imageDataUrl} onOpen={openImage} />
+            ) : null}
+            {post.card ? (
+              <CardMedia
+                card={post.card}
+                username={author.username}
+                cardValues={cardValues}
+                cardValuesLoading={cardValuesLoading}
+              />
+            ) : null}
+          </>
+        )}
         {post.quotedPostId ? (
           <QuotedPostEmbed
             quotedPostId={post.quotedPostId}

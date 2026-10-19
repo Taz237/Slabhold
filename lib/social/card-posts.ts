@@ -3,6 +3,7 @@ import { withAuthorSafety } from "@/lib/safety/filters";
 import { formatGrade, parseGrade } from "@/lib/card-options";
 import { isUuid } from "@/lib/value/card-value-access";
 import { cardIdentityKey, type IdentityCard } from "./card-identity";
+import { presentMailDay } from "./mail-day";
 import { mapPublicCard, PUBLIC_CARD_SELECT, type CardRow } from "./cards";
 import type { Post, Profile, PublicCard } from "./types";
 
@@ -46,7 +47,8 @@ export function toPublicAttachment(card: {
   };
 }
 
-const POST_SELECT = "id, user_id, content, image_url, card, quoted_post_id, created_at";
+const POST_SELECT =
+  "id, user_id, content, image_url, card, quoted_post_id, created_at, post_type, show_paid, meta";
 const PROFILE_SELECT =
   "id, username, display_name, bio, avatar_url, cover_url, accent, created_at";
 
@@ -58,6 +60,9 @@ type PostRow = {
   card: unknown;
   quoted_post_id?: string | null;
   created_at: string;
+  post_type?: string | null;
+  show_paid?: boolean | null;
+  meta?: unknown;
 };
 
 type ProfileRow = {
@@ -100,15 +105,27 @@ export function sanitizeAttachedCard(raw: unknown): PublicCard | null {
   };
 }
 
-function mapPostRow(row: PostRow): Post {
+function mapPostRow(row: PostRow, viewerId: string | null, publicIds: ReadonlySet<string>): Post {
+  const card = sanitizeAttachedCard(row.card);
+  const mailDay = presentMailDay({
+    postType: row.post_type,
+    showPaid: row.show_paid,
+    meta: row.meta,
+    authorId: row.user_id,
+    viewerId,
+    cardIsPublic: Boolean(card && publicIds.has(card.id)),
+  });
   return {
     id: row.id,
     authorId: row.user_id,
     body: row.content ?? "",
     imageDataUrl: row.image_url,
-    card: sanitizeAttachedCard(row.card),
+    card,
     quotedPostId: row.quoted_post_id ?? null,
     createdAt: row.created_at,
+    postType: row.post_type === "mail_day" ? "mail_day" : "post",
+    showPaid: row.show_paid === true,
+    mailDay,
   };
 }
 
@@ -143,6 +160,23 @@ async function loadProfilesById(
   return authors;
 }
 
+async function publicIdsFor(
+  supabase: SupabaseClient,
+  rows: PostRow[],
+): Promise<Set<string>> {
+  const ids = [
+    ...new Set(
+      rows
+        .map((row) => sanitizeAttachedCard(row.card)?.id)
+        .filter((id): id is string => Boolean(id && isUuid(id))),
+    ),
+  ];
+  if (ids.length === 0) return new Set();
+  const { data, error } = await supabase.from("public_cards").select("id").in("id", ids);
+  if (error) return new Set();
+  return new Set(((data ?? []) as { id: string }[]).map((row) => row.id));
+}
+
 /** Fetch missing quoted posts (one nested hop) so quote embeds can resolve. */
 async function loadQuotedPosts(
   supabase: SupabaseClient,
@@ -168,8 +202,10 @@ async function loadQuotedPosts(
   );
   const { data, error } = await quotedQuery;
   if (error) throw new Error(error.message);
-  for (const row of (data ?? []) as PostRow[]) {
-    const mapped = mapPostRow(row);
+  const quotedRows = (data ?? []) as PostRow[];
+  const publicIds = await publicIdsFor(supabase, quotedRows);
+  for (const row of quotedRows) {
+    const mapped = mapPostRow(row, viewerId, publicIds);
     related.push(mapped);
     known.add(mapped.id);
   }
@@ -189,8 +225,10 @@ async function loadQuotedPosts(
     );
     const nested = await nestedQuery;
     if (nested.error) throw new Error(nested.error.message);
-    for (const row of (nested.data ?? []) as PostRow[]) {
-      related.push(mapPostRow(row));
+    const nestedRows = (nested.data ?? []) as PostRow[];
+    const nestedPublicIds = await publicIdsFor(supabase, nestedRows);
+    for (const row of nestedRows) {
+      related.push(mapPostRow(row, viewerId, nestedPublicIds));
     }
   }
   return related;
@@ -217,6 +255,10 @@ type AboutCardRow = {
   attached_grader: string | null;
   attached_parallel: string | null;
   attached_condition: string | null;
+  attached_is_public?: boolean | null;
+  post_type?: string | null;
+  show_paid?: boolean | null;
+  meta?: unknown;
 };
 
 export type CardPostsPage = {
@@ -292,15 +334,31 @@ export async function loadPostsForCard(
   });
   if (error) throw new Error(error.message);
 
-  const rows = ((data ?? []) as AboutCardRow[]).map((row) => ({
-    id: row.id,
-    authorId: row.user_id,
-    body: row.content ?? "",
-    imageDataUrl: row.image_url,
-    card: attachedCard(row),
-    quotedPostId: row.quoted_post_id ?? null,
-    createdAt: row.created_at,
-  }));
+  const { data: sessionData } = await supabase.auth.getSession();
+  const viewerId = sessionData.session?.user.id ?? null;
+  const rows = ((data ?? []) as AboutCardRow[]).map((row) => {
+    const card = attachedCard(row);
+    const mailDay = presentMailDay({
+      postType: row.post_type,
+      showPaid: row.show_paid,
+      meta: row.meta,
+      authorId: row.user_id,
+      viewerId,
+      cardIsPublic: row.attached_is_public === true,
+    });
+    return {
+      id: row.id,
+      authorId: row.user_id,
+      body: row.content ?? "",
+      imageDataUrl: row.image_url,
+      card,
+      quotedPostId: row.quoted_post_id ?? null,
+      createdAt: row.created_at,
+      postType: row.post_type === "mail_day" ? ("mail_day" as const) : ("post" as const),
+      showPaid: row.show_paid === true,
+      mailDay,
+    };
+  });
   const unique = dedupePosts(rows);
   const hasMore = unique.length > limit;
   const posts = unique.slice(0, limit);

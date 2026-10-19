@@ -33,6 +33,15 @@ export type PublicCard = {
 
 export type OwnedCard = PublicCard & { ownerId: string };
 
+export type MailDayInfo = {
+  source: string | null;
+  photos: string[];
+  /** Set only when this viewer is allowed to see the cost. */
+  paid: number | null;
+  isPublic: boolean;
+  showValue: boolean;
+};
+
 export type Post = {
   id: string;
   authorId: string;
@@ -42,6 +51,9 @@ export type Post = {
   /** Original post this quote references, if any. */
   quotedPostId: string | null;
   createdAt: string;
+  postType?: "post" | "mail_day";
+  showPaid?: boolean;
+  mailDay?: MailDayInfo | null;
 };
 
 export type FollowEdge = {

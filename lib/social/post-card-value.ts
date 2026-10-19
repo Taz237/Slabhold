@@ -6,10 +6,14 @@ import type { CardValueResult } from "@/lib/value/types";
 
 /** Card ids attached to posts, deduped. One batch key for getCardValues. */
 export function collectAttachedCardIds(
-  posts: Iterable<{ card?: { id?: string | null } | null }>,
+  posts: Iterable<{
+    card?: { id?: string | null } | null;
+    mailDay?: { showValue?: boolean } | null;
+  }>,
 ): string[] {
   const ids = new Set<string>();
   for (const post of posts) {
+    if (post.mailDay && post.mailDay.showValue === false) continue;
     const id = post.card?.id;
     if (id) ids.add(id);
   }

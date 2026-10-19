@@ -1,5 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { uploadMedia } from "@/lib/supabase/media";
+import { sanitizeAttachedCard } from "./card-posts";
+import { presentMailDay } from "./mail-day";
 import { mapPublicCard } from "./cards";
 import type {
   AuthResult,
@@ -51,6 +53,9 @@ type PostRow = {
   card: PublicCard | null;
   quoted_post_id?: string | null;
   created_at: string;
+  post_type?: string | null;
+  show_paid?: boolean | null;
+  meta?: unknown;
 };
 
 type FollowRow = {
@@ -138,15 +143,28 @@ async function allowNotice(
   return canNotify(supabaseSafety(supabase), actorId, recipientId);
 }
 
-function mapPost(row: PostRow): Post {
+function mapPost(row: PostRow, viewerId: string | null, publicIds: ReadonlySet<string>): Post {
+  const card = sanitizeAttachedCard(row.card);
+  const isPublic = Boolean(card && publicIds.has(card.id));
+  const mailDay = presentMailDay({
+    postType: row.post_type,
+    showPaid: row.show_paid,
+    meta: row.meta,
+    authorId: row.user_id,
+    viewerId,
+    cardIsPublic: isPublic,
+  });
   return {
     id: row.id,
     authorId: row.user_id,
     body: row.content ?? "",
     imageDataUrl: row.image_url,
-    card: row.card,
+    card,
     quotedPostId: row.quoted_post_id ?? null,
     createdAt: row.created_at,
+    postType: row.post_type === "mail_day" ? "mail_day" : "post",
+    showPaid: row.show_paid === true,
+    mailDay,
   };
 }
 
@@ -240,10 +258,15 @@ export async function loadSupabaseSocial(supabase: SupabaseClient): Promise<Soci
   if (myBlocksRes.error && !missingTable(myBlocksRes.error)) throw new Error(myBlocksRes.error.message);
   if (myMutesRes.error && !missingTable(myMutesRes.error)) throw new Error(myMutesRes.error.message);
 
+  const publicIds = new Set(
+    ((cardsRes.data ?? []) as { id: string }[]).map((row) => row.id),
+  );
   const profiles = ((profilesRes.data ?? []) as ProfileRow[]).map((row) =>
     mapProfile(row, row.id === session?.user.id ? (session.user.email ?? "") : ""),
   );
-  const posts = ((postsRes.data ?? []) as PostRow[]).map(mapPost);
+  const posts = ((postsRes.data ?? []) as PostRow[]).map((row) =>
+    mapPost(row, viewerId, publicIds),
+  );
   const reposts = ((repostsRes.data ?? []) as RepostRow[]).map(
     (row): PostRepost => ({
       postId: row.post_id,
@@ -270,7 +293,7 @@ export async function loadSupabaseSocial(supabase: SupabaseClient): Promise<Soci
     );
     if (extra.error && !missingTable(extra.error)) throw new Error(extra.error.message);
     for (const row of (extra.data ?? []) as PostRow[]) {
-      const mapped = mapPost(row);
+      const mapped = mapPost(row, viewerId, publicIds);
       posts.push(mapped);
       knownPostIds.add(mapped.id);
     }
@@ -288,7 +311,7 @@ export async function loadSupabaseSocial(supabase: SupabaseClient): Promise<Soci
         blockedHidden,
       );
       if (nested.error && !missingTable(nested.error)) throw new Error(nested.error.message);
-      for (const row of (nested.data ?? []) as PostRow[]) posts.push(mapPost(row));
+      for (const row of (nested.data ?? []) as PostRow[]) posts.push(mapPost(row, viewerId, publicIds));
     }
     posts.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   }
@@ -334,7 +357,9 @@ export async function loadSupabaseSocial(supabase: SupabaseClient): Promise<Soci
       read: row.read,
     }),
   );
-  const homePosts = ((homePostsRes.data ?? []) as PostRow[]).map(mapPost);
+  const homePosts = ((homePostsRes.data ?? []) as PostRow[]).map((row) =>
+    mapPost(row, viewerId, publicIds),
+  );
   const homeReposts = ((homeRepostsRes.data ?? []) as RepostRow[]).map(
     (row): PostRepost => ({
       postId: row.post_id,
