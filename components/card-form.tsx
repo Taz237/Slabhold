@@ -14,7 +14,6 @@ import {
   GRADE_COMPANIES,
   GRADE_NUMBERS,
   GRADE_QUALIFIERS,
-  PARALLELS,
   SETS,
   SPORTS,
   formatGrade,
@@ -26,6 +25,7 @@ import {
   parseYearLabel,
   yearOptionsForSport,
 } from "@/lib/card-options";
+import { parallelAfterSetChange, parallelIsListed, parallelsForSet } from "@/lib/cards/parallels";
 import { buildCompsQuery } from "@/lib/comps/match";
 import { identifyFromPhoto } from "@/lib/comps/sample";
 import { cardCategory } from "@/lib/card-category";
@@ -110,6 +110,7 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
   const [parallelIsCustom, setParallelIsCustom] = useState(
     Boolean(existing?.parallelIsCustom),
   );
+  const [parallelNote, setParallelNote] = useState("");
   const [isRookie, setIsRookie] = useState(Boolean(existing?.isRookie));
   const [isAuto, setIsAuto] = useState(Boolean(existing?.isAuto));
   const [isRelic, setIsRelic] = useState(Boolean(existing?.isRelic));
@@ -272,11 +273,8 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
       parallel: card.parallel || "Base",
     }));
     setSetIsCustom(!SETS.some((s) => s === card.setBrand));
-    setParallelIsCustom(
-      !PARALLELS.some(
-        (p) => p.toLowerCase() === (card.parallel || "base").toLowerCase(),
-      ),
-    );
+    setParallelIsCustom(!parallelIsListed(card.setBrand, card.parallel || "Base"));
+    setParallelNote("");
     setIdentified(null);
   }
 
@@ -590,8 +588,15 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
             const known = SETS.some(
               (s) => s.toLowerCase() === setBrand.toLowerCase(),
             );
-            setSetIsCustom(!known);
-            setForm((prev) => ({ ...prev, setBrand }));
+            setSetIsCustom(Boolean(setBrand) && !known);
+            const next = parallelAfterSetChange({
+              parallel: form.parallel,
+              parallelIsCustom,
+              setBrand,
+            });
+            setParallelIsCustom(next.parallelIsCustom);
+            setParallelNote(next.reset ? "Parallel reset for this set" : "");
+            setForm((prev) => ({ ...prev, setBrand, parallel: next.parallel }));
           }}
         />
       </Field>
@@ -643,20 +648,20 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
           <SearchSelect
             label="Parallel"
             value={form.parallel}
-            options={optionsWithCurrent(PARALLELS, form.parallel)}
+            options={optionsWithCurrent([...parallelsForSet(form.setBrand)], form.parallel)}
             placeholder="Base"
             allowCustom
             onChange={(parallel) => {
-              const known = PARALLELS.some(
-                (p) => p.toLowerCase() === parallel.toLowerCase(),
-              );
-              setParallelIsCustom(Boolean(parallel) && !known);
+              const value = parallel || "Base";
+              setParallelIsCustom(!parallelIsListed(form.setBrand, value));
+              setParallelNote("");
               setForm((prev) => ({
                 ...prev,
-                parallel: parallel || "Base",
+                parallel: value,
               }));
             }}
           />
+          {parallelNote ? <p className="mt-1 text-xs text-zinc-500">{parallelNote}</p> : null}
         </Field>
         <Field label="Serial run">
           <div className="flex items-center gap-1">

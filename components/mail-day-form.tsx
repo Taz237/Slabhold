@@ -15,11 +15,11 @@ import { NativeSelect, SearchSelect } from "@/components/search-select";
 import {
   GRADE_COMPANIES,
   GRADE_NUMBERS,
-  PARALLELS,
   SETS,
   optionsWithCurrent,
   yearOptionsForSport,
 } from "@/lib/card-options";
+import { parallelAfterSetChange, parallelIsListed, parallelsForSet } from "@/lib/cards/parallels";
 import {
   MAIL_DAY_MAX_CARDS,
   MAIL_DAY_SPORTS,
@@ -217,9 +217,8 @@ export function MailDayForm() {
                       setIsCustom: !SETS.some((item) => item === card.setBrand),
                       cardNumber: card.cardNumber,
                       parallel: card.parallel || "Base",
-                      parallelIsCustom: !PARALLELS.some(
-                        (item) => item.toLowerCase() === (card.parallel || "base").toLowerCase(),
-                      ),
+                      parallelIsCustom: !parallelIsListed(card.setBrand, card.parallel || "Base"),
+                      parallelNote: "",
                       sport: isMailDaySport(card.sport) ? card.sport : section.sport,
                     });
                   }}
@@ -296,7 +295,18 @@ export function MailDayForm() {
                     allowCustom
                     onChange={(setBrand) => {
                       const known = SETS.some((item) => item.toLowerCase() === setBrand.toLowerCase());
-                      update(index, { setBrand, setIsCustom: Boolean(setBrand) && !known });
+                      const next = parallelAfterSetChange({
+                        parallel: section.parallel,
+                        parallelIsCustom: section.parallelIsCustom,
+                        setBrand,
+                      });
+                      update(index, {
+                        setBrand,
+                        setIsCustom: Boolean(setBrand) && !known,
+                        parallel: next.parallel,
+                        parallelIsCustom: next.parallelIsCustom,
+                        parallelNote: next.reset ? "Parallel reset for this set" : "",
+                      });
                     }}
                   />
                 </div>
@@ -305,15 +315,13 @@ export function MailDayForm() {
                   <SearchSelect
                     label="Parallel"
                     value={section.parallel}
-                    options={optionsWithCurrent(PARALLELS, section.parallel)}
+                    options={optionsWithCurrent([...parallelsForSet(section.setBrand)], section.parallel)}
                     allowCustom
                     onChange={(parallel) => {
-                      const known = PARALLELS.some(
-                        (item) => item.toLowerCase() === parallel.toLowerCase(),
-                      );
+                      const value = parallel || "Base";
                       update(index, {
-                        parallel: parallel || "Base",
-                        parallelIsCustom: Boolean(parallel) && !known,
+                        parallel: value,
+                        parallelIsCustom: !parallelIsListed(section.setBrand, value),
                         parallelNote: "",
                       });
                     }}

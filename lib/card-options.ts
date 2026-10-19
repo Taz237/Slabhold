@@ -80,31 +80,6 @@ export const SETS = [
   "Leaf",
 ];
 
-/** Parallels only — serial runs are a separate field. */
-export const PARALLELS = [
-  "Base",
-  "Silver",
-  "Refractor",
-  "Gold",
-  "Green",
-  "Blue",
-  "Red",
-  "Pink",
-  "Purple",
-  "Orange",
-  "Black",
-  "White",
-  "Holo",
-  "Cracked Ice",
-  "Wave",
-  "Scope",
-  "Shimmer",
-  "Mojo",
-  "Camo",
-  "Tie-Dye",
-  "Disco",
-];
-
 export const GRADE_QUALIFIERS = ["OC", "MK", "ST", "PD", "OF", "MC"];
 
 export const RAW_GRADE = "Raw";
