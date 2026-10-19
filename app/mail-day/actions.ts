@@ -6,6 +6,7 @@ import { toPublicAttachment } from "@/lib/social/card-posts";
 import {
   mailDayCardRecord,
   mailDayMeta,
+  mailDayPhotoOwnedBy,
   runMailDaySave,
   validateMailDayDraft,
   type MailDayInput,
@@ -54,11 +55,22 @@ export async function createMailDayPost(input: MailDayInput): Promise<MailDayAct
   for (const card of prepared.cards) {
     const photos: string[] = [];
     for (const photo of card.photos) {
-      const stored = await uploadMedia(supabase, "card-photos", userId, photo);
-      if (stored.error || !stored.url) {
-        return { ok: false, cardSaved: false, error: stored.error || "Could not upload that photo." };
+      if (photo.startsWith("data:")) {
+        const stored = await uploadMedia(supabase, "card-photos", userId, photo);
+        if (stored.error || !stored.url || !mailDayPhotoOwnedBy(stored.url, userId)) {
+          return {
+            ok: false,
+            cardSaved: false,
+            error: stored.error || "Could not upload that photo.",
+          };
+        }
+        photos.push(stored.url);
+        continue;
       }
-      photos.push(stored.url);
+      if (!mailDayPhotoOwnedBy(photo, userId)) {
+        return { ok: false, cardSaved: false, error: "Could not upload that photo." };
+      }
+      photos.push(photo);
     }
     uploaded.push({ ...card, id: crypto.randomUUID(), photos });
   }

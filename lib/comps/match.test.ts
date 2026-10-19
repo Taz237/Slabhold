@@ -163,6 +163,20 @@ describe("shared comps match", () => {
     );
   });
 
+  it("accepts Laser as the Lazer parallel", () => {
+    const lazer: MatchCard = { ...WEMBY_RAW, parallel: "Lazer" };
+    const laserTitle = "2023-24 Panini Prizm Victor Wembanyama #136 Laser";
+    const lazerTitle = "2023-24 Panini Prizm Victor Wembanyama #136 Lazer";
+    assert.equal(titleMatchesCard(laserTitle, lazer), true);
+    assert.equal(titleMatchesCard(lazerTitle, lazer), true);
+    assert.equal(titleMatchesCard(laserTitle, { ...lazer, parallel: "Laser" }), true);
+    assert.equal(titleMatchesCard(laserTitle, WEMBY_RAW), false);
+    assert.equal(
+      filterComps(lazer, [rawResult(laserTitle, { item_id: "laser", sale_price: 80 })]).length,
+      1,
+    );
+  });
+
   it("Wemby Prizm #136 PSA 10 rejects raw, PSA 9, BGS 10, and lots; accepts PSA 10", () => {
     const accept = "2023 Prizm Wembanyama #136 PSA 10";
     const rawTitle = "2023-24 Panini Prizm Victor Wembanyama #136";

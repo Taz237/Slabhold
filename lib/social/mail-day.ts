@@ -10,7 +10,49 @@ import { isUuid } from "@/lib/value/card-value-access";
 import type { MailDayCardView, Post, PublicCard } from "./types";
 
 export const MAIL_DAY_POST_FAILED = "Cards saved, post failed, try again";
+export const MAIL_DAY_PHOTOS_TOO_LARGE = "Photos too large — remove some and try again";
 export const MAIL_DAY_MAX_CARDS = 10;
+
+const MAIL_DAY_PHOTO_ORIGIN =
+  "https://knuwflptobyutrauxblj.supabase.co/storage/v1/object/public/card-photos/";
+const MAIL_DAY_PHOTO_FOLDER =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const MAIL_DAY_PHOTO_FILE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.jpg$/i;
+
+function mailDayPhotoParts(url: string): { folder: string; file: string } | null {
+  if (!url.startsWith(MAIL_DAY_PHOTO_ORIGIN) || url.includes("..")) return null;
+  const rest = url.slice(MAIL_DAY_PHOTO_ORIGIN.length);
+  const slash = rest.indexOf("/");
+  if (slash <= 0) return null;
+  const folder = rest.slice(0, slash);
+  const file = rest.slice(slash + 1);
+  if (!MAIL_DAY_PHOTO_FOLDER.test(folder) || !MAIL_DAY_PHOTO_FILE.test(file)) return null;
+  return { folder, file };
+}
+
+/** Public card-photos URL, shaped as <uid>/<uuid>.jpg. Any user's folder. */
+export function isMailDayPhotoUrl(url: string): boolean {
+  return mailDayPhotoParts(url) != null;
+}
+
+/** That URL, and the folder is this user's id. */
+export function mailDayPhotoOwnedBy(url: string, userId: string): boolean {
+  const parts = mailDayPhotoParts(url);
+  if (!parts || !userId) return false;
+  return parts.folder.toLowerCase() === userId.toLowerCase();
+}
+
+/** Shown when Log Mail Day throws, including Next's server-action body limit. */
+export function mailDaySubmitError(err: unknown): string {
+  const message =
+    err instanceof Error ? err.message.trim() : typeof err === "string" ? err.trim() : "";
+  if (!message || /body exceeded|1\s*mb|payload too large/i.test(message)) {
+    return MAIL_DAY_PHOTOS_TOO_LARGE;
+  }
+  return message;
+}
+
 export const MAIL_DAY_FEED_LIMIT = 4;
 
 const MAIL_DAY_PAID_CHUNK = 200;
@@ -215,7 +257,9 @@ export function validateMailDayDraft(
   for (let index = 0; index < input.cards.length; index += 1) {
     const card = input.cards[index];
     const label = `card ${index + 1}`;
-    const photos = card.photos.filter((photo) => photo.startsWith("data:")).slice(0, 4);
+    const photos = card.photos
+      .filter((photo) => photo.startsWith("data:image/") || isMailDayPhotoUrl(photo))
+      .slice(0, 4);
     if (photos.length < 1) return { ok: false, error: `Add a photo for ${label}` };
     const parsedYear = parseYearLabel(card.yearLabel);
     if (!parsedYear) return { ok: false, error: `Add a year for ${label}` };

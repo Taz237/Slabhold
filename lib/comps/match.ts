@@ -628,17 +628,28 @@ function titleHasPrizmParallelCue(title: string, setBrand?: string): boolean {
   return false;
 }
 
+/** Panini prints this parallel as Lazer. Sold listings often spell it Laser. */
+function canonicalParallelWord(word: string): string {
+  return word === "laser" ? "lazer" : word;
+}
+
 /** "Red White & Blue" and "Red and White Blue" share the words red, white, blue. */
 function parallelNameWords(parallel: string): string[] {
   return parallel
     .toLowerCase()
     .replace(/&/g, " ")
     .split(/[^a-z0-9]+/)
-    .filter((word) => word.length > 0 && word !== "and");
+    .filter((word) => word.length > 0 && word !== "and")
+    .map(canonicalParallelWord);
 }
 
 function titleHasWord(title: string, word: string): boolean {
   return new RegExp(`\\b${escapeRegExp(word)}\\b`, "i").test(title);
+}
+
+function titleHasParallelWord(title: string, word: string): boolean {
+  if (word === "lazer") return titleHasWord(title, "lazer") || titleHasWord(title, "laser");
+  return titleHasWord(title, word);
 }
 
 function wordAfterCardNumber(
@@ -671,7 +682,7 @@ export function titleHasDisallowedParallel(
     if (base) return true;
     // "Parallel" names the category. A Silver card can still say "Silver Parallel".
     if (keyword === "parallel") continue;
-    if (allowedWords.has(keyword)) continue;
+    if (allowedWords.has(canonicalParallelWord(keyword))) continue;
     const keywordWords = parallelNameWords(keyword);
     if (keywordWords.length > 0 && keywordWords.every((word) => allowedWords.has(word))) {
       continue;
@@ -692,7 +703,7 @@ export function titleHasDisallowedParallel(
 
   if (!base && allowed) {
     const words = parallelNameWords(allowed);
-    if (words.length > 0 && words.some((word) => !titleHasWord(lower, word))) {
+    if (words.length > 0 && words.some((word) => !titleHasParallelWord(lower, word))) {
       return true;
     }
   }

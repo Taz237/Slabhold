@@ -79,6 +79,19 @@ describe("parallels by set", () => {
       }),
       true,
     );
+    assert.equal(
+      titleMatchesCard("2023-24 Panini Prizm Victor Wembanyama #136 Laser", {
+        playerName: "Victor Wembanyama",
+        year: 2023,
+        yearLabel: "2023-24",
+        setBrand: "Panini Prizm",
+        cardNumber: "136",
+        parallel: "Lazer",
+        conditionType: "raw",
+        grade: "Raw",
+      }),
+      true,
+    );
   });
 
   it("resets a parallel the new set does not list", () => {

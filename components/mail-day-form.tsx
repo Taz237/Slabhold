@@ -28,12 +28,15 @@ import {
   mailDayIsDirty,
   mailDaySportLabel,
   mailDaySubmitBlocker,
+  mailDaySubmitError,
   previewMailDayPost,
   type AcquiredSource,
   type MailDayDraftCard,
 } from "@/lib/social/mail-day";
 import { POST_LIMIT } from "@/lib/social/types";
 import { fileToDataUrl } from "@/lib/storage";
+import { createSupabaseBrowser } from "@/lib/supabase/browser";
+import { uploadMedia } from "@/lib/supabase/media";
 import type { CardCategory, ConditionType } from "@/lib/types";
 
 const inputClass =
@@ -73,6 +76,51 @@ function blankCard(): MailDayDraftCard & { key: string; open: boolean; parallelN
 
 type Section = ReturnType<typeof blankCard>;
 
+function sectionDraft(section: Section): MailDayDraftCard {
+  return {
+    playerName: section.playerName,
+    yearLabel: section.yearLabel,
+    setBrand: section.setBrand,
+    setIsCustom: section.setIsCustom,
+    cardNumber: section.cardNumber,
+    parallel: section.parallel,
+    parallelIsCustom: section.parallelIsCustom,
+    sport: section.sport,
+    conditionType: section.conditionType,
+    grader: section.grader,
+    grade: section.grade,
+    paid: section.paid,
+    source: section.source,
+    category: section.category,
+    isPublic: section.isPublic,
+    showPaid: section.showPaid,
+    photos: section.photos,
+  };
+}
+
+async function uploadMailDayPhotos(
+  userId: string,
+  cards: readonly MailDayDraftCard[],
+): Promise<MailDayDraftCard[]> {
+  const supabase = createSupabaseBrowser();
+  if (!supabase) throw new Error("Accounts are not available right now.");
+  const uploaded: MailDayDraftCard[] = [];
+  for (const card of cards) {
+    const photos: string[] = [];
+    for (const photo of card.photos.filter(Boolean).slice(0, 4)) {
+      if (!photo.startsWith("data:")) {
+        photos.push(photo);
+        continue;
+      }
+      const stored = await uploadMedia(supabase, "card-photos", userId, photo);
+      if (!stored.url) throw new Error(stored.error || "Could not upload that photo.");
+      photos.push(stored.url);
+    }
+    uploaded.push({ ...card, photos });
+  }
+  return uploaded;
+}
+
 export function MailDayForm() {
   const router = useRouter();
   const { refresh, user } = useSocial();
@@ -89,7 +137,7 @@ export function MailDayForm() {
   const [discardOpen, setDiscardOpen] = useState(false);
 
   const drafts = useMemo<MailDayDraftCard[]>(
-    () => sections.map(({ key: _key, open: _open, parallelNote: _note, ...card }) => card),
+    () => sections.map((section) => sectionDraft(section)),
     [sections],
   );
   const dirty = mailDayIsDirty(drafts, caption);
@@ -140,24 +188,31 @@ export function MailDayForm() {
     setError(null);
     setSavedCardIds([]);
     setSending(true);
-    const result = await createMailDayPost({
-      caption,
-      cards: drafts,
-      acquiredAt: today(),
-    });
-    setSending(false);
-    if (!result.ok) {
-      setError(result.error);
-      if (result.cardSaved) {
-        setSavedCardIds(result.cardIds);
-        reload();
+    try {
+      if (!user?.id) throw new Error("Log in to log a Mail Day.");
+      const cards = await uploadMailDayPhotos(user.id, drafts);
+      const result = await createMailDayPost({
+        caption,
+        cards,
+        acquiredAt: today(),
+      });
+      if (!result.ok) {
+        setError(result.error);
+        if (result.cardSaved) {
+          setSavedCardIds(result.cardIds);
+          reload();
+        }
+        return;
       }
-      return;
+      allowLeave.current = true;
+      reload();
+      await refresh();
+      router.push("/");
+    } catch (err) {
+      setError(mailDaySubmitError(err));
+    } finally {
+      setSending(false);
     }
-    allowLeave.current = true;
-    reload();
-    await refresh();
-    router.push("/");
   }
 
   return (

@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { createClient } from "@supabase/supabase-js";
 import {
+  MAIL_DAY_PHOTOS_TOO_LARGE,
   MAIL_DAY_POST_FAILED,
   assembleMailDayCards,
   loadMailDayPaid,
@@ -12,7 +13,9 @@ import {
   mailDayCardRecord,
   mailDayMeta,
   mailDayPaidAmount,
+  mailDayPhotoOwnedBy,
   mailDaySubmitBlocker,
+  mailDaySubmitError,
   mailDayVisibility,
   parseAcquiredSource,
   presentMailDay,
@@ -582,5 +585,71 @@ describe("mail day multi-card migration", () => {
     assert.match(sql, /hidden_at/);
     assert.match(sql, /returns table \(post_id uuid, card_id uuid, paid numeric\)/);
     assert.match(sql, /join public\.public_cards pub on pub\.id = c\.id/);
+  });
+});
+
+describe("mail day photo upload", () => {
+  const userId = "11111111-1111-4111-8111-111111111111";
+  const file = "22222222-2222-4222-8222-222222222222.jpg";
+  const photo = `https://knuwflptobyutrauxblj.supabase.co/storage/v1/object/public/card-photos/${userId}/${file}`;
+
+  it("accepts ten stored photos and only the owner's folder", () => {
+    const cards = Array.from({ length: 10 }, (_, index) =>
+      draft({ playerName: `Player ${index + 1}`, photos: [photo] }),
+    );
+    const prepared = validateMailDayDraft({
+      caption: "",
+      acquiredAt: "2026-10-19",
+      cards,
+    });
+    assert.equal(prepared.ok, true);
+    if (!prepared.ok) return;
+    assert.equal(prepared.cards.length, 10);
+    assert.equal(prepared.cards.every((card) => card.photos[0] === photo), true);
+    assert.equal(mailDayPhotoOwnedBy(photo, userId), true);
+    assert.equal(
+      mailDayPhotoOwnedBy(photo, "33333333-3333-4333-8333-333333333333"),
+      false,
+    );
+    assert.equal(
+      mailDayPhotoOwnedBy(photo.replace(userId, `${userId}/extra`), userId),
+      false,
+    );
+    assert.equal(mailDayPhotoOwnedBy(`${photo.slice(0, -4)}.png`, userId), false);
+  });
+
+  it("shows the size message when the post throws, and the real error otherwise", () => {
+    assert.equal(
+      mailDaySubmitError(new Error("Body exceeded 1 MB limit.")),
+      MAIL_DAY_PHOTOS_TOO_LARGE,
+    );
+    assert.equal(mailDaySubmitError(new Error("   ")), MAIL_DAY_PHOTOS_TOO_LARGE);
+    assert.equal(
+      mailDaySubmitError(new Error("Could not upload that photo.")),
+      "Could not upload that photo.",
+    );
+  });
+
+  it("uploads from the browser, then resets sending if the post throws", () => {
+    const form = readFileSync(join(process.cwd(), "components/mail-day-form.tsx"), "utf8");
+    const actions = readFileSync(join(process.cwd(), "app/mail-day/actions.ts"), "utf8");
+    const sql = readFileSync(
+      join(process.cwd(), "supabase/migrations/20261019250000_mail_day_own_photos.sql"),
+      "utf8",
+    );
+    assert.equal(form.includes("_key"), false);
+    assert.equal(form.includes("_open"), false);
+    assert.equal(form.includes("_note"), false);
+    assert.match(form, /uploadMedia\(/);
+    assert.match(
+      form,
+      /try \{[\s\S]*uploadMailDayPhotos[\s\S]*createMailDayPost\([\s\S]*\} catch \(err\) \{[\s\S]*mailDaySubmitError\(err\)[\s\S]*\} finally \{[\s\S]*setSending\(false\)/,
+    );
+    assert.match(actions, /mailDayPhotoOwnedBy\(photo, userId\)/);
+    assert.match(sql, /auth\.uid\(\)::text = \(storage\.foldername\(name\)\)\[1\]/);
+    assert.match(sql, /mail_day_photo_ok\(new\.image_url, new\.user_id\)/);
+    assert.match(sql, /mail_day_photo_ok\(photo, new\.user_id\)/);
+    assert.match(sql, /card-photos\/'/);
+    assert.match(sql, /drop function if exists public\.mail_day_photo_ok\(text\)/);
   });
 });
