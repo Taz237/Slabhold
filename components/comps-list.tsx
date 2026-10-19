@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { formatDate, money } from "@/lib/format";
 import {
   FLAG_REASONS,
@@ -10,6 +10,8 @@ import {
 } from "@/lib/comps/flag-reasons";
 import type { CompListing } from "@/lib/types";
 import type { CompFlagToast, HiddenSale } from "@/components/use-comp-flags";
+
+const SALES_PAGE = 10;
 
 export function CompsList({
   comps,
@@ -36,6 +38,18 @@ export function CompsList({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [restoring, setRestoring] = useState<string | null>(null);
+  const compKey = comps.map((comp) => comp.itemId).join("\n");
+  const [shownState, setShownState] = useState({ key: compKey, shown: SALES_PAGE });
+  if (shownState.key !== compKey) {
+    setShownState({ key: compKey, shown: SALES_PAGE });
+  }
+  const shown = shownState.key === compKey ? shownState.shown : SALES_PAGE;
+
+  function showMore() {
+    setShownState({ key: compKey, shown: shown + SALES_PAGE });
+  }
+
+  const rows = comps.slice(0, shown);
 
   async function hideSale() {
     if (!pending || !reason || !onFlag) return;
@@ -55,7 +69,7 @@ export function CompsList({
     <div>
       {comps.length ? (
         <ul className="divide-y divide-zinc-200 dark:divide-white/10">
-          {comps.map((comp) => (
+          {rows.map((comp) => (
             <li key={comp.id} className="flex items-start justify-between gap-4 py-3">
               <div className="min-w-0">
                 {comp.url ? (
@@ -77,20 +91,23 @@ export function CompsList({
                   {comp.condition && comp.condition !== "—" ? ` · ${comp.condition}` : null}
                 </p>
               </div>
-              <div className="flex shrink-0 flex-col items-end gap-1">
+              <div className="flex shrink-0 items-center gap-1">
                 <p className="text-sm font-medium tabular-nums">{money(comp.soldPrice, true)}</p>
                 {canFlag && cardId ? (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setPending(comp);
-                      setReason("");
-                      setError(null);
-                    }}
-                    className="text-[11px] text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200"
-                  >
-                    Not a match
-                  </button>
+                  <RowMenu
+                    label={`Actions for ${comp.title || "sale"}`}
+                    items={[
+                      {
+                        id: "not-a-match",
+                        label: "Not a match",
+                        onSelect: () => {
+                          setPending(comp);
+                          setReason("");
+                          setError(null);
+                        },
+                      },
+                    ]}
+                  />
                 ) : null}
               </div>
             </li>
@@ -99,6 +116,15 @@ export function CompsList({
       ) : (
         <p className="text-sm text-zinc-500">No recent sales found</p>
       )}
+      {shown < comps.length ? (
+        <button
+          type="button"
+          onClick={showMore}
+          className="mt-3 text-sm font-semibold text-violet-700 hover:underline dark:text-violet-300"
+        >
+          Show more
+        </button>
+      ) : null}
 
       {showHiddenSales(canFlag, hidden.length) ? (
         <details className="mt-4 rounded-xl border border-zinc-200 px-3 py-2 dark:border-white/10">
@@ -116,18 +142,21 @@ export function CompsList({
                     {` · ${flagReasonLabel(sale.reason)}`}
                   </p>
                 </div>
-                <button
-                  type="button"
-                  disabled={restoring === sale.itemId}
-                  onClick={() => {
-                    if (!onRestore) return;
-                    setRestoring(sale.itemId);
-                    void onRestore(sale.itemId).finally(() => setRestoring(null));
-                  }}
-                  className="shrink-0 text-xs font-semibold text-violet-700 hover:underline disabled:opacity-40 dark:text-violet-300"
-                >
-                  Restore
-                </button>
+                <RowMenu
+                  label={`Actions for ${sale.title || "hidden sale"}`}
+                  items={[
+                    {
+                      id: "restore",
+                      label: restoring === sale.itemId ? "Restoring…" : "Restore",
+                      disabled: restoring === sale.itemId || !onRestore,
+                      onSelect: () => {
+                        if (!onRestore) return;
+                        setRestoring(sale.itemId);
+                        void onRestore(sale.itemId).finally(() => setRestoring(null));
+                      },
+                    },
+                  ]}
+                />
               </li>
             ))}
           </ul>
@@ -208,6 +237,109 @@ export function CompsList({
             "Sale restored"
           )}
         </p>
+      ) : null}
+    </div>
+  );
+}
+
+function RowMenu({
+  label,
+  items,
+}: {
+  label: string;
+  items: { id: string; label: string; onSelect: () => void; disabled?: boolean }[];
+}) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const itemRefs = useRef<Array<HTMLButtonElement | null>>([]);
+
+  useEffect(() => {
+    if (!open) return;
+    function onPointer(event: MouseEvent) {
+      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", onPointer);
+    return () => document.removeEventListener("mousedown", onPointer);
+  }, [open]);
+
+  useEffect(() => {
+    if (open) itemRefs.current[0]?.focus();
+  }, [open]);
+
+  function closeAndFocusButton() {
+    setOpen(false);
+    buttonRef.current?.focus();
+  }
+
+  function onMenuKey(event: KeyboardEvent<HTMLDivElement>) {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      closeAndFocusButton();
+      return;
+    }
+    const buttons = itemRefs.current.filter((node): node is HTMLButtonElement => Boolean(node));
+    const index = buttons.findIndex((node) => node === document.activeElement);
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      buttons[(index + 1) % buttons.length]?.focus();
+    } else if (event.key === "ArrowUp") {
+      event.preventDefault();
+      buttons[(index - 1 + buttons.length) % buttons.length]?.focus();
+    } else if (event.key === "Home") {
+      event.preventDefault();
+      buttons[0]?.focus();
+    } else if (event.key === "End") {
+      event.preventDefault();
+      buttons[buttons.length - 1]?.focus();
+    }
+  }
+
+  return (
+    <div ref={rootRef} className="relative">
+      <button
+        ref={buttonRef}
+        type="button"
+        aria-label={label}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={() => setOpen((value) => !value)}
+        onKeyDown={(event) => {
+          if (event.key === "ArrowDown") {
+            event.preventDefault();
+            setOpen(true);
+          }
+        }}
+        className="grid h-7 w-7 place-items-center rounded-full text-base leading-none text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-white/10 dark:hover:text-zinc-200"
+      >
+        <span aria-hidden="true">⋯</span>
+      </button>
+      {open ? (
+        <div
+          role="menu"
+          aria-label={label}
+          onKeyDown={onMenuKey}
+          className="absolute right-0 z-20 mt-1 min-w-36 rounded-xl border border-zinc-200 bg-white py-1 shadow-lg dark:border-white/10 dark:bg-zinc-950"
+        >
+          {items.map((item, index) => (
+            <button
+              key={item.id}
+              ref={(node) => {
+                itemRefs.current[index] = node;
+              }}
+              type="button"
+              role="menuitem"
+              disabled={item.disabled}
+              onClick={() => {
+                setOpen(false);
+                item.onSelect();
+              }}
+              className="block w-full px-3 py-1.5 text-left text-xs font-semibold text-zinc-700 hover:bg-zinc-100 disabled:opacity-40 dark:text-zinc-200 dark:hover:bg-white/10"
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
       ) : null}
     </div>
   );

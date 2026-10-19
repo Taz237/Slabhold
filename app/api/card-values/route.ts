@@ -10,7 +10,8 @@ import {
   parseCardValueIds,
   visibleCardIds,
 } from "@/lib/value/card-value-access";
-import { getCardValue, getCardValues } from "@/lib/value/getCardValue";
+import { loadCachedCardValue } from "@/lib/value/card-market";
+import { getCardValues } from "@/lib/value/getCardValue";
 import type { CardValueResult } from "@/lib/value/types";
 
 export const runtime = "nodejs";
@@ -56,8 +57,14 @@ export async function GET(request: Request) {
     if (!allowedIds.includes(single)) {
       return Response.json({ id: single, value: null });
     }
-    const value = await getCardValue(single);
+    const value = await loadCachedCardValue(single);
     return Response.json({ id: single, value });
+  }
+
+  if (allowedIds.length === 1) {
+    const only = allowedIds[0];
+    const value = await loadCachedCardValue(only);
+    return Response.json({ values: value ? { [only]: value } : {} });
   }
 
   const map = allowedIds.length ? await getCardValues(allowedIds) : new Map();

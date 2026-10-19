@@ -19,33 +19,6 @@ import { scheduleCardValueRefresh } from "@/lib/value/use-card-values";
 import { isPublicForSaleListing } from "@/lib/wants/listing";
 import { pingWantMatch } from "@/lib/wants/ping";
 
-const VALUE_DETAIL_KEYS = [
-  "playerName",
-  "year",
-  "yearLabel",
-  "setBrand",
-  "cardNumber",
-  "noNumber",
-  "grade",
-  "parallel",
-  "serialRun",
-  "isAuto",
-  "isRelic",
-  "conditionType",
-  "gradeQualifier",
-] as const;
-
-function detailsAffectValue(
-  before: SportsCard | undefined,
-  after: SportsCard,
-  patch: Partial<SportsCard>,
-): boolean {
-  if (!before) return true;
-  return VALUE_DETAIL_KEYS.some(
-    (key) => key in patch && before[key] !== after[key],
-  );
-}
-
 type CollectionContextValue = {
   ready: boolean;
   cards: SportsCard[];
@@ -175,7 +148,6 @@ export function CollectionProvider({ children }: { children: React.ReactNode }) 
 
   const updateCard = useCallback(
     (id: string, patch: Partial<SportsCard>) => {
-      const before = cardsRef.current.find((card) => card.id === id);
       const next = cardsRef.current.map((card) =>
         card.id === id ? { ...card, ...patch, updatedAt: new Date().toISOString() } : card,
       );
@@ -185,13 +157,12 @@ export function CollectionProvider({ children }: { children: React.ReactNode }) 
       if (remote && userId && updated) {
         const client = createSupabaseBrowser();
         if (client) {
-          const shouldRefresh = detailsAffectValue(before, updated, patch);
           enqueue(id, async () => {
             try {
               await saveUserCard(client, userId, updated);
               if (isPublicForSaleListing(updated)) pingWantMatch("listing", updated.id);
               setSyncError(null);
-              if (shouldRefresh) scheduleCardValueRefresh(id);
+              scheduleCardValueRefresh(id);
             } catch (error) {
               report(error);
             }

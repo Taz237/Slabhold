@@ -41,6 +41,6 @@ export function historyFromSales(sales: CleanedSale[], days = 90): ValuePoint[] 
         day: "numeric",
         timeZone: "UTC",
       }),
-      value: Math.round(sale.price),
+      value: sale.price,
     }));
 }

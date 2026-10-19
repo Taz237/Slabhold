@@ -1,5 +1,18 @@
-/** Inclusive percentile via linear interpolation on a sorted copy. */
-export function percentile(sortedAsc: number[], p: number): number | null {
+/**
+ * Snap a dollar amount to integer cents once, at the boundary.
+ * Later median and percentile math stays on those integers and is not rounded.
+ */
+export function dollarsToCents(dollars: number): number {
+  if (!Number.isFinite(dollars)) return Number.NaN;
+  return Math.round(dollars * 100);
+}
+
+export function centsToDollars(cents: number): number {
+  return cents / 100;
+}
+
+/** Inclusive percentile via linear interpolation. `sortedAsc` is integer cents. */
+function percentileCents(sortedAsc: number[], p: number): number | null {
   if (!sortedAsc.length) return null;
   if (sortedAsc.length === 1) return sortedAsc[0];
   const rank = (p / 100) * (sortedAsc.length - 1);
@@ -8,6 +21,18 @@ export function percentile(sortedAsc: number[], p: number): number | null {
   if (lo === hi) return sortedAsc[lo];
   const t = rank - lo;
   return sortedAsc[lo] * (1 - t) + sortedAsc[hi] * t;
+}
+
+/**
+ * Inclusive percentile via linear interpolation on a sorted copy.
+ * Prices are converted to integer cents first. The interpolated result is
+ * converted back to dollars and is not rounded to a cent or a dollar.
+ */
+export function percentile(sortedAsc: number[], p: number): number | null {
+  if (!sortedAsc.length) return null;
+  const cents = sortedAsc.map(dollarsToCents);
+  const value = percentileCents(cents, p);
+  return value == null ? null : centsToDollars(value);
 }
 
 export function median(values: number[]): number | null {
@@ -37,11 +62,13 @@ export function middleFifty(values: number[]): {
  */
 export function filterPriceOutliers<T extends { price: number }>(sales: T[]): T[] {
   if (sales.length < 2) return sales;
-  const mid = median(sales.map((s) => s.price));
+  const cents = sales.map((sale) => dollarsToCents(sale.price));
+  const mid = median(cents.map(centsToDollars));
   if (mid == null || mid <= 0) return sales;
-  const lo = mid * 0.4;
-  const hi = mid * 2.5;
-  const kept = sales.filter((s) => s.price >= lo && s.price <= hi);
+  const midCents = dollarsToCents(mid);
+  const lo = midCents * 0.4;
+  const hi = midCents * 2.5;
+  const kept = sales.filter((_, index) => cents[index] >= lo && cents[index] <= hi);
   if (kept.length * 2 <= sales.length) return sales;
   return kept;
 }

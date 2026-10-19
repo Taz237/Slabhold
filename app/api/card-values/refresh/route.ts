@@ -5,6 +5,7 @@ import {
 } from "@/lib/comps/rate-limit";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { getAuthUserId } from "@/lib/supabase/server";
+import { revalidateCard } from "@/lib/value/card-market";
 import { refreshCardValue } from "@/lib/value/getCardValue";
 
 export const runtime = "nodejs";
@@ -63,6 +64,7 @@ export async function POST(request: Request) {
         err instanceof Error ? err.message : err,
       );
     }
+    revalidateCard(id);
   });
 
   return Response.json({ ok: true, scheduled: true, id });

@@ -5,6 +5,7 @@ import { adminAccess } from "@/lib/safety/admin";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { getAuthUserId } from "@/lib/supabase/server";
 import { isUuid } from "@/lib/value/card-value-access";
+import { revalidateCard } from "@/lib/value/card-market";
 import { refreshCardValue } from "@/lib/value/getCardValue";
 
 export const runtime = "nodejs";
@@ -158,8 +159,10 @@ export async function POST(request: Request) {
     });
   } catch (err) {
     console.warn("[admin comp_flags] reprice failed:", err instanceof Error ? err.message : err);
+    revalidateCard(cardId);
     return Response.json({ error: "Flag removed, but the value did not update" }, { status: 500 });
   }
+  revalidateCard(cardId);
 
   return Response.json({ ok: true });
 }

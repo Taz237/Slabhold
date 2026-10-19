@@ -30,11 +30,6 @@ export type SharedCompValue = {
 
 const LISTING_GRADE_RE = /^(PSA|BGS|SGC|CGC|TAG|HGA)\s*(\d+(?:\.\d+)?)/i;
 
-function roundStat(value: number | null): number | null {
-  if (value == null || !Number.isFinite(value)) return null;
-  return Math.round(value);
-}
-
 export function listingGrade(condition: string | null | undefined): string {
   const text = (condition ?? "").trim();
   if (!text || text === "—") return "Raw";
@@ -87,9 +82,9 @@ function statsFromPrices(prices: number[]): {
   }
   const stats = middleFifty(prices);
   return {
-    median: roundStat(stats.median),
-    low: roundStat(stats.p25),
-    high: roundStat(stats.p75),
+    median: stats.median,
+    low: stats.p25,
+    high: stats.p75,
     count: prices.length,
   };
 }
@@ -173,16 +168,34 @@ export function basedOnSalesLabel(count: number): string {
 }
 
 /**
- * "Based on N sales" uses the saved n_sales once a price exists.
- * That count is the flagged-sale list refreshCardValue priced.
- * Before a saved count, use the filtered list on screen.
+ * "Based on N sales" is the number of rows on screen.
+ * Pass null for the list only when it has not loaded; then the saved count is used.
  */
 export function countForSalesLabel(
   storedNSales: number | null | undefined,
-  filteredCount: number,
+  filteredCount: number | null,
 ): number {
+  if (typeof filteredCount === "number") return filteredCount;
   if (typeof storedNSales === "number" && storedNSales > 0) return storedNSales;
-  return filteredCount;
+  return 0;
+}
+
+/** Price the rows Recent sales is showing. N is that list's length. */
+export function valueFromShownSales(
+  comps: CompListing[],
+  previous?: CardValueResult | null,
+): CardValueResult {
+  const priced = screenValueFromComps(comps);
+  const hasSales = priced.count > 0 && priced.median != null;
+  const status = previous?.status === "sample" ? "sample" : hasSales ? "ok" : "no_sales";
+  return {
+    status,
+    median: hasSales ? priced.median : null,
+    low: hasSales ? priced.low : null,
+    high: hasSales ? priced.high : null,
+    nSales: priced.count,
+    matchedAt: previous?.matchedAt ?? null,
+  };
 }
 
 /** Drop the owner's flagged sales, then price that same list. */
@@ -228,8 +241,8 @@ export type ResolvedCardValue = {
 };
 
 /**
- * Card-page sales list plus the persisted card_values amount.
- * The dollar amount is never recomputed from the listings on screen.
+ * Card-page sales list. When the list is ready, median, low, high, and N
+ * come from those rows (after match, dedupe, and the owner's hidden flags).
  */
 export function resolveCardScreenValue(input: {
   phase: "loading" | "ready" | "auth" | "unavailable" | "idle";
@@ -258,15 +271,16 @@ export function resolveCardScreenValue(input: {
     const visible = input.hiddenItemIds
       ? matched.filter((comp) => !input.hiddenItemIds!.has(comp.itemId))
       : matched;
-    const amount = amountFromStoredCompValue(input.stored);
+    const priced = valueFromShownSales(visible, input.stored);
+    const amount = amountFromStoredCompValue(priced);
     return {
       phase: "comps",
       comps: visible,
       basis: [],
       amount,
-      low: amount != null ? (input.stored?.low ?? null) : null,
-      high: amount != null ? (input.stored?.high ?? null) : null,
-      count: amount != null ? (input.stored?.nSales ?? 0) : 0,
+      low: amount != null ? priced.low : null,
+      high: amount != null ? priced.high : null,
+      count: visible.length,
       emptyLabel: amount == null ? NOT_ENOUGH_SALES_LABEL : null,
     };
   }

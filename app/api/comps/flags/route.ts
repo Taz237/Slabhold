@@ -5,6 +5,7 @@ import { isCardOwner } from "@/lib/comps/ownership";
 import { buildQueryKey } from "@/lib/comps/query-key";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { getAuthUserId } from "@/lib/supabase/server";
+import { revalidateCard } from "@/lib/value/card-market";
 import { refreshCardValue } from "@/lib/value/getCardValue";
 import type { CardValueResult } from "@/lib/value/types";
 
@@ -36,11 +37,15 @@ async function ownerId(admin: FlagAdmin, cardId: string): Promise<string | null>
 }
 
 async function repriceFromCache(cardId: string) {
-  return refreshCardValue(cardId, {
-    cacheOnly: true,
-    replaceValue: true,
-    beforeTrawl: async () => false,
-  });
+  try {
+    return await refreshCardValue(cardId, {
+      cacheOnly: true,
+      replaceValue: true,
+      beforeTrawl: async () => false,
+    });
+  } finally {
+    revalidateCard(cardId);
+  }
 }
 
 /**

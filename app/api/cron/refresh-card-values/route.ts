@@ -1,3 +1,4 @@
+import { revalidateCard } from "@/lib/value/card-market";
 import {
   listRefreshQueue,
   markCardChecked,
@@ -50,6 +51,7 @@ export async function GET(request: Request) {
   for (const candidate of picked) {
     try {
       const refreshed = await refreshCardValue(candidate.cardId);
+      revalidateCard(candidate.cardId);
       const line = cardRefreshLog({
         cardId: candidate.cardId,
         result: refreshed.attempt.action,
@@ -68,6 +70,7 @@ export async function GET(request: Request) {
         "[card_values] refresh threw:",
         err instanceof Error ? err.message : err,
       );
+      revalidateCard(candidate.cardId);
       await markCardChecked(candidate.cardId);
       const line = cardRefreshLog({
         cardId: candidate.cardId,

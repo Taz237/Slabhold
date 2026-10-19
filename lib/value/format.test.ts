@@ -4,6 +4,8 @@ import {
   VALUE_UPDATING_WINDOW_MS,
   formatCardValueLabel,
   isLowConfidenceValue,
+  marketValueAmount,
+  marketValueSummary,
 } from "./format";
 import type { CardValueResult } from "./types";
 
@@ -85,6 +87,23 @@ describe("formatCardValueLabel", () => {
       formatCardValueLabel(value({ status: "ok", median: 80, nSales: 0 })),
       "Not enough sales yet",
     );
+  });
+});
+
+describe("edit form and card page share one value", () => {
+  it("formats the same dollars and sale count", () => {
+    const stored = value({ status: "ok", median: 355, low: 340, high: 380, nSales: 42 });
+    const page = formatCardValueLabel(stored);
+    const formAmount = marketValueAmount(stored);
+    assert.equal(page, "$355.00");
+    assert.equal(formAmount, page);
+    assert.equal(marketValueSummary(stored), "Current value $355.00 · 42 sales");
+  });
+
+  it("uses one sale when N is 1", () => {
+    const stored = value({ status: "ok", median: 2, nSales: 1 });
+    assert.equal(marketValueSummary(stored), "Current value $2.00 · 1 sale");
+    assert.equal(formatCardValueLabel(stored), marketValueAmount(stored));
   });
 });
 

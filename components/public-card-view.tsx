@@ -16,7 +16,7 @@ import { ProfileSkeleton } from "@/components/status";
 import { useSocial } from "@/components/social-provider";
 import { ValueChart } from "@/components/value-chart";
 import { isCardOwner } from "@/lib/comps/ownership";
-import { basedOnSalesLabel, countForSalesLabel } from "@/lib/comps/shared-value";
+import { basedOnSalesLabel, countForSalesLabel, valueFromShownSales } from "@/lib/comps/shared-value";
 import { useSoldComps } from "@/lib/comps/use-sold-comps";
 import { cardTitle, formatPaidLabel } from "@/lib/format";
 import { formatRelativeTime } from "@/lib/relative-time";
@@ -129,11 +129,14 @@ function PublicCardAnalytics({
       sold.data?.source === "sample" ||
       sold.data?.source === "off");
   const compsLoading = Boolean(userId) && (sold.status === "loading" || sold.status === "idle");
-  const shownValue = flags.priced ?? cardValue;
   const onScreenComps = sold.status === "ready" ? flags.visible : [];
+  const shownValue =
+    sold.status === "ready"
+      ? valueFromShownSales(onScreenComps, flags.priced ?? cardValue)
+      : (flags.priced ?? cardValue);
   const salesCount = countForSalesLabel(
     cardValueHasAmount(shownValue) ? shownValue.nSales : null,
-    onScreenComps.length,
+    sold.status === "ready" ? onScreenComps.length : null,
   );
   const storedAmount = cardValueHasAmount(shownValue) ? shownValue.median : null;
   const displayEst = storedAmount;
@@ -184,9 +187,9 @@ function PublicCardAnalytics({
       </div>
 
       <section className={`grid gap-3 ${showPaid ? "grid-cols-2" : "grid-cols-1"}`}>
-        <div className="rounded-2xl border border-zinc-200 bg-white px-4 py-4 dark:border-white/10 dark:bg-white/[0.03]">
+        <div className="min-w-0 rounded-2xl border border-zinc-200 bg-white px-4 py-4 dark:border-white/10 dark:bg-white/[0.03]">
           <p className="text-[11px] tracking-wide text-zinc-500 uppercase">Estimated value</p>
-          <p className="mt-1 text-2xl font-semibold tracking-tight tabular-nums">
+          <p className="mt-1 min-w-0 text-[clamp(1.25rem,5vw,1.5rem)] font-semibold tracking-tight tabular-nums whitespace-nowrap">
             {valueLoading && !flags.priced ? "…" : valueLabel}
           </p>
           {displayEst != null ? (
@@ -375,9 +378,11 @@ function toPublicCard(card: {
 
 function Metric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-zinc-200 bg-white px-4 py-4 dark:border-white/10 dark:bg-white/[0.03]">
+    <div className="min-w-0 rounded-2xl border border-zinc-200 bg-white px-4 py-4 dark:border-white/10 dark:bg-white/[0.03]">
       <p className="text-[11px] tracking-wide text-zinc-500 uppercase">{label}</p>
-      <p className="mt-1 text-2xl font-semibold tracking-tight tabular-nums">{value}</p>
+      <p className="mt-1 min-w-0 text-[clamp(1.25rem,5vw,1.5rem)] font-semibold tracking-tight tabular-nums whitespace-nowrap">
+        {value}
+      </p>
     </div>
   );
 }

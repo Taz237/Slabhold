@@ -17,6 +17,7 @@ import {
 import { syncMentionNotifications } from "@/lib/social/remote";
 import { uploadMedia } from "@/lib/supabase/media";
 import { createSupabaseServer, getAuthUserId } from "@/lib/supabase/server";
+import { revalidateCard } from "@/lib/value/card-market";
 import { refreshCardValue } from "@/lib/value/getCardValue";
 import { notifyMailDayPost } from "@/lib/wants/dispatch";
 
@@ -38,6 +39,8 @@ function scheduleRefresh(userId: string, cardIds: readonly string[]) {
           "[mail_day] refresh failed:",
           err instanceof Error ? err.message : err,
         );
+      } finally {
+        revalidateCard(cardId);
       }
     });
   }

@@ -17,7 +17,7 @@ import { FairPriceCheck } from "@/components/fair-price-check";
 import { ValueChart } from "@/components/value-chart";
 import { useSocial } from "@/components/social-provider";
 import { cardCategory } from "@/lib/card-category";
-import { basedOnSalesLabel, countForSalesLabel } from "@/lib/comps/shared-value";
+import { basedOnSalesLabel, countForSalesLabel, valueFromShownSales } from "@/lib/comps/shared-value";
 import { useSoldComps } from "@/lib/comps/use-sold-comps";
 import {
   cardSubtitle,
@@ -95,11 +95,14 @@ export function CardDetail({ id }: { id: string }) {
       sold.data?.source === "sample" ||
       sold.data?.source === "off");
   const compsLoading = Boolean(user) && (sold.status === "loading" || sold.status === "idle");
-  const shownValue = flags.priced ?? cardValue;
   const onScreenComps = sold.status === "ready" ? flags.visible : [];
+  const shownValue =
+    sold.status === "ready"
+      ? valueFromShownSales(onScreenComps, flags.priced ?? cardValue)
+      : (flags.priced ?? cardValue);
   const salesCount = countForSalesLabel(
     cardValueHasAmount(shownValue) ? shownValue.nSales : null,
-    onScreenComps.length,
+    sold.status === "ready" ? onScreenComps.length : null,
   );
   const storedAmount = cardValueHasAmount(shownValue) ? shownValue.median : null;
 
@@ -203,7 +206,7 @@ export function CardDetail({ id }: { id: string }) {
             </p>
           ) : null}
 
-          <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
+          <div className="mt-6 grid min-w-0 grid-cols-2 gap-3 sm:grid-cols-3">
             <Metric
               label="Paid"
               value={formatPaidLabel(card.purchasePrice, true)}
@@ -480,9 +483,11 @@ function EstSellMetric({
 
   if (label?.startsWith("$")) {
     return (
-      <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-3 dark:border-white/10 dark:bg-black/20">
+      <div className="min-w-0 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-3 dark:border-white/10 dark:bg-black/20">
         <p className="text-[11px] tracking-wide text-zinc-500 uppercase">Est. sell</p>
-        <p className="mt-1 text-lg font-semibold">{label}</p>
+        <p className="mt-1 min-w-0 text-[clamp(0.95rem,3.4vw,1.125rem)] font-semibold tabular-nums whitespace-nowrap">
+          {label}
+        </p>
         {sample ? (
           <p className="mt-0.5 text-[11px] text-zinc-500">Sample estimate</p>
         ) : null}
@@ -537,10 +542,10 @@ function Metric({
   tone?: "up" | "down";
 }) {
   return (
-    <div className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-3 dark:border-white/10 dark:bg-black/20">
+    <div className="min-w-0 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-3 dark:border-white/10 dark:bg-black/20">
       <p className="text-[11px] tracking-wide text-zinc-500 uppercase">{label}</p>
       <p
-        className={`mt-1 text-lg font-semibold ${
+        className={`mt-1 min-w-0 text-[clamp(0.95rem,3.4vw,1.125rem)] font-semibold tabular-nums whitespace-nowrap ${
           tone === "up"
             ? "text-emerald-600 dark:text-emerald-400"
             : tone === "down"

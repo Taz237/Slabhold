@@ -9,6 +9,9 @@ describe("money", () => {
     assert.equal(money(35, true), "$35.00");
     assert.equal(money(2.5), "$2.50");
     assert.equal(money(120), "$120.00");
+    assert.equal(money(2), "$2.00");
+    assert.equal(money(355), "$355.00");
+    assert.equal(money(12345), "$12,345.00");
   });
 
   it("keeps signedMoney on the same formatter", () => {

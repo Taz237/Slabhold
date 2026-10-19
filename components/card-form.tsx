@@ -30,6 +30,8 @@ import { buildCompsQuery } from "@/lib/comps/match";
 import { identifyFromPhoto } from "@/lib/comps/sample";
 import { cardCategory } from "@/lib/card-category";
 import { hasPaid } from "@/lib/format";
+import { formatCardValueLabel, marketValueSummary } from "@/lib/value/format";
+import { useCardValue } from "@/lib/value/use-card-values";
 import { fileToDataUrl } from "@/lib/storage";
 import type {
   CardCategory,
@@ -66,6 +68,8 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
   const router = useRouter();
   const { addCard, updateCard, removeCard } = useCollection();
   const { mode } = useSocial();
+  const current = useCardValue(existing?.id ?? null);
+  const currentValueLine = marketValueSummary(current.value);
   const accent = useDefaultAccent();
   const fileRef = useRef<HTMLInputElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
@@ -828,8 +832,17 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
         </Field>
       </div>
 
+      {existing ? (
+        <p className="min-w-0 text-sm font-medium text-zinc-700 tabular-nums whitespace-nowrap dark:text-zinc-200">
+          {current.loading
+            ? "Current value …"
+            : (currentValueLine ??
+              formatCardValueLabel(current.value, { createdAt: existing.createdAt }))}
+        </p>
+      ) : null}
+
       <Field
-        label="Estimated sell price"
+        label="Your estimate"
         error={
           touched.estimatedSellPrice && estNeg
             ? "Price can't be negative"

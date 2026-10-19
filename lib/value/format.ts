@@ -37,18 +37,14 @@ export function formatCardValueLabel(
   if (value) {
     if (value.status === "no_sales") return NOT_ENOUGH_SALES_LABEL;
     if (value.status === "unavailable") return "Value unavailable right now";
-    if (value.status === "sample") {
-      return value.median != null && value.nSales >= 1
-        ? money(value.median)
-        : NOT_ENOUGH_SALES_LABEL;
-    }
-    if (value.status === "ok" && value.median != null) {
-      return value.nSales >= 1 ? money(value.median) : NOT_ENOUGH_SALES_LABEL;
+    if (value.status === "sample" || value.status === "ok") {
+      return marketValueAmount(value) ?? NOT_ENOUGH_SALES_LABEL;
     }
     if (value.status === "stale") {
       return "Value unavailable right now";
     }
-    if (value.median != null && value.nSales >= 1) return money(value.median);
+    const amount = marketValueAmount(value);
+    if (amount) return amount;
   }
 
   const age = ageMs(options?.createdAt, options?.now);
@@ -56,6 +52,30 @@ export function formatCardValueLabel(
     return "Value updating";
   }
   return NOT_ENOUGH_SALES_LABEL;
+}
+
+/**
+ * Dollar amount the card page shows for a comps value.
+ * Null when there is no median backed by at least one sale.
+ */
+export function marketValueAmount(
+  value: CardValueResult | null | undefined,
+): string | null {
+  if (!cardValueHasAmount(value)) return null;
+  return money(value.median);
+}
+
+/**
+ * Read-only line for the edit form and the card page.
+ * "Current value $355.00 · 42 sales"
+ */
+export function marketValueSummary(
+  value: CardValueResult | null | undefined,
+): string | null {
+  const amount = marketValueAmount(value);
+  if (!amount || !value) return null;
+  const sales = value.nSales === 1 ? "sale" : "sales";
+  return `Current value ${amount} · ${value.nSales} ${sales}`;
 }
 
 export function cardValueHasAmount(

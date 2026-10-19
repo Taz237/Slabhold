@@ -11,12 +11,14 @@ import {
   refreshCardValueResult,
   valueAfterRefreshError,
 } from "@/lib/value/refresh-result";
+import { middleFifty } from "./stats";
 import {
   amountFromStoredCompValue,
   countForSalesLabel,
   displayedCompLabel,
   pricePayloadWithoutFlags,
   resolveCardScreenValue,
+  screenValueFromComps,
   sharedCompValue,
 } from "./shared-value";
 import type { MatchCard } from "./match";
@@ -196,7 +198,7 @@ describe("resolveCardScreenValue", () => {
     matchedAt: "2026-09-01T00:00:00.000Z",
   };
 
-  it("keeps the stored row when the on-screen list would price differently", () => {
+  it("prices the rows on screen, not a stale stored row", () => {
     const resolved = resolveCardScreenValue({
       phase: "ready",
       comps: [
@@ -206,10 +208,10 @@ describe("resolveCardScreenValue", () => {
       stored: storedNoSales,
     });
     assert.equal(resolved.phase, "comps");
-    assert.equal(resolved.amount, null);
-    assert.equal(resolved.count, 0);
-    assert.equal(resolved.emptyLabel, NOT_ENOUGH_SALES_LABEL);
-    assert.equal(resolved.comps?.length, 2);
+    assert.equal(resolved.amount, 110);
+    assert.equal(resolved.count, 2);
+    assert.equal(resolved.count, resolved.comps?.length);
+    assert.equal(resolved.emptyLabel, null);
   });
 
   it("drops a flagged sale from the price and the count together", () => {
@@ -243,7 +245,7 @@ describe("resolveCardScreenValue", () => {
     );
   });
 
-  it("hides a flagged sale from the list and keeps the stored estimate", () => {
+  it("excluding a flagged sale changes the median and N together", () => {
     const resolved = resolveCardScreenValue({
       phase: "ready",
       comps: [
@@ -260,8 +262,10 @@ describe("resolveCardScreenValue", () => {
         matchedAt: null,
       },
     });
-    assert.equal(resolved.amount, 240);
-    assert.equal(resolved.count, 2);
+    assert.equal(resolved.amount, 80);
+    assert.equal(resolved.count, 1);
+    assert.equal(resolved.count, resolved.comps?.length);
+    assert.notEqual(resolved.amount, 240);
     assert.deepEqual(
       resolved.comps?.map((comp) => comp.itemId),
       ["keep"],
@@ -301,7 +305,7 @@ describe("resolveCardScreenValue", () => {
     assert.equal(resolved.emptyLabel, null);
   });
 
-  it("shows the stored price when the on-screen list is empty", () => {
+  it("does not keep a stored count when no rows are shown", () => {
     const resolved = resolveCardScreenValue({
       phase: "ready",
       comps: [],
@@ -314,9 +318,9 @@ describe("resolveCardScreenValue", () => {
         matchedAt: null,
       },
     });
-    assert.equal(resolved.amount, 500);
-    assert.equal(resolved.emptyLabel, null);
-    assert.equal(resolved.count, 4);
+    assert.equal(resolved.amount, null);
+    assert.equal(resolved.emptyLabel, NOT_ENOUGH_SALES_LABEL);
+    assert.equal(resolved.count, 0);
   });
 });
 
@@ -360,10 +364,10 @@ describe("Jaxson Dart Prizm parallels stay off Base", () => {
       [2.5, 3],
     );
     assert.equal(valued.count, 2);
-    assert.equal(valued.median, 3);
+    assert.equal(valued.median, 2.75);
 
     const blankParallel = sharedCompValue({ ...DART_BASE, parallel: "" }, DART_SALES);
-    assert.equal(blankParallel.median, 3);
+    assert.equal(blankParallel.median, 2.75);
     assert.equal(blankParallel.count, 2);
   });
 
@@ -380,9 +384,9 @@ describe("Jaxson Dart Prizm parallels stay off Base", () => {
   it("shows the stored median for the same base sales the helper priced", () => {
     const stored = {
       status: "ok" as const,
-      median: 3,
-      low: 2.5,
-      high: 3,
+      median: 2.75,
+      low: 2.625,
+      high: 2.875,
       nSales: 2,
       matchedAt: "2026-10-18T00:00:00.000Z",
     };
@@ -402,8 +406,9 @@ describe("Jaxson Dart Prizm parallels stay off Base", () => {
         url: sale.item_link,
       })),
     });
-    assert.equal(resolved.amount, 3);
+    assert.equal(resolved.amount, 2.75);
     assert.equal(resolved.count, 2);
+    assert.equal(resolved.count, resolved.comps?.length);
     assert.equal(resolved.comps?.length, 2);
     assert.equal(displayedCompLabel(DART_BASE, DART_SALES), money(stored.median, true));
   });
@@ -752,6 +757,58 @@ describe("refreshCardValue keeps a good median", () => {
       }),
       "Value unavailable right now",
     );
+  });
+});
+
+describe("low-value cards stay in cents", () => {
+  function listing(itemId: string, soldPrice: number): CompListing {
+    return {
+      id: itemId,
+      itemId,
+      title: "2025 Panini Prizm Jaxson Dart #332",
+      soldPrice,
+      soldDate: "2026-10-01",
+      platform: "eBay",
+      condition: "Raw",
+      shipping: null,
+      url: "",
+    };
+  }
+
+  it("median of $1.50, $2.00, $2.25 is $2.00, with p25 and p75 in cents", () => {
+    const prices = [1.5, 2, 2.25];
+    const band = middleFifty(prices);
+    assert.equal(band.median, 2);
+    assert.equal(band.p25, 1.75);
+    assert.equal(band.p75, 2.125);
+    const shown = screenValueFromComps(prices.map((price, index) => listing(String(index), price)));
+    assert.equal(shown.median, 2);
+    assert.equal(shown.low, 1.75);
+    assert.equal(shown.high, 2.125);
+    assert.equal(shown.count, shown.comps.length);
+    assert.equal(money(shown.median!), "$2.00");
+  });
+
+  it("median of $0.99 and $1.49 is $1.24", () => {
+    const band = middleFifty([0.99, 1.49]);
+    assert.equal(band.median, 1.24);
+    assert.equal(money(band.median!), "$1.24");
+    const shown = screenValueFromComps([listing("a", 0.99), listing("b", 1.49)]);
+    assert.equal(shown.median, 1.24);
+    assert.equal(shown.count, 2);
+  });
+
+  it("excluding a flagged sale changes the median and N together", () => {
+    const comps = [listing("a", 1.5), listing("b", 2), listing("c", 2.25)];
+    const before = screenValueFromComps(comps);
+    const after = screenValueFromComps(comps, new Set(["c"]));
+    assert.equal(before.median, 2);
+    assert.equal(before.count, 3);
+    assert.equal(after.count, after.comps.length);
+    assert.equal(after.count, 2);
+    assert.notEqual(after.median, before.median);
+    assert.equal(after.median, 1.75);
+    assert.equal(countForSalesLabel(before.count, after.comps.length), after.comps.length);
   });
 });
 

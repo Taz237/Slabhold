@@ -7,6 +7,7 @@ import {
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { getAuthUserId } from "@/lib/supabase/server";
 import { soldCompsAccess } from "@/lib/value/card-value-access";
+import { CardMarketUnavailable, loadCachedCardRefresh } from "@/lib/value/card-market";
 import { refreshCardValue } from "@/lib/value/getCardValue";
 
 export const UNAVAILABLE_MESSAGE =
@@ -37,11 +38,28 @@ export async function GET(request: Request) {
     return Response.json({ error: "Card not found" }, { status: 404 });
   }
 
-  const refreshed = await refreshCardValue(id, {
-    save: access === "owner",
-    beforeRequest: () => consumeRequestLimit(userId),
-    beforeTrawl: () => consumeTrawlLimit(userId),
-  });
+  let refreshed;
+  try {
+    refreshed = await loadCachedCardRefresh(id, {
+      save: access === "owner",
+      beforeRequest: () => consumeRequestLimit(userId),
+      beforeTrawl: () => consumeTrawlLimit(userId),
+    });
+  } catch (err) {
+    const failed = err instanceof CardMarketUnavailable ? err.result : null;
+    if (failed?.attempt.reason === "budget_exhausted") {
+      return Response.json({ error: RATE_LIMIT_MESSAGE }, { status: 429 });
+    }
+    if (failed && !failed.payload) {
+      return Response.json({ error: UNAVAILABLE_MESSAGE }, { status: 503 });
+    }
+    // A cache miss that threw for another reason still prices once, uncached.
+    refreshed = await refreshCardValue(id, {
+      save: access === "owner",
+      beforeRequest: () => consumeRequestLimit(userId),
+      beforeTrawl: () => consumeTrawlLimit(userId),
+    });
+  }
 
   if (refreshed.attempt.reason === "budget_exhausted") {
     return Response.json({ error: RATE_LIMIT_MESSAGE }, { status: 429 });
