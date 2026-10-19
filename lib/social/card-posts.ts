@@ -3,7 +3,7 @@ import { withAuthorSafety } from "@/lib/safety/filters";
 import { formatGrade, parseGrade } from "@/lib/card-options";
 import { isUuid } from "@/lib/value/card-value-access";
 import { cardIdentityKey, type IdentityCard } from "./card-identity";
-import { presentMailDay } from "./mail-day";
+import { loadMailDayPaid, presentMailDay } from "./mail-day";
 import { mapPublicCard, PUBLIC_CARD_SELECT, type CardRow } from "./cards";
 import type { Post, Profile, PublicCard } from "./types";
 
@@ -105,7 +105,12 @@ export function sanitizeAttachedCard(raw: unknown): PublicCard | null {
   };
 }
 
-function mapPostRow(row: PostRow, viewerId: string | null, publicIds: ReadonlySet<string>): Post {
+function mapPostRow(
+  row: PostRow,
+  viewerId: string | null,
+  publicIds: ReadonlySet<string>,
+  paid: number | null,
+): Post {
   const card = sanitizeAttachedCard(row.card);
   const mailDay = presentMailDay({
     postType: row.post_type,
@@ -114,6 +119,7 @@ function mapPostRow(row: PostRow, viewerId: string | null, publicIds: ReadonlySe
     authorId: row.user_id,
     viewerId,
     cardIsPublic: Boolean(card && publicIds.has(card.id)),
+    paid,
   });
   return {
     id: row.id,
@@ -160,6 +166,21 @@ async function loadProfilesById(
   return authors;
 }
 
+async function mapPostRows(
+  supabase: SupabaseClient,
+  rows: PostRow[],
+  viewerId: string | null,
+  publicIds: ReadonlySet<string>,
+): Promise<Post[]> {
+  const paidByPost = await loadMailDayPaid(
+    supabase,
+    rows.filter((row) => row.post_type === "mail_day").map((row) => row.id),
+  );
+  return rows.map((row) =>
+    mapPostRow(row, viewerId, publicIds, paidByPost.get(row.id) ?? null),
+  );
+}
+
 async function publicIdsFor(
   supabase: SupabaseClient,
   rows: PostRow[],
@@ -204,8 +225,8 @@ async function loadQuotedPosts(
   if (error) throw new Error(error.message);
   const quotedRows = (data ?? []) as PostRow[];
   const publicIds = await publicIdsFor(supabase, quotedRows);
-  for (const row of quotedRows) {
-    const mapped = mapPostRow(row, viewerId, publicIds);
+  const quotedPosts = await mapPostRows(supabase, quotedRows, viewerId, publicIds);
+  for (const mapped of quotedPosts) {
     related.push(mapped);
     known.add(mapped.id);
   }
@@ -227,9 +248,7 @@ async function loadQuotedPosts(
     if (nested.error) throw new Error(nested.error.message);
     const nestedRows = (nested.data ?? []) as PostRow[];
     const nestedPublicIds = await publicIdsFor(supabase, nestedRows);
-    for (const row of nestedRows) {
-      related.push(mapPostRow(row, viewerId, nestedPublicIds));
-    }
+    related.push(...(await mapPostRows(supabase, nestedRows, viewerId, nestedPublicIds)));
   }
   return related;
 }
@@ -336,7 +355,12 @@ export async function loadPostsForCard(
 
   const { data: sessionData } = await supabase.auth.getSession();
   const viewerId = sessionData.session?.user.id ?? null;
-  const rows = ((data ?? []) as AboutCardRow[]).map((row) => {
+  const aboutRows = (data ?? []) as AboutCardRow[];
+  const paidByPost = await loadMailDayPaid(
+    supabase,
+    aboutRows.filter((row) => row.post_type === "mail_day").map((row) => row.id),
+  );
+  const rows = aboutRows.map((row) => {
     const card = attachedCard(row);
     const mailDay = presentMailDay({
       postType: row.post_type,
@@ -345,6 +369,7 @@ export async function loadPostsForCard(
       authorId: row.user_id,
       viewerId,
       cardIsPublic: row.attached_is_public === true,
+      paid: paidByPost.get(row.id) ?? null,
     });
     return {
       id: row.id,

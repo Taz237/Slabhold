@@ -25,12 +25,10 @@ export function MailDayCard({
   const { user, publicCards } = useSocial();
   const { cards } = useCollection();
   const card = post.card;
-  if (!card) return null;
-
-  const owned = cards.find((item) => item.id === card.id);
+  const owned = card ? cards.find((item) => item.id === card.id) : undefined;
   const isPublic = owned
     ? Boolean(owned.isPublic)
-    : publicCards.some((item) => item.id === card.id);
+    : Boolean(card && publicCards.some((item) => item.id === card.id));
   const viewerIsOwner = Boolean(user && user.id === post.authorId);
   const paidInput = viewerIsOwner
     ? (owned?.purchasePrice ?? post.mailDay?.paid ?? null)
@@ -41,10 +39,11 @@ export function MailDayCard({
     viewerIsOwner,
     paid: paidInput,
   });
-  const valueLabel = useAttachmentLabel(view.showValue ? card : null, {
+  const valueLabel = useAttachmentLabel(card && view.showValue ? card : null, {
     values: cardValues,
     loading: cardValuesLoading,
   });
+  if (!card) return null;
   const photos = (post.mailDay?.photos?.length ? post.mailDay.photos : [post.imageDataUrl]).filter(
     (src): src is string => Boolean(src),
   );

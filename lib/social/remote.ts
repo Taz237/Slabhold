@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { uploadMedia } from "@/lib/supabase/media";
 import { sanitizeAttachedCard } from "./card-posts";
-import { presentMailDay } from "./mail-day";
+import { loadMailDayPaid, presentMailDay } from "./mail-day";
 import { mapPublicCard } from "./cards";
 import type {
   AuthResult,
@@ -143,7 +143,12 @@ async function allowNotice(
   return canNotify(supabaseSafety(supabase), actorId, recipientId);
 }
 
-function mapPost(row: PostRow, viewerId: string | null, publicIds: ReadonlySet<string>): Post {
+function mapPost(
+  row: PostRow,
+  viewerId: string | null,
+  publicIds: ReadonlySet<string>,
+  paid: number | null,
+): Post {
   const card = sanitizeAttachedCard(row.card);
   const isPublic = Boolean(card && publicIds.has(card.id));
   const mailDay = presentMailDay({
@@ -153,6 +158,7 @@ function mapPost(row: PostRow, viewerId: string | null, publicIds: ReadonlySet<s
     authorId: row.user_id,
     viewerId,
     cardIsPublic: isPublic,
+    paid,
   });
   return {
     id: row.id,
@@ -166,6 +172,19 @@ function mapPost(row: PostRow, viewerId: string | null, publicIds: ReadonlySet<s
     showPaid: row.show_paid === true,
     mailDay,
   };
+}
+
+async function mapPostRows(
+  supabase: SupabaseClient,
+  rows: PostRow[],
+  viewerId: string | null,
+  publicIds: ReadonlySet<string>,
+): Promise<Post[]> {
+  const paidByPost = await loadMailDayPaid(
+    supabase,
+    rows.filter((row) => row.post_type === "mail_day").map((row) => row.id),
+  );
+  return rows.map((row) => mapPost(row, viewerId, publicIds, paidByPost.get(row.id) ?? null));
 }
 
 function mapProfile(row: ProfileRow, email = ""): Profile {
@@ -264,8 +283,11 @@ export async function loadSupabaseSocial(supabase: SupabaseClient): Promise<Soci
   const profiles = ((profilesRes.data ?? []) as ProfileRow[]).map((row) =>
     mapProfile(row, row.id === session?.user.id ? (session.user.email ?? "") : ""),
   );
-  const posts = ((postsRes.data ?? []) as PostRow[]).map((row) =>
-    mapPost(row, viewerId, publicIds),
+  const posts = await mapPostRows(
+    supabase,
+    (postsRes.data ?? []) as PostRow[],
+    viewerId,
+    publicIds,
   );
   const reposts = ((repostsRes.data ?? []) as RepostRow[]).map(
     (row): PostRepost => ({
@@ -292,8 +314,12 @@ export async function loadSupabaseSocial(supabase: SupabaseClient): Promise<Soci
       blockedHidden,
     );
     if (extra.error && !missingTable(extra.error)) throw new Error(extra.error.message);
-    for (const row of (extra.data ?? []) as PostRow[]) {
-      const mapped = mapPost(row, viewerId, publicIds);
+    for (const mapped of await mapPostRows(
+      supabase,
+      (extra.data ?? []) as PostRow[],
+      viewerId,
+      publicIds,
+    )) {
       posts.push(mapped);
       knownPostIds.add(mapped.id);
     }
@@ -311,7 +337,9 @@ export async function loadSupabaseSocial(supabase: SupabaseClient): Promise<Soci
         blockedHidden,
       );
       if (nested.error && !missingTable(nested.error)) throw new Error(nested.error.message);
-      for (const row of (nested.data ?? []) as PostRow[]) posts.push(mapPost(row, viewerId, publicIds));
+      posts.push(
+        ...(await mapPostRows(supabase, (nested.data ?? []) as PostRow[], viewerId, publicIds)),
+      );
     }
     posts.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   }
@@ -357,8 +385,11 @@ export async function loadSupabaseSocial(supabase: SupabaseClient): Promise<Soci
       read: row.read,
     }),
   );
-  const homePosts = ((homePostsRes.data ?? []) as PostRow[]).map((row) =>
-    mapPost(row, viewerId, publicIds),
+  const homePosts = await mapPostRows(
+    supabase,
+    (homePostsRes.data ?? []) as PostRow[],
+    viewerId,
+    publicIds,
   );
   const homeReposts = ((homeRepostsRes.data ?? []) as RepostRow[]).map(
     (row): PostRepost => ({
@@ -805,7 +836,7 @@ export async function remoteUpdatePost(
   return {};
 }
 
-async function syncMentionNotifications(
+export async function syncMentionNotifications(
   supabase: SupabaseClient,
   actorId: string,
   postId: string,

@@ -16,6 +16,7 @@ import {
   runMailDaySave,
   type MailDayInput,
 } from "@/lib/social/mail-day";
+import { syncMentionNotifications } from "@/lib/social/remote";
 import { POST_LIMIT } from "@/lib/social/types";
 import { uploadMedia } from "@/lib/supabase/media";
 import { createSupabaseServer, getAuthUserId } from "@/lib/supabase/server";
@@ -174,8 +175,6 @@ export async function createMailDayPost(input: MailDayInput): Promise<MailDayAct
             source,
             photos: uploaded,
             isPublic,
-            showPaid,
-            paid: paid.paid,
             acquiredAt,
           }),
         })
@@ -187,5 +186,9 @@ export async function createMailDayPost(input: MailDayInput): Promise<MailDayAct
   });
 
   if (result.ok || result.cardSaved) scheduleRefresh(userId, result.cardId);
+  if (result.ok) {
+    const mentionProblem = await syncMentionNotifications(supabase, userId, result.postId, caption);
+    if (mentionProblem) console.warn("[mail_day] mentions:", mentionProblem);
+  }
   return result;
 }
