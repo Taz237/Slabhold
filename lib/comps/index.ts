@@ -3,6 +3,7 @@ import "server-only";
 import { mockValueHistory } from "@/lib/value-history";
 import { notifyMatchedSales } from "@/lib/wants/dispatch";
 import { listCachedItemIds, readSoldCompsCache, writeSoldCompsCache } from "./cache";
+import { keptAndDroppedTitles } from "./classify-titles";
 import { isLowConfidence } from "./clean";
 import { cleanedToCompListings, historyFromSales } from "./map";
 import {
@@ -28,12 +29,30 @@ export { filterPriceOutliers } from "./stats";
 
 export type CompsSource = "trawl" | "sample" | "off";
 
+export type CompClassification = {
+  keptTitles: string[];
+  droppedTitles: string[];
+  matched: number;
+};
+
 export type GetSoldCompsOptions = {
   /** Called on cache miss before any work (counts toward request limit). */
   beforeRequest?: () => Promise<boolean>;
   /** Called only when about to hit Trawl (cache miss). Return false to abort with rate limit. */
   beforeTrawl?: () => Promise<boolean>;
+  /** Titles kept and dropped by the shared filter. Does not change the price. */
+  onClassified?: (info: CompClassification) => void;
 };
+
+function reportClassification(
+  options: GetSoldCompsOptions | undefined,
+  input: ReadonlyArray<{ title?: string | null; itemId?: string | null; item_id?: string | null }>,
+  kept: CleanedSale[],
+) {
+  if (!options?.onClassified) return;
+  const titles = keptAndDroppedTitles(input, kept);
+  options.onClassified({ ...titles, matched: kept.length });
+}
 
 export type GetSoldCompsResult =
   | { ok: true; payload: SoldCompsPayload }
@@ -131,7 +150,13 @@ export async function getSoldComps(
 ): Promise<GetSoldCompsResult> {
   const source = getCompsSource();
   if (source === "sample" || source === "off") {
-    return { ok: true, payload: samplePayload(card) };
+    const payload = samplePayload(card);
+    options?.onClassified?.({
+      keptTitles: payload.comps.map((comp) => comp.title),
+      droppedTitles: [],
+      matched: payload.count,
+    });
+    return { ok: true, payload };
   }
 
   const matchCard = toMatchCard(card);
@@ -149,6 +174,7 @@ export async function getSoldComps(
   if (cached) {
     // Re-filter cached rows with the current shared rules.
     const sales = sharedCompValue(matchCard, cached.sales).sales;
+    reportClassification(options, cached.sales, sales);
     return {
       ok: true,
       payload: payloadFromSales(sales, {
@@ -177,7 +203,9 @@ export async function getSoldComps(
       return { ok: false, unavailable: true };
     }
 
-    const sales = sharedCompValue(matchCard, result.body.results ?? []).sales;
+    const results = result.body.results ?? [];
+    const sales = sharedCompValue(matchCard, results).sales;
+    reportClassification(options, results, sales);
     const previousIds = await listCachedItemIds(queryKey);
     const writtenAt = await writeSoldCompsCache(card.id, queryKey, sales);
     const fetchedAt = writtenAt ?? new Date().toISOString();

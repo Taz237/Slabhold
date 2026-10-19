@@ -1,20 +1,25 @@
 import "server-only";
 
-import { getCompsSource, getSoldComps } from "@/lib/comps";
+import { getCompsSource, getSoldComps, type CompClassification } from "@/lib/comps";
 import { loadSoldCompCard } from "@/lib/comps/load-card";
 import { buildQueryKey } from "@/lib/comps/query-key";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
-import { refreshCardValueResult } from "./refresh-result";
+import { preserveValueOnFailedAttempt, refreshCardValueResult } from "./refresh-result";
+import type { CardRefreshReason, CardRefreshResult, RefreshQueueCard } from "./refresh-queue";
 import type { CardValueResult, CardValueStatus } from "./types";
-import { VALUE_STALE_AFTER_MS } from "./types";
 
 export type { CardValueResult, CardValueStatus } from "./types";
-export { VALUE_STALE_AFTER_MS } from "./types";
+export type { RefreshQueueCard } from "./refresh-queue";
 
-export const TRAWL_BUDGET_PER_RUN = Math.max(
-  1,
-  Number(process.env.TRAWL_BUDGET_PER_RUN) || 5,
-);
+export type RefreshAttempt = {
+  action: CardRefreshResult;
+  reason: CardRefreshReason;
+  matched: number;
+  keptTitles: string[];
+  droppedTitles: string[];
+};
+
+export type RefreshCardValueResult = CardValueResult & { attempt: RefreshAttempt };
 
 type CardValueRow = {
   card_id: string;
@@ -26,6 +31,27 @@ type CardValueRow = {
   query_key: string | null;
   matched_at: string | null;
 };
+
+function emptyAttempt(
+  action: CardRefreshResult,
+  reason: CardRefreshReason,
+  titles?: CompClassification,
+): RefreshAttempt {
+  return {
+    action,
+    reason,
+    matched: titles?.matched ?? 0,
+    keptTitles: titles?.keptTitles ?? [],
+    droppedTitles: titles?.droppedTitles ?? [],
+  };
+}
+
+function finish(
+  result: CardValueResult,
+  attempt: RefreshAttempt,
+): RefreshCardValueResult {
+  return { ...result, attempt };
+}
 
 function emptyResult(status: CardValueStatus): CardValueResult {
   return {
@@ -154,30 +180,68 @@ export type RefreshCardValueOptions = {
 export async function refreshCardValue(
   cardId: string,
   options?: RefreshCardValueOptions,
-): Promise<CardValueResult> {
+): Promise<RefreshCardValueResult> {
   const client = createSupabaseAdmin();
-  if (!client || !cardId) return emptyResult("unavailable");
+  if (!client || !cardId) {
+    return finish(emptyResult("unavailable"), emptyAttempt("skipped", "unavailable"));
+  }
 
   const card = await loadSoldCompCard(cardId);
-  if (!card) return emptyResult("unavailable");
+  if (!card) {
+    return finish(emptyResult("unavailable"), emptyAttempt("skipped", "unavailable"));
+  }
 
   const queryKey = buildQueryKey(card);
   const source = getCompsSource();
+  let titles: CompClassification = { keptTitles: [], droppedTitles: [], matched: 0 };
 
   const result = await getSoldComps(card, {
     beforeRequest: options?.beforeRequest,
     beforeTrawl: options?.beforeTrawl,
+    onClassified: (info) => {
+      titles = info;
+    },
   });
 
   if (!result.ok) {
     if ("rateLimited" in result && result.rateLimited) {
-      return (await getCardValue(cardId)) ?? emptyResult("unavailable");
+      const existing = await getCardValue(cardId);
+      return finish(
+        existing ?? emptyResult("unavailable"),
+        emptyAttempt("skipped", "budget_exhausted"),
+      );
     }
-    // Keep any existing row unchanged on Trawl errors.
-    const existing = await getCardValue(cardId);
-    if (existing) return existing;
+    // Trawl failed. Keep the stored price and move matched_at so the queue rotates.
+    const failedAt = new Date().toISOString();
+    const { data: previousRow, error: previousError } = await client
+      .from("card_values")
+      .select("card_id, median, low, high, n_sales, status, query_key, matched_at")
+      .eq("card_id", cardId)
+      .maybeSingle();
+    if (previousError) {
+      console.warn("[card_values] previous read failed:", previousError.message);
+    }
+    if (previousRow) {
+      const preserved = preserveValueOnFailedAttempt(
+        {
+          median: previousRow.median != null ? Number(previousRow.median) : null,
+          low: previousRow.low != null ? Number(previousRow.low) : null,
+          high: previousRow.high != null ? Number(previousRow.high) : null,
+          nSales:
+            previousRow.n_sales == null || Number.isNaN(Number(previousRow.n_sales))
+              ? 0
+              : Number(previousRow.n_sales),
+          matchedAt: (previousRow.matched_at as string | null) ?? null,
+        },
+        failedAt,
+      );
+      await markCardChecked(cardId, preserved.matchedAt ?? failedAt);
+      return finish(
+        rowToResult({ ...(previousRow as CardValueRow), matched_at: preserved.matchedAt }),
+        emptyAttempt("kept", "trawl_error", titles),
+      );
+    }
 
-    const matchedAt = new Date().toISOString();
     await upsertCardValue(client, {
       card_id: cardId,
       median: null,
@@ -186,9 +250,12 @@ export async function refreshCardValue(
       n_sales: 0,
       status: "unavailable",
       query_key: queryKey,
-      matched_at: matchedAt,
+      matched_at: failedAt,
     });
-    return emptyResult("unavailable");
+    return finish(
+      emptyResult("unavailable"),
+      emptyAttempt("kept", "trawl_error", titles),
+    );
   }
 
   const payload = result.payload;
@@ -210,7 +277,13 @@ export async function refreshCardValue(
 
   if (previousError) {
     console.warn("[card_values] previous read failed:", previousError.message);
-    if (!hasSales) return emptyResult(isSample ? "sample" : "no_sales");
+    if (!hasSales) {
+      await markCardChecked(cardId, matchedAt);
+      return finish(
+        emptyResult(isSample ? "sample" : "no_sales"),
+        emptyAttempt("kept", "no_matches", titles),
+      );
+    }
   }
 
   const decision = refreshCardValueResult(
@@ -267,7 +340,34 @@ export async function refreshCardValue(
     matched_at: row.matched_at ?? matchedAt,
   });
 
-  return rowToResult(row);
+  const previousMedian =
+    previousRow && previousRow.median != null ? Number(previousRow.median) : null;
+  const samePrice = previousMedian === merged.median;
+  let action: CardRefreshResult = "re-priced";
+  let reason: CardRefreshReason = "re-priced";
+  if (decision.keptPreviousMedian) {
+    action = "kept";
+    reason = "kept_old_price";
+  } else if (merged.nSales < 1) {
+    reason = "no_matches";
+    action = samePrice ? "kept" : "re-priced";
+  }
+
+  return finish(rowToResult(row), emptyAttempt(action, reason, titles));
+}
+
+/** Move matched_at without changing the stored price. */
+export async function markCardChecked(
+  cardId: string,
+  at = new Date().toISOString(),
+): Promise<void> {
+  const client = createSupabaseAdmin();
+  if (!client || !cardId) return;
+  const { error } = await client
+    .from("card_values")
+    .update({ matched_at: at })
+    .eq("card_id", cardId);
+  if (error) console.warn("[card_values] matched_at update failed:", error.message);
 }
 
 async function upsertCardValue(
@@ -291,102 +391,46 @@ async function upsertCardValue(
   }
 }
 
-export type StaleCardCandidate = {
-  cardId: string;
-  matchedAt: string | null;
-  priority: number;
-};
+async function selectPage<T>(
+  client: NonNullable<ReturnType<typeof createSupabaseAdmin>>,
+  table: "cards" | "card_values",
+  columns: string,
+): Promise<T[]> {
+  const rows: T[] = [];
+  const page = 1000;
+  for (let from = 0; ; from += page) {
+    const { data, error } = await client
+      .from(table)
+      .select(columns)
+      .range(from, from + page - 1);
+    if (error) {
+      console.warn(`[card_values] list ${table} failed:`, error.message);
+      break;
+    }
+    const batch = (data ?? []) as T[];
+    rows.push(...batch);
+    if (batch.length < page) break;
+  }
+  return rows;
+}
 
 /**
- * Pick cards that need a value refresh: missing, stale query_key, or older than 24h.
- * Ordered stalest-first.
+ * Every card, valued or not. matched_at is the last attempt (null if never checked).
+ * Ordering is applied by takeRefreshBatch: oldest first, nulls first.
  */
-export async function listStaleCardIds(
-  limit: number,
-): Promise<StaleCardCandidate[]> {
+export async function listRefreshQueue(): Promise<RefreshQueueCard[]> {
   const client = createSupabaseAdmin();
-  if (!client || limit < 1) return [];
+  if (!client) return [];
 
-  const { data: cards, error } = await client
-    .from("cards")
-    .select("*");
-
-  if (error || !cards?.length) {
-    if (error) console.warn("[card_values] list cards failed:", error.message);
-    return [];
-  }
-
-  const ids = cards.map((c) => c.id as string);
-  const { data: values } = await client
-    .from("card_values")
-    .select("card_id, query_key, matched_at, status")
-    .in("card_id", ids);
-
-  const valueById = new Map(
-    ((values ?? []) as CardValueRow[]).map((row) => [row.card_id, row]),
+  const cards = await selectPage<{ id: string }>(client, "cards", "id");
+  const values = await selectPage<{ card_id: string; matched_at: string | null }>(
+    client,
+    "card_values",
+    "card_id, matched_at",
   );
-
-  const now = Date.now();
-  const candidates: StaleCardCandidate[] = [];
-
-  for (const card of cards) {
-    const id = card.id as string;
-    const expected = buildQueryKey({
-      id,
-      year: card.year as number,
-      yearLabel: (card.year_label as string) || undefined,
-      setBrand:
-        ((card.set_name as string) || (card.set as string) || undefined) ??
-        undefined,
-      cardNumber: (card.card_number as string) || undefined,
-      grade: (card.grade as string) || undefined,
-      parallel: (card.parallel as string) || undefined,
-      serialRun: (card.serial_run as number) ?? null,
-      isAuto: Boolean(card.is_auto),
-      isRelic: Boolean(card.is_relic),
-      gradeQualifier: (card.grade_qualifier as string) || null,
-      conditionType:
-        card.condition_type === "graded" || card.condition_type === "raw"
-          ? card.condition_type
-          : undefined,
-    });
-    const row = valueById.get(id);
-    if (!row) {
-      candidates.push({ cardId: id, matchedAt: null, priority: 0 });
-      continue;
-    }
-    const keyMismatch = Boolean(row.query_key && row.query_key !== expected);
-    const age = row.matched_at
-      ? now - new Date(row.matched_at).getTime()
-      : Number.POSITIVE_INFINITY;
-    const old = !row.matched_at || age > VALUE_STALE_AFTER_MS;
-    const badStatus =
-      row.status === "stale" ||
-      row.status === "unavailable" ||
-      keyMismatch;
-
-    if (badStatus || old) {
-      const priority = !row.matched_at
-        ? 0
-        : keyMismatch
-          ? 1
-          : badStatus
-            ? 2
-            : 3;
-      candidates.push({
-        cardId: id,
-        matchedAt: row.matched_at,
-        priority,
-      });
-    }
-  }
-
-  candidates.sort((a, b) => {
-    if (a.priority !== b.priority) return a.priority - b.priority;
-    const aT = a.matchedAt ? new Date(a.matchedAt).getTime() : 0;
-    const bT = b.matchedAt ? new Date(b.matchedAt).getTime() : 0;
-    return aT - bT;
-  });
-
-  return candidates.slice(0, limit);
+  const matchedAt = new Map(values.map((row) => [row.card_id, row.matched_at]));
+  return cards.map((card) => ({
+    cardId: card.id,
+    matchedAt: matchedAt.has(card.id) ? matchedAt.get(card.id) ?? null : null,
+  }));
 }

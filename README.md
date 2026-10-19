@@ -39,3 +39,9 @@ Sign up and log in then use Supabase Auth. Profile photos and cover photos uploa
 ### Sold comps (Trawl)
 
 Card analytics (`/cards/[id]`) loads cleaned sold listings from Trawl (`details=1`), matched on grader/grade, with median and middle-50% range. Results are cached per card in `sold_comps_cache` (6h TTL). Set `COMPS_SOURCE=sample` or `off` (or omit it) to show the sample-data banner without calling Trawl.
+
+### Daily value refresh
+
+`/api/cron/refresh-card-values` is scheduled in `vercel.json`. Daily at 09:00 UTC; up to N cards per run, oldest-checked first; every card is re-checked at least every ceil(total/N) days. N is `TRAWL_CRON_BUDGET` (default 25, hard max 100).
+
+`card_values.matched_at` is the last check, not only a successful price change. It moves when the price is kept, when there are no matches, and when a Trawl error leaves the old value in place. The cron uses that global budget only. Interactive comps and card refresh still use the per-user limit of 5 Trawl lookups an hour.

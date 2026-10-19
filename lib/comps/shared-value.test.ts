@@ -4,7 +4,10 @@ import { money } from "@/lib/format";
 import { NOT_ENOUGH_SALES_LABEL } from "@/lib/value/format";
 import type { CompListing } from "@/lib/types";
 import type { CardValueResult } from "@/lib/value/types";
-import { refreshCardValueResult } from "@/lib/value/refresh-result";
+import {
+  preserveValueOnFailedAttempt,
+  refreshCardValueResult,
+} from "@/lib/value/refresh-result";
 import {
   amountFromStoredCompValue,
   displayedCompLabel,
@@ -615,5 +618,14 @@ describe("refreshCardValue keeps a good median", () => {
     assert.equal(decision.value.status, "no_sales");
     assert.equal(decision.value.median, null);
     assert.equal(decision.value.nSales, 0);
+    assert.equal(decision.value.matchedAt, emptyRun.matchedAt);
+  });
+
+  it("stamps matched_at when a failed attempt keeps the old price", () => {
+    const stamped = preserveValueOnFailedAttempt(previous, "2026-10-19T09:00:00.000Z");
+    assert.equal(stamped.median, 50);
+    assert.equal(stamped.nSales, 4);
+    assert.equal(stamped.matchedAt, "2026-10-19T09:00:00.000Z");
+    assert.notEqual(stamped.matchedAt, previous.matchedAt);
   });
 });

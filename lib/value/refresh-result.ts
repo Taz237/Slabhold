@@ -59,3 +59,19 @@ export function refreshCardValueResult(
     },
   };
 }
+
+/**
+ * A Trawl error left the stored price in place. matched_at still moves to this
+ * attempt so the daily queue rotates. Price fields are copied through unchanged.
+ */
+export function preserveValueOnFailedAttempt<
+  T extends {
+    median: number | null;
+    low: number | null;
+    high: number | null;
+    nSales: number;
+    matchedAt: string | null;
+  },
+>(previous: T, attemptedAt: string): T {
+  return { ...previous, matchedAt: attemptedAt };
+}

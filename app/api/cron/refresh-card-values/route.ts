@@ -1,9 +1,14 @@
-import { TRAWL_LIMIT } from "@/lib/comps/rate-limit";
 import {
-  listStaleCardIds,
+  listRefreshQueue,
+  markCardChecked,
   refreshCardValue,
-  TRAWL_BUDGET_PER_RUN,
 } from "@/lib/value/getCardValue";
+import {
+  cardRefreshLog,
+  cardRefreshSummary,
+  takeRefreshBatch,
+  trawlCronBudget,
+} from "@/lib/value/refresh-queue";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -20,51 +25,77 @@ function cronAuthorized(request: Request): boolean {
 }
 
 /**
- * Daily cron: refresh the stalest card_values first.
- * Auth: Authorization: Bearer <CRON_SECRET>
- * Budget: TRAWL_BUDGET_PER_RUN (default 5). Sold-comps cache still avoids
- * Trawl when fresher than 6h; user-facing routes keep the hourly Trawl limit.
+ * Daily at 09:00 UTC; up to N cards per run, oldest-checked first;
+ * every card is re-checked at least every ceil(total/N) days.
+ *
+ * N is TRAWL_CRON_BUDGET (default 25, hard max 100). That budget is the only
+ * Trawl cap on this route. The per-user interactive limiter does not apply.
+ *
+ * card_values.matched_at is the last attempt. It moves on a kept price, on
+ * zero matches, and when a Trawl error leaves the old value in place.
+ * Cards past N stay at the front of the queue for the next run.
  */
 export async function GET(request: Request) {
   if (!cronAuthorized(request)) return unauthorized();
 
-  const budget = TRAWL_BUDGET_PER_RUN;
-  // Fetch more candidates than budget — cache hits do not consume Trawl budget.
-  const candidates = await listStaleCardIds(Math.max(budget * 4, budget));
+  const budget = trawlCronBudget(process.env.TRAWL_CRON_BUDGET);
+  const queue = await listRefreshQueue();
+  const { picked, remaining } = takeRefreshBatch(queue, budget);
 
-  let refreshed = 0;
-  let trawlUsed = 0;
+  let repriced = 0;
+  let kept = 0;
   let skipped = 0;
-  const errors: string[] = [];
+  const cards: ReturnType<typeof cardRefreshLog>[] = [];
 
-  for (const candidate of candidates) {
-    if (trawlUsed >= budget) break;
-
+  for (const candidate of picked) {
     try {
-      await refreshCardValue(candidate.cardId, {
-        beforeTrawl: async () => {
-          if (trawlUsed >= budget) return false;
-          trawlUsed += 1;
-          return true;
-        },
+      const refreshed = await refreshCardValue(candidate.cardId);
+      const line = cardRefreshLog({
+        cardId: candidate.cardId,
+        result: refreshed.attempt.action,
+        reason: refreshed.attempt.reason,
+        matched: refreshed.attempt.matched,
+        keptTitles: refreshed.attempt.keptTitles,
+        droppedTitles: refreshed.attempt.droppedTitles,
       });
-      refreshed += 1;
+      console.log(JSON.stringify(line));
+      cards.push(line);
+      if (line.result === "re-priced") repriced += 1;
+      else if (line.result === "kept") kept += 1;
+      else skipped += 1;
     } catch (err) {
-      skipped += 1;
-      errors.push(
-        `${candidate.cardId}: ${err instanceof Error ? err.message : String(err)}`,
+      console.warn(
+        "[card_values] refresh threw:",
+        err instanceof Error ? err.message : err,
       );
+      await markCardChecked(candidate.cardId);
+      const line = cardRefreshLog({
+        cardId: candidate.cardId,
+        result: "skipped",
+        reason: "trawl_error",
+        matched: 0,
+        keptTitles: [],
+        droppedTitles: [],
+      });
+      console.log(JSON.stringify(line));
+      cards.push(line);
+      skipped += 1;
     }
   }
 
+  const summary = cardRefreshSummary({
+    picked: picked.length,
+    repriced,
+    kept,
+    skipped,
+    remaining,
+  });
+  console.log(JSON.stringify(summary));
+
   return Response.json({
     ok: true,
-    candidates: candidates.length,
-    refreshed,
-    trawlUsed,
-    trawlBudget: budget,
-    trawlHourlyLimit: TRAWL_LIMIT,
-    skipped,
-    errors: errors.slice(0, 5),
+    budget,
+    ...summary,
+    cards,
   });
 }
