@@ -21,7 +21,7 @@ export function parseFlagReason(value: unknown): FlagReason | null {
 
 export function flagReasonLabel(reason: string | null | undefined): string {
   const match = FLAG_REASONS.find(([id]) => id === reason);
-  return match ? match[1] : "Hidden";
+  return match ? match[1] : "No reason given";
 }
 
 /** 401 signed out, 403 not the card owner, 200 allowed. */

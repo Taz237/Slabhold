@@ -15,3 +15,17 @@ describe("comp_flags insert lock migration", () => {
     assert.match(sql, /create table if not exists public\.anon_rate_limits/i);
   });
 });
+
+describe("comp_flags delete lock migration", () => {
+  it("drops the owner delete policy so a direct client delete is denied", () => {
+    const sql = readFileSync(
+      join(process.cwd(), "supabase/migrations/20261019230000_comp_flags_delete_lock.sql"),
+      "utf8",
+    );
+    assert.match(sql, /drop policy if exists "Users delete own comp flags"/i);
+    assert.match(sql, /revoke delete on public\.comp_flags from authenticated/i);
+    assert.match(sql, /revoke delete on public\.comp_flags from anon/i);
+    assert.doesNotMatch(sql, /create policy/i);
+    assert.doesNotMatch(sql, /grant delete/i);
+  });
+});

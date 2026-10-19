@@ -292,7 +292,7 @@ function PublicCardAnalytics({
             hidden={flags.hidden}
             onFlag={flags.flag}
             onRestore={flags.restore}
-            toastItemId={flags.toastItemId}
+            toast={flags.toast}
             onUndo={flags.undo}
           />
         ) : null}

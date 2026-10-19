@@ -5,6 +5,7 @@ import { mapCardRow, type CardRow } from "@/lib/social/cards";
 import { cardIdentityKey, type IdentityCard } from "@/lib/social/card-identity";
 import type { PublicCard } from "@/lib/social/types";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
+import { identityBandValue } from "./identity-band";
 import { isPublicForSaleListing } from "./listing";
 import { wantShortLabel } from "./label";
 import { notifyWantMatches, type WantMatchEvent } from "./notify-want-matches";
@@ -122,10 +123,14 @@ export async function notifyOwnedListing(
   );
 }
 
+const IDENTITY_COLUMNS =
+  "id, player, year, year_label, set, card_number, parallel, grade, grader, condition_type";
+
 type ValueRow = {
-  median: number | null;
-  low: number | null;
-  n_sales: number | null;
+  card_id: string;
+  median: number | string | null;
+  low: number | string | null;
+  n_sales: number | string | null;
   matched_at: string | null;
 };
 
@@ -153,38 +158,62 @@ function rowIdentity(row: {
   };
 }
 
-/** Stored median and fair-price low for this identity. No Trawl call. */
+/**
+ * Stored median and fair-price low for this identity. No Trawl call.
+ * Public copies only, plus the poster's own card. Never another user's private card.
+ */
 async function identityBand(
-  card: IdentityCard,
+  card: IdentityCard & { id: string },
+  posterId: string,
 ): Promise<{ median: number; low: number | null } | null> {
   const admin = createSupabaseAdmin();
   const player = (card.playerName ?? "").trim();
-  if (!admin || !player) return null;
-  const { data, error } = await admin
-    .from("cards")
-    .select("id, player, year, year_label, set, card_number, parallel, grade, grader, condition_type")
+  if (!admin || !player || !posterId) return null;
+  const { data: publicRows, error } = await admin
+    .from("public_cards")
+    .select(IDENTITY_COLUMNS)
     .ilike("player", player)
     .limit(40);
-  if (error || !data?.length) return null;
+  if (error) return null;
+  const { data: ownRow, error: ownError } = await admin
+    .from("cards")
+    .select(IDENTITY_COLUMNS)
+    .eq("id", card.id)
+    .eq("user_id", posterId)
+    .maybeSingle();
+
   const key = cardIdentityKey(card);
-  const ids = data
-    .filter((row) => cardIdentityKey(rowIdentity(row)) === key)
-    .map((row) => row.id as string);
+  const publicIds = new Set<string>();
+  for (const row of publicRows ?? []) {
+    if (cardIdentityKey(rowIdentity(row)) === key) publicIds.add(row.id as string);
+  }
+  const ids = [...publicIds];
+  if (
+    !ownError &&
+    ownRow &&
+    cardIdentityKey(rowIdentity(ownRow)) === key &&
+    !publicIds.has(card.id)
+  ) {
+    ids.push(card.id);
+  }
   if (!ids.length) return null;
+
   const { data: values, error: valueError } = await admin
     .from("card_values")
-    .select("median, low, n_sales, matched_at")
-    .in("card_id", ids)
-    .order("matched_at", { ascending: false });
+    .select("card_id, median, low, n_sales, matched_at")
+    .in("card_id", ids);
   if (valueError) return null;
-  const row = ((values ?? []) as ValueRow[]).find(
-    (value) => value.median != null && Number(value.n_sales) > 0,
+  return identityBandValue(
+    ((values ?? []) as ValueRow[]).map((value) => ({
+      cardId: value.card_id,
+      inPublicCards: publicIds.has(value.card_id),
+      median: value.median == null ? null : Number(value.median),
+      low: value.low == null ? null : Number(value.low),
+      nSales: value.n_sales == null ? null : Number(value.n_sales),
+      matchedAt: value.matched_at,
+    })),
+    card.id,
   );
-  if (!row || row.median == null) return null;
-  return {
-    median: Number(row.median),
-    low: row.low == null ? null : Number(row.low),
-  };
 }
 
 /** Followers who want this card. Private cards carry no value and no flag. */
@@ -199,7 +228,7 @@ export async function notifyMailDayPost(input: {
   let cardValue: number | null = null;
   let fairLow: number | null = null;
   if (input.card.isPublic) {
-    const band = await identityBand(input.card);
+    const band = await identityBand(input.card, input.actorId);
     cardValue = band?.median ?? null;
     fairLow = band?.low ?? null;
   }

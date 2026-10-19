@@ -9,7 +9,7 @@ import {
   type FlagReason,
 } from "@/lib/comps/flag-reasons";
 import type { CompListing } from "@/lib/types";
-import type { HiddenSale } from "@/components/use-comp-flags";
+import type { CompFlagToast, HiddenSale } from "@/components/use-comp-flags";
 
 export function CompsList({
   comps,
@@ -18,7 +18,7 @@ export function CompsList({
   hidden = [],
   onFlag,
   onRestore,
-  toastItemId,
+  toast = null,
   onUndo,
 }: {
   comps: CompListing[];
@@ -28,7 +28,7 @@ export function CompsList({
   hidden?: HiddenSale[];
   onFlag?: (comp: CompListing, reason: FlagReason) => Promise<boolean>;
   onRestore?: (itemId: string) => Promise<boolean>;
-  toastItemId?: string | null;
+  toast?: CompFlagToast | null;
   onUndo?: () => void;
 }) {
   const [pending, setPending] = useState<CompListing | null>(null);
@@ -150,7 +150,9 @@ export function CompsList({
             </p>
             <p className="mt-1 text-sm font-semibold tabular-nums">{money(pending.soldPrice)}</p>
             <fieldset className="mt-4 space-y-2">
-              <legend className="text-xs font-medium text-zinc-500">Why isn't this a match?</legend>
+              <legend className="text-xs font-medium text-zinc-500">
+                {"Why isn't this a match?"}
+              </legend>
               {FLAG_REASONS.map(([id, label]) => (
                 <label key={id} className="flex items-center gap-2 text-sm">
                   <input
@@ -190,15 +192,21 @@ export function CompsList({
         </div>
       ) : null}
 
-      {toastItemId ? (
+      {toast ? (
         <p
           role="status"
           className="fixed bottom-[calc(5.75rem+env(safe-area-inset-bottom))] left-1/2 z-50 flex -translate-x-1/2 items-center gap-3 rounded-full bg-zinc-900 px-4 py-2 text-sm font-bold text-white shadow-lg dark:bg-zinc-100 dark:text-zinc-950"
         >
-          Sale hidden ·{" "}
-          <button type="button" onClick={onUndo} className="underline">
-            Undo
-          </button>
+          {toast.kind === "hidden" ? (
+            <>
+              Sale hidden ·{" "}
+              <button type="button" onClick={onUndo} className="underline">
+                Undo
+              </button>
+            </>
+          ) : (
+            "Sale restored"
+          )}
         </p>
       ) : null}
     </div>

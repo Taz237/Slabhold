@@ -25,13 +25,15 @@ export function WantButton({
   fairHigh?: number | null;
 }) {
   const { user } = useSocial();
-  const [want, setWant] = useState<SavedWant | null>(null);
+  const [record, setRecord] = useState<{ scope: string; want: SavedWant | null } | null>(null);
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   const cardKey = cardIdentityKey(card);
+  const scope = user ? `${user.id}:${cardKey}` : null;
+  const want = record && record.scope === scope ? record.want : null;
   const fairPlaceholder =
     fairLow != null && fairHigh != null
       ? `Fair price ${money(fairLow)}–${money(fairHigh)}`
@@ -40,10 +42,7 @@ export function WantButton({
     !draft.trim() && fairLow != null ? `Auto: ${money(fairLow)} (fair price low)` : null;
 
   useEffect(() => {
-    if (!user) {
-      setWant(null);
-      return;
-    }
+    if (!user || !scope) return;
     const supabase = createSupabaseBrowser();
     if (!supabase) return;
     let cancelled = false;
@@ -55,19 +54,20 @@ export function WantButton({
       .maybeSingle()
       .then(({ data }) => {
         if (cancelled) return;
-        if (!data) {
-          setWant(null);
-          return;
-        }
-        setWant({
-          id: data.id as string,
-          targetPrice: data.target_price == null ? null : Number(data.target_price),
+        setRecord({
+          scope,
+          want: data
+            ? {
+                id: data.id as string,
+                targetPrice: data.target_price == null ? null : Number(data.target_price),
+              }
+            : null,
         });
       });
     return () => {
       cancelled = true;
     };
-  }, [cardKey, user]);
+  }, [cardKey, scope, user]);
 
   if (!user) return null;
 
@@ -108,9 +108,12 @@ export function WantButton({
       setError(saveError?.message ?? "Couldn't save that want.");
       return;
     }
-    setWant({
-      id: data.id as string,
-      targetPrice: data.target_price == null ? null : Number(data.target_price),
+    setRecord({
+      scope: `${user!.id}:${cardKey}`,
+      want: {
+        id: data.id as string,
+        targetPrice: data.target_price == null ? null : Number(data.target_price),
+      },
     });
     setError(null);
     setOpen(false);
@@ -127,7 +130,7 @@ export function WantButton({
       setError(deleteError.message);
       return;
     }
-    setWant(null);
+    setRecord({ scope: `${user!.id}:${cardKey}`, want: null });
     setDraft("");
     setError(null);
     setOpen(false);

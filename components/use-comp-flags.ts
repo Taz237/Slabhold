@@ -15,7 +15,18 @@ export type HiddenSale = {
   url: string | null;
 };
 
+export type CompFlagToast =
+  | { kind: "hidden"; itemId: string; cardId: string }
+  | { kind: "restored"; cardId: string };
+
 const TOAST_MS = 8000;
+
+type Scope = {
+  cardId: string;
+  hidden: HiddenSale[];
+  restored: CompListing[];
+  priced: CardValueResult | null;
+};
 
 function listingFromHidden(sale: HiddenSale): CompListing {
   return {
@@ -82,30 +93,31 @@ function hiddenFromComp(comp: CompListing, reason: FlagReason): HiddenSale {
   };
 }
 
+function emptyScope(cardId: string): Scope {
+  return { cardId, hidden: [], restored: [], priced: null };
+}
+
 export function useCompFlagState(
   cardId: string | null,
   canFlag: boolean,
   comps: CompListing[],
 ) {
-  const [hidden, setHidden] = useState<HiddenSale[]>([]);
-  const [restored, setRestored] = useState<CompListing[]>([]);
-  const [priced, setPriced] = useState<CardValueResult | null>(null);
-  const [toastItemId, setToastItemId] = useState<string | null>(null);
+  const [scope, setScope] = useState<Scope | null>(null);
+  const [toast, setToast] = useState<CompFlagToast | null>(null);
+  const active = canFlag && cardId && scope?.cardId === cardId ? scope : null;
+  const scopeRef = useRef<Scope>(emptyScope(cardId ?? ""));
   const compsRef = useRef(comps);
-  compsRef.current = comps;
-  const hiddenRef = useRef(hidden);
-  hiddenRef.current = hidden;
-  const restoredRef = useRef(restored);
-  restoredRef.current = restored;
-  const pricedRef = useRef(priced);
-  pricedRef.current = priced;
 
   useEffect(() => {
-    if (!canFlag || !cardId) {
-      setHidden([]);
-      setRestored([]);
-      return;
-    }
+    scopeRef.current = active ?? emptyScope(cardId ?? "");
+  }, [active, cardId]);
+
+  useEffect(() => {
+    compsRef.current = comps;
+  }, [comps]);
+
+  useEffect(() => {
+    if (!canFlag || !cardId) return;
     let cancelled = false;
     fetch(`/api/comps/flags?cardId=${encodeURIComponent(cardId)}`)
       .then(async (res) => {
@@ -114,7 +126,13 @@ export function useCompFlagState(
       })
       .then((body) => {
         if (cancelled || !body?.sales) return;
-        setHidden(body.sales);
+        const sales = body.sales;
+        setScope((current) => ({
+          cardId,
+          hidden: sales,
+          restored: current?.cardId === cardId ? current.restored : [],
+          priced: current?.cardId === cardId ? current.priced : null,
+        }));
       })
       .catch(() => {
         /* the list still works without the disclosure */
@@ -125,27 +143,33 @@ export function useCompFlagState(
   }, [canFlag, cardId]);
 
   useEffect(() => {
-    if (!toastItemId) return;
-    const timer = window.setTimeout(() => setToastItemId(null), TOAST_MS);
+    if (!toast) return;
+    const timer = window.setTimeout(() => setToast(null), TOAST_MS);
     return () => window.clearTimeout(timer);
-  }, [toastItemId]);
+  }, [toast]);
 
+  const hidden = active?.hidden ?? [];
+  const restored = active?.restored ?? [];
   const hiddenIds = new Set(hidden.map((sale) => sale.itemId));
   const visible = catalogOf(comps, hidden, restored).filter((comp) => !hiddenIds.has(comp.itemId));
+  const shownToast = toast && cardId && toast.cardId === cardId ? toast : null;
 
   async function flag(comp: CompListing, reason: FlagReason): Promise<boolean> {
     if (!canFlag || !cardId) return false;
-    const prevHidden = hiddenRef.current;
-    const prevRestored = restoredRef.current;
-    const prevPriced = pricedRef.current;
+    const prev = scopeRef.current.cardId === cardId ? scopeRef.current : emptyScope(cardId);
     const nextHidden = [
-      ...prevHidden.filter((sale) => sale.itemId !== comp.itemId),
+      ...prev.hidden.filter((sale) => sale.itemId !== comp.itemId),
       hiddenFromComp(comp, reason),
     ];
-    const nextRestored = prevRestored.filter((item) => item.itemId !== comp.itemId);
-    setHidden(nextHidden);
-    setRestored(nextRestored);
-    setPriced(pricedFrom(compsRef.current, nextHidden, nextRestored, prevPriced));
+    const nextRestored = prev.restored.filter((item) => item.itemId !== comp.itemId);
+    const next: Scope = {
+      cardId,
+      hidden: nextHidden,
+      restored: nextRestored,
+      priced: pricedFrom(compsRef.current, nextHidden, nextRestored, prev.priced),
+    };
+    scopeRef.current = next;
+    setScope(next);
 
     const res = await fetch("/api/comps/flags", {
       method: "POST",
@@ -153,32 +177,41 @@ export function useCompFlagState(
       body: JSON.stringify({ cardId, itemId: comp.itemId, reason }),
     });
     if (!res.ok) {
-      setHidden(prevHidden);
-      setRestored(prevRestored);
-      setPriced(prevPriced);
+      scopeRef.current = prev;
+      setScope(prev);
       return false;
     }
     const body = (await res.json()) as { value?: CardValueResult };
-    if (body.value) setPriced({ ...body.value, matchedAt: body.value.matchedAt ?? null });
-    setToastItemId(comp.itemId);
+    if (body.value) {
+      const priced = { ...body.value, matchedAt: body.value.matchedAt ?? null };
+      const withPrice = { ...scopeRef.current, priced };
+      scopeRef.current = withPrice;
+      setScope(withPrice);
+    }
+    setToast({ kind: "hidden", itemId: comp.itemId, cardId });
     return true;
   }
 
   async function restore(itemId: string): Promise<boolean> {
     if (!canFlag || !cardId) return false;
-    const prevHidden = hiddenRef.current;
-    const prevRestored = restoredRef.current;
-    const prevPriced = pricedRef.current;
-    const sale = prevHidden.find((item) => item.itemId === itemId);
-    const nextHidden = prevHidden.filter((item) => item.itemId !== itemId);
+    const prev = scopeRef.current.cardId === cardId ? scopeRef.current : emptyScope(cardId);
+    const sale = prev.hidden.find((item) => item.itemId === itemId);
+    const nextHidden = prev.hidden.filter((item) => item.itemId !== itemId);
     const nextRestored =
       sale && !compsRef.current.some((comp) => comp.itemId === itemId)
-        ? [...prevRestored.filter((comp) => comp.itemId !== itemId), listingFromHidden(sale)]
-        : prevRestored;
-    setHidden(nextHidden);
-    setRestored(nextRestored);
-    setPriced(pricedFrom(compsRef.current, nextHidden, nextRestored, prevPriced));
-    setToastItemId((current) => (current === itemId ? null : current));
+        ? [...prev.restored.filter((comp) => comp.itemId !== itemId), listingFromHidden(sale)]
+        : prev.restored;
+    const next: Scope = {
+      cardId,
+      hidden: nextHidden,
+      restored: nextRestored,
+      priced: pricedFrom(compsRef.current, nextHidden, nextRestored, prev.priced),
+    };
+    scopeRef.current = next;
+    setScope(next);
+    setToast((current) =>
+      current?.kind === "hidden" && current.itemId === itemId ? null : current,
+    );
 
     const res = await fetch("/api/comps/flags", {
       method: "DELETE",
@@ -186,25 +219,30 @@ export function useCompFlagState(
       body: JSON.stringify({ cardId, itemId }),
     });
     if (!res.ok) {
-      setHidden(prevHidden);
-      setRestored(prevRestored);
-      setPriced(prevPriced);
+      scopeRef.current = prev;
+      setScope(prev);
       return false;
     }
     const body = (await res.json()) as { value?: CardValueResult };
-    if (body.value) setPriced({ ...body.value, matchedAt: body.value.matchedAt ?? null });
+    if (body.value) {
+      const priced = { ...body.value, matchedAt: body.value.matchedAt ?? null };
+      const withPrice = { ...scopeRef.current, priced };
+      scopeRef.current = withPrice;
+      setScope(withPrice);
+    }
+    setToast({ kind: "restored", cardId });
     return true;
   }
 
   return {
     visible,
     hidden: canFlag ? hidden : [],
-    priced,
-    toastItemId,
+    priced: active?.priced ?? null,
+    toast: shownToast,
     flag,
     restore,
     undo: () => {
-      if (toastItemId) void restore(toastItemId);
+      if (shownToast?.kind === "hidden") void restore(shownToast.itemId);
     },
   };
 }

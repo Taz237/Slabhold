@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { screenValueFromComps } from "./shared-value";
 import {
   compFlagStatus,
+  flagReasonLabel,
   parseFlagReason,
   showHiddenSales,
 } from "./flag-reasons";
@@ -35,6 +36,9 @@ describe("comp flag reason", () => {
     assert.equal(parseFlagReason(null), null);
     assert.equal(parseFlagReason("wrong_set"), "wrong_set");
     assert.equal(parseFlagReason("lot"), "lot");
+    assert.equal(flagReasonLabel(null), "No reason given");
+    assert.equal(flagReasonLabel(undefined), "No reason given");
+    assert.equal(flagReasonLabel("wrong_set"), "Wrong set");
   });
 
   it("adds the reason check and an owner delete policy", () => {
