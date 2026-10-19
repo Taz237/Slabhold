@@ -162,7 +162,11 @@ function PublicCardAnalytics({
         <p className="text-sm text-zinc-500">{cardTitle(card)}</p>
         <div className="flex items-start justify-between gap-3">
           <h1 className="mt-1 text-3xl font-semibold tracking-tight">{card.playerName}</h1>
-          <WantButton card={card} />
+          <WantButton
+            card={card}
+            fairLow={cardValueHasAmount(shownValue) ? shownValue.low : null}
+            fairHigh={cardValueHasAmount(shownValue) ? shownValue.high : null}
+          />
         </div>
         {specs.length > 0 ? (
           <dl className="mt-3 flex flex-wrap gap-2">

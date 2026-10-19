@@ -6,6 +6,7 @@ import { useSocial } from "@/components/social-provider";
 import { cardIdentityKey, type IdentityCard } from "@/lib/social/card-identity";
 import { createSupabaseBrowser } from "@/lib/supabase/browser";
 import { isUuid } from "@/lib/value/card-value-access";
+import { money } from "@/lib/format";
 import { wantLabel } from "@/lib/wants/label";
 import { parseTargetPrice } from "@/lib/wants/target-price";
 
@@ -14,7 +15,15 @@ type SavedWant = {
   targetPrice: number | null;
 };
 
-export function WantButton({ card }: { card: IdentityCard & { id: string } }) {
+export function WantButton({
+  card,
+  fairLow = null,
+  fairHigh = null,
+}: {
+  card: IdentityCard & { id: string };
+  fairLow?: number | null;
+  fairHigh?: number | null;
+}) {
   const { user } = useSocial();
   const [want, setWant] = useState<SavedWant | null>(null);
   const [open, setOpen] = useState(false);
@@ -23,6 +32,12 @@ export function WantButton({ card }: { card: IdentityCard & { id: string } }) {
   const [saving, setSaving] = useState(false);
 
   const cardKey = cardIdentityKey(card);
+  const fairPlaceholder =
+    fairLow != null && fairHigh != null
+      ? `Fair price ${money(fairLow)}–${money(fairHigh)}`
+      : "";
+  const autoTarget =
+    !draft.trim() && fairLow != null ? `Auto: ${money(fairLow)} (fair price low)` : null;
 
   useEffect(() => {
     if (!user) {
@@ -147,9 +162,12 @@ export function WantButton({ card }: { card: IdentityCard & { id: string } }) {
               setDraft(event.target.value);
               setError(null);
             }}
-            placeholder="35"
+            placeholder={fairPlaceholder}
             className="mt-1 w-full rounded-xl border border-zinc-200 bg-transparent px-3 py-2 text-sm outline-none focus:border-violet-500 dark:border-white/10"
           />
+          {autoTarget ? (
+            <p className="mt-1 text-xs text-zinc-500">{autoTarget}</p>
+          ) : null}
           {error ? (
             <p className="mt-1 text-xs text-rose-600 dark:text-rose-400">{error}</p>
           ) : null}

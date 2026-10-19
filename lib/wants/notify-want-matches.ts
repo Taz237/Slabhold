@@ -1,5 +1,6 @@
 import { money } from "@/lib/format";
 import { canNotify, type SafetyRelations } from "@/lib/safety/can-notify";
+import { effectiveTarget, targetFlag } from "./effective-target";
 import { newYorkDayStartIso } from "./ny-day";
 
 export const WANT_ALERTS_PER_DAY = 20;
@@ -19,6 +20,16 @@ export type WantMatchEvent = {
   href: string;
   soldAt?: string | null;
   price?: number | null;
+  /** Listing URL for a sale alert. */
+  saleUrl?: string | null;
+  /** Rounded p25 for this card identity. Used when the want has no target. */
+  fairLow?: number | null;
+  /** Mail Day posts alert followers only, with different copy. */
+  mailDay?: boolean;
+  followersOnly?: boolean;
+  /** Public Mail Day cards can compare a stored value to the target. */
+  cardIsPublic?: boolean;
+  cardValue?: number | null;
   now?: Date;
 };
 
@@ -37,6 +48,7 @@ export type WantNotificationInsert = {
   postId: string | null;
   preview: string;
   href: string;
+  metadata?: Record<string, unknown> | null;
 };
 
 export type WantAlertInsert = {
@@ -56,25 +68,77 @@ export type WantAlertDb = {
   deleteAlert(wantId: string, sourceType: WantSourceType, sourceId: string): Promise<void>;
   /** Sale links can differ per wanter. Posts and listings ignore this. */
   hrefFor?(want: WantRow, event: WantMatchEvent): Promise<string>;
-  /** When set, a blocked actor does not notify. Mutes are hidden on read. */
+  /** True when userId follows actorId. */
+  isFollower?(userId: string, actorId: string): Promise<boolean>;
+  /** When set, a blocked or muted actor does not notify. */
   safety?: SafetyRelations;
 };
 
 export function wantAlertPreview(event: WantMatchEvent, want: WantRow): string {
+  const target = effectiveTarget(want.targetPrice, event.fairLow);
   if (event.sourceType === "sale") {
     const sold = `${event.label} sold for ${money(event.price ?? 0)}`;
-    if (want.targetPrice == null) return sold;
-    const relation = (event.price ?? 0) < want.targetPrice ? "under" : "at";
-    return `${sold}, ${relation} your ${money(want.targetPrice)} target`;
+    if (target == null) return sold;
+    return `${sold}, at or under your ${money(target)} target`;
   }
   const who = event.actorUsername
     ? `@${event.actorUsername.replace(/^@/, "")}`
     : "Someone";
+  if (event.mailDay) return mailDayPreview(who, event, target);
   if (event.sourceType === "post") return `${who} posted a ${event.label} you want`;
   return `${who} listed a ${event.label} you want`;
 }
 
-/** A sale alerts only when it closed after the want and meets the target. */
+function mailDayPreview(who: string, event: WantMatchEvent, target: number | null): string {
+  const base = `${who} just got a ${event.label} you want`;
+  const flag = mailDayFlag(event, target);
+  if (!flag || target == null) return base;
+  return `${base}, ${flag} your ${money(target)} target`;
+}
+
+/** Public cards with a stored value get below / at / above. Private cards do not. */
+export function mailDayFlag(
+  event: WantMatchEvent,
+  target: number | null,
+): "below" | "at" | "above" | null {
+  if (!event.cardIsPublic) return null;
+  if (event.cardValue == null || !Number.isFinite(event.cardValue)) return null;
+  if (target == null) return null;
+  return targetFlag(event.cardValue, target);
+}
+
+export function wantAlertMetadata(
+  event: WantMatchEvent,
+  want: WantRow,
+): Record<string, unknown> {
+  const target = effectiveTarget(want.targetPrice, event.fairLow);
+  if (event.sourceType === "sale") {
+    return {
+      card_key: event.cardKey,
+      sale_price: event.price ?? null,
+      target,
+      source: "sale",
+      sold_at: event.soldAt ?? null,
+      url: event.saleUrl ?? null,
+    };
+  }
+  if (event.mailDay) {
+    const flag = mailDayFlag(event, target);
+    const metadata: Record<string, unknown> = {
+      card_key: event.cardKey,
+      source: "mail_day",
+      target,
+    };
+    if (flag) {
+      metadata.flag = flag;
+      metadata.value = event.cardValue;
+    }
+    return metadata;
+  }
+  return { card_key: event.cardKey, source: event.sourceType };
+}
+
+/** A sale alerts only when it closed after the want and meets the effective target. */
 export function saleQualifies(want: WantRow, event: WantMatchEvent): boolean {
   if (event.sourceType !== "sale") return true;
   if (event.price == null || !Number.isFinite(event.price)) return false;
@@ -82,8 +146,9 @@ export function saleQualifies(want: WantRow, event: WantMatchEvent): boolean {
   const sold = new Date(event.soldAt).getTime();
   const created = new Date(want.createdAt).getTime();
   if (!Number.isFinite(sold) || !Number.isFinite(created) || sold <= created) return false;
-  if (want.targetPrice == null) return true;
-  return event.price <= want.targetPrice;
+  const target = effectiveTarget(want.targetPrice, event.fairLow);
+  if (target == null) return false;
+  return event.price <= target;
 }
 
 /**
@@ -103,6 +168,11 @@ export async function notifyWantMatches(
   for (const want of wants) {
     if (want.cardKey !== event.cardKey) continue;
     if (event.actorId && event.actorId === want.userId) continue;
+    if (event.followersOnly) {
+      if (!event.actorId || !db.isFollower) continue;
+      const follows = await db.isFollower(want.userId, event.actorId);
+      if (!follows) continue;
+    }
     if (event.actorId && db.safety) {
       const allowed = await canNotify(db.safety, event.actorId, want.userId);
       if (!allowed) continue;
@@ -134,6 +204,7 @@ export async function notifyWantMatches(
         postId: event.sourceType === "post" ? event.sourceId : null,
         preview: wantAlertPreview(event, want),
         href,
+        metadata: wantAlertMetadata(event, want),
       });
       notified += 1;
     } catch {

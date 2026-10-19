@@ -186,6 +186,7 @@ create table if not exists public.notifications (
   post_id uuid references public.posts (id) on delete set null,
   href text,
   preview text,
+  metadata jsonb,
   read boolean not null default false,
   created_at timestamptz not null default now(),
   constraint notifications_kind check (kind in ('like', 'comment', 'follow', 'repost', 'mention', 'quote', 'want_alert')),

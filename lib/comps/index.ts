@@ -2,6 +2,7 @@ import "server-only";
 
 import { mockValueHistory } from "@/lib/value-history";
 import { notifyMatchedSales } from "@/lib/wants/dispatch";
+import { fairLowFromPrices } from "@/lib/wants/effective-target";
 import {
   listCachedItemIds,
   readLatestSoldCompsBatch,
@@ -240,7 +241,11 @@ export async function getSoldComps(
       );
       if (fresh.length > 0) {
         try {
-          await notifyMatchedSales(card, fresh);
+          await notifyMatchedSales(
+            card,
+            fresh,
+            fairLowFromPrices(sales.map((sale) => sale.price)),
+          );
         } catch (err) {
           console.warn(
             "[want_alerts]",

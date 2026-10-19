@@ -21,6 +21,7 @@ import { POST_LIMIT } from "@/lib/social/types";
 import { uploadMedia } from "@/lib/supabase/media";
 import { createSupabaseServer, getAuthUserId } from "@/lib/supabase/server";
 import { refreshCardValue } from "@/lib/value/getCardValue";
+import { notifyMailDayPost } from "@/lib/wants/dispatch";
 
 export type MailDayActionResult =
   | { ok: true; cardId: string; postId: string }
@@ -189,6 +190,30 @@ export async function createMailDayPost(input: MailDayInput): Promise<MailDayAct
   if (result.ok) {
     const mentionProblem = await syncMentionNotifications(supabase, userId, result.postId, caption);
     if (mentionProblem) console.warn("[mail_day] mentions:", mentionProblem);
+    try {
+      await notifyMailDayPost({
+        actorId: userId,
+        postId: result.postId,
+        card: {
+          id: result.cardId,
+          playerName,
+          year: parsedYear.year,
+          yearLabel: parsedYear.yearLabel,
+          setBrand,
+          cardNumber,
+          parallel,
+          grade: gradeText,
+          grader,
+          conditionType,
+          isPublic,
+        },
+      });
+    } catch (err) {
+      console.warn(
+        "[mail_day] want alerts:",
+        err instanceof Error ? err.message : err,
+      );
+    }
   }
   return result;
 }

@@ -64,6 +64,17 @@ function blockSafety(admin: NonNullable<ReturnType<typeof createSupabaseAdmin>>)
       if (error) return true;
       return (data?.length ?? 0) > 0;
     },
+    async isMuted(actorId, recipientId) {
+      if (!UUID_RE.test(actorId) || !UUID_RE.test(recipientId)) return true;
+      const { data, error } = await admin
+        .from("mutes")
+        .select("muter_id")
+        .eq("muter_id", recipientId)
+        .eq("muted_id", actorId)
+        .limit(1);
+      if (error) return true;
+      return (data?.length ?? 0) > 0;
+    },
   };
 }
 
@@ -137,6 +148,7 @@ export function createSupabaseWantDb(): WantAlertDb | null {
         post_id: row.postId,
         preview: row.preview,
         href: row.href,
+        metadata: row.metadata ?? null,
       });
       if (error) throw new Error(error.message);
     },
@@ -151,6 +163,18 @@ export function createSupabaseWantDb(): WantAlertDb | null {
     },
 
     safety: blockSafety(admin),
+
+    async isFollower(userId, actorId) {
+      if (!UUID_RE.test(userId) || !UUID_RE.test(actorId)) return false;
+      const { data, error } = await admin
+        .from("follows")
+        .select("follower_id")
+        .eq("follower_id", userId)
+        .eq("following_id", actorId)
+        .maybeSingle();
+      if (error) return false;
+      return Boolean(data);
+    },
 
     async hrefFor(want, event: WantMatchEvent) {
       const id = want.sourceCardId || event.cardId || "";

@@ -1,11 +1,12 @@
 export type SafetyRelations = {
   /** True when either person blocked the other. */
   isBlocked(a: string, b: string): Promise<boolean>;
+  /** True when the recipient has muted the actor. */
+  isMuted?(actorId: string, recipientId: string): Promise<boolean>;
 };
 
 /**
- * False when either person blocked the other.
- * Mute is applied when the recipient reads, not from the sender's browser.
+ * False when either person blocked the other, or the recipient muted the actor.
  * A missing actor (a sale alert) can still notify.
  */
 export async function canNotify(
@@ -16,6 +17,7 @@ export async function canNotify(
   if (!actorId) return true;
   if (actorId === recipientId) return false;
   if (await relations.isBlocked(actorId, recipientId)) return false;
+  if (relations.isMuted && (await relations.isMuted(actorId, recipientId))) return false;
   return true;
 }
 

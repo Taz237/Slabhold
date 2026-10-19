@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import { money } from "@/lib/format";
+import { fairLowFromPrices } from "./effective-target";
 import {
   notifyWantMatches,
   type WantAlertDb,
@@ -84,8 +86,50 @@ describe("notifyWantMatches", () => {
     assert.equal(notifications.length, 1);
     assert.equal(
       notifications[0]?.preview,
-      "Jordan Love PSA 10 sold for $31.00, under your $35.00 target",
+      "Jordan Love PSA 10 sold for $31.00, at or under your $35.00 target",
     );
+    assert.equal(notifications[0]?.metadata?.source, "sale");
+    assert.equal(notifications[0]?.metadata?.sale_price, 31);
+    assert.equal(notifications[0]?.metadata?.target, 35);
+    assert.equal(money(31), "$31.00");
+  });
+
+  it("alerts when the sale equals the target", async () => {
+    const { db, notifications } = memoryDb();
+    const count = await notifyWantMatches(sale({ price: 35, sourceId: "item-35" }), db);
+    assert.equal(count, 1);
+    assert.match(notifications[0]?.preview ?? "", /at or under your \$35\.00 target/);
+  });
+
+  it("uses the fair-price low when the target is empty", async () => {
+    const { db, notifications } = memoryDb({
+      wants: [want({ targetPrice: null })],
+    });
+    const under = await notifyWantMatches(sale({ price: 20, fairLow: 25, sourceId: "low" }), db);
+    const over = await notifyWantMatches(sale({ price: 30, fairLow: 25, sourceId: "high" }), db);
+    assert.equal(under, 1);
+    assert.equal(over, 0);
+    assert.equal(notifications[0]?.preview, "Jordan Love PSA 10 sold for $20.00, at or under your $25.00 target");
+    assert.equal(fairLowFromPrices([]), null);
+  });
+
+  it("does not alert an empty target when there are no comps", async () => {
+    const { db, notifications } = memoryDb({
+      wants: [want({ targetPrice: null })],
+    });
+    const count = await notifyWantMatches(sale({ price: 10, fairLow: null, sourceId: "none" }), db);
+    assert.equal(count, 0);
+    assert.equal(notifications.length, 0);
+  });
+
+  it("does not alert a sale from before the want was created", async () => {
+    const { db, notifications } = memoryDb();
+    const count = await notifyWantMatches(
+      sale({ soldAt: "2026-09-01T00:00:00.000Z", sourceId: "old" }),
+      db,
+    );
+    assert.equal(count, 0);
+    assert.equal(notifications.length, 0);
   });
 
   it("does not notify a sale over the target", async () => {
@@ -135,7 +179,63 @@ describe("notifyWantMatches", () => {
     assert.equal(notifications.length, 0);
   });
 
-  it("does not notify a blocked actor", async () => {
+  it("mail day alerts only followers with a matching want", async () => {
+    function mail(partial: Partial<WantMatchEvent> = {}): WantMatchEvent {
+      return sale({
+        sourceType: "post",
+        sourceId: "post-1",
+        actorId: "poster",
+        actorUsername: "poster",
+        price: null,
+        soldAt: null,
+        mailDay: true,
+        followersOnly: true,
+        cardIsPublic: true,
+        cardValue: 30,
+        ...partial,
+      });
+    }
+
+    const followed = memoryDb();
+    followed.db.isFollower = async (userId, actorId) => userId === "wanter" && actorId === "poster";
+    const count = await notifyWantMatches(mail(), followed.db);
+    assert.equal(count, 1);
+    assert.equal(
+      followed.notifications[0]?.preview,
+      "@poster just got a Jordan Love PSA 10 you want, below your $35.00 target",
+    );
+    assert.equal(followed.notifications[0]?.metadata?.flag, "below");
+    assert.equal(followed.notifications[0]?.metadata?.source, "mail_day");
+
+    const stranger = memoryDb();
+    stranger.db.isFollower = async () => false;
+    assert.equal(await notifyWantMatches(mail({ sourceId: "post-2" }), stranger.db), 0);
+
+    const privateCard = memoryDb();
+    privateCard.db.isFollower = async () => true;
+    const privateCount = await notifyWantMatches(
+      mail({ sourceId: "post-private", cardIsPublic: false, cardValue: 30 }),
+      privateCard.db,
+    );
+    assert.equal(privateCount, 1);
+    assert.equal(
+      privateCard.notifications[0]?.preview,
+      "@poster just got a Jordan Love PSA 10 you want",
+    );
+    assert.equal(privateCard.notifications[0]?.metadata?.flag, undefined);
+    assert.equal(privateCard.notifications[0]?.metadata?.value, undefined);
+
+    const at = memoryDb();
+    at.db.isFollower = async () => true;
+    await notifyWantMatches(mail({ sourceId: "post-at", cardValue: 35 }), at.db);
+    assert.match(at.notifications[0]?.preview ?? "", /at your \$35\.00 target/);
+    const above = memoryDb();
+    above.db.isFollower = async () => true;
+    await notifyWantMatches(mail({ sourceId: "post-above", cardValue: 40 }), above.db);
+    assert.match(above.notifications[0]?.preview ?? "", /above your \$35\.00 target/);
+  });
+
+  it("does not notify a blocked or muted actor", async () => {
     const blocked = memoryDb();
     blocked.db.safety = {
       async isBlocked() {
@@ -156,6 +256,32 @@ describe("notifyWantMatches", () => {
     assert.equal(blockedCount, 0);
     assert.equal(blocked.notifications.length, 0);
     assert.equal(blocked.alerts.length, 0);
+
+    const muted = memoryDb();
+    muted.db.isFollower = async () => true;
+    muted.db.safety = {
+      async isBlocked() {
+        return false;
+      },
+      async isMuted() {
+        return true;
+      },
+    };
+    const mutedCount = await notifyWantMatches(
+      sale({
+        sourceType: "post",
+        sourceId: "post-muted",
+        actorId: "seller",
+        actorUsername: "seller",
+        price: null,
+        soldAt: null,
+        mailDay: true,
+        followersOnly: true,
+      }),
+      muted.db,
+    );
+    assert.equal(mutedCount, 0);
+    assert.equal(muted.notifications.length, 0);
 
     const clear = memoryDb();
     clear.db.safety = {

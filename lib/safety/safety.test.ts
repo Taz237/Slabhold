@@ -12,10 +12,13 @@ const VIEWER = "11111111-1111-4111-8111-111111111111";
 const AUTHOR = "22222222-2222-4222-8222-222222222222";
 const MUTED = "33333333-3333-4333-8333-333333333333";
 
-function relations(flags: { blocked?: boolean }) {
+function relations(flags: { blocked?: boolean; muted?: boolean }) {
   return {
     async isBlocked() {
       return flags.blocked === true;
+    },
+    async isMuted() {
+      return flags.muted === true;
     },
   };
 }
@@ -27,6 +30,10 @@ describe("canNotify", () => {
 
   it("returns true for a normal pair", async () => {
     assert.equal(await canNotify(relations({}), "actor", "recipient"), true);
+  });
+
+  it("returns false when the recipient muted the actor", async () => {
+    assert.equal(await canNotify(relations({ muted: true }), "actor", "recipient"), false);
   });
 });
 
@@ -213,16 +220,13 @@ describe("safety migration", () => {
 });
 
 describe("notification inserts ignore mutes", () => {
-  it("does not skip want alerts or client notices because someone is muted", () => {
-    for (const file of [
-      "lib/safety/can-notify.ts",
-      "lib/wants/notify-want-matches.ts",
-      "lib/wants/want-db.ts",
-      "lib/social/remote.ts",
-    ]) {
-      const source = readFileSync(join(process.cwd(), file), "utf8");
-      assert.doesNotMatch(source, /is_muted|isMuted/);
-    }
+  it("skips a want alert when the recipient muted the actor, and still inserts other notices", () => {
+    const canNotifySource = readFileSync(join(process.cwd(), "lib/safety/can-notify.ts"), "utf8");
+    const wantDb = readFileSync(join(process.cwd(), "lib/wants/want-db.ts"), "utf8");
+    assert.match(canNotifySource, /isMuted/);
+    assert.match(wantDb, /isMuted/);
+    const remote = readFileSync(join(process.cwd(), "lib/social/remote.ts"), "utf8");
+    assert.doesNotMatch(remote, /is_muted|isMuted/);
   });
 
   it("maps a quote insert blocked by row-level security to a plain message", () => {

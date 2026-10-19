@@ -2,7 +2,7 @@ import "server-only";
 
 import type { CleanedSale, SoldCompCard } from "@/lib/comps/types";
 import { mapCardRow, type CardRow } from "@/lib/social/cards";
-import { cardIdentityKey } from "@/lib/social/card-identity";
+import { cardIdentityKey, type IdentityCard } from "@/lib/social/card-identity";
 import type { PublicCard } from "@/lib/social/types";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { isPublicForSaleListing } from "./listing";
@@ -25,6 +25,7 @@ async function usernameOf(userId: string): Promise<string | null> {
 export async function notifyMatchedSales(
   card: SoldCompCard,
   sales: CleanedSale[],
+  fairLow: number | null = null,
 ): Promise<number> {
   const db = createSupabaseWantDb();
   if (!db || !card.id || sales.length === 0) return 0;
@@ -44,6 +45,8 @@ export async function notifyMatchedSales(
       href: `/cards/${card.id}`,
       soldAt: sale.soldAt,
       price: sale.price,
+      saleUrl: sale.url || null,
+      fairLow,
     };
     notified += await notifyWantMatches(event, db);
   }
@@ -114,6 +117,107 @@ export async function notifyOwnedListing(
       actorUsername: username,
       label: wantShortLabel(card),
       href,
+    },
+    db,
+  );
+}
+
+type ValueRow = {
+  median: number | null;
+  low: number | null;
+  n_sales: number | null;
+  matched_at: string | null;
+};
+
+function rowIdentity(row: {
+  player: string | null;
+  year: number | null;
+  year_label: string | null;
+  set: string | null;
+  card_number: string | null;
+  parallel: string | null;
+  grade: string | null;
+  grader: string | null;
+  condition_type: string | null;
+}): IdentityCard {
+  return {
+    playerName: row.player,
+    year: row.year,
+    yearLabel: row.year_label,
+    setBrand: row.set,
+    cardNumber: row.card_number,
+    parallel: row.parallel,
+    grade: row.grade,
+    grader: row.grader,
+    conditionType: row.condition_type ?? undefined,
+  };
+}
+
+/** Stored median and fair-price low for this identity. No Trawl call. */
+async function identityBand(
+  card: IdentityCard,
+): Promise<{ median: number; low: number | null } | null> {
+  const admin = createSupabaseAdmin();
+  const player = (card.playerName ?? "").trim();
+  if (!admin || !player) return null;
+  const { data, error } = await admin
+    .from("cards")
+    .select("id, player, year, year_label, set, card_number, parallel, grade, grader, condition_type")
+    .ilike("player", player)
+    .limit(40);
+  if (error || !data?.length) return null;
+  const key = cardIdentityKey(card);
+  const ids = data
+    .filter((row) => cardIdentityKey(rowIdentity(row)) === key)
+    .map((row) => row.id as string);
+  if (!ids.length) return null;
+  const { data: values, error: valueError } = await admin
+    .from("card_values")
+    .select("median, low, n_sales, matched_at")
+    .in("card_id", ids)
+    .order("matched_at", { ascending: false });
+  if (valueError) return null;
+  const row = ((values ?? []) as ValueRow[]).find(
+    (value) => value.median != null && Number(value.n_sales) > 0,
+  );
+  if (!row || row.median == null) return null;
+  return {
+    median: Number(row.median),
+    low: row.low == null ? null : Number(row.low),
+  };
+}
+
+/** Followers who want this card. Private cards carry no value and no flag. */
+export async function notifyMailDayPost(input: {
+  actorId: string;
+  postId: string;
+  card: IdentityCard & { id: string; isPublic: boolean };
+}): Promise<number> {
+  const db = createSupabaseWantDb();
+  if (!db) return 0;
+  const username = await usernameOf(input.actorId);
+  let cardValue: number | null = null;
+  let fairLow: number | null = null;
+  if (input.card.isPublic) {
+    const band = await identityBand(input.card);
+    cardValue = band?.median ?? null;
+    fairLow = band?.low ?? null;
+  }
+  return notifyWantMatches(
+    {
+      sourceType: "post",
+      sourceId: input.postId,
+      cardKey: cardIdentityKey(input.card),
+      cardId: input.card.id,
+      actorId: input.actorId,
+      actorUsername: username,
+      label: wantShortLabel(input.card),
+      href: `/posts/${input.postId}`,
+      mailDay: true,
+      followersOnly: true,
+      cardIsPublic: input.card.isPublic,
+      cardValue,
+      fairLow,
     },
     db,
   );
