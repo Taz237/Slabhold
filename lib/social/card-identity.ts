@@ -24,12 +24,22 @@ export type IdentityCard = {
  */
 export function cardIdentityKey(card: IdentityCard): string {
   return [
+    ownershipMatchKey(card),
+    identityCondition(card),
+  ].join("|");
+}
+
+/**
+ * Same collectible across grades: player, year/season, set, number, parallel.
+ * Used for "Owned by" lists — any grade matches.
+ */
+export function ownershipMatchKey(card: IdentityCard): string {
+  return [
     (card.playerName ?? "").trim().toLowerCase(),
     identityYear(card),
     setMatchPhrase(card.setBrand ?? "").toLowerCase(),
     normalizeCardNumber((card.cardNumber ?? "").trim()).toLowerCase(),
     identityParallel(card.parallel),
-    identityCondition(card),
   ].join("|");
 }
 

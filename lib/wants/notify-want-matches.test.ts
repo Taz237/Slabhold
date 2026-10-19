@@ -84,7 +84,7 @@ describe("notifyWantMatches", () => {
     assert.equal(notifications.length, 1);
     assert.equal(
       notifications[0]?.preview,
-      "Jordan Love PSA 10 sold for $31, under your $35 target",
+      "Jordan Love PSA 10 sold for $31.00, under your $35.00 target",
     );
   });
 

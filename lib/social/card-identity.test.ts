@@ -3,7 +3,11 @@ import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { join } from "node:path";
 import { SET_MANUFACTURER_WORDS, setMatchPhrase } from "@/lib/comps/match";
-import { cardIdentityKey, type IdentityCard } from "./card-identity";
+import {
+  cardIdentityKey,
+  ownershipMatchKey,
+  type IdentityCard,
+} from "./card-identity";
 
 const love: IdentityCard = {
   playerName: "Jordan Love",
@@ -43,6 +47,22 @@ describe("cardIdentityKey", () => {
     assert.notEqual(
       cardIdentityKey(love),
       cardIdentityKey({ ...love, grade: "PSA 9", grader: "PSA" }),
+    );
+  });
+
+  it("ownershipMatchKey ignores grade so any grade of the same card matches", () => {
+    assert.equal(
+      ownershipMatchKey(love),
+      ownershipMatchKey({ ...love, grade: "PSA 9", grader: "PSA" }),
+    );
+    assert.equal(
+      ownershipMatchKey(love),
+      ownershipMatchKey({
+        ...love,
+        conditionType: "raw",
+        grade: "Raw",
+        grader: null,
+      }),
     );
   });
 

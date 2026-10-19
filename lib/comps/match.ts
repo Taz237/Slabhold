@@ -27,10 +27,17 @@ const TITLE_JUNK =
 const AUTO_RE = /\b(?:auto|autograph|autographed|signed)\b/i;
 const RELIC_RE = /\b(?:patch|relic)\b/i;
 const SERIAL_RE = /\/(\d+)\b/;
-const TITLE_GRADE_RE =
-  /\b(PSA|BGS|SGC|CGC|TAG|HGA)\s*(\d+(?:\.\d+)?)\b/i;
-const GRADED_CUE_RE =
-  /\b(?:PSA|BGS|SGC|CGC|TAG|HGA|graded|slab)\b|\bGem\s*Mint\b/i;
+/** Graders / slab brands that disqualify a listing from raw comps. */
+const GRADER_NAMES =
+  "PSA|BGS|SGC|CGC|TAG|Beckett|HGA|CSG|ISA|Gem\\s*Studios|Studios";
+const TITLE_GRADE_RE = new RegExp(
+  `\\b(${GRADER_NAMES})\\s*(\\d+(?:\\.\\d+)?)\\b`,
+  "i",
+);
+const GRADED_CUE_RE = new RegExp(
+  `\\b(?:${GRADER_NAMES}|graded|slab)\\b|\\bGem\\s*Mint\\b`,
+  "i",
+);
 const TITLE_HASH_NUMBER_RE = /#([A-Za-z0-9]+(?:-[A-Za-z0-9]+)*)/g;
 
 const QUALIFIERS = ["OC", "MK", "ST", "PD", "OF", "MC"] as const;
