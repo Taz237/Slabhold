@@ -199,6 +199,13 @@ export async function getCardValues(
 export type RefreshCardValueOptions = {
   beforeRequest?: () => Promise<boolean>;
   beforeTrawl?: () => Promise<boolean>;
+  /** Price from sold_comps_cache only. Does not call Trawl. */
+  cacheOnly?: boolean;
+  /**
+   * Write the filtered result even when it has no sales.
+   * Flag reprices use this so hiding the last sale clears the stored price.
+   */
+  replaceValue?: boolean;
   /** False when a public viewer may see comps but must not write card_values. */
   save?: boolean;
 };
@@ -228,6 +235,7 @@ export async function refreshCardValue(
   const result = await getSoldComps(card, {
     beforeRequest: options?.beforeRequest,
     beforeTrawl: options?.beforeTrawl,
+    cacheOnly: options?.cacheOnly,
     onClassified: (info) => {
       titles = info;
     },
@@ -341,31 +349,34 @@ export async function refreshCardValue(
     }
   }
 
-  const decision = refreshCardValueResult(
-    previousRow
-      ? {
-          status: ((previousRow.status as CardValueStatus) || "unavailable"),
-          median: previousRow.median != null ? Number(previousRow.median) : null,
-          low: previousRow.low != null ? Number(previousRow.low) : null,
-          high: previousRow.high != null ? Number(previousRow.high) : null,
-          nSales:
-            previousRow.n_sales == null || Number.isNaN(Number(previousRow.n_sales))
-              ? 0
-              : Number(previousRow.n_sales),
-          matchedAt: (previousRow.matched_at as string | null) ?? null,
-          queryKey: (previousRow.query_key as string | null) ?? null,
-        }
-      : null,
-    {
-      status,
-      median: hasSales ? payload.median : null,
-      low: hasSales ? payload.p25 : null,
-      high: hasSales ? payload.p75 : null,
-      nSales,
-      matchedAt,
-      queryKey,
-    },
-  );
+  const nextDraft = {
+    status,
+    median: hasSales ? payload.median : null,
+    low: hasSales ? payload.p25 : null,
+    high: hasSales ? payload.p75 : null,
+    nSales,
+    matchedAt,
+    queryKey,
+  };
+  const decision = options?.replaceValue
+    ? { value: nextDraft, keptPreviousMedian: false }
+    : refreshCardValueResult(
+        previousRow
+          ? {
+              status: ((previousRow.status as CardValueStatus) || "unavailable"),
+              median: previousRow.median != null ? Number(previousRow.median) : null,
+              low: previousRow.low != null ? Number(previousRow.low) : null,
+              high: previousRow.high != null ? Number(previousRow.high) : null,
+              nSales:
+                previousRow.n_sales == null || Number.isNaN(Number(previousRow.n_sales))
+                  ? 0
+                  : Number(previousRow.n_sales),
+              matchedAt: (previousRow.matched_at as string | null) ?? null,
+              queryKey: (previousRow.query_key as string | null) ?? null,
+            }
+          : null,
+        nextDraft,
+      );
   const merged = decision.value;
   if (decision.keptPreviousMedian) {
     console.log(

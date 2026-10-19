@@ -19,10 +19,28 @@ export function AdminNavLink({ className = "", item = false }: { className?: str
 
   if (!show) return null;
 
-  const link = (
+  const reports = (
     <Link href="/admin/reports" className={className}>
       Reports
     </Link>
   );
-  return item ? <li>{link}</li> : link;
+  const flags = (
+    <Link href="/admin/comp-flags" className={className}>
+      Comp flags
+    </Link>
+  );
+  if (item) {
+    return (
+      <>
+        <li>{reports}</li>
+        <li>{flags}</li>
+      </>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1">
+      {reports}
+      {flags}
+    </span>
+  );
 }

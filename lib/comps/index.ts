@@ -2,7 +2,12 @@ import "server-only";
 
 import { mockValueHistory } from "@/lib/value-history";
 import { notifyMatchedSales } from "@/lib/wants/dispatch";
-import { listCachedItemIds, readSoldCompsCache, writeSoldCompsCache } from "./cache";
+import {
+  listCachedItemIds,
+  readLatestSoldCompsBatch,
+  readSoldCompsCache,
+  writeSoldCompsCache,
+} from "./cache";
 import { keptAndDroppedTitles } from "./classify-titles";
 import { isLowConfidence } from "./clean";
 import { cleanedToCompListings, historyFromSales } from "./map";
@@ -40,6 +45,8 @@ export type GetSoldCompsOptions = {
   beforeRequest?: () => Promise<boolean>;
   /** Called only when about to hit Trawl (cache miss). Return false to abort with rate limit. */
   beforeTrawl?: () => Promise<boolean>;
+  /** Price the latest stored batch and do not call Trawl, even if that batch is stale. */
+  cacheOnly?: boolean;
   /** Titles kept and dropped by the shared filter. Does not change the price. */
   onClassified?: (info: CompClassification) => void;
 };
@@ -182,6 +189,22 @@ export async function getSoldComps(
         source: "trawl",
         cached: true,
         fetchedAt: cached.fetchedAt,
+        query,
+      }),
+    };
+  }
+
+  if (options?.cacheOnly) {
+    const stale = await readLatestSoldCompsBatch(queryKey);
+    if (!stale) return { ok: false, unavailable: true };
+    const sales = sharedCompValue(matchCard, stale.sales).sales;
+    reportClassification(options, stale.sales, sales);
+    return {
+      ok: true,
+      payload: payloadFromSales(sales, {
+        source: "trawl",
+        cached: true,
+        fetchedAt: stale.fetchedAt,
         query,
       }),
     };

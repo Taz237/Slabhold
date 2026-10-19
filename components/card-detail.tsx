@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { useCompFlagState } from "@/components/use-comp-flags";
 import { ArrowLeft, Pencil, Trash2 } from "lucide-react";
 import { CardCollectorsSaying } from "@/components/card-collectors-saying";
 import { CardOwnersSection } from "@/components/card-owners";
@@ -30,7 +31,6 @@ import {
   signedMoney,
 } from "@/lib/format";
 import { formatRelativeTime } from "@/lib/relative-time";
-import { createSupabaseBrowser } from "@/lib/supabase/browser";
 import {
   cardValueHasAmount,
   formatCardValueLabel,
@@ -46,34 +46,16 @@ export function CardDetail({ id }: { id: string }) {
   const { ready, getCard, updateCard, removeCard } = useCollection();
   const card = getCard(id);
   const [sellPrice, setSellPrice] = useState("");
-  const [flaggedIds, setFlaggedIds] = useState<Set<string>>(new Set());
-
-  useEffect(() => {
-    if (!user?.id || !card?.id) {
-      setFlaggedIds(new Set());
-      return;
-    }
-    const supabase = createSupabaseBrowser();
-    if (!supabase) return;
-    let cancelled = false;
-    supabase
-      .from("comp_flags")
-      .select("item_id")
-      .eq("card_id", card.id)
-      .eq("user_id", user.id)
-      .then(({ data }) => {
-        if (cancelled || !data) return;
-        setFlaggedIds(new Set(data.map((row) => row.item_id as string)));
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [user?.id, card?.id]);
 
   const { value: cardValue, loading: valueLoading, retry: retryValue } = useCardValue(
     card?.id ?? null,
   );
   const sold = useSoldComps(user ? (card?.id ?? null) : null);
+  const flags = useCompFlagState(
+    card?.id ?? null,
+    Boolean(user && card),
+    sold.status === "ready" ? (sold.data?.comps ?? []) : [],
+  );
 
   useEffect(() => {
     if (
@@ -113,15 +95,13 @@ export function CardDetail({ id }: { id: string }) {
       sold.data?.source === "sample" ||
       sold.data?.source === "off");
   const compsLoading = Boolean(user) && (sold.status === "loading" || sold.status === "idle");
-  const onScreenComps =
-    sold.status === "ready"
-      ? (sold.data?.comps ?? []).filter((comp) => !flaggedIds.has(comp.itemId))
-      : [];
+  const shownValue = flags.priced ?? cardValue;
+  const onScreenComps = sold.status === "ready" ? flags.visible : [];
   const salesCount = countForSalesLabel(
-    cardValueHasAmount(cardValue) ? cardValue.nSales : null,
+    cardValueHasAmount(shownValue) ? shownValue.nSales : null,
     onScreenComps.length,
   );
-  const storedAmount = cardValueHasAmount(cardValue) ? cardValue.median : null;
+  const storedAmount = cardValueHasAmount(shownValue) ? shownValue.median : null;
 
   const estSell = cardSold ? card.sellPrice! : storedAmount;
 
@@ -133,9 +113,9 @@ export function CardDetail({ id }: { id: string }) {
   const max = Math.max(paidKnown ? (paid as number) : 0, estSell ?? 0, 1);
   const valueStatusLabel = cardSold
     ? null
-    : valueLoading
+    : valueLoading && !flags.priced
       ? null
-      : formatCardValueLabel(cardValue, { createdAt: card.createdAt });
+      : formatCardValueLabel(shownValue, { createdAt: card.createdAt });
 
   function markSold() {
     const price = Number(sellPrice);
@@ -227,18 +207,18 @@ export function CardDetail({ id }: { id: string }) {
             <EstSellMetric
               cardSold={cardSold}
               soldPrice={card.sellPrice}
-              loading={!cardSold && valueLoading}
+              loading={!cardSold && valueLoading && !flags.priced}
               label={valueStatusLabel}
-              count={storedAmount != null ? (cardValue?.nSales ?? 0) : 0}
-              sample={cardValue?.status === "sample"}
-              lowConfidence={isLowConfidenceValue(cardValue)}
+              count={storedAmount != null ? (shownValue?.nSales ?? 0) : 0}
+              sample={shownValue?.status === "sample"}
+              lowConfidence={isLowConfidenceValue(shownValue)}
             />
             <Metric
               label="Profit"
               value={
                 showProfit && profitPctValue != null
                   ? `${signedMoney(delta, true)} ${pct(profitPctValue)}`
-                  : valueLoading
+                  : valueLoading && !flags.priced
                     ? "…"
                     : "—"
               }
@@ -345,12 +325,12 @@ export function CardDetail({ id }: { id: string }) {
           }}
           points={sold.status === "ready" && usingLive ? sold.data?.history : null}
           source={sold.data?.source ?? (usingSample ? "sample" : "trawl")}
-          loading={valueLoading}
+          loading={valueLoading && !flags.priced}
           median={storedAmount}
-          p25={storedAmount != null ? (cardValue?.low ?? null) : null}
-          p75={storedAmount != null ? (cardValue?.high ?? null) : null}
-          count={storedAmount != null ? (cardValue?.nSales ?? 0) : 0}
-          sample={cardValue?.status === "sample"}
+          p25={storedAmount != null ? (shownValue?.low ?? null) : null}
+          p75={storedAmount != null ? (shownValue?.high ?? null) : null}
+          count={storedAmount != null ? (shownValue?.nSales ?? 0) : 0}
+          sample={shownValue?.status === "sample"}
           lockedToComps
           noSalesLabel={NOT_ENOUGH_SALES_LABEL}
           unavailable={false}
@@ -407,17 +387,17 @@ export function CardDetail({ id }: { id: string }) {
               />
             ))}
           </div>
-        ) : unavailable || rateLimited ? null : sold.status === "ready" && onScreenComps.length > 0 ? (
+        ) : unavailable || rateLimited ? null : sold.status === "ready" &&
+          (onScreenComps.length > 0 || flags.hidden.length > 0) ? (
           <CompsList
             comps={onScreenComps}
             cardId={card.id}
-            userId={user?.id ?? null}
             canFlag={Boolean(user)}
-            flaggedIds={flaggedIds}
-            onFlagged={(itemId) => {
-              setFlaggedIds((prev) => new Set(prev).add(itemId));
-              retryValue();
-            }}
+            hidden={flags.hidden}
+            onFlag={flags.flag}
+            onRestore={flags.restore}
+            toastItemId={flags.toastItemId}
+            onUndo={flags.undo}
           />
         ) : null}
       </section>

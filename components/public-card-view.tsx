@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
+import { useCompFlagState } from "@/components/use-comp-flags";
 import { ArrowLeft } from "lucide-react";
 import { CardCollectorsSaying } from "@/components/card-collectors-saying";
 import { CardOwnersSection } from "@/components/card-owners";
@@ -20,7 +21,6 @@ import { useSoldComps } from "@/lib/comps/use-sold-comps";
 import { cardTitle, formatPaidLabel } from "@/lib/format";
 import { formatRelativeTime } from "@/lib/relative-time";
 import type { PublicCard } from "@/lib/social/types";
-import { createSupabaseBrowser } from "@/lib/supabase/browser";
 import {
   cardValueHasAmount,
   formatCardValueLabel,
@@ -89,7 +89,6 @@ function PublicCardAnalytics({
   userId: string | null;
   canFlag: boolean;
 }) {
-  const [flaggedIds, setFlaggedIds] = useState<Set<string>>(new Set());
   const specs = [
     card.sport ? { label: "Sport", value: card.sport } : null,
     card.cardNumber.trim() && card.cardNumber.trim() !== "—"
@@ -104,6 +103,11 @@ function PublicCardAnalytics({
 
   const { value: cardValue, loading: valueLoading, retry: retryValue } = useCardValue(card.id);
   const sold = useSoldComps(userId ? card.id : null);
+  const flags = useCompFlagState(
+    card.id,
+    canFlag,
+    sold.status === "ready" ? (sold.data?.comps ?? []) : [],
+  );
 
   useEffect(() => {
     if (
@@ -115,28 +119,6 @@ function PublicCardAnalytics({
     }
   }, [retryValue, sold.data?.fetchedAt, sold.status]);
 
-  useEffect(() => {
-    if (!canFlag || !userId) {
-      setFlaggedIds(new Set());
-      return;
-    }
-    const supabase = createSupabaseBrowser();
-    if (!supabase) return;
-    let cancelled = false;
-    supabase
-      .from("comp_flags")
-      .select("item_id")
-      .eq("card_id", card.id)
-      .eq("user_id", userId)
-      .then(({ data }) => {
-        if (cancelled || !data) return;
-        setFlaggedIds(new Set(data.map((row) => row.item_id as string)));
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [canFlag, userId, card.id]);
-
   const authRequired = !userId || sold.status === "auth_required";
   const rateLimited = sold.status === "rate_limited";
   const unavailable = sold.status === "unavailable";
@@ -147,19 +129,18 @@ function PublicCardAnalytics({
       sold.data?.source === "sample" ||
       sold.data?.source === "off");
   const compsLoading = Boolean(userId) && (sold.status === "loading" || sold.status === "idle");
-  const onScreenComps =
-    sold.status === "ready"
-      ? (sold.data?.comps ?? []).filter((comp) => !flaggedIds.has(comp.itemId))
-      : [];
+  const shownValue = flags.priced ?? cardValue;
+  const onScreenComps = sold.status === "ready" ? flags.visible : [];
   const salesCount = countForSalesLabel(
-    cardValueHasAmount(cardValue) ? cardValue.nSales : null,
+    cardValueHasAmount(shownValue) ? shownValue.nSales : null,
     onScreenComps.length,
   );
-  const storedAmount = cardValueHasAmount(cardValue) ? cardValue.median : null;
+  const storedAmount = cardValueHasAmount(shownValue) ? shownValue.median : null;
   const displayEst = storedAmount;
-  const valueLabel = valueLoading
-    ? null
-    : formatCardValueLabel(cardValue, { createdAt: card.createdAt });
+  const valueLabel =
+    valueLoading && !flags.priced
+      ? null
+      : formatCardValueLabel(shownValue, { createdAt: card.createdAt });
   const showChart = !authRequired && !unavailable && !rateLimited;
 
   return (
@@ -202,17 +183,17 @@ function PublicCardAnalytics({
         <div className="rounded-2xl border border-zinc-200 bg-white px-4 py-4 dark:border-white/10 dark:bg-white/[0.03]">
           <p className="text-[11px] tracking-wide text-zinc-500 uppercase">Estimated value</p>
           <p className="mt-1 text-2xl font-semibold tracking-tight tabular-nums">
-            {valueLoading ? "…" : valueLabel}
+            {valueLoading && !flags.priced ? "…" : valueLabel}
           </p>
           {displayEst != null ? (
             <>
-              {cardValue?.status === "sample" ? (
+              {shownValue?.status === "sample" ? (
                 <p className="mt-1 text-xs text-zinc-500">Sample estimate</p>
               ) : null}
-              <CompBasis count={cardValue?.nSales ?? 0} basis={[]} />
+              <CompBasis count={shownValue?.nSales ?? 0} basis={[]} />
             </>
           ) : null}
-          {isLowConfidenceValue(cardValue) ? (
+          {isLowConfidenceValue(shownValue) ? (
             <span className="mt-1 inline-block rounded-md bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800 dark:text-amber-200">
               Low confidence
             </span>
@@ -241,10 +222,10 @@ function PublicCardAnalytics({
           source={sold.data?.source ?? (usingSample ? "sample" : "trawl")}
           loading={valueLoading}
           median={storedAmount}
-          p25={storedAmount != null ? (cardValue?.low ?? null) : null}
-          p75={storedAmount != null ? (cardValue?.high ?? null) : null}
-          count={storedAmount != null ? (cardValue?.nSales ?? 0) : 0}
-          sample={cardValue?.status === "sample"}
+          p25={storedAmount != null ? (shownValue?.low ?? null) : null}
+          p75={storedAmount != null ? (shownValue?.high ?? null) : null}
+          count={storedAmount != null ? (shownValue?.nSales ?? 0) : 0}
+          sample={shownValue?.status === "sample"}
           lockedToComps
           noSalesLabel={NOT_ENOUGH_SALES_LABEL}
           hideStatusLabel
@@ -298,17 +279,17 @@ function PublicCardAnalytics({
               />
             ))}
           </div>
-        ) : unavailable || rateLimited ? null : sold.status === "ready" && onScreenComps.length > 0 ? (
+        ) : unavailable || rateLimited ? null : sold.status === "ready" &&
+          (onScreenComps.length > 0 || flags.hidden.length > 0) ? (
           <CompsList
             comps={onScreenComps}
             cardId={card.id}
-            userId={userId}
             canFlag={canFlag}
-            flaggedIds={flaggedIds}
-            onFlagged={(itemId) => {
-              setFlaggedIds((prev) => new Set(prev).add(itemId));
-              retryValue();
-            }}
+            hidden={flags.hidden}
+            onFlag={flags.flag}
+            onRestore={flags.restore}
+            toastItemId={flags.toastItemId}
+            onUndo={flags.undo}
           />
         ) : null}
       </section>

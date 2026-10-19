@@ -18,6 +18,9 @@ export default async function AdminReportsPage() {
       <div className="border-b border-zinc-200 px-4 py-3 dark:border-white/10">
         <h1 className="text-lg font-bold">Open reports</h1>
         <p className="text-sm text-zinc-500">Oldest first. Highlighted rows have waited over 24 hours.</p>
+        <Link href="/admin/comp-flags" className="mt-2 inline-block text-sm font-bold underline">
+          Comp flags
+        </Link>
       </div>
       {reports.length === 0 ? (
         <p className="px-4 py-8 text-sm text-zinc-500">No open reports.</p>
