@@ -2,6 +2,9 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   respondSoldComps,
+  SOLD_RATE_LIMIT_MESSAGE,
+  SOLD_UNAVAILABLE_MESSAGE,
+  soldNotice,
   type SoldCompsLoaders,
   type SoldRefreshResult,
 } from "./sold-response";
@@ -23,6 +26,15 @@ class FakeMarketUnavailable extends Error {
     this.result = result;
   }
 }
+
+describe("soldNotice", () => {
+  it("uses the rate-limit copy for a 429 and the generic line otherwise", () => {
+    assert.equal(soldNotice("rate_limited", SOLD_RATE_LIMIT_MESSAGE), SOLD_RATE_LIMIT_MESSAGE);
+    assert.equal(soldNotice("rate_limited", SOLD_UNAVAILABLE_MESSAGE), SOLD_RATE_LIMIT_MESSAGE);
+    assert.equal(soldNotice("unavailable", null), SOLD_UNAVAILABLE_MESSAGE);
+    assert.equal(soldNotice("ready", null), null);
+  });
+});
 
 describe("respondSoldComps access-first not-found", () => {
   it("returns not-found before any comps/value loader is called", async () => {

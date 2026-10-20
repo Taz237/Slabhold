@@ -1,26 +1,10 @@
-"use client";
+import { EditCardPage } from "@/components/edit-card-page";
+import { requireCardPageAccess } from "@/lib/value/require-card-page-access";
 
-import Link from "next/link";
-import { useParams } from "next/navigation";
-import { CardForm } from "@/components/card-form";
-import { useCollection } from "@/components/collection-provider";
+type Props = { params: Promise<{ id: string }> };
 
-export default function EditCardPage() {
-  const { id } = useParams<{ id: string }>();
-  const { getCard, ready } = useCollection();
-  const card = getCard(id);
-
-  if (!ready) return <div className="h-64 animate-pulse rounded-2xl bg-white/5" />;
-  if (!card) {
-    return (
-      <div>
-        <p>Card not found.</p>
-        <Link href="/collection" className="text-sm text-violet-700 dark:text-violet-300">
-          Back
-        </Link>
-      </div>
-    );
-  }
-
-  return <CardForm existing={card} />;
+export default async function Page({ params }: Props) {
+  const { id } = await params;
+  await requireCardPageAccess(id);
+  return <EditCardPage id={id} />;
 }

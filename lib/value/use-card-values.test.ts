@@ -9,6 +9,7 @@ import {
   PRICE_CHECK_LIMIT_MESSAGE,
   cardValuesAfterFailure,
   loadCardValuesSession,
+  resetCardValuesRateLimit,
 } from "./use-card-values";
 
 const jordan: CardValueResult = {
@@ -20,7 +21,7 @@ const jordan: CardValueResult = {
   matchedAt: "2026-10-17T00:00:00.000Z",
 };
 
-describe("useCardValues failure", () => {
+describe("useCardValues failure", { concurrency: 1 }, () => {
   it("keeps old values on 429", () => {
     const previous = new Map<string, CardValueResult>([["jordan-love", jordan]]);
     const next = cardValuesAfterFailure(previous);
@@ -101,13 +102,63 @@ describe("useCardValues failure", () => {
     assert.match(route, /export const maxDuration = 15/);
     assert.match(wants, /export const maxDuration = 15/);
     assert.equal((route.match(/"Retry-After": "60"/g) ?? []).length, 1);
-    assert.match(route, /Too many price checks\. Try again in a minute\./);
+    const copy = readFileSync(join(process.cwd(), "lib/value/price-check-limit.ts"), "utf8");
+    assert.match(copy, /export const PRICE_CHECK_LIMIT_MESSAGE =\r?\n  "Too many price checks\. Try again in a minute\."/);
+    assert.match(route, /from "@\/lib\/value\/price-check-limit"/);
+    assert.match(route, /error: PRICE_CHECK_LIMIT_MESSAGE/);
+    assert.doesNotMatch(route, /const PRICE_CHECK_LIMIT_MESSAGE/);
+    const hook = readFileSync(join(process.cwd(), "lib/value/use-card-values.ts"), "utf8");
+    assert.doesNotMatch(hook, /const PRICE_CHECK_LIMIT_MESSAGE/);
     assert.equal(route.toLowerCase().includes("sold comps"), false);
+    const feed = readFileSync(join(process.cwd(), "components/feed-view.tsx"), "utf8");
+    const detail = readFileSync(join(process.cwd(), "components/card-detail.tsx"), "utf8");
+    const publicCard = readFileSync(join(process.cwd(), "components/public-card-view.tsx"), "utf8");
+    assert.match(feed, /\{postCardValuesMessage\}/);
+    assert.match(detail, /\{errorMessage\}/);
+    assert.match(detail, /soldNotice/);
+    assert.match(publicCard, /\{errorMessage\}/);
+    assert.match(publicCard, /soldNotice/);
     const dashboard = readFileSync(join(process.cwd(), "components/dashboard.tsx"), "utf8");
     const invested = dashboard.slice(
       dashboard.indexOf('label="Total invested"'),
       dashboard.indexOf('label="Estimated value"'),
     );
     assert.equal(invested.includes("loading={valuesLoading}"), false);
+  });
+
+  it("honors Retry-After and does not send another price check until it passes", async () => {
+    resetCardValuesRateLimit();
+    let fetches = 0;
+    try {
+      const first = loadCardValuesSession({
+        key: "jordan-love",
+        previous: new Map(),
+        fetchImpl: async () => {
+          fetches += 1;
+          return new Response(JSON.stringify({ error: PRICE_CHECK_LIMIT_MESSAGE }), {
+            status: 429,
+            headers: { "Retry-After": "60" },
+          });
+        },
+      });
+      const limited = await first.done;
+      assert.equal(limited.message, PRICE_CHECK_LIMIT_MESSAGE);
+      assert.equal(limited.error, true);
+
+      const second = loadCardValuesSession({
+        key: "jordan-love",
+        previous: new Map(),
+        fetchImpl: async () => {
+          fetches += 1;
+          return new Response(JSON.stringify({ values: {} }), { status: 200 });
+        },
+      });
+      const again = await second.done;
+      assert.equal(fetches, 1);
+      assert.equal(again.error, true);
+      assert.equal(again.message, PRICE_CHECK_LIMIT_MESSAGE);
+    } finally {
+      resetCardValuesRateLimit();
+    }
   });
 });

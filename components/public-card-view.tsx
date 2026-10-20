@@ -19,6 +19,7 @@ import { loginPath } from "@/lib/auth/safe-next";
 import { ValueChart } from "@/components/value-chart";
 import { isCardOwner } from "@/lib/comps/ownership";
 import { basedOnSalesLabel, countForSalesLabel, valueFromShownSales } from "@/lib/comps/shared-value";
+import { soldNotice } from "@/lib/comps/sold-response";
 import { useSoldComps } from "@/lib/comps/use-sold-comps";
 import { cardTitle, formatPaidLabel } from "@/lib/format";
 import { formatRelativeTime } from "@/lib/relative-time";
@@ -104,7 +105,12 @@ function PublicCardAnalytics({
   const showPaid =
     typeof card.purchasePrice === "number" && Number.isFinite(card.purchasePrice);
 
-  const { value: cardValue, loading: valueLoading, retry: retryValue } = useCardValue(card.id);
+  const {
+    value: cardValue,
+    loading: valueLoading,
+    errorMessage,
+    retry: retryValue,
+  } = useCardValue(card.id);
   const sold = useSoldComps(userId ? card.id : null);
   const flags = useCompFlagState(
     card.id,
@@ -125,6 +131,7 @@ function PublicCardAnalytics({
   const authRequired = !userId || sold.status === "auth_required";
   const rateLimited = sold.status === "rate_limited";
   const unavailable = sold.status === "unavailable";
+  const soldCopy = soldNotice(sold.status, sold.message);
   const usingLive = sold.data?.source === "trawl" && !sold.data.sample;
   const usingSample =
     sold.status === "ready" &&
@@ -217,9 +224,14 @@ function PublicCardAnalytics({
         ) : null}
       </section>
 
-      {authRequired ? null : unavailable || rateLimited ? (
+      {errorMessage ? (
         <p className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
-          Sold data unavailable, try again shortly
+          {errorMessage}
+        </p>
+      ) : null}
+      {authRequired ? null : soldCopy ? (
+        <p className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
+          {soldCopy}
         </p>
       ) : showChart ? (
         <ValueChart
@@ -250,8 +262,8 @@ function PublicCardAnalytics({
               <p className="text-xs text-zinc-500">
                 {compsLoading
                   ? "Loading sold listings…"
-                  : unavailable || rateLimited
-                    ? "Sold data unavailable, try again shortly"
+                  : soldCopy
+                    ? soldCopy
                     : sold.status === "ready"
                       ? onScreenComps.length === 0
                         ? NOT_ENOUGH_SALES_LABEL

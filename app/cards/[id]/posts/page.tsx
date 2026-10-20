@@ -1,9 +1,10 @@
-"use client";
-
-import { useParams } from "next/navigation";
 import { CardPostsList } from "@/components/card-posts-list";
+import { requireCardPageAccess } from "@/lib/value/require-card-page-access";
 
-export default function CardPostsPage() {
-  const { id } = useParams<{ id: string }>();
+type Props = { params: Promise<{ id: string }> };
+
+export default async function CardPostsPage({ params }: Props) {
+  const { id } = await params;
+  await requireCardPageAccess(id);
   return <CardPostsList cardId={id} />;
 }

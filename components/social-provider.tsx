@@ -130,6 +130,8 @@ type SocialContextValue = {
   /** Trusted card_values for every card attached to a loaded post, one batch. */
   postCardValues: Map<string, CardValueResult>;
   postCardValuesLoading: boolean;
+  /** Set when the home feed's price check is rate-limited. */
+  postCardValuesMessage: string | null;
 };
 
 const SocialContext = createContext<SocialContextValue | null>(null);
@@ -269,8 +271,11 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
     () => (postCardIdKey ? postCardIdKey.split(",") : []),
     [postCardIdKey],
   );
-  const { values: postCardValues, loading: postCardValuesLoading } =
-    useCardValues(postCardIds);
+  const {
+    values: postCardValues,
+    loading: postCardValuesLoading,
+    errorMessage: postCardValuesMessage,
+  } = useCardValues(postCardIds);
 
   const rememberActivity = useCallback((db: LocalDb) => {
     const next = activityFrom(db);
@@ -931,6 +936,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       profileByUsername,
       postCardValues,
       postCardValuesLoading,
+      postCardValuesMessage,
     }),
     [
       addComment,
@@ -962,6 +968,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       profileByUsername,
       postCardValues,
       postCardValuesLoading,
+      postCardValuesMessage,
       ready,
       refresh,
       signIn,

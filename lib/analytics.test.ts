@@ -255,10 +255,11 @@ describe("analytics payloads", () => {
     });
 
     const webAnalytics = read("components/web-analytics.tsx");
-    assert.match(webAnalytics, /const pattern = routePattern\(usePathname\(\)\)/);
+    assert.match(webAnalytics, /const pathname = usePathname\(\) \|\| "\/"/);
+    assert.match(webAnalytics, /const pattern = routePattern\(pathname\)/);
     assert.match(
       webAnalytics,
-      /<Analytics route=\{pattern\} path=\{pattern\} beforeSend=\{scrubAnalyticsUrl\} \/>/,
+      /<Analytics key=\{pathname\} route=\{pattern\} path=\{pattern\} beforeSend=\{scrubAnalyticsUrl\} \/>/,
     );
     assert.match(webAnalytics, /<SpeedInsights/);
     assert.match(webAnalytics, /route=\{pattern\}/);
@@ -302,7 +303,7 @@ describe("analytics wiring", () => {
     const webAnalytics = read("components/web-analytics.tsx");
     assert.match(
       webAnalytics,
-      /<Analytics route=\{pattern\} path=\{pattern\} beforeSend=\{scrubAnalyticsUrl\} \/>/,
+      /<Analytics key=\{pathname\} route=\{pattern\} path=\{pattern\} beforeSend=\{scrubAnalyticsUrl\} \/>/,
     );
     assert.match(webAnalytics, /from "@vercel\/analytics\/next"/);
     assert.match(webAnalytics, /from "@vercel\/speed-insights\/next"/);

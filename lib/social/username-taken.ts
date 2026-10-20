@@ -1,8 +1,10 @@
+import { escapeIlike } from "@/lib/db/escape-ilike";
+
 export const TAKEN_USERNAME = "That username is taken.";
 
 /** Exact ilike match. `_` and `%` are wildcards unless escaped. */
 export function ilikeExact(value: string) {
-  return value.replace(/[\\%_]/g, (char) => `\\${char}`);
+  return escapeIlike(value);
 }
 
 export function usernameTakenMessage(

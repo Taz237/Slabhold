@@ -17,10 +17,11 @@ const SpeedInsights = VercelSpeedInsights as (
 ) => null;
 
 export function WebAnalytics() {
-  const pattern = routePattern(usePathname());
+  const pathname = usePathname() || "/";
+  const pattern = routePattern(pathname);
   return (
     <>
-      <Analytics route={pattern} path={pattern} beforeSend={scrubAnalyticsUrl} />
+      <Analytics key={pathname} route={pattern} path={pattern} beforeSend={scrubAnalyticsUrl} />
       <SpeedInsights
         route={pattern}
         beforeSend={(e) => {

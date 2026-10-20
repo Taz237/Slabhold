@@ -47,7 +47,7 @@ function searchClient() {
 }
 
 describe("searchProfilesForMention", () => {
-  it("drops commas, parentheses, and percent so q cannot add filters", async () => {
+  it("escapes like wildcards and drops characters that add filters", async () => {
     const client = searchClient();
     const found = await searchProfilesForMention(
       client.supabase as never,
@@ -55,13 +55,20 @@ describe("searchProfilesForMention", () => {
     );
     assert.deepEqual(found, []);
     assert.deepEqual(client.orFilter()?.split(","), [
-      "username.ilike.%abcd%",
-      "display_name.ilike.%abcd%",
+      "username.ilike.%abcd\\%%",
+      "display_name.ilike.%abcd\\%%",
     ]);
 
     const blocked = searchClient();
-    const empty = await searchProfilesForMention(blocked.supabase as never, "%,()");
+    const empty = await searchProfilesForMention(blocked.supabase as never, ",()");
     assert.deepEqual(empty, []);
     assert.equal(blocked.orFilter(), null);
+
+    const wild = searchClient();
+    await searchProfilesForMention(wild.supabase as never, "a_b%\\");
+    assert.equal(
+      wild.orFilter(),
+      "username.ilike.%a\\_b\\%\\\\%,display_name.ilike.%a\\_b\\%\\\\%",
+    );
   });
 });

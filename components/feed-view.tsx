@@ -46,6 +46,7 @@ export function FeedView() {
     followingCount,
     refresh,
     mode,
+    postCardValuesMessage,
   } = useSocial();
   const { cards, ready: cardsReady, syncError } = useCollection();
   const composerRef = useRef<HTMLTextAreaElement>(null);
@@ -132,6 +133,11 @@ export function FeedView() {
         />
       ) : null}
       {showWelcome ? <FirstCardWelcome /> : user ? <CollectionToday /> : null}
+      {postCardValuesMessage ? (
+        <p className="border-b border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
+          {postCardValuesMessage}
+        </p>
+      ) : null}
 
       <div className="grid grid-cols-2 border-b border-zinc-200 text-[15px] dark:border-white/10">
         <LaneTab active={lane === "foryou"} onClick={() => setLane("foryou")}>

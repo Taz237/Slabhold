@@ -5,6 +5,19 @@ export const SOLD_UNAVAILABLE_MESSAGE =
 export const SOLD_RATE_LIMIT_MESSAGE =
   "You're checking sold comps too quickly. Please wait a bit and try again.";
 
+/** Rate limits use the friendly copy. Other failures stay on the generic line. */
+export function soldNotice(
+  status: string,
+  message: string | null,
+): string | null {
+  if (status === "rate_limited") {
+    if (message && message !== SOLD_UNAVAILABLE_MESSAGE) return message;
+    return SOLD_RATE_LIMIT_MESSAGE;
+  }
+  if (status === "unavailable") return message || SOLD_UNAVAILABLE_MESSAGE;
+  return null;
+}
+
 export type SoldAccess = "owner" | "public" | "hidden" | "unavailable";
 
 /** Structural result shape — avoids importing server-only getCardValue. */

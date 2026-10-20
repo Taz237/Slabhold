@@ -10,13 +10,11 @@ import {
 } from "@/lib/value/card-value-access";
 import { loadCachedCardValue } from "@/lib/value/card-market";
 import { getCardValues } from "@/lib/value/getCardValue";
+import { PRICE_CHECK_LIMIT_MESSAGE } from "@/lib/value/price-check-limit";
 import type { CardValueResult } from "@/lib/value/types";
 
 export const runtime = "nodejs";
 export const maxDuration = 15;
-
-const PRICE_CHECK_LIMIT_MESSAGE =
-  "Too many price checks. Try again in a minute.";
 
 function priceCheckLimited(): Response {
   return Response.json(

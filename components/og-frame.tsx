@@ -12,6 +12,13 @@ import {
 export const ogSize = { width: 1200, height: 630 };
 export const ogContentType = "image/png";
 
+/** Shared images. Browsers revalidate; the CDN may serve a fresh or stale copy. */
+export const PUBLIC_OG_CACHE_CONTROL =
+  "public, max-age=0, s-maxage=3600, stale-while-revalidate=86400";
+
+/** Own-profile images follow the signed-in user. Do not store them on a shared CDN. */
+export const PRIVATE_OG_CACHE_CONTROL = "private, no-store";
+
 const MAX_FETCH_BYTES = 5 * 1024 * 1024;
 
 function dataUrl(bytes: Buffer, mime: string): string {
@@ -315,14 +322,18 @@ function lines(text: string, size: number, weight: number, color: string, clamp:
   );
 }
 
-function respond(node: ReactNode) {
+function respond(node: ReactNode, cacheControl = PUBLIC_OG_CACHE_CONTROL) {
   return new ImageResponse(<Frame>{node}</Frame>, {
     ...ogSize,
     fonts: ogFonts,
+    headers: {
+      "Cache-Control": cacheControl,
+    },
   });
 }
 
-export function renderOg(model: ShareImage) {
+export function renderOg(model: ShareImage, cacheControl = PUBLIC_OG_CACHE_CONTROL) {
+  const send = (node: ReactNode) => respond(node, cacheControl);
   const imageUrl = cleanImageUrl(model.imageUrl);
   const photos = model.photos
     .map((url) => cleanImageUrl(url))
@@ -330,7 +341,7 @@ export function renderOg(model: ShareImage) {
     .slice(0, 3);
 
   if (model.kind === "home") {
-    return respond(
+    return send(
       <div style={{ display: "flex", width: "100%", height: "100%" }}>
         <Left>
           <Brand />
@@ -352,7 +363,7 @@ export function renderOg(model: ShareImage) {
   }
 
   if (model.kind === "card") {
-    return respond(
+    return send(
       <div style={{ display: "flex", width: "100%", height: "100%" }}>
         <Left>
           <Brand />
@@ -403,7 +414,7 @@ export function renderOg(model: ShareImage) {
       <PhotoFallback />
     ) : null;
 
-  return respond(
+  return send(
     <div style={{ display: "flex", width: "100%", height: "100%" }}>
       <Left>
         <Brand />
@@ -472,8 +483,12 @@ export function renderOg(model: ShareImage) {
   );
 }
 
-export function renderProfileOg(preview: LinkPreview, kicker: string) {
-  return renderOg(profileShareImage(preview, kicker));
+export function renderProfileOg(
+  preview: LinkPreview,
+  kicker: string,
+  cacheControl = PUBLIC_OG_CACHE_CONTROL,
+) {
+  return renderOg(profileShareImage(preview, kicker), cacheControl);
 }
 
 export function renderHomeOg() {

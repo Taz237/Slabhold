@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it } from "node:test";
-import { renderOg } from "../../components/og-frame";
+import { PRIVATE_OG_CACHE_CONTROL, PUBLIC_OG_CACHE_CONTROL, renderOg } from "../../components/og-frame";
 import {
   cardShareImage,
   homeShareImage,
@@ -312,9 +312,19 @@ describe("share image renderer", () => {
 
   it("renders the home preview with the slab screenshot", async () => {
     const response = renderOg(homeShareImage());
+    assert.equal(response.headers.get("cache-control"), PUBLIC_OG_CACHE_CONTROL);
+    assert.match(PUBLIC_OG_CACHE_CONTROL, /s-maxage=3600/);
+    assert.match(PUBLIC_OG_CACHE_CONTROL, /stale-while-revalidate=86400/);
     const bytes = Buffer.from(await response.arrayBuffer());
     assert.equal(bytes[0], 0x89);
     assert.ok(bytes.length > 5000);
+    const ownProfile = readFileSync(
+      join(process.cwd(), "app/profile/opengraph-image.tsx"),
+      "utf8",
+    );
+    assert.match(ownProfile, /PRIVATE_OG_CACHE_CONTROL/);
+    assert.equal(PRIVATE_OG_CACHE_CONTROL, "private, no-store");
+    assert.doesNotMatch(PRIVATE_OG_CACHE_CONTROL, /s-maxage/);
   });
 });
 

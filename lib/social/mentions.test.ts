@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
-  escapeIlike,
   mentionQueryAt,
   rankMentionMatches,
   type MentionCandidate,
@@ -34,12 +33,6 @@ describe("mentionQueryAt", () => {
     assert.equal(mentionQueryAt("hello", 5), null);
     assert.equal(mentionQueryAt("a@b.com", 4), null);
     assert.equal(mentionQueryAt("@do ", 4), null);
-  });
-});
-
-describe("escapeIlike", () => {
-  it("escapes %, _, and strips commas", () => {
-    assert.equal(escapeIlike("a%b_c,d"), "a\\%b\\_cd");
   });
 });
 

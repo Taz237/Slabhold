@@ -1,3 +1,5 @@
+import { escapeIlike } from "@/lib/db/escape-ilike";
+
 const ACTIVE = /(^|[^a-z0-9_])@([a-z0-9_]{0,20})$/i;
 
 export type ActiveMention = {
@@ -15,13 +17,16 @@ export type MentionCandidate = {
   accent: string;
 };
 
-/** Escape `%`, `_`, and commas for PostgREST `ilike` / `.or()` filter values. */
-export function escapeIlike(value: string): string {
-  return value
-    .replace(/\\/g, "\\\\")
-    .replace(/%/g, "\\%")
-    .replace(/_/g, "\\_")
-    .replace(/,/g, "");
+/**
+ * PostgREST `.or()` filter for @mention search.
+ * Commas and parentheses are dropped so they cannot add filters.
+ * `%`, `_`, and `\` are escaped so they match as letters.
+ */
+export function mentionIlikeOr(query: string): string | null {
+  const q = query.trim().toLowerCase().replace(/[^a-z0-9_ %\\ ]/g, "").slice(0, 20);
+  if (!q.trim()) return null;
+  const pattern = `%${escapeIlike(q)}%`;
+  return `username.ilike.${pattern},display_name.ilike.${pattern}`;
 }
 
 /**

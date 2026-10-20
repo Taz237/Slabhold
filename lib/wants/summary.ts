@@ -6,6 +6,7 @@ import type { SoldCompCard } from "@/lib/comps/types";
 import { cardIdentityKey } from "@/lib/social/card-identity";
 import { mapCardRow, type CardRow } from "@/lib/social/cards";
 import type { SportsCard } from "@/lib/types";
+import { escapeIlike } from "@/lib/db/escape-ilike";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { getCardValues } from "@/lib/value/getCardValue";
 import type { CardValueResult } from "@/lib/value/types";
@@ -138,7 +139,7 @@ export async function listWantSummaries(userId: string): Promise<WantSummary[]> 
 
   const playerLists = await Promise.all(
     [...unresolvedPlayers].map((player) =>
-      rowsOrThrow(admin.from("public_cards").select("*").ilike("player", player)),
+      rowsOrThrow(admin.from("public_cards").select("*").ilike("player", escapeIlike(player))),
     ),
   );
   for (const rows of playerLists) {

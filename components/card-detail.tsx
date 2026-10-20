@@ -19,6 +19,7 @@ import { useSocial } from "@/components/social-provider";
 import { loginPath } from "@/lib/auth/safe-next";
 import { cardCategory } from "@/lib/card-category";
 import { basedOnSalesLabel, countForSalesLabel, valueFromShownSales } from "@/lib/comps/shared-value";
+import { soldNotice } from "@/lib/comps/sold-response";
 import { useSoldComps } from "@/lib/comps/use-sold-comps";
 import {
   cardSubtitle,
@@ -49,9 +50,12 @@ export function CardDetail({ id }: { id: string }) {
   const card = getCard(id);
   const [sellPrice, setSellPrice] = useState("");
 
-  const { value: cardValue, loading: valueLoading, retry: retryValue } = useCardValue(
-    card?.id ?? null,
-  );
+  const {
+    value: cardValue,
+    loading: valueLoading,
+    errorMessage,
+    retry: retryValue,
+  } = useCardValue(card?.id ?? null);
   const sold = useSoldComps(user ? (card?.id ?? null) : null);
   const flags = useCompFlagState(
     card?.id ?? null,
@@ -90,6 +94,7 @@ export function CardDetail({ id }: { id: string }) {
   const authRequired = !user || sold.status === "auth_required";
   const rateLimited = sold.status === "rate_limited";
   const unavailable = sold.status === "unavailable";
+  const soldCopy = soldNotice(sold.status, sold.message);
   const usingLive = sold.data?.source === "trawl" && !sold.data.sample;
   const usingSample =
     sold.status === "ready" &&
@@ -321,9 +326,14 @@ export function CardDetail({ id }: { id: string }) {
         </div>
       </section>
 
-      {authRequired ? null : unavailable || rateLimited ? (
+      {errorMessage ? (
         <p className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
-          Sold data unavailable, try again shortly
+          {errorMessage}
+        </p>
+      ) : null}
+      {authRequired ? null : soldCopy ? (
+        <p className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
+          {soldCopy}
         </p>
       ) : (
         <ValueChart
@@ -355,8 +365,8 @@ export function CardDetail({ id }: { id: string }) {
               <p className="text-xs text-zinc-500">
                 {compsLoading
                   ? "Loading sold listings…"
-                  : unavailable || rateLimited
-                    ? "Sold data unavailable, try again shortly"
+                  : soldCopy
+                    ? soldCopy
                     : sold.status === "ready"
                       ? onScreenComps.length === 0
                         ? NOT_ENOUGH_SALES_LABEL

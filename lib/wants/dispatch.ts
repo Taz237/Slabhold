@@ -4,6 +4,7 @@ import type { CleanedSale, SoldCompCard } from "@/lib/comps/types";
 import { mapCardRow, type CardRow } from "@/lib/social/cards";
 import { cardIdentityKey, type IdentityCard } from "@/lib/social/card-identity";
 import type { PublicCard } from "@/lib/social/types";
+import { escapeIlike } from "@/lib/db/escape-ilike";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { identityBandValue } from "./identity-band";
 import { isPublicForSaleListing } from "./listing";
@@ -172,7 +173,7 @@ async function identityBand(
   const { data: publicRows, error } = await admin
     .from("public_cards")
     .select(IDENTITY_COLUMNS)
-    .ilike("player", player)
+    .ilike("player", escapeIlike(player))
     .limit(40);
   if (error) return null;
   const { data: ownRow, error: ownError } = await admin

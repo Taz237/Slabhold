@@ -22,7 +22,7 @@ import type {
   SocialSnapshot,
 } from "./types";
 import { COMMENT_LIMIT, MESSAGE_LIMIT } from "./types";
-import { mentionUsernames, type MentionCandidate } from "./mentions";
+import { mentionIlikeOr, mentionUsernames, type MentionCandidate } from "./mentions";
 import { normalizeUsername, usernameError } from "./local-db";
 import { ilikeExact, TAKEN_USERNAME, usernameTakenMessage } from "./username-taken";
 import { validateQuoteContent } from "./quotes";
@@ -928,16 +928,15 @@ export async function searchProfilesForMention(
   limit = 8,
   signal?: AbortSignal,
 ): Promise<MentionCandidate[]> {
-  // Commas, parentheses, and % would add extra PostgREST .or() filters.
-  const q = query.trim().toLowerCase().replace(/[^a-z0-9_ ]/g, "").slice(0, 20);
-  if (!q.trim()) return [];
+  const orFilter = mentionIlikeOr(query);
+  if (!orFilter) return [];
   const { data: sessionData } = await supabase.auth.getSession();
   const { query: req } = await withAuthorSafety(
     supabase,
     supabase
       .from("profiles")
       .select(MENTION_PROFILE_SELECT)
-      .or(`username.ilike.%${q}%,display_name.ilike.%${q}%`)
+      .or(orFilter)
       .limit(limit),
     sessionData.session?.user.id ?? null,
     { authorColumn: "id" },

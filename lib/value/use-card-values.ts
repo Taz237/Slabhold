@@ -2,7 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MAX_CARD_VALUE_IDS } from "./card-value-access";
+import { PRICE_CHECK_LIMIT_MESSAGE } from "./price-check-limit";
 import type { CardValueResult } from "./types";
+
+export { PRICE_CHECK_LIMIT_MESSAGE };
 
 const emptyMap = new Map<string, CardValueResult>();
 
@@ -12,8 +15,19 @@ export const CARD_VALUES_RETRY_MS = 2000;
 /** A hung card-value read is a failure. It does not stay loading. */
 export const CARD_VALUES_TIMEOUT_MS = 10_000;
 
-export const PRICE_CHECK_LIMIT_MESSAGE =
-  "Too many price checks. Try again in a minute.";
+/** Requests stay quiet until a returned Retry-After window has passed. */
+let rateLimitedUntil = 0;
+
+export function resetCardValuesRateLimit(): void {
+  rateLimitedUntil = 0;
+}
+
+function noteRetryAfter(header: string | null): void {
+  if (header == null || header.trim() === "") return;
+  const seconds = Number(header);
+  if (!Number.isFinite(seconds) || seconds <= 0) return;
+  rateLimitedUntil = Date.now() + seconds * 1000;
+}
 
 /**
  * A failed read (non-OK, 429, network, timeout) keeps the last good map.
@@ -43,11 +57,15 @@ async function loadCardValues(
       aborted.name = "AbortError";
       throw aborted;
     }
+    if (Date.now() < rateLimitedUntil) throw new CardValuesRateLimitError();
     const batch = ids.slice(index, index + MAX_CARD_VALUE_IDS).join(",");
     const res = await fetchImpl(`/api/card-values?ids=${encodeURIComponent(batch)}`, {
       signal,
     });
-    if (res.status === 429) throw new CardValuesRateLimitError();
+    if (res.status === 429) {
+      noteRetryAfter(res.headers.get("Retry-After"));
+      throw new CardValuesRateLimitError();
+    }
     if (!res.ok) throw new Error("failed");
     const body = (await res.json()) as {
       values?: Record<string, CardValueResult>;
