@@ -3,11 +3,11 @@
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { Captcha, type CaptchaHandle } from "@/components/captcha";
+import { Captcha, useCaptchaWatch, type CaptchaHandle } from "@/components/captcha";
 import { Logo } from "@/components/logo";
 import { useSocial } from "@/components/social-provider";
 import { trackEvent } from "@/lib/analytics";
-import { CAPTCHA_LOAD_FAILED, releaseCaptcha, submitBlocked, turnstileSiteKey } from "@/lib/auth/captcha";
+import { CAPTCHA_INTERACTIVE, CAPTCHA_LOAD_FAILED, releaseCaptcha, submitBlocked, turnstileSiteKey } from "@/lib/auth/captcha";
 import { afterAuthPath, authLogoHref, loginPath, safeNext, signupPath } from "@/lib/auth/safe-next";
 import { readStoredUtm } from "@/lib/utm";
 
@@ -18,36 +18,22 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
   const pathname = usePathname();
   const next = safeNext(params.get("next"));
   const destination = afterAuthPath(next);
+  const signedIn = Boolean(user);
   const captchaRef = useRef<CaptchaHandle>(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [username, setUsername] = useState("");
   const [displayName, setDisplayName] = useState("");
-  const [captchaToken, setCaptchaTokenState] = useState<string | null>(null);
-  const [captchaFailed, setCaptchaFailed] = useState(false);
-  const captchaTokenRef = useRef<string | null>(null);
-  function setCaptchaToken(token: string | null) {
-    captchaTokenRef.current = token;
-    setCaptchaTokenState(token);
-  }
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const captchaWatch = useCaptchaWatch(ready && !signedIn && turnstileSiteKey().length > 0, captchaToken);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const signedIn = Boolean(user);
 
   useEffect(() => {
     if (mode !== "signup") return;
     trackEvent("signup_started");
   }, [mode]);
-
-  useEffect(() => {
-    if (!ready || signedIn || captchaToken || !turnstileSiteKey()) return;
-    const timer = window.setTimeout(() => {
-      if (captchaTokenRef.current) return;
-      setCaptchaFailed(true);
-    }, 15_000);
-    return () => window.clearTimeout(timer);
-  }, [ready, signedIn, captchaToken]);
 
   async function submit(e: React.FormEvent) {
     if (submitBlocked(busy, captchaToken)) return;
@@ -143,15 +129,21 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
           ref={captchaRef}
           onToken={(token) => {
             setCaptchaToken(token);
-            setCaptchaFailed(false);
+            captchaWatch.onSolved();
           }}
           onExpire={() => setCaptchaToken(null)}
           onFail={() => {
             setCaptchaToken(null);
-            setCaptchaFailed(true);
+            captchaWatch.onFail();
           }}
+          onActivity={captchaWatch.onActivity}
+          onInteractive={captchaWatch.onInteractive}
         />
-        {captchaFailed ? <p className="text-sm text-rose-600 dark:text-rose-400">{CAPTCHA_LOAD_FAILED}</p> : null}
+        {captchaWatch.failed ? (
+          <p className="text-sm text-rose-600 dark:text-rose-400">{CAPTCHA_LOAD_FAILED}</p>
+        ) : captchaWatch.interactive ? (
+          <p className="text-sm text-zinc-500">{CAPTCHA_INTERACTIVE}</p>
+        ) : null}
         <button
           type="submit"
           disabled={submitBlocked(busy, captchaToken)}

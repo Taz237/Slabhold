@@ -2,10 +2,10 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
-import { Captcha, type CaptchaHandle } from "@/components/captcha";
+import { useRef, useState } from "react";
+import { Captcha, useCaptchaWatch, type CaptchaHandle } from "@/components/captcha";
 import { Logo } from "@/components/logo";
-import { CAPTCHA_LOAD_FAILED, releaseCaptcha, submitBlocked, turnstileSiteKey } from "@/lib/auth/captcha";
+import { CAPTCHA_INTERACTIVE, CAPTCHA_LOAD_FAILED, releaseCaptcha, submitBlocked, turnstileSiteKey } from "@/lib/auth/captcha";
 import {
   PASSWORD_RESET_EXPIRED,
   PASSWORD_RESET_FAILED,
@@ -20,25 +20,11 @@ export function ForgotPasswordForm() {
   const expired = useSearchParams().get("expired") === "1";
   const captchaRef = useRef<CaptchaHandle>(null);
   const [email, setEmail] = useState("");
-  const [captchaToken, setCaptchaTokenState] = useState<string | null>(null);
-  const [captchaFailed, setCaptchaFailed] = useState(false);
-  const captchaTokenRef = useRef<string | null>(null);
-  function setCaptchaToken(token: string | null) {
-    captchaTokenRef.current = token;
-    setCaptchaTokenState(token);
-  }
-  const [busy, setBusy] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [sent, setSent] = useState(false);
+  const captchaWatch = useCaptchaWatch(!sent && turnstileSiteKey().length > 0, captchaToken);
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (sent || captchaToken || !turnstileSiteKey()) return;
-    const timer = window.setTimeout(() => {
-      if (captchaTokenRef.current) return;
-      setCaptchaFailed(true);
-    }, 15_000);
-    return () => window.clearTimeout(timer);
-  }, [sent, captchaToken]);
 
   function showError(message: string) {
     setError(message);
@@ -117,15 +103,21 @@ export function ForgotPasswordForm() {
             ref={captchaRef}
             onToken={(token) => {
               setCaptchaToken(token);
-              setCaptchaFailed(false);
+              captchaWatch.onSolved();
             }}
             onExpire={() => setCaptchaToken(null)}
             onFail={() => {
               setCaptchaToken(null);
-              setCaptchaFailed(true);
+              captchaWatch.onFail();
             }}
+            onActivity={captchaWatch.onActivity}
+            onInteractive={captchaWatch.onInteractive}
           />
-          {captchaFailed ? <p className="text-sm text-rose-600 dark:text-rose-400">{CAPTCHA_LOAD_FAILED}</p> : null}
+          {captchaWatch.failed ? (
+            <p className="text-sm text-rose-600 dark:text-rose-400">{CAPTCHA_LOAD_FAILED}</p>
+          ) : captchaWatch.interactive ? (
+            <p className="text-sm text-zinc-500">{CAPTCHA_INTERACTIVE}</p>
+          ) : null}
           <button
             type="submit"
             disabled={submitBlocked(busy, captchaToken)}

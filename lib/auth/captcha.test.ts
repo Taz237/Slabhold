@@ -8,8 +8,15 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { Captcha } from "../../components/captcha";
 import { remoteSignIn, remoteSignUp } from "../social/remote";
 import {
+  CAPTCHA_INTERACTIVE,
   CAPTCHA_LOAD_FAILED,
   CAPTCHA_RETRY,
+  captchaOnActivity,
+  captchaOnFail,
+  captchaOnInteractive,
+  captchaOnSilence,
+  captchaOnToken,
+  captchaWatchIdle,
   releaseCaptcha,
   submitBlocked,
   turnstileSiteKey,
@@ -112,7 +119,13 @@ describe("captcha submit gate", () => {
       assert.equal(turnstileSiteKey(), "");
       assert.equal(submitBlocked(false, null), false);
       const html = renderToStaticMarkup(
-        createElement(Captcha, { onToken() {}, onExpire() {}, onFail() {} }),
+        createElement(Captcha, {
+          onToken() {},
+          onExpire() {},
+          onFail() {},
+          onActivity() {},
+          onInteractive() {},
+        }),
       );
       assert.equal(html, "");
     });
@@ -123,10 +136,12 @@ describe("captcha submit gate", () => {
     assert.match(captcha, /size: "flexible"/);
     assert.match(captcha, /onSuccess=\{onToken\}/);
     assert.match(captcha, /onExpire\(\)/);
-    assert.match(captcha, /onWidgetLoad=\{\(\) => \{\s*onExpire\(\);\s*\}\}/);
-    assert.match(captcha, /onBeforeInteractive=\{\(\) => \{\s*onExpire\(\);\s*\}\}/);
+    assert.match(captcha, /onWidgetLoad=\{\(\) => \{\s*onExpire\(\);\s*onActivity\(\);\s*\}\}/);
+    assert.match(captcha, /onBeforeInteractive=\{\(\) => \{\s*onExpire\(\);\s*onInteractive\(true\);\s*\}\}/);
+    assert.match(captcha, /onAfterInteractive=\{\(\) => \{\s*onInteractive\(false\);\s*\}\}/);
     assert.match(captcha, /onError=\{\(\) => \{\s*onExpire\(\);\s*onFail\(\);\s*\}\}/);
-    assert.match(captcha, /onTimeout=\{\(\) => \{\s*onExpire\(\);\s*onFail\(\);\s*\}\}/);
+    assert.match(captcha, /onTimeout=\{\(\) => \{\s*onExpire\(\);\s*\}\}/);
+    assert.doesNotMatch(captcha, /onTimeout=\{[^}]*onFail/);
     assert.match(captcha, /onUnsupported=\{onFail\}/);
     assert.match(captcha, /scriptOptions=\{\{ onError: onFail \}\}/);
     assert.match(captcha, /return \(\) => \{\s*onExpireRef\.current\(\);\s*\};/);
@@ -247,18 +262,56 @@ describe("captcha load failure", () => {
       CAPTCHA_LOAD_FAILED,
       "We couldn't load the security check. Turn off ad blockers for this site or try another browser, then reload.",
     );
+    assert.equal(CAPTCHA_INTERACTIVE, "Tap the box above to confirm you're human.");
+
+    const idle = captchaWatchIdle();
+    assert.equal(captchaOnSilence(idle).failed, true);
+
+    const live = captchaOnActivity(idle);
+    assert.equal(live.armed, false);
+    assert.equal(captchaOnSilence(live).failed, false);
+
+    const waiting = captchaOnInteractive(idle, true);
+    assert.equal(waiting.interactive, true);
+    assert.equal(waiting.failed, false);
+    assert.equal(waiting.armed, false);
+    assert.equal(captchaOnSilence(waiting), waiting);
+    assert.equal(captchaOnSilence(captchaOnActivity(waiting)).failed, false);
+
+    const solved = captchaOnInteractive(waiting, false);
+    assert.equal(solved.interactive, false);
+    assert.equal(solved.failed, false);
+    assert.equal(solved.armed, true);
+    assert.equal(captchaOnSilence(solved).failed, true);
+    assert.equal(captchaOnToken().failed, false);
+    assert.equal(captchaOnFail().failed, true);
+    assert.equal(captchaOnFail().interactive, false);
 
     const captcha = read("components/captcha.tsx");
     assert.match(captcha, /onFail: \(\) => void/);
+    assert.match(captcha, /onActivity: \(\) => void/);
+    assert.match(captcha, /onInteractive: \(waiting: boolean\) => void/);
+    assert.match(captcha, /15_000/);
+    assert.match(captcha, /if \(!enabled \|\| token \|\| !watch\.armed\) return/);
+    assert.match(captcha, /setWatch\(\(current\) => captchaOnSilence\(current\)\);/);
 
     for (const path of ["components/auth-form.tsx", "components/forgot-password-form.tsx"]) {
       const source = read(path);
       assert.match(source, /async function submit\(e: React\.FormEvent\) \{\s*if \(submitBlocked\(busy, captchaToken\)\) return;/);
       assert.match(source, /key=\{pathname\}/);
-      assert.match(source, /onFail=\{\(\) => \{\s*setCaptchaToken\(null\);\s*setCaptchaFailed\(true\);\s*\}\}/);
-      assert.match(source, /\{captchaFailed \? <p className="text-sm text-rose-600 dark:text-rose-400">\{CAPTCHA_LOAD_FAILED\}<\/p> : null\}/);
-      assert.match(source, /15_000/);
-      assert.match(source, /if \(captchaTokenRef\.current\) return;\s*setCaptchaFailed\(true\);/);
+      assert.match(source, /useCaptchaWatch\(/);
+      assert.match(source, /onActivity=\{captchaWatch\.onActivity\}/);
+      assert.match(source, /onInteractive=\{captchaWatch\.onInteractive\}/);
+      assert.match(
+        source,
+        /onToken=\{\(token\) => \{\s*setCaptchaToken\(token\);\s*captchaWatch\.onSolved\(\);\s*\}\}/,
+      );
+      assert.match(source, /onFail=\{\(\) => \{\s*setCaptchaToken\(null\);\s*captchaWatch\.onFail\(\);\s*\}\}/);
+      assert.match(source, /captchaWatch\.failed \? \(/);
+      assert.match(source, /\{CAPTCHA_LOAD_FAILED\}/);
+      assert.match(source, /captchaWatch\.interactive \? \(/);
+      assert.match(source, /\{CAPTCHA_INTERACTIVE\}/);
+      assert.doesNotMatch(source, /captchaWatch\.interactive[\s\S]*CAPTCHA_LOAD_FAILED/);
     }
 
     const privacy = read("app/privacy/page.tsx");
