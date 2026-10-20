@@ -6,6 +6,7 @@ import { Check, X } from "lucide-react";
 import {
   checklistDismissKey,
   checklistNewUserKey,
+  followStepLabel,
   storedNewUserFlag,
   type ChecklistState,
   type ChecklistStepId,
@@ -69,11 +70,13 @@ export function useRememberNewUser(userId: string | null, wasNewOnLoad: boolean 
 
 export function GetStartedCard({
   state,
+  followingCount,
   onDismiss,
   onFollow,
   onPost,
 }: {
   state: ChecklistState;
+  followingCount: number;
   onDismiss: () => void;
   onFollow: () => void;
   onPost: () => void;
@@ -99,7 +102,9 @@ export function GetStartedCard({
             const inner = (
               <>
                 <StepMark done={complete} />
-                <span className={complete ? "text-zinc-400" : "font-medium"}>{step.label}</span>
+                <span className={complete ? "text-zinc-400" : "font-medium"}>
+                  {step.id === "follow" ? followStepLabel(followingCount) : step.label}
+                </span>
               </>
             );
             if (step.id === "card") {

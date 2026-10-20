@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Share } from "lucide-react";
+import { trackEvent } from "@/lib/analytics";
 
 function absoluteUrl(path: string) {
   return new URL(path, window.location.origin).href;
@@ -58,6 +59,7 @@ function useShare(path: string, title: string) {
   async function share(event: React.MouseEvent<HTMLButtonElement>) {
     event.preventDefault();
     event.stopPropagation();
+    trackEvent("share_clicked");
     let result: Awaited<ReturnType<typeof shareLink>>;
     try {
       result = await shareLink(path, title);

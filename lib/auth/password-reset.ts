@@ -5,8 +5,6 @@ export const PASSWORD_RESET_SENT =
 
 export const PASSWORD_RESET_EXPIRED = "That link expired. Send a new one.";
 
-export const PASSWORD_RESET_RATE_LIMITED = "Too many tries. Wait a minute and try again.";
-
 export const PASSWORD_RESET_FAILED = "Couldn't send the reset link. Try again.";
 
 /** Supabase redirectTo. The query is left unencoded so the allow list can match it. */
@@ -55,10 +53,11 @@ function isRateLimited(error: { message?: string; status?: number; code?: string
 
 /**
  * Null means the send can show the public success copy.
- * The provider message is never returned.
+ * A rate limit uses that same copy so the response does not reveal whether
+ * the email has an account. The provider message is never returned.
  */
 export function passwordResetSendError(error: PasswordResetError): string | null {
   if (!error) return null;
-  if (isRateLimited(error)) return PASSWORD_RESET_RATE_LIMITED;
+  if (isRateLimited(error)) return null;
   return PASSWORD_RESET_FAILED;
 }

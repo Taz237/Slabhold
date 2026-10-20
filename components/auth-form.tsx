@@ -2,10 +2,12 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Logo } from "@/components/logo";
 import { useSocial } from "@/components/social-provider";
+import { trackEvent } from "@/lib/analytics";
 import { afterAuthPath, loginPath, safeNext, signupPath } from "@/lib/auth/safe-next";
+import { readStoredUtm } from "@/lib/utm";
 
 export function AuthForm({ mode }: { mode: "login" | "signup" }) {
   const router = useRouter();
@@ -21,6 +23,11 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
+  useEffect(() => {
+    if (mode !== "signup") return;
+    trackEvent("signup_started");
+  }, [mode]);
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
@@ -35,6 +42,7 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
       setError(result.error);
       return;
     }
+    if (mode === "signup") trackEvent("signup_completed", readStoredUtm());
     if (result.notice) {
       setMessage(result.notice);
       return;

@@ -43,18 +43,23 @@ export function countLoadedPosts(posts: { authorId: string }[], userId: string):
   return total;
 }
 
-/** For You until they follow someone. A brand-new account always starts on For You. */
+const FOLLOW_GOAL = 3;
+
+/** For You until they follow 3 collectors, so one follow does not open an empty feed. */
 export function defaultHomeTab(input: { followingCount: number; cardCount: number }): HomeTab {
-  if (isNewUser(input)) return "foryou";
-  if (input.followingCount > 0) return "following";
+  if (input.followingCount >= FOLLOW_GOAL) return "following";
   return "foryou";
+}
+
+export function followStepLabel(followingCount: number): string {
+  const count = Number.isFinite(followingCount) ? Math.max(0, Math.floor(followingCount)) : 0;
+  const shown = Math.min(count, FOLLOW_GOAL);
+  return `Follow ${FOLLOW_GOAL} collectors (${shown} of ${FOLLOW_GOAL})`;
 }
 
 export function checklistDismissKey(userId: string) {
   return `slabhold.get-started.dismissed.${userId}`;
 }
-
-const FOLLOW_GOAL = 3;
 
 export function checklistState(input: {
   cardCount: number;

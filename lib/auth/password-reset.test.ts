@@ -6,7 +6,6 @@ import { isAuthPage } from "./guest-paths";
 import {
   PASSWORD_RESET_EXPIRED,
   PASSWORD_RESET_FAILED,
-  PASSWORD_RESET_RATE_LIMITED,
   PASSWORD_RESET_SENT,
   authConfirmFailurePath,
   passwordResetRedirect,
@@ -30,10 +29,6 @@ describe("password reset", () => {
       "If that email has an account, we sent a reset link.",
     );
     assert.equal(PASSWORD_RESET_EXPIRED, "That link expired. Send a new one.");
-    assert.equal(
-      PASSWORD_RESET_RATE_LIMITED,
-      "Too many tries. Wait a minute and try again.",
-    );
   });
 
   it("sends a failed recovery link to the request form and keeps signup on log in", () => {
@@ -71,26 +66,28 @@ describe("password reset", () => {
     );
   });
 
-  it("shows a rate limit or a generic failure without echoing the provider", () => {
+  it("shows the sent message for a rate limit so an account cannot be confirmed", () => {
     const hidden = "No user found for that email";
     const failed = passwordResetSendError({ message: hidden, status: 400 });
     assert.equal(failed, PASSWORD_RESET_FAILED);
     assert.equal(failed?.includes("user found"), false);
     assert.equal(
       passwordResetSendError({ message: "Email rate limit exceeded", status: 429 }),
-      PASSWORD_RESET_RATE_LIMITED,
+      null,
     );
     assert.equal(
       passwordResetSendError({ code: "over_email_send_rate_limit", message: hidden }),
-      PASSWORD_RESET_RATE_LIMITED,
+      null,
     );
     assert.equal(
       passwordResetSendError({
         message: "For security purposes, you can only request this after 60 seconds.",
       }),
-      PASSWORD_RESET_RATE_LIMITED,
+      null,
     );
     assert.equal(passwordResetSendError(null), null);
+    const source = readFileSync(join(process.cwd(), "lib/auth/password-reset.ts"), "utf8");
+    assert.equal(source.includes("Too many tries"), false);
   });
 
   it("lets signed-out visitors open forgot and reset password", () => {

@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Logo } from "@/components/logo";
+import { trackEvent } from "@/lib/analytics";
 
 const SHOTS = [
   { src: "/landing/1.png", label: "The timeline", width: 860, height: 1860 },
@@ -31,12 +32,14 @@ export function LandingPage() {
         <div className="mt-8 space-y-3">
           <Link
             href="/signup"
+            onClick={() => trackEvent("landing_cta_clicked", { button: "signup" })}
             className="block w-full rounded-full bg-[#7C3AED] py-3.5 text-center text-[15px] font-semibold text-white"
           >
             Sign up
           </Link>
           <Link
             href="/login"
+            onClick={() => trackEvent("landing_cta_clicked", { button: "login" })}
             className="block w-full rounded-full border border-white/15 py-3.5 text-center text-[15px] font-semibold text-white"
           >
             Log in

@@ -10,6 +10,7 @@ import {
   useState,
 } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { trackEvent } from "@/lib/analytics";
 import { activityFrom, emptyActivity, loadActivity, saveActivity, type ActivityStore } from "@/lib/social/activity";
 import {
   loadOrCreateLocalDb,
@@ -426,6 +427,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
         try {
           const result = await remoteCreatePost(client, snapshot.user.id, input);
           if (!result.error) {
+            trackEvent("post_created");
             await refreshRemote(client);
             if (result.notice) setStatus(result.notice);
           }
@@ -437,7 +439,10 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       const current = localRef.current;
       if (!current) return { error: "Still loading." };
       const result = localCreatePost(current, input);
-      if (!result.error) commitLocal(result.db);
+      if (!result.error) {
+        commitLocal(result.db);
+        trackEvent("post_created");
+      }
       return { error: result.error };
     },
     [commitLocal, mode, refreshRemote, snapshot.user],

@@ -125,6 +125,7 @@ export function FeedView() {
       {started.visible ? (
         <GetStartedCard
           state={started}
+          followingCount={following}
           onDismiss={dismiss}
           onFollow={openCollectors}
           onPost={focusComposer}

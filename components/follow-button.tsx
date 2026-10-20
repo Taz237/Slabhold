@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useSocial } from "@/components/social-provider";
+import { trackEvent } from "@/lib/analytics";
 import { signupPath } from "@/lib/auth/safe-next";
 
 const followButton =
@@ -40,6 +41,7 @@ export function FollowButton({ userId }: { userId: string }) {
         event.preventDefault();
         event.stopPropagation();
         if (busy.current) return;
+        if (!following) trackEvent("follow_clicked");
         busy.current = true;
         setOptimistic(!following);
         void toggleFollow(userId).finally(() => {

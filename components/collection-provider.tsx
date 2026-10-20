@@ -10,6 +10,7 @@ import {
   useState,
 } from "react";
 import { useSocial } from "@/components/social-provider";
+import { trackEvent } from "@/lib/analytics";
 import { mergeCategories } from "@/lib/card-category";
 import { loadUserCards, removeUserCard, saveUserCard } from "@/lib/social/cards";
 import { loadCollection, newId, nextAccent, saveCollection } from "@/lib/storage";
@@ -142,6 +143,7 @@ export function CollectionProvider({ children }: { children: React.ReactNode }) 
           });
         }
       }
+      trackEvent("card_added");
       return card;
     },
     [enqueue, remote, report, userId],

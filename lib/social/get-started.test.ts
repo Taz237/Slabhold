@@ -7,6 +7,7 @@ import {
   checklistNewUserKey,
   checklistState,
   defaultHomeTab,
+  followStepLabel,
   isNewUser,
   isRecentAccount,
   storedNewUserFlag,
@@ -47,17 +48,29 @@ describe("isRecentAccount", () => {
 });
 
 describe("defaultHomeTab", () => {
-  it("opens For You for a brand-new account", () => {
+  it("opens For You until they follow 3 collectors", () => {
     assert.equal(defaultHomeTab({ followingCount: 0, cardCount: 0 }), "foryou");
+    assert.equal(defaultHomeTab({ followingCount: 1, cardCount: 0 }), "foryou");
+    assert.equal(defaultHomeTab({ followingCount: 2, cardCount: 4 }), "foryou");
   });
 
-  it("opens Following once they follow someone", () => {
-    assert.equal(defaultHomeTab({ followingCount: 2, cardCount: 0 }), "following");
-    assert.equal(defaultHomeTab({ followingCount: 1, cardCount: 4 }), "following");
+  it("opens Following once they follow 3 collectors", () => {
+    assert.equal(defaultHomeTab({ followingCount: 3, cardCount: 0 }), "following");
+    assert.equal(defaultHomeTab({ followingCount: 4, cardCount: 1 }), "following");
   });
 
   it("stays on For You when they have cards but follow nobody", () => {
     assert.equal(defaultHomeTab({ followingCount: 0, cardCount: 3 }), "foryou");
+  });
+});
+
+describe("followStepLabel", () => {
+  it("shows how many of the 3 follows are done", () => {
+    assert.equal(followStepLabel(0), "Follow 3 collectors (0 of 3)");
+    assert.equal(followStepLabel(1), "Follow 3 collectors (1 of 3)");
+    assert.equal(followStepLabel(2), "Follow 3 collectors (2 of 3)");
+    assert.equal(followStepLabel(3), "Follow 3 collectors (3 of 3)");
+    assert.equal(followStepLabel(8), "Follow 3 collectors (3 of 3)");
   });
 });
 
@@ -151,8 +164,9 @@ describe("home wiring", () => {
     assert.match(card, /checklistNewUserKey\(userId\)/);
     assert.match(card, /localStorage\.setItem\(key, wasNewOnLoad \? "1" : "0"\)/);
     assert.match(card, /Add your first card/);
-    assert.match(card, /Follow 3 collectors/);
+    assert.match(card, /followStepLabel\(followingCount\)/);
     assert.match(card, /Make your first post/);
+    assert.match(feed, /followingCount=\{following\}/);
     assert.match(card, /href="\/cards\/new"/);
     assert.match(card, /localStorage/);
     assert.match(card, /aria-label="Dismiss"/);

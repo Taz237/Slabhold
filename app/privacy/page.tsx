@@ -33,12 +33,18 @@ export default function PrivacyPolicyPage() {
         eBay sold-listing lookups. Those requests send card details (player, year, set, number,
         parallel, serial, and grade) to Trawl. They do not send your email, username, or account id.
       </p>
+      <p>
+        We use Vercel Web Analytics and Speed Insights to count page views and measure performance,
+        with no ads and no cross-site tracking.
+      </p>
       <h2 className="pt-2 text-lg font-bold tracking-tight">Cookies and this browser</h2>
       <p>
         Signing in stores the login session in cookies. This browser&apos;s local storage keeps the
         posts you liked, recent searches, whether you dismissed the daily collection summary, and
-        the PC or Flipping category for a card. Liking, reposting, or deleting a post also saves
-        the comments, reposts, and notifications loaded at that moment. A scan or a photo for a
+        the PC or Flipping category for a card. If you open Slabhold from a campaign link, this
+        browser keeps that link&apos;s source, medium, and campaign for 7 days. Liking, reposting,
+        or deleting a post also saves the comments, reposts, and notifications loaded at that
+        moment. A scan or a photo for a
         post is held in session storage until the next screen reads it. If Supabase is not
         connected, the account and collection stay in this browser.
       </p>

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown, ImagePlus, Plus, X } from "lucide-react";
 import { createMailDayPost } from "@/app/mail-day/actions";
+import { trackEvent } from "@/lib/analytics";
 import { outlineButton, solidButton } from "@/components/button-styles";
 import { CardSearch } from "@/components/card-search";
 import { CategoryPicker } from "@/components/category-picker";
@@ -78,6 +79,11 @@ function blankCard(): MailDayDraftCard & { key: string; open: boolean; parallelN
 }
 
 type Section = ReturnType<typeof blankCard>;
+
+function trackAddedCards(count: number) {
+  const total = Math.max(0, Math.min(MAIL_DAY_MAX_CARDS, Math.floor(count)));
+  for (let index = 0; index < total; index += 1) trackEvent("card_added");
+}
 
 function sectionDraft(section: Section): MailDayDraftCard {
   return {
@@ -214,11 +220,14 @@ export function MailDayForm() {
         );
         setError(result.error);
         if (result.cardSaved) {
+          trackAddedCards(result.cardIds.length);
           setSavedCardIds(result.cardIds);
           reload();
         }
         return;
       }
+      trackAddedCards(result.cardIds.length);
+      trackEvent("post_created");
       allowLeave.current = true;
       reload();
       await refresh();
