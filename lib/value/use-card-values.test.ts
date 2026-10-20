@@ -3,7 +3,13 @@ import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { join } from "node:path";
 import type { CardValueResult } from "./types";
-import { CARD_VALUES_RETRY_MS, cardValuesAfterFailure } from "./use-card-values";
+import {
+  CARD_VALUES_RETRY_MS,
+  CARD_VALUES_TIMEOUT_MS,
+  PRICE_CHECK_LIMIT_MESSAGE,
+  cardValuesAfterFailure,
+  loadCardValuesSession,
+} from "./use-card-values";
 
 const jordan: CardValueResult = {
   status: "ok",
@@ -35,5 +41,73 @@ describe("useCardValues failure", () => {
     assert.match(catchBlock, /cardValuesAfterFailure\(current\)/);
     assert.match(catchBlock, /CARD_VALUES_RETRY_MS/);
     assert.equal(catchBlock.includes("setValues(emptyMap)"), false);
+  });
+
+  it("a fetch that never resolves ends with loading false and error true", async () => {
+    let fetches = 0;
+    const previous = new Map<string, CardValueResult>([["jordan-love", jordan]]);
+    const session = loadCardValuesSession({
+      key: "jordan-love",
+      previous,
+      timeoutMs: 30,
+      retryMs: 20,
+      fetchImpl: (_input, init) => {
+        fetches += 1;
+        return new Promise((_resolve, reject) => {
+          const fail = () => {
+            const error = new Error("aborted");
+            error.name = "AbortError";
+            reject(error);
+          };
+          if (init?.signal?.aborted) {
+            fail();
+            return;
+          }
+          init?.signal?.addEventListener("abort", fail);
+        });
+      },
+    });
+    const result = await session.done;
+    assert.equal(result.loading, false);
+    assert.equal(result.error, true);
+    assert.equal(result.values, previous);
+    assert.equal(result.values.get("jordan-love")?.median, 35);
+    assert.equal(fetches, 1);
+    assert.equal(CARD_VALUES_TIMEOUT_MS, 10_000);
+  });
+
+  it("does not retry a 429", async () => {
+    let fetches = 0;
+    const session = loadCardValuesSession({
+      key: "jordan-love",
+      previous: new Map(),
+      retryMs: 20,
+      fetchImpl: async () => {
+        fetches += 1;
+        return new Response(JSON.stringify({ error: "limited" }), { status: 429 });
+      },
+    });
+    const result = await session.done;
+    await new Promise((resolve) => setTimeout(resolve, 80));
+    assert.equal(fetches, 1);
+    assert.equal(result.loading, false);
+    assert.equal(result.error, true);
+    assert.equal(result.message, PRICE_CHECK_LIMIT_MESSAGE);
+  });
+
+  it("sends Retry-After on card-value 429s and does not mention sold comps", () => {
+    const route = readFileSync(join(process.cwd(), "app/api/card-values/route.ts"), "utf8");
+    const wants = readFileSync(join(process.cwd(), "app/api/wants/route.ts"), "utf8");
+    assert.match(route, /export const maxDuration = 15/);
+    assert.match(wants, /export const maxDuration = 15/);
+    assert.equal((route.match(/"Retry-After": "60"/g) ?? []).length, 1);
+    assert.match(route, /Too many price checks\. Try again in a minute\./);
+    assert.equal(route.toLowerCase().includes("sold comps"), false);
+    const dashboard = readFileSync(join(process.cwd(), "components/dashboard.tsx"), "utf8");
+    const invested = dashboard.slice(
+      dashboard.indexOf('label="Total invested"'),
+      dashboard.indexOf('label="Estimated value"'),
+    );
+    assert.equal(invested.includes("loading={valuesLoading}"), false);
   });
 });

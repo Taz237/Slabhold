@@ -2,9 +2,11 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
 import { Logo } from "@/components/logo";
 import { trackEvent } from "@/lib/analytics";
+import { landingLoginHref, landingSignupHref, safeNext } from "@/lib/auth/safe-next";
 
 const SHOTS = [
   { src: "/landing/1.png", label: "The timeline", width: 860, height: 1860 },
@@ -29,22 +31,9 @@ export function LandingPage() {
           Track your slabs, see real sold prices, post your mail days, and follow collectors.
         </p>
 
-        <div className="mt-8 space-y-3">
-          <Link
-            href="/signup"
-            onClick={() => trackEvent("landing_cta_clicked", { button: "signup" })}
-            className="block w-full rounded-full bg-[#7C3AED] py-3.5 text-center text-[15px] font-semibold text-white"
-          >
-            Sign up
-          </Link>
-          <Link
-            href="/login"
-            onClick={() => trackEvent("landing_cta_clicked", { button: "login" })}
-            className="block w-full rounded-full border border-white/15 py-3.5 text-center text-[15px] font-semibold text-white"
-          >
-            Log in
-          </Link>
-        </div>
+        <Suspense fallback={<LandingActions next="/" />}>
+          <LandingActionsFromSearch />
+        </Suspense>
 
         <div className="mt-10 flex gap-4 overflow-x-auto pb-2">
           {SHOTS.map((shot) => (
@@ -67,6 +56,32 @@ export function LandingPage() {
           </Link>
         </footer>
       </div>
+    </div>
+  );
+}
+
+function LandingActionsFromSearch() {
+  const next = safeNext(useSearchParams().get("next"));
+  return <LandingActions next={next} />;
+}
+
+export function LandingActions({ next }: { next: string }) {
+  return (
+    <div className="mt-8 space-y-3">
+      <Link
+        href={landingSignupHref(next)}
+        onClick={() => trackEvent("landing_cta_clicked", { button: "signup" })}
+        className="block w-full rounded-full bg-[#7C3AED] py-3.5 text-center text-[15px] font-semibold text-white"
+      >
+        Sign up
+      </Link>
+      <Link
+        href={landingLoginHref(next)}
+        onClick={() => trackEvent("landing_cta_clicked", { button: "login" })}
+        className="block w-full rounded-full border border-white/15 py-3.5 text-center text-[15px] font-semibold text-white"
+      >
+        Log in
+      </Link>
     </div>
   );
 }

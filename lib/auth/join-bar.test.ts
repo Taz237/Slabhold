@@ -30,6 +30,12 @@ describe("join bar", () => {
     const profile = renderJoinBar(false, "/u/sam");
     assert.match(profile, /data-join-bar/);
     assert.match(profile, /href="\/signup\?next=%2Fu%2Fsam"/);
+
+    const search = renderToStaticMarkup(
+      createElement(JoinBarView, { pathname: "/search?q=wemby" }),
+    );
+    assert.match(search, /href="\/signup\?next=%2Fsearch%3Fq%3Dwemby"/);
+    assert.match(search, /href="\/login\?next=%2Fsearch%3Fq%3Dwemby"/);
   });
 
   it("does not render when signed in", () => {

@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
+import { join } from "node:path";
 import type { CardValueResult } from "@/lib/value/types";
 import { summarizeWants, type WantCardRef } from "./summary-pick";
 
@@ -39,6 +41,17 @@ const ownCopy: WantCardRef = {
 };
 
 describe("want summaries", () => {
+  it("returns before other queries when there are no wants and loads the rest together", () => {
+    const source = readFileSync(join(process.cwd(), "lib/wants/summary.ts"), "utf8");
+    const early = source.indexOf("if (wants.length === 0) return [];");
+    const ownCards = source.indexOf('.from("cards")');
+    const parallel = source.indexOf("Promise.all");
+    assert.ok(early > 0);
+    assert.ok(ownCards > early);
+    assert.ok(parallel > early);
+    assert.ok(source.indexOf("Promise.all", parallel + 1) > parallel);
+  });
+
   it("returns value null for a want pointing at another user's private card", () => {
     const values = new Map([[privateOther.id, value(40)]]);
     const prices = new Map([[privateOther.id, 20]]);

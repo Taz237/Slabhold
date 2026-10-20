@@ -86,6 +86,14 @@ function remember(cards: Map<string, LoadedCard>, row: CardRow) {
   if (!prev || loaded.ref.isPublic) cards.set(loaded.ref.id, loaded);
 }
 
+type RowQuery = PromiseLike<{ data: unknown; error: { message: string } | null }>;
+
+async function rowsOrThrow(query: RowQuery): Promise<CardRow[]> {
+  const { data, error } = await query;
+  if (error) throw new Error(error.message);
+  return (data ?? []) as CardRow[];
+}
+
 /** The signed-in user's wants with current value and a deal flag. No Trawl. */
 export async function listWantSummaries(userId: string): Promise<WantSummary[]> {
   const admin = createSupabaseAdmin();
@@ -108,24 +116,17 @@ export async function listWantSummaries(userId: string): Promise<WantSummary[]> 
   if (wants.length === 0) return [];
 
   const cards = new Map<string, LoadedCard>();
-  const { data: ownRows, error: ownError } = await admin
-    .from("cards")
-    .select("*")
-    .eq("user_id", userId);
-  if (ownError) throw new Error(ownError.message);
-  for (const row of (ownRows ?? []) as CardRow[]) remember(cards, row);
-
   const sourceIds = [
     ...new Set(wants.map((want) => want.sourceCardId).filter((id): id is string => Boolean(id))),
   ];
-  if (sourceIds.length > 0) {
-    const { data: publicRows, error: publicError } = await admin
-      .from("public_cards")
-      .select("*")
-      .in("id", sourceIds);
-    if (publicError) throw new Error(publicError.message);
-    for (const row of (publicRows ?? []) as CardRow[]) remember(cards, row);
-  }
+  const [ownRows, sourceRows] = await Promise.all([
+    rowsOrThrow(admin.from("cards").select("*").eq("user_id", userId)),
+    sourceIds.length > 0
+      ? rowsOrThrow(admin.from("public_cards").select("*").in("id", sourceIds))
+      : Promise.resolve([] as CardRow[]),
+  ]);
+  for (const row of ownRows) remember(cards, row);
+  for (const row of sourceRows) remember(cards, row);
 
   const refs = () => [...cards.values()].map((card) => card.ref);
   const unresolvedPlayers = new Set<string>();
@@ -135,13 +136,13 @@ export async function listWantSummaries(userId: string): Promise<WantSummary[]> 
     if (player) unresolvedPlayers.add(player);
   }
 
-  for (const player of unresolvedPlayers) {
-    const { data: publicRows, error: publicError } = await admin
-      .from("public_cards")
-      .select("*")
-      .ilike("player", player);
-    if (publicError) throw new Error(publicError.message);
-    for (const row of (publicRows ?? []) as CardRow[]) remember(cards, row);
+  const playerLists = await Promise.all(
+    [...unresolvedPlayers].map((player) =>
+      rowsOrThrow(admin.from("public_cards").select("*").ilike("player", player)),
+    ),
+  );
+  for (const rows of playerLists) {
+    for (const row of rows) remember(cards, row);
   }
 
   const visibleRefs = refs();
@@ -152,22 +153,39 @@ export async function listWantSummaries(userId: string): Promise<WantSummary[]> 
         .filter((id): id is string => Boolean(id)),
     ),
   ];
-  const values: Map<string, CardValueResult> = chosenIds.length
-    ? await getCardValues(chosenIds)
-    : new Map();
+  const [values, latestPriceByCardId] = await Promise.all([
+    chosenIds.length ? getCardValues(chosenIds) : Promise.resolve(new Map<string, CardValueResult>()),
+    latestPricesFor(chosenIds, cards),
+  ]);
 
-  const latestPriceByCardId = new Map<string, number | null>();
-  const priceByQuery = new Map<string, number | null>();
+  return summarizeWants(userId, wants, visibleRefs, values, latestPriceByCardId);
+}
+
+async function latestPricesFor(
+  chosenIds: string[],
+  cards: Map<string, LoadedCard>,
+): Promise<Map<string, number | null>> {
+  const queryKeyByCardId = new Map<string, string>();
+  const uniqueKeys = new Set<string>();
   for (const id of chosenIds) {
     const loaded = cards.get(id);
     if (!loaded) continue;
     const queryKey = buildQueryKey(loaded.sold);
-    if (!priceByQuery.has(queryKey)) {
-      const sales = await readLatestSoldComps(queryKey);
-      priceByQuery.set(queryKey, latestPrice(sales));
-    }
-    latestPriceByCardId.set(id, priceByQuery.get(queryKey) ?? null);
+    queryKeyByCardId.set(id, queryKey);
+    uniqueKeys.add(queryKey);
   }
 
-  return summarizeWants(userId, wants, visibleRefs, values, latestPriceByCardId);
+  const priceByQuery = new Map<string, number | null>();
+  await Promise.all(
+    [...uniqueKeys].map(async (queryKey) => {
+      const sales = await readLatestSoldComps(queryKey);
+      priceByQuery.set(queryKey, latestPrice(sales));
+    }),
+  );
+
+  const latestPriceByCardId = new Map<string, number | null>();
+  for (const [id, queryKey] of queryKeyByCardId) {
+    latestPriceByCardId.set(id, priceByQuery.get(queryKey) ?? null);
+  }
+  return latestPriceByCardId;
 }

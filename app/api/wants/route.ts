@@ -2,6 +2,7 @@ import { getAuthUserId } from "@/lib/supabase/server";
 import { listWantSummaries } from "@/lib/wants/summary";
 
 export const runtime = "nodejs";
+export const maxDuration = 15;
 
 /** The signed-in user's want list with values and deal flags. Never calls Trawl. */
 export async function GET() {

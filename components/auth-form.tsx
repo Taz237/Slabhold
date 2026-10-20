@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import { Logo } from "@/components/logo";
 import { useSocial } from "@/components/social-provider";
 import { trackEvent } from "@/lib/analytics";
-import { afterAuthPath, loginPath, safeNext, signupPath } from "@/lib/auth/safe-next";
+import { afterAuthPath, authLogoHref, loginPath, safeNext, signupPath } from "@/lib/auth/safe-next";
 import { readStoredUtm } from "@/lib/utm";
 
 export function AuthForm({ mode }: { mode: "login" | "signup" }) {
@@ -81,7 +81,7 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
 
   return (
     <div className="mx-auto max-w-md">
-      <Link href="/" className="mb-8 flex items-center gap-2">
+      <Link href={authLogoHref(next)} className="mb-8 flex items-center gap-2">
         <Logo />
         <span className="text-[17px] font-bold tracking-tight">Slabhold</span>
       </Link>

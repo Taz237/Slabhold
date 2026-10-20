@@ -75,6 +75,7 @@ export function Dashboard() {
     values,
     loading: valuesLoading,
     error: valuesError,
+    errorMessage: valuesMessage,
     retry: retryValues,
   } = useCardValues(cardIds);
   const valuesFailed = valuesError && !valuesLoading;
@@ -165,13 +166,16 @@ export function Dashboard() {
           value={investedAmountLabel(investedAmount)}
           hint={investedLabel}
           tone={paidCount > 0 ? undefined : "neutral"}
-          loading={valuesLoading}
         />
         <Stat
           label="Estimated value"
           value={valuesFailed ? "" : money(collectionValue)}
           hint={valuesFailed ? "" : valueHint}
-          message={valuesFailed ? <ValuesRetry onRetry={retryValues} /> : undefined}
+          message={
+            valuesFailed ? (
+              <ValuesRetry onRetry={retryValues} detail={valuesMessage} />
+            ) : undefined
+          }
           loading={valuesLoading}
         />
         <Stat
@@ -179,7 +183,11 @@ export function Dashboard() {
           value={valuesFailed ? "" : profitAmountLabel(pricedCount, profitTotal)}
           hint={valuesFailed || profitLabel === "—" ? "" : profitLabel}
           tone={profitTone}
-          message={valuesFailed ? <ValuesRetry onRetry={retryValues} /> : undefined}
+          message={
+            valuesFailed ? (
+              <ValuesRetry onRetry={retryValues} detail={valuesMessage} />
+            ) : undefined
+          }
           loading={valuesLoading}
         />
       </section>
@@ -392,10 +400,16 @@ export function Dashboard() {
   );
 }
 
-function ValuesRetry({ onRetry }: { onRetry: () => void }) {
+function ValuesRetry({
+  onRetry,
+  detail,
+}: {
+  onRetry: () => void;
+  detail?: string | null;
+}) {
   return (
     <p>
-      Couldn&apos;t load values.{" "}
+      {detail ?? "Couldn't load values."}{" "}
       <button type="button" onClick={onRetry} className="font-semibold underline">
         Retry
       </button>

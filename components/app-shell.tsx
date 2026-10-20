@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useEffect } from "react";
 import { Bell, Camera, CircleUser, Compass, Ellipsis, Mail, Search, WalletCards } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { useSocial } from "@/components/social-provider";
@@ -12,7 +12,7 @@ import { JoinBar } from "@/components/join-bar";
 import { LandingPage } from "@/components/landing-page";
 import { isAuthPage, isGuestContentPage, shouldShowJoinBar } from "@/lib/auth/guest-paths";
 import { clearLogoutHome, logoutHomePending } from "@/lib/auth/logout-home";
-import { signupPath } from "@/lib/auth/safe-next";
+import { pathWithQuery, signupPath } from "@/lib/auth/safe-next";
 import type { Profile } from "@/lib/social/types";
 
 const TABS = [
@@ -197,7 +197,17 @@ function AuthLayout({ children }: { children: React.ReactNode }) {
 }
 
 function GuestGate() {
-  const path = usePathname() || "/";
+  return (
+    <Suspense fallback={<div className="min-h-dvh bg-[var(--background)]" />}>
+      <GuestRedirect />
+    </Suspense>
+  );
+}
+
+function GuestRedirect() {
+  const pathname = usePathname() || "/";
+  const search = useSearchParams().toString();
+  const path = pathWithQuery(pathname, search);
   const router = useRouter();
 
   useEffect(() => {

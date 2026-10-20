@@ -56,6 +56,28 @@ export function loginPath(pathname: string): string {
   return `/login?next=${encodeURIComponent(safeNext(pathname))}`;
 }
 
+/** Landing signup. Home (including a rejected next) stays a plain /signup link. */
+export function landingSignupHref(next: string): string {
+  return next === "/" ? "/signup" : signupPath(next);
+}
+
+/** Landing login. Home (including a rejected next) stays a plain /login link. */
+export function landingLoginHref(next: string): string {
+  return next === "/" ? "/login" : loginPath(next);
+}
+
+/** Auth screen logo. A real return path is kept on the landing page. */
+export function authLogoHref(next: string): string {
+  return next === "/" ? "/" : `/?next=${encodeURIComponent(next)}`;
+}
+
+/** Pathname plus the current query string. safeNext still checks the result. */
+export function pathWithQuery(pathname: string, search: string): string {
+  const path = pathname || "/";
+  const query = search.replace(/^\?/, "");
+  return query ? `${path}?${query}` : path;
+}
+
 /** Drop auth screens so a successful login does not bounce forever. */
 export function afterAuthPath(next: string | null | undefined): string {
   const safe = safeNext(next);

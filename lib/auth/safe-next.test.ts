@@ -4,7 +4,11 @@ import { describe, it } from "node:test";
 import { join } from "node:path";
 import {
   afterAuthPath,
+  authLogoHref,
   emailConfirmRedirect,
+  landingLoginHref,
+  landingSignupHref,
+  pathWithQuery,
   safeNext,
   signupPath,
 } from "./safe-next";
@@ -34,6 +38,36 @@ describe("safeNext", () => {
   it("allows a url inside the query string", () => {
     assert.equal(safeNext("/search?q=http://x"), "/search?q=http://x");
     assert.equal(safeNext("/http://evil.com"), "/");
+  });
+
+  it("keeps a safe next through the landing page and drops a bad one", () => {
+    assert.equal(landingSignupHref("/collection"), "/signup?next=%2Fcollection");
+    assert.equal(landingLoginHref("/collection"), "/login?next=%2Fcollection");
+    assert.equal(landingSignupHref("/"), "/signup");
+    assert.equal(landingLoginHref("/"), "/login");
+    assert.equal(landingSignupHref(safeNext("https://evil.com")), "/signup");
+    assert.equal(landingSignupHref(safeNext("//evil.com")), "/signup");
+    assert.equal(authLogoHref("/u/x"), "/?next=%2Fu%2Fx");
+    assert.equal(authLogoHref("/"), "/");
+    assert.equal(
+      signupPath(pathWithQuery("/search", "q=wemby")),
+      "/signup?next=%2Fsearch%3Fq%3Dwemby",
+    );
+    assert.equal(safeNext(pathWithQuery("/search", "q=%2F%2Fevil.com")), "/");
+
+    const root = process.cwd();
+    const landing = readFileSync(join(root, "components/landing-page.tsx"), "utf8");
+    const auth = readFileSync(join(root, "components/auth-form.tsx"), "utf8");
+    const shell = readFileSync(join(root, "components/app-shell.tsx"), "utf8");
+    const joinBar = readFileSync(join(root, "components/join-bar.tsx"), "utf8");
+    assert.match(landing, /safeNext\(useSearchParams\(\)\.get\("next"\)\)/);
+    assert.match(landing, /landingSignupHref\(next\)/);
+    assert.match(landing, /landingLoginHref\(next\)/);
+    assert.match(landing, /<Suspense/);
+    assert.match(auth, /authLogoHref\(next\)/);
+    assert.match(shell, /pathWithQuery\(pathname, search\)/);
+    assert.match(shell, /signupPath\(path\)/);
+    assert.match(joinBar, /pathWithQuery\(pathname, search\)/);
   });
 });
 

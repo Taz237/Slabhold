@@ -16,17 +16,24 @@ type WantItem = {
   deal: boolean;
 };
 
+const WANT_LIST_TIMEOUT_MS = 10_000;
+
 export function WantList() {
   const [wants, setWants] = useState<WantItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (signal?: AbortSignal) => {
     setLoading(true);
     setError(null);
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), WANT_LIST_TIMEOUT_MS);
+    const onAbort = () => controller.abort();
+    signal?.addEventListener("abort", onAbort);
     try {
-      const response = await fetch("/api/wants");
+      const response = await fetch("/api/wants", { signal: controller.signal });
       const payload = (await response.json()) as { wants?: WantItem[]; error?: string };
+      if (signal?.aborted) return;
       if (!response.ok) {
         setError(payload.error ?? "Couldn't load your want list.");
         setWants([]);
@@ -34,15 +41,20 @@ export function WantList() {
       }
       setWants(payload.wants ?? []);
     } catch {
+      if (signal?.aborted) return;
       setError("Couldn't load your want list.");
       setWants([]);
     } finally {
-      setLoading(false);
+      window.clearTimeout(timeout);
+      signal?.removeEventListener("abort", onAbort);
+      if (!signal?.aborted) setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    void load();
+    const controller = new AbortController();
+    void load(controller.signal);
+    return () => controller.abort();
   }, [load]);
 
   async function remove(id: string) {

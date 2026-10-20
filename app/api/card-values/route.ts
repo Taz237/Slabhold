@@ -1,8 +1,6 @@
 import {
-  ANON_RATE_LIMIT_MESSAGE,
   consumeAnonymousCardValueLimit,
   consumeCardValueLimit,
-  RATE_LIMIT_MESSAGE,
 } from "@/lib/comps/rate-limit";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { getAuthUserId } from "@/lib/supabase/server";
@@ -15,6 +13,17 @@ import { getCardValues } from "@/lib/value/getCardValue";
 import type { CardValueResult } from "@/lib/value/types";
 
 export const runtime = "nodejs";
+export const maxDuration = 15;
+
+const PRICE_CHECK_LIMIT_MESSAGE =
+  "Too many price checks. Try again in a minute.";
+
+function priceCheckLimited(): Response {
+  return Response.json(
+    { error: PRICE_CHECK_LIMIT_MESSAGE },
+    { status: 429, headers: { "Retry-After": "60" } },
+  );
+}
 
 /**
  * Read trusted card values (card_values only — never Trawl).
@@ -28,14 +37,10 @@ export async function GET(request: Request) {
   const userId = await getAuthUserId();
   if (userId) {
     const allowed = await consumeCardValueLimit(userId);
-    if (!allowed) {
-      return Response.json({ error: RATE_LIMIT_MESSAGE }, { status: 429 });
-    }
+    if (!allowed) return priceCheckLimited();
   } else {
     const allowed = await consumeAnonymousCardValueLimit(request);
-    if (!allowed) {
-      return Response.json({ error: ANON_RATE_LIMIT_MESSAGE }, { status: 429 });
-    }
+    if (!allowed) return priceCheckLimited();
   }
 
   const { searchParams } = new URL(request.url);

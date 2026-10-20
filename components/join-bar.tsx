@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { loginPath, signupPath } from "@/lib/auth/safe-next";
+import { usePathname, useSearchParams } from "next/navigation";
+import { Suspense } from "react";
+import { loginPath, pathWithQuery, signupPath } from "@/lib/auth/safe-next";
 
 export function JoinBarView({ pathname }: { pathname: string }) {
   return (
@@ -30,5 +31,14 @@ export function JoinBarView({ pathname }: { pathname: string }) {
 
 export function JoinBar() {
   const pathname = usePathname() || "/";
-  return <JoinBarView pathname={pathname} />;
+  return (
+    <Suspense fallback={<JoinBarView pathname={pathname} />}>
+      <JoinBarLinks pathname={pathname} />
+    </Suspense>
+  );
+}
+
+function JoinBarLinks({ pathname }: { pathname: string }) {
+  const search = useSearchParams().toString();
+  return <JoinBarView pathname={pathWithQuery(pathname, search)} />;
 }
