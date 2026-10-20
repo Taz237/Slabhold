@@ -38,6 +38,7 @@ export default function PrivacyPolicyPage() {
         with no ads and no cross-site tracking. Page views record the page type (no usernames, ids
         or search text) plus the referrer, country and device type.
       </p>
+      <p>We use Cloudflare Turnstile on sign-in forms to block bots.</p>
       <h2 className="pt-2 text-lg font-bold tracking-tight">Cookies and this browser</h2>
       <p>
         Signing in stores the login session in cookies. This browser&apos;s local storage keeps the

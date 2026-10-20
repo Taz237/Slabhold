@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { captchaRetryMessage } from "@/lib/auth/captcha";
 import { emailConfirmRedirect } from "@/lib/auth/safe-next";
 import { uploadMedia } from "@/lib/supabase/media";
 import { sanitizeAttachedCard } from "./card-posts";
@@ -448,9 +449,10 @@ export async function remoteSignUp(
         typeof window === "undefined"
           ? undefined
           : emailConfirmRedirect(window.location.origin, input.next),
+      captchaToken: input.captchaToken,
     },
   });
-  if (error) return { error: usernameTakenMessage(error) ?? error.message };
+  if (error) return { error: usernameTakenMessage(error) ?? captchaRetryMessage(error) ?? error.message };
   let session = data.session;
   if (!session) {
     const { data: stored } = await supabase.auth.getSession();
@@ -478,12 +480,14 @@ export async function remoteSignIn(
   supabase: SupabaseClient,
   email: string,
   password: string,
+  captchaToken?: string,
 ): Promise<AuthResult> {
   const { error } = await supabase.auth.signInWithPassword({
     email: email.trim(),
     password,
+    options: { captchaToken },
   });
-  if (error) return { error: error.message };
+  if (error) return { error: captchaRetryMessage(error) ?? error.message };
   return {};
 }
 

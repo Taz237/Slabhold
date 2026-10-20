@@ -90,7 +90,10 @@ describe("email confirm next", () => {
     const remote = readFileSync(join(root, "lib/social/remote.ts"), "utf8");
     const confirm = readFileSync(join(root, "lib/auth/confirm-request.ts"), "utf8");
     assert.match(auth, /safeNext\(params\.get\("next"\)\)/);
-    assert.match(auth, /signUp\(\{ email, password, username, displayName, next \}\)/);
+    assert.match(
+      auth,
+      /signUp\(\{ email, password, username, displayName, next, captchaToken: captchaToken \?\? undefined \}\)/,
+    );
     assert.match(remote, /emailConfirmRedirect\(/);
     assert.match(confirm, /safeNext\(url\.searchParams\.get\("next"\)\)/);
     assert.match(readFileSync(join(root, "app/auth/callback/route.ts"), "utf8"), /handleAuthConfirm/);

@@ -155,6 +155,8 @@ export type SignUpInput = {
   displayName: string;
   /** Where to return after email confirmation. */
   next?: string;
+  /** Cloudflare Turnstile token. Omitted when the site key is not set. */
+  captchaToken?: string;
 };
 
 export type ProfilePatch = {

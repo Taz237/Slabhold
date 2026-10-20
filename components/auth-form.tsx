@@ -2,10 +2,12 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { Captcha, type CaptchaHandle } from "@/components/captcha";
 import { Logo } from "@/components/logo";
 import { useSocial } from "@/components/social-provider";
 import { trackEvent } from "@/lib/analytics";
+import { releaseCaptcha, submitBlocked } from "@/lib/auth/captcha";
 import { afterAuthPath, authLogoHref, loginPath, safeNext, signupPath } from "@/lib/auth/safe-next";
 import { readStoredUtm } from "@/lib/utm";
 
@@ -15,10 +17,12 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
   const { ready, user, mode: accountMode, signIn, signUp } = useSocial();
   const next = safeNext(params.get("next"));
   const destination = afterAuthPath(next);
+  const captchaRef = useRef<CaptchaHandle>(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [username, setUsername] = useState("");
   const [displayName, setDisplayName] = useState("");
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -35,11 +39,12 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
     setMessage(null);
     const result =
       mode === "login"
-        ? await signIn(email, password)
-        : await signUp({ email, password, username, displayName, next });
+        ? await signIn(email, password, captchaToken ?? undefined)
+        : await signUp({ email, password, username, displayName, next, captchaToken: captchaToken ?? undefined });
     setBusy(false);
     if (result.error) {
       setError(result.error);
+      releaseCaptcha(captchaRef.current, () => setCaptchaToken(null));
       return;
     }
     if (mode === "signup") trackEvent("signup_completed", readStoredUtm());
@@ -108,9 +113,14 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
         ) : null}
         {error ? <p className="text-sm text-rose-600 dark:text-rose-400">{error}</p> : null}
         {message ? <p className="text-sm text-zinc-600 dark:text-zinc-300">{message}</p> : null}
+        <Captcha
+          ref={captchaRef}
+          onToken={(token) => setCaptchaToken(token)}
+          onExpire={() => setCaptchaToken(null)}
+        />
         <button
           type="submit"
-          disabled={busy}
+          disabled={submitBlocked(busy, captchaToken)}
           className="w-full rounded-full bg-[#7C3AED] py-3 text-sm font-semibold text-white disabled:opacity-60"
         >
           {mode === "login" ? "Log in" : "Sign up"}

@@ -2,23 +2,32 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { Captcha, type CaptchaHandle } from "@/components/captcha";
 import { Logo } from "@/components/logo";
+import { releaseCaptcha, submitBlocked } from "@/lib/auth/captcha";
 import {
   PASSWORD_RESET_EXPIRED,
   PASSWORD_RESET_FAILED,
   PASSWORD_RESET_SENT,
-  passwordResetRedirect,
+  passwordResetEmailOptions,
   passwordResetSendError,
 } from "@/lib/auth/password-reset";
 import { createSupabaseBrowser } from "@/lib/supabase/browser";
 
 export function ForgotPasswordForm() {
   const expired = useSearchParams().get("expired") === "1";
+  const captchaRef = useRef<CaptchaHandle>(null);
   const [email, setEmail] = useState("");
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  function showError(message: string) {
+    setError(message);
+    releaseCaptcha(captchaRef.current, () => setCaptchaToken(null));
+  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -27,20 +36,21 @@ export function ForgotPasswordForm() {
     try {
       const supabase = createSupabaseBrowser();
       if (!supabase) {
-        setError(PASSWORD_RESET_FAILED);
+        showError(PASSWORD_RESET_FAILED);
         return;
       }
-      const { error: resetError } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-        redirectTo: passwordResetRedirect(window.location.origin),
-      });
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(
+        email.trim(),
+        passwordResetEmailOptions(window.location.origin, captchaToken),
+      );
       const message = passwordResetSendError(resetError);
       if (message) {
-        setError(message);
+        showError(message);
         return;
       }
       setSent(true);
     } catch {
-      setError(PASSWORD_RESET_FAILED);
+      showError(PASSWORD_RESET_FAILED);
     } finally {
       setBusy(false);
     }
@@ -78,9 +88,14 @@ export function ForgotPasswordForm() {
             />
           </label>
           {error ? <p className="text-sm text-rose-600 dark:text-rose-400">{error}</p> : null}
+          <Captcha
+            ref={captchaRef}
+            onToken={(token) => setCaptchaToken(token)}
+            onExpire={() => setCaptchaToken(null)}
+          />
           <button
             type="submit"
-            disabled={busy}
+            disabled={submitBlocked(busy, captchaToken)}
             className="w-full rounded-full bg-[#7C3AED] py-3 text-sm font-semibold text-white disabled:opacity-60"
           >
             Send reset link

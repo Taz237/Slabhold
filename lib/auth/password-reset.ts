@@ -1,3 +1,4 @@
+import { captchaRetryMessage } from "@/lib/auth/captcha";
 import { safeNext } from "@/lib/auth/safe-next";
 
 export const PASSWORD_RESET_SENT =
@@ -51,6 +52,13 @@ function isRateLimited(error: { message?: string; status?: number; code?: string
   );
 }
 
+export function passwordResetEmailOptions(origin: string, captchaToken?: string | null) {
+  return {
+    redirectTo: passwordResetRedirect(origin),
+    captchaToken: captchaToken || undefined,
+  };
+}
+
 /**
  * Null means the send can show the public success copy.
  * A rate limit uses that same copy so the response does not reveal whether
@@ -58,6 +66,8 @@ function isRateLimited(error: { message?: string; status?: number; code?: string
  */
 export function passwordResetSendError(error: PasswordResetError): string | null {
   if (!error) return null;
+  const captcha = captchaRetryMessage(error);
+  if (captcha) return captcha;
   if (isRateLimited(error)) return null;
   return PASSWORD_RESET_FAILED;
 }

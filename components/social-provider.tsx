@@ -79,7 +79,7 @@ type SocialContextValue = {
   status: string | null;
   refresh: () => Promise<void>;
   signUp: (input: SignUpInput) => Promise<AuthResult>;
-  signIn: (email: string, password: string) => Promise<AuthResult>;
+  signIn: (email: string, password: string, captchaToken?: string) => Promise<AuthResult>;
   signOut: () => Promise<void>;
   updateProfile: (patch: ProfilePatch) => Promise<AuthResult>;
   toggleFollow: (userId: string) => Promise<void>;
@@ -330,11 +330,11 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
   );
 
   const signIn = useCallback(
-    async (email: string, password: string): Promise<AuthResult> => {
+    async (email: string, password: string, captchaToken?: string): Promise<AuthResult> => {
       const client = supabaseRef.current;
       if (mode === "supabase" && client) {
         try {
-          const result = await remoteSignIn(client, email, password);
+          const result = await remoteSignIn(client, email, password, captchaToken);
           if (!result.error) await refreshRemote(client);
           return result;
         } catch (error) {
