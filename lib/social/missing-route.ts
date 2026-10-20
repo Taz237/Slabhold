@@ -7,6 +7,7 @@ export type MissingCheck =
   | { kind: "post"; id: string }
   | { kind: "profile"; username: string }
   | { kind: "public-card"; username: string; id: string }
+  | { kind: "card-posts"; id: string }
   | { kind: "owner-card"; id: string };
 
 export type SessionRead = "anonymous" | "unknown" | { token: string };
@@ -38,7 +39,11 @@ export function missingCheckForPath(pathname: string): MissingCheck | null {
   if (parts[0] === "u" && parts.length === 4 && parts[2] === "cards") {
     return { kind: "public-card", username: parts[1], id: parts[3] };
   }
-  if (parts[0] === "cards" && (parts.length === 2 || (parts.length === 3 && (parts[2] === "edit" || parts[2] === "posts")))) {
+  if (parts[0] === "cards" && parts.length === 3 && parts[2] === "posts") {
+    if (!isUuid(parts[1])) return null;
+    return { kind: "card-posts", id: parts[1] };
+  }
+  if (parts[0] === "cards" && (parts.length === 2 || (parts.length === 3 && parts[2] === "edit"))) {
     if (!isUuid(parts[1])) return null;
     return { kind: "owner-card", id: parts[1] };
   }
@@ -166,8 +171,30 @@ export async function pathIsMissing(input: {
     return cards != null && cards.length === 0;
   }
 
-  if (session === "unknown") return false;
-  if (session === "anonymous") return true;
+  if (check.kind === "card-posts") {
+    const publicRows = await restRows(
+      url,
+      key,
+      `public_cards?id=eq.${encodeURIComponent(check.id)}&select=id`,
+      key,
+      fetchImpl,
+    );
+    if (publicRows == null || publicRows.length > 0) return false;
+    if (session === "unknown") return false;
+    if (session === "anonymous") return true;
+    const owned = await restRows(
+      url,
+      key,
+      `cards?id=eq.${encodeURIComponent(check.id)}&select=id`,
+      session.token,
+      fetchImpl,
+    );
+    return owned != null && owned.length === 0;
+  }
+
+  // Signed-out visitors reach /cards/:id and /cards/:id/edit so AppShell can
+  // send them to /signup?next=… A signed-in non-owner still 404s.
+  if (session === "unknown" || session === "anonymous") return false;
   const rows = await restRows(
     url,
     key,

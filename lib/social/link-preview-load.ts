@@ -1,6 +1,8 @@
 import "server-only";
 
 import { cache } from "react";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { getSupabaseConfig } from "@/lib/supabase/client";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { wantLabel } from "@/lib/wants/label";
 import { formatCardValueLabel, marketValueAmount } from "@/lib/value/format";
@@ -18,10 +20,19 @@ import { normalizeUsername } from "./local-db";
 import { cardShareImage, mailDayPhotoUrls, postShareImage } from "./share-image";
 import { createSupabaseServer, getAuthUserId } from "@/lib/supabase/server";
 
+/** Share images are cached on a public CDN, so this client never reads cookies. */
+function createAnonReader(): SupabaseClient | null {
+  const { url, anonKey, configured } = getSupabaseConfig();
+  if (!configured) return null;
+  return createClient(url, anonKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+}
+
 async function publicCardCount(
   userId: string,
 ): Promise<number | null> {
-  const supabase = await createSupabaseServer();
+  const supabase = createAnonReader();
   if (!supabase) return null;
   const { count, error } = await supabase
     .from("public_cards")
@@ -33,7 +44,7 @@ async function publicCardCount(
 
 /** Logged-out readers only see public_cards, so a missing row stays generic. */
 export const loadPublicCardPreview = cache(async (id: string): Promise<LinkPreview> => {
-  const supabase = await createSupabaseServer();
+  const supabase = createAnonReader();
   if (!supabase || !isUuid(id)) return cardLinkPreview({ isPublic: false });
 
   const { data, error } = await supabase
@@ -62,7 +73,7 @@ async function previewValueLabel(
 }
 
 export const loadProfilePreview = cache(async (username: string): Promise<LinkPreview> => {
-  const supabase = await createSupabaseServer();
+  const supabase = createAnonReader();
   const normalized = normalizeUsername(username);
   if (!supabase || !normalized) return profileLinkPreview({ found: false });
 
@@ -112,7 +123,7 @@ function snapshotCardId(card: unknown): string | null {
 }
 
 export const loadPostPreview = cache(async (id: string): Promise<LinkPreview> => {
-  const supabase = await createSupabaseServer();
+  const supabase = createAnonReader();
   if (!supabase || !isUuid(id)) return postLinkPreview({ found: false });
 
   const { data, error } = await supabase
@@ -196,7 +207,7 @@ async function publicPrice(cardId: string): Promise<{ amount: string; sales: num
 /** Card image. A private card keeps its photo and name, and never a value. */
 export const loadCardShareImage = cache(async (id: string) => {
   if (!isUuid(id)) return cardShareImage({ found: false });
-  const supabase = await createSupabaseServer();
+  const supabase = createAnonReader();
   if (supabase) {
     const { data, error } = await supabase
       .from("public_cards")
@@ -269,7 +280,7 @@ function linkedCardIds(card: unknown, meta: unknown): string[] {
 
 /** Post image. Card name and Slabhold value are included only when that card is public. */
 export const loadPostShareImage = cache(async (id: string) => {
-  const supabase = await createSupabaseServer();
+  const supabase = createAnonReader();
   if (!supabase || !isUuid(id)) return postShareImage({ found: false });
 
   const { data, error } = await supabase

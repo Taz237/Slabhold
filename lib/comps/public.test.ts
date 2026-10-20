@@ -343,6 +343,68 @@ describe("getPublicCardComps", () => {
     assert.equal(JSON.stringify(result).includes("50000"), false);
   });
 
+  it("drops the owner's newest flagged sale and keeps the 3 newest that remain", async () => {
+    const key = publicCardQueryKey(identityRow());
+    const latest = "2026-10-18T00:00:00.000Z";
+    const sale = (price: number, soldAt: string, itemId: string): Row => ({
+      query_key: key,
+      fetched_at: latest,
+      price,
+      sold_at: soldAt,
+      grade: "10",
+      grader: "PSA",
+      item_id: itemId,
+      title: "SECRET listing title",
+      url: `https://www.ebay.com/itm/${itemId}`,
+      seller: "hidden-shop",
+      reason: "not-a-match",
+    });
+    const rows = [
+      sale(10, "2026-01-02T00:00:00.000Z", "111"),
+      sale(20, "2026-02-02T00:00:00.000Z", "222"),
+      sale(30, "2026-03-02T00:00:00.000Z", "333"),
+      sale(40, "2026-04-02T00:00:00.000Z", "444"),
+      sale(50, "2026-05-02T00:00:00.000Z", "555"),
+    ];
+    const tables = publicTables(key);
+    tables.sold_comps_cache = rows;
+    tables.cards = [{ id: CARD, user_id: "owner-1" }];
+    tables.comp_flags = [
+      { card_id: CARD, user_id: "owner-1", item_id: "555", reason: "not-a-match" },
+      { card_id: CARD, user_id: "other-user", item_id: "444", reason: "not-a-match" },
+    ];
+
+    const result = await getPublicCardComps(CARD, fakeClient(tables));
+    assert.deepEqual(
+      result.sales.map((row) => row.priceCents),
+      [4000, 3000, 2000],
+    );
+    for (const row of result.sales) {
+      assert.deepEqual(Object.keys(row).sort(), ["grade", "priceCents", "soldAt", "source"]);
+    }
+    const packed = JSON.stringify(result);
+    assert.equal(packed.includes("555"), false);
+    assert.equal(packed.includes("111"), false);
+    assert.equal(packed.includes("not-a-match"), false);
+    assert.equal(packed.includes("item_id"), false);
+    assert.equal(packed.includes("reason"), false);
+    assertNoPrivateFields(result);
+
+    const otherOnly = {
+      ...tables,
+      comp_flags: [{ card_id: CARD, user_id: "other-user", item_id: "555", reason: "not-a-match" }],
+    };
+    const unhidden = await getPublicCardComps(CARD, fakeClient(otherOnly));
+    assert.deepEqual(
+      unhidden.sales.map((row) => row.priceCents),
+      [5000, 4000, 3000],
+    );
+    for (const row of unhidden.sales) {
+      assert.deepEqual(Object.keys(row).sort(), ["grade", "priceCents", "soldAt", "source"]);
+    }
+    assert.equal(JSON.stringify(unhidden).includes("not-a-match"), false);
+  });
+
   it("makes zero Trawl, eBay, refresh, or getSoldComps calls", async () => {
     const source = read("lib/comps/public.ts");
     for (const forbidden of [

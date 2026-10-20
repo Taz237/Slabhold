@@ -243,7 +243,7 @@ async function readPublicCardComps(
   }
 
   const queryKey = storedKey || expectedKey;
-  const sales = await readStoredSales(client, queryKey);
+  const sales = await readStoredSales(client, queryKey, cardKey);
 
   return {
     sales,
@@ -256,9 +256,41 @@ async function readPublicCardComps(
   };
 }
 
+/** Owner flags only. A flag from anyone else leaves the sale on the public list. */
+async function ownerFlaggedItemIds(
+  client: PublicCompsClient,
+  cardId: string,
+): Promise<Set<string>> {
+  const { data: ownerRow, error: ownerError } = await client
+    .from("cards")
+    .select("user_id")
+    .eq("id", cardId)
+    .maybeSingle();
+  if (ownerError) {
+    console.warn("[public-comps] owner read failed:", ownerError.message);
+    return new Set();
+  }
+  const ownerId = ownerRow?.user_id ? String(ownerRow.user_id) : "";
+  if (!ownerId) return new Set();
+
+  const { data, error } = await readRows(
+    client.from("comp_flags").select("item_id").eq("card_id", cardId).eq("user_id", ownerId),
+  );
+  if (error) {
+    console.warn("[public-comps] flag read failed:", error.message);
+    return new Set();
+  }
+  return new Set(
+    (data ?? [])
+      .map((row) => (typeof row.item_id === "string" ? row.item_id : ""))
+      .filter(Boolean),
+  );
+}
+
 async function readStoredSales(
   client: PublicCompsClient,
   queryKey: string,
+  cardId: string,
 ): Promise<PublicCompSale[]> {
   if (!queryKey) return [];
 
@@ -289,11 +321,13 @@ async function readStoredSales(
     console.warn("[public-comps] sale read failed:", error.message);
     return [];
   }
-  return newestStoredSales(data ?? [], 3);
+  const flagged = await ownerFlaggedItemIds(client, cardId);
+  const visible = (data ?? []).filter((row) => !flagged.has(String(row.item_id ?? "")));
+  return newestStoredSales(visible, 3);
 }
 
 /**
- * Stored card_values and sold_comps_cache only.
+ * Stored card_values, sold_comps_cache, and the card owner's comp_flags.
  * Never starts a live listing fetch or a value refresh.
  * Pass `client` from tests to skip the Next cache.
  */

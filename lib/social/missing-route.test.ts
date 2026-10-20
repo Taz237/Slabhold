@@ -20,7 +20,9 @@ describe("missingCheckForPath", () => {
       username: "maya",
       id: CARD,
     });
+    assert.deepEqual(missingCheckForPath(`/cards/${CARD}`), { kind: "owner-card", id: CARD });
     assert.deepEqual(missingCheckForPath(`/cards/${CARD}/edit`), { kind: "owner-card", id: CARD });
+    assert.deepEqual(missingCheckForPath(`/cards/${CARD}/posts`), { kind: "card-posts", id: CARD });
     assert.equal(missingCheckForPath("/cards/new"), null);
     assert.equal(missingCheckForPath(`/posts/${CARD}/opengraph-image`), null);
     assert.equal(missingCheckForPath("/"), null);
@@ -81,15 +83,6 @@ describe("pathIsMissing", () => {
       true,
     );
 
-    assert.equal(
-      await pathIsMissing({
-        pathname: `/cards/${CARD}`,
-        supabaseUrl: URL,
-        anonKey: KEY,
-        cookies: [],
-      }),
-      true,
-    );
   });
 
   it("keeps an owner card when the session token can see it", async () => {
@@ -110,5 +103,100 @@ describe("pathIsMissing", () => {
     });
     assert.equal(found, false);
     assert.equal(auth, "Bearer owner-token");
+
+    const stranger = await pathIsMissing({
+      pathname: `/cards/${CARD}`,
+      supabaseUrl: URL,
+      anonKey: KEY,
+      cookies,
+      fetchImpl: async () => json([]),
+    });
+    assert.equal(stranger, true);
+  });
+
+  it("lets a signed-out visitor through on owner card pages", async () => {
+    assert.equal(
+      await pathIsMissing({
+        pathname: `/cards/${CARD}`,
+        supabaseUrl: URL,
+        anonKey: KEY,
+        cookies: [],
+      }),
+      false,
+    );
+    assert.equal(
+      await pathIsMissing({
+        pathname: `/cards/${CARD}/edit`,
+        supabaseUrl: URL,
+        anonKey: KEY,
+        cookies: [],
+      }),
+      false,
+    );
+  });
+
+  it("keeps public card posts and 404s a private or missing card", async () => {
+    const token = Buffer.from(JSON.stringify({ access_token: "owner-token" }), "utf8").toString("base64url");
+    const cookies = [{ name: "sb-example-auth-token", value: `base64-${token}` }];
+
+    const publicPosts = await pathIsMissing({
+      pathname: `/cards/${CARD}/posts`,
+      supabaseUrl: URL,
+      anonKey: KEY,
+      cookies: [],
+      fetchImpl: async (input) => {
+        const url = String(input);
+        if (url.includes("public_cards")) return json([{ id: CARD }]);
+        return json([]);
+      },
+    });
+    assert.equal(publicPosts, false);
+
+    const signedOutPrivate = await pathIsMissing({
+      pathname: `/cards/${CARD}/posts`,
+      supabaseUrl: URL,
+      anonKey: KEY,
+      cookies: [],
+      fetchImpl: async () => json([]),
+    });
+    assert.equal(signedOutPrivate, true);
+
+    let ownerAuth = "";
+    const ownerPrivate = await pathIsMissing({
+      pathname: `/cards/${CARD}/posts`,
+      supabaseUrl: URL,
+      anonKey: KEY,
+      cookies,
+      fetchImpl: async (input, init) => {
+        const url = String(input);
+        if (url.includes("public_cards")) return json([]);
+        ownerAuth = new Headers(init?.headers).get("authorization") ?? "";
+        return json([{ id: CARD }]);
+      },
+    });
+    assert.equal(ownerPrivate, false);
+    assert.equal(ownerAuth, "Bearer owner-token");
+
+    const stranger = await pathIsMissing({
+      pathname: `/cards/${CARD}/posts`,
+      supabaseUrl: URL,
+      anonKey: KEY,
+      cookies,
+      fetchImpl: async (input) => {
+        const url = String(input);
+        if (url.includes("public_cards")) return json([]);
+        return json([]);
+      },
+    });
+    assert.equal(stranger, true);
+
+    const outage = await pathIsMissing({
+      pathname: `/cards/${CARD}/posts`,
+      supabaseUrl: URL,
+      anonKey: KEY,
+      cookies: [],
+      fetchImpl: async () => json([], 500),
+    });
+    assert.equal(outage, false);
   });
 });

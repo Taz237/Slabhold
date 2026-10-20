@@ -117,7 +117,7 @@ describe("missing record 404", () => {
     );
     callsBefore(
       "app/cards/[id]/posts/page.tsx",
-      "await requireCardPageAccess(id)",
+      "await requireCardPostsAccess(id)",
       "<CardPostsList",
     );
     callsBefore(

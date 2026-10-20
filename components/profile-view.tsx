@@ -20,6 +20,7 @@ import { loginPath, signupPath } from "@/lib/auth/safe-next";
 import { ShareIconButton } from "@/components/share-button";
 import { Tweet } from "@/components/tweet";
 import { normalizeUsername } from "@/lib/social/local-db";
+import { ilikeExact } from "@/lib/social/username-taken";
 import { profileTimeline } from "@/lib/social/timeline";
 import type { PublicCard } from "@/lib/social/types";
 import { formatCardValueLabel, NOT_ENOUGH_SALES_LABEL } from "@/lib/value/format";
@@ -413,7 +414,7 @@ function MissingProfile({
       const { data } = await supabase
         .from("profiles")
         .select("id")
-        .ilike("username", username)
+        .ilike("username", ilikeExact(username))
         .maybeSingle();
       if (cancelled) return;
       if (!data?.id) {

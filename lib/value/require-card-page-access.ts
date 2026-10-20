@@ -55,3 +55,41 @@ export async function requireCardPageAccess(
   const decision = cardPageAccessDecision({ cardId, userId, owned });
   if (decision === "notFound") deps.notFound();
 }
+
+/**
+ * /cards/[id]/posts stays open when a public_cards row exists.
+ * A private card is owner-only. Local ids skip so this device's collection still works.
+ */
+export async function requireCardPostsAccess(cardId: string): Promise<void> {
+  const id = cardId.trim();
+  if (!isUuid(id)) return;
+
+  const admin = createSupabaseAdmin();
+  if (!admin) return;
+
+  const { data: publicRow, error: publicError } = await admin
+    .from("public_cards")
+    .select("id")
+    .eq("id", id)
+    .maybeSingle();
+  if (publicError) {
+    console.warn("[cards/posts] public check failed:", publicError.message);
+    return;
+  }
+  if (publicRow?.id) return;
+
+  const userId = await getAuthUserId();
+  if (!userId) notFound();
+
+  const { data, error } = await admin
+    .from("cards")
+    .select("id")
+    .eq("id", id)
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (error) {
+    console.warn("[cards/posts] ownership check failed:", error.message);
+    return;
+  }
+  if (!data?.id) notFound();
+}

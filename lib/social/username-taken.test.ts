@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, it } from "node:test";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { remoteSignUp, remoteUpdateProfile } from "./remote";
@@ -94,6 +96,9 @@ describe("usernameTakenMessage", () => {
   it("escapes ilike wildcards so the lookup is an exact handle", () => {
     assert.equal(ilikeExact("wax_room"), "wax\\_room");
     assert.equal(ilikeExact("100%"), "100\\%");
+    const profile = readFileSync(join(process.cwd(), "components/profile-view.tsx"), "utf8");
+    assert.match(profile, /ilikeExact\(username\)/);
+    assert.doesNotMatch(profile, /ilike\("username", username\)/);
   });
 });
 
