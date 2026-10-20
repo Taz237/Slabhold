@@ -11,6 +11,7 @@ import { CreateMenu } from "@/components/create-menu";
 import { JoinBar } from "@/components/join-bar";
 import { LandingPage } from "@/components/landing-page";
 import { isAuthPage, isGuestContentPage, shouldShowJoinBar } from "@/lib/auth/guest-paths";
+import { clearLogoutHome, logoutHomePending } from "@/lib/auth/logout-home";
 import { signupPath } from "@/lib/auth/safe-next";
 import type { Profile } from "@/lib/social/types";
 
@@ -200,6 +201,10 @@ function GuestGate() {
   const router = useRouter();
 
   useEffect(() => {
+    if (logoutHomePending()) {
+      router.replace("/");
+      return;
+    }
     router.replace(signupPath(path));
   }, [path, router]);
 
@@ -209,6 +214,10 @@ function GuestGate() {
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() || "/";
   const { unreadCount, unreadMessageCount, ready, user, status } = useSocial();
+
+  useEffect(() => {
+    if (!user && pathname === "/") clearLogoutHome();
+  }, [user, pathname]);
 
   if (!ready) {
     return (

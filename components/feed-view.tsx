@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { Compass, ImagePlus, X } from "lucide-react";
 import { Avatar } from "@/components/avatar";
@@ -15,12 +16,14 @@ import { EmptyState, TimelineSkeleton } from "@/components/status";
 import { CollectionToday } from "@/components/collection-today";
 import { shouldShowFirstCardWelcome } from "@/lib/collection/welcome";
 import { Tweet } from "@/components/tweet";
+import { loginPath } from "@/lib/auth/safe-next";
 import { takeCompose } from "@/lib/capture";
 import { fileToDataUrl } from "@/lib/storage";
 import { publicTimeline } from "@/lib/social/timeline";
 import { POST_LIMIT, type PublicCard } from "@/lib/social/types";
 
 export function FeedView() {
+  const pathname = usePathname() || "/";
   const { ready, user, feed, homePosts, homeReposts, suggestions, profiles, followingCount, refresh } =
     useSocial();
   const { cards, ready: cardsReady, syncError } = useCollection();
@@ -114,7 +117,7 @@ export function FeedView() {
                 Post something
               </Link>
             ) : (
-              <Link href="/login" className={solidButton}>
+              <Link href={loginPath(pathname)} className={solidButton}>
                 Log in
               </Link>
             )}
@@ -162,10 +165,11 @@ function LaneTab({
 }
 
 function SignedOutBanner() {
+  const pathname = usePathname() || "/";
   return (
     <div className="flex items-center justify-between gap-3 border-b border-zinc-200 px-4 py-3 dark:border-white/10">
       <p className="text-[15px]">See what collectors are posting.</p>
-      <Link href="/login" className={solidButton}>
+      <Link href={loginPath(pathname)} className={solidButton}>
         Log in
       </Link>
     </div>

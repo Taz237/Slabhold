@@ -16,7 +16,7 @@ import { unblockAccount } from "@/lib/safety/actions";
 import { createSupabaseBrowser } from "@/lib/supabase/browser";
 import { useCollection } from "@/components/collection-provider";
 import { useSocial } from "@/components/social-provider";
-import { signupPath } from "@/lib/auth/safe-next";
+import { loginPath, signupPath } from "@/lib/auth/safe-next";
 import { ShareIconButton } from "@/components/share-button";
 import { Tweet } from "@/components/tweet";
 import { normalizeUsername } from "@/lib/social/local-db";
@@ -108,10 +108,10 @@ export function ProfileView({ username }: { username?: string }) {
           title="Your profile"
           detail="Sign in to post, follow collectors, and share cards from your book."
         >
-          <Link href="/login" className={solidButton}>
+          <Link href={loginPath(pathname)} className={solidButton}>
             Log in
           </Link>
-          <Link href="/signup" className={outlineButton}>
+          <Link href={signupPath(pathname)} className={outlineButton}>
             Sign up
           </Link>
         </EmptyState>

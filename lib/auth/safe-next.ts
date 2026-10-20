@@ -4,9 +4,13 @@ function hasControls(value: string): boolean {
   return /[\u0000-\u001F\u007F]/.test(value);
 }
 
-/** http:, https:, javascript:, or any other scheme. */
+/**
+ * Scheme on the path only. A query may contain a URL, such as /search?q=http://x.
+ * javascript: and https: on the path itself are still rejected.
+ */
 function hasScheme(value: string): boolean {
-  return /^(?:[a-z][a-z0-9+.-]*:)/i.test(value) || /(?:https?:|javascript:)/i.test(value);
+  const path = value.split("?")[0] ?? "";
+  return /^(?:[a-z][a-z0-9+.-]*:)/i.test(path) || /(?:https?:|javascript:)/i.test(path);
 }
 
 /** Encoded double-slash or encoded backslash, any case. */

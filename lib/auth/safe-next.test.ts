@@ -30,6 +30,11 @@ describe("safeNext", () => {
     assert.equal(safeNext("/%5Cevil.com"), "/");
     assert.equal(safeNext(`/${"a".repeat(512)}`), "/");
   });
+
+  it("allows a url inside the query string", () => {
+    assert.equal(safeNext("/search?q=http://x"), "/search?q=http://x");
+    assert.equal(safeNext("/http://evil.com"), "/");
+  });
 });
 
 describe("email confirm next", () => {
@@ -57,5 +62,39 @@ describe("email confirm next", () => {
     assert.match(readFileSync(join(root, "app/auth/callback/route.ts"), "utf8"), /handleAuthConfirm/);
     assert.match(readFileSync(join(root, "app/auth/confirm/route.ts"), "utf8"), /handleAuthConfirm/);
     assert.match(signupPath("/posts/abc"), /^\/signup\?next=%2Fposts%2Fabc$/);
+  });
+});
+
+describe("logout and plain auth links", () => {
+  it("sends log out to / and keeps the signup gate from stealing it", () => {
+    const root = process.cwd();
+    const more = readFileSync(join(root, "components/more-view.tsx"), "utf8");
+    const shell = readFileSync(join(root, "components/app-shell.tsx"), "utf8");
+    assert.match(more, /markLogoutHome\(\)/);
+    assert.match(more, /router\.replace\("\/"\)/);
+    assert.match(shell, /if \(logoutHomePending\(\)\)/);
+    assert.match(shell, /router\.replace\("\/"\)/);
+  });
+
+  it("adds the current path to plain login and signup links", () => {
+    const root = process.cwd();
+    for (const file of [
+      "components/profile-view.tsx",
+      "components/more-view.tsx",
+      "components/feed-view.tsx",
+    ]) {
+      const source = readFileSync(join(root, file), "utf8");
+      assert.doesNotMatch(source, /href="\/login"/);
+      assert.doesNotMatch(source, /href="\/signup"/);
+      assert.match(source, /loginPath\(pathname\)/);
+    }
+    assert.match(
+      readFileSync(join(root, "components/profile-view.tsx"), "utf8"),
+      /signupPath\(pathname\)/,
+    );
+    assert.match(
+      readFileSync(join(root, "components/more-view.tsx"), "utf8"),
+      /signupPath\(pathname\)/,
+    );
   });
 });

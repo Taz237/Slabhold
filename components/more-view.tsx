@@ -1,15 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Avatar } from "@/components/avatar";
 import { LoadingRows } from "@/components/status";
 import { AdminMoreSection } from "@/components/admin-nav-link";
 import { DeleteAccount } from "@/components/delete-account";
 import { useSocial } from "@/components/social-provider";
+import { markLogoutHome } from "@/lib/auth/logout-home";
+import { loginPath, signupPath } from "@/lib/auth/safe-next";
 
 export function MoreView() {
   const router = useRouter();
+  const pathname = usePathname() || "/";
   const { ready, user, signOut, mode, status } = useSocial();
 
   if (!ready) {
@@ -55,6 +58,7 @@ export function MoreView() {
               <button
                 type="button"
                 onClick={() => {
+                  markLogoutHome();
                   void signOut().then(() => router.replace("/"));
                 }}
                 className="rounded-full border border-zinc-300 px-4 py-2 text-sm font-medium dark:border-white/15"
@@ -65,13 +69,13 @@ export function MoreView() {
           ) : (
             <>
               <Link
-                href="/login"
+                href={loginPath(pathname)}
                 className="rounded-full bg-zinc-900 px-4 py-2 text-sm font-medium text-white dark:bg-zinc-100 dark:text-zinc-950"
               >
                 Log in
               </Link>
               <Link
-                href="/signup"
+                href={signupPath(pathname)}
                 className="rounded-full border border-zinc-300 px-4 py-2 text-sm font-medium dark:border-white/15"
               >
                 Sign up
