@@ -1,15 +1,56 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { ImageResponse } from "next/og";
-import { cleanImageUrl, clipText, type LinkPreview } from "@/lib/social/link-preview";
+import type { ReactNode } from "react";
+import { cleanImageUrl, type LinkPreview } from "@/lib/social/link-preview";
+import {
+  homeShareImage,
+  profileShareImage,
+  type ShareImage,
+} from "@/lib/social/share-image";
 
 export const ogSize = { width: 1200, height: 630 };
 export const ogContentType = "image/png";
 
 const MAX_FETCH_BYTES = 5 * 1024 * 1024;
 
-/** Same `public/logo.svg` the header and favicon use. */
-const logoSrc = `data:image/svg+xml;base64,${readFileSync(join(process.cwd(), "public/logo.svg")).toString("base64")}`;
+function dataUrl(bytes: Buffer, mime: string): string {
+  return `data:${mime};base64,${bytes.toString("base64")}`;
+}
+
+function fontBytes(bytes: Buffer): ArrayBuffer {
+  return Uint8Array.from(bytes).buffer;
+}
+
+/** Site icon (`app/apple-icon.png`), not the SVG slab outline. */
+const iconSrc = dataUrl(
+  readFileSync(join(process.cwd(), "app/apple-icon.png")),
+  "image/png",
+);
+/** Home preview uses the Wemby slab screenshot. */
+const homeShotSrc = dataUrl(
+  readFileSync(join(process.cwd(), "public/landing/2.png")),
+  "image/png",
+);
+
+/**
+ * Glyphs for the image renderer. These files are passed in because that
+ * renderer has no system fonts — missing files show as empty boxes.
+ */
+const ogFonts = [
+  {
+    name: "Geist",
+    data: fontBytes(readFileSync(join(process.cwd(), "assets/og/Geist-Regular.ttf"))),
+    weight: 400 as const,
+    style: "normal" as const,
+  },
+  {
+    name: "Geist",
+    data: fontBytes(readFileSync(join(process.cwd(), "assets/og/Geist-Bold.ttf"))),
+    weight: 700 as const,
+    style: "normal" as const,
+  },
+];
 
 /** Confirm a cleaned image URL. Redirects are not followed. */
 export async function reachableImage(url: string | null): Promise<string | null> {
@@ -41,84 +82,400 @@ export async function reachableImage(url: string | null): Promise<string | null>
   }
 }
 
-export function renderOg(preview: LinkPreview, kicker: string) {
-  const title = clipText(preview.title, 90);
-  const detail = clipText(preview.detail, 80);
-  const titleSize = title.length > 70 ? 40 : title.length > 42 ? 52 : 64;
-  const imageUrl = cleanImageUrl(preview.imageUrl);
+export async function reachableImages(urls: readonly string[]): Promise<string[]> {
+  const found: string[] = [];
+  for (const url of urls) {
+    if (found.length >= 3) break;
+    const safe = await reachableImage(url);
+    if (safe && !found.includes(safe)) found.push(safe);
+  }
+  return found;
+}
 
-  return new ImageResponse(
-    (
+function Brand() {
+  return (
+    <div style={{ display: "flex", alignItems: "center" }}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={iconSrc}
+        alt=""
+        width={56}
+        height={56}
+        style={{ borderRadius: 14 }}
+      />
       <div
         style={{
-          width: "100%",
-          height: "100%",
           display: "flex",
-          background: "#110d1c",
-          color: "#fafafa",
+          marginLeft: 16,
+          fontSize: 28,
+          fontWeight: 700,
+          letterSpacing: 3,
+          color: "#c4b5fd",
         }}
       >
+        SLABHOLD
+      </div>
+    </div>
+  );
+}
+
+function Frame({ children }: { children: ReactNode }) {
+  return (
+    <div
+      style={{
+        width: "100%",
+        height: "100%",
+        display: "flex",
+        background: "#110d1c",
+        color: "#fafafa",
+        fontFamily: "Geist",
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+function Left({ children }: { children: ReactNode }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "space-between",
+        flex: 1,
+        height: "100%",
+        padding: "56px 40px 56px 64px",
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+function LargePhoto({ src }: { src: string }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        width: 440,
+        height: "100%",
+        alignItems: "center",
+        justifyContent: "center",
+        paddingRight: 48,
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          borderRadius: 28,
+          overflow: "hidden",
+          boxShadow: "0 18px 44px rgba(0,0,0,0.45)",
+        }}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={src} alt="" width={360} height={480} style={{ objectFit: "cover" }} />
+      </div>
+    </div>
+  );
+}
+
+function PhotoFallback() {
+  return (
+    <div
+      style={{
+        display: "flex",
+        width: 440,
+        height: "100%",
+        alignItems: "center",
+        justifyContent: "center",
+        paddingRight: 48,
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          width: 360,
+          height: 480,
+          borderRadius: 28,
+          background: "#2e1065",
+          border: "2px solid rgba(196,181,253,0.45)",
+          alignItems: "center",
+          justifyContent: "center",
+          flexDirection: "column",
+        }}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={iconSrc} alt="" width={96} height={96} style={{ borderRadius: 24 }} />
         <div
           style={{
             display: "flex",
-            flexDirection: "column",
-            justifyContent: "space-between",
-            flex: 1,
-            padding: "64px",
+            marginTop: 22,
+            fontSize: 22,
+            fontWeight: 700,
+            letterSpacing: 3,
+            color: "#c4b5fd",
           }}
         >
-          <div style={{ display: "flex", alignItems: "center" }}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={logoSrc} alt="" width={48} height={48} style={{ marginRight: 16 }} />
-            <div style={{ display: "flex", fontSize: 28, letterSpacing: 3, color: "#c4b5fd" }}>
-              SLABHOLD
-            </div>
-          </div>
+          SLABHOLD
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Fan({ photos }: { photos: string[] }) {
+  const tilts = photos.length === 2 ? [-8, 8] : [-12, 0, 12];
+  const width = photos.length === 1 ? 280 : photos.length === 2 ? 210 : 176;
+  const height = photos.length === 1 ? 380 : photos.length === 2 ? 286 : 246;
+  return (
+    <div
+      style={{
+        display: "flex",
+        width: 520,
+        height: "100%",
+        alignItems: "center",
+        justifyContent: "center",
+        paddingRight: 36,
+      }}
+    >
+      {photos.map((src, index) => (
+        <div
+          key={`${index}-${src.slice(0, 24)}`}
+          style={{
+            display: "flex",
+            marginLeft: index === 0 ? 0 : photos.length === 3 ? -48 : -36,
+            transform: `rotate(${tilts[index] ?? 0}deg)`,
+            borderRadius: 22,
+            overflow: "hidden",
+            border: "3px solid rgba(255,255,255,0.18)",
+            boxShadow: "0 16px 36px rgba(0,0,0,0.45)",
+          }}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={src} alt="" width={width} height={height} style={{ objectFit: "cover" }} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function PhoneShot() {
+  return (
+    <div
+      style={{
+        display: "flex",
+        width: 360,
+        height: "100%",
+        alignItems: "center",
+        justifyContent: "center",
+        paddingRight: 52,
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          width: 268,
+          height: 548,
+          padding: 8,
+          borderRadius: 36,
+          background: "#1b1530",
+          border: "2px solid rgba(196,181,253,0.55)",
+          boxShadow: "0 22px 48px rgba(0,0,0,0.5)",
+        }}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={homeShotSrc}
+          alt=""
+          width={252}
+          height={532}
+          style={{ objectFit: "cover", borderRadius: 28 }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function lines(text: string, size: number, weight: number, color: string, clamp: number) {
+  return (
+    <div
+      style={{
+        display: "block",
+        fontSize: size,
+        fontWeight: weight,
+        lineHeight: 1.2,
+        lineClamp: clamp,
+        color,
+        letterSpacing: size >= 48 ? -1 : 0,
+      }}
+    >
+      {text}
+    </div>
+  );
+}
+
+function respond(node: ReactNode) {
+  return new ImageResponse(<Frame>{node}</Frame>, {
+    ...ogSize,
+    fonts: ogFonts,
+  });
+}
+
+export function renderOg(model: ShareImage) {
+  const imageUrl = cleanImageUrl(model.imageUrl);
+  const photos = model.photos
+    .map((url) => cleanImageUrl(url))
+    .filter((url): url is string => Boolean(url))
+    .slice(0, 3);
+
+  if (model.kind === "home") {
+    return respond(
+      <div style={{ display: "flex", width: "100%", height: "100%" }}>
+        <Left>
+          <Brand />
           <div style={{ display: "flex", flexDirection: "column" }}>
-            <div style={{ display: "flex", fontSize: 22, color: "#a1a1aa", marginBottom: 16 }}>
-              {kicker}
+            <div style={{ display: "flex", fontSize: 22, color: "#a1a1aa", marginBottom: 18 }}>
+              {model.kicker}
             </div>
-            <div
-              style={{
-                display: "flex",
-                fontSize: titleSize,
-                fontWeight: 700,
-                lineHeight: 1.15,
-                letterSpacing: -1,
-              }}
-            >
-              {title}
-            </div>
-            {detail ? (
-              <div style={{ display: "flex", marginTop: 24, fontSize: 34, color: "#e4e4e7" }}>
-                {detail}
+            {lines(model.title, 76, 700, "#fafafa", 3)}
+            {model.detail ? (
+              <div style={{ display: "flex", marginTop: 22, fontSize: 30, color: "#e4e4e7" }}>
+                {model.detail}
               </div>
             ) : null}
           </div>
-        </div>
-        {imageUrl ? (
-          <div
-            style={{
-              display: "flex",
-              width: 460,
-              height: "100%",
-              alignItems: "center",
-              justifyContent: "center",
-              padding: 48,
-            }}
-          >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={imageUrl}
-              alt=""
-              width={360}
-              height={480}
-              style={{ objectFit: "cover", borderRadius: 28 }}
-            />
+        </Left>
+        <PhoneShot />
+      </div>,
+    );
+  }
+
+  if (model.kind === "card") {
+    return respond(
+      <div style={{ display: "flex", width: "100%", height: "100%" }}>
+        <Left>
+          <Brand />
+          <div style={{ display: "flex", flexDirection: "column" }}>
+            {lines(model.player || "Card", 58, 700, "#fafafa", 2)}
+            {model.yearSet ? (
+              <div style={{ display: "flex", marginTop: 16, fontSize: 30, color: "#e4e4e7" }}>
+                {model.yearSet}
+              </div>
+            ) : null}
+            {model.grade ? (
+              <div style={{ display: "flex", marginTop: 8, fontSize: 28, color: "#c4b5fd" }}>
+                {model.grade}
+              </div>
+            ) : null}
+            {model.showValue && model.valueLabel ? (
+              <div style={{ display: "flex", flexDirection: "column", marginTop: 32 }}>
+                <div
+                  style={{
+                    display: "flex",
+                    fontSize: 64,
+                    fontWeight: 700,
+                    letterSpacing: -1,
+                  }}
+                >
+                  {model.valueLabel}
+                </div>
+                {model.salesLabel ? (
+                  <div style={{ display: "flex", marginTop: 10, fontSize: 26, color: "#a1a1aa" }}>
+                    {model.salesLabel}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
           </div>
-        ) : null}
-      </div>
-    ),
-    { ...ogSize },
+        </Left>
+        {imageUrl ? <LargePhoto src={imageUrl} /> : <PhotoFallback />}
+      </div>,
+    );
+  }
+
+  const side =
+    model.kind === "mail" && photos.length > 0 ? (
+      <Fan photos={photos} />
+    ) : imageUrl ? (
+      <LargePhoto src={imageUrl} />
+    ) : model.photoFallback ? (
+      <PhotoFallback />
+    ) : null;
+
+  return respond(
+    <div style={{ display: "flex", width: "100%", height: "100%" }}>
+      <Left>
+        <Brand />
+        <div style={{ display: "flex", flexDirection: "column" }}>
+          {model.kind === "profile" ? (
+            <div style={{ display: "flex", fontSize: 22, color: "#a1a1aa", marginBottom: 16 }}>
+              {model.kicker}
+            </div>
+          ) : null}
+          {model.authorName || model.authorHandle ? (
+            <div style={{ display: "flex", flexDirection: "column", marginBottom: 18 }}>
+              {model.authorName ? (
+                <div style={{ display: "flex", fontSize: 34, fontWeight: 700 }}>{model.authorName}</div>
+              ) : null}
+              {model.authorHandle ? (
+                <div
+                  style={{
+                    display: "flex",
+                    marginTop: model.authorName ? 6 : 0,
+                    fontSize: 26,
+                    color: "#c4b5fd",
+                  }}
+                >
+                  @{model.authorHandle}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+          {model.kind === "profile"
+            ? lines(model.title, model.title.length > 42 ? 52 : 64, 700, "#fafafa", 3)
+            : lines(model.body || model.title, 46, 700, "#fafafa", 3)}
+          {model.kind === "profile" && model.detail ? (
+            <div style={{ display: "flex", marginTop: 22, fontSize: 32, color: "#e4e4e7" }}>
+              {model.detail}
+            </div>
+          ) : null}
+          {model.cardLines.length > 0 ? (
+            <div style={{ display: "flex", flexDirection: "column", marginTop: 26 }}>
+              {model.cardLines.map((line, index) => (
+                <div
+                  key={`${index}-${line.name}`}
+                  style={{ display: "flex", flexDirection: "column", marginTop: 8 }}
+                >
+                  <div style={{ display: "flex", fontSize: 24, color: "#d4d4d8" }}>{line.name}</div>
+                  {line.value ? (
+                    <div
+                      style={{
+                        display: "flex",
+                        marginTop: 4,
+                        fontSize: 32,
+                        fontWeight: 700,
+                        color: "#c4b5fd",
+                      }}
+                    >
+                      {line.value}
+                    </div>
+                  ) : null}
+                </div>
+              ))}
+            </div>
+          ) : null}
+        </div>
+      </Left>
+      {side}
+    </div>,
   );
+}
+
+export function renderProfileOg(preview: LinkPreview, kicker: string) {
+  return renderOg(profileShareImage(preview, kicker));
+}
+
+export function renderHomeOg() {
+  return renderOg(homeShareImage());
 }

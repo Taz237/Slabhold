@@ -1,4 +1,4 @@
-import { ogContentType, ogSize, reachableImage, renderOg } from "@/components/og-frame";
+import { ogContentType, ogSize, reachableImage, renderProfileOg } from "@/components/og-frame";
 import { loadProfilePreview } from "@/lib/social/link-preview-load";
 
 export const alt = "Collector on Slabhold";
@@ -13,5 +13,5 @@ export default async function Image({
   const { username } = await params;
   const preview = await loadProfilePreview(username);
   const imageUrl = await reachableImage(preview.imageUrl);
-  return renderOg({ ...preview, imageUrl }, "COLLECTOR");
+  return renderProfileOg({ ...preview, imageUrl }, "COLLECTOR");
 }

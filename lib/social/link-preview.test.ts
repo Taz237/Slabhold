@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { reachableImage, renderOg } from "../../components/og-frame";
+import { reachableImage, renderProfileOg } from "../../components/og-frame";
 import {
   cardLinkPreview,
   cleanImageUrl,
@@ -170,7 +170,7 @@ describe("share image urls", () => {
       });
       assert.equal(avatar.imageUrl, null);
       assert.equal(post.imageUrl, null);
-      renderOg({ ...avatar, imageUrl: "https://evil.example/x.png" }, "COLLECTOR");
+      renderProfileOg({ ...avatar, imageUrl: "https://evil.example/x.png" }, "COLLECTOR");
       assert.equal(await reachableImage(avatar.imageUrl), null);
       assert.equal(await reachableImage(post.imageUrl), null);
       assert.equal(await reachableImage("https://evil.example/x.png"), null);
