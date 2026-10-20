@@ -1,5 +1,8 @@
 export const CAPTCHA_RETRY = "Please complete the check and try again.";
 
+export const CAPTCHA_LOAD_FAILED =
+  "We couldn't load the security check. Turn off ad blockers for this site or try another browser, then reload.";
+
 /** Public Turnstile site key. Empty when local dev has not set one. */
 export function turnstileSiteKey(): string {
   return process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY?.trim() ?? "";

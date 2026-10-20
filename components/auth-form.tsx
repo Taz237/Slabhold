@@ -1,13 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { Captcha, type CaptchaHandle } from "@/components/captcha";
 import { Logo } from "@/components/logo";
 import { useSocial } from "@/components/social-provider";
 import { trackEvent } from "@/lib/analytics";
-import { releaseCaptcha, submitBlocked } from "@/lib/auth/captcha";
+import { CAPTCHA_LOAD_FAILED, releaseCaptcha, submitBlocked, turnstileSiteKey } from "@/lib/auth/captcha";
 import { afterAuthPath, authLogoHref, loginPath, safeNext, signupPath } from "@/lib/auth/safe-next";
 import { readStoredUtm } from "@/lib/utm";
 
@@ -15,6 +15,7 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
   const router = useRouter();
   const params = useSearchParams();
   const { ready, user, mode: accountMode, signIn, signUp } = useSocial();
+  const pathname = usePathname();
   const next = safeNext(params.get("next"));
   const destination = afterAuthPath(next);
   const captchaRef = useRef<CaptchaHandle>(null);
@@ -22,17 +23,34 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
   const [password, setPassword] = useState("");
   const [username, setUsername] = useState("");
   const [displayName, setDisplayName] = useState("");
-  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [captchaToken, setCaptchaTokenState] = useState<string | null>(null);
+  const [captchaFailed, setCaptchaFailed] = useState(false);
+  const captchaTokenRef = useRef<string | null>(null);
+  function setCaptchaToken(token: string | null) {
+    captchaTokenRef.current = token;
+    setCaptchaTokenState(token);
+  }
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const signedIn = Boolean(user);
 
   useEffect(() => {
     if (mode !== "signup") return;
     trackEvent("signup_started");
   }, [mode]);
 
+  useEffect(() => {
+    if (!ready || signedIn || captchaToken || !turnstileSiteKey()) return;
+    const timer = window.setTimeout(() => {
+      if (captchaTokenRef.current) return;
+      setCaptchaFailed(true);
+    }, 15_000);
+    return () => window.clearTimeout(timer);
+  }, [ready, signedIn, captchaToken]);
+
   async function submit(e: React.FormEvent) {
+    if (submitBlocked(busy, captchaToken)) return;
     e.preventDefault();
     setBusy(true);
     setError(null);
@@ -48,6 +66,7 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
       return;
     }
     if (mode === "signup") trackEvent("signup_completed", readStoredUtm());
+    releaseCaptcha(captchaRef.current, () => setCaptchaToken(null));
     if (result.notice) {
       setMessage(result.notice);
       return;
@@ -97,7 +116,13 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
         Follow collectors, post pulls, and keep your book.
       </p>
 
-      <form onSubmit={(e) => void submit(e)} className="mt-5 space-y-3">
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          void submit(e);
+        }}
+        className="mt-5 space-y-3"
+      >
         {mode === "signup" && (
           <>
             <Field label="Display name" value={displayName} onChange={setDisplayName} placeholder="Maya Chen" />
@@ -114,10 +139,19 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
         {error ? <p className="text-sm text-rose-600 dark:text-rose-400">{error}</p> : null}
         {message ? <p className="text-sm text-zinc-600 dark:text-zinc-300">{message}</p> : null}
         <Captcha
+          key={pathname}
           ref={captchaRef}
-          onToken={(token) => setCaptchaToken(token)}
+          onToken={(token) => {
+            setCaptchaToken(token);
+            setCaptchaFailed(false);
+          }}
           onExpire={() => setCaptchaToken(null)}
+          onFail={() => {
+            setCaptchaToken(null);
+            setCaptchaFailed(true);
+          }}
         />
+        {captchaFailed ? <p className="text-sm text-rose-600 dark:text-rose-400">{CAPTCHA_LOAD_FAILED}</p> : null}
         <button
           type="submit"
           disabled={submitBlocked(busy, captchaToken)}

@@ -1,11 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import { useRef, useState } from "react";
+import { usePathname, useSearchParams } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 import { Captcha, type CaptchaHandle } from "@/components/captcha";
 import { Logo } from "@/components/logo";
-import { releaseCaptcha, submitBlocked } from "@/lib/auth/captcha";
+import { CAPTCHA_LOAD_FAILED, releaseCaptcha, submitBlocked, turnstileSiteKey } from "@/lib/auth/captcha";
 import {
   PASSWORD_RESET_EXPIRED,
   PASSWORD_RESET_FAILED,
@@ -16,13 +16,29 @@ import {
 import { createSupabaseBrowser } from "@/lib/supabase/browser";
 
 export function ForgotPasswordForm() {
+  const pathname = usePathname();
   const expired = useSearchParams().get("expired") === "1";
   const captchaRef = useRef<CaptchaHandle>(null);
   const [email, setEmail] = useState("");
-  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [captchaToken, setCaptchaTokenState] = useState<string | null>(null);
+  const [captchaFailed, setCaptchaFailed] = useState(false);
+  const captchaTokenRef = useRef<string | null>(null);
+  function setCaptchaToken(token: string | null) {
+    captchaTokenRef.current = token;
+    setCaptchaTokenState(token);
+  }
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (sent || captchaToken || !turnstileSiteKey()) return;
+    const timer = window.setTimeout(() => {
+      if (captchaTokenRef.current) return;
+      setCaptchaFailed(true);
+    }, 15_000);
+    return () => window.clearTimeout(timer);
+  }, [sent, captchaToken]);
 
   function showError(message: string) {
     setError(message);
@@ -30,6 +46,7 @@ export function ForgotPasswordForm() {
   }
 
   async function submit(e: React.FormEvent) {
+    if (submitBlocked(busy, captchaToken)) return;
     e.preventDefault();
     setBusy(true);
     setError(null);
@@ -49,6 +66,7 @@ export function ForgotPasswordForm() {
         return;
       }
       setSent(true);
+      releaseCaptcha(captchaRef.current, () => setCaptchaToken(null));
     } catch {
       showError(PASSWORD_RESET_FAILED);
     } finally {
@@ -74,7 +92,13 @@ export function ForgotPasswordForm() {
           </Link>
         </>
       ) : (
-        <form onSubmit={(e) => void submit(e)} className="mt-5 space-y-3">
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            void submit(e);
+          }}
+          className="mt-5 space-y-3"
+        >
           <label className="block text-sm">
             <span className="mb-1 block text-zinc-500">Email</span>
             <input
@@ -89,10 +113,19 @@ export function ForgotPasswordForm() {
           </label>
           {error ? <p className="text-sm text-rose-600 dark:text-rose-400">{error}</p> : null}
           <Captcha
+            key={pathname}
             ref={captchaRef}
-            onToken={(token) => setCaptchaToken(token)}
+            onToken={(token) => {
+              setCaptchaToken(token);
+              setCaptchaFailed(false);
+            }}
             onExpire={() => setCaptchaToken(null)}
+            onFail={() => {
+              setCaptchaToken(null);
+              setCaptchaFailed(true);
+            }}
           />
+          {captchaFailed ? <p className="text-sm text-rose-600 dark:text-rose-400">{CAPTCHA_LOAD_FAILED}</p> : null}
           <button
             type="submit"
             disabled={submitBlocked(busy, captchaToken)}

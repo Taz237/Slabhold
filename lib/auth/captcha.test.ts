@@ -8,6 +8,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { Captcha } from "../../components/captcha";
 import { remoteSignIn, remoteSignUp } from "../social/remote";
 import {
+  CAPTCHA_LOAD_FAILED,
   CAPTCHA_RETRY,
   releaseCaptcha,
   submitBlocked,
@@ -111,7 +112,7 @@ describe("captcha submit gate", () => {
       assert.equal(turnstileSiteKey(), "");
       assert.equal(submitBlocked(false, null), false);
       const html = renderToStaticMarkup(
-        createElement(Captcha, { onToken() {}, onExpire() {} }),
+        createElement(Captcha, { onToken() {}, onExpire() {}, onFail() {} }),
       );
       assert.equal(html, "");
     });
@@ -122,6 +123,13 @@ describe("captcha submit gate", () => {
     assert.match(captcha, /size: "flexible"/);
     assert.match(captcha, /onSuccess=\{onToken\}/);
     assert.match(captcha, /onExpire\(\)/);
+    assert.match(captcha, /onWidgetLoad=\{\(\) => \{\s*onExpire\(\);\s*\}\}/);
+    assert.match(captcha, /onBeforeInteractive=\{\(\) => \{\s*onExpire\(\);\s*\}\}/);
+    assert.match(captcha, /onError=\{\(\) => \{\s*onExpire\(\);\s*onFail\(\);\s*\}\}/);
+    assert.match(captcha, /onTimeout=\{\(\) => \{\s*onExpire\(\);\s*onFail\(\);\s*\}\}/);
+    assert.match(captcha, /onUnsupported=\{onFail\}/);
+    assert.match(captcha, /scriptOptions=\{\{ onError: onFail \}\}/);
+    assert.match(captcha, /return \(\) => \{\s*onExpireRef\.current\(\);\s*\};/);
   });
 });
 
@@ -217,7 +225,9 @@ describe("captcha reset", () => {
     const forgot = read("components/forgot-password-form.tsx");
     const authError = auth.slice(auth.indexOf("if (result.error)"), auth.indexOf("if (mode === \"signup\")"));
     assert.match(authError, /releaseCaptcha\(captchaRef\.current, \(\) => setCaptchaToken\(null\)\)/);
-    assert.equal(auth.match(/releaseCaptcha\(/g)?.length, 1);
+    assert.equal(auth.match(/releaseCaptcha\(/g)?.length, 2);
+    const authSuccess = auth.slice(auth.indexOf('if (mode === "signup") trackEvent'));
+    assert.ok(authSuccess.indexOf("releaseCaptcha(") < authSuccess.indexOf("if (result.notice)"));
 
     assert.match(
       forgot,
@@ -226,7 +236,35 @@ describe("captcha reset", () => {
     assert.match(forgot, /if \(!supabase\) \{\s*showError\(PASSWORD_RESET_FAILED\);/);
     assert.match(forgot, /if \(message\) \{\s*showError\(message\);/);
     assert.match(forgot, /catch \{\s*showError\(PASSWORD_RESET_FAILED\);/);
-    assert.match(forgot, /setSent\(true\)/);
-    assert.equal(forgot.match(/releaseCaptcha\(/g)?.length, 1);
+    assert.match(forgot, /setSent\(true\);\s*releaseCaptcha\(captchaRef\.current, \(\) => setCaptchaToken\(null\)\);/);
+    assert.equal(forgot.match(/releaseCaptcha\(/g)?.length, 2);
+  });
+});
+
+describe("captcha load failure", () => {
+  it("drops a stale token, blocks a submit with none, and explains a failed load", () => {
+    assert.equal(
+      CAPTCHA_LOAD_FAILED,
+      "We couldn't load the security check. Turn off ad blockers for this site or try another browser, then reload.",
+    );
+
+    const captcha = read("components/captcha.tsx");
+    assert.match(captcha, /onFail: \(\) => void/);
+
+    for (const path of ["components/auth-form.tsx", "components/forgot-password-form.tsx"]) {
+      const source = read(path);
+      assert.match(source, /async function submit\(e: React\.FormEvent\) \{\s*if \(submitBlocked\(busy, captchaToken\)\) return;/);
+      assert.match(source, /key=\{pathname\}/);
+      assert.match(source, /onFail=\{\(\) => \{\s*setCaptchaToken\(null\);\s*setCaptchaFailed\(true\);\s*\}\}/);
+      assert.match(source, /\{captchaFailed \? <p className="text-sm text-rose-600 dark:text-rose-400">\{CAPTCHA_LOAD_FAILED\}<\/p> : null\}/);
+      assert.match(source, /15_000/);
+      assert.match(source, /if \(captchaTokenRef\.current\) return;\s*setCaptchaFailed\(true\);/);
+    }
+
+    const privacy = read("app/privacy/page.tsx");
+    assert.match(
+      privacy,
+      /We use Cloudflare Turnstile on sign-up, log-in and password reset forms to block bots\.\s+Cloudflare processes your IP address and browser signals for this check\./,
+    );
   });
 });
