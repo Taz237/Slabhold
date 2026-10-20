@@ -11,6 +11,8 @@ export type PriceRefreshCard = IdentityCard & {
   isRelic?: boolean;
   gradeQualifier?: string | null;
   conditionType?: "raw" | "graded";
+  noNumber?: boolean;
+  isRookie?: boolean;
 };
 
 function queryKeyCard(card: PriceRefreshCard) {
@@ -44,5 +46,8 @@ export function shouldRefreshCardValueOnEdit(
   }
   const sportBefore = (before.sport ?? "").trim().toLowerCase();
   const sportAfter = (after.sport ?? "").trim().toLowerCase();
-  return sportBefore !== sportAfter;
+  if (sportBefore !== sportAfter) return true;
+  if (Boolean(before.noNumber) !== Boolean(after.noNumber)) return true;
+  if (Boolean(before.isRookie) !== Boolean(after.isRookie)) return true;
+  return false;
 }

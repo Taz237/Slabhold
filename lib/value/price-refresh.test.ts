@@ -19,6 +19,8 @@ const base: PriceRefreshCard = {
   grade: "PSA 10",
   grader: "PSA",
   sport: "Football",
+  noNumber: false,
+  isRookie: false,
 };
 
 describe("shouldRefreshCardValueOnEdit", () => {
@@ -54,6 +56,38 @@ describe("shouldRefreshCardValueOnEdit", () => {
       shouldRefreshCardValueOnEdit(base, { ...base, parallel: "Silver" }),
       true,
     );
+  });
+
+  it("refreshes when noNumber toggles", () => {
+    assert.equal(
+      shouldRefreshCardValueOnEdit(base, { ...base, noNumber: true }),
+      true,
+    );
+    assert.equal(
+      shouldRefreshCardValueOnEdit(
+        { ...base, noNumber: true },
+        { ...base, noNumber: false },
+      ),
+      true,
+    );
+  });
+
+  it("refreshes when isRookie toggles", () => {
+    assert.equal(
+      shouldRefreshCardValueOnEdit(base, { ...base, isRookie: true }),
+      true,
+    );
+    assert.equal(
+      shouldRefreshCardValueOnEdit(
+        { ...base, isRookie: true },
+        { ...base, isRookie: false },
+      ),
+      true,
+    );
+  });
+
+  it("notes-only edit still does not refresh", () => {
+    assert.equal(shouldRefreshCardValueOnEdit(base, { ...base }), false);
   });
 
   it("gates scheduleCardValueRefresh in collection-provider; notes-only skips the limiter", () => {
