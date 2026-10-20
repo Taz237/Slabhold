@@ -1,6 +1,6 @@
 import "server-only";
 
-import { revalidateTag, unstable_cache } from "next/cache";
+import { revalidatePath, revalidateTag, unstable_cache } from "next/cache";
 import { cardCacheTag, revalidateCardCache } from "./card-cache";
 import {
   getCardValue,
@@ -23,9 +23,14 @@ export class CardMarketUnavailable extends Error {
   }
 }
 
-/** Bust `card:${id}` after a write. Does not include flags, hidden sales, or paid. */
+/**
+ * Bust `card:${id}` and the card page after a write (flag/undo/restore/refresh).
+ * Does not include flags, hidden sales, or paid in the cached payload.
+ */
 export function revalidateCard(cardId: string): void {
+  if (!cardId) return;
   revalidateCardCache(cardId, revalidateTag);
+  revalidatePath(`/cards/${cardId}`);
 }
 
 /**

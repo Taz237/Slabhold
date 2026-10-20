@@ -42,6 +42,7 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: { url: LOGO_SRC, type: "image/svg+xml", sizes: "any" },
+    apple: { url: "/apple-icon.png", sizes: "180x180", type: "image/png" },
   },
 };
 
