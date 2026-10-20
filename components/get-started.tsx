@@ -1,9 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Check, X } from "lucide-react";
-import { checklistDismissKey, type ChecklistState, type ChecklistStepId } from "@/lib/social/get-started";
+import {
+  checklistDismissKey,
+  checklistNewUserKey,
+  storedNewUserFlag,
+  type ChecklistState,
+  type ChecklistStepId,
+} from "@/lib/social/get-started";
 
 const STEPS: { id: ChecklistStepId; label: string }[] = [
   { id: "card", label: "Add your first card" },
@@ -29,6 +35,36 @@ export function useGetStartedDismissed(userId: string | null) {
   }, [userId]);
 
   return { dismissed, dismiss };
+}
+
+/**
+ * Saves the first ready feed load. Later steps must not clear it, or the
+ * checklist would vanish as soon as they add a card or follow someone.
+ */
+export function useRememberNewUser(userId: string | null, wasNewOnLoad: boolean | null) {
+  const [record, setRecord] = useState<{ userId: string | null; value: boolean | null }>({
+    userId: null,
+    value: null,
+  });
+
+  if (record.userId !== userId) {
+    const existing =
+      userId && typeof window !== "undefined"
+        ? storedNewUserFlag(window.localStorage.getItem(checklistNewUserKey(userId)))
+        : null;
+    setRecord({ userId, value: existing });
+  } else if (userId && record.value === null && wasNewOnLoad !== null) {
+    setRecord({ userId, value: wasNewOnLoad });
+  }
+
+  useEffect(() => {
+    if (!userId || wasNewOnLoad === null || typeof window === "undefined") return;
+    const key = checklistNewUserKey(userId);
+    if (storedNewUserFlag(window.localStorage.getItem(key)) !== null) return;
+    window.localStorage.setItem(key, wasNewOnLoad ? "1" : "0");
+  }, [userId, wasNewOnLoad]);
+
+  return record.userId === userId ? record.value : null;
 }
 
 export function GetStartedCard({

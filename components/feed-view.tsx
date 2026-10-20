@@ -10,7 +10,7 @@ import { solidButton } from "@/components/button-styles";
 import { FollowButton } from "@/components/follow-button";
 import { useCollection } from "@/components/collection-provider";
 import { FirstCardWelcome } from "@/components/first-card-welcome";
-import { GetStartedCard, useGetStartedDismissed } from "@/components/get-started";
+import { GetStartedCard, useGetStartedDismissed, useRememberNewUser } from "@/components/get-started";
 import { useSocial } from "@/components/social-provider";
 import { PullToRefresh } from "@/components/pull-to-refresh";
 import { EmptyState, TimelineSkeleton } from "@/components/status";
@@ -20,7 +20,14 @@ import { Tweet } from "@/components/tweet";
 import { loginPath } from "@/lib/auth/safe-next";
 import { takeCompose } from "@/lib/capture";
 import { fileToDataUrl } from "@/lib/storage";
-import { checklistState, defaultHomeTab } from "@/lib/social/get-started";
+import {
+  checklistState,
+  countLoadedPosts,
+  defaultHomeTab,
+  isNewUser,
+} from "@/lib/social/get-started";
+import { createSupabaseBrowser } from "@/lib/supabase/browser";
+import { getSupabaseConfig } from "@/lib/supabase/client";
 import { publicTimeline } from "@/lib/social/timeline";
 import { POST_LIMIT, type PublicCard } from "@/lib/social/types";
 
@@ -38,16 +45,26 @@ export function FeedView() {
     profiles,
     followingCount,
     refresh,
+    mode,
   } = useSocial();
   const { cards, ready: cardsReady, syncError } = useCollection();
   const composerRef = useRef<HTMLTextAreaElement>(null);
   const { dismissed, dismiss } = useGetStartedDismissed(user?.id ?? null);
+  const following = user ? followingCount(user.id) : 0;
+  const countsReady = Boolean(user) && ready && cardsReady && !syncError;
+  const wasNewOnLoad = countsReady
+    ? isNewUser({ followingCount: following, cardCount: cards.length })
+    : null;
+  const wasNewUser = useRememberNewUser(user?.id ?? null, wasNewOnLoad);
+  const postCount = useOwnPostCount(user?.id ?? null, mode, posts);
   const started = checklistState({
     cardCount: cards.length,
-    followingCount: user ? followingCount(user.id) : 0,
-    postCount: user ? posts.filter((post) => post.authorId === user.id).length : 0,
+    followingCount: following,
+    postCount: postCount ?? 0,
     dismissed,
-    ready: Boolean(user) && ready && cardsReady && !syncError,
+    ready: countsReady && postCount !== null,
+    createdAt: user?.createdAt ?? null,
+    wasNewUser,
   });
   const showWelcome =
     Boolean(user) &&
@@ -198,6 +215,46 @@ export function FeedView() {
       </div>
     </PullToRefresh>
   );
+}
+
+function useOwnPostCount(
+  userId: string | null,
+  mode: "local" | "supabase",
+  posts: { authorId: string }[],
+) {
+  const configured = getSupabaseConfig().configured;
+  const [remoteCount, setRemoteCount] = useState<{ userId: string; count: number } | null>(null);
+
+  useEffect(() => {
+    if (!userId || mode !== "supabase" || !configured) return;
+    let cancelled = false;
+    const supabase = createSupabaseBrowser();
+    if (!supabase) return;
+    void supabase
+      .from("posts")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .then(
+        ({ count, error }) => {
+          if (cancelled) return;
+          setRemoteCount({
+            userId,
+            count: error || typeof count !== "number" ? 0 : count,
+          });
+        },
+        () => {
+          if (!cancelled) setRemoteCount({ userId, count: 0 });
+        },
+      );
+    return () => {
+      cancelled = true;
+    };
+  }, [configured, mode, posts, userId]);
+
+  if (!userId) return 0;
+  if (mode !== "supabase" || !configured) return countLoadedPosts(posts, userId);
+  if (remoteCount?.userId === userId) return remoteCount.count;
+  return null;
 }
 
 function LaneTab({

@@ -1,31 +1,49 @@
 "use client";
 
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { Logo } from "@/components/logo";
-import { PASSWORD_RESET_SENT, passwordResetRedirect } from "@/lib/auth/password-reset";
+import {
+  PASSWORD_RESET_EXPIRED,
+  PASSWORD_RESET_FAILED,
+  PASSWORD_RESET_SENT,
+  passwordResetRedirect,
+  passwordResetSendError,
+} from "@/lib/auth/password-reset";
 import { createSupabaseBrowser } from "@/lib/supabase/browser";
 
 export function ForgotPasswordForm() {
+  const expired = useSearchParams().get("expired") === "1";
   const [email, setEmail] = useState("");
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
+    setError(null);
     try {
       const supabase = createSupabaseBrowser();
-      if (supabase) {
-        await supabase.auth.resetPasswordForEmail(email.trim(), {
-          redirectTo: passwordResetRedirect(window.location.origin),
-        });
+      if (!supabase) {
+        setError(PASSWORD_RESET_FAILED);
+        return;
       }
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+        redirectTo: passwordResetRedirect(window.location.origin),
+      });
+      const message = passwordResetSendError(resetError);
+      if (message) {
+        setError(message);
+        return;
+      }
+      setSent(true);
     } catch {
-      // Missing accounts and failed sends share one message.
+      setError(PASSWORD_RESET_FAILED);
+    } finally {
+      setBusy(false);
     }
-    setBusy(false);
-    setSent(true);
   }
 
   return (
@@ -35,6 +53,9 @@ export function ForgotPasswordForm() {
         <span className="text-[17px] font-bold tracking-tight">Slabhold</span>
       </Link>
       <h1 className="text-2xl font-bold tracking-tight">Forgot password</h1>
+      {expired && !sent ? (
+        <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-300">{PASSWORD_RESET_EXPIRED}</p>
+      ) : null}
       {sent ? (
         <>
           <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-300">{PASSWORD_RESET_SENT}</p>
@@ -56,6 +77,7 @@ export function ForgotPasswordForm() {
               className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-sm outline-none dark:border-white/10 dark:bg-white/5"
             />
           </label>
+          {error ? <p className="text-sm text-rose-600 dark:text-rose-400">{error}</p> : null}
           <button
             type="submit"
             disabled={busy}
