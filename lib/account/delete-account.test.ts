@@ -4,7 +4,35 @@ import { describe, it } from "node:test";
 import { join } from "node:path";
 import { removeStorage, runAccountDelete, type AccountAdmin } from "./delete-account";
 
-function admin(opts?: { storageError?: boolean; rowError?: boolean; scrubError?: boolean }) {
+const CARD_ID = "11111111-1111-4111-8111-111111111111";
+
+type StoredNote = { kind: string; href: string | null };
+
+function scrubMatchingNotes(notes: StoredNote[], kind: string, orFilter: string) {
+  const clauses = orFilter.split(",");
+  for (const note of notes) {
+    const href = note.href;
+    if (note.kind !== kind || !href) continue;
+    const matches = clauses.some((clause) => {
+      if (clause.startsWith("href.eq.")) return href === clause.slice("href.eq.".length);
+      if (clause.startsWith("href.like.*")) {
+        return href.endsWith(clause.slice("href.like.*".length));
+      }
+      return false;
+    });
+    if (matches) note.href = "/collection";
+  }
+}
+
+function admin(opts?: {
+  storageError?: boolean;
+  rowError?: boolean;
+  scrubError?: boolean;
+  cardHrefError?: boolean;
+  username?: string;
+  cardIds?: string[];
+  notes?: StoredNote[];
+}) {
   const calls: string[] = [];
   const updates: {
     table: string;
@@ -12,6 +40,8 @@ function admin(opts?: { storageError?: boolean; rowError?: boolean; scrubError?:
     href?: string | null;
     filters: string[];
   }[] = [];
+  const snapshotChunks: string[][] = [];
+  const notes = opts?.notes ?? [];
   let deleted: string | null = null;
   const remaining = new Map<string, { name: string }[]>();
   const client: AccountAdmin = {
@@ -44,7 +74,15 @@ function admin(opts?: { storageError?: boolean; rowError?: boolean; scrubError?:
           return {
             async eq() {
               calls.push(`select:${table}`);
-              if (table === "profiles") return { data: [{ username: "sam" }], error: null };
+              if (table === "profiles") {
+                return { data: [{ username: opts?.username ?? "sam" }], error: null };
+              }
+              if (table === "cards") {
+                return {
+                  data: (opts?.cardIds ?? [CARD_ID]).map((id) => ({ id })),
+                  error: null,
+                };
+              }
               return { data: [{ id: "card-1" }], error: null };
             },
           };
@@ -58,8 +96,9 @@ function admin(opts?: { storageError?: boolean; rowError?: boolean; scrubError?:
               }
               return { error: null };
             },
-            async in() {
+            async in(_column: string, values: string[]) {
               calls.push(`delete:${table}`);
+              if (table === "card_value_snapshots") snapshotChunks.push([...values]);
               return { error: null };
             },
           };
@@ -83,6 +122,19 @@ function admin(opts?: { storageError?: boolean; rowError?: boolean; scrubError?:
                   Promise.resolve(finish(`${column2}=${value2}`)),
                 in: (column2: string, values2: readonly string[]) =>
                   Promise.resolve(finish(`${column2}=${values2.join(",")}`)),
+                or: (filter: string) => {
+                  filters.push(filter);
+                  const recorded: (typeof updates)[number] = { table, filters };
+                  if ("preview" in values) recorded.preview = values.preview;
+                  if ("href" in values) recorded.href = values.href;
+                  updates.push(recorded);
+                  calls.push(`update:${table}`);
+                  if (opts?.cardHrefError) {
+                    return Promise.resolve({ error: { message: "card href scrub failed" } });
+                  }
+                  if (column === "kind" && values.href) scrubMatchingNotes(notes, value, filter);
+                  return Promise.resolve({ error: null });
+                },
               };
             },
           };
@@ -103,6 +155,8 @@ function admin(opts?: { storageError?: boolean; rowError?: boolean; scrubError?:
     client,
     calls,
     updates,
+    snapshotChunks,
+    notes,
     deleted: () => deleted,
   };
 }
@@ -179,15 +233,21 @@ describe("account delete", () => {
       {
         table: "notifications",
         href: "/collection",
-        filters: ["kind=want_alert", "href=/u/sam/cards/card-1,/cards/card-1"],
+        filters: [
+          "kind=want_alert",
+          `href.eq./cards/${CARD_ID},href.like.*/cards/${CARD_ID}`,
+        ],
       },
     ]);
     const firstDelete = fake.calls.findIndex((call) => call.startsWith("delete:"));
     const firstUpdate = fake.calls.indexOf("update:notifications");
     assert.ok(firstUpdate >= 0 && firstUpdate < firstDelete);
     const cardHrefUpdate = fake.calls.lastIndexOf("update:notifications");
+    const storageList = fake.calls.indexOf("storage.list");
     const cardsDelete = fake.calls.indexOf("delete:cards");
     assert.ok(fake.calls.indexOf("select:cards") < cardHrefUpdate);
+    assert.ok(cardHrefUpdate < storageList);
+    assert.ok(storageList < firstDelete);
     assert.ok(cardHrefUpdate < cardsDelete);
     assert.equal(
       fake.updates[2]?.filters.some((filter) => filter.startsWith("actor_id=")),
@@ -213,6 +273,87 @@ describe("account delete", () => {
     assert.equal(fake.deleted(), null);
     assert.equal(fake.calls.includes("delete:want_alerts"), false);
     assert.equal(fake.calls.filter((call) => call === "update:notifications").length, 1);
+  });
+
+  it("scrubs an old card link after the owner renamed", async () => {
+    const oldHref = `/u/oldname/cards/${CARD_ID}`;
+    const otherCard = "22222222-2222-4222-8222-222222222222";
+    const notes: StoredNote[] = [
+      { kind: "want_alert", href: oldHref },
+      { kind: "want_alert", href: `/cards/${CARD_ID}` },
+      { kind: "want_alert", href: `/u/renamed/cards/${otherCard}` },
+    ];
+    const fake = admin({
+      username: "renamed",
+      cardIds: [CARD_ID, "not-a-uuid"],
+      notes,
+    });
+    const result = await runAccountDelete({
+      sessionUserId: "real-user",
+      body: null,
+      admin: fake.client,
+    });
+    assert.equal(result.status, 200);
+    assert.equal(notes[0]?.href, "/collection");
+    assert.equal(notes[1]?.href, "/collection");
+    assert.equal(notes[2]?.href, `/u/renamed/cards/${otherCard}`);
+    assert.equal(fake.calls.includes("select:profiles"), false);
+    const hrefFilter = fake.updates
+      .flatMap((update) => update.filters)
+      .find((filter) => filter.includes("href.like."));
+    assert.equal(hrefFilter, `href.eq./cards/${CARD_ID},href.like.*/cards/${CARD_ID}`);
+    assert.equal(hrefFilter?.includes("renamed"), false);
+    assert.equal(hrefFilter?.includes("oldname"), false);
+    assert.equal(hrefFilter?.includes("not-a-uuid"), false);
+  });
+
+  it("deletes 500 cards in chunks of 50", async () => {
+    const cardIds = Array.from({ length: 500 }, (_, index) => {
+      return `00000000-0000-4000-8000-${index.toString(16).padStart(12, "0")}`;
+    });
+    const fake = admin({ cardIds });
+    const result = await runAccountDelete({
+      sessionUserId: "real-user",
+      body: null,
+      admin: fake.client,
+    });
+    assert.equal(result.status, 200);
+    const hrefFilters = fake.updates
+      .flatMap((update) => update.filters)
+      .filter((filter) => filter.includes("href.eq."));
+    assert.equal(hrefFilters.length, 10);
+    assert.equal(fake.snapshotChunks.length, 10);
+    const idsIn = (filter: string) =>
+      filter
+        .split(",")
+        .filter((clause) => clause.startsWith("href.eq."))
+        .map((clause) => clause.slice("href.eq./cards/".length));
+    assert.deepEqual(idsIn(hrefFilters[0] ?? ""), cardIds.slice(0, 50));
+    assert.deepEqual(idsIn(hrefFilters[9] ?? ""), cardIds.slice(450, 500));
+    assert.deepEqual(fake.snapshotChunks[0], cardIds.slice(0, 50));
+    assert.deepEqual(fake.snapshotChunks[9], cardIds.slice(450, 500));
+    assert.ok(fake.snapshotChunks.every((chunk) => chunk.length === 50));
+    const lastHref = fake.calls.lastIndexOf("update:notifications");
+    const firstSnapshot = fake.calls.indexOf("delete:card_value_snapshots");
+    assert.ok(lastHref >= 0 && lastHref < firstSnapshot);
+  });
+
+  it("deletes nothing when the card-link scrub fails", async () => {
+    const fake = admin({ cardHrefError: true });
+    const result = await runAccountDelete({
+      sessionUserId: "real-user",
+      body: null,
+      admin: fake.client,
+    });
+    assert.equal(result.status, 500);
+    assert.equal(
+      result.body.error,
+      "Couldn't delete your account data. Your account is still active.",
+    );
+    assert.equal(fake.deleted(), null);
+    assert.equal(fake.calls.some((call) => call.startsWith("delete:")), false);
+    assert.equal(fake.calls.includes("storage.list"), false);
+    assert.equal(fake.calls.includes("storage.remove"), false);
   });
 
   it("deletes 250 storage files across pages from offset 0", async () => {
@@ -267,7 +408,35 @@ describe("account delete", () => {
         },
       },
       from() {
-        throw new Error("rows should not run");
+        return {
+          select() {
+            return {
+              async eq() {
+                return { data: [], error: null };
+              },
+            };
+          },
+          delete() {
+            throw new Error("rows should not run");
+          },
+          update() {
+            return {
+              eq() {
+                return {
+                  async eq() {
+                    return { error: null };
+                  },
+                  async in() {
+                    return { error: null };
+                  },
+                  async or() {
+                    return { error: null };
+                  },
+                };
+              },
+            };
+          },
+        };
       },
       auth: {
         admin: {

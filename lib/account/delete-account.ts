@@ -1,3 +1,5 @@
+import { isUuid } from "@/lib/value/card-value-access";
+
 const BUCKETS = ["card-photos", "avatars", "covers", "post-images"] as const;
 
 type StorageFolder = {
@@ -25,6 +27,7 @@ type NotificationPatch = {
   ) => {
     eq: (column: string, value: string) => Promise<RowResult>;
     in: (column: string, values: readonly string[]) => Promise<RowResult>;
+    or: (filters: string) => Promise<RowResult>;
   };
 };
 
@@ -68,6 +71,7 @@ export type AccountDeleteResult = {
 };
 
 const MAX_STORAGE_PASSES = 50;
+const CARD_ID_CHUNK = 50;
 const STORAGE_NO_PROGRESS = "storage cleanup made no progress";
 const WANT_ALERT_AFTER_DELETE = "Someone posted a card you want";
 const WRITTEN_PREVIEW_KINDS = ["comment", "mention", "quote"] as const;
@@ -136,39 +140,76 @@ async function scrubActorNotifications(
   return null;
 }
 
-function wantAlertCardHrefs(cardId: string, username: string | null): string[] {
-  const hrefs: string[] = [];
-  if (username) hrefs.push(`/u/${username}/cards/${cardId}`);
-  hrefs.push(`/cards/${cardId}`);
-  return hrefs;
+function chunkCardIds(ids: readonly string[]): string[][] {
+  const chunks: string[][] = [];
+  for (let index = 0; index < ids.length; index += CARD_ID_CHUNK) {
+    chunks.push(ids.slice(index, index + CARD_ID_CHUNK));
+  }
+  return chunks;
+}
+
+function uuidCardIds(ids: readonly string[]): string[] {
+  return ids.filter(isUuid);
+}
+
+/**
+ * PostgREST `like` writes `*` for the SQL `%` wildcard.
+ * `href = '/cards/<id>'` is included beside `href LIKE '%/cards/<id>'`.
+ */
+function wantAlertHrefFilter(cardIds: readonly string[]): string {
+  return cardIds
+    .map((id) => `href.eq./cards/${id},href.like.*/cards/${id}`)
+    .join(",");
 }
 
 /**
  * Sale alerts keep a null actor_id, so the actor scrub misses them. Rewrite any
- * want-alert link that still points at this user's cards before those cards go.
+ * want-alert link that still points at these cards, including an old username
+ * path, before those cards go.
  */
 async function scrubWantAlertCardHrefs(
   admin: AccountAdmin,
-  userId: string,
-  cardIds: string[],
+  cardIds: readonly string[],
 ): Promise<string | null> {
-  if (cardIds.length === 0) return null;
-  const profile = await admin.from("profiles").select("username").eq("id", userId);
-  if (profile.error) return profile.error.message;
-  const username =
-    (profile.data ?? [])
-      .map((row) => row.username?.trim() ?? "")
-      .find((name) => name.length > 0) ?? null;
-  const hrefs = cardIds.flatMap((cardId) => wantAlertCardHrefs(cardId, username));
-  const { error } = await admin
-    .from("notifications")
-    .update({ href: "/collection" })
-    .eq("kind", "want_alert")
-    .in("href", hrefs);
-  return error ? error.message : null;
+  for (const chunk of chunkCardIds(uuidCardIds(cardIds))) {
+    const { error } = await admin
+      .from("notifications")
+      .update({ href: "/collection" })
+      .eq("kind", "want_alert")
+      .or(wantAlertHrefFilter(chunk));
+    if (error) return error.message;
+  }
+  return null;
 }
 
-async function deleteOwnRows(admin: AccountAdmin, userId: string): Promise<string | null> {
+async function loadOwnCardIds(
+  admin: AccountAdmin,
+  userId: string,
+): Promise<{ ids: string[]; error: string | null }> {
+  const cards = await admin.from("cards").select("id").eq("user_id", userId);
+  if (cards.error) return { ids: [], error: cards.error.message };
+  const ids = uuidCardIds(
+    (cards.data ?? []).map((row) => row.id).filter((id): id is string => typeof id === "string"),
+  );
+  return { ids, error: null };
+}
+
+async function deleteCardValueSnapshots(
+  admin: AccountAdmin,
+  cardIds: readonly string[],
+): Promise<string | null> {
+  for (const chunk of chunkCardIds(uuidCardIds(cardIds))) {
+    const { error } = await admin.from("card_value_snapshots").delete().in("card_id", chunk);
+    if (error) return error.message;
+  }
+  return null;
+}
+
+async function deleteOwnRows(
+  admin: AccountAdmin,
+  userId: string,
+  cardIds: readonly string[],
+): Promise<string | null> {
   const steps: Array<[string, string]> = [
     ["want_alerts", "user_id"],
     ["want_list", "user_id"],
@@ -185,20 +226,8 @@ async function deleteOwnRows(admin: AccountAdmin, userId: string): Promise<strin
     if (failed) return failed;
   }
 
-  const cards = await admin.from("cards").select("id").eq("user_id", userId);
-  if (cards.error) return cards.error.message;
-  const cardIds = (cards.data ?? [])
-    .map((row) => row.id)
-    .filter((id): id is string => Boolean(id));
-  const hrefError = await scrubWantAlertCardHrefs(admin, userId, cardIds);
-  if (hrefError) return hrefError;
-  if (cardIds.length > 0) {
-    const { error } = await admin
-      .from("card_value_snapshots")
-      .delete()
-      .in("card_id", cardIds);
-    if (error) return error.message;
-  }
+  const snapshotError = await deleteCardValueSnapshots(admin, cardIds);
+  if (snapshotError) return snapshotError;
 
   for (const [table, column] of [
     ["messages", "sender_id"],
@@ -215,8 +244,9 @@ async function deleteOwnRows(admin: AccountAdmin, userId: string): Promise<strin
 }
 
 /**
- * Delete one user's storage, rows that must be removed explicitly, then the
- * auth user. `userId` must already be the verified session id. The body is ignored.
+ * Scrub notifications that point at this account, then delete storage, rows,
+ * and the auth user. `userId` must already be the verified session id. The body
+ * is ignored.
  */
 export async function runAccountDelete(input: {
   sessionUserId: string | null;
@@ -236,13 +266,13 @@ export async function runAccountDelete(input: {
     };
   }
 
-  const storageError = await removeStorage(input.admin, userId);
-  if (storageError) {
-    console.error("[account-delete]", userId, "failed", "storage");
+  const cards = await loadOwnCardIds(input.admin, userId);
+  if (cards.error) {
+    console.error("[account-delete]", userId, "failed", "cards");
     return {
       status: 500,
       body: {
-        error: "Couldn't delete your uploaded images. Your account is still active.",
+        error: "Couldn't delete your account data. Your account is still active.",
       },
     };
   }
@@ -258,7 +288,29 @@ export async function runAccountDelete(input: {
     };
   }
 
-  const rowError = await deleteOwnRows(input.admin, userId);
+  const hrefError = await scrubWantAlertCardHrefs(input.admin, cards.ids);
+  if (hrefError) {
+    console.error("[account-delete]", userId, "failed", "card-hrefs");
+    return {
+      status: 500,
+      body: {
+        error: "Couldn't delete your account data. Your account is still active.",
+      },
+    };
+  }
+
+  const storageError = await removeStorage(input.admin, userId);
+  if (storageError) {
+    console.error("[account-delete]", userId, "failed", "storage");
+    return {
+      status: 500,
+      body: {
+        error: "Couldn't delete your uploaded images. Your account is still active.",
+      },
+    };
+  }
+
+  const rowError = await deleteOwnRows(input.admin, userId, cards.ids);
   if (rowError) {
     console.error("[account-delete]", userId, "failed", "rows");
     return {
