@@ -7,7 +7,7 @@ import {
 import type { CardValueResult } from "@/lib/value/types";
 import { cleanedToCompListings, historyFromSales } from "./map";
 import { filterComps, isLowConfidence, matchComps, type MatchCard } from "./match";
-import { middleFifty } from "./stats";
+import { middleFifty, roundToCent } from "./stats";
 import type { CleanedSale, SoldCompsPayload, TrawlSoldResult } from "./types";
 
 export { NOT_ENOUGH_SALES_LABEL };
@@ -190,9 +190,9 @@ export function valueFromShownSales(
   const status = previous?.status === "sample" ? "sample" : hasSales ? "ok" : "no_sales";
   return {
     status,
-    median: hasSales ? priced.median : null,
-    low: hasSales ? priced.low : null,
-    high: hasSales ? priced.high : null,
+    median: hasSales ? roundToCent(priced.median) : null,
+    low: hasSales ? roundToCent(priced.low) : null,
+    high: hasSales ? roundToCent(priced.high) : null,
     nSales: priced.count,
     matchedAt: previous?.matchedAt ?? null,
   };

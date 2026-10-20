@@ -8,7 +8,8 @@ import {
 } from "@/lib/comps";
 import { loadSoldCompCard } from "@/lib/comps/load-card";
 import { buildQueryKey } from "@/lib/comps/query-key";
-import { pricePayloadWithoutFlags } from "@/lib/comps/shared-value";
+import { roundToCent } from "@/lib/comps/stats";
+import { pricePayloadWithoutFlags, valueFromShownSales } from "@/lib/comps/shared-value";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import {
   preserveValueOnFailedAttempt,
@@ -322,9 +323,10 @@ export async function refreshCardValue(
     result.payload,
     await loadOwnerFlaggedItemIds(client, cardId),
   );
+  const shown = valueFromShownSales(payload.comps);
   const isSample = source === "sample" || source === "off" || payload.sample;
-  const nSales = payload.count;
-  const hasSales = nSales >= 1 && payload.median != null;
+  const nSales = shown.nSales;
+  const hasSales = nSales >= 1 && shown.median != null;
 
   let status: CardValueStatus;
   if (isSample) status = "sample";
@@ -351,9 +353,9 @@ export async function refreshCardValue(
 
   const nextDraft = {
     status,
-    median: hasSales ? payload.median : null,
-    low: hasSales ? payload.p25 : null,
-    high: hasSales ? payload.p75 : null,
+    median: hasSales ? shown.median : null,
+    low: hasSales ? shown.low : null,
+    high: hasSales ? shown.high : null,
     nSales,
     matchedAt,
     queryKey,
@@ -386,9 +388,9 @@ export async function refreshCardValue(
 
   const row: CardValueRow = {
     card_id: cardId,
-    median: merged.median,
-    low: merged.low,
-    high: merged.high,
+    median: roundToCent(merged.median),
+    low: roundToCent(merged.low),
+    high: roundToCent(merged.high),
     n_sales: merged.nSales,
     status: merged.status,
     query_key: merged.queryKey,

@@ -9,7 +9,7 @@ import {
 } from "./fair-price";
 
 describe("fairPriceCheck", () => {
-  // Sorted: 2.50, 3.00, 3.50, 4.00 → p25=2.875, p75=3.625
+  // Sorted: 2.50, 3.00, 3.50, 4.00 → p25=2.88, p75=3.63
   const sales = [2.5, 3, 3.5, 4];
 
   it("needs at least 3 matched sales", () => {

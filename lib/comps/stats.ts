@@ -1,6 +1,7 @@
 /**
- * Snap a dollar amount to integer cents once, at the boundary.
- * Later median and percentile math stays on those integers and is not rounded.
+ * Snap a dollar amount to integer cents at the boundary.
+ * Median and percentile results are rounded to a whole cent before
+ * they are converted back to dollars.
  */
 export function dollarsToCents(dollars: number): number {
   if (!Number.isFinite(dollars)) return Number.NaN;
@@ -9,6 +10,17 @@ export function dollarsToCents(dollars: number): number {
 
 export function centsToDollars(cents: number): number {
   return cents / 100;
+}
+
+/** Nearest whole cent, as dollars. `cents` may be fractional after interpolation. */
+export function roundCentsToDollars(cents: number): number {
+  return centsToDollars(Math.round(cents));
+}
+
+/** Same whole-cent snap for a dollar amount. Null stays null. */
+export function roundToCent(dollars: number | null | undefined): number | null {
+  if (dollars == null || !Number.isFinite(dollars)) return dollars ?? null;
+  return roundCentsToDollars(dollars * 100);
 }
 
 /** Inclusive percentile via linear interpolation. `sortedAsc` is integer cents. */
@@ -26,13 +38,13 @@ function percentileCents(sortedAsc: number[], p: number): number | null {
 /**
  * Inclusive percentile via linear interpolation on a sorted copy.
  * Prices are converted to integer cents first. The interpolated result is
- * converted back to dollars and is not rounded to a cent or a dollar.
+ * rounded to a whole cent, then converted back to dollars.
  */
 export function percentile(sortedAsc: number[], p: number): number | null {
   if (!sortedAsc.length) return null;
   const cents = sortedAsc.map(dollarsToCents);
   const value = percentileCents(cents, p);
-  return value == null ? null : centsToDollars(value);
+  return value == null ? null : roundCentsToDollars(value);
 }
 
 export function median(values: number[]): number | null {

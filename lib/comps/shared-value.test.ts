@@ -20,6 +20,7 @@ import {
   resolveCardScreenValue,
   screenValueFromComps,
   sharedCompValue,
+  valueFromShownSales,
 } from "./shared-value";
 import type { MatchCard } from "./match";
 import type { TrawlSoldResult } from "./types";
@@ -385,8 +386,8 @@ describe("Jaxson Dart Prizm parallels stay off Base", () => {
     const stored = {
       status: "ok" as const,
       median: 2.75,
-      low: 2.625,
-      high: 2.875,
+      low: 2.63,
+      high: 2.88,
       nSales: 2,
       matchedAt: "2026-10-18T00:00:00.000Z",
     };
@@ -760,6 +761,14 @@ describe("refreshCardValue keeps a good median", () => {
   });
 });
 
+function assertWholeCents(...values: Array<number | null | undefined>) {
+  for (const value of values) {
+    assert.equal(value != null && Number.isFinite(value), true);
+    const cents = Math.round((value as number) * 100);
+    assert.equal(value, cents / 100);
+  }
+}
+
 describe("low-value cards stay in cents", () => {
   function listing(itemId: string, soldPrice: number): CompListing {
     return {
@@ -780,13 +789,65 @@ describe("low-value cards stay in cents", () => {
     const band = middleFifty(prices);
     assert.equal(band.median, 2);
     assert.equal(band.p25, 1.75);
-    assert.equal(band.p75, 2.125);
+    assert.equal(band.p75, 2.13);
     const shown = screenValueFromComps(prices.map((price, index) => listing(String(index), price)));
     assert.equal(shown.median, 2);
     assert.equal(shown.low, 1.75);
-    assert.equal(shown.high, 2.125);
+    assert.equal(shown.high, 2.13);
     assert.equal(shown.count, shown.comps.length);
     assert.equal(money(shown.median!), "$2.00");
+  });
+
+  it("median of $1.99 and $2.00 is a whole cent, never 1.995", () => {
+    const prices = [1.99, 2];
+    const band = middleFifty(prices);
+    assert.equal(band.median, 2);
+    assert.notEqual(band.median, 1.995);
+    assert.equal(money(band.median!), "$2.00");
+    assertWholeCents(band.median, band.p25, band.p75);
+
+    const comps = prices.map((price, index) => listing(String(index), price));
+    const shown = valueFromShownSales(comps);
+    const saved = pricePayloadWithoutFlags(
+      {
+        comps,
+        history: [],
+        median: 1.995,
+        p25: 1.9925,
+        p75: 1.9975,
+        count: 2,
+        source: "trawl",
+        cached: true,
+        fetchedAt: null,
+        query: "test",
+        lowConfidence: true,
+        sample: false,
+      },
+      new Set(["none"]),
+    );
+    assert.equal(shown.median, band.median);
+    assert.equal(shown.low, band.p25);
+    assert.equal(shown.high, band.p75);
+    assert.equal(saved.median, shown.median);
+    assert.equal(saved.p25, shown.low);
+    assert.equal(saved.p75, shown.high);
+    assert.equal(saved.count, shown.nSales);
+    assertWholeCents(shown.median, shown.low, shown.high, saved.p25, saved.p75);
+  });
+
+  it("percentiles are never fractional cents", () => {
+    const band = middleFifty([1.1, 1.2, 1.4, 1.7]);
+    assert.equal(band.p25, 1.18);
+    assert.equal(band.median, 1.3);
+    assert.equal(band.p75, 1.48);
+    assertWholeCents(band.median, band.p25, band.p75);
+    const shown = valueFromShownSales(
+      [1.1, 1.2, 1.4, 1.7].map((price, index) => listing(String(index), price)),
+    );
+    assert.equal(shown.median, band.median);
+    assert.equal(shown.low, band.p25);
+    assert.equal(shown.high, band.p75);
+    assertWholeCents(shown.median, shown.low, shown.high);
   });
 
   it("median of $0.99 and $1.49 is $1.24", () => {
