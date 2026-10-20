@@ -29,5 +29,10 @@ export function isGuestContentPage(pathname: string): boolean {
 
 export function isAuthPage(pathname: string): boolean {
   const path = pathOnly(pathname);
-  return path === "/login" || path === "/signup";
+  return (
+    path === "/login" ||
+    path === "/signup" ||
+    path === "/forgot-password" ||
+    path === "/reset-password"
+  );
 }

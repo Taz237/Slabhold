@@ -93,6 +93,11 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
         )}
         <Field label="Email" type="email" value={email} onChange={setEmail} placeholder="you@email.com" />
         <Field label="Password" type="password" value={password} onChange={setPassword} placeholder="At least 6 characters" />
+        {mode === "login" ? (
+          <Link href="/forgot-password" className="block text-right text-sm font-medium text-zinc-500">
+            Forgot password?
+          </Link>
+        ) : null}
         {error ? <p className="text-sm text-rose-600 dark:text-rose-400">{error}</p> : null}
         {message ? <p className="text-sm text-zinc-600 dark:text-zinc-300">{message}</p> : null}
         <button

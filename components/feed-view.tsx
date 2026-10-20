@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { Compass, ImagePlus, X } from "lucide-react";
 import { Avatar } from "@/components/avatar";
@@ -10,6 +10,7 @@ import { solidButton } from "@/components/button-styles";
 import { FollowButton } from "@/components/follow-button";
 import { useCollection } from "@/components/collection-provider";
 import { FirstCardWelcome } from "@/components/first-card-welcome";
+import { GetStartedCard, useGetStartedDismissed } from "@/components/get-started";
 import { useSocial } from "@/components/social-provider";
 import { PullToRefresh } from "@/components/pull-to-refresh";
 import { EmptyState, TimelineSkeleton } from "@/components/status";
@@ -19,23 +20,45 @@ import { Tweet } from "@/components/tweet";
 import { loginPath } from "@/lib/auth/safe-next";
 import { takeCompose } from "@/lib/capture";
 import { fileToDataUrl } from "@/lib/storage";
+import { checklistState, defaultHomeTab } from "@/lib/social/get-started";
 import { publicTimeline } from "@/lib/social/timeline";
 import { POST_LIMIT, type PublicCard } from "@/lib/social/types";
 
 export function FeedView() {
+  const router = useRouter();
   const pathname = usePathname() || "/";
-  const { ready, user, feed, homePosts, homeReposts, suggestions, profiles, followingCount, refresh } =
-    useSocial();
+  const {
+    ready,
+    user,
+    feed,
+    posts,
+    homePosts,
+    homeReposts,
+    suggestions,
+    profiles,
+    followingCount,
+    refresh,
+  } = useSocial();
   const { cards, ready: cardsReady, syncError } = useCollection();
+  const composerRef = useRef<HTMLTextAreaElement>(null);
+  const { dismissed, dismiss } = useGetStartedDismissed(user?.id ?? null);
+  const started = checklistState({
+    cardCount: cards.length,
+    followingCount: user ? followingCount(user.id) : 0,
+    postCount: user ? posts.filter((post) => post.authorId === user.id).length : 0,
+    dismissed,
+    ready: Boolean(user) && ready && cardsReady && !syncError,
+  });
   const showWelcome =
     Boolean(user) &&
+    !started.visible &&
     shouldShowFirstCardWelcome({
       cardCount: cards.length,
       ready: cardsReady,
       syncError,
     });
   const [lane, setLane] = useState<"following" | "foryou">("foryou");
-  const pickedLane = useRef(false);
+  const pickedFor = useRef<string | null>(null);
   const suggestionIds = useRef<string[] | null>(null);
   if (ready && user && suggestionIds.current === null && suggestions.length > 0) {
     suggestionIds.current = suggestions.map((profile) => profile.id);
@@ -48,15 +71,48 @@ export function FeedView() {
   const visible = !user ? (lane === "following" ? [] : everyone) : lane === "following" ? feed : everyone;
 
   useEffect(() => {
-    if (!ready || pickedLane.current || !user) return;
-    pickedLane.current = true;
-    if (followingCount(user.id) > 0) setLane("following");
-  }, [followingCount, ready, user]);
+    if (!ready || !cardsReady || !user) return;
+    if (pickedFor.current === user.id) return;
+    pickedFor.current = user.id;
+    setLane(
+      defaultHomeTab({
+        followingCount: followingCount(user.id),
+        cardCount: cards.length,
+      }),
+    );
+  }, [cards.length, cardsReady, followingCount, ready, user]);
+
+  function openCollectors() {
+    const section = document.getElementById("collectors-to-follow");
+    if (section) {
+      section.scrollIntoView({ behavior: "smooth", block: "start" });
+      return;
+    }
+    router.push("/search");
+  }
+
+  function focusComposer() {
+    const field = composerRef.current;
+    if (field && field.getClientRects().length > 0) {
+      field.scrollIntoView({ behavior: "smooth", block: "center" });
+      field.focus();
+      return;
+    }
+    router.push("/compose");
+  }
 
   if (!ready) return <TimelineSkeleton />;
 
   return (
     <PullToRefresh onRefresh={refresh} className="-mx-4 -mt-5">
+      {started.visible ? (
+        <GetStartedCard
+          state={started}
+          onDismiss={dismiss}
+          onFollow={openCollectors}
+          onPost={focusComposer}
+        />
+      ) : null}
       {showWelcome ? <FirstCardWelcome /> : user ? <CollectionToday /> : null}
 
       <div className="grid grid-cols-2 border-b border-zinc-200 text-[15px] dark:border-white/10">
@@ -68,10 +124,13 @@ export function FeedView() {
         </LaneTab>
       </div>
 
-      {user ? <Composer /> : <SignedOutBanner />}
+      {user ? <Composer inputRef={composerRef} /> : <SignedOutBanner />}
 
       {suggestionRail.length > 0 && (
-        <section className="border-b border-zinc-200 px-4 py-3 dark:border-white/10">
+        <section
+          id="collectors-to-follow"
+          className="scroll-mt-20 border-b border-zinc-200 px-4 py-3 dark:border-white/10"
+        >
           <p className="mb-2 text-xs font-medium text-zinc-500">Collectors to follow</p>
           <div className="flex gap-2 overflow-x-auto pb-1">
             {suggestionRail.map((profile) => (
@@ -176,7 +235,7 @@ function SignedOutBanner() {
   );
 }
 
-function Composer() {
+function Composer({ inputRef }: { inputRef?: React.Ref<HTMLTextAreaElement> }) {
   const { createPost, user } = useSocial();
   const { cards } = useCollection();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -240,6 +299,7 @@ function Composer() {
       ) : null}
       <div className="min-w-0 flex-1">
         <MentionTextarea
+          ref={inputRef}
           value={body}
           onChange={setBody}
           maxLength={POST_LIMIT}

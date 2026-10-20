@@ -23,6 +23,7 @@ import type {
 import { COMMENT_LIMIT, MESSAGE_LIMIT } from "./types";
 import { mentionUsernames, type MentionCandidate } from "./mentions";
 import { normalizeUsername, usernameError } from "./local-db";
+import { ilikeExact, TAKEN_USERNAME, usernameTakenMessage } from "./username-taken";
 import { validateQuoteContent } from "./quotes";
 import { pingWantMatch } from "@/lib/wants/ping";
 import { BLOCKED_INTERACTION } from "@/lib/safety/block";
@@ -431,6 +432,13 @@ export async function remoteSignUp(
   if (nameError) return { error: nameError };
   if (input.password.length < 6) return { error: "Use at least 6 characters." };
   const displayName = input.displayName.trim() || username;
+  const { data: existing, error: lookupError } = await supabase
+    .from("profiles")
+    .select("id")
+    .ilike("username", ilikeExact(username))
+    .limit(1);
+  if (lookupError) return { error: lookupError.message };
+  if ((existing?.length ?? 0) > 0) return { error: TAKEN_USERNAME };
   const { data, error } = await supabase.auth.signUp({
     email: input.email.trim(),
     password: input.password,
@@ -442,8 +450,13 @@ export async function remoteSignUp(
           : emailConfirmRedirect(window.location.origin, input.next),
     },
   });
-  if (error) return { error: error.message };
-  if (data.session && data.user) {
+  if (error) return { error: usernameTakenMessage(error) ?? error.message };
+  let session = data.session;
+  if (!session) {
+    const { data: stored } = await supabase.auth.getSession();
+    session = stored.session;
+  }
+  if (session && data.user) {
     const { error: profileError } = await supabase.from("profiles").upsert({
       id: data.user.id,
       username,
@@ -453,9 +466,9 @@ export async function remoteSignUp(
       cover_url: null,
       accent: "#7c5cff",
     });
-    if (profileError) return { error: profileError.message };
+    if (profileError) return { error: usernameTakenMessage(profileError) ?? profileError.message };
   }
-  if (!data.session) {
+  if (!session) {
     return { notice: "Check your email to confirm the account, then log in." };
   }
   return {};
@@ -503,7 +516,7 @@ export async function remoteUpdateProfile(
       cover_url: cover.url,
     })
     .eq("id", userId);
-  if (error) return { error: error.message };
+  if (error) return { error: usernameTakenMessage(error) ?? error.message };
   return {};
 }
 
