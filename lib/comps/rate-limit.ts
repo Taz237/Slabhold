@@ -33,6 +33,34 @@ export const RATE_LIMIT_MESSAGE =
 export const ANON_RATE_LIMIT_MESSAGE =
   "Too many requests. Please wait a bit and try again.";
 
+/** Anonymous IP hashes in anon_rate_limits are deleted once they are older than this. */
+export const ANON_RATE_LIMIT_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+
+export function anonRateLimitCutoff(now = Date.now()): string {
+  return new Date(now - ANON_RATE_LIMIT_MAX_AGE_MS).toISOString();
+}
+
+/** Drop anon_rate_limits rows whose window started more than a day ago. */
+export async function pruneAnonRateLimits(now = Date.now()): Promise<boolean> {
+  const client = createSupabaseAdmin();
+  if (!client) {
+    console.warn("[anon_rate_limits] prune skipped: no admin client");
+    return false;
+  }
+
+  const cutoff = anonRateLimitCutoff(now);
+  const { error } = await client
+    .from("anon_rate_limits")
+    .delete()
+    .lt("window_start", cutoff);
+
+  if (error) {
+    console.warn("[anon_rate_limits] prune failed:", error.message);
+    return false;
+  }
+  return true;
+}
+
 function alignedWindowStart(periodMs: number): string {
   const ms = Math.floor(Date.now() / periodMs) * periodMs;
   return new Date(ms).toISOString();

@@ -1,9 +1,51 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
-import { describe, it } from "node:test";
+import { createRequire } from "node:module";
+import { before, describe, it } from "node:test";
 import { join } from "node:path";
-import { anonymousSubject } from "./anon-subject";
+import { pathToFileURL } from "node:url";
+
+const nodeRequire = createRequire(import.meta.url);
+const serverOnlyEmpty = pathToFileURL(
+  nodeRequire.resolve("server-only").replace(/index\.js$/, "empty.js"),
+).href;
+
+type ResolveHook = (
+  specifier: string,
+  context: object,
+  nextResolve: (specifier: string, context: object) => { url: string },
+) => { url: string; shortCircuit?: boolean };
+
+const registerHooks = (
+  nodeRequire("node:module") as { registerHooks?: (hooks: { resolve: ResolveHook }) => void }
+).registerHooks;
+
+if (!registerHooks) {
+  throw new Error("node:module registerHooks is required to import server-only modules in tests");
+}
+
+const hookFlag = "__slabholdServerOnlyTestHook";
+if (!(globalThis as Record<string, unknown>)[hookFlag]) {
+  (globalThis as Record<string, unknown>)[hookFlag] = true;
+  registerHooks({
+    resolve(specifier, context, nextResolve) {
+      if (specifier === "server-only") {
+        return { url: serverOnlyEmpty, shortCircuit: true };
+      }
+      return nextResolve(specifier, context);
+    },
+  });
+}
+
+let anonymousSubject: (request: Request) => string;
+let anonRateLimitCutoff: (now?: number) => string;
+let ANON_RATE_LIMIT_MAX_AGE_MS: number;
+
+before(async () => {
+  ({ anonymousSubject } = await import("./anon-subject"));
+  ({ anonRateLimitCutoff, ANON_RATE_LIMIT_MAX_AGE_MS } = await import("./rate-limit"));
+});
 
 function read(path: string): string {
   return readFileSync(join(process.cwd(), path), "utf8");
@@ -78,5 +120,19 @@ describe("card value rate limit bucket", () => {
       if (previous === undefined) delete process.env.RATE_LIMIT_SALT;
       else process.env.RATE_LIMIT_SALT = previous;
     }
+  });
+
+  it("deletes anonymous rate-limit rows older than one day from the daily cron", () => {
+    const now = Date.parse("2026-10-20T15:04:00.000Z");
+    assert.equal(ANON_RATE_LIMIT_MAX_AGE_MS, 24 * 60 * 60 * 1000);
+    assert.equal(anonRateLimitCutoff(now), "2026-10-19T15:04:00.000Z");
+
+    const rate = read("lib/comps/rate-limit.ts");
+    const cron = read("app/api/cron/collection-snapshots/route.ts");
+    const privacy = read("app/privacy/page.tsx");
+    assert.match(rate, /from\("anon_rate_limits"\)[\s\S]*delete\(\)[\s\S]*lt\("window_start", cutoff\)/);
+    assert.match(cron, /pruneAnonRateLimits\(/);
+    assert.match(read("lib/comps/anon-subject.ts"), /^import "server-only";/);
+    assert.match(privacy, /We keep that hash for up to a day\./);
   });
 });

@@ -11,15 +11,21 @@ type StorageFolder = {
   remove: (paths: string[]) => Promise<{ error: { message: string } | null }>;
 };
 
+type RowResult = { error: { message: string } | null };
+
 type EqDelete = {
+  eq: (column: string, value: string) => Promise<RowResult>;
+  in: (column: string, values: string[]) => Promise<RowResult>;
+};
+
+type NotificationPatch = {
   eq: (
     column: string,
     value: string,
-  ) => Promise<{ error: { message: string } | null }>;
-  in: (
-    column: string,
-    values: string[],
-  ) => Promise<{ error: { message: string } | null }>;
+  ) => {
+    eq: (column: string, value: string) => Promise<RowResult>;
+    in: (column: string, values: readonly string[]) => Promise<RowResult>;
+  };
 };
 
 export type AccountAdmin = {
@@ -37,6 +43,7 @@ export type AccountAdmin = {
       }>;
     };
     delete: () => EqDelete;
+    update: (values: { preview: string | null }) => NotificationPatch;
   };
   auth: {
     admin: {
@@ -52,6 +59,8 @@ export type AccountDeleteResult = {
 
 const MAX_STORAGE_PASSES = 50;
 const STORAGE_NO_PROGRESS = "storage cleanup made no progress";
+const WANT_ALERT_AFTER_DELETE = "Someone posted a card you want";
+const WRITTEN_PREVIEW_KINDS = ["comment", "mention", "quote"] as const;
 
 function listedNames(data: { name: string }[] | null): string[] {
   return (data ?? [])
@@ -95,6 +104,26 @@ async function deleteEq(
 ): Promise<string | null> {
   const { error } = await admin.from(table).delete().eq(column, value);
   return error ? error.message : null;
+}
+
+async function scrubActorNotifications(
+  admin: AccountAdmin,
+  userId: string,
+): Promise<string | null> {
+  const wantAlerts = await admin
+    .from("notifications")
+    .update({ preview: WANT_ALERT_AFTER_DELETE })
+    .eq("actor_id", userId)
+    .eq("kind", "want_alert");
+  if (wantAlerts.error) return wantAlerts.error.message;
+
+  const written = await admin
+    .from("notifications")
+    .update({ preview: null })
+    .eq("actor_id", userId)
+    .in("kind", WRITTEN_PREVIEW_KINDS);
+  if (written.error) return written.error.message;
+  return null;
 }
 
 async function deleteOwnRows(admin: AccountAdmin, userId: string): Promise<string | null> {
@@ -168,6 +197,17 @@ export async function runAccountDelete(input: {
       status: 500,
       body: {
         error: "Couldn't delete your uploaded images. Your account is still active.",
+      },
+    };
+  }
+
+  const scrubError = await scrubActorNotifications(input.admin, userId);
+  if (scrubError) {
+    console.error("[account-delete]", userId, "failed", "notifications");
+    return {
+      status: 500,
+      body: {
+        error: "Couldn't delete your account data. Your account is still active.",
       },
     };
   }

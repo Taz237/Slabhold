@@ -1,3 +1,4 @@
+import { pruneAnonRateLimits } from "@/lib/comps/rate-limit";
 import {
   upsertTodaysCollectionSnapshot,
 } from "@/lib/collection/totals";
@@ -50,6 +51,7 @@ async function listUserIdsWithCards(): Promise<string[]> {
 export async function GET(request: Request) {
   if (!cronAuthorized(request)) return unauthorized();
 
+  const anonRateLimitsPruned = await pruneAnonRateLimits();
   const userIds = await listUserIdsWithCards();
   let written = 0;
   let failed = 0;
@@ -79,6 +81,7 @@ export async function GET(request: Request) {
 
   return Response.json({
     ok: true,
+    anonRateLimitsPruned,
     users: userIds.length,
     written,
     failed,

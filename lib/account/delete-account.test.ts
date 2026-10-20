@@ -1,9 +1,12 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
+import { join } from "node:path";
 import { removeStorage, runAccountDelete, type AccountAdmin } from "./delete-account";
 
-function admin(opts?: { storageError?: boolean; rowError?: boolean }) {
+function admin(opts?: { storageError?: boolean; rowError?: boolean; scrubError?: boolean }) {
   const calls: string[] = [];
+  const updates: { table: string; preview: string | null; filters: string[] }[] = [];
   let deleted: string | null = null;
   const remaining = new Map<string, { name: string }[]>();
   const client: AccountAdmin = {
@@ -55,6 +58,26 @@ function admin(opts?: { storageError?: boolean; rowError?: boolean }) {
             },
           };
         },
+        update(values: { preview: string | null }) {
+          return {
+            eq(column: string, value: string) {
+              const filters = [`${column}=${value}`];
+              const finish = (more: string) => {
+                filters.push(more);
+                updates.push({ table, preview: values.preview, filters });
+                calls.push(`update:${table}`);
+                if (opts?.scrubError) return { error: { message: "scrub failed" } };
+                return { error: null };
+              };
+              return {
+                eq: (column2: string, value2: string) =>
+                  Promise.resolve(finish(`${column2}=${value2}`)),
+                in: (column2: string, values2: readonly string[]) =>
+                  Promise.resolve(finish(`${column2}=${values2.join(",")}`)),
+              };
+            },
+          };
+        },
       };
     },
     auth: {
@@ -70,6 +93,7 @@ function admin(opts?: { storageError?: boolean; rowError?: boolean }) {
   return {
     client,
     calls,
+    updates,
     deleted: () => deleted,
   };
 }
@@ -120,6 +144,51 @@ describe("account delete", () => {
     assert.equal(result.status, 500);
     assert.equal(fake.deleted(), null);
     assert.equal(fake.calls.includes("delete:want_alerts"), true);
+  });
+
+  it("scrubs notifications this user caused before deleting their rows", async () => {
+    const fake = admin();
+    const result = await runAccountDelete({
+      sessionUserId: "real-user",
+      body: null,
+      admin: fake.client,
+    });
+    assert.equal(result.status, 200);
+    assert.deepEqual(fake.updates, [
+      {
+        table: "notifications",
+        preview: "Someone posted a card you want",
+        filters: ["actor_id=real-user", "kind=want_alert"],
+      },
+      {
+        table: "notifications",
+        preview: null,
+        filters: ["actor_id=real-user", "kind=comment,mention,quote"],
+      },
+    ]);
+    const firstDelete = fake.calls.findIndex((call) => call.startsWith("delete:"));
+    const firstUpdate = fake.calls.indexOf("update:notifications");
+    assert.ok(firstUpdate >= 0 && firstUpdate < firstDelete);
+
+    const privacy = readFileSync(join(process.cwd(), "app/privacy/page.tsx"), "utf8");
+    assert.match(
+      privacy,
+      /Notifications you caused for other people stay in their inbox, but your name and any preview of what you wrote are removed\./,
+    );
+    assert.equal(privacy.includes("without your name"), false);
+  });
+
+  it("does not delete the account when notification scrubbing fails", async () => {
+    const fake = admin({ scrubError: true });
+    const result = await runAccountDelete({
+      sessionUserId: "real-user",
+      body: null,
+      admin: fake.client,
+    });
+    assert.equal(result.status, 500);
+    assert.equal(fake.deleted(), null);
+    assert.equal(fake.calls.includes("delete:want_alerts"), false);
+    assert.equal(fake.calls.filter((call) => call === "update:notifications").length, 1);
   });
 
   it("deletes 250 storage files across pages from offset 0", async () => {

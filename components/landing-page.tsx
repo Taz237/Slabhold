@@ -6,9 +6,9 @@ import { useEffect, useState } from "react";
 import { Logo } from "@/components/logo";
 
 const SHOTS = [
-  { src: "/landing/1.png", label: "The timeline" },
-  { src: "/landing/2.png", label: "Your slabs" },
-  { src: "/landing/3.png", label: "Sold prices" },
+  { src: "/landing/1.png", label: "The timeline", width: 860, height: 1860 },
+  { src: "/landing/2.png", label: "Your slabs", width: 860, height: 1734 },
+  { src: "/landing/3.png", label: "Sold prices", width: 860, height: 1860 },
 ] as const;
 
 export function LandingPage() {
@@ -45,7 +45,13 @@ export function LandingPage() {
 
         <div className="mt-10 flex gap-4 overflow-x-auto pb-2">
           {SHOTS.map((shot) => (
-            <LandingShot key={shot.src} src={shot.src} label={shot.label} />
+            <LandingShot
+              key={shot.src}
+              src={shot.src}
+              label={shot.label}
+              width={shot.width}
+              height={shot.height}
+            />
           ))}
         </div>
 
@@ -62,7 +68,17 @@ export function LandingPage() {
   );
 }
 
-function LandingShot({ src, label }: { src: string; label: string }) {
+function LandingShot({
+  src,
+  label,
+  width,
+  height,
+}: {
+  src: string;
+  label: string;
+  width: number;
+  height: number;
+}) {
   const [phase, setPhase] = useState<"check" | "ready" | "missing">("check");
 
   useEffect(() => {
@@ -81,27 +97,42 @@ function LandingShot({ src, label }: { src: string; label: string }) {
   }, [src]);
 
   return (
-    <div className="w-[220px] shrink-0">
+    <div className="w-[min(220px,72vw)] shrink-0 sm:w-[220px]">
       {phase === "ready" ? (
-        <Image
-          src={src}
-          alt={`${label} screenshot`}
-          width={1170}
-          height={2532}
-          sizes="220px"
-          className="h-auto w-full rounded-[1.6rem] border border-white/10 shadow-[0_20px_60px_rgba(124,58,237,0.25)]"
-          onError={() => setPhase("missing")}
-        />
+        <div
+          className="relative w-full overflow-hidden rounded-[1.6rem] border border-white/10 shadow-[0_20px_60px_rgba(124,58,237,0.25)]"
+          style={{ aspectRatio: `${width} / ${height}` }}
+        >
+          <Image
+            src={src}
+            alt={`${label} screenshot`}
+            fill
+            sizes="(max-width: 639px) 72vw, 220px"
+            className="object-contain"
+            onError={() => setPhase("missing")}
+          />
+        </div>
       ) : (
-        <ShotPlaceholder label={label} />
+        <ShotPlaceholder label={label} width={width} height={height} />
       )}
     </div>
   );
 }
 
-function ShotPlaceholder({ label }: { label: string }) {
+function ShotPlaceholder({
+  label,
+  width,
+  height,
+}: {
+  label: string;
+  width: number;
+  height: number;
+}) {
   return (
-    <div className="flex aspect-[1170/2532] w-full flex-col items-center justify-center rounded-[1.6rem] border border-white/10 bg-gradient-to-b from-[#2e1065] to-[#09090b] px-4 text-center">
+    <div
+      className="flex w-full flex-col items-center justify-center rounded-[1.6rem] border border-white/10 bg-gradient-to-b from-[#2e1065] to-[#09090b] px-4 text-center"
+      style={{ aspectRatio: `${width} / ${height}` }}
+    >
       <Logo className="h-12 w-12" />
       <p className="mt-4 text-sm font-semibold text-white">{label}</p>
     </div>

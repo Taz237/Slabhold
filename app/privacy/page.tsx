@@ -44,7 +44,7 @@ export default function PrivacyPolicyPage() {
       </p>
       <p>
         To limit price checks from visitors who aren&apos;t signed in, we store a one-way hash of
-        your IP address.
+        your IP address. We keep that hash for up to a day.
       </p>
       <h2 className="pt-2 text-lg font-bold tracking-tight">What is public</h2>
       <p>
@@ -60,7 +60,7 @@ export default function PrivacyPolicyPage() {
         people), want list, want alerts, notifications sent to you, collection and price history,
         flags you filed on a sold listing, and uploaded photos (card photos, avatar, cover, and
         post images). Blocks, mutes, and reports tied to the account go with the login.
-        Notifications you caused for other people stay in their inbox without your name. Deleting
+        Notifications you caused for other people stay in their inbox, but your name and any preview of what you wrote are removed. Deleting
         your account or logging out does not clear this browser&apos;s storage: liked posts, recent
         searches, card categories, whether you dismissed the daily collection summary, and the
         comments, reposts, and notifications saved here stay until you clear site data.
