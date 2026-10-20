@@ -28,6 +28,16 @@ type NotificationPatch = {
   };
 };
 
+type NotificationUpdate = {
+  preview?: string | null;
+  href?: string | null;
+};
+
+type SelectedRow = {
+  id?: string;
+  username?: string | null;
+};
+
 export type AccountAdmin = {
   storage: {
     from: (bucket: string) => StorageFolder;
@@ -38,12 +48,12 @@ export type AccountAdmin = {
         column: string,
         value: string,
       ) => Promise<{
-        data: { id: string }[] | null;
+        data: SelectedRow[] | null;
         error: { message: string } | null;
       }>;
     };
     delete: () => EqDelete;
-    update: (values: { preview: string | null }) => NotificationPatch;
+    update: (values: NotificationUpdate) => NotificationPatch;
   };
   auth: {
     admin: {
@@ -112,18 +122,50 @@ async function scrubActorNotifications(
 ): Promise<string | null> {
   const wantAlerts = await admin
     .from("notifications")
-    .update({ preview: WANT_ALERT_AFTER_DELETE })
+    .update({ preview: WANT_ALERT_AFTER_DELETE, href: "/collection" })
     .eq("actor_id", userId)
     .eq("kind", "want_alert");
   if (wantAlerts.error) return wantAlerts.error.message;
 
   const written = await admin
     .from("notifications")
-    .update({ preview: null })
+    .update({ preview: null, href: null })
     .eq("actor_id", userId)
     .in("kind", WRITTEN_PREVIEW_KINDS);
   if (written.error) return written.error.message;
   return null;
+}
+
+function wantAlertCardHrefs(cardId: string, username: string | null): string[] {
+  const hrefs: string[] = [];
+  if (username) hrefs.push(`/u/${username}/cards/${cardId}`);
+  hrefs.push(`/cards/${cardId}`);
+  return hrefs;
+}
+
+/**
+ * Sale alerts keep a null actor_id, so the actor scrub misses them. Rewrite any
+ * want-alert link that still points at this user's cards before those cards go.
+ */
+async function scrubWantAlertCardHrefs(
+  admin: AccountAdmin,
+  userId: string,
+  cardIds: string[],
+): Promise<string | null> {
+  if (cardIds.length === 0) return null;
+  const profile = await admin.from("profiles").select("username").eq("id", userId);
+  if (profile.error) return profile.error.message;
+  const username =
+    (profile.data ?? [])
+      .map((row) => row.username?.trim() ?? "")
+      .find((name) => name.length > 0) ?? null;
+  const hrefs = cardIds.flatMap((cardId) => wantAlertCardHrefs(cardId, username));
+  const { error } = await admin
+    .from("notifications")
+    .update({ href: "/collection" })
+    .eq("kind", "want_alert")
+    .in("href", hrefs);
+  return error ? error.message : null;
 }
 
 async function deleteOwnRows(admin: AccountAdmin, userId: string): Promise<string | null> {
@@ -145,7 +187,11 @@ async function deleteOwnRows(admin: AccountAdmin, userId: string): Promise<strin
 
   const cards = await admin.from("cards").select("id").eq("user_id", userId);
   if (cards.error) return cards.error.message;
-  const cardIds = (cards.data ?? []).map((row) => row.id).filter(Boolean);
+  const cardIds = (cards.data ?? [])
+    .map((row) => row.id)
+    .filter((id): id is string => Boolean(id));
+  const hrefError = await scrubWantAlertCardHrefs(admin, userId, cardIds);
+  if (hrefError) return hrefError;
   if (cardIds.length > 0) {
     const { error } = await admin
       .from("card_value_snapshots")

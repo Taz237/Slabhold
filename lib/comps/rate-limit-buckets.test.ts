@@ -133,6 +133,6 @@ describe("card value rate limit bucket", () => {
     assert.match(rate, /from\("anon_rate_limits"\)[\s\S]*delete\(\)[\s\S]*lt\("window_start", cutoff\)/);
     assert.match(cron, /pruneAnonRateLimits\(/);
     assert.match(read("lib/comps/anon-subject.ts"), /^import "server-only";/);
-    assert.match(privacy, /We keep that hash for up to a day\./);
+    assert.match(privacy, /We keep that hash for up to two days\./);
   });
 });

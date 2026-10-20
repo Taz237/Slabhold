@@ -44,7 +44,7 @@ export default function PrivacyPolicyPage() {
       </p>
       <p>
         To limit price checks from visitors who aren&apos;t signed in, we store a one-way hash of
-        your IP address. We keep that hash for up to a day.
+        your IP address. We keep that hash for up to two days.
       </p>
       <h2 className="pt-2 text-lg font-bold tracking-tight">What is public</h2>
       <p>

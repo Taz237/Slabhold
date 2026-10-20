@@ -6,7 +6,12 @@ import { removeStorage, runAccountDelete, type AccountAdmin } from "./delete-acc
 
 function admin(opts?: { storageError?: boolean; rowError?: boolean; scrubError?: boolean }) {
   const calls: string[] = [];
-  const updates: { table: string; preview: string | null; filters: string[] }[] = [];
+  const updates: {
+    table: string;
+    preview?: string | null;
+    href?: string | null;
+    filters: string[];
+  }[] = [];
   let deleted: string | null = null;
   const remaining = new Map<string, { name: string }[]>();
   const client: AccountAdmin = {
@@ -39,6 +44,7 @@ function admin(opts?: { storageError?: boolean; rowError?: boolean; scrubError?:
           return {
             async eq() {
               calls.push(`select:${table}`);
+              if (table === "profiles") return { data: [{ username: "sam" }], error: null };
               return { data: [{ id: "card-1" }], error: null };
             },
           };
@@ -58,13 +64,16 @@ function admin(opts?: { storageError?: boolean; rowError?: boolean; scrubError?:
             },
           };
         },
-        update(values: { preview: string | null }) {
+        update(values: { preview?: string | null; href?: string | null }) {
           return {
             eq(column: string, value: string) {
               const filters = [`${column}=${value}`];
               const finish = (more: string) => {
                 filters.push(more);
-                updates.push({ table, preview: values.preview, filters });
+                const recorded: (typeof updates)[number] = { table, filters };
+                if ("preview" in values) recorded.preview = values.preview;
+                if ("href" in values) recorded.href = values.href;
+                updates.push(recorded);
                 calls.push(`update:${table}`);
                 if (opts?.scrubError) return { error: { message: "scrub failed" } };
                 return { error: null };
@@ -158,17 +167,32 @@ describe("account delete", () => {
       {
         table: "notifications",
         preview: "Someone posted a card you want",
+        href: "/collection",
         filters: ["actor_id=real-user", "kind=want_alert"],
       },
       {
         table: "notifications",
         preview: null,
+        href: null,
         filters: ["actor_id=real-user", "kind=comment,mention,quote"],
+      },
+      {
+        table: "notifications",
+        href: "/collection",
+        filters: ["kind=want_alert", "href=/u/sam/cards/card-1,/cards/card-1"],
       },
     ]);
     const firstDelete = fake.calls.findIndex((call) => call.startsWith("delete:"));
     const firstUpdate = fake.calls.indexOf("update:notifications");
     assert.ok(firstUpdate >= 0 && firstUpdate < firstDelete);
+    const cardHrefUpdate = fake.calls.lastIndexOf("update:notifications");
+    const cardsDelete = fake.calls.indexOf("delete:cards");
+    assert.ok(fake.calls.indexOf("select:cards") < cardHrefUpdate);
+    assert.ok(cardHrefUpdate < cardsDelete);
+    assert.equal(
+      fake.updates[2]?.filters.some((filter) => filter.startsWith("actor_id=")),
+      false,
+    );
 
     const privacy = readFileSync(join(process.cwd(), "app/privacy/page.tsx"), "utf8");
     assert.match(
