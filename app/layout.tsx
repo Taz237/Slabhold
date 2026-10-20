@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
-import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { AppShell } from "@/components/app-shell";
 import { CaptureUtm } from "@/components/capture-utm";
+import { WebAnalytics } from "@/components/web-analytics";
 import { LOGO_SRC } from "@/components/logo";
 import { CollectionProvider } from "@/components/collection-provider";
 import { ImageLightboxProvider } from "@/components/image-lightbox";
@@ -64,7 +64,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           </SocialProvider>
         </ImageLightboxProvider>
         <CaptureUtm />
-        <Analytics />
+        <WebAnalytics />
         <SpeedInsights />
       </body>
     </html>

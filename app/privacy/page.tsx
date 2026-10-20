@@ -35,7 +35,8 @@ export default function PrivacyPolicyPage() {
       </p>
       <p>
         We use Vercel Web Analytics and Speed Insights to count page views and measure performance,
-        with no ads and no cross-site tracking.
+        with no ads and no cross-site tracking. Page views record the page type (no usernames, ids
+        or search text) plus the referrer, country and device type.
       </p>
       <h2 className="pt-2 text-lg font-bold tracking-tight">Cookies and this browser</h2>
       <p>

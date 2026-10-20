@@ -1,4 +1,4 @@
-import { track } from "@vercel/analytics";
+import { track, type BeforeSendEvent } from "@vercel/analytics";
 
 /**
  * Hobby hides custom events in the dashboard. These calls stay so an upgrade records them.
@@ -63,5 +63,121 @@ export function trackEvent(name: string, props?: unknown, send?: AnalyticsSender
     }
   } catch {
     // Analytics must never break the page.
+  }
+}
+
+const CAMPAIGN_PARAMS = new Set(["utm_source", "utm_medium", "utm_campaign"]);
+
+/**
+ * Page routes. A fully static path outranks a dynamic segment, so /cards/new
+ * stays /cards/new instead of /cards/[id].
+ */
+const PAGE_PATTERNS = [
+  "/",
+  "/about",
+  "/admin/comp-flags",
+  "/admin/reports",
+  "/cards/[id]",
+  "/cards/[id]/edit",
+  "/cards/[id]/posts",
+  "/cards/new",
+  "/collection",
+  "/compose",
+  "/forgot-password",
+  "/home",
+  "/login",
+  "/mail-day",
+  "/messages",
+  "/messages/[username]",
+  "/more",
+  "/notifications",
+  "/portfolio",
+  "/posts/[id]",
+  "/privacy",
+  "/profile",
+  "/profile/followers",
+  "/profile/following",
+  "/reset-password",
+  "/scan",
+  "/search",
+  "/settings/privacy",
+  "/signup",
+  "/terms",
+  "/u/[username]",
+  "/u/[username]/cards/[id]",
+  "/u/[username]/followers",
+  "/u/[username]/following",
+] as const;
+
+function normalizePath(pathname: string): string {
+  if (!pathname.startsWith("/")) return "/";
+  if (pathname.length > 1 && pathname.endsWith("/")) return pathname.slice(0, -1);
+  return pathname;
+}
+
+function routePattern(pathname: string): string {
+  const path = normalizePath(pathname);
+  const parts = path === "/" ? [] : path.slice(1).split("/");
+  let best: { pattern: string; score: number } | null = null;
+  for (const pattern of PAGE_PATTERNS) {
+    const expected = pattern === "/" ? [] : pattern.slice(1).split("/");
+    if (expected.length !== parts.length) continue;
+    let score = 0;
+    let matches = true;
+    for (let index = 0; index < expected.length; index += 1) {
+      const segment = expected[index];
+      const dynamic = segment.startsWith("[") && segment.endsWith("]") && segment.length > 2;
+      if (dynamic) {
+        if (!parts[index]) {
+          matches = false;
+          break;
+        }
+        continue;
+      }
+      if (segment !== parts[index]) {
+        matches = false;
+        break;
+      }
+      score += 1;
+    }
+    if (matches && (!best || score > best.score)) best = { pattern, score };
+  }
+  return best?.pattern ?? path;
+}
+
+function campaignQuery(params: URLSearchParams): string {
+  const kept = new URLSearchParams();
+  for (const [key, value] of params) {
+    if (!CAMPAIGN_PARAMS.has(key) || kept.has(key)) continue;
+    kept.append(key, value);
+  }
+  const query = kept.toString();
+  return query ? `?${query}` : "";
+}
+
+function scrubbedUrl(input: string): string | null {
+  let parsed: URL;
+  try {
+    parsed = new URL(input, "https://slabhold.local");
+  } catch {
+    return null;
+  }
+  const relative = `${routePattern(parsed.pathname)}${campaignQuery(parsed.searchParams)}`;
+  if (/^[a-z][a-z\d+\-.]*:\/\//i.test(input)) return `${parsed.origin}${relative}`;
+  return relative;
+}
+
+/**
+ * beforeSend: page views keep the route pattern plus utm_source, utm_medium,
+ * and utm_campaign. Usernames, ids, search text, and other query params are dropped.
+ */
+export function scrubAnalyticsUrl(event: BeforeSendEvent): BeforeSendEvent | null {
+  try {
+    if (!event || typeof event.url !== "string") return null;
+    const url = scrubbedUrl(event.url);
+    if (url == null) return null;
+    return { ...event, url };
+  } catch {
+    return null;
   }
 }

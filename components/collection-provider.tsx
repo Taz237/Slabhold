@@ -128,12 +128,14 @@ export function CollectionProvider({ children }: { children: React.ReactNode }) 
       const next = [card, ...cardsRef.current];
       cardsRef.current = next;
       setCards(next);
+      if (mode === "local") trackEvent("card_added");
       if (remote && userId) {
         const client = createSupabaseBrowser();
         if (client) {
           enqueue(card.id, async () => {
             try {
               await saveUserCard(client, userId, card);
+              trackEvent("card_added");
               if (isPublicForSaleListing(card)) pingWantMatch("listing", card.id);
               setSyncError(null);
               scheduleCardValueRefresh(card.id);
@@ -143,10 +145,9 @@ export function CollectionProvider({ children }: { children: React.ReactNode }) 
           });
         }
       }
-      trackEvent("card_added");
       return card;
     },
-    [enqueue, remote, report, userId],
+    [enqueue, mode, remote, report, userId],
   );
 
   const updateCard = useCallback(

@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { join } from "node:path";
-import { sanitizeProps, trackEvent } from "./analytics";
+import { sanitizeProps, scrubAnalyticsUrl, trackEvent } from "./analytics";
 
 const root = process.cwd();
 
@@ -109,12 +109,124 @@ describe("trackEvent", () => {
   });
 });
 
+function scrubbed(url: string) {
+  const event = scrubAnalyticsUrl({ type: "pageview", url });
+  assert.ok(event);
+  return event.url;
+}
+
+function pagePatterns(dir: string, segments: string[] = []): string[] {
+  const found: string[] = [];
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    if (entry.name.startsWith(".")) continue;
+    if (entry.isDirectory()) {
+      if (entry.name === "api" || entry.name.startsWith("@")) continue;
+      const next =
+        entry.name.startsWith("(") && entry.name.endsWith(")")
+          ? segments
+          : [...segments, entry.name];
+      found.push(...pagePatterns(join(dir, entry.name), next));
+      continue;
+    }
+    if (entry.name === "page.tsx") {
+      found.push(segments.length === 0 ? "/" : `/${segments.join("/")}`);
+    }
+  }
+  return found;
+}
+
+function samplePath(pattern: string): string {
+  if (pattern === "/") return "/";
+  return pattern
+    .split("/")
+    .map((part) => (part.startsWith("[") && part.endsWith("]") ? "donnietaz" : part))
+    .join("/");
+}
+
+describe("scrubAnalyticsUrl", () => {
+  it("keeps the page type and the campaign params", () => {
+    assert.equal(scrubbed("/messages/donnietaz?x=1"), "/messages/[username]");
+    assert.equal(scrubbed("/search?q=wemby"), "/search");
+    assert.equal(scrubbed("/?utm_source=x&foo=1"), "/?utm_source=x");
+    assert.equal(
+      scrubbed("https://slabhold.vercel.app/messages/donnietaz?x=1"),
+      "https://slabhold.vercel.app/messages/[username]",
+    );
+    assert.equal(
+      scrubbed("https://slabhold.vercel.app/search?q=wemby"),
+      "https://slabhold.vercel.app/search",
+    );
+    assert.equal(
+      scrubbed("https://slabhold.vercel.app/?utm_source=x&foo=1"),
+      "https://slabhold.vercel.app/?utm_source=x",
+    );
+    assert.equal(scrubbed("/cards/new?q=wemby"), "/cards/new");
+    assert.equal(
+      scrubbed("/posts/abc123?utm_campaign=launch&q=wemby&utm_source=ig"),
+      "/posts/[id]?utm_campaign=launch&utm_source=ig",
+    );
+    assert.equal(scrubbed("/search?q=wemby#luka"), "/search");
+    assert.deepEqual(scrubAnalyticsUrl({ type: "event", url: "/u/donnietaz/cards/abc?token=1" }), {
+      type: "event",
+      url: "/u/[username]/cards/[id]",
+    });
+    assert.equal(scrubAnalyticsUrl({ type: "pageview", url: "http://[" }), null);
+  });
+
+  it("rewrites every app page and drops non-campaign query params", () => {
+    const patterns = pagePatterns(join(root, "app"));
+    assert.ok(patterns.includes("/messages/[username]"));
+    assert.ok(patterns.includes("/u/[username]/cards/[id]"));
+    assert.ok(patterns.includes("/search"));
+    for (const pattern of patterns) {
+      const sample = samplePath(pattern);
+      assert.equal(scrubbed(`${sample}?x=1`), pattern, sample);
+      assert.equal(scrubbed(`${sample}?utm_source=x&foo=1`), `${pattern}?utm_source=x`, sample);
+    }
+  });
+});
+
+describe("card_added", () => {
+  it("fires after a successful save, and right after setCards in local mode", () => {
+    const source = read("components/collection-provider.tsx");
+    const addCard = source.slice(
+      source.indexOf("const addCard = useCallback("),
+      source.indexOf("const updateCard = useCallback("),
+    );
+    assert.match(
+      addCard,
+      /setCards\(next\);\r?\n\s*if \(mode === "local"\) trackEvent\("card_added"\);/,
+    );
+    assert.match(
+      addCard,
+      /await saveUserCard\(client, userId, card\);\r?\n\s*trackEvent\("card_added"\);/,
+    );
+    const catchStart = addCard.indexOf("} catch (error) {");
+    assert.ok(catchStart > addCard.indexOf("await saveUserCard"));
+    const catchBlock = addCard.slice(catchStart, addCard.indexOf("}", catchStart + 1));
+    assert.match(catchBlock, /report\(error\)/);
+    assert.doesNotMatch(catchBlock, /trackEvent/);
+    assert.equal(addCard.match(/trackEvent\("card_added"\)/g)?.length, 2);
+    const updateCard = source.slice(
+      source.indexOf("const updateCard = useCallback("),
+      source.indexOf("const removeCard = useCallback("),
+    );
+    assert.doesNotMatch(updateCard, /trackEvent/);
+  });
+});
+
 describe("analytics wiring", () => {
   it("mounts both scripts once and fires the seven events from the product actions", () => {
     const layout = read("app/layout.tsx");
-    assert.equal((layout.match(/<Analytics \/>/g) ?? []).length, 1);
+    const webAnalytics = read("components/web-analytics.tsx");
+    assert.equal(
+      (webAnalytics.match(/<Analytics beforeSend=\{scrubAnalyticsUrl\} \/>/g) ?? []).length,
+      1,
+    );
+    assert.match(webAnalytics, /from "@vercel\/analytics\/next"/);
+    assert.match(layout, /<WebAnalytics \/>/);
+    assert.equal((layout.match(/<Analytics \/>/g) ?? []).length, 0);
     assert.equal((layout.match(/<SpeedInsights \/>/g) ?? []).length, 1);
-    assert.match(layout, /from "@vercel\/analytics\/next"/);
     assert.match(layout, /from "@vercel\/speed-insights\/next"/);
     assert.match(layout, /<CaptureUtm \/>/);
 
@@ -137,7 +249,7 @@ describe("analytics wiring", () => {
     const privacy = read("app/privacy/page.tsx");
     assert.match(
       privacy,
-      /We use Vercel Web Analytics and Speed Insights to count page views and measure performance,\s+with no ads and no cross-site tracking\./,
+      /We use Vercel Web Analytics and Speed Insights to count page views and measure performance,\s+with no ads and no cross-site tracking\. Page views record the page type \(no usernames, ids\s+or search text\) plus the referrer, country and device type\./,
     );
   });
 });
