@@ -72,7 +72,7 @@ const CAMPAIGN_PARAMS = new Set(["utm_source", "utm_medium", "utm_campaign"]);
  * Page routes. A fully static path outranks a dynamic segment, so /cards/new
  * stays /cards/new instead of /cards/[id].
  */
-const PAGE_PATTERNS = [
+export const PAGE_PATTERNS = [
   "/",
   "/about",
   "/admin/comp-flags",
@@ -115,7 +115,7 @@ function normalizePath(pathname: string): string {
   return pathname;
 }
 
-function routePattern(pathname: string): string {
+export function routePattern(pathname: string): string {
   const path = normalizePath(pathname);
   const parts = path === "/" ? [] : path.slice(1).split("/");
   let best: { pattern: string; score: number } | null = null;
@@ -134,7 +134,7 @@ function routePattern(pathname: string): string {
         }
         continue;
       }
-      if (segment !== parts[index]) {
+      if (segment.toLowerCase() !== parts[index].toLowerCase()) {
         matches = false;
         break;
       }
@@ -142,14 +142,16 @@ function routePattern(pathname: string): string {
     }
     if (matches && (!best || score > best.score)) best = { pattern, score };
   }
-  return best?.pattern ?? path;
+  return best?.pattern ?? "/[unknown]";
 }
 
 function campaignQuery(params: URLSearchParams): string {
   const kept = new URLSearchParams();
   for (const [key, value] of params) {
     if (!CAMPAIGN_PARAMS.has(key) || kept.has(key)) continue;
-    kept.append(key, value);
+    const token = cleanToken(value);
+    if (!token) continue;
+    kept.append(key, token);
   }
   const query = kept.toString();
   return query ? `?${query}` : "";

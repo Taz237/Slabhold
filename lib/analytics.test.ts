@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { join } from "node:path";
-import { sanitizeProps, scrubAnalyticsUrl, trackEvent } from "./analytics";
+import { PAGE_PATTERNS, routePattern, sanitizeProps, scrubAnalyticsUrl, trackEvent } from "./analytics";
 
 const root = process.cwd();
 
@@ -171,6 +171,20 @@ describe("scrubAnalyticsUrl", () => {
       url: "/u/[username]/cards/[id]",
     });
     assert.equal(scrubAnalyticsUrl({ type: "pageview", url: "http://[" }), null);
+    assert.equal(routePattern("/U/DonnieTaz"), "/u/[username]");
+    assert.equal(scrubbed("/U/DonnieTaz"), "/u/[username]");
+    assert.equal(routePattern("/u/x/cards"), "/[unknown]");
+    assert.equal(routePattern("/u//cards/x"), "/[unknown]");
+    assert.equal(routePattern("/u/a/cards/b/extra"), "/[unknown]");
+    assert.equal(routePattern("/nope/secret"), "/[unknown]");
+    assert.equal(scrubbed("/u/x/cards"), "/[unknown]");
+    assert.equal(scrubbed("/u//cards/x"), "/[unknown]");
+    assert.equal(scrubbed("/u/a/cards/b/extra"), "/[unknown]");
+    assert.equal(scrubbed("/nope/secret"), "/[unknown]");
+    assert.equal(scrubbed("/?utm_source=john%40doe.com"), "/");
+    assert.equal(scrubbed("/?utm_source=hello%20world"), "/");
+    assert.equal(scrubbed("/?utm_source=newsletter"), "/?utm_source=newsletter");
+    assert.equal(scrubbed("/search?utm_source=john%40doe.com&utm_medium=email"), "/search?utm_medium=email");
   });
 
   it("rewrites every app page and drops non-campaign query params", () => {
@@ -183,6 +197,73 @@ describe("scrubAnalyticsUrl", () => {
       assert.equal(scrubbed(`${sample}?x=1`), pattern, sample);
       assert.equal(scrubbed(`${sample}?utm_source=x&foo=1`), `${pattern}?utm_source=x`, sample);
     }
+  });
+
+  it("matches the route table to app page files", () => {
+    const fromFiles = pagePatterns(join(root, "app")).sort();
+    const fromTable = [...PAGE_PATTERNS].sort();
+    assert.deepEqual(fromTable, fromFiles);
+  });
+});
+
+function viewAndVitals(href: string) {
+  const pathname = new URL(href, "https://slabhold.local").pathname;
+  const pattern = routePattern(pathname);
+  const o = scrubAnalyticsUrl({ type: "pageview", url: href })?.url ?? null;
+  const vitalUrl = scrubAnalyticsUrl({ type: "pageview", url: href })?.url;
+  const vital = vitalUrl ? { url: vitalUrl, route: pattern } : null;
+  return { o, dp: pattern, href: vital?.url ?? null, route: vital?.route ?? null };
+}
+
+describe("analytics payloads", () => {
+  it("sends the route pattern and drops usernames, search text, and unsafe query params", () => {
+    assert.deepEqual(viewAndVitals("/u/donnietaz?q=x"), {
+      o: "/u/[username]",
+      dp: "/u/[username]",
+      href: "/u/[username]",
+      route: "/u/[username]",
+    });
+    assert.deepEqual(viewAndVitals("/search?q=wemby"), {
+      o: "/search",
+      dp: "/search",
+      href: "/search",
+      route: "/search",
+    });
+    assert.deepEqual(viewAndVitals("https://slabhold.vercel.app/u/donnietaz?q=x"), {
+      o: "https://slabhold.vercel.app/u/[username]",
+      dp: "/u/[username]",
+      href: "https://slabhold.vercel.app/u/[username]",
+      route: "/u/[username]",
+    });
+    assert.deepEqual(viewAndVitals("https://slabhold.vercel.app/search?q=wemby"), {
+      o: "https://slabhold.vercel.app/search",
+      dp: "/search",
+      href: "https://slabhold.vercel.app/search",
+      route: "/search",
+    });
+    assert.deepEqual(viewAndVitals("/search?q=wemby&utm_source=newsletter"), {
+      o: "/search?utm_source=newsletter",
+      dp: "/search",
+      href: "/search?utm_source=newsletter",
+      route: "/search",
+    });
+    assert.deepEqual(viewAndVitals("/u/donnietaz?q=x&utm_source=john%40doe.com"), {
+      o: "/u/[username]",
+      dp: "/u/[username]",
+      href: "/u/[username]",
+      route: "/u/[username]",
+    });
+
+    const webAnalytics = read("components/web-analytics.tsx");
+    assert.match(webAnalytics, /const pattern = routePattern\(usePathname\(\)\)/);
+    assert.match(
+      webAnalytics,
+      /<Analytics route=\{pattern\} path=\{pattern\} beforeSend=\{scrubAnalyticsUrl\} \/>/,
+    );
+    assert.match(webAnalytics, /<SpeedInsights/);
+    assert.match(webAnalytics, /route=\{pattern\}/);
+    assert.match(webAnalytics, /scrubAnalyticsUrl\(\{ type: "pageview", url: e\.url \}\)\?\.url/);
+    assert.equal((webAnalytics.match(/<SpeedInsights/g) ?? []).length, 1);
   });
 });
 
@@ -219,15 +300,17 @@ describe("analytics wiring", () => {
   it("mounts both scripts once and fires the seven events from the product actions", () => {
     const layout = read("app/layout.tsx");
     const webAnalytics = read("components/web-analytics.tsx");
-    assert.equal(
-      (webAnalytics.match(/<Analytics beforeSend=\{scrubAnalyticsUrl\} \/>/g) ?? []).length,
-      1,
+    assert.match(
+      webAnalytics,
+      /<Analytics route=\{pattern\} path=\{pattern\} beforeSend=\{scrubAnalyticsUrl\} \/>/,
     );
     assert.match(webAnalytics, /from "@vercel\/analytics\/next"/);
+    assert.match(webAnalytics, /from "@vercel\/speed-insights\/next"/);
+    assert.equal((webAnalytics.match(/<SpeedInsights/g) ?? []).length, 1);
     assert.match(layout, /<WebAnalytics \/>/);
     assert.equal((layout.match(/<Analytics \/>/g) ?? []).length, 0);
-    assert.equal((layout.match(/<SpeedInsights \/>/g) ?? []).length, 1);
-    assert.match(layout, /from "@vercel\/speed-insights\/next"/);
+    assert.equal((layout.match(/<SpeedInsights/g) ?? []).length, 0);
+    assert.equal(layout.includes("@vercel/speed-insights/next"), false);
     assert.match(layout, /<CaptureUtm \/>/);
 
     const landing = read("components/landing-page.tsx");

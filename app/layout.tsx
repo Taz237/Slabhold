@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { AppShell } from "@/components/app-shell";
 import { CaptureUtm } from "@/components/capture-utm";
@@ -65,7 +64,6 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         </ImageLightboxProvider>
         <CaptureUtm />
         <WebAnalytics />
-        <SpeedInsights />
       </body>
     </html>
   );
