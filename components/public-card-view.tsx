@@ -12,10 +12,10 @@ import { CardThumb } from "@/components/card-thumb";
 import { CompBasis } from "@/components/comp-basis";
 import { CompsList } from "@/components/comps-list";
 import { FairPriceCheck } from "@/components/fair-price-check";
+import { PublicCardCompsPreview } from "@/components/public-card-comps";
 import { useCollection } from "@/components/collection-provider";
 import { ProfileSkeleton } from "@/components/status";
 import { useSocial } from "@/components/social-provider";
-import { loginPath } from "@/lib/auth/safe-next";
 import { ValueChart } from "@/components/value-chart";
 import { isCardOwner } from "@/lib/comps/ownership";
 import { basedOnSalesLabel, countForSalesLabel, valueFromShownSales } from "@/lib/comps/shared-value";
@@ -23,6 +23,10 @@ import { soldNotice } from "@/lib/comps/sold-response";
 import { useSoldComps } from "@/lib/comps/use-sold-comps";
 import { cardTitle, formatPaidLabel } from "@/lib/format";
 import { formatRelativeTime } from "@/lib/relative-time";
+import {
+  hiddenPublicComps,
+  type PublicCardComps,
+} from "@/lib/comps/public-types";
 import type { PublicCard } from "@/lib/social/types";
 import {
   cardValueHasAmount,
@@ -32,7 +36,15 @@ import {
 } from "@/lib/value/format";
 import { useCardValue } from "@/lib/value/use-card-values";
 
-export function PublicCardView({ username, id }: { username: string; id: string }) {
+export function PublicCardView({
+  username,
+  id,
+  publicComps = hiddenPublicComps(),
+}: {
+  username: string;
+  id: string;
+  publicComps?: PublicCardComps;
+}) {
   const social = useSocial();
   const { cards, ready: cardsReady } = useCollection();
   const profile = social.profileByUsername(username);
@@ -75,6 +87,7 @@ export function PublicCardView({ username, id }: { username: string; id: string 
       backHref={backHref}
       userId={social.user?.id ?? null}
       canFlag={isCardOwner(profile.id, social.user?.id ?? null)}
+      publicComps={publicComps}
     />
   );
 }
@@ -85,12 +98,14 @@ function PublicCardAnalytics({
   backHref,
   userId,
   canFlag,
+  publicComps,
 }: {
   card: PublicCard;
   displayName: string;
   backHref: string;
   userId: string | null;
   canFlag: boolean;
+  publicComps: PublicCardComps;
 }) {
   const pathname = usePathname() || "/";
   const specs = [
@@ -254,7 +269,8 @@ function PublicCardAnalytics({
         />
       ) : null}
 
-      <section className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-white/10 dark:bg-white/[0.03]">
+      {authRequired && publicComps.status === "hidden" ? null : (
+        <section className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-white/10 dark:bg-white/[0.03]">
         <div className="flex flex-wrap items-end justify-between gap-2">
           <div>
             <h2 className="font-semibold">Recent sales</h2>
@@ -280,12 +296,7 @@ function PublicCardAnalytics({
           </div>
         </div>
         {authRequired ? (
-          <p className="mt-3 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-700 dark:border-white/10 dark:bg-white/5 dark:text-zinc-300">
-            <Link href={loginPath(pathname)} className="font-semibold underline underline-offset-2">
-              Log in
-            </Link>{" "}
-            to see sold comps
-          </p>
+          <PublicCardCompsPreview comps={publicComps} pathname={pathname} />
         ) : null}
         {usingLive && !compsLoading && !authRequired ? (
           <p className="mt-3 text-[11px] text-zinc-400">
@@ -314,7 +325,8 @@ function PublicCardAnalytics({
             onUndo={flags.undo}
           />
         ) : null}
-      </section>
+        </section>
+      )}
 
       <FairPriceCheck
         card={{
