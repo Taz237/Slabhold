@@ -31,12 +31,14 @@ describe("card cache tag", () => {
 
     assert.match(refresh, /revalidateCard\(id\)/);
     assert.match(cron, /revalidateCard\(candidate\.cardId\)/);
-    assert.match(flags, /revalidateCard\(cardId\)/);
     assert.match(flags, /export async function POST/);
     assert.match(flags, /export async function DELETE/);
-    assert.match(flags, /repriceFromCache\(cardId\)/);
+    assert.match(flags, /await repriceFromCache\(cardId\)/);
+    assert.match(flags, /repriceCardFromCache\(cardId/);
     assert.match(sold, /loadCachedCardRefresh/);
+    assert.match(source("lib/comps/reprice-from-cache.ts"), /revalidate\(cardId\)/);
     assert.match(source("lib/value/card-market.ts"), /revalidateTag/);
+    assert.match(source("lib/value/card-market.ts"), /revalidatePath/);
     assert.match(source("lib/value/card-market.ts"), /unstable_cache/);
     assert.match(source("lib/value/card-market.ts"), /card:\$\{cardId\}|cardCacheTag/);
   });

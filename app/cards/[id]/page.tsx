@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { CardDetail } from "@/components/card-detail";
 import { previewMetadata } from "@/lib/social/link-preview";
 import { loadPublicCardPreview } from "@/lib/social/link-preview-load";
+import { requireCardPageAccess } from "@/lib/value/require-card-page-access";
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -12,5 +13,6 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function CardDetailPage({ params }: Props) {
   const { id } = await params;
+  await requireCardPageAccess(id);
   return <CardDetail id={id} />;
 }

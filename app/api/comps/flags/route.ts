@@ -3,11 +3,19 @@ import { compFlagStatus, parseFlagReason } from "@/lib/comps/flag-reasons";
 import { loadSoldCompCard } from "@/lib/comps/load-card";
 import { isCardOwner } from "@/lib/comps/ownership";
 import { buildQueryKey } from "@/lib/comps/query-key";
+import { repriceCardFromCache } from "@/lib/comps/reprice-from-cache";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { getAuthUserId } from "@/lib/supabase/server";
 import { revalidateCard } from "@/lib/value/card-market";
 import { refreshCardValue } from "@/lib/value/getCardValue";
 import type { CardValueResult } from "@/lib/value/types";
+
+async function repriceFromCache(cardId: string) {
+  return repriceCardFromCache(cardId, {
+    refresh: refreshCardValue,
+    revalidate: revalidateCard,
+  });
+}
 
 export const runtime = "nodejs";
 
@@ -34,18 +42,6 @@ async function ownerId(admin: FlagAdmin, cardId: string): Promise<string | null>
     return null;
   }
   return data?.user_id ? String(data.user_id) : null;
-}
-
-async function repriceFromCache(cardId: string) {
-  try {
-    return await refreshCardValue(cardId, {
-      cacheOnly: true,
-      replaceValue: true,
-      beforeTrawl: async () => false,
-    });
-  } finally {
-    revalidateCard(cardId);
-  }
 }
 
 /**

@@ -15,6 +15,7 @@ import { loadUserCards, removeUserCard, saveUserCard } from "@/lib/social/cards"
 import { loadCollection, newId, nextAccent, saveCollection } from "@/lib/storage";
 import { createSupabaseBrowser } from "@/lib/supabase/browser";
 import type { CardInput, SportsCard } from "@/lib/types";
+import { shouldRefreshCardValueOnEdit } from "@/lib/value/price-refresh";
 import { scheduleCardValueRefresh } from "@/lib/value/use-card-values";
 import { isPublicForSaleListing } from "@/lib/wants/listing";
 import { pingWantMatch } from "@/lib/wants/ping";
@@ -148,6 +149,7 @@ export function CollectionProvider({ children }: { children: React.ReactNode }) 
 
   const updateCard = useCallback(
     (id: string, patch: Partial<SportsCard>) => {
+      const previous = cardsRef.current.find((card) => card.id === id);
       const next = cardsRef.current.map((card) =>
         card.id === id ? { ...card, ...patch, updatedAt: new Date().toISOString() } : card,
       );
@@ -157,12 +159,14 @@ export function CollectionProvider({ children }: { children: React.ReactNode }) 
       if (remote && userId && updated) {
         const client = createSupabaseBrowser();
         if (client) {
+          const needsRefresh =
+            !previous || shouldRefreshCardValueOnEdit(previous, updated);
           enqueue(id, async () => {
             try {
               await saveUserCard(client, userId, updated);
               if (isPublicForSaleListing(updated)) pingWantMatch("listing", updated.id);
               setSyncError(null);
-              scheduleCardValueRefresh(id);
+              if (needsRefresh) scheduleCardValueRefresh(id);
             } catch (error) {
               report(error);
             }
