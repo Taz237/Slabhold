@@ -153,6 +153,8 @@ export type SignUpInput = {
   password: string;
   username: string;
   displayName: string;
+  /** Where to return after email confirmation. */
+  next?: string;
 };
 
 export type ProfilePatch = {

@@ -12,6 +12,7 @@ import { QuotedPostEmbed } from "@/components/quoted-post-embed";
 import { SafetyMenu } from "@/components/safety-menu";
 import { ShareAction } from "@/components/share-button";
 import { useSocial } from "@/components/social-provider";
+import { signupPath } from "@/lib/auth/safe-next";
 import { exactTime, initials, timeAgo } from "@/lib/format";
 import { quoteCount } from "@/lib/social/quotes";
 import type { Post, PostComment, Profile, PublicCard } from "@/lib/social/types";
@@ -405,6 +406,7 @@ export function Engagement({
   onQuotesClick?: () => void;
 }) {
   const router = useRouter();
+  const pathname = usePathname() || "/";
   const {
     user,
     posts,
@@ -441,7 +443,7 @@ export function Engagement({
 
   function requireUser() {
     if (user) return true;
-    router.push("/login");
+    router.push(signupPath(pathname));
     return false;
   }
 

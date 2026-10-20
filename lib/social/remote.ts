@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { emailConfirmRedirect } from "@/lib/auth/safe-next";
 import { uploadMedia } from "@/lib/supabase/media";
 import { sanitizeAttachedCard } from "./card-posts";
 import { loadMailDayViews } from "./mail-day";
@@ -437,7 +438,13 @@ export async function remoteSignUp(
   const { data, error } = await supabase.auth.signUp({
     email: input.email.trim(),
     password: input.password,
-    options: { data: { username, display_name: displayName } },
+    options: {
+      data: { username, display_name: displayName },
+      emailRedirectTo:
+        typeof window === "undefined"
+          ? undefined
+          : emailConfirmRedirect(window.location.origin, input.next),
+    },
   });
   if (error) return { error: error.message };
   if (data.session && data.user) {

@@ -3,15 +3,16 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
+import { Logo } from "@/components/logo";
 import { useSocial } from "@/components/social-provider";
+import { afterAuthPath, loginPath, safeNext, signupPath } from "@/lib/auth/safe-next";
 
-export function AuthForm() {
+export function AuthForm({ mode }: { mode: "login" | "signup" }) {
   const router = useRouter();
   const params = useSearchParams();
-  const { ready, user, mode, signIn, signUp } = useSocial();
-  const [tab, setTab] = useState<"login" | "signup">(
-    params.get("tab") === "signup" ? "signup" : "login",
-  );
+  const { ready, user, mode: accountMode, signIn, signUp } = useSocial();
+  const next = safeNext(params.get("next"));
+  const destination = afterAuthPath(next);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [username, setUsername] = useState("");
@@ -26,9 +27,9 @@ export function AuthForm() {
     setError(null);
     setMessage(null);
     const result =
-      tab === "login"
+      mode === "login"
         ? await signIn(email, password)
-        : await signUp({ email, password, username, displayName });
+        : await signUp({ email, password, username, displayName, next });
     setBusy(false);
     if (result.error) {
       setError(result.error);
@@ -38,10 +39,10 @@ export function AuthForm() {
       setMessage(result.notice);
       return;
     }
-    router.push("/");
+    router.push(destination);
   }
 
-  async function useDemo() {
+  async function loginDemo() {
     setBusy(true);
     setError(null);
     const result = await signIn("maya@cardflip.app", "demo1234");
@@ -50,7 +51,7 @@ export function AuthForm() {
       setError(result.error);
       return;
     }
-    router.push("/");
+    router.push(destination);
   }
 
   if (!ready) {
@@ -61,43 +62,30 @@ export function AuthForm() {
     return (
       <div className="mx-auto max-w-md py-10 text-center">
         <p className="text-lg font-medium">You&apos;re in as @{user.username}</p>
-        <Link href="/profile" className="mt-3 inline-block text-sm text-violet-700 dark:text-violet-300">
-          Go to your profile
+        <Link href={destination} className="mt-3 inline-block text-sm text-violet-700 dark:text-violet-300">
+          Continue
         </Link>
       </div>
     );
   }
 
+  const otherHref = mode === "login" ? signupPath(next) : loginPath(next);
+
   return (
     <div className="mx-auto max-w-md">
+      <Link href="/" className="mb-8 flex items-center gap-2">
+        <Logo />
+        <span className="text-[17px] font-bold tracking-tight">Slabhold</span>
+      </Link>
       <h1 className="text-2xl font-bold tracking-tight">
-        {tab === "login" ? "Log in" : "Create your account"}
+        {mode === "login" ? "Log in" : "Create your account"}
       </h1>
       <p className="mt-1 text-sm text-zinc-500">
         Follow collectors, post pulls, and keep your book.
       </p>
 
-      <div className="mt-4 grid grid-cols-2 rounded-full bg-zinc-100 p-1 text-sm dark:bg-white/5">
-        {(["login", "signup"] as const).map((item) => (
-          <button
-            key={item}
-            type="button"
-            onClick={() => {
-              setTab(item);
-              setError(null);
-              setMessage(null);
-            }}
-            className={`rounded-full py-2 font-medium ${
-              tab === item ? "bg-white shadow-sm dark:bg-zinc-800" : "text-zinc-500"
-            }`}
-          >
-            {item === "login" ? "Log in" : "Sign up"}
-          </button>
-        ))}
-      </div>
-
       <form onSubmit={(e) => void submit(e)} className="mt-5 space-y-3">
-        {tab === "signup" && (
+        {mode === "signup" && (
           <>
             <Field label="Display name" value={displayName} onChange={setDisplayName} placeholder="Maya Chen" />
             <Field label="Username" value={username} onChange={setUsername} placeholder="waxroom" />
@@ -110,28 +98,36 @@ export function AuthForm() {
         <button
           type="submit"
           disabled={busy}
-          className="w-full rounded-full bg-zinc-900 py-3 text-sm font-semibold text-white disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-950"
+          className="w-full rounded-full bg-[#7C3AED] py-3 text-sm font-semibold text-white disabled:opacity-60"
         >
-          {tab === "login" ? "Log in" : "Sign up"}
+          {mode === "login" ? "Log in" : "Sign up"}
         </button>
-        {tab === "signup" ? (
+        {mode === "signup" ? (
           <p className="text-center text-xs text-zinc-500">
             By signing up you agree to the{" "}
             <Link href="/terms" className="font-bold underline">
               Terms
+            </Link>{" "}
+            and{" "}
+            <Link href="/privacy" className="font-bold underline">
+              Privacy
             </Link>
+            .
           </p>
         ) : null}
+        <Link href={otherHref} className="block py-2 text-center text-sm font-medium text-zinc-500">
+          {mode === "login" ? "New here? Sign up" : "Have an account? Log in"}
+        </Link>
       </form>
 
-      {mode === "local" && (
+      {mode === "login" && accountMode === "local" && (
         <div className="mt-5 rounded-2xl border border-dashed border-zinc-300 p-4 text-sm dark:border-white/15">
           <p className="font-medium">Try a demo collector</p>
           <p className="mt-1 text-zinc-500">maya@cardflip.app · demo1234</p>
           <p className="text-zinc-500">Also jordan@cardflip.app and sam@cardflip.app</p>
           <button
             type="button"
-            onClick={() => void useDemo()}
+            onClick={() => void loginDemo()}
             className="mt-3 rounded-full border border-zinc-300 px-3 py-1.5 text-xs font-semibold dark:border-white/15"
           >
             Log in as Maya

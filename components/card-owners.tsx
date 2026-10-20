@@ -1,10 +1,12 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useMemo, useState } from "react";
 import { Avatar } from "@/components/avatar";
 import { outlineButton, solidButton } from "@/components/button-styles";
 import { useSocial } from "@/components/social-provider";
+import { signupPath } from "@/lib/auth/safe-next";
 import type { IdentityCard } from "@/lib/social/card-identity";
 import {
   OWNERS_PAGE_SIZE,
@@ -20,6 +22,7 @@ export function CardOwnersSection({
   excludeCardId?: string;
 }) {
   const { ready, user, profiles, publicCards } = useSocial();
+  const pathname = usePathname() || "/";
   const [expanded, setExpanded] = useState(false);
 
   const profilesById = useMemo(
@@ -68,6 +71,7 @@ export function CardOwnersSection({
             owner={owner}
             signedIn={Boolean(user)}
             isSelf={Boolean(user && user.id === owner.ownerId)}
+            pathname={pathname}
           />
         ))}
       </ul>
@@ -79,13 +83,15 @@ function OwnerRow({
   owner,
   signedIn,
   isSelf,
+  pathname,
 }: {
   owner: CardOwnerRow;
   signedIn: boolean;
   isSelf: boolean;
+  pathname: string;
 }) {
   const profileHref = `/u/${owner.username}`;
-  const messageHref = signedIn ? `/messages/${owner.username}` : "/login";
+  const messageHref = signedIn ? `/messages/${owner.username}` : signupPath(pathname);
 
   return (
     <li className="flex items-center gap-3 py-3">
@@ -111,7 +117,7 @@ function OwnerRow({
         <Link
           href={messageHref}
           className={signedIn ? outlineButton : solidButton}
-          title={signedIn ? undefined : "Sign in to message"}
+          title={signedIn ? undefined : "Sign up to message"}
         >
           Message
         </Link>

@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { solidButton } from "@/components/button-styles";
 import { useCollection } from "@/components/collection-provider";
 import { useSocial } from "@/components/social-provider";
+import { loginPath, signupPath } from "@/lib/auth/safe-next";
 import {
   canShareFairPrice,
   fairPriceCheck,
@@ -58,6 +59,7 @@ export function FairPriceCheck({
   needsLogin?: boolean;
 }) {
   const router = useRouter();
+  const pathname = usePathname() || "/";
   const { user, createPost } = useSocial();
   const { cards } = useCollection();
   const [raw, setRaw] = useState("");
@@ -81,7 +83,7 @@ export function FairPriceCheck({
     if (!allowShare) return;
     if (!result || result.status !== "ready" || !hasPrice) return;
     if (!user) {
-      router.push("/login");
+      router.push(signupPath(pathname));
       return;
     }
     setSharing(true);
@@ -165,13 +167,13 @@ export function FairPriceCheck({
             onClick={() => void shareToFeed()}
             className={solidButton}
           >
-            {sharing ? "Sharing…" : user ? "Share to feed" : "Sign in to share"}
+            {sharing ? "Sharing…" : user ? "Share to feed" : "Sign up to share"}
           </button>
         ) : null}
       </div>
       {needsLogin ? (
         <p className="mt-3 text-sm text-zinc-500">
-          <Link href="/login" className="font-semibold underline underline-offset-2">
+          <Link href={loginPath(pathname)} className="font-semibold underline underline-offset-2">
             Sign in
           </Link>{" "}
           to compare against recent sales

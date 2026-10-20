@@ -4,6 +4,6 @@ import { getAuthUserId } from "@/lib/supabase/server";
 
 export default async function MailDayPage() {
   const userId = await getAuthUserId();
-  if (!userId) redirect("/login");
+  if (!userId) redirect("/signup?next=/mail-day");
   return <MailDayForm />;
 }

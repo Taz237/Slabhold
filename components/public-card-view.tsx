@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useEffect } from "react";
 import { useCompFlagState } from "@/components/use-comp-flags";
 import { ArrowLeft } from "lucide-react";
@@ -14,6 +15,7 @@ import { FairPriceCheck } from "@/components/fair-price-check";
 import { useCollection } from "@/components/collection-provider";
 import { ProfileSkeleton } from "@/components/status";
 import { useSocial } from "@/components/social-provider";
+import { loginPath } from "@/lib/auth/safe-next";
 import { ValueChart } from "@/components/value-chart";
 import { isCardOwner } from "@/lib/comps/ownership";
 import { basedOnSalesLabel, countForSalesLabel, valueFromShownSales } from "@/lib/comps/shared-value";
@@ -89,6 +91,7 @@ function PublicCardAnalytics({
   userId: string | null;
   canFlag: boolean;
 }) {
+  const pathname = usePathname() || "/";
   const specs = [
     card.sport ? { label: "Sport", value: card.sport } : null,
     card.cardNumber.trim() && card.cardNumber.trim() !== "—"
@@ -266,7 +269,7 @@ function PublicCardAnalytics({
         </div>
         {authRequired ? (
           <p className="mt-3 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-700 dark:border-white/10 dark:bg-white/5 dark:text-zinc-300">
-            <Link href="/login" className="font-semibold underline underline-offset-2">
+            <Link href={loginPath(pathname)} className="font-semibold underline underline-offset-2">
               Log in
             </Link>{" "}
             to see sold comps

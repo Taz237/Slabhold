@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { Camera, ImagePlus, X } from "lucide-react";
 import { Avatar } from "@/components/avatar";
@@ -8,6 +8,7 @@ import { useCollection } from "@/components/collection-provider";
 import { QuoteComposePreview } from "@/components/quoted-post-embed";
 import { MentionTextarea } from "@/components/mention-textarea";
 import { LoadingRows } from "@/components/status";
+import { signupPath } from "@/lib/auth/safe-next";
 import { useSocial } from "@/components/social-provider";
 import { takeCompose } from "@/lib/capture";
 import { initials } from "@/lib/format";
@@ -21,6 +22,7 @@ import { isUuid } from "@/lib/value/card-value-access";
 
 export function ComposeView() {
   const router = useRouter();
+  const pathname = usePathname() || "/";
   const params = useSearchParams();
   const editId = params.get("edit");
   const attachCardParam = params.get("card");
@@ -97,8 +99,11 @@ export function ComposeView() {
   }, [editId, posts, quoteParam, ready, user]);
 
   useEffect(() => {
-    if (ready && !user) router.replace("/login");
-  }, [ready, router, user]);
+    if (ready && !user) {
+      const search = params.toString();
+      router.replace(signupPath(search ? `${pathname}?${search}` : pathname));
+    }
+  }, [pathname, params, ready, router, user]);
 
   async function onImage(file: File | undefined) {
     if (!file) return;

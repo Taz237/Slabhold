@@ -71,7 +71,7 @@ export function MoreView() {
                 Log in
               </Link>
               <Link
-                href="/login?tab=signup"
+                href="/signup"
                 className="rounded-full border border-zinc-300 px-4 py-2 text-sm font-medium dark:border-white/15"
               >
                 Sign up
@@ -107,6 +107,11 @@ export function MoreView() {
           <li>
             <Link href="/settings/privacy" className="block py-3">
               Privacy & safety
+            </Link>
+          </li>
+          <li>
+            <Link href="/privacy" className="block py-3">
+              Privacy
             </Link>
           </li>
           <li>

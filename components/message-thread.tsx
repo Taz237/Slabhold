@@ -3,16 +3,18 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { ArrowLeft } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Avatar } from "@/components/avatar";
 import { solidButton } from "@/components/button-styles";
 import { EmptyState, LoadingRows } from "@/components/status";
 import { useSocial } from "@/components/social-provider";
+import { signupPath } from "@/lib/auth/safe-next";
 import { exactTime, timeAgo } from "@/lib/format";
 import { MESSAGE_LIMIT } from "@/lib/social/types";
 
 export function MessageThread({ username }: { username: string }) {
   const router = useRouter();
+  const pathname = usePathname() || "/";
   const {
     ready,
     user,
@@ -57,7 +59,7 @@ export function MessageThread({ username }: { username: string }) {
     event.preventDefault();
     if (pending || !partner) return;
     if (!user) {
-      router.push("/login");
+      router.push(signupPath(pathname));
       return;
     }
     setPending(true);

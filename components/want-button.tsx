@@ -1,8 +1,11 @@
 "use client";
 
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Star } from "lucide-react";
 import { useSocial } from "@/components/social-provider";
+import { signupPath } from "@/lib/auth/safe-next";
 import { cardIdentityKey, type IdentityCard } from "@/lib/social/card-identity";
 import { createSupabaseBrowser } from "@/lib/supabase/browser";
 import { isUuid } from "@/lib/value/card-value-access";
@@ -25,6 +28,7 @@ export function WantButton({
   fairHigh?: number | null;
 }) {
   const { user } = useSocial();
+  const pathname = usePathname() || "/";
   const [record, setRecord] = useState<{ scope: string; want: SavedWant | null } | null>(null);
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState("");
@@ -69,7 +73,18 @@ export function WantButton({
     };
   }, [cardKey, scope, user]);
 
-  if (!user) return null;
+  if (!user) {
+    return (
+      <Link
+        href={signupPath(pathname)}
+        aria-label="Want this card"
+        className="inline-flex min-h-11 items-center gap-1.5 rounded-full bg-zinc-100 px-3 py-1.5 text-sm font-semibold text-zinc-700 dark:bg-white/10 dark:text-zinc-200"
+      >
+        <Star className="h-4 w-4" />
+        Want
+      </Link>
+    );
+  }
 
   function openEditor() {
     setDraft(want?.targetPrice != null ? String(want.targetPrice) : "");

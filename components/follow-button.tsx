@@ -1,13 +1,16 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useSocial } from "@/components/social-provider";
+import { signupPath } from "@/lib/auth/safe-next";
 
 const followButton =
   "inline-flex min-w-[6.5rem] shrink-0 items-center justify-center whitespace-nowrap rounded-full px-4 py-1.5 text-sm font-bold transition-opacity active:opacity-70";
 
 export function FollowButton({ userId }: { userId: string }) {
+  const pathname = usePathname() || "/";
   const { user, isFollowing, toggleFollow, blockedIds } = useSocial();
   const followed = isFollowing(userId);
   const [optimistic, setOptimistic] = useState<boolean | null>(null);
@@ -21,7 +24,7 @@ export function FollowButton({ userId }: { userId: string }) {
 
   if (!user) {
     return (
-      <Link href="/login" className={`${followButton} bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-950`}>
+      <Link href={signupPath(pathname)} className={`${followButton} bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-950`}>
         Follow
       </Link>
     );

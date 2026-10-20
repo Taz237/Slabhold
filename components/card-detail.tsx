@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useCompFlagState } from "@/components/use-comp-flags";
 import { ArrowLeft, Pencil, Trash2 } from "lucide-react";
@@ -16,6 +16,7 @@ import { CompsList } from "@/components/comps-list";
 import { FairPriceCheck } from "@/components/fair-price-check";
 import { ValueChart } from "@/components/value-chart";
 import { useSocial } from "@/components/social-provider";
+import { loginPath } from "@/lib/auth/safe-next";
 import { cardCategory } from "@/lib/card-category";
 import { basedOnSalesLabel, countForSalesLabel, valueFromShownSales } from "@/lib/comps/shared-value";
 import { useSoldComps } from "@/lib/comps/use-sold-comps";
@@ -42,6 +43,7 @@ import { useCardValue } from "@/lib/value/use-card-values";
 
 export function CardDetail({ id }: { id: string }) {
   const router = useRouter();
+  const pathname = usePathname() || "/";
   const { user } = useSocial();
   const { ready, getCard, updateCard, removeCard } = useCollection();
   const card = getCard(id);
@@ -374,7 +376,7 @@ export function CardDetail({ id }: { id: string }) {
         </div>
         {authRequired ? (
           <p className="mt-3 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-700 dark:border-white/10 dark:bg-white/5 dark:text-zinc-300">
-            <Link href="/login" className="font-semibold underline underline-offset-2">
+            <Link href={loginPath(pathname)} className="font-semibold underline underline-offset-2">
               Log in
             </Link>{" "}
             to see sold comps

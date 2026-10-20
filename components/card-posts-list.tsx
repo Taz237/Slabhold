@@ -1,11 +1,13 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import { Tweet } from "@/components/tweet";
 import { useCollection } from "@/components/collection-provider";
 import { useSocial } from "@/components/social-provider";
+import { signupPath } from "@/lib/auth/safe-next";
 import {
   filterLoadedPostsForCard,
   loadPostsForCard,
@@ -19,6 +21,7 @@ import { useCardValues } from "@/lib/value/use-card-values";
 const PAGE_LIMIT = 20;
 
 export function CardPostsList({ cardId }: { cardId: string }) {
+  const pathname = usePathname() || "/";
   const { user, posts: loadedPosts, profiles, publicCards, ready } = useSocial();
   const { cards } = useCollection();
   const [posts, setPosts] = useState<Post[]>([]);
@@ -186,10 +189,10 @@ export function CardPostsList({ cardId }: { cardId: string }) {
           </Link>
         ) : (
           <Link
-            href="/login"
+            href={signupPath(pathname)}
             className="shrink-0 text-xs font-semibold text-violet-700 underline underline-offset-2 dark:text-violet-300"
           >
-            Log in to post
+            Sign up to post
           </Link>
         )}
       </div>

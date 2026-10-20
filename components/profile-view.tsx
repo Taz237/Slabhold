@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { MessageCircle, WalletCards } from "lucide-react";
 import { Avatar } from "@/components/avatar";
@@ -16,6 +16,7 @@ import { unblockAccount } from "@/lib/safety/actions";
 import { createSupabaseBrowser } from "@/lib/supabase/browser";
 import { useCollection } from "@/components/collection-provider";
 import { useSocial } from "@/components/social-provider";
+import { signupPath } from "@/lib/auth/safe-next";
 import { ShareIconButton } from "@/components/share-button";
 import { Tweet } from "@/components/tweet";
 import { normalizeUsername } from "@/lib/social/local-db";
@@ -26,6 +27,7 @@ import { useCardValues } from "@/lib/value/use-card-values";
 
 export function ProfileView({ username }: { username?: string }) {
   const router = useRouter();
+  const pathname = usePathname() || "/";
   const social = useSocial();
   const { cards, reload } = useCollection();
   const {
@@ -109,7 +111,7 @@ export function ProfileView({ username }: { username?: string }) {
           <Link href="/login" className={solidButton}>
             Log in
           </Link>
-          <Link href="/login?tab=signup" className={outlineButton}>
+          <Link href="/signup" className={outlineButton}>
             Sign up
           </Link>
         </EmptyState>
@@ -197,7 +199,10 @@ export function ProfileView({ username }: { username?: string }) {
                   reportedUserId={profile.id}
                   username={profile.username}
                 />
-                <Link href={`/messages/${profile.username}`} className={outlineButton}>
+                <Link
+                  href={user ? `/messages/${profile.username}` : signupPath(pathname)}
+                  className={outlineButton}
+                >
                   Message
                 </Link>
                 <FollowButton userId={profile.id} />

@@ -1,9 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { Tweet } from "@/components/tweet";
 import { useSocial } from "@/components/social-provider";
+import { signupPath } from "@/lib/auth/safe-next";
 import {
   filterLoadedPostsForCard,
   loadPostsForCard,
@@ -17,6 +19,7 @@ const PREVIEW_LIMIT = 5;
 
 export function CardCollectorsSaying({ cardId }: { cardId: string }) {
   const { user, homePosts: loadedPosts, profiles, publicCards, ready } = useSocial();
+  const pathname = usePathname() || "/";
   const [posts, setPosts] = useState<Post[]>([]);
   const [relatedPosts, setRelatedPosts] = useState<Post[]>([]);
   const [authors, setAuthors] = useState<Map<string, Profile>>(new Map());
@@ -110,10 +113,10 @@ export function CardCollectorsSaying({ cardId }: { cardId: string }) {
           </Link>
         ) : (
           <Link
-            href="/login"
+            href={signupPath(pathname)}
             className="text-xs font-semibold text-violet-700 underline underline-offset-2 dark:text-violet-300"
           >
-            Log in to post
+            Sign up to post
           </Link>
         )}
       </div>

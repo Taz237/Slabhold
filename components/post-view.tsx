@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import { Avatar } from "@/components/avatar";
@@ -12,6 +12,7 @@ import { MentionTextarea } from "@/components/mention-textarea";
 import { SafetyMenu } from "@/components/safety-menu";
 import { AuthorLine, Engagement, Tweet } from "@/components/tweet";
 import { useSocial } from "@/components/social-provider";
+import { signupPath } from "@/lib/auth/safe-next";
 import { quotesOf } from "@/lib/social/quotes";
 import { COMMENT_LIMIT } from "@/lib/social/types";
 
@@ -19,6 +20,7 @@ const PAGE_SIZE = 20;
 
 export function PostView({ id }: { id: string }) {
   const router = useRouter();
+  const pathname = usePathname() || "/";
   const { ready, user, posts, profiles, commentsFor, addComment, refresh, blockedIds } = useSocial();
   const post = posts.find((item) => item.id === id);
   const author = post ? profiles.find((profile) => profile.id === post.authorId) : undefined;
@@ -50,7 +52,10 @@ export function PostView({ id }: { id: string }) {
   }, [id]);
 
   function focusReply(username?: string) {
-    if (!user) return;
+    if (!user) {
+      router.push(signupPath(pathname));
+      return;
+    }
     setLane("replies");
     if (username) {
       const mention = `@${username} `;
@@ -63,7 +68,7 @@ export function PostView({ id }: { id: string }) {
     e.preventDefault();
     if (pending) return;
     if (!user) {
-      router.push("/login");
+      router.push(signupPath(pathname));
       return;
     }
     setPending(true);
@@ -257,10 +262,10 @@ export function PostView({ id }: { id: string }) {
           {error ? <p className="mt-1 pl-10 text-xs text-rose-600 dark:text-rose-400">{error}</p> : null}
         </form>
       ) : !user && lane === "replies" ? (
-        <div className="fixed inset-x-0 bottom-[calc(6.15rem+env(safe-area-inset-bottom))] z-20 mx-auto flex w-full max-w-lg items-center justify-between gap-3 border-t border-zinc-200 bg-[color-mix(in_oklab,var(--background)_92%,transparent)] px-4 py-3 backdrop-blur-xl dark:border-white/10">
-          <p className="text-sm text-zinc-500">Log in to reply</p>
-          <Link href="/login" className={solidButton}>
-            Log in
+        <div className="flex items-center justify-between gap-3 border-t border-zinc-200 px-4 py-3 dark:border-white/10">
+          <p className="text-sm text-zinc-500">Sign up to reply</p>
+          <Link href={signupPath(pathname)} className={solidButton}>
+            Sign up
           </Link>
         </div>
       ) : null}
