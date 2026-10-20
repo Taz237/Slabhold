@@ -1,12 +1,14 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useEffect, useMemo } from "react";
 import { Mail } from "lucide-react";
 import { Avatar } from "@/components/avatar";
 import { solidButton } from "@/components/button-styles";
 import { EmptyState, LoadingRows } from "@/components/status";
 import { useSocial } from "@/components/social-provider";
+import { loginPath } from "@/lib/auth/safe-next";
 import { exactTime, timeAgo } from "@/lib/format";
 import type { DirectMessage, Profile } from "@/lib/social/types";
 
@@ -17,6 +19,7 @@ type Conversation = {
 };
 
 export function MessagesView() {
+  const pathname = usePathname() || "/";
   const { ready, user, profiles, messages, refresh } = useSocial();
 
   useEffect(() => {
@@ -60,7 +63,7 @@ export function MessagesView() {
           title="Your messages"
           detail="Log in to send private messages."
         >
-          <Link href="/login" className={solidButton}>
+          <Link href={loginPath(pathname)} className={solidButton}>
             Log in
           </Link>
         </EmptyState>

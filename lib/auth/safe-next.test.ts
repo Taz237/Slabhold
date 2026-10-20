@@ -82,6 +82,9 @@ describe("logout and plain auth links", () => {
       "components/profile-view.tsx",
       "components/more-view.tsx",
       "components/feed-view.tsx",
+      "components/notifications-view.tsx",
+      "components/messages-view.tsx",
+      "components/privacy-lists.tsx",
     ]) {
       const source = readFileSync(join(root, file), "utf8");
       assert.doesNotMatch(source, /href="\/login"/);

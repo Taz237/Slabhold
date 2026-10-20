@@ -42,11 +42,15 @@ export default function PrivacyPolicyPage() {
         post is held in session storage until the next screen reads it. If Supabase is not
         connected, the account and collection stay in this browser.
       </p>
+      <p>
+        To limit price checks from visitors who aren&apos;t signed in, we store a one-way hash of
+        your IP address.
+      </p>
       <h2 className="pt-2 text-lg font-bold tracking-tight">What is public</h2>
       <p>
-        Posts, comments, profiles, follows, and cards you mark public can be read by anyone,
-        including people who are not signed in. Hidden posts are left out. If two accounts have
-        blocked each other, they do not see each other&apos;s posts or comments.
+        Posts, comments, reposts, profiles, follows, and cards you mark public can be read by
+        anyone, including people who are not signed in. Hidden posts are left out. If either
+        account blocks the other, they do not see each other&apos;s posts or comments.
       </p>
       <h2 className="pt-2 text-lg font-bold tracking-tight">How long we keep data</h2>
       <p>We keep account data until you delete it. There is no automatic expiration.</p>
@@ -55,8 +59,11 @@ export default function PrivacyPolicyPage() {
         profile, cards, posts, comments, reposts, follows, messages you sent or received (for both
         people), want list, want alerts, notifications sent to you, collection and price history,
         flags you filed on a sold listing, and uploaded photos (card photos, avatar, cover, and
-        post images). Blocks, mutes, and reports tied to the account go with the login. Likes
-        stored in this browser stay on the device.
+        post images). Blocks, mutes, and reports tied to the account go with the login.
+        Notifications you caused for other people stay in their inbox without your name. Deleting
+        your account or logging out does not clear this browser&apos;s storage: liked posts, recent
+        searches, card categories, whether you dismissed the daily collection summary, and the
+        comments, reposts, and notifications saved here stay until you clear site data.
       </p>
       <p>
         Contact:{" "}

@@ -1,12 +1,14 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useEffect } from "react";
 import { AtSign, Bell, Heart, MessageCircle, Quote, Repeat2, Star, UserPlus } from "lucide-react";
 import { Avatar } from "@/components/avatar";
 import { solidButton } from "@/components/button-styles";
 import { EmptyState, LoadingRows } from "@/components/status";
 import { useSocial } from "@/components/social-provider";
+import { loginPath } from "@/lib/auth/safe-next";
 import { exactTime, timeAgo } from "@/lib/format";
 import {
   groupHeadlineParts,
@@ -16,6 +18,7 @@ import {
 import type { NotificationKind, Profile } from "@/lib/social/types";
 
 export function NotificationsView() {
+  const pathname = usePathname() || "/";
   const { ready, user, profiles, notifications, unreadCount, markNotificationsRead, refresh } = useSocial();
 
   useEffect(() => {
@@ -43,7 +46,7 @@ export function NotificationsView() {
           title="Nothing to see yet"
           detail="Log in to see likes, replies, mentions, and new followers."
         >
-          <Link href="/login" className={solidButton}>
+          <Link href={loginPath(pathname)} className={solidButton}>
             Log in
           </Link>
         </EmptyState>

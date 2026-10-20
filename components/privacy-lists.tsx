@@ -1,14 +1,17 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import { Avatar } from "@/components/avatar";
 import { useSocial } from "@/components/social-provider";
 import { EmptyState, LoadingRows } from "@/components/status";
+import { loginPath } from "@/lib/auth/safe-next";
 import { unblockAccount, unmuteAccount } from "@/lib/safety/actions";
 
 export function PrivacyLists() {
+  const pathname = usePathname() || "/";
   const { ready, user, blockedIds, mutedIds, safetyAccounts, applySafetyChange, refresh } =
     useSocial();
   const [error, setError] = useState<string | null>(null);
@@ -25,7 +28,7 @@ export function PrivacyLists() {
   if (!user) {
     return (
       <EmptyState title="Privacy & safety" detail="Log in to manage blocked and muted accounts.">
-        <Link href="/login" className="text-sm font-bold">
+        <Link href={loginPath(pathname)} className="text-sm font-bold">
           Log in
         </Link>
       </EmptyState>

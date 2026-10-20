@@ -1,7 +1,9 @@
 import "server-only";
 
-import { createHash } from "node:crypto";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
+import { anonymousSubject } from "./anon-subject";
+
+export { anonymousSubject };
 
 const REQUESTS_BUCKET = "requests";
 const TRAWL_BUCKET = "trawl";
@@ -102,16 +104,6 @@ export async function consumeRateLimit(
     windowMs,
     limit,
   );
-}
-
-/** Hash so anon_rate_limits stores a subject key, not the raw IP. */
-export function anonymousSubject(request: Request): string {
-  const forwarded = request.headers.get("x-forwarded-for");
-  const ip =
-    forwarded?.split(",")[0]?.trim() ||
-    request.headers.get("x-real-ip")?.trim() ||
-    "unknown";
-  return createHash("sha256").update(`card-values:${ip}`).digest("hex");
 }
 
 export async function consumeAnonymousCardValueLimit(
