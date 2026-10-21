@@ -12,7 +12,7 @@ import {
 import { useSocial } from "@/components/social-provider";
 import { trackEvent } from "@/lib/analytics";
 import { mergeCategories } from "@/lib/card-category";
-import { loadUserCards, removeUserCard, saveUserCard } from "@/lib/social/cards";
+import { loadUserCards, noteFreshInsert, removeUserCard, saveUserCard } from "@/lib/social/cards";
 import { loadCollection, newId, nextAccent, saveCollection } from "@/lib/storage";
 import { createSupabaseBrowser } from "@/lib/supabase/browser";
 import type { CardInput, SportsCard } from "@/lib/types";
@@ -144,12 +144,18 @@ export function CollectionProvider({ children }: { children: React.ReactNode }) 
       cardsRef.current = next;
       setCards(next);
       if (mode === "local") trackEvent("card_added");
+      const forgetCard = (cardId: string) => {
+        const remaining = cardsRef.current.filter((item) => item.id !== cardId);
+        cardsRef.current = remaining;
+        setCards(remaining);
+      };
       let saved = Promise.resolve();
       if (remote && userId) {
         const client = createSupabaseBrowser();
         if (client) {
           saved = enqueue(card.id, async () => {
             try {
+              noteFreshInsert(card.id);
               await saveUserCard(client, userId, card);
               trackEvent("card_added");
               if (isPublicForSaleListing(card)) pingWantMatch("listing", card.id);
@@ -157,11 +163,13 @@ export function CollectionProvider({ children }: { children: React.ReactNode }) 
               scheduleCardValueRefresh(card.id);
             } catch (error) {
               report(error);
+              forgetCard(card.id);
               throw error;
             }
           });
         }
       }
+      void saved.catch(() => undefined);
       return { card, saved };
     },
     [enqueue, mode, remote, report, userId],
@@ -181,6 +189,14 @@ export function CollectionProvider({ children }: { children: React.ReactNode }) 
         void saved.catch(() => undefined);
         return { card: (previous ?? { id }) as SportsCard, saved };
       }
+      const revert = () => {
+        if (!previous) return;
+        const latest = cardsRef.current.find((item) => item.id === id);
+        if (!latest || latest.updatedAt !== updated.updatedAt) return;
+        const restored = cardsRef.current.map((item) => (item.id === id ? previous : item));
+        cardsRef.current = restored;
+        setCards(restored);
+      };
       let saved = Promise.resolve();
       if (remote && userId) {
         const client = createSupabaseBrowser();
@@ -195,11 +211,13 @@ export function CollectionProvider({ children }: { children: React.ReactNode }) 
               if (needsRefresh) scheduleCardValueRefresh(id);
             } catch (error) {
               report(error);
+              revert();
               throw error;
             }
           });
         }
       }
+      void saved.catch(() => undefined);
       return { card: updated, saved };
     },
     [enqueue, remote, report, userId],

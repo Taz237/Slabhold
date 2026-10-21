@@ -6,7 +6,14 @@ import {
   parseGrade,
   RAW_GRADE,
 } from "@/lib/card-options";
-import { uploadMedia } from "@/lib/supabase/media";
+import {
+  isSaveTimeout,
+  SAVE_TIMEOUT_MESSAGE,
+  SAVE_TIMEOUT_MS,
+  SaveTimeoutError,
+  withSaveTimeout,
+} from "@/lib/save/attempt";
+import { removeUploadedMedia, uploadMedia } from "@/lib/supabase/media";
 import type { ConditionType, SportsCard } from "@/lib/types";
 import type { OwnedCard } from "./types";
 
@@ -47,11 +54,6 @@ export type CardRow = {
   grade_qualifier?: string | null;
   cert_number?: string | null;
 };
-
-function dateOnly(value: string | null, fallback: string) {
-  if (!value) return fallback.slice(0, 10);
-  return value.slice(0, 10);
-}
 
 function inferConditionType(
   row: CardRow,
@@ -105,7 +107,7 @@ export function mapCardRow(row: CardRow): SportsCard {
       row.paid_price == null || !Number.isFinite(Number(row.paid_price))
         ? null
         : Number(row.paid_price),
-    purchaseDate: dateOnly(row.purchase_date, row.created_at),
+    purchaseDate: row.purchase_date ? row.purchase_date.slice(0, 10) : "",
     estimatedSellPrice: Number(row.estimated_value) || 0,
     sellPrice: row.sell_price == null ? null : Number(row.sell_price),
     sellDate: row.sell_date,
@@ -203,23 +205,56 @@ function missingColumnError(error: { code?: string; message?: string }) {
   );
 }
 
+const freshInserts = new Set<string>();
+
+/** Mark the next save of this id as a new card so a timed-out insert can be removed. */
+export function noteFreshInsert(cardId: string) {
+  freshInserts.add(cardId);
+}
+
+function consumeFreshInsert(cardId: string) {
+  const fresh = freshInserts.has(cardId);
+  freshInserts.delete(cardId);
+  return fresh;
+}
+
 export async function saveUserCard(
   supabase: SupabaseClient,
   userId: string,
   card: SportsCard,
+  timeoutMs = SAVE_TIMEOUT_MS,
 ) {
+  const freshInsert = consumeFreshInsert(card.id);
   const yearText = (card.yearLabel || String(card.year || "")).trim();
   if (!isValidYear(yearText)) {
     throw new Error("Use 2026 or 2023-24");
   }
+  return withSaveTimeout(
+    (signal) => writeUserCard(supabase, userId, card, signal, freshInsert),
+    timeoutMs,
+  );
+}
 
+async function writeUserCard(
+  supabase: SupabaseClient,
+  userId: string,
+  card: SportsCard,
+  signal: AbortSignal,
+  freshInsert: boolean,
+) {
   const uploaded = await uploadMedia(
     supabase,
     "card-photos",
     userId,
     card.photoDataUrl,
+    { signal },
   );
-  if (uploaded.error) throw new Error(uploaded.error);
+  if (uploaded.error || signal.aborted) {
+    throw signal.aborted || uploaded.error === SAVE_TIMEOUT_MESSAGE
+      ? new SaveTimeoutError()
+      : new Error(uploaded.error || "Could not upload that photo.");
+  }
+  const createdPath = uploaded.createdPath ?? null;
   const category = cardCategory(card);
   rememberCategory(card.id, category);
 
@@ -277,19 +312,56 @@ export async function saveUserCard(
     cert_number: card.certNumber || null,
   };
 
-  const full = await supabase.from("cards").upsert(extended);
+  const persist = writeCardRows(supabase, extended, base, category, signal);
+  const onAbort = () => {
+    if (createdPath) void removeUploadedMedia(supabase, "card-photos", createdPath);
+    if (!freshInsert) return;
+    const dropFresh = () => {
+      void removeUserCard(supabase, userId, card.id).catch(() => undefined);
+    };
+    void persist.then(dropFresh, dropFresh);
+  };
+  if (signal.aborted) onAbort();
+  else signal.addEventListener("abort", onAbort, { once: true });
+
+  try {
+    await persist;
+  } catch (error) {
+    signal.removeEventListener("abort", onAbort);
+    if (!signal.aborted && createdPath) {
+      await removeUploadedMedia(supabase, "card-photos", createdPath);
+    }
+    if (signal.aborted || isSaveTimeout(error)) throw new SaveTimeoutError();
+    throw error;
+  }
+  signal.removeEventListener("abort", onAbort);
+  if (signal.aborted) throw new SaveTimeoutError();
+}
+
+async function writeCardRows(
+  supabase: SupabaseClient,
+  extended: Record<string, unknown>,
+  base: Record<string, unknown>,
+  category: string,
+  signal: AbortSignal,
+) {
+  const full = await supabase.from("cards").upsert(extended).abortSignal(signal);
+  if (signal.aborted) throw new SaveTimeoutError();
   if (!full.error) return;
   if (!missingColumnError(full.error)) throw new Error(full.error.message);
 
   // Fallback if migration not applied yet
   const withCategory = await supabase
     .from("cards")
-    .upsert({ ...base, category });
+    .upsert({ ...base, category })
+    .abortSignal(signal);
+  if (signal.aborted) throw new SaveTimeoutError();
   if (!withCategory.error) return;
   if (!missingColumnError(withCategory.error)) {
     throw new Error(withCategory.error.message);
   }
-  const { error } = await supabase.from("cards").upsert(base);
+  const { error } = await supabase.from("cards").upsert(base).abortSignal(signal);
+  if (signal.aborted) throw new SaveTimeoutError();
   if (error) throw new Error(error.message);
 }
 
