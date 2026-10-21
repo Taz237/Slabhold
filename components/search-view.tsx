@@ -11,6 +11,7 @@ import { useSocial } from "@/components/social-provider";
 import { PullToRefresh } from "@/components/pull-to-refresh";
 import { EmptyState, LoadingRows } from "@/components/status";
 import { cardSubtitle, cardTitle, timeAgo } from "@/lib/format";
+import { searchEmptyTitle, visibleSearchSections } from "@/lib/search/sections";
 import type { SportsCard } from "@/lib/types";
 
 const RECENT_KEY = "slabhold.search.recent.v1";
@@ -141,15 +142,12 @@ export function SearchView() {
     return refresh();
   }
 
-  if (!socialReady || !cardsReady) {
-    return (
-      <PullToRefresh onRefresh={refreshSearch} className="-mx-4 -mt-5">
-        <LoadingRows />
-      </PullToRefresh>
-    );
-  }
-
-  const hasResults = people.length > 0 || matchedPosts.length > 0 || matchedCards.length > 0;
+  const loading = !socialReady || !cardsReady;
+  const visibleSections = visibleSearchSections({
+    people: people.length,
+    posts: matchedPosts.length,
+    cards: matchedCards.length,
+  });
 
   return (
     <PullToRefresh onRefresh={refreshSearch} className="-mx-4 -mt-5">
@@ -165,7 +163,6 @@ export function SearchView() {
           <input
             value={query}
             onChange={(event) => setSearchQuery(event.target.value)}
-            autoFocus
             type="search"
             enterKeyHint="search"
             placeholder="Search"
@@ -185,7 +182,9 @@ export function SearchView() {
         </label>
       </form>
 
-      {!q ? (
+      {loading ? (
+        <LoadingRows />
+      ) : !q ? (
         recent.length === 0 ? (
           <EmptyState
             icon={<Search className="h-5 w-5" />}
@@ -231,19 +230,17 @@ export function SearchView() {
             </ul>
           </section>
         )
-      ) : !hasResults ? (
+      ) : visibleSections.length === 0 ? (
         <EmptyState
           icon={<Search className="h-5 w-5" />}
-          title={`No results for "${typed}"`}
+          title={searchEmptyTitle(typed)}
           detail="Try a name, @handle, or words from a post."
         />
       ) : (
         <div>
-          <section>
-            <h2 className="px-4 pt-4 pb-1 text-xl font-extrabold tracking-tight">People</h2>
-            {people.length === 0 ? (
-              <p className="px-4 py-3 text-sm text-zinc-500">No matching people</p>
-            ) : (
+          {visibleSections.includes("People") ? (
+            <section>
+              <h2 className="px-4 pt-4 pb-1 text-xl font-extrabold tracking-tight">People</h2>
               <ul>
                 {people.map((profile) => (
                   <li key={profile.id} className="border-b border-zinc-200 dark:border-white/10">
@@ -269,14 +266,12 @@ export function SearchView() {
                   </li>
                 ))}
               </ul>
-            )}
-          </section>
+            </section>
+          ) : null}
 
-          <section>
-            <h2 className="px-4 pt-4 pb-1 text-xl font-extrabold tracking-tight">Posts</h2>
-            {matchedPosts.length === 0 ? (
-              <p className="px-4 py-3 text-sm text-zinc-500">No matching posts</p>
-            ) : (
+          {visibleSections.includes("Posts") ? (
+            <section>
+              <h2 className="px-4 pt-4 pb-1 text-xl font-extrabold tracking-tight">Posts</h2>
               <ul>
                 {matchedPosts.map((post) => {
                   const author = authors.get(post.authorId);
@@ -313,10 +308,10 @@ export function SearchView() {
                   );
                 })}
               </ul>
-            )}
-          </section>
+            </section>
+          ) : null}
 
-          {matchedCards.length > 0 ? (
+          {visibleSections.includes("Cards") ? (
             <section>
               <h2 className="px-4 pt-4 pb-1 text-xl font-extrabold tracking-tight">Cards</h2>
               <ul>

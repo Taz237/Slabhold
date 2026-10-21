@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Share } from "lucide-react";
 import { trackEvent } from "@/lib/analytics";
+import { shareOrCopy } from "@/lib/share/sheet";
 import { publicOrigin } from "@/lib/site-url";
 
 function absoluteUrl(path: string) {
@@ -39,16 +40,13 @@ async function copyText(value: string) {
 
 async function shareLink(path: string, title: string) {
   const url = absoluteUrl(path);
-  if (typeof navigator.share === "function") {
-    try {
-      await navigator.share({ title, url });
-      return "shared" as const;
-    } catch (error) {
-      if (error instanceof DOMException && error.name === "AbortError") return "cancelled" as const;
-    }
-  }
-  const copied = await copyText(url);
-  return copied ? ("copied" as const) : ("failed" as const);
+  return shareOrCopy(
+    { title, text: title, url },
+    {
+      share: navigator.share?.bind(navigator),
+      copy: copyText,
+    },
+  );
 }
 
 function useShare(path: string, title: string) {
@@ -96,7 +94,7 @@ export function ShareAction({ path, title }: { path: string; title: string }) {
         type="button"
         aria-label="Share"
         onClick={(event) => void share(event)}
-        className="hit-44 group inline-flex min-h-9 flex-1 items-center text-zinc-500 hover:text-sky-500"
+        className="hit-44 group inline-flex min-h-11 flex-1 items-center text-zinc-500 hover:text-sky-500"
       >
         <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full group-hover:bg-sky-500/10">
           <Share className="h-[18px] w-[18px]" />
@@ -124,7 +122,7 @@ export function ShareIconButton({
         type="button"
         aria-label={label}
         onClick={(event) => void share(event)}
-        className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-zinc-300 text-zinc-800 dark:border-white/20 dark:text-zinc-100"
+        className="hit-44 grid h-11 w-11 shrink-0 place-items-center rounded-full border border-zinc-300 text-zinc-800 dark:border-white/20 dark:text-zinc-100"
       >
         <Share className="h-4 w-4" />
       </button>
