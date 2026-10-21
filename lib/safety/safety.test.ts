@@ -2,9 +2,11 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { join } from "node:path";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { remoteAddComment } from "../social/remote";
 import { adminAccess, isAdmin } from "./admin";
-import { blockUser } from "./block";
-import { canNotify } from "./can-notify";
+import { BLOCKED_INTERACTION, blockUser } from "./block";
+import { canNotify, supabaseSafety } from "./can-notify";
 import { applyAuthorSafety, withAuthorSafety, type SafetyQuery } from "./filters";
 import { saveReport, validateReport } from "./report";
 
@@ -22,6 +24,79 @@ function relations(flags: { blocked?: boolean; muted?: boolean }) {
     },
   };
 }
+
+describe("supabaseSafety isBlocked", () => {
+  it("does not treat the same account as blocked and skips the rpc", async () => {
+    let calls = 0;
+    const fake = {
+      async rpc() {
+        calls += 1;
+        return { data: false, error: null };
+      },
+    };
+    assert.equal(await supabaseSafety(fake).isBlocked("u1", "u1"), false);
+    assert.equal(await supabaseSafety(fake).isBlocked("u1", ""), false);
+    assert.equal(calls, 0);
+  });
+
+  it("still treats a different account as blocked when can_interact is false", async () => {
+    let calls = 0;
+    const fake = {
+      async rpc(_fn: string, args?: Record<string, unknown>) {
+        calls += 1;
+        assert.equal(args?.other, "u2");
+        return { data: false, error: null };
+      },
+    };
+    assert.equal(await supabaseSafety(fake).isBlocked("u1", "u2"), true);
+    assert.equal(calls, 1);
+  });
+});
+
+function commentClient(rpcData: boolean) {
+  let rpcCalls = 0;
+  let inserted: { post_id: string; user_id: string; body: string } | null = null;
+  const supabase = {
+    async rpc() {
+      rpcCalls += 1;
+      return { data: rpcData, error: null };
+    },
+    from(table: string) {
+      return {
+        insert(row: { post_id: string; user_id: string; body: string }) {
+          if (table === "comments") inserted = row;
+          return Promise.resolve({ error: null });
+        },
+      };
+    },
+  };
+  return {
+    supabase: supabase as unknown as SupabaseClient,
+    rpcCalls: () => rpcCalls,
+    inserted: () => inserted,
+  };
+}
+
+describe("remoteAddComment block check", () => {
+  it("inserts a reply on your own post when can_interact would say blocked", async () => {
+    const fake = commentClient(false);
+    const result = await remoteAddComment(fake.supabase, "u1", "post-1", "  nice card  ", "u1");
+    assert.equal(result.error, undefined);
+    assert.equal(fake.rpcCalls(), 0);
+    assert.deepEqual(fake.inserted(), {
+      post_id: "post-1",
+      user_id: "u1",
+      body: "nice card",
+    });
+  });
+
+  it("returns BLOCKED_INTERACTION when a different user is blocked", async () => {
+    const fake = commentClient(false);
+    const result = await remoteAddComment(fake.supabase, "u1", "post-1", "nice card", "u2");
+    assert.equal(result.error, BLOCKED_INTERACTION);
+    assert.equal(fake.inserted(), null);
+  });
+});
 
 describe("canNotify", () => {
   it("returns false when either person blocked the other", async () => {

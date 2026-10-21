@@ -38,11 +38,13 @@ function missingFunction(error: RpcError | null) {
 /**
  * Adapter for canNotify. Uses can_interact, which checks auth.uid() against
  * the other id and returns whether that pair is clear to interact.
- * A failed check blocks the notification.
+ * can_interact is false for yourself (`auth.uid() <> other`). That is not a block.
+ * A failed check between two different people blocks the notification.
  */
 export function supabaseSafety(supabase: SafetyRpc): SafetyRelations {
   return {
-    async isBlocked(_actorId, otherId) {
+    async isBlocked(actorId, otherId) {
+      if (!otherId || actorId === otherId) return false;
       const { data, error } = await supabase.rpc("can_interact", { other: otherId });
       if (missingFunction(error)) return false;
       if (error) return true;
