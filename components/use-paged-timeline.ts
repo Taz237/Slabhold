@@ -45,8 +45,8 @@ export function usePagedTimeline(input: {
     authorKey,
     input.viewerId ?? "",
     String(input.refreshKey),
-    (input.blockedIds ?? []).join(","),
-    (input.mutedIds ?? []).join(","),
+    [...(input.blockedIds ?? [])].sort().join(","),
+    [...(input.mutedIds ?? [])].sort().join(","),
   ].join("|");
 
   const [page, setPage] = useState<PageState>(idle);

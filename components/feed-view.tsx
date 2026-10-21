@@ -30,7 +30,7 @@ import {
 } from "@/lib/social/get-started";
 import { createSupabaseBrowser } from "@/lib/supabase/browser";
 import { getSupabaseConfig } from "@/lib/supabase/client";
-import { followingAuthorIds } from "@/lib/social/feed-page";
+import { followingAuthorIds, homeHead, showsNewPosts } from "@/lib/social/feed-page";
 import { addUnblockedProfiles, presentPagedItems } from "@/lib/social/paged-items";
 import { publicTimeline } from "@/lib/social/timeline";
 import { POST_LIMIT, type Profile, type PublicCard } from "@/lib/social/types";
@@ -87,12 +87,14 @@ export function FeedView() {
     });
   const [lane, setLane] = useState<"following" | "foryou">("foryou");
   const [refreshKey, setRefreshKey] = useState(0);
-  const [capturedHead, setCapturedHead] = useState<{ key: number; head: string } | null>(null);
+  const [capturedHead, setCapturedHead] = useState<{ key: number; head: ReturnType<typeof homeHead> } | null>(
+    null,
+  );
   const followingIds = useMemo(
     () => (user ? followingAuthorIds(follows, user.id) : []),
     [follows, user],
   );
-  const headToken = `${homePosts[0]?.id ?? ""}|${homeReposts[0]?.userId ?? ""}:${homeReposts[0]?.postId ?? ""}:${homeReposts[0]?.createdAt ?? ""}`;
+  const head = homeHead(homePosts, homeReposts);
   const paging = mode === "supabase" && ready;
   const forYouPage = usePagedTimeline({
     enabled: paging,
@@ -114,14 +116,14 @@ export function FeedView() {
     rememberPosts,
   });
   if (paging && !forYouPage.loading && (capturedHead === null || capturedHead.key !== refreshKey)) {
-    setCapturedHead({ key: refreshKey, head: headToken });
+    setCapturedHead({ key: refreshKey, head });
   }
   const hasNewPosts =
     paging &&
     capturedHead !== null &&
     capturedHead.key === refreshKey &&
     !forYouPage.loading &&
-    headToken !== capturedHead.head;
+    showsNewPosts(capturedHead.head, head, user?.id ?? null, removedPostIds);
   const activePage = lane === "following" ? followingPage : forYouPage;
   const pickedFor = useRef<string | null>(null);
   const suggestionIds = useRef<string[] | null>(null);
@@ -234,7 +236,11 @@ export function FeedView() {
         </LaneTab>
       </div>
 
-      {user ? <Composer inputRef={composerRef} /> : <SignedOutBanner />}
+      {user ? (
+        <Composer inputRef={composerRef} onPosted={() => setRefreshKey((key) => key + 1)} />
+      ) : (
+        <SignedOutBanner />
+      )}
 
       {hasNewPosts ? (
         <div className="sticky top-16 z-10 flex justify-center py-2">
@@ -434,7 +440,13 @@ function SignedOutBanner() {
   );
 }
 
-function Composer({ inputRef }: { inputRef?: React.Ref<HTMLTextAreaElement> }) {
+function Composer({
+  inputRef,
+  onPosted,
+}: {
+  inputRef?: React.Ref<HTMLTextAreaElement>;
+  onPosted?: () => void;
+}) {
   const { createPost, user } = useSocial();
   const { cards } = useCollection();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -481,6 +493,7 @@ function Composer({ inputRef }: { inputRef?: React.Ref<HTMLTextAreaElement> }) {
     setImage(null);
     setCardId("");
     setError(null);
+    onPosted?.();
   }
 
   return (

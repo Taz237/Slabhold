@@ -1,5 +1,5 @@
 import type { FollowEdge } from "./types";
-import { compareByRecent, followedAccountIds, timelineSortKey } from "./timeline";
+import { compareByRecent, followedAccountIds, timestampMicros, timelineSortKey } from "./timeline";
 
 /** Home, Following, and profile timelines request about this many merged rows. */
 export const FEED_PAGE_SIZE = 30;
@@ -58,11 +58,11 @@ export function compareFeedDesc(a: FeedRow, b: FeedRow): number {
   );
 }
 
-/** True when `row` sorts strictly after the cursor (older page). Times are instants, then the key. */
+/** True when `row` sorts strictly after the cursor (older page). Microseconds, then the key. */
 export function isBeforeCursor(row: FeedRow, cursor: FeedCursor): boolean {
-  const rowTime = Date.parse(row.createdAt);
-  const cursorTime = Date.parse(cursor.createdAt);
-  if (!Number.isNaN(rowTime) && !Number.isNaN(cursorTime)) {
+  const rowTime = timestampMicros(row.createdAt);
+  const cursorTime = timestampMicros(cursor.createdAt);
+  if (rowTime !== null && cursorTime !== null) {
     if (rowTime !== cursorTime) return rowTime < cursorTime;
   } else if (row.createdAt !== cursor.createdAt) {
     return row.createdAt.localeCompare(cursor.createdAt) < 0;
@@ -185,4 +185,64 @@ export function followingAuthorIds(follows: FollowEdge[], userId: string): strin
   if (ids.size === 0) return [];
   ids.add(userId);
   return [...ids].sort();
+}
+
+export type HomeHead = {
+  postId: string;
+  postAuthorId: string;
+  postAt: string;
+  repostUserId: string;
+  repostPostId: string;
+  repostAt: string;
+};
+
+export function homeHead(
+  posts: readonly { id: string; authorId: string; createdAt: string }[],
+  reposts: readonly { userId: string; postId: string; createdAt: string }[],
+): HomeHead {
+  const post = posts[0];
+  const repost = reposts[0];
+  return {
+    postId: post?.id ?? "",
+    postAuthorId: post?.authorId ?? "",
+    postAt: post?.createdAt ?? "",
+    repostUserId: repost?.userId ?? "",
+    repostPostId: repost?.postId ?? "",
+    repostAt: repost?.createdAt ?? "",
+  };
+}
+
+function newerInstant(next: string, previous: string): boolean {
+  if (!next) return false;
+  if (!previous) return true;
+  const nextTime = timestampMicros(next);
+  const previousTime = timestampMicros(previous);
+  if (nextTime === null || previousTime === null) return next > previous;
+  return nextTime > previousTime;
+}
+
+/** Someone else's newer post or repost. Own activity and a deleted head do not count. */
+export function showsNewPosts(
+  previous: HomeHead,
+  next: HomeHead,
+  viewerId: string | null,
+  removedPostIds: ReadonlySet<string>,
+): boolean {
+  const postChanged = previous.postId !== next.postId;
+  const repostChanged =
+    previous.repostUserId !== next.repostUserId ||
+    previous.repostPostId !== next.repostPostId ||
+    previous.repostAt !== next.repostAt;
+  const postIsNew =
+    postChanged &&
+    next.postId !== "" &&
+    next.postAuthorId !== viewerId &&
+    !removedPostIds.has(previous.postId) &&
+    newerInstant(next.postAt, previous.postAt);
+  const repostIsNew =
+    repostChanged &&
+    next.repostPostId !== "" &&
+    next.repostUserId !== viewerId &&
+    newerInstant(next.repostAt, previous.repostAt);
+  return postIsNew || repostIsNew;
 }

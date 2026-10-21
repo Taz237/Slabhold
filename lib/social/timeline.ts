@@ -12,12 +12,26 @@ export function timelineSortKey(postId: string, repostedById?: string | null): s
   return repostedById ? `repost:${repostedById}:${postId}` : `post:${postId}`;
 }
 
-/** Newest parsed time first, then timelineSortKey ascending. */
+/**
+ * Microseconds since the epoch. Date.parse stops at milliseconds, so the
+ * remaining fractional digits (padded to 6) are added on.
+ */
+export function timestampMicros(value: string): number | null {
+  const ms = Date.parse(value);
+  if (Number.isNaN(ms)) return null;
+  const match = /(?:T|\s)\d{2}:\d{2}:\d{2}(?:\.(\d+))?/.exec(value);
+  const fraction = (match?.[1] ?? "").padEnd(6, "0").slice(0, 6);
+  const extra = Number(fraction.slice(3));
+  if (Number.isNaN(extra)) return ms * 1000;
+  return ms * 1000 + extra;
+}
+
+/** Newest time first (microseconds), then timelineSortKey ascending. */
 export function compareByRecent(a: { at: string; key: string }, b: { at: string; key: string }): number {
-  const aTime = Date.parse(a.at);
-  const bTime = Date.parse(b.at);
-  if (!Number.isNaN(aTime) && !Number.isNaN(bTime)) {
-    if (aTime !== bTime) return bTime - aTime;
+  const aTime = timestampMicros(a.at);
+  const bTime = timestampMicros(b.at);
+  if (aTime !== null && bTime !== null) {
+    if (aTime !== bTime) return bTime > aTime ? 1 : -1;
     return a.key.localeCompare(b.key);
   }
   return b.at.localeCompare(a.at) || a.key.localeCompare(b.key);

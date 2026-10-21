@@ -10,7 +10,7 @@ import {
   mergeRememberedSnapshot,
   storeRemembered,
 } from "./remembered-posts";
-import { compareByRecent, timelineSortKey, type TimelineItem } from "./timeline";
+import { compareByRecent, timestampMicros, timelineSortKey, type TimelineItem } from "./timeline";
 import type { Post, Profile } from "./types";
 import {
   buildFeedPage,
@@ -19,9 +19,11 @@ import {
   dedupeFeedRows,
   feedRowKey,
   followingAuthorIds,
+  homeHead,
   isBeforeCursor,
   keysetOrFilter,
   missingRepostOriginalIds,
+  showsNewPosts,
   type FeedCursor,
   type FeedRow,
 } from "./feed-page";
@@ -106,6 +108,11 @@ function pageOf(rows: FeedRow[], pageCursor: FeedCursor | null, pageSize: number
 }
 
 function cursorMovesForward(next: FeedCursor, previous: FeedCursor) {
+  const nextTime = timestampMicros(next.createdAt);
+  const previousTime = timestampMicros(previous.createdAt);
+  if (nextTime !== null && previousTime !== null && nextTime !== previousTime) {
+    return nextTime < previousTime;
+  }
   if (next.createdAt !== previous.createdAt) return next.createdAt.localeCompare(previous.createdAt) < 0;
   return next.key.localeCompare(previous.key) > 0;
 }
@@ -276,10 +283,41 @@ describe("paged safety", () => {
     const view = readFileSync(join(process.cwd(), "components/feed-view.tsx"), "utf8");
     assert.match(hook, /input\.blockedIds/);
     assert.match(hook, /input\.mutedIds/);
+    assert.match(hook, /\.sort\(\)\.join\(/);
     assert.equal(hook.includes("headToken"), false);
     assert.match(more, /Try again/);
     assert.match(more, /loading \|\| failed\) return/);
     assert.match(view, /New posts/);
+  });
+});
+
+describe("new posts pill", () => {
+  const earlier = homeHead(
+    [{ id: "old", authorId: JOY, createdAt: "2026-10-21T12:00:10.000000+00:00" }],
+    [],
+  );
+
+  it("stays hidden for the viewer's own post or repost and for a deleted head", () => {
+    const ownPost = homeHead(
+      [{ id: "mine", authorId: ME, createdAt: "2026-10-21T12:00:11.000000+00:00" }],
+      [],
+    );
+    assert.equal(showsNewPosts(earlier, ownPost, ME, new Set()), false);
+    const ownRepost = homeHead(
+      [{ id: "old", authorId: JOY, createdAt: "2026-10-21T12:00:10.000000+00:00" }],
+      [{ userId: ME, postId: "old", createdAt: "2026-10-21T12:00:12.000000+00:00" }],
+    );
+    assert.equal(showsNewPosts(earlier, ownRepost, ME, new Set()), false);
+    const deleted = homeHead(
+      [{ id: "older", authorId: SAM, createdAt: "2026-10-21T12:00:09.000000+00:00" }],
+      [],
+    );
+    assert.equal(showsNewPosts(earlier, deleted, ME, new Set(["old"])), false);
+    const someoneElse = homeHead(
+      [{ id: "fresh", authorId: SAM, createdAt: "2026-10-21T12:00:11.000003+00:00" }],
+      [],
+    );
+    assert.equal(showsNewPosts(earlier, someoneElse, ME, new Set()), true);
   });
 });
 
@@ -362,6 +400,34 @@ describe("feed keyset paging", () => {
     assert.deepEqual(
       sameInstant.rows.map((entry) => entry.id),
       [uuid(3), uuid(9)],
+    );
+  });
+
+  it("pages two rows 3 microseconds apart once each", () => {
+    const posts = [
+      row("post", "2026-10-21T12:00:10.000123+00:00", uuid(1), ME),
+      row("post", "2026-10-21T12:00:10.000126+00:00", uuid(2), JOY),
+    ];
+    const paged = walk(posts, [], 1);
+    const full = dedupeFeedRows(posts);
+    assert.deepEqual(paged.map(signature), full.map(signature));
+    assert.deepEqual(
+      paged.map((entry) => entry.id),
+      [uuid(2), uuid(1)],
+    );
+    assert.equal(new Set(paged.map((entry) => entry.id)).size, posts.length);
+  });
+
+  it("pages a whole second before the same second plus a half", () => {
+    const posts = [
+      row("post", "2026-10-21T12:00:10+00:00", uuid(1), ME),
+      row("post", "2026-10-21T12:00:10.5+00:00", uuid(2), JOY),
+    ];
+    const paged = walk(posts, [], 1);
+    assert.deepEqual(paged.map(signature), dedupeFeedRows(posts).map(signature));
+    assert.deepEqual(
+      paged.map((entry) => entry.id),
+      [uuid(2), uuid(1)],
     );
   });
 
