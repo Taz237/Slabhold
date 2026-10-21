@@ -62,6 +62,7 @@ import {
   remoteUpdateProfile,
 } from "@/lib/social/remote";
 import { loadPostById, loadPostPage, type LoadedPostPage } from "@/lib/social/load-feed-page";
+import { createSnapshotRefresher, shouldMarkSnapshotReady } from "@/lib/social/snapshot-refresh";
 import { postIdFromPath } from "@/lib/social/post-route";
 import { collectAttachedCardIds } from "@/lib/social/post-card-value";
 import { followingTimeline, type TimelineItem } from "@/lib/social/timeline";
@@ -210,9 +211,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
   const removedRef = useRef<ReadonlySet<string>>(new Set());
   const fullSnapshotRef = useRef(false);
   const requestRef = useRef(0);
-  // Bumped on every site snapshot read. A slower read must not land afterward
-  // and put a deleted reply's notices back on a cold post page.
-  const refreshSerialRef = useRef(0);
+  const snapshotRefreshRef = useRef(createSnapshotRefresher<SocialSnapshot>());
   const inflightRef = useRef(new Map<string, Promise<unknown>>());
   const reloadRef = useRef<(client: SupabaseClient) => Promise<void>>(async () => {});
   localRef.current = local;
@@ -220,6 +219,9 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
   const routePostId = postIdFromPath(pathname);
   const routePostKnown =
     routePostId !== null && remote.posts.some((post) => post.id === routePostId);
+  if (mode === "supabase" && !routePostId && !hasFullSnapshot && ready) {
+    setReady(false);
+  }
   if (resolvedPostId && resolvedPostId !== routePostId) {
     setResolvedPostId(null);
   }
@@ -238,12 +240,14 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
   }, [removedPostIds]);
 
   const refreshRemote = useCallback(async (client: SupabaseClient) => {
-    const serial = ++refreshSerialRef.current;
-    const snapshot = await loadSupabaseSocial(client);
-    if (serial !== refreshSerialRef.current) return;
-    fullSnapshotRef.current = true;
-    setHasFullSnapshot(true);
-    setRemote(mergeRememberedSnapshot(snapshot, rememberedRef.current, removedRef.current));
+    await snapshotRefreshRef.current(
+      () => loadSupabaseSocial(client),
+      (snapshot) => {
+        fullSnapshotRef.current = true;
+        setHasFullSnapshot(true);
+        setRemote(mergeRememberedSnapshot(snapshot, rememberedRef.current, removedRef.current));
+      },
+    );
   }, []);
 
   const applyPostPage = useCallback((page: LoadedPostPage) => {
@@ -269,8 +273,8 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
         likes: [],
         reposts: page.reposts,
         comments: page.comments,
-        notifications: [],
-        messages: [],
+        notifications: page.notifications,
+        messages: page.messages,
         publicCards: [],
         homePosts: [],
         homeReposts: [],
@@ -346,20 +350,42 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       }, 250);
     };
     const postId = postIdFromPath(pathname);
+    const viewerId = remote.user?.id ?? null;
     if (!fullSnapshotRef.current && postId) {
-      const channel = client
-        .channel(`post-${postId}`)
-        .on(
+      const channel = client.channel(`post-${postId}`);
+      channel.on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "comments", filter: `post_id=eq.${postId}` },
+        schedule,
+      );
+      channel.on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "reposts", filter: `post_id=eq.${postId}` },
+        schedule,
+      );
+      if (viewerId) {
+        channel.on(
           "postgres_changes",
-          { event: "*", schema: "public", table: "comments", filter: `post_id=eq.${postId}` },
+          {
+            event: "*",
+            schema: "public",
+            table: "notifications",
+            filter: `recipient_id=eq.${viewerId}`,
+          },
           schedule,
-        )
-        .on(
+        );
+        channel.on(
           "postgres_changes",
-          { event: "*", schema: "public", table: "reposts", filter: `post_id=eq.${postId}` },
+          {
+            event: "*",
+            schema: "public",
+            table: "messages",
+            filter: `receiver_id=eq.${viewerId}`,
+          },
           schedule,
-        )
-        .subscribe();
+        );
+      }
+      channel.subscribe();
       return () => {
         window.clearTimeout(timer);
         void client.removeChannel(channel);
@@ -381,7 +407,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       void client.removeChannel(channel);
       void client.removeChannel(reposts);
     };
-  }, [hasFullSnapshot, mode, pathname, ready]);
+  }, [hasFullSnapshot, mode, pathname, ready, remote.user?.id]);
 
   const baseSnapshot = mode === "local" && local ? snapshotFromLocal(local) : remote;
   const postIds = new Set(baseSnapshot.posts.map((post) => post.id));
@@ -884,7 +910,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
         })
         .catch(fail)
         .finally(() => {
-          if (alive()) setReady(true);
+          if (alive() && shouldMarkSnapshotReady(fullSnapshotRef.current)) setReady(true);
         });
       return;
     }

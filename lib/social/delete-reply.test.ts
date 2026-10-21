@@ -410,8 +410,8 @@ describe("delete reply wiring", () => {
     const remoteAt = fn.indexOf("await remoteDeleteComment");
     const refreshAt = fn.indexOf("await refreshRemote");
     assert.ok(remoteAt > -1 && refreshAt > remoteAt);
-    assert.match(provider, /const serial = \+\+refreshSerialRef\.current/);
-    assert.match(provider, /if \(serial !== refreshSerialRef\.current\) return/);
+    assert.match(provider, /createSnapshotRefresher/);
+    assert.doesNotMatch(provider, /if \(serial !== refreshSerialRef\.current\) return/);
     const remote = readFileSync(join(process.cwd(), "lib/social/remote.ts"), "utf8");
     const cleanupAt = remote.indexOf("async function deleteOwnReplyPreviewNotifications");
     const deleteAt = remote.indexOf("export async function remoteDeleteComment");

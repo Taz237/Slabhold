@@ -5,6 +5,7 @@ import { join } from "node:path";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { loadPostPage, postPageAuthorFilters } from "./load-feed-page";
 import { postIdFromPath } from "./post-route";
+import { createSnapshotRefresher, shouldMarkSnapshotReady } from "./snapshot-refresh";
 
 const VIEWER = "11111111-1111-4111-8111-111111111111";
 const AUTHOR = "22222222-2222-4222-8222-222222222222";
@@ -17,6 +18,7 @@ const POST = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const QUOTE_TARGET = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 const REPLY = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
 const QUOTING = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
+const QUOTE_REPLY = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee";
 
 type Call =
   | { kind: "session" }
@@ -56,18 +58,61 @@ function rowsFor(table: string, ops: string[]) {
   if (table === "blocks") return [{ blocked_id: BLOCKED }];
   if (table === "mutes") return [{ muted_id: MUTED }];
   if (table === "comments") {
-    return [
-      {
+    const rows = [];
+    if (joined.includes(`eq:post_id:${POST}`) || joined.includes(`in:post_id:${POST}`)) {
+      rows.push({
         id: REPLY,
         post_id: POST,
         user_id: REPLY_AUTHOR,
         body: "nice",
         created_at: "2026-10-21T12:01:00.000Z",
+      });
+    }
+    if (joined.includes(QUOTING)) {
+      rows.push({
+        id: QUOTE_REPLY,
+        post_id: QUOTING,
+        user_id: REPLY_AUTHOR,
+        body: "on the quote",
+        created_at: "2026-10-21T12:01:30.000Z",
+      });
+    }
+    return rows;
+  }
+  if (table === "reposts") {
+    const rows = [{ user_id: VIEWER, post_id: POST, created_at: "2026-10-21T12:02:00.000Z" }];
+    if (joined.includes(QUOTING)) {
+      rows.push({ user_id: VIEWER, post_id: QUOTING, created_at: "2026-10-21T12:03:00.000Z" });
+    }
+    return rows;
+  }
+  if (table === "notifications") {
+    return [
+      {
+        id: "n-unread",
+        recipient_id: VIEWER,
+        actor_id: AUTHOR,
+        kind: "like",
+        post_id: POST,
+        preview: "Hello",
+        href: null,
+        metadata: null,
+        read: false,
+        created_at: "2026-10-21T12:04:00.000Z",
       },
     ];
   }
-  if (table === "reposts") {
-    return [{ user_id: VIEWER, post_id: POST, created_at: "2026-10-21T12:02:00.000Z" }];
+  if (table === "messages") {
+    return [
+      {
+        id: "m-unread",
+        sender_id: AUTHOR,
+        receiver_id: VIEWER,
+        content: "hey",
+        created_at: "2026-10-21T12:05:00.000Z",
+        read: false,
+      },
+    ];
   }
   if (table === "profiles") {
     return [VIEWER, AUTHOR, QUOTED_AUTHOR, REPLY_AUTHOR]
@@ -107,8 +152,8 @@ function client(session: { id: string; email: string } | null) {
           ops.push("select");
           return builder;
         },
-        eq(column: string, value: string) {
-          ops.push(`eq:${column}:${value}`);
+        eq(column: string, value: unknown) {
+          ops.push(`eq:${column}:${String(value)}`);
           return builder;
         },
         in(column: string, values: readonly string[]) {
@@ -186,17 +231,21 @@ describe("loadPostPage", () => {
     assert.equal(page.relatedPosts[0]?.id, QUOTE_TARGET);
     assert.equal(page.relatedPosts[0]?.authorId, QUOTED_AUTHOR);
     assert.equal(page.quotingPosts[0]?.id, QUOTING);
-    assert.equal(page.comments.length, 1);
-    assert.equal(page.comments[0]?.authorId, REPLY_AUTHOR);
+    assert.equal(page.comments.length, 2);
+    assert.equal(page.comments.find((comment) => comment.postId === POST)?.authorId, REPLY_AUTHOR);
+    assert.equal(page.comments.find((comment) => comment.postId === QUOTING)?.id, QUOTE_REPLY);
     assert.equal(page.user?.id, VIEWER);
     assert.equal(page.user?.email, "ada@example.com");
     assert.deepEqual(
       page.profiles.map((profile) => profile.id).sort(),
       [AUTHOR, QUOTED_AUTHOR, REPLY_AUTHOR, VIEWER].sort(),
     );
-    assert.equal(page.reposts.length, 1);
-    assert.equal(page.reposts[0]?.userId, VIEWER);
-    assert.equal(page.reposts[0]?.postId, POST);
+    assert.equal(page.reposts.filter((repost) => repost.postId === POST && repost.userId === VIEWER).length, 1);
+    const quoteReposts = page.reposts.filter((repost) => repost.postId === QUOTING);
+    assert.equal(quoteReposts.length, 1);
+    assert.equal(quoteReposts[0]?.userId, VIEWER);
+    assert.equal(page.notifications.filter((note) => note.recipientId === VIEWER && !note.read).length > 0, true);
+    assert.equal(page.messages.filter((message) => message.receiverId === VIEWER && !message.read).length > 0, true);
     assert.deepEqual(page.blockedIds, [BLOCKED]);
     assert.deepEqual(page.mutedIds, [MUTED]);
 
@@ -210,9 +259,11 @@ describe("loadPostPage", () => {
     assert.equal(tables(fake.calls, "profiles").length, 1);
     assert.equal(tables(fake.calls, "blocks").length, 1);
     assert.equal(tables(fake.calls, "mutes").length, 1);
-    assert.equal(tables(fake.calls, "comments").length, 1);
+    assert.equal(tables(fake.calls, "comments").length, 2);
     assert.equal(tables(fake.calls, "reposts").length, 1);
-    for (const name of ["notifications", "messages", "follows", "public_cards", "likes"]) {
+    assert.equal(tables(fake.calls, "notifications").length, 1);
+    assert.equal(tables(fake.calls, "messages").length, 1);
+    for (const name of ["follows", "public_cards", "likes"]) {
       assert.equal(tables(fake.calls, name).length, 0, name);
     }
 
@@ -238,8 +289,47 @@ describe("loadPostPage", () => {
     const repostIds = reposts?.ops.find((op) => op.startsWith("in:post_id:"));
     assert.equal(repostIds?.includes(POST), true);
     assert.equal(repostIds?.includes(REPLY), true);
+    assert.equal(repostIds?.includes(QUOTING), true);
+    assert.equal(repostIds?.includes(QUOTE_TARGET), true);
+    assert.equal(repostIds?.includes(QUOTE_REPLY), true);
     const repostHidden = reposts?.ops.find((op) => op.startsWith("not:"));
     assert.equal(repostHidden?.includes(MUTED), false);
+
+    const notes = tables(fake.calls, "notifications")[0];
+    assert.ok(notes?.ops.includes(`eq:recipient_id:${VIEWER}`));
+    assert.ok(notes?.ops.includes("eq:read:false"));
+    const noteSafety = notes?.ops.find((op) => op.startsWith("or:") || op.startsWith("not:"));
+    assert.equal(noteSafety?.includes(BLOCKED), true);
+    assert.equal(noteSafety?.includes(MUTED), true);
+    const quoteComments = tables(fake.calls, "comments").find((call) =>
+      call.ops.some((op) => op.startsWith("in:post_id:")),
+    );
+    assert.equal(quoteComments?.ops.find((op) => op.startsWith("in:post_id:"))?.includes(QUOTING), true);
+    const messages = tables(fake.calls, "messages")[0];
+    assert.ok(messages?.ops.includes(`eq:receiver_id:${VIEWER}`));
+    assert.ok(messages?.ops.includes("eq:read:false"));
+  });
+
+  it("keeps a reposted quote reposted when the cold page reloads", async () => {
+    const first = client({ id: VIEWER, email: "ada@example.com" });
+    const opened = await loadPostPage(first.supabase, POST);
+    const quoteReposts = opened.reposts.filter((repost) => repost.postId === QUOTING);
+    assert.equal(quoteReposts.length, 1);
+    assert.equal(quoteReposts[0]?.userId, VIEWER);
+    assert.equal(opened.comments.filter((comment) => comment.postId === QUOTING).length, 1);
+
+    const again = client({ id: VIEWER, email: "ada@example.com" });
+    const reloaded = await loadPostPage(again.supabase, POST);
+    const still = reloaded.reposts.filter((repost) => repost.postId === QUOTING && repost.userId === VIEWER);
+    assert.equal(still.length, 1);
+    assert.equal(reloaded.reposts.filter((repost) => repost.postId === QUOTING).length, 1);
+
+    const provider = readFileSync(join(process.cwd(), "components/social-provider.tsx"), "utf8");
+    const toggle = provider.slice(provider.indexOf("const toggleRepost"), provider.indexOf("const addComment"));
+    assert.match(toggle, /await reloadRef\.current\(client\)/);
+    assert.match(provider, /const page = await loadPostPage\(client, id\)/);
+    assert.match(provider, /reposts: page\.reposts/);
+    assert.match(provider, /comments: page\.comments/);
   });
 
   it("skips hidden authors, blocks, and mutes when signed out", async () => {
@@ -283,6 +373,54 @@ describe("post page wiring", () => {
     assert.match(provider, /postIdFromPath\(pathname\)/);
     assert.match(provider, /event !== "SIGNED_IN" && event !== "SIGNED_OUT"/);
     assert.match(provider, /filter: `post_id=eq\.\$\{postId\}`/);
+    assert.match(provider, /filter: `recipient_id=eq\.\$\{viewerId\}`/);
+    assert.match(provider, /filter: `receiver_id=eq\.\$\{viewerId\}`/);
+    assert.match(provider, /notifications: page\.notifications/);
+    assert.match(provider, /messages: page\.messages/);
+    assert.match(provider, /shouldMarkSnapshotReady\(fullSnapshotRef\.current\)/);
+    assert.match(provider, /!hasFullSnapshot && ready/);
     assert.doesNotMatch(provider, /onAuthStateChange\(\(\) =>/);
+    const shell = readFileSync(join(process.cwd(), "components/app-shell.tsx"), "utf8");
+    assert.match(shell, /if \(user\)/);
+    assert.match(shell, /showNav/);
+  });
+});
+
+describe("leaving a cold post page", () => {
+  it("does not mark home ready while a second refresh replaces the post-only snapshot", async () => {
+    const refresh = createSnapshotRefresher<"post" | "stale" | "full">();
+    let snapshot: "post" | "stale" | "full" = "post";
+    let fullSnapshot = false;
+    let ready = true;
+    const pending = new Map<string, () => void>();
+    function gate(name: string, value: "post" | "stale" | "full") {
+      return new Promise<"post" | "stale" | "full">((resolve) => {
+        pending.set(name, () => resolve(value));
+      });
+    }
+    const apply = (value: "post" | "stale" | "full") => {
+      snapshot = value;
+      fullSnapshot = value === "full";
+    };
+
+    ready = false;
+    const first = refresh(() => gate("first", "stale"), apply);
+    const second = refresh(() => gate("second", "full"), apply);
+    assert.equal(shouldMarkSnapshotReady(fullSnapshot), false);
+    assert.equal(ready, false);
+    assert.equal(snapshot, "post");
+
+    pending.get("first")?.();
+    await Promise.resolve();
+    assert.equal(snapshot, "post");
+    assert.equal(shouldMarkSnapshotReady(fullSnapshot), false);
+
+    pending.get("second")?.();
+    await second;
+    await first;
+    ready = shouldMarkSnapshotReady(fullSnapshot);
+    assert.equal(snapshot, "full");
+    assert.equal(ready, true);
+    assert.notEqual(snapshot, "post");
   });
 });

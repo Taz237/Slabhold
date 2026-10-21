@@ -14,7 +14,15 @@ import {
 } from "./feed-page";
 import { loadMailDayViews } from "./mail-day";
 import type { TimelineItem } from "./timeline";
-import type { MailDayCardView, Post, PostComment, PostRepost, Profile } from "./types";
+import type {
+  DirectMessage,
+  MailDayCardView,
+  Notification,
+  Post,
+  PostComment,
+  PostRepost,
+  Profile,
+} from "./types";
 
 const POST_SELECT =
   "id, user_id, content, image_url, card, quoted_post_id, created_at, post_type, show_paid, meta";
@@ -142,9 +150,10 @@ type QueryResult = {
 };
 
 type PostExec = {
+  eq: (column: string, value: string) => PostExec;
   in: (column: string, values: readonly string[]) => PostExec;
   or: (filters: string) => PostExec;
-  order: (column: string, options: { ascending: boolean }) => PostExec;
+  order: (column: string, options?: { ascending: boolean }) => PostExec;
   limit: (count: number) => PostExec;
   not: (column: string, operator: string, value: string) => PostExec;
   then: PromiseLike<QueryResult>["then"];
@@ -501,8 +510,12 @@ export type LoadedPostPage = {
   profiles: Profile[];
   user: Profile | null;
   comments: PostComment[];
-  /** Reposts of this post and its replies, so counts and the viewer's state stay. */
+  /** Reposts of this post, its replies, quoting posts, and the quoted original. */
   reposts: PostRepost[];
+  /** Unread notices for the viewer, so the bell stays up on a cold post page. */
+  notifications: Notification[];
+  /** Unread messages sent to the viewer, so the Messages badge stays up. */
+  messages: DirectMessage[];
   blockedIds: string[];
   mutedIds: string[];
 };
@@ -515,6 +528,8 @@ const emptyPostPage: LoadedPostPage = {
   user: null,
   comments: [],
   reposts: [],
+  notifications: [],
+  messages: [],
   blockedIds: [],
   mutedIds: [],
 };
@@ -556,23 +571,131 @@ export function postPageAuthorFilters(
   return { postHidden, replyHidden };
 }
 
+function mapComment(row: CommentRow): PostComment {
+  return {
+    id: row.id,
+    postId: row.post_id,
+    authorId: row.user_id,
+    body: row.body,
+    createdAt: row.created_at,
+  };
+}
+
 async function selectComments(
   supabase: SupabaseClient,
   postId: string,
   viewerId: string | null,
   hidden: readonly string[] | null,
 ): Promise<CommentRow[]> {
-  const query = supabase
+  return selectCommentsForPosts(supabase, [postId], viewerId, hidden, "eq");
+}
+
+async function selectCommentsForPosts(
+  supabase: SupabaseClient,
+  postIds: readonly string[],
+  viewerId: string | null,
+  hidden: readonly string[] | null,
+  match: "eq" | "in" = "in",
+): Promise<CommentRow[]> {
+  const ids = [...new Set(postIds)].filter((id) => isUuid(id));
+  if (ids.length === 0) return [];
+  let query = supabase
     .from("comments")
-    .select("id, post_id, user_id, body, created_at")
-    .eq("post_id", postId)
-    .order("created_at", { ascending: true }) as unknown as PostExec;
+    .select("id, post_id, user_id, body, created_at") as unknown as PostExec;
+  query = match === "eq" && ids[0] ? query.eq("post_id", ids[0]) : query.in("post_id", ids);
+  query = query.order("created_at", { ascending: true });
   const { data, error } = await execute(query, viewerId, true, hidden);
   if (error) {
     if (missingTable(error)) return [];
     throw new Error(error.message);
   }
   return (data ?? []) as CommentRow[];
+}
+
+type InboxQuery = {
+  eq: (column: string, value: string | boolean) => InboxQuery;
+  order: (column: string, options?: { ascending: boolean }) => InboxQuery;
+  not: (column: string, operator: string, value: string) => InboxQuery;
+  or: (filters: string) => InboxQuery;
+  then: PromiseLike<QueryResult>["then"];
+};
+
+type NotificationInboxRow = {
+  id: string;
+  recipient_id: string;
+  actor_id: string | null;
+  kind: Notification["kind"];
+  post_id: string | null;
+  preview: string | null;
+  href?: string | null;
+  metadata?: Record<string, unknown> | null;
+  read: boolean;
+  created_at: string;
+};
+
+type MessageInboxRow = {
+  id: string;
+  sender_id: string;
+  receiver_id: string;
+  content: string;
+  created_at: string;
+  read: boolean;
+};
+
+/**
+ * Unread bell and Messages badge rows for a signed-in viewer.
+ * Notifications use the same muted-author filter as the site snapshot.
+ */
+async function loadViewerInbox(
+  supabase: SupabaseClient,
+  viewerId: string,
+  hidden: readonly string[],
+): Promise<{ notifications: Notification[]; messages: DirectMessage[] }> {
+  const notificationsQuery = supabase
+    .from("notifications")
+    .select("id, recipient_id, actor_id, kind, post_id, preview, href, metadata, read, created_at")
+    .eq("recipient_id", viewerId)
+    .eq("read", false)
+    .order("created_at", { ascending: false }) as unknown as InboxQuery;
+  const guardedNotes = applyAuthorSafety(notificationsQuery, viewerId, hidden, {
+    authorColumn: "actor_id",
+    mute: true,
+    keepNullAuthor: true,
+  });
+  const messagesQuery = supabase
+    .from("messages")
+    .select("id, sender_id, receiver_id, content, created_at, read")
+    .eq("receiver_id", viewerId)
+    .eq("read", false)
+    .order("created_at", { ascending: true }) as unknown as InboxQuery;
+  const [notesRes, messagesRes] = await Promise.all([guardedNotes, messagesQuery]);
+  if (notesRes.error && !missingTable(notesRes.error)) throw new Error(notesRes.error.message);
+  if (messagesRes.error && !missingTable(messagesRes.error)) throw new Error(messagesRes.error.message);
+  const notifications = ((notesRes.data ?? []) as NotificationInboxRow[]).map(
+    (row): Notification => ({
+      id: row.id,
+      recipientId: row.recipient_id,
+      actorId: row.actor_id,
+      kind: row.kind,
+      postId: row.post_id,
+      preview: row.preview,
+      href: row.href ?? null,
+      metadata: row.metadata ?? null,
+      createdAt: row.created_at,
+      read: row.read,
+    }),
+  );
+  const messages = ((messagesRes.data ?? []) as MessageInboxRow[]).map(
+    (row): DirectMessage => ({
+      id: row.id,
+      senderId: row.sender_id,
+      receiverId: row.receiver_id,
+      content: row.content,
+      createdAt: row.created_at,
+      read: row.read,
+    }),
+  );
+  return { notifications, messages };
 }
 
 async function selectQuotingPosts(
@@ -621,7 +744,8 @@ async function selectRepostsFor(
 
 /**
  * Everything a single post screen needs, and nothing site-wide.
- * One hidden_author_ids call. No follows, notifications, messages, or paged-off posts.
+ * One hidden_author_ids call. No follows or paged-off posts.
+ * Unread notifications and received messages are loaded so the badges stay.
  * Likes stay on the device (see activity.ts), so this does not query them.
  */
 export async function loadPostPage(
@@ -653,7 +777,10 @@ export async function loadPostPage(
   }
 
   const { postHidden, replyHidden } = postPageAuthorFilters(hidden, blockedIds, mutedIds);
-  const [postRows, commentRows, quotingRows] = await Promise.all([
+  const inboxPromise = viewerId
+    ? loadViewerInbox(supabase, viewerId, hidden)
+    : Promise.resolve({ notifications: [] as Notification[], messages: [] as DirectMessage[] });
+  const [postRows, commentRows, quotingRows, inbox] = await Promise.all([
     selectPosts(supabase, viewerId, {
       authorIds: null,
       cursor: null,
@@ -664,6 +791,7 @@ export async function loadPostPage(
     }),
     selectComments(supabase, postId, viewerId, viewerId ? replyHidden : null),
     selectQuotingPosts(supabase, postId, viewerId, viewerId ? postHidden : null),
+    inboxPromise,
   ]);
   const [post] = await mapRows(supabase, postRows, viewerId);
   if (!post) {
@@ -673,6 +801,8 @@ export async function loadPostPage(
       ...emptyPostPage,
       profiles: viewer.profiles,
       user: viewer.user,
+      notifications: inbox.notifications,
+      messages: inbox.messages,
       blockedIds,
       mutedIds,
     };
@@ -682,18 +812,21 @@ export async function loadPostPage(
   const quotingPosts = (await mapRows(supabase, quotingRows, viewerId)).filter(
     (item) => item.id !== post.id,
   );
-  const comments = commentRows.map(
-    (row): PostComment => ({
-      id: row.id,
-      postId: row.post_id,
-      authorId: row.user_id,
-      body: row.body,
-      createdAt: row.created_at,
-    }),
+  const quotingComments = await selectCommentsForPosts(
+    supabase,
+    quotingPosts.map((item) => item.id),
+    viewerId,
+    viewerId ? replyHidden : null,
   );
+  const comments = [...commentRows, ...quotingComments].map(mapComment);
   const reposts = await selectRepostsFor(
     supabase,
-    [post.id, ...comments.map((comment) => comment.id)],
+    [
+      post.id,
+      ...comments.map((comment) => comment.id),
+      ...quotingPosts.map((item) => item.id),
+      ...relatedPosts.map((item) => item.id),
+    ],
     viewerId,
     viewerId ? postHidden : null,
   );
@@ -713,6 +846,8 @@ export async function loadPostPage(
     user: viewer.user,
     comments,
     reposts,
+    notifications: inbox.notifications,
+    messages: inbox.messages,
     blockedIds,
     mutedIds,
   };
