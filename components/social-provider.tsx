@@ -9,6 +9,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { usePathname } from "next/navigation";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { trackEvent } from "@/lib/analytics";
 import { activityFrom, emptyActivity, loadActivity, saveActivity, type ActivityStore } from "@/lib/social/activity";
@@ -60,6 +61,12 @@ import {
   remoteUpdatePost,
   remoteUpdateProfile,
 } from "@/lib/social/remote";
+import {
+  loadPostPage,
+  mergePostPageIntoSnapshot,
+  postPageId,
+} from "@/lib/social/load-post-page";
+import { isUuid } from "@/lib/value/card-value-access";
 import { collectAttachedCardIds } from "@/lib/social/post-card-value";
 import { followingTimeline, type TimelineItem } from "@/lib/social/timeline";
 import { createSupabaseBrowser } from "@/lib/supabase/browser";
@@ -152,6 +159,8 @@ type SocialContextValue = {
   postCardValuesLoading: boolean;
   /** Set when the home feed's price check is rate-limited. */
   postCardValuesMessage: string | null;
+  /** True while /posts/[id] is fetching that post and not the home snapshot. */
+  postLoading: boolean;
 };
 
 const SocialContext = createContext<SocialContextValue | null>(null);
@@ -183,15 +192,86 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
   const repostQueue = useRef(Promise.resolve());
   const rememberedRef = useRef(createRememberedPosts());
   const removedRef = useRef<ReadonlySet<string>>(new Set());
+  const scopeRef = useRef<"full" | "post" | "empty">("empty");
+  const loadedRouteRef = useRef<string | null>(null);
+  const loadGen = useRef(0);
+  const viewerIdRef = useRef<string | null>(null);
+  /** Set when the badge was cleared before notification rows were loaded. */
+  const markReadRef = useRef(false);
+  const pathname = usePathname() || "/";
+  const routePostId = postPageId(pathname);
+  const routePostIdRef = useRef(routePostId);
+  const [postLoadingId, setPostLoadingId] = useState<string | null>(null);
   localRef.current = local;
+
+  useEffect(() => {
+    routePostIdRef.current = routePostId;
+  }, [routePostId]);
 
   useEffect(() => {
     removedRef.current = removedPostIds;
   }, [removedPostIds]);
 
   const refreshRemote = useCallback(async (client: SupabaseClient) => {
-    const snapshot = await loadSupabaseSocial(client);
-    setRemote(mergeRememberedSnapshot(snapshot, rememberedRef.current, removedRef.current));
+    const readPendingNotifications = (snapshot: SocialSnapshot) => {
+      if (!markReadRef.current) return snapshot;
+      markReadRef.current = false;
+      const userId = snapshot.user?.id;
+      if (!userId) return { ...snapshot, unreadNotificationCount: 0 };
+      return {
+        ...snapshot,
+        unreadNotificationCount: 0,
+        notifications: snapshot.notifications.map((note) =>
+          note.recipientId === userId ? { ...note, read: true } : note,
+        ),
+      };
+    };
+    const postId = routePostIdRef.current;
+    const gen = ++loadGen.current;
+    if (postId) setPostLoadingId(postId);
+    try {
+      if (postId) {
+        const page = await loadPostPage(client, postId);
+        if (loadGen.current !== gen) return;
+        const blocked = new Set(page.snapshot.blockedIds ?? []);
+        if (page.found) {
+          storeRemembered(
+            rememberedRef.current,
+            page.snapshot.posts,
+            page.snapshot.profiles,
+            blocked,
+          );
+        } else {
+          forgetRememberedPost(rememberedRef.current, postId);
+        }
+        for (const removedId of removedRef.current) {
+          forgetRememberedPost(rememberedRef.current, removedId);
+        }
+        const sameViewer = viewerIdRef.current === (page.snapshot.user?.id ?? null);
+        const keepFull = scopeRef.current === "full" && sameViewer;
+        setRemote((existing) => {
+          const base = keepFull
+            ? mergePostPageIntoSnapshot(existing, page.snapshot, postId)
+            : page.snapshot;
+          return mergeRememberedSnapshot(base, rememberedRef.current, removedRef.current);
+        });
+        if (!keepFull) scopeRef.current = "post";
+      } else {
+        const snapshot = await loadSupabaseSocial(client);
+        if (loadGen.current !== gen) return;
+        scopeRef.current = "full";
+        setRemote(
+          mergeRememberedSnapshot(
+            readPendingNotifications(snapshot),
+            rememberedRef.current,
+            removedRef.current,
+          ),
+        );
+      }
+      if (loadGen.current === gen) loadedRouteRef.current = postId ?? "";
+    } finally {
+      if (loadGen.current === gen) setPostLoadingId(null);
+    }
   }, []);
 
   useEffect(() => {
@@ -247,6 +327,18 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
     if (mode !== "supabase" || !ready) return;
     const client = supabaseRef.current;
     if (!client) return;
+    const key = routePostId ?? "";
+    if (loadedRouteRef.current === key) return;
+    if (!routePostId && scopeRef.current === "full") return;
+    refreshRemote(client).catch((error: unknown) => {
+      setStatus(error instanceof Error ? error.message : "Could not reach Supabase.");
+    });
+  }, [mode, ready, refreshRemote, routePostId]);
+
+  useEffect(() => {
+    if (mode !== "supabase" || !ready) return;
+    const client = supabaseRef.current;
+    if (!client) return;
     let timer = 0;
     const schedule = () => {
       window.clearTimeout(timer);
@@ -256,22 +348,44 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
         });
       }, 250);
     };
+    const commentFilter = isUuid(routePostId ?? "")
+      ? `post_id=eq.${routePostId}`
+      : undefined;
+    const repostFilter = commentFilter;
     const channel = client
       .channel("social-comments-notifications")
-      .on("postgres_changes", { event: "*", schema: "public", table: "comments" }, schedule)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "comments",
+          ...(commentFilter ? { filter: commentFilter } : {}),
+        },
+        schedule,
+      )
       .on("postgres_changes", { event: "*", schema: "public", table: "notifications" }, schedule)
       .on("postgres_changes", { event: "*", schema: "public", table: "messages" }, schedule)
       .subscribe();
     const reposts = client
       .channel("social-reposts")
-      .on("postgres_changes", { event: "*", schema: "public", table: "reposts" }, schedule)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "reposts",
+          ...(repostFilter ? { filter: repostFilter } : {}),
+        },
+        schedule,
+      )
       .subscribe();
     return () => {
       window.clearTimeout(timer);
       void client.removeChannel(channel);
       void client.removeChannel(reposts);
     };
-  }, [mode, ready, refreshRemote]);
+  }, [mode, ready, refreshRemote, routePostId]);
 
   const baseSnapshot = mode === "local" && local ? snapshotFromLocal(local) : remote;
   const postIds = new Set(baseSnapshot.posts.map((post) => post.id));
@@ -288,6 +402,10 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       : baseSnapshot;
   const snapshotRef = useRef(snapshot);
   snapshotRef.current = snapshot;
+
+  useEffect(() => {
+    viewerIdRef.current = snapshot.user?.id ?? null;
+  }, [snapshot.user]);
 
   const postCardIdKey = useMemo(() => {
     const ids = collectAttachedCardIds(snapshot.posts);
@@ -786,16 +904,26 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   }, [snapshot.notifications, snapshot.user]);
 
-  const unreadCount = notifications.filter((note) => !note.read).length;
+  const unreadCount =
+    snapshot.unreadNotificationCount != null && snapshot.notifications.length === 0
+      ? snapshot.unreadNotificationCount
+      : notifications.filter((note) => !note.read).length;
 
   const markNotificationsRead = useCallback(() => {
     const current = snapshotRef.current;
     if (!current.user) return;
     const userId = current.user.id;
-    if (!current.notifications.some((note) => note.recipientId === userId && !note.read)) return;
+    const hasUnreadRow = current.notifications.some(
+      (note) => note.recipientId === userId && !note.read,
+    );
+    const hasUnreadCount =
+      current.notifications.length === 0 && (current.unreadNotificationCount ?? 0) > 0;
+    if (!hasUnreadRow && !hasUnreadCount) return;
     if (mode === "supabase") {
+      if (hasUnreadCount) markReadRef.current = true;
       setRemote((existing) => ({
         ...existing,
+        unreadNotificationCount: 0,
         notifications: existing.notifications.map((note) =>
           note.recipientId === userId ? { ...note, read: true } : note,
         ),
@@ -819,9 +947,13 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
   }, [snapshot.messages, snapshot.user]);
 
-  const unreadMessageCount = messages.filter(
+  const listedUnreadMessages = messages.filter(
     (message) => message.receiverId === snapshot.user?.id && !message.read,
   ).length;
+  const unreadMessageCount =
+    snapshot.unreadMessageCount != null && (snapshot.messages ?? []).length === 0
+      ? snapshot.unreadMessageCount
+      : listedUnreadMessages;
 
   const sendMessage = useCallback(
     async (receiverId: string, content: string): Promise<AuthResult> => {
@@ -1086,6 +1218,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       postCardValues,
       postCardValuesLoading,
       postCardValuesMessage,
+      postLoading: postLoadingId !== null,
     }),
     [
       addComment,
@@ -1123,6 +1256,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       postCardValues,
       postCardValuesLoading,
       postCardValuesMessage,
+      postLoadingId,
       ready,
       refresh,
       signIn,

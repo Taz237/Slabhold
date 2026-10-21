@@ -148,6 +148,13 @@ export type SocialSnapshot = {
   mutedIds?: string[];
   /** Profiles for the block and mute lists, including people hidden from the feed. */
   safetyAccounts?: Profile[];
+  /**
+   * Unread notification badge when notification rows were not loaded.
+   * A loaded list wins, so opening Notifications still marks those rows read.
+   */
+  unreadNotificationCount?: number;
+  /** Unread message badge when message rows were not loaded. */
+  unreadMessageCount?: number;
 };
 
 export type SignUpInput = {
