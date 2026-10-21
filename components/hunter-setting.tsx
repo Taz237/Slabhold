@@ -34,7 +34,7 @@ export function HunterSettingControl({
           {HUNTER_SETTING_HELP}
         </p>
       </div>
-      <span className="relative mt-0.5 inline-flex shrink-0">
+      <label htmlFor="show-as-hunter" className="relative mt-0.5 inline-flex shrink-0">
         <input
           id="show-as-hunter"
           type="checkbox"
@@ -46,9 +46,11 @@ export function HunterSettingControl({
           onChange={(event) => onToggle(event.target.checked)}
           className="peer sr-only"
         />
-        <span className="h-6 w-11 rounded-full bg-zinc-300 peer-checked:bg-violet-600 peer-disabled:opacity-50 dark:bg-white/20" />
+        <span className="h-6 w-11 rounded-full bg-zinc-300 peer-checked:bg-violet-600 peer-disabled:opacity-50 peer-focus-visible:ring-2 peer-focus-visible:ring-violet-600 peer-focus-visible:ring-offset-2 peer-focus-visible:ring-offset-[var(--background)] dark:bg-white/20" />
         <span className="pointer-events-none absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white transition-transform peer-checked:translate-x-5" />
-      </span>
+        {/* 24px track is already 44px wide; this fills the height out to a 44px target. */}
+        <span className="absolute -top-2.5 left-0 h-11 w-11" />
+      </label>
     </div>
   );
 }
