@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { captchaRetryMessage } from "@/lib/auth/captcha";
 import { emailConfirmRedirect } from "@/lib/auth/safe-next";
+import { publicOrigin } from "@/lib/site-url";
 import { uploadMedia } from "@/lib/supabase/media";
 import { sanitizeAttachedCard } from "./card-posts";
 import { loadMailDayViews } from "./mail-day";
@@ -448,7 +449,7 @@ export async function remoteSignUp(
       emailRedirectTo:
         typeof window === "undefined"
           ? undefined
-          : emailConfirmRedirect(window.location.origin, input.next),
+          : emailConfirmRedirect(publicOrigin(window.location.origin), input.next),
       captchaToken: input.captchaToken,
     },
   });

@@ -3,9 +3,10 @@
 import { useEffect, useRef, useState } from "react";
 import { Share } from "lucide-react";
 import { trackEvent } from "@/lib/analytics";
+import { publicOrigin } from "@/lib/site-url";
 
 function absoluteUrl(path: string) {
-  return new URL(path, window.location.origin).href;
+  return new URL(path, publicOrigin(window.location.origin)).href;
 }
 
 async function copyText(value: string) {

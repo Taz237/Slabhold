@@ -92,7 +92,7 @@ describe("card value rate limit bucket", () => {
       warnings.push(args);
     };
     const request = (ip: string) =>
-      new Request("https://slabhold.vercel.app/api/card-values", {
+      new Request("https://slabhold.app/api/card-values", {
         headers: { "x-forwarded-for": ip },
       });
     try {

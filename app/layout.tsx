@@ -4,6 +4,7 @@ import { AppShell } from "@/components/app-shell";
 import { CaptureUtm } from "@/components/capture-utm";
 import { WebAnalytics } from "@/components/web-analytics";
 import { LOGO_SRC } from "@/components/logo";
+import { SITE_URL } from "@/lib/site-url";
 import { CollectionProvider } from "@/components/collection-provider";
 import { ImageLightboxProvider } from "@/components/image-lightbox";
 import { SocialProvider } from "@/components/social-provider";
@@ -19,16 +20,9 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-function metadataBaseUrl(): URL {
-  const production = process.env.VERCEL_PROJECT_PRODUCTION_URL?.replace(/^https?:\/\//, "").trim();
-  if (production) return new URL(`https://${production}`);
-  const current = process.env.VERCEL_URL?.replace(/^https?:\/\//, "").trim();
-  if (current) return new URL(`https://${current}`);
-  return new URL("https://slabhold.vercel.app");
-}
-
 export const metadata: Metadata = {
-  metadataBase: metadataBaseUrl(),
+  metadataBase: new URL(SITE_URL),
+  alternates: { canonical: "./" },
   title: "Slabhold",
   description: "Sports card portfolio, flips, and a feed of collectors",
   openGraph: {

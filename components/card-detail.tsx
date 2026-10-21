@@ -37,6 +37,7 @@ import {
 import { formatRelativeTime } from "@/lib/relative-time";
 import {
   cardValueHasAmount,
+  estSellTileCopy,
   formatCardValueLabel,
   isLowConfidenceValue,
   NOT_ENOUGH_SALES_LABEL,
@@ -508,9 +509,9 @@ function EstSellMetric({
 
   if (label?.startsWith("$")) {
     return (
-      <div className="min-w-0 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-3 dark:border-white/10 dark:bg-black/20">
+      <div className="min-w-0 overflow-hidden rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-3 dark:border-white/10 dark:bg-black/20">
         <p className="text-[11px] tracking-wide text-zinc-500 uppercase">Est. sell</p>
-        <p className="mt-1 min-w-0 text-[clamp(0.95rem,3.4vw,1.125rem)] font-semibold tabular-nums whitespace-nowrap">
+        <p className="mt-1 min-w-0 overflow-hidden text-[clamp(0.95rem,3.4vw,1.125rem)] font-semibold tabular-nums whitespace-nowrap text-ellipsis">
           {label}
         </p>
         {sample ? (
@@ -526,7 +527,8 @@ function EstSellMetric({
     );
   }
 
-  return <Metric label="Est. sell" value={label ?? NOT_ENOUGH_SALES_LABEL} />;
+  const copy = estSellTileCopy(label);
+  return <Metric label="Est. sell" value={copy.text} title={copy.title} />;
 }
 
 function CardSpecs({
@@ -567,16 +569,19 @@ function Metric({
   label,
   value,
   tone,
+  title,
 }: {
   label: string;
   value: string;
   tone?: "up" | "down";
+  title?: string;
 }) {
   return (
-    <div className="min-w-0 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-3 dark:border-white/10 dark:bg-black/20">
+    <div className="min-w-0 overflow-hidden rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-3 dark:border-white/10 dark:bg-black/20">
       <p className="text-[11px] tracking-wide text-zinc-500 uppercase">{label}</p>
       <p
-        className={`mt-1 min-w-0 text-[clamp(0.95rem,3.4vw,1.125rem)] font-semibold tabular-nums whitespace-nowrap ${
+        title={title}
+        className={`mt-1 min-w-0 max-w-full overflow-hidden text-[clamp(0.95rem,3.4vw,1.125rem)] font-semibold leading-snug break-words tabular-nums ${
           tone === "up"
             ? "text-emerald-600 dark:text-emerald-400"
             : tone === "down"

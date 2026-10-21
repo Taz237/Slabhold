@@ -26,7 +26,7 @@ describe("sanitizeProps", () => {
         card: "Luka Doncic Silver Prizm",
         playerName: "Luka Doncic",
         note: "just pulled this from a hobby box",
-        url: "https://slabhold.vercel.app/signup?next=/cards/new",
+        url: "https://slabhold.app/signup?next=/cards/new",
         next: "/signup?email=maya@cardflip.app",
       }),
       {
@@ -179,16 +179,16 @@ describe("scrubAnalyticsUrl", () => {
     assert.equal(scrubbed("/search?q=wemby"), "/search");
     assert.equal(scrubbed("/?utm_source=x&foo=1"), "/?utm_source=x");
     assert.equal(
-      scrubbed("https://slabhold.vercel.app/messages/donnietaz?x=1"),
-      "https://slabhold.vercel.app/messages/[username]",
+      scrubbed("https://slabhold.app/messages/donnietaz?x=1"),
+      "https://slabhold.app/messages/[username]",
     );
     assert.equal(
-      scrubbed("https://slabhold.vercel.app/search?q=wemby"),
-      "https://slabhold.vercel.app/search",
+      scrubbed("https://slabhold.app/search?q=wemby"),
+      "https://slabhold.app/search",
     );
     assert.equal(
-      scrubbed("https://slabhold.vercel.app/?utm_source=x&foo=1"),
-      "https://slabhold.vercel.app/?utm_source=x",
+      scrubbed("https://slabhold.app/?utm_source=x&foo=1"),
+      "https://slabhold.app/?utm_source=x",
     );
     assert.equal(scrubbed("/cards/new?q=wemby"), "/cards/new");
     assert.equal(
@@ -259,16 +259,16 @@ describe("analytics payloads", () => {
       href: "/search",
       route: "/search",
     });
-    assert.deepEqual(viewAndVitals("https://slabhold.vercel.app/u/donnietaz?q=x"), {
-      o: "https://slabhold.vercel.app/u/[username]",
+    assert.deepEqual(viewAndVitals("https://slabhold.app/u/donnietaz?q=x"), {
+      o: "https://slabhold.app/u/[username]",
       dp: "/u/[username]",
-      href: "https://slabhold.vercel.app/u/[username]",
+      href: "https://slabhold.app/u/[username]",
       route: "/u/[username]",
     });
-    assert.deepEqual(viewAndVitals("https://slabhold.vercel.app/search?q=wemby"), {
-      o: "https://slabhold.vercel.app/search",
+    assert.deepEqual(viewAndVitals("https://slabhold.app/search?q=wemby"), {
+      o: "https://slabhold.app/search",
       dp: "/search",
-      href: "https://slabhold.vercel.app/search",
+      href: "https://slabhold.app/search",
       route: "/search",
     });
     assert.deepEqual(viewAndVitals("/search?q=wemby&utm_source=newsletter"), {

@@ -24,10 +24,11 @@ import {
 } from "@/lib/card-options";
 import {
   applyGradingCompany,
+  estimateInputFromCard,
   gradeNumberFromGrade,
+  gradingCompanyChange,
   gradingCompanyFromCard,
   gradingCompanyOptions,
-  isRawGradingCompany,
 } from "@/lib/cards/grading-company";
 import { parallelAfterSetChange, parallelIsListed, parallelsForSet } from "@/lib/cards/parallels";
 import { buildCompsQuery } from "@/lib/comps/match";
@@ -132,7 +133,7 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
     sport: existing?.sport ?? "Basketball",
     purchasePrice: hasPaid(existing) ? String(existing!.purchasePrice) : "",
     purchaseDate: existing?.purchaseDate ?? "",
-    estimatedSellPrice: existing ? String(existing.estimatedSellPrice) : "",
+    estimatedSellPrice: estimateInputFromCard(existing?.estimatedSellPrice),
     sellPrice: existing?.sellPrice != null ? String(existing.sellPrice) : "",
     sellDate: existing?.sellDate ?? "",
     notes: existing?.notes ?? "",
@@ -306,14 +307,21 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
   function chooseGradeCompany(company: string) {
     setGradeCompany(company);
     markTouched("grade");
-    if (isRawGradingCompany(company)) {
-      setGradeNumber("");
-      return;
-    }
-    setGradeNumber((current) => {
-      const allowed = GRADE_NUMBERS[company] ?? GRADE_NUMBERS.Other;
-      return allowed.includes(current) ? current : "";
-    });
+    setGradeNumber((current) =>
+      gradingCompanyChange({
+        company,
+        gradeNumber: current,
+        estimate: "",
+      }).gradeNumber,
+    );
+    setForm((prev) => ({
+      ...prev,
+      estimatedSellPrice: gradingCompanyChange({
+        company,
+        gradeNumber: "",
+        estimate: prev.estimatedSellPrice,
+      }).estimate,
+    }));
   }
 
   async function submit(e: React.FormEvent) {

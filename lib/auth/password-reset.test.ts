@@ -16,12 +16,12 @@ import { safeNext } from "./safe-next";
 describe("password reset", () => {
   it("builds the auth callback redirect and a single public message", () => {
     assert.equal(
-      passwordResetRedirect("https://slabhold.vercel.app"),
-      "https://slabhold.vercel.app/auth/callback?next=/reset-password",
+      passwordResetRedirect("https://slabhold.app"),
+      "https://slabhold.app/auth/callback?next=/reset-password",
     );
     assert.equal(
-      passwordResetRedirect("https://slabhold.vercel.app/"),
-      "https://slabhold.vercel.app/auth/callback?next=/reset-password",
+      passwordResetRedirect("https://slabhold.app/"),
+      "https://slabhold.app/auth/callback?next=/reset-password",
     );
     assert.equal(safeNext("/reset-password"), "/reset-password");
     assert.equal(
@@ -106,7 +106,7 @@ describe("password reset", () => {
     assert.match(login, /Forgot password\?/);
     assert.match(login, /href="\/forgot-password"/);
     assert.match(forgot, /resetPasswordForEmail/);
-    assert.match(forgot, /passwordResetEmailOptions\(window\.location\.origin, captchaToken\)/);
+    assert.match(forgot, /passwordResetEmailOptions\(publicOrigin\(window\.location\.origin\), captchaToken\)/);
     assert.match(
       readFileSync(join(root, "lib/auth/password-reset.ts"), "utf8"),
       /redirectTo: passwordResetRedirect\(origin\)/,

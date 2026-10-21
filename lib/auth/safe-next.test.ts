@@ -74,12 +74,12 @@ describe("safeNext", () => {
 describe("email confirm next", () => {
   it("passes a safe next through the confirm redirect", () => {
     assert.equal(
-      emailConfirmRedirect("https://slabhold.vercel.app", "/posts/abc"),
-      "https://slabhold.vercel.app/auth/confirm?next=%2Fposts%2Fabc",
+      emailConfirmRedirect("https://slabhold.app", "/posts/abc"),
+      "https://slabhold.app/auth/confirm?next=%2Fposts%2Fabc",
     );
     assert.equal(
-      emailConfirmRedirect("https://slabhold.vercel.app", "https://evil.com"),
-      "https://slabhold.vercel.app/auth/confirm?next=%2F",
+      emailConfirmRedirect("https://slabhold.app", "https://evil.com"),
+      "https://slabhold.app/auth/confirm?next=%2F",
     );
     assert.equal(afterAuthPath("/login"), "/");
   });
