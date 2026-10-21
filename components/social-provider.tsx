@@ -62,6 +62,7 @@ import { useCardValues } from "@/lib/value/use-card-values";
 import type {
   AuthResult,
   DirectMessage,
+  FollowEdge,
   Notification,
   Post,
   PostComment,
@@ -121,6 +122,11 @@ type SocialContextValue = {
   sendMessage: (receiverId: string, content: string) => Promise<AuthResult>;
   markThreadRead: (partnerId: string) => void;
   feed: TimelineItem[];
+  follows: FollowEdge[];
+  /** Merge posts loaded by a paged feed so likes, quotes, and edits can see them. */
+  rememberPosts: (posts: Post[], profiles?: Profile[]) => void;
+  /** Posts deleted this session, hidden until the next full reload. */
+  removedPostIds: ReadonlySet<string>;
   homePosts: Post[];
   homeReposts: PostRepost[];
   blockedIds: string[];
@@ -161,6 +167,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
   const [remote, setRemote] = useState<SocialSnapshot>(emptySnapshot);
   const [status, setStatus] = useState<string | null>(null);
   const [activity, setActivity] = useState<ActivityStore>(emptyActivity);
+  const [removedPostIds, setRemovedPostIds] = useState<ReadonlySet<string>>(() => new Set());
   const supabaseRef = useRef<SupabaseClient | null>(null);
   const localRef = useRef<LocalDb | null>(null);
   const likeQueue = useRef(Promise.resolve());
@@ -499,6 +506,11 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
         try {
           const result = await remoteDeletePost(client, snapshot.user.id, postId);
           if (!result.error) {
+            setRemovedPostIds((prev) => {
+              const next = new Set(prev);
+              next.add(postId);
+              return next;
+            });
             rememberActivity(localDeletePost(activityShell(), postId).db);
             await refreshRemote(client);
           }
@@ -828,6 +840,28 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
     [commitLocal, mode],
   );
 
+  const rememberPosts = useCallback((posts: Post[], profiles: Profile[] = []) => {
+    if (posts.length === 0 && profiles.length === 0) return;
+    setRemote((existing) => {
+      const blocked = new Set(existing.blockedIds ?? []);
+      const knownPosts = new Set(existing.posts.map((post) => post.id));
+      const addPosts = posts.filter(
+        (post) => !knownPosts.has(post.id) && !blocked.has(post.authorId),
+      );
+      const knownProfiles = new Set(existing.profiles.map((profile) => profile.id));
+      const addProfiles = profiles.filter(
+        (profile) => !knownProfiles.has(profile.id) && !blocked.has(profile.id),
+      );
+      if (addPosts.length === 0 && addProfiles.length === 0) return existing;
+      return {
+        ...existing,
+        posts: addPosts.length > 0 ? [...existing.posts, ...addPosts] : existing.posts,
+        profiles:
+          addProfiles.length > 0 ? [...existing.profiles, ...addProfiles] : existing.profiles,
+      };
+    });
+  }, []);
+
   const commentsFor = useCallback(
     (postId: string) =>
       snapshot.comments
@@ -1009,6 +1043,9 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       sendMessage,
       markThreadRead,
       feed,
+      follows: snapshot.follows,
+      rememberPosts,
+      removedPostIds,
       suggestions,
       profileByUsername,
       postCardValues,
@@ -1029,6 +1066,9 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       deleteComment,
       deletePost,
       feed,
+      snapshot.follows,
+      rememberPosts,
+      removedPostIds,
       followerCount,
       followersOf,
       followingOf,

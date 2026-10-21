@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Compass, ImagePlus, X } from "lucide-react";
 import { Avatar } from "@/components/avatar";
 import { MentionTextarea } from "@/components/mention-textarea";
@@ -12,8 +12,10 @@ import { useCollection } from "@/components/collection-provider";
 import { FirstCardWelcome } from "@/components/first-card-welcome";
 import { GetStartedCard, useGetStartedDismissed, useRememberNewUser } from "@/components/get-started";
 import { useSocial } from "@/components/social-provider";
+import { LoadMore } from "@/components/load-more";
 import { PullToRefresh } from "@/components/pull-to-refresh";
-import { EmptyState, TimelineSkeleton } from "@/components/status";
+import { usePagedTimeline } from "@/components/use-paged-timeline";
+import { EmptyState, LoadingRows, TimelineSkeleton } from "@/components/status";
 import { CollectionToday } from "@/components/collection-today";
 import { shouldShowFirstCardWelcome } from "@/lib/collection/welcome";
 import { Tweet } from "@/components/tweet";
@@ -28,6 +30,7 @@ import {
 } from "@/lib/social/get-started";
 import { createSupabaseBrowser } from "@/lib/supabase/browser";
 import { getSupabaseConfig } from "@/lib/supabase/client";
+import { followingAuthorIds } from "@/lib/social/feed-page";
 import { publicTimeline } from "@/lib/social/timeline";
 import { POST_LIMIT, type Profile, type PublicCard } from "@/lib/social/types";
 
@@ -37,16 +40,19 @@ export function FeedView() {
   const {
     ready,
     user,
-    feed,
+    feed: followedFeed,
     posts,
     homePosts,
     homeReposts,
+    follows,
     suggestions,
     profiles,
     followingCount,
     refresh,
     mode,
     postCardValuesMessage,
+    rememberPosts,
+    removedPostIds,
   } = useSocial();
   const { cards, ready: cardsReady, syncError } = useCollection();
   const composerRef = useRef<HTMLTextAreaElement>(null);
@@ -76,6 +82,31 @@ export function FeedView() {
       syncError,
     });
   const [lane, setLane] = useState<"following" | "foryou">("foryou");
+  const [refreshKey, setRefreshKey] = useState(0);
+  const followingIds = useMemo(
+    () => (user ? followingAuthorIds(follows, user.id) : []),
+    [follows, user],
+  );
+  const headToken = `${homePosts[0]?.id ?? ""}|${homeReposts[0]?.userId ?? ""}:${homeReposts[0]?.postId ?? ""}:${homeReposts[0]?.createdAt ?? ""}`;
+  const paging = mode === "supabase" && ready;
+  const forYouPage = usePagedTimeline({
+    enabled: paging,
+    scope: "public",
+    viewerId: user?.id ?? null,
+    refreshKey,
+    headToken,
+    rememberPosts,
+  });
+  const followingPage = usePagedTimeline({
+    enabled: paging && Boolean(user),
+    scope: "following",
+    authorIds: followingIds,
+    viewerId: user?.id ?? null,
+    refreshKey,
+    headToken,
+    rememberPosts,
+  });
+  const activePage = lane === "following" ? followingPage : forYouPage;
   const pickedFor = useRef<string | null>(null);
   const suggestionIds = useRef<string[] | null>(null);
   if (ready && user && suggestionIds.current === null && suggestions.length > 0) {
@@ -85,9 +116,22 @@ export function FeedView() {
     .map((id) => profiles.find((profile) => profile.id === id))
     .filter((profile) => profile != null);
   const authors = new Map(profiles.map((profile) => [profile.id, profile]));
-  const everyone = publicTimeline(homePosts, homeReposts, profiles);
+  for (const person of activePage.profiles) authors.set(person.id, person);
+  const clientEveryone = publicTimeline(homePosts, homeReposts, profiles);
+  const everyone = paging
+    ? forYouPage.items.filter((item) => !removedPostIds.has(item.post.id))
+    : clientEveryone;
+  const feed = paging
+    ? followingPage.items.filter((item) => !removedPostIds.has(item.post.id))
+    : followedFeed;
   const visible = !user ? (lane === "following" ? [] : everyone) : lane === "following" ? feed : everyone;
-  const followingEmpty = Boolean(user) && lane === "following" && visible.length === 0;
+  const activeLoading = paging && activePage.loading && visible.length === 0;
+  const followingEmpty =
+    Boolean(user) &&
+    lane === "following" &&
+    !activeLoading &&
+    !activePage.error &&
+    visible.length === 0;
 
   useEffect(() => {
     if (!ready || !cardsReady || !user) return;
@@ -122,14 +166,26 @@ export function FeedView() {
 
   if (!ready) {
     return (
-      <PullToRefresh onRefresh={refresh} className="-mx-4 -mt-5">
+      <PullToRefresh
+        onRefresh={async () => {
+          await refresh();
+          setRefreshKey((key) => key + 1);
+        }}
+        className="-mx-4 -mt-5"
+      >
         <TimelineSkeleton />
       </PullToRefresh>
     );
   }
 
   return (
-    <PullToRefresh onRefresh={refresh} className="-mx-4 -mt-5">
+    <PullToRefresh
+      onRefresh={async () => {
+        await refresh();
+        setRefreshKey((key) => key + 1);
+      }}
+      className="-mx-4 -mt-5"
+    >
       {started.visible ? (
         <GetStartedCard
           state={started}
@@ -162,7 +218,9 @@ export function FeedView() {
       ) : null}
 
       <div>
-        {followingEmpty ? (
+        {activeLoading ? (
+          <LoadingRows count={3} />
+        ) : followingEmpty ? (
           <EmptyState icon={<Compass className="h-5 w-5" />} title="Follow collectors to fill this feed">
             {suggestionRail.length === 0 ? (
               <Link href="/search" className={solidButton}>
@@ -170,6 +228,10 @@ export function FeedView() {
               </Link>
             ) : null}
           </EmptyState>
+        ) : activePage.error && visible.length === 0 ? (
+          <p className="px-4 py-8 text-center text-sm text-rose-600 dark:text-rose-400">
+            {activePage.error}
+          </p>
         ) : visible.length === 0 && !showWelcome ? (
           <EmptyState
             icon={<Compass className="h-5 w-5" />}
@@ -191,18 +253,34 @@ export function FeedView() {
             )}
           </EmptyState>
         ) : (
-          visible.map((item) => {
-            const author = authors.get(item.post.authorId);
-            if (!author) return null;
-            return (
-              <Tweet
-                key={item.key}
-                post={item.post}
-                author={author}
-                repostedBy={item.repostedBy}
+          <>
+            {visible.map((item) => {
+              const author = authors.get(item.post.authorId);
+              if (!author) return null;
+              return (
+                <Tweet
+                  key={item.key}
+                  post={item.post}
+                  author={author}
+                  repostedBy={item.repostedBy}
+                  extraPosts={activePage.relatedPosts}
+                  extraProfiles={activePage.profiles}
+                />
+              );
+            })}
+            {paging ? (
+              <LoadMore
+                hasMore={activePage.hasMore}
+                loading={activePage.loadingMore}
+                onLoadMore={activePage.loadMore}
               />
-            );
-          })
+            ) : null}
+            {activePage.error ? (
+              <p className="px-4 py-3 text-center text-sm text-rose-600 dark:text-rose-400">
+                {activePage.error}
+              </p>
+            ) : null}
+          </>
         )}
       </div>
       {followingEmpty && suggestionRail.length > 0 ? (
