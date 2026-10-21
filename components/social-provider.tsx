@@ -87,6 +87,8 @@ import type {
 
 type SocialContextValue = {
   ready: boolean;
+  /** True after the site snapshot is in memory. A cold post page leaves this false. */
+  hasFullSnapshot: boolean;
   /** Set while a post screen is fetching a post that is not in memory yet. */
   loadingPostId: string | null;
   mode: "local" | "supabase";
@@ -1246,6 +1248,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
   const value = useMemo<SocialContextValue>(
     () => ({
       ready,
+      hasFullSnapshot,
       loadingPostId,
       mode,
       user: snapshot.user,
@@ -1329,6 +1332,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       repostCount,
       snapshot.reposts,
       followingCount,
+      hasFullSnapshot,
       homePosts,
       homeReposts,
       isFollowing,

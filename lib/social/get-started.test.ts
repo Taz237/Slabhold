@@ -11,6 +11,7 @@ import {
   followStepLabel,
   isNewUser,
   isRecentAccount,
+  newUserOnFullSnapshot,
   profileStepDone,
   storedNewUserFlag,
 } from "./get-started";
@@ -34,6 +35,21 @@ describe("isNewUser", () => {
     assert.equal(isNewUser({ followingCount: 0, cardCount: 0 }), true);
     assert.equal(isNewUser({ followingCount: 1, cardCount: 0 }), false);
     assert.equal(isNewUser({ followingCount: 0, cardCount: 1 }), false);
+  });
+
+  it("waits for a full snapshot before a post-only page can look new", () => {
+    assert.equal(
+      newUserOnFullSnapshot({ fullSnapshot: false, followingCount: 0, cardCount: 0 }),
+      null,
+    );
+    assert.equal(
+      newUserOnFullSnapshot({ fullSnapshot: true, followingCount: 0, cardCount: 0 }),
+      true,
+    );
+    assert.equal(
+      newUserOnFullSnapshot({ fullSnapshot: true, followingCount: 4, cardCount: 2 }),
+      false,
+    );
   });
 });
 
@@ -255,7 +271,8 @@ describe("home wiring", () => {
     assert.match(feed, /defaultHomeTab\(/);
     assert.match(feed, /usePagedTimeline\(/);
     assert.match(feed, /checklistState\(/);
-    assert.match(feed, /isNewUser\(\{/);
+    assert.match(feed, /newUserOnFullSnapshot\(\{/);
+    assert.match(feed, /fullSnapshot: countsReady && \(mode !== "supabase" \|\| hasFullSnapshot\)/);
     assert.match(feed, /useRememberNewUser\(/);
     assert.match(feed, /profileStepDone\(/);
     assert.match(feed, /createdAt: user\?\.createdAt/);
