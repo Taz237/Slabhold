@@ -1,6 +1,12 @@
 /** Finger travel, in px, before a pull at the top of the page refreshes. */
 export const PULL_THRESHOLD_PX = 70;
 
+/**
+ * Downward travel ignored before the pull calls preventDefault.
+ * A smaller wobble must not freeze an iOS scroll or a sideways swipe.
+ */
+export const PULL_ARM_PX = 8;
+
 export type PullPhase = "idle" | "pulling" | "refresh";
 
 export type PullGesture = {
@@ -29,6 +35,20 @@ export function pullPhase(gesture: PullGesture): PullPhase {
 /** Own the gesture only while a downward pull is in progress. */
 export function shouldClaimPull(phase: PullPhase): boolean {
   return phase === "pulling" || phase === "refresh";
+}
+
+/** Start the pull only after the finger has moved down past the slop. */
+export function shouldStartPull(phase: PullPhase, deltaY: number): boolean {
+  return deltaY > PULL_ARM_PX && shouldClaimPull(phase);
+}
+
+/** Modified clicks open a new tab or window. The active tab must not swallow them. */
+export function keepsBrowserTabGesture(input: {
+  metaKey: boolean;
+  ctrlKey: boolean;
+  shiftKey: boolean;
+}): boolean {
+  return input.metaKey || input.ctrlKey || input.shiftKey;
 }
 
 export type TabPress = "navigate" | "scroll-top" | "refresh";

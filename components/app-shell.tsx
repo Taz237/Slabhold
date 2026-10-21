@@ -15,7 +15,12 @@ import { clearLogoutHome, logoutHomePending } from "@/lib/auth/logout-home";
 import { requiresAccount, routeAccess } from "@/lib/auth/route-access";
 import { pathWithQuery, signupPath } from "@/lib/auth/safe-next";
 import type { Profile } from "@/lib/social/types";
-import { activeTabAction, isCurrentTabScreen, requestPageRefresh } from "@/lib/ui/pull-refresh";
+import {
+  activeTabAction,
+  isCurrentTabScreen,
+  keepsBrowserTabGesture,
+  requestPageRefresh,
+} from "@/lib/ui/pull-refresh";
 
 const TABS = [
   { href: "/profile", label: "Profile", icon: CircleUser },
@@ -139,6 +144,15 @@ function Shell({
               const active = isActive(pathname, tab.href, user);
               const Icon = tab.icon;
               const onTabClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
+                if (
+                  keepsBrowserTabGesture({
+                    metaKey: event.metaKey,
+                    ctrlKey: event.ctrlKey,
+                    shiftKey: event.shiftKey,
+                  })
+                ) {
+                  return;
+                }
                 if (!isCurrentTabScreen(pathname, tab.href, user?.username ?? null)) return;
                 event.preventDefault();
                 const top = window.scrollY || document.documentElement.scrollTop || 0;

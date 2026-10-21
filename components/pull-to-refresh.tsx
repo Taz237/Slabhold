@@ -6,7 +6,7 @@ import {
   PULL_THRESHOLD_PX,
   onPageRefresh,
   pullPhase,
-  shouldClaimPull,
+  shouldStartPull,
   type PullPhase,
 } from "@/lib/ui/pull-refresh";
 
@@ -21,7 +21,11 @@ function scrollOffset() {
 function blockedTarget(target: EventTarget | null) {
   return (
     target instanceof Element &&
-    Boolean(target.closest("input, textarea, select, nav, header, [role='dialog'], [data-no-pull]"))
+    Boolean(
+      target.closest(
+        "input, textarea, select, nav, header, [role='dialog'], [role='listbox'], [data-no-pull]",
+      ),
+    )
   );
 }
 
@@ -149,9 +153,9 @@ export function PullToRefresh({
         deltaY,
         refreshing: refreshingRef.current,
       });
-      if (!shouldClaimPull(phase)) {
-        // Up, sideways, or no longer at the top: let the page scroll and
-        // let iOS overscroll bounce. Never cancel that gesture.
+      if (!shouldStartPull(phase, deltaY)) {
+        // Up, sideways, a tiny wobble, or no longer at the top: let the
+        // page scroll and let iOS overscroll bounce. Never cancel that gesture.
         if (deltaY < 0 || scrollOffset() > 0 || Math.abs(deltaX) > Math.max(deltaY, 0)) {
           tracking = false;
           stopWatching();

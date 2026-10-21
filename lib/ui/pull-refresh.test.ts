@@ -3,13 +3,16 @@ import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { join } from "node:path";
 import {
+  PULL_ARM_PX,
   PULL_THRESHOLD_PX,
   activeTabAction,
   isCurrentTabScreen,
+  keepsBrowserTabGesture,
   onPageRefresh,
   pullPhase,
   requestPageRefresh,
   shouldClaimPull,
+  shouldStartPull,
 } from "./pull-refresh";
 
 describe("pull to refresh", () => {
@@ -32,6 +35,25 @@ describe("pull to refresh", () => {
     assert.equal(shouldClaimPull("idle"), false);
     assert.equal(shouldClaimPull("pulling"), true);
     assert.equal(shouldClaimPull("refresh"), true);
+  });
+
+  it("waits until the finger moves down more than 8px before starting the pull", () => {
+    assert.equal(PULL_ARM_PX, 8);
+    assert.equal(shouldStartPull("pulling", 0), false);
+    assert.equal(shouldStartPull("pulling", 8), false);
+    assert.equal(shouldStartPull("pulling", 8.1), true);
+    assert.equal(shouldStartPull("pulling", 12), true);
+    assert.equal(shouldStartPull("refresh", 80), true);
+    assert.equal(shouldStartPull("idle", 40), false);
+    assert.equal(shouldStartPull("idle", 4), false);
+  });
+
+  it("leaves modified tab clicks to the browser", () => {
+    const plain = { metaKey: false, ctrlKey: false, shiftKey: false };
+    assert.equal(keepsBrowserTabGesture(plain), false);
+    assert.equal(keepsBrowserTabGesture({ ...plain, metaKey: true }), true);
+    assert.equal(keepsBrowserTabGesture({ ...plain, ctrlKey: true }), true);
+    assert.equal(keepsBrowserTabGesture({ ...plain, shiftKey: true }), true);
   });
 
   it("scrolls an active tab to the top, and refreshes when it is already there", () => {
@@ -77,8 +99,26 @@ describe("pull to refresh wiring", () => {
     const shell = readFileSync(join(root, "components/app-shell.tsx"), "utf8");
     assert.match(wrapper, /router\.refresh\(/);
     assert.match(wrapper, /PULL_THRESHOLD_PX/);
-    assert.match(wrapper, /shouldClaimPull/);
+    assert.match(wrapper, /shouldStartPull/);
+    assert.match(wrapper, /\[role='listbox'\]/);
     assert.match(wrapper, /pointer:\s*coarse/);
+    const move = wrapper.slice(
+      wrapper.indexOf("function onTouchMove"),
+      wrapper.indexOf("function onTouchEnd"),
+    );
+    const arm = move.indexOf("shouldStartPull");
+    const prevent = move.indexOf("preventDefault");
+    assert.ok(arm >= 0 && prevent > arm);
+    const mentions = readFileSync(join(root, "components/mention-textarea.tsx"), "utf8");
+    assert.match(mentions, /role="listbox"/);
+    const tabHandler = shell.slice(
+      shell.indexOf("const onTabClick"),
+      shell.indexOf("event.preventDefault()"),
+    );
+    assert.match(tabHandler, /keepsBrowserTabGesture/);
+    assert.match(tabHandler, /metaKey/);
+    assert.match(tabHandler, /ctrlKey/);
+    assert.match(tabHandler, /shiftKey/);
     assert.doesNotMatch(wrapper, /max-width:\s*767/);
     assert.doesNotMatch(wrapper, /Pull to refresh/);
     assert.doesNotMatch(wrapper, /pointerType/);
