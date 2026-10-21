@@ -14,7 +14,7 @@ import {
 } from "./feed-page";
 import { loadMailDayViews } from "./mail-day";
 import type { TimelineItem } from "./timeline";
-import type { MailDayCardView, Post, Profile } from "./types";
+import type { MailDayCardView, Post, PostComment, PostRepost, Profile } from "./types";
 
 const POST_SELECT =
   "id, user_id, content, image_url, card, quoted_post_id, created_at, post_type, show_paid, meta";
@@ -479,6 +479,243 @@ export async function loadFeedPage(
   profiles.push(...profileIds.values());
 
   return { items, posts, relatedPosts, profiles, hasMore, nextCursor };
+}
+
+type CommentRow = {
+  id: string;
+  post_id: string;
+  user_id: string;
+  body: string;
+  created_at: string;
+};
+
+/** Same cap as the old home window. The quotes tab stays bounded to this post. */
+const QUOTE_WINDOW = 100;
+
+export type LoadedPostPage = {
+  post: Post | null;
+  /** Post this one quotes, plus one nested hop. */
+  relatedPosts: Post[];
+  /** Newer posts that quote this one, for the quotes tab. */
+  quotingPosts: Post[];
+  profiles: Profile[];
+  user: Profile | null;
+  comments: PostComment[];
+  /** Reposts of this post and its replies, so counts and the viewer's state stay. */
+  reposts: PostRepost[];
+  blockedIds: string[];
+  mutedIds: string[];
+};
+
+const emptyPostPage: LoadedPostPage = {
+  post: null,
+  relatedPosts: [],
+  quotingPosts: [],
+  profiles: [],
+  user: null,
+  comments: [],
+  reposts: [],
+  blockedIds: [],
+  mutedIds: [],
+};
+
+function idColumn(data: unknown, key: string): string[] {
+  if (!Array.isArray(data)) return [];
+  const ids: string[] = [];
+  for (const row of data) {
+    if (!row || typeof row !== "object") continue;
+    const id = (row as Record<string, unknown>)[key];
+    if (typeof id === "string") ids.push(id);
+  }
+  return ids;
+}
+
+function withViewerEmail(profiles: Profile[], viewerId: string | null, email: string) {
+  if (!viewerId) return { profiles, user: null as Profile | null };
+  const found = profiles.find((profile) => profile.id === viewerId);
+  if (!found) return { profiles, user: null as Profile | null };
+  const user = { ...found, email: email || found.email };
+  return {
+    user,
+    profiles: profiles.map((profile) => (profile.id === user.id ? user : profile)),
+  };
+}
+
+/**
+ * Blocks for the post itself, blocks plus mutes for replies.
+ * `hidden` is one hidden_author_ids(apply_mute: true) result.
+ */
+export function postPageAuthorFilters(
+  hidden: readonly string[],
+  blockedIds: readonly string[],
+  mutedIds: readonly string[],
+) {
+  const muted = new Set(mutedIds);
+  const postHidden = [...new Set([...hidden.filter((id) => !muted.has(id)), ...blockedIds])];
+  const replyHidden = [...new Set([...hidden, ...blockedIds, ...mutedIds])];
+  return { postHidden, replyHidden };
+}
+
+async function selectComments(
+  supabase: SupabaseClient,
+  postId: string,
+  viewerId: string | null,
+  hidden: readonly string[] | null,
+): Promise<CommentRow[]> {
+  const query = supabase
+    .from("comments")
+    .select("id, post_id, user_id, body, created_at")
+    .eq("post_id", postId)
+    .order("created_at", { ascending: true }) as unknown as PostExec;
+  const { data, error } = await execute(query, viewerId, true, hidden);
+  if (error) {
+    if (missingTable(error)) return [];
+    throw new Error(error.message);
+  }
+  return (data ?? []) as CommentRow[];
+}
+
+async function selectQuotingPosts(
+  supabase: SupabaseClient,
+  postId: string,
+  viewerId: string | null,
+  hidden: readonly string[] | null,
+): Promise<PostRow[]> {
+  const query = supabase
+    .from("posts")
+    .select(POST_SELECT)
+    .eq("quoted_post_id", postId)
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: true })
+    .limit(QUOTE_WINDOW) as unknown as PostExec;
+  const { data, error } = await execute(query, viewerId, false, hidden);
+  if (error) throw new Error(error.message);
+  return (data ?? []) as PostRow[];
+}
+
+async function selectRepostsFor(
+  supabase: SupabaseClient,
+  postIds: string[],
+  viewerId: string | null,
+  hidden: readonly string[] | null,
+): Promise<PostRepost[]> {
+  const ids = [...new Set(postIds)].filter((id) => isUuid(id));
+  if (ids.length === 0) return [];
+  const query = supabase
+    .from("reposts")
+    .select("user_id, post_id, created_at")
+    .in("post_id", ids) as unknown as PostExec;
+  const { data, error } = await execute(query, viewerId, false, hidden);
+  if (error) {
+    if (missingTable(error)) return [];
+    throw new Error(error.message);
+  }
+  return ((data ?? []) as RepostRow[]).map(
+    (row): PostRepost => ({
+      postId: row.post_id,
+      userId: row.user_id,
+      createdAt: row.created_at,
+    }),
+  );
+}
+
+/**
+ * Everything a single post screen needs, and nothing site-wide.
+ * One hidden_author_ids call. No follows, notifications, messages, or paged-off posts.
+ * Likes stay on the device (see activity.ts), so this does not query them.
+ */
+export async function loadPostPage(
+  supabase: SupabaseClient,
+  postId: string,
+): Promise<LoadedPostPage> {
+  if (!isUuid(postId)) return emptyPostPage;
+  const { data: sessionData } = await supabase.auth.getSession();
+  const session = sessionData.session;
+  const viewerId = session?.user.id ?? null;
+  const email = session?.user.email ?? "";
+
+  let blockedIds: string[] = [];
+  let mutedIds: string[] = [];
+  let hidden: string[] = [];
+  if (viewerId) {
+    const [hiddenIds, blocksRes, mutesRes] = await Promise.all([
+      loadHiddenAuthorIds(supabase, true),
+      supabase.from("blocks").select("blocked_id"),
+      supabase.from("mutes").select("muted_id"),
+    ]);
+    hidden = hiddenIds;
+    const blocksError = blocksRes.error;
+    const mutesError = mutesRes.error;
+    if (blocksError && !missingTable(blocksError)) throw new Error(blocksError.message);
+    if (mutesError && !missingTable(mutesError)) throw new Error(mutesError.message);
+    blockedIds = idColumn(blocksRes.data, "blocked_id");
+    mutedIds = idColumn(mutesRes.data, "muted_id");
+  }
+
+  const { postHidden, replyHidden } = postPageAuthorFilters(hidden, blockedIds, mutedIds);
+  const [postRows, commentRows, quotingRows] = await Promise.all([
+    selectPosts(supabase, viewerId, {
+      authorIds: null,
+      cursor: null,
+      limit: 1,
+      mute: false,
+      hidden: viewerId ? postHidden : null,
+      ids: [postId],
+    }),
+    selectComments(supabase, postId, viewerId, viewerId ? replyHidden : null),
+    selectQuotingPosts(supabase, postId, viewerId, viewerId ? postHidden : null),
+  ]);
+  const [post] = await mapRows(supabase, postRows, viewerId);
+  if (!post) {
+    const people = viewerId ? await loadProfiles(supabase, [viewerId]) : [];
+    const viewer = withViewerEmail(people, viewerId, email);
+    return {
+      ...emptyPostPage,
+      profiles: viewer.profiles,
+      user: viewer.user,
+      blockedIds,
+      mutedIds,
+    };
+  }
+
+  const relatedPosts = await loadQuoted(supabase, [post], viewerId, false, viewerId ? postHidden : null);
+  const quotingPosts = (await mapRows(supabase, quotingRows, viewerId)).filter(
+    (item) => item.id !== post.id,
+  );
+  const comments = commentRows.map(
+    (row): PostComment => ({
+      id: row.id,
+      postId: row.post_id,
+      authorId: row.user_id,
+      body: row.body,
+      createdAt: row.created_at,
+    }),
+  );
+  const reposts = await selectRepostsFor(
+    supabase,
+    [post.id, ...comments.map((comment) => comment.id)],
+    viewerId,
+    viewerId ? postHidden : null,
+  );
+  const people = await loadProfiles(supabase, [
+    ...(viewerId ? [viewerId] : []),
+    post.authorId,
+    ...relatedPosts.map((item) => item.authorId),
+    ...quotingPosts.map((item) => item.authorId),
+    ...comments.map((comment) => comment.authorId),
+  ]);
+  const viewer = withViewerEmail(people, viewerId, email);
+  return {
+    post,
+    relatedPosts,
+    quotingPosts,
+    profiles: viewer.profiles,
+    user: viewer.user,
+    comments,
+    reposts,
+    blockedIds,
+    mutedIds,
+  };
 }
 
 /** Load one post by id, including quoted posts, even when it is older than the home window. */

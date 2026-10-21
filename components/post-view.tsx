@@ -14,37 +14,21 @@ import { AuthorLine, Engagement, Tweet } from "@/components/tweet";
 import { useSocial } from "@/components/social-provider";
 import { signupPath } from "@/lib/auth/safe-next";
 import { canDeleteReply } from "@/lib/social/local-db";
-import { loadPostById } from "@/lib/social/load-feed-page";
 import { quotesOf } from "@/lib/social/quotes";
-import { COMMENT_LIMIT, type AuthResult, type Post, type PostComment, type Profile } from "@/lib/social/types";
-import { createSupabaseBrowser } from "@/lib/supabase/browser";
+import { COMMENT_LIMIT, type AuthResult, type PostComment } from "@/lib/social/types";
 
 const PAGE_SIZE = 20;
 
 export function PostView({ id }: { id: string }) {
   const router = useRouter();
   const pathname = usePathname() || "/";
-  const { ready, mode, user, posts, profiles, commentsFor, addComment, refresh, blockedIds, rememberPosts } =
+  const { ready, mode, user, posts, profiles, commentsFor, addComment, refresh, blockedIds, loadingPostId } =
     useSocial();
-  const [attempt, setAttempt] = useState<{
-    id: string;
-    post: Post | null;
-    relatedPosts: Post[];
-    profiles: Profile[];
-  } | null>(null);
-  const loaded = posts.find((item) => item.id === id);
-  const fetched = attempt?.id === id ? attempt : null;
-  const post = loaded ?? (fetched?.post ?? undefined);
-  const loadingPost = mode === "supabase" && !loaded && attempt?.id !== id;
-  const author = post
-    ? (profiles.find((profile) => profile.id === post.authorId) ??
-      fetched?.profiles.find((profile) => profile.id === post.authorId))
-    : undefined;
+  const post = posts.find((item) => item.id === id);
+  const loadingPost = mode === "supabase" && !post && loadingPostId === id;
+  const author = post ? profiles.find((profile) => profile.id === post.authorId) : undefined;
   const replies = commentsFor(id);
   const authors = new Map(profiles.map((profile) => [profile.id, profile]));
-  if (fetched) {
-    for (const person of fetched.profiles) authors.set(person.id, person);
-  }
   const replyRef = useRef<HTMLTextAreaElement>(null);
   const [draft, setDraft] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -57,35 +41,9 @@ export function PostView({ id }: { id: string }) {
   const visibleQuotes = quotes.slice(0, quoteLimit);
 
   useEffect(() => {
-    if (!ready) return;
+    if (!ready || mode !== "local") return;
     void refresh();
-  }, [ready, id, refresh]);
-
-  useEffect(() => {
-    if (!ready || mode !== "supabase") return;
-    if (posts.some((item) => item.id === id)) return;
-    const supabase = createSupabaseBrowser();
-    if (!supabase) return;
-    let cancelled = false;
-    void loadPostById(supabase, id, user?.id ?? null)
-      .then((result) => {
-        if (cancelled) return;
-        setAttempt({
-          id,
-          post: result?.post ?? null,
-          relatedPosts: result?.relatedPosts ?? [],
-          profiles: result?.profiles ?? [],
-        });
-        if (result) rememberPosts([result.post, ...result.relatedPosts], result.profiles);
-      })
-      .catch(() => {
-        if (cancelled) return;
-        setAttempt({ id, post: null, relatedPosts: [], profiles: [] });
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [ready, mode, id, posts, rememberPosts, user?.id]);
+  }, [ready, mode, id, refresh]);
 
   useEffect(() => {
     if (!ready || !user || window.location.hash !== "#reply") return;
@@ -192,8 +150,6 @@ export function PostView({ id }: { id: string }) {
         variant="detail"
         onReply={() => focusReply()}
         onQuotesClick={() => setLane("quotes")}
-        extraPosts={fetched?.relatedPosts}
-        extraProfiles={fetched?.profiles}
       />
 
       <div className="grid grid-cols-2 border-b border-zinc-200 text-[15px] dark:border-white/10">
