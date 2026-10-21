@@ -191,9 +191,14 @@ export function parseManualPrefill(query: string): {
 } {
   const parsed = parseCardQuery(query);
   // Use original casing from query for player words where possible
-  const playerName = parsed.playerWords
+  let playerName = parsed.playerWords
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
     .join(" ");
+  // Best effort: if nothing parsed as a name, keep what they typed.
+  if (!playerName.trim()) {
+    const raw = query.trim();
+    if (raw) playerName = raw;
+  }
   return {
     playerName,
     yearLabel: parsed.yearLabel ?? "",
