@@ -17,6 +17,7 @@ export function SearchSelect({
   isCustomValid,
   customInvalidHint,
   dataField,
+  inputMode,
 }: {
   label: string;
   value: string;
@@ -31,6 +32,7 @@ export function SearchSelect({
   /** Shown instead of Use "…" when the typed value fails isCustomValid. */
   customInvalidHint?: string;
   dataField?: string;
+  inputMode?: "decimal" | "numeric" | "text";
 }) {
   const titleId = useId();
   const searchRef = useRef<HTMLInputElement>(null);
@@ -141,6 +143,7 @@ export function SearchSelect({
                     else if (showCustom) choose(customValue);
                   }
                 }}
+                inputMode={inputMode}
                 placeholder={`Search ${label.toLowerCase()}`}
                 className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-zinc-400"
               />
@@ -218,6 +221,7 @@ export function NativeSelect({
   placeholder,
   disabled = false,
   dataField,
+  onBlur,
 }: {
   label: string;
   value: string;
@@ -226,6 +230,7 @@ export function NativeSelect({
   placeholder?: string;
   disabled?: boolean;
   dataField?: string;
+  onBlur?: () => void;
 }) {
   return (
     <div className="relative">
@@ -234,6 +239,7 @@ export function NativeSelect({
         disabled={disabled}
         data-field={dataField}
         value={value}
+        onBlur={onBlur}
         onChange={(event) => onChange(event.target.value)}
         className="w-full appearance-none rounded-xl border border-zinc-200 bg-white px-3 py-2.5 pr-9 text-sm text-zinc-900 outline-none focus:border-violet-500 disabled:opacity-60 dark:border-white/10 dark:bg-white/5 dark:text-zinc-100 dark:[color-scheme:dark]"
       >

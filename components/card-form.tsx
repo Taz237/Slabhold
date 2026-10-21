@@ -20,6 +20,7 @@ import {
   normalizeCardNumberInput,
   optionsWithCurrent,
   parseYearLabel,
+  sortSetNames,
   yearOptionsForSport,
 } from "@/lib/card-options";
 import {
@@ -30,8 +31,9 @@ import {
   gradingCompanyFromCard,
   gradingCompanyOptions,
 } from "@/lib/cards/grading-company";
+import { todayDateInput } from "@/lib/cards/form-defaults";
+import { cardFormPreview } from "@/lib/cards/form-preview";
 import { parallelAfterSetChange, parallelIsListed, parallelsForSet } from "@/lib/cards/parallels";
-import { buildCompsQuery } from "@/lib/comps/match";
 import { identifyFromPhoto } from "@/lib/comps/sample";
 import { cardCategory } from "@/lib/card-category";
 import { hasPaid } from "@/lib/format";
@@ -132,7 +134,7 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
     serialNo: existing?.serialNo != null ? String(existing.serialNo) : "",
     sport: existing?.sport ?? "Basketball",
     purchasePrice: hasPaid(existing) ? String(existing!.purchasePrice) : "",
-    purchaseDate: existing?.purchaseDate ?? "",
+    purchaseDate: existing ? (existing.purchaseDate ?? "") : todayDateInput(),
     estimatedSellPrice: estimateInputFromCard(existing?.estimatedSellPrice),
     sellPrice: existing?.sellPrice != null ? String(existing.sellPrice) : "",
     sellDate: existing?.sellDate ?? "",
@@ -172,16 +174,16 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
     (!sold || (Boolean(form.sellPrice) && Boolean(form.sellDate) && !sellNeg));
 
   const preview = useMemo(() => {
-    return buildCompsQuery({
-      playerName: form.playerName.trim() || "Player",
+    return cardFormPreview({
+      playerName: form.playerName,
       year: parsedYear?.year ?? 0,
       yearLabel: parsedYear?.yearLabel,
-      setBrand: form.setBrand.trim() || "Set",
+      setBrand: form.setBrand,
       cardNumber: noNumber
         ? undefined
         : normalizeCardNumberInput(form.cardNumber) || undefined,
       noNumber,
-      parallel: form.parallel.trim() || "Base",
+      parallel: form.parallel,
       serialRun: form.serialRun ? Number(form.serialRun) : null,
       isAuto,
       isRelic,
@@ -306,7 +308,6 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
 
   function chooseGradeCompany(company: string) {
     setGradeCompany(company);
-    markTouched("grade");
     setGradeNumber((current) =>
       gradingCompanyChange({
         company,
@@ -447,7 +448,7 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
 
       <section className="rounded-2xl border border-zinc-200 bg-white dark:border-white/10 dark:bg-white/[0.03] p-4">
         <div className="flex items-start justify-between gap-3">
-          <p className="text-sm font-medium">Photo & scan</p>
+          <p className="text-sm font-medium">Photo</p>
           {photo && (
             <button
               type="button"
@@ -591,6 +592,7 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
             isCustomValid={isValidYear}
             customInvalidHint="Use 2026 or 2023-24"
             dataField="yearLabel"
+            inputMode="text"
             onChange={(yearLabel) => {
               markTouched("yearLabel");
               setForm((prev) => ({ ...prev, yearLabel }));
@@ -617,7 +619,7 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
         <SearchSelect
           label="Set / product"
           value={form.setBrand}
-          options={optionsWithCurrent(SETS, form.setBrand)}
+          options={optionsWithCurrent(sortSetNames(SETS), form.setBrand)}
           placeholder="Select a set"
           allowCustom
           dataField="setBrand"
@@ -661,11 +663,11 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
               }))
             }
             className={`${inputClass} disabled:opacity-50`}
-            placeholder="AS22, BCP-1, 136"
+            placeholder="e.g. 136 or BCP-1"
             aria-label="Card number"
           />
         </Field>
-        <label className="flex items-center gap-2 text-sm text-zinc-600 dark:text-zinc-400">
+        <label className="flex min-h-11 items-center gap-2 text-sm text-zinc-600 dark:text-zinc-400">
           <input
             type="checkbox"
             checked={noNumber}
@@ -675,7 +677,7 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
                 setForm((prev) => ({ ...prev, cardNumber: "" }));
               }
             }}
-            className="accent-violet-500"
+            className="size-5 shrink-0 accent-violet-500"
           />
           No number on card
         </label>
@@ -706,6 +708,7 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
             <span className="text-sm text-zinc-500">/</span>
             <input
               type="number"
+              inputMode="numeric"
               min={1}
               step={1}
               value={form.serialRun}
@@ -713,7 +716,7 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
                 setForm((prev) => ({ ...prev, serialRun: e.target.value }))
               }
               className={inputClass}
-              placeholder="10"
+              placeholder="e.g. 99"
               aria-label="Serial run"
             />
           </div>
@@ -723,6 +726,7 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
       <Field label="Serial number">
         <input
           type="number"
+          inputMode="numeric"
           min={1}
           step={1}
           value={form.serialNo}
@@ -730,7 +734,7 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
             setForm((prev) => ({ ...prev, serialNo: e.target.value }))
           }
           className={inputClass}
-          placeholder="7 (optional)"
+          placeholder="e.g. 7"
         />
       </Field>
 
@@ -776,6 +780,7 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
               options={gradeChoices}
               placeholder="Select"
               dataField="grade"
+              onBlur={() => markTouched("grade")}
               onChange={(number) => {
                 markTouched("grade");
                 setGradeNumber(number);
@@ -786,6 +791,7 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
             <Field label="Cert #">
               <input
                 value={certNumber}
+                inputMode="numeric"
                 onChange={(e) => setCertNumber(e.target.value)}
                 className={inputClass}
                 placeholder="Optional"
@@ -809,6 +815,7 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
           <input
             type="date"
             data-field="purchaseDate"
+            suppressHydrationWarning
             value={form.purchaseDate}
             onBlur={() => markTouched("purchaseDate")}
             onChange={(e) =>
@@ -827,6 +834,7 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
         >
           <input
             type="number"
+            inputMode="decimal"
             min={0}
             step="0.01"
             value={form.purchasePrice}
@@ -835,7 +843,7 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
               setForm((prev) => ({ ...prev, purchasePrice: e.target.value }))
             }
             className={inputClass}
-            placeholder="Optional"
+            placeholder="e.g. 25.00"
           />
         </Field>
       </div>
@@ -859,6 +867,7 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
       >
         <input
           type="number"
+          inputMode="decimal"
           min={0}
           step="0.01"
           value={form.estimatedSellPrice}
@@ -870,29 +879,34 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
             }))
           }
           className={inputClass}
-          placeholder="185"
+          placeholder="e.g. 25.00"
         />
       </Field>
 
-      <label className="flex items-center gap-3 rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm dark:border-white/10 dark:bg-white/[0.03]">
+      <label className="flex min-h-11 items-center gap-3 rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm dark:border-white/10 dark:bg-white/[0.03]">
         <input
           type="checkbox"
           checked={sold}
           onChange={(e) => setSold(e.target.checked)}
-          className="accent-violet-500"
+          className="size-5 shrink-0 accent-violet-500"
         />
         This card has been sold
       </label>
 
-      <label className="flex items-center gap-3 rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm dark:border-white/10 dark:bg-white/[0.03]">
-        <input
-          type="checkbox"
-          checked={share}
-          onChange={(e) => setShare(e.target.checked)}
-          className="accent-violet-500"
-        />
-        Show this card on your public profile
-      </label>
+      <div className="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm dark:border-white/10 dark:bg-white/[0.03]">
+        <label className="flex min-h-11 items-center gap-3">
+          <input
+            type="checkbox"
+            checked={share}
+            onChange={(e) => setShare(e.target.checked)}
+            className="size-5 shrink-0 accent-violet-500"
+          />
+          Show this card on your public profile
+        </label>
+        <p className="text-xs leading-5 text-zinc-500">
+          Cards are private by default. Making one public shows it on your profile.
+        </p>
+      </div>
 
       {sold && (
         <div className="grid grid-cols-2 gap-3">
@@ -907,6 +921,7 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
           >
             <input
               type="number"
+              inputMode="decimal"
               min={0}
               step="0.01"
               data-field="sellPrice"
@@ -916,6 +931,7 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
                 setForm((prev) => ({ ...prev, sellPrice: e.target.value }))
               }
               className={inputClass}
+              placeholder="e.g. 25.00"
             />
           </Field>
           <Field label="Sell date" required>
@@ -949,7 +965,15 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
         <span className="text-xs tracking-wide text-zinc-500 uppercase">
           Preview
         </span>
-        <span className="mt-1 block font-medium">{preview}</span>
+        <span
+          className={
+            preview.placeholder
+              ? "mt-1 block text-zinc-400 dark:text-zinc-500"
+              : "mt-1 block font-medium"
+          }
+        >
+          {preview.text}
+        </span>
       </p>
 
       {saveError ? (
@@ -1014,12 +1038,12 @@ function Toggle({
   onChange: (value: boolean) => void;
 }) {
   return (
-    <label className="flex items-center gap-2 text-sm">
+    <label className="inline-flex min-h-11 items-center gap-2 text-sm">
       <input
         type="checkbox"
         checked={checked}
         onChange={(e) => onChange(e.target.checked)}
-        className="accent-violet-500"
+        className="size-5 shrink-0 accent-violet-500"
       />
       {label}
     </label>

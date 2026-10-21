@@ -259,18 +259,23 @@ export function CardSearch({
               </li>
             );
           })}
-          <li role="option" id={`${listId}-manual`} aria-selected={manualSelected}>
+          <li
+            role="option"
+            id={`${listId}-manual`}
+            aria-selected={manualSelected}
+            className={results.length > 0 ? "mt-1 border-t border-zinc-200 dark:border-white/10" : undefined}
+          >
             <button
               type="button"
               onMouseEnter={() => setActive(results.length)}
               onClick={chooseManual}
-              className={`flex w-full px-3 py-2.5 text-left text-sm font-medium ${
+              className={`flex min-h-11 w-full items-center px-3 py-2.5 text-left text-sm font-medium ${
                 manualSelected
                   ? "bg-violet-500/10 text-zinc-900 dark:text-zinc-100"
                   : "text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-white/5"
               }`}
             >
-              Can&apos;t find it? Enter it manually
+              Not seeing your card? Add it manually
             </button>
           </li>
         </ul>

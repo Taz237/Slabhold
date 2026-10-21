@@ -90,6 +90,13 @@ export const SETS = [
   "Leaf",
 ];
 
+/** Alphabetical set names for the Add card picker. Does not mutate SETS. */
+export function sortSetNames(names: readonly string[]): string[] {
+  return [...names].sort((a, b) =>
+    a.localeCompare(b, "en", { numeric: true, sensitivity: "base" }),
+  );
+}
+
 export const GRADE_QUALIFIERS = ["OC", "MK", "ST", "PD", "OF", "MC"];
 
 export const RAW_GRADE = "Raw";

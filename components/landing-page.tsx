@@ -35,16 +35,18 @@ export function LandingPage() {
           <LandingActionsFromSearch />
         </Suspense>
 
-        <div className="mt-10 flex gap-4 overflow-x-auto pb-2">
-          {SHOTS.map((shot) => (
-            <LandingShot
-              key={shot.src}
-              src={shot.src}
-              label={shot.label}
-              width={shot.width}
-              height={shot.height}
-            />
-          ))}
+        <div className="mt-10 min-w-0 overflow-x-auto overscroll-x-contain pb-2 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+          <div className="flex w-max gap-4">
+            {SHOTS.map((shot) => (
+              <LandingShot
+                key={shot.src}
+                src={shot.src}
+                label={shot.label}
+                width={shot.width}
+                height={shot.height}
+              />
+            ))}
+          </div>
         </div>
 
         <footer className="mt-auto flex gap-4 pt-10 text-sm text-zinc-400">

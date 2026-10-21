@@ -33,7 +33,7 @@ export function ProfileView({ username }: { username?: string }) {
   const router = useRouter();
   const pathname = usePathname() || "/";
   const social = useSocial();
-  const { cards, reload } = useCollection();
+  const { cards, reload, ready: cardsReady } = useCollection();
   const {
     ready,
     mode,
@@ -329,9 +329,9 @@ export function ProfileView({ username }: { username?: string }) {
         )
       ) : (
         <div className="px-4 py-4">
-          {isOwn ? (
+          {isOwn && cardsReady && collection.length === 0 ? (
             <p className="mb-3 text-xs text-zinc-500">
-              Your book stays on this device.{" "}
+              Cards are private by default.{" "}
               <Link href="/collection" className="underline">
                 Open collection
               </Link>{" "}

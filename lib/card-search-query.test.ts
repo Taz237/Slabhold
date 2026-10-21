@@ -61,6 +61,23 @@ describe("parseManualPrefill", () => {
     assert.equal(prefill.yearLabel, "2023-24");
     assert.equal(prefill.cardNumber, "136");
   });
+
+  it("puts a typed name into the player field", () => {
+    const prefill = parseManualPrefill("Jaxson Dart");
+    assert.equal(prefill.playerName, "Jaxson Dart");
+  });
+
+  it("leaves the player name empty when the query is only a set, year, or number", () => {
+    const setOnly = parseManualPrefill("prizm");
+    assert.equal(setOnly.playerName, "");
+    assert.equal(setOnly.yearLabel, "");
+    assert.equal(setOnly.cardNumber, "");
+
+    const mixed = parseManualPrefill("2023 prizm 136");
+    assert.equal(mixed.playerName, "");
+    assert.equal(mixed.yearLabel, "2023");
+    assert.equal(mixed.cardNumber, "136");
+  });
 });
 
 describe("searchCatalog ranking", () => {

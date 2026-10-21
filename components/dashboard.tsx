@@ -9,6 +9,7 @@ import { CollectionHeader } from "@/components/collection-header";
 import { CollectionValueHistory } from "@/components/collection-value-history";
 import { useCollection } from "@/components/collection-provider";
 import { CardThumb } from "@/components/card-thumb";
+import { CollectionLaneEmpty } from "@/components/collection-lane-empty";
 import { FirstCardWelcome } from "@/components/first-card-welcome";
 import { shouldShowFirstCardWelcome } from "@/lib/collection/welcome";
 import { CollectionSkeleton, EmptyState } from "@/components/status";
@@ -208,6 +209,8 @@ export function Dashboard() {
       {cards.length === 0 ? (
         lane === "wants" ? (
           <WantList />
+        ) : syncError ? null : lane === "flipping" || lane === "pc" ? (
+          <CollectionLaneEmpty lane={lane} />
         ) : shouldShowFirstCardWelcome({ cardCount: cards.length, ready, syncError }) ? (
           <FirstCardWelcome />
         ) : null
@@ -244,36 +247,26 @@ export function Dashboard() {
       </div>
 
       {visible.length === 0 ? (
+        inLane.length === 0 && (lane === "flipping" || lane === "pc") ? (
+          <CollectionLaneEmpty lane={lane} onShowAll={() => setLane("all")} />
+        ) : (
         <EmptyState
           icon={<WalletCards className="h-5 w-5" />}
-          title={
-            inLane.length === 0
-              ? `No ${categoryLabel(lane === "pc" ? "pc" : "flipping")} cards`
-              : "No cards match"
-          }
-          detail={
-            inLane.length === 0
-              ? "Cards you add here will show up in this tab."
-              : "Nothing in this tab matches that search or filter."
-          }
+          title="No cards match"
+          detail="Nothing in this tab matches that search or filter."
         >
-          {inLane.length === 0 ? (
-            <button type="button" onClick={() => setLane("all")} className={outlineButton}>
-              Show all cards
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={() => {
-                setQuery("");
-                setFilter("all");
-              }}
-              className={outlineButton}
-            >
-              Clear filters
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={() => {
+              setQuery("");
+              setFilter("all");
+            }}
+            className={outlineButton}
+          >
+            Clear filters
+          </button>
         </EmptyState>
+        )
       ) : (
         <ul
           className="grid gap-3"
@@ -321,6 +314,15 @@ export function Dashboard() {
                     </p>
                     <div className="mt-1.5 flex min-w-0 flex-wrap gap-1">
                       <CategoryBadge card={card} />
+                      <span
+                        className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                          card.isPublic
+                            ? "bg-zinc-900/10 text-zinc-700 dark:bg-white/10 dark:text-zinc-200"
+                            : "bg-zinc-100 text-zinc-500 dark:bg-white/5 dark:text-zinc-400"
+                        }`}
+                      >
+                        {card.isPublic ? "Public" : "Private"}
+                      </span>
                       {needsDetails(card) ? (
                         <span
                           className="max-w-full truncate rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] font-medium text-amber-800 dark:text-amber-300"
