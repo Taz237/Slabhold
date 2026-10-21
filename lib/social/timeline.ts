@@ -93,7 +93,7 @@ export function followedAccountIds(follows: FollowEdge[], userId: string): Set<s
   return ids;
 }
 
-/** Posts and reposts from accounts the viewer follows. Nobody followed → empty. */
+/** Posts and reposts from the viewer and accounts they follow. Nobody followed -> empty. */
 export function followingTimeline(
   posts: Post[],
   reposts: PostRepost[],
@@ -102,9 +102,14 @@ export function followingTimeline(
   userId: string,
 ): TimelineItem[] {
   const ids = followedAccountIds(follows, userId);
+  if (ids.size === 0) return [];
+  const authorIds = new Set(ids);
+  authorIds.add(userId);
   const { postsById, profilesById } = indexes(posts, profiles);
-  const items = posts.filter((post) => ids.has(post.authorId)).map(postItem);
-  items.push(...repostItems(reposts, postsById, profilesById, (repost) => ids.has(repost.userId)));
+  const items = posts.filter((post) => authorIds.has(post.authorId)).map(postItem);
+  items.push(
+    ...repostItems(reposts, postsById, profilesById, (repost) => authorIds.has(repost.userId)),
+  );
   return preferRepostOnce(items);
 }
 
