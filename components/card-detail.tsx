@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { useCompFlagState } from "@/components/use-comp-flags";
 import { ArrowLeft, Pencil, Trash2 } from "lucide-react";
 import { CardCollectorsSaying } from "@/components/card-collectors-saying";
@@ -536,18 +536,20 @@ function EstSellMetric({
 
 function UnavailableEstSell({ short, detail }: { short: string; detail: string }) {
   const [open, setOpen] = useState(false);
+  const detailId = useId();
   return (
     <div className="min-w-0 overflow-hidden rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-3 dark:border-white/10 dark:bg-black/20">
       <p className="text-[11px] tracking-wide text-zinc-500 uppercase">Est. sell</p>
       <button
         type="button"
         aria-expanded={open}
+        aria-controls={detailId}
         title={detail}
         onClick={() => setOpen((current) => !current)}
-        className="mt-1 block w-full min-w-0 max-w-full text-left text-[clamp(0.95rem,3.4vw,1.125rem)] font-semibold leading-snug break-words"
+        className="mt-1 flex min-h-11 w-full min-w-0 max-w-full items-center text-left text-[clamp(0.95rem,3.4vw,1.125rem)] font-semibold leading-snug break-words"
       >
         <span className="sr-only">{detail}</span>
-        <span aria-hidden="true">{open ? detail : short}</span>
+        <span id={detailId} aria-hidden="true">{open ? detail : short}</span>
       </button>
     </div>
   );

@@ -1,9 +1,9 @@
 import {
-  GRADE_COMPANIES,
   GRADE_NUMBERS,
   RAW_GRADE,
   formatGrade,
   parseGrade,
+  resolveGradingCompany,
 } from "@/lib/card-options";
 import type { ConditionType } from "@/lib/types";
 
@@ -38,22 +38,21 @@ export function gradeNumberFromGrade(grade: string): string {
   return Number.isInteger(amount) ? String(amount) : amount.toFixed(1);
 }
 
-/** A single company token, such as HGA. "Gem Mint 10" is not one. */
+/** A known company token, such as HGA. "Mint 9" and "Gem Mint 10" are not. */
 function singleTokenCompany(grade: string): string {
   const match = grade.trim().match(/^([A-Za-z][A-Za-z0-9]{1,11})\s+\d+(?:\.\d+)?$/);
-  return match?.[1] ?? "";
+  if (!match) return "";
+  return resolveGradingCompany(match[1]);
 }
 
 function canonicalCompany(company: string): string {
   const text = company.trim();
+  const resolved = resolveGradingCompany(text);
+  if (resolved) return resolved;
   const listed = GRADING_COMPANIES.find(
     (item) => item.toLowerCase() === text.toLowerCase(),
   );
-  if (listed) return listed;
-  const known = GRADE_COMPANIES.find(
-    (item) => item.toLowerCase() === text.toLowerCase(),
-  );
-  return known ?? text;
+  return listed ?? text;
 }
 
 /** Options for the form select, keeping a legacy company such as TAG. */

@@ -3,7 +3,6 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { AppShell } from "@/components/app-shell";
 import { CaptureUtm } from "@/components/capture-utm";
 import { WebAnalytics } from "@/components/web-analytics";
-import { LOGO_SRC } from "@/components/logo";
 import { SITE_URL } from "@/lib/site-url";
 import { CollectionProvider } from "@/components/collection-provider";
 import { ImageLightboxProvider } from "@/components/image-lightbox";
@@ -51,7 +50,6 @@ export const metadata: Metadata = {
     description: "Sports card portfolio, flips, and a feed of collectors",
   },
   icons: {
-    icon: { url: LOGO_SRC, type: "image/svg+xml", sizes: "any" },
     apple: { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
   },
 };
