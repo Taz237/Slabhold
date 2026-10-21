@@ -65,6 +65,10 @@ import { loadPostById, loadPostPage, type LoadedPostPage } from "@/lib/social/lo
 import { createSnapshotRefresher } from "@/lib/social/snapshot-refresh";
 import { postIdFromPath } from "@/lib/social/post-route";
 import { collectAttachedCardIds } from "@/lib/social/post-card-value";
+import {
+  followSuggestionFetchLimit,
+  followSuggestions,
+} from "@/lib/social/follow-suggestions";
 import { followingTimeline, type TimelineItem } from "@/lib/social/timeline";
 import { createSupabaseBrowser } from "@/lib/supabase/browser";
 import { getSupabaseConfig } from "@/lib/supabase/client";
@@ -1249,11 +1253,18 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
   }, [homePosts, homeReposts, snapshot.follows, snapshot.profiles, snapshot.user]);
 
   const suggestions = useMemo(() => {
-    if (!snapshot.user) return snapshot.profiles;
-    return snapshot.profiles.filter(
-      (profile) => profile.id !== snapshot.user?.id && !isFollowing(profile.id),
-    );
-  }, [isFollowing, snapshot.profiles, snapshot.user]);
+    const viewerId = snapshot.user?.id ?? null;
+    const followingIds = viewerId
+      ? snapshot.follows
+          .filter((edge) => edge.followerId === viewerId)
+          .map((edge) => edge.followingId)
+      : [];
+    // Every loaded profile is already in memory. Keep a few extra candidates
+    // ahead of the test-account filter so the rail does not come up short.
+    const displayLimit = snapshot.profiles.length;
+    const candidates = snapshot.profiles.slice(0, followSuggestionFetchLimit(displayLimit));
+    return followSuggestions(candidates, { viewerId, followingIds, limit: displayLimit });
+  }, [snapshot.follows, snapshot.profiles, snapshot.user]);
 
   const profileByUsername = useCallback(
     (username: string) =>
