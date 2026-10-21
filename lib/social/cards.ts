@@ -7,6 +7,11 @@ import {
   RAW_GRADE,
 } from "@/lib/card-options";
 import {
+  gradeNumberFromGrade,
+  gradingCompanyFromCard,
+  isRawGradingCompany,
+} from "@/lib/cards/grading-company";
+import {
   isSaveTimeout,
   SAVE_TIMEOUT_MS,
   SaveTimeoutError,
@@ -68,10 +73,10 @@ function inferConditionType(
 function displayGrade(row: CardRow): string {
   const grader = (row.grader ?? "").trim();
   const gradeText = (row.grade ?? "").trim();
-  if (grader) {
+  if (grader && !isRawGradingCompany(grader)) {
     const numberOnly = /^\d+(?:\.\d+)?$/.test(gradeText)
       ? gradeText
-      : parseGrade(gradeText).number;
+      : gradeNumberFromGrade(gradeText);
     return formatGrade(grader, numberOnly);
   }
   return gradeText;
@@ -250,12 +255,16 @@ async function writeUserCard(
 
   const parsed = parseGrade(card.grade);
   const graded = card.conditionType === "graded";
-  const grader =
-    graded && parsed.company && parsed.company !== RAW_GRADE
-      ? parsed.company
-      : null;
+  const company = gradingCompanyFromCard({
+    grade: card.grade,
+    conditionType: card.conditionType,
+  });
+  const number = gradeNumberFromGrade(card.grade);
+  const grader = graded && company && !isRawGradingCompany(company) ? company : null;
   const gradeValue = graded
-    ? parsed.number || ""
+    ? company
+      ? number
+      : card.grade.trim() || number
     : parsed.company === RAW_GRADE || !card.grade.trim()
       ? "Raw"
       : card.grade;

@@ -15,8 +15,27 @@ export const GRADING_COMPANIES = [
 
 export function isRawGradingCompany(company: string): boolean {
   const text = company.trim();
-  if (!text || text === RAW_GRADING_COMPANY) return true;
+  if (!text) return false;
+  if (text === RAW_GRADING_COMPANY) return true;
   return text.toLowerCase() === RAW_GRADE.toLowerCase();
+}
+
+/** Numeric grade, including "10", "HGA 9", and "Gem Mint 10". */
+export function gradeNumberFromGrade(grade: string): string {
+  const parsed = parseGrade(grade);
+  if (parsed.number) return parsed.number;
+  if (/raw|ungraded/i.test(grade)) return "";
+  const match = grade.match(/(\d+(?:\.\d+)?)/);
+  if (!match) return "";
+  const amount = Number(match[1]);
+  if (!Number.isFinite(amount)) return match[1];
+  return Number.isInteger(amount) ? String(amount) : amount.toFixed(1);
+}
+
+/** A single company token, such as HGA. "Gem Mint 10" is not one. */
+function singleTokenCompany(grade: string): string {
+  const match = grade.trim().match(/^([A-Za-z][A-Za-z0-9]{1,11})\s+\d+(?:\.\d+)?$/);
+  return match?.[1] ?? "";
 }
 
 function canonicalCompany(company: string): string {
@@ -47,15 +66,22 @@ export function gradingCompanyFromCard(card: {
   conditionType?: string | null;
   grader?: string | null;
 }): string {
+  if (card.conditionType === "raw") return RAW_GRADING_COMPANY;
+
   const stored = (card.grader ?? "").trim();
   if (stored && !isRawGradingCompany(stored)) return canonicalCompany(stored);
+
   const parsed = parseGrade(card.grade ?? "");
-  if (
-    parsed.company &&
-    !isRawGradingCompany(parsed.company)
-  ) {
+  if (parsed.company && !isRawGradingCompany(parsed.company)) {
     return canonicalCompany(parsed.company);
   }
+
+  if (card.conditionType === "graded") {
+    const embedded = singleTokenCompany(card.grade ?? "");
+    if (embedded && !isRawGradingCompany(embedded)) return canonicalCompany(embedded);
+    return "";
+  }
+
   return RAW_GRADING_COMPANY;
 }
 
@@ -65,6 +91,10 @@ export function applyGradingCompany(input: {
   gradeNumber: string;
 }): { conditionType: ConditionType; grade: string; grader: string | null } {
   const company = input.company.trim();
+  if (!company) {
+    const number = input.gradeNumber.trim();
+    return { conditionType: "graded", grade: number, grader: null };
+  }
   if (isRawGradingCompany(company)) {
     return { conditionType: "raw", grade: "Raw", grader: null };
   }
@@ -84,11 +114,13 @@ export function gradeDetailSpecs(card: {
   certNumber?: string | null;
 }): { label: string; value: string }[] {
   const company = gradingCompanyFromCard(card);
-  const specs: { label: string; value: string }[] = [
-    { label: "Grading company", value: company },
-  ];
-  if (!isRawGradingCompany(company)) {
-    const number = parseGrade(card.grade ?? "").number;
+  const specs: { label: string; value: string }[] = [];
+  if (company) specs.push({ label: "Grading company", value: company });
+  const showNumber = company
+    ? !isRawGradingCompany(company)
+    : card.conditionType === "graded";
+  if (showNumber) {
+    const number = gradeNumberFromGrade(card.grade ?? "");
     if (number) specs.push({ label: "Grade", value: number });
   }
   const cert = (card.certNumber ?? "").trim();

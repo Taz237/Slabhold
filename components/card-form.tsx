@@ -19,12 +19,12 @@ import {
   isValidYear,
   normalizeCardNumberInput,
   optionsWithCurrent,
-  parseGrade,
   parseYearLabel,
   yearOptionsForSport,
 } from "@/lib/card-options";
 import {
   applyGradingCompany,
+  gradeNumberFromGrade,
   gradingCompanyFromCard,
   gradingCompanyOptions,
   isRawGradingCompany,
@@ -91,7 +91,6 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
   const [scanning, setScanning] = useState(false);
   const [identified, setIdentified] = useState<IdentifyResult | null>(null);
 
-  const initialGrade = parseGrade(existing?.grade ?? "");
   const initialCompany = gradingCompanyFromCard({
     grade: existing?.grade ?? "",
     conditionType: existing?.conditionType,
@@ -99,7 +98,7 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
 
   const [gradeCompany, setGradeCompany] = useState(initialCompany);
   const [gradeNumber, setGradeNumber] = useState(
-    isRawGradingCompany(initialCompany) ? "" : initialGrade.number,
+    gradeNumberFromGrade(existing?.grade ?? ""),
   );
   const [gradeQualifier, setGradeQualifier] = useState(
     existing?.gradeQualifier ?? "",
@@ -154,7 +153,8 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
   const setOk = Boolean(form.setBrand.trim());
   const playerOk = Boolean(form.playerName.trim());
   const yearOk = Boolean(parsedYear);
-  const gradeOk = !graded || Boolean(gradeNumber);
+  const companyMissing = !gradeCompany.trim();
+  const gradeOk = !companyMissing && (!graded || Boolean(gradeNumber));
   const purchaseNeg = negativePrice(form.purchasePrice);
   const estNeg = negativePrice(form.estimatedSellPrice);
   const sellNeg = sold && negativePrice(form.sellPrice);
@@ -215,7 +215,8 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
       !setOk ? "setBrand" : null,
       !yearOk ? "yearLabel" : null,
       !cardNumberOk ? "cardNumber" : null,
-      !gradeOk ? "grade" : null,
+      companyMissing ? "gradingCompany" : null,
+      graded && !gradeNumber ? "grade" : null,
       purchaseNeg ? "purchasePrice" : null,
       estNeg ? "estimatedSellPrice" : null,
       sellNeg ? "sellPrice" : null,
@@ -739,11 +740,17 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
         />
       </div>
 
-      <Field label="Grading company">
+      <Field
+        label="Grading company"
+        required
+        error={companyMissing ? "Choose a grading company" : null}
+      >
         <NativeSelect
           label="Grading company"
           value={gradeCompany}
           options={gradingCompanyOptions(gradeCompany)}
+          placeholder={companyMissing ? "Choose a grading company" : undefined}
+          dataField="gradingCompany"
           onChange={chooseGradeCompany}
         />
       </Field>

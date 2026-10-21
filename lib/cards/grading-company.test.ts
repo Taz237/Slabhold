@@ -11,6 +11,7 @@ import {
   RAW_GRADING_COMPANY,
   applyGradingCompany,
   gradeDetailSpecs,
+  gradeNumberFromGrade,
   gradingCompanyFromCard,
   gradingCompanyOptions,
 } from "./grading-company";
@@ -144,6 +145,73 @@ async function roundTrip(card: SportsCard) {
   return { card: mapCardRow(asCardRow(stored)), stored };
 }
 
+function gradedRow(partial: {
+  grade: string;
+  grader: string | null;
+  id?: string;
+}): CardRow {
+  return {
+    id: partial.id ?? "card-1",
+    user_id: "user-1",
+    player: "Victor Wembanyama",
+    year: 2024,
+    set: "Prizm",
+    grade: partial.grade,
+    parallel: "Base",
+    paid_price: null,
+    estimated_value: 0,
+    image_url: null,
+    card_number: "136",
+    sport: "Basketball",
+    purchase_date: null,
+    sell_price: null,
+    sell_date: null,
+    notes: null,
+    accent: "#7c5cff",
+    is_public: false,
+    category: "pc",
+    created_at: "2024-01-01T00:00:00.000Z",
+    updated_at: "2024-01-02T00:00:00.000Z",
+    condition_type: "graded",
+    grader: partial.grader,
+    cert_number: null,
+    year_label: "2024",
+    set_name: "Prizm",
+  };
+}
+
+/** Open the edit form for a graded card and leave the grading select untouched. */
+function openGraded(partial: { grade: string; grader: string | null }) {
+  const loaded = mapCardRow(gradedRow(partial));
+  const company = gradingCompanyFromCard({
+    grade: loaded.grade,
+    conditionType: loaded.conditionType,
+  });
+  const gradeNumber = gradeNumberFromGrade(loaded.grade);
+  const companyMissing = !company.trim();
+  return {
+    loaded,
+    company,
+    gradeNumber,
+    companyMissing,
+    options: gradingCompanyOptions(company),
+    canSave: !companyMissing && Boolean(gradeNumber),
+  };
+}
+
+async function resaveUntouched(opened: ReturnType<typeof openGraded>) {
+  assert.equal(opened.canSave, true);
+  const applied = applyGradingCompany({
+    company: opened.company,
+    gradeNumber: opened.gradeNumber,
+  });
+  return roundTrip({
+    ...opened.loaded,
+    grade: applied.grade,
+    conditionType: applied.conditionType,
+  });
+}
+
 describe("grading company", () => {
   it("offers Raw / Ungraded, PSA, BGS, SGC, CGC, and Other", () => {
     assert.deepEqual([...GRADING_COMPANIES], [
@@ -245,6 +313,70 @@ describe("grading company", () => {
       assert.equal(saved.stored.grader, company);
       assert.equal(gradingCompanyFromCard(saved.card), company);
       assert.equal(parseGrade(saved.card.grade).number, "10");
+    }
+  });
+
+  it("keeps PSA, BGS, SGC, CGC, TAG, Other, and Raw", () => {
+    for (const company of ["PSA", "BGS", "SGC", "CGC", "TAG", "Other"]) {
+      const applied = applyGradingCompany({ company, gradeNumber: "10" });
+      assert.equal(applied.conditionType, "graded");
+      assert.equal(applied.grader, company);
+      assert.equal(
+        gradingCompanyFromCard({ grade: applied.grade, conditionType: "graded" }),
+        company,
+      );
+      assert.equal(gradeNumberFromGrade(applied.grade), "10");
+      assert.equal(gradingCompanyOptions(company).includes(company), true);
+    }
+    const raw = applyGradingCompany({ company: RAW_GRADING_COMPANY, gradeNumber: "10" });
+    assert.equal(raw.conditionType, "raw");
+    assert.equal(raw.grade, "Raw");
+    assert.equal(raw.grader, null);
+    assert.equal(
+      gradingCompanyFromCard({ grade: "Raw", conditionType: "raw" }),
+      RAW_GRADING_COMPANY,
+    );
+  });
+
+  it("re-saves graded HGA 9, 10, and Gem Mint 10 without turning them raw", async () => {
+    const form = read("components/card-form.tsx");
+    assert.match(form, /Choose a grading company/);
+    assert.match(form, /gradeNumberFromGrade\(/);
+    assert.match(form, /companyMissing/);
+
+    const hgaText = await openGraded({ grade: "HGA 9", grader: null });
+    assert.equal(hgaText.company, "HGA");
+    assert.equal(hgaText.gradeNumber, "9");
+    assert.equal(hgaText.options[0], "HGA");
+    const hgaSaved = await resaveUntouched(hgaText);
+    assert.equal(hgaSaved.stored.condition_type, "graded");
+    assert.equal(hgaSaved.stored.grader, "HGA");
+    assert.equal(hgaSaved.stored.grade, "9");
+    assert.equal(gradingCompanyFromCard(hgaSaved.card), "HGA");
+    assert.equal(gradeNumberFromGrade(hgaSaved.card.grade), "9");
+    assert.notEqual(hgaSaved.card.conditionType, "raw");
+
+    const hgaColumn = await openGraded({ grade: "9", grader: "HGA" });
+    assert.equal(hgaColumn.company, "HGA");
+    assert.equal(hgaColumn.gradeNumber, "9");
+    const hgaColumnSaved = await resaveUntouched(hgaColumn);
+    assert.equal(hgaColumnSaved.stored.grader, "HGA");
+    assert.equal(gradeNumberFromGrade(hgaColumnSaved.card.grade), "9");
+    assert.equal(hgaColumnSaved.card.conditionType, "graded");
+
+    for (const grade of ["10", "Gem Mint 10"]) {
+      const opened = await openGraded({ grade, grader: null });
+      assert.equal(opened.company, "");
+      assert.equal(opened.gradeNumber, "10");
+      assert.equal(opened.companyMissing, true);
+      const attempted = applyGradingCompany({
+        company: opened.company,
+        gradeNumber: opened.gradeNumber,
+      });
+      assert.notEqual(attempted.conditionType, "raw");
+      assert.notEqual(attempted.grade, "Raw");
+      assert.match(attempted.grade, /10/);
+      assert.equal(opened.canSave, false);
     }
   });
 
