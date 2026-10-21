@@ -328,81 +328,6 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (mode !== "supabase") return;
-    const client = supabaseRef.current;
-    if (!client) return;
-    const token = ++requestRef.current;
-    const postId = postIdFromPath(pathname);
-    const alive = () => requestRef.current === token;
-    const fail = (error: unknown) => {
-      if (!alive()) return;
-      setStatus(error instanceof Error ? error.message : "Could not reach Supabase.");
-    };
-
-    if (!postId) {
-      if (fullSnapshotRef.current) return;
-      // Home and the rest of the app still need the snapshot. Don't paint the
-      // feed until it arrives, or the New posts pill captures an empty head.
-      setReady(false);
-      void loadOnce(inflightRef.current, "snapshot", () => refreshRemote(client))
-        .then(() => {
-          if (alive()) setStatus(null);
-        })
-        .catch(fail)
-        .finally(() => {
-          if (alive()) setReady(true);
-        });
-      return;
-    }
-
-    const known =
-      snapshotRef.current.posts.some((post) => post.id === postId) ||
-      rememberedRef.current.posts.has(postId);
-    if (fullSnapshotRef.current && known) {
-      setLoadingPostId((current) => (current === postId ? null : current));
-      return;
-    }
-
-    setLoadingPostId(postId);
-    const pending = fullSnapshotRef.current
-      ? loadOnce(inflightRef.current, `missing:${postId}`, () =>
-          loadPostById(client, postId, snapshotRef.current.user?.id ?? null),
-        )
-      : loadOnce(inflightRef.current, pathname, () => loadPostPage(client, postId));
-    void pending
-      .then((result) => {
-        if (!alive()) return;
-        setStatus(null);
-        if (fullSnapshotRef.current) {
-          const loaded = result as Awaited<ReturnType<typeof loadPostById>>;
-          if (!loaded) return;
-          const blocked = new Set(snapshotRef.current.blockedIds ?? []);
-          storeRemembered(
-            rememberedRef.current,
-            [loaded.post, ...loaded.relatedPosts],
-            loaded.profiles,
-            blocked,
-          );
-          for (const removedId of removedRef.current) {
-            forgetRememberedPost(rememberedRef.current, removedId);
-          }
-          setRemote((existing) =>
-            mergeRememberedSnapshot(existing, rememberedRef.current, removedRef.current),
-          );
-          return;
-        }
-        applyPostPage(result as LoadedPostPage);
-      })
-      .catch(fail)
-      .finally(() => {
-        if (!alive()) return;
-        setResolvedPostId(postId);
-        setLoadingPostId((current) => (current === postId ? null : current));
-        setReady(true);
-      });
-  }, [applyPostPage, mode, pathname, refreshRemote]);
-
-  useEffect(() => {
     if (mode !== "supabase" || !ready) return;
     const client = supabaseRef.current;
     if (!client) return;
@@ -928,6 +853,83 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
     },
     [commitLocal, mode],
   );
+
+  // Kept below the snapshotRef writes. Reading that ref from an earlier effect
+  // makes those existing assignments fail react-hooks/immutability.
+  useEffect(() => {
+    if (mode !== "supabase") return;
+    const client = supabaseRef.current;
+    if (!client) return;
+    const token = ++requestRef.current;
+    const postId = postIdFromPath(pathname);
+    const alive = () => requestRef.current === token;
+    const fail = (error: unknown) => {
+      if (!alive()) return;
+      setStatus(error instanceof Error ? error.message : "Could not reach Supabase.");
+    };
+
+    if (!postId) {
+      if (fullSnapshotRef.current) return;
+      // Home and the rest of the app still need the snapshot. Don't paint the
+      // feed until it arrives, or the New posts pill captures an empty head.
+      setReady(false);
+      void loadOnce(inflightRef.current, "snapshot", () => refreshRemote(client))
+        .then(() => {
+          if (alive()) setStatus(null);
+        })
+        .catch(fail)
+        .finally(() => {
+          if (alive()) setReady(true);
+        });
+      return;
+    }
+
+    const known =
+      snapshotRef.current.posts.some((post) => post.id === postId) ||
+      rememberedRef.current.posts.has(postId);
+    if (fullSnapshotRef.current && known) {
+      setLoadingPostId((current) => (current === postId ? null : current));
+      return;
+    }
+
+    setLoadingPostId(postId);
+    const pending = fullSnapshotRef.current
+      ? loadOnce(inflightRef.current, `missing:${postId}`, () =>
+          loadPostById(client, postId, snapshotRef.current.user?.id ?? null),
+        )
+      : loadOnce(inflightRef.current, pathname, () => loadPostPage(client, postId));
+    void pending
+      .then((result) => {
+        if (!alive()) return;
+        setStatus(null);
+        if (fullSnapshotRef.current) {
+          const loaded = result as Awaited<ReturnType<typeof loadPostById>>;
+          if (!loaded) return;
+          const blocked = new Set(snapshotRef.current.blockedIds ?? []);
+          storeRemembered(
+            rememberedRef.current,
+            [loaded.post, ...loaded.relatedPosts],
+            loaded.profiles,
+            blocked,
+          );
+          for (const removedId of removedRef.current) {
+            forgetRememberedPost(rememberedRef.current, removedId);
+          }
+          setRemote((existing) =>
+            mergeRememberedSnapshot(existing, rememberedRef.current, removedRef.current),
+          );
+          return;
+        }
+        applyPostPage(result as LoadedPostPage);
+      })
+      .catch(fail)
+      .finally(() => {
+        if (!alive()) return;
+        setResolvedPostId(postId);
+        setLoadingPostId((current) => (current === postId ? null : current));
+        setReady(true);
+      });
+  }, [applyPostPage, mode, pathname, refreshRemote]);
 
   const isLiked = useCallback(
     (postId: string) =>
