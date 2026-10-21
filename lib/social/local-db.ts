@@ -12,7 +12,12 @@ import type {
   SignUpInput,
   SocialSnapshot,
 } from "./types";
-import { mentionUsernames } from "./mentions";
+import {
+  isReplyMentionMetadata,
+  mentionsToNotify,
+  REPLY_MENTION_METADATA,
+  replyMentionCandidates,
+} from "./reply-mentions";
 import { shouldNotifyQuoteAuthor, validateQuoteContent } from "./quotes";
 import { COMMENT_LIMIT, MESSAGE_LIMIT } from "./types";
 
@@ -606,19 +611,35 @@ export function localAddComment(
   const next: LocalDb = { ...db, comments: [...(db.comments ?? []), comment] };
   const post = db.posts.find((item) => item.id === postId);
   if (!post) return { db: next };
-  return {
-    db: {
-      ...next,
-      notifications: addNotification(next, {
-        recipientId: post.authorId,
+  let notifications = addNotification(next, {
+    recipientId: post.authorId,
+    actorId: db.sessionUserId,
+    kind: "comment",
+    postId,
+    preview: previewText(text),
+    createdAt: comment.createdAt,
+  });
+  const mentioned = replyMentionCandidates({
+    actorId: db.sessionUserId,
+    body: text,
+    profiles: db.users.map((user) => ({ id: user.id, username: user.username })),
+    skipRecipientId: post.authorId !== db.sessionUserId ? post.authorId : null,
+  });
+  for (const recipientId of mentioned) {
+    notifications = addNotification(
+      { ...next, notifications },
+      {
+        recipientId,
         actorId: db.sessionUserId,
-        kind: "comment",
+        kind: "mention",
         postId,
         preview: previewText(text),
+        metadata: REPLY_MENTION_METADATA,
         createdAt: comment.createdAt,
-      }),
-    },
-  };
+      },
+    );
+  }
+  return { db: { ...next, notifications } };
 }
 
 export function localSendMessage(
@@ -764,7 +785,7 @@ function withMentionNotifications(
   body: string,
   createdAt: string,
 ): Notification[] {
-  const wanted = new Set(mentionUsernames(body));
+  const wanted = new Set(mentionsToNotify(body));
   const recipientIds = new Set(
     db.users
       .filter((person) => person.id !== actorId && wanted.has(person.username))
@@ -773,6 +794,7 @@ function withMentionNotifications(
   const current = db.notifications ?? [];
   const kept = current.flatMap((note) => {
     if (note.kind !== "mention" || note.postId !== postId || note.actorId !== actorId) return [note];
+    if (isReplyMentionMetadata(note.metadata)) return [note];
     if (!recipientIds.has(note.recipientId)) return [];
     return [{ ...note, preview: previewText(body) }];
   });

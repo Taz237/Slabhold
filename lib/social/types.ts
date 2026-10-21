@@ -112,6 +112,8 @@ export type Notification = {
   preview: string | null;
   /** Card, post, or listing path for want alerts. */
   href?: string | null;
+  /** Reply mentions set `{ source: "reply" }` so a post edit does not delete them. */
+  metadata?: Record<string, unknown> | null;
   createdAt: string;
   read: boolean;
 };

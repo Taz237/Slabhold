@@ -22,7 +22,12 @@ import type {
   SocialSnapshot,
 } from "./types";
 import { COMMENT_LIMIT, MESSAGE_LIMIT } from "./types";
-import { mentionIlikeOr, mentionUsernames, type MentionCandidate } from "./mentions";
+import { mentionIlikeOr, type MentionCandidate } from "./mentions";
+import {
+  isReplyMentionMetadata,
+  mentionsToNotify,
+  notifyReplyMentions,
+} from "./reply-mentions";
 import { normalizeUsername, usernameError } from "./local-db";
 import { ilikeExact, TAKEN_USERNAME, usernameTakenMessage } from "./username-taken";
 import { validateQuoteContent } from "./quotes";
@@ -658,23 +663,37 @@ export async function remoteAddComment(
     return { error: rlsBlocked(error) ? BLOCKED_INTERACTION : error.message };
   }
 
-  let recipientId = postAuthorId;
-  if (!recipientId) {
-    const { data } = await supabase.from("posts").select("user_id").eq("id", postId).maybeSingle();
-    recipientId = (data?.user_id as string | undefined) ?? null;
+  let notice: string | undefined;
+  try {
+    let recipientId = postAuthorId;
+    if (!recipientId) {
+      const { data } = await supabase.from("posts").select("user_id").eq("id", postId).maybeSingle();
+      recipientId = (data?.user_id as string | undefined) ?? null;
+    }
+    const notifyAuthor =
+      recipientId !== null &&
+      recipientId !== authorId &&
+      (await allowNotice(supabase, authorId, recipientId));
+    if (notifyAuthor && recipientId) {
+      const { error: noteError } = await supabase.from("notifications").insert({
+        recipient_id: recipientId,
+        actor_id: authorId,
+        kind: "comment",
+        post_id: postId,
+        preview: previewText(text),
+      });
+      if (noteError && !missingTable(noteError)) notice = noteError.message;
+    }
+    await notifyReplyMentions(supabase, {
+      actorId: authorId,
+      postId,
+      body: text,
+      skipRecipientId: notifyAuthor ? recipientId : null,
+    });
+  } catch {
+    // The reply is already saved. A notification failure must not fail it.
   }
-  if (!recipientId || recipientId === authorId) return {};
-  if (!(await allowNotice(supabase, authorId, recipientId))) return {};
-
-  const { error: noteError } = await supabase.from("notifications").insert({
-    recipient_id: recipientId,
-    actor_id: authorId,
-    kind: "comment",
-    post_id: postId,
-    preview: previewText(text),
-  });
-  if (noteError && !missingTable(noteError)) return { notice: noteError.message };
-  return {};
+  return notice ? { notice } : {};
 }
 
 export async function remoteSyncLikeNotification(
@@ -855,10 +874,10 @@ export async function syncMentionNotifications(
   postId: string,
   body: string,
 ): Promise<string | null> {
-  const handles = mentionUsernames(body);
+  const handles = mentionsToNotify(body);
   const existing = await supabase
     .from("notifications")
-    .select("recipient_id")
+    .select("recipient_id, metadata")
     .eq("actor_id", actorId)
     .eq("post_id", postId)
     .eq("kind", "mention");
@@ -867,8 +886,15 @@ export async function syncMentionNotifications(
     return existing.error.message;
   }
 
-  const already = new Set((existing.data ?? []).map((row) => row.recipient_id as string));
-  let recipientIds: string[] = [];
+  const already = new Set<string>();
+  const postMentionRecipients = new Set<string>();
+  for (const row of (existing.data ?? []) as { recipient_id: string; metadata?: unknown }[]) {
+    if (!row.recipient_id) continue;
+    already.add(row.recipient_id);
+    // Reply rows are marked metadata.source = "reply". Editing the post must not remove them.
+    if (!isReplyMentionMetadata(row.metadata)) postMentionRecipients.add(row.recipient_id);
+  }
+  const recipientIds: string[] = [];
   if (handles.length > 0) {
     const { query: profileQuery } = await withAuthorSafety(
       supabase,
@@ -881,14 +907,23 @@ export async function syncMentionNotifications(
     );
     const { data, error } = await profileQuery;
     if (error) return error.message;
-    const wanted = new Set(handles);
-    recipientIds = ((data ?? []) as { id: string; username: string }[])
-      .filter((row) => row.id !== actorId && wanted.has(row.username.toLowerCase()))
-      .map((row) => row.id);
+    const byName = new Map(
+      ((data ?? []) as { id: string; username: string }[]).map((row) => [
+        row.username.toLowerCase(),
+        row.id,
+      ]),
+    );
+    const seen = new Set<string>();
+    for (const name of handles) {
+      const id = byName.get(name);
+      if (!id || id === actorId || seen.has(id)) continue;
+      seen.add(id);
+      recipientIds.push(id);
+    }
   }
 
   const next = new Set(recipientIds);
-  const remove = [...already].filter((id) => !next.has(id));
+  const remove = [...postMentionRecipients].filter((id) => !next.has(id));
   if (remove.length > 0) {
     const { error } = await supabase
       .from("notifications")
@@ -896,6 +931,7 @@ export async function syncMentionNotifications(
       .eq("actor_id", actorId)
       .eq("post_id", postId)
       .eq("kind", "mention")
+      .is("metadata", null)
       .in("recipient_id", remove);
     if (error && !missingTable(error)) return error.message;
   }
