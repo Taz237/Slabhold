@@ -32,7 +32,7 @@ import { cardCategory } from "@/lib/card-category";
 import { hasPaid } from "@/lib/format";
 import { formatCardValueLabel, marketValueSummary } from "@/lib/value/format";
 import { useCardValue } from "@/lib/value/use-card-values";
-import { claimSubmit } from "@/lib/save/attempt";
+import { claimSubmit, isSaveTimeout, SAVE_TIMEOUT_MESSAGE, SaveTimeoutError } from "@/lib/save/attempt";
 import { fileToDataUrl } from "@/lib/storage";
 import type {
   CardCategory,
@@ -68,6 +68,7 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const savingRef = useRef(false);
+  const pendingId = useRef<string | null>(existing?.id ?? null);
   const [photo, setPhoto] = useState<string | null>(existing?.photoDataUrl ?? null);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -373,15 +374,27 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
     setSaveError(null);
     let createdId: string | null = null;
     try {
-      const { card, saved } = existing
-        ? updateCard(existing.id, payload)
+      const reuseId = existing?.id ?? pendingId.current;
+      const { card, saved } = reuseId
+        ? updateCard(reuseId, payload)
         : addCard(payload);
-      if (!existing) createdId = card.id;
+      if (!existing) {
+        pendingId.current = card.id;
+        createdId = card.id;
+      }
       await saved;
       createdId = null;
       router.push(`/cards/${card.id}`);
     } catch (error) {
+      if (isSaveTimeout(error)) {
+        if (error instanceof SaveTimeoutError && error.photoUrl) setPhoto(error.photoUrl);
+        setSaveError(SAVE_TIMEOUT_MESSAGE);
+        setSaving(false);
+        savingRef.current = false;
+        return;
+      }
       if (createdId) removeCard(createdId);
+      if (!existing) pendingId.current = null;
       setSaveError(
         error instanceof Error ? error.message : "Could not save this card.",
       );

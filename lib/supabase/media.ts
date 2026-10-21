@@ -1,5 +1,4 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { SAVE_TIMEOUT_MESSAGE, SaveTimeoutError } from "@/lib/save/attempt";
 
 /**
  * Store a picked image in a public Storage bucket and return its URL.
@@ -11,7 +10,6 @@ export async function uploadMedia(
   bucket: string,
   userId: string,
   value: string | null,
-  options?: { signal?: AbortSignal },
 ): Promise<{ url: string | null; error?: string; createdPath?: string }> {
   if (!value) return { url: null };
   if (!value.startsWith("data:")) return { url: value };
@@ -26,43 +24,14 @@ export async function uploadMedia(
 
   const ext = mime.includes("png") ? "png" : mime.includes("webp") ? "webp" : "jpg";
   const path = `${userId}/${crypto.randomUUID()}.${ext}`;
-  const signal = options?.signal;
-
-  const uploaded = (async () => {
-    const { error } = await supabase.storage.from(bucket).upload(path, bytes, {
-      contentType: mime,
-      upsert: false,
-    });
-    if (signal?.aborted) {
-      await removeUploadedMedia(supabase, bucket, path);
-      return {
-        url: null as string | null,
-        error: SAVE_TIMEOUT_MESSAGE,
-        createdPath: path,
-      };
-    }
-    if (error) return { url: null, error: error.message };
-    const { data } = supabase.storage.from(bucket).getPublicUrl(path);
-    return { url: data.publicUrl, createdPath: path };
-  })();
-
-  if (!signal) return uploaded;
-
-  const aborted = new Promise<never>((_, reject) => {
-    const fail = () => reject(new SaveTimeoutError());
-    if (signal.aborted) fail();
-    else signal.addEventListener("abort", fail, { once: true });
+  const { error } = await supabase.storage.from(bucket).upload(path, bytes, {
+    contentType: mime,
+    upsert: false,
   });
-  void aborted.catch(() => undefined);
+  if (error) return { url: null, error: error.message };
 
-  try {
-    return await Promise.race([uploaded, aborted]);
-  } catch (error) {
-    if (signal.aborted || error instanceof SaveTimeoutError) {
-      return { url: null, error: SAVE_TIMEOUT_MESSAGE };
-    }
-    throw error;
-  }
+  const { data } = supabase.storage.from(bucket).getPublicUrl(path);
+  return { url: data.publicUrl, createdPath: path };
 }
 
 /** Best-effort delete for an object this save just created. */

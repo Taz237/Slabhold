@@ -95,7 +95,7 @@ export function ResetPasswordForm() {
             <button
               type="button"
               aria-pressed={showPassword}
-              aria-label={showPassword ? "Hide password" : "Show password"}
+              aria-label="Show password"
               onClick={() => setShowPassword((current) => !current)}
               className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-zinc-200 text-zinc-600 dark:border-white/10 dark:text-zinc-300"
             >

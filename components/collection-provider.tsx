@@ -12,7 +12,8 @@ import {
 import { useSocial } from "@/components/social-provider";
 import { trackEvent } from "@/lib/analytics";
 import { mergeCategories } from "@/lib/card-category";
-import { loadUserCards, noteFreshInsert, removeUserCard, saveUserCard } from "@/lib/social/cards";
+import { loadUserCards, removeUserCard, saveUserCard } from "@/lib/social/cards";
+import { isSaveTimeout } from "@/lib/save/attempt";
 import { loadCollection, newId, nextAccent, saveCollection } from "@/lib/storage";
 import { createSupabaseBrowser } from "@/lib/supabase/browser";
 import type { CardInput, SportsCard } from "@/lib/types";
@@ -155,7 +156,6 @@ export function CollectionProvider({ children }: { children: React.ReactNode }) 
         if (client) {
           saved = enqueue(card.id, async () => {
             try {
-              noteFreshInsert(card.id);
               await saveUserCard(client, userId, card);
               trackEvent("card_added");
               if (isPublicForSaleListing(card)) pingWantMatch("listing", card.id);
@@ -163,7 +163,7 @@ export function CollectionProvider({ children }: { children: React.ReactNode }) 
               scheduleCardValueRefresh(card.id);
             } catch (error) {
               report(error);
-              forgetCard(card.id);
+              if (!isSaveTimeout(error)) forgetCard(card.id);
               throw error;
             }
           });
@@ -211,7 +211,7 @@ export function CollectionProvider({ children }: { children: React.ReactNode }) 
               if (needsRefresh) scheduleCardValueRefresh(id);
             } catch (error) {
               report(error);
-              revert();
+              if (!isSaveTimeout(error)) revert();
               throw error;
             }
           });

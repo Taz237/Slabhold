@@ -11,7 +11,7 @@ import {
 describe("save attempts", () => {
   it("uses a deadline inside the 20–30 second window", () => {
     assert.equal(SAVE_TIMEOUT_MS, 25_000);
-    assert.match(SAVE_TIMEOUT_MESSAGE, /too long/i);
+    assert.equal(SAVE_TIMEOUT_MESSAGE, "We couldn't confirm the save. Retry is safe.");
   });
 
   it("returns a fast success and leaves a real error alone", async () => {

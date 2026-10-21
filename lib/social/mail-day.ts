@@ -200,6 +200,8 @@ export function isMailDaySport(value: string): value is MailDaySport {
 }
 
 export type MailDayDraftCard = {
+  /** Stable id so a retry upserts the same card. */
+  id?: string;
   playerName: string;
   yearLabel: string;
   setBrand: string;
@@ -223,9 +225,12 @@ export type MailDayInput = {
   caption: string;
   cards: MailDayDraftCard[];
   acquiredAt: string;
+  /** Stable id so a retry updates the same post. */
+  postId?: string;
 };
 
 export type PreparedMailDayCard = {
+  id: string;
   playerName: string;
   year: number;
   yearLabel: string;
@@ -387,6 +392,9 @@ export function validateMailDayDraft(
     const conditionType = card.conditionType === "graded" ? "graded" : "raw";
     const isPublic = Boolean(card.isPublic);
     cards.push({
+      id: card.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(card.id)
+        ? card.id
+        : crypto.randomUUID(),
       playerName: card.playerName.trim(),
       year: parsedYear.year,
       yearLabel: parsedYear.yearLabel,
@@ -868,6 +876,112 @@ export function previewMailDayPost(input: {
       : null,
     mailDayCards: views,
   };
+}
+
+export type MailDayWriteError = { code?: string; message?: string } | null;
+
+/** Postgres unique violation. A retry of the same id is already saved. */
+export function isAlreadySaved(error: MailDayWriteError | undefined): boolean {
+  return error?.code === "23505";
+}
+
+export async function commitMailDayWrites(input: {
+  userId: string;
+  postId: string;
+  caption: string;
+  acquiredAt: string;
+  now: string;
+  cards: Array<PreparedMailDayCard & { id: string }>;
+  attachment: unknown;
+  showPaid: boolean;
+  insertCard: (row: ReturnType<typeof mailDayCardRecord>) => Promise<MailDayWriteError>;
+  insertPost: (row: Record<string, unknown>) => Promise<MailDayWriteError>;
+  insertLinks: (rows: Record<string, unknown>[]) => Promise<MailDayWriteError>;
+  deletePost: (postId: string) => Promise<void>;
+}): Promise<
+  | { ok: true; cardId: string; cardIds: string[]; postId: string }
+  | { ok: false; cardSaved: false; error: string }
+  | { ok: false; cardSaved: true; cardId: string; cardIds: string[]; error: string }
+> {
+  const cardIds: string[] = [];
+  for (const card of input.cards) {
+    const error = await input.insertCard(
+      mailDayCardRecord(input.userId, card, input.acquiredAt, input.now),
+    );
+    if (error && !isAlreadySaved(error)) {
+      console.warn("[mail_day] card:", error.message);
+      return cardIds.length
+        ? {
+            ok: false,
+            cardSaved: true,
+            cardId: cardIds[0] ?? "",
+            cardIds,
+            error: "Could not save that card.",
+          }
+        : { ok: false, cardSaved: false, error: "Could not save that card." };
+    }
+    cardIds.push(card.id);
+  }
+  const saved = input.cards.filter((card) => cardIds.includes(card.id));
+  const first = saved[0];
+  if (!first) return { ok: false, cardSaved: false, error: "Could not save that card." };
+  const postError = await input.insertPost({
+    id: input.postId,
+    user_id: input.userId,
+    content: input.caption,
+    image_url: first.photos[0] ?? null,
+    card: input.attachment,
+    post_type: "mail_day",
+    show_paid: input.showPaid,
+    meta: mailDayMeta({
+      acquiredAt: input.acquiredAt,
+      cards: saved.map((card) => ({
+        id: card.id,
+        photos: card.photos,
+        source: card.source,
+        showPaid: card.showPaid,
+        playerName: card.playerName,
+        year: card.year,
+        yearLabel: card.yearLabel,
+        setBrand: card.setBrand,
+        cardNumber: card.cardNumber,
+        sport: card.sport,
+        parallel: card.parallel,
+        grade: card.gradeText,
+        conditionType: card.conditionType,
+        grader: card.grader,
+      })),
+    }),
+  });
+  if (postError && !isAlreadySaved(postError)) {
+    console.warn("[mail_day] post:", postError.message);
+    return {
+      ok: false,
+      cardSaved: true,
+      cardId: cardIds[0] ?? "",
+      cardIds,
+      error: MAIL_DAY_POST_FAILED,
+    };
+  }
+  const linkError = await input.insertLinks(
+    saved.map((card, position) => ({
+      post_id: input.postId,
+      card_id: card.id,
+      position,
+    })),
+  );
+  if (linkError && !isAlreadySaved(linkError)) {
+    console.warn("[mail_day] post_cards:", linkError.message);
+    if (!postError) await input.deletePost(input.postId);
+    return {
+      ok: false,
+      cardSaved: true,
+      cardId: cardIds[0] ?? "",
+      cardIds,
+      error: MAIL_DAY_POST_FAILED,
+    };
+  }
+  return { ok: true, cardId: cardIds[0] ?? "", cardIds, postId: input.postId };
 }
 
 export async function runMailDaySave(deps: {

@@ -1,12 +1,15 @@
 export const SAVE_TIMEOUT_MS = 25_000;
 
-export const SAVE_TIMEOUT_MESSAGE =
-  "Saving took too long. Check your connection and try again.";
+export const SAVE_TIMEOUT_MESSAGE = "We couldn't confirm the save. Retry is safe.";
 
 export class SaveTimeoutError extends Error {
-  constructor(message = SAVE_TIMEOUT_MESSAGE) {
+  /** Public photo URL already stored, when this attempt uploaded one. */
+  readonly photoUrl: string | null;
+
+  constructor(photoUrl: string | null = null, message = SAVE_TIMEOUT_MESSAGE) {
     super(message);
     this.name = "SaveTimeoutError";
+    this.photoUrl = photoUrl;
   }
 }
 
@@ -22,9 +25,8 @@ export function claimSubmit(held: { current: boolean }): boolean {
 }
 
 /**
- * Run work until it finishes or `ms` elapses. On the deadline the signal
- * aborts so work can stop and clean up; this promise rejects either way.
- * Work may still settle after the rejection so a late response can be discarded.
+ * Stop waiting after `ms`. The work keeps running so a late success can land.
+ * A timeout is an unknown outcome: callers must not delete rows or photos.
  */
 export async function withSaveTimeout<T>(
   work: (signal: AbortSignal) => Promise<T>,
@@ -41,14 +43,19 @@ export async function withSaveTimeout<T>(
     }, ms);
   });
   void timeout.catch(() => undefined);
+  const task = work(controller.signal).then(
+    (value) => {
+      settled = true;
+      return value;
+    },
+    (error) => {
+      settled = true;
+      throw error;
+    },
+  );
+  void task.catch(() => undefined);
   try {
-    return await Promise.race([
-      work(controller.signal).then((value) => {
-        settled = true;
-        return value;
-      }),
-      timeout,
-    ]);
+    return await Promise.race([task, timeout]);
   } finally {
     settled = true;
     if (timer) clearTimeout(timer);

@@ -3,10 +3,13 @@ import { describe, it } from "node:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { createClient } from "@supabase/supabase-js";
+import { isSaveTimeout, withSaveTimeout } from "@/lib/save/attempt";
 import {
   MAIL_DAY_PHOTOS_TOO_LARGE,
   MAIL_DAY_POST_FAILED,
   assembleMailDayCards,
+  commitMailDayWrites,
+  isAlreadySaved,
   loadMailDayPaid,
   loadMailDayViews,
   mailDayCardHref,
@@ -27,6 +30,7 @@ import {
   validateMailDayDraft,
   type MailDayDraftCard,
   type MailDayPhotoUploader,
+  type PreparedMailDayCard,
 } from "./mail-day";
 
 describe("mail day privacy", () => {
@@ -655,7 +659,7 @@ describe("mail day photo upload", () => {
     assert.doesNotMatch(catchBlock, /removeMailDayPhotos/);
     assert.match(
       form,
-      /try \{\s*cards = await uploadMailDayPhotos\(user\.id, drafts, created\);\s*\} catch \(err\) \{\s*await removeMailDayPhotos\(\s*createSupabaseBrowser\(\),\s*user\.id,\s*created\s*\);\s*setError\(mailDaySubmitError\(err\)\);\s*return;\s*\}/,
+      /try \{\s*cards = await uploadMailDayPhotos\(user\.id, drafts, created\);\s*\} catch \(err\) \{\s*if \(isSaveTimeout\(err\)\) \{\s*setError\(SAVE_TIMEOUT_MESSAGE\);\s*return;\s*\}\s*await removeMailDayPhotos\(\s*createSupabaseBrowser\(\),\s*user\.id,\s*created\s*\);\s*setError\(mailDaySubmitError\(err\)\);\s*return;\s*\}/,
     );
     assert.match(actions, /mailDayPhotoOwnedBy\(photo, userId\)/);
     assert.match(sql, /auth\.uid\(\)::text = \(storage\.foldername\(name\)\)\[1\]/);
@@ -761,7 +765,7 @@ describe("mail day photo upload", () => {
     assert.match(form, /finally \{\s*setSending\(false\);\s*\}/);
     assert.match(
       form,
-      /catch \(err\) \{\s*await removeMailDayPhotos\(\s*createSupabaseBrowser\(\),\s*user\.id,\s*created\s*\);\s*setError\(mailDaySubmitError\(err\)\);\s*return;/,
+      /if \(isSaveTimeout\(err\)\) \{\s*setError\(SAVE_TIMEOUT_MESSAGE\);\s*return;\s*\}\s*await removeMailDayPhotos\(\s*createSupabaseBrowser\(\),\s*user\.id,\s*created\s*\);\s*setError\(mailDaySubmitError\(err\)\);\s*return;/,
     );
   });
 
@@ -973,5 +977,109 @@ describe("card photo owner read", () => {
     assert.doesNotMatch(sql, /bucket_id = 'post-images'/);
     assert.doesNotMatch(sql, /create policy "Public can view/);
     assert.doesNotMatch(sql, /set public = false/i);
+  });
+});
+
+describe("mail day timeout retry", () => {
+  it("lands one post after a timeout and a retry, and does not delete photos", async () => {
+    const userId = "11111111-1111-4111-8111-111111111111";
+    const postId = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
+    const cardId = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
+    const photo = `https://knuwflptobyutrauxblj.supabase.co/storage/v1/object/public/card-photos/${userId}/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa.jpg`;
+    const card: PreparedMailDayCard = {
+      id: cardId,
+      playerName: "Victor Wembanyama",
+      year: 2024,
+      yearLabel: "2024",
+      setBrand: "Prizm",
+      setIsCustom: false,
+      cardNumber: "136",
+      parallel: "Base",
+      parallelIsCustom: false,
+      sport: "Basketball",
+      conditionType: "raw",
+      grader: null,
+      gradeValue: "Raw",
+      gradeText: "Raw",
+      paid: 40,
+      source: "ebay",
+      category: "flipping",
+      isPublic: true,
+      showPaid: true,
+      photos: [photo],
+    };
+    const posts = new Map<string, Record<string, unknown>>();
+    const cards = new Map<string, Record<string, unknown>>();
+    const links: string[] = [];
+    const removed: string[] = [];
+    let release: () => void = () => undefined;
+    let held = true;
+    const writes = {
+      async insertCard(row: { id: string }) {
+        if (cards.has(row.id)) return { code: "23505", message: "duplicate key" };
+        cards.set(row.id, row);
+        return null;
+      },
+      async insertPost(row: Record<string, unknown>) {
+        const id = String(row.id);
+        if (posts.has(id)) return { code: "23505", message: "duplicate key" };
+        if (held) {
+          held = false;
+          await new Promise<void>((resolve) => {
+            release = () => {
+              posts.set(id, row);
+              resolve();
+            };
+          });
+          return null;
+        }
+        posts.set(id, row);
+        return null;
+      },
+      async insertLinks(rows: Array<Record<string, unknown>>) {
+        for (const row of rows) {
+          const key = `${row.post_id}:${row.card_id}`;
+          if (links.includes(key)) return { code: "23505", message: "duplicate key" };
+        }
+        for (const row of rows) links.push(`${row.post_id}:${row.card_id}`);
+        return null;
+      },
+      async deletePost(id: string) {
+        posts.delete(id);
+        removed.push(id);
+      },
+    };
+    const input = {
+      userId,
+      postId,
+      caption: "Mail day",
+      acquiredAt: "2024-06-01",
+      now: "2024-06-01T00:00:00.000Z",
+      cards: [card],
+      attachment: { id: cardId },
+      showPaid: true,
+      ...writes,
+    };
+    const first = await withSaveTimeout(() => commitMailDayWrites(input), 40).then(
+      (value) => value,
+      (error: unknown) => error,
+    );
+    assert.equal(isSaveTimeout(first), true);
+    assert.equal(removed.length, 0);
+    assert.equal(posts.size, 0);
+    release();
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    assert.equal(posts.size, 1);
+    assert.equal(cards.size, 1);
+    assert.equal(cards.get(cardId)?.image_url, photo);
+    assert.equal(removed.length, 0);
+    const retry = await commitMailDayWrites(input);
+    assert.equal(retry.ok, true);
+    assert.equal(isAlreadySaved({ code: "23505" }), true);
+    assert.equal(posts.size, 1);
+    assert.equal(cards.size, 1);
+    assert.equal(links.length, 1);
+    assert.equal(removed.length, 0);
+    assert.equal(cards.get(cardId)?.image_url, photo);
   });
 });

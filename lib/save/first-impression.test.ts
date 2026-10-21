@@ -34,8 +34,11 @@ describe("add a card first impression", () => {
     assert.match(catchSlice, /setSaving\(false\)/);
     assert.match(catchSlice, /savingRef\.current = false/);
     assert.doesNotMatch(catchSlice, /router\.push/);
+    assert.match(submit, /pendingId\.current = card\.id/);
+    assert.match(catchSlice, /isSaveTimeout\(error\)/);
+    assert.match(catchSlice, /SAVE_TIMEOUT_MESSAGE/);
     assert.doesNotMatch(catchSlice, /setForm\(/);
-    assert.doesNotMatch(catchSlice, /setPhoto\(/);
+    assert.doesNotMatch(catchSlice, /setPhoto\(null\)/);
     assert.doesNotMatch(catchSlice, /setCategory\(/);
     assert.match(form, /Retry/);
     assert.match(read("lib/social/cards.ts"), /withSaveTimeout\(/);
@@ -57,23 +60,30 @@ describe("mail day save", () => {
     const outerCatch = form.slice(form.lastIndexOf("} catch (err) {"), form.indexOf("} finally {"));
     assert.match(outerCatch, /setError\(mailDaySubmitError\(err\)\)/);
     assert.doesNotMatch(outerCatch, /removeMailDayPhotos/);
-    assert.doesNotMatch(submit, /setSections\(/);
     assert.doesNotMatch(submit, /setCaption\(/);
+    assert.doesNotMatch(submit, /blankCard\(\)/);
     assert.match(form, />\s*Retry\s*</);
+    const postTimeout = submit.slice(submit.indexOf("if (!isSaveTimeout(err)) throw err;"));
+    assert.doesNotMatch(postTimeout.slice(0, postTimeout.indexOf("if (!result.ok)")), /removeMailDayPhotos/);
+    assert.match(form, /postId: postId\.current/);
     const provider = read("components/collection-provider.tsx");
     const addCard = provider.slice(
       provider.indexOf("const addCard = useCallback("),
       provider.indexOf("const updateCard = useCallback("),
     );
-    assert.match(addCard, /noteFreshInsert\(card\.id\);\r?\n\s*await saveUserCard\(client, userId, card\);/);
+    assert.match(
+      addCard,
+      /await saveUserCard\(client, userId, card\);\r?\n\s*trackEvent\("card_added"\);/,
+    );
     assert.match(addCard, /void saved\.catch\(\(\) => undefined\)/);
-    assert.match(addCard, /forgetCard\(card\.id\)/);
+    assert.match(addCard, /if \(!isSaveTimeout\(error\)\) forgetCard\(card\.id\)/);
+    assert.doesNotMatch(addCard, /noteFreshInsert/);
     const updateCard = provider.slice(
       provider.indexOf("const updateCard = useCallback("),
       provider.indexOf("const removeCard = useCallback("),
     );
-    assert.match(updateCard, /revert\(\)/);
+    assert.match(updateCard, /if \(!isSaveTimeout\(error\)\) revert\(\)/);
     assert.match(updateCard, /void saved\.catch\(\(\) => undefined\)/);
-    assert.doesNotMatch(updateCard, /noteFreshInsert/);
+    assert.doesNotMatch(updateCard, /removeUserCard/);
   });
 });

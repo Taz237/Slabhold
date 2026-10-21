@@ -124,7 +124,8 @@ describe("password reset", () => {
     assert.match(reset, /Password updated/);
     assert.match(reset, /setUpdated\(true\)/);
     assert.match(reset, /aria-pressed=\{showPassword\}/);
-    assert.match(reset, /aria-label=\{showPassword \? "Hide password" : "Show password"\}/);
+    assert.match(reset, /aria-label="Show password"/);
+    assert.match(reset, /aria-pressed=\{showPassword\}/);
     assert.match(reset, /className="grid h-11 w-11 shrink-0 place-items-center rounded-xl/);
     assert.match(reset, /type=\{showPassword \? "text" : "password"\}/);
     assert.match(reset, /href="\/login"/);

@@ -38,7 +38,7 @@ import {
   type MailDayDraftCard,
 } from "@/lib/social/mail-day";
 import { POST_LIMIT } from "@/lib/social/types";
-import { claimSubmit, isSaveTimeout, SaveTimeoutError, withSaveTimeout } from "@/lib/save/attempt";
+import { claimSubmit, isSaveTimeout, SAVE_TIMEOUT_MESSAGE, SaveTimeoutError, withSaveTimeout } from "@/lib/save/attempt";
 import { fileToDataUrl } from "@/lib/storage";
 import { createSupabaseBrowser } from "@/lib/supabase/browser";
 import { uploadMedia } from "@/lib/supabase/media";
@@ -54,9 +54,10 @@ function today() {
   return `${date.getFullYear()}-${month}-${day}`;
 }
 
-function blankCard(): MailDayDraftCard & { key: string; open: boolean; parallelNote: string } {
+function blankCard(): MailDayDraftCard & { key: string; cardId: string; open: boolean; parallelNote: string } {
   return {
     key: crypto.randomUUID(),
+    cardId: crypto.randomUUID(),
     open: true,
     parallelNote: "",
     playerName: "",
@@ -88,6 +89,7 @@ function trackAddedCards(count: number) {
 
 function sectionDraft(section: Section): MailDayDraftCard {
   return {
+    id: section.cardId,
     playerName: section.playerName,
     yearLabel: section.yearLabel,
     setBrand: section.setBrand,
@@ -119,7 +121,7 @@ async function uploadMailDayPhotos(
     uploadMailDayPhotosWith(
       async (photo) => {
         if (signal.aborted) throw new SaveTimeoutError();
-        const stored = await uploadMedia(supabase, "card-photos", userId, photo, { signal });
+        const stored = await uploadMedia(supabase, "card-photos", userId, photo);
         if (signal.aborted) throw new SaveTimeoutError();
         return stored;
       },
@@ -136,6 +138,7 @@ export function MailDayForm() {
   const fileRef = useRef<HTMLInputElement>(null);
   const allowLeave = useRef(false);
   const sendingRef = useRef(false);
+  const postId = useRef(crypto.randomUUID());
   const [sections, setSections] = useState<Section[]>(() => [blankCard()]);
   const [active, setActive] = useState(0);
   const [photoTarget, setPhotoTarget] = useState(0);
@@ -209,10 +212,19 @@ export function MailDayForm() {
       try {
         cards = await uploadMailDayPhotos(user.id, drafts, created);
       } catch (err) {
+        if (isSaveTimeout(err)) {
+          setError(SAVE_TIMEOUT_MESSAGE);
+          return;
+        }
         await removeMailDayPhotos(createSupabaseBrowser(), user.id, created);
         setError(mailDaySubmitError(err));
         return;
       }
+      setSections((current) =>
+        current.map((section, index) =>
+          cards[index] ? { ...section, photos: cards[index].photos } : section,
+        ),
+      );
       let result: Awaited<ReturnType<typeof createMailDayPost>>;
       try {
         result = await withSaveTimeout(() =>
@@ -220,12 +232,12 @@ export function MailDayForm() {
             caption,
             cards,
             acquiredAt: today(),
+            postId: postId.current,
           }),
         );
       } catch (err) {
         if (!isSaveTimeout(err)) throw err;
-        await removeMailDayPhotos(createSupabaseBrowser(), user.id, created);
-        setError(mailDaySubmitError(err));
+        setError(SAVE_TIMEOUT_MESSAGE);
         return;
       }
       if (!result.ok) {

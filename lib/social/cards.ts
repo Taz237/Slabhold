@@ -8,7 +8,6 @@ import {
 } from "@/lib/card-options";
 import {
   isSaveTimeout,
-  SAVE_TIMEOUT_MESSAGE,
   SAVE_TIMEOUT_MS,
   SaveTimeoutError,
   withSaveTimeout,
@@ -205,34 +204,29 @@ function missingColumnError(error: { code?: string; message?: string }) {
   );
 }
 
-const freshInserts = new Set<string>();
-
-/** Mark the next save of this id as a new card so a timed-out insert can be removed. */
-export function noteFreshInsert(cardId: string) {
-  freshInserts.add(cardId);
-}
-
-function consumeFreshInsert(cardId: string) {
-  const fresh = freshInserts.has(cardId);
-  freshInserts.delete(cardId);
-  return fresh;
-}
-
 export async function saveUserCard(
   supabase: SupabaseClient,
   userId: string,
   card: SportsCard,
   timeoutMs = SAVE_TIMEOUT_MS,
 ) {
-  const freshInsert = consumeFreshInsert(card.id);
   const yearText = (card.yearLabel || String(card.year || "")).trim();
   if (!isValidYear(yearText)) {
     throw new Error("Use 2026 or 2023-24");
   }
-  return withSaveTimeout(
-    (signal) => writeUserCard(supabase, userId, card, signal, freshInsert),
-    timeoutMs,
-  );
+  let photoUrl: string | null =
+    card.photoDataUrl && !card.photoDataUrl.startsWith("data:") ? card.photoDataUrl : null;
+  try {
+    await withSaveTimeout(
+      (signal) => writeUserCard(supabase, userId, card, signal, (url) => {
+        photoUrl = url;
+      }),
+      timeoutMs,
+    );
+  } catch (error) {
+    if (isSaveTimeout(error)) throw new SaveTimeoutError(photoUrl);
+    throw error;
+  }
 }
 
 async function writeUserCard(
@@ -240,20 +234,16 @@ async function writeUserCard(
   userId: string,
   card: SportsCard,
   signal: AbortSignal,
-  freshInsert: boolean,
+  rememberPhoto: (url: string | null) => void,
 ) {
   const uploaded = await uploadMedia(
     supabase,
     "card-photos",
     userId,
     card.photoDataUrl,
-    { signal },
   );
-  if (uploaded.error || signal.aborted) {
-    throw signal.aborted || uploaded.error === SAVE_TIMEOUT_MESSAGE
-      ? new SaveTimeoutError()
-      : new Error(uploaded.error || "Could not upload that photo.");
-  }
+  if (uploaded.error) throw new Error(uploaded.error);
+  rememberPhoto(uploaded.url);
   const createdPath = uploaded.createdPath ?? null;
   const category = cardCategory(card);
   rememberCategory(card.id, category);
@@ -312,30 +302,13 @@ async function writeUserCard(
     cert_number: card.certNumber || null,
   };
 
-  const persist = writeCardRows(supabase, extended, base, category, signal);
-  const onAbort = () => {
-    if (createdPath) void removeUploadedMedia(supabase, "card-photos", createdPath);
-    if (!freshInsert) return;
-    const dropFresh = () => {
-      void removeUserCard(supabase, userId, card.id).catch(() => undefined);
-    };
-    void persist.then(dropFresh, dropFresh);
-  };
-  if (signal.aborted) onAbort();
-  else signal.addEventListener("abort", onAbort, { once: true });
-
   try {
-    await persist;
+    await writeCardRows(supabase, extended, base, category, signal);
   } catch (error) {
-    signal.removeEventListener("abort", onAbort);
-    if (!signal.aborted && createdPath) {
-      await removeUploadedMedia(supabase, "card-photos", createdPath);
-    }
-    if (signal.aborted || isSaveTimeout(error)) throw new SaveTimeoutError();
+    if (signal.aborted || isSaveTimeout(error)) throw new SaveTimeoutError(uploaded.url);
+    if (createdPath) await removeUploadedMedia(supabase, "card-photos", createdPath);
     throw error;
   }
-  signal.removeEventListener("abort", onAbort);
-  if (signal.aborted) throw new SaveTimeoutError();
 }
 
 async function writeCardRows(
@@ -345,24 +318,23 @@ async function writeCardRows(
   category: string,
   signal: AbortSignal,
 ) {
-  const full = await supabase.from("cards").upsert(extended).abortSignal(signal);
-  if (signal.aborted) throw new SaveTimeoutError();
+  const full = await supabase.from("cards").upsert(extended);
   if (!full.error) return;
-  if (!missingColumnError(full.error)) throw new Error(full.error.message);
-
-  // Fallback if migration not applied yet
-  const withCategory = await supabase
-    .from("cards")
-    .upsert({ ...base, category })
-    .abortSignal(signal);
-  if (signal.aborted) throw new SaveTimeoutError();
-  if (!withCategory.error) return;
-  if (!missingColumnError(withCategory.error)) {
+  if (missingColumnError(full.error)) {
+    // Fallback if migration not applied yet
+    const withCategory = await supabase.from("cards").upsert({ ...base, category });
+    if (!withCategory.error) return;
+    if (missingColumnError(withCategory.error)) {
+      const { error } = await supabase.from("cards").upsert(base);
+      if (!error) return;
+      if (signal.aborted) return;
+      throw new Error(error.message);
+    }
+    if (signal.aborted) return;
     throw new Error(withCategory.error.message);
   }
-  const { error } = await supabase.from("cards").upsert(base).abortSignal(signal);
-  if (signal.aborted) throw new SaveTimeoutError();
-  if (error) throw new Error(error.message);
+  if (signal.aborted) return;
+  throw new Error(full.error.message);
 }
 
 export async function removeUserCard(
