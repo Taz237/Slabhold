@@ -13,6 +13,7 @@ import type {
   SocialSnapshot,
 } from "./types";
 import { mentionUsernames } from "./mentions";
+import { replyMentionCandidates } from "./reply-mentions";
 import { shouldNotifyQuoteAuthor, validateQuoteContent } from "./quotes";
 import { COMMENT_LIMIT, MESSAGE_LIMIT } from "./types";
 
@@ -606,19 +607,34 @@ export function localAddComment(
   const next: LocalDb = { ...db, comments: [...(db.comments ?? []), comment] };
   const post = db.posts.find((item) => item.id === postId);
   if (!post) return { db: next };
-  return {
-    db: {
-      ...next,
-      notifications: addNotification(next, {
-        recipientId: post.authorId,
+  let notifications = addNotification(next, {
+    recipientId: post.authorId,
+    actorId: db.sessionUserId,
+    kind: "comment",
+    postId,
+    preview: previewText(text),
+    createdAt: comment.createdAt,
+  });
+  const mentioned = replyMentionCandidates({
+    actorId: db.sessionUserId,
+    body: text,
+    profiles: db.users.map((user) => ({ id: user.id, username: user.username })),
+    skipRecipientId: post.authorId !== db.sessionUserId ? post.authorId : null,
+  });
+  for (const recipientId of mentioned) {
+    notifications = addNotification(
+      { ...next, notifications },
+      {
+        recipientId,
         actorId: db.sessionUserId,
-        kind: "comment",
+        kind: "mention",
         postId,
         preview: previewText(text),
         createdAt: comment.createdAt,
-      }),
-    },
-  };
+      },
+    );
+  }
+  return { db: { ...next, notifications } };
 }
 
 export function localSendMessage(

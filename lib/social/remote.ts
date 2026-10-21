@@ -23,6 +23,7 @@ import type {
 } from "./types";
 import { COMMENT_LIMIT, MESSAGE_LIMIT } from "./types";
 import { mentionIlikeOr, mentionUsernames, type MentionCandidate } from "./mentions";
+import { notifyReplyMentions } from "./reply-mentions";
 import { normalizeUsername, usernameError } from "./local-db";
 import { ilikeExact, TAKEN_USERNAME, usernameTakenMessage } from "./username-taken";
 import { validateQuoteContent } from "./quotes";
@@ -658,23 +659,37 @@ export async function remoteAddComment(
     return { error: rlsBlocked(error) ? BLOCKED_INTERACTION : error.message };
   }
 
-  let recipientId = postAuthorId;
-  if (!recipientId) {
-    const { data } = await supabase.from("posts").select("user_id").eq("id", postId).maybeSingle();
-    recipientId = (data?.user_id as string | undefined) ?? null;
+  let notice: string | undefined;
+  try {
+    let recipientId = postAuthorId;
+    if (!recipientId) {
+      const { data } = await supabase.from("posts").select("user_id").eq("id", postId).maybeSingle();
+      recipientId = (data?.user_id as string | undefined) ?? null;
+    }
+    const notifyAuthor =
+      recipientId !== null &&
+      recipientId !== authorId &&
+      (await allowNotice(supabase, authorId, recipientId));
+    if (notifyAuthor && recipientId) {
+      const { error: noteError } = await supabase.from("notifications").insert({
+        recipient_id: recipientId,
+        actor_id: authorId,
+        kind: "comment",
+        post_id: postId,
+        preview: previewText(text),
+      });
+      if (noteError && !missingTable(noteError)) notice = noteError.message;
+    }
+    await notifyReplyMentions(supabase, {
+      actorId: authorId,
+      postId,
+      body: text,
+      skipRecipientId: notifyAuthor ? recipientId : null,
+    });
+  } catch {
+    // The reply is already saved. A notification failure must not fail it.
   }
-  if (!recipientId || recipientId === authorId) return {};
-  if (!(await allowNotice(supabase, authorId, recipientId))) return {};
-
-  const { error: noteError } = await supabase.from("notifications").insert({
-    recipient_id: recipientId,
-    actor_id: authorId,
-    kind: "comment",
-    post_id: postId,
-    preview: previewText(text),
-  });
-  if (noteError && !missingTable(noteError)) return { notice: noteError.message };
-  return {};
+  return notice ? { notice } : {};
 }
 
 export async function remoteSyncLikeNotification(
