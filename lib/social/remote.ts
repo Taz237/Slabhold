@@ -91,6 +91,7 @@ type NotificationRow = {
   post_id: string | null;
   preview: string | null;
   href?: string | null;
+  metadata?: Record<string, unknown> | null;
   read: boolean;
   created_at: string;
 };
@@ -130,6 +131,9 @@ function previewText(value: string) {
   if (!text) return null;
   return text.length > 80 ? `${text.slice(0, 77)}…` : text;
 }
+
+/** Shown when a social table or constraint is missing. */
+const SETUP_FAILED = "Something went wrong on our side. Please try again.";
 
 function missingTable(error: { code?: string; message?: string } | null) {
   if (!error) return false;
@@ -365,6 +369,7 @@ export async function loadSupabaseSocial(supabase: SupabaseClient): Promise<Soci
       postId: row.post_id,
       preview: row.preview,
       href: row.href ?? null,
+      metadata: row.metadata ?? null,
       createdAt: row.created_at,
       read: row.read,
     }),
@@ -592,7 +597,7 @@ export async function remoteToggleRepost(
       .eq("post_id", input.postId);
     if (error) {
       if (missingTable(error)) {
-        return { error: "Reposts are not set up yet. Run supabase/schema.sql in the Supabase SQL editor." };
+        return { error: SETUP_FAILED };
       }
       return { error: error.message };
     }
@@ -614,7 +619,7 @@ export async function remoteToggleRepost(
   });
   if (error) {
     if (missingTable(error)) {
-      return { error: "Reposts are not set up yet. Run supabase/schema.sql in the Supabase SQL editor." };
+      return { error: SETUP_FAILED };
     }
     if (error.code === "23505") return {};
     return { error: rlsBlocked(error) ? BLOCKED_INTERACTION : error.message };
@@ -658,7 +663,7 @@ export async function remoteAddComment(
   });
   if (error) {
     if (missingTable(error)) {
-      return { error: "Comments are not set up yet. Run supabase/schema.sql in the Supabase SQL editor." };
+      return { error: SETUP_FAILED };
     }
     return { error: rlsBlocked(error) ? BLOCKED_INTERACTION : error.message };
   }
@@ -748,7 +753,7 @@ export async function remoteSendMessage(
   });
   if (error) {
     if (missingTable(error)) {
-      return { error: "Messages are not set up yet. Run supabase/schema.sql in the Supabase SQL editor." };
+      return { error: SETUP_FAILED };
     }
     return { error: rlsBlocked(error) ? BLOCKED_INTERACTION : error.message };
   }
@@ -953,7 +958,7 @@ export async function syncMentionNotifications(
   );
   if (!error || error.code === "23505" || missingTable(error)) return null;
   if (error.code === "23514" || /notifications_kind/i.test(error.message ?? "")) {
-    return "Your post was saved. Re-run supabase/schema.sql so mention notifications can be delivered.";
+    return SETUP_FAILED;
   }
   return error.message;
 }
@@ -1003,6 +1008,51 @@ export async function remoteDeletePost(supabase: SupabaseClient, authorId: strin
   return {};
 }
 
+/**
+ * Notifications have no comment id. After the reply is gone, drop only the
+ * deleter's own comment notice and reply-mention notices (metadata.source =
+ * reply) on that post whose preview is this reply.
+ *
+ * "Delete notifications you sent" (auth.uid() = actor_id) already allows this.
+ * Migrations never drop it. A rejected cleanup, including RLS, is ignored so
+ * the reply stays deleted.
+ */
+async function deleteOwnReplyPreviewNotifications(
+  supabase: SupabaseClient,
+  actorId: string,
+  postId: string,
+  body: string,
+) {
+  const preview = previewText(body);
+  if (!preview) return;
+  const run = async (query: PromiseLike<unknown>) => {
+    try {
+      await query;
+    } catch {
+      // The reply is already deleted.
+    }
+  };
+  await run(
+    supabase
+      .from("notifications")
+      .delete()
+      .eq("actor_id", actorId)
+      .eq("post_id", postId)
+      .eq("kind", "comment")
+      .eq("preview", preview),
+  );
+  await run(
+    supabase
+      .from("notifications")
+      .delete()
+      .eq("actor_id", actorId)
+      .eq("post_id", postId)
+      .eq("kind", "mention")
+      .eq("metadata->>source", "reply")
+      .eq("preview", preview),
+  );
+}
+
 export async function remoteDeleteComment(
   supabase: SupabaseClient,
   authorId: string,
@@ -1013,7 +1063,7 @@ export async function remoteDeleteComment(
     .delete()
     .eq("id", commentId)
     .eq("user_id", authorId)
-    .select("id");
+    .select("id, post_id, body");
   if (error) {
     return {
       error: rlsBlocked(error) ? "You can only delete your own replies." : error.message,
@@ -1022,6 +1072,15 @@ export async function remoteDeleteComment(
   // PostgREST returns zero rows, not an error, when RLS hides the delete.
   if (!Array.isArray(data) || data.length === 0) {
     return { error: "Could not delete that reply." };
+  }
+  const deleted = data[0] as { id: string; post_id?: string | null; body?: string | null };
+  if (deleted.post_id) {
+    await deleteOwnReplyPreviewNotifications(
+      supabase,
+      authorId,
+      deleted.post_id,
+      deleted.body ?? "",
+    );
   }
   return {};
 }

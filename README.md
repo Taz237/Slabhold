@@ -31,7 +31,7 @@ The app reads these variables from `.env.local`:
 - `SUPABASE_SERVICE_ROLE_KEY` — required for `sold_comps_cache` writes under RLS
 
 1. Copy `.env.example` to `.env.local` and paste the values in full.
-2. Run `supabase/schema.sql` in the Supabase SQL editor, then the latest file under `supabase/migrations/` (sold comps cache + comp flags).
+2. Apply the files in `supabase/migrations/` in filename order. Do not run `supabase/schema.sql`. That file is deprecated, and running it would undo later safety rules. `supabase/migrations` is the source of truth.
 3. Restart `npm run dev`.
 
 Sign up and log in then use Supabase Auth. Profile photos and cover photos upload to Storage, and the profile row stores those URLs. Posts are written to `posts`. Reposts are written to `reposts`. The Timeline **Following** tab shows posts and reposts from you and people you follow.
