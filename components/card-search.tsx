@@ -4,7 +4,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { Loader2, Search, X } from "lucide-react";
 import {
   catalogLabel,
-  searchCatalog,
+  resolveCatalogSearch,
   type CatalogCard,
 } from "@/lib/card-catalog";
 import { parseManualPrefill } from "@/lib/card-search-query";
@@ -103,10 +103,10 @@ export function CardSearch({
       try {
         const remote = await searchRemote(q, controller.signal);
         if (controller.signal.aborted || id !== requestId.current) return;
-        setResults(remote ?? searchCatalog(q, 20));
+        setResults(resolveCatalogSearch(q, remote, 20));
       } catch {
         if (controller.signal.aborted || id !== requestId.current) return;
-        setResults(searchCatalog(q, 20));
+        setResults(resolveCatalogSearch(q, null, 20));
       } finally {
         if (id === requestId.current) setLoading(false);
       }

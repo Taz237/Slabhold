@@ -76,6 +76,8 @@ function isCardNumberToken(token: string): string | null {
   const m = token.match(CARD_NUMBER_RE);
   if (!m) return null;
   const num = m[1]!.toUpperCase();
+  // Hyphenated names (ant-man, gilgeous-alexander) are not card numbers.
+  if (!/\d/.test(num)) return null;
   // Plain 2-digit tokens are years like 24 in 24-25, not card numbers — handled elsewhere
   if (/^\d{4}$/.test(num)) return null;
   if (/^\d{1,2}$/.test(num) && Number(num) > 99) return null;
@@ -249,57 +251,179 @@ export function buildSearchText(card: {
   );
 }
 
-const SCORE_THRESHOLD = 0.22;
+const PARTIAL_PREFIX_MIN = 3;
+/**
+ * A prefix has to be a stem ("wemb" → Wembanyama), not a different full name
+ * that happens to be a prefix ("williams" vs "williamson" is 8/11).
+ */
+const PARTIAL_PREFIX_MAX_RATIO = 0.7;
+const TYPO_MIN_LENGTH = 4;
+const TYPO_MAX_LENGTH_DELTA = 2;
+const TYPO_MIN_SIMILARITY = 0.75;
 
-export function scoreCard(
+type WordHit = "exact" | "partial";
+
+type FieldHits = {
+  playerHits: number;
+  yearHits: number;
+  setHits: number;
+  numberHits: number;
+  playerExact: number;
+};
+
+/** "c" + "j" + "stroud" also matches the typed token "cj". */
+function collapseInitials(words: string[]): string[] {
+  const out: string[] = [];
+  let buf = "";
+  for (const word of words) {
+    if (word.length === 1) {
+      buf += word;
+      continue;
+    }
+    if (buf) {
+      out.push(buf);
+      buf = "";
+    }
+    out.push(word);
+  }
+  if (buf) out.push(buf);
+  return out;
+}
+
+function wordHit(token: string, word: string): WordHit | null {
+  if (!token || !word) return null;
+  if (token === word) return "exact";
+  if (
+    token.length >= PARTIAL_PREFIX_MIN &&
+    word.startsWith(token) &&
+    token.length / word.length <= PARTIAL_PREFIX_MAX_RATIO
+  ) {
+    return "partial";
+  }
+  if (
+    token.length >= TYPO_MIN_LENGTH &&
+    Math.abs(word.length - token.length) <= TYPO_MAX_LENGTH_DELTA &&
+    bigramSimilarity(token, word) >= TYPO_MIN_SIMILARITY
+  ) {
+    return "partial";
+  }
+  return null;
+}
+
+function bestWordHit(token: string, words: string[]): WordHit | null {
+  let partial = false;
+  for (const word of words) {
+    const hit = wordHit(token, word);
+    if (hit === "exact") return "exact";
+    if (hit === "partial") partial = true;
+  }
+  return partial ? "partial" : null;
+}
+
+function playerHit(token: string, player: string): WordHit | null {
+  const words = normalizeSearchText(player).split(" ").filter(Boolean);
+  if (words.includes(token) || collapseInitials(words).includes(token)) {
+    return "exact";
+  }
+  let partial = false;
+  for (const word of words) {
+    if (wordHit(token, word) === "partial") partial = true;
+  }
+  return partial ? "partial" : null;
+}
+
+/** 2 = exact year label, 1 = same starting year (2023 matches 2023-24). */
+function yearHit(token: string, yearLabel: string): number {
+  const year = parseYearToken(token);
+  if (!year) return 0;
+  const label = normalizeSearchText(yearLabel);
+  if (!label) return 0;
+  if (label === year) return 2;
+  if (label.slice(0, 4) === year.slice(0, 4)) return 1;
+  return 0;
+}
+
+function setHit(token: string, setName: string): boolean {
+  const full = normalizeSearchText(setName);
+  if (!full) return false;
+  if (token === full) return true;
+  const parts = full.split(/[\s-]+/).filter(Boolean);
+  return bestWordHit(token, parts) != null;
+}
+
+function numberHit(token: string, cardNumber: string): boolean {
+  const want = isCardNumberToken(token);
+  if (!want) return false;
+  return normalizeSearchText(cardNumber) === normalizeSearchText(want);
+}
+
+/** Every token must match player, then year, then set, then card number. */
+export function matchQueryTokens(
   card: SearchableCard,
-  parsed: ParsedCardQuery,
+  tokens: string[],
+): FieldHits | null {
+  if (!tokens.length) return null;
+  const hits: FieldHits = {
+    playerHits: 0,
+    yearHits: 0,
+    setHits: 0,
+    numberHits: 0,
+    playerExact: 0,
+  };
+  for (const token of tokens) {
+    const player = playerHit(token, card.player);
+    if (player) {
+      hits.playerHits += 1;
+      if (player === "exact") hits.playerExact += 1;
+      continue;
+    }
+    const year = yearHit(token, card.yearLabel);
+    if (year) {
+      hits.yearHits += year;
+      continue;
+    }
+    if (setHit(token, card.setName)) {
+      hits.setHits += 1;
+      continue;
+    }
+    if (numberHit(token, card.cardNumber)) {
+      hits.numberHits += 1;
+      continue;
+    }
+    return null;
+  }
+  return hits;
+}
+
+export function tokensToMatch(parsed: ParsedCardQuery): string[] {
+  const tokens = [...parsed.playerWords];
+  if (parsed.yearLabel) tokens.push(parsed.yearLabel);
+  tokens.push(...parsed.setWords);
+  if (parsed.cardNumber) tokens.push(normalizeSearchText(parsed.cardNumber));
+  return tokens.filter(Boolean);
+}
+
+function compareHits(
+  a: FieldHits & { card: SearchableCard },
+  b: FieldHits & { card: SearchableCard },
 ): number {
-  const hay = card.searchText;
-  const playerNorm = normalizeSearchText(card.player);
-  const query = parsed.expandedQuery;
-
-  let score =
-    bigramSimilarity(hay, query) * 0.65 +
-    bigramSimilarity(playerNorm, parsed.playerWords.join(" ") || query) * 0.45;
-
-  if (parsed.cardNumber) {
-    const cn = normalizeSearchText(card.cardNumber);
-    const want = normalizeSearchText(parsed.cardNumber);
-    if (cn === want) score += 2.2;
-    else if (cn.includes(want) || want.includes(cn)) score += 0.4;
-  }
-
-  if (parsed.yearLabel) {
-    const yl = normalizeSearchText(card.yearLabel);
-    const want = normalizeSearchText(parsed.yearLabel);
-    if (yl === want || yl.startsWith(want.slice(0, 4)) || want.startsWith(yl.slice(0, 4))) {
-      score += 1.1;
-    }
-  }
-
-  if (parsed.setWords.length) {
-    const setNorm = normalizeSearchText(card.setName);
-    const hits = parsed.setWords.filter((w) => setNorm.includes(w)).length;
-    if (hits > 0) score += 0.9 * hits;
-  }
-
-  // Soft gate: every expanded player token should be roughly present
-  if (parsed.playerWords.length) {
-    const playerHits = parsed.playerWords.filter(
-      (t) =>
-        playerNorm.includes(t) ||
-        bigramSimilarity(playerNorm, t) >= 0.45 ||
-        [...playerNorm.split(" ")].some((pw) => bigramSimilarity(pw, t) >= 0.55),
-    ).length;
-    if (playerHits === 0 && !parsed.cardNumber && !parsed.setWords.length) {
-      score *= 0.15;
-    } else {
-      score += 0.25 * (playerHits / parsed.playerWords.length);
-    }
-  }
-
-  return score;
+  if (b.playerHits !== a.playerHits) return b.playerHits - a.playerHits;
+  if (b.yearHits !== a.yearHits) return b.yearHits - a.yearHits;
+  if (b.setHits !== a.setHits) return b.setHits - a.setHits;
+  if (b.numberHits !== a.numberHits) return b.numberHits - a.numberHits;
+  if (b.playerExact !== a.playerExact) return b.playerExact - a.playerExact;
+  const aBase = a.card.parallel.toLowerCase() === "base" ? 1 : 0;
+  const bBase = b.card.parallel.toLowerCase() === "base" ? 1 : 0;
+  if (bBase !== aBase) return bBase - aBase;
+  const byPlayer = a.card.player.localeCompare(b.card.player);
+  if (byPlayer) return byPlayer;
+  const byYear = a.card.yearLabel.localeCompare(b.card.yearLabel);
+  if (byYear) return byYear;
+  const bySet = a.card.setName.localeCompare(b.card.setName);
+  if (bySet) return bySet;
+  return a.card.cardNumber.localeCompare(b.card.cardNumber, undefined, {
+    numeric: true,
+  });
 }
 
 export function searchCardsLocal(
@@ -308,48 +432,21 @@ export function searchCardsLocal(
   maxResults = 20,
 ): SearchableCard[] {
   const q = query.trim();
-  if (!q) return [];
+  if (!q || q.length > 100) return [];
   const parsed = parseCardQuery(q);
-  if (!parsed.normalized || parsed.normalized.length < 1) return [];
-
-  // Junk / noise: very short gibberish with no structure and weak coverage
-  if (
-    !parsed.cardNumber &&
-    !parsed.yearLabel &&
-    parsed.setWords.length === 0 &&
-    parsed.playerWords.length === 1 &&
-    parsed.playerWords[0]!.length <= 5 &&
-    !PLAYER_ALIASES[parsed.tokens[0] ?? ""]
-  ) {
-    // still allow short aliases; fall through for fuzzy
-  }
-
-  const wantNum = parsed.cardNumber
-    ? normalizeSearchText(parsed.cardNumber)
-    : null;
+  if (!parsed.normalized) return [];
+  const tokens = tokensToMatch(parsed);
+  if (!tokens.length) return [];
 
   const ranked = cards
-    .map((card) => ({ card, score: scoreCard(card, parsed) }))
-    .filter((row) => row.score >= SCORE_THRESHOLD)
-    .sort((a, b) => {
-      if (wantNum) {
-        const aNum =
-          normalizeSearchText(a.card.cardNumber) === wantNum ? 1 : 0;
-        const bNum =
-          normalizeSearchText(b.card.cardNumber) === wantNum ? 1 : 0;
-        if (bNum !== aNum) return bNum - aNum;
-      }
-      const aBase = a.card.parallel.toLowerCase() === "base" ? 1 : 0;
-      const bBase = b.card.parallel.toLowerCase() === "base" ? 1 : 0;
-      if (bBase !== aBase) return bBase - aBase;
-      if (b.score !== a.score) return b.score - a.score;
-      return a.card.player.localeCompare(b.card.player);
-    });
+    .map((card) => {
+      const hits = matchQueryTokens(card, tokens);
+      return hits ? { card, ...hits } : null;
+    })
+    .filter((row): row is FieldHits & { card: SearchableCard } => row != null)
+    .sort(compareHits);
 
-  // Extra junk filter: max score still weak
-  if (!ranked.length || ranked[0]!.score < SCORE_THRESHOLD) return [];
-
-  return ranked.slice(0, maxResults).map((r) => r.card);
+  return ranked.slice(0, Math.max(1, Math.min(maxResults, 50))).map((row) => row.card);
 }
 
 export function formatCatalogResultLabel(card: {

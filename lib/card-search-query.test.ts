@@ -1,11 +1,18 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { searchCatalog } from "@/lib/card-catalog";
 import {
+  CARD_CATALOG,
+  resolveCatalogSearch,
+  searchCatalog,
+} from "@/lib/card-catalog";
+import {
+  buildSearchText,
   expandAliasTokens,
   normalizeSearchText,
   parseCardQuery,
   parseManualPrefill,
+  searchCardsLocal,
+  type SearchableCard,
 } from "@/lib/card-search-query";
 
 describe("normalizeSearchText", () => {
@@ -138,6 +145,10 @@ describe("searchCatalog ranking", () => {
     const ant = searchCatalog("Ant");
     assert.ok(ant.length > 0);
     assert.equal(ant[0]!.playerName, "Anthony Edwards");
+
+    const antMan = searchCatalog("ant-man");
+    assert.ok(antMan.length > 0);
+    assert.equal(antMan[0]!.playerName, "Anthony Edwards");
   });
 
   it("cc does not match Messi", () => {
@@ -149,5 +160,201 @@ describe("searchCatalog ranking", () => {
 
   it("zzqxv returns nothing", () => {
     assert.deepEqual(searchCatalog("zzqxv"), []);
+  });
+
+  it("puts the player match ahead of the same year and set", () => {
+    const hits = searchCatalog("Wembanyama 2023 Prizm");
+    assert.ok(hits.length > 0);
+    assert.equal(hits[0]!.playerName, "Victor Wembanyama");
+    assert.equal(hits[0]!.yearLabel, "2023-24");
+    assert.equal(hits[0]!.setBrand, "Panini Prizm");
+    assert.equal(hits[0]!.cardNumber, "136");
+    assert.equal(hits[0]!.parallel, "Base");
+    assert.ok(
+      hits.every(
+        (hit) =>
+          hit.playerName === "Victor Wembanyama" &&
+          hit.setBrand === "Panini Prizm" &&
+          hit.yearLabel.startsWith("2023"),
+      ),
+    );
+    assert.ok(hits.every((hit) => hit.playerName !== "C.J. Stroud"));
+  });
+
+  it("matches partial, case, and accent-insensitive player words", () => {
+    for (const query of ["wemb", "WEMB", "wemba", "Wembanyama"]) {
+      const hits = searchCatalog(query);
+      assert.ok(hits.length > 0, query);
+      assert.ok(
+        hits.every((hit) => hit.playerName === "Victor Wembanyama"),
+        query,
+      );
+    }
+
+    const dart = searchCatalog("JAXSON dart");
+    assert.equal(dart[0]!.playerName, "Jaxson Dart");
+
+    const accent = searchCatalog("Dončić");
+    assert.equal(accent[0]!.playerName, "Luka Dončić");
+  });
+
+  it("finds Jaxson Dart 2025 Panini Prizm #332 and ignores other Prizm players", () => {
+    for (const query of ["Jaxson Dart", "Dart 2025 Prizm", "dart prizm 332"]) {
+      const hits = searchCatalog(query);
+      assert.ok(hits.length > 0, query);
+      assert.ok(
+        hits.every((hit) => hit.playerName === "Jaxson Dart"),
+        query,
+      );
+      assert.equal(hits[0]!.yearLabel, "2025", query);
+      assert.equal(hits[0]!.setBrand, "Panini Prizm", query);
+      assert.equal(hits[0]!.cardNumber, "332", query);
+      assert.equal(hits[0]!.parallel, "Base", query);
+      assert.equal(hits[0]!.sport, "Football", query);
+    }
+  });
+
+  it("requires every word to match and ranks year ahead of set ahead of number", () => {
+    assert.deepEqual(searchCatalog("Wembanyama Stroud"), []);
+    assert.deepEqual(searchCatalog("Wembanyama Hoops Prizm"), []);
+
+    const ohtani = searchCatalog("Ohtani 2018");
+    assert.ok(ohtani.length > 0);
+    assert.ok(ohtani.every((hit) => hit.playerName === "Shohei Ohtani"));
+    assert.ok(ohtani.every((hit) => hit.yearLabel.startsWith("2018")));
+
+    const season = searchCatalog("2023-24");
+    const firstCalendarYear = season.findIndex((hit) => hit.yearLabel === "2023");
+    const lastSeason = season.reduce(
+      (last, hit, index) => (hit.yearLabel === "2023-24" ? index : last),
+      -1,
+    );
+    assert.ok(lastSeason >= 0);
+    if (firstCalendarYear >= 0) {
+      assert.ok(lastSeason < firstCalendarYear);
+    }
+
+    const byPlayer = searchCardsLocal("Victor Wembanyama 2023 Prizm", [
+      asSearchable({
+        id: "set",
+        player: "Victor",
+        yearLabel: "2023-24",
+        setName: "Wembanyama Prizm",
+        cardNumber: "1",
+      }),
+      asSearchable({
+        id: "real",
+        player: "Victor Wembanyama",
+        yearLabel: "2023-24",
+        setName: "Panini Prizm",
+        cardNumber: "136",
+      }),
+    ]);
+    assert.equal(byPlayer[0]?.id, "real");
+
+    const byYear = searchCardsLocal("A Player 2023", [
+      asSearchable({
+        id: "set-year-token",
+        player: "A Player",
+        yearLabel: "1999",
+        setName: "2023 Prizm",
+        cardNumber: "2",
+      }),
+      asSearchable({
+        id: "year",
+        player: "A Player",
+        yearLabel: "2023",
+        setName: "Hoops",
+        cardNumber: "1",
+      }),
+    ]);
+    assert.equal(byYear[0]?.id, "year");
+
+    const bySet = searchCardsLocal("A Player 99", [
+      asSearchable({
+        id: "num-99",
+        player: "A Player",
+        yearLabel: "1999",
+        setName: "Hoops",
+        cardNumber: "99",
+      }),
+      asSearchable({
+        id: "set-99",
+        player: "A Player",
+        yearLabel: "1999",
+        setName: "99",
+        cardNumber: "1",
+      }),
+    ]);
+    assert.deepEqual(
+      bySet.map((hit) => hit.id),
+      ["set-99", "num-99"],
+    );
+  });
+});
+
+function asSearchable(card: {
+  id: string;
+  player: string;
+  yearLabel: string;
+  setName: string;
+  cardNumber: string;
+}): SearchableCard {
+  return {
+    ...card,
+    parallel: "Base",
+    sport: "Basketball",
+    searchText: buildSearchText(card),
+  };
+}
+
+describe("resolveCatalogSearch before and after the migration", () => {
+  it("re-ranks a loose remote list so the player match comes first", () => {
+    const stroud = CARD_CATALOG.find(
+      (card) => card.playerName === "C.J. Stroud" && card.parallel === "Base",
+    );
+    const select = CARD_CATALOG.find(
+      (card) =>
+        card.playerName === "Victor Wembanyama" && card.setBrand === "Panini Select",
+    );
+    const prizm = CARD_CATALOG.find(
+      (card) =>
+        card.playerName === "Victor Wembanyama" &&
+        card.setBrand === "Panini Prizm" &&
+        card.parallel === "Base",
+    );
+    assert.ok(stroud && select && prizm);
+
+    const ranked = resolveCatalogSearch("Wembanyama 2023 Prizm", [
+      stroud,
+      select,
+      prizm,
+    ]);
+    assert.equal(ranked[0]?.id, prizm.id);
+    assert.ok(ranked.every((card) => card.setBrand === "Panini Prizm"));
+    assert.ok(ranked.every((card) => card.playerName === "Victor Wembanyama"));
+  });
+
+  it("uses the local catalog when the remote list has no real match", () => {
+    const beforeMigration = resolveCatalogSearch("Jaxson Dart", []);
+    assert.equal(beforeMigration[0]?.playerName, "Jaxson Dart");
+    assert.equal(beforeMigration[0]?.cardNumber, "332");
+
+    const tatum = CARD_CATALOG.filter((card) => card.playerName === "Jayson Tatum");
+    const ignored = resolveCatalogSearch("Jaxson Dart", tatum);
+    assert.equal(ignored[0]?.playerName, "Jaxson Dart");
+
+    const dart = CARD_CATALOG.find((card) => card.playerName === "Jaxson Dart");
+    assert.ok(dart);
+    const afterMigration = resolveCatalogSearch("Jaxson Dart", [dart]);
+    assert.deepEqual(
+      afterMigration.map((card) => card.id),
+      [dart.id],
+    );
+  });
+
+  it("keeps a genuine miss empty", () => {
+    assert.deepEqual(resolveCatalogSearch("zzqxv", []), []);
+    assert.deepEqual(resolveCatalogSearch("zzqxv", null), []);
   });
 });

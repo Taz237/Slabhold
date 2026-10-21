@@ -1,3 +1,5 @@
+// Rewrites the already-shipped 20261016210000 migration. Do not run it for new
+// search changes; add a new file under supabase/migrations instead.
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { catalogSeedRows } from "../lib/card-catalog";
@@ -31,7 +33,7 @@ as $$
         regexp_replace(
           extensions.unaccent(coalesce(t, '')),
           '([a-zA-Z0-9])-([a-zA-Z0-9])',
-          E'\\1' || chr(1) || E'\\2',
+          '\\1' || chr(1) || '\\2',
           'g'
         ),
         '[^a-zA-Z0-9[:space:]' || chr(1) || ']+',
