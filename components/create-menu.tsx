@@ -85,11 +85,15 @@ function CreateMenuLinks({
   mailHref: string;
   onPick: () => void;
 }) {
-  const item = "block px-4 py-2.5 text-left text-[15px] font-bold hover:bg-zinc-100 dark:hover:bg-white/10";
+  const item =
+    "block min-h-11 px-4 py-2.5 text-left text-[15px] font-bold hover:bg-zinc-100 focus-visible:ring-2 focus-visible:ring-violet-600 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)] focus-visible:outline-none dark:hover:bg-white/10";
   return (
     <>
       <Link href={postHref} role="menuitem" onClick={onPick} className={item}>
         Post
+      </Link>
+      <Link href="/cards/new" role="menuitem" onClick={onPick} className={item}>
+        Add a card
       </Link>
       <Link href={mailHref} role="menuitem" onClick={onPick} className={item}>
         Mail Day

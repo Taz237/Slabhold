@@ -11,12 +11,10 @@ import { useSocial } from "@/components/social-provider";
 import { takeScan } from "@/lib/capture";
 import type { CatalogCard } from "@/lib/card-catalog";
 import {
-  GRADE_COMPANIES,
   GRADE_NUMBERS,
   GRADE_QUALIFIERS,
   SETS,
   SPORTS,
-  formatGrade,
   isValidCardNumber,
   isValidYear,
   normalizeCardNumberInput,
@@ -25,6 +23,12 @@ import {
   parseYearLabel,
   yearOptionsForSport,
 } from "@/lib/card-options";
+import {
+  applyGradingCompany,
+  gradingCompanyFromCard,
+  gradingCompanyOptions,
+  isRawGradingCompany,
+} from "@/lib/cards/grading-company";
 import { parallelAfterSetChange, parallelIsListed, parallelsForSet } from "@/lib/cards/parallels";
 import { buildCompsQuery } from "@/lib/comps/match";
 import { identifyFromPhoto } from "@/lib/comps/sample";
@@ -36,7 +40,6 @@ import { claimSubmit, isSaveTimeout, SAVE_TIMEOUT_MESSAGE, SaveTimeoutError } fr
 import { fileToDataUrl } from "@/lib/storage";
 import type {
   CardCategory,
-  ConditionType,
   IdentifyResult,
   SportsCard,
 } from "@/lib/types";
@@ -89,18 +92,15 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
   const [identified, setIdentified] = useState<IdentifyResult | null>(null);
 
   const initialGrade = parseGrade(existing?.grade ?? "");
-  const initialCondition: ConditionType =
-    existing?.conditionType ??
-    (initialGrade.company && initialGrade.company !== "Raw"
-      ? "graded"
-      : "raw");
+  const initialCompany = gradingCompanyFromCard({
+    grade: existing?.grade ?? "",
+    conditionType: existing?.conditionType,
+  });
 
-  const [conditionType, setConditionType] =
-    useState<ConditionType>(initialCondition);
-  const [gradeCompany, setGradeCompany] = useState(
-    initialCondition === "graded" ? initialGrade.company || "PSA" : "PSA",
+  const [gradeCompany, setGradeCompany] = useState(initialCompany);
+  const [gradeNumber, setGradeNumber] = useState(
+    isRawGradingCompany(initialCompany) ? "" : initialGrade.number,
   );
-  const [gradeNumber, setGradeNumber] = useState(initialGrade.number);
   const [gradeQualifier, setGradeQualifier] = useState(
     existing?.gradeQualifier ?? "",
   );
@@ -139,6 +139,12 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
     notes: existing?.notes ?? "",
   });
 
+  const grading = applyGradingCompany({
+    company: gradeCompany,
+    gradeNumber,
+  });
+  const conditionType = grading.conditionType;
+  const graded = conditionType === "graded";
   const gradeChoices = GRADE_NUMBERS[gradeCompany] ?? GRADE_NUMBERS.Other;
   const yearOptions = yearOptionsForSport(form.sport);
 
@@ -148,9 +154,7 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
   const setOk = Boolean(form.setBrand.trim());
   const playerOk = Boolean(form.playerName.trim());
   const yearOk = Boolean(parsedYear);
-  const gradeOk =
-    conditionType === "raw" ||
-    (Boolean(gradeCompany) && Boolean(gradeNumber));
+  const gradeOk = !graded || Boolean(gradeNumber);
   const purchaseNeg = negativePrice(form.purchasePrice);
   const estNeg = negativePrice(form.estimatedSellPrice);
   const sellNeg = sold && negativePrice(form.sellPrice);
@@ -167,10 +171,6 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
     (!sold || (Boolean(form.sellPrice) && Boolean(form.sellDate) && !sellNeg));
 
   const preview = useMemo(() => {
-    const grade =
-      conditionType === "raw"
-        ? "Raw"
-        : formatGrade(gradeCompany, gradeNumber);
     return buildCompsQuery({
       playerName: form.playerName.trim() || "Player",
       year: parsedYear?.year ?? 0,
@@ -185,7 +185,7 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
       isAuto,
       isRelic,
       conditionType,
-      grade,
+      grade: grading.grade,
       gradeQualifier: gradeQualifier || null,
       isRookie,
     });
@@ -201,8 +201,7 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
     isRelic,
     isRookie,
     conditionType,
-    gradeCompany,
-    gradeNumber,
+    grading.grade,
     gradeQualifier,
   ]);
 
@@ -305,8 +304,13 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
 
   function chooseGradeCompany(company: string) {
     setGradeCompany(company);
+    markTouched("grade");
+    if (isRawGradingCompany(company)) {
+      setGradeNumber("");
+      return;
+    }
     setGradeNumber((current) => {
-      const allowed = GRADE_NUMBERS[company] ?? [];
+      const allowed = GRADE_NUMBERS[company] ?? GRADE_NUMBERS.Other;
       return allowed.includes(current) ? current : "";
     });
   }
@@ -332,10 +336,7 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
       return;
     }
 
-    const grade =
-      conditionType === "raw"
-        ? "Raw"
-        : formatGrade(gradeCompany, gradeNumber);
+    const grade = grading.grade;
 
     const payload = {
       playerName: form.playerName.trim(),
@@ -738,66 +739,34 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
         />
       </div>
 
-      <div>
-        <p className="mb-1.5 text-sm text-zinc-500">
-          Condition <span className="text-rose-500">*</span>
-        </p>
-        <div className="grid grid-cols-2 gap-2">
-          {(["raw", "graded"] as const).map((type) => (
-            <button
-              key={type}
-              type="button"
-              onClick={() => setConditionType(type)}
-              className={`rounded-xl border px-3 py-2.5 text-sm font-medium capitalize ${
-                conditionType === type
-                  ? "border-zinc-900 bg-zinc-900 text-white dark:border-zinc-100 dark:bg-zinc-100 dark:text-zinc-950"
-                  : "border-zinc-200 bg-white text-zinc-700 dark:border-white/10 dark:bg-white/[0.03] dark:text-zinc-200"
-              }`}
-            >
-              {type}
-            </button>
-          ))}
-        </div>
-      </div>
+      <Field label="Grading company">
+        <NativeSelect
+          label="Grading company"
+          value={gradeCompany}
+          options={gradingCompanyOptions(gradeCompany)}
+          onChange={chooseGradeCompany}
+        />
+      </Field>
 
-      {conditionType === "graded" ? (
+      {graded ? (
         <div className="space-y-3">
-          <div className="grid grid-cols-2 gap-3">
-            <Field
-              label="Grader"
-              required
-              error={
-                touched.grade && !gradeCompany ? "Choose a grader" : null
-              }
-            >
-              <NativeSelect
-                label="Grader"
-                value={gradeCompany}
-                options={GRADE_COMPANIES}
-                dataField="grade"
-                onChange={chooseGradeCompany}
-              />
-            </Field>
-            <Field
+          <Field
+            label="Grade"
+            required
+            error={touched.grade && !gradeNumber ? "Choose a grade" : null}
+          >
+            <NativeSelect
               label="Grade"
-              required
-              error={
-                touched.grade && !gradeNumber ? "Choose a grade" : null
-              }
-            >
-              <NativeSelect
-                label="Grade"
-                value={gradeNumber}
-                options={gradeChoices}
-                placeholder="Select"
-                dataField="grade"
-                onChange={(number) => {
-                  markTouched("grade");
-                  setGradeNumber(number);
-                }}
-              />
-            </Field>
-          </div>
+              value={gradeNumber}
+              options={gradeChoices}
+              placeholder="Select"
+              dataField="grade"
+              onChange={(number) => {
+                markTouched("grade");
+                setGradeNumber(number);
+              }}
+            />
+          </Field>
           <div className="grid grid-cols-2 gap-3">
             <Field label="Cert #">
               <input

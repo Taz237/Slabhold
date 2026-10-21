@@ -19,6 +19,7 @@ import { ValueChart } from "@/components/value-chart";
 import { useSocial } from "@/components/social-provider";
 import { loginPath } from "@/lib/auth/safe-next";
 import { cardCategory } from "@/lib/card-category";
+import { gradeDetailSpecs } from "@/lib/cards/grading-company";
 import { basedOnSalesLabel, countForSalesLabel, valueFromShownSales } from "@/lib/comps/shared-value";
 import { soldNotice } from "@/lib/comps/sold-response";
 import { useSoldComps } from "@/lib/comps/use-sold-comps";
@@ -531,14 +532,20 @@ function EstSellMetric({
 function CardSpecs({
   card,
 }: {
-  card: { cardNumber: string; grade: string; parallel: string };
+  card: {
+    cardNumber: string;
+    grade: string;
+    parallel: string;
+    conditionType: string;
+    certNumber: string;
+  };
 }) {
   const specs = [
     card.cardNumber.trim() && card.cardNumber.trim() !== "—"
       ? { label: "No.", value: `#${card.cardNumber.trim()}` }
       : null,
     card.parallel.trim() ? { label: "Parallel", value: card.parallel.trim() } : null,
-    card.grade.trim() ? { label: "Grade", value: card.grade.trim() } : null,
+    ...gradeDetailSpecs(card),
   ].filter((spec): spec is { label: string; value: string } => Boolean(spec));
   if (!specs.length) return null;
   return (
