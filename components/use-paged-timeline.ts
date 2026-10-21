@@ -32,7 +32,9 @@ export function usePagedTimeline(input: {
   profileId?: string;
   viewerId: string | null;
   refreshKey: number;
-  headToken?: string;
+  /** Changing either list reloads page 1 so a new block or mute leaves the feed. */
+  blockedIds?: readonly string[];
+  mutedIds?: readonly string[];
   rememberPosts?: (posts: Post[], profiles?: Profile[]) => void;
 }) {
   const authorKey = input.authorIds?.join(",") ?? "";
@@ -43,7 +45,8 @@ export function usePagedTimeline(input: {
     authorKey,
     input.viewerId ?? "",
     String(input.refreshKey),
-    input.headToken ?? "",
+    (input.blockedIds ?? []).join(","),
+    (input.mutedIds ?? []).join(","),
   ].join("|");
 
   const [page, setPage] = useState<PageState>(idle);

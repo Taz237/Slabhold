@@ -5,17 +5,20 @@ import { useEffect, useRef } from "react";
 export function LoadMore({
   hasMore,
   loading,
+  failed = false,
   onLoadMore,
 }: {
   hasMore: boolean;
   loading: boolean;
+  /** When the last page failed, stay put until the reader taps Try again. */
+  failed?: boolean;
   onLoadMore: () => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const node = ref.current;
-    if (!node || !hasMore || loading) return;
+    if (!node || !hasMore || loading || failed) return;
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries.some((entry) => entry.isIntersecting)) onLoadMore();
@@ -24,7 +27,7 @@ export function LoadMore({
     );
     observer.observe(node);
     return () => observer.disconnect();
-  }, [hasMore, loading, onLoadMore]);
+  }, [failed, hasMore, loading, onLoadMore]);
 
   if (!hasMore && !loading) return null;
 
@@ -36,7 +39,7 @@ export function LoadMore({
         disabled={loading || !hasMore}
         className="text-sm font-semibold text-violet-700 disabled:opacity-60 dark:text-violet-300"
       >
-        {loading ? "Loading…" : "Load more"}
+        {loading ? "Loading…" : failed ? "Try again" : "Load more"}
       </button>
     </div>
   );

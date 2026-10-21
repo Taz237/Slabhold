@@ -58,9 +58,15 @@ export function compareFeedDesc(a: FeedRow, b: FeedRow): number {
   );
 }
 
-/** True when `row` sorts strictly after the cursor (older page). */
+/** True when `row` sorts strictly after the cursor (older page). Times are instants, then the key. */
 export function isBeforeCursor(row: FeedRow, cursor: FeedCursor): boolean {
-  if (row.createdAt !== cursor.createdAt) return row.createdAt.localeCompare(cursor.createdAt) < 0;
+  const rowTime = Date.parse(row.createdAt);
+  const cursorTime = Date.parse(cursor.createdAt);
+  if (!Number.isNaN(rowTime) && !Number.isNaN(cursorTime)) {
+    if (rowTime !== cursorTime) return rowTime < cursorTime;
+  } else if (row.createdAt !== cursor.createdAt) {
+    return row.createdAt.localeCompare(cursor.createdAt) < 0;
+  }
   return feedRowKey(row).localeCompare(cursor.key) > 0;
 }
 

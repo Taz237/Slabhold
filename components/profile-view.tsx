@@ -23,6 +23,7 @@ import { ShareIconButton } from "@/components/share-button";
 import { Tweet } from "@/components/tweet";
 import { normalizeUsername } from "@/lib/social/local-db";
 import { ilikeExact } from "@/lib/social/username-taken";
+import { addUnblockedProfiles, presentPagedItems } from "@/lib/social/paged-items";
 import { profileTimeline } from "@/lib/social/timeline";
 import type { PublicCard } from "@/lib/social/types";
 import { formatCardValueLabel, NOT_ENOUGH_SALES_LABEL } from "@/lib/value/format";
@@ -162,11 +163,19 @@ export function ProfileView({ username }: { username?: string }) {
     return <MissingProfile username={username ?? ""} mode={social.mode} />;
   }
 
+  const blocked = new Set(blockedIds);
   const authors = new Map(profiles.map((person) => [person.id, person]));
-  for (const person of pagedPosts.profiles) authors.set(person.id, person);
+  addUnblockedProfiles(authors, pagedPosts.profiles, blocked);
+  const postsById = new Map(posts.map((post) => [post.id, post]));
   const activity =
     mode === "supabase"
-      ? pagedPosts.items.filter((item) => !removedPostIds.has(item.post.id))
+      ? presentPagedItems(pagedPosts.items, {
+          removedPostIds,
+          blockedIds: blocked,
+          postsById,
+          reposts,
+          viewerId: user?.id ?? null,
+        })
       : profileTimeline(posts, reposts, profiles, profile.id);
   const postsLoading = mode === "supabase" && pagedPosts.loading && activity.length === 0;
 
@@ -301,6 +310,7 @@ export function ProfileView({ username }: { username?: string }) {
               <LoadMore
                 hasMore={pagedPosts.hasMore}
                 loading={pagedPosts.loadingMore}
+                failed={Boolean(pagedPosts.error)}
                 onLoadMore={pagedPosts.loadMore}
               />
             ) : null}

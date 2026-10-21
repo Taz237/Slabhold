@@ -12,8 +12,14 @@ export function timelineSortKey(postId: string, repostedById?: string | null): s
   return repostedById ? `repost:${repostedById}:${postId}` : `post:${postId}`;
 }
 
-/** Newest timestamp first, then timelineSortKey ascending. */
+/** Newest parsed time first, then timelineSortKey ascending. */
 export function compareByRecent(a: { at: string; key: string }, b: { at: string; key: string }): number {
+  const aTime = Date.parse(a.at);
+  const bTime = Date.parse(b.at);
+  if (!Number.isNaN(aTime) && !Number.isNaN(bTime)) {
+    if (aTime !== bTime) return bTime - aTime;
+    return a.key.localeCompare(b.key);
+  }
   return b.at.localeCompare(a.at) || a.key.localeCompare(b.key);
 }
 

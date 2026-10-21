@@ -150,15 +150,14 @@ type PostExec = {
   then: PromiseLike<QueryResult>["then"];
 };
 
-/** Apply block/mute filters, then run the query. Order and limit must already be set. */
+/** Apply a hidden-author list that the caller already loaded once for this page. */
 async function execute(
-  supabase: SupabaseClient,
   query: PostExec,
   viewerId: string | null,
   mute: boolean,
+  hidden: readonly string[] | null,
 ): Promise<QueryResult> {
-  if (!viewerId) return query;
-  const hidden = await loadHiddenAuthorIds(supabase, mute);
+  if (!viewerId || !hidden || hidden.length === 0) return query;
   const guarded = applyAuthorSafety(
     query,
     viewerId,
@@ -176,6 +175,7 @@ async function selectPosts(
     cursor: FeedCursor | null;
     limit: number;
     mute: boolean;
+    hidden: readonly string[] | null;
     ids?: string[];
   },
 ): Promise<PostRow[]> {
@@ -192,7 +192,7 @@ async function selectPosts(
       .order("id", { ascending: true })
       .limit(options.limit);
   }
-  const { data, error } = await execute(supabase, query, viewerId, options.mute);
+  const { data, error } = await execute(query, viewerId, options.mute, options.hidden);
   if (error) throw new Error(error.message);
   return (data ?? []) as PostRow[];
 }
@@ -205,6 +205,7 @@ async function selectReposts(
     cursor: FeedCursor | null;
     limit: number;
     mute: boolean;
+    hidden: readonly string[] | null;
   },
 ): Promise<{ rows: RepostRow[]; exhausted: boolean }> {
   let query = supabase
@@ -217,7 +218,7 @@ async function selectReposts(
     .order("user_id", { ascending: true })
     .order("post_id", { ascending: true })
     .limit(options.limit);
-  const { data, error } = await execute(supabase, query, viewerId, options.mute);
+  const { data, error } = await execute(query, viewerId, options.mute, options.hidden);
   if (error) {
     if (missingTable(error)) return { rows: [], exhausted: true };
     throw new Error(error.message);
@@ -239,6 +240,7 @@ async function loadQuoted(
   posts: Post[],
   viewerId: string | null,
   mute: boolean,
+  hidden: readonly string[] | null,
 ): Promise<Post[]> {
   const known = new Set(posts.map((post) => post.id));
   const missing = [
@@ -251,7 +253,14 @@ async function loadQuoted(
   if (missing.length === 0) return [];
   const related = await mapRows(
     supabase,
-    await selectPosts(supabase, viewerId, { authorIds: null, cursor: null, limit: missing.length, mute, ids: missing }),
+    await selectPosts(supabase, viewerId, {
+      authorIds: null,
+      cursor: null,
+      limit: missing.length,
+      mute,
+      hidden,
+      ids: missing,
+    }),
     viewerId,
   );
   const nestedIds = [
@@ -273,6 +282,7 @@ async function loadQuoted(
         cursor: null,
         limit: nestedIds.length,
         mute,
+        hidden,
         ids: nestedIds,
       }),
       viewerId,
@@ -288,12 +298,13 @@ async function loadRepostedPostIds(
   postIds: string[],
   authorIds: string[] | null,
   mute: boolean,
+  hidden: readonly string[] | null,
 ): Promise<Set<string>> {
   const ids = [...new Set(postIds)].filter((id) => isUuid(id));
   if (ids.length === 0) return new Set();
   let query = supabase.from("reposts").select("post_id").in("post_id", ids) as unknown as PostExec;
   if (authorIds) query = query.in("user_id", authorIds);
-  const { data, error } = await execute(supabase, query, viewerId, mute);
+  const { data, error } = await execute(query, viewerId, mute, hidden);
   if (error) {
     if (missingTable(error)) return new Set();
     throw new Error(error.message);
@@ -338,6 +349,7 @@ export async function loadFeedPage(
   const authors = authorScope(input);
   if (authors && authors.length === 0) return emptyPage;
   const mute = input.scope !== "profile";
+  const hidden = input.viewerId ? await loadHiddenAuthorIds(supabase, mute) : null;
   const seen = new Set(input.seenPostIds ?? []);
   let cursor = input.cursor && isFeedCursor(input.cursor) ? input.cursor : null;
   const items: TimelineItem[] = [];
@@ -355,12 +367,14 @@ export async function loadFeedPage(
         cursor,
         limit,
         mute,
+        hidden,
       }),
       selectReposts(supabase, input.viewerId, {
         authorIds: authors,
         cursor,
         limit,
         mute,
+        hidden,
       }),
     ]);
     const postFeed = postRows.map(
@@ -392,6 +406,7 @@ export async function loadFeedPage(
       built.rows.filter((row) => row.kind === "post").map((row) => row.id),
       authors,
       mute,
+      hidden,
     );
 
     const known = new Map(postRows.map((row) => [row.id, row]));
@@ -402,6 +417,7 @@ export async function loadFeedPage(
         cursor: null,
         limit: missingIds.length,
         mute,
+        hidden,
         ids: missingIds,
       })) {
         known.set(row.id, row);
@@ -453,7 +469,7 @@ export async function loadFeedPage(
     cursor = nextCursor;
   }
 
-  const quoted = await loadQuoted(supabase, posts, input.viewerId, mute);
+  const quoted = await loadQuoted(supabase, posts, input.viewerId, mute, hidden);
   relatedPosts.push(...quoted);
   const quoteAuthors = await loadProfiles(
     supabase,
@@ -472,16 +488,18 @@ export async function loadPostById(
   viewerId: string | null,
 ): Promise<{ post: Post; relatedPosts: Post[]; profiles: Profile[] } | null> {
   if (!isUuid(postId)) return null;
+  const hidden = viewerId ? await loadHiddenAuthorIds(supabase, false) : null;
   const rows = await selectPosts(supabase, viewerId, {
     authorIds: null,
     cursor: null,
     limit: 1,
     mute: false,
+    hidden,
     ids: [postId],
   });
   const [post] = await mapRows(supabase, rows, viewerId);
   if (!post) return null;
-  const relatedPosts = await loadQuoted(supabase, [post], viewerId, false);
+  const relatedPosts = await loadQuoted(supabase, [post], viewerId, false, hidden);
   const profiles = await loadProfiles(supabase, [
     post.authorId,
     ...relatedPosts.map((item) => item.authorId),

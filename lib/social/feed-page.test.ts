@@ -3,7 +3,15 @@ import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { join } from "node:path";
 import type { FollowEdge } from "./types";
-import { compareByRecent, timelineSortKey } from "./timeline";
+import { keepPagedItem, presentPagedItems } from "./paged-items";
+import {
+  createRememberedPosts,
+  findKnownPost,
+  mergeRememberedSnapshot,
+  storeRemembered,
+} from "./remembered-posts";
+import { compareByRecent, timelineSortKey, type TimelineItem } from "./timeline";
+import type { Post, Profile } from "./types";
 import {
   buildFeedPage,
   compareFeedDesc,
@@ -143,6 +151,138 @@ function walk(posts: FeedRow[], reposts: FeedRow[], pageSize: number): FeedRow[]
   assert.fail("paging did not finish");
 }
 
+function person(id: string): Profile {
+  return {
+    id,
+    email: "",
+    username: id.slice(0, 8),
+    displayName: id.slice(0, 8),
+    bio: "",
+    avatarDataUrl: null,
+    coverDataUrl: null,
+    accent: "#000",
+    createdAt: "2026-01-01T00:00:00.000Z",
+  };
+}
+
+function fullPost(id: string, authorId: string, body: string): Post {
+  return {
+    id,
+    authorId,
+    body,
+    imageDataUrl: null,
+    card: null,
+    quotedPostId: null,
+    createdAt: "2020-01-01T00:00:00.000Z",
+  };
+}
+
+function item(
+  post: Post,
+  repostedBy: Profile | null,
+  at: string,
+): TimelineItem {
+  return {
+    key: repostedBy ? `repost:${repostedBy.id}:${post.id}` : `post:${post.id}`,
+    post,
+    at,
+    repostedBy,
+  };
+}
+
+describe("remembered posts", () => {
+  it("keeps a post outside the newest 100 so it can be reposted after a refresh", () => {
+    const memory = createRememberedPosts();
+    const old = fullPost("old-post", JOY, "from last year");
+    storeRemembered(memory, [old], [person(JOY)], new Set());
+    const refreshed = mergeRememberedSnapshot(
+      {
+        posts: [fullPost("new-post", ME, "today")],
+        profiles: [person(ME)],
+        blockedIds: [] as string[],
+      },
+      memory,
+      new Set(),
+    );
+    const found = findKnownPost(refreshed.posts, memory, old.id);
+    assert.equal(found?.authorId, JOY);
+    assert.equal(found?.body, "from last year");
+    assert.equal(refreshed.profiles.some((profile) => profile.id === JOY), true);
+
+    const blocked = mergeRememberedSnapshot(
+      { posts: [] as Post[], profiles: [] as Profile[], blockedIds: [JOY] },
+      memory,
+      new Set(),
+    );
+    assert.equal(
+      findKnownPost(blocked.posts, memory, old.id, { blockedIds: new Set([JOY]) }),
+      undefined,
+    );
+
+    const removed = mergeRememberedSnapshot(
+      { posts: [] as Post[], profiles: [] as Profile[], blockedIds: [] as string[] },
+      memory,
+      new Set([old.id]),
+    );
+    assert.equal(removed.posts.some((post) => post.id === old.id), false);
+    assert.equal(
+      findKnownPost(removed.posts, memory, old.id, { removedIds: new Set([old.id]) }),
+      undefined,
+    );
+  });
+});
+
+describe("paged safety", () => {
+  it("drops blocked people everywhere and muted people on home feeds", () => {
+    const mine = fullPost("mine", ME, "old body");
+    const edited = { ...mine, body: "edited" };
+    const items = [
+      item(mine, null, stamp(4)),
+      item(fullPost("blocked-post", JOY, "nope"), null, stamp(3)),
+      item(fullPost("reposted", ME, "x"), person(JOY), stamp(2)),
+      item(fullPost("muted-post", SAM, "shh"), null, stamp(1)),
+      item(fullPost("my-repost", SAM, "again"), person(ME), stamp(5)),
+    ];
+    const postsById = new Map([[edited.id, edited]]);
+    const home = presentPagedItems(items, {
+      blockedIds: new Set([JOY]),
+      mutedIds: new Set([SAM]),
+      postsById,
+      reposts: [],
+      viewerId: ME,
+    });
+    assert.deepEqual(
+      home.map((entry) => entry.post.id),
+      ["mine"],
+    );
+    assert.equal(home[0]?.post.body, "edited");
+
+    const profile = presentPagedItems(items, {
+      blockedIds: new Set([JOY]),
+      postsById,
+      reposts: [{ postId: "my-repost", userId: ME, createdAt: stamp(5) }],
+      viewerId: ME,
+    });
+    assert.deepEqual(
+      profile.map((entry) => entry.post.id),
+      ["mine", "muted-post", "my-repost"],
+    );
+    assert.equal(keepPagedItem(items[2]!, { blockedIds: new Set([JOY]) }), false);
+  });
+
+  it("reloads the home feed when blocks or mutes change and pauses auto-load after an error", () => {
+    const hook = readFileSync(join(process.cwd(), "components/use-paged-timeline.ts"), "utf8");
+    const more = readFileSync(join(process.cwd(), "components/load-more.tsx"), "utf8");
+    const view = readFileSync(join(process.cwd(), "components/feed-view.tsx"), "utf8");
+    assert.match(hook, /input\.blockedIds/);
+    assert.match(hook, /input\.mutedIds/);
+    assert.equal(hook.includes("headToken"), false);
+    assert.match(more, /Try again/);
+    assert.match(more, /loading \|\| failed\) return/);
+    assert.match(view, /New posts/);
+  });
+});
+
 describe("following author set", () => {
   it("includes the viewer once they follow someone", () => {
     const ids = followingAuthorIds([edge(ME, JOY), edge(SAM, ME), edge(ME, ME)], ME);
@@ -190,6 +330,39 @@ describe("feed keyset paging", () => {
     });
     assert.equal(built.nextCursor?.key, `post:${uuid(9)}`);
     assert.equal(built.hasMore, true);
+  });
+
+  it("orders equal instants by the byRecent key, not by timestamp text", () => {
+    const posts = [
+      row("post", "2026-10-21T13:00:00.000Z", uuid(2), ME),
+      row("post", "2026-10-21T12:00:00.000-02:00", uuid(1), JOY),
+    ];
+    const built = buildFeedPage({
+      posts,
+      reposts: [],
+      postsExhausted: true,
+      repostsExhausted: true,
+      pageSize: 2,
+    });
+    assert.deepEqual(
+      built.rows.map((entry) => entry.id),
+      [uuid(1), uuid(2)],
+    );
+    const tied = [
+      row("post", "2026-10-21T12:00:10.000Z", uuid(9), ME),
+      row("post", "2026-10-21T12:00:10.000+00:00", uuid(3), JOY),
+    ];
+    const sameInstant = buildFeedPage({
+      posts: tied,
+      reposts: [],
+      postsExhausted: true,
+      repostsExhausted: true,
+      pageSize: 2,
+    });
+    assert.deepEqual(
+      sameInstant.rows.map((entry) => entry.id),
+      [uuid(3), uuid(9)],
+    );
   });
 
   it("uses the byRecent key so equal timestamps are not skipped or repeated", () => {
