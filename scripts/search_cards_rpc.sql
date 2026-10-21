@@ -1,3 +1,6 @@
+-- Superseded by supabase/migrations/20261021120000_card_catalog_search_ranking.sql.
+-- Kept so older notes can see the previous function. Do not apply this file.
+
 create or replace function public.search_cards(q text, max_results int default 20)
 returns table (
   id uuid,

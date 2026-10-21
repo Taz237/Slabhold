@@ -80,6 +80,7 @@ const RAW: Array<{
   { playerName: "Lamar Jackson", year: 2018, setBrand: "Panini Prizm", cardNumber: "212", sport: "Football", parallel: "Silver" },
   { playerName: "C.J. Stroud", year: 2023, setBrand: "Panini Prizm", cardNumber: "339", sport: "Football", parallel: "Silver" },
   { playerName: "Travis Hunter", year: 2025, setBrand: "Panini Prizm", cardNumber: "1", sport: "Football", parallel: "Silver" },
+  { playerName: "Jaxson Dart", year: 2025, setBrand: "Panini Prizm", cardNumber: "332", sport: "Football", parallel: "Base" },
   { playerName: "Connor Bedard", year: 2023, setBrand: "Upper Deck", cardNumber: "201", sport: "Hockey", parallel: "Base" },
   { playerName: "Connor Bedard", year: 2023, setBrand: "Upper Deck Series 2", cardNumber: "451", sport: "Hockey", parallel: "Base" },
   { playerName: "Connor McDavid", year: 2015, setBrand: "Upper Deck", cardNumber: "201", sport: "Hockey", parallel: "Base" },
@@ -164,13 +165,47 @@ export function toSearchableCard(card: CatalogCard): SearchableCard {
   };
 }
 
-const SEARCHABLE = CARD_CATALOG.map(toSearchableCard);
+function cardsInRankOrder(
+  query: string,
+  cards: CatalogCard[],
+  limit: number,
+): CatalogCard[] {
+  const hits = searchCardsLocal(query, cards.map(toSearchableCard), limit);
+  const byId = new Map(cards.map((card) => [card.id, card]));
+  return hits
+    .map((hit) => byId.get(hit.id))
+    .filter((card): card is CatalogCard => Boolean(card));
+}
 
 /** Ranked local matches (typo/alias aware). Default 20 for Add Card. */
 export function searchCatalog(query: string, limit = 20): CatalogCard[] {
-  const hits = searchCardsLocal(query, SEARCHABLE, limit);
-  const byId = new Map(CARD_CATALOG.map((c) => [c.id, c]));
-  return hits.map((h) => byId.get(h.id)!).filter(Boolean);
+  return cardsInRankOrder(query, CARD_CATALOG, limit);
+}
+
+function catalogIdentity(card: CatalogCard): string {
+  return [card.playerName, card.yearLabel, card.setBrand, card.cardNumber, card.parallel]
+    .join("|")
+    .toLowerCase();
+}
+
+/**
+ * Rank rows from search_cards with the same rules as the local catalog.
+ * Local seed hits are merged in (remote wins on the same card) so a row that
+ * exists only in the app catalog, such as Jaxson Dart before the insert runs,
+ * still shows up. An empty result falls back to the local catalog.
+ */
+export function resolveCatalogSearch(
+  query: string,
+  remote: CatalogCard[] | null,
+  limit = 20,
+): CatalogCard[] {
+  if (remote == null) return searchCatalog(query, limit);
+  const local = searchCatalog(query, limit);
+  const byIdentity = new Map<string, CatalogCard>();
+  for (const card of local) byIdentity.set(catalogIdentity(card), card);
+  for (const card of remote) byIdentity.set(catalogIdentity(card), card);
+  const ranked = cardsInRankOrder(query, [...byIdentity.values()], limit);
+  return ranked.length > 0 ? ranked : local;
 }
 
 export function catalogLabel(card: CatalogCard) {
