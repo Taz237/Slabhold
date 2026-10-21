@@ -2,6 +2,21 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { canNotify, supabaseSafety } from "@/lib/safety/can-notify";
 import { mentionUsernames } from "./mentions";
 
+/** First unique @handles that create a mention notification. */
+export const MENTION_NOTIFY_LIMIT = 10;
+
+/** Stored on notifications.metadata. The column already exists. */
+export const REPLY_MENTION_METADATA = { source: "reply" } as const;
+
+export function isReplyMentionMetadata(metadata: unknown): boolean {
+  if (!metadata || typeof metadata !== "object") return false;
+  return (metadata as { source?: unknown }).source === REPLY_MENTION_METADATA.source;
+}
+
+export function mentionsToNotify(body: string): string[] {
+  return mentionUsernames(body).slice(0, MENTION_NOTIFY_LIMIT);
+}
+
 export type ReplyMentionProfile = {
   id: string;
   username: string;
@@ -20,18 +35,23 @@ export function replyMentionCandidates(input: {
   profiles: ReplyMentionProfile[];
   skipRecipientId?: string | null;
 }): string[] {
-  const wanted = new Set(mentionUsernames(input.body));
-  if (wanted.size === 0) return [];
-  const seen = new Set<string>();
-  const ids: string[] = [];
+  const wanted = mentionsToNotify(input.body);
+  if (wanted.length === 0) return [];
+  const byName = new Map<string, string>();
   for (const profile of input.profiles) {
     const username = profile.username.trim().toLowerCase();
-    if (!wanted.has(username)) continue;
-    if (!profile.id || profile.id === input.actorId) continue;
-    if (input.skipRecipientId && profile.id === input.skipRecipientId) continue;
-    if (seen.has(profile.id)) continue;
-    seen.add(profile.id);
-    ids.push(profile.id);
+    if (!username || !profile.id || byName.has(username)) continue;
+    byName.set(username, profile.id);
+  }
+  const seen = new Set<string>();
+  const ids: string[] = [];
+  for (const username of wanted) {
+    const id = byName.get(username);
+    if (!id || id === input.actorId) continue;
+    if (input.skipRecipientId && id === input.skipRecipientId) continue;
+    if (seen.has(id)) continue;
+    seen.add(id);
+    ids.push(id);
   }
   return ids;
 }
@@ -93,7 +113,7 @@ export async function notifyReplyMentions(
     skipRecipientId?: string | null;
   },
 ): Promise<void> {
-  const handles = mentionUsernames(input.body);
+  const handles = mentionsToNotify(input.body);
   if (handles.length === 0) return;
   try {
     const { data, error } = await supabase
@@ -117,6 +137,7 @@ export async function notifyReplyMentions(
           kind: "mention",
           post_id: input.postId,
           preview,
+          metadata: REPLY_MENTION_METADATA,
         });
         if (insertError && insertError.code !== "23505" && !missingTable(insertError)) {
           continue;

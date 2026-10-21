@@ -12,8 +12,12 @@ import type {
   SignUpInput,
   SocialSnapshot,
 } from "./types";
-import { mentionUsernames } from "./mentions";
-import { replyMentionCandidates } from "./reply-mentions";
+import {
+  isReplyMentionMetadata,
+  mentionsToNotify,
+  REPLY_MENTION_METADATA,
+  replyMentionCandidates,
+} from "./reply-mentions";
 import { shouldNotifyQuoteAuthor, validateQuoteContent } from "./quotes";
 import { COMMENT_LIMIT, MESSAGE_LIMIT } from "./types";
 
@@ -630,6 +634,7 @@ export function localAddComment(
         kind: "mention",
         postId,
         preview: previewText(text),
+        metadata: REPLY_MENTION_METADATA,
         createdAt: comment.createdAt,
       },
     );
@@ -780,7 +785,7 @@ function withMentionNotifications(
   body: string,
   createdAt: string,
 ): Notification[] {
-  const wanted = new Set(mentionUsernames(body));
+  const wanted = new Set(mentionsToNotify(body));
   const recipientIds = new Set(
     db.users
       .filter((person) => person.id !== actorId && wanted.has(person.username))
@@ -789,6 +794,7 @@ function withMentionNotifications(
   const current = db.notifications ?? [];
   const kept = current.flatMap((note) => {
     if (note.kind !== "mention" || note.postId !== postId || note.actorId !== actorId) return [note];
+    if (isReplyMentionMetadata(note.metadata)) return [note];
     if (!recipientIds.has(note.recipientId)) return [];
     return [{ ...note, preview: previewText(body) }];
   });
