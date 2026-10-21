@@ -377,8 +377,11 @@ describe("post page wiring", () => {
     assert.match(provider, /filter: `receiver_id=eq\.\$\{viewerId\}`/);
     assert.match(provider, /notifications: page\.notifications/);
     assert.match(provider, /messages: page\.messages/);
-    assert.match(provider, /shouldMarkSnapshotReady\(fullSnapshotRef\.current\)/);
-    assert.match(provider, /!hasFullSnapshot && ready/);
+    assert.match(provider, /fullSnapshotRef\.current \|\| snapshotError/);
+    assert.match(provider, /!routePostId && !hasFullSnapshot && !snapshotError && ready/);
+    assert.match(provider, /setSnapshotError\(true\)/);
+    assert.match(provider, /setSnapshotError\(false\)/);
+    assert.match(provider, /if \(!postIdFromPath\(window\.location\.pathname\)\) setReady\(true\)/);
     assert.doesNotMatch(provider, /onAuthStateChange\(\(\) =>/);
     const shell = readFileSync(join(process.cwd(), "components/app-shell.tsx"), "utf8");
     assert.match(shell, /if \(user\)/);
@@ -422,5 +425,103 @@ describe("leaving a cold post page", () => {
     assert.equal(snapshot, "full");
     assert.equal(ready, true);
     assert.notEqual(snapshot, "post");
+  });
+});
+
+describe("failed snapshot load", () => {
+  it("marks home ready with a status message when the first load fails, then a refresh loads the full snapshot", async () => {
+    const refreshRemote = createSnapshotRefresher<{ posts: string[] }>();
+    let ready = false;
+    let fullSnapshot = false;
+    let snapshotError = false;
+    let status: string | null = null;
+    let snapshot: { posts: string[] } | null = null;
+    const path = "/";
+
+    async function refresh(load: () => Promise<{ posts: string[] }>) {
+      await refreshRemote(load, (value) => {
+        if (snapshotError) status = null;
+        snapshotError = false;
+        fullSnapshot = true;
+        snapshot = value;
+        if (!postIdFromPath(path)) ready = true;
+      });
+    }
+
+    async function loadHome(load: () => Promise<{ posts: string[] }>) {
+      let snapshotFailed = false;
+      ready = false;
+      try {
+        await refresh(load);
+        status = null;
+      } catch (error) {
+        snapshotFailed = true;
+        snapshotError = true;
+        status = error instanceof Error ? error.message : "Could not reach Supabase.";
+      } finally {
+        if (fullSnapshot || snapshotFailed || snapshotError) ready = true;
+      }
+    }
+
+    assert.equal(postIdFromPath(path), null);
+    assert.equal(shouldMarkSnapshotReady(false, false), false);
+
+    await loadHome(() => Promise.reject(new Error("Could not reach Supabase.")));
+    assert.equal(ready, true);
+    assert.equal(snapshotError, true);
+    assert.equal(fullSnapshot, false);
+    assert.equal(snapshot, null);
+    assert.equal(status, "Could not reach Supabase.");
+    assert.equal(shouldMarkSnapshotReady(fullSnapshot, snapshotError), true);
+    const holdHome = !postIdFromPath(path) && !fullSnapshot && !snapshotError && ready;
+    assert.equal(holdHome, false);
+
+    await refresh(() => Promise.resolve({ posts: ["home"] }));
+    assert.equal(ready, true);
+    assert.equal(snapshotError, false);
+    assert.equal(fullSnapshot, true);
+    assert.deepEqual(snapshot, { posts: ["home"] });
+    assert.equal(status, null);
+  });
+
+  it("still becomes ready when a newer snapshot reload fails", async () => {
+    const refresh = createSnapshotRefresher<"stale" | "full">();
+    let snapshot: "post" | "stale" | "full" = "post";
+    let fullSnapshot = false;
+    let snapshotError = false;
+    let ready = false;
+    let status: string | null = null;
+    const pending = new Map<string, () => void>();
+
+    const first = refresh(
+      () =>
+        new Promise<"stale">((resolve) => {
+          pending.set("first", () => resolve("stale"));
+        }),
+      (value) => {
+        snapshot = value;
+        fullSnapshot = true;
+        snapshotError = false;
+      },
+    );
+    const second = refresh(
+      () => Promise.reject(new Error("Could not reach Supabase.")),
+      (value) => {
+        snapshot = value;
+        fullSnapshot = true;
+        snapshotError = false;
+      },
+    );
+
+    pending.get("first")?.();
+    await assert.rejects(second, /Could not reach Supabase/);
+    await assert.rejects(first, /Could not reach Supabase/);
+    snapshotError = true;
+    status = "Could not reach Supabase.";
+    ready = shouldMarkSnapshotReady(fullSnapshot, snapshotError);
+    assert.equal(snapshot, "post");
+    assert.equal(fullSnapshot, false);
+    assert.equal(ready, true);
+    assert.equal(status, "Could not reach Supabase.");
   });
 });

@@ -62,7 +62,7 @@ import {
   remoteUpdateProfile,
 } from "@/lib/social/remote";
 import { loadPostById, loadPostPage, type LoadedPostPage } from "@/lib/social/load-feed-page";
-import { createSnapshotRefresher, shouldMarkSnapshotReady } from "@/lib/social/snapshot-refresh";
+import { createSnapshotRefresher } from "@/lib/social/snapshot-refresh";
 import { postIdFromPath } from "@/lib/social/post-route";
 import { collectAttachedCardIds } from "@/lib/social/post-card-value";
 import { followingTimeline, type TimelineItem } from "@/lib/social/timeline";
@@ -199,6 +199,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
   const [loadingPostId, setLoadingPostId] = useState<string | null>(null);
   const [resolvedPostId, setResolvedPostId] = useState<string | null>(null);
   const [hasFullSnapshot, setHasFullSnapshot] = useState(false);
+  const [snapshotError, setSnapshotError] = useState(false);
   const [mode, setMode] = useState<"local" | "supabase">("local");
   const [local, setLocal] = useState<LocalDb | null>(null);
   const [remote, setRemote] = useState<SocialSnapshot>(emptySnapshot);
@@ -212,6 +213,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
   const rememberedRef = useRef(createRememberedPosts());
   const removedRef = useRef<ReadonlySet<string>>(new Set());
   const fullSnapshotRef = useRef(false);
+  const snapshotErrorRef = useRef(false);
   const requestRef = useRef(0);
   const snapshotRefreshRef = useRef(createSnapshotRefresher<SocialSnapshot>());
   const inflightRef = useRef(new Map<string, Promise<unknown>>());
@@ -221,7 +223,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
   const routePostId = postIdFromPath(pathname);
   const routePostKnown =
     routePostId !== null && remote.posts.some((post) => post.id === routePostId);
-  if (mode === "supabase" && !routePostId && !hasFullSnapshot && ready) {
+  if (mode === "supabase" && !routePostId && !hasFullSnapshot && !snapshotError && ready) {
     setReady(false);
   }
   if (resolvedPostId && resolvedPostId !== routePostId) {
@@ -245,9 +247,13 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
     await snapshotRefreshRef.current(
       () => loadSupabaseSocial(client),
       (snapshot) => {
+        if (snapshotErrorRef.current) setStatus(null);
+        snapshotErrorRef.current = false;
+        setSnapshotError(false);
         fullSnapshotRef.current = true;
         setHasFullSnapshot(true);
         setRemote(mergeRememberedSnapshot(snapshot, rememberedRef.current, removedRef.current));
+        if (!postIdFromPath(window.location.pathname)) setReady(true);
       },
     );
   }, []);
@@ -904,15 +910,25 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
     if (!postId) {
       if (fullSnapshotRef.current) return;
       // Home and the rest of the app still need the snapshot. Don't paint the
-      // feed until it arrives, or the New posts pill captures an empty head.
+      // feed on a post-only snapshot while a load is in flight, or the New
+      // posts pill captures an empty head. A failed load still becomes ready
+      // so the status message and Try again can show.
       setReady(false);
+      let snapshotFailed = false;
       void loadOnce(inflightRef.current, "snapshot", () => refreshRemote(client))
         .then(() => {
           if (alive()) setStatus(null);
         })
-        .catch(fail)
+        .catch((error) => {
+          if (!alive()) return;
+          snapshotFailed = true;
+          snapshotErrorRef.current = true;
+          setSnapshotError(true);
+          fail(error);
+        })
         .finally(() => {
-          if (alive() && shouldMarkSnapshotReady(fullSnapshotRef.current)) setReady(true);
+          const snapshotError = snapshotErrorRef.current || snapshotFailed;
+          if (alive() && (fullSnapshotRef.current || snapshotError)) setReady(true);
         });
       return;
     }

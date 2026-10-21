@@ -24,7 +24,11 @@ export function createSnapshotRefresher<T>() {
   };
 }
 
-/** Home (and the rest of the app) may render only after a full snapshot is in memory. */
-export function shouldMarkSnapshotReady(fullSnapshotLoaded: boolean) {
-  return fullSnapshotLoaded;
+/**
+ * Home may render once a full snapshot is in memory, or once that load has
+ * failed. It stays hidden while a load is still in flight, so a post-only
+ * snapshot cannot paint Home.
+ */
+export function shouldMarkSnapshotReady(fullSnapshotLoaded: boolean, snapshotError = false) {
+  return fullSnapshotLoaded || snapshotError;
 }
