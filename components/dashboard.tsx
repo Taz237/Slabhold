@@ -5,6 +5,7 @@ import { useMemo, useState, type ReactNode } from "react";
 import { Info, Search, TrendingDown, TrendingUp, WalletCards } from "lucide-react";
 import { outlineButton } from "@/components/button-styles";
 import { CategoryBadge } from "@/components/category-picker";
+import { CollectionHeader } from "@/components/collection-header";
 import { CollectionValueHistory } from "@/components/collection-value-history";
 import { useCollection } from "@/components/collection-provider";
 import { CardThumb } from "@/components/card-thumb";
@@ -117,15 +118,7 @@ export function Dashboard() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-end justify-between gap-3">
-        <div>
-          <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">Your book</p>
-          <h1 className="mt-1 text-2xl font-bold tracking-tight">Collection</h1>
-        </div>
-        <Link href="/mail-day" className={outlineButton}>
-          Mail Day
-        </Link>
-      </div>
+      <CollectionHeader />
       {syncError ? (
         <p className="text-sm text-rose-600 dark:text-rose-400">{syncError}</p>
       ) : null}

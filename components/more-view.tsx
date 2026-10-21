@@ -99,8 +99,11 @@ export function MoreView() {
             </Link>
           </li>
           <li>
-            <Link href="/cards/new" className="block py-3">
-              Add a card without a photo
+            <Link
+              href="/cards/new"
+              className="block min-h-11 py-3 focus-visible:ring-2 focus-visible:ring-violet-600 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)] focus-visible:outline-none"
+            >
+              Add a card
             </Link>
           </li>
           <li>
