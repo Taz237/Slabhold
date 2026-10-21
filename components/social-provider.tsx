@@ -13,6 +13,13 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { trackEvent } from "@/lib/analytics";
 import { activityFrom, emptyActivity, loadActivity, saveActivity, type ActivityStore } from "@/lib/social/activity";
 import {
+  createRememberedPosts,
+  findKnownPost,
+  forgetRememberedPost,
+  mergeRememberedSnapshot,
+  storeRemembered,
+} from "@/lib/social/remembered-posts";
+import {
   loadOrCreateLocalDb,
   localAddComment,
   canDeleteReply,
@@ -62,6 +69,7 @@ import { useCardValues } from "@/lib/value/use-card-values";
 import type {
   AuthResult,
   DirectMessage,
+  FollowEdge,
   Notification,
   Post,
   PostComment,
@@ -121,6 +129,13 @@ type SocialContextValue = {
   sendMessage: (receiverId: string, content: string) => Promise<AuthResult>;
   markThreadRead: (partnerId: string) => void;
   feed: TimelineItem[];
+  follows: FollowEdge[];
+  /** Merge posts loaded by a paged feed so likes, quotes, and edits can see them. */
+  rememberPosts: (posts: Post[], profiles?: Profile[]) => void;
+  /** Snapshot posts plus posts remembered past the newest 100. */
+  findPost: (postId: string) => Post | undefined;
+  /** Posts deleted this session, hidden until the next full reload. */
+  removedPostIds: ReadonlySet<string>;
   homePosts: Post[];
   homeReposts: PostRepost[];
   blockedIds: string[];
@@ -161,15 +176,22 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
   const [remote, setRemote] = useState<SocialSnapshot>(emptySnapshot);
   const [status, setStatus] = useState<string | null>(null);
   const [activity, setActivity] = useState<ActivityStore>(emptyActivity);
+  const [removedPostIds, setRemovedPostIds] = useState<ReadonlySet<string>>(() => new Set());
   const supabaseRef = useRef<SupabaseClient | null>(null);
   const localRef = useRef<LocalDb | null>(null);
   const likeQueue = useRef(Promise.resolve());
   const repostQueue = useRef(Promise.resolve());
+  const rememberedRef = useRef(createRememberedPosts());
+  const removedRef = useRef<ReadonlySet<string>>(new Set());
   localRef.current = local;
+
+  useEffect(() => {
+    removedRef.current = removedPostIds;
+  }, [removedPostIds]);
 
   const refreshRemote = useCallback(async (client: SupabaseClient) => {
     const snapshot = await loadSupabaseSocial(client);
-    setRemote(snapshot);
+    setRemote(mergeRememberedSnapshot(snapshot, rememberedRef.current, removedRef.current));
   }, []);
 
   useEffect(() => {
@@ -475,6 +497,19 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
         try {
           const result = await remoteUpdatePost(client, snapshot.user.id, postId, input);
           if (!result.error) {
+            const known = findKnownPost(
+              snapshotRef.current.posts,
+              rememberedRef.current,
+              postId,
+            );
+            if (known) {
+              storeRemembered(
+                rememberedRef.current,
+                [{ ...known, body: input.body, imageDataUrl: input.imageDataUrl }],
+                [],
+                new Set(snapshotRef.current.blockedIds ?? []),
+              );
+            }
             await refreshRemote(client);
             if (result.notice) setStatus(result.notice);
           }
@@ -499,6 +534,11 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
         try {
           const result = await remoteDeletePost(client, snapshot.user.id, postId);
           if (!result.error) {
+            forgetRememberedPost(rememberedRef.current, postId);
+            const removed = new Set(removedRef.current);
+            removed.add(postId);
+            removedRef.current = removed;
+            setRemovedPostIds(removed);
             rememberActivity(localDeletePost(activityShell(), postId).db);
             await refreshRemote(client);
           }
@@ -588,7 +628,10 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
         const wasLiked = current.likes.some(
           (like) => like.postId === postId && like.userId === current.user?.id,
         );
-        const post = current.posts.find((item) => item.id === postId);
+        const post = findKnownPost(current.posts, rememberedRef.current, postId, {
+          removedIds: removedRef.current,
+          blockedIds: new Set(current.blockedIds ?? []),
+        });
         rememberActivity(localToggleLike(activityShell(), postId));
         const client = supabaseRef.current;
         if (!client || !post) return;
@@ -625,7 +668,10 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
         const client = supabaseRef.current;
         if (!client) return;
         const userId = current.user.id;
-        const post = current.posts.find((item) => item.id === postId);
+        const post = findKnownPost(current.posts, rememberedRef.current, postId, {
+          removedIds: removedRef.current,
+          blockedIds: new Set(current.blockedIds ?? []),
+        });
         if (!post) {
           rememberActivity(localToggleRepost(activityShell(), postId));
           return;
@@ -674,7 +720,10 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
         const current = snapshotRef.current;
         if (!client) return { error: "Still loading." };
         if (!current.user) return { error: "Log in to comment." };
-        const post = current.posts.find((item) => item.id === postId);
+        const post = findKnownPost(current.posts, rememberedRef.current, postId, {
+          removedIds: removedRef.current,
+          blockedIds: new Set(current.blockedIds ?? []),
+        });
         try {
           const result = await remoteAddComment(
             client,
@@ -826,6 +875,25 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       commitLocal(localMarkThreadRead(localRef.current, partnerId));
     },
     [commitLocal, mode],
+  );
+
+  const rememberPosts = useCallback((posts: Post[], profiles: Profile[] = []) => {
+    if (posts.length === 0 && profiles.length === 0) return;
+    const blocked = new Set(snapshotRef.current.blockedIds ?? []);
+    storeRemembered(rememberedRef.current, posts, profiles, blocked);
+    for (const postId of removedRef.current) forgetRememberedPost(rememberedRef.current, postId);
+    setRemote((existing) =>
+      mergeRememberedSnapshot(existing, rememberedRef.current, removedRef.current),
+    );
+  }, []);
+
+  const findPost = useCallback(
+    (postId: string) =>
+      findKnownPost(snapshotRef.current.posts, rememberedRef.current, postId, {
+        removedIds: removedRef.current,
+        blockedIds: new Set(snapshotRef.current.blockedIds ?? []),
+      }),
+    [],
   );
 
   const commentsFor = useCallback(
@@ -1009,6 +1077,10 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       sendMessage,
       markThreadRead,
       feed,
+      follows: snapshot.follows,
+      rememberPosts,
+      findPost,
+      removedPostIds,
       suggestions,
       profileByUsername,
       postCardValues,
@@ -1029,6 +1101,10 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       deleteComment,
       deletePost,
       feed,
+      snapshot.follows,
+      rememberPosts,
+      findPost,
+      removedPostIds,
       followerCount,
       followersOf,
       followingOf,

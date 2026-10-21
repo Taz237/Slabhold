@@ -7,8 +7,38 @@ export type TimelineItem = {
   repostedBy: Profile | null;
 };
 
-function byRecent(a: TimelineItem, b: TimelineItem) {
+/** Tie-break key for the recent sort. Smaller keys come first when timestamps match. */
+export function timelineSortKey(postId: string, repostedById?: string | null): string {
+  return repostedById ? `repost:${repostedById}:${postId}` : `post:${postId}`;
+}
+
+/**
+ * Microseconds since the epoch. Date.parse stops at milliseconds, so the
+ * remaining fractional digits (padded to 6) are added on.
+ */
+export function timestampMicros(value: string): number | null {
+  const ms = Date.parse(value);
+  if (Number.isNaN(ms)) return null;
+  const match = /(?:T|\s)\d{2}:\d{2}:\d{2}(?:\.(\d+))?/.exec(value);
+  const fraction = (match?.[1] ?? "").padEnd(6, "0").slice(0, 6);
+  const extra = Number(fraction.slice(3));
+  if (Number.isNaN(extra)) return ms * 1000;
+  return ms * 1000 + extra;
+}
+
+/** Newest time first (microseconds), then timelineSortKey ascending. */
+export function compareByRecent(a: { at: string; key: string }, b: { at: string; key: string }): number {
+  const aTime = timestampMicros(a.at);
+  const bTime = timestampMicros(b.at);
+  if (aTime !== null && bTime !== null) {
+    if (aTime !== bTime) return bTime > aTime ? 1 : -1;
+    return a.key.localeCompare(b.key);
+  }
   return b.at.localeCompare(a.at) || a.key.localeCompare(b.key);
+}
+
+function byRecent(a: TimelineItem, b: TimelineItem) {
+  return compareByRecent(a, b);
 }
 
 /**
@@ -35,7 +65,7 @@ function preferRepostOnce(items: TimelineItem[]): TimelineItem[] {
 }
 
 function postItem(post: Post): TimelineItem {
-  return { key: `post:${post.id}`, post, at: post.createdAt, repostedBy: null };
+  return { key: timelineSortKey(post.id), post, at: post.createdAt, repostedBy: null };
 }
 
 function repostItems(
@@ -52,7 +82,7 @@ function repostItems(
     const author = post ? profilesById.get(post.authorId) : undefined;
     if (!post || !repostedBy || !author) continue;
     items.push({
-      key: `repost:${repost.userId}:${repost.postId}`,
+      key: timelineSortKey(repost.postId, repost.userId),
       post,
       at: repost.createdAt,
       repostedBy,

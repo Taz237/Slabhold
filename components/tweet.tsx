@@ -46,9 +46,9 @@ export function Tweet({
 }) {
   const router = useRouter();
   const openImage = useImageLightbox();
-  const { commentsFor, posts } = useSocial();
+  const { commentsFor, findPost } = useSocial();
   const comments = commentsFor(post.id);
-  const quoteAvailable = posts.some((item) => item.id === post.id);
+  const quoteAvailable = Boolean(findPost(post.id));
 
   function openPost(event: React.MouseEvent<HTMLElement>) {
     if (variant !== "feed") return;

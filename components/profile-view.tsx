@@ -8,8 +8,10 @@ import { Avatar } from "@/components/avatar";
 import { outlineButton, solidButton } from "@/components/button-styles";
 import { CardThumb } from "@/components/card-thumb";
 import { ProfileEditSheet } from "@/components/profile-edit-sheet";
+import { LoadMore } from "@/components/load-more";
 import { PullToRefresh } from "@/components/pull-to-refresh";
-import { EmptyState, ProfileSkeleton } from "@/components/status";
+import { usePagedTimeline } from "@/components/use-paged-timeline";
+import { EmptyState, LoadingRows, ProfileSkeleton } from "@/components/status";
 import { FollowButton } from "@/components/follow-button";
 import { SafetyMenu } from "@/components/safety-menu";
 import { unblockAccount } from "@/lib/safety/actions";
@@ -21,6 +23,7 @@ import { ShareIconButton } from "@/components/share-button";
 import { Tweet } from "@/components/tweet";
 import { normalizeUsername } from "@/lib/social/local-db";
 import { ilikeExact } from "@/lib/social/username-taken";
+import { addUnblockedProfiles, presentPagedItems } from "@/lib/social/paged-items";
 import { profileTimeline } from "@/lib/social/timeline";
 import type { PublicCard } from "@/lib/social/types";
 import { formatCardValueLabel, NOT_ENOUGH_SALES_LABEL } from "@/lib/value/format";
@@ -33,6 +36,7 @@ export function ProfileView({ username }: { username?: string }) {
   const { cards, reload } = useCollection();
   const {
     ready,
+    mode,
     user,
     posts,
     reposts,
@@ -44,6 +48,8 @@ export function ProfileView({ username }: { username?: string }) {
     blockedIds,
     safetyAccounts,
     applySafetyChange,
+    rememberPosts,
+    removedPostIds,
   } = social;
 
   const profile = username ? social.profileByUsername(username) : user;
@@ -53,6 +59,15 @@ export function ProfileView({ username }: { username?: string }) {
   const [tab, setTab] = useState<"posts" | "collection">(
     searchParams.get("tab") === "collection" ? "collection" : "posts",
   );
+  const [postsRefreshKey, setPostsRefreshKey] = useState(0);
+  const pagedPosts = usePagedTimeline({
+    enabled: mode === "supabase" && Boolean(profile?.id),
+    scope: "profile",
+    profileId: profile?.id,
+    viewerId: user?.id ?? null,
+    refreshKey: postsRefreshKey,
+    rememberPosts,
+  });
 
   const collection = useMemo(() => {
     if (!profile) return [] as PublicCard[];
@@ -148,8 +163,21 @@ export function ProfileView({ username }: { username?: string }) {
     return <MissingProfile username={username ?? ""} mode={social.mode} />;
   }
 
-  const activity = profileTimeline(posts, reposts, profiles, profile.id);
+  const blocked = new Set(blockedIds);
   const authors = new Map(profiles.map((person) => [person.id, person]));
+  addUnblockedProfiles(authors, pagedPosts.profiles, blocked);
+  const postsById = new Map(posts.map((post) => [post.id, post]));
+  const activity =
+    mode === "supabase"
+      ? presentPagedItems(pagedPosts.items, {
+          removedPostIds,
+          blockedIds: blocked,
+          postsById,
+          reposts,
+          viewerId: user?.id ?? null,
+        })
+      : profileTimeline(posts, reposts, profiles, profile.id);
+  const postsLoading = mode === "supabase" && pagedPosts.loading && activity.length === 0;
 
   return (
     <>
@@ -158,6 +186,7 @@ export function ProfileView({ username }: { username?: string }) {
       onRefresh={async () => {
         await refresh();
         reload();
+        setPostsRefreshKey((key) => key + 1);
       }}
       className="-mx-4 -mt-5"
     >
@@ -239,7 +268,13 @@ export function ProfileView({ username }: { username?: string }) {
       </div>
 
       {tab === "posts" ? (
-        activity.length === 0 ? (
+        postsLoading ? (
+          <LoadingRows count={3} />
+        ) : pagedPosts.error && activity.length === 0 ? (
+          <p className="px-4 py-8 text-center text-sm text-rose-600 dark:text-rose-400">
+            {pagedPosts.error}
+          </p>
+        ) : activity.length === 0 ? (
           <EmptyState
             icon={<MessageCircle className="h-5 w-5" />}
             title="No posts yet"
@@ -256,18 +291,35 @@ export function ProfileView({ username }: { username?: string }) {
             ) : null}
           </EmptyState>
         ) : (
-          activity.map((item) => {
-            const author = authors.get(item.post.authorId);
-            if (!author) return null;
-            return (
-              <Tweet
-                key={item.key}
-                post={item.post}
-                author={author}
-                repostedBy={item.repostedBy}
+          <>
+            {activity.map((item) => {
+              const author = authors.get(item.post.authorId);
+              if (!author) return null;
+              return (
+                <Tweet
+                  key={item.key}
+                  post={item.post}
+                  author={author}
+                  repostedBy={item.repostedBy}
+                  extraPosts={pagedPosts.relatedPosts}
+                  extraProfiles={pagedPosts.profiles}
+                />
+              );
+            })}
+            {mode === "supabase" ? (
+              <LoadMore
+                hasMore={pagedPosts.hasMore}
+                loading={pagedPosts.loadingMore}
+                failed={Boolean(pagedPosts.error)}
+                onLoadMore={pagedPosts.loadMore}
               />
-            );
-          })
+            ) : null}
+            {pagedPosts.error ? (
+              <p className="px-4 py-3 text-center text-sm text-rose-600 dark:text-rose-400">
+                {pagedPosts.error}
+              </p>
+            ) : null}
+          </>
         )
       ) : (
         <div className="px-4 py-4">
