@@ -3,9 +3,9 @@
 import { cardCategory, categoryLabel } from "@/lib/card-category";
 import type { CardCategory } from "@/lib/types";
 
-const OPTIONS: { id: CardCategory; label: string; detail: string }[] = [
-  { id: "flipping", label: "Flipping", detail: "For sale" },
-  { id: "pc", label: "PC", detail: "Personal collection" },
+const OPTIONS: { id: CardCategory; detail: string }[] = [
+  { id: "flipping", detail: "For sale" },
+  { id: "pc", detail: "Personal collection" },
 ];
 
 export function CategoryPicker({
@@ -32,7 +32,7 @@ export function CategoryPicker({
                 : "border-zinc-200 bg-white text-zinc-900 dark:border-white/10 dark:bg-white/[0.03] dark:text-zinc-100"
             }`}
           >
-            <span className="block text-sm font-bold">{option.label}</span>
+            <span className="block text-sm font-bold">{categoryLabel(option.id)}</span>
             <span className={`block text-xs ${selected ? "text-white/75 dark:text-zinc-600" : "text-zinc-500"}`}>
               {option.detail}
             </span>

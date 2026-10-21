@@ -68,32 +68,41 @@ export type IdentifyResult = {
 
 export type PortfolioFilter = "all" | "held" | "sold" | "profit" | "loss";
 
+type DetailCard = Pick<
+  SportsCard,
+  "cardNumber" | "noNumber" | "conditionType" | "grade" | "year" | "yearLabel"
+> & { setBrand?: string | null };
+
 /**
- * True when pricing needs more identity details: missing number (unless
- * no_number), graded without grader/grade, or missing year.
+ * Fields pricing still needs. Display names only — nothing here is written back.
+ * Order is year, set, number, grade.
  */
-export function needsDetails(
-  card: Pick<
-    SportsCard,
-    | "cardNumber"
-    | "noNumber"
-    | "conditionType"
-    | "grade"
-    | "year"
-    | "yearLabel"
-  >,
-): boolean {
-  if (!card.noNumber && !card.cardNumber.trim()) return true;
+export function missingDetailFields(card: DetailCard): string[] {
+  const missing: string[] = [];
+  const label = (card.yearLabel ?? "").trim();
+  if (!label && !(card.year > 0)) missing.push("year");
+  if (typeof card.setBrand === "string" && !card.setBrand.trim()) missing.push("set");
+  if (!card.noNumber && !card.cardNumber.trim()) missing.push("number");
   if (card.conditionType === "graded") {
     const text = (card.grade ?? "").trim();
-    if (!text || /^raw/i.test(text)) return true;
     const hasCompany = /\b(PSA|BGS|SGC|CGC|TAG|HGA|Other)\b/i.test(text);
     const hasNumber = /\d+(?:\.\d+)?/.test(text);
-    if (!hasCompany || !hasNumber) return true;
+    if (!text || /^raw/i.test(text) || !hasCompany || !hasNumber) missing.push("grade");
   }
-  const label = (card.yearLabel ?? "").trim();
-  if (!label && !(card.year > 0)) return true;
-  return false;
+  return missing;
+}
+
+/** Chip copy, e.g. "Needs: year, set". */
+export function needsDetailsLabel(card: DetailCard): string {
+  return `Needs: ${missingDetailFields(card).join(", ")}`;
+}
+
+/**
+ * True when pricing needs more identity details: missing number (unless
+ * no_number), graded without grader/grade, missing year, or a blank set.
+ */
+export function needsDetails(card: DetailCard): boolean {
+  return missingDetailFields(card).length > 0;
 }
 
 /** @deprecated Prefer needsDetails */

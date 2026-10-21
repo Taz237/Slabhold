@@ -7,7 +7,7 @@ import { Captcha, useCaptchaWatch, type CaptchaHandle } from "@/components/captc
 import { Logo } from "@/components/logo";
 import { useSocial } from "@/components/social-provider";
 import { trackEvent } from "@/lib/analytics";
-import { CAPTCHA_INTERACTIVE, CAPTCHA_LOAD_FAILED, releaseCaptcha, submitBlocked, turnstileSiteKey } from "@/lib/auth/captcha";
+import { CAPTCHA_LOAD_FAILED, releaseCaptcha, submitBlocked, turnstileSiteKey } from "@/lib/auth/captcha";
 import { afterAuthPath, authLogoHref, loginPath, safeNext, signupPath } from "@/lib/auth/safe-next";
 import { readStoredUtm } from "@/lib/utm";
 
@@ -118,7 +118,7 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
         <Field label="Email" type="email" value={email} onChange={setEmail} placeholder="you@email.com" />
         <Field label="Password" type="password" value={password} onChange={setPassword} placeholder="At least 6 characters" />
         {mode === "login" ? (
-          <Link href="/forgot-password" className="block text-right text-sm font-medium text-zinc-500">
+          <Link href="/forgot-password" className="hit-44 ml-auto block w-fit text-right text-sm font-medium text-zinc-500">
             Forgot password?
           </Link>
         ) : null}
@@ -141,8 +141,6 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
         />
         {captchaWatch.failed ? (
           <p className="text-sm text-rose-600 dark:text-rose-400">{CAPTCHA_LOAD_FAILED}</p>
-        ) : captchaWatch.interactive ? (
-          <p className="text-sm text-zinc-500">{CAPTCHA_INTERACTIVE}</p>
         ) : null}
         <button
           type="submit"

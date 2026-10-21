@@ -42,7 +42,7 @@ export function FollowList({
     return (
       <EmptyState title="That profile isn't available.">
         <Link href="/" className="text-sm font-bold">
-          Back to Timeline
+          Back to Home
         </Link>
       </EmptyState>
     );

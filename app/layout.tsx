@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { AppShell } from "@/components/app-shell";
 import { CaptureUtm } from "@/components/capture-utm";
@@ -8,6 +8,7 @@ import { SITE_URL } from "@/lib/site-url";
 import { CollectionProvider } from "@/components/collection-provider";
 import { ImageLightboxProvider } from "@/components/image-lightbox";
 import { SocialProvider } from "@/components/social-provider";
+import { BRAND_PURPLE } from "@/lib/pwa/manifest";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -20,11 +21,24 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: BRAND_PURPLE,
+};
+
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   alternates: { canonical: "./" },
   title: "Slabhold",
   description: "Sports card portfolio, flips, and a feed of collectors",
+  applicationName: "Slabhold",
+  appleWebApp: {
+    capable: true,
+    title: "Slabhold",
+    statusBarStyle: "black-translucent",
+  },
   openGraph: {
     title: "Slabhold",
     description: "Sports card portfolio, flips, and a feed of collectors",
@@ -38,7 +52,7 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: { url: LOGO_SRC, type: "image/svg+xml", sizes: "any" },
-    apple: { url: "/apple-icon.png", sizes: "180x180", type: "image/png" },
+    apple: { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
   },
 };
 

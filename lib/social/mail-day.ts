@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   formatGrade,
+  isPickerSport,
   isValidCardNumber,
   isValidYear,
   normalizeCardNumberInput,
@@ -217,7 +218,7 @@ export const SOURCE_LABELS: Record<AcquiredSource, string> = {
   other: "Other",
 };
 
-/** Stored sport values. Pokémon shows as Pokémon/TCG in the picker. */
+/** Stored sport values. Pokémon stays valid so an existing card still saves and displays. */
 export const MAIL_DAY_SPORTS = [
   "Baseball",
   "Basketball",
@@ -229,6 +230,9 @@ export const MAIL_DAY_SPORTS = [
 ] as const;
 
 export type MailDaySport = (typeof MAIL_DAY_SPORTS)[number];
+
+/** Launch picker. Pokémon is omitted; pass the current value through optionsWithCurrent. */
+export const MAIL_DAY_SPORT_PICKER = MAIL_DAY_SPORTS.filter(isPickerSport);
 
 export function mailDaySportLabel(sport: string): string {
   return sport === "Pokémon" ? "Pokémon/TCG" : sport;

@@ -23,7 +23,7 @@ import {
 import { parallelAfterSetChange, parallelIsListed, parallelsForSet } from "@/lib/cards/parallels";
 import {
   MAIL_DAY_MAX_CARDS,
-  MAIL_DAY_SPORTS,
+  MAIL_DAY_SPORT_PICKER,
   SOURCE_LABELS,
   isMailDaySport,
   mailDayIsDirty,
@@ -386,7 +386,7 @@ export function MailDayForm() {
                       aria-label={`Sport for card ${index + 1}`}
                     >
                       <option value="">Choose a sport</option>
-                      {MAIL_DAY_SPORTS.map((sport) => (
+                      {optionsWithCurrent([...MAIL_DAY_SPORT_PICKER], section.sport).map((sport) => (
                         <option key={sport} value={sport}>
                           {mailDaySportLabel(sport)}
                         </option>

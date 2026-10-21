@@ -107,7 +107,7 @@ export function PostView({ id }: { id: string }) {
     return (
       <EmptyState title="That post is gone.">
         <Link href="/" className="text-sm font-bold">
-          Back to Timeline
+          Back to Home
         </Link>
       </EmptyState>
     );

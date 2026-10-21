@@ -24,7 +24,7 @@ import {
 
 const TABS = [
   { href: "/profile", label: "Profile", icon: CircleUser },
-  { href: "/", label: "Timeline", icon: Compass },
+  { href: "/", label: "Home", icon: Compass },
   { href: "/scan", label: "Scan", icon: Camera },
   { href: "/messages", label: "Messages", icon: Mail },
   { href: "/collection", label: "Collection", icon: WalletCards },
@@ -80,7 +80,7 @@ function Shell({
     pathname.startsWith("/collection") || pathname.startsWith("/portfolio");
   const mainMax = wideMain ? "max-w-5xl" : "max-w-lg";
   const mainPad = showNav
-    ? "pb-28 md:pb-40"
+    ? "pb-[calc(7rem+env(safe-area-inset-bottom))] md:pb-[calc(10rem+env(safe-area-inset-bottom))]"
     : showJoin
       ? "pb-[calc(5.25rem+env(safe-area-inset-bottom))]"
       : "pb-[max(1.5rem,env(safe-area-inset-bottom))]";
@@ -88,7 +88,7 @@ function Shell({
   return (
     <div className="min-h-full bg-[var(--background)] text-[var(--foreground)]">
       <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(124,92,255,0.16),_transparent_50%)]" />
-      <header className="sticky top-0 z-20 border-b border-zinc-200/80 bg-[color-mix(in_oklab,var(--background)_88%,transparent)] backdrop-blur-xl dark:border-white/10">
+      <header className="sticky top-0 z-20 border-b border-zinc-200/80 bg-[color-mix(in_oklab,var(--background)_88%,transparent)] pt-[env(safe-area-inset-top)] backdrop-blur-xl dark:border-white/10">
         <div className="mx-auto flex max-w-lg items-center justify-between px-4 py-2.5">
           <Link href="/" className="flex items-center gap-2 rounded-md py-1">
             <Logo />

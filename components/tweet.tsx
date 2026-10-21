@@ -194,7 +194,10 @@ function CommentPreview({ postId, comments }: { postId: string; comments: PostCo
         return (
           <div key={comment.id} className="flex min-w-0 gap-2">
             {href ? (
-              <Link href={href} className="mt-0.5 shrink-0">
+              <Link
+                href={href}
+                className={`${person?.avatarDataUrl ? "" : "hit-44"} mt-0.5 inline-flex shrink-0`}
+              >
                 <Avatar
                   name={name}
                   image={person?.avatarDataUrl}
@@ -566,7 +569,7 @@ function ActionButton({
       aria-label={count > 0 ? `${label}, ${count}` : label}
       aria-pressed={pressed}
       onClick={onClick}
-      className={`group inline-flex min-h-9 flex-1 items-center ${active ? on : color}`}
+      className={`hit-44 group inline-flex min-h-9 flex-1 items-center ${active ? on : color}`}
     >
       <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-full ${wash}`}>{children}</span>
       {count > 0 ? <span className="text-[13px] tabular-nums">{count}</span> : null}

@@ -57,7 +57,7 @@ export function Captcha({
     <Turnstile
       ref={widget}
       siteKey={siteKey}
-      options={{ theme: "dark", size: "flexible" }}
+      options={{ theme: "light", size: "flexible" }}
       scriptOptions={{ onError: onFail }}
       onSuccess={onToken}
       onExpire={() => {
@@ -113,7 +113,6 @@ export function useCaptchaWatch(enabled: boolean, token: string | null) {
 
   return {
     failed: watch.failed,
-    interactive: watch.interactive,
     onActivity,
     onInteractive,
     onSolved,

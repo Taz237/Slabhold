@@ -43,7 +43,7 @@ import {
   NOT_ENOUGH_SALES_LABEL,
 } from "@/lib/value/format";
 import type { OwnersAndHunters } from "@/lib/cards/people";
-import { needsDetails } from "@/lib/types";
+import { needsDetails, needsDetailsLabel } from "@/lib/types";
 import { useCardValue } from "@/lib/value/use-card-values";
 
 export function CardDetail({
@@ -212,7 +212,7 @@ export function CardDetail({
                 href={`/cards/${card.id}/edit`}
                 className="underline underline-offset-2 hover:text-amber-950 dark:hover:text-amber-100"
               >
-                Add missing details for accurate prices
+                {needsDetailsLabel(card)}. Add them for accurate prices
               </Link>
             </p>
           ) : null}

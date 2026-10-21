@@ -6,8 +6,9 @@ export function cardCategory(card: { category?: string | null }): CardCategory {
   return card.category === "pc" ? "pc" : "flipping";
 }
 
+/** Display copy only. Stored values stay `pc` and `flipping`. */
 export function categoryLabel(category: CardCategory) {
-  return category === "pc" ? "PC" : "Flipping";
+  return category === "pc" ? "Personal" : "Flipping";
 }
 
 export function readCategoryOverrides(): Record<string, CardCategory> {

@@ -441,7 +441,7 @@ function MissingProfile({
     return (
       <EmptyState title="This account isn't available" detail="You can't interact with this account.">
         <Link href="/" className="text-sm font-bold">
-          Back to Timeline
+          Back to Home
         </Link>
       </EmptyState>
     );
@@ -456,7 +456,7 @@ function MissingProfile({
       }
     >
       <Link href="/" className="text-sm font-bold">
-        Back to Timeline
+        Back to Home
       </Link>
     </EmptyState>
   );
