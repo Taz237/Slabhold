@@ -41,7 +41,7 @@ export function PullToRefresh({
   className,
   children,
 }: {
-  onRefresh?: () => Promise<void> | void;
+  onRefresh?: () => Promise<unknown> | void;
   disabled?: boolean;
   className?: string;
   children: React.ReactNode;

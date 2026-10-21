@@ -69,6 +69,7 @@ import {
   followSuggestionFetchLimit,
   followSuggestions,
 } from "@/lib/social/follow-suggestions";
+import { unreadGroupCount } from "@/lib/social/group-notifications";
 import { followingTimeline, type TimelineItem } from "@/lib/social/timeline";
 import { createSupabaseBrowser } from "@/lib/supabase/browser";
 import { getSupabaseConfig } from "@/lib/supabase/client";
@@ -101,7 +102,7 @@ type SocialContextValue = {
   posts: Post[];
   publicCards: SocialSnapshot["publicCards"];
   status: string | null;
-  refresh: () => Promise<void>;
+  refresh: () => Promise<Notification[]>;
   signUp: (input: SignUpInput) => Promise<AuthResult>;
   signIn: (email: string, password: string, captchaToken?: string) => Promise<AuthResult>;
   signOut: () => Promise<void>;
@@ -184,6 +185,13 @@ function loadOnce<T>(
   return task;
 }
 
+function notificationsFor(user: { id: string } | null, notes: Notification[]): Notification[] {
+  if (!user) return [];
+  return notes
+    .filter((note) => note.recipientId === user.id)
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+}
+
 const emptySnapshot: SocialSnapshot = {
   user: null,
   profiles: [],
@@ -220,6 +228,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
   const snapshotErrorRef = useRef(false);
   const requestRef = useRef(0);
   const snapshotRefreshRef = useRef(createSnapshotRefresher<SocialSnapshot>());
+  const appliedRemoteRef = useRef<SocialSnapshot | null>(null);
   const inflightRef = useRef(new Map<string, Promise<unknown>>());
   const reloadRef = useRef<(client: SupabaseClient) => Promise<void>>(async () => {});
   localRef.current = local;
@@ -256,7 +265,9 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
         setSnapshotError(false);
         fullSnapshotRef.current = true;
         setHasFullSnapshot(true);
-        setRemote(mergeRememberedSnapshot(snapshot, rememberedRef.current, removedRef.current));
+        const merged = mergeRememberedSnapshot(snapshot, rememberedRef.current, removedRef.current);
+        appliedRemoteRef.current = merged;
+        setRemote(merged);
         if (!postIdFromPath(window.location.pathname)) setReady(true);
       },
     );
@@ -479,13 +490,30 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
     setLocal(db);
   }, []);
 
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (): Promise<Notification[]> => {
     const client = supabaseRef.current;
     if (mode === "supabase" && client) {
       await refreshRemote(client);
-      return;
+      const merged = appliedRemoteRef.current;
+      if (merged?.user) {
+        snapshotRef.current = {
+          ...snapshotRef.current,
+          user: merged.user,
+          notifications: merged.notifications,
+        };
+      }
+      return notificationsFor(snapshotRef.current.user, snapshotRef.current.notifications);
     }
-    setLocal(await loadOrCreateLocalDb());
+    const db = await loadOrCreateLocalDb();
+    localRef.current = db;
+    setLocal(db);
+    const snap = snapshotFromLocal(db);
+    snapshotRef.current = {
+      ...snapshotRef.current,
+      user: snap.user,
+      notifications: snap.notifications,
+    };
+    return notificationsFor(snap.user, snap.notifications);
   }, [mode, refreshRemote]);
 
   const signUp = useCallback(
@@ -1014,14 +1042,12 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
     [snapshot.reposts],
   );
 
-  const notifications = useMemo(() => {
-    if (!snapshot.user) return [];
-    return snapshot.notifications
-      .filter((note) => note.recipientId === snapshot.user?.id)
-      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-  }, [snapshot.notifications, snapshot.user]);
+  const notifications = useMemo(
+    () => notificationsFor(snapshot.user, snapshot.notifications),
+    [snapshot.notifications, snapshot.user],
+  );
 
-  const unreadCount = notifications.filter((note) => !note.read).length;
+  const unreadCount = unreadGroupCount(notifications);
 
   const markNotificationsRead = useCallback(() => {
     const current = snapshotRef.current;
