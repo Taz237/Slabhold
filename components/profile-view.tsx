@@ -56,6 +56,7 @@ export function ProfileView({ username }: { username?: string }) {
   const isOwn = Boolean(profile && user && profile.id === user.id);
   const searchParams = useSearchParams();
   const [editing, setEditing] = useState(false);
+  const [openedEdit, setOpenedEdit] = useState(false);
   const [tab, setTab] = useState<"posts" | "collection">(
     searchParams.get("tab") === "collection" ? "collection" : "posts",
   );
@@ -113,6 +114,11 @@ export function ProfileView({ username }: { username?: string }) {
     [collection],
   );
   const { values: cardValues } = useCardValues(collectionIds);
+  const editFromLink = searchParams.get("edit") === "1" && isOwn;
+  if (editFromLink && !openedEdit) {
+    setOpenedEdit(true);
+    setEditing(true);
+  }
 
   if (!ready) return <ProfileSkeleton />;
 

@@ -1,6 +1,6 @@
 export type HomeTab = "foryou" | "following";
 
-export type ChecklistStepId = "card" | "follow" | "post";
+export type ChecklistStepId = "follow" | "card" | "profile";
 
 export type ChecklistState = {
   visible: boolean;
@@ -34,15 +34,6 @@ export function isRecentAccount(createdAt: string, now = Date.now()): boolean {
   return age >= -60_000 && age <= NEW_ACCOUNT_MS;
 }
 
-/** Local demo only. The home feed is capped, so Supabase uses a count query. */
-export function countLoadedPosts(posts: { authorId: string }[], userId: string): number {
-  let total = 0;
-  for (const post of posts) {
-    if (post.authorId === userId) total += 1;
-  }
-  return total;
-}
-
 const FOLLOW_GOAL = 3;
 
 /** For You until they follow 3 collectors, so one follow does not open an empty feed. */
@@ -57,6 +48,15 @@ export function followStepLabel(followingCount: number): string {
   return `Follow ${FOLLOW_GOAL} collectors (${shown} of ${FOLLOW_GOAL})`;
 }
 
+/** A photo or a bio counts. A blank bio does not. */
+export function profileStepDone(input: {
+  avatarDataUrl?: string | null;
+  bio?: string | null;
+}): boolean {
+  if ((input.avatarDataUrl ?? "").trim().length > 0) return true;
+  return (input.bio ?? "").trim().length > 0;
+}
+
 export function checklistDismissKey(userId: string) {
   return `slabhold.get-started.dismissed.${userId}`;
 }
@@ -64,7 +64,7 @@ export function checklistDismissKey(userId: string) {
 export function checklistState(input: {
   cardCount: number;
   followingCount: number;
-  postCount: number;
+  profileDone: boolean;
   dismissed: boolean;
   ready: boolean;
   createdAt: string | null;
@@ -73,9 +73,9 @@ export function checklistState(input: {
   now?: number;
 }): ChecklistState {
   const steps: ChecklistState["steps"] = [
-    { id: "card", done: input.cardCount > 0 },
     { id: "follow", done: input.followingCount >= FOLLOW_GOAL },
-    { id: "post", done: input.postCount > 0 },
+    { id: "card", done: input.cardCount > 0 },
+    { id: "profile", done: input.profileDone },
   ];
   const complete = steps.every((step) => step.done);
   const recent =

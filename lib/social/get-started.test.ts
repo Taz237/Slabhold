@@ -10,6 +10,7 @@ import {
   followStepLabel,
   isNewUser,
   isRecentAccount,
+  profileStepDone,
   storedNewUserFlag,
 } from "./get-started";
 
@@ -19,7 +20,7 @@ const createdAt = "2026-10-18T15:00:00.000Z";
 const open = {
   cardCount: 0,
   followingCount: 0,
-  postCount: 0,
+  profileDone: false,
   dismissed: false,
   ready: true,
   createdAt,
@@ -74,6 +75,16 @@ describe("followStepLabel", () => {
   });
 });
 
+describe("profileStepDone", () => {
+  it("is done with a photo or a bio, and not with blanks", () => {
+    assert.equal(profileStepDone({ avatarDataUrl: null, bio: "" }), false);
+    assert.equal(profileStepDone({ avatarDataUrl: "   ", bio: "  " }), false);
+    assert.equal(profileStepDone({ avatarDataUrl: null, bio: null }), false);
+    assert.equal(profileStepDone({ avatarDataUrl: "https://cdn.example/me.jpg", bio: "" }), true);
+    assert.equal(profileStepDone({ avatarDataUrl: null, bio: "Rookies and refractors." }), true);
+  });
+});
+
 describe("checklistState", () => {
   it("shows three open steps for a new account", () => {
     const state = checklistState(open);
@@ -82,30 +93,41 @@ describe("checklistState", () => {
     assert.deepEqual(
       state.steps.map((step) => [step.id, step.done]),
       [
-        ["card", false],
         ["follow", false],
-        ["post", false],
+        ["card", false],
+        ["profile", false],
       ],
     );
   });
 
   it("checks steps from real counts and hides itself when all three are done", () => {
-    const partial = checklistState({ ...open, cardCount: 1, followingCount: 2, postCount: 0 });
+    const partial = checklistState({ ...open, cardCount: 1, followingCount: 2, profileDone: false });
     assert.equal(partial.visible, true);
     assert.deepEqual(
       partial.steps.map((step) => step.done),
-      [true, false, false],
+      [false, true, false],
     );
 
-    const followed = checklistState({ ...open, cardCount: 1, followingCount: 3, postCount: 1 });
+    const followed = checklistState({ ...open, cardCount: 1, followingCount: 3, profileDone: true });
     assert.equal(followed.complete, true);
     assert.equal(followed.visible, false);
   });
 
-  it("hides when dismissed or while the counts are still loading", () => {
+  it("ticks the profile step from a photo or a bio alone", () => {
+    const photo = checklistState({ ...open, profileDone: true });
+    assert.equal(photo.visible, true);
+    assert.deepEqual(
+      photo.steps.map((step) => step.done),
+      [false, false, true],
+    );
+  });
+
+  it("hides when dismissed, while counts are loading, or when signed out", () => {
     assert.equal(checklistState({ ...open, dismissed: true }).visible, false);
     assert.equal(checklistState({ ...open, ready: false }).visible, false);
+    assert.equal(checklistState({ ...open, createdAt: null, wasNewUser: null }).visible, false);
     assert.equal(checklistDismissKey("user-1"), "slabhold.get-started.dismissed.user-1");
+    assert.equal(checklistDismissKey("user-2"), "slabhold.get-started.dismissed.user-2");
   });
 
   it("stays up for a new account while they finish the steps", () => {
@@ -113,13 +135,13 @@ describe("checklistState", () => {
       ...open,
       cardCount: 1,
       followingCount: 1,
-      postCount: 0,
+      profileDone: false,
       wasNewUser: true,
     });
     assert.equal(working.visible, true);
     assert.deepEqual(
       working.steps.map((step) => step.done),
-      [true, false, false],
+      [false, true, false],
     );
   });
 
@@ -132,7 +154,7 @@ describe("checklistState", () => {
         createdAt: older,
         cardCount: 4,
         followingCount: 1,
-        postCount: 2,
+        profileDone: true,
       }).visible,
       false,
     );
@@ -146,29 +168,44 @@ describe("checklistState", () => {
 });
 
 describe("home wiring", () => {
-  it("uses the helpers, the add-card flow, collectors, and the composer", () => {
+  it("uses the helpers, the add-card flow, collectors, and edit profile", () => {
     const root = process.cwd();
     const feed = readFileSync(join(root, "components/feed-view.tsx"), "utf8");
     const card = readFileSync(join(root, "components/get-started.tsx"), "utf8");
+    const profile = readFileSync(join(root, "components/profile-view.tsx"), "utf8");
+    const tip = readFileSync(join(root, "components/add-to-home-tip.tsx"), "utf8");
     assert.match(feed, /defaultHomeTab\(/);
+    assert.match(feed, /usePagedTimeline\(/);
     assert.match(feed, /checklistState\(/);
     assert.match(feed, /isNewUser\(\{/);
     assert.match(feed, /useRememberNewUser\(/);
+    assert.match(feed, /profileStepDone\(/);
     assert.match(feed, /createdAt: user\?\.createdAt/);
-    assert.match(feed, /from\("posts"\)/);
-    assert.match(feed, /select\("id", \{ count: "exact", head: true \}\)/);
-    assert.match(feed, /\.eq\("user_id", userId\)/);
+    assert.doesNotMatch(feed, /useOwnPostCount/);
     assert.doesNotMatch(feed, /posts\.filter\(\(post\) => post\.authorId/);
     assert.match(feed, /id="collectors-to-follow"/);
     assert.match(feed, /checklistDismissKey\(userId\)|useGetStartedDismissed/);
+    assert.match(feed, /user && started\.visible/);
+    assert.match(feed, /\{user \? <AddToHomeTip userId=\{user\.id\} \/> : null\}/);
     assert.match(card, /checklistNewUserKey\(userId\)/);
     assert.match(card, /localStorage\.setItem\(key, wasNewOnLoad \? "1" : "0"\)/);
     assert.match(card, /Add your first card/);
     assert.match(card, /followStepLabel\(followingCount\)/);
-    assert.match(card, /Make your first post/);
+    assert.match(card, /Add a photo or bio/);
+    assert.doesNotMatch(card, /Make your first post/);
+    assert.doesNotMatch(card, /Pokémon|Pokemon|TCG/i);
     assert.match(feed, /followingCount=\{following\}/);
-    assert.match(card, /href="\/cards\/new"/);
+    assert.match(card, /"\/cards\/new"/);
+    assert.match(card, /"\/profile\?edit=1"/);
     assert.match(card, /localStorage/);
     assert.match(card, /aria-label="Dismiss"/);
+    assert.match(card, /min-h-11/);
+    assert.match(profile, /searchParams\.get\("edit"\) === "1"/);
+    assert.match(profile, /setEditing\(true\)/);
+    assert.match(tip, /addToHomeDismissKey\(userId\)/);
+    assert.match(tip, /navigatorStandalone: nav\.standalone === true/);
+    assert.match(tip, /display-mode: standalone/);
+    assert.match(tip, /Tap Share, then Add to Home Screen/);
+    assert.doesNotMatch(tip, /Pokémon|Pokemon|TCG/i);
   });
 });
