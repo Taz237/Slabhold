@@ -86,6 +86,21 @@ describe("add card form polish", () => {
     assert.match(form, /flex min-h-11 items-center gap-3/);
   });
 
+  it("does not use a numeric keyboard for card number or year", () => {
+    const cardNumber = form.slice(
+      form.indexOf('label="Card number"'),
+      form.indexOf("No number on card"),
+    );
+    assert.match(cardNumber, /aria-label="Card number"/);
+    assert.match(cardNumber, /placeholder="e\.g\. 136 or BCP-1"/);
+    assert.doesNotMatch(cardNumber, /inputMode="numeric"/);
+    assert.doesNotMatch(cardNumber, /inputMode=/);
+
+    const year = form.slice(form.indexOf('label="Year"'), form.indexOf('label="Sport"'));
+    assert.match(year, /inputMode="text"/);
+    assert.doesNotMatch(year, /inputMode="numeric"/);
+  });
+
   it("sorts the set list alphabetically without reordering the source list", () => {
     const original = SETS[0];
     const sorted = sortSetNames(SETS);
@@ -157,6 +172,7 @@ describe("collection screens", () => {
 
     const dash = read("components/dashboard.tsx");
     assert.match(dash, /lane === "flipping" \|\| lane === "pc" \? \(/);
+    assert.match(dash, /syncError \? null : lane === "flipping" \|\| lane === "pc"/);
     assert.match(dash, /<CollectionLaneEmpty lane=\{lane\} \/>/);
     assert.match(dash, /<CollectionLaneEmpty lane=\{lane\} onShowAll=/);
   });

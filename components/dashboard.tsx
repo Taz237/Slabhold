@@ -209,7 +209,7 @@ export function Dashboard() {
       {cards.length === 0 ? (
         lane === "wants" ? (
           <WantList />
-        ) : lane === "flipping" || lane === "pc" ? (
+        ) : syncError ? null : lane === "flipping" || lane === "pc" ? (
           <CollectionLaneEmpty lane={lane} />
         ) : shouldShowFirstCardWelcome({ cardCount: cards.length, ready, syncError }) ? (
           <FirstCardWelcome />

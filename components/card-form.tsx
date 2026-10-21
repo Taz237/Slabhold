@@ -592,7 +592,7 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
             isCustomValid={isValidYear}
             customInvalidHint="Use 2026 or 2023-24"
             dataField="yearLabel"
-            inputMode="numeric"
+            inputMode="text"
             onChange={(yearLabel) => {
               markTouched("yearLabel");
               setForm((prev) => ({ ...prev, yearLabel }));
@@ -662,7 +662,6 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
                 cardNumber: e.target.value.replace(/^#/, ""),
               }))
             }
-            inputMode="numeric"
             className={`${inputClass} disabled:opacity-50`}
             placeholder="e.g. 136 or BCP-1"
             aria-label="Card number"
