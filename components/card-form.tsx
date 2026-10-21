@@ -11,10 +11,10 @@ import { useSocial } from "@/components/social-provider";
 import { takeScan } from "@/lib/capture";
 import type { CatalogCard } from "@/lib/card-catalog";
 import {
-  GRADE_NUMBERS,
   GRADE_QUALIFIERS,
   SETS,
   SPORT_PICKER_OPTIONS,
+  gradeSelectOptions,
   isValidCardNumber,
   isValidYear,
   normalizeCardNumberInput,
@@ -145,7 +145,7 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
   });
   const conditionType = grading.conditionType;
   const graded = conditionType === "graded";
-  const gradeChoices = GRADE_NUMBERS[gradeCompany] ?? GRADE_NUMBERS.Other;
+  const gradeChoices = gradeSelectOptions(gradeCompany, gradeNumber);
   const yearOptions = yearOptionsForSport(form.sport);
 
   const parsedYear = parseYearLabel(form.yearLabel);

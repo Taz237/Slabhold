@@ -1,4 +1,4 @@
-import { parseGrade, RAW_GRADE } from "@/lib/card-options";
+import { parseGrade, RAW_GRADE, SLAB_TITLE_GRADER_PATTERN } from "@/lib/card-options";
 import { filterPriceOutliers } from "./stats";
 import type { CleanedSale, TrawlSoldResult } from "./types";
 
@@ -30,8 +30,7 @@ const AUTO_RE = /\b(?:auto|autograph|autographed|signed)\b/i;
 const RELIC_RE = /\b(?:patch|relic)\b/i;
 const SERIAL_RE = /\/(\d+)\b/;
 /** Graders / slab brands that disqualify a listing from raw comps. */
-const GRADER_NAMES =
-  "PSA|BGS|SGC|CGC|TAG|Beckett|HGA|CSG|ISA|Gem\\s*Studios|Studios";
+const GRADER_NAMES = SLAB_TITLE_GRADER_PATTERN;
 const TITLE_GRADE_RE = new RegExp(
   `\\b(${GRADER_NAMES})\\s*(\\d+(?:\\.\\d+)?)\\b`,
   "i",

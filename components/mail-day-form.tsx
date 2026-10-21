@@ -16,8 +16,8 @@ import { useSocial } from "@/components/social-provider";
 import { NativeSelect, SearchSelect } from "@/components/search-select";
 import {
   GRADE_COMPANIES,
-  GRADE_NUMBERS,
   SETS,
+  gradeSelectOptions,
   optionsWithCurrent,
   yearOptionsForSport,
 } from "@/lib/card-options";
@@ -480,7 +480,7 @@ export function MailDayForm() {
                       <NativeSelect
                         label="Grade"
                         value={section.grade}
-                        options={GRADE_NUMBERS[section.grader] ?? GRADE_NUMBERS.Other}
+                        options={gradeSelectOptions(section.grader, section.grade)}
                         onChange={(grade) => update(index, { grade })}
                       />
                     </div>

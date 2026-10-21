@@ -96,6 +96,77 @@ export const RAW_GRADE = "Raw";
 
 export const GRADE_COMPANIES = ["PSA", "BGS", "SGC", "CGC", "TAG", "Other"];
 
+/**
+ * Slab names comps already use to spot a graded title.
+ * Beckett is an alias of BGS. Gem Studios and Studios stay title filters only.
+ */
+export const SLAB_TITLE_GRADER_PATTERN =
+  "PSA|BGS|SGC|CGC|TAG|Beckett|HGA|CSG|ISA|Gem\\s*Studios|Studios";
+
+/** The repo never lists BVG as its own company, so it saves as BGS. */
+const GRADER_ALIASES: Record<string, string> = {
+  beckett: "BGS",
+  bvg: "BGS",
+};
+
+const TITLE_ONLY_GRADERS = new Set(["gem studios", "studios"]);
+
+function canonicalCompanyName(name: string): string {
+  const listed = GRADE_COMPANIES.find((item) => item.toLowerCase() === name.toLowerCase());
+  return listed ?? name.toUpperCase();
+}
+
+const KNOWN_GRADING_COMPANIES: readonly string[] = (() => {
+  const fromTitles = SLAB_TITLE_GRADER_PATTERN.split("|").map((part) =>
+    part.replace(/\\s\*/g, " "),
+  );
+  const seen = new Set<string>();
+  const companies: string[] = [];
+  for (const name of [...GRADE_COMPANIES, ...fromTitles]) {
+    const key = name.toLowerCase();
+    if (TITLE_ONLY_GRADERS.has(key) || key in GRADER_ALIASES || seen.has(key)) continue;
+    seen.add(key);
+    companies.push(canonicalCompanyName(name));
+  }
+  return companies;
+})();
+
+/** Companies a grade string may name. Unknown words such as Mint are absent. */
+export function knownGradingCompanies(): readonly string[] {
+  return KNOWN_GRADING_COMPANIES;
+}
+
+/** A known company, or "" when the word is not one. Aliases become BGS. */
+export function resolveGradingCompany(token: string): string {
+  const key = token.trim().toLowerCase();
+  if (!key) return "";
+  const alias = GRADER_ALIASES[key];
+  if (alias) return alias;
+  return KNOWN_GRADING_COMPANIES.find((item) => item.toLowerCase() === key) ?? "";
+}
+
+function matchGradingCompany(text: string): string {
+  const candidates = [
+    ...Object.entries(GRADER_ALIASES).map(([name, company]) => ({ name, company })),
+    ...KNOWN_GRADING_COMPANIES.map((company) => ({ name: company, company })),
+  ];
+  let best: { index: number; length: number; company: string } | null = null;
+  for (const item of candidates) {
+    const escaped = item.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const re = new RegExp(`(?:^|\\b)${escaped}(?=\\s|\\d|\\b|$)`, "i");
+    const match = re.exec(text);
+    if (!match) continue;
+    if (
+      !best ||
+      match.index < best.index ||
+      (match.index === best.index && item.name.length > best.length)
+    ) {
+      best = { index: match.index, length: item.name.length, company: item.company };
+    }
+  }
+  return best?.company ?? "";
+}
+
 function gradeScale(includeNineFive: boolean) {
   const values: string[] = [];
   for (let tenths = 100; tenths >= 10; tenths -= 5) {
@@ -125,6 +196,12 @@ export function optionsWithCurrent(options: string[], current: string) {
   return [value, ...options];
 }
 
+/** Grade select options, including a saved number the scale does not list. */
+export function gradeSelectOptions(company: string, current: string): string[] {
+  const base = GRADE_NUMBERS[company] ?? GRADE_NUMBERS.Other;
+  return optionsWithCurrent(base, current);
+}
+
 export function formatGrade(company: string, number: string) {
   if (!company) return "Raw";
   if (!number) return company;
@@ -137,22 +214,10 @@ export function parseGrade(grade: string) {
   if (/raw|ungraded|^none$/i.test(text)) {
     return { company: RAW_GRADE, number: "", recognized: true };
   }
-  const company = GRADE_COMPANIES.find((item) =>
-    text.toUpperCase().includes(item.toUpperCase()),
-  );
-  // Legacy "Raw / Ungraded"
-  if (!company && /raw/i.test(text)) {
-    return { company: RAW_GRADE, number: "", recognized: true };
-  }
+  const company = matchGradingCompany(text);
   const match = text.match(/(\d+(?:\.\d+)?)/);
   const number = match ? normalizeGradeNumber(match[1]) : "";
-  const allowed = company ? GRADE_NUMBERS[company] : undefined;
-  if (company && number && allowed?.includes(number)) {
-    return { company, number, recognized: true };
-  }
-  if (company && number) {
-    return { company, number, recognized: true };
-  }
+  if (company || number) return { company, number, recognized: true };
   return { company: "", number: "", recognized: false };
 }
 
