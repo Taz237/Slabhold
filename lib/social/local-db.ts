@@ -824,7 +824,21 @@ export function canDeleteReply(viewerId: string | null | undefined, authorId: st
   return Boolean(viewerId && viewerId === authorId);
 }
 
-/** Same related-row cleanup as localDeletePost, keyed by the reply id. An error keeps the previous rows. */
+/**
+ * True when this row is the deleter's comment notice, or a reply mention they
+ * sent, on the parent post, and the stored preview is this reply's preview.
+ * Notifications have no comment id, so the preview is the match.
+ */
+function isOwnReplyPreviewNotification(note: Notification, comment: PostComment) {
+  if (note.actorId !== comment.authorId) return false;
+  if (note.postId !== comment.postId) return false;
+  const preview = previewText(comment.body);
+  if (!preview || note.preview !== preview) return false;
+  if (note.kind === "comment") return true;
+  return note.kind === "mention" && isReplyMentionMetadata(note.metadata);
+}
+
+/** Drops the reply and rows tied to it. An error keeps the previous rows. */
 export function stateAfterReplyDelete(
   before: {
     comments: PostComment[];
@@ -836,12 +850,16 @@ export function stateAfterReplyDelete(
   result: { error?: string },
 ) {
   if (result.error) return before;
+  const comment = before.comments.find((item) => item.id === commentId);
   return {
-    comments: before.comments.filter((comment) => comment.id !== commentId),
+    comments: before.comments.filter((item) => item.id !== commentId),
     likes: before.likes.filter((like) => like.postId !== commentId),
     reposts: before.reposts.filter((repost) => repost.postId !== commentId),
-    // Reply mentions only store { source: "reply" } and the parent post id.
-    notifications: before.notifications.filter((note) => note.postId !== commentId),
+    notifications: before.notifications.filter((note) => {
+      if (note.postId === commentId) return false;
+      if (comment && isOwnReplyPreviewNotification(note, comment)) return false;
+      return true;
+    }),
   };
 }
 

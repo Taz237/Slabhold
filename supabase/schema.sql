@@ -1,5 +1,5 @@
 -- Slabhold schema
--- Run this in the Supabase SQL editor after creating a project.
+-- Run ONCE on a NEW empty database, then apply supabase/migrations in order. Never re-run on an existing database.
 --
 -- The app reads these environment variables from `.env.local`:
 --   NEXT_PUBLIC_SUPABASE_URL
@@ -402,11 +402,66 @@ create policy "Users can insert own cards" on public.cards for insert with check
 create policy "Users can update own cards" on public.cards for update using (auth.uid() = user_id);
 create policy "Users can delete own cards" on public.cards for delete using (auth.uid() = user_id);
 
+-- Comment policies match the latest migration (private.is_blocked / private.post_author).
+-- The helpers are created here so this file can run on an empty database.
+-- supabase/migrations replaces them; public.blocks arrives in those migrations.
+create schema if not exists private;
+
+revoke all on schema private from public;
+grant usage on schema private to anon, authenticated;
+
+create or replace function private.is_blocked(a uuid, b uuid)
+returns boolean
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+begin
+  if auth.uid() is not null
+     and auth.uid() is distinct from a
+     and auth.uid() is distinct from b then
+    raise exception 'permission denied for function is_blocked'
+      using errcode = '42501';
+  end if;
+
+  return a is not null
+    and b is not null
+    and a <> b
+    and exists (
+      select 1
+      from public.blocks
+      where (blocker_id = a and blocked_id = b)
+         or (blocker_id = b and blocked_id = a)
+    );
+end;
+$$;
+
+create or replace function private.post_author(post_id uuid)
+returns uuid
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select user_id from public.posts where id = post_id;
+$$;
+
+revoke all on function private.is_blocked(uuid, uuid) from public;
+revoke all on function private.post_author(uuid) from public;
+grant execute on function private.is_blocked(uuid, uuid) to anon, authenticated;
+grant execute on function private.post_author(uuid) to authenticated;
+
 drop policy if exists "Comments are public" on public.comments;
 drop policy if exists "Comment as yourself" on public.comments;
 drop policy if exists "Delete own comments" on public.comments;
-create policy "Comments are public" on public.comments for select using (true);
-create policy "Comment as yourself" on public.comments for insert with check (auth.uid() = user_id);
+create policy "Comments are public" on public.comments
+  for select using (not private.is_blocked(auth.uid(), user_id));
+create policy "Comment as yourself" on public.comments
+  for insert with check (
+    auth.uid() = user_id
+    and not private.is_blocked(auth.uid(), private.post_author(post_id))
+  );
 create policy "Delete own comments" on public.comments for delete using (auth.uid() = user_id);
 
 drop policy if exists "Read related notifications" on public.notifications;
