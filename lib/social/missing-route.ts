@@ -1,3 +1,4 @@
+import { isStaticPublicPath } from "@/lib/auth/route-access";
 import { isUuid } from "@/lib/value/card-value-access";
 import { normalizeUsername } from "./local-db";
 
@@ -127,6 +128,7 @@ export async function pathIsMissing(input: {
   cookies: Cookie[];
   fetchImpl?: typeof fetch;
 }): Promise<boolean> {
+  if (isStaticPublicPath(input.pathname)) return false;
   const check = missingCheckForPath(input.pathname);
   const url = input.supabaseUrl?.trim();
   const key = input.anonKey?.trim();

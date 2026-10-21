@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { isStaticPublicPath } from "@/lib/auth/route-access";
 import { pathIsMissing } from "@/lib/social/missing-route";
 
 export async function proxy(request: NextRequest) {
+  // Install files, Next assets, and OG images are never missing-page checks.
+  if (isStaticPublicPath(request.nextUrl.pathname)) return NextResponse.next();
   const missing = await pathIsMissing({
     pathname: request.nextUrl.pathname,
     supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -21,6 +24,8 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
+  // Positive list only. Manifest, /icons, apple icons, favicon, robots,
+  // /_next, and opengraph/twitter images are not matched.
   matcher: [
     "/posts/:id",
     "/u/:username",

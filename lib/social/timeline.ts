@@ -82,6 +82,18 @@ export function profileTimeline(
   return preferRepostOnce(items);
 }
 
+/** Accounts this viewer follows. Their own id is not included. */
+export function followedAccountIds(follows: FollowEdge[], userId: string): Set<string> {
+  const ids = new Set<string>();
+  for (const edge of follows) {
+    if (edge.followerId === userId && edge.followingId && edge.followingId !== userId) {
+      ids.add(edge.followingId);
+    }
+  }
+  return ids;
+}
+
+/** Posts and reposts from accounts the viewer follows. Nobody followed → empty. */
 export function followingTimeline(
   posts: Post[],
   reposts: PostRepost[],
@@ -89,10 +101,7 @@ export function followingTimeline(
   follows: FollowEdge[],
   userId: string,
 ): TimelineItem[] {
-  const ids = new Set<string>([userId]);
-  for (const edge of follows) {
-    if (edge.followerId === userId) ids.add(edge.followingId);
-  }
+  const ids = followedAccountIds(follows, userId);
   const { postsById, profilesById } = indexes(posts, profiles);
   const items = posts.filter((post) => ids.has(post.authorId)).map(postItem);
   items.push(...repostItems(reposts, postsById, profilesById, (repost) => ids.has(repost.userId)));
