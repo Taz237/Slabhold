@@ -5,7 +5,7 @@ export const TEST_ACCOUNT_HANDLES = ["qa_vreset_1021"] as const;
  * QA, fixture, and reset accounts. Matched at the start of the handle.
  * `qa-` is included even though signup usernames cannot contain a hyphen.
  */
-export const TEST_ACCOUNT_PREFIXES = ["qa_", "qa-", "test_", "vreset"] as const;
+export const TEST_ACCOUNT_PREFIXES = ["qa_", "qa-", "test_", "vreset_"] as const;
 
 /** Official accounts. Prefix rules must not treat these as test accounts. */
 export const KEPT_ACCOUNT_HANDLES = ["slabhold", "grokbotreview"] as const;

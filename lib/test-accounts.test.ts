@@ -9,7 +9,7 @@ import {
 } from "./test-accounts";
 
 describe("isTestAccount", () => {
-  it("matches qa_, qa-, test_, and vreset prefixes", () => {
+  it("matches qa_, qa-, test_, and vreset_ prefixes", () => {
     assert.equal(isTestAccount("qa_alpha"), true);
     assert.equal(isTestAccount("QA_Alpha"), true);
     assert.equal(isTestAccount("@qa_alpha"), true);
@@ -18,9 +18,9 @@ describe("isTestAccount", () => {
     assert.equal(isTestAccount("QA-Bot"), true);
     assert.equal(isTestAccount("test_user"), true);
     assert.equal(isTestAccount("@test_user"), true);
-    assert.equal(isTestAccount("vreset"), true);
     assert.equal(isTestAccount("vreset_1021"), true);
-    assert.equal(isTestAccount("VresetBot"), true);
+    assert.equal(isTestAccount("@vreset_1021"), true);
+    assert.equal(isTestAccount("Vreset_Bot"), true);
   });
 
   it("includes the explicit qa_vreset_1021 handle", () => {
@@ -42,13 +42,16 @@ describe("isTestAccount", () => {
     assert.equal(isTestAccount("testuser"), false);
     assert.equal(isTestAccount("contest_winner"), false);
     assert.equal(isTestAccount("myvreset"), false);
+    assert.equal(isTestAccount("vreset"), false);
+    assert.equal(isTestAccount("vresetti"), false);
+    assert.equal(isTestAccount("VresetBot"), false);
     assert.equal(isTestAccount(""), false);
     assert.equal(isTestAccount("@"), false);
     assert.equal(isTestAccount("   "), false);
   });
 
   it("keeps the prefix list easy to extend", () => {
-    assert.deepEqual(TEST_ACCOUNT_PREFIXES, ["qa_", "qa-", "test_", "vreset"]);
+    assert.deepEqual(TEST_ACCOUNT_PREFIXES, ["qa_", "qa-", "test_", "vreset_"]);
     assert.equal(normalizeAccountHandle("  @Handle  "), "handle");
   });
 });

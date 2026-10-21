@@ -41,7 +41,7 @@ describe("followSuggestions", () => {
     person("a", "real_a"),
     person("test1", "test_two"),
     person("b", "real_b"),
-    person("reset", "vreset"),
+    person("reset", "vreset_one"),
     person("c", "real_c"),
     person("me", "maya"),
     person("d", "real_d"),
@@ -120,6 +120,11 @@ describe("followSuggestions", () => {
     assert.match(feed, /Collectors to follow/);
     assert.match(remote, /needsSuggestionHeadroom\(profiles\.length\)/);
     assert.match(remote, /suggestionExtraRange\(profiles\.length\)/);
+    assert.match(
+      remote,
+      /from\("profiles"\)\.select\("\*"\)\.order\("created_at", \{ ascending: true \}\)/,
+    );
+    assert.match(remote, /\.order\("created_at", \{ ascending: true \}\)\s*\.range\(from, to\)/);
     assert.doesNotMatch(search, /isTestAccount|followSuggestions/);
     assert.doesNotMatch(cards, /isTestAccount|followSuggestions/);
   });

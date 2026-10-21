@@ -236,7 +236,7 @@ export async function loadSupabaseSocial(supabase: SupabaseClient): Promise<Soci
   const [profilesRes, postsRes, homePostsRes, followsRes, cardsRes, commentsRes, notificationsRes, messagesRes, repostsRes, homeRepostsRes, myBlocksRes, myMutesRes] =
     await Promise.all([
       guard(
-        supabase.from("profiles").select("*").order("id", { ascending: true }),
+        supabase.from("profiles").select("*").order("created_at", { ascending: true }),
         blockedHidden,
         { authorColumn: "id" },
       ),
@@ -302,7 +302,7 @@ export async function loadSupabaseSocial(supabase: SupabaseClient): Promise<Soci
       supabase
         .from("profiles")
         .select("*")
-        .order("id", { ascending: true })
+        .order("created_at", { ascending: true })
         .range(from, to),
       blockedHidden,
       { authorColumn: "id" },
