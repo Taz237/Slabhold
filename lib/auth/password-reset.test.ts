@@ -121,6 +121,14 @@ describe("password reset", () => {
     assert.doesNotMatch(forgot, /resetError\.message/);
     assert.match(reset, /updateUser\(\{ password \}\)/);
     assert.match(reset, /router\.push\("\/"\)/);
+    assert.match(reset, /Password updated/);
+    assert.match(reset, /setUpdated\(true\)/);
+    assert.match(reset, /aria-pressed=\{showPassword\}/);
+    assert.match(reset, /aria-label="Show password"/);
+    assert.match(reset, /aria-pressed=\{showPassword\}/);
+    assert.match(reset, /className="grid h-11 w-11 shrink-0 place-items-center rounded-xl/);
+    assert.match(reset, /type=\{showPassword \? "text" : "password"\}/);
+    assert.match(reset, /href="\/login"/);
     assert.match(callback, /handleAuthConfirm/);
     assert.match(confirm, /authConfirmFailurePath/);
     assert.match(confirm, /searchParams\.get\("error"\)/);

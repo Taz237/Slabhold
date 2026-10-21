@@ -27,8 +27,10 @@ import {
   SOURCE_LABELS,
   isMailDaySport,
   mailDayIsDirty,
+  mailDayPhotoOriginals,
   mailDayPhotosToRemove,
   mailDaySportLabel,
+  restoreRemovedMailDayPhotos,
   mailDaySubmitBlocker,
   mailDaySubmitError,
   previewMailDayPost,
@@ -38,6 +40,7 @@ import {
   type MailDayDraftCard,
 } from "@/lib/social/mail-day";
 import { POST_LIMIT } from "@/lib/social/types";
+import { claimSubmit, isSaveTimeout, SAVE_TIMEOUT_MESSAGE, SaveTimeoutError, withSaveTimeout } from "@/lib/save/attempt";
 import { fileToDataUrl } from "@/lib/storage";
 import { createSupabaseBrowser } from "@/lib/supabase/browser";
 import { uploadMedia } from "@/lib/supabase/media";
@@ -53,9 +56,10 @@ function today() {
   return `${date.getFullYear()}-${month}-${day}`;
 }
 
-function blankCard(): MailDayDraftCard & { key: string; open: boolean; parallelNote: string } {
+function blankCard(): MailDayDraftCard & { key: string; cardId: string; open: boolean; parallelNote: string } {
   return {
     key: crypto.randomUUID(),
+    cardId: crypto.randomUUID(),
     open: true,
     parallelNote: "",
     playerName: "",
@@ -87,6 +91,7 @@ function trackAddedCards(count: number) {
 
 function sectionDraft(section: Section): MailDayDraftCard {
   return {
+    id: section.cardId,
     playerName: section.playerName,
     yearLabel: section.yearLabel,
     setBrand: section.setBrand,
@@ -114,10 +119,17 @@ async function uploadMailDayPhotos(
 ): Promise<MailDayDraftCard[]> {
   const supabase = createSupabaseBrowser();
   if (!supabase) throw new Error("Accounts are not available right now.");
-  return uploadMailDayPhotosWith(
-    (photo) => uploadMedia(supabase, "card-photos", userId, photo),
-    cards,
-    created,
+  return withSaveTimeout((signal) =>
+    uploadMailDayPhotosWith(
+      async (photo) => {
+        if (signal.aborted) throw new SaveTimeoutError();
+        const stored = await uploadMedia(supabase, "card-photos", userId, photo);
+        if (signal.aborted) throw new SaveTimeoutError();
+        return stored;
+      },
+      cards,
+      created,
+    ),
   );
 }
 
@@ -127,6 +139,8 @@ export function MailDayForm() {
   const { reload } = useCollection();
   const fileRef = useRef<HTMLInputElement>(null);
   const allowLeave = useRef(false);
+  const sendingRef = useRef(false);
+  const postId = useRef(crypto.randomUUID());
   const [sections, setSections] = useState<Section[]>(() => [blankCard()]);
   const [active, setActive] = useState(0);
   const [photoTarget, setPhotoTarget] = useState(0);
@@ -146,6 +160,10 @@ export function MailDayForm() {
     () => previewMailDayPost({ authorId: user?.id ?? "preview", caption, cards: drafts }),
     [user?.id, caption, drafts],
   );
+
+  useEffect(() => {
+    if (!sending) sendingRef.current = false;
+  }, [sending]);
 
   useEffect(() => {
     if (!dirty || allowLeave.current) return;
@@ -185,6 +203,7 @@ export function MailDayForm() {
   async function submit(event: React.FormEvent) {
     event.preventDefault();
     if (blocker) return;
+    if (!claimSubmit(sendingRef)) return;
     setError(null);
     setSavedCardIds([]);
     setSending(true);
@@ -195,29 +214,47 @@ export function MailDayForm() {
       try {
         cards = await uploadMailDayPhotos(user.id, drafts, created);
       } catch (err) {
+        if (isSaveTimeout(err)) {
+          setError(SAVE_TIMEOUT_MESSAGE);
+          return;
+        }
         await removeMailDayPhotos(createSupabaseBrowser(), user.id, created);
         setError(mailDaySubmitError(err));
         return;
       }
-      const result = await createMailDayPost({
-        caption,
-        cards,
-        acquiredAt: today(),
-      });
-      if (!result.ok) {
-        await removeMailDayPhotos(
-          createSupabaseBrowser(),
-          user.id,
-          mailDayPhotosToRemove(
-            {
-              cardSaved: result.cardSaved,
-              error: result.error,
-              cardIds: result.cardSaved ? result.cardIds : [],
-            },
+      const originals = mailDayPhotoOriginals(drafts, cards);
+      setSections((current) =>
+        current.map((section, index) =>
+          cards[index] ? { ...section, photos: cards[index].photos } : section,
+        ),
+      );
+      let result: Awaited<ReturnType<typeof createMailDayPost>>;
+      try {
+        result = await withSaveTimeout(() =>
+          createMailDayPost({
+            caption,
             cards,
-            created,
-          ),
+            acquiredAt: today(),
+            postId: postId.current,
+          }),
         );
+      } catch (err) {
+        if (!isSaveTimeout(err)) throw err;
+        setError(SAVE_TIMEOUT_MESSAGE);
+        return;
+      }
+      if (!result.ok) {
+        const removed = mailDayPhotosToRemove(
+          {
+            cardSaved: result.cardSaved,
+            error: result.error,
+            cardIds: result.cardSaved ? result.cardIds : [],
+          },
+          cards,
+          created,
+        );
+        await removeMailDayPhotos(createSupabaseBrowser(), user.id, removed);
+        setSections((current) => restoreRemovedMailDayPhotos(current, removed, originals));
         setError(result.error);
         if (result.cardSaved) {
           trackAddedCards(result.cardIds.length);
@@ -549,6 +586,11 @@ export function MailDayForm() {
           </p>
         ) : null}
         {error ? <p className="text-sm text-rose-600 dark:text-rose-400">{error}</p> : null}
+        {error ? (
+          <button type="submit" disabled={sending || Boolean(blocker)} className={solidButton}>
+            Retry
+          </button>
+        ) : null}
         {savedCardIds.map((id) => (
           <Link key={id} href={`/cards/${id}`} className={outlineButton}>
             Open the saved card

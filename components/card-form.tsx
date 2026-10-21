@@ -32,6 +32,7 @@ import { cardCategory } from "@/lib/card-category";
 import { hasPaid } from "@/lib/format";
 import { formatCardValueLabel, marketValueSummary } from "@/lib/value/format";
 import { useCardValue } from "@/lib/value/use-card-values";
+import { claimSubmit, isSaveTimeout, SAVE_TIMEOUT_MESSAGE, SaveTimeoutError } from "@/lib/save/attempt";
 import { fileToDataUrl } from "@/lib/storage";
 import type {
   CardCategory,
@@ -42,13 +43,6 @@ import type {
 
 const DEMO_IDENTIFY =
   process.env.NEXT_PUBLIC_ENABLE_DEMO_IDENTIFY === "true";
-
-function localToday() {
-  const date = new Date();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${date.getFullYear()}-${month}-${day}`;
-}
 
 function negativePrice(value: string): boolean {
   if (value.trim() === "") return false;
@@ -73,6 +67,9 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
   const accent = useDefaultAccent();
   const fileRef = useRef<HTMLInputElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
+  const savingRef = useRef(false);
+  const pendingId = useRef<string | null>(existing?.id ?? null);
+  const timedOutIds = useRef<Set<string>>(new Set());
   const [photo, setPhoto] = useState<string | null>(existing?.photoDataUrl ?? null);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -86,7 +83,7 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
   const [sold, setSold] = useState(Boolean(existing?.sellPrice));
   const [share, setShare] = useState(Boolean(existing?.isPublic));
   const [category, setCategory] = useState<CardCategory>(
-    existing ? cardCategory(existing) : "flipping",
+    existing ? cardCategory(existing) : "pc",
   );
   const [scanning, setScanning] = useState(false);
   const [identified, setIdentified] = useState<IdentifyResult | null>(null);
@@ -135,7 +132,7 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
     serialNo: existing?.serialNo != null ? String(existing.serialNo) : "",
     sport: existing?.sport ?? "Basketball",
     purchasePrice: hasPaid(existing) ? String(existing!.purchasePrice) : "",
-    purchaseDate: existing?.purchaseDate ?? localToday(),
+    purchaseDate: existing?.purchaseDate ?? "",
     estimatedSellPrice: existing ? String(existing.estimatedSellPrice) : "",
     sellPrice: existing?.sellPrice != null ? String(existing.sellPrice) : "",
     sellDate: existing?.sellDate ?? "",
@@ -167,7 +164,6 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
     !purchaseNeg &&
     !estNeg &&
     !sellNeg &&
-    Boolean(form.purchaseDate) &&
     (!sold || (Boolean(form.sellPrice) && Boolean(form.sellDate) && !sellNeg));
 
   const preview = useMemo(() => {
@@ -224,7 +220,6 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
       purchaseNeg ? "purchasePrice" : null,
       estNeg ? "estimatedSellPrice" : null,
       sellNeg ? "sellPrice" : null,
-      !form.purchaseDate ? "purchaseDate" : null,
       sold && !form.sellDate ? "sellDate" : null,
     ].filter(Boolean) as string[];
     const key = order[0];
@@ -318,7 +313,7 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (saving) return;
+    if (!claimSubmit(savingRef)) return;
     setTouched({
       playerName: true,
       yearLabel: true,
@@ -332,6 +327,7 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
       sellDate: true,
     });
     if (!formValid || !parsedYear) {
+      savingRef.current = false;
       requestAnimationFrame(() => focusFirstInvalid());
       return;
     }
@@ -379,27 +375,48 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
     setSaveError(null);
     let createdId: string | null = null;
     try {
-      const { card, saved } = existing
-        ? updateCard(existing.id, payload)
+      const reuseId = existing?.id ?? pendingId.current;
+      const { card, saved } = reuseId
+        ? updateCard(reuseId, payload)
         : addCard(payload);
-      if (!existing) createdId = card.id;
+      if (!existing) {
+        pendingId.current = card.id;
+        createdId = card.id;
+      }
       await saved;
       createdId = null;
       router.push(`/cards/${card.id}`);
     } catch (error) {
-      if (createdId) removeCard(createdId);
+      if (isSaveTimeout(error)) {
+        if (createdId) timedOutIds.current.add(createdId);
+        if (error instanceof SaveTimeoutError && error.photoUrl) setPhoto(error.photoUrl);
+        setSaveError(SAVE_TIMEOUT_MESSAGE);
+        setSaving(false);
+        savingRef.current = false;
+        return;
+      }
+      const timedOut = createdId != null && timedOutIds.current.has(createdId);
+      if (createdId && !timedOut) removeCard(createdId);
+      if (!existing && !timedOut) pendingId.current = null;
       setSaveError(
         error instanceof Error ? error.message : "Could not save this card.",
       );
       setSaving(false);
+      savingRef.current = false;
     }
   }
 
   return (
     <form ref={formRef} onSubmit={submit} className="mx-auto max-w-xl space-y-5">
       <div>
-        <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">
-          {existing ? "Update position" : "New position"}
+        <p
+          className={
+            existing
+              ? "text-xs uppercase tracking-[0.2em] text-zinc-500"
+              : "text-sm font-medium text-zinc-500"
+          }
+        >
+          {existing ? "Update position" : "Add a card"}
         </p>
         <h1 className="mt-1 text-3xl font-semibold tracking-tight">
           {existing ? `Edit ${existing.playerName}` : "Add a card"}
@@ -804,7 +821,7 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
       ) : null}
 
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Purchase date" required>
+        <Field label="Purchase date">
           <input
             type="date"
             data-field="purchaseDate"
@@ -952,9 +969,16 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
       </p>
 
       {saveError ? (
-        <p role="alert" className="text-sm text-rose-600 dark:text-rose-400">
-          {saveError}
-        </p>
+        <div role="alert" className="space-y-2">
+          <p className="text-sm text-rose-600 dark:text-rose-400">{saveError}</p>
+          <button
+            type="submit"
+            disabled={saving}
+            className="inline-flex h-11 items-center justify-center rounded-full border border-rose-300 px-4 text-sm font-semibold text-rose-700 disabled:opacity-40 dark:border-rose-400/40 dark:text-rose-300"
+          >
+            Retry
+          </button>
+        </div>
       ) : null}
 
       <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-between">

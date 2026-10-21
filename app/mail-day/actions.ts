@@ -4,16 +4,15 @@ import { after } from "next/server";
 import { consumeRequestLimit, consumeTrawlLimit } from "@/lib/comps/rate-limit";
 import { toPublicAttachment } from "@/lib/social/card-posts";
 import {
-  mailDayCardRecord,
-  mailDayMeta,
+  commitMailDayWrites,
   mailDayPhotoOwnedBy,
   mailDayPhotosToRemove,
   removeMailDayPhotos,
-  runMailDaySave,
   validateMailDayDraft,
   type MailDayInput,
   type PreparedMailDayCard,
 } from "@/lib/social/mail-day";
+import { isUuid } from "@/lib/value/card-value-access";
 import { syncMentionNotifications } from "@/lib/social/remote";
 import { uploadMedia } from "@/lib/supabase/media";
 import { createSupabaseServer, getAuthUserId } from "@/lib/supabase/server";
@@ -81,32 +80,14 @@ export async function createMailDayPost(input: MailDayInput): Promise<MailDayAct
       }
       photos.push(photo);
     }
-    uploaded.push({ ...card, id: crypto.randomUUID(), photos });
+    uploaded.push({ ...card, id: card.id, photos });
   }
 
   const now = new Date().toISOString();
-  const result = await runMailDaySave({
-    saveCards: async () => {
-      const cardIds: string[] = [];
-      for (const card of uploaded) {
-        const { error } = await supabase
-          .from("cards")
-          .insert(mailDayCardRecord(userId, card, prepared.acquiredAt, now));
-        if (error) {
-          console.warn("[mail_day] card:", error.message);
-          return cardIds.length
-            ? { ok: false as const, error: "Could not save that card.", cardIds }
-            : { ok: false as const, error: "Could not save that card." };
-        }
-        cardIds.push(card.id);
-      }
-      return { ok: true as const, cardIds };
-    },
-    savePost: async (cardIds) => {
-      const saved = uploaded.filter((card) => cardIds.includes(card.id));
-      const first = saved[0];
-      if (!first) return { ok: false as const };
-      const attachment = toPublicAttachment({
+  const postId = input.postId && isUuid(input.postId) ? input.postId : crypto.randomUUID();
+  const first = uploaded[0];
+  const attachment = first
+    ? toPublicAttachment({
         id: first.id,
         playerName: first.playerName,
         year: first.year,
@@ -121,56 +102,31 @@ export async function createMailDayPost(input: MailDayInput): Promise<MailDayAct
         parallel: first.parallel,
         conditionType: first.conditionType,
         grader: first.grader,
-      });
-      const { data, error } = await supabase
-        .from("posts")
-        .insert({
-          user_id: userId,
-          content: prepared.caption,
-          image_url: first.photos[0] ?? null,
-          card: attachment,
-          post_type: "mail_day",
-          show_paid: first.showPaid,
-          meta: mailDayMeta({
-            acquiredAt: prepared.acquiredAt,
-            cards: saved.map((card) => ({
-              id: card.id,
-              photos: card.photos,
-              source: card.source,
-              showPaid: card.showPaid,
-              playerName: card.playerName,
-              year: card.year,
-              yearLabel: card.yearLabel,
-              setBrand: card.setBrand,
-              cardNumber: card.cardNumber,
-              sport: card.sport,
-              parallel: card.parallel,
-              grade: card.gradeText,
-              conditionType: card.conditionType,
-              grader: card.grader,
-            })),
-          }),
-        })
-        .select("id")
-        .single();
-      if (error || !data) {
-        if (error) console.warn("[mail_day] post:", error.message);
-        return { ok: false as const };
-      }
-      const postId = data.id as string;
-      const { error: linkError } = await supabase.from("post_cards").insert(
-        saved.map((card, position) => ({
-          post_id: postId,
-          card_id: card.id,
-          position,
-        })),
-      );
-      if (linkError) {
-        console.warn("[mail_day] post_cards:", linkError.message);
-        await supabase.from("posts").delete().eq("id", postId).eq("user_id", userId);
-        return { ok: false as const };
-      }
-      return { ok: true as const, postId };
+      })
+    : null;
+  const result = await commitMailDayWrites({
+    userId,
+    postId,
+    caption: prepared.caption,
+    acquiredAt: prepared.acquiredAt,
+    now,
+    cards: uploaded,
+    attachment,
+    showPaid: Boolean(first?.showPaid),
+    insertCard: async (row) => {
+      const { error } = await supabase.from("cards").insert(row);
+      return error;
+    },
+    insertPost: async (row) => {
+      const { error } = await supabase.from("posts").insert(row);
+      return error;
+    },
+    insertLinks: async (rows) => {
+      const { error } = await supabase.from("post_cards").insert(rows);
+      return error;
+    },
+    deletePost: async (id) => {
+      await supabase.from("posts").delete().eq("id", id).eq("user_id", userId);
     },
   });
 

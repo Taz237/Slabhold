@@ -3,13 +3,14 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 /**
  * Store a picked image in a public Storage bucket and return its URL.
  * Values that are already http(s) URLs are left alone. Null clears the image.
+ * `createdPath` is set only when this call created a new object.
  */
 export async function uploadMedia(
   supabase: SupabaseClient,
   bucket: string,
   userId: string,
   value: string | null,
-): Promise<{ url: string | null; error?: string }> {
+): Promise<{ url: string | null; error?: string; createdPath?: string }> {
   if (!value) return { url: null };
   if (!value.startsWith("data:")) return { url: value };
 
@@ -30,5 +31,18 @@ export async function uploadMedia(
   if (error) return { url: null, error: error.message };
 
   const { data } = supabase.storage.from(bucket).getPublicUrl(path);
-  return { url: data.publicUrl };
+  return { url: data.publicUrl, createdPath: path };
+}
+
+/** Best-effort delete for an object this save just created. */
+export async function removeUploadedMedia(
+  supabase: SupabaseClient,
+  bucket: string,
+  path: string,
+): Promise<void> {
+  try {
+    await supabase.storage.from(bucket).remove([path]);
+  } catch {
+    // The save error is what the form shows. Cleanup is best effort.
+  }
 }

@@ -6,7 +6,13 @@ import {
   parseGrade,
   RAW_GRADE,
 } from "@/lib/card-options";
-import { uploadMedia } from "@/lib/supabase/media";
+import {
+  isSaveTimeout,
+  SAVE_TIMEOUT_MS,
+  SaveTimeoutError,
+  withSaveTimeout,
+} from "@/lib/save/attempt";
+import { removeUploadedMedia, uploadMedia } from "@/lib/supabase/media";
 import type { ConditionType, SportsCard } from "@/lib/types";
 import type { OwnedCard } from "./types";
 
@@ -47,11 +53,6 @@ export type CardRow = {
   grade_qualifier?: string | null;
   cert_number?: string | null;
 };
-
-function dateOnly(value: string | null, fallback: string) {
-  if (!value) return fallback.slice(0, 10);
-  return value.slice(0, 10);
-}
 
 function inferConditionType(
   row: CardRow,
@@ -105,7 +106,7 @@ export function mapCardRow(row: CardRow): SportsCard {
       row.paid_price == null || !Number.isFinite(Number(row.paid_price))
         ? null
         : Number(row.paid_price),
-    purchaseDate: dateOnly(row.purchase_date, row.created_at),
+    purchaseDate: row.purchase_date ? row.purchase_date.slice(0, 10) : "",
     estimatedSellPrice: Number(row.estimated_value) || 0,
     sellPrice: row.sell_price == null ? null : Number(row.sell_price),
     sellDate: row.sell_date,
@@ -207,12 +208,34 @@ export async function saveUserCard(
   supabase: SupabaseClient,
   userId: string,
   card: SportsCard,
+  timeoutMs = SAVE_TIMEOUT_MS,
 ) {
   const yearText = (card.yearLabel || String(card.year || "")).trim();
   if (!isValidYear(yearText)) {
     throw new Error("Use 2026 or 2023-24");
   }
+  let photoUrl: string | null =
+    card.photoDataUrl && !card.photoDataUrl.startsWith("data:") ? card.photoDataUrl : null;
+  try {
+    await withSaveTimeout(
+      (signal) => writeUserCard(supabase, userId, card, signal, (url) => {
+        photoUrl = url;
+      }),
+      timeoutMs,
+    );
+  } catch (error) {
+    if (isSaveTimeout(error)) throw new SaveTimeoutError(photoUrl);
+    throw error;
+  }
+}
 
+async function writeUserCard(
+  supabase: SupabaseClient,
+  userId: string,
+  card: SportsCard,
+  signal: AbortSignal,
+  rememberPhoto: (url: string | null) => void,
+) {
   const uploaded = await uploadMedia(
     supabase,
     "card-photos",
@@ -220,6 +243,8 @@ export async function saveUserCard(
     card.photoDataUrl,
   );
   if (uploaded.error) throw new Error(uploaded.error);
+  rememberPhoto(uploaded.url);
+  const createdPath = uploaded.createdPath ?? null;
   const category = cardCategory(card);
   rememberCategory(card.id, category);
 
@@ -277,20 +302,39 @@ export async function saveUserCard(
     cert_number: card.certNumber || null,
   };
 
+  try {
+    await writeCardRows(supabase, extended, base, category, signal);
+  } catch (error) {
+    if (signal.aborted || isSaveTimeout(error)) throw new SaveTimeoutError(uploaded.url);
+    if (createdPath) await removeUploadedMedia(supabase, "card-photos", createdPath);
+    throw error;
+  }
+}
+
+async function writeCardRows(
+  supabase: SupabaseClient,
+  extended: Record<string, unknown>,
+  base: Record<string, unknown>,
+  category: string,
+  signal: AbortSignal,
+) {
   const full = await supabase.from("cards").upsert(extended);
   if (!full.error) return;
-  if (!missingColumnError(full.error)) throw new Error(full.error.message);
-
-  // Fallback if migration not applied yet
-  const withCategory = await supabase
-    .from("cards")
-    .upsert({ ...base, category });
-  if (!withCategory.error) return;
-  if (!missingColumnError(withCategory.error)) {
+  if (missingColumnError(full.error)) {
+    // Fallback if migration not applied yet
+    const withCategory = await supabase.from("cards").upsert({ ...base, category });
+    if (!withCategory.error) return;
+    if (missingColumnError(withCategory.error)) {
+      const { error } = await supabase.from("cards").upsert(base);
+      if (!error) return;
+      if (signal.aborted) return;
+      throw new Error(error.message);
+    }
+    if (signal.aborted) return;
     throw new Error(withCategory.error.message);
   }
-  const { error } = await supabase.from("cards").upsert(base);
-  if (error) throw new Error(error.message);
+  if (signal.aborted) return;
+  throw new Error(full.error.message);
 }
 
 export async function removeUserCard(
