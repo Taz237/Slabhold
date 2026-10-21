@@ -210,6 +210,9 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
   const removedRef = useRef<ReadonlySet<string>>(new Set());
   const fullSnapshotRef = useRef(false);
   const requestRef = useRef(0);
+  // Bumped on every site snapshot read. A slower read must not land afterward
+  // and put a deleted reply's notices back on a cold post page.
+  const refreshSerialRef = useRef(0);
   const inflightRef = useRef(new Map<string, Promise<unknown>>());
   const reloadRef = useRef<(client: SupabaseClient) => Promise<void>>(async () => {});
   localRef.current = local;
@@ -235,7 +238,9 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
   }, [removedPostIds]);
 
   const refreshRemote = useCallback(async (client: SupabaseClient) => {
+    const serial = ++refreshSerialRef.current;
     const snapshot = await loadSupabaseSocial(client);
+    if (serial !== refreshSerialRef.current) return;
     fullSnapshotRef.current = true;
     setHasFullSnapshot(true);
     setRemote(mergeRememberedSnapshot(snapshot, rememberedRef.current, removedRef.current));

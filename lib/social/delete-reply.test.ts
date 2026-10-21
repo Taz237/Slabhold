@@ -378,6 +378,47 @@ describe("delete reply wiring", () => {
     assert.match(provider, /localDeleteComment/);
   });
 
+  it("clears reply notices on a cold post page and ignores a slower snapshot", () => {
+    const cold = {
+      comments: [comment("c1", AUTHOR)],
+      likes: [] as PostLike[],
+      reposts: [] as PostRepost[],
+      notifications: [
+        { ...note("n-comment", POST), kind: "comment" as const, preview: "Reply" },
+        {
+          ...note("n-mention", POST),
+          kind: "mention" as const,
+          preview: "Reply",
+          metadata: { source: "reply" },
+        },
+        { ...note("n-like", POST), kind: "like" as const, preview: "Reply" },
+      ],
+    };
+    // A direct visit starts with no notification rows. Once a snapshot does
+    // hold this reply's previews, deleting the reply drops those and keeps the rest.
+    const empty = stateAfterReplyDelete({ ...cold, notifications: [] }, "c1", {});
+    assert.equal(empty.comments.length, 0);
+    assert.deepEqual(empty.notifications, []);
+    const cleared = stateAfterReplyDelete(cold, "c1", {});
+    assert.deepEqual(
+      cleared.notifications.map((item) => item.id),
+      ["n-like"],
+    );
+
+    const provider = readFileSync(join(process.cwd(), "components/social-provider.tsx"), "utf8");
+    const fn = provider.slice(provider.indexOf("const deleteComment"), provider.indexOf("const toggleLike"));
+    const remoteAt = fn.indexOf("await remoteDeleteComment");
+    const refreshAt = fn.indexOf("await refreshRemote");
+    assert.ok(remoteAt > -1 && refreshAt > remoteAt);
+    assert.match(provider, /const serial = \+\+refreshSerialRef\.current/);
+    assert.match(provider, /if \(serial !== refreshSerialRef\.current\) return/);
+    const remote = readFileSync(join(process.cwd(), "lib/social/remote.ts"), "utf8");
+    const cleanupAt = remote.indexOf("async function deleteOwnReplyPreviewNotifications");
+    const deleteAt = remote.indexOf("export async function remoteDeleteComment");
+    assert.ok(cleanupAt > -1 && deleteAt > cleanupAt);
+    assert.ok(remote.indexOf("await deleteOwnReplyPreviewNotifications", deleteAt) > deleteAt);
+  });
+
   it("already has an author delete policy on comments", () => {
     const created = readFileSync(
       join(process.cwd(), "supabase/migrations/20261017240000_safety_blocks_mutes_reports.sql"),
