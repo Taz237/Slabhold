@@ -35,6 +35,7 @@ import { pingWantMatch } from "@/lib/wants/ping";
 import { BLOCKED_INTERACTION } from "@/lib/safety/block";
 import { canNotify, supabaseSafety } from "@/lib/safety/can-notify";
 import { applyAuthorSafety, loadHiddenAuthorIds, withAuthorSafety } from "@/lib/safety/filters";
+import { needsSuggestionHeadroom, suggestionExtraRange } from "./follow-suggestions";
 
 /** Public columns only — used by @mention autocomplete. */
 const MENTION_PROFILE_SELECT = "id, username, display_name, avatar_url";
@@ -234,7 +235,11 @@ export async function loadSupabaseSocial(supabase: SupabaseClient): Promise<Soci
 
   const [profilesRes, postsRes, homePostsRes, followsRes, cardsRes, commentsRes, notificationsRes, messagesRes, repostsRes, homeRepostsRes, myBlocksRes, myMutesRes] =
     await Promise.all([
-      guard(supabase.from("profiles").select("*"), blockedHidden, { authorColumn: "id" }),
+      guard(
+        supabase.from("profiles").select("*").order("created_at", { ascending: true }),
+        blockedHidden,
+        { authorColumn: "id" },
+      ),
       guard(
         supabase.from("posts").select("*").order("created_at", { ascending: false }).limit(100),
         blockedHidden,
@@ -291,6 +296,27 @@ export async function loadSupabaseSocial(supabase: SupabaseClient): Promise<Soci
   const profiles = ((profilesRes.data ?? []) as ProfileRow[]).map((row) =>
     mapProfile(row, row.id === session?.user.id ? (session.user.email ?? "") : ""),
   );
+  if (needsSuggestionHeadroom(profiles.length)) {
+    const { from, to } = suggestionExtraRange(profiles.length);
+    const extraRes = await guard(
+      supabase
+        .from("profiles")
+        .select("*")
+        .order("created_at", { ascending: true })
+        .range(from, to),
+      blockedHidden,
+      { authorColumn: "id" },
+    );
+    if (extraRes.error) throw new Error(extraRes.error.message);
+    const known = new Set(profiles.map((profile) => profile.id));
+    for (const row of (extraRes.data ?? []) as ProfileRow[]) {
+      if (known.has(row.id)) continue;
+      known.add(row.id);
+      profiles.push(
+        mapProfile(row, row.id === session?.user.id ? (session.user.email ?? "") : ""),
+      );
+    }
+  }
   const posts = await mapPostRows(supabase, (postsRes.data ?? []) as PostRow[], viewerId);
   const reposts = ((repostsRes.data ?? []) as RepostRow[]).map(
     (row): PostRepost => ({
