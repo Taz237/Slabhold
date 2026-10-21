@@ -7,6 +7,7 @@ import { useCompFlagState } from "@/components/use-comp-flags";
 import { ArrowLeft } from "lucide-react";
 import { CardCollectorsSaying } from "@/components/card-collectors-saying";
 import { CardOwnersSection } from "@/components/card-owners";
+import { CardPeopleSections } from "@/components/card-people";
 import { WantButton } from "@/components/want-button";
 import { CardThumb } from "@/components/card-thumb";
 import { CompBasis } from "@/components/comp-basis";
@@ -27,6 +28,7 @@ import {
   hiddenPublicComps,
   type PublicCardComps,
 } from "@/lib/comps/public-types";
+import type { OwnersAndHunters } from "@/lib/cards/people";
 import type { PublicCard } from "@/lib/social/types";
 import {
   cardValueHasAmount,
@@ -40,10 +42,12 @@ export function PublicCardView({
   username,
   id,
   publicComps = hiddenPublicComps(),
+  people = null,
 }: {
   username: string;
   id: string;
   publicComps?: PublicCardComps;
+  people?: OwnersAndHunters | null;
 }) {
   const social = useSocial();
   const { cards, ready: cardsReady } = useCollection();
@@ -88,6 +92,7 @@ export function PublicCardView({
       userId={social.user?.id ?? null}
       canFlag={isCardOwner(profile.id, social.user?.id ?? null)}
       publicComps={publicComps}
+      people={people}
     />
   );
 }
@@ -99,6 +104,7 @@ function PublicCardAnalytics({
   userId,
   canFlag,
   publicComps,
+  people,
 }: {
   card: PublicCard;
   displayName: string;
@@ -106,6 +112,7 @@ function PublicCardAnalytics({
   userId: string | null;
   canFlag: boolean;
   publicComps: PublicCardComps;
+  people: OwnersAndHunters | null;
 }) {
   const pathname = usePathname() || "/";
   const specs = [
@@ -353,20 +360,24 @@ function PublicCardAnalytics({
         needsLogin={!userId}
       />
 
-      <CardOwnersSection
-        card={{
-          id: card.id,
-          playerName: card.playerName,
-          year: card.year,
-          yearLabel: card.yearLabel,
-          setBrand: card.setBrand,
-          cardNumber: card.cardNumber,
-          parallel: card.parallel,
-          grade: card.grade,
-          conditionType: card.conditionType,
-          grader: card.grader,
-        }}
-      />
+      {people ? (
+        <CardPeopleSections data={people} />
+      ) : (
+        <CardOwnersSection
+          card={{
+            id: card.id,
+            playerName: card.playerName,
+            year: card.year,
+            yearLabel: card.yearLabel,
+            setBrand: card.setBrand,
+            cardNumber: card.cardNumber,
+            parallel: card.parallel,
+            grade: card.grade,
+            conditionType: card.conditionType,
+            grader: card.grader,
+          }}
+        />
+      )}
 
       <CardCollectorsSaying cardId={card.id} />
     </div>

@@ -7,6 +7,7 @@ import { useCompFlagState } from "@/components/use-comp-flags";
 import { ArrowLeft, Pencil, Trash2 } from "lucide-react";
 import { CardCollectorsSaying } from "@/components/card-collectors-saying";
 import { CardOwnersSection } from "@/components/card-owners";
+import { CardPeopleSections } from "@/components/card-people";
 import { WantButton } from "@/components/want-button";
 import { CategoryBadge, CategoryPicker } from "@/components/category-picker";
 import { useCollection } from "@/components/collection-provider";
@@ -39,10 +40,17 @@ import {
   isLowConfidenceValue,
   NOT_ENOUGH_SALES_LABEL,
 } from "@/lib/value/format";
+import type { OwnersAndHunters } from "@/lib/cards/people";
 import { needsDetails } from "@/lib/types";
 import { useCardValue } from "@/lib/value/use-card-values";
 
-export function CardDetail({ id }: { id: string }) {
+export function CardDetail({
+  id,
+  people = null,
+}: {
+  id: string;
+  people?: OwnersAndHunters | null;
+}) {
   const router = useRouter();
   const pathname = usePathname() || "/";
   const { user } = useSocial();
@@ -445,19 +453,23 @@ export function CardDetail({ id }: { id: string }) {
         needsLogin={!user}
       />
 
-      <CardOwnersSection
-        card={{
-          id: card.id,
-          playerName: card.playerName,
-          year: card.year,
-          yearLabel: card.yearLabel,
-          setBrand: card.setBrand,
-          cardNumber: card.cardNumber,
-          parallel: card.parallel,
-          grade: card.grade,
-          conditionType: card.conditionType,
-        }}
-      />
+      {people ? (
+        <CardPeopleSections data={people} />
+      ) : (
+        <CardOwnersSection
+          card={{
+            id: card.id,
+            playerName: card.playerName,
+            year: card.year,
+            yearLabel: card.yearLabel,
+            setBrand: card.setBrand,
+            cardNumber: card.cardNumber,
+            parallel: card.parallel,
+            grade: card.grade,
+            conditionType: card.conditionType,
+          }}
+        />
+      )}
 
       <CardCollectorsSaying cardId={card.id} />
     </div>

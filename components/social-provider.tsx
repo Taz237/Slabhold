@@ -82,7 +82,7 @@ type SocialContextValue = {
   signIn: (email: string, password: string, captchaToken?: string) => Promise<AuthResult>;
   signOut: () => Promise<void>;
   updateProfile: (patch: ProfilePatch) => Promise<AuthResult>;
-  toggleFollow: (userId: string) => Promise<void>;
+  toggleFollow: (userId: string) => Promise<AuthResult>;
   isFollowing: (userId: string) => boolean;
   followerCount: (userId: string) => number;
   followingCount: (userId: string) => number;
@@ -398,9 +398,9 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
   );
 
   const toggleFollow = useCallback(
-    async (userId: string) => {
+    async (userId: string): Promise<AuthResult> => {
       const current = snapshotRef.current;
-      if (!current.user || current.user.id === userId) return;
+      if (!current.user || current.user.id === userId) return {};
       const client = supabaseRef.current;
       if (mode === "supabase" && client) {
         const following = current.follows.some(
@@ -408,14 +408,21 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
         );
         try {
           const result = await remoteToggleFollow(client, current.user.id, userId, following);
+          if (result.error) {
+            setStatus(result.error);
+            return result;
+          }
           await refreshRemote(client);
-          setStatus(result.error ?? result.notice ?? null);
+          setStatus(result.notice ?? null);
+          return result;
         } catch (error) {
-          setStatus(error instanceof Error ? error.message : "Could not update that follow.");
+          const message = error instanceof Error ? error.message : "Could not update that follow.";
+          setStatus(message);
+          return { error: message };
         }
-        return;
       }
       if (localRef.current) commitLocal(localToggleFollow(localRef.current, userId));
+      return {};
     },
     [commitLocal, mode, refreshRemote],
   );
