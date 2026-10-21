@@ -1,22 +1,24 @@
 import type { FollowEdge } from "./types";
-import { followedAccountIds } from "./timeline";
+import { compareByRecent, followedAccountIds, timelineSortKey } from "./timeline";
 
 /** Home, Following, and profile timelines request about this many merged rows. */
 export const FEED_PAGE_SIZE = 30;
 
+/**
+ * Keyset cursor. `key` is the byRecent tie-break (`post:id` or `repost:userId:postId`),
+ * so rows that share a timestamp stay in the same order across pages.
+ */
 export type FeedCursor = {
   createdAt: string;
-  /** posts.id, or reposts.post_id. Both are uuids so the tie-break matches. */
-  id: string;
-  kind: "post" | "repost";
-  /** Post author, or the account that reposted. */
-  userId: string;
+  key: string;
 };
 
 export type FeedRow = {
   kind: "post" | "repost";
   createdAt: string;
+  /** posts.id, which is also reposts.post_id. */
   id: string;
+  /** Post author, or the account that reposted. */
   userId: string;
 };
 
@@ -24,45 +26,46 @@ const SAFE_TIMESTAMP = /^\d{4}-\d{2}-\d{2}T[0-9:.+-]+Z?$/;
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
+export function feedRowKey(row: FeedRow): string {
+  return timelineSortKey(row.id, row.kind === "repost" ? row.userId : null);
+}
+
+export function parseTimelineKey(
+  key: string,
+): { kind: "post"; id: string } | { kind: "repost"; userId: string; postId: string } | null {
+  if (key.startsWith("post:")) {
+    const id = key.slice("post:".length);
+    return UUID_RE.test(id) ? { kind: "post", id } : null;
+  }
+  if (!key.startsWith("repost:")) return null;
+  const [userId, postId, extra] = key.slice("repost:".length).split(":");
+  if (extra !== undefined || !userId || !postId) return null;
+  if (!UUID_RE.test(userId) || !UUID_RE.test(postId)) return null;
+  return { kind: "repost", userId, postId };
+}
+
 export function isFeedCursor(value: FeedCursor | null | undefined): value is FeedCursor {
   if (!value) return false;
-  if (value.kind !== "post" && value.kind !== "repost") return false;
-  if (!UUID_RE.test(value.id) || !UUID_RE.test(value.userId)) return false;
-  return value.createdAt.length <= 40 && SAFE_TIMESTAMP.test(value.createdAt);
+  if (value.createdAt.length > 40 || !SAFE_TIMESTAMP.test(value.createdAt)) return false;
+  return parseTimelineKey(value.key) !== null;
 }
 
-/**
- * Newest first: created_at desc, then id desc.
- * A repost sorts ahead of the original when those tie, then user id desc.
- * Timestamp text is the value Postgres returned, so lexicographic order matches time.
- */
+/** Same order as byRecent: created_at desc, then the timeline key ascending. */
 export function compareFeedDesc(a: FeedRow, b: FeedRow): number {
-  if (a.createdAt !== b.createdAt) return a.createdAt < b.createdAt ? 1 : -1;
-  if (a.id !== b.id) return a.id < b.id ? 1 : -1;
-  const rankA = a.kind === "repost" ? 1 : 0;
-  const rankB = b.kind === "repost" ? 1 : 0;
-  if (rankA !== rankB) return rankB - rankA;
-  if (a.userId !== b.userId) return a.userId < b.userId ? 1 : -1;
-  return 0;
+  return compareByRecent(
+    { at: a.createdAt, key: feedRowKey(a) },
+    { at: b.createdAt, key: feedRowKey(b) },
+  );
 }
 
-/** True when `row` is strictly older than the cursor in compareFeedDesc order. */
+/** True when `row` sorts strictly after the cursor (older page). */
 export function isBeforeCursor(row: FeedRow, cursor: FeedCursor): boolean {
-  if (row.createdAt !== cursor.createdAt) return row.createdAt < cursor.createdAt;
-  if (row.id !== cursor.id) return row.id < cursor.id;
-  const rowRank = row.kind === "repost" ? 1 : 0;
-  const cursorRank = cursor.kind === "repost" ? 1 : 0;
-  if (rowRank !== cursorRank) return rowRank < cursorRank;
-  return row.userId < cursor.userId;
+  if (row.createdAt !== cursor.createdAt) return row.createdAt.localeCompare(cursor.createdAt) < 0;
+  return feedRowKey(row).localeCompare(cursor.key) > 0;
 }
 
 export function cursorFromRow(row: FeedRow): FeedCursor {
-  return {
-    createdAt: row.createdAt,
-    id: row.id,
-    kind: row.kind,
-    userId: row.userId,
-  };
+  return { createdAt: row.createdAt, key: feedRowKey(row) };
 }
 
 function quoteFilterValue(value: string) {
@@ -70,35 +73,49 @@ function quoteFilterValue(value: string) {
 }
 
 /**
- * PostgREST `or` filter matching isBeforeCursor for one table.
- * `idColumn` is `id` on posts and `post_id` on reposts.
+ * PostgREST `or` filter for rows that sort after the cursor in one table.
+ * Posts tie-break on id ascending (`post:${id}`). Reposts tie-break on
+ * user_id then post_id (`repost:${userId}:${postId}`).
  */
-export function keysetOrFilter(
-  cursor: FeedCursor,
-  rowKind: "post" | "repost",
-  idColumn: "id" | "post_id",
-): string {
+export function keysetOrFilter(cursor: FeedCursor, table: "posts" | "reposts"): string {
   const ts = quoteFilterValue(cursor.createdAt);
-  const id = quoteFilterValue(cursor.id);
-  const parts = [
-    `created_at.lt.${ts}`,
-    `and(created_at.eq.${ts},${idColumn}.lt.${id})`,
-  ];
-  const rowRank = rowKind === "repost" ? 1 : 0;
-  const cursorRank = cursor.kind === "repost" ? 1 : 0;
-  if (rowRank < cursorRank) {
-    parts.push(`and(created_at.eq.${ts},${idColumn}.eq.${id})`);
-  } else if (rowRank === cursorRank) {
-    parts.push(
-      `and(created_at.eq.${ts},${idColumn}.eq.${id},user_id.lt.${quoteFilterValue(cursor.userId)})`,
-    );
+  const older = `created_at.lt.${ts}`;
+  const parsed = parseTimelineKey(cursor.key);
+  if (!parsed) return older;
+  const sameTime = `created_at.eq.${ts}`;
+  if (table === "posts") {
+    if (parsed.kind === "repost") return older;
+    return [older, `and(${sameTime},id.gt.${quoteFilterValue(parsed.id)})`].join(",");
   }
-  return parts.join(",");
+  if (parsed.kind === "post") return [older, sameTime].join(",");
+  const user = quoteFilterValue(parsed.userId);
+  const postId = quoteFilterValue(parsed.postId);
+  return [
+    older,
+    `and(${sameTime},user_id.gt.${user})`,
+    `and(${sameTime},user_id.eq.${user},post_id.gt.${postId})`,
+  ].join(",");
+}
+
+/**
+ * Post ids this page reposts, when those posts were not in the post query.
+ * The loader fetches these by id so a repost is not dropped just because the
+ * original is older than the post page.
+ */
+export function missingRepostOriginalIds(rows: FeedRow[], loadedPostIds: ReadonlySet<string>): string[] {
+  const missing: string[] = [];
+  const seen = new Set<string>();
+  for (const row of rows) {
+    if (row.kind !== "repost" || loadedPostIds.has(row.id) || seen.has(row.id)) continue;
+    seen.add(row.id);
+    missing.push(row.id);
+  }
+  return missing;
 }
 
 /**
  * If the original and a repost of it are both in the window, keep the newest repost.
- * Same rule as the client timeline: one row per post.
+ * Same rule as preferRepostOnce: one row per post.
  */
 export function dedupeFeedRows(rows: FeedRow[]): FeedRow[] {
   const byPostId = new Map<string, FeedRow[]>();
@@ -118,7 +135,7 @@ export function dedupeFeedRows(rows: FeedRow[]): FeedRow[] {
 
 /**
  * Merge a page of posts and a page of reposts that were each queried with the same cursor.
- * The returned prefix cannot skip a row that is still in either table.
+ * Reposts are ordered by repost time. The returned prefix cannot skip a row still in either table.
  */
 export function buildFeedPage(input: {
   posts: FeedRow[];
@@ -154,6 +171,7 @@ export function buildFeedPage(input: {
  * Accounts whose posts and reposts belong on Following.
  * The viewer is included only after they follow someone. Nobody followed → empty,
  * so the screen can keep the "Follow collectors" empty state.
+ * Matches followingTimeline: own posts are in Following, and an empty follow list stays empty.
  */
 export function followingAuthorIds(follows: FollowEdge[], userId: string): string[] {
   if (!userId) return [];

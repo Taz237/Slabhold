@@ -7,8 +7,18 @@ export type TimelineItem = {
   repostedBy: Profile | null;
 };
 
-function byRecent(a: TimelineItem, b: TimelineItem) {
+/** Tie-break key for the recent sort. Smaller keys come first when timestamps match. */
+export function timelineSortKey(postId: string, repostedById?: string | null): string {
+  return repostedById ? `repost:${repostedById}:${postId}` : `post:${postId}`;
+}
+
+/** Newest timestamp first, then timelineSortKey ascending. */
+export function compareByRecent(a: { at: string; key: string }, b: { at: string; key: string }): number {
   return b.at.localeCompare(a.at) || a.key.localeCompare(b.key);
+}
+
+function byRecent(a: TimelineItem, b: TimelineItem) {
+  return compareByRecent(a, b);
 }
 
 /**
@@ -35,7 +45,7 @@ function preferRepostOnce(items: TimelineItem[]): TimelineItem[] {
 }
 
 function postItem(post: Post): TimelineItem {
-  return { key: `post:${post.id}`, post, at: post.createdAt, repostedBy: null };
+  return { key: timelineSortKey(post.id), post, at: post.createdAt, repostedBy: null };
 }
 
 function repostItems(
@@ -52,7 +62,7 @@ function repostItems(
     const author = post ? profilesById.get(post.authorId) : undefined;
     if (!post || !repostedBy || !author) continue;
     items.push({
-      key: `repost:${repost.userId}:${repost.postId}`,
+      key: timelineSortKey(repost.postId, repost.userId),
       post,
       at: repost.createdAt,
       repostedBy,

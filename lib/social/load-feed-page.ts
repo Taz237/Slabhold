@@ -5,8 +5,10 @@ import { sanitizeAttachedCard } from "./card-posts";
 import {
   buildFeedPage,
   cursorFromRow,
+  feedRowKey,
   isFeedCursor,
   keysetOrFilter,
+  missingRepostOriginalIds,
   type FeedCursor,
   type FeedRow,
 } from "./feed-page";
@@ -183,11 +185,11 @@ async function selectPosts(
     query = query.in("id", options.ids);
   }
   if (options.authorIds) query = query.in("user_id", options.authorIds);
-  if (options.cursor) query = query.or(keysetOrFilter(options.cursor, "post", "id"));
+  if (options.cursor) query = query.or(keysetOrFilter(options.cursor, "posts"));
   if (!options.ids) {
     query = query
       .order("created_at", { ascending: false })
-      .order("id", { ascending: false })
+      .order("id", { ascending: true })
       .limit(options.limit);
   }
   const { data, error } = await execute(supabase, query, viewerId, options.mute);
@@ -209,11 +211,11 @@ async function selectReposts(
     .from("reposts")
     .select("user_id, post_id, created_at") as unknown as PostExec;
   if (options.authorIds) query = query.in("user_id", options.authorIds);
-  if (options.cursor) query = query.or(keysetOrFilter(options.cursor, "repost", "post_id"));
+  if (options.cursor) query = query.or(keysetOrFilter(options.cursor, "reposts"));
   query = query
     .order("created_at", { ascending: false })
-    .order("post_id", { ascending: false })
-    .order("user_id", { ascending: false })
+    .order("user_id", { ascending: true })
+    .order("post_id", { ascending: true })
     .limit(options.limit);
   const { data, error } = await execute(supabase, query, viewerId, options.mute);
   if (error) {
@@ -279,6 +281,26 @@ async function loadQuoted(
   return related;
 }
 
+/** post_ids in this page that already have an in-scope repost, including one on a later page. */
+async function loadRepostedPostIds(
+  supabase: SupabaseClient,
+  viewerId: string | null,
+  postIds: string[],
+  authorIds: string[] | null,
+  mute: boolean,
+): Promise<Set<string>> {
+  const ids = [...new Set(postIds)].filter((id) => isUuid(id));
+  if (ids.length === 0) return new Set();
+  let query = supabase.from("reposts").select("post_id").in("post_id", ids) as unknown as PostExec;
+  if (authorIds) query = query.in("user_id", authorIds);
+  const { data, error } = await execute(supabase, query, viewerId, mute);
+  if (error) {
+    if (missingTable(error)) return new Set();
+    throw new Error(error.message);
+  }
+  return new Set(((data ?? []) as { post_id: string }[]).map((row) => row.post_id));
+}
+
 function authorScope(input: {
   scope: FeedPageScope;
   authorIds?: readonly string[];
@@ -293,9 +315,12 @@ function authorScope(input: {
 
 /**
  * One keyset page of a merged posts + reposts timeline.
- * Public is For You. Following is limited to `authorIds` (followed accounts plus the viewer).
- * Profile is that account's posts and reposts only.
- * Mute filtering matches the home snapshot. Profiles keep muted authors' posts.
+ * Public is For You. Following is its own query: user_id in `authorIds`
+ * (accounts the viewer follows, plus the viewer). It is not a filter of the
+ * newest 100 home posts. Profile is that account's posts and reposts only.
+ * Reposts are ordered by repost time, and each page loads the original post
+ * by id when it was not in the post page. Mute filtering matches the home
+ * snapshot. Profiles keep muted authors' posts.
  */
 export async function loadFeedPage(
   supabase: SupabaseClient,
@@ -361,13 +386,16 @@ export async function loadFeedPage(
       repostsExhausted: repostPage.exhausted,
       pageSize: limit,
     });
-    hasMore = built.hasMore;
-    nextCursor = built.nextCursor;
+    const repostedPostIds = await loadRepostedPostIds(
+      supabase,
+      input.viewerId,
+      built.rows.filter((row) => row.kind === "post").map((row) => row.id),
+      authors,
+      mute,
+    );
 
     const known = new Map(postRows.map((row) => [row.id, row]));
-    const missingIds = [
-      ...new Set(built.rows.filter((row) => row.kind === "repost").map((row) => row.id)),
-    ].filter((id) => !known.has(id));
+    const missingIds = missingRepostOriginalIds(built.rows, new Set(known.keys()));
     if (missingIds.length > 0) {
       for (const row of await selectPosts(supabase, input.viewerId, {
         authorIds: null,
@@ -387,15 +415,16 @@ export async function loadFeedPage(
     ]);
     for (const person of people) profileIds.set(person.id, person);
 
-    let added = 0;
-    let lastIncluded: FeedCursor | null = null;
+    let consumed: FeedCursor | null = null;
     for (const row of built.rows) {
       if (items.length >= limit) break;
-      lastIncluded = cursorFromRow(row);
+      consumed = cursorFromRow(row);
       if (seen.has(row.id)) continue;
+      // A later repost of this post still has to appear. Do not mark it seen.
+      if (row.kind === "post" && repostedPostIds.has(row.id)) continue;
       const post = postById.get(row.id);
       const author = post ? profileIds.get(post.authorId) : undefined;
-      const repostedBy = row.kind === "repost" ? profileIds.get(row.userId) : null;
+      const repostedBy = row.kind === "repost" ? (profileIds.get(row.userId) ?? null) : null;
       if (!post || !author || (row.kind === "repost" && !repostedBy)) {
         seen.add(row.id);
         continue;
@@ -403,16 +432,24 @@ export async function loadFeedPage(
       seen.add(row.id);
       posts.push(post);
       items.push({
-        key: row.kind === "post" ? `post:${post.id}` : `repost:${row.userId}:${post.id}`,
+        key: feedRowKey(row),
         post,
         at: row.createdAt,
-        repostedBy: repostedBy ?? null,
+        repostedBy,
       });
-      added += 1;
     }
-    if (items.length >= limit && lastIncluded && hasMore) nextCursor = lastIncluded;
-    if (!hasMore || !nextCursor || items.length >= limit) break;
-    if (added === 0 && !lastIncluded) break;
+    const lastBuilt = built.rows[built.rows.length - 1];
+    const consumedAll =
+      built.rows.length === 0 ||
+      (consumed !== null && lastBuilt !== undefined && consumed.key === feedRowKey(lastBuilt));
+    if (!consumedAll && consumed) {
+      hasMore = true;
+      nextCursor = consumed;
+    } else {
+      hasMore = built.hasMore;
+      nextCursor = built.nextCursor;
+    }
+    if (items.length >= limit || !hasMore || !nextCursor || consumed === null) break;
     cursor = nextCursor;
   }
 
