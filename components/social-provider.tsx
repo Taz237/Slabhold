@@ -9,6 +9,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { usePathname } from "next/navigation";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { trackEvent } from "@/lib/analytics";
 import { activityFrom, emptyActivity, loadActivity, saveActivity, type ActivityStore } from "@/lib/social/activity";
@@ -60,6 +61,9 @@ import {
   remoteUpdatePost,
   remoteUpdateProfile,
 } from "@/lib/social/remote";
+import { loadPostById, loadPostPage, type LoadedPostPage } from "@/lib/social/load-feed-page";
+import { createSnapshotRefresher } from "@/lib/social/snapshot-refresh";
+import { postIdFromPath } from "@/lib/social/post-route";
 import { collectAttachedCardIds } from "@/lib/social/post-card-value";
 import { followingTimeline, type TimelineItem } from "@/lib/social/timeline";
 import { createSupabaseBrowser } from "@/lib/supabase/browser";
@@ -83,6 +87,10 @@ import type {
 
 type SocialContextValue = {
   ready: boolean;
+  /** True after the site snapshot is in memory. A cold post page leaves this false. */
+  hasFullSnapshot: boolean;
+  /** Set while a post screen is fetching a post that is not in memory yet. */
+  loadingPostId: string | null;
   mode: "local" | "supabase";
   user: Profile | null;
   profiles: Profile[];
@@ -156,6 +164,22 @@ type SocialContextValue = {
 
 const SocialContext = createContext<SocialContextValue | null>(null);
 
+/** Share one in-flight read across a strict-mode remount of the same route. */
+function loadOnce<T>(
+  inflight: Map<string, Promise<unknown>>,
+  key: string,
+  load: () => Promise<T>,
+): Promise<T> {
+  const existing = inflight.get(key);
+  if (existing) return existing as Promise<T>;
+  const task = load();
+  inflight.set(key, task);
+  void task.finally(() => {
+    if (inflight.get(key) === task) inflight.delete(key);
+  });
+  return task;
+}
+
 const emptySnapshot: SocialSnapshot = {
   user: null,
   profiles: [],
@@ -170,7 +194,12 @@ const emptySnapshot: SocialSnapshot = {
 };
 
 export function SocialProvider({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname() || "/";
   const [ready, setReady] = useState(false);
+  const [loadingPostId, setLoadingPostId] = useState<string | null>(null);
+  const [resolvedPostId, setResolvedPostId] = useState<string | null>(null);
+  const [hasFullSnapshot, setHasFullSnapshot] = useState(false);
+  const [snapshotError, setSnapshotError] = useState(false);
   const [mode, setMode] = useState<"local" | "supabase">("local");
   const [local, setLocal] = useState<LocalDb | null>(null);
   const [remote, setRemote] = useState<SocialSnapshot>(emptySnapshot);
@@ -183,16 +212,98 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
   const repostQueue = useRef(Promise.resolve());
   const rememberedRef = useRef(createRememberedPosts());
   const removedRef = useRef<ReadonlySet<string>>(new Set());
+  const fullSnapshotRef = useRef(false);
+  const snapshotErrorRef = useRef(false);
+  const requestRef = useRef(0);
+  const snapshotRefreshRef = useRef(createSnapshotRefresher<SocialSnapshot>());
+  const inflightRef = useRef(new Map<string, Promise<unknown>>());
+  const reloadRef = useRef<(client: SupabaseClient) => Promise<void>>(async () => {});
   localRef.current = local;
+
+  const routePostId = postIdFromPath(pathname);
+  const routePostKnown =
+    routePostId !== null && remote.posts.some((post) => post.id === routePostId);
+  if (mode === "supabase" && !routePostId && !hasFullSnapshot && !snapshotError && ready) {
+    setReady(false);
+  }
+  if (resolvedPostId && resolvedPostId !== routePostId) {
+    setResolvedPostId(null);
+  }
+  if (
+    mode === "supabase" &&
+    routePostId &&
+    !routePostKnown &&
+    loadingPostId !== routePostId &&
+    resolvedPostId !== routePostId
+  ) {
+    setLoadingPostId(routePostId);
+  }
 
   useEffect(() => {
     removedRef.current = removedPostIds;
   }, [removedPostIds]);
 
   const refreshRemote = useCallback(async (client: SupabaseClient) => {
-    const snapshot = await loadSupabaseSocial(client);
-    setRemote(mergeRememberedSnapshot(snapshot, rememberedRef.current, removedRef.current));
+    await snapshotRefreshRef.current(
+      () => loadSupabaseSocial(client),
+      (snapshot) => {
+        if (snapshotErrorRef.current) setStatus(null);
+        snapshotErrorRef.current = false;
+        setSnapshotError(false);
+        fullSnapshotRef.current = true;
+        setHasFullSnapshot(true);
+        setRemote(mergeRememberedSnapshot(snapshot, rememberedRef.current, removedRef.current));
+        if (!postIdFromPath(window.location.pathname)) setReady(true);
+      },
+    );
   }, []);
+
+  const applyPostPage = useCallback((page: LoadedPostPage) => {
+    const posts: Post[] = [];
+    const seen = new Set<string>();
+    for (const post of [page.post, ...page.relatedPosts, ...page.quotingPosts]) {
+      if (!post || seen.has(post.id)) continue;
+      seen.add(post.id);
+      posts.push(post);
+    }
+    const blocked = new Set(page.blockedIds);
+    storeRemembered(rememberedRef.current, posts, page.profiles, blocked);
+    for (const removedId of removedRef.current) forgetRememberedPost(rememberedRef.current, removedId);
+    setRemote((existing) => {
+      if (fullSnapshotRef.current) {
+        return mergeRememberedSnapshot(existing, rememberedRef.current, removedRef.current);
+      }
+      return {
+        user: page.user,
+        profiles: page.profiles,
+        posts,
+        follows: [],
+        likes: [],
+        reposts: page.reposts,
+        comments: page.comments,
+        notifications: page.notifications,
+        messages: page.messages,
+        publicCards: [],
+        homePosts: [],
+        homeReposts: [],
+        blockedIds: page.blockedIds,
+        mutedIds: page.mutedIds,
+        safetyAccounts: [],
+      };
+    });
+  }, []);
+
+  useEffect(() => {
+    reloadRef.current = async (client) => {
+      const id = postIdFromPath(window.location.pathname);
+      if (id && !fullSnapshotRef.current) {
+        const page = await loadPostPage(client, id);
+        applyPostPage(page);
+        return;
+      }
+      await refreshRemote(client);
+    };
+  }, [applyPostPage, refreshRemote]);
 
   useEffect(() => {
     let cancelled = false;
@@ -214,22 +325,12 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
 
     supabaseRef.current = client;
     setMode("supabase");
-    refreshRemote(client)
-      .then(() => {
-        if (!cancelled) setStatus(null);
-      })
-      .catch((error: unknown) => {
-        if (!cancelled) {
-          setStatus(error instanceof Error ? error.message : "Could not reach Supabase.");
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setReady(true);
-      });
-
-    const { data } = client.auth.onAuthStateChange(() => {
+    // INITIAL_SESSION would repeat the first load. Sign-in and sign-out still refresh.
+    const { data } = client.auth.onAuthStateChange((event) => {
+      if (event !== "SIGNED_IN" && event !== "SIGNED_OUT") return;
       setTimeout(() => {
-        refreshRemote(client)
+        void reloadRef
+          .current(client)
           .then(() => setStatus(null))
           .catch((error: unknown) => {
             setStatus(error instanceof Error ? error.message : "Could not reach Supabase.");
@@ -241,7 +342,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       cancelled = true;
       data.subscription.unsubscribe();
     };
-  }, [refreshRemote]);
+  }, []);
 
   useEffect(() => {
     if (mode !== "supabase" || !ready) return;
@@ -251,11 +352,54 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
     const schedule = () => {
       window.clearTimeout(timer);
       timer = window.setTimeout(() => {
-        refreshRemote(client).catch((error: unknown) => {
+        void reloadRef.current(client).catch((error: unknown) => {
           setStatus(error instanceof Error ? error.message : "Could not reach Supabase.");
         });
       }, 250);
     };
+    const postId = postIdFromPath(pathname);
+    const viewerId = remote.user?.id ?? null;
+    if (!fullSnapshotRef.current && postId) {
+      const channel = client.channel(`post-${postId}`);
+      channel.on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "comments", filter: `post_id=eq.${postId}` },
+        schedule,
+      );
+      channel.on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "reposts", filter: `post_id=eq.${postId}` },
+        schedule,
+      );
+      if (viewerId) {
+        channel.on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "notifications",
+            filter: `recipient_id=eq.${viewerId}`,
+          },
+          schedule,
+        );
+        channel.on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "messages",
+            filter: `receiver_id=eq.${viewerId}`,
+          },
+          schedule,
+        );
+      }
+      channel.subscribe();
+      return () => {
+        window.clearTimeout(timer);
+        void client.removeChannel(channel);
+      };
+    }
+    if (!fullSnapshotRef.current) return;
     const channel = client
       .channel("social-comments-notifications")
       .on("postgres_changes", { event: "*", schema: "public", table: "comments" }, schedule)
@@ -271,7 +415,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       void client.removeChannel(channel);
       void client.removeChannel(reposts);
     };
-  }, [mode, ready, refreshRemote]);
+  }, [hasFullSnapshot, mode, pathname, ready, remote.user?.id]);
 
   const baseSnapshot = mode === "local" && local ? snapshotFromLocal(local) : remote;
   const postIds = new Set(baseSnapshot.posts.map((post) => post.id));
@@ -650,7 +794,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
               setStatus(result.error);
               return;
             }
-            await refreshRemote(client);
+            if (fullSnapshotRef.current) await refreshRemote(client);
           });
         return;
       }
@@ -699,18 +843,18 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
               reposted,
             });
             if (result.error || result.notice) setStatus(result.error ?? result.notice ?? null);
-            await refreshRemote(client);
+            await reloadRef.current(client);
           })
           .catch((error: unknown) => {
             setStatus(error instanceof Error ? error.message : "Could not update that repost.");
-            return refreshRemote(client).catch(() => undefined);
+            return reloadRef.current(client).catch(() => undefined);
           });
         return;
       }
       if (!localRef.current) return;
       commitLocal(localToggleRepost(localRef.current, postId));
     },
-    [activityShell, commitLocal, mode, refreshRemote, rememberActivity],
+    [activityShell, commitLocal, mode, rememberActivity],
   );
 
   const addComment = useCallback(
@@ -733,7 +877,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
             post?.authorId ?? null,
           );
           if (!result.error) {
-            await refreshRemote(client);
+            await reloadRef.current(client);
             if (result.notice) setStatus(result.notice);
           }
           return result;
@@ -746,8 +890,95 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       if (!result.error) commitLocal(result.db);
       return { error: result.error };
     },
-    [commitLocal, mode, refreshRemote],
+    [commitLocal, mode],
   );
+
+  // Kept below the snapshotRef writes. Reading that ref from an earlier effect
+  // makes those existing assignments fail react-hooks/immutability.
+  useEffect(() => {
+    if (mode !== "supabase") return;
+    const client = supabaseRef.current;
+    if (!client) return;
+    const token = ++requestRef.current;
+    const postId = postIdFromPath(pathname);
+    const alive = () => requestRef.current === token;
+    const fail = (error: unknown) => {
+      if (!alive()) return;
+      setStatus(error instanceof Error ? error.message : "Could not reach Supabase.");
+    };
+
+    if (!postId) {
+      if (fullSnapshotRef.current) return;
+      // Home and the rest of the app still need the snapshot. Don't paint the
+      // feed on a post-only snapshot while a load is in flight, or the New
+      // posts pill captures an empty head. A failed load still becomes ready
+      // so the status message and Try again can show.
+      setReady(false);
+      let snapshotFailed = false;
+      void loadOnce(inflightRef.current, "snapshot", () => refreshRemote(client))
+        .then(() => {
+          if (alive()) setStatus(null);
+        })
+        .catch((error) => {
+          if (!alive()) return;
+          snapshotFailed = true;
+          snapshotErrorRef.current = true;
+          setSnapshotError(true);
+          fail(error);
+        })
+        .finally(() => {
+          const snapshotError = snapshotErrorRef.current || snapshotFailed;
+          if (alive() && (fullSnapshotRef.current || snapshotError)) setReady(true);
+        });
+      return;
+    }
+
+    const known =
+      snapshotRef.current.posts.some((post) => post.id === postId) ||
+      rememberedRef.current.posts.has(postId);
+    if (fullSnapshotRef.current && known) {
+      setLoadingPostId((current) => (current === postId ? null : current));
+      return;
+    }
+
+    setLoadingPostId(postId);
+    const pending = fullSnapshotRef.current
+      ? loadOnce(inflightRef.current, `missing:${postId}`, () =>
+          loadPostById(client, postId, snapshotRef.current.user?.id ?? null),
+        )
+      : loadOnce(inflightRef.current, pathname, () => loadPostPage(client, postId));
+    void pending
+      .then((result) => {
+        if (!alive()) return;
+        setStatus(null);
+        if (fullSnapshotRef.current) {
+          const loaded = result as Awaited<ReturnType<typeof loadPostById>>;
+          if (!loaded) return;
+          const blocked = new Set(snapshotRef.current.blockedIds ?? []);
+          storeRemembered(
+            rememberedRef.current,
+            [loaded.post, ...loaded.relatedPosts],
+            loaded.profiles,
+            blocked,
+          );
+          for (const removedId of removedRef.current) {
+            forgetRememberedPost(rememberedRef.current, removedId);
+          }
+          setRemote((existing) =>
+            mergeRememberedSnapshot(existing, rememberedRef.current, removedRef.current),
+          );
+          return;
+        }
+        applyPostPage(result as LoadedPostPage);
+      })
+      .catch(fail)
+      .finally(() => {
+        if (!alive()) return;
+        setResolvedPostId(postId);
+        setLoadingPostId((current) => (current === postId ? null : current));
+        setReady(true);
+      });
+  }, [applyPostPage, mode, pathname, refreshRemote]);
 
   const isLiked = useCallback(
     (postId: string) =>
@@ -1033,6 +1264,8 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
   const value = useMemo<SocialContextValue>(
     () => ({
       ready,
+      hasFullSnapshot,
+      loadingPostId,
       mode,
       user: snapshot.user,
       profiles: snapshot.profiles,
@@ -1111,9 +1344,11 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       isLiked,
       isReposted,
       likeCount,
+      loadingPostId,
       repostCount,
       snapshot.reposts,
       followingCount,
+      hasFullSnapshot,
       homePosts,
       homeReposts,
       isFollowing,

@@ -27,7 +27,7 @@ import {
   checklistBlocksAddToHomeTip,
   checklistState,
   defaultHomeTab,
-  isNewUser,
+  newUserOnFullSnapshot,
   profileStepDone,
 } from "@/lib/social/get-started";
 import { followingAuthorIds, homeHead, showsNewPosts } from "@/lib/social/feed-page";
@@ -40,6 +40,7 @@ export function FeedView() {
   const pathname = usePathname() || "/";
   const {
     ready,
+    hasFullSnapshot,
     user,
     feed: followedFeed,
     posts,
@@ -62,9 +63,11 @@ export function FeedView() {
   const { dismissed, dismiss } = useGetStartedDismissed(user?.id ?? null);
   const following = user ? followingCount(user.id) : 0;
   const countsReady = Boolean(user) && ready && cardsReady && !syncError;
-  const wasNewOnLoad = countsReady
-    ? isNewUser({ followingCount: following, cardCount: cards.length })
-    : null;
+  const wasNewOnLoad = newUserOnFullSnapshot({
+    fullSnapshot: countsReady && (mode !== "supabase" || hasFullSnapshot),
+    followingCount: following,
+    cardCount: cards.length,
+  });
   const wasNewUser = useRememberNewUser(user?.id ?? null, wasNewOnLoad);
   const started = checklistState({
     cardCount: cards.length,

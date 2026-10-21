@@ -14,7 +14,15 @@ import {
 } from "./feed-page";
 import { loadMailDayViews } from "./mail-day";
 import type { TimelineItem } from "./timeline";
-import type { MailDayCardView, Post, Profile } from "./types";
+import type {
+  DirectMessage,
+  MailDayCardView,
+  Notification,
+  Post,
+  PostComment,
+  PostRepost,
+  Profile,
+} from "./types";
 
 const POST_SELECT =
   "id, user_id, content, image_url, card, quoted_post_id, created_at, post_type, show_paid, meta";
@@ -142,9 +150,10 @@ type QueryResult = {
 };
 
 type PostExec = {
+  eq: (column: string, value: string) => PostExec;
   in: (column: string, values: readonly string[]) => PostExec;
   or: (filters: string) => PostExec;
-  order: (column: string, options: { ascending: boolean }) => PostExec;
+  order: (column: string, options?: { ascending: boolean }) => PostExec;
   limit: (count: number) => PostExec;
   not: (column: string, operator: string, value: string) => PostExec;
   then: PromiseLike<QueryResult>["then"];
@@ -479,6 +488,369 @@ export async function loadFeedPage(
   profiles.push(...profileIds.values());
 
   return { items, posts, relatedPosts, profiles, hasMore, nextCursor };
+}
+
+type CommentRow = {
+  id: string;
+  post_id: string;
+  user_id: string;
+  body: string;
+  created_at: string;
+};
+
+/** Same cap as the old home window. The quotes tab stays bounded to this post. */
+const QUOTE_WINDOW = 100;
+
+export type LoadedPostPage = {
+  post: Post | null;
+  /** Post this one quotes, plus one nested hop. */
+  relatedPosts: Post[];
+  /** Newer posts that quote this one, for the quotes tab. */
+  quotingPosts: Post[];
+  profiles: Profile[];
+  user: Profile | null;
+  comments: PostComment[];
+  /** Reposts of this post, its replies, quoting posts, and the quoted original. */
+  reposts: PostRepost[];
+  /** Unread notices for the viewer, so the bell stays up on a cold post page. */
+  notifications: Notification[];
+  /** Unread messages sent to the viewer, so the Messages badge stays up. */
+  messages: DirectMessage[];
+  blockedIds: string[];
+  mutedIds: string[];
+};
+
+const emptyPostPage: LoadedPostPage = {
+  post: null,
+  relatedPosts: [],
+  quotingPosts: [],
+  profiles: [],
+  user: null,
+  comments: [],
+  reposts: [],
+  notifications: [],
+  messages: [],
+  blockedIds: [],
+  mutedIds: [],
+};
+
+function idColumn(data: unknown, key: string): string[] {
+  if (!Array.isArray(data)) return [];
+  const ids: string[] = [];
+  for (const row of data) {
+    if (!row || typeof row !== "object") continue;
+    const id = (row as Record<string, unknown>)[key];
+    if (typeof id === "string") ids.push(id);
+  }
+  return ids;
+}
+
+function withViewerEmail(profiles: Profile[], viewerId: string | null, email: string) {
+  if (!viewerId) return { profiles, user: null as Profile | null };
+  const found = profiles.find((profile) => profile.id === viewerId);
+  if (!found) return { profiles, user: null as Profile | null };
+  const user = { ...found, email: email || found.email };
+  return {
+    user,
+    profiles: profiles.map((profile) => (profile.id === user.id ? user : profile)),
+  };
+}
+
+/**
+ * Blocks for the post itself, blocks plus mutes for replies.
+ * `hidden` is one hidden_author_ids(apply_mute: true) result.
+ */
+export function postPageAuthorFilters(
+  hidden: readonly string[],
+  blockedIds: readonly string[],
+  mutedIds: readonly string[],
+) {
+  const muted = new Set(mutedIds);
+  const postHidden = [...new Set([...hidden.filter((id) => !muted.has(id)), ...blockedIds])];
+  const replyHidden = [...new Set([...hidden, ...blockedIds, ...mutedIds])];
+  return { postHidden, replyHidden };
+}
+
+function mapComment(row: CommentRow): PostComment {
+  return {
+    id: row.id,
+    postId: row.post_id,
+    authorId: row.user_id,
+    body: row.body,
+    createdAt: row.created_at,
+  };
+}
+
+async function selectComments(
+  supabase: SupabaseClient,
+  postId: string,
+  viewerId: string | null,
+  hidden: readonly string[] | null,
+): Promise<CommentRow[]> {
+  return selectCommentsForPosts(supabase, [postId], viewerId, hidden, "eq");
+}
+
+async function selectCommentsForPosts(
+  supabase: SupabaseClient,
+  postIds: readonly string[],
+  viewerId: string | null,
+  hidden: readonly string[] | null,
+  match: "eq" | "in" = "in",
+): Promise<CommentRow[]> {
+  const ids = [...new Set(postIds)].filter((id) => isUuid(id));
+  if (ids.length === 0) return [];
+  let query = supabase
+    .from("comments")
+    .select("id, post_id, user_id, body, created_at") as unknown as PostExec;
+  query = match === "eq" && ids[0] ? query.eq("post_id", ids[0]) : query.in("post_id", ids);
+  query = query.order("created_at", { ascending: true });
+  const { data, error } = await execute(query, viewerId, true, hidden);
+  if (error) {
+    if (missingTable(error)) return [];
+    throw new Error(error.message);
+  }
+  return (data ?? []) as CommentRow[];
+}
+
+type InboxQuery = {
+  eq: (column: string, value: string | boolean) => InboxQuery;
+  order: (column: string, options?: { ascending: boolean }) => InboxQuery;
+  not: (column: string, operator: string, value: string) => InboxQuery;
+  or: (filters: string) => InboxQuery;
+  then: PromiseLike<QueryResult>["then"];
+};
+
+type NotificationInboxRow = {
+  id: string;
+  recipient_id: string;
+  actor_id: string | null;
+  kind: Notification["kind"];
+  post_id: string | null;
+  preview: string | null;
+  href?: string | null;
+  metadata?: Record<string, unknown> | null;
+  read: boolean;
+  created_at: string;
+};
+
+type MessageInboxRow = {
+  id: string;
+  sender_id: string;
+  receiver_id: string;
+  content: string;
+  created_at: string;
+  read: boolean;
+};
+
+/**
+ * Unread bell and Messages badge rows for a signed-in viewer.
+ * Notifications use the same muted-author filter as the site snapshot.
+ */
+async function loadViewerInbox(
+  supabase: SupabaseClient,
+  viewerId: string,
+  hidden: readonly string[],
+): Promise<{ notifications: Notification[]; messages: DirectMessage[] }> {
+  const notificationsQuery = supabase
+    .from("notifications")
+    .select("id, recipient_id, actor_id, kind, post_id, preview, href, metadata, read, created_at")
+    .eq("recipient_id", viewerId)
+    .eq("read", false)
+    .order("created_at", { ascending: false }) as unknown as InboxQuery;
+  const guardedNotes = applyAuthorSafety(notificationsQuery, viewerId, hidden, {
+    authorColumn: "actor_id",
+    mute: true,
+    keepNullAuthor: true,
+  });
+  const messagesQuery = supabase
+    .from("messages")
+    .select("id, sender_id, receiver_id, content, created_at, read")
+    .eq("receiver_id", viewerId)
+    .eq("read", false)
+    .order("created_at", { ascending: true }) as unknown as InboxQuery;
+  const [notesRes, messagesRes] = await Promise.all([guardedNotes, messagesQuery]);
+  if (notesRes.error && !missingTable(notesRes.error)) throw new Error(notesRes.error.message);
+  if (messagesRes.error && !missingTable(messagesRes.error)) throw new Error(messagesRes.error.message);
+  const notifications = ((notesRes.data ?? []) as NotificationInboxRow[]).map(
+    (row): Notification => ({
+      id: row.id,
+      recipientId: row.recipient_id,
+      actorId: row.actor_id,
+      kind: row.kind,
+      postId: row.post_id,
+      preview: row.preview,
+      href: row.href ?? null,
+      metadata: row.metadata ?? null,
+      createdAt: row.created_at,
+      read: row.read,
+    }),
+  );
+  const messages = ((messagesRes.data ?? []) as MessageInboxRow[]).map(
+    (row): DirectMessage => ({
+      id: row.id,
+      senderId: row.sender_id,
+      receiverId: row.receiver_id,
+      content: row.content,
+      createdAt: row.created_at,
+      read: row.read,
+    }),
+  );
+  return { notifications, messages };
+}
+
+async function selectQuotingPosts(
+  supabase: SupabaseClient,
+  postId: string,
+  viewerId: string | null,
+  hidden: readonly string[] | null,
+): Promise<PostRow[]> {
+  const query = supabase
+    .from("posts")
+    .select(POST_SELECT)
+    .eq("quoted_post_id", postId)
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: true })
+    .limit(QUOTE_WINDOW) as unknown as PostExec;
+  const { data, error } = await execute(query, viewerId, false, hidden);
+  if (error) throw new Error(error.message);
+  return (data ?? []) as PostRow[];
+}
+
+async function selectRepostsFor(
+  supabase: SupabaseClient,
+  postIds: string[],
+  viewerId: string | null,
+  hidden: readonly string[] | null,
+): Promise<PostRepost[]> {
+  const ids = [...new Set(postIds)].filter((id) => isUuid(id));
+  if (ids.length === 0) return [];
+  const query = supabase
+    .from("reposts")
+    .select("user_id, post_id, created_at")
+    .in("post_id", ids) as unknown as PostExec;
+  const { data, error } = await execute(query, viewerId, false, hidden);
+  if (error) {
+    if (missingTable(error)) return [];
+    throw new Error(error.message);
+  }
+  return ((data ?? []) as RepostRow[]).map(
+    (row): PostRepost => ({
+      postId: row.post_id,
+      userId: row.user_id,
+      createdAt: row.created_at,
+    }),
+  );
+}
+
+/**
+ * Everything a single post screen needs, and nothing site-wide.
+ * One hidden_author_ids call. No follows or paged-off posts.
+ * Unread notifications and received messages are loaded so the badges stay.
+ * Likes stay on the device (see activity.ts), so this does not query them.
+ */
+export async function loadPostPage(
+  supabase: SupabaseClient,
+  postId: string,
+): Promise<LoadedPostPage> {
+  if (!isUuid(postId)) return emptyPostPage;
+  const { data: sessionData } = await supabase.auth.getSession();
+  const session = sessionData.session;
+  const viewerId = session?.user.id ?? null;
+  const email = session?.user.email ?? "";
+
+  let blockedIds: string[] = [];
+  let mutedIds: string[] = [];
+  let hidden: string[] = [];
+  if (viewerId) {
+    const [hiddenIds, blocksRes, mutesRes] = await Promise.all([
+      loadHiddenAuthorIds(supabase, true),
+      supabase.from("blocks").select("blocked_id"),
+      supabase.from("mutes").select("muted_id"),
+    ]);
+    hidden = hiddenIds;
+    const blocksError = blocksRes.error;
+    const mutesError = mutesRes.error;
+    if (blocksError && !missingTable(blocksError)) throw new Error(blocksError.message);
+    if (mutesError && !missingTable(mutesError)) throw new Error(mutesError.message);
+    blockedIds = idColumn(blocksRes.data, "blocked_id");
+    mutedIds = idColumn(mutesRes.data, "muted_id");
+  }
+
+  const { postHidden, replyHidden } = postPageAuthorFilters(hidden, blockedIds, mutedIds);
+  const inboxPromise = viewerId
+    ? loadViewerInbox(supabase, viewerId, hidden)
+    : Promise.resolve({ notifications: [] as Notification[], messages: [] as DirectMessage[] });
+  const [postRows, commentRows, quotingRows, inbox] = await Promise.all([
+    selectPosts(supabase, viewerId, {
+      authorIds: null,
+      cursor: null,
+      limit: 1,
+      mute: false,
+      hidden: viewerId ? postHidden : null,
+      ids: [postId],
+    }),
+    selectComments(supabase, postId, viewerId, viewerId ? replyHidden : null),
+    selectQuotingPosts(supabase, postId, viewerId, viewerId ? postHidden : null),
+    inboxPromise,
+  ]);
+  const [post] = await mapRows(supabase, postRows, viewerId);
+  if (!post) {
+    const people = viewerId ? await loadProfiles(supabase, [viewerId]) : [];
+    const viewer = withViewerEmail(people, viewerId, email);
+    return {
+      ...emptyPostPage,
+      profiles: viewer.profiles,
+      user: viewer.user,
+      notifications: inbox.notifications,
+      messages: inbox.messages,
+      blockedIds,
+      mutedIds,
+    };
+  }
+
+  const relatedPosts = await loadQuoted(supabase, [post], viewerId, false, viewerId ? postHidden : null);
+  const quotingPosts = (await mapRows(supabase, quotingRows, viewerId)).filter(
+    (item) => item.id !== post.id,
+  );
+  const quotingComments = await selectCommentsForPosts(
+    supabase,
+    quotingPosts.map((item) => item.id),
+    viewerId,
+    viewerId ? replyHidden : null,
+  );
+  const comments = [...commentRows, ...quotingComments].map(mapComment);
+  const reposts = await selectRepostsFor(
+    supabase,
+    [
+      post.id,
+      ...comments.map((comment) => comment.id),
+      ...quotingPosts.map((item) => item.id),
+      ...relatedPosts.map((item) => item.id),
+    ],
+    viewerId,
+    viewerId ? postHidden : null,
+  );
+  const people = await loadProfiles(supabase, [
+    ...(viewerId ? [viewerId] : []),
+    post.authorId,
+    ...relatedPosts.map((item) => item.authorId),
+    ...quotingPosts.map((item) => item.authorId),
+    ...comments.map((comment) => comment.authorId),
+  ]);
+  const viewer = withViewerEmail(people, viewerId, email);
+  return {
+    post,
+    relatedPosts,
+    quotingPosts,
+    profiles: viewer.profiles,
+    user: viewer.user,
+    comments,
+    reposts,
+    notifications: inbox.notifications,
+    messages: inbox.messages,
+    blockedIds,
+    mutedIds,
+  };
 }
 
 /** Load one post by id, including quoted posts, even when it is older than the home window. */

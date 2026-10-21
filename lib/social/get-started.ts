@@ -13,6 +13,23 @@ export function isNewUser(input: { followingCount: number; cardCount: number }):
   return input.followingCount === 0 && input.cardCount === 0;
 }
 
+/**
+ * New-user eligibility is stored on the first answer and never rewritten.
+ * A cold post page has no follows, so that answer is null until a full snapshot
+ * (or local mode) is loaded.
+ */
+export function newUserOnFullSnapshot(input: {
+  fullSnapshot: boolean;
+  followingCount: number;
+  cardCount: number;
+}): boolean | null {
+  if (!input.fullSnapshot) return null;
+  return isNewUser({
+    followingCount: input.followingCount,
+    cardCount: input.cardCount,
+  });
+}
+
 /** Seven days. A minute of clock skew still counts as just created. */
 const NEW_ACCOUNT_MS = 7 * 24 * 60 * 60 * 1000;
 

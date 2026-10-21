@@ -284,6 +284,25 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </>
       );
     }
+    // Leaving a cold post page reloads the site snapshot. Keep the header and
+    // tabs up, with the page's own loading state in the main column.
+    if (user) {
+      return (
+        <>
+          <AccountDeletedToast />
+          <Shell
+            unreadCount={unreadCount}
+            unreadMessageCount={unreadMessageCount}
+            status={status}
+            user={user}
+            showNav
+            showJoin={false}
+          >
+            {children}
+          </Shell>
+        </>
+      );
+    }
     return (
       <>
         <AccountDeletedToast />
