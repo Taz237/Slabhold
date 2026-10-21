@@ -49,8 +49,26 @@ const PUBLIC_EXACT = new Set([
   "/signup",
   "/forgot-password",
   "/reset-password",
+  "/auth/callback",
+  "/auth/confirm",
   "/search",
 ]);
+
+/**
+ * Files the browser fetches while installing or unfurling a link.
+ * These must never be rewritten to the 404 or sent to signup.
+ */
+export function isStaticPublicPath(pathname: string): boolean {
+  const path = pathOnly(pathname);
+  if (path === "/manifest.webmanifest" || path === "/robots.txt" || path === "/favicon.ico") {
+    return true;
+  }
+  if (path === "/apple-touch-icon.png" || path === "/apple-icon.png") return true;
+  if (path === "/icons" || path.startsWith("/icons/")) return true;
+  if (path === "/_next" || path.startsWith("/_next/")) return true;
+  if (/(?:^|\/)(?:opengraph-image|twitter-image)$/.test(path)) return true;
+  return false;
+}
 
 export type RouteAccess = "public" | "account" | "unknown";
 
@@ -75,6 +93,7 @@ function isPublicPath(path: string): boolean {
 
 export function routeAccess(pathname: string): RouteAccess {
   const path = pathOnly(pathname);
+  if (isStaticPublicPath(path)) return "public";
   if (isAccountPath(path)) return "account";
   if (isPublicPath(path)) return "public";
   return "unknown";
