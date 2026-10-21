@@ -6,6 +6,7 @@ import { useEffect } from "react";
 import { AtSign, Bell, Heart, MessageCircle, Quote, Repeat2, Star, UserPlus } from "lucide-react";
 import { Avatar } from "@/components/avatar";
 import { solidButton } from "@/components/button-styles";
+import { PullToRefresh } from "@/components/pull-to-refresh";
 import { EmptyState, LoadingRows } from "@/components/status";
 import { useSocial } from "@/components/social-provider";
 import { loginPath } from "@/lib/auth/safe-next";
@@ -31,9 +32,9 @@ export function NotificationsView() {
 
   if (!ready) {
     return (
-      <div className="-mx-4 -mt-5">
+      <PullToRefresh onRefresh={refresh} className="-mx-4 -mt-5">
         <LoadingRows />
-      </div>
+      </PullToRefresh>
     );
   }
 
@@ -58,7 +59,7 @@ export function NotificationsView() {
   const groups = groupNotifications(notifications);
 
   return (
-    <div className="-mx-4 -mt-5">
+    <PullToRefresh onRefresh={refresh} className="-mx-4 -mt-5">
       <h1 className="px-4 pt-5 text-2xl font-bold tracking-tight">Notifications</h1>
       {notifications.length === 0 ? (
         <EmptyState
@@ -138,7 +139,7 @@ export function NotificationsView() {
           })}
         </ul>
       )}
-    </div>
+    </PullToRefresh>
   );
 }
 

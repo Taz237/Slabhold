@@ -29,7 +29,7 @@ import {
 import { createSupabaseBrowser } from "@/lib/supabase/browser";
 import { getSupabaseConfig } from "@/lib/supabase/client";
 import { publicTimeline } from "@/lib/social/timeline";
-import { POST_LIMIT, type PublicCard } from "@/lib/social/types";
+import { POST_LIMIT, type Profile, type PublicCard } from "@/lib/social/types";
 
 export function FeedView() {
   const router = useRouter();
@@ -87,6 +87,7 @@ export function FeedView() {
   const authors = new Map(profiles.map((profile) => [profile.id, profile]));
   const everyone = publicTimeline(homePosts, homeReposts, profiles);
   const visible = !user ? (lane === "following" ? [] : everyone) : lane === "following" ? feed : everyone;
+  const followingEmpty = Boolean(user) && lane === "following" && visible.length === 0;
 
   useEffect(() => {
     if (!ready || !cardsReady || !user) return;
@@ -119,7 +120,13 @@ export function FeedView() {
     router.push("/compose");
   }
 
-  if (!ready) return <TimelineSkeleton />;
+  if (!ready) {
+    return (
+      <PullToRefresh onRefresh={refresh} className="-mx-4 -mt-5">
+        <TimelineSkeleton />
+      </PullToRefresh>
+    );
+  }
 
   return (
     <PullToRefresh onRefresh={refresh} className="-mx-4 -mt-5">
@@ -150,52 +157,30 @@ export function FeedView() {
 
       {user ? <Composer inputRef={composerRef} /> : <SignedOutBanner />}
 
-      {suggestionRail.length > 0 && (
-        <section
-          id="collectors-to-follow"
-          className="scroll-mt-20 border-b border-zinc-200 px-4 py-3 dark:border-white/10"
-        >
-          <p className="mb-2 text-xs font-medium text-zinc-500">Collectors to follow</p>
-          <div className="flex gap-2 overflow-x-auto pb-1">
-            {suggestionRail.map((profile) => (
-              <div
-                key={profile.id}
-                className="flex w-64 shrink-0 items-center gap-2.5 rounded-2xl border border-zinc-200 p-2.5 dark:border-white/10"
-              >
-                <Link href={`/u/${profile.username}`}>
-                  <Avatar name={profile.displayName} image={profile.avatarDataUrl} accent={profile.accent} />
-                </Link>
-                <div className="min-w-0 flex-1">
-                  <Link href={`/u/${profile.username}`} className="block truncate text-sm font-bold">
-                    {profile.displayName}
-                  </Link>
-                  <p className="truncate text-xs text-zinc-500">@{profile.username}</p>
-                </div>
-                <FollowButton userId={profile.id} />
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
+      {suggestionRail.length > 0 && !followingEmpty ? (
+        <CollectorSuggestions profiles={suggestionRail} />
+      ) : null}
 
       <div>
-        {visible.length === 0 && !showWelcome ? (
+        {followingEmpty ? (
+          <EmptyState icon={<Compass className="h-5 w-5" />} title="Follow collectors to fill this feed">
+            {suggestionRail.length === 0 ? (
+              <Link href="/search" className={solidButton}>
+                Find collectors
+              </Link>
+            ) : null}
+          </EmptyState>
+        ) : visible.length === 0 && !showWelcome ? (
           <EmptyState
             icon={<Compass className="h-5 w-5" />}
             title="No posts yet"
             detail={
               lane === "following"
-                ? user
-                  ? "Follow a collector and their posts will show up here."
-                  : "Log in to see posts from people you follow."
+                ? "Log in to see posts from people you follow."
                 : "When collectors post, they'll show up here."
             }
           >
-            {lane === "following" && user ? (
-              <Link href="/search" className={solidButton}>
-                Find collectors
-              </Link>
-            ) : user ? (
+            {user ? (
               <Link href="/compose" className={solidButton}>
                 Post something
               </Link>
@@ -220,7 +205,40 @@ export function FeedView() {
           })
         )}
       </div>
+      {followingEmpty && suggestionRail.length > 0 ? (
+        <CollectorSuggestions profiles={suggestionRail} />
+      ) : null}
     </PullToRefresh>
+  );
+}
+
+function CollectorSuggestions({ profiles }: { profiles: Profile[] }) {
+  return (
+    <section
+      id="collectors-to-follow"
+      className="scroll-mt-20 border-b border-zinc-200 px-4 py-3 dark:border-white/10"
+    >
+      <p className="mb-2 text-xs font-medium text-zinc-500">Collectors to follow</p>
+      <div className="flex gap-2 overflow-x-auto pb-1" data-no-pull="">
+        {profiles.map((profile) => (
+          <div
+            key={profile.id}
+            className="flex w-64 shrink-0 items-center gap-2.5 rounded-2xl border border-zinc-200 p-2.5 dark:border-white/10"
+          >
+            <Link href={`/u/${profile.username}`}>
+              <Avatar name={profile.displayName} image={profile.avatarDataUrl} accent={profile.accent} />
+            </Link>
+            <div className="min-w-0 flex-1">
+              <Link href={`/u/${profile.username}`} className="block truncate text-sm font-bold">
+                {profile.displayName}
+              </Link>
+              <p className="truncate text-xs text-zinc-500">@{profile.username}</p>
+            </div>
+            <FollowButton userId={profile.id} />
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }
 

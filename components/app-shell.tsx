@@ -10,10 +10,12 @@ import { AccountDeletedToast } from "@/components/account-deleted-toast";
 import { CreateMenu } from "@/components/create-menu";
 import { JoinBar } from "@/components/join-bar";
 import { LandingPage } from "@/components/landing-page";
-import { isAuthPage, isGuestContentPage, shouldShowJoinBar } from "@/lib/auth/guest-paths";
+import { isAuthPage, shouldShowJoinBar } from "@/lib/auth/guest-paths";
 import { clearLogoutHome, logoutHomePending } from "@/lib/auth/logout-home";
+import { requiresAccount, routeAccess } from "@/lib/auth/route-access";
 import { pathWithQuery, signupPath } from "@/lib/auth/safe-next";
 import type { Profile } from "@/lib/social/types";
+import { activeTabAction, isCurrentTabScreen, requestPageRefresh } from "@/lib/ui/pull-refresh";
 
 const TABS = [
   { href: "/profile", label: "Profile", icon: CircleUser },
@@ -67,6 +69,7 @@ function Shell({
   showJoin: boolean;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
   /** Collection needs a wider desktop column; feed/timeline stay max-w-lg. */
   const wideMain =
     pathname.startsWith("/collection") || pathname.startsWith("/portfolio");
@@ -135,11 +138,23 @@ function Shell({
             {TABS.map((tab) => {
               const active = isActive(pathname, tab.href, user);
               const Icon = tab.icon;
+              const onTabClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
+                if (!isCurrentTabScreen(pathname, tab.href, user?.username ?? null)) return;
+                event.preventDefault();
+                const top = window.scrollY || document.documentElement.scrollTop || 0;
+                const action = activeTabAction({ onThisScreen: true, scrollTop: top });
+                if (action === "scroll-top") {
+                  window.scrollTo({ top: 0, behavior: "smooth" });
+                  return;
+                }
+                if (!requestPageRefresh()) router.refresh();
+              };
               if (tab.href === "/scan") {
                 return (
                   <Link
                     key={tab.href}
                     href={tab.href}
+                    onClick={onTabClick}
                     aria-label="Scan a card"
                     className={`grid h-12 w-12 -translate-y-3 place-items-center rounded-full shadow-lg ring-4 ring-[var(--background)] ${
                       active
@@ -156,6 +171,7 @@ function Shell({
                 <Link
                   key={tab.href}
                   href={tab.href}
+                  onClick={onTabClick}
                   aria-label={
                     messageBadge > 0 ? `Messages, ${messageBadge} unread` : tab.label
                   }
@@ -230,6 +246,23 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, [user, pathname]);
 
   if (!ready) {
+    if (routeAccess(pathname) === "unknown") {
+      return (
+        <>
+          <AccountDeletedToast />
+          <Shell
+            unreadCount={0}
+            unreadMessageCount={0}
+            status={null}
+            user={null}
+            showNav={false}
+            showJoin={false}
+          >
+            {children}
+          </Shell>
+        </>
+      );
+    }
     return (
       <>
         <AccountDeletedToast />
@@ -256,7 +289,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (!user && !isGuestContentPage(pathname)) {
+  if (!user && requiresAccount(pathname)) {
     return (
       <>
         <AccountDeletedToast />

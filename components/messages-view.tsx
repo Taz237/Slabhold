@@ -6,6 +6,7 @@ import { useEffect, useMemo } from "react";
 import { Mail } from "lucide-react";
 import { Avatar } from "@/components/avatar";
 import { solidButton } from "@/components/button-styles";
+import { PullToRefresh } from "@/components/pull-to-refresh";
 import { EmptyState, LoadingRows } from "@/components/status";
 import { useSocial } from "@/components/social-provider";
 import { loginPath } from "@/lib/auth/safe-next";
@@ -48,9 +49,9 @@ export function MessagesView() {
 
   if (!ready) {
     return (
-      <div className="-mx-4 -mt-5">
+      <PullToRefresh onRefresh={refresh} className="-mx-4 -mt-5">
         <LoadingRows />
-      </div>
+      </PullToRefresh>
     );
   }
 
@@ -72,7 +73,7 @@ export function MessagesView() {
   }
 
   return (
-    <div className="-mx-4 -mt-5">
+    <PullToRefresh onRefresh={refresh} className="-mx-4 -mt-5">
       <h1 className="px-4 pt-5 text-2xl font-bold tracking-tight">Messages</h1>
       {conversations.length === 0 ? (
         <EmptyState
@@ -130,6 +131,6 @@ export function MessagesView() {
           })}
         </ul>
       )}
-    </div>
+    </PullToRefresh>
   );
 }

@@ -48,6 +48,7 @@ import {
 import { formatCardValueLabel } from "@/lib/value/format";
 import { useCardValues } from "@/lib/value/use-card-values";
 import { WantList } from "@/components/want-list";
+import { PullToRefresh } from "@/components/pull-to-refresh";
 
 const LANES: { id: "all" | CardCategory | "wants"; label: string }[] = [
   { id: "all", label: "All" },
@@ -65,7 +66,7 @@ const FILTERS: { id: PortfolioFilter; label: string }[] = [
 ];
 
 export function Dashboard() {
-  const { cards, ready, syncError } = useCollection();
+  const { cards, ready, syncError, reload } = useCollection();
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<PortfolioFilter>("all");
   const [lane, setLane] = useState<(typeof LANES)[number]["id"]>("all");
@@ -107,7 +108,18 @@ export function Dashboard() {
     [inLane, query, filter, values],
   );
 
-  if (!ready) return <CollectionSkeleton />;
+  function refreshCollection() {
+    reload();
+    retryValues();
+  }
+
+  if (!ready) {
+    return (
+      <PullToRefresh onRefresh={refreshCollection}>
+        <CollectionSkeleton />
+      </PullToRefresh>
+    );
+  }
 
   const valueHint =
     totals.withoutValueCount > 0
@@ -117,6 +129,7 @@ export function Dashboard() {
   const profitLabel = profitCardLabel(pricedCount, cardCount);
 
   return (
+    <PullToRefresh onRefresh={refreshCollection}>
     <div className="space-y-6">
       <CollectionHeader />
       {syncError ? (
@@ -390,6 +403,7 @@ export function Dashboard() {
       </>
       )}
     </div>
+    </PullToRefresh>
   );
 }
 

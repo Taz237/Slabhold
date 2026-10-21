@@ -8,6 +8,7 @@ import { Avatar } from "@/components/avatar";
 import { CardThumb } from "@/components/card-thumb";
 import { useCollection } from "@/components/collection-provider";
 import { useSocial } from "@/components/social-provider";
+import { PullToRefresh } from "@/components/pull-to-refresh";
 import { EmptyState, LoadingRows } from "@/components/status";
 import { cardSubtitle, cardTitle, timeAgo } from "@/lib/format";
 import type { SportsCard } from "@/lib/types";
@@ -63,8 +64,8 @@ export function SearchView() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const urlQ = searchParams.get("q") ?? "";
-  const { ready: socialReady, profiles, homePosts, blockedIds, user } = useSocial();
-  const { ready: cardsReady, cards } = useCollection();
+  const { ready: socialReady, profiles, homePosts, blockedIds, user, refresh } = useSocial();
+  const { ready: cardsReady, cards, reload } = useCollection();
   const [query, setQuery] = useState(urlQ);
   const recent = useRecentSearches();
   const typed = query.trim();
@@ -135,18 +136,23 @@ export function SearchView() {
     writeRecent([]);
   }
 
+  function refreshSearch() {
+    reload();
+    return refresh();
+  }
+
   if (!socialReady || !cardsReady) {
     return (
-      <div className="-mx-4 -mt-5">
+      <PullToRefresh onRefresh={refreshSearch} className="-mx-4 -mt-5">
         <LoadingRows />
-      </div>
+      </PullToRefresh>
     );
   }
 
   const hasResults = people.length > 0 || matchedPosts.length > 0 || matchedCards.length > 0;
 
   return (
-    <div className="-mx-4 -mt-5">
+    <PullToRefresh onRefresh={refreshSearch} className="-mx-4 -mt-5">
       <form
         onSubmit={(event) => {
           event.preventDefault();
@@ -335,6 +341,6 @@ export function SearchView() {
           ) : null}
         </div>
       )}
-    </div>
+    </PullToRefresh>
   );
 }
