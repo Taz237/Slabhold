@@ -21,9 +21,16 @@ const STEPS: { id: ChecklistStepId; label: string }[] = [
 const stepClass =
   "flex min-h-11 w-full items-center gap-3 rounded-xl px-1 text-left text-[15px] hover:bg-zinc-100 focus-visible:ring-2 focus-visible:ring-violet-600 focus-visible:outline-none dark:hover:bg-white/10";
 
+const dismissedForSession = new Set<string>();
+
 function readDismissed(userId: string | null) {
   if (!userId || typeof window === "undefined") return false;
-  return window.localStorage.getItem(checklistDismissKey(userId)) === "1";
+  if (dismissedForSession.has(userId)) return true;
+  try {
+    return window.localStorage.getItem(checklistDismissKey(userId)) === "1";
+  } catch {
+    return false;
+  }
 }
 
 export function useGetStartedDismissed(userId: string | null) {
@@ -31,7 +38,11 @@ export function useGetStartedDismissed(userId: string | null) {
 
   const dismiss = useCallback(() => {
     if (!userId) return;
-    window.localStorage.setItem(checklistDismissKey(userId), "1");
+    try {
+      window.localStorage.setItem(checklistDismissKey(userId), "1");
+    } catch {
+      dismissedForSession.add(userId);
+    }
     setDismissed(true);
   }, [userId]);
 
@@ -49,10 +60,14 @@ export function useRememberNewUser(userId: string | null, wasNewOnLoad: boolean 
   });
 
   if (record.userId !== userId) {
-    const existing =
-      userId && typeof window !== "undefined"
-        ? storedNewUserFlag(window.localStorage.getItem(checklistNewUserKey(userId)))
-        : null;
+    let existing: boolean | null = null;
+    if (userId && typeof window !== "undefined") {
+      try {
+        existing = storedNewUserFlag(window.localStorage.getItem(checklistNewUserKey(userId)));
+      } catch {
+        existing = null;
+      }
+    }
     setRecord({ userId, value: existing });
   } else if (userId && record.value === null && wasNewOnLoad !== null) {
     setRecord({ userId, value: wasNewOnLoad });
@@ -61,8 +76,12 @@ export function useRememberNewUser(userId: string | null, wasNewOnLoad: boolean 
   useEffect(() => {
     if (!userId || wasNewOnLoad === null || typeof window === "undefined") return;
     const key = checklistNewUserKey(userId);
-    if (storedNewUserFlag(window.localStorage.getItem(key)) !== null) return;
-    window.localStorage.setItem(key, wasNewOnLoad ? "1" : "0");
+    try {
+      if (storedNewUserFlag(window.localStorage.getItem(key)) !== null) return;
+      window.localStorage.setItem(key, wasNewOnLoad ? "1" : "0");
+    } catch {
+      // The in-memory flag still covers this visit.
+    }
   }, [userId, wasNewOnLoad]);
 
   return record.userId === userId ? record.value : null;
@@ -88,7 +107,7 @@ export function GetStartedCard({
         <button
           type="button"
           onClick={onDismiss}
-          aria-label="Dismiss"
+          aria-label="Dismiss Get started"
           className="absolute top-1 right-1 grid h-11 w-11 place-items-center rounded-full text-zinc-500 hover:bg-zinc-100 focus-visible:ring-2 focus-visible:ring-violet-600 focus-visible:outline-none dark:hover:bg-white/10"
         >
           <X className="h-4 w-4" />
@@ -133,15 +152,18 @@ export function GetStartedCard({
 }
 
 function StepMark({ done }: { done: boolean }) {
+  const status = <span className="sr-only">{done ? "done" : "not done"}. </span>;
   if (done) {
     return (
       <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-950">
         <Check className="h-3 w-3" aria-hidden />
-        <span className="sr-only">Done. </span>
+        {status}
       </span>
     );
   }
   return (
-    <span className="h-5 w-5 shrink-0 rounded-full border border-zinc-300 dark:border-white/20" />
+    <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full border border-zinc-300 dark:border-white/20">
+      {status}
+    </span>
   );
 }

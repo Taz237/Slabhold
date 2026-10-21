@@ -4,11 +4,20 @@ import { useSyncExternalStore } from "react";
 import { Share, X } from "lucide-react";
 import { addToHomeDismissKey, shouldShowAddToHomeTip } from "@/lib/pwa/add-to-home";
 
+const tipHiddenForSession = new Set<string>();
+
 function readTipVisible(userId: string) {
+  if (tipHiddenForSession.has(userId)) return false;
+  let dismissed = false;
+  try {
+    dismissed = window.localStorage.getItem(addToHomeDismissKey(userId)) === "1";
+  } catch {
+    return false;
+  }
   const nav = window.navigator as Navigator & { standalone?: boolean };
   return shouldShowAddToHomeTip({
     signedIn: true,
-    dismissed: window.localStorage.getItem(addToHomeDismissKey(userId)) === "1",
+    dismissed,
     userAgent: nav.userAgent,
     platform: nav.platform,
     maxTouchPoints: nav.maxTouchPoints ?? 0,
@@ -35,7 +44,11 @@ export function AddToHomeTip({ userId }: { userId: string }) {
   const visible = useSyncExternalStore(subscribe, () => readTipVisible(userId), () => false);
 
   function dismiss() {
-    window.localStorage.setItem(addToHomeDismissKey(userId), "1");
+    try {
+      window.localStorage.setItem(addToHomeDismissKey(userId), "1");
+    } catch {
+      tipHiddenForSession.add(userId);
+    }
     emitDismiss();
   }
 
@@ -57,7 +70,7 @@ export function AddToHomeTip({ userId }: { userId: string }) {
           Add to Home Screen
         </p>
         <p className="mt-1 pr-12 text-[15px] leading-5 text-zinc-600 dark:text-zinc-300">
-          Tap Share, then Add to Home Screen.
+          Tap Share (it may be under ⋯), then Add to Home Screen.
         </p>
       </div>
     </section>

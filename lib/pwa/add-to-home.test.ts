@@ -41,6 +41,15 @@ describe("isIosSafari", () => {
 
   it("is false for other iOS browsers, Android, and desktop", () => {
     assert.equal(isIosSafari({ userAgent: IPHONE_CHROME, platform: "iPhone" }), false);
+    assert.equal(
+      isIosSafari({
+        userAgent:
+          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/131.0.6778.103 Safari/604.1",
+        platform: "MacIntel",
+        maxTouchPoints: 5,
+      }),
+      false,
+    );
     assert.equal(isIosSafari({ userAgent: IPHONE_FIREFOX, platform: "iPhone" }), false);
     assert.equal(isIosSafari({ userAgent: ANDROID_CHROME, platform: "Linux armv8l" }), false);
     assert.equal(

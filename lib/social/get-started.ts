@@ -61,6 +61,26 @@ export function checklistDismissKey(userId: string) {
   return `slabhold.get-started.dismissed.${userId}`;
 }
 
+/**
+ * The home-screen tip waits while Get started is on screen, or while a recent
+ * account might still be new. It shows after dismiss, after the steps are done,
+ * or when this person is not eligible.
+ */
+export function checklistBlocksAddToHomeTip(input: {
+  visible: boolean;
+  complete: boolean;
+  dismissed: boolean;
+  wasNewUser: boolean | null;
+  createdAt: string | null;
+  now?: number;
+}): boolean {
+  if (input.visible) return true;
+  if (input.dismissed || input.complete) return false;
+  const recent = input.createdAt != null && isRecentAccount(input.createdAt, input.now ?? Date.now());
+  if (!recent || input.wasNewUser === false) return false;
+  return true;
+}
+
 export function checklistState(input: {
   cardCount: number;
   followingCount: number;

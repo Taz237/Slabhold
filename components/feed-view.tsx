@@ -24,6 +24,7 @@ import { loginPath } from "@/lib/auth/safe-next";
 import { takeCompose } from "@/lib/capture";
 import { fileToDataUrl } from "@/lib/storage";
 import {
+  checklistBlocksAddToHomeTip,
   checklistState,
   defaultHomeTab,
   isNewUser,
@@ -77,6 +78,15 @@ export function FeedView() {
     createdAt: user?.createdAt ?? null,
     wasNewUser,
   });
+  const showAddToHome =
+    Boolean(user) &&
+    !checklistBlocksAddToHomeTip({
+      visible: started.visible,
+      complete: started.complete,
+      dismissed,
+      wasNewUser,
+      createdAt: user?.createdAt ?? null,
+    });
   const showWelcome =
     Boolean(user) &&
     !started.visible &&
@@ -209,7 +219,7 @@ export function FeedView() {
           onFollow={openCollectors}
         />
       ) : null}
-      {user ? <AddToHomeTip userId={user.id} /> : null}
+      {showAddToHome && user ? <AddToHomeTip userId={user.id} /> : null}
       {showWelcome ? <FirstCardWelcome /> : user ? <CollectionToday /> : null}
       {postCardValuesMessage ? (
         <p className="border-b border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">

@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { join } from "node:path";
 import {
+  checklistBlocksAddToHomeTip,
   checklistDismissKey,
   checklistNewUserKey,
   checklistState,
@@ -167,6 +168,83 @@ describe("checklistState", () => {
   });
 });
 
+describe("checklistBlocksAddToHomeTip", () => {
+  it("holds the tip while Get started is open or might still appear", () => {
+    const openState = checklistState(open);
+    assert.equal(
+      checklistBlocksAddToHomeTip({
+        visible: openState.visible,
+        complete: openState.complete,
+        dismissed: false,
+        wasNewUser: true,
+        createdAt,
+        now,
+      }),
+      true,
+    );
+    assert.equal(
+      checklistBlocksAddToHomeTip({
+        visible: false,
+        complete: false,
+        dismissed: false,
+        wasNewUser: null,
+        createdAt,
+        now,
+      }),
+      true,
+    );
+  });
+
+  it("shows the tip after dismiss, after the steps, or when they are not eligible", () => {
+    const done = checklistState({ ...open, cardCount: 1, followingCount: 3, profileDone: true });
+    assert.equal(
+      checklistBlocksAddToHomeTip({
+        visible: done.visible,
+        complete: done.complete,
+        dismissed: false,
+        wasNewUser: true,
+        createdAt,
+        now,
+      }),
+      false,
+    );
+    assert.equal(
+      checklistBlocksAddToHomeTip({
+        visible: false,
+        complete: false,
+        dismissed: true,
+        wasNewUser: true,
+        createdAt,
+        now,
+      }),
+      false,
+    );
+    assert.equal(
+      checklistBlocksAddToHomeTip({
+        visible: false,
+        complete: false,
+        dismissed: false,
+        wasNewUser: false,
+        createdAt,
+        now,
+      }),
+      false,
+    );
+    const older = new Date(now - 8 * 24 * 60 * 60 * 1000).toISOString();
+    assert.equal(
+      checklistBlocksAddToHomeTip({
+        visible: false,
+        complete: false,
+        dismissed: false,
+        wasNewUser: null,
+        createdAt: older,
+        now,
+      }),
+      false,
+    );
+  });
+});
+
 describe("home wiring", () => {
   it("uses the helpers, the add-card flow, collectors, and edit profile", () => {
     const root = process.cwd();
@@ -186,7 +264,8 @@ describe("home wiring", () => {
     assert.match(feed, /id="collectors-to-follow"/);
     assert.match(feed, /checklistDismissKey\(userId\)|useGetStartedDismissed/);
     assert.match(feed, /user && started\.visible/);
-    assert.match(feed, /\{user \? <AddToHomeTip userId=\{user\.id\} \/> : null\}/);
+    assert.match(feed, /checklistBlocksAddToHomeTip\(/);
+    assert.match(feed, /showAddToHome && user \? <AddToHomeTip userId=\{user\.id\} \/> : null/);
     assert.match(card, /checklistNewUserKey\(userId\)/);
     assert.match(card, /localStorage\.setItem\(key, wasNewOnLoad \? "1" : "0"\)/);
     assert.match(card, /Add your first card/);
@@ -198,14 +277,19 @@ describe("home wiring", () => {
     assert.match(card, /"\/cards\/new"/);
     assert.match(card, /"\/profile\?edit=1"/);
     assert.match(card, /localStorage/);
-    assert.match(card, /aria-label="Dismiss"/);
+    assert.match(card, /aria-label="Dismiss Get started"/);
+    assert.match(card, /sr-only">\{done \? "done" : "not done"\}/);
+    assert.match(card, /localStorage\.getItem\(checklistDismissKey\(userId\)\)/);
+    assert.match(card, /catch \{/);
     assert.match(card, /min-h-11/);
     assert.match(profile, /searchParams\.get\("edit"\) === "1"/);
     assert.match(profile, /setEditing\(true\)/);
     assert.match(tip, /addToHomeDismissKey\(userId\)/);
     assert.match(tip, /navigatorStandalone: nav\.standalone === true/);
     assert.match(tip, /display-mode: standalone/);
-    assert.match(tip, /Tap Share, then Add to Home Screen/);
+    assert.match(tip, /Tap Share \(it may be under ⋯\), then Add to Home Screen/);
+    assert.match(tip, /catch \{/);
+    assert.match(tip, /return false/);
     assert.doesNotMatch(tip, /Pokémon|Pokemon|TCG/i);
   });
 });
