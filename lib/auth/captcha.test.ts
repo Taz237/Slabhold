@@ -183,7 +183,7 @@ describe("captcha token on supabase auth", () => {
     assert.match(provider, /remoteSignIn\(client, email, password, captchaToken\)/);
     assert.match(
       forgot,
-      /resetPasswordForEmail\(\s*email\.trim\(\),\s*passwordResetEmailOptions\(publicOrigin\(window\.location\.origin\), captchaToken\),\s*\)/,
+      /resetPasswordForEmail\(\s*email\.trim\(\),\s*passwordResetEmailOptions\(window\.location\.origin, captchaToken\),\s*\)/,
     );
   });
 

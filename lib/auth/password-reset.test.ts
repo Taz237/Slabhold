@@ -106,7 +106,8 @@ describe("password reset", () => {
     assert.match(login, /Forgot password\?/);
     assert.match(login, /href="\/forgot-password"/);
     assert.match(forgot, /resetPasswordForEmail/);
-    assert.match(forgot, /passwordResetEmailOptions\(publicOrigin\(window\.location\.origin\), captchaToken\)/);
+    assert.match(forgot, /passwordResetEmailOptions\(window\.location\.origin, captchaToken\)/);
+    assert.doesNotMatch(forgot, /publicOrigin/);
     assert.match(
       readFileSync(join(root, "lib/auth/password-reset.ts"), "utf8"),
       /redirectTo: passwordResetRedirect\(origin\)/,

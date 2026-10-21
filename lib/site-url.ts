@@ -28,9 +28,9 @@ export function siteUrlFrom(value: string | undefined): string {
 }
 
 /**
- * Share links and auth redirects.
- * Preview deployments keep the browser origin so the preview host still works.
+ * Share links. Preview deployments keep the browser origin.
  * Production and local use SITE_URL.
+ * Auth emails stay on window.location.origin so the PKCE cookie matches.
  */
 export function publicOrigin(browserOrigin?: string | null, env?: SiteEnv): string {
   const source = siteEnv(env);

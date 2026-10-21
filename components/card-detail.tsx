@@ -528,7 +528,29 @@ function EstSellMetric({
   }
 
   const copy = estSellTileCopy(label);
-  return <Metric label="Est. sell" value={copy.text} title={copy.title} />;
+  if (copy.title) {
+    return <UnavailableEstSell short={copy.text} detail={copy.title} />;
+  }
+  return <Metric label="Est. sell" value={copy.text} />;
+}
+
+function UnavailableEstSell({ short, detail }: { short: string; detail: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="min-w-0 overflow-hidden rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-3 dark:border-white/10 dark:bg-black/20">
+      <p className="text-[11px] tracking-wide text-zinc-500 uppercase">Est. sell</p>
+      <button
+        type="button"
+        aria-expanded={open}
+        title={detail}
+        onClick={() => setOpen((current) => !current)}
+        className="mt-1 block w-full min-w-0 max-w-full text-left text-[clamp(0.95rem,3.4vw,1.125rem)] font-semibold leading-snug break-words"
+      >
+        <span className="sr-only">{detail}</span>
+        <span aria-hidden="true">{open ? detail : short}</span>
+      </button>
+    </div>
+  );
 }
 
 function CardSpecs({

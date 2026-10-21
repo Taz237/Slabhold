@@ -13,7 +13,6 @@ import {
   passwordResetEmailOptions,
   passwordResetSendError,
 } from "@/lib/auth/password-reset";
-import { publicOrigin } from "@/lib/site-url";
 import { createSupabaseBrowser } from "@/lib/supabase/browser";
 
 export function ForgotPasswordForm() {
@@ -45,7 +44,7 @@ export function ForgotPasswordForm() {
       }
       const { error: resetError } = await supabase.auth.resetPasswordForEmail(
         email.trim(),
-        passwordResetEmailOptions(publicOrigin(window.location.origin), captchaToken),
+        passwordResetEmailOptions(window.location.origin, captchaToken),
       );
       const message = passwordResetSendError(resetError);
       if (message) {

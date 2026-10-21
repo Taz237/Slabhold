@@ -120,7 +120,8 @@ describe("estSellTileCopy", () => {
     assert.equal(estSellTileCopy("$120.00").text, "$120.00");
     const page = readFileSync(join(process.cwd(), "components/card-detail.tsx"), "utf8");
     assert.match(page, /estSellTileCopy\(label\)/);
-    assert.match(page, /title=\{copy\.title\}/);
+    assert.match(page, /className="sr-only">\{detail\}/);
+    assert.match(page, /aria-expanded=\{open\}/);
     assert.match(page, /overflow-hidden/);
   });
 });

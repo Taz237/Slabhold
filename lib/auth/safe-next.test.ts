@@ -94,7 +94,8 @@ describe("email confirm next", () => {
       auth,
       /signUp\(\{ email, password, username, displayName, next, captchaToken: captchaToken \?\? undefined \}\)/,
     );
-    assert.match(remote, /emailConfirmRedirect\(/);
+    assert.match(remote, /emailConfirmRedirect\(window\.location\.origin, input\.next\)/);
+    assert.doesNotMatch(remote, /publicOrigin/);
     assert.match(confirm, /safeNext\(url\.searchParams\.get\("next"\)\)/);
     assert.match(readFileSync(join(root, "app/auth/callback/route.ts"), "utf8"), /handleAuthConfirm/);
     assert.match(readFileSync(join(root, "app/auth/confirm/route.ts"), "utf8"), /handleAuthConfirm/);
