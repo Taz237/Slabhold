@@ -96,10 +96,33 @@ describe("following timeline", () => {
     );
     assert.deepEqual(
       feed.map((item) => item.post.id),
-      ["reposted", "followed"],
+      ["stranger", "reposted", "mine", "followed"],
     );
-    assert.equal(feed[0]?.repostedBy?.id, "joy");
-    assert.equal(feed[1]?.repostedBy, null);
+    assert.equal(feed[0]?.repostedBy?.id, "me");
+    assert.equal(feed[1]?.repostedBy?.id, "joy");
+    assert.equal(feed[2]?.repostedBy, null);
+    assert.equal(feed[3]?.repostedBy, null);
+  });
+
+  it("puts the viewer's own new post at the top when they follow one account", () => {
+    const theirs = post({
+      id: "theirs",
+      authorId: "joy",
+      createdAt: "2026-10-03T00:00:00.000Z",
+      body: "From someone I follow",
+    });
+    const mine = post({
+      id: "mine",
+      authorId: "me",
+      createdAt: "2026-10-09T00:00:00.000Z",
+      body: "Just posted",
+    });
+    const feed = followingTimeline([theirs, mine], [], [me, joy], [edge("me", "joy")], "me");
+    assert.deepEqual(
+      feed.map((item) => item.post.id),
+      ["mine", "theirs"],
+    );
+    assert.equal(feed[0]?.repostedBy, null);
   });
 
   it("is empty when the viewer follows nobody", () => {
