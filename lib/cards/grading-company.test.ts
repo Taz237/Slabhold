@@ -10,8 +10,10 @@ import {
   GRADING_COMPANIES,
   RAW_GRADING_COMPANY,
   applyGradingCompany,
+  estimateInputFromCard,
   gradeDetailSpecs,
   gradeNumberFromGrade,
+  gradingCompanyChange,
   gradingCompanyFromCard,
   gradingCompanyOptions,
 } from "./grading-company";
@@ -405,5 +407,92 @@ describe("grading company", () => {
     );
     assert.equal(rows.size, 1);
     assert.equal(calls >= 2, true);
+  });
+
+  it("keeps Your estimate when the company changes to Raw / Ungraded", async () => {
+    assert.equal(
+      gradingCompanyChange({
+        company: RAW_GRADING_COMPANY,
+        gradeNumber: "10",
+        estimate: "185",
+      }).estimate,
+      "185",
+    );
+    assert.equal(
+      gradingCompanyChange({
+        company: RAW_GRADING_COMPANY,
+        gradeNumber: "10",
+        estimate: "185",
+      }).gradeNumber,
+      "",
+    );
+    assert.equal(
+      gradingCompanyChange({
+        company: "Raw",
+        gradeNumber: "9",
+        estimate: "",
+      }).estimate,
+      "",
+    );
+    assert.notEqual(
+      gradingCompanyChange({
+        company: RAW_GRADING_COMPANY,
+        gradeNumber: "10",
+        estimate: "",
+      }).estimate,
+      "0",
+    );
+    assert.equal(
+      gradingCompanyChange({
+        company: "PSA",
+        gradeNumber: "10",
+        estimate: "40.5",
+      }).estimate,
+      "40.5",
+    );
+    assert.equal(estimateInputFromCard(185), "185");
+    assert.equal(estimateInputFromCard(0), "");
+    assert.equal(estimateInputFromCard(undefined), "");
+
+    const form = read("components/card-form.tsx");
+    const choose = form.slice(
+      form.indexOf("function chooseGradeCompany"),
+      form.indexOf("async function submit"),
+    );
+    assert.match(choose, /gradingCompanyChange\(/);
+    assert.match(choose, /estimate: prev\.estimatedSellPrice/);
+    assert.match(form, /estimateInputFromCard\(existing\?\.estimatedSellPrice\)/);
+    assert.doesNotMatch(choose, /estimatedSellPrice:\s*["']0["']/);
+    assert.doesNotMatch(choose, /estimatedSellPrice:\s*0\b/);
+
+    const graded = applyGradingCompany({ company: "PSA", gradeNumber: "10" });
+    const first = await roundTrip(
+      sample({
+        grade: graded.grade,
+        conditionType: graded.conditionType,
+        estimatedSellPrice: 185,
+      }),
+    );
+    assert.equal(first.stored.estimated_value, 185);
+    const raw = applyGradingCompany({
+      company: RAW_GRADING_COMPANY,
+      gradeNumber: "",
+    });
+    const kept = gradingCompanyChange({
+      company: RAW_GRADING_COMPANY,
+      gradeNumber: "10",
+      estimate: "185",
+    });
+    const second = await roundTrip({
+      ...first.card,
+      grade: raw.grade,
+      conditionType: raw.conditionType,
+      estimatedSellPrice: Number(kept.estimate),
+    });
+    assert.equal(second.stored.condition_type, "raw");
+    assert.equal(second.stored.grader, null);
+    assert.equal(second.stored.estimated_value, 185);
+    assert.equal(second.card.estimatedSellPrice, 185);
+    assert.equal(second.card.conditionType, "raw");
   });
 });

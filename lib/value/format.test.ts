@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
+import { join } from "node:path";
 import {
   VALUE_UPDATING_WINDOW_MS,
+  estSellTileCopy,
   formatCardValueLabel,
   isLowConfidenceValue,
   marketValueAmount,
@@ -104,6 +107,22 @@ describe("edit form and card page share one value", () => {
     const stored = value({ status: "ok", median: 2, nSales: 1 });
     assert.equal(marketValueSummary(stored), "Current value $2.00 · 1 sale");
     assert.equal(formatCardValueLabel(stored), marketValueAmount(stored));
+  });
+});
+
+describe("estSellTileCopy", () => {
+  it("shortens the unavailable sentence so the Est. sell tile can hold it", () => {
+    assert.deepEqual(estSellTileCopy("Value unavailable right now"), {
+      text: "Unavailable",
+      title: "Value unavailable right now",
+    });
+    assert.deepEqual(estSellTileCopy(null), { text: "Not enough sales yet" });
+    assert.equal(estSellTileCopy("$120.00").text, "$120.00");
+    const page = readFileSync(join(process.cwd(), "components/card-detail.tsx"), "utf8");
+    assert.match(page, /estSellTileCopy\(label\)/);
+    assert.match(page, /className="sr-only">\{detail\}/);
+    assert.match(page, /aria-expanded=\{open\}/);
+    assert.match(page, /overflow-hidden/);
   });
 });
 

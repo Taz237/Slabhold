@@ -1,4 +1,10 @@
-import { GRADE_COMPANIES, RAW_GRADE, formatGrade, parseGrade } from "@/lib/card-options";
+import {
+  GRADE_COMPANIES,
+  GRADE_NUMBERS,
+  RAW_GRADE,
+  formatGrade,
+  parseGrade,
+} from "@/lib/card-options";
 import type { ConditionType } from "@/lib/types";
 
 /** Shown in the add/edit select. Raw cards store a null grader. */
@@ -83,6 +89,36 @@ export function gradingCompanyFromCard(card: {
   }
 
   return RAW_GRADING_COMPANY;
+}
+
+/**
+ * Your estimate is independent of the grading company.
+ * Raw / Ungraded clears the grade number only. A typed estimate stays,
+ * and an empty field stays empty instead of becoming "0".
+ */
+export function gradingCompanyChange(input: {
+  company: string;
+  gradeNumber: string;
+  estimate: string;
+}): { gradeNumber: string; estimate: string } {
+  const estimate = input.estimate;
+  if (isRawGradingCompany(input.company)) {
+    return { gradeNumber: "", estimate };
+  }
+  const allowed = GRADE_NUMBERS[input.company] ?? GRADE_NUMBERS.Other;
+  return {
+    gradeNumber: allowed.includes(input.gradeNumber) ? input.gradeNumber : "",
+    estimate,
+  };
+}
+
+/**
+ * Text for the Your estimate input.
+ * Saved cards use 0 when the field was left empty, so 0 opens as empty.
+ */
+export function estimateInputFromCard(amount: number | null | undefined): string {
+  if (typeof amount !== "number" || !Number.isFinite(amount) || amount === 0) return "";
+  return String(amount);
 }
 
 /** Map the select onto the grade string and the cards.grader column. */

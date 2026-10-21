@@ -166,11 +166,11 @@ describe("captcha token on supabase auth", () => {
       options: { captchaToken: "turnstile-token" },
     });
 
-    assert.deepEqual(passwordResetEmailOptions("https://slabhold.vercel.app", "turnstile-token"), {
-      redirectTo: "https://slabhold.vercel.app/auth/callback?next=/reset-password",
+    assert.deepEqual(passwordResetEmailOptions("https://slabhold.app", "turnstile-token"), {
+      redirectTo: "https://slabhold.app/auth/callback?next=/reset-password",
       captchaToken: "turnstile-token",
     });
-    assert.equal(passwordResetEmailOptions("https://slabhold.vercel.app", null).captchaToken, undefined);
+    assert.equal(passwordResetEmailOptions("https://slabhold.app", null).captchaToken, undefined);
 
     const auth = read("components/auth-form.tsx");
     const forgot = read("components/forgot-password-form.tsx");

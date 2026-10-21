@@ -4,6 +4,25 @@ import type { CardValueResult } from "./types";
 /** Shown instead of a dollar amount when no matching sales were kept. */
 export const NOT_ENOUGH_SALES_LABEL = "Not enough sales yet";
 
+/** Full status when comps are rate-limited or the request fails. */
+export const VALUE_UNAVAILABLE_LABEL = "Value unavailable right now";
+
+/**
+ * Est. sell tile copy. The long unavailable sentence overflows the tile
+ * at phone and desktop widths, so the tile shows a short label and keeps
+ * the full sentence as the tooltip.
+ */
+export function estSellTileCopy(label: string | null | undefined): {
+  text: string;
+  title?: string;
+} {
+  const full = label?.trim() ? label : NOT_ENOUGH_SALES_LABEL;
+  if (full === VALUE_UNAVAILABLE_LABEL) {
+    return { text: "Unavailable", title: VALUE_UNAVAILABLE_LABEL };
+  }
+  return { text: full };
+}
+
 /** Fresh cards without a card_values row show "Value updating" this long. */
 export const VALUE_UPDATING_WINDOW_MS = 10 * 60 * 1000;
 
@@ -36,12 +55,12 @@ export function formatCardValueLabel(
 ): string {
   if (value) {
     if (value.status === "no_sales") return NOT_ENOUGH_SALES_LABEL;
-    if (value.status === "unavailable") return "Value unavailable right now";
+    if (value.status === "unavailable") return VALUE_UNAVAILABLE_LABEL;
     if (value.status === "sample" || value.status === "ok") {
       return marketValueAmount(value) ?? NOT_ENOUGH_SALES_LABEL;
     }
     if (value.status === "stale") {
-      return "Value unavailable right now";
+      return VALUE_UNAVAILABLE_LABEL;
     }
     const amount = marketValueAmount(value);
     if (amount) return amount;
