@@ -5,7 +5,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { useRef, useState } from "react";
 import { Captcha, useCaptchaWatch, type CaptchaHandle } from "@/components/captcha";
 import { Logo } from "@/components/logo";
-import { CAPTCHA_INTERACTIVE, CAPTCHA_LOAD_FAILED, releaseCaptcha, submitBlocked, turnstileSiteKey } from "@/lib/auth/captcha";
+import { CAPTCHA_LOAD_FAILED, releaseCaptcha, submitBlocked, turnstileSiteKey } from "@/lib/auth/captcha";
 import {
   PASSWORD_RESET_EXPIRED,
   PASSWORD_RESET_FAILED,
@@ -115,8 +115,6 @@ export function ForgotPasswordForm() {
           />
           {captchaWatch.failed ? (
             <p className="text-sm text-rose-600 dark:text-rose-400">{CAPTCHA_LOAD_FAILED}</p>
-          ) : captchaWatch.interactive ? (
-            <p className="text-sm text-zinc-500">{CAPTCHA_INTERACTIVE}</p>
           ) : null}
           <button
             type="submit"

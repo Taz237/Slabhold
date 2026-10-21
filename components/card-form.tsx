@@ -14,7 +14,7 @@ import {
   GRADE_NUMBERS,
   GRADE_QUALIFIERS,
   SETS,
-  SPORTS,
+  SPORT_PICKER_OPTIONS,
   isValidCardNumber,
   isValidYear,
   normalizeCardNumberInput,
@@ -601,7 +601,7 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
           <NativeSelect
             label="Sport"
             value={form.sport}
-            options={optionsWithCurrent(SPORTS, form.sport)}
+            options={optionsWithCurrent(SPORT_PICKER_OPTIONS, form.sport)}
             onChange={(sport) => {
               setForm((prev) => ({ ...prev, sport }));
             }}

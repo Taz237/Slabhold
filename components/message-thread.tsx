@@ -109,7 +109,7 @@ export function MessageThread({ username }: { username: string }) {
   }
 
   return (
-    <div className="-mx-4 -mt-5 -mb-28 flex h-[calc(100dvh-3.5rem-6.15rem-env(safe-area-inset-bottom))] flex-col">
+    <div className="-mx-4 -mt-5 -mb-28 flex h-[calc(100dvh-3.5rem-6.15rem-env(safe-area-inset-top)-env(safe-area-inset-bottom))] flex-col">
       <div className="flex shrink-0 items-center gap-2 border-b border-zinc-200 px-2 py-2 dark:border-white/10">
         <button
           type="button"

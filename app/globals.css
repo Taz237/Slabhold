@@ -27,6 +27,36 @@ body {
   font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
 }
 
+/* Text fields stay at least 44px tall. 16px on phones stops iOS from zooming on focus. */
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="button"]):not([type="submit"]):not([type="reset"]):not([type="file"]):not([type="hidden"]):not([type="color"]):not([type="image"]),
+select,
+textarea {
+  min-height: 44px;
+}
+
+@media (max-width: 767px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="button"]):not([type="submit"]):not([type="reset"]):not([type="file"]):not([type="hidden"]):not([type="color"]):not([type="image"]),
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
+/* Invisible 44px hit area. The control's painted size stays put. */
+.hit-44 {
+  position: relative;
+}
+
+.hit-44::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: max(100%, 44px);
+  height: max(100%, 44px);
+  transform: translate(-50%, -50%);
+}
+
 @keyframes lightbox-fade {
   from {
     opacity: 0;

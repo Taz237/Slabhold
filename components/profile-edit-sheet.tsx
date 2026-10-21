@@ -110,7 +110,7 @@ export function ProfileEditSheet({
         aria-modal="true"
         aria-labelledby="edit-profile-title"
         onClick={(event) => event.stopPropagation()}
-        className="mx-auto flex h-full w-full max-w-lg flex-col bg-[var(--background)]"
+        className="mx-auto flex h-full w-full max-w-lg flex-col bg-[var(--background)] pt-[env(safe-area-inset-top)]"
       >
         <form onSubmit={(event) => void save(event)} className="flex min-h-0 flex-1 flex-col">
           <header className="flex items-center justify-between gap-2 border-b border-zinc-200 px-3 py-2.5 dark:border-white/10">

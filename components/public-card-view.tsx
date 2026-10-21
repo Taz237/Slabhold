@@ -64,7 +64,7 @@ export function PublicCardView({
         title="Profile not found"
         detail="That collector isn't on Slabhold."
         href="/"
-        label="Back to Timeline"
+        label="Back to Home"
       />
     );
   }

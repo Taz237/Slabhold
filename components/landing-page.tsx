@@ -48,10 +48,10 @@ export function LandingPage() {
         </div>
 
         <footer className="mt-auto flex gap-4 pt-10 text-sm text-zinc-400">
-          <Link href="/privacy" className="font-semibold underline underline-offset-2">
+          <Link href="/privacy" className="hit-44 inline-flex items-center font-semibold underline underline-offset-2">
             Privacy
           </Link>
-          <Link href="/terms" className="font-semibold underline underline-offset-2">
+          <Link href="/terms" className="hit-44 inline-flex items-center font-semibold underline underline-offset-2">
             Terms
           </Link>
         </footer>

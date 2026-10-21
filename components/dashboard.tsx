@@ -33,6 +33,7 @@ import {
 } from "@/lib/portfolio";
 import {
   needsDetails,
+  needsDetailsLabel,
   type CardCategory,
   type PortfolioFilter,
 } from "@/lib/types";
@@ -52,8 +53,8 @@ import { PullToRefresh } from "@/components/pull-to-refresh";
 
 const LANES: { id: "all" | CardCategory | "wants"; label: string }[] = [
   { id: "all", label: "All" },
-  { id: "flipping", label: "Flipping" },
-  { id: "pc", label: "PC" },
+  { id: "flipping", label: categoryLabel("flipping") },
+  { id: "pc", label: categoryLabel("pc") },
   { id: "wants", label: "Want list" },
 ];
 
@@ -323,9 +324,9 @@ export function Dashboard() {
                       {needsDetails(card) ? (
                         <span
                           className="max-w-full truncate rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] font-medium text-amber-800 dark:text-amber-300"
-                          title="Needs details"
+                          title={needsDetailsLabel(card)}
                         >
-                          Needs details
+                          {needsDetailsLabel(card)}
                         </span>
                       ) : null}
                       {card.isRookie ? (

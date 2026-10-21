@@ -8,7 +8,6 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { Captcha } from "../../components/captcha";
 import { remoteSignIn, remoteSignUp } from "../social/remote";
 import {
-  CAPTCHA_INTERACTIVE,
   CAPTCHA_LOAD_FAILED,
   CAPTCHA_RETRY,
   captchaOnActivity,
@@ -132,7 +131,7 @@ describe("captcha submit gate", () => {
 
     const captcha = read("components/captcha.tsx");
     assert.match(captcha, /if \(!siteKey\) return null/);
-    assert.match(captcha, /theme: "dark"/);
+    assert.match(captcha, /theme: "light"/);
     assert.match(captcha, /size: "flexible"/);
     assert.match(captcha, /onSuccess=\{onToken\}/);
     assert.match(captcha, /onExpire\(\)/);
@@ -262,8 +261,6 @@ describe("captcha load failure", () => {
       CAPTCHA_LOAD_FAILED,
       "We couldn't load the security check. Turn off ad blockers for this site or try another browser, then reload.",
     );
-    assert.equal(CAPTCHA_INTERACTIVE, "Tap the box above to confirm you're human.");
-
     const idle = captchaWatchIdle();
     assert.equal(captchaOnSilence(idle).failed, true);
 
@@ -309,9 +306,8 @@ describe("captcha load failure", () => {
       assert.match(source, /onFail=\{\(\) => \{\s*setCaptchaToken\(null\);\s*captchaWatch\.onFail\(\);\s*\}\}/);
       assert.match(source, /captchaWatch\.failed \? \(/);
       assert.match(source, /\{CAPTCHA_LOAD_FAILED\}/);
-      assert.match(source, /captchaWatch\.interactive \? \(/);
-      assert.match(source, /\{CAPTCHA_INTERACTIVE\}/);
-      assert.doesNotMatch(source, /captchaWatch\.interactive[\s\S]*CAPTCHA_LOAD_FAILED/);
+      assert.doesNotMatch(source, /CAPTCHA_INTERACTIVE/);
+      assert.doesNotMatch(source, /Tap the box above/);
     }
 
     const privacy = read("app/privacy/page.tsx");

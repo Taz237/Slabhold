@@ -3,8 +3,6 @@ export const CAPTCHA_RETRY = "Please complete the check and try again.";
 export const CAPTCHA_LOAD_FAILED =
   "We couldn't load the security check. Turn off ad blockers for this site or try another browser, then reload.";
 
-export const CAPTCHA_INTERACTIVE = "Tap the box above to confirm you're human.";
-
 export type CaptchaWatch = {
   failed: boolean;
   interactive: boolean;

@@ -16,6 +16,7 @@ export const CARD_SEASONS = Array.from(
   },
 );
 
+/** Known stored sports. Pokémon remains a stored value and is not offered in pickers. */
 export const SPORTS = [
   "Baseball",
   "Basketball",
@@ -25,6 +26,15 @@ export const SPORTS = [
   "Pokémon",
   "Other",
 ];
+
+const PICKER_EXCLUDED_SPORTS = ["Pokémon"];
+
+export function isPickerSport(sport: string) {
+  return !PICKER_EXCLUDED_SPORTS.some((item) => item.toLowerCase() === sport.toLowerCase());
+}
+
+/** Add a card and Mail Day. A stored value that is not offered is still rendered. */
+export const SPORT_PICKER_OPTIONS = SPORTS.filter(isPickerSport);
 
 export const SETS = [
   "Topps",

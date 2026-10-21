@@ -10,7 +10,7 @@ import { cardIdentityKey, type IdentityCard } from "@/lib/social/card-identity";
 import { createSupabaseBrowser } from "@/lib/supabase/browser";
 import { isUuid } from "@/lib/value/card-value-access";
 import { money } from "@/lib/format";
-import { wantLabel } from "@/lib/wants/label";
+import { wantChipLabel, wantLabel } from "@/lib/wants/label";
 import { parseTargetPrice } from "@/lib/wants/target-price";
 
 type SavedWant = {
@@ -38,6 +38,11 @@ export function WantButton({
   const cardKey = cardIdentityKey(card);
   const scope = user ? `${user.id}:${cardKey}` : null;
   const want = record && record.scope === scope ? record.want : null;
+  const label = wantChipLabel({
+    saved: Boolean(want),
+    ownerHandle: user?.username ?? null,
+    viewerHandle: user?.username ?? null,
+  });
   const fairPlaceholder =
     fairLow != null && fairHigh != null
       ? `Fair price ${money(fairLow)}–${money(fairHigh)}`
@@ -77,11 +82,11 @@ export function WantButton({
     return (
       <Link
         href={signupPath(pathname)}
-        aria-label="Want this card"
+        aria-label={label}
         className="inline-flex min-h-11 items-center gap-1.5 rounded-full bg-zinc-100 px-3 py-1.5 text-sm font-semibold text-zinc-700 dark:bg-white/10 dark:text-zinc-200"
       >
         <Star className="h-4 w-4" />
-        Want
+        {label}
       </Link>
     );
   }
@@ -156,16 +161,16 @@ export function WantButton({
       <button
         type="button"
         aria-pressed={Boolean(want)}
-        aria-label={want ? "Edit want" : "Want this card"}
+        aria-label={label}
         onClick={openEditor}
-        className={`inline-flex min-h-11 items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-semibold ${
+        className={`inline-flex min-h-11 max-w-[12rem] items-center gap-1.5 rounded-full px-3 py-1.5 text-left text-sm font-semibold leading-5 ${
           want
             ? "bg-amber-400/20 text-amber-800 dark:text-amber-200"
             : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200 dark:bg-white/10 dark:text-zinc-200 dark:hover:bg-white/15"
         }`}
       >
-        <Star className={`h-4 w-4 ${want ? "fill-current" : ""}`} />
-        Want
+        <Star className={`h-4 w-4 shrink-0 ${want ? "fill-current" : ""}`} />
+        {label}
       </button>
       {open ? (
         <div className="absolute right-0 z-30 mt-2 w-[min(18rem,calc(100vw-2rem))] rounded-2xl border border-zinc-200 bg-white p-3 shadow-lg dark:border-white/10 dark:bg-zinc-950">
