@@ -15,8 +15,11 @@ import { activityFrom, emptyActivity, loadActivity, saveActivity, type ActivityS
 import {
   loadOrCreateLocalDb,
   localAddComment,
+  canDeleteReply,
   localCreatePost,
+  localDeleteComment,
   localDeletePost,
+  stateAfterReplyDelete,
   localMarkNotificationsRead,
   localMarkThreadRead,
   localSendMessage,
@@ -36,6 +39,7 @@ import {
   loadSupabaseSocial,
   remoteAddComment,
   remoteCreatePost,
+  remoteDeleteComment,
   remoteDeletePost,
   remoteMarkNotificationsRead,
   remoteMarkThreadRead,
@@ -99,6 +103,7 @@ type SocialContextValue = {
     input: { body: string; imageDataUrl: string | null },
   ) => Promise<AuthResult>;
   deletePost: (postId: string) => Promise<AuthResult>;
+  deleteComment: (commentId: string) => Promise<AuthResult>;
   toggleLike: (postId: string) => void;
   toggleRepost: (postId: string) => void;
   addComment: (postId: string, body: string) => Promise<AuthResult>;
@@ -511,6 +516,70 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
     [commitLocal, mode, refreshRemote, snapshot.user],
   );
 
+  const deleteComment = useCallback(
+    async (commentId: string): Promise<AuthResult> => {
+      const current = snapshotRef.current;
+      if (!current.user) return { error: "Log in to delete." };
+
+      const before = {
+        comments: current.comments,
+        likes: current.likes,
+        reposts: current.reposts,
+        notifications: current.notifications,
+      };
+
+      if (mode === "supabase") {
+        const client = supabaseRef.current;
+        if (!client) return { error: "Still loading." };
+        const comment = before.comments.find((item) => item.id === commentId);
+        if (!comment) return { error: "That reply is gone." };
+        if (!canDeleteReply(current.user.id, comment.authorId)) {
+          return { error: "You can only delete your own replies." };
+        }
+        const shell = activityShell();
+        const publish = (patch: typeof before) => {
+          setRemote((existing) => ({
+            ...existing,
+            comments: patch.comments,
+            notifications: patch.notifications,
+          }));
+          rememberActivity({
+            ...shell,
+            likes: patch.likes,
+            reposts: patch.reposts,
+            comments: patch.comments,
+            notifications: patch.notifications,
+          });
+        };
+        publish(stateAfterReplyDelete(before, commentId, {}));
+        try {
+          const result = await remoteDeleteComment(client, current.user.id, commentId);
+          publish(stateAfterReplyDelete(before, commentId, result));
+          if (result.error) return result;
+          try {
+            await refreshRemote(client);
+          } catch {
+            // The reply is already deleted. Keep it off the screen.
+          }
+          return {};
+        } catch (error) {
+          const failed = {
+            error: error instanceof Error ? error.message : "Could not delete that reply.",
+          };
+          publish(stateAfterReplyDelete(before, commentId, failed));
+          return failed;
+        }
+      }
+
+      const db = localRef.current;
+      if (!db) return { error: "Still loading." };
+      const result = localDeleteComment(db, commentId);
+      if (!result.error) commitLocal(result.db);
+      return { error: result.error };
+    },
+    [activityShell, commitLocal, mode, refreshRemote, rememberActivity],
+  );
+
   const toggleLike = useCallback(
     (postId: string) => {
       const current = snapshotRef.current;
@@ -916,6 +985,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       createPost,
       updatePost,
       deletePost,
+      deleteComment,
       toggleLike,
       toggleRepost,
       addComment,
@@ -956,6 +1026,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       notifications,
       createPost,
       updatePost,
+      deleteComment,
       deletePost,
       feed,
       followerCount,

@@ -820,6 +820,56 @@ function withMentionNotifications(
   return [...added, ...kept];
 }
 
+export function canDeleteReply(viewerId: string | null | undefined, authorId: string) {
+  return Boolean(viewerId && viewerId === authorId);
+}
+
+/** Same related-row cleanup as localDeletePost, keyed by the reply id. An error keeps the previous rows. */
+export function stateAfterReplyDelete(
+  before: {
+    comments: PostComment[];
+    likes: PostLike[];
+    reposts: PostRepost[];
+    notifications: Notification[];
+  },
+  commentId: string,
+  result: { error?: string },
+) {
+  if (result.error) return before;
+  return {
+    comments: before.comments.filter((comment) => comment.id !== commentId),
+    likes: before.likes.filter((like) => like.postId !== commentId),
+    reposts: before.reposts.filter((repost) => repost.postId !== commentId),
+    // Reply mentions only store { source: "reply" } and the parent post id.
+    notifications: before.notifications.filter((note) => note.postId !== commentId),
+  };
+}
+
+export function localDeleteComment(db: LocalDb, commentId: string): { db: LocalDb; error?: string } {
+  if (!db.sessionUserId) return { db, error: "Log in to delete." };
+  const comments = db.comments ?? [];
+  const comment = comments.find((item) => item.id === commentId);
+  if (!comment) return { db, error: "That reply is gone." };
+  if (!canDeleteReply(db.sessionUserId, comment.authorId)) {
+    return { db, error: "You can only delete your own replies." };
+  }
+  return {
+    db: {
+      ...db,
+      ...stateAfterReplyDelete(
+        {
+          comments,
+          likes: db.likes ?? [],
+          reposts: db.reposts ?? [],
+          notifications: db.notifications ?? [],
+        },
+        commentId,
+        {},
+      ),
+    },
+  };
+}
+
 export function localDeletePost(db: LocalDb, postId: string): { db: LocalDb; error?: string } {
   if (!db.sessionUserId) return { db, error: "Log in to delete." };
   const post = db.posts.find((item) => item.id === postId);
