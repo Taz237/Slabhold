@@ -344,13 +344,27 @@ describe("remote delete comment", () => {
     assert.equal(stateAfterReplyDelete(before, "c1", blocked), before);
   });
 
-  it("does not tell people to re-run the deprecated schema file", () => {
+  it("does not tell people to re-run schema.sql, and keeps the bootstrap file runnable", () => {
     const remote = readFileSync(join(process.cwd(), "lib/social/remote.ts"), "utf8");
     assert.equal(remote.includes("schema.sql"), false);
     assert.match(remote, /Something went wrong on our side\. Please try again\./);
+    assert.match(remote, /Your post was saved, but we couldn't notify everyone you mentioned\./);
     const schema = readFileSync(join(process.cwd(), "supabase/schema.sql"), "utf8");
-    assert.match(schema, /DEPRECATED/);
-    assert.doesNotMatch(schema, /create policy/i);
+    assert.match(
+      schema,
+      /Run ONCE on a NEW empty database, then apply supabase\/migrations in order\. Never re-run on an existing database\./,
+    );
+    assert.match(schema, /create table if not exists public\.notifications/);
+    assert.match(schema, /create policy "Delete notifications you sent"/);
+    assert.doesNotMatch(
+      schema,
+      /create policy "Comments are public" on public\.comments for select using \(true\)/,
+    );
+    assert.match(schema, /not private\.is_blocked\(auth\.uid\(\), user_id\)/);
+    assert.match(
+      schema,
+      /not private\.is_blocked\(auth\.uid\(\), private\.post_author\(post_id\)\)/,
+    );
   });
 });
 

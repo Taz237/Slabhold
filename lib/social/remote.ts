@@ -957,10 +957,7 @@ export async function syncMentionNotifications(
     })),
   );
   if (!error || error.code === "23505" || missingTable(error)) return null;
-  if (error.code === "23514" || /notifications_kind/i.test(error.message ?? "")) {
-    return SETUP_FAILED;
-  }
-  return error.message;
+  return "Your post was saved, but we couldn't notify everyone you mentioned.";
 }
 
 /**

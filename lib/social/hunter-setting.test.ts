@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readdirSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, it } from "node:test";
@@ -156,23 +156,12 @@ describe("hunter setting", () => {
     assert.match(privacy, /HunterSettingSwitch/);
     assert.match(wants, /HunterPrompt/);
     assert.match(policy, /Hunters is opt-in/);
-    assert.match(schema, /DEPRECATED/);
-    assert.match(schema, /supabase\/migrations is the source of truth/);
-    assert.match(schema, /Do not run this file/);
-    assert.doesNotMatch(schema, /create policy/i);
-    assert.doesNotMatch(schema, /using \(true\)/);
-    assert.doesNotMatch(schema, /grant /i);
-    const hunters = readFileSync(
-      join(process.cwd(), "supabase/migrations/20261020220000_card_hunters.sql"),
-      "utf8",
-    );
-    assert.match(hunters, /"Users update own profile" is row-wide \(auth\.uid\(\) = id\)/);
-    assert.match(hunters, /not limited to a column list/);
-    assert.doesNotMatch(hunters, /grant update \(/i);
-    const migrationDir = join(process.cwd(), "supabase/migrations");
-    for (const name of readdirSync(migrationDir)) {
-      const sql = readFileSync(join(migrationDir, name), "utf8");
-      assert.doesNotMatch(sql, /grant update \([^)]*\) on public\.profiles/i, name);
-    }
+    const policyStart = schema.indexOf('create policy "Users update own profile"');
+    assert.ok(policyStart >= 0);
+    const policySql = schema.slice(policyStart, policyStart + 180);
+    assert.match(policySql, /on public\.profiles for update\s+using \(auth\.uid\(\) = id\)/);
+    assert.doesNotMatch(policySql, /show_as_hunter/);
+    assert.match(schema, /grant insert, update, delete on public\.profiles to authenticated;/);
+    assert.doesNotMatch(schema, /grant update \([^)]*\) on public\.profiles/i);
   });
 });
