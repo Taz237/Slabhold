@@ -11,6 +11,7 @@ import { CardSearch } from "@/components/card-search";
 import { CategoryPicker } from "@/components/category-picker";
 import { useCollection } from "@/components/collection-provider";
 import { MailDayCard } from "@/components/mail-day-card";
+import { MailDayHeading, MailDayPending } from "@/components/mail-day-pending";
 import { useSocial } from "@/components/social-provider";
 import { NativeSelect, SearchSelect } from "@/components/search-select";
 import {
@@ -135,7 +136,7 @@ async function uploadMailDayPhotos(
 
 export function MailDayForm() {
   const router = useRouter();
-  const { refresh, user } = useSocial();
+  const { refresh, user, ready } = useSocial();
   const { reload } = useCollection();
   const fileRef = useRef<HTMLInputElement>(null);
   const allowLeave = useRef(false);
@@ -276,14 +277,13 @@ export function MailDayForm() {
     }
   }
 
+  if (!ready) return <MailDayPending />;
+
   return (
     <div className="space-y-8">
       <form onSubmit={(event) => void submit(event)} className="space-y-5">
         <div className="flex items-start justify-between gap-3">
-          <div>
-            <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">Pickup</p>
-            <h1 className="mt-1 text-2xl font-bold tracking-tight">Mail Day</h1>
-          </div>
+          <MailDayHeading />
           <button type="button" onClick={askToLeave} className={outlineButton}>
             Back
           </button>
