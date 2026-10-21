@@ -63,6 +63,36 @@ describe("sanitizeProps", () => {
     assert.deepEqual(sanitizeProps("instagram"), {});
     assert.deepEqual(sanitizeProps(["signup"]), {});
   });
+
+  it("sends source only from the allowed set", () => {
+    assert.deepEqual(sanitizeProps({ source: "card_comps", median: "35" }), {
+      source: "card_comps",
+    });
+    assert.deepEqual(sanitizeProps({ source: "owners" }), { source: "owners" });
+    assert.deepEqual(sanitizeProps({ source: "hunters" }), { source: "hunters" });
+    assert.deepEqual(sanitizeProps({ source: "card_owners" }), { source: "card_owners" });
+    assert.deepEqual(sanitizeProps({ source: "card_hunters" }), { source: "card_hunters" });
+    assert.deepEqual(sanitizeProps({ source: "ebay" }), {});
+    assert.deepEqual(sanitizeProps({ source: "ada@secret.test" }), {});
+    assert.deepEqual(sanitizeProps({ source: "just pulled this" }), {});
+
+    const sent: { name: string; props?: Record<string, string> }[] = [];
+    const send = (name: string, props?: Record<string, string>) => {
+      sent.push({ name, props });
+    };
+    trackEvent("signup_started", { source: "card_comps", cardId: "nope" }, send);
+    trackEvent("follow", { source: "card_hunters" }, send);
+    trackEvent("follow", { source: "card_owners" }, send);
+    trackEvent("follow", { source: "hunters", handle: "ada" }, send);
+    trackEvent("follow", { source: "ebay" }, send);
+    assert.deepEqual(sent, [
+      { name: "signup_started", props: { source: "card_comps" } },
+      { name: "follow", props: { source: "card_hunters" } },
+      { name: "follow", props: { source: "card_owners" } },
+      { name: "follow", props: { source: "hunters" } },
+      { name: "follow", props: undefined },
+    ]);
+  });
 });
 
 describe("trackEvent", () => {

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -162,6 +162,20 @@ function fakeClient(input: {
       return builder;
     },
     async rpc(fn, args) {
+      if (fn === "card_hunters") {
+        if (input.wantError) {
+          return {
+            data: null,
+            error: { message: "permission denied for function card_hunters", code: "42501" },
+          };
+        }
+        const key = String(args?.p_card_key ?? "");
+        const rows = (input.tables.want_list ?? [])
+          .filter((row) => row.card_key === key && row.is_public === true)
+          .sort((a, b) => String(b.created_at ?? "").localeCompare(String(a.created_at ?? "")))
+          .map((row) => ({ user_id: row.user_id }));
+        return { data: rows, error: null };
+      }
       if (fn !== "can_interact") {
         return { data: null, error: { message: "missing", code: "PGRST202" } };
       }
@@ -313,6 +327,152 @@ describe("getOwnersAndHunters", () => {
     assert.equal(result.hunters, null);
     assertPeople(result.owners.people);
   });
+
+  it("lists two public hunters and drops a private want and a blocked hunter", async () => {
+    const sample = card("owner", "card-owner");
+    const key = identityKeyFromRow(sample);
+    const result = await getOwnersAndHunters(
+      key,
+      "viewer",
+      fakeClient({
+        tables: {
+          public_cards: [sample],
+          want_list: [
+            {
+              user_id: "ada",
+              card_key: key,
+              is_public: true,
+              created_at: "2026-04-01T00:00:00.000Z",
+              target_price: 42,
+              notes: "secret note",
+              email: "ada@secret.test",
+            },
+            {
+              user_id: "ben",
+              card_key: key,
+              is_public: true,
+              created_at: "2026-04-02T00:00:00.000Z",
+              target_price: 42,
+            },
+            {
+              user_id: "cole",
+              card_key: key,
+              is_public: false,
+              created_at: "2026-04-03T00:00:00.000Z",
+              target_price: 11,
+              notes: "private note",
+            },
+            {
+              user_id: "dina",
+              card_key: key,
+              is_public: true,
+              created_at: "2026-04-04T00:00:00.000Z",
+              target_price: 7,
+            },
+          ],
+          profiles: [
+            profile("owner", "owner"),
+            profile("ada", "ada"),
+            profile("ben", "ben"),
+            profile("cole", "cole"),
+            profile("dina", "dina"),
+            profile("viewer", "viewer"),
+          ],
+          blocks: [{ blocker_id: "viewer", blocked_id: "dina" }],
+        },
+      }),
+    );
+
+    assert.equal(result.hunters?.count, 2);
+    assert.deepEqual(
+      result.hunters?.people.map((person) => person.handle).sort(),
+      ["ada", "ben"],
+    );
+    assertPeople(result.hunters?.people ?? []);
+    const blob = JSON.stringify(result);
+    assert.equal(blob.includes("secret"), false);
+    assert.equal(blob.includes("42"), false);
+    assert.equal(blob.includes("private note"), false);
+    assert.equal(blob.includes("cole"), false);
+    assert.equal(blob.includes("dina"), false);
+  });
+
+  it("counts a signed-in viewer who wants the card and leaves them off the list", async () => {
+    const sample = card("owner", "card-owner");
+    const key = identityKeyFromRow(sample);
+    const result = await getOwnersAndHunters(
+      key,
+      "viewer",
+      fakeClient({
+        tables: {
+          public_cards: [card("viewer", "card-viewer")],
+          want_list: [
+            {
+              user_id: "viewer",
+              card_key: key,
+              is_public: true,
+              created_at: "2026-05-01T00:00:00.000Z",
+            },
+            {
+              user_id: "ada",
+              card_key: key,
+              is_public: true,
+              created_at: "2026-05-02T00:00:00.000Z",
+            },
+          ],
+          profiles: [profile("viewer", "viewer"), profile("ada", "ada")],
+        },
+      }),
+    );
+
+    assert.equal(result.owners.count, 1);
+    assert.deepEqual(result.owners.people, []);
+    assert.equal(result.hunters?.count, 2);
+    assert.deepEqual(
+      result.hunters?.people.map((person) => person.handle),
+      ["ada"],
+    );
+    assertPeople(result.hunters?.people ?? []);
+  });
+
+  it("shows a signed-out hunter count and at most five avatars", async () => {
+    const sample = card("owner", "card-owner");
+    const key = identityKeyFromRow(sample);
+    const wantList = Array.from({ length: 7 }, (_, index) => ({
+      user_id: `hunter${index}`,
+      card_key: key,
+      is_public: true,
+      created_at: `2026-03-0${index + 1}T00:00:00.000Z`,
+      target_price: 42,
+    }));
+    const result = await getOwnersAndHunters(
+      key,
+      null,
+      fakeClient({
+        tables: {
+          public_cards: [],
+          want_list: wantList,
+          profiles: wantList.map((row) => profile(String(row.user_id), String(row.user_id))),
+        },
+      }),
+    );
+
+    assert.equal(result.hunters?.count, 7);
+    assert.equal(result.hunters?.people.length, 5);
+    assertPeople(result.hunters?.people ?? []);
+
+    const html = renderToStaticMarkup(
+      createElement(CardPeopleView, {
+        data: result,
+        signedIn: false,
+        signupHref: signupPath("/cards/sample"),
+        renderFollow: () => createElement("button", { type: "button" }, "Follow"),
+      }),
+    );
+    assert.match(html, /Hunters \(7\)/);
+    assert.equal((html.match(/href="\/u\//g) ?? []).length, 5);
+    assert.equal(html.includes(">Follow<"), false);
+  });
 });
 
 describe("card people view", () => {
@@ -385,6 +545,17 @@ describe("card people view", () => {
     );
     assert.match(empty, /No public owners yet/);
     assert.equal(empty.includes("Hunters"), false);
+
+    const onlyYou = renderToStaticMarkup(
+      createElement(CardPeopleView, {
+        data: { owners: { count: 1, people: [] }, hunters: { count: 0, people: [] } },
+        signedIn: true,
+        signupHref: "/signup",
+      }),
+    );
+    assert.match(onlyYou, /Only you so far/);
+    assert.equal(onlyYou.includes("Owners (1)"), false);
+    assert.equal(onlyYou.includes("No public owners yet"), false);
   });
 });
 
@@ -426,7 +597,24 @@ describe("card follow", () => {
     assert.match(people, /track\("follow", \{ source \}\)/);
     assert.match(owners, /unstable_cache/);
     assert.match(owners, /if \(!viewerId\)/);
+    assert.match(owners, /rpc\("card_hunters"/);
+    assert.doesNotMatch(owners, /from\("want_list"\)/);
     assert.doesNotMatch(owners, /createSupabaseAdmin|service_role|SUPABASE_SERVICE_ROLE/);
     assert.doesNotMatch(owners, /paid_price|target_price|estimated_value/);
+
+    const migrationDir = join(process.cwd(), "supabase", "migrations");
+    const sqlFiles = readdirSync(migrationDir).filter((name) => name.endsWith(".sql") && name.includes("card_hunters"));
+    assert.deepEqual(sqlFiles, ["20261020220000_card_hunters.sql"]);
+    const sql = readFileSync(join(migrationDir, sqlFiles[0] ?? ""), "utf8");
+    assert.match(sql, /security definer/);
+    assert.match(sql, /set search_path = public/);
+    assert.match(sql, /returns table \(\s*user_id uuid\s*\)/);
+    assert.match(sql, /revoke all on function public\.card_hunters\(text\) from public/);
+    assert.match(sql, /grant execute on function public\.card_hunters\(text\) to anon, authenticated/);
+    assert.match(sql, /w\.is_public is true/);
+    assert.doesNotMatch(sql, /create policy|drop policy|alter policy/i);
+    const body = sql.slice(sql.indexOf("as $$"), sql.lastIndexOf("$$;"));
+    assert.match(body, /select s\.user_id/);
+    assert.doesNotMatch(body, /target_price|label|notes/);
   });
 });

@@ -635,8 +635,10 @@ describe("public comps signup", () => {
     });
     assert.equal(sent.length, 1);
     assert.equal(sent[0]?.name, "signup_started");
-    assert.equal(sent[0]?.props, undefined);
-    assert.deepEqual(sanitizeProps({ source: "card_comps", median: 35, cardId: CARD }), {});
+    assert.deepEqual(sent[0]?.props, { source: "card_comps" });
+    assert.deepEqual(sanitizeProps({ source: "card_comps", median: 35, cardId: CARD }), {
+      source: "card_comps",
+    });
     const tracker = read("components/public-card-comps.tsx");
     const body = tracker.slice(
       tracker.indexOf("function trackPublicCompsCta"),

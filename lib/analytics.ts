@@ -4,9 +4,12 @@ import { track, type BeforeSendEvent } from "@vercel/analytics";
  * Hobby hides custom events in the dashboard. These calls stay so an upgrade records them.
  * Only short, non-identifying values are sent.
  */
-const ALLOWED_PROP_KEYS = ["button", "utm_source", "utm_medium", "utm_campaign"] as const;
+const ALLOWED_PROP_KEYS = ["button", "utm_source", "utm_medium", "utm_campaign", "source"] as const;
 
 const BUTTONS = new Set(["signup", "login"]);
+
+/** signup_started and follow attribution. Any other source is dropped. */
+const SOURCES = new Set(["card_comps", "owners", "hunters", "card_owners", "card_hunters"]);
 
 /** 1–48 characters. Blocks emails, sentences, urls, and query strings. */
 const SAFE_TOKEN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,47}$/;
@@ -44,6 +47,10 @@ export function sanitizeProps(props: unknown): Partial<Record<AllowedKey, string
     }
     if (key === "button") {
       if (typeof value === "string" && BUTTONS.has(value.trim())) safe.button = value.trim();
+      continue;
+    }
+    if (key === "source") {
+      if (typeof value === "string" && SOURCES.has(value.trim())) safe.source = value.trim();
       continue;
     }
     const token = cleanToken(value);

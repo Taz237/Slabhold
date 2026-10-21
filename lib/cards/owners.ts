@@ -24,9 +24,9 @@ import { isUuid } from "@/lib/value/card-value-access";
  * privacy column today, so public_cards rows stay eligible.
  *
  * Hunters are distinct users with this card_key on a public want list.
- * want_list has no public flag and RLS is owner-only, so a row counts only
- * when it is explicitly is_public. Anon has no select grant. A failed want
- * read omits the Hunters section instead of loosening RLS.
+ * want_list select stays owner-only. card_hunters is security definer and
+ * returns user_id only for rows with is_public true. A failed call omits
+ * the Hunters section instead of reading the table.
  *
  * Counts use the same filters as the lists. The viewer is counted and not listed.
  * Signed-out reads use the anon key and may be cached. Signed-in reads use the
@@ -126,6 +126,20 @@ function profileIsPublic(row: Row): boolean {
   return row.publicly_visible !== false;
 }
 
+/** RPC rows may carry extra fields. Hunters keep the user id and nothing else. */
+function hunterUserIds(data: unknown): string[] {
+  if (!Array.isArray(data)) return [];
+  const ids: string[] = [];
+  for (const item of data) {
+    let id = "";
+    if (typeof item === "string") id = item.trim();
+    else if (item && typeof item === "object") id = text((item as Row).user_id).trim();
+    if (id) ids.push(id);
+    if (ids.length >= LIST_CAP) break;
+  }
+  return ids;
+}
+
 function anonClient(): PeopleDb | null {
   const { url, anonKey, configured } = getSupabaseConfig();
   if (!configured) return null;
@@ -152,11 +166,7 @@ async function readOwnersAndHunters(
 
   const [cardsRes, wantsRes, blocksRes, mutesRes, followsRes] = await Promise.all([
     client.from("public_cards").select(CARD_COLUMNS).ilike("player", ilikeExact(player)).limit(LIST_CAP),
-    client
-      .from("want_list")
-      .select("user_id, card_key, created_at")
-      .eq("card_key", identityKey)
-      .limit(LIST_CAP),
+    client.rpc("card_hunters", { p_card_key: identityKey }),
     viewerId
       ? client.from("blocks").select("blocked_id").eq("blocker_id", viewerId)
       : Promise.resolve({ data: [] as Row[], error: null }),
@@ -174,8 +184,8 @@ async function readOwnersAndHunters(
 
   const cardRows = cardsRes.error ? [] : (cardsRes.data ?? []);
   const huntersReadable = !wantsRes.error;
-  const wantRows = huntersReadable ? (wantsRes.data ?? []) : [];
-  if (wantsRes.error && !denied(wantsRes.error)) {
+  const hunterIds = huntersReadable ? hunterUserIds(wantsRes.data) : [];
+  if (wantsRes.error && !denied(wantsRes.error) && !missingRpc(wantsRes.error)) {
     console.warn("[card-people] want list unreadable:", wantsRes.error.message);
   }
 
@@ -207,11 +217,7 @@ async function readOwnersAndHunters(
     const id = text(row.user_id);
     if (id) userIds.add(id);
   }
-  for (const row of wantRows) {
-    if (text(row.card_key) !== identityKey) continue;
-    const id = text(row.user_id);
-    if (id) userIds.add(id);
-  }
+  for (const id of hunterIds) userIds.add(id);
 
   if (viewerId) {
     await Promise.all(
@@ -275,16 +281,14 @@ async function readOwnersAndHunters(
   }
 
   const hunters: HunterCandidate[] = [];
-  for (const row of wantRows) {
-    if (text(row.card_key) !== identityKey) continue;
-    const userId = text(row.user_id);
-    const base = userId ? flags(userId, stamp(row)) : null;
-    if (!base) continue;
+  hunterIds.forEach((userId, index) => {
+    const base = flags(userId, String(hunterIds.length - index).padStart(8, "0"));
+    if (!base) return;
     hunters.push({
       ...base,
-      wantPublic: row.is_public === true,
+      wantPublic: true,
     });
-  }
+  });
 
   return assembleCardPeople({
     identityKey,

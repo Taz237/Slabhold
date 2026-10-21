@@ -76,12 +76,13 @@ function PeopleSection({
   source: CardFollowSource;
   renderFollow?: (person: CardPerson, source: CardFollowSource) => ReactNode;
 }) {
+  const onlyViewer = title === "Owners" && count === 1 && people.length === 0;
   return (
     <section className={sectionClass}>
       <h2 className="font-semibold">
-        {title} ({count})
+        {onlyViewer ? "Only you so far" : `${title} (${count})`}
       </h2>
-      {people.length === 0 ? (
+      {onlyViewer ? null : people.length === 0 ? (
         <p className="mt-2 text-sm text-zinc-500">{empty}</p>
       ) : (
         <ul className="mt-3 flex gap-2 overflow-x-auto pb-1">
