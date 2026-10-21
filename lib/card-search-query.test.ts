@@ -291,6 +291,85 @@ describe("searchCatalog ranking", () => {
       ["set-99", "num-99"],
     );
   });
+
+  it("ignores filler and grade words and matches parallel last", () => {
+    const rookie = searchCatalog("wemby rookie");
+    assert.ok(rookie.every((hit) => hit.playerName === "Victor Wembanyama"));
+    assert.equal(rookie.filter((hit) => hit.parallel === "Base").length, 3);
+    assert.ok(rookie.slice(0, 3).every((hit) => hit.parallel === "Base"));
+
+    const rc = searchCatalog("wemby rc");
+    assert.deepEqual(
+      rc.map((hit) => hit.id),
+      rookie.map((hit) => hit.id),
+    );
+
+    const mahomes = searchCatalog("mahomes rookie card");
+    assert.ok(mahomes.length > 0);
+    assert.ok(mahomes.every((hit) => hit.playerName === "Patrick Mahomes"));
+
+    const graded = searchCatalog("wembanyama psa 10");
+    assert.ok(graded.length > 0);
+    assert.ok(graded.every((hit) => hit.playerName === "Victor Wembanyama"));
+    assert.deepEqual(
+      searchCatalog("wembanyama bgs 9.5").map((hit) => hit.id),
+      graded.map((hit) => hit.id),
+    );
+
+    const lukaBase = searchCatalog("luka prizm base");
+    assert.equal(lukaBase.length, 1);
+    assert.equal(lukaBase[0]?.playerName, "Luka Dončić");
+    assert.equal(lukaBase[0]?.setBrand, "Panini Prizm");
+    assert.equal(lukaBase[0]?.cardNumber, "280");
+    assert.equal(lukaBase[0]?.parallel, "Base");
+
+    const silver = searchCatalog("wemby silver");
+    assert.equal(silver.length, 1);
+    assert.equal(silver[0]?.playerName, "Victor Wembanyama");
+    assert.equal(silver[0]?.setBrand, "Panini Prizm");
+    assert.equal(silver[0]?.cardNumber, "136");
+    assert.equal(silver[0]?.parallel, "Silver");
+
+    const holo = searchCatalog("luka holo");
+    assert.ok(holo.length > 0);
+    assert.ok(
+      holo.every(
+        (hit) => hit.playerName === "Luka Dončić" && hit.parallel === "Holo",
+      ),
+    );
+
+    const refractor = searchCatalog("ohtani refractor");
+    assert.ok(refractor.length > 0);
+    assert.ok(
+      refractor.every(
+        (hit) => hit.playerName === "Shohei Ohtani" && hit.parallel === "Refractor",
+      ),
+    );
+
+    assert.deepEqual(searchCatalog("rookie"), []);
+
+    const parallelLast = searchCardsLocal("prizm", [
+      asSearchable({
+        id: "parallel-name",
+        player: "A Player",
+        yearLabel: "2020",
+        setName: "Hoops",
+        cardNumber: "1",
+        parallel: "Prizm",
+      }),
+      asSearchable({
+        id: "set-name",
+        player: "A Player",
+        yearLabel: "2020",
+        setName: "Panini Prizm",
+        cardNumber: "2",
+      }),
+    ]);
+    assert.deepEqual(
+      parallelLast.map((hit) => hit.id),
+      ["set-name", "parallel-name"],
+    );
+  });
 });
 
 function asSearchable(card: {
@@ -299,10 +378,16 @@ function asSearchable(card: {
   yearLabel: string;
   setName: string;
   cardNumber: string;
+  parallel?: string;
 }): SearchableCard {
+  const parallel = card.parallel ?? "Base";
   return {
-    ...card,
-    parallel: "Base",
+    id: card.id,
+    player: card.player,
+    yearLabel: card.yearLabel,
+    setName: card.setName,
+    cardNumber: card.cardNumber,
+    parallel,
     sport: "Basketball",
     searchText: buildSearchText(card),
   };
@@ -356,5 +441,19 @@ describe("resolveCatalogSearch before and after the migration", () => {
   it("keeps a genuine miss empty", () => {
     assert.deepEqual(resolveCatalogSearch("zzqxv", []), []);
     assert.deepEqual(resolveCatalogSearch("zzqxv", null), []);
+  });
+
+  it("adds the local Jaxson Dart row to 2025 prizm before the insert runs", () => {
+    const remote = CARD_CATALOG.filter((card) => card.playerName !== "Jaxson Dart");
+    const hits = resolveCatalogSearch("2025 prizm", remote);
+    const dart = hits.filter((card) => card.playerName === "Jaxson Dart");
+    assert.equal(dart.length, 1);
+    assert.equal(dart[0]?.yearLabel, "2025");
+    assert.equal(dart[0]?.setBrand, "Panini Prizm");
+    assert.equal(dart[0]?.cardNumber, "332");
+    assert.equal(dart[0]?.parallel, "Base");
+    assert.ok(hits.every((card) => card.yearLabel.startsWith("2025")));
+    assert.ok(hits.every((card) => card.setBrand.toLowerCase().includes("prizm")));
+    assert.ok(hits.some((card) => card.playerName === "Travis Hunter"));
   });
 });

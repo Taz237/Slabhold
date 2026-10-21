@@ -41,6 +41,19 @@ const KNOWN_SET_WORDS = [
   "o-pee-chee",
 ];
 
+/** Words that describe a copy, not the catalog row. "psa 10" and "rookie" stay out of the AND. */
+const FILLER_WORDS = new Set(["rookie", "rookies", "rc", "card", "cards", "raw"]);
+const GRADER_WORDS = new Set([
+  "psa",
+  "bgs",
+  "sgc",
+  "cgc",
+  "beckett",
+  "graded",
+  "gem",
+  "mint",
+]);
+
 /** Lowercase, strip accents/punctuation — mirrors public.norm(). Keeps hyphens in seasons / card #s. */
 export function normalizeSearchText(input: string): string {
   const stripped = input
@@ -135,8 +148,20 @@ export function parseCardQuery(query: string): ParsedCardQuery {
   let yearLabel: string | null = null;
   const setWords: string[] = [];
   const remaining: string[] = [];
+  let gradeSkip = 0;
 
   for (const token of rawTokens) {
+    if (GRADER_WORDS.has(token)) {
+      gradeSkip = 2;
+      continue;
+    }
+    if (gradeSkip > 0 && /^\d{1,2}$/.test(token)) {
+      gradeSkip -= 1;
+      continue;
+    }
+    gradeSkip = 0;
+    if (FILLER_WORDS.has(token)) continue;
+
     const year = parseYearToken(token);
     if (year && !yearLabel) {
       yearLabel = year;
@@ -268,6 +293,7 @@ type FieldHits = {
   yearHits: number;
   setHits: number;
   numberHits: number;
+  parallelHits: number;
   playerExact: number;
 };
 
@@ -357,7 +383,23 @@ function numberHit(token: string, cardNumber: string): boolean {
   return normalizeSearchText(cardNumber) === normalizeSearchText(want);
 }
 
-/** Every token must match player, then year, then set, then card number. */
+/** Exact, or the same 3+ character stem as wordHit. No typo match on parallels. */
+function parallelHit(token: string, parallel: string): boolean {
+  const parts = normalizeSearchText(parallel).split(/[\s-]+/).filter(Boolean);
+  for (const word of parts) {
+    if (word === token) return true;
+    if (
+      token.length >= PARTIAL_PREFIX_MIN &&
+      word.startsWith(token) &&
+      token.length / word.length <= PARTIAL_PREFIX_MAX_RATIO
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/** Every token must match player, year, set, card number, or parallel. */
 export function matchQueryTokens(
   card: SearchableCard,
   tokens: string[],
@@ -368,6 +410,7 @@ export function matchQueryTokens(
     yearHits: 0,
     setHits: 0,
     numberHits: 0,
+    parallelHits: 0,
     playerExact: 0,
   };
   for (const token of tokens) {
@@ -388,6 +431,10 @@ export function matchQueryTokens(
     }
     if (numberHit(token, card.cardNumber)) {
       hits.numberHits += 1;
+      continue;
+    }
+    if (parallelHit(token, card.parallel)) {
+      hits.parallelHits += 1;
       continue;
     }
     return null;
@@ -411,6 +458,7 @@ function compareHits(
   if (b.yearHits !== a.yearHits) return b.yearHits - a.yearHits;
   if (b.setHits !== a.setHits) return b.setHits - a.setHits;
   if (b.numberHits !== a.numberHits) return b.numberHits - a.numberHits;
+  if (b.parallelHits !== a.parallelHits) return b.parallelHits - a.parallelHits;
   if (b.playerExact !== a.playerExact) return b.playerExact - a.playerExact;
   const aBase = a.card.parallel.toLowerCase() === "base" ? 1 : 0;
   const bBase = b.card.parallel.toLowerCase() === "base" ? 1 : 0;

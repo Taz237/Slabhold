@@ -182,10 +182,17 @@ export function searchCatalog(query: string, limit = 20): CatalogCard[] {
   return cardsInRankOrder(query, CARD_CATALOG, limit);
 }
 
+function catalogIdentity(card: CatalogCard): string {
+  return [card.playerName, card.yearLabel, card.setBrand, card.cardNumber, card.parallel]
+    .join("|")
+    .toLowerCase();
+}
+
 /**
  * Rank rows from search_cards with the same rules as the local catalog.
- * An empty or too-loose RPC result falls back to the local catalog, so search
- * still resolves before and after the ranking migration is applied.
+ * Local seed hits are merged in (remote wins on the same card) so a row that
+ * exists only in the app catalog, such as Jaxson Dart before the insert runs,
+ * still shows up. An empty result falls back to the local catalog.
  */
 export function resolveCatalogSearch(
   query: string,
@@ -193,9 +200,12 @@ export function resolveCatalogSearch(
   limit = 20,
 ): CatalogCard[] {
   if (remote == null) return searchCatalog(query, limit);
-  const ranked = cardsInRankOrder(query, remote, limit);
-  if (ranked.length > 0) return ranked;
-  return searchCatalog(query, limit);
+  const local = searchCatalog(query, limit);
+  const byIdentity = new Map<string, CatalogCard>();
+  for (const card of local) byIdentity.set(catalogIdentity(card), card);
+  for (const card of remote) byIdentity.set(catalogIdentity(card), card);
+  const ranked = cardsInRankOrder(query, [...byIdentity.values()], limit);
+  return ranked.length > 0 ? ranked : local;
 }
 
 export function catalogLabel(card: CatalogCard) {

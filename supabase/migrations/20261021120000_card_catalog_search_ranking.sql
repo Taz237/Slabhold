@@ -1,4 +1,6 @@
--- Add Card search ranking.
+-- Add Card search ranking (QA review-fixed version of PR #24's SQL).
+-- Changes vs the PR: parallel words match the parallel (ranked last), and
+-- filler words (rookie, rc, card, psa 10, ...) are ignored.
 -- Every query word must match the player, year, set, or card number.
 -- Matches are case and accent insensitive, and partial words count ("wemb").
 -- Rank player-name matches, then year, then set, then card number.
@@ -8,6 +10,15 @@
 -- public.norm() was storing season years as "202-- 4" because E'\1' is octal
 -- character 1, not a regexp backreference. "2023" then matched Stroud's plain
 -- 2023 and missed Wembanyama's 2023-24. The replacement below keeps hyphens.
+
+-- Optional read-only pre-check (run first; each should return 0 rows besides
+-- card_catalog.search_text and the search functions in this file):
+--   select n.nspname, p.proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+--     where p.prosrc ilike '%norm(%' and n.nspname not in ('pg_catalog', 'extensions');
+--   select indexname, indexdef from pg_indexes where indexdef ilike '%norm(%';
+--   select attrelid::regclass, attname from pg_attribute
+--     where attgenerated = 's' and pg_get_expr((select adbin from pg_attrdef d
+--       where d.adrelid = attrelid and d.adnum = attnum), attrelid) ilike '%norm(%';
 
 create or replace function public.norm(t text)
 returns text
@@ -78,16 +89,23 @@ as $$
   end;
 $$;
 
+-- Review fix: the 5-argument version from the first draft of this file is
+-- replaced by a 6-argument one that also checks the parallel. Nothing else
+-- depends on it, so dropping it is safe and keeps this file re-runnable.
+drop function if exists public.catalog_token_hits(text, text, text, text, text);
+
 create or replace function public.catalog_token_hits(
   tok text,
   player text,
   year_label text,
   set_name text,
   card_number text,
+  parallel text,
   out player_hit int,
   out year_hit int,
   out set_hit int,
   out number_hit int,
+  out parallel_hit int,
   out exact_hit int,
   out matched boolean
 )
@@ -111,6 +129,7 @@ begin
   year_hit := 0;
   set_hit := 0;
   number_hit := 0;
+  parallel_hit := 0;
   exact_hit := 0;
   matched := false;
 
@@ -247,7 +266,30 @@ begin
   if num is not null and upper(coalesce(card_number, '')) = num then
     number_hit := 1;
     matched := true;
+    return;
   end if;
+
+  -- Parallel words ("silver", "holo", "refractor", "base") match the parallel.
+  parts := coalesce(
+    regexp_split_to_array(replace(coalesce(public.norm(parallel), ''), '-', ' '), '\s+'),
+    '{}'::text[]
+  );
+  foreach w in array parts loop
+    if w is null or w = '' then
+      continue;
+    end if;
+    if w = tok
+      or (
+        length(tok) >= 3
+        and left(w, length(tok)) = tok
+        and length(tok)::numeric / length(w)::numeric <= 0.7
+      )
+    then
+      parallel_hit := 1;
+      matched := true;
+      return;
+    end if;
+  end loop;
 end;
 $$;
 
@@ -292,6 +334,9 @@ declare
   end_y int;
   limit_n int := greatest(1, least(coalesce(max_results, 20), 50));
   rec record;
+  grade_skip int := 0;
+  filler_words text[] := array['rookie', 'rookies', 'rc', 'card', 'cards', 'raw'];
+  grader_words text[] := array['psa', 'bgs', 'sgc', 'cgc', 'beckett', 'graded', 'gem', 'mint'];
 begin
   if q is null or length(trim(q)) = 0 or length(q) > 100 then
     return;
@@ -306,6 +351,21 @@ begin
 
   foreach tok in array tokens loop
     if tok is null or tok = '' then
+      continue;
+    end if;
+
+    -- Review fix: words like "rookie", "rc", "psa 10" describe the copy, not
+    -- the catalog card. Skip them so they do not empty the result list.
+    if tok = any(grader_words) then
+      grade_skip := 2;
+      continue;
+    end if;
+    if grade_skip > 0 and tok ~ '^\d{1,2}$' then
+      grade_skip := grade_skip - 1;
+      continue;
+    end if;
+    grade_skip := 0;
+    if tok = any(filler_words) then
       continue;
     end if;
 
@@ -408,6 +468,7 @@ begin
       sum(h.year_hit)::int as year_hits,
       sum(h.set_hit)::int as set_hits,
       sum(h.number_hit)::int as number_hits,
+      sum(h.parallel_hit)::int as parallel_hits,
       sum(h.exact_hit)::int as exact_hits
     from public.card_catalog c
     cross join unnest(match_tokens) as t(tok)
@@ -416,7 +477,8 @@ begin
       c.player,
       c.year_label,
       c.set_name,
-      c.card_number
+      c.card_number,
+      c.parallel
     ) as h
     group by c.id, c.player, c.year_label, c.set_name, c.card_number, c.parallel, c.sport
     having bool_and(h.matched)
@@ -425,6 +487,7 @@ begin
       sum(h.year_hit) desc,
       sum(h.set_hit) desc,
       sum(h.number_hit) desc,
+      sum(h.parallel_hit) desc,
       sum(h.exact_hit) desc,
       (lower(coalesce(c.parallel, '')) = 'base') desc,
       c.player asc,
@@ -453,7 +516,7 @@ $$;
 
 grant execute on function public.norm(text) to anon, authenticated;
 grant execute on function public.catalog_bigram_similarity(text, text) to anon, authenticated;
-grant execute on function public.catalog_token_hits(text, text, text, text, text) to anon, authenticated;
+grant execute on function public.catalog_token_hits(text, text, text, text, text, text) to anon, authenticated;
 grant execute on function public.search_cards(text, int) to anon, authenticated;
 
 -- Recompute search_text with the hyphen-safe norm. Same row values, no deletes.
