@@ -21,13 +21,19 @@ import { scheduleCardValueRefresh } from "@/lib/value/use-card-values";
 import { isPublicForSaleListing } from "@/lib/wants/listing";
 import { pingWantMatch } from "@/lib/wants/ping";
 
+export type SavedCard = {
+  card: SportsCard;
+  /** Settles when the queued save finishes. Rejects if that save fails. */
+  saved: Promise<void>;
+};
+
 type CollectionContextValue = {
   ready: boolean;
   cards: SportsCard[];
   syncError: string | null;
   getCard: (id: string) => SportsCard | undefined;
-  addCard: (input: CardInput) => SportsCard;
-  updateCard: (id: string, patch: Partial<SportsCard>) => void;
+  addCard: (input: CardInput) => SavedCard;
+  updateCard: (id: string, patch: Partial<SportsCard>) => SavedCard;
   removeCard: (id: string) => void;
   reload: () => void;
 };
@@ -48,7 +54,16 @@ export function CollectionProvider({ children }: { children: React.ReactNode }) 
   const enqueue = useCallback((cardId: string, job: () => Promise<void>) => {
     const prev = writes.current.get(cardId) ?? Promise.resolve();
     const next = prev.then(job, job);
-    writes.current.set(cardId, next);
+    // Keep the queue moving after a failure, but return the original promise
+    // so the caller can await this save and surface its error.
+    writes.current.set(
+      cardId,
+      next.then(
+        () => undefined,
+        () => undefined,
+      ),
+    );
+    return next;
   }, []);
 
   const report = useCallback((error: unknown) => {
@@ -129,10 +144,11 @@ export function CollectionProvider({ children }: { children: React.ReactNode }) 
       cardsRef.current = next;
       setCards(next);
       if (mode === "local") trackEvent("card_added");
+      let saved = Promise.resolve();
       if (remote && userId) {
         const client = createSupabaseBrowser();
         if (client) {
-          enqueue(card.id, async () => {
+          saved = enqueue(card.id, async () => {
             try {
               await saveUserCard(client, userId, card);
               trackEvent("card_added");
@@ -141,11 +157,12 @@ export function CollectionProvider({ children }: { children: React.ReactNode }) 
               scheduleCardValueRefresh(card.id);
             } catch (error) {
               report(error);
+              throw error;
             }
           });
         }
       }
-      return card;
+      return { card, saved };
     },
     [enqueue, mode, remote, report, userId],
   );
@@ -159,12 +176,18 @@ export function CollectionProvider({ children }: { children: React.ReactNode }) 
       const updated = next.find((card) => card.id === id);
       cardsRef.current = next;
       setCards(next);
-      if (remote && userId && updated) {
+      if (!updated) {
+        const saved = Promise.reject(new Error("Card not found."));
+        void saved.catch(() => undefined);
+        return { card: (previous ?? { id }) as SportsCard, saved };
+      }
+      let saved = Promise.resolve();
+      if (remote && userId) {
         const client = createSupabaseBrowser();
         if (client) {
           const needsRefresh =
             !previous || shouldRefreshCardValueOnEdit(previous, updated);
-          enqueue(id, async () => {
+          saved = enqueue(id, async () => {
             try {
               await saveUserCard(client, userId, updated);
               if (isPublicForSaleListing(updated)) pingWantMatch("listing", updated.id);
@@ -172,10 +195,12 @@ export function CollectionProvider({ children }: { children: React.ReactNode }) 
               if (needsRefresh) scheduleCardValueRefresh(id);
             } catch (error) {
               report(error);
+              throw error;
             }
           });
         }
       }
+      return { card: updated, saved };
     },
     [enqueue, remote, report, userId],
   );

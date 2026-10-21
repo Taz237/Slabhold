@@ -75,6 +75,7 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
   const formRef = useRef<HTMLFormElement>(null);
   const [photo, setPhoto] = useState<string | null>(existing?.photoDataUrl ?? null);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
     if (existing) return;
@@ -315,7 +316,7 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
     });
   }
 
-  function submit(e: React.FormEvent) {
+  async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (saving) return;
     setTouched({
@@ -375,15 +376,21 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
     };
 
     setSaving(true);
+    setSaveError(null);
+    let createdId: string | null = null;
     try {
-      if (existing) {
-        updateCard(existing.id, payload);
-        router.push(`/cards/${existing.id}`);
-      } else {
-        const created = addCard(payload);
-        router.push(`/cards/${created.id}`);
-      }
-    } finally {
+      const { card, saved } = existing
+        ? updateCard(existing.id, payload)
+        : addCard(payload);
+      if (!existing) createdId = card.id;
+      await saved;
+      createdId = null;
+      router.push(`/cards/${card.id}`);
+    } catch (error) {
+      if (createdId) removeCard(createdId);
+      setSaveError(
+        error instanceof Error ? error.message : "Could not save this card.",
+      );
       setSaving(false);
     }
   }
@@ -943,6 +950,12 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
         </span>
         <span className="mt-1 block font-medium">{preview}</span>
       </p>
+
+      {saveError ? (
+        <p role="alert" className="text-sm text-rose-600 dark:text-rose-400">
+          {saveError}
+        </p>
+      ) : null}
 
       <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-between">
         {existing ? (

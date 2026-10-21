@@ -192,15 +192,8 @@ export async function pathIsMissing(input: {
     return owned != null && owned.length === 0;
   }
 
-  // Signed-out visitors reach /cards/:id and /cards/:id/edit so AppShell can
-  // send them to /signup?next=… A signed-in non-owner still 404s.
-  if (session === "unknown" || session === "anonymous") return false;
-  const rows = await restRows(
-    url,
-    key,
-    `cards?id=eq.${encodeURIComponent(check.id)}&select=id`,
-    session.token,
-    fetchImpl,
-  );
-  return rows != null && rows.length === 0;
+  // /cards/:id and /cards/:id/edit always render. A new card may not be
+  // inserted yet, and a signed-out visit must reach AppShell so it can send
+  // the visitor to /signup?next=… Signed-in non-owners hit requireCardPageAccess.
+  return false;
 }

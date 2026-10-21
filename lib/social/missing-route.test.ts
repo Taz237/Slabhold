@@ -1,5 +1,9 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
+import { join } from "node:path";
+import { NextRequest } from "next/server";
+import { proxy } from "../../proxy";
 import { missingCheckForPath, pathIsMissing, readSupabaseAccessToken } from "./missing-route";
 
 const URL = "https://example.supabase.co";
@@ -85,33 +89,21 @@ describe("pathIsMissing", () => {
 
   });
 
-  it("keeps an owner card when the session token can see it", async () => {
+  it("lets a signed-in session through on owner card pages when the row is not visible yet", async () => {
     const token = Buffer.from(JSON.stringify({ access_token: "owner-token" }), "utf8").toString("base64url");
     const cookies = [{ name: "sb-example-auth-token", value: `base64-${token}` }];
     assert.deepEqual(readSupabaseAccessToken({ supabaseUrl: URL, cookies }), { token: "owner-token" });
 
-    let auth = "";
-    const found = await pathIsMissing({
-      pathname: `/cards/${CARD}`,
-      supabaseUrl: URL,
-      anonKey: KEY,
-      cookies,
-      fetchImpl: async (_input, init) => {
-        auth = new Headers(init?.headers).get("authorization") ?? "";
-        return json([{ id: CARD }]);
-      },
-    });
-    assert.equal(found, false);
-    assert.equal(auth, "Bearer owner-token");
-
-    const stranger = await pathIsMissing({
-      pathname: `/cards/${CARD}`,
-      supabaseUrl: URL,
-      anonKey: KEY,
-      cookies,
-      fetchImpl: async () => json([]),
-    });
-    assert.equal(stranger, true);
+    for (const pathname of [`/cards/${CARD}`, `/cards/${CARD}/edit`]) {
+      const missing = await pathIsMissing({
+        pathname,
+        supabaseUrl: URL,
+        anonKey: KEY,
+        cookies,
+        fetchImpl: async () => json([]),
+      });
+      assert.equal(missing, false, pathname);
+    }
   });
 
   it("lets a signed-out visitor through on owner card pages", async () => {
@@ -198,5 +190,61 @@ describe("pathIsMissing", () => {
       fetchImpl: async () => json([], 500),
     });
     assert.equal(outage, false);
+  });
+});
+
+describe("styled missing pages", () => {
+  const previousUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const previousKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  it("404s a missing post, profile, or public card with the app page, not raw HTML", async () => {
+    process.env.NEXT_PUBLIC_SUPABASE_URL = URL;
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = KEY;
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async (input) => {
+      const url = String(input);
+      if (url.includes("/profiles?") && url.includes("username=eq.maya")) {
+        return json([{ id: "owner" }]);
+      }
+      return json([]);
+    };
+
+    try {
+      const paths = [`/posts/${CARD}`, "/u/ghost", `/u/maya/cards/${CARD}`];
+      for (const pathname of paths) {
+        const response = await proxy(new NextRequest(`https://slabhold.test${pathname}`));
+        assert.equal(response.status, 404, pathname);
+        const rewrite = response.headers.get("x-middleware-rewrite") ?? "";
+        assert.match(rewrite, /\/404$/, pathname);
+        const body = await response.text();
+        assert.equal(body.includes("That page isn't on Slabhold."), false, pathname);
+        assert.equal(body.includes("<!DOCTYPE html>"), false, pathname);
+        assert.equal(response.headers.get("content-type"), null, pathname);
+      }
+
+      const rsc = await proxy(
+        new NextRequest(`https://slabhold.test/posts/${CARD}`, {
+          headers: { RSC: "1", Accept: "text/x-component" },
+        }),
+      );
+      assert.equal(rsc.status, 404);
+      assert.match(rsc.headers.get("x-middleware-rewrite") ?? "", /\/404$/);
+      assert.equal((await rsc.text()).includes("<html"), false);
+      assert.notEqual(rsc.headers.get("content-type"), "text/html; charset=utf-8");
+
+      const notFound = readFileSync(join(process.cwd(), "app/not-found.tsx"), "utf8");
+      assert.match(notFound, /className=/);
+      assert.match(notFound, /href="\/"/);
+      assert.match(notFound, /Page not found/);
+      const proxySource = readFileSync(join(process.cwd(), "proxy.ts"), "utf8");
+      assert.equal(proxySource.includes("isn't on Slabhold"), false);
+      assert.match(proxySource, /NextResponse\.rewrite\(new URL\("\/404"/);
+    } finally {
+      globalThis.fetch = originalFetch;
+      if (previousUrl === undefined) delete process.env.NEXT_PUBLIC_SUPABASE_URL;
+      else process.env.NEXT_PUBLIC_SUPABASE_URL = previousUrl;
+      if (previousKey === undefined) delete process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+      else process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = previousKey;
+    }
   });
 });

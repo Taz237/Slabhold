@@ -36,4 +36,64 @@ describe("cardPageAccessDecision", () => {
     const detailAt = page.indexOf("<CardDetail");
     assert.ok(requireAt > 0 && detailAt > requireAt);
   });
+
+  it("lets the owner open a new private card only after the save resolves", async () => {
+    const form = readFileSync(join(process.cwd(), "components/card-form.tsx"), "utf8");
+    const submitStart = form.indexOf("async function submit");
+    const submit = form.slice(submitStart, form.indexOf("return (", submitStart));
+    const awaitAt = submit.indexOf("await saved");
+    const pushAt = submit.indexOf("router.push");
+    assert.ok(awaitAt > 0 && pushAt > awaitAt);
+    const catchAt = submit.indexOf("} catch");
+    assert.ok(catchAt > pushAt);
+    assert.equal(submit.slice(catchAt).includes("router.push"), false);
+    assert.match(submit.slice(catchAt), /removeCard\(createdId\)/);
+    assert.match(submit.slice(catchAt), /setSaving\(false\)/);
+    assert.match(submit.slice(catchAt), /setSaveError\(/);
+
+    const access = readFileSync(join(process.cwd(), "lib/value/require-card-page-access.ts"), "utf8");
+    assert.match(access, /cardPageAccessDecision\(/);
+    assert.match(access, /if \(decision === "notFound"\) deps\.notFound\(\)/);
+
+    let resolveSave!: () => void;
+    const saved = new Promise<void>((resolve) => {
+      resolveSave = resolve;
+    });
+    const provider = {
+      addCard: () => ({ card: { id: CARD }, saved }),
+    };
+    const pushes: string[] = [];
+    const created = provider.addCard();
+    const pending = (async () => {
+      await created.saved;
+      pushes.push(`/cards/${created.card.id}`);
+    })();
+
+    await Promise.resolve();
+    assert.deepEqual(pushes, []);
+    assert.equal(
+      cardPageAccessDecision({ cardId: CARD, userId: "owner", owned: false }),
+      "notFound",
+    );
+
+    resolveSave();
+    await pending;
+    assert.deepEqual(pushes, [`/cards/${CARD}`]);
+    assert.equal(
+      cardPageAccessDecision({ cardId: CARD, userId: "owner", owned: true }),
+      "allow",
+    );
+
+    const failed = Promise.reject(new Error("Could not upload the photo."));
+    void failed.catch(() => undefined);
+    const missed: string[] = [];
+    await assert.rejects(
+      (async () => {
+        await failed;
+        missed.push(`/cards/${CARD}`);
+      })(),
+      /Could not upload the photo/,
+    );
+    assert.deepEqual(missed, []);
+  });
 });

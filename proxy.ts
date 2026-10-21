@@ -2,8 +2,6 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { pathIsMissing } from "@/lib/social/missing-route";
 
-const NOT_FOUND_HTML = `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>Not found</title><meta name="robots" content="noindex"></head><body><h1>Not found</h1><p>That page isn't on Slabhold.</p></body></html>`;
-
 export async function proxy(request: NextRequest) {
   const missing = await pathIsMissing({
     pathname: request.nextUrl.pathname,
@@ -12,10 +10,11 @@ export async function proxy(request: NextRequest) {
     cookies: request.cookies.getAll(),
   });
   if (!missing) return NextResponse.next();
-  return new NextResponse(NOT_FOUND_HTML, {
+  // Rewrite onto the app 404 so Next renders not-found for documents and a
+  // flight response the client router can read. A raw HTML body breaks RSC.
+  return NextResponse.rewrite(new URL("/404", request.url), {
     status: 404,
     headers: {
-      "content-type": "text/html; charset=utf-8",
       "cache-control": "private, no-store",
     },
   });
