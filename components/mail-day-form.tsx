@@ -27,8 +27,10 @@ import {
   SOURCE_LABELS,
   isMailDaySport,
   mailDayIsDirty,
+  mailDayPhotoOriginals,
   mailDayPhotosToRemove,
   mailDaySportLabel,
+  restoreRemovedMailDayPhotos,
   mailDaySubmitBlocker,
   mailDaySubmitError,
   previewMailDayPost,
@@ -220,6 +222,7 @@ export function MailDayForm() {
         setError(mailDaySubmitError(err));
         return;
       }
+      const originals = mailDayPhotoOriginals(drafts, cards);
       setSections((current) =>
         current.map((section, index) =>
           cards[index] ? { ...section, photos: cards[index].photos } : section,
@@ -241,19 +244,17 @@ export function MailDayForm() {
         return;
       }
       if (!result.ok) {
-        await removeMailDayPhotos(
-          createSupabaseBrowser(),
-          user.id,
-          mailDayPhotosToRemove(
-            {
-              cardSaved: result.cardSaved,
-              error: result.error,
-              cardIds: result.cardSaved ? result.cardIds : [],
-            },
-            cards,
-            created,
-          ),
+        const removed = mailDayPhotosToRemove(
+          {
+            cardSaved: result.cardSaved,
+            error: result.error,
+            cardIds: result.cardSaved ? result.cardIds : [],
+          },
+          cards,
+          created,
         );
+        await removeMailDayPhotos(createSupabaseBrowser(), user.id, removed);
+        setSections((current) => restoreRemovedMailDayPhotos(current, removed, originals));
         setError(result.error);
         if (result.cardSaved) {
           trackAddedCards(result.cardIds.length);

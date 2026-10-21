@@ -36,6 +36,8 @@ describe("add a card first impression", () => {
     assert.doesNotMatch(catchSlice, /router\.push/);
     assert.match(submit, /pendingId\.current = card\.id/);
     assert.match(catchSlice, /isSaveTimeout\(error\)/);
+    assert.match(catchSlice, /timedOutIds\.current\.add\(createdId\)/);
+    assert.match(catchSlice, /!timedOut\) removeCard\(createdId\)/);
     assert.match(catchSlice, /SAVE_TIMEOUT_MESSAGE/);
     assert.doesNotMatch(catchSlice, /setForm\(/);
     assert.doesNotMatch(catchSlice, /setPhoto\(null\)/);

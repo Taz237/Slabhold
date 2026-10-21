@@ -93,6 +93,45 @@ export function mailDayPhotosToRemove(
   ];
 }
 
+/**
+ * Uploaded url → the data url it replaced.
+ * Built from the drafts before the form swaps a section over to stored urls.
+ * Only photos this attempt uploaded are recorded, in the same order as the upload.
+ */
+export function mailDayPhotoOriginals(
+  before: readonly { photos: readonly string[] }[],
+  after: readonly { photos: readonly string[] }[],
+): Map<string, string> {
+  const originals = new Map<string, string>();
+  const count = Math.min(before.length, after.length);
+  for (let index = 0; index < count; index += 1) {
+    const sources = before[index].photos.filter(Boolean).slice(0, 4);
+    const stored = after[index].photos;
+    const length = Math.min(sources.length, stored.length);
+    for (let photo = 0; photo < length; photo += 1) {
+      const source = sources[photo];
+      const url = stored[photo];
+      if (source.startsWith("data:") && url && url !== source) originals.set(url, source);
+    }
+  }
+  return originals;
+}
+
+/** Put a deleted upload back to its data url so Retry uploads that photo again. */
+export function restoreRemovedMailDayPhotos<T extends { photos: readonly string[] }>(
+  sections: readonly T[],
+  removed: readonly string[],
+  originalByUploaded: ReadonlyMap<string, string>,
+): T[] {
+  const gone = new Set(removed);
+  return sections.map((section) => ({
+    ...section,
+    photos: section.photos.map((photo) =>
+      gone.has(photo) ? (originalByUploaded.get(photo) ?? photo) : photo,
+    ),
+  }));
+}
+
 export type MailDayPhotoUploader = (
   photo: string,
 ) => Promise<{ url: string | null; error?: string }>;

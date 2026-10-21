@@ -69,6 +69,7 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
   const formRef = useRef<HTMLFormElement>(null);
   const savingRef = useRef(false);
   const pendingId = useRef<string | null>(existing?.id ?? null);
+  const timedOutIds = useRef<Set<string>>(new Set());
   const [photo, setPhoto] = useState<string | null>(existing?.photoDataUrl ?? null);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -387,14 +388,16 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
       router.push(`/cards/${card.id}`);
     } catch (error) {
       if (isSaveTimeout(error)) {
+        if (createdId) timedOutIds.current.add(createdId);
         if (error instanceof SaveTimeoutError && error.photoUrl) setPhoto(error.photoUrl);
         setSaveError(SAVE_TIMEOUT_MESSAGE);
         setSaving(false);
         savingRef.current = false;
         return;
       }
-      if (createdId) removeCard(createdId);
-      if (!existing) pendingId.current = null;
+      const timedOut = createdId != null && timedOutIds.current.has(createdId);
+      if (createdId && !timedOut) removeCard(createdId);
+      if (!existing && !timedOut) pendingId.current = null;
       setSaveError(
         error instanceof Error ? error.message : "Could not save this card.",
       );
