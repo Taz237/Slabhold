@@ -23,10 +23,10 @@ import { isUuid } from "@/lib/value/card-value-access";
  * false is a private collection and is dropped too. There is no collection
  * privacy column today, so public_cards rows stay eligible.
  *
- * Hunters are distinct users with this card_key on a public want list.
- * want_list select stays owner-only. card_hunters is security definer and
- * returns user_id only for rows with is_public true. A failed call omits
- * the Hunters section instead of reading the table.
+ * Hunters are distinct users with this card_key on their want list who turned
+ * on profiles.show_as_hunter. want_list select stays owner-only. card_hunters
+ * is security definer and returns user_id only for those accounts. A failed
+ * or missing call omits the Hunters section instead of reading the table.
  *
  * Counts use the same filters as the lists. The viewer is counted and not listed.
  * Signed-out reads use the anon key and may be cached. Signed-in reads use the

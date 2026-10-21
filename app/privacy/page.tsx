@@ -62,6 +62,7 @@ export default function PrivacyPolicyPage() {
         Posts, comments, reposts, profiles, follows, and cards you mark public can be read by
         anyone, including people who are not signed in. Hidden posts are left out. If either
         account blocks the other, they do not see each other&apos;s posts or comments.
+        Hunters is opt-in.
       </p>
       <h2 className="pt-2 text-lg font-bold tracking-tight">How long we keep data</h2>
       <p>We keep account data until you delete it. There is no automatic expiration.</p>

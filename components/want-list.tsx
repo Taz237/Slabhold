@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { Star } from "lucide-react";
+import { HunterPrompt } from "@/components/hunter-setting";
 import { EmptyState } from "@/components/status";
 import { money } from "@/lib/format";
 import { createSupabaseBrowser } from "@/lib/supabase/browser";
@@ -68,12 +69,11 @@ export function WantList() {
     setWants((current) => current.filter((want) => want.id !== id));
   }
 
+  let body: ReactNode;
   if (loading) {
-    return <div className="h-24 animate-pulse rounded-2xl bg-zinc-200/70 dark:bg-white/5" />;
-  }
-
-  if (error) {
-    return (
+    body = <div className="h-24 animate-pulse rounded-2xl bg-zinc-200/70 dark:bg-white/5" />;
+  } else if (error) {
+    body = (
       <p className="text-sm text-rose-600 dark:text-rose-400">
         {error}{" "}
         <button type="button" onClick={() => void load()} className="font-semibold underline">
@@ -81,19 +81,16 @@ export function WantList() {
         </button>
       </p>
     );
-  }
-
-  if (wants.length === 0) {
-    return (
+  } else if (wants.length === 0) {
+    body = (
       <EmptyState
         icon={<Star className="h-5 w-5" />}
         title="Want list"
         detail="Star any card to track it here."
       />
     );
-  }
-
-  return (
+  } else {
+    body = (
     <ul className="space-y-3">
       {wants.map((want) => (
         <li
@@ -126,5 +123,13 @@ export function WantList() {
         </li>
       ))}
     </ul>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      <HunterPrompt />
+      {body}
+    </div>
   );
 }

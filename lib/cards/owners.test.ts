@@ -113,6 +113,7 @@ function profile(id: string, handle: string, extra: Row = {}): Row {
 function fakeClient(input: {
   tables: Record<string, Row[]>;
   wantError?: boolean;
+  rpcMissing?: boolean;
   blockedByThem?: readonly string[];
 }): PeopleDb {
   return {
@@ -169,9 +170,20 @@ function fakeClient(input: {
             error: { message: "permission denied for function card_hunters", code: "42501" },
           };
         }
+        if (input.rpcMissing) {
+          return {
+            data: null,
+            error: { message: "Could not find the function public.card_hunters", code: "PGRST202" },
+          };
+        }
         const key = String(args?.p_card_key ?? "");
+        const optedIn = new Set(
+          (input.tables.profiles ?? [])
+            .filter((row) => row.show_as_hunter === true)
+            .map((row) => String(row.id)),
+        );
         const rows = (input.tables.want_list ?? [])
-          .filter((row) => row.card_key === key && row.is_public === true)
+          .filter((row) => row.card_key === key && optedIn.has(String(row.user_id ?? "")))
           .sort((a, b) => String(b.created_at ?? "").localeCompare(String(a.created_at ?? "")))
           .map((row) => ({ user_id: row.user_id }));
         return { data: rows, error: null };
@@ -229,7 +241,6 @@ describe("getOwnersAndHunters", () => {
               user_id: "ivy",
               card_key: key,
               created_at: "2026-04-01T00:00:00.000Z",
-              is_public: true,
               target_price: 42,
               email: "ivy@secret.test",
             },
@@ -237,14 +248,12 @@ describe("getOwnersAndHunters", () => {
               user_id: "viewer",
               card_key: key,
               created_at: "2026-04-02T00:00:00.000Z",
-              is_public: true,
               target_price: 42,
             },
             {
               user_id: "joe",
               card_key: key,
               created_at: "2026-04-03T00:00:00.000Z",
-              is_public: false,
               target_price: 42,
             },
             {
@@ -256,7 +265,7 @@ describe("getOwnersAndHunters", () => {
           ],
           profiles: [
             profile("ada", "ada", { display_name: "Ada Stone" }),
-            profile("viewer", "viewer"),
+            profile("viewer", "viewer", { show_as_hunter: true }),
             profile("hia", "hia"),
             profile("ben", "ben"),
             profile("cole", "cole"),
@@ -265,7 +274,7 @@ describe("getOwnersAndHunters", () => {
             profile("finn", "finn"),
             profile("gia", "gia", { publicly_visible: false }),
             profile("nova", "nova"),
-            profile("ivy", "ivy"),
+            profile("ivy", "ivy", { show_as_hunter: true }),
             profile("joe", "joe"),
             profile("ken", "ken"),
           ],
@@ -341,7 +350,6 @@ describe("getOwnersAndHunters", () => {
             {
               user_id: "ada",
               card_key: key,
-              is_public: true,
               created_at: "2026-04-01T00:00:00.000Z",
               target_price: 42,
               notes: "secret note",
@@ -350,14 +358,12 @@ describe("getOwnersAndHunters", () => {
             {
               user_id: "ben",
               card_key: key,
-              is_public: true,
               created_at: "2026-04-02T00:00:00.000Z",
               target_price: 42,
             },
             {
               user_id: "cole",
               card_key: key,
-              is_public: false,
               created_at: "2026-04-03T00:00:00.000Z",
               target_price: 11,
               notes: "private note",
@@ -365,17 +371,16 @@ describe("getOwnersAndHunters", () => {
             {
               user_id: "dina",
               card_key: key,
-              is_public: true,
               created_at: "2026-04-04T00:00:00.000Z",
               target_price: 7,
             },
           ],
           profiles: [
             profile("owner", "owner"),
-            profile("ada", "ada"),
-            profile("ben", "ben"),
+            profile("ada", "ada", { show_as_hunter: true }),
+            profile("ben", "ben", { show_as_hunter: true }),
             profile("cole", "cole"),
-            profile("dina", "dina"),
+            profile("dina", "dina", { show_as_hunter: true }),
             profile("viewer", "viewer"),
           ],
           blocks: [{ blocker_id: "viewer", blocked_id: "dina" }],
@@ -410,17 +415,18 @@ describe("getOwnersAndHunters", () => {
             {
               user_id: "viewer",
               card_key: key,
-              is_public: true,
               created_at: "2026-05-01T00:00:00.000Z",
             },
             {
               user_id: "ada",
               card_key: key,
-              is_public: true,
               created_at: "2026-05-02T00:00:00.000Z",
             },
           ],
-          profiles: [profile("viewer", "viewer"), profile("ada", "ada")],
+          profiles: [
+            profile("viewer", "viewer", { show_as_hunter: true }),
+            profile("ada", "ada", { show_as_hunter: true }),
+          ],
         },
       }),
     );
@@ -441,7 +447,6 @@ describe("getOwnersAndHunters", () => {
     const wantList = Array.from({ length: 7 }, (_, index) => ({
       user_id: `hunter${index}`,
       card_key: key,
-      is_public: true,
       created_at: `2026-03-0${index + 1}T00:00:00.000Z`,
       target_price: 42,
     }));
@@ -452,7 +457,9 @@ describe("getOwnersAndHunters", () => {
         tables: {
           public_cards: [],
           want_list: wantList,
-          profiles: wantList.map((row) => profile(String(row.user_id), String(row.user_id))),
+          profiles: wantList.map((row) =>
+            profile(String(row.user_id), String(row.user_id), { show_as_hunter: true }),
+          ),
         },
       }),
     );
@@ -472,6 +479,165 @@ describe("getOwnersAndHunters", () => {
     assert.match(html, /Hunters \(7\)/);
     assert.equal((html.match(/href="\/u\//g) ?? []).length, 5);
     assert.equal(html.includes(">Follow<"), false);
+  });
+
+  it("leaves existing wants opted out until one account turns the setting on", async () => {
+    const sample = card("owner", "card-owner");
+    const key = identityKeyFromRow(sample);
+    const ada = profile("ada", "ada");
+    const ben = profile("ben", "ben", { show_as_hunter: false });
+    const tables = {
+      public_cards: [] as Row[],
+      profiles: [ada, ben],
+      want_list: [
+        {
+          user_id: "ada",
+          card_key: key,
+          created_at: "2026-04-01T00:00:00.000Z",
+          target_price: 42,
+          notes: "secret note",
+          email: "ada@secret.test",
+        },
+        {
+          user_id: "ada",
+          card_key: "other-card",
+          created_at: "2026-04-03T00:00:00.000Z",
+          notes: "other card note",
+          target_price: 8,
+        },
+        {
+          user_id: "ben",
+          card_key: key,
+          created_at: "2026-04-02T00:00:00.000Z",
+          target_price: 11,
+          notes: "ben note",
+        },
+      ],
+    };
+    const client = fakeClient({ tables });
+    const none = await client.rpc("card_hunters", { p_card_key: key });
+    assert.deepEqual(none.data, []);
+    const hidden = await getOwnersAndHunters(key, null, client);
+    assert.equal(hidden.hunters?.count, 0);
+    assert.deepEqual(hidden.hunters?.people, []);
+
+    ada.show_as_hunter = true;
+    const one = await client.rpc("card_hunters", { p_card_key: key });
+    assert.deepEqual(one.data, [{ user_id: "ada" }]);
+    assert.deepEqual(Object.keys((one.data as Row[])[0] ?? {}), ["user_id"]);
+    const shown = await getOwnersAndHunters(key, null, client);
+    assert.equal(shown.hunters?.count, 1);
+    assert.deepEqual(
+      shown.hunters?.people.map((person) => person.handle),
+      ["ada"],
+    );
+    assertPeople(shown.hunters?.people ?? []);
+    const blob = JSON.stringify({ rpc: one.data, shown });
+    assert.equal(blob.includes("secret"), false);
+    assert.equal(blob.includes("42"), false);
+    assert.equal(blob.includes("note"), false);
+    assert.equal(blob.includes("ben"), false);
+  });
+
+  it("excludes a blocked hunter both ways, counts the viewer, and keeps four person keys", async () => {
+    const sample = card("owner", "card-owner");
+    const key = identityKeyFromRow(sample);
+    const client = fakeClient({
+      blockedByThem: ["ben"],
+      tables: {
+        public_cards: [],
+        want_list: [
+          {
+            user_id: "ada",
+            card_key: key,
+            created_at: "2026-06-01T00:00:00.000Z",
+            target_price: 42,
+            notes: "secret note",
+          },
+          {
+            user_id: "ben",
+            card_key: key,
+            created_at: "2026-06-02T00:00:00.000Z",
+            target_price: 15,
+            notes: "blocked me",
+          },
+          {
+            user_id: "cole",
+            card_key: key,
+            created_at: "2026-06-03T00:00:00.000Z",
+            target_price: 9,
+          },
+          {
+            user_id: "viewer",
+            card_key: key,
+            created_at: "2026-06-04T00:00:00.000Z",
+            target_price: 3,
+            notes: "my note",
+          },
+          {
+            user_id: "dina",
+            card_key: key,
+            created_at: "2026-06-05T00:00:00.000Z",
+            target_price: 4,
+          },
+        ],
+        profiles: [
+          profile("ada", "ada", { show_as_hunter: true, email: "ada@secret.test" }),
+          profile("ben", "ben", { show_as_hunter: true }),
+          profile("cole", "cole", { show_as_hunter: true }),
+          profile("viewer", "viewer", { show_as_hunter: true }),
+          profile("dina", "dina"),
+        ],
+        blocks: [{ blocker_id: "viewer", blocked_id: "ada" }],
+      },
+    });
+    const rpc = await client.rpc("card_hunters", { p_card_key: key });
+    const ids = ((rpc.data ?? []) as Row[]).map((row) => row.user_id).sort();
+    assert.deepEqual(ids, ["ada", "ben", "cole", "viewer"]);
+    for (const row of (rpc.data ?? []) as Row[]) {
+      assert.deepEqual(Object.keys(row), ["user_id"]);
+    }
+    const result = await getOwnersAndHunters(key, "viewer", client);
+    assert.equal(result.hunters?.count, 2);
+    assert.deepEqual(
+      result.hunters?.people.map((person) => person.handle),
+      ["cole"],
+    );
+    assertPeople(result.hunters?.people ?? []);
+    const blob = JSON.stringify(result);
+    assert.equal(blob.includes("secret"), false);
+    assert.equal(blob.includes("ada"), false);
+    assert.equal(blob.includes("ben"), false);
+    assert.equal(blob.includes("dina"), false);
+    assert.equal(blob.includes("42"), false);
+    assert.equal(blob.includes("note"), false);
+  });
+
+  it("hides hunters when card_hunters has not been created", async () => {
+    const sample = card("ada", "card-ada");
+    const key = identityKeyFromRow(sample);
+    const result = await getOwnersAndHunters(
+      key,
+      null,
+      fakeClient({
+        rpcMissing: true,
+        tables: {
+          public_cards: [sample],
+          want_list: [
+            {
+              user_id: "ivy",
+              card_key: key,
+              notes: "secret note",
+              target_price: 42,
+            },
+          ],
+          profiles: [profile("ada", "ada"), profile("ivy", "ivy", { show_as_hunter: true })],
+        },
+      }),
+    );
+    assert.equal(result.hunters, null);
+    assert.equal(result.owners.count, 1);
+    assert.equal(JSON.stringify(result).includes("secret"), false);
   });
 });
 
@@ -611,7 +777,12 @@ describe("card follow", () => {
     assert.match(sql, /returns table \(\s*user_id uuid\s*\)/);
     assert.match(sql, /revoke all on function public\.card_hunters\(text\) from public/);
     assert.match(sql, /grant execute on function public\.card_hunters\(text\) to anon, authenticated/);
-    assert.match(sql, /w\.is_public is true/);
+    assert.match(sql, /show_as_hunter boolean not null default false/);
+    assert.match(sql, /p\.show_as_hunter is true/);
+    assert.doesNotMatch(sql, /is_public/);
+    assert.doesNotMatch(sql, /default true/);
+    assert.match(sql, /alter table public\.profiles/);
+    assert.doesNotMatch(sql, /alter table public\.want_list/);
     assert.doesNotMatch(sql, /create policy|drop policy|alter policy/i);
     const body = sql.slice(sql.indexOf("as $$"), sql.lastIndexOf("$$;"));
     assert.match(body, /select s\.user_id/);
