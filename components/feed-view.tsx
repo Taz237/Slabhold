@@ -9,6 +9,7 @@ import { MentionTextarea } from "@/components/mention-textarea";
 import { solidButton } from "@/components/button-styles";
 import { FollowButton } from "@/components/follow-button";
 import { useCollection } from "@/components/collection-provider";
+import { AddToHomeTip } from "@/components/add-to-home-tip";
 import { FirstCardWelcome } from "@/components/first-card-welcome";
 import { GetStartedCard, useGetStartedDismissed, useRememberNewUser } from "@/components/get-started";
 import { useSocial } from "@/components/social-provider";
@@ -23,13 +24,12 @@ import { loginPath } from "@/lib/auth/safe-next";
 import { takeCompose } from "@/lib/capture";
 import { fileToDataUrl } from "@/lib/storage";
 import {
+  checklistBlocksAddToHomeTip,
   checklistState,
-  countLoadedPosts,
   defaultHomeTab,
   isNewUser,
+  profileStepDone,
 } from "@/lib/social/get-started";
-import { createSupabaseBrowser } from "@/lib/supabase/browser";
-import { getSupabaseConfig } from "@/lib/supabase/client";
 import { followingAuthorIds, homeHead, showsNewPosts } from "@/lib/social/feed-page";
 import { addUnblockedProfiles, presentPagedItems } from "@/lib/social/paged-items";
 import { publicTimeline } from "@/lib/social/timeline";
@@ -59,7 +59,6 @@ export function FeedView() {
     mutedIds,
   } = useSocial();
   const { cards, ready: cardsReady, syncError } = useCollection();
-  const composerRef = useRef<HTMLTextAreaElement>(null);
   const { dismissed, dismiss } = useGetStartedDismissed(user?.id ?? null);
   const following = user ? followingCount(user.id) : 0;
   const countsReady = Boolean(user) && ready && cardsReady && !syncError;
@@ -67,16 +66,27 @@ export function FeedView() {
     ? isNewUser({ followingCount: following, cardCount: cards.length })
     : null;
   const wasNewUser = useRememberNewUser(user?.id ?? null, wasNewOnLoad);
-  const postCount = useOwnPostCount(user?.id ?? null, mode, posts);
   const started = checklistState({
     cardCount: cards.length,
     followingCount: following,
-    postCount: postCount ?? 0,
+    profileDone: profileStepDone({
+      avatarDataUrl: user?.avatarDataUrl,
+      bio: user?.bio,
+    }),
     dismissed,
-    ready: countsReady && postCount !== null,
+    ready: countsReady,
     createdAt: user?.createdAt ?? null,
     wasNewUser,
   });
+  const showAddToHome =
+    Boolean(user) &&
+    !checklistBlocksAddToHomeTip({
+      visible: started.visible,
+      complete: started.complete,
+      dismissed,
+      wasNewUser,
+      createdAt: user?.createdAt ?? null,
+    });
   const showWelcome =
     Boolean(user) &&
     !started.visible &&
@@ -179,16 +189,6 @@ export function FeedView() {
     router.push("/search");
   }
 
-  function focusComposer() {
-    const field = composerRef.current;
-    if (field && field.getClientRects().length > 0) {
-      field.scrollIntoView({ behavior: "smooth", block: "center" });
-      field.focus();
-      return;
-    }
-    router.push("/compose");
-  }
-
   if (!ready) {
     return (
       <PullToRefresh
@@ -211,15 +211,15 @@ export function FeedView() {
       }}
       className="-mx-4 -mt-5"
     >
-      {started.visible ? (
+      {user && started.visible ? (
         <GetStartedCard
           state={started}
           followingCount={following}
           onDismiss={dismiss}
           onFollow={openCollectors}
-          onPost={focusComposer}
         />
       ) : null}
+      {showAddToHome && user ? <AddToHomeTip userId={user.id} /> : null}
       {showWelcome ? <FirstCardWelcome /> : user ? <CollectionToday /> : null}
       {postCardValuesMessage ? (
         <p className="border-b border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
@@ -237,7 +237,7 @@ export function FeedView() {
       </div>
 
       {user ? (
-        <Composer inputRef={composerRef} onPosted={() => setRefreshKey((key) => key + 1)} />
+        <Composer onPosted={() => setRefreshKey((key) => key + 1)} />
       ) : (
         <SignedOutBanner />
       )}
@@ -365,46 +365,6 @@ function CollectorSuggestions({ profiles }: { profiles: Profile[] }) {
   );
 }
 
-function useOwnPostCount(
-  userId: string | null,
-  mode: "local" | "supabase",
-  posts: { authorId: string }[],
-) {
-  const configured = getSupabaseConfig().configured;
-  const [remoteCount, setRemoteCount] = useState<{ userId: string; count: number } | null>(null);
-
-  useEffect(() => {
-    if (!userId || mode !== "supabase" || !configured) return;
-    let cancelled = false;
-    const supabase = createSupabaseBrowser();
-    if (!supabase) return;
-    void supabase
-      .from("posts")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", userId)
-      .then(
-        ({ count, error }) => {
-          if (cancelled) return;
-          setRemoteCount({
-            userId,
-            count: error || typeof count !== "number" ? 0 : count,
-          });
-        },
-        () => {
-          if (!cancelled) setRemoteCount({ userId, count: 0 });
-        },
-      );
-    return () => {
-      cancelled = true;
-    };
-  }, [configured, mode, posts, userId]);
-
-  if (!userId) return 0;
-  if (mode !== "supabase" || !configured) return countLoadedPosts(posts, userId);
-  if (remoteCount?.userId === userId) return remoteCount.count;
-  return null;
-}
-
 function LaneTab({
   active,
   onClick,
@@ -440,13 +400,7 @@ function SignedOutBanner() {
   );
 }
 
-function Composer({
-  inputRef,
-  onPosted,
-}: {
-  inputRef?: React.Ref<HTMLTextAreaElement>;
-  onPosted?: () => void;
-}) {
+function Composer({ onPosted }: { onPosted?: () => void }) {
   const { createPost, user } = useSocial();
   const { cards } = useCollection();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -511,7 +465,6 @@ function Composer({
       ) : null}
       <div className="min-w-0 flex-1">
         <MentionTextarea
-          ref={inputRef}
           value={body}
           onChange={setBody}
           maxLength={POST_LIMIT}
