@@ -224,7 +224,7 @@ export function PostView({ id }: { id: string }) {
         </ul>
       )}
 
-      {user && lane === "replies" && blockedIds.includes(author.id) ? (
+      {user && lane === "replies" && author.id !== user.id && blockedIds.includes(author.id) ? (
         <div className="fixed inset-x-0 bottom-[calc(6.15rem+env(safe-area-inset-bottom))] z-20 mx-auto w-full max-w-lg border-t border-zinc-200 bg-[color-mix(in_oklab,var(--background)_92%,transparent)] px-4 py-3 text-sm text-zinc-500 backdrop-blur-xl dark:border-white/10">
           You can&apos;t interact with this account.
         </div>

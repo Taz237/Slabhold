@@ -123,6 +123,7 @@ export function ProfileView({ username }: { username?: string }) {
   const blockedProfile = username
     ? safetyAccounts.find(
         (person) =>
+          person.id !== user?.id &&
           blockedIds.includes(person.id) &&
           person.username.toLowerCase() === username.toLowerCase(),
       )
@@ -423,7 +424,7 @@ function MissingProfile({
       }
       const { data: sessionData } = await supabase.auth.getSession();
       const me = sessionData.session?.user.id;
-      if (!me) {
+      if (!me || data.id === me) {
         setState("missing");
         return;
       }

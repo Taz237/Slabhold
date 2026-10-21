@@ -83,7 +83,9 @@ export function MessageThread({ username }: { username: string }) {
 
   const blockedPartner = safetyAccounts.find(
     (person) =>
-      blockedIds.includes(person.id) && person.username.toLowerCase() === username.toLowerCase(),
+      person.id !== user?.id &&
+      blockedIds.includes(person.id) &&
+      person.username.toLowerCase() === username.toLowerCase(),
   );
   if (blockedPartner) {
     return (

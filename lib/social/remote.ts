@@ -639,7 +639,11 @@ export async function remoteAddComment(
 ): Promise<AuthResult> {
   const text = body.trim().slice(0, COMMENT_LIMIT);
   if (!text) return { error: "Write a comment." };
-  if (postAuthorId && (await supabaseSafety(supabase).isBlocked(authorId, postAuthorId))) {
+  if (
+    postAuthorId &&
+    postAuthorId !== authorId &&
+    (await supabaseSafety(supabase).isBlocked(authorId, postAuthorId))
+  ) {
     return { error: BLOCKED_INTERACTION };
   }
   const { error } = await supabase.from("comments").insert({
