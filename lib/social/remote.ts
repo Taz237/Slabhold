@@ -1003,6 +1003,29 @@ export async function remoteDeletePost(supabase: SupabaseClient, authorId: strin
   return {};
 }
 
+export async function remoteDeleteComment(
+  supabase: SupabaseClient,
+  authorId: string,
+  commentId: string,
+) {
+  const { data, error } = await supabase
+    .from("comments")
+    .delete()
+    .eq("id", commentId)
+    .eq("user_id", authorId)
+    .select("id");
+  if (error) {
+    return {
+      error: rlsBlocked(error) ? "You can only delete your own replies." : error.message,
+    };
+  }
+  // PostgREST returns zero rows, not an error, when RLS hides the delete.
+  if (!Array.isArray(data) || data.length === 0) {
+    return { error: "Could not delete that reply." };
+  }
+  return {};
+}
+
 async function storedCard(
   supabase: SupabaseClient,
   userId: string,

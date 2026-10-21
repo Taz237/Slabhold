@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Ellipsis } from "lucide-react";
 import { Avatar } from "@/components/avatar";
 import { EmptyState, LoadingRows } from "@/components/status";
 import { solidButton } from "@/components/button-styles";
@@ -13,8 +13,9 @@ import { SafetyMenu } from "@/components/safety-menu";
 import { AuthorLine, Engagement, Tweet } from "@/components/tweet";
 import { useSocial } from "@/components/social-provider";
 import { signupPath } from "@/lib/auth/safe-next";
+import { canDeleteReply } from "@/lib/social/local-db";
 import { quotesOf } from "@/lib/social/quotes";
-import { COMMENT_LIMIT } from "@/lib/social/types";
+import { COMMENT_LIMIT, type AuthResult, type PostComment } from "@/lib/social/types";
 
 const PAGE_SIZE = 20;
 
@@ -32,6 +33,7 @@ export function PostView({ id }: { id: string }) {
   const [pending, setPending] = useState(false);
   const [lane, setLane] = useState<"replies" | "quotes">("replies");
   const [quoteLimit, setQuoteLimit] = useState(PAGE_SIZE);
+  const [deleteNotice, setDeleteNotice] = useState<{ text: string; error: boolean } | null>(null);
 
   const quotes = useMemo(() => quotesOf(posts, id), [id, posts]);
   const visibleQuotes = quotes.slice(0, quoteLimit);
@@ -50,6 +52,19 @@ export function PostView({ id }: { id: string }) {
     setLane("replies");
     setQuoteLimit(PAGE_SIZE);
   }, [id]);
+
+  useEffect(() => {
+    if (!deleteNotice) return;
+    const timer = window.setTimeout(() => setDeleteNotice(null), 2200);
+    return () => window.clearTimeout(timer);
+  }, [deleteNotice]);
+
+  function onReplyDelete(result: AuthResult) {
+    setDeleteNotice({
+      text: result.error ?? "Reply deleted",
+      error: Boolean(result.error),
+    });
+  }
 
   function focusReply(username?: string) {
     if (!user) {
@@ -193,12 +208,16 @@ export function PostView({ id }: { id: string }) {
                       href={commenter ? `/u/${commenter.username}` : "/"}
                       createdAt={reply.createdAt}
                     />
-                    <SafetyMenu
-                      targetType="reply"
-                      targetId={reply.id}
-                      reportedUserId={reply.authorId}
-                      username={username}
-                    />
+                    {canDeleteReply(user?.id, reply.authorId) ? (
+                      <ReplyMenu reply={reply} onResult={onReplyDelete} />
+                    ) : (
+                      <SafetyMenu
+                        targetType="reply"
+                        targetId={reply.id}
+                        reportedUserId={reply.authorId}
+                        username={username}
+                      />
+                    )}
                   </div>
                   <p className="text-[13px] text-zinc-500">
                     Replying to{" "}
@@ -267,6 +286,122 @@ export function PostView({ id }: { id: string }) {
           <Link href={signupPath(pathname)} className={solidButton}>
             Sign up
           </Link>
+        </div>
+      ) : null}
+      {deleteNotice ? (
+        <p
+          role="status"
+          className={`fixed bottom-[calc(5.75rem+env(safe-area-inset-bottom))] left-1/2 z-50 max-w-sm -translate-x-1/2 rounded-full px-4 py-2 text-center text-sm font-bold shadow-lg ${
+            deleteNotice.error
+              ? "bg-rose-600 text-white"
+              : "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-950"
+          }`}
+        >
+          {deleteNotice.text}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+function ReplyMenu({
+  reply,
+  onResult,
+}: {
+  reply: PostComment;
+  onResult: (result: AuthResult) => void;
+}) {
+  const { deleteComment } = useSocial();
+  const [open, setOpen] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const started = useRef(false);
+
+  useEffect(() => {
+    if (!open) return;
+    function onPointer(event: MouseEvent) {
+      if (!rootRef.current?.contains(event.target as Node)) {
+        setOpen(false);
+        setConfirming(false);
+      }
+    }
+    function onKey(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setOpen(false);
+        setConfirming(false);
+      }
+    }
+    document.addEventListener("mousedown", onPointer);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onPointer);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  function close() {
+    setOpen(false);
+    setConfirming(false);
+  }
+
+  return (
+    <div ref={rootRef} className="relative -mt-1 shrink-0">
+      <button
+        type="button"
+        aria-label="More"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={() => {
+          setConfirming(false);
+          setOpen((value) => !value);
+        }}
+        className="grid h-8 w-8 place-items-center rounded-full text-zinc-500 hover:bg-zinc-100 dark:hover:bg-white/10"
+      >
+        <Ellipsis className="h-5 w-5" />
+      </button>
+      {open ? (
+        <div
+          role="menu"
+          className="absolute top-9 right-0 z-30 w-52 overflow-hidden rounded-2xl border border-zinc-200 bg-[var(--background)] py-1 shadow-lg dark:border-white/10"
+        >
+          {confirming ? (
+            <div className="px-3 py-2.5">
+              <p className="text-sm font-bold">Delete this reply?</p>
+              <div className="mt-2.5 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (started.current) return;
+                    started.current = true;
+                    void deleteComment(reply.id).then((result) => {
+                      if (result.error) started.current = false;
+                      close();
+                      onResult(result);
+                    });
+                  }}
+                  className="flex-1 rounded-full bg-rose-600 py-1.5 text-sm font-bold text-white"
+                >
+                  Delete
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirming(false)}
+                  className="flex-1 rounded-full border border-zinc-300 py-1.5 text-sm font-bold dark:border-white/20"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => setConfirming(true)}
+              className="block w-full px-4 py-2.5 text-left text-[15px] font-bold text-rose-600 hover:bg-zinc-100 dark:hover:bg-white/10"
+            >
+              Delete reply
+            </button>
+          )}
         </div>
       ) : null}
     </div>
