@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AtSign, Bell, Heart, MessageCircle, Quote, Repeat2, Star, UserPlus } from "lucide-react";
 import { Avatar } from "@/components/avatar";
 import { solidButton } from "@/components/button-styles";
@@ -14,21 +14,38 @@ import { exactTime, timeAgo } from "@/lib/format";
 import {
   groupHeadlineParts,
   groupNotifications,
+  groupStaysHighlighted,
+  unreadNotificationIds,
   type NotificationGroup,
 } from "@/lib/social/group-notifications";
 import type { NotificationKind, Profile } from "@/lib/social/types";
 
 export function NotificationsView() {
   const pathname = usePathname() || "/";
-  const { ready, user, profiles, notifications, unreadCount, markNotificationsRead, refresh } = useSocial();
+  const { ready, user, profiles, notifications, markNotificationsRead, refresh } = useSocial();
+  const userId = user?.id ?? null;
+  const unreadOnVisit = useRef<{ userId: string; ids: ReadonlySet<string> } | null>(null);
+  const [savedUnreadIds, setSavedUnreadIds] = useState<ReadonlySet<string> | null>(null);
 
   useEffect(() => {
-    if (ready && user) void refresh();
-  }, [ready, refresh, user]);
-
-  useEffect(() => {
-    if (ready && user && unreadCount > 0) markNotificationsRead();
-  }, [markNotificationsRead, ready, unreadCount, user]);
+    if (!ready || !userId) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const loaded = await refresh();
+        if (cancelled || unreadOnVisit.current?.userId === userId) return;
+        const ids = new Set(unreadNotificationIds(loaded));
+        unreadOnVisit.current = { userId, ids };
+        setSavedUnreadIds(ids);
+        markNotificationsRead([...ids]);
+      } catch {
+        // Leave the badge alone when the refresh fails.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [markNotificationsRead, ready, refresh, userId]);
 
   if (!ready) {
     return (
@@ -83,9 +100,21 @@ export function NotificationsView() {
             const headline = groupHeadlineParts(group.kind, names);
             const lead = authors.get(group.actorIds[0] ?? "");
             const faces = group.actorIds.slice(0, 2);
+            const highlighted = groupStaysHighlighted(group, savedUnreadIds);
             return (
               <li key={group.key}>
-                <Link href={href} className="flex gap-3 px-4 py-3">
+                <Link
+                  href={href}
+                  className={`relative flex w-full min-w-0 items-start gap-3 px-4 py-3 ${
+                    highlighted ? "bg-sky-500/15 dark:bg-sky-400/15" : ""
+                  }`}
+                >
+                  {highlighted ? (
+                    <span
+                      className="absolute top-7 left-1.5 h-2 w-2 rounded-full bg-sky-500 dark:bg-sky-400"
+                      aria-hidden="true"
+                    />
+                  ) : null}
                   {faces.length > 1 ? (
                     <span className="flex shrink-0 -space-x-3">
                       {faces.map((id) => {
@@ -109,6 +138,7 @@ export function NotificationsView() {
                     />
                   )}
                   <span className="min-w-0 flex-1">
+                    {highlighted ? <span className="sr-only">Unread. </span> : null}
                     <span className="block text-[15px] leading-5">
                       {group.kind === "want_alert" ? (
                         <span>{group.preview}</span>

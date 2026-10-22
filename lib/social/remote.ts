@@ -804,12 +804,16 @@ export async function remoteMarkThreadRead(
 export async function remoteMarkNotificationsRead(
   supabase: SupabaseClient,
   userId: string,
+  ids?: readonly string[],
 ): Promise<AuthResult> {
-  const { error } = await supabase
+  if (ids && ids.length === 0) return {};
+  let query = supabase
     .from("notifications")
     .update({ read: true })
     .eq("recipient_id", userId)
     .eq("read", false);
+  if (ids) query = query.in("id", [...ids]);
+  const { error } = await query;
   if (error && !missingTable(error)) return { error: error.message };
   return {};
 }
