@@ -230,6 +230,46 @@ describe("search word split", () => {
       }),
       true,
     );
+    const fleer = {
+      ...base,
+      playerName: "Michael Jordan",
+      year: 1986,
+      yearLabel: "1986",
+      setBrand: "Fleer",
+      cardNumber: "57",
+      grade: "PSA 8",
+    };
+    for (const query of ["jordan 57 psa 8", "jordan #57 psa 8", "1986 fleer jordan 57 psa 8"]) {
+      assert.equal(cardMatch(query, fleer), true, query);
+    }
+    const lebron23 = {
+      ...base,
+      playerName: "LeBron James",
+      year: 2003,
+      yearLabel: "2003",
+      cardNumber: "23",
+      grade: "PSA 10",
+    };
+    assert.equal(cardMatch("lebron 23 psa 10", lebron23), true);
+    assert.equal(cardMatch("lebron #23 psa 10", lebron23), true);
+    assert.equal(
+      cardMatch("lebron 23 bgs 9.5", {
+        ...lebron23,
+        grade: "BGS 9.5",
+      }),
+      true,
+    );
+    assert.equal(
+      cardMatch("lebron 1 psa 10", {
+        ...base,
+        playerName: "LeBron James",
+        year: 2003,
+        yearLabel: "2003",
+        cardNumber: "1",
+        grade: "PSA 10",
+      }),
+      true,
+    );
     assert.equal(
       cardMatch("lebron graded", {
         ...base,
@@ -373,6 +413,9 @@ describe("catalog search results", () => {
     assert.equal(parsed?.sport, "Football");
     assert.equal(parsed?.isRookie, true);
     assert.equal(catalogCardFromParams({ pick: "", player: "Bucky Irving" }), null);
+    const emojiName = `${"a".repeat(79)}🔥`;
+    assert.equal(catalogCardFromParams({ pick: "1", player: emojiName })?.playerName, emojiName);
+    assert.equal(catalogCardFromParams({ pick: "1", player: `${"b".repeat(79)}\uDC00` })?.playerName, "b".repeat(79));
 
     const identity = {
       playerName: "Bucky Irving",

@@ -236,6 +236,8 @@ describe("search sections", () => {
     assert.equal(emoji, `${"a".repeat(99)}🔥`);
     assert.doesNotThrow(() => encodeURIComponent(emoji));
     assert.doesNotThrow(() => encodeURIComponent(addCardQuery(`${"a".repeat(99)}\uD83D`)));
+    assert.equal(addCardQuery(`${"a".repeat(99)}\uDC00`), "a".repeat(99));
+    assert.doesNotThrow(() => encodeURIComponent(addCardQuery(`${"a".repeat(99)}\uDC00`)));
     const page = read("app/cards/new/page.tsx");
     assert.match(page, /addCardQuery\(/);
     assert.match(page, /<CardForm initialQuery=\{initialQuery\} initialCatalog=\{initialCatalog\} \/>/);

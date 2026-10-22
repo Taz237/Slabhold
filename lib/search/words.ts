@@ -29,7 +29,8 @@ export function plainSearchWords(query: string): string[] {
 /** "graded", "gem", and "mint" mean the card has a grade. They are not words to find. */
 const ANY_GRADE_WORDS = new Set(["graded", "gem", "mint"]);
 
-const GRADE_NUMBER = /^\d{1,2}(?:\.\d+)?$/;
+/** 1 through 10, or a half point such as 9.5. "#57" is a card number, not a grade. */
+const GRADE_NUMBER = /^(?:10|[1-9])(?:\.5)?$/;
 const GLUED_GRADE = /^(psa|bgs|sgc|cgc|beckett)(\d{1,2}(?:\.\d+)?)$/;
 /** "psa10" and "psa-10" are the same grade words once punctuation is gone. */
 const GLUED_GRADE_WORD = /^(?:psa|bgs|sgc|cgc|beckett)-?\d{1,2}(?:\.\d+)?$/;
@@ -37,7 +38,10 @@ const GLUED_GRADE_WORD = /^(?:psa|bgs|sgc|cgc|beckett)-?\d{1,2}(?:\.\d+)?$/;
 type GradeNeed = {
   anyGrade: boolean;
   tokens: string[];
-  /** A number sitting directly before a grader. It is not a year or a card number. */
+  /**
+   * A 1-10 number directly before a grader that is not followed by its own
+   * grade number. It is not a year or a card number. A "#57" never qualifies.
+   */
   before: string[];
 };
 
@@ -47,9 +51,11 @@ function gradeTokens(input: string): string[] {
     .normalize("NFD")
     .replace(/\p{M}/gu, "")
     .toLowerCase()
+    .replace(/#(?=\d)/g, "\u0001")
     .replace(/(\d)\.(\d)/g, "$1\u0000$2")
-    .replace(/[^a-z0-9\u0000]+/g, " ")
+    .replace(/[^a-z0-9\u0000\u0001]+/g, " ")
     .replace(/\u0000/g, ".")
+    .replace(/\u0001/g, "#")
     .trim()
     .replace(/\s+/g, " ");
   if (!prepared) return [];
@@ -73,8 +79,15 @@ function gradeNeed(query: string): GradeNeed {
       continue;
     }
     if (GRADER_WORDS.has(token)) {
+      const next = tokens[index + 1];
+      const followedByGrade = Boolean(next && GRADE_NUMBER.test(next));
       const previous = index > 0 ? tokens[index - 1] : undefined;
-      if (previous && GRADE_NUMBER.test(previous) && !required.includes(previous)) {
+      if (
+        !followedByGrade &&
+        previous &&
+        GRADE_NUMBER.test(previous) &&
+        !required.includes(previous)
+      ) {
         required.push(previous);
         before.push(previous);
       }
@@ -125,9 +138,9 @@ function gradeIsPresent(tokens: Set<string>): boolean {
 /**
  * True when every card-search word appears in at least one field.
  * A query the card grammar empties ("psa 10", "rookie") falls back to plain
- * words. Grade words, including a number directly before the grader, are whole
- * tokens of `grade` only, so a year, card number, or team cannot satisfy "10"
- * or "9.5".
+ * words. A number directly before a grader is a grade only when that grader
+ * has no number of its own, and a "#57" stays a card number. Those grade
+ * tokens match `grade` only, so a year or team cannot satisfy "10" or "9.5".
  */
 export function matchesEverySearchWord(
   query: string,

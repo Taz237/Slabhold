@@ -109,11 +109,15 @@ export function dropSharedBrowserRecentSearches(accounts: {
 }
 
 /**
- * The Add card page keeps at most this many characters of the search text.
- * Clip by whole characters, then drop a trailing half of a pair, so
- * encodeURIComponent never sees a lone surrogate.
+ * Keep at most `limit` whole characters. A trailing half of a pair is dropped
+ * so encodeURIComponent never sees a lone surrogate. A finished emoji stays.
  */
+export function clipWholeCharacters(value: string, limit: number): string {
+  const clipped = Array.from(value).slice(0, limit).join("");
+  return clipped.replace(/(?:[\uD800-\uDBFF]$|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]$)/, "");
+}
+
+/** The Add card page keeps at most this many characters of the search text. */
 export function addCardQuery(value: string): string {
-  const clipped = Array.from(value).slice(0, ADD_CARD_QUERY_LIMIT).join("");
-  return clipped.replace(/[\uD800-\uDBFF]$/, "");
+  return clipWholeCharacters(value, ADD_CARD_QUERY_LIMIT);
 }

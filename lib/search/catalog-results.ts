@@ -1,4 +1,5 @@
 import type { CatalogCard } from "@/lib/card-catalog";
+import { clipWholeCharacters } from "@/lib/search/recent";
 import { ownershipMatchKey } from "@/lib/social/card-identity";
 
 /** About eight catalog rows. Add Card still asks the shared ranker for 20. */
@@ -21,7 +22,7 @@ type IdentityFields = {
 };
 
 function clip(value: string): string {
-  return value.trim().slice(0, FIELD_LIMIT);
+  return clipWholeCharacters(value.trim(), FIELD_LIMIT);
 }
 
 function identityOf(card: IdentityFields) {
