@@ -1,5 +1,6 @@
 -- Safe quote-post RLS check.
--- Uses ONLY the @grokbotreview test account (looked up by username).
+-- Uses ONLY the updates account (@slabholdupdates, formerly @grokbotreview).
+-- Prefer the profile uuid; accept either handle.
 -- Does not read or write any other user.
 -- Wrapped in a transaction that always rolls back.
 
@@ -14,15 +15,17 @@ DECLARE
 BEGIN
   SELECT id INTO bot_id
   FROM public.profiles
-  WHERE lower(username) = 'grokbotreview'
+  WHERE id = '6d31ab97-9162-4296-876d-9e0378872fce'
+     OR lower(username) IN ('slabholdupdates', 'grokbotreview')
+  ORDER BY CASE WHEN id = '6d31ab97-9162-4296-876d-9e0378872fce' THEN 0 ELSE 1 END
   LIMIT 1;
 
   IF bot_id IS NULL THEN
-    RAISE NOTICE 'FAIL: @grokbotreview profile not found';
+    RAISE NOTICE 'FAIL: updates profile not found';
     RETURN;
   END IF;
 
-  RAISE NOTICE 'PASS: resolved @grokbotreview only (%).', bot_id;
+  RAISE NOTICE 'PASS: resolved updates account only (%).', bot_id;
 
   PERFORM set_config(
     'request.jwt.claims',
@@ -39,7 +42,7 @@ BEGIN
     RAISE NOTICE 'FAIL: plain post insert returned null';
     RETURN;
   END IF;
-  RAISE NOTICE 'PASS: plain post insert as @grokbotreview';
+  RAISE NOTICE 'PASS: plain post insert as updates account';
 
   INSERT INTO public.posts (user_id, content, quoted_post_id)
   VALUES (bot_id, 'rls-verify quote post', plain_id)
@@ -49,7 +52,7 @@ BEGIN
     RAISE NOTICE 'FAIL: quote post insert returned null';
     RETURN;
   END IF;
-  RAISE NOTICE 'PASS: quote post insert as @grokbotreview';
+  RAISE NOTICE 'PASS: quote post insert as updates account';
 
   BEGIN
     INSERT INTO public.posts (user_id, content, quoted_post_id)

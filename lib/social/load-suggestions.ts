@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { rpcMissing } from "./collect-interests";
+import { officialUpdatesUserId } from "./official-updates";
 import type { ServerSuggestion } from "./suggestion-order";
 
 type RpcRow = {
@@ -26,8 +27,10 @@ export async function loadServerSuggestions(
     if (!rpcMissing(error)) console.warn("suggest_collectors", error.message);
     return null;
   }
+  const officialId = officialUpdatesUserId();
   return ((data ?? []) as RpcRow[])
     .filter((row) => Boolean(row.user_id && row.username))
+    .filter((row) => !officialId || row.user_id?.toLowerCase() !== officialId)
     .map((row) => ({
       userId: row.user_id ?? "",
       username: row.username ?? "",

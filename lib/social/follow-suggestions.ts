@@ -36,7 +36,7 @@ export type FollowSuggestionCandidate = {
 /**
  * People to suggest following.
  * Pass candidates from `followSuggestionFetchLimit(limit)` rows, then this
- * drops test and QA accounts, @grokbotreview, and is_test profiles, plus the
+ * drops test and QA accounts, the updates account, and is_test profiles, plus the
  * viewer and accounts they already follow, before cutting the list down to
  * `limit`. A handle or bio that only contains "test" stays. @slabhold stays.
  */

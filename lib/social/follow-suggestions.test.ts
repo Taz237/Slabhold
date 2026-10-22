@@ -49,6 +49,7 @@ describe("followSuggestions", () => {
     person("followed", "real_f"),
     person("team", "slabhold"),
     person("bot", "grokbotreview"),
+    person("updates", "slabholdupdates"),
     person("listed", "qa_vreset_1021"),
     person("hyphen", "qa-bot"),
   ];

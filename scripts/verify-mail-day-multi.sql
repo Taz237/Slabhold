@@ -1,5 +1,6 @@
 -- Mail Day multi-card privacy and trigger checks.
--- Writes only as @grokbotreview. Another card id is a read-only target.
+-- Writes only as the updates account (@slabholdupdates, formerly @grokbotreview).
+-- Same profile uuid. Another card id is a read-only target.
 -- Always rolls back.
 
 BEGIN;
@@ -20,11 +21,13 @@ DECLARE
 BEGIN
   SELECT id INTO bot_id
   FROM public.profiles
-  WHERE lower(username) = 'grokbotreview'
+  WHERE id = '6d31ab97-9162-4296-876d-9e0378872fce'
+     OR lower(username) IN ('slabholdupdates', 'grokbotreview')
+  ORDER BY CASE WHEN id = '6d31ab97-9162-4296-876d-9e0378872fce' THEN 0 ELSE 1 END
   LIMIT 1;
 
   IF bot_id IS NULL THEN
-    RAISE EXCEPTION 'FAIL: @grokbotreview profile not found';
+    RAISE EXCEPTION 'FAIL: updates profile not found';
   END IF;
 
   SELECT c.id INTO other_card

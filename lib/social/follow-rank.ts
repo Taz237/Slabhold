@@ -3,8 +3,8 @@ import { isTestAccount, normalizeAccountHandle, NOT_SUGGESTED_HANDLES } from "..
 /** Official account that stays available even when it does not overlap. */
 export const OPTIONAL_SUGGESTION_HANDLE = "slabhold";
 
-/** Review account kept out of follow suggestions. */
-export const HIDDEN_SUGGESTION_HANDLE = "grokbotreview";
+/** Updates account kept out of follow suggestions. The old handle is in NOT_SUGGESTED_HANDLES. */
+export const HIDDEN_SUGGESTION_HANDLE = "slabholdupdates";
 
 /**
  * Best signal per interest. Higher wins the one-line reason.
@@ -126,8 +126,8 @@ export function matchReason(kind: InterestKind, value: string, weight: number): 
 
 /**
  * Test and QA accounts stay out of follow suggestions.
- * @slabhold stays. @grokbotreview is on the not-suggested list only:
- * it is not a test account, and its posts stay visible.
+ * @slabhold stays. The updates account (@slabholdupdates, formerly @grokbotreview)
+ * is on the not-suggested list only: it is not a test account, and its posts stay visible.
  * A handle or bio that merely contains "test" is still a real collector.
  */
 export function hiddenFromSuggestions(profile: {

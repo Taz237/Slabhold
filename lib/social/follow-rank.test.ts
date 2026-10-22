@@ -43,6 +43,7 @@ describe("rankCollectors", () => {
     person("quiet", "drew", { createdAt: "2026-01-01T00:00:00.000Z" }),
     person("hold", "slabhold", { createdAt: "2026-01-09T00:00:00.000Z", bio: "internal test notes" }),
     person("bot", "grokbotreview", { createdAt: "2026-01-01T00:00:00.000Z" }),
+    person("updates", "slabholdupdates", { createdAt: "2026-01-01T00:00:00.000Z" }),
     person("flagged", "waxroom", { isTest: true }),
     person("bio", "maya", { bio: "This is a test collector" }),
     person("handle", "qatest"),
@@ -128,6 +129,7 @@ describe("rankCollectors", () => {
   it("hides test accounts and respects blocks, follows, and the viewer", () => {
     const names = ranked.map((row) => row.username);
     assert.equal(names.includes("grokbotreview"), false);
+    assert.equal(names.includes("slabholdupdates"), false);
     assert.equal(names.includes("waxroom"), false);
     assert.equal(names.includes("qa_alpha"), false);
     assert.equal(hiddenFromSuggestions({ username: "maya", bio: "This is a test collector" }), false);
@@ -247,8 +249,9 @@ describe("suggest_collectors SQL", () => {
     assert.doesNotMatch(sql, /set statement_timeout/);
     assert.doesNotMatch(sql, /position\('test'/);
     assert.doesNotMatch(ranker, /p\.bio/);
+    assert.match(ranker, /p\.username <> 'grokbotreview'/);
     for (const handle of NOT_SUGGESTED_HANDLES) {
-      assert.match(ranker, new RegExp(`p\\.username <> '${handle}'`));
+      assert.equal(hiddenFromSuggestions({ username: handle }), true);
     }
     for (const handle of TEST_ACCOUNT_HANDLES) {
       assert.match(ranker, new RegExp(`p\\.username <> '${handle}'`));
@@ -305,6 +308,7 @@ describe("mergeRankedSuggestions", () => {
     profile("a", "real_a", "2026-01-01T00:00:00.000Z"),
     profile("b", "real_b", "2026-01-02T00:00:00.000Z"),
     profile("bot", "grokbotreview", "2026-01-03T00:00:00.000Z"),
+    profile("updates", "slabholdupdates", "2026-01-03T00:00:00.000Z"),
     profile("hold", "slabhold", "2026-01-04T00:00:00.000Z"),
   ];
 
@@ -346,6 +350,15 @@ describe("mergeRankedSuggestions", () => {
           userId: "bot",
           username: "grokbotreview",
           displayName: "bot",
+          avatarUrl: null,
+          accent: null,
+          reason: "Collects Wembanyama rookies",
+          score: 100,
+        },
+        {
+          userId: "updates",
+          username: "slabholdupdates",
+          displayName: "updates",
           avatarUrl: null,
           accent: null,
           reason: "Collects Wembanyama rookies",

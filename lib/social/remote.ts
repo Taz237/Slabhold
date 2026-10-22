@@ -36,7 +36,8 @@ import {
   mentionsToNotify,
   notifyReplyMentions,
 } from "./reply-mentions";
-import { normalizeUsername, usernameError } from "./local-db";
+import { isReservedUsername, normalizeUsername, usernameChangeError, usernameError } from "./local-db";
+import { followOfficialUpdates } from "./official-updates";
 import { ilikeExact, TAKEN_USERNAME, usernameTakenMessage } from "./username-taken";
 import { validateQuoteContent } from "./quotes";
 import { pingWantMatch } from "@/lib/wants/ping";
@@ -527,6 +528,10 @@ export async function remoteSignUp(
       accent: "#7c5cff",
     });
     if (profileError) return { error: usernameTakenMessage(profileError) ?? profileError.message };
+    // Creation only. Login, profile edits, and unfollow must not call this.
+    // Email-confirm signups have no session yet; the profile insert trigger
+    // writes the same follow, and a later login does not try again.
+    await followOfficialUpdates(supabase, data.user.id);
   }
   if (!session) {
     return { notice: "Check your email to confirm the account, then log in." };
@@ -564,7 +569,17 @@ export async function remoteUpdateProfile(
   patch: ProfilePatch,
 ): Promise<AuthResult> {
   const username = normalizeUsername(patch.username);
-  const nameError = usernameError(username);
+  let currentUsername: string | null = null;
+  if (isReservedUsername(username)) {
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("username")
+      .eq("id", userId)
+      .maybeSingle();
+    if (error) return { error: error.message };
+    currentUsername = typeof data?.username === "string" ? data.username : null;
+  }
+  const nameError = usernameChangeError(username, userId, currentUsername);
   if (nameError) return { error: nameError };
   if (!patch.displayName.trim()) return { error: "Add a display name." };
   const [avatar, cover] = await Promise.all([

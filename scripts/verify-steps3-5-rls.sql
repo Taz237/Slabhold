@@ -1,5 +1,6 @@
 -- RLS checks for want_list, want_alerts, and card_value_snapshots.
--- Uses ONLY the @grokbotreview test account (looked up by username).
+-- Uses ONLY the updates account (@slabholdupdates, formerly @grokbotreview).
+-- Prefer the profile uuid; accept either handle.
 -- Wrapped in a transaction that always rolls back. Does not delete accounts.
 
 BEGIN;
@@ -14,15 +15,17 @@ DECLARE
 BEGIN
   SELECT id INTO bot_id
   FROM public.profiles
-  WHERE lower(username) = 'grokbotreview'
+  WHERE id = '6d31ab97-9162-4296-876d-9e0378872fce'
+     OR lower(username) IN ('slabholdupdates', 'grokbotreview')
+  ORDER BY CASE WHEN id = '6d31ab97-9162-4296-876d-9e0378872fce' THEN 0 ELSE 1 END
   LIMIT 1;
 
   IF bot_id IS NULL THEN
-    RAISE NOTICE 'FAIL: @grokbotreview profile not found';
+    RAISE NOTICE 'FAIL: updates profile not found';
     RETURN;
   END IF;
 
-  RAISE NOTICE 'PASS: resolved @grokbotreview only (%).', bot_id;
+  RAISE NOTICE 'PASS: resolved updates account only (%).', bot_id;
 
   INSERT INTO public.cards (user_id, player, year, "set")
   VALUES (bot_id, 'RLS Want', 2020, 'Select')
