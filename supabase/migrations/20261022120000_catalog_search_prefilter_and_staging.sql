@@ -60,7 +60,7 @@ create table if not exists public.catalog_staging (
   source text not null,
   source_ref text,
   submitted_by uuid references auth.users (id) on delete set null,
-  submitted_card_id uuid,
+  submitted_card_id uuid references public.cards (id) on delete set null,
   review text not null default 'new' check (review in ('new', 'approved', 'merged', 'rejected')),
   review_note text,
   created_at timestamptz not null default now()
@@ -74,8 +74,11 @@ create unique index if not exists catalog_staging_submitted_card_uidx
 -- submitted_card_id null. This index rejects a second copy of that identity.
 -- subset and parallel treat null and '' as the same value. NULLS NOT DISTINCT
 -- does the same for sport, year_label, product, player, and card_number.
--- Rows with submitted_card_id are user submissions. Two users can submit the
--- same card; those stay unique on submitted_card_id instead.
+-- User submissions (source = 'user') are excluded: two users can submit the
+-- same card, and they stay unique on submitted_card_id instead. Keying on
+-- source (not submitted_card_id is null) keeps de-identified user rows, whose
+-- submitted_card_id is cleared on account or card deletion, out of this index,
+-- so a deletion can never fail on a duplicate identity.
 create unique index if not exists catalog_staging_batch_identity_uidx
   on public.catalog_staging (
     batch,
@@ -88,10 +91,45 @@ create unique index if not exists catalog_staging_batch_identity_uidx
     (coalesce(parallel, ''))
   )
   nulls not distinct
-  where submitted_card_id is null;
+  where source <> 'user';
 
 create index if not exists catalog_staging_batch_review_idx
   on public.catalog_staging (batch, review);
+
+-- De-identify staging rows when the submitter's account or card is deleted.
+-- auth.users delete -> submitted_by set null (FK); public.cards delete ->
+-- submitted_card_id set null (FK). The FK actions run an UPDATE, and this
+-- trigger clears the remaining fields that point back at the person or card:
+-- submitted_card_id, source_ref (holds the card id for user rows) and
+-- review_note. Card details (player, set, number, ...) are catalog data and
+-- stay. review is unchanged, so an approved row stays approved.
+create or replace function public.catalog_staging_deidentify()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if old.submitted_by is not null and new.submitted_by is null then
+    new.submitted_card_id := null;
+    new.source_ref := null;
+    new.review_note := null;
+  elsif old.submitted_card_id is not null and new.submitted_card_id is null
+    and new.source = 'user'
+  then
+    new.source_ref := null;
+  end if;
+  return new;
+end;
+$$;
+
+revoke all on function public.catalog_staging_deidentify() from public, anon, authenticated;
+
+drop trigger if exists catalog_staging_deidentify on public.catalog_staging;
+create trigger catalog_staging_deidentify
+  before update of submitted_by, submitted_card_id on public.catalog_staging
+  for each row
+  execute function public.catalog_staging_deidentify();
 
 create table if not exists public.catalog_search_misses (
   id bigserial primary key,
@@ -595,7 +633,9 @@ grant execute on function public.log_catalog_search_miss(text) to authenticated;
 comment on function public.log_catalog_search_miss(text) is
   'Record one catalog search that returned zero rows. Callers cannot read the log.';
 
--- Manual. Marks user submissions approved when 2+ different users share a normalized identity.
+-- Manual. Marks user submissions approved when 2+ different live users share a normalized identity.
+-- Rows whose submitter was deleted (submitted_by null) do not count and are not newly approved;
+-- rows that were already approved stay approved.
 create or replace function public.approve_catalog_consensus()
 returns integer
 language plpgsql
@@ -626,6 +666,7 @@ begin
     from grouped
     where staging.review = 'new'
       and staging.source = 'user'
+      and staging.submitted_by is not null
       and public.norm(staging.player) = grouped.player_n
       and public.norm(coalesce(staging.year_label, '')) = grouped.year_n
       and public.norm(coalesce(staging.product, '')) = grouped.product_n

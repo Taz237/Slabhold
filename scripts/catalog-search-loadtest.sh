@@ -67,10 +67,8 @@ SQL
 
   run_sql -f supabase/migrations/20261016210000_card_catalog_search.sql
   run_sql -f supabase/migrations/20261021120000_card_catalog_search_ranking.sql
-  # SET LOCAL lock_timeout in the approved migration has to run inside a transaction.
-  run_sql --single-transaction -f supabase/migrations/20261022120000_catalog_search_prefilter_and_staging.sql
-  run_sql -c "grant usage on schema extensions to anon, authenticated;"
-
+  # catalog_staging.submitted_card_id references public.cards, so the table
+  # has to exist before the approved migration.
   run_sql <<'SQL'
 create table if not exists public.cards (
   id uuid primary key,
@@ -87,6 +85,9 @@ create table if not exists public.cards (
   is_rookie boolean not null default false
 );
 SQL
+  # SET LOCAL lock_timeout in the approved migration has to run inside a transaction.
+  run_sql --single-transaction -f supabase/migrations/20261022120000_catalog_search_prefilter_and_staging.sql
+  run_sql -c "grant usage on schema extensions to anon, authenticated;"
 fi
 
 run_sql <<'SQL'
@@ -138,14 +139,13 @@ begin
       null;
   end;
 
+  -- source = 'user' is outside the batch identity index, including after
+  -- submitted_card_id is cleared. Two de-identified copies of one card both stay.
   insert into public.catalog_staging (
-    batch, sport, year_label, product, player, card_number, parallel,
-    source, submitted_card_id
+    batch, sport, year_label, product, player, card_number, parallel, source
   ) values
-    ('user', 'Baseball', '2024', 'Topps Chrome', 'Bot Player', '1', 'Base', 'user',
-      'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'),
-    ('user', 'Baseball', '2024', 'Topps Chrome', 'Bot Player', '1', 'Base', 'user',
-      'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb');
+    ('user', 'Baseball', '2024', 'Topps Chrome', 'Bot Player', '1', 'Base', 'user'),
+    ('user', 'Baseball', '2024', 'Topps Chrome', 'Bot Player', '1', 'Base', 'user');
 
   select count(*) into n
   from public.catalog_staging
@@ -156,9 +156,9 @@ begin
 
   select count(*) into n
   from public.catalog_staging
-  where submitted_card_id is not null;
+  where source = 'user';
   if n <> 2 then
-    raise exception 'same identity from two users was collapsed (% rows)', n;
+    raise exception 'user rows were collapsed by the batch identity index (% rows)', n;
   end if;
 
   delete from public.catalog_staging
@@ -303,6 +303,38 @@ begin
   select md5(string_agg(cards::text, '|' order by id)) into after_cards from public.cards;
   if before_cards is distinct from after_cards then
     raise exception 'cards rows changed';
+  end if;
+
+  update public.catalog_staging
+  set review_note = 'qa-note'
+  where submitted_card_id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+
+  delete from public.cards where id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+
+  select count(*) into n
+  from public.catalog_staging
+  where player = 'Zebulon Quill'
+    and submitted_by = '11111111-1111-1111-1111-111111111111'
+    and submitted_card_id is null
+    and source_ref is null
+    and review_note = 'qa-note'
+    and review = 'merged';
+  if n <> 1 then
+    raise exception 'card delete did not clear only the card link (% rows)', n;
+  end if;
+
+  delete from auth.users where id = '11111111-1111-1111-1111-111111111111';
+
+  select count(*) into n
+  from public.catalog_staging
+  where player = 'Zebulon Quill'
+    and submitted_by is null
+    and submitted_card_id is null
+    and source_ref is null
+    and review_note is null
+    and review = 'merged';
+  if n <> 1 then
+    raise exception 'account delete did not de-identify the staging row (% rows)', n;
   end if;
 end $$;
 SQL
