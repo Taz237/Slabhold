@@ -400,13 +400,13 @@ function CollectorSuggestions({
       id="collectors-to-follow"
       className="scroll-mt-20 border-b border-zinc-200 px-4 py-3 dark:border-white/10"
     >
-      <div className="mb-2 flex items-center justify-between gap-2">
+      <div className="mb-2 flex items-center justify-between gap-2 max-md:pr-20">
         <p className="text-xs font-medium text-zinc-500">Collectors to follow</p>
         {pending.length > 0 ? (
           <button
             type="button"
             onClick={() => void followMany(pending.map((profile) => profile.id))}
-            className="inline-flex min-h-11 items-center rounded-full bg-zinc-900 px-3 text-xs font-bold text-white dark:bg-zinc-100 dark:text-zinc-950"
+            className="inline-flex min-h-11 items-center rounded-full bg-zinc-900 px-3 text-xs font-bold text-white dark:bg-zinc-100 dark:text-zinc-950 shrink-0 whitespace-nowrap"
           >
             Follow all
           </button>

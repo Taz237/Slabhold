@@ -118,6 +118,23 @@ describe("followSuggestions", () => {
     assert.match(provider, /followSuggestionFetchLimit\(displayLimit\)/);
     assert.match(provider, /followSuggestions\(candidates/);
     assert.match(feed, /Collectors to follow/);
+    const suggestions = feed.slice(
+      feed.indexOf("function CollectorSuggestions"),
+      feed.indexOf("function LaneTab"),
+    );
+    assert.equal(
+      suggestions.includes(
+        '<div className="mb-2 flex items-center justify-between gap-2 max-md:pr-20">',
+      ),
+      true,
+    );
+    const followAll = suggestions.slice(
+      suggestions.indexOf("<button"),
+      suggestions.indexOf("</button>"),
+    );
+    assert.equal(followAll.includes("Follow all"), true);
+    assert.equal(followAll.includes("whitespace-nowrap"), true);
+    assert.equal(followAll.includes("shrink-0"), true);
     assert.match(remote, /needsSuggestionHeadroom\(profiles\.length\)/);
     assert.match(remote, /suggestionExtraRange\(profiles\.length\)/);
     assert.match(
