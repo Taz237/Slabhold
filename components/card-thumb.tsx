@@ -6,9 +6,12 @@ import type { SportsCard } from "@/lib/types";
 export function CardThumb({
   card,
   className = "",
+  priority = false,
 }: {
   card: Pick<SportsCard, "playerName" | "photoDataUrl" | "accent">;
   className?: string;
+  /** Detail view: decode off the critical path and ask for the photo first. */
+  priority?: boolean;
 }) {
   if (card.photoDataUrl) {
     return (
@@ -16,6 +19,8 @@ export function CardThumb({
       <img
         src={card.photoDataUrl}
         alt={card.playerName}
+        decoding="async"
+        fetchPriority={priority ? "high" : "auto"}
         className={`object-cover ${className}`}
       />
     );

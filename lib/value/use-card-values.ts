@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MAX_CARD_VALUE_IDS } from "./card-value-access";
+import { rememberCardValues } from "./card-value-memory";
 import { PRICE_CHECK_LIMIT_MESSAGE } from "./price-check-limit";
 import type { CardValueResult } from "./types";
 
@@ -135,7 +136,10 @@ export function useCardValues(cardIds: string[]) {
       setErrorMessage(result.message);
       setSettledKey(key);
       if (result.error) setValues((current) => cardValuesAfterFailure(current));
-      else setValues(result.values);
+      else {
+        rememberCardValues(result.values);
+        setValues(result.values);
+      }
     }).catch(() => {
       if (cancelled) return;
       setValues((current) => cardValuesAfterFailure(current));

@@ -28,6 +28,8 @@ export function ValueChart({
   noSalesLabel,
   /** Headline and count come from the comps on this card, not a separate estimate. */
   lockedToComps = false,
+  heading,
+  stableLayout = false,
 }: {
   card: { id: string; estimatedSellPrice: number; purchasePrice: number };
   points?: ValuePoint[] | null;
@@ -43,6 +45,10 @@ export function ValueChart({
   lockedToComps?: boolean;
   /** Kept for callers; empty comps show "Not enough sales yet". */
   hideStatusLabel?: boolean;
+  /** Replaces the Sold comps / Estimated value eyebrow. */
+  heading?: string;
+  /** Keep the plot box mounted so an empty result does not collapse the page. */
+  stableLayout?: boolean;
 }) {
   if (unavailable && !loading) {
     return null;
@@ -85,21 +91,25 @@ export function ValueChart({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-[11px] tracking-wide text-zinc-500 uppercase">
-            {usingLive ? "Sold comps" : "Estimated value"}
+            {heading ?? (usingLive ? "Sold comps" : "Estimated value")}
           </p>
-          {noSales ? (
-            <p className="mt-1 text-lg font-semibold tracking-tight">
-              {noSalesLabel ?? NOT_ENOUGH_SALES_LABEL}
-            </p>
-          ) : (
-            <p className="mt-1 text-3xl font-semibold tracking-tight tabular-nums">
-              {money(displayMedian ?? 0)}
-            </p>
-          )}
+          <div className={`mt-1 ${stableLayout ? "flex min-h-9 items-end" : ""}`}>
+            {noSales ? (
+              <p className="text-lg font-semibold tracking-tight">
+                {noSalesLabel ?? NOT_ENOUGH_SALES_LABEL}
+              </p>
+            ) : (
+              <p className="text-3xl font-semibold tracking-tight tabular-nums">
+                {money(displayMedian ?? 0)}
+              </p>
+            )}
+          </div>
           {(usingLive || lockedToComps) && !noSales && displayP25 != null && displayP75 != null ? (
-            <p className="mt-1 text-sm text-zinc-500 tabular-nums">
+            <p className="mt-1 min-h-5 text-sm text-zinc-500 tabular-nums">
               Middle 50%: {money(displayP25)} – {money(displayP75)}
             </p>
+          ) : stableLayout ? (
+            <p className="mt-1 min-h-5 text-sm text-zinc-500">&nbsp;</p>
           ) : null}
         </div>
         <div className="text-right">
@@ -120,9 +130,9 @@ export function ValueChart({
         <p className="mt-2 text-xs text-zinc-500">Sample history from recent months</p>
       ) : null}
 
-      {!noSales && points.length > 0 ? (
+      {(!noSales && points.length > 0) || stableLayout ? (
         <div className="mt-3 h-44 w-full">
-          <ResponsiveContainer width="100%" height="100%">
+          {points.length > 0 && !noSales ? <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={points} margin={{ top: 8, right: 4, left: 0, bottom: 0 }}>
               <defs>
                 <linearGradient id={`value-fill-${card.id}`} x1="0" y1="0" x2="0" y2="1">
@@ -160,7 +170,7 @@ export function ValueChart({
                 activeDot={{ r: 4, strokeWidth: 0, fill: "#10b981" }}
               />
             </AreaChart>
-          </ResponsiveContainer>
+          </ResponsiveContainer> : null}
         </div>
       ) : null}
     </section>
