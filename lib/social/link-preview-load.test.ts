@@ -360,6 +360,8 @@ describe("share image loaders", () => {
       assert.equal(privateMeta.twitter.title, "Private card");
       assert.match(JSON.stringify(privateMeta.openGraph.images), /\/cards\/[^"?]+\/opengraph-image\?v=0/);
       assert.match(JSON.stringify(privateMeta.twitter.images), /opengraph-image\?v=0/);
+      assert.equal(privateMeta.openGraph.images?.[0]?.type, "image/png");
+      assert.equal(privateMeta.twitter.images?.[0]?.alt, "Card on Slabhold");
       assert.equal(privateMetaPacked.includes(secretName), false);
       assert.equal(privateMetaPacked.includes("secret-private"), false);
 
@@ -388,6 +390,8 @@ describe("share image loaders", () => {
       assert.match(String(publicMeta.twitter.title), /Public Wemby/);
       assert.match(JSON.stringify(publicMeta.openGraph.images), /v=2026-04-01T12%3A00%3A00.000Z/);
       assert.match(JSON.stringify(publicMeta.twitter.images), /v=2026-04-01T12%3A00%3A00.000Z/);
+      assert.equal(publicMeta.openGraph.images?.[0]?.type, "image/png");
+      assert.equal(publicMeta.twitter.images?.[0]?.alt, "Card on Slabhold");
       assert.equal(publicPreview.imageUrl, publicPhoto);
       assert.equal(publicPacked.includes(secretName), false);
       assert.equal(publicPacked.includes("secret-private"), false);

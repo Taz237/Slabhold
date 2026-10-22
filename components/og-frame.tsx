@@ -23,6 +23,10 @@ export const PUBLIC_OG_CACHE_CONTROL =
 export const CARD_OG_CACHE_CONTROL =
   "public, max-age=0, s-maxage=60, stale-while-revalidate=60";
 
+/** Failed renders. Do not keep the generic image for the route's normal hour or day. */
+const OG_FAILURE_CACHE_CONTROL =
+  "public, max-age=0, s-maxage=60, stale-while-revalidate=60";
+
 /** Own-profile images follow the signed-in user. Do not store them on a shared CDN. */
 export const PRIVATE_OG_CACHE_CONTROL = "private, no-store";
 
@@ -568,12 +572,75 @@ function paint(
   );
 }
 
-export function renderOg(
+/** Arabic-script shaping crashes the OG font. Other scripts we ship stay. */
+const UNSUPPORTED_OG_SCRIPT =
+  /[\u0600-\u06FF\u0750-\u077F\u0870-\u089F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/g;
+
+function stripUnsupportedOgText(value: string): string {
+  return value.replace(UNSUPPORTED_OG_SCRIPT, " ").replace(/\s+/g, " ").trim();
+}
+
+function readableShareImage(model: ShareImage): ShareImage {
+  const text = stripUnsupportedOgText;
+  const title = text(model.title);
+  const body = text(model.body);
+  const fallback =
+    model.kind === "card" ? "Card" : model.kind === "profile" ? "Profile" : model.kind === "home" ? title : "Post";
+  return {
+    ...model,
+    kicker: text(model.kicker),
+    title: title || fallback,
+    detail: text(model.detail),
+    body: body || title || fallback,
+    authorName: text(model.authorName),
+    authorHandle: text(model.authorHandle),
+    player: text(model.player) || "Card",
+    yearSet: text(model.yearSet),
+    grade: text(model.grade),
+    valueLabel: text(model.valueLabel),
+    salesLabel: text(model.salesLabel),
+    cardLines: model.cardLines
+      .map((line) => ({ name: text(line.name), value: text(line.value) }))
+      .filter((line) => line.name),
+  };
+}
+
+async function consumeOg(response: ImageResponse): Promise<ImageResponse> {
+  const bytes = Buffer.from(await response.arrayBuffer());
+  if (!isPng(bytes) || bytes.length < 32) throw new Error("Open Graph image was empty");
+  return new Response(bytes, {
+    status: response.status,
+    headers: response.headers,
+  }) as ImageResponse;
+}
+
+/** Render a share image. Only a font-shaping failure retries without that script. */
+export async function renderOg(
   model: ShareImage,
   cacheControl = PUBLIC_OG_CACHE_CONTROL,
-): ImageResponse | Promise<ImageResponse> {
-  if (model.kind !== "home") return paint(model, cacheControl, null);
-  return homeShotSrc().then((src) => paint(model, cacheControl, src));
+): Promise<ImageResponse> {
+  const isShapingError = (e: unknown) =>
+    e instanceof Error && /lookupType: \d+ - substFormat: \d+ is not yet supported/.test(e.message);
+  const homeShot = model.kind === "home" ? await homeShotSrc() : null;
+  try {
+    return await consumeOg(paint(model, cacheControl, homeShot));
+  } catch (error) {
+    console.error("[og] share image render failed", { kind: model.kind, stage: "render" }, error);
+    if (isShapingError(error)) {
+      try {
+        const stripped = readableShareImage(model);
+        const shot = stripped.kind === "home" ? (homeShot ?? (await homeShotSrc())) : null;
+        return await consumeOg(paint(stripped, cacheControl, shot));
+      } catch (stripError) {
+        console.error(
+          "[og] share image render failed",
+          { kind: model.kind, stage: "strip" },
+          stripError,
+        );
+      }
+    }
+    return consumeOg(paint(homeShareImage(), OG_FAILURE_CACHE_CONTROL, await homeShotSrc()));
+  }
 }
 
 export function renderProfileOg(
