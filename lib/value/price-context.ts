@@ -340,24 +340,40 @@ async function blockedOwnerIds(viewerId: string): Promise<Set<string> | null> {
   return ids;
 }
 
+/** A public card row already in hand. Skips the cards-table read inside attach. */
+export function knownPriceCard(row: PublicRow): { card: SoldCompCard; ownerId: string } | null {
+  const ownerId = String(row.user_id ?? "");
+  if (!row.id || !ownerId) return null;
+  return { card: soldCardFromPublic(row), ownerId };
+}
+
 /** Attach exact sales and a similar-card offer. A failed read leaves the value unchanged. */
 export async function attachPriceContext(
   ids: string[],
   values: Map<string, CardValueResult>,
   viewerId?: string | null,
+  knownCards?: readonly { card: SoldCompCard; ownerId: string }[],
 ): Promise<Map<string, CardValueResult>> {
   const needs = ids.filter((id) => needsContext(values.get(id)));
   if (!needs.length) return values;
 
   let cards: Array<{ card: SoldCompCard; ownerId: string }>;
-  try {
-    cards = await loadCompCards(needs);
-  } catch (err) {
-    console.warn(
-      "[price-context]",
-      err instanceof Error ? err.message : "comps unavailable",
-    );
-    return values;
+  if (knownCards) {
+    const byId = new Map(knownCards.map((item) => [item.card.id, item]));
+    cards = needs.flatMap((id) => {
+      const known = byId.get(id);
+      return known ? [known] : [];
+    });
+  } else {
+    try {
+      cards = await loadCompCards(needs);
+    } catch (err) {
+      console.warn(
+        "[price-context]",
+        err instanceof Error ? err.message : "comps unavailable",
+      );
+      return values;
+    }
   }
 
   const blocked = viewerId ? await blockedOwnerIds(viewerId) : new Set<string>();

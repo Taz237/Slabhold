@@ -6,7 +6,7 @@ import { getSupabaseConfig } from "@/lib/supabase/client";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { wantLabel } from "@/lib/wants/label";
 import { feedChipPrice, resolvePriceRead, type PriceRead } from "@/lib/value/price-fallback";
-import { attachPriceContext } from "@/lib/value/price-context";
+import { attachPriceContext, knownPriceCard } from "@/lib/value/price-context";
 import { getCardValue, getCardValues } from "@/lib/value/getCardValue";
 import { isUuid } from "@/lib/value/card-value-access";
 import type { CardValueResult } from "@/lib/value/types";
@@ -62,7 +62,7 @@ export const loadPublicCardPreview = cache(async (id: string): Promise<LinkPrevi
     isPublic: true,
     name: wantLabel(card) || card.playerName,
     imageUrl: card.photoDataUrl,
-    valueLabel: await previewValueLabel(card.id, card.createdAt),
+    valueLabel: await previewValueLabel(card.id, card.createdAt, data),
   });
 });
 
@@ -74,17 +74,25 @@ export const loadPublicCardPreview = cache(async (id: string): Promise<LinkPrevi
 async function previewValueLabel(
   cardId: string,
   createdAt: string | undefined,
+  row: Parameters<typeof knownPriceCard>[0],
 ): Promise<string> {
-  const value = await publicCardValue(cardId);
+  const value = await publicCardValue(cardId, row);
   return sharePriceText(value, createdAt);
 }
 
-/** Stored row plus exact sales. A failed attach leaves sales unset. */
-async function publicCardValue(cardId: string): Promise<CardValueResult | null> {
+/**
+ * Stored row plus exact sales. The public card row already loaded is reused,
+ * so this does not read the cards table again. A failed attach leaves sales unset.
+ */
+async function publicCardValue(
+  cardId: string,
+  row: Parameters<typeof knownPriceCard>[0],
+): Promise<CardValueResult | null> {
   const stored = await getCardValue(cardId);
   if (!stored) return null;
   const values = new Map([[cardId, stored]]);
-  const attached = await attachPriceContext([cardId], values, null);
+  const known = knownPriceCard({ ...row, id: row.id || cardId });
+  const attached = await attachPriceContext([cardId], values, null, known ? [known] : []);
   return attached.get(cardId) ?? stored;
 }
 
@@ -273,8 +281,11 @@ function mappedSafe(id: string, row: SafeCardRow) {
   });
 }
 
-async function publicPrice(cardId: string): Promise<{ amount: string; sales: number }> {
-  const value = await publicCardValue(cardId);
+async function publicPrice(
+  cardId: string,
+  row: Parameters<typeof knownPriceCard>[0],
+): Promise<{ amount: string; sales: number }> {
+  const value = await publicCardValue(cardId, row);
   const read = sharePriceRead(value);
   if (read.kind === "estimate") return { amount: read.text, sales: value?.nSales ?? 0 };
   if (read.kind === "last_sale" || read.kind === "range") return { amount: read.text, sales: 0 };
@@ -293,7 +304,7 @@ export const loadCardShareImage = cache(async (id: string) => {
       .maybeSingle();
     if (!error && data) {
       const mapped = mapPublicCard(data);
-      const price = await publicPrice(mapped.id);
+      const price = await publicPrice(mapped.id, data);
       return cardShareImage({
         found: true,
         isPublic: true,
@@ -321,7 +332,7 @@ export const loadCardShareImage = cache(async (id: string) => {
   const row = data as SafeCardRow;
   const mapped = mappedSafe(id, row);
   const isPublic = Boolean(row.is_public);
-  const price = isPublic ? await publicPrice(id) : { amount: "", sales: 0 };
+  const price = isPublic ? await publicPrice(id, { ...row, id }) : { amount: "", sales: 0 };
   return cardShareImage({
     found: true,
     isPublic,
@@ -399,8 +410,12 @@ export const loadPostShareImage = cache(async (id: string) => {
     );
     const publicIds = [...byId.keys()];
     const storedValues = publicIds.length ? await getCardValues(publicIds) : new Map();
+    const known = ((rows ?? []) as Parameters<typeof knownPriceCard>[0][]).flatMap((row) => {
+      const card = knownPriceCard(row);
+      return card ? [card] : [];
+    });
     const values = publicIds.length
-      ? await attachPriceContext(publicIds, storedValues, null)
+      ? await attachPriceContext(publicIds, storedValues, null, known)
       : storedValues;
     for (const cardId of cardIds) {
       const row = byId.get(cardId);

@@ -114,23 +114,6 @@ function chunkKeys(keys: readonly string[], size: number): string[][] {
   return chunks;
 }
 
-async function mapLimit<T>(
-  items: readonly T[],
-  limit: number,
-  fn: (item: T) => Promise<void>,
-): Promise<void> {
-  if (!items.length) return;
-  let next = 0;
-  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
-    while (next < items.length) {
-      const index = next;
-      next += 1;
-      await fn(items[index] as T);
-    }
-  });
-  await Promise.all(workers);
-}
-
 /** One `.in` whose limit stays within the PostgREST cap. */
 async function readInKeys(
   client: SoldCacheClient,
@@ -145,28 +128,90 @@ async function readInKeys(
   return (data ?? []) as CacheReadRow[];
 }
 
+type ReadTask = { keys: readonly string[]; rowLimit: number; reread: boolean };
+
 /**
  * Pages of keys that fit under 1000 rows. A full page may be missing the
- * oldest rows, so each cut key is read on its own at the server cap.
+ * oldest rows, so each cut key is queued on its own at the server cap.
+ * Chunk reads and those re-reads share one queue of at most 4 workers.
  */
 async function readKeysWithinCap(
   client: SoldCacheClient,
   keys: readonly string[],
   out: Map<string, CachedCompRow[]>,
 ): Promise<void> {
-  await mapLimit(chunkKeys(keys, EXACT_KEYS_PER_READ), PRICE_BATCH_READ_CONCURRENCY, async (chunk) => {
-    const requested = Math.min(chunk.length * SOLD_CACHE_ROW_LIMIT, POSTGREST_MAX_ROWS);
-    const rows = await readInKeys(client, chunk, requested);
+  const queue: ReadTask[] = chunkKeys(keys, EXACT_KEYS_PER_READ).map((chunk) => ({
+    keys: chunk,
+    rowLimit: Math.min(chunk.length * SOLD_CACHE_ROW_LIMIT, POSTGREST_MAX_ROWS),
+    reread: false,
+  }));
+  if (!queue.length) return;
+
+  let next = 0;
+  let active = 0;
+  let failed = false;
+  let firstError: CompsResultError | null = null;
+  const waiters: Array<() => void> = [];
+
+  const wake = () => {
+    const pending = waiters.splice(0);
+    for (const resolve of pending) resolve();
+  };
+
+  const fail = (err: unknown) => {
+    if (failed) return;
+    failed = true;
+    firstError =
+      err instanceof CompsResultError
+        ? err
+        : new CompsResultError(err instanceof Error ? err.message : "comps unavailable");
+  };
+
+  const take = (): ReadTask | null => {
+    if (failed || next >= queue.length) return null;
+    const task = queue[next];
+    next += 1;
+    return task ?? null;
+  };
+
+  const run = async (task: ReadTask) => {
+    const rows = await readInKeys(client, task.keys, task.rowLimit);
     storeNewest(out, rows);
-    const cap = Math.min(requested, POSTGREST_MAX_ROWS);
+    if (task.reread) return;
+    const cap = Math.min(task.rowLimit, POSTGREST_MAX_ROWS);
     if (rows.length < cap) return;
-    const cutKeys = cutQueryKeys(chunk, rows, cap);
-    await mapLimit(cutKeys, PRICE_BATCH_READ_CONCURRENCY, async (key) => {
+    for (const key of cutQueryKeys(task.keys, rows, cap)) {
       // One key, capped at 1000 rows. That holds while Trawl max_pages=1,
       // because one fetch batch is not larger than that page.
-      storeNewest(out, await readInKeys(client, [key], POSTGREST_MAX_ROWS));
-    });
-  });
+      queue.push({ keys: [key], rowLimit: POSTGREST_MAX_ROWS, reread: true });
+    }
+  };
+
+  const worker = async () => {
+    while (!failed) {
+      const task = take();
+      if (!task) {
+        if (failed || active === 0) return;
+        await new Promise<void>((resolve) => {
+          waiters.push(resolve);
+        });
+        continue;
+      }
+      active += 1;
+      try {
+        await run(task);
+      } catch (err) {
+        fail(err);
+      } finally {
+        active -= 1;
+        wake();
+      }
+    }
+  };
+
+  const workers = Math.min(PRICE_BATCH_READ_CONCURRENCY, queue.length);
+  await Promise.all(Array.from({ length: workers }, () => worker()));
+  if (firstError) throw firstError;
 }
 
 /**

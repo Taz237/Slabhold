@@ -186,6 +186,12 @@ describe("share image loaders", () => {
     const attaches = [...source.matchAll(/attachPriceContext\(([^)]*)\)/g)];
     assert.equal(attaches.length, 2);
     for (const call of attaches) assert.match(call[1] ?? "", /\bnull\b/);
+    const priced = source.slice(
+      source.indexOf("async function publicCardValue"),
+      source.indexOf("export function sharePriceText"),
+    );
+    assert.match(priced, /knownPriceCard\(/);
+    assert.doesNotMatch(priced, /from\("cards"\)/);
     assert.match(source, /valueAmount: isPublic \? price\.amount : null/);
     assert.match(source, /valueLabel: null/);
 
