@@ -79,7 +79,7 @@ function useRecentSearches(userId: string | null) {
 }
 
 function searchHref(term: string) {
-  const trimmed = term.trim();
+  const trimmed = addCardQuery(term.trim());
   if (!trimmed) return "/search";
   return `/search?q=${encodeURIComponent(trimmed)}`;
 }
@@ -145,8 +145,9 @@ export function SearchView() {
   }, [catalogAttempt, typed]);
 
   function setSearchQuery(next: string) {
-    setQuery(next);
-    const href = searchHref(next);
+    const clipped = addCardQuery(next);
+    setQuery(clipped);
+    const href = searchHref(clipped);
     const current = searchHref(urlQ);
     if (href !== current) {
       router.replace(href, { scroll: false });

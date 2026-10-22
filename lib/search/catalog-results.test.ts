@@ -177,6 +177,110 @@ describe("search word split", () => {
       }),
       true,
     );
+    assert.equal(
+      cardMatch("10 psa", {
+        ...base,
+        playerName: "LeBron James",
+        year: 2010,
+        yearLabel: "2010",
+        cardNumber: "23",
+        grade: "PSA 9",
+      }),
+      false,
+    );
+    assert.equal(
+      cardMatch("10 psa", {
+        ...base,
+        playerName: "LeBron James",
+        year: 2024,
+        cardNumber: "10",
+        grade: "PSA 9",
+      }),
+      false,
+    );
+    assert.equal(
+      cardMatch("lebron 10 psa", {
+        ...base,
+        playerName: "LeBron James",
+        year: 2010,
+        yearLabel: "2010",
+        cardNumber: "23",
+        grade: "PSA 9",
+      }),
+      false,
+    );
+    assert.equal(
+      cardMatch("9.5 bgs", {
+        ...base,
+        playerName: "Shohei Ohtani",
+        year: 2024,
+        cardNumber: "150",
+        grade: "BGS 9",
+      }),
+      false,
+    );
+    assert.equal(
+      cardMatch("10 psa", {
+        ...base,
+        playerName: "LeBron James",
+        year: 2010,
+        yearLabel: "2010",
+        cardNumber: "23",
+        grade: "PSA 10",
+      }),
+      true,
+    );
+    assert.equal(
+      cardMatch("lebron graded", {
+        ...base,
+        playerName: "LeBron James",
+        year: 2024,
+        cardNumber: "23",
+        grade: "Raw",
+      }),
+      false,
+    );
+    assert.equal(
+      cardMatch("lebron graded", {
+        ...base,
+        playerName: "LeBron James",
+        year: 2024,
+        cardNumber: "23",
+        grade: "PSA 10",
+      }),
+      true,
+    );
+    assert.equal(
+      cardMatch("psa10", {
+        ...base,
+        playerName: "LeBron James",
+        year: 2024,
+        cardNumber: "23",
+        grade: "PSA 10",
+      }),
+      true,
+    );
+    assert.equal(
+      cardMatch("psa-10", {
+        ...base,
+        playerName: "LeBron James",
+        year: 2010,
+        yearLabel: "2010",
+        cardNumber: "10",
+        grade: "PSA 9",
+      }),
+      false,
+    );
+    assert.equal(
+      cardMatch("bgs9.5", {
+        ...base,
+        playerName: "Shohei Ohtani",
+        year: 2024,
+        cardNumber: "150",
+        grade: "BGS 9.5",
+      }),
+      true,
+    );
     assert.deepEqual(meaningfulSearchWords("psa 10"), []);
     assert.deepEqual(meaningfulSearchWords("rookie"), []);
     assert.deepEqual(plainSearchWords("psa 10"), ["psa", "10"]);
@@ -348,6 +452,7 @@ describe("catalog search results", () => {
     assert.match(view, /matchesEverySearchWord\(typed, ownCardSearchFields\(card\), \{ grade: card\.grade \}\)/);
     assert.match(view, /const rawQ = \(searchParams\.get\("q"\) \?\? ""\)\.trim\(\)/);
     assert.match(view, /addCardQuery\(rawQ\)/);
+    assert.match(view, /const trimmed = addCardQuery\(term\.trim\(\)\)/);
     assert.match(view, /rawQ !== urlQ/);
     assert.match(view, /wantsCatalogSearch\(typed\)/);
     assert.match(view, /startsWith\("@"\)/);

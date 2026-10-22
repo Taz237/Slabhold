@@ -108,7 +108,12 @@ export function dropSharedBrowserRecentSearches(accounts: {
   }
 }
 
-/** The Add card page keeps at most this many characters of the search text. */
+/**
+ * The Add card page keeps at most this many characters of the search text.
+ * Clip by whole characters, then drop a trailing half of a pair, so
+ * encodeURIComponent never sees a lone surrogate.
+ */
 export function addCardQuery(value: string): string {
-  return value.slice(0, ADD_CARD_QUERY_LIMIT);
+  const clipped = Array.from(value).slice(0, ADD_CARD_QUERY_LIMIT).join("");
+  return clipped.replace(/[\uD800-\uDBFF]$/, "");
 }

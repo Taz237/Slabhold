@@ -104,7 +104,7 @@ export function catalogSecondaryLink(
 ): CatalogPageLink | null {
   const key = identityOf(catalog);
   const own = input.ownCards.find((card) => identityOf(card) === key);
-  if (own) return { href: `/cards/${own.id}`, label: "Your card" };
+  if (own) return { href: `/cards/${encodeURIComponent(own.id)}`, label: "Your card" };
 
   const blocked = new Set(input.blockedIds ?? []);
   const usernames = new Map(input.profiles.map((profile) => [profile.id, profile.username]));
@@ -117,5 +117,8 @@ export function catalogSecondaryLink(
   if (!publicCard) return null;
   const username = usernames.get(publicCard.ownerId)?.trim();
   if (!username) return null;
-  return { href: `/u/${username}/cards/${publicCard.id}`, label: "Public card" };
+  return {
+    href: `/u/${encodeURIComponent(username)}/cards/${encodeURIComponent(publicCard.id)}`,
+    label: "Public card",
+  };
 }

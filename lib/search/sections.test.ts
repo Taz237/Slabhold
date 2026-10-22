@@ -232,6 +232,10 @@ describe("search sections", () => {
     assert.equal(addCardQuery(long).length, 100);
     assert.equal(addCardQuery(long), "p".repeat(100));
     assert.equal(addCardQuery("Jaxson Dart"), "Jaxson Dart");
+    const emoji = addCardQuery(`${"a".repeat(99)}🔥`);
+    assert.equal(emoji, `${"a".repeat(99)}🔥`);
+    assert.doesNotThrow(() => encodeURIComponent(emoji));
+    assert.doesNotThrow(() => encodeURIComponent(addCardQuery(`${"a".repeat(99)}\uD83D`)));
     const page = read("app/cards/new/page.tsx");
     assert.match(page, /addCardQuery\(/);
     assert.match(page, /<CardForm initialQuery=\{initialQuery\} initialCatalog=\{initialCatalog\} \/>/);
