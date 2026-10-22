@@ -270,6 +270,20 @@ describe("suggest_collectors SQL", () => {
     assert.match(sql, /Read own interests/);
     assert.match(sql, /\(select auth\.uid\(\)\) = user_id/);
   });
+
+  it("serializes interest inserts inside a transaction", () => {
+    assert.match(sql, /^begin;\n\nset local lock_timeout = '5s';/m);
+    assert.match(
+      sql,
+      /perform pg_advisory_xact_lock\(hashtextextended\('profile_interests:' \|\| new\.user_id::text, 0\)\);/,
+    );
+    assert.match(sql, /\n\ncommit;\n$/);
+    assert.match(
+      sql,
+      /revoke all on function private\.limit_profile_interests\(\) from public, anon, authenticated;/,
+    );
+    assert.doesNotMatch(sql, /grant execute on function private\.limit_profile_interests/);
+  });
 });
 
 function profile(id: string, username: string, createdAt: string): Profile {

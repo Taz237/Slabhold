@@ -8,6 +8,10 @@
 -- The ranker lives in private so the security-definer body is not an API RPC.
 -- public.suggest_collectors is the invoker wrapper clients call.
 
+begin;
+
+set local lock_timeout = '5s';
+
 create schema if not exists private;
 
 revoke all on schema private from public;
@@ -106,6 +110,8 @@ language plpgsql
 set search_path = public
 as $$
 begin
+  -- Serialize inserts per user so parallel requests can't each see 49 rows.
+  perform pg_advisory_xact_lock(hashtextextended('profile_interests:' || new.user_id::text, 0));
   if exists (
     select 1
     from public.profile_interests
@@ -132,10 +138,7 @@ create trigger limit_profile_interests
   before insert on public.profile_interests
   for each row execute function private.limit_profile_interests();
 
-revoke all on function private.limit_profile_interests() from public, anon;
-grant execute on function private.limit_profile_interests() to authenticated;
-
-create index if not exists want_list_user_id_idx on public.want_list (user_id);
+revoke all on function private.limit_profile_interests() from public, anon, authenticated;
 
 create index if not exists cards_public_user_player_idx
   on public.cards (user_id, player)
@@ -484,3 +487,5 @@ grant execute on function public.suggest_collectors(integer) to authenticated;
 
 comment on function public.suggest_collectors(integer) is
   'Follow suggestions ranked by overlap with the caller''s profile_interests. Public cards, visible post text, and hunter want labels only. No private card columns. Bounded by the PostgREST role timeout.';
+
+commit;
