@@ -29,7 +29,6 @@ describe("parallels by set", () => {
     assert.equal(parallelsForSet("Donruss"), donruss);
     for (const name of [
       "Base",
-      "Rated Rookie",
       "Blue Press Proof",
       "Optic Preview",
       "Optic Preview Pink",
@@ -50,6 +49,7 @@ describe("parallels by set", () => {
     ]) {
       assert.equal(donruss.includes(name), true, name);
     }
+    assert.equal(donruss.includes("Rated Rookie"), false);
     assert.equal(donruss.includes("Optic Preview Pink Prizm"), false);
     assert.equal(donruss.filter((name) => name === "Optic Preview Pink").length, 1);
     assert.equal(parallelsForSet("Donruss Optic").includes("Optic Preview Pink"), false);

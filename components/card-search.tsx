@@ -28,6 +28,7 @@ type RpcRow = {
   card_number: string | null;
   parallel: string | null;
   sport: string | null;
+  is_rookie?: boolean | null;
 };
 
 function rowToCard(row: RpcRow): CatalogCard {
@@ -39,6 +40,7 @@ function rowToCard(row: RpcRow): CatalogCard {
     cardNumber: row.card_number ?? "",
     sport: row.sport ?? "",
     parallel: row.parallel || "Base",
+    isRookie: row.is_rookie === true,
   };
 }
 

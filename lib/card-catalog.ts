@@ -15,6 +15,8 @@ export type CatalogCard = {
   cardNumber: string;
   sport: string;
   parallel: string;
+  /** From search_cards.is_rookie. Local seeds omit it. */
+  isRookie?: boolean;
 };
 
 type CatalogSeed = Omit<CatalogCard, "id">;
@@ -156,6 +158,7 @@ export function toSearchableCard(card: CatalogCard): SearchableCard {
     cardNumber: card.cardNumber,
     parallel: card.parallel,
     sport: card.sport,
+    isRookie: card.isRookie === true,
     searchText: buildSearchText({
       player: card.playerName,
       yearLabel: card.yearLabel,
