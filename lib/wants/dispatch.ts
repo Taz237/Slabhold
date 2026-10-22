@@ -10,7 +10,7 @@ import { identityBandValue } from "./identity-band";
 import { isPublicForSaleListing } from "./listing";
 import { wantShortLabel } from "./label";
 import { notifyWantMatches, type WantMatchEvent } from "./notify-want-matches";
-import { ownedCardWantEvent } from "./owned-card";
+import { ownedCardWantEvent, wanterCardHref } from "./owned-card";
 import { createSupabaseWantDb } from "./want-db";
 
 async function usernameOf(userId: string): Promise<string | null> {
@@ -107,9 +107,7 @@ export async function notifyOwnedListing(
   const card = mapCardRow(data as CardRow);
   if (!isPublicForSaleListing(card)) return 0;
   const username = await usernameOf(actorId);
-  const href = username
-    ? `/u/${username}/cards/${card.id}`
-    : `/cards/${card.id}`;
+  const href = wanterCardHref(card.id, username);
   return notifyWantMatches(
     {
       sourceType: "listing",

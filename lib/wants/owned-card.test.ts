@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { cardIdentityKey } from "@/lib/social/card-identity";
 import { isPublicForSaleListing } from "./listing";
 import {
+  isActorCardAlert,
   notifyWantMatches,
   type WantAlertDb,
   type WantAlertInsert,
@@ -47,7 +48,7 @@ function memoryDb() {
     },
   ];
   const alerts: WantAlertInsert[] = [];
-  const notifications: WantNotificationInsert[] = [];
+  const notifications: (WantNotificationInsert & { createdAt: string })[] = [];
   const db: WantAlertDb = {
     async wantsForKey(cardKey) {
       return wants.filter((row) => row.cardKey === cardKey);
@@ -68,7 +69,16 @@ function memoryDb() {
       return true;
     },
     async insertNotification(row) {
-      notifications.push(row);
+      notifications.push({ ...row, createdAt: alerts.at(-1)?.createdAt ?? "" });
+    },
+    async recentActorCardAlert(query) {
+      return notifications.some(
+        (row) =>
+          row.recipientId === query.userId &&
+          row.actorId === query.actorId &&
+          row.createdAt >= query.sinceIso &&
+          isActorCardAlert(row.metadata, query.cardKey),
+      );
     },
     async deleteAlert() {
       return undefined;

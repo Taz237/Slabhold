@@ -2,7 +2,12 @@ import "server-only";
 
 import type { SafetyRelations } from "@/lib/safety/can-notify";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
-import type { WantAlertDb, WantMatchEvent, WantRow } from "./notify-want-matches";
+import {
+  isActorCardAlert,
+  type WantAlertDb,
+  type WantMatchEvent,
+  type WantRow,
+} from "./notify-want-matches";
 import { storedWantSourceType } from "./owned-card";
 
 const UUID_RE =
@@ -120,6 +125,20 @@ export function createSupabaseWantDb(): WantAlertDb | null {
         .gte("created_at", sinceIso);
       if (error) throw new Error(error.message);
       return count ?? 0;
+    },
+
+    async recentActorCardAlert(query) {
+      // notifications keep actor_id and card_key after the card row is deleted.
+      // notifications_recipient_idx (recipient_id, created_at) covers this read.
+      const { data, error } = await admin
+        .from("notifications")
+        .select("metadata")
+        .eq("recipient_id", query.userId)
+        .eq("actor_id", query.actorId)
+        .eq("kind", "want_alert")
+        .gte("created_at", query.sinceIso);
+      if (error) throw new Error(error.message);
+      return (data ?? []).some((row) => isActorCardAlert(row.metadata, query.cardKey));
     },
 
     async insertAlert(row) {

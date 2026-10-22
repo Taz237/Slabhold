@@ -5,6 +5,24 @@ import { newYorkDayStartIso } from "./ny-day";
 
 export const WANT_ALERTS_PER_DAY = 20;
 
+/** Card, listing, and post alerts for one actor and card_key. Sales are outside this window. */
+export const WANT_ACTOR_CARD_COOLDOWN_MS = 24 * 60 * 60 * 1000;
+
+export type ActorCardAlertQuery = {
+  userId: string;
+  cardKey: string;
+  actorId: string;
+  sinceIso: string;
+};
+
+/** True for a card, listing, post, or Mail Day alert about this card. Sales do not count. */
+export function isActorCardAlert(metadata: unknown, cardKey: string): boolean {
+  if (!metadata || typeof metadata !== "object") return false;
+  const record = metadata as { card_key?: unknown; source?: unknown };
+  if (record.source === "sale") return false;
+  return record.card_key === cardKey;
+}
+
 export type WantSourceType = "sale" | "post" | "listing" | "card";
 
 export type WantMatchEvent = {
@@ -79,6 +97,12 @@ export type WantAlertDb = {
   isFollower?(userId: string, actorId: string): Promise<boolean>;
   /** When set, a blocked or muted actor does not notify. */
   safety?: SafetyRelations;
+  /**
+   * True when this wanter already has a card, listing, or post alert for
+   * cardKey from actorId at or after sinceIso. Looks through sent alerts, so
+   * a deleted and re-added card still counts.
+   */
+  recentActorCardAlert(query: ActorCardAlertQuery): Promise<boolean>;
 };
 
 export function wantAlertPreview(event: WantMatchEvent, want: WantRow): string {
@@ -158,9 +182,17 @@ export function saleQualifies(want: WantRow, event: WantMatchEvent): boolean {
   return event.price <= target;
 }
 
+const ACTOR_COOLED_SOURCES: ReadonlySet<WantSourceType> = new Set([
+  "card",
+  "listing",
+  "post",
+]);
+
 /**
  * Insert a want_alerts row first. Create the notification only when that insert
  * is new. Skips the actor's own post or listing and stops at the daily cap.
+ * A card, listing, or post is skipped when this wanter already got one for the
+ * same card from the same actor in the last 24 hours. Price drops are not.
  */
 export async function notifyWantMatches(
   event: WantMatchEvent,
@@ -188,6 +220,17 @@ export async function notifyWantMatches(
 
     const today = await db.alertsToday(want.userId, since);
     if (today >= WANT_ALERTS_PER_DAY) continue;
+
+    if (event.actorId && ACTOR_COOLED_SOURCES.has(event.sourceType)) {
+      const sinceActor = new Date(now.getTime() - WANT_ACTOR_CARD_COOLDOWN_MS).toISOString();
+      const recent = await db.recentActorCardAlert({
+        userId: want.userId,
+        cardKey: event.cardKey,
+        actorId: event.actorId,
+        sinceIso: sinceActor,
+      });
+      if (recent) continue;
+    }
 
     const alertCardId =
       event.mailDay || event.sourceType === "card" ? (event.cardId ?? null) : null;

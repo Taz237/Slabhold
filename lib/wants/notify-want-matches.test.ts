@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 import { money } from "@/lib/format";
 import { fairLowFromPrices } from "./effective-target";
 import {
+  isActorCardAlert,
   notifyWantMatches,
   type WantAlertDb,
   type WantAlertInsert,
@@ -45,7 +46,7 @@ function sale(partial: Partial<WantMatchEvent> = {}): WantMatchEvent {
 function memoryDb(seed?: { wants?: WantRow[]; alerts?: WantAlertInsert[] }) {
   const wants = seed?.wants ?? [want()];
   const alerts: WantAlertInsert[] = [...(seed?.alerts ?? [])];
-  const notifications: WantNotificationInsert[] = [];
+  const notifications: (WantNotificationInsert & { createdAt: string })[] = [];
   const db: WantAlertDb = {
     async wantsForKey(cardKey) {
       return wants.filter((row) => row.cardKey === cardKey);
@@ -66,7 +67,16 @@ function memoryDb(seed?: { wants?: WantRow[]; alerts?: WantAlertInsert[] }) {
       return true;
     },
     async insertNotification(row) {
-      notifications.push(row);
+      notifications.push({ ...row, createdAt: alerts.at(-1)?.createdAt ?? "" });
+    },
+    async recentActorCardAlert(query) {
+      return notifications.some(
+        (row) =>
+          row.recipientId === query.userId &&
+          row.actorId === query.actorId &&
+          row.createdAt >= query.sinceIso &&
+          isActorCardAlert(row.metadata, query.cardKey),
+      );
     },
     async deleteAlert(wantId, sourceType, sourceId, cardId) {
       const index = alerts.findIndex(

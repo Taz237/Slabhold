@@ -19,6 +19,11 @@ export const REQUESTS_WINDOW_MS = 10 * 60 * 1000;
 export const CARD_VALUES_LIMIT = 120;
 export const CARD_VALUES_WINDOW_MS = 10 * 60 * 1000;
 
+/** POST /api/wants/match per user per 10-minute window. Separate from comps requests. */
+const WANT_MATCH_BUCKET = "want_match";
+export const WANT_MATCH_LIMIT = 30;
+export const WANT_MATCH_WINDOW_MS = 10 * 60 * 1000;
+
 /** Max actual Trawl fetches per user per hour. */
 export const TRAWL_LIMIT = 5;
 export const TRAWL_WINDOW_MS = 60 * 60 * 1000;
@@ -168,4 +173,14 @@ export async function consumeCardValueLimit(userId: string): Promise<boolean> {
 
 export async function consumeTrawlLimit(userId: string): Promise<boolean> {
   return consumeRateLimit(userId, TRAWL_BUCKET, TRAWL_WINDOW_MS, TRAWL_LIMIT);
+}
+
+/** Signed-in POST /api/wants/match. Does not consume the comps "requests" bucket. */
+export async function consumeWantMatchLimit(userId: string): Promise<boolean> {
+  return consumeRateLimit(
+    userId,
+    WANT_MATCH_BUCKET,
+    WANT_MATCH_WINDOW_MS,
+    WANT_MATCH_LIMIT,
+  );
 }
