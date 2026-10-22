@@ -10,6 +10,12 @@ export const TEST_ACCOUNT_PREFIXES = ["qa_", "qa-", "test_", "vreset_"] as const
 /** Official accounts. Prefix rules must not treat these as test accounts. */
 export const KEPT_ACCOUNT_HANDLES = ["slabhold", "grokbotreview"] as const;
 
+/**
+ * Left out of follow suggestions only.
+ * These are not test accounts, and their posts stay in the feed.
+ */
+export const NOT_SUGGESTED_HANDLES = ["grokbotreview"] as const;
+
 function listed(handles: readonly string[], handle: string) {
   return handles.includes(handle);
 }

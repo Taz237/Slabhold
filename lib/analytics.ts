@@ -106,6 +106,7 @@ export const PAGE_PATTERNS = [
   "/reset-password",
   "/scan",
   "/search",
+  "/settings/collecting",
   "/settings/privacy",
   "/signup",
   "/terms",

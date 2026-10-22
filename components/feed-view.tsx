@@ -78,6 +78,7 @@ export function FeedView() {
     reposts,
     follows,
     suggestions,
+    suggestionsReady,
     profiles,
     followingCount,
     refresh,
@@ -169,11 +170,12 @@ export function FeedView() {
   const activePage = lane === "following" ? followingPage : forYouPage;
   const pickedFor = useRef<string | null>(null);
   const suggestionIds = useRef<string[] | null>(null);
-  if (ready && user && suggestionIds.current === null && suggestions.length > 0) {
+  if (ready && suggestionsReady && user && suggestionIds.current === null && suggestions.length > 0) {
     suggestionIds.current = suggestions.map((profile) => profile.id);
   }
-  const suggestionRail = (suggestionIds.current ?? suggestions.map((profile) => profile.id))
-    .map((id) => profiles.find((profile) => profile.id === id))
+  const suggestionById = new Map(suggestions.map((profile) => [profile.id, profile]));
+  const suggestionRail = (suggestionIds.current ?? (suggestionsReady ? suggestions.map((profile) => profile.id) : []))
+    .map((id) => suggestionById.get(id) ?? profiles.find((profile) => profile.id === id))
     .filter((profile) => profile != null);
   const blocked = useMemo(() => new Set(blockedIds), [blockedIds]);
   const muted = useMemo(() => new Set(mutedIds), [mutedIds]);
@@ -376,13 +378,30 @@ export function FeedView() {
   );
 }
 
-function CollectorSuggestions({ profiles }: { profiles: Profile[] }) {
+function CollectorSuggestions({
+  profiles,
+}: {
+  profiles: Array<Profile & { suggestionReason?: string | null }>;
+}) {
+  const { followMany, isFollowing, user } = useSocial();
+  const pending = profiles.filter((profile) => user && profile.id !== user.id && !isFollowing(profile.id));
   return (
     <section
       id="collectors-to-follow"
       className="scroll-mt-20 border-b border-zinc-200 px-4 py-3 dark:border-white/10"
     >
-      <p className="mb-2 text-xs font-medium text-zinc-500">Collectors to follow</p>
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <p className="text-xs font-medium text-zinc-500">Collectors to follow</p>
+        {pending.length > 0 ? (
+          <button
+            type="button"
+            onClick={() => void followMany(pending.map((profile) => profile.id))}
+            className="inline-flex min-h-11 items-center rounded-full bg-zinc-900 px-3 text-xs font-bold text-white dark:bg-zinc-100 dark:text-zinc-950"
+          >
+            Follow all
+          </button>
+        ) : null}
+      </div>
       <div className="flex gap-2 overflow-x-auto pb-1" data-no-pull="">
         {profiles.map((profile) => (
           <div
@@ -397,6 +416,9 @@ function CollectorSuggestions({ profiles }: { profiles: Profile[] }) {
                 {profile.displayName}
               </Link>
               <p className="truncate text-xs text-zinc-500">@{profile.username}</p>
+              {profile.suggestionReason ? (
+                <p className="truncate text-xs text-zinc-500">{profile.suggestionReason}</p>
+              ) : null}
             </div>
             <FollowButton userId={profile.id} />
           </div>

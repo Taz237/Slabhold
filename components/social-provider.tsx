@@ -57,6 +57,7 @@ import {
   remoteSignUp,
   remoteSyncLikeNotification,
   remoteToggleFollow,
+  remoteFollowAll,
   remoteToggleRepost,
   remoteUpdatePost,
   remoteUpdateProfile,
@@ -79,6 +80,13 @@ import {
   followSuggestionFetchLimit,
   followSuggestions,
 } from "@/lib/social/follow-suggestions";
+import { loadServerSuggestions } from "@/lib/social/load-suggestions";
+import {
+  followAllIds,
+  mergeRankedSuggestions,
+  type ServerSuggestion,
+  type SuggestedProfile,
+} from "@/lib/social/suggestion-order";
 import { unreadGroupCount } from "@/lib/social/group-notifications";
 import { followingTimeline, type TimelineItem } from "@/lib/social/timeline";
 import { createSupabaseBrowser } from "@/lib/supabase/browser";
@@ -168,7 +176,10 @@ type SocialContextValue = {
     type: "block" | "unblock" | "mute" | "unmute";
     userId: string;
   }) => void;
-  suggestions: Profile[];
+  suggestions: SuggestedProfile[];
+  suggestionsReady: boolean;
+  refreshSuggestions: () => void;
+  followMany: (userIds: readonly string[]) => Promise<AuthResult>;
   profileByUsername: (username: string) => Profile | undefined;
   /** Trusted card_values for every card attached to a loaded post, one batch. */
   postCardValues: Map<string, CardValueResult>;
@@ -226,6 +237,11 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
   const [local, setLocal] = useState<LocalDb | null>(null);
   const [remote, setRemote] = useState<SocialSnapshot>(emptySnapshot);
   const [status, setStatus] = useState<string | null>(null);
+  const [suggestionResult, setSuggestionResult] = useState<{
+    key: string;
+    rows: ServerSuggestion[] | null;
+  } | null>(null);
+  const [suggestionEpoch, setSuggestionEpoch] = useState(0);
   const [activity, setActivity] = useState<ActivityStore>(emptyActivity);
   const [removedPostIds, setRemovedPostIds] = useState<ReadonlySet<string>>(() => new Set());
   const supabaseRef = useRef<SupabaseClient | null>(null);
@@ -476,6 +492,31 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       : baseSnapshot;
   const snapshotRef = useRef(snapshot);
   snapshotRef.current = snapshot;
+  const suggestionUserId = snapshot.user?.id ?? null;
+  // Once per signed-in session, plus an explicit refresh after picks change.
+  // Toggling provider readiness must not call the RPC again.
+  const suggestionKey = `${mode}:${suggestionUserId ?? ""}:${suggestionEpoch}`;
+
+  useEffect(() => {
+    if (mode !== "supabase" || !suggestionUserId) return;
+    const client = supabaseRef.current;
+    if (!client) return;
+    let cancelled = false;
+    const key = suggestionKey;
+    void loadServerSuggestions(client).then((rows) => {
+      if (!cancelled) setSuggestionResult({ key, rows });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [mode, suggestionEpoch, suggestionKey, suggestionUserId]);
+
+  const suggestionsReady =
+    mode !== "supabase" || !suggestionUserId || suggestionResult?.key === suggestionKey;
+  const rankedRows =
+    mode === "supabase" && suggestionUserId && suggestionResult?.key === suggestionKey
+      ? suggestionResult.rows
+      : null;
 
   const postCardIdKey = useMemo(() => {
     const ids = collectAttachedCardIds(snapshot.posts);
@@ -658,6 +699,54 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
     },
     [commitLocal, mode, refreshRemote],
   );
+
+  const followMany = useCallback(
+    async (userIds: readonly string[]): Promise<AuthResult> => {
+      const current = snapshotRef.current;
+      if (!current.user) return {};
+      const ids = followAllIds(userIds, {
+        viewerId: current.user.id,
+        followingIds: current.follows
+          .filter((edge) => edge.followerId === current.user?.id)
+          .map((edge) => edge.followingId),
+        mutedIds: current.mutedIds ?? [],
+      });
+      if (ids.length === 0) return {};
+      const client = supabaseRef.current;
+      if (mode === "supabase" && client) {
+        try {
+          const result = await remoteFollowAll(client, current.user.id, ids);
+          if (result.error) {
+            setStatus(result.error);
+            return result;
+          }
+          await refreshRemote(client);
+          setStatus(result.notice ?? null);
+          return result;
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "Could not follow those collectors.";
+          setStatus(message);
+          return { error: message };
+        }
+      }
+      const db = localRef.current;
+      if (!db) return {};
+      let next = db;
+      for (const id of ids) {
+        const already = next.follows.some(
+          (edge) => edge.followerId === next.sessionUserId && edge.followingId === id,
+        );
+        if (!already) next = localToggleFollow(next, id);
+      }
+      commitLocal(next);
+      return {};
+    },
+    [commitLocal, mode, refreshRemote],
+  );
+
+  const refreshSuggestions = useCallback(() => {
+    setSuggestionEpoch((epoch) => epoch + 1);
+  }, []);
 
   const createPost = useCallback(
     async (input: PostWrite): Promise<AuthResult & { postId?: string }> => {
@@ -1332,7 +1421,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
     );
   }, [homePosts, homeReposts, snapshot.follows, snapshot.profiles, snapshot.user]);
 
-  const suggestions = useMemo(() => {
+  const fallbackSuggestions = useMemo(() => {
     const viewerId = snapshot.user?.id ?? null;
     const followingIds = viewerId
       ? snapshot.follows
@@ -1345,6 +1434,30 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
     const candidates = snapshot.profiles.slice(0, followSuggestionFetchLimit(displayLimit));
     return followSuggestions(candidates, { viewerId, followingIds, limit: displayLimit });
   }, [snapshot.follows, snapshot.profiles, snapshot.user]);
+
+  const suggestions = useMemo(() => {
+    const viewerId = snapshot.user?.id ?? null;
+    const followingIds = viewerId
+      ? snapshot.follows
+          .filter((edge) => edge.followerId === viewerId)
+          .map((edge) => edge.followingId)
+      : [];
+    return mergeRankedSuggestions({
+      fallback: fallbackSuggestions,
+      server: rankedRows,
+      viewerId,
+      followingIds,
+      blockedIds: snapshot.blockedIds ?? [],
+      mutedIds: snapshot.mutedIds ?? [],
+    });
+  }, [
+    fallbackSuggestions,
+    rankedRows,
+    snapshot.blockedIds,
+    snapshot.follows,
+    snapshot.mutedIds,
+    snapshot.user,
+  ]);
 
   const profileByUsername = useCallback(
     (username: string) =>
@@ -1406,6 +1519,9 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       findPost,
       removedPostIds,
       suggestions,
+      suggestionsReady,
+      refreshSuggestions,
+      followMany,
       profileByUsername,
       postCardValues,
       postCardValuesLoading,
@@ -1425,6 +1541,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       deleteComment,
       deletePost,
       feed,
+      followMany,
       snapshot.follows,
       rememberPosts,
       findPost,
@@ -1451,6 +1568,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       postCardValuesMessage,
       ready,
       refresh,
+      refreshSuggestions,
       signIn,
       signOut,
       safetyAccounts,
@@ -1462,6 +1580,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       snapshot.user,
       status,
       suggestions,
+      suggestionsReady,
       toggleFollow,
       toggleLike,
       toggleRepost,

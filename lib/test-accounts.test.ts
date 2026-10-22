@@ -4,6 +4,7 @@ import {
   isTestAccount,
   KEPT_ACCOUNT_HANDLES,
   normalizeAccountHandle,
+  NOT_SUGGESTED_HANDLES,
   TEST_ACCOUNT_HANDLES,
   TEST_ACCOUNT_PREFIXES,
 } from "./test-accounts";
@@ -36,6 +37,8 @@ describe("isTestAccount", () => {
     assert.equal(isTestAccount("@GrokBotReview"), false);
     assert.ok(KEPT_ACCOUNT_HANDLES.includes("slabhold"));
     assert.ok(KEPT_ACCOUNT_HANDLES.includes("grokbotreview"));
+    assert.ok(NOT_SUGGESTED_HANDLES.includes("grokbotreview"));
+    assert.equal(isTestAccount("greatestpulls"), false);
     assert.equal(isTestAccount("waxroom"), false);
     assert.equal(isTestAccount("qualitycards"), false);
     assert.equal(isTestAccount("qatest"), false);

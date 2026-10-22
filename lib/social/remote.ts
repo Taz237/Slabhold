@@ -70,6 +70,7 @@ type ProfileRow = {
   cover_url: string | null;
   accent: string | null;
   created_at: string;
+  is_test?: boolean | null;
 };
 
 type PostRow = {
@@ -235,6 +236,7 @@ function mapProfile(row: ProfileRow, email = ""): Profile {
     coverDataUrl: row.cover_url ?? null,
     accent: row.accent ?? "#7c5cff",
     createdAt: row.created_at,
+    ...(row.is_test === true ? { isTest: true } : {}),
   };
 }
 
@@ -626,6 +628,51 @@ export async function remoteToggleFollow(
   });
   if (noteError && noteError.code !== "23505" && !missingTable(noteError)) {
     return { notice: noteError.message };
+  }
+  return {};
+}
+
+export async function remoteFollowAll(
+  supabase: SupabaseClient,
+  followerId: string,
+  followingIds: readonly string[],
+): Promise<AuthResult> {
+  const ids = [...new Set(followingIds.filter((id) => id && id !== followerId))];
+  if (ids.length === 0) return {};
+  const safety = supabaseSafety(supabase);
+  const checks = await Promise.all(
+    ids.map(async (id) => ({ id, blocked: await safety.isBlocked(followerId, id) })),
+  );
+  const allowed = checks.filter((row) => !row.blocked).map((row) => row.id);
+  if (allowed.length === 0) return { error: BLOCKED_INTERACTION };
+  const { error } = await supabase.from("follows").upsert(
+    allowed.map((id) => ({ follower_id: followerId, following_id: id })),
+    { onConflict: "follower_id,following_id", ignoreDuplicates: true },
+  );
+  if (error) return { error: rlsBlocked(error) ? BLOCKED_INTERACTION : error.message };
+  const notes: {
+    recipient_id: string;
+    actor_id: string;
+    kind: "follow";
+    post_id: null;
+    preview: null;
+  }[] = [];
+  for (const id of allowed) {
+    if (await allowNotice(supabase, followerId, id)) {
+      notes.push({
+        recipient_id: id,
+        actor_id: followerId,
+        kind: "follow",
+        post_id: null,
+        preview: null,
+      });
+    }
+  }
+  if (notes.length > 0) {
+    const { error: noteError } = await supabase.from("notifications").insert(notes);
+    if (noteError && noteError.code !== "23505" && !missingTable(noteError)) {
+      return { notice: noteError.message };
+    }
   }
   return {};
 }

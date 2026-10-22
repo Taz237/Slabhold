@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { Camera } from "lucide-react";
 import { Avatar } from "@/components/avatar";
 import { solidButton } from "@/components/button-styles";
@@ -285,6 +286,9 @@ export function ProfileEditSheet({
                   className="w-full resize-none rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-[15px] leading-5 outline-none focus:border-zinc-400 dark:border-white/10 dark:bg-white/5 dark:focus:border-white/30"
                 />
               </label>
+              <Link href="/settings/collecting" className="inline-flex min-h-11 items-center text-sm font-semibold underline">
+                What you collect
+              </Link>
             </div>
           </div>
         </form>

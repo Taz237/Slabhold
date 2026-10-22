@@ -7,6 +7,7 @@ import { Bell, Camera, CircleUser, Compass, Ellipsis, Mail, Search, WalletCards 
 import { Logo } from "@/components/logo";
 import { useSocial } from "@/components/social-provider";
 import { AccountDeletedToast } from "@/components/account-deleted-toast";
+import { CollectPrompt } from "@/components/collect-prompt";
 import { CreateMenu } from "@/components/create-menu";
 import { JoinBar } from "@/components/join-bar";
 import { LandingPage } from "@/components/landing-page";
@@ -213,6 +214,7 @@ function Shell({
       ) : null}
       {showJoin ? <JoinBar /> : null}
       {showNav ? <CreateMenu key={pathname} /> : null}
+      {user ? <CollectPrompt /> : null}
     </div>
   );
 }
