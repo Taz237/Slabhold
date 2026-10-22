@@ -11,6 +11,7 @@ export const CARD_PERSON_KEYS = [
   "displayName",
   "avatarUrl",
   "isFollowedByViewer",
+  "openToOffers",
 ] as const;
 
 export type CardFollowSource = "card_owners" | "card_hunters";
@@ -21,6 +22,8 @@ export type CardPerson = {
   displayName: string;
   avatarUrl: string | null;
   isFollowedByViewer: boolean;
+  /** True when this owner's public copy is open to offers. Hunters are false. */
+  openToOffers: boolean;
 };
 
 export type CardPersonList = {
@@ -45,6 +48,7 @@ export type CollectorFlags = {
   blocked: boolean;
   muted: boolean;
   followed: boolean;
+  openToOffers?: boolean;
 };
 
 export type OwnerCandidate = CollectorFlags & {
@@ -88,6 +92,7 @@ export function toCardPerson(row: CollectorFlags): CardPerson {
     displayName: row.displayName.trim() || row.handle,
     avatarUrl: row.avatarUrl,
     isFollowedByViewer: row.followed,
+    openToOffers: row.openToOffers === true,
   };
 }
 
@@ -95,7 +100,13 @@ function distinctLatest<T extends CollectorFlags>(rows: readonly T[]): T[] {
   const byUser = new Map<string, T>();
   for (const row of rows) {
     const prev = byUser.get(row.userId);
-    if (!prev || row.activeAt > prev.activeAt) byUser.set(row.userId, row);
+    if (!prev) {
+      byUser.set(row.userId, row);
+      continue;
+    }
+    const openToOffers = prev.openToOffers === true || row.openToOffers === true;
+    if (row.activeAt > prev.activeAt) byUser.set(row.userId, { ...row, openToOffers });
+    else byUser.set(row.userId, { ...prev, openToOffers });
   }
   return [...byUser.values()].sort((a, b) => {
     if (a.activeAt !== b.activeAt) return a.activeAt < b.activeAt ? 1 : -1;

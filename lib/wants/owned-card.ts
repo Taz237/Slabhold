@@ -30,6 +30,7 @@ type OwnedCard = IdentityCard & {
   category?: string | null;
   sellPrice?: number | null;
   sellDate?: string | null;
+  openToOffers?: boolean | null;
 };
 
 /** Follower alert for a card the actor just added. Null when no alert is due. */
@@ -56,5 +57,6 @@ export function ownedCardWantEvent(input: {
     cardIsPublic: true,
     cardValue: input.band?.median ?? null,
     fairLow: input.band?.low ?? null,
+    openToOffers: input.card.openToOffers === true,
   };
 }

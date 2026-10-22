@@ -7,6 +7,7 @@ import { MessageCircle, WalletCards } from "lucide-react";
 import { Avatar } from "@/components/avatar";
 import { outlineButton, solidButton } from "@/components/button-styles";
 import { CardThumb } from "@/components/card-thumb";
+import { OpenToOffersFilter, ProfileCardCaption } from "@/components/open-to-offers";
 import { ProfileEditSheet } from "@/components/profile-edit-sheet";
 import { LoadMore } from "@/components/load-more";
 import { PullToRefresh } from "@/components/pull-to-refresh";
@@ -26,6 +27,10 @@ import { ilikeExact } from "@/lib/social/username-taken";
 import { addUnblockedProfiles, presentPagedItems } from "@/lib/social/paged-items";
 import { profileTimeline } from "@/lib/social/timeline";
 import type { PublicCard } from "@/lib/social/types";
+import {
+  filterOpenToOffers,
+  openToOffersFilterAvailable,
+} from "@/lib/offers/open-to-offers";
 import { formatCardValueLabel, NOT_ENOUGH_SALES_LABEL } from "@/lib/value/format";
 import { useCardValues } from "@/lib/value/use-card-values";
 
@@ -60,6 +65,7 @@ export function ProfileView({ username }: { username?: string }) {
   const [tab, setTab] = useState<"posts" | "collection">(
     searchParams.get("tab") === "collection" ? "collection" : "posts",
   );
+  const [offersOnly, setOffersOnly] = useState(false);
   const [postsRefreshKey, setPostsRefreshKey] = useState(0);
   const pagedPosts = usePagedTimeline({
     enabled: mode === "supabase" && Boolean(profile?.id),
@@ -88,6 +94,7 @@ export function ProfileView({ username }: { username?: string }) {
             grade: card.grade,
             parallel: card.parallel,
             purchasePrice: card.purchasePrice,
+            openToOffers: card.openToOffers ?? null,
           }))
       : [];
     const listed = publicCards.filter((card) => card.ownerId === profile.id);
@@ -109,9 +116,14 @@ export function ProfileView({ username }: { username?: string }) {
     ];
   }, [cards, isOwn, profile, publicCards]);
 
+  const offersAvailable = openToOffersFilterAvailable(collection);
+  const shownCollection = useMemo(
+    () => filterOpenToOffers(collection, offersOnly && offersAvailable),
+    [collection, offersAvailable, offersOnly],
+  );
   const collectionIds = useMemo(
-    () => collection.map((card) => card.id),
-    [collection],
+    () => shownCollection.map((card) => card.id),
+    [shownCollection],
   );
   const { values: cardValues } = useCardValues(collectionIds);
   const editFromLink = searchParams.get("edit") === "1" && isOwn;
@@ -338,61 +350,58 @@ export function ProfileView({ username }: { username?: string }) {
               and mark a card public to show it here.
             </p>
           ) : null}
-          {collection.length === 0 ? (
+          <OpenToOffersFilter
+            available={offersAvailable}
+            active={offersOnly}
+            onToggle={() => setOffersOnly((current) => !current)}
+          />
+          {shownCollection.length === 0 ? (
             <EmptyState
               compact
               icon={<WalletCards className="h-5 w-5" />}
-              title="No public cards yet"
+              title={offersOnly && collection.length > 0 ? "No cards open to offers" : "No public cards yet"}
               detail={
-                isOwn
-                  ? "Cards you mark public will show up here."
-                  : "Cards this collector shares will show up here."
+                offersOnly && collection.length > 0
+                  ? "None of these public cards are open to offers."
+                  : isOwn
+                    ? "Cards you mark public will show up here."
+                    : "Cards this collector shares will show up here."
               }
             >
-              {isOwn ? (
+              {isOwn && !(offersOnly && collection.length > 0) ? (
                 <Link href="/cards/new" className={solidButton}>
                   Add a card
                 </Link>
               ) : null}
             </EmptyState>
           ) : (
-            <ul className="grid grid-cols-2 gap-3">
-              {collection.map((card) => (
-                <li key={card.id}>
-                  <Link
-                    href={`/u/${profile.username}/cards/${card.id}`}
-                    className="block overflow-hidden rounded-2xl border border-zinc-200 transition hover:border-zinc-300 active:bg-zinc-50 dark:border-white/10 dark:hover:border-white/20 dark:active:bg-white/[0.04]"
-                  >
-                    <CardThumb card={card} className="h-36 w-full" />
-                    <div className="px-2.5 py-2">
-                      <p className="truncate text-sm font-bold">{card.playerName}</p>
-                      <p className="truncate text-xs text-zinc-500">
-                        {card.year} {card.setBrand}
-                      </p>
-                      <p className="text-xs text-zinc-500">
-                        {(() => {
-                          const v = cardValues.get(card.id);
-                          const label = formatCardValueLabel(v, {
-                            createdAt:
-                              "createdAt" in card
-                                ? (card.createdAt as string)
-                                : null,
-                          });
-                          if (
-                            label === "Value updating" ||
-                            label === NOT_ENOUGH_SALES_LABEL ||
-                            label === "Value unavailable right now"
-                          ) {
-                            return label;
-                          }
-                          return `Est. ${label}`;
-                        })()}
-                      </p>
-                    </div>
-                  </Link>
-                </li>
-              ))}
-            </ul>
+            <>
+              <ul className="grid grid-cols-2 gap-3">
+                {shownCollection.map((card) => {
+                  const v = cardValues.get(card.id);
+                  const label = formatCardValueLabel(v, {
+                    createdAt: "createdAt" in card ? (card.createdAt as string) : null,
+                  });
+                  const valueLabel =
+                    label === "Value updating" ||
+                    label === NOT_ENOUGH_SALES_LABEL ||
+                    label === "Value unavailable right now"
+                      ? label
+                      : `Est. ${label}`;
+                  return (
+                    <li key={card.id}>
+                      <Link
+                        href={`/u/${profile.username}/cards/${card.id}`}
+                        className="block overflow-hidden rounded-2xl border border-zinc-200 transition hover:border-zinc-300 active:bg-zinc-50 dark:border-white/10 dark:hover:border-white/20 dark:active:bg-white/[0.04]"
+                      >
+                        <CardThumb card={card} className="h-36 w-full" />
+                        <ProfileCardCaption card={card} valueLabel={valueLabel} />
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            </>
           )}
         </div>
       )}

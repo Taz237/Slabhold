@@ -1,4 +1,6 @@
+import { offerSendError, parseCardPreview } from "@/lib/offers/open-to-offers";
 import type {
+  CardMessagePreview,
   DirectMessage,
   FollowEdge,
   Notification,
@@ -646,11 +648,20 @@ export function localSendMessage(
   db: LocalDb,
   receiverId: string,
   content: string,
+  preview?: CardMessagePreview | null,
 ): { db: LocalDb; error?: string } {
   if (!db.sessionUserId) return { db, error: "Log in to send a message." };
-  if (db.sessionUserId === receiverId) return { db, error: "You can't message yourself." };
   const text = content.trim().slice(0, MESSAGE_LIMIT);
-  if (!text) return { db, error: "Write a message." };
+  const cardPreview = preview ? parseCardPreview(preview) : null;
+  const refused = offerSendError({
+    senderId: db.sessionUserId,
+    receiverId,
+    blocked: false,
+    muted: false,
+    preview: cardPreview,
+  });
+  if (refused) return { db, error: refused };
+  if (!text && !cardPreview) return { db, error: "Write a message." };
   if (!db.users.some((user) => user.id === receiverId)) return { db, error: "That collector is gone." };
   const message: DirectMessage = {
     id: `msg-${Date.now().toString(36)}`,
@@ -659,6 +670,8 @@ export function localSendMessage(
     content: text,
     createdAt: new Date().toISOString(),
     read: false,
+    kind: cardPreview ? "card_preview" : "text",
+    cardPreview: cardPreview ? { cardId: cardPreview.cardId } : null,
   };
   return { db: { ...db, messages: [...(db.messages ?? []), message] } };
 }

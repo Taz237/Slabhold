@@ -60,15 +60,18 @@ type OwnersModule = {
     client?: PeopleDb | null,
   ) => Promise<OwnersAndHunters>;
   identityKeyFromRow: (row: Row) => string;
+  resetOffersColumnProbe: () => void;
 };
 
 let getOwnersAndHunters: OwnersModule["getOwnersAndHunters"];
 let identityKeyFromRow: OwnersModule["identityKeyFromRow"];
+let resetOffersColumnProbe: OwnersModule["resetOffersColumnProbe"];
 
 before(async () => {
   const loaded = (await import("./owners")) as OwnersModule;
   getOwnersAndHunters = loaded.getOwnersAndHunters;
   identityKeyFromRow = loaded.identityKeyFromRow;
+  resetOffersColumnProbe = loaded.resetOffersColumnProbe;
 });
 
 const identity = {
@@ -639,6 +642,58 @@ describe("getOwnersAndHunters", () => {
     assert.equal(result.owners.count, 1);
     assert.equal(JSON.stringify(result).includes("secret"), false);
   });
+
+  it("probes open_to_offers once when the column is missing", async () => {
+    resetOffersColumnProbe();
+    const sample = card("ada", "card-ada");
+    const key = identityKeyFromRow(sample);
+    const selects: string[] = [];
+    const client: PeopleDb = {
+      from(table: string) {
+        let columns = "";
+        const builder: PeopleQuery = {
+          select(next: string) {
+            columns = next;
+            if (table === "public_cards") selects.push(next);
+            return builder;
+          },
+          eq() {
+            return builder;
+          },
+          ilike() {
+            return builder;
+          },
+          in() {
+            return builder;
+          },
+          limit() {
+            return builder;
+          },
+          async maybeSingle() {
+            return { data: null, error: null };
+          },
+          then(resolve, reject) {
+            const missing = columns.includes("open_to_offers");
+            return Promise.resolve({
+              data: missing ? null : [],
+              error: missing
+                ? { code: "42703", message: "column open_to_offers does not exist" }
+                : null,
+            }).then(resolve, reject);
+          },
+        };
+        return builder;
+      },
+      async rpc() {
+        return { data: [], error: null };
+      },
+    };
+    await getOwnersAndHunters(key, null, client);
+    await getOwnersAndHunters(key, null, client);
+    assert.equal(selects.filter((columns) => columns.includes("open_to_offers")).length, 1);
+    assert.equal(selects.at(-1)?.includes("open_to_offers"), false);
+    resetOffersColumnProbe();
+  });
 });
 
 describe("card people view", () => {
@@ -650,6 +705,7 @@ describe("card people view", () => {
       displayName: `User ${index}`,
       avatarUrl: null,
       isFollowedByViewer: false,
+      openToOffers: false,
     }));
     const html = renderToStaticMarkup(
       createElement(CardPeopleView, {
@@ -679,12 +735,14 @@ describe("card people view", () => {
                 displayName: "Ada",
                 avatarUrl: null,
                 isFollowedByViewer: true,
+                openToOffers: false,
               },
               {
                 handle: "ben",
                 displayName: "Ben",
                 avatarUrl: null,
                 isFollowedByViewer: false,
+                openToOffers: false,
               },
             ],
           },

@@ -1,15 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
-import { ArrowLeft } from "lucide-react";
-import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ArrowLeft, X } from "lucide-react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Avatar } from "@/components/avatar";
 import { solidButton } from "@/components/button-styles";
+import { CardMessagePreviewCard } from "@/components/open-to-offers";
 import { EmptyState, LoadingRows } from "@/components/status";
 import { useSocial } from "@/components/social-provider";
 import { signupPath } from "@/lib/auth/safe-next";
 import { exactTime, timeAgo } from "@/lib/format";
+import { offerCardForThread } from "@/lib/offers/open-to-offers";
 import { MESSAGE_LIMIT } from "@/lib/social/types";
 
 export function MessageThread({ username }: { username: string }) {
@@ -24,9 +26,27 @@ export function MessageThread({ username }: { username: string }) {
     markThreadRead,
     refresh,
     blockedIds,
+    mutedIds,
     safetyAccounts,
+    publicCards,
   } = useSocial();
+  const searchParams = useSearchParams();
+  const cardParam = searchParams.get("card");
   const partner = profileByUsername(username);
+  const mutedPartner = Boolean(partner && mutedIds.includes(partner.id));
+  const offerCard = useMemo(
+    () =>
+      offerCardForThread({
+        cardId: cardParam,
+        partnerId: partner?.id ?? null,
+        viewerId: user?.id ?? null,
+        blocked: Boolean(partner && blockedIds.includes(partner.id)),
+        muted: mutedPartner,
+        cards: publicCards,
+      }),
+    [blockedIds, cardParam, mutedPartner, partner, publicCards, user?.id],
+  );
+  const offerAttachment = offerCard ? { cardId: offerCard.id } : null;
   const [draft, setDraft] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -63,7 +83,7 @@ export function MessageThread({ username }: { username: string }) {
       return;
     }
     setPending(true);
-    const result = await sendMessage(partner.id, draft);
+    const result = await sendMessage(partner.id, draft, offerAttachment);
     setPending(false);
     if (result.error) {
       setError(result.error);
@@ -81,16 +101,22 @@ export function MessageThread({ username }: { username: string }) {
     );
   }
 
+  const offerBlocked =
+    Boolean(cardParam) &&
+    Boolean(partner) &&
+    Boolean(user) &&
+    (blockedIds.includes(partner?.id ?? "") || mutedIds.includes(partner?.id ?? ""));
   const blockedPartner = safetyAccounts.find(
     (person) =>
       person.id !== user?.id &&
       blockedIds.includes(person.id) &&
       person.username.toLowerCase() === username.toLowerCase(),
   );
-  if (blockedPartner) {
+  if (blockedPartner || (offerBlocked && partner)) {
+    const handle = blockedPartner?.username ?? partner?.username ?? username;
     return (
       <EmptyState
-        title={`You've blocked @${blockedPartner.username}`}
+        title={blockedPartner ? `You've blocked @${handle}` : `You can't message @${handle}`}
         detail="You can't interact with this account."
       >
         <Link href="/messages" className="text-sm font-bold">
@@ -147,15 +173,20 @@ export function MessageThread({ username }: { username: string }) {
             return (
               <div key={message.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
                 <div className={`max-w-[80%] ${mine ? "items-end" : "items-start"} flex flex-col`}>
-                  <p
-                    className={`rounded-2xl px-3 py-2 text-[15px] leading-5 whitespace-pre-wrap ${
-                      mine
-                        ? "rounded-br-md bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-950"
-                        : "rounded-bl-md bg-zinc-100 text-zinc-900 dark:bg-white/10 dark:text-zinc-100"
-                    }`}
-                  >
-                    {message.content}
-                  </p>
+                  {message.cardPreview ? (
+                    <CardMessagePreviewCard preview={message.cardPreview} />
+                  ) : null}
+                  {message.content.trim() ? (
+                    <p
+                      className={`rounded-2xl px-3 py-2 text-[15px] leading-5 whitespace-pre-wrap ${
+                        mine
+                          ? "rounded-br-md bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-950"
+                          : "rounded-bl-md bg-zinc-100 text-zinc-900 dark:bg-white/10 dark:text-zinc-100"
+                      }`}
+                    >
+                      {message.content}
+                    </p>
+                  ) : null}
                   {stamp ? (
                     <time
                       dateTime={message.createdAt}
@@ -174,6 +205,21 @@ export function MessageThread({ username }: { username: string }) {
 
       <form onSubmit={submit} className="shrink-0 border-t border-zinc-200 px-3 py-2 dark:border-white/10">
         {error ? <p className="mb-1 text-xs text-rose-600 dark:text-rose-400">{error}</p> : null}
+        {offerAttachment ? (
+          <div className="mb-2 flex items-start gap-2">
+            <div className="min-w-0 flex-1">
+              <CardMessagePreviewCard preview={offerAttachment} />
+            </div>
+            <button
+              type="button"
+              aria-label="Remove card"
+              onClick={() => router.replace(`/messages/${partner.username}`)}
+              className="mt-2 grid h-8 w-8 shrink-0 place-items-center rounded-full hover:bg-zinc-100 dark:hover:bg-white/10"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        ) : null}
         <div className="flex items-end gap-2">
           <textarea
             value={draft}
@@ -187,7 +233,11 @@ export function MessageThread({ username }: { username: string }) {
             placeholder="Start a message"
             className="max-h-32 min-h-10 flex-1 resize-none rounded-2xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-[15px] leading-5 outline-none placeholder:text-zinc-500 dark:border-white/10 dark:bg-white/10"
           />
-          <button type="submit" disabled={pending || !draft.trim()} className={`${solidButton} mb-0.5`}>
+          <button
+            type="submit"
+            disabled={pending || (!draft.trim() && !offerAttachment)}
+            className={`${solidButton} mb-0.5`}
+          >
             Send
           </button>
         </div>

@@ -61,6 +61,7 @@ import {
   remoteUpdatePost,
   remoteUpdateProfile,
 } from "@/lib/social/remote";
+import { offerSendError, parseCardPreview } from "@/lib/offers/open-to-offers";
 import { authSnapshotReload } from "@/lib/social/auth-snapshot";
 import { loadPostById, loadPostPage, type LoadedPostPage } from "@/lib/social/load-feed-page";
 import { loadRealtimePatch } from "@/lib/social/realtime-slices";
@@ -86,6 +87,7 @@ import type { CardValueResult } from "@/lib/value/types";
 import { useCardValues } from "@/lib/value/use-card-values";
 import type {
   AuthResult,
+  CardMessagePreview,
   DirectMessage,
   FollowEdge,
   Notification,
@@ -148,7 +150,11 @@ type SocialContextValue = {
   markNotificationsRead: (ids?: readonly string[]) => void;
   messages: DirectMessage[];
   unreadMessageCount: number;
-  sendMessage: (receiverId: string, content: string) => Promise<AuthResult>;
+  sendMessage: (
+    receiverId: string,
+    content: string,
+    preview?: CardMessagePreview | null,
+  ) => Promise<AuthResult>;
   markThreadRead: (partnerId: string) => void;
   feed: TimelineItem[];
   follows: FollowEdge[];
@@ -1118,14 +1124,33 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
   ).length;
 
   const sendMessage = useCallback(
-    async (receiverId: string, content: string): Promise<AuthResult> => {
+    async (
+      receiverId: string,
+      content: string,
+      preview?: CardMessagePreview | null,
+    ): Promise<AuthResult> => {
+      const current = snapshotRef.current;
+      if (!current.user) return { error: "Log in to send a message." };
+      const cardPreview = preview ? parseCardPreview(preview) : null;
+      const refused = offerSendError({
+        senderId: current.user.id,
+        receiverId,
+        blocked: (current.blockedIds ?? []).includes(receiverId),
+        muted: (current.mutedIds ?? []).includes(receiverId),
+        preview: cardPreview,
+      });
+      if (refused) return { error: refused };
       if (mode === "supabase") {
         const client = supabaseRef.current;
-        const current = snapshotRef.current;
         if (!client) return { error: "Still loading." };
-        if (!current.user) return { error: "Log in to send a message." };
         try {
-          const result = await remoteSendMessage(client, current.user.id, receiverId, content);
+          const result = await remoteSendMessage(
+            client,
+            current.user.id,
+            receiverId,
+            content,
+            cardPreview,
+          );
           if (!result.error) await refreshRemote(client);
           return result;
         } catch (error) {
@@ -1133,7 +1158,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
         }
       }
       if (!localRef.current) return { error: "Still loading." };
-      const result = localSendMessage(localRef.current, receiverId, content);
+      const result = localSendMessage(localRef.current, receiverId, content, cardPreview);
       if (!result.error) commitLocal(result.db);
       return { error: result.error };
     },

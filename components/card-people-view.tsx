@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { Avatar } from "@/components/avatar";
+import { OpenToOffersBadge } from "@/components/open-to-offers";
 import { solidButton } from "@/components/button-styles";
 import {
   SIGNED_OUT_LIST_LIMIT,
@@ -98,7 +99,10 @@ function PeopleSection({
                   className="h-8 w-8"
                   expandable={false}
                 />
-                <span className="max-w-[7.5rem] truncate text-sm font-semibold">@{person.handle}</span>
+                <span className="flex min-w-0 flex-col">
+                  <span className="max-w-[7.5rem] truncate text-sm font-semibold">@{person.handle}</span>
+                  {person.openToOffers ? <OpenToOffersBadge className="mt-0.5" /> : null}
+                </span>
               </Link>
               {renderFollow ? renderFollow(person, source) : null}
             </li>

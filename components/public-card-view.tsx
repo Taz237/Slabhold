@@ -9,7 +9,9 @@ import { CardCollectorsSaying } from "@/components/card-collectors-saying";
 import { CardOwnersSection } from "@/components/card-owners";
 import { CardPeopleSections } from "@/components/card-people";
 import { EmptyPriceNote } from "@/components/ebay-sold-link";
+import { OpenToOffersBadge } from "@/components/open-to-offers";
 import { WantButton } from "@/components/want-button";
+import { outlineButton } from "@/components/button-styles";
 import { CardThumb } from "@/components/card-thumb";
 import { CompBasis } from "@/components/comp-basis";
 import { CompsList } from "@/components/comps-list";
@@ -20,6 +22,7 @@ import { ProfileSkeleton } from "@/components/status";
 import { useSocial } from "@/components/social-provider";
 import { ValueChart } from "@/components/value-chart";
 import { isCardOwner } from "@/lib/comps/ownership";
+import { messageOwnerHref, showOpenToOffersBadge } from "@/lib/offers/open-to-offers";
 import { basedOnSalesLabel, countForSalesLabel, valueFromShownSales } from "@/lib/comps/shared-value";
 import { soldNotice } from "@/lib/comps/sold-response";
 import { useSoldComps } from "@/lib/comps/use-sold-comps";
@@ -88,6 +91,16 @@ export function PublicCardView({
     );
   }
 
+  const messageHref = messageOwnerHref({
+    viewerId: social.user?.id ?? null,
+    ownerId: profile.id,
+    ownerUsername: profile.username,
+    cardId: card.id,
+    openToOffers: card.openToOffers ?? null,
+    blocked: (social.blockedIds ?? []).includes(profile.id),
+    muted: (social.mutedIds ?? []).includes(profile.id),
+  });
+
   return (
     <PublicCardAnalytics
       card={card}
@@ -97,6 +110,7 @@ export function PublicCardView({
       canFlag={isCardOwner(profile.id, social.user?.id ?? null)}
       publicComps={publicComps}
       people={people}
+      messageHref={messageHref}
     />
   );
 }
@@ -109,6 +123,7 @@ function PublicCardAnalytics({
   canFlag,
   publicComps,
   people,
+  messageHref,
 }: {
   card: PublicCard;
   displayName: string;
@@ -117,6 +132,7 @@ function PublicCardAnalytics({
   canFlag: boolean;
   publicComps: PublicCardComps;
   people: OwnersAndHunters | null;
+  messageHref: string | null;
 }) {
   const pathname = usePathname() || "/";
   const specs = [
@@ -214,7 +230,10 @@ function PublicCardAnalytics({
       <div>
         <p className="text-sm text-zinc-500">{cardTitle(card)}</p>
         <div className="flex items-start justify-between gap-3">
-          <h1 className="mt-1 text-3xl font-semibold tracking-tight">{card.playerName}</h1>
+          <div className="mt-1 flex flex-wrap items-center gap-2">
+            <h1 className="text-3xl font-semibold tracking-tight">{card.playerName}</h1>
+            {showOpenToOffersBadge(card.openToOffers) ? <OpenToOffersBadge /> : null}
+          </div>
           <WantButton
             card={card}
             fairLow={cardValueHasAmount(shownValue) ? shownValue.low : null}
@@ -233,6 +252,11 @@ function PublicCardAnalytics({
               </div>
             ))}
           </dl>
+        ) : null}
+        {messageHref ? (
+          <Link href={messageHref} className={`${outlineButton} mt-4`}>
+            Message owner
+          </Link>
         ) : null}
       </div>
 
@@ -429,6 +453,7 @@ function toPublicCard(card: {
   grade: string;
   parallel: string;
   purchasePrice: number | null;
+  openToOffers?: boolean | null;
 }): PublicCard {
   return {
     id: card.id,
@@ -443,6 +468,7 @@ function toPublicCard(card: {
     grade: card.grade,
     parallel: card.parallel,
     purchasePrice: card.purchasePrice,
+    openToOffers: card.openToOffers ?? null,
   };
 }
 

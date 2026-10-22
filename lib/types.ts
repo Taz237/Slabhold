@@ -37,6 +37,11 @@ export type SportsCard = {
   accent: string;
   category?: CardCategory;
   isPublic?: boolean;
+  /**
+   * Null when cards.open_to_offers is not in the database yet.
+   * False is the default once the column exists.
+   */
+  openToOffers?: boolean | null;
   createdAt: string;
   updatedAt: string;
 };

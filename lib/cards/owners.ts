@@ -9,6 +9,7 @@ import {
   type OwnerCandidate,
   type OwnersAndHunters,
 } from "@/lib/cards/people";
+import { offersColumnMissing } from "@/lib/offers/open-to-offers";
 import { cardIdentityKey, type IdentityCard } from "@/lib/social/card-identity";
 import { ilikeExact } from "@/lib/social/username-taken";
 import { getSupabaseConfig } from "@/lib/supabase/client";
@@ -35,7 +36,7 @@ import { isUuid } from "@/lib/value/card-value-access";
 
 const LIST_CAP = 1000;
 
-const CARD_COLUMNS = [
+const CARD_COLUMNS_BASE = [
   "id",
   "user_id",
   "player",
@@ -52,6 +53,15 @@ const CARD_COLUMNS = [
   "created_at",
   "updated_at",
 ].join(", ");
+
+const CARD_COLUMNS = `${CARD_COLUMNS_BASE}, open_to_offers`;
+
+/** Null until the first Owners lookup. False skips the missing-column select. */
+let offersColumnKnown: boolean | null = null;
+
+export function resetOffersColumnProbe(): void {
+  offersColumnKnown = null;
+}
 
 type Row = Record<string, unknown>;
 
@@ -149,11 +159,45 @@ function anonClient(): PeopleDb | null {
 }
 
 async function identityKeyForCard(client: PeopleDb, cardId: string): Promise<string | null> {
-  const pub = await client.from("public_cards").select(CARD_COLUMNS).eq("id", cardId).maybeSingle();
+  const pub = await client.from("public_cards").select(CARD_COLUMNS_BASE).eq("id", cardId).maybeSingle();
   if (pub.data) return identityKeyFromRow(pub.data);
-  const own = await client.from("cards").select(CARD_COLUMNS).eq("id", cardId).maybeSingle();
+  const own = await client.from("cards").select(CARD_COLUMNS_BASE).eq("id", cardId).maybeSingle();
   if (own.data) return identityKeyFromRow(own.data);
   return null;
+}
+
+async function selectPublicCopies(client: PeopleDb, player: string, columns: string) {
+  return client
+    .from("public_cards")
+    .select(columns)
+    .ilike("player", ilikeExact(player))
+    .limit(LIST_CAP);
+}
+
+/**
+ * Prefer the offers column. A missing column is remembered for this process so
+ * later Owners lookups do not repeat the failing select.
+ */
+async function loadPublicCopies(client: PeopleDb, player: string): Promise<{
+  rows: Row[];
+  error: DbError;
+  offersKnown: boolean;
+}> {
+  if (offersColumnKnown === false) {
+    const cached = await selectPublicCopies(client, player, CARD_COLUMNS_BASE);
+    if (cached.error) return { rows: [], error: cached.error, offersKnown: false };
+    return { rows: cached.data ?? [], error: null, offersKnown: false };
+  }
+  const first = await selectPublicCopies(client, player, CARD_COLUMNS);
+  if (!first.error) {
+    offersColumnKnown = true;
+    return { rows: first.data ?? [], error: null, offersKnown: true };
+  }
+  if (!offersColumnMissing(first.error)) return { rows: [], error: first.error, offersKnown: false };
+  offersColumnKnown = false;
+  const second = await selectPublicCopies(client, player, CARD_COLUMNS_BASE);
+  if (second.error) return { rows: [], error: second.error, offersKnown: false };
+  return { rows: second.data ?? [], error: null, offersKnown: false };
 }
 
 async function readOwnersAndHunters(
@@ -165,7 +209,7 @@ async function readOwnersAndHunters(
   if (!client || !player) return emptyPeople(Boolean(viewerId));
 
   const [cardsRes, wantsRes, blocksRes, mutesRes, followsRes] = await Promise.all([
-    client.from("public_cards").select(CARD_COLUMNS).ilike("player", ilikeExact(player)).limit(LIST_CAP),
+    loadPublicCopies(client, player),
     client.rpc("card_hunters", { p_card_key: identityKey }),
     viewerId
       ? client.from("blocks").select("blocked_id").eq("blocker_id", viewerId)
@@ -182,7 +226,8 @@ async function readOwnersAndHunters(
     console.warn("[card-people] public cards failed:", cardsRes.error.message);
   }
 
-  const cardRows = cardsRes.error ? [] : (cardsRes.data ?? []);
+  const cardRows = cardsRes.error ? [] : cardsRes.rows;
+  const offersKnown = cardsRes.offersKnown;
   const huntersReadable = !wantsRes.error;
   const hunterIds = huntersReadable ? hunterUserIds(wantsRes.data) : [];
   if (wantsRes.error && !denied(wantsRes.error) && !missingRpc(wantsRes.error)) {
@@ -277,6 +322,7 @@ async function readOwnersAndHunters(
       ...base,
       cardPublic: row.is_public !== false,
       collectionPublic: row.collection_public !== false,
+      openToOffers: offersKnown && row.open_to_offers === true,
     });
   }
 
