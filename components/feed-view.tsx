@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Compass, ImagePlus } from "lucide-react";
 import { Avatar } from "@/components/avatar";
 import { MentionTextarea } from "@/components/mention-textarea";
@@ -19,6 +19,7 @@ import { PullToRefresh } from "@/components/pull-to-refresh";
 import { usePagedTimeline } from "@/components/use-paged-timeline";
 import { EmptyState, LoadingRows, TimelineSkeleton } from "@/components/status";
 import { CollectionToday } from "@/components/collection-today";
+import { MovingToday } from "@/components/moving-today";
 import { shouldShowFirstCardWelcome } from "@/lib/collection/welcome";
 import { Tweet } from "@/components/tweet";
 import { WhatsNewCard } from "@/components/whats-new-card";
@@ -64,7 +65,7 @@ function takeComposePrefill(): string | null {
   return saved ?? heldComposePrefill;
 }
 
-export function FeedView() {
+export function FeedView({ movingToday }: { movingToday?: ReactNode } = {}) {
   const router = useRouter();
   const pathname = usePathname() || "/";
   const {
@@ -273,6 +274,8 @@ export function FeedView() {
           Following
         </LaneTab>
       </div>
+
+      {lane === "foryou" ? movingToday ?? <MovingToday /> : null}
 
       {user ? (
         <Composer onPosted={() => setRefreshKey((key) => key + 1)} />

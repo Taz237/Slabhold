@@ -96,6 +96,7 @@ export const PAGE_PATTERNS = [
   "/messages",
   "/messages/[username]",
   "/more",
+  "/moving-today",
   "/notifications",
   "/portfolio",
   "/posts/[id]",

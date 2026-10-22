@@ -4,6 +4,8 @@ import { ImageResponse } from "next/og";
 import type { ReactNode } from "react";
 import { siteUrlFrom } from "@/lib/site-url";
 import { cleanImageUrl, type LinkPreview } from "@/lib/social/link-preview";
+import { movingTodayCacheControl } from "@/lib/moving-today/cache";
+import type { MovingTodayShareModel } from "@/lib/moving-today/share";
 import {
   homeShareImage,
   profileShareImage,
@@ -580,4 +582,57 @@ export function renderProfileOg(
 
 export async function renderHomeOg() {
   return paint(homeShareImage(), PUBLIC_OG_CACHE_CONTROL, await homeShotSrc());
+}
+
+/** Catalog share image. Same frame, fonts, and brand as the other Open Graph cards. */
+export function renderMovingTodayOg(model: MovingTodayShareModel) {
+  return respond(
+    <div style={{ display: "flex", width: "100%", height: "100%" }}>
+      <Left>
+        <Brand />
+        <div style={{ display: "flex", flexDirection: "column" }}>
+          <div style={{ display: "flex", fontSize: 22, letterSpacing: 2, color: "#c4b5fd" }}>
+            {(model.title || "Moving today").toUpperCase()}
+          </div>
+          {model.dateLabel ? (
+            <div style={{ display: "flex", marginTop: 10, fontSize: 28, color: "#a1a1aa" }}>
+              {model.dateLabel}
+            </div>
+          ) : null}
+          <div style={{ display: "flex", flexDirection: "column", marginTop: 28 }}>
+            {model.lines.map((line) => (
+              <div
+                key={`${line.name}-${line.price}-${line.sold}`}
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  marginTop: 16,
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    fontSize: 32,
+                    fontWeight: 700,
+                    marginRight: 24,
+                    lineClamp: 1,
+                  }}
+                >
+                  {line.name}
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
+                  <div style={{ display: "flex", fontSize: 30, fontWeight: 700 }}>{line.price}</div>
+                  <div style={{ display: "flex", marginTop: 4, fontSize: 22, color: "#d4d4d8" }}>
+                    {[line.move, line.sold].filter(Boolean).join(" · ")}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </Left>
+    </div>,
+    movingTodayCacheControl(),
+  );
 }
