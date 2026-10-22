@@ -51,6 +51,33 @@ describe("interest typeahead", () => {
     assert.equal(interestTypeahead({ query: "pika", players }).length, 0);
     assert.equal(interestTypeahead({ query: "   ", players }).length, 0);
   });
+
+  it("collapses punctuation variants and keeps different sports apart", () => {
+    const stroud = interestTypeahead({
+      query: "stroud",
+      players: [
+        { name: "CJ Stroud", sport: "Football" },
+        { name: "C.J. Stroud", sport: "Football" },
+      ],
+      teams: [],
+    });
+    assert.deepEqual(
+      stroud.map((hit) => hit.value),
+      ["C.J. Stroud"],
+    );
+    const smiths = interestTypeahead({
+      query: "will smith",
+      players: [
+        { name: "Will Smith", sport: "Baseball" },
+        { name: "Will Smith", sport: "Hockey" },
+      ],
+      teams: [],
+    });
+    assert.deepEqual(
+      smiths.map((hit) => `${hit.value}/${hit.sport}`),
+      ["Will Smith/Baseball", "Will Smith/Hockey"],
+    );
+  });
 });
 
 describe("collect prompt", () => {

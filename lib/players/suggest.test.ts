@@ -85,6 +85,7 @@ describe("player directory", () => {
     assert.match(editor, /Retry/);
     const maxey = INDEXED_DIRECTORY.find((player) => player.name === "Tyrese Maxey");
     assert.equal(maxey?.norm, "tyrese maxey");
+    assert.equal(maxey?.compact, "tyresemaxey");
     assert.deepEqual(maxey?.words, ["tyrese", "maxey"]);
   });
 });
@@ -268,6 +269,7 @@ describe("directory name search", () => {
     const stroud = INDEXED_DIRECTORY.find((player) => player.name === "C.J. Stroud");
     assert.deepEqual(stroud?.words, ["c", "j", "stroud"]);
     assert.deepEqual(stroud?.joined, ["cj", "stroud"]);
+    assert.equal(stroud?.compact, "cjstroud");
     assert.equal(playerNameMatches("C.J. Stroud", "cj stroud"), true);
     assert.equal(playerNameMatches("C.J. Stroud", "c.j. stroud"), true);
     assert.equal(playerNameMatches("CJ Stroud", "c j stroud"), true);
@@ -299,6 +301,57 @@ describe("directory name search", () => {
     assert.equal(dotted[0]?.custom, true);
     assert.equal(dotted[0]?.value, "C.J. Stroud");
     assert.equal(dotted[0]?.sport, "Basketball");
+    const spaced = names("c j stroud", ["Basketball"]);
+    assert.equal(spaced.length, 1);
+    assert.equal(spaced[0]?.custom, true);
+    assert.equal(spaced[0]?.value, "CJ Stroud");
+    assert.equal(spaced[0]?.sport, "Basketball");
+    assert.equal(titleCasePlayerName("c j stroud"), "CJ Stroud");
+    assert.equal(titleCasePlayerName("C J STROUD"), "CJ Stroud");
+  });
+
+  it("shows one row when catalog and directory spell the same initials differently", () => {
+    const hits = withDirectoryPlayers({
+      query: "cj stroud",
+      catalogHits: [
+        { kind: "player", value: "CJ Stroud", sport: "Football" },
+        { kind: "player", value: "C.J. Stroud", sport: "Football" },
+      ],
+      directoryPlayers: INDEXED_DIRECTORY,
+      directoryReady: true,
+    });
+    const strouds = hits.filter((hit) => hit.value.toLowerCase().replace(/[^a-z]/g, "").includes("cjstroud"));
+    assert.equal(strouds.length, 1);
+    assert.equal(strouds[0]?.value, "C.J. Stroud");
+    assert.equal(strouds[0]?.sport, "Football");
+    assert.equal(strouds[0]?.custom, undefined);
+    const catalogOnly = interestTypeahead({
+      query: "stroud",
+      players: [
+        { name: "CJ Stroud", sport: "Football" },
+        { name: "C.J. Stroud", sport: "Football" },
+      ],
+      teams: [],
+    });
+    assert.deepEqual(
+      catalogOnly.map((hit) => hit.value),
+      ["C.J. Stroud"],
+    );
+    const distinct = withDirectoryPlayers({
+      query: "smith",
+      catalogHits: [
+        { kind: "player", value: "Will Smith", sport: "Baseball" },
+        { kind: "player", value: "Will Smith", sport: "Hockey" },
+        { kind: "player", value: "Matt Green", sport: "Football" },
+        { kind: "player", value: "Matt C. Green", sport: "Football" },
+      ],
+      directoryPlayers: [],
+      directoryReady: true,
+    });
+    assert.deepEqual(
+      distinct.map((hit) => `${hit.value}/${hit.sport}`),
+      ["Will Smith/Baseball", "Will Smith/Hockey", "Matt Green/Football", "Matt C. Green/Football"],
+    );
   });
 
   it("uppercases two-letter initials when the rest of the name is cased for them", () => {

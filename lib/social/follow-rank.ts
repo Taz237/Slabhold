@@ -90,6 +90,36 @@ export function normInterest(value: string): string {
     .replace(/\s+/g, " ");
 }
 
+/** Already-normalized name with dots, spaces, hyphens, and apostrophes removed. */
+export function compactNorm(norm: string): string {
+  return norm.replace(/ /g, "");
+}
+
+/** "C.J. Stroud", "CJ Stroud", and "C J Stroud" share one key. Accents are ignored. */
+export function compactInterest(value: string): string {
+  return compactNorm(normInterest(value));
+}
+
+/** Blank sport can join a known sport. Two real sports stay different people. */
+export function playerSportsCompatible(left: string, right: string): boolean {
+  const a = left.trim().toLowerCase();
+  const b = right.trim().toLowerCase();
+  return !a || !b || a === b;
+}
+
+/** Dotted initials ("C.J. Stroud") win over "CJ Stroud" when the names are the same player. */
+export function preferDottedSpelling(current: string, incoming: string): string {
+  return countDots(incoming) > countDots(current) ? incoming : current;
+}
+
+function countDots(value: string): number {
+  let count = 0;
+  for (let index = 0; index < value.length; index += 1) {
+    if (value.charCodeAt(index) === 46) count += 1;
+  }
+  return count;
+}
+
 /** Last name, dropping Jr./Sr./II/III/IV. "Victor Wembanyama" → "Wembanyama". */
 export function interestShortName(value: string): string {
   const tokens = value.trim().split(/\s+/).filter(Boolean);

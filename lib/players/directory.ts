@@ -4,7 +4,7 @@
  * plus the retired-star list in that script). Names, sport, and team only.
  * Normalized names are computed once, when this chunk loads.
  */
-import { normInterest } from "@/lib/social/follow-rank";
+import { compactNorm, normInterest } from "@/lib/social/follow-rank";
 import { collapseInitials } from "./initials";
 import type { DirectoryPlayer, IndexedDirectoryPlayer } from "./types";
 import players from "./directory.json";
@@ -22,6 +22,7 @@ export const INDEXED_DIRECTORY: readonly IndexedDirectoryPlayer[] = players.map(
     sport: player.sport,
     norm,
     words,
+    compact: compactNorm(norm),
   };
   if (joined !== words) indexed.joined = joined;
   if (player.team) indexed.team = player.team;

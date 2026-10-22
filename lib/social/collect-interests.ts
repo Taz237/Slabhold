@@ -1,6 +1,14 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { SPORT_PICKER_OPTIONS } from "../card-options";
-import { INTEREST_RANK_LIMIT, normInterest, type CollectInterest, type InterestKind } from "./follow-rank";
+import {
+  INTEREST_RANK_LIMIT,
+  compactInterest,
+  normInterest,
+  playerSportsCompatible,
+  preferDottedSpelling,
+  type CollectInterest,
+  type InterestKind,
+} from "./follow-rank";
 
 /** Sports the onboarding picker never offers. */
 const BLOCKED_SPORT = /pok[eé]mon|\btcg\b|magic|yu-?gi-?oh/i;
@@ -206,6 +214,7 @@ export function interestTypeahead(input: {
     (sports.length === 0 || sports.includes(sport.toLowerCase()));
   const hits: InterestHit[] = [];
   const seen = new Set<string>();
+  const playersByKey = new Map<string, InterestHit[]>();
   for (const team of input.teams ?? COLLECT_TEAMS) {
     if (!allowed(team.sport)) continue;
     const norm = normInterest(team.name);
@@ -219,10 +228,18 @@ export function interestTypeahead(input: {
     if (!allowed(player.sport)) continue;
     const norm = normInterest(player.name);
     if (!norm || !norm.includes(query)) continue;
-    const key = `player:${norm}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    hits.push({ kind: "player", value: player.name, sport: player.sport });
+    const key = compactInterest(player.name);
+    const group = playersByKey.get(key);
+    const existing = group?.find((hit) => playerSportsCompatible(hit.sport, player.sport));
+    if (existing) {
+      existing.value = preferDottedSpelling(existing.value, player.name);
+      if (!existing.sport && player.sport) existing.sport = player.sport;
+      continue;
+    }
+    const hit: InterestHit = { kind: "player", value: player.name, sport: player.sport };
+    if (group) group.push(hit);
+    else playersByKey.set(key, [hit]);
+    hits.push(hit);
   }
   hits.sort((a, b) => {
     const aStart = normInterest(a.value).startsWith(query) ? 0 : 1;
