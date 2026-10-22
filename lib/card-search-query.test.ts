@@ -686,6 +686,11 @@ describe("search_cards rookie migration", () => {
     assert.match(sql, /notify pgrst, 'reload schema'/);
     assert.match(sql, /want_rookie and phrase is null/);
     assert.match(sql, /tokens\[ti \+ 1\] in \('rookie', 'rookies'\)/);
+    assert.match(sql, /perform extensions\.word_similarity\('a', 'a'\)/);
+    assert.ok(
+      sql.indexOf("perform extensions.word_similarity") <
+        sql.indexOf("create or replace function"),
+    );
     assert.doesNotMatch(sql, /drop table/i);
     assert.doesNotMatch(sql, /delete from/i);
     assert.doesNotMatch(sql, /truncate/i);

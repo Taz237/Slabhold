@@ -20,6 +20,14 @@
 
 set local lock_timeout = '5s';
 
+-- Load pg_trgm into this session before the function is created. Until the
+-- library is loaded, pg_trgm.word_similarity_threshold is only a placeholder,
+-- and Postgres 15+ refuses a function-level SET of a placeholder unless the
+-- role is a superuser or holds SET on it (42501). The Supabase postgres role
+-- is not a superuser. Once loaded, the setting is a normal user-level one and
+-- any role may set it. The function below is unchanged.
+do $load$ begin perform extensions.word_similarity('a', 'a'); end $load$;
+
 drop function if exists public.search_cards(text, int);
 
 create or replace function public.search_cards(q text, max_results int default 20)
