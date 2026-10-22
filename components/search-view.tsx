@@ -13,6 +13,12 @@ import { EmptyState, LoadingRows } from "@/components/status";
 import { CARD_CATALOG } from "@/lib/card-catalog";
 import { cardSubtitle, cardTitle, timeAgo } from "@/lib/format";
 import {
+  createRecentSearchStore,
+  parseRecentSearches,
+  recentSearchKey,
+  rememberRecentSearch,
+} from "@/lib/search/recent";
+import {
   SEARCH_ADD_CARD_LABEL,
   SEARCH_IDLE_DETAIL,
   addCardSearchHref,
@@ -23,8 +29,7 @@ import {
 } from "@/lib/search/sections";
 import type { SportsCard } from "@/lib/types";
 
-const RECENT_KEY = "slabhold.search.recent.v1";
-const RECENT_LIMIT = 8;
+const recentAccounts = createRecentSearchStore();
 
 function cardSearchText(card: SportsCard) {
   return [card.playerName, String(card.year), card.setBrand, card.grade].join(" ").toLowerCase();
@@ -32,36 +37,23 @@ function cardSearchText(card: SportsCard) {
 
 const recentListeners = new Set<() => void>();
 
-function parseRecent(raw: string): string[] {
-  try {
-    const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter((item): item is string => typeof item === "string").slice(0, RECENT_LIMIT);
-  } catch {
-    return [];
-  }
+function subscribeRecent(listener: () => void) {
+  recentListeners.add(listener);
+  return () => recentListeners.delete(listener);
 }
 
-function readRecentRaw() {
-  return window.localStorage.getItem(RECENT_KEY) ?? "[]";
-}
-
-function writeRecent(items: string[]) {
-  if (items.length === 0) window.localStorage.removeItem(RECENT_KEY);
-  else window.localStorage.setItem(RECENT_KEY, JSON.stringify(items.slice(0, RECENT_LIMIT)));
+function notifyRecent() {
   recentListeners.forEach((listener) => listener());
 }
 
-function useRecentSearches() {
+function useRecentSearches(userId: string | null) {
+  const key = recentSearchKey(userId);
   const raw = useSyncExternalStore(
-    (listener) => {
-      recentListeners.add(listener);
-      return () => recentListeners.delete(listener);
-    },
-    readRecentRaw,
+    subscribeRecent,
+    () => window.localStorage.getItem(key) ?? "[]",
     () => "[]",
   );
-  return useMemo(() => parseRecent(raw), [raw]);
+  return useMemo(() => parseRecentSearches(raw), [raw]);
 }
 
 function searchHref(term: string) {
@@ -77,7 +69,12 @@ export function SearchView() {
   const { ready: socialReady, profiles, homePosts, blockedIds, user, refresh } = useSocial();
   const { ready: cardsReady, cards, reload } = useCollection();
   const [query, setQuery] = useState(urlQ);
-  const recent = useRecentSearches();
+  const recentOwner = user?.id ?? null;
+  const recent = useRecentSearches(recentOwner);
+
+  useEffect(() => {
+    recentAccounts.dropShared(window.localStorage);
+  }, []);
   const typed = query.trim();
   const q = typed.toLowerCase().replace(/^@/, "");
 
@@ -137,22 +134,23 @@ export function SearchView() {
     [cards],
   );
 
+  function publishRecent(items: string[]) {
+    recentAccounts.save(window.localStorage, recentOwner, items);
+    notifyRecent();
+  }
+
   function remember(term: string) {
-    const next = term.trim();
-    if (!next) return;
-    const saved = [next, ...recent.filter((item) => item.toLowerCase() !== next.toLowerCase())].slice(
-      0,
-      RECENT_LIMIT,
-    );
-    writeRecent(saved);
+    const saved = rememberRecentSearch(recent, term);
+    if (saved === recent) return;
+    publishRecent(saved);
   }
 
   function forget(term: string) {
-    writeRecent(recent.filter((item) => item !== term));
+    publishRecent(recent.filter((item) => item !== term));
   }
 
   function clearRecent() {
-    writeRecent([]);
+    publishRecent([]);
   }
 
   function refreshSearch() {
@@ -242,7 +240,7 @@ export function SearchView() {
                         type="button"
                         onClick={() => forget(term)}
                         aria-label={`Remove ${term}`}
-                        className="mr-2 grid h-10 w-10 shrink-0 place-items-center rounded-full text-zinc-500 hover:bg-zinc-100 dark:hover:bg-white/10"
+                        className="mr-2 grid h-11 w-11 shrink-0 place-items-center rounded-full text-zinc-500 hover:bg-zinc-100 dark:hover:bg-white/10"
                       >
                         <X className="h-4 w-4" />
                       </button>

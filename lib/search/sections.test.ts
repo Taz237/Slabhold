@@ -3,6 +3,14 @@ import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { join } from "node:path";
 import {
+  ADD_CARD_QUERY_LIMIT,
+  SHARED_RECENT_SEARCH_KEY,
+  addCardQuery,
+  createRecentSearchStore,
+  recentSearchKey,
+  type RecentStore,
+} from "./recent";
+import {
   SEARCH_ADD_CARD_LABEL,
   SEARCH_IDLE_DETAIL,
   addCardSearchHref,
@@ -91,4 +99,68 @@ describe("search sections", () => {
     assert.equal(addCardSearchHref("  "), "/cards/new");
     assert.equal(addCardSearchHref("Wemby #136"), "/cards/new?q=Wemby%20%23136");
   });
+
+  it("keeps recent searches on the signed-in account and shows the guest list when signed out", () => {
+    const accounts = createRecentSearchStore();
+    const store = memoryStore({
+      [SHARED_RECENT_SEARCH_KEY]: JSON.stringify(["secret from the other person"]),
+    });
+    accounts.save(store, "user-a", ["wemby"]);
+    accounts.save(store, "user-b", ["ohtani"]);
+    accounts.save(store, null, ["guest search"]);
+
+    assert.equal(recentSearchKey("user-a"), "slabhold.search.recent.v1.user-a");
+    assert.equal(recentSearchKey(null), "slabhold.search.recent.v1.guest");
+    assert.deepEqual(accounts.read(store, "user-a"), ["wemby"]);
+    assert.deepEqual(accounts.read(store, "user-b"), ["ohtani"]);
+    assert.deepEqual(accounts.read(store, null), ["guest search"]);
+    assert.deepEqual(accounts.read(store, undefined), ["guest search"]);
+    assert.equal(store.getItem(SHARED_RECENT_SEARCH_KEY), null);
+    assert.equal(
+      store.removed.filter((key) => key === SHARED_RECENT_SEARCH_KEY).length,
+      1,
+    );
+    assert.equal(JSON.stringify(store.data).includes("secret from the other person"), false);
+
+    const view = read("components/search-view.tsx");
+    assert.match(view, /useRecentSearches\(recentOwner\)/);
+    assert.match(view, /recentSearchKey\(userId\)/);
+    assert.match(view, /recentAccounts\.save\(window\.localStorage, recentOwner, items\)/);
+    assert.match(view, /recentAccounts\.dropShared\(window\.localStorage\)/);
+    assert.match(view, /aria-label=\{`Remove \$\{term\}`\}[\s\S]*?h-11 w-11/);
+    assert.doesNotMatch(view, /localStorage\.getItem\(SHARED_RECENT_SEARCH_KEY\)|getItem\("slabhold\.search\.recent\.v1"\)/);
+  });
+
+  it("trims a long add-card query to 100 characters", () => {
+    const long = "p".repeat(140);
+    assert.equal(ADD_CARD_QUERY_LIMIT, 100);
+    assert.equal(addCardQuery(long).length, 100);
+    assert.equal(addCardQuery(long), "p".repeat(100));
+    assert.equal(addCardQuery("Jaxson Dart"), "Jaxson Dart");
+    const page = read("app/cards/new/page.tsx");
+    assert.match(page, /addCardQuery\(/);
+    assert.match(page, /<CardForm initialQuery=\{initialQuery\} \/>/);
+  });
 });
+
+function memoryStore(seed: Record<string, string> = {}): RecentStore & {
+  data: Record<string, string>;
+  removed: string[];
+} {
+  const data = { ...seed };
+  const removed: string[] = [];
+  return {
+    data,
+    removed,
+    getItem(key) {
+      return Object.prototype.hasOwnProperty.call(data, key) ? data[key] : null;
+    },
+    setItem(key, value) {
+      data[key] = value;
+    },
+    removeItem(key) {
+      removed.push(key);
+      delete data[key];
+    },
+  };
+}
