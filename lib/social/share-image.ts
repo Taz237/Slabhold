@@ -32,8 +32,10 @@ const UUID =
   /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi;
 const USERNAME = /^[a-z0-9_]{3,20}$/;
 const DOLLAR = /^\$\d[\d,]*(?:\.\d{1,2})?$/;
-const LAST_SOLD = /^Last sold \$[\d,]+\.\d{2} on [A-Z][a-z]{2} \d{1,2}$/;
-const RANGE = /^\$[\d,]+\.\d{2}\u2013\$[\d,]+\.\d{2} from \d+ sales?$/;
+const LAST_SOLD = /^Last sold \$[\d,]+\.\d{2}(?: on [A-Z][a-z]{2} \d{1,2})?$/;
+const RANGE =
+  /^(?:~\$[\d,]+\.\d{2}|\$[\d,]+\.\d{2}(?:\u2013\$[\d,]+\.\d{2})?) from \d+ sales?$/;
+const AMOUNT = /\$[\d,]+(?:\.\d{1,2})?/g;
 
 function blank(): Omit<ShareImage, "kind" | "kicker" | "title" | "detail"> {
   return {
@@ -72,11 +74,21 @@ function publicHandle(value: string | null | undefined): string {
   return USERNAME.test(handle) ? handle : "";
 }
 
-/** A public comps amount. Status sentences and private figures are dropped. */
+function amountsArePriced(text: string): boolean {
+  const amounts = text.match(AMOUNT) ?? [];
+  if (!amounts.length) return false;
+  return amounts.every((amount) => {
+    const value = Number(amount.slice(1).replace(/,/g, ""));
+    return Number.isFinite(value) && value >= 0.01;
+  });
+}
+
+/** A public comps amount. Status sentences, sub-cent figures, and private figures are dropped. */
 export function publicDollar(value: string | null | undefined): string {
   const text = (value ?? "").replace(/\s+/g, " ").trim();
-  if (DOLLAR.test(text) || LAST_SOLD.test(text) || RANGE.test(text)) return text;
-  return "";
+  if (!(DOLLAR.test(text) || LAST_SOLD.test(text) || RANGE.test(text))) return "";
+  if (!amountsArePriced(text)) return "";
+  return text;
 }
 
 function uniquePhotos(urls: readonly (string | null | undefined)[]): string[] {

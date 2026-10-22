@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import type { SoldCompCard } from "@/lib/comps/types";
-import { fallbackSales, newestBatchRows, type CachedCompRow } from "@/lib/value/price-batch";
+import {
+  fallbackSales,
+  mergeExactSales,
+  newestBatchRows,
+  type CachedCompRow,
+} from "@/lib/value/price-batch";
 
 const CARD: SoldCompCard = {
   id: "card-1",
@@ -74,6 +79,38 @@ describe("fallback sales batch", () => {
     assert.deepEqual(
       sales.map((sale) => sale.price),
       [40],
+    );
+    assert.equal(sales[0]?.itemId, "keep");
+  });
+
+  it("drops a flagged item from an identical copy and dedupes by item id", () => {
+    const own = [row({ item_id: "own", price: 42, sold_at: "2026-10-01T00:00:00.000Z" })];
+    const copy = [
+      row({ item_id: "X", price: 44, sold_at: "2026-10-02T00:00:00.000Z" }),
+      row({ item_id: "keep", price: 40, sold_at: "2026-10-03T00:00:00.000Z" }),
+      row({ item_id: "own", price: 42, sold_at: "2026-10-01T00:00:00.000Z" }),
+    ];
+    const subjectFlags = new Set(["X"]);
+    const sales = mergeExactSales(subjectFlags, [
+      fallbackSales(CARD, own, subjectFlags),
+      fallbackSales(CARD, copy, new Set()),
+    ]);
+    assert.equal(sales.some((sale) => sale.price === 44), false);
+    assert.deepEqual(sales.map((sale) => sale.price), [42, 40]);
+    assert.equal("itemId" in (sales[0] ?? {}), false);
+
+    const sameDay = mergeExactSales(new Set(), [
+      [
+        { itemId: "a", price: 10, soldAt: "2026-10-01T00:00:00.000Z" },
+        { itemId: "b", price: 10, soldAt: "2026-10-01T00:00:00.000Z" },
+        { price: 10, soldAt: "2026-10-01T08:00:00.000Z" },
+        { price: 10, soldAt: "2026-10-01T18:00:00.000Z" },
+        { itemId: "tiny", price: 0.009, soldAt: "2026-10-04T00:00:00.000Z" },
+      ],
+    ]);
+    assert.deepEqual(
+      sameDay.map((sale) => sale.price),
+      [10, 10, 10],
     );
   });
 });

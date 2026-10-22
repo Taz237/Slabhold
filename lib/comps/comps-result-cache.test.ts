@@ -167,8 +167,14 @@ describe("server comps cache", () => {
     assert.equal(context.includes(".limit(1000)"), false);
     assert.match(market, /throw new CardMarketUnavailable/);
     assert.match(market, /compsResultCacheTag/);
+    assert.match(market, /loadCachedSoldCompCard/);
     assert.match(market, /refreshCardValue\(cardId, \{ \.\.\.options, card \}\)/);
-    assert.match(source("lib/comps/cache.ts"), /compsResultCacheTag\(cardId\)/);
+    assert.match(context, /\.in\("query_key", unique\)/);
+    assert.match(context, /mergeExactSales\(subjectFlags/);
+    assert.doesNotMatch(source("lib/comps/cache.ts"), /revalidateTag|revalidatePath|revalidateCard/);
+    const sold = source("app/api/comps/sold/route.ts");
+    assert.match(sold, /isFreshSoldWrite/);
+    assert.match(sold, /compsResultCacheTag\(cardId\)/);
     assert.match(source("lib/social/link-preview-load.ts"), /resolvePriceRead/);
     assert.equal(source("lib/social/link-preview-load.ts").includes("marketValueAmount"), false);
     assert.match(market, /\["card-market", identity/);

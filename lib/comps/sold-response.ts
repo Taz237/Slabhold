@@ -42,6 +42,13 @@ export type SoldCompsLoaders = {
   beforeTrawl: () => Promise<boolean>;
 };
 
+/** A live Trawl write. Cache hits and sample payloads are not writes. */
+export function isFreshSoldWrite(payload: unknown): boolean {
+  if (!payload || typeof payload !== "object") return false;
+  const row = payload as { cached?: unknown; sample?: unknown };
+  return row.cached === false && row.sample !== true;
+}
+
 type MarketFail = { name?: string; result?: SoldRefreshResult };
 
 function marketFailResult(err: unknown): SoldRefreshResult | null {

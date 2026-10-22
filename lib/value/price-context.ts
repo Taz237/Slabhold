@@ -16,7 +16,13 @@ import { mapCardRow, type CardRow } from "@/lib/social/cards";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { isUuid } from "@/lib/value/card-value-access";
 import { cardCacheTag } from "@/lib/value/card-cache";
-import { fallbackSales, type CachedCompRow } from "@/lib/value/price-batch";
+import {
+  fallbackSales,
+  mergeExactSales,
+  newestBatchRows,
+  type CachedCompRow,
+  type FallbackSale,
+} from "@/lib/value/price-batch";
 import {
   isSameCardIdentity,
   NORMAL_ESTIMATE_MIN_SALES,
@@ -57,7 +63,10 @@ type PublicRow = {
 };
 
 const SALE_COLUMNS =
-  "item_id, title, price, currency, sold_at, grader, grade, url, fetched_at";
+  "query_key, item_id, title, price, currency, sold_at, grader, grade, url, fetched_at";
+
+/** Enough rows for the newest batch of each key, without a second query per key. */
+const SOLD_CACHE_ROW_LIMIT = 480;
 
 const PUBLIC_COLUMNS =
   "id, user_id, player, year, year_label, set, set_name, grade, grader, parallel, card_number, serial_run, is_auto, is_relic, condition_type, grade_qualifier";
@@ -117,28 +126,36 @@ async function mapLimit<T, R>(
   return results;
 }
 
-/** Newest fetched_at batch for one query key. Ordered, not a mixed limit across keys. */
-async function readNewestBatch(client: Admin, queryKey: string): Promise<CachedCompRow[]> {
-  if (!queryKey) return [];
-  const { data: latest, error: latestError } = await client
-    .from("sold_comps_cache")
-    .select("fetched_at")
-    .eq("query_key", queryKey)
-    .order("fetched_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  if (latestError) throw new CompsResultError(latestError.message);
-  const fetchedAt = latest?.fetched_at ? String(latest.fetched_at) : "";
-  if (!fetchedAt) return [];
+type CacheReadRow = CachedCompRow & { query_key?: string | null };
+
+/** Newest batch of every key, from one ordered read. */
+async function readNewestBatches(
+  client: Admin,
+  keys: readonly string[],
+): Promise<Map<string, CachedCompRow[]>> {
+  const unique = [...new Set(keys.filter(Boolean))];
+  const out = new Map<string, CachedCompRow[]>();
+  for (const key of unique) out.set(key, []);
+  if (!unique.length) return out;
 
   const { data, error } = await client
     .from("sold_comps_cache")
     .select(SALE_COLUMNS)
-    .eq("query_key", queryKey)
-    .eq("fetched_at", fetchedAt)
-    .neq("item_id", "__empty__");
+    .in("query_key", unique)
+    .order("fetched_at", { ascending: false })
+    .limit(SOLD_CACHE_ROW_LIMIT);
   if (error) throw new CompsResultError(error.message);
-  return (data ?? []) as CachedCompRow[];
+
+  const grouped = new Map<string, CacheReadRow[]>();
+  for (const row of (data ?? []) as CacheReadRow[]) {
+    const key = String(row.query_key ?? "");
+    if (!key) continue;
+    const list = grouped.get(key) ?? [];
+    list.push(row);
+    grouped.set(key, list);
+  }
+  for (const [key, rows] of grouped) out.set(key, newestBatchRows(rows));
+  return out;
 }
 
 async function flagsForCards(
@@ -212,10 +229,7 @@ async function readPriceContext(card: SoldCompCard, ownerId: string): Promise<Pr
   for (const row of related) {
     if (row.id) keys.add(publicCardQueryKey(row));
   }
-  const batches = new Map<string, CachedCompRow[]>();
-  await mapLimit([...keys], PRICE_CONTEXT_CONCURRENCY, async (key) => {
-    batches.set(key, await readNewestBatch(client, key));
-  });
+  const batches = await readNewestBatches(client, [...keys]);
 
   const flagPairs = [{ cardId: card.id, ownerId }];
   for (const row of related) {
@@ -224,8 +238,11 @@ async function readPriceContext(card: SoldCompCard, ownerId: string): Promise<Pr
   }
   const flags = await flagsForCards(client, flagPairs);
   const flagged = (cardId: string, userId: string) => flags.get(`${cardId}|${userId}`) ?? new Set<string>();
+  const subjectFlags = flagged(card.id, ownerId);
 
-  const exact = fallbackSales(card, batches.get(ownKey) ?? [], flagged(card.id, ownerId));
+  const exactGroups: FallbackSale[][] = [
+    fallbackSales(card, batches.get(ownKey) ?? [], subjectFlags),
+  ];
 
   const userIds = [
     ...new Set(related.map((row) => (row.user_id ? String(row.user_id) : "")).filter(Boolean)),
@@ -247,34 +264,30 @@ async function readPriceContext(card: SoldCompCard, ownerId: string): Promise<Pr
     const copyOwner = String(row.user_id ?? "");
     if (!copyOwner) continue;
     const copy = soldCardFromPublic(row);
-    const sales = fallbackSales(copy, batches.get(publicCardQueryKey(row)) ?? [], flagged(row.id, copyOwner));
+    const sales = fallbackSales(
+      copy,
+      batches.get(publicCardQueryKey(row)) ?? [],
+      flagged(row.id, copyOwner),
+    );
     if (!sales.length) continue;
     const username = usernames.get(copyOwner) ?? "";
-    const candidate = candidateFromRow(row, username, sales);
+    const candidate = candidateFromRow(
+      row,
+      username,
+      sales.map((sale) => ({ price: sale.price, soldAt: sale.soldAt ?? null })),
+    );
     if (isSameCardIdentity(card, candidate)) {
-      exact.push(...sales);
+      exactGroups.push(sales);
       continue;
     }
     if (similarRelation(card, candidate)) cousins.push(candidate);
   }
 
+  const exact = mergeExactSales(subjectFlags, exactGroups);
   return {
-    sales: dedupeSales(exact),
+    sales: exact,
     cousins: exact.length >= NORMAL_ESTIMATE_MIN_SALES ? [] : cousins,
   };
-}
-
-function dedupeSales(sales: CardValueSale[]): CardValueSale[] {
-  const seen = new Set<string>();
-  const out: CardValueSale[] = [];
-  for (const sale of sales) {
-    const day = (sale.soldAt ?? "").slice(0, 10);
-    const key = `${sale.price}|${day}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    out.push({ price: sale.price, soldAt: sale.soldAt ?? null });
-  }
-  return out;
 }
 
 /**
@@ -308,7 +321,7 @@ function needsContext(value: CardValueResult | undefined): value is CardValueRes
     value.status === "ok" &&
     value.nSales >= NORMAL_ESTIMATE_MIN_SALES &&
     value.median != null &&
-    value.median > 0
+    value.median >= 0.01
   ) {
     return false;
   }

@@ -2,6 +2,12 @@ import { sharedCompValue } from "@/lib/comps/shared-value";
 import type { CleanedSale, SoldCompCard } from "@/lib/comps/types";
 import type { CardValueSale } from "@/lib/value/types";
 
+/** A cent. Anything smaller is not a price. */
+export const MIN_SALE_PRICE = 0.01;
+
+/** A fallback sale still carrying its item id, so flags and dedupe can see it. */
+export type FallbackSale = CardValueSale & { itemId?: string | null };
+
 /** One sold_comps_cache row. Only the newest fetched_at batch is used. */
 export type CachedCompRow = {
   item_id?: string | null;
@@ -34,7 +40,7 @@ export function cleanedFromCacheRows(rows: readonly CachedCompRow[]): CleanedSal
     const itemId = (row.item_id ?? "").trim();
     if (!itemId || itemId === "__empty__") continue;
     const price = typeof row.price === "number" ? row.price : Number(row.price);
-    if (!Number.isFinite(price) || price <= 0) continue;
+    if (!Number.isFinite(price) || price < MIN_SALE_PRICE) continue;
     sales.push({
       itemId,
       title: (row.title ?? "").trim(),
@@ -58,9 +64,40 @@ export function fallbackSales(
   card: SoldCompCard,
   rows: readonly CachedCompRow[],
   flaggedItemIds: ReadonlySet<string>,
-): CardValueSale[] {
+): FallbackSale[] {
   const matched = sharedCompValue(card, cleanedFromCacheRows(rows)).sales;
   return matched
-    .filter((sale) => sale.itemId && !flaggedItemIds.has(sale.itemId) && sale.price > 0)
-    .map((sale) => ({ price: sale.price, soldAt: sale.soldAt }));
+    .filter(
+      (sale) =>
+        sale.itemId &&
+        !flaggedItemIds.has(sale.itemId) &&
+        sale.price >= MIN_SALE_PRICE,
+    )
+    .map((sale) => ({ itemId: sale.itemId, price: sale.price, soldAt: sale.soldAt }));
+}
+
+/**
+ * One exact-sale list. The subject owner's flags apply to every batch,
+ * including an identical public copy. Dedupe by item id, and by price plus
+ * day only when the sale has no id. The id is dropped after that.
+ */
+export function mergeExactSales(
+  subjectFlaggedItemIds: ReadonlySet<string>,
+  groups: readonly (readonly FallbackSale[])[],
+): CardValueSale[] {
+  const seen = new Set<string>();
+  const out: CardValueSale[] = [];
+  for (const group of groups) {
+    for (const sale of group) {
+      const itemId = (sale.itemId ?? "").trim();
+      if (itemId && subjectFlaggedItemIds.has(itemId)) continue;
+      if (!Number.isFinite(sale.price) || sale.price < MIN_SALE_PRICE) continue;
+      const day = (sale.soldAt ?? "").slice(0, 10);
+      const key = itemId ? `item:${itemId}` : `price:${sale.price}|${day}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push({ price: sale.price, soldAt: sale.soldAt ?? null });
+    }
+  }
+  return out;
 }

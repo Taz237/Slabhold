@@ -1,9 +1,7 @@
 import "server-only";
 
-import { revalidateTag } from "next/cache";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { CACHE_TTL_MS } from "./cache-ttl";
-import { compsResultCacheTag } from "./comps-result-cache";
 import type { CleanedSale } from "./types";
 
 export { CACHE_TTL_MS };
@@ -194,6 +192,5 @@ export async function writeSoldCompsCache(
     console.warn("[sold_comps_cache] write failed:", error.message);
     return null;
   }
-  revalidateTag(compsResultCacheTag(cardId), { expire: 0 });
   return fetchedAt;
 }

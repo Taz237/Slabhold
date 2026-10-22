@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  isFreshSoldWrite,
   respondSoldComps,
   SOLD_RATE_LIMIT_MESSAGE,
   SOLD_UNAVAILABLE_MESSAGE,
@@ -26,6 +27,15 @@ class FakeMarketUnavailable extends Error {
     this.result = result;
   }
 }
+
+describe("isFreshSoldWrite", () => {
+  it("is only a live non-sample payload", () => {
+    assert.equal(isFreshSoldWrite({ cached: false, sample: false }), true);
+    assert.equal(isFreshSoldWrite({ cached: true, sample: false }), false);
+    assert.equal(isFreshSoldWrite({ cached: false, sample: true }), false);
+    assert.equal(isFreshSoldWrite(null), false);
+  });
+});
 
 describe("soldNotice", () => {
   it("uses the rate-limit copy for a 429 and the generic line otherwise", () => {

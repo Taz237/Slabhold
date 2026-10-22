@@ -195,6 +195,28 @@ describe("card share images", () => {
     });
     assert.equal(range.valueLabel, "$10.00\u2013$20.00 from 2 sales");
     assert.equal(range.salesLabel, "");
+
+    const flat = cardShareImage({
+      found: true,
+      isPublic: true,
+      player: "Victor",
+      imageUrl: STORAGE,
+      valueAmount: "~$12.00 from 2 sales",
+      salesCount: 2,
+    });
+    assert.equal(flat.valueLabel, "~$12.00 from 2 sales");
+    assert.equal(flat.salesLabel, "");
+
+    const zero = cardShareImage({
+      found: true,
+      isPublic: true,
+      player: "Victor",
+      imageUrl: STORAGE,
+      valueAmount: "$0.00",
+      salesCount: 1,
+    });
+    assert.equal(zero.valueLabel, "");
+    assert.equal(zero.showValue, false);
   });
 });
 

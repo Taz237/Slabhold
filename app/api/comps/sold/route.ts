@@ -1,14 +1,29 @@
+import { revalidateTag } from "next/cache";
+import { compsResultCacheTag } from "@/lib/comps/comps-result-cache";
 import {
   consumeRequestLimit,
   consumeTrawlLimit,
 } from "@/lib/comps/rate-limit";
 import { lookupSoldCompsAccess } from "@/lib/comps/sold-access";
 import {
+  isFreshSoldWrite,
   respondSoldComps,
   SOLD_UNAVAILABLE_MESSAGE,
 } from "@/lib/comps/sold-response";
 import { getAuthUserId } from "@/lib/supabase/server";
 import { loadCachedCardRefresh } from "@/lib/value/card-market";
+
+/** Bust the comps-result cache after a live write. Never fails the response. */
+function bustCompsResult(cardId: string): void {
+  try {
+    revalidateTag(compsResultCacheTag(cardId), { expire: 0 });
+  } catch (err) {
+    console.warn(
+      "[comps] cache bust failed:",
+      err instanceof Error ? err.message : err,
+    );
+  }
+}
 
 export const UNAVAILABLE_MESSAGE = SOLD_UNAVAILABLE_MESSAGE;
 
@@ -28,7 +43,11 @@ export async function GET(request: Request) {
 
   return respondSoldComps(id, userId, {
     lookupAccess: lookupSoldCompsAccess,
-    loadRefresh: loadCachedCardRefresh,
+    loadRefresh: async (cardId, options) => {
+      const refreshed = await loadCachedCardRefresh(cardId, options);
+      if (isFreshSoldWrite(refreshed.payload)) bustCompsResult(cardId);
+      return refreshed;
+    },
     beforeRequest: () => consumeRequestLimit(userId),
     beforeTrawl: () => consumeTrawlLimit(userId),
   });

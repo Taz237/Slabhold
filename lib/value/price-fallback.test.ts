@@ -89,7 +89,9 @@ describe("price fallback labels", () => {
     assert.equal(saleDayLabel("not-a-date"), null);
     assert.equal(lastSaleLabel(12, "2026-10-02T18:00:00.000Z"), `Last sold ${money(12)} on Oct 2`);
     assert.equal(rangeLabel(10, 20, 2), `${money(10)}\u2013${money(20)} from 2 sales`);
-    assert.equal(rangeLabel(10, 10, 1), `${money(10)}\u2013${money(10)} from 1 sale`);
+    assert.equal(rangeLabel(10, 10, 1), `${money(10)} from 1 sale`);
+    assert.equal(rangeLabel(10, 10, 3), `~${money(10)} from 3 sales`);
+    assert.doesNotMatch(rangeLabel(10, 10, 3), /\u2013/);
   });
 
   it("shows the median as the estimate only when there are enough sales", () => {
@@ -128,7 +130,7 @@ describe("price fallback labels", () => {
     assert.equal(feedChipPrice(read).showEbaySold, false);
   });
 
-  it("uses a range when the only sale has no date", () => {
+  it("uses last sold without a day when the only sale has no date", () => {
     const read = resolvePriceRead({
       value: value({
         status: "no_sales",
@@ -139,9 +141,10 @@ describe("price fallback labels", () => {
       ebayHref: EBAY,
       card: USEFUL,
     });
-    assert.equal(read.kind, "range");
+    assert.equal(read.kind, "last_sale");
     assert.equal(read.isEstimate, false);
-    assert.equal(read.text, "$12.00\u2013$12.00 from 1 sale");
+    assert.equal(read.text, "Last sold $12.00");
+    assert.doesNotMatch(read.text, /\u2013/);
     assert.equal(read.showEbaySold, false);
   });
 
@@ -347,6 +350,32 @@ describe("price fallback labels", () => {
     assert.equal(read.kind, "range");
     assert.equal(read.isEstimate, false);
     assert.equal(read.text, "$11.00\u2013$22.00 from 2 sales");
+  });
+
+  it("labels one stored sale as last sold and a flat range with a tilde", () => {
+    const one = resolvePriceRead({
+      value: value({ status: "ok", median: 12, low: 12, high: 12, nSales: 1, sales: [] }),
+    });
+    assert.equal(one.kind, "last_sale");
+    assert.equal(one.text, "Last sold $12.00");
+
+    const flat = resolvePriceRead({
+      value: value({ status: "ok", median: 18, low: 18, high: 18, nSales: 2, sales: [] }),
+    });
+    assert.equal(flat.kind, "range");
+    assert.equal(flat.text, "~$18.00 from 2 sales");
+    assert.doesNotMatch(flat.text, /\u2013/);
+  });
+
+  it("treats a price below one cent as not priced", () => {
+    const read = resolvePriceRead({
+      exactSales: [{ price: 0.009, soldAt: "2026-10-02T00:00:00.000Z" }],
+      value: value({ status: "ok", median: 0.009, low: 0.009, high: 0.009, nSales: 1 }),
+      ebayHref: EBAY,
+      card: USEFUL,
+    });
+    assert.equal(read.kind, "none");
+    assert.equal(read.text.includes("$0.00"), false);
   });
 
   it("does not print $0.00 when the stored median, low, or high is not a price", () => {

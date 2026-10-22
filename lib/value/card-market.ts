@@ -7,6 +7,7 @@ import {
   compsResultCacheTag,
 } from "@/lib/comps/comps-result-cache";
 import { loadSoldCompCard } from "@/lib/comps/load-card";
+import type { SoldCompCard } from "@/lib/comps/types";
 import { cardCacheTag, revalidateCardCache } from "./card-cache";
 import {
   getCardValue,
@@ -35,9 +36,25 @@ export class CardMarketUnavailable extends Error {
  */
 export function revalidateCard(cardId: string): void {
   if (!cardId) return;
-  revalidateCardCache(cardId, revalidateTag);
-  revalidateTag(compsResultCacheTag(cardId), { expire: 0 });
-  revalidatePath(`/cards/${cardId}`);
+  try {
+    revalidateCardCache(cardId, revalidateTag);
+    revalidateTag(compsResultCacheTag(cardId), { expire: 0 });
+    revalidatePath(`/cards/${cardId}`);
+  } catch (err) {
+    console.warn(
+      "[card-market] cache bust failed:",
+      err instanceof Error ? err.message : err,
+    );
+  }
+}
+
+/** Card row for the comps cache key. A hit does not select `cards` again. */
+function loadCachedSoldCompCard(cardId: string): Promise<SoldCompCard | null> {
+  return unstable_cache(
+    () => loadSoldCompCard(cardId),
+    ["sold-comp-card", cardId],
+    { tags: [cardCacheTag(cardId)], revalidate: COMPS_RESULT_REVALIDATE_SECONDS },
+  )();
 }
 
 /**
@@ -51,7 +68,7 @@ export async function loadCachedCardRefresh(
 ): Promise<RefreshCardValueResult> {
   const save = options?.save !== false;
   const cacheOnly = Boolean(options?.cacheOnly);
-  const card = await loadSoldCompCard(cardId);
+  const card = await loadCachedSoldCompCard(cardId);
   const identity = card ? compsResultCacheKey(card) : `missing|${cardId}`;
   return unstable_cache(
     async () => {

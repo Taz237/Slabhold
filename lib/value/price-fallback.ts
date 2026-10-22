@@ -126,9 +126,16 @@ function sameSet(a: SubjectCard, b: SubjectCard): boolean {
   return Boolean(left) && left === setMatchPhrase(b.setBrand ?? "");
 }
 
+/** A cent. Anything smaller is not a price. */
+const MIN_PRICE = 0.01;
+
+function isPriced(value: number | null | undefined): value is number {
+  return typeof value === "number" && Number.isFinite(value) && value >= MIN_PRICE;
+}
+
 function pricedSales(sales: readonly PriceSale[] | null | undefined): PriceSale[] {
   if (!sales) return [];
-  return sales.filter((sale) => Number.isFinite(sale.price) && sale.price > 0);
+  return sales.filter((sale) => isPriced(sale.price));
 }
 
 function salesWord(count: number): string {
@@ -138,7 +145,13 @@ function salesWord(count: number): string {
 export function rangeLabel(low: number, high: number, count: number): string {
   const floor = Math.min(low, high);
   const ceiling = Math.max(low, high);
-  return `${money(floor)}${RANGE_DASH}${money(ceiling)} from ${salesWord(count)}`;
+  const sales = Math.max(1, count);
+  if (!isPriced(floor) || !isPriced(ceiling) || floor === ceiling) {
+    const price = isPriced(floor) ? floor : ceiling;
+    if (sales <= 1) return `${money(price)} from 1 sale`;
+    return `~${money(price)} from ${salesWord(sales)}`;
+  }
+  return `${money(floor)}${RANGE_DASH}${money(ceiling)} from ${salesWord(sales)}`;
 }
 
 export function lastSaleLabel(price: number, soldAt: string): string | null {
@@ -292,8 +305,7 @@ function similarRead(offer: CardValueSimilar): PriceRead {
 }
 
 function positiveAmount(value: number | null | undefined): number | null {
-  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) return null;
-  return value;
+  return isPriced(value) ? value : null;
 }
 
 /** The stored, flag-filtered count. Extra rows from other copies do not count. */
@@ -305,7 +317,7 @@ function isNormalEstimate(
     value.nSales >= NORMAL_ESTIMATE_MIN_SALES &&
     typeof value.median === "number" &&
     Number.isFinite(value.median) &&
-    value.median > 0
+    value.median >= MIN_PRICE
   );
 }
 
@@ -316,8 +328,8 @@ function storedCountRange(value: CardValueResult): PriceRead | null {
   if (mid == null) return null;
   if (value.nSales === 1) {
     return {
-      kind: "range",
-      text: rangeLabel(mid, mid, 1),
+      kind: "last_sale",
+      text: `Last sold ${money(mid)}`,
       isEstimate: false,
       showEbaySold: false,
     };
@@ -332,10 +344,10 @@ function storedCountRange(value: CardValueResult): PriceRead | null {
   };
 }
 
-/** Keep the dollar range on one line and "from N sales" on the next if needed. */
+/** Keep the dollar on one line and "from N sales" on the next if needed. */
 export function splitFallbackLabel(text: string): string[] {
-  const range = text.match(/^(.*\u2013.*) (from \d+ sales?)$/);
-  if (range?.[1] && range[2]) return [range[1], range[2]];
+  const count = text.match(/^(.*\$.*) (from \d+ sales?)$/);
+  if (count?.[1] && count[2]) return [count[1], count[2]];
   const last = text.match(/^(Last sold \$.*) (on .+)$/);
   if (last?.[1] && last[2]) return [last[1], last[2]];
   return [text];
@@ -394,8 +406,8 @@ export function resolvePriceRead(input: {
       };
     }
     return {
-      kind: "range",
-      text: rangeLabel(list[0].price, list[0].price, 1),
+      kind: "last_sale",
+      text: `Last sold ${money(list[0].price)}`,
       isEstimate: false,
       showEbaySold: false,
     };
