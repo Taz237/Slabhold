@@ -99,14 +99,17 @@ export function catalogSecondaryLink(
     ownCards: readonly (IdentityFields & { id: string })[];
     publicCards: readonly (IdentityFields & { id: string; ownerId: string })[];
     profiles: readonly { id: string; username: string }[];
+    blockedIds?: readonly string[];
   },
 ): CatalogPageLink | null {
   const key = identityOf(catalog);
   const own = input.ownCards.find((card) => identityOf(card) === key);
   if (own) return { href: `/cards/${own.id}`, label: "Your card" };
 
+  const blocked = new Set(input.blockedIds ?? []);
   const usernames = new Map(input.profiles.map((profile) => [profile.id, profile.username]));
   const publicCard = input.publicCards.find((card) => {
+    if (blocked.has(card.ownerId)) return false;
     if (identityOf(card) !== key) return false;
     const username = usernames.get(card.ownerId)?.trim();
     return Boolean(username);

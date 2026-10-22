@@ -14,6 +14,7 @@ function SearchFallback() {
             enterKeyHint="search"
             placeholder="Search"
             aria-label="Search"
+            maxLength={100}
             readOnly
             className="min-w-0 flex-1 bg-transparent py-2.5 text-base outline-none placeholder:text-zinc-500"
           />

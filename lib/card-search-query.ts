@@ -55,7 +55,7 @@ const FILLER_WORDS = new Set(["card", "cards", "raw"]);
  * public.norm keeps from "rated-rookie".
  */
 const ROOKIE_WORDS = new Set(["rookie", "rookies", "rc", "rated-rookie", "rated-rookies"]);
-const GRADER_WORDS = new Set([
+export const GRADER_WORDS = new Set([
   "psa",
   "bgs",
   "sgc",

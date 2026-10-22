@@ -10,7 +10,8 @@ import { useCollection } from "@/components/collection-provider";
 import { useSocial } from "@/components/social-provider";
 import { PullToRefresh } from "@/components/pull-to-refresh";
 import { EmptyState, LoadingRows } from "@/components/status";
-import { CARD_CATALOG, resolveCatalogSearch, type CatalogCard } from "@/lib/card-catalog";
+import { CARD_CATALOG, type CatalogCard } from "@/lib/card-catalog";
+import { normalizeSearchText } from "@/lib/card-search-query";
 import {
   CATALOG_SEARCH_DEBOUNCE_MS,
   CATALOG_SEARCH_TIMEOUT_MESSAGE,
@@ -41,7 +42,12 @@ import {
   suggestedSearchPlayers,
   visibleSearchSections,
 } from "@/lib/search/sections";
-import { matchesEverySearchWord, ownCardSearchFields } from "@/lib/search/words";
+import { matchesEverySearchWord, ownCardSearchFields, plainSearchWords } from "@/lib/search/words";
+
+/** @ queries are people searches. Skip the catalog RPC and its skeleton. */
+function wantsCatalogSearch(query: string) {
+  return query.length > 0 && !query.startsWith("@");
+}
 
 const recentAccounts = createRecentSearchStore();
 
@@ -98,7 +104,7 @@ export function SearchView() {
   const typed = query.trim();
   const [catalogFor, setCatalogFor] = useState(urlQ.trim());
   const [catalogCards, setCatalogCards] = useState<CatalogCard[]>([]);
-  const [catalogLoading, setCatalogLoading] = useState(urlQ.trim().length > 0);
+  const [catalogLoading, setCatalogLoading] = useState(wantsCatalogSearch(urlQ.trim()));
   const [catalogTrouble, setCatalogTrouble] = useState(false);
   const [catalogAttempt, setCatalogAttempt] = useState(0);
   const catalogRequest = useRef(0);
@@ -106,7 +112,7 @@ export function SearchView() {
     setCatalogFor(typed);
     setCatalogCards([]);
     setCatalogTrouble(false);
-    setCatalogLoading(typed.length > 0);
+    setCatalogLoading(wantsCatalogSearch(typed));
   }
 
   useEffect(() => {
@@ -114,7 +120,7 @@ export function SearchView() {
   }, [urlQ]);
 
   useEffect(() => {
-    if (!typed) {
+    if (!wantsCatalogSearch(typed)) {
       catalogRequest.current += 1;
       return;
     }
@@ -125,27 +131,12 @@ export function SearchView() {
       debounceMs: CATALOG_SEARCH_DEBOUNCE_MS,
       search: searchCatalogRemote,
     });
-    void session.done
-      .then((snapshot) => {
-        if (snapshot.aborted || id !== catalogRequest.current) return;
-        setCatalogCards(snapshot.results.slice(0, SEARCH_CATALOG_LIMIT));
-        setCatalogTrouble(catalogSearchNeedsRetry(snapshot));
-        setCatalogLoading(false);
-      })
-      .catch(() => {
-        if (id !== catalogRequest.current) return;
-        const fallback = resolveCatalogSearch(typed, null, SEARCH_CATALOG_LIMIT);
-        setCatalogCards(fallback);
-        setCatalogTrouble(
-          catalogSearchNeedsRetry({
-            aborted: false,
-            timedOut: false,
-            remote: null,
-            results: fallback,
-          }),
-        );
-        setCatalogLoading(false);
-      });
+    void session.done.then((snapshot) => {
+      if (snapshot.aborted || id !== catalogRequest.current) return;
+      setCatalogCards(snapshot.results.slice(0, SEARCH_CATALOG_LIMIT));
+      setCatalogTrouble(catalogSearchNeedsRetry(snapshot));
+      setCatalogLoading(false);
+    });
     return () => {
       session.abort();
     };
@@ -162,11 +153,16 @@ export function SearchView() {
 
   const people = useMemo(() => {
     if (!typed) return [];
+    const words = plainSearchWords(typed);
+    if (words.length === 0) return [];
     const hidden = new Set(blockedIds);
     const rank = typed.toLowerCase().replace(/^@+/, "");
     return profiles
       .filter((profile) => !hidden.has(profile.id))
-      .filter((profile) => matchesEverySearchWord(typed, [profile.username, profile.displayName]))
+      .filter((profile) => {
+        const haystack = normalizeSearchText(`${profile.username} ${profile.displayName}`);
+        return words.every((word) => haystack.includes(word));
+      })
       .sort((a, b) => {
         const score = (profile: { username: string; displayName: string }) => {
           const handle = profile.username.toLowerCase();
@@ -181,7 +177,12 @@ export function SearchView() {
 
   const matchedPosts = useMemo(() => {
     if (!typed) return [];
-    return homePosts.filter((post) => matchesEverySearchWord(typed, [post.body]));
+    const words = plainSearchWords(typed);
+    if (words.length === 0) return [];
+    return homePosts.filter((post) => {
+      const haystack = normalizeSearchText(post.body);
+      return words.every((word) => haystack.includes(word));
+    });
   }, [homePosts, typed]);
 
   const matchedCards = useMemo(() => {
@@ -235,14 +236,16 @@ export function SearchView() {
     catalog: catalogCards.length,
     myCards: matchedCards.length,
   });
-  const showMiss = showSearchMissLink({
-    query: typed,
-    catalogLoading,
-    people: people.length,
-    posts: matchedPosts.length,
-    catalog: catalogCards.length,
-    myCards: matchedCards.length,
-  });
+  const showMiss =
+    !catalogTrouble &&
+    showSearchMissLink({
+      query: typed,
+      catalogLoading,
+      people: people.length,
+      posts: matchedPosts.length,
+      catalog: catalogCards.length,
+      myCards: matchedCards.length,
+    });
 
   function retryCatalog() {
     setCatalogTrouble(false);
@@ -268,6 +271,7 @@ export function SearchView() {
             enterKeyHint="search"
             placeholder="Search"
             aria-label="Search"
+            maxLength={100}
             className="min-w-0 flex-1 bg-transparent py-2.5 text-base outline-none placeholder:text-zinc-500 [&::-webkit-search-cancel-button]:hidden"
           />
           {query ? (
@@ -356,7 +360,6 @@ export function SearchView() {
         )
       ) : showMiss ? (
         <div>
-          {catalogTrouble ? <CatalogTrouble onRetry={retryCatalog} /> : null}
           <EmptyState
             icon={<Search className="h-5 w-5" />}
             title={searchEmptyTitle(typed)}
@@ -398,6 +401,7 @@ export function SearchView() {
                       ownCards: cards,
                       publicCards,
                       profiles,
+                      blockedIds,
                     });
                     return (
                       <li

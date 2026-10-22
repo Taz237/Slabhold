@@ -16,7 +16,19 @@ import {
   catalogSecondaryLink,
 } from "@/lib/search/catalog-results";
 import { showSearchMissLink } from "@/lib/search/sections";
-import { matchesEverySearchWord, meaningfulSearchWords, ownCardSearchFields } from "@/lib/search/words";
+import {
+  matchesEverySearchWord,
+  meaningfulSearchWords,
+  ownCardSearchFields,
+  plainSearchWords,
+} from "@/lib/search/words";
+import { normalizeSearchText } from "@/lib/card-search-query";
+
+function matchesPlainWords(query: string, fields: readonly string[]) {
+  const words = plainSearchWords(query);
+  const haystack = normalizeSearchText(fields.join(" "));
+  return words.length > 0 && words.every((word) => haystack.includes(word));
+}
 
 function read(path: string) {
   return readFileSync(join(process.cwd(), path), "utf8");
@@ -67,8 +79,54 @@ describe("search word split", () => {
     }
     assert.equal(matchesEverySearchWord("bucky mahomes", ["Bucky Irving"]), false);
     assert.equal(matchesEverySearchWord("2024 bucky", ["Bucky Irving"]), false);
-    assert.equal(matchesEverySearchWord("rookie", ["Bucky Irving rookie"]), false);
+    assert.equal(matchesEverySearchWord("rookie", ["Bucky Irving rookie"]), true);
+    assert.equal(matchesEverySearchWord("psa 10", ["PSA 10 rookie"]), true);
     assert.equal(matchesEverySearchWord("@Bucky Irving", ["bucky", "Bucky Irving"]), true);
+  });
+
+  it("keeps grade words on My cards and does not alias people or posts", () => {
+    const psa9 = ownCardSearchFields({
+      playerName: "Shohei Ohtani",
+      year: 2024,
+      yearLabel: "2024",
+      setBrand: "Topps",
+      cardNumber: "1",
+      parallel: "Base",
+      grade: "PSA 9",
+    });
+    const psa10 = ownCardSearchFields({
+      playerName: "Shohei Ohtani",
+      year: 2024,
+      yearLabel: "2024",
+      setBrand: "Topps",
+      cardNumber: "1",
+      parallel: "Base",
+      grade: "PSA 10",
+    });
+    assert.equal(matchesEverySearchWord("ohtani psa 10", psa9), false);
+    assert.equal(matchesEverySearchWord("ohtani psa 10", psa10), true);
+    assert.deepEqual(meaningfulSearchWords("psa 10"), []);
+    assert.deepEqual(meaningfulSearchWords("rookie"), []);
+    assert.deepEqual(plainSearchWords("psa 10"), ["psa", "10"]);
+    assert.deepEqual(plainSearchWords("rookie"), ["rookie"]);
+
+    assert.deepEqual(plainSearchWords("bron"), ["bron"]);
+    assert.deepEqual(plainSearchWords("@bron_fan"), ["bron", "fan"]);
+    assert.deepEqual(plainSearchWords("bron_fan"), ["bron", "fan"]);
+    assert.deepEqual(plainSearchWords("kd"), ["kd"]);
+    assert.deepEqual(plainSearchWords("ant"), ["ant"]);
+    assert.notDeepEqual(plainSearchWords("bron"), meaningfulSearchWords("bron"));
+
+    for (const query of ["bron", "@bron_fan", "bron_fan"]) {
+      assert.equal(matchesPlainWords(query, ["bron_fan", "Bron Fan"]), true, query);
+    }
+    assert.equal(matchesPlainWords("kd", ["kd_cards", "KD Cards"]), true);
+    assert.equal(matchesPlainWords("ant", ["antonio", "Antonio"]), true);
+    assert.equal(matchesPlainWords("psa 10", ["PSA 10 rookie"]), true);
+    assert.equal(matchesPlainWords("rookie", ["PSA 10 rookie"]), true);
+    assert.equal(matchesEverySearchWord("ant", ["antonio"]), false);
+    assert.equal(matchesEverySearchWord("kd", ["kd_cards"]), false);
+    assert.equal(matchesEverySearchWord("bron", ["bron_fan"]), false);
   });
 
   it("matches player, set, year, number, team, and parallel on the viewer's own cards", () => {
@@ -169,6 +227,30 @@ describe("catalog search results", () => {
       }),
       null,
     );
+    assert.equal(
+      catalogSecondaryLink(bucky, {
+        ownCards: [],
+        publicCards: [{ id: "pub", ownerId: "user-1", ...identity }],
+        profiles: [{ id: "user-1", username: "waxroom" }],
+        blockedIds: ["user-1"],
+      }),
+      null,
+    );
+    assert.deepEqual(
+      catalogSecondaryLink(bucky, {
+        ownCards: [],
+        publicCards: [
+          { id: "blocked", ownerId: "user-1", ...identity },
+          { id: "open", ownerId: "user-2", ...identity },
+        ],
+        profiles: [
+          { id: "user-1", username: "waxroom" },
+          { id: "user-2", username: "other" },
+        ],
+        blockedIds: ["user-1"],
+      }),
+      { href: "/u/other/cards/open", label: "Public card" },
+    );
   });
 
   it("does not read other people's private cards", () => {
@@ -184,6 +266,21 @@ describe("catalog search results", () => {
     assert.match(form, /catalogPickFields\(initialCatalog, ""\)/);
     assert.match(form, /catalogPickFields\(card, sportTouched \? form\.sport : ""\)/);
     assert.match(view, /session\.abort\(\)/);
+    assert.doesNotMatch(view, /session\.done[\s\S]*?\.catch\(/);
+    assert.match(view, /plainSearchWords\(typed\)/);
+    assert.equal((view.match(/plainSearchWords\(typed\)/g) ?? []).length, 2);
+    assert.equal((view.match(/matchesEverySearchWord\(/g) ?? []).length, 1);
+    assert.match(view, /matchesEverySearchWord\(typed, ownCardSearchFields\(card\)\)/);
+    assert.match(view, /wantsCatalogSearch\(typed\)/);
+    assert.match(view, /startsWith\("@"\)/);
+    assert.match(view, /maxLength=\{100\}/);
+    assert.match(view, /catalogSecondaryLink\(card, \{[\s\S]*?blockedIds,/);
+    assert.doesNotMatch(read("lib/catalog/catalog-pick.ts"), /mail-day/);
+    assert.match(read("lib/catalog/catalog-pick.ts"), /catalog-sport/);
+    const missAt = view.indexOf("showMiss ?");
+    const missBranch = view.slice(missAt, view.indexOf(") : (", missAt));
+    assert.doesNotMatch(missBranch, /CatalogTrouble|Try again/);
+    assert.match(missBranch, /SEARCH_ADD_CARD_LABEL/);
     assert.match(view, /debounceMs: CATALOG_SEARCH_DEBOUNCE_MS/);
     assert.match(view, /limit: SEARCH_CATALOG_LIMIT/);
     assert.equal(CATALOG_SEARCH_DEBOUNCE_MS, 250);

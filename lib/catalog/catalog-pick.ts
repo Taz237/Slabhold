@@ -2,10 +2,7 @@ import type { CatalogCard } from "@/lib/card-catalog";
 import { SETS } from "@/lib/card-options";
 import { parallelChoice } from "@/lib/cards/parallels";
 import type { CatalogPickSnapshot } from "@/lib/catalog/catalog-queue";
-import {
-  rookieAfterCatalogPick,
-  sportAfterCatalogPick,
-} from "@/lib/social/mail-day";
+import { rookieAfterCatalogPick, sportAfterCatalogPick } from "@/lib/catalog/catalog-sport";
 
 /** The same field patch Add Card applies when a catalog row is picked. */
 export function catalogPickFields(card: CatalogCard, currentSport: string) {
