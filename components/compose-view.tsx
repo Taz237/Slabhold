@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { Camera, ImagePlus, X } from "lucide-react";
 import { AttachCardField } from "@/components/attach-card-field";
 import { Avatar } from "@/components/avatar";
+import { PhotoFileInputs } from "@/components/photo-file-inputs";
 import { useCollection } from "@/components/collection-provider";
 import { QuoteComposePreview } from "@/components/quoted-post-embed";
 import { MentionTextarea } from "@/components/mention-textarea";
@@ -13,7 +14,7 @@ import { signupPath } from "@/lib/auth/safe-next";
 import { useSocial } from "@/components/social-provider";
 import { takeCompose } from "@/lib/capture";
 import { initials } from "@/lib/format";
-import { fileToDataUrl } from "@/lib/storage";
+import { PHOTO_HEIC_ERROR, PHOTO_READ_ERROR, readPhotoFile } from "@/lib/photos";
 import { mapPublicCard, PUBLIC_CARD_SELECT } from "@/lib/social/cards";
 import { toPublicAttachment } from "@/lib/social/card-posts";
 import { QUOTE_EMPTY_ERROR, isQuoteSubmitDisabled, shouldConfirmDiscard, validateQuoteContent } from "@/lib/social/quotes";
@@ -30,7 +31,9 @@ export function ComposeView() {
   const quoteParam = params.get("quote");
   const { ready, user, posts, createPost, updatePost } = useSocial();
   const { cards, ready: cardsReady, syncError } = useCollection();
-  const fileRef = useRef<HTMLInputElement>(null);
+  const cameraRef = useRef<HTMLInputElement>(null);
+  const libraryRef = useRef<HTMLInputElement>(null);
+  const photoSource = useRef<"camera" | "library">("library");
   const started = useRef(false);
   const [body, setBody] = useState("");
   const [image, setImage] = useState<string | null>(null);
@@ -38,6 +41,7 @@ export function ComposeView() {
   const [externalCard, setExternalCard] = useState<PublicCard | null>(null);
   const [quoteId, setQuoteId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [photoError, setPhotoError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
   const editing = posts.find((post) => post.id === editId && post.authorId === user?.id);
@@ -106,26 +110,29 @@ export function ComposeView() {
     }
   }, [pathname, params, ready, router, user]);
 
-  async function onImage(file: File | undefined) {
-    if (!file) return;
-    if (!file.type.startsWith("image/")) {
-      setError("Choose an image file.");
-      return;
-    }
-    try {
-      setImage(await fileToDataUrl(file, 960));
-      setError(null);
-    } catch {
-      setError("Could not read that image.");
-    }
+  function openCamera() {
+    photoSource.current = "camera";
+    cameraRef.current?.click();
   }
 
-  function openPicker(capture: boolean) {
-    const input = fileRef.current;
-    if (!input) return;
-    if (capture) input.setAttribute("capture", "environment");
-    else input.removeAttribute("capture");
-    input.click();
+  function openLibrary() {
+    photoSource.current = "library";
+    libraryRef.current?.click();
+  }
+
+  function retryPhoto() {
+    if (photoSource.current === "camera") openCamera();
+    else openLibrary();
+  }
+
+  async function onImage(file: File | undefined) {
+    if (!file) return;
+    try {
+      setImage(await readPhotoFile(file, 960));
+      setPhotoError(null);
+    } catch (err) {
+      setPhotoError(err instanceof Error ? err.message : PHOTO_READ_ERROR);
+    }
   }
 
   async function submit(e: React.FormEvent) {
@@ -265,6 +272,20 @@ export function ComposeView() {
               className="w-full resize-none bg-transparent text-[17px] leading-6 outline-none placeholder:text-zinc-500"
             />
             {error ? <p className="mt-3 text-sm text-rose-600 dark:text-rose-400">{error}</p> : null}
+            {photoError ? (
+              <div role="alert" className="mt-3 space-y-2">
+                <p className="text-sm text-rose-600 dark:text-rose-400">{photoError}</p>
+                {photoError === PHOTO_HEIC_ERROR ? null : (
+                  <button
+                    type="button"
+                    onClick={retryPhoto}
+                    className="inline-flex min-h-11 items-center rounded-full px-3 text-sm font-semibold text-violet-700 dark:text-violet-300"
+                  >
+                    Try again
+                  </button>
+                )}
+              </div>
+            ) : null}
           </div>
         </div>
         {quoteId ? (
@@ -308,28 +329,23 @@ export function ComposeView() {
       </div>
 
       <div className="fixed inset-x-0 bottom-[calc(6.15rem+env(safe-area-inset-bottom))] z-20 mx-auto flex w-full min-w-0 max-w-lg items-center gap-1 overflow-hidden border-t border-zinc-200 bg-[var(--background)] px-2 py-2 dark:border-white/10">
-        <input
-          ref={fileRef}
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={(e) => {
-            void onImage(e.target.files?.[0]);
-            e.target.value = "";
-          }}
+        <PhotoFileInputs
+          cameraRef={cameraRef}
+          libraryRef={libraryRef}
+          onPick={(file) => void onImage(file)}
         />
         <button
           type="button"
-          onClick={() => openPicker(true)}
-          className="inline-flex min-w-0 shrink items-center gap-1.5 rounded-full px-2 py-2 text-sm font-medium text-violet-700 dark:text-violet-300"
+          onClick={openCamera}
+          className="inline-flex min-h-11 min-w-0 shrink items-center gap-1.5 rounded-full px-2 text-sm font-medium text-violet-700 dark:text-violet-300"
         >
           <Camera className="h-5 w-5 shrink-0" />
           <span className="truncate">Camera</span>
         </button>
         <button
           type="button"
-          onClick={() => openPicker(false)}
-          className="inline-flex min-w-0 shrink items-center gap-1.5 rounded-full px-2 py-2 text-sm font-medium text-violet-700 dark:text-violet-300"
+          onClick={openLibrary}
+          className="inline-flex min-h-11 min-w-0 shrink items-center gap-1.5 rounded-full px-2 text-sm font-medium text-violet-700 dark:text-violet-300"
         >
           <ImagePlus className="h-5 w-5 shrink-0" />
           <span className="truncate">Library</span>

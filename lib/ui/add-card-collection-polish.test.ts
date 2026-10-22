@@ -19,7 +19,8 @@ describe("add card form polish", () => {
 
   it("names the photo control Photo and keeps a neutral empty preview", () => {
     assert.doesNotMatch(form, /Photo & scan/);
-    assert.match(form, />Photo</);
+    assert.match(form, /<CardPhotoField/);
+    assert.match(read("components/card-photo-field.tsx"), />Photo</);
     assert.equal(
       cardFormPreview({
         playerName: "",
