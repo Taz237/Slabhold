@@ -38,6 +38,7 @@ import {
 } from "./reply-mentions";
 import { isReservedUsername, normalizeUsername, usernameChangeError, usernameError } from "./local-db";
 import { followOfficialUpdates } from "./official-updates";
+import { isTestAccount } from "../test-accounts";
 import { ilikeExact, TAKEN_USERNAME, usernameTakenMessage } from "./username-taken";
 import { validateQuoteContent } from "./quotes";
 import { pingWantMatch } from "@/lib/wants/ping";
@@ -531,7 +532,10 @@ export async function remoteSignUp(
     // Creation only. Login, profile edits, and unfollow must not call this.
     // Email-confirm signups have no session yet; the profile insert trigger
     // writes the same follow, and a later login does not try again.
-    await followOfficialUpdates(supabase, data.user.id);
+    // Test and QA handles are skipped here and in that trigger.
+    if (!isTestAccount(username)) {
+      await followOfficialUpdates(supabase, data.user.id);
+    }
   }
   if (!session) {
     return { notice: "Check your email to confirm the account, then log in." };

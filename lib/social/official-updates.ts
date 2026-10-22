@@ -5,7 +5,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
  * signup resolves this id and does not look up a username.
  * Override with OFFICIAL_UPDATES_USER_ID. An empty or invalid value is a no-op.
  * The env uuid and the SQL uuid in private.follow_official_updates must stay in sync.
- * See supabase/migrations/20261022210000_follow_official_updates.sql.
+ * See supabase/migrations/20261022210000_follow_official_updates.sql
+ * and supabase/migrations/20261022240000_skip_test_autofollow.sql.
  */
 export const OFFICIAL_UPDATES_USER_ID = "6d31ab97-9162-4296-876d-9e0378872fce";
 
