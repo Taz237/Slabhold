@@ -85,6 +85,7 @@ export function CollectPrompt() {
   const [people, setPeople] = useState<ServerSuggestion[] | null>(null);
   const [limitNote, setLimitNote] = useState<string | null>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
+  const closeRef = useRef<() => void>(() => {});
   const titleId = useId();
   const sportOptions = useCollectSports(catalogSports);
 
@@ -131,6 +132,17 @@ export function CollectPrompt() {
   }, [visible]);
 
   useEffect(() => {
+    closeRef.current = () => {
+      if (step === "people") {
+        go("done");
+        return;
+      }
+      if (busy) return;
+      go("skip");
+    };
+  });
+
+  useEffect(() => {
     if (!visible) return;
     const root = dialogRef.current;
     if (!root) return;
@@ -138,6 +150,11 @@ export function CollectPrompt() {
     const items = () => focusable(root);
     items()[0]?.focus();
     function onKey(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeRef.current();
+        return;
+      }
       if (event.key !== "Tab") return;
       const list = items();
       const active = list.indexOf(document.activeElement as HTMLElement);

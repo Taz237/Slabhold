@@ -18,9 +18,11 @@ export function canAddPick(currentCount: number): boolean {
 /**
  * Where Tab should move inside a dialog. Null means the browser can move
  * to the next control. The ends wrap so focus stays in the dialog.
+ * Focus outside the list moves to the first item, or the last with Shift.
  */
 export function trapTabTarget(count: number, activeIndex: number, shift: boolean): number | null {
   if (count <= 0) return null;
+  if (activeIndex < 0 || activeIndex >= count) return shift ? count - 1 : 0;
   if (shift && activeIndex <= 0) return count - 1;
   if (!shift && activeIndex >= count - 1) return 0;
   return null;
@@ -30,8 +32,7 @@ export function interestLimitReached(
   error: { code?: string; message?: string } | null | undefined,
 ): boolean {
   if (!error) return false;
-  const message = error.message ?? "";
-  return error.code === "23514" || /profile interests are limited to 50/i.test(message);
+  return /limited to 50/i.test(error.message ?? "");
 }
 
 export const PREFERRED_COLLECT_SPORTS = [
@@ -304,15 +305,27 @@ export function interestWriteRows(
 }
 
 /**
- * Save picks without deleting first. A failed upsert leaves the previous rows.
- * Removed picks are deleted only after the new rows are stored.
+ * Save picks without wiping them when the insert fails.
+ * Removed picks are deleted after the new rows are stored, unless the
+ * existing rows plus the new rows would pass 50. Then the removed picks
+ * go first so a full swap still fits under the trigger.
  */
 export async function persistInterestRows(
   supabase: SupabaseClient,
   userId: string,
   rows: readonly InterestRow[],
 ): Promise<"saved" | "missing" | "limit" | "error"> {
-  if (rows.length > 0) {
+  const existing = await supabase
+    .from("profile_interests")
+    .select("kind, value")
+    .eq("user_id", userId);
+  if (existing.error) return schemaMissing(existing.error) ? "missing" : "error";
+  const current = [...(existing.data ?? [])];
+  const keep = new Set(rows.map((row) => `${row.kind}:${row.value}`));
+  const swapFirst = current.length + rows.length > 50;
+
+  async function upsertRows(): Promise<"ok" | "missing" | "limit" | "error"> {
+    if (rows.length === 0) return "ok";
     const inserted = await supabase.from("profile_interests").upsert(
       rows.map((row) => ({ user_id: userId, kind: row.kind, value: row.value })),
       { onConflict: "user_id,kind,value" },
@@ -322,25 +335,37 @@ export async function persistInterestRows(
       if (interestLimitReached(inserted.error)) return "limit";
       return "error";
     }
+    return "ok";
   }
-  const existing = await supabase
-    .from("profile_interests")
-    .select("kind, value")
-    .eq("user_id", userId);
-  if (existing.error) return schemaMissing(existing.error) ? "missing" : "error";
-  const keep = new Set(rows.map((row) => `${row.kind}:${row.value}`));
-  for (const row of existing.data ?? []) {
-    const kind = row.kind;
-    const value = row.value;
-    if (!kind || !value || keep.has(`${kind}:${value}`)) continue;
-    const removed = await supabase
-      .from("profile_interests")
-      .delete()
-      .eq("user_id", userId)
-      .eq("kind", kind)
-      .eq("value", value);
-    if (removed.error) return schemaMissing(removed.error) ? "missing" : "error";
+
+  async function deleteRemoved(): Promise<"ok" | "missing" | "error"> {
+    for (const row of current) {
+      const kind = row.kind;
+      const value = row.value;
+      if (!kind || !value || keep.has(`${kind}:${value}`)) continue;
+      const removed = await supabase
+        .from("profile_interests")
+        .delete()
+        .eq("user_id", userId)
+        .eq("kind", kind)
+        .eq("value", value);
+      if (removed.error) return schemaMissing(removed.error) ? "missing" : "error";
+    }
+    return "ok";
   }
+
+  if (swapFirst) {
+    const deleted = await deleteRemoved();
+    if (deleted !== "ok") return deleted;
+    const inserted = await upsertRows();
+    if (inserted !== "ok") return inserted;
+    return "saved";
+  }
+
+  const inserted = await upsertRows();
+  if (inserted !== "ok") return inserted;
+  const deleted = await deleteRemoved();
+  if (deleted !== "ok") return deleted;
   return "saved";
 }
 

@@ -127,10 +127,15 @@ describe("skip and complete", () => {
     assert.equal(canAddPick(24), true);
     assert.equal(canAddPick(25), false);
     assert.equal(interestLimitReached({ code: "23514", message: "profile interests are limited to 50 rows" }), true);
+    assert.equal(interestLimitReached({ code: "23514", message: "check constraint" }), false);
     assert.equal(interestLimitReached({ message: "insert failed" }), false);
     assert.equal(trapTabTarget(3, 2, false), 0);
     assert.equal(trapTabTarget(3, 0, true), 2);
     assert.equal(trapTabTarget(3, 1, false), null);
+    assert.equal(trapTabTarget(3, -1, false), 0);
+    assert.equal(trapTabTarget(3, -1, true), 2);
+    assert.equal(trapTabTarget(3, 4, false), 0);
+    assert.equal(trapTabTarget(3, 4, true), 2);
     const calls: string[] = [];
     const capped = {
       from() {
@@ -198,7 +203,8 @@ describe("skip and complete", () => {
       { kind: "sport", value: "Football" },
     ]);
     assert.equal(failed, "error");
-    assert.deepEqual(calls, ["upsert"]);
+    assert.deepEqual(calls, ["select", "upsert"]);
+    assert.equal(calls.includes("delete"), false);
     calls.length = 0;
     const stored: { kind: string; value: string }[] = [{ kind: "team", value: "Chiefs" }];
     const ok = {
@@ -240,10 +246,66 @@ describe("skip and complete", () => {
       { kind: "sport", value: "Football" },
     ]);
     assert.equal(saved, "saved");
-    assert.equal(calls[0], "upsert");
+    assert.ok(calls.indexOf("upsert") < calls.indexOf("delete:team:Chiefs"));
     assert.equal(calls.includes("select"), true);
     assert.equal(calls.includes("delete:team:Chiefs"), true);
     assert.equal(calls.includes("delete:sport:Football"), false);
+  });
+
+  it("deletes removed picks before the upsert when a 25-for-25 swap would pass 50", async () => {
+    const calls: string[] = [];
+    const existing = [
+      ...Array.from({ length: 25 }, (_, index) => ({ kind: "player", value: `Old ${index + 1}` })),
+      { kind: "prompt", value: "done" },
+    ];
+    const incoming = [
+      ...Array.from({ length: 25 }, (_, index) => ({ kind: "player" as const, value: `New ${index + 1}` })),
+      { kind: "prompt" as const, value: "done" },
+    ];
+    const client = {
+      from() {
+        return {
+          upsert() {
+            calls.push("upsert");
+            return Promise.resolve({ error: null });
+          },
+          select() {
+            return {
+              eq() {
+                calls.push("select");
+                return Promise.resolve({ data: existing, error: null });
+              },
+            };
+          },
+          delete() {
+            return {
+              eq() {
+                return {
+                  eq(_column: string, kind: string) {
+                    return {
+                      eq(_valueColumn: string, value: string) {
+                        calls.push(`delete:${kind}:${value}`);
+                        return Promise.resolve({ error: null });
+                      },
+                    };
+                  },
+                };
+              },
+            };
+          },
+        };
+      },
+    };
+    const saved = await persistInterestRows(client as never, "user", incoming);
+    assert.equal(saved, "saved");
+    const upsertAt = calls.indexOf("upsert");
+    assert.ok(upsertAt > 0);
+    for (let index = 1; index <= 25; index += 1) {
+      const deletedAt = calls.indexOf(`delete:player:Old ${index}`);
+      assert.ok(deletedAt >= 0 && deletedAt < upsertAt);
+    }
+    assert.equal(calls.includes("delete:prompt:done"), false);
+    assert.equal(calls.some((call) => call.startsWith("delete:player:New")), false);
   });
 
   it("treats a missing table or ranking function as absent, not as a crash", () => {
@@ -271,6 +333,8 @@ describe("collecting UI", () => {
     assert.match(prompt, /aria-modal="true"/);
     assert.match(prompt, /previous\.focus\(\)/);
     assert.match(prompt, /trapTabTarget\(/);
+    assert.match(prompt, /key === "Escape"/);
+    assert.match(prompt, /closeRef\.current\(\)/);
     assert.match(prompt, /PICK_LIMIT_MESSAGE/);
     assert.match(settings, /PICK_LIMIT_MESSAGE/);
     assert.match(prompt, /Skip/);
