@@ -1,4 +1,5 @@
 import type { CatalogCard } from "@/lib/card-catalog";
+import { catalogSearchQuery } from "@/lib/card-search-query";
 import { createSupabaseBrowser } from "@/lib/supabase/browser";
 
 type RpcRow = {
@@ -25,6 +26,14 @@ function rowToCard(row: RpcRow): CatalogCard {
   };
 }
 
+/** Arguments for search_cards. q is clipped on whole characters. */
+export function buildSearchCardsArgs(query: string): { q: string; max_results: number } {
+  return {
+    q: Array.from(catalogSearchQuery(query)).slice(0, 100).join(""),
+    max_results: 20,
+  };
+}
+
 /**
  * Add Card's catalog query. Search uses this same call.
  * Null means the RPC failed or the browser has no Supabase client.
@@ -37,10 +46,7 @@ export async function searchCatalogRemote(
   const supabase = createSupabaseBrowser();
   if (!supabase) return null;
 
-  const builder = supabase.rpc("search_cards", {
-    q: query,
-    max_results: 20,
-  });
+  const builder = supabase.rpc("search_cards", buildSearchCardsArgs(query));
 
   const withAbort =
     typeof (builder as { abortSignal?: (s: AbortSignal) => typeof builder })
