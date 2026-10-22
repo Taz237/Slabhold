@@ -8,8 +8,33 @@ import { Logo } from "@/components/logo";
 import { useSocial } from "@/components/social-provider";
 import { trackEvent } from "@/lib/analytics";
 import { CAPTCHA_LOAD_FAILED, releaseCaptcha, submitBlocked, turnstileSiteKey } from "@/lib/auth/captcha";
-import { afterAuthPath, authLogoHref, loginPath, safeNext, signupPath } from "@/lib/auth/safe-next";
+import {
+  afterAuthPath,
+  authLogoHref,
+  emailConfirmRedirect,
+  loginPath,
+  safeNext,
+  signupPath,
+} from "@/lib/auth/safe-next";
+import {
+  AUTH_FORM_SCROLL,
+  PASSWORD_HINT,
+  RESEND_FAILED,
+  TURNSTILE_CONTINUE,
+  USERNAME_HINT,
+  emailFieldError,
+  passwordFieldError,
+  resendCooldownSeconds,
+  showTurnstileContinue,
+  signupNow,
+  signupInboxCopy,
+  signupResendFeedback,
+  usernameFieldError,
+} from "@/lib/auth/signup-fields";
 import { readStoredUtm } from "@/lib/utm";
+import { createSupabaseBrowser } from "@/lib/supabase/browser";
+
+type SignupField = "username" | "email" | "password";
 
 export function AuthForm({ mode }: { mode: "login" | "signup" }) {
   const router = useRouter();
@@ -20,6 +45,7 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
   const destination = afterAuthPath(next);
   const signedIn = Boolean(user);
   const captchaRef = useRef<CaptchaHandle>(null);
+  const resendCaptchaRef = useRef<CaptchaHandle>(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [username, setUsername] = useState("");
@@ -29,11 +55,40 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [touched, setTouched] = useState<Partial<Record<SignupField, boolean>>>({});
+  const [confirmEmail, setConfirmEmail] = useState<string | null>(null);
+  const [resendAt, setResendAt] = useState(0);
+  const [now, setNow] = useState(0);
+  const [resendBusy, setResendBusy] = useState(false);
+  const [resendError, setResendError] = useState<string | null>(null);
+  const [resendToken, setResendToken] = useState<string | null>(null);
+  const resendCaptchaWatch = useCaptchaWatch(
+    Boolean(confirmEmail) && turnstileSiteKey().length > 0,
+    resendToken,
+  );
 
   useEffect(() => {
     if (mode !== "signup") return;
     trackEvent("signup_started");
   }, [mode]);
+
+  useEffect(() => {
+    if (!confirmEmail) return;
+    if (resendCooldownSeconds(resendAt, signupNow()) <= 0) return;
+    const timer = window.setTimeout(() => setNow(signupNow()), 1000);
+    return () => window.clearTimeout(timer);
+  }, [confirmEmail, resendAt, now]);
+
+  function touch(field: SignupField) {
+    setTouched((current) => ({ ...current, [field]: true }));
+  }
+
+  function signupIssue(field: SignupField): string | null {
+    if (mode !== "signup" || !touched[field]) return null;
+    if (field === "username") return usernameFieldError(username);
+    if (field === "email") return emailFieldError(email);
+    return passwordFieldError(password);
+  }
 
   async function submit(e: React.FormEvent) {
     if (submitBlocked(busy, captchaToken)) return;
@@ -54,10 +109,58 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
     if (mode === "signup") trackEvent("signup_completed", readStoredUtm());
     releaseCaptcha(captchaRef.current, () => setCaptchaToken(null));
     if (result.notice) {
-      setMessage(result.notice);
+      if (mode === "signup") {
+        const sentAt = signupNow();
+        setConfirmEmail(email.trim());
+        setResendAt(sentAt);
+        setNow(sentAt);
+        setResendError(null);
+      } else {
+        setMessage(result.notice);
+      }
       return;
     }
     router.push(destination);
+  }
+
+  async function resendConfirmation() {
+    const cooling = resendCooldownSeconds(resendAt, signupNow()) > 0;
+    if (!confirmEmail || submitBlocked(resendBusy || cooling, resendToken)) return;
+    setResendBusy(true);
+    setResendError(null);
+    try {
+      const supabase = createSupabaseBrowser();
+      if (!supabase) {
+        setResendError(RESEND_FAILED);
+        return;
+      }
+      const { error: sendError } = await supabase.auth.resend({
+        type: "signup",
+        email: confirmEmail,
+        options: {
+          captchaToken: resendToken ?? undefined,
+          emailRedirectTo: emailConfirmRedirect(window.location.origin, next),
+        },
+      });
+      const feedback = signupResendFeedback(sendError);
+      if (feedback) {
+        setResendError(feedback.message);
+        if (feedback.rateLimited) {
+          const sentAt = signupNow();
+          setResendAt(sentAt);
+          setNow(sentAt);
+        }
+        return;
+      }
+      const sentAt = signupNow();
+      setResendAt(sentAt);
+      setNow(sentAt);
+    } catch {
+      setResendError(RESEND_FAILED);
+    } finally {
+      setResendBusy(false);
+      releaseCaptcha(resendCaptchaRef.current, () => setResendToken(null));
+    }
   }
 
   async function loginDemo() {
@@ -87,10 +190,61 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
     );
   }
 
+  const resendSeconds = confirmEmail ? resendCooldownSeconds(resendAt, now) : 0;
+
+  if (confirmEmail) {
+    return (
+      <div className={`mx-auto max-w-md ${AUTH_FORM_SCROLL}`}>
+        <Link href={authLogoHref(next)} className="mb-8 flex items-center gap-2">
+          <Logo />
+          <span className="text-[17px] font-bold tracking-tight">Slabhold</span>
+        </Link>
+        <h1 className="text-2xl font-bold tracking-tight">Check your email</h1>
+        <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-300">{signupInboxCopy(confirmEmail)}</p>
+        {resendError ? <p className="mt-3 text-sm text-rose-600 dark:text-rose-400">{resendError}</p> : null}
+        <Captcha
+          key={`${pathname}-confirm`}
+          ref={resendCaptchaRef}
+          onToken={(token) => {
+            setResendToken(token);
+            resendCaptchaWatch.onSolved();
+          }}
+          onExpire={() => setResendToken(null)}
+          onFail={() => {
+            setResendToken(null);
+            resendCaptchaWatch.onFail();
+          }}
+          onActivity={resendCaptchaWatch.onActivity}
+          onInteractive={resendCaptchaWatch.onInteractive}
+        />
+        {resendCaptchaWatch.failed ? (
+          <p className="mt-3 text-sm text-rose-600 dark:text-rose-400">{CAPTCHA_LOAD_FAILED}</p>
+        ) : null}
+        {showTurnstileContinue(turnstileSiteKey(), resendToken) ? (
+          <p className="mt-3 text-center text-sm text-zinc-500">{TURNSTILE_CONTINUE}</p>
+        ) : null}
+        <button
+          type="button"
+          disabled={submitBlocked(resendBusy || resendSeconds > 0, resendToken)}
+          onClick={() => void resendConfirmation()}
+          className="mt-5 w-full rounded-full bg-[#7C3AED] py-3 text-sm font-semibold text-white disabled:opacity-60"
+        >
+          Resend email
+        </button>
+        {resendSeconds > 0 ? (
+          <p className="mt-2 text-center text-sm text-zinc-500">You can resend in {resendSeconds}s.</p>
+        ) : null}
+        <Link href={loginPath(next)} className="mt-4 block py-2 text-center text-sm font-medium text-zinc-500">
+          Log in
+        </Link>
+      </div>
+    );
+  }
+
   const otherHref = mode === "login" ? signupPath(next) : loginPath(next);
 
   return (
-    <div className="mx-auto max-w-md">
+    <div className={`mx-auto max-w-md ${AUTH_FORM_SCROLL}`}>
       <Link href={authLogoHref(next)} className="mb-8 flex items-center gap-2">
         <Logo />
         <span className="text-[17px] font-bold tracking-tight">Slabhold</span>
@@ -112,11 +266,42 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
         {mode === "signup" && (
           <>
             <Field label="Display name" value={displayName} onChange={setDisplayName} placeholder="Maya Chen" />
-            <Field label="Username" value={username} onChange={setUsername} placeholder="waxroom" />
+            <Field
+              label="Username"
+              value={username}
+              onChange={setUsername}
+              onBlur={() => touch("username")}
+              placeholder="waxroom"
+              autoComplete="username"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+              hint={USERNAME_HINT}
+              error={signupIssue("username")}
+            />
           </>
         )}
-        <Field label="Email" type="email" value={email} onChange={setEmail} placeholder="you@email.com" />
-        <Field label="Password" type="password" value={password} onChange={setPassword} placeholder="At least 6 characters" />
+        <Field
+          label="Email"
+          type="email"
+          autoComplete="email"
+          value={email}
+          onChange={setEmail}
+          onBlur={mode === "signup" ? () => touch("email") : undefined}
+          placeholder="you@email.com"
+          error={signupIssue("email")}
+        />
+        <Field
+          label="Password"
+          type="password"
+          autoComplete={mode === "login" ? "current-password" : "new-password"}
+          value={password}
+          onChange={setPassword}
+          onBlur={mode === "signup" ? () => touch("password") : undefined}
+          placeholder="At least 6 characters"
+          hint={mode === "signup" ? PASSWORD_HINT : undefined}
+          error={signupIssue("password")}
+        />
         {mode === "login" ? (
           <Link href="/forgot-password" className="hit-44 ml-auto block w-fit text-right text-sm font-medium text-zinc-500">
             Forgot password?
@@ -142,10 +327,13 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
         {captchaWatch.failed ? (
           <p className="text-sm text-rose-600 dark:text-rose-400">{CAPTCHA_LOAD_FAILED}</p>
         ) : null}
+        {showTurnstileContinue(turnstileSiteKey(), captchaToken) ? (
+          <p className="text-center text-sm text-zinc-500">{TURNSTILE_CONTINUE}</p>
+        ) : null}
         <button
           type="submit"
           disabled={submitBlocked(busy, captchaToken)}
-          className="w-full rounded-full bg-[#7C3AED] py-3 text-sm font-semibold text-white disabled:opacity-60"
+          className="w-full scroll-mb-[40vh] rounded-full bg-[#7C3AED] py-3 text-sm font-semibold text-white disabled:opacity-60"
         >
           {mode === "login" ? "Log in" : "Sign up"}
         </button>
@@ -192,14 +380,28 @@ function Field({
   label,
   value,
   onChange,
+  onBlur,
   type = "text",
   placeholder,
+  autoComplete,
+  autoCapitalize,
+  autoCorrect,
+  spellCheck,
+  hint,
+  error,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
+  onBlur?: () => void;
   type?: string;
   placeholder?: string;
+  autoComplete?: string;
+  autoCapitalize?: string;
+  autoCorrect?: string;
+  spellCheck?: boolean;
+  hint?: string;
+  error?: string | null;
 }) {
   return (
     <label className="block text-sm">
@@ -209,9 +411,17 @@ function Field({
         type={type}
         value={value}
         placeholder={placeholder}
+        autoComplete={autoComplete}
+        autoCapitalize={autoCapitalize}
+        autoCorrect={autoCorrect}
+        spellCheck={spellCheck}
+        aria-invalid={error ? true : undefined}
+        onBlur={onBlur}
         onChange={(e) => onChange(e.target.value)}
         className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-sm outline-none dark:border-white/10 dark:bg-white/5"
       />
+      {hint ? <span className="mt-1 block text-xs text-zinc-500">{hint}</span> : null}
+      {error ? <span className="mt-1 block text-xs text-rose-600 dark:text-rose-400">{error}</span> : null}
     </label>
   );
 }

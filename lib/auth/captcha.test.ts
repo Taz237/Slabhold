@@ -239,7 +239,8 @@ describe("captcha reset", () => {
     const forgot = read("components/forgot-password-form.tsx");
     const authError = auth.slice(auth.indexOf("if (result.error)"), auth.indexOf("if (mode === \"signup\")"));
     assert.match(authError, /releaseCaptcha\(captchaRef\.current, \(\) => setCaptchaToken\(null\)\)/);
-    assert.equal(auth.match(/releaseCaptcha\(/g)?.length, 2);
+    assert.equal(auth.match(/releaseCaptcha\(/g)?.length, 3);
+    assert.match(auth, /releaseCaptcha\(resendCaptchaRef\.current, \(\) => setResendToken\(null\)\)/);
     const authSuccess = auth.slice(auth.indexOf('if (mode === "signup") trackEvent'));
     assert.ok(authSuccess.indexOf("releaseCaptcha(") < authSuccess.indexOf("if (result.notice)"));
 

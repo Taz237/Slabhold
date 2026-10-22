@@ -196,6 +196,6 @@ export async function pathIsMissing(input: {
 
   // /cards/:id and /cards/:id/edit always render. A new card may not be
   // inserted yet, and a signed-out visit must reach AppShell so it can send
-  // the visitor to /signup?next=… Signed-in non-owners hit requireCardPageAccess.
+  // the visitor to /login?next=… Signed-in non-owners hit requireCardPageAccess.
   return false;
 }
