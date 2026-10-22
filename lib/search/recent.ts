@@ -37,26 +37,75 @@ export function rememberRecentSearch(items: readonly string[], term: string): st
   );
 }
 
-/** One browser session. The shared key is deleted on the first read and not again. */
+/** One browser session. The shared key is deleted on the first successful try, and not again. */
 export function createRecentSearchStore() {
   let dropped = false;
   return {
     dropShared(store: Pick<RecentStore, "removeItem">) {
       if (dropped) return;
+      try {
+        store.removeItem(SHARED_RECENT_SEARCH_KEY);
+      } catch {
+        return;
+      }
       dropped = true;
-      store.removeItem(SHARED_RECENT_SEARCH_KEY);
     },
     read(store: RecentStore, userId: string | null | undefined) {
-      this.dropShared(store);
-      return parseRecentSearches(store.getItem(recentSearchKey(userId)));
+      try {
+        this.dropShared(store);
+        return parseRecentSearches(store.getItem(recentSearchKey(userId)));
+      } catch {
+        return [];
+      }
     },
     save(store: RecentStore, userId: string | null | undefined, items: readonly string[]) {
-      const key = recentSearchKey(userId);
-      const next = items.slice(0, RECENT_SEARCH_LIMIT);
-      if (next.length === 0) store.removeItem(key);
-      else store.setItem(key, JSON.stringify(next));
+      try {
+        const key = recentSearchKey(userId);
+        const next = items.slice(0, RECENT_SEARCH_LIMIT);
+        if (next.length === 0) store.removeItem(key);
+        else store.setItem(key, JSON.stringify(next));
+      } catch {
+        // Leave storage unchanged when the browser blocks it.
+      }
     },
   };
+}
+
+function browserStore(): RecentStore {
+  return window.localStorage;
+}
+
+/** Recents for this account, or [] when site storage throws. */
+export function readBrowserRecentSearches(userId: string | null | undefined): string[] {
+  try {
+    return parseRecentSearches(browserStore().getItem(recentSearchKey(userId)));
+  } catch {
+    return [];
+  }
+}
+
+/** Writes this account's list. A blocked store is ignored. */
+export function saveBrowserRecentSearches(
+  accounts: { save(store: RecentStore, userId: string | null | undefined, items: readonly string[]): void },
+  userId: string | null | undefined,
+  items: readonly string[],
+) {
+  try {
+    accounts.save(browserStore(), userId, items);
+  } catch {
+    // Search still works with no recent list.
+  }
+}
+
+/** Removes the old shared key. A blocked store is ignored. */
+export function dropSharedBrowserRecentSearches(accounts: {
+  dropShared(store: Pick<RecentStore, "removeItem">): void;
+}) {
+  try {
+    accounts.dropShared(browserStore());
+  } catch {
+    // Search still works with no recent list.
+  }
 }
 
 /** The Add card page keeps at most this many characters of the search text. */

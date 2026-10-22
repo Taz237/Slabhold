@@ -7,7 +7,10 @@ import {
   SHARED_RECENT_SEARCH_KEY,
   addCardQuery,
   createRecentSearchStore,
+  dropSharedBrowserRecentSearches,
+  readBrowserRecentSearches,
   recentSearchKey,
+  saveBrowserRecentSearches,
   type RecentStore,
 } from "./recent";
 import {
@@ -129,6 +132,36 @@ describe("search sections", () => {
     assert.match(view, /recentAccounts\.dropShared\(window\.localStorage\)/);
     assert.match(view, /aria-label=\{`Remove \$\{term\}`\}[\s\S]*?h-11 w-11/);
     assert.doesNotMatch(view, /localStorage\.getItem\(SHARED_RECENT_SEARCH_KEY\)|getItem\("slabhold\.search\.recent\.v1"\)/);
+  });
+
+  it("returns an empty recent list when window.localStorage throws", () => {
+    const accounts = createRecentSearchStore();
+    const previous = Object.getOwnPropertyDescriptor(globalThis, "window");
+    Object.defineProperty(globalThis, "window", {
+      configurable: true,
+      value: {},
+    });
+    Object.defineProperty(window, "localStorage", {
+      configurable: true,
+      get() {
+        throw new Error("blocked");
+      },
+    });
+    try {
+      assert.deepEqual(readBrowserRecentSearches("user-a"), []);
+      assert.deepEqual(readBrowserRecentSearches(null), []);
+      assert.doesNotThrow(() => saveBrowserRecentSearches(accounts, "user-a", ["wemby"]));
+      assert.doesNotThrow(() => dropSharedBrowserRecentSearches(accounts));
+      assert.deepEqual(readBrowserRecentSearches("user-b"), []);
+    } finally {
+      if (previous) Object.defineProperty(globalThis, "window", previous);
+      else Reflect.deleteProperty(globalThis, "window");
+    }
+
+    const view = read("components/search-view.tsx");
+    assert.match(view, /try \{[\s\S]*?return window\.localStorage\.getItem\(key\) \?\? "\[\]";[\s\S]*?\} catch \{[\s\S]*?return "\[\]";/);
+    assert.match(view, /try \{[\s\S]*?recentAccounts\.dropShared\(window\.localStorage\);/);
+    assert.match(view, /try \{[\s\S]*?recentAccounts\.save\(window\.localStorage, recentOwner, items\);/);
   });
 
   it("trims a long add-card query to 100 characters", () => {

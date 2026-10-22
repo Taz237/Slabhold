@@ -50,7 +50,13 @@ function useRecentSearches(userId: string | null) {
   const key = recentSearchKey(userId);
   const raw = useSyncExternalStore(
     subscribeRecent,
-    () => window.localStorage.getItem(key) ?? "[]",
+    () => {
+      try {
+        return window.localStorage.getItem(key) ?? "[]";
+      } catch {
+        return "[]";
+      }
+    },
     () => "[]",
   );
   return useMemo(() => parseRecentSearches(raw), [raw]);
@@ -73,7 +79,11 @@ export function SearchView() {
   const recent = useRecentSearches(recentOwner);
 
   useEffect(() => {
-    recentAccounts.dropShared(window.localStorage);
+    try {
+      recentAccounts.dropShared(window.localStorage);
+    } catch {
+      // Site storage can be blocked. Search still works with no recent list.
+    }
   }, []);
   const typed = query.trim();
   const q = typed.toLowerCase().replace(/^@/, "");
@@ -135,8 +145,12 @@ export function SearchView() {
   );
 
   function publishRecent(items: string[]) {
-    recentAccounts.save(window.localStorage, recentOwner, items);
-    notifyRecent();
+    try {
+      recentAccounts.save(window.localStorage, recentOwner, items);
+      notifyRecent();
+    } catch {
+      // Site storage can be blocked. Search still works with no recent list.
+    }
   }
 
   function remember(term: string) {
