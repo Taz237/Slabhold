@@ -38,44 +38,6 @@ export function calendarDateInTimeZone(now: Date, timeZone = NEW_YORK): string {
   }).format(now);
 }
 
-function timeZoneOffsetMs(timeZone: string, instant: Date): number {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone,
-    hourCycle: "h23",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  }).formatToParts(instant);
-  const bag: Record<string, string> = {};
-  for (const part of parts) {
-    if (part.type !== "literal") bag[part.type] = part.value;
-  }
-  const hour = bag.hour === "24" ? 0 : Number(bag.hour);
-  const asUtc = Date.UTC(
-    Number(bag.year),
-    Number(bag.month) - 1,
-    Number(bag.day),
-    hour,
-    Number(bag.minute),
-    Number(bag.second),
-  );
-  return asUtc - instant.getTime();
-}
-
-/** UTC instant of midnight on a calendar date in America/New_York. */
-export function zonedDayStart(date: string, timeZone = NEW_YORK): Date {
-  const guess = new Date(`${date}T00:00:00.000Z`);
-  const offset = timeZoneOffsetMs(timeZone, guess);
-  let start = new Date(guess.getTime() - offset);
-  if (calendarDateInTimeZone(start, timeZone) !== date) {
-    start = new Date(guess.getTime() - timeZoneOffsetMs(timeZone, start));
-  }
-  return start;
-}
-
 export function addCalendarDays(date: string, days: number): string {
   const [year, month, day] = date.split("-").map(Number);
   const utc = new Date(Date.UTC(year, month - 1, day));
@@ -83,22 +45,54 @@ export function addCalendarDays(date: string, days: number): string {
   return utc.toISOString().slice(0, 10);
 }
 
+/**
+ * New York calendar date, bounded as UTC midnights.
+ * sold_at stores the sale date at 00:00 UTC, so a New York midnight window
+ * would drop every stored sale.
+ */
 export function newYorkDayWindow(now: Date = new Date()): {
   date: string;
   startIso: string;
   endIso: string;
 } {
   const date = calendarDateInTimeZone(now);
-  const start = zonedDayStart(date);
-  const end = zonedDayStart(addCalendarDays(date, 1));
-  return { date, startIso: start.toISOString(), endIso: end.toISOString() };
+  return {
+    date,
+    startIso: `${date}T00:00:00Z`,
+    endIso: `${addCalendarDays(date, 1)}T00:00:00Z`,
+  };
 }
 
-export function soldOnInNewYork(soldAt: string): string | null {
-  if (/^\d{4}-\d{2}-\d{2}$/.test(soldAt)) return soldAt;
-  const parsed = new Date(soldAt);
-  if (Number.isNaN(parsed.getTime())) return null;
-  return calendarDateInTimeZone(parsed);
+/** First 10 characters. Date strings and midnight-UTC timestamps share a calendar date. */
+export function saleCalendarDate(value: string): string | null {
+  const date = value.slice(0, 10);
+  return /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : null;
+}
+
+/** Honest heading. A fallback day is not labeled as today. */
+export function movingDayHeading(shownDate: string, today: string): string {
+  if (shownDate === today) return "Moving today";
+  if (shownDate === addCalendarDays(today, -1)) return "Moving yesterday";
+  const label = formatSaleDate(shownDate);
+  return label ? `Moving ${label}` : "Moving today";
+}
+
+export function dropOwnerFlaggedSales<T extends { cardId: string; itemId: string }>(
+  sales: readonly T[],
+  owners: readonly { id: string; userId: string }[],
+  flags: readonly { cardId: string; userId: string; itemId: string }[],
+): T[] {
+  const ownerByCard = new Map<string, string>();
+  for (const owner of owners) {
+    if (owner.id && owner.userId) ownerByCard.set(owner.id, owner.userId);
+  }
+  const blocked = new Set<string>();
+  for (const flag of flags) {
+    if (!flag.cardId || !flag.itemId || !flag.userId) continue;
+    if (ownerByCard.get(flag.cardId) !== flag.userId) continue;
+    blocked.add(`${flag.cardId}\0${flag.itemId}`);
+  }
+  return sales.filter((sale) => !blocked.has(`${sale.cardId}\0${sale.itemId}`));
 }
 
 export function formatSaleDate(isoDate: string): string {
@@ -236,7 +230,7 @@ export function toSaleRecord(input: {
   price: number;
   soldAt: string;
 }): SaleRecord | null {
-  const soldOn = soldOnInNewYork(input.soldAt);
+  const soldOn = saleCalendarDate(input.soldAt);
   const priceCents = dollarsToCents(input.price);
   if (!soldOn || !Number.isInteger(priceCents) || priceCents <= 0) return null;
   if (!input.queryKey || !input.itemId || input.itemId === "__empty__") return null;

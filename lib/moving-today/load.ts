@@ -10,7 +10,7 @@ import {
   type PublicCardRef,
   type RawCompSale,
 } from "./present";
-import { addCalendarDays, newYorkDayWindow, zonedDayStart } from "./rank";
+import { addCalendarDays, newYorkDayWindow, RECENT_AVERAGE_DAYS, saleCalendarDate } from "./rank";
 import { emptyMovingToday, type MovingTodayPayload } from "./types";
 
 const TODAY_SALE_LIMIT = 400;
@@ -86,42 +86,75 @@ async function selectSales(
   return sales;
 }
 
-async function readMovingToday(now: Date): Promise<MovingTodayPayload> {
-  const admin = createSupabaseAdmin();
-  const window = newYorkDayWindow(now);
-  if (!admin) return emptyMovingToday(window.date);
+function utcMidnight(date: string): string {
+  return `${date}T00:00:00Z`;
+}
 
-  const sales = await selectSales(admin, (query) =>
+async function readDaySales(
+  admin: NonNullable<ReturnType<typeof createSupabaseAdmin>>,
+  date: string,
+): Promise<RawCompSale[]> {
+  return selectSales(admin, (query) =>
     query
-      .gte("sold_at", window.startIso)
-      .lt("sold_at", window.endIso)
+      .gte("sold_at", utcMidnight(date))
+      .lt("sold_at", utcMidnight(addCalendarDays(date, 1)))
       .gt("price", 0)
       .neq("item_id", "__empty__")
       .not("query_key", "is", null)
       .order("price", { ascending: false })
       .limit(TODAY_SALE_LIMIT),
   );
+}
+
+async function readMovingToday(now: Date): Promise<MovingTodayPayload> {
+  const admin = createSupabaseAdmin();
+  const window = newYorkDayWindow(now);
+  if (!admin) return emptyMovingToday(window.date);
+
+  let shownDate = window.date;
+  let sales = await readDaySales(admin, shownDate);
+  if (sales.length === 0) {
+    const recent = await selectSales(admin, (query) =>
+      query
+        .lt("sold_at", utcMidnight(window.date))
+        .gt("price", 0)
+        .neq("item_id", "__empty__")
+        .not("query_key", "is", null)
+        .order("sold_at", { ascending: false })
+        .limit(1),
+    );
+    const fallback = saleCalendarDate(recent[0]?.soldAt ?? "");
+    if (!fallback) return { ...emptyMovingToday(window.date), dateLabel: "" };
+    shownDate = fallback;
+    sales = await readDaySales(admin, shownDate);
+  }
   if (sales.length === 0) {
     return { ...emptyMovingToday(window.date), dateLabel: "" };
   }
 
   const keys = [...new Set(sales.map((sale) => sale.queryKey))];
-  const lookback = zonedDayStart(addCalendarDays(window.date, -90)).toISOString();
+  const historyStart = utcMidnight(addCalendarDays(shownDate, -RECENT_AVERAGE_DAYS));
+  const historyEnd = utcMidnight(shownDate);
   const history: RawCompSale[] = [];
   for (const group of chunks(keys, IN_CHUNK)) {
     const rows = await selectSales(admin, (query) =>
       query
         .in("query_key", group)
-        .gte("sold_at", lookback)
-        .lt("sold_at", window.startIso)
+        .gte("sold_at", historyStart)
+        .lt("sold_at", historyEnd)
         .gt("price", 0)
         .neq("item_id", "__empty__")
+        .order("sold_at", { ascending: false })
         .limit(HISTORY_LIMIT),
     );
     history.push(...rows);
   }
 
-  const cardIds = [...new Set(sales.map((sale) => sale.cardId))];
+  const cardIds = [
+    ...new Set([...sales, ...history].map((sale) => sale.cardId)),
+  ];
+  let owners = await readCardOwners(admin, cardIds);
+  let flags = await readCompFlags(admin, cardIds);
   const cards = await readPublicCards(admin, cardIds);
   const covered = new Set(cards.map((card) => card.id));
   const missingKeys = [
@@ -130,18 +163,65 @@ async function readMovingToday(now: Date): Promise<MovingTodayPayload> {
   const alternates = await readAlternates(admin, missingKeys);
   const extraIds = alternates.map((row) => row.cardId).filter((id) => !covered.has(id));
   cards.push(...(await readPublicCards(admin, extraIds)));
+  owners = owners.concat(await readCardOwners(admin, extraIds));
+  flags = flags.concat(await readCompFlags(admin, extraIds));
 
   const userIds = [...new Set(cards.map((card) => card.userId))];
   const profiles = await readProfiles(admin, userIds);
   const payload = assembleMovingToday({
-    today: window.date,
+    today: shownDate,
+    asOf: window.date,
     sales,
     history,
     cards,
     profiles,
     alternates,
+    owners,
+    flags,
   });
   return payload.sales.length > 0 ? payload : { ...emptyMovingToday(window.date), dateLabel: payload.dateLabel };
+}
+
+async function readCardOwners(
+  admin: NonNullable<ReturnType<typeof createSupabaseAdmin>>,
+  ids: string[],
+): Promise<{ id: string; userId: string }[]> {
+  const owners: { id: string; userId: string }[] = [];
+  for (const group of chunks([...new Set(ids)], IN_CHUNK)) {
+    if (group.length === 0) continue;
+    const { data, error } = await admin.from("cards").select("id, user_id").in("id", group);
+    if (error) throw new Error(error.message);
+    for (const row of data ?? []) {
+      const record = row as Row;
+      const id = typeof record.id === "string" ? record.id : "";
+      const userId = typeof record.user_id === "string" ? record.user_id : "";
+      if (id && userId) owners.push({ id, userId });
+    }
+  }
+  return owners;
+}
+
+async function readCompFlags(
+  admin: NonNullable<ReturnType<typeof createSupabaseAdmin>>,
+  cardIds: string[],
+): Promise<{ cardId: string; userId: string; itemId: string }[]> {
+  const flags: { cardId: string; userId: string; itemId: string }[] = [];
+  for (const group of chunks([...new Set(cardIds)], IN_CHUNK)) {
+    if (group.length === 0) continue;
+    const { data, error } = await admin
+      .from("comp_flags")
+      .select("card_id, user_id, item_id")
+      .in("card_id", group);
+    if (error) throw new Error(error.message);
+    for (const row of data ?? []) {
+      const record = row as Row;
+      const cardId = typeof record.card_id === "string" ? record.card_id : "";
+      const userId = typeof record.user_id === "string" ? record.user_id : "";
+      const itemId = typeof record.item_id === "string" ? record.item_id : "";
+      if (cardId && userId && itemId) flags.push({ cardId, userId, itemId });
+    }
+  }
+  return flags;
 }
 
 async function readPublicCards(

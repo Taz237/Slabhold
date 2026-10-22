@@ -17,7 +17,7 @@ export type MovingTodaySale = {
 };
 
 export type MovingTodayPayload = {
-  title: typeof MOVING_TODAY_TITLE;
+  title: string;
   date: string;
   dateLabel: string;
   sales: MovingTodaySale[];

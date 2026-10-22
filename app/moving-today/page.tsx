@@ -19,6 +19,6 @@ export default async function MovingTodayPage() {
   }
   if (!shouldShowMovingToday(payload.sales)) redirect("/");
   return (
-    <MovingTodayPanel status="ready" dateLabel={payload.dateLabel} sales={payload.sales} />
+    <MovingTodayPanel heading={payload.title} dateLabel={payload.dateLabel} sales={payload.sales} />
   );
 }

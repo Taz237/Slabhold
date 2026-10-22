@@ -592,7 +592,7 @@ export function renderMovingTodayOg(model: MovingTodayShareModel) {
         <Brand />
         <div style={{ display: "flex", flexDirection: "column" }}>
           <div style={{ display: "flex", fontSize: 22, letterSpacing: 2, color: "#c4b5fd" }}>
-            MOVING TODAY
+            {(model.title || "Moving today").toUpperCase()}
           </div>
           {model.dateLabel ? (
             <div style={{ display: "flex", marginTop: 10, fontSize: 28, color: "#a1a1aa" }}>

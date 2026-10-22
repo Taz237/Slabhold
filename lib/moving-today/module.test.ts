@@ -4,7 +4,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, it } from "node:test";
 import { join } from "node:path";
-import { MOVING_TODAY_SLOT_CLASS, MovingTodayPanel } from "@/components/moving-today";
+import { MovingToday, MovingTodayPanel } from "@/components/moving-today";
 import {
   createTtlCache,
   MOVING_TODAY_CACHE_SECONDS,
@@ -37,21 +37,21 @@ function sale(partial: Partial<MovingTodaySale> = {}): MovingTodaySale {
 }
 
 describe("Moving today module", () => {
-  it("reserves a skeleton and does not jump the slot class", () => {
-    const html = renderToStaticMarkup(
-      createElement(MovingTodayPanel, { status: "loading", dateLabel: "", sales: [] }),
+  it("renders nothing until sales arrive so an empty day does not move the composer", () => {
+    const loading = renderToStaticMarkup(createElement(MovingToday));
+    const empty = renderToStaticMarkup(
+      createElement(MovingTodayPanel, { heading: "Moving today", dateLabel: "Oct 22", sales: [] }),
     );
-    assert.match(html, /aria-busy="true"/);
-    assert.match(html, /Moving today/);
-    assert.match(html, new RegExp(MOVING_TODAY_SLOT_CLASS.replace("[", "\\[").replace("]", "\\]")));
-    assert.match(html, /animate-pulse/);
-    assert.doesNotMatch(html, /No sales|Nothing moving|empty/i);
-    assert.doesNotMatch(html, /Share/);
+    assert.equal(loading, "");
+    assert.equal(empty, "");
+    const source = read("components/moving-today.tsx");
+    assert.doesNotMatch(source, /min-h-\[148px\]/);
+    assert.doesNotMatch(source, /animate-pulse/);
   });
 
   it("hides the module when there is nothing to show", () => {
     const html = renderToStaticMarkup(
-      createElement(MovingTodayPanel, { status: "ready", dateLabel: "Oct 22", sales: [] }),
+      createElement(MovingTodayPanel, { heading: "Moving today", dateLabel: "Oct 22", sales: [] }),
     );
     assert.equal(html, "");
   });
@@ -59,13 +59,12 @@ describe("Moving today module", () => {
   it("shows the card, price, honest percent, sale date, and share", () => {
     const html = renderToStaticMarkup(
       createElement(MovingTodayPanel, {
-        status: "ready",
+        heading: "Moving today",
         dateLabel: "Oct 22",
         sales: [sale()],
       }),
     );
-    assert.match(html, new RegExp(MOVING_TODAY_SLOT_CLASS.replace("[", "\\[").replace("]", "\\]")));
-    assert.match(html, /aria-busy="false"/);
+    assert.doesNotMatch(html, /min-h-\[148px\]/);
     assert.match(html, /Victor Wembanyama/);
     assert.match(html, /\$200\.00/);
     assert.match(html, /\+40%/);
@@ -78,7 +77,7 @@ describe("Moving today module", () => {
   it("omits the percent when the sample is too small to be honest", () => {
     const html = renderToStaticMarkup(
       createElement(MovingTodayPanel, {
-        status: "ready",
+        heading: "Moving today",
         dateLabel: "Oct 22",
         sales: [sale({ percent: null, percentLabel: null })],
       }),
@@ -131,6 +130,13 @@ describe("Moving today cache", () => {
     assert.match(route, /movingTodayCacheControl/);
     assert.match(route, /private, no-store/);
     assert.match(load, /sold_comps_cache/);
+    assert.match(load, /T00:00:00Z/);
+    assert.match(load, /comp_flags/);
+    assert.match(load, /\.order\("sold_at", \{ ascending: false \}\)/);
+    const historyQuery = load.slice(load.indexOf("const historyStart"));
+    const historyOrder = historyQuery.indexOf('.order("sold_at", { ascending: false })');
+    const historyLimit = historyQuery.indexOf(".limit(HISTORY_LIMIT)");
+    assert.ok(historyOrder > 0 && historyOrder < historyLimit);
   });
 });
 

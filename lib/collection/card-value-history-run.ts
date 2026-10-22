@@ -6,7 +6,10 @@ import { addCalendarDays } from "@/lib/moving-today/rank";
 import {
   buildCardValueHistoryRows,
   cardValueHistoryEnabled,
+  CARD_VALUE_HISTORY_RUN_CAP,
   CARD_VALUE_HISTORY_TABLE,
+  historyRetentionCutoff,
+  isFreshMatchedCardValue,
   isMissingRelation,
   numericFromUnknown,
   runCardValueHistoryCron,
@@ -27,46 +30,73 @@ function chunks<T>(items: T[], size: number): T[][] {
   return groups;
 }
 
-async function listOwnedCards(admin: Admin): Promise<{ id: string; userId: string }[]> {
-  const cards: { id: string; userId: string }[] = [];
+async function listFreshValues(admin: Admin): Promise<{ cardId: string; median: number }[]> {
+  const values: { cardId: string; median: number }[] = [];
   let from = 0;
-  for (;;) {
+  while (values.length < CARD_VALUE_HISTORY_RUN_CAP) {
+    const pageSize = Math.min(CARD_PAGE, CARD_VALUE_HISTORY_RUN_CAP - values.length);
     const { data, error } = await admin
-      .from("cards")
-      .select("id, user_id")
-      .range(from, from + CARD_PAGE - 1);
+      .from("card_values")
+      .select("card_id, median, status")
+      .eq("status", "ok")
+      .order("card_id", { ascending: true })
+      .range(from, from + pageSize - 1);
     if (error) throw new Error(error.message);
     const page = data ?? [];
     for (const row of page) {
+      if (!isFreshMatchedCardValue(row)) continue;
+      const cardId = typeof row.card_id === "string" ? row.card_id : "";
+      const median = numericFromUnknown(row.median);
+      if (!cardId || median == null) continue;
+      values.push({ cardId, median });
+      if (values.length >= CARD_VALUE_HISTORY_RUN_CAP) break;
+    }
+    if (page.length < pageSize) break;
+    from += pageSize;
+  }
+  return values;
+}
+
+async function ownersFor(admin: Admin, cardIds: string[]): Promise<Map<string, string>> {
+  const owners = new Map<string, string>();
+  for (const group of chunks(cardIds, ID_CHUNK)) {
+    const { data, error } = await admin.from("cards").select("id, user_id").in("id", group);
+    if (error) throw new Error(error.message);
+    for (const row of data ?? []) {
       const id = typeof row.id === "string" ? row.id : "";
       const userId = typeof row.user_id === "string" ? row.user_id : "";
-      if (id && userId) cards.push({ id, userId });
+      if (id && userId) owners.set(id, userId);
     }
-    if (page.length < CARD_PAGE) break;
-    from += CARD_PAGE;
   }
-  return cards;
+  return owners;
 }
 
 async function mediansFor(
   admin: Admin,
   cardIds: string[],
+  known: Map<string, number>,
 ): Promise<{ cardId: string; median: number | null }[]> {
   const found = new Map<string, number | null>();
-  for (const id of cardIds) found.set(id, null);
+  for (const id of cardIds) found.set(id, known.get(id) ?? null);
   for (const group of chunks(cardIds, ID_CHUNK)) {
     const { data, error } = await admin
       .from("card_values")
-      .select("card_id, median")
+      .select("card_id, median, status")
       .in("card_id", group);
     if (error) throw new Error(error.message);
     for (const row of data ?? []) {
       const cardId = typeof row.card_id === "string" ? row.card_id : "";
       if (!cardId || !found.has(cardId)) continue;
+      if (!isFreshMatchedCardValue(row)) {
+        found.set(cardId, null);
+        continue;
+      }
       found.set(cardId, numericFromUnknown(row.median));
     }
   }
-  return [...found.entries()].map(([cardId, median]) => ({ cardId, median }));
+  return [...found.entries()]
+    .filter((entry): entry is [string, number] => entry[1] != null)
+    .map(([cardId, median]) => ({ cardId, median }));
 }
 
 async function previousFor(
@@ -90,11 +120,12 @@ async function writeUser(
   admin: Admin,
   userId: string,
   cardIds: string[],
+  knownMedians: Map<string, number>,
   snapshotDate: string,
   previousDate: string,
 ): Promise<number> {
   const [current, previous] = await Promise.all([
-    mediansFor(admin, cardIds),
+    mediansFor(admin, cardIds, knownMedians),
     previousFor(admin, userId, previousDate),
   ]);
   const rows = buildCardValueHistoryRows({
@@ -119,12 +150,19 @@ export async function writeCardValueHistory(now: Date = new Date()): Promise<num
   if (!admin) return 0;
   const snapshotDate = snapshotDateInNewYork(now);
   const previousDate = addCalendarDays(snapshotDate, -1);
-  const cards = await listOwnedCards(admin);
+  const fresh = await listFreshValues(admin);
+  const owners = await ownersFor(
+    admin,
+    fresh.map((row) => row.cardId),
+  );
+  const knownMedians = new Map(fresh.map((row) => [row.cardId, row.median]));
   const byUser = new Map<string, string[]>();
-  for (const card of cards) {
-    const list = byUser.get(card.userId) ?? [];
-    list.push(card.id);
-    byUser.set(card.userId, list);
+  for (const row of fresh) {
+    const userId = owners.get(row.cardId);
+    if (!userId) continue;
+    const list = byUser.get(userId) ?? [];
+    list.push(row.cardId);
+    byUser.set(userId, list);
   }
   let written = 0;
   const users = [...byUser.entries()];
@@ -132,11 +170,17 @@ export async function writeCardValueHistory(now: Date = new Date()): Promise<num
     const batch = users.slice(index, index + USER_BATCH);
     const counts = await Promise.all(
       batch.map(([userId, cardIds]) =>
-        writeUser(admin, userId, cardIds, snapshotDate, previousDate),
+        writeUser(admin, userId, cardIds, knownMedians, snapshotDate, previousDate),
       ),
     );
     written += counts.reduce((sum, count) => sum + count, 0);
   }
+  const cutoff = historyRetentionCutoff(snapshotDate);
+  const { error } = await admin
+    .from(CARD_VALUE_HISTORY_TABLE)
+    .delete()
+    .lt("snapshot_date", cutoff);
+  if (error) throw new Error(error.message);
   return written;
 }
 

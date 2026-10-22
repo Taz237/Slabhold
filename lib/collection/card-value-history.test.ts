@@ -4,7 +4,11 @@ import { describe, it } from "node:test";
 import { join } from "node:path";
 import {
   buildCardValueHistoryRows,
+  CARD_VALUE_HISTORY_RETENTION_DAYS,
+  CARD_VALUE_HISTORY_RUN_CAP,
   cardValueHistoryEnabled,
+  historyRetentionCutoff,
+  isFreshMatchedCardValue,
   isMissingRelation,
   numericFromUnknown,
   runCardValueHistoryCron,
@@ -120,7 +124,24 @@ describe("card value history migration and cron", () => {
     const cron = body.indexOf("runCardValueHistory()");
     assert.ok(auth > 0 && auth < cron);
     assert.match(route, /CARD_VALUE_HISTORY_ENABLED/);
-    assert.match(read("lib/collection/card-value-history-run.ts"), /from\("card_values"\)/);
+    const run = read("lib/collection/card-value-history-run.ts");
+    assert.match(run, /from\("card_values"\)/);
+    assert.match(run, /isFreshMatchedCardValue/);
+    assert.match(run, /\.eq\("status", "ok"\)/);
+    assert.match(run, /CARD_VALUE_HISTORY_RUN_CAP/);
+    assert.match(run, /\.delete\(\)/);
+    assert.match(run, /historyRetentionCutoff/);
+    const deleteAt = run.indexOf(".delete()");
+    const upsertAt = run.lastIndexOf(".upsert(");
+    assert.ok(upsertAt > 0 && deleteAt > upsertAt);
+    assert.equal(CARD_VALUE_HISTORY_RETENTION_DAYS, 400);
+    assert.equal(CARD_VALUE_HISTORY_RUN_CAP, 1000);
+    assert.equal(historyRetentionCutoff("2026-10-22"), "2025-09-17");
+    assert.equal(isFreshMatchedCardValue({ status: "ok", median: 40 }), true);
+    assert.equal(isFreshMatchedCardValue({ status: "ok", median: null }), false);
+    assert.equal(isFreshMatchedCardValue({ status: "stale", median: 40 }), false);
+    assert.equal(isFreshMatchedCardValue({ status: "sample", median: 40 }), false);
+    assert.equal(isFreshMatchedCardValue({ status: "no_sales", median: null }), false);
 
     const vercel = read("vercel.json");
     assert.doesNotMatch(vercel, /card-value-history/);

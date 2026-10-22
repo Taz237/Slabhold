@@ -2,8 +2,10 @@ import { cleanImageUrl } from "@/lib/social/link-preview";
 import { centsToDollars } from "@/lib/comps/stats";
 import { money } from "@/lib/format";
 import {
+  dropOwnerFlaggedSales,
   formatMovePercent,
   formatSaleDate,
+  movingDayHeading,
   publicCardHref,
   rankNotableSales,
   toSaleRecord,
@@ -64,19 +66,30 @@ function pickCard(
   return null;
 }
 
-/** Rank today's sales and keep the ones that open a public card page. */
+/** Rank the shown day's sales and keep the ones that open a public card page. */
 export function assembleMovingToday(input: {
   today: string;
+  asOf?: string;
   sales: readonly RawCompSale[];
   history: readonly RawCompSale[];
   cards: readonly PublicCardRef[];
   profiles: readonly ProfileRef[];
   alternates: readonly { queryKey: string; cardId: string }[];
+  owners?: readonly { id: string; userId: string }[];
+  flags?: readonly { cardId: string; userId: string; itemId: string }[];
 }): MovingTodayPayload {
-  const sales = input.sales
+  const owners = [...(input.owners ?? [])];
+  const seenOwners = new Set(owners.map((owner) => owner.id));
+  for (const card of input.cards) {
+    if (seenOwners.has(card.id)) continue;
+    owners.push({ id: card.id, userId: card.userId });
+    seenOwners.add(card.id);
+  }
+  const flags = input.flags ?? [];
+  const sales = dropOwnerFlaggedSales(input.sales, owners, flags)
     .map((sale) => toSaleRecord(sale))
     .filter((sale): sale is NonNullable<typeof sale> => sale != null);
-  const history = input.history
+  const history = dropOwnerFlaggedSales(input.history, owners, flags)
     .map((sale) => toSaleRecord(sale))
     .filter((sale): sale is NonNullable<typeof sale> => sale != null);
   const ranked = rankNotableSales({ today: input.today, sales, history });
@@ -89,6 +102,11 @@ export function assembleMovingToday(input: {
   for (const sale of ranked) {
     const card = pickCard(sale, cards, input.alternates);
     if (!card) continue;
+    if (
+      dropOwnerFlaggedSales([{ cardId: card.id, itemId: sale.itemId }], owners, flags).length === 0
+    ) {
+      continue;
+    }
     const href = publicCardHref(handles.get(card.userId) ?? "", card.id);
     if (!href) continue;
     shown.push({
@@ -107,8 +125,10 @@ export function assembleMovingToday(input: {
     });
   }
 
+  const asOf = input.asOf ?? input.today;
   return {
     ...emptyMovingToday(input.today),
+    title: movingDayHeading(input.today, asOf),
     dateLabel: formatSaleDate(input.today),
     sales: shown,
   };

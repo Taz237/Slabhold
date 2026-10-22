@@ -1,5 +1,11 @@
 export const CARD_VALUE_HISTORY_TABLE = "card_value_history";
 
+/** Cards written on one cron run. The rest wait for a later run. */
+export const CARD_VALUE_HISTORY_RUN_CAP = 1000;
+
+/** Rows older than this many days are deleted by the service-role cron after it writes. */
+export const CARD_VALUE_HISTORY_RETENTION_DAYS = 400;
+
 /** Off unless this is exactly "1". The cron is not scheduled. */
 export function cardValueHistoryEnabled(
   env: { CARD_VALUE_HISTORY_ENABLED?: string } = {
@@ -37,6 +43,18 @@ export function numericFromUnknown(value: unknown): number | null {
   if (value == null || value === "") return null;
   const number = typeof value === "number" ? value : Number(value);
   return finiteNumber(number);
+}
+
+/** A stored row counts only when this run sees a matched value (status ok) with a median. */
+export function isFreshMatchedCardValue(row: { status?: unknown; median?: unknown }): boolean {
+  return row.status === "ok" && numericFromUnknown(row.median) != null;
+}
+
+export function historyRetentionCutoff(snapshotDate: string, days = CARD_VALUE_HISTORY_RETENTION_DAYS): string {
+  const [year, month, day] = snapshotDate.split("-").map(Number);
+  const utc = new Date(Date.UTC(year, month - 1, day));
+  utc.setUTCDate(utc.getUTCDate() - days);
+  return utc.toISOString().slice(0, 10);
 }
 
 export function cardValueDelta(current: number | null, previous: number | null): number | null {
