@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { Clock, Search, X } from "lucide-react";
 import { Avatar } from "@/components/avatar";
 import { CardThumb } from "@/components/card-thumb";
@@ -10,9 +10,23 @@ import { useCollection } from "@/components/collection-provider";
 import { useSocial } from "@/components/social-provider";
 import { PullToRefresh } from "@/components/pull-to-refresh";
 import { EmptyState, LoadingRows } from "@/components/status";
-import { CARD_CATALOG } from "@/lib/card-catalog";
+import { CARD_CATALOG, type CatalogCard } from "@/lib/card-catalog";
+import {
+  CATALOG_SEARCH_DEBOUNCE_MS,
+  CATALOG_SEARCH_TIMEOUT_MESSAGE,
+  catalogSearchNeedsRetry,
+  loadCatalogSearchSession,
+} from "@/lib/catalog/catalog-search-session";
+import { searchCatalogRemote } from "@/lib/catalog/search-remote";
 import { cardSubtitle, cardTitle, timeAgo } from "@/lib/format";
 import {
+  SEARCH_CATALOG_LIMIT,
+  catalogAddHref,
+  catalogResultLine,
+  catalogSecondaryLink,
+} from "@/lib/search/catalog-results";
+import {
+  addCardQuery,
   createRecentSearchStore,
   parseRecentSearches,
   recentSearchKey,
@@ -24,16 +38,18 @@ import {
   addCardSearchHref,
   recentPlayerNames,
   searchEmptyTitle,
+  showSearchMissLink,
   suggestedSearchPlayers,
   visibleSearchSections,
 } from "@/lib/search/sections";
-import type { SportsCard } from "@/lib/types";
+import { matchesEverySearchWord, matchesPlainWords, ownCardSearchFields } from "@/lib/search/words";
+
+/** @ queries are people searches. Skip the catalog RPC and its skeleton. */
+function wantsCatalogSearch(query: string) {
+  return query.length > 0 && !query.startsWith("@");
+}
 
 const recentAccounts = createRecentSearchStore();
-
-function cardSearchText(card: SportsCard) {
-  return [card.playerName, String(card.year), card.setBrand, card.grade].join(" ").toLowerCase();
-}
 
 const recentListeners = new Set<() => void>();
 
@@ -63,7 +79,7 @@ function useRecentSearches(userId: string | null) {
 }
 
 function searchHref(term: string) {
-  const trimmed = term.trim();
+  const trimmed = addCardQuery(term.trim());
   if (!trimmed) return "/search";
   return `/search?q=${encodeURIComponent(trimmed)}`;
 }
@@ -71,8 +87,9 @@ function searchHref(term: string) {
 export function SearchView() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const urlQ = searchParams.get("q") ?? "";
-  const { ready: socialReady, profiles, homePosts, blockedIds, user, refresh } = useSocial();
+  const rawQ = (searchParams.get("q") ?? "").trim();
+  const urlQ = addCardQuery(rawQ);
+  const { ready: socialReady, profiles, homePosts, blockedIds, user, publicCards, refresh } = useSocial();
   const { ready: cardsReady, cards, reload } = useCollection();
   const [query, setQuery] = useState(urlQ);
   const recentOwner = user?.id ?? null;
@@ -86,15 +103,51 @@ export function SearchView() {
     }
   }, []);
   const typed = query.trim();
-  const q = typed.toLowerCase().replace(/^@/, "");
+  const [catalogFor, setCatalogFor] = useState(urlQ.trim());
+  const [catalogCards, setCatalogCards] = useState<CatalogCard[]>([]);
+  const [catalogLoading, setCatalogLoading] = useState(wantsCatalogSearch(urlQ.trim()));
+  const [catalogTrouble, setCatalogTrouble] = useState(false);
+  const [catalogAttempt, setCatalogAttempt] = useState(0);
+  const catalogRequest = useRef(0);
+  if (catalogFor !== typed) {
+    setCatalogFor(typed);
+    setCatalogCards([]);
+    setCatalogTrouble(false);
+    setCatalogLoading(wantsCatalogSearch(typed));
+  }
 
   useEffect(() => {
     setQuery(urlQ);
-  }, [urlQ]);
+    if (rawQ !== urlQ) router.replace(searchHref(urlQ), { scroll: false });
+  }, [rawQ, router, urlQ]);
+
+  useEffect(() => {
+    if (!wantsCatalogSearch(typed)) {
+      catalogRequest.current += 1;
+      return;
+    }
+    const id = ++catalogRequest.current;
+    const session = loadCatalogSearchSession({
+      query: typed,
+      limit: SEARCH_CATALOG_LIMIT,
+      debounceMs: CATALOG_SEARCH_DEBOUNCE_MS,
+      search: searchCatalogRemote,
+    });
+    void session.done.then((snapshot) => {
+      if (snapshot.aborted || id !== catalogRequest.current) return;
+      setCatalogCards(snapshot.results.slice(0, SEARCH_CATALOG_LIMIT));
+      setCatalogTrouble(catalogSearchNeedsRetry(snapshot));
+      setCatalogLoading(false);
+    });
+    return () => {
+      session.abort();
+    };
+  }, [catalogAttempt, typed]);
 
   function setSearchQuery(next: string) {
-    setQuery(next);
-    const href = searchHref(next);
+    const clipped = addCardQuery(next);
+    setQuery(clipped);
+    const href = searchHref(clipped);
     const current = searchHref(urlQ);
     if (href !== current) {
       router.replace(href, { scroll: false });
@@ -102,36 +155,35 @@ export function SearchView() {
   }
 
   const people = useMemo(() => {
-    if (!q) return [];
+    if (!typed) return [];
     const hidden = new Set(blockedIds);
+    const rank = typed.toLowerCase().replace(/^@+/, "");
     return profiles
       .filter((profile) => !hidden.has(profile.id))
-      .filter(
-        (profile) =>
-          profile.username.toLowerCase().includes(q) ||
-          profile.displayName.toLowerCase().includes(q),
-      )
+      .filter((profile) => matchesPlainWords(typed, [profile.username, profile.displayName]))
       .sort((a, b) => {
         const score = (profile: { username: string; displayName: string }) => {
           const handle = profile.username.toLowerCase();
           const name = profile.displayName.toLowerCase();
-          if (handle === q || name === q) return 0;
-          if (handle.startsWith(q) || name.startsWith(q)) return 1;
+          if (handle === rank || name === rank) return 0;
+          if (handle.startsWith(rank) || name.startsWith(rank)) return 1;
           return 2;
         };
         return score(a) - score(b);
       });
-  }, [blockedIds, profiles, q]);
+  }, [blockedIds, profiles, typed]);
 
   const matchedPosts = useMemo(() => {
-    if (!q) return [];
-    return homePosts.filter((post) => post.body.toLowerCase().includes(q));
-  }, [homePosts, q]);
+    if (!typed) return [];
+    return homePosts.filter((post) => matchesPlainWords(typed, [post.body]));
+  }, [homePosts, typed]);
 
   const matchedCards = useMemo(() => {
-    if (!q) return [];
-    return cards.filter((card) => cardSearchText(card).includes(q));
-  }, [cards, q]);
+    if (!typed) return [];
+    return cards.filter((card) =>
+      matchesEverySearchWord(typed, ownCardSearchFields(card), { grade: card.grade }),
+    );
+  }, [cards, typed]);
 
   const authors = useMemo(() => new Map(profiles.map((profile) => [profile.id, profile])), [profiles]);
 
@@ -176,8 +228,28 @@ export function SearchView() {
   const visibleSections = visibleSearchSections({
     people: people.length,
     posts: matchedPosts.length,
-    cards: matchedCards.length,
+    catalog: catalogCards.length,
+    myCards: matchedCards.length,
   });
+  const addCardMiss =
+    !catalogTrouble &&
+    showSearchMissLink({
+      query: typed,
+      catalogLoading,
+      people: people.length,
+      posts: matchedPosts.length,
+      catalog: catalogCards.length,
+      myCards: matchedCards.length,
+    });
+  const showMiss =
+    addCardMiss ||
+    (!catalogTrouble && typed.startsWith("@") && !catalogLoading && visibleSections.length === 0);
+
+  function retryCatalog() {
+    setCatalogTrouble(false);
+    setCatalogLoading(true);
+    setCatalogAttempt((current) => current + 1);
+  }
 
   return (
     <PullToRefresh onRefresh={refreshSearch} className="-mx-4 -mt-5">
@@ -197,6 +269,7 @@ export function SearchView() {
             enterKeyHint="search"
             placeholder="Search"
             aria-label="Search"
+            maxLength={100}
             className="min-w-0 flex-1 bg-transparent py-2.5 text-base outline-none placeholder:text-zinc-500 [&::-webkit-search-cancel-button]:hidden"
           />
           {query ? (
@@ -214,7 +287,7 @@ export function SearchView() {
 
       {loading ? (
         <LoadingRows />
-      ) : !q ? (
+      ) : !typed ? (
         recent.length === 0 && suggestions.length === 0 ? (
           <EmptyState
             icon={<Search className="h-5 w-5" />}
@@ -283,21 +356,109 @@ export function SearchView() {
             ) : null}
           </div>
         )
-      ) : visibleSections.length === 0 ? (
-        <EmptyState
-          icon={<Search className="h-5 w-5" />}
-          title={searchEmptyTitle(typed)}
-          detail="Try a name, @handle, a card, or words from a post."
-        >
-          <Link
-            href={addCardSearchHref(typed)}
-            className="inline-flex min-h-11 items-center justify-center rounded-full bg-[#7C3AED] px-4 text-sm font-semibold text-white"
+      ) : showMiss ? (
+        <div>
+          <EmptyState
+            icon={<Search className="h-5 w-5" />}
+            title={searchEmptyTitle(typed)}
+            detail={addCardMiss ? "Try a name, @handle, a card, or words from a post." : undefined}
           >
-            {SEARCH_ADD_CARD_LABEL}
-          </Link>
-        </EmptyState>
+            {addCardMiss ? (
+              <Link
+                href={addCardSearchHref(typed)}
+                className="inline-flex min-h-11 items-center justify-center rounded-full bg-[#7C3AED] px-4 text-sm font-semibold text-white"
+              >
+                {SEARCH_ADD_CARD_LABEL}
+              </Link>
+            ) : null}
+          </EmptyState>
+        </div>
       ) : (
         <div>
+          {catalogLoading || catalogCards.length > 0 || catalogTrouble ? (
+            <section aria-busy={catalogLoading} aria-live="polite">
+              <h2 className="px-4 pt-4 pb-1 text-xl font-extrabold tracking-tight">Cards</h2>
+              {catalogLoading ? <span className="sr-only">Searching cards</span> : null}
+              {catalogTrouble ? <CatalogTrouble onRetry={retryCatalog} /> : null}
+              {catalogLoading ? (
+                <ul aria-hidden="true">
+                  {Array.from({ length: 3 }, (_, row) => (
+                    <li
+                      key={row}
+                      className="flex min-h-[4.5rem] items-center border-b border-zinc-200 px-4 py-3 dark:border-white/10"
+                    >
+                      <span className="min-w-0 flex-1 space-y-2">
+                        <span className="block h-3.5 w-32 animate-pulse rounded-full bg-zinc-200/80 dark:bg-white/10" />
+                        <span className="block h-3 w-48 max-w-full animate-pulse rounded-full bg-zinc-200/70 dark:bg-white/[0.06]" />
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <ul>
+                  {catalogCards.map((card) => {
+                    const page = catalogSecondaryLink(card, {
+                      ownCards: cards,
+                      publicCards,
+                      profiles,
+                      blockedIds,
+                    });
+                    return (
+                      <li
+                        key={card.id}
+                        className="flex min-h-[4.5rem] items-center gap-2 border-b border-zinc-200 px-4 py-3 dark:border-white/10"
+                      >
+                        <Link
+                          href={catalogAddHref(card)}
+                          onClick={() => remember(typed)}
+                          className="min-w-0 flex-1"
+                        >
+                          <span className="block truncate text-[15px] font-bold">{card.playerName}</span>
+                          <span className="block truncate text-sm text-zinc-500">
+                            {catalogResultLine(card)}
+                          </span>
+                        </Link>
+                        {page ? (
+                          <Link
+                            href={page.href}
+                            onClick={() => remember(typed)}
+                            className="inline-flex min-h-11 shrink-0 items-center rounded-full px-3 text-sm font-medium text-sky-600 dark:text-sky-400"
+                          >
+                            {page.label}
+                          </Link>
+                        ) : null}
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </section>
+          ) : null}
+
+          {visibleSections.includes("My cards") ? (
+            <section>
+              <h2 className="px-4 pt-4 pb-1 text-xl font-extrabold tracking-tight">My cards</h2>
+              <ul>
+                {matchedCards.map((card) => (
+                  <li key={card.id} className="border-b border-zinc-200 dark:border-white/10">
+                    <Link
+                      href={`/cards/${card.id}`}
+                      onClick={() => remember(typed)}
+                      className="flex items-center gap-3 px-4 py-3"
+                    >
+                      <CardThumb card={card} className="h-14 w-11 shrink-0 rounded-lg" />
+                      <span className="min-w-0">
+                        <span className="block truncate text-[15px] font-bold">{card.playerName}</span>
+                        <span className="block truncate text-sm text-zinc-500">{cardTitle(card)}</span>
+                        <span className="block truncate text-xs text-zinc-500">{cardSubtitle(card)}</span>
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
+
           {visibleSections.includes("People") ? (
             <section>
               <h2 className="px-4 pt-4 pb-1 text-xl font-extrabold tracking-tight">People</h2>
@@ -370,32 +531,23 @@ export function SearchView() {
               </ul>
             </section>
           ) : null}
-
-          {visibleSections.includes("Cards") ? (
-            <section>
-              <h2 className="px-4 pt-4 pb-1 text-xl font-extrabold tracking-tight">Cards</h2>
-              <ul>
-                {matchedCards.map((card) => (
-                  <li key={card.id} className="border-b border-zinc-200 dark:border-white/10">
-                    <Link
-                      href={`/cards/${card.id}`}
-                      onClick={() => remember(typed)}
-                      className="flex items-center gap-3 px-4 py-3"
-                    >
-                      <CardThumb card={card} className="h-14 w-11 shrink-0 rounded-lg" />
-                      <span className="min-w-0">
-                        <span className="block truncate text-[15px] font-bold">{card.playerName}</span>
-                        <span className="block truncate text-sm text-zinc-500">{cardTitle(card)}</span>
-                        <span className="block truncate text-xs text-zinc-500">{cardSubtitle(card)}</span>
-                      </span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          ) : null}
         </div>
       )}
     </PullToRefresh>
+  );
+}
+
+function CatalogTrouble({ onRetry }: { onRetry: () => void }) {
+  return (
+    <div className="px-4 pt-4">
+      <p className="text-sm text-zinc-600 dark:text-zinc-300">{CATALOG_SEARCH_TIMEOUT_MESSAGE}</p>
+      <button
+        type="button"
+        onClick={onRetry}
+        className="mt-2 inline-flex min-h-11 items-center rounded-full bg-[#7C3AED] px-4 text-sm font-semibold text-white"
+      >
+        Try again
+      </button>
+    </div>
   );
 }

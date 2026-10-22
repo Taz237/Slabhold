@@ -19,7 +19,7 @@ export type CatalogSearchSnapshot = {
 };
 
 /**
- * One Add Card or Mail Day catalog search.
+ * One Add card catalog search.
  * A hung search_cards call becomes a null remote after timeoutMs, so the seed
  * fallback runs and loading ends. abort() drops a debounced or in-flight call
  * so a late response cannot replace a newer query.

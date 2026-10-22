@@ -1,4 +1,4 @@
-export type SearchSectionTitle = "People" | "Posts" | "Cards";
+export type SearchSectionTitle = "Cards" | "My cards" | "People" | "Posts";
 
 /** Idle search copy. The box finds cards, not only people and posts. */
 export const SEARCH_IDLE_DETAIL = "Find people, posts, and cards.";
@@ -71,13 +71,36 @@ export function suggestedSearchPlayers(input: {
 export function visibleSearchSections(counts: {
   people: number;
   posts: number;
-  cards: number;
+  catalog: number;
+  myCards: number;
 }): SearchSectionTitle[] {
   const sections: SearchSectionTitle[] = [];
+  if (counts.catalog > 0) sections.push("Cards");
+  if (counts.myCards > 0) sections.push("My cards");
   if (counts.people > 0) sections.push("People");
   if (counts.posts > 0) sections.push("Posts");
-  if (counts.cards > 0) sections.push("Cards");
   return sections;
+}
+
+/** The add-card miss link is only for a query that matched nothing, including catalog. */
+export function showSearchMissLink(input: {
+  query: string;
+  catalogLoading: boolean;
+  people: number;
+  posts: number;
+  catalog: number;
+  myCards: number;
+}): boolean {
+  const query = input.query.trim();
+  if (!query || input.catalogLoading || query.startsWith("@")) return false;
+  return (
+    visibleSearchSections({
+      people: input.people,
+      posts: input.posts,
+      catalog: input.catalog,
+      myCards: input.myCards,
+    }).length === 0
+  );
 }
 
 /** One empty line when a query matches nothing. */

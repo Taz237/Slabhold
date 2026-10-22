@@ -141,7 +141,10 @@ describe("catalog search timeout", () => {
     assert.match(search, /session\.abort\(\)/);
     assert.match(search, /snapshot\.aborted \|\| id !== requestId\.current/);
     assert.match(search, /setLoading\(false\)/);
-    assert.match(search, /supabase\.rpc\("search_cards"/);
+    assert.match(search, /searchCatalogRemote/);
+    const remote = readFileSync(join(process.cwd(), "lib/catalog/search-remote.ts"), "utf8");
+    assert.match(remote, /supabase\.rpc\("search_cards"/);
+    assert.doesNotMatch(remote, /\.from\("cards"\)/);
     assert.match(search, /catalogSearchNeedsRetry\(snapshot\)/);
     assert.match(search, /CATALOG_SEARCH_TIMEOUT_MESSAGE/);
     assert.match(search, /setAttempt\(\(current\) => current \+ 1\)/);

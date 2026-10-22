@@ -79,7 +79,7 @@ describe("add card form polish", () => {
     const page = read("app/cards/new/page.tsx");
     assert.match(page, /searchParams: Promise</);
     assert.match(page, /await searchParams/);
-    assert.match(page, /<CardForm initialQuery=\{initialQuery\} \/>/);
+    assert.match(page, /<CardForm initialQuery=\{initialQuery\} initialCatalog=\{initialCatalog\} \/>/);
   });
 
   it("defaults a new card's purchase date to today without touching a saved date", () => {
