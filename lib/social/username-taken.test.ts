@@ -3,7 +3,8 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it } from "node:test";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { usernameChangeError, usernameError } from "./local-db";
+import { isUpdatesHandleVariant, usernameChangeError, usernameError } from "./local-db";
+import { OFFICIAL_UPDATES_USER_ID } from "./official-updates";
 import { remoteSignUp, remoteUpdateProfile } from "./remote";
 import { TAKEN_USERNAME, ilikeExact, usernameTakenMessage } from "./username-taken";
 
@@ -101,17 +102,30 @@ function client(options: {
 }
 
 describe("reserved updates handles", () => {
-  it("rejects grokbotreview and slabholdupdates for a new account", () => {
+  it("rejects the reserved list and updates-handle lookalikes for a new account", () => {
     assert.equal(usernameError("grokbotreview"), TAKEN_USERNAME);
     assert.equal(usernameError("slabholdupdates"), TAKEN_USERNAME);
+    assert.equal(usernameError("slabholdupdates1"), TAKEN_USERNAME);
+    assert.equal(usernameError("grokbotreview_"), TAKEN_USERNAME);
+    assert.equal(usernameError("admin"), TAKEN_USERNAME);
+    assert.equal(usernameError("team"), TAKEN_USERNAME);
     assert.equal(usernameError("wax_room"), null);
+    assert.equal(usernameError("slabhold2updates"), null);
+    assert.equal(isUpdatesHandleVariant("slabholdupdates1"), true);
+    assert.equal(isUpdatesHandleVariant("grokbotreview_"), true);
   });
 
-  it("lets the account that already has the handle keep it", () => {
-    assert.equal(usernameChangeError("slabholdupdates", "slabholdupdates"), null);
-    assert.equal(usernameChangeError("grokbotreview", "grokbotreview"), null);
-    assert.equal(usernameChangeError("slabholdupdates", "ada"), TAKEN_USERNAME);
+  it("lets only the official updates id take an updates variant", () => {
+    assert.equal(usernameChangeError("slabholdupdates", OFFICIAL_UPDATES_USER_ID), null);
+    assert.equal(usernameChangeError("grokbotreview_", OFFICIAL_UPDATES_USER_ID), null);
+    assert.equal(usernameChangeError("slabholdupdates1", OFFICIAL_UPDATES_USER_ID), null);
+    assert.equal(usernameChangeError("admin", OFFICIAL_UPDATES_USER_ID), TAKEN_USERNAME);
+    assert.equal(usernameChangeError("slabholdupdates", "slabholdupdates"), TAKEN_USERNAME);
     assert.equal(usernameChangeError("grokbotreview", "ada"), TAKEN_USERNAME);
+    assert.equal(
+      usernameChangeError("slabholdupdates", "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"),
+      TAKEN_USERNAME,
+    );
   });
 
   it("stops signup before auth.signUp", async () => {
@@ -227,22 +241,31 @@ describe("remoteUpdateProfile taken usernames", () => {
     );
   });
 
-  it("lets the updates account keep its handle and blocks a different account", async () => {
-    const owner = client({ currentUsername: "slabholdupdates" });
+  it("lets the official updates id take its handle and blocks every other account", async () => {
+    const owner = client({});
     assert.deepEqual(
-      await remoteUpdateProfile(owner.supabase, "user-1", {
+      await remoteUpdateProfile(owner.supabase, OFFICIAL_UPDATES_USER_ID, {
         ...profilePatch,
         username: "slabholdupdates",
       }),
       {},
     );
 
-    const other = client({ currentUsername: "ada" });
+    const other = client({});
     assert.equal(
       (
         await remoteUpdateProfile(other.supabase, "user-2", {
           ...profilePatch,
           username: "SlabholdUpdates",
+        })
+      ).error,
+      TAKEN_USERNAME,
+    );
+    assert.equal(
+      (
+        await remoteUpdateProfile(other.supabase, OFFICIAL_UPDATES_USER_ID, {
+          ...profilePatch,
+          username: "admin",
         })
       ).error,
       TAKEN_USERNAME,

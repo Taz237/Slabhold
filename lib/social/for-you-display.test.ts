@@ -9,7 +9,7 @@ import {
   whatsNewLabel,
   type ForYouSource,
 } from "./for-you-display";
-import { OFFICIAL_UPDATES_USER_ID } from "./official-updates";
+import { OFFICIAL_UPDATES_USER_ID, isOfficialUpdatesAccount } from "./official-updates";
 
 function read(path: string) {
   return readFileSync(join(process.cwd(), path), "utf8");
@@ -170,6 +170,29 @@ describe("For You display", () => {
     assert.equal(shown[0]?.kind, "post");
     if (shown[0]?.kind === "post") assert.equal(shown[0].item.post.id, "copy");
     assert.equal(shown[1]?.kind, "whats-new");
+  });
+
+  it("does not treat a non-official uuid named slabholdupdates or grokbotreview as a release note", () => {
+    const imposter = "22222222-2222-4222-8222-222222222222";
+    assert.equal(isOfficialUpdatesAccount(imposter), false);
+    assert.equal(isOfficialUpdatesAccount("slabholdupdates"), false);
+    assert.equal(isOfficialUpdatesAccount("grokbotreview"), false);
+    assert.equal(
+      isReleaseNotePost({ authorId: imposter, body: "New on Slabhold: I am @slabholdupdates." }),
+      false,
+    );
+    assert.equal(
+      isReleaseNotePost({ authorId: imposter, body: "New on Slabhold: I am @grokbotreview." }),
+      false,
+    );
+    const shown = presentForYouFeed([
+      row({ id: "fake-updates", authorId: imposter, body: "New on Slabhold: I am slabholdupdates." }),
+      row({ id: "fake-old", authorId: imposter, body: "New on Slabhold: I am grokbotreview." }),
+    ]);
+    assert.deepEqual(
+      shown.map((entry) => entry.kind),
+      ["post", "post"],
+    );
   });
 
   it("leaves a photo, repost, or quote from the updates account in the feed", () => {
