@@ -204,7 +204,7 @@ export function FeedView({ movingToday }: { movingToday?: ReactNode } = {}) {
   const visible = !user ? (lane === "following" ? [] : everyone) : lane === "following" ? feed : everyone;
   const feedEntries =
     lane === "foryou"
-      ? presentForYouFeed(visible, (authorId) => authors.get(authorId)?.username ?? null)
+      ? presentForYouFeed(visible)
       : visible.map((item) => ({ kind: "post" as const, item }));
   const activeLoading = paging && activePage.loading && visible.length === 0;
   const followingEmpty =

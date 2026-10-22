@@ -6,6 +6,7 @@ import { ChevronDown } from "lucide-react";
 import { MentionText } from "@/components/mention-text";
 import { timeAgo } from "@/lib/format";
 import { RELEASE_NOTE_HANDLE, whatsNewLabel } from "@/lib/social/for-you-display";
+import { isOfficialUpdatesAccount } from "@/lib/social/official-updates";
 import type { TimelineItem } from "@/lib/social/timeline";
 import type { Profile } from "@/lib/social/types";
 
@@ -17,8 +18,10 @@ export function WhatsNewCard({
   author: Profile | null;
 }) {
   const [open, setOpen] = useState(false);
-  if (items.length === 0) return null;
-  const handle = author?.username ?? RELEASE_NOTE_HANDLE;
+  const authorId = author?.id ?? items[0]?.post.authorId;
+  if (items.length === 0 || !isOfficialUpdatesAccount(authorId)) return null;
+  const handle =
+    author && isOfficialUpdatesAccount(author.id) ? author.username : RELEASE_NOTE_HANDLE;
 
   return (
     <section className="border-b border-zinc-200 dark:border-white/10">

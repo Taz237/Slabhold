@@ -1,11 +1,11 @@
+import { isOfficialUpdatesAccount } from "./official-updates";
+
 /**
  * For You display only. Posts stay in the database and on profiles.
  * The input list is not mutated.
  */
 
-/** Current updates handle. Older rows may still say grokbotreview. */
-export const RELEASE_NOTE_HANDLES = ["slabholdupdates", "grokbotreview"] as const;
-
+/** Label when the official profile row has not loaded. Not used to detect release notes. */
 export const RELEASE_NOTE_HANDLE = "slabholdupdates";
 
 export function postTextKey(body: string): string {
@@ -14,7 +14,7 @@ export function postTextKey(body: string): string {
 
 /** Changelog posts from the updates account. Photo posts, cards, quotes, and reposts stay in the feed. */
 export function isReleaseNotePost(input: {
-  username?: string | null;
+  authorId?: string | null;
   body: string;
   imageUrl?: string | null;
   hasCard?: boolean;
@@ -24,8 +24,7 @@ export function isReleaseNotePost(input: {
 }): boolean {
   if (input.reposted) return false;
   if (input.quotedPostId) return false;
-  const handle = (input.username ?? "").replace(/^@/, "").trim().toLowerCase();
-  if (!(RELEASE_NOTE_HANDLES as readonly string[]).includes(handle)) return false;
+  if (!isOfficialUpdatesAccount(input.authorId)) return false;
   if (input.postType === "mail_day") return false;
   if (input.imageUrl) return false;
   if (input.hasCard) return false;
@@ -60,14 +59,13 @@ export type ForYouFeedEntry<T> =
  */
 export function presentForYouFeed<T extends ForYouSource>(
   items: readonly T[],
-  usernameFor: (authorId: string) => string | null | undefined,
 ): ForYouFeedEntry<T>[] {
   const notes: T[] = [];
   const collectors: T[] = [];
   for (const item of items) {
     if (
       isReleaseNotePost({
-        username: usernameFor(item.post.authorId),
+        authorId: item.post.authorId,
         body: item.post.body,
         imageUrl: item.post.imageDataUrl,
         hasCard: Boolean(item.post.card),
