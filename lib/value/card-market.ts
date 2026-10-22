@@ -65,16 +65,26 @@ function loadCachedSoldCompCard(cardId: string): Promise<SoldCompCard | null> {
 export async function loadCachedCardRefresh(
   cardId: string,
   options?: RefreshCardValueOptions,
-): Promise<RefreshCardValueResult & { refreshedLive: boolean }> {
+): Promise<
+  RefreshCardValueResult & { refreshedLive: boolean; refreshSettled: Promise<void> }
+> {
   const save = options?.save !== false;
   const cacheOnly = Boolean(options?.cacheOnly);
   const card = await loadCachedSoldCompCard(cardId);
   const identity = card ? compsResultCacheKey(card) : `missing|${cardId}`;
   let refreshedLive = false;
+  // Set before the first await so a background revalidation can be awaited
+  // even when unstable_cache returns the stale entry immediately.
+  let refreshSettled: Promise<void> = Promise.resolve();
   const result = await unstable_cache(
     async () => {
       refreshedLive = true;
-      const fresh = await refreshCardValue(cardId, { ...options, card });
+      const pending = refreshCardValue(cardId, { ...options, card });
+      refreshSettled = pending.then(
+        () => undefined,
+        () => undefined,
+      );
+      const fresh = await pending;
       if (fresh.attempt.reason === "budget_exhausted" || !fresh.payload) {
         throw new CardMarketUnavailable(fresh);
       }
@@ -92,7 +102,7 @@ export async function loadCachedCardRefresh(
     ["card-market", identity, save ? "save" : "read", cacheOnly ? "cache" : "live"],
     { tags: [cardCacheTag(cardId)], revalidate: COMPS_RESULT_REVALIDATE_SECONDS },
   )();
-  return { ...result, refreshedLive };
+  return { ...result, refreshedLive, refreshSettled };
 }
 
 /** Stored card_values row for repeat views. Same tag as the comps cache. */

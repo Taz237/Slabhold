@@ -1,4 +1,5 @@
 import { revalidateTag } from "next/cache";
+import { after } from "next/server";
 import { compsResultCacheTag } from "@/lib/comps/comps-result-cache";
 import {
   consumeRequestLimit,
@@ -46,7 +47,10 @@ export async function GET(request: Request) {
     loadRefresh: async (cardId, options) => {
       const refreshed = await loadCachedCardRefresh(cardId, options);
       if (shouldBustCompsResult(refreshed.refreshedLive, refreshed.payload)) {
-        bustCompsResult(cardId);
+        // Stale-while-revalidate can return before the background write lands.
+        // Bust once that refresh settles. A hit that never refreshes keeps the
+        // comps-result entry until its 45-minute TTL.
+        after(refreshed.refreshSettled.then(() => bustCompsResult(cardId)));
       }
       return refreshed;
     },

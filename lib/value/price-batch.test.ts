@@ -119,11 +119,10 @@ describe("fallback sales batch", () => {
 
 type CacheRow = CachedCompRow & { query_key: string };
 
-function cacheClient(rows: CacheRow[]): { client: SoldCacheClient; ownReads: string[] } {
-  const ownReads: string[] = [];
+function cacheClient(rows: CacheRow[]): { client: SoldCacheClient; inReads: string[][] } {
+  const inReads: string[][] = [];
   const client: SoldCacheClient = {
     from() {
-      const eq = new Map<string, string>();
       let onlyKeys: string[] | null = null;
       let limit: number | null = null;
       let orderCol: keyof CacheRow | null = null;
@@ -133,11 +132,10 @@ function cacheClient(rows: CacheRow[]): { client: SoldCacheClient; ownReads: str
           return builder;
         },
         in(column: string, values: readonly string[]) {
-          if (column === "query_key") onlyKeys = [...values];
-          return builder;
-        },
-        eq(column: string, value: string) {
-          eq.set(column, value);
+          if (column === "query_key") {
+            onlyKeys = [...values];
+            inReads.push(onlyKeys);
+          }
           return builder;
         },
         order(column: string, options?: { ascending?: boolean }) {
@@ -153,13 +151,8 @@ function cacheClient(rows: CacheRow[]): { client: SoldCacheClient; ownReads: str
           resolve: (value: { data: CacheRow[]; error: null }) => T,
           reject?: (reason: unknown) => T,
         ) {
-          const key = eq.get("query_key");
-          if (key && onlyKeys == null) ownReads.push(key);
           let out = rows.filter((row) => {
             if (onlyKeys && !onlyKeys.includes(row.query_key)) return false;
-            for (const [column, value] of eq) {
-              if (String(row[column as keyof CacheRow] ?? "") !== value) return false;
-            }
             return true;
           });
           if (orderCol) {
@@ -178,7 +171,7 @@ function cacheClient(rows: CacheRow[]): { client: SoldCacheClient; ownReads: str
       return builder;
     },
   };
-  return { client, ownReads };
+  return { client, inReads };
 }
 
 describe("newest batches under the shared cap", () => {
@@ -208,7 +201,7 @@ describe("newest batches under the shared cap", () => {
       }
     }
 
-    const { client, ownReads } = cacheClient(rows);
+    const { client, inReads } = cacheClient(rows);
     const batches = await readNewestBatches(client, [ownKey, copyKey, ...similar], [ownKey, copyKey]);
     assert.deepEqual(
       batches.get(ownKey)?.map((row) => row.item_id).sort(),
@@ -218,7 +211,56 @@ describe("newest batches under the shared cap", () => {
       batches.get(copyKey)?.map((row) => row.item_id).sort(),
       ["copy-1", "copy-2"],
     );
-    assert.ok(ownReads.includes(ownKey));
-    assert.ok(ownReads.includes(copyKey));
+    assert.ok(
+      inReads.some(
+        (keys) =>
+          keys.includes(ownKey) &&
+          keys.includes(copyKey) &&
+          keys.every((key) => !key.startsWith("similar-")),
+      ),
+    );
+  });
+
+  it("keeps every own row when cousins fill the shared cap", async () => {
+    const ownKey = "card-own";
+    const ownAt = "2026-01-01T00:00:00.000Z";
+    const later = "2026-10-02T00:00:00.000Z";
+    const rows: CacheRow[] = [];
+    for (let sale = 0; sale < 100; sale += 1) {
+      rows.push({
+        query_key: ownKey,
+        item_id: `own-${sale}`,
+        price: 10 + (sale % 40),
+        fetched_at: ownAt,
+        title: "own",
+      });
+    }
+    const cousins: string[] = [];
+    for (let card = 0; card < 8; card += 1) {
+      const key = `cousin-${card}`;
+      cousins.push(key);
+      for (let sale = 0; sale < 60; sale += 1) {
+        rows.push({
+          query_key: key,
+          item_id: `cousin-${card}-${sale}`,
+          price: 10 + sale,
+          fetched_at: later,
+          title: "cousin",
+        });
+      }
+    }
+
+    const { client, inReads } = cacheClient(rows);
+    const batches = await readNewestBatches(client, [ownKey, ...cousins], [ownKey]);
+    const ids = batches.get(ownKey)?.map((row) => row.item_id) ?? [];
+    assert.equal(ids.length, 100);
+    for (let sale = 0; sale < 100; sale += 1) {
+      assert.ok(ids.includes(`own-${sale}`));
+    }
+    assert.ok(
+      inReads.some(
+        (keys) => keys.includes(ownKey) && keys.every((key) => !key.startsWith("cousin-")),
+      ),
+    );
   });
 });

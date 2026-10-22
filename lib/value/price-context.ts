@@ -174,8 +174,12 @@ function candidateFromRow(row: PublicRow, username: string, sales: CardValueSale
   };
 }
 
-async function readPriceContext(card: SoldCompCard, ownerId: string): Promise<PriceContext> {
-  const client = createSupabaseAdmin();
+export async function readPriceContext(
+  card: SoldCompCard,
+  ownerId: string,
+  db?: { from(table: string): unknown },
+): Promise<PriceContext> {
+  const client = (db ?? createSupabaseAdmin()) as Admin | null;
   if (!client || !ownerId) throw new CompsResultError("comps unavailable");
 
   const player = card.playerName.trim();

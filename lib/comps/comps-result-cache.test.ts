@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { createRequire } from "node:module";
+import { tmpdir } from "node:os";
 import { describe, it } from "node:test";
 import { join } from "node:path";
+import { pathToFileURL } from "node:url";
+import { buildQueryKey } from "@/lib/comps/query-key";
+import type { SoldCompCard } from "@/lib/comps/types";
 import {
   COMPS_RESULT_REVALIDATE_SECONDS,
   CompsResultError,
@@ -163,8 +168,10 @@ describe("server comps cache", () => {
     assert.match(context, /readNewestBatches\(client, \[\.\.\.keys\], exactKeys\)/);
     const batches = source("lib/value/price-batch.ts");
     assert.match(batches, /order\("fetched_at", \{ ascending: false \}\)/);
+    assert.match(batches, /\.in\("query_key", exactKeys\)/);
     assert.match(batches, /\.in\("query_key", rest\)/);
-    assert.match(batches, /\.eq\("query_key", queryKey\)/);
+    assert.match(batches, /\.in\("query_key", cutKeys\)/);
+    assert.doesNotMatch(batches, /\.eq\("query_key"/);
     assert.match(context, /\.ilike\("player", escapeIlike\(player\)\)/);
     assert.match(context, /from\("blocks"\)/);
     assert.match(context, /from\("comp_flags"\)/);
@@ -179,14 +186,213 @@ describe("server comps cache", () => {
     const sold = source("app/api/comps/sold/route.ts");
     assert.match(sold, /shouldBustCompsResult\(refreshed\.refreshedLive, refreshed\.payload\)/);
     assert.match(sold, /compsResultCacheTag\(cardId\)/);
-    const liveStart = market.indexOf("let refreshedLive = false");
-    const liveMark = market.indexOf("refreshedLive = true");
-    assert.ok(liveStart >= 0 && liveMark > liveStart);
-    assert.match(market.slice(liveStart, liveMark), /unstable_cache\(/);
+    assert.match(sold, /after\(refreshed\.refreshSettled/);
     assert.match(source("lib/social/link-preview-load.ts"), /resolvePriceRead/);
     assert.equal(source("lib/social/link-preview-load.ts").includes("marketValueAmount"), false);
     assert.match(market, /\["card-market", identity/);
     assert.doesNotMatch(context, /return \{ ok: false/);
     assert.doesNotMatch(market, /return \{ ok: false/);
+  });
+});
+
+const nodeRequire = createRequire(import.meta.url);
+const serverOnlyEmpty = pathToFileURL(
+  nodeRequire.resolve("server-only").replace(/index\.js$/, "empty.js"),
+).href;
+const stubDir = join(tmpdir(), "slabhold-price-cache");
+mkdirSync(stubDir, { recursive: true });
+const cacheStub = join(stubDir, "next-cache.mjs");
+const loadCardStub = join(stubDir, "load-card.mjs");
+const valueStub = join(stubDir, "get-card-value.mjs");
+writeFileSync(
+  cacheStub,
+  `const store = new Map();
+export function unstable_cache(fn, keyParts) {
+  const key = JSON.stringify(keyParts);
+  return async () => {
+    if (store.has(key)) return store.get(key);
+    globalThis.__slabholdUnstableCacheRuns = (globalThis.__slabholdUnstableCacheRuns ?? 0) + 1;
+    const value = await fn();
+    store.set(key, value);
+    return value;
+  };
+}
+export function revalidateTag() {}
+export function revalidatePath() {}
+`,
+);
+writeFileSync(
+  loadCardStub,
+  `export async function loadSoldCompCard(id) {
+  return {
+    id,
+    playerName: "Victor Wembanyama",
+    year: 2023,
+    yearLabel: "2023-24",
+    setBrand: "Panini Prizm",
+    cardNumber: "136",
+    parallel: "Base",
+    conditionType: "raw",
+    grade: "Raw",
+  };
+}
+`,
+);
+writeFileSync(
+  valueStub,
+  `export async function refreshCardValue() {
+  return {
+    status: "ok",
+    median: 40,
+    low: 30,
+    high: 50,
+    nSales: 4,
+    matchedAt: "2026-10-01T00:00:00.000Z",
+    attempt: { reason: "ok", action: "saved" },
+    payload: { cached: false, sample: false },
+  };
+}
+export async function getCardValue() {
+  return null;
+}
+`,
+);
+
+type ResolveHook = (
+  specifier: string,
+  context: { parentURL?: string },
+  nextResolve: (specifier: string, context: { parentURL?: string }) => { url: string },
+) => { url: string; shortCircuit?: boolean };
+
+const registerHooks = (
+  nodeRequire("node:module") as { registerHooks?: (hooks: { resolve: ResolveHook }) => void }
+).registerHooks;
+
+if (!registerHooks) {
+  throw new Error("node:module registerHooks is required to import server-only modules in tests");
+}
+
+const hookFlag = "__slabholdPriceCacheHook";
+if (!(globalThis as Record<string, unknown>)[hookFlag]) {
+  (globalThis as Record<string, unknown>)[hookFlag] = true;
+  registerHooks({
+    resolve(specifier, context, nextResolve) {
+      if (specifier === "server-only") return { url: serverOnlyEmpty, shortCircuit: true };
+      if (specifier === "next/cache") return { url: pathToFileURL(cacheStub).href, shortCircuit: true };
+      const parent = context.parentURL ?? "";
+      if (
+        parent.includes("card-market") &&
+        (specifier === "@/lib/comps/load-card" || specifier.endsWith("/comps/load-card"))
+      ) {
+        return { url: pathToFileURL(loadCardStub).href, shortCircuit: true };
+      }
+      if (
+        parent.includes("card-market") &&
+        (specifier === "@/lib/value/getCardValue" ||
+          specifier === "./getCardValue" ||
+          specifier.endsWith("/getCardValue") ||
+          specifier.endsWith("/value/getCardValue"))
+      ) {
+        return { url: pathToFileURL(valueStub).href, shortCircuit: true };
+      }
+      return nextResolve(specifier, context);
+    },
+  });
+}
+
+function cacheRuns(): number {
+  return (globalThis as { __slabholdUnstableCacheRuns?: number }).__slabholdUnstableCacheRuns ?? 0;
+}
+
+describe("refreshedLive follows unstable_cache", () => {
+  it("is true only when the callback runs, and false on a hit", async () => {
+    const { loadCachedCardRefresh } = await import("@/lib/value/card-market");
+    const cardId = "ba95893e-89fe-4735-be3f-1509b6b6f3b9";
+    const first = await loadCachedCardRefresh(cardId, { save: false });
+    assert.equal(first.refreshedLive, true);
+    const ran = cacheRuns();
+    assert.ok(ran >= 1);
+    const second = await loadCachedCardRefresh(cardId, { save: false });
+    assert.equal(second.refreshedLive, false);
+    assert.equal(cacheRuns(), ran);
+  });
+});
+
+describe("readPriceContext exact key", () => {
+  it("passes the card's own query key as an exact key", async () => {
+    const { readPriceContext } = await import("@/lib/value/price-context");
+    const { publicCardQueryKey } = await import("@/lib/comps/public");
+    const card: SoldCompCard = {
+      id: "card-own",
+      playerName: "J.J. McCarthy",
+      year: 2024,
+      yearLabel: "2024",
+      setBrand: "Donruss",
+      cardNumber: "303",
+      parallel: "Pink",
+      conditionType: "raw",
+      grade: "Raw",
+    };
+    const cousinRow = {
+      id: "card-cousin",
+      year: 2024,
+      year_label: "2024",
+      set: "Donruss",
+      set_name: "Donruss",
+      grade: "Raw",
+      parallel: "Blue",
+      card_number: "303",
+      condition_type: "raw",
+    };
+    const cousin = { ...cousinRow, user_id: "user-2", player: "J.J. McCarthy" };
+    const ownKey = buildQueryKey(card);
+    const cousinKey = publicCardQueryKey(cousinRow);
+    assert.notEqual(ownKey, cousinKey);
+    const queryKeyReads: string[][] = [];
+    const db = {
+      from(table: string) {
+        const builder = {
+          select() {
+            return builder;
+          },
+          ilike() {
+            return builder;
+          },
+          gte() {
+            return builder;
+          },
+          lte() {
+            return builder;
+          },
+          eq() {
+            return builder;
+          },
+          order() {
+            return builder;
+          },
+          limit() {
+            return builder;
+          },
+          in(column: string, values: readonly string[]) {
+            if (table === "sold_comps_cache" && column === "query_key") {
+              queryKeyReads.push([...values]);
+            }
+            return builder;
+          },
+          then(
+            resolve: (value: { data: unknown; error: null }) => unknown,
+            reject?: (reason: unknown) => unknown,
+          ) {
+            const data = table === "public_cards" ? [cousin] : [];
+            return Promise.resolve({ data, error: null }).then(resolve, reject);
+          },
+        };
+        return builder;
+      },
+    };
+    await readPriceContext(card, "user-1", db);
+    assert.ok(
+      queryKeyReads.some((keys) => keys.includes(ownKey) && !keys.includes(cousinKey)),
+    );
   });
 });
