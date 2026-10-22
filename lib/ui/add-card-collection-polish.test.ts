@@ -67,7 +67,7 @@ describe("add card form polish", () => {
   it("explains that cards are private by default", () => {
     assert.match(
       form,
-      /Cards are private by default\. Making one public shows it on your profile\./,
+      /Cards are private by default\. You can show them on your profile\./,
     );
   });
 

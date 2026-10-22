@@ -1,27 +1,40 @@
 import Link from "next/link";
+import { splitPostText } from "@/lib/social/post-text";
 
 export function MentionText({ text }: { text: string }) {
-  const nodes: React.ReactNode[] = [];
-  let last = 0;
-  const token = /(^|[^a-zA-Z0-9_])(@[a-zA-Z0-9_]{3,20})(?![a-zA-Z0-9_])/g;
-  for (const match of text.matchAll(token)) {
-    const boundary = match[1];
-    const mention = match[2];
-    const start = (match.index ?? 0) + boundary.length;
-    if (start > last) nodes.push(text.slice(last, start));
-    const username = mention.slice(1).toLowerCase();
-    nodes.push(
-      <Link
-        key={`${start}-${username}`}
-        href={`/u/${username}`}
-        className="font-medium text-sky-600 hover:underline dark:text-sky-400"
-      >
-        {mention}
-      </Link>,
-    );
-    last = start + mention.length;
-  }
-  if (last < text.length) nodes.push(text.slice(last));
-  if (nodes.length === 0) return text;
-  return <>{nodes}</>;
+  const parts = splitPostText(text);
+  if (parts.length === 1 && parts[0].type === "text") return text;
+  return (
+    <>
+      {parts.map((part, index) => {
+        if (part.type === "text") return <span key={index}>{part.text}</span>;
+        if (part.type === "mention") {
+          return (
+            <Link
+              key={`${index}-${part.username}`}
+              href={`/u/${part.username}`}
+              className="font-medium text-sky-600 hover:underline dark:text-sky-400"
+            >
+              {part.text}
+            </Link>
+          );
+        }
+        return (
+          <Link
+            key={`${index}-checklist`}
+            href={part.href}
+            className="font-medium text-violet-700 underline underline-offset-2 dark:text-violet-300"
+            onClick={(event) => {
+              const target = document.getElementById("get-started");
+              if (!target) return;
+              event.preventDefault();
+              target.scrollIntoView({ behavior: "smooth", block: "start" });
+            }}
+          >
+            {part.text}
+          </Link>
+        );
+      })}
+    </>
+  );
 }

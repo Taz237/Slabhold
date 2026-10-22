@@ -10,7 +10,8 @@ import { solidButton } from "@/components/button-styles";
 import { FollowButton } from "@/components/follow-button";
 import { useCollection } from "@/components/collection-provider";
 import { AddToHomeTip } from "@/components/add-to-home-tip";
-import { FirstCardWelcome } from "@/components/first-card-welcome";
+import { AttachCardField } from "@/components/attach-card-field";
+import { HomeFirstCardPrompt } from "@/components/home-first-card-prompt";
 import { GetStartedCard, useGetStartedDismissed, useRememberNewUser } from "@/components/get-started";
 import { useSocial } from "@/components/social-provider";
 import { LoadMore } from "@/components/load-more";
@@ -223,7 +224,7 @@ export function FeedView() {
         />
       ) : null}
       {showAddToHome && user ? <AddToHomeTip userId={user.id} /> : null}
-      {showWelcome ? <FirstCardWelcome /> : user ? <CollectionToday /> : null}
+      {showWelcome ? <HomeFirstCardPrompt /> : user ? <CollectionToday /> : null}
       {postCardValuesMessage ? (
         <p className="border-b border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
           {postCardValuesMessage}
@@ -509,18 +510,12 @@ function Composer({ onPosted }: { onPosted?: () => void }) {
             <ImagePlus className="h-4 w-4" />
             Photo
           </button>
-          <select
+          <AttachCardField
+            cards={cards}
             value={cardId}
-            onChange={(e) => setCardId(e.target.value)}
-            className="max-w-[180px] rounded-full border border-zinc-200 bg-transparent px-2 py-1 text-xs text-zinc-600 dark:border-white/10 dark:text-zinc-300"
-          >
-            <option value="">Attach a card</option>
-            {cards.map((card) => (
-              <option key={card.id} value={card.id}>
-                {card.year} {card.playerName}
-              </option>
-            ))}
-          </select>
+            onChange={setCardId}
+            selectClassName="max-w-[180px] rounded-full border border-zinc-200 bg-transparent px-2 py-1 text-xs text-zinc-600 dark:border-white/10 dark:text-zinc-300"
+          />
           <span className="ml-auto text-xs text-zinc-400">
             {body.length}/{POST_LIMIT}
           </span>

@@ -16,6 +16,7 @@ import { CardOwnersSection } from "@/components/card-owners";
 import { CardPeopleSections } from "@/components/card-people";
 import { WantButton } from "@/components/want-button";
 import { CategoryPicker } from "@/components/category-picker";
+import { FirstCardPrivacyPrompt } from "@/components/first-card-privacy-prompt";
 import { useCollection } from "@/components/collection-provider";
 import {
   CardDetailPending,
@@ -32,6 +33,11 @@ import { FairPriceCheck } from "@/components/fair-price-check";
 import { useSocial } from "@/components/social-provider";
 import { loginPath } from "@/lib/auth/safe-next";
 import { cardCategory } from "@/lib/card-category";
+import {
+  dismissFirstCardPrivacyInBrowser,
+  readBrowserFirstCardPrivacy,
+  subscribeFirstCardPrivacy,
+} from "@/lib/collection/first-card-privacy";
 import type { OwnersAndHunters } from "@/lib/cards/people";
 import { gradeDetailSpecs } from "@/lib/cards/grading-company";
 import { canonicalParallelName } from "@/lib/cards/parallels";
@@ -99,6 +105,11 @@ export function CardDetail({ id }: { id: string }) {
   const [sellPrice, setSellPrice] = useState("");
   const [editing, setEditing] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const privacyNudge = useSyncExternalStore(
+    subscribeFirstCardPrivacy,
+    () => readBrowserFirstCardPrivacy(user?.id ?? null, card?.id ?? null, Boolean(card?.isPublic)),
+    () => false,
+  );
   const [ValueChart, setValueChart] = useState<SalesChartView | null>(null);
   const [chartFailed, setChartFailed] = useState(false);
   const [chartAttempt, setChartAttempt] = useState(0);
@@ -249,6 +260,10 @@ export function CardDetail({ id }: { id: string }) {
     !authRequired &&
     !soldCopy;
 
+  function dismissPrivacyNudge() {
+    if (user) dismissFirstCardPrivacyInBrowser(user.id);
+  }
+
   function markSold() {
     const price = Number(sellPrice);
     if (!price || !card) return;
@@ -287,6 +302,16 @@ export function CardDetail({ id }: { id: string }) {
           setEditing(true);
         }}
       />
+
+      {privacyNudge ? (
+        <FirstCardPrivacyPrompt
+          onToggle={() => {
+            updateCard(card.id, { isPublic: !card.isPublic });
+            dismissPrivacyNudge();
+          }}
+          onDismiss={dismissPrivacyNudge}
+        />
+      ) : null}
 
       {editing ? (
         <div ref={editorRef} className="scroll-mt-24">
@@ -411,7 +436,10 @@ export function CardDetail({ id }: { id: string }) {
 
           <button
             type="button"
-            onClick={() => updateCard(card.id, { isPublic: !card.isPublic })}
+            onClick={() => {
+              updateCard(card.id, { isPublic: !card.isPublic });
+              if (!card.isPublic) dismissPrivacyNudge();
+            }}
             className={`rounded-full px-3 py-1 text-xs font-semibold ${
               card.isPublic
                 ? "bg-violet-500/15 text-violet-700 dark:text-violet-300"

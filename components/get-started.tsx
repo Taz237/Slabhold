@@ -98,11 +98,21 @@ export function GetStartedCard({
   onDismiss: () => void;
   onFollow: () => void;
 }) {
+  useEffect(() => {
+    if (!state.visible || typeof window === "undefined") return;
+    if (window.location.hash !== "#get-started") return;
+    document.getElementById("get-started")?.scrollIntoView({ block: "start" });
+  }, [state.visible]);
+
   if (!state.visible) return null;
   const done = new Map(state.steps.map((step) => [step.id, step.done]));
 
   return (
-    <section data-get-started className="border-b border-zinc-200 px-4 py-3 dark:border-white/10">
+    <section
+      id="get-started"
+      data-get-started
+      className="scroll-mt-24 border-b border-zinc-200 px-4 py-3 dark:border-white/10"
+    >
       <div className="relative rounded-2xl border border-zinc-200 bg-white p-3 dark:border-white/10 dark:bg-white/[0.03]">
         <button
           type="button"
