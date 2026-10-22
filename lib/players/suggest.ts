@@ -117,7 +117,11 @@ function formMatches(
   return true;
 }
 
-/** Original tokens, and the same tokens with single-letter runs joined. */
+/**
+ * Original tokens, and the same tokens with single-letter runs joined.
+ * Indexed rows already stored `joined` when it differs. A missing `joined`
+ * is the same as `words`, so a keystroke does not collapse the roster again.
+ */
 function formsMatch(
   norm: string,
   words: readonly string[],
@@ -125,12 +129,15 @@ function formsMatch(
   queryNorm: string,
   queryWords: readonly string[],
   queryJoined: readonly string[],
+  indexed = false,
 ): boolean {
   if (formMatches(norm, words, queryNorm, queryWords)) return true;
-  const nameJoined = joined ?? collapseInitials(words);
-  if (nameJoined === words && queryJoined === queryWords) return false;
+  const queryCollapsed = queryJoined !== queryWords;
+  if (indexed && !joined && !queryCollapsed) return false;
+  const nameJoined = indexed ? (joined ?? words) : (joined ?? collapseInitials(words));
+  if (nameJoined === words && !queryCollapsed) return false;
   const nameJoinedNorm = nameJoined === words ? norm : nameJoined.join(" ");
-  const queryJoinedNorm = queryJoined === queryWords ? queryNorm : queryJoined.join(" ");
+  const queryJoinedNorm = queryCollapsed ? queryJoined.join(" ") : queryNorm;
   return formMatches(nameJoinedNorm, nameJoined, queryJoinedNorm, queryJoined);
 }
 
@@ -225,26 +232,30 @@ export function blockedCustomName(value: string): boolean {
 }
 
 /**
- * Substring check on words glued together, but never across a one-letter token.
- * "poke mon" is blocked. "Robert C. Griffin" is not, because the C stays separate.
+ * Glue every word, then accept a blocked term only when that hit starts on a
+ * word or ends on a word. "p o k e m o n" is blocked. In "robertcgriffin",
+ * "tcg" does neither, so Robert C. Griffin stays allowed.
  */
 function blockedSplitWords(words: readonly string[]): boolean {
-  const segments: string[] = [];
-  let buf = "";
-  const flush = () => {
-    if (!buf) return;
-    segments.push(buf);
-    buf = "";
-  };
+  const starts = new Set<number>();
+  const ends = new Set<number>();
+  let glued = "";
   for (const word of words) {
-    if (word.length <= 1) {
-      flush();
-      continue;
-    }
-    buf += word;
+    starts.add(glued.length);
+    glued += word;
+    ends.add(glued.length);
   }
-  flush();
-  return BLOCKED_SUBSTRINGS.some((term) => segments.some((segment) => segment.includes(term)));
+  if (!glued) return false;
+  for (const term of BLOCKED_SUBSTRINGS) {
+    let from = 0;
+    while (from <= glued.length - term.length) {
+      const at = glued.indexOf(term, from);
+      if (at < 0) break;
+      if (starts.has(at) || ends.has(at + term.length)) return true;
+      from = at + 1;
+    }
+  }
+  return false;
 }
 
 /**
@@ -273,12 +284,27 @@ export function nameSuggestionLabel(hit: NameSuggestion): string {
   return hit.custom ? `Add "${hit.value}"` : hit.value;
 }
 
+/** Full norm, or the joined-initial form ("c j stroud" and "cj stroud"). */
+function hiddenNameIsExact(
+  norm: string,
+  joined: readonly string[] | undefined,
+  indexed: boolean,
+  words: readonly string[],
+  queryNorm: string,
+  queryJoinedNorm: string,
+): boolean {
+  if (norm === queryNorm) return true;
+  if (joined) return joined.join(" ") === queryJoinedNorm;
+  if (indexed) return norm === queryJoinedNorm;
+  return collapseInitials(words).join(" ") === queryJoinedNorm;
+}
+
 /**
  * Catalog and remote hits stay in front. Directory players fill the rest,
  * one row per normalized name, so "Luka Doncic" does not repeat "Luka Dončić".
  * An empty list becomes the custom-name chip once the directory has loaded.
  * A partial query that only missed because of a sport chip does not become Add.
- * An exact full name still does, so the chosen sport can be saved.
+ * An exact full name, dotted or joined, still offers Add. Only the name is stored.
  */
 export function withDirectoryPlayers(input: {
   query: string;
@@ -293,6 +319,7 @@ export function withDirectoryPlayers(input: {
   if (!queryNorm || limit === 0) return [];
   const queryWords = queryNorm.split(" ");
   const queryJoined = collapseInitials(queryWords);
+  const queryJoinedNorm = queryJoined === queryWords ? queryNorm : queryJoined.join(" ");
   const sports = (input.sports ?? []).map((sport) => sport.toLowerCase()).filter(Boolean);
   const catalog = input.catalogHits.slice(0, limit);
   const taken = new Set(
@@ -306,11 +333,15 @@ export function withDirectoryPlayers(input: {
     for (const player of input.directoryPlayers ?? []) {
       const norm = playerNorm(player);
       const words = player.words ?? norm.split(" ");
-      if (!formsMatch(norm, words, player.joined, queryNorm, queryWords, queryJoined)) continue;
+      const indexed = player.words != null;
+      if (!formsMatch(norm, words, player.joined, queryNorm, queryWords, queryJoined, indexed)) {
+        continue;
+      }
       if (!sportAllowed(player.sport, sports)) {
         if (sports.length > 0 && !collectSportBlocked(player.sport)) {
-          if (norm === queryNorm) hiddenExact = true;
-          else hiddenPartial = true;
+          if (hiddenNameIsExact(norm, player.joined, indexed, words, queryNorm, queryJoinedNorm)) {
+            hiddenExact = true;
+          } else hiddenPartial = true;
         }
         continue;
       }

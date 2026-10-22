@@ -228,6 +228,17 @@ describe("directory name search", () => {
     assert.equal(customPlayerFallback("Poke mon"), null);
     assert.equal(blockedCustomName("pokemontcg"), true);
     assert.equal(customPlayerFallback("pokemontcg"), null);
+    for (const name of ["p o k e m o n", "P.O.K.E.M.O.N", "y u g i o h", "p okemon", "pokemo n", "t c g"]) {
+      assert.equal(blockedCustomName(name), true, name);
+      assert.equal(customPlayerFallback(name), null, name);
+    }
+    for (const name of ["Robert C. Griffin", "Bert C. Garcia", "Matt C. Green"]) {
+      assert.equal(blockedCustomName(name), false, name);
+      assert.equal(customPlayerFallback(name)?.custom, true, name);
+    }
+    for (const player of PLAYER_DIRECTORY) {
+      assert.equal(blockedCustomName(player.name), false, player.name);
+    }
   });
 
   it("offers Add for an exact name hidden by the sport chip", () => {
@@ -275,6 +286,19 @@ describe("directory name search", () => {
     }
     const dotted = names("c.j. stroud");
     assert.equal(dotted.some((hit) => hit.value === "C.J. Stroud" && hit.custom !== true), true);
+  });
+
+  it("offers Add when joined initials are the exact name hidden by a sport chip", () => {
+    const undotted = names("cj stroud", ["Basketball"]);
+    assert.equal(undotted.length, 1);
+    assert.equal(undotted[0]?.custom, true);
+    assert.equal(undotted[0]?.value, "CJ Stroud");
+    assert.equal(undotted[0]?.sport, "Basketball");
+    const dotted = names("c.j. stroud", ["Basketball"]);
+    assert.equal(dotted.length, 1);
+    assert.equal(dotted[0]?.custom, true);
+    assert.equal(dotted[0]?.value, "C.J. Stroud");
+    assert.equal(dotted[0]?.sport, "Basketball");
   });
 
   it("uppercases two-letter initials when the rest of the name is cased for them", () => {
