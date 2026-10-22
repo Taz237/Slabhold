@@ -272,6 +272,7 @@ describe("post photos", () => {
     assert.match(hook, /readFile\(file, 960\)/);
     assert.match(hook, /readPhotoFile/);
     assert.doesNotMatch(remove, /photoReadId/);
+    assert.match(remove, /setPhotoError\(null\)/);
     assert.match(batch, /const requestId = \+\+photoReadId\.current/);
     assert.match(batch, /if \(photoReadId\.current !== requestId\) return;/);
     assert.match(batch, /if \(photoReadId\.current === requestId\) setReadingPhoto\(false\)/);
@@ -314,7 +315,8 @@ describe("post photos", () => {
     assert.doesNotMatch(feed, /aria-label=\{photosFull/);
     assert.match(compose, /disabled=\{photosFull\}/);
     assert.match(compose, /aria-describedby=\{photosFull \? "compose-photo-cap" : undefined\}/);
-    assert.match(compose, /id="compose-photo-cap"/);
+    assert.match(compose, /id="compose-photo-cap" className="block px-1 pb-1 text-xs text-zinc-500"/);
+    assert.doesNotMatch(compose, /compose-photo-cap" className="shrink-0/);
     assert.doesNotMatch(compose, /aria-label=\{photosFull/);
     assert.match(compose, /if \(photoAttachFull\(images\.length, limit\)\) return;/);
     assert.match(read("components/use-post-photos.ts"), /setPhotoError\(postPhotoLimitError\(limitRef\.current\)\)/);

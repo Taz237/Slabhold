@@ -344,67 +344,69 @@ export function ComposeView() {
         ) : null}
       </div>
 
-      <div className="fixed inset-x-0 bottom-[calc(6.15rem+env(safe-area-inset-bottom))] z-20 mx-auto flex w-full min-w-0 max-w-lg flex-wrap items-center gap-1 border-t border-zinc-200 bg-[var(--background)] px-2 py-2 dark:border-white/10">
-        <PhotoFileInputs
-          cameraRef={cameraRef}
-          libraryRef={libraryRef}
-          libraryMultiple
-          onPick={(file) => {
-            if (file) void addFiles([file]);
-          }}
-          onPickMany={(files) => void addFiles(files)}
-        />
-        <button
-          type="button"
-          disabled={photosFull}
-          aria-describedby={photosFull ? "compose-photo-cap" : undefined}
-          onClick={openCamera}
-          className="inline-flex min-h-11 min-w-0 shrink items-center gap-1.5 rounded-full px-2 text-sm font-medium text-violet-700 disabled:opacity-40 dark:text-violet-300"
-        >
-          <Camera className="h-5 w-5 shrink-0" />
-          <span className="truncate">Camera</span>
-        </button>
-        <button
-          type="button"
-          disabled={photosFull}
-          aria-describedby={photosFull ? "compose-photo-cap" : undefined}
-          onClick={openLibrary}
-          className="inline-flex min-h-11 min-w-0 shrink items-center gap-1.5 rounded-full px-2 text-sm font-medium text-violet-700 disabled:opacity-40 dark:text-violet-300"
-        >
-          <ImagePlus className="h-5 w-5 shrink-0" />
-          <span className="truncate">Library</span>
-        </button>
+      <div className="fixed inset-x-0 bottom-[calc(6.15rem+env(safe-area-inset-bottom))] z-20 mx-auto flex w-full min-w-0 max-w-lg flex-col border-t border-zinc-200 bg-[var(--background)] px-2 py-2 dark:border-white/10">
         {photosFull ? (
-          <span id="compose-photo-cap" className="shrink-0 px-1 text-xs text-zinc-500">
+          <span id="compose-photo-cap" className="block px-1 pb-1 text-xs text-zinc-500">
             {photoCapHint}
           </span>
         ) : null}
-        {!editing && externalCard ? null : !editing ? (
-          cardsReady && !syncError ? (
-            <AttachCardField
-              cards={cards}
-              value={cardId}
-              onChange={setCardId}
-              selectClassName="min-w-0 flex-1 truncate rounded-full border border-zinc-200 bg-transparent px-2 py-1.5 text-xs text-zinc-600 dark:border-white/10 dark:text-zinc-300"
-            />
-          ) : (
-            <select
-              disabled
-              value=""
-              aria-label="Attach a card"
-              className="min-w-0 flex-1 truncate rounded-full border border-zinc-200 bg-transparent px-2 py-1.5 text-xs text-zinc-600 dark:border-white/10 dark:text-zinc-300"
-            >
-              <option value="">Attach a card</option>
-            </select>
-          )
-        ) : null}
-        <span
-          className={`ml-auto shrink-0 pr-1 text-xs whitespace-nowrap tabular-nums ${
-            body.length > POST_LIMIT - 20 ? "text-rose-500" : "text-zinc-400"
-          }`}
-        >
-          {body.length}/{POST_LIMIT}
-        </span>
+        <div className="flex w-full min-w-0 items-center gap-1 overflow-hidden">
+          <PhotoFileInputs
+            cameraRef={cameraRef}
+            libraryRef={libraryRef}
+            libraryMultiple
+            onPick={(file) => {
+              if (file) void addFiles([file]);
+            }}
+            onPickMany={(files) => void addFiles(files)}
+          />
+          <button
+            type="button"
+            disabled={photosFull}
+            aria-describedby={photosFull ? "compose-photo-cap" : undefined}
+            onClick={openCamera}
+            className="inline-flex min-h-11 min-w-0 shrink items-center gap-1.5 rounded-full px-2 text-sm font-medium text-violet-700 disabled:opacity-40 dark:text-violet-300"
+          >
+            <Camera className="h-5 w-5 shrink-0" />
+            <span className="truncate">Camera</span>
+          </button>
+          <button
+            type="button"
+            disabled={photosFull}
+            aria-describedby={photosFull ? "compose-photo-cap" : undefined}
+            onClick={openLibrary}
+            className="inline-flex min-h-11 min-w-0 shrink items-center gap-1.5 rounded-full px-2 text-sm font-medium text-violet-700 disabled:opacity-40 dark:text-violet-300"
+          >
+            <ImagePlus className="h-5 w-5 shrink-0" />
+            <span className="truncate">Library</span>
+          </button>
+          {!editing && externalCard ? null : !editing ? (
+            cardsReady && !syncError ? (
+              <AttachCardField
+                cards={cards}
+                value={cardId}
+                onChange={setCardId}
+                selectClassName="min-w-0 flex-1 truncate rounded-full border border-zinc-200 bg-transparent px-2 py-1.5 text-xs text-zinc-600 dark:border-white/10 dark:text-zinc-300"
+              />
+            ) : (
+              <select
+                disabled
+                value=""
+                aria-label="Attach a card"
+                className="min-w-0 flex-1 truncate rounded-full border border-zinc-200 bg-transparent px-2 py-1.5 text-xs text-zinc-600 dark:border-white/10 dark:text-zinc-300"
+              >
+                <option value="">Attach a card</option>
+              </select>
+            )
+          ) : null}
+          <span
+            className={`ml-auto shrink-0 pr-1 text-xs whitespace-nowrap tabular-nums ${
+              body.length > POST_LIMIT - 20 ? "text-rose-500" : "text-zinc-400"
+            }`}
+          >
+            {body.length}/{POST_LIMIT}
+          </span>
+        </div>
       </div>
       {confirmDiscard ? (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 px-4">

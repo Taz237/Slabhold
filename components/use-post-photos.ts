@@ -50,6 +50,7 @@ export function usePostPhotos(
     const photos = imagesRef.current.filter((_, item) => item !== index);
     imagesRef.current = photos;
     setImages(photos);
+    setPhotoError(null);
   }, []);
 
   const addFiles = useCallback(async (files: File[]) => {
