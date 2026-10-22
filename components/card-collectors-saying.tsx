@@ -17,7 +17,13 @@ import { useCardValues } from "@/lib/value/use-card-values";
 
 const PREVIEW_LIMIT = 5;
 
-export function CardCollectorsSaying({ cardId }: { cardId: string }) {
+export function CardCollectorsSaying({
+  cardId,
+  heading = "What collectors are saying",
+}: {
+  cardId: string;
+  heading?: string;
+}) {
   const { user, homePosts: loadedPosts, profiles, publicCards, ready } = useSocial();
   const pathname = usePathname() || "/";
   const [posts, setPosts] = useState<Post[]>([]);
@@ -98,10 +104,14 @@ export function CardCollectorsSaying({ cardId }: { cardId: string }) {
   }, [cardId, loadedPosts, profileMap, publicCards, publicIds, ready]);
 
   return (
-    <section className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-white/10 dark:bg-white/[0.03] sm:p-5">
+    <section
+      data-slot="card-talk"
+      className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-white/10 dark:bg-white/[0.03] sm:p-5"
+      aria-busy={loading || undefined}
+    >
       <div className="flex flex-wrap items-end justify-between gap-2">
         <div>
-          <h2 className="font-semibold">What collectors are saying</h2>
+          <h2 className="font-semibold">{heading}</h2>
           <p className="text-xs text-zinc-500">Posts about this card</p>
         </div>
         {user ? (

@@ -1,33 +1,38 @@
 "use client";
 
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
 import { useCompFlagState } from "@/components/use-comp-flags";
-import { ArrowLeft, Pencil, Trash2 } from "lucide-react";
 import { CardCollectorsSaying } from "@/components/card-collectors-saying";
 import { CardOwnersSection } from "@/components/card-owners";
 import { CardPeopleSections } from "@/components/card-people";
 import { WantButton } from "@/components/want-button";
-import { CategoryBadge, CategoryPicker } from "@/components/category-picker";
+import { CategoryPicker } from "@/components/category-picker";
 import { useCollection } from "@/components/collection-provider";
-import { CardThumb } from "@/components/card-thumb";
+import {
+  CardDetailPending,
+  CardHero,
+  CardTopBar,
+  SalesChartPending,
+  SalesListPending,
+  cardPanelClass,
+} from "@/components/card-detail-shell";
 import { CompBasis } from "@/components/comp-basis";
 import { CompsList } from "@/components/comps-list";
 import { EmptyPriceNote } from "@/components/ebay-sold-link";
 import { FairPriceCheck } from "@/components/fair-price-check";
-import { ValueChart } from "@/components/value-chart";
 import { useSocial } from "@/components/social-provider";
 import { loginPath } from "@/lib/auth/safe-next";
 import { cardCategory } from "@/lib/card-category";
+import type { OwnersAndHunters } from "@/lib/cards/people";
 import { gradeDetailSpecs } from "@/lib/cards/grading-company";
 import { canonicalParallelName } from "@/lib/cards/parallels";
 import { basedOnSalesLabel, countForSalesLabel, valueFromShownSales } from "@/lib/comps/shared-value";
 import { soldNotice } from "@/lib/comps/sold-response";
 import { useSoldComps } from "@/lib/comps/use-sold-comps";
 import {
-  cardSubtitle,
-  cardTitle,
   formatDate,
   formatPaidLabel,
   hasPaid,
@@ -44,25 +49,66 @@ import {
   isLowConfidenceValue,
   NOT_ENOUGH_SALES_LABEL,
 } from "@/lib/value/format";
-import type { OwnersAndHunters } from "@/lib/cards/people";
-import { needsDetails, needsDetailsLabel } from "@/lib/types";
+import { peekCardValue } from "@/lib/value/card-value-memory";
+import type { SportsCard } from "@/lib/types";
 import { ebaySoldSearchUrlForCard } from "@/lib/value/ebay-sold";
 import { shouldCollapseEmptyPrices } from "@/lib/value/empty-price";
 import { useCardValue } from "@/lib/value/use-card-values";
 
-export function CardDetail({
-  id,
-  people = null,
-}: {
-  id: string;
-  people?: OwnersAndHunters | null;
-}) {
+function subscribeCardValueMemory() {
+  return () => {};
+}
+
+const ValueChart = dynamic(
+  () => import("@/components/value-chart").then((mod) => mod.ValueChart),
+  { ssr: false, loading: () => <SalesChartPending /> },
+);
+
+const CardForm = dynamic(
+  () => import("@/components/card-form").then((mod) => mod.CardForm),
+  {
+    loading: ({ error, retry }) =>
+      error ? (
+        <div className="rounded-2xl border border-zinc-200 bg-white p-4 text-center dark:border-white/10 dark:bg-white/[0.03] sm:p-5">
+          <p className="text-sm text-zinc-600 dark:text-zinc-300">
+            Couldn&apos;t load the edit form.
+          </p>
+          <button
+            type="button"
+            onClick={() => retry?.()}
+            className="mt-3 inline-flex min-h-11 items-center rounded-full bg-violet-600 px-4 text-sm font-semibold text-white hover:bg-violet-500"
+          >
+            Try again
+          </button>
+        </div>
+      ) : (
+        <div
+          className="h-40 animate-pulse rounded-2xl bg-zinc-200/70 dark:bg-white/5"
+          aria-busy="true"
+        />
+      ),
+  },
+);
+
+export function CardDetail({ id }: { id: string }) {
   const router = useRouter();
   const pathname = usePathname() || "/";
   const { user } = useSocial();
   const { ready, getCard, updateCard, removeCard } = useCollection();
   const card = getCard(id);
   const [sellPrice, setSellPrice] = useState("");
+  const [editing, setEditing] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [chartReady, setChartReady] = useState(false);
+  const [chartFailed, setChartFailed] = useState(false);
+  const [chartAttempt, setChartAttempt] = useState(0);
+  const remembered = useSyncExternalStore(
+    subscribeCardValueMemory,
+    () => (card?.id ? peekCardValue(card.id) : null),
+    () => null,
+  );
+  const editorRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLElement>(null);
 
   const {
     value: cardValue,
@@ -87,11 +133,31 @@ export function CardDetail({
     }
   }, [retryValue, sold.data?.fetchedAt, sold.status]);
 
-  if (!ready) {
-    return (
-      <div className="h-64 animate-pulse rounded-2xl bg-zinc-200/70 dark:bg-white/5" />
-    );
-  }
+  useEffect(() => {
+    let cancelled = false;
+    void import("@/components/value-chart")
+      .then(() => {
+        if (!cancelled) setChartReady(true);
+      })
+      .catch(() => {
+        if (!cancelled) setChartFailed(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [chartAttempt]);
+
+  useEffect(() => {
+    if (!editing) return;
+    editorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [editing]);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    menuRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [menuOpen]);
+
+  if (!ready) return <CardDetailPending id={id} />;
 
   if (!card) {
     return (
@@ -120,15 +186,19 @@ export function CardDetail({
   const shownValue =
     sold.status === "ready"
       ? valueFromShownSales(onScreenComps, flags.priced ?? cardValue)
-      : (flags.priced ?? cardValue);
+      : (flags.priced ?? cardValue ?? remembered);
   const salesCount = countForSalesLabel(
     cardValueHasAmount(shownValue) ? shownValue.nSales : null,
     sold.status === "ready" ? onScreenComps.length : null,
   );
   const storedAmount = cardValueHasAmount(shownValue) ? shownValue.median : null;
+  const earlyValue = cardValue ?? remembered;
+  const pendingDollars =
+    !cardSold && cardValueHasAmount(earlyValue)
+      ? formatCardValueLabel(earlyValue, { createdAt: card.createdAt })
+      : null;
 
   const estSell = cardSold ? card.sellPrice! : storedAmount;
-
   const paid = card.purchasePrice;
   const paidKnown = hasPaid(card);
   const delta = estSell != null && paidKnown ? estSell - (paid as number) : 0;
@@ -137,11 +207,11 @@ export function CardDetail({
   const max = Math.max(paidKnown ? (paid as number) : 0, estSell ?? 0, 1);
   const rawValueLabel = cardSold
     ? null
-    : valueLoading && !flags.priced
+    : valueLoading && !flags.priced && !earlyValue
       ? null
       : formatCardValueLabel(shownValue, { createdAt: card.createdAt });
   const collapsePrices = shouldCollapseEmptyPrices({
-    loading: (!cardSold && valueLoading) || compsLoading,
+    loading: (!cardSold && valueLoading && !earlyValue) || compsLoading,
     blocked: authRequired || rateLimited || unavailable,
     settled: sold.status === "ready",
     hasEstimate:
@@ -150,6 +220,12 @@ export function CardDetail({
     hasSales: onScreenComps.length > 0,
   });
   const valueStatusLabel = collapsePrices ? "—" : rawValueLabel;
+  const showChart =
+    chartReady &&
+    sold.status === "ready" &&
+    !collapsePrices &&
+    !authRequired &&
+    !soldCopy;
 
   function markSold() {
     const price = Number(sellPrice);
@@ -161,112 +237,123 @@ export function CardDetail({
     setSellPrice("");
   }
 
+  function toggleEdit() {
+    setMenuOpen(false);
+    setEditing((open) => !open);
+  }
+
+  function toggleMenu() {
+    setEditing(false);
+    setMenuOpen((open) => !open);
+  }
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <Link
-          href="/collection"
-          className="inline-flex items-center gap-1.5 text-sm text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Collection
-        </Link>
-        <div className="flex gap-2">
-          <Link
-            href={`/cards/${card.id}/edit`}
-            className="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-3 py-1.5 text-sm hover:bg-zinc-200 dark:bg-white/10 dark:hover:bg-white/15"
-          >
-            <Pencil className="h-3.5 w-3.5" />
-            Edit
-          </Link>
-          <button
-            type="button"
-            onClick={() => {
-              if (!window.confirm(`Delete ${card.playerName}?`)) return;
-              removeCard(card.id);
-              router.push("/");
-            }}
-            className="inline-flex items-center gap-1 rounded-full bg-rose-500/10 px-3 py-1.5 text-sm text-rose-700 hover:bg-rose-500/20 dark:text-rose-300"
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-            Delete
-          </button>
-        </div>
-      </div>
+      <CardTopBar
+        editing={editing}
+        menuOpen={menuOpen}
+        onEdit={toggleEdit}
+        onMenu={toggleMenu}
+      />
 
-      <section className="grid gap-6 md:grid-cols-[220px_1fr]">
-        <CardThumb
-          card={card}
-          className="mx-auto h-72 w-48 rounded-2xl shadow-xl shadow-black/20 md:mx-0"
-        />
-        <div>
-          <div className="flex flex-wrap items-center gap-2">
-            <p className="text-sm text-zinc-500">{cardTitle(card)}</p>
-            <CategoryBadge card={card} />
-            {card.isRookie ? (
-              <span className="rounded-full bg-sky-500/15 px-2 py-0.5 text-[11px] font-medium text-sky-800 dark:text-sky-300">
-                Rookie
-              </span>
-            ) : null}
+      <CardHero
+        card={card}
+        onFixDetails={() => {
+          setMenuOpen(false);
+          setEditing(true);
+        }}
+      />
+
+      {editing ? (
+        <div ref={editorRef} className="scroll-mt-24">
+          <CardForm
+            existing={card}
+            embedded
+            onCancel={() => setEditing(false)}
+            onSaved={() => setEditing(false)}
+          />
+        </div>
+      ) : null}
+
+      {menuOpen ? (
+        <section
+          id="card-actions"
+          ref={menuRef}
+          className={`${cardPanelClass} scroll-mt-24 space-y-5`}
+        >
+          <div>
+            <h2 className="font-semibold">Value</h2>
+            <div className="mt-3 grid min-w-0 grid-cols-2 gap-3">
+              <Metric label="Paid" value={formatPaidLabel(card.purchasePrice, true)} />
+              <EstSellMetric
+                cardSold={cardSold}
+                soldPrice={card.sellPrice}
+                loading={!cardSold && valueLoading && !flags.priced && !earlyValue}
+                label={valueStatusLabel}
+                count={storedAmount != null ? (shownValue?.nSales ?? 0) : 0}
+                sample={shownValue?.status === "sample"}
+                lowConfidence={isLowConfidenceValue(shownValue)}
+              />
+              <Metric
+                label="Profit"
+                value={
+                  showProfit && profitPctValue != null
+                    ? `${signedMoney(delta, true)} ${pct(profitPctValue)}`
+                    : valueLoading && !flags.priced && !earlyValue
+                      ? "…"
+                      : "—"
+                }
+                tone={!showProfit ? undefined : delta >= 0 ? "up" : "down"}
+              />
+            </div>
+            <div className="mt-4 space-y-3">
+              <p className="text-sm font-medium">
+                Paid vs {cardSold ? "sold" : "estimate"}
+              </p>
+              <p className="text-xs text-zinc-500">
+                {cardSold ? "Closed flip" : "Open position"}
+                {" · "}
+                {showProfit ? signedMoney(delta, true) : "—"}
+              </p>
+              <Bar
+                label="Paid"
+                value={paid ?? 0}
+                max={max}
+                color="bg-zinc-400 dark:bg-zinc-500"
+                empty={!paidKnown}
+              />
+              <Bar
+                label={cardSold ? "Sold" : "Estimated sell"}
+                value={estSell ?? 0}
+                max={max}
+                color={
+                  estSell == null
+                    ? "bg-zinc-300 dark:bg-zinc-600"
+                    : delta >= 0
+                      ? "bg-emerald-500"
+                      : "bg-rose-500"
+                }
+                empty={!cardSold && estSell == null}
+              />
+            </div>
           </div>
-          <h1 className="mt-1 text-3xl font-semibold tracking-tight">
-            {card.playerName}
-          </h1>
-          <div className="mt-3">
-            <WantButton
-              card={card}
-              fairLow={cardValueHasAmount(shownValue) ? shownValue.low : null}
-              fairHigh={cardValueHasAmount(shownValue) ? shownValue.high : null}
-            />
-          </div>
-          <p className="mt-1 text-sm text-zinc-500">{cardSubtitle(card)}</p>
-          {needsDetails(card) ? (
-            <p className="mt-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
-              <Link
-                href={`/cards/${card.id}/edit`}
-                className="underline underline-offset-2 hover:text-amber-950 dark:hover:text-amber-100"
-              >
-                {needsDetailsLabel(card)}. Add them for accurate prices
-              </Link>
-            </p>
-          ) : null}
+
           <CardSpecs card={card} />
           {card.notes ? (
-            <p className="mt-4 max-w-xl text-sm leading-6 text-zinc-700 dark:text-zinc-300">
-              {card.notes}
-            </p>
+            <p className="text-sm leading-6 text-zinc-700 dark:text-zinc-300">{card.notes}</p>
           ) : null}
+          <p className="text-sm text-zinc-500">
+            Bought {formatDate(card.purchaseDate)}
+            {cardSold ? ` · Sold ${formatDate(card.sellDate)}` : " · Still held"}
+          </p>
 
-          <div className="mt-6 grid min-w-0 grid-cols-2 gap-3 sm:grid-cols-3">
-            <Metric
-              label="Paid"
-              value={formatPaidLabel(card.purchasePrice, true)}
-            />
-            <EstSellMetric
-              cardSold={cardSold}
-              soldPrice={card.sellPrice}
-              loading={!cardSold && valueLoading && !flags.priced}
-              label={valueStatusLabel}
-              count={storedAmount != null ? (shownValue?.nSales ?? 0) : 0}
-              sample={shownValue?.status === "sample"}
-              lowConfidence={isLowConfidenceValue(shownValue)}
-            />
-            <Metric
-              label="Profit"
-              value={
-                showProfit && profitPctValue != null
-                  ? `${signedMoney(delta, true)} ${pct(profitPctValue)}`
-                  : valueLoading && !flags.priced
-                    ? "…"
-                    : "—"
-              }
-              tone={
-                !showProfit ? undefined : delta >= 0 ? "up" : "down"
-              }
-            />
-          </div>
+          <WantButton
+            card={card}
+            fairLow={cardValueHasAmount(shownValue) ? shownValue.low : null}
+            fairHigh={cardValueHasAmount(shownValue) ? shownValue.high : null}
+          />
 
-          <div className="mt-5 max-w-sm">
+          <div>
             <p className="mb-2 text-sm text-zinc-500">Move this card</p>
             <CategoryPicker
               value={cardCategory(card)}
@@ -274,26 +361,21 @@ export function CardDetail({
             />
           </div>
 
-          <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-zinc-500">
-            <span>
-              Bought {formatDate(card.purchaseDate)}
-              {cardSold ? ` · Sold ${formatDate(card.sellDate)}` : " · Still held"}
-            </span>
-            <button
-              type="button"
-              onClick={() => updateCard(card.id, { isPublic: !card.isPublic })}
-              className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                card.isPublic
-                  ? "bg-violet-500/15 text-violet-700 dark:text-violet-300"
-                  : "bg-zinc-100 text-zinc-600 dark:bg-white/10 dark:text-zinc-300"
-              }`}
-            >
-              {card.isPublic ? "Public on profile" : "Private"}
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={() => updateCard(card.id, { isPublic: !card.isPublic })}
+            className={`rounded-full px-3 py-1 text-xs font-semibold ${
+              card.isPublic
+                ? "bg-violet-500/15 text-violet-700 dark:text-violet-300"
+                : "bg-zinc-100 text-zinc-600 dark:bg-white/10 dark:text-zinc-300"
+            }`}
+          >
+            {card.isPublic ? "Public on profile" : "Private"}
+          </button>
 
-          {!cardSold && (
-            <div className="mt-6 flex max-w-sm flex-col gap-2">
+          {!cardSold ? (
+            <div className="flex max-w-sm flex-col gap-2">
+              <p className="text-sm text-zinc-500">Mark as sold</p>
               <input
                 type="number"
                 min={0}
@@ -306,93 +388,147 @@ export function CardDetail({
               <button
                 type="button"
                 onClick={markSold}
-                className="w-full rounded-full bg-zinc-900 px-5 py-2.5 text-sm font-medium whitespace-nowrap text-white dark:bg-zinc-100 dark:text-zinc-950"
+                className="w-full rounded-full bg-violet-600 px-5 py-2.5 text-sm font-medium whitespace-nowrap text-white hover:bg-violet-500"
               >
                 Mark as sold
               </button>
             </div>
-          )}
-        </div>
-      </section>
+          ) : null}
 
-      <section className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-white/10 dark:bg-white/[0.03] sm:p-5">
-        <div className="flex items-end justify-between gap-3">
+          <FairPriceCheck
+            card={{
+              id: card.id,
+              playerName: card.playerName,
+              year: card.year,
+              yearLabel: card.yearLabel,
+              setBrand: card.setBrand,
+              cardNumber: card.cardNumber,
+              grade: card.grade,
+              parallel: card.parallel,
+              sport: card.sport,
+              photoDataUrl: card.photoDataUrl,
+              accent: card.accent,
+              estimatedSellPrice: card.estimatedSellPrice,
+              conditionType: card.conditionType,
+              isPublic: card.isPublic,
+            }}
+            salePrices={onScreenComps.map((comp) => comp.soldPrice)}
+            canShow
+            compsReady={sold.status === "ready"}
+            compsLoading={compsLoading}
+            needsLogin={!user}
+          />
+
           <div>
-            <h2 className="font-semibold">Paid vs {cardSold ? "sold" : "estimate"}</h2>
-            <p className="text-xs text-zinc-500">
-              {cardSold ? "Closed flip" : "Open position"}
-              {" · "}
-              {showProfit ? signedMoney(delta, true) : "—"}
-            </p>
+            <h2 className="font-semibold">Owners and hunters</h2>
+            <div className="mt-3">
+              <CardPeoplePanel id={card.id} card={card} />
+            </div>
           </div>
-        </div>
-        <div className="mt-5 space-y-3">
-          <Bar
-            label="Paid"
-            value={paid ?? 0}
-            max={max}
-            color="bg-zinc-400 dark:bg-zinc-500"
-            empty={!paidKnown}
-          />
-          <Bar
-            label={cardSold ? "Sold" : "Estimated sell"}
-            value={estSell ?? 0}
-            max={max}
-            color={
-              estSell == null
-                ? "bg-zinc-300 dark:bg-zinc-600"
-                : delta >= 0
-                  ? "bg-emerald-500"
-                  : "bg-rose-500"
-            }
-            empty={!cardSold && estSell == null}
-          />
-        </div>
-      </section>
+
+          <button
+            type="button"
+            onClick={() => {
+              if (!window.confirm(`Delete ${card.playerName}?`)) return;
+              removeCard(card.id);
+              router.push("/");
+            }}
+            className="inline-flex items-center gap-1 rounded-full bg-rose-500/10 px-3 py-1.5 text-sm text-rose-700 hover:bg-rose-500/20 dark:text-rose-300"
+          >
+            Delete
+          </button>
+        </section>
+      ) : null}
 
       {errorMessage ? (
         <p className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
           {errorMessage}
         </p>
       ) : null}
-      {collapsePrices ? (
-        <EmptyPriceNote href={ebaySoldSearchUrlForCard(card)} />
-      ) : authRequired ? null : soldCopy ? (
-        <p className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
-          {soldCopy}
-        </p>
+
+      {showChart ? (
+        <div data-slot="sales-chart" className="contents">
+          <ValueChart
+            card={{
+              id: card.id,
+              estimatedSellPrice: storedAmount ?? 0,
+              purchasePrice: paid ?? 0,
+            }}
+            points={usingLive ? sold.data?.history : null}
+            source={sold.data?.source ?? (usingSample ? "sample" : "trawl")}
+            loading={false}
+            median={storedAmount}
+            p25={storedAmount != null ? (shownValue?.low ?? null) : null}
+            p75={storedAmount != null ? (shownValue?.high ?? null) : null}
+            count={storedAmount != null ? (shownValue?.nSales ?? 0) : 0}
+            sample={shownValue?.status === "sample"}
+            lockedToComps
+            noSalesLabel={NOT_ENOUGH_SALES_LABEL}
+            unavailable={false}
+            hideStatusLabel
+            heading="Recent sales"
+            stableLayout
+          />
+        </div>
+      ) : collapsePrices ? (
+        <section data-slot="sales-chart" className={cardPanelClass}>
+          <p className="text-[11px] tracking-wide text-zinc-500 uppercase">Recent sales</p>
+          <div className="mt-1 flex min-h-9 items-end">
+            <p className="text-lg font-semibold tracking-tight">{NOT_ENOUGH_SALES_LABEL}</p>
+          </div>
+          <p className="mt-1 min-h-5 text-sm text-zinc-500">&nbsp;</p>
+          <div className="mt-3 flex h-44 items-center">
+            <EmptyPriceNote href={ebaySoldSearchUrlForCard(card)} />
+          </div>
+        </section>
+      ) : chartFailed && !authRequired && !soldCopy ? (
+        <section data-slot="sales-chart" className={cardPanelClass}>
+          <p className="text-[11px] tracking-wide text-zinc-500 uppercase">Recent sales</p>
+          <div className="mt-1 flex min-h-9 items-end">
+            {pendingDollars?.startsWith("$") ? (
+              <p className="text-3xl font-semibold tracking-tight tabular-nums">{pendingDollars}</p>
+            ) : (
+              <div className="h-9 w-32 rounded-lg bg-zinc-100 dark:bg-white/5" />
+            )}
+          </div>
+          <p className="mt-1 min-h-5 text-sm text-zinc-500">&nbsp;</p>
+          <div className="mt-3 flex h-44 flex-col items-center justify-center gap-3 rounded-xl bg-zinc-100 px-4 text-center dark:bg-white/5">
+            <p className="text-sm text-zinc-500">Couldn&apos;t load the sales graph</p>
+            <button
+              type="button"
+              onClick={() => {
+                setChartFailed(false);
+                setChartReady(false);
+                setChartAttempt((attempt) => attempt + 1);
+              }}
+              className="inline-flex min-h-9 items-center rounded-full bg-violet-600 px-3.5 text-sm font-semibold text-white hover:bg-violet-500"
+            >
+              Retry
+            </button>
+          </div>
+        </section>
       ) : (
-        <ValueChart
-          card={{
-            id: card.id,
-            estimatedSellPrice: storedAmount ?? 0,
-            purchasePrice: paid ?? 0,
-          }}
-          points={sold.status === "ready" && usingLive ? sold.data?.history : null}
-          source={sold.data?.source ?? (usingSample ? "sample" : "trawl")}
-          loading={valueLoading && !flags.priced}
-          median={storedAmount}
-          p25={storedAmount != null ? (shownValue?.low ?? null) : null}
-          p75={storedAmount != null ? (shownValue?.high ?? null) : null}
-          count={storedAmount != null ? (shownValue?.nSales ?? 0) : 0}
-          sample={shownValue?.status === "sample"}
-          lockedToComps
-          noSalesLabel={NOT_ENOUGH_SALES_LABEL}
-          unavailable={false}
-          hideStatusLabel
+        <SalesChartPending
+          priceLabel={pendingDollars}
+          note={
+            authRequired
+              ? "Log in to see sold comps"
+              : soldCopy
+          }
+          busy={compsLoading && !soldCopy && !authRequired}
         />
       )}
 
-      {collapsePrices ? null : (
-      <section className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-white/10 dark:bg-white/[0.03] sm:p-5">
-        <div className="flex flex-wrap items-end justify-between gap-2">
-          <div>
-            <h2 className="font-semibold">Recent sales</h2>
-            {authRequired ? null : (
-              <p className="text-xs text-zinc-500">
-                {compsLoading
-                  ? "Loading sold listings…"
-                  : soldCopy
+      {compsLoading && !authRequired ? (
+        <SalesListPending />
+      ) : (
+        <section data-slot="sales-list" className={cardPanelClass}>
+          <div className="flex flex-wrap items-end justify-between gap-2">
+            <div>
+              <h2 className="font-semibold">Recent sales</h2>
+              {authRequired ? null : (
+                <p className="text-xs text-zinc-500">
+                  {soldCopy
                     ? soldCopy
                     : sold.status === "ready"
                       ? onScreenComps.length === 0
@@ -407,92 +543,100 @@ export function CardDetail({
                       : usingSample
                         ? "Sample listings"
                         : ""}
-              </p>
-            )}
+                </p>
+              )}
+            </div>
           </div>
-        </div>
-        {authRequired ? (
-          <p className="mt-3 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-700 dark:border-white/10 dark:bg-white/5 dark:text-zinc-300">
-            <Link href={loginPath(pathname)} className="font-semibold underline underline-offset-2">
-              Log in
-            </Link>{" "}
-            to see sold comps
-          </p>
-        ) : null}
-        {usingLive && !compsLoading && !authRequired ? (
-          <p className="mt-3 text-[11px] text-zinc-400">
-            Sold data via Trawl (third-party, not affiliated with eBay)
-          </p>
-        ) : null}
-        {authRequired ? null : compsLoading ? (
-          <div className="mt-3 space-y-3">
-            {Array.from({ length: 4 }, (_, i) => (
-              <div
-                key={i}
-                className="h-12 animate-pulse rounded-xl bg-zinc-100 dark:bg-white/5"
-              />
-            ))}
-          </div>
-        ) : unavailable || rateLimited ? null : sold.status === "ready" &&
-          (onScreenComps.length > 0 || flags.hidden.length > 0) ? (
-          <CompsList
-            comps={onScreenComps}
-            cardId={card.id}
-            canFlag={Boolean(user)}
-            hidden={flags.hidden}
-            onFlag={flags.flag}
-            onRestore={flags.restore}
-            toast={flags.toast}
-            onUndo={flags.undo}
-          />
-        ) : null}
-      </section>
+          {authRequired ? (
+            <p className="mt-3 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-700 dark:border-white/10 dark:bg-white/5 dark:text-zinc-300">
+              <Link href={loginPath(pathname)} className="font-semibold underline underline-offset-2">
+                Log in
+              </Link>{" "}
+              to see sold comps
+            </p>
+          ) : null}
+          {usingLive && !compsLoading && !authRequired ? (
+            <p className="mt-3 text-[11px] text-zinc-400">
+              Sold data via Trawl (third-party, not affiliated with eBay)
+            </p>
+          ) : null}
+          {authRequired || unavailable || rateLimited ? null : sold.status === "ready" &&
+            (onScreenComps.length > 0 || flags.hidden.length > 0) ? (
+            <CompsList
+              comps={onScreenComps}
+              cardId={card.id}
+              canFlag={Boolean(user)}
+              hidden={flags.hidden}
+              onFlag={flags.flag}
+              onRestore={flags.restore}
+              toast={flags.toast}
+              onUndo={flags.undo}
+            />
+          ) : collapsePrices ? (
+            <p className="mt-3 text-sm text-zinc-500">No sales to show</p>
+          ) : null}
+        </section>
       )}
 
-      <FairPriceCheck
-        card={{
-          id: card.id,
-          playerName: card.playerName,
-          year: card.year,
-          yearLabel: card.yearLabel,
-          setBrand: card.setBrand,
-          cardNumber: card.cardNumber,
-          grade: card.grade,
-          parallel: card.parallel,
-          sport: card.sport,
-          photoDataUrl: card.photoDataUrl,
-          accent: card.accent,
-          estimatedSellPrice: card.estimatedSellPrice,
-          conditionType: card.conditionType,
-          isPublic: card.isPublic,
-        }}
-        salePrices={onScreenComps.map((comp) => comp.soldPrice)}
-        canShow
-        compsReady={sold.status === "ready"}
-        compsLoading={compsLoading}
-        needsLogin={!user}
-      />
-
-      {people ? (
-        <CardPeopleSections data={people} />
-      ) : (
-        <CardOwnersSection
-          card={{
-            id: card.id,
-            playerName: card.playerName,
-            year: card.year,
-            yearLabel: card.yearLabel,
-            setBrand: card.setBrand,
-            cardNumber: card.cardNumber,
-            parallel: card.parallel,
-            grade: card.grade,
-            conditionType: card.conditionType,
-          }}
-        />
-      )}
-
-      <CardCollectorsSaying cardId={card.id} />
+      <CardCollectorsSaying cardId={card.id} heading="Who's talking about this card" />
     </div>
+  );
+}
+
+function isPeople(value: unknown): value is OwnersAndHunters {
+  if (!value || typeof value !== "object") return false;
+  const row = value as OwnersAndHunters;
+  return Boolean(row.owners && Array.isArray(row.owners.people));
+}
+
+function CardPeoplePanel({ id, card }: { id: string; card: SportsCard }) {
+  const [people, setPeople] = useState<OwnersAndHunters | null>(null);
+  const [phase, setPhase] = useState<"loading" | "ready" | "fallback">("loading");
+
+  useEffect(() => {
+    const controller = new AbortController();
+    let cancelled = false;
+    fetch(`/api/cards/people?id=${encodeURIComponent(id)}`, { signal: controller.signal })
+      .then(async (res) => {
+        if (!res.ok) return null;
+        return (await res.json()) as unknown;
+      })
+      .then((body) => {
+        if (cancelled) return;
+        if (isPeople(body)) {
+          setPeople(body);
+          setPhase("ready");
+          return;
+        }
+        setPhase("fallback");
+      })
+      .catch(() => {
+        if (!cancelled) setPhase("fallback");
+      });
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
+  }, [id]);
+
+  if (phase === "loading") {
+    return <div className="h-24 animate-pulse rounded-xl bg-zinc-100 dark:bg-white/5" />;
+  }
+  if (phase === "ready" && people) return <CardPeopleSections data={people} />;
+  return (
+    <CardOwnersSection
+      card={{
+        id: card.id,
+        playerName: card.playerName,
+        year: card.year,
+        yearLabel: card.yearLabel,
+        setBrand: card.setBrand,
+        cardNumber: card.cardNumber,
+        parallel: card.parallel,
+        grade: card.grade,
+        conditionType: card.conditionType,
+      }}
+    />
   );
 }
 

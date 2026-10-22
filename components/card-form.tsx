@@ -80,7 +80,18 @@ function parseOptionalPrice(value: string): number | null {
   return n;
 }
 
-export function CardForm({ existing }: { existing?: SportsCard }) {
+export function CardForm({
+  existing,
+  embedded = false,
+  onCancel,
+  onSaved,
+}: {
+  existing?: SportsCard;
+  /** Inline on the card page: skip the extra title, keep the same save. */
+  embedded?: boolean;
+  onCancel?: () => void;
+  onSaved?: () => void;
+}) {
   const router = useRouter();
   const { addCard, updateCard, removeCard } = useCollection();
   const { mode } = useSocial();
@@ -359,6 +370,11 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
     }));
   }
 
+  function cancelEdit() {
+    if (onCancel) onCancel();
+    else if (existing) router.push(`/cards/${existing.id}`);
+  }
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!claimSubmit(savingRef)) return;
@@ -450,6 +466,7 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
         }
       }
       router.push(`/cards/${card.id}`);
+      onSaved?.();
     } catch (error) {
       if (isSaveTimeout(error)) {
         if (createdId) timedOutIds.current.add(createdId);
@@ -472,6 +489,7 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
 
   return (
     <form ref={formRef} onSubmit={submit} className="mx-auto max-w-xl space-y-5">
+      {embedded ? null : (
       <div>
         <p
           className={
@@ -492,6 +510,7 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
             : "Saved in this browser."}
         </p>
       </div>
+      )}
 
       <CategoryPicker value={category} onChange={setCategory} />
 
@@ -1078,6 +1097,16 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
         ) : (
           <span />
         )}
+        <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+          {existing ? (
+            <button
+              type="button"
+              onClick={cancelEdit}
+              className="rounded-full border border-zinc-200 px-6 py-3 text-sm font-semibold text-zinc-700 dark:border-white/10 dark:text-zinc-200"
+            >
+              Cancel
+            </button>
+          ) : null}
         <button
           type="submit"
           disabled={saving}
@@ -1085,7 +1114,7 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
             // Keep focus so onBlur validation cannot swallow the first click.
             if (e.button === 0) e.preventDefault();
           }}
-          className="rounded-full bg-zinc-900 px-6 py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40 dark:bg-zinc-100 dark:text-zinc-950"
+          className="rounded-full bg-violet-600 px-6 py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40 hover:bg-violet-500"
         >
           {saving
             ? existing
@@ -1095,6 +1124,7 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
               ? "Save changes"
               : "Add to collection"}
         </button>
+        </div>
       </div>
     </form>
   );
