@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { join } from "node:path";
+import { localMarkNotificationsRead, type LocalDb } from "./local-db";
+import { remoteMarkNotificationsRead } from "./remote";
 import {
   groupHeadline,
   groupNotifications,
@@ -168,18 +170,88 @@ describe("grouped notifications", () => {
     );
     assert.equal(unreadGroupCount(notes), 1);
   });
+
+  it("leaves a notice that arrives after the snapshot unread", () => {
+    const opened = [note({ id: "seen", actorId: "a", createdAt: "2026-10-21T12:00:00.000Z" })];
+    const snapshot = unreadNotificationIds(opened);
+    const db: LocalDb = {
+      users: [],
+      sessionUserId: "me",
+      follows: [],
+      posts: [],
+      likes: [],
+      reposts: [],
+      comments: [],
+      messages: [],
+      collections: {},
+      notifications: [
+        ...opened,
+        note({ id: "later", actorId: "b", createdAt: "2026-10-21T12:30:00.000Z" }),
+      ],
+    };
+    const marked = localMarkNotificationsRead(db, snapshot);
+    const seen = marked.notifications.find((item) => item.id === "seen");
+    const later = marked.notifications.find((item) => item.id === "later");
+    assert.equal(seen?.read, true);
+    assert.equal(later?.read, false);
+    assert.equal(unreadGroupCount(marked.notifications), 1);
+    const saved = new Set(snapshot);
+    const groups = groupNotifications(marked.notifications);
+    const seenGroup = groups.find((group) => group.notes.some((item) => item.id === "seen"));
+    const laterGroup = groups.find((group) => group.notes.some((item) => item.id === "later"));
+    assert.equal(seenGroup?.read, true);
+    assert.equal(laterGroup?.read, false);
+    assert.equal(groupStaysHighlighted(seenGroup!, saved), true);
+    assert.equal(groupStaysHighlighted(laterGroup!, saved), true);
+  });
+
+  it("tells the server to mark only the ids from the snapshot", async () => {
+    const filters: { op: string; column: string; value: unknown }[] = [];
+    const query = {
+      eq(column: string, value: unknown) {
+        filters.push({ op: "eq", column, value });
+        return query;
+      },
+      in(column: string, value: unknown) {
+        filters.push({ op: "in", column, value });
+        return query;
+      },
+      then(resolve: (value: { error: null }) => unknown) {
+        return Promise.resolve({ error: null }).then(resolve);
+      },
+    };
+    const supabase = {
+      from(table: string) {
+        assert.equal(table, "notifications");
+        return {
+          update(patch: { read: boolean }) {
+            assert.deepEqual(patch, { read: true });
+            return query;
+          },
+        };
+      },
+    };
+    const result = await remoteMarkNotificationsRead(supabase as never, "me", ["seen"]);
+    assert.deepEqual(result, {});
+    assert.deepEqual(filters, [
+      { op: "eq", column: "recipient_id", value: "me" },
+      { op: "eq", column: "read", value: false },
+      { op: "in", column: "id", value: ["seen"] },
+    ]);
+  });
 });
 
 describe("notification bell wiring", () => {
   it("counts grouped rows and highlights the ones that were unread on open", () => {
     const provider = readFileSync(join(process.cwd(), "components/social-provider.tsx"), "utf8");
     const view = readFileSync(join(process.cwd(), "components/notifications-view.tsx"), "utf8");
-    assert.match(provider, /unreadGroupCount\(notifications\)/);
+    assert.match(provider, /useMemo\(\(\) => unreadGroupCount\(notifications\), \[notifications\]\)/);
     assert.match(view, /groupStaysHighlighted\(/);
     assert.match(view, /bg-sky-500\/15/);
     assert.match(view, /rounded-full bg-sky-500/);
+    assert.match(view, /markNotificationsRead\(\[\.\.\.ids\]\)/);
     const refreshAt = view.indexOf("await refresh()");
-    const markAt = view.indexOf("markNotificationsRead()");
+    const markAt = view.indexOf("markNotificationsRead([...ids])");
     assert.ok(refreshAt !== -1 && markAt > refreshAt);
   });
 });

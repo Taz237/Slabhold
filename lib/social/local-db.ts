@@ -905,12 +905,16 @@ export function localDeletePost(db: LocalDb, postId: string): { db: LocalDb; err
   };
 }
 
-export function localMarkNotificationsRead(db: LocalDb): LocalDb {
+export function localMarkNotificationsRead(db: LocalDb, ids?: readonly string[]): LocalDb {
   if (!db.sessionUserId) return db;
+  const only = ids ? new Set(ids) : null;
+  if (only && only.size === 0) return db;
   return {
     ...db,
     notifications: (db.notifications ?? []).map((note) =>
-      note.recipientId === db.sessionUserId ? { ...note, read: true } : note,
+      note.recipientId === db.sessionUserId && (!only || only.has(note.id))
+        ? { ...note, read: true }
+        : note,
     ),
   };
 }

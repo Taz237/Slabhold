@@ -136,7 +136,7 @@ type SocialContextValue = {
   commentsFor: (postId: string) => PostComment[];
   notifications: Notification[];
   unreadCount: number;
-  markNotificationsRead: () => void;
+  markNotificationsRead: (ids?: readonly string[]) => void;
   messages: DirectMessage[];
   unreadMessageCount: number;
   sendMessage: (receiverId: string, content: string) => Promise<AuthResult>;
@@ -1047,29 +1047,33 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
     [snapshot.notifications, snapshot.user],
   );
 
-  const unreadCount = unreadGroupCount(notifications);
+  const unreadCount = useMemo(() => unreadGroupCount(notifications), [notifications]);
 
-  const markNotificationsRead = useCallback(() => {
+  const markNotificationsRead = useCallback((ids?: readonly string[]) => {
     const current = snapshotRef.current;
     if (!current.user) return;
     const userId = current.user.id;
-    if (!current.notifications.some((note) => note.recipientId === userId && !note.read)) return;
+    const only = ids ? new Set(ids) : null;
+    if (only && only.size === 0) return;
+    const matches = (note: Notification) =>
+      note.recipientId === userId && !note.read && (!only || only.has(note.id));
+    if (!current.notifications.some(matches)) return;
     if (mode === "supabase") {
       setRemote((existing) => ({
         ...existing,
         notifications: existing.notifications.map((note) =>
-          note.recipientId === userId ? { ...note, read: true } : note,
+          matches(note) ? { ...note, read: true } : note,
         ),
       }));
       const client = supabaseRef.current;
       if (!client) return;
-      void remoteMarkNotificationsRead(client, userId).then((result) => {
+      void remoteMarkNotificationsRead(client, userId, ids).then((result) => {
         if (result.error) setStatus(result.error);
       });
       return;
     }
     if (!localRef.current) return;
-    commitLocal(localMarkNotificationsRead(localRef.current));
+    commitLocal(localMarkNotificationsRead(localRef.current, ids));
   }, [commitLocal, mode]);
 
   const messages = useMemo(() => {

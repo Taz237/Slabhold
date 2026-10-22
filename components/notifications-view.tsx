@@ -37,7 +37,7 @@ export function NotificationsView() {
         const ids = new Set(unreadNotificationIds(loaded));
         unreadOnVisit.current = { userId, ids };
         setSavedUnreadIds(ids);
-        markNotificationsRead();
+        markNotificationsRead([...ids]);
       } catch {
         // Leave the badge alone when the refresh fails.
       }
