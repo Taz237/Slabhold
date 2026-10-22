@@ -1,3 +1,4 @@
+import { canonicalParallelName, parallelAliasNames } from "@/lib/cards/parallels";
 import { parseGrade, RAW_GRADE, SLAB_TITLE_GRADER_PATTERN } from "@/lib/card-options";
 import { filterPriceOutliers } from "./stats";
 import type { CleanedSale, TrawlSoldResult } from "./types";
@@ -642,6 +643,36 @@ function parallelNameWords(parallel: string): string[] {
     .map(canonicalParallelWord);
 }
 
+function parallelPhrases(parallel: string): string[][] {
+  const phrases = [parallelNameWords(parallel)];
+  for (const alias of parallelAliasNames(parallel)) {
+    phrases.push(parallelNameWords(alias));
+  }
+  return phrases.filter((words) => words.length > 0);
+}
+
+function phraseInTitle(title: string, words: string[]): boolean {
+  if (!words.length) return false;
+  const pattern = words.map((word) => escapeRegExp(word)).join("[^a-z0-9]+");
+  return new RegExp(`\\b${pattern}\\b`, "i").test(title);
+}
+
+/**
+ * Remove this parallel from a title before the wrong-set check.
+ * Hyphens and spaces are the same, so "Optic Preview-Pink" and
+ * "Optic Preview Pink" both come out. Alias phrases come out too,
+ * so "Pink Optic Preview Holo" is not read as Donruss Optic.
+ */
+export function stripParallelPhrase(title: string, parallel?: string): string {
+  if (parallelIsBase(parallel)) return title;
+  let text = title;
+  for (const words of parallelPhrases(parallel ?? "")) {
+    const pattern = words.map((word) => escapeRegExp(word)).join("[^a-z0-9]+");
+    text = text.replace(new RegExp(`\\b${pattern}\\b`, "gi"), " ");
+  }
+  return text;
+}
+
 function titleHasWord(title: string, word: string): boolean {
   return new RegExp(`\\b${escapeRegExp(word)}\\b`, "i").test(title);
 }
@@ -674,6 +705,11 @@ export function titleHasDisallowedParallel(
   const scan = stripSetAndPlayer(lower, identity);
   const allowed = (parallel ?? "").trim().toLowerCase();
   const allowedWords = new Set(parallelNameWords(allowed));
+  for (const alias of parallelAliasNames(parallel ?? "")) {
+    const words = parallelNameWords(alias);
+    if (!phraseInTitle(lower, words)) continue;
+    for (const word of words) allowedWords.add(canonicalParallelWord(word));
+  }
   const base = parallelIsBase(parallel);
 
   for (const keyword of PARALLEL_KEYWORDS) {
@@ -841,7 +877,13 @@ export function titleMatchesCard(title: string, card: MatchCard): boolean {
     return false;
   }
   if (!titleHasSetName(title, card.setBrand)) return false;
-  if (titleNamesWrongSet(title, card.setBrand, card.sport)) return false;
+  const parallelName =
+    canonicalParallelName(card.setBrand, card.parallel ?? "") || card.parallel;
+  // Words that belong to this parallel are not a different set.
+  // "Optic" inside "Optic Preview-Pink" is not Donruss Optic.
+  if (titleNamesWrongSet(stripParallelPhrase(title, parallelName), card.setBrand, card.sport)) {
+    return false;
+  }
 
   const num = normalizeCardNumber(card.cardNumber);
   if (!card.noNumber) {
@@ -850,7 +892,7 @@ export function titleMatchesCard(title: string, card: MatchCard): boolean {
   }
 
   if (
-    titleHasDisallowedParallel(title, card.parallel, {
+    titleHasDisallowedParallel(title, parallelName, {
       setBrand: card.setBrand,
       playerName: card.playerName,
       cardNumber: card.cardNumber,

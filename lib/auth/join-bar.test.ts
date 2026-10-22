@@ -22,6 +22,9 @@ describe("join bar", () => {
     assert.match(post, /href="\/login\?next=%2Fposts%2Fabc"/);
     assert.match(post, />Sign up</);
     assert.match(post, />Log in</);
+    assert.match(post, /bg-\[var\(--background\)\]/);
+    assert.match(post, /z-40/);
+    assert.equal(post.includes("transparent"), false);
 
     const card = renderJoinBar(false, "/u/sam/cards/abc");
     assert.match(card, /data-join-bar/);

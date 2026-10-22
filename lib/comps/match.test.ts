@@ -502,4 +502,45 @@ describe("shared comps match", () => {
       false,
     );
   });
+
+  it("treats Optic Preview Pink aliases as one Donruss parallel", () => {
+    const card: MatchCard = {
+      playerName: "J.J. McCarthy",
+      year: 2024,
+      setBrand: "Panini Donruss",
+      cardNumber: "303",
+      parallel: "Optic Preview-Pink",
+      conditionType: "raw",
+      grade: "Raw",
+    };
+    const spaced = { ...card, parallel: "Optic Preview Pink" };
+    assert.equal(
+      titleMatchesCard("2024 DONRUSS #303 JJ McCARTHY OPTIC PREVIEW-PINK", card),
+      true,
+    );
+    assert.equal(
+      titleMatchesCard("2024 Donruss J.J. McCarthy Optic Preview Pink #303", spaced),
+      true,
+    );
+    assert.equal(
+      titleMatchesCard("2024 DONRUSS #303 JJ McCARTHY PINK OPTIC PREVIEW HOLO", card),
+      true,
+    );
+    assert.equal(
+      titleMatchesCard("2024 Donruss Optic J.J. McCarthy Pink #303", { ...card, parallel: "Pink" }),
+      false,
+    );
+    assert.equal(
+      titleMatchesCard("2024 Donruss Optic J.J. McCarthy Pink #303", {
+        ...card,
+        setBrand: "Donruss Optic",
+        parallel: "Pink",
+      }),
+      true,
+    );
+    assert.equal(
+      titleMatchesCard("2024 Donruss J.J. McCarthy Pink Prizm #303", card),
+      false,
+    );
+  });
 });

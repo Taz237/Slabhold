@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { reachableImage, renderProfileOg } from "../../components/og-frame";
+import { mailDayOgTitle } from "./mail-day-copy";
 import {
   cardLinkPreview,
   cleanImageUrl,
@@ -121,6 +122,37 @@ describe("post link previews", () => {
     });
     assert.equal(preview.imageUrl, null);
     assert.equal(JSON.stringify(preview).includes(VALUE), false);
+  });
+
+  it("uses the public Mail Day card name and hides a private one", () => {
+    const title = mailDayOgTitle({
+      playerName: "J.J. McCarthy",
+      year: 2024,
+      setBrand: "Panini Donruss",
+      parallel: "Optic Preview-Pink",
+      cardNumber: "303",
+    });
+    const preview = postLinkPreview({
+      found: true,
+      body: "Private caption that must not be the title",
+      mailDayTitle: title,
+    });
+    assert.equal(
+      preview.title,
+      "J.J. McCarthy 2024 Panini Donruss Optic Preview Pink #303 | Mail Day on Slabhold",
+    );
+    assert.equal(preview.description, preview.title);
+    const meta = previewMetadata(preview);
+    assert.equal(meta.title, preview.title);
+    assert.equal(meta.openGraph.title, preview.title);
+
+    const hidden = postLinkPreview({
+      found: true,
+      body: "Just the caption",
+      mailDayTitle: "Mail Day",
+    });
+    assert.equal(hidden.title, "Mail Day");
+    assert.equal(JSON.stringify(hidden).includes("McCarthy"), false);
   });
 
   it("can use a public card photo when the post has no image", () => {

@@ -13,7 +13,7 @@ import { useCollection } from "@/components/collection-provider";
 import { MailDayCard } from "@/components/mail-day-card";
 import { MailDayHeading, MailDayPending } from "@/components/mail-day-pending";
 import { useSocial } from "@/components/social-provider";
-import { NativeSelect, SearchSelect } from "@/components/search-select";
+import { NativeSelect, SearchSelect, SET_PARALLEL_HINT } from "@/components/search-select";
 import {
   GRADE_COMPANIES,
   SETS,
@@ -21,7 +21,11 @@ import {
   optionsWithCurrent,
   yearOptionsForSport,
 } from "@/lib/card-options";
-import { parallelAfterSetChange, parallelIsListed, parallelsForSet } from "@/lib/cards/parallels";
+import {
+  parallelAfterSetChange,
+  parallelChoice,
+  parallelsForSet,
+} from "@/lib/cards/parallels";
 import {
   MAIL_DAY_MAX_CARDS,
   MAIL_DAY_SPORT_PICKER,
@@ -326,14 +330,15 @@ export function MailDayForm() {
                 <CardSearch
                   onSelect={(card) => {
                     setActive(index);
+                    const chosen = parallelChoice(card.setBrand, card.parallel || "Base");
                     update(index, {
                       playerName: card.playerName,
                       yearLabel: card.yearLabel,
                       setBrand: card.setBrand,
                       setIsCustom: !SETS.some((item) => item === card.setBrand),
                       cardNumber: card.cardNumber,
-                      parallel: card.parallel || "Base",
-                      parallelIsCustom: !parallelIsListed(card.setBrand, card.parallel || "Base"),
+                      parallel: chosen.parallel,
+                      parallelIsCustom: chosen.parallelIsCustom,
                       parallelNote: "",
                       sport: isMailDaySport(card.sport) ? card.sport : section.sport,
                     });
@@ -409,6 +414,7 @@ export function MailDayForm() {
                     value={section.setBrand}
                     options={optionsWithCurrent(SETS, section.setBrand)}
                     allowCustom
+                    customHint={SET_PARALLEL_HINT}
                     onChange={(setBrand) => {
                       const known = SETS.some((item) => item.toLowerCase() === setBrand.toLowerCase());
                       const next = parallelAfterSetChange({
@@ -433,11 +439,12 @@ export function MailDayForm() {
                     value={section.parallel}
                     options={optionsWithCurrent([...parallelsForSet(section.setBrand)], section.parallel)}
                     allowCustom
+                    customHint={SET_PARALLEL_HINT}
                     onChange={(parallel) => {
-                      const value = parallel || "Base";
+                      const next = parallelChoice(section.setBrand, parallel);
                       update(index, {
-                        parallel: value,
-                        parallelIsCustom: !parallelIsListed(section.setBrand, value),
+                        parallel: next.parallel,
+                        parallelIsCustom: next.parallelIsCustom,
                         parallelNote: "",
                       });
                     }}

@@ -29,6 +29,8 @@ export type PublicCard = {
   conditionType?: "raw" | "graded";
   grader?: string;
   purchasePrice?: number | null;
+  /** From public_cards.is_rookie. Absent until that row is loaded. */
+  isRookie?: boolean;
 };
 
 export type OwnedCard = PublicCard & { ownerId: string };

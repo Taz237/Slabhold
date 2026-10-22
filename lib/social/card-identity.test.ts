@@ -85,6 +85,17 @@ describe("cardIdentityKey", () => {
     );
   });
 
+  it("treats a hyphenated parallel the same as spaces", () => {
+    assert.equal(
+      cardIdentityKey({ ...love, parallel: "Optic Preview-Pink" }),
+      cardIdentityKey({ ...love, parallel: "Optic Preview Pink" }),
+    );
+    assert.equal(
+      ownershipMatchKey({ ...love, parallel: "Red White & Blue" }).endsWith("red white & blue"),
+      true,
+    );
+  });
+
   it("treats a missing parallel as base", () => {
     assert.equal(
       cardIdentityKey({ ...love, parallel: null }),

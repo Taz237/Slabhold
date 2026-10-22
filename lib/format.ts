@@ -1,3 +1,4 @@
+import { canonicalParallelName } from "@/lib/cards/parallels";
 import type { SportsCard } from "./types";
 
 /** Shared display format for card pages, collection, Home, and share previews. */
@@ -64,12 +65,15 @@ export function cardTitle(
 }
 
 export function cardSubtitle(
-  card: Pick<SportsCard, "cardNumber" | "sport" | "grade" | "parallel">,
+  card: Pick<SportsCard, "cardNumber" | "sport" | "grade" | "parallel"> & {
+    setBrand?: string;
+  },
 ) {
   const number = card.cardNumber.trim();
+  const parallel = canonicalParallelName(card.setBrand ?? "", card.parallel);
   const parts = [
     number && number !== "—" ? `#${number}` : "",
-    card.parallel.trim(),
+    parallel,
     card.grade.trim(),
     card.sport,
   ].filter(Boolean);

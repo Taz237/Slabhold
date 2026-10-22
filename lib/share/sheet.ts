@@ -6,6 +6,17 @@ export type SharePayload = {
 
 export type ShareResult = "shared" | "cancelled" | "copied" | "failed";
 
+/** Title is the card name. Text is the post. A blank post falls back to the title. */
+export function postSharePayload(input: {
+  title: string;
+  text?: string | null;
+  url: string;
+}): SharePayload {
+  const title = input.title.replace(/\s+/g, " ").trim() || "Slabhold";
+  const text = input.text?.replace(/\s+/g, " ").trim() || title;
+  return { title, text, url: input.url };
+}
+
 export function isShareAbort(error: unknown): boolean {
   return (
     typeof error === "object" &&

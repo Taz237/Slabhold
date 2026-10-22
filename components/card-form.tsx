@@ -6,7 +6,7 @@ import { Camera, ImagePlus, Loader2, ScanSearch, X } from "lucide-react";
 import { CardSearch } from "@/components/card-search";
 import { CategoryPicker } from "@/components/category-picker";
 import { useCollection, useDefaultAccent } from "@/components/collection-provider";
-import { NativeSelect, SearchSelect } from "@/components/search-select";
+import { NativeSelect, SearchSelect, SET_PARALLEL_HINT } from "@/components/search-select";
 import { useSocial } from "@/components/social-provider";
 import { takeScan } from "@/lib/capture";
 import type { CatalogCard } from "@/lib/card-catalog";
@@ -33,7 +33,11 @@ import {
 } from "@/lib/cards/grading-company";
 import { todayDateInput } from "@/lib/cards/form-defaults";
 import { cardFormPreview } from "@/lib/cards/form-preview";
-import { parallelAfterSetChange, parallelIsListed, parallelsForSet } from "@/lib/cards/parallels";
+import {
+  parallelAfterSetChange,
+  parallelChoice,
+  parallelsForSet,
+} from "@/lib/cards/parallels";
 import { identifyFromPhoto } from "@/lib/comps/sample";
 import { cardCategory } from "@/lib/card-category";
 import { hasPaid } from "@/lib/format";
@@ -266,6 +270,7 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
   }
 
   function applyCatalog(card: CatalogCard) {
+    const chosen = parallelChoice(card.setBrand, card.parallel || "Base");
     setForm((prev) => ({
       ...prev,
       playerName: card.playerName,
@@ -273,10 +278,10 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
       setBrand: card.setBrand,
       cardNumber: card.cardNumber,
       sport: card.sport,
-      parallel: card.parallel || "Base",
+      parallel: chosen.parallel,
     }));
     setSetIsCustom(!SETS.some((s) => s === card.setBrand));
-    setParallelIsCustom(!parallelIsListed(card.setBrand, card.parallel || "Base"));
+    setParallelIsCustom(chosen.parallelIsCustom);
     setParallelNote("");
     setIdentified(null);
   }
@@ -347,6 +352,7 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
     }
 
     const grade = grading.grade;
+    const parallel = parallelChoice(form.setBrand, form.parallel);
 
     const payload = {
       playerName: form.playerName.trim(),
@@ -359,8 +365,8 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
         : normalizeCardNumberInput(form.cardNumber),
       noNumber,
       grade,
-      parallel: (form.parallel.trim() || "Base"),
-      parallelIsCustom,
+      parallel: parallel.parallel,
+      parallelIsCustom: parallel.parallelIsCustom,
       serialRun: form.serialRun ? Number(form.serialRun) : null,
       serialNo: form.serialNo ? Number(form.serialNo) : null,
       isRookie,
@@ -622,6 +628,7 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
           options={optionsWithCurrent(sortSetNames(SETS), form.setBrand)}
           placeholder="Select a set"
           allowCustom
+          customHint={SET_PARALLEL_HINT}
           dataField="setBrand"
           onChange={(setBrand) => {
             markTouched("setBrand");
@@ -691,13 +698,14 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
             options={optionsWithCurrent([...parallelsForSet(form.setBrand)], form.parallel)}
             placeholder="Base"
             allowCustom
+            customHint={SET_PARALLEL_HINT}
             onChange={(parallel) => {
-              const value = parallel || "Base";
-              setParallelIsCustom(!parallelIsListed(form.setBrand, value));
+              const next = parallelChoice(form.setBrand, parallel);
+              setParallelIsCustom(next.parallelIsCustom);
               setParallelNote("");
               setForm((prev) => ({
                 ...prev,
-                parallel: value,
+                parallel: next.parallel,
               }));
             }}
           />

@@ -39,6 +39,11 @@ const KNOWN_SET_WORDS = [
   "wnba",
   "opeeche",
   "o-pee-chee",
+  "score",
+  "chronicles",
+  "phoenix",
+  "contenders",
+  "leaf",
 ];
 
 /** Words that describe a copy, not the catalog row. "psa 10" and "rookie" stay out of the AND. */

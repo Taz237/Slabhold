@@ -74,6 +74,15 @@ describe("parseManualPrefill", () => {
     assert.equal(prefill.playerName, "Jaxson Dart");
   });
 
+  it("reads Score, Chronicles, Phoenix, Contenders, Leaf, and Upper Deck as sets", () => {
+    for (const set of ["Score", "Chronicles", "Phoenix", "Contenders", "Leaf", "Upper Deck"]) {
+      const parsed = parseCardQuery(`2024 ${set}`);
+      assert.equal(parsed.playerWords.join(" "), "", set);
+      assert.ok(parsed.setWords.length > 0, set);
+    }
+    assert.deepEqual(parseCardQuery("2024 Upper Deck").setWords, ["upper", "deck"]);
+  });
+
   it("leaves the player name empty when the query is only a set, year, or number", () => {
     const setOnly = parseManualPrefill("prizm");
     assert.equal(setOnly.playerName, "");

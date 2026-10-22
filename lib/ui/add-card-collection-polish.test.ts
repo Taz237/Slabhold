@@ -143,6 +143,8 @@ describe("card search manual entry", () => {
   it("offers manual entry under the results and prefills from the query", () => {
     const search = read("components/card-search.tsx");
     assert.match(search, /Not seeing your card\? Add it manually/);
+    assert.match(search, /Add this card yourself/);
+    assert.match(search, /results\.length === 0/);
     assert.match(search, /onManual\(parseManualPrefill\(query\)\)/);
     assert.match(search, /results\.length \+ 1/);
   });

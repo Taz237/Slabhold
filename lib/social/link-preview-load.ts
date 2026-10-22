@@ -17,6 +17,7 @@ import {
   type LinkPreview,
 } from "./link-preview";
 import { normalizeUsername } from "./local-db";
+import { mailDayOgTitle } from "./mail-day-copy";
 import { cardShareImage, mailDayPhotoUrls, postShareImage } from "./share-image";
 import { createSupabaseServer, getAuthUserId } from "@/lib/supabase/server";
 
@@ -128,7 +129,7 @@ export const loadPostPreview = cache(async (id: string): Promise<LinkPreview> =>
 
   const { data, error } = await supabase
     .from("posts")
-    .select("content, image_url, card")
+    .select("content, image_url, card, post_type, meta")
     .eq("id", id)
     .maybeSingle();
   if (error || !data) return postLinkPreview({ found: false });
@@ -146,9 +147,35 @@ export const loadPostPreview = cache(async (id: string): Promise<LinkPreview> =>
     cardImage = cardIsPublic ? ((pub.data?.image_url as string | null) ?? null) : null;
   }
 
+  let mailDayTitle: string | null = null;
+  if (data.post_type === "mail_day") {
+    const ids = linkedCardIds(data.card, data.meta);
+    mailDayTitle = "Mail Day";
+    if (ids.length) {
+      const { data: rows } = await supabase
+        .from("public_cards")
+        .select(PUBLIC_CARD_SELECT)
+        .in("id", ids);
+      const byId = new Map(
+        ((rows ?? []) as { id: string }[]).map((row) => [row.id, row]),
+      );
+      for (const cardId of ids) {
+        const row = byId.get(cardId);
+        if (!row) continue;
+        const mapped = mapPublicCard(row as Parameters<typeof mapPublicCard>[0]);
+        const title = mailDayOgTitle(mapped);
+        if (title) {
+          mailDayTitle = title;
+          break;
+        }
+      }
+    }
+  }
+
   return postLinkPreview({
     found: true,
     body: (data.content as string | null) ?? "",
+    mailDayTitle,
     imageUrl: postPreviewImage({
       postImageUrl: (data.image_url as string | null) ?? null,
       cardImageUrl: cardImage,

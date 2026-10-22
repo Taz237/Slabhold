@@ -7,6 +7,7 @@ import {
   normalizeCardNumberInput,
   parseYearLabel,
 } from "@/lib/card-options";
+import { parallelChoice } from "@/lib/cards/parallels";
 import { isUuid } from "@/lib/value/card-value-access";
 import type { MailDayCardView, Post, PublicCard } from "./types";
 
@@ -434,6 +435,7 @@ export function validateMailDayDraft(
     if (!paid.ok) return { ok: false, error: `${paid.error.replace(/\.$/, "")} for ${label}.` };
     const conditionType = card.conditionType === "graded" ? "graded" : "raw";
     const isPublic = Boolean(card.isPublic);
+    const parallel = parallelChoice(card.setBrand.trim(), card.parallel);
     cards.push({
       id: card.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(card.id)
         ? card.id
@@ -444,8 +446,8 @@ export function validateMailDayDraft(
       setBrand: card.setBrand.trim(),
       setIsCustom: Boolean(card.setIsCustom),
       cardNumber,
-      parallel: card.parallel.trim() || "Base",
-      parallelIsCustom: Boolean(card.parallelIsCustom),
+      parallel: parallel.parallel,
+      parallelIsCustom: parallel.parallelIsCustom,
       sport: card.sport,
       conditionType,
       grader: conditionType === "graded" ? card.grader.trim() : null,
@@ -675,6 +677,7 @@ function cardFromParts(
   id: string,
   snap: MailDayMetaCard | undefined,
   legacy: PublicCard | null,
+  isRookie = false,
 ): PublicCard | null {
   if (!snap && !legacy) return null;
   const base = legacy && legacy.id === id ? legacy : null;
@@ -693,6 +696,7 @@ function cardFromParts(
     parallel: snap?.parallel || base?.parallel,
     conditionType: snap?.conditionType || base?.conditionType,
     grader: snap?.grader || base?.grader || undefined,
+    isRookie: isRookie || Boolean(base?.isRookie),
   };
 }
 
@@ -710,6 +714,8 @@ export function assembleMailDayCards(input: {
   legacyCard: PublicCard | null;
   linked: { cardId: string; position: number }[];
   publicIds: ReadonlySet<string>;
+  /** Public cards flagged is_rookie. Private rows are not in this set. */
+  rookieIds?: ReadonlySet<string>;
   paidByCard: ReadonlyMap<string, number>;
 }): MailDayCardView[] {
   if (input.postType !== "mail_day") return [];
@@ -732,7 +738,7 @@ export function assembleMailDayCards(input: {
     if (!id || seen.has(id)) return;
     seen.add(id);
     const snap = snapshots.find((item) => item.id === id);
-    const card = cardFromParts(id, snap, input.legacyCard);
+    const card = cardFromParts(id, snap, input.legacyCard, input.rookieIds?.has(id));
     if (!card) return;
     const photos = snap?.photos.length
       ? snap.photos
@@ -816,15 +822,18 @@ export async function loadMailDayViews(
   }
 
   const publicIds = new Set<string>();
+  const rookieIds = new Set<string>();
   if (cardIds.size) {
     const { data, error } = await supabase
       .from("public_cards")
-      .select("id")
+      .select("id, is_rookie")
       .in("id", [...cardIds]);
     if (error) console.warn("[mail_day] public cards:", error.message);
     else {
-      for (const row of (data ?? []) as { id?: unknown }[]) {
-        if (typeof row.id === "string") publicIds.add(row.id);
+      for (const row of (data ?? []) as { id?: unknown; is_rookie?: unknown }[]) {
+        if (typeof row.id !== "string") continue;
+        publicIds.add(row.id);
+        if (row.is_rookie === true) rookieIds.add(row.id);
       }
     }
   }
@@ -847,6 +856,7 @@ export async function loadMailDayViews(
         legacyCard: row.card ?? null,
         linked: links,
         publicIds,
+        rookieIds,
         paidByCard: paidByPost.get(row.id) ?? new Map(),
       }),
     );
@@ -872,6 +882,7 @@ export function previewMailDayPost(input: {
     });
     const source = view.showValue ? parseAcquiredSource(card.source) : null;
     const photos = card.photos.filter(Boolean).slice(0, 4);
+    const parallel = parallelChoice(card.setBrand.trim(), card.parallel);
     const publicCard: PublicCard = {
       id: `preview-${index + 1}`,
       playerName: card.playerName.trim(),
@@ -884,7 +895,7 @@ export function previewMailDayPost(input: {
       accent: "#7c5cff",
       estimatedSellPrice: 0,
       grade: card.conditionType === "graded" ? formatGrade(card.grader, card.grade) : "Raw",
-      parallel: card.parallel.trim() || "Base",
+      parallel: parallel.parallel,
       conditionType: card.conditionType,
       grader: card.conditionType === "graded" ? card.grader : undefined,
     };

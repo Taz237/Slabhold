@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Share } from "lucide-react";
 import { trackEvent } from "@/lib/analytics";
-import { shareOrCopy } from "@/lib/share/sheet";
+import { postSharePayload, shareOrCopy } from "@/lib/share/sheet";
 import { publicOrigin } from "@/lib/site-url";
 
 function absoluteUrl(path: string) {
@@ -38,18 +38,15 @@ async function copyText(value: string) {
   }
 }
 
-async function shareLink(path: string, title: string) {
+async function shareLink(path: string, title: string, text: string) {
   const url = absoluteUrl(path);
-  return shareOrCopy(
-    { title, text: title, url },
-    {
-      share: navigator.share?.bind(navigator),
-      copy: copyText,
-    },
-  );
+  return shareOrCopy(postSharePayload({ title, text, url }), {
+    share: navigator.share?.bind(navigator),
+    copy: copyText,
+  });
 }
 
-function useShare(path: string, title: string) {
+function useShare(path: string, title: string, text: string) {
   const [copied, setCopied] = useState(false);
   const timer = useRef(0);
 
@@ -61,7 +58,7 @@ function useShare(path: string, title: string) {
     trackEvent("share_clicked");
     let result: Awaited<ReturnType<typeof shareLink>>;
     try {
-      result = await shareLink(path, title);
+      result = await shareLink(path, title, text);
     } catch {
       return;
     }
@@ -85,8 +82,16 @@ function CopiedToast() {
   );
 }
 
-export function ShareAction({ path, title }: { path: string; title: string }) {
-  const { copied, share } = useShare(path, title);
+export function ShareAction({
+  path,
+  title,
+  text,
+}: {
+  path: string;
+  title: string;
+  text?: string;
+}) {
+  const { copied, share } = useShare(path, title, text ?? title);
 
   return (
     <>
@@ -114,7 +119,7 @@ export function ShareIconButton({
   title: string;
   label: string;
 }) {
-  const { copied, share } = useShare(path, title);
+  const { copied, share } = useShare(path, title, title);
 
   return (
     <>
