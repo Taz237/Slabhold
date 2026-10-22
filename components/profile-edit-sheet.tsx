@@ -4,10 +4,11 @@ import { useEffect, useRef, useState } from "react";
 import { Camera } from "lucide-react";
 import { Avatar } from "@/components/avatar";
 import { solidButton } from "@/components/button-styles";
+import { PhotoFileInputs } from "@/components/photo-file-inputs";
 import { useSocial } from "@/components/social-provider";
+import { PHOTO_READ_ERROR, readPhotoFile } from "@/lib/photos";
 import { normalizeUsername } from "@/lib/social/local-db";
 import type { Profile } from "@/lib/social/types";
-import { fileToDataUrl } from "@/lib/storage";
 
 export function ProfileEditSheet({
   profile,
@@ -25,9 +26,11 @@ export function ProfileEditSheet({
   const [avatar, setAvatar] = useState<string | null>(profile.avatarDataUrl);
   const [cover, setCover] = useState<string | null>(profile.coverDataUrl);
   const [error, setError] = useState<string | null>(null);
+  const [photoFailed, setPhotoFailed] = useState(false);
   const [saving, setSaving] = useState(false);
   const avatarInput = useRef<HTMLInputElement>(null);
   const coverInput = useRef<HTMLInputElement>(null);
+  const photoTarget = useRef<"avatar" | "cover">("avatar");
   const nameRef = useRef<HTMLInputElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
 
@@ -67,18 +70,31 @@ export function ProfileEditSheet({
     };
   }, []);
 
+  function openAvatar() {
+    photoTarget.current = "avatar";
+    avatarInput.current?.click();
+  }
+
+  function openCover() {
+    photoTarget.current = "cover";
+    coverInput.current?.click();
+  }
+
+  function retryPhoto() {
+    if (photoTarget.current === "cover") openCover();
+    else openAvatar();
+  }
+
   async function readImage(file: File | undefined, maxSize: number) {
     if (!file) return null;
-    if (!file.type.startsWith("image/")) {
-      setError("Choose an image file.");
-      return null;
-    }
     try {
-      const dataUrl = await fileToDataUrl(file, maxSize);
+      const dataUrl = await readPhotoFile(file, maxSize);
       setError(null);
+      setPhotoFailed(false);
       return dataUrl;
-    } catch {
-      setError("Could not read that image.");
+    } catch (err) {
+      setPhotoFailed(true);
+      setError(err instanceof Error ? err.message : PHOTO_READ_ERROR);
       return null;
     }
   }
@@ -86,6 +102,7 @@ export function ProfileEditSheet({
   async function save(event: React.FormEvent) {
     event.preventDefault();
     setSaving(true);
+    setPhotoFailed(false);
     const username = normalizeUsername(handle);
     const result = await updateProfile({
       displayName,
@@ -144,7 +161,7 @@ export function ProfileEditSheet({
                 <button
                   type="button"
                   aria-label={cover ? "Change cover photo" : "Add cover photo"}
-                  onClick={() => coverInput.current?.click()}
+                  onClick={openCover}
                   className="inline-flex items-center gap-1.5 rounded-full bg-black/70 px-3 py-1.5 text-xs font-semibold text-white"
                 >
                   <Camera className="h-3.5 w-3.5" />
@@ -160,15 +177,11 @@ export function ProfileEditSheet({
                   </button>
                 ) : null}
               </div>
-              <input
-                ref={coverInput}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={async (event) => {
-                  const next = await readImage(event.target.files?.[0], 960);
+              <PhotoFileInputs
+                libraryRef={coverInput}
+                onPick={async (file) => {
+                  const next = await readImage(file, 960);
                   if (next) setCover(next);
-                  event.target.value = "";
                 }}
               />
             </div>
@@ -178,7 +191,7 @@ export function ProfileEditSheet({
                 <button
                   type="button"
                   aria-label="Change profile picture"
-                  onClick={() => avatarInput.current?.click()}
+                  onClick={openAvatar}
                   className="relative -mt-10 inline-block"
                 >
                   <Avatar
@@ -201,20 +214,29 @@ export function ProfileEditSheet({
                     Remove photo
                   </button>
                 ) : null}
-                <input
-                  ref={avatarInput}
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={async (event) => {
-                    const next = await readImage(event.target.files?.[0], 480);
+                <PhotoFileInputs
+                  libraryRef={avatarInput}
+                  onPick={async (file) => {
+                    const next = await readImage(file, 480);
                     if (next) setAvatar(next);
-                    event.target.value = "";
                   }}
                 />
               </div>
 
-              {error ? <p className="text-sm text-rose-600 dark:text-rose-400">{error}</p> : null}
+              {error ? (
+                <div role="alert" className="space-y-2">
+                  <p className="text-sm text-rose-600 dark:text-rose-400">{error}</p>
+                  {photoFailed ? (
+                    <button
+                      type="button"
+                      onClick={retryPhoto}
+                      className="inline-flex min-h-11 items-center text-sm font-semibold text-violet-700 dark:text-violet-300"
+                    >
+                      Try again
+                    </button>
+                  ) : null}
+                </div>
+              ) : null}
 
               <label className="block text-sm">
                 <span className="mb-1.5 block text-zinc-500">Name</span>

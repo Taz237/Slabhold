@@ -2,7 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Camera, ImagePlus, Loader2, ScanSearch, X } from "lucide-react";
+import { ScanSearch } from "lucide-react";
+import { CardPhotoField } from "@/components/card-photo-field";
 import { CardSearch } from "@/components/card-search";
 import { CategoryPicker } from "@/components/category-picker";
 import { useCollection, useDefaultAccent } from "@/components/collection-provider";
@@ -61,7 +62,7 @@ import { hasPaid } from "@/lib/format";
 import { formatCardValueLabel, marketValueSummary } from "@/lib/value/format";
 import { useCardValue } from "@/lib/value/use-card-values";
 import { claimSubmit, isSaveTimeout, SAVE_TIMEOUT_MESSAGE, SaveTimeoutError } from "@/lib/save/attempt";
-import { fileToDataUrl } from "@/lib/storage";
+import { PHOTO_READ_ERROR, readPhotoFile } from "@/lib/photos";
 import type {
   CardCategory,
   IdentifyResult,
@@ -106,13 +107,17 @@ export function CardForm({
   const current = useCardValue(existing?.id ?? null);
   const currentValueLine = marketValueSummary(current.value);
   const accent = useDefaultAccent();
-  const fileRef = useRef<HTMLInputElement>(null);
+  const cameraRef = useRef<HTMLInputElement>(null);
+  const libraryRef = useRef<HTMLInputElement>(null);
+  const photoSource = useRef<"camera" | "library">("library");
   const formRef = useRef<HTMLFormElement>(null);
   const savingRef = useRef(false);
   const pendingId = useRef<string | null>(existing?.id ?? null);
   const catalogPick = useRef<CatalogPickSnapshot | null>(null);
   const timedOutIds = useRef<Set<string>>(new Set());
   const [photo, setPhoto] = useState<string | null>(existing?.photoDataUrl ?? null);
+  const [photoError, setPhotoError] = useState<string | null>(null);
+  const [readingPhoto, setReadingPhoto] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
@@ -276,9 +281,40 @@ export function CardForm({
     el.focus();
   }
 
+  function openCamera() {
+    photoSource.current = "camera";
+    cameraRef.current?.click();
+  }
+
+  function openLibrary() {
+    photoSource.current = "library";
+    libraryRef.current?.click();
+  }
+
+  function retryPhoto() {
+    if (photoSource.current === "camera") openCamera();
+    else openLibrary();
+  }
+
+  function clearPhoto() {
+    setPhoto(null);
+    setIdentified(null);
+    setPhotoError(null);
+  }
+
   async function scanFile(file: File | undefined) {
     if (!file) return;
-    const dataUrl = await fileToDataUrl(file);
+    setPhotoError(null);
+    setReadingPhoto(true);
+    let dataUrl: string;
+    try {
+      dataUrl = await readPhotoFile(file);
+    } catch (error) {
+      setPhotoError(error instanceof Error ? error.message : PHOTO_READ_ERROR);
+      return;
+    } finally {
+      setReadingPhoto(false);
+    }
     setPhoto(dataUrl);
     if (!DEMO_IDENTIFY) return;
     setScanning(true);
@@ -555,64 +591,19 @@ export function CardForm({
         </>
       ) : null}
 
-      <section className="rounded-2xl border border-zinc-200 bg-white dark:border-white/10 dark:bg-white/[0.03] p-4">
-        <div className="flex items-start justify-between gap-3">
-          <p className="text-sm font-medium">Photo</p>
-          {photo && (
-            <button
-              type="button"
-              onClick={() => {
-                setPhoto(null);
-                setIdentified(null);
-              }}
-              className="rounded-full p-1 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900 dark:hover:bg-white/10 dark:hover:text-white"
-            >
-              <X size={16} />
-            </button>
-          )}
-        </div>
-
-        <div className="mt-3 grid gap-4 sm:grid-cols-[112px_1fr]">
-          <div
-            className="relative overflow-hidden rounded-xl border border-dashed border-zinc-300 bg-zinc-100 dark:border-white/15 dark:bg-black/30"
-            style={{ aspectRatio: "5 / 7" }}
-          >
-            {photo ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={photo} alt="Card" className="h-full w-full object-cover" />
-            ) : (
-              <div className="grid h-full place-items-center text-zinc-600">
-                <ImagePlus size={22} />
-              </div>
-            )}
-            {scanning && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/75 px-2 text-center">
-                <Loader2 className="mb-2 animate-spin text-violet-300" size={20} />
-                <p className="text-xs font-medium">Demo lookup…</p>
-                <p className="mt-1 text-[10px] text-zinc-400">
-                  Sample match, not a real scan
-                </p>
-              </div>
-            )}
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <input
-              ref={fileRef}
-              type="file"
-              accept="image/*"
-              capture="environment"
-              className="hidden"
-              onChange={(e) => void scanFile(e.target.files?.[0])}
-            />
-            <button
-              type="button"
-              onClick={() => fileRef.current?.click()}
-              className="inline-flex items-center justify-center gap-2 rounded-full bg-zinc-900 px-4 py-2.5 text-sm font-semibold text-white dark:bg-zinc-100 dark:text-zinc-950"
-            >
-              <Camera size={16} />
-              Camera / upload
-            </button>
+      <CardPhotoField
+        photo={photo}
+        photoError={photoError}
+        reading={readingPhoto}
+        scanning={scanning}
+        onTake={openCamera}
+        onLibrary={openLibrary}
+        onRemove={clearPhoto}
+        onRetry={retryPhoto}
+        cameraRef={cameraRef}
+        libraryRef={libraryRef}
+        onPick={(file) => void scanFile(file)}
+      >
             {DEMO_IDENTIFY ? (
               <>
                 <button
@@ -653,9 +644,7 @@ export function CardForm({
                 )}
               </>
             ) : null}
-          </div>
-        </div>
-      </section>
+      </CardPhotoField>
 
       <Field
         label="Player name"

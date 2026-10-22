@@ -24,7 +24,8 @@ import { Tweet } from "@/components/tweet";
 import { WhatsNewCard } from "@/components/whats-new-card";
 import { loginPath } from "@/lib/auth/safe-next";
 import { takeCompose } from "@/lib/capture";
-import { fileToDataUrl } from "@/lib/storage";
+import { PhotoFileInputs } from "@/components/photo-file-inputs";
+import { PHOTO_READ_ERROR, readPhotoFile } from "@/lib/photos";
 import {
   checklistBlocksAddToHomeTip,
   checklistState,
@@ -418,9 +419,10 @@ function SignedOutBanner() {
 function Composer({ onPosted }: { onPosted?: () => void }) {
   const { createPost, user } = useSocial();
   const { cards, ready: cardsReady, syncError } = useCollection();
-  const fileRef = useRef<HTMLInputElement>(null);
+  const libraryRef = useRef<HTMLInputElement>(null);
   const [body, setBody] = useState("");
   const [image, setImage] = useState<string | null>(null);
+  const [photoError, setPhotoError] = useState<string | null>(null);
 
   useEffect(() => {
     const captured = takeCompose();
@@ -432,7 +434,12 @@ function Composer({ onPosted }: { onPosted?: () => void }) {
 
   async function onImage(file: File | undefined) {
     if (!file) return;
-    setImage(await fileToDataUrl(file, 960));
+    try {
+      setImage(await readPhotoFile(file, 960));
+      setPhotoError(null);
+    } catch (err) {
+      setPhotoError(err instanceof Error ? err.message : PHOTO_READ_ERROR);
+    }
   }
 
   async function submit(e: React.FormEvent) {
@@ -462,6 +469,7 @@ function Composer({ onPosted }: { onPosted?: () => void }) {
     setImage(null);
     setCardId("");
     setError(null);
+    setPhotoError(null);
     onPosted?.();
   }
 
@@ -506,17 +514,11 @@ function Composer({ onPosted }: { onPosted?: () => void }) {
           </div>
         ) : null}
         <div className="mt-2 flex flex-wrap items-center gap-2">
-          <input
-            ref={fileRef}
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={(e) => void onImage(e.target.files?.[0])}
-          />
+          <PhotoFileInputs libraryRef={libraryRef} onPick={(file) => void onImage(file)} />
           <button
             type="button"
-            onClick={() => fileRef.current?.click()}
-            className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-sm text-zinc-500 hover:bg-zinc-100 dark:hover:bg-white/10"
+            onClick={() => libraryRef.current?.click()}
+            className="inline-flex min-h-11 items-center gap-1 rounded-full px-2 text-sm text-zinc-500 hover:bg-zinc-100 dark:hover:bg-white/10"
           >
             <ImagePlus className="h-4 w-4" />
             Photo
@@ -545,6 +547,18 @@ function Composer({ onPosted }: { onPosted?: () => void }) {
             Post
           </button>
         </div>
+        {photoError ? (
+          <p className="mt-2 text-xs text-rose-600 dark:text-rose-400" role="alert">
+            {photoError}{" "}
+            <button
+              type="button"
+              onClick={() => libraryRef.current?.click()}
+              className="inline-flex min-h-11 items-center font-semibold underline"
+            >
+              Try again
+            </button>
+          </p>
+        ) : null}
         {error ? <p className="mt-2 text-xs text-rose-600 dark:text-rose-400">{error}</p> : null}
       </div>
     </form>

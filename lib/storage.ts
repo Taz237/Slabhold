@@ -93,31 +93,80 @@ export function nextAccent(count: number) {
   return ACCENTS[count % ACCENTS.length];
 }
 
-export function fileToDataUrl(file: File, maxSize = 720): Promise<string> {
+function readFileAsDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onerror = () => reject(new Error("Could not read image"));
-    reader.onload = () => {
-      const src = String(reader.result);
-      const img = new Image();
-      img.onload = () => {
-        const scale = Math.min(1, maxSize / Math.max(img.width, img.height));
-        const width = Math.round(img.width * scale);
-        const height = Math.round(img.height * scale);
+    reader.onload = () => resolve(String(reader.result ?? ""));
+    reader.readAsDataURL(file);
+  });
+}
+
+/**
+ * Decode through a blob URL and compress to JPEG.
+ * Returns null when the browser cannot decode the file (common for HEIC outside Safari).
+ * Avoids holding a base64 copy of a large library photo in memory during decode.
+ */
+function compressObjectUrl(file: File, maxSize: number): Promise<string | null> {
+  return new Promise((resolve) => {
+    if (
+      typeof document === "undefined" ||
+      typeof URL === "undefined" ||
+      typeof URL.createObjectURL !== "function"
+    ) {
+      resolve(null);
+      return;
+    }
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    const finish = (value: string | null) => {
+      URL.revokeObjectURL(url);
+      resolve(value);
+    };
+    img.onload = () => {
+      try {
+        const sourceWidth = img.naturalWidth || img.width;
+        const sourceHeight = img.naturalHeight || img.height;
+        const longest = Math.max(sourceWidth, sourceHeight);
+        if (!longest) {
+          finish(null);
+          return;
+        }
+        const scale = Math.min(1, maxSize / longest);
+        const width = Math.max(1, Math.round(sourceWidth * scale));
+        const height = Math.max(1, Math.round(sourceHeight * scale));
         const canvas = document.createElement("canvas");
         canvas.width = width;
         canvas.height = height;
         const ctx = canvas.getContext("2d");
         if (!ctx) {
-          resolve(src);
+          finish(null);
           return;
         }
         ctx.drawImage(img, 0, 0, width, height);
-        resolve(canvas.toDataURL("image/jpeg", 0.82));
-      };
-      img.onerror = () => resolve(src);
-      img.src = src;
+        const jpeg = canvas.toDataURL("image/jpeg", 0.82);
+        if (!jpeg.startsWith("data:image/jpeg") || jpeg.length < 32) {
+          finish(null);
+          return;
+        }
+        finish(jpeg);
+      } catch {
+        finish(null);
+      }
     };
-    reader.readAsDataURL(file);
+    img.onerror = () => finish(null);
+    img.src = url;
+  });
+}
+
+export function fileToDataUrl(
+  file: File,
+  maxSize = 720,
+  options?: { strict?: boolean },
+): Promise<string> {
+  return compressObjectUrl(file, maxSize).then((jpeg) => {
+    if (jpeg) return jpeg;
+    if (options?.strict) return Promise.reject(new Error("Could not read image"));
+    return readFileAsDataUrl(file);
   });
 }
