@@ -7,6 +7,7 @@ import { Avatar } from "@/components/avatar";
 import { outlineButton, solidButton } from "@/components/button-styles";
 import { useSocial } from "@/components/social-provider";
 import { signupPath } from "@/lib/auth/safe-next";
+import { userHref } from "@/lib/social/user-href";
 import type { IdentityCard } from "@/lib/social/card-identity";
 import {
   OWNERS_PAGE_SIZE,
@@ -90,8 +91,8 @@ function OwnerRow({
   isSelf: boolean;
   pathname: string;
 }) {
-  const profileHref = `/u/${owner.username}`;
-  const messageHref = signedIn ? `/messages/${owner.username}` : signupPath(pathname);
+  const profileHref = userHref(owner.username);
+  const messageHref = signedIn ? userHref(owner.username, "messages") : signupPath(pathname);
 
   return (
     <li className="flex items-center gap-3 py-3">

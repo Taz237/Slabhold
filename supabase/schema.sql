@@ -634,9 +634,12 @@ drop policy if exists "Mark received messages read" on public.messages;
 create policy "Read own messages" on public.messages
   for select using (auth.uid() = sender_id or auth.uid() = receiver_id);
 
--- Production public_cards, copied from 20261022180000_open_to_offers.sql.
--- The send policy reads this view. 20261016230000 cannot replace this view
--- with fewer columns; that migration is already applied in production.
+-- Production public_cards and "Send messages as yourself" are in
+-- supabase/migrations/20261022180000_open_to_offers.sql.
+-- Creating that view here fails the later replay: 20261016230000 replaces
+-- public_cards with fewer columns ("cannot drop columns from view").
+-- The block below is a reference copy, not executed.
+/*
 create or replace view public.public_cards
 with (security_invoker = false) as
 select
@@ -704,6 +707,9 @@ create policy "Send messages as yourself" on public.messages
       )
     )
   );
+*/
+create policy "Send messages as yourself" on public.messages
+  for insert with check (auth.uid() = sender_id and sender_id <> receiver_id);
 create policy "Mark received messages read" on public.messages
   for update using (auth.uid() = receiver_id) with check (auth.uid() = receiver_id);
 
@@ -870,11 +876,14 @@ create index if not exists collection_snapshots_user_date_idx
 
 alter table public.collection_snapshots enable row level security;
 
-drop policy if exists "Users can read own collection snapshots" on public.collection_snapshots;
+-- Created by supabase/migrations/20261016260000_collection_snapshots.sql.
+-- That migration has no drop policy if exists, so this copy is not executed.
+/*
 create policy "Users can read own collection snapshots"
   on public.collection_snapshots
   for select
   using (auth.uid() = user_id);
+*/
 
 revoke all on public.collection_snapshots from anon, authenticated;
 grant select on public.collection_snapshots to authenticated;

@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { Avatar } from "@/components/avatar";
 import { OpenToOffersBadge } from "@/components/open-to-offers";
 import { solidButton } from "@/components/button-styles";
+import { userHref } from "@/lib/social/user-href";
 import {
   SIGNED_OUT_LIST_LIMIT,
   type CardFollowSource,
@@ -92,7 +93,7 @@ function PeopleSection({
               key={person.handle}
               className="flex shrink-0 items-center gap-2 rounded-full border border-zinc-200 py-1 pl-1 pr-2 dark:border-white/10"
             >
-              <Link href={`/u/${encodeURIComponent(person.handle)}`} className="flex min-w-0 items-center gap-2">
+              <Link href={userHref(person.handle)} className="flex min-w-0 items-center gap-2">
                 <Avatar
                   name={person.displayName}
                   image={person.avatarUrl}

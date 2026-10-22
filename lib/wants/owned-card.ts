@@ -1,4 +1,5 @@
 import type { IdentityCard } from "@/lib/social/card-identity";
+import { userHref } from "@/lib/social/user-href";
 import { cardIdentityKey } from "@/lib/social/card-identity";
 import { isPublicForSaleListing } from "./listing";
 import { wantShortLabel } from "./label";
@@ -20,7 +21,7 @@ export function storedWantSourceType(
  */
 export function wanterCardHref(cardId: string, username: string | null | undefined): string {
   const name = username?.replace(/^@/, "").trim();
-  if (name) return `/u/${name}/cards/${cardId}`;
+  if (name) return `${userHref(name)}/cards/${encodeURIComponent(cardId)}`;
   return `/cards/${cardId}/posts`;
 }
 

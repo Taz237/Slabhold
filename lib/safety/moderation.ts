@@ -1,6 +1,7 @@
 import "server-only";
 
 import { notFound } from "next/navigation";
+import { userHref } from "@/lib/social/user-href";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { getAuthUserId } from "@/lib/supabase/server";
 import { adminAccess } from "./admin";
@@ -115,9 +116,8 @@ export async function loadOpenReports(now = Date.now()): Promise<OpenReportRow[]
       preview = reply?.body ?? null;
       href = reply?.postId ? `/posts/${reply.postId}` : null;
     } else {
-      href = names.get(row.reported_user_id)
-        ? `/u/${names.get(row.reported_user_id)!.slice(1)}`
-        : null;
+      const reportedName = names.get(row.reported_user_id);
+      href = reportedName ? userHref(reportedName.slice(1)) : null;
     }
     return {
       id: row.id,

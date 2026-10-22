@@ -1,3 +1,5 @@
+import { userHref } from "@/lib/social/user-href";
+
 /** Finger travel, in px, before a pull at the top of the page refreshes. */
 export const PULL_THRESHOLD_PX = 70;
 
@@ -67,7 +69,7 @@ export function isCurrentTabScreen(pathname: string, href: string, username: str
   if (href === "/profile") {
     if (path === "/profile") return true;
     if (!username) return false;
-    return path.toLowerCase() === `/u/${username.toLowerCase()}`;
+    return path.toLowerCase() === userHref(username).toLowerCase();
   }
   return path === href;
 }

@@ -19,6 +19,7 @@ import {
 } from "@/lib/catalog/catalog-search-session";
 import { searchCatalogRemote } from "@/lib/catalog/search-remote";
 import { cardSubtitle, cardTitle, timeAgo } from "@/lib/format";
+import { userHref } from "@/lib/social/user-href";
 import {
   SEARCH_CATALOG_LIMIT,
   catalogAddHref,
@@ -466,7 +467,7 @@ export function SearchView() {
                 {people.map((profile) => (
                   <li key={profile.id} className="border-b border-zinc-200 dark:border-white/10">
                     <Link
-                      href={user?.id === profile.id ? "/profile" : `/u/${profile.username}`}
+                      href={user?.id === profile.id ? "/profile" : userHref(profile.username)}
                       onClick={() => remember(typed)}
                       className="flex min-h-14 items-center gap-3 px-4 py-3"
                     >

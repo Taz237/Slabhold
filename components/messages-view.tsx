@@ -12,6 +12,7 @@ import { useSocial } from "@/components/social-provider";
 import { loginPath } from "@/lib/auth/safe-next";
 import { exactTime, timeAgo } from "@/lib/format";
 import { inboxLastMessage } from "@/lib/offers/open-to-offers";
+import { userHref } from "@/lib/social/user-href";
 import type { DirectMessage, Profile } from "@/lib/social/types";
 
 type Conversation = {
@@ -93,7 +94,7 @@ export function MessagesView() {
             const stamp = timeAgo(last.createdAt);
             return (
               <li key={person.id}>
-                <Link href={`/messages/${person.username}`} className="flex items-center gap-3 px-4 py-3">
+                <Link href={userHref(person.username, "messages")} className="flex items-center gap-3 px-4 py-3">
                   <Avatar name={person.displayName} image={person.avatarDataUrl} accent={person.accent} />
                   <span className="min-w-0 flex-1">
                     <span className="flex items-baseline justify-between gap-2">

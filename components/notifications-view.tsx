@@ -11,6 +11,7 @@ import { PullToRefresh } from "@/components/pull-to-refresh";
 import { EmptyState, LoadingRows } from "@/components/status";
 import { useSocial } from "@/components/social-provider";
 import { loginPath } from "@/lib/auth/safe-next";
+import { userHref } from "@/lib/social/user-href";
 import { exactTime, timeAgo } from "@/lib/format";
 import {
   groupHeadlineParts,
@@ -182,7 +183,7 @@ function groupHref(group: NotificationGroup, authors: Map<string, Profile>) {
   if (note.kind === "want_alert") {
     return note.href || (note.postId ? `/posts/${note.postId}` : "/collection");
   }
-  if (note.kind === "follow") return actor ? `/u/${actor.username}` : "/profile";
+  if (note.kind === "follow") return actor ? userHref(actor.username) : "/profile";
   return note.postId ? `/posts/${note.postId}` : "/";
 }
 

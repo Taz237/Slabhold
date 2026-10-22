@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { splitPostText } from "@/lib/social/post-text";
+import { userHref } from "@/lib/social/user-href";
 
 export function MentionText({ text }: { text: string }) {
   const parts = splitPostText(text);
@@ -12,7 +13,7 @@ export function MentionText({ text }: { text: string }) {
           return (
             <Link
               key={`${index}-${part.username}`}
-              href={`/u/${part.username}`}
+              href={userHref(part.username)}
               className="font-medium text-sky-600 hover:underline dark:text-sky-400"
             >
               {part.text}

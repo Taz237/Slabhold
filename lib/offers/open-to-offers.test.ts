@@ -36,7 +36,6 @@ import {
   parseCardPreview,
   publicTogglePatch,
   readOpenToOffers,
-  resetMessageListColumnProbe,
   resolveLiveCardPreview,
   SENT_A_CARD,
   showOpenToOffersBadge,
@@ -817,8 +816,7 @@ describe("open to offers polish", () => {
     assert.doesNotMatch(view, /\{last\.content\}/);
   });
 
-  it("renders a card message after a cached missing-column check", async () => {
-    resetMessageListColumnProbe();
+  it("renders a card message on the next read after a missing column", async () => {
     const missing = { code: "42703", message: "column card_preview does not exist" };
     const missed = await loadMessageRows(async (columns) => {
       if (columns.includes("card_preview")) return { data: [], error: missing };
@@ -863,31 +861,30 @@ describe("open to offers polish", () => {
     assert.equal(previewOnly.kind, "card_preview");
     assert.equal(previewOnly.cardPreview?.cardId, lower);
     assert.equal(inboxLastMessage(previewOnly), SENT_A_CARD);
-    resetMessageListColumnProbe();
   });
 
   it("encodes usernames in offer profile and thread links", () => {
     const thread = readFileSync(join(process.cwd(), "components/message-thread.tsx"), "utf8");
-    assert.match(thread, /router\.replace\(`\/messages\/\$\{encodeURIComponent\(partner\.username\)\}`\)/);
-    assert.match(thread, /href=\{`\/u\/\$\{encodeURIComponent\(partner\.username\)\}`\}/);
-    assert.doesNotMatch(thread, /\/(?:messages|u)\/\$\{partner\.username\}/);
+    assert.match(thread, /userHref\(partner\.username, "messages"\)/);
+    assert.match(thread, /href=\{userHref\(partner\.username\)\}/);
+    assert.doesNotMatch(thread, /\/(?:u|messages)\/\$\{(?!userHref\()/);
 
     const profile = readFileSync(join(process.cwd(), "components/profile-view.tsx"), "utf8");
     assert.match(
       profile,
-      /href=\{`\/u\/\$\{encodeURIComponent\(profile\.username\)\}\/cards\/\$\{encodeURIComponent\(card\.id\)\}`\}/,
+      /\$\{userHref\(profile\.username\)\}\/cards\/\$\{encodeURIComponent\(card\.id\)\}/,
     );
-    assert.match(profile, /path=\{`\/u\/\$\{encodeURIComponent\(profile\.username\)\}`\}/);
-    assert.match(profile, /\/messages\/\$\{encodeURIComponent\(profile\.username\)\}/);
+    assert.match(profile, /path=\{userHref\(profile\.username\)\}/);
+    assert.match(profile, /userHref\(profile\.username, "messages"\)/);
     assert.doesNotMatch(profile, /\/u\/\$\{profile\.username\}/);
     assert.doesNotMatch(profile, /\/messages\/\$\{profile\.username\}/);
     assert.doesNotMatch(profile, /\/u\/\$\{nextUsername\}/);
 
     const cardPage = readFileSync(join(process.cwd(), "components/public-card-view.tsx"), "utf8");
-    assert.match(cardPage, /`\/u\/\$\{encodeURIComponent\(username\)\}\?tab=collection`/);
+    assert.match(cardPage, /\$\{userHref\(username\)\}\?tab=collection/);
 
     const people = readFileSync(join(process.cwd(), "components/card-people-view.tsx"), "utf8");
-    assert.match(people, /href=\{`\/u\/\$\{encodeURIComponent\(person\.handle\)\}`\}/);
+    assert.match(people, /href=\{userHref\(person\.handle\)\}/);
 
     const html = renderToStaticMarkup(
       createElement(CardPeopleView, {

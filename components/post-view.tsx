@@ -13,6 +13,7 @@ import { SafetyMenu } from "@/components/safety-menu";
 import { AuthorLine, Engagement, Tweet } from "@/components/tweet";
 import { useSocial } from "@/components/social-provider";
 import { signupPath } from "@/lib/auth/safe-next";
+import { userHref } from "@/lib/social/user-href";
 import { canDeleteReply } from "@/lib/social/local-db";
 import { quotesOf } from "@/lib/social/quotes";
 import { COMMENT_LIMIT, type AuthResult, type PostComment } from "@/lib/social/types";
@@ -195,7 +196,7 @@ export function PostView({ id }: { id: string }) {
                 key={reply.id}
                 className="flex gap-3 border-b border-zinc-200 px-4 py-3 dark:border-white/10"
               >
-                <Link href={commenter ? `/u/${commenter.username}` : "/"} className="shrink-0">
+                <Link href={commenter ? userHref(commenter.username) : "/"} className="shrink-0">
                   <Avatar
                     name={name}
                     image={commenter?.avatarDataUrl}
@@ -207,7 +208,7 @@ export function PostView({ id }: { id: string }) {
                     <AuthorLine
                       name={name}
                       username={username}
-                      href={commenter ? `/u/${commenter.username}` : "/"}
+                      href={commenter ? userHref(commenter.username) : "/"}
                       createdAt={reply.createdAt}
                     />
                     {canDeleteReply(user?.id, reply.authorId) ? (
@@ -224,7 +225,7 @@ export function PostView({ id }: { id: string }) {
                   <p className="text-[13px] text-zinc-500">
                     Replying to{" "}
                     <Link
-                      href={`/u/${author.username}`}
+                      href={userHref(author.username)}
                       className="text-sky-600 hover:underline dark:text-sky-400"
                     >
                       @{author.username}

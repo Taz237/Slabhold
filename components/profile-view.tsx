@@ -20,6 +20,7 @@ import { createSupabaseBrowser } from "@/lib/supabase/browser";
 import { useCollection } from "@/components/collection-provider";
 import { useSocial } from "@/components/social-provider";
 import { loginPath, signupPath } from "@/lib/auth/safe-next";
+import { userHref } from "@/lib/social/user-href";
 import { ShareIconButton } from "@/components/share-button";
 import { Tweet } from "@/components/tweet";
 import { normalizeUsername } from "@/lib/social/local-db";
@@ -234,7 +235,7 @@ export function ProfileView({ username }: { username?: string }) {
           />
           <div className="mb-1 flex max-w-[17rem] flex-wrap items-center justify-end gap-2">
             <ShareIconButton
-              path={`/u/${encodeURIComponent(profile.username)}`}
+              path={userHref(profile.username)}
               title={`${profile.displayName} (@${profile.username})`}
               label={`Share ${profile.displayName}`}
             />
@@ -251,7 +252,7 @@ export function ProfileView({ username }: { username?: string }) {
                   username={profile.username}
                 />
                 <Link
-                  href={user ? `/messages/${encodeURIComponent(profile.username)}` : signupPath(pathname)}
+                  href={user ? userHref(profile.username, "messages") : signupPath(pathname)}
                   className={outlineButton}
                 >
                   Message
@@ -266,12 +267,12 @@ export function ProfileView({ username }: { username?: string }) {
         {profile.bio ? <p className="mt-3 text-[15px] leading-5">{profile.bio}</p> : null}
         <p className="mt-3 flex gap-4 text-sm">
           <CountLink
-            href={`${username ? `/u/${encodeURIComponent(profile.username)}` : "/profile"}/following`}
+            href={`${username ? userHref(profile.username) : "/profile"}/following`}
             count={followingCount(profile.id)}
             label="Following"
           />
           <CountLink
-            href={`${username ? `/u/${encodeURIComponent(profile.username)}` : "/profile"}/followers`}
+            href={`${username ? userHref(profile.username) : "/profile"}/followers`}
             count={followerCount(profile.id)}
             label="Followers"
           />
@@ -392,7 +393,7 @@ export function ProfileView({ username }: { username?: string }) {
                 return (
                   <li key={card.id}>
                     <Link
-                      href={`/u/${encodeURIComponent(profile.username)}/cards/${encodeURIComponent(card.id)}`}
+                      href={`${userHref(profile.username)}/cards/${encodeURIComponent(card.id)}`}
                       className="block overflow-hidden rounded-2xl border border-zinc-200 transition hover:border-zinc-300 active:bg-zinc-50 dark:border-white/10 dark:hover:border-white/20 dark:active:bg-white/[0.04]"
                     >
                       <CardThumb card={card} className="h-36 w-full" />
@@ -419,7 +420,7 @@ export function ProfileView({ username }: { username?: string }) {
         onSaved={(nextUsername) => {
           setEditing(false);
           if (username && normalizeUsername(username) !== nextUsername) {
-            router.replace(`/u/${encodeURIComponent(nextUsername)}`);
+            router.replace(userHref(nextUsername));
           }
         }}
       />

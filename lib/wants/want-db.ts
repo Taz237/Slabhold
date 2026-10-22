@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { SafetyRelations } from "@/lib/safety/can-notify";
+import { userHref } from "@/lib/social/user-href";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import type { WantAlertDb, WantMatchEvent, WantRow } from "./notify-want-matches";
 import { storedWantSourceType } from "./owned-card";
@@ -82,7 +83,7 @@ function blockSafety(admin: NonNullable<ReturnType<typeof createSupabaseAdmin>>)
 function saleHref(want: WantRow, link: CardLink | null, fallback: string): string {
   if (!link) return fallback || "/collection";
   if (link.userId === want.userId) return `/cards/${link.id}`;
-  if (link.isPublic && link.username) return `/u/${link.username}/cards/${link.id}`;
+  if (link.isPublic && link.username) return `${userHref(link.username)}/cards/${encodeURIComponent(link.id)}`;
   return "/collection";
 }
 
