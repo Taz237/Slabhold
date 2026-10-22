@@ -17,11 +17,11 @@ export function EbaySoldLink({ href, className }: { href: string; className?: st
   );
 }
 
-/** One line when estimated value, sold comps, and recent sales are all empty. */
+/** One line when this card and similar cards have no sales. */
 export function EmptyPriceNote({ href }: { href: string | null }) {
   return (
     <p className="text-sm text-zinc-500">
-      No sold comps yet
+      No sales found yet
       {href ? (
         <>
           {" · "}

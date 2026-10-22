@@ -27,11 +27,13 @@ import { ilikeExact } from "@/lib/social/username-taken";
 import { addUnblockedProfiles, presentPagedItems } from "@/lib/social/paged-items";
 import { profileTimeline } from "@/lib/social/timeline";
 import type { PublicCard } from "@/lib/social/types";
+import { EbaySoldLink } from "@/components/ebay-sold-link";
 import {
   filterOpenToOffers,
   openToOffersFilterAvailable,
 } from "@/lib/offers/open-to-offers";
-import { formatCardValueLabel, NOT_ENOUGH_SALES_LABEL } from "@/lib/value/format";
+import { ebaySoldSearchUrlForCard } from "@/lib/value/ebay-sold";
+import { resolvePriceRead, tilePriceText } from "@/lib/value/price-fallback";
 import { useCardValues } from "@/lib/value/use-card-values";
 
 export function ProfileView({ username }: { username?: string }) {
@@ -375,33 +377,36 @@ export function ProfileView({ username }: { username?: string }) {
               ) : null}
             </EmptyState>
           ) : (
-            <>
-              <ul className="grid grid-cols-2 gap-3">
-                {shownCollection.map((card) => {
-                  const v = cardValues.get(card.id);
-                  const label = formatCardValueLabel(v, {
-                    createdAt: "createdAt" in card ? (card.createdAt as string) : null,
-                  });
-                  const valueLabel =
-                    label === "Value updating" ||
-                    label === NOT_ENOUGH_SALES_LABEL ||
-                    label === "Value unavailable right now"
-                      ? label
-                      : `Est. ${label}`;
-                  return (
-                    <li key={card.id}>
-                      <Link
-                        href={`/u/${encodeURIComponent(profile.username)}/cards/${encodeURIComponent(card.id)}`}
-                        className="block overflow-hidden rounded-2xl border border-zinc-200 transition hover:border-zinc-300 active:bg-zinc-50 dark:border-white/10 dark:hover:border-white/20 dark:active:bg-white/[0.04]"
-                      >
-                        <CardThumb card={card} className="h-36 w-full" />
-                        <ProfileCardCaption card={card} valueLabel={valueLabel} />
-                      </Link>
-                    </li>
-                  );
-                })}
-              </ul>
-            </>
+            <ul className="grid grid-cols-2 gap-3">
+              {shownCollection.map((card) => {
+                const stored = cardValues.get(card.id);
+                const ebayHref = ebaySoldSearchUrlForCard(card);
+                const priceRead = resolvePriceRead({
+                  value: stored,
+                  createdAt: "createdAt" in card ? (card.createdAt as string) : null,
+                  similar: stored?.similar,
+                  ebayHref,
+                  card,
+                });
+                const priceText = tilePriceText(priceRead, true);
+                return (
+                  <li key={card.id}>
+                    <Link
+                      href={`/u/${encodeURIComponent(profile.username)}/cards/${encodeURIComponent(card.id)}`}
+                      className="block overflow-hidden rounded-2xl border border-zinc-200 transition hover:border-zinc-300 active:bg-zinc-50 dark:border-white/10 dark:hover:border-white/20 dark:active:bg-white/[0.04]"
+                    >
+                      <CardThumb card={card} className="h-36 w-full" />
+                      <ProfileCardCaption card={card} valueLabel={priceText} />
+                    </Link>
+                    {priceRead.showEbaySold && ebayHref ? (
+                      <p className="px-1 pt-1 text-xs text-zinc-500">
+                        <EbaySoldLink href={ebayHref} />
+                      </p>
+                    ) : null}
+                  </li>
+                );
+              })}
+            </ul>
           )}
         </div>
       )}

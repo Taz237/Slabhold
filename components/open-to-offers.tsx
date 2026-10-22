@@ -6,11 +6,10 @@ import {
   MESSAGE_OWNER_LABEL,
   OPEN_TO_OFFERS_LABEL,
   messageOwnerLinkFromMetadata,
-  offerEstimateLabel,
+  messagePreviewPriceLabel,
   resolveLiveCardPreview,
 } from "@/lib/offers/open-to-offers";
 import type { CardMessagePreview } from "@/lib/social/types";
-import { formatCardValueLabel } from "@/lib/value/format";
 import { useCardValue } from "@/lib/value/use-card-values";
 
 const badgeClass =
@@ -93,7 +92,9 @@ export function ProfileCardCaption({
       <p className="truncate text-xs text-zinc-500">
         {card.year} {card.setBrand}
       </p>
-      <p className="text-xs text-zinc-500">{valueLabel}</p>
+      <p className="line-clamp-2 text-xs leading-snug text-zinc-500" title={valueLabel}>
+        {valueLabel}
+      </p>
     </div>
   );
 }
@@ -154,9 +155,7 @@ export function CardMessagePreviewCard({ preview }: { preview: CardMessagePrevie
         player: live.player,
         year: live.year,
         set: live.set,
-        estimateLabel: offerEstimateLabel(
-          formatCardValueLabel(value.value, { createdAt: live.createdAt }),
-        ),
+        estimateLabel: messagePreviewPriceLabel(value.value, live.createdAt),
       }}
     />
   );

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ArrowLeft, Ellipsis, Pencil } from "lucide-react";
 import { CardThumb } from "@/components/card-thumb";
+import { PriceFallbackText } from "@/components/price-readout";
 import { useCollection } from "@/components/collection-provider";
 import { cardTitle } from "@/lib/format";
 import { needsDetails, needsDetailsLabel } from "@/lib/types";
@@ -121,14 +122,19 @@ export function CardHero({
 
 export function SalesChartPending({
   priceLabel = null,
+  priceIsEstimate = false,
   note = null,
   busy = true,
 }: {
   priceLabel?: string | null;
+  /** The big dollar is only the estimate. A fallback stays a smaller labeled line. */
+  priceIsEstimate?: boolean;
   note?: string | null;
   busy?: boolean;
 }) {
-  const dollars = priceLabel?.startsWith("$") ? priceLabel : null;
+  const bareEstimate =
+    Boolean(priceLabel) &&
+    (priceIsEstimate || /^\$[\d,]+\.\d{2}$/.test(priceLabel ?? ""));
   return (
     <section
       data-slot="sales-chart"
@@ -137,8 +143,12 @@ export function SalesChartPending({
     >
       <p className="text-[11px] tracking-wide text-zinc-500 uppercase">Recent sales</p>
       <div className="mt-1 flex min-h-9 items-end">
-        {dollars ? (
-          <p className="text-3xl font-semibold tracking-tight tabular-nums">{dollars}</p>
+        {bareEstimate && priceLabel ? (
+          <p className="text-3xl font-semibold tracking-tight tabular-nums">{priceLabel}</p>
+        ) : priceLabel ? (
+          <p className="max-w-full text-[clamp(0.95rem,3.6vw,1.125rem)] font-semibold tracking-tight leading-snug">
+            <PriceFallbackText text={priceLabel} />
+          </p>
         ) : (
           <div className="h-9 w-32 animate-pulse rounded-lg bg-zinc-100 dark:bg-white/5" />
         )}

@@ -4,6 +4,7 @@ import {
   getCompsSource,
   getSoldComps,
   type CompClassification,
+  type SoldCompCard,
   type SoldCompsPayload,
 } from "@/lib/comps";
 import { loadSoldCompCard } from "@/lib/comps/load-card";
@@ -209,6 +210,8 @@ export type RefreshCardValueOptions = {
   replaceValue?: boolean;
   /** False when a public viewer may see comps but must not write card_values. */
   save?: boolean;
+  /** Already loaded by the caller. Skips a second cards select. */
+  card?: SoldCompCard | null;
 };
 
 /**
@@ -223,7 +226,10 @@ export async function refreshCardValue(
     return finish(emptyResult("unavailable"), emptyAttempt("skipped", "unavailable"));
   }
 
-  const card = await loadSoldCompCard(cardId);
+  const card =
+    options && Object.prototype.hasOwnProperty.call(options, "card")
+      ? options.card ?? null
+      : await loadSoldCompCard(cardId);
   if (!card) {
     return finish(emptyResult("unavailable"), emptyAttempt("skipped", "unavailable"));
   }

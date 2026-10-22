@@ -8,8 +8,8 @@ import { ArrowLeft } from "lucide-react";
 import { CardCollectorsSaying } from "@/components/card-collectors-saying";
 import { CardOwnersSection } from "@/components/card-owners";
 import { CardPeopleSections } from "@/components/card-people";
-import { EmptyPriceNote } from "@/components/ebay-sold-link";
 import { OpenToOffersBadge } from "@/components/open-to-offers";
+import { EbaySoldLine, PriceFallbackText, SimilarCardsLine } from "@/components/price-readout";
 import { WantButton } from "@/components/want-button";
 import { outlineButton } from "@/components/button-styles";
 import { CardThumb } from "@/components/card-thumb";
@@ -37,12 +37,15 @@ import type { OwnersAndHunters } from "@/lib/cards/people";
 import type { PublicCard } from "@/lib/social/types";
 import {
   cardValueHasAmount,
-  formatCardValueLabel,
   isLowConfidenceValue,
-  NOT_ENOUGH_SALES_LABEL,
 } from "@/lib/value/format";
 import { ebaySoldSearchUrlForCard } from "@/lib/value/ebay-sold";
 import { shouldCollapseEmptyPrices } from "@/lib/value/empty-price";
+import {
+  NO_SALES_FOUND_LABEL,
+  resolvePriceRead,
+  SIMILAR_CARDS_LABEL,
+} from "@/lib/value/price-fallback";
 import { useCardValue } from "@/lib/value/use-card-values";
 
 export function PublicCardView({
@@ -196,18 +199,28 @@ function PublicCardAnalytics({
     sold.status === "ready" ? onScreenComps.length : null,
   );
   const storedAmount = cardValueHasAmount(shownValue) ? shownValue.median : null;
-  const displayEst = storedAmount;
-  const valueLabel =
-    valueLoading && !flags.priced
+  const ebayHref = ebaySoldSearchUrlForCard(card);
+  const exactSales =
+    sold.status === "ready"
+      ? onScreenComps.map((comp) => ({ price: comp.soldPrice, soldAt: comp.soldDate }))
+      : undefined;
+  const priceRead =
+    valueLoading && !flags.priced && !shownValue
       ? null
-      : formatCardValueLabel(shownValue, { createdAt: card.createdAt });
+      : resolvePriceRead({
+          value: shownValue,
+          createdAt: card.createdAt,
+          exactSales,
+          similar: cardValue?.similar ?? null,
+          ebayHref,
+          card,
+        });
+  const displayEst = priceRead?.kind === "estimate" ? storedAmount : null;
   const collapsePrices = shouldCollapseEmptyPrices({
     loading: valueLoading || compsLoading,
     blocked: authRequired || rateLimited || unavailable,
     settled: sold.status === "ready",
-    hasEstimate:
-      displayEst != null ||
-      Boolean(valueLabel && valueLabel !== NOT_ENOUGH_SALES_LABEL),
+    hasEstimate: priceRead?.kind === "estimate",
     hasSales: onScreenComps.length > 0,
   });
   const showChart = !collapsePrices && !authRequired && !unavailable && !rateLimited;
@@ -270,15 +283,46 @@ function PublicCardAnalytics({
               />
             </section>
           ) : null}
-          <EmptyPriceNote href={ebaySoldSearchUrlForCard(card)} />
+          {priceRead?.kind === "similar" ? (
+            <SimilarCardsLine read={priceRead} />
+          ) : (
+            <div className="text-sm text-zinc-500">
+              <p>{priceRead?.text ?? NO_SALES_FOUND_LABEL}</p>
+              {priceRead?.showEbaySold && ebayHref ? (
+                <div className="mt-1">
+                  <EbaySoldLine href={ebayHref} />
+                </div>
+              ) : null}
+            </div>
+          )}
         </>
       ) : (
       <section className={`grid gap-3 ${showPaid ? "grid-cols-2" : "grid-cols-1"}`}>
         <div className="min-w-0 rounded-2xl border border-zinc-200 bg-white px-4 py-4 dark:border-white/10 dark:bg-white/[0.03]">
-          <p className="text-[11px] tracking-wide text-zinc-500 uppercase">Estimated value</p>
-          <p className="mt-1 min-w-0 text-[clamp(1.25rem,5vw,1.5rem)] font-semibold tracking-tight tabular-nums whitespace-nowrap">
-            {valueLoading && !flags.priced ? "…" : valueLabel}
-          </p>
+          {priceRead?.kind === "similar" ? (
+            <SimilarCardsLine read={priceRead} />
+          ) : (
+            <>
+              {priceRead?.kind === "last_sale" || priceRead?.kind === "range" || priceRead?.kind === "estimate" || !priceRead ? (
+                <p className="text-[11px] tracking-wide text-zinc-500 uppercase">
+                  {priceRead?.kind === "last_sale"
+                    ? "Last sale"
+                    : priceRead?.kind === "range"
+                      ? "Recent sales"
+                      : "Estimated value"}
+                </p>
+              ) : null}
+              <p className={`mt-1 min-w-0 font-semibold tracking-tight ${priceRead?.kind === "estimate" || !priceRead ? "text-[clamp(1.25rem,5vw,1.5rem)] tabular-nums whitespace-nowrap" : "max-w-full text-[clamp(0.95rem,3.6vw,1.125rem)] leading-snug"}`}>
+                {valueLoading && !flags.priced ? (
+                  "…"
+                ) : priceRead && priceRead.kind !== "estimate" ? (
+                  <PriceFallbackText text={priceRead.text} />
+                ) : (
+                  (priceRead?.text ?? "…")
+                )}
+              </p>
+            </>
+          )}
           {displayEst != null ? (
             <>
               {shownValue?.status === "sample" ? (
@@ -287,7 +331,7 @@ function PublicCardAnalytics({
               <CompBasis count={shownValue?.nSales ?? 0} basis={[]} />
             </>
           ) : null}
-          {isLowConfidenceValue(shownValue) ? (
+          {priceRead?.kind === "estimate" && isLowConfidenceValue(shownValue) ? (
             <span className="mt-1 inline-block rounded-md bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800 dark:text-amber-200">
               Low confidence
             </span>
@@ -321,14 +365,22 @@ function PublicCardAnalytics({
           points={sold.status === "ready" && usingLive ? sold.data?.history : null}
           source={sold.data?.source ?? (usingSample ? "sample" : "trawl")}
           loading={valueLoading}
-          median={storedAmount}
-          p25={storedAmount != null ? (shownValue?.low ?? null) : null}
-          p75={storedAmount != null ? (shownValue?.high ?? null) : null}
-          count={storedAmount != null ? (shownValue?.nSales ?? 0) : 0}
+          median={priceRead?.kind === "estimate" ? storedAmount : null}
+          p25={priceRead?.kind === "estimate" ? (shownValue?.low ?? null) : null}
+          p75={priceRead?.kind === "estimate" ? (shownValue?.high ?? null) : null}
+          count={priceRead?.kind === "estimate" ? (shownValue?.nSales ?? 0) : onScreenComps.length}
           sample={shownValue?.status === "sample"}
           lockedToComps
-          noSalesLabel={NOT_ENOUGH_SALES_LABEL}
+          noSalesLabel={NO_SALES_FOUND_LABEL}
           hideStatusLabel
+          headlineLabel={
+            priceRead && priceRead.kind !== "estimate"
+              ? priceRead.kind === "similar"
+                ? SIMILAR_CARDS_LABEL
+                : priceRead.text
+              : undefined
+          }
+          headlineIsEstimate={priceRead?.kind === "estimate"}
         />
       ) : null}
 
@@ -345,7 +397,9 @@ function PublicCardAnalytics({
                     ? soldCopy
                     : sold.status === "ready"
                       ? onScreenComps.length === 0
-                        ? NOT_ENOUGH_SALES_LABEL
+                        ? priceRead?.kind === "similar"
+                          ? SIMILAR_CARDS_LABEL
+                          : (priceRead?.text ?? NO_SALES_FOUND_LABEL)
                         : `${basedOnSalesLabel(salesCount)}${
                             sold.data?.fetchedAt
                               ? ` · Updated ${formatRelativeTime(sold.data.fetchedAt)}`

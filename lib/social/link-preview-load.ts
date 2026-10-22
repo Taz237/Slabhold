@@ -5,7 +5,7 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { getSupabaseConfig } from "@/lib/supabase/client";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { wantLabel } from "@/lib/wants/label";
-import { formatCardValueLabel, marketValueAmount } from "@/lib/value/format";
+import { feedChipPrice, resolvePriceRead } from "@/lib/value/price-fallback";
 import { getCardValue, getCardValues } from "@/lib/value/getCardValue";
 import { isUuid } from "@/lib/value/card-value-access";
 import { mapPublicCard, PUBLIC_CARD_SELECT, type CardRow } from "./cards";
@@ -70,7 +70,7 @@ async function previewValueLabel(
   createdAt: string | undefined,
 ): Promise<string> {
   const stored = await getCardValue(cardId);
-  return formatCardValueLabel(stored, { createdAt });
+  return feedChipPrice(resolvePriceRead({ value: stored, createdAt })).text;
 }
 
 export const loadProfilePreview = cache(async (username: string): Promise<LinkPreview> => {
@@ -227,8 +227,10 @@ function mappedSafe(id: string, row: SafeCardRow) {
 
 async function publicPrice(cardId: string): Promise<{ amount: string; sales: number }> {
   const stored = await getCardValue(cardId);
-  const amount = marketValueAmount(stored) ?? "";
-  return { amount, sales: amount && stored ? stored.nSales : 0 };
+  const read = resolvePriceRead({ value: stored });
+  if (read.kind === "estimate") return { amount: read.text, sales: stored?.nSales ?? 0 };
+  if (read.kind === "last_sale" || read.kind === "range") return { amount: read.text, sales: 0 };
+  return { amount: "", sales: 0 };
 }
 
 /** Card image. A private card keeps its photo and name, and never a value. */
@@ -358,7 +360,9 @@ export const loadPostShareImage = cache(async (id: string) => {
       cards.push({
         isPublic: true,
         name: wantLabel(mapped) || mapped.playerName,
-        valueLabel: marketValueAmount(values.get(cardId)),
+        valueLabel: feedChipPrice(
+          resolvePriceRead({ value: values.get(cardId) ?? null, createdAt: mapped.createdAt }),
+        ).text,
         imageUrl: mapped.photoDataUrl,
       });
     }

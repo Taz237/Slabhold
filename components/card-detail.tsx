@@ -29,7 +29,7 @@ import {
 } from "@/components/card-detail-shell";
 import { CompBasis } from "@/components/comp-basis";
 import { CompsList } from "@/components/comps-list";
-import { EmptyPriceNote } from "@/components/ebay-sold-link";
+import { SimilarCardsLine, EbaySoldLine } from "@/components/price-readout";
 import { FairPriceCheck } from "@/components/fair-price-check";
 import { useSocial } from "@/components/social-provider";
 import { loginPath } from "@/lib/auth/safe-next";
@@ -61,12 +61,12 @@ import {
   estSellTileCopy,
   formatCardValueLabel,
   isLowConfidenceValue,
-  NOT_ENOUGH_SALES_LABEL,
 } from "@/lib/value/format";
 import { peekCardValue } from "@/lib/value/card-value-memory";
 import type { SportsCard } from "@/lib/types";
 import { ebaySoldSearchUrlForCard } from "@/lib/value/ebay-sold";
 import { shouldCollapseEmptyPrices } from "@/lib/value/empty-price";
+import { NO_SALES_FOUND_LABEL, resolvePriceRead, SIMILAR_CARDS_LABEL } from "@/lib/value/price-fallback";
 import { useCardValue } from "@/lib/value/use-card-values";
 
 function subscribeCardValueMemory() {
@@ -89,6 +89,8 @@ type SalesChartView = ComponentType<{
   hideStatusLabel?: boolean;
   heading?: string;
   stableLayout?: boolean;
+  headlineLabel?: string | null;
+  headlineIsEstimate?: boolean;
 }>;
 
 type CardFormView = ComponentType<{
@@ -228,12 +230,27 @@ export function CardDetail({ id }: { id: string }) {
   );
   const storedAmount = cardValueHasAmount(shownValue) ? shownValue.median : null;
   const earlyValue = cardValue ?? remembered;
-  const pendingDollars =
-    !cardSold && cardValueHasAmount(earlyValue)
-      ? formatCardValueLabel(earlyValue, { createdAt: card.createdAt })
-      : null;
+  const ebayHref = ebaySoldSearchUrlForCard(card);
+  const exactSales =
+    sold.status === "ready"
+      ? onScreenComps.map((comp) => ({ price: comp.soldPrice, soldAt: comp.soldDate }))
+      : undefined;
+  const priceRead = resolvePriceRead({
+    value: shownValue,
+    createdAt: card.createdAt,
+    exactSales,
+    similar: cardValue?.similar ?? remembered?.similar ?? null,
+    ebayHref,
+    card,
+  });
+  const pricePending = (!cardSold && valueLoading && !earlyValue) || (compsLoading && !earlyValue);
+  const pendingLabel = pricePending
+    ? null
+    : priceRead?.kind === "similar"
+      ? SIMILAR_CARDS_LABEL
+      : (priceRead?.text ?? null);
 
-  const estSell = cardSold ? card.sellPrice! : storedAmount;
+  const estSell = cardSold ? card.sellPrice! : priceRead?.kind === "estimate" ? storedAmount : null;
   const paid = card.purchasePrice;
   const paidKnown = hasPaid(card);
   const delta = estSell != null && paidKnown ? estSell - (paid as number) : 0;
@@ -249,12 +266,10 @@ export function CardDetail({ id }: { id: string }) {
     loading: (!cardSold && valueLoading && !earlyValue) || compsLoading,
     blocked: authRequired || rateLimited || unavailable,
     settled: sold.status === "ready",
-    hasEstimate:
-      storedAmount != null ||
-      Boolean(rawValueLabel && rawValueLabel !== NOT_ENOUGH_SALES_LABEL),
+    hasEstimate: priceRead?.kind === "estimate",
     hasSales: onScreenComps.length > 0,
   });
-  const valueStatusLabel = collapsePrices ? "—" : rawValueLabel;
+  const valueStatusLabel = rawValueLabel;
   const showChart =
     ValueChart != null &&
     sold.status === "ready" &&
@@ -366,10 +381,17 @@ export function CardDetail({ id }: { id: string }) {
                 cardSold={cardSold}
                 soldPrice={card.sellPrice}
                 loading={!cardSold && valueLoading && !flags.priced && !earlyValue}
-                label={valueStatusLabel}
-                count={storedAmount != null ? (shownValue?.nSales ?? 0) : 0}
+                label={
+                  priceRead && priceRead.kind !== "estimate"
+                    ? priceRead.kind === "similar"
+                      ? `${SIMILAR_CARDS_LABEL} · ${priceRead.detail}`
+                      : priceRead.text
+                    : valueStatusLabel
+                }
+                asEstimate={priceRead?.kind === "estimate" || priceRead == null}
+                count={priceRead?.kind === "estimate" ? (shownValue?.nSales ?? 0) : 0}
                 sample={shownValue?.status === "sample"}
-                lowConfidence={isLowConfidenceValue(shownValue)}
+                lowConfidence={priceRead?.kind === "estimate" && isLowConfidenceValue(shownValue)}
               />
               <Metric
                 label="Profit"
@@ -385,7 +407,7 @@ export function CardDetail({ id }: { id: string }) {
             </div>
             <div className="mt-4 space-y-3">
               <p className="text-sm font-medium">
-                Paid vs {cardSold ? "sold" : "estimate"}
+                Paid vs {cardSold ? "sold" : priceRead.kind === "estimate" ? "estimate" : "price"}
               </p>
               <p className="text-xs text-zinc-500">
                 {cardSold ? "Closed flip" : "Open position"}
@@ -400,7 +422,7 @@ export function CardDetail({ id }: { id: string }) {
                 empty={!paidKnown}
               />
               <Bar
-                label={cardSold ? "Sold" : "Estimated sell"}
+                label={cardSold ? "Sold" : priceRead.kind === "estimate" ? "Estimated sell" : "Price"}
                 value={estSell ?? 0}
                 max={max}
                 color={
@@ -537,36 +559,52 @@ export function CardDetail({ id }: { id: string }) {
             points={usingLive ? sold.data?.history : null}
             source={sold.data?.source ?? (usingSample ? "sample" : "trawl")}
             loading={false}
-            median={storedAmount}
-            p25={storedAmount != null ? (shownValue?.low ?? null) : null}
-            p75={storedAmount != null ? (shownValue?.high ?? null) : null}
-            count={storedAmount != null ? (shownValue?.nSales ?? 0) : 0}
+            median={priceRead?.kind === "estimate" ? storedAmount : null}
+            p25={priceRead?.kind === "estimate" ? (shownValue?.low ?? null) : null}
+            p75={priceRead?.kind === "estimate" ? (shownValue?.high ?? null) : null}
+            count={priceRead?.kind === "estimate" ? (shownValue?.nSales ?? 0) : onScreenComps.length}
             sample={shownValue?.status === "sample"}
             lockedToComps
-            noSalesLabel={NOT_ENOUGH_SALES_LABEL}
+            noSalesLabel={NO_SALES_FOUND_LABEL}
             unavailable={false}
             hideStatusLabel
             heading="Recent sales"
             stableLayout
+            headlineLabel={
+              priceRead && priceRead.kind !== "estimate"
+                ? priceRead.kind === "similar"
+                  ? SIMILAR_CARDS_LABEL
+                  : priceRead.text
+                : undefined
+            }
+            headlineIsEstimate={priceRead?.kind === "estimate"}
           />
         </div>
       ) : collapsePrices ? (
         <section data-slot="sales-chart" className={cardPanelClass}>
           <p className="text-[11px] tracking-wide text-zinc-500 uppercase">Recent sales</p>
           <div className="mt-1 flex min-h-9 items-end">
-            <p className="text-lg font-semibold tracking-tight">{NOT_ENOUGH_SALES_LABEL}</p>
+            <p className="text-lg font-semibold tracking-tight">
+              {priceRead?.kind === "similar" ? SIMILAR_CARDS_LABEL : (priceRead?.text ?? NO_SALES_FOUND_LABEL)}
+            </p>
           </div>
           <p className="mt-1 min-h-5 text-sm text-zinc-500">&nbsp;</p>
           <div className="mt-3 flex h-44 items-center">
-            <EmptyPriceNote href={ebaySoldSearchUrlForCard(card)} />
+            {priceRead?.kind === "similar" ? (
+              <SimilarCardsLine read={priceRead} />
+            ) : priceRead?.showEbaySold && ebayHref ? (
+              <EbaySoldLine href={ebayHref} />
+            ) : null}
           </div>
         </section>
       ) : chartFailed && !authRequired && !soldCopy ? (
         <section data-slot="sales-chart" className={cardPanelClass}>
           <p className="text-[11px] tracking-wide text-zinc-500 uppercase">Recent sales</p>
           <div className="mt-1 flex min-h-9 items-end">
-            {pendingDollars?.startsWith("$") ? (
-              <p className="text-3xl font-semibold tracking-tight tabular-nums">{pendingDollars}</p>
+            {priceRead?.kind === "estimate" && pendingLabel ? (
+              <p className="text-3xl font-semibold tracking-tight tabular-nums">{pendingLabel}</p>
+            ) : pendingLabel ? (
+              <p className="text-lg font-semibold tracking-tight">{pendingLabel}</p>
             ) : (
               <div className="h-9 w-32 rounded-lg bg-zinc-100 dark:bg-white/5" />
             )}
@@ -589,7 +627,8 @@ export function CardDetail({ id }: { id: string }) {
         </section>
       ) : (
         <SalesChartPending
-          priceLabel={pendingDollars}
+          priceLabel={pendingLabel}
+          priceIsEstimate={priceRead?.kind === "estimate"}
           note={
             authRequired
               ? "Log in to see sold comps"
@@ -612,7 +651,9 @@ export function CardDetail({ id }: { id: string }) {
                     ? soldCopy
                     : sold.status === "ready"
                       ? onScreenComps.length === 0
-                        ? NOT_ENOUGH_SALES_LABEL
+                        ? priceRead?.kind === "similar"
+                          ? SIMILAR_CARDS_LABEL
+                          : (priceRead?.text ?? NO_SALES_FOUND_LABEL)
                         : `${basedOnSalesLabel(salesCount)}${
                             salesCount < 5 ? " · Low confidence" : ""
                           }${
@@ -728,6 +769,7 @@ function EstSellMetric({
   count,
   lowConfidence,
   sample = false,
+  asEstimate = true,
 }: {
   cardSold: boolean;
   soldPrice: number | null;
@@ -736,6 +778,7 @@ function EstSellMetric({
   count: number;
   lowConfidence: boolean;
   sample?: boolean;
+  asEstimate?: boolean;
 }) {
   if (cardSold) {
     return (
@@ -749,7 +792,7 @@ function EstSellMetric({
     return <Metric label="Est. sell" value="…" />;
   }
 
-  if (label?.startsWith("$")) {
+  if (asEstimate && label?.startsWith("$")) {
     return (
       <div className="min-w-0 overflow-hidden rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-3 dark:border-white/10 dark:bg-black/20">
         <p className="text-[11px] tracking-wide text-zinc-500 uppercase">Est. sell</p>
@@ -773,6 +816,7 @@ function EstSellMetric({
   if (copy.title) {
     return <UnavailableEstSell short={copy.text} detail={copy.title} />;
   }
+  if (!asEstimate) return <Metric label="Price" value={copy.text} />;
   return <Metric label="Est. sell" value={copy.text} />;
 }
 

@@ -10,6 +10,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { PriceFallbackText } from "@/components/price-readout";
 import { money } from "@/lib/format";
 import { NOT_ENOUGH_SALES_LABEL } from "@/lib/value/format";
 import { mockValueHistory, type ValuePoint } from "@/lib/value-history";
@@ -30,6 +31,9 @@ export function ValueChart({
   lockedToComps = false,
   heading,
   stableLayout = false,
+  /** Replaces the dollar headline. A fallback must set headlineIsEstimate false. */
+  headlineLabel,
+  headlineIsEstimate = true,
 }: {
   card: { id: string; estimatedSellPrice: number; purchasePrice: number };
   points?: ValuePoint[] | null;
@@ -49,6 +53,9 @@ export function ValueChart({
   heading?: string;
   /** Keep the plot box mounted so an empty result does not collapse the page. */
   stableLayout?: boolean;
+  headlineLabel?: string | null;
+  /** False when headlineLabel is a last sale, a range, or another fallback. */
+  headlineIsEstimate?: boolean;
 }) {
   if (unavailable && !loading) {
     return null;
@@ -85,6 +92,7 @@ export function ValueChart({
   const n = usingLive || lockedToComps ? count : points.length;
   const lowConfidence = (usingLive || lockedToComps) && n > 0 && n < 5;
   const noSales = (usingLive || lockedToComps) && (n === 0 || displayMedian == null);
+  const showEstimate = headlineIsEstimate !== false;
 
   return (
     <section className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-white/10 dark:bg-white/[0.03] sm:p-5">
@@ -94,7 +102,11 @@ export function ValueChart({
             {heading ?? (usingLive ? "Sold comps" : "Estimated value")}
           </p>
           <div className={`mt-1 ${stableLayout ? "flex min-h-9 items-end" : ""}`}>
-            {noSales ? (
+            {!showEstimate ? (
+              <p className="max-w-full text-[clamp(0.95rem,3.6vw,1.125rem)] font-semibold tracking-tight leading-snug">
+                <PriceFallbackText text={headlineLabel || noSalesLabel || NOT_ENOUGH_SALES_LABEL} />
+              </p>
+            ) : noSales ? (
               <p className="text-lg font-semibold tracking-tight">
                 {noSalesLabel ?? NOT_ENOUGH_SALES_LABEL}
               </p>
@@ -104,7 +116,7 @@ export function ValueChart({
               </p>
             )}
           </div>
-          {(usingLive || lockedToComps) && !noSales && displayP25 != null && displayP75 != null ? (
+          {showEstimate && (usingLive || lockedToComps) && !noSales && displayP25 != null && displayP75 != null ? (
             <p className="mt-1 min-h-5 text-sm text-zinc-500 tabular-nums">
               Middle 50%: {money(displayP25)} – {money(displayP75)}
             </p>
@@ -113,12 +125,12 @@ export function ValueChart({
           ) : null}
         </div>
         <div className="text-right">
-          {(usingLive || lockedToComps) && !noSales ? (
+          {showEstimate && (usingLive || lockedToComps) && !noSales ? (
             <p className="text-sm font-medium text-zinc-700 dark:text-zinc-200">
               Based on {n} sale{n === 1 ? "" : "s"}
             </p>
           ) : null}
-          {lowConfidence && !noSales ? (
+          {showEstimate && lowConfidence && !noSales ? (
             <span className="mt-1 inline-block rounded-md bg-amber-500/15 px-2 py-0.5 text-[11px] font-semibold text-amber-800 dark:text-amber-200">
               Low confidence
             </span>
@@ -130,9 +142,9 @@ export function ValueChart({
         <p className="mt-2 text-xs text-zinc-500">Sample history from recent months</p>
       ) : null}
 
-      {(!noSales && points.length > 0) || stableLayout ? (
+      {(points.length > 0 && (!noSales || !showEstimate)) || stableLayout ? (
         <div className="mt-3 h-44 w-full">
-          {points.length > 0 && !noSales ? <ResponsiveContainer width="100%" height="100%">
+          {points.length > 0 && (!noSales || !showEstimate) ? <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={points} margin={{ top: 8, right: 4, left: 0, bottom: 0 }}>
               <defs>
                 <linearGradient id={`value-fill-${card.id}`} x1="0" y1="0" x2="0" y2="1">
@@ -149,10 +161,10 @@ export function ValueChart({
               />
               <YAxis hide domain={["dataMin - 10", "dataMax + 10"]} />
               <Tooltip content={<ValueTip />} cursor={{ stroke: "#a1a1aa", strokeDasharray: "3 3" }} />
-              {(usingLive || lockedToComps) && displayP25 != null && displayP75 != null ? (
+              {showEstimate && (usingLive || lockedToComps) && displayP25 != null && displayP75 != null ? (
                 <ReferenceArea y1={displayP25} y2={displayP75} fill="#10b981" fillOpacity={0.12} />
               ) : null}
-              {(usingLive || lockedToComps) && displayMedian != null ? (
+              {showEstimate && (usingLive || lockedToComps) && displayMedian != null ? (
                 <ReferenceLine
                   y={displayMedian}
                   stroke="#059669"

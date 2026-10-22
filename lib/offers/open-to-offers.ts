@@ -1,7 +1,8 @@
 import { signupPath } from "@/lib/auth/safe-next";
 import { BLOCKED_INTERACTION } from "@/lib/safety/block";
 import type { CardMessagePreview } from "@/lib/social/types";
-import { NOT_ENOUGH_SALES_LABEL, VALUE_UNAVAILABLE_LABEL } from "@/lib/value/format";
+import { resolvePriceRead, tilePriceText } from "@/lib/value/price-fallback";
+import type { CardValueResult } from "@/lib/value/types";
 
 export const OPEN_TO_OFFERS_LABEL = "Open to offers";
 export const OWNER_OPEN_TO_OFFERS = "Owner is open to offers";
@@ -136,18 +137,19 @@ export function withOpenToOffersColumn<T extends Record<string, unknown>>(
   };
 }
 
-export function offerEstimateLabel(label: string | null | undefined): string {
-  const text = (label ?? "").trim();
-  if (!text) return NOT_ENOUGH_SALES_LABEL;
-  if (
-    text === NOT_ENOUGH_SALES_LABEL ||
-    text === "Value updating" ||
-    text === VALUE_UNAVAILABLE_LABEL
-  ) {
-    return text;
-  }
-  if (/^est\./i.test(text)) return text;
-  return `Est. ${text}`;
+/** DM preview. "Est." only for a real estimate (3+ sales), same labels as tiles. */
+export function messagePreviewPriceLabel(
+  value: CardValueResult | null | undefined,
+  createdAt?: string | null,
+): string {
+  return tilePriceText(
+    resolvePriceRead({
+      value,
+      createdAt,
+      similar: value?.similar,
+    }),
+    true,
+  );
 }
 
 export function messageOwnerThreadHref(username: string, cardId: string): string {

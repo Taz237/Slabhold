@@ -1,6 +1,7 @@
 import "server-only";
 
 import { unstable_cache } from "next/cache";
+import { COMPS_RESULT_REVALIDATE_SECONDS } from "@/lib/comps/comps-result-cache";
 import { formatGrade, parseGrade, RAW_GRADE } from "@/lib/card-options";
 import { buildQueryKey } from "@/lib/comps/query-key";
 import { dollarsToCents } from "@/lib/comps/stats";
@@ -18,8 +19,8 @@ import {
 
 export type { PublicCardComps, PublicCompSale, PublicCompsStatus } from "./public-types";
 
-/** Same window as the signed-in card value cache. Refresh drops both via `card:${id}`. */
-const PUBLIC_COMPS_REVALIDATE_SECONDS = 300;
+/** Same window as the signed-in comps cache. Refresh drops both via `card:${id}`. */
+const PUBLIC_COMPS_REVALIDATE_SECONDS = COMPS_RESULT_REVALIDATE_SECONDS;
 
 const IDENTITY_SELECT =
   "id, year, year_label, set, set_name, grade, grader, parallel, card_number, serial_run, is_auto, is_relic, condition_type, grade_qualifier";

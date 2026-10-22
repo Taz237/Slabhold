@@ -11,9 +11,8 @@ import { initials, timeAgo } from "@/lib/format";
 import { sanitizeAttachedCard } from "@/lib/social/card-posts";
 import { resolveQuoteEmbedState } from "@/lib/social/quotes";
 import type { Post, Profile, PublicCard } from "@/lib/social/types";
-import { useAttachmentLabel } from "@/lib/social/use-attachment-label";
+import { useAttachedChip } from "@/lib/social/use-attachment-label";
 import { EbaySoldLink } from "@/components/ebay-sold-link";
-import { attachmentPriceText, ebaySoldSearchUrlForCard } from "@/lib/value/ebay-sold";
 import type { CardValueResult } from "@/lib/value/types";
 
 export function QuotedPostEmbed({
@@ -49,12 +48,12 @@ export function QuotedPostEmbed({
   const state = resolveQuoteEmbedState(quotedPostId, postsById, profilesById);
   const card =
     state.kind === "ok" ? sanitizeAttachedCard(state.post.card) : null;
-  const valueLabel = useAttachmentLabel(card, {
+  const chip = useAttachedChip(card, {
     values: cardValues,
     loading: cardValuesLoading,
   });
-  const price = attachmentPriceText(valueLabel);
-  const soldHref = card && !price ? ebaySoldSearchUrlForCard(card) : null;
+  const price = chip.text;
+  const soldHref = chip.soldHref;
 
   if (state.kind === "unavailable") {
     return (

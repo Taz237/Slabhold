@@ -42,6 +42,21 @@ export type SoldCompsLoaders = {
   beforeTrawl: () => Promise<boolean>;
 };
 
+/** A live Trawl write. Cache hits and sample payloads are not writes. */
+export function isFreshSoldWrite(payload: unknown): boolean {
+  if (!payload || typeof payload !== "object") return false;
+  const row = payload as { cached?: unknown; sample?: unknown };
+  return row.cached === false && row.sample !== true;
+}
+
+/**
+ * Bust comps only when this request ran the refresh and that run wrote sales.
+ * A later cache hit can still carry `cached: false` from the run that wrote it.
+ */
+export function shouldBustCompsResult(refreshedLive: boolean, payload: unknown): boolean {
+  return refreshedLive && isFreshSoldWrite(payload);
+}
+
 type MarketFail = { name?: string; result?: SoldRefreshResult };
 
 function marketFailResult(err: unknown): SoldRefreshResult | null {

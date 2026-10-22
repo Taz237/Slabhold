@@ -171,6 +171,53 @@ describe("card share images", () => {
     assert.equal(image.valueLabel, "");
     assert.equal(image.salesLabel, "");
   });
+
+  it("draws a last sale or a range and does not add Based on under them", () => {
+    process.env.NEXT_PUBLIC_SUPABASE_URL = SUPABASE_ORIGIN;
+    const last = cardShareImage({
+      found: true,
+      isPublic: true,
+      player: "Victor",
+      imageUrl: STORAGE,
+      valueAmount: "Last sold $12.00 on Oct 2",
+      salesCount: 1,
+    });
+    assert.equal(last.valueLabel, "Last sold $12.00 on Oct 2");
+    assert.equal(last.salesLabel, "");
+
+    const range = cardShareImage({
+      found: true,
+      isPublic: true,
+      player: "Victor",
+      imageUrl: STORAGE,
+      valueAmount: "$10.00\u2013$20.00 from 2 sales",
+      salesCount: 2,
+    });
+    assert.equal(range.valueLabel, "$10.00\u2013$20.00 from 2 sales");
+    assert.equal(range.salesLabel, "");
+
+    const flat = cardShareImage({
+      found: true,
+      isPublic: true,
+      player: "Victor",
+      imageUrl: STORAGE,
+      valueAmount: "~$12.00 from 2 sales",
+      salesCount: 2,
+    });
+    assert.equal(flat.valueLabel, "~$12.00 from 2 sales");
+    assert.equal(flat.salesLabel, "");
+
+    const zero = cardShareImage({
+      found: true,
+      isPublic: true,
+      player: "Victor",
+      imageUrl: STORAGE,
+      valueAmount: "$0.00",
+      salesCount: 1,
+    });
+    assert.equal(zero.valueLabel, "");
+    assert.equal(zero.showValue, false);
+  });
 });
 
 describe("post and mail day share images", () => {

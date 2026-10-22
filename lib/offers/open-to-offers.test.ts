@@ -28,7 +28,7 @@ import {
   messageOwnerHref,
   messageOwnerThreadHref,
   offerCardForThread,
-  offerEstimateLabel,
+  messagePreviewPriceLabel,
   offerSendError,
   offersColumnMissing,
   openToOffersFilterAvailable,
@@ -245,6 +245,16 @@ describe("open to offers badge and profile filter", () => {
     assert.match(tile, /Jordan Love/);
     assert.match(tile, /2020 Select/);
 
+    const longLabel = renderToStaticMarkup(
+      createElement(ProfileCardCaption, {
+        card: { playerName: "Jordan Love", year: 2020, setBrand: "Select", openToOffers: false },
+        valueLabel: "Last sold $1,234.00 on Oct 2",
+      }),
+    );
+    assert.match(longLabel, /Last sold \$1,234\.00 on Oct 2/);
+    assert.match(longLabel, /line-clamp-2/);
+    assert.doesNotMatch(longLabel, /whitespace-nowrap/);
+
     const quiet = renderToStaticMarkup(
       createElement(ProfileCardCaption, {
         card: { playerName: "Jordan Love", year: 2020, setBrand: "Select", openToOffers: null },
@@ -336,8 +346,41 @@ describe("message owner", () => {
       [{ id: OWNER, username: "ada" }],
     );
     assert.equal(live?.href, "/u/ada/cards/card-1");
-    assert.equal(offerEstimateLabel("Not enough sales yet"), "Not enough sales yet");
-    assert.equal(offerEstimateLabel("$40.00"), "Est. $40.00");
+    const oneSale = messagePreviewPriceLabel(
+      {
+        status: "ok",
+        median: 40,
+        low: 40,
+        high: 40,
+        nSales: 1,
+        matchedAt: null,
+        sales: [{ price: 40, soldAt: "2026-10-02T00:00:00.000Z" }],
+      },
+      "2026-01-01T00:00:00.000Z",
+    );
+    assert.match(oneSale, /^Last sold \$40\.00/);
+    assert.doesNotMatch(oneSale, /Est\./);
+    const twoSales = messagePreviewPriceLabel({
+      status: "ok",
+      median: 30,
+      low: 20,
+      high: 40,
+      nSales: 2,
+      matchedAt: null,
+    });
+    assert.match(twoSales, /from 2 sales/);
+    assert.doesNotMatch(twoSales, /Est\./);
+    assert.equal(
+      messagePreviewPriceLabel({
+        status: "ok",
+        median: 40,
+        low: 30,
+        high: 50,
+        nSales: 3,
+        matchedAt: null,
+      }),
+      "Est. $40.00",
+    );
     const html = renderToStaticMarkup(
       createElement(CardMessagePreviewBody, {
         card: live
@@ -347,7 +390,7 @@ describe("message owner", () => {
               player: live.player,
               year: live.year,
               set: live.set,
-              estimateLabel: offerEstimateLabel("$40.00"),
+              estimateLabel: "Est. $40.00",
             }
           : null,
       }),
@@ -545,6 +588,8 @@ describe("stored card preview", () => {
     assert.match(cardFn, /useSocial\(/);
     assert.match(cardFn, /useCardValue\(/);
     assert.match(cardFn, /resolveLiveCardPreview\(/);
+    assert.match(cardFn, /messagePreviewPriceLabel\(/);
+    assert.doesNotMatch(cardFn, /offerEstimateLabel\(/);
     assert.doesNotMatch(cardFn, /preview\.(href|imageUrl|player|year|set|estimateLabel)/);
     assert.doesNotMatch(cardFn, /<Link|<img/);
   });
