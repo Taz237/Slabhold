@@ -29,6 +29,7 @@ function client(
   },
 ) {
   const removed: string[] = [];
+  const removedBuckets: string[] = [];
   let uploads = 0;
   let inserts = 0;
   const supabase = {
@@ -52,6 +53,7 @@ function client(
           },
           async remove(paths: string[]) {
             removed.push(...paths);
+            for (const path of paths) removedBuckets.push(`${bucket}:${path}`);
             return { data: null, error: null };
           },
         };
@@ -110,7 +112,7 @@ function client(
       return query;
     },
   };
-  return { supabase: supabase as unknown as SupabaseClient, removed };
+  return { supabase: supabase as unknown as SupabaseClient, removed, removedBuckets };
 }
 
 describe("remoteCreatePost", () => {
@@ -185,6 +187,20 @@ describe("remoteCreatePost", () => {
     });
     assert.equal(insertResult.error, "insert failed");
     assert.equal(inserted.removed.length, 1);
+  });
+
+  it("removes the card photo as well when the post insert fails", async () => {
+    const { supabase, removedBuckets } = client(null, { failInsert: true });
+    const result = await remoteCreatePost(supabase, "author", {
+      body: "Both",
+      imageDataUrl: "data:image/jpeg;base64,YQ==",
+      images: ["data:image/jpeg;base64,YQ=="],
+      card: { ...card(), photoDataUrl: "data:image/jpeg;base64,Yg==" },
+    });
+    assert.equal(result.error, "insert failed");
+    assert.equal(result.postId, undefined);
+    const buckets = removedBuckets.map((item) => item.split(":")[0]);
+    assert.deepEqual(buckets.sort(), ["card-photos", "post-images"]);
   });
 
   it("keeps uploaded photos when a missing meta column is saved on retry", async () => {

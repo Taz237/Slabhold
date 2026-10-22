@@ -1006,6 +1006,7 @@ export async function remoteCreatePost(
   }
   if (error || !created) {
     await discardPostImages(supabase, uploaded.createdPaths);
+    if (card.createdPath) await removeUploadedMedia(supabase, "card-photos", card.createdPath);
     return {
       error: rlsBlocked(error) ? BLOCKED_INTERACTION : (error?.message ?? "Could not save that post."),
     };
@@ -1289,9 +1290,9 @@ async function storedCard(
   supabase: SupabaseClient,
   userId: string,
   card: PublicCard | null,
-): Promise<{ card: PublicCard | null; error?: string }> {
+): Promise<{ card: PublicCard | null; error?: string; createdPath?: string }> {
   if (!card) return { card: null };
   const photo = await uploadMedia(supabase, "card-photos", userId, card.photoDataUrl);
   if (photo.error) return { card: null, error: photo.error };
-  return { card: { ...card, photoDataUrl: photo.url } };
+  return { card: { ...card, photoDataUrl: photo.url }, createdPath: photo.createdPath };
 }

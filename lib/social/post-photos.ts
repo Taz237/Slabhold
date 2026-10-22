@@ -33,7 +33,7 @@ export function postPhotoLimitError(limit: number): string {
 
 const POST_IMAGE_PREFIX = "/storage/v1/object/public/post-images/";
 const CARD_PHOTO_PREFIX = "/storage/v1/object/public/card-photos/";
-const PATH_TRAVERSAL = /\.\.|%2e|%2f/i;
+const PATH_TRAVERSAL = /\.\.|%2e|%2f|%25/i;
 
 function supabaseOrigin(): string | null {
   const raw = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();

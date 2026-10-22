@@ -168,7 +168,7 @@ function Lightbox({
     }
     function onFocusIn(event: FocusEvent) {
       const root = dialogRef.current;
-      if (!root || root.contains(event.target as Node)) return;
+      if (closingRef.current || !root || root.contains(event.target as Node)) return;
       closeButtonRef.current?.focus();
     }
     window.addEventListener("keydown", onKey);

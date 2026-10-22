@@ -157,6 +157,10 @@ describe("post photos", () => {
         false,
       );
       assert.equal(
+        isRenderablePostPhoto(`${base}/storage/v1/object/public/post-images/user/%25.jpg`),
+        false,
+      );
+      assert.equal(
         isRenderablePostPhoto(
           "https://user:pass@proj.supabase.co/storage/v1/object/public/post-images/user/a.jpg",
         ),
