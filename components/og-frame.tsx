@@ -38,10 +38,12 @@ const iconSrc = dataUrl(
 
 /**
  * Home preview screenshot. The ignore comment keeps the tracer from copying
- * `public/landing/2.png` into every page that imports this module. On Vercel
- * the file is served from the deployment, not from the function bundle.
+ * `public/landing/2.png` into every page. The fetch fallback uses the public
+ * production origin. Preview hosts are behind Deployment Protection.
  */
 function readHomeShotFile(): Buffer | null {
+  // Tests turn the local file off so the fetch fallback runs without renaming it.
+  if (process.env.SLABHOLD_HOME_SHOT_DISK === "off") return null;
   try {
     return readFileSync(
       join(/* turbopackIgnore: true */ process.cwd(), "public", "landing", "2.png"),
@@ -51,36 +53,66 @@ function readHomeShotFile(): Buffer | null {
   }
 }
 
+function isPng(bytes: Buffer): boolean {
+  return bytes.length >= 4 && bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47;
+}
+
+/** Public production domain. Preview `VERCEL_URL` is not fetched. */
 function deploymentOrigin(): string {
-  const host = process.env.VERCEL_URL?.trim().replace(/^https?:\/\//, "").replace(/\/$/, "");
+  const raw = process.env.VERCEL_PROJECT_PRODUCTION_URL?.trim();
+  const host = raw?.replace(/^https?:\/\//, "").replace(/\/$/, "");
   if (host) return `https://${host}`;
   return siteUrlFrom(process.env.NEXT_PUBLIC_SITE_URL);
 }
 
-let homeShotPromise: Promise<string> | null = null;
+let homeShotPromise: Promise<string | null> | null = null;
 
-async function loadHomeShot(): Promise<string> {
+async function loadHomeShot(): Promise<string | null> {
   const local = readHomeShotFile();
-  if (local) return dataUrl(local, "image/png");
-  const response = await fetch(`${deploymentOrigin()}/landing/2.png`, {
-    signal: AbortSignal.timeout(5000),
-  });
-  if (!response.ok) throw new Error("Home share image is unavailable");
-  const bytes = Buffer.from(await response.arrayBuffer());
-  if (bytes.length === 0 || bytes.length > MAX_FETCH_BYTES) {
-    throw new Error("Home share image is unavailable");
+  if (local && isPng(local)) return dataUrl(local, "image/png");
+  let response: Response;
+  try {
+    response = await fetch(`${deploymentOrigin()}/landing/2.png`, {
+      redirect: "manual",
+      signal: AbortSignal.timeout(5000),
+    });
+  } catch {
+    return null;
   }
-  return dataUrl(bytes, "image/png");
+  let consumed = false;
+  try {
+    if (response.status !== 200) return null;
+    const type = (response.headers.get("content-type") ?? "").toLowerCase();
+    if (!type.startsWith("image/png")) return null;
+    const lengthHeader = response.headers.get("content-length");
+    if (lengthHeader != null) {
+      const length = Number(lengthHeader);
+      if (!Number.isFinite(length) || length > MAX_FETCH_BYTES) return null;
+    }
+    const bytes = Buffer.from(await response.arrayBuffer());
+    consumed = true;
+    if (bytes.length === 0 || bytes.length > MAX_FETCH_BYTES || !isPng(bytes)) return null;
+    return dataUrl(bytes, "image/png");
+  } catch {
+    return null;
+  } finally {
+    if (!consumed) await response.body?.cancel().catch(() => undefined);
+  }
 }
 
-function homeShotSrc(): Promise<string> {
-  if (!homeShotPromise) {
-    homeShotPromise = loadHomeShot().catch((error: unknown) => {
-      homeShotPromise = null;
-      throw error;
-    });
-  }
-  return homeShotPromise;
+function homeShotSrc(): Promise<string | null> {
+  if (homeShotPromise) return homeShotPromise;
+  const attempt = loadHomeShot().then((src) => {
+    if (!src && homeShotPromise === attempt) homeShotPromise = null;
+    return src;
+  });
+  homeShotPromise = attempt;
+  return attempt;
+}
+
+/** Drops a cached screenshot so the next render reads disk or fetches again. */
+export function resetHomeShotCache(): void {
+  homeShotPromise = null;
 }
 
 /**
@@ -388,7 +420,6 @@ function paint(
     .slice(0, 3);
 
   if (model.kind === "home") {
-    if (!homeShot) throw new Error("Home share image is unavailable");
     return send(
       <div style={{ display: "flex", width: "100%", height: "100%" }}>
         <Left>
@@ -405,7 +436,7 @@ function paint(
             ) : null}
           </div>
         </Left>
-        <PhoneShot src={homeShot} />
+        {homeShot ? <PhoneShot src={homeShot} /> : null}
       </div>,
     );
   }

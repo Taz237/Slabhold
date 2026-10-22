@@ -4,8 +4,8 @@ const nextConfig: NextConfig = {
   // Sharp is the self-hosted next/image optimizer (next start). On Vercel that
   // optimizer runs outside the function, and next/og uses bundled resvg when
   // sharp is absent. No route imports it. The landing screenshot is read from
-  // disk at build time and fetched from the deployment otherwise, so it is not
-  // part of any function bundle.
+  // disk at build time and otherwise fetched from the public production origin,
+  // so it is not part of any function bundle.
   outputFileTracingExcludes: {
     "*": ["node_modules/sharp/**", "node_modules/@img/**", "public/landing/2.png"],
   },
