@@ -7,7 +7,7 @@ import { pathToFileURL } from "node:url";
 import { before, describe, it, mock } from "node:test";
 import { createServerClient } from "@supabase/ssr";
 import { PRIVATE_OG_CACHE_CONTROL } from "../../components/og-frame";
-import { previewMetadata } from "./link-preview";
+import { cardOgImagePath, previewMetadata, withCardOgImage } from "./link-preview";
 import { cardShareImage, postShareImage, type ShareImage } from "./share-image";
 
 const nodeRequire = createRequire(import.meta.url);
@@ -112,6 +112,7 @@ let loadPublicCardPreview: (id: string) => Promise<{
   description: string;
   imageUrl: string | null;
   detail: string;
+  updatedAt: string | null;
 }>;
 let sharePriceText: (
   value: {
@@ -306,6 +307,7 @@ describe("share image loaders", () => {
       sport: "Basketball",
       accent: "#7c5cff",
       created_at: "2026-01-01T00:00:00.000Z",
+      updated_at: "2026-04-01T12:00:00.000Z",
       condition_type: "graded",
     };
 
@@ -331,9 +333,10 @@ describe("share image loaders", () => {
     try {
       for (const page of ["app/cards/[id]/page.tsx", "app/u/[username]/cards/[id]/page.tsx"]) {
         const source = read(page);
-        assert.match(source, /previewMetadata\(await loadPublicCardPreview\(id\)\)/);
+        assert.match(source, /withCardOgImage\(\s*previewMetadata\(preview\),\s*cardOgImagePath\(/);
         assert.doesNotMatch(source, /loadCardShareImage/);
       }
+      assert.match(read("app/u/[username]/cards/[id]/page.tsx"), /cardOgImagePath\(id, preview\.updatedAt, username\)/);
 
       const generic = cardShareImage({ found: false });
       const privateImage = await loadCardShareImage(privateId);
@@ -344,13 +347,19 @@ describe("share image loaders", () => {
       assert.equal(privatePacked.includes("9,999"), false);
 
       const privatePreview = await loadPublicCardPreview(privateId);
-      const privateMeta = previewMetadata(privatePreview);
+      assert.equal(privatePreview.updatedAt, null);
+      const privateMeta = withCardOgImage(
+        previewMetadata(privatePreview),
+        cardOgImagePath(privateId, privatePreview.updatedAt),
+      );
       const privateMetaPacked = JSON.stringify({ privatePreview, privateMeta });
       assert.equal(privatePreview.title, "Private card");
       assert.equal(privatePreview.imageUrl, null);
       assert.equal(privateMeta.title, "Private card · Slabhold");
       assert.equal(privateMeta.openGraph.title, "Private card");
       assert.equal(privateMeta.twitter.title, "Private card");
+      assert.match(JSON.stringify(privateMeta.openGraph.images), /\/cards\/[^"?]+\/opengraph-image\?v=0/);
+      assert.match(JSON.stringify(privateMeta.twitter.images), /opengraph-image\?v=0/);
       assert.equal(privateMetaPacked.includes(secretName), false);
       assert.equal(privateMetaPacked.includes("secret-private"), false);
 
@@ -367,12 +376,18 @@ describe("share image loaders", () => {
       assert.equal(publicImage.player, publicName);
       assert.equal(publicImage.imageUrl, publicPhoto);
       const publicPreview = await loadPublicCardPreview(publicId);
-      const publicMeta = previewMetadata(publicPreview);
+      assert.equal(publicPreview.updatedAt, "2026-04-01T12:00:00.000Z");
+      const publicMeta = withCardOgImage(
+        previewMetadata(publicPreview),
+        cardOgImagePath(publicId, publicPreview.updatedAt),
+      );
       const publicPacked = JSON.stringify({ publicImage, publicPreview, publicMeta });
       assert.match(publicMeta.title, /Public Wemby/);
       assert.match(publicMeta.title, /Slabhold/);
       assert.match(String(publicMeta.openGraph.title), /Public Wemby/);
       assert.match(String(publicMeta.twitter.title), /Public Wemby/);
+      assert.match(JSON.stringify(publicMeta.openGraph.images), /v=2026-04-01T12%3A00%3A00.000Z/);
+      assert.match(JSON.stringify(publicMeta.twitter.images), /v=2026-04-01T12%3A00%3A00.000Z/);
       assert.equal(publicPreview.imageUrl, publicPhoto);
       assert.equal(publicPacked.includes(secretName), false);
       assert.equal(publicPacked.includes("secret-private"), false);

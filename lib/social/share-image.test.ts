@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { describe, it } from "node:test";
 import {
   PRIVATE_OG_CACHE_CONTROL,
+  CARD_OG_CACHE_CONTROL,
   PUBLIC_OG_CACHE_CONTROL,
   renderOg,
   resetHomeShotCache,
@@ -277,6 +278,19 @@ describe("post and mail day share images", () => {
     assert.equal(packed.includes("card.jpg"), false);
   });
 
+  it("keeps a run of family emoji whole in the title", () => {
+    const family = "👨‍👩‍👧‍👦";
+    const image = postShareImage({
+      found: true,
+      body: `a${family.repeat(40)}`,
+    });
+    const title = image.title;
+    assert.equal(title.includes("\uFFFD"), false);
+    assert.equal(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/.test(title), false);
+    assert.equal(title.split(family).join(""), "a");
+    assert.equal(title.includes("\u200D"), true);
+  });
+
   it("drops emails and ids from the post", () => {
     const image = postShareImage({
       found: true,
@@ -385,6 +399,18 @@ describe("share image renderer", () => {
     assert.equal(response.headers.get("cache-control"), PUBLIC_OG_CACHE_CONTROL);
     assert.match(PUBLIC_OG_CACHE_CONTROL, /s-maxage=3600/);
     assert.match(PUBLIC_OG_CACHE_CONTROL, /stale-while-revalidate=86400/);
+    assert.match(CARD_OG_CACHE_CONTROL, /s-maxage=60/);
+    assert.doesNotMatch(CARD_OG_CACHE_CONTROL, /s-maxage=3600/);
+    for (const path of [
+      "app/cards/[id]/opengraph-image.tsx",
+      "app/u/[username]/cards/[id]/opengraph-image.tsx",
+    ]) {
+      assert.match(readFileSync(join(process.cwd(), path), "utf8"), /CARD_OG_CACHE_CONTROL/);
+    }
+    assert.doesNotMatch(
+      readFileSync(join(process.cwd(), "app/posts/[id]/opengraph-image.tsx"), "utf8"),
+      /CARD_OG_CACHE_CONTROL/,
+    );
     const bytes = Buffer.from(await response.arrayBuffer());
     assert.equal(bytes[0], 0x89);
     assert.ok(bytes.length > 5000);

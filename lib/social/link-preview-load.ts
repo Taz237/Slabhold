@@ -45,25 +45,35 @@ async function publicCardCount(
   return count;
 }
 
+export type PublicCardPreview = LinkPreview & { updatedAt: string | null };
+
+function cardPreview(preview: LinkPreview, updatedAt: string | null = null): PublicCardPreview {
+  return { ...preview, updatedAt };
+}
+
 /** Logged-out readers only see public_cards, so a missing row stays generic. */
-export const loadPublicCardPreview = cache(async (id: string): Promise<LinkPreview> => {
+export const loadPublicCardPreview = cache(async (id: string): Promise<PublicCardPreview> => {
   const supabase = createAnonReader();
-  if (!supabase || !isUuid(id)) return cardLinkPreview({ isPublic: false });
+  if (!supabase || !isUuid(id)) return cardPreview(cardLinkPreview({ isPublic: false }));
 
   const { data, error } = await supabase
     .from("public_cards")
-    .select(PUBLIC_CARD_SELECT)
+    .select(`${PUBLIC_CARD_SELECT}, updated_at`)
     .eq("id", id)
     .maybeSingle();
-  if (error || !data) return cardLinkPreview({ isPublic: false });
+  if (error || !data) return cardPreview(cardLinkPreview({ isPublic: false }));
 
   const card = mapPublicCard(data);
-  return cardLinkPreview({
-    isPublic: true,
-    name: wantLabel(card) || card.playerName,
-    imageUrl: card.photoDataUrl,
-    valueLabel: await previewValueLabel(card.id, card.createdAt, data),
-  });
+  const updatedAt = typeof data.updated_at === "string" ? data.updated_at : null;
+  return cardPreview(
+    cardLinkPreview({
+      isPublic: true,
+      name: wantLabel(card) || card.playerName,
+      imageUrl: card.photoDataUrl,
+      valueLabel: await previewValueLabel(card.id, card.createdAt, data),
+    }),
+    updatedAt,
+  );
 });
 
 /**
