@@ -1,12 +1,15 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import { CompsResultError } from "@/lib/comps/comps-result-cache";
 import type { SoldCompCard } from "@/lib/comps/types";
 import {
   fallbackSales,
   mergeExactSales,
   newestBatchRows,
   POSTGREST_MAX_ROWS,
+  PRICE_BATCH_READ_CONCURRENCY,
   readNewestBatches,
+  SOLD_CACHE_ROW_LIMIT,
   type CachedCompRow,
   type SoldCacheClient,
 } from "@/lib/value/price-batch";
@@ -120,8 +123,14 @@ describe("fallback sales batch", () => {
 
 type CacheRow = CachedCompRow & { query_key: string };
 
-function cacheClient(rows: CacheRow[]): { client: SoldCacheClient; inReads: string[][] } {
+function cacheClient(rows: CacheRow[]): {
+  client: SoldCacheClient;
+  inReads: string[][];
+  peakReads: () => number;
+} {
   const inReads: string[][] = [];
+  let active = 0;
+  let peak = 0;
   const client: SoldCacheClient = {
     from() {
       let onlyKeys: string[] | null = null;
@@ -166,13 +175,24 @@ function cacheClient(rows: CacheRow[]): { client: SoldCacheClient; inReads: stri
             });
           }
           if (limit != null) out = out.slice(0, Math.min(limit, POSTGREST_MAX_ROWS));
-          return Promise.resolve({ data: out, error: null }).then(resolve, reject);
+          active += 1;
+          peak = Math.max(peak, active);
+          return Promise.resolve({ data: out, error: null }).then(
+            (value) => {
+              active -= 1;
+              return resolve(value);
+            },
+            (reason) => {
+              active -= 1;
+              return reject?.(reason);
+            },
+          );
         },
       };
       return builder;
     },
   };
-  return { client, inReads };
+  return { client, inReads, peakReads: () => peak };
 }
 
 describe("newest batches under the shared cap", () => {
@@ -303,4 +323,225 @@ describe("newest batches under the shared cap", () => {
       assert.ok(ids.includes(`own-${sale}`));
     }
   });
+
+  it("re-reads an exact key when its batch fills the page", async () => {
+    const key = "card-own";
+    const fetched = "2026-01-01T00:00:00.000Z";
+    const count = SOLD_CACHE_ROW_LIMIT + 120;
+    const rows: CacheRow[] = [];
+    for (let sale = 0; sale < count; sale += 1) {
+      rows.push({
+        query_key: key,
+        item_id: `own-${sale}`,
+        price: 10 + (sale % 40),
+        fetched_at: fetched,
+        title: "own",
+      });
+    }
+
+    const { client, inReads } = cacheClient(rows);
+    const batches = await readNewestBatches(client, [key], [key]);
+    const ids = batches.get(key)?.map((row) => row.item_id) ?? [];
+    assert.equal(ids.length, count);
+    assert.ok(ids.includes("own-0"));
+    assert.ok(ids.includes(`own-${count - 1}`));
+    assert.ok(inReads.filter((keys) => keys.length === 1 && keys[0] === key).length >= 2);
+  });
+
+  it("re-reads similar keys that the shared cap cut off", async () => {
+    const ownKey = "card-own";
+    const ownAt = "2026-01-01T00:00:00.000Z";
+    const later = "2026-10-02T00:00:00.000Z";
+    const rows: CacheRow[] = [
+      { query_key: ownKey, item_id: "own-1", price: 40, fetched_at: ownAt, title: "own" },
+      { query_key: ownKey, item_id: "own-2", price: 55, fetched_at: ownAt, title: "own" },
+    ];
+    const similar: string[] = [];
+    for (let card = 0; card < 9; card += 1) {
+      const key = `similar-${card}`;
+      similar.push(key);
+      for (let sale = 0; sale < 60; sale += 1) {
+        rows.push({
+          query_key: key,
+          item_id: `sim-${card}-${sale}`,
+          price: 10 + sale,
+          fetched_at: later,
+          title: "similar",
+        });
+      }
+    }
+
+    const { client } = cacheClient(rows);
+    const batches = await readNewestBatches(client, [ownKey, ...similar], [ownKey]);
+    assert.deepEqual(
+      batches.get(ownKey)?.map((row) => row.item_id).sort(),
+      ["own-1", "own-2"],
+    );
+    for (const key of similar) {
+      assert.equal(batches.get(key)?.length, 60, key);
+    }
+  });
+
+  it("reads exact-key chunks with a small concurrency limit", async () => {
+    const keys: string[] = [];
+    const rows: CacheRow[] = [];
+    const chunkCount = PRICE_BATCH_READ_CONCURRENCY + 1;
+    const keyCount = chunkCount * 2;
+    for (let index = 0; index < keyCount; index += 1) {
+      const key = `copy-${index}`;
+      keys.push(key);
+      rows.push({
+        query_key: key,
+        item_id: `row-${index}`,
+        price: 20,
+        fetched_at: "2026-10-02T00:00:00.000Z",
+        title: "copy",
+      });
+    }
+
+    const { client, peakReads } = cacheClient(rows);
+    const batches = await readNewestBatches(client, keys, keys);
+    assert.equal(batches.get(keys[0])?.length, 1);
+    assert.equal(peakReads(), PRICE_BATCH_READ_CONCURRENCY);
+    assert.ok(peakReads() < chunkCount);
+  });
+
+  it("keeps the read cap at 4 when every chunk is full and both keys are cut", async () => {
+    const fetched = "2026-10-02T00:00:00.000Z";
+    const keys: string[] = [];
+    const rows: CacheRow[] = [];
+    for (let card = 0; card < 16; card += 1) {
+      const key = `copy-${card}`;
+      keys.push(key);
+      for (let sale = 0; sale < SOLD_CACHE_ROW_LIMIT; sale += 1) {
+        rows.push({
+          query_key: key,
+          item_id: `${key}-${sale}`,
+          price: 10 + (sale % 40),
+          fetched_at: fetched,
+          title: "copy",
+        });
+      }
+    }
+
+    const { client, peakReads } = delayedCacheClient(rows);
+    const batches = await readNewestBatches(client, keys, keys);
+    for (const key of keys) {
+      assert.equal(batches.get(key)?.length, SOLD_CACHE_ROW_LIMIT, key);
+    }
+    assert.ok(peakReads() <= PRICE_BATCH_READ_CONCURRENCY);
+    assert.ok(peakReads() > 1);
+  });
+
+  it("stops the queue when chunk 2 of 10 fails", async () => {
+    const keys: string[] = [];
+    const rows: CacheRow[] = [];
+    for (let index = 0; index < 20; index += 1) {
+      const key = `copy-${index}`;
+      keys.push(key);
+      rows.push({
+        query_key: key,
+        item_id: `row-${index}`,
+        price: 20,
+        fetched_at: "2026-10-02T00:00:00.000Z",
+        title: "copy",
+      });
+    }
+
+    const { client, started, startedAfterFailure } = delayedCacheClient(rows, { failCall: 1 });
+    await assert.rejects(
+      () => readNewestBatches(client, keys, keys),
+      (err: unknown) => {
+        assert.ok(err instanceof CompsResultError);
+        return true;
+      },
+    );
+    assert.equal(started(), PRICE_BATCH_READ_CONCURRENCY);
+    assert.equal(startedAfterFailure(), 0);
+  });
 });
+
+function delayedCacheClient(
+  rows: CacheRow[],
+  settings?: { failCall?: number },
+): {
+  client: SoldCacheClient;
+  peakReads: () => number;
+  started: () => number;
+  startedAfterFailure: () => number;
+} {
+  let active = 0;
+  let peak = 0;
+  let calls = 0;
+  let late = 0;
+  let failed = false;
+  const client: SoldCacheClient = {
+    from() {
+      let onlyKeys: string[] | null = null;
+      let limit: number | null = null;
+      let orderCol: keyof CacheRow | null = null;
+      let ascending = true;
+      const builder = {
+        select() {
+          return builder;
+        },
+        in(column: string, values: readonly string[]) {
+          if (column === "query_key") onlyKeys = [...values];
+          return builder;
+        },
+        order(column: string, options?: { ascending?: boolean }) {
+          orderCol = column as keyof CacheRow;
+          ascending = options?.ascending !== false;
+          return builder;
+        },
+        limit(count: number) {
+          limit = count;
+          return builder;
+        },
+        then<T>(
+          resolve: (value: { data: CacheRow[] | null; error: { message: string } | null }) => T,
+          reject?: (reason: unknown) => T,
+        ) {
+          const call = calls;
+          calls += 1;
+          if (failed) late += 1;
+          active += 1;
+          peak = Math.max(peak, active);
+          const keys = onlyKeys;
+          const rowLimit = limit;
+          const col = orderCol;
+          const asc = ascending;
+          const failThis = settings?.failCall === call;
+          return new Promise<{ data: CacheRow[] | null; error: { message: string } | null }>((done) => {
+            setTimeout(() => {
+              active -= 1;
+              if (failThis) {
+                failed = true;
+                done({ data: null, error: { message: "sold cache unavailable" } });
+                return;
+              }
+              let out = rows.filter((row) => !keys || keys.includes(row.query_key));
+              if (col) {
+                out = [...out].sort((a, b) => {
+                  const av = String(a[col] ?? "");
+                  const bv = String(b[col] ?? "");
+                  const cmp = av < bv ? -1 : av > bv ? 1 : 0;
+                  return asc ? cmp : -cmp;
+                });
+              }
+              if (rowLimit != null) out = out.slice(0, Math.min(rowLimit, POSTGREST_MAX_ROWS));
+              done({ data: out, error: null });
+            }, failThis ? 0 : 15);
+          }).then(resolve, reject);
+        },
+      };
+      return builder;
+    },
+  };
+  return {
+    client,
+    peakReads: () => peak,
+    started: () => calls,
+    startedAfterFailure: () => late,
+  };
+}

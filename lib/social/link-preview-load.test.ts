@@ -105,10 +105,69 @@ function requestAuth(input: RequestInfo | URL, init?: RequestInit): string {
 }
 
 let loadPostShareImage: (id: string) => Promise<ShareImage>;
+let sharePriceText: (
+  value: {
+    status: "ok";
+    median: number | null;
+    low: number | null;
+    high: number | null;
+    nSales: number;
+    matchedAt: string | null;
+    sales?: { price: number; soldAt?: string | null }[];
+  } | null,
+  createdAt?: string | null,
+) => string;
 
 before(async () => {
   const loaded = await import("./link-preview-load");
   loadPostShareImage = loaded.loadPostShareImage;
+  sharePriceText = loaded.sharePriceText;
+});
+
+const STORED_BAND = {
+  status: "ok" as const,
+  median: 55.5,
+  low: 43.25,
+  high: 67.75,
+  nSales: 2,
+  matchedAt: null,
+};
+
+describe("public share price labels", () => {
+  it("uses the two real sales instead of the stored p25-p75 band", () => {
+    assert.equal(
+      sharePriceText({
+        ...STORED_BAND,
+        sales: [
+          { price: 31, soldAt: null },
+          { price: 80, soldAt: null },
+        ],
+      }),
+      "$31.00\u2013$80.00 from 2 sales",
+    );
+  });
+
+  it("labels one loaded sale as last sold", () => {
+    assert.equal(
+      sharePriceText({
+        status: "ok",
+        median: 40,
+        low: 43.25,
+        high: 67.75,
+        nSales: 1,
+        matchedAt: null,
+        sales: [{ price: 31, soldAt: "2026-10-02T00:00:00.000Z" }],
+      }),
+      "Last sold $31.00 on Oct 2",
+    );
+  });
+
+  it("uses the median when the sale list did not load", () => {
+    const text = sharePriceText(STORED_BAND);
+    assert.equal(text, "~$55.50 from 2 sales");
+    assert.equal(text.includes("43.25"), false);
+    assert.equal(text.includes("67.75"), false);
+  });
 });
 
 describe("share image loaders", () => {
@@ -124,6 +183,17 @@ describe("share image loaders", () => {
     assert.doesNotMatch(rest, /createSupabaseServer\(/);
     assert.doesNotMatch(rest, /getAuthUserId\(/);
     assert.match(source, /persistSession:\s*false/);
+    const attaches = [...source.matchAll(/attachPriceContext\(([^)]*)\)/g)];
+    assert.equal(attaches.length, 2);
+    for (const call of attaches) assert.match(call[1] ?? "", /\bnull\b/);
+    const priced = source.slice(
+      source.indexOf("async function publicCardValue"),
+      source.indexOf("export function sharePriceText"),
+    );
+    assert.match(priced, /knownPriceCard\(/);
+    assert.doesNotMatch(priced, /from\("cards"\)/);
+    assert.match(source, /valueAmount: isPublic \? price\.amount : null/);
+    assert.match(source, /valueLabel: null/);
 
     const ownProfile = read("app/profile/opengraph-image.tsx");
     assert.match(ownProfile, /loadOwnProfilePreview/);

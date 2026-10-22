@@ -197,7 +197,7 @@ export function mapPublicCard(
 
 /** Columns a logged-out reader may select from public_cards. */
 export const PUBLIC_CARD_SELECT =
-  "id, user_id, player, year, year_label, set, set_name, grade, grader, parallel, is_rookie, condition_type, estimated_value, image_url, card_number, sport, accent, created_at";
+  "id, user_id, player, year, year_label, set, set_name, grade, grader, parallel, is_rookie, condition_type, estimated_value, image_url, card_number, sport, accent, created_at, serial_run, is_auto, is_relic, grade_qualifier";
 
 export async function loadUserCards(supabase: SupabaseClient, userId: string) {
   const { data, error } = await supabase
