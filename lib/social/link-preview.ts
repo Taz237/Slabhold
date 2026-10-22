@@ -28,8 +28,11 @@ export function textGraphemes(value: string): string[] {
   return Array.from(value);
 }
 
-/** A grapheme longer than this is almost always stacked combining marks. */
-const GRAPHEME_CODE_POINTS = 8;
+/**
+ * A grapheme longer than this is almost always stacked combining marks.
+ * 16 keeps a multi-person emoji (about 10 code points) whole.
+ */
+const GRAPHEME_CODE_POINTS = 16;
 
 export function capGrapheme(grapheme: string): string {
   const points = Array.from(grapheme);

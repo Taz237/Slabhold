@@ -23,6 +23,10 @@ export const PUBLIC_OG_CACHE_CONTROL =
 export const CARD_OG_CACHE_CONTROL =
   "public, max-age=0, s-maxage=60, stale-while-revalidate=60";
 
+/** Failed renders. Do not keep the generic image for the route's normal hour or day. */
+const OG_FAILURE_CACHE_CONTROL =
+  "public, max-age=0, s-maxage=60, stale-while-revalidate=60";
+
 /** Own-profile images follow the signed-in user. Do not store them on a shared CDN. */
 export const PRIVATE_OG_CACHE_CONTROL = "private, no-store";
 
@@ -584,7 +588,7 @@ function readableShareImage(model: ShareImage): ShareImage {
     model.kind === "card" ? "Card" : model.kind === "profile" ? "Profile" : model.kind === "home" ? title : "Post";
   return {
     ...model,
-    kicker: text(model.kicker) || model.kicker,
+    kicker: text(model.kicker),
     title: title || fallback,
     detail: text(model.detail),
     body: body || title || fallback,
@@ -610,22 +614,32 @@ async function consumeOg(response: ImageResponse): Promise<ImageResponse> {
   }) as ImageResponse;
 }
 
-/** Render a share image. A font-shaping failure retries without that script, then the home image. */
+/** Render a share image. Only a font-shaping failure retries without that script. */
 export async function renderOg(
   model: ShareImage,
   cacheControl = PUBLIC_OG_CACHE_CONTROL,
 ): Promise<ImageResponse> {
+  const isShapingError = (e: unknown) =>
+    e instanceof Error && /lookupType: \d+ - substFormat: \d+ is not yet supported/.test(e.message);
   const homeShot = model.kind === "home" ? await homeShotSrc() : null;
   try {
     return await consumeOg(paint(model, cacheControl, homeShot));
-  } catch {
-    try {
-      const stripped = readableShareImage(model);
-      const shot = stripped.kind === "home" ? (homeShot ?? (await homeShotSrc())) : null;
-      return await consumeOg(paint(stripped, cacheControl, shot));
-    } catch {
-      return consumeOg(paint(homeShareImage(), cacheControl, await homeShotSrc()));
+  } catch (error) {
+    console.error("[og] share image render failed", { kind: model.kind, stage: "render" }, error);
+    if (isShapingError(error)) {
+      try {
+        const stripped = readableShareImage(model);
+        const shot = stripped.kind === "home" ? (homeShot ?? (await homeShotSrc())) : null;
+        return await consumeOg(paint(stripped, cacheControl, shot));
+      } catch (stripError) {
+        console.error(
+          "[og] share image render failed",
+          { kind: model.kind, stage: "strip" },
+          stripError,
+        );
+      }
     }
+    return consumeOg(paint(homeShareImage(), OG_FAILURE_CACHE_CONTROL, await homeShotSrc()));
   }
 }
 

@@ -110,6 +110,10 @@ describe("clipText", () => {
     assert.equal(families.includes("\uFFFD"), false);
     assert.equal(loneSurrogate(families), false);
     assert.equal(families.split(family).join(""), "…");
+
+    const kiss = "👩🏽‍❤️‍💋‍👨🏿";
+    assert.ok([...kiss].length > 8);
+    assert.equal(clipText(`${kiss} kiss`, 280), `${kiss} kiss`);
   });
 });
 

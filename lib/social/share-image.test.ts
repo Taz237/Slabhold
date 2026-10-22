@@ -9,6 +9,7 @@ import {
   renderOg,
   resetHomeShotCache,
 } from "../../components/og-frame";
+import { clipText } from "./link-preview";
 import {
   cardShareImage,
   homeShareImage,
@@ -291,6 +292,13 @@ describe("post and mail day share images", () => {
     assert.ok(marked.length <= 280);
   });
 
+  it("keeps a kiss emoji whole", () => {
+    const kiss = "👩🏽‍❤️‍💋‍👨🏿";
+    const text = `${kiss} kiss`;
+    assert.equal(scrubPublicText(text, 280), text);
+    assert.equal(clipText(text, 280), text);
+  });
+
   it("keeps a run of family emoji whole in the title", () => {
     const family = "👨‍👩‍👧‍👦";
     const image = postShareImage({
@@ -410,10 +418,60 @@ describe("share image renderer", () => {
       }),
     );
     assert.equal(response.headers.get("content-type"), "image/png");
+    assert.equal(response.headers.get("cache-control"), PUBLIC_OG_CACHE_CONTROL);
     const bytes = Buffer.from(await response.arrayBuffer());
     assert.equal(bytes[0], 0x89);
     assert.equal(bytes[1], 0x50);
     assert.ok(bytes.length > 1000);
+    const plain = await renderOg(
+      postShareImage({
+        found: true,
+        body: "Hello",
+        authorName: "Donnie",
+        authorHandle: "donnietaz",
+      }),
+    );
+    const home = await renderOg(homeShareImage());
+    assert.deepEqual(bytes, Buffer.from(await plain.arrayBuffer()));
+    assert.notDeepEqual(bytes, Buffer.from(await home.arrayBuffer()));
+  });
+
+  it("serves the home image when rendering fails for a reason other than font shaping", async () => {
+    const home = Buffer.from(await (await renderOg(homeShareImage())).arrayBuffer());
+    const model = postShareImage({
+      found: true,
+      body: "Hello",
+      authorName: "Donnie",
+      authorHandle: "donnietaz",
+    });
+    const original = console.error;
+    const calls: unknown[][] = [];
+    console.error = (...args: unknown[]) => {
+      calls.push(args);
+    };
+    try {
+      const response = await renderOg({
+        ...model,
+        body: Object.create(null) as never,
+      });
+      assert.equal(
+        response.headers.get("cache-control"),
+        "public, max-age=0, s-maxage=60, stale-while-revalidate=60",
+      );
+      assert.notEqual(response.headers.get("cache-control"), PUBLIC_OG_CACHE_CONTROL);
+      const bytes = Buffer.from(await response.arrayBuffer());
+      assert.deepEqual(bytes, home);
+      assert.equal(calls.length, 1);
+      assert.equal(calls[0]?.[0], "[og] share image render failed");
+      assert.deepEqual(calls[0]?.[1], { kind: "post", stage: "render" });
+      assert.equal(calls[0]?.[2] instanceof Error, true);
+      const logged = JSON.stringify(calls[0]?.[1]);
+      assert.equal(logged.includes("Hello"), false);
+      assert.equal(logged.includes("body"), false);
+      assert.equal(logged.includes("title"), false);
+    } finally {
+      console.error = original;
+    }
   });
 
   it("renders the home preview with the slab screenshot", async () => {
