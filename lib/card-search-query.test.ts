@@ -443,6 +443,111 @@ describe("catalog candidate prefilter", () => {
     );
     assert.deepEqual(prefilterCatalogCandidates(cards, parseCardQuery("silver")), []);
   });
+
+  it("keeps Josh Allen ahead of more than 300 Allen Iverson rows", () => {
+    const cards = Array.from({ length: 301 }, (_, index) =>
+      asSearchable({
+        id: `iverson-${index}`,
+        player: "Allen Iverson",
+        yearLabel: "1996",
+        setName: "Topps",
+        cardNumber: String(index + 1),
+      }),
+    );
+    cards.push(
+      asSearchable({
+        id: "josh",
+        player: "Josh Allen",
+        yearLabel: "2018",
+        setName: "Panini Prizm",
+        cardNumber: "205",
+      }),
+    );
+    const query = "josh allen";
+    const candidates = prefilterCatalogCandidates(cards, parseCardQuery(query));
+    assert.equal(candidates.length, 300);
+    assert.equal(candidates[0]?.id, "josh");
+    const hits = searchCardsLocal(query, candidates);
+    assert.equal(hits[0]?.player, "Josh Allen");
+  });
+
+  it("finds Bo Nix Optic Preview Pink when preview is the longer word", () => {
+    const cards = Array.from({ length: 301 }, (_, index) =>
+      asSearchable({
+        id: `preview-${index}`,
+        player: `Preview Player ${index}`,
+        yearLabel: "2024",
+        setName: "Panini Donruss",
+        cardNumber: String(index + 1),
+      }),
+    );
+    cards.push(
+      asSearchable({
+        id: "nix",
+        player: "Bo Nix",
+        yearLabel: "2024",
+        setName: "Panini Donruss",
+        cardNumber: "301",
+        parallel: "Optic Preview Pink",
+      }),
+    );
+    const query = "bo nix optic preview pink";
+    const hits = searchCardsLocal(
+      query,
+      prefilterCatalogCandidates(cards, parseCardQuery(query)),
+    );
+    assert.equal(hits[0]?.id, "nix");
+    assert.equal(hits[0]?.player, "Bo Nix");
+    assert.equal(hits[0]?.parallel, "Optic Preview Pink");
+  });
+
+  it("finds Burrow Chrome Variation when variation is the longer word", () => {
+    const cards = Array.from({ length: 301 }, (_, index) =>
+      asSearchable({
+        id: `variation-${index}`,
+        player: `Variation Player ${index}`,
+        yearLabel: "2020",
+        setName: "Topps Chrome",
+        cardNumber: String(index + 1),
+      }),
+    );
+    cards.push(
+      asSearchable({
+        id: "burrow",
+        player: "Joe Burrow",
+        yearLabel: "2020",
+        setName: "Topps Chrome",
+        cardNumber: "1",
+        parallel: "Variation",
+      }),
+    );
+    const query = "burrow chrome variation";
+    const hits = searchCardsLocal(
+      query,
+      prefilterCatalogCandidates(cards, parseCardQuery(query)),
+    );
+    assert.equal(hits[0]?.id, "burrow");
+    assert.equal(hits[0]?.player, "Joe Burrow");
+    assert.equal(hits[0]?.setName, "Topps Chrome");
+    assert.equal(hits[0]?.parallel, "Variation");
+  });
+
+  it("matches Bedard Upper Deck Series 2 when 2 is a card-number token", () => {
+    const all = CARD_CATALOG.map(toSearchableCard);
+    const query = "bedard upper deck series 2";
+    const full = searchCardsLocal(query, all);
+    const narrowed = searchCardsLocal(
+      query,
+      prefilterCatalogCandidates(all, parseCardQuery(query)),
+    );
+    assert.ok(full.length > 0);
+    assert.ok(full.every((hit) => hit.player === "Connor Bedard"));
+    assert.ok(full.every((hit) => hit.setName === "Upper Deck Series 2"));
+    assert.deepEqual(
+      narrowed.map((hit) => hit.id),
+      full.map((hit) => hit.id),
+    );
+  });
 });
 
 function asSearchable(card: {

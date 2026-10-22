@@ -73,22 +73,16 @@ function blankCard(): MailDayDraftCard & {
   cardId: string;
   open: boolean;
   parallelNote: string;
-<<<<<<< HEAD
   sportOffer: string;
-=======
   catalogPick: CatalogPickSnapshot | null;
->>>>>>> 491abdb (Prefilter catalog search and stage user-submitted cards.)
 } {
   return {
     key: crypto.randomUUID(),
     cardId: crypto.randomUUID(),
     open: true,
     parallelNote: "",
-<<<<<<< HEAD
     sportOffer: "",
-=======
     catalogPick: null,
->>>>>>> 491abdb (Prefilter catalog search and stage user-submitted cards.)
     playerName: "",
     yearLabel: "",
     setBrand: "",
@@ -392,20 +386,16 @@ export function MailDayForm() {
                       parallel: chosen.parallel,
                       parallelIsCustom: chosen.parallelIsCustom,
                       parallelNote: "",
-<<<<<<< HEAD
                       sport: sport.sport,
                       sportOffer: sport.offer,
                       isRookie: section.isRookie || textLooksRookie(title),
-=======
-                      sport: isMailDaySport(card.sport) ? card.sport : section.sport,
                       catalogPick: {
                         playerName: card.playerName,
                         yearLabel: card.yearLabel,
                         setBrand: card.setBrand,
                         cardNumber: card.cardNumber,
-                        parallel: card.parallel || "Base",
+                        parallel: chosen.parallel,
                       },
->>>>>>> 491abdb (Prefilter catalog search and stage user-submitted cards.)
                     });
                   }}
                   onManual={(prefill) => {

@@ -67,7 +67,9 @@ SQL
 
   run_sql -f supabase/migrations/20261016210000_card_catalog_search.sql
   run_sql -f supabase/migrations/20261021120000_card_catalog_search_ranking.sql
-  run_sql -f supabase/migrations/20261022120000_catalog_search_prefilter_and_staging.sql
+  # SET LOCAL lock_timeout in the approved migration has to run inside a transaction.
+  run_sql --single-transaction -f supabase/migrations/20261022120000_catalog_search_prefilter_and_staging.sql
+  run_sql -c "grant usage on schema extensions to anon, authenticated;"
 
   run_sql <<'SQL'
 create table if not exists public.cards (
@@ -167,7 +169,9 @@ SQL
 run_sql <<'SQL'
 insert into public.card_catalog (player, year_label, set_name, card_number, parallel, sport, source, status)
 select
-  'Load Player ' || lpad((g % 8000)::text, 4, '0'),
+  (array['Josh','Bo','Joe','Connor','Mike','Chris','Alex','Sam','Pat','Taylor'])[1 + (g % 10)]
+    || ' ' ||
+  (array['Allen','Smith','Johnson','Williams','Brown','Jones','Miller','Davis','Wilson','Moore'])[1 + ((g / 10) % 10)],
   (1990 + (g % 30))::text,
   (array['Panini Prizm', 'Panini Select', 'Topps Chrome', 'Panini Optic', 'Hoops', 'Topps Update'])[1 + (g % 6)],
   'L' || g::text,
@@ -176,6 +180,19 @@ select
   'synthetic',
   'verified'
 from generate_series(1, 100000) as g
+on conflict do nothing;
+
+insert into public.card_catalog (player, year_label, set_name, card_number, parallel, sport, source, status)
+select
+  'Allen Iverson',
+  '1996',
+  'Topps',
+  'AI' || g::text,
+  'Base',
+  'Basketball',
+  'synthetic',
+  'verified'
+from generate_series(1, 400) as g
 on conflict do nothing;
 
 insert into public.card_catalog (player, year_label, set_name, card_number, parallel, sport, status)
@@ -189,7 +206,9 @@ run_sql <<'SQL'
 do $$
 declare
   n int;
+  top_player text;
 begin
+  set local role anon;
   select count(*) into n from public.search_cards('jaxson dart', 20);
   if n <> 1 then
     raise exception 'jaxson dart returned % rows, expected 1', n;
@@ -209,6 +228,10 @@ begin
   select count(*) into n from public.search_cards('refractor', 20);
   if n <> 0 then
     raise exception 'parallel-only query scanned the catalog (% rows)', n;
+  end if;
+  select player into top_player from public.search_cards('josh allen', 5) limit 1;
+  if top_player is distinct from 'Josh Allen' then
+    raise exception 'shared surname ranked % ahead of Josh Allen', top_player;
   end if;
 end $$;
 SQL
@@ -300,19 +323,20 @@ const queries = [
   ["wembanyma", "typo"],
   ["prizm", "set-only"],
   ["2024 332", "year + number"],
+  ["josh allen", "shared surname"],
 ];
 
 function psql(sql) {
   const args = local
-    ? ["-u", "postgres", "psql", "-d", "slabhold_catalog_loadtest", "-v", "ON_ERROR_STOP=1", "-tA", "-c", sql]
-    : ["psql", process.env.DATABASE_URL, "-v", "ON_ERROR_STOP=1", "-tA", "-c", sql];
+    ? ["-u", "postgres", "psql", "-d", "slabhold_catalog_loadtest", "-v", "ON_ERROR_STOP=1", "-tA", "-c", "set role anon", "-c", sql]
+    : ["psql", process.env.DATABASE_URL, "-v", "ON_ERROR_STOP=1", "-tA", "-c", "set role anon", "-c", sql];
   const cmd = local ? "sudo" : args.shift();
   const result = spawnSync(cmd, args, { encoding: "utf8" });
   if (result.status !== 0) {
     console.error(result.stderr || result.stdout);
     process.exit(result.status || 1);
   }
-  return result.stdout.trim();
+  return result.stdout.replace(/^SET\n/, "").trim();
 }
 
 function summarize(plan) {

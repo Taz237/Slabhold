@@ -283,20 +283,17 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
   }
 
   function applyCatalog(card: CatalogCard) {
-<<<<<<< HEAD
     const chosen = parallelChoice(card.setBrand, card.parallel || "Base");
     const title = [card.playerName, card.setBrand, card.parallel, card.cardNumber].join(" ");
     const sport = sportAfterCatalogPick(sportTouched ? form.sport : "", card.sport);
     setSportOffer(sport.offer);
-=======
     catalogPick.current = {
       playerName: card.playerName,
       yearLabel: card.yearLabel,
       setBrand: card.setBrand,
       cardNumber: card.cardNumber,
-      parallel: card.parallel || "Base",
+      parallel: chosen.parallel,
     };
->>>>>>> 491abdb (Prefilter catalog search and stage user-submitted cards.)
     setForm((prev) => ({
       ...prev,
       playerName: card.playerName,

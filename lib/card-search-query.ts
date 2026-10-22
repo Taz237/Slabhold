@@ -480,8 +480,8 @@ function compareHits(
 }
 
 /**
- * Parallel words are not player names. search_cards skips these when it picks
- * the trigram anchor so "ohtani refractor" anchors on ohtani, not refractor.
+ * Parallel words are not player names. search_cards skips these when it builds
+ * candidate words, so "ohtani refractor" can still match on ohtani.
  * Keep this list in sync with parallel_hints in the catalog search migration.
  */
 export const PARALLEL_ANCHOR_SKIP = new Set([
@@ -545,32 +545,59 @@ function longestWord(words: readonly string[]): string | null {
   return best;
 }
 
-function anchorSimilarity(anchor: string, card: SearchableCard): number {
-  const player = normalizeSearchText(card.player);
-  const words = player.split(" ").filter(Boolean);
-  if (words.includes(anchor)) return 1;
-  if (player.includes(anchor) || card.searchText.includes(anchor)) return 0.75;
-  let best = 0;
-  for (const word of words) {
-    const score = bigramSimilarity(anchor, word);
-    if (score > best) best = score;
+/**
+ * Every non-parallel word can find candidates. Words of 3+ characters are the
+ * pattern; a query made only of shorter words (such as "cc") uses those instead.
+ */
+export function catalogCandidateWords(playerWords: readonly string[]): {
+  phrase: string;
+  patternWords: string[];
+} {
+  const words: string[] = [];
+  for (const word of playerWords) {
+    if (!word || PARALLEL_ANCHOR_SKIP.has(word)) continue;
+    if (!words.includes(word)) words.push(word);
   }
-  return best;
+  const longWords = words.filter((word) => word.length >= 3);
+  return {
+    phrase: words.join(" "),
+    patternWords: longWords.length > 0 ? longWords : words,
+  };
 }
 
-function anchorHitsCandidate(anchor: string, card: SearchableCard): boolean {
-  const player = normalizeSearchText(card.player);
-  if (player.includes(anchor) || card.searchText.includes(anchor)) return true;
-  return player
-    .split(" ")
-    .filter(Boolean)
-    .some((word) => bigramSimilarity(anchor, word) >= 0.5);
+/** Share of the query's padded trigrams that also appear in the target. */
+function queryTrigramCoverage(query: string, target: string): number {
+  const left = normalizeSearchText(query);
+  const right = normalizeSearchText(target);
+  if (!left || !right) return 0;
+  const grams = (value: string) => {
+    const padded = `  ${value} `;
+    const set = new Set<string>();
+    for (let index = 0; index < padded.length - 2; index += 1) {
+      set.add(padded.slice(index, index + 3));
+    }
+    return set;
+  };
+  const queryGrams = grams(left);
+  if (queryGrams.size === 0) return 0;
+  const targetGrams = grams(right);
+  let shared = 0;
+  for (const gram of queryGrams) {
+    if (targetGrams.has(gram)) shared += 1;
+  }
+  return shared / queryGrams.size;
+}
+
+function wholeWordInText(word: string, text: string): boolean {
+  return new RegExp(`(^| )${word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}( |$)`).test(text);
 }
 
 /**
- * At most 300 index candidates, mirroring the prefilter inside public.search_cards.
- * Year and card number are hard filters. A set-only query must match a set word
- * in search text. A parallel-only query returns nothing.
+ * At most 300 candidates, mirroring the prefilter inside public.search_cards.
+ * Any non-parallel word of 3+ characters can match the player or search text.
+ * A card-number token also matches that number as a whole word in the set name.
+ * Candidates are ordered by how well the query words cover player, set, number,
+ * and parallel. A parallel-only query returns nothing.
  */
 export function prefilterCatalogCandidates(
   cards: SearchableCard[],
@@ -578,23 +605,49 @@ export function prefilterCatalogCandidates(
   limit = 300,
 ): SearchableCard[] {
   if (catalogCandidateRefusesScan(parsed)) return [];
-  const anchor = catalogCandidateAnchor(parsed.playerWords);
+  const { phrase, patternWords } = catalogCandidateWords(parsed.playerWords);
   const yearPrefix = parsed.yearLabel ? parsed.yearLabel.slice(0, 4) : null;
-  const number = parsed.cardNumber ? parsed.cardNumber.toLowerCase() : null;
+  const number = parsed.cardNumber ? normalizeSearchText(parsed.cardNumber) : null;
   const setAnchor = longestWord(parsed.setWords);
   const cap = Math.max(1, Math.min(limit, 300));
+  const matchPhrase = tokensToMatch(parsed).join(" ");
 
   const matched = cards.filter((card) => {
     if (yearPrefix && !card.yearLabel.startsWith(yearPrefix)) return false;
-    if (number && card.cardNumber.toLowerCase() !== number) return false;
-    if (anchor) return anchorHitsCandidate(anchor, card);
+    if (number) {
+      const onCard =
+        normalizeSearchText(card.cardNumber) === number ||
+        wholeWordInText(number, card.searchText);
+      if (!onCard) return false;
+    }
+    if (patternWords.length > 0) {
+      const player = normalizeSearchText(card.player);
+      const named = patternWords.some(
+        (word) => player.includes(word) || card.searchText.includes(word),
+      );
+      if (named) return true;
+      return phrase.length > 0 && queryTrigramCoverage(phrase, player) >= 0.5;
+    }
     if (setAnchor) return card.searchText.includes(setAnchor);
     return yearPrefix != null || number != null;
   });
 
   return matched
-    .map((card) => ({ card, sim: anchor ? anchorSimilarity(anchor, card) : 0 }))
-    .sort((a, b) => b.sim - a.sim || a.card.player.localeCompare(b.card.player))
+    .map((card) => ({
+      card,
+      covered: queryTrigramCoverage(
+        matchPhrase,
+        `${card.searchText} ${normalizeSearchText(card.parallel)}`,
+      ),
+      playerSim: phrase ? queryTrigramCoverage(phrase, card.player) : 0,
+    }))
+    .sort(
+      (a, b) =>
+        b.covered - a.covered ||
+        b.playerSim - a.playerSim ||
+        a.card.player.localeCompare(b.card.player) ||
+        a.card.id.localeCompare(b.card.id),
+    )
     .slice(0, cap)
     .map((row) => row.card);
 }

@@ -8,6 +8,8 @@
 -- whole catalog. statement_timeout stays 1s.
 -- A query with no player anchor, year, card number, or set word returns no rows.
 
+set local lock_timeout = '5s';
+
 create schema if not exists extensions;
 
 create extension if not exists pg_trgm with schema extensions;
@@ -129,7 +131,12 @@ returns table (
 )
 language plpgsql
 stable
-security invoker
+-- Definer so the trigram indexes are usable: under RLS the planner cannot use
+-- non-leakproof LIKE / ~ / <% as index conditions, so anon and authenticated
+-- callers got a sequential scan. The query below filters status = 'verified'
+-- itself and only reads card_catalog and player_aliases. public and extensions
+-- are not writable by anon or authenticated.
+security definer
 set search_path = public, extensions
 set statement_timeout = '1s'
 set pg_trgm.word_similarity_threshold = 0.5
@@ -169,6 +176,11 @@ declare
   ];
   anchor_tok text := null;
   set_anchor text := null;
+  cand_words text[] := '{}';
+  long_words text[] := '{}';
+  phrase text := null;
+  word_pattern text := null;
+  num_pattern text := null;
 begin
   if q is null or length(trim(q)) = 0 or length(q) > 100 then
     return;
@@ -287,6 +299,9 @@ begin
     return;
   end if;
 
+  -- Every non-parallel word can find candidates, not only the longest one.
+  -- "bo nix optic preview" must still reach Bo Nix, and "josh allen" must
+  -- not lose Josh Allen behind 300 Allen Iverson rows.
   foreach tok in array expanded loop
     if tok is null or tok = '' or tok = any(parallel_hints) then
       continue;
@@ -294,7 +309,29 @@ begin
     if anchor_tok is null or length(tok) > length(anchor_tok) then
       anchor_tok := tok;
     end if;
+    if not tok = any(cand_words) then
+      cand_words := array_append(cand_words, tok);
+      if length(tok) >= 3 then
+        long_words := array_append(long_words, tok);
+      end if;
+    end if;
   end loop;
+
+  if coalesce(array_length(cand_words, 1), 0) > 0 then
+    phrase := array_to_string(cand_words, ' ');
+    if coalesce(array_length(long_words, 1), 0) = 0 then
+      long_words := cand_words;
+    end if;
+    word_pattern := '(' || array_to_string(
+      array(select regexp_replace(w, '([^a-z0-9])', '\\\1', 'g') from unnest(long_words) as w),
+      '|'
+    ) || ')';
+  end if;
+
+  if card_num is not null then
+    -- Also lets "series 2" / "series 1" match the set name, as before.
+    num_pattern := '(^| )' || regexp_replace(lower(card_num), '([^a-z0-9])', '\\\1', 'g') || '( |$)';
+  end if;
 
   if coalesce(array_length(set_words, 1), 0) > 0 then
     foreach tok in array set_words loop
@@ -329,31 +366,36 @@ begin
         and (
           card_num is null
           or lower(c.card_number) = lower(card_num)
+          or c.search_text ~ num_pattern
         )
         and (
           (
-            anchor_tok is not null
+            word_pattern is not null
             and (
-              anchor_tok <% c.player_norm
-              or c.player_norm like '%' || anchor_tok || '%'
-              or c.search_text like '%' || anchor_tok || '%'
+              c.player_norm ~ word_pattern
+              or c.search_text ~ word_pattern
+              or phrase <% c.player_norm
             )
           )
           or (
-            anchor_tok is null
+            word_pattern is null
             and set_anchor is not null
             and c.search_text like '%' || set_anchor || '%'
           )
           or (
-            anchor_tok is null
+            word_pattern is null
             and set_anchor is null
             and (year_tok is not null or card_num is not null)
           )
         )
       order by
+        extensions.word_similarity(
+          array_to_string(match_tokens, ' '),
+          c.search_text || ' ' || lower(c.parallel)
+        ) desc,
         case
-          when anchor_tok is null then 0::double precision
-          else extensions.word_similarity(anchor_tok, c.player_norm)::double precision
+          when phrase is null then 0::double precision
+          else extensions.word_similarity(phrase, c.player_norm)::double precision
         end desc,
         c.player asc,
         c.id asc
@@ -430,7 +472,7 @@ create or replace function public.submit_catalog_card(card_id uuid)
 returns void
 language plpgsql
 security definer
-set search_path = public
+set search_path = ''
 as $$
 declare
   uid uuid := auth.uid();
@@ -515,7 +557,7 @@ begin
 end;
 $$;
 
-revoke all on function public.submit_catalog_card(uuid) from public;
+revoke all on function public.submit_catalog_card(uuid) from public, anon;
 grant execute on function public.submit_catalog_card(uuid) to authenticated;
 
 comment on function public.submit_catalog_card(uuid) is
@@ -526,7 +568,7 @@ create or replace function public.log_catalog_search_miss(q text)
 returns void
 language plpgsql
 security definer
-set search_path = public
+set search_path = ''
 as $$
 declare
   cleaned text := left(trim(coalesce(q, '')), 100);
@@ -534,13 +576,21 @@ begin
   if length(cleaned) < 3 then
     return;
   end if;
+  -- Cap the log so a script cannot grow the table without bound.
+  if (
+    select count(*)
+    from public.catalog_search_misses m
+    where m.created_at > now() - interval '1 hour'
+  ) >= 2000 then
+    return;
+  end if;
   insert into public.catalog_search_misses (q, results)
   values (cleaned, 0);
 end;
 $$;
 
-revoke all on function public.log_catalog_search_miss(text) from public;
-grant execute on function public.log_catalog_search_miss(text) to anon, authenticated;
+revoke all on function public.log_catalog_search_miss(text) from public, anon;
+grant execute on function public.log_catalog_search_miss(text) to authenticated;
 
 comment on function public.log_catalog_search_miss(text) is
   'Record one catalog search that returned zero rows. Callers cannot read the log.';
@@ -550,7 +600,7 @@ create or replace function public.approve_catalog_consensus()
 returns integer
 language plpgsql
 security definer
-set search_path = public
+set search_path = ''
 as $$
 declare
   updated_count integer := 0;
@@ -594,7 +644,7 @@ create or replace function public.promote_catalog_batch(batch text)
 returns integer
 language plpgsql
 security definer
-set search_path = public
+set search_path = ''
 as $$
 declare
   merged_count integer := 0;
@@ -604,23 +654,48 @@ begin
       using errcode = '22023';
   end if;
 
-  with eligible as (
+  -- One row per normalized identity, skipping identities the catalog already
+  -- has (any status), so "Bo  Nix" / "bo nix" submissions cannot add
+  -- near-duplicate rows. Verified rows are never updated.
+  with approved as (
     select
-      id,
-      player,
-      year_label,
-      product,
-      card_number,
-      coalesce(nullif(trim(parallel), ''), 'Base') as parallel,
-      sport,
-      coalesce(is_rookie, false) as is_rookie,
-      source,
-      source_ref
-    from public.catalog_staging
-    where catalog_staging.batch = promote_catalog_batch.batch
-      and review = 'approved'
-      and player is not null
-      and length(trim(player)) > 0
+      s.id,
+      regexp_replace(trim(s.player), '\s+', ' ', 'g') as player,
+      nullif(trim(s.year_label), '') as year_label,
+      nullif(trim(s.product), '') as product,
+      nullif(trim(s.card_number), '') as card_number,
+      coalesce(nullif(regexp_replace(trim(s.parallel), '\s+', ' ', 'g'), ''), 'Base') as parallel,
+      s.sport,
+      coalesce(s.is_rookie, false) as is_rookie,
+      s.source,
+      s.source_ref,
+      public.norm(s.player) as player_n,
+      public.norm(coalesce(s.year_label, '')) as year_n,
+      public.norm(coalesce(s.product, '')) as product_n,
+      public.norm(coalesce(s.card_number, '')) as number_n,
+      public.norm(coalesce(nullif(trim(s.parallel), ''), 'Base')) as parallel_n
+    from public.catalog_staging s
+    where s.batch = promote_catalog_batch.batch
+      and s.review = 'approved'
+      and s.player is not null
+      and length(trim(s.player)) > 0
+  ),
+  eligible as (
+    select * from approved
+  ),
+  picked as (
+    select distinct on (a.player_n, a.year_n, a.product_n, a.number_n, a.parallel_n) a.*
+    from approved a
+    where not exists (
+      select 1
+      from public.card_catalog c
+      where public.norm(c.player) = a.player_n
+        and public.norm(coalesce(c.year_label, '')) = a.year_n
+        and public.norm(coalesce(c.set_name, '')) = a.product_n
+        and public.norm(coalesce(c.card_number, '')) = a.number_n
+        and public.norm(c.parallel) = a.parallel_n
+    )
+    order by a.player_n, a.year_n, a.product_n, a.number_n, a.parallel_n, a.id
   ),
   inserted as (
     insert into public.card_catalog (
@@ -646,7 +721,7 @@ begin
       source,
       source_ref,
       'verified'
-    from eligible
+    from picked
     on conflict (
       player,
       coalesce(year_label, ''),
