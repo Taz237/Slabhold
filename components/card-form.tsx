@@ -26,7 +26,6 @@ import {
   SETS,
   SPORT_PICKER_OPTIONS,
   gradeSelectOptions,
-  isValidCardNumber,
   isValidYear,
   normalizeCardNumberInput,
   optionsWithCurrent,
@@ -42,6 +41,7 @@ import {
   gradingCompanyFromCard,
   gradingCompanyOptions,
 } from "@/lib/cards/grading-company";
+import { cardNumberAllowsSave } from "@/lib/cards/card-number-save";
 import { todayDateInput } from "@/lib/cards/form-defaults";
 import { cardFormPreview } from "@/lib/cards/form-preview";
 import {
@@ -214,8 +214,12 @@ export function CardForm({
   const yearOptions = yearOptionsForSport(form.sport);
 
   const parsedYear = parseYearLabel(form.yearLabel);
-  const cardNumberOk =
-    noNumber || isValidCardNumber(form.cardNumber);
+  const numberSave = {
+    isEdit: Boolean(existing),
+    noNumber,
+    cardNumber: form.cardNumber,
+  };
+  const cardNumberOk = cardNumberAllowsSave(numberSave);
   const setOk = Boolean(form.setBrand.trim());
   const playerOk = Boolean(form.playerName.trim());
   const yearOk = Boolean(parsedYear);
