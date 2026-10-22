@@ -42,7 +42,7 @@ export function MovingTodayPanel({
         </div>
         <ShareIconButton path={MOVING_TODAY_PATH} title={heading} label="Share" />
       </div>
-      <ul>
+      <ul className="max-md:pr-20">
         {sales.map((sale) => (
           <li key={`${sale.cardId}-${sale.soldOn}-${sale.priceCents}`}>
             <Link href={sale.href} className="flex min-h-11 items-center gap-2 py-1">
