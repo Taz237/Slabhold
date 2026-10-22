@@ -302,7 +302,7 @@ describe("share image renderer", () => {
       valueAmount: "$9,999.00",
       salesCount: 42,
     });
-    const response = renderOg(image);
+    const response = await renderOg(image);
     assert.equal(response.headers.get("content-type"), "image/png");
     const bytes = Buffer.from(await response.arrayBuffer());
     assert.equal(bytes[0], 0x89);
@@ -311,7 +311,16 @@ describe("share image renderer", () => {
   });
 
   it("renders the home preview with the slab screenshot", async () => {
-    const response = renderOg(homeShareImage());
+    const frame = readFileSync(join(process.cwd(), "components/og-frame.tsx"), "utf8");
+    assert.match(
+      frame,
+      /join\(\/\* turbopackIgnore: true \*\/ process\.cwd\(\), "public", "landing", "2\.png"\)/,
+    );
+    assert.equal(frame.includes('join(process.cwd(), "public/landing/2.png")'), false);
+    const config = readFileSync(join(process.cwd(), "next.config.ts"), "utf8");
+    assert.match(config, /node_modules\/sharp\/\*\*/);
+    assert.match(config, /node_modules\/@img\/\*\*/);
+    const response = await renderOg(homeShareImage());
     assert.equal(response.headers.get("cache-control"), PUBLIC_OG_CACHE_CONTROL);
     assert.match(PUBLIC_OG_CACHE_CONTROL, /s-maxage=3600/);
     assert.match(PUBLIC_OG_CACHE_CONTROL, /stale-while-revalidate=86400/);
