@@ -7,9 +7,10 @@ import {
   CARD_OG_CACHE_CONTROL,
   PUBLIC_OG_CACHE_CONTROL,
   renderOg,
+  renderProfileOg,
   resetHomeShotCache,
 } from "../../components/og-frame";
-import { clipText } from "./link-preview";
+import { clipText, profileLinkPreview } from "./link-preview";
 import {
   cardShareImage,
   homeShareImage,
@@ -475,6 +476,141 @@ describe("share image renderer", () => {
       assert.equal(logged.includes("Hello"), false);
       assert.equal(logged.includes("body"), false);
       assert.equal(logged.includes("title"), false);
+    } finally {
+      console.error = original;
+    }
+  });
+
+  it("falls back to the home image when the stripped retry also fails", async () => {
+    const home = Buffer.from(await (await renderOg(homeShareImage())).arrayBuffer());
+    const model = postShareImage({
+      found: true,
+      body: "Hello مرحبا",
+      authorName: "Donnie",
+      authorHandle: "donnietaz",
+    });
+    const original = console.error;
+    const calls: unknown[][] = [];
+    console.error = (...args: unknown[]) => {
+      calls.push(args);
+    };
+    try {
+      const response = await renderOg({
+        ...model,
+        player: Object.create(null) as never,
+      });
+      assert.equal(response.headers.get("cache-control"), CARD_OG_CACHE_CONTROL);
+      const bytes = Buffer.from(await response.arrayBuffer());
+      assert.deepEqual(bytes, home);
+      assert.equal(calls.length, 2);
+      assert.equal(calls[0]?.[0], "[og] share image render failed");
+      assert.equal(calls[1]?.[0], "[og] share image render failed");
+      assert.deepEqual(calls[0]?.[1], { kind: "post", stage: "render" });
+      assert.deepEqual(calls[1]?.[1], { kind: "post", stage: "strip" });
+      assert.equal(calls[0]?.[2] instanceof Error, true);
+      assert.match(
+        (calls[0]?.[2] as Error).message,
+        /lookupType: \d+ - substFormat: \d+ is not yet supported/,
+      );
+      for (const call of calls) {
+        const logged = JSON.stringify(call[1]);
+        assert.equal(logged.includes("Hello"), false);
+        assert.equal(logged.includes("مرحبا"), false);
+        assert.equal(logged.includes("body"), false);
+        assert.equal(logged.includes("title"), false);
+      }
+    } finally {
+      console.error = original;
+    }
+  });
+
+  it("renders a profile whose display name is Arabic instead of the home image", async () => {
+    const route = readFileSync(join(process.cwd(), "app/u/[username]/opengraph-image.tsx"), "utf8");
+    assert.match(route, /return renderProfileOg\(/);
+    assert.doesNotMatch(route, /PRIVATE_OG_CACHE_CONTROL/);
+    const preview = {
+      found: true,
+      username: "donnietaz",
+      displayName: "Hello مرحبا گیتی",
+      publicCardCount: 4,
+    } as const;
+    const response = await renderProfileOg(profileLinkPreview(preview), "COLLECTOR");
+    assert.equal(response.headers.get("content-type"), "image/png");
+    assert.equal(response.headers.get("cache-control"), PUBLIC_OG_CACHE_CONTROL);
+    const bytes = Buffer.from(await response.arrayBuffer());
+    assert.equal(bytes[0], 0x89);
+    assert.ok(bytes.length > 1000);
+    const plain = await renderProfileOg(
+      profileLinkPreview({ ...preview, displayName: "Hello" }),
+      "COLLECTOR",
+    );
+    const home = await renderOg(homeShareImage());
+    assert.deepEqual(bytes, Buffer.from(await plain.arrayBuffer()));
+    assert.notDeepEqual(bytes, Buffer.from(await home.arrayBuffer()));
+  });
+
+  it("serves the home image when a profile fails for a reason other than font shaping", async () => {
+    const home = Buffer.from(await (await renderOg(homeShareImage())).arrayBuffer());
+    const preview = profileLinkPreview({
+      found: true,
+      username: "donnietaz",
+      displayName: "Donnie",
+      publicCardCount: 4,
+    });
+    const original = console.error;
+    const calls: unknown[][] = [];
+    console.error = (...args: unknown[]) => {
+      calls.push(args);
+    };
+    try {
+      const response = await renderProfileOg(preview, Object.create(null) as never);
+      assert.equal(response.headers.get("cache-control"), CARD_OG_CACHE_CONTROL);
+      assert.equal(
+        response.headers.get("cache-control"),
+        "public, max-age=0, s-maxage=60, stale-while-revalidate=60",
+      );
+      const bytes = Buffer.from(await response.arrayBuffer());
+      assert.deepEqual(bytes, home);
+      assert.equal(calls.length, 1);
+      assert.equal(calls[0]?.[0], "[og] share image render failed");
+      assert.deepEqual(calls[0]?.[1], { kind: "profile", stage: "render" });
+      assert.equal(calls[0]?.[2] instanceof Error, true);
+      const logged = JSON.stringify(calls[0]?.[1]);
+      assert.equal(logged.includes("Donnie"), false);
+      assert.equal(logged.includes("body"), false);
+      assert.equal(logged.includes("title"), false);
+    } finally {
+      console.error = original;
+    }
+  });
+
+  it("keeps the own-profile image private when it renders and when it falls back", async () => {
+    const preview = profileLinkPreview({
+      found: true,
+      username: "donnietaz",
+      displayName: "Donnie",
+      publicCardCount: 4,
+    });
+    const rendered = await renderProfileOg(preview, "COLLECTOR", PRIVATE_OG_CACHE_CONTROL);
+    assert.equal(rendered.headers.get("cache-control"), "private, no-store");
+    assert.equal(rendered.headers.get("cache-control"), PRIVATE_OG_CACHE_CONTROL);
+    const home = Buffer.from(await (await renderOg(homeShareImage())).arrayBuffer());
+    const original = console.error;
+    const calls: unknown[][] = [];
+    console.error = (...args: unknown[]) => {
+      calls.push(args);
+    };
+    try {
+      const fallback = await renderProfileOg(
+        preview,
+        Object.create(null) as never,
+        PRIVATE_OG_CACHE_CONTROL,
+      );
+      assert.equal(fallback.headers.get("cache-control"), "private, no-store");
+      assert.equal(fallback.headers.get("cache-control"), PRIVATE_OG_CACHE_CONTROL);
+      assert.deepEqual(Buffer.from(await fallback.arrayBuffer()), home);
+      assert.equal(calls.length, 1);
+      assert.deepEqual(calls[0]?.[1], { kind: "profile", stage: "render" });
     } finally {
       console.error = original;
     }

@@ -476,6 +476,13 @@ async function paintWithinBudget(
 }
 
 /** Render a share image. Only a font-shaping failure retries without that script. */
+/** A failed public image uses the short cache. A private profile image stays private. */
+function ogFailureCache(cacheControl: string): string {
+  return cacheControl === PRIVATE_OG_CACHE_CONTROL
+    ? PRIVATE_OG_CACHE_CONTROL
+    : OG_FAILURE_CACHE_CONTROL;
+}
+
 export async function renderOg(
   model: ShareImage,
   cacheControl = PUBLIC_OG_CACHE_CONTROL,
@@ -501,7 +508,7 @@ export async function renderOg(
         );
       }
     }
-    return consumeOg(paint(homeShareImage(), OG_FAILURE_CACHE_CONTROL, await homeShotSrc()));
+    return consumeOg(paint(homeShareImage(), ogFailureCache(cacheControl), await homeShotSrc()));
   }
 }
 

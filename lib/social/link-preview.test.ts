@@ -307,16 +307,17 @@ describe("share image urls", () => {
       });
       assert.equal(avatar.imageUrl, null);
       assert.equal(post.imageUrl, null);
-      renderProfileOg({ ...avatar, imageUrl: "https://evil.example/x.png" }, "COLLECTOR");
+      await renderProfileOg({ ...avatar, imageUrl: "https://evil.example/x.png" }, "COLLECTOR");
       assert.equal(await reachableImage(avatar.imageUrl), null);
       assert.equal(await reachableImage(post.imageUrl), null);
       assert.equal(await reachableImage("https://evil.example/x.png"), null);
-      assert.equal(calls.length, 0);
+      const remote = () => calls.filter((call) => !call.url.startsWith("data:"));
+      assert.equal(remote().length, 0);
 
       assert.equal(await reachableImage(STORAGE_IMAGE), null);
-      assert.equal(calls.length, 1);
-      assert.equal(calls[0]?.url, STORAGE_IMAGE);
-      assert.equal(calls[0]?.redirect, "manual");
+      assert.equal(remote().length, 1);
+      assert.equal(remote()[0]?.url, STORAGE_IMAGE);
+      assert.equal(remote()[0]?.redirect, "manual");
     } finally {
       globalThis.fetch = original;
     }
