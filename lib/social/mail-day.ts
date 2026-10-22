@@ -261,6 +261,21 @@ export function textLooksRookie(text: string): boolean {
   return /\brated\s+rookies?\b/i.test(text) || /\brc\b/i.test(text);
 }
 
+/** Check Rookie when the catalog row is a rookie, or the title already says so. */
+export function rookieAfterCatalogPick(
+  current: boolean,
+  card: {
+    isRookie?: boolean;
+    playerName: string;
+    setBrand: string;
+    parallel?: string | null;
+    cardNumber: string;
+  },
+): boolean {
+  const title = [card.playerName, card.setBrand, card.parallel, card.cardNumber].join(" ");
+  return current || card.isRookie === true || textLooksRookie(title);
+}
+
 export type MailDayDraftCard = {
   /** Stable id so a retry upserts the same card. */
   id?: string;

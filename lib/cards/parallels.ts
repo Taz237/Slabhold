@@ -82,7 +82,6 @@ export const PARALLELS_BY_SET: Record<string, readonly string[]> = {
   "bowman chrome": CHROME_PARALLELS,
   donruss: [
     "Base",
-    "Rated Rookie",
     "Blue Press Proof",
     "Green Press Proof",
     "Purple Press Proof",

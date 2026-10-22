@@ -44,7 +44,12 @@ import {
   parallelChoice,
   parallelsForSet,
 } from "@/lib/cards/parallels";
-import { mailDaySportLabel, sportAfterCatalogPick, textLooksRookie } from "@/lib/social/mail-day";
+import {
+  mailDaySportLabel,
+  rookieAfterCatalogPick,
+  sportAfterCatalogPick,
+  textLooksRookie,
+} from "@/lib/social/mail-day";
 import { identifyFromPhoto } from "@/lib/comps/sample";
 import { cardCategory } from "@/lib/card-category";
 import { hasPaid } from "@/lib/format";
@@ -284,7 +289,6 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
 
   function applyCatalog(card: CatalogCard) {
     const chosen = parallelChoice(card.setBrand, card.parallel || "Base");
-    const title = [card.playerName, card.setBrand, card.parallel, card.cardNumber].join(" ");
     const sport = sportAfterCatalogPick(sportTouched ? form.sport : "", card.sport);
     setSportOffer(sport.offer);
     catalogPick.current = {
@@ -303,7 +307,7 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
       sport: sport.sport,
       parallel: chosen.parallel,
     }));
-    setIsRookie((current) => current || textLooksRookie(title));
+    setIsRookie((current) => rookieAfterCatalogPick(current, card));
     setSetIsCustom(!SETS.some((s) => s === card.setBrand));
     setParallelIsCustom(chosen.parallelIsCustom);
     setParallelNote("");

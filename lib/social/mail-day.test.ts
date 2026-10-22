@@ -23,6 +23,7 @@ import {
   mailDaySubmitBlocker,
   mailDaySubmitError,
   mailDayVisibility,
+  rookieAfterCatalogPick,
   sportAfterCatalogPick,
   parseAcquiredSource,
   presentMailDay,
@@ -414,6 +415,27 @@ describe("mail day form rules", () => {
     assert.match(mailDayForm, /This card is listed as/);
     assert.match(cardForm, /This card is listed as/);
     assert.match(mailDayForm, /RC \/ Rookie/);
+  });
+
+  it("checks Rookie when Will Johnson 2025 Topps Chrome #349 is picked", () => {
+    const willJohnson = {
+      playerName: "Will Johnson",
+      setBrand: "Topps Chrome",
+      cardNumber: "349",
+      parallel: "Base",
+      isRookie: true,
+    };
+    assert.equal(rookieAfterCatalogPick(false, willJohnson), true);
+    assert.equal(
+      rookieAfterCatalogPick(false, { ...willJohnson, isRookie: false }),
+      false,
+    );
+    assert.equal(rookieAfterCatalogPick(true, { ...willJohnson, isRookie: false }), true);
+
+    const cardForm = readFileSync(join(process.cwd(), "components/card-form.tsx"), "utf8");
+    const mailDayForm = readFileSync(join(process.cwd(), "components/mail-day-form.tsx"), "utf8");
+    assert.match(cardForm, /setIsRookie\(\(current\) => rookieAfterCatalogPick\(current, card\)\)/);
+    assert.match(mailDayForm, /isRookie: rookieAfterCatalogPick\(section\.isRookie, card\)/);
   });
 
   it("does not treat the new card Basketball default as a chosen sport", () => {

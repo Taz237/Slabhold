@@ -37,6 +37,7 @@ import {
   MAIL_DAY_SPORT_PICKER,
   SOURCE_LABELS,
   mailDayIsDirty,
+  rookieAfterCatalogPick,
   sportAfterCatalogPick,
   textLooksRookie,
   mailDayPhotoOriginals,
@@ -376,7 +377,6 @@ export function MailDayForm() {
                     setActive(index);
                     const chosen = parallelChoice(card.setBrand, card.parallel || "Base");
                     const sport = sportAfterCatalogPick(section.sport, card.sport);
-                    const title = [card.playerName, card.setBrand, card.parallel, card.cardNumber].join(" ");
                     update(index, {
                       playerName: card.playerName,
                       yearLabel: card.yearLabel,
@@ -388,7 +388,7 @@ export function MailDayForm() {
                       parallelNote: "",
                       sport: sport.sport,
                       sportOffer: sport.offer,
-                      isRookie: section.isRookie || textLooksRookie(title),
+                      isRookie: rookieAfterCatalogPick(section.isRookie, card),
                       catalogPick: {
                         playerName: card.playerName,
                         yearLabel: card.yearLabel,

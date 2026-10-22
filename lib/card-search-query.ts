@@ -46,8 +46,15 @@ const KNOWN_SET_WORDS = [
   "leaf",
 ];
 
-/** Words that describe a copy, not the catalog row. "psa 10" and "rookie" stay out of the AND. */
-const FILLER_WORDS = new Set(["rookie", "rookies", "rc", "card", "cards", "raw"]);
+/** Words that describe a copy, not the catalog row. "psa 10", "card", and "raw" stay out of the AND. */
+const FILLER_WORDS = new Set(["card", "cards", "raw"]);
+
+/**
+ * Rookie words are not player, set, or parallel words.
+ * Keep this list in sync with search_cards. "rated-rookie" is the hyphen
+ * public.norm keeps from "rated-rookie".
+ */
+const ROOKIE_WORDS = new Set(["rookie", "rookies", "rc", "rated-rookie", "rated-rookies"]);
 const GRADER_WORDS = new Set([
   "psa",
   "bgs",
@@ -81,6 +88,8 @@ export type ParsedCardQuery = {
   playerWords: string[];
   /** Query after whole-word alias expansion, for similarity. */
   expandedQuery: string;
+  /** True when the query has rated rookie, rookie, rookies, or rc. */
+  rookieQuery: boolean;
 };
 
 const CARD_NUMBER_RE =
@@ -154,22 +163,42 @@ export function parseCardQuery(query: string): ParsedCardQuery {
   const setWords: string[] = [];
   const remaining: string[] = [];
   let gradeSkip = 0;
+  let rookieQuery = false;
+  let index = 0;
 
-  for (const token of rawTokens) {
+  while (index < rawTokens.length) {
+    const token = rawTokens[index]!;
     if (GRADER_WORDS.has(token)) {
       gradeSkip = 2;
+      index += 1;
       continue;
     }
     if (gradeSkip > 0 && /^\d{1,2}$/.test(token)) {
       gradeSkip -= 1;
+      index += 1;
       continue;
     }
     gradeSkip = 0;
-    if (FILLER_WORDS.has(token)) continue;
+    const next = rawTokens[index + 1];
+    if (token === "rated" && (next === "rookie" || next === "rookies")) {
+      rookieQuery = true;
+      index += 2;
+      continue;
+    }
+    if (ROOKIE_WORDS.has(token)) {
+      rookieQuery = true;
+      index += 1;
+      continue;
+    }
+    if (FILLER_WORDS.has(token)) {
+      index += 1;
+      continue;
+    }
 
     const year = parseYearToken(token);
     if (year && !yearLabel) {
       yearLabel = year;
+      index += 1;
       continue;
     }
     const num = isCardNumberToken(token);
@@ -183,13 +212,16 @@ export function parseCardQuery(query: string): ParsedCardQuery {
         (/^\d{1,3}$/.test(num) && !YEAR_FULL_RE.test(token)))
     ) {
       cardNumber = num;
+      index += 1;
       continue;
     }
     if (KNOWN_SET_WORDS.includes(token) || token === "pee" || token === "chee") {
       setWords.push(token);
+      index += 1;
       continue;
     }
     remaining.push(token);
+    index += 1;
   }
 
   const expandedTokens = expandAliasTokens(remaining);
@@ -212,6 +244,7 @@ export function parseCardQuery(query: string): ParsedCardQuery {
     setWords,
     playerWords,
     expandedQuery: expandedQuery || normalized,
+    rookieQuery,
   };
 }
 
@@ -268,6 +301,8 @@ export type SearchableCard = {
   parallel: string;
   sport: string;
   searchText: string;
+  /** Catalog flag. Absent rows are not rookies. */
+  isRookie: boolean;
 };
 
 export function buildSearchText(card: {
@@ -597,7 +632,8 @@ function wholeWordInText(word: string, text: string): boolean {
  * Any non-parallel word of 3+ characters can match the player or search text.
  * A card-number token also matches that number as a whole word in the set name.
  * Candidates are ordered by how well the query words cover player, set, number,
- * and parallel. A parallel-only query returns nothing.
+ * and parallel. Rookies lead that order only when the query has no player word.
+ * A parallel-only query returns nothing.
  */
 export function prefilterCatalogCandidates(
   cards: SearchableCard[],
@@ -641,13 +677,19 @@ export function prefilterCatalogCandidates(
       ),
       playerSim: phrase ? queryTrigramCoverage(phrase, card.player) : 0,
     }))
-    .sort(
-      (a, b) =>
+    .sort((a, b) => {
+      // Rookies lead the 300 cap only when the query has no player word.
+      // "joe burrow rookie" must still reach Joe Burrow behind 300 other Joes.
+      if (parsed.rookieQuery && !phrase && a.card.isRookie !== b.card.isRookie) {
+        return Number(b.card.isRookie) - Number(a.card.isRookie);
+      }
+      return (
         b.covered - a.covered ||
         b.playerSim - a.playerSim ||
         a.card.player.localeCompare(b.card.player) ||
-        a.card.id.localeCompare(b.card.id),
-    )
+        a.card.id.localeCompare(b.card.id)
+      );
+    })
     .slice(0, cap)
     .map((row) => row.card);
 }
@@ -673,7 +715,12 @@ export function searchCardsLocal(
       return hits ? { card, ...hits } : null;
     })
     .filter((row): row is FieldHits & { card: SearchableCard } => row != null)
-    .sort(compareHits);
+    .sort((a, b) => {
+      if (parsed.rookieQuery && a.card.isRookie !== b.card.isRookie) {
+        return Number(b.card.isRookie) - Number(a.card.isRookie);
+      }
+      return compareHits(a, b);
+    });
 
   return ranked.slice(0, Math.max(1, Math.min(maxResults, 50))).map((row) => row.card);
 }

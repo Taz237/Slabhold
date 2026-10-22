@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
+import { join } from "node:path";
 import {
   CARD_CATALOG,
   resolveCatalogSearch,
@@ -310,6 +312,10 @@ describe("searchCatalog ranking", () => {
     assert.ok(rookie.every((hit) => hit.playerName === "Victor Wembanyama"));
     assert.equal(rookie.filter((hit) => hit.parallel === "Base").length, 3);
     assert.ok(rookie.slice(0, 3).every((hit) => hit.parallel === "Base"));
+    assert.deepEqual(
+      rookie.map((hit) => hit.id),
+      searchCatalog("wemby").map((hit) => hit.id),
+    );
 
     const rc = searchCatalog("wemby rc");
     assert.deepEqual(
@@ -398,6 +404,51 @@ describe("searchCatalog ranking", () => {
       ).map((hit) => hit.id);
       assert.deepEqual(narrowed, full, query);
     }
+  });
+
+  it("finds Donruss #301 for bucky irving rated rookie and ranks that rookie first", () => {
+    const parsed = parseCardQuery("bucky irving rated rookie");
+    assert.equal(parsed.rookieQuery, true);
+    assert.deepEqual(parsed.playerWords, ["bucky", "irving"]);
+    assert.deepEqual(parseCardQuery("bucky irving rated rookies").playerWords, ["bucky", "irving"]);
+    assert.deepEqual(parseCardQuery("bucky irving rc").playerWords, ["bucky", "irving"]);
+    assert.equal(parseCardQuery("rookies").rookieQuery, true);
+
+    const hits = searchCardsLocal("bucky irving rated rookie", [
+      asSearchable({
+        id: "prizm",
+        player: "Bucky Irving",
+        yearLabel: "2024",
+        setName: "Panini Prizm",
+        cardNumber: "400",
+        parallel: "Base",
+      }),
+      asSearchable({
+        id: "rated-parallel",
+        player: "Bucky Irving",
+        yearLabel: "2024",
+        setName: "Panini Donruss",
+        cardNumber: "999",
+        parallel: "Rated Rookie",
+      }),
+      asSearchable({
+        id: "donruss-301",
+        player: "Bucky Irving",
+        yearLabel: "2024",
+        setName: "Donruss",
+        cardNumber: "301",
+        parallel: "Base",
+        isRookie: true,
+      }),
+    ]);
+    assert.equal(hits[0]?.setName, "Donruss");
+    assert.equal(hits[0]?.cardNumber, "301");
+    assert.equal(hits[0]?.parallel, "Base");
+    assert.equal(hits[0]?.isRookie, true);
+    assert.deepEqual(
+      hits.map((hit) => hit.id),
+      ["donruss-301", "prizm", "rated-parallel"],
+    );
   });
 });
 
@@ -532,6 +583,51 @@ describe("catalog candidate prefilter", () => {
     assert.equal(hits[0]?.parallel, "Variation");
   });
 
+  it("keeps Joe Burrow when 300 rookie rows also match joe", () => {
+    const cards = Array.from({ length: 301 }, (_, index) =>
+      asSearchable({
+        id: `joe-rookie-${index}`,
+        player: `Joe Player ${index}`,
+        yearLabel: "2020",
+        setName: "Panini Prizm",
+        cardNumber: String(index + 1),
+        isRookie: true,
+      }),
+    );
+    cards.push(
+      asSearchable({
+        id: "burrow-base",
+        player: "Joe Burrow",
+        yearLabel: "2020",
+        setName: "Panini Prizm",
+        cardNumber: "307",
+        parallel: "Base",
+        isRookie: false,
+      }),
+      asSearchable({
+        id: "burrow-silver",
+        player: "Joe Burrow",
+        yearLabel: "2020",
+        setName: "Panini Prizm",
+        cardNumber: "307",
+        parallel: "Silver",
+        isRookie: false,
+      }),
+    );
+    const query = "joe burrow rookie";
+    const candidates = prefilterCatalogCandidates(cards, parseCardQuery(query));
+    assert.equal(candidates.length, 300);
+    assert.ok(candidates.some((card) => card.id === "burrow-base"));
+    assert.ok(candidates.some((card) => card.id === "burrow-silver"));
+    const hits = searchCardsLocal(query, candidates);
+    assert.ok(hits.length > 0);
+    assert.ok(hits.every((hit) => hit.player === "Joe Burrow"));
+    assert.deepEqual(
+      hits.map((hit) => hit.id).sort(),
+      ["burrow-base", "burrow-silver"],
+    );
+  });
+
   it("matches Bedard Upper Deck Series 2 when 2 is a card-number token", () => {
     const all = CARD_CATALOG.map(toSearchableCard);
     const query = "bedard upper deck series 2";
@@ -557,6 +653,7 @@ function asSearchable(card: {
   setName: string;
   cardNumber: string;
   parallel?: string;
+  isRookie?: boolean;
 }): SearchableCard {
   const parallel = card.parallel ?? "Base";
   return {
@@ -567,9 +664,38 @@ function asSearchable(card: {
     cardNumber: card.cardNumber,
     parallel,
     sport: "Basketball",
+    isRookie: card.isRookie === true,
     searchText: buildSearchText(card),
   };
 }
+
+describe("search_cards rookie migration", () => {
+  it("drops and recreates search_cards with is_rookie and the same safeguards", () => {
+    const sql = readFileSync(
+      join(process.cwd(), "supabase/migrations/20261022140000_search_cards_rookie_words.sql"),
+      "utf8",
+    );
+    assert.match(sql, /set local lock_timeout = '5s'/);
+    assert.match(sql, /drop function if exists public\.search_cards\(text, int\)/);
+    assert.match(sql, /security definer/);
+    assert.match(sql, /set search_path = public, extensions/);
+    assert.match(sql, /set statement_timeout = '1s'/);
+    assert.match(sql, /c\.status = 'verified'/);
+    assert.match(sql, /is_rookie boolean/);
+    assert.match(sql, /grant execute on function public\.search_cards\(text, int\) to anon, authenticated/);
+    assert.match(sql, /notify pgrst, 'reload schema'/);
+    assert.match(sql, /want_rookie and phrase is null/);
+    assert.match(sql, /tokens\[ti \+ 1\] in \('rookie', 'rookies'\)/);
+    assert.match(sql, /perform extensions\.word_similarity\('a', 'a'\)/);
+    assert.ok(
+      sql.indexOf("perform extensions.word_similarity") <
+        sql.indexOf("create or replace function"),
+    );
+    assert.doesNotMatch(sql, /drop table/i);
+    assert.doesNotMatch(sql, /delete from/i);
+    assert.doesNotMatch(sql, /truncate/i);
+  });
+});
 
 describe("resolveCatalogSearch before and after the migration", () => {
   it("re-ranks a loose remote list so the player match comes first", () => {
