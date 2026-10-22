@@ -270,6 +270,37 @@ describe("search word split", () => {
       }),
       true,
     );
+    const numbered = {
+      ...base,
+      playerName: "LeBron James",
+      year: 2024,
+      yearLabel: "2024",
+    };
+    assert.equal(
+      cardMatch("psa 10 #10", { ...numbered, cardNumber: "10", grade: "PSA 10" }),
+      true,
+    );
+    assert.equal(
+      cardMatch("gem mint #10", { ...numbered, cardNumber: "10", grade: "PSA 10" }),
+      true,
+    );
+    assert.equal(
+      cardMatch("psa 9 #8", { ...numbered, cardNumber: "8", grade: "PSA 9" }),
+      true,
+    );
+    assert.equal(
+      cardMatch("lebron #8 psa", { ...numbered, cardNumber: "8", grade: "PSA 9" }),
+      true,
+    );
+    assert.equal(
+      cardMatch("psa 10 #10", { ...numbered, cardNumber: "10", grade: "PSA 9" }),
+      false,
+    );
+    // #N is a card number. Dropping the leading-# token in gradeNeed makes this miss.
+    assert.equal(
+      cardMatch("#10 psa", { ...numbered, cardNumber: "10", grade: "PSA 9" }),
+      true,
+    );
     assert.equal(
       cardMatch("lebron graded", {
         ...base,

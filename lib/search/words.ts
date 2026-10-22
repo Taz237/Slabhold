@@ -120,7 +120,10 @@ function gradeWordsToDrop(need: GradeNeed): Set<string> {
 
 function plainContentWords(query: string, need: { tokens: string[] }): string[] {
   const skip = new Set([...need.tokens, ...ANY_GRADE_WORDS]);
-  return gradeTokens(query.trim().replace(/^@+/, "")).filter((token) => !skip.has(token));
+  return gradeTokens(query.trim().replace(/^@+/, ""))
+    .filter((token) => !skip.has(token))
+    .map((token) => token.replace(/^#/, ""))
+    .filter(Boolean);
 }
 
 function gradeTokenSet(grade: string | null | undefined): Set<string> {
