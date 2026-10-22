@@ -3,6 +3,9 @@ import { resolveCatalogSearch, type CatalogCard } from "@/lib/card-catalog";
 /** Stop waiting on search_cards and use the seed catalog. */
 export const CATALOG_SEARCH_TIMEOUT_MS = 6_000;
 
+/** Shown with a retry when search_cards times out or errors and nothing local matched. */
+export const CATALOG_SEARCH_TIMEOUT_MESSAGE = "Search is taking too long. Try again";
+
 /** Same pause Card Search already used before calling search_cards. */
 export const CATALOG_SEARCH_DEBOUNCE_MS = 250;
 
@@ -99,4 +102,18 @@ export function loadCatalogSearchSession(options: {
       cancel.abort();
     },
   };
+}
+
+/**
+ * True when the search failed and the seed fallback is empty.
+ * A real miss (remote []) stays false so the empty state can offer Add card.
+ * Seed matches stay false so a timeout still shows those cards.
+ */
+export function catalogSearchNeedsRetry(snapshot: Pick<
+  CatalogSearchSnapshot,
+  "aborted" | "timedOut" | "remote" | "results"
+>): boolean {
+  if (snapshot.aborted) return false;
+  if (snapshot.results.length > 0) return false;
+  return snapshot.timedOut || snapshot.remote === null;
 }

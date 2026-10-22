@@ -15,6 +15,17 @@ export const RESEND_RATE_LIMIT = "Too many emails. Wait a minute and try again."
 
 export const RESEND_FAILED = "Couldn't resend that email. Try again.";
 
+/** Same sentence for a real send and an unknown address. */
+export const CONFIRM_RESEND_SENT =
+  "If that email needs confirmation, we sent another link.";
+
+export const CONFIRM_RESEND_LINK = "Didn't get your confirmation email? Resend it";
+
+export const CONFIRM_RESEND_HINT =
+  "Enter your email and we'll send another confirmation if one is waiting.";
+
+export const EMAIL_NOT_CONFIRMED = "Confirm your email before logging in. You can resend it below.";
+
 /**
  * Extra room under the auth form so a 390px phone can scroll the submit
  * button above the keyboard. Not a fixed height.
@@ -79,6 +90,39 @@ export function isSignupResendRateLimited(error: ResendError): boolean {
   );
 }
 
+/** Supabase sign-in when the password is right and the inbox link is still open. */
+export function isEmailNotConfirmed(error: ResendError): boolean {
+  if (!error) return false;
+  const code = (error.code ?? "").toLowerCase();
+  if (code === "email_not_confirmed") return true;
+  return (error.message ?? "").toLowerCase().includes("email not confirmed");
+}
+
+/**
+ * Missing and already-confirmed addresses use the same outcome as a real send.
+ * Saying which one happened would tell a stranger whether the account exists.
+ */
+function isHiddenConfirmationAccount(error: NonNullable<ResendError>): boolean {
+  const code = (error.code ?? "").toLowerCase();
+  if (
+    code === "user_not_found" ||
+    code === "email_not_found" ||
+    code === "email_exists" ||
+    code === "user_already_exists"
+  ) {
+    return true;
+  }
+  const message = (error.message ?? "").toLowerCase();
+  return (
+    message.includes("user not found") ||
+    message.includes("no user found") ||
+    message.includes("email not found") ||
+    message.includes("already registered") ||
+    message.includes("already confirmed") ||
+    message.includes("already been registered")
+  );
+}
+
 /** Null means the resend succeeded. The provider message is never returned. */
 export function signupResendFeedback(
   error: ResendError,
@@ -88,4 +132,15 @@ export function signupResendFeedback(
   if (captcha) return { message: captcha, rateLimited: false };
   const rateLimited = isSignupResendRateLimited(error);
   return { message: rateLimited ? RESEND_RATE_LIMIT : RESEND_FAILED, rateLimited };
+}
+
+/**
+ * Login resend. Null means show CONFIRM_RESEND_SENT.
+ * Unknown and already-confirmed addresses stay on that same sentence.
+ */
+export function loginResendFeedback(
+  error: ResendError,
+): { message: string; rateLimited: boolean } | null {
+  if (!error || isHiddenConfirmationAccount(error)) return null;
+  return signupResendFeedback(error);
 }

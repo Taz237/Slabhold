@@ -18,11 +18,15 @@ import {
 } from "@/lib/auth/safe-next";
 import {
   AUTH_FORM_SCROLL,
+  CONFIRM_RESEND_HINT,
+  CONFIRM_RESEND_LINK,
+  CONFIRM_RESEND_SENT,
   PASSWORD_HINT,
   RESEND_FAILED,
   TURNSTILE_CONTINUE,
   USERNAME_HINT,
   emailFieldError,
+  loginResendFeedback,
   passwordFieldError,
   resendCooldownSeconds,
   showTurnstileContinue,
@@ -51,7 +55,6 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
   const [username, setUsername] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
-  const captchaWatch = useCaptchaWatch(ready && !signedIn && turnstileSiteKey().length > 0, captchaToken);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -61,9 +64,15 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
   const [now, setNow] = useState(0);
   const [resendBusy, setResendBusy] = useState(false);
   const [resendError, setResendError] = useState<string | null>(null);
+  const [resendNotice, setResendNotice] = useState<string | null>(null);
+  const [resendOpen, setResendOpen] = useState(false);
   const [resendToken, setResendToken] = useState<string | null>(null);
+  const captchaWatch = useCaptchaWatch(
+    ready && !signedIn && !confirmEmail && !resendOpen && turnstileSiteKey().length > 0,
+    captchaToken,
+  );
   const resendCaptchaWatch = useCaptchaWatch(
-    Boolean(confirmEmail) && turnstileSiteKey().length > 0,
+    (Boolean(confirmEmail) || resendOpen) && turnstileSiteKey().length > 0,
     resendToken,
   );
 
@@ -73,11 +82,11 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
   }, [mode]);
 
   useEffect(() => {
-    if (!confirmEmail) return;
+    if (!confirmEmail && !resendOpen) return;
     if (resendCooldownSeconds(resendAt, signupNow()) <= 0) return;
     const timer = window.setTimeout(() => setNow(signupNow()), 1000);
     return () => window.clearTimeout(timer);
-  }, [confirmEmail, resendAt, now]);
+  }, [confirmEmail, resendOpen, resendAt, now]);
 
   function touch(field: SignupField) {
     setTouched((current) => ({ ...current, [field]: true }));
@@ -103,6 +112,12 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
     setBusy(false);
     if (result.error) {
       setError(result.error);
+      if (result.unconfirmed) {
+        setResendOpen(true);
+        setResendError(null);
+        setResendNotice(null);
+        setResendToken(null);
+      }
       releaseCaptcha(captchaRef.current, () => setCaptchaToken(null));
       return;
     }
@@ -123,11 +138,26 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
     router.push(destination);
   }
 
+  function openConfirmationResend() {
+    setResendOpen(true);
+    setResendError(null);
+    setResendNotice(null);
+    setResendToken(null);
+    setCaptchaToken(null);
+  }
+
   async function resendConfirmation() {
+    const targetEmail = (confirmEmail ?? email).trim();
+    const invalidEmail = emailFieldError(targetEmail);
     const cooling = resendCooldownSeconds(resendAt, signupNow()) > 0;
-    if (!confirmEmail || submitBlocked(resendBusy || cooling, resendToken)) return;
+    if (invalidEmail) {
+      setResendError(invalidEmail);
+      return;
+    }
+    if (submitBlocked(resendBusy || cooling, resendToken)) return;
     setResendBusy(true);
     setResendError(null);
+    setResendNotice(null);
     try {
       const supabase = createSupabaseBrowser();
       if (!supabase) {
@@ -136,13 +166,14 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
       }
       const { error: sendError } = await supabase.auth.resend({
         type: "signup",
-        email: confirmEmail,
+        email: targetEmail,
         options: {
           captchaToken: resendToken ?? undefined,
           emailRedirectTo: emailConfirmRedirect(window.location.origin, next),
         },
       });
-      const feedback = signupResendFeedback(sendError);
+      const feedback =
+        mode === "login" ? loginResendFeedback(sendError) : signupResendFeedback(sendError);
       if (feedback) {
         setResendError(feedback.message);
         if (feedback.rateLimited) {
@@ -155,6 +186,10 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
       const sentAt = signupNow();
       setResendAt(sentAt);
       setNow(sentAt);
+      if (mode === "login") {
+        setResendNotice(CONFIRM_RESEND_SENT);
+        setError(null);
+      }
     } catch {
       setResendError(RESEND_FAILED);
     } finally {
@@ -190,7 +225,8 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
     );
   }
 
-  const resendSeconds = confirmEmail ? resendCooldownSeconds(resendAt, now) : 0;
+  const resendSeconds =
+    confirmEmail || resendOpen ? resendCooldownSeconds(resendAt, now) : 0;
 
   if (confirmEmail) {
     return (
@@ -237,6 +273,84 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
         <Link href={loginPath(next)} className="mt-4 block py-2 text-center text-sm font-medium text-zinc-500">
           Log in
         </Link>
+      </div>
+    );
+  }
+
+  if (resendOpen) {
+    return (
+      <div className={`mx-auto max-w-md ${AUTH_FORM_SCROLL}`}>
+        <Link href={authLogoHref(next)} className="mb-8 flex items-center gap-2">
+          <Logo />
+          <span className="text-[17px] font-bold tracking-tight">Slabhold</span>
+        </Link>
+        <h1 className="text-2xl font-bold tracking-tight">Resend confirmation</h1>
+        <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-300">{CONFIRM_RESEND_HINT}</p>
+        {error ? <p className="mt-3 text-sm text-rose-600 dark:text-rose-400">{error}</p> : null}
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            void resendConfirmation();
+          }}
+          className="mt-5 space-y-3"
+        >
+          <Field
+            label="Email"
+            type="email"
+            autoComplete="email"
+            value={email}
+            onChange={setEmail}
+            placeholder="you@email.com"
+          />
+          {resendNotice ? (
+            <p className="text-sm text-zinc-600 dark:text-zinc-300">{resendNotice}</p>
+          ) : null}
+          {resendError ? <p className="text-sm text-rose-600 dark:text-rose-400">{resendError}</p> : null}
+          <Captcha
+            key={`${pathname}-resend`}
+            ref={resendCaptchaRef}
+            onToken={(token) => {
+              setResendToken(token);
+              resendCaptchaWatch.onSolved();
+            }}
+            onExpire={() => setResendToken(null)}
+            onFail={() => {
+              setResendToken(null);
+              resendCaptchaWatch.onFail();
+            }}
+            onActivity={resendCaptchaWatch.onActivity}
+            onInteractive={resendCaptchaWatch.onInteractive}
+          />
+          {resendCaptchaWatch.failed ? (
+            <p className="text-sm text-rose-600 dark:text-rose-400">{CAPTCHA_LOAD_FAILED}</p>
+          ) : null}
+          {showTurnstileContinue(turnstileSiteKey(), resendToken) ? (
+            <p className="text-center text-sm text-zinc-500">{TURNSTILE_CONTINUE}</p>
+          ) : null}
+          <button
+            type="submit"
+            disabled={submitBlocked(resendBusy || resendSeconds > 0, resendToken)}
+            className="w-full rounded-full bg-[#7C3AED] py-3 text-sm font-semibold text-white disabled:opacity-60"
+          >
+            Resend email
+          </button>
+          {resendSeconds > 0 ? (
+            <p className="mt-2 text-center text-sm text-zinc-500">You can resend in {resendSeconds}s.</p>
+          ) : null}
+          <button
+            type="button"
+            onClick={() => {
+              setResendOpen(false);
+              setResendError(null);
+              setResendNotice(null);
+              setResendToken(null);
+              setError(null);
+            }}
+            className="block min-h-11 w-full py-2 text-center text-sm font-medium text-zinc-500"
+          >
+            Back to log in
+          </button>
+        </form>
       </div>
     );
   }
@@ -303,9 +417,18 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
           error={signupIssue("password")}
         />
         {mode === "login" ? (
-          <Link href="/forgot-password" className="hit-44 ml-auto block w-fit text-right text-sm font-medium text-zinc-500">
-            Forgot password?
-          </Link>
+          <div className="space-y-1">
+            <Link href="/forgot-password" className="hit-44 ml-auto block w-fit text-right text-sm font-medium text-zinc-500">
+              Forgot password?
+            </Link>
+            <button
+              type="button"
+              onClick={openConfirmationResend}
+              className="block min-h-11 w-full py-2 text-center text-sm font-medium text-violet-700 dark:text-violet-300"
+            >
+              {CONFIRM_RESEND_LINK}
+            </button>
+          </div>
         ) : null}
         {error ? <p className="text-sm text-rose-600 dark:text-rose-400">{error}</p> : null}
         {message ? <p className="text-sm text-zinc-600 dark:text-zinc-300">{message}</p> : null}

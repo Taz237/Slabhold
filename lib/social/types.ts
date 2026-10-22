@@ -174,6 +174,8 @@ export type ProfilePatch = {
 export type AuthResult = {
   error?: string;
   notice?: string;
+  /** Password was right, but the address is still unconfirmed. */
+  unconfirmed?: boolean;
 };
 
 export const POST_LIMIT = 280;

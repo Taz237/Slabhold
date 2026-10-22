@@ -17,9 +17,14 @@ import {
   passwordFieldError,
   resendCooldownSeconds,
   showTurnstileContinue,
+  CONFIRM_RESEND_LINK,
+  CONFIRM_RESEND_SENT,
+  EMAIL_NOT_CONFIRMED,
   signupInboxCopy,
   signupNow,
   signupResendFeedback,
+  loginResendFeedback,
+  isEmailNotConfirmed,
   usernameFieldError,
 } from "./signup-fields";
 
@@ -109,6 +114,34 @@ describe("signup confirmation resend", () => {
     );
     assert.equal(RESEND_FAILED.includes("not authorized"), false);
   });
+
+  it("keeps login resend neutral when the address is missing or already confirmed", () => {
+    assert.equal(CONFIRM_RESEND_SENT, "If that email needs confirmation, we sent another link.");
+    assert.equal(CONFIRM_RESEND_LINK, "Didn't get your confirmation email? Resend it");
+    assert.equal(
+      EMAIL_NOT_CONFIRMED,
+      "Confirm your email before logging in. You can resend it below.",
+    );
+    assert.equal(loginResendFeedback(null), null);
+    assert.equal(
+      loginResendFeedback({ code: "user_not_found", message: "User not found" }),
+      null,
+    );
+    assert.equal(loginResendFeedback({ message: "Email address already confirmed" }), null);
+    assert.equal(isEmailNotConfirmed({ code: "email_not_confirmed", message: "Email not confirmed" }), true);
+    assert.equal(isEmailNotConfirmed({ message: "Email not confirmed" }), true);
+    assert.equal(isEmailNotConfirmed({ message: "Invalid login credentials" }), false);
+    assert.deepEqual(loginResendFeedback({ status: 429, message: "over rate limit" }), {
+      message: RESEND_RATE_LIMIT,
+      rateLimited: true,
+    });
+    assert.equal(
+      loginResendFeedback({ message: "Error sending confirmation email", status: 500 })?.message,
+      RESEND_FAILED,
+    );
+    assert.equal(CONFIRM_RESEND_SENT.includes("not found"), false);
+    assert.equal(EMAIL_NOT_CONFIRMED.includes("Email not confirmed"), false);
+  });
 });
 
 describe("signup form wiring", () => {
@@ -133,7 +166,11 @@ describe("signup form wiring", () => {
     assert.match(auth, /showTurnstileContinue\(turnstileSiteKey\(\), captchaToken\)/);
     assert.match(
       auth,
-      /supabase\.auth\.resend\(\{\s*type: "signup",\s*email: confirmEmail,\s*options: \{\s*captchaToken: resendToken \?\? undefined,\s*emailRedirectTo: emailConfirmRedirect\(window\.location\.origin, next\),\s*\},\s*\}\)/,
+      /const targetEmail = \(confirmEmail \?\? email\)\.trim\(\)/,
+    );
+    assert.match(
+      auth,
+      /supabase\.auth\.resend\(\{\s*type: "signup",\s*email: targetEmail,\s*options: \{\s*captchaToken: resendToken \?\? undefined,\s*emailRedirectTo: emailConfirmRedirect\(window\.location\.origin, next\),\s*\},\s*\}\)/,
     );
     assert.match(auth, /showTurnstileContinue\(turnstileSiteKey\(\), resendToken\)/);
     assert.match(auth, /disabled=\{submitBlocked\(resendBusy \|\| resendSeconds > 0, resendToken\)\}/);
@@ -142,6 +179,13 @@ describe("signup form wiring", () => {
     assert.match(auth, /Resend email/);
     assert.match(auth, /resendCooldownSeconds\(resendAt, now\)/);
     assert.match(auth, /signupResendFeedback\(sendError\)/);
+    assert.match(auth, /loginResendFeedback\(sendError\)/);
+    assert.match(auth, /CONFIRM_RESEND_LINK/);
+    assert.match(auth, /CONFIRM_RESEND_SENT/);
+    assert.match(auth, /openConfirmationResend/);
+    assert.match(auth, /if \(result\.unconfirmed\)/);
+    assert.match(auth, /setResendOpen\(true\)/);
+    assert.match(auth, /resendCooldownSeconds\(resendAt, signupNow\(\)\) > 0/);
     assert.doesNotMatch(auth, /sendError\.message/);
     assert.match(auth, /if \(result\.notice\) \{\s*if \(mode === "signup"\)/);
     assert.match(auth, /router\.push\(destination\)/);

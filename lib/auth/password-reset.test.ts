@@ -7,6 +7,7 @@ import {
   PASSWORD_RESET_EXPIRED,
   PASSWORD_RESET_FAILED,
   PASSWORD_RESET_SENT,
+  PASSWORD_RESET_UNAVAILABLE,
   authConfirmFailurePath,
   passwordResetRedirect,
   passwordResetSendError,
@@ -66,28 +67,41 @@ describe("password reset", () => {
     );
   });
 
-  it("shows the sent message for a rate limit so an account cannot be confirmed", () => {
+  it("says the send failed for a rate limit or SMTP error and stays neutral for an unknown address", () => {
     const hidden = "No user found for that email";
-    const failed = passwordResetSendError({ message: hidden, status: 400 });
-    assert.equal(failed, PASSWORD_RESET_FAILED);
-    assert.equal(failed?.includes("user found"), false);
+    assert.equal(passwordResetSendError({ message: hidden, status: 400 }), null);
+    assert.equal(passwordResetSendError({ code: "user_not_found", message: hidden }), null);
+    assert.equal(passwordResetSendError(null), null);
     assert.equal(
       passwordResetSendError({ message: "Email rate limit exceeded", status: 429 }),
-      null,
+      PASSWORD_RESET_UNAVAILABLE,
     );
     assert.equal(
       passwordResetSendError({ code: "over_email_send_rate_limit", message: hidden }),
-      null,
+      PASSWORD_RESET_UNAVAILABLE,
     );
     assert.equal(
       passwordResetSendError({
         message: "For security purposes, you can only request this after 60 seconds.",
       }),
-      null,
+      PASSWORD_RESET_UNAVAILABLE,
     );
-    assert.equal(passwordResetSendError(null), null);
+    assert.equal(
+      passwordResetSendError({
+        message: "Error sending recovery email",
+        status: 500,
+        code: "unexpected_failure",
+      }),
+      PASSWORD_RESET_UNAVAILABLE,
+    );
+    const other = passwordResetSendError({ message: "Unable to validate email address", status: 400 });
+    assert.equal(other, PASSWORD_RESET_FAILED);
+    assert.equal(PASSWORD_RESET_UNAVAILABLE, "We couldn't send that right now. Please try again in a bit.");
+    assert.equal(PASSWORD_RESET_UNAVAILABLE.includes("user found"), false);
+    assert.equal(PASSWORD_RESET_SENT.includes(hidden), false);
     const source = readFileSync(join(process.cwd(), "lib/auth/password-reset.ts"), "utf8");
     assert.equal(source.includes("Too many tries"), false);
+    assert.equal(source.includes(hidden), false);
   });
 
   it("lets signed-out visitors open forgot and reset password", () => {
@@ -115,6 +129,8 @@ describe("password reset", () => {
     assert.match(forgot, /PASSWORD_RESET_SENT/);
     assert.match(forgot, /PASSWORD_RESET_EXPIRED/);
     assert.match(forgot, /PASSWORD_RESET_FAILED/);
+    assert.match(forgot, /PASSWORD_RESET_UNAVAILABLE/);
+    assert.match(forgot, /showError\(PASSWORD_RESET_UNAVAILABLE\)/);
     assert.match(forgot, /passwordResetSendError\(resetError\)/);
     assert.match(forgot, /get\("expired"\) === "1"/);
     assert.match(forgot, /setSent\(true\)/);

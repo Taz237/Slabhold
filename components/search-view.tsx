@@ -10,8 +10,17 @@ import { useCollection } from "@/components/collection-provider";
 import { useSocial } from "@/components/social-provider";
 import { PullToRefresh } from "@/components/pull-to-refresh";
 import { EmptyState, LoadingRows } from "@/components/status";
+import { CARD_CATALOG } from "@/lib/card-catalog";
 import { cardSubtitle, cardTitle, timeAgo } from "@/lib/format";
-import { searchEmptyTitle, visibleSearchSections } from "@/lib/search/sections";
+import {
+  SEARCH_ADD_CARD_LABEL,
+  SEARCH_IDLE_DETAIL,
+  addCardSearchHref,
+  recentPlayerNames,
+  searchEmptyTitle,
+  suggestedSearchPlayers,
+  visibleSearchSections,
+} from "@/lib/search/sections";
 import type { SportsCard } from "@/lib/types";
 
 const RECENT_KEY = "slabhold.search.recent.v1";
@@ -119,6 +128,15 @@ export function SearchView() {
 
   const authors = useMemo(() => new Map(profiles.map((profile) => [profile.id, profile])), [profiles]);
 
+  const suggestions = useMemo(
+    () =>
+      suggestedSearchPlayers({
+        recentPlayers: recentPlayerNames(cards),
+        catalogPlayers: CARD_CATALOG.map((card) => card.playerName),
+      }),
+    [cards],
+  );
+
   function remember(term: string) {
     const next = term.trim();
     if (!next) return;
@@ -185,57 +203,87 @@ export function SearchView() {
       {loading ? (
         <LoadingRows />
       ) : !q ? (
-        recent.length === 0 ? (
+        recent.length === 0 && suggestions.length === 0 ? (
           <EmptyState
             icon={<Search className="h-5 w-5" />}
             title="Search Slabhold"
-            detail="Find people and posts."
+            detail={SEARCH_IDLE_DETAIL}
           />
         ) : (
-          <section>
-            <div className="flex items-center justify-between px-4 pt-3 pb-1">
-              <h2 className="text-xl font-extrabold tracking-tight">Recent</h2>
-              <button
-                type="button"
-                onClick={clearRecent}
-                className="rounded-full px-2 py-1 text-sm font-medium text-sky-600 dark:text-sky-400"
-              >
-                Clear all
-              </button>
-            </div>
-            <ul>
-              {recent.map((term) => (
-                <li
-                  key={term}
-                  className="flex items-center border-b border-zinc-200 dark:border-white/10"
-                >
+          <div>
+            <p className="px-4 pt-4 text-sm text-zinc-500">{SEARCH_IDLE_DETAIL}</p>
+            {recent.length > 0 ? (
+              <section>
+                <div className="flex items-center justify-between px-4 pt-3 pb-1">
+                  <h2 className="text-xl font-extrabold tracking-tight">Recent</h2>
                   <button
                     type="button"
-                    onClick={() => setSearchQuery(term)}
-                    className="flex min-h-12 min-w-0 flex-1 items-center gap-3 px-4 text-left"
+                    onClick={clearRecent}
+                    className="rounded-full px-2 py-1 text-sm font-medium text-sky-600 dark:text-sky-400"
                   >
-                    <Clock className="h-5 w-5 shrink-0 text-zinc-400" />
-                    <span className="truncate text-[15px]">{term}</span>
+                    Clear all
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => forget(term)}
-                    aria-label={`Remove ${term}`}
-                    className="mr-2 grid h-10 w-10 shrink-0 place-items-center rounded-full text-zinc-500 hover:bg-zinc-100 dark:hover:bg-white/10"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </section>
+                </div>
+                <ul>
+                  {recent.map((term) => (
+                    <li
+                      key={term}
+                      className="flex items-center border-b border-zinc-200 dark:border-white/10"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => setSearchQuery(term)}
+                        className="flex min-h-12 min-w-0 flex-1 items-center gap-3 px-4 text-left"
+                      >
+                        <Clock className="h-5 w-5 shrink-0 text-zinc-400" />
+                        <span className="truncate text-[15px]">{term}</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => forget(term)}
+                        aria-label={`Remove ${term}`}
+                        className="mr-2 grid h-10 w-10 shrink-0 place-items-center rounded-full text-zinc-500 hover:bg-zinc-100 dark:hover:bg-white/10"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ) : null}
+            {suggestions.length > 0 ? (
+              <section>
+                <h2 className="px-4 pt-4 pb-1 text-xl font-extrabold tracking-tight">Suggested</h2>
+                <ul className="flex flex-wrap gap-2 px-4 pt-2 pb-4">
+                  {suggestions.map((name) => (
+                    <li key={name}>
+                      <button
+                        type="button"
+                        onClick={() => setSearchQuery(name)}
+                        className="inline-flex min-h-11 items-center rounded-full bg-zinc-100 px-3 text-sm font-medium dark:bg-white/10"
+                      >
+                        {name}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ) : null}
+          </div>
         )
       ) : visibleSections.length === 0 ? (
         <EmptyState
           icon={<Search className="h-5 w-5" />}
           title={searchEmptyTitle(typed)}
-          detail="Try a name, @handle, or words from a post."
-        />
+          detail="Try a name, @handle, a card, or words from a post."
+        >
+          <Link
+            href={addCardSearchHref(typed)}
+            className="inline-flex min-h-11 items-center justify-center rounded-full bg-[#7C3AED] px-4 text-sm font-semibold text-white"
+          >
+            {SEARCH_ADD_CARD_LABEL}
+          </Link>
+        </EmptyState>
       ) : (
         <div>
           {visibleSections.includes("People") ? (

@@ -2,7 +2,16 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { join } from "node:path";
-import { searchEmptyTitle, visibleSearchSections } from "./sections";
+import {
+  SEARCH_ADD_CARD_LABEL,
+  SEARCH_IDLE_DETAIL,
+  addCardSearchHref,
+  popularCatalogPlayers,
+  recentPlayerNames,
+  searchEmptyTitle,
+  suggestedSearchPlayers,
+  visibleSearchSections,
+} from "./sections";
 
 function read(path: string) {
   return readFileSync(join(process.cwd(), path), "utf8");
@@ -42,10 +51,44 @@ describe("search sections", () => {
     assert.doesNotMatch(view, /autoFocus/);
     assert.doesNotMatch(view, /No matching people/);
     assert.doesNotMatch(view, /No matching posts/);
+    assert.doesNotMatch(view, /Find people and posts/);
+    assert.match(view, /SEARCH_IDLE_DETAIL/);
+    assert.match(view, /recent\.length > 0/);
+    assert.match(view, /suggestions\.length > 0/);
+    assert.match(view, /suggestedSearchPlayers\(/);
+    assert.match(view, /SEARCH_ADD_CARD_LABEL/);
+    assert.match(view, /addCardSearchHref\(typed\)/);
+    assert.equal(SEARCH_IDLE_DETAIL, "Find people, posts, and cards.");
+    assert.equal(SEARCH_ADD_CARD_LABEL, "Not seeing your card? Add it");
     assert.match(page, /aria-label="Search"/);
     const fallbackField = page.indexOf('aria-label="Search"');
     const fallbackRows = page.indexOf("<LoadingRows");
     assert.ok(fallbackField >= 0 && fallbackField < fallbackRows);
     assert.doesNotMatch(page, /autoFocus/);
+  });
+
+  it("suggests recent and popular players from data already on the device", () => {
+    assert.deepEqual(
+      recentPlayerNames([
+        { playerName: "Older", createdAt: "2024-01-01T00:00:00.000Z" },
+        { playerName: "Newer", createdAt: "2026-01-01T00:00:00.000Z" },
+      ]),
+      ["Newer", "Older"],
+    );
+    assert.deepEqual(
+      popularCatalogPlayers(["A", "B", "A", "C", "B", "B"], 2),
+      ["B", "A"],
+    );
+    assert.deepEqual(
+      suggestedSearchPlayers({
+        recentPlayers: ["Jaxson Dart", "Jaxson Dart", "  "],
+        catalogPlayers: ["Victor Wembanyama", "Victor Wembanyama", "Caitlin Clark"],
+        limit: 2,
+      }),
+      ["Jaxson Dart", "Victor Wembanyama"],
+    );
+    assert.deepEqual(suggestedSearchPlayers({ recentPlayers: [], catalogPlayers: ["", "  "] }), []);
+    assert.equal(addCardSearchHref("  "), "/cards/new");
+    assert.equal(addCardSearchHref("Wemby #136"), "/cards/new?q=Wemby%20%23136");
   });
 });

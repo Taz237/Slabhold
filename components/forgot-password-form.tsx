@@ -10,6 +10,7 @@ import {
   PASSWORD_RESET_EXPIRED,
   PASSWORD_RESET_FAILED,
   PASSWORD_RESET_SENT,
+  PASSWORD_RESET_UNAVAILABLE,
   passwordResetEmailOptions,
   passwordResetSendError,
 } from "@/lib/auth/password-reset";
@@ -54,7 +55,7 @@ export function ForgotPasswordForm() {
       setSent(true);
       releaseCaptcha(captchaRef.current, () => setCaptchaToken(null));
     } catch {
-      showError(PASSWORD_RESET_FAILED);
+      showError(PASSWORD_RESET_UNAVAILABLE);
     } finally {
       setBusy(false);
     }
