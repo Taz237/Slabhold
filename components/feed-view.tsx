@@ -406,7 +406,7 @@ function CollectorSuggestions({
           <button
             type="button"
             onClick={() => void followMany(pending.map((profile) => profile.id))}
-            className="inline-flex min-h-11 items-center rounded-full bg-zinc-900 px-3 text-xs font-bold text-white dark:bg-zinc-100 dark:text-zinc-950"
+            className="inline-flex min-h-11 items-center rounded-full bg-zinc-900 px-3 text-xs font-bold text-white dark:bg-zinc-100 dark:text-zinc-950 shrink-0 whitespace-nowrap"
           >
             Follow all
           </button>
