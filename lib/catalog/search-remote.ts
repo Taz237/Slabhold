@@ -1,4 +1,5 @@
 import type { CatalogCard } from "@/lib/card-catalog";
+import { catalogSearchQuery } from "@/lib/card-search-query";
 import { createSupabaseBrowser } from "@/lib/supabase/browser";
 
 type RpcRow = {
@@ -38,7 +39,7 @@ export async function searchCatalogRemote(
   if (!supabase) return null;
 
   const builder = supabase.rpc("search_cards", {
-    q: query,
+    q: catalogSearchQuery(query).slice(0, 100),
     max_results: 20,
   });
 

@@ -2,6 +2,7 @@ import {
   GRADER_WORDS,
   normalizeSearchText,
   parseCardQuery,
+  splitGluedGrades,
   tokensToMatch,
 } from "@/lib/card-search-query";
 
@@ -31,7 +32,6 @@ const ANY_GRADE_WORDS = new Set(["graded", "gem", "mint"]);
 
 /** 1 through 10, or a half point such as 9.5. "#57" is a card number, not a grade. */
 const GRADE_NUMBER = /^(?:10|[1-9])(?:\.5)?$/;
-const GLUED_GRADE = /^(psa|bgs|sgc|cgc|beckett)(\d{1,2}(?:\.\d+)?)$/;
 /** "psa10" and "psa-10" are the same grade words once punctuation is gone. */
 const GLUED_GRADE_WORD = /^(?:psa|bgs|sgc|cgc|beckett)-?\d{1,2}(?:\.\d+)?$/;
 
@@ -47,7 +47,7 @@ type GradeNeed = {
 
 /** Lowercase tokens. A decimal grade such as 9.5 stays one token. "psa10" splits. */
 function gradeTokens(input: string): string[] {
-  const prepared = input
+  const prepared = splitGluedGrades(input)
     .normalize("NFD")
     .replace(/\p{M}/gu, "")
     .toLowerCase()
@@ -58,11 +58,7 @@ function gradeTokens(input: string): string[] {
     .replace(/\u0001/g, "#")
     .trim()
     .replace(/\s+/g, " ");
-  if (!prepared) return [];
-  return prepared.split(" ").flatMap((token) => {
-    const glued = token.match(GLUED_GRADE);
-    return glued ? [glued[1]!, glued[2]!] : [token];
-  });
+  return prepared ? prepared.split(" ") : [];
 }
 
 function gradeNeed(query: string): GradeNeed {

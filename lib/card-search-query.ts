@@ -154,8 +154,34 @@ export function expandAliasTokens(tokens: string[]): string[] {
   return out;
 }
 
+/**
+ * "psa10", "psa-10", and "bgs9.5" are the same grade words as "psa 10" and "bgs 9.5".
+ * Shared with the My cards matcher so catalog search and grade matching stay aligned.
+ */
+export function splitGluedGrades(value: string): string {
+  return value.replace(
+    /\b(psa|bgs|sgc|cgc|beckett)-?(\d{1,2}(?:\.\d+)?)\b/gi,
+    "$1 $2",
+  );
+}
+
+/**
+ * Query text for search_cards. Glued grades are split, and a "#N" is moved in
+ * front of the grade phrase. public.norm() drops "#", and the SQL grade skip
+ * then eats the next two short numbers, so "#10" after "psa 10" would vanish.
+ */
+export function catalogSearchQuery(query: string): string {
+  const split = splitGluedGrades(query);
+  const numbers: string[] = [];
+  const rest = split.replace(/#(\d+)/g, (_hash, digits: string) => {
+    numbers.push(`#${digits}`);
+    return " ";
+  });
+  return [...numbers, rest].join(" ").replace(/\s+/g, " ").trim();
+}
+
 export function parseCardQuery(query: string): ParsedCardQuery {
-  const normalized = normalizeSearchText(query);
+  const normalized = normalizeSearchText(catalogSearchQuery(query));
   const rawTokens = normalized.split(" ").filter(Boolean);
 
   let cardNumber: string | null = null;
