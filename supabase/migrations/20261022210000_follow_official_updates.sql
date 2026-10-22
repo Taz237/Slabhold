@@ -5,20 +5,28 @@
 -- runs once, at insert, and does not run again after an unfollow.
 --
 -- No follow notification is written.
--- A missing updates profile, a constraint failure, or any other error is
--- swallowed so account creation still commits.
+-- A missing updates profile, a constraint failure, or any other error
+-- raises a warning and does not abort account creation.
+--
+-- The env uuid (OFFICIAL_UPDATES_USER_ID) and this SQL uuid must stay in sync.
+-- See lib/social/official-updates.ts.
 --
 -- SECURITY REVIEW: this is a trigger on public.profiles, not an RPC.
 -- private is not an exposed API schema. The function is not security definer.
+-- search_path is empty; every relation in the body is schema-qualified.
 -- It inserts one follows row (new profile -> the uuid below) and nothing else.
+
+begin;
+
+set local lock_timeout = '5s';
 
 create or replace function private.follow_official_updates()
 returns trigger
 language plpgsql
-set search_path = public
+set search_path = ''
 as $$
 declare
-  updates_id uuid := '6d31ab97-9162-4296-876d-9e0378872fce';
+  updates_id pg_catalog.uuid := '6d31ab97-9162-4296-876d-9e0378872fce';
 begin
   if new.id = updates_id then
     return new;
@@ -33,7 +41,7 @@ begin
     on conflict (follower_id, following_id) do nothing;
   exception
     when others then
-      null;
+      raise warning 'follow_official_updates: auto-follow skipped for profile %: % (%)', new.id, sqlerrm, sqlstate;
   end;
 
   return new;
@@ -47,3 +55,5 @@ create trigger profiles_follow_official_updates
   execute function private.follow_official_updates();
 
 revoke all on function private.follow_official_updates() from public, anon, authenticated;
+
+commit;

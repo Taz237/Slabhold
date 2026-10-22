@@ -3,13 +3,16 @@
  * The input list is not mutated.
  */
 
-export const RELEASE_NOTE_HANDLE = "grokbotreview";
+/** Current updates handle. Older rows may still say grokbotreview. */
+export const RELEASE_NOTE_HANDLES = ["slabholdupdates", "grokbotreview"] as const;
+
+export const RELEASE_NOTE_HANDLE = "slabholdupdates";
 
 export function postTextKey(body: string): string {
   return body.trim();
 }
 
-/** Changelog posts from @grokbotreview. Photo posts, cards, quotes, and reposts stay in the feed. */
+/** Changelog posts from the updates account. Photo posts, cards, quotes, and reposts stay in the feed. */
 export function isReleaseNotePost(input: {
   username?: string | null;
   body: string;
@@ -22,7 +25,7 @@ export function isReleaseNotePost(input: {
   if (input.reposted) return false;
   if (input.quotedPostId) return false;
   const handle = (input.username ?? "").replace(/^@/, "").trim().toLowerCase();
-  if (handle !== RELEASE_NOTE_HANDLE) return false;
+  if (!(RELEASE_NOTE_HANDLES as readonly string[]).includes(handle)) return false;
   if (input.postType === "mail_day") return false;
   if (input.imageUrl) return false;
   if (input.hasCard) return false;
@@ -50,7 +53,7 @@ export type ForYouFeedEntry<T> =
 
 /**
  * Newest-first For You rows.
- * Duplicate text is dropped only inside @grokbotreview release notes.
+ * Duplicate text is dropped only inside updates-account release notes.
  * Collector posts, reposts, Mail Days, photos, cards, and quotes stay put.
  * Release notes collapse into one What's new card placed after the newest collector post.
  * Pagination stays on the raw list.

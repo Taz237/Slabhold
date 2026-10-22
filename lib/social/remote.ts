@@ -36,7 +36,7 @@ import {
   mentionsToNotify,
   notifyReplyMentions,
 } from "./reply-mentions";
-import { normalizeUsername, usernameError } from "./local-db";
+import { isReservedUsername, normalizeUsername, usernameChangeError, usernameError } from "./local-db";
 import { followOfficialUpdates } from "./official-updates";
 import { ilikeExact, TAKEN_USERNAME, usernameTakenMessage } from "./username-taken";
 import { validateQuoteContent } from "./quotes";
@@ -569,7 +569,17 @@ export async function remoteUpdateProfile(
   patch: ProfilePatch,
 ): Promise<AuthResult> {
   const username = normalizeUsername(patch.username);
-  const nameError = usernameError(username);
+  let currentUsername: string | null = null;
+  if (isReservedUsername(username)) {
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("username")
+      .eq("id", userId)
+      .maybeSingle();
+    if (error) return { error: error.message };
+    currentUsername = typeof data?.username === "string" ? data.username : null;
+  }
+  const nameError = usernameChangeError(username, currentUsername);
   if (nameError) return { error: nameError };
   if (!patch.displayName.trim()) return { error: "Add a display name." };
   const [avatar, cover] = await Promise.all([

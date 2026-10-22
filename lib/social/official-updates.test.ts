@@ -218,6 +218,7 @@ describe("signup auto-follow", () => {
     assert.equal(source.includes("grokbotreview"), false);
     assert.equal(source.includes("slabholdupdates"), false);
     assert.match(source, new RegExp(UPDATES));
+    assert.match(source, /env uuid and the SQL uuid in private\.follow_official_updates must stay in sync/);
   });
 
   it("leaves confirm-email signup to the profile insert trigger", () => {
@@ -228,6 +229,19 @@ describe("signup auto-follow", () => {
     assert.match(migration, new RegExp(UPDATES));
     assert.match(migration, /after insert on public\.profiles/);
     assert.match(migration, /on conflict \(follower_id, following_id\) do nothing/);
+    assert.match(migration, /\nbegin;\n/);
+    assert.match(migration, /set local lock_timeout = '5s';/);
+    assert.match(migration, /\ncommit;\n?$/);
+    assert.match(migration, /set search_path = ''/);
+    assert.doesNotMatch(migration, /set search_path = public/);
+    assert.match(migration, /insert into public\.follows/);
+    assert.match(migration, /from public\.profiles/);
+    assert.match(
+      migration,
+      /raise warning 'follow_official_updates: auto-follow skipped for profile %: % \(%\)', new\.id, sqlerrm, sqlstate;/,
+    );
+    assert.doesNotMatch(migration, /when others then\s+null;/);
+    assert.match(migration, /env uuid \(OFFICIAL_UPDATES_USER_ID\) and this SQL uuid must stay in sync/);
     assert.match(migration, /exception/);
     assert.match(migration, /when others then/);
     assert.match(migration, /if new\.id = updates_id then/);
@@ -264,7 +278,19 @@ describe("backfill script", () => {
     assert.match(sql, new RegExp(UPDATES));
     assert.match(sql, /profiles\.id <> params\.official_updates_user_id/);
     assert.match(sql, /on conflict \(follower_id, following_id\) do nothing/);
+    assert.match(sql, /and not profiles\.is_test/);
     assert.match(sql, /and exists \(/);
+    assert.match(sql, /from public\.blocks/);
+    assert.match(
+      sql,
+      /blocks\.blocker_id = profiles\.id and blocks\.blocked_id = params\.official_updates_user_id/,
+    );
+    assert.match(
+      sql,
+      /blocks\.blocker_id = params\.official_updates_user_id and blocks\.blocked_id = profiles\.id/,
+    );
+    assert.match(sql, /env uuid \(OFFICIAL_UPDATES_USER_ID\) and this SQL uuid must stay in sync/);
+    assert.match(sql, /\+ \(select count\(\*\) from inserted\) as follows_to_updates/);
     assert.doesNotMatch(sql, /insert into public\.notifications/);
     assert.doesNotMatch(sql, /grokbotreview|slabholdupdates/);
     assert.match(sql, /as inserted_follows/);

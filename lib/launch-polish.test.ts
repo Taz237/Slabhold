@@ -53,18 +53,18 @@ describe("label mapping", () => {
 
   it("names a saved want on a shared card and leaves the stored row alone", () => {
     assert.equal(
-      wantChipLabel({ saved: false, ownerHandle: "maya", viewerHandle: "grokbotreview" }),
+      wantChipLabel({ saved: false, ownerHandle: "maya", viewerHandle: "ada" }),
       "Add to want list",
     );
     assert.equal(
-      wantChipLabel({ saved: true, ownerHandle: "grokbotreview", viewerHandle: "grokbotreview" }),
+      wantChipLabel({ saved: true, ownerHandle: "ada", viewerHandle: "ada" }),
       "On your want list",
     );
     assert.equal(
-      wantChipLabel({ saved: true, ownerHandle: "@maya", viewerHandle: "grokbotreview" }),
+      wantChipLabel({ saved: true, ownerHandle: "@maya", viewerHandle: "ada" }),
       "On @maya's want list",
     );
-    assert.equal(wantChipLabel({ saved: true, viewerHandle: "grokbotreview" }), "On your want list");
+    assert.equal(wantChipLabel({ saved: true, viewerHandle: "ada" }), "On your want list");
 
     const button = read("components/want-button.tsx");
     assert.match(button, /wantChipLabel\(/);

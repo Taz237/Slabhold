@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it } from "node:test";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { usernameChangeError, usernameError } from "./local-db";
 import { remoteSignUp, remoteUpdateProfile } from "./remote";
 import { TAKEN_USERNAME, ilikeExact, usernameTakenMessage } from "./username-taken";
 
@@ -29,6 +30,7 @@ function client(options: {
   user?: { id: string } | null;
   storedSession?: object | null;
   profileError?: { message: string; code?: string } | null;
+  currentUsername?: string | null;
 }) {
   const ilike: string[] = [];
   let signUps = 0;
@@ -55,7 +57,22 @@ function client(options: {
           return api;
         },
         eq() {
-          return Promise.resolve({ error: options.profileError ?? null });
+          const saved = { error: options.profileError ?? null };
+          return {
+            maybeSingle() {
+              return Promise.resolve({
+                data:
+                  options.currentUsername == null ? null : { username: options.currentUsername },
+                error: null,
+              });
+            },
+            then(
+              onFulfilled?: (value: { error: { message: string; code?: string } | null }) => unknown,
+              onRejected?: (reason: unknown) => unknown,
+            ) {
+              return Promise.resolve(saved).then(onFulfilled, onRejected);
+            },
+          };
         },
       };
       return api;
@@ -82,6 +99,37 @@ function client(options: {
     signUps: () => signUps,
   };
 }
+
+describe("reserved updates handles", () => {
+  it("rejects grokbotreview and slabholdupdates for a new account", () => {
+    assert.equal(usernameError("grokbotreview"), TAKEN_USERNAME);
+    assert.equal(usernameError("slabholdupdates"), TAKEN_USERNAME);
+    assert.equal(usernameError("wax_room"), null);
+  });
+
+  it("lets the account that already has the handle keep it", () => {
+    assert.equal(usernameChangeError("slabholdupdates", "slabholdupdates"), null);
+    assert.equal(usernameChangeError("grokbotreview", "grokbotreview"), null);
+    assert.equal(usernameChangeError("slabholdupdates", "ada"), TAKEN_USERNAME);
+    assert.equal(usernameChangeError("grokbotreview", "ada"), TAKEN_USERNAME);
+  });
+
+  it("stops signup before auth.signUp", async () => {
+    const current = client({});
+    assert.equal(
+      (await remoteSignUp(current.supabase, { ...signupInput, username: "slabholdupdates" })).error,
+      TAKEN_USERNAME,
+    );
+    assert.equal(current.signUps(), 0);
+
+    const retired = client({});
+    assert.equal(
+      (await remoteSignUp(retired.supabase, { ...signupInput, username: "GrokBotReview" })).error,
+      TAKEN_USERNAME,
+    );
+    assert.equal(retired.signUps(), 0);
+  });
+});
 
 describe("usernameTakenMessage", () => {
   it("maps a unique violation and the auth trigger failure", () => {
@@ -176,6 +224,28 @@ describe("remoteUpdateProfile taken usernames", () => {
     assert.equal(
       (await remoteUpdateProfile(fake.supabase, "user-1", profilePatch)).error,
       "permission denied",
+    );
+  });
+
+  it("lets the updates account keep its handle and blocks a different account", async () => {
+    const owner = client({ currentUsername: "slabholdupdates" });
+    assert.deepEqual(
+      await remoteUpdateProfile(owner.supabase, "user-1", {
+        ...profilePatch,
+        username: "slabholdupdates",
+      }),
+      {},
+    );
+
+    const other = client({ currentUsername: "ada" });
+    assert.equal(
+      (
+        await remoteUpdateProfile(other.supabase, "user-2", {
+          ...profilePatch,
+          username: "SlabholdUpdates",
+        })
+      ).error,
+      TAKEN_USERNAME,
     );
   });
 });

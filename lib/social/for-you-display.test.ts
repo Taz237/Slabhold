@@ -5,6 +5,7 @@ import { join } from "node:path";
 import {
   isReleaseNotePost,
   presentForYouFeed,
+  RELEASE_NOTE_HANDLE,
   whatsNewLabel,
   type ForYouSource,
 } from "./for-you-display";
@@ -32,6 +33,7 @@ function row(
 
 const names: Record<string, string> = {
   bot: "grokbotreview",
+  updates: "slabholdupdates",
   maya: "maya",
   kyle: "kyleeshaye444",
 };
@@ -152,6 +154,23 @@ describe("For You display", () => {
     );
   });
 
+  it("treats text from the current and former updates handles as release notes", () => {
+    assert.equal(RELEASE_NOTE_HANDLE, "slabholdupdates");
+    assert.equal(
+      isReleaseNotePost({ username: "slabholdupdates", body: "New on Slabhold: hello." }),
+      true,
+    );
+    assert.equal(
+      isReleaseNotePost({ username: "@GrokBotReview", body: "New on Slabhold: hello." }),
+      true,
+    );
+    const items = [
+      row({ id: "note", authorId: "updates", body: "New on Slabhold: sharing a post opens the share sheet." }),
+    ];
+    const shown = presentForYouFeed(items, (id) => names[id]);
+    assert.equal(shown[0]?.kind, "whats-new");
+  });
+
   it("leaves a photo post from @grokbotreview in the feed", () => {
     assert.equal(
       isReleaseNotePost({
@@ -206,7 +225,10 @@ describe("For You display", () => {
     assert.match(view, /showsNewPosts\(/);
     assert.match(view, /<LoadMore/);
     assert.match(view, /onLoadMore=\{activePage\.loadMore\}/);
-    assert.doesNotMatch(loader, /grokbotreview/);
+    assert.doesNotMatch(loader, /grokbotreview|slabholdupdates/);
+    const card = read("components/whats-new-card.tsx");
+    assert.match(card, /RELEASE_NOTE_HANDLE/);
+    assert.doesNotMatch(card, /grokbotreview/);
     assert.doesNotMatch(read("lib/social/for-you-display.ts"), /\.delete\(|delete from/i);
   });
 });

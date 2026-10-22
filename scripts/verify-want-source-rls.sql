@@ -1,5 +1,6 @@
 -- Reject want_list rows whose source_card_id is another user's private card.
--- Inserts only under @grokbotreview. The other private card is a read-only SELECT.
+-- Inserts only under the updates account (@slabholdupdates, formerly @grokbotreview).
+-- Same profile uuid. The other private card is a read-only SELECT.
 -- If none exists, that case prints SKIP. Always rolls back. Does not delete accounts.
 -- Do not run this script against production.
 
@@ -15,11 +16,13 @@ DECLARE
 BEGIN
   SELECT id INTO bot_id
   FROM public.profiles
-  WHERE lower(username) = 'grokbotreview'
+  WHERE id = '6d31ab97-9162-4296-876d-9e0378872fce'
+     OR lower(username) IN ('slabholdupdates', 'grokbotreview')
+  ORDER BY CASE WHEN id = '6d31ab97-9162-4296-876d-9e0378872fce' THEN 0 ELSE 1 END
   LIMIT 1;
 
   IF bot_id IS NULL THEN
-    RAISE EXCEPTION 'FAIL: @grokbotreview profile not found';
+    RAISE EXCEPTION 'FAIL: updates profile not found';
   END IF;
 
   SELECT id INTO private_id

@@ -35,9 +35,13 @@ describe("isTestAccount", () => {
     assert.equal(isTestAccount("@slabhold"), false);
     assert.equal(isTestAccount("grokbotreview"), false);
     assert.equal(isTestAccount("@GrokBotReview"), false);
+    assert.equal(isTestAccount("slabholdupdates"), false);
+    assert.equal(isTestAccount("@SlabholdUpdates"), false);
     assert.ok(KEPT_ACCOUNT_HANDLES.includes("slabhold"));
     assert.ok(KEPT_ACCOUNT_HANDLES.includes("grokbotreview"));
+    assert.ok(KEPT_ACCOUNT_HANDLES.includes("slabholdupdates"));
     assert.ok(NOT_SUGGESTED_HANDLES.includes("grokbotreview"));
+    assert.ok(NOT_SUGGESTED_HANDLES.includes("slabholdupdates"));
     assert.equal(isTestAccount("greatestpulls"), false);
     assert.equal(isTestAccount("waxroom"), false);
     assert.equal(isTestAccount("qualitycards"), false);

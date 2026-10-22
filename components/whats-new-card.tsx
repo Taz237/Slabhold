@@ -5,7 +5,7 @@ import { useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { MentionText } from "@/components/mention-text";
 import { timeAgo } from "@/lib/format";
-import { whatsNewLabel } from "@/lib/social/for-you-display";
+import { RELEASE_NOTE_HANDLE, whatsNewLabel } from "@/lib/social/for-you-display";
 import type { TimelineItem } from "@/lib/social/timeline";
 import type { Profile } from "@/lib/social/types";
 
@@ -18,7 +18,7 @@ export function WhatsNewCard({
 }) {
   const [open, setOpen] = useState(false);
   if (items.length === 0) return null;
-  const handle = author?.username ?? "grokbotreview";
+  const handle = author?.username ?? RELEASE_NOTE_HANDLE;
 
   return (
     <section className="border-b border-zinc-200 dark:border-white/10">

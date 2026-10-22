@@ -43,15 +43,31 @@ export type LocalDb = {
 
 const USERNAME = /^[a-z0-9_]{3,20}$/;
 
+/** Retired and current updates handles. New accounts cannot claim either. */
+export const RESERVED_USERNAMES = ["grokbotreview", "slabholdupdates"] as const;
+
 export function normalizeUsername(value: string) {
   return value.trim().toLowerCase();
+}
+
+export function isReservedUsername(value: string) {
+  return (RESERVED_USERNAMES as readonly string[]).includes(normalizeUsername(value));
 }
 
 export function usernameError(value: string) {
   if (!USERNAME.test(value)) {
     return "Usernames are 3–20 characters: letters, numbers, underscores.";
   }
+  if (isReservedUsername(value)) return "That username is taken.";
   return null;
+}
+
+/** Profile edit may keep a reserved handle this account already uses. */
+export function usernameChangeError(next: string, current?: string | null) {
+  const error = usernameError(next);
+  if (!error || !isReservedUsername(next)) return error;
+  if (normalizeUsername(current ?? "") === normalizeUsername(next)) return null;
+  return error;
 }
 
 async function hashPassword(password: string) {
@@ -453,7 +469,8 @@ export function localUpdateProfile(
 ): { db: LocalDb; error?: string } {
   if (!db.sessionUserId) return { db, error: "Log in first." };
   const username = normalizeUsername(patch.username);
-  const nameError = usernameError(username);
+  const current = db.users.find((user) => user.id === db.sessionUserId);
+  const nameError = usernameChangeError(username, current?.username);
   if (nameError) return { db, error: nameError };
   const displayName = patch.displayName.trim();
   if (!displayName) return { db, error: "Add a display name." };
