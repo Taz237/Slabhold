@@ -1,6 +1,6 @@
 export const CARD_VALUE_HISTORY_TABLE = "card_value_history";
 
-/** Cards written on one cron run. The rest wait for a later run. */
+/** Cards written on one cron run. The next run continues after that batch. */
 export const CARD_VALUE_HISTORY_RUN_CAP = 1000;
 
 /** Rows older than this many days are deleted by the service-role cron after it writes. */
@@ -48,6 +48,37 @@ export function numericFromUnknown(value: unknown): number | null {
 /** A stored row counts only when this run sees a matched value (status ok) with a median. */
 export function isFreshMatchedCardValue(row: { status?: unknown; median?: unknown }): boolean {
   return row.status === "ok" && numericFromUnknown(row.median) != null;
+}
+
+/**
+ * Next batch of cards for one cron run.
+ * Skips ids already written for this snapshot, continues after the largest
+ * of those ids (or `afterCardId` when this snapshot is still empty), and
+ * wraps to the lowest ids once the end is passed.
+ */
+export function rotateCardValueHistoryBatch<T extends { cardId: string }>(
+  cards: readonly T[],
+  input: {
+    cap: number;
+    alreadyWrittenIds: readonly string[];
+    afterCardId?: string | null;
+  },
+): T[] {
+  const cap = Math.max(0, input.cap);
+  const written = new Set(input.alreadyWrittenIds.filter(Boolean));
+  const ordered = [...cards].sort((a, b) => (a.cardId < b.cardId ? -1 : a.cardId > b.cardId ? 1 : 0));
+  const pending = ordered.filter((card) => card.cardId && !written.has(card.cardId));
+  if (pending.length <= cap) return pending;
+
+  let cursor = input.afterCardId ?? "";
+  if (!input.afterCardId) {
+    for (const id of written) {
+      if (id > cursor) cursor = id;
+    }
+  }
+  const after = pending.filter((card) => card.cardId > cursor);
+  const before = pending.filter((card) => card.cardId <= cursor);
+  return [...after, ...before].slice(0, cap);
 }
 
 export function historyRetentionCutoff(snapshotDate: string, days = CARD_VALUE_HISTORY_RETENTION_DAYS): string {

@@ -9,6 +9,7 @@ import {
   cardValueHistoryEnabled,
   historyRetentionCutoff,
   isFreshMatchedCardValue,
+  rotateCardValueHistoryBatch,
   isMissingRelation,
   numericFromUnknown,
   runCardValueHistoryCron,
@@ -105,6 +106,32 @@ describe("card value history rows", () => {
   });
 });
 
+describe("card value history rotation", () => {
+  it("gives card 1001 and later a row on the next run", () => {
+    const cards = Array.from({ length: 1200 }, (_, index) => ({
+      cardId: `card-${String(index + 1).padStart(4, "0")}`,
+      median: 12,
+    }));
+    const first = rotateCardValueHistoryBatch(cards, {
+      cap: CARD_VALUE_HISTORY_RUN_CAP,
+      alreadyWrittenIds: [],
+    });
+    assert.equal(first.length, 1000);
+    assert.equal(first[0]?.cardId, "card-0001");
+    assert.equal(first[999]?.cardId, "card-1000");
+    assert.equal(first.some((card) => card.cardId === "card-1001"), false);
+
+    const second = rotateCardValueHistoryBatch(cards, {
+      cap: CARD_VALUE_HISTORY_RUN_CAP,
+      alreadyWrittenIds: first.map((card) => card.cardId),
+    });
+    assert.equal(second[0]?.cardId, "card-1001");
+    assert.equal(second.at(-1)?.cardId, "card-1200");
+    assert.equal(second.some((card) => card.cardId <= "card-1000"), false);
+    assert.equal(second.length, 200);
+  });
+});
+
 describe("card value history migration and cron", () => {
   it("lets a user read only their own rows and is not scheduled", () => {
     const sql = read("supabase/migrations/20261022152059_card_value_history.sql");
@@ -142,6 +169,8 @@ describe("card value history migration and cron", () => {
     assert.equal(isFreshMatchedCardValue({ status: "stale", median: 40 }), false);
     assert.equal(isFreshMatchedCardValue({ status: "sample", median: 40 }), false);
     assert.equal(isFreshMatchedCardValue({ status: "no_sales", median: null }), false);
+    assert.match(run, /rotateCardValueHistoryBatch/);
+    assert.match(run, /\.gt\("card_id", input\.afterCardId\)/);
 
     const vercel = read("vercel.json");
     assert.doesNotMatch(vercel, /card-value-history/);

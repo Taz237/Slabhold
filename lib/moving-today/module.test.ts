@@ -4,7 +4,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, it } from "node:test";
 import { join } from "node:path";
-import { MovingToday, MovingTodayPanel } from "@/components/moving-today";
+import { MovingToday, MovingTodayPanel, movingTodayReservedHeight } from "@/components/moving-today";
 import {
   createTtlCache,
   MOVING_TODAY_CACHE_SECONDS,
@@ -47,6 +47,7 @@ describe("Moving today module", () => {
     const source = read("components/moving-today.tsx");
     assert.doesNotMatch(source, /min-h-\[148px\]/);
     assert.doesNotMatch(source, /animate-pulse/);
+    assert.equal(movingTodayReservedHeight(0), null);
   });
 
   it("hides the module when there is nothing to show", () => {
@@ -65,6 +66,8 @@ describe("Moving today module", () => {
       }),
     );
     assert.doesNotMatch(html, /min-h-\[148px\]/);
+    assert.match(html, /min-height:/);
+    assert.equal(movingTodayReservedHeight(1), 140);
     assert.match(html, /Victor Wembanyama/);
     assert.match(html, /\$200\.00/);
     assert.match(html, /\+40%/);
@@ -129,7 +132,12 @@ describe("Moving today cache", () => {
     assert.match(route, /getMovingToday/);
     assert.match(route, /movingTodayCacheControl/);
     assert.match(route, /private, no-store/);
+    assert.match(load, /movingDayIsRecent/);
     assert.match(load, /sold_comps_cache/);
+    const page = read("app/moving-today/page.tsx");
+    assert.match(page, /generateMetadata/);
+    assert.match(page, /payload\.title/);
+    assert.doesNotMatch(page, /export const metadata/);
     assert.match(load, /T00:00:00Z/);
     assert.match(load, /comp_flags/);
     assert.match(load, /\.order\("sold_at", \{ ascending: false \}\)/);
@@ -143,7 +151,7 @@ describe("Moving today cache", () => {
 describe("For You placement", () => {
   it("sits on For You and leaves the What's new grouping in the feed", () => {
     const feed = read("components/feed-view.tsx");
-    const moving = feed.indexOf('lane === "foryou" ? <MovingToday />');
+    const moving = feed.indexOf('lane === "foryou" ? movingToday ?? <MovingToday />');
     const grouping = feed.indexOf("presentForYouFeed(visible");
     const notes = feed.indexOf("<WhatsNewCard");
     const map = feed.indexOf("feedEntries.map");

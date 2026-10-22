@@ -12,6 +12,9 @@ export const RECENT_AVERAGE_DAYS = 90;
 /** Absolute rounded percent that counts as a big move. */
 export const BIG_MOVE_PERCENT = 20;
 
+/** Fallback sales older than this many days are not shown. */
+export const MOVING_TODAY_FALLBACK_DAYS = 2;
+
 export const BIGGEST_SALE_COUNT = 3;
 export const BIG_MOVE_COUNT = 3;
 
@@ -67,6 +70,17 @@ export function newYorkDayWindow(now: Date = new Date()): {
 export function saleCalendarDate(value: string): string | null {
   const date = value.slice(0, 10);
   return /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : null;
+}
+
+/** True for today and for a fallback no older than MOVING_TODAY_FALLBACK_DAYS. */
+export function movingDayIsRecent(
+  shownDate: string,
+  today: string,
+  days = MOVING_TODAY_FALLBACK_DAYS,
+): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(shownDate) || !/^\d{4}-\d{2}-\d{2}$/.test(today)) return false;
+  if (shownDate > today) return false;
+  return shownDate >= addCalendarDays(today, -days);
 }
 
 /** Honest heading. A fallback day is not labeled as today. */

@@ -12,6 +12,7 @@ import {
   isFreshMatchedCardValue,
   isMissingRelation,
   numericFromUnknown,
+  rotateCardValueHistoryBatch,
   runCardValueHistoryCron,
   type CardValueHistoryCronResult,
 } from "./card-value-history";
@@ -30,31 +31,107 @@ function chunks<T>(items: T[], size: number): T[][] {
   return groups;
 }
 
-async function listFreshValues(admin: Admin): Promise<{ cardId: string; median: number }[]> {
-  const values: { cardId: string; median: number }[] = [];
+async function writtenCardIds(admin: Admin, snapshotDate: string): Promise<Set<string>> {
+  const ids = new Set<string>();
   let from = 0;
-  while (values.length < CARD_VALUE_HISTORY_RUN_CAP) {
-    const pageSize = Math.min(CARD_PAGE, CARD_VALUE_HISTORY_RUN_CAP - values.length);
+  for (;;) {
     const { data, error } = await admin
+      .from(CARD_VALUE_HISTORY_TABLE)
+      .select("card_id")
+      .eq("snapshot_date", snapshotDate)
+      .order("card_id", { ascending: true })
+      .range(from, from + CARD_PAGE - 1);
+    if (error) throw new Error(error.message);
+    const page = data ?? [];
+    for (const row of page) {
+      if (typeof row.card_id === "string" && row.card_id) ids.add(row.card_id);
+    }
+    if (page.length < CARD_PAGE) break;
+    from += CARD_PAGE;
+  }
+  return ids;
+}
+
+async function largestWrittenCardId(admin: Admin, snapshotDate: string): Promise<string | null> {
+  const { data, error } = await admin
+    .from(CARD_VALUE_HISTORY_TABLE)
+    .select("card_id")
+    .eq("snapshot_date", snapshotDate)
+    .order("card_id", { ascending: false })
+    .limit(1);
+  if (error) throw new Error(error.message);
+  const cardId = data?.[0]?.card_id;
+  return typeof cardId === "string" && cardId ? cardId : null;
+}
+
+async function queryFreshValues(
+  admin: Admin,
+  input: {
+    afterCardId: string | null;
+    beforeInclusive: string | null;
+    limit: number;
+    skip: ReadonlySet<string>;
+  },
+): Promise<{ cardId: string; median: number }[]> {
+  const values: { cardId: string; median: number }[] = [];
+  if (input.limit <= 0) return values;
+  let from = 0;
+  while (values.length < input.limit) {
+    let query = admin
       .from("card_values")
       .select("card_id, median, status")
       .eq("status", "ok")
-      .order("card_id", { ascending: true })
-      .range(from, from + pageSize - 1);
+      .order("card_id", { ascending: true });
+    if (input.afterCardId) query = query.gt("card_id", input.afterCardId);
+    if (input.beforeInclusive) query = query.lte("card_id", input.beforeInclusive);
+    const { data, error } = await query.range(from, from + CARD_PAGE - 1);
     if (error) throw new Error(error.message);
     const page = data ?? [];
     for (const row of page) {
       if (!isFreshMatchedCardValue(row)) continue;
       const cardId = typeof row.card_id === "string" ? row.card_id : "";
       const median = numericFromUnknown(row.median);
-      if (!cardId || median == null) continue;
+      if (!cardId || median == null || input.skip.has(cardId)) continue;
       values.push({ cardId, median });
-      if (values.length >= CARD_VALUE_HISTORY_RUN_CAP) break;
+      if (values.length >= input.limit) break;
     }
-    if (page.length < pageSize) break;
-    from += pageSize;
+    if (page.length < CARD_PAGE) break;
+    from += CARD_PAGE;
   }
   return values;
+}
+
+async function listFreshValues(
+  admin: Admin,
+  snapshotDate: string,
+  previousDate: string,
+): Promise<{ cardId: string; median: number }[]> {
+  const writtenToday = await writtenCardIds(admin, snapshotDate);
+  let afterCardId: string | null = null;
+  for (const id of writtenToday) {
+    if (afterCardId == null || id > afterCardId) afterCardId = id;
+  }
+  if (!afterCardId) afterCardId = await largestWrittenCardId(admin, previousDate);
+  const after = await queryFreshValues(admin, {
+    afterCardId,
+    beforeInclusive: null,
+    limit: CARD_VALUE_HISTORY_RUN_CAP,
+    skip: writtenToday,
+  });
+  const wrap =
+    afterCardId && after.length < CARD_VALUE_HISTORY_RUN_CAP
+      ? await queryFreshValues(admin, {
+          afterCardId: null,
+          beforeInclusive: afterCardId,
+          limit: CARD_VALUE_HISTORY_RUN_CAP - after.length,
+          skip: writtenToday,
+        })
+      : [];
+  return rotateCardValueHistoryBatch([...after, ...wrap], {
+    cap: CARD_VALUE_HISTORY_RUN_CAP,
+    alreadyWrittenIds: [...writtenToday],
+    afterCardId,
+  });
 }
 
 async function ownersFor(admin: Admin, cardIds: string[]): Promise<Map<string, string>> {
@@ -150,7 +227,7 @@ export async function writeCardValueHistory(now: Date = new Date()): Promise<num
   if (!admin) return 0;
   const snapshotDate = snapshotDateInNewYork(now);
   const previousDate = addCalendarDays(snapshotDate, -1);
-  const fresh = await listFreshValues(admin);
+  const fresh = await listFreshValues(admin, snapshotDate, previousDate);
   const owners = await ownersFor(
     admin,
     fresh.map((row) => row.cardId),

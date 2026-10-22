@@ -8,7 +8,9 @@ import {
   comparisonPricesCents,
   dropOwnerFlaggedSales,
   HONEST_MIN_COMPARISON_SALES,
+  MOVING_TODAY_FALLBACK_DAYS,
   movingDayHeading,
+  movingDayIsRecent,
   newYorkDayWindow,
   percentVersusRecentAverage,
   rankNotableSales,
@@ -210,10 +212,15 @@ describe("New York sale day", () => {
     assert.equal(ranked[0]?.percent, 50);
   });
 
-  it("labels a fallback day honestly", () => {
+  it("labels a fallback day honestly and stops after two days", () => {
+    assert.equal(MOVING_TODAY_FALLBACK_DAYS, 2);
     assert.equal(movingDayHeading(TODAY, TODAY), "Moving today");
     assert.equal(movingDayHeading(addCalendarDays(TODAY, -1), TODAY), "Moving yesterday");
     assert.equal(movingDayHeading(addCalendarDays(TODAY, -2), TODAY), "Moving Oct 20");
+    assert.equal(movingDayIsRecent(TODAY, TODAY), true);
+    assert.equal(movingDayIsRecent(addCalendarDays(TODAY, -1), TODAY), true);
+    assert.equal(movingDayIsRecent(addCalendarDays(TODAY, -2), TODAY), true);
+    assert.equal(movingDayIsRecent(addCalendarDays(TODAY, -3), TODAY), false);
   });
 });
 

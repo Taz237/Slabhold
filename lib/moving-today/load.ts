@@ -10,7 +10,13 @@ import {
   type PublicCardRef,
   type RawCompSale,
 } from "./present";
-import { addCalendarDays, newYorkDayWindow, RECENT_AVERAGE_DAYS, saleCalendarDate } from "./rank";
+import {
+  addCalendarDays,
+  movingDayIsRecent,
+  newYorkDayWindow,
+  RECENT_AVERAGE_DAYS,
+  saleCalendarDate,
+} from "./rank";
 import { emptyMovingToday, type MovingTodayPayload } from "./types";
 
 const TODAY_SALE_LIMIT = 400;
@@ -124,7 +130,9 @@ async function readMovingToday(now: Date): Promise<MovingTodayPayload> {
         .limit(1),
     );
     const fallback = saleCalendarDate(recent[0]?.soldAt ?? "");
-    if (!fallback) return { ...emptyMovingToday(window.date), dateLabel: "" };
+    if (!fallback || !movingDayIsRecent(fallback, window.date)) {
+      return { ...emptyMovingToday(window.date), dateLabel: "" };
+    }
     shownDate = fallback;
     sales = await readDaySales(admin, shownDate);
   }
