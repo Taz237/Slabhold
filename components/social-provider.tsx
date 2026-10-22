@@ -82,6 +82,7 @@ import {
 } from "@/lib/social/follow-suggestions";
 import { loadServerSuggestions } from "@/lib/social/load-suggestions";
 import {
+  followAllIds,
   mergeRankedSuggestions,
   type ServerSuggestion,
   type SuggestedProfile,
@@ -492,29 +493,28 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
   const snapshotRef = useRef(snapshot);
   snapshotRef.current = snapshot;
   const suggestionUserId = snapshot.user?.id ?? null;
-  const suggestionRequest = `${mode}:${ready ? "1" : "0"}:${suggestionUserId ?? ""}:${suggestionEpoch}`;
+  // Once per signed-in session, plus an explicit refresh after picks change.
+  // Toggling provider readiness must not call the RPC again.
+  const suggestionKey = `${mode}:${suggestionUserId ?? ""}:${suggestionEpoch}`;
 
   useEffect(() => {
-    if (!ready || mode !== "supabase" || !suggestionUserId) return;
+    if (mode !== "supabase" || !suggestionUserId) return;
     const client = supabaseRef.current;
     if (!client) return;
     let cancelled = false;
-    const key = suggestionRequest;
+    const key = suggestionKey;
     void loadServerSuggestions(client).then((rows) => {
       if (!cancelled) setSuggestionResult({ key, rows });
     });
     return () => {
       cancelled = true;
     };
-  }, [mode, ready, suggestionEpoch, suggestionRequest, suggestionUserId]);
+  }, [mode, suggestionEpoch, suggestionKey, suggestionUserId]);
 
   const suggestionsReady =
-    mode !== "supabase" ||
-    !suggestionUserId ||
-    !ready ||
-    suggestionResult?.key === suggestionRequest;
+    mode !== "supabase" || !suggestionUserId || suggestionResult?.key === suggestionKey;
   const rankedRows =
-    ready && mode === "supabase" && suggestionUserId && suggestionResult?.key === suggestionRequest
+    mode === "supabase" && suggestionUserId && suggestionResult?.key === suggestionKey
       ? suggestionResult.rows
       : null;
 
@@ -704,7 +704,13 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
     async (userIds: readonly string[]): Promise<AuthResult> => {
       const current = snapshotRef.current;
       if (!current.user) return {};
-      const ids = userIds.filter((id) => id && id !== current.user?.id && !isFollowing(id));
+      const ids = followAllIds(userIds, {
+        viewerId: current.user.id,
+        followingIds: current.follows
+          .filter((edge) => edge.followerId === current.user?.id)
+          .map((edge) => edge.followingId),
+        mutedIds: current.mutedIds ?? [],
+      });
       if (ids.length === 0) return {};
       const client = supabaseRef.current;
       if (mode === "supabase" && client) {
@@ -735,7 +741,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       commitLocal(next);
       return {};
     },
-    [commitLocal, isFollowing, mode, refreshRemote],
+    [commitLocal, mode, refreshRemote],
   );
 
   const refreshSuggestions = useCallback(() => {
@@ -1442,8 +1448,16 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       viewerId,
       followingIds,
       blockedIds: snapshot.blockedIds ?? [],
+      mutedIds: snapshot.mutedIds ?? [],
     });
-  }, [fallbackSuggestions, rankedRows, snapshot.blockedIds, snapshot.follows, snapshot.user]);
+  }, [
+    fallbackSuggestions,
+    rankedRows,
+    snapshot.blockedIds,
+    snapshot.follows,
+    snapshot.mutedIds,
+    snapshot.user,
+  ]);
 
   const profileByUsername = useCallback(
     (username: string) =>

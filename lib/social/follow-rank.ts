@@ -1,4 +1,4 @@
-import { isTestAccount, normalizeAccountHandle } from "../test-accounts";
+import { isTestAccount, normalizeAccountHandle, NOT_SUGGESTED_HANDLES } from "../test-accounts";
 
 /** Official account that stays available even when it does not overlap. */
 export const OPTIONAL_SUGGESTION_HANDLE = "slabhold";
@@ -20,6 +20,9 @@ export const MATCH_WEIGHT = {
   sportCollection: 20,
   sportPost: 10,
 } as const;
+
+/** Ranking uses the earliest picks only. Later rows are stored but not scored. */
+export const INTEREST_RANK_LIMIT = 25;
 
 export type InterestKind = "sport" | "team" | "player";
 
@@ -46,6 +49,10 @@ export type CollectorCandidate = {
   isTest?: boolean;
   /** Either direction of a block with the viewer. */
   blocked?: boolean;
+  /** Viewer muted this account. */
+  muted?: boolean;
+  /** profiles.show_as_hunter. Wants count only when this is true. */
+  showAsHunter?: boolean;
 };
 
 /** Public collection rows only. Private cards must be omitted or marked isPublic false. */
@@ -61,6 +68,8 @@ export type RankPost = {
   userId: string;
   body: string;
   player?: string | null;
+  /** Set when posts.hidden_at is set. Hidden posts do not rank. */
+  hiddenAt?: string | null;
 };
 
 export type RankWant = {
@@ -117,9 +126,9 @@ export function matchReason(kind: InterestKind, value: string, weight: number): 
 
 /**
  * Test and QA accounts stay out of follow suggestions.
- * @slabhold stays, even if the bio mentions test.
- * @grokbotreview is hidden. So is any account flagged is_test, and any other
- * handle or bio that contains "test".
+ * @slabhold stays. @grokbotreview is on the not-suggested list only:
+ * it is not a test account, and its posts stay visible.
+ * A handle or bio that merely contains "test" is still a real collector.
  */
 export function hiddenFromSuggestions(profile: {
   username: string;
@@ -129,11 +138,10 @@ export function hiddenFromSuggestions(profile: {
   const handle = normalizeAccountHandle(profile.username);
   if (!handle) return true;
   if (handle === OPTIONAL_SUGGESTION_HANDLE) return false;
+  if ((NOT_SUGGESTED_HANDLES as readonly string[]).includes(handle)) return true;
   if (handle === HIDDEN_SUGGESTION_HANDLE) return true;
   if (profile.isTest) return true;
   if (isTestAccount(profile.username)) return true;
-  if (handle.includes("test")) return true;
-  if ((profile.bio ?? "").toLowerCase().includes("test")) return true;
   return false;
 }
 
@@ -149,13 +157,14 @@ function bestWeight(
   cards: readonly RankCard[],
   posts: readonly RankPost[],
   wants: readonly RankWant[],
+  showAsHunter: boolean,
 ): number {
   const value = interest.value.trim();
   if (!value) return 0;
   const norm = normInterest(value);
   const publicCards = cards.filter((card) => card.userId === personId && card.isPublic);
-  const ownPosts = posts.filter((post) => post.userId === personId);
-  const ownWants = wants.filter((want) => want.userId === personId);
+  const ownPosts = posts.filter((post) => post.userId === personId && !post.hiddenAt);
+  const ownWants = showAsHunter ? wants.filter((want) => want.userId === personId) : [];
 
   if (interest.kind === "player") {
     const samePlayer = publicCards.filter((card) => normInterest(card.player) === norm);
@@ -209,13 +218,16 @@ export function rankCollectors(
   const cards = signals.cards ?? [];
   const posts = signals.posts ?? [];
   const wants = signals.wants ?? [];
-  const picks = interests.filter((interest) => interest.value.trim().length > 0);
+  const picks = interests
+    .filter((interest) => interest.value.trim().length > 0)
+    .slice(0, INTEREST_RANK_LIMIT);
 
   const eligible = candidates.filter((person) => {
     if (!person.id) return false;
     if (viewerId && person.id === viewerId) return false;
     if (following.has(person.id)) return false;
     if (person.blocked) return false;
+    if (person.muted) return false;
     if (hiddenFromSuggestions(person)) return false;
     return true;
   });
@@ -224,7 +236,7 @@ export function rankCollectors(
     const hits = picks
       .map((interest) => ({
         interest,
-        weight: bestWeight(person.id, interest, cards, posts, wants),
+        weight: bestWeight(person.id, interest, cards, posts, wants, person.showAsHunter === true),
       }))
       .filter((hit) => hit.weight > 0)
       .sort(

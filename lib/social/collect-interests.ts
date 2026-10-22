@@ -1,3 +1,4 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { SPORT_PICKER_OPTIONS } from "../card-options";
 import { normInterest, type CollectInterest, type InterestKind } from "./follow-rank";
 
@@ -271,6 +272,43 @@ export function interestWriteRows(
   }
   rows.push({ kind: "prompt", value: "done" });
   return rows;
+}
+
+/**
+ * Save picks without deleting first. A failed upsert leaves the previous rows.
+ * Removed picks are deleted only after the new rows are stored.
+ */
+export async function persistInterestRows(
+  supabase: SupabaseClient,
+  userId: string,
+  rows: readonly InterestRow[],
+): Promise<"saved" | "missing" | "error"> {
+  if (rows.length > 0) {
+    const inserted = await supabase.from("profile_interests").upsert(
+      rows.map((row) => ({ user_id: userId, kind: row.kind, value: row.value })),
+      { onConflict: "user_id,kind,value" },
+    );
+    if (inserted.error) return schemaMissing(inserted.error) ? "missing" : "error";
+  }
+  const existing = await supabase
+    .from("profile_interests")
+    .select("kind, value")
+    .eq("user_id", userId);
+  if (existing.error) return schemaMissing(existing.error) ? "missing" : "error";
+  const keep = new Set(rows.map((row) => `${row.kind}:${row.value}`));
+  for (const row of existing.data ?? []) {
+    const kind = row.kind;
+    const value = row.value;
+    if (!kind || !value || keep.has(`${kind}:${value}`)) continue;
+    const removed = await supabase
+      .from("profile_interests")
+      .delete()
+      .eq("user_id", userId)
+      .eq("kind", kind)
+      .eq("value", value);
+    if (removed.error) return schemaMissing(removed.error) ? "missing" : "error";
+  }
+  return "saved";
 }
 
 export function schemaMissing(error: { code?: string; message?: string } | null | undefined): boolean {

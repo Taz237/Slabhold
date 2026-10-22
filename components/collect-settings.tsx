@@ -14,6 +14,7 @@ import {
 import { useSocial } from "@/components/social-provider";
 import {
   interestWriteRows,
+  persistInterestRows,
   picksFromRows,
   schemaMissing,
   type InterestRow,
@@ -85,25 +86,13 @@ export function CollectSettings() {
       ...names,
     ];
     const rows = interestWriteRows("complete", picks);
-    const removed = await supabase.from("profile_interests").delete().eq("user_id", user.id);
-    if (removed.error) {
-      setSaving(false);
-      if (schemaMissing(removed.error)) {
-        setState("missing");
-        return;
-      }
-      setError("Could not save that.");
+    const saved = await persistInterestRows(supabase, user.id, rows);
+    setSaving(false);
+    if (saved === "missing") {
+      setState("missing");
       return;
     }
-    const inserted = await supabase.from("profile_interests").insert(
-      rows.map((row) => ({ user_id: user.id, kind: row.kind, value: row.value })),
-    );
-    setSaving(false);
-    if (inserted.error) {
-      if (schemaMissing(inserted.error)) {
-        setState("missing");
-        return;
-      }
+    if (saved === "error") {
       setError("Could not save that.");
       return;
     }

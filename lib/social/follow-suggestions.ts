@@ -36,9 +36,9 @@ export type FollowSuggestionCandidate = {
 /**
  * People to suggest following.
  * Pass candidates from `followSuggestionFetchLimit(limit)` rows, then this
- * drops test and QA accounts (including @grokbotreview, is_test, and any
- * handle or bio containing "test"), the viewer, and accounts they already
- * follow before cutting the list down to `limit`. @slabhold stays.
+ * drops test and QA accounts, @grokbotreview, and is_test profiles, plus the
+ * viewer and accounts they already follow, before cutting the list down to
+ * `limit`. A handle or bio that only contains "test" stays. @slabhold stays.
  */
 export function followSuggestions<T extends FollowSuggestionCandidate>(
   candidates: readonly T[],

@@ -17,6 +17,9 @@ export type ServerSuggestion = {
   isTest?: boolean;
 };
 
+/** Follow all stops after this many accounts. */
+export const FOLLOW_ALL_LIMIT = 5;
+
 /**
  * Prefer the server ranking when the RPC exists.
  * A missing function (null) keeps the existing created-at suggestion order.
@@ -28,22 +31,27 @@ export function mergeRankedSuggestions(input: {
   viewerId?: string | null;
   followingIds?: Iterable<string>;
   blockedIds?: Iterable<string>;
+  mutedIds?: Iterable<string>;
   limit?: number;
 }): SuggestedProfile[] {
   const blocked = new Set(input.blockedIds ?? []);
+  const muted = new Set(input.mutedIds ?? []);
+  const hide = (id: string) => blocked.has(id) || muted.has(id);
   if (input.server == null) {
     return followSuggestions(input.fallback, {
       viewerId: input.viewerId,
       followingIds: input.followingIds,
       limit: input.limit,
-    }).map((profile) => ({ ...profile, suggestionReason: null }));
+    })
+      .filter((profile) => !hide(profile.id))
+      .map((profile) => ({ ...profile, suggestionReason: null }));
   }
 
   const known = new Map(input.fallback.map((profile) => [profile.id, profile]));
   const ordered: Profile[] = [];
   const reasons = new Map<string, string | null>();
   for (const row of input.server) {
-    if (!row.userId || blocked.has(row.userId)) continue;
+    if (!row.userId || hide(row.userId)) continue;
     const profile = known.get(row.userId) ?? serverProfile(row);
     if (row.isTest) profile.isTest = true;
     ordered.push(profile);
@@ -71,6 +79,30 @@ function serverProfile(row: ServerSuggestion): Profile {
     createdAt: "",
     ...(row.isTest ? { isTest: true } : {}),
   };
+}
+
+/** Accounts Follow all will actually follow. Muted, blocked, and already-followed ids are skipped. */
+export function followAllIds(
+  userIds: readonly string[],
+  input: {
+    viewerId?: string | null;
+    followingIds?: Iterable<string>;
+    mutedIds?: Iterable<string>;
+    limit?: number;
+  } = {},
+): string[] {
+  const following = new Set(input.followingIds ?? []);
+  const muted = new Set(input.mutedIds ?? []);
+  const viewerId = input.viewerId ?? null;
+  const limit = input.limit ?? FOLLOW_ALL_LIMIT;
+  const cap = Number.isFinite(limit) ? Math.max(0, Math.floor(limit)) : FOLLOW_ALL_LIMIT;
+  const ids: string[] = [];
+  for (const id of userIds) {
+    if (!id || id === viewerId || following.has(id) || muted.has(id) || ids.includes(id)) continue;
+    ids.push(id);
+    if (ids.length >= cap) break;
+  }
+  return ids;
 }
 
 /** Shape check: a ranked row never carries card columns. */

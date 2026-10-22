@@ -18,13 +18,14 @@ import {
   collectStepAfter,
   interestWriteRows,
   interestsAnswered,
+  persistInterestRows,
   schemaMissing,
   type CollectStep,
   type InterestLoad,
   type InterestRow,
 } from "@/lib/social/collect-interests";
 import type { CollectInterest } from "@/lib/social/follow-rank";
-import { loadServerSuggestions } from "@/lib/social/load-suggestions";
+import { loadServerSuggestions, SUGGESTION_DISPLAY_LIMIT } from "@/lib/social/load-suggestions";
 import type { ServerSuggestion } from "@/lib/social/suggestion-order";
 import { createSupabaseBrowser } from "@/lib/supabase/browser";
 
@@ -56,14 +57,7 @@ async function writeInterests(
 ): Promise<"saved" | "missing" | "error"> {
   const supabase = createSupabaseBrowser();
   if (!supabase) return "missing";
-  const removed = await supabase.from("profile_interests").delete().eq("user_id", userId);
-  if (removed.error) return schemaMissing(removed.error) ? "missing" : "error";
-  if (rows.length === 0) return "saved";
-  const inserted = await supabase.from("profile_interests").insert(
-    rows.map((row) => ({ user_id: userId, kind: row.kind, value: row.value })),
-  );
-  if (inserted.error) return schemaMissing(inserted.error) ? "missing" : "error";
-  return "saved";
+  return persistInterestRows(supabase, userId, rows);
 }
 
 export function CollectPrompt() {
@@ -85,21 +79,6 @@ export function CollectPrompt() {
     void readInterests(user.id).then((next) => {
       if (!cancelled) setLoad(next);
     });
-    const supabase = createSupabaseBrowser();
-    if (supabase) {
-      void supabase
-        .from("card_catalog")
-        .select("sport")
-        .limit(400)
-        .then(({ data }) => {
-          if (cancelled || !data) return;
-          setCatalogSports(
-            (data as { sport?: string | null }[])
-              .map((row) => row.sport ?? "")
-              .filter(Boolean),
-          );
-        });
-    }
     return () => {
       cancelled = true;
     };
@@ -113,6 +92,28 @@ export function CollectPrompt() {
       answered: load.status === "ready" ? interestsAnswered(load.rows) : false,
       pathname,
     });
+
+  useEffect(() => {
+    if (!visible) return;
+    const supabase = createSupabaseBrowser();
+    if (!supabase) return;
+    let cancelled = false;
+    void supabase
+      .from("card_catalog")
+      .select("sport")
+      .limit(400)
+      .then(({ data }) => {
+        if (cancelled || !data) return;
+        setCatalogSports(
+          (data as { sport?: string | null }[])
+            .map((row) => row.sport ?? "")
+            .filter(Boolean),
+        );
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [visible]);
 
   if (!visible || !user) return null;
 
@@ -160,7 +161,7 @@ export function CollectPrompt() {
     setStep(next.step);
   }
 
-  const shownPeople =
+  const shownPeople = (
     people ??
     suggestions.map((profile) => ({
       userId: profile.id,
@@ -170,7 +171,8 @@ export function CollectPrompt() {
       accent: profile.accent,
       reason: profile.suggestionReason,
       score: 0,
-    }));
+    }))
+  ).slice(0, SUGGESTION_DISPLAY_LIMIT);
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-[var(--background)] text-[var(--foreground)]">

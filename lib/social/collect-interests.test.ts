@@ -9,6 +9,7 @@ import {
   interestTypeahead,
   interestWriteRows,
   interestsAnswered,
+  persistInterestRows,
   picksFromRows,
   rpcMissing,
   schemaMissing,
@@ -117,6 +118,94 @@ describe("skip and complete", () => {
     ]);
   });
 
+  it("upserts new picks before deleting the ones that were removed", async () => {
+    const calls: string[] = [];
+    const client = {
+      from() {
+        return {
+          upsert() {
+            calls.push("upsert");
+            return Promise.resolve({ error: { message: "insert failed" } });
+          },
+          select() {
+            return {
+              eq() {
+                calls.push("select");
+                return Promise.resolve({ data: [], error: null });
+              },
+            };
+          },
+          delete() {
+            calls.push("delete");
+            return {
+              eq() {
+                return {
+                  eq() {
+                    return {
+                      eq() {
+                        return Promise.resolve({ error: null });
+                      },
+                    };
+                  },
+                };
+              },
+            };
+          },
+        };
+      },
+    };
+    const failed = await persistInterestRows(client as never, "user", [
+      { kind: "sport", value: "Football" },
+    ]);
+    assert.equal(failed, "error");
+    assert.deepEqual(calls, ["upsert"]);
+    calls.length = 0;
+    const stored: { kind: string; value: string }[] = [{ kind: "team", value: "Chiefs" }];
+    const ok = {
+      from() {
+        return {
+          upsert(rows: { kind: string; value: string }[]) {
+            calls.push("upsert");
+            for (const row of rows) stored.push({ kind: row.kind, value: row.value });
+            return Promise.resolve({ error: null });
+          },
+          select() {
+            return {
+              eq() {
+                calls.push("select");
+                return Promise.resolve({ data: stored, error: null });
+              },
+            };
+          },
+          delete() {
+            return {
+              eq() {
+                return {
+                  eq(_column: string, kind: string) {
+                    return {
+                      eq(_valueColumn: string, value: string) {
+                        calls.push(`delete:${kind}:${value}`);
+                        return Promise.resolve({ error: null });
+                      },
+                    };
+                  },
+                };
+              },
+            };
+          },
+        };
+      },
+    };
+    const saved = await persistInterestRows(ok as never, "user", [
+      { kind: "sport", value: "Football" },
+    ]);
+    assert.equal(saved, "saved");
+    assert.equal(calls[0], "upsert");
+    assert.equal(calls.includes("select"), true);
+    assert.equal(calls.includes("delete:team:Chiefs"), true);
+    assert.equal(calls.includes("delete:sport:Football"), false);
+  });
+
   it("treats a missing table or ranking function as absent, not as a crash", () => {
     assert.equal(schemaMissing({ code: "PGRST205", message: "schema cache" }), true);
     assert.equal(schemaMissing({ code: "42P01", message: "relation does not exist" }), true);
@@ -143,6 +232,17 @@ describe("collecting UI", () => {
     assert.match(prompt, /interestWriteRows\("skip"/);
     assert.match(prompt, /interestWriteRows\("complete"/);
     assert.match(prompt, /schemaMissing\(/);
+    assert.match(prompt, /persistInterestRows\(/);
+    assert.match(prompt, /if \(!visible\) return/);
+    assert.match(prompt, /card_catalog/);
+    assert.match(prompt, /SUGGESTION_DISPLAY_LIMIT/);
+    const interests = readFileSync(join(root, "lib/social/collect-interests.ts"), "utf8");
+    const save = interests.slice(interests.indexOf("function persistInterestRows"));
+    assert.ok(save.indexOf(".upsert(") < save.indexOf(".delete()"));
+    assert.match(provider, /followAllIds\(/);
+    assert.match(provider, /suggestionKey/);
+    const fetch = provider.slice(provider.indexOf("const suggestionKey"), provider.indexOf("const suggestionsReady"));
+    assert.doesNotMatch(fetch, /\bready\b/);
     assert.match(editor, /min-h-11/);
     assert.match(editor, /interestTypeahead\(/);
     assert.match(settings, /What you collect/);

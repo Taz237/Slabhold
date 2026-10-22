@@ -25,7 +25,10 @@ language plpgsql
 set search_path = public
 as $$
 begin
-  if coalesce(auth.role(), '') is distinct from 'service_role' then
+  -- service_role may set the flag through the API.
+  -- postgres and supabase_admin may set it from the SQL editor.
+  if coalesce(auth.role(), '') is distinct from 'service_role'
+     and current_user not in ('postgres', 'supabase_admin') then
     if tg_op = 'INSERT' then
       new.is_test := false;
     else
@@ -95,6 +98,43 @@ create policy "Delete own interests"
   to authenticated
   using ((select auth.uid()) = user_id);
 
+-- At most 50 interest rows per user. An upsert of a row that already exists
+-- is allowed so a save can refresh picks without tripping the cap.
+create or replace function private.limit_profile_interests()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  if exists (
+    select 1
+    from public.profile_interests
+    where user_id = new.user_id
+      and kind = new.kind
+      and value = new.value
+  ) then
+    return new;
+  end if;
+  if (
+    select count(*)
+    from public.profile_interests
+    where user_id = new.user_id
+  ) >= 50 then
+    raise exception 'profile interests are limited to 50 rows'
+      using errcode = 'check_violation';
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists limit_profile_interests on public.profile_interests;
+create trigger limit_profile_interests
+  before insert on public.profile_interests
+  for each row execute function private.limit_profile_interests();
+
+revoke all on function private.limit_profile_interests() from public, anon;
+grant execute on function private.limit_profile_interests() to authenticated;
+
 create index if not exists want_list_user_id_idx on public.want_list (user_id);
 
 create index if not exists cards_public_user_player_idx
@@ -163,6 +203,7 @@ as $$
       select 1
       from public.posts post
       where post.user_id = collector
+        and post.hidden_at is null
         and public.norm(interest_value) <> ''
         and position(public.norm(interest_value) in public.norm(post.content)) > 0
     ) then 70
@@ -170,6 +211,7 @@ as $$
       select 1
       from public.posts post
       where post.user_id = collector
+        and post.hidden_at is null
         and public.norm(interest_value) <> ''
         and (
           position(public.norm(interest_value) in public.norm(post.content)) > 0
@@ -179,14 +221,18 @@ as $$
     when interest_kind = 'player' and exists (
       select 1
       from public.want_list w
+      join public.profiles hunter on hunter.id = collector
       where w.user_id = collector
+        and hunter.show_as_hunter is true
         and public.norm(interest_value) <> ''
         and position(public.norm(interest_value) in public.norm(w.label)) > 0
     ) then 40
     when interest_kind = 'team' and exists (
       select 1
       from public.want_list w
+      join public.profiles hunter on hunter.id = collector
       where w.user_id = collector
+        and hunter.show_as_hunter is true
         and public.norm(interest_value) <> ''
         and position(public.norm(interest_value) in public.norm(w.label)) > 0
     ) then 30
@@ -200,6 +246,7 @@ as $$
       select 1
       from public.posts post
       where post.user_id = collector
+        and post.hidden_at is null
         and public.norm(interest_value) <> ''
         and position(public.norm(interest_value) in public.norm(post.content)) > 0
     ) then 10
@@ -243,17 +290,54 @@ language sql
 stable
 security definer
 set search_path = public
-set statement_timeout = '2s'
 as $$
+  -- No function-level statement_timeout. It does not override the PostgREST
+  -- role timeout, and that role timeout is what bounds this RPC.
   with viewer as (
     select auth.uid() as id
   ),
   interests as (
-    select kind, btrim(value) as value
-    from public.profile_interests
-    where user_id = (select id from viewer)
-      and kind in ('sport', 'team', 'player')
-      and (select id from viewer) is not null
+    select kind, value
+    from (
+      select kind, btrim(value) as value
+      from public.profile_interests
+      where user_id = (select id from viewer)
+        and kind in ('sport', 'team', 'player')
+        and (select id from viewer) is not null
+      order by created_at asc, kind, value
+      limit 25
+    ) picked
+  ),
+  matched as (
+    select c.user_id as id
+    from public.public_cards c
+    join interests i
+      on (i.kind = 'player' and public.norm(c.player) = public.norm(i.value))
+      or (i.kind = 'sport' and lower(c.sport) = lower(i.value))
+    union
+    select post.user_id
+    from public.posts post
+    join interests i
+      on post.hidden_at is null
+     and post.created_at >= now() - interval '180 days'
+     and public.norm(i.value) <> ''
+     and (
+       position(public.norm(i.value) in public.norm(post.content)) > 0
+       or (
+         i.kind = 'player'
+         and public.norm(coalesce(post.card->>'player', '')) = public.norm(i.value)
+       )
+     )
+    union
+    select w.user_id
+    from public.want_list w
+    join public.profiles hunter
+      on hunter.id = w.user_id
+     and hunter.show_as_hunter is true
+    join interests i
+      on i.kind in ('player', 'team')
+     and public.norm(i.value) <> ''
+     and position(public.norm(i.value) in public.norm(w.label)) > 0
   ),
   eligible as (
     select
@@ -265,6 +349,10 @@ as $$
       p.created_at
     from public.profiles p
     where (
+        p.id in (select matched.id from matched)
+        or p.username = 'slabhold'
+      )
+      and (
         (select id from viewer) is null
         or p.id <> (select id from viewer)
       )
@@ -282,12 +370,14 @@ as $$
         or not private.is_blocked((select id from viewer), p.id)
       )
       and (
+        (select id from viewer) is null
+        or not private.is_muted((select id from viewer), p.id)
+      )
+      and (
         p.username = 'slabhold'
         or (
           coalesce(p.is_test, false) = false
           and p.username <> 'grokbotreview'
-          and position('test' in p.username) = 0
-          and position('test' in lower(coalesce(p.bio, ''))) = 0
           and left(p.username, 3) <> 'qa_'
           and left(p.username, 3) <> 'qa-'
           and left(p.username, 5) <> 'test_'
@@ -304,24 +394,22 @@ as $$
       e.avatar_url,
       e.accent,
       e.created_at,
-      coalesce((
-        select sum(private.collector_match_weight(e.id, i.kind, i.value))::integer
-        from interests i
-      ), 0) as match_score,
+      coalesce(sum(hit.weight), 0)::integer as match_score,
       (
-        select private.collector_match_reason(hit.kind, hit.value, hit.weight)
-        from (
-          select
-            i.kind,
-            i.value,
-            private.collector_match_weight(e.id, i.kind, i.value) as weight
-          from interests i
-        ) hit
-        where hit.weight > 0
-        order by hit.weight desc, hit.value
-        limit 1
-      ) as match_reason
+        array_agg(
+          private.collector_match_reason(hit.kind, hit.value, hit.weight)
+          order by hit.weight desc, hit.value
+        ) filter (where hit.weight > 0)
+      )[1] as match_reason
     from eligible e
+    left join lateral (
+      select
+        i.kind,
+        i.value,
+        private.collector_match_weight(e.id, i.kind, i.value) as weight
+      from interests i
+    ) hit on true
+    group by e.id, e.username, e.display_name, e.avatar_url, e.accent, e.created_at
   ),
   ranked as (
     select
@@ -395,4 +483,4 @@ revoke all on function public.suggest_collectors(integer) from public, anon, aut
 grant execute on function public.suggest_collectors(integer) to authenticated;
 
 comment on function public.suggest_collectors(integer) is
-  'Follow suggestions ranked by overlap with the caller''s profile_interests. Public cards, post text, and want labels only. No private card columns.';
+  'Follow suggestions ranked by overlap with the caller''s profile_interests. Public cards, visible post text, and hunter want labels only. No private card columns. Bounded by the PostgREST role timeout.';

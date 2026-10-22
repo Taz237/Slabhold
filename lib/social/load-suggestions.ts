@@ -12,11 +12,16 @@ type RpcRow = {
   score?: number | null;
 };
 
+/** How many collectors the rail asks the server to return. */
+export const SUGGESTION_DISPLAY_LIMIT = 12;
+
 /** Null when the ranking function is not installed yet. Callers keep the old list. */
 export async function loadServerSuggestions(
   supabase: SupabaseClient,
 ): Promise<ServerSuggestion[] | null> {
-  const { data, error } = await supabase.rpc("suggest_collectors", { max_results: 12 });
+  const { data, error } = await supabase.rpc("suggest_collectors", {
+    max_results: SUGGESTION_DISPLAY_LIMIT,
+  });
   if (error) {
     if (!rpcMissing(error)) console.warn("suggest_collectors", error.message);
     return null;
