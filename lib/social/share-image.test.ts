@@ -2,7 +2,12 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it } from "node:test";
-import { PRIVATE_OG_CACHE_CONTROL, PUBLIC_OG_CACHE_CONTROL, renderOg } from "../../components/og-frame";
+import {
+  PRIVATE_OG_CACHE_CONTROL,
+  PUBLIC_OG_CACHE_CONTROL,
+  renderOg,
+  resetHomeShotCache,
+} from "../../components/og-frame";
 import {
   cardShareImage,
   homeShareImage,
@@ -302,7 +307,7 @@ describe("share image renderer", () => {
       valueAmount: "$9,999.00",
       salesCount: 42,
     });
-    const response = renderOg(image);
+    const response = await renderOg(image);
     assert.equal(response.headers.get("content-type"), "image/png");
     const bytes = Buffer.from(await response.arrayBuffer());
     assert.equal(bytes[0], 0x89);
@@ -311,7 +316,16 @@ describe("share image renderer", () => {
   });
 
   it("renders the home preview with the slab screenshot", async () => {
-    const response = renderOg(homeShareImage());
+    const frame = readFileSync(join(process.cwd(), "components/og-frame.tsx"), "utf8");
+    assert.match(
+      frame,
+      /join\(\/\* turbopackIgnore: true \*\/ process\.cwd\(\), "public", "landing", "2\.png"\)/,
+    );
+    assert.equal(frame.includes('join(process.cwd(), "public/landing/2.png")'), false);
+    const config = readFileSync(join(process.cwd(), "next.config.ts"), "utf8");
+    assert.match(config, /node_modules\/sharp\/\*\*/);
+    assert.match(config, /node_modules\/@img\/\*\*/);
+    const response = await renderOg(homeShareImage());
     assert.equal(response.headers.get("cache-control"), PUBLIC_OG_CACHE_CONTROL);
     assert.match(PUBLIC_OG_CACHE_CONTROL, /s-maxage=3600/);
     assert.match(PUBLIC_OG_CACHE_CONTROL, /stale-while-revalidate=86400/);
@@ -342,5 +356,203 @@ describe("private card select", () => {
     assert.doesNotMatch(select, /cert_number/);
     assert.doesNotMatch(select, /email/);
     assert.doesNotMatch(select, /user_id/);
+  });
+});
+
+describe("home screenshot fallback", () => {
+  const landingPng = readFileSync(join(process.cwd(), "public/landing/2.png"));
+
+  function rememberEnv() {
+    return {
+      disk: process.env.SLABHOLD_HOME_SHOT_DISK,
+      vercelUrl: process.env.VERCEL_URL,
+      productionUrl: process.env.VERCEL_PROJECT_PRODUCTION_URL,
+      siteUrl: process.env.NEXT_PUBLIC_SITE_URL,
+      fetch: globalThis.fetch,
+    };
+  }
+
+  function putEnv(name: string, value: string | undefined) {
+    if (value === undefined) delete process.env[name];
+    else process.env[name] = value;
+  }
+
+  function restoreEnv(saved: ReturnType<typeof rememberEnv>) {
+    putEnv("SLABHOLD_HOME_SHOT_DISK", saved.disk);
+    putEnv("VERCEL_URL", saved.vercelUrl);
+    putEnv("VERCEL_PROJECT_PRODUCTION_URL", saved.productionUrl);
+    putEnv("NEXT_PUBLIC_SITE_URL", saved.siteUrl);
+    globalThis.fetch = saved.fetch;
+    resetHomeShotCache();
+  }
+
+  function hideLocalShot() {
+    process.env.SLABHOLD_HOME_SHOT_DISK = "off";
+    resetHomeShotCache();
+  }
+
+  async function homePng(): Promise<Buffer> {
+    const response = await renderOg(homeShareImage());
+    const bytes = Buffer.from(await response.arrayBuffer());
+    assert.equal(bytes[0], 0x89);
+    assert.equal(bytes[1], 0x50);
+    assert.equal(bytes[2], 0x4e);
+    assert.equal(bytes[3], 0x47);
+    assert.equal(bytes.readUInt32BE(16), 1200);
+    assert.equal(bytes.readUInt32BE(20), 630);
+    return bytes;
+  }
+
+  function stubFetch(
+    respond: (url: string, init: RequestInit | undefined) => Response | Promise<Response>,
+  ) {
+    const calls: Array<{ url: string; redirect: RequestRedirect | undefined }> = [];
+    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      calls.push({ url, redirect: init?.redirect });
+      return respond(url, init);
+    }) as typeof fetch;
+    return calls;
+  }
+
+  function pngFetch() {
+    return new Response(landingPng, {
+      status: 200,
+      headers: { "content-type": "image/png" },
+    });
+  }
+
+  it("embeds a fetched png when the local file is missing", async () => {
+    const saved = rememberEnv();
+    try {
+      hideLocalShot();
+      delete process.env.VERCEL_PROJECT_PRODUCTION_URL;
+      delete process.env.NEXT_PUBLIC_SITE_URL;
+      const hit = stubFetch(() => pngFetch());
+      const embedded = await homePng();
+      assert.equal(hit.length, 1);
+      assert.equal(hit[0]?.redirect, "manual");
+      assert.equal(hit[0]?.url, "https://slabhold.app/landing/2.png");
+
+      hideLocalShot();
+      stubFetch(
+        () => new Response(null, { status: 302, headers: { location: "https://vercel.com/sso-api" } }),
+      );
+      const missed = await homePng();
+      assert.ok(embedded.length > missed.length + 40_000);
+    } finally {
+      restoreEnv(saved);
+    }
+  });
+
+  it("still renders a home image when the screenshot fetch misses", async () => {
+    const saved = rememberEnv();
+    try {
+      hideLocalShot();
+      const misses: Array<(url: string, init: RequestInit | undefined) => Response | Promise<Response>> = [
+        () => new Response(null, { status: 302, headers: { location: "https://vercel.com/sso-api" } }),
+        () =>
+          new Response("<html>Log in to Vercel</html>", {
+            status: 200,
+            headers: { "content-type": "text/html; charset=utf-8" },
+          }),
+        () => {
+          throw new TypeError("network down");
+        },
+      ];
+      for (const respond of misses) {
+        hideLocalShot();
+        const calls = stubFetch(respond);
+        const bytes = await homePng();
+        assert.equal(calls.length, 1);
+        assert.equal(calls[0]?.redirect, "manual");
+        assert.ok(bytes.length > 1000);
+      }
+
+      hideLocalShot();
+      const afterMiss = stubFetch(() => pngFetch());
+      const recovered = await homePng();
+      assert.equal(afterMiss.length, 1);
+      assert.ok(recovered.length > 50_000);
+    } finally {
+      restoreEnv(saved);
+    }
+  });
+
+  it("still renders a home image when the screenshot fetch times out", { timeout: 20_000 }, async () => {
+    const saved = rememberEnv();
+    try {
+      hideLocalShot();
+      const calls = stubFetch(
+        (_url, init) =>
+          new Promise((_resolve, reject) => {
+            const signal = init?.signal;
+            if (!signal) {
+              reject(new Error("missing timeout signal"));
+              return;
+            }
+            // AbortSignal.timeout does not keep the event loop alive on its own.
+            const keepAlive = setInterval(() => undefined, 500);
+            const fail = () => {
+              clearInterval(keepAlive);
+              reject(signal.reason ?? new Error("The operation was aborted"));
+            };
+            if (signal.aborted) fail();
+            else signal.addEventListener("abort", fail, { once: true });
+          }),
+      );
+      const started = Date.now();
+      const bytes = await homePng();
+      assert.ok(Date.now() - started >= 4_500);
+      assert.equal(calls.length, 1);
+      assert.equal(calls[0]?.redirect, "manual");
+      assert.ok(bytes.length > 1000);
+    } finally {
+      restoreEnv(saved);
+    }
+  });
+
+  it("does not fetch the screenshot again after a success", async () => {
+    const saved = rememberEnv();
+    try {
+      hideLocalShot();
+      const calls = stubFetch(() => pngFetch());
+      const first = await homePng();
+      const second = await homePng();
+      assert.equal(calls.length, 1);
+      assert.ok(first.length > 50_000);
+      assert.equal(second.length, first.length);
+    } finally {
+      restoreEnv(saved);
+    }
+  });
+
+  it("loads the screenshot from the public production origin", async () => {
+    const saved = rememberEnv();
+    try {
+      hideLocalShot();
+      process.env.VERCEL_URL = "slabhold-git-preview-ripsandlots.vercel.app";
+      process.env.VERCEL_PROJECT_PRODUCTION_URL = "slabhold.app";
+      process.env.NEXT_PUBLIC_SITE_URL = "https://wrong.example";
+      const production = stubFetch(
+        () => new Response(null, { status: 302, headers: { location: "https://vercel.com/sso-api" } }),
+      );
+      await homePng();
+      assert.equal(production[0]?.url, "https://slabhold.app/landing/2.png");
+      assert.equal(production[0]?.redirect, "manual");
+      assert.equal(production[0]?.url.includes("vercel.app"), false);
+
+      hideLocalShot();
+      delete process.env.VERCEL_PROJECT_PRODUCTION_URL;
+      delete process.env.NEXT_PUBLIC_SITE_URL;
+      process.env.VERCEL_URL = "https://preview.vercel.app";
+      const fallback = stubFetch(
+        () => new Response(null, { status: 302, headers: { location: "https://vercel.com/sso-api" } }),
+      );
+      await homePng();
+      assert.equal(fallback[0]?.url, "https://slabhold.app/landing/2.png");
+    } finally {
+      restoreEnv(saved);
+    }
   });
 });

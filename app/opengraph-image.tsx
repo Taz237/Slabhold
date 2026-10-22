@@ -4,6 +4,6 @@ export const alt = "Slabhold";
 export const size = ogSize;
 export const contentType = ogContentType;
 
-export default function Image() {
+export default async function Image() {
   return renderHomeOg();
 }

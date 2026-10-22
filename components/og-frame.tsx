@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { ImageResponse } from "next/og";
 import type { ReactNode } from "react";
+import { siteUrlFrom } from "@/lib/site-url";
 import { cleanImageUrl, type LinkPreview } from "@/lib/social/link-preview";
 import {
   homeShareImage,
@@ -34,11 +35,85 @@ const iconSrc = dataUrl(
   readFileSync(join(process.cwd(), "app/apple-icon.png")),
   "image/png",
 );
-/** Home preview uses the Wemby slab screenshot. */
-const homeShotSrc = dataUrl(
-  readFileSync(join(process.cwd(), "public/landing/2.png")),
-  "image/png",
-);
+
+/**
+ * Home preview screenshot. The ignore comment keeps the tracer from copying
+ * `public/landing/2.png` into every page. The fetch fallback uses the public
+ * production origin. Preview hosts are behind Deployment Protection.
+ */
+function readHomeShotFile(): Buffer | null {
+  // Tests turn the local file off so the fetch fallback runs without renaming it.
+  if (process.env.SLABHOLD_HOME_SHOT_DISK === "off") return null;
+  try {
+    return readFileSync(
+      join(/* turbopackIgnore: true */ process.cwd(), "public", "landing", "2.png"),
+    );
+  } catch {
+    return null;
+  }
+}
+
+function isPng(bytes: Buffer): boolean {
+  return bytes.length >= 4 && bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47;
+}
+
+/** Public production domain. Preview `VERCEL_URL` is not fetched. */
+function deploymentOrigin(): string {
+  const raw = process.env.VERCEL_PROJECT_PRODUCTION_URL?.trim();
+  const host = raw?.replace(/^https?:\/\//, "").replace(/\/$/, "");
+  if (host) return `https://${host}`;
+  return siteUrlFrom(process.env.NEXT_PUBLIC_SITE_URL);
+}
+
+let homeShotPromise: Promise<string | null> | null = null;
+
+async function loadHomeShot(): Promise<string | null> {
+  const local = readHomeShotFile();
+  if (local && isPng(local)) return dataUrl(local, "image/png");
+  let response: Response;
+  try {
+    response = await fetch(`${deploymentOrigin()}/landing/2.png`, {
+      redirect: "manual",
+      signal: AbortSignal.timeout(5000),
+    });
+  } catch {
+    return null;
+  }
+  let consumed = false;
+  try {
+    if (response.status !== 200) return null;
+    const type = (response.headers.get("content-type") ?? "").toLowerCase();
+    if (!type.startsWith("image/png")) return null;
+    const lengthHeader = response.headers.get("content-length");
+    if (lengthHeader != null) {
+      const length = Number(lengthHeader);
+      if (!Number.isFinite(length) || length > MAX_FETCH_BYTES) return null;
+    }
+    const bytes = Buffer.from(await response.arrayBuffer());
+    consumed = true;
+    if (bytes.length === 0 || bytes.length > MAX_FETCH_BYTES || !isPng(bytes)) return null;
+    return dataUrl(bytes, "image/png");
+  } catch {
+    return null;
+  } finally {
+    if (!consumed) await response.body?.cancel().catch(() => undefined);
+  }
+}
+
+function homeShotSrc(): Promise<string | null> {
+  if (homeShotPromise) return homeShotPromise;
+  const attempt = loadHomeShot().then((src) => {
+    if (!src && homeShotPromise === attempt) homeShotPromise = null;
+    return src;
+  });
+  homeShotPromise = attempt;
+  return attempt;
+}
+
+/** Drops a cached screenshot so the next render reads disk or fetches again. */
+export function resetHomeShotCache(): void {
+  homeShotPromise = null;
+}
 
 /**
  * Glyphs for the image renderer. These files are passed in because that
@@ -267,7 +342,7 @@ function Fan({ photos }: { photos: string[] }) {
   );
 }
 
-function PhoneShot() {
+function PhoneShot({ src }: { src: string }) {
   return (
     <div
       style={{
@@ -293,7 +368,7 @@ function PhoneShot() {
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src={homeShotSrc}
+          src={src}
           alt=""
           width={252}
           height={532}
@@ -332,7 +407,11 @@ function respond(node: ReactNode, cacheControl = PUBLIC_OG_CACHE_CONTROL) {
   });
 }
 
-export function renderOg(model: ShareImage, cacheControl = PUBLIC_OG_CACHE_CONTROL) {
+function paint(
+  model: ShareImage,
+  cacheControl: string,
+  homeShot: string | null,
+): ImageResponse {
   const send = (node: ReactNode) => respond(node, cacheControl);
   const imageUrl = cleanImageUrl(model.imageUrl);
   const photos = model.photos
@@ -357,7 +436,7 @@ export function renderOg(model: ShareImage, cacheControl = PUBLIC_OG_CACHE_CONTR
             ) : null}
           </div>
         </Left>
-        <PhoneShot />
+        {homeShot ? <PhoneShot src={homeShot} /> : null}
       </div>,
     );
   }
@@ -483,14 +562,22 @@ export function renderOg(model: ShareImage, cacheControl = PUBLIC_OG_CACHE_CONTR
   );
 }
 
+export function renderOg(
+  model: ShareImage,
+  cacheControl = PUBLIC_OG_CACHE_CONTROL,
+): ImageResponse | Promise<ImageResponse> {
+  if (model.kind !== "home") return paint(model, cacheControl, null);
+  return homeShotSrc().then((src) => paint(model, cacheControl, src));
+}
+
 export function renderProfileOg(
   preview: LinkPreview,
   kicker: string,
   cacheControl = PUBLIC_OG_CACHE_CONTROL,
 ) {
-  return renderOg(profileShareImage(preview, kicker), cacheControl);
+  return paint(profileShareImage(preview, kicker), cacheControl, null);
 }
 
-export function renderHomeOg() {
-  return renderOg(homeShareImage());
+export async function renderHomeOg() {
+  return paint(homeShareImage(), PUBLIC_OG_CACHE_CONTROL, await homeShotSrc());
 }
