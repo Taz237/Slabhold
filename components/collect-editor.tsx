@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { X } from "lucide-react";
 import { searchCatalog } from "@/lib/card-catalog";
+import { nameSuggestionLabel, withDirectoryPlayers } from "@/lib/players/suggest";
+import { usePlayerDirectory } from "@/lib/players/use-directory";
 import {
   COLLECT_TEAMS,
   collectSportChoices,
@@ -95,6 +97,7 @@ export function NameSearch({
     };
   }, [query]);
 
+  const directory = usePlayerDirectory();
   const players = useMemo(() => {
     const local = searchCatalog(query.trim(), 20).map((card) => ({
       name: card.playerName,
@@ -104,12 +107,23 @@ export function NameSearch({
     return [...local, ...remote];
   }, [query, remotePlayers, remoteQuery]);
 
-  const hits = interestTypeahead({
-    query,
-    sports,
-    players,
-    teams: COLLECT_TEAMS,
-  });
+  const hits = useMemo(
+    () =>
+      withDirectoryPlayers({
+        query,
+        sports,
+        catalogHits: interestTypeahead({
+          query,
+          sports,
+          players,
+          teams: COLLECT_TEAMS,
+        }),
+        directoryPlayers: directory.players,
+        directoryReady: directory.status === "ready",
+      }),
+    [directory.players, directory.status, players, query, sports],
+  );
+  const typed = query.trim().length > 0;
 
   return (
     <div>
@@ -140,6 +154,17 @@ export function NameSearch({
           className="min-h-11 w-full rounded-2xl border border-zinc-300 bg-white px-4 text-base outline-none focus:border-zinc-500 dark:border-white/15 dark:bg-transparent"
         />
       </label>
+      {directory.status === "loading" && typed ? (
+        <p className="mt-2 text-sm text-zinc-500">Loading players…</p>
+      ) : null}
+      {directory.status === "error" ? (
+        <div className="mt-2 text-sm text-zinc-500">
+          Could not load the player list.{" "}
+          <button type="button" onClick={directory.retry} className="min-h-11 font-semibold underline">
+            Retry
+          </button>
+        </div>
+      ) : null}
       {hits.length > 0 ? (
         <ul className="mt-2 overflow-hidden rounded-2xl border border-zinc-200 dark:border-white/10">
           {hits.map((hit) => (
@@ -152,7 +177,7 @@ export function NameSearch({
                 }}
                 className="flex min-h-11 w-full items-center justify-between gap-3 px-4 text-left text-[15px] hover:bg-zinc-100 dark:hover:bg-white/10"
               >
-                <span className="truncate font-medium">{hit.value}</span>
+                <span className="truncate font-medium">{nameSuggestionLabel(hit)}</span>
                 <span className="shrink-0 text-xs text-zinc-500">
                   {hit.kind === "team" ? "Team" : "Player"}
                 </span>
