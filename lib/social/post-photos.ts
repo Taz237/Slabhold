@@ -12,6 +12,8 @@ export const MAX_POST_PHOTOS = 4;
 
 export const POST_PHOTO_LIMIT_ERROR = "You can add up to 4 photos.";
 export const POST_PHOTO_SINGLE_ERROR = "You can add one photo.";
+/** Accessible name for a photo button once the composer is full. */
+export const POST_PHOTO_CAP_HINT = "Up to 4 photos";
 
 export type PostWrite = {
   body: string;
@@ -29,6 +31,15 @@ export function postPhotoLimit(multiPhoto: boolean): number {
 
 export function postPhotoLimitError(limit: number): string {
   return limit <= 1 ? POST_PHOTO_SINGLE_ERROR : POST_PHOTO_LIMIT_ERROR;
+}
+
+export function photoAttachFull(count: number, limit: number): boolean {
+  return count >= limit;
+}
+
+/** Hint spoken when the photo button is disabled. The error string stays a fallback. */
+export function photoAttachHint(limit: number): string {
+  return limit <= 1 ? POST_PHOTO_SINGLE_ERROR : POST_PHOTO_CAP_HINT;
 }
 
 const POST_IMAGE_PREFIX = "/storage/v1/object/public/post-images/";

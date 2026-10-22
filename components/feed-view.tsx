@@ -33,6 +33,8 @@ import { PHOTO_HEIC_ERROR, readPhotoFile } from "@/lib/photos";
 import {
   POST_PHOTO_LIMIT_ERROR,
   POST_PHOTO_SINGLE_ERROR,
+  photoAttachFull,
+  photoAttachHint,
   postPhotoLimit,
   postsSupportMultipleImages,
 } from "@/lib/social/post-photos";
@@ -478,6 +480,7 @@ function Composer({ onPosted }: { onPosted?: () => void }) {
   const [composePhoto] = useState(() => takeComposePrefill());
   const {
     images,
+    limit,
     photoError,
     readingPhoto,
     addFiles,
@@ -485,6 +488,8 @@ function Composer({ onPosted }: { onPosted?: () => void }) {
     replaceAll,
     setLimit,
   } = usePostPhotos(readComposerPhoto, composePhoto);
+  const photosFull = photoAttachFull(images.length, limit);
+  const photoCapHint = photoAttachHint(limit);
 
   useEffect(() => {
     heldComposePrefill = null;
@@ -572,8 +577,11 @@ function Composer({ onPosted }: { onPosted?: () => void }) {
           />
           <button
             type="button"
+            disabled={photosFull}
+            aria-label={photosFull ? photoCapHint : "Photo"}
+            title={photosFull ? photoCapHint : undefined}
             onClick={() => libraryRef.current?.click()}
-            className="inline-flex min-h-11 items-center gap-1 rounded-full px-2 text-sm text-zinc-500 hover:bg-zinc-100 dark:hover:bg-white/10"
+            className="inline-flex min-h-11 items-center gap-1 rounded-full px-2 text-sm text-zinc-500 hover:bg-zinc-100 disabled:opacity-40 dark:hover:bg-white/10"
           >
             <ImagePlus className="h-4 w-4" />
             Photo

@@ -21,7 +21,7 @@ export function PostPhotoGrid({
           event.stopPropagation();
           onOpen(photos[0], "Post photo", photos);
         }}
-        className="mt-3 block w-full cursor-zoom-in"
+        className="mt-3 block w-full cursor-zoom-in scroll-mb-[calc(14rem+env(safe-area-inset-bottom))]"
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
@@ -48,7 +48,7 @@ export function PostPhotoGrid({
             event.stopPropagation();
             onOpen(src, `Post photo ${index + 1}`, photos);
           }}
-          className={`relative block min-h-0 w-full cursor-zoom-in overflow-hidden ${postPhotoCellClass(photos.length, index)}`}
+          className={`relative block min-h-0 w-full cursor-zoom-in scroll-mb-[calc(14rem+env(safe-area-inset-bottom))] overflow-hidden ${postPhotoCellClass(photos.length, index)}`}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={src} alt="" className="h-full w-full object-cover" />
