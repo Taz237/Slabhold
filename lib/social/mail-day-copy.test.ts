@@ -114,9 +114,11 @@ describe("mail day tile markup", () => {
     assert.doesNotMatch(html, /truncate/);
     assert.match(html, /J\.J\. McCarthy/);
     assert.match(html, /2024 Donruss Optic · Pink · #303/);
-    assert.match(html, /Sold comps via Trawl/);
+    assert.match(html, /Search recent sales/);
     assert.doesNotMatch(html, /See eBay sold/);
+    assert.doesNotMatch(html, /Sold comps via Trawl/);
     assert.doesNotMatch(html, /fee/i);
+    assert.doesNotMatch(html, /Trawl/);
     assert.match(html, /target="_blank"/);
     assert.match(html, /rel="noopener noreferrer"/);
     assert.doesNotMatch(html, /Not enough sales yet/);
@@ -145,6 +147,7 @@ describe("mail day tile markup", () => {
     assert.match(html, /\$35\.00/);
     assert.match(html, /Card show/);
     assert.match(html, /Paid \$12\.00/);
+    assert.doesNotMatch(html, /Search recent sales/);
     assert.doesNotMatch(html, /Sold comps via Trawl/);
     assert.doesNotMatch(html, /See eBay sold/);
     assert.doesNotMatch(html, />eBay</);

@@ -578,14 +578,18 @@ function Composer({ onPosted }: { onPosted?: () => void }) {
           <button
             type="button"
             disabled={photosFull}
-            aria-label={photosFull ? photoCapHint : "Photo"}
-            title={photosFull ? photoCapHint : undefined}
+            aria-describedby={photosFull ? "feed-photo-cap" : undefined}
             onClick={() => libraryRef.current?.click()}
             className="inline-flex min-h-11 items-center gap-1 rounded-full px-2 text-sm text-zinc-500 hover:bg-zinc-100 disabled:opacity-40 dark:hover:bg-white/10"
           >
             <ImagePlus className="h-4 w-4" />
             Photo
           </button>
+          {photosFull ? (
+            <span id="feed-photo-cap" className="text-xs text-zinc-500">
+              {photoCapHint}
+            </span>
+          ) : null}
           {cardsReady && !syncError ? (
             <AttachCardField
               cards={cards}

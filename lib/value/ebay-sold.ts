@@ -4,7 +4,7 @@ import {
 } from "@/lib/cards/parallels";
 import { NOT_ENOUGH_SALES_LABEL } from "@/lib/value/format";
 
-export const EBAY_SOLD_LINK_LABEL = "Sold comps via Trawl";
+export const EBAY_SOLD_LINK_LABEL = "Search recent sales";
 
 export type EbaySoldCard = {
   playerName?: string | null;
