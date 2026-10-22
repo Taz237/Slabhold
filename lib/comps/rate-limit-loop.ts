@@ -85,5 +85,7 @@ export async function consumeBucketWithStore(
     if (write.ok || !write.conflict) return true;
   }
 
+  // want_match and trawl may deny a call that is still slightly under the
+  // limit when many requests from the same user lose the write together.
   return allowsAfterLostWrite(row.bucket);
 }

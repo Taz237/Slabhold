@@ -230,8 +230,7 @@ describe("rate limit retry loop", () => {
       true,
     );
     assert.ok(conflicts() > 0);
-    assert.ok(current() >= 1);
-    assert.ok(current() <= 10);
+    assert.equal(current(), 8);
   });
 
   it("blocks none of 20 parallel card value calls under the limit", async () => {

@@ -61,7 +61,10 @@ export function sameCooledAlert(
 
 /**
  * True when `row` sorts before `mine`. Duplicate alerts use one order:
- * earliest created_at, then the lowest id.
+ * earliest created_at, then the lowest id. The id tie-break only resolves
+ * ties when both inserts can see each other on re-check. A same-timestamp,
+ * lower-id insert that lands after this request's re-check can leave a
+ * duplicate. The real fix is a DB-side guard (follow-up SQL, needs Donnie).
  */
 export function notificationComesFirst(
   row: { id: string; createdAt: string },
