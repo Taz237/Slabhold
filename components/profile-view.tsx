@@ -232,7 +232,7 @@ export function ProfileView({ username }: { username?: string }) {
           />
           <div className="mb-1 flex max-w-[17rem] flex-wrap items-center justify-end gap-2">
             <ShareIconButton
-              path={`/u/${profile.username}`}
+              path={`/u/${encodeURIComponent(profile.username)}`}
               title={`${profile.displayName} (@${profile.username})`}
               label={`Share ${profile.displayName}`}
             />
@@ -249,7 +249,7 @@ export function ProfileView({ username }: { username?: string }) {
                   username={profile.username}
                 />
                 <Link
-                  href={user ? `/messages/${profile.username}` : signupPath(pathname)}
+                  href={user ? `/messages/${encodeURIComponent(profile.username)}` : signupPath(pathname)}
                   className={outlineButton}
                 >
                   Message
@@ -264,12 +264,12 @@ export function ProfileView({ username }: { username?: string }) {
         {profile.bio ? <p className="mt-3 text-[15px] leading-5">{profile.bio}</p> : null}
         <p className="mt-3 flex gap-4 text-sm">
           <CountLink
-            href={`${username ? `/u/${profile.username}` : "/profile"}/following`}
+            href={`${username ? `/u/${encodeURIComponent(profile.username)}` : "/profile"}/following`}
             count={followingCount(profile.id)}
             label="Following"
           />
           <CountLink
-            href={`${username ? `/u/${profile.username}` : "/profile"}/followers`}
+            href={`${username ? `/u/${encodeURIComponent(profile.username)}` : "/profile"}/followers`}
             count={followerCount(profile.id)}
             label="Followers"
           />
@@ -391,7 +391,7 @@ export function ProfileView({ username }: { username?: string }) {
                   return (
                     <li key={card.id}>
                       <Link
-                        href={`/u/${profile.username}/cards/${card.id}`}
+                        href={`/u/${encodeURIComponent(profile.username)}/cards/${encodeURIComponent(card.id)}`}
                         className="block overflow-hidden rounded-2xl border border-zinc-200 transition hover:border-zinc-300 active:bg-zinc-50 dark:border-white/10 dark:hover:border-white/20 dark:active:bg-white/[0.04]"
                       >
                         <CardThumb card={card} className="h-36 w-full" />
@@ -414,7 +414,7 @@ export function ProfileView({ username }: { username?: string }) {
         onSaved={(nextUsername) => {
           setEditing(false);
           if (username && normalizeUsername(username) !== nextUsername) {
-            router.replace(`/u/${nextUsername}`);
+            router.replace(`/u/${encodeURIComponent(nextUsername)}`);
           }
         }}
       />

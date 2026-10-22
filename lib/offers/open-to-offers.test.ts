@@ -821,6 +821,43 @@ describe("open to offers polish", () => {
     resetMessageListColumnProbe();
   });
 
+  it("encodes usernames in offer profile and thread links", () => {
+    const thread = readFileSync(join(process.cwd(), "components/message-thread.tsx"), "utf8");
+    assert.match(thread, /router\.replace\(`\/messages\/\$\{encodeURIComponent\(partner\.username\)\}`\)/);
+    assert.match(thread, /href=\{`\/u\/\$\{encodeURIComponent\(partner\.username\)\}`\}/);
+    assert.doesNotMatch(thread, /\/(?:messages|u)\/\$\{partner\.username\}/);
+
+    const profile = readFileSync(join(process.cwd(), "components/profile-view.tsx"), "utf8");
+    assert.match(
+      profile,
+      /href=\{`\/u\/\$\{encodeURIComponent\(profile\.username\)\}\/cards\/\$\{encodeURIComponent\(card\.id\)\}`\}/,
+    );
+    assert.match(profile, /path=\{`\/u\/\$\{encodeURIComponent\(profile\.username\)\}`\}/);
+    assert.match(profile, /\/messages\/\$\{encodeURIComponent\(profile\.username\)\}/);
+    assert.doesNotMatch(profile, /\/u\/\$\{profile\.username\}/);
+    assert.doesNotMatch(profile, /\/messages\/\$\{profile\.username\}/);
+    assert.doesNotMatch(profile, /\/u\/\$\{nextUsername\}/);
+
+    const cardPage = readFileSync(join(process.cwd(), "components/public-card-view.tsx"), "utf8");
+    assert.match(cardPage, /`\/u\/\$\{encodeURIComponent\(username\)\}\?tab=collection`/);
+
+    const people = readFileSync(join(process.cwd(), "components/card-people-view.tsx"), "utf8");
+    assert.match(people, /href=\{`\/u\/\$\{encodeURIComponent\(person\.handle\)\}`\}/);
+
+    const html = renderToStaticMarkup(
+      createElement(CardPeopleView, {
+        data: {
+          owners: { count: 1, people: [person({ handle: "a/b?c" })] },
+          hunters: { count: 0, people: [] },
+        },
+        signedIn: true,
+        signupHref: "/signup",
+      }),
+    );
+    assert.match(html, /href="\/u\/a%2Fb%3Fc"/);
+    assert.doesNotMatch(html, /href="\/u\/a\/b/);
+  });
+
   it("lowercases a uuid before the shape check", () => {
     assert.deepEqual(parseCardPreview({ cardId: `  ${upper}  ` }), { cardId: lower });
     assert.match(lower, /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);

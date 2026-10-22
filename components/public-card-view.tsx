@@ -63,7 +63,7 @@ export function PublicCardView({
 
   if (!social.ready || (isOwn && !cardsReady)) return <ProfileSkeleton />;
 
-  const backHref = `/u/${username}?tab=collection`;
+  const backHref = `/u/${encodeURIComponent(username)}?tab=collection`;
 
   if (!profile) {
     return (

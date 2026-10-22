@@ -169,6 +169,66 @@ alter table public.cards drop constraint if exists cards_category;
 alter table public.cards add constraint cards_category check (category in ('flipping', 'pc'));
 alter table public.cards add column if not exists updated_at timestamptz not null default now();
 
+alter table public.cards
+  add column if not exists open_to_offers boolean;
+
+update public.cards
+set open_to_offers = false
+where open_to_offers is null;
+
+alter table public.cards
+  alter column open_to_offers set default false;
+
+alter table public.cards
+  alter column open_to_offers set not null;
+
+comment on column public.cards.open_to_offers is
+  'Owner will hear offers in DMs. False by default. Readable by others only while the card is public.';
+
+-- A private card cannot stay open to offers. The trigger clears the flag
+-- before the check, so making a card private still succeeds.
+create or replace function public.clear_open_to_offers_when_private()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+begin
+  if new.is_public is distinct from true then
+    new.open_to_offers := false;
+  end if;
+  return new;
+end;
+$$;
+
+revoke all on function public.clear_open_to_offers_when_private() from public, anon, authenticated;
+
+drop trigger if exists cards_clear_open_to_offers_when_private on public.cards;
+create trigger cards_clear_open_to_offers_when_private
+  before insert or update of is_public, open_to_offers on public.cards
+  for each row
+  execute function public.clear_open_to_offers_when_private();
+
+alter table public.cards drop constraint if exists cards_open_to_offers_requires_public;
+alter table public.cards
+  add constraint cards_open_to_offers_requires_public
+  check (open_to_offers = false or is_public is true);
+
+-- Columns selected by the production public_cards view. Migrations add the
+-- same columns with IF NOT EXISTS.
+alter table public.cards add column if not exists no_number boolean not null default false;
+alter table public.cards add column if not exists year_label text;
+alter table public.cards add column if not exists set_name text;
+alter table public.cards add column if not exists set_is_custom boolean not null default false;
+alter table public.cards add column if not exists parallel_is_custom boolean not null default false;
+alter table public.cards add column if not exists serial_run integer;
+alter table public.cards add column if not exists serial_no integer;
+alter table public.cards add column if not exists is_rookie boolean not null default false;
+alter table public.cards add column if not exists is_auto boolean not null default false;
+alter table public.cards add column if not exists is_relic boolean not null default false;
+alter table public.cards add column if not exists condition_type text not null default 'raw';
+alter table public.cards add column if not exists grader text;
+alter table public.cards add column if not exists grade_qualifier text;
+
 create table if not exists public.comments (
   id uuid primary key default gen_random_uuid(),
   post_id uuid not null references public.posts (id) on delete cascade,
@@ -220,12 +280,65 @@ create table if not exists public.messages (
   content text not null,
   created_at timestamptz not null default now(),
   read boolean not null default false,
-  constraint messages_content_len check (char_length(btrim(content)) between 1 and 1000),
   constraint messages_not_self check (sender_id <> receiver_id)
 );
 
 create index if not exists messages_sender_idx on public.messages (sender_id, created_at desc);
 create index if not exists messages_receiver_idx on public.messages (receiver_id, created_at desc);
+
+-- Card preview on an existing DM. Text messages stay unchanged.
+alter table public.messages
+  add column if not exists kind text;
+
+update public.messages
+set kind = 'text'
+where kind is null;
+
+alter table public.messages
+  alter column kind set default 'text';
+
+alter table public.messages
+  alter column kind set not null;
+
+alter table public.messages
+  add column if not exists card_preview jsonb;
+
+alter table public.messages drop constraint if exists messages_kind;
+alter table public.messages
+  add constraint messages_kind
+  check (kind in ('text', 'card_preview'));
+
+alter table public.messages drop constraint if exists messages_content_len;
+alter table public.messages
+  add constraint messages_content_len
+  check (
+    (
+      kind = 'card_preview'
+      and char_length(content) <= 1000
+    )
+    or (
+      kind = 'text'
+      and char_length(btrim(content)) between 1 and 1000
+    )
+  );
+
+-- cardId-only shape rule: one key, a uuid string, and a small payload.
+alter table public.messages drop constraint if exists messages_card_preview_shape;
+alter table public.messages
+  add constraint messages_card_preview_shape
+  check (
+    (
+      kind = 'text'
+      and card_preview is null
+    )
+    or (
+      kind = 'card_preview'
+      and jsonb_typeof(card_preview) = 'object'
+      and card_preview = jsonb_build_object('cardId', card_preview->>'cardId')
+      and (card_preview->>'cardId') ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+      and pg_column_size(card_preview) <= 256
+    )
+  );
 
 create table if not exists public.reposts (
   user_id uuid not null references public.profiles (id) on delete cascade,
@@ -399,7 +512,11 @@ drop policy if exists "Users can delete own cards" on public.cards;
 create policy "Users can view own cards" on public.cards for select using (auth.uid() = user_id);
 create policy "Anyone can view public cards" on public.cards for select using (is_public);
 create policy "Users can insert own cards" on public.cards for insert with check (auth.uid() = user_id);
-create policy "Users can update own cards" on public.cards for update using (auth.uid() = user_id);
+create policy "Users can update own cards"
+  on public.cards
+  for update
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
 create policy "Users can delete own cards" on public.cards for delete using (auth.uid() = user_id);
 
 -- Comment policies match the latest migration (private.is_blocked / private.post_author).
@@ -437,6 +554,33 @@ begin
 end;
 $$;
 
+create or replace function private.is_muted(viewer uuid, author uuid)
+returns boolean
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+begin
+  if auth.uid() is not null
+     and auth.uid() is distinct from viewer
+     and auth.uid() is distinct from author then
+    raise exception 'permission denied for function is_muted'
+      using errcode = '42501';
+  end if;
+
+  return viewer is not null
+    and author is not null
+    and viewer <> author
+    and exists (
+      select 1
+      from public.mutes
+      where muter_id = viewer
+        and muted_id = author
+    );
+end;
+$$;
+
 create or replace function private.post_author(post_id uuid)
 returns uuid
 language sql
@@ -448,8 +592,10 @@ as $$
 $$;
 
 revoke all on function private.is_blocked(uuid, uuid) from public;
+revoke all on function private.is_muted(uuid, uuid) from public;
 revoke all on function private.post_author(uuid) from public;
 grant execute on function private.is_blocked(uuid, uuid) to anon, authenticated;
+grant execute on function private.is_muted(uuid, uuid) to anon, authenticated;
 grant execute on function private.post_author(uuid) to authenticated;
 
 drop policy if exists "Comments are public" on public.comments;
@@ -487,8 +633,77 @@ drop policy if exists "Send messages as yourself" on public.messages;
 drop policy if exists "Mark received messages read" on public.messages;
 create policy "Read own messages" on public.messages
   for select using (auth.uid() = sender_id or auth.uid() = receiver_id);
+
+-- Production public_cards, copied from 20261022180000_open_to_offers.sql.
+-- The send policy reads this view. 20261016230000 cannot replace this view
+-- with fewer columns; that migration is already applied in production.
+create or replace view public.public_cards
+with (security_invoker = false) as
+select
+  id,
+  user_id,
+  player,
+  year,
+  "set",
+  grade,
+  parallel,
+  estimated_value,
+  image_url,
+  card_number,
+  sport,
+  accent,
+  is_public,
+  category,
+  created_at,
+  updated_at,
+  no_number,
+  year_label,
+  set_name,
+  set_is_custom,
+  parallel_is_custom,
+  serial_run,
+  serial_no,
+  is_rookie,
+  is_auto,
+  is_relic,
+  condition_type,
+  grader,
+  grade_qualifier,
+  open_to_offers
+from public.cards
+where is_public = true;
+
+revoke insert, update, delete, truncate, references, trigger
+  on public.public_cards from anon, authenticated, public;
+grant select on public.public_cards to anon, authenticated;
+
+comment on view public.public_cards is
+  'Public card fields only, including open_to_offers. Sensitive columns stay omitted. Private cards are not in this view.';
+
+-- Text DMs keep the existing block rule. A card preview must also be a public
+-- open-to-offers card owned by the recipient, and neither person has muted
+-- the other. You still cannot message yourself.
 create policy "Send messages as yourself" on public.messages
-  for insert with check (auth.uid() = sender_id and sender_id <> receiver_id);
+  for insert with check (
+    auth.uid() = sender_id
+    and sender_id <> receiver_id
+    and not private.is_blocked(auth.uid(), receiver_id)
+    and (
+      kind = 'text'
+      or (
+        kind = 'card_preview'
+        and not private.is_muted(auth.uid(), receiver_id)
+        and not private.is_muted(receiver_id, auth.uid())
+        and exists (
+          select 1
+          from public.public_cards pc
+          where pc.user_id = receiver_id
+            and pc.open_to_offers is true
+            and pc.id::text = card_preview->>'cardId'
+        )
+      )
+    )
+  );
 create policy "Mark received messages read" on public.messages
   for update using (auth.uid() = receiver_id) with check (auth.uid() = receiver_id);
 
@@ -502,13 +717,16 @@ create policy "Undo own repost" on public.reposts for delete using (auth.uid() =
 create or replace function public.protect_message_rows()
 returns trigger
 language plpgsql
+set search_path = public
 as $$
 begin
   if new.id is distinct from old.id
     or new.sender_id is distinct from old.sender_id
     or new.receiver_id is distinct from old.receiver_id
     or new.content is distinct from old.content
-    or new.created_at is distinct from old.created_at then
+    or new.created_at is distinct from old.created_at
+    or new.kind is distinct from old.kind
+    or new.card_preview is distinct from old.card_preview then
     raise exception 'Only the read status of a message can change';
   end if;
   return new;
