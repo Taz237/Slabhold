@@ -28,6 +28,15 @@ export type CachedCompRow = {
  */
 export const SOLD_CACHE_ROW_LIMIT = 480;
 
+/**
+ * Hosted Supabase PostgREST max_rows. A higher `.limit()` still comes back
+ * with at most this many rows, and the cut is silent.
+ */
+export const POSTGREST_MAX_ROWS = 1000;
+
+/** How many exact keys fit in one response at the shared per-key page size. */
+const EXACT_KEYS_PER_READ = Math.max(1, Math.floor(POSTGREST_MAX_ROWS / SOLD_CACHE_ROW_LIMIT));
+
 const SALE_COLUMNS =
   "query_key, item_id, title, price, currency, sold_at, grader, grade, url, fetched_at";
 
@@ -94,24 +103,55 @@ function cutQueryKeys(
   });
 }
 
-/** One read for keys the shared page cut. Each key gets a full page of room. */
-async function rereadCutKeys(
+function chunkKeys(keys: readonly string[], size: number): string[][] {
+  const chunks: string[][] = [];
+  for (let index = 0; index < keys.length; index += size) {
+    chunks.push(keys.slice(index, index + size));
+  }
+  return chunks;
+}
+
+/** One `.in` whose limit stays within the PostgREST cap. */
+async function readInKeys(
   client: SoldCacheClient,
-  cutKeys: readonly string[],
+  queryKeys: readonly string[],
+  rowLimit: number,
 ): Promise<CacheReadRow[]> {
   const { data, error } = await cacheFilter(client)
-    .in("query_key", cutKeys)
+    .in("query_key", queryKeys)
     .order("fetched_at", { ascending: false })
-    .limit(cutKeys.length * SOLD_CACHE_ROW_LIMIT);
+    .limit(Math.min(rowLimit, POSTGREST_MAX_ROWS));
   if (error) throw new CompsResultError(error.message);
   return (data ?? []) as CacheReadRow[];
 }
 
 /**
+ * Pages of keys that fit under 1000 rows. A full page may be missing the
+ * oldest rows, so each cut key is read on its own at the server cap.
+ */
+async function readKeysWithinCap(
+  client: SoldCacheClient,
+  keys: readonly string[],
+  out: Map<string, CachedCompRow[]>,
+): Promise<void> {
+  for (const chunk of chunkKeys(keys, EXACT_KEYS_PER_READ)) {
+    const requested = Math.min(chunk.length * SOLD_CACHE_ROW_LIMIT, POSTGREST_MAX_ROWS);
+    const rows = await readInKeys(client, chunk, requested);
+    storeNewest(out, rows);
+    const cap = Math.min(requested, POSTGREST_MAX_ROWS);
+    if (rows.length < cap) continue;
+    const cutKeys = cutQueryKeys(chunk, rows, cap);
+    for (const key of cutKeys) {
+      storeNewest(out, await readInKeys(client, [key], POSTGREST_MAX_ROWS));
+    }
+  }
+}
+
+/**
  * Newest batch for every key. Exact keys (this card and identical copies)
- * share one `.in` with their own limit, so a busy neighbor cannot push them
- * out and 59 copies are not 60 queries. A page that fills its limit is
- * re-read once, for the keys it cut, also as one `.in`.
+ * are read in chunks under the PostgREST cap, so a busy neighbor cannot
+ * push them out and 59 copies are not 60 full-table queries. A page that
+ * fills its limit is re-read per key, still under that cap.
  */
 export async function readNewestBatches(
   client: SoldCacheClient,
@@ -125,20 +165,7 @@ export async function readNewestBatches(
   if (!unique.length) return out;
 
   const exactKeys = unique.filter((key) => keep.has(key));
-  if (exactKeys.length) {
-    const exactLimit = exactKeys.length * SOLD_CACHE_ROW_LIMIT;
-    const { data, error } = await cacheFilter(client)
-      .in("query_key", exactKeys)
-      .order("fetched_at", { ascending: false })
-      .limit(exactLimit);
-    if (error) throw new CompsResultError(error.message);
-    const exactRows = (data ?? []) as CacheReadRow[];
-    storeNewest(out, exactRows);
-    if (exactRows.length >= exactLimit) {
-      const cutKeys = cutQueryKeys(exactKeys, exactRows, exactLimit);
-      if (cutKeys.length) storeNewest(out, await rereadCutKeys(client, cutKeys));
-    }
-  }
+  if (exactKeys.length) await readKeysWithinCap(client, exactKeys, out);
 
   const rest = unique.filter((key) => !keep.has(key));
   if (!rest.length) return out;
@@ -150,9 +177,9 @@ export async function readNewestBatches(
   if (error) throw new CompsResultError(error.message);
   const rows = (data ?? []) as CacheReadRow[];
   storeNewest(out, rows);
-  if (rows.length >= SOLD_CACHE_ROW_LIMIT) {
+  if (rows.length >= Math.min(SOLD_CACHE_ROW_LIMIT, POSTGREST_MAX_ROWS)) {
     const cutKeys = cutQueryKeys(rest, rows, SOLD_CACHE_ROW_LIMIT);
-    if (cutKeys.length) storeNewest(out, await rereadCutKeys(client, cutKeys));
+    if (cutKeys.length) await readKeysWithinCap(client, cutKeys, out);
   }
   return out;
 }

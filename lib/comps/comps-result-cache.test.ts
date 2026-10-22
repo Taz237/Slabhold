@@ -168,9 +168,10 @@ describe("server comps cache", () => {
     assert.match(context, /readNewestBatches\(client, \[\.\.\.keys\], exactKeys\)/);
     const batches = source("lib/value/price-batch.ts");
     assert.match(batches, /order\("fetched_at", \{ ascending: false \}\)/);
-    assert.match(batches, /\.in\("query_key", exactKeys\)/);
+    assert.match(batches, /\.in\("query_key", queryKeys\)/);
     assert.match(batches, /\.in\("query_key", rest\)/);
-    assert.match(batches, /\.in\("query_key", cutKeys\)/);
+    assert.match(batches, /POSTGREST_MAX_ROWS/);
+    assert.doesNotMatch(batches, /exactKeys\.length \* SOLD_CACHE_ROW_LIMIT/);
     assert.doesNotMatch(batches, /\.eq\("query_key"/);
     assert.match(context, /\.ilike\("player", escapeIlike\(player\)\)/);
     assert.match(context, /from\("blocks"\)/);
@@ -184,9 +185,12 @@ describe("server comps cache", () => {
     assert.match(context, /mergeExactSales\(subjectFlags/);
     assert.doesNotMatch(source("lib/comps/cache.ts"), /revalidateTag|revalidatePath|revalidateCard/);
     const sold = source("app/api/comps/sold/route.ts");
+    assert.match(sold, /scheduleCompsResultBust\(cardId, refreshed\)/);
     assert.match(sold, /shouldBustCompsResult\(refreshed\.refreshedLive, refreshed\.payload\)/);
     assert.match(sold, /compsResultCacheTag\(cardId\)/);
-    assert.match(sold, /after\(refreshed\.refreshSettled/);
+    assert.match(sold, /after\(async \(\) => \{/);
+    assert.match(sold, /await refreshed\.refreshSettled;\s*bustCompsResult\(cardId\);/);
+    assert.doesNotMatch(sold, /refreshSettled\.then\(/);
     assert.match(source("lib/social/link-preview-load.ts"), /resolvePriceRead/);
     assert.equal(source("lib/social/link-preview-load.ts").includes("marketValueAmount"), false);
     assert.match(market, /\["card-market", identity/);
@@ -210,15 +214,34 @@ writeFileSync(
 export function unstable_cache(fn, keyParts) {
   const key = JSON.stringify(keyParts);
   return async () => {
-    if (store.has(key)) return store.get(key);
+    const swr = globalThis.__slabholdSwr && key.includes("card-market");
+    if (store.has(key) && !swr) return store.get(key);
     globalThis.__slabholdUnstableCacheRuns = (globalThis.__slabholdUnstableCacheRuns ?? 0) + 1;
+    if (swr) {
+      const pending = fn();
+      pending.catch(() => {});
+      return globalThis.__slabholdStaleRefresh;
+    }
     const value = await fn();
     store.set(key, value);
     return value;
   };
 }
-export function revalidateTag() {}
+export function revalidateTag(tag, profile) {
+  (globalThis.__slabholdRevalidateTags ??= []).push({ tag, profile });
+}
 export function revalidatePath() {}
+`,
+);
+const serverStub = join(stubDir, "next-server.mjs");
+writeFileSync(
+  serverStub,
+  `export function after(task) {
+  const running = typeof task === "function" ? task() : Promise.resolve(task);
+  const tracked = Promise.resolve(running);
+  (globalThis.__slabholdAfterTasks ??= []).push(tracked);
+  return tracked;
+}
 `,
 );
 writeFileSync(
@@ -241,6 +264,9 @@ writeFileSync(
 writeFileSync(
   valueStub,
   `export async function refreshCardValue() {
+  const gate = globalThis.__slabholdRefreshGate;
+  if (gate && typeof gate.then === "function") await gate;
+  globalThis.__slabholdRefreshFinished = true;
   return {
     status: "ok",
     median: 40,
@@ -279,6 +305,7 @@ if (!(globalThis as Record<string, unknown>)[hookFlag]) {
     resolve(specifier, context, nextResolve) {
       if (specifier === "server-only") return { url: serverOnlyEmpty, shortCircuit: true };
       if (specifier === "next/cache") return { url: pathToFileURL(cacheStub).href, shortCircuit: true };
+      if (specifier === "next/server") return { url: pathToFileURL(serverStub).href, shortCircuit: true };
       const parent = context.parentURL ?? "";
       if (
         parent.includes("card-market") &&
@@ -315,6 +342,59 @@ describe("refreshedLive follows unstable_cache", () => {
     const second = await loadCachedCardRefresh(cardId, { save: false });
     assert.equal(second.refreshedLive, false);
     assert.equal(cacheRuns(), ran);
+  });
+
+  it("busts only after refreshSettled resolves", async () => {
+    const g = globalThis as {
+      __slabholdSwr?: boolean;
+      __slabholdRefreshGate?: Promise<void>;
+      __slabholdRefreshFinished?: boolean;
+      __slabholdStaleRefresh?: unknown;
+      __slabholdRevalidateTags?: { tag: string }[];
+      __slabholdAfterTasks?: Promise<unknown>[];
+    };
+    let release: () => void = () => {};
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    g.__slabholdSwr = true;
+    g.__slabholdRefreshGate = gate;
+    g.__slabholdRefreshFinished = false;
+    g.__slabholdRevalidateTags = [];
+    g.__slabholdAfterTasks = [];
+    g.__slabholdStaleRefresh = {
+      status: "ok",
+      median: 40,
+      low: 30,
+      high: 50,
+      nSales: 4,
+      matchedAt: null,
+      attempt: { reason: "ok" },
+      payload: { cached: false, sample: false },
+    };
+    try {
+      const { loadCachedCardRefresh } = await import("@/lib/value/card-market");
+      const { scheduleCompsResultBust } = await import("@/app/api/comps/sold/route");
+      const cardId = "ba95893e-89fe-4735-be3f-1509b6b6f3b9";
+      const refreshed = await loadCachedCardRefresh(cardId, { save: false });
+      assert.equal(refreshed.refreshedLive, true);
+      scheduleCompsResultBust(cardId, refreshed);
+      await Promise.resolve();
+      assert.equal(g.__slabholdRefreshFinished, false);
+      const tagsBefore = g.__slabholdRevalidateTags ?? [];
+      assert.deepEqual(tagsBefore, []);
+      release();
+      await Promise.all(g.__slabholdAfterTasks ?? []);
+      assert.equal(g.__slabholdRefreshFinished, true);
+      const tagsAfter = g.__slabholdRevalidateTags ?? [];
+      assert.deepEqual(
+        tagsAfter.map((call) => call.tag),
+        [`comps-result:${cardId}`],
+      );
+    } finally {
+      g.__slabholdSwr = false;
+      g.__slabholdRefreshGate = undefined;
+    }
   });
 });
 

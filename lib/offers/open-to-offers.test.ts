@@ -29,7 +29,6 @@ import {
   messageOwnerThreadHref,
   offerCardForThread,
   messagePreviewPriceLabel,
-  offerEstimateLabel,
   offerSendError,
   offersColumnMissing,
   openToOffersFilterAvailable,
@@ -347,8 +346,6 @@ describe("message owner", () => {
       [{ id: OWNER, username: "ada" }],
     );
     assert.equal(live?.href, "/u/ada/cards/card-1");
-    assert.equal(offerEstimateLabel("Not enough sales yet"), "Not enough sales yet");
-    assert.equal(offerEstimateLabel("$40.00"), "Est. $40.00");
     const oneSale = messagePreviewPriceLabel(
       {
         status: "ok",
@@ -393,7 +390,7 @@ describe("message owner", () => {
               player: live.player,
               year: live.year,
               set: live.set,
-              estimateLabel: offerEstimateLabel("$40.00"),
+              estimateLabel: "Est. $40.00",
             }
           : null,
       }),

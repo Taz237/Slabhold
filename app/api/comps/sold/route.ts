@@ -26,6 +26,22 @@ function bustCompsResult(cardId: string): void {
   }
 }
 
+/**
+ * Bust only after this request's refresh write settles.
+ * `after(promise.then(bust))` drops `revalidateTag` when that write finishes
+ * after the response. The callback form keeps the tag call inside `after`.
+ */
+export function scheduleCompsResultBust(
+  cardId: string,
+  refreshed: { refreshedLive: boolean; payload: unknown; refreshSettled: Promise<void> },
+): void {
+  if (!shouldBustCompsResult(refreshed.refreshedLive, refreshed.payload)) return;
+  after(async () => {
+    await refreshed.refreshSettled;
+    bustCompsResult(cardId);
+  });
+}
+
 export const UNAVAILABLE_MESSAGE = SOLD_UNAVAILABLE_MESSAGE;
 
 export const maxDuration = 15;
@@ -46,12 +62,9 @@ export async function GET(request: Request) {
     lookupAccess: lookupSoldCompsAccess,
     loadRefresh: async (cardId, options) => {
       const refreshed = await loadCachedCardRefresh(cardId, options);
-      if (shouldBustCompsResult(refreshed.refreshedLive, refreshed.payload)) {
-        // Stale-while-revalidate can return before the background write lands.
-        // Bust once that refresh settles. A hit that never refreshes keeps the
-        // comps-result entry until its 45-minute TTL.
-        after(refreshed.refreshSettled.then(() => bustCompsResult(cardId)));
-      }
+      // A hit that never refreshes keeps the comps-result entry until its
+      // 45-minute TTL. A stale hit waits for the background write, then busts.
+      scheduleCompsResultBust(cardId, refreshed);
       return refreshed;
     },
     beforeRequest: () => consumeRequestLimit(userId),

@@ -1,7 +1,6 @@
 import { signupPath } from "@/lib/auth/safe-next";
 import { BLOCKED_INTERACTION } from "@/lib/safety/block";
 import type { CardMessagePreview } from "@/lib/social/types";
-import { NOT_ENOUGH_SALES_LABEL, VALUE_UNAVAILABLE_LABEL } from "@/lib/value/format";
 import { resolvePriceRead, tilePriceText } from "@/lib/value/price-fallback";
 import type { CardValueResult } from "@/lib/value/types";
 
@@ -151,20 +150,6 @@ export function messagePreviewPriceLabel(
     }),
     true,
   );
-}
-
-export function offerEstimateLabel(label: string | null | undefined): string {
-  const text = (label ?? "").trim();
-  if (!text) return NOT_ENOUGH_SALES_LABEL;
-  if (
-    text === NOT_ENOUGH_SALES_LABEL ||
-    text === "Value updating" ||
-    text === VALUE_UNAVAILABLE_LABEL
-  ) {
-    return text;
-  }
-  if (/^est\./i.test(text)) return text;
-  return `Est. ${text}`;
 }
 
 export function messageOwnerThreadHref(username: string, cardId: string): string {

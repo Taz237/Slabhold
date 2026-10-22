@@ -5,6 +5,7 @@ import {
   fallbackSales,
   mergeExactSales,
   newestBatchRows,
+  POSTGREST_MAX_ROWS,
   readNewestBatches,
   type CachedCompRow,
   type SoldCacheClient,
@@ -164,7 +165,7 @@ function cacheClient(rows: CacheRow[]): { client: SoldCacheClient; inReads: stri
               return ascending ? cmp : -cmp;
             });
           }
-          if (limit != null) out = out.slice(0, limit);
+          if (limit != null) out = out.slice(0, Math.min(limit, POSTGREST_MAX_ROWS));
           return Promise.resolve({ data: out, error: null }).then(resolve, reject);
         },
       };
@@ -262,5 +263,44 @@ describe("newest batches under the shared cap", () => {
         (keys) => keys.includes(ownKey) && keys.every((key) => !key.startsWith("cousin-")),
       ),
     );
+  });
+
+  it("keeps every own row when many newer copies would fill a shared 480 cap", async () => {
+    const ownKey = "card-own";
+    const ownAt = "2026-01-01T00:00:00.000Z";
+    const later = "2026-10-02T00:00:00.000Z";
+    const rows: CacheRow[] = [];
+    for (let sale = 0; sale < 100; sale += 1) {
+      rows.push({
+        query_key: ownKey,
+        item_id: `own-${sale}`,
+        price: 10 + (sale % 40),
+        fetched_at: ownAt,
+        title: "own",
+      });
+    }
+    const copies: string[] = [];
+    const copyCount = Math.ceil((POSTGREST_MAX_ROWS + 1) / 60);
+    for (let card = 0; card < copyCount; card += 1) {
+      const key = `copy-${card}`;
+      copies.push(key);
+      for (let sale = 0; sale < 60; sale += 1) {
+        rows.push({
+          query_key: key,
+          item_id: `copy-${card}-${sale}`,
+          price: 10 + sale,
+          fetched_at: later,
+          title: "copy",
+        });
+      }
+    }
+
+    const { client } = cacheClient(rows);
+    const batches = await readNewestBatches(client, [ownKey, ...copies], [ownKey, ...copies]);
+    const ids = batches.get(ownKey)?.map((row) => row.item_id) ?? [];
+    assert.equal(ids.length, 100);
+    for (let sale = 0; sale < 100; sale += 1) {
+      assert.ok(ids.includes(`own-${sale}`));
+    }
   });
 });
