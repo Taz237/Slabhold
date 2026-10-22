@@ -92,7 +92,7 @@ function PeopleSection({
               key={person.handle}
               className="flex shrink-0 items-center gap-2 rounded-full border border-zinc-200 py-1 pl-1 pr-2 dark:border-white/10"
             >
-              <Link href={`/u/${person.handle}`} className="flex min-w-0 items-center gap-2">
+              <Link href={`/u/${encodeURIComponent(person.handle)}`} className="flex min-w-0 items-center gap-2">
                 <Avatar
                   name={person.displayName}
                   image={person.avatarUrl}

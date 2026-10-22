@@ -6,6 +6,11 @@ import { NOT_ENOUGH_SALES_LABEL, VALUE_UNAVAILABLE_LABEL } from "@/lib/value/for
 export const OPEN_TO_OFFERS_LABEL = "Open to offers";
 export const OWNER_OPEN_TO_OFFERS = "Owner is open to offers";
 export const MESSAGE_OWNER_LABEL = "Message owner";
+export const SENT_A_CARD = "Sent a card";
+
+/** Case-sensitive uuid text, matching cards.id::text in the insert rule. */
+const CARD_PREVIEW_UUID =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 /** Null when the column is not on the row yet. False and true are real values. */
 export function readOpenToOffers(row: object): boolean | null {
@@ -26,32 +31,56 @@ export const MESSAGE_LIST_COLUMNS =
 export const MESSAGE_LIST_COLUMNS_BASE =
   "id, sender_id, receiver_id, content, created_at, read";
 
-let messagePreviewColumnsKnown: boolean | null = null;
-
-export function messageListColumns(): string {
-  return messagePreviewColumnsKnown === false ? MESSAGE_LIST_COLUMNS_BASE : MESSAGE_LIST_COLUMNS;
-}
-
 /**
- * Remember a missing kind/card_preview column for this process.
- * "retry" means the caller should select messageListColumns() once more.
+ * "retry" means this read should fall back to the base columns once.
+ * A miss is not cached, so the next read re-checks kind and card_preview.
  */
 export function noteMessageListResult(
   error: { code?: string; message?: string } | null | undefined,
 ): "ok" | "retry" | "error" {
-  if (!error) {
-    if (messagePreviewColumnsKnown !== false) messagePreviewColumnsKnown = true;
-    return "ok";
-  }
-  if (messagePreviewColumnsKnown !== false && offersColumnMissing(error)) {
-    messagePreviewColumnsKnown = false;
-    return "retry";
-  }
+  if (!error) return "ok";
+  if (offersColumnMissing(error)) return "retry";
   return "error";
 }
 
 export function resetMessageListColumnProbe(): void {
-  messagePreviewColumnsKnown = null;
+  return;
+}
+
+type MessageListResponse<T> = {
+  data: T;
+  error: { code?: string; message?: string } | null;
+};
+
+/**
+ * Read DM rows with kind and card_preview. If an earlier check decided those
+ * columns were missing, this still probes them again so a session that loaded
+ * before the column existed can render a card message without a full reload.
+ */
+export async function loadMessageRows<T>(
+  run: (columns: string) => PromiseLike<MessageListResponse<T>>,
+): Promise<MessageListResponse<T>> {
+  const probe = await run(MESSAGE_LIST_COLUMNS);
+  if (noteMessageListResult(probe.error) !== "retry") return probe;
+  return run(MESSAGE_LIST_COLUMNS_BASE);
+}
+
+/** Inbox preview. A card with no text reads "Sent a card" instead of a blank line. */
+export function inboxLastMessage(message: {
+  content?: string | null;
+  kind?: string | null;
+  cardPreview?: { cardId: string } | null;
+}): string {
+  const text = (message.content ?? "").trim();
+  if (text) return text;
+  if (
+    message.cardPreview ||
+    message.kind === "card" ||
+    message.kind === "card_preview"
+  ) {
+    return SENT_A_CARD;
+  }
+  return "";
 }
 
 /**
@@ -167,13 +196,19 @@ export function offerSendError(input: {
   return null;
 }
 
-/** Accept a card id and drop every other stored field. */
+/**
+ * Accept a card id and drop every other stored field.
+ * Uuid-shaped ids are lowercased before the shape check so an uppercase uuid
+ * matches the insert rule, which compares cardId to cards.id::text.
+ */
 export function parseCardPreview(value: unknown): CardMessagePreview | null {
   if (!value || typeof value !== "object") return null;
   const cardId = (value as { cardId?: unknown }).cardId;
   if (typeof cardId !== "string") return null;
-  const id = cardId.trim();
+  const trimmed = cardId.trim();
+  const id = trimmed.toLowerCase();
   if (!id) return null;
+  if (trimmed.length === 36 && trimmed.includes("-") && !CARD_PREVIEW_UUID.test(id)) return null;
   return { cardId: id };
 }
 
@@ -278,7 +313,9 @@ export function mapDirectMessage(row: {
   kind: "text" | "card_preview";
   cardPreview: CardMessagePreview | null;
 } {
-  const preview = row.kind === "card_preview" ? parseCardPreview(row.card_preview) : null;
+  const preview = parseCardPreview(row.card_preview);
+  const kindName = typeof row.kind === "string" ? row.kind : "";
+  const cardMessage = Boolean(preview) || kindName === "card" || kindName === "card_preview";
   return {
     id: row.id,
     senderId: row.sender_id,
@@ -286,7 +323,7 @@ export function mapDirectMessage(row: {
     content: row.content ?? "",
     createdAt: row.created_at,
     read: row.read === true,
-    kind: preview ? "card_preview" : "text",
+    kind: cardMessage ? "card_preview" : "text",
     cardPreview: preview,
   };
 }

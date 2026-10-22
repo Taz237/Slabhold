@@ -6,9 +6,8 @@ import { removeUploadedMedia, uploadMedia } from "@/lib/supabase/media";
 import { sanitizeAttachedCard } from "./card-posts";
 import { loadMailDayViews } from "./mail-day";
 import {
+  loadMessageRows,
   mapDirectMessage,
-  messageListColumns,
-  noteMessageListResult,
   offerSendError,
   offersColumnMissing,
   parseCardPreview,
@@ -255,17 +254,13 @@ export async function loadSupabaseSocial(supabase: SupabaseClient): Promise<Soci
     options?: Parameters<typeof applyAuthorSafety>[3],
   ) => applyAuthorSafety(query, viewerId, ids, options);
 
-  const loadMessages = async () => {
-    const run = (columns: string) => {
+  const loadMessages = () =>
+    loadMessageRows((columns) => {
       let query = supabase.from("messages").select(columns).order("created_at", { ascending: true });
       query = guard(query, blockedHidden, { authorColumn: "sender_id" });
       query = guard(query, blockedHidden, { authorColumn: "receiver_id" });
       return query;
-    };
-    const first = await run(messageListColumns());
-    if (noteMessageListResult(first.error) === "retry") return run(messageListColumns());
-    return first;
-  };
+    });
 
   const [profilesRes, postsRes, homePostsRes, followsRes, cardsRes, commentsRes, notificationsRes, messagesRes, repostsRes, homeRepostsRes, myBlocksRes, myMutesRes] =
     await Promise.all([

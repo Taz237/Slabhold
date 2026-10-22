@@ -147,7 +147,7 @@ export function MessageThread({ username }: { username: string }) {
         >
           <ArrowLeft className="h-5 w-5" />
         </button>
-        <Link href={`/u/${partner.username}`} className="flex min-w-0 flex-1 items-center gap-2">
+        <Link href={`/u/${encodeURIComponent(partner.username)}`} className="flex min-w-0 flex-1 items-center gap-2">
           <Avatar
             name={partner.displayName}
             image={partner.avatarDataUrl}
@@ -213,7 +213,7 @@ export function MessageThread({ username }: { username: string }) {
             <button
               type="button"
               aria-label="Remove card"
-              onClick={() => router.replace(`/messages/${partner.username}`)}
+              onClick={() => router.replace(`/messages/${encodeURIComponent(partner.username)}`)}
               className="mt-2 grid h-8 w-8 shrink-0 place-items-center rounded-full hover:bg-zinc-100 dark:hover:bg-white/10"
             >
               <X className="h-4 w-4" />
