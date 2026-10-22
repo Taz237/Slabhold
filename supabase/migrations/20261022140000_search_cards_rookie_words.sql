@@ -1,12 +1,19 @@
 -- Rookie words in catalog search.
+-- File: supabase/migrations/20261022140000_search_cards_rookie_words.sql
+-- (sorts after 20261022120000_catalog_search_prefilter_and_staging.sql).
 -- Replaces public.search_cards(text, int). Adding is_rookie changes the
 -- return type, so the function is dropped and created again in this
 -- transaction, with the same argument signature, security definer,
--- search_path '', verified-only filter, statement_timeout, trigram
--- threshold, and grants.
+-- search_path (public, extensions, as live), verified-only filter,
+-- statement_timeout, trigram threshold, and grants.
+-- Run as one transaction (supabase db push does this). If pasted into the
+-- SQL editor, wrap it in begin; ... commit; so callers never see the
+-- function missing and lock_timeout applies.
 -- "rated rookie", "rated rookies", "rookie", "rookies", and "rc" are not
 -- player, set, or parallel words. When any are present, is_rookie rows rank
--- first. Mirrors lib/card-search-query.ts.
+-- first. Inside the 300-row candidate cap, rookies go first only when the
+-- query has no player word; otherwise the cap stays ranked by similarity so
+-- "joe burrow rookie" still reaches Joe Burrow. Mirrors lib/card-search-query.ts.
 -- Does not insert, update, or delete catalog or user rows.
 -- Donnie reviews this file before it is applied. Do not run it on production
 -- from this change.
@@ -33,10 +40,10 @@ stable
 -- non-leakproof LIKE / ~ / <% as index conditions, so anon and authenticated
 -- callers got a sequential scan. The query below filters status = 'verified'
 -- itself and only reads card_catalog and player_aliases. public and extensions
--- are not writable by anon or authenticated. search_path is empty; extension
--- operators and functions are schema-qualified.
+-- are not writable by anon or authenticated. Extension operators and
+-- functions are schema-qualified.
 security definer
-set search_path = ''
+set search_path = public, extensions
 set statement_timeout = '1s'
 set pg_trgm.word_similarity_threshold = 0.5
 as $$
@@ -320,7 +327,9 @@ begin
           )
         )
       order by
-        case when want_rookie then (c.is_rookie is true) else false end desc,
+        -- Rookie-first in the 300 cap only when there is no player word, so
+        -- "joe burrow rookie" keeps Joe Burrow behind 300+ other rookie rows.
+        case when want_rookie and phrase is null then (c.is_rookie is true) else false end desc,
         extensions.word_similarity(
           array_to_string(match_tokens, ' '),
           c.search_text || ' ' || lower(c.parallel)
@@ -406,3 +415,5 @@ grant execute on function public.search_cards(text, int) to anon, authenticated;
 
 comment on function public.search_cards(text, int) is
   'Ranked catalog search. Rookie words are not player, set, or parallel matches; when present, is_rookie rows rank first. Trigram prefilter keeps at most 300 verified candidates, then catalog_token_hits ranks them. statement_timeout is 1s.';
+
+notify pgrst, 'reload schema';

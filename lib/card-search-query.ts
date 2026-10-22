@@ -632,7 +632,8 @@ function wholeWordInText(word: string, text: string): boolean {
  * Any non-parallel word of 3+ characters can match the player or search text.
  * A card-number token also matches that number as a whole word in the set name.
  * Candidates are ordered by how well the query words cover player, set, number,
- * and parallel. A parallel-only query returns nothing.
+ * and parallel. Rookies lead that order only when the query has no player word.
+ * A parallel-only query returns nothing.
  */
 export function prefilterCatalogCandidates(
   cards: SearchableCard[],
@@ -677,7 +678,9 @@ export function prefilterCatalogCandidates(
       playerSim: phrase ? queryTrigramCoverage(phrase, card.player) : 0,
     }))
     .sort((a, b) => {
-      if (parsed.rookieQuery && a.card.isRookie !== b.card.isRookie) {
+      // Rookies lead the 300 cap only when the query has no player word.
+      // "joe burrow rookie" must still reach Joe Burrow behind 300 other Joes.
+      if (parsed.rookieQuery && !phrase && a.card.isRookie !== b.card.isRookie) {
         return Number(b.card.isRookie) - Number(a.card.isRookie);
       }
       return (

@@ -583,6 +583,51 @@ describe("catalog candidate prefilter", () => {
     assert.equal(hits[0]?.parallel, "Variation");
   });
 
+  it("keeps Joe Burrow when 300 rookie rows also match joe", () => {
+    const cards = Array.from({ length: 301 }, (_, index) =>
+      asSearchable({
+        id: `joe-rookie-${index}`,
+        player: `Joe Player ${index}`,
+        yearLabel: "2020",
+        setName: "Panini Prizm",
+        cardNumber: String(index + 1),
+        isRookie: true,
+      }),
+    );
+    cards.push(
+      asSearchable({
+        id: "burrow-base",
+        player: "Joe Burrow",
+        yearLabel: "2020",
+        setName: "Panini Prizm",
+        cardNumber: "307",
+        parallel: "Base",
+        isRookie: false,
+      }),
+      asSearchable({
+        id: "burrow-silver",
+        player: "Joe Burrow",
+        yearLabel: "2020",
+        setName: "Panini Prizm",
+        cardNumber: "307",
+        parallel: "Silver",
+        isRookie: false,
+      }),
+    );
+    const query = "joe burrow rookie";
+    const candidates = prefilterCatalogCandidates(cards, parseCardQuery(query));
+    assert.equal(candidates.length, 300);
+    assert.ok(candidates.some((card) => card.id === "burrow-base"));
+    assert.ok(candidates.some((card) => card.id === "burrow-silver"));
+    const hits = searchCardsLocal(query, candidates);
+    assert.ok(hits.length > 0);
+    assert.ok(hits.every((hit) => hit.player === "Joe Burrow"));
+    assert.deepEqual(
+      hits.map((hit) => hit.id).sort(),
+      ["burrow-base", "burrow-silver"],
+    );
+  });
+
   it("matches Bedard Upper Deck Series 2 when 2 is a card-number token", () => {
     const all = CARD_CATALOG.map(toSearchableCard);
     const query = "bedard upper deck series 2";
@@ -627,17 +672,19 @@ function asSearchable(card: {
 describe("search_cards rookie migration", () => {
   it("drops and recreates search_cards with is_rookie and the same safeguards", () => {
     const sql = readFileSync(
-      join(process.cwd(), "supabase/migrations/20261022013000_search_cards_rookie_words.sql"),
+      join(process.cwd(), "supabase/migrations/20261022140000_search_cards_rookie_words.sql"),
       "utf8",
     );
     assert.match(sql, /set local lock_timeout = '5s'/);
     assert.match(sql, /drop function if exists public\.search_cards\(text, int\)/);
     assert.match(sql, /security definer/);
-    assert.match(sql, /set search_path = ''/);
+    assert.match(sql, /set search_path = public, extensions/);
     assert.match(sql, /set statement_timeout = '1s'/);
     assert.match(sql, /c\.status = 'verified'/);
     assert.match(sql, /is_rookie boolean/);
     assert.match(sql, /grant execute on function public\.search_cards\(text, int\) to anon, authenticated/);
+    assert.match(sql, /notify pgrst, 'reload schema'/);
+    assert.match(sql, /want_rookie and phrase is null/);
     assert.match(sql, /tokens\[ti \+ 1\] in \('rookie', 'rookies'\)/);
     assert.doesNotMatch(sql, /drop table/i);
     assert.doesNotMatch(sql, /delete from/i);
