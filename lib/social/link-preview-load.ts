@@ -92,7 +92,7 @@ async function publicCardValue(
   if (!stored) return null;
   const values = new Map([[cardId, stored]]);
   const known = knownPriceCard({ ...row, id: row.id || cardId });
-  const attached = await attachPriceContext([cardId], values, null, known ? [known] : []);
+  const attached = await attachPriceContext([cardId], values, null, known ? [known] : undefined);
   return attached.get(cardId) ?? stored;
 }
 
