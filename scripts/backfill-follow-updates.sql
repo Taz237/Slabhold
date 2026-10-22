@@ -1,6 +1,8 @@
 -- ONE-TIME BACKFILL. Not a migration. Do not put this file in
 -- supabase/migrations and do not run it from supabase db push.
 -- It does not insert follow notifications.
+-- This re-follows prior unfollowers. ON CONFLICT DO NOTHING only
+-- skips profiles that still follow the updates account.
 --
 -- PARAMETER: official_updates_user_id
 -- Default: 6d31ab97-9162-4296-876d-9e0378872fce
@@ -9,6 +11,8 @@
 -- Do not substitute a handle.
 -- profiles.is_test comes from 20261022181000_profile_interests.sql
 -- (the bootstrap schema.sql does not declare it). It is not null.
+-- Handle-based test accounts match lib/test-accounts.ts: the exact handle
+-- qa_vreset_1021, and prefixes qa_, qa-, test_, and vreset_.
 -- Skip a profile when public.blocks has a row in either direction
 -- (blocker_id / blocked_id).
 
@@ -22,6 +26,11 @@ inserted as (
   cross join params
   where profiles.id <> params.official_updates_user_id
     and not profiles.is_test
+    and lower(profiles.username) <> 'qa_vreset_1021'
+    and left(lower(profiles.username), 3) <> 'qa_'
+    and left(lower(profiles.username), 3) <> 'qa-'
+    and left(lower(profiles.username), 5) <> 'test_'
+    and left(lower(profiles.username), 7) <> 'vreset_'
     and exists (
       select 1
       from public.profiles updates

@@ -5,8 +5,9 @@
 -- runs once, at insert, and does not run again after an unfollow.
 --
 -- No follow notification is written.
--- A missing updates profile, a constraint failure, or any other error
--- raises a warning and does not abort account creation.
+-- A missing updates profile is skipped silently (the insert matches no row),
+-- with no warning. A constraint failure or any other error raises a warning
+-- and does not abort account creation.
 --
 -- The env uuid (OFFICIAL_UPDATES_USER_ID) and this SQL uuid must stay in sync.
 -- See lib/social/official-updates.ts.

@@ -246,6 +246,8 @@ describe("signup auto-follow", () => {
     assert.match(migration, /when others then/);
     assert.match(migration, /if new\.id = updates_id then/);
     assert.match(migration, /where exists/);
+    assert.match(migration, /missing updates profile is skipped silently/);
+    assert.match(migration, /with no warning/);
     assert.doesNotMatch(migration, /notifications/);
     assert.doesNotMatch(migration, /grokbotreview|slabholdupdates/);
     assert.match(migration, /revoke all on function private\.follow_official_updates\(\)/);
@@ -278,7 +280,13 @@ describe("backfill script", () => {
     assert.match(sql, new RegExp(UPDATES));
     assert.match(sql, /profiles\.id <> params\.official_updates_user_id/);
     assert.match(sql, /on conflict \(follower_id, following_id\) do nothing/);
+    assert.match(sql, /re-follows prior unfollowers/);
     assert.match(sql, /and not profiles\.is_test/);
+    assert.match(sql, /lower\(profiles\.username\) <> 'qa_vreset_1021'/);
+    assert.match(sql, /left\(lower\(profiles\.username\), 3\) <> 'qa_'/);
+    assert.match(sql, /left\(lower\(profiles\.username\), 3\) <> 'qa-'/);
+    assert.match(sql, /left\(lower\(profiles\.username\), 5\) <> 'test_'/);
+    assert.match(sql, /left\(lower\(profiles\.username\), 7\) <> 'vreset_'/);
     assert.match(sql, /and exists \(/);
     assert.match(sql, /from public\.blocks/);
     assert.match(
