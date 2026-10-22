@@ -95,18 +95,11 @@ export function movingDayIsRecent(
   return shownDate >= addCalendarDays(today, -days);
 }
 
-function newestSoldOn(sales: readonly { soldOn: string }[]): string {
-  let newest = "";
-  for (const sale of sales) {
-    if (sale.soldOn > newest) newest = sale.soldOn;
-  }
-  return newest;
-}
-
 /**
  * Heading from the sale date and the current New York date.
- * Cached title text is ignored. A list older than the 7-day window is hidden.
- * A week list keeps its heading and recomputes the range in Eastern Time.
+ * Cached title text is ignored. A day list is kept only for today or yesterday.
+ * A week list drops sales outside the recomputed 7-day window, then hides
+ * itself when fewer than the week minimum remain.
  */
 export function freshenMovingToday(
   payload: MovingTodayPayload,
@@ -114,23 +107,21 @@ export function freshenMovingToday(
 ): MovingTodayPayload {
   const today = calendarDateInTimeZone(now);
   if (payload.window === "week") {
-    const newest = newestSoldOn(payload.sales);
-    if (
-      payload.sales.length < MOVING_TODAY_MIN_WEEK_ROWS ||
-      !movingDayIsRecent(newest, today, MOVING_TODAY_WEEK_DAYS - 1)
-    ) {
-      return emptyMovingToday(today);
-    }
+    const start = addCalendarDays(today, -(MOVING_TODAY_WEEK_DAYS - 1));
+    const sales = payload.sales.filter((sale) => sale.soldOn >= start && sale.soldOn <= today);
+    if (sales.length < MOVING_TODAY_MIN_WEEK_ROWS) return emptyMovingToday(today);
     return {
       ...payload,
       date: today,
       title: MOVING_THIS_WEEK_TITLE,
       dateLabel: weekDateLabel(today),
+      sales,
       window: "week",
     };
   }
   const saleDate = payload.date || payload.sales.find((sale) => sale.soldOn)?.soldOn || "";
-  if (!movingDayIsRecent(saleDate, today, MOVING_TODAY_WEEK_DAYS - 1) || payload.sales.length === 0) {
+  const yesterday = addCalendarDays(today, -1);
+  if ((saleDate !== today && saleDate !== yesterday) || payload.sales.length === 0) {
     return emptyMovingToday(today);
   }
   return {
@@ -285,6 +276,18 @@ function pricedSort(a: PricedRow, b: PricedRow): number {
   const bMove = b.percent == null ? -1 : Math.abs(b.percent);
   if (aMove !== bMove) return bMove - aMove;
   return rowIdentity(a).localeCompare(rowIdentity(b));
+}
+
+/** One row per card, best first, using the same order as the display cap. */
+export function bestRowPerCard<T extends PricedRow & { cardId: string }>(rows: readonly T[]): T[] {
+  const seen = new Set<string>();
+  const kept: T[] = [];
+  for (const row of [...rows].sort(pricedSort)) {
+    if (!row.cardId || seen.has(row.cardId)) continue;
+    seen.add(row.cardId);
+    kept.push(row);
+  }
+  return kept;
 }
 
 /**

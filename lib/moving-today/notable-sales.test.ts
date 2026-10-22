@@ -230,6 +230,66 @@ describe("New York sale day", () => {
     assert.equal(weekDateLabel(TODAY), "Oct 16 – Oct 22");
     assert.equal(movingDayIsRecent(addCalendarDays(TODAY, -6), TODAY), true);
     assert.equal(movingDayIsRecent(addCalendarDays(TODAY, -7), TODAY), false);
+
+    const older = addCalendarDays(TODAY, -2);
+    const olderSales = Array.from({ length: 5 }, (_, n) => {
+      const cardId = `00000000-0000-4000-8000-${String(n + 1).padStart(12, "0")}`;
+      return {
+        queryKey: `oct20-${n}`,
+        cardId,
+        itemId: `oct20-${n}`,
+        price: 40,
+        soldAt: `${older}T00:00:00+00:00`,
+      };
+    });
+    const olderDay = assembleMovingToday({
+      today: TODAY,
+      asOf: TODAY,
+      sales: olderSales,
+      history: [],
+      cards: olderSales.map((sale, n) => ({
+        id: sale.cardId,
+        userId: "user-1",
+        player: `Player ${n}`,
+        yearLabel: "2023-24",
+        setName: "Prizm",
+        grade: "PSA 10",
+        imageUrl: null,
+        accent: "#7c5cff",
+      })),
+      profiles: [{ id: "user-1", username: "Ada" }],
+      alternates: [],
+    });
+    assert.equal(olderDay.title, MOVING_THIS_WEEK_TITLE);
+    assert.equal(olderDay.window, "week");
+    assert.equal(olderDay.sales.length, 5);
+    const cachedOlderDay = freshenMovingToday(
+      {
+        title: "Moving Oct 20",
+        date: older,
+        dateLabel: "Oct 20",
+        window: "day",
+        sales: [
+          {
+            cardId: olderSales[0]?.cardId ?? CARD,
+            href: `/u/ada/cards/${olderSales[0]?.cardId ?? CARD}`,
+            player: "Player 0",
+            detail: "",
+            imageUrl: null,
+            accent: "#7c5cff",
+            priceCents: 4000,
+            priceLabel: "$40.00",
+            soldOn: older,
+            soldLabel: "Oct 20",
+            percent: null,
+            percentLabel: null,
+          },
+        ],
+      },
+      new Date("2026-10-22T16:00:00.000Z"),
+    );
+    assert.equal(cachedOlderDay.sales.length, 0);
+    assert.equal(cachedOlderDay.title, "Moving today");
   });
 
   it("relabels a cached today list after midnight and hides one older than two days", () => {
@@ -260,10 +320,9 @@ describe("New York sale day", () => {
     assert.equal(justAfterMidnight.sales.length, 1);
     assert.notEqual(justAfterMidnight.title, cached.title);
 
-    const stillInsideTheWeek = freshenMovingToday(cached, new Date("2026-10-25T16:00:00.000Z"));
-    assert.equal(stillInsideTheWeek.date, TODAY);
-    assert.equal(stillInsideTheWeek.title, "Moving Oct 22");
-    assert.equal(stillInsideTheWeek.sales.length, 1);
+    const olderThanYesterday = freshenMovingToday(cached, new Date("2026-10-25T16:00:00.000Z"));
+    assert.equal(olderThanYesterday.sales.length, 0);
+    assert.equal(olderThanYesterday.title, "Moving today");
 
     const eighthDay = freshenMovingToday(cached, new Date("2026-10-30T16:00:00.000Z"));
     assert.equal(eighthDay.sales.length, 0);
@@ -316,10 +375,10 @@ describe("public card assembly", () => {
     return `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
   }
 
-  function fillers(count: number, soldAt = "2026-10-22T00:00:00+00:00", price = 40) {
+  function fillers(count: number, soldAt = "2026-10-22T00:00:00+00:00", price = 40, start = 1) {
     const sales: RawCompSale[] = [];
     const cards: PublicCardRef[] = [];
-    for (let n = 1; n <= count; n += 1) {
+    for (let n = start; n < start + count; n += 1) {
       const cardId = id(n);
       sales.push(raw(`fill-${n}-${soldAt.slice(0, 10)}`, cardId, price, `fill-${n}`, soldAt));
       cards.push(card(cardId, "user-1", `Player ${n}`));
@@ -445,7 +504,7 @@ describe("public card assembly", () => {
     assert.equal(today.sales.length, 5);
 
     const thinDay = fillers(2, "2026-10-22T00:00:00+00:00", 30);
-    const earlier = fillers(3, "2026-10-18T00:00:00+00:00", 50);
+    const earlier = fillers(3, "2026-10-18T00:00:00+00:00", 50, 3);
     const week = assembleMovingToday({
       today: TODAY,
       sales: [...thinDay.sales, ...earlier.sales],
@@ -580,5 +639,81 @@ describe("public card assembly", () => {
       new Date("2026-10-22T19:00:00.000Z"),
     );
     assert.equal(tooOld.sales.length, 0);
+  });
+
+  it("shows one row when two query keys share a card, and hides a two-card week", () => {
+    const shared = id(70);
+    const otherSale = id(71);
+    const secondSale = id(72);
+    const pad = fillers(4);
+    const day = assembleMovingToday({
+      today: TODAY,
+      sales: [
+        raw("alpha", otherSale, 100, "alpha"),
+        raw("beta", secondSale, 40, "beta"),
+        ...pad.sales,
+      ],
+      history: [],
+      cards: [card(shared, "user-1", "Shared Star"), ...pad.cards],
+      profiles: [{ id: "user-1", username: "Ada" }],
+      alternates: [
+        { queryKey: "alpha", cardId: shared },
+        { queryKey: "beta", cardId: shared },
+      ],
+    });
+    const sharedRows = day.sales.filter((sale) => sale.cardId === shared);
+    assert.equal(day.window, "day");
+    assert.equal(day.sales.length, 5);
+    assert.equal(sharedRows.length, 1);
+    assert.equal(sharedRows[0]?.priceLabel, "$100.00");
+
+    const publicB = id(80);
+    const weekKeys = [
+      { key: "a1", cardId: shared, price: 100, soldAt: "2026-10-22T00:00:00+00:00" },
+      { key: "a2", cardId: shared, price: 40, soldAt: "2026-10-20T00:00:00+00:00" },
+      { key: "b1", cardId: publicB, price: 80, soldAt: "2026-10-21T00:00:00+00:00" },
+      { key: "b2", cardId: publicB, price: 30, soldAt: "2026-10-19T00:00:00+00:00" },
+    ];
+    const hidden = assembleMovingToday({
+      today: TODAY,
+      sales: weekKeys.map((row, index) => raw(row.key, id(90 + index), row.price, row.key, row.soldAt)),
+      history: [],
+      cards: [card(shared, "user-1", "Shared Star"), card(publicB, "user-1", "Second Card")],
+      profiles: [{ id: "user-1", username: "Ada" }],
+      alternates: weekKeys.map((row) => ({ queryKey: row.key, cardId: row.cardId })),
+    });
+    assert.equal(hidden.sales.length, 0);
+    assert.equal(hidden.title, "Moving today");
+  });
+
+  it("drops week sales that fall outside the recomputed window", () => {
+    const now = new Date("2026-10-28T23:59:00-04:00");
+    assert.equal(calendarDateInTimeZone(now), "2026-10-28");
+    const dates = ["2026-10-16", "2026-10-18", "2026-10-22"];
+    const fresh = freshenMovingToday(
+      {
+        title: MOVING_THIS_WEEK_TITLE,
+        date: TODAY,
+        dateLabel: "Oct 16 – Oct 22",
+        window: "week",
+        sales: dates.map((soldOn, index) => ({
+          cardId: id(60 + index),
+          href: `/u/ada/cards/${id(60 + index)}`,
+          player: `Player ${index}`,
+          detail: "",
+          imageUrl: null,
+          accent: "#7c5cff",
+          priceCents: 2500,
+          priceLabel: "$25.00",
+          soldOn,
+          soldLabel: soldOn,
+          percent: null,
+          percentLabel: null,
+        })),
+      },
+      now,
+    );
+    assert.equal(fresh.sales.length, 0);
+    assert.equal(fresh.title, "Moving today");
   });
 });

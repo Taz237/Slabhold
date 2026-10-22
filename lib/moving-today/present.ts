@@ -11,6 +11,7 @@ import {
   MOVING_TODAY_MIN_LEAD_CENTS,
   MOVING_TODAY_MIN_WEEK_ROWS,
   MOVING_TODAY_WEEK_DAYS,
+  bestRowPerCard,
   capNotableSales,
   movingDayHeading,
   orderedNotableSales,
@@ -111,7 +112,7 @@ function projectSales(ranked: readonly NotableSale[], context: ShowContext): Mov
       percentLabel: formatMovePercent(sale.percent),
     });
   }
-  return shown;
+  return bestRowPerCard(shown);
 }
 
 function rowsFor(
@@ -167,6 +168,7 @@ export function assembleMovingToday(input: {
     flags,
   };
   const weekStart = addCalendarDays(asOf, -(MOVING_TODAY_WEEK_DAYS - 1));
+  const yesterday = addCalendarDays(asOf, -1);
   const inWeek = sales.filter((sale) => sale.soldOn >= weekStart && sale.soldOn <= asOf);
   const days = [...new Set(inWeek.map((sale) => sale.soldOn))].sort();
 
@@ -181,7 +183,7 @@ export function assembleMovingToday(input: {
       context,
     );
     if (dayRows.length === 0) continue;
-    if (dayRows.length >= MOVING_TODAY_MIN_DAY_ROWS) {
+    if ((day === asOf || day === yesterday) && dayRows.length >= MOVING_TODAY_MIN_DAY_ROWS) {
       return {
         ...emptyMovingToday(day),
         title: movingDayHeading(day, asOf),

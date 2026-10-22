@@ -2,7 +2,7 @@ import { MovingToday, MovingTodayCached } from "@/components/moving-today";
 import { getMovingToday } from "@/lib/moving-today/load";
 import type { MovingTodayPayload } from "@/lib/moving-today/types";
 
-/** Cached sales for Home. The client chooses the heading when it renders. */
+/** Cached sales for Home. The heading is the one the server computed. */
 export async function MovingTodaySlot() {
   let payload: MovingTodayPayload | null = null;
   try {
