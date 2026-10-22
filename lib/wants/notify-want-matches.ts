@@ -5,6 +5,70 @@ import { newYorkDayStartIso } from "./ny-day";
 
 export const WANT_ALERTS_PER_DAY = 20;
 
+/**
+ * Per alert type, for one actor and card_key. A listing is not cooled by a
+ * card or a post. Sales are outside these windows.
+ */
+export const WANT_ACTOR_CARD_COOLDOWN_MS = 24 * 60 * 60 * 1000;
+
+export type CooledAlertType = "card" | "listing" | "post";
+
+export type ActorCardAlertQuery = {
+  userId: string;
+  cardKey: string;
+  actorId: string;
+  sinceIso: string;
+};
+
+export type ActorCardNotification = {
+  id: string;
+  createdAt: string;
+  metadata: unknown;
+};
+
+export type InsertedNotification = {
+  id: string;
+  createdAt: string;
+};
+
+export function cooledAlertType(sourceType: WantSourceType): CooledAlertType | null {
+  if (sourceType === "card" || sourceType === "listing" || sourceType === "post") {
+    return sourceType;
+  }
+  return null;
+}
+
+/** Mail Day shares the post window. Sales do not match. */
+export function metadataCooledType(metadata: unknown): CooledAlertType | null {
+  if (!metadata || typeof metadata !== "object") return null;
+  const source = (metadata as { source?: unknown }).source;
+  if (source === "card" || source === "listing" || source === "post") return source;
+  if (source === "mail_day") return "post";
+  return null;
+}
+
+export function sameCooledAlert(
+  metadata: unknown,
+  cardKey: string,
+  alertType: CooledAlertType,
+): boolean {
+  if (!metadata || typeof metadata !== "object") return false;
+  const record = metadata as { card_key?: unknown };
+  if (record.card_key !== cardKey) return false;
+  return metadataCooledType(metadata) === alertType;
+}
+
+/** True when `row` sorts before `mine` by (created_at, id). */
+export function notificationComesFirst(
+  row: { id: string; createdAt: string },
+  mine: { id: string; createdAt: string },
+): boolean {
+  if (row.id === mine.id) return false;
+  if (row.createdAt < mine.createdAt) return true;
+  if (row.createdAt > mine.createdAt) return false;
+  return row.id < mine.id;
+}
+
 export type WantSourceType = "sale" | "post" | "listing" | "card";
 
 export type WantMatchEvent = {
@@ -66,7 +130,14 @@ export type WantAlertDb = {
   alertsToday(userId: string, sinceIso: string): Promise<number>;
   /** True only when a new dedupe row was inserted. */
   insertAlert(row: WantAlertInsert): Promise<boolean>;
-  insertNotification(row: WantNotificationInsert): Promise<void>;
+  /** Returns the stored notification id and created_at. */
+  insertNotification(row: WantNotificationInsert): Promise<InsertedNotification>;
+  deleteNotification(id: string): Promise<void>;
+  /**
+   * Want alerts this wanter already has from this actor at or after sinceIso.
+   * Includes the row just inserted. Caller matches card_key and alert type.
+   */
+  actorCardAlerts(query: ActorCardAlertQuery): Promise<ActorCardNotification[]>;
   deleteAlert(
     wantId: string,
     sourceType: WantSourceType,
@@ -161,6 +232,9 @@ export function saleQualifies(want: WantRow, event: WantMatchEvent): boolean {
 /**
  * Insert a want_alerts row first. Create the notification only when that insert
  * is new. Skips the actor's own post or listing and stops at the daily cap.
+ * Card, listing, and post each keep their own 24 hour window for one actor and
+ * card. After the insert, the earliest (created_at, id) row of that type wins
+ * so parallel copies cannot all alert. Price drops are not cooled.
  */
 export async function notifyWantMatches(
   event: WantMatchEvent,
@@ -189,6 +263,23 @@ export async function notifyWantMatches(
     const today = await db.alertsToday(want.userId, since);
     if (today >= WANT_ALERTS_PER_DAY) continue;
 
+    const alertType = cooledAlertType(event.sourceType);
+    const sinceActor = new Date(now.getTime() - WANT_ACTOR_CARD_COOLDOWN_MS).toISOString();
+    const actorQuery: ActorCardAlertQuery | null =
+      event.actorId && alertType
+        ? {
+            userId: want.userId,
+            cardKey: event.cardKey,
+            actorId: event.actorId,
+            sinceIso: sinceActor,
+          }
+        : null;
+    if (actorQuery && alertType) {
+      const prior = await db.actorCardAlerts(actorQuery);
+      const cooled = prior.some((row) => sameCooledAlert(row.metadata, event.cardKey, alertType));
+      if (cooled) continue;
+    }
+
     const alertCardId =
       event.mailDay || event.sourceType === "card" ? (event.cardId ?? null) : null;
     const inserted = await db.insertAlert({
@@ -207,17 +298,35 @@ export async function notifyWantMatches(
       href = await db.hrefFor(want, event);
     }
 
+    const notification: WantNotificationInsert = {
+      recipientId: want.userId,
+      actorId: event.actorId,
+      postId: event.sourceType === "post" ? event.sourceId : null,
+      preview: wantAlertPreview(event, want),
+      href,
+      metadata: wantAlertMetadata(event, want),
+    };
+
+    let noteId: string | null = null;
     try {
-      await db.insertNotification({
-        recipientId: want.userId,
-        actorId: event.actorId,
-        postId: event.sourceType === "post" ? event.sourceId : null,
-        preview: wantAlertPreview(event, want),
-        href,
-        metadata: wantAlertMetadata(event, want),
-      });
+      const note = await db.insertNotification(notification);
+      noteId = note.id;
+      if (actorQuery && alertType) {
+        const claimed = await db.actorCardAlerts(actorQuery);
+        const lost = claimed.some(
+          (row) =>
+            sameCooledAlert(row.metadata, event.cardKey, alertType) &&
+            notificationComesFirst(row, note),
+        );
+        if (lost) {
+          await db.deleteNotification(note.id);
+          await db.deleteAlert(want.id, event.sourceType, event.sourceId, alertCardId);
+          continue;
+        }
+      }
       notified += 1;
     } catch {
+      if (noteId) await db.deleteNotification(noteId);
       await db.deleteAlert(want.id, event.sourceType, event.sourceId, alertCardId);
     }
   }

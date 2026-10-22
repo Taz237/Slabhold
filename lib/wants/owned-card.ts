@@ -14,6 +14,16 @@ export function storedWantSourceType(
   return sourceType === "card" ? "post" : sourceType;
 }
 
+/**
+ * Page a wanter can open. /cards/:id is owner-only, so a missing username
+ * uses the public card posts page instead of a dead owner link.
+ */
+export function wanterCardHref(cardId: string, username: string | null | undefined): string {
+  const name = username?.replace(/^@/, "").trim();
+  if (name) return `/u/${name}/cards/${cardId}`;
+  return `/cards/${cardId}/posts`;
+}
+
 type OwnedCard = IdentityCard & {
   id: string;
   isPublic?: boolean | null;
@@ -41,7 +51,7 @@ export function ownedCardWantEvent(input: {
     actorId: input.actorId,
     actorUsername: username,
     label: wantShortLabel(card),
-    href: username ? `/u/${username}/cards/${card.id}` : `/cards/${card.id}`,
+    href: wanterCardHref(card.id, username),
     followersOnly: true,
     cardIsPublic: true,
     cardValue: input.band?.median ?? null,

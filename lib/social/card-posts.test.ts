@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  cardPostsBackHref,
   filterLoadedPostsForCard,
   sanitizeAttachedCard,
   toPublicAttachment,
@@ -192,5 +193,20 @@ describe("filterLoadedPostsForCard", () => {
     assert.equal(result.posts.length, 1);
     assert.equal(result.posts[0].id, "p1");
     assert.equal(result.hasMore, true);
+  });
+});
+
+describe("cardPostsBackHref", () => {
+  const cardId = "ba95893e-89fe-4735-be3f-1509b6b6f3b9";
+
+  it("uses the owner card, a public card, or the posts page", () => {
+    assert.equal(cardPostsBackHref(cardId, true, "ada"), `/cards/${cardId}`);
+    assert.equal(cardPostsBackHref(cardId, false, "ada"), `/u/ada/cards/${cardId}`);
+    assert.equal(cardPostsBackHref(cardId, false, "@ada"), `/u/ada/cards/${cardId}`);
+    assert.equal(cardPostsBackHref(cardId, false, null), `/cards/${cardId}/posts`);
+    assert.equal(cardPostsBackHref(cardId, false, undefined), `/cards/${cardId}/posts`);
+    assert.equal(cardPostsBackHref(cardId, false, ""), `/cards/${cardId}/posts`);
+    assert.equal(cardPostsBackHref(cardId, false, null).includes("/u/null"), false);
+    assert.notEqual(cardPostsBackHref(cardId, false, null), `/cards/${cardId}`);
   });
 });

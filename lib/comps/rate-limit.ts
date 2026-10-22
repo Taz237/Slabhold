@@ -19,6 +19,11 @@ export const REQUESTS_WINDOW_MS = 10 * 60 * 1000;
 export const CARD_VALUES_LIMIT = 120;
 export const CARD_VALUES_WINDOW_MS = 10 * 60 * 1000;
 
+/** POST /api/wants/match per user per 10-minute window. Separate from comps requests. */
+const WANT_MATCH_BUCKET = "want_match";
+export const WANT_MATCH_LIMIT = 30;
+export const WANT_MATCH_WINDOW_MS = 10 * 60 * 1000;
+
 /** Max actual Trawl fetches per user per hour. */
 export const TRAWL_LIMIT = 5;
 export const TRAWL_WINDOW_MS = 60 * 60 * 1000;
@@ -66,9 +71,13 @@ function alignedWindowStart(periodMs: number): string {
   return new Date(ms).toISOString();
 }
 
+const BURST_ATTEMPTS = 8;
+
 /**
- * Atomically-ish increment a rate-limit bucket. Returns false when over the limit.
+ * Increment a rate-limit bucket. Returns false when over the limit.
  * Fail-open if the service-role client or table is unavailable (cache still works).
+ * A parallel burst reads a count and writes the next one only while that count
+ * is still current, then retries. After several lost races the request is denied.
  */
 async function consumeBucket(
   table: "comps_rate_limits" | "anon_rate_limits",
@@ -83,39 +92,54 @@ async function consumeBucket(
 
   const windowStart = alignedWindowStart(windowMs);
 
-  const { data: existing, error: readError } = await client
-    .from(table)
-    .select("count")
-    .eq(subjectColumn, subject)
-    .eq("bucket", bucket)
-    .eq("window_start", windowStart)
-    .maybeSingle();
+  for (let attempt = 0; attempt < BURST_ATTEMPTS; attempt += 1) {
+    const { data: existing, error: readError } = await client
+      .from(table)
+      .select("count")
+      .eq(subjectColumn, subject)
+      .eq("bucket", bucket)
+      .eq("window_start", windowStart)
+      .maybeSingle();
 
-  if (readError) {
-    console.warn(`[${table}] read failed:`, readError.message);
-    return true;
+    if (readError) {
+      console.warn(`[${table}] read failed:`, readError.message);
+      return true;
+    }
+
+    const current = typeof existing?.count === "number" ? existing.count : 0;
+    if (current >= limit) return false;
+
+    const next = current + 1;
+    if (!existing) {
+      const { error: insertError } = await client.from(table).insert({
+        [subjectColumn]: subject,
+        bucket,
+        window_start: windowStart,
+        count: next,
+      });
+      if (!insertError) return true;
+      if (insertError.code === "23505") continue;
+      console.warn(`[${table}] write failed:`, insertError.message);
+      return true;
+    }
+
+    const { data: updated, error: writeError } = await client
+      .from(table)
+      .update({ count: next })
+      .eq(subjectColumn, subject)
+      .eq("bucket", bucket)
+      .eq("window_start", windowStart)
+      .eq("count", current)
+      .select("count");
+
+    if (writeError) {
+      console.warn(`[${table}] write failed:`, writeError.message);
+      return true;
+    }
+    if ((updated?.length ?? 0) > 0) return true;
   }
 
-  const current = typeof existing?.count === "number" ? existing.count : 0;
-  if (current >= limit) return false;
-
-  const next = current + 1;
-  const { error: writeError } = await client.from(table).upsert(
-    {
-      [subjectColumn]: subject,
-      bucket,
-      window_start: windowStart,
-      count: next,
-    },
-    { onConflict: `${subjectColumn},bucket,window_start` },
-  );
-
-  if (writeError) {
-    console.warn(`[${table}] write failed:`, writeError.message);
-    return true;
-  }
-
-  return true;
+  return false;
 }
 
 export async function consumeRateLimit(
@@ -168,4 +192,14 @@ export async function consumeCardValueLimit(userId: string): Promise<boolean> {
 
 export async function consumeTrawlLimit(userId: string): Promise<boolean> {
   return consumeRateLimit(userId, TRAWL_BUCKET, TRAWL_WINDOW_MS, TRAWL_LIMIT);
+}
+
+/** Signed-in POST /api/wants/match. Does not consume the comps "requests" bucket. */
+export async function consumeWantMatchLimit(userId: string): Promise<boolean> {
+  return consumeRateLimit(
+    userId,
+    WANT_MATCH_BUCKET,
+    WANT_MATCH_WINDOW_MS,
+    WANT_MATCH_LIMIT,
+  );
 }

@@ -45,7 +45,8 @@ function sale(partial: Partial<WantMatchEvent> = {}): WantMatchEvent {
 function memoryDb(seed?: { wants?: WantRow[]; alerts?: WantAlertInsert[] }) {
   const wants = seed?.wants ?? [want()];
   const alerts: WantAlertInsert[] = [...(seed?.alerts ?? [])];
-  const notifications: WantNotificationInsert[] = [];
+  const notifications: (WantNotificationInsert & { id: string; createdAt: string })[] = [];
+  let noteSeq = 0;
   const db: WantAlertDb = {
     async wantsForKey(cardKey) {
       return wants.filter((row) => row.cardKey === cardKey);
@@ -66,7 +67,25 @@ function memoryDb(seed?: { wants?: WantRow[]; alerts?: WantAlertInsert[] }) {
       return true;
     },
     async insertNotification(row) {
-      notifications.push(row);
+      noteSeq += 1;
+      const id = `n-${noteSeq}`;
+      const createdAt = alerts.at(-1)?.createdAt ?? "";
+      notifications.push({ ...row, id, createdAt });
+      return { id, createdAt };
+    },
+    async deleteNotification(id) {
+      const index = notifications.findIndex((row) => row.id === id);
+      if (index >= 0) notifications.splice(index, 1);
+    },
+    async actorCardAlerts(query) {
+      return notifications
+        .filter(
+          (row) =>
+            row.recipientId === query.userId &&
+            row.actorId === query.actorId &&
+            row.createdAt >= query.sinceIso,
+        )
+        .map((row) => ({ id: row.id, createdAt: row.createdAt, metadata: row.metadata ?? null }));
     },
     async deleteAlert(wantId, sourceType, sourceId, cardId) {
       const index = alerts.findIndex(
