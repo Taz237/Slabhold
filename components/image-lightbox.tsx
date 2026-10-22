@@ -14,13 +14,29 @@ export function useImageLightbox() {
   return useContext(ImageLightboxContext);
 }
 
+function focusableIn(root: HTMLElement): HTMLElement[] {
+  return [...root.querySelectorAll<HTMLElement>("button, [href], input, select, textarea")].filter(
+    (node) => !node.hasAttribute("disabled") && node.tabIndex !== -1,
+  );
+}
+
 export function ImageLightboxProvider({ children }: { children: React.ReactNode }) {
   const [image, setImage] = useState<LightboxImage | null>(null);
+  const openerRef = useRef<HTMLElement | null>(null);
   const open = useCallback((src: string, alt: string, gallery?: readonly string[]) => {
+    const active = document.activeElement;
+    openerRef.current = active instanceof HTMLElement ? active : null;
     const images = gallery && gallery.length > 0 ? [...gallery] : [src];
     const found = images.indexOf(src);
     setImage({ images, index: found >= 0 ? found : 0, alt });
   }, []);
+
+  function close() {
+    const opener = openerRef.current;
+    openerRef.current = null;
+    setImage(null);
+    opener?.focus();
+  }
 
   return (
     <ImageLightboxContext.Provider value={open}>
@@ -28,7 +44,7 @@ export function ImageLightboxProvider({ children }: { children: React.ReactNode 
       {image ? (
         <Lightbox
           image={image}
-          onClose={() => setImage(null)}
+          onClose={close}
           onIndex={(index) => setImage((current) => (current ? { ...current, index } : current))}
         />
       ) : null}
@@ -90,6 +106,10 @@ function Lightbox({
   onIndex: (index: number) => void;
 }) {
   const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const indexRef = useRef(image.index);
+  const imagesRef = useRef(image.images);
+  const onIndexRef = useRef(onIndex);
   const startY = useRef(0);
   const dragRef = useRef(0);
   const dragged = useRef(false);
@@ -101,16 +121,62 @@ function Lightbox({
   onCloseRef.current = onClose;
 
   useEffect(() => {
+    indexRef.current = image.index;
+    imagesRef.current = image.images;
+    onIndexRef.current = onIndex;
+  }, [image.index, image.images, onIndex]);
+
+  useEffect(() => {
     closeButtonRef.current?.focus();
     const previous = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     function onKey(event: KeyboardEvent) {
-      if (event.key === "Escape") finish();
+      if (event.key === "Escape") {
+        event.preventDefault();
+        finish();
+        return;
+      }
+      if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+        event.preventDefault();
+        const index = indexRef.current;
+        const last = imagesRef.current.length - 1;
+        if (event.key === "ArrowLeft" && index > 0) onIndexRef.current(index - 1);
+        if (event.key === "ArrowRight" && index < last) onIndexRef.current(index + 1);
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const root = dialogRef.current;
+      if (!root) return;
+      const items = focusableIn(root);
+      if (items.length === 0) {
+        event.preventDefault();
+        return;
+      }
+      const first = items[0];
+      const last = items[items.length - 1];
+      const active = document.activeElement;
+      const inside = active instanceof Node && root.contains(active);
+      if (event.shiftKey) {
+        if (!inside || active === first) {
+          event.preventDefault();
+          last.focus();
+        }
+      } else if (!inside || active === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+    function onFocusIn(event: FocusEvent) {
+      const root = dialogRef.current;
+      if (!root || root.contains(event.target as Node)) return;
+      closeButtonRef.current?.focus();
     }
     window.addEventListener("keydown", onKey);
+    document.addEventListener("focusin", onFocusIn);
     return () => {
       document.body.style.overflow = previous;
       window.removeEventListener("keydown", onKey);
+      document.removeEventListener("focusin", onFocusIn);
       window.clearTimeout(timer.current);
     };
   }, []);
@@ -146,6 +212,7 @@ function Lightbox({
 
   return createPortal(
     <div
+      ref={dialogRef}
       role="dialog"
       aria-modal="true"
       aria-label={image.alt}

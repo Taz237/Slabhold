@@ -2,11 +2,16 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { SHARE_CONFIRM_TEXT, sharePostPath, takeSharedPost } from "@/lib/social/share-to-feed";
+import { SHARE_CONFIRM_TEXT, sharePostPath, shareSessionStore, takeSharedPost } from "@/lib/social/share-to-feed";
 
 function savedPostId(cardId: string): string | null {
-  if (typeof sessionStorage === "undefined") return null;
-  return takeSharedPost(sessionStorage, cardId);
+  try {
+    const store = shareSessionStore();
+    if (!store) return null;
+    return takeSharedPost(store, cardId);
+  } catch {
+    return null;
+  }
 }
 
 /** Small note after Add card shares a post. Shown once for this card. */

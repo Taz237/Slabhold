@@ -58,17 +58,35 @@ export function sharePostFromCard(input: {
   };
 }
 
+/** The browser store, or null when storage is missing or blocked. */
+export function shareSessionStore(): ShareStore | null {
+  try {
+    if (typeof sessionStorage === "undefined") return null;
+    return sessionStorage;
+  } catch {
+    return null;
+  }
+}
+
 export function writeSharedPost(store: ShareStore, cardId: string, postId: string) {
   if (!cardId || !postId) return;
-  store.setItem(SHARE_KEY, JSON.stringify({ cardId, postId }));
+  try {
+    store.setItem(SHARE_KEY, JSON.stringify({ cardId, postId }));
+  } catch {
+    // The post is already saved. Storage must not turn that into a failed share.
+  }
 }
 
 /** Read the confirmation once. A different card, or a bad value, leaves nothing to show. */
 export function takeSharedPost(store: ShareStore, cardId: string): string | null {
-  const raw = store.getItem(SHARE_KEY);
-  if (!raw) return null;
-  store.removeItem(SHARE_KEY);
   try {
+    const raw = store.getItem(SHARE_KEY);
+    if (!raw) return null;
+    try {
+      store.removeItem(SHARE_KEY);
+    } catch {
+      // Showing the note once is enough. A blocked remove must not throw.
+    }
     const parsed = JSON.parse(raw) as { cardId?: unknown; postId?: unknown };
     if (parsed.cardId !== cardId || typeof parsed.postId !== "string" || !parsed.postId) {
       return null;

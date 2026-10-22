@@ -8,6 +8,7 @@ import {
   SHARE_PRIVATE_REASON,
   sharePostFromCard,
   sharePostPath,
+  shareSessionStore,
   shareToFeedControl,
   takeSharedPost,
   writeSharedPost,
@@ -115,5 +116,40 @@ describe("share to feed", () => {
     assert.match(form, /Cards are private by default\. You can show them on your profile\./);
     assert.match(read("components/card-detail.tsx"), /SharedPostNote/);
     assert.match(read("components/shared-post-note.tsx"), /View post/);
+    assert.match(read("components/card-form.tsx"), /shareSessionStore/);
+  });
+
+  it("keeps a saved post when session storage throws", () => {
+    const throwing: ShareStore = {
+      getItem() {
+        throw new Error("storage blocked");
+      },
+      setItem() {
+        throw new Error("storage blocked");
+      },
+      removeItem() {
+        throw new Error("storage blocked");
+      },
+    };
+    assert.doesNotThrow(() => writeSharedPost(throwing, "card-1", "post-9"));
+    assert.equal(takeSharedPost(throwing, "card-1"), null);
+
+    const sticky = {
+      value: JSON.stringify({ cardId: "card-1", postId: "post-9" }),
+      getItem() {
+        return sticky.value;
+      },
+      setItem() {
+        throw new Error("storage blocked");
+      },
+      removeItem() {
+        throw new Error("storage blocked");
+      },
+    };
+    assert.equal(takeSharedPost(sticky, "card-1"), "post-9");
+    assert.equal(shareSessionStore(), null);
+    const note = read("components/shared-post-note.tsx");
+    assert.match(note, /try \{/);
+    assert.match(note, /shareSessionStore/);
   });
 });
