@@ -79,7 +79,8 @@ function alignedWindowStart(periodMs: number): string {
  * Fail-open if the service-role client or table is unavailable (cache still works).
  * A parallel burst reads a count and writes the next one only while that count
  * is still current, pausing briefly between lost writes. After the last lost
- * write the request is allowed so a burst under the limit is not blocked.
+ * write, want_match and trawl are blocked. Card values, comps, and anonymous
+ * card values are allowed.
  */
 async function consumeBucket(
   table: "comps_rate_limits" | "anon_rate_limits",

@@ -347,15 +347,21 @@ export async function notifyWantMatches(
       }
       notified += 1;
     } catch {
-      try {
-        if (noteId) await db.deleteNotification(noteId);
-      } catch {
-        // Still remove the alert row so it does not count toward the daily cap.
+      let notificationRemoved = noteId == null;
+      if (noteId) {
+        try {
+          await db.deleteNotification(noteId);
+          notificationRemoved = true;
+        } catch {
+          // The notification was delivered, so the alert row still counts.
+        }
       }
-      try {
-        await db.deleteAlert(want.id, event.sourceType, event.sourceId, alertCardId);
-      } catch {
-        // One wanter's cleanup must not stop alerts for the rest.
+      if (notificationRemoved) {
+        try {
+          await db.deleteAlert(want.id, event.sourceType, event.sourceId, alertCardId);
+        } catch {
+          // One wanter's cleanup must not stop alerts for the rest.
+        }
       }
     }
   }

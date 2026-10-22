@@ -37,6 +37,15 @@ export function lostWriteBackoffMs(retry: number, random: () => number = Math.ra
   return 4 * retry + jitter;
 }
 
+/**
+ * After every lost-write retry is used up. Want checks and Trawl stay blocked.
+ * Card values (including anonymous), comps, and any other bucket are allowed
+ * so a burst under the limit is not turned away.
+ */
+export function allowsAfterLostWrite(bucket: string): boolean {
+  return bucket !== "want_match" && bucket !== "trawl";
+}
+
 function defaultSleep(ms: number): Promise<void> {
   return new Promise((resolve) => {
     setTimeout(resolve, ms);
@@ -47,7 +56,8 @@ function defaultSleep(ms: number): Promise<void> {
  * Read a bucket and write the next count only while the read is still current.
  * A read error or a non-conflict write error allows the request. A count that
  * is already at the limit blocks it. Lost writes retry with a short jittered
- * pause, and the request is allowed after the last lost write.
+ * pause. The last lost write blocks want_match and trawl, and allows card
+ * values, comps, and anonymous card values.
  */
 export async function consumeBucketWithStore(
   store: BucketStore,
@@ -75,5 +85,5 @@ export async function consumeBucketWithStore(
     if (write.ok || !write.conflict) return true;
   }
 
-  return true;
+  return allowsAfterLostWrite(row.bucket);
 }

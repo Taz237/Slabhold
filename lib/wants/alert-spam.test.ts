@@ -51,7 +51,12 @@ function tick(): Promise<void> {
   });
 }
 
-function memoryDb(options?: { pause?: boolean; fixedCreatedAt?: string; wants?: WantRow[] }) {
+function memoryDb(options?: {
+  pause?: boolean;
+  fixedCreatedAt?: string;
+  notificationIds?: string[];
+  wants?: WantRow[];
+}) {
   const wants: WantRow[] = options?.wants ?? [
     {
       id: "want-1",
@@ -64,6 +69,7 @@ function memoryDb(options?: { pause?: boolean; fixedCreatedAt?: string; wants?: 
   ];
   const alerts: WantAlertInsert[] = [];
   const notifications: (WantNotificationInsert & { id: string; createdAt: string })[] = [];
+  const notificationIds = options?.notificationIds ? [...options.notificationIds] : null;
   let noteSeq = 0;
   const pause = async () => {
     if (options?.pause) await tick();
@@ -93,7 +99,7 @@ function memoryDb(options?: { pause?: boolean; fixedCreatedAt?: string; wants?: 
     async insertNotification(row) {
       await pause();
       noteSeq += 1;
-      const id = `n-${String(noteSeq).padStart(4, "0")}`;
+      const id = notificationIds?.shift() ?? `n-${String(noteSeq).padStart(4, "0")}`;
       const createdAt = options?.fixedCreatedAt ?? new Date(NOW.getTime() + noteSeq).toISOString();
       notifications.push({ ...row, id, createdAt });
       return { id, createdAt };
@@ -267,19 +273,31 @@ describe("want alert spam", () => {
 
   it("keeps the lower id when two inserts share created_at", async () => {
     const fixed = "2026-10-17T18:00:00.000Z";
-    const { db, notifications, alerts } = memoryDb({ pause: true, fixedCreatedAt: fixed });
-    const counts = await Promise.all([
-      notifyWantMatches(actorEvent("listing", "copy-a", ACTOR), db),
-      notifyWantMatches(actorEvent("listing", "copy-b", ACTOR), db),
-    ]);
-    assert.equal(
-      counts.reduce((sum, count) => sum + count, 0),
-      1,
-    );
-    assert.equal(notifications.length, 1);
-    assert.equal(notifications[0]?.id, "n-0001");
-    assert.equal(notifications[0]?.createdAt, fixed);
-    assert.equal(alerts.length, 1);
+    const orders = [
+      ["n-0001", "n-0002"],
+      ["n-0002", "n-0001"],
+    ];
+    for (const notificationIds of orders) {
+      const { db, notifications, alerts } = memoryDb({
+        pause: true,
+        fixedCreatedAt: fixed,
+        notificationIds,
+      });
+      const counts = await Promise.all([
+        notifyWantMatches(actorEvent("listing", "copy-a", ACTOR), db),
+        notifyWantMatches(actorEvent("listing", "copy-b", ACTOR), db),
+      ]);
+      const label = notificationIds.join(" then ");
+      assert.equal(
+        counts.reduce((sum, count) => sum + count, 0),
+        1,
+        label,
+      );
+      assert.equal(notifications.length, 1, label);
+      assert.equal(notifications[0]?.id, "n-0001", label);
+      assert.equal(notifications[0]?.createdAt, fixed, label);
+      assert.equal(alerts.length, 1, label);
+    }
   });
 
   it("keeps and counts the alert when the re-check read fails", async () => {
@@ -297,7 +315,7 @@ describe("want alert spam", () => {
     assert.equal(reads, 2);
   });
 
-  it("removes the alert row when notification cleanup throws and still alerts the next wanter", async () => {
+  it("keeps the alert row when notification cleanup throws and still alerts the next wanter", async () => {
     const wanterB = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
     const { db, notifications, alerts } = memoryDb({
       wants: [
@@ -348,8 +366,9 @@ describe("want alert spam", () => {
     };
 
     assert.equal(await notifyWantMatches(actorEvent("listing", CARD, ACTOR), db), 1);
-    assert.equal(alerts.filter((row) => row.userId === WANTER).length, 0);
-    assert.equal(deletedAlerts, 1);
+    assert.equal(alerts.filter((row) => row.userId === WANTER).length, 1);
+    assert.equal(notifications.some((row) => row.recipientId === WANTER), true);
+    assert.equal(deletedAlerts, 0);
     assert.equal(notifications.filter((row) => row.recipientId === wanterB).length, 1);
     assert.equal(alerts.filter((row) => row.userId === wanterB).length, 1);
   });

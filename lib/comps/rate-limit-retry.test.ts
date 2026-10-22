@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   RATE_LIMIT_BURST_ATTEMPTS,
+  allowsAfterLostWrite,
   consumeBucketWithStore,
   lostWriteBackoffMs,
   type BucketRead,
@@ -11,13 +12,50 @@ import {
 
 const WINDOW = "2026-10-17T18:00:00.000Z";
 
-function row(bucket: string): BucketRow {
+function row(
+  bucket: string,
+  table: BucketRow["table"] = "comps_rate_limits",
+): BucketRow {
   return {
-    table: "comps_rate_limits",
-    subjectColumn: "user_id",
+    table,
+    subjectColumn: table === "anon_rate_limits" ? "subject" : "user_id",
     subject: "user-1",
     bucket,
     windowStart: WINDOW,
+  };
+}
+
+function yieldingCas() {
+  let count: number | null = null;
+  let conflicts = 0;
+  const store: BucketStore = {
+    async read() {
+      await tick();
+      return { count };
+    },
+    async insert(_target, next) {
+      await tick();
+      if (count != null) {
+        conflicts += 1;
+        return { ok: false, conflict: true };
+      }
+      count = next;
+      return { ok: true };
+    },
+    async update(_target, from, to) {
+      await tick();
+      if (count !== from) {
+        conflicts += 1;
+        return { ok: false, conflict: true };
+      }
+      count = to;
+      return { ok: true };
+    },
+  };
+  return {
+    store,
+    conflicts: () => conflicts,
+    current: () => count ?? 0,
   };
 }
 
@@ -52,30 +90,40 @@ function conflictStore(count: number | null) {
 }
 
 describe("rate limit retry loop", () => {
-  it("allows want_match and comps requests after the last lost write", async () => {
-    const cases = [
-      { bucket: "want_match", limit: 30, count: null },
-      { bucket: "requests", limit: 20, count: 3 },
+  it("blocks want_match and trawl after the last lost write and allows the other buckets", async () => {
+    const cases: { target: BucketRow; limit: number; count: number | null; allowed: boolean }[] = [
+      { target: row("want_match"), limit: 30, count: null, allowed: false },
+      { target: row("trawl"), limit: 5, count: 1, allowed: false },
+      { target: row("requests"), limit: 20, count: 3, allowed: true },
+      { target: row("card_values"), limit: 120, count: 4, allowed: true },
+      {
+        target: row("card_values", "anon_rate_limits"),
+        limit: 60,
+        count: null,
+        allowed: true,
+      },
     ];
     for (const item of cases) {
       const { store, stats } = conflictStore(item.count);
       const sleeps: number[] = [];
       const rolls = [0.1, 0.9, 0, 0.5, 0.25, 0.75, 0.4];
       let roll = 0;
-      const allowed = await consumeBucketWithStore(store, row(item.bucket), item.limit, {
+      const allowed = await consumeBucketWithStore(store, item.target, item.limit, {
         sleep: async (ms) => {
           sleeps.push(ms);
         },
         random: () => rolls[roll++] ?? 0,
       });
-      assert.equal(allowed, true, item.bucket);
-      assert.equal(stats().reads, RATE_LIMIT_BURST_ATTEMPTS, item.bucket);
-      assert.equal(stats().writes, RATE_LIMIT_BURST_ATTEMPTS, item.bucket);
-      assert.equal(sleeps.length, RATE_LIMIT_BURST_ATTEMPTS - 1, item.bucket);
-      assert.deepEqual(new Set(stats().seen), new Set([item.bucket]));
+      const label = `${item.target.table}:${item.target.bucket}`;
+      assert.equal(allowsAfterLostWrite(item.target.bucket), item.allowed, label);
+      assert.equal(allowed, item.allowed, label);
+      assert.equal(stats().reads, RATE_LIMIT_BURST_ATTEMPTS, label);
+      assert.equal(stats().writes, RATE_LIMIT_BURST_ATTEMPTS, label);
+      assert.equal(sleeps.length, RATE_LIMIT_BURST_ATTEMPTS - 1, label);
+      assert.deepEqual(new Set(stats().seen), new Set([item.target.bucket]));
       for (let index = 0; index < sleeps.length; index += 1) {
         const expected = lostWriteBackoffMs(index + 1, () => rolls[index] ?? 0);
-        assert.equal(sleeps[index], expected, item.bucket);
+        assert.equal(sleeps[index], expected, label);
         assert.ok((sleeps[index] ?? 0) >= 4);
         assert.ok((sleeps[index] ?? 0) < 4 * (index + 1) + 8);
       }
@@ -143,35 +191,28 @@ describe("rate limit retry loop", () => {
     assert.equal(sleeps.length, 0);
   });
 
-  it("does not block 20 parallel card value requests under the limit", async () => {
-    let count: number | null = null;
-    let conflicts = 0;
-    const store: BucketStore = {
-      async read(target) {
-        assert.equal(target.bucket, "card_values");
-        await tick();
-        return { count };
-      },
-      async insert(_target, next) {
-        await tick();
-        if (count != null) {
-          conflicts += 1;
-          return { ok: false, conflict: true };
-        }
-        count = next;
-        return { ok: true };
-      },
-      async update(_target, from, to) {
-        await tick();
-        if (count !== from) {
-          conflicts += 1;
-          return { ok: false, conflict: true };
-        }
-        count = to;
-        return { ok: true };
-      },
-    };
+  it("allows at most 30 of 40 parallel want_match calls", async () => {
+    const { store, conflicts, current } = yieldingCas();
+    const results = await Promise.all(
+      Array.from({ length: 40 }, () =>
+        consumeBucketWithStore(store, row("want_match"), 30, {
+          sleep: async () => {
+            await tick();
+          },
+          random: () => 0.5,
+        }),
+      ),
+    );
+    const allowed = results.filter(Boolean).length;
+    assert.ok(conflicts() > 0);
+    assert.ok(allowed >= 1);
+    assert.ok(allowed <= 30, String(allowed));
+    assert.ok(current() <= 30);
+    assert.equal(allowed, current());
+  });
 
+  it("blocks none of 20 parallel card value calls under the limit", async () => {
+    const { store, conflicts, current } = yieldingCas();
     const results = await Promise.all(
       Array.from({ length: 20 }, () =>
         consumeBucketWithStore(store, row("card_values"), 120, {
@@ -183,13 +224,13 @@ describe("rate limit retry loop", () => {
       ),
     );
 
+    assert.equal(results.length, 20);
     assert.equal(
       results.every((allowed) => allowed),
       true,
     );
-    assert.equal(results.length, 20);
-    assert.ok(conflicts > 0);
-    assert.ok((count ?? 0) >= 1);
-    assert.ok((count ?? 0) <= 20);
+    assert.ok(conflicts() > 0);
+    assert.ok(current() >= 1);
+    assert.ok(current() <= 20);
   });
 });
