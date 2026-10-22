@@ -1,40 +1,61 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import type { DirectoryPlayer } from "./types";
+import type { IndexedDirectoryPlayer } from "./types";
+
+export type PlayerDirectoryStatus = "loading" | "ready" | "error";
 
 export type PlayerDirectorySnapshot = {
-  players: readonly DirectoryPlayer[];
-  ready: boolean;
+  players: readonly IndexedDirectoryPlayer[];
+  status: PlayerDirectoryStatus;
+  retry: () => void;
 };
 
-const EMPTY: PlayerDirectorySnapshot = { players: [], ready: false };
-
-let snapshot: PlayerDirectorySnapshot = EMPTY;
 let started = false;
 const listeners = new Set<() => void>();
 
-function emit(next: PlayerDirectorySnapshot) {
-  snapshot = next;
+function emit() {
   for (const listener of listeners) listener();
 }
 
-function retain() {
+function startLoad() {
   if (started) return;
   started = true;
-  // Separate chunk so the collect step does not ship the roster in the main bundle.
   void import("@/lib/players/directory")
     .then((mod) => {
-      emit({ players: mod.PLAYER_DIRECTORY, ready: true });
+      snapshot = {
+        players: mod.INDEXED_DIRECTORY,
+        status: "ready",
+        retry: retryLoad,
+      };
+      emit();
     })
     .catch(() => {
-      emit({ players: [], ready: true });
+      started = false;
+      snapshot = { players: [], status: "error", retry: retryLoad };
+      emit();
     });
 }
 
+function retryLoad() {
+  if (snapshot.status === "loading") return;
+  started = false;
+  snapshot = INITIAL;
+  emit();
+  startLoad();
+}
+
+const INITIAL: PlayerDirectorySnapshot = {
+  players: [],
+  status: "loading",
+  retry: retryLoad,
+};
+
+let snapshot: PlayerDirectorySnapshot = INITIAL;
+
 function subscribe(listener: () => void) {
   listeners.add(listener);
-  retain();
+  startLoad();
   return () => {
     listeners.delete(listener);
   };
@@ -45,7 +66,7 @@ function getSnapshot() {
 }
 
 function getServerSnapshot() {
-  return EMPTY;
+  return INITIAL;
 }
 
 /** Loads the roster the first time the name search is on screen. */

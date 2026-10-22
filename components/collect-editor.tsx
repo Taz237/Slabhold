@@ -107,18 +107,23 @@ export function NameSearch({
     return [...local, ...remote];
   }, [query, remotePlayers, remoteQuery]);
 
-  const hits = withDirectoryPlayers({
-    query,
-    sports,
-    catalogHits: interestTypeahead({
-      query,
-      sports,
-      players,
-      teams: COLLECT_TEAMS,
-    }),
-    directoryPlayers: directory.players,
-    directoryReady: directory.ready,
-  });
+  const hits = useMemo(
+    () =>
+      withDirectoryPlayers({
+        query,
+        sports,
+        catalogHits: interestTypeahead({
+          query,
+          sports,
+          players,
+          teams: COLLECT_TEAMS,
+        }),
+        directoryPlayers: directory.players,
+        directoryReady: directory.status === "ready",
+      }),
+    [directory.players, directory.status, players, query, sports],
+  );
+  const typed = query.trim().length > 0;
 
   return (
     <div>
@@ -149,6 +154,17 @@ export function NameSearch({
           className="min-h-11 w-full rounded-2xl border border-zinc-300 bg-white px-4 text-base outline-none focus:border-zinc-500 dark:border-white/15 dark:bg-transparent"
         />
       </label>
+      {directory.status === "loading" && typed ? (
+        <p className="mt-2 text-sm text-zinc-500">Loading players…</p>
+      ) : null}
+      {directory.status === "error" ? (
+        <div className="mt-2 text-sm text-zinc-500">
+          Could not load the player list.{" "}
+          <button type="button" onClick={directory.retry} className="min-h-11 font-semibold underline">
+            Retry
+          </button>
+        </div>
+      ) : null}
       {hits.length > 0 ? (
         <ul className="mt-2 overflow-hidden rounded-2xl border border-zinc-200 dark:border-white/10">
           {hits.map((hit) => (

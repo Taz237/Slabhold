@@ -6,8 +6,9 @@ import { join } from "node:path";
 import { searchCatalog } from "../card-catalog";
 import { interestTypeahead, interestWriteRows } from "../social/collect-interests";
 import { normInterest } from "../social/follow-rank";
-import { PLAYER_DIRECTORY } from "./directory";
+import { INDEXED_DIRECTORY, PLAYER_DIRECTORY } from "./directory";
 import {
+  blockedCustomName,
   customPlayerFallback,
   nameSuggestionLabel,
   playerNameMatches,
@@ -26,7 +27,7 @@ function names(query: string, sports?: readonly string[]) {
     query,
     sports,
     catalogHits: interestTypeahead({ query, sports, players, teams: [] }),
-    directoryPlayers: PLAYER_DIRECTORY,
+    directoryPlayers: INDEXED_DIRECTORY,
     directoryReady: true,
   });
 }
@@ -74,8 +75,17 @@ describe("player directory", () => {
     assert.match(editor, /withDirectoryPlayers\(/);
     assert.doesNotMatch(editor, /players\/directory/);
     assert.match(hook, /import\("@\/lib\/players\/directory"\)/);
+    assert.match(hook, /INDEXED_DIRECTORY/);
+    assert.match(hook, /status: "error"/);
     assert.doesNotMatch(hook, /from ["']\.\/directory["']/);
     assert.doesNotMatch(hook, /from ["']@\/lib\/players\/directory["']/);
+    assert.match(editor, /useMemo\(/);
+    assert.match(editor, /Loading players/);
+    assert.match(editor, /Could not load the player list/);
+    assert.match(editor, /Retry/);
+    const maxey = INDEXED_DIRECTORY.find((player) => player.name === "Tyrese Maxey");
+    assert.equal(maxey?.norm, "tyrese maxey");
+    assert.deepEqual(maxey?.words, ["tyrese", "maxey"]);
   });
 });
 
@@ -135,6 +145,9 @@ describe("directory name search", () => {
   it("respects the selected sports", () => {
     const football = names("maxey", ["Football"]);
     assert.equal(football.some((hit) => hit.value === "Tyrese Maxey"), false);
+    assert.equal(football.some((hit) => hit.custom), false);
+    assert.equal(names("zzqx", ["Football"])[0]?.custom, true);
+    assert.equal(names("joel em", ["Hockey"]).some((hit) => hit.custom), true);
     const basketball = names("maxey", ["Basketball"]);
     assert.equal(basketball[0]?.value, "Tyrese Maxey");
     assert.equal(names("joel em", ["Hockey"]).some((hit) => hit.value === "Joel Embiid"), false);
@@ -151,8 +164,24 @@ describe("directory name search", () => {
 
   it("offers a title-cased custom player when nothing matches", () => {
     assert.equal(titleCasePlayerName("tyrese maxey"), "Tyrese Maxey");
+    assert.equal(titleCasePlayerName("TYRESE MAXEY"), "Tyrese Maxey");
+    assert.equal(titleCasePlayerName("Tyrese Maxey"), "Tyrese Maxey");
+    assert.equal(titleCasePlayerName("mcbride"), "McBride");
+    assert.equal(titleCasePlayerName("MCBRIDE"), "McBride");
+    assert.equal(titleCasePlayerName("McBride"), "McBride");
     assert.equal(titleCasePlayerName("  ken   griffey jr. "), "Ken Griffey Jr.");
     assert.equal(titleCasePlayerName("d'angelo"), "D'Angelo");
+    assert.equal(blockedCustomName("Pokemon Cards"), true);
+    assert.equal(customPlayerFallback("Pokemon Cards"), null);
+    assert.equal(customPlayerFallback("pikachu"), null);
+    assert.equal(customPlayerFallback("charizard ex"), null);
+    assert.equal(customPlayerFallback("A1"), null);
+    assert.equal(customPlayerFallback("<b>zz</b> qq"), null);
+    assert.equal(customPlayerFallback("🔥 king"), null);
+    assert.equal(customPlayerFallback("O'Neal")?.value, "O'Neal");
+    assert.equal(customPlayerFallback("Smith-Njigba")?.value, "Smith-Njigba");
+    assert.equal(customPlayerFallback("J.J. Redick")?.value, "J.J. Redick");
+    assert.equal(customPlayerFallback("José Ramírez")?.value, "José Ramírez");
     const custom = names("zzqx plz");
     assert.equal(custom.length, 1);
     assert.equal(custom[0]?.custom, true);
