@@ -1,5 +1,7 @@
 import {
+  FILLER_WORDS,
   GRADER_WORDS,
+  ROOKIE_WORDS,
   normalizeSearchText,
   parseCardQuery,
   splitGluedGrades,
@@ -32,8 +34,6 @@ const ANY_GRADE_WORDS = new Set(["graded", "gem", "mint"]);
 
 /** 1 through 10, or a half point such as 9.5. "#57" is a card number, not a grade. */
 const GRADE_NUMBER = /^(?:10|[1-9])(?:\.5)?$/;
-/** "psa10" and "psa-10" are the same grade words once punctuation is gone. */
-const GLUED_GRADE_WORD = /^(?:psa|bgs|sgc|cgc|beckett)-?\d{1,2}(?:\.\d+)?$/;
 
 type GradeNeed = {
   anyGrade: boolean;
@@ -114,12 +114,30 @@ function gradeWordsToDrop(need: GradeNeed): Set<string> {
   return skip;
 }
 
-function plainContentWords(query: string, need: { tokens: string[] }): string[] {
+function plainContentWords(query: string, need: { tokens: string[]; anyGrade: boolean }): string[] {
   const skip = new Set([...need.tokens, ...ANY_GRADE_WORDS]);
-  return gradeTokens(query.trim().replace(/^@+/, ""))
-    .filter((token) => !skip.has(token))
-    .map((token) => token.replace(/^#/, ""))
-    .filter(Boolean);
+  // A grade query does not also have to find "rookie", "card", or "raw" in the name.
+  if (need.tokens.length > 0 || need.anyGrade) {
+    for (const word of ROOKIE_WORDS) skip.add(word);
+    for (const word of FILLER_WORDS) skip.add(word);
+  }
+  const tokens = gradeTokens(query.trim().replace(/^@+/, ""));
+  const words: string[] = [];
+  for (let index = 0; index < tokens.length; index += 1) {
+    const token = tokens[index]!;
+    if (
+      (need.tokens.length > 0 || need.anyGrade) &&
+      token === "rated" &&
+      (tokens[index + 1] === "rookie" || tokens[index + 1] === "rookies")
+    ) {
+      index += 1;
+      continue;
+    }
+    if (skip.has(token)) continue;
+    const plain = token.replace(/^#/, "");
+    if (plain) words.push(plain);
+  }
+  return words;
 }
 
 function gradeTokenSet(grade: string | null | undefined): Set<string> {
@@ -150,7 +168,7 @@ export function matchesEverySearchWord(
   const need = gradeNeed(query);
   const held = gradeWordsToDrop(need);
   const source = grammar.length > 0 ? grammar : plainContentWords(query, need);
-  const words = source.filter((word) => !held.has(word) && !GLUED_GRADE_WORD.test(word));
+  const words = source.filter((word) => !held.has(word));
   if (words.length === 0 && need.tokens.length === 0 && !need.anyGrade) return false;
   const haystack = normalizeSearchText(
     fields.map((field) => (field == null ? "" : String(field))).join(" "),

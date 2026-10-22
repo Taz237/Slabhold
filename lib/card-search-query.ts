@@ -47,24 +47,19 @@ const KNOWN_SET_WORDS = [
 ];
 
 /** Words that describe a copy, not the catalog row. "psa 10", "card", and "raw" stay out of the AND. */
-const FILLER_WORDS = new Set(["card", "cards", "raw"]);
+export const FILLER_WORDS = new Set(["card", "cards", "raw"]);
 
 /**
  * Rookie words are not player, set, or parallel words.
  * Keep this list in sync with search_cards. "rated-rookie" is the hyphen
  * public.norm keeps from "rated-rookie".
  */
-const ROOKIE_WORDS = new Set(["rookie", "rookies", "rc", "rated-rookie", "rated-rookies"]);
-export const GRADER_WORDS = new Set([
-  "psa",
-  "bgs",
-  "sgc",
-  "cgc",
-  "beckett",
-  "graded",
-  "gem",
-  "mint",
-]);
+export const ROOKIE_WORDS = new Set(["rookie", "rookies", "rc", "rated-rookie", "rated-rookies"]);
+
+/** Graders that can be glued to a number: psa10, psa-10, bgs9.5. */
+const COMPANY_GRADERS = ["psa", "bgs", "sgc", "cgc", "beckett"] as const;
+
+export const GRADER_WORDS = new Set<string>([...COMPANY_GRADERS, "graded", "gem", "mint"]);
 
 /** Lowercase, strip accents/punctuation — mirrors public.norm(). Keeps hyphens in seasons / card #s. */
 export function normalizeSearchText(input: string): string {
@@ -159,21 +154,23 @@ export function expandAliasTokens(tokens: string[]): string[] {
  * Shared with the My cards matcher so catalog search and grade matching stay aligned.
  */
 export function splitGluedGrades(value: string): string {
+  const company = COMPANY_GRADERS.join("|");
   return value.replace(
-    /\b(psa|bgs|sgc|cgc|beckett)-?(\d{1,2}(?:\.\d+)?)\b/gi,
+    new RegExp(`\\b(${company})-?(\\d{1,2}(?:\\.\\d+)?)\\b`, "gi"),
     "$1 $2",
   );
 }
 
 /**
- * Query text for search_cards. Glued grades are split, and a "#N" is moved in
- * front of the grade phrase. public.norm() drops "#", and the SQL grade skip
- * then eats the next two short numbers, so "#10" after "psa 10" would vanish.
+ * Query text for search_cards. Glued grades are split, and a whole "#N" token
+ * is moved in front of the grade phrase. public.norm() drops "#", and the SQL
+ * grade skip then eats the next two short numbers, so "#10" after "psa 10"
+ * would vanish. "#10A" and "#10-b" are not pure numbers, so they stay put.
  */
 export function catalogSearchQuery(query: string): string {
   const split = splitGluedGrades(query);
   const numbers: string[] = [];
-  const rest = split.replace(/#(\d+)/g, (_hash, digits: string) => {
+  const rest = split.replace(/#(\d+)(?![A-Za-z0-9-])/g, (_hash, digits: string) => {
     numbers.push(`#${digits}`);
     return " ";
   });
