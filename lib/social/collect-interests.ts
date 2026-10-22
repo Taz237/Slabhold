@@ -208,6 +208,7 @@ export function interestTypeahead(input: {
 }): InterestHit[] {
   const query = normInterest(input.query);
   if (!query) return [];
+  const q = compactInterest(input.query);
   const sports = (input.sports ?? []).map((sport) => sport.toLowerCase()).filter(Boolean);
   const allowed = (sport: string) =>
     !collectSportBlocked(sport) &&
@@ -227,8 +228,9 @@ export function interestTypeahead(input: {
   for (const player of input.players) {
     if (!allowed(player.sport)) continue;
     const norm = normInterest(player.name);
-    if (!norm || !norm.includes(query)) continue;
-    const key = compactInterest(player.name);
+    const compact = compactInterest(player.name);
+    if (!norm || (!norm.includes(query) && !compact.includes(q))) continue;
+    const key = compact;
     const group = playersByKey.get(key);
     const existing = group?.find((item) => playerSportsCompatible(item.hit.sport, player.sport));
     if (existing) {

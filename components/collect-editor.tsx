@@ -215,14 +215,26 @@ export function toggleName(
   hit: InterestHit,
 ): CollectInterest[] {
   const key = savedNameKey(hit.kind, hit.value);
-  if (selected.some((pick) => savedNameKey(pick.kind, pick.value) === key)) return [...selected];
-  return [...selected, { kind: hit.kind, value: hit.value }];
+  let replaced = false;
+  const next: CollectInterest[] = [];
+  for (const pick of selected) {
+    if (savedNameKey(pick.kind, pick.value) !== key) {
+      next.push(pick);
+      continue;
+    }
+    if (replaced) continue;
+    next.push(pick.value === hit.value ? pick : { kind: hit.kind, value: hit.value });
+    replaced = true;
+  }
+  if (!replaced) next.push({ kind: hit.kind, value: hit.value });
+  return next;
 }
 
 export function withoutName(
   selected: readonly CollectInterest[],
   hit: CollectInterest,
 ): CollectInterest[] {
-  const key = savedNameKey(hit.kind, hit.value);
-  return selected.filter((pick) => savedNameKey(pick.kind, pick.value) !== key);
+  const index = selected.findIndex((pick) => pick.kind === hit.kind && pick.value === hit.value);
+  if (index < 0) return [...selected];
+  return selected.filter((_, item) => item !== index);
 }

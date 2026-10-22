@@ -266,15 +266,18 @@ describe("directory name search", () => {
   });
 
   it("matches undotted initials to dotted directory names", () => {
-    const stroud = INDEXED_DIRECTORY.find((player) => player.name === "C.J. Stroud");
-    assert.deepEqual(stroud?.words, ["c", "j", "stroud"]);
-    assert.deepEqual(stroud?.joined, ["cj", "stroud"]);
+    const brown = INDEXED_DIRECTORY.find((player) => player.name === "A.J. Brown");
+    assert.deepEqual(brown?.words, ["a", "j", "brown"]);
+    assert.deepEqual(brown?.joined, ["aj", "brown"]);
+    const stroud = INDEXED_DIRECTORY.find((player) => player.name === "CJ Stroud");
     assert.equal(stroud?.compact, "cjstroud");
+    assert.deepEqual(stroud?.words, ["cj", "stroud"]);
+    assert.equal(stroud?.joined, undefined);
     assert.equal(playerNameMatches("C.J. Stroud", "cj stroud"), true);
     assert.equal(playerNameMatches("C.J. Stroud", "c.j. stroud"), true);
     assert.equal(playerNameMatches("CJ Stroud", "c j stroud"), true);
     for (const [query, value, sport] of [
-      ["cj stroud", "C.J. Stroud", "Football"],
+      ["cj stroud", "CJ Stroud", "Football"],
       ["aj brown", "A.J. Brown", "Football"],
       ["tj watt", "T.J. Watt", "Football"],
       ["jt realmuto", "J.T. Realmuto", "Baseball"],
@@ -287,7 +290,7 @@ describe("directory name search", () => {
       assert.equal(hits.some((item) => item.custom), false);
     }
     const dotted = names("c.j. stroud");
-    assert.equal(dotted.some((hit) => hit.value === "C.J. Stroud" && hit.custom !== true), true);
+    assert.equal(dotted.some((hit) => hit.value === "CJ Stroud" && hit.custom !== true), true);
   });
 
   it("offers Add when joined initials are the exact name hidden by a sport chip", () => {
@@ -326,6 +329,11 @@ describe("directory name search", () => {
     assert.equal(strouds[0]?.value, "CJ Stroud");
     assert.equal(strouds[0]?.sport, "Football");
     assert.equal(strouds[0]?.custom, undefined);
+    const localOnly = names("cj stroud");
+    const localStroud = localOnly.filter((hit) => hit.value.replace(/[^A-Za-z]/g, "").toLowerCase() === "cjstroud");
+    assert.equal(localStroud.length, 1);
+    assert.equal(localStroud[0]?.value, "CJ Stroud");
+    assert.equal(localStroud[0]?.custom, undefined);
     const catalogWins = withDirectoryPlayers({
       query: "cj stroud",
       catalogHits: [{ kind: "player", value: "C.J. Stroud", sport: "Football" }],

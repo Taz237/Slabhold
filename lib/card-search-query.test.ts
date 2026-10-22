@@ -195,7 +195,7 @@ describe("searchCatalog ranking", () => {
           hit.yearLabel.startsWith("2023"),
       ),
     );
-    assert.ok(hits.every((hit) => hit.playerName !== "C.J. Stroud"));
+    assert.ok(hits.every((hit) => hit.playerName !== "CJ Stroud"));
   });
 
   it("matches partial, case, and accent-insensitive player words", () => {
@@ -702,7 +702,7 @@ describe("search_cards rookie migration", () => {
 describe("resolveCatalogSearch before and after the migration", () => {
   it("re-ranks a loose remote list so the player match comes first", () => {
     const stroud = CARD_CATALOG.find(
-      (card) => card.playerName === "C.J. Stroud" && card.parallel === "Base",
+      (card) => card.playerName === "CJ Stroud" && card.parallel === "Base",
     );
     const select = CARD_CATALOG.find(
       (card) =>

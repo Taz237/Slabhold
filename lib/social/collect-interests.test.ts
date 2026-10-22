@@ -77,6 +77,22 @@ describe("interest typeahead", () => {
       reversed.map((hit) => hit.value),
       ["CJ Stroud"],
     );
+    const majorityPlayers = [
+      ...Array.from({ length: 3 }, () => ({ name: "C.J. Stroud", sport: "Football" })),
+      ...Array.from({ length: 9 }, () => ({ name: "CJ Stroud", sport: "Football" })),
+    ];
+    for (const query of ["c.j. stroud", "C.J. Stroud", "c j stroud"]) {
+      const majority = interestTypeahead({
+        query,
+        players: majorityPlayers,
+        teams: [],
+      });
+      assert.deepEqual(
+        majority.map((hit) => hit.value),
+        ["CJ Stroud"],
+        query,
+      );
+    }
     const blank = interestTypeahead({
       query: "stroud",
       players: [

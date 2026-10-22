@@ -150,10 +150,25 @@ async function typeBackspaceRetype(sports: readonly string[]) {
 describe("collect name rows", () => {
   it("dedupes saved names on the compact key", () => {
     const added = toggleName([], { kind: "player", value: "CJ Stroud", sport: "Football" });
-    const again = toggleName(added, { kind: "player", value: "C.J. Stroud", sport: "Football" });
+    const again = toggleName(added, { kind: "player", value: "CJ Stroud", sport: "Football" });
     assert.equal(again.length, 1);
     assert.equal(again[0]?.value, "CJ Stroud");
-    assert.deepEqual(withoutName(added, { kind: "player", value: "C.J. Stroud" }), []);
+    const legacy = toggleName([{ kind: "player", value: "C.J. Stroud" }], {
+      kind: "player",
+      value: "CJ Stroud",
+      sport: "Football",
+    });
+    assert.deepEqual(legacy, [{ kind: "player", value: "CJ Stroud" }]);
+    const both = [
+      { kind: "player" as const, value: "C.J. Stroud" },
+      { kind: "player" as const, value: "CJ Stroud" },
+    ];
+    assert.deepEqual(withoutName(both, { kind: "player", value: "C.J. Stroud" }), [
+      { kind: "player", value: "CJ Stroud" },
+    ]);
+    assert.deepEqual(withoutName(both, { kind: "player", value: "CJ Stroud" }), [
+      { kind: "player", value: "C.J. Stroud" },
+    ]);
   });
 
   it("keeps unique Will Smith rows with no sport selected", async () => {
