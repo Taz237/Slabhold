@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 import {
   isFreshSoldWrite,
   respondSoldComps,
+  shouldBustCompsResult,
   SOLD_RATE_LIMIT_MESSAGE,
   SOLD_UNAVAILABLE_MESSAGE,
   soldNotice,
@@ -34,6 +35,34 @@ describe("isFreshSoldWrite", () => {
     assert.equal(isFreshSoldWrite({ cached: true, sample: false }), false);
     assert.equal(isFreshSoldWrite({ cached: false, sample: true }), false);
     assert.equal(isFreshSoldWrite(null), false);
+  });
+
+  it("does not clear comps on a cache hit whose stored result says cached false", () => {
+    const stored = { cached: false, sample: false };
+    assert.equal(shouldBustCompsResult(false, stored), false);
+    assert.equal(shouldBustCompsResult(true, stored), true);
+    assert.equal(shouldBustCompsResult(true, { cached: true, sample: false }), false);
+
+    const cache = new Map<string, typeof stored>();
+    const load = async () => {
+      let refreshedLive = false;
+      const hit = cache.get("card");
+      const payload =
+        hit ??
+        (() => {
+          refreshedLive = true;
+          const written = { cached: false, sample: false };
+          cache.set("card", written);
+          return written;
+        })();
+      return shouldBustCompsResult(refreshedLive, payload);
+    };
+    return load().then((first) => {
+      assert.equal(first, true);
+      return load().then((second) => {
+        assert.equal(second, false);
+      });
+    });
   });
 });
 

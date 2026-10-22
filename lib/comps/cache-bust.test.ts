@@ -38,15 +38,29 @@ function resolveImport(fromFile: string, spec: string): string | null {
   );
 }
 
-/** Project files a module can call, following static imports. */
+/** Drop comments so a mention in a note is not treated as a call. */
+function stripComments(text: string): string {
+  return text
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/(^|[^:"'])\/\/.*$/gm, "$1");
+}
+
+/** Project files a module can call, following static, re-export, and dynamic imports. */
 function reachable(entry: string, seen = new Set<string>()): string[] {
   const rel = entry.startsWith(ROOT) ? entry.slice(ROOT.length + 1) : entry;
   if (seen.has(rel)) return [];
   seen.add(rel);
-  const text = source(rel);
+  const text = stripComments(source(rel));
   const found = [rel];
-  for (const match of text.matchAll(/from ["']([^"']+)["']/g)) {
-    const next = resolveImport(rel, match[1]);
+  const specs = new Set<string>();
+  for (const match of text.matchAll(/\bfrom\s+["']([^"']+)["']/g)) {
+    if (match[1]) specs.add(match[1]);
+  }
+  for (const match of text.matchAll(/\bimport\(\s*["']([^"']+)["']\s*\)/g)) {
+    if (match[1]) specs.add(match[1]);
+  }
+  for (const spec of specs) {
+    const next = resolveImport(rel, spec);
     if (next) found.push(...reachable(next, seen));
   }
   return found;
@@ -57,7 +71,7 @@ describe("comps cache bust stays in request scope", () => {
     const hits: string[] = [];
     for (const entry of ENTRIES) {
       for (const file of reachable(entry)) {
-        if (BANNED.test(source(file))) hits.push(`${entry} -> ${file}`);
+        if (BANNED.test(stripComments(source(file)))) hits.push(`${entry} -> ${file}`);
       }
     }
     assert.deepEqual(hits, []);

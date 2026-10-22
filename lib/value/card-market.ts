@@ -65,31 +65,34 @@ function loadCachedSoldCompCard(cardId: string): Promise<SoldCompCard | null> {
 export async function loadCachedCardRefresh(
   cardId: string,
   options?: RefreshCardValueOptions,
-): Promise<RefreshCardValueResult> {
+): Promise<RefreshCardValueResult & { refreshedLive: boolean }> {
   const save = options?.save !== false;
   const cacheOnly = Boolean(options?.cacheOnly);
   const card = await loadCachedSoldCompCard(cardId);
   const identity = card ? compsResultCacheKey(card) : `missing|${cardId}`;
-  return unstable_cache(
+  let refreshedLive = false;
+  const result = await unstable_cache(
     async () => {
-      const result = await refreshCardValue(cardId, { ...options, card });
-      if (result.attempt.reason === "budget_exhausted" || !result.payload) {
-        throw new CardMarketUnavailable(result);
+      refreshedLive = true;
+      const fresh = await refreshCardValue(cardId, { ...options, card });
+      if (fresh.attempt.reason === "budget_exhausted" || !fresh.payload) {
+        throw new CardMarketUnavailable(fresh);
       }
       return {
-        status: result.status,
-        median: result.median,
-        low: result.low,
-        high: result.high,
-        nSales: result.nSales,
-        matchedAt: result.matchedAt,
-        attempt: result.attempt,
-        payload: result.payload,
+        status: fresh.status,
+        median: fresh.median,
+        low: fresh.low,
+        high: fresh.high,
+        nSales: fresh.nSales,
+        matchedAt: fresh.matchedAt,
+        attempt: fresh.attempt,
+        payload: fresh.payload,
       };
     },
     ["card-market", identity, save ? "save" : "read", cacheOnly ? "cache" : "live"],
     { tags: [cardCacheTag(cardId)], revalidate: COMPS_RESULT_REVALIDATE_SECONDS },
   )();
+  return { ...result, refreshedLive };
 }
 
 /** Stored card_values row for repeat views. Same tag as the comps cache. */

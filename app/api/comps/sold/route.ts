@@ -6,8 +6,8 @@ import {
 } from "@/lib/comps/rate-limit";
 import { lookupSoldCompsAccess } from "@/lib/comps/sold-access";
 import {
-  isFreshSoldWrite,
   respondSoldComps,
+  shouldBustCompsResult,
   SOLD_UNAVAILABLE_MESSAGE,
 } from "@/lib/comps/sold-response";
 import { getAuthUserId } from "@/lib/supabase/server";
@@ -45,7 +45,9 @@ export async function GET(request: Request) {
     lookupAccess: lookupSoldCompsAccess,
     loadRefresh: async (cardId, options) => {
       const refreshed = await loadCachedCardRefresh(cardId, options);
-      if (isFreshSoldWrite(refreshed.payload)) bustCompsResult(cardId);
+      if (shouldBustCompsResult(refreshed.refreshedLive, refreshed.payload)) {
+        bustCompsResult(cardId);
+      }
       return refreshed;
     },
     beforeRequest: () => consumeRequestLimit(userId),

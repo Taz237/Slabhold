@@ -245,6 +245,16 @@ describe("open to offers badge and profile filter", () => {
     assert.match(tile, /Jordan Love/);
     assert.match(tile, /2020 Select/);
 
+    const longLabel = renderToStaticMarkup(
+      createElement(ProfileCardCaption, {
+        card: { playerName: "Jordan Love", year: 2020, setBrand: "Select", openToOffers: false },
+        valueLabel: "Last sold $1,234.00 on Oct 2",
+      }),
+    );
+    assert.match(longLabel, /Last sold \$1,234\.00 on Oct 2/);
+    assert.match(longLabel, /line-clamp-2/);
+    assert.doesNotMatch(longLabel, /whitespace-nowrap/);
+
     const quiet = renderToStaticMarkup(
       createElement(ProfileCardCaption, {
         card: { playerName: "Jordan Love", year: 2020, setBrand: "Select", openToOffers: null },

@@ -19,8 +19,7 @@ import { cardCacheTag } from "@/lib/value/card-cache";
 import {
   fallbackSales,
   mergeExactSales,
-  newestBatchRows,
-  type CachedCompRow,
+  readNewestBatches,
   type FallbackSale,
 } from "@/lib/value/price-batch";
 import {
@@ -61,12 +60,6 @@ type PublicRow = {
   condition_type?: string | null;
   grade_qualifier?: string | null;
 };
-
-const SALE_COLUMNS =
-  "query_key, item_id, title, price, currency, sold_at, grader, grade, url, fetched_at";
-
-/** Enough rows for the newest batch of each key, without a second query per key. */
-const SOLD_CACHE_ROW_LIMIT = 480;
 
 const PUBLIC_COLUMNS =
   "id, user_id, player, year, year_label, set, set_name, grade, grader, parallel, card_number, serial_run, is_auto, is_relic, condition_type, grade_qualifier";
@@ -126,36 +119,16 @@ async function mapLimit<T, R>(
   return results;
 }
 
-type CacheReadRow = CachedCompRow & { query_key?: string | null };
-
-/** Newest batch of every key, from one ordered read. */
-async function readNewestBatches(
-  client: Admin,
-  keys: readonly string[],
-): Promise<Map<string, CachedCompRow[]>> {
-  const unique = [...new Set(keys.filter(Boolean))];
-  const out = new Map<string, CachedCompRow[]>();
-  for (const key of unique) out.set(key, []);
-  if (!unique.length) return out;
-
-  const { data, error } = await client
-    .from("sold_comps_cache")
-    .select(SALE_COLUMNS)
-    .in("query_key", unique)
-    .order("fetched_at", { ascending: false })
-    .limit(SOLD_CACHE_ROW_LIMIT);
-  if (error) throw new CompsResultError(error.message);
-
-  const grouped = new Map<string, CacheReadRow[]>();
-  for (const row of (data ?? []) as CacheReadRow[]) {
-    const key = String(row.query_key ?? "");
-    if (!key) continue;
-    const list = grouped.get(key) ?? [];
-    list.push(row);
-    grouped.set(key, list);
+/** This card and any identical public copy. Their batches are read outside the shared cap. */
+function exactCompQueryKeys(card: SoldCompCard, related: readonly PublicRow[]): string[] {
+  const keys = new Set<string>([buildQueryKey(card)]);
+  for (const row of related) {
+    if (!row.id || row.id === card.id) continue;
+    if (isSameCardIdentity(card, soldCardFromPublic(row))) {
+      keys.add(publicCardQueryKey(row));
+    }
   }
-  for (const [key, rows] of grouped) out.set(key, newestBatchRows(rows));
-  return out;
+  return [...keys];
 }
 
 async function flagsForCards(
@@ -225,11 +198,12 @@ async function readPriceContext(card: SoldCompCard, ownerId: string): Promise<Pr
     related.push(...((data ?? []) as PublicRow[]));
   }
 
-  const keys = new Set<string>([ownKey]);
+  const exactKeys = exactCompQueryKeys(card, related);
+  const keys = new Set<string>(exactKeys);
   for (const row of related) {
     if (row.id) keys.add(publicCardQueryKey(row));
   }
-  const batches = await readNewestBatches(client, [...keys]);
+  const batches = await readNewestBatches(client, [...keys], exactKeys);
 
   const flagPairs = [{ cardId: card.id, ownerId }];
   for (const row of related) {

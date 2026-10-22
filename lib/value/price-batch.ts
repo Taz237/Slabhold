@@ -1,3 +1,4 @@
+import { CompsResultError } from "@/lib/comps/comps-result-cache";
 import { sharedCompValue } from "@/lib/comps/shared-value";
 import type { CleanedSale, SoldCompCard } from "@/lib/comps/types";
 import type { CardValueSale } from "@/lib/value/types";
@@ -20,6 +21,96 @@ export type CachedCompRow = {
   url?: string | null;
   fetched_at?: string | null;
 };
+
+/**
+ * Shared read across similar cards. The subject's own batch and identical
+ * copies are not part of this cap: a busy neighbor cannot push them out.
+ */
+export const SOLD_CACHE_ROW_LIMIT = 480;
+
+const SALE_COLUMNS =
+  "query_key, item_id, title, price, currency, sold_at, grader, grade, url, fetched_at";
+
+type CacheReadRow = CachedCompRow & { query_key?: string | null };
+
+type CacheResponse = { data: unknown; error: { message: string } | null };
+
+interface CacheFilter extends PromiseLike<CacheResponse> {
+  in(column: string, values: readonly string[]): CacheFilter;
+  eq(column: string, value: string): CacheFilter;
+  order(column: string, options?: { ascending?: boolean }): CacheFilter;
+  limit(count: number): CacheFilter;
+}
+
+/** The Supabase builder gains filters only after select. */
+export type SoldCacheClient = {
+  from(table: string): unknown;
+};
+
+function cacheFilter(client: SoldCacheClient): CacheFilter {
+  const query = client.from("sold_comps_cache") as { select(columns: string): CacheFilter };
+  return query.select(SALE_COLUMNS);
+}
+
+async function readKeyBatch(client: SoldCacheClient, queryKey: string): Promise<CachedCompRow[]> {
+  const { data, error } = await cacheFilter(client)
+    .eq("query_key", queryKey)
+    .order("fetched_at", { ascending: false });
+  if (error) throw new CompsResultError(error.message);
+  return newestBatchRows((data ?? []) as CacheReadRow[]);
+}
+
+/**
+ * Newest batch for every key. `exactKeys` (this card and identical copies)
+ * are read on their own, so the shared cap cannot drop them.
+ * When that cap is hit, any other key the page cut off is read on its own too.
+ */
+export async function readNewestBatches(
+  client: SoldCacheClient,
+  keys: readonly string[],
+  exactKeys: readonly string[] = [],
+): Promise<Map<string, CachedCompRow[]>> {
+  const unique = [...new Set([...keys, ...exactKeys].filter(Boolean))];
+  const keep = new Set(exactKeys.filter(Boolean));
+  const out = new Map<string, CachedCompRow[]>();
+  for (const key of unique) out.set(key, []);
+  if (!unique.length) return out;
+
+  await Promise.all(
+    [...keep].filter((key) => unique.includes(key)).map(async (key) => {
+      out.set(key, await readKeyBatch(client, key));
+    }),
+  );
+
+  const rest = unique.filter((key) => !keep.has(key));
+  if (!rest.length) return out;
+
+  const { data, error } = await cacheFilter(client)
+    .in("query_key", rest)
+    .order("fetched_at", { ascending: false })
+    .limit(SOLD_CACHE_ROW_LIMIT);
+  if (error) throw new CompsResultError(error.message);
+  const rows = (data ?? []) as CacheReadRow[];
+  const grouped = new Map<string, CacheReadRow[]>();
+  for (const row of rows) {
+    const key = String(row.query_key ?? "");
+    if (!key || keep.has(key)) continue;
+    const list = grouped.get(key) ?? [];
+    list.push(row);
+    grouped.set(key, list);
+  }
+  for (const [key, batch] of grouped) out.set(key, newestBatchRows(batch));
+
+  if (rows.length >= SOLD_CACHE_ROW_LIMIT) {
+    const missing = rest.filter((key) => !grouped.has(key));
+    await Promise.all(
+      missing.map(async (key) => {
+        out.set(key, await readKeyBatch(client, key));
+      }),
+    );
+  }
+  return out;
+}
 
 /** Rows from the latest fetch. Older batches and the empty marker are dropped. */
 export function newestBatchRows<T extends { fetched_at?: string | null; item_id?: string | null }>(
