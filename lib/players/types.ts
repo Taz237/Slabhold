@@ -9,4 +9,6 @@ export type DirectoryPlayer = {
 export type IndexedDirectoryPlayer = DirectoryPlayer & {
   norm: string;
   words: readonly string[];
+  /** Single-letter runs joined, only when that differs from `words` ("c j" → "cj"). */
+  joined?: readonly string[];
 };
