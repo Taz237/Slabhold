@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { X } from "lucide-react";
 import { searchCatalog } from "@/lib/card-catalog";
+import { nameSuggestionLabel, withDirectoryPlayers } from "@/lib/players/suggest";
+import { usePlayerDirectory } from "@/lib/players/use-directory";
 import {
   COLLECT_TEAMS,
   collectSportChoices,
@@ -95,6 +97,7 @@ export function NameSearch({
     };
   }, [query]);
 
+  const directory = usePlayerDirectory();
   const players = useMemo(() => {
     const local = searchCatalog(query.trim(), 20).map((card) => ({
       name: card.playerName,
@@ -104,11 +107,17 @@ export function NameSearch({
     return [...local, ...remote];
   }, [query, remotePlayers, remoteQuery]);
 
-  const hits = interestTypeahead({
+  const hits = withDirectoryPlayers({
     query,
     sports,
-    players,
-    teams: COLLECT_TEAMS,
+    catalogHits: interestTypeahead({
+      query,
+      sports,
+      players,
+      teams: COLLECT_TEAMS,
+    }),
+    directoryPlayers: directory.players,
+    directoryReady: directory.ready,
   });
 
   return (
@@ -152,7 +161,7 @@ export function NameSearch({
                 }}
                 className="flex min-h-11 w-full items-center justify-between gap-3 px-4 text-left text-[15px] hover:bg-zinc-100 dark:hover:bg-white/10"
               >
-                <span className="truncate font-medium">{hit.value}</span>
+                <span className="truncate font-medium">{nameSuggestionLabel(hit)}</span>
                 <span className="shrink-0 text-xs text-zinc-500">
                   {hit.kind === "team" ? "Team" : "Player"}
                 </span>
