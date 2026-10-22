@@ -72,6 +72,7 @@ describe("Moving today module", () => {
     assert.match(html, /Oct 22/);
     assert.match(html, new RegExp(`href="/u/ada/cards/${CARD}"`));
     assert.match(html, /aria-label="Share"/);
+    assert.match(html, /max-md:pr-20/);
     assert.doesNotMatch(html, /No sales|Nothing moving/i);
   });
 
