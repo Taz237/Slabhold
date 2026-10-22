@@ -9,6 +9,7 @@ import {
   dropOwnerFlaggedSales,
   HONEST_MIN_COMPARISON_SALES,
   MOVING_TODAY_FALLBACK_DAYS,
+  freshenMovingToday,
   movingDayHeading,
   movingDayIsRecent,
   newYorkDayWindow,
@@ -221,6 +222,39 @@ describe("New York sale day", () => {
     assert.equal(movingDayIsRecent(addCalendarDays(TODAY, -1), TODAY), true);
     assert.equal(movingDayIsRecent(addCalendarDays(TODAY, -2), TODAY), true);
     assert.equal(movingDayIsRecent(addCalendarDays(TODAY, -3), TODAY), false);
+  });
+
+  it("relabels a cached today list after midnight and hides one older than two days", () => {
+    const cached = {
+      title: "Moving today",
+      date: TODAY,
+      dateLabel: "Oct 22",
+      sales: [
+        {
+          cardId: CARD,
+          href: `/u/ada/cards/${CARD}`,
+          player: "Victor Wembanyama",
+          detail: "2023-24 · Prizm",
+          imageUrl: null,
+          accent: "#7c5cff",
+          priceCents: 20000,
+          priceLabel: "$200.00",
+          soldOn: TODAY,
+          soldLabel: "Oct 22",
+          percent: null,
+          percentLabel: null,
+        },
+      ],
+    };
+    const justAfterMidnight = freshenMovingToday(cached, new Date("2026-10-23T04:30:00.000Z"));
+    assert.equal(justAfterMidnight.date, TODAY);
+    assert.equal(justAfterMidnight.title, "Moving yesterday");
+    assert.equal(justAfterMidnight.sales.length, 1);
+    assert.notEqual(justAfterMidnight.title, cached.title);
+
+    const thirdDay = freshenMovingToday(cached, new Date("2026-10-25T16:00:00.000Z"));
+    assert.equal(thirdDay.sales.length, 0);
+    assert.equal(thirdDay.title, "Moving today");
   });
 });
 

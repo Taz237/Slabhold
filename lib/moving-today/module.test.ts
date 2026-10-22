@@ -4,7 +4,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, it } from "node:test";
 import { join } from "node:path";
-import { MovingToday, MovingTodayPanel, movingTodayReservedHeight } from "@/components/moving-today";
+import { MovingToday, MovingTodayPanel } from "@/components/moving-today";
 import {
   createTtlCache,
   MOVING_TODAY_CACHE_SECONDS,
@@ -45,9 +45,8 @@ describe("Moving today module", () => {
     assert.equal(loading, "");
     assert.equal(empty, "");
     const source = read("components/moving-today.tsx");
-    assert.doesNotMatch(source, /min-h-\[148px\]/);
+    assert.doesNotMatch(source, /min-h-\[148px\]|minHeight|movingTodayReservedHeight/);
     assert.doesNotMatch(source, /animate-pulse/);
-    assert.equal(movingTodayReservedHeight(0), null);
   });
 
   it("hides the module when there is nothing to show", () => {
@@ -65,9 +64,7 @@ describe("Moving today module", () => {
         sales: [sale()],
       }),
     );
-    assert.doesNotMatch(html, /min-h-\[148px\]/);
-    assert.match(html, /min-height:/);
-    assert.equal(movingTodayReservedHeight(1), 140);
+    assert.doesNotMatch(html, /min-height|min-h-\[148px\]/);
     assert.match(html, /Victor Wembanyama/);
     assert.match(html, /\$200\.00/);
     assert.match(html, /\+40%/);
@@ -133,6 +130,12 @@ describe("Moving today cache", () => {
     assert.match(route, /movingTodayCacheControl/);
     assert.match(route, /private, no-store/);
     assert.match(load, /movingDayIsRecent/);
+    assert.match(load, /freshenMovingToday/);
+    const cachedCall = load.indexOf("unstable_cache(");
+    const freshenCall = load.indexOf("return freshenMovingToday");
+    assert.ok(cachedCall > 0 && freshenCall > cachedCall);
+    assert.match(read("components/moving-today-slot.tsx"), /await connection\(\)/);
+    assert.doesNotMatch(read("app/page.tsx"), /revalidate/);
     assert.match(load, /sold_comps_cache/);
     const page = read("app/moving-today/page.tsx");
     assert.match(page, /generateMetadata/);

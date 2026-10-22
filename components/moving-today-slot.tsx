@@ -1,9 +1,11 @@
+import { connection } from "next/server";
 import { MovingTodayPanel } from "@/components/moving-today";
 import { getMovingToday } from "@/lib/moving-today/load";
 import { shouldShowMovingToday } from "@/lib/moving-today/types";
 
-/** Server render so a day with sales already occupies its height. */
+/** Server render. The heading uses the request clock, not a cached label. */
 export async function MovingTodaySlot() {
+  await connection();
   let payload;
   try {
     payload = await getMovingToday();

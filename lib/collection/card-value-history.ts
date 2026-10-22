@@ -51,10 +51,45 @@ export function isFreshMatchedCardValue(row: { status?: unknown; median?: unknow
 }
 
 /**
+ * Last card id written in rotation order.
+ * A wrapped batch ends at the low id, not at the maximum id.
+ */
+export function historyRotationCursor(
+  orderedCardIds: readonly string[],
+  writtenIds: readonly string[],
+): string | null {
+  const written = new Set(writtenIds.filter(Boolean));
+  const ordered = orderedCardIds.filter(Boolean);
+  const count = ordered.length;
+  if (count === 0 || written.size === 0) return null;
+  const flags = ordered.map((id) => written.has(id));
+  const writtenCount = flags.reduce((sum, flag) => sum + (flag ? 1 : 0), 0);
+  if (writtenCount === 0) return null;
+  if (writtenCount === count) return ordered[count - 1] ?? null;
+
+  let bestLength = 0;
+  let bestEnd = -1;
+  for (let start = 0; start < count; start++) {
+    if (!flags[start]) continue;
+    if (flags[(start - 1 + count) % count]) continue;
+    let length = 0;
+    let cursor = start;
+    while (flags[cursor] && length < count) {
+      length += 1;
+      cursor = (cursor + 1) % count;
+    }
+    if (length > bestLength) {
+      bestLength = length;
+      bestEnd = (cursor - 1 + count) % count;
+    }
+  }
+  return bestEnd >= 0 ? (ordered[bestEnd] ?? null) : null;
+}
+
+/**
  * Next batch of cards for one cron run.
- * Skips ids already written for this snapshot, continues after the largest
- * of those ids (or `afterCardId` when this snapshot is still empty), and
- * wraps to the lowest ids once the end is passed.
+ * Skips ids already written for this snapshot, continues after `afterCardId`,
+ * and wraps to the lowest ids once the end is passed.
  */
 export function rotateCardValueHistoryBatch<T extends { cardId: string }>(
   cards: readonly T[],

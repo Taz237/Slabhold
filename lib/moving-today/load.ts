@@ -12,6 +12,7 @@ import {
 } from "./present";
 import {
   addCalendarDays,
+  freshenMovingToday,
   movingDayIsRecent,
   newYorkDayWindow,
   RECENT_AVERAGE_DAYS,
@@ -291,11 +292,16 @@ async function readProfiles(
   return profiles;
 }
 
-/** Cached catalog read from sold_comps_cache. No live listing fetch. */
-export function getMovingToday(): Promise<MovingTodayPayload> {
-  return unstable_cache(
+/**
+ * Cached catalog read from sold_comps_cache. No live listing fetch.
+ * The sale list is cached. The heading is chosen from the sale date and
+ * the current New York date after the cache returns. A thrown read is not stored.
+ */
+export async function getMovingToday(now: Date = new Date()): Promise<MovingTodayPayload> {
+  const cached = await unstable_cache(
     () => memoryCache.read(() => readMovingToday(new Date())),
     ["moving-today"],
     { revalidate: MOVING_TODAY_CACHE_SECONDS },
   )();
+  return freshenMovingToday(cached, now);
 }

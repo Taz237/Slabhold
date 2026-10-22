@@ -4,18 +4,13 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { CardThumb } from "@/components/card-thumb";
 import { ShareIconButton } from "@/components/share-button";
+import { freshenMovingToday } from "@/lib/moving-today/rank";
 import {
   MOVING_TODAY_PATH,
   shouldShowMovingToday,
   type MovingTodayPayload,
   type MovingTodaySale,
 } from "@/lib/moving-today/types";
-
-/** Height of the populated module, so the composer below it stays put. */
-export function movingTodayReservedHeight(saleCount: number): number | null {
-  if (saleCount < 1) return null;
-  return 64 + saleCount * 76;
-}
 
 function percentClass(percent: number | null): string {
   if (percent == null || percent === 0) return "text-zinc-500";
@@ -33,13 +28,11 @@ export function MovingTodayPanel({
   sales: MovingTodaySale[];
 }) {
   if (!shouldShowMovingToday(sales)) return null;
-  const reservedHeight = movingTodayReservedHeight(sales.length);
 
   return (
     <section
       aria-label={heading}
       data-moving-today=""
-      style={reservedHeight ? { minHeight: reservedHeight } : undefined}
       className="border-b border-zinc-200 px-4 py-3 dark:border-white/10"
     >
       <div className="mb-1 flex items-center justify-between gap-2">
@@ -94,7 +87,7 @@ export function MovingToday() {
       try {
         const response = await fetch("/api/moving-today", { signal: controller.signal });
         if (!response.ok) throw new Error("Moving today unavailable");
-        const payload = (await response.json()) as MovingTodayPayload;
+        const payload = freshenMovingToday((await response.json()) as MovingTodayPayload);
         if (cancelled) return;
         setView(shouldShowMovingToday(payload.sales) ? payload : null);
       } catch (error) {

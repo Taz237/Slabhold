@@ -8,6 +8,7 @@ import {
   CARD_VALUE_HISTORY_RUN_CAP,
   cardValueHistoryEnabled,
   historyRetentionCutoff,
+  historyRotationCursor,
   isFreshMatchedCardValue,
   rotateCardValueHistoryBatch,
   isMissingRelation,
@@ -130,6 +131,42 @@ describe("card value history rotation", () => {
     assert.equal(second.some((card) => card.cardId <= "card-1000"), false);
     assert.equal(second.length, 200);
   });
+
+  it("writes each of 1200 cards once before any repeat across two days", () => {
+    const cards = Array.from({ length: 1200 }, (_, index) => ({
+      cardId: `card-${String(index + 1).padStart(4, "0")}`,
+    }));
+    const orderedIds = cards.map((card) => card.cardId);
+    const day1 = rotateCardValueHistoryBatch(cards, {
+      cap: 1000,
+      alreadyWrittenIds: [],
+    });
+    const cursor = historyRotationCursor(orderedIds, day1.map((card) => card.cardId));
+    assert.equal(cursor, "card-1000");
+    assert.equal(cursor, day1.at(-1)?.cardId);
+
+    const day2 = rotateCardValueHistoryBatch(cards, {
+      cap: 1000,
+      alreadyWrittenIds: [],
+      afterCardId: cursor,
+    });
+    const seen = new Set<string>();
+    for (const card of [...day1, ...day2]) {
+      if (seen.has(card.cardId)) {
+        assert.equal(seen.size, 1200);
+        break;
+      }
+      seen.add(card.cardId);
+    }
+    assert.equal(seen.size, 1200);
+
+    const nextCursor = historyRotationCursor(orderedIds, day2.map((card) => card.cardId));
+    const maxId = day2.reduce((max, card) => (card.cardId > max ? card.cardId : max), "");
+    assert.equal(nextCursor, "card-0800");
+    assert.equal(nextCursor, day2.at(-1)?.cardId);
+    assert.equal(maxId, "card-1200");
+    assert.notEqual(nextCursor, maxId);
+  });
 });
 
 describe("card value history migration and cron", () => {
@@ -170,7 +207,8 @@ describe("card value history migration and cron", () => {
     assert.equal(isFreshMatchedCardValue({ status: "sample", median: 40 }), false);
     assert.equal(isFreshMatchedCardValue({ status: "no_sales", median: null }), false);
     assert.match(run, /rotateCardValueHistoryBatch/);
-    assert.match(run, /\.gt\("card_id", input\.afterCardId\)/);
+    assert.match(run, /historyRotationCursor/);
+    assert.doesNotMatch(run, /ascending: false/);
 
     const vercel = read("vercel.json");
     assert.doesNotMatch(vercel, /card-value-history/);

@@ -1,5 +1,6 @@
 import { dollarsToCents } from "@/lib/comps/stats";
 import { isUuid } from "@/lib/value/card-value-access";
+import { emptyMovingToday, type MovingTodayPayload } from "./types";
 
 const NEW_YORK = "America/New_York";
 
@@ -81,6 +82,27 @@ export function movingDayIsRecent(
   if (!/^\d{4}-\d{2}-\d{2}$/.test(shownDate) || !/^\d{4}-\d{2}-\d{2}$/.test(today)) return false;
   if (shownDate > today) return false;
   return shownDate >= addCalendarDays(today, -days);
+}
+
+/**
+ * Heading from the sale date and the current New York date.
+ * Cached title text is ignored. A sale older than two days is hidden.
+ */
+export function freshenMovingToday(
+  payload: MovingTodayPayload,
+  now: Date = new Date(),
+): MovingTodayPayload {
+  const today = calendarDateInTimeZone(now);
+  const saleDate = payload.date || payload.sales.find((sale) => sale.soldOn)?.soldOn || "";
+  if (!movingDayIsRecent(saleDate, today) || payload.sales.length === 0) {
+    return emptyMovingToday(today);
+  }
+  return {
+    ...payload,
+    date: saleDate,
+    title: movingDayHeading(saleDate, today),
+    dateLabel: formatSaleDate(saleDate),
+  };
 }
 
 /** Honest heading. A fallback day is not labeled as today. */

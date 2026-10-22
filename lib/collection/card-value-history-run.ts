@@ -9,6 +9,7 @@ import {
   CARD_VALUE_HISTORY_RUN_CAP,
   CARD_VALUE_HISTORY_TABLE,
   historyRetentionCutoff,
+  historyRotationCursor,
   isFreshMatchedCardValue,
   isMissingRelation,
   numericFromUnknown,
@@ -52,48 +53,26 @@ async function writtenCardIds(admin: Admin, snapshotDate: string): Promise<Set<s
   return ids;
 }
 
-async function largestWrittenCardId(admin: Admin, snapshotDate: string): Promise<string | null> {
-  const { data, error } = await admin
-    .from(CARD_VALUE_HISTORY_TABLE)
-    .select("card_id")
-    .eq("snapshot_date", snapshotDate)
-    .order("card_id", { ascending: false })
-    .limit(1);
-  if (error) throw new Error(error.message);
-  const cardId = data?.[0]?.card_id;
-  return typeof cardId === "string" && cardId ? cardId : null;
-}
-
-async function queryFreshValues(
+async function listFreshCatalog(
   admin: Admin,
-  input: {
-    afterCardId: string | null;
-    beforeInclusive: string | null;
-    limit: number;
-    skip: ReadonlySet<string>;
-  },
 ): Promise<{ cardId: string; median: number }[]> {
   const values: { cardId: string; median: number }[] = [];
-  if (input.limit <= 0) return values;
   let from = 0;
-  while (values.length < input.limit) {
-    let query = admin
+  for (;;) {
+    const { data, error } = await admin
       .from("card_values")
       .select("card_id, median, status")
       .eq("status", "ok")
-      .order("card_id", { ascending: true });
-    if (input.afterCardId) query = query.gt("card_id", input.afterCardId);
-    if (input.beforeInclusive) query = query.lte("card_id", input.beforeInclusive);
-    const { data, error } = await query.range(from, from + CARD_PAGE - 1);
+      .order("card_id", { ascending: true })
+      .range(from, from + CARD_PAGE - 1);
     if (error) throw new Error(error.message);
     const page = data ?? [];
     for (const row of page) {
       if (!isFreshMatchedCardValue(row)) continue;
       const cardId = typeof row.card_id === "string" ? row.card_id : "";
       const median = numericFromUnknown(row.median);
-      if (!cardId || median == null || input.skip.has(cardId)) continue;
+      if (!cardId || median == null) continue;
       values.push({ cardId, median });
-      if (values.length >= input.limit) break;
     }
     if (page.length < CARD_PAGE) break;
     from += CARD_PAGE;
@@ -106,28 +85,13 @@ async function listFreshValues(
   snapshotDate: string,
   previousDate: string,
 ): Promise<{ cardId: string; median: number }[]> {
+  const catalog = await listFreshCatalog(admin);
+  const orderedIds = catalog.map((row) => row.cardId);
   const writtenToday = await writtenCardIds(admin, snapshotDate);
-  let afterCardId: string | null = null;
-  for (const id of writtenToday) {
-    if (afterCardId == null || id > afterCardId) afterCardId = id;
-  }
-  if (!afterCardId) afterCardId = await largestWrittenCardId(admin, previousDate);
-  const after = await queryFreshValues(admin, {
-    afterCardId,
-    beforeInclusive: null,
-    limit: CARD_VALUE_HISTORY_RUN_CAP,
-    skip: writtenToday,
-  });
-  const wrap =
-    afterCardId && after.length < CARD_VALUE_HISTORY_RUN_CAP
-      ? await queryFreshValues(admin, {
-          afterCardId: null,
-          beforeInclusive: afterCardId,
-          limit: CARD_VALUE_HISTORY_RUN_CAP - after.length,
-          skip: writtenToday,
-        })
-      : [];
-  return rotateCardValueHistoryBatch([...after, ...wrap], {
+  const afterCardId =
+    historyRotationCursor(orderedIds, [...writtenToday]) ??
+    historyRotationCursor(orderedIds, [...(await writtenCardIds(admin, previousDate))]);
+  return rotateCardValueHistoryBatch(catalog, {
     cap: CARD_VALUE_HISTORY_RUN_CAP,
     alreadyWrittenIds: [...writtenToday],
     afterCardId,
