@@ -1,19 +1,34 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { describe, it } from "node:test";
+import { fileURLToPath } from "node:url";
 import {
+  BLANKET_RULE,
   LOWER_BASELINE_MESSAGE,
+  addBlanketFindings,
+  allowsBaselineWrite,
   collectFindings,
   diffFindings,
+  exitCodeForDiff,
+  findBlanketDisables,
   findingKey,
+  main,
   parseBaseline,
   readBaselineFile,
   totals,
 } from "./check-lint-baseline.mjs";
 
+const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
+
 const root = "/repo";
+
+function committedBaseline(): Array<[string, number]> {
+  const baseline = readBaselineFile(join(repoRoot, "eslint-baseline.json"));
+  assert.equal(baseline.error, undefined);
+  return baseline.entries as Array<[string, number]>;
+}
 
 describe("lint baseline findings", () => {
   it("counts severity file:rule and ignores line and column", () => {
@@ -74,5 +89,73 @@ describe("lint baseline findings", () => {
     assert.deepEqual(parseBaseline({ "warning lib/a.ts:no-console": 2 }).entries, [
       ["warning lib/a.ts:no-console", 2],
     ]);
+  });
+
+  it("flags a new file with a blanket disable and an any", () => {
+    const dir = mkdtempSync(join(tmpdir(), "blanket-new-"));
+    const file = join(dir, "new-file.ts");
+    const source = "/* eslint-disable */\nexport const value: any = 1;\n";
+    writeFileSync(file, source);
+    const hits = findBlanketDisables(readFileSync(file, "utf8"));
+    assert.equal(hits.length, 1);
+    const finding = findingKey("error", "scripts/new-file.ts", BLANKET_RULE);
+    const entries = committedBaseline();
+    const counts = new Map<string, number>(entries);
+    const details = new Map<string, string[]>();
+    addBlanketFindings(counts, details, [{ file: "scripts/new-file.ts", line: hits[0].line, column: hits[0].column }]);
+    const diff = diffFindings(entries, counts);
+    assert.equal(exitCodeForDiff(diff), 1);
+    assert.deepEqual(diff.added, [{ finding, count: 1 }]);
+    assert.match(details.get(finding)?.join("\n") ?? "", /blanket-disable/);
+  });
+
+  it("flags an existing file when a blanket disable is added", () => {
+    const rel = "lib/format.ts";
+    const original = readFileSync(join(repoRoot, rel), "utf8");
+    assert.equal(findBlanketDisables(original).length, 0);
+    const source = `// eslint-disable-next-line\n${original}`;
+    const hits = findBlanketDisables(source);
+    assert.equal(hits.length, 1);
+    const finding = findingKey("error", rel, BLANKET_RULE);
+    const entries = committedBaseline();
+    const counts = new Map<string, number>(entries);
+    addBlanketFindings(counts, new Map(), [{ file: rel, line: hits[0].line, column: hits[0].column }]);
+    const diff = diffFindings(entries, counts);
+    assert.equal(exitCodeForDiff(diff), 1);
+    assert.equal(diff.added.some((item) => item.finding === finding), true);
+  });
+
+  it("ignores disables that name a rule and disables written inside strings", () => {
+    const ruled = [
+      "// eslint-disable-next-line @next/next/no-img-element\n",
+      "/* eslint-disable no-alert, no-console */\n",
+      "{/* eslint-disable-next-line @next/next/no-img-element */}\n",
+      "const sample = \"/* eslint-disable */\";\n",
+      "const line = '// eslint-disable-next-line';\n",
+    ].join("");
+    assert.deepEqual(findBlanketDisables(ruled), []);
+    assert.equal(findBlanketDisables("// eslint-disable-line\nconst n = 1;\n").length, 1);
+  });
+
+  it("refuses to add or raise baseline entries unless --allow-increase is passed", () => {
+    const added = { added: [{ finding: "error lib/a.ts:no-unused-vars", count: 1 }], raised: [], lowered: [] };
+    const raised = {
+      added: [],
+      raised: [{ finding: "error lib/a.ts:no-unused-vars", from: 1, count: 2 }],
+      lowered: [],
+    };
+    const lowered = {
+      added: [],
+      raised: [],
+      lowered: [{ finding: "error lib/a.ts:no-unused-vars", from: 2, count: 1 }],
+    };
+    assert.equal(allowsBaselineWrite(added, false), false);
+    assert.equal(allowsBaselineWrite(raised, false), false);
+    assert.equal(allowsBaselineWrite(added, true), true);
+    assert.equal(allowsBaselineWrite(lowered, false), true);
+  });
+
+  it("main exits 0 on this tree", { timeout: 60_000 }, () => {
+    assert.equal(main(["node", "scripts/check-lint-baseline.mjs"]), 0);
   });
 });
