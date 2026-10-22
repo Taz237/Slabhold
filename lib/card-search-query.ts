@@ -479,6 +479,126 @@ function compareHits(
   });
 }
 
+/**
+ * Parallel words are not player names. search_cards skips these when it picks
+ * the trigram anchor so "ohtani refractor" anchors on ohtani, not refractor.
+ * Keep this list in sync with parallel_hints in the catalog search migration.
+ */
+export const PARALLEL_ANCHOR_SKIP = new Set([
+  "base",
+  "silver",
+  "holo",
+  "refractor",
+  "green",
+  "gold",
+  "golden",
+  "red",
+  "blue",
+  "purple",
+  "orange",
+  "pink",
+  "black",
+  "white",
+  "yellow",
+  "velocity",
+  "pandora",
+  "shimmer",
+  "cracked",
+  "snakeskin",
+  "wave",
+  "scope",
+  "ice",
+]);
+
+/** Longest player word that is not a parallel hint. Null when every word is one. */
+export function catalogCandidateAnchor(playerWords: readonly string[]): string | null {
+  let anchor: string | null = null;
+  let best = 0;
+  for (const word of playerWords) {
+    if (!word || PARALLEL_ANCHOR_SKIP.has(word)) continue;
+    if (word.length > best) {
+      anchor = word;
+      best = word.length;
+    }
+  }
+  return anchor;
+}
+
+/**
+ * True when the query has no player anchor, year, card number, or set word.
+ * search_cards returns no rows instead of scanning the catalog.
+ */
+export function catalogCandidateRefusesScan(parsed: ParsedCardQuery): boolean {
+  return (
+    catalogCandidateAnchor(parsed.playerWords) == null &&
+    !parsed.yearLabel &&
+    !parsed.cardNumber &&
+    parsed.setWords.length === 0
+  );
+}
+
+function longestWord(words: readonly string[]): string | null {
+  let best: string | null = null;
+  for (const word of words) {
+    if (!best || word.length > best.length) best = word;
+  }
+  return best;
+}
+
+function anchorSimilarity(anchor: string, card: SearchableCard): number {
+  const player = normalizeSearchText(card.player);
+  const words = player.split(" ").filter(Boolean);
+  if (words.includes(anchor)) return 1;
+  if (player.includes(anchor) || card.searchText.includes(anchor)) return 0.75;
+  let best = 0;
+  for (const word of words) {
+    const score = bigramSimilarity(anchor, word);
+    if (score > best) best = score;
+  }
+  return best;
+}
+
+function anchorHitsCandidate(anchor: string, card: SearchableCard): boolean {
+  const player = normalizeSearchText(card.player);
+  if (player.includes(anchor) || card.searchText.includes(anchor)) return true;
+  return player
+    .split(" ")
+    .filter(Boolean)
+    .some((word) => bigramSimilarity(anchor, word) >= 0.5);
+}
+
+/**
+ * At most 300 index candidates, mirroring the prefilter inside public.search_cards.
+ * Year and card number are hard filters. A set-only query must match a set word
+ * in search text. A parallel-only query returns nothing.
+ */
+export function prefilterCatalogCandidates(
+  cards: SearchableCard[],
+  parsed: ParsedCardQuery,
+  limit = 300,
+): SearchableCard[] {
+  if (catalogCandidateRefusesScan(parsed)) return [];
+  const anchor = catalogCandidateAnchor(parsed.playerWords);
+  const yearPrefix = parsed.yearLabel ? parsed.yearLabel.slice(0, 4) : null;
+  const number = parsed.cardNumber ? parsed.cardNumber.toLowerCase() : null;
+  const setAnchor = longestWord(parsed.setWords);
+  const cap = Math.max(1, Math.min(limit, 300));
+
+  const matched = cards.filter((card) => {
+    if (yearPrefix && !card.yearLabel.startsWith(yearPrefix)) return false;
+    if (number && card.cardNumber.toLowerCase() !== number) return false;
+    if (anchor) return anchorHitsCandidate(anchor, card);
+    if (setAnchor) return card.searchText.includes(setAnchor);
+    return yearPrefix != null || number != null;
+  });
+
+  return matched
+    .map((card) => ({ card, sim: anchor ? anchorSimilarity(anchor, card) : 0 }))
+    .sort((a, b) => b.sim - a.sim || a.card.player.localeCompare(b.card.player))
+    .slice(0, cap)
+    .map((row) => row.card);
+}
+
 export function searchCardsLocal(
   query: string,
   cards: SearchableCard[],
@@ -491,6 +611,9 @@ export function searchCardsLocal(
   const tokens = tokensToMatch(parsed);
   if (!tokens.length) return [];
 
+  // Same ranking as public.search_cards. The SQL function ranks at most 300
+  // trigram candidates first; this path ranks whatever list it is given so the
+  // existing catalog tests stay on the full in-memory seed.
   const ranked = cards
     .map((card) => {
       const hits = matchQueryTokens(card, tokens);

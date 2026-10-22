@@ -4,13 +4,17 @@ import {
   CARD_CATALOG,
   resolveCatalogSearch,
   searchCatalog,
+  toSearchableCard,
 } from "@/lib/card-catalog";
 import {
   buildSearchText,
+  catalogCandidateAnchor,
+  catalogCandidateRefusesScan,
   expandAliasTokens,
   normalizeSearchText,
   parseCardQuery,
   parseManualPrefill,
+  prefilterCatalogCandidates,
   searchCardsLocal,
   type SearchableCard,
 } from "@/lib/card-search-query";
@@ -378,6 +382,66 @@ describe("searchCatalog ranking", () => {
       parallelLast.map((hit) => hit.id),
       ["set-name", "parallel-name"],
     );
+  });
+
+  it("keeps jaxson dart, wemby rookie, and ohtani refractor after the candidate prefilter", () => {
+    assert.equal(searchCatalog("jaxson dart").length, 1);
+    assert.equal(searchCatalog("wemby rookie").length, 4);
+    assert.equal(searchCatalog("ohtani refractor").length, 1);
+
+    const all = CARD_CATALOG.map(toSearchableCard);
+    for (const query of ["jaxson dart", "wemby rookie", "ohtani refractor"] as const) {
+      const full = searchCardsLocal(query, all).map((hit) => hit.id);
+      const narrowed = searchCardsLocal(
+        query,
+        prefilterCatalogCandidates(all, parseCardQuery(query)),
+      ).map((hit) => hit.id);
+      assert.deepEqual(narrowed, full, query);
+    }
+  });
+});
+
+describe("catalog candidate prefilter", () => {
+  it("anchors on the player when a parallel word is longer", () => {
+    assert.equal(catalogCandidateAnchor(["ohtani", "refractor"]), "ohtani");
+    assert.equal(catalogCandidateAnchor(["jaxson", "dart"]), "jaxson");
+    assert.equal(catalogCandidateAnchor(["victor", "wembanyama"]), "wembanyama");
+    assert.equal(catalogCandidateAnchor(["refractor"]), null);
+    assert.equal(catalogCandidateRefusesScan(parseCardQuery("refractor")), true);
+    assert.equal(catalogCandidateRefusesScan(parseCardQuery("prizm")), false);
+    assert.equal(catalogCandidateRefusesScan(parseCardQuery("2024")), false);
+    assert.equal(catalogCandidateRefusesScan(parseCardQuery("332")), false);
+  });
+
+  it("returns at most 300 candidates and still keeps a distinctive player", () => {
+    const cards = Array.from({ length: 400 }, (_, index) =>
+      asSearchable({
+        id: `jaxson-${index}`,
+        player: `Jaxson Player ${index}`,
+        yearLabel: "2024",
+        setName: "Panini Prizm",
+        cardNumber: String(index + 1),
+      }),
+    );
+    cards.push(
+      asSearchable({
+        id: "zzqxv",
+        player: "Zzqxv Unique",
+        yearLabel: "1999",
+        setName: "Hoops",
+        cardNumber: "7",
+      }),
+    );
+    const capped = prefilterCatalogCandidates(cards, parseCardQuery("jaxson"));
+    assert.equal(capped.length, 300);
+    assert.equal(capped.every((card) => card.player.startsWith("Jaxson")), true);
+
+    const distinctive = prefilterCatalogCandidates(cards, parseCardQuery("zzqxv"));
+    assert.deepEqual(
+      distinctive.map((card) => card.id),
+      ["zzqxv"],
+    );
+    assert.deepEqual(prefilterCatalogCandidates(cards, parseCardQuery("silver")), []);
   });
 });
 
