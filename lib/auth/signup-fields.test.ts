@@ -17,6 +17,7 @@ import {
   resendCooldownSeconds,
   showTurnstileContinue,
   signupInboxCopy,
+  signupNow,
   signupResendFeedback,
   usernameFieldError,
 } from "./signup-fields";
@@ -72,6 +73,9 @@ describe("signup confirmation resend", () => {
     assert.equal(resendCooldownSeconds(sentAt, sentAt + 59_000), 1);
     assert.equal(resendCooldownSeconds(sentAt, sentAt + 60_000), 0);
     assert.equal(resendCooldownSeconds(0, sentAt), 0);
+    const before = Date.now();
+    const clock = signupNow();
+    assert.ok(clock >= before && clock <= Date.now());
   });
 
   it("uses a friendly rate-limit message and hides the provider text", () => {

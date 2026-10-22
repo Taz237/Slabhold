@@ -19,6 +19,7 @@ import {
   passwordFieldError,
   resendCooldownSeconds,
   showTurnstileContinue,
+  signupNow,
   signupInboxCopy,
   signupResendFeedback,
   usernameFieldError,
@@ -60,8 +61,8 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
 
   useEffect(() => {
     if (!confirmEmail) return;
-    if (resendCooldownSeconds(resendAt, Date.now()) <= 0) return;
-    const timer = window.setTimeout(() => setNow(Date.now()), 1000);
+    if (resendCooldownSeconds(resendAt, signupNow()) <= 0) return;
+    const timer = window.setTimeout(() => setNow(signupNow()), 1000);
     return () => window.clearTimeout(timer);
   }, [confirmEmail, resendAt, now]);
 
@@ -96,7 +97,7 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
     releaseCaptcha(captchaRef.current, () => setCaptchaToken(null));
     if (result.notice) {
       if (mode === "signup") {
-        const sentAt = Date.now();
+        const sentAt = signupNow();
         setConfirmEmail(email.trim());
         setResendAt(sentAt);
         setNow(sentAt);
@@ -110,7 +111,7 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
   }
 
   async function resendConfirmation() {
-    if (!confirmEmail || resendBusy || resendCooldownSeconds(resendAt, Date.now()) > 0) return;
+    if (!confirmEmail || resendBusy || resendCooldownSeconds(resendAt, signupNow()) > 0) return;
     setResendBusy(true);
     setResendError(null);
     try {
@@ -127,13 +128,13 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
       if (feedback) {
         setResendError(feedback.message);
         if (feedback.rateLimited) {
-          const sentAt = Date.now();
+          const sentAt = signupNow();
           setResendAt(sentAt);
           setNow(sentAt);
         }
         return;
       }
-      const sentAt = Date.now();
+      const sentAt = signupNow();
       setResendAt(sentAt);
       setNow(sentAt);
     } catch {

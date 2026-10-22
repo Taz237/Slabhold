@@ -47,6 +47,11 @@ export function showTurnstileContinue(siteKey: string, token: string | null): bo
   return siteKey.trim().length > 0 && !token;
 }
 
+/** Clock for the resend cooldown. Kept out of the form so render stays pure. */
+export function signupNow(): number {
+  return Date.now();
+}
+
 export function resendCooldownSeconds(sentAt: number, now: number): number {
   if (!Number.isFinite(sentAt) || sentAt <= 0 || !Number.isFinite(now)) return 0;
   const leftMs = sentAt + RESEND_COOLDOWN_SECONDS * 1000 - now;
