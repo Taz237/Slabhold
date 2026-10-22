@@ -8,6 +8,7 @@ import { ArrowLeft } from "lucide-react";
 import { CardCollectorsSaying } from "@/components/card-collectors-saying";
 import { CardOwnersSection } from "@/components/card-owners";
 import { CardPeopleSections } from "@/components/card-people";
+import { EmptyPriceNote } from "@/components/ebay-sold-link";
 import { WantButton } from "@/components/want-button";
 import { CardThumb } from "@/components/card-thumb";
 import { CompBasis } from "@/components/comp-basis";
@@ -22,6 +23,7 @@ import { isCardOwner } from "@/lib/comps/ownership";
 import { basedOnSalesLabel, countForSalesLabel, valueFromShownSales } from "@/lib/comps/shared-value";
 import { soldNotice } from "@/lib/comps/sold-response";
 import { useSoldComps } from "@/lib/comps/use-sold-comps";
+import { canonicalParallelName } from "@/lib/cards/parallels";
 import { cardTitle, formatPaidLabel } from "@/lib/format";
 import { formatRelativeTime } from "@/lib/relative-time";
 import {
@@ -36,6 +38,8 @@ import {
   isLowConfidenceValue,
   NOT_ENOUGH_SALES_LABEL,
 } from "@/lib/value/format";
+import { ebaySoldSearchUrlForCard } from "@/lib/value/ebay-sold";
+import { shouldCollapseEmptyPrices } from "@/lib/value/empty-price";
 import { useCardValue } from "@/lib/value/use-card-values";
 
 export function PublicCardView({
@@ -120,7 +124,12 @@ function PublicCardAnalytics({
     card.cardNumber.trim() && card.cardNumber.trim() !== "—"
       ? { label: "No.", value: `#${card.cardNumber.trim()}` }
       : null,
-    card.parallel?.trim() ? { label: "Parallel", value: card.parallel.trim() } : null,
+    card.parallel?.trim()
+      ? {
+          label: "Parallel",
+          value: canonicalParallelName(card.setBrand, card.parallel),
+        }
+      : null,
     card.grade?.trim() ? { label: "Grade", value: card.grade.trim() } : null,
   ].filter((spec): spec is { label: string; value: string } => Boolean(spec));
   // Paid is private — only present when viewing your own card from the collection.
@@ -176,7 +185,16 @@ function PublicCardAnalytics({
     valueLoading && !flags.priced
       ? null
       : formatCardValueLabel(shownValue, { createdAt: card.createdAt });
-  const showChart = !authRequired && !unavailable && !rateLimited;
+  const collapsePrices = shouldCollapseEmptyPrices({
+    loading: valueLoading || compsLoading,
+    blocked: authRequired || rateLimited || unavailable,
+    settled: sold.status === "ready",
+    hasEstimate:
+      displayEst != null ||
+      Boolean(valueLabel && valueLabel !== NOT_ENOUGH_SALES_LABEL),
+    hasSales: onScreenComps.length > 0,
+  });
+  const showChart = !collapsePrices && !authRequired && !unavailable && !rateLimited;
 
   return (
     <div className="space-y-6">
@@ -218,6 +236,19 @@ function PublicCardAnalytics({
         ) : null}
       </div>
 
+      {collapsePrices ? (
+        <>
+          {showPaid ? (
+            <section className="grid grid-cols-1 gap-3">
+              <Metric
+                label="Paid"
+                value={formatPaidLabel(card.purchasePrice ?? 0, true)}
+              />
+            </section>
+          ) : null}
+          <EmptyPriceNote href={ebaySoldSearchUrlForCard(card)} />
+        </>
+      ) : (
       <section className={`grid gap-3 ${showPaid ? "grid-cols-2" : "grid-cols-1"}`}>
         <div className="min-w-0 rounded-2xl border border-zinc-200 bg-white px-4 py-4 dark:border-white/10 dark:bg-white/[0.03]">
           <p className="text-[11px] tracking-wide text-zinc-500 uppercase">Estimated value</p>
@@ -245,6 +276,7 @@ function PublicCardAnalytics({
           />
         ) : null}
       </section>
+      )}
 
       {errorMessage ? (
         <p className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
@@ -276,7 +308,7 @@ function PublicCardAnalytics({
         />
       ) : null}
 
-      {authRequired && publicComps.status === "hidden" ? null : (
+      {collapsePrices || (authRequired && publicComps.status === "hidden") ? null : (
         <section className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-white/10 dark:bg-white/[0.03]">
         <div className="flex flex-wrap items-end justify-between gap-2">
           <div>

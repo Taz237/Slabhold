@@ -17,7 +17,10 @@ import { exactTime, initials, timeAgo } from "@/lib/format";
 import { quoteCount } from "@/lib/social/quotes";
 import type { Post, PostComment, Profile, PublicCard } from "@/lib/social/types";
 import { MailDayCard } from "@/components/mail-day-card";
+import { EbaySoldLink } from "@/components/ebay-sold-link";
+import { shareTitleForPost } from "@/lib/social/mail-day-copy";
 import { useAttachmentLabel } from "@/lib/social/use-attachment-label";
+import { attachmentPriceText, ebaySoldSearchUrlForCard } from "@/lib/value/ebay-sold";
 import type { CardValueResult } from "@/lib/value/types";
 
 export function Tweet({
@@ -140,7 +143,8 @@ export function Tweet({
           replyCount={comments.length}
           onReply={openReplies}
           sharePath={`/posts/${post.id}`}
-          shareTitle={author.displayName}
+          shareTitle={shareTitleForPost(post)}
+          shareText={post.body}
           quoteAvailable={quoteAvailable}
           onQuotesClick={variant === "detail" ? onQuotesClick : undefined}
         />
@@ -396,6 +400,7 @@ export function Engagement({
   onReply,
   sharePath,
   shareTitle,
+  shareText,
   quoteAvailable = true,
   onQuotesClick,
 }: {
@@ -404,6 +409,7 @@ export function Engagement({
   onReply: () => void;
   sharePath?: string;
   shareTitle?: string;
+  shareText?: string;
   /** False when the post is unavailable and Quote should be disabled. */
   quoteAvailable?: boolean;
   onQuotesClick?: () => void;
@@ -526,7 +532,9 @@ export function Engagement({
           <Quote className="h-[18px] w-[18px]" />
         </ActionButton>
       ) : null}
-      {sharePath ? <ShareAction path={sharePath} title={shareTitle ?? "Slabhold"} /> : null}
+      {sharePath ? (
+        <ShareAction path={sharePath} title={shareTitle ?? "Slabhold"} text={shareText} />
+      ) : null}
     </div>
   );
 }
@@ -593,34 +601,43 @@ function CardMedia({
     values: cardValues,
     loading: cardValuesLoading,
   });
+  const price = attachmentPriceText(valueLabel);
+  const soldHref = price ? null : ebaySoldSearchUrlForCard(card);
   const owned = cards.some((item) => item.id === card.id);
   const href = owned
     ? `/cards/${card.id}`
     : `/u/${username}/cards/${card.id}`;
   return (
-    <Link
-      href={href}
-      className="mt-3 block overflow-hidden rounded-2xl border border-zinc-200 hover:bg-zinc-50 dark:border-white/10 dark:hover:bg-white/[0.04]"
-    >
-      {card.photoDataUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={card.photoDataUrl} alt="" className="max-h-80 w-full object-cover" />
-      ) : (
-        <div
-          className="grid h-36 place-items-center text-lg font-semibold text-white"
-          style={{ background: `linear-gradient(160deg, ${card.accent}, #18181b)` }}
-        >
-          {initials(card.playerName)}
+    <div className="mt-3">
+      <Link
+        href={href}
+        className="block overflow-hidden rounded-2xl border border-zinc-200 hover:bg-zinc-50 dark:border-white/10 dark:hover:bg-white/[0.04]"
+      >
+        {card.photoDataUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={card.photoDataUrl} alt="" className="max-h-80 w-full object-cover" />
+        ) : (
+          <div
+            className="grid h-36 place-items-center text-lg font-semibold text-white"
+            style={{ background: `linear-gradient(160deg, ${card.accent}, #18181b)` }}
+          >
+            {initials(card.playerName)}
+          </div>
+        )}
+        <div className="px-3 py-2">
+          <p className="truncate text-sm font-semibold">{card.playerName}</p>
+          <p className="truncate text-xs text-zinc-500">
+            {card.yearLabel || card.year} {card.setBrand}
+            {card.cardNumber ? ` · #${card.cardNumber}` : ""}
+            {price ? ` · ${price}` : ""}
+          </p>
         </div>
-      )}
-      <div className="px-3 py-2">
-        <p className="truncate text-sm font-semibold">{card.playerName}</p>
-        <p className="truncate text-xs text-zinc-500">
-          {card.year} {card.setBrand}
-          {card.cardNumber ? ` · #${card.cardNumber}` : ""}
-          {valueLabel ? ` · ${valueLabel}` : ""}
+      </Link>
+      {soldHref ? (
+        <p className="px-1 pt-1.5 text-xs text-zinc-500">
+          <EbaySoldLink href={soldHref} />
         </p>
-      </div>
-    </Link>
+      ) : null}
+    </div>
   );
 }

@@ -14,12 +14,14 @@ import { useCollection } from "@/components/collection-provider";
 import { CardThumb } from "@/components/card-thumb";
 import { CompBasis } from "@/components/comp-basis";
 import { CompsList } from "@/components/comps-list";
+import { EmptyPriceNote } from "@/components/ebay-sold-link";
 import { FairPriceCheck } from "@/components/fair-price-check";
 import { ValueChart } from "@/components/value-chart";
 import { useSocial } from "@/components/social-provider";
 import { loginPath } from "@/lib/auth/safe-next";
 import { cardCategory } from "@/lib/card-category";
 import { gradeDetailSpecs } from "@/lib/cards/grading-company";
+import { canonicalParallelName } from "@/lib/cards/parallels";
 import { basedOnSalesLabel, countForSalesLabel, valueFromShownSales } from "@/lib/comps/shared-value";
 import { soldNotice } from "@/lib/comps/sold-response";
 import { useSoldComps } from "@/lib/comps/use-sold-comps";
@@ -44,6 +46,8 @@ import {
 } from "@/lib/value/format";
 import type { OwnersAndHunters } from "@/lib/cards/people";
 import { needsDetails, needsDetailsLabel } from "@/lib/types";
+import { ebaySoldSearchUrlForCard } from "@/lib/value/ebay-sold";
+import { shouldCollapseEmptyPrices } from "@/lib/value/empty-price";
 import { useCardValue } from "@/lib/value/use-card-values";
 
 export function CardDetail({
@@ -131,11 +135,21 @@ export function CardDetail({
   const showProfit = (cardSold || estSell != null) && paidKnown;
   const profitPctValue = showProfit ? delta / (paid as number) : null;
   const max = Math.max(paidKnown ? (paid as number) : 0, estSell ?? 0, 1);
-  const valueStatusLabel = cardSold
+  const rawValueLabel = cardSold
     ? null
     : valueLoading && !flags.priced
       ? null
       : formatCardValueLabel(shownValue, { createdAt: card.createdAt });
+  const collapsePrices = shouldCollapseEmptyPrices({
+    loading: (!cardSold && valueLoading) || compsLoading,
+    blocked: authRequired || rateLimited || unavailable,
+    settled: sold.status === "ready",
+    hasEstimate:
+      storedAmount != null ||
+      Boolean(rawValueLabel && rawValueLabel !== NOT_ENOUGH_SALES_LABEL),
+    hasSales: onScreenComps.length > 0,
+  });
+  const valueStatusLabel = collapsePrices ? "—" : rawValueLabel;
 
   function markSold() {
     const price = Number(sellPrice);
@@ -341,7 +355,9 @@ export function CardDetail({
           {errorMessage}
         </p>
       ) : null}
-      {authRequired ? null : soldCopy ? (
+      {collapsePrices ? (
+        <EmptyPriceNote href={ebaySoldSearchUrlForCard(card)} />
+      ) : authRequired ? null : soldCopy ? (
         <p className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
           {soldCopy}
         </p>
@@ -367,6 +383,7 @@ export function CardDetail({
         />
       )}
 
+      {collapsePrices ? null : (
       <section className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-white/10 dark:bg-white/[0.03] sm:p-5">
         <div className="flex flex-wrap items-end justify-between gap-2">
           <div>
@@ -430,6 +447,7 @@ export function CardDetail({
           />
         ) : null}
       </section>
+      )}
 
       <FairPriceCheck
         card={{
@@ -559,6 +577,7 @@ function CardSpecs({
   card,
 }: {
   card: {
+    setBrand: string;
     cardNumber: string;
     grade: string;
     parallel: string;
@@ -570,7 +589,12 @@ function CardSpecs({
     card.cardNumber.trim() && card.cardNumber.trim() !== "—"
       ? { label: "No.", value: `#${card.cardNumber.trim()}` }
       : null,
-    card.parallel.trim() ? { label: "Parallel", value: card.parallel.trim() } : null,
+    card.parallel.trim()
+      ? {
+          label: "Parallel",
+          value: canonicalParallelName(card.setBrand, card.parallel),
+        }
+      : null,
     ...gradeDetailSpecs(card),
   ].filter((spec): spec is { label: string; value: string } => Boolean(spec));
   if (!specs.length) return null;

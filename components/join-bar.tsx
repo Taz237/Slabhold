@@ -9,7 +9,7 @@ export function JoinBarView({ pathname }: { pathname: string }) {
   return (
     <div
       data-join-bar
-      className="fixed inset-x-0 bottom-0 z-30 border-t border-zinc-200 bg-[color-mix(in_oklab,var(--background)_92%,transparent)] backdrop-blur-xl dark:border-white/10"
+      className="fixed inset-x-0 bottom-0 z-40 border-t border-zinc-200 bg-[var(--background)] dark:border-white/10"
     >
       <div className="mx-auto flex max-w-lg items-center justify-between gap-3 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
         <p className="text-sm font-semibold">Join Slabhold</p>

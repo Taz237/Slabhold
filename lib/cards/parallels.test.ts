@@ -7,6 +7,7 @@ import { mailDayCardRecord, type PreparedMailDayCard } from "@/lib/social/mail-d
 import {
   GENERIC_PARALLELS,
   parallelAfterSetChange,
+  parallelChoice,
   parallelsForSet,
 } from "./parallels";
 
@@ -21,6 +22,57 @@ describe("parallels by set", () => {
     assert.equal(parallelsForSet("Topps Chrome").includes("Superfractor"), true);
     assert.equal(parallelsForSet("Bowman Chrome").includes("Superfractor"), true);
     assert.equal(parallelsForSet("Topps Chrome"), parallelsForSet("Bowman Chrome"));
+  });
+
+  it("lists Donruss parallels and keeps Donruss Optic on its own list", () => {
+    const donruss = parallelsForSet("Panini Donruss");
+    assert.equal(parallelsForSet("Donruss"), donruss);
+    for (const name of [
+      "Base",
+      "Rated Rookie",
+      "Blue Press Proof",
+      "Optic Preview",
+      "Optic Preview Pink",
+      "Optic Preview Holo",
+      "Optic Preview Black",
+      "Optic Preview Blue",
+      "Optic Preview Gold",
+      "Optic Preview Green",
+      "Optic Preview Purple",
+      "Optic Preview Red",
+      "Optic Preview Silver",
+      "Blue Scope",
+      "Green Velocity",
+      "Red Wave",
+      "Purple",
+      "Green Pandora",
+      "Gold Ice",
+    ]) {
+      assert.equal(donruss.includes(name), true, name);
+    }
+    assert.equal(donruss.includes("Optic Preview Pink Prizm"), false);
+    assert.equal(donruss.filter((name) => name === "Optic Preview Pink").length, 1);
+    assert.equal(parallelsForSet("Donruss Optic").includes("Optic Preview Pink"), false);
+    assert.equal(parallelsForSet("Panini Donruss Optic").includes("Holo"), true);
+  });
+
+  it("stores Optic Preview Pink for its aliases", () => {
+    for (const typed of [
+      "Optic Preview-Pink",
+      "Optic Preview Pink",
+      "Pink Optic Preview Holo",
+      "Optic Preview Pink Prizm",
+      "Optic Rated Rookies Preview Pink",
+    ]) {
+      const choice = parallelChoice("Panini Donruss", typed);
+      assert.equal(choice.parallel, "Optic Preview Pink", typed);
+      assert.equal(choice.parallelIsCustom, false, typed);
+    }
+    assert.equal(parallelChoice("Panini Prizm", "Tie Dye").parallel, "Tie-Dye");
+    assert.equal(parallelChoice("Panini Prizm", "Tie Dye").parallelIsCustom, false);
+    const custom = parallelChoice("Panini Donruss", "My Parallel");
+    assert.equal(custom.parallel, "My Parallel");
+    assert.equal(custom.parallelIsCustom, true);
   });
 
   it("uses the generic list for an unknown set", () => {
@@ -60,6 +112,7 @@ describe("parallels by set", () => {
       category: "pc",
       isPublic: true,
       showPaid: false,
+      isRookie: false,
       photos: [],
     };
     const row = mailDayCardRecord("user-1", card, "2026-10-19", "2026-10-19T00:00:00.000Z");

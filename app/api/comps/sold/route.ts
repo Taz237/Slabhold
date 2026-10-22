@@ -12,6 +12,8 @@ import { loadCachedCardRefresh } from "@/lib/value/card-market";
 
 export const UNAVAILABLE_MESSAGE = SOLD_UNAVAILABLE_MESSAGE;
 
+export const maxDuration = 15;
+
 export async function GET(request: Request) {
   const userId = await getAuthUserId();
   if (!userId) {

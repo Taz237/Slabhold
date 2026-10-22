@@ -2,6 +2,10 @@
 
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Check, ChevronDown, Search, X } from "lucide-react";
+import { searchSelectCommit } from "@/lib/ui/search-select";
+
+export const SET_PARALLEL_HINT =
+  "Can't find it? Type it exactly as on the card or slab.";
 
 const controlClass =
   "flex min-h-11 w-full items-center justify-between gap-2 rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-left text-sm text-zinc-900 outline-none focus:border-violet-500 dark:border-white/10 dark:bg-white/5 dark:text-zinc-100";
@@ -15,6 +19,7 @@ export function SearchSelect({
   allowEmpty = false,
   allowCustom = false,
   isCustomValid,
+  customHint,
   customInvalidHint,
   dataField,
   inputMode,
@@ -29,6 +34,8 @@ export function SearchSelect({
   allowCustom?: boolean;
   /** When set, Use "…" only appears for values that pass. */
   isCustomValid?: (value: string) => boolean;
+  /** Shown above Use "…" when the typed text is not an exact option. */
+  customHint?: string;
   /** Shown instead of Use "…" when the typed value fails isCustomValid. */
   customInvalidHint?: string;
   dataField?: string;
@@ -137,32 +144,45 @@ export function SearchSelect({
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    event.preventDefault();
-                    if (filtered[0]) choose(filtered[0]);
-                    else if (showCustom) choose(customValue);
-                  }
+                  if (event.key !== "Enter") return;
+                  event.preventDefault();
+                  event.stopPropagation();
+                  const committed = searchSelectCommit({
+                    query,
+                    options,
+                    allowCustom,
+                    isCustomValid,
+                  });
+                  if (committed != null) choose(committed);
+                  else if (!allowCustom && filtered[0]) choose(filtered[0]);
                 }}
                 inputMode={inputMode}
-                placeholder={`Search ${label.toLowerCase()}`}
+                placeholder={
+                  allowCustom
+                    ? `Search or type a ${label.toLowerCase()}`
+                    : `Search ${label.toLowerCase()}`
+                }
                 className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-zinc-400"
               />
             </label>
             <ul className="mt-3 min-h-0 flex-1 overflow-y-auto">
-              {allowEmpty ? (
-                <li>
-                  <OptionButton selected={!value} onClick={() => choose("")}>
-                    None
-                  </OptionButton>
-                </li>
-              ) : null}
               {showCustom ? (
                 <li>
+                  {customHint ? (
+                    <p className="px-3 pt-1 pb-1 text-xs text-zinc-500">{customHint}</p>
+                  ) : null}
                   <OptionButton
                     selected={false}
                     onClick={() => choose(customValue)}
                   >
                     {`Use "${customValue}"`}
+                  </OptionButton>
+                </li>
+              ) : null}
+              {allowEmpty ? (
+                <li>
+                  <OptionButton selected={!value} onClick={() => choose("")}>
+                    None
                   </OptionButton>
                 </li>
               ) : null}

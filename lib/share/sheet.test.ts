@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { join } from "node:path";
-import { isShareAbort, shareOrCopy, type SharePayload } from "./sheet";
+import { isShareAbort, postSharePayload, shareOrCopy, type SharePayload } from "./sheet";
 
 function read(path: string) {
   return readFileSync(join(process.cwd(), path), "utf8");
@@ -13,6 +13,27 @@ const payload: SharePayload = {
   text: "Maya",
   url: "https://slabhold.app/posts/abc",
 };
+
+describe("post share payload", () => {
+  it("uses the card name as the title and the post as the text", () => {
+    assert.deepEqual(
+      postSharePayload({
+        title: "J.J. McCarthy 2024 Panini Donruss Optic Preview Pink #303",
+        text: "Mail day",
+        url: "https://slabhold.app/posts/abc",
+      }),
+      {
+        title: "J.J. McCarthy 2024 Panini Donruss Optic Preview Pink #303",
+        text: "Mail day",
+        url: "https://slabhold.app/posts/abc",
+      },
+    );
+    assert.equal(
+      postSharePayload({ title: "Mail Day", text: "  ", url: "https://slabhold.app/posts/abc" }).text,
+      "Mail Day",
+    );
+  });
+});
 
 describe("share sheet", () => {
   it("uses navigator.share when it is available and does not copy", async () => {
@@ -94,7 +115,7 @@ describe("share sheet", () => {
     assert.match(button, /publicOrigin\(window\.location\.origin\)/);
     assert.match(button, /new URL\(path,/);
     assert.match(button, /navigator\.share\?\.bind\(navigator\)/);
-    assert.match(button, /text: title/);
+    assert.match(button, /postSharePayload\(/);
     assert.match(button, /shareOrCopy\(/);
     assert.match(button, /trackEvent\("share_clicked"\)/);
     assert.match(button, /Link copied/);

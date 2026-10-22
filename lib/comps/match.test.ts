@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 import {
   buildCompsQuery,
   filterComps,
+  titleHasPlayer,
   titleMatchesCard,
   type MatchCard,
 } from "./match";
@@ -501,5 +502,195 @@ describe("shared comps match", () => {
       ),
       false,
     );
+  });
+
+  it("treats Optic Preview Pink aliases as one Donruss parallel", () => {
+    const card: MatchCard = {
+      playerName: "J.J. McCarthy",
+      year: 2024,
+      setBrand: "Panini Donruss",
+      cardNumber: "303",
+      parallel: "Optic Preview-Pink",
+      conditionType: "raw",
+      grade: "Raw",
+    };
+    const spaced = { ...card, parallel: "Optic Preview Pink" };
+    assert.equal(
+      titleMatchesCard("2024 DONRUSS #303 JJ McCARTHY OPTIC PREVIEW-PINK", card),
+      true,
+    );
+    assert.equal(
+      titleMatchesCard("2024 Donruss J.J. McCarthy Optic Preview Pink #303", spaced),
+      true,
+    );
+    assert.equal(
+      titleMatchesCard("2024 DONRUSS #303 JJ McCARTHY PINK OPTIC PREVIEW HOLO", card),
+      true,
+    );
+    assert.equal(
+      titleMatchesCard("2024 Donruss Optic J.J. McCarthy Pink #303", { ...card, parallel: "Pink" }),
+      false,
+    );
+    assert.equal(
+      titleMatchesCard("2024 Donruss Optic J.J. McCarthy Pink #303", {
+        ...card,
+        setBrand: "Donruss Optic",
+        parallel: "Pink",
+      }),
+      true,
+    );
+    assert.equal(
+      titleMatchesCard("2024 Donruss J.J. McCarthy Pink Prizm #303", card),
+      false,
+    );
+  });
+
+  it("matches Donruss Optic Preview Pink Prizm as a Donruss parallel", () => {
+    const title =
+      "2024 Panini Donruss - Rated Rookie J.J. McCarthy #303 Optic Preview Pink Prizm";
+    const card: MatchCard = {
+      playerName: "J.J. McCarthy",
+      year: 2024,
+      setBrand: "Panini Donruss",
+      cardNumber: "303",
+      parallel: "Optic Preview Pink Prizm",
+      conditionType: "raw",
+      grade: "Raw",
+    };
+    assert.equal(titleMatchesCard(title, card), true);
+    assert.equal(
+      titleMatchesCard(title, { ...card, parallel: "Optic Preview Pink" }),
+      true,
+    );
+    assert.equal(titleMatchesCard(title, { ...card, parallel: "Pink" }), false);
+    assert.equal(titleMatchesCard(title, { ...card, parallel: "Base" }), false);
+    assert.equal(
+      filterComps(
+        {
+          ...card,
+          conditionType: "graded",
+          grade: "PSA 10",
+        },
+        [rawResult(title)],
+      ).length,
+      0,
+    );
+    assert.equal(
+      titleMatchesCard(title.replace("J.J. McCarthy", "JJ McCarthy"), card),
+      true,
+    );
+    assert.equal(
+      titleMatchesCard(title.replace("J.J. McCarthy", "J. J. McCarthy"), card),
+      true,
+    );
+    assert.equal(
+      titleMatchesCard(
+        "2023 Panini Donruss Optic Preview Rated Rookie #OP-1 CJ Stroud",
+        {
+          playerName: "C.J. Stroud",
+          year: 2023,
+          setBrand: "Panini Donruss",
+          cardNumber: "OP-1",
+          parallel: "Optic Preview",
+          conditionType: "raw",
+          grade: "Raw",
+        },
+      ),
+      true,
+    );
+    assert.equal(
+      titleMatchesCard("2024 Donruss AJ Brown Pink #12", {
+        playerName: "A.J. Brown",
+        year: 2024,
+        setBrand: "Donruss",
+        cardNumber: "12",
+        parallel: "Pink",
+        conditionType: "raw",
+        grade: "Raw",
+      }),
+      true,
+    );
+    assert.equal(
+      titleMatchesCard(
+        "2023 Panini Donruss Optic Rated Rookie #201 C.J. Stroud",
+        {
+          playerName: "CJ Stroud",
+          year: 2023,
+          setBrand: "Panini Donruss",
+          cardNumber: "201",
+          parallel: "Base",
+          conditionType: "raw",
+          grade: "Raw",
+        },
+      ),
+      false,
+    );
+    assert.equal(
+      titleMatchesCard("2024 Donruss Optic J.J. McCarthy Pink Velocity #303", {
+        ...card,
+        parallel: "Pink",
+      }),
+      false,
+    );
+    assert.equal(
+      titleMatchesCard("2024 Donruss Optic J.J. McCarthy Pink Press Proof #303", {
+        ...card,
+        parallel: "Pink",
+      }),
+      false,
+    );
+    assert.equal(
+      titleMatchesCard("2024 Donruss J.J. McCarthy Pink Prizm #303", {
+        ...card,
+        parallel: "Pink",
+      }),
+      true,
+    );
+  });
+
+  it("accepts Optic Preview Pink Prizm titles for a raw Optic Preview Pink card", () => {
+    const card: MatchCard = {
+      playerName: "J.J. McCarthy",
+      year: 2024,
+      setBrand: "Donruss",
+      cardNumber: "303",
+      parallel: "Optic Preview Pink",
+      conditionType: "raw",
+      grade: "Raw",
+    };
+    const title = "2024 Donruss JJ McCarthy Optic Preview Pink Prizm RC #303";
+    assert.equal(titleMatchesCard(title, card), true);
+    assert.equal(filterComps(card, [rawResult(title)]).length, 1);
+    assert.equal(
+      titleMatchesCard(
+        "2024 Donruss JJ McCarthy Optic Rated Rookies Preview Pink #303",
+        card,
+      ),
+      true,
+    );
+    assert.equal(
+      titleMatchesCard("2024 Donruss Optic JJ McCarthy Pink #303", card),
+      false,
+    );
+    assert.equal(filterComps(card, [gradedResult(title, "PSA", "10")]).length, 0);
+    assert.equal(
+      titleMatchesCard(`${title} PSA 10`, card),
+      false,
+    );
+    assert.equal(
+      titleMatchesCard("2024 Donruss JJ McCarthy Optic Preview Pink Velocity #303", card),
+      false,
+    );
+    assert.equal(
+      titleMatchesCard("2024 Donruss Optic JJ McCarthy Pink Velocity #303", card),
+      false,
+    );
+  });
+
+  it("does not match Joe Ng inside Joe Ngo", () => {
+    assert.equal(titleHasPlayer("Joe Ngo 2024 Prizm", "Joe Ng"), false);
+    assert.equal(titleHasPlayer("Joe Ng 2024 Prizm #1", "Joe Ng"), true);
+    assert.equal(titleHasPlayer("2024 Donruss J.J. McCarthy #303", "JJ McCarthy"), true);
+    assert.equal(titleHasPlayer("2024 Donruss JJ McCarthy #303", "J. J. McCarthy"), true);
   });
 });

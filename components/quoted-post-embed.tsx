@@ -12,6 +12,8 @@ import { sanitizeAttachedCard } from "@/lib/social/card-posts";
 import { resolveQuoteEmbedState } from "@/lib/social/quotes";
 import type { Post, Profile, PublicCard } from "@/lib/social/types";
 import { useAttachmentLabel } from "@/lib/social/use-attachment-label";
+import { EbaySoldLink } from "@/components/ebay-sold-link";
+import { attachmentPriceText, ebaySoldSearchUrlForCard } from "@/lib/value/ebay-sold";
 import type { CardValueResult } from "@/lib/value/types";
 
 export function QuotedPostEmbed({
@@ -51,6 +53,8 @@ export function QuotedPostEmbed({
     values: cardValues,
     loading: cardValuesLoading,
   });
+  const price = attachmentPriceText(valueLabel);
+  const soldHref = card && !price ? ebaySoldSearchUrlForCard(card) : null;
 
   if (state.kind === "unavailable") {
     return (
@@ -115,9 +119,16 @@ export function QuotedPostEmbed({
               </Link>
             </p>
           ) : null}
-          {card && valueLabel ? (
+          {card && (price || soldHref) ? (
             <p className="mt-1 truncate text-[13px] text-zinc-500">
-              {card.playerName} · {valueLabel}
+              {card.playerName}
+              {price ? ` · ${price}` : ""}
+              {soldHref ? (
+                <>
+                  {" · "}
+                  <EbaySoldLink href={soldHref} />
+                </>
+              ) : null}
             </p>
           ) : null}
         </div>

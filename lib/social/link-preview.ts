@@ -151,12 +151,23 @@ export function postLinkPreview(input: {
   found: boolean;
   body?: string | null;
   imageUrl?: string | null;
+  /** Public Mail Day card line, or "Mail Day" when every card is private. */
+  mailDayTitle?: string | null;
 }): LinkPreview {
   if (!input.found) {
     return {
       title: "Post",
       description: "A post on Slabhold.",
       imageUrl: null,
+      detail: "",
+    };
+  }
+  const mailDay = input.mailDayTitle?.replace(/\s+/g, " ").trim() || "";
+  if (mailDay) {
+    return {
+      title: clipText(mailDay, 140),
+      description: clipText(mailDay, 180),
+      imageUrl: cleanImageUrl(input.imageUrl),
       detail: "",
     };
   }
@@ -178,8 +189,11 @@ export function postLinkPreview(input: {
 }
 
 export function previewMetadata(preview: LinkPreview) {
+  const title = /slabhold/i.test(preview.title)
+    ? preview.title
+    : `${preview.title} · Slabhold`;
   return {
-    title: `${preview.title} · Slabhold`,
+    title,
     description: preview.description,
     openGraph: {
       title: preview.title,

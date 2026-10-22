@@ -1,3 +1,4 @@
+import { canonicalParallelName, parallelAliasNames } from "@/lib/cards/parallels";
 import { parseGrade, RAW_GRADE, SLAB_TITLE_GRADER_PATTERN } from "@/lib/card-options";
 import { filterPriceOutliers } from "./stats";
 import type { CleanedSale, TrawlSoldResult } from "./types";
@@ -354,11 +355,23 @@ export function titleHasCardNumber(
   return re.test(title);
 }
 
+/**
+ * "J.J.", "J. J.", and "JJ" are the same name. Dots and spaces may sit between
+ * letters, and the match has to start and end on a word so "Joe Ng" is not "Joe Ngo".
+ */
+function lettersAlignWithWords(title: string, name: string): boolean {
+  const letters = name.toLowerCase().match(/[a-z0-9]/g);
+  if (!letters || letters.length < 4) return false;
+  const body = letters.map((letter) => escapeRegExp(letter)).join("[. ]*");
+  return new RegExp(`(?<![a-z0-9])${body}(?![a-z0-9])`, "i").test(title);
+}
+
 export function titleHasPlayer(title: string, playerName: string): boolean {
   const name = playerName.trim();
   if (!name) return true;
-  const lower = title.toLowerCase();
-  if (lower.includes(name.toLowerCase())) return true;
+  const exact = new RegExp(`(?<![a-z0-9])${escapeRegExp(name)}(?![a-z0-9])`, "i");
+  if (exact.test(title)) return true;
+  if (lettersAlignWithWords(title, name)) return true;
   const parts = name.split(/\s+/).filter(Boolean);
   const last = parts[parts.length - 1];
   if (!last || last.length < 2) return false;
@@ -475,6 +488,7 @@ export function titleNamesWrongSet(
   title: string,
   setBrand?: string,
   sport?: string,
+  parallel?: string,
 ): boolean {
   const cardSet = normalizeSetToken(setBrand ?? "");
   const lower = title.toLowerCase();
@@ -488,6 +502,16 @@ export function titleNamesWrongSet(
     if (!re.test(lower)) continue;
     // "Upper Deck SP Authentic" is the SP Authentic set, not a different Upper Deck product.
     if (manufacturerBeforeSet(lower, keyword, cardSet)) continue;
+    // "Optic Preview" on a Donruss card is a parallel, not Donruss Optic.
+    if (
+      isPlainDonruss(cardSet) &&
+      (keyword === "optic" || keyword === "donruss optic") &&
+      opticOnlyInPreview(lower, parallel)
+    ) {
+      continue;
+    }
+    // "Pink Prizm" is a parallel color, not the Prizm set.
+    if (keyword === "prizm" && prizmOnlyAfterParallelColor(lower)) continue;
     return true;
   }
 
@@ -512,6 +536,7 @@ export function titleNamesWrongSet(
   if (base) {
     for (const sub of SET_SUB_BRANDS[base]) {
       if (sub === "wnba" && sportIsWnba(sport)) continue;
+      if (base === "donruss" && sub === "optic" && opticOnlyInPreview(lower, parallel)) continue;
       if (titleHasSubBrand(lower, sub)) return true;
     }
   }
@@ -521,6 +546,14 @@ export function titleNamesWrongSet(
       const normalized = normalizeSetToken(name);
       if (!normalized.startsWith(`${cardSet} `)) continue;
       if (sportIsWnba(sport) && /\bwnba\b/.test(normalized)) continue;
+      if (
+        isPlainDonruss(cardSet) &&
+        (normalized === "donruss optic" || normalized === "optic") &&
+        opticOnlyInPreview(lower, parallel)
+      ) {
+        continue;
+      }
+      if (normalized === "prizm" && prizmOnlyAfterParallelColor(lower)) continue;
       if (titleHasSubBrand(lower, normalized)) return true;
     }
   }
@@ -531,6 +564,40 @@ export function titleNamesWrongSet(
   }
 
   return false;
+}
+
+function isPlainDonruss(cardSet: string): boolean {
+  return cardSet === "donruss" || cardSet === "panini donruss";
+}
+
+/** True when every "optic" in the title is Optic Preview or one of its aliases. */
+function opticOnlyInPreview(title: string, parallel?: string): boolean {
+  let rest = title.replace(/\boptic\s+preview\b/gi, " ");
+  const phrases: string[][] = [];
+  const own = parallelNameWords(parallel ?? "");
+  if (own.includes("optic")) phrases.push(own);
+  for (const alias of parallelAliasNames(parallel ?? "")) {
+    const words = parallelNameWords(alias);
+    if (words.includes("optic")) phrases.push(words);
+  }
+  for (const words of phrases) {
+    const pattern = words.map((word) => escapeRegExp(word)).join("[^a-z0-9]+");
+    rest = rest.replace(new RegExp(`\\b${pattern}\\b`, "gi"), " ");
+  }
+  return !/\boptic\b/i.test(rest);
+}
+
+/** True when every "prizm" sits immediately after a parallel color word. */
+function prizmOnlyAfterParallelColor(title: string): boolean {
+  const lower = title.toLowerCase();
+  const re = /\bprizm\b/gi;
+  let match: RegExpExecArray | null;
+  let found = false;
+  while ((match = re.exec(lower)) !== null) {
+    found = true;
+    if (!parallelKeywordImmediatelyBefore(lower.slice(0, match.index))) return false;
+  }
+  return found;
 }
 
 function phrasePattern(phrase: string): string {
@@ -642,6 +709,12 @@ function parallelNameWords(parallel: string): string[] {
     .map(canonicalParallelWord);
 }
 
+function phraseInTitle(title: string, words: string[]): boolean {
+  if (!words.length) return false;
+  const pattern = words.map((word) => escapeRegExp(word)).join("[^a-z0-9]+");
+  return new RegExp(`\\b${pattern}\\b`, "i").test(title);
+}
+
 function titleHasWord(title: string, word: string): boolean {
   return new RegExp(`\\b${escapeRegExp(word)}\\b`, "i").test(title);
 }
@@ -674,6 +747,20 @@ export function titleHasDisallowedParallel(
   const scan = stripSetAndPlayer(lower, identity);
   const allowed = (parallel ?? "").trim().toLowerCase();
   const allowedWords = new Set(parallelNameWords(allowed));
+  const cardSet = setMatchPhrase(identity?.setBrand);
+  const pinkSameAsPinkPrizm =
+    !cardSet.includes("prizm") &&
+    (parallelNameWords(allowed).join(" ") === "pink" ||
+      parallelNameWords(allowed).join(" ") === "pink prizm");
+  if (/\boptic\s+preview\b/i.test(lower)) {
+    const words = new Set(parallelNameWords(parallel ?? ""));
+    if (!words.has("optic") || !words.has("preview")) return true;
+  }
+  for (const alias of parallelAliasNames(parallel ?? "")) {
+    const words = parallelNameWords(alias);
+    if (!phraseInTitle(lower, words)) continue;
+    for (const word of words) allowedWords.add(canonicalParallelWord(word));
+  }
   const base = parallelIsBase(parallel);
 
   for (const keyword of PARALLEL_KEYWORDS) {
@@ -701,7 +788,8 @@ export function titleHasDisallowedParallel(
   }
 
   if (!base && allowed) {
-    const words = parallelNameWords(allowed);
+    let words = parallelNameWords(allowed);
+    if (pinkSameAsPinkPrizm) words = words.filter((word) => word !== "prizm");
     if (words.length > 0 && words.some((word) => !titleHasParallelWord(lower, word))) {
       return true;
     }
@@ -841,7 +929,12 @@ export function titleMatchesCard(title: string, card: MatchCard): boolean {
     return false;
   }
   if (!titleHasSetName(title, card.setBrand)) return false;
-  if (titleNamesWrongSet(title, card.setBrand, card.sport)) return false;
+  const parallelName =
+    canonicalParallelName(card.setBrand, card.parallel ?? "") || card.parallel;
+  // Optic Preview and a color sitting in front of Prizm are parallels, not other sets.
+  if (titleNamesWrongSet(title, card.setBrand, card.sport, parallelName)) {
+    return false;
+  }
 
   const num = normalizeCardNumber(card.cardNumber);
   if (!card.noNumber) {
@@ -850,7 +943,7 @@ export function titleMatchesCard(title: string, card: MatchCard): boolean {
   }
 
   if (
-    titleHasDisallowedParallel(title, card.parallel, {
+    titleHasDisallowedParallel(title, parallelName, {
       setBrand: card.setBrand,
       playerName: card.playerName,
       cardNumber: card.cardNumber,

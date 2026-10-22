@@ -148,7 +148,7 @@ export function mapPublicCard(
     | "set_name"
     | "grader"
     | "condition_type"
-  > & { created_at?: string | null },
+  > & { created_at?: string | null; is_rookie?: boolean | null },
 ): OwnedCard {
   const setBrand = (row.set_name || row.set || "").trim();
   const yearLabel = (row.year_label || "").trim() || String(row.year);
@@ -176,6 +176,7 @@ export function mapPublicCard(
     createdAt: row.created_at || undefined,
     grade,
     parallel: row.parallel ?? "Base",
+    isRookie: Boolean(row.is_rookie),
     yearLabel,
     conditionType:
       row.condition_type === "graded" || row.condition_type === "raw"
@@ -188,7 +189,7 @@ export function mapPublicCard(
 
 /** Columns a logged-out reader may select from public_cards. */
 export const PUBLIC_CARD_SELECT =
-  "id, user_id, player, year, year_label, set, set_name, grade, grader, parallel, condition_type, estimated_value, image_url, card_number, sport, accent, created_at";
+  "id, user_id, player, year, year_label, set, set_name, grade, grader, parallel, is_rookie, condition_type, estimated_value, image_url, card_number, sport, accent, created_at";
 
 export async function loadUserCards(supabase: SupabaseClient, userId: string) {
   const { data, error } = await supabase

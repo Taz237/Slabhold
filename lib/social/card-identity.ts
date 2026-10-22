@@ -1,4 +1,5 @@
 import { parseGrade, RAW_GRADE } from "@/lib/card-options";
+import { parallelMatchKey } from "@/lib/cards/parallels";
 import {
   normalizeCardNumber,
   setMatchPhrase,
@@ -55,8 +56,7 @@ function identityYear(card: IdentityCard): string {
 }
 
 function identityParallel(parallel: string | null | undefined): string {
-  const value = (parallel ?? "").trim().toLowerCase();
-  return value || "base";
+  return parallelMatchKey(parallel ?? "") || "base";
 }
 
 function identityCondition(card: IdentityCard): string {

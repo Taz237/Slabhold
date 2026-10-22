@@ -30,14 +30,30 @@ export function useSoldComps(cardId: string | null) {
     }
 
     const controller = new AbortController();
+    let timedOut = false;
+    const timer = setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+    }, 15_000);
     setState({ status: "loading", data: null, message: null });
+
+    const unavailable = () => {
+      setState({
+        status: "unavailable",
+        data: null,
+        message: UNAVAILABLE,
+      });
+    };
 
     fetch(`/api/comps/sold?id=${encodeURIComponent(cardId)}`, {
       signal: controller.signal,
     })
       .then(async (res) => {
         const body = (await res.json()) as SoldCompsPayload & { error?: string };
-        if (controller.signal.aborted) return;
+        if (controller.signal.aborted) {
+          if (timedOut) unavailable();
+          return;
+        }
 
         if (res.status === 401) {
           setState({
@@ -66,15 +82,15 @@ export function useSoldComps(cardId: string | null) {
         setState({ status: "ready", data: body, message: null });
       })
       .catch(() => {
-        if (controller.signal.aborted) return;
-        setState({
-          status: "unavailable",
-          data: null,
-          message: UNAVAILABLE,
-        });
-      });
+        if (controller.signal.aborted && !timedOut) return;
+        unavailable();
+      })
+      .finally(() => clearTimeout(timer));
 
-    return () => controller.abort();
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
   }, [cardId]);
 
   return state;

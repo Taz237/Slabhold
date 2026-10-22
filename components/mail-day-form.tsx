@@ -13,7 +13,7 @@ import { useCollection } from "@/components/collection-provider";
 import { MailDayCard } from "@/components/mail-day-card";
 import { MailDayHeading, MailDayPending } from "@/components/mail-day-pending";
 import { useSocial } from "@/components/social-provider";
-import { NativeSelect, SearchSelect } from "@/components/search-select";
+import { NativeSelect, SearchSelect, SET_PARALLEL_HINT } from "@/components/search-select";
 import {
   GRADE_COMPANIES,
   SETS,
@@ -21,13 +21,18 @@ import {
   optionsWithCurrent,
   yearOptionsForSport,
 } from "@/lib/card-options";
-import { parallelAfterSetChange, parallelIsListed, parallelsForSet } from "@/lib/cards/parallels";
+import {
+  parallelAfterSetChange,
+  parallelChoice,
+  parallelsForSet,
+} from "@/lib/cards/parallels";
 import {
   MAIL_DAY_MAX_CARDS,
   MAIL_DAY_SPORT_PICKER,
   SOURCE_LABELS,
-  isMailDaySport,
   mailDayIsDirty,
+  sportAfterCatalogPick,
+  textLooksRookie,
   mailDayPhotoOriginals,
   mailDayPhotosToRemove,
   mailDaySportLabel,
@@ -57,12 +62,19 @@ function today() {
   return `${date.getFullYear()}-${month}-${day}`;
 }
 
-function blankCard(): MailDayDraftCard & { key: string; cardId: string; open: boolean; parallelNote: string } {
+function blankCard(): MailDayDraftCard & {
+  key: string;
+  cardId: string;
+  open: boolean;
+  parallelNote: string;
+  sportOffer: string;
+} {
   return {
     key: crypto.randomUUID(),
     cardId: crypto.randomUUID(),
     open: true,
     parallelNote: "",
+    sportOffer: "",
     playerName: "",
     yearLabel: "",
     setBrand: "",
@@ -70,6 +82,7 @@ function blankCard(): MailDayDraftCard & { key: string; cardId: string; open: bo
     cardNumber: "",
     parallel: "Base",
     parallelIsCustom: false,
+    isRookie: false,
     sport: "",
     conditionType: "raw",
     grader: "PSA",
@@ -109,6 +122,7 @@ function sectionDraft(section: Section): MailDayDraftCard {
     category: section.category,
     isPublic: section.isPublic,
     showPaid: section.showPaid,
+    isRookie: section.isRookie,
     photos: section.photos,
   };
 }
@@ -326,16 +340,21 @@ export function MailDayForm() {
                 <CardSearch
                   onSelect={(card) => {
                     setActive(index);
+                    const chosen = parallelChoice(card.setBrand, card.parallel || "Base");
+                    const sport = sportAfterCatalogPick(section.sport, card.sport);
+                    const title = [card.playerName, card.setBrand, card.parallel, card.cardNumber].join(" ");
                     update(index, {
                       playerName: card.playerName,
                       yearLabel: card.yearLabel,
                       setBrand: card.setBrand,
                       setIsCustom: !SETS.some((item) => item === card.setBrand),
                       cardNumber: card.cardNumber,
-                      parallel: card.parallel || "Base",
-                      parallelIsCustom: !parallelIsListed(card.setBrand, card.parallel || "Base"),
+                      parallel: chosen.parallel,
+                      parallelIsCustom: chosen.parallelIsCustom,
                       parallelNote: "",
-                      sport: isMailDaySport(card.sport) ? card.sport : section.sport,
+                      sport: sport.sport,
+                      sportOffer: sport.offer,
+                      isRookie: section.isRookie || textLooksRookie(title),
                     });
                   }}
                   onManual={(prefill) => {
@@ -347,6 +366,17 @@ export function MailDayForm() {
                     });
                   }}
                 />
+                {section.sportOffer ? (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      update(index, { sport: section.sportOffer, sportOffer: "" })
+                    }
+                    className="text-left text-xs font-semibold text-violet-700 underline-offset-2 hover:underline dark:text-violet-300"
+                  >
+                    This card is listed as {mailDaySportLabel(section.sportOffer)}. Use that?
+                  </button>
+                ) : null}
                 <PhotoRow
                   photos={section.photos}
                   onRemove={(src) =>
@@ -381,7 +411,9 @@ export function MailDayForm() {
                     Sport
                     <select
                       value={section.sport}
-                      onChange={(event) => update(index, { sport: event.target.value })}
+                      onChange={(event) =>
+                        update(index, { sport: event.target.value, sportOffer: "" })
+                      }
                       className={`${inputClass} mt-1`}
                       aria-label={`Sport for card ${index + 1}`}
                     >
@@ -409,6 +441,7 @@ export function MailDayForm() {
                     value={section.setBrand}
                     options={optionsWithCurrent(SETS, section.setBrand)}
                     allowCustom
+                    customHint={SET_PARALLEL_HINT}
                     onChange={(setBrand) => {
                       const known = SETS.some((item) => item.toLowerCase() === setBrand.toLowerCase());
                       const next = parallelAfterSetChange({
@@ -433,18 +466,29 @@ export function MailDayForm() {
                     value={section.parallel}
                     options={optionsWithCurrent([...parallelsForSet(section.setBrand)], section.parallel)}
                     allowCustom
+                    customHint={SET_PARALLEL_HINT}
                     onChange={(parallel) => {
-                      const value = parallel || "Base";
+                      const next = parallelChoice(section.setBrand, parallel);
                       update(index, {
-                        parallel: value,
-                        parallelIsCustom: !parallelIsListed(section.setBrand, value),
+                        parallel: next.parallel,
+                        parallelIsCustom: next.parallelIsCustom,
                         parallelNote: "",
+                        isRookie: section.isRookie || textLooksRookie(next.parallel),
                       });
                     }}
                   />
                   {section.parallelNote ? (
                     <p className="mt-1 text-xs text-zinc-500">{section.parallelNote}</p>
                   ) : null}
+                  <label className="mt-3 flex min-h-11 items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={section.isRookie}
+                      onChange={(event) => update(index, { isRookie: event.target.checked })}
+                      className="size-5 shrink-0 accent-violet-500"
+                    />
+                    RC / Rookie
+                  </label>
                 </div>
                 <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Condition">
                   {(["raw", "graded"] as const).map((option) => (
