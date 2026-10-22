@@ -11,7 +11,6 @@ import { useSocial } from "@/components/social-provider";
 import { PullToRefresh } from "@/components/pull-to-refresh";
 import { EmptyState, LoadingRows } from "@/components/status";
 import { CARD_CATALOG, type CatalogCard } from "@/lib/card-catalog";
-import { normalizeSearchText } from "@/lib/card-search-query";
 import {
   CATALOG_SEARCH_DEBOUNCE_MS,
   CATALOG_SEARCH_TIMEOUT_MESSAGE,
@@ -27,6 +26,7 @@ import {
   catalogSecondaryLink,
 } from "@/lib/search/catalog-results";
 import {
+  addCardQuery,
   createRecentSearchStore,
   parseRecentSearches,
   recentSearchKey,
@@ -42,7 +42,7 @@ import {
   suggestedSearchPlayers,
   visibleSearchSections,
 } from "@/lib/search/sections";
-import { matchesEverySearchWord, ownCardSearchFields, plainSearchWords } from "@/lib/search/words";
+import { matchesEverySearchWord, matchesPlainWords, ownCardSearchFields } from "@/lib/search/words";
 
 /** @ queries are people searches. Skip the catalog RPC and its skeleton. */
 function wantsCatalogSearch(query: string) {
@@ -87,7 +87,8 @@ function searchHref(term: string) {
 export function SearchView() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const urlQ = searchParams.get("q") ?? "";
+  const rawQ = (searchParams.get("q") ?? "").trim();
+  const urlQ = addCardQuery(rawQ);
   const { ready: socialReady, profiles, homePosts, blockedIds, user, publicCards, refresh } = useSocial();
   const { ready: cardsReady, cards, reload } = useCollection();
   const [query, setQuery] = useState(urlQ);
@@ -117,7 +118,8 @@ export function SearchView() {
 
   useEffect(() => {
     setQuery(urlQ);
-  }, [urlQ]);
+    if (rawQ !== urlQ) router.replace(searchHref(urlQ), { scroll: false });
+  }, [rawQ, router, urlQ]);
 
   useEffect(() => {
     if (!wantsCatalogSearch(typed)) {
@@ -153,16 +155,11 @@ export function SearchView() {
 
   const people = useMemo(() => {
     if (!typed) return [];
-    const words = plainSearchWords(typed);
-    if (words.length === 0) return [];
     const hidden = new Set(blockedIds);
     const rank = typed.toLowerCase().replace(/^@+/, "");
     return profiles
       .filter((profile) => !hidden.has(profile.id))
-      .filter((profile) => {
-        const haystack = normalizeSearchText(`${profile.username} ${profile.displayName}`);
-        return words.every((word) => haystack.includes(word));
-      })
+      .filter((profile) => matchesPlainWords(typed, [profile.username, profile.displayName]))
       .sort((a, b) => {
         const score = (profile: { username: string; displayName: string }) => {
           const handle = profile.username.toLowerCase();
@@ -177,17 +174,14 @@ export function SearchView() {
 
   const matchedPosts = useMemo(() => {
     if (!typed) return [];
-    const words = plainSearchWords(typed);
-    if (words.length === 0) return [];
-    return homePosts.filter((post) => {
-      const haystack = normalizeSearchText(post.body);
-      return words.every((word) => haystack.includes(word));
-    });
+    return homePosts.filter((post) => matchesPlainWords(typed, [post.body]));
   }, [homePosts, typed]);
 
   const matchedCards = useMemo(() => {
     if (!typed) return [];
-    return cards.filter((card) => matchesEverySearchWord(typed, ownCardSearchFields(card)));
+    return cards.filter((card) =>
+      matchesEverySearchWord(typed, ownCardSearchFields(card), { grade: card.grade }),
+    );
   }, [cards, typed]);
 
   const authors = useMemo(() => new Map(profiles.map((profile) => [profile.id, profile])), [profiles]);
@@ -236,7 +230,7 @@ export function SearchView() {
     catalog: catalogCards.length,
     myCards: matchedCards.length,
   });
-  const showMiss =
+  const addCardMiss =
     !catalogTrouble &&
     showSearchMissLink({
       query: typed,
@@ -246,6 +240,9 @@ export function SearchView() {
       catalog: catalogCards.length,
       myCards: matchedCards.length,
     });
+  const showMiss =
+    addCardMiss ||
+    (!catalogTrouble && typed.startsWith("@") && !catalogLoading && visibleSections.length === 0);
 
   function retryCatalog() {
     setCatalogTrouble(false);
@@ -363,14 +360,16 @@ export function SearchView() {
           <EmptyState
             icon={<Search className="h-5 w-5" />}
             title={searchEmptyTitle(typed)}
-            detail="Try a name, @handle, a card, or words from a post."
+            detail={addCardMiss ? "Try a name, @handle, a card, or words from a post." : undefined}
           >
-            <Link
-              href={addCardSearchHref(typed)}
-              className="inline-flex min-h-11 items-center justify-center rounded-full bg-[#7C3AED] px-4 text-sm font-semibold text-white"
-            >
-              {SEARCH_ADD_CARD_LABEL}
-            </Link>
+            {addCardMiss ? (
+              <Link
+                href={addCardSearchHref(typed)}
+                className="inline-flex min-h-11 items-center justify-center rounded-full bg-[#7C3AED] px-4 text-sm font-semibold text-white"
+              >
+                {SEARCH_ADD_CARD_LABEL}
+              </Link>
+            ) : null}
           </EmptyState>
         </div>
       ) : (

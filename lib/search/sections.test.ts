@@ -90,6 +90,21 @@ describe("search sections", () => {
     );
   });
 
+  it("does not offer Add card for an @ query", () => {
+    assert.equal(
+      showSearchMissLink({
+        query: "@bron",
+        catalogLoading: false,
+        people: 0,
+        posts: 0,
+        catalog: 0,
+        myCards: 0,
+      }),
+      false,
+    );
+    assert.equal(searchEmptyTitle("@bron"), 'No results for "@bron"');
+  });
+
   it("puts the search field above intro copy and hides empty section headings", () => {
     const view = read("components/search-view.tsx");
     const page = read("app/search/page.tsx");

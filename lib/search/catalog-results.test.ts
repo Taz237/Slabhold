@@ -18,16 +18,26 @@ import {
 import { showSearchMissLink } from "@/lib/search/sections";
 import {
   matchesEverySearchWord,
+  matchesPlainWords,
   meaningfulSearchWords,
   ownCardSearchFields,
   plainSearchWords,
 } from "@/lib/search/words";
-import { normalizeSearchText } from "@/lib/card-search-query";
 
-function matchesPlainWords(query: string, fields: readonly string[]) {
-  const words = plainSearchWords(query);
-  const haystack = normalizeSearchText(fields.join(" "));
-  return words.length > 0 && words.every((word) => haystack.includes(word));
+function cardMatch(
+  query: string,
+  card: {
+    playerName: string;
+    year: number;
+    yearLabel?: string;
+    setBrand: string;
+    cardNumber?: string;
+    parallel?: string;
+    team?: string;
+    grade?: string | null;
+  },
+) {
+  return matchesEverySearchWord(query, ownCardSearchFields(card), { grade: card.grade });
 }
 
 function read(path: string) {
@@ -80,31 +90,93 @@ describe("search word split", () => {
     assert.equal(matchesEverySearchWord("bucky mahomes", ["Bucky Irving"]), false);
     assert.equal(matchesEverySearchWord("2024 bucky", ["Bucky Irving"]), false);
     assert.equal(matchesEverySearchWord("rookie", ["Bucky Irving rookie"]), true);
-    assert.equal(matchesEverySearchWord("psa 10", ["PSA 10 rookie"]), true);
+    assert.equal(
+      matchesEverySearchWord("psa 10", ["2010 rookie"], { grade: "PSA 10" }),
+      true,
+    );
     assert.equal(matchesEverySearchWord("@Bucky Irving", ["bucky", "Bucky Irving"]), true);
   });
 
-  it("keeps grade words on My cards and does not alias people or posts", () => {
-    const psa9 = ownCardSearchFields({
-      playerName: "Shohei Ohtani",
-      year: 2024,
+  it("keeps grade words on the grade only and does not alias people or posts", () => {
+    const base = {
       yearLabel: "2024",
       setBrand: "Topps",
-      cardNumber: "1",
       parallel: "Base",
-      grade: "PSA 9",
-    });
-    const psa10 = ownCardSearchFields({
-      playerName: "Shohei Ohtani",
-      year: 2024,
-      yearLabel: "2024",
-      setBrand: "Topps",
-      cardNumber: "1",
-      parallel: "Base",
-      grade: "PSA 10",
-    });
-    assert.equal(matchesEverySearchWord("ohtani psa 10", psa9), false);
-    assert.equal(matchesEverySearchWord("ohtani psa 10", psa10), true);
+      team: "Dodgers",
+    };
+    assert.equal(
+      cardMatch("lebron psa 10", {
+        ...base,
+        playerName: "LeBron James",
+        year: 2010,
+        yearLabel: "2010",
+        cardNumber: "23",
+        grade: "PSA 9",
+      }),
+      false,
+    );
+    assert.equal(
+      cardMatch("lebron psa 10", {
+        ...base,
+        playerName: "LeBron James",
+        year: 2024,
+        cardNumber: "10",
+        grade: "PSA 9",
+      }),
+      false,
+    );
+    assert.equal(
+      cardMatch("wemby psa 9", {
+        ...base,
+        playerName: "Victor Wembanyama",
+        year: 2019,
+        yearLabel: "2019",
+        cardNumber: "277",
+        grade: "PSA 10",
+      }),
+      false,
+    );
+    assert.equal(
+      cardMatch("psa 10", {
+        ...base,
+        playerName: "LeBron James",
+        year: 2010,
+        yearLabel: "2010",
+        cardNumber: "23",
+        grade: "PSA 8",
+      }),
+      false,
+    );
+    assert.equal(
+      cardMatch("ohtani bgs 9.5", {
+        ...base,
+        playerName: "Shohei Ohtani",
+        year: 2024,
+        cardNumber: "150",
+        grade: "BGS 9",
+      }),
+      false,
+    );
+    assert.equal(
+      cardMatch("ohtani bgs 9.5", {
+        ...base,
+        playerName: "Shohei Ohtani",
+        year: 2024,
+        cardNumber: "150",
+        grade: "BGS 9.5",
+      }),
+      true,
+    );
+    assert.equal(
+      cardMatch("ohtani graded", {
+        ...base,
+        playerName: "Shohei Ohtani",
+        year: 2024,
+        cardNumber: "1",
+        grade: "PSA 10",
+      }),
+      true,
+    );
     assert.deepEqual(meaningfulSearchWords("psa 10"), []);
     assert.deepEqual(meaningfulSearchWords("rookie"), []);
     assert.deepEqual(plainSearchWords("psa 10"), ["psa", "10"]);
@@ -124,6 +196,9 @@ describe("search word split", () => {
     assert.equal(matchesPlainWords("ant", ["antonio", "Antonio"]), true);
     assert.equal(matchesPlainWords("psa 10", ["PSA 10 rookie"]), true);
     assert.equal(matchesPlainWords("rookie", ["PSA 10 rookie"]), true);
+    assert.equal(matchesPlainWords("田中", ["田中 太郎"]), true);
+    assert.equal(matchesPlainWords("日本", ["来自日本"]), true);
+    assert.equal(matchesPlainWords("🔥", ["pulled 🔥 today"]), true);
     assert.equal(matchesEverySearchWord("ant", ["antonio"]), false);
     assert.equal(matchesEverySearchWord("kd", ["kd_cards"]), false);
     assert.equal(matchesEverySearchWord("bron", ["bron_fan"]), false);
@@ -267,10 +342,13 @@ describe("catalog search results", () => {
     assert.match(form, /catalogPickFields\(card, sportTouched \? form\.sport : ""\)/);
     assert.match(view, /session\.abort\(\)/);
     assert.doesNotMatch(view, /session\.done[\s\S]*?\.catch\(/);
-    assert.match(view, /plainSearchWords\(typed\)/);
-    assert.equal((view.match(/plainSearchWords\(typed\)/g) ?? []).length, 2);
+    assert.match(view, /matchesPlainWords\(typed,/);
+    assert.equal((view.match(/matchesPlainWords\(typed,/g) ?? []).length, 2);
     assert.equal((view.match(/matchesEverySearchWord\(/g) ?? []).length, 1);
-    assert.match(view, /matchesEverySearchWord\(typed, ownCardSearchFields\(card\)\)/);
+    assert.match(view, /matchesEverySearchWord\(typed, ownCardSearchFields\(card\), \{ grade: card\.grade \}\)/);
+    assert.match(view, /const rawQ = \(searchParams\.get\("q"\) \?\? ""\)\.trim\(\)/);
+    assert.match(view, /addCardQuery\(rawQ\)/);
+    assert.match(view, /rawQ !== urlQ/);
     assert.match(view, /wantsCatalogSearch\(typed\)/);
     assert.match(view, /startsWith\("@"\)/);
     assert.match(view, /maxLength=\{100\}/);
@@ -306,6 +384,7 @@ describe("catalog search results", () => {
     assert.equal(showSearchMissLink({ ...empty, posts: 1 }), false);
     assert.equal(showSearchMissLink({ ...empty, catalogLoading: true }), false);
     assert.equal(showSearchMissLink({ ...empty, query: "   " }), false);
+    assert.equal(showSearchMissLink({ ...empty, query: "@bron" }), false);
   });
 
   it("cancels a stale catalog search so a late response cannot replace the new query", async () => {

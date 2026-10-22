@@ -91,7 +91,8 @@ export function showSearchMissLink(input: {
   catalog: number;
   myCards: number;
 }): boolean {
-  if (!input.query.trim() || input.catalogLoading) return false;
+  const query = input.query.trim();
+  if (!query || input.catalogLoading || query.startsWith("@")) return false;
   return (
     visibleSearchSections({
       people: input.people,
