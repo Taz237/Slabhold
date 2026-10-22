@@ -21,6 +21,7 @@ import { EmptyState, LoadingRows, TimelineSkeleton } from "@/components/status";
 import { CollectionToday } from "@/components/collection-today";
 import { shouldShowFirstCardWelcome } from "@/lib/collection/welcome";
 import { Tweet } from "@/components/tweet";
+import { WhatsNewCard } from "@/components/whats-new-card";
 import { loginPath } from "@/lib/auth/safe-next";
 import { takeCompose } from "@/lib/capture";
 import { fileToDataUrl } from "@/lib/storage";
@@ -32,6 +33,7 @@ import {
   profileStepDone,
 } from "@/lib/social/get-started";
 import { followingAuthorIds, homeHead, showsNewPosts } from "@/lib/social/feed-page";
+import { presentForYouFeed } from "@/lib/social/for-you-display";
 import { addUnblockedProfiles, presentPagedItems } from "@/lib/social/paged-items";
 import { publicTimeline } from "@/lib/social/timeline";
 import { POST_LIMIT, type Profile, type PublicCard } from "@/lib/social/types";
@@ -164,6 +166,10 @@ export function FeedView() {
   const everyone = paging ? presentPagedItems(forYouPage.items, pageOptions) : clientEveryone;
   const feed = paging ? presentPagedItems(followingPage.items, pageOptions) : followedFeed;
   const visible = !user ? (lane === "following" ? [] : everyone) : lane === "following" ? feed : everyone;
+  const feedEntries =
+    lane === "foryou"
+      ? presentForYouFeed(visible, (authorId) => authors.get(authorId)?.username ?? null)
+      : visible.map((item) => ({ kind: "post" as const, item }));
   const activeLoading = paging && activePage.loading && visible.length === 0;
   const followingEmpty =
     Boolean(user) &&
@@ -302,7 +308,12 @@ export function FeedView() {
           </EmptyState>
         ) : (
           <>
-            {visible.map((item) => {
+            {feedEntries.map((entry) => {
+              if (entry.kind === "whats-new") {
+                const noteAuthor = authors.get(entry.items[0]?.post.authorId ?? "") ?? null;
+                return <WhatsNewCard key={entry.key} items={entry.items} author={noteAuthor} />;
+              }
+              const item = entry.item;
               const author = authors.get(item.post.authorId);
               if (!author) return null;
               return (
