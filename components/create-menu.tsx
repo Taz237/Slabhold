@@ -33,7 +33,6 @@ export function CreateMenu() {
   if (!visible) return null;
 
   const postHref = "/compose";
-  const mailHref = "/mail-day";
   const menuClass =
     "w-44 overflow-hidden rounded-2xl border border-zinc-200 bg-[var(--background)] py-1 shadow-lg dark:border-white/10";
 
@@ -67,10 +66,10 @@ export function CreateMenu() {
             role="menu"
             className={`fixed right-[calc(max(0px,50vw-16rem)+1rem)] bottom-[calc(9.25rem+env(safe-area-inset-bottom))] z-40 md:hidden ${menuClass}`}
           >
-            <CreateMenuLinks postHref={postHref} mailHref={mailHref} onPick={() => setOpen(false)} />
+            <CreateMenuLinks postHref={postHref} onPick={() => setOpen(false)} />
           </div>
           <div role="menu" className={`fixed bottom-40 left-4 z-40 hidden md:block ${menuClass}`}>
-            <CreateMenuLinks postHref={postHref} mailHref={mailHref} onPick={() => setOpen(false)} />
+            <CreateMenuLinks postHref={postHref} onPick={() => setOpen(false)} />
           </div>
         </>
       ) : null}
@@ -80,11 +79,9 @@ export function CreateMenu() {
 
 function CreateMenuLinks({
   postHref,
-  mailHref,
   onPick,
 }: {
   postHref: string;
-  mailHref: string;
   onPick: () => void;
 }) {
   const item =
@@ -96,9 +93,6 @@ function CreateMenuLinks({
       </Link>
       <Link href="/cards/new" role="menuitem" onClick={onPick} className={item}>
         Add card
-      </Link>
-      <Link href={mailHref} role="menuitem" onClick={onPick} className={item}>
-        Mail Day
       </Link>
     </>
   );

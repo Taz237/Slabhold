@@ -1,11 +1,11 @@
 import { isUuid } from "@/lib/value/card-value-access";
 import { getAuthUserId } from "@/lib/supabase/server";
-import { notifyOwnedListing, notifyOwnedPost } from "@/lib/wants/dispatch";
+import { notifyOwnedCard, notifyOwnedListing, notifyOwnedPost } from "@/lib/wants/dispatch";
 
 export const runtime = "nodejs";
 
 /**
- * Match a post or listing the signed-in user just saved.
+ * Match a post, card, or listing the signed-in user just saved.
  * Sale alerts are created from the comps refresh, not this route.
  */
 export async function POST(request: Request) {
@@ -23,7 +23,10 @@ export async function POST(request: Request) {
 
   const sourceType = body.sourceType;
   const sourceId = typeof body.sourceId === "string" ? body.sourceId : "";
-  if ((sourceType !== "post" && sourceType !== "listing") || !isUuid(sourceId)) {
+  if (
+    (sourceType !== "post" && sourceType !== "listing" && sourceType !== "card") ||
+    !isUuid(sourceId)
+  ) {
     return Response.json({ error: "Missing post or listing." }, { status: 400 });
   }
 
@@ -31,7 +34,9 @@ export async function POST(request: Request) {
     const notified =
       sourceType === "post"
         ? await notifyOwnedPost(userId, sourceId)
-        : await notifyOwnedListing(userId, sourceId);
+        : sourceType === "listing"
+          ? await notifyOwnedListing(userId, sourceId)
+          : await notifyOwnedCard(userId, sourceId);
     if (notified == null) {
       return Response.json({ error: "Not found." }, { status: 404 });
     }

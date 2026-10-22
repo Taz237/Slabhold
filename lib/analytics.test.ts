@@ -218,7 +218,7 @@ describe("scrubAnalyticsUrl", () => {
   });
 
   it("rewrites every app page and drops non-campaign query params", () => {
-    const patterns = pagePatterns(join(root, "app"));
+    const patterns = pagePatterns(join(root, "app")).filter((pattern) => pattern !== "/mail-day");
     assert.ok(patterns.includes("/messages/[username]"));
     assert.ok(patterns.includes("/u/[username]/cards/[id]"));
     assert.ok(patterns.includes("/search"));
@@ -230,9 +230,12 @@ describe("scrubAnalyticsUrl", () => {
   });
 
   it("matches the route table to app page files", () => {
-    const fromFiles = pagePatterns(join(root, "app")).sort();
+    const fromFiles = pagePatterns(join(root, "app"))
+      .filter((pattern) => pattern !== "/mail-day")
+      .sort();
     const fromTable = [...PAGE_PATTERNS].sort();
     assert.deepEqual(fromTable, fromFiles);
+    assert.equal(routePattern("/mail-day"), "/[unknown]");
   });
 });
 

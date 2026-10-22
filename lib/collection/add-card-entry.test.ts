@@ -31,8 +31,8 @@ describe("Add a card on Collection", () => {
     assert.match(html, /min-h-11/);
     assert.match(html, focusRing);
     assert.match(html, /flex-wrap/);
-    assert.match(html, /href="\/mail-day"/);
-    assert.match(html, />Mail Day</);
+    assert.doesNotMatch(html, /Mail Day/);
+    assert.doesNotMatch(html, /\/mail-day/);
 
     const dash = read("components/dashboard.tsx");
     const header = dash.indexOf("<CollectionHeader");
@@ -44,12 +44,26 @@ describe("Add a card on Collection", () => {
     assert.ok(welcome > emptyBranch);
   });
 
+  it("does not offer Mail Day from the header or the create menu", () => {
+    const html = renderToStaticMarkup(createElement(CollectionHeader));
+    assert.doesNotMatch(html, /Mail Day/);
+    assert.doesNotMatch(html, /href="\/mail-day"/);
+    assert.match(html, />Add a card</);
+    const menu = read("components/create-menu.tsx");
+    assert.doesNotMatch(menu, /Mail Day/);
+    assert.doesNotMatch(menu, /\/mail-day/);
+    assert.match(menu, />\s*Post\s*</);
+    assert.match(menu, />\s*Add card\s*</);
+  });
+
   it("is also in the create menu and More, and the camera tab adds a card", () => {
     const menu = read("components/create-menu.tsx");
     assert.match(menu, /href="\/cards\/new"/);
     assert.match(menu, />\s*Add card\s*</);
     assert.match(menu, /aria-label="Post"/);
     assert.match(menu, />\s*Post\s*</);
+    assert.doesNotMatch(menu, /Mail Day/);
+    assert.doesNotMatch(menu, /\/mail-day/);
     const more = read("components/more-view.tsx");
     assert.match(more, /href="\/cards\/new"/);
     assert.match(more, />\s*Add card\s*</);

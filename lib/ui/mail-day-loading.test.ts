@@ -24,10 +24,12 @@ describe("Mail Day loading", () => {
 
     assert.match(form, /MailDayHeading/);
     assert.match(form, /if \(!ready\) return <MailDayPending \/>/);
-    assert.match(page, /if \(!userId\) redirect\(loginPath\("\/mail-day"\)\)/);
+    assert.match(page, /redirect\("\/cards\/new"\)/);
+    assert.doesNotMatch(page, /loginPath\("\/mail-day"\)/);
+    assert.doesNotMatch(page, /MailDayForm/);
 
     assert.match(shell, /requiresAccount\(pathname\)/);
     assert.match(shell, /routeAccess\(pathname\) === "unknown"/);
-    assert.match(shell, /path === "\/mail-day"/);
+    assert.doesNotMatch(shell, /path === "\/mail-day"/);
   });
 });

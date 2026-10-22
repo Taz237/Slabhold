@@ -158,6 +158,7 @@ export function CollectionProvider({ children }: { children: React.ReactNode }) 
             try {
               await saveUserCard(client, userId, card);
               trackEvent("card_added");
+              if (card.isPublic) pingWantMatch("card", card.id);
               if (isPublicForSaleListing(card)) pingWantMatch("listing", card.id);
               setSyncError(null);
               scheduleCardValueRefresh(card.id);

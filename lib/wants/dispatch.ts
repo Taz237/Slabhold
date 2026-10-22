@@ -10,6 +10,7 @@ import { identityBandValue } from "./identity-band";
 import { isPublicForSaleListing } from "./listing";
 import { wantShortLabel } from "./label";
 import { notifyWantMatches, type WantMatchEvent } from "./notify-want-matches";
+import { ownedCardWantEvent } from "./owned-card";
 import { createSupabaseWantDb } from "./want-db";
 
 async function usernameOf(userId: string): Promise<string | null> {
@@ -251,4 +252,28 @@ export async function notifyMailDayPost(input: {
     },
     db,
   );
+}
+
+/** Followers who want this card. Null when the card is not the actor's. */
+export async function notifyOwnedCard(
+  actorId: string,
+  cardId: string,
+): Promise<number | null> {
+  const admin = createSupabaseAdmin();
+  const db = createSupabaseWantDb();
+  if (!admin || !db) return 0;
+  const { data, error } = await admin.from("cards").select("*").eq("id", cardId).maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data || data.user_id !== actorId) return null;
+  const card = mapCardRow(data as CardRow);
+  const band =
+    card.isPublic && !isPublicForSaleListing(card) ? await identityBand(card, actorId) : null;
+  const event = ownedCardWantEvent({
+    actorId,
+    card,
+    username: await usernameOf(actorId),
+    band,
+  });
+  if (!event) return 0;
+  return notifyWantMatches(event, db);
 }

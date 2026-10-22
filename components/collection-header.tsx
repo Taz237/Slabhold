@@ -1,6 +1,4 @@
-import Link from "next/link";
 import { AddCardLink } from "@/components/add-card-link";
-import { outlineButton } from "@/components/button-styles";
 
 /** Collection title plus Add a card, including when the book already has cards. */
 export function CollectionHeader() {
@@ -12,9 +10,6 @@ export function CollectionHeader() {
       </div>
       <div className="flex max-w-full flex-wrap items-center gap-2">
         <AddCardLink />
-        <Link href="/mail-day" className={`${outlineButton} min-h-11`}>
-          Mail Day
-        </Link>
       </div>
     </div>
   );
