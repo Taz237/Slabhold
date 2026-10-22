@@ -400,7 +400,7 @@ function CollectorSuggestions({
       id="collectors-to-follow"
       className="scroll-mt-20 border-b border-zinc-200 px-4 py-3 dark:border-white/10"
     >
-      <div className="mb-2 flex items-center justify-between gap-2">
+      <div className="mb-2 flex items-center justify-between gap-2 max-md:pr-20">
         <p className="text-xs font-medium text-zinc-500">Collectors to follow</p>
         {pending.length > 0 ? (
           <button

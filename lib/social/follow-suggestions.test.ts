@@ -118,6 +118,12 @@ describe("followSuggestions", () => {
     assert.match(provider, /followSuggestionFetchLimit\(displayLimit\)/);
     assert.match(provider, /followSuggestions\(candidates/);
     assert.match(feed, /Collectors to follow/);
+    const suggestions = feed.slice(
+      feed.indexOf("function CollectorSuggestions"),
+      feed.indexOf("function LaneTab"),
+    );
+    assert.match(suggestions, /Follow all/);
+    assert.match(suggestions, /max-md:pr-20/);
     assert.match(remote, /needsSuggestionHeadroom\(profiles\.length\)/);
     assert.match(remote, /suggestionExtraRange\(profiles\.length\)/);
     assert.match(
