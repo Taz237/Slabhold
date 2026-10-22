@@ -456,6 +456,7 @@ describe("newest batches under the shared cap", () => {
         return true;
       },
     );
+    await new Promise((r) => setTimeout(r, 60));
     assert.equal(started(), PRICE_BATCH_READ_CONCURRENCY);
     assert.equal(startedAfterFailure(), 0);
   });
