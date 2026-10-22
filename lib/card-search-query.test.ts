@@ -179,6 +179,17 @@ describe("searchCatalog ranking", () => {
     assert.deepEqual(searchCatalog("zzqxv"), []);
   });
 
+  it("matches the CJ Stroud seed when the initials are dotted or spaced", () => {
+    for (const query of ["c.j. stroud", "c j stroud"]) {
+      const hits = searchCatalog(query);
+      assert.ok(hits.length > 0, query);
+      assert.ok(
+        hits.every((hit) => hit.playerName === "CJ Stroud"),
+        query,
+      );
+    }
+  });
+
   it("puts the player match ahead of the same year and set", () => {
     const hits = searchCatalog("Wembanyama 2023 Prizm");
     assert.ok(hits.length > 0);

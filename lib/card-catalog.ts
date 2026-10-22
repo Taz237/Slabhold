@@ -6,6 +6,7 @@ import {
   searchCardsLocal,
   type SearchableCard,
 } from "@/lib/card-search-query";
+import { compactPlayerQueryMatches } from "@/lib/social/follow-rank";
 
 export type CatalogCard = {
   id: string;
@@ -184,7 +185,11 @@ function cardsInRankOrder(
 
 /** Ranked local matches (typo/alias aware). Default 20 for Add Card. */
 export function searchCatalog(query: string, limit = 20): CatalogCard[] {
-  return cardsInRankOrder(query, CARD_CATALOG, limit);
+  const ranked = cardsInRankOrder(query, CARD_CATALOG, limit);
+  if (ranked.length > 0 || !query.trim()) return ranked;
+  const cap = Math.max(0, Math.floor(limit));
+  if (cap === 0) return [];
+  return CARD_CATALOG.filter((card) => compactPlayerQueryMatches(query, card.playerName)).slice(0, cap);
 }
 
 /**

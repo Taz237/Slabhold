@@ -100,6 +100,30 @@ export function compactInterest(value: string): string {
   return compactNorm(normInterest(value));
 }
 
+/**
+ * Compact match for a dotted or single-letter query, starting at a word.
+ * "c.j. stroud" and "c j stroud" match "CJ Stroud". "john st" does not match
+ * "Cameron Johnston", because that query is neither dotted nor single letters.
+ */
+export function compactPlayerQueryMatches(query: string, name: string): boolean {
+  const norm = normInterest(query);
+  if (!norm) return false;
+  const tokens = norm.split(" ");
+  if (!query.includes(".") && tokens.every((token) => token.length !== 1)) return false;
+  const q = compactNorm(norm);
+  if (!q) return false;
+  const words = normInterest(name).split(" ").filter(Boolean);
+  for (let start = 0; start < words.length; start += 1) {
+    let joined = "";
+    for (let index = start; index < words.length; index += 1) {
+      joined += words[index] ?? "";
+      if (joined.startsWith(q)) return true;
+      if (!q.startsWith(joined)) break;
+    }
+  }
+  return false;
+}
+
 /** Same sport only. A blank sport does not attach to Baseball or Hockey. */
 export function playerSportsCompatible(left: string, right: string): boolean {
   return left.trim().toLowerCase() === right.trim().toLowerCase();

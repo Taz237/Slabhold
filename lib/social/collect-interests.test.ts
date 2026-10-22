@@ -93,6 +93,20 @@ describe("interest typeahead", () => {
         query,
       );
     }
+    const crossed = [
+      { name: "Cameron Johnston", sport: "Football" },
+      { name: "Chandler Brayboy", sport: "Football" },
+      { name: "Brianna Turner", sport: "Basketball" },
+      { name: "CJ Stroud", sport: "Football" },
+    ];
+    for (const query of ["john st", "ray bo", "brian na"]) {
+      const hits = interestTypeahead({ query, players: crossed, teams: [] });
+      assert.deepEqual(
+        hits.map((hit) => hit.value),
+        [],
+        query,
+      );
+    }
     const blank = interestTypeahead({
       query: "stroud",
       players: [
