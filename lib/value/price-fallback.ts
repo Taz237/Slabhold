@@ -1,6 +1,7 @@
 import { canonicalParallelName, parallelMatchKey } from "@/lib/cards/parallels";
 import { normalizeCardNumber, setMatchPhrase } from "@/lib/comps/match";
 import { money } from "@/lib/format";
+import { userHref } from "@/lib/social/user-href";
 import type { EbaySoldCard } from "@/lib/value/ebay-sold";
 import {
   formatCardValueLabel,
@@ -285,7 +286,7 @@ export function pickSimilarOffer(
   const high = Math.max(...prices);
   const link = group.slice().sort((a, b) => b.prices.length - a.prices.length)[0];
   return {
-    href: `/u/${link.username}/cards/${link.candidate.id}`,
+    href: `${userHref(link.username)}/cards/${link.candidate.id}`,
     detail: similarDetail(best.candidate, best.relation.reason),
     priceText: rangeLabel(low, high, prices.length),
     reason: best.relation.reason,
