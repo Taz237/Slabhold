@@ -6,8 +6,10 @@
  * no rule, a scanned file fails to parse, ESLint crashes, or the baseline is
  * missing or malformed. A drop is not a failure: print LOWER_BASELINE_MESSAGE.
  *
- * Blanket disables are read from ESLint's file list with @typescript-eslint/parser.
- * They are never written into the baseline, including with `--allow-increase`.
+ * Blanket disables and parse failures are read from ESLint's file list with
+ * @typescript-eslint/parser. Check mode exits 1 when either finding is current,
+ * even if the baseline already lists it. A baseline file that contains either
+ * key is rejected. Neither key is ever written, including with `--allow-increase`.
  *
  * `node scripts/check-lint-baseline.mjs --write` rewrites the baseline when counts
  * only stay the same or fall. Adding or raising entries requires `--allow-increase`.
@@ -89,8 +91,14 @@ export function parseBaseline(data) {
   }
   const entries = [];
   for (const [finding, count] of Object.entries(data)) {
-    if (!splitFinding(finding) || !Number.isInteger(count) || count < 1) {
+    const parsed = splitFinding(finding);
+    if (!parsed || !Number.isInteger(count) || count < 1) {
       return { error: `eslint-baseline.json is malformed at ${JSON.stringify(finding)}.` };
+    }
+    if (parsed.rule === BLANKET_RULE || parsed.rule === PARSE_ERROR_RULE) {
+      return {
+        error: `eslint-baseline.json cannot contain ${parsed.rule} entries (${JSON.stringify(finding)}).`,
+      };
     }
     entries.push([finding, count]);
   }
@@ -139,13 +147,31 @@ export function parseDisableDirective(commentValue, commentType) {
   return { label, rules, blanket: rules.length === 0 };
 }
 
-export function findBlanketDisables(source, file = "file.ts") {
-  const ast = parse(source, {
+function parseSource(source, jsx) {
+  return parse(source, {
     comment: true,
-    jsx: /\.(tsx|jsx)$/.test(file),
+    jsx,
     range: true,
     loc: true,
   });
+}
+
+function prefersJsx(file) {
+  return /\.(js|jsx|mjs|cjs|tsx)$/.test(file);
+}
+
+export function findBlanketDisables(source, file = "file.ts") {
+  const jsx = prefersJsx(file);
+  let ast;
+  try {
+    ast = parseSource(source, jsx);
+  } catch (first) {
+    try {
+      ast = parseSource(source, !jsx);
+    } catch {
+      throw first;
+    }
+  }
   const hits = [];
   for (const comment of ast.comments ?? []) {
     if (!parseDisableDirective(comment.value, comment.type)?.blanket) continue;
@@ -232,20 +258,28 @@ export function addParseErrors(counts, details, parseErrors) {
   }
 }
 
-export function hasBlanketFinding(counts) {
+export function isBlockedFinding(finding) {
+  return (
+    typeof finding === "string" &&
+    (finding.endsWith(`:${BLANKET_RULE}`) || finding.endsWith(`:${PARSE_ERROR_RULE}`))
+  );
+}
+
+export function hasBlockedFinding(counts) {
   for (const finding of counts.keys()) {
-    if (finding.endsWith(`:${BLANKET_RULE}`)) return true;
+    if (isBlockedFinding(finding)) return true;
   }
   return false;
 }
 
-export function exitCodeForDiff(diff) {
+export function exitCodeForDiff(diff, counts) {
+  if (counts && hasBlockedFinding(counts)) return 1;
   return diff.added.length > 0 || diff.raised.length > 0 ? 1 : 0;
 }
 
 export function allowsBaselineWrite(diff, allowIncrease) {
   for (const item of [...diff.added, ...diff.raised]) {
-    if (item.finding.endsWith(`:${BLANKET_RULE}`)) return false;
+    if (isBlockedFinding(item.finding)) return false;
   }
   return exitCodeForDiff(diff) === 0 || allowIncrease;
 }
@@ -353,8 +387,8 @@ export function main(argv = process.argv) {
   );
 
   if (write) {
-    if (hasBlanketFinding(counts)) {
-      console.error("Refusing to record blanket eslint-disable entries in the baseline.");
+    if (hasBlockedFinding(counts)) {
+      console.error("Refusing to record (blanket-disable) or (parse-error) entries in the baseline.");
       printNewFindings(diff.added, details, "new");
       printNewFindings(diff.raised, details, "rose");
       return 1;
@@ -374,7 +408,11 @@ export function main(argv = process.argv) {
   }
 
   reportDiff(diff, details);
-  return exitCodeForDiff(diff);
+  if (hasBlockedFinding(counts)) {
+    console.error("Refusing to accept (blanket-disable) or (parse-error) findings.");
+    return 1;
+  }
+  return exitCodeForDiff(diff, counts);
 }
 
 const entryPath = process.argv[1] ? pathToFileURL(resolve(process.argv[1])).href : "";

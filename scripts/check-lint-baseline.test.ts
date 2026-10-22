@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { randomBytes } from "node:crypto";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -14,6 +15,7 @@ import {
   collectFindings,
   diffFindings,
   exitCodeForDiff,
+  filesFromReport,
   findBlanketDisables,
   findingKey,
   main,
@@ -26,6 +28,10 @@ import {
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
 
 const root = "/repo";
+
+function e2eFile(label: string) {
+  return join(repoRoot, "scripts", `blanket-e2e-${label}-${process.pid}-${randomBytes(4).toString("hex")}.ts`);
+}
 
 function committedBaseline(): Array<[string, number]> {
   const baseline = readBaselineFile(join(repoRoot, "eslint-baseline.json"));
@@ -182,13 +188,20 @@ describe("lint baseline findings", { concurrency: false }, () => {
     assert.equal(allowsBaselineWrite(raised, false), false);
     assert.equal(allowsBaselineWrite(added, true), true);
     assert.equal(allowsBaselineWrite(lowered, false), true);
+    const parseError = {
+      added: [{ finding: "error lib/a.ts:(parse-error)", count: 1 }],
+      raised: [],
+      lowered: [],
+    };
     assert.equal(allowsBaselineWrite(blanket, true), false);
+    assert.equal(allowsBaselineWrite(parseError, true), false);
   });
 
   it("flags a blanket disable after a regex quote and empty quoted rule lists", () => {
     const sources = [
       'const re = /"/;\n/* eslint-disable */\nexport const n = 1;\n',
       "const re = /'/;\n// eslint-disable-next-line\nexport const n = 1;\n",
+      "const re = /`/;\n/* eslint-disable */\nexport const n = 1;\n",
       '/* eslint-disable "" */\nexport const n = 1;\n',
       "/* eslint-disable '' */\nexport const n = 1;\n",
     ];
@@ -228,8 +241,43 @@ describe("lint baseline findings", { concurrency: false }, () => {
     assert.equal(main(["node", "scripts/check-lint-baseline.mjs"]), 0);
   });
 
+  it("rejects a hand-edited baseline that contains a blanket or parse-error entry", () => {
+    assert.match(
+      parseBaseline({ "error scripts/hand-edited.ts:(blanket-disable)": 1 }).error ?? "",
+      /cannot contain \(blanket-disable\)/,
+    );
+    assert.match(
+      parseBaseline({ "error scripts/hand-edited.ts:(parse-error)": 1 }).error ?? "",
+      /cannot contain \(parse-error\)/,
+    );
+    const blanketCounts = new Map<string, number>([["error scripts/hand-edited.ts:(blanket-disable)", 1]]);
+    const blanketDiff = diffFindings(
+      [["error scripts/hand-edited.ts:(blanket-disable)", 1]],
+      blanketCounts,
+    );
+    assert.deepEqual(blanketDiff, { raised: [], added: [], lowered: [] });
+    assert.equal(exitCodeForDiff(blanketDiff, blanketCounts), 1);
+    const parseCounts = new Map<string, number>([["error scripts/hand-edited.ts:(parse-error)", 2]]);
+    const parseDiff = diffFindings([["error scripts/hand-edited.ts:(parse-error)", 2]], parseCounts);
+    assert.equal(exitCodeForDiff(parseDiff, parseCounts), 1);
+  });
+
+  it("flags a blanket disable in a js file that contains JSX", () => {
+    const source = "/* eslint-disable */\nconst el = <div />;\n";
+    const hits = exitForBlanketFile("component.js", source);
+    assert.equal(hits.length, 1);
+  });
+
+  it("passes mts, cts, jsx, and cjs paths through from the eslint report", () => {
+    const paths = ["/repo/new-file.mts", "/repo/new-file.cts", "/repo/new-file.jsx", "/repo/new-file.cjs"];
+    assert.deepEqual(
+      filesFromReport(paths.map((filePath) => ({ filePath, messages: [] }))),
+      paths,
+    );
+  });
+
   it("main exits 1 when a file starts with a blanket disable", { timeout: 60_000 }, () => {
-    const file = join(repoRoot, "scripts", "blanket-disable-e2e.ts");
+    const file = e2eFile("blanket");
     const errors: string[] = [];
     const original = console.error;
     console.error = (...args: unknown[]) => {
@@ -238,10 +286,54 @@ describe("lint baseline findings", { concurrency: false }, () => {
     writeFileSync(file, "/* eslint-disable */\nexport const blanketE2e = 1;\n");
     try {
       assert.equal(main(["node", "scripts/check-lint-baseline.mjs"]), 1);
-      assert.match(errors.join("\n"), /scripts\/blanket-disable-e2e\.ts:\(blanket-disable\)/);
+      assert.match(errors.join("\n"), /blanket-e2e-blanket-.*:\(blanket-disable\)/);
     } finally {
       console.error = original;
       rmSync(file, { force: true });
+    }
+  });
+
+  it("main exits 1 when the baseline contains a blanket entry", { timeout: 60_000 }, () => {
+    const baselineFile = join(repoRoot, "eslint-baseline.json");
+    const before = readFileSync(baselineFile);
+    const data = JSON.parse(before.toString("utf8")) as Record<string, number>;
+    data["error scripts/hand-edited.ts:(blanket-disable)"] = 1;
+    writeFileSync(baselineFile, `${JSON.stringify(data, null, 2)}\n`);
+    const errors: string[] = [];
+    const original = console.error;
+    console.error = (...args: unknown[]) => {
+      errors.push(args.map((arg) => String(arg)).join(" "));
+    };
+    try {
+      assert.equal(main(["node", "scripts/check-lint-baseline.mjs"]), 1);
+      assert.match(errors.join("\n"), /cannot contain \(blanket-disable\)/);
+    } finally {
+      console.error = original;
+      writeFileSync(baselineFile, before);
+    }
+  });
+
+  it("refuses --allow-increase for a parse error and leaves the baseline unchanged", { timeout: 60_000 }, () => {
+    const baselineFile = join(repoRoot, "eslint-baseline.json");
+    const before = readFileSync(baselineFile);
+    const file = e2eFile("parse");
+    const errors: string[] = [];
+    const original = console.error;
+    console.error = (...args: unknown[]) => {
+      errors.push(args.map((arg) => String(arg)).join(" "));
+    };
+    writeFileSync(file, "const = ;\n");
+    try {
+      assert.equal(
+        main(["node", "scripts/check-lint-baseline.mjs", "--write", "--allow-increase"]),
+        1,
+      );
+      assert.match(errors.join("\n"), /Refusing to record \(blanket-disable\) or \(parse-error\)/);
+      assert.deepEqual(readFileSync(baselineFile), before);
+    } finally {
+      console.error = original;
+      rmSync(file, { force: true });
+      writeFileSync(baselineFile, before);
     }
   });
 });
