@@ -88,6 +88,83 @@ SQL
 fi
 
 run_sql <<'SQL'
+do $$
+declare
+  n int;
+begin
+  insert into public.catalog_staging (
+    batch, sport, year_label, product, subset, player, card_number, parallel,
+    serial_run, is_rookie, source, source_ref
+  ) values (
+    '2026-10-22-topps-chrome-fb', 'Baseball', '2024', 'Topps Chrome', null,
+    'Bot Player', '1', 'Base', 99, true, 'checklist', 'ref-1'
+  );
+
+  begin
+    insert into public.catalog_staging (
+      batch, sport, year_label, product, subset, player, card_number, parallel,
+      serial_run, is_rookie, source, source_ref
+    ) values (
+      '2026-10-22-topps-chrome-fb', 'Baseball', '2024', 'Topps Chrome', '',
+      'Bot Player', '1', 'Base', 99, true, 'checklist', 'ref-1'
+    );
+    raise exception 'duplicate batch identity was inserted';
+  exception
+    when unique_violation then
+      null;
+  end;
+
+  insert into public.catalog_staging (
+    batch, sport, year_label, product, subset, player, card_number, parallel,
+    serial_run, is_rookie, source, source_ref
+  ) values (
+    '2026-10-22-topps-chrome-fb', null, '2024', 'Topps Chrome', null,
+    'Null Sport Player', '2', null, null, false, 'checklist', 'ref-2'
+  );
+
+  begin
+    insert into public.catalog_staging (
+      batch, sport, year_label, product, subset, player, card_number, parallel,
+      serial_run, is_rookie, source, source_ref
+    ) values (
+      '2026-10-22-topps-chrome-fb', null, '2024', 'Topps Chrome', null,
+      'Null Sport Player', '2', '', null, false, 'checklist', 'ref-2'
+    );
+    raise exception 'null sport and empty parallel were inserted twice';
+  exception
+    when unique_violation then
+      null;
+  end;
+
+  insert into public.catalog_staging (
+    batch, sport, year_label, product, player, card_number, parallel,
+    source, submitted_card_id
+  ) values
+    ('user', 'Baseball', '2024', 'Topps Chrome', 'Bot Player', '1', 'Base', 'user',
+      'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'),
+    ('user', 'Baseball', '2024', 'Topps Chrome', 'Bot Player', '1', 'Base', 'user',
+      'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb');
+
+  select count(*) into n
+  from public.catalog_staging
+  where batch = '2026-10-22-topps-chrome-fb';
+  if n <> 2 then
+    raise exception 'expected 2 distinct bot identities, got %', n;
+  end if;
+
+  select count(*) into n
+  from public.catalog_staging
+  where submitted_card_id is not null;
+  if n <> 2 then
+    raise exception 'same identity from two users was collapsed (% rows)', n;
+  end if;
+
+  delete from public.catalog_staging
+  where batch in ('2026-10-22-topps-chrome-fb', 'user');
+end $$;
+SQL
+
+run_sql <<'SQL'
 insert into public.card_catalog (player, year_label, set_name, card_number, parallel, sport, source, status)
 select
   'Load Player ' || lpad((g % 8000)::text, 4, '0'),

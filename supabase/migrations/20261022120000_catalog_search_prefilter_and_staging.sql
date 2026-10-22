@@ -67,6 +67,27 @@ create table if not exists public.catalog_staging (
 create unique index if not exists catalog_staging_submitted_card_uidx
   on public.catalog_staging (submitted_card_id);
 
+-- Batch files insert (batch, sport, year_label, product, subset, player,
+-- card_number, parallel, serial_run, is_rookie, source, source_ref) and leave
+-- submitted_card_id null. This index rejects a second copy of that identity.
+-- subset and parallel treat null and '' as the same value. NULLS NOT DISTINCT
+-- does the same for sport, year_label, product, player, and card_number.
+-- Rows with submitted_card_id are user submissions. Two users can submit the
+-- same card; those stay unique on submitted_card_id instead.
+create unique index if not exists catalog_staging_batch_identity_uidx
+  on public.catalog_staging (
+    batch,
+    sport,
+    year_label,
+    product,
+    (coalesce(subset, '')),
+    player,
+    card_number,
+    (coalesce(parallel, ''))
+  )
+  nulls not distinct
+  where submitted_card_id is null;
+
 create index if not exists catalog_staging_batch_review_idx
   on public.catalog_staging (batch, review);
 
