@@ -142,6 +142,8 @@ async function readKeysWithinCap(
     if (rows.length < cap) continue;
     const cutKeys = cutQueryKeys(chunk, rows, cap);
     for (const key of cutKeys) {
+      // One key, capped at 1000 rows. That holds while Trawl max_pages=1,
+      // because one fetch batch is not larger than that page.
       storeNewest(out, await readInKeys(client, [key], POSTGREST_MAX_ROWS));
     }
   }
