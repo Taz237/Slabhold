@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Compass, ImagePlus, X } from "lucide-react";
+import { Compass, ImagePlus } from "lucide-react";
 import { Avatar } from "@/components/avatar";
 import { MentionTextarea } from "@/components/mention-textarea";
 import { solidButton } from "@/components/button-styles";
@@ -24,8 +24,17 @@ import { Tweet } from "@/components/tweet";
 import { WhatsNewCard } from "@/components/whats-new-card";
 import { loginPath } from "@/lib/auth/safe-next";
 import { takeCompose } from "@/lib/capture";
+import { createSupabaseBrowser } from "@/lib/supabase/browser";
+import { ComposePhotoDrafts } from "@/components/compose-photo-drafts";
 import { PhotoFileInputs } from "@/components/photo-file-inputs";
-import { PHOTO_HEIC_ERROR, PHOTO_READ_ERROR, readPhotoFile } from "@/lib/photos";
+import { usePostPhotos } from "@/components/use-post-photos";
+import { PHOTO_HEIC_ERROR, readPhotoFile } from "@/lib/photos";
+import {
+  POST_PHOTO_LIMIT_ERROR,
+  POST_PHOTO_SINGLE_ERROR,
+  postPhotoLimit,
+  postsSupportMultipleImages,
+} from "@/lib/social/post-photos";
 import {
   checklistBlocksAddToHomeTip,
   checklistState,
@@ -38,6 +47,22 @@ import { presentForYouFeed } from "@/lib/social/for-you-display";
 import { addUnblockedProfiles, presentPagedItems } from "@/lib/social/paged-items";
 import { publicTimeline } from "@/lib/social/timeline";
 import { POST_LIMIT, type Profile, type PublicCard } from "@/lib/social/types";
+
+function readComposerPhoto(file: File) {
+  return readPhotoFile(file, 960);
+}
+
+/**
+ * Strict mode calls a state initializer twice. The first call consumes the
+ * saved photo, and the second call has to see that same photo.
+ */
+let heldComposePrefill: string | null = null;
+
+function takeComposePrefill(): string | null {
+  const saved = takeCompose();
+  if (saved) heldComposePrefill = saved;
+  return saved ?? heldComposePrefill;
+}
 
 export function FeedView() {
   const router = useRouter();
@@ -421,26 +446,34 @@ function Composer({ onPosted }: { onPosted?: () => void }) {
   const { cards, ready: cardsReady, syncError } = useCollection();
   const libraryRef = useRef<HTMLInputElement>(null);
   const [body, setBody] = useState("");
-  const [image, setImage] = useState<string | null>(null);
-  const [photoError, setPhotoError] = useState<string | null>(null);
+  const [composePhoto] = useState(() => takeComposePrefill());
+  const {
+    images,
+    photoError,
+    readingPhoto,
+    addFiles,
+    removePhoto,
+    replaceAll,
+    setLimit,
+  } = usePostPhotos(readComposerPhoto, composePhoto);
 
   useEffect(() => {
-    const captured = takeCompose();
-    if (captured) setImage(captured);
+    heldComposePrefill = null;
   }, []);
+  useEffect(() => {
+    const supabase = createSupabaseBrowser();
+    if (!supabase) return;
+    let cancelled = false;
+    void postsSupportMultipleImages(supabase).then((ok) => {
+      if (!cancelled) setLimit(postPhotoLimit(ok));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [setLimit]);
   const [cardId, setCardId] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
-
-  async function onImage(file: File | undefined) {
-    if (!file) return;
-    try {
-      setImage(await readPhotoFile(file, 960));
-      setPhotoError(null);
-    } catch (err) {
-      setPhotoError(err instanceof Error ? err.message : PHOTO_READ_ERROR);
-    }
-  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -459,17 +492,21 @@ function Composer({ onPosted }: { onPosted?: () => void }) {
         }
       : null;
     setSending(true);
-    const result = await createPost({ body, imageDataUrl: image, card });
+    const result = await createPost({
+      body,
+      imageDataUrl: images[0] ?? null,
+      images,
+      card,
+    });
     setSending(false);
     if (result.error) {
       setError(result.error);
       return;
     }
     setBody("");
-    setImage(null);
+    replaceAll([]);
     setCardId("");
     setError(null);
-    setPhotoError(null);
     onPosted?.();
   }
 
@@ -495,26 +532,15 @@ function Composer({ onPosted }: { onPosted?: () => void }) {
           placeholder="What's happening?"
           className="w-full resize-none bg-transparent text-[15px] leading-5 outline-none placeholder:text-zinc-500"
         />
-        {image ? (
-          <div className="relative mt-2">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={image}
-              alt=""
-              className="max-h-48 w-full rounded-2xl border border-zinc-200 object-cover dark:border-white/10"
-            />
-            <button
-              type="button"
-              onClick={() => setImage(null)}
-              aria-label="Remove photo"
-              className="absolute top-2 right-2 grid h-7 w-7 place-items-center rounded-full bg-black/70 text-white"
-            >
-              <X className="h-3.5 w-3.5" />
-            </button>
-          </div>
-        ) : null}
+        <ComposePhotoDrafts images={images} onRemove={removePhoto} />
+        {readingPhoto ? <p className="mt-2 text-xs text-zinc-500">Reading photo…</p> : null}
         <div className="mt-2 flex flex-wrap items-center gap-2">
-          <PhotoFileInputs libraryRef={libraryRef} onPick={(file) => void onImage(file)} />
+          <PhotoFileInputs
+            libraryRef={libraryRef}
+            libraryMultiple
+            onPick={() => undefined}
+            onPickMany={(files) => void addFiles(files)}
+          />
           <button
             type="button"
             onClick={() => libraryRef.current?.click()}
@@ -543,14 +569,16 @@ function Composer({ onPosted }: { onPosted?: () => void }) {
           <span className="ml-auto text-xs text-zinc-400">
             {body.length}/{POST_LIMIT}
           </span>
-          <button type="submit" disabled={sending} className={solidButton}>
+          <button type="submit" disabled={sending || readingPhoto} className={solidButton}>
             Post
           </button>
         </div>
         {photoError ? (
           <p className="mt-2 text-xs text-rose-600 dark:text-rose-400" role="alert">
             {photoError}
-            {photoError === PHOTO_HEIC_ERROR ? null : (
+            {photoError === PHOTO_HEIC_ERROR ||
+            photoError === POST_PHOTO_LIMIT_ERROR ||
+            photoError === POST_PHOTO_SINGLE_ERROR ? null : (
               <>
                 {" "}
                 <button

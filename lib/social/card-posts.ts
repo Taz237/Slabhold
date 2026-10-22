@@ -4,6 +4,7 @@ import { formatGrade, parseGrade } from "@/lib/card-options";
 import { isUuid } from "@/lib/value/card-value-access";
 import { cardIdentityKey, type IdentityCard } from "./card-identity";
 import { loadMailDayViews } from "./mail-day";
+import { mappedPostImages } from "./post-photos";
 import { mapPublicCard, PUBLIC_CARD_SELECT, type CardRow } from "./cards";
 import type { MailDayCardView, Post, Profile, PublicCard } from "./types";
 
@@ -123,11 +124,13 @@ export function sanitizeAttachedCard(raw: unknown): PublicCard | null {
 function mapPostRow(row: PostRow, mailDayCards: MailDayCardView[]): Post {
   const card = sanitizeAttachedCard(row.card);
   const first = mailDayCards[0];
+  const photos = mappedPostImages(row);
   return {
     id: row.id,
     authorId: row.user_id,
     body: row.content ?? "",
-    imageDataUrl: row.image_url,
+    imageDataUrl: photos.imageDataUrl,
+    images: photos.images,
     card,
     quotedPostId: row.quoted_post_id ?? null,
     createdAt: row.created_at,
@@ -369,11 +372,13 @@ export async function loadPostsForCard(
     const card = attachedCard(row);
     const mailDayCards = views.get(row.id) ?? [];
     const first = mailDayCards[0];
+    const photos = mappedPostImages(row);
     return {
       id: row.id,
       authorId: row.user_id,
       body: row.content ?? "",
-      imageDataUrl: row.image_url,
+      imageDataUrl: photos.imageDataUrl,
+      images: photos.images,
       card,
       quotedPostId: row.quoted_post_id ?? null,
       createdAt: row.created_at,

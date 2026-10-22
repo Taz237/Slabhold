@@ -13,6 +13,7 @@ import {
   type FeedRow,
 } from "./feed-page";
 import { loadMailDayViews } from "./mail-day";
+import { mappedPostImages } from "./post-photos";
 import type { TimelineItem } from "./timeline";
 import type {
   DirectMessage,
@@ -87,11 +88,13 @@ function missingTable(error: { code?: string; message?: string } | null) {
 function mapPost(row: PostRow, mailDayCards: MailDayCardView[]): Post {
   const card = sanitizeAttachedCard(row.card);
   const first = mailDayCards[0];
+  const photos = mappedPostImages(row);
   return {
     id: row.id,
     authorId: row.user_id,
     body: row.content ?? "",
-    imageDataUrl: row.image_url,
+    imageDataUrl: photos.imageDataUrl,
+    images: photos.images,
     card,
     quotedPostId: row.quoted_post_id ?? null,
     createdAt: row.created_at,

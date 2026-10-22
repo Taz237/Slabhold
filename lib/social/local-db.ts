@@ -20,6 +20,7 @@ import {
   REPLY_MENTION_METADATA,
   replyMentionCandidates,
 } from "./reply-mentions";
+import { draftPostPhotos } from "./post-photos";
 import { shouldNotifyQuoteAuthor, validateQuoteContent } from "./quotes";
 import { COMMENT_LIMIT, MESSAGE_LIMIT } from "./types";
 
@@ -693,23 +694,26 @@ export function localCreatePost(
   input: {
     body: string;
     imageDataUrl: string | null;
+    images?: readonly string[] | null;
     card: PublicCard | null;
     quotedPostId?: string | null;
+    shareOfNewCard?: boolean;
   },
-): { db: LocalDb; error?: string } {
+): { db: LocalDb; error?: string; postId?: string } {
   if (!db.sessionUserId) return { db, error: "Log in to post." };
   const body = input.body.trim();
+  const photos = draftPostPhotos(input);
   const quotedPostId = input.quotedPostId?.trim() || null;
   if (quotedPostId) {
     const quoteError = validateQuoteContent({
       body,
-      imageDataUrl: input.imageDataUrl,
+      imageDataUrl: photos[0] ?? null,
       card: input.card,
     });
     if (quoteError) return { db, error: quoteError };
     const original = db.posts.find((item) => item.id === quotedPostId);
     if (!original) return { db, error: "That post is unavailable." };
-  } else if (!body && !input.imageDataUrl && !input.card) {
+  } else if (!body && photos.length === 0 && !input.card) {
     return { db, error: "Write something, add a photo, or attach a card." };
   }
   if (body.length > 280) return { db, error: "Keep it to 280 characters." };
@@ -718,7 +722,8 @@ export function localCreatePost(
     id: `post-${Date.now().toString(36)}`,
     authorId: db.sessionUserId,
     body,
-    imageDataUrl: input.imageDataUrl,
+    imageDataUrl: photos[0] ?? null,
+    images: photos,
     card: input.card,
     quotedPostId,
     createdAt,
@@ -757,20 +762,22 @@ export function localCreatePost(
       posts: [post, ...db.posts],
       notifications,
     },
+    postId: post.id,
   };
 }
 
 export function localUpdatePost(
   db: LocalDb,
   postId: string,
-  input: { body: string; imageDataUrl: string | null },
+  input: { body: string; imageDataUrl: string | null; images?: readonly string[] | null },
 ): { db: LocalDb; error?: string } {
   if (!db.sessionUserId) return { db, error: "Log in to edit." };
   const post = db.posts.find((item) => item.id === postId);
   if (!post) return { db, error: "That post is gone." };
   if (post.authorId !== db.sessionUserId) return { db, error: "You can only edit your own posts." };
   const body = input.body.trim();
-  if (!body && !input.imageDataUrl && !post.card) {
+  const photos = draftPostPhotos(input);
+  if (!body && photos.length === 0 && !post.card) {
     return { db, error: "Write something or add a photo." };
   }
   if (body.length > 280) return { db, error: "Keep it to 280 characters." };
@@ -778,7 +785,9 @@ export function localUpdatePost(
     db: {
       ...db,
       posts: db.posts.map((item) =>
-        item.id === postId ? { ...item, body, imageDataUrl: input.imageDataUrl } : item,
+        item.id === postId
+          ? { ...item, body, imageDataUrl: photos[0] ?? null, images: photos }
+          : item,
       ),
       notifications: withMentionNotifications(
         db,

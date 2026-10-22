@@ -3,12 +3,10 @@
 import type { ChangeEvent, Ref } from "react";
 import { PHOTO_ACCEPT } from "@/lib/photos";
 
-function takeFile(
-  event: ChangeEvent<HTMLInputElement>,
-  onPick: (file: File | undefined) => void,
-) {
-  onPick(event.target.files?.[0]);
+function selectedFiles(event: ChangeEvent<HTMLInputElement>): File[] {
+  const files = Array.from(event.target.files ?? []);
   event.target.value = "";
+  return files;
 }
 
 /**
@@ -19,10 +17,15 @@ export function PhotoFileInputs({
   cameraRef,
   libraryRef,
   onPick,
+  onPickMany,
+  libraryMultiple = false,
 }: {
   cameraRef?: Ref<HTMLInputElement>;
   libraryRef: Ref<HTMLInputElement>;
   onPick: (file: File | undefined) => void;
+  /** Library only. The camera input stays a single shot and is the only one with capture. */
+  onPickMany?: (files: File[]) => void;
+  libraryMultiple?: boolean;
 }) {
   return (
     <>
@@ -36,18 +39,23 @@ export function PhotoFileInputs({
           tabIndex={-1}
           aria-label="Take photo"
           data-photo-input="camera"
-          onChange={(event) => takeFile(event, onPick)}
+          onChange={(event) => onPick(selectedFiles(event)[0])}
         />
       ) : null}
       <input
         ref={libraryRef}
         type="file"
         accept={PHOTO_ACCEPT}
+        multiple={libraryMultiple ? true : undefined}
         className="hidden"
         tabIndex={-1}
         aria-label="Choose from library"
         data-photo-input="library"
-        onChange={(event) => takeFile(event, onPick)}
+        onChange={(event) => {
+          const files = selectedFiles(event);
+          if (libraryMultiple && onPickMany) onPickMany(files);
+          else onPick(files[0]);
+        }}
       />
     </>
   );

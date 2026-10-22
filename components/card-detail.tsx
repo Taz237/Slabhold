@@ -17,6 +17,7 @@ import { CardPeopleSections } from "@/components/card-people";
 import { WantButton } from "@/components/want-button";
 import { CategoryPicker } from "@/components/category-picker";
 import { FirstCardPrivacyPrompt } from "@/components/first-card-privacy-prompt";
+import { SharedPostNote } from "@/components/shared-post-note";
 import { useCollection } from "@/components/collection-provider";
 import {
   CardDetailPending,
@@ -303,6 +304,8 @@ export function CardDetail({ id }: { id: string }) {
           setEditing(true);
         }}
       />
+
+      <SharedPostNote key={card.id} cardId={card.id} />
 
       {privacyNudge ? (
         <FirstCardPrivacyPrompt
