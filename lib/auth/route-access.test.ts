@@ -173,7 +173,7 @@ describe("route access", () => {
     const tweet = readFileSync(join(root, "components/tweet.tsx"), "utf8");
     const card = readFileSync(join(root, "components/public-card-view.tsx"), "utf8");
     const proxySource = readFileSync(join(root, "proxy.ts"), "utf8");
-    assert.match(profile, /path=\{`\/u\/\$\{encodeURIComponent\(profile\.username\)\}`\}/);
+    assert.match(profile, /path=\{userHref\(profile\.username\)\}/);
     assert.match(tweet, /sharePath=\{`\/posts\/\$\{post\.id\}`\}/);
     assert.doesNotMatch(card, /\/cards\/\$\{/);
     assert.match(share, /new URL\(path,/);

@@ -1,6 +1,7 @@
 import type { CatalogCard } from "@/lib/card-catalog";
 import { clipWholeCharacters } from "@/lib/search/recent";
 import { ownershipMatchKey } from "@/lib/social/card-identity";
+import { userHref } from "@/lib/social/user-href";
 
 /** About eight catalog rows. Add Card still asks the shared ranker for 20. */
 export const SEARCH_CATALOG_LIMIT = 8;
@@ -119,7 +120,7 @@ export function catalogSecondaryLink(
   const username = usernames.get(publicCard.ownerId)?.trim();
   if (!username) return null;
   return {
-    href: `/u/${encodeURIComponent(username)}/cards/${encodeURIComponent(publicCard.id)}`,
+    href: `${userHref(username)}/cards/${encodeURIComponent(publicCard.id)}`,
     label: "Public card",
   };
 }

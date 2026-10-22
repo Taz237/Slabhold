@@ -23,6 +23,7 @@ import { useSocial } from "@/components/social-provider";
 import { ValueChart } from "@/components/value-chart";
 import { isCardOwner } from "@/lib/comps/ownership";
 import { messageOwnerHref, showOpenToOffersBadge } from "@/lib/offers/open-to-offers";
+import { userHref } from "@/lib/social/user-href";
 import { basedOnSalesLabel, countForSalesLabel, valueFromShownSales } from "@/lib/comps/shared-value";
 import { soldNotice } from "@/lib/comps/sold-response";
 import { useSoldComps } from "@/lib/comps/use-sold-comps";
@@ -66,7 +67,7 @@ export function PublicCardView({
 
   if (!social.ready || (isOwn && !cardsReady)) return <ProfileSkeleton />;
 
-  const backHref = `/u/${encodeURIComponent(username)}?tab=collection`;
+  const backHref = `${userHref(username)}?tab=collection`;
 
   if (!profile) {
     return (

@@ -18,6 +18,7 @@ import { exactTime, initials, timeAgo } from "@/lib/format";
 import { imagesFromPost, photosBesideCard } from "@/lib/social/post-photos";
 import { quoteCount } from "@/lib/social/quotes";
 import type { Post, PostComment, Profile, PublicCard } from "@/lib/social/types";
+import { userHref } from "@/lib/social/user-href";
 import { MailDayCard } from "@/components/mail-day-card";
 import { EbaySoldLink } from "@/components/ebay-sold-link";
 import { shareTitleForPost } from "@/lib/social/mail-day-copy";
@@ -80,7 +81,7 @@ export function Tweet({
     >
       {repostedBy ? (
         <Link
-          href={`/u/${repostedBy.username}`}
+          href={userHref(repostedBy.username)}
           className="flex items-center gap-3 px-4 pt-3 text-[13px] font-bold text-zinc-500"
         >
           <span className="grid w-10 shrink-0 place-items-center">
@@ -90,7 +91,7 @@ export function Tweet({
         </Link>
       ) : null}
       <div className={`flex gap-3 px-4 ${repostedBy ? "pt-1 pb-3" : "py-3"}`}>
-      <Link href={`/u/${author.username}`} className="shrink-0">
+      <Link href={userHref(author.username)} className="shrink-0">
         <Avatar name={author.displayName} image={author.avatarDataUrl} accent={author.accent} />
       </Link>
       <div className="min-w-0 flex-1">
@@ -98,7 +99,7 @@ export function Tweet({
           <AuthorLine
             name={author.displayName}
             username={author.username}
-            href={`/u/${author.username}`}
+            href={userHref(author.username)}
             createdAt={post.createdAt}
           />
           <PostMenu post={post} />
@@ -166,7 +167,7 @@ function CommentPreview({ postId, comments }: { postId: string; comments: PostCo
       {preview.map((comment) => {
         const person = authors.get(comment.authorId);
         const name = person?.displayName ?? "Collector";
-        const href = person ? `/u/${person.username}` : null;
+        const href = person ? userHref(person.username) : null;
         return (
           <div key={comment.id} className="flex min-w-0 gap-2">
             {href ? (
@@ -578,7 +579,7 @@ function CardMedia({
   const owned = cards.some((item) => item.id === card.id);
   const href = owned
     ? `/cards/${card.id}`
-    : `/u/${username}/cards/${card.id}`;
+    : `${userHref(username)}/cards/${encodeURIComponent(card.id)}`;
   return (
     <div className="mt-3">
       <Link

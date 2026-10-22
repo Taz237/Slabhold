@@ -1,6 +1,7 @@
 import { signupPath } from "@/lib/auth/safe-next";
 import { BLOCKED_INTERACTION } from "@/lib/safety/block";
 import type { CardMessagePreview } from "@/lib/social/types";
+import { userHref } from "@/lib/social/user-href";
 import { resolvePriceRead, tilePriceText } from "@/lib/value/price-fallback";
 import type { CardValueResult } from "@/lib/value/types";
 
@@ -26,7 +27,7 @@ export function offersColumnMissing(
   return error.code === "42703" || error.code === "PGRST204";
 }
 
-/** Columns a DM inbox needs. Preview columns are omitted after one missing-column miss. */
+/** Columns a DM inbox needs, including kind and card_preview when those columns exist. */
 export const MESSAGE_LIST_COLUMNS =
   "id, sender_id, receiver_id, content, created_at, read, kind, card_preview";
 export const MESSAGE_LIST_COLUMNS_BASE =
@@ -44,19 +45,14 @@ export function noteMessageListResult(
   return "error";
 }
 
-export function resetMessageListColumnProbe(): void {
-  return;
-}
-
 type MessageListResponse<T> = {
   data: T;
   error: { code?: string; message?: string } | null;
 };
 
 /**
- * Read DM rows with kind and card_preview. If an earlier check decided those
- * columns were missing, this still probes them again so a session that loaded
- * before the column existed can render a card message without a full reload.
+ * Read DM rows with kind and card_preview. A missing-column error falls back
+ * for this read only, and the next read probes those columns again.
  */
 export async function loadMessageRows<T>(
   run: (columns: string) => PromiseLike<MessageListResponse<T>>,
@@ -154,7 +150,7 @@ export function messagePreviewPriceLabel(
 
 export function messageOwnerThreadHref(username: string, cardId: string): string {
   const handle = username.replace(/^@/, "").trim();
-  return `/messages/${encodeURIComponent(handle)}?card=${encodeURIComponent(cardId)}`;
+  return `${userHref(handle, "messages")}?card=${encodeURIComponent(cardId)}`;
 }
 
 /**
@@ -200,8 +196,8 @@ export function offerSendError(input: {
 
 /**
  * Accept a card id and drop every other stored field.
- * Uuid-shaped ids are lowercased before the shape check so an uppercase uuid
- * matches the insert rule, which compares cardId to cards.id::text.
+ * The id is trimmed and lowercased. A 36-character id that contains "-"
+ * must be a lowercase uuid, matching cards.id::text on insert.
  */
 export function parseCardPreview(value: unknown): CardMessagePreview | null {
   if (!value || typeof value !== "object") return null;
@@ -259,7 +255,7 @@ export function resolveLiveCardPreview(
   if (!username || !player || !year || !set) return null;
   return {
     cardId: card.id,
-    href: `/u/${encodeURIComponent(username)}/cards/${encodeURIComponent(card.id)}`,
+    href: `${userHref(username)}/cards/${encodeURIComponent(card.id)}`,
     player,
     year,
     set,

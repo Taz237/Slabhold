@@ -7,6 +7,7 @@ import { loadMailDayViews } from "./mail-day";
 import { mappedPostImages } from "./post-photos";
 import { mapPublicCard, PUBLIC_CARD_SELECT, type CardRow } from "./cards";
 import type { MailDayCardView, Post, Profile, PublicCard } from "./types";
+import { userHref } from "./user-href";
 
 export type CardPostsCursor = {
   createdAt: string;
@@ -24,7 +25,7 @@ export function cardPostsBackHref(
 ): string {
   if (owned) return `/cards/${cardId}`;
   const name = typeof username === "string" ? username.trim().replace(/^@/, "") : "";
-  if (name) return `/u/${name}/cards/${cardId}`;
+  if (name) return `${userHref(name)}/cards/${encodeURIComponent(cardId)}`;
   return `/cards/${cardId}/posts`;
 }
 

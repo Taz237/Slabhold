@@ -1,4 +1,5 @@
 import { dollarsToCents } from "@/lib/comps/stats";
+import { userHref } from "@/lib/social/user-href";
 import { isUuid } from "@/lib/value/card-value-access";
 import { emptyMovingToday, type MovingTodayPayload } from "./types";
 
@@ -198,7 +199,7 @@ export function formatMovePercent(percent: number | null): string | null {
 export function publicCardHref(username: string, cardId: string): string | null {
   const handle = username.trim().replace(/^@/, "").toLowerCase();
   if (!USERNAME.test(handle) || !isUuid(cardId)) return null;
-  return `/u/${handle}/cards/${cardId}`;
+  return `${userHref(handle)}/cards/${cardId}`;
 }
 
 /** True when `soldOn` is strictly before `today` and inside the recent window. */

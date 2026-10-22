@@ -7,6 +7,7 @@ import { ArrowLeft, Users } from "lucide-react";
 import { Avatar } from "@/components/avatar";
 import { EmptyState, LoadingRows } from "@/components/status";
 import { useSocial } from "@/components/social-provider";
+import { userHref } from "@/lib/social/user-href";
 
 export function FollowList({
   kind,
@@ -24,7 +25,7 @@ export function FollowList({
       : followingOf(profile.id)
     : [];
   const title = kind === "followers" ? "Followers" : "Following";
-  const backHref = username ? `/u/${profile?.username ?? username}` : "/profile";
+  const backHref = username ? userHref(profile?.username ?? username) : "/profile";
 
   useEffect(() => {
     if (ready) void refresh();
@@ -79,7 +80,7 @@ export function FollowList({
         <ul className="divide-y divide-zinc-200 dark:divide-white/10">
           {people.map((person) => (
             <li key={person.id}>
-              <Link href={`/u/${person.username}`} className="flex items-center gap-3 px-4 py-3">
+              <Link href={userHref(person.username)} className="flex items-center gap-3 px-4 py-3">
                 <Avatar
                   name={person.displayName}
                   image={person.avatarDataUrl}

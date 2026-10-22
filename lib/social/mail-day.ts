@@ -18,6 +18,7 @@ import {
 } from "@/lib/catalog/catalog-sport";
 import { isUuid } from "@/lib/value/card-value-access";
 import type { MailDayCardView, Post, PublicCard } from "./types";
+import { userHref } from "./user-href";
 
 export {
   MAIL_DAY_SPORTS,
@@ -333,7 +334,7 @@ export function mailDayCardHref(input: {
   if (!input.showValue || !input.cardId) return null;
   if (input.viewerIsOwner) return `/cards/${input.cardId}`;
   if (!input.username) return null;
-  return `/u/${input.username}/cards/${input.cardId}`;
+  return `${userHref(input.username)}/cards/${encodeURIComponent(input.cardId)}`;
 }
 
 export function visibleMailDayCards<T>(cards: readonly T[], variant: "feed" | "detail") {

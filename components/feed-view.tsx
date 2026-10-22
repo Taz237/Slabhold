@@ -24,6 +24,7 @@ import { shouldShowFirstCardWelcome } from "@/lib/collection/welcome";
 import { Tweet } from "@/components/tweet";
 import { WhatsNewCard } from "@/components/whats-new-card";
 import { loginPath } from "@/lib/auth/safe-next";
+import { userHref } from "@/lib/social/user-href";
 import { takeCompose } from "@/lib/capture";
 import { createSupabaseBrowser } from "@/lib/supabase/browser";
 import { ComposePhotoDrafts } from "@/components/compose-photo-drafts";
@@ -417,11 +418,11 @@ function CollectorSuggestions({
             key={profile.id}
             className="flex w-64 shrink-0 items-center gap-2.5 rounded-2xl border border-zinc-200 p-2.5 dark:border-white/10"
           >
-            <Link href={`/u/${profile.username}`}>
+            <Link href={userHref(profile.username)}>
               <Avatar name={profile.displayName} image={profile.avatarDataUrl} accent={profile.accent} />
             </Link>
             <div className="min-w-0 flex-1">
-              <Link href={`/u/${profile.username}`} className="block truncate text-sm font-bold">
+              <Link href={userHref(profile.username)} className="block truncate text-sm font-bold">
                 {profile.displayName}
               </Link>
               <p className="truncate text-xs text-zinc-500">@{profile.username}</p>
