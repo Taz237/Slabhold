@@ -243,6 +243,24 @@ export function isMailDaySport(value: string): value is MailDaySport {
   return (MAIL_DAY_SPORTS as readonly string[]).includes(value);
 }
 
+/** Keep a sport the user already picked. Offer the catalog sport when it differs. */
+export function sportAfterCatalogPick(
+  current: string,
+  catalogSport: string,
+): { sport: string; offer: string } {
+  const chosen = current.trim();
+  const listed = isMailDaySport(catalogSport) ? catalogSport : "";
+  return {
+    sport: chosen || listed,
+    offer: chosen && listed && chosen !== listed ? listed : "",
+  };
+}
+
+/** Rated Rookie and RC on a search result or title mean the card is a rookie. */
+export function textLooksRookie(text: string): boolean {
+  return /\brated\s+rookies?\b/i.test(text) || /\brc\b/i.test(text);
+}
+
 export type MailDayDraftCard = {
   /** Stable id so a retry upserts the same card. */
   id?: string;
@@ -262,6 +280,7 @@ export type MailDayDraftCard = {
   category: "pc" | "flipping";
   isPublic: boolean;
   showPaid: boolean;
+  isRookie: boolean;
   photos: string[];
 };
 
@@ -293,6 +312,7 @@ export type PreparedMailDayCard = {
   category: "pc" | "flipping";
   isPublic: boolean;
   showPaid: boolean;
+  isRookie: boolean;
   photos: string[];
 };
 
@@ -386,7 +406,8 @@ export function mailDayIsDirty(cards: readonly MailDayDraftCard[], caption: stri
       card.isPublic ||
       card.showPaid ||
       card.category !== "flipping" ||
-      card.conditionType !== "raw",
+      card.conditionType !== "raw" ||
+      card.isRookie,
   );
 }
 
@@ -459,6 +480,7 @@ export function validateMailDayDraft(
       category: card.category,
       isPublic,
       showPaid: Boolean(card.showPaid) && isPublic,
+      isRookie: Boolean(card.isRookie) || textLooksRookie(`${card.parallel} ${card.setBrand}`),
       photos,
     });
   }
@@ -494,6 +516,7 @@ export function mailDayCardRecord(
     acquired_at: acquiredAt,
     image_url: card.photos[0] ?? null,
     estimated_value: 0,
+    is_rookie: Boolean(card.isRookie),
     accent: "#7c5cff",
     created_at: now,
     updated_at: now,
@@ -515,6 +538,7 @@ export type MailDayMetaCard = {
   grade: string;
   conditionType: "raw" | "graded";
   grader?: string | null;
+  isRookie?: boolean;
 };
 
 /**
@@ -540,6 +564,7 @@ export function mailDayMeta(input: {
     grade: card.grade,
     conditionType: card.conditionType,
     grader: card.grader ?? null,
+    isRookie: card.isRookie === true,
   }));
   const first = cards[0];
   return {
@@ -668,6 +693,7 @@ function readSnapshots(meta: unknown): MailDayMetaCard[] {
       grade: typeof row.grade === "string" ? row.grade : "",
       conditionType,
       grader: typeof row.grader === "string" ? row.grader : null,
+      isRookie: row.isRookie === true,
     });
   }
   return snapshots;
@@ -696,7 +722,7 @@ function cardFromParts(
     parallel: snap?.parallel || base?.parallel,
     conditionType: snap?.conditionType || base?.conditionType,
     grader: snap?.grader || base?.grader || undefined,
-    isRookie: isRookie || Boolean(base?.isRookie),
+    isRookie: isRookie || Boolean(snap?.isRookie) || Boolean(base?.isRookie),
   };
 }
 
@@ -898,6 +924,7 @@ export function previewMailDayPost(input: {
       parallel: parallel.parallel,
       conditionType: card.conditionType,
       grader: card.conditionType === "graded" ? card.grader : undefined,
+      isRookie: card.isRookie,
     };
     return {
       card: publicCard,
@@ -1004,6 +1031,7 @@ export async function commitMailDayWrites(input: {
         grade: card.gradeText,
         conditionType: card.conditionType,
         grader: card.grader,
+        isRookie: card.isRookie,
       })),
     }),
   });

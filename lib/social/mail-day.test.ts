@@ -23,6 +23,7 @@ import {
   mailDaySubmitBlocker,
   mailDaySubmitError,
   mailDayVisibility,
+  sportAfterCatalogPick,
   parseAcquiredSource,
   presentMailDay,
   previewMailDayPost,
@@ -329,6 +330,7 @@ function draft(partial: Partial<MailDayDraftCard> = {}): MailDayDraftCard {
     cardNumber: "136",
     parallel: "Base",
     parallelIsCustom: false,
+    isRookie: false,
     sport: "Basketball",
     conditionType: "raw",
     grader: "PSA",
@@ -391,6 +393,81 @@ describe("mail day form rules", () => {
       ["Baseball", "Hockey"],
     );
     assert.equal(validateMailDayDraft({ caption: "", acquiredAt: "2026-10-19", cards: [draft({ sport: "" })] }).ok, false);
+  });
+
+  it("keeps a chosen sport when search returns a different sport", () => {
+    assert.deepEqual(sportAfterCatalogPick("Football", "Baseball"), {
+      sport: "Football",
+      offer: "Baseball",
+    });
+    assert.deepEqual(sportAfterCatalogPick("", "Baseball"), {
+      sport: "Baseball",
+      offer: "",
+    });
+    const mailDayForm = readFileSync(join(process.cwd(), "components/mail-day-form.tsx"), "utf8");
+    const cardForm = readFileSync(join(process.cwd(), "components/card-form.tsx"), "utf8");
+    assert.match(mailDayForm, /sportAfterCatalogPick\(section\.sport, card\.sport\)/);
+    assert.match(cardForm, /sportAfterCatalogPick\(form\.sport,/);
+    assert.match(mailDayForm, /This card is listed as/);
+    assert.match(cardForm, /This card is listed as/);
+    assert.match(mailDayForm, /RC \/ Rookie/);
+  });
+
+  it("saves isRookie on the card row and in mail day meta", () => {
+    const prepared = validateMailDayDraft({
+      caption: "",
+      acquiredAt: "2026-10-19",
+      cards: [
+        draft({
+          isRookie: true,
+          setBrand: "Panini Donruss",
+          parallel: "Optic Preview Pink Prizm",
+        }),
+      ],
+    });
+    assert.equal(prepared.ok, true);
+    if (!prepared.ok) return;
+    const card = prepared.cards[0];
+    assert.equal(card.isRookie, true);
+    const row = mailDayCardRecord(
+      "user",
+      card,
+      "2026-10-19",
+      "2026-10-19T00:00:00.000Z",
+    );
+    assert.equal(row.is_rookie, true);
+    const meta = mailDayMeta({
+      acquiredAt: "2026-10-19",
+      cards: [
+        {
+          id: card.id,
+          photos: card.photos,
+          source: card.source,
+          showPaid: card.showPaid,
+          playerName: card.playerName,
+          year: card.year,
+          yearLabel: card.yearLabel,
+          setBrand: card.setBrand,
+          cardNumber: card.cardNumber,
+          sport: card.sport,
+          parallel: card.parallel,
+          grade: card.gradeText,
+          conditionType: card.conditionType,
+          isRookie: card.isRookie,
+        },
+      ],
+    });
+    const saved = meta.cards as { isRookie: boolean }[];
+    assert.equal(saved[0]?.isRookie, true);
+
+    const fromTitle = validateMailDayDraft({
+      caption: "",
+      acquiredAt: "2026-10-19",
+      cards: [draft({ isRookie: false, parallel: "Rated Rookie" })],
+    });
+    assert.equal(fromTitle.ok, true);
+    if (!fromTitle.ok) return;
+    assert.equal(fromTitle.cards[0]?.isRookie, true);
   });
 });
 
@@ -1008,6 +1085,7 @@ describe("mail day timeout retry", () => {
       category: "flipping",
       isPublic: true,
       showPaid: true,
+      isRookie: false,
       photos: [photo],
     };
     const posts = new Map<string, Record<string, unknown>>();

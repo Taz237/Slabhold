@@ -38,6 +38,7 @@ import {
   parallelChoice,
   parallelsForSet,
 } from "@/lib/cards/parallels";
+import { mailDaySportLabel, sportAfterCatalogPick, textLooksRookie } from "@/lib/social/mail-day";
 import { identifyFromPhoto } from "@/lib/comps/sample";
 import { cardCategory } from "@/lib/card-category";
 import { hasPaid } from "@/lib/format";
@@ -119,6 +120,7 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
     Boolean(existing?.parallelIsCustom),
   );
   const [parallelNote, setParallelNote] = useState("");
+  const [sportOffer, setSportOffer] = useState("");
   const [isRookie, setIsRookie] = useState(Boolean(existing?.isRookie));
   const [isAuto, setIsAuto] = useState(Boolean(existing?.isAuto));
   const [isRelic, setIsRelic] = useState(Boolean(existing?.isRelic));
@@ -256,30 +258,37 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
 
   function applyIdentify(result: IdentifyResult) {
     const yl = String(result.year);
+    const sport = sportAfterCatalogPick(form.sport, result.sport);
+    setSportOffer(sport.offer);
     setForm((prev) => ({
       ...prev,
       playerName: result.playerName,
       yearLabel: yl,
       setBrand: result.setBrand,
       cardNumber: result.cardNumber,
-      sport: result.sport,
+      sport: sport.sport,
       estimatedSellPrice: String(result.estimatedSellPrice),
     }));
+    setIsRookie((current) => current || textLooksRookie(`${result.playerName} ${result.setBrand}`));
     setSetIsCustom(!SETS.some((s) => s === result.setBrand));
     setIdentified(result);
   }
 
   function applyCatalog(card: CatalogCard) {
     const chosen = parallelChoice(card.setBrand, card.parallel || "Base");
+    const title = [card.playerName, card.setBrand, card.parallel, card.cardNumber].join(" ");
+    const sport = sportAfterCatalogPick(form.sport, card.sport);
+    setSportOffer(sport.offer);
     setForm((prev) => ({
       ...prev,
       playerName: card.playerName,
       yearLabel: card.yearLabel,
       setBrand: card.setBrand,
       cardNumber: card.cardNumber,
-      sport: card.sport,
+      sport: sport.sport,
       parallel: chosen.parallel,
     }));
+    setIsRookie((current) => current || textLooksRookie(title));
     setSetIsCustom(!SETS.some((s) => s === card.setBrand));
     setParallelIsCustom(chosen.parallelIsCustom);
     setParallelNote("");
@@ -449,7 +458,21 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
       <CategoryPicker value={category} onChange={setCategory} />
 
       {!existing ? (
-        <CardSearch onSelect={applyCatalog} onManual={applyManualSearch} />
+        <>
+          <CardSearch onSelect={applyCatalog} onManual={applyManualSearch} />
+          {sportOffer ? (
+            <button
+              type="button"
+              onClick={() => {
+                setForm((prev) => ({ ...prev, sport: sportOffer }));
+                setSportOffer("");
+              }}
+              className="mt-2 text-left text-xs font-semibold text-violet-700 underline-offset-2 hover:underline dark:text-violet-300"
+            >
+              This card is listed as {mailDaySportLabel(sportOffer)}. Use that?
+            </button>
+          ) : null}
+        </>
       ) : null}
 
       <section className="rounded-2xl border border-zinc-200 bg-white dark:border-white/10 dark:bg-white/[0.03] p-4">
@@ -611,6 +634,7 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
             value={form.sport}
             options={optionsWithCurrent(SPORT_PICKER_OPTIONS, form.sport)}
             onChange={(sport) => {
+              setSportOffer("");
               setForm((prev) => ({ ...prev, sport }));
             }}
           />
@@ -703,6 +727,7 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
               const next = parallelChoice(form.setBrand, parallel);
               setParallelIsCustom(next.parallelIsCustom);
               setParallelNote("");
+              setIsRookie((current) => current || textLooksRookie(next.parallel));
               setForm((prev) => ({
                 ...prev,
                 parallel: next.parallel,

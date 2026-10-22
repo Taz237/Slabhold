@@ -355,11 +355,19 @@ export function titleHasCardNumber(
   return re.test(title);
 }
 
+function lettersOnly(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
 export function titleHasPlayer(title: string, playerName: string): boolean {
   const name = playerName.trim();
   if (!name) return true;
   const lower = title.toLowerCase();
   if (lower.includes(name.toLowerCase())) return true;
+  const nameLetters = lettersOnly(name);
+  const titleLetters = lettersOnly(title);
+  // "J.J.", "J. J.", and "JJ" are the same name. "C.J." matches "CJ". "A.J." matches "AJ".
+  if (nameLetters.length >= 4 && titleLetters.includes(nameLetters)) return true;
   const parts = name.split(/\s+/).filter(Boolean);
   const last = parts[parts.length - 1];
   if (!last || last.length < 2) return false;
@@ -489,6 +497,16 @@ export function titleNamesWrongSet(
     if (!re.test(lower)) continue;
     // "Upper Deck SP Authentic" is the SP Authentic set, not a different Upper Deck product.
     if (manufacturerBeforeSet(lower, keyword, cardSet)) continue;
+    // "Optic Preview" on a Donruss card is a parallel, not Donruss Optic.
+    if (
+      isPlainDonruss(cardSet) &&
+      (keyword === "optic" || keyword === "donruss optic") &&
+      opticOnlyInPreview(lower)
+    ) {
+      continue;
+    }
+    // "Pink Prizm" is a parallel color, not the Prizm set.
+    if (keyword === "prizm" && prizmOnlyAfterParallelColor(lower)) continue;
     return true;
   }
 
@@ -513,6 +531,7 @@ export function titleNamesWrongSet(
   if (base) {
     for (const sub of SET_SUB_BRANDS[base]) {
       if (sub === "wnba" && sportIsWnba(sport)) continue;
+      if (base === "donruss" && sub === "optic" && opticOnlyInPreview(lower)) continue;
       if (titleHasSubBrand(lower, sub)) return true;
     }
   }
@@ -522,6 +541,14 @@ export function titleNamesWrongSet(
       const normalized = normalizeSetToken(name);
       if (!normalized.startsWith(`${cardSet} `)) continue;
       if (sportIsWnba(sport) && /\bwnba\b/.test(normalized)) continue;
+      if (
+        isPlainDonruss(cardSet) &&
+        (normalized === "donruss optic" || normalized === "optic") &&
+        opticOnlyInPreview(lower)
+      ) {
+        continue;
+      }
+      if (normalized === "prizm" && prizmOnlyAfterParallelColor(lower)) continue;
       if (titleHasSubBrand(lower, normalized)) return true;
     }
   }
@@ -532,6 +559,29 @@ export function titleNamesWrongSet(
   }
 
   return false;
+}
+
+function isPlainDonruss(cardSet: string): boolean {
+  return cardSet === "donruss" || cardSet === "panini donruss";
+}
+
+/** True when every "optic" in the title is the "Optic Preview" parallel. */
+function opticOnlyInPreview(title: string): boolean {
+  const rest = title.replace(/\boptic\s+preview\b/gi, " ");
+  return !/\boptic\b/i.test(rest);
+}
+
+/** True when every "prizm" sits immediately after a parallel color word. */
+function prizmOnlyAfterParallelColor(title: string): boolean {
+  const lower = title.toLowerCase();
+  const re = /\bprizm\b/gi;
+  let match: RegExpExecArray | null;
+  let found = false;
+  while ((match = re.exec(lower)) !== null) {
+    found = true;
+    if (!parallelKeywordImmediatelyBefore(lower.slice(0, match.index))) return false;
+  }
+  return found;
 }
 
 function phrasePattern(phrase: string): string {
@@ -705,6 +755,15 @@ export function titleHasDisallowedParallel(
   const scan = stripSetAndPlayer(lower, identity);
   const allowed = (parallel ?? "").trim().toLowerCase();
   const allowedWords = new Set(parallelNameWords(allowed));
+  const cardSet = setMatchPhrase(identity?.setBrand);
+  const pinkSameAsPinkPrizm =
+    !cardSet.includes("prizm") &&
+    (parallelNameWords(allowed).join(" ") === "pink" ||
+      parallelNameWords(allowed).join(" ") === "pink prizm");
+  if (/\boptic\s+preview\b/i.test(lower)) {
+    const words = new Set(parallelNameWords(parallel ?? ""));
+    if (!words.has("optic") || !words.has("preview")) return true;
+  }
   for (const alias of parallelAliasNames(parallel ?? "")) {
     const words = parallelNameWords(alias);
     if (!phraseInTitle(lower, words)) continue;
@@ -737,7 +796,8 @@ export function titleHasDisallowedParallel(
   }
 
   if (!base && allowed) {
-    const words = parallelNameWords(allowed);
+    let words = parallelNameWords(allowed);
+    if (pinkSameAsPinkPrizm) words = words.filter((word) => word !== "prizm");
     if (words.length > 0 && words.some((word) => !titleHasParallelWord(lower, word))) {
       return true;
     }
@@ -879,9 +939,8 @@ export function titleMatchesCard(title: string, card: MatchCard): boolean {
   if (!titleHasSetName(title, card.setBrand)) return false;
   const parallelName =
     canonicalParallelName(card.setBrand, card.parallel ?? "") || card.parallel;
-  // Words that belong to this parallel are not a different set.
-  // "Optic" inside "Optic Preview-Pink" is not Donruss Optic.
-  if (titleNamesWrongSet(stripParallelPhrase(title, parallelName), card.setBrand, card.sport)) {
+  // Optic Preview and a color sitting in front of Prizm are parallels, not other sets.
+  if (titleNamesWrongSet(title, card.setBrand, card.sport)) {
     return false;
   }
 

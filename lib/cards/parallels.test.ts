@@ -33,7 +33,15 @@ describe("parallels by set", () => {
       "Blue Press Proof",
       "Optic Preview",
       "Optic Preview Pink",
+      "Optic Preview Pink Prizm",
       "Optic Preview Holo",
+      "Optic Preview Black",
+      "Optic Preview Blue",
+      "Optic Preview Gold",
+      "Optic Preview Green",
+      "Optic Preview Purple",
+      "Optic Preview Red",
+      "Optic Preview Silver",
       "Blue Scope",
       "Green Velocity",
       "Red Wave",
@@ -97,6 +105,7 @@ describe("parallels by set", () => {
       category: "pc",
       isPublic: true,
       showPaid: false,
+      isRookie: false,
       photos: [],
     };
     const row = mailDayCardRecord("user-1", card, "2026-10-19", "2026-10-19T00:00:00.000Z");

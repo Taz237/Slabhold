@@ -56,10 +56,24 @@ export async function fetchTrawlSold(
     details: "1",
   });
 
-  const response = await fetch(`${TRAWL_SOLD_URL}?${params}`, {
-    headers: { "x-api-key": key },
-    cache: "no-store",
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${TRAWL_SOLD_URL}?${params}`, {
+      headers: { "x-api-key": key },
+      cache: "no-store",
+      signal: AbortSignal.timeout(8_000),
+    });
+  } catch (err) {
+    const name = err instanceof Error ? err.name : "";
+    const timedOut = name === "TimeoutError" || name === "AbortError";
+    return {
+      ok: false,
+      status: 0,
+      error: timedOut ? "Trawl request timed out" : "Trawl request failed",
+      outOfCredits: false,
+      rateLimitRemaining: null,
+    };
+  }
 
   const rateLimitRemaining = response.headers.get("X-RateLimit-Remaining");
   if (rateLimitRemaining != null) {
