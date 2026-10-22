@@ -19,12 +19,12 @@ export const ogContentType = "image/png";
 export const PUBLIC_OG_CACHE_CONTROL =
   "public, max-age=0, s-maxage=3600, stale-while-revalidate=86400";
 
-/** Card images. Short CDN lifetime so a card that just went private is not served for an hour. */
+/**
+ * One-minute public cache.
+ * Card images use it so a card that just went private is not served for an hour.
+ * A public share image that failed to render uses the same lifetime.
+ */
 export const CARD_OG_CACHE_CONTROL =
-  "public, max-age=0, s-maxage=60, stale-while-revalidate=60";
-
-/** Failed renders. Do not keep the generic image for the route's normal hour or day. */
-const OG_FAILURE_CACHE_CONTROL =
   "public, max-age=0, s-maxage=60, stale-while-revalidate=60";
 
 /** Own-profile images follow the signed-in user. Do not store them on a shared CDN. */
@@ -614,13 +614,21 @@ async function consumeOg(response: ImageResponse): Promise<ImageResponse> {
   }) as ImageResponse;
 }
 
+const isShapingError = (e: unknown) =>
+  e instanceof Error && /lookupType: \d+ - substFormat: \d+ is not yet supported/.test(e.message);
+
+/** A failed public image uses the short cache. A private profile image stays private. */
+function ogFailureCache(cacheControl: string): string {
+  return cacheControl === PRIVATE_OG_CACHE_CONTROL
+    ? PRIVATE_OG_CACHE_CONTROL
+    : CARD_OG_CACHE_CONTROL;
+}
+
 /** Render a share image. Only a font-shaping failure retries without that script. */
-export async function renderOg(
+async function renderShareImage(
   model: ShareImage,
-  cacheControl = PUBLIC_OG_CACHE_CONTROL,
+  cacheControl: string,
 ): Promise<ImageResponse> {
-  const isShapingError = (e: unknown) =>
-    e instanceof Error && /lookupType: \d+ - substFormat: \d+ is not yet supported/.test(e.message);
   const homeShot = model.kind === "home" ? await homeShotSrc() : null;
   try {
     return await consumeOg(paint(model, cacheControl, homeShot));
@@ -639,16 +647,23 @@ export async function renderOg(
         );
       }
     }
-    return consumeOg(paint(homeShareImage(), OG_FAILURE_CACHE_CONTROL, await homeShotSrc()));
+    return consumeOg(paint(homeShareImage(), ogFailureCache(cacheControl), await homeShotSrc()));
   }
+}
+
+export function renderOg(
+  model: ShareImage,
+  cacheControl = PUBLIC_OG_CACHE_CONTROL,
+): Promise<ImageResponse> {
+  return renderShareImage(model, cacheControl);
 }
 
 export function renderProfileOg(
   preview: LinkPreview,
   kicker: string,
   cacheControl = PUBLIC_OG_CACHE_CONTROL,
-) {
-  return paint(profileShareImage(preview, kicker), cacheControl, null);
+): Promise<ImageResponse> {
+  return renderShareImage(profileShareImage(preview, kicker), cacheControl);
 }
 
 export async function renderHomeOg() {
