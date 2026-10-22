@@ -82,8 +82,12 @@ describe("empty card prompts", () => {
     assert.match(filled, /<select/);
     assert.match(filled, /aria-label="Attach a card"/);
     assert.match(filled, /2024 Ada/);
-    assert.match(read("components/compose-view.tsx"), /<AttachCardField/);
-    assert.match(read("components/feed-view.tsx"), /<AttachCardField/);
+    const compose = read("components/compose-view.tsx");
+    const feed = read("components/feed-view.tsx");
+    assert.match(compose, /cardsReady && !syncError \? \([\s\S]*<AttachCardField/);
+    assert.match(compose, /<select[\s\S]*disabled[\s\S]*Attach a card/);
+    assert.match(feed, /cardsReady && !syncError \? \([\s\S]*<AttachCardField/);
+    assert.match(feed, /<select[\s\S]*disabled[\s\S]*Attach a card/);
   });
 
   it("shows a small add-your-first-card prompt on an empty home", () => {

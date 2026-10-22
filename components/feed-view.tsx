@@ -406,7 +406,7 @@ function SignedOutBanner() {
 
 function Composer({ onPosted }: { onPosted?: () => void }) {
   const { createPost, user } = useSocial();
-  const { cards } = useCollection();
+  const { cards, ready: cardsReady, syncError } = useCollection();
   const fileRef = useRef<HTMLInputElement>(null);
   const [body, setBody] = useState("");
   const [image, setImage] = useState<string | null>(null);
@@ -510,12 +510,23 @@ function Composer({ onPosted }: { onPosted?: () => void }) {
             <ImagePlus className="h-4 w-4" />
             Photo
           </button>
-          <AttachCardField
-            cards={cards}
-            value={cardId}
-            onChange={setCardId}
-            selectClassName="max-w-[180px] rounded-full border border-zinc-200 bg-transparent px-2 py-1 text-xs text-zinc-600 dark:border-white/10 dark:text-zinc-300"
-          />
+          {cardsReady && !syncError ? (
+            <AttachCardField
+              cards={cards}
+              value={cardId}
+              onChange={setCardId}
+              selectClassName="max-w-[180px] rounded-full border border-zinc-200 bg-transparent px-2 py-1 text-xs text-zinc-600 dark:border-white/10 dark:text-zinc-300"
+            />
+          ) : (
+            <select
+              disabled
+              value=""
+              aria-label="Attach a card"
+              className="max-w-[180px] rounded-full border border-zinc-200 bg-transparent px-2 py-1 text-xs text-zinc-600 dark:border-white/10 dark:text-zinc-300"
+            >
+              <option value="">Attach a card</option>
+            </select>
+          )}
           <span className="ml-auto text-xs text-zinc-400">
             {body.length}/{POST_LIMIT}
           </span>

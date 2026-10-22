@@ -47,7 +47,7 @@ describe("Add a card on Collection", () => {
   it("is also in the create menu and More, and the camera tab adds a card", () => {
     const menu = read("components/create-menu.tsx");
     assert.match(menu, /href="\/cards\/new"/);
-    assert.match(menu, />\s*Add a card\s*</);
+    assert.match(menu, />\s*Add card\s*</);
     assert.match(menu, /aria-label="Post"/);
     assert.match(menu, />\s*Post\s*</);
     const more = read("components/more-view.tsx");

@@ -95,7 +95,7 @@ function CreateMenuLinks({
         Post
       </Link>
       <Link href="/cards/new" role="menuitem" onClick={onPick} className={item}>
-        Add a card
+        Add card
       </Link>
       <Link href={mailHref} role="menuitem" onClick={onPick} className={item}>
         Mail Day
