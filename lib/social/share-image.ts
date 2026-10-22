@@ -218,16 +218,18 @@ export function cardShareImage(input: {
   valueAmount?: string | null;
   salesCount?: number | null;
 }): ShareImage {
-  const player = input.found ? clipText(scrubPublicText(input.player), 48) : "";
-  const year =
-    (input.yearLabel ?? "").trim() ||
-    (input.year != null && input.year > 0 ? String(Math.floor(input.year)) : "");
-  const yearSet = input.found
+  const visible = Boolean(input.found && input.isPublic);
+  const player = visible ? clipText(scrubPublicText(input.player), 48) : "";
+  const year = visible
+    ? (input.yearLabel ?? "").trim() ||
+      (input.year != null && input.year > 0 ? String(Math.floor(input.year)) : "")
+    : "";
+  const yearSet = visible
     ? clipText(scrubPublicText([year, input.setBrand ?? ""].filter(Boolean).join(" ")), 64)
     : "";
-  const grade = input.found ? clipText(scrubPublicText(input.grade), 32) : "";
-  const imageUrl = input.found ? cleanImageUrl(input.imageUrl) : null;
-  const showPrice = Boolean(input.found && input.isPublic && input.pricePublic !== false);
+  const grade = visible ? clipText(scrubPublicText(input.grade), 32) : "";
+  const imageUrl = visible ? cleanImageUrl(input.imageUrl) : null;
+  const showPrice = Boolean(visible && input.pricePublic !== false);
   const valueLabel = showPrice ? publicDollar(input.valueAmount) : "";
   const estimate = DOLLAR.test(valueLabel);
   const salesCount =

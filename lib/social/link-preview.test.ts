@@ -5,6 +5,7 @@ import { mailDayOgTitle } from "./mail-day-copy";
 import {
   cardLinkPreview,
   cleanImageUrl,
+  clipText,
   postLinkPreview,
   postPreviewImage,
   previewMetadata,
@@ -60,6 +61,27 @@ describe("card link previews", () => {
       valueLabel: "$10",
     });
     assert.equal(preview.imageUrl, null);
+  });
+});
+
+describe("clipText", () => {
+  it("keeps an emoji that sits on the cut instead of splitting it", () => {
+    const emoji = "😀";
+    assert.equal(emoji.length, 2);
+    const prefix = "a".repeat(88);
+    const clipped = clipText(`${prefix}${emoji}zzzz`, 90);
+    assert.equal(clipped, `${prefix}${emoji}…`);
+    assert.equal(clipped.includes("\uFFFD"), false);
+    assert.equal(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])/.test(clipped), false);
+
+    const intl = Intl as { Segmenter?: typeof Intl.Segmenter };
+    const original = intl.Segmenter;
+    intl.Segmenter = undefined;
+    try {
+      assert.equal(clipText(`${prefix}${emoji}zzzz`, 90), `${prefix}${emoji}…`);
+    } finally {
+      intl.Segmenter = original;
+    }
   });
 });
 

@@ -291,7 +291,7 @@ async function publicPrice(
   return { amount: "", sales: 0 };
 }
 
-/** Card image. A private card keeps its photo and name, and never a value. */
+/** Card image. A private or deleted card is a generic Slabhold image: no name, photo, or price. */
 export const loadCardShareImage = cache(async (id: string) => {
   if (!isUuid(id)) return cardShareImage({ found: false });
   const supabase = createAnonReader();
@@ -329,21 +329,21 @@ export const loadCardShareImage = cache(async (id: string) => {
     .maybeSingle();
   if (error || !data) return cardShareImage({ found: false });
   const row = data as SafeCardRow;
+  if (!row.is_public) return cardShareImage({ found: false });
   const mapped = mappedSafe(id, row);
-  const isPublic = Boolean(row.is_public);
-  const price = isPublic ? await publicPrice(id, { ...row, id }) : { amount: "", sales: 0 };
+  const price = await publicPrice(id, { ...row, id });
   return cardShareImage({
     found: true,
-    isPublic,
-    pricePublic: isPublic && Boolean(price.amount),
+    isPublic: true,
+    pricePublic: Boolean(price.amount),
     player: mapped.playerName,
     year: mapped.year,
     yearLabel: mapped.yearLabel,
     setBrand: mapped.setBrand,
     grade: mapped.grade,
     imageUrl: mapped.photoDataUrl,
-    valueAmount: isPublic ? price.amount : null,
-    salesCount: isPublic ? price.sales : 0,
+    valueAmount: price.amount,
+    salesCount: price.sales,
   });
 });
 

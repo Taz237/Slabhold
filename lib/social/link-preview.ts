@@ -15,10 +15,22 @@ const PRIVATE_CARD: LinkPreview = {
   detail: "",
 };
 
+/** Graphemes, so a cut never splits an emoji into a lone surrogate. */
+function textGraphemes(value: string): string[] {
+  const Segmenter = (Intl as { Segmenter?: typeof Intl.Segmenter }).Segmenter;
+  if (typeof Segmenter === "function") {
+    return [...new Segmenter(undefined, { granularity: "grapheme" }).segment(value)].map(
+      (part) => part.segment,
+    );
+  }
+  return Array.from(value);
+}
+
 export function clipText(value: string, max: number): string {
   const text = value.replace(/\s+/g, " ").trim();
-  if (text.length <= max) return text;
-  return `${text.slice(0, Math.max(1, max - 1)).trimEnd()}…`;
+  const parts = textGraphemes(text);
+  if (parts.length <= max) return text;
+  return `${parts.slice(0, Math.max(1, max - 1)).join("").trimEnd()}…`;
 }
 
 const MAX_DATA_BYTES = 2 * 1024 * 1024;

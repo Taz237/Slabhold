@@ -48,7 +48,7 @@ describe("card share images", () => {
     assert.equal(image.photoFallback, false);
   });
 
-  it("keeps the photo and name when the card is private, and drops the value", () => {
+  it("drops the name, photo, and value when the card is private", () => {
     process.env.NEXT_PUBLIC_SUPABASE_URL = SUPABASE_ORIGIN;
     const image = cardShareImage({
       found: true,
@@ -62,13 +62,19 @@ describe("card share images", () => {
       salesCount: 42,
     });
     const packed = JSON.stringify(image);
-    assert.equal(image.player, "Victor Wembanyama");
-    assert.equal(image.yearSet, "2023-24 Prizm");
-    assert.equal(image.grade, "PSA 10");
-    assert.equal(image.imageUrl, STORAGE);
+    assert.equal(image.player, "Card");
+    assert.equal(image.title, "Card");
+    assert.equal(image.yearSet, "");
+    assert.equal(image.grade, "");
+    assert.equal(image.imageUrl, null);
+    assert.equal(image.photoFallback, true);
     assert.equal(image.showValue, false);
     assert.equal(image.valueLabel, "");
     assert.equal(image.salesLabel, "");
+    assert.equal(packed.includes("Wembanyama"), false);
+    assert.equal(packed.includes("Prizm"), false);
+    assert.equal(packed.includes("PSA"), false);
+    assert.equal(packed.includes("card.jpg"), false);
     assert.equal(packed.includes("9,999"), false);
     assert.equal(packed.includes("42"), false);
   });
@@ -117,6 +123,7 @@ describe("card share images", () => {
     });
     assert.equal(unsafe.imageUrl, null);
     assert.equal(unsafe.photoFallback, true);
+    assert.equal(JSON.stringify(unsafe).includes("Wembanyama"), false);
     assert.equal(JSON.stringify(unsafe).includes("evil.example"), false);
     assert.equal(JSON.stringify(unsafe).includes("$10.00"), false);
   });
