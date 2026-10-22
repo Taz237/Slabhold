@@ -66,7 +66,8 @@ describe("safeNext", () => {
     assert.match(landing, /<Suspense/);
     assert.match(auth, /authLogoHref\(next\)/);
     assert.match(shell, /pathWithQuery\(pathname, search\)/);
-    assert.match(shell, /signupPath\(path\)/);
+    assert.match(shell, /loginPath\(path\)/);
+    assert.doesNotMatch(shell, /signupPath\(path\)/);
     assert.match(joinBar, /pathWithQuery\(pathname, search\)/);
   });
 });

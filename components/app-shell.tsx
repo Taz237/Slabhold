@@ -13,7 +13,7 @@ import { LandingPage } from "@/components/landing-page";
 import { isAuthPage, shouldShowJoinBar } from "@/lib/auth/guest-paths";
 import { clearLogoutHome, logoutHomePending } from "@/lib/auth/logout-home";
 import { requiresAccount, routeAccess } from "@/lib/auth/route-access";
-import { pathWithQuery, signupPath } from "@/lib/auth/safe-next";
+import { loginPath, pathWithQuery } from "@/lib/auth/safe-next";
 import type { Profile } from "@/lib/social/types";
 import {
   activeTabAction,
@@ -252,7 +252,7 @@ function GuestRedirect() {
       router.replace("/");
       return;
     }
-    router.replace(signupPath(path));
+    router.replace(loginPath(path));
   }, [path, router]);
 
   return <div className="min-h-dvh bg-[var(--background)]" />;

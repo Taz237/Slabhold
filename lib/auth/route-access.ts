@@ -6,7 +6,7 @@ function pathOnly(pathname: string): string {
 
 /**
  * Routes that need an account. Signed-out visitors are sent to
- * /signup?next=… Everything else renders, including unknown URLs (404)
+ * /login?next=… Everything else renders, including unknown URLs (404)
  * and pages that call notFound().
  *
  * Account:
@@ -99,7 +99,7 @@ export function routeAccess(pathname: string): RouteAccess {
   return "unknown";
 }
 
-/** True only for screens that should redirect signed-out visitors to signup. */
+/** True only for screens that should redirect signed-out visitors to log in. */
 export function requiresAccount(pathname: string): boolean {
   return routeAccess(pathname) === "account";
 }

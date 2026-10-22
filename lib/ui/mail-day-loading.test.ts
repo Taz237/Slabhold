@@ -24,7 +24,7 @@ describe("Mail Day loading", () => {
 
     assert.match(form, /MailDayHeading/);
     assert.match(form, /if \(!ready\) return <MailDayPending \/>/);
-    assert.match(page, /if \(!userId\) redirect\("\/signup\?next=\/mail-day"\)/);
+    assert.match(page, /if \(!userId\) redirect\(loginPath\("\/mail-day"\)\)/);
 
     assert.match(shell, /requiresAccount\(pathname\)/);
     assert.match(shell, /routeAccess\(pathname\) === "unknown"/);
