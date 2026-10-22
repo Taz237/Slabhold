@@ -401,13 +401,6 @@ export function mailDaySubmitBlocker(cards: readonly MailDayDraftCard[]): string
   return null;
 }
 
-/** Copy beside Log Mail Day. A missing photo uses one clear line. Saving still uses the blocker. */
-export function mailDayComposerStatus(blocker: string | null): string | null {
-  if (!blocker) return null;
-  if (/^Add a photo\b/.test(blocker)) return "Add a photo to post";
-  return blocker;
-}
-
 export function mailDayIsDirty(cards: readonly MailDayDraftCard[], caption: string): boolean {
   if (caption.trim()) return true;
   if (cards.length !== 1) return true;

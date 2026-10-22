@@ -53,7 +53,7 @@ export function WhatsNewCard({
                 <p className="mt-1.5 text-xs text-zinc-500">
                   <Link
                     href={`/posts/${item.post.id}`}
-                    className="font-semibold text-violet-700 hover:underline dark:text-violet-300"
+                    className="inline-flex min-h-11 items-center font-semibold text-violet-700 hover:underline dark:text-violet-300"
                   >
                     Open
                   </Link>

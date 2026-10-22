@@ -9,16 +9,18 @@ export function postTextKey(body: string): string {
   return body.trim();
 }
 
-/** Changelog posts from @grokbotreview. Photo posts, cards, and reposts stay in the feed. */
+/** Changelog posts from @grokbotreview. Photo posts, cards, quotes, and reposts stay in the feed. */
 export function isReleaseNotePost(input: {
   username?: string | null;
   body: string;
   imageUrl?: string | null;
   hasCard?: boolean;
   postType?: string | null;
+  quotedPostId?: string | null;
   reposted?: boolean;
 }): boolean {
   if (input.reposted) return false;
+  if (input.quotedPostId) return false;
   const handle = (input.username ?? "").replace(/^@/, "").trim().toLowerCase();
   if (handle !== RELEASE_NOTE_HANDLE) return false;
   if (input.postType === "mail_day") return false;
@@ -36,6 +38,7 @@ export type ForYouSource = {
     imageDataUrl?: string | null;
     card?: unknown;
     postType?: string | null;
+    quotedPostId?: string | null;
     createdAt: string;
   };
   repostedBy?: { id: string } | null;
@@ -47,29 +50,18 @@ export type ForYouFeedEntry<T> =
 
 /**
  * Newest-first For You rows.
- * Exact duplicate text from the same author is shown once (the newest copy).
- * Release notes collapse into one What's new card placed after the newest collector post,
- * so real posts are what people see first. Pagination stays on the raw list.
+ * Duplicate text is dropped only inside @grokbotreview release notes.
+ * Collector posts, reposts, Mail Days, photos, cards, and quotes stay put.
+ * Release notes collapse into one What's new card placed after the newest collector post.
+ * Pagination stays on the raw list.
  */
 export function presentForYouFeed<T extends ForYouSource>(
   items: readonly T[],
   usernameFor: (authorId: string) => string | null | undefined,
 ): ForYouFeedEntry<T>[] {
-  const seenText = new Set<string>();
-  const deduped: T[] = [];
-  for (const item of items) {
-    const text = postTextKey(item.post.body);
-    if (text) {
-      const stamp = `${item.post.authorId}\n${text}`;
-      if (seenText.has(stamp)) continue;
-      seenText.add(stamp);
-    }
-    deduped.push(item);
-  }
-
   const notes: T[] = [];
   const collectors: T[] = [];
-  for (const item of deduped) {
+  for (const item of items) {
     if (
       isReleaseNotePost({
         username: usernameFor(item.post.authorId),
@@ -77,6 +69,7 @@ export function presentForYouFeed<T extends ForYouSource>(
         imageUrl: item.post.imageDataUrl,
         hasCard: Boolean(item.post.card),
         postType: item.post.postType,
+        quotedPostId: item.post.quotedPostId,
         reposted: Boolean(item.repostedBy),
       })
     ) {
@@ -86,9 +79,19 @@ export function presentForYouFeed<T extends ForYouSource>(
     }
   }
 
+  const seenNoteText = new Set<string>();
+  const uniqueNotes: T[] = [];
+  for (const item of notes) {
+    const text = postTextKey(item.post.body);
+    const stamp = `${item.post.authorId}\n${text}`;
+    if (text && seenNoteText.has(stamp)) continue;
+    if (text) seenNoteText.add(stamp);
+    uniqueNotes.push(item);
+  }
+
   const posts = collectors.map((item) => ({ kind: "post" as const, item }));
-  if (notes.length === 0) return posts;
-  const card: ForYouFeedEntry<T> = { kind: "whats-new", key: "whats-new", items: notes };
+  if (uniqueNotes.length === 0) return posts;
+  const card: ForYouFeedEntry<T> = { kind: "whats-new", key: "whats-new", items: uniqueNotes };
   if (posts.length === 0) return [card];
   return [posts[0]!, card, ...posts.slice(1)];
 }

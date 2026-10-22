@@ -37,7 +37,7 @@ const names: Record<string, string> = {
 };
 
 describe("For You display", () => {
-  it("skips exact duplicate text from the same author and keeps the newest", () => {
+  it("drops duplicate text only inside release notes", () => {
     const items = [
       row({ id: "new-scroll", authorId: "bot", body: "Keep scrolling!", createdAt: "2026-10-22T02:00:00.000Z" }),
       row({ id: "maya", authorId: "maya", body: "Mail day pickup", createdAt: "2026-10-22T01:00:00.000Z" }),
@@ -47,35 +47,63 @@ describe("For You display", () => {
         body: "  Keep scrolling!  ",
         createdAt: "2026-10-21T02:00:00.000Z",
       }),
-      row({
-        id: "new-home",
-        authorId: "bot",
-        body: "Timeline tab is now called Home",
-        createdAt: "2026-10-21T01:00:00.000Z",
-      }),
-      row({
-        id: "old-home",
-        authorId: "bot",
-        body: "Timeline tab is now called Home",
-        createdAt: "2026-10-20T01:00:00.000Z",
-      }),
     ];
     const before = items.map((item) => item.post.id);
     const shown = presentForYouFeed(items, (id) => names[id]);
     assert.deepEqual(items.map((item) => item.post.id), before);
-
     const card = shown.find((entry) => entry.kind === "whats-new");
     assert.equal(card?.kind, "whats-new");
     if (card?.kind !== "whats-new") return;
     assert.deepEqual(
       card.items.map((item) => item.post.id),
-      ["new-scroll", "new-home"],
+      ["new-scroll"],
     );
-    assert.equal(whatsNewLabel(card.items.length), "What's new (2)");
+    assert.equal(whatsNewLabel(card.items.length), "What's new (1)");
     assert.equal(
       shown.filter((entry) => entry.kind === "post").map((entry) => entry.item.post.id).join(),
       "maya",
     );
+  });
+
+  it("shows both collector posts with the same text", () => {
+    const items = [
+      row({ id: "first", authorId: "maya", body: "Nice card" }),
+      row({ id: "again", authorId: "maya", body: "Nice card" }),
+    ];
+    const shown = presentForYouFeed(items, (id) => names[id]);
+    assert.deepEqual(
+      shown.map((entry) => (entry.kind === "post" ? entry.item.post.id : "card")),
+      ["first", "again"],
+    );
+  });
+
+  it("shows both Mail Days with the same caption", () => {
+    const items = [
+      row({ id: "mail-a", authorId: "kyle", body: "New card testing mail day", postType: "mail_day", card: { id: "a" } }),
+      row({ id: "mail-b", authorId: "kyle", body: "New card testing mail day", postType: "mail_day", card: { id: "b" } }),
+    ];
+    const shown = presentForYouFeed(items, (id) => names[id]);
+    assert.deepEqual(
+      shown.map((entry) => (entry.kind === "post" ? entry.item.post.id : "card")),
+      ["mail-a", "mail-b"],
+    );
+  });
+
+  it("shows a repost and its original", () => {
+    const items = [
+      row(
+        { id: "note", authorId: "bot", body: "New on Slabhold: quote posts." },
+        { key: "repost:maya:note", repostedBy: { id: "maya" } },
+      ),
+      row({ id: "note", authorId: "bot", body: "New on Slabhold: quote posts." }),
+    ];
+    const shown = presentForYouFeed(items, (id) => names[id]);
+    assert.equal(shown.filter((entry) => entry.kind === "post").length, 1);
+    assert.equal(shown[0]?.kind, "post");
+    if (shown[0]?.kind === "post") assert.equal(shown[0].item.key, "repost:maya:note");
+    const card = shown.find((entry) => entry.kind === "whats-new");
+    assert.equal(card?.kind, "whats-new");
+    if (card?.kind === "whats-new") assert.deepEqual(card.items.map((item) => item.key), ["post:note"]);
   });
 
   it("keeps the same text when a different person posted it", () => {
@@ -138,6 +166,14 @@ describe("For You display", () => {
         username: "grokbotreview",
         body: "New on Slabhold: Mail Day.",
         reposted: true,
+      }),
+      false,
+    );
+    assert.equal(
+      isReleaseNotePost({
+        username: "grokbotreview",
+        body: "New on Slabhold: quoting this.",
+        quotedPostId: "post-1",
       }),
       false,
     );

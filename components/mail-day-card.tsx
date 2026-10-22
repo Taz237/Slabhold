@@ -174,7 +174,7 @@ export function MailDayTileBody({
       data-mail-day-layout={hero ? "hero" : "grid"}
       className={
         hero
-          ? "w-full overflow-hidden rounded-xl border border-zinc-200 dark:border-white/10"
+          ? "overflow-hidden rounded-xl border border-zinc-200 dark:border-white/10"
           : "w-[72%] shrink-0 overflow-hidden rounded-xl border border-zinc-200 dark:border-white/10 min-[391px]:w-auto"
       }
     >
