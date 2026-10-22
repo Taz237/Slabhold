@@ -40,6 +40,10 @@ import {
 import { todayDateInput } from "@/lib/cards/form-defaults";
 import { cardFormPreview } from "@/lib/cards/form-preview";
 import {
+  rememberFirstCardPrivacy,
+  shouldMarkFirstCardPrivacy,
+} from "@/lib/collection/first-card-privacy";
+import {
   parallelAfterSetChange,
   parallelChoice,
   parallelsForSet,
@@ -93,8 +97,8 @@ export function CardForm({
   onSaved?: () => void;
 }) {
   const router = useRouter();
-  const { addCard, updateCard, removeCard } = useCollection();
-  const { mode } = useSocial();
+  const { addCard, updateCard, removeCard, cards, ready: cardsReady, syncError } = useCollection();
+  const { mode, user } = useSocial();
   const current = useCardValue(existing?.id ?? null);
   const currentValueLine = marketValueSummary(current.value);
   const accent = useDefaultAccent();
@@ -436,6 +440,13 @@ export function CardForm({
     setSaving(true);
     setSaveError(null);
     let createdId: string | null = null;
+    const offerPrivacy = shouldMarkFirstCardPrivacy({
+      isNew: !existing,
+      isPublic: payload.isPublic,
+      cardCountBeforeSave: cards.length,
+      cardsReady,
+      syncError,
+    });
     try {
       const reuseId = existing?.id ?? pendingId.current;
       const { card, saved } = reuseId
@@ -447,6 +458,7 @@ export function CardForm({
       }
       await saved;
       createdId = null;
+      if (offerPrivacy && user) rememberFirstCardPrivacy(user.id, card.id);
       if (mode === "supabase") {
         const picked = catalogPickStillMatches(catalogPick.current, {
           playerName: payload.playerName,
@@ -757,17 +769,19 @@ export function CardForm({
           />
         </Field>
         <label className="flex min-h-11 items-center gap-2 text-sm text-zinc-600 dark:text-zinc-400">
-          <input
-            type="checkbox"
-            checked={noNumber}
-            onChange={(e) => {
-              setNoNumber(e.target.checked);
-              if (e.target.checked) {
-                setForm((prev) => ({ ...prev, cardNumber: "" }));
-              }
-            }}
-            className="size-5 shrink-0 accent-violet-500"
-          />
+          <CheckHit>
+            <input
+              type="checkbox"
+              checked={noNumber}
+              onChange={(e) => {
+                setNoNumber(e.target.checked);
+                if (e.target.checked) {
+                  setForm((prev) => ({ ...prev, cardNumber: "" }));
+                }
+              }}
+              className="size-5 accent-violet-500"
+            />
+          </CheckHit>
           No number on card
         </label>
       </div>
@@ -975,27 +989,31 @@ export function CardForm({
       </Field>
 
       <label className="flex min-h-11 items-center gap-3 rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm dark:border-white/10 dark:bg-white/[0.03]">
-        <input
-          type="checkbox"
-          checked={sold}
-          onChange={(e) => setSold(e.target.checked)}
-          className="size-5 shrink-0 accent-violet-500"
-        />
+        <CheckHit>
+          <input
+            type="checkbox"
+            checked={sold}
+            onChange={(e) => setSold(e.target.checked)}
+            className="size-5 accent-violet-500"
+          />
+        </CheckHit>
         This card has been sold
       </label>
 
       <div className="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm dark:border-white/10 dark:bg-white/[0.03]">
         <label className="flex min-h-11 items-center gap-3">
-          <input
-            type="checkbox"
-            checked={share}
-            onChange={(e) => setShare(e.target.checked)}
-            className="size-5 shrink-0 accent-violet-500"
-          />
+          <CheckHit>
+            <input
+              type="checkbox"
+              checked={share}
+              onChange={(e) => setShare(e.target.checked)}
+              className="size-5 accent-violet-500"
+            />
+          </CheckHit>
           Show this card on your public profile
         </label>
         <p className="text-xs leading-5 text-zinc-500">
-          Cards are private by default. Making one public shows it on your profile.
+          Cards are private by default. You can show them on your profile.
         </p>
       </div>
 
@@ -1141,15 +1159,21 @@ function Toggle({
 }) {
   return (
     <label className="inline-flex min-h-11 items-center gap-2 text-sm">
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={(e) => onChange(e.target.checked)}
-        className="size-5 shrink-0 accent-violet-500"
-      />
+      <CheckHit>
+        <input
+          type="checkbox"
+          checked={checked}
+          onChange={(e) => onChange(e.target.checked)}
+          className="size-5 accent-violet-500"
+        />
+      </CheckHit>
       {label}
     </label>
   );
+}
+
+function CheckHit({ children }: { children: React.ReactNode }) {
+  return <span className="grid size-11 shrink-0 place-items-center">{children}</span>;
 }
 
 function Field({

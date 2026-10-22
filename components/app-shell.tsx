@@ -25,7 +25,7 @@ import {
 const TABS = [
   { href: "/profile", label: "Profile", icon: CircleUser },
   { href: "/", label: "Home", icon: Compass },
-  { href: "/scan", label: "Scan", icon: Camera },
+  { href: "/cards/new", label: "Add card", icon: Camera },
   { href: "/messages", label: "Messages", icon: Mail },
   { href: "/collection", label: "Collection", icon: WalletCards },
   { href: "/more", label: "More", icon: Ellipsis },
@@ -46,10 +46,12 @@ function isActive(pathname: string, href: string, user: Profile | null) {
     return routeUsername.toLowerCase() === user.username.toLowerCase();
   }
   if (href === "/collection") {
+    const addingCard = pathname === "/cards/new" || pathname.startsWith("/cards/new/");
     return (
-      pathname.startsWith("/collection") ||
-      pathname.startsWith("/portfolio") ||
-      pathname.startsWith("/cards")
+      !addingCard &&
+      (pathname.startsWith("/collection") ||
+        pathname.startsWith("/portfolio") ||
+        pathname.startsWith("/cards"))
     );
   }
   if (href === "/more") return pathname.startsWith("/more") || pathname === "/login";
@@ -163,20 +165,20 @@ function Shell({
                 }
                 if (!requestPageRefresh()) router.refresh();
               };
-              if (tab.href === "/scan") {
+              if (tab.href === "/cards/new") {
                 return (
                   <Link
                     key={tab.href}
                     href={tab.href}
                     onClick={onTabClick}
-                    aria-label="Scan a card"
-                    className={`grid h-12 w-12 -translate-y-3 place-items-center rounded-full shadow-lg ring-4 ring-[var(--background)] ${
-                      active
-                        ? "bg-violet-600 text-white"
-                        : "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-950"
-                    }`}
+                    aria-label="Add card"
+                    aria-current={active ? "page" : undefined}
+                    className="flex min-w-0 flex-1 flex-col items-center gap-0.5 px-0.5 py-1 text-[10px] font-medium leading-none text-violet-700 dark:text-violet-200"
                   >
-                    <Camera className="h-5 w-5" />
+                    <span className="grid h-11 w-11 -translate-y-3 place-items-center rounded-full bg-violet-600 text-white shadow-lg ring-4 ring-[var(--background)]">
+                      <Camera className="h-5 w-5" />
+                    </span>
+                    Add card
                   </Link>
                 );
               }

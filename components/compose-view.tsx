@@ -3,6 +3,7 @@
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { Camera, ImagePlus, X } from "lucide-react";
+import { AttachCardField } from "@/components/attach-card-field";
 import { Avatar } from "@/components/avatar";
 import { useCollection } from "@/components/collection-provider";
 import { QuoteComposePreview } from "@/components/quoted-post-embed";
@@ -28,7 +29,7 @@ export function ComposeView() {
   const attachCardParam = params.get("card");
   const quoteParam = params.get("quote");
   const { ready, user, posts, createPost, updatePost } = useSocial();
-  const { cards } = useCollection();
+  const { cards, ready: cardsReady, syncError } = useCollection();
   const fileRef = useRef<HTMLInputElement>(null);
   const started = useRef(false);
   const [body, setBody] = useState("");
@@ -334,19 +335,23 @@ export function ComposeView() {
           <span className="truncate">Library</span>
         </button>
         {!editing && externalCard ? null : !editing ? (
-          <select
-            value={cardId}
-            onChange={(e) => setCardId(e.target.value)}
-            aria-label="Attach a card"
-            className="min-w-0 flex-1 truncate rounded-full border border-zinc-200 bg-transparent px-2 py-1.5 text-xs text-zinc-600 dark:border-white/10 dark:text-zinc-300"
-          >
-            <option value="">Attach a card</option>
-            {cards.map((card) => (
-              <option key={card.id} value={card.id}>
-                {card.year} {card.playerName}
-              </option>
-            ))}
-          </select>
+          cardsReady && !syncError ? (
+            <AttachCardField
+              cards={cards}
+              value={cardId}
+              onChange={setCardId}
+              selectClassName="min-w-0 flex-1 truncate rounded-full border border-zinc-200 bg-transparent px-2 py-1.5 text-xs text-zinc-600 dark:border-white/10 dark:text-zinc-300"
+            />
+          ) : (
+            <select
+              disabled
+              value=""
+              aria-label="Attach a card"
+              className="min-w-0 flex-1 truncate rounded-full border border-zinc-200 bg-transparent px-2 py-1.5 text-xs text-zinc-600 dark:border-white/10 dark:text-zinc-300"
+            >
+              <option value="">Attach a card</option>
+            </select>
+          )
         ) : null}
         <span
           className={`ml-auto shrink-0 pr-1 text-xs whitespace-nowrap tabular-nums ${
