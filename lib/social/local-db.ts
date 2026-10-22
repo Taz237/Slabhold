@@ -98,10 +98,11 @@ export function usernameError(value: string) {
   return null;
 }
 
-/** Profile edit may keep a reserved updates handle only for that profile id. */
-export function usernameChangeError(next: string, userId?: string | null) {
+/** Existing holders may keep a reserved name. Only the updates id may newly take a variant. */
+export function usernameChangeError(next: string, userId?: string | null, current?: string | null) {
   const error = usernameError(next);
   if (!error || !isReservedUsername(next)) return error;
+  if (normalizeUsername(current ?? "") === normalizeUsername(next)) return null;
   if (isOfficialUpdatesAccount(userId) && isUpdatesHandleVariant(next)) return null;
   return error;
 }
@@ -505,7 +506,8 @@ export function localUpdateProfile(
 ): { db: LocalDb; error?: string } {
   if (!db.sessionUserId) return { db, error: "Log in first." };
   const username = normalizeUsername(patch.username);
-  const nameError = usernameChangeError(username, db.sessionUserId);
+  const current = db.users.find((user) => user.id === db.sessionUserId);
+  const nameError = usernameChangeError(username, db.sessionUserId, current?.username);
   if (nameError) return { db, error: nameError };
   const displayName = patch.displayName.trim();
   if (!displayName) return { db, error: "Add a display name." };

@@ -34,6 +34,7 @@ function client(options: {
   currentUsername?: string | null;
 }) {
   const ilike: string[] = [];
+  const updates: { username?: string; bio?: string }[] = [];
   let signUps = 0;
   const supabase = {
     from() {
@@ -54,7 +55,8 @@ function client(options: {
         upsert() {
           return Promise.resolve({ error: options.profileError ?? null });
         },
-        update() {
+        update(row: { username?: string; bio?: string }) {
+          updates.push(row);
           return api;
         },
         eq() {
@@ -98,6 +100,7 @@ function client(options: {
     supabase: supabase as unknown as SupabaseClient,
     ilike: () => ilike,
     signUps: () => signUps,
+    updates: () => updates,
   };
 }
 
@@ -270,5 +273,35 @@ describe("remoteUpdateProfile taken usernames", () => {
       ).error,
       TAKEN_USERNAME,
     );
+  });
+
+  it("lets @slabhold save a bio change and blocks a non-holder from taking it", async () => {
+    assert.equal(usernameChangeError("slabhold", "holder-1", "slabhold"), null);
+    assert.equal(usernameChangeError("slabhold", "user-2", "ada"), TAKEN_USERNAME);
+
+    const holder = client({ currentUsername: "slabhold" });
+    assert.deepEqual(
+      await remoteUpdateProfile(holder.supabase, "holder-1", {
+        ...profilePatch,
+        username: "slabhold",
+        bio: "New bio",
+      }),
+      {},
+    );
+    assert.equal(holder.updates()[0]?.username, "slabhold");
+    assert.equal(holder.updates()[0]?.bio, "New bio");
+
+    const other = client({ currentUsername: "ada" });
+    assert.equal(
+      (
+        await remoteUpdateProfile(other.supabase, "user-2", {
+          ...profilePatch,
+          username: "slabhold",
+          bio: "Stolen",
+        })
+      ).error,
+      TAKEN_USERNAME,
+    );
+    assert.deepEqual(other.updates(), []);
   });
 });
