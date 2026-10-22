@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { describe, it } from "node:test";
+import { EbaySoldLink } from "@/components/ebay-sold-link";
 import { NOT_ENOUGH_SALES_LABEL } from "@/lib/value/format";
 import {
+  EBAY_SOLD_LINK_LABEL,
   attachmentPriceText,
   ebaySoldSearchQuery,
   ebaySoldSearchUrl,
@@ -33,6 +37,15 @@ describe("eBay sold search", () => {
     );
     assert.equal(ebaySoldSearchUrl("   "), null);
     assert.equal(ebaySoldSearchUrlForCard({ playerName: "  ", setBrand: "" }), null);
+    assert.equal(EBAY_SOLD_LINK_LABEL, "Sold comps via Trawl");
+    assert.doesNotMatch(EBAY_SOLD_LINK_LABEL, /fee/i);
+    if (!href) throw new Error("missing sold search");
+    const html = renderToStaticMarkup(createElement(EbaySoldLink, { href }));
+    assert.match(html, /Sold comps via Trawl/);
+    assert.match(html, /href="https:\/\/www\.ebay\.com\/sch\/i\.html\?/);
+    assert.match(html, /LH_Sold=1/);
+    assert.doesNotMatch(html, /See eBay sold/);
+    assert.doesNotMatch(html, /fee/i);
   });
 
   it("keeps a real estimate and drops the empty sales line and plain eBay", () => {

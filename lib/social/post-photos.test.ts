@@ -10,8 +10,12 @@ import { PhotoFileInputs } from "@/components/photo-file-inputs";
 import { PostPhotoGrid } from "@/components/post-photo-grid";
 import {
   MAX_POST_PHOTOS,
+  POST_PHOTO_CAP_HINT,
   POST_PHOTO_LIMIT_ERROR,
+  POST_PHOTO_SINGLE_ERROR,
   appendPostPhotos,
+  photoAttachFull,
+  photoAttachHint,
   imagesFromRow,
   isRenderablePostPhoto,
   metaColumnMissing,
@@ -34,6 +38,12 @@ describe("post photos", () => {
     assert.deepEqual(added.photos, ["a", "b", "c", "d"]);
     assert.equal(added.rejected, 1);
     assert.equal(POST_PHOTO_LIMIT_ERROR, "You can add up to 4 photos.");
+    assert.equal(photoAttachFull(3, MAX_POST_PHOTOS), false);
+    assert.equal(photoAttachFull(4, MAX_POST_PHOTOS), true);
+    assert.equal(photoAttachFull(1, 1), true);
+    assert.equal(photoAttachHint(MAX_POST_PHOTOS), POST_PHOTO_CAP_HINT);
+    assert.equal(POST_PHOTO_CAP_HINT, "Up to 4 photos");
+    assert.equal(photoAttachHint(1), POST_PHOTO_SINGLE_ERROR);
 
     const oneMore = appendPostPhotos(added.photos, ["f"]);
     assert.deepEqual(oneMore.photos, added.photos);
@@ -287,6 +297,21 @@ describe("post photos", () => {
     assert.match(lightbox, /ArrowRight/);
     assert.match(lightbox, /activeElement/);
     assert.match(lightbox, /opener\?\.focus\(\)/);
+  });
+
+  it("keeps post photos above the reply bar and stops the picker at four", () => {
+    const postPage = read("components/post-view.tsx");
+    assert.match(postPage, /placeholder="Post your reply"/);
+    assert.match(postPage, /pb-\[calc\(14rem\+env\(safe-area-inset-bottom\)\)\]/);
+    assert.match(read("components/post-photo-grid.tsx"), /scroll-mb-\[calc\(14rem\+env\(safe-area-inset-bottom\)\)\]/);
+
+    const feed = read("components/feed-view.tsx");
+    const compose = read("components/compose-view.tsx");
+    assert.match(feed, /disabled=\{photosFull\}/);
+    assert.match(feed, /aria-label=\{photosFull \? photoCapHint : "Photo"\}/);
+    assert.match(compose, /disabled=\{photosFull\}/);
+    assert.match(compose, /if \(photoAttachFull\(images\.length, limit\)\) return;/);
+    assert.match(read("components/use-post-photos.ts"), /setPhotoError\(postPhotoLimitError\(limitRef\.current\)\)/);
   });
 
   it("gives draft remove buttons a 44px target and steps through a multi-photo lightbox", () => {

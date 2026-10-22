@@ -20,6 +20,8 @@ import { PHOTO_HEIC_ERROR, readPhotoFile } from "@/lib/photos";
 import {
   POST_PHOTO_LIMIT_ERROR,
   POST_PHOTO_SINGLE_ERROR,
+  photoAttachFull,
+  photoAttachHint,
   postPhotoLimit,
   postsSupportMultipleImages,
 } from "@/lib/social/post-photos";
@@ -51,12 +53,15 @@ export function ComposeView() {
   const {
     images,
     photoError,
+    limit,
     readingPhoto,
     addFiles,
     removePhoto,
     replaceAll,
     setLimit,
   } = usePostPhotos(readComposerPhoto);
+  const photosFull = photoAttachFull(images.length, limit);
+  const photoCapHint = photoAttachHint(limit);
   const [cardId, setCardId] = useState("");
   const [externalCard, setExternalCard] = useState<PublicCard | null>(null);
   const [quoteId, setQuoteId] = useState<string | null>(null);
@@ -142,11 +147,13 @@ export function ComposeView() {
   }, [setLimit]);
 
   function openCamera() {
+    if (photoAttachFull(images.length, limit)) return;
     photoSource.current = "camera";
     cameraRef.current?.click();
   }
 
   function openLibrary() {
+    if (photoAttachFull(images.length, limit)) return;
     photoSource.current = "library";
     libraryRef.current?.click();
   }
@@ -349,16 +356,22 @@ export function ComposeView() {
         />
         <button
           type="button"
+          disabled={photosFull}
+          aria-label={photosFull ? photoCapHint : "Camera"}
+          title={photosFull ? photoCapHint : undefined}
           onClick={openCamera}
-          className="inline-flex min-h-11 min-w-0 shrink items-center gap-1.5 rounded-full px-2 text-sm font-medium text-violet-700 dark:text-violet-300"
+          className="inline-flex min-h-11 min-w-0 shrink items-center gap-1.5 rounded-full px-2 text-sm font-medium text-violet-700 disabled:opacity-40 dark:text-violet-300"
         >
           <Camera className="h-5 w-5 shrink-0" />
           <span className="truncate">Camera</span>
         </button>
         <button
           type="button"
+          disabled={photosFull}
+          aria-label={photosFull ? photoCapHint : "Library"}
+          title={photosFull ? photoCapHint : undefined}
           onClick={openLibrary}
-          className="inline-flex min-h-11 min-w-0 shrink items-center gap-1.5 rounded-full px-2 text-sm font-medium text-violet-700 dark:text-violet-300"
+          className="inline-flex min-h-11 min-w-0 shrink items-center gap-1.5 rounded-full px-2 text-sm font-medium text-violet-700 disabled:opacity-40 dark:text-violet-300"
         >
           <ImagePlus className="h-5 w-5 shrink-0" />
           <span className="truncate">Library</span>

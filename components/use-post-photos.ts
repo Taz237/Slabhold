@@ -22,12 +22,14 @@ export function usePostPhotos(
   const imagesRef = useRef<string[]>(initial);
   const limitRef = useRef(MAX_POST_PHOTOS);
   const [images, setImages] = useState<string[]>(initial);
+  const [limit, setLimitState] = useState(MAX_POST_PHOTOS);
   const [photoError, setPhotoError] = useState<string | null>(null);
   const [readingPhoto, setReadingPhoto] = useState(false);
 
-  const setLimit = useCallback((limit: number) => {
-    limitRef.current = limit;
-    const photos = normalizePostPhotos(imagesRef.current, limit);
+  const setLimit = useCallback((next: number) => {
+    limitRef.current = next;
+    setLimitState(next);
+    const photos = normalizePostPhotos(imagesRef.current, next);
     if (photos.length !== imagesRef.current.length) {
       imagesRef.current = photos;
       setImages(photos);
@@ -94,6 +96,7 @@ export function usePostPhotos(
 
   return {
     images,
+    limit,
     photoError,
     readingPhoto,
     addFiles,

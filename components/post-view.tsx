@@ -131,7 +131,7 @@ export function PostView({ id }: { id: string }) {
   }
 
   return (
-    <div className="-mx-4 -mt-5 pb-[calc(10rem+env(safe-area-inset-bottom))] min-[391px]:pb-24">
+    <div className="-mx-4 -mt-5 pb-[calc(14rem+env(safe-area-inset-bottom))]">
       <div className="flex items-center gap-3 border-b border-zinc-200 px-2 py-2 dark:border-white/10">
         <button
           type="button"
