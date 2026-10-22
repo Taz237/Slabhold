@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 
 /**
  * Today's notable catalog sales. Cached for about 30 minutes.
- * A failed read is not cached, and the home module hides it.
+ * Failures are held in memory for 60s and sent private, no-store.
  */
 export async function GET() {
   try {
