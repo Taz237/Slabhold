@@ -189,16 +189,18 @@ export function searchCatalog(query: string, limit = 20): CatalogCard[] {
 
 /**
  * Rank rows from search_cards with the same rules as the local catalog.
- * Built-in seeds are used only when the remote search errors, times out
- * (remote is null), or returns no rows. A non-empty remote list is re-ranked
- * on its own, so a stale seed number is not shown next to the database row.
+ * Built-in seeds run only when remote is null (RPC error, timeout, or
+ * offline). An empty array is a real miss — every seed is already in
+ * card_catalog — so a color-only word such as "silver" stays empty.
+ * A non-empty remote list is re-ranked on its own.
  */
 export function resolveCatalogSearch(
   query: string,
   remote: CatalogCard[] | null,
   limit = 20,
 ): CatalogCard[] {
-  if (remote == null || remote.length === 0) return searchCatalog(query, limit);
+  if (remote == null) return searchCatalog(query, limit);
+  if (remote.length === 0) return [];
   return cardsInRankOrder(query, remote, limit);
 }
 
@@ -220,6 +222,7 @@ export function catalogSeedRows(): Array<{
   card_number: string;
   parallel: string;
   sport: string;
+  is_rookie: boolean;
 }> {
   return SEEDS.map((c) => ({
     player: c.playerName,
@@ -228,5 +231,6 @@ export function catalogSeedRows(): Array<{
     card_number: c.cardNumber,
     parallel: c.parallel,
     sport: c.sport,
+    is_rookie: c.isRookie === true,
   }));
 }

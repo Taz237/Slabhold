@@ -4,6 +4,7 @@ import { describe, it } from "node:test";
 import { join } from "node:path";
 import {
   CARD_CATALOG,
+  catalogSeedRows,
   resolveCatalogSearch,
   searchCatalog,
   toSearchableCard,
@@ -725,11 +726,12 @@ describe("resolveCatalogSearch before and after the migration", () => {
     assert.ok(ranked.every((card) => card.playerName === "Victor Wembanyama"));
   });
 
-  it("uses the local catalog when remote is empty, and does not fill in unrelated remote rows", () => {
-    const beforeMigration = resolveCatalogSearch("Jaxson Dart", []);
-    assert.equal(beforeMigration[0]?.playerName, "Jaxson Dart");
-    assert.equal(beforeMigration[0]?.cardNumber, "332");
-    assert.equal(beforeMigration[0]?.isRookie, true);
+  it("treats an empty remote list as no match, including color words and Jaxson Dart", () => {
+    assert.ok(searchCatalog("silver").length > 0);
+    assert.deepEqual(resolveCatalogSearch("silver", []), []);
+    assert.deepEqual(resolveCatalogSearch("refractor", []), []);
+    assert.deepEqual(resolveCatalogSearch("base", []), []);
+    assert.deepEqual(resolveCatalogSearch("Jaxson Dart", []), []);
 
     const tatum = CARD_CATALOG.filter((card) => card.playerName === "Jayson Tatum");
     assert.ok(tatum.length > 0);
@@ -759,8 +761,11 @@ describe("resolveCatalogSearch before and after the migration", () => {
     assert.ok(hits.every((card) => card.yearLabel.startsWith("2025")));
     assert.ok(hits.every((card) => card.setBrand.toLowerCase().includes("prizm")));
 
-    const fallback = resolveCatalogSearch("2025 prizm", []);
-    assert.ok(fallback.some((card) => card.playerName === "Jaxson Dart" && card.cardNumber === "332"));
+    assert.deepEqual(resolveCatalogSearch("2025 prizm", []), []);
+    const offline = resolveCatalogSearch("2025 prizm", null);
+    const dart = offline.find((card) => card.playerName === "Jaxson Dart");
+    assert.equal(dart?.cardNumber, "332");
+    assert.equal(dart?.isRookie, true);
   });
 
   it("returns exactly one remote Select #87 for wembanyama select", () => {
@@ -813,22 +818,28 @@ describe("resolveCatalogSearch before and after the migration", () => {
     assert.equal(hits.some((card) => card.cardNumber === "1"), false);
   });
 
-  it("falls back to built-in cards when the remote result is empty or errors", () => {
-    const empty = resolveCatalogSearch("travis hunter prizm", []);
-    const errored = resolveCatalogSearch("travis hunter prizm", null);
-    assert.ok(empty.length > 0);
-    assert.deepEqual(
-      errored.map((card) => card.id),
-      empty.map((card) => card.id),
-    );
-    assert.ok(empty.every((card) => card.playerName === "Travis Hunter"));
-    assert.ok(empty.every((card) => card.cardNumber === "301"));
-    assert.ok(empty.every((card) => card.isRookie === true));
-    assert.equal(empty.some((card) => card.cardNumber === "1"), false);
+  it("falls back to built-in cards only when remote is null", () => {
+    assert.deepEqual(resolveCatalogSearch("travis hunter prizm", []), []);
+    assert.deepEqual(resolveCatalogSearch("jayden daniels prizm", []), []);
+
+    const hunter = resolveCatalogSearch("travis hunter prizm", null);
+    assert.ok(hunter.length > 0);
+    assert.ok(hunter.every((card) => card.playerName === "Travis Hunter"));
+    assert.ok(hunter.every((card) => card.cardNumber === "301"));
+    assert.ok(hunter.every((card) => card.isRookie === true));
+    assert.equal(hunter.some((card) => card.cardNumber === "1"), false);
 
     const daniels = resolveCatalogSearch("jayden daniels prizm", null);
+    assert.ok(daniels.length > 0);
     assert.ok(daniels.every((card) => card.cardNumber === "347"));
+    assert.ok(daniels.every((card) => card.isRookie === true));
     assert.equal(daniels.some((card) => card.cardNumber === "389"), false);
+
+    const dart = resolveCatalogSearch("Jaxson Dart", null);
+    assert.equal(dart[0]?.playerName, "Jaxson Dart");
+    assert.equal(dart[0]?.cardNumber, "332");
+    assert.equal(dart[0]?.parallel, "Base");
+    assert.equal(dart[0]?.isRookie, true);
   });
 
   it("stores the corrected seed numbers and rookie flags", () => {
@@ -869,5 +880,23 @@ describe("resolveCatalogSearch before and after the migration", () => {
       dart.map((card) => [card.cardNumber, card.parallel, card.isRookie === true]),
       [["332", "Base", true]],
     );
+
+    const rows = catalogSeedRows();
+    const dartRow = rows.find((row) => row.player === "Jaxson Dart" && row.card_number === "332");
+    assert.equal(dartRow?.is_rookie, true);
+    const curry = rows.find((row) => row.player === "Stephen Curry");
+    assert.equal(curry?.is_rookie, false);
+    const hunterRows = rows.filter((row) => row.player === "Travis Hunter");
+    assert.ok(hunterRows.length >= 2);
+    assert.ok(hunterRows.every((row) => row.card_number === "301" && row.is_rookie === true));
+    assert.ok(rows.every((row) => typeof row.is_rookie === "boolean"));
+
+    const script = readFileSync(join(process.cwd(), "scripts/gen-catalog-migration.ts"), "utf8");
+    assert.match(script, /is_rookie boolean not null default false/);
+    assert.match(
+      script,
+      /insert into public\.card_catalog \(player, year_label, set_name, card_number, parallel, sport, is_rookie\)/,
+    );
+    assert.match(script, /\$\{r\.is_rookie \? "true" : "false"\}/);
   });
 });

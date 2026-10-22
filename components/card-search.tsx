@@ -11,6 +11,7 @@ import {
   logCatalogSearchMissQuietly,
   shouldLogCatalogSearchMiss,
 } from "@/lib/catalog/catalog-queue";
+import { loadCatalogSearchSession } from "@/lib/catalog/catalog-search-session";
 import { parseManualPrefill } from "@/lib/card-search-query";
 import { createSupabaseBrowser } from "@/lib/supabase/browser";
 
@@ -96,34 +97,37 @@ export function CardSearch({
   useEffect(() => {
     const q = query.trim();
     if (q.length < 1) {
+      requestId.current += 1;
       setResults([]);
       setLoading(false);
       return;
     }
 
-    const controller = new AbortController();
     const id = ++requestId.current;
     setLoading(true);
+    const session = loadCatalogSearchSession({
+      query: q,
+      limit: 20,
+      search: searchRemote,
+    });
 
-    const timer = window.setTimeout(async () => {
-      try {
-        const remote = await searchRemote(q, controller.signal);
-        if (controller.signal.aborted || id !== requestId.current) return;
-        if (remote && shouldLogCatalogSearchMiss(q, remote.length)) {
+    void session.done
+      .then((snapshot) => {
+        if (snapshot.aborted || id !== requestId.current) return;
+        if (snapshot.remote && shouldLogCatalogSearchMiss(q, snapshot.remote.length)) {
           void logCatalogSearchMissQuietly(q);
         }
-        setResults(resolveCatalogSearch(q, remote, 20));
-      } catch {
-        if (controller.signal.aborted || id !== requestId.current) return;
+        setResults(snapshot.results);
+        setLoading(false);
+      })
+      .catch(() => {
+        if (id !== requestId.current) return;
         setResults(resolveCatalogSearch(q, null, 20));
-      } finally {
-        if (id === requestId.current) setLoading(false);
-      }
-    }, 250);
+        setLoading(false);
+      });
 
     return () => {
-      controller.abort();
-      window.clearTimeout(timer);
+      session.abort();
     };
   }, [query]);
 

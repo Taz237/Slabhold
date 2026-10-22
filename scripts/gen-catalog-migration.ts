@@ -8,7 +8,7 @@ const esc = (s: string) => s.replace(/'/g, "''");
 const seeds = catalogSeedRows()
   .map(
     (r) =>
-      `  ('${esc(r.player)}', '${esc(r.year_label)}', '${esc(r.set_name)}', '${esc(r.card_number)}', '${esc(r.parallel)}', '${esc(r.sport)}')`,
+      `  ('${esc(r.player)}', '${esc(r.year_label)}', '${esc(r.set_name)}', '${esc(r.card_number)}', '${esc(r.parallel)}', '${esc(r.sport)}', ${r.is_rookie ? "true" : "false"})`,
   )
   .join(",\n");
 
@@ -57,6 +57,7 @@ create table if not exists public.card_catalog (
   card_number text,
   parallel text not null default 'Base',
   sport text,
+  is_rookie boolean not null default false,
   search_text text generated always as (
     public.norm(
       coalesce(player, '') || ' ' ||
@@ -99,7 +100,7 @@ create policy "player_aliases_select_public"
 grant select on public.card_catalog to anon, authenticated;
 grant select on public.player_aliases to anon, authenticated;
 
-insert into public.card_catalog (player, year_label, set_name, card_number, parallel, sport)
+insert into public.card_catalog (player, year_label, set_name, card_number, parallel, sport, is_rookie)
 values
 ${seeds}
 on conflict do nothing;
