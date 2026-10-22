@@ -159,7 +159,7 @@ describe("rankCollectors", () => {
 
 describe("suggest_collectors SQL", () => {
   const sql = readFileSync(
-    join(process.cwd(), "supabase/migrations/20261022180000_profile_interests.sql"),
+    join(process.cwd(), "supabase/migrations/20261022181000_profile_interests.sql"),
     "utf8",
   );
   const ranker = sql.slice(
