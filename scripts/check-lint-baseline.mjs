@@ -3,20 +3,28 @@
  *
  * Each entry is "severity file:rule" with a count. Line and column are ignored.
  * Exit 1 when a count rises, a new entry appears, a blanket eslint-disable names
- * no rule, ESLint crashes, or the baseline is missing or malformed. A drop is not
- * a failure: print LOWER_BASELINE_MESSAGE.
+ * no rule, a scanned file fails to parse, ESLint crashes, or the baseline is
+ * missing or malformed. A drop is not a failure: print LOWER_BASELINE_MESSAGE.
+ *
+ * Blanket disables are read from ESLint's file list with @typescript-eslint/parser.
+ * They are never written into the baseline, including with `--allow-increase`.
  *
  * `node scripts/check-lint-baseline.mjs --write` rewrites the baseline when counts
  * only stay the same or fall. Adding or raising entries requires `--allow-increase`.
+ * A lower baseline prints each dropped entry and does not print LOWER_BASELINE_MESSAGE.
  */
+import { parse } from "@typescript-eslint/parser";
 import { spawnSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
-import { dirname, extname, join, relative, resolve, sep } from "node:path";
+import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 export const LOWER_BASELINE_MESSAGE = "lower the baseline: run npm run lint:baseline";
 export const BLANKET_RULE = "(blanket-disable)";
-const SOURCE_EXTENSIONS = new Set([".ts", ".tsx", ".js", ".mjs"]);
+export const PARSE_ERROR_RULE = "(parse-error)";
+const DIRECTIVE_PATTERN = /^(eslint-disable|eslint-disable-line|eslint-disable-next-line)(?:\s|$)/u;
+const JUSTIFICATION_PATTERN = /\s-{2,}\s/u;
+const QUOTED_RULE_PATTERN = /^(?<quote>['"]?)(?<ruleId>.*)\k<quote>$/su;
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const baselinePath = join(root, "eslint-baseline.json");
@@ -109,175 +117,126 @@ export function sortedEntries(counts) {
   return [...counts.entries()].sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
 }
 
-function namesNoRule(tail) {
-  const description = tail.indexOf("--");
-  const rules = (description === -1 ? tail : tail.slice(0, description)).trim();
-  if (!rules) return true;
-  return rules.split(",").map((part) => part.trim()).filter(Boolean).length === 0;
+function ruleNames(value) {
+  if (!value) return [];
+  const names = [];
+  for (const part of value.split(",")) {
+    const trimmed = part.trim().replace(QUOTED_RULE_PATTERN, "$<ruleId>");
+    if (trimmed) names.push(trimmed);
+  }
+  return names;
 }
 
-function blanketDirective(kind, body) {
-  const match = /^\s*(?:\*\s*)?(eslint-disable-next-line|eslint-disable-line|eslint-disable)(?![\w-])([\s\S]*)$/.exec(body);
-  if (!match) return false;
-  if (kind === "line" && match[1] === "eslint-disable") return false;
-  return namesNoRule(match[2]);
+export function parseDisableDirective(commentValue, commentType) {
+  if (typeof commentValue !== "string") return null;
+  const justification = JUSTIFICATION_PATTERN.exec(commentValue);
+  const directivePart = (justification ? commentValue.slice(0, justification.index) : commentValue).trim();
+  const match = DIRECTIVE_PATTERN.exec(directivePart);
+  if (!match) return null;
+  const label = match[1];
+  if (label === "eslint-disable" && commentType !== "Block") return null;
+  const rules = ruleNames(directivePart.slice(label.length));
+  return { label, rules, blanket: rules.length === 0 };
 }
 
-export function findBlanketDisables(source) {
+export function findBlanketDisables(source, file = "file.ts") {
+  const ast = parse(source, {
+    comment: true,
+    jsx: /\.(tsx|jsx)$/.test(file),
+    range: true,
+    loc: true,
+  });
   const hits = [];
-  const length = source.length;
-  let index = 0;
-  let line = 1;
-  let column = 1;
-
-  function bump(count) {
-    for (let step = 0; step < count; step += 1) {
-      if (source[index + step] === "\n") {
-        line += 1;
-        column = 1;
-      } else {
-        column += 1;
-      }
-    }
-    index += count;
+  for (const comment of ast.comments ?? []) {
+    if (!parseDisableDirective(comment.value, comment.type)?.blanket) continue;
+    const start = comment.loc?.start;
+    hits.push({
+      line: start?.line ?? 0,
+      column: (start?.column ?? 0) + 1,
+    });
   }
-
-  function skipString(quote) {
-    bump(1);
-    while (index < length) {
-      if (source[index] === "\\") {
-        bump(Math.min(2, length - index));
-        continue;
-      }
-      if (quote === "`" && source[index] === "$" && source[index + 1] === "{") {
-        bump(2);
-        skipTemplateExpression();
-        continue;
-      }
-      if (source[index] === quote) {
-        bump(1);
-        return;
-      }
-      bump(1);
-    }
-  }
-
-  function skipTemplateExpression() {
-    let depth = 1;
-    while (index < length && depth > 0) {
-      const current = source[index];
-      const next = source[index + 1];
-      if (current === "'" || current === '"' || current === "`") {
-        skipString(current);
-        continue;
-      }
-      if (current === "/" && next === "/") {
-        const startLine = line;
-        const startColumn = column;
-        bump(2);
-        let body = "";
-        while (index < length && source[index] !== "\n") {
-          body += source[index];
-          bump(1);
-        }
-        if (blanketDirective("line", body)) hits.push({ line: startLine, column: startColumn });
-        continue;
-      }
-      if (current === "/" && next === "*") {
-        readBlock();
-        continue;
-      }
-      if (current === "{") depth += 1;
-      else if (current === "}") depth -= 1;
-      bump(1);
-    }
-  }
-
-  function readBlock() {
-    const startLine = line;
-    const startColumn = column;
-    bump(2);
-    let body = "";
-    while (index + 1 < length && !(source[index] === "*" && source[index + 1] === "/")) {
-      body += source[index];
-      bump(1);
-    }
-    if (index + 1 < length) bump(2);
-    if (blanketDirective("block", body)) hits.push({ line: startLine, column: startColumn });
-  }
-
-  while (index < length) {
-    const current = source[index];
-    const next = source[index + 1];
-    if (current === "'" || current === '"' || current === "`") {
-      skipString(current);
-      continue;
-    }
-    if (current === "/" && next === "/") {
-      const startLine = line;
-      const startColumn = column;
-      bump(2);
-      let body = "";
-      while (index < length && source[index] !== "\n") {
-        body += source[index];
-        bump(1);
-      }
-      if (blanketDirective("line", body)) hits.push({ line: startLine, column: startColumn });
-      continue;
-    }
-    if (current === "/" && next === "*") {
-      readBlock();
-      continue;
-    }
-    bump(1);
-  }
-
   return hits;
 }
 
-export function trackedSourceFiles(rootDir) {
-  const listed = spawnSync("git", ["ls-files", "-z"], {
-    cwd: rootDir,
-    encoding: "buffer",
-  });
-  if (listed.status !== 0) {
-    const stderr = listed.stderr ? listed.stderr.toString("utf8") : "";
-    return { error: stderr || "git ls-files failed." };
+export function filesFromReport(report) {
+  if (!Array.isArray(report)) return [];
+  const files = [];
+  for (const file of report) {
+    if (file && typeof file.filePath === "string" && file.filePath) files.push(file.filePath);
   }
-  const files = listed.stdout
-    .toString("utf8")
-    .split("\0")
-    .filter((file) => {
-      if (!file || !SOURCE_EXTENSIONS.has(extname(file))) return false;
-      return !file.split("/").includes("node_modules") && !file.split("/").includes(".next");
-    });
-  return { files };
+  return files;
+}
+
+function resolveSourcePath(rootDir, filePath) {
+  return isAbsolute(filePath) ? filePath : join(rootDir, filePath);
+}
+
+function parseFailure(error) {
+  const message = (error instanceof Error ? error.message : String(error)).split("\n")[0];
+  const line = Number.isInteger(error?.lineNumber) ? error.lineNumber : 1;
+  const column = Number.isInteger(error?.column) ? error.column + 1 : 1;
+  return { line, column, message };
 }
 
 export function scanBlanketDisables(rootDir, files) {
   const hits = [];
-  for (const file of files) {
+  const parseErrors = [];
+  for (const filePath of files) {
+    const absolute = resolveSourcePath(rootDir, filePath);
+    const file = toPosixRelative(rootDir, absolute);
     let source;
     try {
-      source = readFileSync(join(rootDir, file), "utf8");
+      source = readFileSync(absolute, "utf8");
     } catch (error) {
-      return { error: error instanceof Error ? error.message : String(error) };
+      parseErrors.push({ file, ...parseFailure(error) });
+      continue;
     }
-    for (const hit of findBlanketDisables(source)) {
-      hits.push({ file, line: hit.line, column: hit.column });
+    try {
+      for (const hit of findBlanketDisables(source, absolute)) {
+        hits.push({ file, line: hit.line, column: hit.column });
+      }
+    } catch (error) {
+      parseErrors.push({ file, ...parseFailure(error) });
     }
   }
-  return { hits };
+  return { hits, parseErrors };
+}
+
+function addErrorFinding(counts, details, finding, detail) {
+  counts.set(finding, (counts.get(finding) ?? 0) + 1);
+  if (!details.has(finding)) details.set(finding, []);
+  details.get(finding).push(detail);
 }
 
 export function addBlanketFindings(counts, details, hits) {
   for (const hit of hits) {
     const finding = findingKey("error", hit.file, BLANKET_RULE);
-    counts.set(finding, (counts.get(finding) ?? 0) + 1);
-    const detail = `${hit.file}:${hit.line}:${hit.column} error blanket eslint-disable ${BLANKET_RULE}`;
-    if (!details.has(finding)) details.set(finding, []);
-    details.get(finding).push(detail);
+    addErrorFinding(
+      counts,
+      details,
+      finding,
+      `${hit.file}:${hit.line}:${hit.column} error blanket eslint-disable ${BLANKET_RULE}`,
+    );
   }
+}
+
+export function addParseErrors(counts, details, parseErrors) {
+  for (const failure of parseErrors) {
+    const finding = findingKey("error", failure.file, PARSE_ERROR_RULE);
+    addErrorFinding(
+      counts,
+      details,
+      finding,
+      `${failure.file}:${failure.line}:${failure.column} error ${failure.message} ${PARSE_ERROR_RULE}`,
+    );
+  }
+}
+
+export function hasBlanketFinding(counts) {
+  for (const finding of counts.keys()) {
+    if (finding.endsWith(`:${BLANKET_RULE}`)) return true;
+  }
+  return false;
 }
 
 export function exitCodeForDiff(diff) {
@@ -285,6 +244,9 @@ export function exitCodeForDiff(diff) {
 }
 
 export function allowsBaselineWrite(diff, allowIncrease) {
+  for (const item of [...diff.added, ...diff.raised]) {
+    if (item.finding.endsWith(`:${BLANKET_RULE}`)) return false;
+  }
   return exitCodeForDiff(diff) === 0 || allowIncrease;
 }
 
@@ -344,6 +306,12 @@ function printNewFindings(items, details, label) {
   }
 }
 
+function printLowered(diff) {
+  for (const item of diff.lowered) {
+    console.error(`dropped ${item.finding} (${item.from} -> ${item.count})`);
+  }
+}
+
 function reportDiff(diff, details) {
   if (diff.added.length > 0 || diff.raised.length > 0) {
     console.error("Lint findings rose above the baseline.");
@@ -351,9 +319,7 @@ function reportDiff(diff, details) {
     printNewFindings(diff.raised, details, "rose");
   }
   if (diff.lowered.length > 0) {
-    for (const item of diff.lowered) {
-      console.error(`dropped ${item.finding} (${item.from} -> ${item.count})`);
-    }
+    printLowered(diff);
     console.error(LOWER_BASELINE_MESSAGE);
   }
 }
@@ -367,19 +333,10 @@ export function main(argv = process.argv) {
     return lint.status ?? 1;
   }
 
-  const tracked = trackedSourceFiles(root);
-  if (tracked.error) {
-    console.error(tracked.error);
-    return 1;
-  }
-  const blankets = scanBlanketDisables(root, tracked.files);
-  if (blankets.error) {
-    console.error(blankets.error);
-    return 1;
-  }
-
+  const blankets = scanBlanketDisables(root, filesFromReport(lint.report));
   const { counts, details } = collectFindings(lint.report, root);
   addBlanketFindings(counts, details, blankets.hits);
+  addParseErrors(counts, details, blankets.parseErrors);
   const current = totals(counts);
   const entries = sortedEntries(counts);
   const loaded = readBaselineFile(baselinePath);
@@ -396,6 +353,12 @@ export function main(argv = process.argv) {
   );
 
   if (write) {
+    if (hasBlanketFinding(counts)) {
+      console.error("Refusing to record blanket eslint-disable entries in the baseline.");
+      printNewFindings(diff.added, details, "new");
+      printNewFindings(diff.raised, details, "rose");
+      return 1;
+    }
     if (!allowsBaselineWrite(diff, allowIncrease)) {
       console.error("Refusing to add or raise baseline entries without --allow-increase.");
       printNewFindings(diff.added, details, "new");
@@ -406,7 +369,7 @@ export function main(argv = process.argv) {
     console.log(
       `Wrote eslint-baseline.json: ${current.errors} errors, ${current.warnings} warnings, ${entries.length} findings.`,
     );
-    if (diff.lowered.length > 0) console.error(LOWER_BASELINE_MESSAGE);
+    if (diff.lowered.length > 0) printLowered(diff);
     return 0;
   }
 

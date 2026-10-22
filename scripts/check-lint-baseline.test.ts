@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { describe, it } from "node:test";
@@ -7,7 +7,9 @@ import { fileURLToPath } from "node:url";
 import {
   BLANKET_RULE,
   LOWER_BASELINE_MESSAGE,
+  PARSE_ERROR_RULE,
   addBlanketFindings,
+  addParseErrors,
   allowsBaselineWrite,
   collectFindings,
   diffFindings,
@@ -17,6 +19,7 @@ import {
   main,
   parseBaseline,
   readBaselineFile,
+  scanBlanketDisables,
   totals,
 } from "./check-lint-baseline.mjs";
 
@@ -30,7 +33,28 @@ function committedBaseline(): Array<[string, number]> {
   return baseline.entries as Array<[string, number]>;
 }
 
-describe("lint baseline findings", () => {
+function exitForBlanketFile(fileName: string, source: string) {
+  const dir = mkdtempSync(join(tmpdir(), "blanket-"));
+  const file = join(dir, fileName);
+  writeFileSync(file, source);
+  const scanned = scanBlanketDisables(dir, [file]);
+  assert.deepEqual(scanned.parseErrors, []);
+  const finding = findingKey("error", fileName, BLANKET_RULE);
+  const entries = committedBaseline();
+  const counts = new Map<string, number>(entries);
+  const details = new Map<string, string[]>();
+  addBlanketFindings(counts, details, scanned.hits);
+  const diff = diffFindings(entries, counts);
+  assert.equal(exitCodeForDiff(diff), 1);
+  assert.deepEqual(
+    diff.added.filter((item) => item.finding === finding),
+    [{ finding, count: scanned.hits.length }],
+  );
+  assert.match(details.get(finding)?.join("\n") ?? "", /blanket-disable/);
+  return scanned.hits;
+}
+
+describe("lint baseline findings", { concurrency: false }, () => {
   it("counts severity file:rule and ignores line and column", () => {
     const { counts } = collectFindings(
       [
@@ -149,13 +173,75 @@ describe("lint baseline findings", () => {
       raised: [],
       lowered: [{ finding: "error lib/a.ts:no-unused-vars", from: 2, count: 1 }],
     };
+    const blanket = {
+      added: [{ finding: "error lib/a.ts:(blanket-disable)", count: 1 }],
+      raised: [],
+      lowered: [],
+    };
     assert.equal(allowsBaselineWrite(added, false), false);
     assert.equal(allowsBaselineWrite(raised, false), false);
     assert.equal(allowsBaselineWrite(added, true), true);
     assert.equal(allowsBaselineWrite(lowered, false), true);
+    assert.equal(allowsBaselineWrite(blanket, true), false);
+  });
+
+  it("flags a blanket disable after a regex quote and empty quoted rule lists", () => {
+    const sources = [
+      'const re = /"/;\n/* eslint-disable */\nexport const n = 1;\n',
+      "const re = /'/;\n// eslint-disable-next-line\nexport const n = 1;\n",
+      '/* eslint-disable "" */\nexport const n = 1;\n',
+      "/* eslint-disable '' */\nexport const n = 1;\n",
+    ];
+    for (const source of sources) {
+      const hits = exitForBlanketFile("sample.ts", source);
+      assert.equal(hits.length, 1);
+    }
+    assert.equal(findBlanketDisables('/* eslint-disable "no-alert" */\nconst n = 1;\n').length, 0);
+    assert.equal(findBlanketDisables("// eslint-disable\nconst n = 1;\n").length, 0);
+  });
+
+  it("flags blanket disables in mts, cts, jsx, and cjs files", () => {
+    const source = "/* eslint-disable */\nexport const value = 1;\n";
+    for (const extension of [".mts", ".cts", ".jsx", ".cjs"]) {
+      const hits = exitForBlanketFile(`new-file${extension}`, source);
+      assert.equal(hits.length, 1);
+      assert.equal(hits[0].line, 1);
+    }
+  });
+
+  it("reports a parse failure as an error finding and exits 1", () => {
+    const dir = mkdtempSync(join(tmpdir(), "blanket-parse-"));
+    const file = join(dir, "broken.ts");
+    writeFileSync(file, "const = ;\n");
+    const scanned = scanBlanketDisables(dir, [file]);
+    assert.equal(scanned.parseErrors.length, 1);
+    const finding = findingKey("error", "broken.ts", PARSE_ERROR_RULE);
+    const entries = committedBaseline();
+    const counts = new Map<string, number>(entries);
+    addParseErrors(counts, new Map(), scanned.parseErrors);
+    const diff = diffFindings(entries, counts);
+    assert.equal(exitCodeForDiff(diff), 1);
+    assert.deepEqual(diff.added, [{ finding, count: 1 }]);
   });
 
   it("main exits 0 on this tree", { timeout: 60_000 }, () => {
     assert.equal(main(["node", "scripts/check-lint-baseline.mjs"]), 0);
+  });
+
+  it("main exits 1 when a file starts with a blanket disable", { timeout: 60_000 }, () => {
+    const file = join(repoRoot, "scripts", "blanket-disable-e2e.ts");
+    const errors: string[] = [];
+    const original = console.error;
+    console.error = (...args: unknown[]) => {
+      errors.push(args.map((arg) => String(arg)).join(" "));
+    };
+    writeFileSync(file, "/* eslint-disable */\nexport const blanketE2e = 1;\n");
+    try {
+      assert.equal(main(["node", "scripts/check-lint-baseline.mjs"]), 1);
+      assert.match(errors.join("\n"), /scripts\/blanket-disable-e2e\.ts:\(blanket-disable\)/);
+    } finally {
+      console.error = original;
+      rmSync(file, { force: true });
+    }
   });
 });
