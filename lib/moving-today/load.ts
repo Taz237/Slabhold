@@ -13,14 +13,13 @@ import {
 import {
   addCalendarDays,
   freshenMovingToday,
-  movingDayIsRecent,
+  MOVING_TODAY_WEEK_DAYS,
   newYorkDayWindow,
   RECENT_AVERAGE_DAYS,
-  saleCalendarDate,
 } from "./rank";
 import { emptyMovingToday, type MovingTodayPayload } from "./types";
 
-const TODAY_SALE_LIMIT = 400;
+const WEEK_SALE_LIMIT = 2000;
 const HISTORY_LIMIT = 2000;
 const IN_CHUNK = 80;
 
@@ -101,19 +100,20 @@ function utcMidnight(date: string): string {
   return `${date}T00:00:00Z`;
 }
 
-async function readDaySales(
+async function readWindowSales(
   admin: NonNullable<ReturnType<typeof createSupabaseAdmin>>,
-  date: string,
+  startDate: string,
+  endDate: string,
 ): Promise<RawCompSale[]> {
   return selectSales(admin, (query) =>
     query
-      .gte("sold_at", utcMidnight(date))
-      .lt("sold_at", utcMidnight(addCalendarDays(date, 1)))
+      .gte("sold_at", utcMidnight(startDate))
+      .lt("sold_at", utcMidnight(endDate))
       .gt("price", 0)
       .neq("item_id", "__empty__")
       .not("query_key", "is", null)
-      .order("price", { ascending: false })
-      .limit(TODAY_SALE_LIMIT),
+      .order("sold_at", { ascending: false })
+      .limit(WEEK_SALE_LIMIT),
   );
 }
 
@@ -122,32 +122,15 @@ async function readMovingToday(now: Date): Promise<MovingTodayPayload> {
   const window = newYorkDayWindow(now);
   if (!admin) return emptyMovingToday(window.date);
 
-  let shownDate = window.date;
-  let sales = await readDaySales(admin, shownDate);
-  if (sales.length === 0) {
-    const recent = await selectSales(admin, (query) =>
-      query
-        .lt("sold_at", utcMidnight(window.date))
-        .gt("price", 0)
-        .neq("item_id", "__empty__")
-        .not("query_key", "is", null)
-        .order("sold_at", { ascending: false })
-        .limit(1),
-    );
-    const fallback = saleCalendarDate(recent[0]?.soldAt ?? "");
-    if (!fallback || !movingDayIsRecent(fallback, window.date)) {
-      return { ...emptyMovingToday(window.date), dateLabel: "" };
-    }
-    shownDate = fallback;
-    sales = await readDaySales(admin, shownDate);
-  }
+  const weekStart = addCalendarDays(window.date, -(MOVING_TODAY_WEEK_DAYS - 1));
+  const sales = await readWindowSales(admin, weekStart, addCalendarDays(window.date, 1));
   if (sales.length === 0) {
     return { ...emptyMovingToday(window.date), dateLabel: "" };
   }
 
   const keys = [...new Set(sales.map((sale) => sale.queryKey))];
-  const historyStart = utcMidnight(addCalendarDays(shownDate, -RECENT_AVERAGE_DAYS));
-  const historyEnd = utcMidnight(shownDate);
+  const historyStart = utcMidnight(addCalendarDays(weekStart, -RECENT_AVERAGE_DAYS));
+  const historyEnd = utcMidnight(window.date);
   const history: RawCompSale[] = [];
   for (const group of chunks(keys, IN_CHUNK)) {
     const rows = await selectSales(admin, (query) =>
@@ -182,7 +165,7 @@ async function readMovingToday(now: Date): Promise<MovingTodayPayload> {
   const userIds = [...new Set(cards.map((card) => card.userId))];
   const profiles = await readProfiles(admin, userIds);
   const payload = assembleMovingToday({
-    today: shownDate,
+    today: window.date,
     asOf: window.date,
     sales,
     history,

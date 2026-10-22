@@ -13,8 +13,19 @@ export const RECENT_AVERAGE_DAYS = 90;
 /** Absolute rounded percent that counts as a big move. */
 export const BIG_MOVE_PERCENT = 20;
 
-/** Fallback sales older than this many days are not shown. */
-export const MOVING_TODAY_FALLBACK_DAYS = 2;
+/** A single day stays on its own only when it can show this many rows. */
+export const MOVING_TODAY_MIN_DAY_ROWS = 5;
+
+/** Thin days widen to this many New York calendar dates, including today. */
+export const MOVING_TODAY_WEEK_DAYS = 7;
+
+/** Fewer rows than this, and the week module stays hidden. */
+export const MOVING_TODAY_MIN_WEEK_ROWS = 3;
+
+/** Sales under $5 drop out when enough other rows remain. */
+export const MOVING_TODAY_MIN_LEAD_CENTS = 500;
+
+export const MOVING_THIS_WEEK_TITLE = "Moving this week";
 
 export const BIGGEST_SALE_COUNT = 3;
 export const BIG_MOVE_COUNT = 3;
@@ -73,28 +84,53 @@ export function saleCalendarDate(value: string): string | null {
   return /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : null;
 }
 
-/** True for today and for a fallback no older than MOVING_TODAY_FALLBACK_DAYS. */
+/** True when `shownDate` is today or within `days` calendar days before it. */
 export function movingDayIsRecent(
   shownDate: string,
   today: string,
-  days = MOVING_TODAY_FALLBACK_DAYS,
+  days = MOVING_TODAY_WEEK_DAYS - 1,
 ): boolean {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(shownDate) || !/^\d{4}-\d{2}-\d{2}$/.test(today)) return false;
   if (shownDate > today) return false;
   return shownDate >= addCalendarDays(today, -days);
 }
 
+function newestSoldOn(sales: readonly { soldOn: string }[]): string {
+  let newest = "";
+  for (const sale of sales) {
+    if (sale.soldOn > newest) newest = sale.soldOn;
+  }
+  return newest;
+}
+
 /**
  * Heading from the sale date and the current New York date.
- * Cached title text is ignored. A sale older than two days is hidden.
+ * Cached title text is ignored. A list older than the 7-day window is hidden.
+ * A week list keeps its heading and recomputes the range in Eastern Time.
  */
 export function freshenMovingToday(
   payload: MovingTodayPayload,
   now: Date = new Date(),
 ): MovingTodayPayload {
   const today = calendarDateInTimeZone(now);
+  if (payload.window === "week") {
+    const newest = newestSoldOn(payload.sales);
+    if (
+      payload.sales.length < MOVING_TODAY_MIN_WEEK_ROWS ||
+      !movingDayIsRecent(newest, today, MOVING_TODAY_WEEK_DAYS - 1)
+    ) {
+      return emptyMovingToday(today);
+    }
+    return {
+      ...payload,
+      date: today,
+      title: MOVING_THIS_WEEK_TITLE,
+      dateLabel: weekDateLabel(today),
+      window: "week",
+    };
+  }
   const saleDate = payload.date || payload.sales.find((sale) => sale.soldOn)?.soldOn || "";
-  if (!movingDayIsRecent(saleDate, today) || payload.sales.length === 0) {
+  if (!movingDayIsRecent(saleDate, today, MOVING_TODAY_WEEK_DAYS - 1) || payload.sales.length === 0) {
     return emptyMovingToday(today);
   }
   return {
@@ -102,13 +138,23 @@ export function freshenMovingToday(
     date: saleDate,
     title: movingDayHeading(saleDate, today),
     dateLabel: formatSaleDate(saleDate),
+    window: "day",
   };
+}
+
+/** Inclusive label for the 7-day window ending on `asOf`, as calendar dates. */
+export function weekDateLabel(asOf: string): string {
+  const start = formatSaleDate(addCalendarDays(asOf, -(MOVING_TODAY_WEEK_DAYS - 1)));
+  const end = formatSaleDate(asOf);
+  if (!start || !end) return "";
+  return start === end ? start : `${start} – ${end}`;
 }
 
 /** Page description. The heading stays in the title, not jammed into this sentence. */
 export function movingTodayDescription(title: string): string {
   if (title === "Moving yesterday") return "Yesterday's notable sales across the Slabhold catalog.";
   if (title === "Moving today") return "Today's notable sales across the Slabhold catalog.";
+  if (title === MOVING_THIS_WEEK_TITLE) return "This week's notable sales across the Slabhold catalog.";
   const day = title.replace(/^Moving\s+/, "");
   if (day && day !== title) return `Notable sales from ${day} across the Slabhold catalog.`;
   return "Notable sales across the Slabhold catalog.";
@@ -221,34 +267,70 @@ function byPrice(a: NotableSale, b: NotableSale): number {
   return a.queryKey.localeCompare(b.queryKey) || a.itemId.localeCompare(b.itemId);
 }
 
-function byMove(a: NotableSale, b: NotableSale): number {
+type PricedRow = {
+  priceCents: number;
+  percent: number | null;
+  queryKey?: string;
+  itemId?: string;
+  cardId?: string;
+};
+
+function rowIdentity(row: PricedRow): string {
+  return `${row.queryKey ?? row.cardId ?? ""}|${row.itemId ?? ""}|${row.priceCents}`;
+}
+
+function pricedSort(a: PricedRow, b: PricedRow): number {
+  if (a.priceCents !== b.priceCents) return b.priceCents - a.priceCents;
   const aMove = a.percent == null ? -1 : Math.abs(a.percent);
   const bMove = b.percent == null ? -1 : Math.abs(b.percent);
   if (aMove !== bMove) return bMove - aMove;
-  return byPrice(a, b);
-}
-
-function isBigMove(sale: NotableSale): boolean {
-  return sale.percent != null && Math.abs(sale.percent) >= BIG_MOVE_PERCENT;
+  return rowIdentity(a).localeCompare(rowIdentity(b));
 }
 
 /**
- * Today's notable sales: the biggest prices, then other big moves versus
- * the card's recent average. One row per card. The same card is not repeated.
+ * Biggest prices, then big moves, then any remaining rows up to five.
+ * A private sale dropped before this cap does not take a visible slot.
  */
-export function rankNotableSales(input: {
+export function capNotableSales<T extends PricedRow>(rows: readonly T[]): T[] {
+  const biggest = [...rows].sort(pricedSort).slice(0, BIGGEST_SALE_COUNT);
+  const picked = new Set(biggest);
+  const movers = [...rows]
+    .filter((row) => !picked.has(row) && row.percent != null && Math.abs(row.percent) >= BIG_MOVE_PERCENT)
+    .sort((a, b) => {
+      const aMove = a.percent == null ? -1 : Math.abs(a.percent);
+      const bMove = b.percent == null ? -1 : Math.abs(b.percent);
+      if (aMove !== bMove) return bMove - aMove;
+      return pricedSort(a, b);
+    })
+    .slice(0, BIG_MOVE_COUNT);
+  for (const row of movers) picked.add(row);
+  const ranked = [...biggest, ...movers];
+  if (ranked.length >= MOVING_TODAY_MIN_DAY_ROWS) return ranked;
+  const filler = [...rows].filter((row) => !picked.has(row)).sort(pricedSort);
+  return [...ranked, ...filler].slice(0, MOVING_TODAY_MIN_DAY_ROWS);
+}
+
+/**
+ * Every notable sale in the range, one per card. The display cap is applied
+ * after a sale is known to open a public card.
+ */
+export function orderedNotableSales(input: {
   today: string;
   sales: readonly SaleRecord[];
   history: readonly SaleRecord[];
+  from?: string;
+  to?: string;
 }): NotableSale[] {
+  const from = input.from ?? input.today;
+  const to = input.to ?? input.today;
   const annotated: NotableSale[] = [];
   for (const sale of input.sales) {
-    if (sale.soldOn !== input.today) continue;
+    if (sale.soldOn < from || sale.soldOn > to) continue;
     if (!sale.queryKey || !sale.itemId || sale.itemId === "__empty__") continue;
     if (!(sale.priceCents > 0) || !Number.isFinite(sale.priceCents)) continue;
     const percent = percentVersusRecentAverage(
       sale.priceCents,
-      comparisonPricesCents(sale, input.history, input.today),
+      comparisonPricesCents(sale, input.history, sale.soldOn),
     );
     annotated.push({ ...sale, percent });
   }
@@ -258,14 +340,22 @@ export function rankNotableSales(input: {
     const prev = byKey.get(sale.queryKey);
     if (!prev || byPrice(sale, prev) < 0) byKey.set(sale.queryKey, sale);
   }
-  const unique = [...byKey.values()];
-  const biggest = [...unique].sort(byPrice).slice(0, BIGGEST_SALE_COUNT);
-  const picked = new Set(biggest.map((sale) => sale.queryKey));
-  const movers = unique
-    .filter((sale) => !picked.has(sale.queryKey) && isBigMove(sale))
-    .sort(byMove)
-    .slice(0, BIG_MOVE_COUNT);
-  return [...biggest, ...movers];
+  return [...byKey.values()];
+}
+
+/**
+ * Notable sales in a date range: the biggest prices, then other big moves
+ * versus the card's recent average. One row per card. The list fills out to
+ * five rows when more cards exist, so a full day is not only the top three.
+ */
+export function rankNotableSales(input: {
+  today: string;
+  sales: readonly SaleRecord[];
+  history: readonly SaleRecord[];
+  from?: string;
+  to?: string;
+}): NotableSale[] {
+  return capNotableSales(orderedNotableSales(input));
 }
 
 export function toSaleRecord(input: {

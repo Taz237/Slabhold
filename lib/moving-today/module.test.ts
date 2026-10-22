@@ -190,7 +190,10 @@ describe("Moving today cache", () => {
     assert.match(route, /getMovingToday/);
     assert.match(route, /movingTodayCacheControl/);
     assert.match(route, /private, no-store/);
-    assert.match(load, /movingDayIsRecent/);
+    assert.match(load, /MOVING_TODAY_WEEK_DAYS/);
+    const home = read("app/page.tsx");
+    assert.match(home, /export const revalidate = 1800/);
+    assert.doesNotMatch(home, /cookies\(|no-store|connection\(/);
     assert.match(load, /freshenMovingToday/);
     assert.match(load, /MOVING_TODAY_ERROR_CACHE_MS/);
     const cachedCall = load.indexOf("unstable_cache(");
