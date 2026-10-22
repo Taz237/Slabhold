@@ -372,9 +372,12 @@ describe("post page wiring", () => {
     assert.match(provider, /loadPostPage\(/);
     assert.match(provider, /postIdFromPath\(pathname\)/);
     assert.match(provider, /event !== "SIGNED_IN" && event !== "SIGNED_OUT"/);
-    assert.match(provider, /filter: `post_id=eq\.\$\{postId\}`/);
-    assert.match(provider, /filter: `recipient_id=eq\.\$\{viewerId\}`/);
-    assert.match(provider, /filter: `receiver_id=eq\.\$\{viewerId\}`/);
+    assert.match(provider, /realtimeBindings\(/);
+    const realtime = readFileSync(join(process.cwd(), "lib/social/realtime-sync.ts"), "utf8");
+    assert.match(realtime, /post_id=eq\.\$\{postId\}/);
+    assert.match(realtime, /recipient_id=eq\.\$\{viewerId\}/);
+    assert.match(realtime, /receiver_id=eq\.\$\{viewerId\}/);
+    assert.match(realtime, /sender_id=eq\.\$\{viewerId\}/);
     assert.match(provider, /notifications: page\.notifications/);
     assert.match(provider, /messages: page\.messages/);
     assert.match(provider, /fullSnapshotRef\.current \|\| snapshotError/);

@@ -68,11 +68,10 @@ export function usePagedTimeline(input: {
   const loadingMoreRef = useRef(false);
   const requestRef = useRef(input);
   const rememberRef = useRef(input.rememberPosts);
-
-  useEffect(() => {
-    requestRef.current = input;
-    rememberRef.current = input.rememberPosts;
-  }, [input]);
+  // The hook argument is a new object every render. Keep it off effect deps
+  // so a parent re-render cannot start another page fetch.
+  requestRef.current = input;
+  rememberRef.current = input.rememberPosts;
 
   useEffect(() => {
     const token = ++epochRef.current;

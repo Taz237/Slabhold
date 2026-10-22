@@ -62,6 +62,14 @@ import {
   remoteUpdateProfile,
 } from "@/lib/social/remote";
 import { loadPostById, loadPostPage, type LoadedPostPage } from "@/lib/social/load-feed-page";
+import { loadRealtimePatch } from "@/lib/social/realtime-slices";
+import {
+  applyRealtimePatch,
+  createRealtimeScheduler,
+  REALTIME_DEBOUNCE_MS,
+  realtimeBindings,
+  shouldFetchPublicCatalog,
+} from "@/lib/social/realtime-sync";
 import { createSnapshotRefresher } from "@/lib/social/snapshot-refresh";
 import { postIdFromPath } from "@/lib/social/post-route";
 import { collectAttachedCardIds } from "@/lib/social/post-card-value";
@@ -363,74 +371,73 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
     if (mode !== "supabase" || !ready) return;
     const client = supabaseRef.current;
     if (!client) return;
-    let timer = 0;
-    const schedule = () => {
-      window.clearTimeout(timer);
-      timer = window.setTimeout(() => {
-        void reloadRef.current(client).catch((error: unknown) => {
-          setStatus(error instanceof Error ? error.message : "Could not reach Supabase.");
-        });
-      }, 250);
-    };
     const postId = postIdFromPath(pathname);
     const viewerId = remote.user?.id ?? null;
-    if (!fullSnapshotRef.current && postId) {
-      const channel = client.channel(`post-${postId}`);
-      channel.on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "comments", filter: `post_id=eq.${postId}` },
-        schedule,
-      );
-      channel.on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "reposts", filter: `post_id=eq.${postId}` },
-        schedule,
-      );
-      if (viewerId) {
-        channel.on(
-          "postgres_changes",
-          {
-            event: "*",
-            schema: "public",
-            table: "notifications",
-            filter: `recipient_id=eq.${viewerId}`,
-          },
-          schedule,
-        );
-        channel.on(
-          "postgres_changes",
-          {
-            event: "*",
-            schema: "public",
-            table: "messages",
-            filter: `receiver_id=eq.${viewerId}`,
-          },
-          schedule,
-        );
-      }
-      channel.subscribe();
-      return () => {
-        window.clearTimeout(timer);
-        void client.removeChannel(channel);
-      };
-    }
-    if (!fullSnapshotRef.current) return;
-    const channel = client
-      .channel("social-comments-notifications")
-      .on("postgres_changes", { event: "*", schema: "public", table: "comments" }, schedule)
-      .on("postgres_changes", { event: "*", schema: "public", table: "notifications" }, schedule)
-      .on("postgres_changes", { event: "*", schema: "public", table: "messages" }, schedule)
-      .subscribe();
-    const reposts = client
-      .channel("social-reposts")
-      .on("postgres_changes", { event: "*", schema: "public", table: "reposts" }, schedule)
-      .subscribe();
-    return () => {
-      window.clearTimeout(timer);
-      void client.removeChannel(channel);
-      void client.removeChannel(reposts);
+    const bindings = realtimeBindings({
+      viewerId,
+      postId,
+      fullSnapshot: fullSnapshotRef.current,
+    });
+    if (bindings.length === 0) return;
+
+    let cancelled = false;
+    const fail = (error: unknown) => {
+      if (cancelled) return;
+      setStatus(error instanceof Error ? error.message : "Could not reach Supabase.");
     };
-  }, [hasFullSnapshot, mode, pathname, ready, remote.user?.id]);
+    const scheduler = createRealtimeScheduler({
+      debounceMs: REALTIME_DEBOUNCE_MS,
+      hidden: () => document.hidden,
+      reload: (slices) => {
+        const currentPost = postIdFromPath(window.location.pathname);
+        // A cold post screen still reloads that post only. The site snapshot,
+        // including public_cards, stays out of this path.
+        if (!fullSnapshotRef.current && currentPost) {
+          void loadPostPage(client, currentPost)
+            .then((page) => {
+              if (!cancelled) applyPostPage(page);
+            })
+            .catch(fail);
+          return;
+        }
+        void loadRealtimePatch(client, slices, { viewerId, postId: currentPost })
+          .then((patch) => {
+            if (cancelled) return;
+            setRemote((existing) => applyRealtimePatch(existing, patch));
+          })
+          .catch(fail);
+      },
+      schedule: (fn, ms) => window.setTimeout(fn, ms),
+      cancel: (id) => window.clearTimeout(id),
+    });
+
+    const channel = client.channel(postId ? `post-${postId}` : "social-inbox");
+    for (const binding of bindings) {
+      channel.on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: binding.table,
+          filter: binding.filter,
+        },
+        () => scheduler.onEvent(binding.slice),
+      );
+    }
+    channel.subscribe();
+
+    const onVisibility = () => {
+      if (!document.hidden) scheduler.onVisible();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+
+    return () => {
+      cancelled = true;
+      scheduler.dispose();
+      document.removeEventListener("visibilitychange", onVisibility);
+      void client.removeChannel(channel);
+    };
+  }, [applyPostPage, hasFullSnapshot, mode, pathname, ready, remote.user?.id]);
 
   const baseSnapshot = mode === "local" && local ? snapshotFromLocal(local) : remote;
   const postIds = new Set(baseSnapshot.posts.map((post) => post.id));
@@ -940,7 +947,8 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
     };
 
     if (!postId) {
-      if (fullSnapshotRef.current) return;
+      // public_cards is part of this snapshot. Load it once per mount.
+      if (!shouldFetchPublicCatalog({ loaded: fullSnapshotRef.current, source: "mount" })) return;
       // Home and the rest of the app still need the snapshot. Don't paint the
       // feed on a post-only snapshot while a load is in flight, or the New
       // posts pill captures an empty head. A failed load still becomes ready
