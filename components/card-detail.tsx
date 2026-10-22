@@ -67,12 +67,26 @@ const ValueChart = dynamic(
 const CardForm = dynamic(
   () => import("@/components/card-form").then((mod) => mod.CardForm),
   {
-    loading: () => (
-      <div
-        className="h-40 animate-pulse rounded-2xl bg-zinc-200/70 dark:bg-white/5"
-        aria-busy="true"
-      />
-    ),
+    loading: ({ error, retry }) =>
+      error ? (
+        <div className="rounded-2xl border border-zinc-200 bg-white p-4 text-center dark:border-white/10 dark:bg-white/[0.03] sm:p-5">
+          <p className="text-sm text-zinc-600 dark:text-zinc-300">
+            Couldn&apos;t load the edit form.
+          </p>
+          <button
+            type="button"
+            onClick={() => retry?.()}
+            className="mt-3 inline-flex min-h-11 items-center rounded-full bg-violet-600 px-4 text-sm font-semibold text-white hover:bg-violet-500"
+          >
+            Try again
+          </button>
+        </div>
+      ) : (
+        <div
+          className="h-40 animate-pulse rounded-2xl bg-zinc-200/70 dark:bg-white/5"
+          aria-busy="true"
+        />
+      ),
   },
 );
 
@@ -86,6 +100,8 @@ export function CardDetail({ id }: { id: string }) {
   const [editing, setEditing] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [chartReady, setChartReady] = useState(false);
+  const [chartFailed, setChartFailed] = useState(false);
+  const [chartAttempt, setChartAttempt] = useState(0);
   const remembered = useSyncExternalStore(
     subscribeCardValueMemory,
     () => (card?.id ? peekCardValue(card.id) : null),
@@ -119,13 +135,17 @@ export function CardDetail({ id }: { id: string }) {
 
   useEffect(() => {
     let cancelled = false;
-    void import("@/components/value-chart").then(() => {
-      if (!cancelled) setChartReady(true);
-    });
+    void import("@/components/value-chart")
+      .then(() => {
+        if (!cancelled) setChartReady(true);
+      })
+      .catch(() => {
+        if (!cancelled) setChartFailed(true);
+      });
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [chartAttempt]);
 
   useEffect(() => {
     if (!editing) return;
@@ -459,6 +479,32 @@ export function CardDetail({ id }: { id: string }) {
           <p className="mt-1 min-h-5 text-sm text-zinc-500">&nbsp;</p>
           <div className="mt-3 flex h-44 items-center">
             <EmptyPriceNote href={ebaySoldSearchUrlForCard(card)} />
+          </div>
+        </section>
+      ) : chartFailed && !authRequired && !soldCopy ? (
+        <section data-slot="sales-chart" className={cardPanelClass}>
+          <p className="text-[11px] tracking-wide text-zinc-500 uppercase">Recent sales</p>
+          <div className="mt-1 flex min-h-9 items-end">
+            {pendingDollars?.startsWith("$") ? (
+              <p className="text-3xl font-semibold tracking-tight tabular-nums">{pendingDollars}</p>
+            ) : (
+              <div className="h-9 w-32 rounded-lg bg-zinc-100 dark:bg-white/5" />
+            )}
+          </div>
+          <p className="mt-1 min-h-5 text-sm text-zinc-500">&nbsp;</p>
+          <div className="mt-3 flex h-44 flex-col items-center justify-center gap-3 rounded-xl bg-zinc-100 px-4 text-center dark:bg-white/5">
+            <p className="text-sm text-zinc-500">Couldn&apos;t load the sales graph</p>
+            <button
+              type="button"
+              onClick={() => {
+                setChartFailed(false);
+                setChartReady(false);
+                setChartAttempt((attempt) => attempt + 1);
+              }}
+              className="inline-flex min-h-9 items-center rounded-full bg-violet-600 px-3.5 text-sm font-semibold text-white hover:bg-violet-500"
+            >
+              Retry
+            </button>
           </div>
         </section>
       ) : (
