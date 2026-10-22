@@ -20,7 +20,13 @@ import {
   submitBlocked,
   turnstileSiteKey,
 } from "./captcha";
-import { PASSWORD_RESET_FAILED, passwordResetEmailOptions, passwordResetSendError } from "./password-reset";
+import {
+  PASSWORD_RESET_FAILED,
+  PASSWORD_RESET_UNAVAILABLE,
+  passwordResetEmailOptions,
+  passwordResetSendError,
+} from "./password-reset";
+import { EMAIL_NOT_CONFIRMED } from "./signup-fields";
 
 const SITE_KEY = "NEXT_PUBLIC_TURNSTILE_SITE_KEY";
 
@@ -198,10 +204,18 @@ describe("captcha token on supabase auth", () => {
     assert.equal(CAPTCHA_RETRY, "Please complete the check and try again.");
 
     const other = signInClient({ message: "Invalid login credentials" });
-    assert.equal(
-      (await remoteSignIn(other.supabase, "ada@example.com", "secret1", "turnstile-token")).error,
-      "Invalid login credentials",
-    );
+    const invalid = await remoteSignIn(other.supabase, "ada@example.com", "secret1", "turnstile-token");
+    assert.equal(invalid.error, "Invalid login credentials");
+    assert.equal(invalid.unconfirmed, undefined);
+
+    const unconfirmed = signInClient({
+      message: "Email not confirmed",
+      code: "email_not_confirmed",
+    });
+    const waiting = await remoteSignIn(unconfirmed.supabase, "ada@example.com", "secret1", "turnstile-token");
+    assert.equal(waiting.error, EMAIL_NOT_CONFIRMED);
+    assert.equal(waiting.unconfirmed, true);
+    assert.equal(waiting.error?.includes("Email not confirmed"), false);
 
     const signUp = signUpClient({
       code: "captcha_failed",
@@ -215,6 +229,14 @@ describe("captcha token on supabase auth", () => {
     );
     assert.equal(
       passwordResetSendError({ message: "No user found for that email", status: 400 }),
+      null,
+    );
+    assert.equal(
+      passwordResetSendError({ message: "Error sending recovery email", status: 500 }),
+      PASSWORD_RESET_UNAVAILABLE,
+    );
+    assert.equal(
+      passwordResetSendError({ message: "Unable to validate email address", status: 400 }),
       PASSWORD_RESET_FAILED,
     );
   });
@@ -250,7 +272,7 @@ describe("captcha reset", () => {
     );
     assert.match(forgot, /if \(!supabase\) \{\s*showError\(PASSWORD_RESET_FAILED\);/);
     assert.match(forgot, /if \(message\) \{\s*showError\(message\);/);
-    assert.match(forgot, /catch \{\s*showError\(PASSWORD_RESET_FAILED\);/);
+    assert.match(forgot, /catch \{\s*showError\(PASSWORD_RESET_UNAVAILABLE\);/);
     assert.match(forgot, /setSent\(true\);\s*releaseCaptcha\(captchaRef\.current, \(\) => setCaptchaToken\(null\)\);/);
     assert.equal(forgot.match(/releaseCaptcha\(/g)?.length, 2);
   });

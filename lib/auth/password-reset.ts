@@ -8,6 +8,10 @@ export const PASSWORD_RESET_EXPIRED = "That link expired. Send a new one.";
 
 export const PASSWORD_RESET_FAILED = "Couldn't send the reset link. Try again.";
 
+/** A real send failure. Does not say whether the address has an account. */
+export const PASSWORD_RESET_UNAVAILABLE =
+  "We couldn't send that right now. Please try again in a bit.";
+
 /** Supabase redirectTo. The query is left unencoded so the allow list can match it. */
 export function passwordResetRedirect(origin: string): string {
   const base = origin.replace(/\/$/, "");
@@ -52,6 +56,34 @@ function isRateLimited(error: { message?: string; status?: number; code?: string
   );
 }
 
+/** An unknown address stays on the neutral sent sentence. */
+function isUnknownAccount(error: { message?: string; code?: string | null }): boolean {
+  const code = error.code?.toLowerCase() ?? "";
+  if (code === "user_not_found" || code === "email_not_found") return true;
+  const message = error.message?.toLowerCase() ?? "";
+  return (
+    message.includes("user not found") ||
+    message.includes("no user found") ||
+    message.includes("email not found")
+  );
+}
+
+/** Rate limit, SMTP, or another failure while the message was going out. */
+function isSendFailure(error: { message?: string; status?: number; code?: string | null }): boolean {
+  if (isRateLimited(error)) return true;
+  if ((error.status ?? 0) >= 500) return true;
+  const code = error.code?.toLowerCase() ?? "";
+  if (code === "unexpected_failure" || code.includes("smtp")) return true;
+  const message = error.message?.toLowerCase() ?? "";
+  return (
+    message.includes("smtp") ||
+    message.includes("error sending") ||
+    message.includes("unable to send") ||
+    message.includes("could not send") ||
+    message.includes("failed to send")
+  );
+}
+
 export function passwordResetEmailOptions(origin: string, captchaToken?: string | null) {
   return {
     redirectTo: passwordResetRedirect(origin),
@@ -61,13 +93,14 @@ export function passwordResetEmailOptions(origin: string, captchaToken?: string 
 
 /**
  * Null means the send can show the public success copy.
- * A rate limit uses that same copy so the response does not reveal whether
- * the email has an account. The provider message is never returned.
+ * An unknown address uses that same copy. A failed send (rate limit, SMTP)
+ * says so, without the provider text or whether the account exists.
  */
 export function passwordResetSendError(error: PasswordResetError): string | null {
   if (!error) return null;
   const captcha = captchaRetryMessage(error);
   if (captcha) return captcha;
-  if (isRateLimited(error)) return null;
+  if (isSendFailure(error)) return PASSWORD_RESET_UNAVAILABLE;
+  if (isUnknownAccount(error)) return null;
   return PASSWORD_RESET_FAILED;
 }

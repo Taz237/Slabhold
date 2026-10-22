@@ -71,6 +71,16 @@ describe("add card form polish", () => {
     );
   });
 
+  it("prefills a new card from the search query and leaves a saved card alone", () => {
+    assert.match(form, /parseManualPrefill\(initialQuery\)/);
+    assert.match(form, /existing\?\.playerName \?\? manualPrefill\?\.playerName/);
+    assert.match(form, /initialQuery=\{existing \? "" : initialQuery\}/);
+    const page = read("app/cards/new/page.tsx");
+    assert.match(page, /searchParams: Promise</);
+    assert.match(page, /await searchParams/);
+    assert.match(page, /<CardForm initialQuery=\{initialQuery\} \/>/);
+  });
+
   it("defaults a new card's purchase date to today without touching a saved date", () => {
     assert.equal(todayDateInput(new Date(2026, 9, 21)), "2026-10-21");
     assert.equal(todayDateInput(new Date(2026, 0, 5)), "2026-01-05");

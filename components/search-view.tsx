@@ -10,12 +10,26 @@ import { useCollection } from "@/components/collection-provider";
 import { useSocial } from "@/components/social-provider";
 import { PullToRefresh } from "@/components/pull-to-refresh";
 import { EmptyState, LoadingRows } from "@/components/status";
+import { CARD_CATALOG } from "@/lib/card-catalog";
 import { cardSubtitle, cardTitle, timeAgo } from "@/lib/format";
-import { searchEmptyTitle, visibleSearchSections } from "@/lib/search/sections";
+import {
+  createRecentSearchStore,
+  parseRecentSearches,
+  recentSearchKey,
+  rememberRecentSearch,
+} from "@/lib/search/recent";
+import {
+  SEARCH_ADD_CARD_LABEL,
+  SEARCH_IDLE_DETAIL,
+  addCardSearchHref,
+  recentPlayerNames,
+  searchEmptyTitle,
+  suggestedSearchPlayers,
+  visibleSearchSections,
+} from "@/lib/search/sections";
 import type { SportsCard } from "@/lib/types";
 
-const RECENT_KEY = "slabhold.search.recent.v1";
-const RECENT_LIMIT = 8;
+const recentAccounts = createRecentSearchStore();
 
 function cardSearchText(card: SportsCard) {
   return [card.playerName, String(card.year), card.setBrand, card.grade].join(" ").toLowerCase();
@@ -23,36 +37,29 @@ function cardSearchText(card: SportsCard) {
 
 const recentListeners = new Set<() => void>();
 
-function parseRecent(raw: string): string[] {
-  try {
-    const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter((item): item is string => typeof item === "string").slice(0, RECENT_LIMIT);
-  } catch {
-    return [];
-  }
+function subscribeRecent(listener: () => void) {
+  recentListeners.add(listener);
+  return () => recentListeners.delete(listener);
 }
 
-function readRecentRaw() {
-  return window.localStorage.getItem(RECENT_KEY) ?? "[]";
-}
-
-function writeRecent(items: string[]) {
-  if (items.length === 0) window.localStorage.removeItem(RECENT_KEY);
-  else window.localStorage.setItem(RECENT_KEY, JSON.stringify(items.slice(0, RECENT_LIMIT)));
+function notifyRecent() {
   recentListeners.forEach((listener) => listener());
 }
 
-function useRecentSearches() {
+function useRecentSearches(userId: string | null) {
+  const key = recentSearchKey(userId);
   const raw = useSyncExternalStore(
-    (listener) => {
-      recentListeners.add(listener);
-      return () => recentListeners.delete(listener);
+    subscribeRecent,
+    () => {
+      try {
+        return window.localStorage.getItem(key) ?? "[]";
+      } catch {
+        return "[]";
+      }
     },
-    readRecentRaw,
     () => "[]",
   );
-  return useMemo(() => parseRecent(raw), [raw]);
+  return useMemo(() => parseRecentSearches(raw), [raw]);
 }
 
 function searchHref(term: string) {
@@ -68,7 +75,16 @@ export function SearchView() {
   const { ready: socialReady, profiles, homePosts, blockedIds, user, refresh } = useSocial();
   const { ready: cardsReady, cards, reload } = useCollection();
   const [query, setQuery] = useState(urlQ);
-  const recent = useRecentSearches();
+  const recentOwner = user?.id ?? null;
+  const recent = useRecentSearches(recentOwner);
+
+  useEffect(() => {
+    try {
+      recentAccounts.dropShared(window.localStorage);
+    } catch {
+      // Site storage can be blocked. Search still works with no recent list.
+    }
+  }, []);
   const typed = query.trim();
   const q = typed.toLowerCase().replace(/^@/, "");
 
@@ -119,22 +135,36 @@ export function SearchView() {
 
   const authors = useMemo(() => new Map(profiles.map((profile) => [profile.id, profile])), [profiles]);
 
+  const suggestions = useMemo(
+    () =>
+      suggestedSearchPlayers({
+        recentPlayers: recentPlayerNames(cards),
+        catalogPlayers: CARD_CATALOG.map((card) => card.playerName),
+      }),
+    [cards],
+  );
+
+  function publishRecent(items: string[]) {
+    try {
+      recentAccounts.save(window.localStorage, recentOwner, items);
+      notifyRecent();
+    } catch {
+      // Site storage can be blocked. Search still works with no recent list.
+    }
+  }
+
   function remember(term: string) {
-    const next = term.trim();
-    if (!next) return;
-    const saved = [next, ...recent.filter((item) => item.toLowerCase() !== next.toLowerCase())].slice(
-      0,
-      RECENT_LIMIT,
-    );
-    writeRecent(saved);
+    const saved = rememberRecentSearch(recent, term);
+    if (saved === recent) return;
+    publishRecent(saved);
   }
 
   function forget(term: string) {
-    writeRecent(recent.filter((item) => item !== term));
+    publishRecent(recent.filter((item) => item !== term));
   }
 
   function clearRecent() {
-    writeRecent([]);
+    publishRecent([]);
   }
 
   function refreshSearch() {
@@ -185,57 +215,87 @@ export function SearchView() {
       {loading ? (
         <LoadingRows />
       ) : !q ? (
-        recent.length === 0 ? (
+        recent.length === 0 && suggestions.length === 0 ? (
           <EmptyState
             icon={<Search className="h-5 w-5" />}
             title="Search Slabhold"
-            detail="Find people and posts."
+            detail={SEARCH_IDLE_DETAIL}
           />
         ) : (
-          <section>
-            <div className="flex items-center justify-between px-4 pt-3 pb-1">
-              <h2 className="text-xl font-extrabold tracking-tight">Recent</h2>
-              <button
-                type="button"
-                onClick={clearRecent}
-                className="rounded-full px-2 py-1 text-sm font-medium text-sky-600 dark:text-sky-400"
-              >
-                Clear all
-              </button>
-            </div>
-            <ul>
-              {recent.map((term) => (
-                <li
-                  key={term}
-                  className="flex items-center border-b border-zinc-200 dark:border-white/10"
-                >
+          <div>
+            <p className="px-4 pt-4 text-sm text-zinc-500">{SEARCH_IDLE_DETAIL}</p>
+            {recent.length > 0 ? (
+              <section>
+                <div className="flex items-center justify-between px-4 pt-3 pb-1">
+                  <h2 className="text-xl font-extrabold tracking-tight">Recent</h2>
                   <button
                     type="button"
-                    onClick={() => setSearchQuery(term)}
-                    className="flex min-h-12 min-w-0 flex-1 items-center gap-3 px-4 text-left"
+                    onClick={clearRecent}
+                    className="rounded-full px-2 py-1 text-sm font-medium text-sky-600 dark:text-sky-400"
                   >
-                    <Clock className="h-5 w-5 shrink-0 text-zinc-400" />
-                    <span className="truncate text-[15px]">{term}</span>
+                    Clear all
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => forget(term)}
-                    aria-label={`Remove ${term}`}
-                    className="mr-2 grid h-10 w-10 shrink-0 place-items-center rounded-full text-zinc-500 hover:bg-zinc-100 dark:hover:bg-white/10"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </section>
+                </div>
+                <ul>
+                  {recent.map((term) => (
+                    <li
+                      key={term}
+                      className="flex items-center border-b border-zinc-200 dark:border-white/10"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => setSearchQuery(term)}
+                        className="flex min-h-12 min-w-0 flex-1 items-center gap-3 px-4 text-left"
+                      >
+                        <Clock className="h-5 w-5 shrink-0 text-zinc-400" />
+                        <span className="truncate text-[15px]">{term}</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => forget(term)}
+                        aria-label={`Remove ${term}`}
+                        className="mr-2 grid h-11 w-11 shrink-0 place-items-center rounded-full text-zinc-500 hover:bg-zinc-100 dark:hover:bg-white/10"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ) : null}
+            {suggestions.length > 0 ? (
+              <section>
+                <h2 className="px-4 pt-4 pb-1 text-xl font-extrabold tracking-tight">Suggested</h2>
+                <ul className="flex flex-wrap gap-2 px-4 pt-2 pb-4">
+                  {suggestions.map((name) => (
+                    <li key={name}>
+                      <button
+                        type="button"
+                        onClick={() => setSearchQuery(name)}
+                        className="inline-flex min-h-11 items-center rounded-full bg-zinc-100 px-3 text-sm font-medium dark:bg-white/10"
+                      >
+                        {name}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ) : null}
+          </div>
         )
       ) : visibleSections.length === 0 ? (
         <EmptyState
           icon={<Search className="h-5 w-5" />}
           title={searchEmptyTitle(typed)}
-          detail="Try a name, @handle, or words from a post."
-        />
+          detail="Try a name, @handle, a card, or words from a post."
+        >
+          <Link
+            href={addCardSearchHref(typed)}
+            className="inline-flex min-h-11 items-center justify-center rounded-full bg-[#7C3AED] px-4 text-sm font-semibold text-white"
+          >
+            {SEARCH_ADD_CARD_LABEL}
+          </Link>
+        </EmptyState>
       ) : (
         <div>
           {visibleSections.includes("People") ? (

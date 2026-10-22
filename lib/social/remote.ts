@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { captchaRetryMessage } from "@/lib/auth/captcha";
 import { emailConfirmRedirect } from "@/lib/auth/safe-next";
+import { EMAIL_NOT_CONFIRMED, isEmailNotConfirmed } from "@/lib/auth/signup-fields";
 import { uploadMedia } from "@/lib/supabase/media";
 import { sanitizeAttachedCard } from "./card-posts";
 import { loadMailDayViews } from "./mail-day";
@@ -523,7 +524,12 @@ export async function remoteSignIn(
     password,
     options: { captchaToken },
   });
-  if (error) return { error: captchaRetryMessage(error) ?? error.message };
+  if (error) {
+    const captcha = captchaRetryMessage(error);
+    if (captcha) return { error: captcha };
+    if (isEmailNotConfirmed(error)) return { error: EMAIL_NOT_CONFIRMED, unconfirmed: true };
+    return { error: error.message };
+  }
   return {};
 }
 

@@ -56,6 +56,7 @@ import {
 } from "@/lib/social/mail-day";
 import { identifyFromPhoto } from "@/lib/comps/sample";
 import { cardCategory } from "@/lib/card-category";
+import { parseManualPrefill } from "@/lib/card-search-query";
 import { hasPaid } from "@/lib/format";
 import { formatCardValueLabel, marketValueSummary } from "@/lib/value/format";
 import { useCardValue } from "@/lib/value/use-card-values";
@@ -89,12 +90,15 @@ export function CardForm({
   embedded = false,
   onCancel,
   onSaved,
+  initialQuery = "",
 }: {
   existing?: SportsCard;
   /** Inline on the card page: skip the extra title, keep the same save. */
   embedded?: boolean;
   onCancel?: () => void;
   onSaved?: () => void;
+  /** Search text to prefill when Add card was opened from a miss. */
+  initialQuery?: string;
 }) {
   const router = useRouter();
   const { addCard, updateCard, removeCard, cards, ready: cardsReady, syncError } = useCollection();
@@ -154,15 +158,18 @@ export function CardForm({
   const [isRelic, setIsRelic] = useState(Boolean(existing?.isRelic));
   const [touched, setTouched] = useState<Record<string, boolean>>({});
 
+  const manualPrefill =
+    !existing && initialQuery.trim() ? parseManualPrefill(initialQuery) : null;
+
   const defaultYear = existing
     ? existing.yearLabel || String(existing.year)
-    : "";
+    : (manualPrefill?.yearLabel ?? "");
 
   const [form, setForm] = useState({
-    playerName: existing?.playerName ?? "",
+    playerName: existing?.playerName ?? manualPrefill?.playerName ?? "",
     yearLabel: defaultYear,
     setBrand: existing?.setBrand ?? "",
-    cardNumber: existing?.cardNumber ?? "",
+    cardNumber: existing?.cardNumber ?? manualPrefill?.cardNumber ?? "",
     parallel: existing?.parallel || "Base",
     serialRun: existing?.serialRun != null ? String(existing.serialRun) : "",
     serialNo: existing?.serialNo != null ? String(existing.serialNo) : "",
@@ -528,7 +535,11 @@ export function CardForm({
 
       {!existing ? (
         <>
-          <CardSearch onSelect={applyCatalog} onManual={applyManualSearch} />
+          <CardSearch
+            initialQuery={existing ? "" : initialQuery}
+            onSelect={applyCatalog}
+            onManual={applyManualSearch}
+          />
           {sportOffer ? (
             <button
               type="button"

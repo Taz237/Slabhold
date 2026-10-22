@@ -11,7 +11,11 @@ import {
   logCatalogSearchMissQuietly,
   shouldLogCatalogSearchMiss,
 } from "@/lib/catalog/catalog-queue";
-import { loadCatalogSearchSession } from "@/lib/catalog/catalog-search-session";
+import {
+  CATALOG_SEARCH_TIMEOUT_MESSAGE,
+  catalogSearchNeedsRetry,
+  loadCatalogSearchSession,
+} from "@/lib/catalog/catalog-search-session";
 import { parseManualPrefill } from "@/lib/card-search-query";
 import { createSupabaseBrowser } from "@/lib/supabase/browser";
 
@@ -77,18 +81,23 @@ async function searchRemote(
 export function CardSearch({
   onSelect,
   onManual,
+  initialQuery = "",
 }: {
   onSelect: (card: CatalogCard) => void;
   onManual: (prefill: ManualPrefill) => void;
+  /** Typed text from Search, so Add card opens with that query already in the box. */
+  initialQuery?: string;
 }) {
   const listId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
   const requestId = useRef(0);
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(initialQuery);
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
   const [results, setResults] = useState<CatalogCard[]>([]);
   const [loading, setLoading] = useState(false);
+  const [searchTrouble, setSearchTrouble] = useState(false);
+  const [attempt, setAttempt] = useState(0);
 
   const showList = open && query.trim().length >= 1;
   // results + always-present manual row
@@ -100,11 +109,13 @@ export function CardSearch({
       requestId.current += 1;
       setResults([]);
       setLoading(false);
+      setSearchTrouble(false);
       return;
     }
 
     const id = ++requestId.current;
     setLoading(true);
+    setSearchTrouble(false);
     const session = loadCatalogSearchSession({
       query: q,
       limit: 20,
@@ -117,19 +128,31 @@ export function CardSearch({
         if (snapshot.remote && shouldLogCatalogSearchMiss(q, snapshot.remote.length)) {
           void logCatalogSearchMissQuietly(q);
         }
+        const retry = catalogSearchNeedsRetry(snapshot);
         setResults(snapshot.results);
+        setSearchTrouble(retry);
+        if (retry) setOpen(true);
         setLoading(false);
       })
       .catch(() => {
         if (id !== requestId.current) return;
-        setResults(resolveCatalogSearch(q, null, 20));
+        const fallback = resolveCatalogSearch(q, null, 20);
+        const retry = catalogSearchNeedsRetry({
+          aborted: false,
+          timedOut: false,
+          remote: null,
+          results: fallback,
+        });
+        setResults(fallback);
+        setSearchTrouble(retry);
+        if (retry) setOpen(true);
         setLoading(false);
       });
 
     return () => {
       session.abort();
     };
-  }, [query]);
+  }, [attempt, query]);
 
   useEffect(() => {
     setActive(0);
@@ -252,7 +275,19 @@ export function CardSearch({
           role="listbox"
           className="absolute z-20 mt-2 max-h-72 w-full overflow-y-auto rounded-2xl border border-zinc-200 bg-[var(--background)] py-1 shadow-lg dark:border-white/10"
         >
-          {loading && results.length === 0 ? (
+          {searchTrouble ? (
+            <li className="px-3 py-3">
+              <p className="text-sm text-zinc-600 dark:text-zinc-300">{CATALOG_SEARCH_TIMEOUT_MESSAGE}</p>
+              <button
+                type="button"
+                onClick={() => setAttempt((current) => current + 1)}
+                className="mt-2 inline-flex min-h-11 items-center rounded-full bg-[#7C3AED] px-4 text-sm font-semibold text-white"
+              >
+                Try again
+              </button>
+            </li>
+          ) : null}
+          {loading && results.length === 0 && !searchTrouble ? (
             <li className="px-3 py-3 text-sm text-zinc-500">Searching…</li>
           ) : null}
           {results.map((card, index) => {

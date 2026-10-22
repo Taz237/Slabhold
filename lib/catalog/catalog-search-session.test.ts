@@ -4,7 +4,9 @@ import { describe, it } from "node:test";
 import { join } from "node:path";
 import { searchCatalog, type CatalogCard } from "@/lib/card-catalog";
 import {
+  CATALOG_SEARCH_TIMEOUT_MESSAGE,
   CATALOG_SEARCH_TIMEOUT_MS,
+  catalogSearchNeedsRetry,
   loadCatalogSearchSession,
 } from "@/lib/catalog/catalog-search-session";
 
@@ -140,6 +142,35 @@ describe("catalog search timeout", () => {
     assert.match(search, /snapshot\.aborted \|\| id !== requestId\.current/);
     assert.match(search, /setLoading\(false\)/);
     assert.match(search, /supabase\.rpc\("search_cards"/);
+    assert.match(search, /catalogSearchNeedsRetry\(snapshot\)/);
+    assert.match(search, /CATALOG_SEARCH_TIMEOUT_MESSAGE/);
+    assert.match(search, /setAttempt\(\(current\) => current \+ 1\)/);
+    assert.equal(CATALOG_SEARCH_TIMEOUT_MESSAGE, "Search is taking too long. Try again");
+    assert.equal(
+      catalogSearchNeedsRetry({ aborted: false, timedOut: true, remote: null, results: [] }),
+      true,
+    );
+    assert.equal(
+      catalogSearchNeedsRetry({ aborted: false, timedOut: false, remote: null, results: [] }),
+      true,
+    );
+    assert.equal(
+      catalogSearchNeedsRetry({
+        aborted: false,
+        timedOut: true,
+        remote: null,
+        results: [lateSilver],
+      }),
+      false,
+    );
+    assert.equal(
+      catalogSearchNeedsRetry({ aborted: false, timedOut: false, remote: [], results: [] }),
+      false,
+    );
+    assert.equal(
+      catalogSearchNeedsRetry({ aborted: true, timedOut: true, remote: null, results: [] }),
+      false,
+    );
     assert.match(form, /<CardSearch/);
     assert.match(mail, /<CardSearch/);
   });
