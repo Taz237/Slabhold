@@ -1,9 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import dynamic from "next/dynamic";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
+import {
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type ComponentType,
+} from "react";
 import { useCompFlagState } from "@/components/use-comp-flags";
 import { CardCollectorsSaying } from "@/components/card-collectors-saying";
 import { CardOwnersSection } from "@/components/card-owners";
@@ -59,36 +65,30 @@ function subscribeCardValueMemory() {
   return () => {};
 }
 
-const ValueChart = dynamic(
-  () => import("@/components/value-chart").then((mod) => mod.ValueChart),
-  { ssr: false, loading: () => <SalesChartPending /> },
-);
+type SalesChartView = ComponentType<{
+  card: { id: string; estimatedSellPrice: number; purchasePrice: number };
+  points?: { date: string; label: string; value: number }[] | null;
+  source?: "trawl" | "sample" | "off";
+  loading?: boolean;
+  median?: number | null;
+  p25?: number | null;
+  p75?: number | null;
+  count?: number;
+  sample?: boolean;
+  lockedToComps?: boolean;
+  noSalesLabel?: string;
+  unavailable?: boolean;
+  hideStatusLabel?: boolean;
+  heading?: string;
+  stableLayout?: boolean;
+}>;
 
-const CardForm = dynamic(
-  () => import("@/components/card-form").then((mod) => mod.CardForm),
-  {
-    loading: ({ error, retry }) =>
-      error ? (
-        <div className="rounded-2xl border border-zinc-200 bg-white p-4 text-center dark:border-white/10 dark:bg-white/[0.03] sm:p-5">
-          <p className="text-sm text-zinc-600 dark:text-zinc-300">
-            Couldn&apos;t load the edit form.
-          </p>
-          <button
-            type="button"
-            onClick={() => retry?.()}
-            className="mt-3 inline-flex min-h-11 items-center rounded-full bg-violet-600 px-4 text-sm font-semibold text-white hover:bg-violet-500"
-          >
-            Try again
-          </button>
-        </div>
-      ) : (
-        <div
-          className="h-40 animate-pulse rounded-2xl bg-zinc-200/70 dark:bg-white/5"
-          aria-busy="true"
-        />
-      ),
-  },
-);
+type CardFormView = ComponentType<{
+  existing?: SportsCard;
+  embedded?: boolean;
+  onCancel?: () => void;
+  onSaved?: () => void;
+}>;
 
 export function CardDetail({ id }: { id: string }) {
   const router = useRouter();
@@ -99,9 +99,12 @@ export function CardDetail({ id }: { id: string }) {
   const [sellPrice, setSellPrice] = useState("");
   const [editing, setEditing] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [chartReady, setChartReady] = useState(false);
+  const [ValueChart, setValueChart] = useState<SalesChartView | null>(null);
   const [chartFailed, setChartFailed] = useState(false);
   const [chartAttempt, setChartAttempt] = useState(0);
+  const [CardForm, setCardForm] = useState<CardFormView | null>(null);
+  const [formFailed, setFormFailed] = useState(false);
+  const [formAttempt, setFormAttempt] = useState(0);
   const remembered = useSyncExternalStore(
     subscribeCardValueMemory,
     () => (card?.id ? peekCardValue(card.id) : null),
@@ -136,8 +139,10 @@ export function CardDetail({ id }: { id: string }) {
   useEffect(() => {
     let cancelled = false;
     void import("@/components/value-chart")
-      .then(() => {
-        if (!cancelled) setChartReady(true);
+      .then((mod) => {
+        if (cancelled) return;
+        setChartFailed(false);
+        setValueChart(() => mod.ValueChart);
       })
       .catch(() => {
         if (!cancelled) setChartFailed(true);
@@ -146,6 +151,23 @@ export function CardDetail({ id }: { id: string }) {
       cancelled = true;
     };
   }, [chartAttempt]);
+
+  useEffect(() => {
+    if (!editing) return;
+    let cancelled = false;
+    void import("@/components/card-form")
+      .then((mod) => {
+        if (cancelled) return;
+        setFormFailed(false);
+        setCardForm(() => mod.CardForm);
+      })
+      .catch(() => {
+        if (!cancelled) setFormFailed(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [editing, formAttempt]);
 
   useEffect(() => {
     if (!editing) return;
@@ -221,7 +243,7 @@ export function CardDetail({ id }: { id: string }) {
   });
   const valueStatusLabel = collapsePrices ? "—" : rawValueLabel;
   const showChart =
-    chartReady &&
+    ValueChart != null &&
     sold.status === "ready" &&
     !collapsePrices &&
     !authRequired &&
@@ -239,6 +261,7 @@ export function CardDetail({ id }: { id: string }) {
 
   function toggleEdit() {
     setMenuOpen(false);
+    setFormFailed(false);
     setEditing((open) => !open);
   }
 
@@ -260,18 +283,43 @@ export function CardDetail({ id }: { id: string }) {
         card={card}
         onFixDetails={() => {
           setMenuOpen(false);
+          setFormFailed(false);
           setEditing(true);
         }}
       />
 
       {editing ? (
         <div ref={editorRef} className="scroll-mt-24">
-          <CardForm
-            existing={card}
-            embedded
-            onCancel={() => setEditing(false)}
-            onSaved={() => setEditing(false)}
-          />
+          {CardForm ? (
+            <CardForm
+              existing={card}
+              embedded
+              onCancel={() => setEditing(false)}
+              onSaved={() => setEditing(false)}
+            />
+          ) : formFailed ? (
+            <div className="rounded-2xl border border-zinc-200 bg-white p-4 text-center dark:border-white/10 dark:bg-white/[0.03] sm:p-5">
+              <p className="text-sm text-zinc-600 dark:text-zinc-300">
+                Couldn&apos;t load the edit form.
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  setFormFailed(false);
+                  setCardForm(null);
+                  setFormAttempt((attempt) => attempt + 1);
+                }}
+                className="mt-3 inline-flex min-h-11 items-center rounded-full bg-violet-600 px-4 text-sm font-semibold text-white hover:bg-violet-500"
+              >
+                Try again
+              </button>
+            </div>
+          ) : (
+            <div
+              className="h-40 animate-pulse rounded-2xl bg-zinc-200/70 dark:bg-white/5"
+              aria-busy="true"
+            />
+          )}
         </div>
       ) : null}
 
@@ -446,7 +494,7 @@ export function CardDetail({ id }: { id: string }) {
         </p>
       ) : null}
 
-      {showChart ? (
+      {showChart && ValueChart ? (
         <div data-slot="sales-chart" className="contents">
           <ValueChart
             card={{
@@ -498,7 +546,7 @@ export function CardDetail({ id }: { id: string }) {
               type="button"
               onClick={() => {
                 setChartFailed(false);
-                setChartReady(false);
+                setValueChart(null);
                 setChartAttempt((attempt) => attempt + 1);
               }}
               className="inline-flex min-h-9 items-center rounded-full bg-violet-600 px-3.5 text-sm font-semibold text-white hover:bg-violet-500"
