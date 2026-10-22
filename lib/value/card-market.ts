@@ -1,6 +1,11 @@
 import "server-only";
 
 import { revalidatePath, revalidateTag, unstable_cache } from "next/cache";
+import {
+  COMPS_RESULT_REVALIDATE_SECONDS,
+  compsResultCacheKey,
+} from "@/lib/comps/comps-result-cache";
+import { loadSoldCompCard } from "@/lib/comps/load-card";
 import { cardCacheTag, revalidateCardCache } from "./card-cache";
 import {
   getCardValue,
@@ -38,12 +43,14 @@ export function revalidateCard(cardId: string): void {
  * inside refreshCardValue; the hidden-sale list and paid price are not returned.
  * Failures are thrown so Next does not cache them.
  */
-export function loadCachedCardRefresh(
+export async function loadCachedCardRefresh(
   cardId: string,
   options?: RefreshCardValueOptions,
 ): Promise<RefreshCardValueResult> {
   const save = options?.save !== false;
   const cacheOnly = Boolean(options?.cacheOnly);
+  const card = await loadSoldCompCard(cardId);
+  const identity = card ? compsResultCacheKey(card) : `missing|${cardId}`;
   return unstable_cache(
     async () => {
       const result = await refreshCardValue(cardId, options);
@@ -61,8 +68,8 @@ export function loadCachedCardRefresh(
         payload: result.payload,
       };
     },
-    ["card-market", cardId, save ? "save" : "read", cacheOnly ? "cache" : "live"],
-    { tags: [cardCacheTag(cardId)], revalidate: CARD_MARKET_REVALIDATE_SECONDS },
+    ["card-market", identity, save ? "save" : "read", cacheOnly ? "cache" : "live"],
+    { tags: [cardCacheTag(cardId)], revalidate: COMPS_RESULT_REVALIDATE_SECONDS },
   )();
 }
 

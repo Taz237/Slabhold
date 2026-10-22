@@ -47,7 +47,9 @@ import {
   profitCardLabel,
   sumPaid,
 } from "@/lib/collection/profit-label";
-import { formatCardValueLabel } from "@/lib/value/format";
+import { EbaySoldLink } from "@/components/ebay-sold-link";
+import { resolvePriceRead, tilePriceText } from "@/lib/value/price-fallback";
+import { ebaySoldSearchUrlForCard } from "@/lib/value/ebay-sold";
 import { useCardValues } from "@/lib/value/use-card-values";
 import { WantList } from "@/components/want-list";
 import { PullToRefresh } from "@/components/pull-to-refresh";
@@ -281,8 +283,21 @@ export function Dashboard() {
             const sold = isSold(card);
             const paid = card.purchasePrice;
             const valuePending = !sold && valuesLoading;
+            const priceRead = sold
+              ? null
+              : resolvePriceRead({
+                  value,
+                  createdAt: card.createdAt,
+                  similar: value?.similar,
+                  ebayHref: ebaySoldSearchUrlForCard(card),
+                  card,
+                });
             const showProfit =
-              !valuePending && hasPaid(card) && p != null && pPct != null;
+              !valuePending &&
+              hasPaid(card) &&
+              p != null &&
+              pPct != null &&
+              (sold || priceRead?.kind === "estimate");
             const valueLabel = sold
               ? card.sellPrice != null
                 ? money(card.sellPrice)
@@ -291,7 +306,13 @@ export function Dashboard() {
                 ? null
                 : valuesFailed
                   ? "—"
-                  : formatCardValueLabel(value, { createdAt: card.createdAt });
+                  : priceRead
+                    ? tilePriceText(priceRead)
+                    : null;
+            const tileEbay =
+              !sold && !valuePending && !valuesFailed && priceRead?.showEbaySold
+                ? ebaySoldSearchUrlForCard(card)
+                : null;
             const titleText = card.playerName;
             const subtitleText = cardTitle(card);
             const grade = card.grade.trim();
@@ -398,6 +419,11 @@ export function Dashboard() {
                     </div>
                   </div>
                 </Link>
+                {tileEbay ? (
+                  <p className="px-1 pt-1 text-xs text-zinc-500">
+                    <EbaySoldLink href={tileEbay} />
+                  </p>
+                ) : null}
               </li>
             );
           })}

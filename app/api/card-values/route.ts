@@ -10,6 +10,7 @@ import {
 } from "@/lib/value/card-value-access";
 import { loadCachedCardValue } from "@/lib/value/card-market";
 import { getCardValues } from "@/lib/value/getCardValue";
+import { attachPriceContext } from "@/lib/value/price-context";
 import { PRICE_CHECK_LIMIT_MESSAGE } from "@/lib/value/price-check-limit";
 import type { CardValueResult } from "@/lib/value/types";
 
@@ -60,17 +61,25 @@ export async function GET(request: Request) {
     if (!allowedIds.includes(single)) {
       return Response.json({ id: single, value: null });
     }
-    const value = await loadCachedCardValue(single);
-    return Response.json({ id: single, value });
+    const loaded = await loadCachedCardValue(single);
+    const map = new Map<string, CardValueResult>();
+    if (loaded) map.set(single, loaded);
+    const enriched = await attachPriceContext([single], map);
+    return Response.json({ id: single, value: enriched.get(single) ?? null });
   }
 
   if (allowedIds.length === 1) {
     const only = allowedIds[0];
-    const value = await loadCachedCardValue(only);
+    const loaded = await loadCachedCardValue(only);
+    const map = new Map<string, CardValueResult>();
+    if (loaded) map.set(only, loaded);
+    const enriched = await attachPriceContext([only], map);
+    const value = enriched.get(only);
     return Response.json({ values: value ? { [only]: value } : {} });
   }
 
-  const map = allowedIds.length ? await getCardValues(allowedIds) : new Map();
+  const loaded = allowedIds.length ? await getCardValues(allowedIds) : new Map();
+  const map = await attachPriceContext(allowedIds, loaded);
   const values: Record<string, CardValueResult> = {};
   for (const [id, value] of map) {
     values[id] = value;

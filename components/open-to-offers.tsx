@@ -93,7 +93,9 @@ export function ProfileCardCaption({
       <p className="truncate text-xs text-zinc-500">
         {card.year} {card.setBrand}
       </p>
-      <p className="text-xs text-zinc-500">{valueLabel}</p>
+      <p className="truncate text-xs whitespace-nowrap text-zinc-500" title={valueLabel}>
+        {valueLabel}
+      </p>
     </div>
   );
 }

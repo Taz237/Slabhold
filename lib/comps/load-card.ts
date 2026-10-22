@@ -1,27 +1,13 @@
 import "server-only";
 
 import { mapCardRow } from "@/lib/social/cards";
+import type { SportsCard } from "@/lib/types";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import type { SoldCompCard } from "./types";
 
 type CardRow = Parameters<typeof mapCardRow>[0];
 
-/** Load card details from the DB by id. Never trust client-supplied fields. */
-export async function loadSoldCompCard(
-  cardId: string,
-): Promise<SoldCompCard | null> {
-  const client = createSupabaseAdmin();
-  if (!client || !cardId) return null;
-
-  const { data, error } = await client
-    .from("cards")
-    .select("*")
-    .eq("id", cardId)
-    .maybeSingle();
-
-  if (error || !data) return null;
-
-  const card = mapCardRow(data as CardRow);
+export function soldCompCardFromRow(card: SportsCard): SoldCompCard {
   return {
     id: card.id,
     playerName: card.playerName,
@@ -40,4 +26,22 @@ export async function loadSoldCompCard(
     estimatedSellPrice: card.estimatedSellPrice || undefined,
     sport: card.sport || undefined,
   };
+}
+
+/** Load card details from the DB by id. Never trust client-supplied fields. */
+export async function loadSoldCompCard(
+  cardId: string,
+): Promise<SoldCompCard | null> {
+  const client = createSupabaseAdmin();
+  if (!client || !cardId) return null;
+
+  const { data, error } = await client
+    .from("cards")
+    .select("*")
+    .eq("id", cardId)
+    .maybeSingle();
+
+  if (error || !data) return null;
+
+  return soldCompCardFromRow(mapCardRow(data as CardRow));
 }

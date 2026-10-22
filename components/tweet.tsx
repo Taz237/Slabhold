@@ -21,8 +21,7 @@ import type { Post, PostComment, Profile, PublicCard } from "@/lib/social/types"
 import { MailDayCard } from "@/components/mail-day-card";
 import { EbaySoldLink } from "@/components/ebay-sold-link";
 import { shareTitleForPost } from "@/lib/social/mail-day-copy";
-import { useAttachmentLabel } from "@/lib/social/use-attachment-label";
-import { attachmentPriceText, ebaySoldSearchUrlForCard } from "@/lib/value/ebay-sold";
+import { useAttachedChip } from "@/lib/social/use-attachment-label";
 import type { CardValueResult } from "@/lib/value/types";
 
 export function Tweet({
@@ -570,12 +569,12 @@ function CardMedia({
   cardValuesLoading?: boolean;
 }) {
   const { cards } = useCollection();
-  const valueLabel = useAttachmentLabel(card, {
+  const chip = useAttachedChip(card, {
     values: cardValues,
     loading: cardValuesLoading,
   });
-  const price = attachmentPriceText(valueLabel);
-  const soldHref = price ? null : ebaySoldSearchUrlForCard(card);
+  const price = chip.text;
+  const soldHref = chip.soldHref;
   const owned = cards.some((item) => item.id === card.id);
   const href = owned
     ? `/cards/${card.id}`

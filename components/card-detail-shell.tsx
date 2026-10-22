@@ -121,14 +121,19 @@ export function CardHero({
 
 export function SalesChartPending({
   priceLabel = null,
+  priceIsEstimate = false,
   note = null,
   busy = true,
 }: {
   priceLabel?: string | null;
+  /** The big dollar is only the estimate. A fallback stays a smaller labeled line. */
+  priceIsEstimate?: boolean;
   note?: string | null;
   busy?: boolean;
 }) {
-  const dollars = priceLabel?.startsWith("$") ? priceLabel : null;
+  const bareEstimate =
+    Boolean(priceLabel) &&
+    (priceIsEstimate || /^\$[\d,]+\.\d{2}$/.test(priceLabel ?? ""));
   return (
     <section
       data-slot="sales-chart"
@@ -137,8 +142,10 @@ export function SalesChartPending({
     >
       <p className="text-[11px] tracking-wide text-zinc-500 uppercase">Recent sales</p>
       <div className="mt-1 flex min-h-9 items-end">
-        {dollars ? (
-          <p className="text-3xl font-semibold tracking-tight tabular-nums">{dollars}</p>
+        {bareEstimate && priceLabel ? (
+          <p className="text-3xl font-semibold tracking-tight tabular-nums">{priceLabel}</p>
+        ) : priceLabel ? (
+          <p className="text-lg font-semibold tracking-tight">{priceLabel}</p>
         ) : (
           <div className="h-9 w-32 animate-pulse rounded-lg bg-zinc-100 dark:bg-white/5" />
         )}
