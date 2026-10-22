@@ -51,8 +51,13 @@ function tick(): Promise<void> {
   });
 }
 
-function memoryDb(options?: { pause?: boolean }) {
-  const wants: WantRow[] = [
+function memoryDb(options?: {
+  pause?: boolean;
+  fixedCreatedAt?: string;
+  notificationIds?: string[];
+  wants?: WantRow[];
+}) {
+  const wants: WantRow[] = options?.wants ?? [
     {
       id: "want-1",
       userId: WANTER,
@@ -64,6 +69,7 @@ function memoryDb(options?: { pause?: boolean }) {
   ];
   const alerts: WantAlertInsert[] = [];
   const notifications: (WantNotificationInsert & { id: string; createdAt: string })[] = [];
+  const notificationIds = options?.notificationIds ? [...options.notificationIds] : null;
   let noteSeq = 0;
   const pause = async () => {
     if (options?.pause) await tick();
@@ -93,8 +99,8 @@ function memoryDb(options?: { pause?: boolean }) {
     async insertNotification(row) {
       await pause();
       noteSeq += 1;
-      const id = `n-${String(noteSeq).padStart(4, "0")}`;
-      const createdAt = new Date(NOW.getTime() + noteSeq).toISOString();
+      const id = notificationIds?.shift() ?? `n-${String(noteSeq).padStart(4, "0")}`;
+      const createdAt = options?.fixedCreatedAt ?? new Date(NOW.getTime() + noteSeq).toISOString();
       notifications.push({ ...row, id, createdAt });
       return { id, createdAt };
     },
@@ -265,6 +271,143 @@ describe("want alert spam", () => {
     assert.equal(alerts.length, 1);
   });
 
+  it("keeps one duplicate by earliest created_at, then lowest id", async () => {
+    const fixed = "2026-10-17T18:00:00.000Z";
+    const orders = [
+      ["n-0001", "n-0002"],
+      ["n-0002", "n-0001"],
+    ];
+    for (const notificationIds of orders) {
+      const { db, notifications, alerts } = memoryDb({
+        pause: true,
+        fixedCreatedAt: fixed,
+        notificationIds,
+      });
+      const counts = await Promise.all([
+        notifyWantMatches(actorEvent("listing", "copy-a", ACTOR), db),
+        notifyWantMatches(actorEvent("listing", "copy-b", ACTOR), db),
+      ]);
+      const label = notificationIds.join(" then ");
+      assert.equal(
+        counts.reduce((sum, count) => sum + count, 0),
+        1,
+        label,
+      );
+      assert.equal(notifications.length, 1, label);
+      assert.equal(notifications[0]?.id, "n-0001", label);
+      assert.equal(notifications[0]?.createdAt, fixed, label);
+      assert.equal(alerts.length, 1, label);
+    }
+  });
+
+  it("keeps and counts the alert when the re-check read fails", async () => {
+    const { db, notifications, alerts } = memoryDb();
+    let reads = 0;
+    const original = db.actorCardAlerts.bind(db);
+    db.actorCardAlerts = async (query) => {
+      reads += 1;
+      if (reads > 1) throw new Error("re-check failed");
+      return original(query);
+    };
+    assert.equal(await notifyWantMatches(actorEvent("listing", CARD, ACTOR), db), 1);
+    assert.equal(notifications.length, 1);
+    assert.equal(alerts.length, 1);
+    assert.equal(reads, 2);
+  });
+
+  it("keeps the alert row when notification cleanup throws and still alerts the next wanter", async () => {
+    const wanterB = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
+    const { db, notifications, alerts } = memoryDb({
+      wants: [
+        {
+          id: "want-1",
+          userId: WANTER,
+          cardKey: KEY,
+          targetPrice: 35,
+          createdAt: "2026-10-01T00:00:00.000Z",
+          sourceCardId: CARD,
+        },
+        {
+          id: "want-2",
+          userId: wanterB,
+          cardKey: KEY,
+          targetPrice: 35,
+          createdAt: "2026-10-01T00:00:00.000Z",
+          sourceCardId: CARD,
+        },
+      ],
+    });
+    const originalAlerts = db.actorCardAlerts.bind(db);
+    const originalDeleteNotification = db.deleteNotification.bind(db);
+    let deletedAlerts = 0;
+    db.actorCardAlerts = async (query) => {
+      const rows = await originalAlerts(query);
+      if (query.userId === WANTER && rows.length > 0) {
+        return [
+          {
+            id: "n-0000",
+            createdAt: "2026-10-17T17:00:00.000Z",
+            metadata: rows[0]?.metadata ?? null,
+          },
+          ...rows,
+        ];
+      }
+      return rows;
+    };
+    db.deleteNotification = async (id) => {
+      const note = notifications.find((row) => row.id === id);
+      if (note?.recipientId === WANTER) throw new Error("delete notification failed");
+      await originalDeleteNotification(id);
+    };
+    const originalDeleteAlert = db.deleteAlert.bind(db);
+    db.deleteAlert = async (wantId, sourceType, sourceId, cardId) => {
+      deletedAlerts += 1;
+      await originalDeleteAlert(wantId, sourceType, sourceId, cardId);
+    };
+
+    assert.equal(await notifyWantMatches(actorEvent("listing", CARD, ACTOR), db), 1);
+    assert.equal(alerts.filter((row) => row.userId === WANTER).length, 1);
+    assert.equal(notifications.some((row) => row.recipientId === WANTER), true);
+    assert.equal(deletedAlerts, 0);
+    assert.equal(notifications.filter((row) => row.recipientId === wanterB).length, 1);
+    assert.equal(alerts.filter((row) => row.userId === wanterB).length, 1);
+  });
+
+  it("still alerts the next wanter when alert cleanup throws", async () => {
+    const wanterB = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
+    const { db, notifications } = memoryDb({
+      wants: [
+        {
+          id: "want-1",
+          userId: WANTER,
+          cardKey: KEY,
+          targetPrice: 35,
+          createdAt: "2026-10-01T00:00:00.000Z",
+          sourceCardId: CARD,
+        },
+        {
+          id: "want-2",
+          userId: wanterB,
+          cardKey: KEY,
+          targetPrice: 35,
+          createdAt: "2026-10-01T00:00:00.000Z",
+          sourceCardId: CARD,
+        },
+      ],
+    });
+    const originalInsert = db.insertNotification.bind(db);
+    db.insertNotification = async (row) => {
+      if (row.recipientId === WANTER) throw new Error("insert failed");
+      return originalInsert(row);
+    };
+    db.deleteAlert = async (wantId) => {
+      if (wantId === "want-1") throw new Error("delete alert failed");
+    };
+
+    assert.equal(await notifyWantMatches(actorEvent("listing", CARD, ACTOR), db), 1);
+    assert.equal(notifications.filter((row) => row.recipientId === wanterB).length, 1);
+  });
+
   it("still sends price-drop alerts", async () => {
     const { db, alerts, notifications } = memoryDb();
     assert.equal(await notifyWantMatches(cardEvent(CARD, NOW), db), 1);
@@ -285,7 +428,13 @@ describe("want alert spam", () => {
     assert.ok(limitMatch);
     const limit = Number(limitMatch[1]);
     assert.equal(limit, 30);
-    assert.match(rate, /export const WANT_MATCH_WINDOW_MS = 10 \* 60 \* 1000/);
+    const windowSource = read("lib/comps/rate-window.ts");
+    const matchRequestSource = read("lib/wants/match-request.ts");
+    assert.match(windowSource, /export const WANT_MATCH_WINDOW_MS = 10 \* 60 \* 1000/);
+    assert.equal(rate.includes("const WANT_MATCH_WINDOW_MS ="), false);
+    assert.match(rate, /WANT_MATCH_WINDOW_MS/);
+    assert.equal(matchRequestSource.includes("const WANT_MATCH_WINDOW_MS ="), false);
+    assert.match(matchRequestSource, /WANT_MATCH_WINDOW_MS/);
     assert.match(rate, /const WANT_MATCH_BUCKET = "want_match"/);
     assert.match(rate, /function consumeWantMatchLimit[\s\S]*WANT_MATCH_BUCKET/);
     assert.match(rate, /function consumeWantMatchLimit[\s\S]*consumeRateLimit\(/);

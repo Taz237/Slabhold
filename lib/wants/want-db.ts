@@ -191,7 +191,8 @@ export function createSupabaseWantDb(): WantAlertDb | null {
         .eq("source_type", storedWantSourceType(sourceType))
         .eq("source_id", sourceId);
       query = cardId ? query.eq("card_id", cardId) : query.is("card_id", null);
-      await query;
+      const { error } = await query;
+      if (error) throw new Error(error.message);
     },
 
     safety: blockSafety(admin),
