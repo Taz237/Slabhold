@@ -60,9 +60,13 @@ function readComposerPhoto(file: File) {
 let heldComposePrefill: string | null = null;
 
 function takeComposePrefill(): string | null {
-  const saved = takeCompose();
-  if (saved) heldComposePrefill = saved;
-  return saved ?? heldComposePrefill;
+  try {
+    const saved = takeCompose();
+    if (saved) heldComposePrefill = saved;
+    return saved ?? heldComposePrefill;
+  } catch {
+    return heldComposePrefill;
+  }
 }
 
 export function FeedView({ movingToday }: { movingToday?: ReactNode } = {}) {

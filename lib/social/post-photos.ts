@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { cleanImageUrl } from "./link-preview";
 import type { PublicCard } from "./types";
 
 /**
@@ -30,16 +31,45 @@ export function postPhotoLimitError(limit: number): string {
   return limit <= 1 ? POST_PHOTO_SINGLE_ERROR : POST_PHOTO_LIMIT_ERROR;
 }
 
-const PUBLIC_OBJECT_PATH = "/storage/v1/object/public/";
+const POST_IMAGE_PREFIX = "/storage/v1/object/public/post-images/";
+const CARD_PHOTO_PREFIX = "/storage/v1/object/public/card-photos/";
+const PATH_TRAVERSAL = /\.\.|%2e|%2f|%25/i;
 
-/** Photos we will render: our post-images or card-photos objects, or a local data URL. */
+function supabaseOrigin(): string | null {
+  const raw = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+  if (!raw) return null;
+  try {
+    return new URL(raw).origin;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Photos we will render. With Supabase configured, only that origin's
+ * post-images and card-photos objects, or a small png/jpeg/webp/gif data URL.
+ * Local mode (no project URL) still allows any data:image/.
+ */
 export function isRenderablePostPhoto(url: string): boolean {
-  if (typeof url !== "string" || !url) return false;
-  if (url.startsWith("data:image/")) return true;
-  const base = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim().replace(/\/$/, "");
-  if (!base || !url.startsWith(`${base}${PUBLIC_OBJECT_PATH}`)) return false;
-  const objectPath = url.slice(base.length + PUBLIC_OBJECT_PATH.length);
-  return objectPath.startsWith("post-images/") || objectPath.startsWith("card-photos/");
+  if (typeof url !== "string") return false;
+  const value = url.trim();
+  if (!value) return false;
+  if (value.startsWith("data:")) {
+    if (!supabaseOrigin()) return value.startsWith("data:image/");
+    return cleanImageUrl(value) != null;
+  }
+  let parsed: URL;
+  try {
+    parsed = new URL(value);
+  } catch {
+    return false;
+  }
+  const origin = supabaseOrigin();
+  if (!origin || parsed.origin !== origin) return false;
+  if (parsed.username || parsed.password) return false;
+  const rawPath = value.split(/[?#]/)[0] ?? value;
+  if (PATH_TRAVERSAL.test(rawPath) || PATH_TRAVERSAL.test(parsed.pathname)) return false;
+  return parsed.pathname.startsWith(POST_IMAGE_PREFIX) || parsed.pathname.startsWith(CARD_PHOTO_PREFIX);
 }
 
 export function normalizePostPhotos(photos: readonly string[], limit = MAX_POST_PHOTOS): string[] {

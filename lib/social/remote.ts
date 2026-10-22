@@ -919,25 +919,27 @@ export async function remoteMarkNotificationsRead(
   return {};
 }
 
+async function discardPostImages(supabase: SupabaseClient, paths: readonly string[]) {
+  await Promise.all(paths.map((path) => removeUploadedMedia(supabase, "post-images", path)));
+}
+
 async function uploadPostImages(
   supabase: SupabaseClient,
   authorId: string,
   photos: readonly string[],
-): Promise<{ urls: string[]; error?: string }> {
+): Promise<{ urls: string[]; createdPaths: string[]; error?: string }> {
   const urls: string[] = [];
-  const created: string[] = [];
+  const createdPaths: string[] = [];
   for (const value of photos) {
     const image = await uploadMedia(supabase, "post-images", authorId, value);
     if (image.error || !image.url) {
-      await Promise.all(
-        created.map((path) => removeUploadedMedia(supabase, "post-images", path)),
-      );
-      return { urls: [], error: image.error ?? "Could not upload that photo." };
+      await discardPostImages(supabase, createdPaths);
+      return { urls: [], createdPaths: [], error: image.error ?? "Could not upload that photo." };
     }
     urls.push(image.url);
-    if (image.createdPath) created.push(image.createdPath);
+    if (image.createdPath) createdPaths.push(image.createdPath);
   }
-  return { urls };
+  return { urls, createdPaths };
 }
 
 export async function remoteCreatePost(
@@ -973,7 +975,10 @@ export async function remoteCreatePost(
   const uploaded = await uploadPostImages(supabase, authorId, photos);
   if (uploaded.error) return { error: uploaded.error };
   const card = await storedCard(supabase, authorId, input.card);
-  if (card.error) return { error: card.error };
+  if (card.error) {
+    await discardPostImages(supabase, uploaded.createdPaths);
+    return { error: card.error };
+  }
   const base = {
     user_id: authorId,
     content: body,
@@ -1000,6 +1005,8 @@ export async function remoteCreatePost(
     error = inserted.error;
   }
   if (error || !created) {
+    await discardPostImages(supabase, uploaded.createdPaths);
+    if (card.createdPath) await removeUploadedMedia(supabase, "card-photos", card.createdPath);
     return {
       error: rlsBlocked(error) ? BLOCKED_INTERACTION : (error?.message ?? "Could not save that post."),
     };
@@ -1026,6 +1033,10 @@ export async function remoteUpdatePost(
   const photos = draftPostPhotos(input);
   const uploaded = await uploadPostImages(supabase, authorId, photos);
   if (uploaded.error) return { error: uploaded.error };
+  const forgetUploads = async (message: string): Promise<AuthResult> => {
+    await discardPostImages(supabase, uploaded.createdPaths);
+    return { error: message };
+  };
   const prior = await supabase
     .from("posts")
     .select("meta")
@@ -1040,9 +1051,9 @@ export async function remoteUpdatePost(
       .update(base)
       .eq("id", postId)
       .eq("user_id", authorId);
-    if (error) return { error: error.message };
+    if (error) return forgetUploads(error.message);
   } else {
-    if (prior.error) return { error: prior.error.message };
+    if (prior.error) return forgetUploads(prior.error.message);
     const meta = metaWithImages(prior.data?.meta, uploaded.urls);
     const { error } = await supabase
       .from("posts")
@@ -1056,9 +1067,9 @@ export async function remoteUpdatePost(
         .update(base)
         .eq("id", postId)
         .eq("user_id", authorId);
-      if (retry.error) return { error: retry.error.message };
+      if (retry.error) return forgetUploads(retry.error.message);
     } else if (error) {
-      return { error: error.message };
+      return forgetUploads(error.message);
     }
   }
   const mentionProblem = await syncMentionNotifications(supabase, authorId, postId, body);
@@ -1279,9 +1290,9 @@ async function storedCard(
   supabase: SupabaseClient,
   userId: string,
   card: PublicCard | null,
-): Promise<{ card: PublicCard | null; error?: string }> {
+): Promise<{ card: PublicCard | null; error?: string; createdPath?: string }> {
   if (!card) return { card: null };
   const photo = await uploadMedia(supabase, "card-photos", userId, card.photoDataUrl);
   if (photo.error) return { card: null, error: photo.error };
-  return { card: { ...card, photoDataUrl: photo.url } };
+  return { card: { ...card, photoDataUrl: photo.url }, createdPath: photo.createdPath };
 }

@@ -10,7 +10,7 @@ import { useCollection, useDefaultAccent } from "@/components/collection-provide
 import { NativeSelect, SearchSelect, SET_PARALLEL_HINT } from "@/components/search-select";
 import { useSocial } from "@/components/social-provider";
 import { toPublicAttachment } from "@/lib/social/card-posts";
-import { sharePostFromCard, shareToFeedControl, writeSharedPost } from "@/lib/social/share-to-feed";
+import { sharePostFromCard, shareSessionStore, shareToFeedControl, writeSharedPost } from "@/lib/social/share-to-feed";
 import { POST_LIMIT } from "@/lib/social/types";
 import { takeScan } from "@/lib/capture";
 import type { CatalogCard } from "@/lib/card-catalog";
@@ -551,8 +551,9 @@ export function CardForm({
             savingRef.current = false;
             return;
           }
-          if (posted.postId && typeof sessionStorage !== "undefined") {
-            writeSharedPost(sessionStorage, card.id, posted.postId);
+          if (posted.postId) {
+            const store = shareSessionStore();
+            if (store) writeSharedPost(store, card.id, posted.postId);
           }
         }
       }

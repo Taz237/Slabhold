@@ -98,7 +98,8 @@ describe("post photos", () => {
       assert.equal(isRenderablePostPhoto("javascript:alert(1)"), false);
       assert.equal(isRenderablePostPhoto("https://evil.example/photo.jpg"), false);
       assert.equal(isRenderablePostPhoto(`${base}/storage/v1/object/public/avatars/a.jpg`), false);
-      assert.equal(isRenderablePostPhoto("data:image/jpeg;base64,abc"), true);
+      assert.equal(isRenderablePostPhoto("data:image/jpeg;base64,abc"), false);
+      assert.equal(isRenderablePostPhoto("data:image/jpeg;base64,YQ=="), true);
       assert.deepEqual(
         imagesFromRow({
           image_url: "https://evil.example/photo.jpg",
@@ -122,6 +123,73 @@ describe("post photos", () => {
         [],
       );
       assert.deepEqual(imagesFromRow({ image_url: own("only") }), [own("only")]);
+    } finally {
+      if (previous === undefined) delete process.env.NEXT_PUBLIC_SUPABASE_URL;
+      else process.env.NEXT_PUBLIC_SUPABASE_URL = previous;
+    }
+  });
+
+  it("rejects traversal and limits data URLs to the same rules as cleanImageUrl", () => {
+    const base = "https://proj.supabase.co";
+    const previous = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    process.env.NEXT_PUBLIC_SUPABASE_URL = base;
+    try {
+      assert.equal(isRenderablePostPhoto(`${base}/storage/v1/object/public/post-images/user/a.jpg`), true);
+      assert.equal(isRenderablePostPhoto(`${base}/storage/v1/object/public/card-photos/user/a.jpg`), true);
+      assert.equal(
+        isRenderablePostPhoto(`${base}/storage/v1/object/public/post-images/user/../a.jpg`),
+        false,
+      );
+      assert.equal(
+        isRenderablePostPhoto(`${base}/storage/v1/object/public/post-images/%2e%2e/a.jpg`),
+        false,
+      );
+      assert.equal(
+        isRenderablePostPhoto(`${base}/storage/v1/object/public/post-images/%2E%2E/a.jpg`),
+        false,
+      );
+      assert.equal(
+        isRenderablePostPhoto(`${base}/storage/v1/object/public/post-images%2Fuser/a.jpg`),
+        false,
+      );
+      assert.equal(
+        isRenderablePostPhoto(`${base}/storage/v1/object/public/post-images/%2Fuser/a.jpg`),
+        false,
+      );
+      assert.equal(
+        isRenderablePostPhoto(`${base}/storage/v1/object/public/post-images/user/%25.jpg`),
+        false,
+      );
+      assert.equal(
+        isRenderablePostPhoto(
+          "https://user:pass@proj.supabase.co/storage/v1/object/public/post-images/user/a.jpg",
+        ),
+        false,
+      );
+      assert.equal(isRenderablePostPhoto("data:image/png;base64,YQ=="), true);
+      assert.equal(isRenderablePostPhoto("data:image/webp;base64,YQ=="), true);
+      assert.equal(isRenderablePostPhoto("data:image/gif;base64,YQ=="), true);
+      assert.equal(isRenderablePostPhoto("data:image/svg+xml,<svg></svg>"), false);
+      assert.equal(
+        isRenderablePostPhoto(`data:image/jpeg;base64,${"A".repeat(2_796_204)}`),
+        false,
+      );
+    } finally {
+      if (previous === undefined) delete process.env.NEXT_PUBLIC_SUPABASE_URL;
+      else process.env.NEXT_PUBLIC_SUPABASE_URL = previous;
+    }
+  });
+
+  it("allows any data:image while the app is in local mode", () => {
+    const previous = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    delete process.env.NEXT_PUBLIC_SUPABASE_URL;
+    try {
+      assert.equal(isRenderablePostPhoto("data:image/svg+xml,<svg></svg>"), true);
+      assert.equal(isRenderablePostPhoto("data:text/plain,hi"), false);
+      assert.equal(
+        isRenderablePostPhoto("https://proj.supabase.co/storage/v1/object/public/post-images/a.jpg"),
+        false,
+      );
     } finally {
       if (previous === undefined) delete process.env.NEXT_PUBLIC_SUPABASE_URL;
       else process.env.NEXT_PUBLIC_SUPABASE_URL = previous;
@@ -208,6 +276,17 @@ describe("post photos", () => {
     assert.match(feed, /useState\(\(\) => takeComposePrefill\(\)\)/);
     assert.match(feed, /takeCompose\(\)/);
     assert.doesNotMatch(feed, /replaceAll\(\[captured\]\)/);
+    const prefill = feed.slice(
+      feed.indexOf("function takeComposePrefill"),
+      feed.indexOf("export function FeedView"),
+    );
+    assert.match(prefill, /try \{/);
+
+    const lightbox = read("components/image-lightbox.tsx");
+    assert.match(lightbox, /ArrowLeft/);
+    assert.match(lightbox, /ArrowRight/);
+    assert.match(lightbox, /activeElement/);
+    assert.match(lightbox, /opener\?\.focus\(\)/);
   });
 
   it("gives draft remove buttons a 44px target and steps through a multi-photo lightbox", () => {
