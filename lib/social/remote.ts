@@ -579,7 +579,7 @@ export async function remoteUpdateProfile(
     if (error) return { error: error.message };
     currentUsername = typeof data?.username === "string" ? data.username : null;
   }
-  const nameError = usernameChangeError(username, currentUsername);
+  const nameError = usernameChangeError(username, userId, currentUsername);
   if (nameError) return { error: nameError };
   if (!patch.displayName.trim()) return { error: "Add a display name." };
   const [avatar, cover] = await Promise.all([

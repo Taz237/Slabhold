@@ -23,6 +23,7 @@ import {
 import { draftPostPhotos } from "./post-photos";
 import { shouldNotifyQuoteAuthor, validateQuoteContent } from "./quotes";
 import { COMMENT_LIMIT, MESSAGE_LIMIT } from "./types";
+import { isOfficialUpdatesAccount } from "./official-updates";
 
 const STORAGE_KEY = "cardflip.social.v1";
 
@@ -43,15 +44,50 @@ export type LocalDb = {
 
 const USERNAME = /^[a-z0-9_]{3,20}$/;
 
-/** Retired and current updates handles. New accounts cannot claim either. */
-export const RESERVED_USERNAMES = ["grokbotreview", "slabholdupdates"] as const;
+/**
+ * Handles a new account cannot claim. Keep this list identical to the
+ * reserved array in supabase/migrations/20261022223000_reserve_profile_usernames.sql.
+ */
+export const RESERVED_USERNAMES = [
+  "grokbotreview",
+  "slabholdupdates",
+  "slabhold",
+  "slabholdapp",
+  "slabhold_updates",
+  "slabholdteam",
+  "slabholdsupport",
+  "slabholdofficial",
+  "admin",
+  "administrator",
+  "support",
+  "help",
+  "moderator",
+  "mod",
+  "official",
+  "staff",
+  "team",
+] as const;
+
+/** Stems that also reserve lookalikes such as slabholdupdates1 and grokbotreview_. */
+export const UPDATES_HANDLE_STEMS = ["grokbotreview", "slabholdupdates"] as const;
 
 export function normalizeUsername(value: string) {
   return value.trim().toLowerCase();
 }
 
+/** Lowercase handle with `_`, `.`, `-`, and trailing digits removed. */
+export function reservedHandleStem(value: string) {
+  return normalizeUsername(value).replace(/[_.-]/g, "").replace(/\d+$/, "");
+}
+
+export function isUpdatesHandleVariant(value: string) {
+  return (UPDATES_HANDLE_STEMS as readonly string[]).includes(reservedHandleStem(value));
+}
+
 export function isReservedUsername(value: string) {
-  return (RESERVED_USERNAMES as readonly string[]).includes(normalizeUsername(value));
+  const handle = normalizeUsername(value);
+  if ((RESERVED_USERNAMES as readonly string[]).includes(handle)) return true;
+  return isUpdatesHandleVariant(value);
 }
 
 export function usernameError(value: string) {
@@ -62,11 +98,12 @@ export function usernameError(value: string) {
   return null;
 }
 
-/** Profile edit may keep a reserved handle this account already uses. */
-export function usernameChangeError(next: string, current?: string | null) {
+/** Existing holders may keep a reserved name. Only the updates id may newly take a variant. */
+export function usernameChangeError(next: string, userId?: string | null, current?: string | null) {
   const error = usernameError(next);
   if (!error || !isReservedUsername(next)) return error;
   if (normalizeUsername(current ?? "") === normalizeUsername(next)) return null;
+  if (isOfficialUpdatesAccount(userId) && isUpdatesHandleVariant(next)) return null;
   return error;
 }
 
@@ -470,7 +507,7 @@ export function localUpdateProfile(
   if (!db.sessionUserId) return { db, error: "Log in first." };
   const username = normalizeUsername(patch.username);
   const current = db.users.find((user) => user.id === db.sessionUserId);
-  const nameError = usernameChangeError(username, current?.username);
+  const nameError = usernameChangeError(username, db.sessionUserId, current?.username);
   if (nameError) return { db, error: nameError };
   const displayName = patch.displayName.trim();
   if (!displayName) return { db, error: "Add a display name." };

@@ -19,6 +19,13 @@ export function officialUpdatesUserId(raw?: string | null): string | null {
   return value.toLowerCase();
 }
 
+/** True only for the updates profile id. A matching handle is not enough. */
+export function isOfficialUpdatesAccount(id: string | null | undefined): boolean {
+  const officialId = officialUpdatesUserId();
+  if (!officialId || !id) return false;
+  return id.trim().toLowerCase() === officialId;
+}
+
 export function officialUpdatesFollow(
   userId: string,
   officialId: string | null,
