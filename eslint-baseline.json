@@ -1,4 +1,25 @@
 {
-  "errors": 32,
-  "warnings": 13
+  "error components/account-deleted-toast.tsx:react-hooks/set-state-in-effect": 1,
+  "error components/card-form.tsx:react-hooks/set-state-in-effect": 1,
+  "error components/card-search.tsx:react-hooks/set-state-in-effect": 2,
+  "error components/collection-provider.tsx:react-hooks/refs": 1,
+  "error components/collection-provider.tsx:react-hooks/set-state-in-effect": 1,
+  "error components/collection-today.tsx:react-hooks/set-state-in-effect": 2,
+  "error components/collection-value-history.tsx:react-hooks/set-state-in-effect": 1,
+  "error components/compose-view.tsx:react-hooks/set-state-in-effect": 3,
+  "error components/feed-view.tsx:react-hooks/refs": 7,
+  "error components/feed-view.tsx:react-hooks/set-state-in-effect": 1,
+  "error components/follow-button.tsx:react-hooks/set-state-in-effect": 1,
+  "error components/portfolio-context.tsx:react-hooks/set-state-in-effect": 1,
+  "error components/post-view.tsx:react-hooks/set-state-in-effect": 1,
+  "error components/profile-edit-sheet.tsx:react-hooks/refs": 1,
+  "error components/profile-view.tsx:react-hooks/set-state-in-effect": 1,
+  "error components/search-view.tsx:react-hooks/set-state-in-effect": 1,
+  "error components/social-provider.tsx:react-hooks/refs": 2,
+  "error components/social-provider.tsx:react-hooks/set-state-in-effect": 1,
+  "error components/want-list.tsx:react-hooks/set-state-in-effect": 1,
+  "error lib/comps/use-sold-comps.ts:react-hooks/set-state-in-effect": 1,
+  "error lib/value/use-card-values.ts:react-hooks/set-state-in-effect": 1,
+  "warning components/social-provider.tsx:react-hooks/exhaustive-deps": 4,
+  "warning lib/comps/clean.ts:@typescript-eslint/no-unused-vars": 9
 }
