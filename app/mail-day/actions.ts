@@ -47,7 +47,7 @@ function scheduleRefresh(userId: string, cardIds: readonly string[]) {
 
 export async function createMailDayPost(input: MailDayInput): Promise<MailDayActionResult> {
   const userId = await getAuthUserId();
-  if (!userId) return { ok: false, cardSaved: false, error: "Log in to log a Mail Day." };
+  if (!userId) return { ok: false, cardSaved: false, error: "Log in to continue." };
 
   const supabase = await createSupabaseServer();
   if (!supabase) return { ok: false, cardSaved: false, error: "Accounts are not available right now." };

@@ -257,7 +257,7 @@ export function MailDayForm() {
     setSending(true);
     const created: string[] = [];
     try {
-      if (!user?.id) throw new Error("Log in to log a Mail Day.");
+      if (!user?.id) throw new Error("Log in to continue.");
       let cards: MailDayDraftCard[];
       try {
         cards = await uploadMailDayPhotos(user.id, drafts, created);
@@ -683,7 +683,7 @@ export function MailDayForm() {
           </Link>
         ))}
         <button type="submit" disabled={sending || Boolean(blocker)} className={solidButton}>
-          {sending ? "Saving…" : "Log Mail Day"}
+          {sending ? "Saving…" : "Save"}
         </button>
       </form>
 
@@ -704,7 +704,7 @@ export function MailDayForm() {
         >
           <div className="w-full max-w-sm rounded-2xl bg-white p-5 dark:bg-zinc-900">
             <h2 id="discard-mail-day" className="text-lg font-bold">
-              Discard Mail Day?
+              Discard changes?
             </h2>
             <div className="mt-4 flex justify-end gap-2">
               <button type="button" onClick={() => setDiscardOpen(false)} className={outlineButton}>

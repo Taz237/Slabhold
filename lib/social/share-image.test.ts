@@ -314,6 +314,8 @@ describe("post and mail day share images", () => {
     });
     const packed = JSON.stringify(image);
     assert.equal(image.kind, "mail");
+    assert.equal(image.kicker, "POST");
+    assert.doesNotMatch(image.kicker, /Mail Day/i);
     assert.deepEqual(image.photos, photos);
     assert.equal(image.cardLines.length, 1);
     assert.equal(image.cardLines[0]?.value, "$185.00");

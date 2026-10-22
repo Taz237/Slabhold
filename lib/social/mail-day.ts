@@ -350,7 +350,7 @@ export function visibleMailDayCards<T>(cards: readonly T[], variant: "feed" | "d
 /** First missing requirement, so Log Mail Day can explain itself. */
 export function mailDaySubmitBlocker(cards: readonly MailDayDraftCard[]): string | null {
   if (cards.length < 1) return "Add a card";
-  if (cards.length > MAIL_DAY_MAX_CARDS) return "Mail Day holds up to 10 cards";
+  if (cards.length > MAIL_DAY_MAX_CARDS) return "You can add up to 10 cards";
   for (let index = 0; index < cards.length; index += 1) {
     const card = cards[index];
     const label = `card ${index + 1}`;

@@ -191,7 +191,7 @@ export function postShareImage(input: {
   return {
     ...blank(),
     kind: mail ? "mail" : "post",
-    kicker: mail ? "MAIL DAY" : "POST",
+    kicker: "POST",
     title: body ? clipText(body, 90) : "Post",
     detail: "",
     body: body || "Post",

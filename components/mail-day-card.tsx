@@ -65,12 +65,11 @@ export function MailDayCard({
 
   return (
     <div className="mt-3 overflow-hidden rounded-2xl border border-zinc-200 dark:border-white/10">
-      <p className="px-3 pt-3 text-sm font-bold">📬 Mail Day</p>
       <div
         className={
           hero
-            ? "mt-2 px-3 pb-3"
-            : "mt-2 flex gap-2 overflow-x-auto px-3 pb-3 min-[391px]:grid min-[391px]:grid-cols-2 min-[391px]:overflow-visible"
+            ? "px-3 py-3"
+            : "flex gap-2 overflow-x-auto px-3 py-3 min-[391px]:grid min-[391px]:grid-cols-2 min-[391px]:overflow-visible"
         }
       >
         {shown.map((view) => (
@@ -223,7 +222,7 @@ function MailDayPhoto({
       onClick={(event) => {
         event.preventDefault();
         event.stopPropagation();
-        onOpen(src, "Mail Day photo");
+        onOpen(src, "Card photo");
       }}
       className="block bg-zinc-100 dark:bg-zinc-900"
     >

@@ -151,7 +151,7 @@ export function postLinkPreview(input: {
   found: boolean;
   body?: string | null;
   imageUrl?: string | null;
-  /** Public Mail Day card line, or "Mail Day" when every card is private. */
+  /** Public card line. Empty when the post has no public card name. */
   mailDayTitle?: string | null;
 }): LinkPreview {
   if (!input.found) {
