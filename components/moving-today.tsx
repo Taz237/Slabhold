@@ -77,11 +77,10 @@ export function MovingTodayPanel({
   );
 }
 
-/** Freshens a cached payload when this mounts, after FeedView is ready. */
+/** Renders the heading the server already computed, so midnight does not mismatch. */
 export function MovingTodayCached({ payload }: { payload: MovingTodayPayload }) {
-  const fresh = freshenMovingToday(payload);
-  if (!shouldShowMovingToday(fresh.sales)) return null;
-  return <MovingTodayPanel heading={fresh.title} dateLabel={fresh.dateLabel} sales={fresh.sales} />;
+  if (!shouldShowMovingToday(payload.sales)) return null;
+  return <MovingTodayPanel heading={payload.title} dateLabel={payload.dateLabel} sales={payload.sales} />;
 }
 
 export function MovingToday() {

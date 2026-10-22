@@ -16,11 +16,15 @@ export type MovingTodaySale = {
   percentLabel: string | null;
 };
 
+export type MovingTodayWindow = "day" | "week";
+
 export type MovingTodayPayload = {
   title: string;
   date: string;
   dateLabel: string;
   sales: MovingTodaySale[];
+  /** Day keeps one calendar date. Week is the last 7 New York dates. */
+  window?: MovingTodayWindow;
 };
 
 export function emptyMovingToday(date = ""): MovingTodayPayload {
