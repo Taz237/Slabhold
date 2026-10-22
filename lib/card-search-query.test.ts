@@ -4,13 +4,17 @@ import {
   CARD_CATALOG,
   resolveCatalogSearch,
   searchCatalog,
+  toSearchableCard,
 } from "@/lib/card-catalog";
 import {
   buildSearchText,
+  catalogCandidateAnchor,
+  catalogCandidateRefusesScan,
   expandAliasTokens,
   normalizeSearchText,
   parseCardQuery,
   parseManualPrefill,
+  prefilterCatalogCandidates,
   searchCardsLocal,
   type SearchableCard,
 } from "@/lib/card-search-query";
@@ -377,6 +381,171 @@ describe("searchCatalog ranking", () => {
     assert.deepEqual(
       parallelLast.map((hit) => hit.id),
       ["set-name", "parallel-name"],
+    );
+  });
+
+  it("keeps jaxson dart, wemby rookie, and ohtani refractor after the candidate prefilter", () => {
+    assert.equal(searchCatalog("jaxson dart").length, 1);
+    assert.equal(searchCatalog("wemby rookie").length, 4);
+    assert.equal(searchCatalog("ohtani refractor").length, 1);
+
+    const all = CARD_CATALOG.map(toSearchableCard);
+    for (const query of ["jaxson dart", "wemby rookie", "ohtani refractor"] as const) {
+      const full = searchCardsLocal(query, all).map((hit) => hit.id);
+      const narrowed = searchCardsLocal(
+        query,
+        prefilterCatalogCandidates(all, parseCardQuery(query)),
+      ).map((hit) => hit.id);
+      assert.deepEqual(narrowed, full, query);
+    }
+  });
+});
+
+describe("catalog candidate prefilter", () => {
+  it("anchors on the player when a parallel word is longer", () => {
+    assert.equal(catalogCandidateAnchor(["ohtani", "refractor"]), "ohtani");
+    assert.equal(catalogCandidateAnchor(["jaxson", "dart"]), "jaxson");
+    assert.equal(catalogCandidateAnchor(["victor", "wembanyama"]), "wembanyama");
+    assert.equal(catalogCandidateAnchor(["refractor"]), null);
+    assert.equal(catalogCandidateRefusesScan(parseCardQuery("refractor")), true);
+    assert.equal(catalogCandidateRefusesScan(parseCardQuery("prizm")), false);
+    assert.equal(catalogCandidateRefusesScan(parseCardQuery("2024")), false);
+    assert.equal(catalogCandidateRefusesScan(parseCardQuery("332")), false);
+  });
+
+  it("returns at most 300 candidates and still keeps a distinctive player", () => {
+    const cards = Array.from({ length: 400 }, (_, index) =>
+      asSearchable({
+        id: `jaxson-${index}`,
+        player: `Jaxson Player ${index}`,
+        yearLabel: "2024",
+        setName: "Panini Prizm",
+        cardNumber: String(index + 1),
+      }),
+    );
+    cards.push(
+      asSearchable({
+        id: "zzqxv",
+        player: "Zzqxv Unique",
+        yearLabel: "1999",
+        setName: "Hoops",
+        cardNumber: "7",
+      }),
+    );
+    const capped = prefilterCatalogCandidates(cards, parseCardQuery("jaxson"));
+    assert.equal(capped.length, 300);
+    assert.equal(capped.every((card) => card.player.startsWith("Jaxson")), true);
+
+    const distinctive = prefilterCatalogCandidates(cards, parseCardQuery("zzqxv"));
+    assert.deepEqual(
+      distinctive.map((card) => card.id),
+      ["zzqxv"],
+    );
+    assert.deepEqual(prefilterCatalogCandidates(cards, parseCardQuery("silver")), []);
+  });
+
+  it("keeps Josh Allen ahead of more than 300 Allen Iverson rows", () => {
+    const cards = Array.from({ length: 301 }, (_, index) =>
+      asSearchable({
+        id: `iverson-${index}`,
+        player: "Allen Iverson",
+        yearLabel: "1996",
+        setName: "Topps",
+        cardNumber: String(index + 1),
+      }),
+    );
+    cards.push(
+      asSearchable({
+        id: "josh",
+        player: "Josh Allen",
+        yearLabel: "2018",
+        setName: "Panini Prizm",
+        cardNumber: "205",
+      }),
+    );
+    const query = "josh allen";
+    const candidates = prefilterCatalogCandidates(cards, parseCardQuery(query));
+    assert.equal(candidates.length, 300);
+    assert.equal(candidates[0]?.id, "josh");
+    const hits = searchCardsLocal(query, candidates);
+    assert.equal(hits[0]?.player, "Josh Allen");
+  });
+
+  it("finds Bo Nix Optic Preview Pink when preview is the longer word", () => {
+    const cards = Array.from({ length: 301 }, (_, index) =>
+      asSearchable({
+        id: `preview-${index}`,
+        player: `Preview Player ${index}`,
+        yearLabel: "2024",
+        setName: "Panini Donruss",
+        cardNumber: String(index + 1),
+      }),
+    );
+    cards.push(
+      asSearchable({
+        id: "nix",
+        player: "Bo Nix",
+        yearLabel: "2024",
+        setName: "Panini Donruss",
+        cardNumber: "301",
+        parallel: "Optic Preview Pink",
+      }),
+    );
+    const query = "bo nix optic preview pink";
+    const hits = searchCardsLocal(
+      query,
+      prefilterCatalogCandidates(cards, parseCardQuery(query)),
+    );
+    assert.equal(hits[0]?.id, "nix");
+    assert.equal(hits[0]?.player, "Bo Nix");
+    assert.equal(hits[0]?.parallel, "Optic Preview Pink");
+  });
+
+  it("finds Burrow Chrome Variation when variation is the longer word", () => {
+    const cards = Array.from({ length: 301 }, (_, index) =>
+      asSearchable({
+        id: `variation-${index}`,
+        player: `Variation Player ${index}`,
+        yearLabel: "2020",
+        setName: "Topps Chrome",
+        cardNumber: String(index + 1),
+      }),
+    );
+    cards.push(
+      asSearchable({
+        id: "burrow",
+        player: "Joe Burrow",
+        yearLabel: "2020",
+        setName: "Topps Chrome",
+        cardNumber: "1",
+        parallel: "Variation",
+      }),
+    );
+    const query = "burrow chrome variation";
+    const hits = searchCardsLocal(
+      query,
+      prefilterCatalogCandidates(cards, parseCardQuery(query)),
+    );
+    assert.equal(hits[0]?.id, "burrow");
+    assert.equal(hits[0]?.player, "Joe Burrow");
+    assert.equal(hits[0]?.setName, "Topps Chrome");
+    assert.equal(hits[0]?.parallel, "Variation");
+  });
+
+  it("matches Bedard Upper Deck Series 2 when 2 is a card-number token", () => {
+    const all = CARD_CATALOG.map(toSearchableCard);
+    const query = "bedard upper deck series 2";
+    const full = searchCardsLocal(query, all);
+    const narrowed = searchCardsLocal(
+      query,
+      prefilterCatalogCandidates(all, parseCardQuery(query)),
+    );
+    assert.ok(full.length > 0);
+    assert.ok(full.every((hit) => hit.player === "Connor Bedard"));
+    assert.ok(full.every((hit) => hit.setName === "Upper Deck Series 2"));
+    assert.deepEqual(
+      narrowed.map((hit) => hit.id),
+      full.map((hit) => hit.id),
     );
   });
 });

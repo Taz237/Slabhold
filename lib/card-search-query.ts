@@ -479,6 +479,179 @@ function compareHits(
   });
 }
 
+/**
+ * Parallel words are not player names. search_cards skips these when it builds
+ * candidate words, so "ohtani refractor" can still match on ohtani.
+ * Keep this list in sync with parallel_hints in the catalog search migration.
+ */
+export const PARALLEL_ANCHOR_SKIP = new Set([
+  "base",
+  "silver",
+  "holo",
+  "refractor",
+  "green",
+  "gold",
+  "golden",
+  "red",
+  "blue",
+  "purple",
+  "orange",
+  "pink",
+  "black",
+  "white",
+  "yellow",
+  "velocity",
+  "pandora",
+  "shimmer",
+  "cracked",
+  "snakeskin",
+  "wave",
+  "scope",
+  "ice",
+]);
+
+/** Longest player word that is not a parallel hint. Null when every word is one. */
+export function catalogCandidateAnchor(playerWords: readonly string[]): string | null {
+  let anchor: string | null = null;
+  let best = 0;
+  for (const word of playerWords) {
+    if (!word || PARALLEL_ANCHOR_SKIP.has(word)) continue;
+    if (word.length > best) {
+      anchor = word;
+      best = word.length;
+    }
+  }
+  return anchor;
+}
+
+/**
+ * True when the query has no player anchor, year, card number, or set word.
+ * search_cards returns no rows instead of scanning the catalog.
+ */
+export function catalogCandidateRefusesScan(parsed: ParsedCardQuery): boolean {
+  return (
+    catalogCandidateAnchor(parsed.playerWords) == null &&
+    !parsed.yearLabel &&
+    !parsed.cardNumber &&
+    parsed.setWords.length === 0
+  );
+}
+
+function longestWord(words: readonly string[]): string | null {
+  let best: string | null = null;
+  for (const word of words) {
+    if (!best || word.length > best.length) best = word;
+  }
+  return best;
+}
+
+/**
+ * Every non-parallel word can find candidates. Words of 3+ characters are the
+ * pattern; a query made only of shorter words (such as "cc") uses those instead.
+ */
+export function catalogCandidateWords(playerWords: readonly string[]): {
+  phrase: string;
+  patternWords: string[];
+} {
+  const words: string[] = [];
+  for (const word of playerWords) {
+    if (!word || PARALLEL_ANCHOR_SKIP.has(word)) continue;
+    if (!words.includes(word)) words.push(word);
+  }
+  const longWords = words.filter((word) => word.length >= 3);
+  return {
+    phrase: words.join(" "),
+    patternWords: longWords.length > 0 ? longWords : words,
+  };
+}
+
+/** Share of the query's padded trigrams that also appear in the target. */
+function queryTrigramCoverage(query: string, target: string): number {
+  const left = normalizeSearchText(query);
+  const right = normalizeSearchText(target);
+  if (!left || !right) return 0;
+  const grams = (value: string) => {
+    const padded = `  ${value} `;
+    const set = new Set<string>();
+    for (let index = 0; index < padded.length - 2; index += 1) {
+      set.add(padded.slice(index, index + 3));
+    }
+    return set;
+  };
+  const queryGrams = grams(left);
+  if (queryGrams.size === 0) return 0;
+  const targetGrams = grams(right);
+  let shared = 0;
+  for (const gram of queryGrams) {
+    if (targetGrams.has(gram)) shared += 1;
+  }
+  return shared / queryGrams.size;
+}
+
+function wholeWordInText(word: string, text: string): boolean {
+  return new RegExp(`(^| )${word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}( |$)`).test(text);
+}
+
+/**
+ * At most 300 candidates, mirroring the prefilter inside public.search_cards.
+ * Any non-parallel word of 3+ characters can match the player or search text.
+ * A card-number token also matches that number as a whole word in the set name.
+ * Candidates are ordered by how well the query words cover player, set, number,
+ * and parallel. A parallel-only query returns nothing.
+ */
+export function prefilterCatalogCandidates(
+  cards: SearchableCard[],
+  parsed: ParsedCardQuery,
+  limit = 300,
+): SearchableCard[] {
+  if (catalogCandidateRefusesScan(parsed)) return [];
+  const { phrase, patternWords } = catalogCandidateWords(parsed.playerWords);
+  const yearPrefix = parsed.yearLabel ? parsed.yearLabel.slice(0, 4) : null;
+  const number = parsed.cardNumber ? normalizeSearchText(parsed.cardNumber) : null;
+  const setAnchor = longestWord(parsed.setWords);
+  const cap = Math.max(1, Math.min(limit, 300));
+  const matchPhrase = tokensToMatch(parsed).join(" ");
+
+  const matched = cards.filter((card) => {
+    if (yearPrefix && !card.yearLabel.startsWith(yearPrefix)) return false;
+    if (number) {
+      const onCard =
+        normalizeSearchText(card.cardNumber) === number ||
+        wholeWordInText(number, card.searchText);
+      if (!onCard) return false;
+    }
+    if (patternWords.length > 0) {
+      const player = normalizeSearchText(card.player);
+      const named = patternWords.some(
+        (word) => player.includes(word) || card.searchText.includes(word),
+      );
+      if (named) return true;
+      return phrase.length > 0 && queryTrigramCoverage(phrase, player) >= 0.5;
+    }
+    if (setAnchor) return card.searchText.includes(setAnchor);
+    return yearPrefix != null || number != null;
+  });
+
+  return matched
+    .map((card) => ({
+      card,
+      covered: queryTrigramCoverage(
+        matchPhrase,
+        `${card.searchText} ${normalizeSearchText(card.parallel)}`,
+      ),
+      playerSim: phrase ? queryTrigramCoverage(phrase, card.player) : 0,
+    }))
+    .sort(
+      (a, b) =>
+        b.covered - a.covered ||
+        b.playerSim - a.playerSim ||
+        a.card.player.localeCompare(b.card.player) ||
+        a.card.id.localeCompare(b.card.id),
+    )
+    .slice(0, cap)
+    .map((row) => row.card);
+}
+
 export function searchCardsLocal(
   query: string,
   cards: SearchableCard[],
@@ -491,6 +664,9 @@ export function searchCardsLocal(
   const tokens = tokensToMatch(parsed);
   if (!tokens.length) return [];
 
+  // Same ranking as public.search_cards. The SQL function ranks at most 300
+  // trigram candidates first; this path ranks whatever list it is given so the
+  // existing catalog tests stay on the full in-memory seed.
   const ranked = cards
     .map((card) => {
       const hits = matchQueryTokens(card, tokens);

@@ -7,6 +7,10 @@ import {
   resolveCatalogSearch,
   type CatalogCard,
 } from "@/lib/card-catalog";
+import {
+  logCatalogSearchMissQuietly,
+  shouldLogCatalogSearchMiss,
+} from "@/lib/catalog/catalog-queue";
 import { parseManualPrefill } from "@/lib/card-search-query";
 import { createSupabaseBrowser } from "@/lib/supabase/browser";
 
@@ -103,6 +107,9 @@ export function CardSearch({
       try {
         const remote = await searchRemote(q, controller.signal);
         if (controller.signal.aborted || id !== requestId.current) return;
+        if (remote && shouldLogCatalogSearchMiss(q, remote.length)) {
+          void logCatalogSearchMissQuietly(q);
+        }
         setResults(resolveCatalogSearch(q, remote, 20));
       } catch {
         if (controller.signal.aborted || id !== requestId.current) return;
@@ -110,7 +117,7 @@ export function CardSearch({
       } finally {
         if (id === requestId.current) setLoading(false);
       }
-    }, 150);
+    }, 250);
 
     return () => {
       controller.abort();

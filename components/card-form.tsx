@@ -11,6 +11,12 @@ import { useSocial } from "@/components/social-provider";
 import { takeScan } from "@/lib/capture";
 import type { CatalogCard } from "@/lib/card-catalog";
 import {
+  catalogPickStillMatches,
+  shouldSubmitCatalogCard,
+  submitCatalogCardQuietly,
+  type CatalogPickSnapshot,
+} from "@/lib/catalog/catalog-queue";
+import {
   GRADE_QUALIFIERS,
   SETS,
   SPORT_PICKER_OPTIONS,
@@ -80,6 +86,7 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
   const formRef = useRef<HTMLFormElement>(null);
   const savingRef = useRef(false);
   const pendingId = useRef<string | null>(existing?.id ?? null);
+  const catalogPick = useRef<CatalogPickSnapshot | null>(null);
   const timedOutIds = useRef<Set<string>>(new Set());
   const [photo, setPhoto] = useState<string | null>(existing?.photoDataUrl ?? null);
   const [saving, setSaving] = useState(false);
@@ -280,6 +287,13 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
     const title = [card.playerName, card.setBrand, card.parallel, card.cardNumber].join(" ");
     const sport = sportAfterCatalogPick(sportTouched ? form.sport : "", card.sport);
     setSportOffer(sport.offer);
+    catalogPick.current = {
+      playerName: card.playerName,
+      yearLabel: card.yearLabel,
+      setBrand: card.setBrand,
+      cardNumber: card.cardNumber,
+      parallel: chosen.parallel,
+    };
     setForm((prev) => ({
       ...prev,
       playerName: card.playerName,
@@ -301,6 +315,7 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
     yearLabel: string;
     cardNumber: string;
   }) {
+    catalogPick.current = null;
     // Clear catalog leftovers, then prefill only what the query parsed.
     setForm((prev) => ({
       ...prev,
@@ -412,6 +427,24 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
       }
       await saved;
       createdId = null;
+      if (mode === "supabase") {
+        const picked = catalogPickStillMatches(catalogPick.current, {
+          playerName: payload.playerName,
+          yearLabel: payload.yearLabel,
+          setBrand: payload.setBrand,
+          cardNumber: payload.cardNumber,
+          parallel: payload.parallel,
+        });
+        if (
+          shouldSubmitCatalogCard({
+            setIsCustom: payload.setIsCustom,
+            parallelIsCustom: payload.parallelIsCustom,
+            pickedFromCatalog: picked,
+          })
+        ) {
+          void submitCatalogCardQuietly(card.id);
+        }
+      }
       router.push(`/cards/${card.id}`);
     } catch (error) {
       if (isSaveTimeout(error)) {

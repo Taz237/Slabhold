@@ -27,6 +27,12 @@ import {
   parallelsForSet,
 } from "@/lib/cards/parallels";
 import {
+  catalogPickStillMatches,
+  shouldSubmitCatalogCard,
+  submitCatalogCardQuietly,
+  type CatalogPickSnapshot,
+} from "@/lib/catalog/catalog-queue";
+import {
   MAIL_DAY_MAX_CARDS,
   MAIL_DAY_SPORT_PICKER,
   SOURCE_LABELS,
@@ -68,6 +74,7 @@ function blankCard(): MailDayDraftCard & {
   open: boolean;
   parallelNote: string;
   sportOffer: string;
+  catalogPick: CatalogPickSnapshot | null;
 } {
   return {
     key: crypto.randomUUID(),
@@ -75,6 +82,7 @@ function blankCard(): MailDayDraftCard & {
     open: true,
     parallelNote: "",
     sportOffer: "",
+    catalogPick: null,
     playerName: "",
     yearLabel: "",
     setBrand: "",
@@ -190,6 +198,30 @@ export function MailDayForm() {
     return () => window.removeEventListener("beforeunload", onLeave);
   }, [dirty]);
 
+  function queueCatalogSubmits(cardIds: readonly string[]) {
+    const wanted = new Set(cardIds);
+    for (const section of sections) {
+      if (!wanted.has(section.cardId)) continue;
+      const picked = catalogPickStillMatches(section.catalogPick, {
+        playerName: section.playerName,
+        yearLabel: section.yearLabel,
+        setBrand: section.setBrand,
+        cardNumber: section.cardNumber,
+        parallel: section.parallel,
+      });
+      if (
+        !shouldSubmitCatalogCard({
+          setIsCustom: section.setIsCustom,
+          parallelIsCustom: section.parallelIsCustom,
+          pickedFromCatalog: picked,
+        })
+      ) {
+        continue;
+      }
+      void submitCatalogCardQuietly(section.cardId);
+    }
+  }
+
   function update(index: number, patch: Partial<Section>) {
     setSections((current) =>
       current.map((section, item) => (item === index ? { ...section, ...patch } : section)),
@@ -273,6 +305,7 @@ export function MailDayForm() {
         setError(result.error);
         if (result.cardSaved) {
           trackAddedCards(result.cardIds.length);
+          queueCatalogSubmits(result.cardIds);
           setSavedCardIds(result.cardIds);
           reload();
         }
@@ -280,6 +313,7 @@ export function MailDayForm() {
       }
       trackAddedCards(result.cardIds.length);
       trackEvent("post_created");
+      queueCatalogSubmits(result.cardIds);
       allowLeave.current = true;
       reload();
       await refresh();
@@ -355,6 +389,13 @@ export function MailDayForm() {
                       sport: sport.sport,
                       sportOffer: sport.offer,
                       isRookie: section.isRookie || textLooksRookie(title),
+                      catalogPick: {
+                        playerName: card.playerName,
+                        yearLabel: card.yearLabel,
+                        setBrand: card.setBrand,
+                        cardNumber: card.cardNumber,
+                        parallel: chosen.parallel,
+                      },
                     });
                   }}
                   onManual={(prefill) => {
@@ -363,6 +404,7 @@ export function MailDayForm() {
                       playerName: prefill.playerName || section.playerName,
                       yearLabel: prefill.yearLabel || section.yearLabel,
                       cardNumber: prefill.cardNumber || section.cardNumber,
+                      catalogPick: null,
                     });
                   }}
                 />
