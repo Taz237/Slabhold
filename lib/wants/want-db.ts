@@ -2,12 +2,7 @@ import "server-only";
 
 import type { SafetyRelations } from "@/lib/safety/can-notify";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
-import {
-  isActorCardAlert,
-  type WantAlertDb,
-  type WantMatchEvent,
-  type WantRow,
-} from "./notify-want-matches";
+import type { WantAlertDb, WantMatchEvent, WantRow } from "./notify-want-matches";
 import { storedWantSourceType } from "./owned-card";
 
 const UUID_RE =
@@ -127,18 +122,22 @@ export function createSupabaseWantDb(): WantAlertDb | null {
       return count ?? 0;
     },
 
-    async recentActorCardAlert(query) {
+    async actorCardAlerts(query) {
       // notifications keep actor_id and card_key after the card row is deleted.
       // notifications_recipient_idx (recipient_id, created_at) covers this read.
       const { data, error } = await admin
         .from("notifications")
-        .select("metadata")
+        .select("id, created_at, metadata")
         .eq("recipient_id", query.userId)
         .eq("actor_id", query.actorId)
         .eq("kind", "want_alert")
         .gte("created_at", query.sinceIso);
       if (error) throw new Error(error.message);
-      return (data ?? []).some((row) => isActorCardAlert(row.metadata, query.cardKey));
+      return (data ?? []).map((row) => ({
+        id: row.id as string,
+        createdAt: row.created_at as string,
+        metadata: row.metadata,
+      }));
     },
 
     async insertAlert(row) {
@@ -162,15 +161,25 @@ export function createSupabaseWantDb(): WantAlertDb | null {
     },
 
     async insertNotification(row) {
-      const { error } = await admin.from("notifications").insert({
-        recipient_id: row.recipientId,
-        actor_id: row.actorId,
-        kind: "want_alert",
-        post_id: row.postId,
-        preview: row.preview,
-        href: row.href,
-        metadata: row.metadata ?? null,
-      });
+      const { data, error } = await admin
+        .from("notifications")
+        .insert({
+          recipient_id: row.recipientId,
+          actor_id: row.actorId,
+          kind: "want_alert",
+          post_id: row.postId,
+          preview: row.preview,
+          href: row.href,
+          metadata: row.metadata ?? null,
+        })
+        .select("id, created_at")
+        .single();
+      if (error) throw new Error(error.message);
+      return { id: data.id as string, createdAt: data.created_at as string };
+    },
+
+    async deleteNotification(id) {
+      const { error } = await admin.from("notifications").delete().eq("id", id);
       if (error) throw new Error(error.message);
     },
 

@@ -3,12 +3,12 @@ import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { join } from "node:path";
 import { routeAccess } from "@/lib/auth/route-access";
+import { alignedRetryAfterSeconds } from "@/lib/comps/rate-window";
 import { cardIdentityKey } from "@/lib/social/card-identity";
 import { missingCheckForPath, pathIsMissing } from "@/lib/social/missing-route";
 import { cardPageAccessDecision } from "@/lib/value/card-page-access";
 import { postWantMatch, WANT_MATCH_RATE_LIMIT_MESSAGE } from "./match-request";
 import {
-  isActorCardAlert,
   notifyWantMatches,
   WANT_ACTOR_CARD_COOLDOWN_MS,
   type WantAlertDb,
@@ -45,7 +45,13 @@ function read(path: string): string {
   return readFileSync(join(process.cwd(), path), "utf8");
 }
 
-function memoryDb() {
+function tick(): Promise<void> {
+  return new Promise((resolve) => {
+    setImmediate(resolve);
+  });
+}
+
+function memoryDb(options?: { pause?: boolean }) {
   const wants: WantRow[] = [
     {
       id: "want-1",
@@ -57,15 +63,22 @@ function memoryDb() {
     },
   ];
   const alerts: WantAlertInsert[] = [];
-  const notifications: (WantNotificationInsert & { createdAt: string })[] = [];
+  const notifications: (WantNotificationInsert & { id: string; createdAt: string })[] = [];
+  let noteSeq = 0;
+  const pause = async () => {
+    if (options?.pause) await tick();
+  };
   const db: WantAlertDb = {
     async wantsForKey(cardKey) {
+      await pause();
       return wants.filter((row) => row.cardKey === cardKey);
     },
     async alertsToday(userId, sinceIso) {
+      await pause();
       return alerts.filter((row) => row.userId === userId && row.createdAt >= sinceIso).length;
     },
     async insertAlert(row) {
+      await pause();
       const exists = alerts.some(
         (item) =>
           item.wantId === row.wantId &&
@@ -78,9 +91,31 @@ function memoryDb() {
       return true;
     },
     async insertNotification(row) {
-      notifications.push({ ...row, createdAt: alerts.at(-1)?.createdAt ?? "" });
+      await pause();
+      noteSeq += 1;
+      const id = `n-${String(noteSeq).padStart(4, "0")}`;
+      const createdAt = new Date(NOW.getTime() + noteSeq).toISOString();
+      notifications.push({ ...row, id, createdAt });
+      return { id, createdAt };
+    },
+    async deleteNotification(id) {
+      await pause();
+      const index = notifications.findIndex((row) => row.id === id);
+      if (index >= 0) notifications.splice(index, 1);
+    },
+    async actorCardAlerts(query) {
+      await pause();
+      return notifications
+        .filter(
+          (row) =>
+            row.recipientId === query.userId &&
+            row.actorId === query.actorId &&
+            row.createdAt >= query.sinceIso,
+        )
+        .map((row) => ({ id: row.id, createdAt: row.createdAt, metadata: row.metadata ?? null }));
     },
     async deleteAlert(wantId, sourceType, sourceId, cardId) {
+      await pause();
       const index = alerts.findIndex(
         (item) =>
           item.wantId === wantId &&
@@ -91,16 +126,8 @@ function memoryDb() {
       if (index >= 0) alerts.splice(index, 1);
     },
     async isFollower(userId, actorId) {
+      await pause();
       return userId === WANTER && (actorId === ACTOR || actorId === OTHER);
-    },
-    async recentActorCardAlert(query) {
-      return notifications.some(
-        (row) =>
-          row.recipientId === query.userId &&
-          row.actorId === query.actorId &&
-          row.createdAt >= query.sinceIso &&
-          isActorCardAlert(row.metadata, query.cardKey),
-      );
     },
   };
   return { db, alerts, notifications };
@@ -182,9 +209,9 @@ describe("want alert spam", () => {
     const cards = memoryDb();
     assert.equal(await notifyWantMatches(cardEvent(CARD, NOW), cards.db), 1);
     assert.equal(await notifyWantMatches(cardEvent(COPY, NOW), cards.db), 0);
-    assert.equal(await notifyWantMatches(actorEvent("listing", LATER, ACTOR), cards.db), 0);
+    assert.equal(await notifyWantMatches(actorEvent("listing", LATER, ACTOR), cards.db), 1);
     assert.equal(await notifyWantMatches(cardEvent(LATER, NOW, OTHER), cards.db), 1);
-    assert.equal(cards.notifications.length, 2);
+    assert.equal(cards.notifications.length, 3);
 
     const listings = memoryDb();
     assert.equal(await notifyWantMatches(actorEvent("listing", CARD, ACTOR), listings.db), 1);
@@ -210,6 +237,32 @@ describe("want alert spam", () => {
     assert.equal(await notifyWantMatches(mail(CARD), mailDay.db), 1);
     assert.equal(await notifyWantMatches(mail(COPY), mailDay.db), 0);
     assert.equal(mailDay.notifications.length, 1);
+  });
+
+  it("sends a listing alert after a card alert for the same card", async () => {
+    const { db, notifications } = memoryDb();
+    assert.equal(await notifyWantMatches(cardEvent(CARD, NOW), db), 1);
+    assert.equal(await notifyWantMatches(actorEvent("post", "post-1", ACTOR), db), 1);
+    assert.equal(await notifyWantMatches(actorEvent("listing", COPY, ACTOR), db), 1);
+    assert.deepEqual(
+      notifications.map((row) => row.metadata?.source),
+      ["card", "post", "listing"],
+    );
+  });
+
+  it("keeps one notification when ten listing copies run together", async () => {
+    const { db, notifications, alerts } = memoryDb({ pause: true });
+    const counts = await Promise.all(
+      Array.from({ length: 10 }, (_, index) =>
+        notifyWantMatches(actorEvent("listing", `copy-${index}`, ACTOR), db),
+      ),
+    );
+    assert.equal(
+      counts.reduce((sum, count) => sum + count, 0),
+      1,
+    );
+    assert.equal(notifications.length, 1);
+    assert.equal(alerts.length, 1);
   });
 
   it("still sends price-drop alerts", async () => {
@@ -259,12 +312,20 @@ describe("want alert spam", () => {
       const res = await postWantMatch(matchRequest(index % 2 === 0 ? "card" : "listing"), deps);
       assert.equal(res.status, 200, `request ${index}`);
     }
+    const windowMs = 10 * 60 * 1000;
     for (let extra = 0; extra < 3; extra += 1) {
+      const before = Date.now();
       const blocked = await postWantMatch(matchRequest("post"), deps);
+      const after = Date.now();
       assert.equal(blocked.status, 429);
-      assert.equal(blocked.headers.get("Retry-After"), "60");
+      const retryAfter = Number(blocked.headers.get("Retry-After"));
+      const earliest = alignedRetryAfterSeconds(windowMs, after);
+      const latest = alignedRetryAfterSeconds(windowMs, before);
+      assert.ok(retryAfter === earliest || retryAfter === latest, String(retryAfter));
       assert.deepEqual(await blocked.json(), { error: WANT_MATCH_RATE_LIMIT_MESSAGE });
     }
+    const at = Date.parse("2026-10-17T18:03:00.000Z");
+    assert.equal(alignedRetryAfterSeconds(windowMs, at), 420);
     assert.equal(calls.length, limit);
 
     const other = await postWantMatch(matchRequest("card"), {

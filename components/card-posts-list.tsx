@@ -9,6 +9,7 @@ import { useCollection } from "@/components/collection-provider";
 import { useSocial } from "@/components/social-provider";
 import { signupPath } from "@/lib/auth/safe-next";
 import {
+  cardPostsBackHref,
   filterLoadedPostsForCard,
   loadPostsForCard,
   type CardPostsCursor,
@@ -48,10 +49,7 @@ export function CardPostsList({ cardId }: { cardId: string }) {
   const owned = cards.some((card) => card.id === cardId);
   const owner = publicCards.find((card) => card.id === cardId);
   const ownerProfile = profiles.find((profile) => profile.id === owner?.ownerId);
-  const backHref =
-    !owned && ownerProfile
-      ? `/u/${ownerProfile.username}/cards/${cardId}`
-      : `/cards/${cardId}`;
+  const backHref = cardPostsBackHref(cardId, owned, ownerProfile?.username);
 
   useEffect(() => {
     if (!ready) return;

@@ -12,6 +12,21 @@ export type CardPostsCursor = {
   id: string;
 };
 
+/**
+ * Back link from a card's posts. Owners open their card. Everyone else opens
+ * the public card when the actor has a username, never /u/null or /cards/:id.
+ */
+export function cardPostsBackHref(
+  cardId: string,
+  owned: boolean,
+  username: string | null | undefined,
+): string {
+  if (owned) return `/cards/${cardId}`;
+  const name = typeof username === "string" ? username.trim().replace(/^@/, "") : "";
+  if (name) return `/u/${name}/cards/${cardId}`;
+  return `/cards/${cardId}/posts`;
+}
+
 /** Post attachment: public card fields only. */
 export function toPublicAttachment(card: {
   id: string;

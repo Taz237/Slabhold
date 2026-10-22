@@ -1,4 +1,7 @@
+import { alignedRetryAfterSeconds } from "@/lib/comps/rate-window";
 import { isUuid } from "@/lib/value/card-value-access";
+
+const WANT_MATCH_WINDOW_MS = 10 * 60 * 1000;
 
 export const WANT_MATCH_RATE_LIMIT_MESSAGE =
   "Too many want checks. Please wait a bit and try again.";
@@ -16,10 +19,13 @@ export type WantMatchDeps = {
   ) => Promise<number | null>;
 };
 
-function limited(): Response {
+function limited(now = Date.now()): Response {
   return Response.json(
     { error: WANT_MATCH_RATE_LIMIT_MESSAGE },
-    { status: 429, headers: { "Retry-After": "60" } },
+    {
+      status: 429,
+      headers: { "Retry-After": String(alignedRetryAfterSeconds(WANT_MATCH_WINDOW_MS, now)) },
+    },
   );
 }
 
