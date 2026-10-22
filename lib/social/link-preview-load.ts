@@ -5,9 +5,11 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { getSupabaseConfig } from "@/lib/supabase/client";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { wantLabel } from "@/lib/wants/label";
-import { feedChipPrice, resolvePriceRead } from "@/lib/value/price-fallback";
+import { feedChipPrice, resolvePriceRead, type PriceRead } from "@/lib/value/price-fallback";
+import { attachPriceContext } from "@/lib/value/price-context";
 import { getCardValue, getCardValues } from "@/lib/value/getCardValue";
 import { isUuid } from "@/lib/value/card-value-access";
+import type { CardValueResult } from "@/lib/value/types";
 import { mapPublicCard, PUBLIC_CARD_SELECT, type CardRow } from "./cards";
 import {
   cardLinkPreview,
@@ -64,13 +66,59 @@ export const loadPublicCardPreview = cache(async (id: string): Promise<LinkPrevi
   });
 });
 
-/** Share preview reads the persisted card_values row and nothing else. */
+/**
+ * Public share text. Attach the same sales the card page uses, with no viewer,
+ * so a 1–2 sale card is not labeled from the stored p25–p75 band.
+ * Only call this for a card already known to be public.
+ */
 async function previewValueLabel(
   cardId: string,
   createdAt: string | undefined,
 ): Promise<string> {
+  const value = await publicCardValue(cardId);
+  return sharePriceText(value, createdAt);
+}
+
+/** Stored row plus exact sales. A failed attach leaves sales unset. */
+async function publicCardValue(cardId: string): Promise<CardValueResult | null> {
   const stored = await getCardValue(cardId);
-  return feedChipPrice(resolvePriceRead({ value: stored, createdAt })).text;
+  if (!stored) return null;
+  const values = new Map([[cardId, stored]]);
+  const attached = await attachPriceContext([cardId], values, null);
+  return attached.get(cardId) ?? stored;
+}
+
+/**
+ * Label for a public card. When the sale list did not load, a 2-sale card
+ * says "~$median from 2 sales" instead of the stored p25–p75 band.
+ */
+export function sharePriceText(
+  value: CardValueResult | null | undefined,
+  createdAt?: string | null,
+): string {
+  return feedChipPrice(sharePriceRead(value, createdAt)).text;
+}
+
+function sharePriceRead(
+  value: CardValueResult | null | undefined,
+  createdAt?: string | null,
+): PriceRead {
+  const loaded = Boolean(value && value.sales !== undefined);
+  return resolvePriceRead({
+    value: loaded ? value : unloadedSaleValue(value),
+    createdAt,
+    exactSales: loaded && value ? value.sales : undefined,
+  });
+}
+
+/** Collapse an unloaded 2-sale band onto the median so p25–p75 never ships. */
+function unloadedSaleValue(
+  value: CardValueResult | null | undefined,
+): CardValueResult | null | undefined {
+  if (!value || value.status !== "ok" || value.nSales !== 2) return value;
+  const mid = value.median;
+  if (typeof mid !== "number" || !Number.isFinite(mid) || mid < 0.01) return value;
+  return { ...value, low: mid, high: mid };
 }
 
 export const loadProfilePreview = cache(async (username: string): Promise<LinkPreview> => {
@@ -226,9 +274,9 @@ function mappedSafe(id: string, row: SafeCardRow) {
 }
 
 async function publicPrice(cardId: string): Promise<{ amount: string; sales: number }> {
-  const stored = await getCardValue(cardId);
-  const read = resolvePriceRead({ value: stored });
-  if (read.kind === "estimate") return { amount: read.text, sales: stored?.nSales ?? 0 };
+  const value = await publicCardValue(cardId);
+  const read = sharePriceRead(value);
+  if (read.kind === "estimate") return { amount: read.text, sales: value?.nSales ?? 0 };
   if (read.kind === "last_sale" || read.kind === "range") return { amount: read.text, sales: 0 };
   return { amount: "", sales: 0 };
 }
@@ -349,7 +397,11 @@ export const loadPostShareImage = cache(async (id: string) => {
     const byId = new Map(
       ((rows ?? []) as { id: string }[]).map((row) => [row.id, row]),
     );
-    const values = byId.size ? await getCardValues([...byId.keys()]) : new Map();
+    const publicIds = [...byId.keys()];
+    const storedValues = publicIds.length ? await getCardValues(publicIds) : new Map();
+    const values = publicIds.length
+      ? await attachPriceContext(publicIds, storedValues, null)
+      : storedValues;
     for (const cardId of cardIds) {
       const row = byId.get(cardId);
       if (!row) {
@@ -360,9 +412,7 @@ export const loadPostShareImage = cache(async (id: string) => {
       cards.push({
         isPublic: true,
         name: wantLabel(mapped) || mapped.playerName,
-        valueLabel: feedChipPrice(
-          resolvePriceRead({ value: values.get(cardId) ?? null, createdAt: mapped.createdAt }),
-        ).text,
+        valueLabel: sharePriceText(values.get(cardId) ?? null, mapped.createdAt),
         imageUrl: mapped.photoDataUrl,
       });
     }

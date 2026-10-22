@@ -37,6 +37,9 @@ export const POSTGREST_MAX_ROWS = 1000;
 /** How many exact keys fit in one response at the shared per-key page size. */
 const EXACT_KEYS_PER_READ = Math.max(1, Math.floor(POSTGREST_MAX_ROWS / SOLD_CACHE_ROW_LIMIT));
 
+/** Chunk reads in flight at once. Enough to overlap, not one query per key. */
+export const PRICE_BATCH_READ_CONCURRENCY = 4;
+
 const SALE_COLUMNS =
   "query_key, item_id, title, price, currency, sold_at, grader, grade, url, fetched_at";
 
@@ -111,6 +114,23 @@ function chunkKeys(keys: readonly string[], size: number): string[][] {
   return chunks;
 }
 
+async function mapLimit<T>(
+  items: readonly T[],
+  limit: number,
+  fn: (item: T) => Promise<void>,
+): Promise<void> {
+  if (!items.length) return;
+  let next = 0;
+  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (next < items.length) {
+      const index = next;
+      next += 1;
+      await fn(items[index] as T);
+    }
+  });
+  await Promise.all(workers);
+}
+
 /** One `.in` whose limit stays within the PostgREST cap. */
 async function readInKeys(
   client: SoldCacheClient,
@@ -134,19 +154,19 @@ async function readKeysWithinCap(
   keys: readonly string[],
   out: Map<string, CachedCompRow[]>,
 ): Promise<void> {
-  for (const chunk of chunkKeys(keys, EXACT_KEYS_PER_READ)) {
+  await mapLimit(chunkKeys(keys, EXACT_KEYS_PER_READ), PRICE_BATCH_READ_CONCURRENCY, async (chunk) => {
     const requested = Math.min(chunk.length * SOLD_CACHE_ROW_LIMIT, POSTGREST_MAX_ROWS);
     const rows = await readInKeys(client, chunk, requested);
     storeNewest(out, rows);
     const cap = Math.min(requested, POSTGREST_MAX_ROWS);
-    if (rows.length < cap) continue;
+    if (rows.length < cap) return;
     const cutKeys = cutQueryKeys(chunk, rows, cap);
-    for (const key of cutKeys) {
+    await mapLimit(cutKeys, PRICE_BATCH_READ_CONCURRENCY, async (key) => {
       // One key, capped at 1000 rows. That holds while Trawl max_pages=1,
       // because one fetch batch is not larger than that page.
       storeNewest(out, await readInKeys(client, [key], POSTGREST_MAX_ROWS));
-    }
-  }
+    });
+  });
 }
 
 /**
