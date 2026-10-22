@@ -22,7 +22,7 @@ export function MailDaySkeleton() {
   );
 }
 
-/** Heading plus form placeholders. Shown before Mail Day data is ready. */
+/** Heading plus form placeholders. Shown before the form data is ready. */
 export function MailDayPending() {
   return (
     <div className="space-y-5" aria-busy="true" aria-live="polite">

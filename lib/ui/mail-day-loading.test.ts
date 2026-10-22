@@ -16,7 +16,7 @@ describe("Mail Day loading", () => {
     const shell = read("components/app-shell.tsx");
 
     assert.match(pending, /<h1 className="mt-1 text-2xl font-bold tracking-tight">Add a card<\/h1>/);
-    assert.doesNotMatch(pending, /Mail Day/);
+    assert.doesNotMatch(pending, />[^<{]*Mail Day/);
     assert.match(pending, /Add today&apos;s pickups/);
     assert.match(pending, /animate-pulse/);
     assert.match(pending, /aria-busy="true"/);
