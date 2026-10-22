@@ -568,12 +568,65 @@ function paint(
   );
 }
 
-export function renderOg(
+/** Arabic-script shaping crashes the OG font. Other scripts we ship stay. */
+const UNSUPPORTED_OG_SCRIPT =
+  /[\u0600-\u06FF\u0750-\u077F\u0870-\u089F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/g;
+
+function stripUnsupportedOgText(value: string): string {
+  return value.replace(UNSUPPORTED_OG_SCRIPT, " ").replace(/\s+/g, " ").trim();
+}
+
+function readableShareImage(model: ShareImage): ShareImage {
+  const text = stripUnsupportedOgText;
+  const title = text(model.title);
+  const body = text(model.body);
+  const fallback =
+    model.kind === "card" ? "Card" : model.kind === "profile" ? "Profile" : model.kind === "home" ? title : "Post";
+  return {
+    ...model,
+    kicker: text(model.kicker) || model.kicker,
+    title: title || fallback,
+    detail: text(model.detail),
+    body: body || title || fallback,
+    authorName: text(model.authorName),
+    authorHandle: text(model.authorHandle),
+    player: text(model.player) || "Card",
+    yearSet: text(model.yearSet),
+    grade: text(model.grade),
+    valueLabel: text(model.valueLabel),
+    salesLabel: text(model.salesLabel),
+    cardLines: model.cardLines
+      .map((line) => ({ name: text(line.name), value: text(line.value) }))
+      .filter((line) => line.name),
+  };
+}
+
+async function consumeOg(response: ImageResponse): Promise<ImageResponse> {
+  const bytes = Buffer.from(await response.arrayBuffer());
+  if (!isPng(bytes) || bytes.length < 32) throw new Error("Open Graph image was empty");
+  return new Response(bytes, {
+    status: response.status,
+    headers: response.headers,
+  }) as ImageResponse;
+}
+
+/** Render a share image. A font-shaping failure retries without that script, then the home image. */
+export async function renderOg(
   model: ShareImage,
   cacheControl = PUBLIC_OG_CACHE_CONTROL,
-): ImageResponse | Promise<ImageResponse> {
-  if (model.kind !== "home") return paint(model, cacheControl, null);
-  return homeShotSrc().then((src) => paint(model, cacheControl, src));
+): Promise<ImageResponse> {
+  const homeShot = model.kind === "home" ? await homeShotSrc() : null;
+  try {
+    return await consumeOg(paint(model, cacheControl, homeShot));
+  } catch {
+    try {
+      const stripped = readableShareImage(model);
+      const shot = stripped.kind === "home" ? (homeShot ?? (await homeShotSrc())) : null;
+      return await consumeOg(paint(stripped, cacheControl, shot));
+    } catch {
+      return consumeOg(paint(homeShareImage(), cacheControl, await homeShotSrc()));
+    }
+  }
 }
 
 export function renderProfileOg(

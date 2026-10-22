@@ -1,5 +1,5 @@
 import { basedOnSalesLabel } from "@/lib/comps/shared-value";
-import { cleanImageUrl, clipText, textGraphemes, type LinkPreview } from "./link-preview";
+import { capGrapheme, cleanImageUrl, clipText, textGraphemes, type LinkPreview } from "./link-preview";
 
 /** What an Open Graph / Twitter image draws. Metadata copy stays on LinkPreview. */
 export type ShareCardLine = {
@@ -65,9 +65,12 @@ export function scrubPublicText(
     .replace(UUID, " ")
     .replace(/\s+/g, " ")
     .trim();
-  if (max == null || text.length <= max) return text;
+  if (max == null) return text;
+  const parts = textGraphemes(text).map(capGrapheme);
+  const shortened = parts.join("");
+  if (shortened.length <= max) return shortened;
   let out = "";
-  for (const part of textGraphemes(text)) {
+  for (const part of parts) {
     if (out.length + part.length > max) break;
     out += part;
   }

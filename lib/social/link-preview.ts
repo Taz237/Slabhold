@@ -31,7 +31,7 @@ export function textGraphemes(value: string): string[] {
 /** A grapheme longer than this is almost always stacked combining marks. */
 const GRAPHEME_CODE_POINTS = 8;
 
-function capGrapheme(grapheme: string): string {
+export function capGrapheme(grapheme: string): string {
   const points = Array.from(grapheme);
   if (points.length <= GRAPHEME_CODE_POINTS) return grapheme;
   return points.slice(0, GRAPHEME_CODE_POINTS).join("");
@@ -271,11 +271,19 @@ export function withCardOgImage<T extends ReturnType<typeof previewMetadata>>(
     ...meta,
     openGraph: {
       ...meta.openGraph,
-      images: [{ url: imagePath, width: 1200, height: 630, alt: "Card on Slabhold" }],
+      images: [
+        {
+          url: imagePath,
+          type: "image/png",
+          width: 1200,
+          height: 630,
+          alt: "Card on Slabhold",
+        },
+      ],
     },
     twitter: {
       ...meta.twitter,
-      images: [imagePath],
+      images: [{ url: imagePath, width: 1200, height: 630, alt: "Card on Slabhold" }],
     },
   };
 }

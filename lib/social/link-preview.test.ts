@@ -11,6 +11,7 @@ import {
   postPreviewImage,
   previewMetadata,
   profileLinkPreview,
+  withCardOgImage,
 } from "./link-preview";
 
 const SECRET = "Victor Secret";
@@ -121,6 +122,27 @@ describe("card og image url", () => {
     assert.equal(
       cardOgImagePath("abc", null, "maya"),
       "/u/maya/cards/abc/opengraph-image?v=0",
+    );
+  });
+
+  it("sets og:image:type and twitter:image:alt", () => {
+    const meta = withCardOgImage(
+      previewMetadata({
+        title: "Card",
+        description: "A card on Slabhold.",
+        imageUrl: null,
+        detail: "",
+      }),
+      cardOgImagePath("abc", "2026-01-02T03:04:05.000Z"),
+    );
+    const og = meta.openGraph.images?.[0];
+    assert.equal(typeof og, "object");
+    assert.equal(og && typeof og === "object" && "type" in og ? og.type : "", "image/png");
+    const twitter = meta.twitter.images?.[0];
+    assert.equal(typeof twitter, "object");
+    assert.equal(
+      twitter && typeof twitter === "object" && "alt" in twitter ? twitter.alt : "",
+      "Card on Slabhold",
     );
   });
 });

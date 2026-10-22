@@ -14,6 +14,7 @@ import {
   homeShareImage,
   mailDayPhotoUrls,
   postShareImage,
+  scrubPublicText,
 } from "./share-image";
 
 const SUPABASE_ORIGIN = "https://project.supabase.co";
@@ -278,6 +279,18 @@ describe("post and mail day share images", () => {
     assert.equal(packed.includes("card.jpg"), false);
   });
 
+  it("shortens a combining stack and keeps the words after it", () => {
+    const stacked = scrubPublicText(`Z${"\u0302".repeat(990)} after`, 280);
+    assert.match(stacked, /^Z/);
+    assert.match(stacked, /after/);
+    assert.ok(stacked.length <= 280);
+
+    const marked = scrubPublicText(`Hi é${"\u0301".repeat(300)} there`, 280);
+    assert.match(marked, /there/);
+    assert.match(marked, /^Hi /);
+    assert.ok(marked.length <= 280);
+  });
+
   it("keeps a run of family emoji whole in the title", () => {
     const family = "👨‍👩‍👧‍👦";
     const image = postShareImage({
@@ -378,6 +391,24 @@ describe("share image renderer", () => {
       salesCount: 42,
     });
     const response = await renderOg(image);
+    assert.equal(response.headers.get("content-type"), "image/png");
+    const bytes = Buffer.from(await response.arrayBuffer());
+    assert.equal(bytes[0], 0x89);
+    assert.equal(bytes[1], 0x50);
+    assert.ok(bytes.length > 1000);
+  });
+
+  it("renders a post whose body is Arabic instead of crashing", async () => {
+    const route = readFileSync(join(process.cwd(), "app/posts/[id]/opengraph-image.tsx"), "utf8");
+    assert.match(route, /return renderOg\(/);
+    const response = await renderOg(
+      postShareImage({
+        found: true,
+        body: "Hello مرحبا بالعالم",
+        authorName: "Donnie",
+        authorHandle: "donnietaz",
+      }),
+    );
     assert.equal(response.headers.get("content-type"), "image/png");
     const bytes = Buffer.from(await response.arrayBuffer());
     assert.equal(bytes[0], 0x89);
