@@ -19,6 +19,11 @@ import {
 } from "@/lib/save/attempt";
 import { removeUploadedMedia, uploadMedia } from "@/lib/supabase/media";
 import type { ConditionType, SportsCard } from "@/lib/types";
+import {
+  offersColumnMissing,
+  readOpenToOffers,
+  withOpenToOffersColumn,
+} from "@/lib/offers/open-to-offers";
 import type { OwnedCard } from "./types";
 
 export type CardRow = {
@@ -57,6 +62,7 @@ export type CardRow = {
   grader?: string | null;
   grade_qualifier?: string | null;
   cert_number?: string | null;
+  open_to_offers?: boolean | null;
 };
 
 function inferConditionType(
@@ -123,6 +129,7 @@ export function mapCardRow(row: CardRow): SportsCard {
         ? row.category
         : undefined,
     isPublic: Boolean(row.is_public),
+    openToOffers: readOpenToOffers(row),
     createdAt: row.created_at,
     updatedAt: row.updated_at ?? row.created_at,
   };
@@ -184,6 +191,7 @@ export function mapPublicCard(
         : undefined,
     grader: grader || undefined,
     purchasePrice: null,
+    openToOffers: readOpenToOffers(row),
   };
 }
 
@@ -313,7 +321,7 @@ async function writeUserCard(
   };
 
   try {
-    await writeCardRows(supabase, extended, base, category, signal);
+    await writeCardRows(supabase, extended, base, category, card, signal);
   } catch (error) {
     if (signal.aborted || isSaveTimeout(error)) throw new SaveTimeoutError(uploaded.url);
     if (createdPath) await removeUploadedMedia(supabase, "card-photos", createdPath);
@@ -326,9 +334,18 @@ async function writeCardRows(
   extended: Record<string, unknown>,
   base: Record<string, unknown>,
   category: string,
+  card: { isPublic?: boolean | null; openToOffers?: boolean | null },
   signal: AbortSignal,
 ) {
-  const full = await supabase.from("cards").upsert(extended);
+  const withOffer = withOpenToOffersColumn(extended, card);
+  let full = await supabase.from("cards").upsert(withOffer);
+  if (
+    full.error &&
+    withOffer !== extended &&
+    offersColumnMissing(full.error)
+  ) {
+    full = await supabase.from("cards").upsert(extended);
+  }
   if (!full.error) return;
   if (missingColumnError(full.error)) {
     // Fallback if migration not applied yet

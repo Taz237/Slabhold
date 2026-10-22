@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { AtSign, Bell, Heart, MessageCircle, Quote, Repeat2, Star, UserPlus } from "lucide-react";
 import { Avatar } from "@/components/avatar";
+import { WantAlertOfferLink } from "@/components/open-to-offers";
 import { solidButton } from "@/components/button-styles";
 import { PullToRefresh } from "@/components/pull-to-refresh";
 import { EmptyState, LoadingRows } from "@/components/status";
@@ -102,12 +103,10 @@ export function NotificationsView() {
             const faces = group.actorIds.slice(0, 2);
             const highlighted = groupStaysHighlighted(group, savedUnreadIds);
             return (
-              <li key={group.key}>
+              <li key={group.key} className={highlighted ? "bg-sky-500/15 dark:bg-sky-400/15" : undefined}>
                 <Link
                   href={href}
-                  className={`relative flex w-full min-w-0 items-start gap-3 px-4 py-3 ${
-                    highlighted ? "bg-sky-500/15 dark:bg-sky-400/15" : ""
-                  }`}
+                  className="relative flex w-full min-w-0 items-start gap-3 px-4 py-3"
                 >
                   {highlighted ? (
                     <span
@@ -164,6 +163,9 @@ export function NotificationsView() {
                   </span>
                   <Icon className="mt-1 h-4 w-4 shrink-0 text-zinc-400" />
                 </Link>
+                {group.kind === "want_alert" ? (
+                  <WantAlertOfferLink metadata={group.notes[0]?.metadata} />
+                ) : null}
               </li>
             );
           })}

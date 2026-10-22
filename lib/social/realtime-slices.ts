@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { mapDirectMessage, messageListColumns, noteMessageListResult } from "@/lib/offers/open-to-offers";
 import { applyAuthorSafety, loadHiddenAuthorIds } from "@/lib/safety/filters";
 import { isUuid } from "@/lib/value/card-value-access";
 import type { RealtimePatch, RealtimeSlice } from "./realtime-sync";
@@ -46,14 +47,16 @@ function mapNotification(row: Row): Notification {
 }
 
 function mapMessage(row: Row): DirectMessage {
-  return {
+  return mapDirectMessage({
     id: String(row.id),
-    senderId: String(row.sender_id),
-    receiverId: String(row.receiver_id),
-    content: String(row.content ?? ""),
-    createdAt: String(row.created_at),
+    sender_id: String(row.sender_id),
+    receiver_id: String(row.receiver_id),
+    content: typeof row.content === "string" ? row.content : "",
+    created_at: String(row.created_at),
     read: row.read === true,
-  };
+    kind: typeof row.kind === "string" ? row.kind : null,
+    card_preview: row.card_preview,
+  });
 }
 
 function mapComment(row: Row): PostComment {
@@ -126,25 +129,35 @@ export async function loadRealtimePatch(
   }
   if (messages && viewerId) {
     tasks.push(
-      rowsOf(
-        applyAuthorSafety(
+      (async () => {
+        const run = (columns: string) =>
           applyAuthorSafety(
-            supabase
-              .from("messages")
-              .select("id, sender_id, receiver_id, content, created_at, read")
-              .or(`sender_id.eq.${viewerId},receiver_id.eq.${viewerId}`)
-              .order("created_at", { ascending: true }),
+            applyAuthorSafety(
+              supabase
+                .from("messages")
+                .select(columns)
+                .or(`sender_id.eq.${viewerId},receiver_id.eq.${viewerId}`)
+                .order("created_at", { ascending: true }),
+              viewerId,
+              blockedHidden,
+              { authorColumn: "sender_id" },
+            ),
             viewerId,
             blockedHidden,
-            { authorColumn: "sender_id" },
-          ),
-          viewerId,
-          blockedHidden,
-          { authorColumn: "receiver_id" },
-        ),
-      ).then((rows) => {
+            { authorColumn: "receiver_id" },
+          );
+        let result = await run(messageListColumns());
+        if (noteMessageListResult(result.error) === "retry") result = await run(messageListColumns());
+        if (result.error) {
+          if (missingTable(result.error)) {
+            patch.messages = [];
+            return;
+          }
+          throw new Error(result.error.message);
+        }
+        const rows = Array.isArray(result.data) ? (result.data as unknown as Row[]) : [];
         patch.messages = rows.map(mapMessage);
-      }),
+      })(),
     );
   }
   if (comments && postId) {

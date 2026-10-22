@@ -84,6 +84,7 @@ export async function notifyOwnedPost(
       actorUsername: username,
       label: wantShortLabel(card),
       href: `/posts/${postId}`,
+      openToOffers: await ownerOpenToOffers(admin, card.id, actorId),
     },
     db,
   );
@@ -118,6 +119,7 @@ export async function notifyOwnedListing(
       actorUsername: username,
       label: wantShortLabel(card),
       href,
+      openToOffers: card.openToOffers === true,
     },
     db,
   );
@@ -247,9 +249,31 @@ export async function notifyMailDayPost(input: {
       cardIsPublic: input.card.isPublic,
       cardValue,
       fairLow,
+      openToOffers: await ownerOpenToOffers(
+        createSupabaseAdmin(),
+        input.card.id,
+        input.actorId,
+      ),
     },
     db,
   );
+}
+
+/** False when the column is missing, the card is private, or it is not this owner's. */
+async function ownerOpenToOffers(
+  admin: ReturnType<typeof createSupabaseAdmin>,
+  cardId: string | null | undefined,
+  actorId: string,
+): Promise<boolean> {
+  if (!admin || !cardId) return false;
+  const { data, error } = await admin
+    .from("cards")
+    .select("user_id, is_public, open_to_offers")
+    .eq("id", cardId)
+    .maybeSingle();
+  if (error || !data) return false;
+  if (data.user_id !== actorId || data.is_public !== true) return false;
+  return data.open_to_offers === true;
 }
 
 /** Followers who want this card. Null when the card is not the actor's. */

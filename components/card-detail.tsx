@@ -32,6 +32,7 @@ import { EmptyPriceNote } from "@/components/ebay-sold-link";
 import { FairPriceCheck } from "@/components/fair-price-check";
 import { useSocial } from "@/components/social-provider";
 import { loginPath } from "@/lib/auth/safe-next";
+import { publicTogglePatch } from "@/lib/offers/open-to-offers";
 import { cardCategory } from "@/lib/card-category";
 import {
   dismissFirstCardPrivacyInBrowser,
@@ -437,7 +438,7 @@ export function CardDetail({ id }: { id: string }) {
           <button
             type="button"
             onClick={() => {
-              updateCard(card.id, { isPublic: !card.isPublic });
+              updateCard(card.id, publicTogglePatch(card, !card.isPublic));
               if (!card.isPublic) dismissPrivacyNudge();
             }}
             className={`rounded-full px-3 py-1 text-xs font-semibold ${

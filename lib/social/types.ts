@@ -31,6 +31,8 @@ export type PublicCard = {
   purchasePrice?: number | null;
   /** From public_cards.is_rookie. Absent until that row is loaded. */
   isRookie?: boolean;
+  /** Null when public_cards has no open_to_offers column yet. */
+  openToOffers?: boolean | null;
 };
 
 export type OwnedCard = PublicCard & { ownerId: string };
@@ -120,6 +122,11 @@ export type Notification = {
   read: boolean;
 };
 
+/** Card id attached to a DM. Player, photo, estimate, and link are read live. */
+export type CardMessagePreview = {
+  cardId: string;
+};
+
 export type DirectMessage = {
   id: string;
   senderId: string;
@@ -127,6 +134,8 @@ export type DirectMessage = {
   content: string;
   createdAt: string;
   read: boolean;
+  kind?: "text" | "card_preview";
+  cardPreview?: CardMessagePreview | null;
 };
 
 export type SocialSnapshot = {

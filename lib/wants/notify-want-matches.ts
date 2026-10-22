@@ -1,4 +1,5 @@
 import { money } from "@/lib/format";
+import { openOfferAlert, withOpenOfferPreview } from "@/lib/offers/open-to-offers";
 import { canNotify, type SafetyRelations } from "@/lib/safety/can-notify";
 import { effectiveTarget, targetFlag } from "./effective-target";
 import { newYorkDayStartIso } from "./ny-day";
@@ -94,6 +95,8 @@ export type WantMatchEvent = {
   /** Public Mail Day cards can compare a stored value to the target. */
   cardIsPublic?: boolean;
   cardValue?: number | null;
+  /** True only when this owner's public card is open to offers. */
+  openToOffers?: boolean | null;
   now?: Date;
 };
 
@@ -153,6 +156,10 @@ export type WantAlertDb = {
 };
 
 export function wantAlertPreview(event: WantMatchEvent, want: WantRow): string {
+  return withOpenOfferPreview(wantAlertPreviewBody(event, want), event);
+}
+
+function wantAlertPreviewBody(event: WantMatchEvent, want: WantRow): string {
   const target = effectiveTarget(want.targetPrice, event.fairLow);
   if (event.sourceType === "sale") {
     const sold = `${event.label} sold for ${money(event.price ?? 0)}`;
@@ -298,13 +305,20 @@ export async function notifyWantMatches(
       href = await db.hrefFor(want, event);
     }
 
+    const metadata = wantAlertMetadata(event, want);
+    const offer = openOfferAlert(event);
+    if (offer) {
+      metadata.open_to_offers = true;
+      metadata.message_owner_href = offer.href;
+    }
+
     const notification: WantNotificationInsert = {
       recipientId: want.userId,
       actorId: event.actorId,
       postId: event.sourceType === "post" ? event.sourceId : null,
       preview: wantAlertPreview(event, want),
       href,
-      metadata: wantAlertMetadata(event, want),
+      metadata,
     };
 
     let noteId: string | null = null;

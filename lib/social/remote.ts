@@ -5,11 +5,19 @@ import { EMAIL_NOT_CONFIRMED, isEmailNotConfirmed } from "@/lib/auth/signup-fiel
 import { uploadMedia } from "@/lib/supabase/media";
 import { sanitizeAttachedCard } from "./card-posts";
 import { loadMailDayViews } from "./mail-day";
+import {
+  mapDirectMessage,
+  messageListColumns,
+  noteMessageListResult,
+  offerSendError,
+  offersColumnMissing,
+  parseCardPreview,
+} from "@/lib/offers/open-to-offers";
 import { mapPublicCard } from "./cards";
 import type {
   AuthResult,
+  CardMessagePreview,
   FollowEdge,
-  DirectMessage,
   Notification,
   NotificationKind,
   MailDayCardView,
@@ -105,6 +113,8 @@ type MessageRow = {
   content: string;
   created_at: string;
   read: boolean;
+  kind?: string | null;
+  card_preview?: unknown;
 };
 
 /** Row from public.public_cards — no paid_price / purchase_date / notes / cert_number. */
@@ -230,9 +240,17 @@ export async function loadSupabaseSocial(supabase: SupabaseClient): Promise<Soci
     options?: Parameters<typeof applyAuthorSafety>[3],
   ) => applyAuthorSafety(query, viewerId, ids, options);
 
-  let messagesQuery = supabase.from("messages").select("*").order("created_at", { ascending: true });
-  messagesQuery = guard(messagesQuery, blockedHidden, { authorColumn: "sender_id" });
-  messagesQuery = guard(messagesQuery, blockedHidden, { authorColumn: "receiver_id" });
+  const loadMessages = async () => {
+    const run = (columns: string) => {
+      let query = supabase.from("messages").select(columns).order("created_at", { ascending: true });
+      query = guard(query, blockedHidden, { authorColumn: "sender_id" });
+      query = guard(query, blockedHidden, { authorColumn: "receiver_id" });
+      return query;
+    };
+    const first = await run(messageListColumns());
+    if (noteMessageListResult(first.error) === "retry") return run(messageListColumns());
+    return first;
+  };
 
   const [profilesRes, postsRes, homePostsRes, followsRes, cardsRes, commentsRes, notificationsRes, messagesRes, repostsRes, homeRepostsRes, myBlocksRes, myMutesRes] =
     await Promise.all([
@@ -262,7 +280,7 @@ export async function loadSupabaseSocial(supabase: SupabaseClient): Promise<Soci
         mutedHidden,
         { authorColumn: "actor_id", mute: true, keepNullAuthor: true },
       ),
-      messagesQuery,
+      loadMessages(),
       guard(
         supabase.from("reposts").select("*").order("created_at", { ascending: false }),
         blockedHidden,
@@ -401,16 +419,7 @@ export async function loadSupabaseSocial(supabase: SupabaseClient): Promise<Soci
       read: row.read,
     }),
   );
-  const messages = ((messagesRes.data ?? []) as MessageRow[]).map(
-    (row): DirectMessage => ({
-      id: row.id,
-      senderId: row.sender_id,
-      receiverId: row.receiver_id,
-      content: row.content,
-      createdAt: row.created_at,
-      read: row.read,
-    }),
-  );
+  const messages = ((messagesRes.data ?? []) as unknown as MessageRow[]).map((row) => mapDirectMessage(row));
   const homePosts = await mapPostRows(
     supabase,
     (homePostsRes.data ?? []) as PostRow[],
@@ -771,25 +780,54 @@ export async function remoteSendMessage(
   senderId: string,
   receiverId: string,
   content: string,
+  preview?: CardMessagePreview | null,
 ): Promise<AuthResult> {
   const text = content.trim().slice(0, MESSAGE_LIMIT);
-  if (!text) return { error: "Write a message." };
-  if (senderId === receiverId) return { error: "You can't message yourself." };
-  if (await supabaseSafety(supabase).isBlocked(senderId, receiverId)) {
-    return { error: BLOCKED_INTERACTION };
-  }
-  const { error } = await supabase.from("messages").insert({
+  const cardPreview = preview ? parseCardPreview(preview) : null;
+  if (!text && !cardPreview) return { error: "Write a message." };
+  const muted = cardPreview ? await senderMuted(supabase, senderId, receiverId) : false;
+  const blocked = await supabaseSafety(supabase).isBlocked(senderId, receiverId);
+  const refused = offerSendError({
+    senderId,
+    receiverId,
+    blocked,
+    muted,
+    preview: cardPreview,
+  });
+  if (refused) return { error: refused };
+  const row: Record<string, unknown> = {
     sender_id: senderId,
     receiver_id: receiverId,
     content: text,
-  });
+  };
+  if (cardPreview) {
+    row.kind = "card_preview";
+    row.card_preview = { cardId: cardPreview.cardId };
+  }
+  const { error } = await supabase.from("messages").insert(row);
   if (error) {
-    if (missingTable(error)) {
-      return { error: SETUP_FAILED };
+    if (missingTable(error)) return { error: SETUP_FAILED };
+    if (cardPreview && offersColumnMissing(error)) {
+      return { error: "Card previews aren't available yet." };
     }
     return { error: rlsBlocked(error) ? BLOCKED_INTERACTION : error.message };
   }
   return {};
+}
+
+async function senderMuted(
+  supabase: SupabaseClient,
+  senderId: string,
+  receiverId: string,
+): Promise<boolean> {
+  const { data, error } = await supabase
+    .from("mutes")
+    .select("muted_id")
+    .eq("muter_id", senderId)
+    .eq("muted_id", receiverId)
+    .maybeSingle();
+  if (error) return false;
+  return Boolean(data);
 }
 
 export async function remoteMarkThreadRead(

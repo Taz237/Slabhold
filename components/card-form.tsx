@@ -56,7 +56,9 @@ import {
   textLooksRookie,
 } from "@/lib/social/mail-day";
 import { identifyFromPhoto } from "@/lib/comps/sample";
+import { OpenToOffersToggle } from "@/components/open-to-offers";
 import { cardCategory } from "@/lib/card-category";
+import { showOpenToOffersToggle } from "@/lib/offers/open-to-offers";
 import { parseManualPrefill } from "@/lib/card-search-query";
 import { hasPaid } from "@/lib/format";
 import { formatCardValueLabel, marketValueSummary } from "@/lib/value/format";
@@ -130,6 +132,8 @@ export function CardForm({
 
   const [sold, setSold] = useState(Boolean(existing?.sellPrice));
   const [share, setShare] = useState(Boolean(existing?.isPublic));
+  const offersKnown = existing?.openToOffers != null;
+  const [openToOffers, setOpenToOffers] = useState(existing?.openToOffers === true);
   const [category, setCategory] = useState<CardCategory>(
     existing ? cardCategory(existing) : "pc",
   );
@@ -484,6 +488,7 @@ export function CardForm({
       accent: existing?.accent ?? accent,
       category,
       isPublic: share,
+      ...(offersKnown ? { openToOffers: Boolean(share && openToOffers) } : {}),
     };
 
     setSaving(true);
@@ -1012,7 +1017,10 @@ export function CardForm({
             <input
               type="checkbox"
               checked={share}
-              onChange={(e) => setShare(e.target.checked)}
+              onChange={(e) => {
+                setShare(e.target.checked);
+                if (!e.target.checked) setOpenToOffers(false);
+              }}
               className="size-5 accent-violet-500"
             />
           </CheckHit>
@@ -1022,6 +1030,17 @@ export function CardForm({
           Cards are private by default. You can show them on your profile.
         </p>
       </div>
+
+      <OpenToOffersToggle
+        visible={showOpenToOffersToggle({
+          isEdit: Boolean(existing),
+          isOwner: true,
+          isPublic: share,
+          columnKnown: offersKnown,
+        })}
+        checked={openToOffers}
+        onChange={setOpenToOffers}
+      />
 
       {sold && (
         <div className="grid grid-cols-2 gap-3">
