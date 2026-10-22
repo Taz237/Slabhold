@@ -28,7 +28,7 @@ export function LandingPage() {
           The social home for sports card collectors.
         </h1>
         <p className="mt-3 max-w-sm text-[15px] leading-6 text-zinc-400">
-          Track your slabs, see real sold prices, post your mail days, and follow collectors.
+          Track your slabs, see real sold prices, post your pickups, and follow collectors.
         </p>
 
         <Suspense fallback={<LandingActions next="/" />}>

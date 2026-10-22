@@ -204,13 +204,11 @@ describe("signup form wiring", () => {
   });
 
   it("sends a protected deep link to log in with an encoded next", () => {
-    assert.equal(loginPath("/mail-day"), "/login?next=%2Fmail-day");
+    assert.equal(loginPath("/cards/new"), "/login?next=%2Fcards%2Fnew");
     assert.equal(loginPath("/collection"), "/login?next=%2Fcollection");
     const shell = read("components/app-shell.tsx");
-    const page = read("app/mail-day/page.tsx");
     assert.match(shell, /router\.replace\(loginPath\(path\)\)/);
     assert.doesNotMatch(shell, /signupPath\(path\)/);
-    assert.match(page, /redirect\(loginPath\("\/mail-day"\)\)/);
-    assert.doesNotMatch(page, /\/signup\?next=\/mail-day/);
+    assert.doesNotMatch(shell, /loginPath\("\/mail-day"\)/);
   });
 });

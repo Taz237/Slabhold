@@ -12,7 +12,7 @@ function pathOnly(pathname: string): string {
  * Account:
  * /collection, /portfolio,
  * /cards/new, /cards/:id, /cards/:id/edit,
- * /compose, /scan, /mail-day,
+ * /compose, /scan,
  * /messages, /messages/:username,
  * /notifications, /more,
  * /profile, /profile/followers, /profile/following,
@@ -24,7 +24,6 @@ const ACCOUNT_EXACT = new Set([
   "/cards/new",
   "/compose",
   "/scan",
-  "/mail-day",
   "/messages",
   "/notifications",
   "/more",
@@ -83,6 +82,11 @@ function isAccountPath(path: string): boolean {
 
 function isPublicPath(path: string): boolean {
   if (PUBLIC_EXACT.has(path)) return true;
+  // Retired composer. next.config sends /mail-day to /cards/new before this
+  // app runs. Keeping the path public means a signed-out visit is not the
+  // branded 404 (unknown) and is not sent to log in with next=/mail-day.
+  // /cards/new is the account page, so login returns them there.
+  if (path === "/mail-day" || path.startsWith("/mail-day/")) return true;
   if (/^\/posts\/[^/]+$/.test(path)) return true;
   if (/^\/u\/[^/]+$/.test(path)) return true;
   if (/^\/u\/[^/]+\/(?:followers|following)$/.test(path)) return true;

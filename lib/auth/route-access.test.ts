@@ -44,7 +44,6 @@ describe("route access", () => {
       `/cards/${CARD}/edit`,
       "/compose",
       "/scan",
-      "/mail-day",
       "/messages",
       "/messages/maya",
       "/notifications",
@@ -77,6 +76,27 @@ describe("route access", () => {
       assert.equal(routeAccess(path), "unknown", path);
       assert.equal(requiresAccount(path), false, path);
     }
+  });
+
+  it("sends retired Mail Day links to Add card instead of a 404", () => {
+    for (const path of ["/mail-day", "/mail-day/", "/mail-day/extra", "/mail-day/a/b"]) {
+      assert.equal(routeAccess(path), "public", path);
+      assert.equal(requiresAccount(path), false, path);
+      assert.notEqual(routeAccess(path), "unknown", path);
+    }
+    assert.equal(routeAccess("/cards/new"), "account");
+    assert.equal(requiresAccount("/cards/new"), true);
+
+    const root = process.cwd();
+    const config = readFileSync(join(root, "next.config.ts"), "utf8");
+    const page = readFileSync(join(root, "app/mail-day/page.tsx"), "utf8");
+    assert.match(config, /source:\s*"\/mail-day"/);
+    assert.match(config, /source:\s*"\/mail-day\/:path\*"/);
+    assert.match(config, /destination:\s*"\/cards\/new"/);
+    assert.equal((config.match(/destination:\s*"\/cards\/new"/g) ?? []).length, 2);
+    assert.match(page, /redirect\("\/cards\/new"\)/);
+    assert.doesNotMatch(page, /MailDayForm/);
+    assert.doesNotMatch(page, /loginPath\("\/mail-day"\)/);
   });
 
   it("does not treat a public card's posts as an owner page", () => {
