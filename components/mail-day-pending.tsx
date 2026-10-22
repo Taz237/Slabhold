@@ -2,7 +2,7 @@ export function MailDayHeading() {
   return (
     <div>
       <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">Pickup</p>
-      <h1 className="mt-1 text-2xl font-bold tracking-tight">Mail Day</h1>
+      <h1 className="mt-1 text-2xl font-bold tracking-tight">Add a card</h1>
       <p className="mt-1 text-sm text-zinc-500">Add today&apos;s pickups</p>
     </div>
   );
@@ -26,7 +26,7 @@ export function MailDaySkeleton() {
 export function MailDayPending() {
   return (
     <div className="space-y-5" aria-busy="true" aria-live="polite">
-      <span className="sr-only">Loading Mail Day</span>
+      <span className="sr-only">Loading</span>
       <MailDayHeading />
       <MailDaySkeleton />
     </div>

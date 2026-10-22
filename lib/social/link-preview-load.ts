@@ -206,7 +206,6 @@ export const loadPostPreview = cache(async (id: string): Promise<LinkPreview> =>
   let mailDayTitle: string | null = null;
   if (data.post_type === "mail_day") {
     const ids = linkedCardIds(data.card, data.meta);
-    mailDayTitle = "Mail Day";
     if (ids.length) {
       const { data: rows } = await supabase
         .from("public_cards")

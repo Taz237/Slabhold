@@ -139,20 +139,37 @@ describe("post link previews", () => {
     });
     assert.equal(
       preview.title,
-      "J.J. McCarthy 2024 Panini Donruss Optic Preview Pink #303 | Mail Day on Slabhold",
+      "J.J. McCarthy 2024 Panini Donruss Optic Preview Pink #303 | Slabhold",
     );
     assert.equal(preview.description, preview.title);
     const meta = previewMetadata(preview);
     assert.equal(meta.title, preview.title);
     assert.equal(meta.openGraph.title, preview.title);
+    assert.equal(meta.twitter.title, preview.title);
 
     const hidden = postLinkPreview({
       found: true,
       body: "Just the caption",
-      mailDayTitle: "Mail Day",
     });
-    assert.equal(hidden.title, "Mail Day");
+    assert.equal(hidden.title, "Just the caption");
+    const hiddenMeta = previewMetadata(hidden);
+    assert.equal(hiddenMeta.title, "Just the caption · Slabhold");
+    assert.equal(hiddenMeta.openGraph.title, hidden.title);
+    assert.equal(hiddenMeta.twitter.title, hidden.title);
     assert.equal(JSON.stringify(hidden).includes("McCarthy"), false);
+    for (const value of [
+      preview.title,
+      meta.title,
+      meta.openGraph.title,
+      meta.twitter.title,
+      hidden.title,
+      hiddenMeta.title,
+      hiddenMeta.openGraph.title,
+      hiddenMeta.twitter.title,
+    ]) {
+      assert.equal(typeof value, "string");
+      assert.doesNotMatch(value, /Mail Day/i);
+    }
   });
 
   it("can use a public card photo when the post has no image", () => {

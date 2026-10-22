@@ -52,11 +52,10 @@ describe("mail day title and subtitle", () => {
     assert.equal(hyphen, spaced);
   });
 
-  it("builds the Mail Day Open Graph line from the card name", () => {
-    assert.equal(
-      mailDayOgTitle(mccarthy),
-      "J.J. McCarthy 2024 Donruss Optic Pink #303 | Mail Day on Slabhold",
-    );
+  it("builds the Open Graph line from the card name", () => {
+    const title = mailDayOgTitle(mccarthy);
+    assert.equal(title, "J.J. McCarthy 2024 Donruss Optic Pink #303 | Slabhold");
+    assert.doesNotMatch(title, /Mail Day/i);
     assert.equal(mailDayOgTitle({ playerName: "  " }), "");
   });
 
@@ -81,7 +80,15 @@ describe("mail day title and subtitle", () => {
         mailDay: { showValue: false },
         mailDayCards: [{ showValue: false, card: mccarthy }],
       }),
-      "Mail Day",
+      "Slabhold",
+    );
+    assert.doesNotMatch(
+      shareTitleForPost({
+        postType: "mail_day",
+        card: mccarthy,
+        mailDay: { showValue: false },
+      }),
+      /Mail Day/i,
     );
     assert.equal(shareTitleForPost({ card: mccarthy }), mailDayShareName(mccarthy));
     assert.equal(shareTitleForPost({}), "Slabhold");

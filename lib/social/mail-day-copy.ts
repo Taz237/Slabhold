@@ -56,7 +56,7 @@ export function mailDayShareName(card: MailDayNameCard): string {
 export function mailDayOgTitle(card: MailDayNameCard): string {
   const name = mailDayShareName(card);
   if (!name) return "";
-  return `${name} | Mail Day on Slabhold`;
+  return `${name} | Slabhold`;
 }
 
 /** One card uses the full-width hero. Two or more keep the grid. */
@@ -83,7 +83,7 @@ export function shareTitleForPost(post: SharePost): string {
           : [];
     const name = mailDayShareName(views[0]?.card ?? {});
     if (name) return name;
-    return "Mail Day";
+    return "Slabhold";
   }
   if (post.card) {
     const name = mailDayShareName(post.card);

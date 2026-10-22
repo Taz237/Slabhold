@@ -22,9 +22,9 @@ export default function PrivacyPolicyPage() {
       <p>
         A card stays off your public profile unless you turn on &quot;Show this card on your public
         profile.&quot; Private cards and their photos stay off your public profile and card share
-        links. If you include a private card in a Mail Day post, its name and the photos you attach
-        show on that post. What you paid is optional. It is not shown on your public card. On a
-        mail-day post it shows only if you choose, and never when the card is private.
+        links. If you include a private card in a post, its name and the photos you attach
+        show on that post. What you paid is optional. It is not shown on your public card. On that
+        post it shows only if you choose, and never when the card is private.
       </p>
       <p>We don&apos;t sell your data.</p>
       <h2 className="pt-2 text-lg font-bold tracking-tight">Services we use</h2>
