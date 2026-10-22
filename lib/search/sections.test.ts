@@ -20,6 +20,7 @@ import {
   popularCatalogPlayers,
   recentPlayerNames,
   searchEmptyTitle,
+  showSearchMissLink,
   suggestedSearchPlayers,
   visibleSearchSections,
 } from "./sections";
@@ -30,20 +31,63 @@ function read(path: string) {
 
 describe("search sections", () => {
   it("names a section only when that section has results", () => {
-    assert.deepEqual(visibleSearchSections({ people: 0, posts: 2, cards: 0 }), ["Posts"]);
-    assert.deepEqual(visibleSearchSections({ people: 1, posts: 0, cards: 3 }), ["People", "Cards"]);
-    assert.deepEqual(visibleSearchSections({ people: 0, posts: 0, cards: 0 }), []);
-    assert.deepEqual(visibleSearchSections({ people: 4, posts: 1, cards: 1 }), [
+    assert.deepEqual(visibleSearchSections({ people: 0, posts: 2, catalog: 0, myCards: 0 }), ["Posts"]);
+    assert.deepEqual(visibleSearchSections({ people: 1, posts: 0, catalog: 3, myCards: 0 }), [
+      "Cards",
+      "People",
+    ]);
+    assert.deepEqual(visibleSearchSections({ people: 0, posts: 0, catalog: 0, myCards: 2 }), [
+      "My cards",
+    ]);
+    assert.deepEqual(visibleSearchSections({ people: 0, posts: 0, catalog: 0, myCards: 0 }), []);
+    assert.deepEqual(visibleSearchSections({ people: 4, posts: 1, catalog: 1, myCards: 1 }), [
+      "Cards",
+      "My cards",
       "People",
       "Posts",
-      "Cards",
     ]);
   });
 
   it("uses one empty state when nothing matches", () => {
     assert.equal(searchEmptyTitle("xyz"), 'No results for "xyz"');
     assert.equal(searchEmptyTitle("  wemby  "), 'No results for "wemby"');
-    assert.equal(visibleSearchSections({ people: 0, posts: 0, cards: 0 }).length === 0, true);
+    assert.equal(
+      visibleSearchSections({ people: 0, posts: 0, catalog: 0, myCards: 0 }).length === 0,
+      true,
+    );
+    assert.equal(
+      showSearchMissLink({
+        query: "zzz",
+        catalogLoading: false,
+        people: 0,
+        posts: 0,
+        catalog: 0,
+        myCards: 0,
+      }),
+      true,
+    );
+    assert.equal(
+      showSearchMissLink({
+        query: "bucky",
+        catalogLoading: false,
+        people: 0,
+        posts: 0,
+        catalog: 1,
+        myCards: 0,
+      }),
+      false,
+    );
+    assert.equal(
+      showSearchMissLink({
+        query: "bucky",
+        catalogLoading: true,
+        people: 0,
+        posts: 0,
+        catalog: 0,
+        myCards: 0,
+      }),
+      false,
+    );
   });
 
   it("puts the search field above intro copy and hides empty section headings", () => {
@@ -69,6 +113,9 @@ describe("search sections", () => {
     assert.match(view, /suggestedSearchPlayers\(/);
     assert.match(view, /SEARCH_ADD_CARD_LABEL/);
     assert.match(view, /addCardSearchHref\(typed\)/);
+    assert.match(view, /showSearchMissLink\(/);
+    assert.match(view, /searchCatalogRemote/);
+    assert.match(view, />My cards</);
     assert.equal(SEARCH_IDLE_DETAIL, "Find people, posts, and cards.");
     assert.equal(SEARCH_ADD_CARD_LABEL, "Not seeing your card? Add it");
     assert.match(page, /aria-label="Search"/);
@@ -172,7 +219,7 @@ describe("search sections", () => {
     assert.equal(addCardQuery("Jaxson Dart"), "Jaxson Dart");
     const page = read("app/cards/new/page.tsx");
     assert.match(page, /addCardQuery\(/);
-    assert.match(page, /<CardForm initialQuery=\{initialQuery\} \/>/);
+    assert.match(page, /<CardForm initialQuery=\{initialQuery\} initialCatalog=\{initialCatalog\} \/>/);
   });
 });
 

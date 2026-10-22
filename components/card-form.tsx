@@ -14,6 +14,7 @@ import { sharePostFromCard, shareSessionStore, shareToFeedControl, writeSharedPo
 import { POST_LIMIT } from "@/lib/social/types";
 import { takeScan } from "@/lib/capture";
 import type { CatalogCard } from "@/lib/card-catalog";
+import { catalogPickFields } from "@/lib/catalog/catalog-pick";
 import {
   catalogPickStillMatches,
   shouldSubmitCatalogCard,
@@ -97,6 +98,7 @@ export function CardForm({
   onCancel,
   onSaved,
   initialQuery = "",
+  initialCatalog = null,
 }: {
   existing?: SportsCard;
   /** Inline on the card page: skip the extra title, keep the same save. */
@@ -105,7 +107,10 @@ export function CardForm({
   onSaved?: () => void;
   /** Search text to prefill when Add card was opened from a miss. */
   initialQuery?: string;
+  /** Catalog row chosen from Search. Same fields as picking it in Add card. */
+  initialCatalog?: CatalogCard | null;
 }) {
+  const catalogStart = !existing && initialCatalog ? catalogPickFields(initialCatalog, "") : null;
   const router = useRouter();
   const { addCard, updateCard, removeCard, cards, ready: cardsReady, syncError } = useCollection();
   const { mode, user, createPost } = useSocial();
@@ -119,7 +124,7 @@ export function CardForm({
   const formRef = useRef<HTMLFormElement>(null);
   const savingRef = useRef(false);
   const pendingId = useRef<string | null>(existing?.id ?? null);
-  const catalogPick = useRef<CatalogPickSnapshot | null>(null);
+  const catalogPick = useRef<CatalogPickSnapshot | null>(catalogStart?.snapshot ?? null);
   const timedOutIds = useRef<Set<string>>(new Set());
   const [photo, setPhoto] = useState<string | null>(existing?.photoDataUrl ?? null);
   const [photoError, setPhotoError] = useState<string | null>(null);
@@ -160,35 +165,37 @@ export function CardForm({
   const [certNumber, setCertNumber] = useState(existing?.certNumber ?? "");
   const [noNumber, setNoNumber] = useState(Boolean(existing?.noNumber));
   const [setIsCustom, setSetIsCustom] = useState(
-    Boolean(existing?.setIsCustom),
+    Boolean(existing?.setIsCustom) || Boolean(catalogStart?.setIsCustom),
   );
   const [parallelIsCustom, setParallelIsCustom] = useState(
-    Boolean(existing?.parallelIsCustom),
+    Boolean(existing?.parallelIsCustom) || Boolean(catalogStart?.parallelIsCustom),
   );
   const [parallelNote, setParallelNote] = useState("");
-  const [sportOffer, setSportOffer] = useState("");
+  const [sportOffer, setSportOffer] = useState(catalogStart?.sportOffer ?? "");
   const [sportTouched, setSportTouched] = useState(Boolean(existing));
-  const [isRookie, setIsRookie] = useState(Boolean(existing?.isRookie));
+  const [isRookie, setIsRookie] = useState(
+    Boolean(existing?.isRookie) || Boolean(catalogStart?.isRookie),
+  );
   const [isAuto, setIsAuto] = useState(Boolean(existing?.isAuto));
   const [isRelic, setIsRelic] = useState(Boolean(existing?.isRelic));
   const [touched, setTouched] = useState<Record<string, boolean>>({});
 
   const manualPrefill =
-    !existing && initialQuery.trim() ? parseManualPrefill(initialQuery) : null;
+    !existing && !catalogStart && initialQuery.trim() ? parseManualPrefill(initialQuery) : null;
 
   const defaultYear = existing
     ? existing.yearLabel || String(existing.year)
-    : (manualPrefill?.yearLabel ?? "");
+    : (catalogStart?.form.yearLabel || manualPrefill?.yearLabel || "");
 
   const [form, setForm] = useState({
-    playerName: existing?.playerName ?? manualPrefill?.playerName ?? "",
+    playerName: catalogStart?.form.playerName ?? existing?.playerName ?? manualPrefill?.playerName ?? "",
     yearLabel: defaultYear,
-    setBrand: existing?.setBrand ?? "",
-    cardNumber: existing?.cardNumber ?? manualPrefill?.cardNumber ?? "",
-    parallel: existing?.parallel || "Base",
+    setBrand: existing?.setBrand ?? catalogStart?.form.setBrand ?? "",
+    cardNumber: existing?.cardNumber ?? catalogStart?.form.cardNumber ?? manualPrefill?.cardNumber ?? "",
+    parallel: existing?.parallel || catalogStart?.form.parallel || "Base",
     serialRun: existing?.serialRun != null ? String(existing.serialRun) : "",
     serialNo: existing?.serialNo != null ? String(existing.serialNo) : "",
-    sport: existing?.sport ?? "Basketball",
+    sport: existing?.sport ?? catalogStart?.form.sport ?? "Basketball",
     purchasePrice: hasPaid(existing) ? String(existing!.purchasePrice) : "",
     purchaseDate: existing ? (existing.purchaseDate ?? "") : todayDateInput(),
     estimatedSellPrice: estimateInputFromCard(existing?.estimatedSellPrice),
@@ -361,28 +368,18 @@ export function CardForm({
   }
 
   function applyCatalog(card: CatalogCard) {
-    const chosen = parallelChoice(card.setBrand, card.parallel || "Base");
+    const picked = catalogPickFields(card, sportTouched ? form.sport : "");
     const sport = sportAfterCatalogPick(sportTouched ? form.sport : "", card.sport);
     setSportOffer(sport.offer);
-    catalogPick.current = {
-      playerName: card.playerName,
-      yearLabel: card.yearLabel,
-      setBrand: card.setBrand,
-      cardNumber: card.cardNumber,
-      parallel: chosen.parallel,
-    };
+    catalogPick.current = picked.snapshot;
     setForm((prev) => ({
       ...prev,
-      playerName: card.playerName,
-      yearLabel: card.yearLabel,
-      setBrand: card.setBrand,
-      cardNumber: card.cardNumber,
+      ...picked.form,
       sport: sport.sport,
-      parallel: chosen.parallel,
     }));
     setIsRookie((current) => rookieAfterCatalogPick(current, card));
-    setSetIsCustom(!SETS.some((s) => s === card.setBrand));
-    setParallelIsCustom(chosen.parallelIsCustom);
+    setSetIsCustom(picked.setIsCustom);
+    setParallelIsCustom(picked.parallelIsCustom);
     setParallelNote("");
     setIdentified(null);
   }
