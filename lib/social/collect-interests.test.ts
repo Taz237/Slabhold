@@ -51,6 +51,87 @@ describe("interest typeahead", () => {
     assert.equal(interestTypeahead({ query: "pika", players }).length, 0);
     assert.equal(interestTypeahead({ query: "   ", players }).length, 0);
   });
+
+  it("collapses punctuation variants and keeps different sports apart", () => {
+    const stroud = interestTypeahead({
+      query: "stroud",
+      players: [
+        { name: "CJ Stroud", sport: "Football" },
+        { name: "C.J. Stroud", sport: "Football" },
+      ],
+      teams: [],
+    });
+    assert.deepEqual(
+      stroud.map((hit) => hit.value),
+      ["CJ Stroud"],
+    );
+    const reversed = interestTypeahead({
+      query: "stroud",
+      players: [
+        { name: "C.J. Stroud", sport: "Football" },
+        { name: "CJ Stroud", sport: "Football" },
+      ],
+      teams: [],
+    });
+    assert.deepEqual(
+      reversed.map((hit) => hit.value),
+      ["CJ Stroud"],
+    );
+    const majorityPlayers = [
+      ...Array.from({ length: 3 }, () => ({ name: "C.J. Stroud", sport: "Football" })),
+      ...Array.from({ length: 9 }, () => ({ name: "CJ Stroud", sport: "Football" })),
+    ];
+    for (const query of ["c.j. stroud", "C.J. Stroud", "c j stroud"]) {
+      const majority = interestTypeahead({
+        query,
+        players: majorityPlayers,
+        teams: [],
+      });
+      assert.deepEqual(
+        majority.map((hit) => hit.value),
+        ["CJ Stroud"],
+        query,
+      );
+    }
+    const crossed = [
+      { name: "Cameron Johnston", sport: "Football" },
+      { name: "Chandler Brayboy", sport: "Football" },
+      { name: "Brianna Turner", sport: "Basketball" },
+      { name: "CJ Stroud", sport: "Football" },
+    ];
+    for (const query of ["john st", "ray bo", "brian na"]) {
+      const hits = interestTypeahead({ query, players: crossed, teams: [] });
+      assert.deepEqual(
+        hits.map((hit) => hit.value),
+        [],
+        query,
+      );
+    }
+    const blank = interestTypeahead({
+      query: "stroud",
+      players: [
+        { name: "CJ Stroud", sport: "" },
+        { name: "C.J. Stroud", sport: "Football" },
+      ],
+      teams: [],
+    });
+    assert.deepEqual(
+      blank.map((hit) => `${hit.value}/${hit.sport}`).sort(),
+      ["C.J. Stroud/Football", "CJ Stroud/"],
+    );
+    const smiths = interestTypeahead({
+      query: "will smith",
+      players: [
+        { name: "Will Smith", sport: "Baseball" },
+        { name: "Will Smith", sport: "Hockey" },
+      ],
+      teams: [],
+    });
+    assert.deepEqual(
+      smiths.map((hit) => `${hit.value}/${hit.sport}`),
+      ["Will Smith/Baseball", "Will Smith/Hockey"],
+    );
+  });
 });
 
 describe("collect prompt", () => {

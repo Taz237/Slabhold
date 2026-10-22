@@ -6,6 +6,7 @@ import {
   searchCardsLocal,
   type SearchableCard,
 } from "@/lib/card-search-query";
+import { compactPlayerQueryMatches } from "@/lib/social/follow-rank";
 
 export type CatalogCard = {
   id: string;
@@ -81,7 +82,7 @@ const RAW: Array<{
   { playerName: "Joe Burrow", year: 2020, setBrand: "Panini Prizm", cardNumber: "307", sport: "Football", parallel: "Silver" },
   { playerName: "Josh Allen", year: 2018, setBrand: "Panini Prizm", cardNumber: "205", sport: "Football", parallel: "Silver" },
   { playerName: "Lamar Jackson", year: 2018, setBrand: "Panini Prizm", cardNumber: "212", sport: "Football", parallel: "Silver" },
-  { playerName: "C.J. Stroud", year: 2023, setBrand: "Panini Prizm", cardNumber: "339", sport: "Football", parallel: "Silver" },
+  { playerName: "CJ Stroud", year: 2023, setBrand: "Panini Prizm", cardNumber: "339", sport: "Football", parallel: "Silver" },
   { playerName: "Travis Hunter", year: 2025, setBrand: "Panini Prizm", cardNumber: "301", sport: "Football", parallel: "Silver", isRookie: true },
   { playerName: "Jaxson Dart", year: 2025, setBrand: "Panini Prizm", cardNumber: "332", sport: "Football", parallel: "Base", isRookie: true },
   { playerName: "Connor Bedard", year: 2023, setBrand: "Upper Deck", cardNumber: "201", sport: "Hockey", parallel: "Base" },
@@ -184,7 +185,11 @@ function cardsInRankOrder(
 
 /** Ranked local matches (typo/alias aware). Default 20 for Add Card. */
 export function searchCatalog(query: string, limit = 20): CatalogCard[] {
-  return cardsInRankOrder(query, CARD_CATALOG, limit);
+  const ranked = cardsInRankOrder(query, CARD_CATALOG, limit);
+  if (ranked.length > 0 || !query.trim()) return ranked;
+  const cap = Math.max(0, Math.floor(limit));
+  if (cap === 0) return [];
+  return CARD_CATALOG.filter((card) => compactPlayerQueryMatches(query, card.playerName)).slice(0, cap);
 }
 
 /**

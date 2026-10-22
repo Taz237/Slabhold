@@ -1,5 +1,11 @@
 import { collectSportBlocked, type InterestHit } from "@/lib/social/collect-interests";
-import { normInterest } from "@/lib/social/follow-rank";
+import {
+  compactInterest,
+  compactNorm,
+  majorityPlayerSpelling,
+  normInterest,
+  playerSportsCompatible,
+} from "@/lib/social/follow-rank";
 import { collapseInitials } from "./initials";
 import type { DirectoryPlayer } from "./types";
 
@@ -9,6 +15,7 @@ type SearchablePlayer = DirectoryPlayer & {
   norm?: string;
   words?: readonly string[];
   joined?: readonly string[];
+  compact?: string;
 };
 
 const SUFFIXES: Record<string, string> = {
@@ -177,30 +184,83 @@ function titleToken(token: string, wordIndex: number): string {
   return lower.charAt(0).toLocaleUpperCase() + lower.slice(1);
 }
 
+type NamePart = { kind: "letters"; text: string } | { kind: "sep"; text: string };
+
 /**
  * All-lowercase and all-uppercase names are title-cased.
  * Mixed case is kept. "mcbride" becomes "McBride".
+ * A pair of single letters separated by spaces becomes one initialism: "c j" → "CJ".
+ * Longer runs stay separate, so "a b c d" does not become "ABCD".
+ * Periods stay, so "c.j. stroud" is still "C.J. Stroud".
  */
 export function titleCasePlayerName(value: string): string {
   const collapsed = value.trim().replace(/\s+/g, " ");
   if (!collapsed || hasMixedCase(collapsed)) return collapsed;
-  let wordIndex = 0;
-  let result = "";
-  let token = "";
-  const flush = () => {
-    if (!token) return;
-    result += titleToken(token, wordIndex);
-    wordIndex += 1;
-    token = "";
+  const parts: NamePart[] = [];
+  let buf = "";
+  const pushLetters = () => {
+    if (!buf) return;
+    parts.push({ kind: "letters", text: buf });
+    buf = "";
   };
   for (const char of collapsed) {
-    if (/\p{L}/u.test(char)) token += char;
+    if (/\p{L}/u.test(char)) buf += char;
     else {
-      flush();
-      result += char;
+      pushLetters();
+      parts.push({ kind: "sep", text: char });
     }
   }
-  flush();
+  pushLetters();
+
+  let result = "";
+  let wordIndex = 0;
+  let index = 0;
+  while (index < parts.length) {
+    const part = parts[index];
+    if (!part) break;
+    if (part.kind === "sep") {
+      result += part.text;
+      index += 1;
+      continue;
+    }
+    if (part.text.length === 1) {
+      const prevSep = parts[index - 1];
+      const prevLetters = parts[index - 2];
+      const continuesRun =
+        prevSep?.kind === "sep" &&
+        prevSep.text === " " &&
+        prevLetters?.kind === "letters" &&
+        prevLetters.text.length === 1;
+      let end = index;
+      let run = "";
+      while (end < parts.length) {
+        const current = parts[end];
+        if (!current || current.kind !== "letters" || current.text.length !== 1) break;
+        run += current.text;
+        const sep = parts[end + 1];
+        const next = parts[end + 2];
+        if (
+          sep?.kind === "sep" &&
+          sep.text === " " &&
+          next?.kind === "letters" &&
+          next.text.length === 1
+        ) {
+          end += 2;
+          continue;
+        }
+        break;
+      }
+      if (!continuesRun && run.length === 2) {
+        result += run.toLocaleUpperCase();
+        wordIndex += 1;
+        index = end + 1;
+        continue;
+      }
+    }
+    result += titleToken(part.text, wordIndex);
+    wordIndex += 1;
+    index += 1;
+  }
   return result;
 }
 
@@ -284,6 +344,32 @@ export function nameSuggestionLabel(hit: NameSuggestion): string {
   return hit.custom ? `Add "${hit.value}"` : hit.value;
 }
 
+type SpellingBag = { catalog: string[]; directory: string[] };
+
+function absorbPlayer(
+  grouped: Map<string, NameSuggestion[]>,
+  spellings: Map<NameSuggestion, SpellingBag>,
+  hit: NameSuggestion,
+  key: string,
+  source: "catalog" | "directory",
+): boolean {
+  const list = grouped.get(key);
+  const existing = list?.find((item) => playerSportsCompatible(item.sport, hit.sport));
+  if (existing) {
+    const bag = spellings.get(existing);
+    if (bag) bag[source].push(hit.value);
+    const chosen = bag && bag.catalog.length > 0 ? bag.catalog : (bag?.directory ?? [hit.value]);
+    existing.value = majorityPlayerSpelling(chosen);
+    return true;
+  }
+  const bag: SpellingBag = { catalog: [], directory: [] };
+  bag[source].push(hit.value);
+  spellings.set(hit, bag);
+  if (list) list.push(hit);
+  else grouped.set(key, [hit]);
+  return false;
+}
+
 /** Full norm, or the joined-initial form ("c j stroud" and "cj stroud"). */
 function hiddenNameIsExact(
   norm: string,
@@ -301,7 +387,8 @@ function hiddenNameIsExact(
 
 /**
  * Catalog and remote hits stay in front. Directory players fill the rest,
- * one row per normalized name, so "Luka Doncic" does not repeat "Luka Dončić".
+ * one row per compact name and sport, so "CJ Stroud" does not repeat "C.J. Stroud".
+ * The catalog spelling is the one shown. A blank sport stays its own row.
  * An empty list becomes the custom-name chip once the directory has loaded.
  * A partial query that only missed because of a sport chip does not become Add.
  * An exact full name, dotted or joined, still offers Add. Only the name is stored.
@@ -321,15 +408,21 @@ export function withDirectoryPlayers(input: {
   const queryJoined = collapseInitials(queryWords);
   const queryJoinedNorm = queryJoined === queryWords ? queryNorm : queryJoined.join(" ");
   const sports = (input.sports ?? []).map((sport) => sport.toLowerCase()).filter(Boolean);
-  const catalog = input.catalogHits.slice(0, limit);
-  const taken = new Set(
-    catalog.filter((hit) => hit.kind === "player").map((hit) => normInterest(hit.value)),
-  );
+  const catalog: NameSuggestion[] = [];
+  const grouped = new Map<string, NameSuggestion[]>();
+  const spellings = new Map<NameSuggestion, SpellingBag>();
+  for (const hit of input.catalogHits.slice(0, limit)) {
+    const copy = { ...hit };
+    if (copy.kind === "player" && absorbPlayer(grouped, spellings, copy, compactInterest(copy.value), "catalog")) {
+      continue;
+    }
+    catalog.push(copy);
+  }
   const directoryHits: NameSuggestion[] = [];
   let hiddenPartial = false;
   let hiddenExact = false;
   if (catalog.length < limit) {
-    const matches: { player: SearchablePlayer; norm: string }[] = [];
+    const matches: { player: SearchablePlayer; norm: string; suggestion: NameSuggestion }[] = [];
     for (const player of input.directoryPlayers ?? []) {
       const norm = playerNorm(player);
       const words = player.words ?? norm.split(" ");
@@ -345,9 +438,14 @@ export function withDirectoryPlayers(input: {
         }
         continue;
       }
-      if (taken.has(norm)) continue;
-      taken.add(norm);
-      matches.push({ player, norm });
+      const compact = player.compact ?? compactNorm(norm);
+      const suggestion: NameSuggestion = {
+        kind: "player",
+        value: player.name,
+        sport: player.sport,
+      };
+      if (absorbPlayer(grouped, spellings, suggestion, compact, "directory")) continue;
+      matches.push({ player, norm, suggestion });
     }
     matches.sort((a, b) => {
       const aStart = a.norm.startsWith(queryNorm) ? 0 : 1;
@@ -357,11 +455,7 @@ export function withDirectoryPlayers(input: {
     });
     for (const match of matches) {
       if (catalog.length + directoryHits.length >= limit) break;
-      directoryHits.push({
-        kind: "player",
-        value: match.player.name,
-        sport: match.player.sport,
-      });
+      directoryHits.push(match.suggestion);
     }
   }
   const merged = [...catalog, ...directoryHits];

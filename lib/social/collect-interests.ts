@@ -1,6 +1,15 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { SPORT_PICKER_OPTIONS } from "../card-options";
-import { INTEREST_RANK_LIMIT, normInterest, type CollectInterest, type InterestKind } from "./follow-rank";
+import {
+  INTEREST_RANK_LIMIT,
+  compactInterest,
+  compactPlayerQueryMatches,
+  majorityPlayerSpelling,
+  normInterest,
+  playerSportsCompatible,
+  type CollectInterest,
+  type InterestKind,
+} from "./follow-rank";
 
 /** Sports the onboarding picker never offers. */
 const BLOCKED_SPORT = /pok[eé]mon|\btcg\b|magic|yu-?gi-?oh/i;
@@ -206,6 +215,7 @@ export function interestTypeahead(input: {
     (sports.length === 0 || sports.includes(sport.toLowerCase()));
   const hits: InterestHit[] = [];
   const seen = new Set<string>();
+  const playersByKey = new Map<string, { hit: InterestHit; names: string[] }[]>();
   for (const team of input.teams ?? COLLECT_TEAMS) {
     if (!allowed(team.sport)) continue;
     const norm = normInterest(team.name);
@@ -218,11 +228,20 @@ export function interestTypeahead(input: {
   for (const player of input.players) {
     if (!allowed(player.sport)) continue;
     const norm = normInterest(player.name);
-    if (!norm || !norm.includes(query)) continue;
-    const key = `player:${norm}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    hits.push({ kind: "player", value: player.name, sport: player.sport });
+    if (!norm || (!norm.includes(query) && !compactPlayerQueryMatches(input.query, player.name))) continue;
+    const key = compactInterest(player.name);
+    const group = playersByKey.get(key);
+    const existing = group?.find((item) => playerSportsCompatible(item.hit.sport, player.sport));
+    if (existing) {
+      existing.names.push(player.name);
+      existing.hit.value = majorityPlayerSpelling(existing.names);
+      continue;
+    }
+    const hit: InterestHit = { kind: "player", value: player.name, sport: player.sport };
+    const bucket = { hit, names: [player.name] };
+    if (group) group.push(bucket);
+    else playersByKey.set(key, [bucket]);
+    hits.push(hit);
   }
   hits.sort((a, b) => {
     const aStart = normInterest(a.value).startsWith(query) ? 0 : 1;

@@ -90,6 +90,84 @@ export function normInterest(value: string): string {
     .replace(/\s+/g, " ");
 }
 
+/** Already-normalized name with dots, spaces, hyphens, and apostrophes removed. */
+export function compactNorm(norm: string): string {
+  return norm.replace(/ /g, "");
+}
+
+/** "C.J. Stroud", "CJ Stroud", and "C J Stroud" share one key. Accents are ignored. */
+export function compactInterest(value: string): string {
+  return compactNorm(normInterest(value));
+}
+
+/**
+ * Compact match for a dotted or single-letter query, starting at a word.
+ * "c.j. stroud" and "c j stroud" match "CJ Stroud". "john st" does not match
+ * "Cameron Johnston", because that query is neither dotted nor single letters.
+ */
+export function compactPlayerQueryMatches(query: string, name: string): boolean {
+  const norm = normInterest(query);
+  if (!norm) return false;
+  const tokens = norm.split(" ");
+  if (!query.includes(".") && tokens.every((token) => token.length !== 1)) return false;
+  const q = compactNorm(norm);
+  if (!q) return false;
+  const words = normInterest(name).split(" ").filter(Boolean);
+  for (let start = 0; start < words.length; start += 1) {
+    let joined = "";
+    for (let index = start; index < words.length; index += 1) {
+      joined += words[index] ?? "";
+      if (joined.startsWith(q)) return true;
+      if (!q.startsWith(joined)) break;
+    }
+  }
+  return false;
+}
+
+/** Same sport only. A blank sport does not attach to Baseball or Hockey. */
+export function playerSportsCompatible(left: string, right: string): boolean {
+  return left.trim().toLowerCase() === right.trim().toLowerCase();
+}
+
+/**
+ * Tie-break when two spellings are equally common.
+ * Fewer punctuation marks, then code-point order. Argument order does not matter.
+ */
+export function preferPlayerSpelling(left: string, right: string): string {
+  const leftMarks = punctuationMarks(left);
+  const rightMarks = punctuationMarks(right);
+  if (leftMarks !== rightMarks) return leftMarks < rightMarks ? left : right;
+  if (left === right) return left;
+  return left < right ? left : right;
+}
+
+/** The spelling that appears most often. Ties use preferPlayerSpelling. */
+export function majorityPlayerSpelling(spellings: readonly string[]): string {
+  const counts = new Map<string, number>();
+  for (const spelling of spellings) {
+    counts.set(spelling, (counts.get(spelling) ?? 0) + 1);
+  }
+  let best: string | null = null;
+  let bestCount = -1;
+  for (const [spelling, count] of counts) {
+    if (best == null || count > bestCount) {
+      best = spelling;
+      bestCount = count;
+    } else if (count === bestCount) {
+      best = preferPlayerSpelling(best, spelling);
+    }
+  }
+  return best ?? "";
+}
+
+function punctuationMarks(value: string): number {
+  let count = 0;
+  for (const char of value) {
+    if (char === "." || char === "'" || char === "\u2019" || char === "-") count += 1;
+  }
+  return count;
+}
+
 /** Last name, dropping Jr./Sr./II/III/IV. "Victor Wembanyama" → "Wembanyama". */
 export function interestShortName(value: string): string {
   const tokens = value.trim().split(/\s+/).filter(Boolean);

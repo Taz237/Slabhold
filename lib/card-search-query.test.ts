@@ -179,6 +179,17 @@ describe("searchCatalog ranking", () => {
     assert.deepEqual(searchCatalog("zzqxv"), []);
   });
 
+  it("matches the CJ Stroud seed when the initials are dotted or spaced", () => {
+    for (const query of ["c.j. stroud", "c j stroud"]) {
+      const hits = searchCatalog(query);
+      assert.ok(hits.length > 0, query);
+      assert.ok(
+        hits.every((hit) => hit.playerName === "CJ Stroud"),
+        query,
+      );
+    }
+  });
+
   it("puts the player match ahead of the same year and set", () => {
     const hits = searchCatalog("Wembanyama 2023 Prizm");
     assert.ok(hits.length > 0);
@@ -195,7 +206,7 @@ describe("searchCatalog ranking", () => {
           hit.yearLabel.startsWith("2023"),
       ),
     );
-    assert.ok(hits.every((hit) => hit.playerName !== "C.J. Stroud"));
+    assert.ok(hits.every((hit) => hit.playerName !== "CJ Stroud"));
   });
 
   it("matches partial, case, and accent-insensitive player words", () => {
@@ -702,7 +713,7 @@ describe("search_cards rookie migration", () => {
 describe("resolveCatalogSearch before and after the migration", () => {
   it("re-ranks a loose remote list so the player match comes first", () => {
     const stroud = CARD_CATALOG.find(
-      (card) => card.playerName === "C.J. Stroud" && card.parallel === "Base",
+      (card) => card.playerName === "CJ Stroud" && card.parallel === "Base",
     );
     const select = CARD_CATALOG.find(
       (card) =>
