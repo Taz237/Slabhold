@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { FollowButton } from "@/components/follow-button";
 import { Avatar } from "@/components/avatar";
@@ -14,13 +14,18 @@ import {
 } from "@/components/collect-editor";
 import { useSocial } from "@/components/social-provider";
 import {
+  canAddPick,
   collectPromptVisible,
   collectStepAfter,
   interestWriteRows,
   interestsAnswered,
   persistInterestRows,
+  PICK_LIMIT,
+  PICK_LIMIT_MESSAGE,
   schemaMissing,
+  trapTabTarget,
   type CollectStep,
+  type InterestHit,
   type InterestLoad,
   type InterestRow,
 } from "@/lib/social/collect-interests";
@@ -31,6 +36,13 @@ import { createSupabaseBrowser } from "@/lib/supabase/browser";
 
 const footerButton =
   "inline-flex min-h-11 flex-1 items-center justify-center rounded-full px-4 text-sm font-bold";
+
+const FOCUSABLE =
+  'a[href], button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+function focusable(root: HTMLElement): HTMLElement[] {
+  return [...root.querySelectorAll<HTMLElement>(FOCUSABLE)];
+}
 
 async function readInterests(userId: string): Promise<InterestLoad> {
   const supabase = createSupabaseBrowser();
@@ -54,7 +66,7 @@ async function readInterests(userId: string): Promise<InterestLoad> {
 async function writeInterests(
   userId: string,
   rows: InterestRow[],
-): Promise<"saved" | "missing" | "error"> {
+): Promise<"saved" | "missing" | "limit" | "error"> {
   const supabase = createSupabaseBrowser();
   if (!supabase) return "missing";
   return persistInterestRows(supabase, userId, rows);
@@ -71,6 +83,9 @@ export function CollectPrompt() {
   const [closed, setClosed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [people, setPeople] = useState<ServerSuggestion[] | null>(null);
+  const [limitNote, setLimitNote] = useState<string | null>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const titleId = useId();
   const sportOptions = useCollectSports(catalogSports);
 
   useEffect(() => {
@@ -115,7 +130,55 @@ export function CollectPrompt() {
     };
   }, [visible]);
 
+  useEffect(() => {
+    if (!visible) return;
+    const root = dialogRef.current;
+    if (!root) return;
+    const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const items = () => focusable(root);
+    items()[0]?.focus();
+    function onKey(event: KeyboardEvent) {
+      if (event.key !== "Tab") return;
+      const list = items();
+      const active = list.indexOf(document.activeElement as HTMLElement);
+      const next = trapTabTarget(list.length, active, event.shiftKey);
+      if (next == null) return;
+      event.preventDefault();
+      list[next]?.focus();
+    }
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      if (previous && document.contains(previous)) previous.focus();
+    };
+  }, [visible]);
+
   if (!visible || !user) return null;
+
+  const pickCount = sports.length + names.length;
+  const limitMessage = limitNote ?? (pickCount >= PICK_LIMIT ? PICK_LIMIT_MESSAGE : null);
+
+  function addSport(sport: string) {
+    const removing = sports.some((item) => item.toLowerCase() === sport.toLowerCase());
+    if (!removing && !canAddPick(pickCount)) {
+      setLimitNote(PICK_LIMIT_MESSAGE);
+      return;
+    }
+    setLimitNote(null);
+    setSports((current) => toggleSport(current, sport));
+  }
+
+  function addName(hit: InterestHit) {
+    const exists = names.some(
+      (pick) => pick.kind === hit.kind && pick.value.toLowerCase() === hit.value.toLowerCase(),
+    );
+    if (!exists && !canAddPick(pickCount)) {
+      setLimitNote(PICK_LIMIT_MESSAGE);
+      return;
+    }
+    setLimitNote(null);
+    setNames((current) => toggleName(current, hit));
+  }
 
   async function finish(action: "skip" | "complete") {
     setBusy(true);
@@ -127,6 +190,10 @@ export function CollectPrompt() {
       action === "skip" ? interestWriteRows("skip", picks) : interestWriteRows("complete", picks);
     const result = await writeInterests(user!.id, rows);
     setBusy(false);
+    if (result === "limit") {
+      setLimitNote(PICK_LIMIT_MESSAGE);
+      return;
+    }
     if (result === "missing" || result === "error") {
       setClosed(true);
       return;
@@ -175,7 +242,13 @@ export function CollectPrompt() {
   ).slice(0, SUGGESTION_DISPLAY_LIMIT);
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-[var(--background)] text-[var(--foreground)]">
+    <div
+      ref={dialogRef}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby={titleId}
+      className="fixed inset-0 z-50 flex flex-col bg-[var(--background)] text-[var(--foreground)]"
+    >
       <header className="flex items-center justify-between gap-3 border-b border-zinc-200 px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3 dark:border-white/10">
         <p className="text-xs font-medium text-zinc-500">
           {step === "sports" ? "1 of 3" : step === "names" ? "2 of 3" : "3 of 3"}
@@ -198,34 +271,35 @@ export function CollectPrompt() {
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-5">
         {step === "sports" ? (
           <>
-            <h2 className="text-2xl font-bold tracking-tight">What do you collect?</h2>
+            <h2 id={titleId} className="text-2xl font-bold tracking-tight">What do you collect?</h2>
             <p className="mt-2 text-sm text-zinc-500">Pick a sport or two. You can change this later.</p>
             <div className="mt-5">
-              <SportChips
-                sports={sportOptions}
-                selected={sports}
-                onToggle={(sport) => setSports((current) => toggleSport(current, sport))}
-              />
+              <SportChips sports={sportOptions} selected={sports} onToggle={addSport} />
             </div>
+            {limitMessage ? <p className="mt-3 text-sm text-zinc-500">{limitMessage}</p> : null}
           </>
         ) : null}
         {step === "names" ? (
           <>
-            <h2 className="text-2xl font-bold tracking-tight">Teams and players</h2>
+            <h2 id={titleId} className="text-2xl font-bold tracking-tight">Teams and players</h2>
             <p className="mt-2 text-sm text-zinc-500">Search your favorites. One is enough.</p>
             <div className="mt-5">
               <NameSearch
                 sports={sports}
                 selected={names}
-                onAdd={(hit) => setNames((current) => toggleName(current, hit))}
-                onRemove={(hit) => setNames((current) => withoutName(current, hit))}
+                onAdd={addName}
+                onRemove={(hit) => {
+                  setLimitNote(null);
+                  setNames((current) => withoutName(current, hit));
+                }}
               />
             </div>
+            {limitMessage ? <p className="mt-3 text-sm text-zinc-500">{limitMessage}</p> : null}
           </>
         ) : null}
         {step === "people" ? (
           <>
-            <h2 className="text-2xl font-bold tracking-tight">Collectors to follow</h2>
+            <h2 id={titleId} className="text-2xl font-bold tracking-tight">Collectors to follow</h2>
             <p className="mt-2 text-sm text-zinc-500">People who collect and post about the same things.</p>
             <ul className="mt-4 divide-y divide-zinc-200 dark:divide-white/10">
               {shownPeople.map((profile) => (

@@ -13,8 +13,11 @@ import {
 } from "@/components/collect-editor";
 import { useSocial } from "@/components/social-provider";
 import {
+  canAddPick,
   interestWriteRows,
   persistInterestRows,
+  PICK_LIMIT,
+  PICK_LIMIT_MESSAGE,
   picksFromRows,
   schemaMissing,
   type InterestRow,
@@ -92,6 +95,10 @@ export function CollectSettings() {
       setState("missing");
       return;
     }
+    if (saved === "limit") {
+      setError(PICK_LIMIT_MESSAGE);
+      return;
+    }
     if (saved === "error") {
       setError("Could not save that.");
       return;
@@ -124,17 +131,41 @@ export function CollectSettings() {
         <SportChips
           sports={sportOptions}
           selected={sports}
-          onToggle={(sport) => setSports((current) => toggleSport(current, sport))}
+          onToggle={(sport) => {
+            const removing = sports.some((item) => item.toLowerCase() === sport.toLowerCase());
+            if (!removing && !canAddPick(sports.length + names.length)) {
+              setError(PICK_LIMIT_MESSAGE);
+              return;
+            }
+            setError(null);
+            setSports((current) => toggleSport(current, sport));
+          }}
         />
       </div>
       <div className="mt-6">
         <NameSearch
           sports={sports}
           selected={names}
-          onAdd={(hit) => setNames((current) => toggleName(current, hit))}
-          onRemove={(hit) => setNames((current) => withoutName(current, hit))}
+          onAdd={(hit) => {
+            const exists = names.some(
+              (pick) => pick.kind === hit.kind && pick.value.toLowerCase() === hit.value.toLowerCase(),
+            );
+            if (!exists && !canAddPick(sports.length + names.length)) {
+              setError(PICK_LIMIT_MESSAGE);
+              return;
+            }
+            setError(null);
+            setNames((current) => toggleName(current, hit));
+          }}
+          onRemove={(hit) => {
+            setError(null);
+            setNames((current) => withoutName(current, hit));
+          }}
         />
       </div>
+      {sports.length + names.length >= PICK_LIMIT && !error ? (
+        <p className="mt-3 text-sm text-zinc-500">{PICK_LIMIT_MESSAGE}</p>
+      ) : null}
       {error ? <p className="mt-3 text-sm text-rose-600 dark:text-rose-400">{error}</p> : null}
       <div className="mt-6 flex gap-2">
         <button

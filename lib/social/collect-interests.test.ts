@@ -3,16 +3,20 @@ import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { join } from "node:path";
 import {
+  canAddPick,
   collectPromptVisible,
   collectSportChoices,
   collectStepAfter,
+  interestLimitReached,
   interestTypeahead,
   interestWriteRows,
   interestsAnswered,
   persistInterestRows,
+  PICK_LIMIT_MESSAGE,
   picksFromRows,
   rpcMissing,
   schemaMissing,
+  trapTabTarget,
 } from "./collect-interests";
 
 describe("collect sports", () => {
@@ -116,6 +120,42 @@ describe("skip and complete", () => {
       { kind: "team", value: "Chiefs" },
       { kind: "player", value: "Patrick Mahomes" },
     ]);
+  });
+
+  it("stops at 25 picks and says so, instead of a generic save error", async () => {
+    assert.equal(PICK_LIMIT_MESSAGE, "You can pick up to 25");
+    assert.equal(canAddPick(24), true);
+    assert.equal(canAddPick(25), false);
+    assert.equal(interestLimitReached({ code: "23514", message: "profile interests are limited to 50 rows" }), true);
+    assert.equal(interestLimitReached({ message: "insert failed" }), false);
+    assert.equal(trapTabTarget(3, 2, false), 0);
+    assert.equal(trapTabTarget(3, 0, true), 2);
+    assert.equal(trapTabTarget(3, 1, false), null);
+    const calls: string[] = [];
+    const capped = {
+      from() {
+        return {
+          upsert() {
+            calls.push("upsert");
+            return Promise.resolve({
+              error: { code: "23514", message: "profile interests are limited to 50 rows" },
+            });
+          },
+          select() {
+            return { eq: () => Promise.resolve({ data: [], error: null }) };
+          },
+          delete() {
+            calls.push("delete");
+            return { eq: () => ({ eq: () => ({ eq: () => Promise.resolve({ error: null }) }) }) };
+          },
+        };
+      },
+    };
+    const result = await persistInterestRows(capped as never, "user", [
+      { kind: "sport", value: "Football" },
+    ]);
+    assert.equal(result, "limit");
+    assert.deepEqual(calls, ["upsert"]);
   });
 
   it("upserts new picks before deleting the ones that were removed", async () => {
@@ -227,6 +267,12 @@ describe("collecting UI", () => {
     const feed = readFileSync(join(root, "components/feed-view.tsx"), "utf8");
     const provider = readFileSync(join(root, "components/social-provider.tsx"), "utf8");
     assert.match(prompt, /What do you collect\?/);
+    assert.match(prompt, /role="dialog"/);
+    assert.match(prompt, /aria-modal="true"/);
+    assert.match(prompt, /previous\.focus\(\)/);
+    assert.match(prompt, /trapTabTarget\(/);
+    assert.match(prompt, /PICK_LIMIT_MESSAGE/);
+    assert.match(settings, /PICK_LIMIT_MESSAGE/);
     assert.match(prompt, /Skip/);
     assert.match(prompt, /collectPromptVisible\(/);
     assert.match(prompt, /interestWriteRows\("skip"/);

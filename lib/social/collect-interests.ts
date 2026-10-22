@@ -1,9 +1,38 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { SPORT_PICKER_OPTIONS } from "../card-options";
-import { normInterest, type CollectInterest, type InterestKind } from "./follow-rank";
+import { INTEREST_RANK_LIMIT, normInterest, type CollectInterest, type InterestKind } from "./follow-rank";
 
 /** Sports the onboarding picker never offers. */
 const BLOCKED_SPORT = /pok[eé]mon|\btcg\b|magic|yu-?gi-?oh/i;
+
+/** Sports, teams, and players together. Matches the ranking cap. */
+export const PICK_LIMIT = INTEREST_RANK_LIMIT;
+
+export const PICK_LIMIT_MESSAGE = `You can pick up to ${PICK_LIMIT}`;
+
+/** False once they already have PICK_LIMIT sports, teams, and players. */
+export function canAddPick(currentCount: number): boolean {
+  return currentCount < PICK_LIMIT;
+}
+
+/**
+ * Where Tab should move inside a dialog. Null means the browser can move
+ * to the next control. The ends wrap so focus stays in the dialog.
+ */
+export function trapTabTarget(count: number, activeIndex: number, shift: boolean): number | null {
+  if (count <= 0) return null;
+  if (shift && activeIndex <= 0) return count - 1;
+  if (!shift && activeIndex >= count - 1) return 0;
+  return null;
+}
+
+export function interestLimitReached(
+  error: { code?: string; message?: string } | null | undefined,
+): boolean {
+  if (!error) return false;
+  const message = error.message ?? "";
+  return error.code === "23514" || /profile interests are limited to 50/i.test(message);
+}
 
 export const PREFERRED_COLLECT_SPORTS = [
   "Football",
@@ -282,13 +311,17 @@ export async function persistInterestRows(
   supabase: SupabaseClient,
   userId: string,
   rows: readonly InterestRow[],
-): Promise<"saved" | "missing" | "error"> {
+): Promise<"saved" | "missing" | "limit" | "error"> {
   if (rows.length > 0) {
     const inserted = await supabase.from("profile_interests").upsert(
       rows.map((row) => ({ user_id: userId, kind: row.kind, value: row.value })),
       { onConflict: "user_id,kind,value" },
     );
-    if (inserted.error) return schemaMissing(inserted.error) ? "missing" : "error";
+    if (inserted.error) {
+      if (schemaMissing(inserted.error)) return "missing";
+      if (interestLimitReached(inserted.error)) return "limit";
+      return "error";
+    }
   }
   const existing = await supabase
     .from("profile_interests")
