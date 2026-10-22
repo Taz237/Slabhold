@@ -271,7 +271,7 @@ describe("want alert spam", () => {
     assert.equal(alerts.length, 1);
   });
 
-  it("keeps the lower id when two inserts share created_at", async () => {
+  it("keeps one duplicate by earliest created_at, then lowest id", async () => {
     const fixed = "2026-10-17T18:00:00.000Z";
     const orders = [
       ["n-0001", "n-0002"],

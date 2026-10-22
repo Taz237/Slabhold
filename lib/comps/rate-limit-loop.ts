@@ -39,8 +39,8 @@ export function lostWriteBackoffMs(retry: number, random: () => number = Math.ra
 
 /**
  * After every lost-write retry is used up. Want checks and Trawl stay blocked.
- * Card values (including anonymous), comps, and any other bucket are allowed
- * so a burst under the limit is not turned away.
+ * Card values (including anonymous), comps, and any other bucket are allowed.
+ * A burst under the limit is expected to pass.
  */
 export function allowsAfterLostWrite(bucket: string): boolean {
   return bucket !== "want_match" && bucket !== "trawl";

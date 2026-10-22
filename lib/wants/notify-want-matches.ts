@@ -59,7 +59,10 @@ export function sameCooledAlert(
   return metadataCooledType(metadata) === alertType;
 }
 
-/** True when `row` sorts before `mine` by (created_at, id). */
+/**
+ * True when `row` sorts before `mine`. Duplicate alerts use one order:
+ * earliest created_at, then the lowest id.
+ */
 export function notificationComesFirst(
   row: { id: string; createdAt: string },
   mine: { id: string; createdAt: string },

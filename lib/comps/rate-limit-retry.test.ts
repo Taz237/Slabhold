@@ -211,6 +211,29 @@ describe("rate limit retry loop", () => {
     assert.equal(allowed, current());
   });
 
+  it("lets 10 parallel comps requests under the limit pass after lost writes", async () => {
+    const { store, conflicts, current } = yieldingCas();
+    const results = await Promise.all(
+      Array.from({ length: 10 }, () =>
+        consumeBucketWithStore(store, row("requests"), 20, {
+          sleep: async () => {
+            await tick();
+          },
+          random: () => 0.5,
+        }),
+      ),
+    );
+
+    assert.equal(results.length, 10);
+    assert.equal(
+      results.every((allowed) => allowed),
+      true,
+    );
+    assert.ok(conflicts() > 0);
+    assert.ok(current() >= 1);
+    assert.ok(current() <= 10);
+  });
+
   it("blocks none of 20 parallel card value calls under the limit", async () => {
     const { store, conflicts, current } = yieldingCas();
     const results = await Promise.all(
