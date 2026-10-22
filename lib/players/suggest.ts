@@ -56,6 +56,9 @@ const BLOCKED_TERMS = [
 
 const BLOCKED_WORDS = new Set(BLOCKED_TERMS.filter((term) => !term.includes(" ")));
 const BLOCKED_PHRASES = BLOCKED_TERMS.filter((term) => term.includes(" "));
+/** Caught even when spaces split the word, as in "poke mon" or "yugi oh". */
+const BLOCKED_SUBSTRINGS = ["pokemon", "pikachu", "charizard", "yugioh", "tcg"];
+const INITIALS = new Set(["aj", "cj", "dj", "jj", "tj"]);
 
 /**
  * Prefix of the full normalized name, or each query word as a prefix of some name word.
@@ -107,6 +110,7 @@ function titleToken(token: string, wordIndex: number): string {
   const lower = token.toLocaleLowerCase();
   const suffix = wordIndex > 0 ? SUFFIXES[lower] : undefined;
   if (suffix) return suffix;
+  if (INITIALS.has(lower)) return lower.toUpperCase();
   const mc = /^mc(\p{L})(.*)$/u.exec(lower);
   if (mc) return `Mc${mc[1].toLocaleUpperCase()}${mc[2]}`;
   return lower.charAt(0).toLocaleUpperCase() + lower.slice(1);
@@ -162,7 +166,9 @@ export function blockedCustomName(value: string): boolean {
   for (const word of words) {
     if (BLOCKED_WORDS.has(word)) return true;
   }
-  return BLOCKED_PHRASES.some((phrase) => containsPhrase(words, phrase));
+  if (BLOCKED_PHRASES.some((phrase) => containsPhrase(words, phrase))) return true;
+  const stripped = norm.replace(/ /g, "");
+  return BLOCKED_SUBSTRINGS.some((term) => stripped.includes(term));
 }
 
 /**
@@ -173,7 +179,7 @@ export function customPlayerFallback(
   query: string,
   sports: readonly string[] = [],
 ): NameSuggestion | null {
-  const collapsed = query.trim().replace(/\s+/g, " ");
+  const collapsed = query.trim().replace(/\s+/g, " ").normalize("NFC");
   if (collapsed.length < 2 || collapsed.length > 60) return null;
   if (!CUSTOM_NAME_CHARS.test(collapsed) || blockedCustomName(collapsed)) return null;
   const letters = collapsed.match(/\p{L}/gu);
@@ -195,7 +201,7 @@ export function nameSuggestionLabel(hit: NameSuggestion): string {
  * Catalog and remote hits stay in front. Directory players fill the rest,
  * one row per normalized name, so "Luka Doncic" does not repeat "Luka Dončić".
  * An empty list becomes the custom-name chip once the directory has loaded.
- * A single word that only missed because of a sport chip does not become Add.
+ * A query that only missed because of a sport chip does not become Add.
  */
 export function withDirectoryPlayers(input: {
   query: string;
@@ -246,7 +252,7 @@ export function withDirectoryPlayers(input: {
   const merged = [...catalog, ...directoryHits];
   if (merged.length > 0) return merged;
   if (!input.directoryReady) return [];
-  if (hiddenBySport && !queryNorm.includes(" ")) return [];
+  if (hiddenBySport) return [];
   const custom = customPlayerFallback(input.query, input.sports ?? []);
   return custom ? [custom] : [];
 }

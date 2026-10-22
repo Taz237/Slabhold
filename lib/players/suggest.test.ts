@@ -147,7 +147,7 @@ describe("directory name search", () => {
     assert.equal(football.some((hit) => hit.value === "Tyrese Maxey"), false);
     assert.equal(football.some((hit) => hit.custom), false);
     assert.equal(names("zzqx", ["Football"])[0]?.custom, true);
-    assert.equal(names("joel em", ["Hockey"]).some((hit) => hit.custom), true);
+    assert.equal(names("joel em", ["Hockey"]).some((hit) => hit.custom), false);
     const basketball = names("maxey", ["Basketball"]);
     assert.equal(basketball[0]?.value, "Tyrese Maxey");
     assert.equal(names("joel em", ["Hockey"]).some((hit) => hit.value === "Joel Embiid"), false);
@@ -212,5 +212,50 @@ describe("directory name search", () => {
     const picked = customPlayerFallback("zzqx plz", ["Basketball"]);
     assert.equal(picked?.sport, "Basketball");
     assert.equal(names("maxey").some((hit) => hit.custom), false);
+  });
+
+  it("blocks pokemon terms even when spaces split them", () => {
+    assert.equal(blockedCustomName("poke mon"), true);
+    assert.equal(blockedCustomName("pika chu"), true);
+    assert.equal(blockedCustomName("chari zard"), true);
+    assert.equal(blockedCustomName("yugi oh"), true);
+    assert.equal(blockedCustomName("tc gs"), true);
+    assert.equal(customPlayerFallback("poke mon cards"), null);
+    assert.equal(blockedCustomName("Ken Griffey Jr."), false);
+  });
+
+  it("does not offer Add when a multi-word query only missed the sport chip", () => {
+    const hidden = withDirectoryPlayers({
+      query: "joel em",
+      sports: ["Hockey"],
+      catalogHits: [],
+      directoryPlayers: [
+        { name: "Joel Embiid", sport: "Basketball", norm: "joel embiid", words: ["joel", "embiid"] },
+      ],
+      directoryReady: true,
+    });
+    assert.deepEqual(hidden, []);
+    assert.equal(names("zzqx plz", ["Hockey"])[0]?.custom, true);
+  });
+
+  it("uppercases two-letter initials when the rest of the name is cased for them", () => {
+    assert.equal(titleCasePlayerName("jj watt"), "JJ Watt");
+    assert.equal(titleCasePlayerName("cj stroud"), "CJ Stroud");
+    assert.equal(titleCasePlayerName("aj brown"), "AJ Brown");
+    assert.equal(titleCasePlayerName("tj hockenson"), "TJ Hockenson");
+    assert.equal(titleCasePlayerName("dj moore"), "DJ Moore");
+    assert.equal(titleCasePlayerName("CJ STROUD"), "CJ Stroud");
+    assert.equal(titleCasePlayerName("Cj Stroud"), "Cj Stroud");
+  });
+
+  it("composes accented letters before checking the custom name", () => {
+    assert.equal(customPlayerFallback("jose\u0301")?.value, "José");
+    assert.equal(customPlayerFallback("Jose\u0301 Ram\u00edrez")?.value, "José Ramírez");
+  });
+
+  it("gives the player-list retry control a 44px tap target", () => {
+    const editor = readFileSync(join(root, "components/collect-editor.tsx"), "utf8");
+    assert.match(editor, /min-h-11 min-w-11 px-2/);
+    assert.match(editor, /Retry/);
   });
 });
