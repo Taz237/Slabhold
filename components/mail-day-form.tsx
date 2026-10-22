@@ -44,6 +44,7 @@ import {
   mailDayPhotosToRemove,
   mailDaySportLabel,
   restoreRemovedMailDayPhotos,
+  mailDayComposerStatus,
   mailDaySubmitBlocker,
   mailDaySubmitError,
   previewMailDayPost,
@@ -180,6 +181,7 @@ export function MailDayForm() {
   );
   const dirty = mailDayIsDirty(drafts, caption);
   const blocker = mailDaySubmitBlocker(drafts);
+  const composerStatus = mailDayComposerStatus(blocker);
   const preview = useMemo(
     () => previewMailDayPost({ authorId: user?.id ?? "preview", caption, cards: drafts }),
     [user?.id, caption, drafts],
@@ -372,6 +374,17 @@ export function MailDayForm() {
             </div>
             {section.open ? (
               <div className="space-y-4 px-3 pb-4">
+                <PhotoRow
+                  photos={section.photos}
+                  onRemove={(src) =>
+                    update(index, { photos: section.photos.filter((item) => item !== src) })
+                  }
+                  onAdd={() => {
+                    setPhotoTarget(index);
+                    setActive(index);
+                    fileRef.current?.click();
+                  }}
+                />
                 <CardSearch
                   onSelect={(card) => {
                     setActive(index);
@@ -419,17 +432,6 @@ export function MailDayForm() {
                     This card is listed as {mailDaySportLabel(section.sportOffer)}. Use that?
                   </button>
                 ) : null}
-                <PhotoRow
-                  photos={section.photos}
-                  onRemove={(src) =>
-                    update(index, { photos: section.photos.filter((item) => item !== src) })
-                  }
-                  onAdd={() => {
-                    setPhotoTarget(index);
-                    setActive(index);
-                    fileRef.current?.click();
-                  }}
-                />
                 <label className="block text-sm font-semibold">
                   Player
                   <input
@@ -666,11 +668,6 @@ export function MailDayForm() {
           />
         </label>
 
-        {blocker ? (
-          <p className="text-sm text-zinc-500" role="status">
-            {blocker}
-          </p>
-        ) : null}
         {error ? <p className="text-sm text-rose-600 dark:text-rose-400">{error}</p> : null}
         {error ? (
           <button type="submit" disabled={sending || Boolean(blocker)} className={solidButton}>
@@ -682,15 +679,32 @@ export function MailDayForm() {
             Open the saved card
           </Link>
         ))}
-        <button type="submit" disabled={sending || Boolean(blocker)} className={solidButton}>
-          {sending ? "Saving…" : "Log Mail Day"}
-        </button>
+        <div className="flex items-center justify-end gap-3">
+          {composerStatus ? (
+            <p
+              className={`mr-auto text-sm ${
+                composerStatus === "Add a photo to post"
+                  ? "font-semibold text-violet-700 dark:text-violet-300"
+                  : "text-zinc-500"
+              }`}
+              role="status"
+            >
+              {composerStatus}
+            </p>
+          ) : null}
+          <button type="submit" disabled={sending || Boolean(blocker)} className={solidButton}>
+            {sending ? "Saving…" : "Log Mail Day"}
+          </button>
+        </div>
       </form>
 
       <section aria-label="Preview" className="space-y-2">
         <h2 className="text-sm font-bold">Preview</h2>
         <p className="text-xs text-zinc-500">This is what other people will see.</p>
         <div className="pointer-events-none overflow-hidden rounded-2xl border border-zinc-200 dark:border-white/10">
+          {caption.trim() ? (
+            <p className="px-4 pt-3 text-[15px] leading-5 whitespace-pre-wrap">{caption}</p>
+          ) : null}
           <MailDayCard post={preview} username={user?.username ?? ""} variant="feed" asViewer="other" />
         </div>
       </section>
@@ -740,7 +754,7 @@ function PhotoRow({
 }) {
   return (
     <div>
-      <p className="mb-2 text-sm font-semibold">Photos</p>
+      <p className="mb-2 text-sm font-semibold">1 to 4 photos</p>
       <div className="grid grid-cols-4 gap-2">
         {photos.map((src, index) => (
           <div key={`${src.slice(0, 32)}-${index}`} className="relative">
@@ -766,7 +780,6 @@ function PhotoRow({
           </button>
         ) : null}
       </div>
-      <p className="mt-1 text-xs text-zinc-500">1 to 4 photos</p>
     </div>
   );
 }
