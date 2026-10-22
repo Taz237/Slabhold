@@ -19,6 +19,7 @@ import { PullToRefresh } from "@/components/pull-to-refresh";
 import { usePagedTimeline } from "@/components/use-paged-timeline";
 import { EmptyState, LoadingRows, TimelineSkeleton } from "@/components/status";
 import { CollectionToday } from "@/components/collection-today";
+import { MovingToday } from "@/components/moving-today";
 import { shouldShowFirstCardWelcome } from "@/lib/collection/welcome";
 import { Tweet } from "@/components/tweet";
 import { WhatsNewCard } from "@/components/whats-new-card";
@@ -273,6 +274,8 @@ export function FeedView() {
           Following
         </LaneTab>
       </div>
+
+      {lane === "foryou" ? <MovingToday /> : null}
 
       {user ? (
         <Composer onPosted={() => setRefreshKey((key) => key + 1)} />

@@ -21,6 +21,7 @@ describe("route access", () => {
       "/reset-password",
       "/search",
       "/search?q=wemby",
+      "/moving-today",
       `/posts/${CARD}`,
       "/u/maya",
       "/u/maya/followers",
