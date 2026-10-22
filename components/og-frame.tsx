@@ -19,6 +19,10 @@ export const ogContentType = "image/png";
 export const PUBLIC_OG_CACHE_CONTROL =
   "public, max-age=0, s-maxage=3600, stale-while-revalidate=86400";
 
+/** Card images. Short CDN lifetime so a card that just went private is not served for an hour. */
+export const CARD_OG_CACHE_CONTROL =
+  "public, max-age=0, s-maxage=60, stale-while-revalidate=60";
+
 /** Own-profile images follow the signed-in user. Do not store them on a shared CDN. */
 export const PRIVATE_OG_CACHE_CONTROL = "private, no-store";
 

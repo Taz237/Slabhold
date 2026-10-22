@@ -7,7 +7,8 @@ import { pathToFileURL } from "node:url";
 import { before, describe, it, mock } from "node:test";
 import { createServerClient } from "@supabase/ssr";
 import { PRIVATE_OG_CACHE_CONTROL } from "../../components/og-frame";
-import { postShareImage, type ShareImage } from "./share-image";
+import { cardOgImagePath, previewMetadata, withCardOgImage } from "./link-preview";
+import { cardShareImage, postShareImage, type ShareImage } from "./share-image";
 
 const nodeRequire = createRequire(import.meta.url);
 const serverOnlyEmpty = pathToFileURL(
@@ -105,6 +106,14 @@ function requestAuth(input: RequestInfo | URL, init?: RequestInit): string {
 }
 
 let loadPostShareImage: (id: string) => Promise<ShareImage>;
+let loadCardShareImage: (id: string) => Promise<ShareImage>;
+let loadPublicCardPreview: (id: string) => Promise<{
+  title: string;
+  description: string;
+  imageUrl: string | null;
+  detail: string;
+  updatedAt: string | null;
+}>;
 let sharePriceText: (
   value: {
     status: "ok";
@@ -121,6 +130,8 @@ let sharePriceText: (
 before(async () => {
   const loaded = await import("./link-preview-load");
   loadPostShareImage = loaded.loadPostShareImage;
+  loadCardShareImage = loaded.loadCardShareImage;
+  loadPublicCardPreview = loaded.loadPublicCardPreview;
   sharePriceText = loaded.sharePriceText;
 });
 
@@ -192,7 +203,8 @@ describe("share image loaders", () => {
     );
     assert.match(priced, /knownPriceCard\(/);
     assert.doesNotMatch(priced, /from\("cards"\)/);
-    assert.match(source, /valueAmount: isPublic \? price\.amount : null/);
+    assert.match(source, /if \(!row\.is_public\) return cardShareImage\(\{ found: false \}\)/);
+    assert.doesNotMatch(source, /private card keeps its photo and name/i);
     assert.match(source, /valueLabel: null/);
 
     const ownProfile = read("app/profile/opengraph-image.tsx");
@@ -249,6 +261,140 @@ describe("share image loaders", () => {
       assert.equal(authorizations.every((header) => header === `Bearer ${ANON_KEY}`), true);
     } finally {
       fetchMock.mock.restore();
+    }
+  });
+
+  it("keeps a private or deleted card name and photo out of the share image and metadata", async () => {
+    const serviceKey = "service-role-key";
+    const previousKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    process.env.SUPABASE_SERVICE_ROLE_KEY = serviceKey;
+    const privateId = "11111111-1111-4111-8111-111111111111";
+    const deletedId = "22222222-2222-4222-8222-222222222222";
+    const publicId = "33333333-3333-4333-8333-333333333333";
+    const secretName = "Zeke Secretname";
+    const secretPhoto = `${SUPABASE_URL}/storage/v1/object/public/card-photos/user/secret-private.jpg`;
+    const publicName = "Public Wemby";
+    const publicPhoto = `${SUPABASE_URL}/storage/v1/object/public/card-photos/user/public-photo.jpg`;
+    const privateRow = {
+      player: secretName,
+      year: 2024,
+      year_label: "2024",
+      set: "Prizm",
+      set_name: "Prizm",
+      grade: "PSA 10",
+      grader: "PSA",
+      parallel: "Silver",
+      condition_type: "graded",
+      image_url: secretPhoto,
+      card_number: "136",
+      sport: "Basketball",
+      is_public: false,
+    };
+    const publicRow = {
+      id: publicId,
+      user_id: AUTHOR,
+      player: publicName,
+      year: 2023,
+      year_label: "2023-24",
+      set: "Prizm",
+      set_name: "Prizm",
+      grade: "10",
+      grader: "PSA",
+      parallel: "Base",
+      estimated_value: 185,
+      image_url: publicPhoto,
+      card_number: "136",
+      sport: "Basketball",
+      accent: "#7c5cff",
+      created_at: "2026-01-01T00:00:00.000Z",
+      updated_at: "2026-04-01T12:00:00.000Z",
+      condition_type: "graded",
+    };
+
+    const fetchMock = mock.method(globalThis, "fetch", async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = requestUrl(input);
+      const authorization = requestAuth(input, init);
+      let body: unknown = [];
+      if (url.includes("/rest/v1/public_cards") && url.includes(publicId)) body = [publicRow];
+      else if (
+        url.includes("/rest/v1/cards") &&
+        url.includes(privateId) &&
+        authorization === `Bearer ${serviceKey}` &&
+        url.includes("is_public")
+      ) {
+        body = [privateRow];
+      }
+      return new Response(JSON.stringify(body), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    });
+
+    try {
+      for (const page of ["app/cards/[id]/page.tsx", "app/u/[username]/cards/[id]/page.tsx"]) {
+        const source = read(page);
+        assert.match(source, /withCardOgImage\(\s*previewMetadata\(preview\),\s*cardOgImagePath\(/);
+        assert.doesNotMatch(source, /loadCardShareImage/);
+      }
+      assert.match(read("app/u/[username]/cards/[id]/page.tsx"), /cardOgImagePath\(id, preview\.updatedAt, username\)/);
+
+      const generic = cardShareImage({ found: false });
+      const privateImage = await loadCardShareImage(privateId);
+      const privatePacked = JSON.stringify(privateImage);
+      assert.deepEqual(privateImage, generic);
+      assert.equal(privatePacked.includes(secretName), false);
+      assert.equal(privatePacked.includes("secret-private"), false);
+      assert.equal(privatePacked.includes("9,999"), false);
+
+      const privatePreview = await loadPublicCardPreview(privateId);
+      assert.equal(privatePreview.updatedAt, null);
+      const privateMeta = withCardOgImage(
+        previewMetadata(privatePreview),
+        cardOgImagePath(privateId, privatePreview.updatedAt),
+      );
+      const privateMetaPacked = JSON.stringify({ privatePreview, privateMeta });
+      assert.equal(privatePreview.title, "Private card");
+      assert.equal(privatePreview.imageUrl, null);
+      assert.equal(privateMeta.title, "Private card · Slabhold");
+      assert.equal(privateMeta.openGraph.title, "Private card");
+      assert.equal(privateMeta.twitter.title, "Private card");
+      assert.match(JSON.stringify(privateMeta.openGraph.images), /\/cards\/[^"?]+\/opengraph-image\?v=0/);
+      assert.match(JSON.stringify(privateMeta.twitter.images), /opengraph-image\?v=0/);
+      assert.equal(privateMetaPacked.includes(secretName), false);
+      assert.equal(privateMetaPacked.includes("secret-private"), false);
+
+      const deletedImage = await loadCardShareImage(deletedId);
+      const deletedPacked = JSON.stringify(deletedImage);
+      assert.deepEqual(deletedImage, generic);
+      assert.equal(deletedPacked.includes(secretName), false);
+      assert.equal(deletedPacked.includes("secret-private"), false);
+      const deletedMeta = previewMetadata(await loadPublicCardPreview(deletedId));
+      assert.equal(deletedMeta.title, "Private card · Slabhold");
+      assert.equal(JSON.stringify(deletedMeta).includes(secretName), false);
+
+      const publicImage = await loadCardShareImage(publicId);
+      assert.equal(publicImage.player, publicName);
+      assert.equal(publicImage.imageUrl, publicPhoto);
+      const publicPreview = await loadPublicCardPreview(publicId);
+      assert.equal(publicPreview.updatedAt, "2026-04-01T12:00:00.000Z");
+      const publicMeta = withCardOgImage(
+        previewMetadata(publicPreview),
+        cardOgImagePath(publicId, publicPreview.updatedAt),
+      );
+      const publicPacked = JSON.stringify({ publicImage, publicPreview, publicMeta });
+      assert.match(publicMeta.title, /Public Wemby/);
+      assert.match(publicMeta.title, /Slabhold/);
+      assert.match(String(publicMeta.openGraph.title), /Public Wemby/);
+      assert.match(String(publicMeta.twitter.title), /Public Wemby/);
+      assert.match(JSON.stringify(publicMeta.openGraph.images), /v=2026-04-01T12%3A00%3A00.000Z/);
+      assert.match(JSON.stringify(publicMeta.twitter.images), /v=2026-04-01T12%3A00%3A00.000Z/);
+      assert.equal(publicPreview.imageUrl, publicPhoto);
+      assert.equal(publicPacked.includes(secretName), false);
+      assert.equal(publicPacked.includes("secret-private"), false);
+    } finally {
+      fetchMock.mock.restore();
+      if (previousKey === undefined) delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+      else process.env.SUPABASE_SERVICE_ROLE_KEY = previousKey;
     }
   });
 });

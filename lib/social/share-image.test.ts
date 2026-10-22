@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { describe, it } from "node:test";
 import {
   PRIVATE_OG_CACHE_CONTROL,
+  CARD_OG_CACHE_CONTROL,
   PUBLIC_OG_CACHE_CONTROL,
   renderOg,
   resetHomeShotCache,
@@ -48,7 +49,7 @@ describe("card share images", () => {
     assert.equal(image.photoFallback, false);
   });
 
-  it("keeps the photo and name when the card is private, and drops the value", () => {
+  it("drops the name, photo, and value when the card is private", () => {
     process.env.NEXT_PUBLIC_SUPABASE_URL = SUPABASE_ORIGIN;
     const image = cardShareImage({
       found: true,
@@ -62,13 +63,19 @@ describe("card share images", () => {
       salesCount: 42,
     });
     const packed = JSON.stringify(image);
-    assert.equal(image.player, "Victor Wembanyama");
-    assert.equal(image.yearSet, "2023-24 Prizm");
-    assert.equal(image.grade, "PSA 10");
-    assert.equal(image.imageUrl, STORAGE);
+    assert.equal(image.player, "Card");
+    assert.equal(image.title, "Card");
+    assert.equal(image.yearSet, "");
+    assert.equal(image.grade, "");
+    assert.equal(image.imageUrl, null);
+    assert.equal(image.photoFallback, true);
     assert.equal(image.showValue, false);
     assert.equal(image.valueLabel, "");
     assert.equal(image.salesLabel, "");
+    assert.equal(packed.includes("Wembanyama"), false);
+    assert.equal(packed.includes("Prizm"), false);
+    assert.equal(packed.includes("PSA"), false);
+    assert.equal(packed.includes("card.jpg"), false);
     assert.equal(packed.includes("9,999"), false);
     assert.equal(packed.includes("42"), false);
   });
@@ -117,6 +124,7 @@ describe("card share images", () => {
     });
     assert.equal(unsafe.imageUrl, null);
     assert.equal(unsafe.photoFallback, true);
+    assert.equal(JSON.stringify(unsafe).includes("Wembanyama"), false);
     assert.equal(JSON.stringify(unsafe).includes("evil.example"), false);
     assert.equal(JSON.stringify(unsafe).includes("$10.00"), false);
   });
@@ -270,6 +278,19 @@ describe("post and mail day share images", () => {
     assert.equal(packed.includes("card.jpg"), false);
   });
 
+  it("keeps a run of family emoji whole in the title", () => {
+    const family = "👨‍👩‍👧‍👦";
+    const image = postShareImage({
+      found: true,
+      body: `a${family.repeat(40)}`,
+    });
+    const title = image.title;
+    assert.equal(title.includes("\uFFFD"), false);
+    assert.equal(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/.test(title), false);
+    assert.equal(title.split(family).join(""), "a");
+    assert.equal(title.includes("\u200D"), true);
+  });
+
   it("drops emails and ids from the post", () => {
     const image = postShareImage({
       found: true,
@@ -378,6 +399,18 @@ describe("share image renderer", () => {
     assert.equal(response.headers.get("cache-control"), PUBLIC_OG_CACHE_CONTROL);
     assert.match(PUBLIC_OG_CACHE_CONTROL, /s-maxage=3600/);
     assert.match(PUBLIC_OG_CACHE_CONTROL, /stale-while-revalidate=86400/);
+    assert.match(CARD_OG_CACHE_CONTROL, /s-maxage=60/);
+    assert.doesNotMatch(CARD_OG_CACHE_CONTROL, /s-maxage=3600/);
+    for (const path of [
+      "app/cards/[id]/opengraph-image.tsx",
+      "app/u/[username]/cards/[id]/opengraph-image.tsx",
+    ]) {
+      assert.match(readFileSync(join(process.cwd(), path), "utf8"), /CARD_OG_CACHE_CONTROL/);
+    }
+    assert.doesNotMatch(
+      readFileSync(join(process.cwd(), "app/posts/[id]/opengraph-image.tsx"), "utf8"),
+      /CARD_OG_CACHE_CONTROL/,
+    );
     const bytes = Buffer.from(await response.arrayBuffer());
     assert.equal(bytes[0], 0x89);
     assert.ok(bytes.length > 5000);

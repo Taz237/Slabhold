@@ -4,7 +4,9 @@ import { reachableImage, renderProfileOg } from "../../components/og-frame";
 import { mailDayOgTitle } from "./mail-day-copy";
 import {
   cardLinkPreview,
+  cardOgImagePath,
   cleanImageUrl,
+  clipText,
   postLinkPreview,
   postPreviewImage,
   previewMetadata,
@@ -60,6 +62,66 @@ describe("card link previews", () => {
       valueLabel: "$10",
     });
     assert.equal(preview.imageUrl, null);
+  });
+});
+
+function loneSurrogate(value: string): boolean {
+  return /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/.test(value);
+}
+
+describe("clipText", () => {
+  it("keeps an emoji, a flag, and a combining mark that sit on the cut", () => {
+    const emoji = "😀";
+    const flag = "🇺🇸";
+    const mark = "e\u0301";
+    assert.equal(emoji.length, 2);
+    const prefix = "a".repeat(88);
+    for (const grapheme of [emoji, flag, mark]) {
+      const clipped = clipText(`${prefix}${grapheme}zzzz`, 90);
+      assert.equal(clipped, `${prefix}${grapheme}…`);
+      assert.equal(clipped.includes("\uFFFD"), false);
+      assert.equal(loneSurrogate(clipped), false);
+    }
+
+    const intl = Intl as { Segmenter?: typeof Intl.Segmenter };
+    const original = intl.Segmenter;
+    intl.Segmenter = undefined;
+    try {
+      assert.equal(clipText(`${prefix}${emoji}zzzz`, 90), `${prefix}${emoji}…`);
+      assert.equal(loneSurrogate(clipText(`${prefix}${flag}zzzz`, 90)), false);
+    } finally {
+      intl.Segmenter = original;
+    }
+  });
+
+  it("caps a stack of combining marks and a run of family emoji", () => {
+    const max = 90;
+    const stacked = clipText(`Z${"\u0302".repeat(990)}`, max);
+    assert.ok(stacked.length <= max * 4);
+    assert.equal(stacked.startsWith("Z"), true);
+    assert.equal(stacked.includes("\uFFFD"), false);
+    assert.equal(loneSurrogate(stacked), false);
+    assert.ok([...stacked].length < 20);
+
+    const family = "👨‍👩‍👧‍👦";
+    const families = clipText(family.repeat(90), max);
+    assert.ok(families.length <= max * 4);
+    assert.equal(families.includes("\uFFFD"), false);
+    assert.equal(loneSurrogate(families), false);
+    assert.equal(families.split(family).join(""), "…");
+  });
+});
+
+describe("card og image url", () => {
+  it("adds the card updated time and a zero version when that time is missing", () => {
+    assert.equal(
+      cardOgImagePath("abc", "2026-01-02T03:04:05.000Z"),
+      "/cards/abc/opengraph-image?v=2026-01-02T03%3A04%3A05.000Z",
+    );
+    assert.equal(
+      cardOgImagePath("abc", null, "maya"),
+      "/u/maya/cards/abc/opengraph-image?v=0",
+    );
   });
 });
 

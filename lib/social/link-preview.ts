@@ -1,3 +1,5 @@
+import { userHref } from "./user-href";
+
 /** Share-card copy. Private cards never contribute a name, photo, or value. */
 
 export type LinkPreview = {
@@ -15,10 +17,62 @@ const PRIVATE_CARD: LinkPreview = {
   detail: "",
 };
 
+/** Graphemes, so a cut never splits an emoji into a lone surrogate. */
+export function textGraphemes(value: string): string[] {
+  const Segmenter = (Intl as { Segmenter?: typeof Intl.Segmenter }).Segmenter;
+  if (typeof Segmenter === "function") {
+    return [...new Segmenter(undefined, { granularity: "grapheme" }).segment(value)].map(
+      (part) => part.segment,
+    );
+  }
+  return Array.from(value);
+}
+
+/** A grapheme longer than this is almost always stacked combining marks. */
+const GRAPHEME_CODE_POINTS = 8;
+
+function capGrapheme(grapheme: string): string {
+  const points = Array.from(grapheme);
+  if (points.length <= GRAPHEME_CODE_POINTS) return grapheme;
+  return points.slice(0, GRAPHEME_CODE_POINTS).join("");
+}
+
 export function clipText(value: string, max: number): string {
   const text = value.replace(/\s+/g, " ").trim();
-  if (text.length <= max) return text;
-  return `${text.slice(0, Math.max(1, max - 1)).trimEnd()}…`;
+  if (!text) return "";
+  const graphemeCap = Math.max(0, max);
+  const unitCap = graphemeCap * 4;
+  const raw = textGraphemes(text);
+  const parts = raw.map(capGrapheme);
+  const capped = parts.some((part, index) => part !== raw[index]);
+  let out = "";
+  let count = 0;
+  for (let index = 0; index < parts.length; index += 1) {
+    const part = parts[index] ?? "";
+    const more = index + 1 < parts.length || capped;
+    if (count >= graphemeCap) break;
+    if (more && count + 1 >= graphemeCap) break;
+    if (out.length + part.length > unitCap) break;
+    if (more && out.length + part.length + 1 > unitCap) break;
+    out += part;
+    count += 1;
+  }
+  if (count === parts.length && !capped) return out;
+  return `${out.trimEnd()}…`;
+}
+
+/** Card share-image path. `v` changes when the card row changes, including when it goes private. */
+export function cardOgImagePath(
+  id: string,
+  updatedAt: string | null | undefined,
+  username?: string | null,
+): string {
+  const version = (updatedAt ?? "").trim();
+  const handle = (username ?? "").trim().replace(/^@/, "");
+  const base = handle
+    ? `${userHref(handle)}/cards/${id}/opengraph-image`
+    : `/cards/${id}/opengraph-image`;
+  return `${base}?v=${version ? encodeURIComponent(version) : "0"}`;
 }
 
 const MAX_DATA_BYTES = 2 * 1024 * 1024;
@@ -204,6 +258,24 @@ export function previewMetadata(preview: LinkPreview) {
       card: "summary_large_image" as const,
       title: preview.title,
       description: preview.description,
+    },
+  };
+}
+
+/** Point og:image and twitter:image at one versioned card image, instead of the unversioned file route. */
+export function withCardOgImage<T extends ReturnType<typeof previewMetadata>>(
+  meta: T,
+  imagePath: string,
+) {
+  return {
+    ...meta,
+    openGraph: {
+      ...meta.openGraph,
+      images: [{ url: imagePath, width: 1200, height: 630, alt: "Card on Slabhold" }],
+    },
+    twitter: {
+      ...meta.twitter,
+      images: [imagePath],
     },
   };
 }
