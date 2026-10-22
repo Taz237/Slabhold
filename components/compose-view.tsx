@@ -14,7 +14,7 @@ import { signupPath } from "@/lib/auth/safe-next";
 import { useSocial } from "@/components/social-provider";
 import { takeCompose } from "@/lib/capture";
 import { initials } from "@/lib/format";
-import { PHOTO_READ_ERROR, readPhotoFile } from "@/lib/photos";
+import { PHOTO_HEIC_ERROR, PHOTO_READ_ERROR, readPhotoFile } from "@/lib/photos";
 import { mapPublicCard, PUBLIC_CARD_SELECT } from "@/lib/social/cards";
 import { toPublicAttachment } from "@/lib/social/card-posts";
 import { QUOTE_EMPTY_ERROR, isQuoteSubmitDisabled, shouldConfirmDiscard, validateQuoteContent } from "@/lib/social/quotes";
@@ -275,13 +275,15 @@ export function ComposeView() {
             {photoError ? (
               <div role="alert" className="mt-3 space-y-2">
                 <p className="text-sm text-rose-600 dark:text-rose-400">{photoError}</p>
-                <button
-                  type="button"
-                  onClick={retryPhoto}
-                  className="inline-flex min-h-11 items-center rounded-full px-3 text-sm font-semibold text-violet-700 dark:text-violet-300"
-                >
-                  Try again
-                </button>
+                {photoError === PHOTO_HEIC_ERROR ? null : (
+                  <button
+                    type="button"
+                    onClick={retryPhoto}
+                    className="inline-flex min-h-11 items-center rounded-full px-3 text-sm font-semibold text-violet-700 dark:text-violet-300"
+                  >
+                    Try again
+                  </button>
+                )}
               </div>
             ) : null}
           </div>

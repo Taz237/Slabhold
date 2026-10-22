@@ -25,7 +25,7 @@ import { WhatsNewCard } from "@/components/whats-new-card";
 import { loginPath } from "@/lib/auth/safe-next";
 import { takeCompose } from "@/lib/capture";
 import { PhotoFileInputs } from "@/components/photo-file-inputs";
-import { PHOTO_READ_ERROR, readPhotoFile } from "@/lib/photos";
+import { PHOTO_HEIC_ERROR, PHOTO_READ_ERROR, readPhotoFile } from "@/lib/photos";
 import {
   checklistBlocksAddToHomeTip,
   checklistState,
@@ -549,14 +549,19 @@ function Composer({ onPosted }: { onPosted?: () => void }) {
         </div>
         {photoError ? (
           <p className="mt-2 text-xs text-rose-600 dark:text-rose-400" role="alert">
-            {photoError}{" "}
-            <button
-              type="button"
-              onClick={() => libraryRef.current?.click()}
-              className="inline-flex min-h-11 items-center font-semibold underline"
-            >
-              Try again
-            </button>
+            {photoError}
+            {photoError === PHOTO_HEIC_ERROR ? null : (
+              <>
+                {" "}
+                <button
+                  type="button"
+                  onClick={() => libraryRef.current?.click()}
+                  className="inline-flex min-h-11 items-center font-semibold underline"
+                >
+                  Try again
+                </button>
+              </>
+            )}
           </p>
         ) : null}
         {error ? <p className="mt-2 text-xs text-rose-600 dark:text-rose-400">{error}</p> : null}

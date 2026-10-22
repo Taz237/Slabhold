@@ -110,6 +110,7 @@ export function CardForm({
   const cameraRef = useRef<HTMLInputElement>(null);
   const libraryRef = useRef<HTMLInputElement>(null);
   const photoSource = useRef<"camera" | "library">("library");
+  const photoReadId = useRef(0);
   const formRef = useRef<HTMLFormElement>(null);
   const savingRef = useRef(false);
   const pendingId = useRef<string | null>(existing?.id ?? null);
@@ -297,6 +298,8 @@ export function CardForm({
   }
 
   function clearPhoto() {
+    photoReadId.current += 1;
+    setReadingPhoto(false);
     setPhoto(null);
     setIdentified(null);
     setPhotoError(null);
@@ -304,17 +307,20 @@ export function CardForm({
 
   async function scanFile(file: File | undefined) {
     if (!file) return;
+    const requestId = ++photoReadId.current;
     setPhotoError(null);
     setReadingPhoto(true);
     let dataUrl: string;
     try {
       dataUrl = await readPhotoFile(file);
     } catch (error) {
+      if (photoReadId.current !== requestId) return;
       setPhotoError(error instanceof Error ? error.message : PHOTO_READ_ERROR);
       return;
     } finally {
-      setReadingPhoto(false);
+      if (photoReadId.current === requestId) setReadingPhoto(false);
     }
+    if (photoReadId.current !== requestId) return;
     setPhoto(dataUrl);
     if (!DEMO_IDENTIFY) return;
     setScanning(true);
@@ -1090,7 +1096,7 @@ export function CardForm({
           <p className="text-sm text-rose-600 dark:text-rose-400">{saveError}</p>
           <button
             type="submit"
-            disabled={saving}
+            disabled={saving || readingPhoto}
             className="inline-flex h-11 items-center justify-center rounded-full border border-rose-300 px-4 text-sm font-semibold text-rose-700 disabled:opacity-40 dark:border-rose-400/40 dark:text-rose-300"
           >
             Retry
@@ -1127,7 +1133,7 @@ export function CardForm({
           ) : null}
         <button
           type="submit"
-          disabled={saving}
+          disabled={saving || readingPhoto}
           onMouseDown={(e) => {
             // Keep focus so onBlur validation cannot swallow the first click.
             if (e.button === 0) e.preventDefault();

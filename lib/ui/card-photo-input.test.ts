@@ -8,8 +8,11 @@ import { CardPhotoField } from "@/components/card-photo-field";
 import { PhotoFileInputs } from "@/components/photo-file-inputs";
 import {
   isAcceptedPhoto,
+  MAX_PHOTO_BYTES,
   PHOTO_ACCEPT,
+  PHOTO_HEIC_ERROR,
   PHOTO_READ_ERROR,
+  PHOTO_TOO_LARGE_ERROR,
   PHOTO_TYPE_ERROR,
   readPhotoFile,
 } from "@/lib/photos";
@@ -206,9 +209,60 @@ describe("accepted photo files", () => {
     const pdf = new File([new Uint8Array([1, 2, 3])], "notes.pdf", { type: "application/pdf" });
     await assert.rejects(readPhotoFile(pdf), new RegExp(PHOTO_TYPE_ERROR.replace(/[.]/g, "\\.")));
 
-    const heic = new File([new Uint8Array([1, 2, 3])], "IMG_0001.HEIC", { type: "" });
-    await assert.rejects(readPhotoFile(heic), new RegExp(PHOTO_READ_ERROR.replace(/[.]/g, "\\.")));
+    const jpeg = new File([new Uint8Array([1, 2, 3])], "card.jpg", { type: "image/jpeg" });
+    await assert.rejects(readPhotoFile(jpeg), new RegExp(PHOTO_READ_ERROR.replace(/[.]/g, "\\.")));
     assert.match(read("lib/photos.ts"), /strict: true/);
     assert.match(read("lib/storage.ts"), /strict\?: boolean/);
+  });
+
+  it("rejects a photo over 25 MB before decoding", async () => {
+    assert.equal(MAX_PHOTO_BYTES, 25 * 1024 * 1024);
+    const source = read("lib/photos.ts");
+    const sizeAt = source.indexOf("file.size > MAX_PHOTO_BYTES");
+    const decodeAt = source.indexOf("fileToDataUrl(");
+    assert.ok(sizeAt > 0 && decodeAt > sizeAt);
+
+    const big = new File([new Uint8Array([1, 2, 3])], "card.jpg", { type: "image/jpeg" });
+    Object.defineProperty(big, "size", { value: MAX_PHOTO_BYTES + 1 });
+    await assert.rejects(
+      readPhotoFile(big),
+      new RegExp(PHOTO_TOO_LARGE_ERROR.replace(/[.]/g, "\\.")),
+    );
+
+    const boundary = new File([new Uint8Array([1])], "edge.jpg", { type: "image/jpeg" });
+    Object.defineProperty(boundary, "size", { value: MAX_PHOTO_BYTES });
+    await assert.rejects(
+      readPhotoFile(boundary),
+      new RegExp(PHOTO_READ_ERROR.replace(/[.]/g, "\\.")),
+    );
+  });
+
+  it("explains when this browser cannot open HEIC and does not offer Try again", async () => {
+    const byName = new File([new Uint8Array([1, 2, 3])], "IMG_0001.HEIC", { type: "" });
+    await assert.rejects(
+      readPhotoFile(byName),
+      new RegExp(PHOTO_HEIC_ERROR.replace(/[.]/g, "\\.")),
+    );
+    const byType = new File([new Uint8Array([1])], "card.jpg", { type: "image/heif" });
+    await assert.rejects(readPhotoFile(byType), /This browser can't open HEIC photos/);
+
+    const html = field({ photo: null, photoError: PHOTO_HEIC_ERROR });
+    assert.match(html, /This browser can&#x27;t open HEIC photos/);
+    assert.match(html, /Choose a JPEG or PNG/);
+    assert.doesNotMatch(html, />Try again</);
+    assert.match(read("components/card-photo-field.tsx"), /photoError === PHOTO_HEIC_ERROR \? null/);
+  });
+
+  it("disables Save while a photo is reading and drops a stale read", () => {
+    const source = read("components/card-form.tsx");
+    assert.equal((source.match(/disabled=\{saving \|\| readingPhoto\}/g) ?? []).length, 2);
+    const clear = source.slice(source.indexOf("function clearPhoto"), source.indexOf("async function scanFile"));
+    assert.match(clear, /photoReadId\.current \+= 1/);
+    assert.match(clear, /setReadingPhoto\(false\)/);
+    const scan = source.slice(source.indexOf("async function scanFile"), source.indexOf("function applyIdentify"));
+    assert.match(scan, /const requestId = \+\+photoReadId\.current/);
+    assert.match(scan, /if \(photoReadId\.current !== requestId\) return;/);
+    assert.match(scan, /if \(photoReadId\.current === requestId\) setReadingPhoto\(false\)/);
+    assert.match(scan, /setPhoto\(dataUrl\)/);
   });
 });

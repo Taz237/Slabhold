@@ -3,6 +3,7 @@
 import type { ReactNode, Ref } from "react";
 import { Camera, ImagePlus, Loader2 } from "lucide-react";
 import { PhotoFileInputs } from "@/components/photo-file-inputs";
+import { PHOTO_HEIC_ERROR } from "@/lib/photos";
 
 const photoButton =
   "inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full px-4 text-sm font-semibold focus-visible:ring-2 focus-visible:ring-violet-600 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)] focus-visible:outline-none";
@@ -82,9 +83,11 @@ export function CardPhotoField({
           {photoError ? (
             <div role="alert" className="space-y-2">
               <p className="text-sm text-rose-600 dark:text-rose-400">{photoError}</p>
-              <button type="button" onClick={onRetry} className={photoSecondary}>
-                Try again
-              </button>
+              {photoError === PHOTO_HEIC_ERROR ? null : (
+                <button type="button" onClick={onRetry} className={photoSecondary}>
+                  Try again
+                </button>
+              )}
             </div>
           ) : null}
           {photo ? (

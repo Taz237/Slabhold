@@ -6,7 +6,7 @@ import { Avatar } from "@/components/avatar";
 import { solidButton } from "@/components/button-styles";
 import { PhotoFileInputs } from "@/components/photo-file-inputs";
 import { useSocial } from "@/components/social-provider";
-import { PHOTO_READ_ERROR, readPhotoFile } from "@/lib/photos";
+import { PHOTO_HEIC_ERROR, PHOTO_READ_ERROR, readPhotoFile } from "@/lib/photos";
 import { normalizeUsername } from "@/lib/social/local-db";
 import type { Profile } from "@/lib/social/types";
 
@@ -226,7 +226,7 @@ export function ProfileEditSheet({
               {error ? (
                 <div role="alert" className="space-y-2">
                   <p className="text-sm text-rose-600 dark:text-rose-400">{error}</p>
-                  {photoFailed ? (
+                  {photoFailed && error !== PHOTO_HEIC_ERROR ? (
                     <button
                       type="button"
                       onClick={retryPhoto}

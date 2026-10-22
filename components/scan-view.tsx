@@ -5,7 +5,7 @@ import { useRef, useState } from "react";
 import { Camera, ImagePlus } from "lucide-react";
 import { PhotoFileInputs } from "@/components/photo-file-inputs";
 import { saveCompose, saveScan } from "@/lib/capture";
-import { PHOTO_READ_ERROR, readPhotoFile } from "@/lib/photos";
+import { PHOTO_HEIC_ERROR, PHOTO_READ_ERROR, readPhotoFile } from "@/lib/photos";
 
 export function ScanView() {
   const router = useRouter();
@@ -59,13 +59,15 @@ export function ScanView() {
       {photoError ? (
         <div role="alert" className="mt-4 space-y-2">
           <p className="text-sm text-rose-600 dark:text-rose-400">{photoError}</p>
-          <button
-            type="button"
-            onClick={retryPhoto}
-            className="inline-flex min-h-11 items-center rounded-full px-4 text-sm font-semibold"
-          >
-            Try again
-          </button>
+          {photoError === PHOTO_HEIC_ERROR ? null : (
+            <button
+              type="button"
+              onClick={retryPhoto}
+              className="inline-flex min-h-11 items-center rounded-full px-4 text-sm font-semibold"
+            >
+              Try again
+            </button>
+          )}
         </div>
       ) : null}
 
