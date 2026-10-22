@@ -1,0 +1,168 @@
+"use client";
+
+import Link from "next/link";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import {
+  NameSearch,
+  SportChips,
+  toggleName,
+  toggleSport,
+  useCollectSports,
+  withoutName,
+} from "@/components/collect-editor";
+import { useSocial } from "@/components/social-provider";
+import {
+  interestWriteRows,
+  picksFromRows,
+  schemaMissing,
+  type InterestRow,
+} from "@/lib/social/collect-interests";
+import type { CollectInterest } from "@/lib/social/follow-rank";
+import { createSupabaseBrowser } from "@/lib/supabase/browser";
+
+export function CollectSettings() {
+  const router = useRouter();
+  const { user, ready, refreshSuggestions, mode } = useSocial();
+  const [state, setState] = useState<"loading" | "missing" | "ready">("loading");
+  const [sports, setSports] = useState<string[]>([]);
+  const [names, setNames] = useState<CollectInterest[]>([]);
+  const [catalogSports, setCatalogSports] = useState<string[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const sportOptions = useCollectSports(catalogSports);
+
+  useEffect(() => {
+    if (!ready || !user || mode !== "supabase") return;
+    const supabase = createSupabaseBrowser();
+    if (!supabase) return;
+    let cancelled = false;
+    void supabase
+      .from("profile_interests")
+      .select("kind, value")
+      .eq("user_id", user.id)
+      .then(({ data, error: loadError }) => {
+        if (cancelled) return;
+        if (loadError) {
+          if (!schemaMissing(loadError)) console.warn("profile_interests", loadError.message);
+          setState("missing");
+          return;
+        }
+        const rows = ((data ?? []) as { kind?: string; value?: string }[])
+          .filter((row) => row.kind && row.value)
+          .map((row) => ({ kind: row.kind, value: row.value }) as InterestRow);
+        const picks = picksFromRows(rows);
+        setSports(picks.filter((pick) => pick.kind === "sport").map((pick) => pick.value));
+        setNames(picks.filter((pick) => pick.kind !== "sport"));
+        setState("ready");
+      });
+    void supabase
+      .from("card_catalog")
+      .select("sport")
+      .limit(400)
+      .then(({ data }) => {
+        if (cancelled || !data) return;
+        setCatalogSports(
+          (data as { sport?: string | null }[]).map((row) => row.sport ?? "").filter(Boolean),
+        );
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [mode, ready, user]);
+
+  async function save() {
+    if (!user) return;
+    const supabase = createSupabaseBrowser();
+    if (!supabase) {
+      setState("missing");
+      return;
+    }
+    setSaving(true);
+    setError(null);
+    const picks = [
+      ...sports.map((value) => ({ kind: "sport" as const, value })),
+      ...names,
+    ];
+    const rows = interestWriteRows("complete", picks);
+    const removed = await supabase.from("profile_interests").delete().eq("user_id", user.id);
+    if (removed.error) {
+      setSaving(false);
+      if (schemaMissing(removed.error)) {
+        setState("missing");
+        return;
+      }
+      setError("Could not save that.");
+      return;
+    }
+    const inserted = await supabase.from("profile_interests").insert(
+      rows.map((row) => ({ user_id: user.id, kind: row.kind, value: row.value })),
+    );
+    setSaving(false);
+    if (inserted.error) {
+      if (schemaMissing(inserted.error)) {
+        setState("missing");
+        return;
+      }
+      setError("Could not save that.");
+      return;
+    }
+    refreshSuggestions();
+    router.push("/profile");
+  }
+
+  if (!ready) return <p className="text-sm text-zinc-500">Loading…</p>;
+  if (!user) return null;
+  if (mode !== "supabase" || state === "missing") {
+    return (
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">What you collect</h1>
+        <p className="mt-2 text-sm text-zinc-500">
+          Collecting preferences are not available in this browser yet.
+        </p>
+      </div>
+    );
+  }
+  if (state === "loading") return <p className="text-sm text-zinc-500">Loading…</p>;
+
+  return (
+    <div>
+      <h1 className="text-2xl font-bold tracking-tight">What you collect</h1>
+      <p className="mt-2 text-sm text-zinc-500">
+        Sports, teams, and players. This is what we use to suggest collectors.
+      </p>
+      <div className="mt-5">
+        <SportChips
+          sports={sportOptions}
+          selected={sports}
+          onToggle={(sport) => setSports((current) => toggleSport(current, sport))}
+        />
+      </div>
+      <div className="mt-6">
+        <NameSearch
+          sports={sports}
+          selected={names}
+          onAdd={(hit) => setNames((current) => toggleName(current, hit))}
+          onRemove={(hit) => setNames((current) => withoutName(current, hit))}
+        />
+      </div>
+      {error ? <p className="mt-3 text-sm text-rose-600 dark:text-rose-400">{error}</p> : null}
+      <div className="mt-6 flex gap-2">
+        <button
+          type="button"
+          disabled={saving}
+          onClick={() => void save()}
+          className="inline-flex min-h-11 items-center justify-center rounded-full bg-zinc-900 px-5 text-sm font-bold text-white disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-950"
+        >
+          {saving ? "Saving" : "Save"}
+        </button>
+        <Link
+          href="/profile"
+          className="inline-flex min-h-11 items-center justify-center rounded-full border border-zinc-300 px-5 text-sm font-bold dark:border-white/15"
+        >
+          Cancel
+        </Link>
+      </div>
+    </div>
+  );
+}

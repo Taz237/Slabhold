@@ -8,6 +8,8 @@ export type Profile = {
   coverDataUrl: string | null;
   accent: string;
   createdAt: string;
+  /** Set when profiles.is_test is true. Hidden from follow suggestions. */
+  isTest?: boolean;
 };
 
 export type PublicCard = {

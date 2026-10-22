@@ -111,6 +111,13 @@ export function MoreView() {
               Privacy & safety
             </Link>
           </li>
+          {user ? (
+            <li>
+              <Link href="/settings/collecting" className="block min-h-11 py-3">
+                What you collect
+              </Link>
+            </li>
+          ) : null}
           <li>
             <Link href="/privacy" className="block py-3">
               Privacy

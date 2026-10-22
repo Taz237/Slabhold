@@ -1,0 +1,163 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { describe, it } from "node:test";
+import { join } from "node:path";
+import {
+  collectPromptVisible,
+  collectSportChoices,
+  collectStepAfter,
+  interestTypeahead,
+  interestWriteRows,
+  interestsAnswered,
+  picksFromRows,
+  rpcMissing,
+  schemaMissing,
+} from "./collect-interests";
+
+describe("collect sports", () => {
+  it("offers the main sports plus catalog sports, and never Pokémon or TCG", () => {
+    const sports = collectSportChoices(["Racing", "Pokémon", "Pokemon", "Magic: The Gathering", "Yu-Gi-Oh", "One Piece TCG"]);
+    assert.deepEqual(sports.slice(0, 5), ["Football", "Basketball", "Baseball", "Hockey", "Soccer"]);
+    assert.equal(sports.includes("Racing"), true);
+    assert.equal(sports.includes("Other"), true);
+    assert.equal(sports.some((sport) => /pok[eé]mon|tcg|yu-gi-oh|magic/i.test(sport)), false);
+  });
+});
+
+describe("interest typeahead", () => {
+  const players = [
+    { name: "Victor Wembanyama", sport: "Basketball" },
+    { name: "Patrick Mahomes", sport: "Football" },
+    { name: "Pikachu", sport: "Pokémon" },
+  ];
+
+  it("finds catalog players and teams, narrowed by the sports they picked", () => {
+    const chiefs = interestTypeahead({ query: "chief", players });
+    assert.deepEqual(
+      chiefs.map((hit) => `${hit.kind}:${hit.value}`),
+      ["team:Chiefs"],
+    );
+    const wemby = interestTypeahead({ query: "wemb", players, sports: ["Basketball"] });
+    assert.deepEqual(
+      wemby.map((hit) => `${hit.kind}:${hit.value}`),
+      ["player:Victor Wembanyama"],
+    );
+    assert.equal(interestTypeahead({ query: "wemb", players, sports: ["Football"] }).length, 0);
+    assert.equal(interestTypeahead({ query: "pika", players }).length, 0);
+    assert.equal(interestTypeahead({ query: "   ", players }).length, 0);
+  });
+});
+
+describe("collect prompt", () => {
+  it("shows once for someone who has not answered, and hides when the table is missing", () => {
+    assert.equal(
+      collectPromptVisible({ signedIn: true, table: "ready", answered: false }),
+      true,
+    );
+    assert.equal(
+      collectPromptVisible({ signedIn: true, table: "missing", answered: false }),
+      false,
+    );
+    assert.equal(
+      collectPromptVisible({ signedIn: true, table: "loading", answered: false }),
+      false,
+    );
+    assert.equal(
+      collectPromptVisible({ signedIn: false, table: "ready", answered: false }),
+      false,
+    );
+    assert.equal(
+      collectPromptVisible({
+        signedIn: true,
+        table: "ready",
+        answered: false,
+        pathname: "/settings/collecting",
+      }),
+      false,
+    );
+    assert.equal(interestsAnswered([{ kind: "prompt" }]), true);
+    assert.equal(interestsAnswered([]), false);
+  });
+
+  it("walks sports, then names, then collectors in three steps", () => {
+    assert.deepEqual(collectStepAfter("sports", "next"), { type: "step", step: "names" });
+    assert.deepEqual(collectStepAfter("names", "next"), { type: "step", step: "people" });
+    assert.deepEqual(collectStepAfter("people", "next"), { type: "done" });
+    assert.deepEqual(collectStepAfter("names", "back"), { type: "step", step: "sports" });
+    assert.deepEqual(collectStepAfter("sports", "skip"), { type: "skip" });
+    assert.deepEqual(collectStepAfter("names", "skip"), { type: "skip" });
+  });
+});
+
+describe("skip and complete", () => {
+  it("skip writes only the dismissed prompt", () => {
+    assert.deepEqual(interestWriteRows("skip", [{ kind: "player", value: "Patrick Mahomes" }]), [
+      { kind: "prompt", value: "skipped" },
+    ]);
+  });
+
+  it("complete stores sports, teams, and players, and drops Pokémon", () => {
+    const rows = interestWriteRows("complete", [
+      { kind: "sport", value: "Football" },
+      { kind: "sport", value: "Pokémon" },
+      { kind: "team", value: "Chiefs" },
+      { kind: "player", value: "Patrick Mahomes" },
+      { kind: "player", value: "Patrick Mahomes" },
+    ]);
+    assert.deepEqual(rows, [
+      { kind: "sport", value: "Football" },
+      { kind: "team", value: "Chiefs" },
+      { kind: "player", value: "Patrick Mahomes" },
+      { kind: "prompt", value: "done" },
+    ]);
+    assert.deepEqual(picksFromRows(rows), [
+      { kind: "sport", value: "Football" },
+      { kind: "team", value: "Chiefs" },
+      { kind: "player", value: "Patrick Mahomes" },
+    ]);
+  });
+
+  it("treats a missing table or ranking function as absent, not as a crash", () => {
+    assert.equal(schemaMissing({ code: "PGRST205", message: "schema cache" }), true);
+    assert.equal(schemaMissing({ code: "42P01", message: "relation does not exist" }), true);
+    assert.equal(schemaMissing({ message: "permission denied" }), false);
+    assert.equal(rpcMissing({ code: "PGRST202", message: "Could not find the function" }), true);
+    assert.equal(rpcMissing(null), false);
+  });
+});
+
+describe("collecting UI", () => {
+  it("is skippable, editable in settings, and quiet when the table is missing", () => {
+    const root = process.cwd();
+    const prompt = readFileSync(join(root, "components/collect-prompt.tsx"), "utf8");
+    const settings = readFileSync(join(root, "components/collect-settings.tsx"), "utf8");
+    const settingsPage = readFileSync(join(root, "app/settings/collecting/page.tsx"), "utf8");
+    const editor = readFileSync(join(root, "components/collect-editor.tsx"), "utf8");
+    const more = readFileSync(join(root, "components/more-view.tsx"), "utf8");
+    const profile = readFileSync(join(root, "components/profile-edit-sheet.tsx"), "utf8");
+    const feed = readFileSync(join(root, "components/feed-view.tsx"), "utf8");
+    const provider = readFileSync(join(root, "components/social-provider.tsx"), "utf8");
+    assert.match(prompt, /What do you collect\?/);
+    assert.match(prompt, /Skip/);
+    assert.match(prompt, /collectPromptVisible\(/);
+    assert.match(prompt, /interestWriteRows\("skip"/);
+    assert.match(prompt, /interestWriteRows\("complete"/);
+    assert.match(prompt, /schemaMissing\(/);
+    assert.match(editor, /min-h-11/);
+    assert.match(editor, /interestTypeahead\(/);
+    assert.match(settings, /What you collect/);
+    assert.match(settings, /schemaMissing\(/);
+    assert.match(settingsPage, /CollectSettings/);
+    assert.match(more, /\/settings\/collecting/);
+    assert.match(profile, /\/settings\/collecting/);
+    assert.match(feed, /suggestionReason/);
+    assert.match(feed, /Follow all/);
+    assert.match(feed, /followMany\(/);
+    assert.match(provider, /mergeRankedSuggestions\(/);
+    assert.match(provider, /followSuggestionFetchLimit\(displayLimit\)/);
+    assert.match(provider, /followSuggestions\(candidates/);
+    assert.doesNotMatch(prompt, /Pokémon|Pokemon|TCG|Mail Day/i);
+    assert.doesNotMatch(editor, /Pokémon|Pokemon|TCG|Mail Day/i);
+    assert.doesNotMatch(settings, /Pokémon|Pokemon|TCG|Mail Day/i);
+  });
+});

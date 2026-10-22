@@ -60,7 +60,7 @@ describe("followSuggestions", () => {
     });
     assert.deepEqual(
       result.map((profile) => profile.username),
-      ["real_a", "real_b", "real_c", "real_d", "real_e", "slabhold", "grokbotreview"],
+      ["real_a", "real_b", "real_c", "real_d", "real_e", "slabhold"],
     );
     assert.equal(result.some((profile) => isTestAccount(profile.username)), false);
     assert.equal(result.some((profile) => profile.id === "me"), false);

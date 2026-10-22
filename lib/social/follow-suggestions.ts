@@ -1,4 +1,4 @@
-import { isTestAccount } from "../test-accounts";
+import { hiddenFromSuggestions } from "./follow-rank";
 
 /**
  * Extra profiles to load before dropping test accounts, the viewer,
@@ -28,13 +28,17 @@ export function suggestionExtraRange(loadedCount: number, overfetch = FOLLOW_SUG
 export type FollowSuggestionCandidate = {
   id: string;
   username: string;
+  bio?: string | null;
+  /** profiles.is_test. Hidden from suggestions. */
+  isTest?: boolean;
 };
 
 /**
  * People to suggest following.
  * Pass candidates from `followSuggestionFetchLimit(limit)` rows, then this
- * drops test accounts, the viewer, and accounts they already follow before
- * cutting the list down to `limit`.
+ * drops test and QA accounts (including @grokbotreview, is_test, and any
+ * handle or bio containing "test"), the viewer, and accounts they already
+ * follow before cutting the list down to `limit`. @slabhold stays.
  */
 export function followSuggestions<T extends FollowSuggestionCandidate>(
   candidates: readonly T[],
@@ -50,7 +54,7 @@ export function followSuggestions<T extends FollowSuggestionCandidate>(
   const filtered = candidates.filter((profile) => {
     if (viewerId && profile.id === viewerId) return false;
     if (following.has(profile.id)) return false;
-    if (isTestAccount(profile.username)) return false;
+    if (hiddenFromSuggestions(profile)) return false;
     return true;
   });
   if (input.limit == null || !Number.isFinite(input.limit)) return filtered;
