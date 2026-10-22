@@ -299,17 +299,23 @@ describe("post photos", () => {
     assert.match(lightbox, /opener\?\.focus\(\)/);
   });
 
-  it("keeps post photos above the reply bar and stops the picker at four", () => {
+  it("keeps photo scroll margin and shows the four-photo hint", () => {
     const postPage = read("components/post-view.tsx");
     assert.match(postPage, /placeholder="Post your reply"/);
-    assert.match(postPage, /pb-\[calc\(14rem\+env\(safe-area-inset-bottom\)\)\]/);
+    assert.match(postPage, /pb-\[calc\(10rem\+env\(safe-area-inset-bottom\)\)\] min-\[391px\]:pb-24/);
+    assert.doesNotMatch(postPage, /14rem/);
     assert.match(read("components/post-photo-grid.tsx"), /scroll-mb-\[calc\(14rem\+env\(safe-area-inset-bottom\)\)\]/);
 
     const feed = read("components/feed-view.tsx");
     const compose = read("components/compose-view.tsx");
     assert.match(feed, /disabled=\{photosFull\}/);
-    assert.match(feed, /aria-label=\{photosFull \? photoCapHint : "Photo"\}/);
+    assert.match(feed, /aria-describedby=\{photosFull \? "feed-photo-cap" : undefined\}/);
+    assert.match(feed, /id="feed-photo-cap"/);
+    assert.doesNotMatch(feed, /aria-label=\{photosFull/);
     assert.match(compose, /disabled=\{photosFull\}/);
+    assert.match(compose, /aria-describedby=\{photosFull \? "compose-photo-cap" : undefined\}/);
+    assert.match(compose, /id="compose-photo-cap"/);
+    assert.doesNotMatch(compose, /aria-label=\{photosFull/);
     assert.match(compose, /if \(photoAttachFull\(images\.length, limit\)\) return;/);
     assert.match(read("components/use-post-photos.ts"), /setPhotoError\(postPhotoLimitError\(limitRef\.current\)\)/);
   });

@@ -37,15 +37,18 @@ describe("eBay sold search", () => {
     );
     assert.equal(ebaySoldSearchUrl("   "), null);
     assert.equal(ebaySoldSearchUrlForCard({ playerName: "  ", setBrand: "" }), null);
-    assert.equal(EBAY_SOLD_LINK_LABEL, "Sold comps via Trawl");
-    assert.doesNotMatch(EBAY_SOLD_LINK_LABEL, /fee/i);
+    assert.equal(EBAY_SOLD_LINK_LABEL, "Search recent sales");
+    assert.doesNotMatch(EBAY_SOLD_LINK_LABEL, /fee|trawl|ebay/i);
     if (!href) throw new Error("missing sold search");
     const html = renderToStaticMarkup(createElement(EbaySoldLink, { href }));
-    assert.match(html, /Sold comps via Trawl/);
+    assert.match(html, /Search recent sales/);
     assert.match(html, /href="https:\/\/www\.ebay\.com\/sch\/i\.html\?/);
     assert.match(html, /LH_Sold=1/);
+    assert.match(html, /target="_blank"/);
+    assert.match(html, /rel="noopener noreferrer"/);
     assert.doesNotMatch(html, /See eBay sold/);
-    assert.doesNotMatch(html, /fee/i);
+    assert.doesNotMatch(html, /Sold comps via Trawl/);
+    assert.doesNotMatch(html, />[^<]*(?:fee|Trawl|eBay)/);
   });
 
   it("keeps a real estimate and drops the empty sales line and plain eBay", () => {

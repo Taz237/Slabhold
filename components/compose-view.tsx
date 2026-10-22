@@ -344,7 +344,7 @@ export function ComposeView() {
         ) : null}
       </div>
 
-      <div className="fixed inset-x-0 bottom-[calc(6.15rem+env(safe-area-inset-bottom))] z-20 mx-auto flex w-full min-w-0 max-w-lg items-center gap-1 overflow-hidden border-t border-zinc-200 bg-[var(--background)] px-2 py-2 dark:border-white/10">
+      <div className="fixed inset-x-0 bottom-[calc(6.15rem+env(safe-area-inset-bottom))] z-20 mx-auto flex w-full min-w-0 max-w-lg flex-wrap items-center gap-1 border-t border-zinc-200 bg-[var(--background)] px-2 py-2 dark:border-white/10">
         <PhotoFileInputs
           cameraRef={cameraRef}
           libraryRef={libraryRef}
@@ -357,8 +357,7 @@ export function ComposeView() {
         <button
           type="button"
           disabled={photosFull}
-          aria-label={photosFull ? photoCapHint : "Camera"}
-          title={photosFull ? photoCapHint : undefined}
+          aria-describedby={photosFull ? "compose-photo-cap" : undefined}
           onClick={openCamera}
           className="inline-flex min-h-11 min-w-0 shrink items-center gap-1.5 rounded-full px-2 text-sm font-medium text-violet-700 disabled:opacity-40 dark:text-violet-300"
         >
@@ -368,14 +367,18 @@ export function ComposeView() {
         <button
           type="button"
           disabled={photosFull}
-          aria-label={photosFull ? photoCapHint : "Library"}
-          title={photosFull ? photoCapHint : undefined}
+          aria-describedby={photosFull ? "compose-photo-cap" : undefined}
           onClick={openLibrary}
           className="inline-flex min-h-11 min-w-0 shrink items-center gap-1.5 rounded-full px-2 text-sm font-medium text-violet-700 disabled:opacity-40 dark:text-violet-300"
         >
           <ImagePlus className="h-5 w-5 shrink-0" />
           <span className="truncate">Library</span>
         </button>
+        {photosFull ? (
+          <span id="compose-photo-cap" className="shrink-0 px-1 text-xs text-zinc-500">
+            {photoCapHint}
+          </span>
+        ) : null}
         {!editing && externalCard ? null : !editing ? (
           cardsReady && !syncError ? (
             <AttachCardField
