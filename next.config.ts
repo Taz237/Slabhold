@@ -21,6 +21,18 @@ const nextConfig: NextConfig = {
         destination: "/cards/new",
         permanent: false,
       },
+      // The updates account moved from /u/grokbotreview to /u/slabholdupdates.
+      // The old profile 404s. This runs before the missing-profile rewrite.
+      {
+        source: "/u/grokbotreview",
+        destination: "/u/slabholdupdates",
+        permanent: true,
+      },
+      {
+        source: "/u/grokbotreview/:path*",
+        destination: "/u/slabholdupdates/:path*",
+        permanent: true,
+      },
     ];
   },
   env: {

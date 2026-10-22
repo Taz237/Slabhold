@@ -37,6 +37,7 @@ import {
   notifyReplyMentions,
 } from "./reply-mentions";
 import { normalizeUsername, usernameError } from "./local-db";
+import { followOfficialUpdates } from "./official-updates";
 import { ilikeExact, TAKEN_USERNAME, usernameTakenMessage } from "./username-taken";
 import { validateQuoteContent } from "./quotes";
 import { pingWantMatch } from "@/lib/wants/ping";
@@ -527,6 +528,10 @@ export async function remoteSignUp(
       accent: "#7c5cff",
     });
     if (profileError) return { error: usernameTakenMessage(profileError) ?? profileError.message };
+    // Creation only. Login, profile edits, and unfollow must not call this.
+    // Email-confirm signups have no session yet; the profile insert trigger
+    // writes the same follow, and a later login does not try again.
+    await followOfficialUpdates(supabase, data.user.id);
   }
   if (!session) {
     return { notice: "Check your email to confirm the account, then log in." };
