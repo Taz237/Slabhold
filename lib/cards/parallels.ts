@@ -93,7 +93,6 @@ export const PARALLELS_BY_SET: Record<string, readonly string[]> = {
     "Black Press Proof",
     "Optic Preview",
     "Optic Preview Pink",
-    "Optic Preview Pink Prizm",
     "Optic Preview Holo",
     "Optic Preview Black",
     "Optic Preview Blue",
@@ -193,10 +192,16 @@ export function parallelMatchKey(value: string): string {
 
 /**
  * Extra names that store and display as the listed parallel.
- * "Optic Preview-Pink" and "Pink Optic Preview Holo" are Optic Preview Pink.
+ * "Optic Preview-Pink", "Optic Preview Pink Prizm", and
+ * "Optic Rated Rookies Preview Pink" are Optic Preview Pink.
  */
 export const PARALLEL_ALIASES: Record<string, readonly string[]> = {
-  "optic preview pink": ["Pink Optic Preview Holo", "Optic Preview-Pink"],
+  "optic preview pink": [
+    "Pink Optic Preview Holo",
+    "Optic Preview-Pink",
+    "Optic Preview Pink Prizm",
+    "Optic Rated Rookies Preview Pink",
+  ],
 };
 
 /** Aliases for this parallel name. Empty when it has none. */

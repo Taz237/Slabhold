@@ -33,7 +33,6 @@ describe("parallels by set", () => {
       "Blue Press Proof",
       "Optic Preview",
       "Optic Preview Pink",
-      "Optic Preview Pink Prizm",
       "Optic Preview Holo",
       "Optic Preview Black",
       "Optic Preview Blue",
@@ -51,12 +50,20 @@ describe("parallels by set", () => {
     ]) {
       assert.equal(donruss.includes(name), true, name);
     }
+    assert.equal(donruss.includes("Optic Preview Pink Prizm"), false);
+    assert.equal(donruss.filter((name) => name === "Optic Preview Pink").length, 1);
     assert.equal(parallelsForSet("Donruss Optic").includes("Optic Preview Pink"), false);
     assert.equal(parallelsForSet("Panini Donruss Optic").includes("Holo"), true);
   });
 
   it("stores Optic Preview Pink for its aliases", () => {
-    for (const typed of ["Optic Preview-Pink", "Optic Preview Pink", "Pink Optic Preview Holo"]) {
+    for (const typed of [
+      "Optic Preview-Pink",
+      "Optic Preview Pink",
+      "Pink Optic Preview Holo",
+      "Optic Preview Pink Prizm",
+      "Optic Rated Rookies Preview Pink",
+    ]) {
       const choice = parallelChoice("Panini Donruss", typed);
       assert.equal(choice.parallel, "Optic Preview Pink", typed);
       assert.equal(choice.parallelIsCustom, false, typed);

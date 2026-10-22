@@ -407,10 +407,31 @@ describe("mail day form rules", () => {
     const mailDayForm = readFileSync(join(process.cwd(), "components/mail-day-form.tsx"), "utf8");
     const cardForm = readFileSync(join(process.cwd(), "components/card-form.tsx"), "utf8");
     assert.match(mailDayForm, /sportAfterCatalogPick\(section\.sport, card\.sport\)/);
-    assert.match(cardForm, /sportAfterCatalogPick\(form\.sport,/);
+    assert.match(cardForm, /sportAfterCatalogPick\(sportTouched \? form\.sport : "", card\.sport\)/);
+    assert.match(cardForm, /sportAfterCatalogPick\(sportTouched \? form\.sport : "", result\.sport\)/);
+    assert.match(cardForm, /useState\(Boolean\(existing\)\)/);
+    assert.match(cardForm, /setSportTouched\(true\)/);
     assert.match(mailDayForm, /This card is listed as/);
     assert.match(cardForm, /This card is listed as/);
     assert.match(mailDayForm, /RC \/ Rookie/);
+  });
+
+  it("does not treat the new card Basketball default as a chosen sport", () => {
+    const pick = (sportTouched: boolean, current: string, catalog: string) =>
+      sportAfterCatalogPick(sportTouched ? current : "", catalog);
+
+    assert.deepEqual(pick(false, "Basketball", "Football"), {
+      sport: "Football",
+      offer: "",
+    });
+    assert.deepEqual(pick(true, "Baseball", "Football"), {
+      sport: "Baseball",
+      offer: "Football",
+    });
+    assert.deepEqual(pick(true, "Hockey", "Football"), {
+      sport: "Hockey",
+      offer: "Football",
+    });
   });
 
   it("saves isRookie on the card row and in mail day meta", () => {

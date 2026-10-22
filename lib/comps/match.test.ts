@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 import {
   buildCompsQuery,
   filterComps,
+  titleHasPlayer,
   titleMatchesCard,
   type MatchCard,
 } from "./match";
@@ -645,5 +646,51 @@ describe("shared comps match", () => {
       }),
       true,
     );
+  });
+
+  it("accepts Optic Preview Pink Prizm titles for a raw Optic Preview Pink card", () => {
+    const card: MatchCard = {
+      playerName: "J.J. McCarthy",
+      year: 2024,
+      setBrand: "Donruss",
+      cardNumber: "303",
+      parallel: "Optic Preview Pink",
+      conditionType: "raw",
+      grade: "Raw",
+    };
+    const title = "2024 Donruss JJ McCarthy Optic Preview Pink Prizm RC #303";
+    assert.equal(titleMatchesCard(title, card), true);
+    assert.equal(filterComps(card, [rawResult(title)]).length, 1);
+    assert.equal(
+      titleMatchesCard(
+        "2024 Donruss JJ McCarthy Optic Rated Rookies Preview Pink #303",
+        card,
+      ),
+      true,
+    );
+    assert.equal(
+      titleMatchesCard("2024 Donruss Optic JJ McCarthy Pink #303", card),
+      false,
+    );
+    assert.equal(filterComps(card, [gradedResult(title, "PSA", "10")]).length, 0);
+    assert.equal(
+      titleMatchesCard(`${title} PSA 10`, card),
+      false,
+    );
+    assert.equal(
+      titleMatchesCard("2024 Donruss JJ McCarthy Optic Preview Pink Velocity #303", card),
+      false,
+    );
+    assert.equal(
+      titleMatchesCard("2024 Donruss Optic JJ McCarthy Pink Velocity #303", card),
+      false,
+    );
+  });
+
+  it("does not match Joe Ng inside Joe Ngo", () => {
+    assert.equal(titleHasPlayer("Joe Ngo 2024 Prizm", "Joe Ng"), false);
+    assert.equal(titleHasPlayer("Joe Ng 2024 Prizm #1", "Joe Ng"), true);
+    assert.equal(titleHasPlayer("2024 Donruss J.J. McCarthy #303", "JJ McCarthy"), true);
+    assert.equal(titleHasPlayer("2024 Donruss JJ McCarthy #303", "J. J. McCarthy"), true);
   });
 });

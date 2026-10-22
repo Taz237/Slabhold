@@ -121,6 +121,7 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
   );
   const [parallelNote, setParallelNote] = useState("");
   const [sportOffer, setSportOffer] = useState("");
+  const [sportTouched, setSportTouched] = useState(Boolean(existing));
   const [isRookie, setIsRookie] = useState(Boolean(existing?.isRookie));
   const [isAuto, setIsAuto] = useState(Boolean(existing?.isAuto));
   const [isRelic, setIsRelic] = useState(Boolean(existing?.isRelic));
@@ -258,7 +259,7 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
 
   function applyIdentify(result: IdentifyResult) {
     const yl = String(result.year);
-    const sport = sportAfterCatalogPick(form.sport, result.sport);
+    const sport = sportAfterCatalogPick(sportTouched ? form.sport : "", result.sport);
     setSportOffer(sport.offer);
     setForm((prev) => ({
       ...prev,
@@ -277,7 +278,7 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
   function applyCatalog(card: CatalogCard) {
     const chosen = parallelChoice(card.setBrand, card.parallel || "Base");
     const title = [card.playerName, card.setBrand, card.parallel, card.cardNumber].join(" ");
-    const sport = sportAfterCatalogPick(form.sport, card.sport);
+    const sport = sportAfterCatalogPick(sportTouched ? form.sport : "", card.sport);
     setSportOffer(sport.offer);
     setForm((prev) => ({
       ...prev,
@@ -634,6 +635,7 @@ export function CardForm({ existing }: { existing?: SportsCard }) {
             value={form.sport}
             options={optionsWithCurrent(SPORT_PICKER_OPTIONS, form.sport)}
             onChange={(sport) => {
+              setSportTouched(true);
               setSportOffer("");
               setForm((prev) => ({ ...prev, sport }));
             }}

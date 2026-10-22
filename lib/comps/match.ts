@@ -355,19 +355,23 @@ export function titleHasCardNumber(
   return re.test(title);
 }
 
-function lettersOnly(value: string): string {
-  return value.toLowerCase().replace(/[^a-z0-9]/g, "");
+/**
+ * "J.J.", "J. J.", and "JJ" are the same name. Dots and spaces may sit between
+ * letters, and the match has to start and end on a word so "Joe Ng" is not "Joe Ngo".
+ */
+function lettersAlignWithWords(title: string, name: string): boolean {
+  const letters = name.toLowerCase().match(/[a-z0-9]/g);
+  if (!letters || letters.length < 4) return false;
+  const body = letters.map((letter) => escapeRegExp(letter)).join("[. ]*");
+  return new RegExp(`(?<![a-z0-9])${body}(?![a-z0-9])`, "i").test(title);
 }
 
 export function titleHasPlayer(title: string, playerName: string): boolean {
   const name = playerName.trim();
   if (!name) return true;
-  const lower = title.toLowerCase();
-  if (lower.includes(name.toLowerCase())) return true;
-  const nameLetters = lettersOnly(name);
-  const titleLetters = lettersOnly(title);
-  // "J.J.", "J. J.", and "JJ" are the same name. "C.J." matches "CJ". "A.J." matches "AJ".
-  if (nameLetters.length >= 4 && titleLetters.includes(nameLetters)) return true;
+  const exact = new RegExp(`(?<![a-z0-9])${escapeRegExp(name)}(?![a-z0-9])`, "i");
+  if (exact.test(title)) return true;
+  if (lettersAlignWithWords(title, name)) return true;
   const parts = name.split(/\s+/).filter(Boolean);
   const last = parts[parts.length - 1];
   if (!last || last.length < 2) return false;
@@ -484,6 +488,7 @@ export function titleNamesWrongSet(
   title: string,
   setBrand?: string,
   sport?: string,
+  parallel?: string,
 ): boolean {
   const cardSet = normalizeSetToken(setBrand ?? "");
   const lower = title.toLowerCase();
@@ -501,7 +506,7 @@ export function titleNamesWrongSet(
     if (
       isPlainDonruss(cardSet) &&
       (keyword === "optic" || keyword === "donruss optic") &&
-      opticOnlyInPreview(lower)
+      opticOnlyInPreview(lower, parallel)
     ) {
       continue;
     }
@@ -531,7 +536,7 @@ export function titleNamesWrongSet(
   if (base) {
     for (const sub of SET_SUB_BRANDS[base]) {
       if (sub === "wnba" && sportIsWnba(sport)) continue;
-      if (base === "donruss" && sub === "optic" && opticOnlyInPreview(lower)) continue;
+      if (base === "donruss" && sub === "optic" && opticOnlyInPreview(lower, parallel)) continue;
       if (titleHasSubBrand(lower, sub)) return true;
     }
   }
@@ -544,7 +549,7 @@ export function titleNamesWrongSet(
       if (
         isPlainDonruss(cardSet) &&
         (normalized === "donruss optic" || normalized === "optic") &&
-        opticOnlyInPreview(lower)
+        opticOnlyInPreview(lower, parallel)
       ) {
         continue;
       }
@@ -565,9 +570,20 @@ function isPlainDonruss(cardSet: string): boolean {
   return cardSet === "donruss" || cardSet === "panini donruss";
 }
 
-/** True when every "optic" in the title is the "Optic Preview" parallel. */
-function opticOnlyInPreview(title: string): boolean {
-  const rest = title.replace(/\boptic\s+preview\b/gi, " ");
+/** True when every "optic" in the title is Optic Preview or one of its aliases. */
+function opticOnlyInPreview(title: string, parallel?: string): boolean {
+  let rest = title.replace(/\boptic\s+preview\b/gi, " ");
+  const phrases: string[][] = [];
+  const own = parallelNameWords(parallel ?? "");
+  if (own.includes("optic")) phrases.push(own);
+  for (const alias of parallelAliasNames(parallel ?? "")) {
+    const words = parallelNameWords(alias);
+    if (words.includes("optic")) phrases.push(words);
+  }
+  for (const words of phrases) {
+    const pattern = words.map((word) => escapeRegExp(word)).join("[^a-z0-9]+");
+    rest = rest.replace(new RegExp(`\\b${pattern}\\b`, "gi"), " ");
+  }
   return !/\boptic\b/i.test(rest);
 }
 
@@ -693,34 +709,10 @@ function parallelNameWords(parallel: string): string[] {
     .map(canonicalParallelWord);
 }
 
-function parallelPhrases(parallel: string): string[][] {
-  const phrases = [parallelNameWords(parallel)];
-  for (const alias of parallelAliasNames(parallel)) {
-    phrases.push(parallelNameWords(alias));
-  }
-  return phrases.filter((words) => words.length > 0);
-}
-
 function phraseInTitle(title: string, words: string[]): boolean {
   if (!words.length) return false;
   const pattern = words.map((word) => escapeRegExp(word)).join("[^a-z0-9]+");
   return new RegExp(`\\b${pattern}\\b`, "i").test(title);
-}
-
-/**
- * Remove this parallel from a title before the wrong-set check.
- * Hyphens and spaces are the same, so "Optic Preview-Pink" and
- * "Optic Preview Pink" both come out. Alias phrases come out too,
- * so "Pink Optic Preview Holo" is not read as Donruss Optic.
- */
-export function stripParallelPhrase(title: string, parallel?: string): string {
-  if (parallelIsBase(parallel)) return title;
-  let text = title;
-  for (const words of parallelPhrases(parallel ?? "")) {
-    const pattern = words.map((word) => escapeRegExp(word)).join("[^a-z0-9]+");
-    text = text.replace(new RegExp(`\\b${pattern}\\b`, "gi"), " ");
-  }
-  return text;
 }
 
 function titleHasWord(title: string, word: string): boolean {
@@ -940,7 +932,7 @@ export function titleMatchesCard(title: string, card: MatchCard): boolean {
   const parallelName =
     canonicalParallelName(card.setBrand, card.parallel ?? "") || card.parallel;
   // Optic Preview and a color sitting in front of Prizm are parallels, not other sets.
-  if (titleNamesWrongSet(title, card.setBrand, card.sport)) {
+  if (titleNamesWrongSet(title, card.setBrand, card.sport, parallelName)) {
     return false;
   }
 
