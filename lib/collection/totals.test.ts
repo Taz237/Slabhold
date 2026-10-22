@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { hasPaid } from "@/lib/format";
-import { summarize } from "@/lib/portfolio";
+import { hasPaid, isSold } from "@/lib/format";
+import { matchesFilter, summarize } from "@/lib/portfolio";
 import {
+  cardsCountedInCollectionTotals,
   collectionTotalsFromSummarize,
   snapshotDateInNewYork,
 } from "./totals-shared";
@@ -103,6 +104,30 @@ describe("collectionTotalsFromSummarize", () => {
     assert.equal(totals.value, 0);
     assert.equal(totals.invested, 0);
     assert.equal(totals.profit, 20);
+  });
+});
+
+describe("cardsCountedInCollectionTotals", () => {
+  it("drops a confirmed deal even when it has no sell price", () => {
+    const held = card({ id: "a", purchasePrice: 100 });
+    const dealSold = card({
+      id: "b",
+      purchasePrice: 40,
+      soldAt: "2026-10-22T12:00:00.000Z",
+    });
+    const values = new Map<string, CardValueResult>([
+      ["a", okValue(150)],
+      ["b", okValue(900)],
+    ]);
+    assert.equal(isSold(dealSold), true);
+    assert.equal(matchesFilter(dealSold, "sold", values), true);
+    assert.equal(matchesFilter(held, "sold", values), false);
+    const totals = collectionTotalsFromSummarize(
+      summarize(cardsCountedInCollectionTotals([held, dealSold]), values),
+    );
+    assert.equal(totals.value, 150);
+    assert.equal(totals.invested, 100);
+    assert.equal(totals.profit, 50);
   });
 });
 

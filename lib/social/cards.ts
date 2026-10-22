@@ -63,6 +63,7 @@ export type CardRow = {
   grade_qualifier?: string | null;
   cert_number?: string | null;
   open_to_offers?: boolean | null;
+  sold_at?: string | null;
 };
 
 function inferConditionType(
@@ -130,6 +131,7 @@ export function mapCardRow(row: CardRow): SportsCard {
         : undefined,
     isPublic: Boolean(row.is_public),
     openToOffers: readOpenToOffers(row),
+    soldAt: row.sold_at ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at ?? row.created_at,
   };

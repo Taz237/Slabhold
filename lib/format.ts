@@ -80,16 +80,18 @@ export function cardSubtitle(
   return parts.join(" · ");
 }
 
-export function isSold(card: SportsCard) {
-  return card.sellPrice != null && card.sellDate != null;
+export function isSold(card: Pick<SportsCard, "sellPrice" | "sellDate"> & { soldAt?: string | null }) {
+  return Boolean(card.soldAt) || (card.sellPrice != null && card.sellDate != null);
 }
 
 export function currentValue(card: SportsCard) {
-  return isSold(card) ? card.sellPrice! : card.estimatedSellPrice;
+  if (!isSold(card)) return card.estimatedSellPrice;
+  return card.sellPrice ?? 0;
 }
 
 export function profit(card: SportsCard) {
   if (!hasPaid(card)) return 0;
+  if (isSold(card) && card.sellPrice == null) return 0;
   return currentValue(card) - (card.purchasePrice as number);
 }
 

@@ -6,6 +6,7 @@ import { summarize } from "@/lib/portfolio";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { getCardValues } from "@/lib/value/getCardValue";
 import {
+  cardsCountedInCollectionTotals,
   collectionTotalsFromSummarize,
   snapshotDateInNewYork,
   type CollectionTotals,
@@ -32,7 +33,7 @@ async function loadUserCollection(userId: string) {
     .eq("user_id", userId);
   if (error) throw new Error(error.message);
 
-  const cards = ((data ?? []) as CardRow[]).map(mapCardRow);
+  const cards = cardsCountedInCollectionTotals(((data ?? []) as CardRow[]).map(mapCardRow));
   const values = await getCardValues(cards.map((card) => card.id));
   return { admin, cards, values };
 }

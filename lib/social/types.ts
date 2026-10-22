@@ -113,7 +113,8 @@ export type NotificationKind =
   | "repost"
   | "mention"
   | "quote"
-  | "want_alert";
+  | "want_alert"
+  | "deal_confirm";
 
 export type Notification = {
   id: string;

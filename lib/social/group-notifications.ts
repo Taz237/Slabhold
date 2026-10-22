@@ -30,6 +30,7 @@ export function notificationAction(kind: NotificationKind): string {
   if (kind === "quote") return "quoted your post";
   if (kind === "mention") return "mentioned you";
   if (kind === "want_alert") return "matched a card you want";
+  if (kind === "deal_confirm") return "asked you to confirm a deal";
   return "followed you";
 }
 

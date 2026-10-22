@@ -249,7 +249,7 @@ create table if not exists public.notifications (
   metadata jsonb,
   read boolean not null default false,
   created_at timestamptz not null default now(),
-  constraint notifications_kind check (kind in ('like', 'comment', 'follow', 'repost', 'mention', 'quote', 'want_alert')),
+  constraint notifications_kind check (kind in ('like', 'comment', 'follow', 'repost', 'mention', 'quote', 'want_alert', 'deal_confirm')),
   check (actor_id is null or actor_id <> recipient_id)
 );
 
@@ -353,7 +353,7 @@ create index if not exists reposts_user_created_idx on public.reposts (user_id, 
 alter table public.notifications drop constraint if exists notifications_kind;
 alter table public.notifications
   add constraint notifications_kind
-  check (kind in ('like', 'comment', 'follow', 'repost', 'mention', 'quote', 'want_alert'));
+  check (kind in ('like', 'comment', 'follow', 'repost', 'mention', 'quote', 'want_alert', 'deal_confirm'));
 
 create unique index if not exists notifications_repost_once
   on public.notifications (actor_id, post_id)
@@ -622,6 +622,7 @@ create policy "Create notifications as yourself" on public.notifications
     and actor_id <> recipient_id
     and kind <> 'quote'
     and kind <> 'want_alert'
+    and kind <> 'deal_confirm'
   );
 create policy "Mark own notifications read" on public.notifications
   for update using (auth.uid() = recipient_id) with check (auth.uid() = recipient_id);
@@ -674,7 +675,9 @@ select
   grade_qualifier,
   open_to_offers
 from public.cards
-where is_public = true;
+where is_public = true
+  and sold_at is null
+  and (sell_date is null or sell_price is null);
 
 revoke insert, update, delete, truncate, references, trigger
   on public.public_cards from anon, authenticated, public;

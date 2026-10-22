@@ -19,6 +19,8 @@ import { CategoryPicker } from "@/components/category-picker";
 import { FirstCardPrivacyPrompt } from "@/components/first-card-privacy-prompt";
 import { SharedPostNote } from "@/components/shared-post-note";
 import { useCollection } from "@/components/collection-provider";
+import { DealSheet } from "@/components/deal-sheet";
+import { MARK_SOLD_LABEL } from "@/lib/deals/state";
 import {
   CardDetailPending,
   CardHero,
@@ -108,6 +110,7 @@ export function CardDetail({ id }: { id: string }) {
   const card = getCard(id);
   const [sellPrice, setSellPrice] = useState("");
   const [editing, setEditing] = useState(false);
+  const [dealOpen, setDealOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const privacyNudge = useSyncExternalStore(
     subscribeFirstCardPrivacy,
@@ -304,6 +307,7 @@ export function CardDetail({ id }: { id: string }) {
 
   return (
     <div className="space-y-6">
+      {dealOpen ? <DealSheet fixedCard={card} onClose={() => setDealOpen(false)} /> : null}
       <CardTopBar
         editing={editing}
         menuOpen={menuOpen}
@@ -471,7 +475,9 @@ export function CardDetail({ id }: { id: string }) {
           ) : null}
           <p className="text-sm text-zinc-500">
             Bought {formatDate(card.purchaseDate)}
-            {cardSold ? ` · Sold ${formatDate(card.sellDate)}` : " · Still held"}
+            {cardSold
+              ? ` · Sold ${formatDate((card.sellDate || card.soldAt || "").slice(0, 10))}`
+              : " · Still held"}
           </p>
 
           <WantButton
@@ -482,7 +488,14 @@ export function CardDetail({ id }: { id: string }) {
 
           {!cardSold ? (
             <div className="flex max-w-sm flex-col gap-2">
-              <p className="text-sm text-zinc-500">Mark as sold</p>
+              <button
+                type="button"
+                onClick={() => setDealOpen(true)}
+                className="w-full rounded-full bg-violet-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-violet-500"
+              >
+                {MARK_SOLD_LABEL}
+              </button>
+              <p className="text-sm text-zinc-500">Or record a price yourself</p>
               <input
                 type="number"
                 min={0}

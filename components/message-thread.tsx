@@ -6,7 +6,10 @@ import { ArrowLeft, X } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Avatar } from "@/components/avatar";
 import { solidButton } from "@/components/button-styles";
+import { DealSheet } from "@/components/deal-sheet";
+import { DealThreadPanel } from "@/components/deal-response";
 import { CardMessagePreviewCard } from "@/components/open-to-offers";
+import { MARK_SOLD_LABEL } from "@/lib/deals/state";
 import { EmptyState, LoadingRows } from "@/components/status";
 import { useSocial } from "@/components/social-provider";
 import { signupPath } from "@/lib/auth/safe-next";
@@ -49,6 +52,7 @@ export function MessageThread({ username }: { username: string }) {
   );
   const offerAttachment = offerCard ? { cardId: offerCard.id } : null;
   const [draft, setDraft] = useState("");
+  const [dealOpen, setDealOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const scroller = useRef<HTMLDivElement>(null);
@@ -160,7 +164,12 @@ export function MessageThread({ username }: { username: string }) {
             <span className="block truncate text-xs text-zinc-500">@{partner.username}</span>
           </span>
         </Link>
+        <button type="button" onClick={() => setDealOpen(true)} className="shrink-0 rounded-full px-2 py-1 text-xs font-bold text-violet-700 dark:text-violet-300">
+          {MARK_SOLD_LABEL}
+        </button>
       </div>
+      {dealOpen ? <DealSheet fixedBuyerId={partner.id} onClose={() => setDealOpen(false)} /> : null}
+      <DealThreadPanel partnerId={partner.id} />
 
       <div ref={scroller} className="min-h-0 flex-1 space-y-2 overflow-y-auto px-4 py-3">
         {thread.length === 0 ? (
