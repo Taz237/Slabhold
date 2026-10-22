@@ -96,10 +96,10 @@ import type {
   PostRepost,
   Profile,
   ProfilePatch,
-  PublicCard,
   SignUpInput,
   SocialSnapshot,
 } from "@/lib/social/types";
+import { draftPostPhotos, type PostWrite } from "@/lib/social/post-photos";
 
 type SocialContextValue = {
   ready: boolean;
@@ -124,15 +124,10 @@ type SocialContextValue = {
   followingCount: (userId: string) => number;
   followersOf: (userId: string) => Profile[];
   followingOf: (userId: string) => Profile[];
-  createPost: (input: {
-    body: string;
-    imageDataUrl: string | null;
-    card: PublicCard | null;
-    quotedPostId?: string | null;
-  }) => Promise<AuthResult>;
+  createPost: (input: PostWrite) => Promise<AuthResult & { postId?: string }>;
   updatePost: (
     postId: string,
-    input: { body: string; imageDataUrl: string | null },
+    input: { body: string; imageDataUrl: string | null; images?: readonly string[] | null },
   ) => Promise<AuthResult>;
   deletePost: (postId: string) => Promise<AuthResult>;
   deleteComment: (commentId: string) => Promise<AuthResult>;
@@ -665,12 +660,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
   );
 
   const createPost = useCallback(
-    async (input: {
-      body: string;
-      imageDataUrl: string | null;
-      card: PublicCard | null;
-      quotedPostId?: string | null;
-    }): Promise<AuthResult> => {
+    async (input: PostWrite): Promise<AuthResult & { postId?: string }> => {
       const client = supabaseRef.current;
       if (mode === "supabase" && client && snapshot.user) {
         try {
@@ -692,7 +682,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
         commitLocal(result.db);
         trackEvent("post_created");
       }
-      return { error: result.error };
+      return { error: result.error, postId: result.postId };
     },
     [commitLocal, mode, refreshRemote, snapshot.user],
   );
@@ -700,7 +690,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
   const updatePost = useCallback(
     async (
       postId: string,
-      input: { body: string; imageDataUrl: string | null },
+      input: { body: string; imageDataUrl: string | null; images?: readonly string[] | null },
     ): Promise<AuthResult> => {
       const client = supabaseRef.current;
       if (mode === "supabase" && client && snapshot.user) {
@@ -713,9 +703,15 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
               postId,
             );
             if (known) {
+              const photos = draftPostPhotos(input);
               storeRemembered(
                 rememberedRef.current,
-                [{ ...known, body: input.body, imageDataUrl: input.imageDataUrl }],
+                [{
+                  ...known,
+                  body: input.body,
+                  imageDataUrl: photos[0] ?? null,
+                  images: photos,
+                }],
                 [],
                 new Set(snapshotRef.current.blockedIds ?? []),
               );

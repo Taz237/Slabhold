@@ -5,7 +5,9 @@ import { useEffect, useRef, useState } from "react";
 import { Camera, ImagePlus, X } from "lucide-react";
 import { AttachCardField } from "@/components/attach-card-field";
 import { Avatar } from "@/components/avatar";
+import { ComposePhotoDrafts } from "@/components/compose-photo-drafts";
 import { PhotoFileInputs } from "@/components/photo-file-inputs";
+import { usePostPhotos } from "@/components/use-post-photos";
 import { useCollection } from "@/components/collection-provider";
 import { QuoteComposePreview } from "@/components/quoted-post-embed";
 import { MentionTextarea } from "@/components/mention-textarea";
@@ -14,13 +16,23 @@ import { signupPath } from "@/lib/auth/safe-next";
 import { useSocial } from "@/components/social-provider";
 import { takeCompose } from "@/lib/capture";
 import { initials } from "@/lib/format";
-import { PHOTO_HEIC_ERROR, PHOTO_READ_ERROR, readPhotoFile } from "@/lib/photos";
+import { PHOTO_HEIC_ERROR, readPhotoFile } from "@/lib/photos";
+import {
+  POST_PHOTO_LIMIT_ERROR,
+  POST_PHOTO_SINGLE_ERROR,
+  postPhotoLimit,
+  postsSupportMultipleImages,
+} from "@/lib/social/post-photos";
 import { mapPublicCard, PUBLIC_CARD_SELECT } from "@/lib/social/cards";
 import { toPublicAttachment } from "@/lib/social/card-posts";
 import { QUOTE_EMPTY_ERROR, isQuoteSubmitDisabled, shouldConfirmDiscard, validateQuoteContent } from "@/lib/social/quotes";
 import { POST_LIMIT, type PublicCard } from "@/lib/social/types";
 import { createSupabaseBrowser } from "@/lib/supabase/browser";
 import { isUuid } from "@/lib/value/card-value-access";
+
+function readComposerPhoto(file: File) {
+  return readPhotoFile(file, 960);
+}
 
 export function ComposeView() {
   const router = useRouter();
@@ -36,12 +48,19 @@ export function ComposeView() {
   const photoSource = useRef<"camera" | "library">("library");
   const started = useRef(false);
   const [body, setBody] = useState("");
-  const [image, setImage] = useState<string | null>(null);
+  const {
+    images,
+    photoError,
+    readingPhoto,
+    addFiles,
+    removePhoto,
+    replaceAll,
+    setLimit,
+  } = usePostPhotos(readComposerPhoto);
   const [cardId, setCardId] = useState("");
   const [externalCard, setExternalCard] = useState<PublicCard | null>(null);
   const [quoteId, setQuoteId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [photoError, setPhotoError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
   const editing = posts.find((post) => post.id === editId && post.authorId === user?.id);
@@ -56,13 +75,13 @@ export function ComposeView() {
       const post = posts.find((item) => item.id === editId && item.authorId === user.id);
       if (post) {
         setBody(post.body);
-        setImage(post.imageDataUrl);
+        replaceAll(post.images?.length ? post.images : post.imageDataUrl ? [post.imageDataUrl] : []);
         return;
       }
     }
     const captured = takeCompose();
-    if (captured) setImage(captured);
-  }, [editId, posts, ready, user]);
+    if (captured) replaceAll([captured]);
+  }, [editId, posts, ready, replaceAll, user]);
 
   useEffect(() => {
     if (!ready || !user || editId || !attachCardParam) return;
@@ -110,6 +129,18 @@ export function ComposeView() {
     }
   }, [pathname, params, ready, router, user]);
 
+  useEffect(() => {
+    const supabase = createSupabaseBrowser();
+    if (!supabase) return;
+    let cancelled = false;
+    void postsSupportMultipleImages(supabase).then((ok) => {
+      if (!cancelled) setLimit(postPhotoLimit(ok));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [setLimit]);
+
   function openCamera() {
     photoSource.current = "camera";
     cameraRef.current?.click();
@@ -125,22 +156,13 @@ export function ComposeView() {
     else openLibrary();
   }
 
-  async function onImage(file: File | undefined) {
-    if (!file) return;
-    try {
-      setImage(await readPhotoFile(file, 960));
-      setPhotoError(null);
-    } catch (err) {
-      setPhotoError(err instanceof Error ? err.message : PHOTO_READ_ERROR);
-    }
-  }
-
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     const selected = cards.find((card) => card.id === cardId);
     const source =
       selected ?? (externalCard?.id === cardId ? externalCard : null);
     const card: PublicCard | null = source ? toPublicAttachment(source) : null;
+    const image = images[0] ?? null;
 
     if (quoteId) {
       const quoteError = validateQuoteContent({
@@ -156,17 +178,18 @@ export function ComposeView() {
         setError("That post is unavailable.");
         return;
       }
-    } else if (!body.trim() && !image && !card) {
+    } else if (!body.trim() && images.length === 0 && !card) {
       setError("Write something, add a photo, or attach a card.");
       return;
     }
 
     setSending(true);
     const result = editing
-      ? await updatePost(editing.id, { body, imageDataUrl: image })
+      ? await updatePost(editing.id, { body, imageDataUrl: image, images })
       : await createPost({
           body,
           imageDataUrl: image,
+          images,
           card,
           quotedPostId: quoteId,
         });
@@ -198,10 +221,10 @@ export function ComposeView() {
   const canPost = quoteId
     ? !isQuoteSubmitDisabled({
         body,
-        imageDataUrl: image,
+        imageDataUrl: images[0] ?? null,
         card: attachedPreview,
-      }) && !sending
-    : (body.trim().length > 0 || Boolean(image) || Boolean(cardId)) && !sending;
+      }) && !sending && !readingPhoto
+    : (body.trim().length > 0 || images.length > 0 || Boolean(cardId)) && !sending && !readingPhoto;
 
   function leave() {
     if (typeof window !== "undefined" && window.history.length > 1) {
@@ -215,7 +238,7 @@ export function ComposeView() {
     if (
       shouldConfirmDiscard({
         body,
-        imageDataUrl: image,
+        imageDataUrl: images[0] ?? null,
         hasCard: Boolean(attachedPreview),
       })
     ) {
@@ -275,7 +298,9 @@ export function ComposeView() {
             {photoError ? (
               <div role="alert" className="mt-3 space-y-2">
                 <p className="text-sm text-rose-600 dark:text-rose-400">{photoError}</p>
-                {photoError === PHOTO_HEIC_ERROR ? null : (
+                {photoError === PHOTO_HEIC_ERROR ||
+                photoError === POST_PHOTO_LIMIT_ERROR ||
+                photoError === POST_PHOTO_SINGLE_ERROR ? null : (
                   <button
                     type="button"
                     onClick={retryPhoto}
@@ -299,24 +324,8 @@ export function ComposeView() {
             />
           </div>
         ) : null}
-        {image ? (
-          <div className="relative mt-3">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={image}
-              alt=""
-              className="max-h-72 w-full rounded-2xl border border-zinc-200 object-cover dark:border-white/10"
-            />
-            <button
-              type="button"
-              onClick={() => setImage(null)}
-              aria-label="Remove photo"
-              className="absolute top-2 right-2 grid h-8 w-8 place-items-center rounded-full bg-black/70 text-white"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-        ) : null}
+        <ComposePhotoDrafts images={images} onRemove={removePhoto} />
+        {readingPhoto ? <p className="mt-2 text-sm text-zinc-500">Reading photo…</p> : null}
         {attachedPreview ? (
           <ComposeCardPreview
             card={attachedPreview}
@@ -332,7 +341,11 @@ export function ComposeView() {
         <PhotoFileInputs
           cameraRef={cameraRef}
           libraryRef={libraryRef}
-          onPick={(file) => void onImage(file)}
+          libraryMultiple
+          onPick={(file) => {
+            if (file) void addFiles([file]);
+          }}
+          onPickMany={(files) => void addFiles(files)}
         />
         <button
           type="button"

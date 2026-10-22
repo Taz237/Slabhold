@@ -2,7 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { captchaRetryMessage } from "@/lib/auth/captcha";
 import { emailConfirmRedirect } from "@/lib/auth/safe-next";
 import { EMAIL_NOT_CONFIRMED, isEmailNotConfirmed } from "@/lib/auth/signup-fields";
-import { uploadMedia } from "@/lib/supabase/media";
+import { removeUploadedMedia, uploadMedia } from "@/lib/supabase/media";
 import { sanitizeAttachedCard } from "./card-posts";
 import { loadMailDayViews } from "./mail-day";
 import {
@@ -41,10 +41,23 @@ import { normalizeUsername, usernameError } from "./local-db";
 import { ilikeExact, TAKEN_USERNAME, usernameTakenMessage } from "./username-taken";
 import { validateQuoteContent } from "./quotes";
 import { pingWantMatch } from "@/lib/wants/ping";
+import {
+  draftPostPhotos,
+  mappedPostImages,
+  metaColumnMissing,
+  metaWithImages,
+  noteMultiPhotoMissing,
+  type PostWrite,
+} from "./post-photos";
 import { BLOCKED_INTERACTION } from "@/lib/safety/block";
 import { canNotify, supabaseSafety } from "@/lib/safety/can-notify";
 import { applyAuthorSafety, loadHiddenAuthorIds, withAuthorSafety } from "@/lib/safety/filters";
 import { needsSuggestionHeadroom, suggestionExtraRange } from "./follow-suggestions";
+
+/** Swappable so a shared-card post can be tested without hitting the network. */
+export const postWantAlerts = {
+  ping: pingWantMatch,
+};
 
 /** Public columns only — used by @mention autocomplete. */
 const MENTION_PROFILE_SELECT = "id, username, display_name, avatar_url";
@@ -167,11 +180,13 @@ async function allowNotice(
 function mapPost(row: PostRow, mailDayCards: MailDayCardView[]): Post {
   const card = sanitizeAttachedCard(row.card);
   const first = mailDayCards[0];
+  const photos = mappedPostImages(row);
   return {
     id: row.id,
     authorId: row.user_id,
     body: row.content ?? "",
-    imageDataUrl: row.image_url,
+    imageDataUrl: photos.imageDataUrl,
+    images: photos.images,
     card,
     quotedPostId: row.quoted_post_id ?? null,
     createdAt: row.created_at,
@@ -862,26 +877,43 @@ export async function remoteMarkNotificationsRead(
   return {};
 }
 
+async function uploadPostImages(
+  supabase: SupabaseClient,
+  authorId: string,
+  photos: readonly string[],
+): Promise<{ urls: string[]; error?: string }> {
+  const urls: string[] = [];
+  const created: string[] = [];
+  for (const value of photos) {
+    const image = await uploadMedia(supabase, "post-images", authorId, value);
+    if (image.error || !image.url) {
+      await Promise.all(
+        created.map((path) => removeUploadedMedia(supabase, "post-images", path)),
+      );
+      return { urls: [], error: image.error ?? "Could not upload that photo." };
+    }
+    urls.push(image.url);
+    if (image.createdPath) created.push(image.createdPath);
+  }
+  return { urls };
+}
+
 export async function remoteCreatePost(
   supabase: SupabaseClient,
   authorId: string,
-  input: {
-    body: string;
-    imageDataUrl: string | null;
-    card: PublicCard | null;
-    quotedPostId?: string | null;
-  },
-): Promise<AuthResult> {
+  input: PostWrite,
+): Promise<AuthResult & { postId?: string }> {
   const body = input.body.trim();
+  const photos = draftPostPhotos(input);
   const quotedPostId = input.quotedPostId?.trim() || null;
   if (quotedPostId) {
     const quoteError = validateQuoteContent({
       body,
-      imageDataUrl: input.imageDataUrl,
+      imageDataUrl: photos[0] ?? null,
       card: input.card,
     });
     if (quoteError) return { error: quoteError };
-  } else if (!body && !input.imageDataUrl && !input.card) {
+  } else if (!body && photos.length === 0 && !input.card) {
     return { error: "Write something, add a photo, or attach a card." };
   }
   if (body.length > 280) return { error: "Keep it to 280 characters." };
@@ -896,52 +928,97 @@ export async function remoteCreatePost(
     if (!quoted) return { error: "That post is unavailable." };
   }
 
-  const image = await uploadMedia(supabase, "post-images", authorId, input.imageDataUrl);
-  if (image.error) return { error: image.error };
+  const uploaded = await uploadPostImages(supabase, authorId, photos);
+  if (uploaded.error) return { error: uploaded.error };
   const card = await storedCard(supabase, authorId, input.card);
   if (card.error) return { error: card.error };
-  const { data: created, error } = await supabase
-    .from("posts")
-    .insert({
-      user_id: authorId,
-      content: body,
-      image_url: image.url,
-      card: card.card,
-      quoted_post_id: quotedPostId,
-    })
-    .select("id")
-    .single();
+  const base = {
+    user_id: authorId,
+    content: body,
+    image_url: uploaded.urls[0] ?? null,
+    card: card.card,
+    quoted_post_id: quotedPostId,
+  };
+  const meta = metaWithImages(null, uploaded.urls);
+  let created: { id: string } | null = null;
+  let error: { message?: string; code?: string } | null = null;
+  if (meta) {
+    const withMeta = await supabase.from("posts").insert({ ...base, meta }).select("id").single();
+    created = withMeta.data;
+    error = withMeta.error;
+    if (error && metaColumnMissing(error)) {
+      noteMultiPhotoMissing();
+      const retry = await supabase.from("posts").insert(base).select("id").single();
+      created = retry.data;
+      error = retry.error;
+    }
+  } else {
+    const inserted = await supabase.from("posts").insert(base).select("id").single();
+    created = inserted.data;
+    error = inserted.error;
+  }
   if (error || !created) {
     return {
       error: rlsBlocked(error) ? BLOCKED_INTERACTION : (error?.message ?? "Could not save that post."),
     };
   }
 
-  if (input.card) pingWantMatch("post", created.id);
+  // Adding a card already alerts once. Skip the post alert for that share.
+  if (input.card && !input.shareOfNewCard) postWantAlerts.ping("post", created.id);
 
   // Quote notifications are created by a DB trigger on posts insert.
   // Mentions stay client-side so edit/sync can add/remove them.
   const mentionProblem = await syncMentionNotifications(supabase, authorId, created.id, body);
-  if (mentionProblem) return { notice: mentionProblem };
-  return {};
+  if (mentionProblem) return { notice: mentionProblem, postId: created.id };
+  return { postId: created.id };
 }
 
 export async function remoteUpdatePost(
   supabase: SupabaseClient,
   authorId: string,
   postId: string,
-  input: { body: string; imageDataUrl: string | null },
+  input: { body: string; imageDataUrl: string | null; images?: readonly string[] | null },
 ): Promise<AuthResult> {
   const body = input.body.trim();
   if (body.length > 280) return { error: "Keep it to 280 characters." };
-  const image = await uploadMedia(supabase, "post-images", authorId, input.imageDataUrl);
-  if (image.error) return { error: image.error };
-  const { error } = await supabase
+  const photos = draftPostPhotos(input);
+  const uploaded = await uploadPostImages(supabase, authorId, photos);
+  if (uploaded.error) return { error: uploaded.error };
+  const prior = await supabase
     .from("posts")
-    .update({ content: body, image_url: image.url })
+    .select("meta")
     .eq("id", postId)
-    .eq("user_id", authorId);
-  if (error) return { error: error.message };
+    .eq("user_id", authorId)
+    .maybeSingle();
+  const base = { content: body, image_url: uploaded.urls[0] ?? null };
+  if (prior.error && metaColumnMissing(prior.error)) {
+    noteMultiPhotoMissing();
+    const { error } = await supabase
+      .from("posts")
+      .update(base)
+      .eq("id", postId)
+      .eq("user_id", authorId);
+    if (error) return { error: error.message };
+  } else {
+    if (prior.error) return { error: prior.error.message };
+    const meta = metaWithImages(prior.data?.meta, uploaded.urls);
+    const { error } = await supabase
+      .from("posts")
+      .update({ ...base, meta })
+      .eq("id", postId)
+      .eq("user_id", authorId);
+    if (error && metaColumnMissing(error)) {
+      noteMultiPhotoMissing();
+      const retry = await supabase
+        .from("posts")
+        .update(base)
+        .eq("id", postId)
+        .eq("user_id", authorId);
+      if (retry.error) return { error: retry.error.message };
+    } else if (error) {
+      return { error: error.message };
+    }
+  }
   const mentionProblem = await syncMentionNotifications(supabase, authorId, postId, body);
   if (mentionProblem) return { notice: mentionProblem };
   return {};

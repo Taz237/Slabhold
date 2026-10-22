@@ -9,6 +9,9 @@ import { CategoryPicker } from "@/components/category-picker";
 import { useCollection, useDefaultAccent } from "@/components/collection-provider";
 import { NativeSelect, SearchSelect, SET_PARALLEL_HINT } from "@/components/search-select";
 import { useSocial } from "@/components/social-provider";
+import { toPublicAttachment } from "@/lib/social/card-posts";
+import { sharePostFromCard, shareToFeedControl, writeSharedPost } from "@/lib/social/share-to-feed";
+import { POST_LIMIT } from "@/lib/social/types";
 import { takeScan } from "@/lib/capture";
 import type { CatalogCard } from "@/lib/card-catalog";
 import {
@@ -105,7 +108,7 @@ export function CardForm({
 }) {
   const router = useRouter();
   const { addCard, updateCard, removeCard, cards, ready: cardsReady, syncError } = useCollection();
-  const { mode, user } = useSocial();
+  const { mode, user, createPost } = useSocial();
   const current = useCardValue(existing?.id ?? null);
   const currentValueLine = marketValueSummary(current.value);
   const accent = useDefaultAccent();
@@ -134,6 +137,8 @@ export function CardForm({
   const [share, setShare] = useState(Boolean(existing?.isPublic));
   const offersKnown = existing?.openToOffers != null;
   const [openToOffers, setOpenToOffers] = useState(existing?.openToOffers === true);
+  const [shareToFeed, setShareToFeed] = useState(false);
+  const [caption, setCaption] = useState("");
   const [category, setCategory] = useState<CardCategory>(
     existing ? cardCategory(existing) : "pc",
   );
@@ -529,6 +534,26 @@ export function CardForm({
           })
         ) {
           void submitCatalogCardQuietly(card.id);
+        }
+      }
+      if (!existing) {
+        const draft = sharePostFromCard({
+          isPublic: payload.isPublic,
+          share: shareToFeed,
+          caption,
+          card: toPublicAttachment(card),
+        });
+        if (draft) {
+          const posted = await createPost(draft);
+          if (posted.error) {
+            setSaveError("Saved the card, but couldn't share it to the feed.");
+            setSaving(false);
+            savingRef.current = false;
+            return;
+          }
+          if (posted.postId && typeof sessionStorage !== "undefined") {
+            writeSharedPost(sessionStorage, card.id, posted.postId);
+          }
         }
       }
       router.push(`/cards/${card.id}`);
@@ -1019,7 +1044,10 @@ export function CardForm({
               checked={share}
               onChange={(e) => {
                 setShare(e.target.checked);
-                if (!e.target.checked) setOpenToOffers(false);
+                if (!e.target.checked) {
+                  setOpenToOffers(false);
+                  setShareToFeed(false);
+                }
               }}
               className="size-5 accent-violet-500"
             />
@@ -1110,6 +1138,16 @@ export function CardForm({
         </span>
       </p>
 
+      {existing ? null : (
+        <ShareToFeedField
+          isPublic={share}
+          share={shareToFeed}
+          caption={caption}
+          onShare={setShareToFeed}
+          onCaption={setCaption}
+        />
+      )}
+
       {saveError ? (
         <div role="alert" className="space-y-2">
           <p className="text-sm text-rose-600 dark:text-rose-400">{saveError}</p>
@@ -1170,6 +1208,56 @@ export function CardForm({
         </div>
       </div>
     </form>
+  );
+}
+
+function ShareToFeedField({
+  isPublic,
+  share,
+  caption,
+  onShare,
+  onCaption,
+}: {
+  isPublic: boolean;
+  share: boolean;
+  caption: string;
+  onShare: (value: boolean) => void;
+  onCaption: (value: string) => void;
+}) {
+  const control = shareToFeedControl({ isPublic, share });
+  return (
+    <div className="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm dark:border-white/10 dark:bg-white/[0.03]">
+      <label className="flex min-h-11 items-center gap-3">
+        <CheckHit>
+          <input
+            type="checkbox"
+            checked={control.checked}
+            disabled={control.disabled}
+            onChange={(e) => onShare(e.target.checked)}
+            className="size-5 accent-violet-500 disabled:opacity-40"
+          />
+        </CheckHit>
+        Share to feed
+      </label>
+      {control.explanation ? (
+        <p className="text-xs leading-5 text-zinc-500">{control.explanation}</p>
+      ) : (
+        <p className="text-xs leading-5 text-zinc-500">
+          Off unless you turn it on. Adds a post with this card and its photo.
+        </p>
+      )}
+      {control.checked ? (
+        <textarea
+          rows={3}
+          value={caption}
+          maxLength={POST_LIMIT}
+          aria-label="Caption"
+          onChange={(e) => onCaption(e.target.value)}
+          className={`${inputClass} mt-3 resize-y`}
+          placeholder="Add a caption"
+        />
+      ) : null}
+    </div>
   );
 }
 

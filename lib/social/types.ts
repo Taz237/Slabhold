@@ -61,6 +61,8 @@ export type Post = {
   authorId: string;
   body: string;
   imageDataUrl: string | null;
+  /** Every photo on a normal post, first matching imageDataUrl. Omitted on older rows. */
+  images?: string[];
   card: PublicCard | null;
   /** Original post this quote references, if any. */
   quotedPostId: string | null;

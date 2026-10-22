@@ -2,11 +2,13 @@
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { X } from "lucide-react";
+import { ChevronLeft, ChevronRight, X } from "lucide-react";
 
-type LightboxImage = { src: string; alt: string };
+type LightboxImage = { images: string[]; index: number; alt: string };
 
-const ImageLightboxContext = createContext<(src: string, alt: string) => void>(() => {});
+const ImageLightboxContext = createContext<
+  (src: string, alt: string, gallery?: readonly string[]) => void
+>(() => {});
 
 export function useImageLightbox() {
   return useContext(ImageLightboxContext);
@@ -14,19 +16,79 @@ export function useImageLightbox() {
 
 export function ImageLightboxProvider({ children }: { children: React.ReactNode }) {
   const [image, setImage] = useState<LightboxImage | null>(null);
-  const open = useCallback((src: string, alt: string) => {
-    setImage({ src, alt });
+  const open = useCallback((src: string, alt: string, gallery?: readonly string[]) => {
+    const images = gallery && gallery.length > 0 ? [...gallery] : [src];
+    const found = images.indexOf(src);
+    setImage({ images, index: found >= 0 ? found : 0, alt });
   }, []);
 
   return (
     <ImageLightboxContext.Provider value={open}>
       {children}
-      {image ? <Lightbox image={image} onClose={() => setImage(null)} /> : null}
+      {image ? (
+        <Lightbox
+          image={image}
+          onClose={() => setImage(null)}
+          onIndex={(index) => setImage((current) => (current ? { ...current, index } : current))}
+        />
+      ) : null}
     </ImageLightboxContext.Provider>
   );
 }
 
-function Lightbox({ image, onClose }: { image: LightboxImage; onClose: () => void }) {
+export function LightboxNav({
+  count,
+  index,
+  onPrev,
+  onNext,
+}: {
+  count: number;
+  index: number;
+  onPrev: () => void;
+  onNext: () => void;
+}) {
+  if (count <= 1) return null;
+  const buttonClass =
+    "absolute top-1/2 z-10 grid h-11 w-11 min-h-11 min-w-11 -translate-y-1/2 place-items-center rounded-full bg-black/55 text-white disabled:opacity-40";
+  return (
+    <>
+      <button
+        type="button"
+        aria-label="Previous photo"
+        disabled={index <= 0}
+        onClick={(event) => {
+          event.stopPropagation();
+          onPrev();
+        }}
+        className={`${buttonClass} left-3`}
+      >
+        <ChevronLeft className="h-5 w-5" />
+      </button>
+      <button
+        type="button"
+        aria-label="Next photo"
+        disabled={index >= count - 1}
+        onClick={(event) => {
+          event.stopPropagation();
+          onNext();
+        }}
+        className={`${buttonClass} right-3`}
+      >
+        <ChevronRight className="h-5 w-5" />
+      </button>
+    </>
+  );
+}
+
+function Lightbox({
+  image,
+  onClose,
+  onIndex,
+}: {
+  image: LightboxImage;
+  onClose: () => void;
+  onIndex: (index: number) => void;
+}) {
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const startY = useRef(0);
   const dragRef = useRef(0);
@@ -116,9 +178,15 @@ function Lightbox({ image, onClose }: { image: LightboxImage; onClose: () => voi
       >
         <X className="h-5 w-5" />
       </button>
+      <LightboxNav
+        count={image.images.length}
+        index={image.index}
+        onPrev={() => onIndex(image.index - 1)}
+        onNext={() => onIndex(image.index + 1)}
+      />
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
-        src={image.src}
+        src={image.images[image.index] ?? image.images[0]}
         alt={image.alt}
         onClick={(event) => event.stopPropagation()}
         draggable={false}

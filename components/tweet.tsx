@@ -7,6 +7,7 @@ import { Ellipsis, Heart, MessageCircle, Quote, Repeat2 } from "lucide-react";
 import { Avatar } from "@/components/avatar";
 import { useCollection } from "@/components/collection-provider";
 import { useImageLightbox } from "@/components/image-lightbox";
+import { PostPhotoGrid } from "@/components/post-photo-grid";
 import { MentionText } from "@/components/mention-text";
 import { QuotedPostEmbed } from "@/components/quoted-post-embed";
 import { SafetyMenu } from "@/components/safety-menu";
@@ -14,6 +15,7 @@ import { ShareAction } from "@/components/share-button";
 import { useSocial } from "@/components/social-provider";
 import { signupPath } from "@/lib/auth/safe-next";
 import { exactTime, initials, timeAgo } from "@/lib/format";
+import { imagesFromPost, photosBesideCard } from "@/lib/social/post-photos";
 import { quoteCount } from "@/lib/social/quotes";
 import type { Post, PostComment, Profile, PublicCard } from "@/lib/social/types";
 import { MailDayCard } from "@/components/mail-day-card";
@@ -49,6 +51,7 @@ export function Tweet({
 }) {
   const router = useRouter();
   const openImage = useImageLightbox();
+  const photos = photosBesideCard(imagesFromPost(post), post.card?.photoDataUrl);
   const { commentsFor, findPost } = useSocial();
   const comments = commentsFor(post.id);
   const quoteAvailable = Boolean(findPost(post.id));
@@ -116,9 +119,7 @@ export function Tweet({
           />
         ) : (
           <>
-            {post.imageDataUrl ? (
-              <PostPhoto src={post.imageDataUrl} onOpen={openImage} />
-            ) : null}
+            {photos.length ? <PostPhotoGrid images={photos} onOpen={openImage} /> : null}
             {post.card ? (
               <CardMedia
                 card={post.card}
@@ -152,34 +153,6 @@ export function Tweet({
       </div>
       </div>
     </article>
-  );
-}
-
-function PostPhoto({
-  src,
-  onOpen,
-}: {
-  src: string;
-  onOpen: (src: string, alt: string) => void;
-}) {
-  return (
-    <button
-      type="button"
-      aria-label="View image"
-      onClick={(event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        onOpen(src, "Post image");
-      }}
-      className="mt-3 block w-full cursor-zoom-in"
-    >
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={src}
-        alt=""
-        className="max-h-80 w-full rounded-2xl border border-zinc-200 object-cover dark:border-white/10"
-      />
-    </button>
   );
 }
 
