@@ -7,6 +7,7 @@ import {
   resolveCatalogSearch,
   searchCatalog,
   toSearchableCard,
+  type CatalogCard,
 } from "@/lib/card-catalog";
 import {
   buildSearchText,
@@ -724,14 +725,16 @@ describe("resolveCatalogSearch before and after the migration", () => {
     assert.ok(ranked.every((card) => card.playerName === "Victor Wembanyama"));
   });
 
-  it("uses the local catalog when the remote list has no real match", () => {
+  it("uses the local catalog when remote is empty, and does not fill in unrelated remote rows", () => {
     const beforeMigration = resolveCatalogSearch("Jaxson Dart", []);
     assert.equal(beforeMigration[0]?.playerName, "Jaxson Dart");
     assert.equal(beforeMigration[0]?.cardNumber, "332");
+    assert.equal(beforeMigration[0]?.isRookie, true);
 
     const tatum = CARD_CATALOG.filter((card) => card.playerName === "Jayson Tatum");
-    const ignored = resolveCatalogSearch("Jaxson Dart", tatum);
-    assert.equal(ignored[0]?.playerName, "Jaxson Dart");
+    assert.ok(tatum.length > 0);
+    const unrelated = resolveCatalogSearch("Jaxson Dart", tatum);
+    assert.deepEqual(unrelated, []);
 
     const dart = CARD_CATALOG.find((card) => card.playerName === "Jaxson Dart");
     assert.ok(dart);
@@ -747,17 +750,124 @@ describe("resolveCatalogSearch before and after the migration", () => {
     assert.deepEqual(resolveCatalogSearch("zzqxv", null), []);
   });
 
-  it("adds the local Jaxson Dart row to 2025 prizm before the insert runs", () => {
+  it("does not add built-in cards when remote search already returned rows", () => {
     const remote = CARD_CATALOG.filter((card) => card.playerName !== "Jaxson Dart");
     const hits = resolveCatalogSearch("2025 prizm", remote);
-    const dart = hits.filter((card) => card.playerName === "Jaxson Dart");
-    assert.equal(dart.length, 1);
-    assert.equal(dart[0]?.yearLabel, "2025");
-    assert.equal(dart[0]?.setBrand, "Panini Prizm");
-    assert.equal(dart[0]?.cardNumber, "332");
-    assert.equal(dart[0]?.parallel, "Base");
+    assert.ok(hits.every((card) => card.playerName !== "Jaxson Dart"));
+    assert.ok(hits.some((card) => card.playerName === "Travis Hunter"));
+    assert.ok(hits.every((card) => card.cardNumber === "301"));
     assert.ok(hits.every((card) => card.yearLabel.startsWith("2025")));
     assert.ok(hits.every((card) => card.setBrand.toLowerCase().includes("prizm")));
-    assert.ok(hits.some((card) => card.playerName === "Travis Hunter"));
+
+    const fallback = resolveCatalogSearch("2025 prizm", []);
+    assert.ok(fallback.some((card) => card.playerName === "Jaxson Dart" && card.cardNumber === "332"));
+  });
+
+  it("returns exactly one remote Select #87 for wembanyama select", () => {
+    const remote: CatalogCard = {
+      id: "remote-wemby-select-87",
+      playerName: "Victor Wembanyama",
+      yearLabel: "2023-24",
+      setBrand: "Panini Select",
+      cardNumber: "87",
+      sport: "Basketball",
+      parallel: "Base",
+    };
+    const hits = resolveCatalogSearch("wembanyama select", [remote]);
+    assert.equal(hits.length, 1);
+    assert.equal(hits[0]?.id, remote.id);
+    assert.equal(hits[0]?.setBrand, "Panini Select");
+    assert.equal(hits[0]?.cardNumber, "87");
+    assert.equal(hits[0]?.parallel, "Base");
+  });
+
+  it("does not return built-in #1 beside remote Travis Hunter Prizm #301", () => {
+    const remote: CatalogCard[] = [
+      {
+        id: "remote-hunter-301-base",
+        playerName: "Travis Hunter",
+        yearLabel: "2025",
+        setBrand: "Panini Prizm",
+        cardNumber: "301",
+        sport: "Football",
+        parallel: "Base",
+        isRookie: true,
+      },
+      {
+        id: "remote-hunter-301-silver",
+        playerName: "Travis Hunter",
+        yearLabel: "2025",
+        setBrand: "Panini Prizm",
+        cardNumber: "301",
+        sport: "Football",
+        parallel: "Silver",
+        isRookie: true,
+      },
+    ];
+    const hits = resolveCatalogSearch("travis hunter prizm", remote);
+    assert.deepEqual(
+      hits.map((card) => card.id),
+      remote.map((card) => card.id),
+    );
+    assert.ok(hits.every((card) => card.cardNumber === "301"));
+    assert.equal(hits.some((card) => card.cardNumber === "1"), false);
+  });
+
+  it("falls back to built-in cards when the remote result is empty or errors", () => {
+    const empty = resolveCatalogSearch("travis hunter prizm", []);
+    const errored = resolveCatalogSearch("travis hunter prizm", null);
+    assert.ok(empty.length > 0);
+    assert.deepEqual(
+      errored.map((card) => card.id),
+      empty.map((card) => card.id),
+    );
+    assert.ok(empty.every((card) => card.playerName === "Travis Hunter"));
+    assert.ok(empty.every((card) => card.cardNumber === "301"));
+    assert.ok(empty.every((card) => card.isRookie === true));
+    assert.equal(empty.some((card) => card.cardNumber === "1"), false);
+
+    const daniels = resolveCatalogSearch("jayden daniels prizm", null);
+    assert.ok(daniels.every((card) => card.cardNumber === "347"));
+    assert.equal(daniels.some((card) => card.cardNumber === "389"), false);
+  });
+
+  it("stores the corrected seed numbers and rookie flags", () => {
+    const of = (player: string, set: string) =>
+      CARD_CATALOG.filter((card) => card.playerName === player && card.setBrand === set);
+
+    const select = of("Victor Wembanyama", "Panini Select");
+    assert.deepEqual(
+      select.map((card) => [card.cardNumber, card.parallel, card.isRookie === true]),
+      [["87", "Base", false]],
+    );
+
+    const hoops = of("Victor Wembanyama", "Hoops");
+    assert.deepEqual(
+      hoops.map((card) => [card.cardNumber, card.parallel, card.isRookie === true]),
+      [["277", "Base", true]],
+    );
+
+    const daniels = of("Jayden Daniels", "Panini Prizm");
+    assert.deepEqual(new Set(daniels.map((card) => card.parallel)), new Set(["Base", "Silver"]));
+    assert.ok(daniels.every((card) => card.cardNumber === "347" && card.isRookie === true));
+
+    const hunter = of("Travis Hunter", "Panini Prizm");
+    assert.deepEqual(new Set(hunter.map((card) => card.parallel)), new Set(["Base", "Silver"]));
+    assert.ok(hunter.every((card) => card.cardNumber === "301" && card.isRookie === true));
+
+    const elly = of("Elly De La Cruz", "Topps Chrome");
+    assert.ok(elly.length >= 2);
+    assert.ok(elly.every((card) => card.cardNumber === "44" && card.isRookie === true));
+    assert.deepEqual(new Set(elly.map((card) => card.parallel)), new Set(["Base", "Refractor"]));
+
+    const caleb = of("Caleb Williams", "Panini Prizm");
+    assert.deepEqual(new Set(caleb.map((card) => card.parallel)), new Set(["Base", "Silver"]));
+    assert.ok(caleb.every((card) => card.cardNumber === "301" && card.isRookie === true));
+
+    const dart = of("Jaxson Dart", "Panini Prizm");
+    assert.deepEqual(
+      dart.map((card) => [card.cardNumber, card.parallel, card.isRookie === true]),
+      [["332", "Base", true]],
+    );
   });
 });
