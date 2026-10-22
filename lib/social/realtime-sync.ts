@@ -136,21 +136,13 @@ export function createRealtimeScheduler(options: {
 }) {
   let timer = 0;
   let pending = new Set<RealtimeSlice>();
-  let deferred = false;
 
   const flush = () => {
     timer = 0;
-    if (pending.size === 0) {
-      deferred = false;
-      return;
-    }
-    if (options.hidden()) {
-      deferred = true;
-      return;
-    }
+    if (pending.size === 0) return;
+    if (options.hidden()) return;
     const slices = pending;
     pending = new Set();
-    deferred = false;
     options.reload(slices);
   };
 
@@ -160,7 +152,6 @@ export function createRealtimeScheduler(options: {
       if (options.hidden()) {
         if (timer) options.cancel(timer);
         timer = 0;
-        deferred = true;
         return;
       }
       if (timer) options.cancel(timer);
@@ -176,7 +167,6 @@ export function createRealtimeScheduler(options: {
       if (timer) options.cancel(timer);
       timer = 0;
       pending = new Set();
-      deferred = false;
     },
   };
 }

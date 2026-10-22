@@ -61,6 +61,7 @@ import {
   remoteUpdatePost,
   remoteUpdateProfile,
 } from "@/lib/social/remote";
+import { authSnapshotReload } from "@/lib/social/auth-snapshot";
 import { loadPostById, loadPostPage, type LoadedPostPage } from "@/lib/social/load-feed-page";
 import { loadRealtimePatch } from "@/lib/social/realtime-slices";
 import {
@@ -239,6 +240,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
   const appliedRemoteRef = useRef<SocialSnapshot | null>(null);
   const inflightRef = useRef(new Map<string, Promise<unknown>>());
   const reloadRef = useRef<(client: SupabaseClient) => Promise<void>>(async () => {});
+  const lastUserIdRef = useRef<string | null>(null);
   localRef.current = local;
 
   const routePostId = postIdFromPath(pathname);
@@ -349,21 +351,40 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
     supabaseRef.current = client;
     setMode("supabase");
     // INITIAL_SESSION would repeat the first load. Sign-in and sign-out still refresh.
-    const { data } = client.auth.onAuthStateChange((event) => {
-      if (event !== "SIGNED_IN" && event !== "SIGNED_OUT") return;
-      setTimeout(() => {
-        void reloadRef
-          .current(client)
-          .then(() => setStatus(null))
-          .catch((error: unknown) => {
-            setStatus(error instanceof Error ? error.message : "Could not reach Supabase.");
+    // SIGNED_IN also fires on load and whenever a tab becomes visible. Remember the
+    // session user first so those repeats do not reload public_cards.
+    let unsubscribe = () => {};
+    void client.auth
+      .getSession()
+      .then(({ data: sessionData }) => {
+        if (!cancelled) lastUserIdRef.current = sessionData.session?.user?.id ?? null;
+      })
+      .finally(() => {
+        if (cancelled) return;
+        const { data } = client.auth.onAuthStateChange((event, session) => {
+          if (event !== "SIGNED_IN" && event !== "SIGNED_OUT") return;
+          const decision = authSnapshotReload({
+            event,
+            nextUserId: session?.user?.id ?? null,
+            lastUserId: lastUserIdRef.current,
           });
-      }, 0);
-    });
+          lastUserIdRef.current = decision.lastUserId;
+          if (!decision.reload) return;
+          setTimeout(() => {
+            void reloadRef
+              .current(client)
+              .then(() => setStatus(null))
+              .catch((error: unknown) => {
+                setStatus(error instanceof Error ? error.message : "Could not reach Supabase.");
+              });
+          }, 0);
+        });
+        unsubscribe = () => data.subscription.unsubscribe();
+      });
 
     return () => {
       cancelled = true;
-      data.subscription.unsubscribe();
+      unsubscribe();
     };
   }, []);
 

@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { join } from "node:path";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { authSnapshotReload } from "./auth-snapshot";
 import { loadRealtimePatch } from "./realtime-slices";
 import {
   applyRealtimePatch,
@@ -98,6 +99,41 @@ describe("realtime listeners", () => {
     assert.deepEqual(reloads[1], ["messages", "notifications"]);
     scheduler.onVisible();
     assert.equal(reloads.length, 2);
+  });
+
+  it("does not reload when a pending timer fires while the tab is hidden", () => {
+    const reloads: RealtimeSlice[][] = [];
+    let hidden = false;
+    const queued: { fn: (() => void) | null } = { fn: null };
+    const fire = () => {
+      const fn = queued.fn;
+      if (fn) fn();
+    };
+    const scheduler = createRealtimeScheduler({
+      debounceMs: REALTIME_DEBOUNCE_MS,
+      hidden: () => hidden,
+      reload: (slices) => reloads.push([...slices]),
+      schedule: (fn) => {
+        queued.fn = fn;
+        return 7;
+      },
+      cancel: () => {
+        queued.fn = null;
+      },
+    });
+
+    scheduler.onEvent("notifications");
+    hidden = true;
+    fire();
+    assert.equal(reloads.length, 0);
+    hidden = false;
+    scheduler.onVisible();
+    assert.deepEqual(reloads, [["notifications"]]);
+    scheduler.onVisible();
+    assert.equal(reloads.length, 1);
+
+    const source = readFileSync(join(process.cwd(), "lib/social/realtime-sync.ts"), "utf8");
+    assert.doesNotMatch(source, /\bdeferred\b/);
   });
 
   it("loads the public catalog once per mount and never from realtime", () => {
@@ -255,5 +291,58 @@ describe("realtime slice patch", () => {
     assert.match(listeners, /visibilitychange/);
     assert.doesNotMatch(listeners, /refreshRemote\(|loadSupabaseSocial\(|from\("public_cards"\)/);
     assert.match(provider, /shouldFetchPublicCatalog\(\{ loaded: fullSnapshotRef\.current, source: "mount" \}\)/);
+  });
+});
+
+describe("auth snapshot reload", () => {
+  const other = "22222222-2222-4222-8222-222222222222";
+
+  it("reloads on sign-in only when the user id changes, and always on sign-out", () => {
+    assert.deepEqual(authSnapshotReload({ event: "SIGNED_IN", nextUserId: VIEWER, lastUserId: VIEWER }), {
+      reload: false,
+      lastUserId: VIEWER,
+    });
+    assert.deepEqual(authSnapshotReload({ event: "SIGNED_IN", nextUserId: other, lastUserId: VIEWER }), {
+      reload: true,
+      lastUserId: other,
+    });
+    assert.deepEqual(authSnapshotReload({ event: "SIGNED_IN", nextUserId: VIEWER, lastUserId: null }), {
+      reload: true,
+      lastUserId: VIEWER,
+    });
+    assert.deepEqual(authSnapshotReload({ event: "SIGNED_OUT", nextUserId: null, lastUserId: VIEWER }), {
+      reload: true,
+      lastUserId: null,
+    });
+    assert.deepEqual(authSnapshotReload({ event: "SIGNED_OUT", nextUserId: null, lastUserId: null }), {
+      reload: true,
+      lastUserId: null,
+    });
+    assert.equal(
+      authSnapshotReload({ event: "INITIAL_SESSION", nextUserId: VIEWER, lastUserId: null }).reload,
+      false,
+    );
+
+    const provider = readFileSync(join(process.cwd(), "components/social-provider.tsx"), "utf8");
+    assert.match(provider, /lastUserIdRef/);
+    assert.match(provider, /authSnapshotReload\(/);
+    assert.match(provider, /getSession\(\)/);
+    assert.match(provider, /event !== "SIGNED_IN" && event !== "SIGNED_OUT"/);
+  });
+});
+
+describe("paged timeline refs", () => {
+  it("stores the latest request in an effect", () => {
+    const source = readFileSync(join(process.cwd(), "components/use-paged-timeline.ts"), "utf8");
+    assert.match(
+      source,
+      /useEffect\(\(\) => \{\s*requestRef\.current = input;\s*rememberRef\.current = input\.rememberPosts;\s*\}, \[input\]\);/,
+    );
+    const withoutEffect = source.replace(
+      /useEffect\(\(\) => \{\s*requestRef\.current = input;\s*rememberRef\.current = input\.rememberPosts;\s*\}, \[input\]\);/,
+      "",
+    );
+    assert.doesNotMatch(withoutEffect, /requestRef\.current = input/);
+    assert.doesNotMatch(withoutEffect, /rememberRef\.current = input\.rememberPosts/);
   });
 });
