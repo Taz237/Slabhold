@@ -30,6 +30,6 @@ describe("Mail Day loading", () => {
 
     assert.match(shell, /requiresAccount\(pathname\)/);
     assert.match(shell, /routeAccess\(pathname\) === "unknown"/);
-    assert.match(shell, /path === "\/mail-day"/);
+    assert.doesNotMatch(shell, /path === "\/mail-day"/);
   });
 });

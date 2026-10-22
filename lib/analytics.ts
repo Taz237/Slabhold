@@ -93,7 +93,6 @@ export const PAGE_PATTERNS = [
   "/forgot-password",
   "/home",
   "/login",
-  "/mail-day",
   "/messages",
   "/messages/[username]",
   "/more",

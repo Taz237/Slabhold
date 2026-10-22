@@ -3,6 +3,7 @@ import "server-only";
 import type { SafetyRelations } from "@/lib/safety/can-notify";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import type { WantAlertDb, WantMatchEvent, WantRow } from "./notify-want-matches";
+import { storedWantSourceType } from "./owned-card";
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -127,7 +128,7 @@ export function createSupabaseWantDb(): WantAlertDb | null {
         .insert({
           want_id: row.wantId,
           user_id: row.userId,
-          source_type: row.sourceType,
+          source_type: storedWantSourceType(row.sourceType),
           source_id: row.sourceId,
           card_id: row.cardId ?? null,
           created_at: row.createdAt,
@@ -159,7 +160,7 @@ export function createSupabaseWantDb(): WantAlertDb | null {
         .from("want_alerts")
         .delete()
         .eq("want_id", wantId)
-        .eq("source_type", sourceType)
+        .eq("source_type", storedWantSourceType(sourceType))
         .eq("source_id", sourceId);
       query = cardId ? query.eq("card_id", cardId) : query.is("card_id", null);
       await query;

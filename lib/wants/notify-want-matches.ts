@@ -5,7 +5,7 @@ import { newYorkDayStartIso } from "./ny-day";
 
 export const WANT_ALERTS_PER_DAY = 20;
 
-export type WantSourceType = "sale" | "post" | "listing";
+export type WantSourceType = "sale" | "post" | "listing" | "card";
 
 export type WantMatchEvent = {
   sourceType: WantSourceType;
@@ -91,7 +91,7 @@ export function wantAlertPreview(event: WantMatchEvent, want: WantRow): string {
   const who = event.actorUsername
     ? `@${event.actorUsername.replace(/^@/, "")}`
     : "Someone";
-  if (event.mailDay) return mailDayPreview(who, event, target);
+  if (event.mailDay || event.sourceType === "card") return mailDayPreview(who, event, target);
   if (event.sourceType === "post") return `${who} posted a ${event.label} you want`;
   return `${who} listed a ${event.label} you want`;
 }
@@ -129,11 +129,11 @@ export function wantAlertMetadata(
       url: event.saleUrl ?? null,
     };
   }
-  if (event.mailDay) {
+  if (event.mailDay || event.sourceType === "card") {
     const flag = mailDayFlag(event, target);
     const metadata: Record<string, unknown> = {
       card_key: event.cardKey,
-      source: "mail_day",
+      source: event.sourceType === "card" ? "card" : "mail_day",
       target,
     };
     if (flag) {
@@ -189,7 +189,8 @@ export async function notifyWantMatches(
     const today = await db.alertsToday(want.userId, since);
     if (today >= WANT_ALERTS_PER_DAY) continue;
 
-    const alertCardId = event.mailDay ? event.cardId ?? null : null;
+    const alertCardId =
+      event.mailDay || event.sourceType === "card" ? (event.cardId ?? null) : null;
     const inserted = await db.insertAlert({
       wantId: want.id,
       userId: want.userId,

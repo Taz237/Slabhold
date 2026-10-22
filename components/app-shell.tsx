@@ -229,10 +229,7 @@ function AuthLayout({ children }: { children: React.ReactNode }) {
 }
 
 function shellShowsPageWhileLoading(pathname: string) {
-  if (routeAccess(pathname) === "unknown") return true;
-  const cut = pathname.split("?")[0]?.split("#")[0] ?? "/";
-  const path = cut.length > 1 && cut.endsWith("/") ? cut.slice(0, -1) : cut || "/";
-  return path === "/mail-day";
+  return routeAccess(pathname) === "unknown";
 }
 
 function GuestGate() {
