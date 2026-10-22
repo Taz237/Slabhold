@@ -188,7 +188,7 @@ type SocialContextValue = {
   postCardValuesMessage: string | null;
 };
 
-const SocialContext = createContext<SocialContextValue | null>(null);
+export const SocialContext = createContext<SocialContextValue | null>(null);
 
 /** Share one in-flight read across a strict-mode remount of the same route. */
 function loadOnce<T>(
