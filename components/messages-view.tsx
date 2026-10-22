@@ -11,6 +11,7 @@ import { EmptyState, LoadingRows } from "@/components/status";
 import { useSocial } from "@/components/social-provider";
 import { loginPath } from "@/lib/auth/safe-next";
 import { exactTime, timeAgo } from "@/lib/format";
+import { inboxLastMessage } from "@/lib/offers/open-to-offers";
 import type { DirectMessage, Profile } from "@/lib/social/types";
 
 type Conversation = {
@@ -116,7 +117,7 @@ export function MessagesView() {
                         }`}
                       >
                         {mine ? "You: " : ""}
-                        {last.content}
+                        {inboxLastMessage(last)}
                       </span>
                       {unread > 0 ? (
                         <span className="grid h-5 min-w-5 shrink-0 place-items-center rounded-full bg-violet-600 px-1 text-[10px] font-bold text-white">

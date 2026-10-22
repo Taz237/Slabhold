@@ -22,6 +22,8 @@ import type { SportsCard } from "@/lib/types";
 import { notifyWantMatches, type WantAlertDb, type WantRow } from "@/lib/wants/notify-want-matches";
 import {
   filterOpenToOffers,
+  inboxLastMessage,
+  loadMessageRows,
   mapDirectMessage,
   messageOwnerHref,
   messageOwnerThreadHref,
@@ -34,7 +36,9 @@ import {
   parseCardPreview,
   publicTogglePatch,
   readOpenToOffers,
+  resetMessageListColumnProbe,
   resolveLiveCardPreview,
+  SENT_A_CARD,
   showOpenToOffersBadge,
   showOpenToOffersToggle,
   withOpenToOffersColumn,
@@ -584,7 +588,7 @@ describe("stored card preview", () => {
     const remote = readFileSync(join(process.cwd(), "lib/social/remote.ts"), "utf8");
     const thread = readFileSync(join(process.cwd(), "components/message-thread.tsx"), "utf8");
     assert.match(remote, /card_preview = \{ cardId: cardPreview\.cardId \}/);
-    assert.match(remote, /messageListColumns\(\)/);
+    assert.match(remote, /loadMessageRows\(/);
     assert.doesNotMatch(remote, /from\("messages"\)\.select\("\*"\)/);
     assert.match(thread, /cardId: offerCard\.id/);
     assert.doesNotMatch(thread, /imageUrl:|estimateLabel:|href: `\/u\//);
@@ -738,5 +742,90 @@ describe("open to offers migration", () => {
     assert.match(sql, /drop policy if exists/);
     assert.match(sql, /drop trigger if exists/);
     assert.doesNotMatch(sql, /\bdrop table\b|\bdelete from\b|\btruncate public\b/i);
+  });
+});
+
+describe("open to offers polish", () => {
+  const upper = "AAAAAAAA-BBBB-4CCC-8DDD-EEEEEEEEEEEE";
+  const lower = upper.toLowerCase();
+
+  it("shows Sent a card for a card-only inbox line", () => {
+    const cardOnly = {
+      content: "",
+      kind: "card_preview" as const,
+      cardPreview: { cardId: CARD },
+    };
+    assert.equal(inboxLastMessage(cardOnly), SENT_A_CARD);
+    assert.equal(inboxLastMessage({ content: "   ", kind: "card", cardPreview: { cardId: CARD } }), SENT_A_CARD);
+    assert.equal(inboxLastMessage({ content: "", cardPreview: { cardId: CARD } }), SENT_A_CARD);
+    assert.equal(inboxLastMessage({ content: "On this one", kind: "card_preview", cardPreview: { cardId: CARD } }), "On this one");
+    assert.equal(inboxLastMessage({ content: "hello" }), "hello");
+
+    const html = renderToStaticMarkup(
+      createElement("span", null, "You: ", inboxLastMessage(cardOnly)),
+    );
+    assert.match(html, /You: Sent a card/);
+    assert.doesNotMatch(html, /You: <\/span>/);
+
+    const view = readFileSync(join(process.cwd(), "components/messages-view.tsx"), "utf8");
+    assert.match(view, /inboxLastMessage\(last\)/);
+    assert.doesNotMatch(view, /\{last\.content\}/);
+  });
+
+  it("renders a card message after a cached missing-column check", async () => {
+    resetMessageListColumnProbe();
+    const missing = { code: "42703", message: "column card_preview does not exist" };
+    const missed = await loadMessageRows(async (columns) => {
+      if (columns.includes("card_preview")) return { data: [], error: missing };
+      return { data: [{ id: "m1", content: "" }], error: null };
+    });
+    assert.equal(missed.error, null);
+
+    const found = await loadMessageRows(async (columns) => {
+      assert.match(columns, /card_preview/);
+      return {
+        data: [
+          {
+            id: "m1",
+            sender_id: VIEWER,
+            receiver_id: OWNER,
+            content: "",
+            created_at: "2026-10-22T00:00:00.000Z",
+            read: false,
+            kind: "card",
+            card_preview: { cardId: upper, href: "//evil.com" },
+          },
+        ],
+        error: null,
+      };
+    });
+    const row = found.data[0];
+    assert.ok(row);
+    const message = mapDirectMessage(row);
+    assert.equal(message.kind, "card_preview");
+    assert.deepEqual(message.cardPreview, { cardId: lower });
+    assert.equal(inboxLastMessage(message), SENT_A_CARD);
+
+    const previewOnly = mapDirectMessage({
+      id: "m2",
+      sender_id: OWNER,
+      receiver_id: VIEWER,
+      content: "",
+      created_at: "2026-10-22T00:00:00.000Z",
+      read: false,
+      card_preview: { cardId: upper },
+    });
+    assert.equal(previewOnly.kind, "card_preview");
+    assert.equal(previewOnly.cardPreview?.cardId, lower);
+    assert.equal(inboxLastMessage(previewOnly), SENT_A_CARD);
+    resetMessageListColumnProbe();
+  });
+
+  it("lowercases a uuid before the shape check", () => {
+    assert.deepEqual(parseCardPreview({ cardId: `  ${upper}  ` }), { cardId: lower });
+    assert.match(lower, /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
+    assert.doesNotMatch(lower, /[A-F]/);
+    assert.equal(parseCardPreview({ cardId: "ZZZZZZZZ-ZZZZ-ZZZZ-ZZZZ-ZZZZZZZZZZZZ" }), null);
+    assert.deepEqual(parseCardPreview({ cardId: CARD }), { cardId: CARD });
   });
 });

@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { mapDirectMessage, messageListColumns, noteMessageListResult } from "@/lib/offers/open-to-offers";
+import { loadMessageRows, mapDirectMessage } from "@/lib/offers/open-to-offers";
 import { applyAuthorSafety, loadHiddenAuthorIds } from "@/lib/safety/filters";
 import { isUuid } from "@/lib/value/card-value-access";
 import type { RealtimePatch, RealtimeSlice } from "./realtime-sync";
@@ -146,8 +146,7 @@ export async function loadRealtimePatch(
             blockedHidden,
             { authorColumn: "receiver_id" },
           );
-        let result = await run(messageListColumns());
-        if (noteMessageListResult(result.error) === "retry") result = await run(messageListColumns());
+        const result = await loadMessageRows(run);
         if (result.error) {
           if (missingTable(result.error)) {
             patch.messages = [];
