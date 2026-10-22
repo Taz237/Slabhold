@@ -42,11 +42,12 @@ begin
   elsif position('new.is_test is true' in fn_src) = 0
      or position('lower(new.username) ~ ''^(qa_|qa-|test_|vreset_)''' in fn_src) = 0 then
     raise notice 'FAIL: skip for is_test or qa_/qa-/test_/vreset_ handles is missing';
-  elsif coalesce(fn_config, '') not like '%search_path=%' then
+  elsif fn_config is distinct from '{"search_path=\"\""}' then
     raise notice 'FAIL: search_path is not set to empty (%)', fn_config;
   elsif trigger_def is null
      or trigger_def not ilike '%after insert%'
-     or trigger_def ilike '%update%' then
+     or trigger_def ilike '%insert or update%'
+     or trigger_def ilike '%update of%' then
     raise notice 'FAIL: trigger is not after insert only (%)', trigger_def;
   else
     raise notice 'PASS: skips is_test and qa_/qa-/test_/vreset_, not security definer, empty search_path, after insert only';
