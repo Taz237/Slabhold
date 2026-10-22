@@ -1,6 +1,20 @@
 import Link from "next/link";
 import { EbaySoldLink } from "@/components/ebay-sold-link";
-import { SIMILAR_CARDS_LABEL, type PriceRead } from "@/lib/value/price-fallback";
+import { SIMILAR_CARDS_LABEL, splitFallbackLabel, type PriceRead } from "@/lib/value/price-fallback";
+
+/** Range and last-sale lines wrap on the word boundary, not inside the price. */
+export function PriceFallbackText({ text }: { text: string }) {
+  const parts = splitFallbackLabel(text);
+  return (
+    <span className="inline-flex max-w-full flex-wrap items-baseline gap-x-1">
+      {parts.map((part) => (
+        <span key={part} className="whitespace-nowrap">
+          {part}
+        </span>
+      ))}
+    </span>
+  );
+}
 
 /** Similar-card line with a tap-through. The label is not an estimate. */
 export function SimilarCardsLine({

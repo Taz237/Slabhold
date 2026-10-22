@@ -32,6 +32,8 @@ const UUID =
   /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi;
 const USERNAME = /^[a-z0-9_]{3,20}$/;
 const DOLLAR = /^\$\d[\d,]*(?:\.\d{1,2})?$/;
+const LAST_SOLD = /^Last sold \$[\d,]+\.\d{2} on [A-Z][a-z]{2} \d{1,2}$/;
+const RANGE = /^\$[\d,]+\.\d{2}\u2013\$[\d,]+\.\d{2} from \d+ sales?$/;
 
 function blank(): Omit<ShareImage, "kind" | "kicker" | "title" | "detail"> {
   return {
@@ -73,7 +75,8 @@ function publicHandle(value: string | null | undefined): string {
 /** A public comps amount. Status sentences and private figures are dropped. */
 export function publicDollar(value: string | null | undefined): string {
   const text = (value ?? "").replace(/\s+/g, " ").trim();
-  return DOLLAR.test(text) ? text : "";
+  if (DOLLAR.test(text) || LAST_SOLD.test(text) || RANGE.test(text)) return text;
+  return "";
 }
 
 function uniquePhotos(urls: readonly (string | null | undefined)[]): string[] {
@@ -214,9 +217,10 @@ export function cardShareImage(input: {
   const imageUrl = input.found ? cleanImageUrl(input.imageUrl) : null;
   const showPrice = Boolean(input.found && input.isPublic && input.pricePublic !== false);
   const valueLabel = showPrice ? publicDollar(input.valueAmount) : "";
+  const estimate = DOLLAR.test(valueLabel);
   const salesCount =
-    valueLabel && Number.isFinite(input.salesCount) ? Math.floor(input.salesCount as number) : 0;
-  const salesLabel = valueLabel && salesCount >= 1 ? basedOnSalesLabel(salesCount) : "";
+    estimate && Number.isFinite(input.salesCount) ? Math.floor(input.salesCount as number) : 0;
+  const salesLabel = estimate && salesCount >= 1 ? basedOnSalesLabel(salesCount) : "";
   const name = player || "Card";
   return {
     ...blank(),

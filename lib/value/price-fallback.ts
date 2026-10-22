@@ -3,7 +3,6 @@ import { normalizeCardNumber, setMatchPhrase } from "@/lib/comps/match";
 import { money } from "@/lib/format";
 import type { EbaySoldCard } from "@/lib/value/ebay-sold";
 import {
-  cardValueHasAmount,
   formatCardValueLabel,
   NOT_ENOUGH_SALES_LABEL,
   VALUE_UNAVAILABLE_LABEL,
@@ -48,6 +47,7 @@ export type PriceRead =
 export type SimilarCandidate = {
   id: string;
   username?: string | null;
+  ownerId?: string | null;
   playerName: string;
   year: number;
   yearLabel?: string | null;
@@ -291,13 +291,54 @@ function similarRead(offer: CardValueSimilar): PriceRead {
   };
 }
 
-function enoughForEstimate(
+function positiveAmount(value: number | null | undefined): number | null {
+  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) return null;
+  return value;
+}
+
+/** The stored, flag-filtered count. Extra rows from other copies do not count. */
+function isNormalEstimate(
   value: CardValueResult,
-  list: readonly PriceSale[] | undefined,
-): boolean {
-  if (value.status !== "ok" && value.status !== "sample") return false;
-  if (list) return list.length >= NORMAL_ESTIMATE_MIN_SALES;
-  return value.nSales >= NORMAL_ESTIMATE_MIN_SALES;
+): value is CardValueResult & { median: number } {
+  return (
+    (value.status === "ok" || value.status === "sample") &&
+    value.nSales >= NORMAL_ESTIMATE_MIN_SALES &&
+    typeof value.median === "number" &&
+    Number.isFinite(value.median) &&
+    value.median > 0
+  );
+}
+
+function storedCountRange(value: CardValueResult): PriceRead | null {
+  if (value.status !== "ok") return null;
+  if (value.nSales < 1 || value.nSales >= NORMAL_ESTIMATE_MIN_SALES) return null;
+  const mid = positiveAmount(value.median);
+  if (mid == null) return null;
+  if (value.nSales === 1) {
+    return {
+      kind: "range",
+      text: rangeLabel(mid, mid, 1),
+      isEstimate: false,
+      showEbaySold: false,
+    };
+  }
+  const low = positiveAmount(value.low) ?? mid;
+  const high = positiveAmount(value.high) ?? mid;
+  return {
+    kind: "range",
+    text: rangeLabel(low, high, value.nSales),
+    isEstimate: false,
+    showEbaySold: false,
+  };
+}
+
+/** Keep the dollar range on one line and "from N sales" on the next if needed. */
+export function splitFallbackLabel(text: string): string[] {
+  const range = text.match(/^(.*\u2013.*) (from \d+ sales?)$/);
+  if (range?.[1] && range[2]) return [range[1], range[2]];
+  const last = text.match(/^(Last sold \$.*) (on .+)$/);
+  if (last?.[1] && last[2]) return [last[1], last[2]];
+  return [text];
 }
 
 /**
@@ -320,7 +361,7 @@ export function resolvePriceRead(input: {
   if (value?.status === "unavailable" || value?.status === "stale") {
     return status(VALUE_UNAVAILABLE_LABEL);
   }
-  if (value?.status === "sample" && cardValueHasAmount(value)) {
+  if (value && isNormalEstimate(value)) {
     return estimate(money(value.median));
   }
 
@@ -332,16 +373,13 @@ export function resolvePriceRead(input: {
     if (early === "Value updating") return status(early);
   }
 
+  const storedPriced = input.value?.sales ? pricedSales(input.value.sales) : undefined;
   const list =
     input.exactSales !== undefined && input.exactSales !== null
       ? pricedSales(input.exactSales)
-      : input.value?.sales
-        ? pricedSales(input.value.sales)
+      : storedPriced && storedPriced.length > 0
+        ? storedPriced
         : undefined;
-
-  if (value && cardValueHasAmount(value) && enoughForEstimate(value, list)) {
-    return estimate(money(value.median));
-  }
 
   const similar = input.similar ?? value?.similar ?? null;
 
@@ -373,23 +411,9 @@ export function resolvePriceRead(input: {
     };
   }
 
-  if (!list && value && value.status === "ok" && value.nSales > 0 && value.nSales < NORMAL_ESTIMATE_MIN_SALES && value.median != null) {
-    if (value.nSales === 1) {
-      return {
-        kind: "range",
-        text: rangeLabel(value.median, value.median, 1),
-        isEstimate: false,
-        showEbaySold: false,
-      };
-    }
-    const low = value.low ?? value.median;
-    const high = value.high ?? value.median;
-    return {
-      kind: "range",
-      text: rangeLabel(low, high, value.nSales),
-      isEstimate: false,
-      showEbaySold: false,
-    };
+  if (list === undefined && value) {
+    const stored = storedCountRange(value);
+    if (stored) return stored;
   }
 
   if (similar?.href && similar.detail) return similarRead(similar);

@@ -9,7 +9,7 @@ import { CardCollectorsSaying } from "@/components/card-collectors-saying";
 import { CardOwnersSection } from "@/components/card-owners";
 import { CardPeopleSections } from "@/components/card-people";
 import { OpenToOffersBadge } from "@/components/open-to-offers";
-import { EbaySoldLine, SimilarCardsLine } from "@/components/price-readout";
+import { EbaySoldLine, PriceFallbackText, SimilarCardsLine } from "@/components/price-readout";
 import { WantButton } from "@/components/want-button";
 import { outlineButton } from "@/components/button-styles";
 import { CardThumb } from "@/components/card-thumb";
@@ -312,8 +312,14 @@ function PublicCardAnalytics({
                       : "Estimated value"}
                 </p>
               ) : null}
-              <p className={`mt-1 min-w-0 font-semibold tracking-tight ${priceRead?.kind === "estimate" || !priceRead ? "text-[clamp(1.25rem,5vw,1.5rem)] tabular-nums whitespace-nowrap" : "text-lg"}`}>
-                {valueLoading && !flags.priced ? "…" : (priceRead?.text ?? "…")}
+              <p className={`mt-1 min-w-0 font-semibold tracking-tight ${priceRead?.kind === "estimate" || !priceRead ? "text-[clamp(1.25rem,5vw,1.5rem)] tabular-nums whitespace-nowrap" : "max-w-full text-[clamp(0.95rem,3.6vw,1.125rem)] leading-snug"}`}>
+                {valueLoading && !flags.priced ? (
+                  "…"
+                ) : priceRead && priceRead.kind !== "estimate" ? (
+                  <PriceFallbackText text={priceRead.text} />
+                ) : (
+                  (priceRead?.text ?? "…")
+                )}
               </p>
             </>
           )}

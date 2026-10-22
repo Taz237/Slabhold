@@ -302,14 +302,75 @@ describe("price fallback labels", () => {
     assert.equal(updating.showEbaySold, false);
   });
 
-  it("keeps a sample amount as the estimate", () => {
+  it("keeps a sample with three sales as the estimate", () => {
     const read = resolvePriceRead({
-      value: value({ status: "sample", median: 15, nSales: 1 }),
+      value: value({ status: "sample", median: 15, nSales: 3 }),
       exactSales: [{ price: 15, soldAt: "2026-10-02T00:00:00.000Z" }],
     });
     assert.equal(read.kind, "estimate");
     assert.equal(read.isEstimate, true);
     assert.equal(read.text, money(15));
+  });
+
+  it("does not promote a median when other copies add the extra rows", () => {
+    const read = resolvePriceRead({
+      value: value({
+        status: "ok",
+        median: 40,
+        low: 40,
+        high: 40,
+        nSales: 1,
+        sales: [
+          { price: 40, soldAt: "2026-10-02T00:00:00.000Z" },
+          { price: 80, soldAt: "2026-10-03T00:00:00.000Z" },
+          { price: 90, soldAt: "2026-10-04T00:00:00.000Z" },
+        ],
+      }),
+    });
+    assert.equal(read.kind, "range");
+    assert.equal(read.isEstimate, false);
+    assert.equal(read.text, "$40.00\u2013$90.00 from 3 sales");
+    assert.notEqual(read.text, money(40));
+  });
+
+  it("uses the stored count when the sales array is empty", () => {
+    const read = resolvePriceRead({
+      value: value({
+        status: "ok",
+        median: 18,
+        low: 11,
+        high: 22,
+        nSales: 2,
+        sales: [],
+      }),
+    });
+    assert.equal(read.kind, "range");
+    assert.equal(read.isEstimate, false);
+    assert.equal(read.text, "$11.00\u2013$22.00 from 2 sales");
+  });
+
+  it("does not print $0.00 when the stored median, low, or high is not a price", () => {
+    const blank = resolvePriceRead({
+      value: value({ status: "ok", median: 0, low: 0, high: 0, nSales: 2, sales: [] }),
+    });
+    assert.equal(blank.kind, "none");
+    assert.equal(blank.text.includes("$0.00"), false);
+
+    const low = resolvePriceRead({
+      value: value({ status: "ok", median: 12, low: 0, high: 20, nSales: 2, sales: [] }),
+    });
+    assert.equal(low.kind, "range");
+    assert.equal(low.text, "$12.00\u2013$20.00 from 2 sales");
+    assert.equal(low.text.includes("$0.00"), false);
+  });
+
+  it("keeps the estimate when the stored count is already three or more", () => {
+    const read = resolvePriceRead({
+      value: value({ status: "ok", median: 10, nSales: 3 }),
+      exactSales: [{ price: 10, soldAt: "2026-10-02T00:00:00.000Z" }],
+    });
+    assert.equal(read.kind, "estimate");
+    assert.equal(read.text, money(10));
   });
 });
 
@@ -441,9 +502,10 @@ describe("fallback is not drawn as the estimate", () => {
     const lastSale = renderToStaticMarkup(
       createElement(SalesChartPending, { priceLabel: "Last sold $12.00 on Oct 2" }),
     );
-    assert.match(lastSale, /text-lg/);
+    assert.match(lastSale, /whitespace-nowrap/);
     assert.doesNotMatch(lastSale, /text-3xl/);
-    assert.match(lastSale, /Last sold \$12\.00 on Oct 2/);
+    assert.match(lastSale, /Last sold \$12\.00/);
+    assert.match(lastSale, /on Oct 2/);
     assert.match(lastSale, /h-44/);
     assert.match(lastSale, /min-h-9/);
 

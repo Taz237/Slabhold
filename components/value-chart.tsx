@@ -10,6 +10,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { PriceFallbackText } from "@/components/price-readout";
 import { money } from "@/lib/format";
 import { NOT_ENOUGH_SALES_LABEL } from "@/lib/value/format";
 import { mockValueHistory, type ValuePoint } from "@/lib/value-history";
@@ -102,8 +103,8 @@ export function ValueChart({
           </p>
           <div className={`mt-1 ${stableLayout ? "flex min-h-9 items-end" : ""}`}>
             {!showEstimate ? (
-              <p className="text-lg font-semibold tracking-tight">
-                {headlineLabel || noSalesLabel || NOT_ENOUGH_SALES_LABEL}
+              <p className="max-w-full text-[clamp(0.95rem,3.6vw,1.125rem)] font-semibold tracking-tight leading-snug">
+                <PriceFallbackText text={headlineLabel || noSalesLabel || NOT_ENOUGH_SALES_LABEL} />
               </p>
             ) : noSales ? (
               <p className="text-lg font-semibold tracking-tight">

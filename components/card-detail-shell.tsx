@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ArrowLeft, Ellipsis, Pencil } from "lucide-react";
 import { CardThumb } from "@/components/card-thumb";
+import { PriceFallbackText } from "@/components/price-readout";
 import { useCollection } from "@/components/collection-provider";
 import { cardTitle } from "@/lib/format";
 import { needsDetails, needsDetailsLabel } from "@/lib/types";
@@ -145,7 +146,9 @@ export function SalesChartPending({
         {bareEstimate && priceLabel ? (
           <p className="text-3xl font-semibold tracking-tight tabular-nums">{priceLabel}</p>
         ) : priceLabel ? (
-          <p className="text-lg font-semibold tracking-tight">{priceLabel}</p>
+          <p className="max-w-full text-[clamp(0.95rem,3.6vw,1.125rem)] font-semibold tracking-tight leading-snug">
+            <PriceFallbackText text={priceLabel} />
+          </p>
         ) : (
           <div className="h-9 w-32 animate-pulse rounded-lg bg-zinc-100 dark:bg-white/5" />
         )}

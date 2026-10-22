@@ -64,7 +64,7 @@ export async function GET(request: Request) {
     const loaded = await loadCachedCardValue(single);
     const map = new Map<string, CardValueResult>();
     if (loaded) map.set(single, loaded);
-    const enriched = await attachPriceContext([single], map);
+    const enriched = await attachPriceContext([single], map, userId);
     return Response.json({ id: single, value: enriched.get(single) ?? null });
   }
 
@@ -73,13 +73,13 @@ export async function GET(request: Request) {
     const loaded = await loadCachedCardValue(only);
     const map = new Map<string, CardValueResult>();
     if (loaded) map.set(only, loaded);
-    const enriched = await attachPriceContext([only], map);
+    const enriched = await attachPriceContext([only], map, userId);
     const value = enriched.get(only);
     return Response.json({ values: value ? { [only]: value } : {} });
   }
 
   const loaded = allowedIds.length ? await getCardValues(allowedIds) : new Map();
-  const map = await attachPriceContext(allowedIds, loaded);
+  const map = await attachPriceContext(allowedIds, loaded, userId);
   const values: Record<string, CardValueResult> = {};
   for (const [id, value] of map) {
     values[id] = value;

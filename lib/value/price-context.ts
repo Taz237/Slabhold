@@ -6,13 +6,17 @@ import {
   COMPS_RESULT_REVALIDATE_SECONDS,
   CompsResultError,
   compsResultCacheKey,
+  compsResultCacheTag,
 } from "@/lib/comps/comps-result-cache";
 import { soldCompCardFromRow } from "@/lib/comps/load-card";
 import { publicCardQueryKey } from "@/lib/comps/public";
 import { buildQueryKey } from "@/lib/comps/query-key";
+import { escapeIlike } from "@/lib/db/escape-ilike";
 import { mapCardRow, type CardRow } from "@/lib/social/cards";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
+import { isUuid } from "@/lib/value/card-value-access";
 import { cardCacheTag } from "@/lib/value/card-cache";
+import { fallbackSales, type CachedCompRow } from "@/lib/value/price-batch";
 import {
   isSameCardIdentity,
   NORMAL_ESTIMATE_MIN_SALES,
@@ -23,9 +27,12 @@ import {
 import type { CardValueResult, CardValueSale, CardValueSimilar } from "@/lib/value/types";
 import type { SoldCompCard } from "@/lib/comps/types";
 
+/** How many cards get a comps read at once. */
+export const PRICE_CONTEXT_CONCURRENCY = 4;
+
 export type PriceContext = {
   sales: CardValueSale[];
-  similar: CardValueSimilar | null;
+  cousins: SimilarCandidate[];
 };
 
 type Admin = NonNullable<ReturnType<typeof createSupabaseAdmin>>;
@@ -49,13 +56,11 @@ type PublicRow = {
   grade_qualifier?: string | null;
 };
 
-type CacheRow = {
-  query_key?: string | null;
-  item_id?: string | null;
-  price?: number | string | null;
-  sold_at?: string | null;
-  fetched_at?: string | null;
-};
+const SALE_COLUMNS =
+  "item_id, title, price, currency, sold_at, grader, grade, url, fetched_at";
+
+const PUBLIC_COLUMNS =
+  "id, user_id, player, year, year_label, set, set_name, grade, grader, parallel, card_number, serial_run, is_auto, is_relic, condition_type, grade_qualifier";
 
 function displayGrade(row: PublicRow): string {
   const grader = (row.grader ?? "").trim();
@@ -69,65 +74,105 @@ function displayGrade(row: PublicRow): string {
   return gradeText;
 }
 
-function asPrice(value: number | string | null | undefined): number | null {
-  const price = typeof value === "number" ? value : Number(value);
-  if (!Number.isFinite(price) || price <= 0) return null;
-  return price;
-}
-
-function latestSales(rows: CacheRow[]): Map<string, CardValueSale[]> {
-  const newest = new Map<string, string>();
-  for (const row of rows) {
-    const key = row.query_key ?? "";
-    const fetched = row.fetched_at ?? "";
-    if (!key || !fetched) continue;
-    const prev = newest.get(key);
-    if (!prev || fetched > prev) newest.set(key, fetched);
-  }
-  const sales = new Map<string, CardValueSale[]>();
-  for (const row of rows) {
-    const key = row.query_key ?? "";
-    if (!key || row.fetched_at !== newest.get(key)) continue;
-    if (row.item_id === "__empty__") continue;
-    const price = asPrice(row.price);
-    if (price == null) continue;
-    const list = sales.get(key) ?? [];
-    list.push({ price, soldAt: row.sold_at ?? null });
-    sales.set(key, list);
-  }
-  return sales;
-}
-
-async function readCacheSales(client: Admin, keys: string[]): Promise<Map<string, CardValueSale[]>> {
-  if (!keys.length) return new Map();
-  const { data, error } = await client
-    .from("sold_comps_cache")
-    .select("query_key, item_id, price, sold_at, fetched_at")
-    .in("query_key", keys)
-    .limit(1000);
-  if (error) throw new CompsResultError(error.message);
-  return latestSales((data ?? []) as CacheRow[]);
-}
-
-function candidateFromRow(row: PublicRow, username: string, sales: CardValueSale[]): SimilarCandidate {
+function soldCardFromPublic(row: PublicRow): SoldCompCard {
   const year = Number(row.year) || 0;
+  const serial =
+    row.serial_run == null || row.serial_run === "" ? null : Number(row.serial_run);
+  const condition =
+    row.condition_type === "graded" || row.condition_type === "raw"
+      ? row.condition_type
+      : undefined;
   return {
     id: row.id,
-    username,
     playerName: (row.player ?? "").trim(),
     year,
     yearLabel: (row.year_label ?? "").trim() || String(year || ""),
     setBrand: (row.set_name || row.set || "").trim(),
-    cardNumber: row.card_number,
-    parallel: row.parallel,
-    grade: displayGrade(row),
-    sales,
+    cardNumber: row.card_number || undefined,
+    parallel: row.parallel || undefined,
+    grade: displayGrade(row) || undefined,
+    serialRun: serial != null && Number.isFinite(serial) ? serial : null,
+    isAuto: Boolean(row.is_auto),
+    isRelic: Boolean(row.is_relic),
+    conditionType: condition,
+    gradeQualifier: row.grade_qualifier || null,
   };
 }
 
-function subjectOf(card: SoldCompCard): SimilarCandidate {
+async function mapLimit<T, R>(
+  items: readonly T[],
+  limit: number,
+  fn: (item: T) => Promise<R>,
+): Promise<R[]> {
+  const results = new Array<R>(items.length);
+  let next = 0;
+  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (next < items.length) {
+      const index = next;
+      next += 1;
+      results[index] = await fn(items[index] as T);
+    }
+  });
+  await Promise.all(workers);
+  return results;
+}
+
+/** Newest fetched_at batch for one query key. Ordered, not a mixed limit across keys. */
+async function readNewestBatch(client: Admin, queryKey: string): Promise<CachedCompRow[]> {
+  if (!queryKey) return [];
+  const { data: latest, error: latestError } = await client
+    .from("sold_comps_cache")
+    .select("fetched_at")
+    .eq("query_key", queryKey)
+    .order("fetched_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (latestError) throw new CompsResultError(latestError.message);
+  const fetchedAt = latest?.fetched_at ? String(latest.fetched_at) : "";
+  if (!fetchedAt) return [];
+
+  const { data, error } = await client
+    .from("sold_comps_cache")
+    .select(SALE_COLUMNS)
+    .eq("query_key", queryKey)
+    .eq("fetched_at", fetchedAt)
+    .neq("item_id", "__empty__");
+  if (error) throw new CompsResultError(error.message);
+  return (data ?? []) as CachedCompRow[];
+}
+
+async function flagsForCards(
+  client: Admin,
+  pairs: readonly { cardId: string; ownerId: string }[],
+): Promise<Map<string, Set<string>>> {
+  const ids = [...new Set(pairs.map((pair) => pair.cardId).filter(Boolean))];
+  const out = new Map<string, Set<string>>();
+  if (!ids.length) return out;
+  const { data, error } = await client
+    .from("comp_flags")
+    .select("card_id, user_id, item_id")
+    .in("card_id", ids);
+  if (error) throw new CompsResultError(error.message);
+  const wanted = new Set(pairs.map((pair) => `${pair.cardId}|${pair.ownerId}`));
+  for (const row of data ?? []) {
+    const cardId = String((row as { card_id?: string }).card_id ?? "");
+    const userId = String((row as { user_id?: string }).user_id ?? "");
+    const itemId = String((row as { item_id?: string }).item_id ?? "");
+    const key = `${cardId}|${userId}`;
+    if (!wanted.has(key) || !itemId) continue;
+    const set = out.get(key) ?? new Set<string>();
+    set.add(itemId);
+    out.set(key, set);
+  }
+  return out;
+}
+
+function candidateFromRow(row: PublicRow, username: string, sales: CardValueSale[]): SimilarCandidate {
+  const card = soldCardFromPublic(row);
   return {
     id: card.id,
+    username,
+    ownerId: String(row.user_id ?? ""),
     playerName: card.playerName,
     year: card.year,
     yearLabel: card.yearLabel,
@@ -135,13 +180,13 @@ function subjectOf(card: SoldCompCard): SimilarCandidate {
     cardNumber: card.cardNumber,
     parallel: card.parallel,
     grade: card.grade,
-    sales: [],
+    sales,
   };
 }
 
-async function readPriceContext(card: SoldCompCard): Promise<PriceContext> {
+async function readPriceContext(card: SoldCompCard, ownerId: string): Promise<PriceContext> {
   const client = createSupabaseAdmin();
-  if (!client) throw new CompsResultError("comps unavailable");
+  if (!client || !ownerId) throw new CompsResultError("comps unavailable");
 
   const player = card.playerName.trim();
   const ownKey = buildQueryKey(card);
@@ -150,14 +195,15 @@ async function readPriceContext(card: SoldCompCard): Promise<PriceContext> {
   if (player) {
     let query = client
       .from("public_cards")
-      .select(
-        "id, user_id, player, year, year_label, set, set_name, grade, grader, parallel, card_number, serial_run, is_auto, is_relic, condition_type, grade_qualifier",
-      )
-      .eq("player", player);
+      .select(PUBLIC_COLUMNS)
+      .ilike("player", escapeIlike(player));
     if (card.year > 0) {
       query = query.gte("year", card.year - 1).lte("year", card.year + 1);
     }
-    const { data, error } = await query.limit(60);
+    const { data, error } = await query
+      .order("year", { ascending: true })
+      .order("id", { ascending: true })
+      .limit(60);
     if (error) throw new CompsResultError(error.message);
     related.push(...((data ?? []) as PublicRow[]));
   }
@@ -166,7 +212,20 @@ async function readPriceContext(card: SoldCompCard): Promise<PriceContext> {
   for (const row of related) {
     if (row.id) keys.add(publicCardQueryKey(row));
   }
-  const byKey = await readCacheSales(client, [...keys]);
+  const batches = new Map<string, CachedCompRow[]>();
+  await mapLimit([...keys], PRICE_CONTEXT_CONCURRENCY, async (key) => {
+    batches.set(key, await readNewestBatch(client, key));
+  });
+
+  const flagPairs = [{ cardId: card.id, ownerId }];
+  for (const row of related) {
+    const copyOwner = String(row.user_id ?? "");
+    if (row.id && copyOwner) flagPairs.push({ cardId: row.id, ownerId: copyOwner });
+  }
+  const flags = await flagsForCards(client, flagPairs);
+  const flagged = (cardId: string, userId: string) => flags.get(`${cardId}|${userId}`) ?? new Set<string>();
+
+  const exact = fallbackSales(card, batches.get(ownKey) ?? [], flagged(card.id, ownerId));
 
   const userIds = [
     ...new Set(related.map((row) => (row.user_id ? String(row.user_id) : "")).filter(Boolean)),
@@ -182,26 +241,27 @@ async function readPriceContext(card: SoldCompCard): Promise<PriceContext> {
     }
   }
 
-  const subject = subjectOf(card);
-  const exact: CardValueSale[] = [...(byKey.get(ownKey) ?? [])];
   const cousins: SimilarCandidate[] = [];
   for (const row of related) {
     if (!row.id || row.id === card.id) continue;
-    const sales = byKey.get(publicCardQueryKey(row)) ?? [];
-    const username = usernames.get(String(row.user_id ?? "")) ?? "";
-    const candidate = candidateFromRow(row, username, sales);
+    const copyOwner = String(row.user_id ?? "");
+    if (!copyOwner) continue;
+    const copy = soldCardFromPublic(row);
+    const sales = fallbackSales(copy, batches.get(publicCardQueryKey(row)) ?? [], flagged(row.id, copyOwner));
     if (!sales.length) continue;
-    if (isSameCardIdentity(subject, candidate)) {
+    const username = usernames.get(copyOwner) ?? "";
+    const candidate = candidateFromRow(row, username, sales);
+    if (isSameCardIdentity(card, candidate)) {
       exact.push(...sales);
       continue;
     }
-    if (similarRelation(subject, candidate)) cousins.push(candidate);
+    if (similarRelation(card, candidate)) cousins.push(candidate);
   }
 
-  const sales = dedupeSales(exact);
-  const similar =
-    sales.length >= NORMAL_ESTIMATE_MIN_SALES ? null : pickSimilarOffer(subject, cousins);
-  return { sales, similar };
+  return {
+    sales: dedupeSales(exact),
+    cousins: exact.length >= NORMAL_ESTIMATE_MIN_SALES ? [] : cousins,
+  };
 }
 
 function dedupeSales(sales: CardValueSale[]): CardValueSale[] {
@@ -221,18 +281,21 @@ function dedupeSales(sales: CardValueSale[]): CardValueSale[] {
  * Comps for one card, cached by card identity.
  * Throws on a failed read so Next does not cache the error.
  */
-export function loadCachedPriceContext(card: SoldCompCard): Promise<PriceContext> {
+export function loadCachedPriceContext(card: SoldCompCard, ownerId: string): Promise<PriceContext> {
   const key = compsResultCacheKey(card);
   return unstable_cache(
     async () => {
       try {
-        return await readPriceContext(card);
+        return await readPriceContext(card, ownerId);
       } catch (err) {
         throw new CompsResultError(err instanceof Error ? err.message : "comps unavailable");
       }
     },
     ["comps-result", key],
-    { revalidate: COMPS_RESULT_REVALIDATE_SECONDS, tags: [cardCacheTag(card.id)] },
+    {
+      revalidate: COMPS_RESULT_REVALIDATE_SECONDS,
+      tags: [cardCacheTag(card.id), compsResultCacheTag(card.id)],
+    },
   )();
 }
 
@@ -244,30 +307,58 @@ function needsContext(value: CardValueResult | undefined): value is CardValueRes
   if (
     value.status === "ok" &&
     value.nSales >= NORMAL_ESTIMATE_MIN_SALES &&
-    value.median != null
+    value.median != null &&
+    value.median > 0
   ) {
     return false;
   }
   return true;
 }
 
-async function loadCompCards(ids: string[]): Promise<SoldCompCard[]> {
+async function loadCompCards(ids: string[]): Promise<Array<{ card: SoldCompCard; ownerId: string }>> {
   const client = createSupabaseAdmin();
   if (!client) throw new CompsResultError("comps unavailable");
   const { data, error } = await client.from("cards").select("*").in("id", ids);
   if (error) throw new CompsResultError(error.message);
-  return (data ?? []).map((row) => soldCompCardFromRow(mapCardRow(row as CardRow)));
+  return (data ?? []).map((row) => {
+    const mapped = row as CardRow;
+    return {
+      card: soldCompCardFromRow(mapCardRow(mapped)),
+      ownerId: mapped.user_id ?? "",
+    };
+  });
+}
+
+/** Null when the block read fails, so similar cards stay hidden. */
+async function blockedOwnerIds(viewerId: string): Promise<Set<string> | null> {
+  if (!isUuid(viewerId)) return new Set();
+  const client = createSupabaseAdmin();
+  if (!client) return null;
+  const { data, error } = await client
+    .from("blocks")
+    .select("blocker_id, blocked_id")
+    .or(`blocker_id.eq.${viewerId},blocked_id.eq.${viewerId}`);
+  if (error) return null;
+  const ids = new Set<string>();
+  for (const row of data ?? []) {
+    const blocker = String((row as { blocker_id?: string }).blocker_id ?? "");
+    const blocked = String((row as { blocked_id?: string }).blocked_id ?? "");
+    if (blocker === viewerId && blocked) ids.add(blocked);
+    if (blocked === viewerId && blocker) ids.add(blocker);
+  }
+  return ids;
 }
 
 /** Attach exact sales and a similar-card offer. A failed read leaves the value unchanged. */
 export async function attachPriceContext(
   ids: string[],
   values: Map<string, CardValueResult>,
+  viewerId?: string | null,
 ): Promise<Map<string, CardValueResult>> {
   const needs = ids.filter((id) => needsContext(values.get(id)));
   if (!needs.length) return values;
 
-  let cards: SoldCompCard[];
+  let cards: Array<{ card: SoldCompCard; ownerId: string }>;
   try {
     cards = await loadCompCards(needs);
   } catch (err) {
@@ -278,25 +369,31 @@ export async function attachPriceContext(
     return values;
   }
 
+  const blocked = viewerId ? await blockedOwnerIds(viewerId) : new Set<string>();
   const next = new Map(values);
-  await Promise.all(
-    cards.map(async (card) => {
-      const value = next.get(card.id);
-      if (!needsContext(value)) return;
-      try {
-        const context = await loadCachedPriceContext(card);
-        next.set(card.id, {
-          ...value,
-          sales: context.sales,
-          similar: context.similar,
-        });
-      } catch (err) {
-        console.warn(
-          "[price-context]",
-          err instanceof Error ? err.message : "comps unavailable",
-        );
-      }
-    }),
-  );
+  await mapLimit(cards, PRICE_CONTEXT_CONCURRENCY, async ({ card, ownerId }) => {
+    const value = next.get(card.id);
+    if (!needsContext(value) || !ownerId) return;
+    try {
+      const context = await loadCachedPriceContext(card, ownerId);
+      const cousins =
+        blocked == null
+          ? []
+          : context.cousins.filter((cousin) => cousin.ownerId && !blocked.has(cousin.ownerId));
+      const similar: CardValueSimilar | null = cousins.length
+        ? pickSimilarOffer(card, cousins)
+        : null;
+      next.set(card.id, {
+        ...value,
+        sales: context.sales,
+        similar,
+      });
+    } catch (err) {
+      console.warn(
+        "[price-context]",
+        err instanceof Error ? err.message : "comps unavailable",
+      );
+    }
+  });
   return next;
 }

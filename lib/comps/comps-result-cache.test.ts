@@ -56,7 +56,7 @@ describe("comps result cache key", () => {
     assert.match(identity, /RC1/);
     assert.match(identity, /silver/);
     assert.match(identity, /psa 10/);
-    assert.equal(identity.split("|").length, 6);
+    assert.equal(identity.split("|").length, 11);
 
     assert.equal(compsIdentityKey(CARD), compsIdentityKey({ ...CARD, id: "card-2" }));
     assert.notEqual(
@@ -69,6 +69,11 @@ describe("comps result cache key", () => {
     assert.notEqual(identity, compsIdentityKey({ ...CARD, playerName: "Shohei Ohtani" }));
     assert.notEqual(identity, compsIdentityKey({ ...CARD, cardNumber: "2" }));
     assert.notEqual(identity, compsIdentityKey({ ...CARD, setBrand: "Panini Prizm" }));
+    assert.notEqual(identity, compsIdentityKey({ ...CARD, isAuto: true }));
+    assert.notEqual(identity, compsIdentityKey({ ...CARD, isRelic: true }));
+    assert.notEqual(identity, compsIdentityKey({ ...CARD, serialRun: 25 }));
+    assert.notEqual(identity, compsIdentityKey({ ...CARD, gradeQualifier: "OC" }));
+    assert.notEqual(identity, compsIdentityKey({ ...CARD, conditionType: "graded" }));
   });
 });
 
@@ -153,7 +158,19 @@ describe("server comps cache", () => {
     }
     assert.match(context, /\["comps-result", key\]/);
     assert.match(context, /throw new CompsResultError/);
+    assert.match(context, /fallbackSales/);
+    assert.match(context, /order\("fetched_at", \{ ascending: false \}\)/);
+    assert.match(context, /\.ilike\("player", escapeIlike\(player\)\)/);
+    assert.match(context, /from\("blocks"\)/);
+    assert.match(context, /from\("comp_flags"\)/);
+    assert.match(context, /PRICE_CONTEXT_CONCURRENCY/);
+    assert.equal(context.includes(".limit(1000)"), false);
     assert.match(market, /throw new CardMarketUnavailable/);
+    assert.match(market, /compsResultCacheTag/);
+    assert.match(market, /refreshCardValue\(cardId, \{ \.\.\.options, card \}\)/);
+    assert.match(source("lib/comps/cache.ts"), /compsResultCacheTag\(cardId\)/);
+    assert.match(source("lib/social/link-preview-load.ts"), /resolvePriceRead/);
+    assert.equal(source("lib/social/link-preview-load.ts").includes("marketValueAmount"), false);
     assert.match(market, /\["card-market", identity/);
     assert.doesNotMatch(context, /return \{ ok: false/);
     assert.doesNotMatch(market, /return \{ ok: false/);

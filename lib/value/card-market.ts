@@ -4,6 +4,7 @@ import { revalidatePath, revalidateTag, unstable_cache } from "next/cache";
 import {
   COMPS_RESULT_REVALIDATE_SECONDS,
   compsResultCacheKey,
+  compsResultCacheTag,
 } from "@/lib/comps/comps-result-cache";
 import { loadSoldCompCard } from "@/lib/comps/load-card";
 import { cardCacheTag, revalidateCardCache } from "./card-cache";
@@ -35,6 +36,7 @@ export class CardMarketUnavailable extends Error {
 export function revalidateCard(cardId: string): void {
   if (!cardId) return;
   revalidateCardCache(cardId, revalidateTag);
+  revalidateTag(compsResultCacheTag(cardId), { expire: 0 });
   revalidatePath(`/cards/${cardId}`);
 }
 
@@ -53,7 +55,7 @@ export async function loadCachedCardRefresh(
   const identity = card ? compsResultCacheKey(card) : `missing|${cardId}`;
   return unstable_cache(
     async () => {
-      const result = await refreshCardValue(cardId, options);
+      const result = await refreshCardValue(cardId, { ...options, card });
       if (result.attempt.reason === "budget_exhausted" || !result.payload) {
         throw new CardMarketUnavailable(result);
       }

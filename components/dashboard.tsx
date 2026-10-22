@@ -388,7 +388,7 @@ export function Dashboard() {
                           />
                         ) : (
                           <p
-                            className="font-medium tabular-nums"
+                            className="truncate font-medium whitespace-nowrap tabular-nums"
                             title={valueLabel ?? undefined}
                           >
                             {valueLabel}

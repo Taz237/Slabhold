@@ -20,7 +20,17 @@ export type CompsIdentity = {
   cardNumber?: string | null;
   parallel?: string | null;
   grade?: string | null;
+  serialRun?: number | null;
+  isAuto?: boolean | null;
+  isRelic?: boolean | null;
+  gradeQualifier?: string | null;
+  conditionType?: string | null;
 };
+
+/** Tag for the fallback comps cache. A live sale write busts this without the card-market entry. */
+export function compsResultCacheTag(cardId: string): string {
+  return `comps-result:${cardId}`;
+}
 
 function playerKey(name: string | null | undefined): string {
   return (name ?? "")
@@ -37,13 +47,19 @@ function gradeKey(grade: string | null | undefined): string {
 }
 
 /**
- * Identity of the card being priced: player, year, set, number, parallel, grade.
- * A different parallel or grade is a different key. The card id keeps one
+ * Identity of the card being priced. Parallel, grade, auto, relic, serial,
+ * qualifier, and condition each change the key. The card id keeps one
  * collector's sales from being served as another copy's cache entry.
  */
 export function compsIdentityKey(card: CompsIdentity): string {
   const year = (card.yearLabel ?? "").trim() || String(card.year ?? "");
   const parallel = parallelMatchKey(card.parallel || "Base") || "base";
+  const serial =
+    card.serialRun != null && Number.isFinite(Number(card.serialRun))
+      ? String(card.serialRun)
+      : "";
+  const qualifier = (card.gradeQualifier ?? "").trim().toLowerCase();
+  const condition = (card.conditionType ?? "").trim().toLowerCase() || "raw";
   return [
     playerKey(card.playerName),
     year,
@@ -51,6 +67,11 @@ export function compsIdentityKey(card: CompsIdentity): string {
     normalizeCardNumber(card.cardNumber),
     parallel,
     gradeKey(card.grade),
+    serial,
+    card.isAuto ? "1" : "0",
+    card.isRelic ? "1" : "0",
+    qualifier,
+    condition,
   ].join("|");
 }
 
