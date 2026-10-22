@@ -160,7 +160,7 @@ export function NameSearch({
       {directory.status === "error" ? (
         <div className="mt-2 text-sm text-zinc-500">
           Could not load the player list.{" "}
-          <button type="button" onClick={directory.retry} className="min-h-11 font-semibold underline">
+          <button type="button" onClick={directory.retry} className="min-h-11 min-w-11 px-2 font-semibold underline">
             Retry
           </button>
         </div>

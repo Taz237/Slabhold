@@ -5,6 +5,7 @@
  * Normalized names are computed once, when this chunk loads.
  */
 import { normInterest } from "@/lib/social/follow-rank";
+import { collapseInitials } from "./initials";
 import type { DirectoryPlayer, IndexedDirectoryPlayer } from "./types";
 import players from "./directory.json";
 
@@ -14,12 +15,15 @@ export const PLAYER_DIRECTORY: readonly DirectoryPlayer[] = players;
 
 export const INDEXED_DIRECTORY: readonly IndexedDirectoryPlayer[] = players.map((player) => {
   const norm = normInterest(player.name);
+  const words = norm ? norm.split(" ") : [];
+  const joined = collapseInitials(words);
   const indexed: IndexedDirectoryPlayer = {
     name: player.name,
     sport: player.sport,
     norm,
-    words: norm ? norm.split(" ") : [],
+    words,
   };
+  if (joined !== words) indexed.joined = joined;
   if (player.team) indexed.team = player.team;
   return indexed;
 });

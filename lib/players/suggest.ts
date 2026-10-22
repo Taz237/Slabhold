@@ -1,5 +1,6 @@
 import { collectSportBlocked, type InterestHit } from "@/lib/social/collect-interests";
 import { normInterest } from "@/lib/social/follow-rank";
+import { collapseInitials } from "./initials";
 import type { DirectoryPlayer } from "./types";
 
 export type NameSuggestion = InterestHit & { custom?: boolean };
@@ -7,6 +8,7 @@ export type NameSuggestion = InterestHit & { custom?: boolean };
 type SearchablePlayer = DirectoryPlayer & {
   norm?: string;
   words?: readonly string[];
+  joined?: readonly string[];
 };
 
 const SUFFIXES: Record<string, string> = {
@@ -56,25 +58,87 @@ const BLOCKED_TERMS = [
 
 const BLOCKED_WORDS = new Set(BLOCKED_TERMS.filter((term) => !term.includes(" ")));
 const BLOCKED_PHRASES = BLOCKED_TERMS.filter((term) => term.includes(" "));
+/** Caught even when spaces split the word, as in "poke mon" or "yugi oh". */
+const BLOCKED_SUBSTRINGS = ["pokemon", "pikachu", "charizard", "yugioh", "tcg"];
+/** Two-letter initials. "jr" stays a suffix, not an initial. */
+const INITIALS = new Set([
+  "aj",
+  "bj",
+  "cc",
+  "cj",
+  "dj",
+  "dk",
+  "jd",
+  "jj",
+  "jt",
+  "kj",
+  "oj",
+  "pj",
+  "rj",
+  "tj",
+]);
 
 /**
  * Prefix of the full normalized name, or each query word as a prefix of some name word.
  * "joel em" matches Joel Embiid. "maxey" matches Tyrese Maxey.
+ * Dotted and undotted initials match each other: "cj stroud" matches "C.J. Stroud".
  */
 export function normMatches(
   norm: string,
   queryNorm: string,
   words: readonly string[] = norm.split(" "),
+  joined?: readonly string[],
 ): boolean {
   if (!queryNorm || !norm) return false;
+  const queryWords = queryNorm.split(" ");
+  return formsMatch(
+    norm,
+    words,
+    joined,
+    queryNorm,
+    queryWords,
+    collapseInitials(queryWords),
+  );
+}
+
+function formMatches(
+  norm: string,
+  words: readonly string[],
+  queryNorm: string,
+  queryWords: readonly string[],
+): boolean {
   if (norm.startsWith(queryNorm)) return true;
   const used = new Array<boolean>(words.length).fill(false);
-  for (const part of queryNorm.split(" ")) {
+  for (const part of queryWords) {
     const index = words.findIndex((word, wordIndex) => !used[wordIndex] && word.startsWith(part));
     if (index < 0) return false;
     used[index] = true;
   }
   return true;
+}
+
+/**
+ * Original tokens, and the same tokens with single-letter runs joined.
+ * Indexed rows already stored `joined` when it differs. A missing `joined`
+ * is the same as `words`, so a keystroke does not collapse the roster again.
+ */
+function formsMatch(
+  norm: string,
+  words: readonly string[],
+  joined: readonly string[] | undefined,
+  queryNorm: string,
+  queryWords: readonly string[],
+  queryJoined: readonly string[],
+  indexed = false,
+): boolean {
+  if (formMatches(norm, words, queryNorm, queryWords)) return true;
+  const queryCollapsed = queryJoined !== queryWords;
+  if (indexed && !joined && !queryCollapsed) return false;
+  const nameJoined = indexed ? (joined ?? words) : (joined ?? collapseInitials(words));
+  if (nameJoined === words && !queryCollapsed) return false;
+  const nameJoinedNorm = nameJoined === words ? norm : nameJoined.join(" ");
+  const queryJoinedNorm = queryCollapsed ? queryJoined.join(" ") : queryNorm;
+  return formMatches(nameJoinedNorm, nameJoined, queryJoinedNorm, queryJoined);
 }
 
 /** Accents and case are ignored. Prefer normMatches when the name is already normalized. */
@@ -107,6 +171,7 @@ function titleToken(token: string, wordIndex: number): string {
   const lower = token.toLocaleLowerCase();
   const suffix = wordIndex > 0 ? SUFFIXES[lower] : undefined;
   if (suffix) return suffix;
+  if (INITIALS.has(lower)) return lower.toUpperCase();
   const mc = /^mc(\p{L})(.*)$/u.exec(lower);
   if (mc) return `Mc${mc[1].toLocaleUpperCase()}${mc[2]}`;
   return lower.charAt(0).toLocaleUpperCase() + lower.slice(1);
@@ -162,7 +227,35 @@ export function blockedCustomName(value: string): boolean {
   for (const word of words) {
     if (BLOCKED_WORDS.has(word)) return true;
   }
-  return BLOCKED_PHRASES.some((phrase) => containsPhrase(words, phrase));
+  if (BLOCKED_PHRASES.some((phrase) => containsPhrase(words, phrase))) return true;
+  return blockedSplitWords(words);
+}
+
+/**
+ * Glue every word, then accept a blocked term only when that hit starts on a
+ * word or ends on a word. "p o k e m o n" is blocked. In "robertcgriffin",
+ * "tcg" does neither, so Robert C. Griffin stays allowed.
+ */
+function blockedSplitWords(words: readonly string[]): boolean {
+  const starts = new Set<number>();
+  const ends = new Set<number>();
+  let glued = "";
+  for (const word of words) {
+    starts.add(glued.length);
+    glued += word;
+    ends.add(glued.length);
+  }
+  if (!glued) return false;
+  for (const term of BLOCKED_SUBSTRINGS) {
+    let from = 0;
+    while (from <= glued.length - term.length) {
+      const at = glued.indexOf(term, from);
+      if (at < 0) break;
+      if (starts.has(at) || ends.has(at + term.length)) return true;
+      from = at + 1;
+    }
+  }
+  return false;
 }
 
 /**
@@ -173,7 +266,7 @@ export function customPlayerFallback(
   query: string,
   sports: readonly string[] = [],
 ): NameSuggestion | null {
-  const collapsed = query.trim().replace(/\s+/g, " ");
+  const collapsed = query.trim().replace(/\s+/g, " ").normalize("NFC");
   if (collapsed.length < 2 || collapsed.length > 60) return null;
   if (!CUSTOM_NAME_CHARS.test(collapsed) || blockedCustomName(collapsed)) return null;
   const letters = collapsed.match(/\p{L}/gu);
@@ -191,11 +284,27 @@ export function nameSuggestionLabel(hit: NameSuggestion): string {
   return hit.custom ? `Add "${hit.value}"` : hit.value;
 }
 
+/** Full norm, or the joined-initial form ("c j stroud" and "cj stroud"). */
+function hiddenNameIsExact(
+  norm: string,
+  joined: readonly string[] | undefined,
+  indexed: boolean,
+  words: readonly string[],
+  queryNorm: string,
+  queryJoinedNorm: string,
+): boolean {
+  if (norm === queryNorm) return true;
+  if (joined) return joined.join(" ") === queryJoinedNorm;
+  if (indexed) return norm === queryJoinedNorm;
+  return collapseInitials(words).join(" ") === queryJoinedNorm;
+}
+
 /**
  * Catalog and remote hits stay in front. Directory players fill the rest,
  * one row per normalized name, so "Luka Doncic" does not repeat "Luka Dončić".
  * An empty list becomes the custom-name chip once the directory has loaded.
- * A single word that only missed because of a sport chip does not become Add.
+ * A partial query that only missed because of a sport chip does not become Add.
+ * An exact full name, dotted or joined, still offers Add. Only the name is stored.
  */
 export function withDirectoryPlayers(input: {
   query: string;
@@ -208,20 +317,32 @@ export function withDirectoryPlayers(input: {
   const limit = input.limit == null ? 8 : Math.max(0, Math.floor(input.limit));
   const queryNorm = normInterest(input.query);
   if (!queryNorm || limit === 0) return [];
+  const queryWords = queryNorm.split(" ");
+  const queryJoined = collapseInitials(queryWords);
+  const queryJoinedNorm = queryJoined === queryWords ? queryNorm : queryJoined.join(" ");
   const sports = (input.sports ?? []).map((sport) => sport.toLowerCase()).filter(Boolean);
   const catalog = input.catalogHits.slice(0, limit);
   const taken = new Set(
     catalog.filter((hit) => hit.kind === "player").map((hit) => normInterest(hit.value)),
   );
   const directoryHits: NameSuggestion[] = [];
-  let hiddenBySport = false;
+  let hiddenPartial = false;
+  let hiddenExact = false;
   if (catalog.length < limit) {
     const matches: { player: SearchablePlayer; norm: string }[] = [];
     for (const player of input.directoryPlayers ?? []) {
       const norm = playerNorm(player);
-      if (!normMatches(norm, queryNorm, player.words ?? norm.split(" "))) continue;
+      const words = player.words ?? norm.split(" ");
+      const indexed = player.words != null;
+      if (!formsMatch(norm, words, player.joined, queryNorm, queryWords, queryJoined, indexed)) {
+        continue;
+      }
       if (!sportAllowed(player.sport, sports)) {
-        if (sports.length > 0 && !collectSportBlocked(player.sport)) hiddenBySport = true;
+        if (sports.length > 0 && !collectSportBlocked(player.sport)) {
+          if (hiddenNameIsExact(norm, player.joined, indexed, words, queryNorm, queryJoinedNorm)) {
+            hiddenExact = true;
+          } else hiddenPartial = true;
+        }
         continue;
       }
       if (taken.has(norm)) continue;
@@ -246,7 +367,7 @@ export function withDirectoryPlayers(input: {
   const merged = [...catalog, ...directoryHits];
   if (merged.length > 0) return merged;
   if (!input.directoryReady) return [];
-  if (hiddenBySport && !queryNorm.includes(" ")) return [];
+  if (hiddenPartial && !hiddenExact) return [];
   const custom = customPlayerFallback(input.query, input.sports ?? []);
   return custom ? [custom] : [];
 }
