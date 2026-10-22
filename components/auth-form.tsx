@@ -8,7 +8,14 @@ import { Logo } from "@/components/logo";
 import { useSocial } from "@/components/social-provider";
 import { trackEvent } from "@/lib/analytics";
 import { CAPTCHA_LOAD_FAILED, releaseCaptcha, submitBlocked, turnstileSiteKey } from "@/lib/auth/captcha";
-import { afterAuthPath, authLogoHref, loginPath, safeNext, signupPath } from "@/lib/auth/safe-next";
+import {
+  afterAuthPath,
+  authLogoHref,
+  emailConfirmRedirect,
+  loginPath,
+  safeNext,
+  signupPath,
+} from "@/lib/auth/safe-next";
 import {
   AUTH_FORM_SCROLL,
   PASSWORD_HINT,
@@ -38,6 +45,7 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
   const destination = afterAuthPath(next);
   const signedIn = Boolean(user);
   const captchaRef = useRef<CaptchaHandle>(null);
+  const resendCaptchaRef = useRef<CaptchaHandle>(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [username, setUsername] = useState("");
@@ -53,6 +61,11 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
   const [now, setNow] = useState(0);
   const [resendBusy, setResendBusy] = useState(false);
   const [resendError, setResendError] = useState<string | null>(null);
+  const [resendToken, setResendToken] = useState<string | null>(null);
+  const resendCaptchaWatch = useCaptchaWatch(
+    Boolean(confirmEmail) && turnstileSiteKey().length > 0,
+    resendToken,
+  );
 
   useEffect(() => {
     if (mode !== "signup") return;
@@ -111,7 +124,8 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
   }
 
   async function resendConfirmation() {
-    if (!confirmEmail || resendBusy || resendCooldownSeconds(resendAt, signupNow()) > 0) return;
+    const cooling = resendCooldownSeconds(resendAt, signupNow()) > 0;
+    if (!confirmEmail || submitBlocked(resendBusy || cooling, resendToken)) return;
     setResendBusy(true);
     setResendError(null);
     try {
@@ -123,6 +137,10 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
       const { error: sendError } = await supabase.auth.resend({
         type: "signup",
         email: confirmEmail,
+        options: {
+          captchaToken: resendToken ?? undefined,
+          emailRedirectTo: emailConfirmRedirect(window.location.origin, next),
+        },
       });
       const feedback = signupResendFeedback(sendError);
       if (feedback) {
@@ -141,6 +159,7 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
       setResendError(RESEND_FAILED);
     } finally {
       setResendBusy(false);
+      releaseCaptcha(resendCaptchaRef.current, () => setResendToken(null));
     }
   }
 
@@ -183,9 +202,30 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
         <h1 className="text-2xl font-bold tracking-tight">Check your email</h1>
         <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-300">{signupInboxCopy(confirmEmail)}</p>
         {resendError ? <p className="mt-3 text-sm text-rose-600 dark:text-rose-400">{resendError}</p> : null}
+        <Captcha
+          key={`${pathname}-confirm`}
+          ref={resendCaptchaRef}
+          onToken={(token) => {
+            setResendToken(token);
+            resendCaptchaWatch.onSolved();
+          }}
+          onExpire={() => setResendToken(null)}
+          onFail={() => {
+            setResendToken(null);
+            resendCaptchaWatch.onFail();
+          }}
+          onActivity={resendCaptchaWatch.onActivity}
+          onInteractive={resendCaptchaWatch.onInteractive}
+        />
+        {resendCaptchaWatch.failed ? (
+          <p className="mt-3 text-sm text-rose-600 dark:text-rose-400">{CAPTCHA_LOAD_FAILED}</p>
+        ) : null}
+        {showTurnstileContinue(turnstileSiteKey(), resendToken) ? (
+          <p className="mt-3 text-center text-sm text-zinc-500">{TURNSTILE_CONTINUE}</p>
+        ) : null}
         <button
           type="button"
-          disabled={resendBusy || resendSeconds > 0}
+          disabled={submitBlocked(resendBusy || resendSeconds > 0, resendToken)}
           onClick={() => void resendConfirmation()}
           className="mt-5 w-full rounded-full bg-[#7C3AED] py-3 text-sm font-semibold text-white disabled:opacity-60"
         >

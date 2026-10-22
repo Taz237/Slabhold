@@ -1,3 +1,4 @@
+import { captchaRetryMessage } from "@/lib/auth/captcha";
 import { normalizeUsername, usernameError } from "@/lib/social/local-db";
 
 /** Same characters and length as usernameError. */
@@ -83,6 +84,8 @@ export function signupResendFeedback(
   error: ResendError,
 ): { message: string; rateLimited: boolean } | null {
   if (!error) return null;
+  const captcha = captchaRetryMessage(error);
+  if (captcha) return { message: captcha, rateLimited: false };
   const rateLimited = isSignupResendRateLimited(error);
   return { message: rateLimited ? RESEND_RATE_LIMIT : RESEND_FAILED, rateLimited };
 }

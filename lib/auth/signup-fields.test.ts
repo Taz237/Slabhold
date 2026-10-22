@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { join } from "node:path";
+import { CAPTCHA_RETRY } from "./captcha";
 import { loginPath } from "./safe-next";
 import { normalizeUsername, usernameError } from "../social/local-db";
 import {
@@ -99,6 +100,13 @@ describe("signup confirmation resend", () => {
       message: RESEND_FAILED,
       rateLimited: false,
     });
+    assert.deepEqual(
+      signupResendFeedback({
+        code: "captcha_failed",
+        message: "captcha verification process failed",
+      }),
+      { message: CAPTCHA_RETRY, rateLimited: false },
+    );
     assert.equal(RESEND_FAILED.includes("not authorized"), false);
   });
 });
@@ -125,9 +133,11 @@ describe("signup form wiring", () => {
     assert.match(auth, /showTurnstileContinue\(turnstileSiteKey\(\), captchaToken\)/);
     assert.match(
       auth,
-      /supabase\.auth\.resend\(\{\s*type: "signup",\s*email: confirmEmail,\s*\}\)/,
+      /supabase\.auth\.resend\(\{\s*type: "signup",\s*email: confirmEmail,\s*options: \{\s*captchaToken: resendToken \?\? undefined,\s*emailRedirectTo: emailConfirmRedirect\(window\.location\.origin, next\),\s*\},\s*\}\)/,
     );
-    assert.doesNotMatch(auth, /emailRedirectTo/);
+    assert.match(auth, /showTurnstileContinue\(turnstileSiteKey\(\), resendToken\)/);
+    assert.match(auth, /disabled=\{submitBlocked\(resendBusy \|\| resendSeconds > 0, resendToken\)\}/);
+    assert.match(auth, /releaseCaptcha\(resendCaptchaRef\.current, \(\) => setResendToken\(null\)\)/);
     assert.match(auth, /signupInboxCopy\(confirmEmail\)/);
     assert.match(auth, /Resend email/);
     assert.match(auth, /resendCooldownSeconds\(resendAt, now\)/);
