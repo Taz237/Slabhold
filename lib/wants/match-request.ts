@@ -1,7 +1,5 @@
-import { alignedRetryAfterSeconds } from "@/lib/comps/rate-window";
+import { alignedRetryAfterSeconds, WANT_MATCH_WINDOW_MS } from "@/lib/comps/rate-window";
 import { isUuid } from "@/lib/value/card-value-access";
-
-const WANT_MATCH_WINDOW_MS = 10 * 60 * 1000;
 
 export const WANT_MATCH_RATE_LIMIT_MESSAGE =
   "Too many want checks. Please wait a bit and try again.";

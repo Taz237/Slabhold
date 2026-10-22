@@ -2,6 +2,10 @@ import "server-only";
 
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { anonymousSubject } from "./anon-subject";
+import { consumeBucketWithStore, type BucketStore } from "./rate-limit-loop";
+import { WANT_MATCH_WINDOW_MS } from "./rate-window";
+
+export { WANT_MATCH_WINDOW_MS };
 
 export { anonymousSubject };
 
@@ -22,7 +26,6 @@ export const CARD_VALUES_WINDOW_MS = 10 * 60 * 1000;
 /** POST /api/wants/match per user per 10-minute window. Separate from comps requests. */
 const WANT_MATCH_BUCKET = "want_match";
 export const WANT_MATCH_LIMIT = 30;
-export const WANT_MATCH_WINDOW_MS = 10 * 60 * 1000;
 
 /** Max actual Trawl fetches per user per hour. */
 export const TRAWL_LIMIT = 5;
@@ -71,13 +74,12 @@ function alignedWindowStart(periodMs: number): string {
   return new Date(ms).toISOString();
 }
 
-const BURST_ATTEMPTS = 8;
-
 /**
  * Increment a rate-limit bucket. Returns false when over the limit.
  * Fail-open if the service-role client or table is unavailable (cache still works).
  * A parallel burst reads a count and writes the next one only while that count
- * is still current, then retries. After several lost races the request is denied.
+ * is still current, pausing briefly between lost writes. After the last lost
+ * write the request is allowed so a burst under the limit is not blocked.
  */
 async function consumeBucket(
   table: "comps_rate_limits" | "anon_rate_limits",
@@ -91,55 +93,56 @@ async function consumeBucket(
   if (!client) return true;
 
   const windowStart = alignedWindowStart(windowMs);
+  const row = { table, subjectColumn, subject, bucket, windowStart };
+  const store: BucketStore = {
+    async read() {
+      const { data: existing, error: readError } = await client
+        .from(table)
+        .select("count")
+        .eq(subjectColumn, subject)
+        .eq("bucket", bucket)
+        .eq("window_start", windowStart)
+        .maybeSingle();
 
-  for (let attempt = 0; attempt < BURST_ATTEMPTS; attempt += 1) {
-    const { data: existing, error: readError } = await client
-      .from(table)
-      .select("count")
-      .eq(subjectColumn, subject)
-      .eq("bucket", bucket)
-      .eq("window_start", windowStart)
-      .maybeSingle();
-
-    if (readError) {
-      console.warn(`[${table}] read failed:`, readError.message);
-      return true;
-    }
-
-    const current = typeof existing?.count === "number" ? existing.count : 0;
-    if (current >= limit) return false;
-
-    const next = current + 1;
-    if (!existing) {
+      if (readError) {
+        console.warn(`[${table}] read failed:`, readError.message);
+        return { count: null, error: readError.message };
+      }
+      if (!existing) return { count: null };
+      return { count: typeof existing.count === "number" ? existing.count : 0 };
+    },
+    async insert(_row, count) {
       const { error: insertError } = await client.from(table).insert({
         [subjectColumn]: subject,
         bucket,
         window_start: windowStart,
-        count: next,
+        count,
       });
-      if (!insertError) return true;
-      if (insertError.code === "23505") continue;
+      if (!insertError) return { ok: true };
+      if (insertError.code === "23505") return { ok: false, conflict: true };
       console.warn(`[${table}] write failed:`, insertError.message);
-      return true;
-    }
+      return { ok: false, conflict: false, error: insertError.message };
+    },
+    async update(_row, from, to) {
+      const { data: updated, error: writeError } = await client
+        .from(table)
+        .update({ count: to })
+        .eq(subjectColumn, subject)
+        .eq("bucket", bucket)
+        .eq("window_start", windowStart)
+        .eq("count", from)
+        .select("count");
 
-    const { data: updated, error: writeError } = await client
-      .from(table)
-      .update({ count: next })
-      .eq(subjectColumn, subject)
-      .eq("bucket", bucket)
-      .eq("window_start", windowStart)
-      .eq("count", current)
-      .select("count");
+      if (writeError) {
+        console.warn(`[${table}] write failed:`, writeError.message);
+        return { ok: false, conflict: false, error: writeError.message };
+      }
+      if ((updated?.length ?? 0) > 0) return { ok: true };
+      return { ok: false, conflict: true };
+    },
+  };
 
-    if (writeError) {
-      console.warn(`[${table}] write failed:`, writeError.message);
-      return true;
-    }
-    if ((updated?.length ?? 0) > 0) return true;
-  }
-
-  return false;
+  return consumeBucketWithStore(store, row, limit);
 }
 
 export async function consumeRateLimit(

@@ -241,7 +241,8 @@ export function saleQualifies(want: WantRow, event: WantMatchEvent): boolean {
  * is new. Skips the actor's own post or listing and stops at the daily cap.
  * Card, listing, and post each keep their own 24 hour window for one actor and
  * card. After the insert, the earliest (created_at, id) row of that type wins
- * so parallel copies cannot all alert. Price drops are not cooled.
+ * so parallel copies cannot all alert. A failed re-check keeps that alert.
+ * Price drops are not cooled.
  */
 export async function notifyWantMatches(
   event: WantMatchEvent,
@@ -326,7 +327,13 @@ export async function notifyWantMatches(
       const note = await db.insertNotification(notification);
       noteId = note.id;
       if (actorQuery && alertType) {
-        const claimed = await db.actorCardAlerts(actorQuery);
+        let claimed: ActorCardNotification[];
+        try {
+          claimed = await db.actorCardAlerts(actorQuery);
+        } catch {
+          notified += 1;
+          continue;
+        }
         const lost = claimed.some(
           (row) =>
             sameCooledAlert(row.metadata, event.cardKey, alertType) &&
@@ -340,8 +347,16 @@ export async function notifyWantMatches(
       }
       notified += 1;
     } catch {
-      if (noteId) await db.deleteNotification(noteId);
-      await db.deleteAlert(want.id, event.sourceType, event.sourceId, alertCardId);
+      try {
+        if (noteId) await db.deleteNotification(noteId);
+      } catch {
+        // Still remove the alert row so it does not count toward the daily cap.
+      }
+      try {
+        await db.deleteAlert(want.id, event.sourceType, event.sourceId, alertCardId);
+      } catch {
+        // One wanter's cleanup must not stop alerts for the rest.
+      }
     }
   }
 
