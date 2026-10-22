@@ -63,7 +63,31 @@ describe("interest typeahead", () => {
     });
     assert.deepEqual(
       stroud.map((hit) => hit.value),
-      ["C.J. Stroud"],
+      ["CJ Stroud"],
+    );
+    const reversed = interestTypeahead({
+      query: "stroud",
+      players: [
+        { name: "C.J. Stroud", sport: "Football" },
+        { name: "CJ Stroud", sport: "Football" },
+      ],
+      teams: [],
+    });
+    assert.deepEqual(
+      reversed.map((hit) => hit.value),
+      ["CJ Stroud"],
+    );
+    const blank = interestTypeahead({
+      query: "stroud",
+      players: [
+        { name: "CJ Stroud", sport: "" },
+        { name: "C.J. Stroud", sport: "Football" },
+      ],
+      teams: [],
+    });
+    assert.deepEqual(
+      blank.map((hit) => `${hit.value}/${hit.sport}`).sort(),
+      ["C.J. Stroud/Football", "CJ Stroud/"],
     );
     const smiths = interestTypeahead({
       query: "will smith",

@@ -2,9 +2,9 @@ import { collectSportBlocked, type InterestHit } from "@/lib/social/collect-inte
 import {
   compactInterest,
   compactNorm,
+  majorityPlayerSpelling,
   normInterest,
   playerSportsCompatible,
-  preferDottedSpelling,
 } from "@/lib/social/follow-rank";
 import { collapseInitials } from "./initials";
 import type { DirectoryPlayer } from "./types";
@@ -189,7 +189,8 @@ type NamePart = { kind: "letters"; text: string } | { kind: "sep"; text: string 
 /**
  * All-lowercase and all-uppercase names are title-cased.
  * Mixed case is kept. "mcbride" becomes "McBride".
- * A run of single letters separated by spaces becomes one initialism: "c j" → "CJ".
+ * A pair of single letters separated by spaces becomes one initialism: "c j" → "CJ".
+ * Longer runs stay separate, so "a b c d" does not become "ABCD".
  * Periods stay, so "c.j. stroud" is still "C.J. Stroud".
  */
 export function titleCasePlayerName(value: string): string {
@@ -223,6 +224,13 @@ export function titleCasePlayerName(value: string): string {
       continue;
     }
     if (part.text.length === 1) {
+      const prevSep = parts[index - 1];
+      const prevLetters = parts[index - 2];
+      const continuesRun =
+        prevSep?.kind === "sep" &&
+        prevSep.text === " " &&
+        prevLetters?.kind === "letters" &&
+        prevLetters.text.length === 1;
       let end = index;
       let run = "";
       while (end < parts.length) {
@@ -242,7 +250,7 @@ export function titleCasePlayerName(value: string): string {
         }
         break;
       }
-      if (run.length > 1) {
+      if (!continuesRun && run.length === 2) {
         result += run.toLocaleUpperCase();
         wordIndex += 1;
         index = end + 1;
@@ -336,18 +344,27 @@ export function nameSuggestionLabel(hit: NameSuggestion): string {
   return hit.custom ? `Add "${hit.value}"` : hit.value;
 }
 
+type SpellingBag = { catalog: string[]; directory: string[] };
+
 function absorbPlayer(
   grouped: Map<string, NameSuggestion[]>,
+  spellings: Map<NameSuggestion, SpellingBag>,
   hit: NameSuggestion,
   key: string,
+  source: "catalog" | "directory",
 ): boolean {
   const list = grouped.get(key);
   const existing = list?.find((item) => playerSportsCompatible(item.sport, hit.sport));
   if (existing) {
-    existing.value = preferDottedSpelling(existing.value, hit.value);
-    if (!existing.sport && hit.sport) existing.sport = hit.sport;
+    const bag = spellings.get(existing);
+    if (bag) bag[source].push(hit.value);
+    const chosen = bag && bag.catalog.length > 0 ? bag.catalog : (bag?.directory ?? [hit.value]);
+    existing.value = majorityPlayerSpelling(chosen);
     return true;
   }
+  const bag: SpellingBag = { catalog: [], directory: [] };
+  bag[source].push(hit.value);
+  spellings.set(hit, bag);
   if (list) list.push(hit);
   else grouped.set(key, [hit]);
   return false;
@@ -370,8 +387,8 @@ function hiddenNameIsExact(
 
 /**
  * Catalog and remote hits stay in front. Directory players fill the rest,
- * one row per compact name, so "CJ Stroud" does not repeat "C.J. Stroud".
- * The dotted spelling is the one shown. Two sports stay two people.
+ * one row per compact name and sport, so "CJ Stroud" does not repeat "C.J. Stroud".
+ * The catalog spelling is the one shown. A blank sport stays its own row.
  * An empty list becomes the custom-name chip once the directory has loaded.
  * A partial query that only missed because of a sport chip does not become Add.
  * An exact full name, dotted or joined, still offers Add. Only the name is stored.
@@ -393,9 +410,12 @@ export function withDirectoryPlayers(input: {
   const sports = (input.sports ?? []).map((sport) => sport.toLowerCase()).filter(Boolean);
   const catalog: NameSuggestion[] = [];
   const grouped = new Map<string, NameSuggestion[]>();
+  const spellings = new Map<NameSuggestion, SpellingBag>();
   for (const hit of input.catalogHits.slice(0, limit)) {
     const copy = { ...hit };
-    if (copy.kind === "player" && absorbPlayer(grouped, copy, compactInterest(copy.value))) continue;
+    if (copy.kind === "player" && absorbPlayer(grouped, spellings, copy, compactInterest(copy.value), "catalog")) {
+      continue;
+    }
     catalog.push(copy);
   }
   const directoryHits: NameSuggestion[] = [];
@@ -424,7 +444,7 @@ export function withDirectoryPlayers(input: {
         value: player.name,
         sport: player.sport,
       };
-      if (absorbPlayer(grouped, suggestion, compact)) continue;
+      if (absorbPlayer(grouped, spellings, suggestion, compact, "directory")) continue;
       matches.push({ player, norm, suggestion });
     }
     matches.sort((a, b) => {

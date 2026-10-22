@@ -3,9 +3,9 @@ import { SPORT_PICKER_OPTIONS } from "../card-options";
 import {
   INTEREST_RANK_LIMIT,
   compactInterest,
+  majorityPlayerSpelling,
   normInterest,
   playerSportsCompatible,
-  preferDottedSpelling,
   type CollectInterest,
   type InterestKind,
 } from "./follow-rank";
@@ -214,7 +214,7 @@ export function interestTypeahead(input: {
     (sports.length === 0 || sports.includes(sport.toLowerCase()));
   const hits: InterestHit[] = [];
   const seen = new Set<string>();
-  const playersByKey = new Map<string, InterestHit[]>();
+  const playersByKey = new Map<string, { hit: InterestHit; names: string[] }[]>();
   for (const team of input.teams ?? COLLECT_TEAMS) {
     if (!allowed(team.sport)) continue;
     const norm = normInterest(team.name);
@@ -230,15 +230,16 @@ export function interestTypeahead(input: {
     if (!norm || !norm.includes(query)) continue;
     const key = compactInterest(player.name);
     const group = playersByKey.get(key);
-    const existing = group?.find((hit) => playerSportsCompatible(hit.sport, player.sport));
+    const existing = group?.find((item) => playerSportsCompatible(item.hit.sport, player.sport));
     if (existing) {
-      existing.value = preferDottedSpelling(existing.value, player.name);
-      if (!existing.sport && player.sport) existing.sport = player.sport;
+      existing.names.push(player.name);
+      existing.hit.value = majorityPlayerSpelling(existing.names);
       continue;
     }
     const hit: InterestHit = { kind: "player", value: player.name, sport: player.sport };
-    if (group) group.push(hit);
-    else playersByKey.set(key, [hit]);
+    const bucket = { hit, names: [player.name] };
+    if (group) group.push(bucket);
+    else playersByKey.set(key, [bucket]);
     hits.push(hit);
   }
   hits.sort((a, b) => {

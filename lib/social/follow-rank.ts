@@ -100,22 +100,46 @@ export function compactInterest(value: string): string {
   return compactNorm(normInterest(value));
 }
 
-/** Blank sport can join a known sport. Two real sports stay different people. */
+/** Same sport only. A blank sport does not attach to Baseball or Hockey. */
 export function playerSportsCompatible(left: string, right: string): boolean {
-  const a = left.trim().toLowerCase();
-  const b = right.trim().toLowerCase();
-  return !a || !b || a === b;
+  return left.trim().toLowerCase() === right.trim().toLowerCase();
 }
 
-/** Dotted initials ("C.J. Stroud") win over "CJ Stroud" when the names are the same player. */
-export function preferDottedSpelling(current: string, incoming: string): string {
-  return countDots(incoming) > countDots(current) ? incoming : current;
+/**
+ * Tie-break when two spellings are equally common.
+ * Fewer punctuation marks, then code-point order. Argument order does not matter.
+ */
+export function preferPlayerSpelling(left: string, right: string): string {
+  const leftMarks = punctuationMarks(left);
+  const rightMarks = punctuationMarks(right);
+  if (leftMarks !== rightMarks) return leftMarks < rightMarks ? left : right;
+  if (left === right) return left;
+  return left < right ? left : right;
 }
 
-function countDots(value: string): number {
+/** The spelling that appears most often. Ties use preferPlayerSpelling. */
+export function majorityPlayerSpelling(spellings: readonly string[]): string {
+  const counts = new Map<string, number>();
+  for (const spelling of spellings) {
+    counts.set(spelling, (counts.get(spelling) ?? 0) + 1);
+  }
+  let best: string | null = null;
+  let bestCount = -1;
+  for (const [spelling, count] of counts) {
+    if (best == null || count > bestCount) {
+      best = spelling;
+      bestCount = count;
+    } else if (count === bestCount) {
+      best = preferPlayerSpelling(best, spelling);
+    }
+  }
+  return best ?? "";
+}
+
+function punctuationMarks(value: string): number {
   let count = 0;
-  for (let index = 0; index < value.length; index += 1) {
-    if (value.charCodeAt(index) === 46) count += 1;
+  for (const char of value) {
+    if (char === "." || char === "'" || char === "\u2019" || char === "-") count += 1;
   }
   return count;
 }

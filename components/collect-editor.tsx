@@ -11,7 +11,7 @@ import {
   interestTypeahead,
   type InterestHit,
 } from "@/lib/social/collect-interests";
-import type { CollectInterest } from "@/lib/social/follow-rank";
+import { compactInterest, type CollectInterest } from "@/lib/social/follow-rank";
 import { createSupabaseBrowser } from "@/lib/supabase/browser";
 
 const chipClass =
@@ -53,6 +53,16 @@ export function SportChips({
 
 export function useCollectSports(catalogSports: readonly string[]) {
   return useMemo(() => collectSportChoices(catalogSports), [catalogSports]);
+}
+
+/** React key for a suggestion row. Sport keeps Will Smith baseball and hockey apart. */
+export function nameHitKey(hit: { kind: string; value: string; sport?: string }): string {
+  return `${hit.kind}:${hit.value}:${hit.sport ?? ""}`;
+}
+
+function nameRowLabel(hit: { kind: string; sport?: string }): string {
+  if (hit.kind === "team") return "Team";
+  return hit.sport ? `Player · ${hit.sport}` : "Player";
 }
 
 export function NameSearch({
@@ -168,7 +178,7 @@ export function NameSearch({
       {hits.length > 0 ? (
         <ul className="mt-2 overflow-hidden rounded-2xl border border-zinc-200 dark:border-white/10">
           {hits.map((hit) => (
-            <li key={`${hit.kind}:${hit.value}`}>
+            <li key={nameHitKey(hit)} data-key={nameHitKey(hit)}>
               <button
                 type="button"
                 onClick={() => {
@@ -178,9 +188,7 @@ export function NameSearch({
                 className="flex min-h-11 w-full items-center justify-between gap-3 px-4 text-left text-[15px] hover:bg-zinc-100 dark:hover:bg-white/10"
               >
                 <span className="truncate font-medium">{nameSuggestionLabel(hit)}</span>
-                <span className="shrink-0 text-xs text-zinc-500">
-                  {hit.kind === "team" ? "Team" : "Player"}
-                </span>
+                <span className="shrink-0 text-xs text-zinc-500">{nameRowLabel(hit)}</span>
               </button>
             </li>
           ))}
@@ -198,12 +206,16 @@ export function toggleSport(selected: readonly string[], sport: string): string[
   return [...selected, sport];
 }
 
+function savedNameKey(kind: string, value: string): string {
+  return `${kind}:${compactInterest(value)}`;
+}
+
 export function toggleName(
   selected: readonly CollectInterest[],
   hit: InterestHit,
 ): CollectInterest[] {
-  const key = `${hit.kind}:${hit.value.toLowerCase()}`;
-  if (selected.some((pick) => `${pick.kind}:${pick.value.toLowerCase()}` === key)) return [...selected];
+  const key = savedNameKey(hit.kind, hit.value);
+  if (selected.some((pick) => savedNameKey(pick.kind, pick.value) === key)) return [...selected];
   return [...selected, { kind: hit.kind, value: hit.value }];
 }
 
@@ -211,6 +223,6 @@ export function withoutName(
   selected: readonly CollectInterest[],
   hit: CollectInterest,
 ): CollectInterest[] {
-  const key = `${hit.kind}:${hit.value.toLowerCase()}`;
-  return selected.filter((pick) => `${pick.kind}:${pick.value.toLowerCase()}` !== key);
+  const key = savedNameKey(hit.kind, hit.value);
+  return selected.filter((pick) => savedNameKey(pick.kind, pick.value) !== key);
 }

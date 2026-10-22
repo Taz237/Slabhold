@@ -308,6 +308,7 @@ describe("directory name search", () => {
     assert.equal(spaced[0]?.sport, "Basketball");
     assert.equal(titleCasePlayerName("c j stroud"), "CJ Stroud");
     assert.equal(titleCasePlayerName("C J STROUD"), "CJ Stroud");
+    assert.equal(titleCasePlayerName("a b c d"), "A B C D");
   });
 
   it("shows one row when catalog and directory spell the same initials differently", () => {
@@ -322,20 +323,52 @@ describe("directory name search", () => {
     });
     const strouds = hits.filter((hit) => hit.value.toLowerCase().replace(/[^a-z]/g, "").includes("cjstroud"));
     assert.equal(strouds.length, 1);
-    assert.equal(strouds[0]?.value, "C.J. Stroud");
+    assert.equal(strouds[0]?.value, "CJ Stroud");
     assert.equal(strouds[0]?.sport, "Football");
     assert.equal(strouds[0]?.custom, undefined);
+    const catalogWins = withDirectoryPlayers({
+      query: "cj stroud",
+      catalogHits: [{ kind: "player", value: "C.J. Stroud", sport: "Football" }],
+      directoryPlayers: INDEXED_DIRECTORY,
+      directoryReady: true,
+    });
+    assert.equal(catalogWins.find((hit) => hit.value.includes("Stroud"))?.value, "C.J. Stroud");
+    const blankSport = withDirectoryPlayers({
+      query: "stroud",
+      catalogHits: [
+        { kind: "player", value: "CJ Stroud", sport: "" },
+        { kind: "player", value: "C.J. Stroud", sport: "Football" },
+      ],
+      directoryPlayers: [],
+      directoryReady: true,
+    });
+    assert.deepEqual(
+      blankSport.map((hit) => `${hit.value}/${hit.sport}`),
+      ["CJ Stroud/", "C.J. Stroud/Football"],
+    );
     const catalogOnly = interestTypeahead({
       query: "stroud",
       players: [
-        { name: "CJ Stroud", sport: "Football" },
         { name: "C.J. Stroud", sport: "Football" },
+        { name: "CJ Stroud", sport: "Football" },
       ],
       teams: [],
     });
     assert.deepEqual(
       catalogOnly.map((hit) => hit.value),
-      ["C.J. Stroud"],
+      ["CJ Stroud"],
+    );
+    const majority = interestTypeahead({
+      query: "stroud",
+      players: [
+        ...Array.from({ length: 3 }, () => ({ name: "C.J. Stroud", sport: "Football" })),
+        ...Array.from({ length: 9 }, () => ({ name: "CJ Stroud", sport: "Football" })),
+      ],
+      teams: [],
+    });
+    assert.deepEqual(
+      majority.map((hit) => hit.value),
+      ["CJ Stroud"],
     );
     const distinct = withDirectoryPlayers({
       query: "smith",
