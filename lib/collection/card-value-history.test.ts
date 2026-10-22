@@ -167,6 +167,14 @@ describe("card value history rotation", () => {
     assert.equal(maxId, "card-1200");
     assert.notEqual(nextCursor, maxId);
   });
+
+  it("keeps the cursor at the end of the batch when one id inside it is unwritten", () => {
+    const orderedIds = Array.from({ length: 1200 }, (_, index) =>
+      `card-${String(index + 1).padStart(4, "0")}`,
+    );
+    const written = orderedIds.slice(0, 1000).filter((id) => id !== "card-0600");
+    assert.equal(historyRotationCursor(orderedIds, written), "card-1000");
+  });
 });
 
 describe("card value history migration and cron", () => {

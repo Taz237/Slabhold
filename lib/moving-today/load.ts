@@ -3,7 +3,7 @@ import "server-only";
 import { unstable_cache } from "next/cache";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { cleanImageUrl } from "@/lib/social/link-preview";
-import { createTtlCache, MOVING_TODAY_CACHE_SECONDS } from "./cache";
+import { createTtlCache, MOVING_TODAY_CACHE_SECONDS, MOVING_TODAY_ERROR_CACHE_MS } from "./cache";
 import {
   assembleMovingToday,
   type ProfileRef,
@@ -30,7 +30,11 @@ const CARD_COLUMNS =
 
 type Row = Record<string, unknown>;
 
-const memoryCache = createTtlCache<MovingTodayPayload>(MOVING_TODAY_CACHE_SECONDS * 1000);
+const memoryCache = createTtlCache<MovingTodayPayload>(
+  MOVING_TODAY_CACHE_SECONDS * 1000,
+  Date.now,
+  MOVING_TODAY_ERROR_CACHE_MS,
+);
 
 function chunks<T>(items: T[], size: number): T[][] {
   const groups: T[][] = [];
@@ -295,7 +299,8 @@ async function readProfiles(
 /**
  * Cached catalog read from sold_comps_cache. No live listing fetch.
  * The sale list is cached. The heading is chosen from the sale date and
- * the current New York date after the cache returns. A thrown read is not stored.
+ * the current New York date after the cache returns. A thrown read is
+ * remembered for about a minute, then tried again.
  */
 export async function getMovingToday(now: Date = new Date()): Promise<MovingTodayPayload> {
   const cached = await unstable_cache(

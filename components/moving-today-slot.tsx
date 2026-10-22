@@ -1,19 +1,15 @@
-import { connection } from "next/server";
-import { MovingTodayPanel } from "@/components/moving-today";
+import { MovingToday, MovingTodayCached } from "@/components/moving-today";
 import { getMovingToday } from "@/lib/moving-today/load";
-import { shouldShowMovingToday } from "@/lib/moving-today/types";
+import type { MovingTodayPayload } from "@/lib/moving-today/types";
 
-/** Server render. The heading uses the request clock, not a cached label. */
+/** Cached sales for Home. The client chooses the heading when it renders. */
 export async function MovingTodaySlot() {
-  await connection();
-  let payload;
+  let payload: MovingTodayPayload | null = null;
   try {
     payload = await getMovingToday();
   } catch {
-    return null;
+    payload = null;
   }
-  if (!shouldShowMovingToday(payload.sales)) return null;
-  return (
-    <MovingTodayPanel heading={payload.title} dateLabel={payload.dateLabel} sales={payload.sales} />
-  );
+  if (!payload) return <MovingToday />;
+  return <MovingTodayCached payload={payload} />;
 }

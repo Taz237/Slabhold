@@ -12,6 +12,7 @@ import {
   freshenMovingToday,
   movingDayHeading,
   movingDayIsRecent,
+  movingTodayDescription,
   newYorkDayWindow,
   percentVersusRecentAverage,
   rankNotableSales,
@@ -255,6 +256,19 @@ describe("New York sale day", () => {
     const thirdDay = freshenMovingToday(cached, new Date("2026-10-25T16:00:00.000Z"));
     assert.equal(thirdDay.sales.length, 0);
     assert.equal(thirdDay.title, "Moving today");
+    assert.equal(
+      movingTodayDescription("Moving yesterday"),
+      "Yesterday's notable sales across the Slabhold catalog.",
+    );
+    assert.equal(
+      movingTodayDescription("Moving today"),
+      "Today's notable sales across the Slabhold catalog.",
+    );
+    assert.equal(
+      movingTodayDescription("Moving Oct 20"),
+      "Notable sales from Oct 20 across the Slabhold catalog.",
+    );
+    assert.doesNotMatch(movingTodayDescription("Moving yesterday"), /Moving yesterday across/);
   });
 });
 

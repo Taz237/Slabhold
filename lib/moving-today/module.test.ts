@@ -8,6 +8,7 @@ import { MovingToday, MovingTodayPanel } from "@/components/moving-today";
 import {
   createTtlCache,
   MOVING_TODAY_CACHE_SECONDS,
+  MOVING_TODAY_ERROR_CACHE_MS,
   movingTodayCacheControl,
 } from "./cache";
 import type { MovingTodaySale } from "./types";
@@ -120,6 +121,66 @@ describe("Moving today cache", () => {
     assert.equal(await flaky.read(async () => "recovered"), "recovered");
   });
 
+  it("retries a failed read after 60 seconds and keeps a success", async () => {
+    assert.equal(MOVING_TODAY_ERROR_CACHE_MS, 60_000);
+    let now = 5_000;
+    let calls = 0;
+    const cache = createTtlCache<string>(
+      MOVING_TODAY_CACHE_SECONDS * 1000,
+      () => now,
+      MOVING_TODAY_ERROR_CACHE_MS,
+    );
+    await assert.rejects(
+      cache.read(async () => {
+        calls += 1;
+        throw new Error("db");
+      }),
+    );
+    assert.equal(calls, 1);
+    now += MOVING_TODAY_ERROR_CACHE_MS - 1;
+    await assert.rejects(
+      cache.read(async () => {
+        calls += 1;
+        throw new Error("again");
+      }),
+    );
+    assert.equal(calls, 1);
+    now += 1;
+    await assert.rejects(
+      cache.read(async () => {
+        calls += 1;
+        throw new Error("still");
+      }),
+    );
+    assert.equal(calls, 2);
+    await assert.rejects(
+      cache.read(async () => {
+        calls += 1;
+        return "";
+      }),
+    );
+    assert.equal(calls, 2);
+
+    now += MOVING_TODAY_ERROR_CACHE_MS;
+    assert.equal(
+      await cache.read(async () => {
+        calls += 1;
+        return "";
+      }),
+      "",
+    );
+    assert.equal(calls, 3);
+    now += MOVING_TODAY_CACHE_SECONDS * 1000 - 1;
+    assert.equal(
+      await cache.read(async () => {
+        calls += 1;
+        return "fresh";
+      }),
+      "",
+    );
+    assert.equal(calls, 3);
+  });
+
   it("caches the server read for 30 minutes and does not cache a failed response", () => {
     const load = read("lib/moving-today/load.ts");
     const route = read("app/api/moving-today/route.ts");
@@ -131,11 +192,15 @@ describe("Moving today cache", () => {
     assert.match(route, /private, no-store/);
     assert.match(load, /movingDayIsRecent/);
     assert.match(load, /freshenMovingToday/);
+    assert.match(load, /MOVING_TODAY_ERROR_CACHE_MS/);
     const cachedCall = load.indexOf("unstable_cache(");
     const freshenCall = load.indexOf("return freshenMovingToday");
     assert.ok(cachedCall > 0 && freshenCall > cachedCall);
-    assert.match(read("components/moving-today-slot.tsx"), /await connection\(\)/);
-    assert.doesNotMatch(read("app/page.tsx"), /revalidate/);
+    const slot = read("components/moving-today-slot.tsx");
+    assert.doesNotMatch(slot, /connection\(/);
+    assert.match(slot, /<MovingToday \/>/);
+    assert.match(slot, /MovingTodayCached/);
+    assert.match(read("app/page.tsx"), /export const revalidate = 1800/);
     assert.match(load, /sold_comps_cache/);
     const page = read("app/moving-today/page.tsx");
     assert.match(page, /generateMetadata/);

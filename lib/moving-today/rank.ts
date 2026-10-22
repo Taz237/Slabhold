@@ -105,6 +105,15 @@ export function freshenMovingToday(
   };
 }
 
+/** Page description. The heading stays in the title, not jammed into this sentence. */
+export function movingTodayDescription(title: string): string {
+  if (title === "Moving yesterday") return "Yesterday's notable sales across the Slabhold catalog.";
+  if (title === "Moving today") return "Today's notable sales across the Slabhold catalog.";
+  const day = title.replace(/^Moving\s+/, "");
+  if (day && day !== title) return `Notable sales from ${day} across the Slabhold catalog.`;
+  return "Notable sales across the Slabhold catalog.";
+}
+
 /** Honest heading. A fallback day is not labeled as today. */
 export function movingDayHeading(shownDate: string, today: string): string {
   if (shownDate === today) return "Moving today";

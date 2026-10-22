@@ -77,6 +77,13 @@ export function MovingTodayPanel({
   );
 }
 
+/** Freshens a cached payload when this mounts, after FeedView is ready. */
+export function MovingTodayCached({ payload }: { payload: MovingTodayPayload }) {
+  const fresh = freshenMovingToday(payload);
+  if (!shouldShowMovingToday(fresh.sales)) return null;
+  return <MovingTodayPanel heading={fresh.title} dateLabel={fresh.dateLabel} sales={fresh.sales} />;
+}
+
 export function MovingToday() {
   const [view, setView] = useState<MovingTodayPayload | null>(null);
 

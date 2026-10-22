@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { MovingTodayPanel } from "@/components/moving-today";
 import { getMovingToday } from "@/lib/moving-today/load";
+import { movingTodayDescription } from "@/lib/moving-today/rank";
 import { MOVING_TODAY_TITLE, shouldShowMovingToday } from "@/lib/moving-today/types";
 
 export const dynamic = "force-dynamic";
@@ -12,12 +13,12 @@ export async function generateMetadata(): Promise<Metadata> {
     const title = shouldShowMovingToday(payload.sales) ? payload.title : MOVING_TODAY_TITLE;
     return {
       title,
-      description: `${title} across the Slabhold catalog.`,
+      description: movingTodayDescription(title),
     };
   } catch {
     return {
       title: MOVING_TODAY_TITLE,
-      description: "Notable sales across the Slabhold catalog.",
+      description: movingTodayDescription(MOVING_TODAY_TITLE),
     };
   }
 }
