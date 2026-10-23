@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { LoadMore } from "@/components/load-more";
 import { AtSign, Bell, Heart, MessageCircle, Quote, Repeat2, Star, UserPlus } from "lucide-react";
 import { Avatar } from "@/components/avatar";
 import { WantAlertOfferLink } from "@/components/open-to-offers";
@@ -24,7 +25,8 @@ import type { NotificationKind, Profile } from "@/lib/social/types";
 
 export function NotificationsView() {
   const pathname = usePathname() || "/";
-  const { ready, user, profiles, notifications, markNotificationsRead, refresh } = useSocial();
+  const { ready, user, profiles, notifications, markNotificationsRead, refresh, notificationsHasMore, loadMoreNotifications } = useSocial();
+  const [loadingMore, setLoadingMore] = useState(false);
   const userId = user?.id ?? null;
   const unreadOnVisit = useRef<{ userId: string; ids: ReadonlySet<string> } | null>(null);
   const [savedUnreadIds, setSavedUnreadIds] = useState<ReadonlySet<string> | null>(null);
@@ -172,6 +174,16 @@ export function NotificationsView() {
           })}
         </ul>
       )}
+      {user ? (
+        <LoadMore
+          hasMore={notificationsHasMore}
+          loading={loadingMore}
+          onLoadMore={() => {
+            setLoadingMore(true);
+            void loadMoreNotifications().finally(() => setLoadingMore(false));
+          }}
+        />
+      ) : null}
     </PullToRefresh>
   );
 }

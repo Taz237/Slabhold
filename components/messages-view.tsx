@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { LoadMore } from "@/components/load-more";
 import { Mail } from "lucide-react";
 import { Avatar } from "@/components/avatar";
 import { solidButton } from "@/components/button-styles";
@@ -23,7 +24,8 @@ type Conversation = {
 
 export function MessagesView() {
   const pathname = usePathname() || "/";
-  const { ready, user, profiles, messages, refresh } = useSocial();
+  const { ready, user, profiles, messages, refresh, messagesHasMore, loadMoreMessages } = useSocial();
+  const [loadingMore, setLoadingMore] = useState(false);
 
   useEffect(() => {
     if (ready && user) void refresh();
@@ -133,6 +135,16 @@ export function MessagesView() {
           })}
         </ul>
       )}
+      {user ? (
+        <LoadMore
+          hasMore={messagesHasMore}
+          loading={loadingMore}
+          onLoadMore={() => {
+            setLoadingMore(true);
+            void loadMoreMessages().finally(() => setLoadingMore(false));
+          }}
+        />
+      ) : null}
     </PullToRefresh>
   );
 }

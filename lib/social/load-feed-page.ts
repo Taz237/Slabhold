@@ -359,13 +359,19 @@ export async function loadFeedPage(
     cursor?: FeedCursor | null;
     seenPostIds?: ReadonlySet<string>;
     limit: number;
+    /** When the shell already loaded hidden authors, skip a second rpc. */
+    hiddenAuthorIds?: readonly string[];
   },
 ): Promise<LoadedFeedPage> {
   const limit = Math.min(50, Math.max(1, input.limit));
   const authors = authorScope(input);
   if (authors && authors.length === 0) return emptyPage;
   const mute = input.scope !== "profile";
-  const hidden = input.viewerId ? await loadHiddenAuthorIds(supabase, mute) : null;
+  const hidden = input.viewerId
+    ? input.hiddenAuthorIds !== undefined
+      ? input.hiddenAuthorIds
+      : await loadHiddenAuthorIds(supabase, mute)
+    : null;
   const seen = new Set(input.seenPostIds ?? []);
   let cursor = input.cursor && isFeedCursor(input.cursor) ? input.cursor : null;
   const items: TimelineItem[] = [];

@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { LoadMore } from "@/components/load-more";
 import { ArrowLeft, Users } from "lucide-react";
 import { Avatar } from "@/components/avatar";
 import { EmptyState, LoadingRows } from "@/components/status";
@@ -17,7 +18,8 @@ export function FollowList({
   username?: string;
 }) {
   const router = useRouter();
-  const { ready, user, profileByUsername, followersOf, followingOf, refresh } = useSocial();
+  const { ready, user, profileByUsername, followersOf, followingOf, refresh, followsHasMore, loadMoreFollows } = useSocial();
+  const [loadingMore, setLoadingMore] = useState(false);
   const profile = username ? profileByUsername(username) : user;
   const people = profile
     ? kind === "followers"
@@ -97,6 +99,14 @@ export function FollowList({
           ))}
         </ul>
       )}
+      <LoadMore
+        hasMore={followsHasMore}
+        loading={loadingMore}
+        onLoadMore={() => {
+          setLoadingMore(true);
+          void loadMoreFollows().finally(() => setLoadingMore(false));
+        }}
+      />
     </div>
   );
 }

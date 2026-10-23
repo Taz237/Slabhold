@@ -9,7 +9,8 @@ import {
   offersColumnMissing,
   parseCardPreview,
 } from "@/lib/offers/open-to-offers";
-import { loadViewerShell } from "./scoped-reads";
+import { olderThanCursor, pageAfter, type PageCursor } from "./page-cursor";
+import { loadViewerShell, mapMessageRows } from "./scoped-reads";
 import type {
   AuthResult,
   CardMessagePreview,
@@ -50,8 +51,15 @@ export const postWantAlerts = {
 /** Public columns only — used by @mention autocomplete. */
 const MENTION_PROFILE_SELECT = "id, username, display_name, avatar_url";
 
-/** Newest DM page. Older rows stay on the server until the next cursor. */
+/** One DM page. Older rows stay reachable through the created_at + id cursor. */
 export const MESSAGE_PAGE_SIZE = 80;
+
+export type MessagePage = {
+  messages: ReturnType<typeof mapMessageRows>;
+  hasMore: boolean;
+  cursor: PageCursor | null;
+  error: string | null;
+};
 
 function previewText(value: string) {
   const text = value.trim();
@@ -79,24 +87,78 @@ async function allowNotice(
   return canNotify(supabaseSafety(supabase), actorId, recipientId);
 }
 
-export async function loadRecentMessages(
+function messagePageFrom(result: {
+  data: unknown;
+  error: { code?: string; message?: string } | null;
+}): MessagePage {
+  if (result.error) {
+    if (missingTable(result.error)) return { messages: [], hasMore: false, cursor: null, error: null };
+    return {
+      messages: [],
+      hasMore: false,
+      cursor: null,
+      error: result.error.message ?? "Could not load messages.",
+    };
+  }
+  const rows = (Array.isArray(result.data) ? result.data : []) as Parameters<typeof mapMessageRows>[0][number][];
+  const tail = pageAfter(rows, MESSAGE_PAGE_SIZE);
+  return { messages: mapMessageRows(rows), hasMore: tail.hasMore, cursor: tail.cursor, error: null };
+}
+
+async function loadMessagePage(
   supabase: SupabaseClient,
   viewerId: string,
-  before?: string | null,
+  filter: string,
+  cursor: PageCursor | null,
 ) {
   const hidden = await loadHiddenAuthorIds(supabase, false);
+  const older = cursor ? olderThanCursor(cursor) : null;
   return loadMessageRows((columns) => {
     let query = supabase
       .from("messages")
       .select(columns)
-      .or(`sender_id.eq.${viewerId},receiver_id.eq.${viewerId}`)
+      .or(filter)
       .order("created_at", { ascending: false })
+      .order("id", { ascending: false })
       .limit(MESSAGE_PAGE_SIZE);
-    if (before) query = query.lt("created_at", before);
+    if (older) query = query.or(older);
     query = applyAuthorSafety(query, viewerId, hidden, { authorColumn: "sender_id" });
     query = applyAuthorSafety(query, viewerId, hidden, { authorColumn: "receiver_id" });
     return query;
   });
+}
+
+export async function loadRecentMessages(
+  supabase: SupabaseClient,
+  viewerId: string,
+  cursor?: PageCursor | null,
+) {
+  return loadMessagePage(
+    supabase,
+    viewerId,
+    `sender_id.eq.${viewerId},receiver_id.eq.${viewerId}`,
+    cursor ?? null,
+  );
+}
+
+/** Newest messages with anyone, for the inbox. */
+export async function loadInboxPage(
+  supabase: SupabaseClient,
+  viewerId: string,
+  cursor: PageCursor | null,
+): Promise<MessagePage> {
+  return messagePageFrom(await loadRecentMessages(supabase, viewerId, cursor));
+}
+
+/** One page of a single conversation, newest first. */
+export async function loadThreadPage(
+  supabase: SupabaseClient,
+  viewerId: string,
+  partnerId: string,
+  cursor: PageCursor | null,
+): Promise<MessagePage> {
+  const pair = `and(sender_id.eq.${viewerId},receiver_id.eq.${partnerId}),and(sender_id.eq.${partnerId},receiver_id.eq.${viewerId})`;
+  return messagePageFrom(await loadMessagePage(supabase, viewerId, pair, cursor));
 }
 
 /** Viewer shell only. Page data is loaded by the screen that shows it. */

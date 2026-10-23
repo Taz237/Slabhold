@@ -96,6 +96,7 @@ export function FeedView({ movingToday }: { movingToday?: ReactNode } = {}) {
     removedPostIds,
     blockedIds,
     mutedIds,
+    homeHiddenAuthorIds,
   } = useSocial();
   const { cards, ready: cardsReady, syncError } = useCollection();
   const { dismissed, dismiss } = useGetStartedDismissed(user?.id ?? null);
@@ -154,6 +155,7 @@ export function FeedView({ movingToday }: { movingToday?: ReactNode } = {}) {
     refreshKey,
     blockedIds,
     mutedIds,
+    hiddenAuthorIds: homeHiddenAuthorIds,
     rememberPosts,
   });
   const followingPage = usePagedTimeline({
@@ -164,6 +166,7 @@ export function FeedView({ movingToday }: { movingToday?: ReactNode } = {}) {
     refreshKey,
     blockedIds,
     mutedIds,
+    hiddenAuthorIds: homeHiddenAuthorIds,
     rememberPosts,
   });
   const head = peekHead ?? capturedHead?.head ?? homeHead(homePosts, homeReposts);
@@ -176,7 +179,7 @@ export function FeedView({ movingToday }: { movingToday?: ReactNode } = {}) {
     const supabase = createSupabaseBrowser();
     if (!supabase) return;
     let cancelled = false;
-    void loadNewestFeedHead(supabase, user?.id ?? null)
+    void loadNewestFeedHead(supabase, user?.id ?? null, homeHiddenAuthorIds ?? undefined)
       .then((next) => {
         if (!cancelled) setCapturedHead({ key: refreshKey, head: next });
       })
@@ -184,7 +187,7 @@ export function FeedView({ movingToday }: { movingToday?: ReactNode } = {}) {
     return () => {
       cancelled = true;
     };
-  }, [forYouPage.loading, paging, refreshKey, user?.id]);
+  }, [forYouPage.loading, homeHiddenAuthorIds, paging, refreshKey, user?.id]);
   useEffect(() => {
     if (!paging) return;
     const supabase = createSupabaseBrowser();
@@ -192,7 +195,7 @@ export function FeedView({ movingToday }: { movingToday?: ReactNode } = {}) {
     let cancelled = false;
     const peek = () => {
       if (document.hidden) return;
-      void loadNewestFeedHead(supabase, user?.id ?? null)
+      void loadNewestFeedHead(supabase, user?.id ?? null, homeHiddenAuthorIds ?? undefined)
         .then((next) => {
           if (!cancelled) setPeekHead(next);
         })
@@ -203,7 +206,7 @@ export function FeedView({ movingToday }: { movingToday?: ReactNode } = {}) {
       cancelled = true;
       document.removeEventListener("visibilitychange", peek);
     };
-  }, [paging, user?.id]);
+  }, [homeHiddenAuthorIds, paging, user?.id]);
   const hasNewPosts =
     paging &&
     peekHead !== null &&

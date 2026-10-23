@@ -5,6 +5,7 @@ import { applyAuthorSafety, loadHiddenAuthorIds, type SafetyQuery } from "@/lib/
 import { mapPublicCard, PUBLIC_CARD_SELECT } from "./cards";
 import { dedupeMailDayRows, loadMailDayViews } from "./mail-day";
 import { homeHead, type HomeHead } from "./feed-page";
+import { olderThanCursor, pageAfter, type PageCursor } from "./page-cursor";
 import { ilikeExact } from "./username-taken";
 import type {
   FollowEdge,
@@ -169,22 +170,67 @@ export function applyViewerShell(existing: SocialSnapshot, shell: SocialSnapshot
   };
 }
 
+export type UnreadCounts = { notifications: number; messages: number };
+
+const emptyUnread = { notifications: 0, messages: 0 };
+
 /**
- * Signed-in shell: the viewer's profile, their follow edges, and their blocks and mutes.
- * No posts, public cards, comments, notifications, messages, or reposts.
+ * Badge counts only. `head: true` does not download the rows.
+ * RLS already hides blocked actors, and muted actors on notifications.
+ */
+export async function loadUnreadCounts(
+  supabase: SupabaseClient,
+  viewerId: string,
+): Promise<UnreadCounts> {
+  const [notes, messages] = await Promise.all([
+    supabase
+      .from("notifications")
+      .select("id", { count: "exact", head: true })
+      .eq("recipient_id", viewerId)
+      .eq("read", false),
+    supabase
+      .from("messages")
+      .select("id", { count: "exact", head: true })
+      .eq("receiver_id", viewerId)
+      .eq("read", false),
+  ]);
+  return {
+    notifications: countOrZero(notes.error, notes.count),
+    messages: countOrZero(messages.error, messages.count),
+  };
+}
+
+function countOrZero(error: DbError, count: number | null) {
+  if (error && !missingTable(error)) throw new Error(error.message);
+  return count ?? 0;
+}
+
+export type ShellBundle = {
+  shell: SocialSnapshot;
+  /** Hidden authors for the signed-in home feed, loaded with the shell. Empty when signed out. */
+  hiddenAuthorIds: readonly string[];
+  unread: UnreadCounts;
+};
+
+/**
+ * Signed-in shell: profile, follow edges, blocks, mutes, hidden authors, and unread head counts.
+ * Blocks, mutes, and hidden_author_ids run in one parallel batch so the home feed does not
+ * wait on them one after another. No posts, public cards, comments, or reposts.
  * Signed-out: no table reads.
  */
-export async function loadViewerShell(supabase: SupabaseClient): Promise<SocialSnapshot> {
+export async function loadShellBundle(supabase: SupabaseClient): Promise<ShellBundle> {
   const { data: sessionData } = await supabase.auth.getSession();
   const session = sessionData.session;
   const viewerId = session?.user.id ?? null;
-  if (!viewerId) return emptySocialSnapshot();
+  if (!viewerId) return { shell: emptySocialSnapshot(), hiddenAuthorIds: [], unread: emptyUnread };
 
-  const [profileRes, followsRes, blocksRes, mutesRes] = await Promise.all([
+  const [profileRes, followsRes, blocksRes, mutesRes, hiddenAuthorIds, unread] = await Promise.all([
     supabase.from("profiles").select(VIEWER_PROFILE_COLUMNS).eq("id", viewerId).maybeSingle(),
     supabase.from("follows").select(FOLLOW_COLUMNS).or(`follower_id.eq.${viewerId},following_id.eq.${viewerId}`),
     supabase.from("blocks").select("blocked_id"),
     supabase.from("mutes").select("muted_id"),
+    loadHiddenAuthorIds(supabase, true),
+    loadUnreadCounts(supabase, viewerId),
   ]);
   if (profileRes.error) throw new Error(profileRes.error.message);
   if (followsRes.error) throw new Error(followsRes.error.message);
@@ -207,28 +253,36 @@ export async function loadViewerShell(supabase: SupabaseClient): Promise<SocialS
   }
 
   return {
-    ...emptySocialSnapshot(),
-    user,
-    profiles: user ? mergeProfiles([user], safetyAccounts) : safetyAccounts,
-    follows,
-    blockedIds,
-    mutedIds,
-    safetyAccounts,
+    shell: {
+      ...emptySocialSnapshot(),
+      user,
+      profiles: user ? mergeProfiles([user], safetyAccounts) : safetyAccounts,
+      follows,
+      blockedIds,
+      mutedIds,
+      safetyAccounts,
+    },
+    hiddenAuthorIds,
+    unread,
   };
+}
+
+export async function loadViewerShell(supabase: SupabaseClient): Promise<SocialSnapshot> {
+  return (await loadShellBundle(supabase)).shell;
 }
 
 export type NotificationPage = {
   notifications: Notification[];
   profiles: Profile[];
   hasMore: boolean;
-  cursor: string | null;
+  cursor: PageCursor | null;
 };
 
 /** One page of the viewer's notifications, newest first, plus the actors on that page. */
 export async function loadNotificationPage(
   supabase: SupabaseClient,
   viewerId: string,
-  before: string | null,
+  cursor: PageCursor | null,
 ): Promise<NotificationPage> {
   const hidden = await loadHiddenAuthorIds(supabase, true);
   let query = supabase
@@ -236,8 +290,9 @@ export async function loadNotificationPage(
     .select(NOTIFICATION_COLUMNS)
     .eq("recipient_id", viewerId)
     .order("created_at", { ascending: false })
+    .order("id", { ascending: false })
     .limit(NOTIFICATION_PAGE_SIZE);
-  if (before) query = query.lt("created_at", before);
+  if (cursor) query = query.or(olderThanCursor(cursor));
   const guarded = applyAuthorSafety(query as unknown as SafetyQuery, viewerId, hidden, {
     authorColumn: "actor_id",
     mute: true,
@@ -248,11 +303,12 @@ export async function loadNotificationPage(
   const rows = (data ?? []) as NotificationRow[];
   const notifications = rows.map(mapNotification);
   const actorIds = [...new Set(notifications.map((note) => note.actorId).filter((id): id is string => Boolean(id)))];
+  const tail = pageAfter(rows, NOTIFICATION_PAGE_SIZE);
   return {
     notifications,
     profiles: await loadProfilesByIds(supabase, actorIds),
-    hasMore: rows.length === NOTIFICATION_PAGE_SIZE,
-    cursor: rows.length === NOTIFICATION_PAGE_SIZE ? rows[rows.length - 1]?.created_at ?? null : null,
+    hasMore: tail.hasMore,
+    cursor: tail.cursor,
   };
 }
 
@@ -289,13 +345,21 @@ async function headCount(
   return count ?? 0;
 }
 
+export type CardPage = {
+  cards: OwnedCard[];
+  hasMore: boolean;
+  cursor: PageCursor | null;
+};
+
 export type ProfileSlice = {
   profile: Profile | null;
   counts: FollowCounts;
   cards: OwnedCard[];
+  cardsHasMore: boolean;
+  cardsCursor: PageCursor | null;
 };
 
-/** The profile on screen, its two follow counts, and that owner's public cards. */
+/** The profile on screen, its two follow counts, and the newest page of that owner's public cards. */
 export async function loadProfileSlice(
   supabase: SupabaseClient,
   input: { username: string | null; viewerId: string | null; viewer: Profile | null },
@@ -303,33 +367,52 @@ export async function loadProfileSlice(
   const profile = input.username
     ? await loadProfileByUsername(supabase, input.username)
     : input.viewer;
-  if (!profile) return { profile: null, counts: { followers: 0, following: 0 }, cards: [] };
+  if (!profile) {
+    return { profile: null, counts: { followers: 0, following: 0 }, cards: [], cardsHasMore: false, cardsCursor: null };
+  }
   const [followers, following, cards] = await Promise.all([
     headCount(supabase, "follower_id", profile.id),
     headCount(supabase, "following_id", profile.id),
-    loadOwnerCards(supabase, profile.id),
+    loadOwnerCardPage(supabase, profile.id, null),
   ]);
-  return { profile, counts: { followers, following }, cards };
+  return {
+    profile,
+    counts: { followers, following },
+    cards: cards.cards,
+    cardsHasMore: cards.hasMore,
+    cardsCursor: cards.cursor,
+  };
 }
 
-async function loadOwnerCards(supabase: SupabaseClient, ownerId: string): Promise<OwnedCard[]> {
-  const withOffers = await supabase
-    .from("public_cards")
-    .select(`${PUBLIC_CARD_SELECT}, open_to_offers`)
-    .eq("user_id", ownerId)
-    .order("created_at", { ascending: false })
-    .limit(PUBLIC_CARD_PAGE_SIZE);
+export async function loadOwnerCardPage(
+  supabase: SupabaseClient,
+  ownerId: string,
+  cursor: PageCursor | null,
+): Promise<CardPage> {
+  const run = (columns: string) => {
+    let query = supabase
+      .from("public_cards")
+      .select(columns)
+      .eq("user_id", ownerId)
+      .order("created_at", { ascending: false })
+      .order("id", { ascending: false })
+      .limit(PUBLIC_CARD_PAGE_SIZE);
+    if (cursor) query = query.or(olderThanCursor(cursor));
+    return query;
+  };
+  const withOffers = await run(`${PUBLIC_CARD_SELECT}, open_to_offers`);
   const result =
-    withOffers.error && missingColumn(withOffers.error)
-      ? await supabase
-          .from("public_cards")
-          .select(PUBLIC_CARD_SELECT)
-          .eq("user_id", ownerId)
-          .order("created_at", { ascending: false })
-          .limit(PUBLIC_CARD_PAGE_SIZE)
-      : withOffers;
+    withOffers.error && missingColumn(withOffers.error) ? await run(PUBLIC_CARD_SELECT) : withOffers;
   if (result.error && !missingTable(result.error)) throw new Error(result.error.message);
-  return ((result.data ?? []) as Parameters<typeof mapPublicCard>[0][]).map((row) => mapPublicCard(row));
+  const rows = (result.data ?? []) as unknown as (Parameters<typeof mapPublicCard>[0] & {
+    id: string;
+    created_at?: string | null;
+  })[];
+  const tail = pageAfter(
+    rows.map((row) => ({ id: row.id, created_at: row.created_at ?? "" })),
+    PUBLIC_CARD_PAGE_SIZE,
+  );
+  return { cards: rows.map((row) => mapPublicCard(row)), hasMore: tail.hasMore, cursor: tail.cursor };
 }
 
 export type FollowListPage = {
@@ -337,6 +420,7 @@ export type FollowListPage = {
   follows: FollowEdge[];
   profiles: Profile[];
   hasMore: boolean;
+  cursor: PageCursor | null;
 };
 
 export async function loadFollowList(
@@ -345,27 +429,45 @@ export async function loadFollowList(
     direction: "followers" | "following";
     username: string | null;
     viewer: Profile | null;
+    cursor?: PageCursor | null;
   },
 ): Promise<FollowListPage> {
   const profile = input.username
     ? await loadProfileByUsername(supabase, input.username)
     : input.viewer;
-  if (!profile) return { profile: null, follows: [], profiles: [], hasMore: false };
+  if (!profile) return { profile: null, follows: [], profiles: [], hasMore: false, cursor: null };
   const column = input.direction === "followers" ? "following_id" : "follower_id";
-  const { data, error } = await supabase
+  const personColumn = input.direction === "followers" ? "follower_id" : "following_id";
+  let query = supabase
     .from("follows")
     .select(FOLLOW_COLUMNS)
     .eq(column, profile.id)
     .order("created_at", { ascending: false })
+    .order(personColumn, { ascending: false })
     .limit(FOLLOW_LIST_PAGE_SIZE);
+  if (input.cursor) query = query.or(olderThanCursor(input.cursor, personColumn));
+  const { data, error } = await query;
   if (error) throw new Error(error.message);
-  const follows = ((data ?? []) as FollowRow[]).map(mapFollow);
+  const rows = (data ?? []) as FollowRow[];
+  const follows = rows.map(mapFollow);
   const ids = follows.map((edge) => (input.direction === "followers" ? edge.followerId : edge.followingId));
+  const last = rows[rows.length - 1];
+  const tail =
+    rows.length === FOLLOW_LIST_PAGE_SIZE && last
+      ? {
+          hasMore: true,
+          cursor: {
+            createdAt: last.created_at,
+            id: input.direction === "followers" ? last.follower_id : last.following_id,
+          },
+        }
+      : { hasMore: false, cursor: null };
   return {
     profile,
     follows,
     profiles: await loadProfilesByIds(supabase, ids),
-    hasMore: follows.length === FOLLOW_LIST_PAGE_SIZE,
+    hasMore: tail.hasMore,
+    cursor: tail.cursor,
   };
 }
 
@@ -472,8 +574,9 @@ export async function loadSearchSlice(
 export async function loadNewestFeedHead(
   supabase: SupabaseClient,
   viewerId: string | null,
+  hiddenAuthorIds?: readonly string[],
 ): Promise<HomeHead> {
-  const hidden = viewerId ? await loadHiddenAuthorIds(supabase, true) : [];
+  const hidden = viewerId ? (hiddenAuthorIds ?? (await loadHiddenAuthorIds(supabase, true))) : [];
   let postsQuery = supabase
     .from("posts")
     .select("id, user_id, created_at")
@@ -543,6 +646,27 @@ export function socialRoute(pathname: string): SocialRoute {
   if (profile) return { kind: "profile", username: decodeURIComponent(profile[1] ?? "") };
   if (path === "/profile") return { kind: "profile", username: null };
   return { kind: "other" };
+}
+
+export function appendFollowList(
+  existing: readonly FollowEdge[],
+  page: readonly FollowEdge[],
+): FollowEdge[] {
+  const seen = new Set(existing.map((edge) => `${edge.followerId}:${edge.followingId}`));
+  const extra = page.filter((edge) => !seen.has(`${edge.followerId}:${edge.followingId}`));
+  return extra.length === 0 ? [...existing] : [...existing, ...extra];
+}
+
+export function appendOwnerCards(
+  current: readonly OwnedCard[],
+  ownerId: string,
+  page: readonly OwnedCard[],
+): OwnedCard[] {
+  const mine = current.filter((card) => card.ownerId === ownerId);
+  const rest = current.filter((card) => card.ownerId !== ownerId);
+  const seen = new Set(mine.map((card) => card.id));
+  const extra = page.filter((card) => !seen.has(card.id));
+  return [...rest, ...mine, ...extra];
 }
 
 export function mergeFollowList(

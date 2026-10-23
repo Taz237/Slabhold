@@ -4,7 +4,8 @@ import { join } from "node:path";
 import { describe, it } from "node:test";
 import { loadFeedPage } from "./load-feed-page";
 import { dedupeMailDayRows } from "./mail-day";
-import { loadRecentMessages, loadSupabaseSocial } from "./remote";
+import { olderThanCursor } from "./page-cursor";
+import { loadInboxPage, loadRecentMessages, loadSupabaseSocial, loadThreadPage } from "./remote";
 import {
   FOLLOW_LIST_PAGE_SIZE,
   NOTIFICATION_PAGE_SIZE,
@@ -13,6 +14,8 @@ import {
   loadNotificationPage,
   loadProfileSlice,
   loadSearchSlice,
+  loadShellBundle,
+  loadUnreadCounts,
   loadViewerShell,
   socialRoute,
 } from "./scoped-reads";
@@ -30,8 +33,10 @@ function client(
       calls.push({ kind: "from", name: table, ops: [...ops] });
     };
     const api = {
-      select(cols: string) {
+      select(cols: string, options?: { count?: string; head?: boolean }) {
         ops.push(`select:${cols}`);
+        if (options?.count) ops.push(`count:${options.count}`);
+        if (options?.head) ops.push("head:true");
         return api;
       },
       eq(column: string, value: unknown) {
@@ -132,7 +137,7 @@ describe("viewer shell", () => {
     assert.equal(fake.calls.filter((call) => call.kind === "auth").length, 1);
   });
 
-  it("loads only the viewer's profile, follow edges, blocks, and mutes", async () => {
+  it("loads the viewer's shell, hidden authors, and unread head counts together", async () => {
     const fake = client({ id: VIEWER }, { profiles: [profileRow] });
     const snapshot = await loadSupabaseSocial(fake.supabase);
     assert.equal(snapshot.user?.id, VIEWER);
@@ -142,11 +147,21 @@ describe("viewer shell", () => {
     assert.deepEqual(snapshot.notifications, []);
     assert.deepEqual(snapshot.messages, []);
     assert.deepEqual(snapshot.reposts, []);
-    assert.deepEqual(tables(fake.calls), ["profiles", "follows", "blocks", "mutes"]);
+    const dataTables = fromCalls(fake.calls)
+      .filter((call) => !call.ops.includes("head:true"))
+      .map((call) => call.name);
+    assert.deepEqual(dataTables, ["profiles", "follows", "blocks", "mutes"]);
     const starred = fake.calls.some((call) => call.ops.some((op) => op === 'select:*' || op.includes('select:"*"')));
     assert.equal(starred, false);
     const follows = fromCalls(fake.calls).find((call) => call.name === "follows");
     assert.match(follows?.ops.find((op) => op.startsWith("or:")) ?? "", new RegExp(VIEWER));
+    assert.equal(fake.calls.filter((call) => call.kind === "rpc" && call.name === "hidden_author_ids").length, 1);
+    const notes = fromCalls(fake.calls).find((call) => call.name === "notifications");
+    const messages = fromCalls(fake.calls).find((call) => call.name === "messages");
+    assert.ok(notes?.ops.includes("head:true"));
+    assert.ok(notes?.ops.includes("count:exact"));
+    assert.ok(messages?.ops.includes("head:true"));
+    assert.ok(messages?.ops.includes("count:exact"));
   });
 });
 
@@ -244,7 +259,7 @@ describe("request budgets", () => {
     assert.equal(tables(fake.calls).includes("messages"), false);
   });
 
-  it("keeps a signed-in home to the shell plus one feed page", async () => {
+  it("keeps a signed-in home to the shell batch plus one feed page", async () => {
     const post = {
       id: "22222222-2222-4222-8222-222222222222",
       user_id: VIEWER,
@@ -258,20 +273,141 @@ describe("request budgets", () => {
       meta: null,
     };
     const fake = client({ id: VIEWER }, { profiles: [profileRow], posts: [post] });
-    await loadViewerShell(fake.supabase);
+    const bundle = await loadShellBundle(fake.supabase);
+    const rpcAfterShell = fake.calls.filter((call) => call.kind === "rpc").length;
     await loadFeedPage(fake.supabase, {
       scope: "public",
       viewerId: VIEWER,
       cursor: null,
       limit: 30,
+      hiddenAuthorIds: bundle.hiddenAuthorIds,
     });
     const names = tables(fake.calls);
     assert.equal(names.filter((name) => name === "public_cards").length, 0);
     assert.equal(names.filter((name) => name === "comments").length, 0);
-    assert.equal(names.filter((name) => name === "notifications").length, 0);
-    assert.equal(names.filter((name) => name === "messages").length, 0);
-    assert.ok(names.length <= 9);
+    const fullNotes = fromCalls(fake.calls).filter(
+      (call) => call.name === "notifications" && !call.ops.includes("head:true"),
+    );
+    const fullMessages = fromCalls(fake.calls).filter(
+      (call) => call.name === "messages" && !call.ops.includes("head:true"),
+    );
+    assert.equal(fullNotes.length, 0);
+    assert.equal(fullMessages.length, 0);
+    assert.equal(rpcAfterShell, 1);
     assert.equal(fake.calls.filter((call) => call.kind === "rpc").length, 1);
+  });
+});
+
+describe("unread badges", () => {
+  it("counts unread notifications and messages with head queries", async () => {
+    const fake = client({ id: VIEWER });
+    const counts = await loadUnreadCounts(fake.supabase, VIEWER);
+    assert.equal(counts.notifications, 3);
+    assert.equal(counts.messages, 3);
+    const notes = fromCalls(fake.calls).find((call) => call.name === "notifications");
+    const messages = fromCalls(fake.calls).find((call) => call.name === "messages");
+    assert.ok(notes?.ops.includes(`eq:recipient_id:${VIEWER}`));
+    assert.ok(notes?.ops.includes("eq:read:false"));
+    assert.ok(notes?.ops.includes("count:exact"));
+    assert.ok(notes?.ops.includes("head:true"));
+    assert.ok(messages?.ops.includes(`eq:receiver_id:${VIEWER}`));
+    assert.ok(messages?.ops.includes("eq:read:false"));
+    assert.ok(messages?.ops.includes("head:true"));
+    assert.equal(tables(fake.calls).includes("posts"), false);
+  });
+
+  it("refreshes those counts on focus and on the realtime inbox cadence", () => {
+    const provider = readFileSync(join(process.cwd(), "components/social-provider.tsx"), "utf8");
+    assert.match(provider, /loadUnreadCounts\(/);
+    assert.match(provider, /window\.addEventListener\("focus", onFocus\)/);
+    assert.match(provider, /document\.addEventListener\("visibilitychange", onFocus\)/);
+    assert.match(provider, /refreshUnreadRef\.current\(\)/);
+    assert.match(provider, /slices\.has\("notifications"\) \|\| slices\.has\("messages"\)/);
+    assert.match(provider, /mode === "supabase" \? inboxUnread\.notifications : groupedUnread/);
+    assert.match(provider, /mode === "supabase" \? inboxUnread\.messages : listedUnreadMessages/);
+    const shell = readFileSync(join(process.cwd(), "components/app-shell.tsx"), "utf8");
+    assert.match(shell, /Notifications, \$\{unreadCount\} unread/);
+    assert.match(shell, /tab\.href === "\/messages" \? unreadMessageCount/);
+    const more = readFileSync(join(process.cwd(), "components/more-view.tsx"), "utf8");
+    assert.match(more, /unreadMessageCount > 0/);
+  });
+});
+
+describe("older pages", () => {
+  const cursor = { createdAt: "2026-10-01T00:00:00.000Z", id: "33333333-3333-4333-8333-333333333333" };
+
+  it("pages notifications on created_at and id", async () => {
+    const fake = client({ id: VIEWER });
+    await loadNotificationPage(fake.supabase, VIEWER, cursor);
+    const notes = fromCalls(fake.calls).find((call) => call.name === "notifications");
+    assert.equal(notes?.ops.find((op) => op.startsWith("or:")), `or:${olderThanCursor(cursor)}`);
+    assert.ok(notes?.ops.includes(`limit:${NOTIFICATION_PAGE_SIZE}`));
+  });
+
+  it("pages the inbox and one DM thread on created_at and id", async () => {
+    const partner = "44444444-4444-4444-8444-444444444444";
+    const inbox = client({ id: VIEWER });
+    await loadInboxPage(inbox.supabase, VIEWER, cursor);
+    const inboxOr = fromCalls(inbox.calls)
+      .find((call) => call.name === "messages")
+      ?.ops.filter((op) => op.startsWith("or:"))
+      .join(" ");
+    assert.match(inboxOr ?? "", new RegExp(VIEWER));
+    assert.match(inboxOr ?? "", /created_at\.lt/);
+    assert.match(inboxOr ?? "", /id\.lt/);
+    assert.ok(fromCalls(inbox.calls).some((call) => call.ops.includes("limit:80")));
+
+    const thread = client({ id: VIEWER });
+    await loadThreadPage(thread.supabase, VIEWER, partner, cursor);
+    const threadOr = fromCalls(thread.calls)
+      .find((call) => call.name === "messages")
+      ?.ops.filter((op) => op.startsWith("or:"))
+      .join(" ");
+    assert.match(threadOr ?? "", new RegExp(partner));
+    assert.match(threadOr ?? "", /id\.lt/);
+  });
+
+  it("pages follow lists and profile cards on created_at and id", async () => {
+    const fake = client({ id: VIEWER }, { profiles: [profileRow] });
+    await loadFollowList(fake.supabase, {
+      direction: "followers",
+      username: "ada",
+      viewer: null,
+      cursor,
+    });
+    const follows = fromCalls(fake.calls).find((call) => call.name === "follows");
+    assert.match(follows?.ops.find((op) => op.startsWith("or:")) ?? "", /created_at\.lt/);
+    assert.match(follows?.ops.find((op) => op.startsWith("or:")) ?? "", /follower_id\.lt/);
+    assert.ok(follows?.ops.includes(`limit:${FOLLOW_LIST_PAGE_SIZE}`));
+
+    const cards = client({ id: VIEWER }, { profiles: [profileRow] });
+    await loadProfileSlice(cards.supabase, { username: "ada", viewerId: VIEWER, viewer: null });
+    const cardCall = fromCalls(cards.calls).find((call) => call.name === "public_cards");
+    assert.ok(cardCall?.ops.includes("limit:100"));
+    const provider = readFileSync(join(process.cwd(), "components/social-provider.tsx"), "utf8");
+    assert.match(provider, /loadMoreNotifications/);
+    assert.match(provider, /loadMoreMessages/);
+    assert.match(provider, /loadMoreThread/);
+    assert.match(provider, /loadMoreFollows/);
+    assert.match(provider, /loadMoreCards/);
+    const profile = readFileSync(join(process.cwd(), "components/profile-view.tsx"), "utf8");
+    assert.match(profile, /onLoadMore=\{pagedPosts\.loadMore\}/);
+    assert.match(profile, /loadMoreCards/);
+  });
+
+  it("runs blocks, mutes, and hidden authors in one shell batch", () => {
+    const source = readFileSync(join(process.cwd(), "lib/social/scoped-reads.ts"), "utf8");
+    const bundle = source.slice(
+      source.indexOf("export async function loadShellBundle"),
+      source.indexOf("export async function loadViewerShell"),
+    );
+    assert.match(bundle, /Promise\.all\(/);
+    assert.match(bundle, /from\("blocks"\)/);
+    assert.match(bundle, /from\("mutes"\)/);
+    assert.match(bundle, /loadHiddenAuthorIds\(supabase, true\)/);
+    assert.match(bundle, /loadUnreadCounts\(supabase, viewerId\)/);
+    const feed = readFileSync(join(process.cwd(), "lib/social/load-feed-page.ts"), "utf8");
+    assert.match(feed, /input\.hiddenAuthorIds !== undefined/);
   });
 });
 

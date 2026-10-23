@@ -7,6 +7,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Avatar } from "@/components/avatar";
 import { solidButton } from "@/components/button-styles";
 import { CardMessagePreviewCard } from "@/components/open-to-offers";
+import { LoadMore } from "@/components/load-more";
 import { EmptyState, LoadingRows } from "@/components/status";
 import { useSocial } from "@/components/social-provider";
 import { signupPath } from "@/lib/auth/safe-next";
@@ -26,6 +27,8 @@ export function MessageThread({ username }: { username: string }) {
     sendMessage,
     markThreadRead,
     refresh,
+    threadHasMore,
+    loadMoreThread,
     blockedIds,
     mutedIds,
     safetyAccounts,
@@ -51,6 +54,7 @@ export function MessageThread({ username }: { username: string }) {
   const [draft, setDraft] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [loadingOlder, setLoadingOlder] = useState(false);
   const scroller = useRef<HTMLDivElement>(null);
   const thread = partner
     ? messages.filter(
@@ -70,11 +74,12 @@ export function MessageThread({ username }: { username: string }) {
     markThreadRead(partner.id);
   }, [markThreadRead, messages, partner, ready, user]);
 
+  const newestId = thread[thread.length - 1]?.id ?? "";
   useEffect(() => {
     const node = scroller.current;
     if (!node) return;
     node.scrollTop = node.scrollHeight;
-  }, [thread.length, partner?.id]);
+  }, [newestId, partner?.id]);
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -165,6 +170,14 @@ export function MessageThread({ username }: { username: string }) {
       </div>
 
       <div ref={scroller} className="min-h-0 flex-1 space-y-2 overflow-y-auto px-4 py-3">
+        <LoadMore
+          hasMore={threadHasMore}
+          loading={loadingOlder}
+          onLoadMore={() => {
+            setLoadingOlder(true);
+            void loadMoreThread().finally(() => setLoadingOlder(false));
+          }}
+        />
         {thread.length === 0 ? (
           <p className="px-6 pt-10 text-center text-sm text-zinc-500">
             This is the start of your conversation with {partner.displayName}.

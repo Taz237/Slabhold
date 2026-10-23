@@ -64,6 +64,8 @@ export function ProfileView({ username }: { username?: string }) {
     followerCount,
     followingCount,
     refresh,
+    cardsHasMore,
+    loadMoreCards,
     blockedIds,
     safetyAccounts,
     applySafetyChange,
@@ -80,6 +82,7 @@ export function ProfileView({ username }: { username?: string }) {
   const [tab, setTab] = useState<ProfileTab>(() => profileTabFromQuery(searchParams.get("tab")));
   const [offersOnly, setOffersOnly] = useState(false);
   const [pinnedExtra, setPinnedExtra] = useState<Post | null>(null);
+  const [loadingMoreCards, setLoadingMoreCards] = useState(false);
   const [postsRefreshKey, setPostsRefreshKey] = useState(0);
   const [replyParents, setReplyParents] = useState<{ key: string; ids: ReadonlySet<string> } | null>(
     null,
@@ -486,6 +489,16 @@ export function ProfileView({ username }: { username?: string }) {
               })}
             </ul>
           )}
+          {mode === "supabase" ? (
+            <LoadMore
+              hasMore={cardsHasMore}
+              loading={loadingMoreCards}
+              onLoadMore={() => {
+                setLoadingMoreCards(true);
+                void loadMoreCards().finally(() => setLoadingMoreCards(false));
+              }}
+            />
+          ) : null}
         </div>
       ) : postsLoading ? (
         <LoadingRows count={3} />
