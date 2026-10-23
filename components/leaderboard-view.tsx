@@ -1,36 +1,170 @@
 import Link from "next/link";
-import { Trophy } from "lucide-react";
+import { Crown, Trophy } from "lucide-react";
 import { LeaderboardCountdown } from "@/components/leaderboard-countdown";
 import { ShareIconButton } from "@/components/share-button";
-import type { LeaderboardPageModel } from "@/lib/leaderboard/present";
-import { LEADERBOARD_PATH } from "@/lib/leaderboard/rules";
+import type { LeaderboardPageModel, RankedEntry } from "@/lib/leaderboard/present";
+import { boardCallToAction, LEADERBOARD_PATH } from "@/lib/leaderboard/rules";
 
-function Mark({ title, accent }: { title: string; accent: string }) {
+const PILL: Record<string, string> = {
+  "top-card-post": "bg-[#7c5cff] text-white shadow-[0_0_18px_rgba(124,92,255,0.55)]",
+  "rising-collectors": "bg-emerald-500 text-white shadow-[0_0_18px_rgba(16,185,129,0.45)]",
+  "most-cards-added": "bg-teal-500 text-white shadow-[0_0_18px_rgba(20,184,166,0.45)]",
+};
+
+const MEDAL: Record<number, { ring: string; glow: string }> = {
+  1: { ring: "#f6d36b", glow: "rgba(246,211,107,0.55)" },
+  2: { ring: "#d5dde6", glow: "rgba(213,221,230,0.45)" },
+  3: { ring: "#e0a36a", glow: "rgba(224,163,106,0.45)" },
+};
+
+function Avatar({
+  title,
+  accent,
+  url,
+  size,
+}: {
+  title: string;
+  accent: string;
+  url: string | null;
+  size: number;
+}) {
   const letter = title.trim().slice(0, 1).toUpperCase() || "?";
+  const photo = url?.trim() ?? "";
   return (
     <span
       aria-hidden="true"
-      className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-sm font-bold text-white"
-      style={{ background: accent || "#7c5cff" }}
+      className="grid shrink-0 place-items-center rounded-full bg-cover bg-center font-bold text-white"
+      style={{
+        width: size,
+        height: size,
+        backgroundColor: accent || "#7c5cff",
+        backgroundImage: photo ? `url("${photo.replace(/["\\\n\r]/g, "")}")` : undefined,
+        fontSize: size > 64 ? 28 : 14,
+      }}
     >
-      {letter}
+      {photo ? "" : letter}
     </span>
   );
 }
 
-export function LeaderboardView({ model }: { model: LeaderboardPageModel }) {
+function NewTag() {
   return (
-    <div className="-mx-4 -mt-5" data-leaderboard="">
-      <div className="border-b border-zinc-200 px-4 py-4 dark:border-white/10">
+    <span className="rounded-full bg-white/15 px-1.5 py-0.5 text-[10px] font-bold tracking-wide text-white">
+      NEW
+    </span>
+  );
+}
+
+function personLabels(entry: RankedEntry, boardId: string): { name: string; detail: string } {
+  if (boardId === "top-card-post" && entry.subtitle) {
+    return { name: entry.subtitle, detail: entry.title };
+  }
+  return { name: entry.title, detail: entry.subtitle };
+}
+
+function PodiumSpot({ entry, boardId }: { entry: RankedEntry; boardId: string }) {
+  const labels = personLabels(entry, boardId);
+  const medal = MEDAL[entry.rank] ?? MEDAL[3];
+  const first = entry.rank === 1;
+  const size = first ? 84 : 64;
+  return (
+    <Link
+      href={entry.href}
+      data-podium-spot={entry.rank}
+      className={`lb-podium flex min-w-0 flex-col items-center px-1 text-center ${
+        first ? "lb-podium-1" : entry.rank === 2 ? "lb-podium-2" : "lb-podium-3"
+      }`}
+    >
+      {first ? (
+        <Crown className="mb-1 h-6 w-6 text-[#f6d36b]" aria-hidden="true" />
+      ) : (
+        <span className="mb-1 h-6" aria-hidden="true" />
+      )}
+      <span
+        className={`rounded-full p-[3px] ${first ? "lb-shimmer" : ""}`}
+        style={{ background: medal.ring, boxShadow: `0 0 22px ${medal.glow}` }}
+      >
+        <span className="block rounded-full bg-zinc-950 p-[2px]">
+          <Avatar title={labels.name} accent={entry.accent} url={entry.avatarUrl} size={size} />
+        </span>
+      </span>
+      <span
+        className={`mt-2 max-w-full font-black leading-tight text-white ${
+          first ? "line-clamp-2 text-base" : "truncate text-xs"
+        }`}
+      >
+        {labels.name}
+      </span>
+      {labels.detail ? (
+        <span className="max-w-full truncate text-[11px] text-zinc-400">{labels.detail}</span>
+      ) : null}
+      <span className={`mt-1 font-black tabular-nums text-white ${first ? "text-3xl" : "text-xl"}`}>
+        {entry.score}
+      </span>
+      <span className="text-[10px] font-semibold uppercase tracking-wide text-zinc-400">{entry.scoreLabel}</span>
+      {entry.isNew ? (
+        <span className="mt-1">
+          <NewTag />
+        </span>
+      ) : null}
+    </Link>
+  );
+}
+
+function Podium({ entries, boardId }: { entries: readonly RankedEntry[]; boardId: string }) {
+  const byRank = new Map(entries.map((entry) => [entry.rank, entry]));
+  const spots = [byRank.get(2), byRank.get(1), byRank.get(3)].filter((entry): entry is RankedEntry => Boolean(entry));
+  if (spots.length === 0) return null;
+  return (
+    <div
+      data-podium=""
+      className="grid grid-cols-3 items-end gap-1 px-2 pt-4 pb-2"
+    >
+      {spots.map((entry) => (
+        <PodiumSpot key={entry.id} entry={entry} boardId={boardId} />
+      ))}
+    </div>
+  );
+}
+
+export function LeaderboardView({ model }: { model: LeaderboardPageModel }) {
+  const cta = boardCallToAction(model.boardId, model.week);
+  const podium = model.entries.filter((entry) => entry.rank <= 3);
+  const rest = model.entries.filter((entry) => entry.rank > 3);
+  return (
+    <div className="-mx-4 -mt-5 bg-zinc-950 text-zinc-100" data-leaderboard="" data-board-accent={model.boardId}>
+      <style>{`
+        @keyframes lb-rise {
+          from { opacity: 0; transform: translateY(14px); }
+          to { opacity: 1; transform: none; }
+        }
+        @keyframes lb-shimmer {
+          0% { background-position: 0% 50%; }
+          100% { background-position: 200% 50%; }
+        }
+        .lb-podium { animation: lb-rise .5s ease both; }
+        .lb-podium-2 { animation-delay: .04s; }
+        .lb-podium-1 { animation-delay: .12s; }
+        .lb-podium-3 { animation-delay: .2s; }
+        .lb-shimmer {
+          background-image: linear-gradient(110deg, #f6d36b 0%, #fff6d0 42%, #f6d36b 78%);
+          background-size: 200% 100%;
+          animation: lb-shimmer 2.8s linear infinite;
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .lb-podium, .lb-shimmer { animation: none; }
+        }
+      `}</style>
+      <div className="border-b border-white/10 px-4 py-4">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <h1 className="text-2xl font-bold tracking-tight">{model.title}</h1>
-            <p className="mt-1 text-sm text-zinc-500">{model.description}</p>
+            <h1 className="text-2xl font-bold tracking-tight text-white">{model.title}</h1>
+            <p className="mt-1 text-sm text-zinc-400">{model.description}</p>
           </div>
           <ShareIconButton path={LEADERBOARD_PATH} title={model.title} label="Share" />
         </div>
-        <p className="mt-3 text-sm text-zinc-500">
-          <span className="font-medium text-zinc-700 dark:text-zinc-200">{model.weekLabel}</span>
+        <p className="mt-3 text-sm text-zinc-400">
+          <span className="font-medium text-zinc-100">{model.weekLabel}</span>
           {" · "}
           <span data-standing="">{model.standing}</span>
           {model.showCountdown ? (
@@ -47,14 +181,14 @@ export function LeaderboardView({ model }: { model: LeaderboardPageModel }) {
         ) : null}
       </div>
 
-      <div className="grid grid-cols-2 border-b border-zinc-200 text-[15px] dark:border-white/10">
+      <div className="grid grid-cols-2 border-b border-white/10 text-[15px]">
         {model.weekLinks.map((link) => (
           <Link
             key={link.id}
             href={link.href}
             aria-current={link.active ? "page" : undefined}
             className={`flex min-h-11 items-center justify-center px-3 text-center font-semibold ${
-              link.active ? "text-zinc-900 dark:text-white" : "text-zinc-500"
+              link.active ? "text-white" : "text-zinc-500"
             }`}
           >
             {link.label}
@@ -63,7 +197,7 @@ export function LeaderboardView({ model }: { model: LeaderboardPageModel }) {
       </div>
 
       <div
-        className="flex gap-2 overflow-x-auto border-b border-zinc-200 px-4 py-3 dark:border-white/10"
+        className="flex gap-2 overflow-x-auto border-b border-white/10 px-4 py-3"
         data-board-tabs=""
       >
         {model.tabs.map((tab) => (
@@ -73,9 +207,7 @@ export function LeaderboardView({ model }: { model: LeaderboardPageModel }) {
             aria-current={tab.active ? "page" : undefined}
             data-board={tab.id}
             className={`inline-flex min-h-11 shrink-0 items-center rounded-full px-4 text-sm font-semibold ${
-              tab.active
-                ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-950"
-                : "bg-zinc-100 text-zinc-600 dark:bg-white/10 dark:text-zinc-300"
+              tab.active ? (PILL[tab.id] ?? PILL["top-card-post"]) : "bg-white/10 text-zinc-300"
             }`}
           >
             {tab.label}
@@ -85,63 +217,97 @@ export function LeaderboardView({ model }: { model: LeaderboardPageModel }) {
 
       {model.status === "error" ? (
         <div className="px-6 py-12 text-center" data-board-error="">
-          <p className="text-[17px] font-bold tracking-tight">{model.errorTitle}</p>
-          <p className="mx-auto mt-1.5 max-w-[18rem] text-sm leading-5 text-zinc-500">{model.errorDetail}</p>
+          <p className="text-[17px] font-bold tracking-tight text-white">{model.errorTitle}</p>
+          <p className="mx-auto mt-1.5 max-w-[18rem] text-sm leading-5 text-zinc-400">{model.errorDetail}</p>
         </div>
       ) : model.thin ? (
         <div className="px-6 py-12 text-center" data-thin-board="">
-          <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-full bg-zinc-100 text-zinc-500 dark:bg-white/10">
-            <Trophy className="h-5 w-5" />
+          <div className="mx-auto mb-3 grid h-14 w-14 place-items-center rounded-full bg-[#7c5cff]/20 text-[#c4b5fd]">
+            <Trophy className="h-6 w-6" />
           </div>
-          <p className="text-[17px] font-bold tracking-tight">{model.thinTitle}</p>
-          <p className="mx-auto mt-1.5 max-w-[18rem] text-sm leading-5 text-zinc-500">{model.thinDetail}</p>
+          <p className="text-[17px] font-bold tracking-tight text-white">{model.thinTitle}</p>
+          <p className="mx-auto mt-1.5 max-w-[18rem] text-sm leading-5 text-zinc-400">{model.thinDetail}</p>
+          <Link
+            href={cta.href}
+            data-empty-cta=""
+            className="mt-4 inline-flex min-h-11 items-center rounded-full bg-[#7c5cff] px-5 text-sm font-bold text-white shadow-[0_0_18px_rgba(124,92,255,0.45)]"
+          >
+            {cta.label}
+          </Link>
         </div>
       ) : (
-        <ol className="divide-y divide-zinc-200 dark:divide-white/10">
-          {model.entries.map((entry) => (
-            <li key={entry.id}>
-              <Link href={entry.href} className="flex min-h-11 items-center gap-3 px-4 py-3">
-                <span className="w-8 shrink-0 text-sm font-bold tabular-nums text-zinc-500">#{entry.rank}</span>
-                <Mark title={entry.title} accent={entry.accent} />
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-semibold">{entry.title}</span>
-                  {entry.subtitle ? (
-                    <span className="block truncate text-xs text-zinc-500">{entry.subtitle}</span>
-                  ) : null}
-                </span>
-                <span className="shrink-0 text-right">
-                  <span className="block text-sm font-semibold tabular-nums">{entry.score}</span>
-                  <span className="block text-[11px] text-zinc-500">{entry.scoreLabel}</span>
-                </span>
-              </Link>
-            </li>
-          ))}
-        </ol>
+        <div>
+          <Podium entries={podium} boardId={model.boardId} />
+          {rest.length > 0 ? (
+            <ol className="mt-2 divide-y divide-white/10" data-rank-rows="">
+              {rest.map((entry) => (
+                <li key={entry.id}>
+                  <Link href={entry.href} className="flex min-h-11 items-center gap-3 px-4 py-3">
+                    <span className="w-6 shrink-0 text-sm font-bold tabular-nums text-zinc-500">{entry.rank}</span>
+                    <Avatar title={personLabels(entry, model.boardId).name} accent={entry.accent} url={entry.avatarUrl} size={40} />
+                    <span className="min-w-0 flex-1">
+                      <span className="flex min-w-0 items-center gap-1.5">
+                        <span className="truncate text-sm font-semibold text-white">
+                          {personLabels(entry, model.boardId).name}
+                        </span>
+                        {entry.isNew ? <NewTag /> : null}
+                      </span>
+                      {personLabels(entry, model.boardId).detail ? (
+                        <span className="block truncate text-xs text-zinc-500">
+                          {personLabels(entry, model.boardId).detail}
+                        </span>
+                      ) : null}
+                    </span>
+                    <span className="shrink-0 text-right">
+                      <span className="block text-sm font-bold tabular-nums text-white">{entry.score}</span>
+                      <span className="block text-[11px] text-zinc-500">{entry.scoreLabel}</span>
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ol>
+          ) : null}
+        </div>
       )}
 
       {model.you ? (
-        <div className="sticky bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-10 px-4 py-2" data-you-row="">
-          <Link
-            href={model.you.href}
-            className="flex items-center justify-between gap-3 rounded-2xl border border-violet-300 bg-violet-50 px-4 py-3 text-sm shadow-sm dark:border-violet-400/30 dark:bg-violet-500/15"
-          >
-            <span className="font-bold">{model.you.label}</span>
-            <span className="min-w-0 truncate text-zinc-600 dark:text-zinc-300">
-              {model.you.title}
-              {model.you.subtitle ? ` · ${model.you.subtitle}` : ""}
+        <div className="sticky bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-10 px-3 py-2" data-you-row="">
+          <div className="rounded-2xl border border-violet-400/40 bg-zinc-950/95 px-4 py-3 shadow-[0_10px_30px_rgba(124,92,255,0.28)]">
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-[11px] font-bold uppercase tracking-wide text-violet-200">Your rank</p>
+                <p className="text-lg font-black text-white">{model.you.rank > 0 ? `#${model.you.rank}` : "Not ranked"}</p>
+              </div>
+              {model.you.rank > 0 ? (
+                <p className="text-right text-lg font-black tabular-nums text-white">
+                  {model.you.score}{" "}
+                  <span className="text-xs font-semibold text-zinc-400">{model.you.scoreLabel}</span>
+                </p>
+              ) : null}
+            </div>
+            {model.you.gap ? <p className="mt-1 text-sm text-zinc-200">{model.you.gap}</p> : null}
+            {model.you.ctaHref && model.you.ctaLabel ? (
+              <Link
+                href={model.you.ctaHref}
+                className="mt-2 inline-flex min-h-11 items-center rounded-full bg-[#7c5cff] px-4 text-sm font-bold text-white"
+              >
+                {model.you.ctaLabel}
+              </Link>
+            ) : null}
+            <span className="sr-only" style={{ position: "absolute", width: 1, height: 1, padding: 0, margin: -1, overflow: "hidden", clip: "rect(0,0,0,0)", whiteSpace: "nowrap", border: 0 }}>
+              {model.you.label}
             </span>
-            <span className="shrink-0 font-semibold tabular-nums">{model.you.score}</span>
-          </Link>
+          </div>
         </div>
       ) : null}
 
-      <section className="border-t border-zinc-200 px-4 py-6 dark:border-white/10" data-how-to="">
-        <h2 className="text-sm font-bold">How to get on the leaderboard</h2>
+      <section className="border-t border-white/10 px-4 py-6" data-how-to="">
+        <h2 className="text-sm font-bold text-white">How to get on the leaderboard</h2>
         <div className="mt-4 space-y-5">
           {model.howTo.map((board) => (
             <div key={board.id}>
-              <h3 className="text-sm font-semibold">{board.label}</h3>
-              <ul className="mt-2 list-disc space-y-1 pl-5 text-sm leading-5 text-zinc-600 dark:text-zinc-300">
+              <h3 className="text-sm font-semibold text-white">{board.label}</h3>
+              <ul className="mt-2 list-disc space-y-1 pl-5 text-sm leading-5 text-zinc-300">
                 {board.lines.map((line) => (
                   <li key={line}>{line}</li>
                 ))}
@@ -151,12 +317,12 @@ export function LeaderboardView({ model }: { model: LeaderboardPageModel }) {
         </div>
       </section>
 
-      <section className="border-t border-zinc-200 px-4 py-6 dark:border-white/10" data-checklist="">
-        <h2 className="text-sm font-bold">Your checklist</h2>
-        <ul className="mt-3 space-y-2 text-sm leading-5 text-zinc-600 dark:text-zinc-300">
+      <section className="border-t border-white/10 px-4 py-6" data-checklist="">
+        <h2 className="text-sm font-bold text-white">Your checklist</h2>
+        <ul className="mt-3 space-y-2 text-sm leading-5 text-zinc-300">
           {model.checklist.map((item) => (
             <li key={item.id}>
-              <span className="font-semibold text-zinc-800 dark:text-zinc-100">{item.label}. </span>
+              <span className="font-semibold text-white">{item.label}. </span>
               {item.line}
             </li>
           ))}

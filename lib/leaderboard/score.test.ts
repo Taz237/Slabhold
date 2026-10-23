@@ -24,8 +24,21 @@ function profile(id: string, username: string, extra: Partial<BoardProfile> = {}
   };
 }
 
-function card(id: string, userId: string, isPublic = true): BoardCard {
-  return { id, userId, isPublic, player: `Player ${id}` };
+function card(id: string, userId: string, isPublic = true, extra: Partial<BoardCard> = {}): BoardCard {
+  return {
+    id,
+    userId,
+    isPublic,
+    player: `Player ${id}`,
+    year: 2024,
+    setName: "Prizm",
+    parallel: "",
+    imageUrl: "https://cdn.example/card.jpg",
+    createdAt: IN_WEEK,
+    hidden: false,
+    deleted: false,
+    ...extra,
+  };
 }
 
 function post(id: string, authorId: string, cardIds: string[], extra: Partial<BoardPost> = {}): BoardPost {
@@ -37,6 +50,7 @@ function post(id: string, authorId: string, cardIds: string[], extra: Partial<Bo
     deleted: false,
     cardIds,
     postType: "post",
+    createdAt: IN_WEEK,
     ...extra,
   };
 }
@@ -64,8 +78,8 @@ function like(actorId: string, postId = "post-1", createdAt = IN_WEEK, undone = 
   return { actorId, postId, createdAt, undone };
 }
 
-function reply(id: string, actorId: string, postId = "post-1"): BoardReply {
-  return { id, actorId, postId, createdAt: IN_WEEK, undone: false };
+function reply(id: string, actorId: string, postId = "post-1", extra: Partial<BoardReply> = {}): BoardReply {
+  return { id, actorId, postId, createdAt: IN_WEEK, undone: false, hidden: false, deleted: false, ...extra };
 }
 
 function boards(input: ScoreInput) {
@@ -167,6 +181,40 @@ describe("top card post scoring", () => {
     });
     const rows = boards(input)["top-card-post"]?.rows ?? [];
     assert.deepEqual(rows.map((row) => row.id), ["public"]);
+  });
+
+  it("leaves out the official updates account, hidden or deleted replies, and posts from outside the week", () => {
+    const official = boards(
+      base({
+        profiles: [
+          profile("author", "author"),
+          profile("updates", OFFICIAL_UPDATES_HANDLE),
+          profile(OFFICIAL_UPDATES_USER_ID, "some_handle"),
+          profile("fan", "fan"),
+          profile("fan2", "fan_two"),
+          profile("fan3", "fan_three"),
+        ],
+        posts: [
+          post("old", "author", ["card-1"], { createdAt: BEFORE }),
+          post("official-handle", "updates", ["card-1"]),
+          post("official-id", OFFICIAL_UPDATES_USER_ID, ["card-1"]),
+          post("live", "author", ["card-1"]),
+        ],
+        usersWithPost: ["author", "updates", OFFICIAL_UPDATES_USER_ID, "fan", "fan2", "fan3"],
+        replies: [
+          reply("old-reply", "fan", "old"),
+          reply("hidden-reply", "fan", "live", { hidden: true }),
+          reply("deleted-reply", "fan2", "live", { deleted: true }),
+          reply("kept", "fan3", "live"),
+          reply("on-handle", "fan", "official-handle"),
+          reply("on-id", "fan", "official-id"),
+        ],
+      }),
+    );
+    const rows = official["top-card-post"]?.rows ?? [];
+    assert.deepEqual(rows.map((row) => row.id), ["live"]);
+    assert.deepEqual(rows[0]?.contributions.map((item) => item.actorId), ["fan3"]);
+    assert.deepEqual(getPostLikeActors(), []);
   });
 });
 
@@ -326,5 +374,88 @@ describe("viewer rows", () => {
     );
     assert.equal(withZero.entries.some((entry) => entry.score <= 0), false);
     assert.equal(withZero.entries.some((entry) => entry.id === "zero"), false);
+  });
+});
+
+describe("most cards added", () => {
+  const PHOTO = "https://cdn.example/real.jpg";
+  const NEXT_DAY = "2026-10-22T16:00:00.000Z";
+
+  function added(id: string, userId: string, extra: Partial<BoardCard> = {}): BoardCard {
+    return card(id, userId, true, { imageUrl: PHOTO, player: `Player ${id}`, ...extra });
+  }
+
+  it("requires a real photo and skips private, hidden, deleted, and duplicate cards", () => {
+    const rows = boards(
+      base({
+        cards: [
+          added("photo", "author"),
+          added("blank", "author", { imageUrl: "" }),
+          added("data", "author", { imageUrl: "data:image/jpeg;base64,abc", player: "Data" }),
+          added("private", "author", { isPublic: false, player: "Private" }),
+          added("hidden", "author", { hidden: true, player: "Hidden" }),
+          added("gone", "author", { deleted: true, player: "Gone" }),
+          added("dup-a", "author", { player: "LeBron James", year: 2020, setName: "Prizm", parallel: "Silver" }),
+          added("dup-b", "author", {
+            player: "  lebron   james ",
+            year: 2020,
+            setName: " prizm ",
+            parallel: "silver",
+            createdAt: "2026-10-21T18:00:00.000Z",
+          }),
+          added("other-parallel", "author", { player: "LeBron James", year: 2020, setName: "Prizm", parallel: "Gold" }),
+          added("old", "author", { createdAt: BEFORE, player: "Old" }),
+        ],
+      }),
+    )["most-cards-added"]?.rows ?? [];
+    const author = rows.find((row) => row.userId === "author");
+    assert.equal(author?.contributions[0]?.points, 3);
+  });
+
+  it("caps a user at 25 cards per day and leaves out test accounts and @slabholdupdates", () => {
+    const sameDay = Array.from({ length: 26 }, (_, index) =>
+      added(`day-${index}`, "author", { player: `Name ${index}`, year: 2024, setName: "Set", parallel: "" }),
+    );
+    const nextDay = added("next", "author", { player: "Next day", createdAt: NEXT_DAY });
+    const capped = boards(
+      base({
+        cards: [...sameDay, nextDay],
+      }),
+    )["most-cards-added"]?.rows ?? [];
+    assert.equal(capped.find((row) => row.userId === "author")?.contributions[0]?.points, 26);
+
+    const youngAt = new Date(Date.parse(IN_WEEK) - (ACTOR_MIN_AGE_DAYS * 24 * 60 * 60 * 1000 - 60_000)).toISOString();
+    const excluded = boards(
+      base({
+        profiles: [
+          profile("author", "author"),
+          profile("qa", "qa_alpha"),
+          profile("updates", OFFICIAL_UPDATES_HANDLE),
+          profile(OFFICIAL_UPDATES_USER_ID, "some_handle"),
+          profile("young", "young", { createdAt: youngAt }),
+          profile("fan", "fan"),
+        ],
+        cards: [
+          added("qa-card", "qa"),
+          added("updates-card", "updates"),
+          added("id-card", OFFICIAL_UPDATES_USER_ID),
+          added("young-card", "young"),
+          added("kept", "author"),
+        ],
+        blockPairs: [{ blockerId: "author", blockedId: "fan" }],
+      }),
+    )["most-cards-added"]?.rows ?? [];
+    assert.deepEqual(excluded.map((row) => row.userId), ["author"]);
+
+    const crowd = boards(
+      base({
+        profiles: ["a", "b", "c", "d"].map((id) => profile(id, id)),
+        cards: ["a", "b", "c", "d"].map((id) => added(`${id}-card`, id)),
+      }),
+    )["most-cards-added"]?.rows ?? [];
+    const hidden = rankBoard(crowd, ["a"], "d", "cards");
+    assert.equal(hidden.thin, false);
+    assert.equal(hidden.entries.some((entry) => entry.userId === "a"), false);
+    assert.equal(hidden.you?.label, "You: #3");
   });
 });

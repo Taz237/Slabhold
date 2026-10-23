@@ -17,8 +17,8 @@ import {
   BOARD_ERROR_TITLE,
   CLOSED_NOTE,
   FINAL_LABEL,
+  EMPTY_BOARD_TITLE,
   REMOVED_FOLLOW_RULE,
-  THIN_BOARD_TITLE,
   TOP_CARD_LEAD,
   VALUE_BOARD_ID,
   leaderboardTab,
@@ -81,6 +81,9 @@ describe("leaderboard page", () => {
     assert.equal(model.tabs.some((tab) => tab.id === "value"), false);
     assert.equal(model.entries.some((entry) => entry.userId === "b"), false);
     assert.equal(model.you?.label, "You: #3");
+    assert.equal(model.you?.gap, "2 more replies to pass @c");
+    assert.equal(model.entries[0]?.isNew, true);
+    assert.equal(model.tabs.some((tab) => tab.id === "most-cards-added"), true);
     assert.equal(model.standing, "Provisional");
     assert.match(model.countdownLabel, /^Resets in /);
     assert.equal(model.showCountdown, true);
@@ -98,6 +101,8 @@ describe("leaderboard page", () => {
     assert.match(html, /You: #3/);
     assert.match(html, /data-board="top-card-post"/);
     assert.match(html, /data-board="rising-collectors"/);
+    assert.match(html, /data-board="most-cards-added"/);
+    assert.match(html, /data-podium/);
     assert.doesNotMatch(html, /data-board="value"/);
     assert.doesNotMatch(html, BANNED);
     assert.doesNotMatch(LEADERBOARD_DESCRIPTION, BANNED);
@@ -125,7 +130,8 @@ describe("leaderboard page", () => {
     assert.match(thinHtml, /Get follows from real collectors last week/);
     assert.match(thinHtml, /Last week(?:'|&#x27;)s card posts/);
     assert.doesNotMatch(thinHtml, /This week(?:'|&#x27;)s/);
-    assert.match(thinHtml, new RegExp(THIN_BOARD_TITLE));
+    assert.match(thinHtml, new RegExp(EMPTY_BOARD_TITLE));
+    assert.match(thinHtml, /data-empty-cta/);
     assert.doesNotMatch(thinHtml, /#1/);
   });
 
@@ -217,7 +223,7 @@ describe("leaderboard page", () => {
     assert.equal(error.errorTitle, BOARD_ERROR_TITLE);
     const html = renderToStaticMarkup(createElement(LeaderboardView, { model: error }));
     assert.match(html, /data-board-error/);
-    assert.doesNotMatch(html, new RegExp(THIN_BOARD_TITLE));
+    assert.doesNotMatch(html, new RegExp(EMPTY_BOARD_TITLE));
     assert.match(html, /How to get on the leaderboard/);
     assert.match(html, /Your checklist/);
   });
@@ -260,6 +266,8 @@ describe("leaderboard page", () => {
     assert.equal(scoreUnit("replies", 2), "replies");
     assert.equal(scoreUnit("new followers", 1), "new follower");
     assert.equal(scoreUnit("new followers", 4), "new followers");
+    assert.equal(scoreUnit("cards", 1), "card");
+    assert.equal(scoreUnit("cards", 25), "cards");
     assert.match(read("app/leaderboard/loading.tsx"), /data-leaderboard-loading/);
     assert.throws(() => pageExceededCap("blocks", 20_000, 1000), /row cap/);
     pageExceededCap("blocks", 1000, 1000);

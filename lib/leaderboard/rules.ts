@@ -26,20 +26,24 @@ export const LEADERBOARD_PATH = "/leaderboard";
 export const LEADERBOARD_TITLE = "Leaderboard";
 
 export const LEADERBOARD_DESCRIPTION =
-  "This week's card posts and collectors with new followers.";
+  "This week's card posts, new followers, and cards added.";
 
 export const LAST_WEEK_DESCRIPTION =
-  "Last week's card posts and collectors with new followers.";
+  "Last week's card posts, new followers, and cards added.";
 
 /** Singular label when a row's score is exactly 1. */
 export function scoreUnit(label: string, score: number): string {
   if (score !== 1) return label;
   if (label === "replies") return "reply";
   if (label === "new followers") return "new follower";
+  if (label === "cards") return "card";
   return label;
 }
 
 export const THIN_BOARD_TITLE = "Board fills up as collectors post and follow";
+
+/** Shown when a board has fewer than LEADERBOARD_MIN_ENTRIES qualifying rows. */
+export const EMPTY_BOARD_TITLE = "Be the first name here";
 
 export const PROVISIONAL_LABEL = "Provisional";
 
@@ -62,8 +66,11 @@ export const LAST_WEEK_LABEL = "Last week";
 
 export const YOU_LABEL = "You";
 
-/** Left off Rising collectors. Everyone auto-follows this account. */
+/** Left off the boards. Everyone auto-follows this account. */
 export const OFFICIAL_UPDATES_HANDLE = "slabholdupdates";
+
+/** Most cards added: at most this many distinct cards per user per calendar day. */
+export const DAILY_CARD_CAP = 25;
 
 /**
  * Reserved id for the collection % gainers board. Another builder owns that
@@ -71,7 +78,11 @@ export const OFFICIAL_UPDATES_HANDLE = "slabholdupdates";
  */
 export const VALUE_BOARD_ID = "value";
 
-export type LeaderboardBoardId = "top-card-post" | "rising-collectors" | typeof VALUE_BOARD_ID;
+export type LeaderboardBoardId =
+  | "top-card-post"
+  | "rising-collectors"
+  | "most-cards-added"
+  | typeof VALUE_BOARD_ID;
 
 export type LeaderboardTab = {
   id: LeaderboardBoardId;
@@ -87,6 +98,18 @@ export const RISING_LEAD = "Get follows from real collectors this week.";
 
 /** Empty Rising board on Last week. The this-week lead stays on the current board. */
 export const RISING_LEAD_LAST_WEEK = "Get follows from real collectors last week.";
+
+export const MOST_CARDS_LEAD = "Add cards with a real photo this week.";
+
+export const MOST_CARDS_LEAD_LAST_WEEK = "Add cards with a real photo last week.";
+
+export const DUPLICATE_CARD_RULE = "The same player, year, set, and parallel counts once.";
+
+export const WEEK_POST_RULE = "Only a card post from this week counts.";
+
+export const HIDDEN_REPLY_RULE = "Hidden or deleted replies do not count.";
+
+export const HIDDEN_CARD_RULE = "Private, hidden, or deleted cards do not count.";
 
 export const ONCE_PER_COLLECTOR_RULE = "Each collector counts once per post.";
 
@@ -107,6 +130,42 @@ export function officialUpdatesRule(): string {
   return `The official @${OFFICIAL_UPDATES_HANDLE} account is left off this board.`;
 }
 
+export function dailyCardCapRule(): string {
+  return `At most ${DAILY_CARD_CAP} cards a day count.`;
+}
+
+export type BoardCallToAction = {
+  label: string;
+  href: string;
+  step: string;
+};
+
+/** One next step when the signed-in viewer is not on the board. */
+export function boardCallToAction(
+  boardId: string,
+  week: "current" | "previous",
+): BoardCallToAction {
+  if (boardId === "most-cards-added") {
+    return {
+      label: "Add a card",
+      href: "/cards/new",
+      step: week === "previous" ? MOST_CARDS_LEAD_LAST_WEEK : "Add a card with a real photo.",
+    };
+  }
+  if (boardId === "rising-collectors") {
+    return {
+      label: "Post a card",
+      href: "/compose",
+      step: week === "previous" ? RISING_LEAD_LAST_WEEK : RISING_LEAD,
+    };
+  }
+  return {
+    label: "Post a card",
+    href: "/compose",
+    step: TOP_CARD_LEAD,
+  };
+}
+
 const SHARED_ACTOR_RULES = [realCollectorRule(), testAccountRule()] as const;
 
 /**
@@ -124,6 +183,9 @@ export const LEADERBOARD_TABS: readonly LeaderboardTab[] = [
       ...SHARED_ACTOR_RULES,
       "Your own replies do not count.",
       "Hidden or deleted posts and private cards do not count.",
+      HIDDEN_REPLY_RULE,
+      WEEK_POST_RULE,
+      officialUpdatesRule(),
       BLOCK_PAIR_RULE,
     ],
   },
@@ -136,6 +198,20 @@ export const LEADERBOARD_TABS: readonly LeaderboardTab[] = [
       REMOVED_FOLLOW_RULE,
       ...SHARED_ACTOR_RULES,
       officialUpdatesRule(),
+      BLOCK_PAIR_RULE,
+    ],
+  },
+  {
+    id: "most-cards-added",
+    label: "Most cards added",
+    scoreLabel: "cards",
+    howTo: [
+      MOST_CARDS_LEAD,
+      DUPLICATE_CARD_RULE,
+      dailyCardCapRule(),
+      ...SHARED_ACTOR_RULES,
+      officialUpdatesRule(),
+      HIDDEN_CARD_RULE,
       BLOCK_PAIR_RULE,
     ],
   },
