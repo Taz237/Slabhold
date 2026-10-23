@@ -349,7 +349,7 @@ export function collectStepAfter(
 }
 
 function storedInterestValue(pick: CollectInterest): string {
-  const name = pick.value.trim();
+  const name = pick.value.replace(/\u2060/g, "").trim();
   if (!name) return "";
   if (pick.kind === "player" && pick.sport?.trim()) {
     const packed = packSharedPlayer(name, pick.sport);
@@ -373,7 +373,15 @@ export function picksFromRows(rows: readonly InterestRow[]): CollectInterest[] {
         : { kind: "player", value: row.value },
     );
   }
-  return picks;
+  const tagged = new Set(
+    picks
+      .filter((pick) => pick.kind === "player" && pick.sport)
+      .map((pick) => compactInterest(pick.value)),
+  );
+  return picks.filter((pick) => {
+    if (pick.kind !== "player" || pick.sport) return true;
+    return !tagged.has(compactInterest(pick.value));
+  });
 }
 
 /** Rows written when they finish or skip. Prompt is how we know not to ask again. */

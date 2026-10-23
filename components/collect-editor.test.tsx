@@ -7,7 +7,14 @@ import { searchCatalog } from "@/lib/card-catalog";
 import { INDEXED_DIRECTORY } from "@/lib/players/directory";
 import { withDirectoryPlayers } from "@/lib/players/suggest";
 import { COLLECT_TEAMS, interestTypeahead } from "@/lib/social/collect-interests";
-import { NameSearch, nameHitKey, pickedNameLabel, toggleName, withoutName } from "@/components/collect-editor";
+import {
+  NameSearch,
+  hitsBeforeDirectoryReady,
+  nameHitKey,
+  pickedNameLabel,
+  toggleName,
+  withoutName,
+} from "@/components/collect-editor";
 
 delete process.env.NEXT_PUBLIC_SUPABASE_URL;
 delete process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -178,6 +185,22 @@ describe("collect name rows", () => {
     assert.equal(pickedNameLabel(smiths[0]!), "Will Smith · Baseball");
     assert.equal(pickedNameLabel(smiths[1]!), "Will Smith · Hockey");
     assert.equal(pickedNameLabel({ kind: "player", value: "CJ Stroud" }), "CJ Stroud");
+    const pending = hitsBeforeDirectoryReady(
+      [
+        { kind: "team", value: "Chiefs" },
+        { kind: "player", value: "Will Smith", sport: "Baseball" },
+      ],
+      false,
+    );
+    assert.deepEqual(pending, [{ kind: "team", value: "Chiefs" }]);
+    const marked = toggleName([], {
+      kind: "player",
+      value: "Will Smith\u2060",
+      sport: "Baseball",
+      sharedName: true,
+    });
+    assert.equal(marked[0]?.value, "Will Smith");
+    assert.equal(marked[0]?.sport, "Baseball");
     assert.deepEqual(withoutName(smiths, { kind: "player", value: "Will Smith", sport: "Baseball" }), [
       { kind: "player", value: "Will Smith", sport: "Hockey" },
     ]);

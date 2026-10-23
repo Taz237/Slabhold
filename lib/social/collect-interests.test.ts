@@ -288,6 +288,19 @@ describe("skip and complete", () => {
     assert.deepEqual(unpackSharedPlayer(players[0]!.value), { name: "Will Smith", sport: "Baseball" });
     assert.deepEqual(unpackSharedPlayer(players[1]!.value), { name: "Will Smith", sport: "Hockey" });
     assert.equal(unpackSharedPlayer("CJ Stroud"), null);
+    const tagged = packSharedPlayer("Will Smith", "Baseball");
+    assert.ok(tagged);
+    assert.deepEqual(
+      picksFromRows([
+        { kind: "player", value: "Will Smith" },
+        { kind: "player", value: tagged },
+        { kind: "player", value: "CJ Stroud" },
+      ]),
+      [
+        { kind: "player", value: "Will Smith", sport: "Baseball" },
+        { kind: "player", value: "CJ Stroud" },
+      ],
+    );
   });
 
   it("stops at 25 picks and says so, instead of a generic save error", async () => {

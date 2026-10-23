@@ -48,4 +48,27 @@ describe("loadServerSuggestions", () => {
     );
     assert.equal(rows?.some((row) => row.userId.toLowerCase() === OFFICIAL_UPDATES_USER_ID), false);
   });
+
+  it("strips packed sport marks from the suggestion reason", async () => {
+    const rows = await loadServerSuggestions(
+      rpcClient([
+        {
+          user_id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+          username: "ada",
+          display_name: "Ada",
+          reason: "Collects Smith\u2060\u200b\u200c\u200d\u2062\u2063",
+          score: 80,
+        },
+        {
+          user_id: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+          username: "bea",
+          display_name: "Bea",
+          reason: "\u2060\u200b",
+          score: 10,
+        },
+      ]),
+    );
+    assert.equal(rows?.[0]?.reason, "Collects Smith");
+    assert.equal(rows?.[1]?.reason, null);
+  });
 });

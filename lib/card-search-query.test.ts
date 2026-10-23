@@ -4,6 +4,7 @@ import { describe, it } from "node:test";
 import { join } from "node:path";
 import {
   CARD_CATALOG,
+  catalogPlayerPrefixMatch,
   catalogSeedRows,
   resolveCatalogSearch,
   searchCatalog,
@@ -211,6 +212,28 @@ describe("searchCatalog ranking", () => {
     assert.ok(searchCatalog("c.j. stroud prizm").every((hit) => hit.setBrand === "Panini Prizm"));
     assert.ok(searchCatalog("c.j. stroud 2023").every((hit) => hit.yearLabel === "2023"));
     assert.equal(searchCatalog("c.j. stroud prizm")[0]?.parallel, "Base");
+  });
+
+  it("matches a word-aligned prefix when initials are not a separate search", () => {
+    for (const [query, player] of [
+      ["luka d", "Luka Dončić"],
+      ["zion w", "Zion Williamson"],
+      ["josh a", "Josh Allen"],
+      ["c.jstroud", "CJ Stroud"],
+    ] as const) {
+      const hits = searchCatalog(query);
+      assert.ok(hits.length > 0, query);
+      assert.ok(hits.every((hit) => hit.playerName === player), query);
+    }
+    assert.deepEqual(
+      searchCatalog("c.jstroud").map((card) => card.id),
+      searchCatalog("cj stroud").map((card) => card.id),
+    );
+    assert.equal(catalogPlayerPrefixMatch("dont e", "Donte DiVincenzo"), false);
+    assert.equal(catalogPlayerPrefixMatch("john st", "Cameron Johnston"), false);
+    assert.equal(catalogPlayerPrefixMatch("john st", "Johnston"), false);
+    assert.ok(searchCatalog("dont e").every((hit) => hit.playerName !== "Donte DiVincenzo"));
+    assert.ok(searchCatalog("john st").every((hit) => !hit.playerName.includes("Johnston")));
   });
 
   it("puts the player match ahead of the same year and set", () => {

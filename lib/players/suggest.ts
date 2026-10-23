@@ -342,7 +342,7 @@ export function customPlayerFallback(
   query: string,
   sports: readonly string[] = [],
 ): NameSuggestion | null {
-  const collapsed = query.trim().replace(/\s+/g, " ").normalize("NFC");
+  const collapsed = query.trim().replace(/\u2060/g, "").replace(/\s+/g, " ").normalize("NFC");
   if (collapsed.length < 2 || collapsed.length > 60) return null;
   if (!CUSTOM_NAME_CHARS.test(collapsed) || blockedCustomName(collapsed)) return null;
   const letters = collapsed.match(/\p{L}/gu);
@@ -361,13 +361,6 @@ export function nameSuggestionLabel(hit: NameSuggestion): string {
 }
 
 type SpellingBag = { catalog: string[]; directory: string[] };
-
-/** Directory spelling wins. Catalog counts are only used when the roster has no row. */
-function displayedSpelling(bag: SpellingBag | undefined, fallback: string): string {
-  if (bag && bag.directory.length > 0) return majorityPlayerSpelling(bag.directory);
-  if (bag && bag.catalog.length > 0) return majorityPlayerSpelling(bag.catalog);
-  return fallback;
-}
 
 function directorySpelling(query: string, players: readonly SearchablePlayer[]): string | null {
   const key = compactInterest(query);
@@ -391,7 +384,8 @@ function absorbPlayer(
   if (existing) {
     const bag = spellings.get(existing);
     if (bag) bag[source].push(hit.value);
-    existing.value = displayedSpelling(bag, hit.value);
+    const chosen = bag && bag.catalog.length > 0 ? bag.catalog : (bag?.directory ?? [hit.value]);
+    existing.value = majorityPlayerSpelling(chosen);
     return true;
   }
   const bag: SpellingBag = { catalog: [], directory: [] };
@@ -420,7 +414,7 @@ function hiddenNameIsExact(
 /**
  * Catalog and remote hits stay in front. Directory players fill the rest,
  * one row per compact name and sport, so "CJ Stroud" does not repeat "C.J. Stroud".
- * The directory spelling is the one shown, ahead of the catalog and search_cards.
+ * Card rows pick the spelling. The player list is used only when there are none, including Add.
  * A blank sport stays its own row.
  * An empty list becomes the custom-name chip once the directory has loaded.
  * A partial query that only missed because of a sport chip does not become Add.
@@ -497,7 +491,14 @@ export function withDirectoryPlayers(input: {
   if (hiddenPartial && !hiddenExact) return [];
   const custom = customPlayerFallback(input.query, input.sports ?? []);
   if (!custom) return [];
-  const fromDirectory = directorySpelling(input.query, input.directoryPlayers ?? []);
-  if (fromDirectory) custom.value = fromDirectory;
+  const key = compactInterest(input.query);
+  const catalogNames = input.catalogHits
+    .filter((hit) => hit.kind === "player" && compactInterest(hit.value) === key)
+    .map((hit) => hit.value);
+  if (catalogNames.length > 0) custom.value = majorityPlayerSpelling(catalogNames);
+  else {
+    const fromDirectory = directorySpelling(input.query, input.directoryPlayers ?? []);
+    if (fromDirectory) custom.value = fromDirectory;
+  }
   return [custom];
 }

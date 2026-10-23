@@ -16,6 +16,13 @@ type RpcRow = {
 /** How many collectors the rail asks the server to return. */
 export const SUGGESTION_DISPLAY_LIMIT = 12;
 
+/** Packed sport marks are not part of the sentence a collector sees. */
+export function visibleSuggestionReason(reason: string | null | undefined): string | null {
+  if (!reason) return null;
+  const cleaned = reason.replace(/[\u2060\u200B-\u200D\u2062\u2063]/g, "");
+  return cleaned.trim() ? cleaned : null;
+}
+
 /** Null when the ranking function is not installed yet. Callers keep the old list. */
 export async function loadServerSuggestions(
   supabase: SupabaseClient,
@@ -37,7 +44,7 @@ export async function loadServerSuggestions(
       displayName: row.display_name || row.username || "",
       avatarUrl: row.avatar_url ?? null,
       accent: row.accent ?? null,
-      reason: row.reason ?? null,
+      reason: visibleSuggestionReason(row.reason),
       score: Number(row.score ?? 0),
     }));
 }

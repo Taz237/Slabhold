@@ -118,22 +118,22 @@ export function NameSearch({
     return [...local, ...remote];
   }, [query, remotePlayers, remoteQuery]);
 
-  const hits = useMemo(
-    () =>
-      withDirectoryPlayers({
+  const directoryReady = directory.status === "ready";
+  const hits = useMemo(() => {
+    const found = withDirectoryPlayers({
+      query,
+      sports,
+      catalogHits: interestTypeahead({
         query,
         sports,
-        catalogHits: interestTypeahead({
-          query,
-          sports,
-          players,
-          teams: COLLECT_TEAMS,
-        }),
-        directoryPlayers: directory.players,
-        directoryReady: directory.status === "ready",
+        players,
+        teams: COLLECT_TEAMS,
       }),
-    [directory.players, directory.status, players, query, sports],
-  );
+      directoryPlayers: directory.players,
+      directoryReady,
+    });
+    return hitsBeforeDirectoryReady(found, directoryReady);
+  }, [directory.players, directoryReady, players, query, sports]);
   const typed = query.trim().length > 0;
 
   return (
@@ -186,9 +186,9 @@ export function NameSearch({
               <button
                 type="button"
                 onClick={() => {
+                  if (hit.kind === "player" && directory.status !== "ready") return;
                   const sharedName =
-                    hit.kind === "player" &&
-                    playerNameIsShared(hit.value, [...directory.players, ...players]);
+                    hit.kind === "player" && playerNameIsShared(hit.value, directory.players);
                   onAdd(sharedName ? { ...hit, sharedName: true } : hit);
                   setQuery("");
                 }}
@@ -213,6 +213,15 @@ export function toggleSport(selected: readonly string[], sport: string): string[
   return [...selected, sport];
 }
 
+/** Player rows wait until the roster chunk has loaded, so a shared name is not guessed early. */
+export function hitsBeforeDirectoryReady<T extends { kind: string }>(
+  hits: readonly T[],
+  directoryReady: boolean,
+): T[] {
+  if (directoryReady) return [...hits];
+  return hits.filter((hit) => hit.kind !== "player");
+}
+
 /** "Will Smith · Baseball" when the saved player name is shared. Other chips stay the name. */
 export function pickedNameLabel(pick: { kind: string; value: string; sport?: string }): string {
   if (pick.kind === "player" && pick.sport) return `${pick.value} · ${pick.sport}`;
@@ -233,10 +242,11 @@ function picksMatch(
 }
 
 function storedPick(hit: InterestHit): CollectInterest {
+  const value = hit.value.replace(/\u2060/g, "");
   if (hit.kind === "player" && hit.sharedName && hit.sport.trim()) {
-    return { kind: hit.kind, value: hit.value, sport: hit.sport };
+    return { kind: hit.kind, value, sport: hit.sport };
   }
-  return { kind: hit.kind, value: hit.value };
+  return { kind: hit.kind, value };
 }
 
 export function nameAlreadyPicked(selected: readonly CollectInterest[], hit: InterestHit): boolean {
