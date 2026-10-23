@@ -3,13 +3,15 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { AtSign, Bell, Heart, MessageCircle, Quote, Repeat2, Star, UserPlus } from "lucide-react";
+import { AtSign, Bell, Handshake, Heart, MessageCircle, Quote, Repeat2, Star, UserPlus } from "lucide-react";
 import { Avatar } from "@/components/avatar";
+import { DealConfirmActions, useMyDeals } from "@/components/deal-response";
 import { WantAlertOfferLink } from "@/components/open-to-offers";
 import { solidButton } from "@/components/button-styles";
 import { PullToRefresh } from "@/components/pull-to-refresh";
 import { EmptyState, LoadingRows } from "@/components/status";
 import { useSocial } from "@/components/social-provider";
+import { dealNotificationHref } from "@/lib/deals/state";
 import { loginPath } from "@/lib/auth/safe-next";
 import { userHref } from "@/lib/social/user-href";
 import { exactTime, timeAgo } from "@/lib/format";
@@ -25,6 +27,7 @@ import type { NotificationKind, Profile } from "@/lib/social/types";
 export function NotificationsView() {
   const pathname = usePathname() || "/";
   const { ready, user, profiles, notifications, markNotificationsRead, refresh } = useSocial();
+  const { deals, refresh: refreshDeals } = useMyDeals();
   const userId = user?.id ?? null;
   const unreadOnVisit = useRef<{ userId: string; ids: ReadonlySet<string> } | null>(null);
   const [savedUnreadIds, setSavedUnreadIds] = useState<ReadonlySet<string> | null>(null);
@@ -140,7 +143,7 @@ export function NotificationsView() {
                   <span className="min-w-0 flex-1">
                     {highlighted ? <span className="sr-only">Unread. </span> : null}
                     <span className="block text-[15px] leading-5">
-                      {group.kind === "want_alert" ? (
+                      {group.kind === "want_alert" || group.kind === "deal_confirm" ? (
                         <span>{group.preview}</span>
                       ) : (
                         <>
@@ -158,7 +161,7 @@ export function NotificationsView() {
                         </time>
                       ) : null}
                     </span>
-                    {group.preview && group.kind !== "want_alert" ? (
+                    {group.preview && group.kind !== "want_alert" && group.kind !== "deal_confirm" ? (
                       <span className="mt-0.5 block truncate text-sm text-zinc-500">{group.preview}</span>
                     ) : null}
                   </span>
@@ -166,6 +169,13 @@ export function NotificationsView() {
                 </Link>
                 {group.kind === "want_alert" ? (
                   <WantAlertOfferLink metadata={group.notes[0]?.metadata} />
+                ) : null}
+                {group.kind === "deal_confirm" ? (
+                  <DealConfirmActions
+                    metadata={group.notes[0]?.metadata}
+                    deals={deals}
+                    onChanged={refreshDeals}
+                  />
                 ) : null}
               </li>
             );
@@ -183,6 +193,9 @@ function groupHref(group: NotificationGroup, authors: Map<string, Profile>) {
   if (note.kind === "want_alert") {
     return note.href || (note.postId ? `/posts/${note.postId}` : "/collection");
   }
+  if (note.kind === "deal_confirm") {
+    return dealNotificationHref(note.actorId, actor?.username, note.href);
+  }
   if (note.kind === "follow") return actor ? userHref(actor.username) : "/profile";
   return note.postId ? `/posts/${note.postId}` : "/";
 }
@@ -194,5 +207,6 @@ function groupIcon(kind: NotificationKind) {
   if (kind === "quote") return Quote;
   if (kind === "mention") return AtSign;
   if (kind === "want_alert") return Star;
+  if (kind === "deal_confirm") return Handshake;
   return UserPlus;
 }

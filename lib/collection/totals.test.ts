@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { hasPaid } from "@/lib/format";
-import { summarize } from "@/lib/portfolio";
+import { hasPaid, isSold } from "@/lib/format";
+import { matchesFilter, summarize } from "@/lib/portfolio";
 import {
   collectionTotalsFromSummarize,
   snapshotDateInNewYork,
@@ -103,6 +103,29 @@ describe("collectionTotalsFromSummarize", () => {
     assert.equal(totals.value, 0);
     assert.equal(totals.invested, 0);
     assert.equal(totals.profit, 20);
+  });
+});
+
+describe("collectionTotalsFromSummarize sold cards", () => {
+  it("keeps realized profit when a confirmed deal also has a sale price", () => {
+    const held = card({ id: "a", purchasePrice: 100 });
+    const dealSold = card({
+      id: "b",
+      purchasePrice: 40,
+      sellPrice: 70,
+      sellDate: "2026-10-22",
+      soldAt: "2026-10-22T12:00:00.000Z",
+    });
+    const values = new Map<string, CardValueResult>([
+      ["a", okValue(150)],
+      ["b", okValue(900)],
+    ]);
+    assert.equal(isSold(dealSold), true);
+    assert.equal(matchesFilter(dealSold, "sold", values), true);
+    const totals = collectionTotalsFromSummarize(summarize([held, dealSold], values));
+    assert.equal(totals.value, 150);
+    assert.equal(totals.invested, 100);
+    assert.equal(totals.profit, 80);
   });
 });
 

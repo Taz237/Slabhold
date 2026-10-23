@@ -213,6 +213,72 @@ alter table public.cards
   add constraint cards_open_to_offers_requires_public
   check (open_to_offers = false or is_public is true);
 
+alter table public.cards
+  add column if not exists sold_at timestamptz;
+
+alter table public.cards
+  add column if not exists sold_deal_id uuid;
+
+comment on column public.cards.sold_at is
+  'Set when a deal is confirmed. The card stays on the owner account and leaves the public collection.';
+
+create table if not exists public.deals (
+  id uuid primary key default gen_random_uuid(),
+  card_id uuid,
+  seller_id uuid not null references public.profiles (id) on delete cascade,
+  buyer_id uuid not null references public.profiles (id) on delete cascade,
+  kind text not null,
+  price_cents integer,
+  status text not null,
+  card_player text not null default '',
+  card_year text not null default '',
+  card_set text not null default '',
+  card_number text not null default '',
+  card_parallel text not null default '',
+  created_at timestamptz not null default now(),
+  confirmed_at timestamptz,
+  updated_at timestamptz not null default now(),
+  constraint deals_card_id_fkey foreign key (card_id) references public.cards (id) on delete set null,
+  constraint deals_seller_not_buyer check (seller_id <> buyer_id),
+  constraint deals_kind check (kind in ('sale', 'trade')),
+  constraint deals_price_cents check (
+    price_cents is null or (price_cents >= 0 and price_cents <= 100000000)
+  ),
+  constraint deals_status check (status in ('pending', 'confirmed', 'declined', 'cancelled')),
+  constraint deals_confirmed_at check (
+    (status = 'confirmed' and confirmed_at is not null)
+    or (status <> 'confirmed' and confirmed_at is null)
+  ),
+  constraint deals_pending_has_card check (status <> 'pending' or card_id is not null)
+);
+
+create unique index if not exists deals_one_pending_per_card
+  on public.deals (card_id)
+  where status = 'pending';
+
+create index if not exists deals_seller_idx
+  on public.deals (seller_id, created_at desc);
+
+create index if not exists deals_buyer_idx
+  on public.deals (buyer_id, created_at desc);
+
+alter table public.cards drop constraint if exists cards_sold_deal_id_fkey;
+alter table public.cards
+  add constraint cards_sold_deal_id_fkey
+  foreign key (sold_deal_id) references public.deals (id) on delete set null;
+
+alter table public.deals enable row level security;
+
+drop policy if exists "Seller or buyer can read deals" on public.deals;
+create policy "Seller or buyer can read deals"
+  on public.deals
+  for select
+  to authenticated
+  using (auth.uid() = seller_id or auth.uid() = buyer_id);
+
+revoke all on public.deals from anon, authenticated;
+grant select on public.deals to authenticated;
+
 -- Columns selected by the production public_cards view. Migrations add the
 -- same columns with IF NOT EXISTS.
 alter table public.cards add column if not exists no_number boolean not null default false;
@@ -249,7 +315,7 @@ create table if not exists public.notifications (
   metadata jsonb,
   read boolean not null default false,
   created_at timestamptz not null default now(),
-  constraint notifications_kind check (kind in ('like', 'comment', 'follow', 'repost', 'mention', 'quote', 'want_alert')),
+  constraint notifications_kind check (kind in ('like', 'comment', 'follow', 'repost', 'mention', 'quote', 'want_alert', 'deal_confirm')),
   check (actor_id is null or actor_id <> recipient_id)
 );
 
@@ -353,7 +419,7 @@ create index if not exists reposts_user_created_idx on public.reposts (user_id, 
 alter table public.notifications drop constraint if exists notifications_kind;
 alter table public.notifications
   add constraint notifications_kind
-  check (kind in ('like', 'comment', 'follow', 'repost', 'mention', 'quote', 'want_alert'));
+  check (kind in ('like', 'comment', 'follow', 'repost', 'mention', 'quote', 'want_alert', 'deal_confirm'));
 
 create unique index if not exists notifications_repost_once
   on public.notifications (actor_id, post_id)
@@ -622,6 +688,7 @@ create policy "Create notifications as yourself" on public.notifications
     and actor_id <> recipient_id
     and kind <> 'quote'
     and kind <> 'want_alert'
+    and kind <> 'deal_confirm'
   );
 create policy "Mark own notifications read" on public.notifications
   for update using (auth.uid() = recipient_id) with check (auth.uid() = recipient_id);
@@ -674,7 +741,8 @@ select
   grade_qualifier,
   open_to_offers
 from public.cards
-where is_public = true;
+where is_public = true
+  and sold_at is null;
 
 revoke insert, update, delete, truncate, references, trigger
   on public.public_cards from anon, authenticated, public;
