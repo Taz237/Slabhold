@@ -3,6 +3,37 @@
 import { X } from "lucide-react";
 import { postPhotoCellClass, postPhotoGridClass } from "@/lib/social/post-photos";
 
+/** Horizontal previews for the reply bar. Remove stays a 44px target. */
+export function ReplyPhotoDrafts({
+  images,
+  onRemove,
+}: {
+  images: readonly string[];
+  onRemove: (index: number) => void;
+}) {
+  if (!images.length) return null;
+  return (
+    <div className="flex gap-2 overflow-x-auto pb-1">
+      {images.map((src, index) => (
+        <div key={`${index}-${src.slice(0, 48)}`} className="relative h-16 w-16 shrink-0">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={src} alt="" className="h-16 w-16 rounded-xl object-cover" />
+          <button
+            type="button"
+            onClick={() => onRemove(index)}
+            aria-label={`Remove photo ${index + 1}`}
+            className="absolute top-0 right-0 grid h-11 w-11 min-h-11 min-w-11 place-items-center"
+          >
+            <span className="grid h-6 w-6 place-items-center rounded-full bg-black/70 text-white">
+              <X className="h-3.5 w-3.5" />
+            </span>
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function ComposePhotoDrafts({
   images,
   onRemove,

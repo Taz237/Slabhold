@@ -39,6 +39,15 @@ import {
 } from "./reply-mentions";
 import { isReservedUsername, normalizeUsername, usernameChangeError, usernameError } from "./local-db";
 import { followOfficialUpdates } from "./official-updates";
+import {
+  noteReplyImagesMissing,
+  replyImageColumnMissing,
+  replyImagesFromValue,
+  replyImagesKnownMissing,
+  replyNoticePreview,
+  replyNotificationImages,
+  REPLY_PHOTOS_UNAVAILABLE,
+} from "./reply-images";
 import { isTestAccount } from "../test-accounts";
 import { ilikeExact, TAKEN_USERNAME, usernameTakenMessage } from "./username-taken";
 import { validateQuoteContent } from "./quotes";
@@ -110,6 +119,7 @@ type CommentRow = {
   user_id: string;
   body: string;
   created_at: string;
+  image_urls?: unknown;
 };
 
 type NotificationRow = {
@@ -422,15 +432,17 @@ export async function loadSupabaseSocial(supabase: SupabaseClient): Promise<Soci
   const publicCards = ((cardsRes.data ?? []) as PublicCardRow[]).map((row) =>
     mapPublicCard(row),
   );
-  const comments = ((commentsRes.data ?? []) as CommentRow[]).map(
-    (row): PostComment => ({
+  const comments = ((commentsRes.data ?? []) as CommentRow[]).map((row): PostComment => {
+    const images = replyImagesFromValue(row.image_urls);
+    return {
       id: row.id,
       postId: row.post_id,
       authorId: row.user_id,
       body: row.body,
+      ...(images.length ? { images } : {}),
       createdAt: row.created_at,
-    }),
-  );
+    };
+  });
   const notifications = ((notificationsRes.data ?? []) as NotificationRow[]).map(
     (row): Notification => ({
       id: row.id,
@@ -784,9 +796,12 @@ export async function remoteAddComment(
   postId: string,
   body: string,
   postAuthorId: string | null,
+  images?: readonly string[] | null,
 ): Promise<AuthResult> {
   const text = body.trim().slice(0, COMMENT_LIMIT);
-  if (!text) return { error: "Write a comment." };
+  const photos = draftPostPhotos({ images: images ?? [] });
+  if (!text && photos.length === 0) return { error: "Write a comment." };
+  if (photos.length > 0 && replyImagesKnownMissing()) return { error: REPLY_PHOTOS_UNAVAILABLE };
   if (
     postAuthorId &&
     postAuthorId !== authorId &&
@@ -794,18 +809,28 @@ export async function remoteAddComment(
   ) {
     return { error: BLOCKED_INTERACTION };
   }
-  const { error } = await supabase.from("comments").insert({
+  const uploaded = photos.length
+    ? await uploadPostImages(supabase, authorId, photos)
+    : { urls: [] as string[], createdPaths: [] as string[] };
+  if (uploaded.error) return { error: uploaded.error };
+  const row: { post_id: string; user_id: string; body: string; image_urls?: string[] } = {
     post_id: postId,
     user_id: authorId,
     body: text,
-  });
+  };
+  if (uploaded.urls.length) row.image_urls = uploaded.urls;
+  const { error } = await supabase.from("comments").insert(row);
   if (error) {
-    if (missingTable(error)) {
-      return { error: SETUP_FAILED };
+    await discardPostImages(supabase, uploaded.createdPaths);
+    if (replyImageColumnMissing(error)) {
+      noteReplyImagesMissing();
+      return { error: REPLY_PHOTOS_UNAVAILABLE };
     }
+    if (missingTable(error)) return { error: SETUP_FAILED };
     return { error: rlsBlocked(error) ? BLOCKED_INTERACTION : error.message };
   }
 
+  const noticeImages = replyNotificationImages(uploaded.urls);
   let notice: string | undefined;
   try {
     let recipientId = postAuthorId;
@@ -823,7 +848,7 @@ export async function remoteAddComment(
         actor_id: authorId,
         kind: "comment",
         post_id: postId,
-        preview: previewText(text),
+        preview: replyNoticePreview(text, noticeImages),
       });
       if (noteError && !missingTable(noteError)) notice = noteError.message;
     }
@@ -1277,8 +1302,9 @@ async function deleteOwnReplyPreviewNotifications(
   actorId: string,
   postId: string,
   body: string,
+  images?: readonly string[] | null,
 ) {
-  const preview = previewText(body);
+  const preview = replyNoticePreview(body, images);
   if (!preview) return;
   const run = async (query: PromiseLike<unknown>) => {
     try {
@@ -1313,12 +1339,25 @@ export async function remoteDeleteComment(
   authorId: string,
   commentId: string,
 ) {
-  const { data, error } = await supabase
+  const removed = await supabase
     .from("comments")
     .delete()
     .eq("id", commentId)
     .eq("user_id", authorId)
-    .select("id, post_id, body");
+    .select("id, post_id, body, image_urls");
+  let data = removed.data;
+  let error = removed.error;
+  if (error && replyImageColumnMissing(error)) {
+    noteReplyImagesMissing();
+    const retry = await supabase
+      .from("comments")
+      .delete()
+      .eq("id", commentId)
+      .eq("user_id", authorId)
+      .select("id, post_id, body");
+    data = retry.data as typeof data;
+    error = retry.error;
+  }
   if (error) {
     return {
       error: rlsBlocked(error) ? "You can only delete your own replies." : error.message,
@@ -1328,13 +1367,19 @@ export async function remoteDeleteComment(
   if (!Array.isArray(data) || data.length === 0) {
     return { error: "Could not delete that reply." };
   }
-  const deleted = data[0] as { id: string; post_id?: string | null; body?: string | null };
+  const deleted = data[0] as {
+    id: string;
+    post_id?: string | null;
+    body?: string | null;
+    image_urls?: unknown;
+  };
   if (deleted.post_id) {
     await deleteOwnReplyPreviewNotifications(
       supabase,
       authorId,
       deleted.post_id,
       deleted.body ?? "",
+      replyImagesFromValue(deleted.image_urls),
     );
   }
   return {};

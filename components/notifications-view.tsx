@@ -7,6 +7,7 @@ import { AtSign, Bell, Handshake, Heart, MessageCircle, Quote, Repeat2, Star, Us
 import { Avatar } from "@/components/avatar";
 import { DealConfirmActions, useMyDeals } from "@/components/deal-response";
 import { WantAlertOfferLink } from "@/components/open-to-offers";
+import { ReplyPhotos } from "@/components/reply-photos";
 import { solidButton } from "@/components/button-styles";
 import { PullToRefresh } from "@/components/pull-to-refresh";
 import { EmptyState, LoadingRows } from "@/components/status";
@@ -22,11 +23,12 @@ import {
   unreadNotificationIds,
   type NotificationGroup,
 } from "@/lib/social/group-notifications";
+import { imagesFromNoticeMetadata } from "@/lib/social/reply-images";
 import type { NotificationKind, Profile } from "@/lib/social/types";
 
 export function NotificationsView() {
   const pathname = usePathname() || "/";
-  const { ready, user, profiles, notifications, markNotificationsRead, refresh } = useSocial();
+  const { ready, user, profiles, notifications, markNotificationsRead, refresh, commentsFor } = useSocial();
   const { deals, refresh: refreshDeals } = useMyDeals();
   const userId = user?.id ?? null;
   const unreadOnVisit = useRef<{ userId: string; ids: ReadonlySet<string> } | null>(null);
@@ -106,6 +108,7 @@ export function NotificationsView() {
             const lead = authors.get(group.actorIds[0] ?? "");
             const faces = group.actorIds.slice(0, 2);
             const highlighted = groupStaysHighlighted(group, savedUnreadIds);
+            const replyPhotos = photosOnReplyNotice(group, commentsFor);
             return (
               <li key={group.key} className={highlighted ? "bg-sky-500/15 dark:bg-sky-400/15" : undefined}>
                 <Link
@@ -167,6 +170,11 @@ export function NotificationsView() {
                   </span>
                   <Icon className="mt-1 h-4 w-4 shrink-0 text-zinc-400" />
                 </Link>
+                {replyPhotos.length > 0 ? (
+                  <div className="px-4 pb-3 pl-[4.25rem]">
+                    <ReplyPhotos images={replyPhotos} />
+                  </div>
+                ) : null}
                 {group.kind === "want_alert" ? (
                   <WantAlertOfferLink metadata={group.notes[0]?.metadata} />
                 ) : null}
@@ -184,6 +192,22 @@ export function NotificationsView() {
       )}
     </PullToRefresh>
   );
+}
+
+function photosOnReplyNotice(
+  group: NotificationGroup,
+  commentsFor: (postId: string) => { authorId: string; images?: readonly string[] }[],
+): string[] {
+  if (group.kind !== "comment" && group.kind !== "mention") return [];
+  const stored = imagesFromNoticeMetadata(
+    group.notes.find((note) => imagesFromNoticeMetadata(note.metadata).length)?.metadata,
+  );
+  if (stored.length || !group.postId) return stored;
+  const actorId = group.actorIds[0];
+  const match = [...commentsFor(group.postId)]
+    .reverse()
+    .find((comment) => comment.authorId === actorId && (comment.images?.length ?? 0) > 0);
+  return match?.images ? [...match.images] : [];
 }
 
 function groupHref(group: NotificationGroup, authors: Map<string, Profile>) {

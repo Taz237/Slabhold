@@ -283,7 +283,7 @@ describe("remote delete comment", () => {
       "delete",
       "eq:id=c1",
       "eq:user_id=author",
-      "select:id, post_id, body",
+      "select:id, post_id, body, image_urls",
     ]);
     assert.deepEqual(client.noteDeletes, [
       [

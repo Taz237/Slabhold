@@ -122,6 +122,7 @@ import type {
 } from "@/lib/social/types";
 import { draftPostPhotos, type PostWrite } from "@/lib/social/post-photos";
 import { profileReplies, profileWithPin } from "@/lib/social/profile-tabs";
+import { optimisticReply, withoutOptimisticReply } from "@/lib/social/reply-images";
 
 type SocialContextValue = {
   ready: boolean;
@@ -157,7 +158,7 @@ type SocialContextValue = {
   deleteComment: (commentId: string) => Promise<AuthResult>;
   toggleLike: (postId: string) => void;
   toggleRepost: (postId: string) => void;
-  addComment: (postId: string, body: string) => Promise<AuthResult>;
+  addComment: (postId: string, body: string, images?: readonly string[]) => Promise<AuthResult>;
   isLiked: (postId: string) => boolean;
   isReposted: (postId: string) => boolean;
   likeCount: (postId: string) => number;
@@ -1288,37 +1289,74 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
   );
 
   const addComment = useCallback(
-    async (postId: string, body: string): Promise<AuthResult> => {
-      if (mode === "supabase") {
-        const client = supabaseRef.current;
-        const current = snapshotRef.current;
-        if (!client) return { error: "Still loading." };
-        if (!current.user) return { error: "Log in to comment." };
-        const post = findKnownPost(current.posts, rememberedRef.current, postId, {
-          removedIds: removedRef.current,
-          blockedIds: new Set(current.blockedIds ?? []),
-        });
-        try {
-          const result = await remoteAddComment(
-            client,
-            current.user.id,
+    async (postId: string, body: string, images?: readonly string[]): Promise<AuthResult> => {
+      const photos = draftPostPhotos({ images: images ?? [] });
+      const text = body.trim();
+      if (!text && photos.length === 0) return { error: "Write a comment." };
+      const sendKey = `reply:${postId}:${text}:${photos.join("|")}`;
+      const inflight = inflightRef.current.get(sendKey);
+      if (inflight) return inflight as Promise<AuthResult>;
+      const run = (async (): Promise<AuthResult> => {
+        if (mode === "supabase") {
+          const client = supabaseRef.current;
+          const current = snapshotRef.current;
+          if (!client) return { error: "Still loading." };
+          if (!current.user) return { error: "Log in to comment." };
+          const optimistic = optimisticReply({
             postId,
-            body,
-            post?.authorId ?? null,
-          );
-          if (!result.error) {
-            await reloadRef.current(client);
+            authorId: current.user.id,
+            body: text,
+            images: photos,
+          });
+          const replaceComments = (map: (comments: SocialSnapshot["comments"]) => SocialSnapshot["comments"]) => {
+            setRemote((existing) => {
+              const comments = map(existing.comments);
+              snapshotRef.current = { ...snapshotRef.current, comments };
+              return { ...existing, comments };
+            });
+          };
+          replaceComments((comments) => [...withoutOptimisticReply(comments, optimistic.id), optimistic]);
+          const post = findKnownPost(current.posts, rememberedRef.current, postId, {
+            removedIds: removedRef.current,
+            blockedIds: new Set(current.blockedIds ?? []),
+          });
+          try {
+            const result = await remoteAddComment(
+              client,
+              current.user.id,
+              postId,
+              text,
+              post?.authorId ?? null,
+              photos,
+            );
+            if (result.error) {
+              replaceComments((comments) => withoutOptimisticReply(comments, optimistic.id));
+              return result;
+            }
+            try {
+              await reloadRef.current(client);
+              replaceComments((comments) => withoutOptimisticReply(comments, optimistic.id));
+            } catch {
+              // The reply is already saved. Leave the one local preview in place.
+            }
             if (result.notice) setStatus(result.notice);
+            return result;
+          } catch (error) {
+            replaceComments((comments) => withoutOptimisticReply(comments, optimistic.id));
+            return { error: error instanceof Error ? error.message : "Could not post that comment." };
           }
-          return result;
-        } catch (error) {
-          return { error: error instanceof Error ? error.message : "Could not post that comment." };
         }
+        if (!localRef.current) return { error: "Still loading." };
+        const result = localAddComment(localRef.current, postId, text, photos);
+        if (!result.error) commitLocal(result.db);
+        return { error: result.error };
+      })();
+      inflightRef.current.set(sendKey, run);
+      try {
+        return await run;
+      } finally {
+        if (inflightRef.current.get(sendKey) === run) inflightRef.current.delete(sendKey);
       }
-      if (!localRef.current) return { error: "Still loading." };
-      const result = localAddComment(localRef.current, postId, body);
-      if (!result.error) commitLocal(result.db);
-      return { error: result.error };
     },
     [commitLocal, mode],
   );
@@ -1858,6 +1896,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       applySafetyChange,
       blockedIds,
       commentsFor,
+      repliesBy,
       markNotificationsRead,
       markThreadRead,
       messages,
@@ -1868,7 +1907,6 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       deletePost,
       pinPost,
       unpinPost,
-      repliesBy,
       feed,
       followMany,
       snapshot.follows,

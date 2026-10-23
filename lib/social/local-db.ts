@@ -22,6 +22,7 @@ import {
 } from "./reply-mentions";
 import { draftPostPhotos } from "./post-photos";
 import { decidePin, pinnedPostIdAfterDelete } from "./profile-tabs";
+import { replyNoticePreview } from "./reply-images";
 import { shouldNotifyQuoteAuthor, validateQuoteContent } from "./quotes";
 import { COMMENT_LIMIT, MESSAGE_LIMIT } from "./types";
 import { isOfficialUpdatesAccount } from "./official-updates";
@@ -149,7 +150,8 @@ export function notificationsFromActivity(db: LocalDb): Notification[] {
       actorId: comment.authorId,
       kind: "comment",
       postId: post.id,
-      preview: previewText(comment.body),
+      preview: replyNoticePreview(comment.body, comment.images),
+      ...(comment.images?.length ? { metadata: { images: [...comment.images] } } : {}),
       createdAt: comment.createdAt,
       read: false,
     });
@@ -655,16 +657,19 @@ export function localAddComment(
   db: LocalDb,
   postId: string,
   body: string,
+  images?: readonly string[] | null,
 ): { db: LocalDb; error?: string } {
   if (!db.sessionUserId) return { db, error: "Log in to comment." };
   const text = body.trim().slice(0, COMMENT_LIMIT);
-  if (!text) return { db, error: "Write a comment." };
+  const photos = draftPostPhotos({ images: images ?? [] });
+  if (!text && photos.length === 0) return { db, error: "Write a comment." };
   if (!db.posts.some((post) => post.id === postId)) return { db, error: "That post is gone." };
   const comment: PostComment = {
     id: `comment-${Date.now().toString(36)}`,
     postId,
     authorId: db.sessionUserId,
     body: text,
+    ...(photos.length ? { images: photos } : {}),
     createdAt: new Date().toISOString(),
   };
   const next: LocalDb = { ...db, comments: [...(db.comments ?? []), comment] };
@@ -675,7 +680,8 @@ export function localAddComment(
     actorId: db.sessionUserId,
     kind: "comment",
     postId,
-    preview: previewText(text),
+    preview: replyNoticePreview(text, photos),
+    ...(photos.length ? { metadata: { images: photos } } : {}),
     createdAt: comment.createdAt,
   });
   const mentioned = replyMentionCandidates({
@@ -692,8 +698,8 @@ export function localAddComment(
         actorId: db.sessionUserId,
         kind: "mention",
         postId,
-        preview: previewText(text),
-        metadata: REPLY_MENTION_METADATA,
+        preview: replyNoticePreview(text, photos),
+        metadata: photos.length ? { ...REPLY_MENTION_METADATA, images: photos } : REPLY_MENTION_METADATA,
         createdAt: comment.createdAt,
       },
     );
@@ -910,7 +916,7 @@ export function canDeleteReply(viewerId: string | null | undefined, authorId: st
 function isOwnReplyPreviewNotification(note: Notification, comment: PostComment) {
   if (note.actorId !== comment.authorId) return false;
   if (note.postId !== comment.postId) return false;
-  const preview = previewText(comment.body);
+  const preview = replyNoticePreview(comment.body, comment.images);
   if (!preview || note.preview !== preview) return false;
   if (note.kind === "comment") return true;
   return note.kind === "mention" && isReplyMentionMetadata(note.metadata);

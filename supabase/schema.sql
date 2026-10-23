@@ -300,8 +300,16 @@ create table if not exists public.comments (
   post_id uuid not null references public.posts (id) on delete cascade,
   user_id uuid not null references public.profiles (id) on delete cascade,
   body text not null,
+  image_urls text[] not null default '{}',
   created_at timestamptz not null default now(),
-  constraint comments_body_len check (char_length(btrim(body)) between 1 and 280)
+  constraint comments_image_urls_len check (cardinality(image_urls) between 0 and 4),
+  constraint comments_body_len check (
+    char_length(body) <= 280
+    and (
+      char_length(btrim(body)) >= 1
+      or cardinality(image_urls) between 1 and 4
+    )
+  )
 );
 
 create table if not exists public.notifications (

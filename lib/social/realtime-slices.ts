@@ -3,6 +3,12 @@ import { loadMessageRows, mapDirectMessage } from "@/lib/offers/open-to-offers";
 import { applyAuthorSafety, loadHiddenAuthorIds } from "@/lib/safety/filters";
 import { isUuid } from "@/lib/value/card-value-access";
 import type { RealtimePatch, RealtimeSlice } from "./realtime-sync";
+import {
+  COMMENT_COLUMNS_WITH_IMAGES,
+  noteReplyImagesMissing,
+  replyImageColumnMissing,
+  replyImagesFromValue,
+} from "./reply-images";
 import type { DirectMessage, Notification, PostComment, PostRepost } from "./types";
 
 type Row = Record<string, unknown>;
@@ -60,11 +66,13 @@ function mapMessage(row: Row): DirectMessage {
 }
 
 function mapComment(row: Row): PostComment {
+  const images = replyImagesFromValue(row.image_urls);
   return {
     id: String(row.id),
     postId: String(row.post_id),
     authorId: String(row.user_id),
     body: String(row.body ?? ""),
+    ...(images.length ? { images } : {}),
     createdAt: String(row.created_at),
   };
 }
@@ -161,20 +169,27 @@ export async function loadRealtimePatch(
   }
   if (comments && postId) {
     tasks.push(
-      rowsOf(
-        applyAuthorSafety(
-          supabase
-            .from("comments")
-            .select("id, post_id, user_id, body, created_at")
-            .eq("post_id", postId)
-            .order("created_at", { ascending: true }),
-          viewerId,
-          mutedHidden,
-          { mute: true },
-        ),
-      ).then((rows) => {
-        patch.comments = rows.map(mapComment);
-      }),
+      (async () => {
+        const load = (columns: string) =>
+          applyAuthorSafety(
+            supabase
+              .from("comments")
+              .select(columns)
+              .eq("post_id", postId)
+              .order("created_at", { ascending: true }),
+            viewerId,
+            mutedHidden,
+            { mute: true },
+          );
+        try {
+          patch.comments = (await rowsOf(load(COMMENT_COLUMNS_WITH_IMAGES))).map(mapComment);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "";
+          if (!replyImageColumnMissing({ message })) throw error;
+          noteReplyImagesMissing();
+          patch.comments = (await rowsOf(load("id, post_id, user_id, body, created_at"))).map(mapComment);
+        }
+      })(),
     );
   }
   if (reposts && postId) {

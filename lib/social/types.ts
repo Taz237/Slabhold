@@ -107,6 +107,8 @@ export type PostComment = {
   postId: string;
   authorId: string;
   body: string;
+  /** Photo URLs, first to last. Omitted when the reply has none. */
+  images?: string[];
   createdAt: string;
 };
 

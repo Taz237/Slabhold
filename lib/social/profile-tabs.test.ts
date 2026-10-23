@@ -272,6 +272,17 @@ describe("profile tab filters", () => {
     assert.deepEqual(replies.map((reply) => reply.id), ["c-own", "c-ok"]);
   });
 
+  it("keeps a photo-only reply on the profile tab", () => {
+    const photo = comment("c-photo", ME, "2026-10-22T00:00:02.000Z");
+    photo.body = "";
+    photo.images = ["https://cdn.example/post-images/me/a.jpg"];
+    const blank = comment("c-blank", ME, "2026-10-22T00:00:03.000Z");
+    blank.body = "   ";
+    const replies = profileReplies([photo, blank], ME);
+    assert.deepEqual(replies.map((reply) => reply.id), ["c-photo"]);
+    assert.deepEqual(replies[0]?.images, photo.images);
+  });
+
   it("keeps only parent ids the viewer's posts select returns", async () => {
     const seen: { table?: string; columns?: string; ids?: string[] } = {};
     const supabase = {

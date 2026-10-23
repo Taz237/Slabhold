@@ -3,20 +3,48 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, Ellipsis } from "lucide-react";
+import { ArrowLeft, Ellipsis, ImagePlus } from "lucide-react";
 import { Avatar } from "@/components/avatar";
 import { EmptyState, LoadingRows } from "@/components/status";
 import { solidButton } from "@/components/button-styles";
+import { ReplyPhotoDrafts } from "@/components/compose-photo-drafts";
 import { MentionText } from "@/components/mention-text";
 import { MentionTextarea } from "@/components/mention-textarea";
+import { PhotoFileInputs } from "@/components/photo-file-inputs";
+import { ReplyPhotos } from "@/components/reply-photos";
 import { SafetyMenu } from "@/components/safety-menu";
 import { AuthorLine, Engagement, Tweet } from "@/components/tweet";
+import { usePostPhotos } from "@/components/use-post-photos";
 import { useSocial } from "@/components/social-provider";
+import { createSupabaseBrowser } from "@/lib/supabase/browser";
 import { signupPath } from "@/lib/auth/safe-next";
 import { userHref } from "@/lib/social/user-href";
 import { canDeleteReply } from "@/lib/social/local-db";
+import { photoAttachFull, photoAttachHint, POST_PHOTO_CAP_HINT } from "@/lib/social/post-photos";
 import { quotesOf } from "@/lib/social/quotes";
+import { commentsSupportReplyImages } from "@/lib/social/reply-images";
 import { COMMENT_LIMIT, type AuthResult, type PostComment } from "@/lib/social/types";
+
+function useReplyKeyboardOffset() {
+  const [offset, setOffset] = useState(0);
+  useEffect(() => {
+    const viewport = window.visualViewport;
+    if (!viewport) return;
+    const update = () => {
+      const overlap = Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop);
+      setOffset(overlap > 80 ? Math.round(overlap) : 0);
+    };
+    viewport.addEventListener("resize", update);
+    viewport.addEventListener("scroll", update);
+    const frame = window.requestAnimationFrame(update);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      viewport.removeEventListener("resize", update);
+      viewport.removeEventListener("scroll", update);
+    };
+  }, []);
+  return offset;
+}
 
 const PAGE_SIZE = 20;
 
@@ -31,9 +59,23 @@ export function PostView({ id }: { id: string }) {
   const replies = commentsFor(id);
   const authors = new Map(profiles.map((profile) => [profile.id, profile]));
   const replyRef = useRef<HTMLTextAreaElement>(null);
+  const libraryRef = useRef<HTMLInputElement>(null);
   const [draft, setDraft] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [replyPhotosOn, setReplyPhotosOn] = useState(mode !== "supabase");
+  const keyboardOffset = useReplyKeyboardOffset();
+  const {
+    images,
+    limit,
+    photoError,
+    readingPhoto,
+    addFiles,
+    removePhoto,
+    replaceAll,
+  } = usePostPhotos();
+  const photosFull = photoAttachFull(images.length, limit);
+  const photoCapHint = photosFull ? photoAttachHint(limit) : POST_PHOTO_CAP_HINT;
   const [lane, setLane] = useState<"replies" | "quotes">("replies");
   const [quoteLimit, setQuoteLimit] = useState(PAGE_SIZE);
   const [deleteNotice, setDeleteNotice] = useState<{ text: string; error: boolean } | null>(null);
@@ -50,6 +92,19 @@ export function PostView({ id }: { id: string }) {
     if (!ready || !user || window.location.hash !== "#reply") return;
     replyRef.current?.focus();
   }, [ready, user, id]);
+
+  useEffect(() => {
+    if (mode !== "supabase") return;
+    const supabase = createSupabaseBrowser();
+    if (!supabase) return;
+    let cancelled = false;
+    void commentsSupportReplyImages(supabase).then((ok) => {
+      if (!cancelled) setReplyPhotosOn(ok);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [mode]);
 
   useEffect(() => {
     setLane("replies");
@@ -90,13 +145,14 @@ export function PostView({ id }: { id: string }) {
       return;
     }
     setPending(true);
-    const result = await addComment(id, draft);
+    const result = await addComment(id, draft, replyPhotosOn ? images : []);
     setPending(false);
     if (result.error) {
       setError(result.error);
       return;
     }
     setDraft("");
+    replaceAll([]);
     setError(result.notice ?? null);
     if (replyRef.current) {
       replyRef.current.style.height = "auto";
@@ -231,9 +287,12 @@ export function PostView({ id }: { id: string }) {
                       @{author.username}
                     </Link>
                   </p>
-                  <p className="mt-0.5 text-[15px] leading-5 break-words whitespace-pre-wrap">
-                    <MentionText text={reply.body} />
-                  </p>
+                  {reply.body ? (
+                    <p className="mt-0.5 text-[15px] leading-5 break-words whitespace-pre-wrap">
+                      <MentionText text={reply.body} />
+                    </p>
+                  ) : null}
+                  <ReplyPhotos images={reply.images} />
                   <Engagement
                     targetId={reply.id}
                     onReply={() => focusReply(commenter?.username)}
@@ -247,15 +306,22 @@ export function PostView({ id }: { id: string }) {
       )}
 
       {user && lane === "replies" && author.id !== user.id && blockedIds.includes(author.id) ? (
-        <div className="fixed inset-x-0 bottom-[calc(6.15rem+env(safe-area-inset-bottom))] z-20 mx-auto w-full max-w-lg border-t border-zinc-200 bg-[color-mix(in_oklab,var(--background)_92%,transparent)] px-4 py-3 text-sm text-zinc-500 backdrop-blur-xl dark:border-white/10">
+        <div
+          style={replyDockStyle(keyboardOffset)}
+          className="fixed inset-x-0 z-20 mx-auto w-full max-w-lg border-t border-zinc-200 bg-[color-mix(in_oklab,var(--background)_92%,transparent)] px-4 py-3 text-sm text-zinc-500 backdrop-blur-xl dark:border-white/10"
+        >
           You can&apos;t interact with this account.
         </div>
       ) : user && lane === "replies" ? (
         <form
           onSubmit={submit}
-          className="fixed inset-x-0 bottom-[calc(6.15rem+env(safe-area-inset-bottom))] z-20 mx-auto w-full max-w-lg border-t border-zinc-200 bg-[color-mix(in_oklab,var(--background)_92%,transparent)] px-3 py-2 backdrop-blur-xl dark:border-white/10"
+          style={replyDockStyle(keyboardOffset)}
+          className="fixed inset-x-0 z-20 mx-auto w-full max-w-lg border-t border-zinc-200 bg-[color-mix(in_oklab,var(--background)_92%,transparent)] px-3 py-2 backdrop-blur-xl dark:border-white/10"
         >
-          <div className="flex items-end gap-2">
+          {replyPhotosOn ? (
+            <ReplyPhotoDrafts images={images} onRemove={removePhoto} />
+          ) : null}
+          <div className="flex min-w-0 items-end gap-2">
             <Avatar
               name={user.displayName}
               image={user.avatarDataUrl}
@@ -271,16 +337,48 @@ export function PostView({ id }: { id: string }) {
               rows={1}
               menu="docked"
               placeholder="Post your reply"
-              className="max-h-32 min-h-9 w-full resize-none bg-transparent py-2 text-[15px] leading-5 outline-none placeholder:text-zinc-500"
+              className="max-h-32 min-h-11 w-full min-w-0 flex-1 resize-none bg-transparent py-2 text-[15px] leading-5 outline-none placeholder:text-zinc-500"
             />
+            {replyPhotosOn ? (
+              <>
+                <PhotoFileInputs
+                  libraryRef={libraryRef}
+                  libraryMultiple
+                  onPick={(file) => {
+                    if (file) void addFiles([file]);
+                  }}
+                  onPickMany={(files) => void addFiles(files)}
+                />
+                <button
+                  type="button"
+                  disabled={photosFull}
+                  aria-label="Add photos"
+                  aria-describedby={photosFull ? "reply-photo-cap" : undefined}
+                  onClick={() => {
+                    if (photosFull) return;
+                    libraryRef.current?.click();
+                  }}
+                  className="mb-1 inline-flex h-11 w-11 min-h-11 min-w-11 shrink-0 items-center justify-center rounded-full text-violet-700 disabled:opacity-40 dark:text-violet-300"
+                >
+                  <ImagePlus className="h-5 w-5" />
+                </button>
+              </>
+            ) : null}
             <button
               type="submit"
-              disabled={pending || !draft.trim()}
-              className={`${solidButton} mb-1`}
+              disabled={pending || readingPhoto || (!draft.trim() && images.length === 0)}
+              className={`${solidButton} mb-1 min-h-11`}
             >
               Reply
             </button>
           </div>
+          {photosFull ? (
+            <p id="reply-photo-cap" className="mt-1 pl-10 text-xs text-zinc-500">
+              {photoCapHint}
+            </p>
+          ) : null}
+          {readingPhoto ? <p className="mt-1 pl-10 text-xs text-zinc-500">Reading photo…</p> : null}
+          {photoError ? <p className="mt-1 pl-10 text-xs text-rose-600 dark:text-rose-400">{photoError}</p> : null}
           {error ? <p className="mt-1 pl-10 text-xs text-rose-600 dark:text-rose-400">{error}</p> : null}
         </form>
       ) : !user && lane === "replies" ? (
@@ -409,6 +507,13 @@ function ReplyMenu({
       ) : null}
     </div>
   );
+}
+
+function replyDockStyle(keyboardOffset: number): { bottom: string } {
+  if (keyboardOffset > 0) {
+    return { bottom: `calc(${keyboardOffset}px + env(safe-area-inset-bottom))` };
+  }
+  return { bottom: "calc(6.15rem + env(safe-area-inset-bottom))" };
 }
 
 function LaneTab({
