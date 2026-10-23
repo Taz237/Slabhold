@@ -1,6 +1,6 @@
 import { renderOg } from "@/components/og-frame";
-import { getPublicValueBoard } from "@/lib/leaderboard/load";
-import { leaderboardBoardShareImage } from "@/lib/leaderboard/share";
+import { getPublicValueBoard } from "@/lib/leaderboard/value-load";
+import { leaderboardBoardShareImage } from "@/lib/leaderboard/value-share";
 
 export const alt = "Value leaderboard";
 export const size = { width: 1200, height: 630 };

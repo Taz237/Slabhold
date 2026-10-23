@@ -10,6 +10,10 @@ import {
   medianOnlySnapshotInsert,
   snapshotSaleSource,
 } from "@/lib/leaderboard/snapshot-fields";
+import {
+  rowsKeepingPriorIdentity,
+  type SnapshotIdentityRow,
+} from "@/lib/leaderboard/snapshot-keep";
 import { getCardValues } from "@/lib/value/getCardValue";
 import {
   collectionTotalsFromSummarize,
@@ -105,13 +109,32 @@ export async function upsertTodaysCollectionSnapshot(
       saleSource: snapshotSaleSource(value),
     });
   });
+  let rowsToWrite = cardRows;
   if (cardRows.length > 0) {
+    const prior = await loaded.admin
+      .from("card_value_snapshots")
+      .select(
+        "card_key, player, year, year_label, set_name, parallel, grade, grader, card_number, serial_run, is_auto, is_relic, grade_qualifier, condition_type, query_key",
+      )
+      .eq("user_id", userId)
+      .eq("snapshot_date", snapshotDate);
+    if (prior.error && !isMissingSnapshotColumn(prior.error)) {
+      throw new Error(prior.error.message);
+    }
+    if (!prior.error) {
+      rowsToWrite = rowsKeepingPriorIdentity(
+        (prior.data ?? []) as SnapshotIdentityRow[],
+        cardRows,
+      );
+    }
+  }
+  if (rowsToWrite.length > 0) {
     const full = await loaded.admin
       .from("card_value_snapshots")
-      .upsert(cardRows, { onConflict: "card_key,snapshot_date" });
+      .upsert(rowsToWrite, { onConflict: "card_key,snapshot_date" });
     if (full.error && isMissingSnapshotColumn(full.error)) {
       const fallback = await loaded.admin.from("card_value_snapshots").upsert(
-        cardRows.map((row) => medianOnlySnapshotInsert(row)),
+        rowsToWrite.map((row) => medianOnlySnapshotInsert(row)),
         { onConflict: "card_id,snapshot_date" },
       );
       if (fallback.error) throw new Error(fallback.error.message);

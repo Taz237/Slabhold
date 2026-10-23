@@ -51,6 +51,9 @@ export function CollectionProvider({ children }: { children: React.ReactNode }) 
   const cardsRef = useRef(cards);
   cardsRef.current = cards;
   const writes = useRef(new Map<string, Promise<unknown>>());
+  const pendingDeletes = useRef<string[]>([]);
+  const deleteQueued = useRef(false);
+  const flushDeletesRef = useRef<() => void>(() => undefined);
   const remote = mode === "supabase" && Boolean(user);
   const userId = user?.id ?? null;
 
@@ -234,23 +237,39 @@ export function CollectionProvider({ children }: { children: React.ReactNode }) 
       const next = cardsRef.current.filter((card) => card.id !== id);
       cardsRef.current = next;
       setCards(next);
-      if (remote && userId) {
-        const client = createSupabaseBrowser();
-        if (client) {
-          enqueue(id, async () => {
-            try {
-              await snapshotOwnedCollection();
-              await removeUserCard(client, userId, id);
-              setSyncError(null);
-            } catch (error) {
-              report(error);
-            }
+      if (!(remote && userId)) return;
+      pendingDeletes.current.push(id);
+      if (deleteQueued.current) return;
+      deleteQueued.current = true;
+      queueMicrotask(() => flushDeletesRef.current());
+    },
+    [remote, userId],
+  );
+
+  const flushDeletes = useCallback(() => {
+    const ids = pendingDeletes.current.splice(0);
+    deleteQueued.current = false;
+    if (!remote || !userId || ids.length === 0) return;
+    const client = createSupabaseBrowser();
+    if (!client) return;
+    void (async () => {
+      try {
+        await snapshotOwnedCollection();
+        for (const id of ids) {
+          await enqueue(id, async () => {
+            await removeUserCard(client, userId, id);
+            setSyncError(null);
           });
         }
+      } catch (error) {
+        report(error);
       }
-    },
-    [enqueue, remote, report, userId],
-  );
+    })();
+  }, [enqueue, remote, report, userId]);
+
+  useEffect(() => {
+    flushDeletesRef.current = flushDeletes;
+  }, [flushDeletes]);
 
   const reload = useCallback(() => {
     if (remote && userId) {

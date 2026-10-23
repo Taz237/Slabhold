@@ -2,7 +2,7 @@
 
 import { flushValueBoardCache } from "./flush-cache";
 import { saveLeaderboardOptIn, type LeaderboardOptInDb } from "./opt-in";
-import { allowValueBoardRevalidate } from "./revalidate-limit";
+import { allowValueBoardRevalidate, shouldFlushAfterOptIn } from "./revalidate-limit";
 
 /** Save the opt-in flag for the signed-in user, then drop the shared board cache. */
 export async function setLeaderboardOptIn(
@@ -18,14 +18,14 @@ export async function setLeaderboardOptIn(
     userId,
     optedIn === true,
   );
-  if (!result.error && allowValueBoardRevalidate(userId)) {
+  if (!result.error && shouldFlushAfterOptIn(optedIn === true, userId)) {
     await flushValueBoardCache();
   }
   return result;
 }
 
 /**
- * Username, avatar, and test-flag changes show on the board.
+ * Username, avatar, and test-handle changes show on the board.
  * Signed-in only, and rate-limited, so this is not a public cache flush.
  */
 export async function revalidateValueBoardForAccount(): Promise<void> {

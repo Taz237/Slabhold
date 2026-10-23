@@ -671,8 +671,6 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
                 afterUsername: patch.username,
                 beforeAvatar: before.avatarDataUrl,
                 afterAvatar: patch.avatarDataUrl,
-                beforeTestFlag: before.isTest === true,
-                afterTestFlag: before.isTest === true,
               })
             ) {
               await revalidateValueBoardForAccount();

@@ -1036,7 +1036,7 @@ create trigger posts_clear_pin_when_hidden
   after update of hidden_at on public.posts
   for each row
   execute function private.clear_pin_when_post_hidden();
--- Value board. Same objects as supabase/migrations/20261023001052_leaderboard_opt_in.sql.
+-- Value board. Same objects as supabase/migrations/20261023011000_leaderboard_opt_in.sql.
 -- Public rows use public held cards only.
 
 alter table public.profiles
@@ -1095,7 +1095,11 @@ create table if not exists public.blocks (
 -- A card made private mid-week still counts, at its last public trusted value.
 -- A snapshot taken while the card was private never reaches the percent.
 -- Identity is player, year, year label, set, parallel, grade, grader, card number,
--- serial, auto, relic, qualifier, and condition. Any change contributes 0.
+-- serial, auto, relic, qualifier, and condition, plus the comps query key.
+-- The end is the latest public trusted snapshot in the week whose identity and
+-- query key still match the week-start row, so a loss saved before an edit
+-- still counts. The start median is used only when no such row exists.
+-- A same-day update that would change identity or query key is skipped.
 -- It does not return collection dollar totals, paid prices, notes, or certs.
 --
 -- Account age uses auth.users.created_at. profiles.created_at is not the gate.
@@ -1399,6 +1403,40 @@ $$;
 
 revoke all on function public.card_snapshot_identity(text, text, text, text, text, text, text, text, text, boolean, boolean, text, text) from public, anon, authenticated;
 
+-- A same-day upsert must not replace today's row when the card's identity or
+-- comps query key changed. Returning null keeps the pre-edit snapshot.
+create or replace function public.card_value_snapshot_keep_identity()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  if public.card_snapshot_identity(
+       new.player, new.year, new.year_label, new.set_name, new.parallel, new.grade, new.grader,
+       new.card_number, new.serial_run, new.is_auto, new.is_relic, new.grade_qualifier, new.condition_type
+     ) is distinct from public.card_snapshot_identity(
+       old.player, old.year, old.year_label, old.set_name, old.parallel, old.grade, old.grader,
+       old.card_number, old.serial_run, old.is_auto, old.is_relic, old.grade_qualifier, old.condition_type
+     )
+     or (
+       old.query_key is not null
+       and new.query_key is not null
+       and old.query_key is distinct from new.query_key
+     )
+  then
+    return null;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists card_value_snapshot_keep_identity on public.card_value_snapshots;
+create trigger card_value_snapshot_keep_identity
+  before update on public.card_value_snapshots
+  for each row execute function public.card_value_snapshot_keep_identity();
+
+revoke all on function public.card_value_snapshot_keep_identity() from public, anon, authenticated;
+
 drop function if exists public.leaderboard_rows(date, date, integer, numeric);
 drop function if exists public.leaderboard_rows(date, date, integer, numeric, integer, timestamptz);
 
@@ -1506,27 +1544,31 @@ as $$
       and v.valued_sum >= least(greatest(coalesce(p_min_value, 250), 250), 1000000)
   ),
   chosen_end as (
-    select distinct on (s.card_key)
-      s.card_key,
-      s.user_id,
+    select distinct on (start_snap.card_key)
+      start_snap.card_key,
+      start_snap.user_id,
       s.median,
       s.n_sales,
       s.self_reported,
-      s.player,
       s.query_key,
-      public.card_snapshot_identity(
-        s.player, s.year, s.year_label, s.set_name, s.parallel, s.grade, s.grader,
-        s.card_number, s.serial_run, s.is_auto, s.is_relic, s.grade_qualifier, s.condition_type
-      ) as identity_key
-    from public.card_value_snapshots s
-    where s.snapshot_date >= p_start
-      and s.snapshot_date <= p_end
-      and s.is_public is true
-      and s.status in ('ok', 'sample')
-      and s.median is not null
-      and s.median >= 5
-      and s.n_sales >= 2
-    order by s.card_key, s.snapshot_date desc
+      start_snap.identity_key
+    from lineup start_snap
+    join public.card_value_snapshots s
+      on s.card_key = start_snap.card_key
+     and s.user_id = start_snap.user_id
+     and s.snapshot_date >= p_start
+     and s.snapshot_date <= p_end
+     and s.is_public is true
+     and s.status in ('ok', 'sample')
+     and s.median is not null
+     and s.median >= 5
+     and s.n_sales >= 2
+     and public.card_snapshot_identity(
+       s.player, s.year, s.year_label, s.set_name, s.parallel, s.grade, s.grader,
+       s.card_number, s.serial_run, s.is_auto, s.is_relic, s.grade_qualifier, s.condition_type
+     ) = start_snap.identity_key
+     and s.query_key is not distinct from start_snap.query_key
+    order by start_snap.card_key, s.snapshot_date desc
   )
   select
     e.id,
@@ -1537,44 +1579,11 @@ as $$
     e.bracket,
     start_snap.card_key,
     start_snap.median,
-    case
-      when (
-        start_snap.player is not null
-        and end_snap.player is not null
-        and start_snap.identity_key is distinct from end_snap.identity_key
-      ) or (
-        start_snap.query_key is not null
-        and end_snap.query_key is not null
-        and start_snap.query_key is distinct from end_snap.query_key
-      )
-      then start_snap.median
-      else coalesce(end_snap.median, 0)
-    end,
+    coalesce(end_snap.median, start_snap.median),
     start_snap.n_sales,
+    coalesce(end_snap.n_sales, start_snap.n_sales),
     case
-      when (
-        start_snap.player is not null
-        and end_snap.player is not null
-        and start_snap.identity_key is distinct from end_snap.identity_key
-      ) or (
-        start_snap.query_key is not null
-        and end_snap.query_key is not null
-        and start_snap.query_key is distinct from end_snap.query_key
-      )
-      then start_snap.n_sales
-      else coalesce(end_snap.n_sales, 0)
-    end,
-    case
-      when (
-        start_snap.player is not null
-        and end_snap.player is not null
-        and start_snap.identity_key is distinct from end_snap.identity_key
-      ) or (
-        start_snap.query_key is not null
-        and end_snap.query_key is not null
-        and start_snap.query_key is distinct from end_snap.query_key
-      )
-      then coalesce(start_snap.self_reported, false)
+      when end_snap.card_key is null then coalesce(start_snap.self_reported, false)
       else (coalesce(start_snap.self_reported, false) or coalesce(end_snap.self_reported, false))
     end,
     exists (
@@ -1600,7 +1609,7 @@ revoke execute on function public.leaderboard_rows(date, date, integer, numeric,
 grant execute on function public.leaderboard_rows(date, date, integer, numeric, integer, timestamptz) to service_role;
 
 -- Block ids for the value board, both directions, for one verified viewer.
--- Service role only: load.ts passes the viewer id from auth.getUser().
+-- Service role only: value-load.ts passes the viewer id from auth.getUser().
 -- Signed-in users must not be able to list who blocked them.
 drop function if exists public.blocked_by_ids();
 
@@ -1618,4 +1627,3 @@ $$;
 
 revoke all on function public.leaderboard_hidden_ids(uuid) from public, anon, authenticated;
 grant execute on function public.leaderboard_hidden_ids(uuid) to service_role;
-

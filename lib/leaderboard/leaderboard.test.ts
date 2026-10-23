@@ -49,7 +49,7 @@ import {
   ESTIMATED_FROM_SOLD,
   leaderboardRankShareImage,
   rankShareText,
-} from "@/lib/leaderboard/share";
+} from "@/lib/leaderboard/value-share";
 import {
   cardSnapshotInsert,
   cardValueSnapshotFields,
@@ -57,7 +57,9 @@ import {
   medianOnlySnapshotInsert,
   snapshotSaleSource,
 } from "@/lib/leaderboard/snapshot-fields";
-import { allowValueBoardRevalidate } from "@/lib/leaderboard/revalidate-limit";
+import { allowValueBoardRevalidate, shouldFlushAfterOptIn } from "@/lib/leaderboard/revalidate-limit";
+import { chosenEndMedian, rowsKeepingPriorIdentity, storedIdentityKey } from "@/lib/leaderboard/snapshot-keep";
+import { runOncePerUser } from "@/lib/leaderboard/snapshot-limit";
 import { profileChangeRefreshesBoard } from "@/lib/leaderboard/profile-refresh";
 import { cardChangeNeedsSnapshot } from "@/lib/leaderboard/snapshot-trigger";
 import { buildQueryKey } from "@/lib/comps/query-key";
@@ -339,6 +341,83 @@ describe("value board math", () => {
     }
   });
 
+  it("keeps a loss when the card is edited on a later day or the same day", () => {
+    const value = (median: number): CardValueResult => ({
+      status: "ok",
+      median,
+      low: median,
+      high: median,
+      nSales: 3,
+      matchedAt: null,
+    });
+    const row = (date: string, median: number, cardNumber: string) =>
+      cardSnapshotInsert({
+        cardId: "card-1",
+        userId: "user-1",
+        snapshotDate: date,
+        playerName: "Ada",
+        year: 2020,
+        setBrand: "Prizm",
+        parallel: "Silver",
+        grade: "PSA 10",
+        cardNumber,
+        isPublic: true,
+        held: true,
+        value: value(median),
+      });
+    const lineup = (written: ReturnType<typeof row>, median: number) => ({
+      snapshotDate: written.snapshot_date,
+      median,
+      nSales: written.n_sales ?? 0,
+      identityKey: storedIdentityKey(written),
+      queryKey: written.query_key,
+      isPublic: written.is_public,
+      status: written.status,
+    });
+    const start = row("2026-10-18", 100, "1");
+    const fallen = row("2026-10-20", 70, "1");
+    const renamed = row("2026-10-21", 20, "9");
+    const later = chosenEndMedian({
+      start: lineup(start, 100),
+      snapshots: [lineup(start, 100), lineup(fallen, 70), lineup(renamed, 20)],
+      endDate: "2026-10-22",
+    });
+    assert.equal(later, 70);
+    const laterChange = valueBoardChange([
+      card({
+        cardId: "card-1",
+        identityKey: storedIdentityKey(start),
+        startMedian: 100,
+        endMedian: later,
+        endResolved: true,
+      }),
+    ]);
+    assert.equal(laterChange.dollarGain, -30);
+    assert.notEqual(laterChange.percent, 0);
+
+    const morning = row("2026-10-21", 70, "1");
+    const sameDayEdit = row("2026-10-21", 20, "9");
+    assert.equal(rowsKeepingPriorIdentity([morning], [sameDayEdit]).length, 0);
+    assert.equal(rowsKeepingPriorIdentity([morning], [row("2026-10-21", 60, "1")]).length, 1);
+    const sameDay = chosenEndMedian({
+      start: lineup(start, 100),
+      snapshots: [lineup(start, 100), lineup(morning, 70)],
+      endDate: "2026-10-22",
+    });
+    assert.equal(sameDay, 70);
+    const sameDayChange = valueBoardChange([
+      card({
+        cardId: "card-1",
+        identityKey: storedIdentityKey(start),
+        startMedian: 100,
+        endMedian: sameDay,
+        endResolved: true,
+      }),
+    ]);
+    assert.equal(sameDayChange.dollarGain, -30);
+    assert.notEqual(sameDayChange.percent, 0);
+  });
+
   it("scores a card made private mid-week at its last public value", () => {
     const lastPublic = valueBoardChange([
       card({
@@ -405,6 +484,7 @@ describe("value board brackets", () => {
     assert.equal(shown?.rows.length, 10);
     assert.equal(shown?.rows[0]?.username, "user09");
     assert.equal("dollarGain" in (shown?.rows[0] ?? {}), false);
+    assert.ok((shown?.rows ?? []).every((row) => row.percent <= 1));
     assert.equal(open.every((bracket) => bracket.id !== "1k-10k" || !bracket.open), true);
   });
 });
@@ -750,7 +830,7 @@ describe("value board week and sharing", () => {
 
 describe("leaderboard wiring", () => {
   it("adds one idempotent migration and does not turn the history flag on in code", () => {
-    const sql = read("supabase/migrations/20261023001052_leaderboard_opt_in.sql");
+    const sql = read("supabase/migrations/20261023011000_leaderboard_opt_in.sql");
     assert.match(sql, /add column if not exists leaderboard_opt_in boolean not null default false/);
     assert.match(sql, /add column if not exists n_sales integer/);
     assert.match(sql, /add column if not exists self_reported boolean not null default false/);
@@ -797,7 +877,11 @@ describe("leaderboard wiring", () => {
     assert.match(sql, /p_year_label text/);
     assert.match(sql, /p_condition_type text/);
     assert.match(sql, /add column if not exists query_key text/);
-    assert.match(sql, /start_snap\.query_key is distinct from end_snap\.query_key/);
+    assert.match(sql, /s\.query_key is not distinct from start_snap\.query_key/);
+    assert.match(sql, /coalesce\(end_snap\.median, start_snap\.median\)/);
+    assert.match(sql, /card_value_snapshot_keep_identity/);
+    assert.match(sql, /before update on public\.card_value_snapshots/);
+    assert.match(sql, /return null;/);
     assert.match(sql, /is_public is true/);
     assert.match(sql, /is_test/);
     assert.match(sql, /qa_/);
@@ -823,8 +907,8 @@ describe("leaderboard wiring", () => {
     assert.match(sql, /f\.created_at < \(p_start \+ interval '1 day'\)/);
     assert.match(sql, /comp_flags_card_id_idx/);
     assert.match(sql, /1000000/);
-    assert.match(sql, /identity_key is distinct from end_snap\.identity_key/);
-    assert.match(sql, /coalesce\(end_snap\.median, 0\)/);
+    assert.match(sql, /= start_snap\.identity_key/);
+    assert.match(sql, /coalesce\(end_snap\.median, start_snap\.median\)/);
     const fn = sql.slice(
       sql.indexOf("function public.leaderboard_rows"),
       sql.indexOf("comment on function public.leaderboard_rows"),
@@ -923,7 +1007,7 @@ describe("leaderboard wiring", () => {
   });
 
   it("returns no rows for null or reversed dates and ignores a private mid-week value", () => {
-    const sql = read("supabase/migrations/20261023001052_leaderboard_opt_in.sql");
+    const sql = read("supabase/migrations/20261023011000_leaderboard_opt_in.sql");
     const fn = sql.slice(
       sql.indexOf("function public.leaderboard_rows"),
       sql.indexOf("comment on function public.leaderboard_rows"),
@@ -950,7 +1034,7 @@ describe("leaderboard wiring", () => {
     assert.match(read("lib/collection/totals.ts"), /snapshotDateInNewYork\(\)/);
   });
 
-  it("ships the value board as its own route and leaves the nav tab to the weekly frame", () => {
+  it("ships the value board as its own route and leaves the nav tab to the weekly frame", async () => {
     const shell = read("components/app-shell.tsx");
     const tabs = shell.slice(shell.indexOf("const TABS"), shell.indexOf("] as const;"));
     assert.doesNotMatch(tabs, /Trophy/);
@@ -963,7 +1047,7 @@ describe("leaderboard wiring", () => {
     assert.match(read("components/privacy-lists.tsx"), /LeaderboardOptInSwitch/);
     assert.match(read("components/dashboard.tsx"), /LeaderboardOptInSwitch/);
     assert.match(read("components/dashboard.tsx"), /LeaderboardPrompt/);
-    const load = read("lib/leaderboard/load.ts");
+    const load = read("lib/leaderboard/value-load.ts");
     assert.match(load, /revalidate: LEADERBOARD_CACHE_SECONDS/);
     assert.match(load, /LEADERBOARD_CACHE_SECONDS = 15 \* 60/);
     assert.match(load, /VALUE_BOARD_CACHE_TAG/);
@@ -974,6 +1058,7 @@ describe("leaderboard wiring", () => {
     assert.doesNotMatch(read("components/leaderboard-opt-in.tsx"), /revalidateValueBoard/);
     const optInAction = read("lib/leaderboard/revalidate.ts");
     assert.match(optInAction, /getAuthUserId\(\)/);
+    assert.match(optInAction, /shouldFlushAfterOptIn/);
     assert.match(optInAction, /allowValueBoardRevalidate/);
     assert.match(optInAction, /saveLeaderboardOptIn/);
     assert.doesNotMatch(optInAction, /export async function revalidateValueBoard\(/);
@@ -982,6 +1067,10 @@ describe("leaderboard wiring", () => {
     assert.equal(allowValueBoardRevalidate("rate-ada", rateAt), true);
     assert.equal(allowValueBoardRevalidate("rate-ada", rateAt + 5_000), false);
     assert.equal(allowValueBoardRevalidate("rate-ada", rateAt + 10_000), true);
+    assert.equal(shouldFlushAfterOptIn(false, "opt-ada", rateAt), true);
+    assert.equal(shouldFlushAfterOptIn(false, "opt-ada", rateAt + 1_000), true);
+    assert.equal(shouldFlushAfterOptIn(true, "opt-ada", rateAt + 1_000), true);
+    assert.equal(shouldFlushAfterOptIn(true, "opt-ada", rateAt + 2_000), false);
     const edit = {
       id: "card-1",
       playerName: "Ada",
@@ -1002,12 +1091,24 @@ describe("leaderboard wiring", () => {
       true,
     );
     assert.match(read("components/collection-provider.tsx"), /snapshotOwnedCollection\(\)/);
+    assert.match(read("components/collection-provider.tsx"), /pendingDeletes/);
+    assert.match(read("components/collection-provider.tsx"), /queueMicrotask/);
+    assert.match(read("lib/leaderboard/snapshot-before.ts"), /runOncePerUser/);
+    assert.match(read("lib/collection/totals.ts"), /rowsKeepingPriorIdentity/);
+    let snapshots = 0;
+    await Promise.all([
+      runOncePerUser("bulk-ada", async () => { snapshots += 1; }, rateAt),
+      runOncePerUser("bulk-ada", async () => { snapshots += 1; }, rateAt),
+      runOncePerUser("bulk-ada", async () => { snapshots += 1; }, rateAt),
+    ]);
+    assert.equal(snapshots, 1);
     assert.match(read("components/collection-provider.tsx"), /cardChangeNeedsSnapshot\(previous, updated\)/);
     assert.match(read("app/api/cron/refresh-card-values/route.ts"), /snapshotOwnersAfterRefresh/);
     assert.match(read("lib/account/delete-account.ts"), /"card_value_snapshots", "user_id"/);
     assert.match(read("app/api/account/delete/route.ts"), /flushValueBoardCache/);
     assert.match(read("components/social-provider.tsx"), /revalidateValueBoardForAccount/);
     assert.match(read("components/social-provider.tsx"), /profileChangeRefreshesBoard/);
+    assert.doesNotMatch(read("components/social-provider.tsx"), /afterTestFlag/);
     const sameProfile = {
       beforeUsername: "ada",
       afterUsername: "ada",
@@ -1051,7 +1152,9 @@ describe("leaderboard wiring", () => {
     assert.match(schemaFn, /function public\.leaderboard_hidden_ids\(p_viewer uuid\)/);
     assert.match(schemaFn, /s\.card_number/);
     assert.match(schemaFn, /s\.query_key/);
-    assert.match(schemaFn, /query_key is distinct from end_snap\.query_key/);
+    assert.match(schemaFn, /s\.query_key is not distinct from start_snap\.query_key/);
+    assert.match(schemaFn, /coalesce\(end_snap\.median, start_snap\.median\)/);
+    assert.match(schema, /card_value_snapshot_keep_identity/);
     assert.doesNotMatch(schemaFn, /function public\.blocked_by_ids/);
     assert.match(schemaFn, /auth\.users/);
     assert.match(schemaFn, /s\.is_public is true/);
@@ -1075,7 +1178,7 @@ describe("leaderboard wiring", () => {
       "components/value-board.tsx",
       "components/leaderboard-opt-in.tsx",
       "app/leaderboard/value/page.tsx",
-      "lib/leaderboard/share.ts",
+      "lib/leaderboard/value-share.ts",
       "lib/leaderboard/eligibility.ts",
       "lib/leaderboard/requirements.ts",
     ];

@@ -1,6 +1,12 @@
 import { valueBracketLabel, type ValueBracketId } from "./brackets";
 import { LEADERBOARD_MIN_COLLECTORS, leaderboardOpens } from "./eligibility";
-import { rankValueBoard, valueBoardChange, valuePercentLabel, type ValueCard } from "./math";
+import {
+  VALUE_PERCENT_CAP,
+  rankValueBoard,
+  valueBoardChange,
+  valuePercentLabel,
+  type ValueCard,
+} from "./math";
 
 export type ValueBoardSourceCard = ValueCard & {
   userId: string;
@@ -103,17 +109,20 @@ export function assembleValueBoard(cards: readonly ValueBoardSourceCard[]): Asse
       label: valueBracketLabel(id),
       open,
       rows: open
-        ? rankValueBoard(rows).map((row) => ({
-            userId: row.userId,
-            username: row.username,
-            displayName: row.displayName,
-            avatarUrl: row.avatarUrl,
-            accent: row.accent,
-            percent: row.percent,
-            percentLabel: row.percentLabel,
-            flagged: row.flagged,
-            rank: row.rank,
-          }))
+        ? rankValueBoard(rows).map((row) => {
+            const percent = Math.min(row.percent, VALUE_PERCENT_CAP);
+            return {
+              userId: row.userId,
+              username: row.username,
+              displayName: row.displayName,
+              avatarUrl: row.avatarUrl,
+              accent: row.accent,
+              percent,
+              percentLabel: valuePercentLabel(percent),
+              flagged: row.flagged,
+              rank: row.rank,
+            };
+          })
         : [],
     });
   }

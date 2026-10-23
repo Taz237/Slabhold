@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { ValueBoard } from "@/components/value-board";
 import { LEADERBOARD_NOTE, leaderboardMinimums } from "@/lib/leaderboard/eligibility";
-import { getValueBoard } from "@/lib/leaderboard/load";
+import { getValueBoard } from "@/lib/leaderboard/value-load";
 import { getAuthUserCreatedAt } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";

@@ -38,7 +38,7 @@ BEGIN
   INSERT INTO public.want_alerts (want_id, user_id, source_type, source_id)
   VALUES (want_id, bot_id, 'sale', 'item-rls');
 
-  -- card_key is required after 20261023001052. It survives a later card delete.
+  -- card_key is required after 20261023011000. It survives a later card delete.
   INSERT INTO public.card_value_snapshots (card_id, card_key, snapshot_date, median)
   VALUES (owned_card, owned_card, DATE '2026-10-17', 10);
 

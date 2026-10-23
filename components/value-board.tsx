@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Avatar } from "@/components/avatar";
 import { useCollection } from "@/components/collection-provider";
 import { useSocial } from "@/components/social-provider";
-import { ESTIMATED_FROM_SOLD } from "@/lib/leaderboard/share";
+import { ESTIMATED_FROM_SOLD } from "@/lib/leaderboard/value-share";
 import {
   LEADERBOARD_HOW_TO,
   leaderboardChecklist,
