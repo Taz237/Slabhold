@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { X } from "lucide-react";
 import { searchCatalog } from "@/lib/card-catalog";
+import { collapseInitials } from "@/lib/players/initials";
 import { nameSuggestionLabel, withDirectoryPlayers } from "@/lib/players/suggest";
 import { usePlayerDirectory } from "@/lib/players/use-directory";
 import {
@@ -14,6 +15,7 @@ import {
 } from "@/lib/social/collect-interests";
 import { compactInterest, normInterest, type CollectInterest } from "@/lib/social/follow-rank";
 import { createSupabaseBrowser } from "@/lib/supabase/browser";
+import { getSupabaseConfig } from "@/lib/supabase/client";
 
 const chipClass =
   "inline-flex min-h-11 items-center justify-center rounded-full border px-4 text-sm font-semibold";
@@ -66,6 +68,33 @@ function nameRowLabel(hit: { kind: string; sport?: string }): string {
   return hit.sport ? `Player · ${hit.sport}` : "Player";
 }
 
+/**
+ * The other search_cards query for initials. "c.j. stroud" also searches "cj stroud",
+ * and "cj stroud" also searches "c.j. stroud". A trailing fragment such as "st" stays put.
+ */
+export function alternateInitialQuery(query: string): string | null {
+  const norm = normInterest(query);
+  if (!norm) return null;
+  const words = norm.split(" ").filter(Boolean);
+  const joined = collapseInitials(words).join(" ");
+  if (joined !== norm) return joined;
+  let dotted = false;
+  const expanded = words.map((word, index) => {
+    if (word.length !== 2 || index === words.length - 1) return word;
+    dotted = true;
+    return `${word[0]}.${word[1]}.`;
+  });
+  return dotted ? expanded.join(" ") : null;
+}
+
+export function cardSearchQueries(query: string): string[] {
+  const primary = query.trim();
+  if (!primary) return [];
+  const extra = alternateInitialQuery(primary);
+  if (!extra || extra.toLowerCase() === primary.toLowerCase()) return [primary];
+  return [primary, extra];
+}
+
 export function NameSearch({
   sports,
   selected,
@@ -89,18 +118,23 @@ export function NameSearch({
     if (!supabase) return;
     let cancelled = false;
     const timer = window.setTimeout(() => {
-      void supabase
-        .rpc("search_cards", { q, max_results: 20 })
-        .then(({ data, error }) => {
-          if (cancelled || error || !data) return;
-          const rows = data as { player?: string; sport?: string | null }[];
-          setRemoteQuery(q);
-          setRemotePlayers(
-            rows
-              .filter((row) => row.player)
-              .map((row) => ({ name: row.player ?? "", sport: row.sport || "" })),
-          );
-        });
+      void Promise.all(
+        cardSearchQueries(q).map((term) =>
+          Promise.resolve(
+            supabase.rpc("search_cards", { q: term, max_results: 20 }).then(({ data, error }) => {
+              if (error || !data) return [];
+              const rows = data as { player?: string; sport?: string | null }[];
+              return rows
+                .filter((row) => row.player)
+                .map((row) => ({ name: row.player ?? "", sport: row.sport || "" }));
+            }),
+          ).catch(() => [] as { name: string; sport: string }[]),
+        ),
+      ).then((groups) => {
+        if (cancelled) return;
+        setRemoteQuery(q);
+        setRemotePlayers(groups.flat());
+      });
     }, 120);
     return () => {
       cancelled = true;
@@ -119,6 +153,8 @@ export function NameSearch({
   }, [query, remotePlayers, remoteQuery]);
 
   const directoryReady = directory.status === "ready";
+  const typed = query.trim().length > 0;
+  const catalogSettled = !getSupabaseConfig().configured || !typed || remoteQuery === query.trim();
   const hits = useMemo(() => {
     const found = withDirectoryPlayers({
       query,
@@ -132,9 +168,12 @@ export function NameSearch({
       directoryPlayers: directory.players,
       directoryReady,
     });
-    return hitsBeforeDirectoryReady(found, directoryReady);
-  }, [directory.players, directoryReady, players, query, sports]);
-  const typed = query.trim().length > 0;
+    return selectableCollectHits(
+      hitsBeforeDirectoryReady(found, directoryReady),
+      players.map((player) => player.name),
+      catalogSettled,
+    );
+  }, [catalogSettled, directory.players, directoryReady, players, query, sports]);
 
   return (
     <div>
@@ -176,7 +215,7 @@ export function NameSearch({
           </button>
         </div>
       ) : null}
-      {typed && directory.status !== "loading" && hits.length === 0 ? (
+      {typed && directory.status !== "loading" && catalogSettled && hits.length === 0 ? (
         <p className="mt-2 text-sm text-zinc-500">No players found</p>
       ) : null}
       {hits.length > 0 ? (
@@ -220,6 +259,19 @@ export function hitsBeforeDirectoryReady<T extends { kind: string }>(
 ): T[] {
   if (directoryReady) return [...hits];
   return hits.filter((hit) => hit.kind !== "player");
+}
+
+/** Directory spellings stay unselectable until search_cards has answered for this query. */
+export function selectableCollectHits<T extends { kind: string; value: string; custom?: boolean }>(
+  hits: readonly T[],
+  catalogNames: readonly string[],
+  catalogSettled: boolean,
+): T[] {
+  if (catalogSettled) return [...hits];
+  const keys = new Set(catalogNames.map((name) => compactInterest(name)));
+  return hits.filter(
+    (hit) => hit.kind !== "player" || (!hit.custom && keys.has(compactInterest(hit.value))),
+  );
 }
 
 /** "Will Smith · Baseball" when the saved player name is shared. Other chips stay the name. */

@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { SPORT_PICKER_OPTIONS } from "../card-options";
+import { collapseInitials } from "../players/initials";
 import {
   INTEREST_RANK_LIMIT,
   compactInterest,
@@ -264,6 +265,7 @@ export function interestTypeahead(input: {
 }): InterestHit[] {
   const query = normInterest(input.query);
   if (!query) return [];
+  const joinedQuery = collapseInitials(query.split(" ").filter(Boolean)).join(" ");
   const sports = (input.sports ?? []).map((sport) => sport.toLowerCase()).filter(Boolean);
   const allowed = (sport: string) =>
     !collectSportBlocked(sport) &&
@@ -283,7 +285,15 @@ export function interestTypeahead(input: {
   for (const player of input.players) {
     if (!allowed(player.sport)) continue;
     const norm = normInterest(player.name);
-    if (!norm || (!norm.includes(query) && !compactPlayerQueryMatches(input.query, player.name))) continue;
+    const joinedName = collapseInitials(norm.split(" ").filter(Boolean)).join(" ");
+    if (
+      !norm ||
+      (!norm.includes(query) &&
+        !joinedName.includes(joinedQuery) &&
+        !compactPlayerQueryMatches(input.query, player.name))
+    ) {
+      continue;
+    }
     const key = compactInterest(player.name);
     const group = playersByKey.get(key);
     const existing = group?.find((item) => playerSportsCompatible(item.hit.sport, player.sport));

@@ -499,6 +499,20 @@ export function withDirectoryPlayers(input: {
   else {
     const fromDirectory = directorySpelling(input.query, input.directoryPlayers ?? []);
     if (fromDirectory) custom.value = fromDirectory;
+    else if (input.query.includes(".")) custom.value = titleCaseKeepingDots(input.query);
   }
   return [custom];
+}
+
+/** "a.b. newguy" stays "A.B. Newguy" when no catalog or roster row supplies a spelling. */
+function titleCaseKeepingDots(value: string): string {
+  const collapsed = value.trim().replace(/\u2060/g, "").replace(/\s+/g, " ").normalize("NFC");
+  if (!collapsed || hasMixedCase(collapsed)) return collapsed;
+  return collapsed
+    .split(" ")
+    .map((word, index) => {
+      if (!word.includes(".")) return titleToken(word, index);
+      return word.replace(/\p{L}/gu, (letter) => letter.toLocaleUpperCase());
+    })
+    .join(" ");
 }

@@ -9,9 +9,12 @@ import { withDirectoryPlayers } from "@/lib/players/suggest";
 import { COLLECT_TEAMS, interestTypeahead } from "@/lib/social/collect-interests";
 import {
   NameSearch,
+  alternateInitialQuery,
+  cardSearchQueries,
   hitsBeforeDirectoryReady,
   nameHitKey,
   pickedNameLabel,
+  selectableCollectHits,
   toggleName,
   withoutName,
 } from "@/components/collect-editor";
@@ -251,5 +254,94 @@ describe("collect name rows", () => {
       root.unmount();
     });
     host.remove();
+  });
+
+  it("saves the catalog spelling when compact initials meet live rows", () => {
+    const saved = (query: string, rows: { name: string; sport: string }[]) => {
+      const hits = withDirectoryPlayers({
+        query,
+        catalogHits: interestTypeahead({ query, players: rows, teams: [] }),
+        directoryPlayers: INDEXED_DIRECTORY,
+        directoryReady: true,
+      });
+      return hits.find((hit) => hit.kind === "player" && !hit.custom)?.value;
+    };
+    assert.equal(
+      saved(
+        "tj parker",
+        Array.from({ length: 2 }, () => ({ name: "T.J. Parker", sport: "Football" })),
+      ),
+      "T.J. Parker",
+    );
+    assert.equal(
+      saved(
+        "jc latham",
+        Array.from({ length: 13 }, () => ({ name: "J.C. Latham", sport: "Football" })),
+      ),
+      "J.C. Latham",
+    );
+    assert.equal(alternateInitialQuery("dont e"), null);
+    assert.equal(alternateInitialQuery("john st"), null);
+    assert.deepEqual(cardSearchQueries("c.j. stroud"), ["c.j. stroud", "cj stroud"]);
+    assert.equal(
+      saved("c.j. stroud", [
+        ...Array.from({ length: 3 }, () => ({ name: "C.J. Stroud", sport: "Football" })),
+        ...Array.from({ length: 9 }, () => ({ name: "CJ Stroud", sport: "Football" })),
+      ]),
+      "CJ Stroud",
+    );
+  });
+
+  it("keeps dotted custom names and holds the roster spelling until the card rows arrive", () => {
+    const dotted = withDirectoryPlayers({
+      query: "A.B. Newguy",
+      catalogHits: [],
+      directoryPlayers: INDEXED_DIRECTORY,
+      directoryReady: true,
+    });
+    assert.equal(dotted[0]?.value, "A.B. Newguy");
+    assert.equal(dotted[0]?.custom, true);
+    const lower = withDirectoryPlayers({
+      query: "a.b. newguy",
+      catalogHits: [],
+      directoryPlayers: [],
+      directoryReady: true,
+    });
+    assert.equal(lower[0]?.value, "A.B. Newguy");
+    assert.equal(lower[0]?.custom, true);
+    const waiting = selectableCollectHits(
+      [
+        { kind: "player", value: "JC Latham" },
+        { kind: "player", value: "A.B. Newguy", custom: true },
+        { kind: "team", value: "Chiefs" },
+      ],
+      [],
+      false,
+    );
+    assert.deepEqual(
+      waiting.map((hit) => hit.value),
+      ["Chiefs"],
+    );
+    const catalogBacked = selectableCollectHits(
+      [{ kind: "player", value: "J.C. Latham" }, { kind: "team", value: "Chiefs" }],
+      ["J.C. Latham"],
+      false,
+    );
+    assert.deepEqual(
+      catalogBacked.map((hit) => hit.value),
+      ["J.C. Latham", "Chiefs"],
+    );
+    const arrived = selectableCollectHits(
+      [
+        { kind: "player", value: "JC Latham" },
+        { kind: "player", value: "A.B. Newguy", custom: true },
+      ],
+      [],
+      true,
+    );
+    assert.deepEqual(
+      arrived.map((hit) => hit.value),
+      ["JC Latham", "A.B. Newguy"],
+    );
   });
 });
