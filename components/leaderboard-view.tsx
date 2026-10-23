@@ -124,7 +124,7 @@ function Podium({ entries, boardId }: { entries: readonly RankedEntry[]; boardId
 
 function YouCard({ you }: { you: YouRow }) {
   return (
-    <div className="rounded-2xl border border-violet-400/40 bg-zinc-950/95 px-4 py-3 shadow-[0_10px_30px_rgba(124,92,255,0.28)]">
+    <div className="rounded-2xl border border-violet-400/40 bg-zinc-950 px-4 py-3 shadow-[0_10px_30px_rgba(124,92,255,0.28)]">
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
           <p className="text-[11px] font-bold uppercase tracking-wide text-violet-200">Your rank</p>
@@ -159,7 +159,15 @@ export function LeaderboardView({ model }: { model: LeaderboardPageModel }) {
   const podium = model.entries.filter((entry) => entry.rank <= 3);
   const rest = model.entries.filter((entry) => entry.rank > 3);
   return (
-    <div className="-mx-4 -mt-5 bg-zinc-950 text-zinc-100" data-leaderboard="" data-board-accent={model.boardId}>
+    <div
+      className={`-mx-4 -mt-5 bg-zinc-950 text-zinc-100${
+        model.you
+          ? " -mb-[calc(8.25rem+env(safe-area-inset-bottom))] pb-[calc(8.25rem+env(safe-area-inset-bottom))] md:-mb-[calc(11.25rem+env(safe-area-inset-bottom))] md:pb-[calc(11.25rem+env(safe-area-inset-bottom))]"
+          : ""
+      }`}
+      data-leaderboard=""
+      data-board-accent={model.boardId}
+    >
       <style>{`
         @keyframes lb-rise {
           from { opacity: 0; transform: translateY(14px); }
@@ -192,11 +200,13 @@ export function LeaderboardView({ model }: { model: LeaderboardPageModel }) {
         </div>
         <p className="mt-3 text-sm text-zinc-400">
           <span className="font-medium text-zinc-100">{model.weekLabel}</span>
-          {" · "}
-          <span data-standing="">{model.standing}</span>
+          <span className="whitespace-nowrap">
+            {"\u00A0·\u00A0"}
+            <span data-standing="">{model.standing}</span>
+          </span>
           {model.showCountdown ? (
             <span className="whitespace-nowrap">
-              {" · "}
+              {"\u00A0·\u00A0"}
               <LeaderboardCountdown resetsAt={model.resetsAt} initialLabel={model.countdownLabel} />
             </span>
           ) : null}
@@ -314,7 +324,7 @@ export function LeaderboardView({ model }: { model: LeaderboardPageModel }) {
             <YouCard you={model.you} />
           </div>
           <div
-            className="fixed inset-x-0 bottom-[calc(5.25rem+env(safe-area-inset-bottom))] z-10 mx-auto w-full max-w-lg px-3 py-2"
+            className="fixed inset-x-0 bottom-[calc(5.25rem+env(safe-area-inset-bottom))] z-10 mx-auto w-full max-w-lg bg-zinc-950 px-3 py-2"
             data-you-row=""
           >
             <YouCard you={model.you} />
