@@ -6,6 +6,7 @@ import { ArrowLeft, X } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Avatar } from "@/components/avatar";
 import { solidButton } from "@/components/button-styles";
+import { MentionText } from "@/components/mention-text";
 import { CardMessagePreviewCard } from "@/components/open-to-offers";
 import { EmptyState, LoadingRows } from "@/components/status";
 import { useSocial } from "@/components/social-provider";
@@ -144,7 +145,7 @@ export function MessageThread({ username }: { username: string }) {
           type="button"
           onClick={() => router.push("/messages")}
           aria-label="Back to messages"
-          className="grid h-9 w-9 place-items-center rounded-full hover:bg-zinc-100 dark:hover:bg-white/10"
+          className="hit-44 grid h-9 w-9 place-items-center rounded-full hover:bg-zinc-100 dark:hover:bg-white/10"
         >
           <ArrowLeft className="h-5 w-5" />
         </button>
@@ -179,13 +180,20 @@ export function MessageThread({ username }: { username: string }) {
                   ) : null}
                   {message.content.trim() ? (
                     <p
-                      className={`rounded-2xl px-3 py-2 text-[15px] leading-5 whitespace-pre-wrap ${
+                      className={`rounded-2xl px-3 py-2 text-[15px] leading-5 break-words whitespace-pre-wrap ${
                         mine
                           ? "rounded-br-md bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-950"
                           : "rounded-bl-md bg-zinc-100 text-zinc-900 dark:bg-white/10 dark:text-zinc-100"
                       }`}
                     >
-                      {message.content}
+                      <MentionText
+                        text={message.content}
+                        linkClassName={
+                          mine
+                            ? "font-medium break-all text-sky-200 underline decoration-sky-200/80 underline-offset-2 dark:text-sky-800 dark:decoration-sky-800/80"
+                            : "font-medium break-all text-sky-700 underline decoration-sky-700/70 underline-offset-2 dark:text-sky-300 dark:decoration-sky-300/80"
+                        }
+                      />
                     </p>
                   ) : null}
                   {stamp ? (

@@ -236,7 +236,7 @@ export function Dashboard() {
               key={item.id}
               type="button"
               onClick={() => setFilter(item.id)}
-              className={`rounded-full px-3 py-1.5 text-xs font-medium transition ${
+              className={`hit-44 min-h-8 rounded-full px-3 py-1.5 text-xs font-medium transition ${
                 filter === item.id
                   ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-950"
                   : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-white/5 dark:text-zinc-300 dark:hover:bg-white/10"

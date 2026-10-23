@@ -56,7 +56,7 @@ export function FollowList({
           type="button"
           onClick={() => router.push(backHref)}
           aria-label="Back to profile"
-          className="grid h-9 w-9 place-items-center rounded-full hover:bg-zinc-100 dark:hover:bg-white/10"
+          className="hit-44 grid h-9 w-9 place-items-center rounded-full hover:bg-zinc-100 dark:hover:bg-white/10"
         >
           <ArrowLeft className="h-5 w-5" />
         </button>
