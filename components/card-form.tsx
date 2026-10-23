@@ -81,7 +81,7 @@ import { parseManualPrefill } from "@/lib/card-search-query";
 import { hasPaid } from "@/lib/format";
 import { formatCardValueLabel, marketValueSummary } from "@/lib/value/format";
 import { useCardValue } from "@/lib/value/use-card-values";
-import { claimSubmit, isSaveTimeout, SAVE_TIMEOUT_MESSAGE, SaveTimeoutError } from "@/lib/save/attempt";
+import { claimSubmit, isSaveTimeout, SAVE_TIMEOUT_MESSAGE, SaveTimeoutError, saveFailureText } from "@/lib/save/attempt";
 import { PHOTO_READ_ERROR, readPhotoFile } from "@/lib/photos";
 import type {
   CardCategory,
@@ -722,7 +722,11 @@ export function CardForm({
       syncError,
     });
     try {
-      const reuseId = existing?.id ?? pendingCardId;
+      const pendingMissing =
+        cardsReady &&
+        pendingCardId != null &&
+        !cards.some((item) => item.id === pendingCardId);
+      const reuseId = existing?.id ?? (pendingMissing ? null : pendingCardId);
       const { card, saved } = reuseId
         ? updateCard(reuseId, payload)
         : addCard(payload);
@@ -792,7 +796,6 @@ export function CardForm({
         if (seed != null) {
           setDraftSealed(true);
           clearNewCardDraft();
-          if (user?.id) writeBrowserVisibilityChoice(user.id, payload.isPublic);
         }
         if (error instanceof SaveTimeoutError && error.photoUrl) setPhoto(error.photoUrl);
         setSaveError(SAVE_TIMEOUT_MESSAGE);
@@ -801,14 +804,13 @@ export function CardForm({
         return;
       }
       const timedOut = createdId != null && timedOutIds.current.has(createdId);
+      const missingCard = error instanceof Error && error.message === "Card not found.";
       if (createdId && !timedOut) removeCard(createdId);
-      if (createdId && !timedOut) {
+      if ((createdId && !timedOut) || missingCard) {
         pendingId.current = null;
         setPendingCardId(null);
       }
-      setSaveError(
-        error instanceof Error ? error.message : "Could not save this card.",
-      );
+      setSaveError(saveFailureText(error));
       setSaving(false);
       savingRef.current = false;
     }
@@ -844,8 +846,8 @@ export function CardForm({
         onChange={chooseVisibility}
         hint={
           share
-            ? "Cards are private by default. You can show them on your profile."
-            : PRIVATE_VISIBILITY_NUDGE
+            ? ""
+            : `${PRIVATE_VISIBILITY_NUDGE} Cards are private by default. You can show them on your profile.`
         }
       />
 

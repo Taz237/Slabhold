@@ -147,6 +147,13 @@ describe("visibility controls", () => {
     assert.ok(savedAt > 0 && writeAt > savedAt);
     assert.match(submit, /if \(seed != null\) \{[\s\S]*clearNewCardDraft\(\);\s*if \(user\?\.id\) writeBrowserVisibilityChoice/);
     assert.doesNotMatch(submit.slice(0, savedAt), /writeBrowserVisibilityChoice/);
+    const timeoutAt = submit.indexOf("if (isSaveTimeout(error))");
+    const afterTimeout = submit.slice(timeoutAt, submit.indexOf("const timedOut"));
+    assert.doesNotMatch(afterTimeout, /writeBrowserVisibilityChoice/);
+    assert.match(form, /pendingMissing/);
+    assert.match(form, /!cards\.some\(\(item\) => item\.id === pendingCardId\)/);
+    assert.match(form, /error\.message === "Card not found\."/);
+    assert.match(form, /saveFailureText\(error\)/);
   });
 
   it("offers Make public only to the owner of a private card and reverts a failed save", () => {
@@ -155,10 +162,17 @@ describe("visibility controls", () => {
     const chipAt = detail.indexOf("<MakePublicChip");
     assert.ok(chipAt > 0 && chipAt < menuAt);
     assert.equal(detail.indexOf("<MakePublicChip", menuAt), -1);
-    const chip = detail.slice(chipAt - 80, chipAt + 280);
-    assert.match(chip, /card\.isPublic \? null : \(/);
-    assert.match(chip, /updateCard\(card\.id, publicTogglePatch\(card, true\)\)/);
-    assert.doesNotMatch(chip, /await /);
+    const chip = detail.slice(chipAt - 120, chipAt + 80);
+    assert.match(chip, /card\.isPublic \? null : <MakePublicChip onClick=\{makePublic\}/);
+    const makePublic = detail.slice(
+      detail.indexOf("function makePublic()"),
+      detail.indexOf("function markSold()"),
+    );
+    assert.match(makePublic, /updateCard\(card\.id, publicTogglePatch\(card, true\)\)/);
+    assert.match(makePublic, /saved\.then\(\s*\(\) => dismissPrivacyNudge\(\)/);
+    assert.match(makePublic, /setVisibilityError\(saveFailureText\(error\)\)/);
+    assert.doesNotMatch(makePublic, /await /);
+    assert.match(detail, /role="alert"/);
     assert.match(detail, /flex flex-wrap items-center gap-2/);
     assert.match(read("app/cards/[id]/page.tsx"), /requireCardPageAccess/);
     assert.doesNotMatch(read("components/public-card-view.tsx"), /Make public|MakePublicChip/);
@@ -328,6 +342,12 @@ describe("add card visibility nudge", () => {
       assert.equal(radioChecked("Private"), true);
       assert.equal(radioChecked("Public"), false);
       assert.equal(win.document.body.textContent?.includes(PRIVATE_VISIBILITY_NUDGE), true);
+      assert.equal(
+        win.document.body.textContent?.includes(
+          "Cards are private by default. You can show them on your profile.",
+        ),
+        true,
+      );
       assert.equal(shareToFeedChecked(), false);
     } finally {
       fresh.unmount();
@@ -343,7 +363,7 @@ describe("add card visibility nudge", () => {
         win.document.body.textContent?.includes(
           "Cards are private by default. You can show them on your profile.",
         ),
-        true,
+        false,
       );
     } finally {
       again.unmount();

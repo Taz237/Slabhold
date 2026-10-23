@@ -227,6 +227,30 @@ describe("add card survives a remount", () => {
     clearNewCardDraft();
   });
 
+  it("saves a restored draft whose pending card was never created", async () => {
+    writeNewCardDraft({
+      ...draftFor({ ...typedForm, playerName: "Qa Ghostplayer" }),
+      pendingId: "ghost-card",
+    });
+    const view = await mount({});
+    try {
+      await waitFor(() => inputValue("playerName") === "Qa Ghostplayer");
+      await submit();
+      if (!storedCards().some((card) => card.playerName === "Qa Ghostplayer")) {
+        await submit();
+      }
+      await waitFor(
+        () => storedCards().filter((card) => card.playerName === "Qa Ghostplayer").length === 1,
+      );
+      const saved = storedCards().filter((card) => card.playerName === "Qa Ghostplayer");
+      assert.equal(saved.length, 1);
+      assert.notEqual(saved[0]?.id, "ghost-card");
+      assert.equal(textIncludes("Card not found."), false);
+    } finally {
+      view.unmount();
+    }
+  });
+
   it("keeps typed fields after unmount and saves them", async () => {
     const view = await mount({});
     try {

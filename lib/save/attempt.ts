@@ -2,6 +2,23 @@ export const SAVE_TIMEOUT_MS = 25_000;
 
 export const SAVE_TIMEOUT_MESSAGE = "We couldn't confirm the save. Retry is safe.";
 
+export const OFFLINE_SAVE_MESSAGE =
+  "Couldn't save. Check your connection and tap Retry.";
+
+/** A dropped network call, not a message from the server. */
+export function saveFailureText(
+  error: unknown,
+  fallback = "Could not save this card.",
+): string {
+  const message = error instanceof Error ? error.message : "";
+  const offline =
+    (error instanceof TypeError && /failed to fetch/i.test(message)) ||
+    /typeerror:\s*failed to fetch/i.test(message);
+  if (offline) return OFFLINE_SAVE_MESSAGE;
+  if (message) return message;
+  return fallback;
+}
+
 export class SaveTimeoutError extends Error {
   /** Public photo URL already stored, when this attempt uploaded one. */
   readonly photoUrl: string | null;

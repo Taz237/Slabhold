@@ -35,6 +35,7 @@ import { FairPriceCheck } from "@/components/fair-price-check";
 import { useSocial } from "@/components/social-provider";
 import { loginPath } from "@/lib/auth/safe-next";
 import { publicTogglePatch } from "@/lib/offers/open-to-offers";
+import { saveFailureText } from "@/lib/save/attempt";
 import { cardCategory } from "@/lib/card-category";
 import {
   dismissFirstCardPrivacyInBrowser,
@@ -110,6 +111,7 @@ export function CardDetail({ id }: { id: string }) {
   const [sellPrice, setSellPrice] = useState("");
   const [editing, setEditing] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [visibilityError, setVisibilityError] = useState<string | null>(null);
   const privacyNudge = useSyncExternalStore(
     subscribeFirstCardPrivacy,
     () => readBrowserFirstCardPrivacy(user?.id ?? null, card?.id ?? null, Boolean(card?.isPublic)),
@@ -282,6 +284,16 @@ export function CardDetail({ id }: { id: string }) {
     if (user) dismissFirstCardPrivacyInBrowser(user.id);
   }
 
+  function makePublic() {
+    if (!card) return;
+    setVisibilityError(null);
+    const { saved } = updateCard(card.id, publicTogglePatch(card, true));
+    void saved.then(
+      () => dismissPrivacyNudge(),
+      (error) => setVisibilityError(saveFailureText(error)),
+    );
+  }
+
   function markSold() {
     const price = Number(sellPrice);
     if (!price || !card) return;
@@ -327,8 +339,11 @@ export function CardDetail({ id }: { id: string }) {
             <button
               type="button"
               onClick={() => {
-                updateCard(card.id, publicTogglePatch(card, !card.isPublic));
-                if (!card.isPublic) dismissPrivacyNudge();
+                if (!card.isPublic) {
+                  makePublic();
+                  return;
+                }
+                updateCard(card.id, publicTogglePatch(card, false));
               }}
               className={`inline-flex min-h-11 items-center rounded-full px-3 text-xs font-semibold ${
                 card.isPublic
@@ -338,15 +353,13 @@ export function CardDetail({ id }: { id: string }) {
             >
               {card.isPublic ? "Public on profile" : "Private"}
             </button>
-            {card.isPublic ? null : (
-              <MakePublicChip
-                onClick={() => {
-                  updateCard(card.id, publicTogglePatch(card, true));
-                  dismissPrivacyNudge();
-                }}
-              />
-            )}
+            {card.isPublic ? null : <MakePublicChip onClick={makePublic} />}
           </div>
+          {visibilityError ? (
+            <p role="alert" className="text-sm text-rose-600 dark:text-rose-400">
+              {visibilityError}
+            </p>
+          ) : null}
           <div className="min-w-0">
             <p className="mb-2 text-sm text-zinc-500">Move this card</p>
             <CategoryPicker
@@ -362,8 +375,11 @@ export function CardDetail({ id }: { id: string }) {
       {privacyNudge ? (
         <FirstCardPrivacyPrompt
           onToggle={() => {
-            updateCard(card.id, { isPublic: !card.isPublic });
-            dismissPrivacyNudge();
+            const { saved } = updateCard(card.id, { isPublic: !card.isPublic });
+            void saved.then(
+              () => dismissPrivacyNudge(),
+              (error) => setVisibilityError(saveFailureText(error)),
+            );
           }}
           onDismiss={dismissPrivacyNudge}
         />
