@@ -7,8 +7,8 @@ import { afterEach, describe, it } from "node:test";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { ReplyPhotos } from "@/components/reply-photos";
 import { ReplyPhotoDrafts } from "@/components/compose-photo-drafts";
-import { localAddComment, type LocalDb } from "./local-db";
-import { remoteAddComment } from "./remote";
+import { localAddComment, stateAfterReplyDelete, type LocalDb } from "./local-db";
+import { remoteAddComment, remoteDeleteComment } from "./remote";
 import {
   OPTIMISTIC_REPLY_PREFIX,
   REPLY_PHOTOS_UNAVAILABLE,
@@ -17,6 +17,7 @@ import {
   optimisticReply,
   replyImageColumnMissing,
   replyImagesFromValue,
+  imagesForReplyNotice,
   replyNoticePreview,
   resetReplyImageSupport,
   settleOptimisticReply,
@@ -193,6 +194,9 @@ describe("reply photo render", () => {
     assert.match(post, /min-h-11 min-w-11/);
     assert.match(post, /<ReplyPhotos /);
     assert.match(post, /commentsSupportReplyImages/);
+    assert.match(post, /isOptimisticReply\(reply\.id\)/);
+    assert.match(post, /pb-\[calc\(18rem\+env\(safe-area-inset-bottom\)\)\]/);
+    assert.match(post, /pb-\[calc\(10rem\+env\(safe-area-inset-bottom\)\)\] min-\[391px\]:pb-24/);
     assert.match(post, /placeholder="Post your reply"/);
     assert.doesNotMatch(post, /14rem/);
     assert.doesNotMatch(post, /from "next\/image"/);
@@ -203,7 +207,7 @@ describe("reply photo render", () => {
     assert.match(read("lib/social/profile-tabs.ts"), /comment\.images/);
 
     const notes = read("components/notifications-view.tsx");
-    assert.match(notes, /imagesFromNoticeMetadata/);
+    assert.match(notes, /imagesForReplyNotice/);
     assert.match(notes, /<ReplyPhotos /);
     const feed = read("components/tweet.tsx");
     assert.match(feed, /<ReplyPhotos /);
@@ -244,10 +248,13 @@ describe("optimistic photo replies", () => {
 });
 
 describe("photo-only reply text", () => {
-  it("uses Photo when the reply has pictures and no words", () => {
+  it("uses Photo when the reply has pictures and no words", async () => {
     assert.equal(replyNoticePreview("   ", [STORED]), "Photo");
     assert.equal(replyNoticePreview("nice card", [STORED]), "nice card");
     assert.equal(replyNoticePreview("   ", []), null);
+    assert.equal(replyNoticePreview("\n\t\r", []), null);
+    const blank = await remoteAddComment(commentClient().supabase, AUTHOR, POST, "\n\t\r ", AUTHOR);
+    assert.match(blank.error ?? "", /Write a comment/);
     const saved = localAddComment(localDb(), POST, "  ", [STORED]);
     assert.equal(saved.error, undefined);
     assert.equal(saved.db.comments[0]?.body, "");
@@ -262,6 +269,116 @@ describe("photo-only reply text", () => {
     assert.equal(replyImageColumnMissing({ code: "42501", message: "permission denied for table comments" }), false);
     assert.deepEqual(replyImagesFromValue(["nope", STORED]), []);
   });
+
+  it("shows photos from the reply the notice belongs to", () => {
+    const early = {
+      authorId: AUTHOR,
+      createdAt: "2026-10-23T00:00:00.000Z",
+      images: ["https://cdn.example/early.jpg"],
+    };
+    const later = {
+      authorId: AUTHOR,
+      createdAt: "2026-10-23T00:05:00.000Z",
+      images: ["https://cdn.example/later.jpg"],
+    };
+    assert.deepEqual(
+      imagesForReplyNotice(
+        { actorId: AUTHOR, postId: POST, createdAt: "2026-10-23T00:00:01.000Z" },
+        [later, early],
+      ),
+      early.images,
+    );
+  });
+
+  it("deletes only the newest null preview for a photo-only reply", async () => {
+    const calls: string[] = [];
+    const supabase = {
+      from(table: string) {
+        const filters: string[] = [];
+        let op = "";
+        const api = {
+          delete() {
+            op = "delete";
+            return api;
+          },
+          select() {
+            op = "select";
+            return api;
+          },
+          eq(column: string, value: string) {
+            filters.push(`${column}=${value}`);
+            return api;
+          },
+          is(column: string, value: unknown) {
+            filters.push(`${column} is ${String(value)}`);
+            return api;
+          },
+          order() {
+            return api;
+          },
+          limit() {
+            return api;
+          },
+          then(onFulfilled: (value: unknown) => unknown, onRejected?: (reason: unknown) => unknown) {
+            calls.push(`${table}:${op}:${filters.join(",")}`);
+            const value =
+              table === "comments"
+                ? { data: [{ id: "c1", post_id: POST, body: "", image_urls: [STORED] }], error: null }
+                : op === "select"
+                  ? { data: [{ id: "note-new" }], error: null }
+                  : { data: null, error: null };
+            return Promise.resolve(value).then(onFulfilled, onRejected);
+          },
+        };
+        return api;
+      },
+    };
+    const result = await remoteDeleteComment(supabase as unknown as SupabaseClient, AUTHOR, "c1");
+    assert.equal(result.error, undefined);
+    assert.equal(calls.some((call) => call.includes("preview=Photo")), false);
+    assert.equal(
+      calls.some((call) => call.startsWith("notifications:select:") && call.includes("preview is null")),
+      true,
+    );
+    assert.equal(calls.some((call) => call === `notifications:delete:id=note-new,actor_id=${AUTHOR}`), true);
+  });
+
+  it("drops only the newest photo-only notice when a photo reply is deleted", () => {
+    const older = {
+      id: "n-old",
+      recipientId: "someone",
+      actorId: AUTHOR,
+      kind: "comment" as const,
+      postId: POST,
+      preview: "Photo",
+      createdAt: "2026-10-23T00:00:00.000Z",
+      read: false,
+    };
+    const newer = { ...older, id: "n-new", createdAt: "2026-10-23T00:05:00.000Z" };
+    const next = stateAfterReplyDelete(
+      {
+        comments: [
+          {
+            id: "c-old",
+            postId: POST,
+            authorId: AUTHOR,
+            body: "",
+            images: [STORED],
+            createdAt: older.createdAt,
+          },
+        ],
+        likes: [],
+        reposts: [],
+        notifications: [older, newer],
+      },
+      "c-old",
+      {},
+    );
+    assert.deepEqual(
+      next.notifications.map((note) => note.id),
+      ["n-old"],
+    );
+  });
 });
 
 describe("reply image migration", () => {
@@ -270,8 +387,10 @@ describe("reply image migration", () => {
     assert.match(sql, /add column if not exists image_urls text\[\] not null default '\{\}'/);
     assert.match(sql, /cardinality\(image_urls\) between 0 and 4/);
     assert.match(sql, /cardinality\(image_urls\) between 1 and 4/);
+    assert.match(sql, /create or replace function private\.reply_image_urls_ok/);
+    assert.match(sql, /set search_path = ''/);
+    assert.match(sql, /btrim\(body, E' \\t\\r\\n'\)/);
     assert.doesNotMatch(sql, /drop policy/i);
-    assert.doesNotMatch(sql, /create (or replace )?function/i);
     assert.doesNotMatch(sql, /pg_catalog\.(coalesce|nullif|greatest|least)/);
     const verify = read("scripts/verify-reply-images.sql");
     assert.match(verify, /transaction_read_only = on/);

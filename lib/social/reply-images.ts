@@ -69,6 +69,35 @@ export function imagesFromNoticeMetadata(metadata: unknown): string[] {
   return replyImagesFromValue((metadata as { images?: unknown }).images);
 }
 
+/**
+ * Photos for one notification. The likes insert rule rejects comment metadata,
+ * so the match is the reply this actor wrote closest to the notice time.
+ * A later photo reply does not replace an earlier one.
+ */
+export function imagesForReplyNotice(
+  note: { actorId: string | null; postId: string | null; createdAt: string; metadata?: unknown },
+  comments: readonly { authorId: string; createdAt: string; images?: readonly string[] | null }[],
+): string[] {
+  const stored = imagesFromNoticeMetadata(note.metadata);
+  if (stored.length) return stored;
+  if (!note.postId || !note.actorId) return [];
+  const target = Date.parse(note.createdAt);
+  if (Number.isNaN(target)) return [];
+  let best: (typeof comments)[number] | null = null;
+  let bestDelta = Number.POSITIVE_INFINITY;
+  for (const comment of comments) {
+    if (comment.authorId !== note.actorId) continue;
+    const at = Date.parse(comment.createdAt);
+    if (Number.isNaN(at)) continue;
+    const delta = Math.abs(at - target);
+    if (delta < bestDelta) {
+      best = comment;
+      bestDelta = delta;
+    }
+  }
+  return best?.images?.length ? [...best.images] : [];
+}
+
 export function optimisticReply(input: {
   postId: string;
   authorId: string;

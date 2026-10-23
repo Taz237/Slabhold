@@ -916,10 +916,25 @@ export function canDeleteReply(viewerId: string | null | undefined, authorId: st
 function isOwnReplyPreviewNotification(note: Notification, comment: PostComment) {
   if (note.actorId !== comment.authorId) return false;
   if (note.postId !== comment.postId) return false;
+  if (comment.body.trim().length === 0) return false;
   const preview = replyNoticePreview(comment.body, comment.images);
   if (!preview || note.preview !== preview) return false;
   if (note.kind === "comment") return true;
   return note.kind === "mention" && isReplyMentionMetadata(note.metadata);
+}
+
+/** Photo-only notices are preview NULL on the server and "Photo" locally. Keep the newest one. */
+function newestPhotoOnlyNoticeId(notes: readonly Notification[], comment: PostComment): string | null {
+  let best: Notification | null = null;
+  for (const note of notes) {
+    if (note.actorId !== comment.authorId || note.postId !== comment.postId) continue;
+    if (note.kind !== "comment") continue;
+    if (note.preview !== null && note.preview !== "Photo") continue;
+    if (!best || note.createdAt > best.createdAt || (note.createdAt === best.createdAt && note.id > best.id)) {
+      best = note;
+    }
+  }
+  return best?.id ?? null;
 }
 
 /** Drops the reply and rows tied to it. An error keeps the previous rows. */
@@ -941,7 +956,11 @@ export function stateAfterReplyDelete(
     reposts: before.reposts.filter((repost) => repost.postId !== commentId),
     notifications: before.notifications.filter((note) => {
       if (note.postId === commentId) return false;
-      if (comment && isOwnReplyPreviewNotification(note, comment)) return false;
+      if (!comment) return true;
+      if (comment.body.trim().length === 0 && (comment.images?.length ?? 0) > 0) {
+        return note.id !== newestPhotoOnlyNoticeId(before.notifications, comment);
+      }
+      if (isOwnReplyPreviewNotification(note, comment)) return false;
       return true;
     }),
   };

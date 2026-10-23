@@ -22,7 +22,7 @@ import { userHref } from "@/lib/social/user-href";
 import { canDeleteReply } from "@/lib/social/local-db";
 import { photoAttachFull, photoAttachHint, POST_PHOTO_CAP_HINT } from "@/lib/social/post-photos";
 import { quotesOf } from "@/lib/social/quotes";
-import { commentsSupportReplyImages } from "@/lib/social/reply-images";
+import { commentsSupportReplyImages, isOptimisticReply } from "@/lib/social/reply-images";
 import { COMMENT_LIMIT, type AuthResult, type PostComment } from "@/lib/social/types";
 
 function useReplyKeyboardOffset() {
@@ -188,7 +188,13 @@ export function PostView({ id }: { id: string }) {
   }
 
   return (
-    <div className="-mx-4 -mt-5 pb-[calc(10rem+env(safe-area-inset-bottom))] min-[391px]:pb-24">
+    <div
+      className={`-mx-4 -mt-5 ${
+        images.length > 0
+          ? "pb-[calc(18rem+env(safe-area-inset-bottom))] min-[391px]:pb-40"
+          : "pb-[calc(10rem+env(safe-area-inset-bottom))] min-[391px]:pb-24"
+      }`}
+    >
       <div className="flex items-center gap-3 border-b border-zinc-200 px-2 py-2 dark:border-white/10">
         <button
           type="button"
@@ -267,7 +273,7 @@ export function PostView({ id }: { id: string }) {
                       href={commenter ? userHref(commenter.username) : "/"}
                       createdAt={reply.createdAt}
                     />
-                    {canDeleteReply(user?.id, reply.authorId) ? (
+                    {isOptimisticReply(reply.id) ? null : canDeleteReply(user?.id, reply.authorId) ? (
                       <ReplyMenu reply={reply} onResult={onReplyDelete} />
                     ) : (
                       <SafetyMenu
@@ -293,11 +299,13 @@ export function PostView({ id }: { id: string }) {
                     </p>
                   ) : null}
                   <ReplyPhotos images={reply.images} />
-                  <Engagement
-                    targetId={reply.id}
-                    onReply={() => focusReply(commenter?.username)}
-                    quoteAvailable={false}
-                  />
+                  {isOptimisticReply(reply.id) ? null : (
+                    <Engagement
+                      targetId={reply.id}
+                      onReply={() => focusReply(commenter?.username)}
+                      quoteAvailable={false}
+                    />
+                  )}
                 </div>
               </li>
             );

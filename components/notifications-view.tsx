@@ -23,7 +23,7 @@ import {
   unreadNotificationIds,
   type NotificationGroup,
 } from "@/lib/social/group-notifications";
-import { imagesFromNoticeMetadata } from "@/lib/social/reply-images";
+import { imagesForReplyNotice } from "@/lib/social/reply-images";
 import type { NotificationKind, Profile } from "@/lib/social/types";
 
 export function NotificationsView() {
@@ -196,18 +196,12 @@ export function NotificationsView() {
 
 function photosOnReplyNotice(
   group: NotificationGroup,
-  commentsFor: (postId: string) => { authorId: string; images?: readonly string[] }[],
+  commentsFor: (postId: string) => { authorId: string; createdAt: string; images?: readonly string[] }[],
 ): string[] {
   if (group.kind !== "comment" && group.kind !== "mention") return [];
-  const stored = imagesFromNoticeMetadata(
-    group.notes.find((note) => imagesFromNoticeMetadata(note.metadata).length)?.metadata,
-  );
-  if (stored.length || !group.postId) return stored;
-  const actorId = group.actorIds[0];
-  const match = [...commentsFor(group.postId)]
-    .reverse()
-    .find((comment) => comment.authorId === actorId && (comment.images?.length ?? 0) > 0);
-  return match?.images ? [...match.images] : [];
+  const note = group.notes[0];
+  if (!note?.postId) return [];
+  return imagesForReplyNotice(note, commentsFor(note.postId));
 }
 
 function groupHref(group: NotificationGroup, authors: Map<string, Profile>) {

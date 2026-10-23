@@ -1289,14 +1289,23 @@ export async function remoteDeletePost(supabase: SupabaseClient, authorId: strin
 }
 
 /**
- * Notifications have no comment id. After the reply is gone, drop only the
- * deleter's own comment notice and reply-mention notices (metadata.source =
- * reply) on that post whose preview is this reply.
+ * Notifications have no comment id. The likes insert rule only allows mention
+ * metadata {"source":"reply"}, so a comment id cannot be stored.
+ *
+ * Text replies match the stamped preview. A photo-only reply is stamped with
+ * preview NULL. Deleting one drops only the newest NULL comment notice for
+ * this actor and post, not every NULL preview.
  *
  * "Delete notifications you sent" (auth.uid() = actor_id) already allows this.
  * Migrations never drop it. A rejected cleanup, including RLS, is ignored so
  * the reply stays deleted.
  */
+/** Rows already stored on the comment. Render filtering is for display, not cleanup. */
+function storedReplyImages(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((item): item is string => typeof item === "string" && item.length > 0);
+}
+
 async function deleteOwnReplyPreviewNotifications(
   supabase: SupabaseClient,
   actorId: string,
@@ -1304,8 +1313,6 @@ async function deleteOwnReplyPreviewNotifications(
   body: string,
   images?: readonly string[] | null,
 ) {
-  const preview = replyNoticePreview(body, images);
-  if (!preview) return;
   const run = async (query: PromiseLike<unknown>) => {
     try {
       await query;
@@ -1313,6 +1320,30 @@ async function deleteOwnReplyPreviewNotifications(
       // The reply is already deleted.
     }
   };
+  const text = body.trim();
+  if (!text) {
+    if (!images || images.length === 0) return;
+    let id: string | null = null;
+    try {
+      const found = await supabase
+        .from("notifications")
+        .select("id")
+        .eq("actor_id", actorId)
+        .eq("post_id", postId)
+        .eq("kind", "comment")
+        .is("preview", null)
+        .order("created_at", { ascending: false })
+        .limit(1);
+      id = Array.isArray(found.data) ? (found.data[0] as { id?: string } | undefined)?.id ?? null : null;
+    } catch {
+      return;
+    }
+    if (!id) return;
+    await run(supabase.from("notifications").delete().eq("id", id).eq("actor_id", actorId));
+    return;
+  }
+  const preview = replyNoticePreview(text, images);
+  if (!preview) return;
   await run(
     supabase
       .from("notifications")
@@ -1379,7 +1410,7 @@ export async function remoteDeleteComment(
       authorId,
       deleted.post_id,
       deleted.body ?? "",
-      replyImagesFromValue(deleted.image_urls),
+      storedReplyImages(deleted.image_urls),
     );
   }
   return {};
