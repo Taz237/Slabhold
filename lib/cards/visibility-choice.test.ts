@@ -61,7 +61,7 @@ describe("saved card visibility", () => {
     assert.equal(PRIVATE_VISIBILITY_NUDGE.includes("\n"), false);
     assert.doesNotMatch(PUBLIC_CARD_SELECT, /paid_price/);
     assert.match(read("lib/social/remote.ts"), /public_cards — no paid_price/);
-    const mapped = mapPublicCard({
+    const row = {
       id: "00000000-0000-0000-0000-000000000001",
       user_id: "user-1",
       player: "Victor Wembanyama",
@@ -77,7 +77,8 @@ describe("saved card visibility", () => {
       year_label: "2023-24",
       set_name: "Panini Prizm",
       paid_price: 999,
-    });
+    };
+    const mapped = mapPublicCard(row);
     assert.equal(mapped.purchasePrice, null);
     const view = read("components/public-card-view.tsx");
     assert.match(view, /Paid is private/);
@@ -301,7 +302,12 @@ async function mount(userId: string | null, props: CardFormProps = {}) {
   win.document.body.appendChild(host);
   const root = createRoot(host);
   await act(async () => {
-    root.render(createElement(Harness, { userId }, createElement(CardForm, props)));
+    root.render(
+      createElement(Harness, {
+        userId,
+        children: createElement(CardForm, props),
+      }),
+    );
   });
   return {
     unmount() {

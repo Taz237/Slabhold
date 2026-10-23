@@ -330,7 +330,7 @@ export function CardDetail({ id }: { id: string }) {
                 updateCard(card.id, publicTogglePatch(card, !card.isPublic));
                 if (!card.isPublic) dismissPrivacyNudge();
               }}
-              className={`rounded-full px-3 py-1 text-xs font-semibold ${
+              className={`inline-flex min-h-11 items-center rounded-full px-3 text-xs font-semibold ${
                 card.isPublic
                   ? "bg-violet-500/15 text-violet-700 dark:text-violet-300"
                   : "bg-zinc-100 text-zinc-600 dark:bg-white/10 dark:text-zinc-300"
