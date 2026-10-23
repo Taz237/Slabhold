@@ -205,6 +205,23 @@ async function deleteCardValueSnapshots(
   return null;
 }
 
+/** A pre-migration database has no user_id column. That must not block account deletion. */
+function snapshotUserColumnMissing(message: string): boolean {
+  return (
+    /42703|PGRST204/i.test(message) ||
+    (/user_id/i.test(message) && /does not exist|schema cache|column/i.test(message))
+  );
+}
+
+async function deleteSnapshotsByOwner(
+  admin: AccountAdmin,
+  userId: string,
+): Promise<string | null> {
+  const failed = await deleteEq(admin, "card_value_snapshots", "user_id", userId);
+  if (failed && snapshotUserColumnMissing(failed)) return null;
+  return failed;
+}
+
 async function deleteOwnRows(
   admin: AccountAdmin,
   userId: string,
@@ -228,6 +245,8 @@ async function deleteOwnRows(
 
   const snapshotError = await deleteCardValueSnapshots(admin, cardIds);
   if (snapshotError) return snapshotError;
+  const ownerSnapshotError = await deleteSnapshotsByOwner(admin, userId);
+  if (ownerSnapshotError) return ownerSnapshotError;
 
   for (const [table, column] of [
     ["messages", "sender_id"],

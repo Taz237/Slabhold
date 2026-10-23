@@ -6,6 +6,7 @@ import { Info, Search, TrendingDown, TrendingUp, WalletCards } from "lucide-reac
 import { outlineButton } from "@/components/button-styles";
 import { CategoryBadge } from "@/components/category-picker";
 import { CollectionHeader } from "@/components/collection-header";
+import { LeaderboardOptInSwitch, LeaderboardPrompt } from "@/components/leaderboard-opt-in";
 import { CollectionValueHistory } from "@/components/collection-value-history";
 import { useCollection } from "@/components/collection-provider";
 import { CardThumb } from "@/components/card-thumb";
@@ -39,6 +40,8 @@ import {
   type PortfolioFilter,
 } from "@/lib/types";
 import { displayedCollectionTotal } from "@/lib/collection/displayed-value";
+import { leaderboardMinimums, type LeaderboardMinimums } from "@/lib/leaderboard/eligibility";
+import { trustedPublicTotals } from "@/lib/leaderboard/public-value";
 import {
   investedAmountLabel,
   investedCardLabel,
@@ -69,7 +72,13 @@ const FILTERS: { id: PortfolioFilter; label: string }[] = [
   { id: "loss", label: "Loss" },
 ];
 
-export function Dashboard() {
+export function Dashboard({
+  minimums = leaderboardMinimums(),
+  accountCreatedAt,
+}: {
+  minimums?: LeaderboardMinimums;
+  accountCreatedAt?: string | null;
+} = {}) {
   const { cards, ready, syncError, reload } = useCollection();
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<PortfolioFilter>("all");
@@ -95,6 +104,8 @@ export function Dashboard() {
     () => displayedCollectionTotal(inLane, values),
     [inLane, values],
   );
+  const publicValued = useMemo(() => trustedPublicTotals(cards, values), [cards, values]);
+  const publicCollection = useMemo(() => cards.some((card) => card.isPublic), [cards]);
   const profitTotal = totals.unrealizedProfit + totals.realizedProfit;
   const pricedCount = totals.pricedCount;
   const cardCount = inLane.length;
@@ -135,7 +146,15 @@ export function Dashboard() {
   return (
     <PullToRefresh onRefresh={refreshCollection}>
     <div className="space-y-6">
-      <CollectionHeader />
+      <CollectionHeader extra={<LeaderboardOptInSwitch minimums={minimums} />} />
+      <LeaderboardPrompt
+        valuedCards={publicValued.count}
+        value={publicValued.value}
+        publicCollection={publicCollection}
+        ready={cards.length > 0 && !valuesLoading && !valuesFailed}
+        minimums={minimums}
+        accountCreatedAt={accountCreatedAt}
+      />
       {syncError ? (
         <p className="text-sm text-rose-600 dark:text-rose-400">{syncError}</p>
       ) : null}

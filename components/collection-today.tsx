@@ -65,6 +65,7 @@ export function CollectionToday() {
         const { data: cardRows, error: cardError } = await supabase
           .from("card_value_snapshots")
           .select("card_id, snapshot_date, median")
+          .not("card_id", "is", null)
           .in("snapshot_date", [change.previousDate, change.latestDate]);
         if (cancelled) return;
         if (cardError) {
@@ -72,11 +73,13 @@ export function CollectionToday() {
           return;
         }
         setSnaps(
-          (cardRows ?? []).map((row) => ({
-            cardId: String(row.card_id),
-            date: String(row.snapshot_date),
-            median: row.median == null ? null : Number(row.median),
-          })),
+          (cardRows ?? [])
+            .filter((row) => row.card_id != null)
+            .map((row) => ({
+              cardId: String(row.card_id),
+              date: String(row.snapshot_date),
+              median: row.median == null ? null : Number(row.median),
+            })),
         );
       });
     return () => {

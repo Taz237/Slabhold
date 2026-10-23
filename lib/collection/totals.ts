@@ -1,9 +1,19 @@
 import "server-only";
 
 import { mapCardRow, type CardRow } from "@/lib/social/cards";
-import { hasPaid } from "@/lib/format";
+import { hasPaid, isSold } from "@/lib/format";
 import { summarize } from "@/lib/portfolio";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
+import {
+  cardSnapshotInsert,
+  isMissingSnapshotColumn,
+  medianOnlySnapshotInsert,
+  snapshotSaleSource,
+} from "@/lib/leaderboard/snapshot-fields";
+import {
+  rowsKeepingPriorIdentity,
+  type SnapshotIdentityRow,
+} from "@/lib/leaderboard/snapshot-keep";
 import { getCardValues } from "@/lib/value/getCardValue";
 import {
   collectionTotalsFromSummarize,
@@ -48,7 +58,8 @@ export async function computeCollectionTotals(
 
 /**
  * Upsert today's snapshot for a user (America/New_York date).
- * Service-role write only.
+ * Service-role write only. Writes today's date only, so past snapshot dates stay frozen.
+ * If the leaderboard columns are not applied yet, the median is still saved.
  */
 export async function upsertTodaysCollectionSnapshot(
   userId: string,
@@ -76,21 +87,60 @@ export async function upsertTodaysCollectionSnapshot(
 
   const cardRows = loaded.cards.map((card) => {
     const value = loaded.values.get(card.id);
-    const median =
-      value && typeof value.median === "number" && Number.isFinite(value.median)
-        ? value.median
-        : null;
-    return {
-      card_id: card.id,
-      snapshot_date: snapshotDate,
-      median,
-    };
+    return cardSnapshotInsert({
+      cardId: card.id,
+      userId,
+      snapshotDate,
+      playerName: card.playerName,
+      year: card.year,
+      yearLabel: card.yearLabel,
+      setBrand: card.setBrand,
+      parallel: card.parallel,
+      grade: card.grade,
+      cardNumber: card.cardNumber,
+      serialRun: card.serialRun,
+      isAuto: card.isAuto,
+      isRelic: card.isRelic,
+      gradeQualifier: card.gradeQualifier,
+      conditionType: card.conditionType,
+      isPublic: card.isPublic === true,
+      held: !isSold(card),
+      value,
+      saleSource: snapshotSaleSource(value),
+    });
   });
+  let rowsToWrite = cardRows;
   if (cardRows.length > 0) {
-    const { error: cardError } = await loaded.admin
+    const prior = await loaded.admin
       .from("card_value_snapshots")
-      .upsert(cardRows, { onConflict: "card_id,snapshot_date" });
-    if (cardError) throw new Error(cardError.message);
+      .select(
+        "card_key, player, year, year_label, set_name, parallel, grade, grader, card_number, serial_run, is_auto, is_relic, grade_qualifier, condition_type, query_key",
+      )
+      .eq("user_id", userId)
+      .eq("snapshot_date", snapshotDate);
+    if (prior.error && !isMissingSnapshotColumn(prior.error)) {
+      throw new Error(prior.error.message);
+    }
+    if (!prior.error) {
+      rowsToWrite = rowsKeepingPriorIdentity(
+        (prior.data ?? []) as SnapshotIdentityRow[],
+        cardRows,
+      );
+    }
+  }
+  if (rowsToWrite.length > 0) {
+    const full = await loaded.admin
+      .from("card_value_snapshots")
+      .upsert(rowsToWrite, { onConflict: "card_key,snapshot_date" });
+    if (full.error && isMissingSnapshotColumn(full.error)) {
+      const fallback = await loaded.admin.from("card_value_snapshots").upsert(
+        rowsToWrite.map((row) => medianOnlySnapshotInsert(row)),
+        { onConflict: "card_id,snapshot_date" },
+      );
+      if (fallback.error) throw new Error(fallback.error.message);
+    } else if (full.error) {
+      throw new Error(full.error.message);
+    }
   }
 
   return totals;

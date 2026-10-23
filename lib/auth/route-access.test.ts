@@ -22,6 +22,7 @@ describe("route access", () => {
       "/search",
       "/search?q=wemby",
       "/moving-today",
+      "/leaderboard/value",
       `/posts/${CARD}`,
       "/u/maya",
       "/u/maya/followers",
@@ -73,6 +74,7 @@ describe("route access", () => {
       "/u",
       "/cards",
       "/no/such/page",
+      "/leaderboard",
     ];
     for (const path of paths) {
       assert.equal(routeAccess(path), "unknown", path);

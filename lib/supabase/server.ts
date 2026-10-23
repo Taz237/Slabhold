@@ -32,12 +32,24 @@ export async function createSupabaseServer() {
   });
 }
 
-/** Verified user id, or null if logged out / Supabase unconfigured. */
-export async function getAuthUserId(): Promise<string | null> {
+/** Verified auth user. createdAt is auth.users.created_at, not profiles.created_at. */
+export async function getAuthUser(): Promise<{ id: string; createdAt: string | null } | null> {
   const supabase = await createSupabaseServer();
   if (!supabase) return null;
 
   const { data, error } = await supabase.auth.getUser();
   if (error || !data.user?.id) return null;
-  return data.user.id;
+  return { id: data.user.id, createdAt: data.user.created_at ?? null };
+}
+
+/** Verified user id, or null if logged out / Supabase unconfigured. */
+export async function getAuthUserId(): Promise<string | null> {
+  const user = await getAuthUser();
+  return user?.id ?? null;
+}
+
+/** auth.users.created_at for the signed-in user. Null when logged out. */
+export async function getAuthUserCreatedAt(): Promise<string | null> {
+  const user = await getAuthUser();
+  return user?.createdAt ?? null;
 }

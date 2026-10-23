@@ -17,6 +17,8 @@ import { isSaveTimeout } from "@/lib/save/attempt";
 import { loadCollection, newId, nextAccent, saveCollection } from "@/lib/storage";
 import { createSupabaseBrowser } from "@/lib/supabase/browser";
 import type { CardInput, SportsCard } from "@/lib/types";
+import { snapshotOwnedCollection } from "@/lib/leaderboard/snapshot-before";
+import { cardChangeNeedsSnapshot } from "@/lib/leaderboard/snapshot-trigger";
 import { shouldRefreshCardValueOnEdit } from "@/lib/value/price-refresh";
 import { scheduleCardValueRefresh } from "@/lib/value/use-card-values";
 import { isPublicForSaleListing } from "@/lib/wants/listing";
@@ -49,6 +51,9 @@ export function CollectionProvider({ children }: { children: React.ReactNode }) 
   const cardsRef = useRef(cards);
   cardsRef.current = cards;
   const writes = useRef(new Map<string, Promise<unknown>>());
+  const pendingDeletes = useRef<string[]>([]);
+  const deleteQueued = useRef(false);
+  const flushDeletesRef = useRef<() => void>(() => undefined);
   const remote = mode === "supabase" && Boolean(user);
   const userId = user?.id ?? null;
 
@@ -204,8 +209,11 @@ export function CollectionProvider({ children }: { children: React.ReactNode }) 
         if (client) {
           const needsRefresh =
             !previous || shouldRefreshCardValueOnEdit(previous, updated);
+          const needsSnapshot =
+            !previous || cardChangeNeedsSnapshot(previous, updated);
           saved = enqueue(id, async () => {
             try {
+              if (needsSnapshot) await snapshotOwnedCollection();
               await saveUserCard(client, userId, updated);
               if (isPublicForSaleListing(updated)) pingWantMatch("listing", updated.id);
               setSyncError(null);
@@ -229,22 +237,39 @@ export function CollectionProvider({ children }: { children: React.ReactNode }) 
       const next = cardsRef.current.filter((card) => card.id !== id);
       cardsRef.current = next;
       setCards(next);
-      if (remote && userId) {
-        const client = createSupabaseBrowser();
-        if (client) {
-          enqueue(id, async () => {
-            try {
-              await removeUserCard(client, userId, id);
-              setSyncError(null);
-            } catch (error) {
-              report(error);
-            }
+      if (!(remote && userId)) return;
+      pendingDeletes.current.push(id);
+      if (deleteQueued.current) return;
+      deleteQueued.current = true;
+      queueMicrotask(() => flushDeletesRef.current());
+    },
+    [remote, userId],
+  );
+
+  const flushDeletes = useCallback(() => {
+    const ids = pendingDeletes.current.splice(0);
+    deleteQueued.current = false;
+    if (!remote || !userId || ids.length === 0) return;
+    const client = createSupabaseBrowser();
+    if (!client) return;
+    void (async () => {
+      try {
+        await snapshotOwnedCollection();
+        for (const id of ids) {
+          await enqueue(id, async () => {
+            await removeUserCard(client, userId, id);
+            setSyncError(null);
           });
         }
+      } catch (error) {
+        report(error);
       }
-    },
-    [enqueue, remote, report, userId],
-  );
+    })();
+  }, [enqueue, remote, report, userId]);
+
+  useEffect(() => {
+    flushDeletesRef.current = flushDeletes;
+  }, [flushDeletes]);
 
   const reload = useCallback(() => {
     if (remote && userId) {

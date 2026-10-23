@@ -52,6 +52,7 @@ const PUBLIC_EXACT = new Set([
   "/auth/confirm",
   "/search",
   "/moving-today",
+  "/leaderboard/value",
 ]);
 
 /**

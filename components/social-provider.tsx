@@ -13,6 +13,8 @@ import { usePathname } from "next/navigation";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { trackEvent } from "@/lib/analytics";
 import { clearNewCardDraft } from "@/lib/cards/new-card-draft";
+import { profileChangeRefreshesBoard } from "@/lib/leaderboard/profile-refresh";
+import { revalidateValueBoardForAccount } from "@/lib/leaderboard/revalidate";
 import { activityFrom, emptyActivity, loadActivity, saveActivity, type ActivityStore } from "@/lib/social/activity";
 import {
   createRememberedPosts,
@@ -660,7 +662,20 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       if (mode === "supabase" && client && snapshot.user) {
         try {
           const result = await remoteUpdateProfile(client, snapshot.user.id, patch);
-          if (!result.error) await refreshRemote(client);
+          if (!result.error) {
+            await refreshRemote(client);
+            const before = snapshot.user;
+            if (
+              profileChangeRefreshesBoard({
+                beforeUsername: before.username,
+                afterUsername: patch.username,
+                beforeAvatar: before.avatarDataUrl,
+                afterAvatar: patch.avatarDataUrl,
+              })
+            ) {
+              await revalidateValueBoardForAccount();
+            }
+          }
           return result;
         } catch (error) {
           return { error: error instanceof Error ? error.message : "Could not save your profile." };
