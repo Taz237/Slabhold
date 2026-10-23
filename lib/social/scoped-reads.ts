@@ -3,6 +3,7 @@ import { escapeIlike } from "@/lib/db/escape-ilike";
 import { mapDirectMessage } from "@/lib/offers/open-to-offers";
 import { applyAuthorSafety, loadHiddenAuthorIds, type SafetyQuery } from "@/lib/safety/filters";
 import { mapPublicCard, PUBLIC_CARD_SELECT } from "./cards";
+import { unreadGroupCount } from "./group-notifications";
 import { dedupeMailDayRows, loadMailDayViews } from "./mail-day";
 import { homeHead, type HomeHead } from "./feed-page";
 import { olderThanCursor, pageAfter, type PageCursor } from "./page-cursor";
@@ -174,9 +175,12 @@ export type UnreadCounts = { notifications: number; messages: number };
 
 const emptyUnread = { notifications: 0, messages: 0 };
 
+const UNREAD_NOTE_COLUMNS =
+  "id, recipient_id, actor_id, kind, post_id, created_at, read";
+
 /**
- * Badge counts only. `head: true` does not download the rows.
- * RLS already hides blocked actors, and muted actors on notifications.
+ * Bell badge is the grouped unread count, matching the notifications list.
+ * Message badge stays a head count. RLS hides blocked and muted actors.
  */
 export async function loadUnreadCounts(
   supabase: SupabaseClient,
@@ -185,7 +189,7 @@ export async function loadUnreadCounts(
   const [notes, messages] = await Promise.all([
     supabase
       .from("notifications")
-      .select("id", { count: "exact", head: true })
+      .select(UNREAD_NOTE_COLUMNS)
       .eq("recipient_id", viewerId)
       .eq("read", false),
     supabase
@@ -194,8 +198,23 @@ export async function loadUnreadCounts(
       .eq("receiver_id", viewerId)
       .eq("read", false),
   ]);
+  if (notes.error && !missingTable(notes.error)) throw new Error(notes.error.message);
+  const rows = notes.error ? [] : ((notes.data ?? []) as NotificationRow[]);
   return {
-    notifications: countOrZero(notes.error, notes.count),
+    notifications: unreadGroupCount(
+      rows.map((row) => ({
+        id: row.id,
+        recipientId: row.recipient_id,
+        actorId: row.actor_id,
+        kind: row.kind,
+        postId: row.post_id,
+        preview: null,
+        href: null,
+        metadata: null,
+        createdAt: row.created_at,
+        read: row.read,
+      })),
+    ),
     messages: countOrZero(messages.error, messages.count),
   };
 }
@@ -213,7 +232,7 @@ export type ShellBundle = {
 };
 
 /**
- * Signed-in shell: profile, follow edges, blocks, mutes, hidden authors, and unread head counts.
+ * Signed-in shell: profile, follow edges, blocks, mutes, hidden authors, the grouped unread notification rows, and an unread message head count.
  * Blocks, mutes, and hidden_author_ids run in one parallel batch so the home feed does not
  * wait on them one after another. No posts, public cards, comments, or reposts.
  * Signed-out: no table reads.

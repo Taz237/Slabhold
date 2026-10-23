@@ -93,14 +93,24 @@ type PatchSnapshot = {
   reposts: PostRepost[];
 };
 
+/** Newest page first, then rows already loaded that were not in that page. */
+export function mergeRealtimePage<T extends { id: string }>(
+  current: readonly T[],
+  page: readonly T[],
+): T[] {
+  if (page.length === 0) return [...current];
+  const pageIds = new Set(page.map((row) => row.id));
+  return [...page, ...current.filter((row) => !pageIds.has(row.id))];
+}
+
 /** Merge one inbox or post slice. Leaves every other field, including publicCards, as-is. */
 export function applyRealtimePatch<T extends PatchSnapshot>(existing: T, patch: RealtimePatch): T {
   let next = existing;
   if (patch.notifications !== undefined) {
-    next = { ...next, notifications: patch.notifications };
+    next = { ...next, notifications: mergeRealtimePage(next.notifications, patch.notifications) };
   }
   if (patch.messages !== undefined) {
-    next = { ...next, messages: patch.messages };
+    next = { ...next, messages: mergeRealtimePage(next.messages, patch.messages) };
   }
   if (patch.comments !== undefined && patch.postId) {
     next = {

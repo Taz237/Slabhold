@@ -2,7 +2,9 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { loadMessageRows, mapDirectMessage } from "@/lib/offers/open-to-offers";
 import { applyAuthorSafety, loadHiddenAuthorIds } from "@/lib/safety/filters";
 import { isUuid } from "@/lib/value/card-value-access";
+import { MESSAGE_PAGE_SIZE } from "./remote";
 import type { RealtimePatch, RealtimeSlice } from "./realtime-sync";
+import { NOTIFICATION_PAGE_SIZE } from "./scoped-reads";
 import type { DirectMessage, Notification, PostComment, PostRepost } from "./types";
 
 type Row = Record<string, unknown>;
@@ -117,7 +119,9 @@ export async function loadRealtimePatch(
               "id, recipient_id, actor_id, kind, post_id, preview, href, metadata, read, created_at",
             )
             .eq("recipient_id", viewerId)
-            .order("created_at", { ascending: false }),
+            .order("created_at", { ascending: false })
+            .order("id", { ascending: false })
+            .limit(NOTIFICATION_PAGE_SIZE),
           viewerId,
           mutedHidden,
           { authorColumn: "actor_id", mute: true, keepNullAuthor: true },
@@ -137,7 +141,9 @@ export async function loadRealtimePatch(
                 .from("messages")
                 .select(columns)
                 .or(`sender_id.eq.${viewerId},receiver_id.eq.${viewerId}`)
-                .order("created_at", { ascending: true }),
+                .order("created_at", { ascending: false })
+                .order("id", { ascending: false })
+                .limit(MESSAGE_PAGE_SIZE),
               viewerId,
               blockedHidden,
               { authorColumn: "sender_id" },

@@ -106,10 +106,26 @@ function replyClient(options: {
             throw new Error("mention insert failed");
           }
           inserts.push({ table, row });
-          if (table === "notifications" && row.kind === "mention" && options.mentionInsertError) {
-            return Promise.resolve({ error: options.mentionInsertError });
-          }
-          return Promise.resolve({ error: null });
+          const error =
+            table === "notifications" && row.kind === "mention" && options.mentionInsertError
+              ? options.mentionInsertError
+              : null;
+          const payload = { data: error ? null : { id: `${table}-id` }, error };
+          const result = {
+            select() {
+              return result;
+            },
+            maybeSingle() {
+              return Promise.resolve(payload);
+            },
+            then(
+              onFulfilled: (value: { data: { id: string } | null; error: unknown }) => unknown,
+              onRejected?: (reason: unknown) => unknown,
+            ) {
+              return Promise.resolve(payload).then(onFulfilled, onRejected);
+            },
+          };
+          return result;
         },
         maybeSingle() {
           return Promise.resolve({ data: null, error: null });

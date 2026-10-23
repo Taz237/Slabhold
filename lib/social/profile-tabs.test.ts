@@ -457,7 +457,8 @@ describe("profile pin menu and tabs", () => {
     assert.match(profile, /withPinnedFirst/);
     assert.match(profile, /profileMediaItems/);
     assert.match(profile, /profileCardsTab/);
-    assert.match(profile, /loadProfilePublicCards/);
+    assert.match(profile, /cardsHasMore/);
+    assert.match(profile, /loadMoreCards/);
     assert.match(profile, /OpenToOffersFilter/);
     assert.match(profile, /pinned=\{item\.key\.startsWith\("pinned:"\)\}/);
     assert.match(profile, /known\.hiddenAt/);

@@ -65,7 +65,22 @@ function commentClient(rpcData: boolean) {
       return {
         insert(row: { post_id: string; user_id: string; body: string }) {
           if (table === "comments") inserted = row;
-          return Promise.resolve({ error: null });
+          const payload = { data: { id: "comment-id" }, error: null };
+          const result = {
+            select() {
+              return result;
+            },
+            maybeSingle() {
+              return Promise.resolve(payload);
+            },
+            then(
+              onFulfilled: (value: { data: { id: string } | null; error: null }) => unknown,
+              onRejected?: (reason: unknown) => unknown,
+            ) {
+              return Promise.resolve(payload).then(onFulfilled, onRejected);
+            },
+          };
+          return result;
         },
       };
     },

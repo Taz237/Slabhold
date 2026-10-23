@@ -37,7 +37,7 @@ export function LoadMore({
         type="button"
         onClick={onLoadMore}
         disabled={loading || !hasMore}
-        className="text-sm font-semibold text-violet-700 disabled:opacity-60 dark:text-violet-300"
+        className="min-h-11 px-4 text-sm font-semibold text-violet-700 disabled:opacity-60 dark:text-violet-300"
       >
         {loading ? "Loading…" : failed ? "Try again" : "Load more"}
       </button>

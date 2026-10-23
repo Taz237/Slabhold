@@ -398,6 +398,23 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
         setHasFullSnapshot(true);
         setInboxUnread(bundle.unread);
         setHomeHiddenAuthorIds(shell.user ? bundle.hiddenAuthorIds : null);
+        const previousUserId = appliedRemoteRef.current?.user?.id ?? null;
+        const nextUserId = shell.user?.id ?? null;
+        if (previousUserId !== nextUserId) {
+          notificationCursorRef.current = null;
+          messageCursorRef.current = null;
+          threadCursorRef.current = null;
+          threadPartnerRef.current = null;
+          followCursorRef.current = null;
+          followListRef.current = null;
+          cardCursorRef.current = null;
+          cardOwnerRef.current = null;
+          setNotificationsHasMore(false);
+          setMessagesHasMore(false);
+          setThreadHasMore(false);
+          setFollowsHasMore(false);
+          setCardsHasMore(false);
+        }
         setRemote((existing) => {
           const switched = !shell.user || Boolean(existing.user && shell.user && existing.user.id !== shell.user.id);
           if (switched) rememberedRef.current = createRememberedPosts();
@@ -413,11 +430,6 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
           setFollowCounts((current) => ({ ...current, [shell.user!.id]: current[shell.user!.id] ?? seeded }));
         } else {
           setFollowCounts({});
-          setNotificationsHasMore(false);
-          setMessagesHasMore(false);
-          setThreadHasMore(false);
-          setFollowsHasMore(false);
-          setCardsHasMore(false);
         }
         if (!postIdFromPath(window.location.pathname)) setReady(true);
       },
@@ -479,6 +491,15 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       if (id && !fullSnapshotRef.current) {
         const page = await loadPostPage(client, id);
         applyPostPage(page);
+        const viewerId = page.user?.id ?? null;
+        if (viewerId) {
+          try {
+            const counts = await loadUnreadCounts(client, viewerId);
+            if (lastUserIdRef.current === viewerId) setInboxUnread(counts);
+          } catch {
+            // The post is on screen. Focus and realtime refresh the badges.
+          }
+        }
         return;
       }
       await refreshRemote(client);
@@ -666,8 +687,12 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
     const client = supabaseRef.current;
     const viewerId = snapshotRef.current.user?.id;
     if (mode !== "supabase" || !client || !viewerId) return;
+    const requestedFor = viewerId;
     void loadUnreadCounts(client, viewerId)
-      .then((counts) => setInboxUnread(counts))
+      .then((counts) => {
+        if (snapshotRef.current.user?.id !== requestedFor) return;
+        setInboxUnread(counts);
+      })
       .catch(() => undefined);
   }, [mode]);
 
@@ -1562,9 +1587,11 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
           }
           setRemote((existing) => ({
             ...existing,
-            comments: existing.comments.map((item) =>
-              item.id === tempId ? { ...item, pending: false } : item,
-            ),
+            comments: result.commentId
+              ? replaceId(existing.comments, tempId, result.commentId)
+              : existing.comments.map((item) =>
+                  item.id === tempId ? { ...item, pending: false } : item,
+                ),
           }));
           if (result.notice) setStatus(result.notice);
           return result;
@@ -1729,10 +1756,14 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       note.recipientId === userId && !note.read && (!only || only.has(note.id));
     if (!current.notifications.some(matches)) return;
     if (mode === "supabase") {
-      const marked = current.notifications.filter(matches).length;
+      const beforeGroups = unreadGroupCount(current.notifications);
+      const afterGroups = unreadGroupCount(
+        current.notifications.map((note) => (matches(note) ? { ...note, read: true } : note)),
+      );
+      const markedGroups = Math.max(0, beforeGroups - afterGroups);
       setInboxUnread((counts) => ({
         ...counts,
-        notifications: Math.max(0, counts.notifications - marked),
+        notifications: Math.max(0, counts.notifications - markedGroups),
       }));
       setRemote((existing) => ({
         ...existing,
@@ -1815,9 +1846,11 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
           }
           setRemote((existing) => ({
             ...existing,
-            messages: (existing.messages ?? []).map((item) =>
-              item.id === tempId ? { ...item, pending: false } : item,
-            ),
+            messages: result.messageId
+              ? replaceId(existing.messages ?? [], tempId, result.messageId)
+              : (existing.messages ?? []).map((item) =>
+                  item.id === tempId ? { ...item, pending: false } : item,
+                ),
           }));
           return result;
         } catch (error) {

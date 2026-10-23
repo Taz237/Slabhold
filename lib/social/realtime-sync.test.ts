@@ -4,7 +4,9 @@ import { describe, it } from "node:test";
 import { join } from "node:path";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { authSnapshotReload } from "./auth-snapshot";
+import { MESSAGE_PAGE_SIZE } from "./remote";
 import { loadRealtimePatch } from "./realtime-slices";
+import { NOTIFICATION_PAGE_SIZE } from "./scoped-reads";
 import {
   applyRealtimePatch,
   createRealtimeScheduler,
@@ -13,7 +15,7 @@ import {
   shouldFetchPublicCatalog,
   type RealtimeSlice,
 } from "./realtime-sync";
-import type { Notification, PostComment, PostRepost } from "./types";
+import type { DirectMessage, Notification, PostComment, PostRepost } from "./types";
 
 const VIEWER = "11111111-1111-4111-8111-111111111111";
 const POST = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
@@ -177,22 +179,30 @@ describe("realtime slice patch", () => {
       createdAt: "2",
     };
     const note = { id: "n1", recipientId: VIEWER } as Notification;
+    const older = { id: "n0", recipientId: VIEWER } as Notification;
     const next = applyRealtimePatch(
       {
-        notifications: [] as Notification[],
-        messages: [],
+        notifications: [older],
+        messages: [{ id: "m-old" } as DirectMessage],
         comments: [previous, other],
         reposts: [] as PostRepost[],
         publicCards,
       },
-      { notifications: [note], comments: [fresh], postId: POST },
+      { notifications: [note], messages: [{ id: "m-new" } as DirectMessage], comments: [fresh], postId: POST },
     );
     assert.equal(next.publicCards, publicCards);
     assert.deepEqual(
       next.comments.map((comment) => comment.id),
       ["other", "new"],
     );
-    assert.equal(next.notifications[0]?.id, "n1");
+    assert.deepEqual(
+      next.notifications.map((item) => item.id),
+      ["n1", "n0"],
+    );
+    assert.deepEqual(
+      next.messages.map((item) => item.id),
+      ["m-new", "m-old"],
+    );
   });
 
   it("fetches the viewer slice once and does not select public_cards", async () => {
@@ -209,6 +219,10 @@ describe("realtime slice patch", () => {
           return builder;
         },
         order() {
+          return builder;
+        },
+        limit(count: number) {
+          ops.push(`limit:${count}`);
           return builder;
         },
         not() {
@@ -283,6 +297,14 @@ describe("realtime slice patch", () => {
       true,
     );
     assert.equal(calls.some((call) => call.table === "public_cards"), false);
+    assert.equal(
+      calls.find((call) => call.table === "notifications")?.ops.includes(`limit:${NOTIFICATION_PAGE_SIZE}`),
+      true,
+    );
+    assert.equal(
+      calls.find((call) => call.table === "messages")?.ops.includes(`limit:${MESSAGE_PAGE_SIZE}`),
+      true,
+    );
 
     const provider = readFileSync(join(process.cwd(), "components/social-provider.tsx"), "utf8");
     const listeners = provider.slice(provider.indexOf("const bindings = realtimeBindings"), provider.indexOf("const baseSnapshot"));

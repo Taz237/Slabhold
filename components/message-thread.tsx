@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, X } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Avatar } from "@/components/avatar";
@@ -56,6 +56,7 @@ export function MessageThread({ username }: { username: string }) {
   const [pending, setPending] = useState(false);
   const [loadingOlder, setLoadingOlder] = useState(false);
   const scroller = useRef<HTMLDivElement>(null);
+  const olderAnchor = useRef<{ height: number; top: number } | null>(null);
   const thread = partner
     ? messages.filter(
         (message) =>
@@ -80,6 +81,22 @@ export function MessageThread({ username }: { username: string }) {
     if (!node) return;
     node.scrollTop = node.scrollHeight;
   }, [newestId, partner?.id]);
+
+  const loadOlder = useCallback(() => {
+    const node = scroller.current;
+    if (node) olderAnchor.current = { height: node.scrollHeight, top: node.scrollTop };
+    setLoadingOlder(true);
+    void loadMoreThread().finally(() => setLoadingOlder(false));
+  }, [loadMoreThread]);
+
+  useLayoutEffect(() => {
+    const anchor = olderAnchor.current;
+    const node = scroller.current;
+    if (!anchor || !node) return;
+    olderAnchor.current = null;
+    const delta = node.scrollHeight - anchor.height;
+    if (delta !== 0) node.scrollTop = anchor.top + delta;
+  }, [thread.length]);
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -173,10 +190,7 @@ export function MessageThread({ username }: { username: string }) {
         <LoadMore
           hasMore={threadHasMore}
           loading={loadingOlder}
-          onLoadMore={() => {
-            setLoadingOlder(true);
-            void loadMoreThread().finally(() => setLoadingOlder(false));
-          }}
+          onLoadMore={loadOlder}
         />
         {thread.length === 0 ? (
           <p className="px-6 pt-10 text-center text-sm text-zinc-500">

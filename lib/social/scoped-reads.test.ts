@@ -137,7 +137,7 @@ describe("viewer shell", () => {
     assert.equal(fake.calls.filter((call) => call.kind === "auth").length, 1);
   });
 
-  it("loads the viewer's shell, hidden authors, and unread head counts together", async () => {
+  it("loads the viewer's shell, hidden authors, and grouped unread notifications together", async () => {
     const fake = client({ id: VIEWER }, { profiles: [profileRow] });
     const snapshot = await loadSupabaseSocial(fake.supabase);
     assert.equal(snapshot.user?.id, VIEWER);
@@ -150,7 +150,7 @@ describe("viewer shell", () => {
     const dataTables = fromCalls(fake.calls)
       .filter((call) => !call.ops.includes("head:true"))
       .map((call) => call.name);
-    assert.deepEqual(dataTables, ["profiles", "follows", "blocks", "mutes"]);
+    assert.deepEqual(dataTables, ["profiles", "notifications", "follows", "blocks", "mutes"]);
     const starred = fake.calls.some((call) => call.ops.some((op) => op === 'select:*' || op.includes('select:"*"')));
     assert.equal(starred, false);
     const follows = fromCalls(fake.calls).find((call) => call.name === "follows");
@@ -158,8 +158,8 @@ describe("viewer shell", () => {
     assert.equal(fake.calls.filter((call) => call.kind === "rpc" && call.name === "hidden_author_ids").length, 1);
     const notes = fromCalls(fake.calls).find((call) => call.name === "notifications");
     const messages = fromCalls(fake.calls).find((call) => call.name === "messages");
-    assert.ok(notes?.ops.includes("head:true"));
-    assert.ok(notes?.ops.includes("count:exact"));
+    assert.equal(notes?.ops.includes("head:true"), false);
+    assert.ok(notes?.ops.includes("eq:read:false"));
     assert.ok(messages?.ops.includes("head:true"));
     assert.ok(messages?.ops.includes("count:exact"));
   });
@@ -291,7 +291,8 @@ describe("request budgets", () => {
     const fullMessages = fromCalls(fake.calls).filter(
       (call) => call.name === "messages" && !call.ops.includes("head:true"),
     );
-    assert.equal(fullNotes.length, 0);
+    assert.equal(fullNotes.length, 1);
+    assert.ok(fullNotes[0]?.ops.includes("eq:read:false"));
     assert.equal(fullMessages.length, 0);
     assert.equal(rpcAfterShell, 1);
     assert.equal(fake.calls.filter((call) => call.kind === "rpc").length, 1);
@@ -299,21 +300,65 @@ describe("request budgets", () => {
 });
 
 describe("unread badges", () => {
-  it("counts unread notifications and messages with head queries", async () => {
-    const fake = client({ id: VIEWER });
+  it("counts grouped unread notifications and unread messages with a head query", async () => {
+    const postId = "22222222-2222-4222-8222-222222222222";
+    const fake = client(
+      { id: VIEWER },
+      {
+        notifications: [
+          {
+            id: "n1",
+            recipient_id: VIEWER,
+            actor_id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+            kind: "like",
+            post_id: postId,
+            created_at: "2026-10-22T02:00:00.000Z",
+            read: false,
+          },
+          {
+            id: "n2",
+            recipient_id: VIEWER,
+            actor_id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+            kind: "like",
+            post_id: postId,
+            created_at: "2026-10-22T01:00:00.000Z",
+            read: false,
+          },
+          {
+            id: "n3",
+            recipient_id: VIEWER,
+            actor_id: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+            kind: "follow",
+            post_id: null,
+            created_at: "2026-10-22T00:00:00.000Z",
+            read: false,
+          },
+        ],
+      },
+    );
     const counts = await loadUnreadCounts(fake.supabase, VIEWER);
-    assert.equal(counts.notifications, 3);
+    assert.equal(counts.notifications, 2);
     assert.equal(counts.messages, 3);
     const notes = fromCalls(fake.calls).find((call) => call.name === "notifications");
     const messages = fromCalls(fake.calls).find((call) => call.name === "messages");
     assert.ok(notes?.ops.includes(`eq:recipient_id:${VIEWER}`));
     assert.ok(notes?.ops.includes("eq:read:false"));
-    assert.ok(notes?.ops.includes("count:exact"));
-    assert.ok(notes?.ops.includes("head:true"));
+    assert.equal(notes?.ops.includes("head:true"), false);
     assert.ok(messages?.ops.includes(`eq:receiver_id:${VIEWER}`));
     assert.ok(messages?.ops.includes("eq:read:false"));
     assert.ok(messages?.ops.includes("head:true"));
     assert.equal(tables(fake.calls).includes("posts"), false);
+    const reads = readFileSync(join(process.cwd(), "lib/social/scoped-reads.ts"), "utf8");
+    assert.match(reads, /unreadGroupCount\(/);
+    const provider = readFileSync(join(process.cwd(), "components/social-provider.tsx"), "utf8");
+    const cold = provider.slice(
+      provider.indexOf("const id = postIdFromPath(path)"),
+      provider.indexOf("await refreshRemote(client)"),
+    );
+    assert.match(cold, /loadUnreadCounts\(/);
+    assert.match(provider, /previousUserId !== nextUserId/);
+    assert.match(provider, /notificationCursorRef\.current = null/);
+    assert.match(provider, /snapshotRef\.current\.user\?\.id !== requestedFor/);
   });
 
   it("refreshes those counts on focus and on the realtime inbox cadence", () => {

@@ -445,7 +445,7 @@ export async function remoteAddComment(
   postId: string,
   body: string,
   postAuthorId: string | null,
-): Promise<AuthResult> {
+): Promise<AuthResult & { commentId?: string }> {
   const text = body.trim().slice(0, COMMENT_LIMIT);
   if (!text) return { error: "Write a comment." };
   if (
@@ -455,11 +455,17 @@ export async function remoteAddComment(
   ) {
     return { error: BLOCKED_INTERACTION };
   }
-  const { error } = await supabase.from("comments").insert({
-    post_id: postId,
-    user_id: authorId,
-    body: text,
-  });
+  const inserted = await supabase
+    .from("comments")
+    .insert({
+      post_id: postId,
+      user_id: authorId,
+      body: text,
+    })
+    .select("id")
+    .maybeSingle();
+  const error = inserted.error;
+  const commentId = typeof inserted.data?.id === "string" ? inserted.data.id : undefined;
   if (error) {
     if (missingTable(error)) {
       return { error: SETUP_FAILED };
@@ -497,7 +503,7 @@ export async function remoteAddComment(
   } catch {
     // The reply is already saved. A notification failure must not fail it.
   }
-  return notice ? { notice } : {};
+  return notice ? { notice, commentId } : { commentId };
 }
 
 export async function remoteSyncLikeNotification(
@@ -539,7 +545,7 @@ export async function remoteSendMessage(
   receiverId: string,
   content: string,
   preview?: CardMessagePreview | null,
-): Promise<AuthResult> {
+): Promise<AuthResult & { messageId?: string }> {
   const text = content.trim().slice(0, MESSAGE_LIMIT);
   const cardPreview = preview ? parseCardPreview(preview) : null;
   if (!text && !cardPreview) return { error: "Write a message." };
@@ -562,7 +568,8 @@ export async function remoteSendMessage(
     row.kind = "card_preview";
     row.card_preview = { cardId: cardPreview.cardId };
   }
-  const { error } = await supabase.from("messages").insert(row);
+  const inserted = await supabase.from("messages").insert(row).select("id").maybeSingle();
+  const error = inserted.error;
   if (error) {
     if (missingTable(error)) return { error: SETUP_FAILED };
     if (cardPreview && offersColumnMissing(error)) {
@@ -570,7 +577,8 @@ export async function remoteSendMessage(
     }
     return { error: rlsBlocked(error) ? BLOCKED_INTERACTION : error.message };
   }
-  return {};
+  const messageId = typeof inserted.data?.id === "string" ? inserted.data.id : undefined;
+  return { messageId };
 }
 
 async function senderMuted(
