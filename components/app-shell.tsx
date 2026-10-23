@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect } from "react";
-import { Bell, Camera, CircleUser, Compass, Ellipsis, Mail, Search, WalletCards } from "lucide-react";
+import { Bell, Camera, Compass, Ellipsis, Search, Trophy, WalletCards } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { useSocial } from "@/components/social-provider";
 import { AccountDeletedToast } from "@/components/account-deleted-toast";
@@ -24,10 +24,9 @@ import {
 } from "@/lib/ui/pull-refresh";
 
 const TABS = [
-  { href: "/profile", label: "Profile", icon: CircleUser },
   { href: "/", label: "Home", icon: Compass },
+  { href: "/leaderboard", label: "Leaderboard", icon: Trophy },
   { href: "/cards/new", label: "Add card", icon: Camera },
-  { href: "/messages", label: "Messages", icon: Mail },
   { href: "/collection", label: "Collection", icon: WalletCards },
   { href: "/more", label: "More", icon: Ellipsis },
 ] as const;
@@ -55,7 +54,14 @@ function isActive(pathname: string, href: string, user: Profile | null) {
         pathname.startsWith("/cards"))
     );
   }
-  if (href === "/more") return pathname.startsWith("/more") || pathname === "/login";
+  if (href === "/more") {
+    if (pathname.startsWith("/more") || pathname === "/login") return true;
+    if (pathname.startsWith("/messages") || pathname.startsWith("/profile")) return true;
+    const routeUsername = profileUsernameFromPath(pathname);
+    if (!routeUsername || !user) return false;
+    const onOwnProfile = routeUsername.toLowerCase() === user.username.toLowerCase();
+    return onOwnProfile && pathname.split("/").length === 3;
+  }
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
@@ -183,14 +189,14 @@ function Shell({
                   </Link>
                 );
               }
-              const messageBadge = tab.href === "/messages" ? unreadMessageCount : 0;
+              const messageBadge = tab.href === "/more" ? unreadMessageCount : 0;
               return (
                 <Link
                   key={tab.href}
                   href={tab.href}
                   onClick={onTabClick}
                   aria-label={
-                    messageBadge > 0 ? `Messages, ${messageBadge} unread` : tab.label
+                    messageBadge > 0 ? `More, ${messageBadge} unread messages` : tab.label
                   }
                   aria-current={active ? "page" : undefined}
                   className={`relative flex min-w-0 flex-1 flex-col items-center gap-0.5 px-0.5 py-1 text-[10px] font-medium leading-none ${

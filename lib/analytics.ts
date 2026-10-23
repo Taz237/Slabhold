@@ -92,6 +92,7 @@ export const PAGE_PATTERNS = [
   "/compose",
   "/forgot-password",
   "/home",
+  "/leaderboard",
   "/login",
   "/messages",
   "/messages/[username]",

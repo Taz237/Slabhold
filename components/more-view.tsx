@@ -91,6 +91,11 @@ export function MoreView() {
         <h2 className="text-sm font-bold">Shortcuts</h2>
         <ul className="mt-2 divide-y divide-zinc-200 text-sm dark:divide-white/10">
           <li>
+            <Link href="/profile" className="block py-3">
+              Profile
+            </Link>
+          </li>
+          <li>
             <Link href="/messages" className="block py-3">
               Messages
             </Link>
