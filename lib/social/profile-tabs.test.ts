@@ -303,7 +303,20 @@ describe("profile pin migration", () => {
       /foreign key \(pinned_post_id\)\s+references public\.posts \(id\)\s+on delete set null/i,
     );
     assert.match(sql, /before insert or update of pinned_post_id on public\.profiles/);
-    assert.match(sql, /public\.posts\.user_id = new\.id/);
+    assert.match(sql, /public\.posts\.user_id = new\.id\s+and public\.posts\.hidden_at is null/);
+    assert.match(sql, /public\.posts\.user_id = uid\s+and public\.posts\.hidden_at is null/);
+    assert.match(sql, /raise exception 'can only pin your own post'\s+using errcode = '42501'/);
+    assert.match(sql, /after update of hidden_at on public\.posts/);
+    assert.match(sql, /create or replace function private\.clear_pin_when_post_hidden\(\)/);
+    assert.match(
+      sql,
+      /update public\.profiles\s+set pinned_post_id = null\s+where public\.profiles\.pinned_post_id = new\.id/,
+    );
+    assert.match(
+      sql,
+      /revoke all on function private\.clear_pin_when_post_hidden\(\) from public, anon, authenticated/,
+    );
+    assert.doesNotMatch(sql, /pg_catalog\s*\.\s*(coalesce|nullif|greatest|least)\s*\(/i);
     assert.match(sql, /create or replace function public\.pin_post\(post_id uuid\)/);
     assert.match(sql, /create or replace function public\.unpin_post\(\)/);
     assert.match(sql, /security definer/);
@@ -323,11 +336,29 @@ describe("profile pin migration", () => {
   });
 
   it("ships a read-only verify script", () => {
+    const schema = readFileSync(join(process.cwd(), "supabase/schema.sql"), "utf8");
     assert.match(verify, /profiles\.pinned_post_id/);
     assert.match(verify, /profiles_reserve_username/);
     assert.match(verify, /profiles_enforce_own_pin/);
     assert.match(verify, /has_function_privilege\('anon'/);
     assert.match(verify, /on delete set null/);
+    assert.equal(verify.match(/= '\{search_path=""\}'/g)?.length, 4);
+    assert.match(verify, /enforce_own_pinned_post/);
+    assert.match(verify, /hidden_at is null/);
+    assert.match(verify, /pg_catalog\\s\*\\\.\\s\*\(coalesce\|nullif\|greatest\|least\)\\s\*\\\(/);
+    assert.match(verify, /private\.enforce_own_pinned_post\(\)/);
+    assert.match(verify, /private\.clear_pin_when_post_hidden\(\)/);
+    assert.match(verify, /before insert or update of pinned_post_id/);
+    assert.match(verify, /t\.tgenabled/);
+    assert.match(verify, /in \('O', 'A'\)/);
+    assert.match(verify, /after update of hidden_at/);
+    assert.match(schema, /public\.posts\.user_id = new\.id\s+and public\.posts\.hidden_at is null/);
+    assert.match(schema, /public\.posts\.user_id = uid\s+and public\.posts\.hidden_at is null/);
+    assert.match(schema, /after update of hidden_at on public\.posts/);
+    assert.match(
+      schema,
+      /revoke all on function private\.clear_pin_when_post_hidden\(\) from public, anon, authenticated/,
+    );
     assert.doesNotMatch(verify, /^\s*(insert|update|delete|truncate|drop|alter|grant|revoke)\b/im);
   });
 });

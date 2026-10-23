@@ -11,7 +11,11 @@
 --
 -- public.pin_post(post_id) and public.unpin_post() are the app RPCs. Both are
 -- security definer with an empty search_path. anon cannot execute them.
--- They only update the caller's profile, and pin_post checks posts.user_id.
+-- They only update the caller's profile. pin_post requires posts.user_id to
+-- be the caller and posts.hidden_at to be null.
+--
+-- posts_clear_pin_when_hidden runs after hidden_at changes. When moderation
+-- hides a post, every profile pin of that post is cleared.
 --
 -- profiles_reserve_username is not replaced. It still runs before insert or
 -- update of username only. A pin does not rename anyone, and a rename does
@@ -36,7 +40,7 @@ alter table public.profiles
   on delete set null;
 
 comment on column public.profiles.pinned_post_id is
-  'The one post this profile pins. Null when nothing is pinned. Must be a post whose user_id is this profile. Cleared when that post is deleted.';
+  'The one post this profile pins. Null when nothing is pinned. Must be a visible post whose user_id is this profile. Cleared when that post is deleted or hidden.';
 
 create index if not exists profiles_pinned_post_id_idx
   on public.profiles (pinned_post_id);
@@ -59,6 +63,7 @@ begin
     from public.posts
     where public.posts.id = new.pinned_post_id
       and public.posts.user_id = new.id
+      and public.posts.hidden_at is null
   ) then
     raise exception 'can only pin your own post'
       using errcode = '42501';
@@ -94,6 +99,7 @@ begin
     from public.posts
     where public.posts.id = post_id
       and public.posts.user_id = uid
+      and public.posts.hidden_at is null
   ) then
     raise exception 'can only pin your own post'
       using errcode = '42501';
@@ -137,6 +143,30 @@ comment on function public.pin_post(uuid) is
   'Pin one of your own posts. Replaces the previous pin. anon cannot execute this.';
 comment on function public.unpin_post() is
   'Clear your pinned post. anon cannot execute this.';
+
+create or replace function private.clear_pin_when_post_hidden()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if new.hidden_at is not null then
+    update public.profiles
+    set pinned_post_id = null
+    where public.profiles.pinned_post_id = new.id;
+  end if;
+  return new;
+end;
+$$;
+
+revoke all on function private.clear_pin_when_post_hidden() from public, anon, authenticated;
+
+drop trigger if exists posts_clear_pin_when_hidden on public.posts;
+create trigger posts_clear_pin_when_hidden
+  after update of hidden_at on public.posts
+  for each row
+  execute function private.clear_pin_when_post_hidden();
 
 do $$
 begin
