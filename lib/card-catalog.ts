@@ -3,10 +3,12 @@
 import {
   buildSearchText,
   formatCatalogResultLabel,
+  normalizeSearchText,
+  parseCardQuery,
   searchCardsLocal,
   type SearchableCard,
 } from "@/lib/card-search-query";
-import { compactPlayerQueryMatches } from "@/lib/social/follow-rank";
+import { queryHasCompactInitials } from "@/lib/social/follow-rank";
 
 export type CatalogCard = {
   id: string;
@@ -183,13 +185,117 @@ function cardsInRankOrder(
     .filter((card): card is CatalogCard => Boolean(card));
 }
 
+/**
+ * "c.j. stroud prizm" is the same search as "cj stroud prizm".
+ * Year and set words stay in the query so the normal ranker orders the hits.
+ * Returns null when the query is not an initials search.
+ */
+function collapseInitialQuery(query: string): string | null {
+  if (!queryHasCompactInitials(query)) return null;
+  const parsed = parseCardQuery(query);
+  if (!parsed.playerWords.some((word) => word.length === 1)) return null;
+  const words: string[] = [];
+  let buf = "";
+  const flush = () => {
+    if (!buf) return;
+    words.push(buf);
+    buf = "";
+  };
+  for (const word of parsed.playerWords) {
+    if (word.length === 1) {
+      buf += word;
+      continue;
+    }
+    flush();
+    words.push(word);
+  }
+  flush();
+  const rebuilt = [words.join(" "), parsed.yearLabel, ...parsed.setWords, parsed.cardNumber]
+    .filter(Boolean)
+    .join(" ");
+  if (!rebuilt || normalizeSearchText(rebuilt) === normalizeSearchText(query)) return null;
+  return rebuilt;
+}
+
+function collapseNameWords(words: readonly string[]): string[] {
+  const out: string[] = [];
+  let buf = "";
+  for (const word of words) {
+    if (word.length === 1) {
+      buf += word;
+      continue;
+    }
+    if (buf) {
+      out.push(buf);
+      buf = "";
+    }
+    out.push(word);
+  }
+  if (buf) out.push(buf);
+  return out;
+}
+
+/** "c.jstroud" is the same initials as "c j stroud". A dotted initial glued to the next letter is split. */
+function prefixQueryWords(query: string): string[] {
+  const splitGlued = query.replace(/([A-Za-z])\.([A-Za-z])(?=[A-Za-z])/g, "$1 $2 ");
+  const words = normalizeSearchText(splitGlued).split(" ").filter(Boolean);
+  return collapseNameWords(words);
+}
+
+/**
+ * Every query word except the last equals a whole name word, in order.
+ * The last word is a prefix of the next name word. "luka d" matches Luka Dončić.
+ * "dont e" does not match Donte, and "john st" does not match Johnston.
+ */
+export function catalogPlayerPrefixMatch(query: string, playerName: string): boolean {
+  const queryWords = prefixQueryWords(query);
+  const nameWords = collapseNameWords(normalizeSearchText(playerName).split(" ").filter(Boolean));
+  if (queryWords.length === 0 || queryWords.length > nameWords.length) return false;
+  const last = queryWords.length - 1;
+  for (let start = 0; start <= nameWords.length - queryWords.length; start += 1) {
+    let aligned = true;
+    for (let index = 0; index < last; index += 1) {
+      if (queryWords[index] !== nameWords[start + index]) {
+        aligned = false;
+        break;
+      }
+    }
+    if (!aligned) continue;
+    const tail = queryWords[last] ?? "";
+    const next = nameWords[start + last] ?? "";
+    if (tail && next.startsWith(tail)) return true;
+  }
+  return false;
+}
+
+function cardsByWordAlignedPrefix(query: string, cards: CatalogCard[], limit: number): CatalogCard[] {
+  if (limit <= 0) return [];
+  const matched = cards.filter((card) => catalogPlayerPrefixMatch(query, card.playerName));
+  if (matched.length === 0) return [];
+  const groups = new Map<string, CatalogCard[]>();
+  for (const card of matched) {
+    const key = normalizeSearchText(card.playerName);
+    const list = groups.get(key);
+    if (list) list.push(card);
+    else groups.set(key, [card]);
+  }
+  const ranked: CatalogCard[] = [];
+  for (const group of groups.values()) {
+    ranked.push(...cardsInRankOrder(group[0]!.playerName, group, limit));
+  }
+  return ranked.slice(0, limit);
+}
+
 /** Ranked local matches (typo/alias aware). Default 20 for Add Card. */
 export function searchCatalog(query: string, limit = 20): CatalogCard[] {
   const ranked = cardsInRankOrder(query, CARD_CATALOG, limit);
   if (ranked.length > 0 || !query.trim()) return ranked;
-  const cap = Math.max(0, Math.floor(limit));
-  if (cap === 0) return [];
-  return CARD_CATALOG.filter((card) => compactPlayerQueryMatches(query, card.playerName)).slice(0, cap);
+  const collapsed = collapseInitialQuery(query);
+  if (collapsed) {
+    const again = cardsInRankOrder(collapsed, CARD_CATALOG, limit);
+    if (again.length > 0) return again;
+  }
+  return cardsByWordAlignedPrefix(query, CARD_CATALOG, limit);
 }
 
 /**

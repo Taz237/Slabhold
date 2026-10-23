@@ -29,6 +29,8 @@ export type InterestKind = "sport" | "team" | "player";
 export type CollectInterest = {
   kind: InterestKind;
   value: string;
+  /** Set for a player name that exists in more than one sport. */
+  sport?: string;
 };
 
 export type RankedCollector = {
@@ -101,15 +103,41 @@ export function compactInterest(value: string): string {
 }
 
 /**
+ * Initials in the raw query. Spaces and dots are the only splits, so an
+ * apostrophe stays inside the token: "dont'e" is one word, and a leftover
+ * letter in "dont e" or "amar e" is not an initial. "c. j.", "c j stroud",
+ * and "j.j. watt" are.
+ */
+export function queryHasCompactInitials(query: string): boolean {
+  const tokens = query
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .toLowerCase()
+    .split(/[\s.]+/)
+    .filter(Boolean);
+  const dotted = query.includes(".");
+  let run = 0;
+  let dottedSingle = false;
+  for (const token of tokens) {
+    if (token.length !== 1) {
+      run = 0;
+      continue;
+    }
+    run += 1;
+    if (run >= 2) return true;
+    if (dotted) dottedSingle = true;
+  }
+  return dottedSingle;
+}
+
+/**
  * Compact match for a dotted or single-letter query, starting at a word.
  * "c.j. stroud" and "c j stroud" match "CJ Stroud". "john st" does not match
- * "Cameron Johnston", because that query is neither dotted nor single letters.
+ * "Cameron Johnston", and "dont e" does not match "Donte DiVincenzo".
  */
 export function compactPlayerQueryMatches(query: string, name: string): boolean {
   const norm = normInterest(query);
-  if (!norm) return false;
-  const tokens = norm.split(" ");
-  if (!query.includes(".") && tokens.every((token) => token.length !== 1)) return false;
+  if (!norm || !queryHasCompactInitials(query)) return false;
   const q = compactNorm(norm);
   if (!q) return false;
   const words = normInterest(name).split(" ").filter(Boolean);

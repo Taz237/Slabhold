@@ -54,6 +54,7 @@ describe("route access", () => {
       "/profile/following",
       "/settings",
       "/settings/privacy",
+      "/settings/collecting",
     ];
     for (const path of paths) {
       assert.equal(routeAccess(path), "account", path);

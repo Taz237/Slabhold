@@ -3,16 +3,19 @@
 import { useEffect, useMemo, useState } from "react";
 import { X } from "lucide-react";
 import { searchCatalog } from "@/lib/card-catalog";
+import { collapseInitials } from "@/lib/players/initials";
 import { nameSuggestionLabel, withDirectoryPlayers } from "@/lib/players/suggest";
 import { usePlayerDirectory } from "@/lib/players/use-directory";
 import {
   COLLECT_TEAMS,
   collectSportChoices,
   interestTypeahead,
+  playerNameIsShared,
   type InterestHit,
 } from "@/lib/social/collect-interests";
-import { compactInterest, type CollectInterest } from "@/lib/social/follow-rank";
+import { compactInterest, normInterest, type CollectInterest } from "@/lib/social/follow-rank";
 import { createSupabaseBrowser } from "@/lib/supabase/browser";
+import { getSupabaseConfig } from "@/lib/supabase/client";
 
 const chipClass =
   "inline-flex min-h-11 items-center justify-center rounded-full border px-4 text-sm font-semibold";
@@ -65,6 +68,33 @@ function nameRowLabel(hit: { kind: string; sport?: string }): string {
   return hit.sport ? `Player · ${hit.sport}` : "Player";
 }
 
+/**
+ * The other search_cards query for initials. "c.j. stroud" also searches "cj stroud",
+ * and "cj stroud" also searches "c.j. stroud". A trailing fragment such as "st" stays put.
+ */
+export function alternateInitialQuery(query: string): string | null {
+  const norm = normInterest(query);
+  if (!norm) return null;
+  const words = norm.split(" ").filter(Boolean);
+  const joined = collapseInitials(words).join(" ");
+  if (joined !== norm) return joined;
+  let dotted = false;
+  const expanded = words.map((word, index) => {
+    if (word.length !== 2 || index === words.length - 1) return word;
+    dotted = true;
+    return `${word[0]}.${word[1]}.`;
+  });
+  return dotted ? expanded.join(" ") : null;
+}
+
+export function cardSearchQueries(query: string): string[] {
+  const primary = query.trim();
+  if (!primary) return [];
+  const extra = alternateInitialQuery(primary);
+  if (!extra || extra.toLowerCase() === primary.toLowerCase()) return [primary];
+  return [primary, extra];
+}
+
 export function NameSearch({
   sports,
   selected,
@@ -88,18 +118,23 @@ export function NameSearch({
     if (!supabase) return;
     let cancelled = false;
     const timer = window.setTimeout(() => {
-      void supabase
-        .rpc("search_cards", { q, max_results: 20 })
-        .then(({ data, error }) => {
-          if (cancelled || error || !data) return;
-          const rows = data as { player?: string; sport?: string | null }[];
-          setRemoteQuery(q);
-          setRemotePlayers(
-            rows
-              .filter((row) => row.player)
-              .map((row) => ({ name: row.player ?? "", sport: row.sport || "" })),
-          );
-        });
+      void Promise.all(
+        cardSearchQueries(q).map((term) =>
+          Promise.resolve(
+            supabase.rpc("search_cards", { q: term, max_results: 20 }).then(({ data, error }) => {
+              if (error || !data) return [];
+              const rows = data as { player?: string; sport?: string | null }[];
+              return rows
+                .filter((row) => row.player)
+                .map((row) => ({ name: row.player ?? "", sport: row.sport || "" }));
+            }),
+          ).catch(() => [] as { name: string; sport: string }[]),
+        ),
+      ).then((groups) => {
+        if (cancelled) return;
+        setRemoteQuery(q);
+        setRemotePlayers(groups.flat());
+      });
     }, 120);
     return () => {
       cancelled = true;
@@ -117,23 +152,28 @@ export function NameSearch({
     return [...local, ...remote];
   }, [query, remotePlayers, remoteQuery]);
 
-  const hits = useMemo(
-    () =>
-      withDirectoryPlayers({
+  const directoryReady = directory.status === "ready";
+  const typed = query.trim().length > 0;
+  const catalogSettled = !getSupabaseConfig().configured || !typed || remoteQuery === query.trim();
+  const hits = useMemo(() => {
+    const found = withDirectoryPlayers({
+      query,
+      sports,
+      catalogHits: interestTypeahead({
         query,
         sports,
-        catalogHits: interestTypeahead({
-          query,
-          sports,
-          players,
-          teams: COLLECT_TEAMS,
-        }),
-        directoryPlayers: directory.players,
-        directoryReady: directory.status === "ready",
+        players,
+        teams: COLLECT_TEAMS,
       }),
-    [directory.players, directory.status, players, query, sports],
-  );
-  const typed = query.trim().length > 0;
+      directoryPlayers: directory.players,
+      directoryReady,
+    });
+    return selectableCollectHits(
+      hitsBeforeDirectoryReady(found, directoryReady),
+      players.map((player) => player.name),
+      catalogSettled,
+    );
+  }, [catalogSettled, directory.players, directoryReady, players, query, sports]);
 
   return (
     <div>
@@ -141,14 +181,14 @@ export function NameSearch({
         <div className="mb-3 flex flex-wrap gap-2">
           {names.map((pick) => (
             <button
-              key={`${pick.kind}:${pick.value}`}
+              key={`${pick.kind}:${pick.value}:${pick.sport ?? ""}`}
               type="button"
               onClick={() => onRemove(pick)}
               className={`${chipClass} gap-1.5 border-zinc-900 bg-zinc-900 text-white dark:border-zinc-100 dark:bg-zinc-100 dark:text-zinc-950`}
             >
-              {pick.value}
+              {pickedNameLabel(pick)}
               <X className="h-3.5 w-3.5" aria-hidden />
-              <span className="sr-only">Remove {pick.value}</span>
+              <span className="sr-only">Remove {pickedNameLabel(pick)}</span>
             </button>
           ))}
         </div>
@@ -175,6 +215,9 @@ export function NameSearch({
           </button>
         </div>
       ) : null}
+      {typed && directory.status !== "loading" && catalogSettled && hits.length === 0 ? (
+        <p className="mt-2 text-sm text-zinc-500">No players found</p>
+      ) : null}
       {hits.length > 0 ? (
         <ul className="mt-2 overflow-hidden rounded-2xl border border-zinc-200 dark:border-white/10">
           {hits.map((hit) => (
@@ -182,7 +225,10 @@ export function NameSearch({
               <button
                 type="button"
                 onClick={() => {
-                  onAdd(hit);
+                  if (hit.kind === "player" && directory.status !== "ready") return;
+                  const sharedName =
+                    hit.kind === "player" && playerNameIsShared(hit.value, directory.players);
+                  onAdd(sharedName ? { ...hit, sharedName: true } : hit);
                   setQuery("");
                 }}
                 className="flex min-h-11 w-full items-center justify-between gap-3 px-4 text-left text-[15px] hover:bg-zinc-100 dark:hover:bg-white/10"
@@ -206,27 +252,78 @@ export function toggleSport(selected: readonly string[], sport: string): string[
   return [...selected, sport];
 }
 
-function savedNameKey(kind: string, value: string): string {
-  return `${kind}:${compactInterest(value)}`;
+/** Player rows wait until the roster chunk has loaded, so a shared name is not guessed early. */
+export function hitsBeforeDirectoryReady<T extends { kind: string }>(
+  hits: readonly T[],
+  directoryReady: boolean,
+): T[] {
+  if (directoryReady) return [...hits];
+  return hits.filter((hit) => hit.kind !== "player");
+}
+
+/** Directory spellings stay unselectable until search_cards has answered for this query. */
+export function selectableCollectHits<T extends { kind: string; value: string; custom?: boolean }>(
+  hits: readonly T[],
+  catalogNames: readonly string[],
+  catalogSettled: boolean,
+): T[] {
+  if (catalogSettled) return [...hits];
+  const keys = new Set(catalogNames.map((name) => compactInterest(name)));
+  return hits.filter(
+    (hit) => hit.kind !== "player" || (!hit.custom && keys.has(compactInterest(hit.value))),
+  );
+}
+
+/** "Will Smith · Baseball" when the saved player name is shared. Other chips stay the name. */
+export function pickedNameLabel(pick: { kind: string; value: string; sport?: string }): string {
+  if (pick.kind === "player" && pick.sport) return `${pick.value} · ${pick.sport}`;
+  return pick.value;
+}
+
+function picksMatch(
+  pick: CollectInterest,
+  hit: { kind: string; value: string; sport?: string; sharedName?: boolean },
+): boolean {
+  if (pick.kind !== hit.kind) return false;
+  if (compactInterest(pick.value) !== compactInterest(hit.value)) return false;
+  if (hit.kind !== "player") return true;
+  const left = normInterest(pick.sport ?? "");
+  const right = hit.sharedName ? normInterest(hit.sport ?? "") : "";
+  if (!left || !right) return true;
+  return left === right;
+}
+
+function storedPick(hit: InterestHit): CollectInterest {
+  const value = hit.value.replace(/\u2060/g, "");
+  if (hit.kind === "player" && hit.sharedName && hit.sport.trim()) {
+    return { kind: hit.kind, value, sport: hit.sport };
+  }
+  return { kind: hit.kind, value };
+}
+
+export function nameAlreadyPicked(selected: readonly CollectInterest[], hit: InterestHit): boolean {
+  return selected.some((pick) => picksMatch(pick, hit));
 }
 
 export function toggleName(
   selected: readonly CollectInterest[],
   hit: InterestHit,
 ): CollectInterest[] {
-  const key = savedNameKey(hit.kind, hit.value);
   let replaced = false;
   const next: CollectInterest[] = [];
+  const incoming = storedPick(hit);
   for (const pick of selected) {
-    if (savedNameKey(pick.kind, pick.value) !== key) {
+    if (!picksMatch(pick, hit)) {
       next.push(pick);
       continue;
     }
     if (replaced) continue;
-    next.push(pick.value === hit.value ? pick : { kind: hit.kind, value: hit.value });
+    const sameValue = pick.value === incoming.value;
+    const sameSport = normInterest(pick.sport ?? "") === normInterest(incoming.sport ?? "");
+    next.push(sameValue && sameSport ? pick : incoming);
     replaced = true;
   }
-  if (!replaced) next.push({ kind: hit.kind, value: hit.value });
+  if (!replaced) next.push(incoming);
   return next;
 }
 
@@ -234,7 +331,12 @@ export function withoutName(
   selected: readonly CollectInterest[],
   hit: CollectInterest,
 ): CollectInterest[] {
-  const index = selected.findIndex((pick) => pick.kind === hit.kind && pick.value === hit.value);
+  const index = selected.findIndex(
+    (pick) =>
+      pick.kind === hit.kind &&
+      pick.value === hit.value &&
+      normInterest(pick.sport ?? "") === normInterest(hit.sport ?? ""),
+  );
   if (index < 0) return [...selected];
   return selected.filter((_, item) => item !== index);
 }

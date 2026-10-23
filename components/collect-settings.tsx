@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import {
   NameSearch,
   SportChips,
+  nameAlreadyPicked,
   toggleName,
   toggleSport,
   useCollectSports,
@@ -23,6 +24,7 @@ import {
   type InterestRow,
 } from "@/lib/social/collect-interests";
 import type { CollectInterest } from "@/lib/social/follow-rank";
+import { loginPath } from "@/lib/auth/safe-next";
 import { createSupabaseBrowser } from "@/lib/supabase/browser";
 
 export function CollectSettings() {
@@ -35,6 +37,10 @@ export function CollectSettings() {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const sportOptions = useCollectSports(catalogSports);
+
+  useEffect(() => {
+    if (ready && !user) router.replace(loginPath("/settings/collecting"));
+  }, [ready, router, user]);
 
   useEffect(() => {
     if (!ready || !user || mode !== "supabase") return;
@@ -147,9 +153,7 @@ export function CollectSettings() {
           sports={sports}
           selected={names}
           onAdd={(hit) => {
-            const exists = names.some(
-              (pick) => pick.kind === hit.kind && pick.value.toLowerCase() === hit.value.toLowerCase(),
-            );
+            const exists = nameAlreadyPicked(names, hit);
             if (!exists && !canAddPick(sports.length + names.length)) {
               setError(PICK_LIMIT_MESSAGE);
               return;

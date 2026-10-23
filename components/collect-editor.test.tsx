@@ -7,7 +7,17 @@ import { searchCatalog } from "@/lib/card-catalog";
 import { INDEXED_DIRECTORY } from "@/lib/players/directory";
 import { withDirectoryPlayers } from "@/lib/players/suggest";
 import { COLLECT_TEAMS, interestTypeahead } from "@/lib/social/collect-interests";
-import { NameSearch, nameHitKey, toggleName, withoutName } from "@/components/collect-editor";
+import {
+  NameSearch,
+  alternateInitialQuery,
+  cardSearchQueries,
+  hitsBeforeDirectoryReady,
+  nameHitKey,
+  pickedNameLabel,
+  selectableCollectHits,
+  toggleName,
+  withoutName,
+} from "@/components/collect-editor";
 
 delete process.env.NEXT_PUBLIC_SUPABASE_URL;
 delete process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -169,6 +179,34 @@ describe("collect name rows", () => {
     assert.deepEqual(withoutName(both, { kind: "player", value: "CJ Stroud" }), [
       { kind: "player", value: "C.J. Stroud" },
     ]);
+    const baseball = toggleName([], { kind: "player", value: "Will Smith", sport: "Baseball", sharedName: true });
+    const smiths = toggleName(baseball, { kind: "player", value: "Will Smith", sport: "Hockey", sharedName: true });
+    assert.deepEqual(smiths, [
+      { kind: "player", value: "Will Smith", sport: "Baseball" },
+      { kind: "player", value: "Will Smith", sport: "Hockey" },
+    ]);
+    assert.equal(pickedNameLabel(smiths[0]!), "Will Smith · Baseball");
+    assert.equal(pickedNameLabel(smiths[1]!), "Will Smith · Hockey");
+    assert.equal(pickedNameLabel({ kind: "player", value: "CJ Stroud" }), "CJ Stroud");
+    const pending = hitsBeforeDirectoryReady(
+      [
+        { kind: "team", value: "Chiefs" },
+        { kind: "player", value: "Will Smith", sport: "Baseball" },
+      ],
+      false,
+    );
+    assert.deepEqual(pending, [{ kind: "team", value: "Chiefs" }]);
+    const marked = toggleName([], {
+      kind: "player",
+      value: "Will Smith\u2060",
+      sport: "Baseball",
+      sharedName: true,
+    });
+    assert.equal(marked[0]?.value, "Will Smith");
+    assert.equal(marked[0]?.sport, "Baseball");
+    assert.deepEqual(withoutName(smiths, { kind: "player", value: "Will Smith", sport: "Baseball" }), [
+      { kind: "player", value: "Will Smith", sport: "Hockey" },
+    ]);
   });
 
   it("keeps unique Will Smith rows with no sport selected", async () => {
@@ -177,5 +215,133 @@ describe("collect name rows", () => {
 
   it("keeps unique Will Smith rows with Baseball and Hockey selected", async () => {
     await typeBackspaceRetype(["Baseball", "Hockey"]);
+  });
+
+  it("labels shared player chips with the sport and says when nothing matched", async () => {
+    const host = win.document.createElement("div");
+    win.document.body.appendChild(host);
+    const root: Root = createRoot(host);
+    await act(async () => {
+      root.render(
+        createElement(NameSearch, {
+          sports: [],
+          selected: [
+            { kind: "player", value: "Will Smith", sport: "Baseball" },
+            { kind: "player", value: "Will Smith", sport: "Hockey" },
+          ],
+          onAdd: () => {},
+          onRemove: () => {},
+        }),
+      );
+    });
+    const input = win.document.querySelector("input");
+    assert.ok(input instanceof win.HTMLInputElement);
+    const chips = win.document.body.textContent ?? "";
+    assert.match(chips, /Will Smith · Baseball/);
+    assert.match(chips, /Will Smith · Hockey/);
+    await setQuery(input, "pikachu");
+    let text = "";
+    for (let attempt = 0; attempt < 40; attempt += 1) {
+      text = win.document.body.textContent ?? "";
+      if (text.includes("No players found") && !text.includes("Loading players")) break;
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      });
+    }
+    assert.match(text, /No players found/);
+    assert.equal(rowKeys().length, 0);
+    await act(async () => {
+      root.unmount();
+    });
+    host.remove();
+  });
+
+  it("saves the catalog spelling when compact initials meet live rows", () => {
+    const saved = (query: string, rows: { name: string; sport: string }[]) => {
+      const hits = withDirectoryPlayers({
+        query,
+        catalogHits: interestTypeahead({ query, players: rows, teams: [] }),
+        directoryPlayers: INDEXED_DIRECTORY,
+        directoryReady: true,
+      });
+      return hits.find((hit) => hit.kind === "player" && !hit.custom)?.value;
+    };
+    assert.equal(
+      saved(
+        "tj parker",
+        Array.from({ length: 2 }, () => ({ name: "T.J. Parker", sport: "Football" })),
+      ),
+      "T.J. Parker",
+    );
+    assert.equal(
+      saved(
+        "jc latham",
+        Array.from({ length: 13 }, () => ({ name: "J.C. Latham", sport: "Football" })),
+      ),
+      "J.C. Latham",
+    );
+    assert.equal(alternateInitialQuery("dont e"), null);
+    assert.equal(alternateInitialQuery("john st"), null);
+    assert.deepEqual(cardSearchQueries("c.j. stroud"), ["c.j. stroud", "cj stroud"]);
+    assert.equal(
+      saved("c.j. stroud", [
+        ...Array.from({ length: 3 }, () => ({ name: "C.J. Stroud", sport: "Football" })),
+        ...Array.from({ length: 9 }, () => ({ name: "CJ Stroud", sport: "Football" })),
+      ]),
+      "CJ Stroud",
+    );
+  });
+
+  it("keeps dotted custom names and holds the roster spelling until the card rows arrive", () => {
+    const dotted = withDirectoryPlayers({
+      query: "A.B. Newguy",
+      catalogHits: [],
+      directoryPlayers: INDEXED_DIRECTORY,
+      directoryReady: true,
+    });
+    assert.equal(dotted[0]?.value, "A.B. Newguy");
+    assert.equal(dotted[0]?.custom, true);
+    const lower = withDirectoryPlayers({
+      query: "a.b. newguy",
+      catalogHits: [],
+      directoryPlayers: [],
+      directoryReady: true,
+    });
+    assert.equal(lower[0]?.value, "A.B. Newguy");
+    assert.equal(lower[0]?.custom, true);
+    const waiting = selectableCollectHits(
+      [
+        { kind: "player", value: "JC Latham" },
+        { kind: "player", value: "A.B. Newguy", custom: true },
+        { kind: "team", value: "Chiefs" },
+      ],
+      [],
+      false,
+    );
+    assert.deepEqual(
+      waiting.map((hit) => hit.value),
+      ["Chiefs"],
+    );
+    const catalogBacked = selectableCollectHits(
+      [{ kind: "player", value: "J.C. Latham" }, { kind: "team", value: "Chiefs" }],
+      ["J.C. Latham"],
+      false,
+    );
+    assert.deepEqual(
+      catalogBacked.map((hit) => hit.value),
+      ["J.C. Latham", "Chiefs"],
+    );
+    const arrived = selectableCollectHits(
+      [
+        { kind: "player", value: "JC Latham" },
+        { kind: "player", value: "A.B. Newguy", custom: true },
+      ],
+      [],
+      true,
+    );
+    assert.deepEqual(
+      arrived.map((hit) => hit.value),
+      ["JC Latham", "A.B. Newguy"],
+    );
   });
 });
