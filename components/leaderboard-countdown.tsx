@@ -44,7 +44,7 @@ export function LeaderboardCountdown({
   }, [resetsAt]);
 
   return (
-    <span ref={node} suppressHydrationWarning>
+    <span ref={node} className="whitespace-nowrap tabular-nums" suppressHydrationWarning>
       {initialLabel}
     </span>
   );
