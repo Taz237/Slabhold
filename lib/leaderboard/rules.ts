@@ -13,7 +13,7 @@ export const LEADERBOARD_TOP_LIMIT = 10;
 export const LEADERBOARD_MIN_ENTRIES = 3;
 
 /** Replies and follows only count from accounts at least this many days old. */
-export const ACTOR_MIN_AGE_DAYS = 7;
+export const ACTOR_MIN_AGE_DAYS = 1;
 
 /** The actor also needs at least this many cards or this many posts. */
 export const ACTOR_MIN_CONTENT = 1;
@@ -44,6 +44,11 @@ export const THIN_BOARD_TITLE = "Board fills up as collectors post and follow";
 
 /** Shown when a board has fewer than LEADERBOARD_MIN_ENTRIES qualifying rows. */
 export const EMPTY_BOARD_TITLE = "Be the first name here";
+
+/** Thin board when the signed-in viewer already has points. */
+export const ON_BOARD_THIN_TITLE = "You're on the board";
+
+export const ON_BOARD_THIN_DETAIL = `Names appear once ${LEADERBOARD_MIN_ENTRIES} collectors qualify.`;
 
 export const PROVISIONAL_LABEL = "Provisional";
 
@@ -119,7 +124,8 @@ export const REMOVED_FOLLOW_RULE =
 export const BLOCK_PAIR_RULE = "People who blocked each other do not count.";
 
 export function realCollectorRule(): string {
-  return `A real collector has had an account for at least ${ACTOR_MIN_AGE_DAYS} days and has at least ${ACTOR_MIN_CONTENT} card or ${ACTOR_MIN_CONTENT} post.`;
+  const age = ACTOR_MIN_AGE_DAYS === 1 ? "a day" : `${ACTOR_MIN_AGE_DAYS} days`;
+  return `A real collector has had an account for at least ${age} and has at least ${ACTOR_MIN_CONTENT} card or ${ACTOR_MIN_CONTENT} post.`;
 }
 
 export function testAccountRule(): string {

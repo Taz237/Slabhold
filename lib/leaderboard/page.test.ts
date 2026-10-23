@@ -18,6 +18,8 @@ import {
   CLOSED_NOTE,
   FINAL_LABEL,
   EMPTY_BOARD_TITLE,
+  ON_BOARD_THIN_DETAIL,
+  ON_BOARD_THIN_TITLE,
   REMOVED_FOLLOW_RULE,
   TOP_CARD_LEAD,
   VALUE_BOARD_ID,
@@ -62,7 +64,9 @@ describe("leaderboard page", () => {
     assert.equal(parseLeaderboardQuery("last", "rising-collectors").week, "previous");
     const lead = LEADERBOARD_TABS[0].howTo[0];
     assert.equal(lead, TOP_CARD_LEAD);
-    assert.match(LEADERBOARD_TABS[0].howTo.join(" "), new RegExp(String(ACTOR_MIN_AGE_DAYS)));
+    assert.equal(ACTOR_MIN_AGE_DAYS, 1);
+    assert.match(LEADERBOARD_TABS[0].howTo.join(" "), /at least a day/);
+    assert.doesNotMatch(LEADERBOARD_TABS.map((tab) => tab.howTo.join(" ")).join(" "), /7 days/);
     assert.match(LEADERBOARD_TABS[0].howTo.join(" "), new RegExp(String(ACTOR_MIN_CONTENT)));
     const rules = LEADERBOARD_TABS.map((tab) => tab.howTo.join(" ")).join(" ");
     assert.match(rules, /Test accounts are left out\./);
@@ -153,6 +157,60 @@ describe("leaderboard page", () => {
     assert.match(thinHtml, /href="\/search"/);
     assert.doesNotMatch(thinHtml, /data-empty-cta=""[^>]*href="\/compose"|href="\/compose"[^>]*data-empty-cta=""/);
     assert.doesNotMatch(thinHtml, /#1/);
+  });
+
+  it("tells a scored viewer the board is waiting for 3 names", () => {
+    const snap = emptySnapshot(new Date("2026-10-23T18:00:00.000Z"));
+    const row = (id: string, userId: string, points: number) => ({
+      id,
+      userId,
+      title: `Card ${id}`,
+      subtitle: `@${userId}`,
+      href: `/posts/${id}`,
+      avatarUrl: null,
+      accent: "#7c5cff",
+      contributions: [{ actorId: "fan", points }],
+    });
+    snap.current.boards["top-card-post"] = { rows: [row("p1", "me", 2), row("p2", "other", 1)] };
+    const now = new Date("2026-10-23T18:00:00.000Z");
+    const scored = presentLeaderboard({
+      snapshot: snap,
+      viewer: { userId: "me", hiddenIds: [] },
+      week: "current",
+      boardId: "top-card-post",
+      now,
+    });
+    assert.equal(scored.thin, true);
+    assert.equal(scored.entries.length, 0);
+    assert.equal(scored.you?.label, "You: 2 replies");
+    assert.equal(scored.thinTitle, ON_BOARD_THIN_TITLE);
+    assert.equal(scored.thinDetail, ON_BOARD_THIN_DETAIL);
+    const html = renderToStaticMarkup(createElement(LeaderboardView, { model: scored }));
+    assert.doesNotMatch(html, new RegExp(EMPTY_BOARD_TITLE));
+    assert.match(html, /You&#x27;re on the board/);
+    assert.match(html, /Names appear once 3 collectors qualify/);
+    assert.match(html, /You: 2 replies/);
+
+    const guest = presentLeaderboard({
+      snapshot: snap,
+      viewer: { userId: null, hiddenIds: [] },
+      week: "current",
+      boardId: "top-card-post",
+      now,
+    });
+    assert.equal(guest.you, null);
+    assert.equal(guest.thinTitle, EMPTY_BOARD_TITLE);
+
+    const none = presentLeaderboard({
+      snapshot: emptySnapshot(now),
+      viewer: { userId: "me", hiddenIds: [] },
+      week: "current",
+      boardId: "top-card-post",
+      now,
+    });
+    assert.equal(none.thin, true);
+    assert.equal(none.you?.score, 0);
+    assert.equal(none.thinTitle, EMPTY_BOARD_TITLE);
   });
 
   it("caps the list at 10 and still ranks the viewer past that", () => {
