@@ -188,6 +188,19 @@ describe("rising collectors scoring", () => {
     assert.equal(ranked.entries.some((entry) => entry.id === "author"), false);
   });
 
+  it("counts a duplicated follow pair once", () => {
+    const follow: BoardFollow = {
+      followerId: "fan",
+      followingId: "author",
+      createdAt: IN_WEEK,
+      removedAt: null,
+    };
+    const rows = boards(base({ follows: [follow, { ...follow }, { ...follow }] }))["rising-collectors"]?.rows ?? [];
+    const author = rows.find((row) => row.id === "author");
+    assert.equal(author?.contributions.length, 1);
+    assert.equal(author?.contributions[0]?.points, 1);
+  });
+
   it("leaves out test entrants and the official updates account", () => {
     const input = base({
       profiles: [

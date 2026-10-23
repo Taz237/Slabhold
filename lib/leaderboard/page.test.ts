@@ -23,8 +23,9 @@ import {
   VALUE_BOARD_ID,
   leaderboardTab,
   parseLeaderboardQuery,
+  scoreUnit,
 } from "./rules";
-import { pageExceededCap } from "./pages";
+import { pageExceededCap, pageRows } from "./pages";
 import { emptySnapshot } from "./snapshot";
 import { hiddenIdsForViewer } from "./viewer";
 import { TEST_ACCOUNT_PREFIXES } from "@/lib/test-accounts";
@@ -107,7 +108,11 @@ describe("leaderboard page", () => {
     assert.equal(thin.standingNote, CLOSED_NOTE);
     assert.equal(thin.entries.length, 0);
     assert.equal(thin.you, null);
+    assert.equal(thin.description.startsWith("Last week's"), true);
+    assert.equal(thin.description.includes("This week's"), false);
     const thinHtml = renderToStaticMarkup(createElement(LeaderboardView, { model: thin }));
+    assert.match(thinHtml, /Last week(?:'|&#x27;)s card posts/);
+    assert.doesNotMatch(thinHtml, /This week(?:'|&#x27;)s/);
     assert.match(thinHtml, new RegExp(THIN_BOARD_TITLE));
     assert.doesNotMatch(thinHtml, /#1/);
   });
@@ -205,7 +210,7 @@ describe("leaderboard page", () => {
     assert.match(html, /Your checklist/);
   });
 
-  it("keeps the shared cache free of the viewer and off the home and login bundles", () => {
+  it("keeps the shared cache free of the viewer and off the home and login bundles", async () => {
     const load = read("lib/leaderboard/load.ts");
     const cachedStart = load.indexOf("export async function getLeaderboardSnapshot");
     const cachedEnd = load.indexOf("async function readViewer");
@@ -218,7 +223,11 @@ describe("leaderboard page", () => {
     assert.match(load, /rowsIn\(\s*admin,\s*"profiles"/);
     assert.match(load, /rowsIn\(\s*admin,\s*"cards"/);
     assert.doesNotMatch(load, /pageRows\(\s*admin,\s*"profiles"/);
-    assert.match(load, /pageExceededCap/);
+    assert.match(read("lib/leaderboard/pages.ts"), /pageExceededCap/);
+    assert.match(load, /\["created_at", "follower_id", "following_id"\]/);
+    assert.match(load, /usersWithACard/);
+    assert.match(load, /\.limit\(1\)/);
+    assert.doesNotMatch(load, /cards", "id, user_id, is_public, player", "user_id"/);
     assert.match(load, /post_type/);
     assert.match(load, /mail_day/);
     const viewer = load.slice(load.indexOf("async function readViewer"), load.indexOf("export async function getLeaderboardPage"));
@@ -230,11 +239,38 @@ describe("leaderboard page", () => {
     assert.doesNotMatch(viewer.slice(viewer.indexOf("catch")), /hiddenIds/);
     assert.match(read("components/leaderboard-view.tsx"), /min-h-11/);
     assert.match(read("components/leaderboard-countdown.tsx"), /left\.done/);
+    assert.match(read("components/leaderboard-countdown.tsx"), /pastAtMount/);
+    assert.match(read("components/leaderboard-countdown.tsx"), /sessionStorage/);
     assert.match(read("components/leaderboard-countdown.tsx"), /location\.reload\(\)/);
+    assert.equal(scoreUnit("replies", 1), "reply");
+    assert.equal(scoreUnit("replies", 2), "replies");
+    assert.equal(scoreUnit("new followers", 1), "new follower");
+    assert.equal(scoreUnit("new followers", 4), "new followers");
     assert.match(read("app/leaderboard/loading.tsx"), /data-leaderboard-loading/);
     assert.throws(() => pageExceededCap("blocks", 20_000, 1000), /row cap/);
     pageExceededCap("blocks", 1000, 1000);
     pageExceededCap("blocks", 20_000, 10);
+    const ordered: string[] = [];
+    const query = {
+      eq: () => query,
+      gte: () => query,
+      lt: () => query,
+      is: () => query,
+      in: () => query,
+      order(column: string) {
+        ordered.push(column);
+        return query;
+      },
+      range: async () => ({ data: [], error: null }),
+    };
+    await pageRows(
+      { from: () => ({ select: () => query }) },
+      "follows",
+      "follower_id, following_id, created_at",
+      ["created_at", "follower_id", "following_id"],
+      (next) => next,
+    );
+    assert.deepEqual(ordered, ["created_at", "follower_id", "following_id"]);
     const home = read("app/page.tsx");
     const login = read("app/login/page.tsx");
     const feed = read("components/feed-view.tsx");

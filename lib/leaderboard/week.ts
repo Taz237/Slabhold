@@ -161,6 +161,19 @@ export type Countdown = {
   done: boolean;
 };
 
+export function reloadKeyForReset(resetsAt: string): string {
+  return `lb-reloaded:${resetsAt}`;
+}
+
+/** One reload when the countdown reaches zero. Skip a reset that was already past on mount. */
+export function shouldReloadForReset(input: {
+  done: boolean;
+  pastAtMount: boolean;
+  alreadyReloaded: boolean;
+}): boolean {
+  return input.done && !input.pastAtMount && !input.alreadyReloaded;
+}
+
 export function countdownTo(resetsAt: Date, now: Date): Countdown {
   const ms = Math.max(0, resetsAt.getTime() - now.getTime());
   const total = Math.floor(ms / 1000);

@@ -30,6 +30,17 @@ export const LEADERBOARD_TITLE = "Leaderboard";
 export const LEADERBOARD_DESCRIPTION =
   "This week's card posts and collectors with new followers.";
 
+export const LAST_WEEK_DESCRIPTION =
+  "Last week's card posts and collectors with new followers.";
+
+/** Singular label when a row's score is exactly 1. */
+export function scoreUnit(label: string, score: number): string {
+  if (score !== 1) return label;
+  if (label === "replies") return "reply";
+  if (label === "new followers") return "new follower";
+  return label;
+}
+
 export const THIN_BOARD_TITLE = "Board fills up as collectors post and follow";
 
 export const PROVISIONAL_LABEL = "Provisional";

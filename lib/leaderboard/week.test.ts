@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { addCalendarDays, countdownTo, inWeek, previousWeek, weekContaining, weekStanding } from "./week";
+import { addCalendarDays, countdownTo, inWeek, previousWeek, reloadKeyForReset, shouldReloadForReset, weekContaining, weekStanding } from "./week";
 import { FINAL_LABEL, PROVISIONAL_LABEL } from "./rules";
 
 const FRIDAY = new Date("2026-10-23T18:00:00.000Z");
@@ -58,5 +58,11 @@ describe("leaderboard weeks", () => {
     assert.equal(countdownTo(week.end, week.end).label, "Resets in 0d 00h 00m 00s");
     assert.equal(countdownTo(week.end, week.end).done, true);
     assert.equal(left.done, false);
+    const resetsAt = week.end.toISOString();
+    assert.equal(reloadKeyForReset(resetsAt), `lb-reloaded:${resetsAt}`);
+    assert.equal(shouldReloadForReset({ done: true, pastAtMount: true, alreadyReloaded: false }), false);
+    assert.equal(shouldReloadForReset({ done: true, pastAtMount: false, alreadyReloaded: true }), false);
+    assert.equal(shouldReloadForReset({ done: false, pastAtMount: false, alreadyReloaded: false }), false);
+    assert.equal(shouldReloadForReset({ done: true, pastAtMount: false, alreadyReloaded: false }), true);
   });
 });

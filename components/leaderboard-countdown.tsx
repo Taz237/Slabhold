@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { countdownTo } from "@/lib/leaderboard/week";
+import { countdownTo, reloadKeyForReset, shouldReloadForReset } from "@/lib/leaderboard/week";
 
 /** Ticks the reset label without storing the clock in React state. */
 export function LeaderboardCountdown({
@@ -12,16 +12,30 @@ export function LeaderboardCountdown({
   initialLabel: string;
 }) {
   const node = useRef<HTMLSpanElement>(null);
-  const refreshed = useRef(false);
+  const pastAtMount = useRef<boolean | null>(null);
 
   useEffect(() => {
     const el = node.current;
     if (!el) return;
+    const key = reloadKeyForReset(resetsAt);
     const tick = () => {
       const left = countdownTo(new Date(resetsAt), new Date());
       el.textContent = left.label;
-      if (!left.done || refreshed.current) return;
-      refreshed.current = true;
+      if (pastAtMount.current === null) pastAtMount.current = left.done;
+      let alreadyReloaded = true;
+      try {
+        alreadyReloaded = sessionStorage.getItem(key) === "1";
+      } catch {
+        alreadyReloaded = true;
+      }
+      if (!shouldReloadForReset({ done: left.done, pastAtMount: pastAtMount.current === true, alreadyReloaded })) {
+        return;
+      }
+      try {
+        sessionStorage.setItem(key, "1");
+      } catch {
+        return;
+      }
       window.location.reload();
     };
     tick();

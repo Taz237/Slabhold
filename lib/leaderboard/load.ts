@@ -3,7 +3,7 @@ import "server-only";
 import { unstable_cache } from "next/cache";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { getAuthUserId } from "@/lib/supabase/server";
-import { LEADERBOARD_PAGE_SIZE, pageExceededCap } from "./pages";
+import { pageRows, type PageAdmin } from "./pages";
 import {
   presentLeaderboard,
   unavailableLeaderboard,
@@ -17,27 +17,10 @@ import { snapshotFromInput } from "./snapshot";
 import { hiddenIdsForViewer, type ViewerBlock, type ViewerMute } from "./viewer";
 import { previousWeek, weekContaining } from "./week";
 
-const PAGE = LEADERBOARD_PAGE_SIZE;
 const CHUNK = 80;
 
 type Row = Record<string, unknown>;
-
-type FilterQuery = {
-  eq: (column: string, value: string) => FilterQuery;
-  gte: (column: string, value: string) => FilterQuery;
-  lt: (column: string, value: string) => FilterQuery;
-  is: (column: string, value: null) => FilterQuery;
-  in: (column: string, value: string[]) => FilterQuery;
-  order: (column: string) => FilterQuery;
-  range: (
-    from: number,
-    to: number,
-  ) => PromiseLike<{ data: unknown; error: { message: string } | null }>;
-};
-
-type Admin = {
-  from: (table: string) => { select: (columns: string) => FilterQuery };
-};
+type Admin = PageAdmin;
 
 type ViewerRead =
   | { ok: true; userId: string | null; hiddenIds: string[] }
@@ -46,27 +29,6 @@ type ViewerRead =
 function asRows(data: unknown): Row[] {
   if (!Array.isArray(data)) return [];
   return data.filter((row): row is Row => Boolean(row) && typeof row === "object");
-}
-
-async function pageRows(
-  admin: Admin,
-  table: string,
-  columns: string,
-  orderBy: string,
-  apply: (query: FilterQuery) => FilterQuery,
-  tieBreak?: string,
-): Promise<Row[]> {
-  const rows: Row[] = [];
-  for (let from = 0; ; from += PAGE) {
-    let query = apply(admin.from(table).select(columns)).order(orderBy);
-    if (tieBreak) query = query.order(tieBreak);
-    const { data, error } = await query.range(from, from + PAGE - 1);
-    if (error) throw new Error(error.message);
-    const batch = asRows(data);
-    rows.push(...batch);
-    pageExceededCap(table, rows.length, batch.length);
-    if (batch.length < PAGE) return rows;
-  }
 }
 
 async function rowsIn(
@@ -78,13 +40,41 @@ async function rowsIn(
   tieBreak?: string,
 ): Promise<Row[]> {
   const unique = [...new Set(ids.filter(Boolean))];
+  const orderBy = tieBreak ? [column, tieBreak] : [column];
   const rows: Row[] = [];
   for (let index = 0; index < unique.length; index += CHUNK) {
     const chunk = unique.slice(index, index + CHUNK);
-    const batch = await pageRows(admin, table, columns, column, (query) => query.in(column, chunk), tieBreak);
+    const batch = await pageRows(admin, table, columns, orderBy, (query) => query.in(column, chunk));
     rows.push(...batch);
   }
   return rows;
+}
+
+/** One card row per actor. A full collection read can pass the page cap and blank the board. */
+async function usersWithACard(admin: Admin, userIds: readonly string[]): Promise<string[]> {
+  const ids = [...new Set(userIds.filter(Boolean))];
+  const found: string[] = [];
+  const probe = admin as unknown as {
+    from: (table: string) => {
+      select: (columns: string) => {
+        eq: (column: string, value: string) => {
+          limit: (count: number) => PromiseLike<{ data: unknown; error: { message: string } | null }>;
+        };
+      };
+    };
+  };
+  for (let index = 0; index < ids.length; index += 40) {
+    const chunk = ids.slice(index, index + 40);
+    const hits = await Promise.all(
+      chunk.map(async (userId) => {
+        const { data, error } = await probe.from("cards").select("user_id").eq("user_id", userId).limit(1);
+        if (error) throw new Error(error.message);
+        return asRows(data).length > 0 ? userId : "";
+      }),
+    );
+    for (const id of hits) if (id) found.push(id);
+  }
+  return found;
 }
 
 function text(value: unknown): string {
@@ -120,18 +110,17 @@ function mapCard(row: Row): BoardCard | null {
 
 async function readInput(admin: Admin, startIso: string, endIso: string): Promise<ScoreInput> {
   const [replyRows, followRows, blockRows] = await Promise.all([
-    pageRows(admin, "comments", "id, user_id, post_id, created_at", "id", (query) =>
+    pageRows(admin, "comments", "id, user_id, post_id, created_at", ["id"], (query) =>
       query.gte("created_at", startIso).lt("created_at", endIso),
     ),
     pageRows(
       admin,
       "follows",
       "follower_id, following_id, created_at",
-      "created_at",
+      ["created_at", "follower_id", "following_id"],
       (query) => query.gte("created_at", startIso).lt("created_at", endIso),
-      "follower_id",
     ),
-    pageRows(admin, "blocks", "blocker_id, blocked_id", "blocker_id", (query) => query, "blocked_id"),
+    pageRows(admin, "blocks", "blocker_id, blocked_id", ["blocker_id", "blocked_id"], (query) => query),
   ]);
 
   const mappedReplies: BoardReply[] = [];
@@ -216,7 +205,7 @@ async function readInput(admin: Admin, startIso: string, endIso: string): Promis
   for (const post of posts) personIds.add(post.authorId);
 
   const cardIds = posts.flatMap((post) => post.cardIds);
-  const [profileRows, attachedCards, actorCards, actorPosts] = await Promise.all([
+  const [profileRows, attachedCards, cardOwners, actorPosts] = await Promise.all([
     rowsIn(
       admin,
       "profiles",
@@ -225,7 +214,7 @@ async function readInput(admin: Admin, startIso: string, endIso: string): Promis
       [...personIds],
     ),
     rowsIn(admin, "cards", "id, user_id, is_public, player", "id", cardIds),
-    rowsIn(admin, "cards", "id, user_id, is_public, player", "user_id", [...actorIds], "id"),
+    usersWithACard(admin, [...actorIds]),
     rowsIn(admin, "posts", "id, user_id, post_type, hidden_at", "user_id", [...actorIds], "id"),
   ]);
 
@@ -246,9 +235,14 @@ async function readInput(admin: Admin, startIso: string, endIso: string): Promis
   });
 
   const cards = new Map<string, BoardCard>();
-  for (const row of [...attachedCards, ...actorCards]) {
+  for (const row of attachedCards) {
     const card = mapCard(row);
     if (card) cards.set(card.id, card);
+  }
+  const owners = new Set([...cards.values()].map((card) => card.userId));
+  for (const userId of cardOwners) {
+    if (owners.has(userId)) continue;
+    cards.set(`exists:${userId}`, { id: `exists:${userId}`, userId, isPublic: false, player: "" });
   }
 
   const usersWithPost = new Set<string>();
@@ -299,9 +293,9 @@ async function readViewer(): Promise<ViewerRead> {
   try {
     const client = admin as unknown as Admin;
     const [blockedByMe, blockingMe, muted] = await Promise.all([
-      pageRows(client, "blocks", "blocked_id", "blocked_id", (query) => query.eq("blocker_id", userId)),
-      pageRows(client, "blocks", "blocker_id", "blocker_id", (query) => query.eq("blocked_id", userId)),
-      pageRows(client, "mutes", "muted_id", "muted_id", (query) => query.eq("muter_id", userId)),
+      pageRows(client, "blocks", "blocked_id", ["blocked_id"], (query) => query.eq("blocker_id", userId)),
+      pageRows(client, "blocks", "blocker_id", ["blocker_id"], (query) => query.eq("blocked_id", userId)),
+      pageRows(client, "mutes", "muted_id", ["muted_id"], (query) => query.eq("muter_id", userId)),
     ]);
     const blocks: ViewerBlock[] = [
       ...blockedByMe.map((row) => ({ blockerId: userId, blockedId: text(row.blocked_id) })),

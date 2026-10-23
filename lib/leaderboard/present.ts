@@ -4,6 +4,7 @@ import {
   CLOSED_NOTE,
   FINAL_LABEL,
   LAST_WEEK_LABEL,
+  LAST_WEEK_DESCRIPTION,
   LEADERBOARD_DESCRIPTION,
   LEADERBOARD_MIN_ENTRIES,
   LEADERBOARD_TABS,
@@ -14,6 +15,7 @@ import {
   THIN_BOARD_TITLE,
   YOU_LABEL,
   leaderboardHref,
+  scoreUnit,
   leaderboardTab,
 } from "./rules";
 import type { CandidateRow, Contribution, WeekBoards } from "./score";
@@ -120,7 +122,7 @@ export function rankBoard(
       href: row.href,
       avatarUrl: row.avatarUrl,
       accent: row.accent,
-      scoreLabel,
+      scoreLabel: scoreUnit(scoreLabel, score),
     });
   }
   ranked.sort((a, b) => b.score - a.score || a.title.localeCompare(b.title) || a.id.localeCompare(b.id));
@@ -177,7 +179,7 @@ export function presentLeaderboard(input: {
   const countdown = countdownTo(new Date(input.snapshot.current.end), input.now);
   return {
     title: LEADERBOARD_TITLE,
-    description: LEADERBOARD_DESCRIPTION,
+    description: input.week === "previous" ? LAST_WEEK_DESCRIPTION : LEADERBOARD_DESCRIPTION,
     week: input.week,
     boardId: tab.id,
     weekLabel: slice.label,

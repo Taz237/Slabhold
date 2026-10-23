@@ -286,9 +286,21 @@ function followDelta(follow: BoardFollow, week: WeekWindow): number {
   return delta;
 }
 
+function dedupedFollows(follows: readonly BoardFollow[]): BoardFollow[] {
+  const seen = new Set<string>();
+  const rows: BoardFollow[] = [];
+  for (const follow of follows) {
+    const key = `${follow.followerId}|${follow.followingId}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    rows.push(follow);
+  }
+  return rows;
+}
+
 function scoreRising(input: ScoreInput, week: WeekWindow, index: ActorIndex): CandidateRow[] {
   const points = new Map<string, Map<string, number>>();
-  for (const follow of input.follows) {
+  for (const follow of dedupedFollows(input.follows)) {
     if (!follow.followerId || !follow.followingId) continue;
     if (follow.followerId === follow.followingId) continue;
     if (blockedPair(index, follow.followerId, follow.followingId)) continue;
