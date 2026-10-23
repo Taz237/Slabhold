@@ -142,6 +142,15 @@ create unique index notifications_like_once
   on public.notifications (actor_id, post_id)
   where kind = 'like' and post_id is not null;
 
+grant insert on public.notifications to authenticated;
+
+create table public.comments (
+  id uuid primary key default gen_random_uuid(),
+  post_id uuid not null references public.posts (id) on delete cascade,
+  user_id uuid not null references public.profiles (id) on delete cascade,
+  body text not null
+);
+
 create or replace function private.is_blocked(a uuid, b uuid)
 returns boolean
 language plpgsql
@@ -438,6 +447,75 @@ begin
   if notes <> 1 then raise exception 'normal like notifications %', notes; end if;
   if preview is null or right(preview, 1) <> '…' then
     raise exception 'normal preview %', preview;
+  end if;
+end
+$check$;
+
+insert into public.comments (post_id, user_id, body)
+values ('${VISIBLE}', '${LIKER}', 'hey @other');
+select set_config('app.user_id', '${LIKER}', true);
+select set_config('app.user_role', 'authenticated', true);
+set local role authenticated;
+do $check$
+begin
+  insert into public.notifications (recipient_id, actor_id, kind, post_id, preview)
+  values ('${AUTHOR}', '${LIKER}', 'like', '${VISIBLE}', 'forged');
+  raise exception 'forged like notification was allowed';
+exception
+  when insufficient_privilege then
+    null;
+end
+$check$;
+do $check$
+begin
+  insert into public.notifications (recipient_id, actor_id, kind, post_id, preview)
+  values ('${OTHER}', '${LIKER}', 'comment', '${VISIBLE}', 'wrong person');
+  raise exception 'comment notification to the wrong person was allowed';
+exception
+  when insufficient_privilege then
+    null;
+end
+$check$;
+insert into public.notifications (recipient_id, actor_id, kind, post_id, preview)
+values ('${AUTHOR}', '${LIKER}', 'comment', '${VISIBLE}', 'nice');
+insert into public.notifications (recipient_id, actor_id, kind, post_id, preview)
+values ('${AUTHOR}', '${LIKER}', 'repost', '${VISIBLE}', 'again');
+insert into public.notifications (recipient_id, actor_id, kind, post_id, preview)
+values ('${OTHER}', '${LIKER}', 'follow', null, null);
+insert into public.notifications (recipient_id, actor_id, kind, post_id, preview)
+values ('${OTHER}', '${LIKER}', 'mention', '${VISIBLE}', 'hey @other');
+do $check$
+begin
+  insert into public.notifications (recipient_id, actor_id, kind, post_id, preview)
+  values ('${AUTHOR}', '${LIKER}', 'mention', '${VISIBLE}', 'not mentioned');
+  raise exception 'mention of someone who was not @mentioned was allowed';
+exception
+  when insufficient_privilege then
+    null;
+end
+$check$;
+reset role;
+do $check$
+declare
+  comments int;
+  reposts int;
+  follows int;
+  mentions int;
+  likes int;
+begin
+  select count(*) into comments from public.notifications
+  where kind = 'comment' and actor_id = '${LIKER}' and recipient_id = '${AUTHOR}';
+  select count(*) into reposts from public.notifications
+  where kind = 'repost' and actor_id = '${LIKER}' and recipient_id = '${AUTHOR}';
+  select count(*) into follows from public.notifications
+  where kind = 'follow' and actor_id = '${LIKER}' and recipient_id = '${OTHER}' and post_id is null;
+  select count(*) into mentions from public.notifications
+  where kind = 'mention' and actor_id = '${LIKER}' and recipient_id = '${OTHER}';
+  select count(*) into likes from public.notifications
+  where kind = 'like' and actor_id = '${LIKER}' and preview = 'forged';
+  if comments <> 1 or reposts <> 1 or follows <> 1 or mentions <> 1 or likes <> 0 then
+    raise exception 'client notification rows comments % reposts % follows % mentions % forged %',
+      comments, reposts, follows, mentions, likes;
   end if;
 end
 $check$;

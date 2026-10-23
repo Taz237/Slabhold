@@ -100,6 +100,12 @@ describe("like wiring", () => {
     assert.match(toggle, /syncPostLike\(/);
     assert.match(toggle, /remoteSyncLikeNotification\(/);
     assert.equal(toggle.includes("refreshRemote"), false);
+    const remote = read("lib/social/remote.ts");
+    const replyLike = remote.slice(
+      remote.indexOf("export async function remoteSyncLikeNotification"),
+      remote.indexOf("export async function remoteSendMessage"),
+    );
+    assert.equal(replyLike.includes(".insert("), false);
     assert.match(provider, /likes_migrated_v1|likesMigratedFlag\(/);
     assert.match(provider, /migrateStoredLikes\(/);
     assert.match(provider, /after 2026-11-06/);

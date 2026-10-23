@@ -21,6 +21,10 @@ declare
   public_exec boolean;
   migrate_auth boolean;
   migrate_anon boolean;
+  note_policy text;
+  note_definer boolean;
+  note_path text;
+  note_src text;
 begin
   if to_regclass('public.likes') is null then
     raise exception 'public.likes is missing';
@@ -170,6 +174,39 @@ begin
       and not tgisinternal
   ) then
     raise exception 'likes insert/delete triggers are missing';
+  end if;
+
+  select with_check
+  into note_policy
+  from pg_policies
+  where schemaname = 'public'
+    and tablename = 'notifications'
+    and policyname = 'Create notifications as yourself'
+    and cmd = 'INSERT';
+  if note_policy is null
+     or note_policy not like '%uid()%'
+     or note_policy not like '%is_blocked%'
+     or note_policy not like '%notification_insert_allowed%' then
+    raise exception 'notification insert policy does not restrict the target: %', note_policy;
+  end if;
+
+  select p.prosecdef, coalesce(array_to_string(p.proconfig, ','), ''), p.prosrc
+  into note_definer, note_path, note_src
+  from pg_proc p
+  join pg_namespace n on n.oid = p.pronamespace
+  where n.nspname = 'private'
+    and p.proname = 'notification_insert_allowed';
+  if note_definer is not true or note_path not like '%search_path=%' then
+    raise exception 'notification_insert_allowed must be security definer with an empty search_path';
+  end if;
+  if note_src not like '%like%'
+     or note_src not like '%comment%'
+     or note_src not like '%repost%'
+     or note_src not like '%mention%'
+     or note_src not like '%follow%'
+     or note_src not like '%quote%'
+     or note_src not like '%want_alert%' then
+    raise exception 'notification_insert_allowed is missing a client kind';
   end if;
 end
 $check$;

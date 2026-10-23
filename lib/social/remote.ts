@@ -860,15 +860,8 @@ export async function remoteSyncLikeNotification(
     if (error && !missingTable(error)) return { error: error.message };
     return {};
   }
-  if (!(await allowNotice(supabase, input.actorId, input.recipientId))) return {};
-  const { error } = await supabase.from("notifications").insert({
-    recipient_id: input.recipientId,
-    actor_id: input.actorId,
-    kind: "like",
-    post_id: input.postId,
-    preview: previewText(input.preview),
-  });
-  if (error && error.code !== "23505" && !missingTable(error)) return { error: error.message };
+  // Post likes are inserted by private.sync_like. Clients cannot insert
+  // kind=like, including a heart on a reply.
   return {};
 }
 

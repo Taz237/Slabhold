@@ -210,4 +210,88 @@ $$;
 revoke all on function public.migrate_local_likes(uuid[]) from public, anon, authenticated;
 grant execute on function public.migrate_local_likes(uuid[]) to authenticated;
 
+-- Like notices are written only by private.sync_like. A client insert must
+-- name the real target: the post author for comments and reposts, someone
+-- the actor actually @mentioned, or a follow with no post.
+create or replace function private.notification_insert_allowed(
+  kind text,
+  post_id uuid,
+  recipient_id uuid
+)
+returns boolean
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+declare
+  me uuid := auth.uid();
+  handle text;
+begin
+  if me is null or recipient_id is null or me = recipient_id then
+    return false;
+  end if;
+
+  if kind in ('like', 'quote', 'want_alert') then
+    return false;
+  end if;
+
+  if kind = 'follow' then
+    return post_id is null;
+  end if;
+
+  if kind in ('comment', 'repost') then
+    return post_id is not null
+      and recipient_id = private.post_author(post_id);
+  end if;
+
+  if kind = 'mention' then
+    if post_id is null then
+      return false;
+    end if;
+
+    select p.username
+    into handle
+    from public.profiles p
+    where p.id = recipient_id;
+
+    if handle is null or handle !~ '^[a-z0-9_]{3,20}$' then
+      return false;
+    end if;
+
+    return exists (
+      select 1
+      from public.posts p
+      where p.id = post_id
+        and p.user_id = me
+        and p.content ~* ('(^|[^a-z0-9_])@' || handle || '([^a-z0-9_]|$)')
+    )
+    or exists (
+      select 1
+      from public.comments c
+      where c.post_id = notification_insert_allowed.post_id
+        and c.user_id = me
+        and c.body ~* ('(^|[^a-z0-9_])@' || handle || '([^a-z0-9_]|$)')
+    );
+  end if;
+
+  return false;
+end;
+$$;
+
+revoke all on function private.notification_insert_allowed(text, uuid, uuid) from public, anon, authenticated;
+grant execute on function private.notification_insert_allowed(text, uuid, uuid) to authenticated;
+
+alter table public.notifications enable row level security;
+
+drop policy if exists "Create notifications as yourself" on public.notifications;
+create policy "Create notifications as yourself"
+  on public.notifications
+  for insert
+  with check (
+    auth.uid() = actor_id
+    and not private.is_blocked(auth.uid(), recipient_id)
+    and private.notification_insert_allowed(kind, post_id, recipient_id)
+  );
+
 notify pgrst, 'reload schema';
