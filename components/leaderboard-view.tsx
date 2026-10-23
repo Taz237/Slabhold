@@ -5,6 +5,13 @@ import { LeaderboardCountdown } from "@/components/leaderboard-countdown";
 import { ShareIconButton } from "@/components/share-button";
 import type { LeaderboardPageModel, RankedEntry, YouRow } from "@/lib/leaderboard/present";
 import { boardCallToAction, LEADERBOARD_PATH } from "@/lib/leaderboard/rules";
+import { userHref } from "@/lib/social/user-href";
+
+const BOARD_ACCENT: Record<string, string> = {
+  "top-card-post": "#7c5cff",
+  "rising-collectors": "#10b981",
+  "most-cards-added": "#14b8a6",
+};
 
 const MEDAL: Record<number, { ring: string; glow: string }> = {
   1: { ring: "#f6d36b", glow: "rgba(246,211,107,0.55)" },
@@ -57,6 +64,26 @@ function personLabels(entry: RankedEntry, boardId: string): { name: string; deta
   return { name: entry.title, detail: entry.subtitle };
 }
 
+function boardAccent(boardId: string): string {
+  return BOARD_ACCENT[boardId] ?? "#7c5cff";
+}
+
+function profilePath(entry: RankedEntry): string {
+  const handle = entry.subtitle.trim().replace(/^@/, "");
+  if (handle && !/[/\s]/.test(handle)) return userHref(handle);
+  if (entry.href.startsWith("/u/")) return entry.href;
+  return entry.href;
+}
+
+function listPerson(entry: RankedEntry, boardId: string): { name: string; handle: string } {
+  const handle = entry.subtitle.trim().startsWith("@") ? entry.subtitle.trim() : "";
+  if (boardId === "top-card-post") {
+    return { name: handle.replace(/^@/, "") || entry.title, handle };
+  }
+  const stripped = handle.replace(/^@/, "");
+  return { name: entry.title.trim() || stripped, handle };
+}
+
 function PodiumSpot({ entry, boardId }: { entry: RankedEntry; boardId: string }) {
   const labels = personLabels(entry, boardId);
   const medal = MEDAL[entry.rank] ?? MEDAL[3];
@@ -64,9 +91,10 @@ function PodiumSpot({ entry, boardId }: { entry: RankedEntry; boardId: string })
   const size = first ? 84 : 64;
   return (
     <Link
-      href={entry.href}
+      href={profilePath(entry)}
       data-podium-spot={entry.rank}
-      className={`lb-podium flex min-w-0 flex-col items-center px-1 text-center ${
+      style={{ outlineColor: boardAccent(boardId) }}
+      className={`lb-podium flex min-w-0 touch-manipulation flex-col items-center px-1 text-center focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 ${
         first ? "lb-podium-1" : entry.rank === 2 ? "lb-podium-2" : "lb-podium-3"
       }`}
     >
@@ -119,6 +147,42 @@ function Podium({ entries, boardId }: { entries: readonly RankedEntry[]; boardId
         <PodiumSpot key={entry.id} entry={entry} boardId={boardId} />
       ))}
     </div>
+  );
+}
+
+function RankRow({ entry, boardId, mine }: { entry: RankedEntry; boardId: string; mine: boolean }) {
+  const accent = boardAccent(boardId);
+  const person = listPerson(entry, boardId);
+  return (
+    <li data-rank={entry.rank} data-viewer-row={mine ? "" : undefined}>
+      <Link
+        href={profilePath(entry)}
+        className="mx-3 mb-2 flex min-h-16 min-w-0 touch-manipulation items-center gap-3 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.04] px-3 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+        style={{
+          borderLeftWidth: 3,
+          borderLeftColor: accent,
+          outlineColor: accent,
+          backgroundColor: mine ? `${accent}22` : undefined,
+          boxShadow: mine ? `inset 0 0 0 1px ${accent}` : undefined,
+        }}
+      >
+        <span className="w-6 shrink-0 text-sm font-bold tabular-nums" style={{ color: accent }}>
+          {entry.rank}
+        </span>
+        <Avatar title={person.name} accent={entry.accent} url={entry.avatarUrl} size={40} />
+        <span className="min-w-0 flex-1">
+          <span className="flex min-w-0 items-center gap-1.5">
+            <span className="min-w-0 flex-1 truncate text-sm font-semibold text-white">{person.name}</span>
+            {entry.isNew ? <NewTag /> : null}
+          </span>
+          {person.handle ? <span className="block truncate text-xs text-zinc-400">{person.handle}</span> : null}
+        </span>
+        <span className="shrink-0 text-right">
+          <span className="block text-sm font-bold tabular-nums text-white">{entry.score}</span>
+          <span className="block text-[11px] tabular-nums text-zinc-400">{entry.scoreLabel}</span>
+        </span>
+      </Link>
+    </li>
   );
 }
 
@@ -268,31 +332,14 @@ export function LeaderboardView({ model }: { model: LeaderboardPageModel }) {
         <div>
           <Podium entries={podium} boardId={model.boardId} />
           {rest.length > 0 ? (
-            <ol className="mt-2 divide-y divide-white/10" data-rank-rows="">
+            <ol className="mt-1 overflow-hidden pb-1" data-rank-rows="">
               {rest.map((entry) => (
-                <li key={entry.id}>
-                  <Link href={entry.href} className="flex min-h-11 items-center gap-3 px-4 py-3">
-                    <span className="w-6 shrink-0 text-sm font-bold tabular-nums text-zinc-500">{entry.rank}</span>
-                    <Avatar title={personLabels(entry, model.boardId).name} accent={entry.accent} url={entry.avatarUrl} size={40} />
-                    <span className="min-w-0 flex-1">
-                      <span className="flex min-w-0 items-center gap-1.5">
-                        <span className="truncate text-sm font-semibold text-white">
-                          {personLabels(entry, model.boardId).name}
-                        </span>
-                        {entry.isNew ? <NewTag /> : null}
-                      </span>
-                      {personLabels(entry, model.boardId).detail ? (
-                        <span className="block truncate text-xs text-zinc-500">
-                          {personLabels(entry, model.boardId).detail}
-                        </span>
-                      ) : null}
-                    </span>
-                    <span className="shrink-0 text-right">
-                      <span className="block text-sm font-bold tabular-nums text-white">{entry.score}</span>
-                      <span className="block text-[11px] text-zinc-500">{entry.scoreLabel}</span>
-                    </span>
-                  </Link>
-                </li>
+                <RankRow
+                  key={entry.id}
+                  entry={entry}
+                  boardId={model.boardId}
+                  mine={model.you?.rank === entry.rank}
+                />
               ))}
             </ol>
           ) : null}
