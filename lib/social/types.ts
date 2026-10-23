@@ -10,6 +10,8 @@ export type Profile = {
   createdAt: string;
   /** Set when profiles.is_test is true. Hidden from follow suggestions. */
   isTest?: boolean;
+  /** The post this profile pins. Null when nothing is pinned. */
+  pinnedPostId?: string | null;
 };
 
 export type PublicCard = {
@@ -69,6 +71,8 @@ export type Post = {
   /** Original post this quote references, if any. */
   quotedPostId: string | null;
   createdAt: string;
+  /** Set when posts.hidden_at is set. Hidden posts are not shown as pinned. */
+  hiddenAt?: string | null;
   postType?: "post" | "mail_day";
   showPaid?: boolean;
   mailDay?: MailDayInfo | null;

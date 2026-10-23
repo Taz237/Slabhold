@@ -10,6 +10,7 @@ import { CardThumb } from "@/components/card-thumb";
 import { OpenToOffersFilter, ProfileCardCaption } from "@/components/open-to-offers";
 import { ProfileEditSheet } from "@/components/profile-edit-sheet";
 import { LoadMore } from "@/components/load-more";
+import { MentionText } from "@/components/mention-text";
 import { PullToRefresh } from "@/components/pull-to-refresh";
 import { usePagedTimeline } from "@/components/use-paged-timeline";
 import { EmptyState, LoadingRows, ProfileSkeleton } from "@/components/status";
@@ -27,7 +28,18 @@ import { normalizeUsername } from "@/lib/social/local-db";
 import { ilikeExact } from "@/lib/social/username-taken";
 import { addUnblockedProfiles, presentPagedItems } from "@/lib/social/paged-items";
 import { profileTimeline } from "@/lib/social/timeline";
-import type { PublicCard } from "@/lib/social/types";
+import { loadPostById } from "@/lib/social/load-feed-page";
+import {
+  PROFILE_TAB_LABELS,
+  loadProfilePublicCards,
+  profileCardsTab,
+  profileMediaItems,
+  profileTabFromQuery,
+  visibleReplyParentIds,
+  withPinnedFirst,
+  type ProfileTab,
+} from "@/lib/social/profile-tabs";
+import type { OwnedCard, Post, PublicCard } from "@/lib/social/types";
 import { EbaySoldLink } from "@/components/ebay-sold-link";
 import {
   filterOpenToOffers,
@@ -58,6 +70,7 @@ export function ProfileView({ username }: { username?: string }) {
     applySafetyChange,
     rememberPosts,
     removedPostIds,
+    repliesBy,
   } = social;
 
   const profile = username ? social.profileByUsername(username) : user;
@@ -65,11 +78,14 @@ export function ProfileView({ username }: { username?: string }) {
   const searchParams = useSearchParams();
   const [editing, setEditing] = useState(false);
   const [openedEdit, setOpenedEdit] = useState(false);
-  const [tab, setTab] = useState<"posts" | "collection">(
-    searchParams.get("tab") === "collection" ? "collection" : "posts",
-  );
+  const [tab, setTab] = useState<ProfileTab>(() => profileTabFromQuery(searchParams.get("tab")));
   const [offersOnly, setOffersOnly] = useState(false);
+  const [viewCards, setViewCards] = useState<{ ownerId: string; rows: OwnedCard[] } | null>(null);
+  const [pinnedExtra, setPinnedExtra] = useState<Post | null>(null);
   const [postsRefreshKey, setPostsRefreshKey] = useState(0);
+  const [replyParents, setReplyParents] = useState<{ key: string; ids: ReadonlySet<string> } | null>(
+    null,
+  );
   const pagedPosts = usePagedTimeline({
     enabled: mode === "supabase" && Boolean(profile?.id),
     scope: "profile",
@@ -98,26 +114,21 @@ export function ProfileView({ username }: { username?: string }) {
             parallel: card.parallel,
             purchasePrice: card.purchasePrice,
             openToOffers: card.openToOffers ?? null,
+            ownerId: profile.id,
+            isPublic: true,
           }))
       : [];
-    const listed = publicCards.filter((card) => card.ownerId === profile.id);
-    const seen = new Set(
-      listed.map(
-        (card) =>
-          `${card.year}|${card.playerName}|${card.cardNumber}`.toLowerCase(),
-      ),
-    );
-    return [
-      ...listed,
-      ...sharedFromBook.filter((card) => {
-        const key =
-          `${card.year}|${card.playerName}|${card.cardNumber}`.toLowerCase();
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      }),
-    ];
-  }, [cards, isOwn, profile, publicCards]);
+    const listed =
+      viewCards && viewCards.ownerId === profile.id
+        ? viewCards.rows
+        : publicCards.filter((card) => card.ownerId === profile.id);
+    return profileCardsTab({
+      ownerId: profile.id,
+      viewerId: user?.id ?? null,
+      publicCards: listed,
+      ownBook: sharedFromBook,
+    });
+  }, [cards, isOwn, profile, publicCards, user?.id, viewCards]);
 
   const offersAvailable = openToOffersFilterAvailable(collection);
   const shownCollection = useMemo(
@@ -134,6 +145,79 @@ export function ProfileView({ username }: { username?: string }) {
     setOpenedEdit(true);
     setEditing(true);
   }
+
+  const pinTarget =
+    profile?.pinnedPostId && !removedPostIds.has(profile.pinnedPostId) ? profile.pinnedPostId : null;
+  const pinInMemory = Boolean(
+    pinTarget &&
+      (posts.some((post) => post.id === pinTarget) ||
+        pagedPosts.posts.some((post) => post.id === pinTarget) ||
+        pagedPosts.items.some((item) => item.post.id === pinTarget)),
+  );
+
+  useEffect(() => {
+    const ownerId = profile?.id;
+    if (mode !== "supabase" || !ownerId) return;
+    const supabase = createSupabaseBrowser();
+    if (!supabase) return;
+    let cancelled = false;
+    void loadProfilePublicCards(supabase, ownerId)
+      .then((rows) => {
+        if (!cancelled) setViewCards({ ownerId, rows });
+      })
+      .catch(() => {
+        if (!cancelled) setViewCards(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [mode, profile?.id, postsRefreshKey]);
+
+  const replyAuthorId = profile?.id ?? "";
+  const loadedReplies = replyAuthorId ? repliesBy(replyAuthorId) : [];
+  const replyParentKey = loadedReplies.map((reply) => `${reply.id}:${reply.postId}`).join("|");
+  const replyParentsReady =
+    mode !== "supabase" || loadedReplies.length === 0 || replyParents?.key === replyParentKey;
+  const replies = replyParentsReady
+    ? mode === "supabase" && replyParents
+      ? loadedReplies.filter((reply) => replyParents.ids.has(reply.postId))
+      : loadedReplies
+    : [];
+
+  useEffect(() => {
+    if (mode !== "supabase" || !replyAuthorId || !replyParentKey) return;
+    const supabase = createSupabaseBrowser();
+    if (!supabase) return;
+    const ids = replyParentKey.split("|").map((part) => part.slice(part.indexOf(":") + 1));
+    let cancelled = false;
+    void visibleReplyParentIds(supabase, ids).then((idsVisible) => {
+      if (!cancelled) setReplyParents({ key: replyParentKey, ids: idsVisible });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [mode, replyAuthorId, replyParentKey]);
+
+  useEffect(() => {
+    const ownerId = profile?.id;
+    if (!pinTarget || pinInMemory || mode !== "supabase" || !ownerId) return;
+    const supabase = createSupabaseBrowser();
+    if (!supabase) return;
+    let cancelled = false;
+    void loadPostById(supabase, pinTarget, user?.id ?? null).then((result) => {
+      if (cancelled) return;
+      const loaded = result?.post;
+      if (!loaded || loaded.authorId !== ownerId || loaded.hiddenAt) {
+        setPinnedExtra(null);
+        return;
+      }
+      setPinnedExtra(loaded);
+      if (result) rememberPosts([loaded, ...result.relatedPosts], result.profiles);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [mode, pinInMemory, pinTarget, profile?.id, rememberPosts, user?.id]);
 
   if (!ready) return <ProfileSkeleton />;
 
@@ -186,6 +270,7 @@ export function ProfileView({ username }: { username?: string }) {
 
   const blocked = new Set(blockedIds);
   const authors = new Map(profiles.map((person) => [person.id, person]));
+  authors.set(profile.id, profile);
   addUnblockedProfiles(authors, pagedPosts.profiles, blocked);
   const postsById = new Map(posts.map((post) => [post.id, post]));
   const activity =
@@ -198,7 +283,22 @@ export function ProfileView({ username }: { username?: string }) {
           viewerId: user?.id ?? null,
         })
       : profileTimeline(posts, reposts, profiles, profile.id);
-  const postsLoading = mode === "supabase" && pagedPosts.loading && activity.length === 0;
+  const pinnedPost = (() => {
+    if (!pinTarget) return null;
+    const fromActivity = activity.find((item) => item.post.id === pinTarget)?.post;
+    const known =
+      fromActivity ??
+      posts.find((post) => post.id === pinTarget) ??
+      pagedPosts.posts.find((post) => post.id === pinTarget) ??
+      (pinnedExtra?.id === pinTarget ? pinnedExtra : undefined);
+    if (!known || known.authorId !== profile.id || known.hiddenAt) return null;
+    return known;
+  })();
+  const shownActivity =
+    tab === "media"
+      ? profileMediaItems(activity, profile.id)
+      : withPinnedFirst(activity, tab === "posts" ? pinnedPost : null, profile);
+  const postsLoading = mode === "supabase" && pagedPosts.loading && shownActivity.length === 0;
 
   return (
     <>
@@ -211,7 +311,7 @@ export function ProfileView({ username }: { username?: string }) {
       }}
       className="-mx-4 -mt-5"
     >
-    <div inert={editing ? true : undefined}>
+    <div inert={editing ? true : undefined} className="min-w-0 overflow-x-hidden">
       <div className="h-40 overflow-hidden bg-zinc-200 dark:bg-zinc-800">
         {profile.coverDataUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -279,70 +379,55 @@ export function ProfileView({ username }: { username?: string }) {
         </p>
       </div>
 
-      <div className="mt-3 grid grid-cols-2 border-b border-zinc-200 text-[15px] dark:border-white/10">
-        <ProfileTab active={tab === "posts"} onClick={() => setTab("posts")}>
-          Posts
-        </ProfileTab>
-        <ProfileTab active={tab === "collection"} onClick={() => setTab("collection")}>
-          Collection
-        </ProfileTab>
+      <div
+        role="tablist"
+        aria-label="Profile"
+        className="mt-3 grid min-w-0 grid-cols-4 overflow-x-hidden border-b border-zinc-200 text-[13px] min-[400px]:text-[15px] dark:border-white/10"
+      >
+        {PROFILE_TAB_LABELS.map((item) => (
+          <ProfileTab
+            key={item.id}
+            active={tab === item.id}
+            onClick={() => setTab(item.id)}
+          >
+            {item.label}
+          </ProfileTab>
+        ))}
       </div>
 
-      {tab === "posts" ? (
-        postsLoading ? (
-          <LoadingRows count={3} />
-        ) : pagedPosts.error && activity.length === 0 ? (
-          <p className="px-4 py-8 text-center text-sm text-rose-600 dark:text-rose-400">
-            {pagedPosts.error}
-          </p>
-        ) : activity.length === 0 ? (
+      {tab === "replies" ? (
+        !replyParentsReady ? (
+          <LoadingRows />
+        ) : replies.length === 0 ? (
           <EmptyState
             icon={<MessageCircle className="h-5 w-5" />}
-            title="No posts yet"
+            title="No replies yet"
             detail={
-              isOwn
-                ? "Share a pickup, a comp, or what you're holding."
-                : "This collector hasn't posted yet."
+              isOwn ? "Replies you post will show up here." : "This collector hasn't replied yet."
             }
-          >
-            {isOwn ? (
-              <Link href="/compose" className={solidButton}>
-                Post something
-              </Link>
-            ) : null}
-          </EmptyState>
+          />
         ) : (
-          <>
-            {activity.map((item) => {
-              const author = authors.get(item.post.authorId);
-              if (!author) return null;
-              return (
-                <Tweet
-                  key={item.key}
-                  post={item.post}
-                  author={author}
-                  repostedBy={item.repostedBy}
-                  extraPosts={pagedPosts.relatedPosts}
-                  extraProfiles={pagedPosts.profiles}
-                />
-              );
-            })}
-            {mode === "supabase" ? (
-              <LoadMore
-                hasMore={pagedPosts.hasMore}
-                loading={pagedPosts.loadingMore}
-                failed={Boolean(pagedPosts.error)}
-                onLoadMore={pagedPosts.loadMore}
-              />
-            ) : null}
-            {pagedPosts.error ? (
-              <p className="px-4 py-3 text-center text-sm text-rose-600 dark:text-rose-400">
-                {pagedPosts.error}
-              </p>
-            ) : null}
-          </>
+          <div className="min-w-0">
+            {replies.map((reply) => (
+              <article
+                key={reply.id}
+                className="min-w-0 border-b border-zinc-200 px-4 py-3 dark:border-white/10"
+              >
+                <p className="text-[13px] font-bold text-zinc-500">Reply</p>
+                <p className="mt-1 text-[15px] leading-5 break-words whitespace-pre-wrap">
+                  <MentionText text={reply.body} />
+                </p>
+                <Link
+                  href={`/posts/${reply.postId}`}
+                  className="mt-1 inline-block text-[13px] font-medium text-sky-600 hover:underline dark:text-sky-400"
+                >
+                  View post
+                </Link>
+              </article>
+            ))}
+          </div>
         )
-      ) : (
+      ) : tab === "cards" ? (
         <div className="px-4 py-4">
           {isOwn && cardsReady && collection.length === 0 ? (
             <p className="mb-3 text-xs text-zinc-500">
@@ -410,6 +495,73 @@ export function ProfileView({ username }: { username?: string }) {
             </ul>
           )}
         </div>
+      ) : postsLoading ? (
+        <LoadingRows count={3} />
+      ) : pagedPosts.error && shownActivity.length === 0 ? (
+        <p className="px-4 py-8 text-center text-sm text-rose-600 dark:text-rose-400">
+          {pagedPosts.error}
+        </p>
+      ) : shownActivity.length === 0 ? (
+        <>
+          <EmptyState
+            icon={<MessageCircle className="h-5 w-5" />}
+            title={tab === "media" ? "No photos yet" : "No posts yet"}
+            detail={
+              tab === "media"
+                ? isOwn
+                  ? "Posts with photos will show up here."
+                  : "This collector hasn't posted a photo yet."
+                : isOwn
+                  ? "Share a pickup, a comp, or what you're holding."
+                  : "This collector hasn't posted yet."
+            }
+          >
+            {isOwn && tab === "posts" ? (
+              <Link href="/compose" className={solidButton}>
+                Post something
+              </Link>
+            ) : null}
+          </EmptyState>
+          {mode === "supabase" && tab === "media" ? (
+            <LoadMore
+              hasMore={pagedPosts.hasMore}
+              loading={pagedPosts.loadingMore}
+              failed={Boolean(pagedPosts.error)}
+              onLoadMore={pagedPosts.loadMore}
+            />
+          ) : null}
+        </>
+      ) : (
+        <>
+          {shownActivity.map((item) => {
+            const author = authors.get(item.post.authorId);
+            if (!author) return null;
+            return (
+              <Tweet
+                key={item.key}
+                post={item.post}
+                author={author}
+                pinned={item.key.startsWith("pinned:")}
+                repostedBy={item.repostedBy}
+                extraPosts={pagedPosts.relatedPosts}
+                extraProfiles={pagedPosts.profiles}
+              />
+            );
+          })}
+          {mode === "supabase" ? (
+            <LoadMore
+              hasMore={pagedPosts.hasMore}
+              loading={pagedPosts.loadingMore}
+              failed={Boolean(pagedPosts.error)}
+              onLoadMore={pagedPosts.loadMore}
+            />
+          ) : null}
+          {pagedPosts.error ? (
+            <p className="px-4 py-3 text-center text-sm text-rose-600 dark:text-rose-400">
+              {pagedPosts.error}
+            </p>
+          ) : null}
+        </>
       )}
     </div>
     </PullToRefresh>
@@ -548,12 +700,14 @@ function ProfileTab({
   return (
     <button
       type="button"
+      role="tab"
+      aria-selected={active}
       onClick={onClick}
-      className={`relative py-3.5 font-medium ${active ? "font-bold" : "text-zinc-500"}`}
+      className={`relative min-w-0 truncate px-1 py-3.5 font-medium ${active ? "font-bold" : "text-zinc-500"}`}
     >
       {children}
       {active ? (
-        <span className="absolute bottom-0 left-1/2 h-1 w-14 -translate-x-1/2 rounded-full bg-zinc-900 dark:bg-zinc-100" />
+        <span className="absolute bottom-0 left-1/2 h-1 w-8 max-w-[70%] -translate-x-1/2 rounded-full bg-zinc-900 dark:bg-zinc-100" />
       ) : null}
     </button>
   );

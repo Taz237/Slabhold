@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { Ellipsis, Heart, MessageCircle, Quote, Repeat2 } from "lucide-react";
+import { Ellipsis, Heart, MessageCircle, Pin, Quote, Repeat2 } from "lucide-react";
 import { Avatar } from "@/components/avatar";
 import { useCollection } from "@/components/collection-provider";
 import { useImageLightbox } from "@/components/image-lightbox";
@@ -36,6 +36,7 @@ export function Tweet({
   extraProfiles,
   cardValues,
   cardValuesLoading,
+  pinned = false,
 }: {
   post: Post;
   author: Profile;
@@ -48,6 +49,8 @@ export function Tweet({
   /** Extra trusted values when posts were loaded outside the main feed batch. */
   cardValues?: Map<string, CardValueResult>;
   cardValuesLoading?: boolean;
+  /** Profile Posts tab. The same post is not repeated under this label. */
+  pinned?: boolean;
 }) {
   const router = useRouter();
   const openImage = useImageLightbox();
@@ -79,6 +82,14 @@ export function Tweet({
       onClick={openPost}
       className={`border-b border-zinc-200 dark:border-white/10 ${variant === "feed" ? "cursor-pointer" : ""}`}
     >
+      {pinned ? (
+        <p className="flex items-center gap-3 px-4 pt-3 text-[13px] font-bold text-zinc-500">
+          <span className="grid w-10 shrink-0 place-items-center">
+            <Pin className="h-4 w-4" aria-hidden="true" />
+          </span>
+          Pinned
+        </p>
+      ) : null}
       {repostedBy ? (
         <Link
           href={userHref(repostedBy.username)}
@@ -90,7 +101,7 @@ export function Tweet({
           <span className="truncate hover:underline">{repostedBy.displayName} reposted</span>
         </Link>
       ) : null}
-      <div className={`flex gap-3 px-4 ${repostedBy ? "pt-1 pb-3" : "py-3"}`}>
+      <div className={`flex gap-3 px-4 ${pinned || repostedBy ? "pt-1 pb-3" : "py-3"}`}>
       <Link href={userHref(author.username)} className="shrink-0">
         <Avatar name={author.displayName} image={author.avatarDataUrl} accent={author.accent} />
       </Link>
@@ -248,10 +259,11 @@ export function AuthorLine({
 function PostMenu({ post }: { post: Post }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { user, profiles, deletePost } = useSocial();
+  const { user, profiles, deletePost, pinPost, unpinPost } = useSocial();
   const author = profiles.find((profile) => profile.id === post.authorId);
   const [open, setOpen] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  const [pinning, setPinning] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const mine = Boolean(user && user.id === post.authorId);
 
@@ -343,6 +355,41 @@ function PostMenu({ post }: { post: Post }) {
             </div>
           ) : (
             <>
+              {user.pinnedPostId === post.id ? (
+                <button
+                  type="button"
+                  role="menuitem"
+                  disabled={pinning}
+                  onClick={() => {
+                    if (!user) return;
+                    setPinning(true);
+                    void unpinPost().finally(() => {
+                      setPinning(false);
+                      close();
+                    });
+                  }}
+                  className="block w-full px-4 py-2.5 text-left text-[15px] font-bold hover:bg-zinc-100 disabled:opacity-60 dark:hover:bg-white/10"
+                >
+                  Unpin
+                </button>
+              ) : post.hiddenAt ? null : (
+                <button
+                  type="button"
+                  role="menuitem"
+                  disabled={pinning}
+                  onClick={() => {
+                    if (!user) return;
+                    setPinning(true);
+                    void pinPost(post.id).finally(() => {
+                      setPinning(false);
+                      close();
+                    });
+                  }}
+                  className="block w-full px-4 py-2.5 text-left text-[15px] font-bold hover:bg-zinc-100 disabled:opacity-60 dark:hover:bg-white/10"
+                >
+                  Pin to profile
+                </button>
+              )}
               <button
                 type="button"
                 role="menuitem"

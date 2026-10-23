@@ -73,6 +73,7 @@ type ProfileRow = {
   accent: string | null;
   created_at: string;
   is_test?: boolean | null;
+  pinned_post_id?: string | null;
 };
 
 type PostRow = {
@@ -83,6 +84,7 @@ type PostRow = {
   card: PublicCard | null;
   quoted_post_id?: string | null;
   created_at: string;
+  hidden_at?: string | null;
   post_type?: string | null;
   show_paid?: boolean | null;
   meta?: unknown;
@@ -192,6 +194,7 @@ function mapPost(row: PostRow, mailDayCards: MailDayCardView[]): Post {
     card,
     quotedPostId: row.quoted_post_id ?? null,
     createdAt: row.created_at,
+    hiddenAt: row.hidden_at ?? null,
     postType: row.post_type === "mail_day" ? "mail_day" : "post",
     showPaid: row.show_paid === true,
     mailDay: first
@@ -238,6 +241,7 @@ function mapProfile(row: ProfileRow, email = ""): Profile {
     coverDataUrl: row.cover_url ?? null,
     accent: row.accent ?? "#7c5cff",
     createdAt: row.created_at,
+    pinnedPostId: typeof row.pinned_post_id === "string" ? row.pinned_post_id : null,
     ...(row.is_test === true ? { isTest: true } : {}),
   };
 }
@@ -1220,6 +1224,27 @@ export async function searchProfilesForMention(
       accent: "#7c5cff",
     }),
   );
+}
+
+function pinError(error: { code?: string; message?: string } | null): string | undefined {
+  if (!error) return undefined;
+  if (error.code === "42501") return "Hidden posts can't be pinned.";
+  if (/can only pin your own post/i.test(error.message ?? "")) {
+    return "You can only pin your own post.";
+  }
+  return error.message || "Could not update your pin.";
+}
+
+export async function remotePinPost(supabase: SupabaseClient, postId: string): Promise<AuthResult> {
+  const { error } = await supabase.rpc("pin_post", { post_id: postId });
+  const message = pinError(error);
+  return message ? { error: message } : {};
+}
+
+export async function remoteUnpinPost(supabase: SupabaseClient): Promise<AuthResult> {
+  const { error } = await supabase.rpc("unpin_post");
+  const message = pinError(error);
+  return message ? { error: message } : {};
 }
 
 export async function remoteDeletePost(supabase: SupabaseClient, authorId: string, postId: string) {
