@@ -6,7 +6,8 @@
 --
 -- The trigger check uses pg_trigger, not pg_get_triggerdef text.
 -- tgtype 5 is ROW (1) + INSERT (4): after insert, for each row, and not
--- before, update, or delete. tgenabled <> 'D' means the trigger is not disabled.
+-- before, update, or delete. tgenabled O (origin) or A (always) means it fires
+-- for normal sessions; D (disabled) and R (replica only) do not.
 
 begin;
 
@@ -51,7 +52,7 @@ begin
         where not t.tgisinternal
           and t.tgfoid = 'private.follow_official_updates()'::regprocedure
           and t.tgtype = 5
-          and t.tgenabled <> 'D'
+          and t.tgenabled in ('O', 'A')
       )
       into fn_triggers, good_triggers
     from pg_catalog.pg_trigger t
@@ -72,9 +73,9 @@ begin
     );
 
     if fn_triggers is distinct from 1 or good_triggers is distinct from 1 then
-      raise notice 'FAIL: expected exactly 1 non-internal after insert row trigger (tgtype 5, tgenabled <> D) on public.profiles, found % calling the function (% matching)', fn_triggers, good_triggers;
+      raise notice 'FAIL: expected exactly 1 non-internal after insert row trigger (tgtype 5, tgenabled O or A) on public.profiles, found % calling the function (% matching)', fn_triggers, good_triggers;
     elsif anon_execute or auth_execute then
-      raise notice 'FAIL: anon or authenticated can execute private.follow_official_updates()';
+      raise notice 'FAIL: anon, authenticated or PUBLIC can execute private.follow_official_updates()';
     else
       raise notice 'PASS: skips is_test and qa_/qa-/test_/vreset_, not security definer, empty search_path, after insert only, execute revoked';
     end if;
