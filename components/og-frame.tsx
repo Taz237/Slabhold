@@ -422,6 +422,8 @@ function paint(
   cacheControl: string,
   homeShot: string | null,
 ): ImageResponse {
+  const forced = nextOgPaintErrors.shift();
+  if (forced) throw forced;
   const send = (node: ReactNode) => respond(node, cacheControl);
   const imageUrl = cleanImageUrl(model.imageUrl);
   const photos = model.photos
@@ -617,11 +619,22 @@ async function consumeOg(response: ImageResponse): Promise<ImageResponse> {
 const isShapingError = (e: unknown) =>
   e instanceof Error && /lookupType: \d+ - substFormat: \d+ is not yet supported/.test(e.message);
 
-/** A failed public image uses the short cache. A private profile image stays private. */
+/** A failed public image uses the short cache. Any private header stays private. */
 function ogFailureCache(cacheControl: string): string {
-  return cacheControl === PRIVATE_OG_CACHE_CONTROL
-    ? PRIVATE_OG_CACHE_CONTROL
-    : CARD_OG_CACHE_CONTROL;
+  return cacheControl.startsWith("private") ? PRIVATE_OG_CACHE_CONTROL : CARD_OG_CACHE_CONTROL;
+}
+
+/** Test-only queue. Each paint throws the next error instead of drawing. */
+const nextOgPaintErrors: Error[] = [];
+
+/** Test-only. The next share-image paint throws `error` instead of drawing. */
+export function failNextOgPaint(error: Error): void {
+  nextOgPaintErrors.push(error);
+}
+
+/** Test-only. Drops paint failures queued by `failNextOgPaint`. */
+export function resetOgPaintFailures(): void {
+  nextOgPaintErrors.length = 0;
 }
 
 /** Render a share image. Only a font-shaping failure retries without that script. */
@@ -658,12 +671,17 @@ export function renderOg(
   return renderShareImage(model, cacheControl);
 }
 
-export function renderProfileOg(
+export async function renderProfileOg(
   preview: LinkPreview,
   kicker: string,
   cacheControl = PUBLIC_OG_CACHE_CONTROL,
 ): Promise<ImageResponse> {
-  return renderShareImage(profileShareImage(preview, kicker), cacheControl);
+  try {
+    return await renderShareImage(profileShareImage(preview, kicker), cacheControl);
+  } catch (error) {
+    console.error("[og] share image render failed", { kind: "profile", stage: "render" }, error);
+    return consumeOg(paint(homeShareImage(), ogFailureCache(cacheControl), await homeShotSrc()));
+  }
 }
 
 export async function renderHomeOg() {
