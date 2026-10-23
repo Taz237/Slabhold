@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { after, describe, it } from "node:test";
 import { OFFICIAL_UPDATES_USER_ID } from "@/lib/social/official-updates";
 import { buildWeekBoards, getPostLikeActors, type BoardCard, type BoardFollow, type BoardLike, type BoardPost, type BoardProfile, type BoardReply, type ScoreInput } from "./score";
 import { ACTOR_MIN_AGE_DAYS, OFFICIAL_UPDATES_HANDLE } from "./rules";
@@ -70,6 +70,7 @@ function base(extra: Partial<ScoreInput> = {}): ScoreInput {
     replies: [],
     follows: [],
     blockPairs: [],
+    now: new Date("2026-10-23T18:00:00.000Z"),
     ...extra,
   };
 }
@@ -378,11 +379,23 @@ describe("viewer rows", () => {
 });
 
 describe("most cards added", () => {
-  const PHOTO = "https://cdn.example/real.jpg";
+  const ORIGIN = "https://proj.supabase.co";
+  const previousUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  process.env.NEXT_PUBLIC_SUPABASE_URL = ORIGIN;
+  after(() => {
+    if (previousUrl === undefined) delete process.env.NEXT_PUBLIC_SUPABASE_URL;
+    else process.env.NEXT_PUBLIC_SUPABASE_URL = previousUrl;
+  });
+
   const NEXT_DAY = "2026-10-22T16:00:00.000Z";
+  const SNAPSHOT_NOW = "2026-10-23T18:00:00.000Z";
+
+  function photo(userId: string, name: string): string {
+    return `${ORIGIN}/storage/v1/object/public/card-photos/${userId}/${name}.jpg`;
+  }
 
   function added(id: string, userId: string, extra: Partial<BoardCard> = {}): BoardCard {
-    return card(id, userId, true, { imageUrl: PHOTO, player: `Player ${id}`, ...extra });
+    return card(id, userId, true, { imageUrl: photo(userId, id), player: `Player ${id}`, ...extra });
   }
 
   it("requires a real photo and skips private, hidden, deleted, and duplicate cards", () => {
@@ -457,5 +470,84 @@ describe("most cards added", () => {
     assert.equal(hidden.thin, false);
     assert.equal(hidden.entries.some((entry) => entry.userId === "a"), false);
     assert.equal(hidden.you?.label, "You: #3");
+  });
+
+  it("counts only that user's card-photos url, and each image once", () => {
+    const rows = boards(
+      base({
+        cards: [
+          added("owned", "author"),
+          added("copy", "author", { player: "Copy", imageUrl: photo("author", "owned") }),
+          added("external", "author", { player: "External", imageUrl: "https://cdn.example/real.jpg" }),
+          added("other-folder", "author", { player: "Other", imageUrl: photo("someone-else", "owned") }),
+          added("data", "author", { player: "Data", imageUrl: "data:image/jpeg;base64,abc" }),
+        ],
+      }),
+    )["most-cards-added"]?.rows ?? [];
+    assert.equal(rows.find((row) => row.userId === "author")?.contributions[0]?.points, 1);
+  });
+
+  it("skips a card created after the snapshot time", () => {
+    const rows = boards(
+      base({
+        now: new Date(SNAPSHOT_NOW),
+        cards: [
+          added("kept", "author", { createdAt: IN_WEEK }),
+          added("exact", "author", { player: "Exact", createdAt: SNAPSHOT_NOW }),
+          added("later", "author", { player: "Later", createdAt: "2026-10-24T16:00:00.000Z" }),
+        ],
+      }),
+    )["most-cards-added"]?.rows ?? [];
+    assert.equal(rows.find((row) => row.userId === "author")?.contributions[0]?.points, 2);
+  });
+
+  it("treats a blank parallel and base as the same card", () => {
+    const rows = boards(
+      base({
+        cards: [
+          added("plain", "author", { player: "LeBron James", year: 2020, setName: "Prizm", parallel: "" }),
+          added("base", "author", {
+            player: "LeBron James",
+            year: 2020,
+            setName: "Prizm",
+            parallel: "  Base ",
+            createdAt: "2026-10-21T18:00:00.000Z",
+          }),
+          added("silver", "author", { player: "LeBron James", year: 2020, setName: "Prizm", parallel: "Silver" }),
+        ],
+      }),
+    )["most-cards-added"]?.rows ?? [];
+    assert.equal(rows.find((row) => row.userId === "author")?.contributions[0]?.points, 2);
+  });
+});
+
+describe("thin board viewer", () => {
+  it("shows a viewer's points when the board is still hidden", () => {
+    const row = (userId: string, points: number) => ({
+      id: userId,
+      userId,
+      title: userId,
+      subtitle: `@${userId}`,
+      href: `/posts/${userId}`,
+      avatarUrl: null,
+      accent: "#7c5cff",
+      contributions: [{ actorId: userId, points }],
+    });
+    const thin = rankBoard([row("mina", 4), row("other", 1)], [], "mina", "cards", {
+      boardId: "most-cards-added",
+    });
+    assert.equal(thin.thin, true);
+    assert.equal(thin.entries.length, 0);
+    assert.equal(thin.you?.score, 4);
+    assert.equal(thin.you?.scoreLabel, "cards");
+    assert.equal(thin.you?.title, "mina");
+    assert.notEqual(thin.you?.title, "Not ranked");
+    assert.equal(thin.you?.label, "You: 4 cards");
+
+    const empty = rankBoard([row("mina", 4), row("other", 1)], [], "guest", "cards", {
+      boardId: "most-cards-added",
+    });
+    assert.equal(empty.you?.title, "Not ranked");
+    assert.equal(empty.you?.score, 0);
   });
 });

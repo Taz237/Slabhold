@@ -276,7 +276,13 @@ export function LeaderboardView({ model }: { model: LeaderboardPageModel }) {
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
                 <p className="text-[11px] font-bold uppercase tracking-wide text-violet-200">Your rank</p>
-                <p className="text-lg font-black text-white">{model.you.rank > 0 ? `#${model.you.rank}` : "Not ranked"}</p>
+                <p className="text-lg font-black text-white">
+                  {model.you.rank > 0
+                    ? `#${model.you.rank}`
+                    : model.you.score > 0
+                      ? `${model.you.score} ${model.you.scoreLabel}`
+                      : "Not ranked"}
+                </p>
               </div>
               {model.you.rank > 0 ? (
                 <p className="text-right text-lg font-black tabular-nums text-white">

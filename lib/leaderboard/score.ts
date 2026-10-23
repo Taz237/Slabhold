@@ -94,6 +94,8 @@ export type ScoreInput = {
   follows: readonly BoardFollow[];
   /** Either direction. A pair drops replies and follows between those two accounts. */
   blockPairs: readonly BlockPair[];
+  /** Snapshot time. A card created after this does not count. */
+  now: Date;
 };
 
 /**
@@ -356,14 +358,22 @@ function normLabel(value: string): string {
   return value.trim().toLowerCase().replace(/\s+/g, " ");
 }
 
-function realPhoto(url: string | null): boolean {
+function realPhoto(url: string | null, userId: string): boolean {
   const value = url?.trim() ?? "";
-  if (!value || value.startsWith("data:")) return false;
-  return true;
+  const owner = userId.trim();
+  const origin = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+  if (!value || !owner || !origin) return false;
+  return value.startsWith(`${origin}/storage/v1/object/public/card-photos/${owner}/`);
+}
+
+function parallelKey(value: string): string {
+  const label = normLabel(value);
+  if (label === "" || label === "base") return "base";
+  return label;
 }
 
 function cardIdentity(card: BoardCard): string {
-  return [normLabel(card.player), String(card.year), normLabel(card.setName), normLabel(card.parallel)].join("\0");
+  return [normLabel(card.player), String(card.year), normLabel(card.setName), parallelKey(card.parallel)].join("\0");
 }
 
 function cardDay(createdAt: string): string {
@@ -376,8 +386,10 @@ function scoreCards(input: ScoreInput, week: WeekWindow, index: ActorIndex): Can
   for (const card of input.cards) {
     if (!card.userId || card.id.startsWith("exists:")) continue;
     if (!card.isPublic || card.hidden || card.deleted) continue;
-    if (!realPhoto(card.imageUrl)) continue;
-    if (!card.createdAt || !inWeek(new Date(card.createdAt), week)) continue;
+    if (!realPhoto(card.imageUrl, card.userId)) continue;
+    const createdMs = Date.parse(card.createdAt);
+    if (!card.createdAt || !Number.isFinite(createdMs) || createdMs > input.now.getTime()) continue;
+    if (!inWeek(new Date(createdMs), week)) continue;
     if (!actorQualifies(index, card.userId, card.createdAt)) continue;
     const profile = entrantOk(index, card.userId);
     if (!profile || isOfficialEntrant(profile)) continue;
@@ -394,14 +406,18 @@ function scoreCards(input: ScoreInput, week: WeekWindow, index: ActorIndex): Can
       (a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id),
     );
     const seen = new Set<string>();
+    const seenPhotos = new Set<string>();
     const perDay = new Map<string, number>();
     let count = 0;
     for (const card of ordered) {
+      const photo = card.imageUrl?.trim() ?? "";
+      if (!photo || seenPhotos.has(photo)) continue;
       const key = cardIdentity(card);
       if (seen.has(key)) continue;
       const day = cardDay(card.createdAt);
       const used = perDay.get(day) ?? 0;
       if (used >= DAILY_CARD_CAP) continue;
+      seenPhotos.add(photo);
       seen.add(key);
       perDay.set(day, used + 1);
       count += 1;

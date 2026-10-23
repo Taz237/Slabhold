@@ -117,7 +117,7 @@ function mapCard(row: Row): BoardCard | null {
   };
 }
 
-async function readInput(admin: Admin, startIso: string, endIso: string): Promise<ScoreInput> {
+async function readInput(admin: Admin, startIso: string, endIso: string): Promise<Omit<ScoreInput, "now">> {
   const [replyRows, followRows, blockRows, addedCardRows] = await Promise.all([
     pageRows(admin, "comments", "id, user_id, post_id, created_at", ["id"], (query) =>
       query.gte("created_at", startIso).lt("created_at", endIso),
@@ -310,7 +310,7 @@ async function readSnapshot(weekStart: Date): Promise<LeaderboardSnapshot> {
   const current = weekContaining(weekStart);
   const previous = previousWeek(weekStart);
   const input = await readInput(admin as unknown as Admin, previous.start.toISOString(), current.end.toISOString());
-  return snapshotFromInput(input, weekStart);
+  return snapshotFromInput({ ...input, now: weekStart }, weekStart);
 }
 
 /**

@@ -204,17 +204,44 @@ export function rankBoard(
       ctaHref: null,
     };
   };
+  const best = bestForViewer(ranked, viewerId);
   if (ranked.length < LEADERBOARD_MIN_ENTRIES) {
-    return { entries: [], you: viewerId ? unrankedYou(boardId, week, scoreLabel) : null, thin: true };
-  }
-  let best: RankedEntry | null = null;
-  if (viewerId) {
-    for (const row of ranked) {
-      if (row.userId !== viewerId) continue;
-      if (best == null || row.rank < best.rank) best = row;
-    }
+    return { entries: [], you: thinViewerYou(best, boardId, week, scoreLabel, viewerId), thin: true };
   }
   return { entries: ranked.slice(0, LEADERBOARD_TOP_LIMIT), you: youFor(best), thin: false };
+}
+
+function bestForViewer(ranked: readonly RankedEntry[], viewerId: string | null): RankedEntry | null {
+  if (!viewerId) return null;
+  let best: RankedEntry | null = null;
+  for (const row of ranked) {
+    if (row.userId !== viewerId) continue;
+    if (best == null || row.rank < best.rank) best = row;
+  }
+  return best;
+}
+
+function thinViewerYou(
+  best: RankedEntry | null,
+  boardId: string,
+  week: "current" | "previous",
+  scoreLabel: string,
+  viewerId: string | null,
+): YouRow | null {
+  if (!viewerId) return null;
+  if (!best || best.score <= 0) return unrankedYou(boardId, week, scoreLabel);
+  return {
+    rank: 0,
+    score: best.score,
+    title: best.title,
+    subtitle: best.subtitle,
+    href: best.href,
+    scoreLabel: best.scoreLabel,
+    label: `${YOU_LABEL}: ${best.score} ${best.scoreLabel}`,
+    gap: "",
+    ctaLabel: null,
+    ctaHref: null,
+  };
 }
 
 export function presentLeaderboard(input: {
