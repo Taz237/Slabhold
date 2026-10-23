@@ -52,7 +52,7 @@ import {
 } from "@/lib/cards/new-card-draft";
 import { cardFormPreview } from "@/lib/cards/form-preview";
 import {
-  PRIVATE_VISIBILITY_NUDGE,
+  PRIVATE_VISIBILITY_HINT,
   readBrowserVisibilityChoice,
   subscribeVisibilityChoice,
   writeBrowserVisibilityChoice,
@@ -81,7 +81,7 @@ import { parseManualPrefill } from "@/lib/card-search-query";
 import { hasPaid } from "@/lib/format";
 import { formatCardValueLabel, marketValueSummary } from "@/lib/value/format";
 import { useCardValue } from "@/lib/value/use-card-values";
-import { claimSubmit, isSaveTimeout, SAVE_TIMEOUT_MESSAGE, SaveTimeoutError, saveFailureText } from "@/lib/save/attempt";
+import { CARDS_LOADING_MESSAGE, claimSubmit, isSaveTimeout, SAVE_TIMEOUT_MESSAGE, SaveTimeoutError, saveFailureText } from "@/lib/save/attempt";
 import { PHOTO_READ_ERROR, readPhotoFile } from "@/lib/photos";
 import type {
   CardCategory,
@@ -120,7 +120,16 @@ export function CardForm({
 }) {
   const catalogStart = !existing && initialCatalog ? catalogPickFields(initialCatalog, "") : null;
   const router = useRouter();
-  const { addCard, updateCard, removeCard, cards, ready: cardsReady, syncError } = useCollection();
+  const {
+    addCard,
+    updateCard,
+    removeCard,
+    cards,
+    ready: cardsReady,
+    loaded: cardsLoaded,
+    loadFailed,
+    syncError,
+  } = useCollection();
   const { mode, user, createPost } = useSocial();
   const userId = user?.id ?? null;
   const seed = existing ? null : newCardSeed(initialQuery, initialCatalog?.id ?? null);
@@ -721,21 +730,44 @@ export function CardForm({
       cardsReady,
       syncError,
     });
+    const collectionKnown = cardsLoaded && !loadFailed;
+    const pendingInMemory =
+      pendingCardId != null && cards.some((item) => item.id === pendingCardId);
+    if (!existing && pendingCardId && !collectionKnown && !pendingInMemory) {
+      setSaveError(CARDS_LOADING_MESSAGE);
+      setSaving(false);
+      savingRef.current = false;
+      return;
+    }
     try {
-      const pendingMissing =
-        cardsReady &&
-        pendingCardId != null &&
-        !cards.some((item) => item.id === pendingCardId);
-      const reuseId = existing?.id ?? (pendingMissing ? null : pendingCardId);
-      const { card, saved } = reuseId
-        ? updateCard(reuseId, payload)
-        : addCard(payload);
+      const targetId = existing?.id ?? pendingCardId;
+      const inMemory =
+        targetId != null && cards.some((item) => item.id === targetId);
+      const updating = Boolean(targetId && (existing || inMemory));
+      let result = updating
+        ? updateCard(targetId as string, payload)
+        : addCard(
+            !existing && pendingCardId ? { ...payload, id: pendingCardId } : payload,
+          );
       if (!existing) {
-        pendingId.current = card.id;
-        setPendingCardId(card.id);
-        if (reuseId === null) createdId = card.id;
+        pendingId.current = result.card.id;
+        setPendingCardId(result.card.id);
+        if (!updating) createdId = result.card.id;
       }
+      const saved = result.saved.then(
+        () => undefined,
+        async (error: unknown) => {
+          const missingCard = error instanceof Error && error.message === "Card not found.";
+          if (!(missingCard && !existing && pendingCardId && collectionKnown)) throw error;
+          result = addCard({ ...payload, id: pendingCardId });
+          pendingId.current = result.card.id;
+          setPendingCardId(result.card.id);
+          createdId = result.card.id;
+          await result.saved;
+        },
+      );
       await saved;
+      const { card } = result;
       createdId = null;
       if (seed != null) {
         setDraftSealed(true);
@@ -804,9 +836,8 @@ export function CardForm({
         return;
       }
       const timedOut = createdId != null && timedOutIds.current.has(createdId);
-      const missingCard = error instanceof Error && error.message === "Card not found.";
       if (createdId && !timedOut) removeCard(createdId);
-      if ((createdId && !timedOut) || missingCard) {
+      if (createdId && !timedOut) {
         pendingId.current = null;
         setPendingCardId(null);
       }
@@ -844,11 +875,7 @@ export function CardForm({
       <VisibilityChoice
         isPublic={share}
         onChange={chooseVisibility}
-        hint={
-          share
-            ? ""
-            : `${PRIVATE_VISIBILITY_NUDGE} Cards are private by default. You can show them on your profile.`
-        }
+        hint={share ? "" : PRIVATE_VISIBILITY_HINT}
       />
 
       <CategoryPicker value={category} onChange={setCategory} />

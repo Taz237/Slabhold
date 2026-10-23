@@ -244,7 +244,51 @@ describe("add card survives a remount", () => {
       );
       const saved = storedCards().filter((card) => card.playerName === "Qa Ghostplayer");
       assert.equal(saved.length, 1);
-      assert.notEqual(saved[0]?.id, "ghost-card");
+      assert.equal(saved[0]?.id, "ghost-card");
+      assert.equal(textIncludes("Card not found."), false);
+    } finally {
+      view.unmount();
+    }
+  });
+
+  it("updates a restored pending card after the collection loads, with one card", async () => {
+    const existing = { ...blankCard, id: "real-card", playerName: "Qa Realplayer" };
+    writeNewCardDraft({
+      ...draftFor({ ...typedForm, playerName: "Qa Realplayer" }),
+      pendingId: "real-card",
+    });
+    const view = await mountGate("loading", existing);
+    try {
+      await waitFor(() => inputValue("playerName") === "Qa Realplayer");
+      await submit();
+      await waitFor(() => textIncludes("Still loading your cards. Tap Retry."));
+      assert.equal(gateIds(), "");
+      assert.equal(textIncludes("Card not found."), false);
+      await clickButton("Load cards");
+      await waitFor(() => gateIds() === "real-card");
+      await submit();
+      await waitFor(() => gateIds() === "real-card");
+      assert.equal(gateIds().split(",").filter(Boolean).length, 1);
+    } finally {
+      view.unmount();
+    }
+  });
+
+  it("does not insert when a restored card's collection failed to load", async () => {
+    const existing = { ...blankCard, id: "real-card", playerName: "Qa Realplayer" };
+    writeNewCardDraft({
+      ...draftFor({ ...typedForm, playerName: "Qa Realplayer" }),
+      pendingId: "real-card",
+    });
+    const view = await mountGate("failed", existing);
+    try {
+      await waitFor(() => inputValue("playerName") === "Qa Realplayer");
+      await submit();
+      await waitFor(() => textIncludes("Still loading your cards. Tap Retry."));
+      assert.equal(gateIds(), "");
+      assert.equal(textIncludes("Card not found."), false);
+      await submit();
+      assert.equal(gateIds(), "");
       assert.equal(textIncludes("Card not found."), false);
     } finally {
       view.unmount();
@@ -608,6 +652,8 @@ function SaveFailureCollection({ children }: { children?: ReactNode }) {
   const [cards, setCards] = useState<SportsCard[]>([]);
   const value = {
     ready: true,
+    loaded: true,
+    loadFailed: false,
     cards,
     syncError: null,
     getCard(id: string) {
@@ -632,12 +678,84 @@ function SaveFailureCollection({ children }: { children?: ReactNode }) {
   return createElement(CollectionContext.Provider, { value: value as never }, children);
 }
 
+function GateCollection({
+  phase: initialPhase,
+  existing,
+  children,
+}: {
+  phase: "loading" | "failed";
+  existing: SportsCard;
+  children?: ReactNode;
+}) {
+  const [phase, setPhase] = useState<"loading" | "failed" | "ready">(initialPhase);
+  const [cards, setCards] = useState<SportsCard[]>([]);
+  const value = {
+    ready: phase !== "loading",
+    loaded: phase === "ready",
+    loadFailed: phase === "failed",
+    cards,
+    syncError: phase === "failed" ? "Couldn't load your cards." : null,
+    getCard(id: string) {
+      return cards.find((card) => card.id === id);
+    },
+    addCard(input: CardInput & { id?: string }) {
+      const now = new Date().toISOString();
+      const id = input.id ?? `added-${cards.length + 1}`;
+      const previous = cards.find((card) => card.id === id);
+      const card: SportsCard = previous
+        ? { ...previous, ...input, id, updatedAt: now }
+        : { ...input, id, createdAt: now, updatedAt: now };
+      const next = previous
+        ? cards.map((item) => (item.id === id ? card : item))
+        : [card, ...cards];
+      setCards(next);
+      return { card, saved: Promise.resolve() };
+    },
+    updateCard(id: string, patch: Partial<SportsCard>) {
+      const previous = cards.find((card) => card.id === id);
+      if (!previous) {
+        const saved = Promise.reject(new Error("Card not found."));
+        void saved.catch(() => undefined);
+        return { card: { ...existing, ...patch, id }, saved };
+      }
+      const card = { ...previous, ...patch, id, updatedAt: new Date().toISOString() };
+      setCards(cards.map((item) => (item.id === id ? card : item)));
+      return { card, saved: Promise.resolve() };
+    },
+    removeCard(id: string) {
+      setCards(cards.filter((card) => card.id !== id));
+    },
+    reload() {},
+  };
+  return createElement(
+    "div",
+    null,
+    createElement(
+      "button",
+      {
+        type: "button",
+        onClick() {
+          setPhase("ready");
+          setCards((current) =>
+            current.some((card) => card.id === existing.id) ? current : [existing, ...current],
+          );
+        },
+      },
+      "Load cards",
+    ),
+    createElement("p", { "data-field": "gate-ids" }, cards.map((card) => card.id).join(",")),
+    createElement(CollectionContext.Provider, { value: value as never }, children),
+  );
+}
+
 function Harness({
   children,
   failure = false,
+  gate = null,
 }: {
   children?: ReactNode;
   failure?: boolean;
+  gate?: { phase: "loading" | "failed"; existing: SportsCard } | null;
 }) {
   const social = useMemo(
     () => ({
@@ -653,7 +771,9 @@ function Harness({
   );
   const collection = failure
     ? createElement(SaveFailureCollection, null, children)
-    : createElement(CollectionProvider, null, children);
+    : gate
+      ? createElement(GateCollection, gate, children)
+      : createElement(CollectionProvider, null, children);
   return createElement(
     AppRouterContext.Provider,
     { value: router },
@@ -694,6 +814,26 @@ async function mountSignOut() {
 
 async function mount(props: CardFormProps) {
   return mountIn(createElement(Harness, null, createElement(CardForm, props)));
+}
+
+function gateIds(): string {
+  return win.document.querySelector('[data-field="gate-ids"]')?.textContent ?? "";
+}
+
+async function clickButton(label: string) {
+  const button = [...win.document.querySelectorAll("button")].find(
+    (node) => node.textContent === label,
+  );
+  assert.ok(button);
+  await act(async () => {
+    button.click();
+  });
+}
+
+async function mountGate(phase: "loading" | "failed", existing: SportsCard) {
+  return mountIn(
+    createElement(Harness, { gate: { phase, existing } }, createElement(CardForm, {})),
+  );
 }
 
 async function mountFailure() {

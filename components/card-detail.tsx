@@ -284,14 +284,20 @@ export function CardDetail({ id }: { id: string }) {
     if (user) dismissFirstCardPrivacyInBrowser(user.id);
   }
 
-  function makePublic() {
+  function changeVisibility(isPublic: boolean) {
     if (!card) return;
     setVisibilityError(null);
-    const { saved } = updateCard(card.id, publicTogglePatch(card, true));
+    const { saved } = updateCard(card.id, publicTogglePatch(card, isPublic));
     void saved.then(
-      () => dismissPrivacyNudge(),
+      () => {
+        if (isPublic) dismissPrivacyNudge();
+      },
       (error) => setVisibilityError(saveFailureText(error)),
     );
+  }
+
+  function makePublic() {
+    changeVisibility(true);
   }
 
   function markSold() {
@@ -343,7 +349,7 @@ export function CardDetail({ id }: { id: string }) {
                   makePublic();
                   return;
                 }
-                updateCard(card.id, publicTogglePatch(card, false));
+                changeVisibility(false);
               }}
               className={`inline-flex min-h-11 items-center rounded-full px-3 text-xs font-semibold ${
                 card.isPublic

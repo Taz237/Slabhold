@@ -12,6 +12,10 @@ export type VisibilityStore = {
 export const PRIVATE_VISIBILITY_NUDGE =
   "Public cards can get offers and want alerts. Your price paid stays private.";
 
+/** Two short sentences under Private on Add card. */
+export const PRIVATE_VISIBILITY_HINT =
+  "Cards are private by default. Your price paid stays private.";
+
 export function visibilityChoiceKey(userId: string) {
   return `slabhold.card-visibility.${userId}`;
 }

@@ -5,16 +5,20 @@ export const SAVE_TIMEOUT_MESSAGE = "We couldn't confirm the save. Retry is safe
 export const OFFLINE_SAVE_MESSAGE =
   "Couldn't save. Check your connection and tap Retry.";
 
+export const CARDS_LOADING_MESSAGE = "Still loading your cards. Tap Retry.";
+
+const OFFLINE_SAVE_TEXT =
+  /^(?:failed to fetch|load failed|networkerror when attempting to fetch resource\.?)$/i;
+
 /** A dropped network call, not a message from the server. */
 export function saveFailureText(
   error: unknown,
   fallback = "Could not save this card.",
 ): string {
   const message = error instanceof Error ? error.message : "";
-  const offline =
-    (error instanceof TypeError && /failed to fetch/i.test(message)) ||
-    /typeerror:\s*failed to fetch/i.test(message);
-  if (offline) return OFFLINE_SAVE_MESSAGE;
+  if (message === "Card not found.") return CARDS_LOADING_MESSAGE;
+  const stripped = message.replace(/^typeerror:\s*/i, "");
+  if (OFFLINE_SAVE_TEXT.test(stripped)) return OFFLINE_SAVE_MESSAGE;
   if (message) return message;
   return fallback;
 }
