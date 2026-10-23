@@ -158,10 +158,11 @@ export function LeaderboardPrompt({
   }, [ready, user, valuedCards, value]);
 
   if (!visible || !user) return null;
+  const account = user;
 
   function dismiss() {
     try {
-      window.localStorage.setItem(leaderboardPromptDismissKey(user.id), "1");
+      window.localStorage.setItem(leaderboardPromptDismissKey(account.id), "1");
     } catch {
       // The prompt is optional when storage is blocked.
     }
@@ -174,7 +175,7 @@ export function LeaderboardPrompt({
     setBusy(true);
     const result = await saveLeaderboardOptIn(
       supabase as unknown as LeaderboardOptInDb,
-      user.id,
+      account.id,
       true,
     );
     setBusy(false);

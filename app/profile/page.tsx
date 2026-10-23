@@ -7,6 +7,8 @@ import { previewMetadata } from "@/lib/social/link-preview";
 import { loadOwnProfilePreview } from "@/lib/social/link-preview-load";
 import { getAuthUserId } from "@/lib/supabase/server";
 
+export const dynamic = "force-dynamic";
+
 export async function generateMetadata(): Promise<Metadata> {
   return previewMetadata(await loadOwnProfilePreview());
 }

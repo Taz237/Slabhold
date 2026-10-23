@@ -7,6 +7,8 @@ import { previewMetadata } from "@/lib/social/link-preview";
 import { loadProfilePreview } from "@/lib/social/link-preview-load";
 import { requireProfile } from "@/lib/social/require-record";
 
+export const dynamic = "force-dynamic";
+
 type Props = { params: Promise<{ username: string }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
