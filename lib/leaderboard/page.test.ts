@@ -278,6 +278,7 @@ describe("leaderboard page", () => {
     assert.match(read("components/leaderboard-chips.tsx"), /scrollLeft/);
     assert.doesNotMatch(read("components/leaderboard-chips.tsx"), /scrollIntoView/);
     assert.match(read("components/leaderboard-chips.tsx"), /setPicked/);
+    assert.match(read("components/leaderboard-chips.tsx"), /setPicked\(null\)/);
     assert.match(read("components/leaderboard-chips.tsx"), /touch-manipulation/);
     assert.match(read("lib/leaderboard/rules.ts"), /Find collectors to follow/);
     assert.match(read("lib/leaderboard/rules.ts"), /href: "\/search"/);

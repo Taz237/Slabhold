@@ -21,6 +21,11 @@ export function LeaderboardChips({
   const activeId = picked && picked.from === serverActive ? picked.id : serverActive;
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Back must drop the optimistic chip when the server tab changes
+    setPicked(null);
+  }, [serverActive]);
+
+  useEffect(() => {
     const root = row.current;
     if (!root) return;
     const current = root.querySelector<HTMLElement>('[aria-current="page"]');
@@ -45,8 +50,12 @@ export function LeaderboardChips({
             href={tab.href}
             aria-current={active ? "page" : undefined}
             data-board={tab.id}
-            onClick={() => {
-              if (tab.id === serverActive) return;
+            onClick={(event) => {
+              if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
+              if (tab.id === serverActive) {
+                setPicked(null);
+                return;
+              }
               setPicked({ id: tab.id, from: serverActive });
             }}
             className={`inline-flex min-h-11 shrink-0 touch-manipulation items-center rounded-full px-4 text-sm font-semibold whitespace-nowrap ${
