@@ -1,15 +1,10 @@
 import Link from "next/link";
 import { Crown, Trophy } from "lucide-react";
+import { LeaderboardChips } from "@/components/leaderboard-chips";
 import { LeaderboardCountdown } from "@/components/leaderboard-countdown";
 import { ShareIconButton } from "@/components/share-button";
 import type { LeaderboardPageModel, RankedEntry } from "@/lib/leaderboard/present";
 import { boardCallToAction, LEADERBOARD_PATH } from "@/lib/leaderboard/rules";
-
-const PILL: Record<string, string> = {
-  "top-card-post": "bg-[#7c5cff] text-white shadow-[0_0_18px_rgba(124,92,255,0.55)]",
-  "rising-collectors": "bg-emerald-500 text-white shadow-[0_0_18px_rgba(16,185,129,0.45)]",
-  "most-cards-added": "bg-teal-500 text-white shadow-[0_0_18px_rgba(20,184,166,0.45)]",
-};
 
 const MEDAL: Record<number, { ring: string; glow: string }> = {
   1: { ring: "#f6d36b", glow: "rgba(246,211,107,0.55)" },
@@ -132,7 +127,11 @@ export function LeaderboardView({ model }: { model: LeaderboardPageModel }) {
   const podium = model.entries.filter((entry) => entry.rank <= 3);
   const rest = model.entries.filter((entry) => entry.rank > 3);
   return (
-    <div className="-mx-4 -mt-5 bg-zinc-950 text-zinc-100" data-leaderboard="" data-board-accent={model.boardId}>
+    <div
+      className={`-mx-4 -mt-5 bg-zinc-950 text-zinc-100${model.you ? " pb-[10.5rem]" : ""}`}
+      data-leaderboard=""
+      data-board-accent={model.boardId}
+    >
       <style>{`
         @keyframes lb-rise {
           from { opacity: 0; transform: translateY(14px); }
@@ -196,24 +195,7 @@ export function LeaderboardView({ model }: { model: LeaderboardPageModel }) {
         ))}
       </div>
 
-      <div
-        className="flex gap-2 overflow-x-auto border-b border-white/10 px-4 py-3"
-        data-board-tabs=""
-      >
-        {model.tabs.map((tab) => (
-          <Link
-            key={tab.id}
-            href={tab.href}
-            aria-current={tab.active ? "page" : undefined}
-            data-board={tab.id}
-            className={`inline-flex min-h-11 shrink-0 items-center rounded-full px-4 text-sm font-semibold ${
-              tab.active ? (PILL[tab.id] ?? PILL["top-card-post"]) : "bg-white/10 text-zinc-300"
-            }`}
-          >
-            {tab.label}
-          </Link>
-        ))}
-      </div>
+      <LeaderboardChips tabs={model.tabs} />
 
       {model.status === "error" ? (
         <div className="px-6 py-12 text-center" data-board-error="">
@@ -271,7 +253,10 @@ export function LeaderboardView({ model }: { model: LeaderboardPageModel }) {
       )}
 
       {model.you ? (
-        <div className="sticky bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-10 px-3 py-2" data-you-row="">
+        <div
+          className="sticky bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-20 px-3 py-2"
+          data-you-row=""
+        >
           <div className="rounded-2xl border border-violet-400/40 bg-zinc-950/95 px-4 py-3 shadow-[0_10px_30px_rgba(124,92,255,0.28)]">
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">

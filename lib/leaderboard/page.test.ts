@@ -103,6 +103,10 @@ describe("leaderboard page", () => {
     assert.match(html, /data-board="rising-collectors"/);
     assert.match(html, /data-board="most-cards-added"/);
     assert.match(html, /data-podium/);
+    assert.match(html, /data-you-row=""/);
+    assert.match(html, /sticky bottom-\[calc\(4\.75rem\+env\(safe-area-inset-bottom\)\)\] z-20/);
+    assert.match(html, /pb-\[10\.5rem\]/);
+    assert.match(html, /whitespace-nowrap tabular-nums/);
     assert.doesNotMatch(html, /data-board="value"/);
     assert.doesNotMatch(html, BANNED);
     assert.doesNotMatch(LEADERBOARD_DESCRIPTION, BANNED);
@@ -132,6 +136,9 @@ describe("leaderboard page", () => {
     assert.doesNotMatch(thinHtml, /This week(?:'|&#x27;)s/);
     assert.match(thinHtml, new RegExp(EMPTY_BOARD_TITLE));
     assert.match(thinHtml, /data-empty-cta/);
+    assert.match(thinHtml, /Find collectors to follow/);
+    assert.match(thinHtml, /href="\/search"/);
+    assert.doesNotMatch(thinHtml, /data-empty-cta=""[^>]*href="\/compose"|href="\/compose"[^>]*data-empty-cta=""/);
     assert.doesNotMatch(thinHtml, /#1/);
   });
 
@@ -262,6 +269,11 @@ describe("leaderboard page", () => {
     assert.match(read("components/leaderboard-countdown.tsx"), /pastAtMount/);
     assert.match(read("components/leaderboard-countdown.tsx"), /sessionStorage/);
     assert.match(read("components/leaderboard-countdown.tsx"), /location\.reload\(\)/);
+    assert.match(read("components/leaderboard-countdown.tsx"), /whitespace-nowrap tabular-nums/);
+    assert.match(read("components/leaderboard-chips.tsx"), /scrollLeft/);
+    assert.doesNotMatch(read("components/leaderboard-chips.tsx"), /scrollIntoView/);
+    assert.match(read("lib/leaderboard/rules.ts"), /Find collectors to follow/);
+    assert.match(read("lib/leaderboard/rules.ts"), /href: "\/search"/);
     assert.equal(scoreUnit("replies", 1), "reply");
     assert.equal(scoreUnit("replies", 2), "replies");
     assert.equal(scoreUnit("new followers", 1), "new follower");

@@ -154,8 +154,8 @@ export function boardCallToAction(
   }
   if (boardId === "rising-collectors") {
     return {
-      label: "Post a card",
-      href: "/compose",
+      label: "Find collectors to follow",
+      href: "/search",
       step: week === "previous" ? RISING_LEAD_LAST_WEEK : RISING_LEAD,
     };
   }
