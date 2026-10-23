@@ -3,11 +3,11 @@ import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { after, before, beforeEach, describe, it } from "node:test";
 import { JSDOM } from "jsdom";
-import { createElement, act, useMemo, type ComponentType, type ReactNode } from "react";
-import { CollectionProvider } from "@/components/collection-provider";
+import { createElement, act, useState, useMemo, type ComponentType, type ReactNode } from "react";
+import { CollectionContext, CollectionProvider } from "@/components/collection-provider";
 import { SocialContext, SocialProvider, useSocial } from "@/components/social-provider";
 import { STORAGE_KEY } from "@/lib/storage";
-import type { SportsCard } from "@/lib/types";
+import type { CardInput, SportsCard } from "@/lib/types";
 import {
   assessNewCardSubmit,
   clearNewCardDraft,
@@ -18,6 +18,10 @@ import {
   type CardDraftForm,
   type NewCardDraft,
 } from "./new-card-draft";
+
+for (const key of Object.keys(process.env)) {
+  if (key.startsWith("NEXT_PUBLIC_SUPABASE_")) delete process.env[key];
+}
 
 const require = createRequire(process.cwd() + "/package.json");
 const { AppRouterContext } = require(
@@ -223,6 +227,74 @@ describe("add card survives a remount", () => {
     clearNewCardDraft();
   });
 
+  it("saves a restored draft whose pending card was never created", async () => {
+    writeNewCardDraft({
+      ...draftFor({ ...typedForm, playerName: "Qa Ghostplayer" }),
+      pendingId: "ghost-card",
+    });
+    const view = await mount({});
+    try {
+      await waitFor(() => inputValue("playerName") === "Qa Ghostplayer");
+      await submit();
+      if (!storedCards().some((card) => card.playerName === "Qa Ghostplayer")) {
+        await submit();
+      }
+      await waitFor(
+        () => storedCards().filter((card) => card.playerName === "Qa Ghostplayer").length === 1,
+      );
+      const saved = storedCards().filter((card) => card.playerName === "Qa Ghostplayer");
+      assert.equal(saved.length, 1);
+      assert.equal(saved[0]?.id, "ghost-card");
+      assert.equal(textIncludes("Card not found."), false);
+    } finally {
+      view.unmount();
+    }
+  });
+
+  it("updates a restored pending card after the collection loads, with one card", async () => {
+    const existing = { ...blankCard, id: "real-card", playerName: "Qa Realplayer" };
+    writeNewCardDraft({
+      ...draftFor({ ...typedForm, playerName: "Qa Realplayer" }),
+      pendingId: "real-card",
+    });
+    const view = await mountGate("loading", existing);
+    try {
+      await waitFor(() => inputValue("playerName") === "Qa Realplayer");
+      await submit();
+      await waitFor(() => textIncludes("Still loading your cards. Tap Retry."));
+      assert.equal(gateIds(), "");
+      assert.equal(textIncludes("Card not found."), false);
+      await clickButton("Load cards");
+      await waitFor(() => gateIds() === "real-card");
+      await submit();
+      await waitFor(() => gateIds() === "real-card");
+      assert.equal(gateIds().split(",").filter(Boolean).length, 1);
+    } finally {
+      view.unmount();
+    }
+  });
+
+  it("does not insert when a restored card's collection failed to load", async () => {
+    const existing = { ...blankCard, id: "real-card", playerName: "Qa Realplayer" };
+    writeNewCardDraft({
+      ...draftFor({ ...typedForm, playerName: "Qa Realplayer" }),
+      pendingId: "real-card",
+    });
+    const view = await mountGate("failed", existing);
+    try {
+      await waitFor(() => inputValue("playerName") === "Qa Realplayer");
+      await submit();
+      await waitFor(() => textIncludes("Still loading your cards. Tap Retry."));
+      assert.equal(gateIds(), "");
+      assert.equal(textIncludes("Card not found."), false);
+      await submit();
+      assert.equal(gateIds(), "");
+      assert.equal(textIncludes("Card not found."), false);
+    } finally {
+      view.unmount();
+    }
+  });
+
   it("keeps typed fields after unmount and saves them", async () => {
     const view = await mount({});
     try {
@@ -312,7 +384,7 @@ describe("add card survives a remount", () => {
     try {
       await waitFor(() => textIncludes("Add a card"));
       await fillIdentity();
-      await clickCheckbox("Show this card on your public profile");
+      await clickVisibility("Public");
       await clickCheckbox("Share to feed");
       await submit();
       await waitFor(() => textIncludes("Saved the card, but couldn't share it to the feed."));
@@ -322,6 +394,36 @@ describe("add card survives a remount", () => {
       await waitFor(() => sharePost.calls >= 2);
       assert.equal(storedCards().filter((card) => card.playerName === "Jaylen Brown").length, 1);
       assert.equal(readNewCardDraft(newCardSeed("", null), null), null);
+    } finally {
+      view.unmount();
+    }
+  });
+
+  it("keeps a saved card when retrying after a share failure and the save returns 500", async () => {
+    resetSaveProbe();
+    sharePost.error = "feed down";
+    const view = await mountFailure();
+    try {
+      await waitFor(() => textIncludes("Add a card"));
+      await fillIdentity();
+      await clickVisibility("Public");
+      await clickCheckbox("Share to feed");
+      await submit();
+      await waitFor(() => textIncludes("Saved the card, but couldn't share it to the feed."));
+      assert.equal(saveProbe.adds, 1);
+      assert.equal(saveProbe.cards.length, 1);
+      await submit();
+      await waitFor(() => textIncludes("Could not save this card."));
+      assert.equal(saveProbe.removes, 0);
+      assert.equal(saveProbe.cards.length, 1);
+      assert.equal(saveProbe.updates, 1);
+      await submit();
+      await waitFor(() => sharePost.calls >= 2);
+      assert.equal(saveProbe.adds, 1);
+      assert.equal(saveProbe.updates, 2);
+      assert.equal(saveProbe.removes, 0);
+      assert.equal(saveProbe.cards.length, 1);
+      assert.equal(saveProbe.cards[0]?.id, "saved-card");
     } finally {
       view.unmount();
     }
@@ -451,6 +553,16 @@ async function chooseSearch(name: string, text: string) {
   });
 }
 
+async function clickVisibility(label: "Public" | "Private") {
+  const match = [...win.document.querySelectorAll('[role="radio"]')].find(
+    (node) => node.textContent?.trim() === label,
+  );
+  assert.ok(match instanceof win.HTMLButtonElement);
+  await act(async () => {
+    match.click();
+  });
+}
+
 async function clickCheckbox(label: string) {
   const match = [...win.document.querySelectorAll("label")].find((node) =>
     node.textContent?.includes(label),
@@ -491,7 +603,160 @@ async function waitFor(check: () => boolean) {
   throw new Error(win.document.body.textContent?.slice(0, 800) ?? "timed out");
 }
 
-function Harness({ children }: { children: ReactNode }) {
+const saveProbe = {
+  adds: 0,
+  updates: 0,
+  removes: 0,
+  cards: [] as SportsCard[],
+};
+
+function resetSaveProbe() {
+  saveProbe.adds = 0;
+  saveProbe.updates = 0;
+  saveProbe.removes = 0;
+  saveProbe.cards = [];
+}
+
+function failureAdd(input: CardInput) {
+  saveProbe.adds += 1;
+  const now = new Date().toISOString();
+  const card: SportsCard = { ...input, id: "saved-card", createdAt: now, updatedAt: now };
+  saveProbe.cards = [card];
+  return { card, saved: Promise.resolve() };
+}
+
+function failureUpdate(id: string, patch: Partial<SportsCard>) {
+  saveProbe.updates += 1;
+  const previous = saveProbe.cards.find((card) => card.id === id);
+  const updated = {
+    ...(previous as SportsCard),
+    ...patch,
+    id,
+    updatedAt: new Date().toISOString(),
+  };
+  saveProbe.cards = saveProbe.cards.map((card) => (card.id === id ? updated : card));
+  if (saveProbe.updates === 1) {
+    const saved = Promise.reject(new Error("Could not save this card."));
+    void saved.catch(() => undefined);
+    return { card: updated, saved };
+  }
+  return { card: updated, saved: Promise.resolve() };
+}
+
+function failureRemove(id: string) {
+  saveProbe.removes += 1;
+  saveProbe.cards = saveProbe.cards.filter((card) => card.id !== id);
+}
+
+function SaveFailureCollection({ children }: { children?: ReactNode }) {
+  const [cards, setCards] = useState<SportsCard[]>([]);
+  const value = {
+    ready: true,
+    loaded: true,
+    loadFailed: false,
+    cards,
+    syncError: null,
+    getCard(id: string) {
+      return saveProbe.cards.find((card) => card.id === id);
+    },
+    addCard(input: CardInput) {
+      const result = failureAdd(input);
+      setCards(saveProbe.cards);
+      return result;
+    },
+    updateCard(id: string, patch: Partial<SportsCard>) {
+      const result = failureUpdate(id, patch);
+      setCards(saveProbe.cards);
+      return result;
+    },
+    removeCard(id: string) {
+      failureRemove(id);
+      setCards(saveProbe.cards);
+    },
+    reload() {},
+  };
+  return createElement(CollectionContext.Provider, { value: value as never }, children);
+}
+
+function GateCollection({
+  phase: initialPhase,
+  existing,
+  children,
+}: {
+  phase: "loading" | "failed";
+  existing: SportsCard;
+  children?: ReactNode;
+}) {
+  const [phase, setPhase] = useState<"loading" | "failed" | "ready">(initialPhase);
+  const [cards, setCards] = useState<SportsCard[]>([]);
+  const value = {
+    ready: phase !== "loading",
+    loaded: phase === "ready",
+    loadFailed: phase === "failed",
+    cards,
+    syncError: phase === "failed" ? "Couldn't load your cards." : null,
+    getCard(id: string) {
+      return cards.find((card) => card.id === id);
+    },
+    addCard(input: CardInput & { id?: string }) {
+      const now = new Date().toISOString();
+      const id = input.id ?? `added-${cards.length + 1}`;
+      const previous = cards.find((card) => card.id === id);
+      const card: SportsCard = previous
+        ? { ...previous, ...input, id, updatedAt: now }
+        : { ...input, id, createdAt: now, updatedAt: now };
+      const next = previous
+        ? cards.map((item) => (item.id === id ? card : item))
+        : [card, ...cards];
+      setCards(next);
+      return { card, saved: Promise.resolve() };
+    },
+    updateCard(id: string, patch: Partial<SportsCard>) {
+      const previous = cards.find((card) => card.id === id);
+      if (!previous) {
+        const saved = Promise.reject(new Error("Card not found."));
+        void saved.catch(() => undefined);
+        return { card: { ...existing, ...patch, id }, saved };
+      }
+      const card = { ...previous, ...patch, id, updatedAt: new Date().toISOString() };
+      setCards(cards.map((item) => (item.id === id ? card : item)));
+      return { card, saved: Promise.resolve() };
+    },
+    removeCard(id: string) {
+      setCards(cards.filter((card) => card.id !== id));
+    },
+    reload() {},
+  };
+  return createElement(
+    "div",
+    null,
+    createElement(
+      "button",
+      {
+        type: "button",
+        onClick() {
+          setPhase("ready");
+          setCards((current) =>
+            current.some((card) => card.id === existing.id) ? current : [existing, ...current],
+          );
+        },
+      },
+      "Load cards",
+    ),
+    createElement("p", { "data-field": "gate-ids" }, cards.map((card) => card.id).join(",")),
+    createElement(CollectionContext.Provider, { value: value as never }, children),
+  );
+}
+
+function Harness({
+  children,
+  failure = false,
+  gate = null,
+}: {
+  children?: ReactNode;
+  failure?: boolean;
+  gate?: { phase: "loading" | "failed"; existing: SportsCard } | null;
+}) {
   const social = useMemo(
     () => ({
       ready: true,
@@ -504,14 +769,15 @@ function Harness({ children }: { children: ReactNode }) {
     }),
     [],
   );
+  const collection = failure
+    ? createElement(SaveFailureCollection, null, children)
+    : gate
+      ? createElement(GateCollection, gate, children)
+      : createElement(CollectionProvider, null, children);
   return createElement(
     AppRouterContext.Provider,
     { value: router },
-    createElement(
-      SocialContext.Provider,
-      { value: social as never },
-      createElement(CollectionProvider, null, children),
-    ),
+    createElement(SocialContext.Provider, { value: social as never }, collection),
   );
 }
 
@@ -547,12 +813,42 @@ async function mountSignOut() {
 }
 
 async function mount(props: CardFormProps) {
+  return mountIn(createElement(Harness, null, createElement(CardForm, props)));
+}
+
+function gateIds(): string {
+  return win.document.querySelector('[data-field="gate-ids"]')?.textContent ?? "";
+}
+
+async function clickButton(label: string) {
+  const button = [...win.document.querySelectorAll("button")].find(
+    (node) => node.textContent === label,
+  );
+  assert.ok(button);
+  await act(async () => {
+    button.click();
+  });
+}
+
+async function mountGate(phase: "loading" | "failed", existing: SportsCard) {
+  return mountIn(
+    createElement(Harness, { gate: { phase, existing } }, createElement(CardForm, {})),
+  );
+}
+
+async function mountFailure() {
+  return mountIn(
+    createElement(Harness, { failure: true }, createElement(CardForm, {})),
+  );
+}
+
+async function mountIn(tree: ReactNode) {
   const { createRoot } = await import("react-dom/client");
   const host = win.document.createElement("div");
   win.document.body.appendChild(host);
   const root = createRoot(host);
   await act(async () => {
-    root.render(createElement(Harness, null, createElement(CardForm, props)));
+    root.render(tree);
   });
   return {
     unmount() {

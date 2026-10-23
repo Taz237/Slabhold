@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState, type SetStateAction } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type SetStateAction } from "react";
 import { ScanSearch } from "lucide-react";
 import { CardPhotoField } from "@/components/card-photo-field";
 import { CardSearch } from "@/components/card-search";
@@ -52,6 +52,12 @@ import {
 } from "@/lib/cards/new-card-draft";
 import { cardFormPreview } from "@/lib/cards/form-preview";
 import {
+  PRIVATE_VISIBILITY_HINT,
+  readBrowserVisibilityChoice,
+  subscribeVisibilityChoice,
+  writeBrowserVisibilityChoice,
+} from "@/lib/cards/visibility-choice";
+import {
   rememberFirstCardPrivacy,
   shouldMarkFirstCardPrivacy,
 } from "@/lib/collection/first-card-privacy";
@@ -68,13 +74,14 @@ import {
 } from "@/lib/social/mail-day";
 import { identifyFromPhoto } from "@/lib/comps/sample";
 import { OpenToOffersToggle } from "@/components/open-to-offers";
+import { VisibilityChoice } from "@/components/visibility-choice";
 import { cardCategory } from "@/lib/card-category";
 import { showOpenToOffersToggle } from "@/lib/offers/open-to-offers";
 import { parseManualPrefill } from "@/lib/card-search-query";
 import { hasPaid } from "@/lib/format";
 import { formatCardValueLabel, marketValueSummary } from "@/lib/value/format";
 import { useCardValue } from "@/lib/value/use-card-values";
-import { claimSubmit, isSaveTimeout, SAVE_TIMEOUT_MESSAGE, SaveTimeoutError } from "@/lib/save/attempt";
+import { CARDS_LOADING_MESSAGE, claimSubmit, isSaveTimeout, SAVE_TIMEOUT_MESSAGE, SaveTimeoutError, saveFailureText } from "@/lib/save/attempt";
 import { PHOTO_READ_ERROR, readPhotoFile } from "@/lib/photos";
 import type {
   CardCategory,
@@ -113,7 +120,16 @@ export function CardForm({
 }) {
   const catalogStart = !existing && initialCatalog ? catalogPickFields(initialCatalog, "") : null;
   const router = useRouter();
-  const { addCard, updateCard, removeCard, cards, ready: cardsReady, syncError } = useCollection();
+  const {
+    addCard,
+    updateCard,
+    removeCard,
+    cards,
+    ready: cardsReady,
+    loaded: cardsLoaded,
+    loadFailed,
+    syncError,
+  } = useCollection();
   const { mode, user, createPost } = useSocial();
   const userId = user?.id ?? null;
   const seed = existing ? null : newCardSeed(initialQuery, initialCatalog?.id ?? null);
@@ -150,7 +166,15 @@ export function CardForm({
   }, [existing]);
 
   const [sold, setSold] = useState(restored?.sold ?? Boolean(existing?.sellPrice));
-  const [share, setShare] = useState(restored?.share ?? Boolean(existing?.isPublic));
+  const rememberedShare = useSyncExternalStore(
+    subscribeVisibilityChoice,
+    () => (userId ? readBrowserVisibilityChoice(userId) : null),
+    () => null,
+  );
+  const [shareChoice, setShareChoice] = useState<boolean | null>(
+    restored?.share ?? (existing ? Boolean(existing.isPublic) : null),
+  );
+  const share = shareChoice ?? rememberedShare ?? false;
   const offersKnown = existing?.openToOffers != null;
   const [openToOffers, setOpenToOffers] = useState(
     restored?.openToOffers ?? existing?.openToOffers === true,
@@ -268,7 +292,7 @@ export function CardForm({
       !photoMissing &&
       !noNumber &&
       !sold &&
-      !share &&
+      share === (rememberedShare ?? false) &&
       !shareToFeed &&
       caption.trim() === "" &&
       !sportTouched &&
@@ -336,6 +360,7 @@ export function CardForm({
     isRelic,
     sold,
     share,
+    rememberedShare,
     openToOffers,
     shareToFeed,
     caption,
@@ -569,6 +594,14 @@ export function CardForm({
     else if (existing) router.push(`/cards/${existing.id}`);
   }
 
+  function chooseVisibility(next: boolean) {
+    setShareChoice(next);
+    if (!next) {
+      setOpenToOffers(false);
+      setShareToFeed(false);
+    }
+  }
+
   function startOver() {
     setDraftSealed(false);
     setPendingCardId(null);
@@ -579,7 +612,7 @@ export function CardForm({
     setPhotoError(null);
     setIdentified(null);
     setSold(false);
-    setShare(false);
+    setShareChoice(null);
     setOpenToOffers(false);
     setShareToFeed(false);
     setCaption("");
@@ -697,23 +730,51 @@ export function CardForm({
       cardsReady,
       syncError,
     });
+    const collectionKnown = cardsLoaded && !loadFailed;
+    const pendingInMemory =
+      pendingCardId != null && cards.some((item) => item.id === pendingCardId);
+    if (!existing && pendingCardId && !collectionKnown && !pendingInMemory) {
+      setSaveError(CARDS_LOADING_MESSAGE);
+      setSaving(false);
+      savingRef.current = false;
+      return;
+    }
     try {
-      const reuseId = existing?.id ?? pendingCardId;
-      const { card, saved } = reuseId
-        ? updateCard(reuseId, payload)
-        : addCard(payload);
+      const targetId = existing?.id ?? pendingCardId;
+      const inMemory =
+        targetId != null && cards.some((item) => item.id === targetId);
+      const updating = Boolean(targetId && (existing || inMemory));
+      let result = updating
+        ? updateCard(targetId as string, payload)
+        : addCard(
+            !existing && pendingCardId ? { ...payload, id: pendingCardId } : payload,
+          );
       if (!existing) {
-        pendingId.current = card.id;
-        setPendingCardId(card.id);
-        createdId = card.id;
+        pendingId.current = result.card.id;
+        setPendingCardId(result.card.id);
+        if (!updating) createdId = result.card.id;
       }
+      const saved = result.saved.then(
+        () => undefined,
+        async (error: unknown) => {
+          const missingCard = error instanceof Error && error.message === "Card not found.";
+          if (!(missingCard && !existing && pendingCardId && collectionKnown)) throw error;
+          result = addCard({ ...payload, id: pendingCardId });
+          pendingId.current = result.card.id;
+          setPendingCardId(result.card.id);
+          createdId = result.card.id;
+          await result.saved;
+        },
+      );
       await saved;
+      const { card } = result;
       createdId = null;
       if (seed != null) {
         setDraftSealed(true);
         pendingId.current = card.id;
         setPendingCardId(card.id);
         clearNewCardDraft();
+        if (user?.id) writeBrowserVisibilityChoice(user.id, payload.isPublic);
       }
       if (offerPrivacy && user) rememberFirstCardPrivacy(user.id, card.id);
       if (mode === "supabase") {
@@ -776,13 +837,11 @@ export function CardForm({
       }
       const timedOut = createdId != null && timedOutIds.current.has(createdId);
       if (createdId && !timedOut) removeCard(createdId);
-      if (!existing && !timedOut) {
+      if (createdId && !timedOut) {
         pendingId.current = null;
         setPendingCardId(null);
       }
-      setSaveError(
-        error instanceof Error ? error.message : "Could not save this card.",
-      );
+      setSaveError(saveFailureText(error));
       setSaving(false);
       savingRef.current = false;
     }
@@ -812,6 +871,12 @@ export function CardForm({
         </p>
       </div>
       )}
+
+      <VisibilityChoice
+        isPublic={share}
+        onChange={chooseVisibility}
+        hint={share ? "" : PRIVATE_VISIBILITY_HINT}
+      />
 
       <CategoryPicker value={category} onChange={setCategory} />
 
@@ -1259,29 +1324,6 @@ export function CardForm({
         </CheckHit>
         This card has been sold
       </label>
-
-      <div className="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm dark:border-white/10 dark:bg-white/[0.03]">
-        <label className="flex min-h-11 items-center gap-3">
-          <CheckHit>
-            <input
-              type="checkbox"
-              checked={share}
-              onChange={(e) => {
-                setShare(e.target.checked);
-                if (!e.target.checked) {
-                  setOpenToOffers(false);
-                  setShareToFeed(false);
-                }
-              }}
-              className="size-5 accent-violet-500"
-            />
-          </CheckHit>
-          Show this card on your public profile
-        </label>
-        <p className="text-xs leading-5 text-zinc-500">
-          Cards are private by default. You can show them on your profile.
-        </p>
-      </div>
 
       <OpenToOffersToggle
         visible={showOpenToOffersToggle({

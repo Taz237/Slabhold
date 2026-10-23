@@ -30,21 +30,27 @@ export type SavedCard = {
 
 type CollectionContextValue = {
   ready: boolean;
+  /** True only after a load that returned this account's cards. */
+  loaded: boolean;
+  /** True when the last load failed. Stays false while a load is in flight. */
+  loadFailed: boolean;
   cards: SportsCard[];
   syncError: string | null;
   getCard: (id: string) => SportsCard | undefined;
-  addCard: (input: CardInput) => SavedCard;
+  addCard: (input: CardInput & { id?: string }) => SavedCard;
   updateCard: (id: string, patch: Partial<SportsCard>) => SavedCard;
   removeCard: (id: string) => void;
   reload: () => void;
 };
 
-const CollectionContext = createContext<CollectionContextValue | null>(null);
+export const CollectionContext = createContext<CollectionContextValue | null>(null);
 
 export function CollectionProvider({ children }: { children: React.ReactNode }) {
   const { ready: socialReady, mode, user } = useSocial();
   const [cards, setCards] = useState<SportsCard[]>([]);
   const [ready, setReady] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
   const cardsRef = useRef(cards);
   cardsRef.current = cards;
@@ -78,6 +84,8 @@ export function CollectionProvider({ children }: { children: React.ReactNode }) 
     if (!remote || !userId) {
       setCards(mode === "local" ? loadCollection() : []);
       setSyncError(null);
+      setLoaded(true);
+      setLoadFailed(false);
       setReady(true);
       return;
     }
@@ -85,11 +93,15 @@ export function CollectionProvider({ children }: { children: React.ReactNode }) 
     const client = createSupabaseBrowser();
     if (!client) {
       setCards(loadCollection());
+      setLoaded(true);
+      setLoadFailed(false);
       setReady(true);
       return;
     }
 
     setReady(false);
+    setLoaded(false);
+    setLoadFailed(false);
     loadUserCards(client, userId)
       .then((rows) => {
         if (cancelled) return;
@@ -97,6 +109,8 @@ export function CollectionProvider({ children }: { children: React.ReactNode }) 
         cardsRef.current = merged;
         setCards(merged);
         setSyncError(null);
+        setLoaded(true);
+        setLoadFailed(false);
         for (const card of dirty) {
           enqueue(card.id, async () => {
             try {
@@ -113,6 +127,9 @@ export function CollectionProvider({ children }: { children: React.ReactNode }) 
         if (cancelled) return;
         report(error);
         setCards([]);
+        cardsRef.current = [];
+        setLoaded(false);
+        setLoadFailed(true);
       })
       .finally(() => {
         if (!cancelled) setReady(true);
@@ -133,15 +150,20 @@ export function CollectionProvider({ children }: { children: React.ReactNode }) 
   );
 
   const addCard = useCallback(
-    (input: CardInput) => {
+    (input: CardInput & { id?: string }) => {
       const now = new Date().toISOString();
+      const { id: explicitId, ...fields } = input;
+      const id = explicitId ?? (remote ? crypto.randomUUID() : newId());
+      const previous = cardsRef.current.find((item) => item.id === id);
       const card: SportsCard = {
-        ...input,
-        id: remote ? crypto.randomUUID() : newId(),
-        createdAt: now,
+        ...fields,
+        id,
+        createdAt: previous?.createdAt ?? now,
         updatedAt: now,
       };
-      const next = [card, ...cardsRef.current];
+      const next = previous
+        ? cardsRef.current.map((item) => (item.id === id ? card : item))
+        : [card, ...cardsRef.current];
       cardsRef.current = next;
       setCards(next);
       if (mode === "local") trackEvent("card_added");
@@ -149,6 +171,14 @@ export function CollectionProvider({ children }: { children: React.ReactNode }) 
         const remaining = cardsRef.current.filter((item) => item.id !== cardId);
         cardsRef.current = remaining;
         setCards(remaining);
+      };
+      const revertUpsert = () => {
+        if (!previous) return;
+        const latest = cardsRef.current.find((item) => item.id === id);
+        if (!latest || latest.updatedAt !== card.updatedAt) return;
+        const restored = cardsRef.current.map((item) => (item.id === id ? previous : item));
+        cardsRef.current = restored;
+        setCards(restored);
       };
       let saved = Promise.resolve();
       if (remote && userId) {
@@ -164,7 +194,11 @@ export function CollectionProvider({ children }: { children: React.ReactNode }) 
               scheduleCardValueRefresh(card.id);
             } catch (error) {
               report(error);
-              if (!isSaveTimeout(error)) forgetCard(card.id);
+              if (previous) {
+                if (!isSaveTimeout(error)) revertUpsert();
+              } else {
+                if (!isSaveTimeout(error)) forgetCard(card.id);
+              }
               throw error;
             }
           });
@@ -256,18 +290,37 @@ export function CollectionProvider({ children }: { children: React.ReactNode }) 
           cardsRef.current = merged;
           setCards(merged);
           setSyncError(null);
+          setLoaded(true);
+          setLoadFailed(false);
         })
-        .catch(report);
+        .catch((error: unknown) => {
+          report(error);
+          setLoaded(false);
+          setLoadFailed(true);
+        });
       return;
     }
-    const loaded = loadCollection();
-    cardsRef.current = loaded;
-    setCards(loaded);
+    const stored = loadCollection();
+    cardsRef.current = stored;
+    setCards(stored);
+    setLoaded(true);
+    setLoadFailed(false);
   }, [remote, report, userId]);
 
   const value = useMemo(
-    () => ({ ready, cards, syncError, getCard, addCard, updateCard, removeCard, reload }),
-    [ready, cards, syncError, getCard, addCard, updateCard, removeCard, reload],
+    () => ({
+      ready,
+      loaded,
+      loadFailed,
+      cards,
+      syncError,
+      getCard,
+      addCard,
+      updateCard,
+      removeCard,
+      reload,
+    }),
+    [ready, loaded, loadFailed, cards, syncError, getCard, addCard, updateCard, removeCard, reload],
   );
 
   return (

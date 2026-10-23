@@ -17,6 +17,7 @@ import { CardPeopleSections } from "@/components/card-people";
 import { WantButton } from "@/components/want-button";
 import { CategoryPicker } from "@/components/category-picker";
 import { FirstCardPrivacyPrompt } from "@/components/first-card-privacy-prompt";
+import { MakePublicChip } from "@/components/visibility-choice";
 import { SharedPostNote } from "@/components/shared-post-note";
 import { useCollection } from "@/components/collection-provider";
 import { DealSheet } from "@/components/deal-sheet";
@@ -36,6 +37,7 @@ import { FairPriceCheck } from "@/components/fair-price-check";
 import { useSocial } from "@/components/social-provider";
 import { loginPath } from "@/lib/auth/safe-next";
 import { publicTogglePatch } from "@/lib/offers/open-to-offers";
+import { saveFailureText } from "@/lib/save/attempt";
 import { cardCategory } from "@/lib/card-category";
 import {
   dismissFirstCardPrivacyInBrowser,
@@ -112,6 +114,7 @@ export function CardDetail({ id }: { id: string }) {
   const [editing, setEditing] = useState(false);
   const [dealOpen, setDealOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [visibilityError, setVisibilityError] = useState<string | null>(null);
   const privacyNudge = useSyncExternalStore(
     subscribeFirstCardPrivacy,
     () => readBrowserFirstCardPrivacy(user?.id ?? null, card?.id ?? null, Boolean(card?.isPublic)),
@@ -284,6 +287,22 @@ export function CardDetail({ id }: { id: string }) {
     if (user) dismissFirstCardPrivacyInBrowser(user.id);
   }
 
+  function changeVisibility(isPublic: boolean) {
+    if (!card) return;
+    setVisibilityError(null);
+    const { saved } = updateCard(card.id, publicTogglePatch(card, isPublic));
+    void saved.then(
+      () => {
+        if (isPublic) dismissPrivacyNudge();
+      },
+      (error) => setVisibilityError(saveFailureText(error)),
+    );
+  }
+
+  function makePublic() {
+    changeVisibility(true);
+  }
+
   function markSold() {
     const price = Number(sellPrice);
     if (!price || !card) return;
@@ -330,10 +349,13 @@ export function CardDetail({ id }: { id: string }) {
             <button
               type="button"
               onClick={() => {
-                updateCard(card.id, publicTogglePatch(card, !card.isPublic));
-                if (!card.isPublic) dismissPrivacyNudge();
+                if (!card.isPublic) {
+                  makePublic();
+                  return;
+                }
+                changeVisibility(false);
               }}
-              className={`rounded-full px-3 py-1 text-xs font-semibold ${
+              className={`inline-flex min-h-11 items-center rounded-full px-3 text-xs font-semibold ${
                 card.isPublic
                   ? "bg-violet-500/15 text-violet-700 dark:text-violet-300"
                   : "bg-zinc-100 text-zinc-600 dark:bg-white/10 dark:text-zinc-300"
@@ -341,7 +363,13 @@ export function CardDetail({ id }: { id: string }) {
             >
               {card.isPublic ? "Public on profile" : "Private"}
             </button>
+            {card.isPublic ? null : <MakePublicChip onClick={makePublic} />}
           </div>
+          {visibilityError ? (
+            <p role="alert" className="text-sm text-rose-600 dark:text-rose-400">
+              {visibilityError}
+            </p>
+          ) : null}
           <div className="min-w-0">
             <p className="mb-2 text-sm text-zinc-500">Move this card</p>
             <CategoryPicker
@@ -357,8 +385,11 @@ export function CardDetail({ id }: { id: string }) {
       {privacyNudge ? (
         <FirstCardPrivacyPrompt
           onToggle={() => {
-            updateCard(card.id, { isPublic: !card.isPublic });
-            dismissPrivacyNudge();
+            const { saved } = updateCard(card.id, { isPublic: !card.isPublic });
+            void saved.then(
+              () => dismissPrivacyNudge(),
+              (error) => setVisibilityError(saveFailureText(error)),
+            );
           }}
           onDismiss={dismissPrivacyNudge}
         />
