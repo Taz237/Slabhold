@@ -20,16 +20,27 @@ function Face({ name, image, accent }: { name: string; image: string | null; acc
   );
 }
 
+const RAIL_CLASS = "min-h-44 border-b border-zinc-200 px-4 py-3 dark:border-white/10";
+
+/** Holds the rail's height until the cached ranking is ready, so Moving today stays put. */
+export function TrendingNowSkeleton() {
+  return (
+    <section aria-hidden="true" data-trending-skeleton="" className={RAIL_CLASS}>
+      <div className="mb-2 h-4 w-28 rounded bg-zinc-100 dark:bg-white/10" />
+      <div className="flex gap-2 overflow-hidden pb-1">
+        <div className="h-24 w-60 shrink-0 rounded-2xl bg-zinc-100 dark:bg-white/10" />
+        <div className="h-24 w-60 shrink-0 rounded-2xl bg-zinc-100 dark:bg-white/10" />
+      </div>
+    </section>
+  );
+}
+
 /** Horizontal rail. Renders nothing under the activity minimum. */
 export function TrendingNowStrip({ items }: { items: readonly TrendingItem[] }) {
   if (!shouldShowTrending(items)) return null;
 
   return (
-    <section
-      aria-label={TRENDING_HEADING}
-      data-trending-now=""
-      className="border-b border-zinc-200 px-4 py-3 dark:border-white/10"
-    >
+    <section aria-label={TRENDING_HEADING} data-trending-now="" className={RAIL_CLASS}>
       <h2 className="mb-2 text-sm font-semibold">{TRENDING_HEADING}</h2>
       <div className="flex gap-2 overflow-x-auto pb-1 max-md:pr-20" data-no-pull="">
         {items.map((item) => (
@@ -43,7 +54,7 @@ export function TrendingNowStrip({ items }: { items: readonly TrendingItem[] }) 
               <span className="block truncate text-sm font-semibold">{item.displayName}</span>
               <span className="block truncate text-xs text-zinc-500">@{item.username}</span>
               {item.excerpt ? (
-                <span className="mt-1 line-clamp-2 block break-words text-xs leading-4">{item.excerpt}</span>
+                <span className="mt-1 line-clamp-2 break-words text-xs leading-4">{item.excerpt}</span>
               ) : null}
               {item.player ? (
                 <span className="mt-1 block truncate text-xs text-zinc-500">{item.player}</span>

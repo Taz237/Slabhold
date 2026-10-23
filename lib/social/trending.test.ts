@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, it } from "node:test";
-import { TrendingNowStrip } from "@/components/trending-now-strip";
+import { TrendingNowSkeleton, TrendingNowStrip } from "@/components/trending-now-strip";
 import {
   TRENDING_CACHE_SECONDS,
   TRENDING_ENGAGEMENT_LIMIT,
@@ -13,18 +13,25 @@ import {
   TRENDING_LIMIT,
   TRENDING_MIN_ENGAGEMENTS,
   TRENDING_MIN_POSTS,
+  TRENDING_SESSION_MS,
   TRENDING_WEIGHT,
   TRENDING_WINDOW_MS,
   attachedCardIds,
+  clearTrendingSession,
   engagementScore,
   filterTrendingForViewer,
   inTrendingWindow,
+  loadViewerPostIds,
   rankTrending,
+  rememberTrendingPublic,
+  rememberTrendingVisible,
   trendingAuthorHidden,
   trendingCacheControl,
   trendingCandidateIds,
   trendingItemsFromPayload,
   trendingPostPrivacy,
+  trendingPublicSession,
+  trendingVisibleSession,
   type EngagementKind,
   type TrendingAuthor,
   type TrendingEngagement,
@@ -64,11 +71,39 @@ function post(id: string, authorId: string, extra: Partial<TrendingPostSource> =
     hiddenAt: extra.hiddenAt,
     privateContent: extra.privateContent,
     player: extra.player,
+    postType: extra.postType,
   };
 }
 
-function like(postId: string, hoursAgo = 0, kind: EngagementKind = "like"): TrendingEngagement {
-  return { postId, kind, at: at(hoursAgo) };
+let fanSerial = 0;
+
+function like(
+  postId: string,
+  hoursAgo = 0,
+  kind: EngagementKind = "like",
+  extra: Partial<TrendingEngagement> = {},
+): TrendingEngagement {
+  fanSerial += 1;
+  const event: TrendingEngagement = {
+    postId,
+    kind,
+    at: extra.at ?? at(hoursAgo),
+    actorId: extra.actorId ?? `fan-${fanSerial}`,
+  };
+  if (kind === "like") event.recipientId = extra.recipientId === undefined ? postId : extra.recipientId;
+  return event;
+}
+
+function withActors(
+  people: readonly TrendingAuthor[],
+  engagements: readonly TrendingEngagement[],
+): TrendingAuthor[] {
+  const known = new Map(people.map((person) => [person.id, person]));
+  for (const event of engagements) {
+    if (!event.actorId || known.has(event.actorId)) continue;
+    known.set(event.actorId, author(event.actorId, `fan${known.size}`));
+  }
+  return [...known.values()];
 }
 
 /** Two fresh likes on each id so every post clears the engagement bar. */
@@ -86,11 +121,12 @@ function rank(
     mutedIds?: Iterable<string>;
   } = {},
 ) {
+  const engagements = extra.engagements ?? fresh(ids);
   return rankTrending({
     now: NOW,
-    engagements: extra.engagements ?? fresh(ids),
+    engagements,
     posts: extra.posts ?? ids.map((id) => post(id, id)),
-    authors: people,
+    authors: withActors(people, engagements),
     blockedIds: extra.blockedIds,
     mutedIds: extra.mutedIds,
   });
@@ -155,9 +191,7 @@ describe("trending score", () => {
   });
 
   it("breaks score ties by engagement count, then newer posts", () => {
-    const ranked = rankTrending({
-      now: NOW,
-      authors: ["a", "b", "c"].map((id) => author(id, id)),
+    const ranked = rank(["a", "b", "c"], ["a", "b", "c"].map((id) => author(id, id)), {
       posts: [
         post("a", "a", { createdAt: at(5) }),
         post("b", "b", { createdAt: at(1) }),
@@ -235,6 +269,94 @@ describe("trending exclusions", () => {
       posts: [post("two", "two"), post("three", "three"), post("four", "gone")],
     });
     assert.deepEqual(kept.map((row) => row.id), []);
+  });
+
+  it("self-spam on 3 posts shows no rail", () => {
+    const ids = ["one", "two", "three"];
+    const people = ids.map((id) => author(id, id));
+    const engagements = ids.flatMap((id) => [
+      like(id, 0, "like", { actorId: id, recipientId: id }),
+      like(id, 0, "reply", { actorId: id }),
+      like(id, 0, "reply", { actorId: id }),
+      like(id, 0, "repost", { actorId: id }),
+      like(id, 0, "quote", { actorId: id }),
+    ]);
+    assert.deepEqual(trendingCandidateIds(engagements, NOW), []);
+    assert.deepEqual(rank(ids, people, { engagements }), []);
+  });
+
+  it("does not count a forged like", () => {
+    const ids = ["one", "two", "three", "four"];
+    const people = ids.map((id) => author(id, id));
+    const engagements = [
+      like("one", 0, "like", { actorId: "real-one", recipientId: "one" }),
+      like("one", 0, "like", { actorId: "forged-one", recipientId: "someone-else" }),
+      ...fresh(["two", "three", "four"]),
+    ];
+    const ranked = rank(ids, people, { engagements });
+    assert.equal(
+      ranked.some((row) => row.id === "one"),
+      false,
+    );
+    assert.equal(ranked.length, 3);
+  });
+
+  it("counts a person once when they engage more than once", () => {
+    const ids = ["one", "two", "three"];
+    const people = ids.map((id) => author(id, id));
+    const engagements = [
+      like("one", 0, "reply", { actorId: "fan-repeat" }),
+      like("one", 1, "reply", { actorId: "fan-repeat" }),
+      like("one", 0, "like", { actorId: "fan-other", recipientId: "one" }),
+      ...fresh(["two", "three"]),
+    ];
+    const ranked = rank(ids, people, { engagements });
+    const postOne = ranked.find((row) => row.id === "one");
+    assert.equal(postOne?.engagements, 2);
+    assert.equal(postOne?.score, 2);
+  });
+
+  it("drops engagement from a test account", () => {
+    const ids = ["one", "two", "three", "four"];
+    const people = [
+      ...ids.map((id) => author(id, id)),
+      author("qa-fan", "qa_fan"),
+      author("flagged", "bea", { isTest: true }),
+    ];
+    const engagements = [
+      like("one", 0, "like", { actorId: "qa-fan", recipientId: "one" }),
+      like("one", 0, "like", { actorId: "flagged", recipientId: "one" }),
+      ...fresh(["two", "three", "four"]),
+    ];
+    const ranked = rank(ids, people, { engagements });
+    assert.equal(
+      ranked.some((row) => row.id === "one"),
+      false,
+    );
+    assert.equal(ranked.length, 3);
+  });
+
+  it("excludes old Mail Day posts", () => {
+    const ids = ["one", "two", "three", "four"];
+    const people = ids.map((id) => author(id, id));
+    const ranked = rank(ids, people, {
+      posts: ids.map((id) => post(id, id, id === "one" ? { postType: "mail_day" } : {})),
+    });
+    assert.equal(
+      ranked.some((row) => row.id === "one"),
+      false,
+    );
+    assert.equal(ranked.length, 3);
+    assert.deepEqual(
+      rank(["one", "two", "three"], people, {
+        posts: [
+          post("one", "one", { postType: "mail_day" }),
+          post("two", "two"),
+          post("three", "three"),
+        ],
+      }),
+      [],
+    );
   });
 
   it("drops authors the viewer blocked or muted", () => {
@@ -317,9 +439,41 @@ describe("trending threshold", () => {
     );
     assert.deepEqual(filterTrendingForViewer(items, { mutedIds: ["one", "two"] }), []);
     assert.deepEqual(filterTrendingForViewer(items.slice(0, 2)), []);
+    assert.equal(filterTrendingForViewer(items, { visibleIds: null }).length, 4);
 
     const many = Array.from({ length: 10 }, (_, index) => item(`p${index}`, `p${index}`));
     assert.equal(filterTrendingForViewer(many).length, TRENDING_LIMIT);
+  });
+
+  it("the author blocked the viewer", async () => {
+    const items = ["one", "two", "three"].map((id) => item(id, id));
+    const hiddenFromViewer = new Set(["two", "three"]);
+    assert.deepEqual(filterTrendingForViewer(items, { visibleIds: hiddenFromViewer }), []);
+    assert.equal(filterTrendingForViewer(items, { visibleIds: new Set(["one", "two", "three"]) }).length, 3);
+    assert.equal(filterTrendingForViewer(items).length, 3);
+
+    const seen = await loadViewerPostIds(
+      {
+        from(table: string) {
+          assert.equal(table, "posts");
+          return {
+            select(columns: string) {
+              assert.equal(columns, "id");
+              return {
+                in(column: string, values: readonly string[]) {
+                  assert.equal(column, "id");
+                  assert.deepEqual([...values], ["one", "two", "three"]);
+                  return Promise.resolve({ data: [{ id: "two" }, { id: "three" }], error: null });
+                },
+              };
+            },
+          };
+        },
+      },
+      ["one", "two", "three"],
+    );
+    assert.deepEqual(seen, ["two", "three"]);
+    assert.deepEqual(filterTrendingForViewer(items, { visibleIds: new Set(seen) }), []);
   });
 });
 
@@ -350,8 +504,16 @@ describe("trending strip", () => {
     assert.match(html, /shrink-0/);
     assert.match(html, /max-md:pr-20/);
     assert.match(html, /data-no-pull/);
+    assert.match(html, /min-h-44/);
+    assert.match(html, /line-clamp-2/);
+    assert.doesNotMatch(html, /line-clamp-2 block/);
     assert.doesNotMatch(html, /nfl|logo\.svg|team-logo|CardThumb/i);
     assert.doesNotMatch(html, /<img /);
+
+    const reserved = renderToStaticMarkup(createElement(TrendingNowSkeleton));
+    assert.match(reserved, /data-trending-skeleton/);
+    assert.match(reserved, /min-h-44/);
+    assert.match(reserved, /aria-hidden="true"/);
   });
 
   it("sits on For You only and stays out of login", () => {
@@ -361,10 +523,19 @@ describe("trending strip", () => {
     assert.ok(trending > 0 && moving > trending);
 
     const client = read("components/trending-now.tsx");
+    const strip = read("components/trending-now-strip.tsx");
     assert.match(client, /filterTrendingForViewer/);
     assert.match(client, /\/api\/trending-now/);
+    assert.match(client, /from\("posts"\)\.select\("id"\)\.in\("id"/);
+    assert.match(client, /trendingPublicSession\(\) !== null/);
+    assert.match(client, /if \(!viewerId/);
+    assert.match(client, /TrendingNowSkeleton/);
+    assert.match(read("lib/social/trending.ts"), /from\("posts"\)\.select\("id"\)\.in\("id"/);
     assert.doesNotMatch(client, /trending-load|createSupabaseAdmin|server-only|unstable_cache/);
-    assert.doesNotMatch(read("components/trending-now-strip.tsx"), /nfl|logo\.svg|card-thumb|CardThumb/i);
+    assert.doesNotMatch(strip, /nfl|logo\.svg|card-thumb|CardThumb/i);
+    assert.doesNotMatch(strip, /line-clamp-2 block/);
+    assert.match(strip, /min-h-44/);
+    assert.match(strip, /data-trending-skeleton/);
 
     for (const path of ["app/login/page.tsx", "app/page.tsx", "app/layout.tsx", "components/auth-form.tsx"]) {
       assert.doesNotMatch(read(path), /trending-now|TrendingNow/);
@@ -381,27 +552,50 @@ describe("trending cache", () => {
     assert.ok(TRENDING_ENGAGEMENT_LIMIT <= 1000);
 
     const load = read("lib/social/trending-load.ts");
+    const queries = read("lib/social/trending-read.ts");
     const route = read("app/api/trending-now/route.ts");
     assert.match(load, /unstable_cache/);
     assert.match(load, /revalidate: TRENDING_CACHE_SECONDS/);
-    assert.match(load, /"like"/);
-    assert.match(load, /"reply"/);
-    assert.match(load, /"quote"/);
-    assert.match(load, /"repost"/);
-    assert.match(load, /notifications/);
-    assert.match(load, /comments/);
-    assert.match(load, /quoted_post_id/);
-    assert.match(load, /reposts/);
-    assert.match(load, /is_test/);
-    assert.match(load, /hidden_at/);
-    assert.match(load, /is_public/);
-    assert.match(load, /\.limit\(TRENDING_ENGAGEMENT_LIMIT\)/);
-    assert.doesNotMatch(load, /drop table|delete from|truncate/i);
+    assert.match(load, /\["trending-now-v2"\]/);
+    assert.doesNotMatch(load, /catch/);
+    assert.match(queries, /"like"/);
+    assert.match(queries, /"reply"/);
+    assert.match(queries, /"quote"/);
+    assert.match(queries, /"repost"/);
+    assert.match(queries, /notifications/);
+    assert.match(queries, /actor_id/);
+    assert.match(queries, /recipient_id/);
+    assert.match(queries, /comments/);
+    assert.match(queries, /user_id/);
+    assert.match(queries, /quoted_post_id/);
+    assert.match(queries, /reposts/);
+    assert.match(queries, /post_type/);
+    assert.match(queries, /is_test/);
+    assert.match(queries, /hidden_at/);
+    assert.match(queries, /is_public/);
+    assert.match(queries, /\.limit\(TRENDING_ENGAGEMENT_LIMIT\)/);
+    assert.match(queries, /engagement read hit the/);
+    assert.doesNotMatch(queries, /drop table|delete from|truncate/i);
     assert.match(route, /getTrendingNow/);
     assert.match(route, /trendingCacheControl/);
     assert.match(route, /private, no-store/);
+    assert.match(route, /Failures are not stored/);
     assert.doesNotMatch(route, /cookies\(/);
     assert.doesNotMatch(read("app/page.tsx"), /cookies\(|getTrendingNow/);
+  });
+
+  it("reuses a loaded rail for the session and forgets it after the ttl", () => {
+    clearTrendingSession();
+    const items = ["one", "two", "three"].map((id) => item(id, id));
+    const start = 1_700_000_000_000;
+    rememberTrendingPublic(items, start);
+    rememberTrendingVisible("viewer", ["one", "two", "three"], start);
+    assert.equal(trendingPublicSession(start + TRENDING_SESSION_MS)?.length, 3);
+    assert.deepEqual(trendingVisibleSession("viewer", start + TRENDING_SESSION_MS), ["one", "two", "three"]);
+    assert.equal(trendingVisibleSession("other", start), null);
+    assert.equal(trendingPublicSession(start + TRENDING_SESSION_MS + 1), null);
+    assert.equal(trendingVisibleSession("viewer", start + TRENDING_SESSION_MS + 1), null);
+    clearTrendingSession();
   });
 
   it("ignores a payload that is not the ranking", () => {

@@ -5,9 +5,10 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /**
- * Public ranking for the For You strip.
- * The handler can run often; getTrendingNow keeps the queries on a five-minute cache.
- * Failures are not stored.
+ * Public ranking for the For You strip. The same JSON for every viewer.
+ * getTrendingNow caches a successful read for about five minutes.
+ * Failures are not stored: a thrown read skips the cache and this handler
+ * answers private, no-store.
  */
 export async function GET() {
   try {
