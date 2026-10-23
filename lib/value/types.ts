@@ -9,6 +9,8 @@ export type CardValueStatus =
 export type CardValueSale = {
   price: number;
   soldAt?: string | null;
+  /** Marketplace or owner source. self, owner, and reported are self-reported. */
+  source?: string | null;
 };
 
 /**

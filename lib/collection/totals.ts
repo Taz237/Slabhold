@@ -4,7 +4,7 @@ import { mapCardRow, type CardRow } from "@/lib/social/cards";
 import { hasPaid } from "@/lib/format";
 import { summarize } from "@/lib/portfolio";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
-import { cardValueSnapshotFields } from "@/lib/leaderboard/snapshot-fields";
+import { cardValueSnapshotFields, snapshotSaleSource } from "@/lib/leaderboard/snapshot-fields";
 import { getCardValues } from "@/lib/value/getCardValue";
 import {
   collectionTotalsFromSummarize,
@@ -76,7 +76,8 @@ export async function upsertTodaysCollectionSnapshot(
   if (error) throw new Error(error.message);
 
   const cardRows = loaded.cards.map((card) => {
-    const fields = cardValueSnapshotFields(loaded.values.get(card.id));
+    const value = loaded.values.get(card.id);
+    const fields = cardValueSnapshotFields(value, snapshotSaleSource(value));
     return {
       card_id: card.id,
       snapshot_date: snapshotDate,

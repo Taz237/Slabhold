@@ -1,13 +1,12 @@
 import "server-only";
 
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { unstable_cache } from "next/cache";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
-import { getSupabaseConfig } from "@/lib/supabase/client";
 import { createSupabaseServer, getAuthUserId } from "@/lib/supabase/server";
 import { assembleValueBoard, type AssembledBracket, type ValueBoardSourceCard } from "./assemble";
 import { valueBracketId, type ValueBracketId } from "./brackets";
-import { withoutBlocked } from "./blocks";
+import { blockedUserIds, withoutBlocked } from "./blocks";
 import { currentValueWeek, formatWeekLabel } from "./dates";
 import { LEADERBOARD_CLOSED_COPY, LEADERBOARD_NOTE, leaderboardMinimums } from "./eligibility";
 import type { ValueBoardModel, ValueBracketBoard } from "./types";
@@ -53,14 +52,9 @@ function flag(value: unknown): boolean {
   return value === true || value === "true" || value === "t";
 }
 
+/** Service role only. Without it the board stays empty rather than using the anon key. */
 function reader(): SupabaseClient | null {
-  const admin = createSupabaseAdmin();
-  if (admin) return admin;
-  const { url, anonKey, configured } = getSupabaseConfig();
-  if (!configured) return null;
-  return createClient(url, anonKey, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
+  return createSupabaseAdmin();
 }
 
 function ymd(value: string | undefined, fallback: string): string {
@@ -147,13 +141,19 @@ export async function getPublicValueBoard(input?: {
   }
 }
 
+/**
+ * People this viewer blocked, plus people who blocked this viewer.
+ * Called after the shared board cache so one viewer's blocks are not cached for everyone.
+ */
 async function hiddenIds(viewerId: string | null): Promise<Set<string>> {
   if (!viewerId) return new Set();
   const supabase = await createSupabaseServer();
   if (!supabase) return new Set();
-  const { data, error } = await supabase.rpc("hidden_author_ids", { apply_mute: false });
-  if (error || !Array.isArray(data)) return new Set();
-  return new Set(data.filter((id): id is string => typeof id === "string" && id.length > 0));
+  const [blocked, blockedBy] = await Promise.all([
+    supabase.rpc("hidden_author_ids", { apply_mute: false }),
+    supabase.rpc("blocked_by_ids"),
+  ]);
+  return blockedUserIds([blocked.error ? null : blocked.data, blockedBy.error ? null : blockedBy.data]);
 }
 
 function present(board: PublicValueBoard, hidden: ReadonlySet<string>): {

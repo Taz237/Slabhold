@@ -1,7 +1,7 @@
--- Collection leaderboard opt-in and the only public read of snapshots.
--- collection_snapshots and card_value_snapshots stay owner-read.
+-- Collection leaderboard opt-in and the only public read of card snapshots.
 -- The function returns card rows for eligible, opted-in public collections:
 -- medians and sale counts the value board needs, a bracket id, and flags.
+-- The bracket is the week-start sum of public held cards. Private holdings stay out.
 -- It does not return collection dollar totals, paid prices, notes, or certs.
 --
 -- search_path is empty. Every relation in the body is schema-qualified.
@@ -72,18 +72,25 @@ as $$
       p.avatar_url,
       p.accent,
       case
-        when cs.value is null then null
-        when cs.value < 1000 then 'under-1k'
-        when cs.value < 10000 then '1k-10k'
+        when pv.value is null then null
+        when pv.value < 1000 then 'under-1k'
+        when pv.value < 10000 then '1k-10k'
         else '10k-plus'
       end as bracket
     from public.profiles p
-    left join public.collection_snapshots cs
-      on cs.user_id = p.id
-     and cs.snapshot_date = p_start
+    left join lateral (
+      select sum(s.median) as value
+      from public.cards c
+      join public.card_value_snapshots s
+        on s.card_id = c.id
+       and s.snapshot_date = p_start
+      where c.user_id = p.id
+        and c.is_public is true
+        and (c.sell_price is null or c.sell_date is null)
+    ) pv on true
     where p.leaderboard_opt_in is true
       and coalesce(p.is_test, false) = false
-      and p.created_at <= p_as_of - (greatest(coalesce(p_min_account_days, 7), 7) * interval '1 day')
+      and p.created_at <= least(coalesce(p_as_of, now()), now()) - (greatest(coalesce(p_min_account_days, 7), 7) * interval '1 day')
       and lower(p.username) <> 'qa_vreset_1021'
       and left(lower(p.username), 3) <> 'qa_'
       and left(lower(p.username), 3) <> 'qa-'
@@ -111,7 +118,7 @@ as $$
   valued as (
     select
       user_id,
-      count(*)::pg_catalog.int4 as valued_cards,
+      count(*)::integer as valued_cards,
       sum(median) as valued_sum
     from trusted
     group by user_id
@@ -155,9 +162,29 @@ as $$
 $$;
 
 comment on function public.leaderboard_rows(date, date, integer, numeric, integer, timestamptz) is
-  'Eligible opted-in value-board card rows. Bracket comes from the week-start collection snapshot. Minimums cannot drop below 10 trusted cards, $250, or 7 days.';
+  'Eligible opted-in value-board card rows. Bracket comes from the week-start value of public held cards only. Minimums cannot drop below 10 trusted cards, $250, or 7 days.';
 
-revoke all on function public.leaderboard_rows(date, date, integer, numeric, integer, timestamptz) from public;
-grant execute on function public.leaderboard_rows(date, date, integer, numeric, integer, timestamptz) to anon, authenticated, service_role;
+revoke all on function public.leaderboard_rows(date, date, integer, numeric, integer, timestamptz) from public, anon, authenticated;
+revoke execute on function public.leaderboard_rows(date, date, integer, numeric, integer, timestamptz) from public, anon, authenticated;
+grant execute on function public.leaderboard_rows(date, date, integer, numeric, integer, timestamptz) to service_role;
+
+-- People who blocked the signed-in user. The other direction is hidden_author_ids.
+create or replace function public.blocked_by_ids()
+returns table (blocker_id uuid)
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select b.blocker_id
+  from public.blocks b
+  where b.blocked_id = auth.uid();
+$$;
+
+comment on function public.blocked_by_ids() is
+  'Accounts that blocked the signed-in user. Granted to authenticated only.';
+
+revoke all on function public.blocked_by_ids() from public, anon, authenticated, service_role;
+grant execute on function public.blocked_by_ids() to authenticated;
 
 commit;

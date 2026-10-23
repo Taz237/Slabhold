@@ -8,7 +8,7 @@ import { renderOg } from "@/components/og-frame";
 import { ValueBoardView } from "@/components/value-board";
 import { assembleValueBoard, type ValueBoardSourceCard } from "@/lib/leaderboard/assemble";
 import { valueBracketId } from "@/lib/leaderboard/brackets";
-import { withoutBlocked } from "@/lib/leaderboard/blocks";
+import { blockedUserIds, withoutBlocked } from "@/lib/leaderboard/blocks";
 import {
   addDaysToYmd,
   currentValueWeek,
@@ -48,7 +48,7 @@ import {
   leaderboardRankShareImage,
   rankShareText,
 } from "@/lib/leaderboard/share";
-import { cardValueSnapshotFields } from "@/lib/leaderboard/snapshot-fields";
+import { cardValueSnapshotFields, snapshotSaleSource } from "@/lib/leaderboard/snapshot-fields";
 import { VALUE_BOARD_TAB } from "@/lib/leaderboard/tab";
 import type { ValueBoardModel } from "@/lib/leaderboard/types";
 import { cardValueHistoryEnabled } from "@/lib/collection/card-value-history";
@@ -172,11 +172,27 @@ describe("value board math", () => {
     assert.equal(saleSourceIsSelfReported("owner"), true);
     assert.equal(saleSourceIsSelfReported("reported"), true);
     assert.equal(saleSourceIsSelfReported("trawl"), false);
-    assert.deepEqual(cardValueSnapshotFields({ median: 12, nSales: 2 } as CardValueResult, "owner"), {
+    const reported = {
+      median: 12,
+      nSales: 2,
+      sales: [
+        { price: 10, source: "trawl" },
+        { price: 14, source: "owner" },
+      ],
+    } as CardValueResult;
+    assert.equal(snapshotSaleSource(reported), "owner");
+    assert.deepEqual(cardValueSnapshotFields(reported, snapshotSaleSource(reported)), {
       median: 12,
       n_sales: 2,
       self_reported: true,
     });
+    const marketplace = {
+      median: 12,
+      nSales: 2,
+      sales: [{ price: 12, source: "trawl" }],
+    } as CardValueResult;
+    assert.equal(cardValueSnapshotFields(marketplace, snapshotSaleSource(marketplace)).self_reported, false);
+    assert.match(read("lib/collection/totals.ts"), /snapshotSaleSource\(value\)/);
   });
 
   it("breaks +100% ties by capped dollar gain, then handle", () => {
@@ -332,6 +348,11 @@ describe("leaderboard eligibility", () => {
     assert.deepEqual(
       withoutBlocked(rows, new Set(["bea"])).map((row) => row.userId),
       ["ada", "cy"],
+    );
+    const hidden = blockedUserIds([["bea"], [{ blocker_id: "cy" }]]);
+    assert.deepEqual(
+      withoutBlocked(rows, hidden).map((row) => row.userId),
+      ["ada"],
     );
   });
 });
@@ -528,10 +549,27 @@ describe("leaderboard wiring", () => {
     assert.match(sql, /add column if not exists self_reported boolean not null default false/);
     assert.match(sql, /security definer/);
     assert.match(sql, /set search_path = ''/);
+    assert.doesNotMatch(sql, /collection_snapshots/);
+    assert.doesNotMatch(sql, /pg_catalog/);
+    assert.match(sql, /left join lateral/);
+    assert.match(sql, /pv\.value < 1000 then 'under-1k'/);
+    assert.match(sql, /least\(coalesce\(p_as_of, now\(\)\), now\(\)\)/);
     assert.match(
       sql,
-      /grant execute on function public\.leaderboard_rows\(date, date, integer, numeric, integer, timestamptz\) to anon, authenticated, service_role/,
+      /Bracket comes from the week-start value of public held cards only/,
     );
+    assert.match(
+      sql,
+      /revoke execute on function public\.leaderboard_rows\(date, date, integer, numeric, integer, timestamptz\) from public, anon, authenticated/,
+    );
+    assert.match(
+      sql,
+      /grant execute on function public\.leaderboard_rows\(date, date, integer, numeric, integer, timestamptz\) to service_role;/,
+    );
+    assert.doesNotMatch(sql, /to anon, authenticated/);
+    assert.match(sql, /function public\.blocked_by_ids\(\)/);
+    assert.match(sql, /grant execute on function public\.blocked_by_ids\(\) to authenticated;/);
+    assert.match(sql, /where b\.blocked_id = auth\.uid\(\)/);
     assert.match(sql, /is_public is true/);
     assert.match(sql, /is_test/);
     assert.match(sql, /qa_/);
@@ -539,8 +577,7 @@ describe("leaderboard wiring", () => {
     assert.match(sql, /vreset_/);
     assert.match(sql, /comp_flags/);
     assert.match(sql, /snapshot_date = p_start/);
-    assert.match(sql, /cs\.value < 1000 then 'under-1k'/);
-    assert.match(sql, /cs\.value < 10000 then '1k-10k'/);
+    assert.match(sql, /pv\.value < 10000 then '1k-10k'/);
     assert.match(sql, /greatest\(coalesce\(p_min_cards, 10\), 10\)/);
     assert.match(sql, /greatest\(coalesce\(p_min_value, 250\), 250\)/);
     assert.match(sql, /p_min_account_days/);
@@ -575,8 +612,29 @@ describe("leaderboard wiring", () => {
     assert.match(read("components/privacy-lists.tsx"), /LeaderboardOptInSwitch/);
     assert.match(read("components/dashboard.tsx"), /LeaderboardOptInSwitch/);
     assert.match(read("components/dashboard.tsx"), /LeaderboardPrompt/);
-    assert.match(read("lib/leaderboard/load.ts"), /revalidate: LEADERBOARD_CACHE_SECONDS/);
-    assert.match(read("lib/leaderboard/load.ts"), /LEADERBOARD_CACHE_SECONDS = 15 \* 60/);
+    const load = read("lib/leaderboard/load.ts");
+    assert.match(load, /revalidate: LEADERBOARD_CACHE_SECONDS/);
+    assert.match(load, /LEADERBOARD_CACHE_SECONDS = 15 \* 60/);
+    assert.match(load, /return createSupabaseAdmin\(\)/);
+    assert.doesNotMatch(load, /anonKey|createClient\(/);
+    assert.match(load, /hidden_author_ids/);
+    assert.match(load, /blocked_by_ids/);
+    const cachedRead = load.slice(
+      load.indexOf("async function readPublicValueBoard"),
+      load.indexOf("export async function getPublicValueBoard"),
+    );
+    assert.doesNotMatch(cachedRead, /hidden_author_ids|blocked_by_ids/);
+    const viewerRead = load.slice(load.indexOf("export async function getValueBoard"));
+    assert.match(viewerRead, /getPublicValueBoard\(input\)/);
+    assert.match(viewerRead, /hiddenIds\(viewerUserId\)/);
+    assert.match(read("components/dashboard.tsx"), /trustedPublicTotals\(cards, values\)/);
+    assert.match(read("components/value-board.tsx"), /trustedPublicTotals\(cards, values\)/);
+    const schema = read("supabase/schema.sql");
+    const schemaFn = schema.slice(schema.indexOf("function public.leaderboard_rows"));
+    assert.match(schemaFn, /left join lateral/);
+    assert.match(schemaFn, /Bracket comes from the week-start value of public held cards only/);
+    assert.match(schemaFn, /function public\.blocked_by_ids\(\)/);
+    assert.doesNotMatch(schemaFn, /collection_snapshots/);
     assert.equal(read("lib/auth/route-access.ts").includes('"/leaderboard/value"'), true);
     assert.equal(VALUE_BOARD_TAB.id, "value");
     assert.equal(existsSync(join(process.cwd(), "app/leaderboard/value/page.tsx")), true);
