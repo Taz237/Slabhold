@@ -3,7 +3,7 @@ import { Crown, Trophy } from "lucide-react";
 import { LeaderboardChips } from "@/components/leaderboard-chips";
 import { LeaderboardCountdown } from "@/components/leaderboard-countdown";
 import { ShareIconButton } from "@/components/share-button";
-import type { LeaderboardPageModel, RankedEntry } from "@/lib/leaderboard/present";
+import type { LeaderboardPageModel, RankedEntry, YouRow } from "@/lib/leaderboard/present";
 import { boardCallToAction, LEADERBOARD_PATH } from "@/lib/leaderboard/rules";
 
 const MEDAL: Record<number, { ring: string; glow: string }> = {
@@ -122,16 +122,44 @@ function Podium({ entries, boardId }: { entries: readonly RankedEntry[]; boardId
   );
 }
 
+function YouCard({ you }: { you: YouRow }) {
+  return (
+    <div className="rounded-2xl border border-violet-400/40 bg-zinc-950/95 px-4 py-3 shadow-[0_10px_30px_rgba(124,92,255,0.28)]">
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-[11px] font-bold uppercase tracking-wide text-violet-200">Your rank</p>
+          <p className="text-lg font-black text-white">
+            {you.rank > 0 ? `#${you.rank}` : you.score > 0 ? `${you.score} ${you.scoreLabel}` : "Not ranked"}
+          </p>
+        </div>
+        {you.rank > 0 ? (
+          <p className="text-right text-lg font-black tabular-nums text-white">
+            {you.score} <span className="text-xs font-semibold text-zinc-400">{you.scoreLabel}</span>
+          </p>
+        ) : null}
+      </div>
+      {you.gap ? <p className="mt-1 text-sm text-zinc-200">{you.gap}</p> : null}
+      {you.ctaHref && you.ctaLabel ? (
+        <Link
+          href={you.ctaHref}
+          className="mt-2 inline-flex min-h-11 items-center rounded-full bg-[#7c5cff] px-4 text-sm font-bold text-white"
+        >
+          {you.ctaLabel}
+        </Link>
+      ) : null}
+      <span className="sr-only" style={{ position: "absolute", width: 1, height: 1, padding: 0, margin: -1, overflow: "hidden", clip: "rect(0,0,0,0)", whiteSpace: "nowrap", border: 0 }}>
+        {you.label}
+      </span>
+    </div>
+  );
+}
+
 export function LeaderboardView({ model }: { model: LeaderboardPageModel }) {
   const cta = boardCallToAction(model.boardId, model.week);
   const podium = model.entries.filter((entry) => entry.rank <= 3);
   const rest = model.entries.filter((entry) => entry.rank > 3);
   return (
-    <div
-      className={`-mx-4 -mt-5 bg-zinc-950 text-zinc-100${model.you ? " pb-[10.5rem]" : ""}`}
-      data-leaderboard=""
-      data-board-accent={model.boardId}
-    >
+    <div className="-mx-4 -mt-5 bg-zinc-950 text-zinc-100" data-leaderboard="" data-board-accent={model.boardId}>
       <style>{`
         @keyframes lb-rise {
           from { opacity: 0; transform: translateY(14px); }
@@ -167,10 +195,10 @@ export function LeaderboardView({ model }: { model: LeaderboardPageModel }) {
           {" · "}
           <span data-standing="">{model.standing}</span>
           {model.showCountdown ? (
-            <>
+            <span className="whitespace-nowrap">
               {" · "}
               <LeaderboardCountdown resetsAt={model.resetsAt} initialLabel={model.countdownLabel} />
-            </>
+            </span>
           ) : null}
         </p>
         {model.standingNote ? (
@@ -252,46 +280,6 @@ export function LeaderboardView({ model }: { model: LeaderboardPageModel }) {
         </div>
       )}
 
-      {model.you ? (
-        <div
-          className="sticky bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-20 px-3 py-2"
-          data-you-row=""
-        >
-          <div className="rounded-2xl border border-violet-400/40 bg-zinc-950/95 px-4 py-3 shadow-[0_10px_30px_rgba(124,92,255,0.28)]">
-            <div className="flex items-center justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-[11px] font-bold uppercase tracking-wide text-violet-200">Your rank</p>
-                <p className="text-lg font-black text-white">
-                  {model.you.rank > 0
-                    ? `#${model.you.rank}`
-                    : model.you.score > 0
-                      ? `${model.you.score} ${model.you.scoreLabel}`
-                      : "Not ranked"}
-                </p>
-              </div>
-              {model.you.rank > 0 ? (
-                <p className="text-right text-lg font-black tabular-nums text-white">
-                  {model.you.score}{" "}
-                  <span className="text-xs font-semibold text-zinc-400">{model.you.scoreLabel}</span>
-                </p>
-              ) : null}
-            </div>
-            {model.you.gap ? <p className="mt-1 text-sm text-zinc-200">{model.you.gap}</p> : null}
-            {model.you.ctaHref && model.you.ctaLabel ? (
-              <Link
-                href={model.you.ctaHref}
-                className="mt-2 inline-flex min-h-11 items-center rounded-full bg-[#7c5cff] px-4 text-sm font-bold text-white"
-              >
-                {model.you.ctaLabel}
-              </Link>
-            ) : null}
-            <span className="sr-only" style={{ position: "absolute", width: 1, height: 1, padding: 0, margin: -1, overflow: "hidden", clip: "rect(0,0,0,0)", whiteSpace: "nowrap", border: 0 }}>
-              {model.you.label}
-            </span>
-          </div>
-        </div>
-      ) : null}
-
       <section className="border-t border-white/10 px-4 py-6" data-how-to="">
         <h2 className="text-sm font-bold text-white">How to get on the leaderboard</h2>
         <div className="mt-4 space-y-5">
@@ -319,6 +307,20 @@ export function LeaderboardView({ model }: { model: LeaderboardPageModel }) {
           ))}
         </ul>
       </section>
+
+      {model.you ? (
+        <>
+          <div className="invisible px-3 py-2" aria-hidden="true" inert data-you-spacer="">
+            <YouCard you={model.you} />
+          </div>
+          <div
+            className="fixed inset-x-0 bottom-[calc(5.25rem+env(safe-area-inset-bottom))] z-10 mx-auto w-full max-w-lg px-3 py-2"
+            data-you-row=""
+          >
+            <YouCard you={model.you} />
+          </div>
+        </>
+      ) : null}
     </div>
   );
 }
