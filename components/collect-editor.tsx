@@ -9,9 +9,10 @@ import {
   COLLECT_TEAMS,
   collectSportChoices,
   interestTypeahead,
+  playerNameIsShared,
   type InterestHit,
 } from "@/lib/social/collect-interests";
-import { compactInterest, type CollectInterest } from "@/lib/social/follow-rank";
+import { compactInterest, normInterest, type CollectInterest } from "@/lib/social/follow-rank";
 import { createSupabaseBrowser } from "@/lib/supabase/browser";
 
 const chipClass =
@@ -141,14 +142,14 @@ export function NameSearch({
         <div className="mb-3 flex flex-wrap gap-2">
           {names.map((pick) => (
             <button
-              key={`${pick.kind}:${pick.value}`}
+              key={`${pick.kind}:${pick.value}:${pick.sport ?? ""}`}
               type="button"
               onClick={() => onRemove(pick)}
               className={`${chipClass} gap-1.5 border-zinc-900 bg-zinc-900 text-white dark:border-zinc-100 dark:bg-zinc-100 dark:text-zinc-950`}
             >
-              {pick.value}
+              {pickedNameLabel(pick)}
               <X className="h-3.5 w-3.5" aria-hidden />
-              <span className="sr-only">Remove {pick.value}</span>
+              <span className="sr-only">Remove {pickedNameLabel(pick)}</span>
             </button>
           ))}
         </div>
@@ -175,6 +176,9 @@ export function NameSearch({
           </button>
         </div>
       ) : null}
+      {typed && directory.status !== "loading" && hits.length === 0 ? (
+        <p className="mt-2 text-sm text-zinc-500">No players found</p>
+      ) : null}
       {hits.length > 0 ? (
         <ul className="mt-2 overflow-hidden rounded-2xl border border-zinc-200 dark:border-white/10">
           {hits.map((hit) => (
@@ -182,7 +186,10 @@ export function NameSearch({
               <button
                 type="button"
                 onClick={() => {
-                  onAdd(hit);
+                  const sharedName =
+                    hit.kind === "player" &&
+                    playerNameIsShared(hit.value, [...directory.players, ...players]);
+                  onAdd(sharedName ? { ...hit, sharedName: true } : hit);
                   setQuery("");
                 }}
                 className="flex min-h-11 w-full items-center justify-between gap-3 px-4 text-left text-[15px] hover:bg-zinc-100 dark:hover:bg-white/10"
@@ -206,27 +213,55 @@ export function toggleSport(selected: readonly string[], sport: string): string[
   return [...selected, sport];
 }
 
-function savedNameKey(kind: string, value: string): string {
-  return `${kind}:${compactInterest(value)}`;
+/** "Will Smith · Baseball" when the saved player name is shared. Other chips stay the name. */
+export function pickedNameLabel(pick: { kind: string; value: string; sport?: string }): string {
+  if (pick.kind === "player" && pick.sport) return `${pick.value} · ${pick.sport}`;
+  return pick.value;
+}
+
+function picksMatch(
+  pick: CollectInterest,
+  hit: { kind: string; value: string; sport?: string; sharedName?: boolean },
+): boolean {
+  if (pick.kind !== hit.kind) return false;
+  if (compactInterest(pick.value) !== compactInterest(hit.value)) return false;
+  if (hit.kind !== "player") return true;
+  const left = normInterest(pick.sport ?? "");
+  const right = hit.sharedName ? normInterest(hit.sport ?? "") : "";
+  if (!left || !right) return true;
+  return left === right;
+}
+
+function storedPick(hit: InterestHit): CollectInterest {
+  if (hit.kind === "player" && hit.sharedName && hit.sport.trim()) {
+    return { kind: hit.kind, value: hit.value, sport: hit.sport };
+  }
+  return { kind: hit.kind, value: hit.value };
+}
+
+export function nameAlreadyPicked(selected: readonly CollectInterest[], hit: InterestHit): boolean {
+  return selected.some((pick) => picksMatch(pick, hit));
 }
 
 export function toggleName(
   selected: readonly CollectInterest[],
   hit: InterestHit,
 ): CollectInterest[] {
-  const key = savedNameKey(hit.kind, hit.value);
   let replaced = false;
   const next: CollectInterest[] = [];
+  const incoming = storedPick(hit);
   for (const pick of selected) {
-    if (savedNameKey(pick.kind, pick.value) !== key) {
+    if (!picksMatch(pick, hit)) {
       next.push(pick);
       continue;
     }
     if (replaced) continue;
-    next.push(pick.value === hit.value ? pick : { kind: hit.kind, value: hit.value });
+    const sameValue = pick.value === incoming.value;
+    const sameSport = normInterest(pick.sport ?? "") === normInterest(incoming.sport ?? "");
+    next.push(sameValue && sameSport ? pick : incoming);
     replaced = true;
   }
-  if (!replaced) next.push({ kind: hit.kind, value: hit.value });
+  if (!replaced) next.push(incoming);
   return next;
 }
 
@@ -234,7 +269,12 @@ export function withoutName(
   selected: readonly CollectInterest[],
   hit: CollectInterest,
 ): CollectInterest[] {
-  const index = selected.findIndex((pick) => pick.kind === hit.kind && pick.value === hit.value);
+  const index = selected.findIndex(
+    (pick) =>
+      pick.kind === hit.kind &&
+      pick.value === hit.value &&
+      normInterest(pick.sport ?? "") === normInterest(hit.sport ?? ""),
+  );
   if (index < 0) return [...selected];
   return selected.filter((_, item) => item !== index);
 }

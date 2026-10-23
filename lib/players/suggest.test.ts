@@ -104,14 +104,14 @@ describe("directory name search", () => {
     assert.equal(embiid[0]?.sport, "Basketball");
   });
 
-  it("matches accents and keeps the catalog spelling once", () => {
+  it("matches accents and keeps the directory spelling once", () => {
     assert.equal(playerNameMatches("Luka Dončić", "luka doncic"), true);
     assert.equal(playerNameMatches("Luka Dončić", "LUKA DONCIC"), true);
     const hits = names("luka doncic");
     const lukas = hits.filter((hit) => normInterest(hit.value) === "luka doncic");
     assert.deepEqual(
       lukas.map((hit) => hit.value),
-      ["Luka Dončić"],
+      ["Luka Doncic"],
     );
     const merged = withDirectoryPlayers({
       query: "luka doncic",
@@ -124,7 +124,7 @@ describe("directory name search", () => {
     });
     assert.deepEqual(
       merged.map((hit) => hit.value),
-      ["Luka Dončić"],
+      ["Luka Doncic"],
     );
   });
 
@@ -302,7 +302,7 @@ describe("directory name search", () => {
     const dotted = names("c.j. stroud", ["Basketball"]);
     assert.equal(dotted.length, 1);
     assert.equal(dotted[0]?.custom, true);
-    assert.equal(dotted[0]?.value, "C.J. Stroud");
+    assert.equal(dotted[0]?.value, "CJ Stroud");
     assert.equal(dotted[0]?.sport, "Basketball");
     const spaced = names("c j stroud", ["Basketball"]);
     assert.equal(spaced.length, 1);
@@ -310,8 +310,10 @@ describe("directory name search", () => {
     assert.equal(spaced[0]?.value, "CJ Stroud");
     assert.equal(spaced[0]?.sport, "Basketball");
     assert.equal(titleCasePlayerName("c j stroud"), "CJ Stroud");
+    assert.equal(titleCasePlayerName("c.j. stroud"), "CJ Stroud");
     assert.equal(titleCasePlayerName("C J STROUD"), "CJ Stroud");
     assert.equal(titleCasePlayerName("a b c d"), "A B C D");
+    assert.equal(titleCasePlayerName("a.b.c.d"), "A.B.C.D");
   });
 
   it("shows one row when catalog and directory spell the same initials differently", () => {
@@ -340,7 +342,25 @@ describe("directory name search", () => {
       directoryPlayers: INDEXED_DIRECTORY,
       directoryReady: true,
     });
-    assert.equal(catalogWins.find((hit) => hit.value.includes("Stroud"))?.value, "C.J. Stroud");
+    assert.equal(catalogWins.find((hit) => hit.value.includes("Stroud"))?.value, "CJ Stroud");
+    for (const query of ["cj stroud", "c.j. stroud", "c j stroud"]) {
+      const mostlyDotted = withDirectoryPlayers({
+        query,
+        catalogHits: Array.from({ length: 3 }, () => ({
+          kind: "player" as const,
+          value: "C.J. Stroud",
+          sport: "Football",
+        })),
+        directoryPlayers: INDEXED_DIRECTORY,
+        directoryReady: true,
+      });
+      const saved = mostlyDotted.filter(
+        (hit) => hit.value.replace(/[^A-Za-z]/g, "").toLowerCase() === "cjstroud",
+      );
+      assert.equal(saved.length, 1, query);
+      assert.equal(saved[0]?.value, "CJ Stroud", query);
+      assert.equal(saved[0]?.custom, undefined, query);
+    }
     const blankSport = withDirectoryPlayers({
       query: "stroud",
       catalogHits: [

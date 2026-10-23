@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { join } from "node:path";
+import { INDEXED_DIRECTORY } from "@/lib/players/directory";
+import { normInterest } from "./follow-rank";
 import {
   canAddPick,
   collectPromptVisible,
@@ -11,6 +13,9 @@ import {
   interestTypeahead,
   interestWriteRows,
   interestsAnswered,
+  packSharedPlayer,
+  playerNameIsShared,
+  unpackSharedPlayer,
   persistInterestRows,
   PICK_LIMIT_MESSAGE,
   picksFromRows,
@@ -107,6 +112,61 @@ describe("interest typeahead", () => {
         query,
       );
     }
+    const dontes = interestTypeahead({
+      query: "dont e",
+      players: [
+        { name: "Dont'e Thornton Jr.", sport: "Football" },
+        { name: "Donte DiVincenzo", sport: "Basketball" },
+        { name: "Donte Jackson", sport: "Football" },
+        { name: "Donte Kent", sport: "Football" },
+      ],
+      teams: [],
+    });
+    assert.deepEqual(
+      dontes.map((hit) => hit.value),
+      ["Dont'e Thornton Jr."],
+    );
+    const amar = interestTypeahead({
+      query: "amar e",
+      players: [
+        { name: "Amar'e Stoudemire", sport: "Basketball" },
+        { name: "Amare Stoudemire", sport: "Basketball" },
+      ],
+      teams: [],
+    });
+    assert.deepEqual(
+      amar.map((hit) => hit.value),
+      ["Amar'e Stoudemire"],
+    );
+    const initials = [
+      { name: "CJ Stroud", sport: "Football" },
+      { name: "C.J. Stroud", sport: "Football" },
+      { name: "T.J. Watt", sport: "Football" },
+      { name: "TJ Watt", sport: "Football" },
+      { name: "J.J. Watt", sport: "Football" },
+      { name: "JJ Watt", sport: "Football" },
+    ];
+    const compactName = (value: string) => value.replace(/[^a-z]/gi, "").toLowerCase();
+    for (const query of ["c. j.", "c.j. stroud", "c j stroud"]) {
+      const hits = interestTypeahead({ query, players: initials, teams: [] });
+      assert.deepEqual(
+        hits.map((hit) => compactName(hit.value)),
+        ["cjstroud"],
+        query,
+      );
+    }
+    assert.deepEqual(
+      interestTypeahead({ query: "t j watt", players: initials, teams: [] }).map((hit) =>
+        compactName(hit.value),
+      ),
+      ["tjwatt"],
+    );
+    assert.deepEqual(
+      interestTypeahead({ query: "j.j. watt", players: initials, teams: [] }).map((hit) =>
+        compactName(hit.value),
+      ),
+      ["jjwatt"],
+    );
     const blank = interestTypeahead({
       query: "stroud",
       players: [
@@ -201,6 +261,33 @@ describe("skip and complete", () => {
       { kind: "team", value: "Chiefs" },
       { kind: "player", value: "Patrick Mahomes" },
     ]);
+  });
+
+  it("stores both Will Smith sports and reloads the same chips", () => {
+    assert.equal(playerNameIsShared("Will Smith", INDEXED_DIRECTORY), true);
+    assert.equal(playerNameIsShared("CJ Stroud", INDEXED_DIRECTORY), false);
+    const rows = interestWriteRows("complete", [
+      { kind: "player", value: "Will Smith", sport: "Baseball" },
+      { kind: "player", value: "Will Smith", sport: "Hockey" },
+      { kind: "player", value: "CJ Stroud" },
+    ]);
+    const players = rows.filter((row) => row.kind === "player");
+    assert.equal(players.length, 3);
+    assert.equal(players[2]?.value, "CJ Stroud");
+    assert.notEqual(players[0]?.value, players[1]?.value);
+    for (const row of players.slice(0, 2)) {
+      assert.equal(normInterest(row.value), "will smith");
+      assert.ok(row.value.length <= 80);
+      assert.equal(packSharedPlayer("Will Smith", row.value.endsWith("\u200b") ? "Baseball" : "Hockey"), row.value);
+    }
+    assert.deepEqual(picksFromRows(rows), [
+      { kind: "player", value: "Will Smith", sport: "Baseball" },
+      { kind: "player", value: "Will Smith", sport: "Hockey" },
+      { kind: "player", value: "CJ Stroud" },
+    ]);
+    assert.deepEqual(unpackSharedPlayer(players[0]!.value), { name: "Will Smith", sport: "Baseball" });
+    assert.deepEqual(unpackSharedPlayer(players[1]!.value), { name: "Will Smith", sport: "Hockey" });
+    assert.equal(unpackSharedPlayer("CJ Stroud"), null);
   });
 
   it("stops at 25 picks and says so, instead of a generic save error", async () => {
@@ -439,6 +526,8 @@ describe("collecting UI", () => {
     assert.match(settings, /What you collect/);
     assert.match(settings, /schemaMissing\(/);
     assert.match(settingsPage, /CollectSettings/);
+    assert.match(settingsPage, /export const dynamic = "force-dynamic"/);
+    assert.match(settingsPage, /redirect\(loginPath\("\/settings\/collecting"\)\)/);
     assert.match(more, /\/settings\/collecting/);
     assert.match(profile, /\/settings\/collecting/);
     assert.match(feed, /suggestionReason/);

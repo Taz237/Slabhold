@@ -180,14 +180,37 @@ describe("searchCatalog ranking", () => {
   });
 
   it("matches the CJ Stroud seed when the initials are dotted or spaced", () => {
+    const ranked = searchCatalog("cj stroud").map((card) => card.id);
+    assert.ok(ranked.length > 1);
     for (const query of ["c.j. stroud", "c j stroud"]) {
       const hits = searchCatalog(query);
-      assert.ok(hits.length > 0, query);
-      assert.ok(
-        hits.every((hit) => hit.playerName === "CJ Stroud"),
+      assert.ok(hits.every((hit) => hit.playerName === "CJ Stroud"), query);
+      assert.deepEqual(
+        hits.map((card) => card.id),
+        ranked,
         query,
       );
     }
+  });
+
+  it("ranks a dotted name plus a set or year with the undotted search", () => {
+    for (const [dotted, plain] of [
+      ["c.j. stroud prizm", "cj stroud prizm"],
+      ["c.j. stroud 2023", "cj stroud 2023"],
+    ] as const) {
+      const hits = searchCatalog(dotted);
+      const ranked = searchCatalog(plain);
+      assert.ok(hits.length > 0, dotted);
+      assert.ok(hits.every((hit) => hit.playerName === "CJ Stroud"), dotted);
+      assert.deepEqual(
+        hits.map((card) => card.id),
+        ranked.map((card) => card.id),
+        dotted,
+      );
+    }
+    assert.ok(searchCatalog("c.j. stroud prizm").every((hit) => hit.setBrand === "Panini Prizm"));
+    assert.ok(searchCatalog("c.j. stroud 2023").every((hit) => hit.yearLabel === "2023"));
+    assert.equal(searchCatalog("c.j. stroud prizm")[0]?.parallel, "Base");
   });
 
   it("puts the player match ahead of the same year and set", () => {

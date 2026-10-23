@@ -7,6 +7,7 @@ import { Avatar } from "@/components/avatar";
 import {
   NameSearch,
   SportChips,
+  nameAlreadyPicked,
   toggleName,
   toggleSport,
   useCollectSports,
@@ -186,9 +187,7 @@ export function CollectPrompt() {
   }
 
   function addName(hit: InterestHit) {
-    const exists = names.some(
-      (pick) => pick.kind === hit.kind && pick.value.toLowerCase() === hit.value.toLowerCase(),
-    );
+    const exists = nameAlreadyPicked(names, hit);
     if (!exists && !canAddPick(pickCount)) {
       setLimitNote(PICK_LIMIT_MESSAGE);
       return;

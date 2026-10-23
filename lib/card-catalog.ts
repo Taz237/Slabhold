@@ -3,10 +3,11 @@
 import {
   buildSearchText,
   formatCatalogResultLabel,
+  parseCardQuery,
   searchCardsLocal,
   type SearchableCard,
 } from "@/lib/card-search-query";
-import { compactPlayerQueryMatches } from "@/lib/social/follow-rank";
+import { queryHasCompactInitials } from "@/lib/social/follow-rank";
 
 export type CatalogCard = {
   id: string;
@@ -183,13 +184,44 @@ function cardsInRankOrder(
     .filter((card): card is CatalogCard => Boolean(card));
 }
 
+/**
+ * "c.j. stroud prizm" is the same search as "cj stroud prizm".
+ * Year and set words stay in the query so the normal ranker orders the hits.
+ * Returns null when the query is not an initials search.
+ */
+function collapseInitialQuery(query: string): string | null {
+  if (!queryHasCompactInitials(query)) return null;
+  const parsed = parseCardQuery(query);
+  if (!parsed.playerWords.some((word) => word.length === 1)) return null;
+  const words: string[] = [];
+  let buf = "";
+  const flush = () => {
+    if (!buf) return;
+    words.push(buf);
+    buf = "";
+  };
+  for (const word of parsed.playerWords) {
+    if (word.length === 1) {
+      buf += word;
+      continue;
+    }
+    flush();
+    words.push(word);
+  }
+  flush();
+  const rebuilt = [words.join(" "), parsed.yearLabel, ...parsed.setWords, parsed.cardNumber]
+    .filter(Boolean)
+    .join(" ");
+  return rebuilt || null;
+}
+
 /** Ranked local matches (typo/alias aware). Default 20 for Add Card. */
 export function searchCatalog(query: string, limit = 20): CatalogCard[] {
   const ranked = cardsInRankOrder(query, CARD_CATALOG, limit);
   if (ranked.length > 0 || !query.trim()) return ranked;
-  const cap = Math.max(0, Math.floor(limit));
-  if (cap === 0) return [];
-  return CARD_CATALOG.filter((card) => compactPlayerQueryMatches(query, card.playerName)).slice(0, cap);
+  const collapsed = collapseInitialQuery(query);
+  if (!collapsed) return [];
+  return cardsInRankOrder(collapsed, CARD_CATALOG, limit);
 }
 
 /**

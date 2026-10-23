@@ -186,12 +186,38 @@ function titleToken(token: string, wordIndex: number): string {
 
 type NamePart = { kind: "letters"; text: string } | { kind: "sep"; text: string };
 
+function isInitialGap(part: NamePart | undefined): part is { kind: "sep"; text: string } {
+  return part?.kind === "sep" && (part.text === " " || part.text === ".");
+}
+
+function previousInitial(parts: readonly NamePart[], index: number): boolean {
+  let cursor = index - 1;
+  let sawGap = false;
+  while (isInitialGap(parts[cursor])) {
+    sawGap = true;
+    cursor -= 1;
+  }
+  const prev = parts[cursor];
+  return sawGap && prev?.kind === "letters" && prev.text.length === 1;
+}
+
+function nextInitial(parts: readonly NamePart[], index: number): number | null {
+  let cursor = index + 1;
+  let sawGap = false;
+  while (isInitialGap(parts[cursor])) {
+    sawGap = true;
+    cursor += 1;
+  }
+  const next = parts[cursor];
+  if (sawGap && next?.kind === "letters" && next.text.length === 1) return cursor;
+  return null;
+}
+
 /**
  * All-lowercase and all-uppercase names are title-cased.
  * Mixed case is kept. "mcbride" becomes "McBride".
- * A pair of single letters separated by spaces becomes one initialism: "c j" → "CJ".
- * Longer runs stay separate, so "a b c d" does not become "ABCD".
- * Periods stay, so "c.j. stroud" is still "C.J. Stroud".
+ * A pair of single letters separated by spaces or dots becomes one initialism:
+ * "c j" and "c.j." become "CJ". Longer runs stay separate, so "a b c d" does not become "ABCD".
  */
 export function titleCasePlayerName(value: string): string {
   const collapsed = value.trim().replace(/\s+/g, " ");
@@ -224,36 +250,26 @@ export function titleCasePlayerName(value: string): string {
       continue;
     }
     if (part.text.length === 1) {
-      const prevSep = parts[index - 1];
-      const prevLetters = parts[index - 2];
-      const continuesRun =
-        prevSep?.kind === "sep" &&
-        prevSep.text === " " &&
-        prevLetters?.kind === "letters" &&
-        prevLetters.text.length === 1;
+      const continuesRun = previousInitial(parts, index);
       let end = index;
       let run = "";
       while (end < parts.length) {
         const current = parts[end];
         if (!current || current.kind !== "letters" || current.text.length !== 1) break;
         run += current.text;
-        const sep = parts[end + 1];
-        const next = parts[end + 2];
-        if (
-          sep?.kind === "sep" &&
-          sep.text === " " &&
-          next?.kind === "letters" &&
-          next.text.length === 1
-        ) {
-          end += 2;
-          continue;
-        }
-        break;
+        const next = nextInitial(parts, end);
+        if (next == null) break;
+        end = next;
       }
       if (!continuesRun && run.length === 2) {
         result += run.toLocaleUpperCase();
         wordIndex += 1;
         index = end + 1;
+        const dot = parts[index];
+        const afterDot = parts[index + 1];
+        if (dot?.kind === "sep" && dot.text === "." && (!afterDot || afterDot.kind === "sep")) {
+          index += 1;
+        }
         continue;
       }
     }
@@ -346,6 +362,23 @@ export function nameSuggestionLabel(hit: NameSuggestion): string {
 
 type SpellingBag = { catalog: string[]; directory: string[] };
 
+/** Directory spelling wins. Catalog counts are only used when the roster has no row. */
+function displayedSpelling(bag: SpellingBag | undefined, fallback: string): string {
+  if (bag && bag.directory.length > 0) return majorityPlayerSpelling(bag.directory);
+  if (bag && bag.catalog.length > 0) return majorityPlayerSpelling(bag.catalog);
+  return fallback;
+}
+
+function directorySpelling(query: string, players: readonly SearchablePlayer[]): string | null {
+  const key = compactInterest(query);
+  if (!key) return null;
+  for (const player of players) {
+    const compact = player.compact ?? compactInterest(player.name);
+    if (compact === key) return player.name;
+  }
+  return null;
+}
+
 function absorbPlayer(
   grouped: Map<string, NameSuggestion[]>,
   spellings: Map<NameSuggestion, SpellingBag>,
@@ -358,8 +391,7 @@ function absorbPlayer(
   if (existing) {
     const bag = spellings.get(existing);
     if (bag) bag[source].push(hit.value);
-    const chosen = bag && bag.catalog.length > 0 ? bag.catalog : (bag?.directory ?? [hit.value]);
-    existing.value = majorityPlayerSpelling(chosen);
+    existing.value = displayedSpelling(bag, hit.value);
     return true;
   }
   const bag: SpellingBag = { catalog: [], directory: [] };
@@ -388,7 +420,8 @@ function hiddenNameIsExact(
 /**
  * Catalog and remote hits stay in front. Directory players fill the rest,
  * one row per compact name and sport, so "CJ Stroud" does not repeat "C.J. Stroud".
- * The catalog spelling is the one shown. A blank sport stays its own row.
+ * The directory spelling is the one shown, ahead of the catalog and search_cards.
+ * A blank sport stays its own row.
  * An empty list becomes the custom-name chip once the directory has loaded.
  * A partial query that only missed because of a sport chip does not become Add.
  * An exact full name, dotted or joined, still offers Add. Only the name is stored.
@@ -463,5 +496,8 @@ export function withDirectoryPlayers(input: {
   if (!input.directoryReady) return [];
   if (hiddenPartial && !hiddenExact) return [];
   const custom = customPlayerFallback(input.query, input.sports ?? []);
-  return custom ? [custom] : [];
+  if (!custom) return [];
+  const fromDirectory = directorySpelling(input.query, input.directoryPlayers ?? []);
+  if (fromDirectory) custom.value = fromDirectory;
+  return [custom];
 }

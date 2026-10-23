@@ -194,7 +194,62 @@ export type InterestHit = {
   kind: "team" | "player";
   value: string;
   sport: string;
+  /** Player name is in more than one sport, so the chip keeps this sport. */
+  sharedName?: boolean;
 };
+
+/**
+ * Suffix for a shared player. Format characters only, so public.norm and
+ * normInterest still equal the player name. No extra column.
+ * Baseball, Basketball, Football, Hockey, and Soccer are the roster sports.
+ */
+const SHARED_PLAYER_MARK = "\u2060";
+const SHARED_PLAYER_SPORTS: readonly { sport: string; code: string }[] = [
+  { sport: "Baseball", code: "\u200b" },
+  { sport: "Basketball", code: "\u200c" },
+  { sport: "Football", code: "\u200d" },
+  { sport: "Hockey", code: "\u2062" },
+  { sport: "Soccer", code: "\u2063" },
+];
+
+export function packSharedPlayer(name: string, sport: string): string | null {
+  const code = SHARED_PLAYER_SPORTS.find((item) => item.sport.toLowerCase() === sport.trim().toLowerCase());
+  const trimmed = name.trim();
+  if (!code || !trimmed) return null;
+  const packed = `${trimmed}${SHARED_PLAYER_MARK}${code.code}`;
+  return packed.length <= 80 ? packed : null;
+}
+
+export function unpackSharedPlayer(value: string): { name: string; sport: string } | null {
+  const mark = value.lastIndexOf(SHARED_PLAYER_MARK);
+  if (mark < 0) return null;
+  const sport = SHARED_PLAYER_SPORTS.find((item) => item.code === value.slice(mark + SHARED_PLAYER_MARK.length));
+  const name = value.slice(0, mark).trim();
+  if (!sport || !name) return null;
+  return { name, sport: sport.sport };
+}
+
+/** True when this compact name is listed under two different sports. */
+export function playerNameIsShared(
+  name: string,
+  players: readonly { name: string; sport?: string; compact?: string }[],
+): boolean {
+  const key = compactInterest(name);
+  if (!key) return false;
+  let seen = "";
+  for (const player of players) {
+    const compact = player.compact ?? compactInterest(player.name);
+    if (compact !== key) continue;
+    const sport = (player.sport ?? "").trim().toLowerCase();
+    if (!sport) continue;
+    if (!seen) {
+      seen = sport;
+      continue;
+    }
+    if (sport !== seen) return true;
+  }
+  return false;
+}
 
 /**
  * Typeahead for teams and catalog players. Empty queries return nothing.
@@ -293,13 +348,32 @@ export function collectStepAfter(
   return { type: "done" };
 }
 
+function storedInterestValue(pick: CollectInterest): string {
+  const name = pick.value.trim();
+  if (!name) return "";
+  if (pick.kind === "player" && pick.sport?.trim()) {
+    const packed = packSharedPlayer(name, pick.sport);
+    if (packed) return packed;
+  }
+  return name.slice(0, 80);
+}
+
 export function picksFromRows(rows: readonly InterestRow[]): CollectInterest[] {
-  return rows
-    .filter(
-      (row): row is CollectInterest =>
-        row.kind === "sport" || row.kind === "team" || row.kind === "player",
-    )
-    .map((row) => ({ kind: row.kind, value: row.value }));
+  const picks: CollectInterest[] = [];
+  for (const row of rows) {
+    if (row.kind !== "sport" && row.kind !== "team" && row.kind !== "player") continue;
+    if (row.kind !== "player") {
+      picks.push({ kind: row.kind, value: row.value });
+      continue;
+    }
+    const unpacked = unpackSharedPlayer(row.value);
+    picks.push(
+      unpacked
+        ? { kind: "player", value: unpacked.name, sport: unpacked.sport }
+        : { kind: "player", value: row.value },
+    );
+  }
+  return picks;
 }
 
 /** Rows written when they finish or skip. Prompt is how we know not to ask again. */
@@ -311,7 +385,7 @@ export function interestWriteRows(
   const seen = new Set<string>();
   const rows: InterestRow[] = [];
   for (const pick of picks) {
-    const value = pick.value.trim().slice(0, 80);
+    const value = storedInterestValue(pick);
     if (!value) continue;
     if (pick.kind === "sport" && collectSportBlocked(value)) continue;
     const key = `${pick.kind}:${value.toLowerCase()}`;

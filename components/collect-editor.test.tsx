@@ -7,7 +7,7 @@ import { searchCatalog } from "@/lib/card-catalog";
 import { INDEXED_DIRECTORY } from "@/lib/players/directory";
 import { withDirectoryPlayers } from "@/lib/players/suggest";
 import { COLLECT_TEAMS, interestTypeahead } from "@/lib/social/collect-interests";
-import { NameSearch, nameHitKey, toggleName, withoutName } from "@/components/collect-editor";
+import { NameSearch, nameHitKey, pickedNameLabel, toggleName, withoutName } from "@/components/collect-editor";
 
 delete process.env.NEXT_PUBLIC_SUPABASE_URL;
 delete process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -169,6 +169,18 @@ describe("collect name rows", () => {
     assert.deepEqual(withoutName(both, { kind: "player", value: "CJ Stroud" }), [
       { kind: "player", value: "C.J. Stroud" },
     ]);
+    const baseball = toggleName([], { kind: "player", value: "Will Smith", sport: "Baseball", sharedName: true });
+    const smiths = toggleName(baseball, { kind: "player", value: "Will Smith", sport: "Hockey", sharedName: true });
+    assert.deepEqual(smiths, [
+      { kind: "player", value: "Will Smith", sport: "Baseball" },
+      { kind: "player", value: "Will Smith", sport: "Hockey" },
+    ]);
+    assert.equal(pickedNameLabel(smiths[0]!), "Will Smith · Baseball");
+    assert.equal(pickedNameLabel(smiths[1]!), "Will Smith · Hockey");
+    assert.equal(pickedNameLabel({ kind: "player", value: "CJ Stroud" }), "CJ Stroud");
+    assert.deepEqual(withoutName(smiths, { kind: "player", value: "Will Smith", sport: "Baseball" }), [
+      { kind: "player", value: "Will Smith", sport: "Hockey" },
+    ]);
   });
 
   it("keeps unique Will Smith rows with no sport selected", async () => {
@@ -177,5 +189,44 @@ describe("collect name rows", () => {
 
   it("keeps unique Will Smith rows with Baseball and Hockey selected", async () => {
     await typeBackspaceRetype(["Baseball", "Hockey"]);
+  });
+
+  it("labels shared player chips with the sport and says when nothing matched", async () => {
+    const host = win.document.createElement("div");
+    win.document.body.appendChild(host);
+    const root: Root = createRoot(host);
+    await act(async () => {
+      root.render(
+        createElement(NameSearch, {
+          sports: [],
+          selected: [
+            { kind: "player", value: "Will Smith", sport: "Baseball" },
+            { kind: "player", value: "Will Smith", sport: "Hockey" },
+          ],
+          onAdd: () => {},
+          onRemove: () => {},
+        }),
+      );
+    });
+    const input = win.document.querySelector("input");
+    assert.ok(input instanceof win.HTMLInputElement);
+    const chips = win.document.body.textContent ?? "";
+    assert.match(chips, /Will Smith · Baseball/);
+    assert.match(chips, /Will Smith · Hockey/);
+    await setQuery(input, "pikachu");
+    let text = "";
+    for (let attempt = 0; attempt < 40; attempt += 1) {
+      text = win.document.body.textContent ?? "";
+      if (text.includes("No players found") && !text.includes("Loading players")) break;
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      });
+    }
+    assert.match(text, /No players found/);
+    assert.equal(rowKeys().length, 0);
+    await act(async () => {
+      root.unmount();
+    });
+    host.remove();
   });
 });
