@@ -9,7 +9,7 @@ function read(path: string): string {
   return readFileSync(join(process.cwd(), path), "utf8");
 }
 
-const migration = "supabase/migrations/20261023000500_deal_log.sql";
+const migration = "supabase/migrations/20261023010000_deal_log.sql";
 
 function functionBody(sql: string, name: string): string {
   const start = sql.search(new RegExp(`function ${name.replace(".", "\\.")}\\b`));

@@ -1,6 +1,6 @@
 -- Read-only checks for the deal log. Do not apply this file.
 -- Each row is PASS or FAIL. A FAIL row means that check is not in place.
--- Safe to run after 20261023000500_deal_log.sql.
+-- Safe to run after 20261023010000_deal_log.sql.
 
 select 'deals_rls' as check_name,
   case when c.relrowsecurity then 'PASS' else 'FAIL' end as result
