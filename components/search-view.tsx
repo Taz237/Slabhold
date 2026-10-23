@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { Clock, Search, X } from "lucide-react";
 import { Avatar } from "@/components/avatar";
+import { ResolvedPlayerName } from "@/components/resolved-player-name";
 import { CardThumb } from "@/components/card-thumb";
 import { useCollection } from "@/components/collection-provider";
 import { useSocial } from "@/components/social-provider";
@@ -409,16 +410,21 @@ export function SearchView() {
                         key={card.id}
                         className="flex min-h-[4.5rem] items-center gap-2 border-b border-zinc-200 px-4 py-3 dark:border-white/10"
                       >
-                        <Link
-                          href={catalogAddHref(card)}
-                          onClick={() => remember(typed)}
-                          className="min-w-0 flex-1"
-                        >
-                          <span className="block truncate text-[15px] font-bold">{card.playerName}</span>
-                          <span className="block truncate text-sm text-zinc-500">
+                        <div className="min-w-0 flex-1">
+                          <ResolvedPlayerName
+                            name={card.playerName}
+                            sport={card.sport}
+                            onClick={() => remember(typed)}
+                            className="block truncate text-[15px] font-bold hover:underline"
+                          />
+                          <Link
+                            href={catalogAddHref(card)}
+                            onClick={() => remember(typed)}
+                            className="block truncate text-sm text-zinc-500"
+                          >
                             {catalogResultLine(card)}
-                          </span>
-                        </Link>
+                          </Link>
+                        </div>
                         {page ? (
                           <Link
                             href={page.href}
@@ -442,18 +448,27 @@ export function SearchView() {
               <ul>
                 {matchedCards.map((card) => (
                   <li key={card.id} className="border-b border-zinc-200 dark:border-white/10">
-                    <Link
-                      href={`/cards/${card.id}`}
-                      onClick={() => remember(typed)}
-                      className="flex items-center gap-3 px-4 py-3"
-                    >
-                      <CardThumb card={card} className="h-14 w-11 shrink-0 rounded-lg" />
+                    <div className="flex items-center gap-3 px-4 py-3">
+                      <Link href={`/cards/${card.id}`} onClick={() => remember(typed)} className="shrink-0">
+                        <CardThumb card={card} className="h-14 w-11 shrink-0 rounded-lg" />
+                      </Link>
                       <span className="min-w-0">
-                        <span className="block truncate text-[15px] font-bold">{card.playerName}</span>
-                        <span className="block truncate text-sm text-zinc-500">{cardTitle(card)}</span>
-                        <span className="block truncate text-xs text-zinc-500">{cardSubtitle(card)}</span>
+                        <ResolvedPlayerName
+                          name={card.playerName}
+                          sport={card.sport}
+                          onClick={() => remember(typed)}
+                          className="block truncate text-[15px] font-bold hover:underline"
+                        />
+                        <Link
+                          href={`/cards/${card.id}`}
+                          onClick={() => remember(typed)}
+                          className="block"
+                        >
+                          <span className="block truncate text-sm text-zinc-500">{cardTitle(card)}</span>
+                          <span className="block truncate text-xs text-zinc-500">{cardSubtitle(card)}</span>
+                        </Link>
                       </span>
-                    </Link>
+                    </div>
                   </li>
                 ))}
               </ul>

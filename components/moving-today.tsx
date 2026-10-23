@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { CardThumb } from "@/components/card-thumb";
+import { PlayerNameLink } from "@/components/player-name-link";
 import { ShareIconButton } from "@/components/share-button";
 import { freshenMovingToday } from "@/lib/moving-today/rank";
 import {
@@ -44,8 +45,11 @@ export function MovingTodayPanel({
       </div>
       <ul className="max-md:pr-20">
         {sales.map((sale) => (
-          <li key={`${sale.cardId}-${sale.soldOn}-${sale.priceCents}`}>
-            <Link href={sale.href} className="flex min-h-11 items-center gap-2 py-1">
+          <li
+            key={`${sale.cardId}-${sale.soldOn}-${sale.priceCents}`}
+            className="flex min-h-11 items-center gap-2 py-1"
+          >
+            <Link href={sale.href} className="shrink-0">
               <CardThumb
                 card={{
                   playerName: sale.player,
@@ -54,21 +58,27 @@ export function MovingTodayPanel({
                 }}
                 className="h-10 w-8 shrink-0 rounded-md"
               />
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-semibold">{sale.player}</span>
-                {sale.detail ? (
-                  <span className="block truncate text-xs text-zinc-500">{sale.detail}</span>
-                ) : null}
-              </span>
-              <span className="shrink-0 text-right">
-                <span className="block text-sm font-semibold tabular-nums">{sale.priceLabel}</span>
-                {sale.percentLabel ? (
-                  <span className={`block text-xs font-semibold tabular-nums ${percentClass(sale.percent)}`}>
-                    {sale.percentLabel}
-                  </span>
-                ) : null}
-                <span className="block text-[11px] text-zinc-500">{sale.soldLabel}</span>
-              </span>
+            </Link>
+            <span className="min-w-0 flex-1">
+              <PlayerNameLink
+                name={sale.player}
+                sport={sale.sport}
+                className="block truncate text-sm font-semibold hover:underline"
+              />
+              {sale.detail ? (
+                <Link href={sale.href} className="block truncate text-xs text-zinc-500 hover:underline">
+                  {sale.detail}
+                </Link>
+              ) : null}
+            </span>
+            <Link href={sale.href} className="shrink-0 text-right">
+              <span className="block text-sm font-semibold tabular-nums">{sale.priceLabel}</span>
+              {sale.percentLabel ? (
+                <span className={`block text-xs font-semibold tabular-nums ${percentClass(sale.percent)}`}>
+                  {sale.percentLabel}
+                </span>
+              ) : null}
+              <span className="block text-[11px] text-zinc-500">{sale.soldLabel}</span>
             </Link>
           </li>
         ))}

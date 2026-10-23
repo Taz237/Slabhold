@@ -35,6 +35,7 @@ export type PublicCardRef = {
   id: string;
   userId: string;
   player: string;
+  sport?: string;
   yearLabel: string;
   setName: string;
   grade: string;
@@ -101,6 +102,7 @@ function projectSales(ranked: readonly NotableSale[], context: ShowContext): Mov
       cardId: card.id,
       href,
       player: card.player.trim() || "Card",
+      sport: card.sport?.trim() || undefined,
       detail: cardDetailLine(card),
       imageUrl: cleanImageUrl(card.imageUrl),
       accent: card.accent || "#7c5cff",

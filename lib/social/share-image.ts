@@ -8,7 +8,7 @@ export type ShareCardLine = {
 };
 
 export type ShareImage = {
-  kind: "home" | "profile" | "post" | "mail" | "card";
+  kind: "home" | "profile" | "post" | "mail" | "card" | "player";
   kicker: string;
   title: string;
   detail: string;
@@ -209,6 +209,23 @@ export function postShareImage(input: {
     photos,
     cardLines,
     photoFallback: false,
+  };
+}
+
+/** Player page share card. Name and sport only — no club mark. */
+export function playerShareImage(input: {
+  found: boolean;
+  name?: string | null;
+  sport?: string | null;
+}): ShareImage {
+  const name = input.found ? clipText(scrubPublicText(input.name), 80) : "";
+  const sport = input.found ? clipText(scrubPublicText(input.sport), 48) : "";
+  return {
+    ...blank(),
+    kind: "player",
+    kicker: "PLAYER",
+    title: name || "Player",
+    detail: sport,
   };
 }
 

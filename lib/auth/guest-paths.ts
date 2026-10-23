@@ -11,6 +11,7 @@ export function isJoinBarPage(pathname: string): boolean {
   if (/^\/u\/[^/]+$/.test(path)) return true;
   if (/^\/u\/[^/]+\/cards\/[^/]+$/.test(path)) return true;
   if (/^\/cards\/[^/]+\/posts$/.test(path)) return true;
+  if (/^\/p\/[^/]+$/.test(path)) return true;
   return false;
 }
 
