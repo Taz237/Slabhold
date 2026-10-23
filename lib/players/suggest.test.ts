@@ -12,6 +12,7 @@ import {
   customPlayerFallback,
   nameSuggestionLabel,
   playerNameMatches,
+  titleCaseKeepingDots,
   titleCasePlayerName,
   withDirectoryPlayers,
 } from "./suggest";
@@ -448,6 +449,22 @@ describe("directory name search", () => {
       distinct.map((hit) => `${hit.value}/${hit.sport}`),
       ["Will Smith/Baseball", "Will Smith/Hockey", "Matt Green/Football", "Matt C. Green/Football"],
     );
+  });
+
+  it("uppercases only a single letter before a dot", () => {
+    assert.equal(titleCaseKeepingDots("l.messi"), "L.Messi");
+    assert.equal(titleCaseKeepingDots("L.MESSI"), "L.Messi");
+    assert.equal(titleCaseKeepingDots("a.b. newguy"), "A.B. Newguy");
+    assert.equal(titleCaseKeepingDots("L.Messi"), "L.Messi");
+    const custom = withDirectoryPlayers({
+      query: "l.messi",
+      catalogHits: [],
+      directoryPlayers: [],
+      directoryReady: true,
+    });
+    assert.equal(custom[0]?.value, "L.Messi");
+    assert.equal(custom[0]?.custom, true);
+    assert.equal(nameSuggestionLabel(custom[0]!), 'Add "L.Messi"');
   });
 
   it("uppercases two-letter initials when the rest of the name is cased for them", () => {

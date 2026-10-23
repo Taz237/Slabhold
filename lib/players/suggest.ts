@@ -504,15 +504,40 @@ export function withDirectoryPlayers(input: {
   return [custom];
 }
 
-/** "a.b. newguy" stays "A.B. Newguy" when no catalog or roster row supplies a spelling. */
-function titleCaseKeepingDots(value: string): string {
+/**
+ * "a.b. newguy" stays "A.B. Newguy" when no catalog or roster row supplies a spelling.
+ * A dotted word uppercases only a single letter before a dot, so "l.messi" is "L.Messi".
+ */
+export function titleCaseKeepingDots(value: string): string {
   const collapsed = value.trim().replace(/\u2060/g, "").replace(/\s+/g, " ").normalize("NFC");
   if (!collapsed || hasMixedCase(collapsed)) return collapsed;
   return collapsed
     .split(" ")
     .map((word, index) => {
       if (!word.includes(".")) return titleToken(word, index);
-      return word.replace(/\p{L}/gu, (letter) => letter.toLocaleUpperCase());
+      return titleCaseDottedWord(word, index);
     })
     .join(" ");
+}
+
+/** "l.messi" → "L.Messi". A longer run before a dot stays title case. */
+function titleCaseDottedWord(word: string, wordIndex: number): string {
+  let result = "";
+  let chunk = "";
+  const flush = (beforeDot: boolean) => {
+    if (!chunk) return;
+    if (beforeDot && /^\p{L}$/u.test(chunk)) result += chunk.toLocaleUpperCase();
+    else result += titleToken(chunk, wordIndex);
+    chunk = "";
+  };
+  for (const char of word) {
+    if (char === ".") {
+      flush(true);
+      result += ".";
+      continue;
+    }
+    chunk += char;
+  }
+  flush(false);
+  return result;
 }

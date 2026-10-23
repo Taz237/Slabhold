@@ -5,18 +5,24 @@ import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { searchCatalog } from "@/lib/card-catalog";
 import { INDEXED_DIRECTORY } from "@/lib/players/directory";
-import { withDirectoryPlayers } from "@/lib/players/suggest";
+import { nameSuggestionLabel, withDirectoryPlayers } from "@/lib/players/suggest";
 import { COLLECT_TEAMS, interestTypeahead } from "@/lib/social/collect-interests";
+import { majorityPlayerSpelling } from "@/lib/social/follow-rank";
 import {
+  COLLECT_SEARCH_TIMEOUT_MS,
   NameSearch,
   alternateInitialQuery,
   cardSearchQueries,
+  collectSearchResultApplies,
+  collectSearchTimeoutResult,
+  dedupeSearchCardGroups,
   hitsBeforeDirectoryReady,
   nameHitKey,
   pickedNameLabel,
   selectableCollectHits,
   toggleName,
   withoutName,
+  type SearchCardRow,
 } from "@/components/collect-editor";
 
 delete process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -158,6 +164,80 @@ async function typeBackspaceRetype(sports: readonly string[]) {
 }
 
 describe("collect name rows", () => {
+  it("ignores an out-of-order search response", () => {
+    let latest = { requestId: 1, query: "will smit" };
+    let players: { name: string; sport: string }[] = [];
+    const apply = (response: { requestId: number; query: string; players: { name: string; sport: string }[] }) => {
+      if (!collectSearchResultApplies(response, latest)) return;
+      players = response.players;
+    };
+    latest = { requestId: 2, query: "will smith" };
+    apply({
+      requestId: 2,
+      query: "will smith",
+      players: [
+        { name: "Will Smith", sport: "Baseball" },
+        { name: "Will Smith", sport: "Hockey" },
+      ],
+    });
+    apply({ requestId: 1, query: "will smit", players: [] });
+    apply({ requestId: 2, query: "will smit", players: [] });
+    assert.deepEqual(
+      players.map((row) => `${row.name}:${row.sport}`),
+      ["Will Smith:Baseball", "Will Smith:Hockey"],
+    );
+  });
+
+  it("dedupes merged search_cards groups by id", () => {
+    const dotted = Array.from({ length: 5 }, (_, index) => ({
+      id: `dot-${index}`,
+      player: "C.J. Stroud",
+      sport: "Football",
+    }));
+    const plain = Array.from({ length: 6 }, (_, index) => ({
+      id: `cj-${index}`,
+      player: "CJ Stroud",
+      sport: "Football",
+    }));
+    const merged = dedupeSearchCardGroups([dotted, [...dotted, ...plain]]);
+    assert.equal(merged.length, 11);
+    assert.equal(merged.filter((row) => row.name === "C.J. Stroud").length, 5);
+    assert.equal(merged.filter((row) => row.name === "CJ Stroud").length, 6);
+    assert.equal(majorityPlayerSpelling(merged.map((row) => row.name)), "CJ Stroud");
+    const countedTwice = [...dotted, ...dotted, ...plain].map((row) => row.player ?? "");
+    assert.equal(majorityPlayerSpelling(countedTwice), "C.J. Stroud");
+  });
+
+  it("settles a stalled search_cards call so the Add row can appear", async () => {
+    assert.equal(COLLECT_SEARCH_TIMEOUT_MS, 3_000);
+    let release: (rows: SearchCardRow[]) => void = () => {};
+    const hung = new Promise<SearchCardRow[]>((resolve) => {
+      release = resolve;
+    });
+    const settled = await collectSearchTimeoutResult(hung, 20, [] as SearchCardRow[]);
+    assert.deepEqual(settled, []);
+    release([{ id: "late", player: "Will Smith", sport: "Baseball" }]);
+    const hits = selectableCollectHits(
+      [{ kind: "player" as const, value: "L. Messi", custom: true }],
+      [],
+      true,
+    );
+    assert.equal(hits[0]?.custom, true);
+    assert.equal(
+      nameSuggestionLabel({ kind: "player", value: "L. Messi", sport: "", custom: true }),
+      'Add "L. Messi"',
+    );
+  });
+
+  it("keeps a fast search_cards result ahead of the timeout", async () => {
+    const rows = await collectSearchTimeoutResult(
+      Promise.resolve([{ id: "1", player: "CJ Stroud", sport: "Football" }]),
+      50,
+      [] as SearchCardRow[],
+    );
+    assert.deepEqual(dedupeSearchCardGroups([rows]), [{ name: "CJ Stroud", sport: "Football" }]);
+  });
+
   it("dedupes saved names on the compact key", () => {
     const added = toggleName([], { kind: "player", value: "CJ Stroud", sport: "Football" });
     const again = toggleName(added, { kind: "player", value: "CJ Stroud", sport: "Football" });

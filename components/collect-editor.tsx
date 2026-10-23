@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { X } from "lucide-react";
 import { searchCatalog } from "@/lib/card-catalog";
 import { collapseInitials } from "@/lib/players/initials";
@@ -95,6 +95,127 @@ export function cardSearchQueries(query: string): string[] {
   return [primary, extra];
 }
 
+/** Stop waiting on a hung search_cards call so the Add row can still appear. */
+export const COLLECT_SEARCH_TIMEOUT_MS = 3_000;
+
+const COLLECT_SEARCH_DEBOUNCE_MS = 120;
+
+export type SearchCardRow = {
+  id?: string | null;
+  player?: string | null;
+  sport?: string | null;
+};
+
+/** False when a slower earlier search would replace the current input's rows. */
+export function collectSearchResultApplies(
+  incoming: { requestId: number; query: string },
+  latest: { requestId: number; query: string },
+): boolean {
+  return incoming.requestId === latest.requestId && incoming.query.trim() === latest.query.trim();
+}
+
+/**
+ * One row per card id. "c.j. stroud" and "cj stroud" can both return the same
+ * card, and counting it twice would tip C.J. vs CJ the wrong way.
+ */
+export function dedupeSearchCardGroups(
+  groups: readonly (readonly SearchCardRow[])[],
+): { name: string; sport: string }[] {
+  const seen = new Set<string>();
+  const players: { name: string; sport: string }[] = [];
+  for (const group of groups) {
+    for (const row of group) {
+      const name = row.player?.trim() ?? "";
+      if (!name) continue;
+      const id = row.id?.trim() ?? "";
+      if (id) {
+        if (seen.has(id)) continue;
+        seen.add(id);
+      }
+      players.push({ name, sport: row.sport?.trim() || "" });
+    }
+  }
+  return players;
+}
+
+/** Resolves with fallback when request is still pending after timeoutMs. */
+export function collectSearchTimeoutResult<T>(
+  request: Promise<T>,
+  timeoutMs: number,
+  fallback: T,
+  onTimeout?: () => void,
+): Promise<T> {
+  return new Promise((resolve) => {
+    let settled = false;
+    const timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      onTimeout?.();
+      resolve(fallback);
+    }, timeoutMs);
+    void request.then(
+      (value) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        resolve(value);
+      },
+      () => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        resolve(fallback);
+      },
+    );
+  });
+}
+
+type SearchCardsClient = NonNullable<ReturnType<typeof createSupabaseBrowser>>;
+
+async function loadSearchCardRows(
+  supabase: SearchCardsClient,
+  term: string,
+  signal: AbortSignal,
+): Promise<SearchCardRow[]> {
+  try {
+    const builder = supabase.rpc("search_cards", { q: term, max_results: 20 });
+    const pending =
+      typeof (builder as { abortSignal?: (rpcSignal: AbortSignal) => typeof builder }).abortSignal ===
+      "function"
+        ? (builder as { abortSignal: (rpcSignal: AbortSignal) => typeof builder }).abortSignal(signal)
+        : builder;
+    const { data, error } = await pending;
+    if (signal.aborted || error || !data) return [];
+    return data as SearchCardRow[];
+  } catch {
+    return [];
+  }
+}
+
+async function loadCollectSearchPlayers(
+  supabase: SearchCardsClient,
+  query: string,
+  parent: AbortSignal,
+): Promise<{ name: string; sport: string }[]> {
+  const groups = await Promise.all(
+    cardSearchQueries(query).map((term) => {
+      const child = new AbortController();
+      const abortChild = () => child.abort();
+      if (parent.aborted) abortChild();
+      else parent.addEventListener("abort", abortChild, { once: true });
+      return collectSearchTimeoutResult(
+        loadSearchCardRows(supabase, term, child.signal),
+        COLLECT_SEARCH_TIMEOUT_MS,
+        [] as SearchCardRow[],
+        abortChild,
+      ).finally(() => {
+        parent.removeEventListener("abort", abortChild);
+      });
+    }),
+  );
+  return dedupeSearchCardGroups(groups);
+}
+
 export function NameSearch({
   sports,
   selected,
@@ -109,36 +230,43 @@ export function NameSearch({
   const [query, setQuery] = useState("");
   const [remoteQuery, setRemoteQuery] = useState("");
   const [remotePlayers, setRemotePlayers] = useState<{ name: string; sport: string }[]>([]);
+  const requestRef = useRef(0);
+  const queryRef = useRef(query);
   const names = selected.filter((pick) => pick.kind !== "sport");
 
+  function setSearchQuery(value: string) {
+    queryRef.current = value;
+    requestRef.current += 1;
+    setQuery(value);
+  }
+
   useEffect(() => {
+    const requestId = requestRef.current;
     const q = query.trim();
     if (q.length < 1) return;
     const supabase = createSupabaseBrowser();
     if (!supabase) return;
-    let cancelled = false;
+    const controller = new AbortController();
     const timer = window.setTimeout(() => {
-      void Promise.all(
-        cardSearchQueries(q).map((term) =>
-          Promise.resolve(
-            supabase.rpc("search_cards", { q: term, max_results: 20 }).then(({ data, error }) => {
-              if (error || !data) return [];
-              const rows = data as { player?: string; sport?: string | null }[];
-              return rows
-                .filter((row) => row.player)
-                .map((row) => ({ name: row.player ?? "", sport: row.sport || "" }));
-            }),
-          ).catch(() => [] as { name: string; sport: string }[]),
-        ),
-      ).then((groups) => {
-        if (cancelled) return;
-        setRemoteQuery(q);
-        setRemotePlayers(groups.flat());
-      });
-    }, 120);
+      void loadCollectSearchPlayers(supabase, q, controller.signal)
+        .catch(() => [] as { name: string; sport: string }[])
+        .then((players) => {
+          if (
+            !collectSearchResultApplies(
+              { requestId, query: q },
+              { requestId: requestRef.current, query: queryRef.current },
+            )
+          ) {
+            return;
+          }
+          setRemoteQuery(q);
+          setRemotePlayers(players);
+        });
+    }, COLLECT_SEARCH_DEBOUNCE_MS);
     return () => {
-      cancelled = true;
       window.clearTimeout(timer);
+      requestRef.current += 1;
+      controller.abort();
     };
   }, [query]);
 
@@ -197,7 +325,7 @@ export function NameSearch({
         <span className="sr-only">Search players and teams</span>
         <input
           value={query}
-          onChange={(event) => setQuery(event.target.value)}
+          onChange={(event) => setSearchQuery(event.target.value)}
           placeholder="Search players and teams"
           autoCapitalize="none"
           autoCorrect="off"
@@ -229,7 +357,7 @@ export function NameSearch({
                   const sharedName =
                     hit.kind === "player" && playerNameIsShared(hit.value, directory.players);
                   onAdd(sharedName ? { ...hit, sharedName: true } : hit);
-                  setQuery("");
+                  setSearchQuery("");
                 }}
                 className="flex min-h-11 w-full items-center justify-between gap-3 px-4 text-left text-[15px] hover:bg-zinc-100 dark:hover:bg-white/10"
               >
