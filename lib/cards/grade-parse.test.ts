@@ -132,7 +132,7 @@ describe("grade select display", () => {
     const mail = read("components/mail-day-form.tsx").toString("utf8");
     assert.match(form, /gradeSelectOptions\(gradeCompany, gradeNumber\)/);
     assert.match(mail, /gradeSelectOptions\(section\.grader, section\.grade\)/);
-    assert.match(form, /Boolean\(gradeNumber\)/);
+    assert.match(read("lib/cards/new-card-draft.ts").toString("utf8"), /Boolean\(input\.gradeNumber\)/);
   });
 });
 

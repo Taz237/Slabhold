@@ -2,8 +2,13 @@ import { centsToDollars } from "@/lib/comps/stats";
 import { money } from "@/lib/format";
 import { formatRelativeTime } from "@/lib/relative-time";
 
-/** Stored sold rows have no marketplace column. The comps list already calls them eBay. */
-export const STORED_SALE_SOURCE = "eBay";
+/** Stored sold rows have no marketplace column. Rows say Recent sold, never a marketplace name. */
+export const STORED_SALE_SOURCE = "Recent sold";
+
+/** Sale-row source. A marketplace name is not a label we show. */
+export function soldSourceLabel(source: string): string {
+  return source.trim().toLowerCase() === "ebay" ? STORED_SALE_SOURCE : source;
+}
 
 export const NOT_ENOUGH_RECENT_SALES = "Not enough recent sales yet";
 

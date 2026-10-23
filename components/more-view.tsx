@@ -8,6 +8,7 @@ import { AdminMoreSection } from "@/components/admin-nav-link";
 import { DeleteAccount } from "@/components/delete-account";
 import { useSocial } from "@/components/social-provider";
 import { markLogoutHome } from "@/lib/auth/logout-home";
+import { clearNewCardDraft } from "@/lib/cards/new-card-draft";
 import { loginPath, signupPath } from "@/lib/auth/safe-next";
 
 export function MoreView() {
@@ -59,6 +60,7 @@ export function MoreView() {
                 type="button"
                 onClick={() => {
                   markLogoutHome();
+                  clearNewCardDraft();
                   void signOut().then(() => router.replace("/"));
                 }}
                 className="rounded-full border border-zinc-300 px-4 py-2 text-sm font-medium dark:border-white/15"

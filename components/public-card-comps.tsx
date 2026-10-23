@@ -4,6 +4,7 @@ import Link from "next/link";
 import { centsToDollars } from "@/lib/comps/stats";
 import {
   publicCompsVerdict,
+  soldSourceLabel,
   type PublicCardComps,
 } from "@/lib/comps/public-types";
 import { trackEvent, type AnalyticsSender } from "@/lib/analytics";
@@ -41,7 +42,7 @@ export function PublicCardCompsPreview({
                 <p className="text-sm text-zinc-800 dark:text-zinc-100">{sale.grade}</p>
                 <p className="mt-0.5 text-xs text-zinc-500">
                   <span className="tabular-nums">{formatDate(sale.soldAt)}</span>
-                  {sale.source ? ` · ${sale.source}` : null}
+                  {sale.source ? ` · ${soldSourceLabel(sale.source)}` : null}
                 </p>
               </div>
               <p className="shrink-0 text-sm font-semibold tabular-nums whitespace-nowrap">

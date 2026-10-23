@@ -320,6 +320,34 @@ export function CardDetail({ id }: { id: string }) {
         }}
       />
 
+      {editing ? null : (
+        <section aria-label="Visibility and collection" className="min-w-0 space-y-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                updateCard(card.id, publicTogglePatch(card, !card.isPublic));
+                if (!card.isPublic) dismissPrivacyNudge();
+              }}
+              className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                card.isPublic
+                  ? "bg-violet-500/15 text-violet-700 dark:text-violet-300"
+                  : "bg-zinc-100 text-zinc-600 dark:bg-white/10 dark:text-zinc-300"
+              }`}
+            >
+              {card.isPublic ? "Public on profile" : "Private"}
+            </button>
+          </div>
+          <div className="min-w-0">
+            <p className="mb-2 text-sm text-zinc-500">Move this card</p>
+            <CategoryPicker
+              value={cardCategory(card)}
+              onChange={(category) => updateCard(card.id, { category })}
+            />
+          </div>
+        </section>
+      )}
+
       <SharedPostNote key={card.id} cardId={card.id} />
 
       {privacyNudge ? (
@@ -451,29 +479,6 @@ export function CardDetail({ id }: { id: string }) {
             fairLow={cardValueHasAmount(shownValue) ? shownValue.low : null}
             fairHigh={cardValueHasAmount(shownValue) ? shownValue.high : null}
           />
-
-          <div>
-            <p className="mb-2 text-sm text-zinc-500">Move this card</p>
-            <CategoryPicker
-              value={cardCategory(card)}
-              onChange={(category) => updateCard(card.id, { category })}
-            />
-          </div>
-
-          <button
-            type="button"
-            onClick={() => {
-              updateCard(card.id, publicTogglePatch(card, !card.isPublic));
-              if (!card.isPublic) dismissPrivacyNudge();
-            }}
-            className={`rounded-full px-3 py-1 text-xs font-semibold ${
-              card.isPublic
-                ? "bg-violet-500/15 text-violet-700 dark:text-violet-300"
-                : "bg-zinc-100 text-zinc-600 dark:bg-white/10 dark:text-zinc-300"
-            }`}
-          >
-            {card.isPublic ? "Public on profile" : "Private"}
-          </button>
 
           {!cardSold ? (
             <div className="flex max-w-sm flex-col gap-2">

@@ -16,6 +16,8 @@ import {
   hiddenPublicComps,
   NOT_ENOUGH_RECENT_SALES,
   SAMPLE_COMPS_LABEL,
+  soldSourceLabel,
+  STORED_SALE_SOURCE,
   TRAWL_SOURCE_CREDIT,
   type PublicCardComps,
   type PublicCompSale,
@@ -323,7 +325,7 @@ describe("getPublicCardComps", () => {
     );
     for (const sale of stripped) {
       assert.deepEqual(Object.keys(sale).sort(), ["grade", "priceCents", "soldAt", "source"]);
-      assert.equal(sale.source, "eBay");
+      assert.equal(sale.source, "Recent sold");
       assert.equal(sale.grade, "PSA 10");
     }
 
@@ -544,6 +546,13 @@ describe("getPublicCardComps", () => {
 });
 
 describe("public comps verdict", () => {
+  it("labels a marketplace source as Recent sold", () => {
+    assert.equal(STORED_SALE_SOURCE, "Recent sold");
+    assert.equal(soldSourceLabel("eBay"), "Recent sold");
+    assert.equal(soldSourceLabel(" ebay "), "Recent sold");
+    assert.equal(soldSourceLabel("Recent sold"), "Recent sold");
+  });
+
   it("shows a range at nSales >= 3 when status is ok", () => {
     const comps: PublicCardComps = {
       sales: [
@@ -565,7 +574,8 @@ describe("public comps verdict", () => {
     assert.ok(html.includes(TRAWL_SOURCE_CREDIT));
     assert.match(html, /\$40\.00/);
     assert.match(html, /PSA 10/);
-    assert.match(html, /eBay/);
+    assert.match(html, /Recent sold/);
+    assert.doesNotMatch(html, /· eBay/);
   });
 
   it("says there are not enough recent sales below 3", () => {
