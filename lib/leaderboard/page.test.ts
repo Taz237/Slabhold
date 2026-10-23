@@ -112,10 +112,12 @@ describe("leaderboard page", () => {
     assert.doesNotMatch(html, /pb-\[10\.5rem\]|sticky bottom-/);
     assert.match(html, /data-you-row=""[\s\S]{0,40}bg-zinc-950 |bg-zinc-950 px-3 py-2" data-you-row=""/);
     assert.doesNotMatch(html, /bg-zinc-950\/95/);
-    assert.match(html, /-mb-\[calc\(8\.25rem\+env\(safe-area-inset-bottom\)\)\]/);
+    assert.match(html, /-mb-\[calc\(7rem\+env\(safe-area-inset-bottom\)\)\]/);
+    assert.match(html, /md:-mb-\[calc\(10rem\+env\(safe-area-inset-bottom\)\)\]/);
+    assert.doesNotMatch(html, /8\.25rem|11\.25rem/);
     assert.match(
       html,
-      /whitespace-nowrap">\u00A0·\u00A0<span data-standing="">Provisional<\/span><\/span><span class="whitespace-nowrap">\u00A0·\u00A0/,
+      /whitespace-nowrap"> ·\u00A0<span data-standing="">Provisional<\/span><\/span><span class="whitespace-nowrap"> ·\u00A0/,
     );
     assert.match(html, /whitespace-nowrap tabular-nums/);
     assert.doesNotMatch(html, /data-board="value"/);
@@ -284,6 +286,8 @@ describe("leaderboard page", () => {
     assert.match(read("components/leaderboard-chips.tsx"), /scrollLeft/);
     assert.doesNotMatch(read("components/leaderboard-chips.tsx"), /scrollIntoView/);
     assert.match(read("components/leaderboard-chips.tsx"), /useLinkStatus/);
+    assert.match(read("components/leaderboard-chips.tsx"), /aria-current=\{highlighted \? "page" : undefined\}/);
+    assert.match(read("components/leaderboard-chips.tsx"), /pendingId \? tab\.id === pendingId : tab\.active/);
     assert.match(read("components/leaderboard-chips.tsx"), /<Link/);
     assert.doesNotMatch(read("components/leaderboard-chips.tsx"), /preventDefault/);
     assert.match(read("components/leaderboard-chips.tsx"), /touch-manipulation/);

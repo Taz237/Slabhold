@@ -162,7 +162,7 @@ export function LeaderboardView({ model }: { model: LeaderboardPageModel }) {
     <div
       className={`-mx-4 -mt-5 bg-zinc-950 text-zinc-100${
         model.you
-          ? " -mb-[calc(8.25rem+env(safe-area-inset-bottom))] pb-[calc(8.25rem+env(safe-area-inset-bottom))] md:-mb-[calc(11.25rem+env(safe-area-inset-bottom))] md:pb-[calc(11.25rem+env(safe-area-inset-bottom))]"
+          ? " -mb-[calc(7rem+env(safe-area-inset-bottom))] pb-[calc(7rem+env(safe-area-inset-bottom))] md:-mb-[calc(10rem+env(safe-area-inset-bottom))] md:pb-[calc(10rem+env(safe-area-inset-bottom))]"
           : ""
       }`}
       data-leaderboard=""
@@ -201,12 +201,12 @@ export function LeaderboardView({ model }: { model: LeaderboardPageModel }) {
         <p className="mt-3 text-sm text-zinc-400">
           <span className="font-medium text-zinc-100">{model.weekLabel}</span>
           <span className="whitespace-nowrap">
-            {"\u00A0·\u00A0"}
+            {" ·\u00A0"}
             <span data-standing="">{model.standing}</span>
           </span>
           {model.showCountdown ? (
             <span className="whitespace-nowrap">
-              {"\u00A0·\u00A0"}
+              {" ·\u00A0"}
               <LeaderboardCountdown resetsAt={model.resetsAt} initialLabel={model.countdownLabel} />
             </span>
           ) : null}
