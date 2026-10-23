@@ -9,6 +9,7 @@ import { loadInboxPage, loadRecentMessages, loadSupabaseSocial, loadThreadPage }
 import {
   FOLLOW_LIST_PAGE_SIZE,
   NOTIFICATION_PAGE_SIZE,
+  cardHiddenAuthorIds,
   loadFollowList,
   loadNewestFeedHead,
   loadNotificationPage,
@@ -156,6 +157,11 @@ describe("viewer shell", () => {
     const follows = fromCalls(fake.calls).find((call) => call.name === "follows");
     assert.match(follows?.ops.find((op) => op.startsWith("or:")) ?? "", new RegExp(VIEWER));
     assert.equal(fake.calls.filter((call) => call.kind === "rpc" && call.name === "hidden_author_ids").length, 1);
+    assert.deepEqual(snapshot.hiddenAuthorIds, []);
+    assert.deepEqual(cardHiddenAuthorIds(["blocked", "muted"], ["muted"]), ["blocked"]);
+    const shellSource = readFileSync(join(process.cwd(), "lib/social/scoped-reads.ts"), "utf8");
+    assert.match(shellSource, /hiddenAuthorIds: cardHiddenAuthorIds\(hiddenAuthorIds, mutedIds\)/);
+    assert.match(shellSource, /hiddenAuthorIds: shell\.hiddenAuthorIds \?\? \[\]/);
     const notes = fromCalls(fake.calls).find((call) => call.name === "notifications");
     const messages = fromCalls(fake.calls).find((call) => call.name === "messages");
     assert.equal(notes?.ops.includes("head:true"), false);

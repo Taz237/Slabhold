@@ -84,6 +84,7 @@ export function emptySocialSnapshot(): SocialSnapshot {
     blockedIds: [],
     mutedIds: [],
     safetyAccounts: [],
+    hiddenAuthorIds: [],
   };
 }
 
@@ -157,6 +158,15 @@ export function replaceOwnerCards(
   return [...current.filter((card) => card.ownerId !== ownerId), ...next];
 }
 
+/** Card pages use the block list. Mutes stay on the feed list and do not hide a card. */
+export function cardHiddenAuthorIds(
+  hiddenAuthorIds: readonly string[],
+  mutedIds: readonly string[],
+): string[] {
+  const muted = new Set(mutedIds);
+  return hiddenAuthorIds.filter((id) => !muted.has(id));
+}
+
 export function applyViewerShell(existing: SocialSnapshot, shell: SocialSnapshot): SocialSnapshot {
   if (!shell.user) return emptySocialSnapshot();
   if (existing.user && existing.user.id !== shell.user.id) return shell;
@@ -168,6 +178,7 @@ export function applyViewerShell(existing: SocialSnapshot, shell: SocialSnapshot
     blockedIds: shell.blockedIds ?? [],
     mutedIds: shell.mutedIds ?? [],
     safetyAccounts: shell.safetyAccounts ?? existing.safetyAccounts ?? [],
+    hiddenAuthorIds: shell.hiddenAuthorIds ?? [],
   };
 }
 
@@ -280,6 +291,7 @@ export async function loadShellBundle(supabase: SupabaseClient): Promise<ShellBu
       blockedIds,
       mutedIds,
       safetyAccounts,
+      hiddenAuthorIds: cardHiddenAuthorIds(hiddenAuthorIds, mutedIds),
     },
     hiddenAuthorIds,
     unread,
