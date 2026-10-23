@@ -310,7 +310,8 @@ async function readSnapshot(weekStart: Date): Promise<LeaderboardSnapshot> {
   const current = weekContaining(weekStart);
   const previous = previousWeek(weekStart);
   const input = await readInput(admin as unknown as Admin, previous.start.toISOString(), current.end.toISOString());
-  return snapshotFromInput({ ...input, now: weekStart }, weekStart);
+  const scoredAt = new Date();
+  return snapshotFromInput({ ...input, now: weekStart }, weekStart, scoredAt);
 }
 
 /**

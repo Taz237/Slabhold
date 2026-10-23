@@ -4,6 +4,7 @@ import { OFFICIAL_UPDATES_USER_ID } from "@/lib/social/official-updates";
 import { buildWeekBoards, getPostLikeActors, type BoardCard, type BoardFollow, type BoardLike, type BoardPost, type BoardProfile, type BoardReply, type ScoreInput } from "./score";
 import { ACTOR_MIN_AGE_DAYS, OFFICIAL_UPDATES_HANDLE } from "./rules";
 import { rankBoard } from "./present";
+import { snapshotFromInput } from "./snapshot";
 import { weekContaining } from "./week";
 
 const WEEK = weekContaining(new Date("2026-10-23T18:00:00.000Z"));
@@ -518,6 +519,75 @@ describe("most cards added", () => {
       }),
     )["most-cards-added"]?.rows ?? [];
     assert.equal(rows.find((row) => row.userId === "author")?.contributions[0]?.points, 2);
+  });
+
+  it("accepts a trailing-slash project url and rejects traversal and query variants", () => {
+    process.env.NEXT_PUBLIC_SUPABASE_URL = `${ORIGIN}/`;
+    const rows = boards(
+      base({
+        cards: [
+          added("kept", "author"),
+          added("dots", "author", {
+            player: "Dots",
+            imageUrl: `${ORIGIN}/storage/v1/object/public/card-photos/author/../../secrets/x.jpg`,
+          }),
+          added("encoded-dot", "author", {
+            player: "Encoded dot",
+            imageUrl: `${ORIGIN}/storage/v1/object/public/card-photos/author/%2e%2e/x.jpg`,
+          }),
+          added("encoded-slash", "author", {
+            player: "Encoded slash",
+            imageUrl: `${ORIGIN}/storage/v1/object/public/card-photos/author/%2fx.jpg`,
+          }),
+          added("encoded-percent", "author", {
+            player: "Encoded percent",
+            imageUrl: `${ORIGIN}/storage/v1/object/public/card-photos/author/%25.jpg`,
+          }),
+          added("query", "author", {
+            player: "Query",
+            imageUrl: `${photo("author", "query")}?download=1`,
+          }),
+          added("hash", "author", {
+            player: "Hash",
+            imageUrl: `${photo("author", "hash")}#top`,
+          }),
+          added("same-path", "author", {
+            player: "Same path",
+            imageUrl: photo("author", "kept").replace("https://proj.", "https://PROJ."),
+          }),
+        ],
+      }),
+    )["most-cards-added"]?.rows ?? [];
+    process.env.NEXT_PUBLIC_SUPABASE_URL = ORIGIN;
+    assert.equal(rows.find((row) => row.userId === "author")?.contributions[0]?.points, 1);
+  });
+
+  it("counts a card from the cache-fill time when the week argument is the week start", () => {
+    const weekStart = WEEK.start;
+    const scoredAt = new Date(weekStart.getTime() + 24 * 60 * 60 * 1000);
+    const createdAt = new Date(scoredAt.getTime() - 60 * 60 * 1000).toISOString();
+    const afterScore = new Date(scoredAt.getTime() + 2 * 60 * 60 * 1000).toISOString();
+    const snapshot = snapshotFromInput(
+      base({
+        now: weekStart,
+        posts: [post("post-1", "author", ["card-1"], { createdAt: afterScore })],
+        cards: [
+          added("card-1", "author", { createdAt, player: "Live" }),
+          added("later", "author", { createdAt: afterScore, player: "Later" }),
+        ],
+        replies: [reply("r1", "fan", "post-1", { createdAt: afterScore })],
+        follows: [{ followerId: "fan2", followingId: "author", createdAt: afterScore, removedAt: null }],
+      }),
+      weekStart,
+      scoredAt,
+    );
+    const cards = snapshot.current.boards["most-cards-added"]?.rows ?? [];
+    assert.equal(cards.find((row) => row.userId === "author")?.contributions[0]?.points, 1);
+    assert.equal((snapshot.current.boards["top-card-post"]?.rows ?? []).some((row) => row.id === "post-1"), true);
+    assert.equal(
+      (snapshot.current.boards["rising-collectors"]?.rows ?? []).some((row) => row.userId === "author"),
+      true,
+    );
   });
 });
 

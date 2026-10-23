@@ -358,12 +358,31 @@ function normLabel(value: string): string {
   return value.trim().toLowerCase().replace(/\s+/g, " ");
 }
 
-function realPhoto(url: string | null, userId: string): boolean {
-  const value = url?.trim() ?? "";
+/** Pathname of a card photo that counts, or null. Dedupe uses this pathname. */
+function realPhoto(url: string | null, userId: string): string | null {
   const owner = userId.trim();
-  const origin = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
-  if (!value || !owner || !origin) return false;
-  return value.startsWith(`${origin}/storage/v1/object/public/card-photos/${owner}/`);
+  const raw = url?.trim() ?? "";
+  if (!raw || !owner) return null;
+  const lowered = raw.toLowerCase();
+  if (lowered.includes("..") || lowered.includes("%2e") || lowered.includes("%2f") || lowered.includes("%25")) {
+    return null;
+  }
+  let origin: string;
+  try {
+    origin = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL!.trim()).origin;
+  } catch {
+    return null;
+  }
+  let parsed: URL;
+  try {
+    parsed = new URL(raw);
+  } catch {
+    return null;
+  }
+  if (parsed.origin !== origin || parsed.search || parsed.hash) return null;
+  const prefix = `/storage/v1/object/public/card-photos/${owner}/`;
+  if (!parsed.pathname.startsWith(prefix)) return null;
+  return parsed.pathname;
 }
 
 function parallelKey(value: string): string {
@@ -410,7 +429,7 @@ function scoreCards(input: ScoreInput, week: WeekWindow, index: ActorIndex): Can
     const perDay = new Map<string, number>();
     let count = 0;
     for (const card of ordered) {
-      const photo = card.imageUrl?.trim() ?? "";
+      const photo = realPhoto(card.imageUrl, card.userId);
       if (!photo || seenPhotos.has(photo)) continue;
       const key = cardIdentity(card);
       if (seen.has(key)) continue;
