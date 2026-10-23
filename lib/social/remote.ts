@@ -73,6 +73,7 @@ type ProfileRow = {
   accent: string | null;
   created_at: string;
   is_test?: boolean | null;
+  pinned_post_id?: string | null;
 };
 
 type PostRow = {
@@ -238,6 +239,7 @@ function mapProfile(row: ProfileRow, email = ""): Profile {
     coverDataUrl: row.cover_url ?? null,
     accent: row.accent ?? "#7c5cff",
     createdAt: row.created_at,
+    pinnedPostId: typeof row.pinned_post_id === "string" ? row.pinned_post_id : null,
     ...(row.is_test === true ? { isTest: true } : {}),
   };
 }
@@ -1220,6 +1222,26 @@ export async function searchProfilesForMention(
       accent: "#7c5cff",
     }),
   );
+}
+
+function pinError(error: { message?: string } | null): string | undefined {
+  if (!error) return undefined;
+  if (/can only pin your own post/i.test(error.message ?? "")) {
+    return "You can only pin your own post.";
+  }
+  return error.message || "Could not update your pin.";
+}
+
+export async function remotePinPost(supabase: SupabaseClient, postId: string): Promise<AuthResult> {
+  const { error } = await supabase.rpc("pin_post", { post_id: postId });
+  const message = pinError(error);
+  return message ? { error: message } : {};
+}
+
+export async function remoteUnpinPost(supabase: SupabaseClient): Promise<AuthResult> {
+  const { error } = await supabase.rpc("unpin_post");
+  const message = pinError(error);
+  return message ? { error: message } : {};
 }
 
 export async function remoteDeletePost(supabase: SupabaseClient, authorId: string, postId: string) {

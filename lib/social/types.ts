@@ -10,6 +10,8 @@ export type Profile = {
   createdAt: string;
   /** Set when profiles.is_test is true. Hidden from follow suggestions. */
   isTest?: boolean;
+  /** The post this profile pins. Null when nothing is pinned. */
+  pinnedPostId?: string | null;
 };
 
 export type PublicCard = {

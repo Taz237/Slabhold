@@ -21,6 +21,7 @@ import {
   replyMentionCandidates,
 } from "./reply-mentions";
 import { draftPostPhotos } from "./post-photos";
+import { decidePin, pinnedPostIdAfterDelete } from "./profile-tabs";
 import { shouldNotifyQuoteAuthor, validateQuoteContent } from "./quotes";
 import { COMMENT_LIMIT, MESSAGE_LIMIT } from "./types";
 import { isOfficialUpdatesAccount } from "./official-updates";
@@ -209,6 +210,7 @@ function toProfile(user: StoredUser): Profile {
     coverDataUrl: user.coverDataUrl ?? null,
     accent: user.accent,
     createdAt: user.createdAt,
+    pinnedPostId: user.pinnedPostId ?? null,
   };
 }
 
@@ -964,6 +966,39 @@ export function localDeleteComment(db: LocalDb, commentId: string): { db: LocalD
   };
 }
 
+export function localPinPost(db: LocalDb, postId: string): { db: LocalDb; error?: string } {
+  const actorId = db.sessionUserId;
+  if (!actorId) return { db, error: "Log in to pin a post." };
+  const post = db.posts.find((item) => item.id === postId) ?? null;
+  const decision = decidePin({
+    actorId,
+    profileId: actorId,
+    post: post ? { id: post.id, authorId: post.authorId } : null,
+  });
+  if (!decision.ok) return { db, error: decision.error };
+  return {
+    db: {
+      ...db,
+      users: db.users.map((user) =>
+        user.id === actorId ? { ...user, pinnedPostId: decision.pinnedPostId } : user,
+      ),
+    },
+  };
+}
+
+export function localUnpinPost(db: LocalDb): { db: LocalDb; error?: string } {
+  if (!db.sessionUserId) return { db, error: "You can only unpin your own profile." };
+  const actorId = db.sessionUserId;
+  return {
+    db: {
+      ...db,
+      users: db.users.map((user) =>
+        user.id === actorId ? { ...user, pinnedPostId: null } : user,
+      ),
+    },
+  };
+}
+
 export function localDeletePost(db: LocalDb, postId: string): { db: LocalDb; error?: string } {
   if (!db.sessionUserId) return { db, error: "Log in to delete." };
   const post = db.posts.find((item) => item.id === postId);
@@ -972,6 +1007,10 @@ export function localDeletePost(db: LocalDb, postId: string): { db: LocalDb; err
   return {
     db: {
       ...db,
+      users: db.users.map((user) => ({
+        ...user,
+        pinnedPostId: pinnedPostIdAfterDelete(user.pinnedPostId, postId),
+      })),
       posts: db.posts.filter((item) => item.id !== postId),
       comments: (db.comments ?? []).filter((comment) => comment.postId !== postId),
       likes: (db.likes ?? []).filter((like) => like.postId !== postId),

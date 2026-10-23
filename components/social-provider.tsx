@@ -27,6 +27,8 @@ import {
   localCreatePost,
   localDeleteComment,
   localDeletePost,
+  localPinPost,
+  localUnpinPost,
   stateAfterReplyDelete,
   localMarkNotificationsRead,
   localMarkThreadRead,
@@ -49,6 +51,8 @@ import {
   remoteCreatePost,
   remoteDeleteComment,
   remoteDeletePost,
+  remotePinPost,
+  remoteUnpinPost,
   remoteMarkNotificationsRead,
   remoteMarkThreadRead,
   remoteSendMessage,
@@ -108,6 +112,7 @@ import type {
   SocialSnapshot,
 } from "@/lib/social/types";
 import { draftPostPhotos, type PostWrite } from "@/lib/social/post-photos";
+import { profileReplies, profileWithPin } from "@/lib/social/profile-tabs";
 
 type SocialContextValue = {
   ready: boolean;
@@ -138,6 +143,8 @@ type SocialContextValue = {
     input: { body: string; imageDataUrl: string | null; images?: readonly string[] | null },
   ) => Promise<AuthResult>;
   deletePost: (postId: string) => Promise<AuthResult>;
+  pinPost: (postId: string) => Promise<AuthResult>;
+  unpinPost: () => Promise<AuthResult>;
   deleteComment: (commentId: string) => Promise<AuthResult>;
   toggleLike: (postId: string) => void;
   toggleRepost: (postId: string) => void;
@@ -148,6 +155,7 @@ type SocialContextValue = {
   repostCount: (postId: string) => number;
   reposts: PostRepost[];
   commentsFor: (postId: string) => PostComment[];
+  repliesBy: (userId: string) => ReturnType<typeof profileReplies>;
   notifications: Notification[];
   unreadCount: number;
   markNotificationsRead: (ids?: readonly string[]) => void;
@@ -851,6 +859,85 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
     [commitLocal, mode, refreshRemote, snapshot.user],
   );
 
+  const pinPost = useCallback(
+    async (postId: string): Promise<AuthResult> => {
+      const current = snapshotRef.current;
+      const userId = current.user?.id;
+      if (!userId) return { error: "Log in to pin a post." };
+      const known =
+        findKnownPost(current.posts, rememberedRef.current, postId, {
+          removedIds: removedRef.current,
+          blockedIds: new Set(current.blockedIds ?? []),
+        }) ?? current.posts.find((post) => post.id === postId);
+      if (known && known.authorId !== userId) {
+        return { error: "You can only pin your own post." };
+      }
+      const client = supabaseRef.current;
+      if (mode === "supabase" && client) {
+        try {
+          const result = await remotePinPost(client, postId);
+          if (result.error) {
+            setStatus(result.error);
+            return result;
+          }
+          setStatus(null);
+          setRemote((existing) => ({
+            ...existing,
+            user: existing.user ? profileWithPin([existing.user], userId, postId)[0]! : existing.user,
+            profiles: profileWithPin(existing.profiles, userId, postId),
+          }));
+          await refreshRemote(client);
+          return result;
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "Could not pin that post.";
+          setStatus(message);
+          return { error: message };
+        }
+      }
+      const localDb = localRef.current;
+      if (!localDb) return { error: "Still loading." };
+      const result = localPinPost(localDb, postId);
+      if (!result.error) commitLocal(result.db);
+      else setStatus(result.error);
+      return { error: result.error };
+    },
+    [commitLocal, mode, refreshRemote],
+  );
+
+  const unpinPost = useCallback(async (): Promise<AuthResult> => {
+    const current = snapshotRef.current;
+    const userId = current.user?.id;
+    if (!userId) return { error: "You can only unpin your own profile." };
+    const client = supabaseRef.current;
+    if (mode === "supabase" && client) {
+      try {
+        const result = await remoteUnpinPost(client);
+        if (result.error) {
+          setStatus(result.error);
+          return result;
+        }
+        setStatus(null);
+        setRemote((existing) => ({
+          ...existing,
+          user: existing.user ? profileWithPin([existing.user], userId, null)[0]! : existing.user,
+          profiles: profileWithPin(existing.profiles, userId, null),
+        }));
+        await refreshRemote(client);
+        return result;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Could not unpin that post.";
+        setStatus(message);
+        return { error: message };
+      }
+    }
+    const localDb = localRef.current;
+    if (!localDb) return { error: "Still loading." };
+    const result = localUnpinPost(localDb);
+    if (!result.error) commitLocal(result.db);
+    else setStatus(result.error);
+    return { error: result.error };
+  }, [commitLocal, mode, refreshRemote]);
+
   const deleteComment = useCallback(
     async (commentId: string): Promise<AuthResult> => {
       const current = snapshotRef.current;
@@ -1308,6 +1395,11 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
     [snapshot.comments],
   );
 
+  const repliesBy = useCallback(
+    (userId: string) => profileReplies(snapshot.comments, userId),
+    [snapshot.comments],
+  );
+
   const followerCount = useCallback(
     (userId: string) => snapshot.follows.filter((edge) => edge.followingId === userId).length,
     [snapshot.follows],
@@ -1490,6 +1582,8 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       createPost,
       updatePost,
       deletePost,
+      pinPost,
+      unpinPost,
       deleteComment,
       toggleLike,
       toggleRepost,
@@ -1506,6 +1600,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       safetyAccounts,
       applySafetyChange,
       commentsFor,
+      repliesBy,
       notifications,
       unreadCount,
       markNotificationsRead,
@@ -1540,6 +1635,9 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       updatePost,
       deleteComment,
       deletePost,
+      pinPost,
+      unpinPost,
+      repliesBy,
       feed,
       followMany,
       snapshot.follows,
