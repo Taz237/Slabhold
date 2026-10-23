@@ -2,7 +2,10 @@ import type { Notification, PostComment, PostLike, PostRepost } from "./types";
 
 const STORAGE_KEY = "slabhold.activity.v1";
 
-/** Likes stay on-device. Reposts, comments, notifications, and messages are stored in Supabase when it is configured. */
+/**
+ * Device copy of activity. Likes are stored on the account now.
+ * TODO: remove the localStorage likes fallback in 2 weeks (after 2026-11-06).
+ */
 export type ActivityStore = {
   likes: PostLike[];
   reposts: PostRepost[];

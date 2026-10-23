@@ -78,6 +78,10 @@ export type Post = {
   mailDay?: MailDayInfo | null;
   /** Every card on a Mail Day post. Empty for a normal post. */
   mailDayCards?: MailDayCardView[];
+  /** Server posts.like_count. Omitted until that column is loaded. */
+  likeCount?: number;
+  /** True when this viewer has a likes row. Omitted until that query runs. */
+  viewerLiked?: boolean;
 };
 
 export type FollowEdge = {
@@ -168,6 +172,8 @@ export type SocialSnapshot = {
   mutedIds?: string[];
   /** Profiles for the block and mute lists, including people hidden from the feed. */
   safetyAccounts?: Profile[];
+  /** True after a likes read succeeded. False or omitted keeps the device fallback. */
+  likesReady?: boolean;
 };
 
 export type SignUpInput = {

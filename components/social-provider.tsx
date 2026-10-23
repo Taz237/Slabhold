@@ -67,6 +67,13 @@ import {
   remoteUpdatePost,
   remoteUpdateProfile,
 } from "@/lib/social/remote";
+import {
+  likesMigratedFlag,
+  markLikesMigrated,
+  migrateStoredLikes,
+  optimisticLikeCount,
+  unionLikes,
+} from "@/lib/social/likes";
 import { offerSendError, parseCardPreview } from "@/lib/offers/open-to-offers";
 import { authSnapshotReload } from "@/lib/social/auth-snapshot";
 import { loadPostById, loadPostPage, type LoadedPostPage } from "@/lib/social/load-feed-page";
@@ -106,6 +113,7 @@ import type {
   Notification,
   Post,
   PostComment,
+  PostLike,
   PostRepost,
   Profile,
   ProfilePatch,
@@ -171,7 +179,7 @@ type SocialContextValue = {
   feed: TimelineItem[];
   follows: FollowEdge[];
   /** Merge posts loaded by a paged feed so likes, quotes, and edits can see them. */
-  rememberPosts: (posts: Post[], profiles?: Profile[]) => void;
+  rememberPosts: (posts: Post[], profiles?: Profile[], likes?: PostLike[] | null) => void;
   /** Snapshot posts plus posts remembered past the newest 100. */
   findPost: (postId: string) => Post | undefined;
   /** Posts deleted this session, hidden until the next full reload. */
@@ -222,6 +230,34 @@ function notificationsFor(user: { id: string } | null, notes: Notification[]): N
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
+function patchRememberedLike(post: Post, incoming: Post | undefined, pending: boolean): Post {
+  if (pending || !incoming) return post;
+  return {
+    ...post,
+    ...(typeof incoming.likeCount === "number" ? { likeCount: incoming.likeCount } : {}),
+    ...(typeof incoming.viewerLiked === "boolean" ? { viewerLiked: incoming.viewerLiked } : {}),
+  };
+}
+
+/** Replace this viewer's likes for the posts that were just loaded. */
+function viewerLikeSlice(
+  existing: SocialSnapshot,
+  likes: PostLike[] | null,
+  posts: readonly Post[],
+): Pick<SocialSnapshot, "likes" | "likesReady"> {
+  if (likes === null) return { likes: existing.likes, likesReady: existing.likesReady };
+  const userId = existing.user?.id;
+  if (!userId) return { likes: existing.likes, likesReady: true };
+  const ids = new Set(posts.map((post) => post.id));
+  return {
+    likes: [
+      ...existing.likes.filter((like) => like.userId !== userId || !ids.has(like.postId)),
+      ...likes.filter((like) => like.userId === userId && ids.has(like.postId)),
+    ],
+    likesReady: true,
+  };
+}
+
 const emptySnapshot: SocialSnapshot = {
   user: null,
   profiles: [],
@@ -252,10 +288,14 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
   } | null>(null);
   const [suggestionEpoch, setSuggestionEpoch] = useState(0);
   const [activity, setActivity] = useState<ActivityStore>(emptyActivity);
+  const [likesMigrated, setLikesMigrated] = useState(false);
   const [removedPostIds, setRemovedPostIds] = useState<ReadonlySet<string>>(() => new Set());
   const supabaseRef = useRef<SupabaseClient | null>(null);
   const localRef = useRef<LocalDb | null>(null);
   const likeQueue = useRef(Promise.resolve());
+  const likeGeneration = useRef(new Map<string, number>());
+  const pendingLikes = useRef(new Map<string, number>());
+  const snapshotRef = useRef(emptySnapshot);
   const repostQueue = useRef(Promise.resolve());
   const rememberedRef = useRef(createRememberedPosts());
   const removedRef = useRef<ReadonlySet<string>>(new Set());
@@ -318,18 +358,39 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       posts.push(post);
     }
     const blocked = new Set(page.blockedIds);
-    storeRemembered(rememberedRef.current, posts, page.profiles, blocked);
+    const pending = pendingLikes.current;
+    const kept = posts.map((post) => {
+      if (!pending.has(post.id)) return post;
+      const held =
+        rememberedRef.current.posts.get(post.id) ??
+        snapshotRef.current.posts.find((item) => item.id === post.id);
+      return held ? { ...post, likeCount: held.likeCount, viewerLiked: held.viewerLiked } : post;
+    });
+    storeRemembered(rememberedRef.current, kept, page.profiles, blocked);
     for (const removedId of removedRef.current) forgetRememberedPost(rememberedRef.current, removedId);
     setRemote((existing) => {
       if (fullSnapshotRef.current) {
-        return mergeRememberedSnapshot(existing, rememberedRef.current, removedRef.current);
+        const incoming = new Map(kept.map((post) => [post.id, post]));
+        const patch = (post: Post) =>
+          patchRememberedLike(post, incoming.get(post.id), pending.has(post.id));
+        return mergeRememberedSnapshot(
+          {
+            ...existing,
+            posts: existing.posts.map(patch),
+            homePosts: existing.homePosts?.map(patch),
+            ...viewerLikeSlice(existing, page.likes, kept),
+          },
+          rememberedRef.current,
+          removedRef.current,
+        );
       }
       return {
         user: page.user,
         profiles: page.profiles,
-        posts,
+        posts: kept,
         follows: [],
-        likes: [],
+        likes: page.likes ?? [],
+        likesReady: page.likes !== null,
         reposts: page.reposts,
         comments: page.comments,
         notifications: page.notifications,
@@ -488,19 +549,75 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
 
   const baseSnapshot = mode === "local" && local ? snapshotFromLocal(local) : remote;
   const postIds = new Set(baseSnapshot.posts.map((post) => post.id));
+  const viewerId = baseSnapshot.user?.id ?? null;
+  // TODO: remove the localStorage likes fallback in 2 weeks (after 2026-11-06).
+  const serverLikesReady = mode === "supabase" && likesMigrated && baseSnapshot.likesReady === true;
   const snapshot =
     mode === "supabase"
       ? {
           ...baseSnapshot,
-          likes: activity.likes,
+          likes: serverLikesReady
+            ? baseSnapshot.likes
+            : unionLikes(baseSnapshot.likes, activity.likes, viewerId),
           reposts: [
             ...baseSnapshot.reposts,
             ...activity.reposts.filter((repost) => !postIds.has(repost.postId)),
           ],
         }
       : baseSnapshot;
-  const snapshotRef = useRef(snapshot);
   snapshotRef.current = snapshot;
+
+  useEffect(() => {
+    if (mode !== "supabase") return;
+    const userId = remote.user?.id;
+    if (!userId) return;
+    const client = supabaseRef.current;
+    let cancelled = false;
+    if (likesMigratedFlag(userId)) {
+      void Promise.resolve().then(() => {
+        if (!cancelled) setLikesMigrated(true);
+      });
+      return () => {
+        cancelled = true;
+      };
+    }
+    if (!client) return;
+    void migrateStoredLikes(client, userId, loadActivity().likes).then((result) => {
+      if (cancelled || !result.ok) return;
+      try {
+        markLikesMigrated(userId);
+      } catch {
+        // Quota or disabled storage. The rows are already copied, so don't retry every load.
+      }
+      setLikesMigrated(true);
+      if (result.inserted.length === 0) return;
+      const inserted = new Set(result.inserted);
+      const bump = (post: Post): Post => {
+        if (!inserted.has(post.id) || pendingLikes.current.has(post.id)) return post;
+        if (post.viewerLiked === true) return post;
+        const likeCount = typeof post.likeCount === "number" ? post.likeCount + 1 : post.likeCount;
+        return { ...post, viewerLiked: true, likeCount };
+      };
+      for (const id of inserted) {
+        const held = rememberedRef.current.posts.get(id);
+        if (held) rememberedRef.current.posts.set(id, bump(held));
+      }
+      setRemote((existing) => ({
+        ...existing,
+        posts: existing.posts.map(bump),
+        homePosts: existing.homePosts?.map(bump),
+        likes: [
+          ...existing.likes,
+          ...[...inserted]
+            .filter((id) => !existing.likes.some((like) => like.postId === id && like.userId === userId))
+            .map((id) => ({ postId: id, userId, createdAt: new Date().toISOString() })),
+        ],
+      }));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [mode, remote.user?.id]);
   const suggestionUserId = snapshot.user?.id ?? null;
   const seenDraftUserId = useRef(suggestionUserId);
   useEffect(() => {
@@ -1015,39 +1132,106 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       const current = snapshotRef.current;
       if (!current.user) return;
       if (mode === "supabase") {
-        const wasLiked = current.likes.some(
-          (like) => like.postId === postId && like.userId === current.user?.id,
-        );
-        const post = findKnownPost(current.posts, rememberedRef.current, postId, {
+        const userId = current.user.id;
+        const knownPost = findKnownPost(current.posts, rememberedRef.current, postId, {
           removedIds: removedRef.current,
           blockedIds: new Set(current.blockedIds ?? []),
         });
-        rememberActivity(localToggleLike(activityShell(), postId));
-        const client = supabaseRef.current;
-        if (!client || !post) return;
-        const actorId = current.user.id;
+        // Reply hearts stay on this device. Comments are not posts, so they
+        // cannot use the likes table.
+        if (!knownPost) {
+          const reply = current.comments.find((comment) => comment.id === postId);
+          const wasLiked = current.likes.some((like) => like.postId === postId && like.userId === userId);
+          rememberActivity(localToggleLike(activityShell(), postId));
+          const client = supabaseRef.current;
+          if (!client || !reply) return;
+          likeQueue.current = likeQueue.current
+            .catch(() => undefined)
+            .then(async () => {
+              const result = await remoteSyncLikeNotification(client, {
+                actorId: userId,
+                recipientId: reply.authorId,
+                postId,
+                preview: reply.body,
+                liked: !wasLiked,
+              });
+              if (result.error) setStatus(result.error);
+            });
+          return;
+        }
+
+        const wasLiked =
+          knownPost.viewerLiked === true ||
+          (knownPost.viewerLiked !== false &&
+            current.likes.some((like) => like.postId === postId && like.userId === userId));
+        const nextLiked = !wasLiked;
+        const baseCount =
+          typeof knownPost.likeCount === "number"
+            ? knownPost.likeCount
+            : current.likes.filter((like) => like.postId === postId).length;
+        const nextCount = optimisticLikeCount(baseCount, nextLiked);
+        const generation = (likeGeneration.current.get(postId) ?? 0) + 1;
+        likeGeneration.current.set(postId, generation);
+        pendingLikes.current.set(postId, generation);
+
+        const paint = (liked: boolean, count: number) => {
+          const patch = (post: Post) =>
+            post.id === postId ? { ...post, viewerLiked: liked, likeCount: count } : post;
+          const latest = snapshotRef.current;
+          const source =
+            latest.posts.find((post) => post.id === postId) ??
+            rememberedRef.current.posts.get(postId) ??
+            knownPost;
+          rememberedRef.current.posts.set(postId, patch(source));
+          const without = latest.likes.filter((like) => !(like.postId === postId && like.userId === userId));
+          const likes = liked
+            ? [...without, { postId, userId, createdAt: new Date().toISOString() }]
+            : without;
+          snapshotRef.current = {
+            ...latest,
+            likes,
+            posts: latest.posts.map(patch),
+            homePosts: latest.homePosts?.map(patch),
+          };
+          setRemote((existing) => ({
+            ...existing,
+            likes,
+            posts: existing.posts.map(patch),
+            homePosts: existing.homePosts?.map(patch),
+          }));
+          rememberActivity(activityShell());
+        };
+
+        paint(nextLiked, nextCount);
         likeQueue.current = likeQueue.current
           .catch(() => undefined)
           .then(async () => {
-            const result = await remoteSyncLikeNotification(client, {
-              actorId,
-              recipientId: post.authorId,
-              postId,
-              preview: post.body,
-              liked: !wasLiked,
-            });
-            if (result.error) {
-              setStatus(result.error);
-              return;
+            try {
+              const { syncPostLike } = await import("@/lib/social/like-action");
+              const result = await syncPostLike({ postId, liked: nextLiked });
+              if (likeGeneration.current.get(postId) !== generation) return;
+              pendingLikes.current.delete(postId);
+              if (!result.ok) {
+                setStatus(result.error);
+                paint(wasLiked, baseCount);
+                return;
+              }
+              // Table is not installed yet. Keep the device heart already painted.
+              if (result.fallback) return;
+              if (typeof result.likeCount === "number") paint(result.liked, result.likeCount);
+            } catch (error) {
+              if (likeGeneration.current.get(postId) !== generation) return;
+              pendingLikes.current.delete(postId);
+              setStatus(error instanceof Error ? error.message : "Could not update that like.");
+              paint(wasLiked, baseCount);
             }
-            if (fullSnapshotRef.current) await refreshRemote(client);
           });
         return;
       }
       if (!localRef.current) return;
       commitLocal(localToggleLike(localRef.current, postId));
     },
-    [activityShell, commitLocal, mode, refreshRemote, rememberActivity],
+    [activityShell, commitLocal, mode, rememberActivity],
   );
 
   const toggleRepost = useCallback(
@@ -1228,12 +1412,19 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
   }, [applyPostPage, mode, pathname, refreshRemote]);
 
   const isLiked = useCallback(
-    (postId: string) =>
-      Boolean(
+    (postId: string) => {
+      const post = findKnownPost(snapshot.posts, rememberedRef.current, postId, {
+        removedIds: removedRef.current,
+        blockedIds: new Set(snapshot.blockedIds ?? []),
+      });
+      if (post?.viewerLiked === true) return true;
+      if (post?.viewerLiked === false) return false;
+      return Boolean(
         snapshot.user &&
           snapshot.likes.some((like) => like.postId === postId && like.userId === snapshot.user?.id),
-      ),
-    [snapshot.likes, snapshot.user],
+      );
+    },
+    [snapshot.blockedIds, snapshot.likes, snapshot.posts, snapshot.user],
   );
 
   const isReposted = useCallback(
@@ -1248,8 +1439,15 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
   );
 
   const likeCount = useCallback(
-    (postId: string) => snapshot.likes.filter((like) => like.postId === postId).length,
-    [snapshot.likes],
+    (postId: string) => {
+      const post = findKnownPost(snapshot.posts, rememberedRef.current, postId, {
+        removedIds: removedRef.current,
+        blockedIds: new Set(snapshot.blockedIds ?? []),
+      });
+      if (typeof post?.likeCount === "number") return post.likeCount;
+      return snapshot.likes.filter((like) => like.postId === postId).length;
+    },
+    [snapshot.blockedIds, snapshot.likes, snapshot.posts],
   );
 
   const repostCount = useCallback(
@@ -1376,14 +1574,33 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
     [commitLocal, mode],
   );
 
-  const rememberPosts = useCallback((posts: Post[], profiles: Profile[] = []) => {
-    if (posts.length === 0 && profiles.length === 0) return;
+  const rememberPosts = useCallback((posts: Post[], profiles: Profile[] = [], likes: PostLike[] | null = null) => {
+    if (posts.length === 0 && profiles.length === 0 && likes === null) return;
     const blocked = new Set(snapshotRef.current.blockedIds ?? []);
-    storeRemembered(rememberedRef.current, posts, profiles, blocked);
+    const pending = pendingLikes.current;
+    const kept = posts.map((post) => {
+      if (!pending.has(post.id)) return post;
+      const held =
+        rememberedRef.current.posts.get(post.id) ??
+        snapshotRef.current.posts.find((item) => item.id === post.id);
+      return held ? { ...post, likeCount: held.likeCount, viewerLiked: held.viewerLiked } : post;
+    });
+    storeRemembered(rememberedRef.current, kept, profiles, blocked);
     for (const postId of removedRef.current) forgetRememberedPost(rememberedRef.current, postId);
-    setRemote((existing) =>
-      mergeRememberedSnapshot(existing, rememberedRef.current, removedRef.current),
-    );
+    setRemote((existing) => {
+      const incoming = new Map(kept.map((post) => [post.id, post]));
+      const patch = (post: Post) => patchRememberedLike(post, incoming.get(post.id), pending.has(post.id));
+      return mergeRememberedSnapshot(
+        {
+          ...existing,
+          posts: existing.posts.map(patch),
+          homePosts: existing.homePosts?.map(patch),
+          ...viewerLikeSlice(existing, likes, kept),
+        },
+        rememberedRef.current,
+        removedRef.current,
+      );
+    });
   }, []);
 
   const findPost = useCallback(

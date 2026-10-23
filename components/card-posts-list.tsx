@@ -23,7 +23,7 @@ const PAGE_LIMIT = 20;
 
 export function CardPostsList({ cardId }: { cardId: string }) {
   const pathname = usePathname() || "/";
-  const { user, posts: loadedPosts, profiles, publicCards, ready } = useSocial();
+  const { user, posts: loadedPosts, profiles, publicCards, ready, rememberPosts } = useSocial();
   const { cards } = useCollection();
   const [posts, setPosts] = useState<Post[]>([]);
   const [relatedPosts, setRelatedPosts] = useState<Post[]>([]);
@@ -70,6 +70,11 @@ export function CardPostsList({ cardId }: { cardId: string }) {
             setAuthors(result.authors);
             setHasMore(result.hasMore);
             setCursor(result.nextCursor);
+            rememberPosts(
+              [...result.posts, ...result.relatedPosts],
+              [...result.authors.values()],
+              result.likes,
+            );
             return;
           }
         }
@@ -109,7 +114,7 @@ export function CardPostsList({ cardId }: { cardId: string }) {
     return () => {
       cancelled = true;
     };
-  }, [cardId, loadedPosts, profileMap, publicCards, publicIds, ready]);
+  }, [cardId, loadedPosts, profileMap, publicCards, publicIds, ready, rememberPosts]);
 
   async function loadMore() {
     if (!cursor || loadingMore) return;
@@ -131,6 +136,11 @@ export function CardPostsList({ cardId }: { cardId: string }) {
           });
           setHasMore(result.hasMore);
           setCursor(result.nextCursor);
+          rememberPosts(
+            [...result.posts, ...result.relatedPosts],
+            [...result.authors.values()],
+            result.likes,
+          );
           return;
         }
       }

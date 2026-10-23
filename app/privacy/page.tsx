@@ -68,7 +68,7 @@ export default function PrivacyPolicyPage() {
       <p>We keep account data until you delete it. There is no automatic expiration.</p>
       <p>
         You can delete your account from More. Type DELETE to confirm. That removes your login,
-        profile, cards, posts, comments, reposts, follows, messages you sent or received (for both
+        profile, cards, posts, comments, reposts, likes, follows, messages you sent or received (for both
         people), want list, want alerts, notifications sent to you, collection and price history,
         flags you filed on a sold listing, and uploaded photos (card photos, avatar, cover, and
         post images). Blocks, mutes, and reports tied to the account go with the login.
