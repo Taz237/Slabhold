@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState, type ComponentType } from "react";
 import { useCompFlagState } from "@/components/use-comp-flags";
 import { ArrowLeft } from "lucide-react";
 import { CardCollectorsSaying } from "@/components/card-collectors-saying";
@@ -20,7 +20,6 @@ import { PublicCardCompsPreview } from "@/components/public-card-comps";
 import { useCollection } from "@/components/collection-provider";
 import { ProfileSkeleton } from "@/components/status";
 import { useSocial } from "@/components/social-provider";
-import { ValueChart } from "@/components/value-chart";
 import { isCardOwner } from "@/lib/comps/ownership";
 import { messageOwnerHref, showOpenToOffersBadge } from "@/lib/offers/open-to-offers";
 import { userHref } from "@/lib/social/user-href";
@@ -48,6 +47,23 @@ import {
   SIMILAR_CARDS_LABEL,
 } from "@/lib/value/price-fallback";
 import { useCardValue } from "@/lib/value/use-card-values";
+
+type ValueChartView = ComponentType<{
+  card: { id: string; estimatedSellPrice: number; purchasePrice: number };
+  points?: { date: string; label: string; value: number }[] | null;
+  source?: "trawl" | "sample" | "off";
+  loading?: boolean;
+  median?: number | null;
+  p25?: number | null;
+  p75?: number | null;
+  count?: number;
+  sample?: boolean;
+  lockedToComps?: boolean;
+  noSalesLabel?: string;
+  hideStatusLabel?: boolean;
+  headlineLabel?: string;
+  headlineIsEstimate?: boolean;
+}>;
 
 export function PublicCardView({
   username,
@@ -168,6 +184,25 @@ function PublicCardAnalytics({
     canFlag,
     sold.status === "ready" ? (sold.data?.comps ?? []) : [],
   );
+  const [ValueChart, setValueChart] = useState<ValueChartView | null>(null);
+  const [chartFailed, setChartFailed] = useState(false);
+  const [chartAttempt, setChartAttempt] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    void import("@/components/value-chart")
+      .then((mod) => {
+        if (cancelled) return;
+        setChartFailed(false);
+        setValueChart(() => mod.ValueChart);
+      })
+      .catch(() => {
+        if (!cancelled) setChartFailed(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [chartAttempt]);
 
   useEffect(() => {
     if (
@@ -356,7 +391,7 @@ function PublicCardAnalytics({
         <p className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
           {soldCopy}
         </p>
-      ) : showChart ? (
+      ) : showChart && ValueChart && !chartFailed ? (
         <ValueChart
           card={{
             id: card.id,
@@ -382,6 +417,15 @@ function PublicCardAnalytics({
               : undefined
           }
           headlineIsEstimate={priceRead?.kind === "estimate"}
+        />
+      ) : showChart ? (
+        <ValueChartPlaceholder
+          failed={chartFailed}
+          onRetry={() => {
+            setChartFailed(false);
+            setValueChart(null);
+            setChartAttempt((attempt) => attempt + 1);
+          }}
         />
       ) : null}
 
@@ -525,6 +569,38 @@ function toPublicCard(card: {
     purchasePrice: card.purchasePrice,
     openToOffers: card.openToOffers ?? null,
   };
+}
+
+function ValueChartPlaceholder({
+  failed,
+  onRetry,
+}: {
+  failed: boolean;
+  onRetry: () => void;
+}) {
+  return (
+    <section className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-white/10 dark:bg-white/[0.03] sm:p-5">
+      <p className="text-[11px] tracking-wide text-zinc-500 uppercase">Sold comps</p>
+      <p className="mt-2 text-sm text-zinc-500">
+        {failed ? "Couldn't load the sales graph" : "Loading sold prices…"}
+      </p>
+      <div
+        className={`mt-3 h-44 rounded-xl bg-zinc-100 dark:bg-white/5 ${
+          failed ? "flex flex-col items-center justify-center gap-3 px-4 text-center" : "animate-pulse"
+        }`}
+      >
+        {failed ? (
+          <button
+            type="button"
+            onClick={onRetry}
+            className="inline-flex min-h-9 items-center rounded-full bg-violet-600 px-3.5 text-sm font-semibold text-white hover:bg-violet-500"
+          >
+            Retry
+          </button>
+        ) : null}
+      </div>
+    </section>
+  );
 }
 
 function Metric({ label, value }: { label: string; value: string }) {
