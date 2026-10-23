@@ -64,7 +64,10 @@ describe("leaderboard page", () => {
     assert.equal(lead, TOP_CARD_LEAD);
     assert.match(LEADERBOARD_TABS[0].howTo.join(" "), new RegExp(String(ACTOR_MIN_AGE_DAYS)));
     assert.match(LEADERBOARD_TABS[0].howTo.join(" "), new RegExp(String(ACTOR_MIN_CONTENT)));
-    assert.match(LEADERBOARD_TABS[1].howTo.join(" "), new RegExp(TEST_ACCOUNT_PREFIXES.join(", ")));
+    const rules = LEADERBOARD_TABS.map((tab) => tab.howTo.join(" ")).join(" ");
+    assert.match(rules, /Test accounts are left out\./);
+    assert.doesNotMatch(rules, new RegExp(TEST_ACCOUNT_PREFIXES.join("|")));
+    assert.doesNotMatch(rules, /Mail Day posts do not count/);
     assert.equal(LEADERBOARD_MIN_ENTRIES, 3);
     assert.equal(LEADERBOARD_TOP_LIMIT, 10);
     assert.equal(LEADERBOARD_CACHE_SECONDS, 300);
@@ -80,8 +83,12 @@ describe("leaderboard page", () => {
     assert.equal(model.you?.label, "You: #3");
     assert.equal(model.standing, "Provisional");
     assert.match(model.countdownLabel, /^Resets in /);
+    assert.equal(model.showCountdown, true);
     const html = renderToStaticMarkup(createElement(LeaderboardView, { model }));
     assert.match(html, /How to get on the leaderboard/);
+    assert.match(html, /Test accounts are left out\./);
+    assert.doesNotMatch(html, /Mail Day posts do not count/);
+    assert.doesNotMatch(html, /qa_/);
     assert.match(html, /Post a card\. Replies from real collectors count\./);
     assert.match(html, /Your checklist/);
     assert.match(html, new RegExp(REMOVED_FOLLOW_RULE.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
@@ -110,7 +117,12 @@ describe("leaderboard page", () => {
     assert.equal(thin.you, null);
     assert.equal(thin.description.startsWith("Last week's"), true);
     assert.equal(thin.description.includes("This week's"), false);
+    assert.equal(thin.showCountdown, false);
+    assert.equal(thin.thinDetail, "Get follows from real collectors last week.");
+    assert.doesNotMatch(thin.thinDetail, /this week/);
     const thinHtml = renderToStaticMarkup(createElement(LeaderboardView, { model: thin }));
+    assert.doesNotMatch(thinHtml, /Resets in/);
+    assert.match(thinHtml, /Get follows from real collectors last week/);
     assert.match(thinHtml, /Last week(?:'|&#x27;)s card posts/);
     assert.doesNotMatch(thinHtml, /This week(?:'|&#x27;)s/);
     assert.match(thinHtml, new RegExp(THIN_BOARD_TITLE));
@@ -230,6 +242,8 @@ describe("leaderboard page", () => {
     assert.doesNotMatch(load, /cards", "id, user_id, is_public, player", "user_id"/);
     assert.match(load, /post_type/);
     assert.match(load, /mail_day/);
+    assert.match(read("lib/leaderboard/score.ts"), /postType === "mail_day"/);
+    assert.match(read("lib/leaderboard/score.ts"), /isTestAccount/);
     const viewer = load.slice(load.indexOf("async function readViewer"), load.indexOf("export async function getLeaderboardPage"));
     assert.match(viewer, /eq\("blocker_id", userId\)/);
     assert.match(viewer, /eq\("blocked_id", userId\)/);

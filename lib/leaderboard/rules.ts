@@ -1,5 +1,3 @@
-import { TEST_ACCOUNT_PREFIXES } from "@/lib/test-accounts";
-
 /** Weeks and the reset countdown use this zone. */
 export const LEADERBOARD_TIME_ZONE = "America/New_York";
 
@@ -87,6 +85,9 @@ export const TOP_CARD_LEAD = "Post a card. Replies from real collectors count.";
 
 export const RISING_LEAD = "Get follows from real collectors this week.";
 
+/** Empty Rising board on Last week. The this-week lead stays on the current board. */
+export const RISING_LEAD_LAST_WEEK = "Get follows from real collectors last week.";
+
 export const ONCE_PER_COLLECTOR_RULE = "Each collector counts once per post.";
 
 export const REMOVED_FOLLOW_RULE =
@@ -94,14 +95,12 @@ export const REMOVED_FOLLOW_RULE =
 
 export const BLOCK_PAIR_RULE = "People who blocked each other do not count.";
 
-export const MAIL_DAY_RULE = "Mail Day posts do not count.";
-
 export function realCollectorRule(): string {
   return `A real collector has had an account for at least ${ACTOR_MIN_AGE_DAYS} days and has at least ${ACTOR_MIN_CONTENT} card or ${ACTOR_MIN_CONTENT} post.`;
 }
 
 export function testAccountRule(): string {
-  return `Test accounts are left out, including handles starting with ${TEST_ACCOUNT_PREFIXES.join(", ")}.`;
+  return "Test accounts are left out.";
 }
 
 export function officialUpdatesRule(): string {
@@ -125,7 +124,6 @@ export const LEADERBOARD_TABS: readonly LeaderboardTab[] = [
       ...SHARED_ACTOR_RULES,
       "Your own replies do not count.",
       "Hidden or deleted posts and private cards do not count.",
-      MAIL_DAY_RULE,
       BLOCK_PAIR_RULE,
     ],
   },

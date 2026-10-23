@@ -33,8 +33,12 @@ export function LeaderboardView({ model }: { model: LeaderboardPageModel }) {
           <span className="font-medium text-zinc-700 dark:text-zinc-200">{model.weekLabel}</span>
           {" · "}
           <span data-standing="">{model.standing}</span>
-          {" · "}
-          <LeaderboardCountdown resetsAt={model.resetsAt} initialLabel={model.countdownLabel} />
+          {model.showCountdown ? (
+            <>
+              {" · "}
+              <LeaderboardCountdown resetsAt={model.resetsAt} initialLabel={model.countdownLabel} />
+            </>
+          ) : null}
         </p>
         {model.standingNote ? (
           <p className="mt-1 text-sm text-zinc-500" data-closed-note="">
