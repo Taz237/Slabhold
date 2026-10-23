@@ -1,7 +1,7 @@
 -- Read-only catalog check for profile pins.
 -- Selects function and policy definitions only.
 -- Does not insert, update, delete, or change roles.
--- Run after 20261022240000_profile_pinned_post.sql is applied.
+-- Run after 20261023003000_profile_pinned_post.sql is applied.
 
 do $verify$
 declare

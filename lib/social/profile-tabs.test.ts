@@ -284,7 +284,7 @@ describe("Cards tab privacy", () => {
 
 describe("profile pin migration", () => {
   const sql = readFileSync(
-    join(process.cwd(), "supabase/migrations/20261022240000_profile_pinned_post.sql"),
+    join(process.cwd(), "supabase/migrations/20261023003000_profile_pinned_post.sql"),
     "utf8",
   );
   const verify = readFileSync(join(process.cwd(), "scripts/verify-profile-pin.sql"), "utf8");
