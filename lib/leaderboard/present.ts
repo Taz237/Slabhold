@@ -6,6 +6,7 @@ import {
   LAST_WEEK_LABEL,
   LAST_WEEK_DESCRIPTION,
   LEADERBOARD_DESCRIPTION,
+  RISING_LEAD_LAST_WEEK,
   LEADERBOARD_MIN_ENTRIES,
   LEADERBOARD_TABS,
   LEADERBOARD_TITLE,
@@ -74,6 +75,7 @@ export type LeaderboardPageModel = {
   standing: typeof PROVISIONAL_LABEL | typeof FINAL_LABEL;
   resetsAt: string;
   countdownLabel: string;
+  showCountdown: boolean;
   weekLinks: { id: "current" | "previous"; label: string; href: string; active: boolean }[];
   tabs: { id: string; label: string; href: string; active: boolean }[];
   status: "ready" | "error";
@@ -186,6 +188,7 @@ export function presentLeaderboard(input: {
     standing,
     resetsAt: input.snapshot.current.end,
     countdownLabel: countdown.label,
+    showCountdown: input.week === "current",
     weekLinks: [
       {
         id: "current",
@@ -212,7 +215,10 @@ export function presentLeaderboard(input: {
     standingNote: standing === FINAL_LABEL ? CLOSED_NOTE : null,
     thin: ranked.thin,
     thinTitle: THIN_BOARD_TITLE,
-    thinDetail: tab.howTo[0] ?? THIN_BOARD_TITLE,
+    thinDetail:
+      tab.id === "rising-collectors" && input.week === "previous"
+        ? RISING_LEAD_LAST_WEEK
+        : (tab.howTo[0] ?? THIN_BOARD_TITLE),
     entries: ranked.entries,
     you: ranked.you,
     howTo: LEADERBOARD_TABS.map((item) => ({
