@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { Clock, Search, X } from "lucide-react";
 import { Avatar } from "@/components/avatar";
-import { PlayerNameLink } from "@/components/player-name-link";
+import { ResolvedPlayerName } from "@/components/resolved-player-name";
 import { CardThumb } from "@/components/card-thumb";
 import { useCollection } from "@/components/collection-provider";
 import { useSocial } from "@/components/social-provider";
@@ -344,10 +344,13 @@ export function SearchView() {
                 <ul className="flex flex-wrap gap-2 px-4 pt-2 pb-4">
                   {suggestions.map((name) => (
                     <li key={name}>
-                      <PlayerNameLink
-                        name={name}
-                        className="inline-flex min-h-11 items-center rounded-full bg-zinc-100 px-3 text-sm font-medium hover:underline dark:bg-white/10"
-                      />
+                      <button
+                        type="button"
+                        onClick={() => setSearchQuery(name)}
+                        className="inline-flex min-h-11 items-center rounded-full bg-zinc-100 px-3 text-sm font-medium dark:bg-white/10"
+                      >
+                        {name}
+                      </button>
                     </li>
                   ))}
                 </ul>
@@ -408,9 +411,10 @@ export function SearchView() {
                         className="flex min-h-[4.5rem] items-center gap-2 border-b border-zinc-200 px-4 py-3 dark:border-white/10"
                       >
                         <div className="min-w-0 flex-1">
-                          <PlayerNameLink
+                          <ResolvedPlayerName
                             name={card.playerName}
                             sport={card.sport}
+                            onClick={() => remember(typed)}
                             className="block truncate text-[15px] font-bold hover:underline"
                           />
                           <Link
@@ -449,9 +453,10 @@ export function SearchView() {
                         <CardThumb card={card} className="h-14 w-11 shrink-0 rounded-lg" />
                       </Link>
                       <span className="min-w-0">
-                        <PlayerNameLink
+                        <ResolvedPlayerName
                           name={card.playerName}
                           sport={card.sport}
+                          onClick={() => remember(typed)}
                           className="block truncate text-[15px] font-bold hover:underline"
                         />
                         <Link

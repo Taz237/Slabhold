@@ -4,14 +4,16 @@ import { cache } from "react";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { CARD_CATALOG } from "@/lib/card-catalog";
 import { getPublicCardComps } from "@/lib/comps/public";
-import { escapeIlike } from "@/lib/db/escape-ilike";
 import { offersColumnMissing } from "@/lib/offers/open-to-offers";
 import { INDEXED_DIRECTORY } from "@/lib/players/directory";
+import { compactInterest } from "@/lib/social/follow-rank";
 import { cleanImageUrl } from "@/lib/social/link-preview";
 import { getSupabaseConfig } from "@/lib/supabase/client";
 import { isUuid } from "@/lib/value/card-value-access";
+import { playerIlikeOr } from "./ilike";
 import {
   dedupeSoldPrices,
+  PLAYER_POST_LIMIT,
   selectOfferOwners,
   selectPlayerCards,
   selectPlayerPosts,
@@ -20,32 +22,22 @@ import {
   type HubPostInput,
   type HubProfileInput,
   type HubSale,
+  type PlayerHubChoice,
+  type PlayerHubPage,
 } from "./hub";
 import {
   dedupePlayers,
-  normalizeSlug,
   playerChoiceHref,
-  playerNameKey,
+  playerNameIsShared,
+  playerSpellings,
   resolvePlayerSlug,
   type PlayerRef,
   type PlayerSlugResolution,
 } from "./slug";
 
-export type PlayerChoice = {
-  name: string;
-  sport: string;
-  href: string;
-};
+export type PlayerChoice = PlayerHubChoice;
 
-export type PlayerPageData = {
-  name: string;
-  sport: string;
-  slug: string;
-  posts: ReturnType<typeof selectPlayerPosts>;
-  cards: ReturnType<typeof selectPlayerCards>;
-  sales: HubSale[];
-  owners: ReturnType<typeof selectOfferOwners>;
-};
+export type PlayerPageData = PlayerHubPage;
 
 export type PlayerHubResult =
   | { kind: "missing" }
@@ -60,6 +52,12 @@ const CARD_BASE =
 const POST_COLUMNS = "id, user_id, content, card, created_at, meta";
 const PROFILE_WITH_TEST = "id, username, display_name, is_test";
 const PROFILE_BASE = "id, username, display_name";
+
+/** Two pages, so a common surname is not cut off at the first limit. */
+const CARD_PAGE = 200;
+const POST_PAGE = 120;
+const CATALOG_PAGE = 80;
+const PROFILE_CHUNK = 100;
 
 let bundledCache: PlayerRef[] | null = null;
 
@@ -81,10 +79,29 @@ function createAnonReader(): SupabaseClient | null {
   });
 }
 
-function searchToken(key: string): string {
-  const words = key.split(" ").filter((word) => word.length >= 3);
-  const pool = words.length > 0 ? words : key.split(" ").filter(Boolean);
-  return [...pool].sort((a, b) => b.length - a.length)[0] ?? "";
+function searchSpellings(rawSlug: string, preliminary: PlayerSlugResolution): string[] {
+  const fromResolved =
+    preliminary.status === "player"
+      ? playerSpellings(preliminary.player.name)
+      : preliminary.status === "choices"
+        ? preliminary.players.flatMap((player) => playerSpellings(player.name))
+        : [];
+  let decoded = rawSlug.trim();
+  try {
+    decoded = decodeURIComponent(decoded);
+  } catch {
+    decoded = rawSlug.trim();
+  }
+  const fromSlug = playerSpellings(decoded.replace(/[-_]+/g, " "));
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const spelling of [...fromResolved, ...fromSlug]) {
+    const id = spelling.toLocaleLowerCase();
+    if (seen.has(id)) continue;
+    seen.add(id);
+    out.push(spelling);
+  }
+  return out.slice(0, 8);
 }
 
 type QueryError = { code?: string; message?: string } | null;
@@ -178,50 +195,71 @@ function mapProfile(row: {
   };
 }
 
+type PostRow = {
+  id?: string;
+  user_id?: string;
+  content?: string | null;
+  card?: unknown;
+  created_at?: string | null;
+  meta?: unknown;
+};
+
 async function readCards(
   client: SupabaseClient,
-  token: string,
+  spellings: readonly string[],
 ): Promise<{ ok: boolean; offersAvailable: boolean; cards: HubCardInput[] }> {
-  const pattern = `%${escapeIlike(token)}%`;
-  const first = await client
-    .from("public_cards")
-    .select(CARD_WITH_OFFERS)
-    .ilike("player", pattern)
-    .order("created_at", { ascending: false })
-    .limit(80);
+  const filter = playerIlikeOr("player", spellings);
   let offersAvailable = true;
-  let data = first.data as CardRow[] | null;
-  let error = first.error;
-  if (columnMissing(error)) {
-    offersAvailable = false;
-    const retry = await client
+  let columns = CARD_WITH_OFFERS;
+  const rows: CardRow[] = [];
+  for (let page = 0; page < 2; page += 1) {
+    const from = page * CARD_PAGE;
+    let result = await client
       .from("public_cards")
-      .select(CARD_BASE)
-      .ilike("player", pattern)
+      .select(columns)
+      .or(filter)
       .order("created_at", { ascending: false })
-      .limit(80);
-    data = retry.data as CardRow[] | null;
-    error = retry.error;
+      .range(from, from + CARD_PAGE - 1);
+    if (page === 0 && columnMissing(result.error)) {
+      offersAvailable = false;
+      columns = CARD_BASE;
+      result = await client
+        .from("public_cards")
+        .select(columns)
+        .or(filter)
+        .order("created_at", { ascending: false })
+        .range(from, from + CARD_PAGE - 1);
+    }
+    if (result.error) return { ok: false, offersAvailable, cards: [] };
+    const batch = (result.data ?? []) as CardRow[];
+    rows.push(...batch);
+    if (batch.length < CARD_PAGE) break;
   }
-  if (error) return { ok: false, offersAvailable, cards: [] };
   const cards: HubCardInput[] = [];
-  for (const row of data ?? []) {
+  for (const row of rows) {
     const mapped = mapCard(row, offersAvailable);
     if (mapped) cards.push(mapped);
   }
   return { ok: true, offersAvailable, cards };
 }
 
-async function readCatalogNames(client: SupabaseClient, token: string): Promise<PlayerRef[]> {
-  const pattern = `%${escapeIlike(token)}%`;
-  const { data, error } = await client
-    .from("card_catalog")
-    .select("player, sport")
-    .ilike("player", pattern)
-    .limit(40);
-  if (error || !data) return [];
+async function readCatalogNames(client: SupabaseClient, spellings: readonly string[]): Promise<PlayerRef[]> {
+  const filter = playerIlikeOr("player", spellings);
+  const rows: { player?: string | null; sport?: string | null }[] = [];
+  for (let page = 0; page < 2; page += 1) {
+    const from = page * CATALOG_PAGE;
+    const result = await client
+      .from("card_catalog")
+      .select("player, sport")
+      .or(filter)
+      .range(from, from + CATALOG_PAGE - 1);
+    if (result.error || !result.data) break;
+    const batch = result.data as { player?: string | null; sport?: string | null }[];
+    rows.push(...batch);
+    if (batch.length < CATALOG_PAGE) break;
+  }
   const names: PlayerRef[] = [];
-  for (const row of data as { player?: string | null; sport?: string | null }[]) {
+  for (const row of rows) {
     const name = asText(row.player).trim();
     const sport = asText(row.sport).trim();
     if (name && sport) names.push({ name, sport });
@@ -229,34 +267,42 @@ async function readCatalogNames(client: SupabaseClient, token: string): Promise<
   return names;
 }
 
-async function readPosts(client: SupabaseClient, token: string, cardIds: readonly string[]): Promise<HubPostInput[]> {
-  const pattern = `%${escapeIlike(token)}%`;
-  const content = await client
-    .from("posts")
-    .select(POST_COLUMNS)
-    .or(`content.ilike.${pattern},card->>playerName.ilike.${pattern}`)
-    .order("created_at", { ascending: false })
-    .limit(40);
-  let rows = (content.error ? [] : content.data ?? []) as {
-    id?: string;
-    user_id?: string;
-    content?: string | null;
-    card?: unknown;
-    created_at?: string | null;
-    meta?: unknown;
-  }[];
-  if (content.error) {
-    const fallback = await client
+async function readPosts(
+  client: SupabaseClient,
+  spellings: readonly string[],
+  cardIds: readonly string[],
+): Promise<HubPostInput[]> {
+  const contentFilter = [
+    playerIlikeOr("content", spellings),
+    playerIlikeOr("card->>playerName", spellings),
+  ].join(",");
+  let rows: PostRow[] = [];
+  let filter = contentFilter;
+  for (let page = 0; page < 2; page += 1) {
+    const from = page * POST_PAGE;
+    let result = await client
       .from("posts")
       .select(POST_COLUMNS)
-      .ilike("content", pattern)
+      .or(filter)
       .order("created_at", { ascending: false })
-      .limit(40);
-    rows = (fallback.error ? [] : fallback.data ?? []) as typeof rows;
+      .range(from, from + POST_PAGE - 1);
+    if (page === 0 && result.error) {
+      filter = playerIlikeOr("content", spellings);
+      result = await client
+        .from("posts")
+        .select(POST_COLUMNS)
+        .or(filter)
+        .order("created_at", { ascending: false })
+        .range(from, from + POST_PAGE - 1);
+    }
+    if (result.error) break;
+    const batch = (result.data ?? []) as PostRow[];
+    rows = rows.concat(batch);
+    if (batch.length < POST_PAGE) break;
   }
-  const ids = cardIds.filter((id) => isUuid(id)).slice(0, 40);
+  const ids = cardIds.filter((id) => isUuid(id)).slice(0, CARD_PAGE);
   if (ids.length > 0) {
-    const links = await client.from("post_cards").select("post_id").in("card_id", ids).limit(40);
+    const links = await client.from("post_cards").select("post_id").in("card_id", ids).limit(POST_PAGE);
     const postIds = [
       ...new Set(
         ((links.data ?? []) as { post_id?: string }[])
@@ -270,7 +316,7 @@ async function readPosts(client: SupabaseClient, token: string, cardIds: readonl
         .select(POST_COLUMNS)
         .in("id", postIds)
         .order("created_at", { ascending: false });
-      if (!linked.error && linked.data) rows = rows.concat(linked.data as typeof rows);
+      if (!linked.error && linked.data) rows = rows.concat(linked.data as PostRow[]);
     }
   }
   const posts: HubPostInput[] = [];
@@ -291,28 +337,30 @@ async function readPosts(client: SupabaseClient, token: string, cardIds: readonl
 }
 
 async function readProfiles(client: SupabaseClient, ids: readonly string[]): Promise<{ ok: boolean; profiles: HubProfileInput[] }> {
-  const unique = [...new Set(ids)].filter(Boolean).slice(0, 80);
+  const unique = [...new Set(ids)].filter(Boolean);
   if (unique.length === 0) return { ok: true, profiles: [] };
-  const first = await client.from("profiles").select(PROFILE_WITH_TEST).in("id", unique);
-  let sawTest = true;
-  let data = first.data as {
-    id?: string;
-    username?: string;
-    display_name?: string;
-    is_test?: boolean | null;
-  }[] | null;
-  let error = first.error;
-  if (columnMissing(error)) {
-    sawTest = false;
-    const retry = await client.from("profiles").select(PROFILE_BASE).in("id", unique);
-    data = retry.data as typeof data;
-    error = retry.error;
-  }
-  if (error) return { ok: false, profiles: [] };
   const profiles: HubProfileInput[] = [];
-  for (const row of data ?? []) {
-    const mapped = mapProfile(row, sawTest);
-    if (mapped) profiles.push(mapped);
+  let sawTest = true;
+  let columns = PROFILE_WITH_TEST;
+  for (let start = 0; start < unique.length; start += PROFILE_CHUNK) {
+    const chunk = unique.slice(start, start + PROFILE_CHUNK);
+    let result = await client.from("profiles").select(columns).in("id", chunk);
+    if (start === 0 && columnMissing(result.error)) {
+      sawTest = false;
+      columns = PROFILE_BASE;
+      result = await client.from("profiles").select(columns).in("id", chunk);
+    }
+    if (result.error) return { ok: false, profiles: [] };
+    for (const row of (result.data ?? []) as {
+      id?: string;
+      username?: string;
+      display_name?: string;
+      is_test?: boolean | null;
+    }[]) {
+      const mapped = mapProfile(row, sawTest);
+      if (mapped) profiles.push(mapped);
+    }
+    if (chunk.length < PROFILE_CHUNK) break;
   }
   return { ok: true, profiles };
 }
@@ -363,40 +411,32 @@ function emptyPage(player: PlayerRef, slug: string): PlayerPageData {
 async function loadPlayerBody(rawSlug: string): Promise<PlayerHubResult> {
   const known = bundledPlayers();
   const preliminary = resolvePlayerSlug(rawSlug, known);
-  const key =
-    preliminary.status === "player"
-      ? playerNameKey(preliminary.player.name)
-      : preliminary.status === "choices"
-        ? playerNameKey(preliminary.name)
-        : playerNameKey(normalizeSlug(rawSlug).replace(/-/g, " "));
-  const token = searchToken(key);
+  const spellings = searchSpellings(rawSlug, preliminary);
   const client = createAnonReader();
-  if (!client) {
+  if (!client || spellings.length === 0) {
     if (preliminary.status === "unknown") return { kind: "missing" };
     if (preliminary.status === "choices") return choiceResult(preliminary);
-    return { kind: "player", page: emptyPage(preliminary.player, preliminary.slug) };
-  }
-  if (!token) {
-    if (preliminary.status === "unknown") return { kind: "missing" };
-    if (preliminary.status === "choices") return choiceResult(preliminary);
-    return { kind: "player", page: emptyPage(preliminary.player, preliminary.slug) };
+    if (preliminary.status === "player") return { kind: "player", page: emptyPage(preliminary.player, preliminary.slug) };
+    return { kind: "missing" };
   }
 
-  const cardsResult = await readCards(client, token);
+  const cardsResult = await readCards(client, spellings);
   if (!cardsResult.ok && preliminary.status === "unknown") return { kind: "error" };
-  const catalogNames = cardsResult.ok ? await readCatalogNames(client, token) : [];
+  const catalogNames = cardsResult.ok ? await readCatalogNames(client, spellings) : [];
   const liveNames = cardsResult.cards.map((card) => ({ name: card.playerName, sport: card.sport }));
-  const resolved = resolvePlayerSlug(rawSlug, [...known, ...catalogNames, ...liveNames]);
+  const roster = [...known, ...catalogNames, ...liveNames];
+  const resolved = resolvePlayerSlug(rawSlug, roster);
   if (resolved.status === "unknown") return { kind: "missing" };
   if (resolved.status === "choices") return choiceResult(resolved);
   if (!cardsResult.ok) return { kind: "player", page: emptyPage(resolved.player, resolved.slug) };
 
+  const nameKey = compactInterest(resolved.player.name);
   const cardIds = cardsResult.cards
-    .filter((card) => playerNameKey(card.playerName) === playerNameKey(resolved.player.name))
+    .filter((card) => compactInterest(card.playerName) === nameKey)
     .map((card) => card.id);
   let posts: HubPostInput[] = [];
   try {
-    posts = await readPosts(client, token, cardIds);
+    posts = await readPosts(client, spellings, cardIds);
   } catch {
     posts = [];
   }
@@ -406,10 +446,13 @@ async function loadPlayerBody(rawSlug: string): Promise<PlayerHubResult> {
   ];
   const profilesResult = await readProfiles(client, profileIds);
   const profiles = profilesResult.ok ? profilesResult.profiles : [];
+  const ambiguous = playerNameIsShared(resolved.player.name, roster);
   const cards = profilesResult.ok
     ? selectPlayerCards(cardsResult.cards, resolved.player, profiles)
     : [];
-  const shownPosts = profilesResult.ok ? selectPlayerPosts(posts, resolved.player, profiles) : [];
+  const shownPosts = profilesResult.ok
+    ? selectPlayerPosts(posts, resolved.player, profiles, PLAYER_POST_LIMIT, { ambiguous })
+    : [];
   const owners = profilesResult.ok
     ? selectOfferOwners(cardsResult.cards, resolved.player, profiles)
     : null;
@@ -441,17 +484,18 @@ export const loadPlayerHub = cache(async (rawSlug: string): Promise<PlayerHubRes
   return { kind: "player", page: { ...result.page, sales } };
 });
 
-export const loadPlayerIdentity = cache(async (rawSlug: string) => {
-  const result = await loadPlayerBodyCached(rawSlug);
-  if (result.kind === "player") {
-    return { found: true as const, name: result.page.name, sport: result.page.sport };
+/** Directory and catalog only. Share images do not query the database. */
+export function loadPlayerIdentity(rawSlug: string) {
+  const resolved = resolvePlayerSlug(rawSlug, bundledPlayers());
+  if (resolved.status === "player") {
+    return { found: true as const, name: resolved.player.name, sport: resolved.player.sport };
   }
-  if (result.kind === "choices") {
+  if (resolved.status === "choices") {
     return {
       found: true as const,
-      name: result.name,
-      sport: result.choices.map((choice) => choice.sport).join(" · "),
+      name: resolved.name,
+      sport: resolved.players.map((player) => player.sport).join(" · "),
     };
   }
   return { found: false as const, name: "", sport: "" };
-});
+}

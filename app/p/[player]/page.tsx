@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
-import { PlayerChoices, PlayerHub, PlayerHubError } from "@/components/player-hub";
+import { notFound, permanentRedirect } from "next/navigation";
+import { PlayerChoices, PlayerHub } from "@/components/player-hub";
 import { loadPlayerHub } from "@/lib/players/load-hub";
 import { normalizeSlug } from "@/lib/players/slug";
 
@@ -8,9 +8,20 @@ type Props = { params: Promise<{ player: string }> };
 
 export const dynamic = "force-dynamic";
 
+function canonicalRedirect(raw: string, slug: string) {
+  const normalized = normalizeSlug(raw);
+  if (normalized && slug && normalized !== slug) permanentRedirect(`/p/${slug}`);
+}
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { player } = await params;
   const result = await loadPlayerHub(player);
+  if (result.kind === "missing" || result.kind === "error") {
+    return {
+      title: "Player · Slabhold",
+      robots: "noindex, nofollow",
+    };
+  }
   if (result.kind === "choices") {
     const slug = normalizeSlug(player);
     return {
@@ -18,9 +29,6 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       description: `${result.name} plays more than one sport. Pick a sport to see public cards and posts.`,
       alternates: { canonical: slug ? `/p/${slug}` : undefined },
     };
-  }
-  if (result.kind !== "player") {
-    return { title: "Player · Slabhold" };
   }
   const { name, sport, slug } = result.page;
   const description = `Public posts, cards, and recent sold prices for ${name}.`;
@@ -45,9 +53,12 @@ export default async function PlayerPage({ params }: Props) {
   const { player } = await params;
   const result = await loadPlayerHub(player);
   if (result.kind === "missing") notFound();
-  if (result.kind === "error") return <PlayerHubError />;
+  if (result.kind === "error") {
+    throw new Error("Couldn't load this player");
+  }
   if (result.kind === "choices") {
     return <PlayerChoices name={result.name} choices={result.choices} />;
   }
+  canonicalRedirect(player, result.page.slug);
   return <PlayerHub page={result.page} />;
 }

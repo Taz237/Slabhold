@@ -7,7 +7,7 @@ import {
   sportSlug,
   type PlayerRef,
 } from "./slug";
-import { normInterest } from "@/lib/social/follow-rank";
+import { compactInterest, normInterest } from "@/lib/social/follow-rank";
 
 export const RECENT_SOLD_PRICES_LABEL = "Recent sold prices";
 export const PLAYER_POSTS_HEADING = "Posts";
@@ -74,6 +74,7 @@ export type HubCard = {
   imageUrl: string | null;
   accent: string;
   playerName: string;
+  ownerId: string;
   ownerName: string;
   ownerHref: string;
 };
@@ -83,6 +84,7 @@ export type HubPost = {
   href: string;
   body: string;
   createdAt: string;
+  authorId: string;
   authorName: string;
   authorHref: string;
 };
@@ -100,6 +102,22 @@ export type HubSale = {
   grade: string;
   soldLabel: string;
   soldAt: string;
+};
+
+export type PlayerHubPage = {
+  name: string;
+  sport: string;
+  slug: string;
+  posts: HubPost[];
+  cards: HubCard[];
+  sales: HubSale[];
+  owners: HubOwner[] | null;
+};
+
+export type PlayerHubChoice = {
+  name: string;
+  sport: string;
+  href: string;
 };
 
 export function hiddenCollector(profile: { username: string; isTest?: boolean }): boolean {
@@ -123,13 +141,15 @@ function visibleProfile(
 }
 
 function sportMatches(cardSport: string, playerSport: string): boolean {
-  if (!cardSport.trim()) return true;
-  return sportSlug(cardSport) === sportSlug(playerSport);
+  const card = sportSlug(cardSport);
+  const player = sportSlug(playerSport);
+  if (!card || !player) return false;
+  return card === player;
 }
 
 function nameMatches(cardName: string, playerName: string): boolean {
-  const key = playerNameKey(playerName);
-  return Boolean(key) && playerNameKey(cardName) === key;
+  const key = compactInterest(playerName);
+  return Boolean(key) && compactInterest(cardName) === key;
 }
 
 function containsSequence(haystack: readonly string[], needle: readonly string[]): boolean {
@@ -147,22 +167,53 @@ function containsSequence(haystack: readonly string[], needle: readonly string[]
   return false;
 }
 
-/** Body text names this player, dotted or joined. A last name alone does not. */
+function compactWindowMentions(words: readonly string[], compact: string): boolean {
+  if (!compact) return false;
+  const max = Math.min(words.length, 6);
+  for (let size = 1; size <= max; size += 1) {
+    for (let start = 0; start + size <= words.length; start += 1) {
+      let joined = "";
+      for (let index = start; index < start + size; index += 1) joined += words[index] ?? "";
+      if (joined === compact) return true;
+    }
+  }
+  return false;
+}
+
+/** Body text names this player, dotted, joined, or without the apostrophe. A last name alone does not. */
 export function textMentionsPlayer(text: string, name: string): boolean {
   const key = playerNameKey(name);
-  if (!key || !text.trim()) return false;
+  const compact = compactInterest(name);
+  if (!key || !compact || !text.trim()) return false;
   const words = normInterest(text).split(" ").filter(Boolean);
   const keyWords = key.split(" ");
   const rawWords = normInterest(name).split(" ").filter(Boolean);
-  return containsSequence(words, keyWords) || containsSequence(words, rawWords);
+  return (
+    containsSequence(words, keyWords) ||
+    containsSequence(words, rawWords) ||
+    compactWindowMentions(words, compact)
+  );
+}
+
+function textMentionsSport(text: string, sport: string): boolean {
+  const slug = sportSlug(sport);
+  if (!slug) return false;
+  const words = new Set(normInterest(text).split(" ").filter(Boolean));
+  return slug.split("-").every((part) => words.has(part));
 }
 
 function mentionMatches(card: HubMentionCard, player: PlayerRef): boolean {
   return nameMatches(card.playerName, player.name) && sportMatches(card.sport, player.sport);
 }
 
-export function postMentionsPlayer(post: HubPostInput, player: PlayerRef): boolean {
-  if (textMentionsPlayer(post.body, player.name)) return true;
+export function postMentionsPlayer(
+  post: HubPostInput,
+  player: PlayerRef,
+  options?: { ambiguous?: boolean },
+): boolean {
+  if (textMentionsPlayer(post.body, player.name)) {
+    if (!options?.ambiguous || textMentionsSport(post.body, player.sport)) return true;
+  }
   if (post.attached && mentionMatches(post.attached, player)) return true;
   return post.metaCards.some((card) => mentionMatches(card, player));
 }
@@ -204,6 +255,7 @@ export function selectPlayerCards(
     imageUrl: card.imageUrl,
     accent: card.accent || "#7c5cff",
     playerName: card.playerName.trim() || player.name,
+    ownerId: card.ownerId,
     ownerName: owner.displayName.trim() || owner.username,
     ownerHref: userHref(owner.username),
   }));
@@ -214,6 +266,7 @@ export function selectPlayerPosts(
   player: PlayerRef,
   profiles: readonly HubProfileInput[],
   limit = PLAYER_POST_LIMIT,
+  options?: { ambiguous?: boolean },
 ): HubPost[] {
   const people = profileMap(profiles);
   const seen = new Set<string>();
@@ -221,7 +274,7 @@ export function selectPlayerPosts(
     .filter((post) => {
       if (!post.id || seen.has(post.id)) return false;
       seen.add(post.id);
-      return postMentionsPlayer(post, player);
+      return postMentionsPlayer(post, player, options);
     })
     .map((post) => ({ post, author: visibleProfile(people, post.authorId) }))
     .filter((row): row is { post: HubPostInput; author: HubProfileInput } => row.author != null)
@@ -234,9 +287,25 @@ export function selectPlayerPosts(
     href: `/posts/${post.id}`,
     body: post.body.trim() || "Posted a card",
     createdAt: post.createdAt,
+    authorId: post.authorId,
     authorName: author.displayName.trim() || author.username,
     authorHref: userHref(author.username),
   }));
+}
+
+/**
+ * Drop posts, cards, and offer owners the signed-in viewer has blocked.
+ * blockedIds is who the viewer blocked. People who blocked the viewer are not on that list.
+ */
+export function filterHubForViewer<T extends PlayerHubPage>(page: T, blockedIds: readonly string[]): T {
+  if (blockedIds.length === 0) return page;
+  const blocked = new Set(blockedIds);
+  return {
+    ...page,
+    posts: page.posts.filter((post) => !blocked.has(post.authorId)),
+    cards: page.cards.filter((card) => !blocked.has(card.ownerId)),
+    owners: page.owners ? page.owners.filter((owner) => !blocked.has(owner.id)) : null,
+  };
 }
 
 /**

@@ -1,10 +1,14 @@
-import type { ReactNode } from "react";
+"use client";
+
+import { useMemo, type ReactNode } from "react";
 import Link from "next/link";
 import { CardThumb } from "@/components/card-thumb";
+import { useSocial } from "@/components/social-provider";
 import { ShareIconButton } from "@/components/share-button";
 import { EmptyState } from "@/components/status";
 import { timeAgo } from "@/lib/format";
 import {
+  filterHubForViewer,
   PLAYER_CARDS_EMPTY,
   PLAYER_CARDS_HEADING,
   PLAYER_OFFERS_EMPTY,
@@ -17,8 +21,9 @@ import {
   type HubOwner,
   type HubPost,
   type HubSale,
+  type PlayerHubChoice,
+  type PlayerHubPage,
 } from "@/lib/players/hub";
-import type { PlayerChoice, PlayerPageData } from "@/lib/players/load-hub";
 
 function Section({
   title,
@@ -140,7 +145,7 @@ function OwnerList({ owners }: { owners: HubOwner[] }) {
   );
 }
 
-export function PlayerChoices({ name, choices }: { name: string; choices: PlayerChoice[] }) {
+export function PlayerChoices({ name, choices }: { name: string; choices: PlayerHubChoice[] }) {
   return (
     <div>
       <h1 className="text-3xl font-semibold tracking-tight">{name}</h1>
@@ -159,39 +164,32 @@ export function PlayerChoices({ name, choices }: { name: string; choices: Player
   );
 }
 
-export function PlayerHub({ page }: { page: PlayerPageData }) {
+export function PlayerHub({ page }: { page: PlayerHubPage }) {
+  const { blockedIds } = useSocial();
+  const visible = useMemo(() => filterHubForViewer(page, blockedIds), [blockedIds, page]);
   return (
     <div>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-sm font-medium text-zinc-500">{page.sport}</p>
-          <h1 className="text-3xl font-semibold tracking-tight">{page.name}</h1>
+          <p className="text-sm font-medium text-zinc-500">{visible.sport}</p>
+          <h1 className="text-3xl font-semibold tracking-tight">{visible.name}</h1>
         </div>
-        <ShareIconButton path={`/p/${page.slug}`} title={page.name} label="Share" />
+        <ShareIconButton path={`/p/${visible.slug}`} title={visible.name} label="Share" />
       </div>
       <Section title={PLAYER_POSTS_HEADING}>
-        <PostList posts={page.posts} />
+        <PostList posts={visible.posts} />
       </Section>
       <Section title={PLAYER_CARDS_HEADING}>
-        <CardList cards={page.cards} />
+        <CardList cards={visible.cards} />
       </Section>
       <Section title={RECENT_SOLD_PRICES_LABEL}>
-        <SaleList sales={page.sales} />
+        <SaleList sales={visible.sales} />
       </Section>
-      {page.owners ? (
+      {visible.owners ? (
         <Section title={PLAYER_OFFERS_HEADING}>
-          <OwnerList owners={page.owners} />
+          <OwnerList owners={visible.owners} />
         </Section>
       ) : null}
     </div>
-  );
-}
-
-export function PlayerHubError() {
-  return (
-    <EmptyState
-      title="Couldn't load this player"
-      detail="Try again in a moment."
-    />
   );
 }

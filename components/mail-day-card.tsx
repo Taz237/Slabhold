@@ -2,8 +2,6 @@
 
 import Link from "next/link";
 import { EbaySoldLink } from "@/components/ebay-sold-link";
-import { PlayerNameLink } from "@/components/player-name-link";
-import { playerHref } from "@/lib/players/slug";
 import { useImageLightbox } from "@/components/image-lightbox";
 import { useSocial } from "@/components/social-provider";
 import { money } from "@/lib/format";
@@ -125,7 +123,6 @@ function MailDayTile({
     <MailDayTileBody
       hero={hero}
       player={mailDayPlayerLine(view.card)}
-      sport={view.card.sport}
       detail={mailDayDetailLine(view.card)}
       photos={view.photos}
       href={href}
@@ -141,7 +138,6 @@ function MailDayTile({
 export function MailDayTileBody({
   hero,
   player,
-  sport,
   detail,
   photos,
   href,
@@ -153,7 +149,6 @@ export function MailDayTileBody({
 }: {
   hero: boolean;
   player: string;
-  sport?: string | null;
   detail: string;
   photos: string[];
   href: string | null;
@@ -165,10 +160,7 @@ export function MailDayTileBody({
 }) {
   const [lead, ...rest] = photos;
   const showPrice = Boolean(priceLabel || soldHref || sourceLabel || paidLabel);
-  const playerLink = playerHref(player, sport);
-  const name = playerLink ? (
-    <PlayerNameLink name={player} sport={sport} className="block break-words text-sm font-bold hover:underline" />
-  ) : href ? (
+  const name = href ? (
     <Link href={href} className="block break-words text-sm font-bold hover:underline">
       {player}
     </Link>
@@ -200,13 +192,7 @@ export function MailDayTileBody({
       <div className="px-2 py-2">
         {name}
         {detail ? (
-          href && playerLink ? (
-            <Link href={href} className="mt-0.5 line-clamp-2 block break-words text-xs text-zinc-500 hover:underline">
-              {detail}
-            </Link>
-          ) : (
-            <p className="mt-0.5 line-clamp-2 break-words text-xs text-zinc-500">{detail}</p>
-          )
+          <p className="mt-0.5 line-clamp-2 break-words text-xs text-zinc-500">{detail}</p>
         ) : null}
         {showPrice ? (
           <p className="mt-0.5 text-xs text-zinc-500">
