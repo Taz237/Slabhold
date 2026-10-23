@@ -3,11 +3,11 @@ import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { after, before, beforeEach, describe, it } from "node:test";
 import { JSDOM } from "jsdom";
-import { createElement, act, useMemo, type ComponentType, type ReactNode } from "react";
-import { CollectionProvider } from "@/components/collection-provider";
+import { createElement, act, useState, useMemo, type ComponentType, type ReactNode } from "react";
+import { CollectionContext, CollectionProvider } from "@/components/collection-provider";
 import { SocialContext, SocialProvider, useSocial } from "@/components/social-provider";
 import { STORAGE_KEY } from "@/lib/storage";
-import type { SportsCard } from "@/lib/types";
+import type { CardInput, SportsCard } from "@/lib/types";
 import {
   assessNewCardSubmit,
   clearNewCardDraft,
@@ -18,6 +18,10 @@ import {
   type CardDraftForm,
   type NewCardDraft,
 } from "./new-card-draft";
+
+for (const key of Object.keys(process.env)) {
+  if (key.startsWith("NEXT_PUBLIC_SUPABASE_")) delete process.env[key];
+}
 
 const require = createRequire(process.cwd() + "/package.json");
 const { AppRouterContext } = require(
@@ -327,6 +331,36 @@ describe("add card survives a remount", () => {
     }
   });
 
+  it("keeps a saved card when retrying after a share failure and the save returns 500", async () => {
+    resetSaveProbe();
+    sharePost.error = "feed down";
+    const view = await mountFailure();
+    try {
+      await waitFor(() => textIncludes("Add a card"));
+      await fillIdentity();
+      await clickVisibility("Public");
+      await clickCheckbox("Share to feed");
+      await submit();
+      await waitFor(() => textIncludes("Saved the card, but couldn't share it to the feed."));
+      assert.equal(saveProbe.adds, 1);
+      assert.equal(saveProbe.cards.length, 1);
+      await submit();
+      await waitFor(() => textIncludes("Could not save this card."));
+      assert.equal(saveProbe.removes, 0);
+      assert.equal(saveProbe.cards.length, 1);
+      assert.equal(saveProbe.updates, 1);
+      await submit();
+      await waitFor(() => sharePost.calls >= 2);
+      assert.equal(saveProbe.adds, 1);
+      assert.equal(saveProbe.updates, 2);
+      assert.equal(saveProbe.removes, 0);
+      assert.equal(saveProbe.cards.length, 1);
+      assert.equal(saveProbe.cards[0]?.id, "saved-card");
+    } finally {
+      view.unmount();
+    }
+  });
+
   it("offers Start over and says when a restored draft lost its photo", async () => {
     writeNewCardDraft({ ...draftFor(typedForm), hadPhoto: true });
     const view = await mount({});
@@ -501,7 +535,86 @@ async function waitFor(check: () => boolean) {
   throw new Error(win.document.body.textContent?.slice(0, 800) ?? "timed out");
 }
 
-function Harness({ children }: { children: ReactNode }) {
+const saveProbe = {
+  adds: 0,
+  updates: 0,
+  removes: 0,
+  cards: [] as SportsCard[],
+};
+
+function resetSaveProbe() {
+  saveProbe.adds = 0;
+  saveProbe.updates = 0;
+  saveProbe.removes = 0;
+  saveProbe.cards = [];
+}
+
+function failureAdd(input: CardInput) {
+  saveProbe.adds += 1;
+  const now = new Date().toISOString();
+  const card: SportsCard = { ...input, id: "saved-card", createdAt: now, updatedAt: now };
+  saveProbe.cards = [card];
+  return { card, saved: Promise.resolve() };
+}
+
+function failureUpdate(id: string, patch: Partial<SportsCard>) {
+  saveProbe.updates += 1;
+  const previous = saveProbe.cards.find((card) => card.id === id);
+  const updated = {
+    ...(previous as SportsCard),
+    ...patch,
+    id,
+    updatedAt: new Date().toISOString(),
+  };
+  saveProbe.cards = saveProbe.cards.map((card) => (card.id === id ? updated : card));
+  if (saveProbe.updates === 1) {
+    const saved = Promise.reject(new Error("Could not save this card."));
+    void saved.catch(() => undefined);
+    return { card: updated, saved };
+  }
+  return { card: updated, saved: Promise.resolve() };
+}
+
+function failureRemove(id: string) {
+  saveProbe.removes += 1;
+  saveProbe.cards = saveProbe.cards.filter((card) => card.id !== id);
+}
+
+function SaveFailureCollection({ children }: { children?: ReactNode }) {
+  const [cards, setCards] = useState<SportsCard[]>([]);
+  const value = {
+    ready: true,
+    cards,
+    syncError: null,
+    getCard(id: string) {
+      return saveProbe.cards.find((card) => card.id === id);
+    },
+    addCard(input: CardInput) {
+      const result = failureAdd(input);
+      setCards(saveProbe.cards);
+      return result;
+    },
+    updateCard(id: string, patch: Partial<SportsCard>) {
+      const result = failureUpdate(id, patch);
+      setCards(saveProbe.cards);
+      return result;
+    },
+    removeCard(id: string) {
+      failureRemove(id);
+      setCards(saveProbe.cards);
+    },
+    reload() {},
+  };
+  return createElement(CollectionContext.Provider, { value: value as never }, children);
+}
+
+function Harness({
+  children,
+  failure = false,
+}: {
+  children?: ReactNode;
+  failure?: boolean;
+}) {
   const social = useMemo(
     () => ({
       ready: true,
@@ -514,14 +627,13 @@ function Harness({ children }: { children: ReactNode }) {
     }),
     [],
   );
+  const collection = failure
+    ? createElement(SaveFailureCollection, null, children)
+    : createElement(CollectionProvider, null, children);
   return createElement(
     AppRouterContext.Provider,
     { value: router },
-    createElement(
-      SocialContext.Provider,
-      { value: social as never },
-      createElement(CollectionProvider, null, children),
-    ),
+    createElement(SocialContext.Provider, { value: social as never }, collection),
   );
 }
 
@@ -557,12 +669,22 @@ async function mountSignOut() {
 }
 
 async function mount(props: CardFormProps) {
+  return mountIn(createElement(Harness, null, createElement(CardForm, props)));
+}
+
+async function mountFailure() {
+  return mountIn(
+    createElement(Harness, { failure: true }, createElement(CardForm, {})),
+  );
+}
+
+async function mountIn(tree: ReactNode) {
   const { createRoot } = await import("react-dom/client");
   const host = win.document.createElement("div");
   win.document.body.appendChild(host);
   const root = createRoot(host);
   await act(async () => {
-    root.render(createElement(Harness, null, createElement(CardForm, props)));
+    root.render(tree);
   });
   return {
     unmount() {

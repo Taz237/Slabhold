@@ -258,7 +258,7 @@ const savedCard: SportsCard = {
   updatedAt: "2024-01-02T00:00:00.000Z",
 };
 
-function Harness({ userId, children }: { userId: string | null; children: ReactNode }) {
+function Harness({ userId, children }: { userId: string | null; children?: ReactNode }) {
   const social = useMemo(
     () => ({
       ready: true,
@@ -302,12 +302,7 @@ async function mount(userId: string | null, props: CardFormProps = {}) {
   win.document.body.appendChild(host);
   const root = createRoot(host);
   await act(async () => {
-    root.render(
-      createElement(Harness, {
-        userId,
-        children: createElement(CardForm, props),
-      }),
-    );
+    root.render(createElement(Harness, { userId }, createElement(CardForm, props)));
   });
   return {
     unmount() {

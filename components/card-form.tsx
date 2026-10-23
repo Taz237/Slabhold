@@ -729,7 +729,7 @@ export function CardForm({
       if (!existing) {
         pendingId.current = card.id;
         setPendingCardId(card.id);
-        createdId = card.id;
+        if (reuseId === null) createdId = card.id;
       }
       await saved;
       createdId = null;
@@ -802,7 +802,7 @@ export function CardForm({
       }
       const timedOut = createdId != null && timedOutIds.current.has(createdId);
       if (createdId && !timedOut) removeCard(createdId);
-      if (!existing && !timedOut) {
+      if (createdId && !timedOut) {
         pendingId.current = null;
         setPendingCardId(null);
       }
