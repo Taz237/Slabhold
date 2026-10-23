@@ -464,11 +464,15 @@ create policy "Create notifications as yourself"
   for insert
   with check (
     auth.uid() = actor_id
+    and actor_id <> recipient_id
     and not private.is_blocked(auth.uid(), recipient_id)
     and private.notification_insert_allowed(kind, post_id, recipient_id)
     and href is null
     and (metadata is null or (kind = 'mention' and metadata = '{"source":"reply"}'::jsonb))
     and (kind <> 'follow' or preview is null)
+    and kind <> 'quote'
+    and kind <> 'want_alert'
+    and kind <> 'deal_confirm'
   );
 
 notify pgrst, 'reload schema';
