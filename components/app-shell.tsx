@@ -15,6 +15,7 @@ import { isAuthPage, shouldShowJoinBar } from "@/lib/auth/guest-paths";
 import { clearLogoutHome, logoutHomePending } from "@/lib/auth/logout-home";
 import { requiresAccount, routeAccess } from "@/lib/auth/route-access";
 import { loginPath, pathWithQuery } from "@/lib/auth/safe-next";
+import { isGuestHome } from "@/lib/auth/shell-paint";
 import type { Profile } from "@/lib/social/types";
 import {
   activeTabAction,
@@ -261,11 +262,27 @@ function GuestRedirect() {
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() || "/";
-  const { unreadCount, unreadMessageCount, ready, user, status } = useSocial();
+  const { unreadCount, unreadMessageCount, ready, user, status, sessionKnown, sessionUserId } =
+    useSocial();
+  const signedIn = Boolean(user) || Boolean(sessionUserId);
 
   useEffect(() => {
-    if (!user && pathname === "/") clearLogoutHome();
-  }, [user, pathname]);
+    if (!signedIn && pathname === "/") clearLogoutHome();
+  }, [signedIn, pathname]);
+
+  // The landing page is static. Paint it on the first render, before the
+  // session read and before the social snapshot, so signed-out `/` is not a
+  // blank div. The inline color is in the HTML, ahead of the light theme.
+  const guestHome = isGuestHome(pathname, signedIn);
+  if (guestHome) {
+    return (
+      <>
+        <style>{`html,body{background-color:#09090b}`}</style>
+        <AccountDeletedToast />
+        <LandingPage />
+      </>
+    );
+  }
 
   if (!ready) {
     if (shellShowsPageWhileLoading(pathname)) {
@@ -304,10 +321,35 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </>
       );
     }
+    if (sessionKnown && !signedIn && isAuthPage(pathname)) {
+      return (
+        <>
+          <AccountDeletedToast />
+          <AuthLayout>{children}</AuthLayout>
+        </>
+      );
+    }
+    if (sessionKnown && !signedIn && requiresAccount(pathname)) {
+      return (
+        <>
+          <AccountDeletedToast />
+          <GuestGate />
+        </>
+      );
+    }
     return (
       <>
         <AccountDeletedToast />
-        <div className="min-h-dvh bg-[var(--background)]" />
+        <Shell
+          unreadCount={signedIn ? unreadCount : 0}
+          unreadMessageCount={signedIn ? unreadMessageCount : 0}
+          status={signedIn ? status : null}
+          user={user}
+          showNav={signedIn}
+          showJoin={!signedIn && shouldShowJoinBar(false, pathname)}
+        >
+          {children}
+        </Shell>
       </>
     );
   }
@@ -315,6 +357,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   if (!user && pathname === "/") {
     return (
       <>
+        <style>{`html,body{background-color:#09090b}`}</style>
         <AccountDeletedToast />
         <LandingPage />
       </>

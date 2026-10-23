@@ -16,7 +16,7 @@ const SHOTS = [
 
 export function LandingPage() {
   return (
-    <div className="min-h-dvh bg-[#09090b] text-zinc-100">
+    <div className="min-h-dvh bg-[#09090b] text-zinc-100" style={{ backgroundColor: "#09090b" }}>
       <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(124,58,237,0.28),_transparent_55%)]" />
       <div className="relative mx-auto flex min-h-dvh w-full max-w-lg flex-col px-6 pt-[max(2.75rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))]">
         <div className="flex items-center gap-2">

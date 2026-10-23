@@ -35,7 +35,7 @@ import {
   type PublicCardComps,
 } from "@/lib/comps/public-types";
 import type { OwnersAndHunters } from "@/lib/cards/people";
-import type { PublicCard } from "@/lib/social/types";
+import type { OwnedCard, Profile, PublicCard } from "@/lib/social/types";
 import {
   cardValueHasAmount,
   isLowConfidenceValue,
@@ -54,22 +54,27 @@ export function PublicCardView({
   id,
   publicComps = hiddenPublicComps(),
   people = null,
+  profile: serverProfile = null,
+  card: serverCard = null,
 }: {
   username: string;
   id: string;
   publicComps?: PublicCardComps;
   people?: OwnersAndHunters | null;
+  /** Server-loaded collector. The page paints this without the social snapshot. */
+  profile?: Profile | null;
+  /** Server-loaded public card. Ownership still waits for the session. */
+  card?: OwnedCard | null;
 }) {
   const social = useSocial();
   const { cards, ready: cardsReady } = useCollection();
-  const profile = social.profileByUsername(username);
+  const profile = serverProfile ?? social.profileByUsername(username);
   const isOwn = Boolean(profile && social.user && profile.id === social.user.id);
-
-  if (!social.ready || (isOwn && !cardsReady)) return <ProfileSkeleton />;
 
   const backHref = `${userHref(username)}?tab=collection`;
 
   if (!profile) {
+    if (!social.ready) return <ProfileSkeleton />;
     return (
       <Missing
         title="Profile not found"
@@ -80,9 +85,11 @@ export function PublicCardView({
     );
   }
 
-  const owned = isOwn ? cards.find((card) => card.id === id) : undefined;
-  const listed = social.publicCards.find((card) => card.id === id && card.ownerId === profile.id);
+  const owned = isOwn && cardsReady ? cards.find((card) => card.id === id) : undefined;
+  const listed =
+    serverCard ?? social.publicCards.find((card) => card.id === id && card.ownerId === profile.id);
   const card = owned ? (owned.isPublic ? toPublicCard(owned) : null) : (listed ?? null);
+  if (!card && !serverCard && (!social.ready || (isOwn && !cardsReady))) return <ProfileSkeleton />;
 
   if (!card) {
     return (

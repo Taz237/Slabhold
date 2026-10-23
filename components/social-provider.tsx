@@ -114,9 +114,14 @@ import type {
 } from "@/lib/social/types";
 import { draftPostPhotos, type PostWrite } from "@/lib/social/post-photos";
 import { profileReplies, profileWithPin } from "@/lib/social/profile-tabs";
+import { shouldSkipSocialSnapshot } from "@/lib/auth/shell-paint";
 
 type SocialContextValue = {
   ready: boolean;
+  /** True after the local session read finishes. The shell does not wait on the snapshot. */
+  sessionKnown: boolean;
+  /** Auth user id from getSession, before the profile row is loaded. */
+  sessionUserId: string | null;
   /** True after the site snapshot is in memory. A cold post page leaves this false. */
   hasFullSnapshot: boolean;
   /** Set while a post screen is fetching a post that is not in memory yet. */
@@ -238,6 +243,8 @@ const emptySnapshot: SocialSnapshot = {
 export function SocialProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() || "/";
   const [ready, setReady] = useState(false);
+  const [sessionKnown, setSessionKnown] = useState(false);
+  const [sessionUserId, setSessionUserId] = useState<string | null>(null);
   const [loadingPostId, setLoadingPostId] = useState<string | null>(null);
   const [resolvedPostId, setResolvedPostId] = useState<string | null>(null);
   const [hasFullSnapshot, setHasFullSnapshot] = useState(false);
@@ -267,12 +274,21 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
   const inflightRef = useRef(new Map<string, Promise<unknown>>());
   const reloadRef = useRef<(client: SupabaseClient) => Promise<void>>(async () => {});
   const lastUserIdRef = useRef<string | null>(null);
+  const sessionKnownRef = useRef(false);
   localRef.current = local;
+
+  useEffect(() => {
+    sessionKnownRef.current = sessionKnown;
+  }, [sessionKnown]);
 
   const routePostId = postIdFromPath(pathname);
   const routePostKnown =
     routePostId !== null && remote.posts.some((post) => post.id === routePostId);
-  if (mode === "supabase" && !routePostId && !hasFullSnapshot && !snapshotError && ready) {
+  if (
+    mode === "supabase" &&
+    !routePostId && !hasFullSnapshot && !snapshotError && ready &&
+    !shouldSkipSocialSnapshot({ pathname, sessionKnown, sessionUserId })
+  ) {
     setReady(false);
   }
   if (resolvedPostId && resolvedPostId !== routePostId) {
@@ -346,7 +362,21 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     reloadRef.current = async (client) => {
-      const id = postIdFromPath(window.location.pathname);
+      const path = window.location.pathname;
+      if (
+        shouldSkipSocialSnapshot({
+          pathname: path,
+          sessionKnown: sessionKnownRef.current,
+          sessionUserId: lastUserIdRef.current,
+        })
+      ) {
+        fullSnapshotRef.current = false;
+        setHasFullSnapshot(false);
+        setRemote(emptySnapshot);
+        setReady(true);
+        return;
+      }
+      const id = postIdFromPath(path);
       if (id && !fullSnapshotRef.current) {
         const page = await loadPostPage(client, id);
         applyPostPage(page);
@@ -363,6 +393,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
     if (!client) {
       const { issue } = getSupabaseConfig();
       if (issue) setStatus(issue);
+      setSessionKnown(true);
       loadOrCreateLocalDb().then((db) => {
         if (cancelled) return;
         setMode("local");
@@ -383,10 +414,14 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
     void client.auth
       .getSession()
       .then(({ data: sessionData }) => {
-        if (!cancelled) lastUserIdRef.current = sessionData.session?.user?.id ?? null;
+        if (cancelled) return;
+        const id = sessionData.session?.user?.id ?? null;
+        lastUserIdRef.current = id;
+        setSessionUserId(id);
       })
       .finally(() => {
         if (cancelled) return;
+        setSessionKnown(true);
         const { data } = client.auth.onAuthStateChange((event, session) => {
           if (event !== "SIGNED_IN" && event !== "SIGNED_OUT") return;
           const decision = authSnapshotReload({
@@ -395,6 +430,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
             lastUserId: lastUserIdRef.current,
           });
           lastUserIdRef.current = decision.lastUserId;
+          setSessionUserId(decision.lastUserId);
           if (!decision.reload) return;
           setTimeout(() => {
             void reloadRef
@@ -1154,6 +1190,18 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
     };
 
     if (!postId) {
+      // The signed-out landing page has no feed. Don't download the site snapshot.
+      if (
+        shouldSkipSocialSnapshot({
+          pathname,
+          sessionKnown,
+          sessionUserId: lastUserIdRef.current,
+        })
+      ) {
+        setReady(true);
+        return;
+      }
+      if (!sessionKnown) return;
       // public_cards is part of this snapshot. Load it once per mount.
       if (!shouldFetchPublicCatalog({ loaded: fullSnapshotRef.current, source: "mount" })) return;
       // Home and the rest of the app still need the snapshot. Don't paint the
@@ -1225,7 +1273,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
         setLoadingPostId((current) => (current === postId ? null : current));
         setReady(true);
       });
-  }, [applyPostPage, mode, pathname, refreshRemote]);
+  }, [applyPostPage, mode, pathname, refreshRemote, sessionKnown]);
 
   const isLiked = useCallback(
     (postId: string) =>
@@ -1574,6 +1622,8 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
   const value = useMemo<SocialContextValue>(
     () => ({
       ready,
+      sessionKnown,
+      sessionUserId,
       hasFullSnapshot,
       loadingPostId,
       mode,
@@ -1679,6 +1729,8 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       postCardValuesLoading,
       postCardValuesMessage,
       ready,
+      sessionKnown,
+      sessionUserId,
       refresh,
       refreshSuggestions,
       signIn,
