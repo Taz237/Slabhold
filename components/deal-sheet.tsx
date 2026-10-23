@@ -47,7 +47,7 @@ export function DealSheet({
     if (!user || pending) return;
     const cents = priceDollarsToCents(price);
     if (cents === "invalid") {
-      setError("Enter a price like 12.50, or leave it blank.");
+      setError("Enter a price up to $1,000,000, or leave it blank.");
       return;
     }
     const nextCard = cardId || fixedCard?.id || "";

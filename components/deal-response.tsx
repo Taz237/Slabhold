@@ -8,13 +8,15 @@ import { cancelDeal, listMyDeals, respondDeal } from "@/lib/deals/client";
 import {
   addCardHref,
   dealActions,
+  dealCardLabel,
+  dealForNotification,
   dealIdFromMetadata,
   formatPriceCents,
   prefillFromMetadata,
   type Deal,
 } from "@/lib/deals/state";
 
-function usePartyDeals(partnerId?: string | null) {
+export function useMyDeals() {
   const { user } = useSocial();
   const [deals, setDeals] = useState<Deal[]>([]);
   const [version, setVersion] = useState(0);
@@ -29,25 +31,30 @@ function usePartyDeals(partnerId?: string | null) {
     return () => {
       cancelled = true;
     };
-  }, [user, version, partnerId]);
+  }, [user, version]);
 
   return {
-    deals: partnerId
-      ? deals.filter((deal) => deal.sellerId === partnerId || deal.buyerId === partnerId)
-      : deals,
+    deals,
     refresh: () => setVersion((value) => value + 1),
   };
 }
 
-export function DealConfirmActions({ metadata }: { metadata: unknown }) {
+export function DealConfirmActions({
+  metadata,
+  deals,
+  onChanged,
+}: {
+  metadata: unknown;
+  deals: readonly Deal[];
+  onChanged: () => void;
+}) {
   const dealId = dealIdFromMetadata(metadata);
   const prefill = prefillFromMetadata(metadata);
   const { user } = useSocial();
   const { reload } = useCollection();
-  const { deals, refresh } = usePartyDeals();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const deal = deals.find((row) => row.id === dealId) ?? null;
+  const deal = dealForNotification(metadata, deals);
   if (!dealId || !user || !deal) return null;
   const activeId = deal.id;
   const actions = dealActions(deal, user.id);
@@ -63,7 +70,7 @@ export function DealConfirmActions({ metadata }: { metadata: unknown }) {
     }
     setError(null);
     reload();
-    refresh();
+    onChanged();
   }
 
   return (
@@ -84,7 +91,8 @@ export function DealConfirmActions({ metadata }: { metadata: unknown }) {
 export function DealThreadPanel({ partnerId }: { partnerId: string }) {
   const { user, notifications } = useSocial();
   const { reload } = useCollection();
-  const { deals, refresh } = usePartyDeals(partnerId);
+  const { deals: mine, refresh } = useMyDeals();
+  const deals = mine.filter((deal) => deal.sellerId === partnerId || deal.buyerId === partnerId);
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const visible = deals.filter((deal) => deal.status === "pending" || deal.status === "confirmed");
@@ -120,12 +128,20 @@ export function DealThreadPanel({ partnerId }: { partnerId: string }) {
       {error ? <p className="text-sm text-rose-600 dark:text-rose-300">{error}</p> : null}
       {visible.map((deal) => {
         const note = notifications.find((item) => dealIdFromMetadata(item.metadata) === deal.id);
-        const prefill = prefillFromMetadata(note?.metadata);
+        const prefill = prefillFromMetadata(note?.metadata) ?? prefillFromMetadata({
+          player: deal.cardPlayer,
+          year: deal.cardYear,
+          set: deal.cardSet,
+          num: deal.cardNumber,
+          parallel: deal.cardParallel,
+        });
         const actions = dealActions(deal, user.id);
         const price = formatPriceCents(deal.priceCents);
         return (
           <div key={deal.id} className="flex flex-wrap items-center justify-between gap-2">
             <p className="text-sm">
+              {dealCardLabel(deal)}
+              {" · "}
               {deal.kind === "trade" ? "Trade" : "Sale"}
               {price ? ` · ${price}` : ""}
               {deal.status === "confirmed" ? " · Confirmed" : " · Waiting"}

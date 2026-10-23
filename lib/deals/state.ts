@@ -1,4 +1,5 @@
 import { isSold } from "@/lib/format";
+import { userHref } from "@/lib/social/user-href";
 import type { SportsCard } from "@/lib/types";
 
 export type DealKind = "sale" | "trade";
@@ -6,15 +7,26 @@ export type DealStatus = "pending" | "confirmed" | "declined" | "cancelled";
 
 export type Deal = {
   id: string;
-  cardId: string;
+  cardId: string | null;
   sellerId: string;
   buyerId: string;
   kind: DealKind;
   priceCents: number | null;
   status: DealStatus;
+  cardPlayer: string;
+  cardYear: string;
+  cardSet: string;
+  cardNumber: string;
+  cardParallel: string;
   createdAt: string;
   confirmedAt: string | null;
 };
+
+/** $1,000,000. Matches deals_price_cents. */
+export const MAX_DEAL_PRICE_CENTS = 100_000_000;
+
+/** At most this many deals from one seller to one buyer in an hour. */
+export const DEAL_PAIR_HOURLY_LIMIT = 5;
 
 export type DealActions = {
   confirm: boolean;
@@ -68,7 +80,7 @@ export function priceDollarsToCents(raw: string): number | null | "invalid" {
   if (!trimmed) return null;
   if (!/^\d+(\.\d{1,2})?$/.test(trimmed)) return "invalid";
   const cents = Math.round(Number(trimmed) * 100);
-  if (!Number.isInteger(cents) || cents < 0) return "invalid";
+  if (!Number.isInteger(cents) || cents < 0 || cents > MAX_DEAL_PRICE_CENTS) return "invalid";
   return cents;
 }
 
@@ -125,4 +137,53 @@ export function dealIdFromMetadata(metadata: unknown): string | null {
 
 export function heldCards(cards: readonly SportsCard[]): SportsCard[] {
   return cards.filter((card) => !isSold(card));
+}
+
+/** Name stored on the deal, including after the card row is gone. */
+export function dealCardLabel(deal: Pick<Deal, "cardPlayer" | "cardYear" | "cardSet" | "cardNumber">): string {
+  const parts = [deal.cardPlayer, deal.cardYear, deal.cardSet, deal.cardNumber]
+    .map((part) => part.trim())
+    .filter(Boolean);
+  return parts.join(" · ") || "This card";
+}
+
+/**
+ * Prefer the actor's current username. The href saved at send time is only a fallback
+ * so a rename does not leave a dead link.
+ */
+export function dealNotificationHref(
+  actorId: string | null | undefined,
+  username: string | null | undefined,
+  storedHref: string | null | undefined,
+): string {
+  const handle = username?.replace(/^@/, "").trim();
+  if (actorId && handle) return userHref(handle, "messages");
+  if (storedHref && storedHref.startsWith("/messages/") && !storedHref.startsWith("//")) {
+    return storedHref;
+  }
+  return "/notifications";
+}
+
+export function dealForNotification(metadata: unknown, deals: readonly Deal[]): Deal | null {
+  const id = dealIdFromMetadata(metadata);
+  if (!id) return null;
+  return deals.find((deal) => deal.id === id) ?? null;
+}
+
+/** What a card delete does to that card's deals. Confirmed rows keep the snapshot. */
+export function dealsAfterCardRemoved(deals: readonly Deal[], cardId: string): Deal[] {
+  return deals.map((deal) => {
+    if (deal.cardId !== cardId) return deal;
+    if (deal.status === "pending") return { ...deal, cardId: null, status: "cancelled" };
+    return { ...deal, cardId: null };
+  });
+}
+
+export function dealRateAllows(createdInLastHour: number): boolean {
+  return createdInLastHour < DEAL_PAIR_HOURLY_LIMIT;
+}
+
+/** Decline stays available. Confirm does not, once either person has blocked the other. */
+export function confirmAllowed(blocked: boolean): boolean {
+  return !blocked;
 }

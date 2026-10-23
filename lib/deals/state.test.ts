@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { DealActionButtons } from "@/components/deal-actions";
+import { dealErrorMessage } from "@/lib/deals/client";
 import { catalogCardFromParams } from "@/lib/search/catalog-results";
 import {
   ADD_TO_COLLECTION_LABEL,
@@ -12,8 +13,14 @@ import {
   DECLINE_DEAL_LABEL,
   MARK_SOLD_LABEL,
   addCardHref,
+  confirmAllowed,
   confirmDealPreview,
   dealActions,
+  dealCardLabel,
+  dealForNotification,
+  dealNotificationHref,
+  dealRateAllows,
+  dealsAfterCardRemoved,
   dmPartnerIds,
   heldCards,
   prefillFromMetadata,
@@ -34,6 +41,11 @@ function deal(status: Deal["status"], patch: Partial<Deal> = {}): Deal {
     kind: "sale",
     priceCents: 1250,
     status,
+    cardPlayer: "Jordan Love",
+    cardYear: "2020",
+    cardSet: "Select",
+    cardNumber: "47",
+    cardParallel: "Base",
     createdAt: "2026-10-22T12:00:00.000Z",
     confirmedAt: status === "confirmed" ? "2026-10-22T13:00:00.000Z" : null,
     ...patch,
@@ -164,8 +176,64 @@ describe("deal actions", () => {
     assert.equal(priceDollarsToCents("  "), null);
     assert.equal(priceDollarsToCents("12.50"), 1250);
     assert.equal(priceDollarsToCents("0"), 0);
+    assert.equal(priceDollarsToCents("1000000"), 100_000_000);
+    assert.equal(priceDollarsToCents("1000000.00"), 100_000_000);
     assert.equal(priceDollarsToCents("-1"), "invalid");
     assert.equal(priceDollarsToCents("1.234"), "invalid");
+    assert.equal(priceDollarsToCents("1000000.01"), "invalid");
+    assert.equal(
+      dealErrorMessage({ code: "23514", message: "deals_price_cents" }),
+      "Enter a price up to $1,000,000.",
+    );
+  });
+
+  it("keeps a confirmed deal's name after the card is deleted and cancels a pending one", () => {
+    const pending = deal("pending", { id: "pending-card", cardId: "card-1" });
+    const confirmed = deal("confirmed", { id: "kept", cardId: "card-1" });
+    const other = deal("confirmed", { id: "other", cardId: "card-2", cardPlayer: "Other" });
+    const next = dealsAfterCardRemoved([pending, confirmed, other], "card-1");
+    assert.equal(next[0]?.status, "cancelled");
+    assert.equal(next[0]?.cardId, null);
+    assert.equal(dealCardLabel(next[0]!), "Jordan Love · 2020 · Select · 47");
+    assert.equal(next[1]?.status, "confirmed");
+    assert.equal(next[1]?.cardId, null);
+    assert.equal(dealCardLabel(next[1]!), "Jordan Love · 2020 · Select · 47");
+    assert.equal(next[2]?.cardId, "card-2");
+  });
+
+  it("resolves the notification from the current username", () => {
+    assert.equal(
+      dealNotificationHref(SELLER, "love-new", "/messages/love-old"),
+      "/messages/love-new",
+    );
+    assert.equal(dealNotificationHref(SELLER, null, "/messages/love-old"), "/messages/love-old");
+    assert.equal(dealNotificationHref(null, null, "https://example.test"), "/notifications");
+  });
+
+  it("shares one deal list across notification rows", () => {
+    const rows = [deal("pending", { id: "d1" }), deal("confirmed", { id: "d2" })];
+    assert.equal(dealForNotification({ deal_id: "d1" }, rows)?.id, "d1");
+    assert.equal(dealForNotification({ deal_id: "d2" }, rows)?.status, "confirmed");
+    assert.equal(dealForNotification({ deal_id: "missing" }, rows), null);
+  });
+
+  it("allows five deals in an hour and stops the sixth", () => {
+    assert.equal(dealRateAllows(4), true);
+    assert.equal(dealRateAllows(5), false);
+    assert.equal(
+      dealErrorMessage({ code: "42501", message: "too many deals" }),
+      "You can send 5 deals to the same person each hour.",
+    );
+  });
+
+  it("blocks confirm and still explains a hand-recorded sale", () => {
+    assert.equal(confirmAllowed(true), false);
+    assert.equal(confirmAllowed(false), true);
+    assert.equal(dealErrorMessage({ code: "42501", message: "not allowed" }), "You can't do that.");
+    assert.equal(
+      dealErrorMessage({ code: "42501", message: "already sold" }),
+      "This card was already marked sold.",
+    );
   });
 
   it("asks the buyer to confirm the card and never says marketplace", () => {
@@ -177,7 +245,8 @@ describe("deal actions", () => {
     const thread = readFileSync(join(process.cwd(), "components/message-thread.tsx"), "utf8");
     assert.equal(MARK_SOLD_LABEL, "Mark as sold/traded");
     assert.match(cardPage, /MARK_SOLD_LABEL/);
-    assert.match(thread, /MARK_SOLD_LABEL/);
+    assert.match(cardPage, /min-h-11[\s\S]*Mark as sold/);
+    assert.match(thread, /min-h-11[\s\S]*MARK_SOLD_LABEL/);
     assert.match(thread, /DealThreadPanel/);
     for (const text of [source, sheet, cardPage, thread]) {
       assert.equal(/marketplace/i.test(text), false);

@@ -7,12 +7,17 @@ import {
 
 type DealRow = {
   id: string;
-  card_id: string;
+  card_id: string | null;
   seller_id: string;
   buyer_id: string;
   kind: string;
   price_cents: number | null;
   status: string;
+  card_player?: string | null;
+  card_year?: string | null;
+  card_set?: string | null;
+  card_number?: string | null;
+  card_parallel?: string | null;
   created_at: string;
   confirmed_at: string | null;
 };
@@ -30,6 +35,11 @@ export function mapDeal(row: DealRow): Deal | null {
     kind: row.kind,
     priceCents: row.price_cents == null ? null : Number(row.price_cents),
     status: row.status as DealStatus,
+    cardPlayer: row.card_player ?? "",
+    cardYear: row.card_year ?? "",
+    cardSet: row.card_set ?? "",
+    cardNumber: row.card_number ?? "",
+    cardParallel: row.card_parallel ?? "",
     createdAt: row.created_at,
     confirmedAt: row.confirmed_at,
   };
@@ -41,8 +51,15 @@ export function dealErrorMessage(error: { code?: string; message?: string } | nu
   if (code === "23505" || /already waiting|duplicate key/i.test(message)) {
     return "A deal is already waiting on this card.";
   }
+  if (/already sold/i.test(message)) return "This card was already marked sold.";
+  if (/too many deals/i.test(message)) return "You can send 5 deals to the same person each hour.";
+  if (/price too high|deals_price_cents/i.test(message) || code === "23514") {
+    return "Enter a price up to $1,000,000.";
+  }
   if (/no conversation/i.test(message)) return "Pick someone you already message.";
-  if (code === "42501" || /permission denied/i.test(message)) return "You can't do that.";
+  if (/not allowed/i.test(message) || code === "42501" || /permission denied/i.test(message)) {
+    return "You can't do that.";
+  }
   return "Couldn't update that deal.";
 }
 
@@ -96,7 +113,9 @@ export async function listMyDeals(): Promise<{ deals: Deal[] } | { error: string
   if (!supabase) return { error: "You need to be signed in." };
   const { data, error } = await supabase
     .from("deals")
-    .select("id, card_id, seller_id, buyer_id, kind, price_cents, status, created_at, confirmed_at")
+    .select(
+      "id, card_id, seller_id, buyer_id, kind, price_cents, status, card_player, card_year, card_set, card_number, card_parallel, created_at, confirmed_at",
+    )
     .order("created_at", { ascending: false });
   if (error) return { error: dealErrorMessage(error) };
   const deals = ((data ?? []) as DealRow[]).map(mapDeal).filter((deal): deal is Deal => deal != null);

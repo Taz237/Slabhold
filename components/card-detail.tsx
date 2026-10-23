@@ -491,7 +491,7 @@ export function CardDetail({ id }: { id: string }) {
               <button
                 type="button"
                 onClick={() => setDealOpen(true)}
-                className="w-full rounded-full bg-violet-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-violet-500"
+                className="inline-flex min-h-11 w-full items-center justify-center rounded-full bg-violet-600 px-5 text-sm font-medium text-white hover:bg-violet-500"
               >
                 {MARK_SOLD_LABEL}
               </button>
@@ -508,7 +508,7 @@ export function CardDetail({ id }: { id: string }) {
               <button
                 type="button"
                 onClick={markSold}
-                className="w-full rounded-full bg-violet-600 px-5 py-2.5 text-sm font-medium whitespace-nowrap text-white hover:bg-violet-500"
+                className="inline-flex min-h-11 w-full items-center justify-center rounded-full bg-violet-600 px-5 text-sm font-medium whitespace-nowrap text-white hover:bg-violet-500"
               >
                 Mark as sold
               </button>

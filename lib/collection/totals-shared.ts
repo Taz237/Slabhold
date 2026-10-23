@@ -1,17 +1,10 @@
-import { isSold } from "@/lib/format";
 import type { PortfolioTotals } from "@/lib/portfolio";
-import type { SportsCard } from "@/lib/types";
 
 export type CollectionTotals = {
   value: number;
   invested: number;
   profit: number;
 };
-
-/** Sold cards do not count toward collection value, invested, or profit. */
-export function cardsCountedInCollectionTotals(cards: SportsCard[]): SportsCard[] {
-  return cards.filter((card) => !isSold(card));
-}
 
 /** Map Collection summary totals into snapshot columns. */
 export function collectionTotalsFromSummarize(

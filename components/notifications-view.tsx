@@ -5,12 +5,13 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { AtSign, Bell, Handshake, Heart, MessageCircle, Quote, Repeat2, Star, UserPlus } from "lucide-react";
 import { Avatar } from "@/components/avatar";
-import { DealConfirmActions } from "@/components/deal-response";
+import { DealConfirmActions, useMyDeals } from "@/components/deal-response";
 import { WantAlertOfferLink } from "@/components/open-to-offers";
 import { solidButton } from "@/components/button-styles";
 import { PullToRefresh } from "@/components/pull-to-refresh";
 import { EmptyState, LoadingRows } from "@/components/status";
 import { useSocial } from "@/components/social-provider";
+import { dealNotificationHref } from "@/lib/deals/state";
 import { loginPath } from "@/lib/auth/safe-next";
 import { userHref } from "@/lib/social/user-href";
 import { exactTime, timeAgo } from "@/lib/format";
@@ -26,6 +27,7 @@ import type { NotificationKind, Profile } from "@/lib/social/types";
 export function NotificationsView() {
   const pathname = usePathname() || "/";
   const { ready, user, profiles, notifications, markNotificationsRead, refresh } = useSocial();
+  const { deals, refresh: refreshDeals } = useMyDeals();
   const userId = user?.id ?? null;
   const unreadOnVisit = useRef<{ userId: string; ids: ReadonlySet<string> } | null>(null);
   const [savedUnreadIds, setSavedUnreadIds] = useState<ReadonlySet<string> | null>(null);
@@ -169,7 +171,11 @@ export function NotificationsView() {
                   <WantAlertOfferLink metadata={group.notes[0]?.metadata} />
                 ) : null}
                 {group.kind === "deal_confirm" ? (
-                  <DealConfirmActions metadata={group.notes[0]?.metadata} />
+                  <DealConfirmActions
+                    metadata={group.notes[0]?.metadata}
+                    deals={deals}
+                    onChanged={refreshDeals}
+                  />
                 ) : null}
               </li>
             );
@@ -187,7 +193,9 @@ function groupHref(group: NotificationGroup, authors: Map<string, Profile>) {
   if (note.kind === "want_alert") {
     return note.href || (note.postId ? `/posts/${note.postId}` : "/collection");
   }
-  if (note.kind === "deal_confirm") return note.href || "/notifications";
+  if (note.kind === "deal_confirm") {
+    return dealNotificationHref(note.actorId, actor?.username, note.href);
+  }
   if (note.kind === "follow") return actor ? userHref(actor.username) : "/profile";
   return note.postId ? `/posts/${note.postId}` : "/";
 }

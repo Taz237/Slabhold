@@ -164,7 +164,7 @@ export function MessageThread({ username }: { username: string }) {
             <span className="block truncate text-xs text-zinc-500">@{partner.username}</span>
           </span>
         </Link>
-        <button type="button" onClick={() => setDealOpen(true)} className="shrink-0 rounded-full px-2 py-1 text-xs font-bold text-violet-700 dark:text-violet-300">
+        <button type="button" onClick={() => setDealOpen(true)} className="inline-flex min-h-11 shrink-0 items-center rounded-full px-3 text-xs font-bold text-violet-700 dark:text-violet-300">
           {MARK_SOLD_LABEL}
         </button>
       </div>
