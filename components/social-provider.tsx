@@ -1529,7 +1529,6 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
   const homePosts = snapshot.homePosts ?? snapshot.posts;
   const homeReposts = snapshot.homeReposts ?? snapshot.reposts;
   const blockedIds = snapshot.blockedIds ?? [];
-  const hiddenAuthorIds = snapshot.hiddenAuthorIds ?? [];
   const mutedIds = snapshot.mutedIds ?? [];
   const safetyAccounts = snapshot.safetyAccounts ?? [];
 
@@ -1687,7 +1686,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       homePosts,
       homeReposts,
       blockedIds,
-      hiddenAuthorIds,
+      hiddenAuthorIds: snapshot.hiddenAuthorIds ?? [],
       mutedIds,
       safetyAccounts,
       applySafetyChange,
@@ -1718,7 +1717,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       addComment,
       applySafetyChange,
       blockedIds,
-      hiddenAuthorIds,
+      snapshot.hiddenAuthorIds,
       commentsFor,
       markNotificationsRead,
       markThreadRead,
