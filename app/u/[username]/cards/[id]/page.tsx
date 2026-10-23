@@ -19,8 +19,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function PublicCardPage({ params }: Props) {
   const { username, id } = await params;
-  const [record, publicComps, people] = await Promise.all([
-    requirePublicCard(username, id),
+  const record = await requirePublicCard(username, id);
+  const [publicComps, people] = await Promise.all([
     getPublicCardComps(id),
     loadCardPeople(id),
   ]);

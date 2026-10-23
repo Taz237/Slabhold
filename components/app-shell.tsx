@@ -15,7 +15,7 @@ import { isAuthPage, shouldShowJoinBar } from "@/lib/auth/guest-paths";
 import { clearLogoutHome, logoutHomePending } from "@/lib/auth/logout-home";
 import { requiresAccount, routeAccess } from "@/lib/auth/route-access";
 import { loginPath, pathWithQuery } from "@/lib/auth/safe-next";
-import { isGuestHome } from "@/lib/auth/shell-paint";
+import { isGuestHome, paintBeforeSession } from "@/lib/auth/shell-paint";
 import type { Profile } from "@/lib/social/types";
 import {
   activeTabAction,
@@ -270,10 +270,27 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     if (!signedIn && pathname === "/") clearLogoutHome();
   }, [signedIn, pathname]);
 
-  // The landing page is static. Paint it on the first render, before the
-  // session read and before the social snapshot, so signed-out `/` is not a
-  // blank div. The inline color is in the HTML, ahead of the light theme.
-  const guestHome = isGuestHome(pathname, signedIn);
+  // The session read is local, but static HTML cannot know it. Until
+  // getSession resolves, paint a neutral dark shell: no landing page, no
+  // join bar, no nav, and no Log in / Sign up. Home and account routes stay
+  // empty so they can swap once the session is known.
+  if (!sessionKnown) {
+    const pending = paintBeforeSession(pathname);
+    return (
+      <>
+        <style>{`html,body{background-color:#09090b}`}</style>
+        <AccountDeletedToast />
+        <div
+          className="min-h-dvh bg-[var(--background)] text-[var(--foreground)]"
+          style={{ backgroundColor: "#09090b" }}
+        >
+          {pending.showChildren ? children : null}
+        </div>
+      </>
+    );
+  }
+
+  const guestHome = sessionKnown && isGuestHome(pathname, signedIn);
   if (guestHome) {
     return (
       <>
@@ -345,8 +362,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           unreadMessageCount={signedIn ? unreadMessageCount : 0}
           status={signedIn ? status : null}
           user={user}
-          showNav={signedIn}
-          showJoin={!signedIn && shouldShowJoinBar(false, pathname)}
+          showNav={sessionKnown && signedIn}
+          showJoin={sessionKnown && !signedIn && shouldShowJoinBar(false, pathname)}
         >
           {children}
         </Shell>

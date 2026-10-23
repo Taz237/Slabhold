@@ -20,6 +20,7 @@ import { PublicCardCompsPreview } from "@/components/public-card-comps";
 import { useCollection } from "@/components/collection-provider";
 import { ProfileSkeleton } from "@/components/status";
 import { useSocial } from "@/components/social-provider";
+import { publicCardHiddenFromViewer } from "@/lib/social/public-card-visibility";
 import { ValueChart } from "@/components/value-chart";
 import { isCardOwner } from "@/lib/comps/ownership";
 import { messageOwnerHref, showOpenToOffersBadge } from "@/lib/offers/open-to-offers";
@@ -68,7 +69,24 @@ export function PublicCardView({
 }) {
   const social = useSocial();
   const { cards, ready: cardsReady } = useCollection();
-  const profile = serverProfile ?? social.profileByUsername(username);
+  const snapshotProfile = social.profileByUsername(username);
+  // A full snapshot drops hidden authors from profiles. Missing there is the
+  // hidden-author set. A failed snapshot does not count, so the server card
+  // stays up when we never learned who is hidden.
+  const hiddenAuthorIds =
+    social.ready &&
+    social.hasFullSnapshot &&
+    serverProfile &&
+    snapshotProfile?.id !== serverProfile.id
+      ? [serverProfile.id]
+      : [];
+  const hidden = publicCardHiddenFromViewer({
+    ready: social.ready,
+    profileId: serverProfile?.id ?? snapshotProfile?.id ?? null,
+    blockedIds: social.blockedIds ?? [],
+    hiddenAuthorIds,
+  });
+  const profile = hidden ? undefined : (serverProfile ?? snapshotProfile);
   const isOwn = Boolean(profile && social.user && profile.id === social.user.id);
 
   const backHref = `${userHref(username)}?tab=collection`;

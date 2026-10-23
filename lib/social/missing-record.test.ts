@@ -128,5 +128,13 @@ describe("missing record 404", () => {
     const requireRecord = read("lib/social/require-record.ts");
     assert.match(requireRecord, /notFound\(\)/);
     assert.match(requireRecord, /missingRecordAction\(/);
+    assert.match(requireRecord, /offersColumnMissing\(cardRes\.error\)/);
+    assert.match(requireRecord, /select\(PUBLIC_CARD_SELECT\)/);
+    const cardPage = read("app/u/[username]/cards/[id]/page.tsx");
+    const requireAt = cardPage.indexOf("await requirePublicCard(username, id)");
+    const compsAt = cardPage.indexOf("getPublicCardComps(id)");
+    const peopleAt = cardPage.indexOf("loadCardPeople(id)");
+    assert.ok(requireAt > 0 && requireAt < compsAt && requireAt < peopleAt);
+    assert.doesNotMatch(cardPage, /Promise\.all\(\[\s*requirePublicCard/);
   });
 });

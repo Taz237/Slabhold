@@ -1,6 +1,7 @@
 import "server-only";
 
 import { notFound } from "next/navigation";
+import { offersColumnMissing } from "@/lib/offers/open-to-offers";
 import { isUuid } from "@/lib/value/card-value-access";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { mapPublicCard, PUBLIC_CARD_SELECT } from "./cards";
@@ -99,14 +100,24 @@ export async function requirePublicCard(
   let profile: Profile | null = null;
   let card: OwnedCard | null = null;
   if (normalized && isUuid(cardId)) {
-    const [profileRes, cardRes] = await Promise.all([
-      supabase.from("profiles").select(PROFILE_COLUMNS).eq("username", normalized).maybeSingle(),
-      supabase
+    const profilePromise = supabase
+      .from("profiles")
+      .select(PROFILE_COLUMNS)
+      .eq("username", normalized)
+      .maybeSingle();
+    let cardRes = await supabase
+      .from("public_cards")
+      .select(`${PUBLIC_CARD_SELECT}, open_to_offers`)
+      .eq("id", cardId)
+      .maybeSingle();
+    if (offersColumnMissing(cardRes.error)) {
+      cardRes = await supabase
         .from("public_cards")
-        .select(`${PUBLIC_CARD_SELECT}, open_to_offers`)
+        .select(PUBLIC_CARD_SELECT)
         .eq("id", cardId)
-        .maybeSingle(),
-    ]);
+        .maybeSingle();
+    }
+    const profileRes = await profilePromise;
     profileError = Boolean(profileRes.error);
     profileId = (profileRes.data?.id as string | undefined) ?? null;
     if (profileRes.data && !profileError) {

@@ -1,3 +1,5 @@
+import { requiresAccount } from "./route-access";
+
 function pathOnly(pathname: string): string {
   const cut = pathname.split("?")[0]?.split("#")[0] ?? "/";
   if (cut.length > 1 && cut.endsWith("/")) return cut.slice(0, -1);
@@ -23,4 +25,26 @@ export function shouldSkipSocialSnapshot(input: {
 }): boolean {
   if (!input.sessionKnown) return false;
   return isGuestHome(input.pathname, Boolean(input.sessionUserId));
+}
+
+/**
+ * What to paint while getSession is still in flight. The static shell has no
+ * landing page, join bar, nav, or auth CTA. Home and account routes stay empty
+ * so they can swap to the landing page, the feed, or a gate once the session
+ * is known. Other pages may show their own children.
+ */
+export function paintBeforeSession(pathname: string): {
+  showLanding: boolean;
+  showJoinBar: boolean;
+  showNav: boolean;
+  showChildren: boolean;
+} {
+  const home = isGuestHome(pathname, false);
+  const account = requiresAccount(pathname);
+  return {
+    showLanding: false,
+    showJoinBar: false,
+    showNav: false,
+    showChildren: !home && !account,
+  };
 }
