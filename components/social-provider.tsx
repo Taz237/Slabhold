@@ -12,6 +12,7 @@ import {
 import { usePathname } from "next/navigation";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { trackEvent } from "@/lib/analytics";
+import { clearNewCardDraft } from "@/lib/cards/new-card-draft";
 import { activityFrom, emptyActivity, loadActivity, saveActivity, type ActivityStore } from "@/lib/social/activity";
 import {
   createRememberedPosts,
@@ -493,6 +494,12 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
   const snapshotRef = useRef(snapshot);
   snapshotRef.current = snapshot;
   const suggestionUserId = snapshot.user?.id ?? null;
+  const seenDraftUserId = useRef(suggestionUserId);
+  useEffect(() => {
+    if (seenDraftUserId.current === suggestionUserId) return;
+    seenDraftUserId.current = suggestionUserId;
+    clearNewCardDraft();
+  }, [suggestionUserId]);
   // Once per signed-in session, plus an explicit refresh after picks change.
   // Toggling provider readiness must not call the RPC again.
   const suggestionKey = `${mode}:${suggestionUserId ?? ""}:${suggestionEpoch}`;
@@ -629,6 +636,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
   );
 
   const signOut = useCallback(async () => {
+    clearNewCardDraft();
     const client = supabaseRef.current;
     if (mode === "supabase" && client) {
       await remoteSignOut(client);

@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSocial } from "@/components/social-provider";
+import { clearNewCardDraft } from "@/lib/cards/new-card-draft";
 
 export function DeleteAccount() {
   const router = useRouter();
@@ -34,6 +35,7 @@ export function DeleteAccount() {
         setBusy(false);
         return;
       }
+      clearNewCardDraft();
       await signOut();
       router.replace("/?notice=account-deleted");
     } catch {

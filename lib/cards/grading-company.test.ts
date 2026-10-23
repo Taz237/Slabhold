@@ -230,7 +230,8 @@ describe("grading company", () => {
     assert.match(form, /label="Grading company"/);
     assert.match(form, /gradingCompanyOptions\(gradeCompany\)/);
     assert.match(form, /gradingCompanyFromCard\(/);
-    assert.match(form, /applyGradingCompany\(/);
+    assert.match(form, /assessNewCardSubmit\(/);
+    assert.match(read("lib/cards/new-card-draft.ts"), /applyGradingCompany\(/);
     assert.match(read("components/card-detail.tsx"), /gradeDetailSpecs\(/);
   });
 

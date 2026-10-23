@@ -410,7 +410,7 @@ describe("mail day form rules", () => {
     assert.match(mailDayForm, /sportAfterCatalogPick\(section\.sport, card\.sport\)/);
     assert.match(cardForm, /sportAfterCatalogPick\(sportTouched \? form\.sport : "", card\.sport\)/);
     assert.match(cardForm, /sportAfterCatalogPick\(sportTouched \? form\.sport : "", result\.sport\)/);
-    assert.match(cardForm, /useState\(Boolean\(existing\)\)/);
+    assert.match(cardForm, /useState\(restored\?\.sportTouched \?\? Boolean\(existing\)\)/);
     assert.match(cardForm, /setSportTouched\(true\)/);
     assert.match(mailDayForm, /This card is listed as/);
     assert.match(cardForm, /This card is listed as/);

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type SetStateAction } from "react";
 import { ScanSearch } from "lucide-react";
 import { CardPhotoField } from "@/components/card-photo-field";
 import { CardSearch } from "@/components/card-search";
@@ -29,20 +29,27 @@ import {
   isValidYear,
   normalizeCardNumberInput,
   optionsWithCurrent,
-  parseYearLabel,
   sortSetNames,
   yearOptionsForSport,
 } from "@/lib/card-options";
 import {
-  applyGradingCompany,
   estimateInputFromCard,
   gradeNumberFromGrade,
   gradingCompanyChange,
   gradingCompanyFromCard,
   gradingCompanyOptions,
 } from "@/lib/cards/grading-company";
-import { cardNumberAllowsSave } from "@/lib/cards/card-number-save";
 import { todayDateInput } from "@/lib/cards/form-defaults";
+import {
+  assessNewCardSubmit,
+  clearNewCardDraft,
+  formForSubmit,
+  newCardSeed,
+  readNewCardDraft,
+  writeNewCardDraft,
+  type CardDraftForm,
+  type NewCardDraft,
+} from "@/lib/cards/new-card-draft";
 import { cardFormPreview } from "@/lib/cards/form-preview";
 import {
   rememberFirstCardPrivacy,
@@ -78,12 +85,6 @@ import type {
 const DEMO_IDENTIFY =
   process.env.NEXT_PUBLIC_ENABLE_DEMO_IDENTIFY === "true";
 
-function negativePrice(value: string): boolean {
-  if (value.trim() === "") return false;
-  const n = Number(value);
-  return Number.isFinite(n) && n < 0;
-}
-
 function parseOptionalPrice(value: string): number | null {
   const trimmed = value.trim();
   if (trimmed === "") return null;
@@ -114,6 +115,9 @@ export function CardForm({
   const router = useRouter();
   const { addCard, updateCard, removeCard, cards, ready: cardsReady, syncError } = useCollection();
   const { mode, user, createPost } = useSocial();
+  const userId = user?.id ?? null;
+  const seed = existing ? null : newCardSeed(initialQuery, initialCatalog?.id ?? null);
+  const restored = seed ? readNewCardDraft(seed, userId) : null;
   const current = useCardValue(existing?.id ?? null);
   const currentValueLine = marketValueSummary(current.value);
   const accent = useDefaultAccent();
@@ -123,10 +127,17 @@ export function CardForm({
   const photoReadId = useRef(0);
   const formRef = useRef<HTMLFormElement>(null);
   const savingRef = useRef(false);
-  const pendingId = useRef<string | null>(existing?.id ?? null);
+  const [pendingCardId, setPendingCardId] = useState<string | null>(
+    existing?.id ?? restored?.pendingId ?? null,
+  );
+  const pendingId = useRef<string | null>(existing?.id ?? restored?.pendingId ?? null);
+  const [draftSealed, setDraftSealed] = useState(false);
+  const [draftUserId, setDraftUserId] = useState(userId);
   const catalogPick = useRef<CatalogPickSnapshot | null>(catalogStart?.snapshot ?? null);
   const timedOutIds = useRef<Set<string>>(new Set());
   const [photo, setPhoto] = useState<string | null>(existing?.photoDataUrl ?? null);
+  const [photoMissing, setPhotoMissing] = useState(Boolean(restored?.hadPhoto));
+  const [showingRestored, setShowingRestored] = useState(restored != null);
   const [photoError, setPhotoError] = useState<string | null>(null);
   const [readingPhoto, setReadingPhoto] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -138,14 +149,16 @@ export function CardForm({
     if (scanned) setPhoto(scanned);
   }, [existing]);
 
-  const [sold, setSold] = useState(Boolean(existing?.sellPrice));
-  const [share, setShare] = useState(Boolean(existing?.isPublic));
+  const [sold, setSold] = useState(restored?.sold ?? Boolean(existing?.sellPrice));
+  const [share, setShare] = useState(restored?.share ?? Boolean(existing?.isPublic));
   const offersKnown = existing?.openToOffers != null;
-  const [openToOffers, setOpenToOffers] = useState(existing?.openToOffers === true);
-  const [shareToFeed, setShareToFeed] = useState(false);
-  const [caption, setCaption] = useState("");
+  const [openToOffers, setOpenToOffers] = useState(
+    restored?.openToOffers ?? existing?.openToOffers === true,
+  );
+  const [shareToFeed, setShareToFeed] = useState(restored?.shareToFeed ?? false);
+  const [caption, setCaption] = useState(restored?.caption ?? "");
   const [category, setCategory] = useState<CardCategory>(
-    existing ? cardCategory(existing) : "pc",
+    restored?.category ?? (existing ? cardCategory(existing) : "pc"),
   );
   const [scanning, setScanning] = useState(false);
   const [identified, setIdentified] = useState<IdentifyResult | null>(null);
@@ -155,29 +168,33 @@ export function CardForm({
     conditionType: existing?.conditionType,
   });
 
-  const [gradeCompany, setGradeCompany] = useState(initialCompany);
+  const [gradeCompany, setGradeCompany] = useState(restored?.gradeCompany ?? initialCompany);
   const [gradeNumber, setGradeNumber] = useState(
-    gradeNumberFromGrade(existing?.grade ?? ""),
+    restored?.gradeNumber ?? gradeNumberFromGrade(existing?.grade ?? ""),
   );
   const [gradeQualifier, setGradeQualifier] = useState(
-    existing?.gradeQualifier ?? "",
+    restored?.gradeQualifier ?? existing?.gradeQualifier ?? "",
   );
-  const [certNumber, setCertNumber] = useState(existing?.certNumber ?? "");
-  const [noNumber, setNoNumber] = useState(Boolean(existing?.noNumber));
+  const [certNumber, setCertNumber] = useState(restored?.certNumber ?? existing?.certNumber ?? "");
+  const [noNumber, setNoNumber] = useState(restored?.noNumber ?? Boolean(existing?.noNumber));
   const [setIsCustom, setSetIsCustom] = useState(
-    Boolean(existing?.setIsCustom) || Boolean(catalogStart?.setIsCustom),
+    restored?.setIsCustom ??
+      (Boolean(existing?.setIsCustom) || Boolean(catalogStart?.setIsCustom)),
   );
   const [parallelIsCustom, setParallelIsCustom] = useState(
-    Boolean(existing?.parallelIsCustom) || Boolean(catalogStart?.parallelIsCustom),
+    restored?.parallelIsCustom ??
+      (Boolean(existing?.parallelIsCustom) || Boolean(catalogStart?.parallelIsCustom)),
   );
   const [parallelNote, setParallelNote] = useState("");
-  const [sportOffer, setSportOffer] = useState(catalogStart?.sportOffer ?? "");
-  const [sportTouched, setSportTouched] = useState(Boolean(existing));
-  const [isRookie, setIsRookie] = useState(
-    Boolean(existing?.isRookie) || Boolean(catalogStart?.isRookie),
+  const [sportOffer, setSportOffer] = useState(
+    restored?.sportOffer ?? catalogStart?.sportOffer ?? "",
   );
-  const [isAuto, setIsAuto] = useState(Boolean(existing?.isAuto));
-  const [isRelic, setIsRelic] = useState(Boolean(existing?.isRelic));
+  const [sportTouched, setSportTouched] = useState(restored?.sportTouched ?? Boolean(existing));
+  const [isRookie, setIsRookie] = useState(
+    restored?.isRookie ?? (Boolean(existing?.isRookie) || Boolean(catalogStart?.isRookie)),
+  );
+  const [isAuto, setIsAuto] = useState(restored?.isAuto ?? Boolean(existing?.isAuto));
+  const [isRelic, setIsRelic] = useState(restored?.isRelic ?? Boolean(existing?.isRelic));
   const [touched, setTouched] = useState<Record<string, boolean>>({});
 
   const manualPrefill =
@@ -187,7 +204,7 @@ export function CardForm({
     ? existing.yearLabel || String(existing.year)
     : (catalogStart?.form.yearLabel || manualPrefill?.yearLabel || "");
 
-  const [form, setForm] = useState({
+  const seededForm: CardDraftForm = {
     playerName: catalogStart?.form.playerName ?? existing?.playerName ?? manualPrefill?.playerName ?? "",
     yearLabel: defaultYear,
     setBrand: existing?.setBrand ?? catalogStart?.form.setBrand ?? "",
@@ -202,43 +219,153 @@ export function CardForm({
     sellPrice: existing?.sellPrice != null ? String(existing.sellPrice) : "",
     sellDate: existing?.sellDate ?? "",
     notes: existing?.notes ?? "",
-  });
+  };
+  const [form, setFormState] = useState<CardDraftForm>(restored?.form ?? seededForm);
+  const liveForm = useRef(form);
 
-  const grading = applyGradingCompany({
-    company: gradeCompany,
+  function setForm(action: SetStateAction<CardDraftForm>) {
+    setFormState((prev) => {
+      const next = typeof action === "function" ? action(prev) : action;
+      liveForm.current = next;
+      return next;
+    });
+  }
+
+  function draftNow(formValues: CardDraftForm = liveForm.current): NewCardDraft | null {
+    if (seed == null || draftSealed || draftUserId !== userId) return null;
+    return {
+      seed,
+      userId,
+      pendingId: pendingCardId,
+      hadPhoto: Boolean(photo) || photoMissing,
+      form: formValues,
+      noNumber,
+      setIsCustom,
+      parallelIsCustom,
+      gradeCompany,
+      gradeNumber,
+      gradeQualifier,
+      certNumber,
+      isRookie,
+      isAuto,
+      isRelic,
+      sold,
+      share,
+      openToOffers,
+      shareToFeed,
+      caption,
+      category,
+      sportTouched,
+      sportOffer,
+    };
+  }
+
+  useEffect(() => {
+    liveForm.current = form;
+    if (seed == null || draftSealed || draftUserId !== userId) return;
+    const untouched =
+      !photo &&
+      !photoMissing &&
+      !noNumber &&
+      !sold &&
+      !share &&
+      !shareToFeed &&
+      caption.trim() === "" &&
+      !sportTouched &&
+      !isRookie &&
+      !isAuto &&
+      !isRelic &&
+      gradeNumber.trim() === "" &&
+      certNumber.trim() === "" &&
+      pendingCardId == null &&
+      form.playerName.trim() === "" &&
+      form.yearLabel.trim() === "" &&
+      form.setBrand.trim() === "" &&
+      form.cardNumber.trim() === "" &&
+      form.notes.trim() === "" &&
+      form.purchasePrice.trim() === "" &&
+      form.estimatedSellPrice.trim() === "" &&
+      form.sellPrice.trim() === "";
+    if (untouched) {
+      clearNewCardDraft();
+      return;
+    }
+    writeNewCardDraft({
+      seed,
+      userId,
+      pendingId: pendingCardId,
+      hadPhoto: Boolean(photo) || photoMissing,
+      form,
+      noNumber,
+      setIsCustom,
+      parallelIsCustom,
+      gradeCompany,
+      gradeNumber,
+      gradeQualifier,
+      certNumber,
+      isRookie,
+      isAuto,
+      isRelic,
+      sold,
+      share,
+      openToOffers,
+      shareToFeed,
+      caption,
+      category,
+      sportTouched,
+      sportOffer,
+    });
+  }, [
+    seed,
+    userId,
+    draftUserId,
+    draftSealed,
+    pendingCardId,
+    photo,
+    photoMissing,
+    form,
+    noNumber,
+    setIsCustom,
+    parallelIsCustom,
+    gradeCompany,
     gradeNumber,
+    gradeQualifier,
+    certNumber,
+    isRookie,
+    isAuto,
+    isRelic,
+    sold,
+    share,
+    openToOffers,
+    shareToFeed,
+    caption,
+    category,
+    sportTouched,
+    sportOffer,
+  ]);
+
+  const view = assessNewCardSubmit({
+    isEdit: Boolean(existing),
+    form,
+    noNumber,
+    gradeCompany,
+    gradeNumber,
+    sold,
   });
-  const conditionType = grading.conditionType;
-  const graded = conditionType === "graded";
+  const grading = view.grading;
+  const conditionType = view.conditionType;
+  const graded = view.graded;
   const gradeChoices = gradeSelectOptions(gradeCompany, gradeNumber);
   const yearOptions = yearOptionsForSport(form.sport);
-
-  const parsedYear = parseYearLabel(form.yearLabel);
-  const numberSave = {
-    isEdit: Boolean(existing),
-    noNumber,
-    cardNumber: form.cardNumber,
-  };
-  const cardNumberOk = cardNumberAllowsSave(numberSave);
-  const setOk = Boolean(form.setBrand.trim());
-  const playerOk = Boolean(form.playerName.trim());
-  const yearOk = Boolean(parsedYear);
-  const companyMissing = !gradeCompany.trim();
-  const gradeOk = !companyMissing && (!graded || Boolean(gradeNumber));
-  const purchaseNeg = negativePrice(form.purchasePrice);
-  const estNeg = negativePrice(form.estimatedSellPrice);
-  const sellNeg = sold && negativePrice(form.sellPrice);
-
-  const formValid =
-    playerOk &&
-    yearOk &&
-    setOk &&
-    cardNumberOk &&
-    gradeOk &&
-    !purchaseNeg &&
-    !estNeg &&
-    !sellNeg &&
-    (!sold || (Boolean(form.sellPrice) && Boolean(form.sellDate) && !sellNeg));
+  const parsedYear = view.parsedYear;
+  const cardNumberOk = view.cardNumberOk;
+  const setOk = view.setOk;
+  const playerOk = view.playerOk;
+  const yearOk = view.yearOk;
+  const companyMissing = view.companyMissing;
+  const purchaseNeg = view.purchaseNeg;
+  const estNeg = view.estNeg;
+  const sellNeg = view.sellNeg;
 
   const preview = useMemo(() => {
     return cardFormPreview({
@@ -279,18 +406,21 @@ export function CardForm({
     setTouched((prev) => ({ ...prev, [key]: true }));
   }
 
-  function focusFirstInvalid() {
+  function focusFirstInvalid(
+    check: ReturnType<typeof assessNewCardSubmit>,
+    values: CardDraftForm,
+  ) {
     const order = [
-      !playerOk ? "playerName" : null,
-      !setOk ? "setBrand" : null,
-      !yearOk ? "yearLabel" : null,
-      !cardNumberOk ? "cardNumber" : null,
-      companyMissing ? "gradingCompany" : null,
-      graded && !gradeNumber ? "grade" : null,
-      purchaseNeg ? "purchasePrice" : null,
-      estNeg ? "estimatedSellPrice" : null,
-      sellNeg ? "sellPrice" : null,
-      sold && !form.sellDate ? "sellDate" : null,
+      !check.playerOk ? "playerName" : null,
+      !check.setOk ? "setBrand" : null,
+      !check.yearOk ? "yearLabel" : null,
+      !check.cardNumberOk ? "cardNumber" : null,
+      check.companyMissing ? "gradingCompany" : null,
+      check.graded && !check.gradeNumber ? "grade" : null,
+      check.purchaseNeg ? "purchasePrice" : null,
+      check.estNeg ? "estimatedSellPrice" : null,
+      check.sellNeg ? "sellPrice" : null,
+      check.sold && !values.sellDate ? "sellDate" : null,
     ].filter(Boolean) as string[];
     const key = order[0];
     if (!key || !formRef.current) return;
@@ -321,6 +451,7 @@ export function CardForm({
     photoReadId.current += 1;
     setReadingPhoto(false);
     setPhoto(null);
+    setPhotoMissing(false);
     setIdentified(null);
     setPhotoError(null);
   }
@@ -438,9 +569,64 @@ export function CardForm({
     else if (existing) router.push(`/cards/${existing.id}`);
   }
 
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
+  function startOver() {
+    setDraftSealed(false);
+    setPendingCardId(null);
+    clearNewCardDraft();
+    setShowingRestored(false);
+    setPhotoMissing(false);
+    setPhoto(null);
+    setPhotoError(null);
+    setIdentified(null);
+    setSold(false);
+    setShare(false);
+    setOpenToOffers(false);
+    setShareToFeed(false);
+    setCaption("");
+    setCategory("pc");
+    setGradeCompany(initialCompany);
+    setGradeNumber("");
+    setGradeQualifier("");
+    setCertNumber("");
+    setNoNumber(false);
+    setSetIsCustom(Boolean(catalogStart?.setIsCustom));
+    setParallelIsCustom(Boolean(catalogStart?.parallelIsCustom));
+    setParallelNote("");
+    setSportOffer(catalogStart?.sportOffer ?? "");
+    setSportTouched(false);
+    setIsRookie(Boolean(catalogStart?.isRookie));
+    setIsAuto(false);
+    setIsRelic(false);
+    setTouched({});
+    setSaveError(null);
+    setForm(seededForm);
+  }
+
+  if (draftUserId !== userId) {
+    setDraftUserId(userId);
+    clearNewCardDraft();
+    setDraftSealed(false);
+    setPendingCardId(null);
+    if (seed != null) startOver();
+  }
+
+  function onSubmit(event: React.FormEvent) {
+    event.preventDefault();
+    void submit();
+  }
+
+  async function submit() {
     if (!claimSubmit(savingRef)) return;
+    const values = formForSubmit(form, liveForm.current);
+    const check = assessNewCardSubmit({
+      isEdit: Boolean(existing),
+      form: values,
+      noNumber,
+      gradeCompany,
+      gradeNumber,
+      sold,
+    });
+    if (values !== form) setForm(values);
     setTouched({
       playerName: true,
       yearLabel: true,
@@ -453,43 +639,47 @@ export function CardForm({
       purchaseDate: true,
       sellDate: true,
     });
-    if (!formValid || !parsedYear) {
+    if (!check.ok || !check.parsedYear) {
       savingRef.current = false;
-      requestAnimationFrame(() => focusFirstInvalid());
+      const next = draftNow(values);
+      if (next) writeNewCardDraft(next);
+      requestAnimationFrame(() => focusFirstInvalid(check, values));
       return;
     }
 
-    const grade = grading.grade;
-    const parallel = parallelChoice(form.setBrand, form.parallel);
+    const grade = check.grading.grade;
+    const parallel = parallelChoice(values.setBrand, values.parallel);
+    const parsed = check.parsedYear;
+    const liveCondition = check.conditionType;
 
     const payload = {
-      playerName: form.playerName.trim(),
-      year: parsedYear.year,
-      yearLabel: parsedYear.yearLabel,
-      setBrand: form.setBrand.trim(),
+      playerName: values.playerName.trim(),
+      year: parsed.year,
+      yearLabel: parsed.yearLabel,
+      setBrand: values.setBrand.trim(),
       setIsCustom,
       cardNumber: noNumber
         ? ""
-        : normalizeCardNumberInput(form.cardNumber),
+        : normalizeCardNumberInput(values.cardNumber),
       noNumber,
       grade,
       parallel: parallel.parallel,
       parallelIsCustom: parallel.parallelIsCustom,
-      serialRun: form.serialRun ? Number(form.serialRun) : null,
-      serialNo: form.serialNo ? Number(form.serialNo) : null,
+      serialRun: values.serialRun ? Number(values.serialRun) : null,
+      serialNo: values.serialNo ? Number(values.serialNo) : null,
       isRookie,
       isAuto,
       isRelic,
-      conditionType,
-      gradeQualifier: conditionType === "graded" ? gradeQualifier : "",
-      certNumber: conditionType === "graded" ? certNumber.trim() : "",
-      sport: form.sport,
-      purchasePrice: parseOptionalPrice(form.purchasePrice),
-      purchaseDate: form.purchaseDate,
-      estimatedSellPrice: Number(form.estimatedSellPrice) || 0,
-      sellPrice: sold && form.sellPrice ? Number(form.sellPrice) : null,
-      sellDate: sold && form.sellDate ? form.sellDate : null,
-      notes: form.notes.trim(),
+      conditionType: liveCondition,
+      gradeQualifier: liveCondition === "graded" ? gradeQualifier : "",
+      certNumber: liveCondition === "graded" ? certNumber.trim() : "",
+      sport: values.sport,
+      purchasePrice: parseOptionalPrice(values.purchasePrice),
+      purchaseDate: values.purchaseDate,
+      estimatedSellPrice: Number(values.estimatedSellPrice) || 0,
+      sellPrice: sold && values.sellPrice ? Number(values.sellPrice) : null,
+      sellDate: sold && values.sellDate ? values.sellDate : null,
+      notes: values.notes.trim(),
       photoDataUrl: photo,
       accent: existing?.accent ?? accent,
       category,
@@ -508,16 +698,23 @@ export function CardForm({
       syncError,
     });
     try {
-      const reuseId = existing?.id ?? pendingId.current;
+      const reuseId = existing?.id ?? pendingCardId;
       const { card, saved } = reuseId
         ? updateCard(reuseId, payload)
         : addCard(payload);
       if (!existing) {
         pendingId.current = card.id;
+        setPendingCardId(card.id);
         createdId = card.id;
       }
       await saved;
       createdId = null;
+      if (seed != null) {
+        setDraftSealed(true);
+        pendingId.current = card.id;
+        setPendingCardId(card.id);
+        clearNewCardDraft();
+      }
       if (offerPrivacy && user) rememberFirstCardPrivacy(user.id, card.id);
       if (mode === "supabase") {
         const picked = catalogPickStillMatches(catalogPick.current, {
@@ -562,7 +759,15 @@ export function CardForm({
       onSaved?.();
     } catch (error) {
       if (isSaveTimeout(error)) {
-        if (createdId) timedOutIds.current.add(createdId);
+        if (createdId) {
+          timedOutIds.current.add(createdId);
+          pendingId.current = createdId;
+          setPendingCardId(createdId);
+        }
+        if (seed != null) {
+          setDraftSealed(true);
+          clearNewCardDraft();
+        }
         if (error instanceof SaveTimeoutError && error.photoUrl) setPhoto(error.photoUrl);
         setSaveError(SAVE_TIMEOUT_MESSAGE);
         setSaving(false);
@@ -571,7 +776,10 @@ export function CardForm({
       }
       const timedOut = createdId != null && timedOutIds.current.has(createdId);
       if (createdId && !timedOut) removeCard(createdId);
-      if (!existing && !timedOut) pendingId.current = null;
+      if (!existing && !timedOut) {
+        pendingId.current = null;
+        setPendingCardId(null);
+      }
       setSaveError(
         error instanceof Error ? error.message : "Could not save this card.",
       );
@@ -581,7 +789,7 @@ export function CardForm({
   }
 
   return (
-    <form ref={formRef} onSubmit={submit} className="mx-auto max-w-xl space-y-5">
+    <form ref={formRef} onSubmit={onSubmit} className="mx-auto max-w-xl space-y-5">
       {embedded ? null : (
       <div>
         <p
@@ -627,6 +835,20 @@ export function CardForm({
             </button>
           ) : null}
         </>
+      ) : null}
+
+      {showingRestored ? (
+        <button
+          type="button"
+          onClick={startOver}
+          className="text-sm font-semibold text-violet-700 underline decoration-violet-700/40 underline-offset-2 dark:text-violet-300"
+        >
+          Start over
+        </button>
+      ) : null}
+
+      {photoMissing && !photo ? (
+        <p className="text-sm text-amber-800 dark:text-amber-200">Photo needs re-adding</p>
       ) : null}
 
       <CardPhotoField
