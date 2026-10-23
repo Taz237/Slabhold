@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { playerHref } from "@/lib/players/slug";
+import { linkedPlayerHref } from "@/lib/players/link-href";
 
-/** Player name that opens /p/[player]. Plain text when the name is not a sports player. */
+/** Player name that opens /p/[player]. Plain text when that slug would not resolve. */
 export function PlayerNameLink({
   name,
   sport,
@@ -11,7 +11,7 @@ export function PlayerNameLink({
   sport?: string | null;
   className?: string;
 }) {
-  const href = playerHref(name, sport);
+  const href = linkedPlayerHref(name, sport);
   if (!href) return <span className={className}>{name}</span>;
   return (
     <Link href={href} className={className}>

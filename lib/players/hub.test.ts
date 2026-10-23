@@ -302,6 +302,8 @@ describe("player page reads", () => {
     assert.match(proxy, /playerCanonicalPath/);
     assert.match(proxy, /playerRequestIsMissing/);
     assert.match(proxy, /s-maxage=60/);
+    assert.match(proxy, /x-robots-tag/);
+    assert.match(proxy, /noindex/);
     assert.match(proxy, /\/p\/:player/);
     assert.match(config, /\/p\/:player/);
     assert.match(config, /s-maxage=60/);

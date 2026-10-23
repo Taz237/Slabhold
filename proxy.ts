@@ -22,6 +22,7 @@ export async function proxy(request: NextRequest) {
       status: 404,
       headers: {
         "cache-control": "public, max-age=0, s-maxage=60, stale-while-revalidate=60",
+        "x-robots-tag": "noindex",
       },
     });
   }

@@ -1,11 +1,15 @@
 import assert from "node:assert/strict";
+import { createElement } from "react";
 import { describe, it } from "node:test";
+import { renderToStaticMarkup } from "react-dom/server";
+import { PlayerNameLink } from "@/components/player-name-link";
 import { CARD_CATALOG } from "@/lib/card-catalog";
 import { compactInterest } from "@/lib/social/follow-rank";
 import { INDEXED_DIRECTORY } from "./directory";
 import { playerCanonicalPath, PLAYER_SLUG_ALIASES } from "./canonical-path";
 import { playerRequestIsMissing, playerSlugMightExist } from "./player-presence";
 import { playerIlikeOr } from "./ilike";
+import { linkedPlayerHref, playerNameRoundTrips } from "./link-href";
 import {
   ambiguousPlayerKeys,
   canonicalPlayerSlug,
@@ -275,5 +279,35 @@ describe("player dedupe", () => {
     assert.ok(rows.length < ROSTER.length || keys.size === rows.length);
     assert.equal(rows.filter((player) => player.name === "Will Smith").length, 2);
     assert.equal(rows.filter((player) => playerBaseSlug(player.name) === "cj-stroud").length, 1);
+  });
+});
+
+describe("player name links", () => {
+  it("keeps accented and punctuated names outside the directory as plain text", () => {
+    for (const name of ["Jesús Made", "C.J. Kayfus", "Ja'Kobi Test"]) {
+      assert.equal(playerNameRoundTrips(name), false);
+      assert.equal(linkedPlayerHref(name, "Baseball"), null);
+      const html = renderToStaticMarkup(
+        createElement(PlayerNameLink, { name, sport: "Baseball" }),
+      );
+      assert.match(html, /^<span/);
+      assert.doesNotMatch(html, /href/);
+      assert.ok(html.includes(name.replace(/'/g, "&#x27;")));
+    }
+  });
+
+  it("still links a plain name and a directory name", () => {
+    assert.equal(playerNameRoundTrips("Ethan Holliday"), true);
+    assert.equal(linkedPlayerHref("Ethan Holliday", "Baseball"), "/p/ethan-holliday");
+    assert.equal(playerNameRoundTrips("Luka Dončić"), false);
+    assert.equal(linkedPlayerHref("Luka Dončić", "Basketball"), "/p/luka-doncic");
+    assert.match(
+      renderToStaticMarkup(createElement(PlayerNameLink, { name: "Ethan Holliday", sport: "Baseball" })),
+      /href="\/p\/ethan-holliday"/,
+    );
+    assert.match(
+      renderToStaticMarkup(createElement(PlayerNameLink, { name: "Luka Dončić", sport: "Basketball" })),
+      /href="\/p\/luka-doncic"/,
+    );
   });
 });
