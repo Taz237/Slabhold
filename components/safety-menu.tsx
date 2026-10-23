@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Ellipsis } from "lucide-react";
 import { useSocial } from "@/components/social-provider";
+import { useCloseOnOutsideTap } from "@/lib/ui/menu-outside-tap";
 import {
   blockAccount,
   muteAccount,
@@ -38,21 +39,7 @@ export function SafetyMenu({
   const blocked = blockedIds.includes(reportedUserId);
   const muted = mutedIds.includes(reportedUserId);
 
-  useEffect(() => {
-    if (!open) return;
-    function onPointer(event: MouseEvent) {
-      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
-    }
-    function onKey(event: KeyboardEvent) {
-      if (event.key === "Escape") setOpen(false);
-    }
-    document.addEventListener("mousedown", onPointer);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onPointer);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [open]);
+  useCloseOnOutsideTap(open, rootRef, () => setOpen(false));
 
   useEffect(() => {
     if (!toast) return;

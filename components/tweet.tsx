@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { Ellipsis, Heart, MessageCircle, Pin, Quote, Repeat2 } from "lucide-react";
 import { Avatar } from "@/components/avatar";
 import { useCollection } from "@/components/collection-provider";
@@ -23,6 +23,7 @@ import { MailDayCard } from "@/components/mail-day-card";
 import { EbaySoldLink } from "@/components/ebay-sold-link";
 import { shareTitleForPost } from "@/lib/social/mail-day-copy";
 import { useAttachedChip } from "@/lib/social/use-attachment-label";
+import { useCloseOnOutsideTap } from "@/lib/ui/menu-outside-tap";
 import type { CardValueResult } from "@/lib/value/types";
 
 export function Tweet({
@@ -267,27 +268,12 @@ function PostMenu({ post }: { post: Post }) {
   const rootRef = useRef<HTMLDivElement>(null);
   const mine = Boolean(user && user.id === post.authorId);
 
-  useEffect(() => {
-    if (!open) return;
-    function onPointer(event: MouseEvent) {
-      if (!rootRef.current?.contains(event.target as Node)) {
-        setOpen(false);
-        setConfirming(false);
-      }
-    }
-    function onKey(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        setOpen(false);
-        setConfirming(false);
-      }
-    }
-    document.addEventListener("mousedown", onPointer);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onPointer);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [open]);
+  function close() {
+    setOpen(false);
+    setConfirming(false);
+  }
+
+  useCloseOnOutsideTap(open, rootRef, close);
 
   if (!user) return null;
   if (!mine) {
@@ -300,11 +286,6 @@ function PostMenu({ post }: { post: Post }) {
         username={author.username}
       />
     );
-  }
-
-  function close() {
-    setOpen(false);
-    setConfirming(false);
   }
 
   return (
@@ -452,23 +433,7 @@ export function Engagement({
   const [repostMenuOpen, setRepostMenuOpen] = useState(false);
   const repostMenuRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (!repostMenuOpen) return;
-    function onPointer(event: MouseEvent) {
-      if (!repostMenuRef.current?.contains(event.target as Node)) {
-        setRepostMenuOpen(false);
-      }
-    }
-    function onKey(event: KeyboardEvent) {
-      if (event.key === "Escape") setRepostMenuOpen(false);
-    }
-    document.addEventListener("mousedown", onPointer);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onPointer);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [repostMenuOpen]);
+  useCloseOnOutsideTap(repostMenuOpen, repostMenuRef, () => setRepostMenuOpen(false));
 
   function requireUser() {
     if (user) return true;

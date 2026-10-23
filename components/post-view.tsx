@@ -17,6 +17,7 @@ import { userHref } from "@/lib/social/user-href";
 import { canDeleteReply } from "@/lib/social/local-db";
 import { quotesOf } from "@/lib/social/quotes";
 import { COMMENT_LIMIT, type AuthResult, type PostComment } from "@/lib/social/types";
+import { useCloseOnOutsideTap } from "@/lib/ui/menu-outside-tap";
 
 const PAGE_SIZE = 20;
 
@@ -320,32 +321,12 @@ function ReplyMenu({
   const rootRef = useRef<HTMLDivElement>(null);
   const started = useRef(false);
 
-  useEffect(() => {
-    if (!open) return;
-    function onPointer(event: MouseEvent) {
-      if (!rootRef.current?.contains(event.target as Node)) {
-        setOpen(false);
-        setConfirming(false);
-      }
-    }
-    function onKey(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        setOpen(false);
-        setConfirming(false);
-      }
-    }
-    document.addEventListener("mousedown", onPointer);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onPointer);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [open]);
-
   function close() {
     setOpen(false);
     setConfirming(false);
   }
+
+  useCloseOnOutsideTap(open, rootRef, close);
 
   return (
     <div ref={rootRef} className="relative -mt-1 shrink-0">
