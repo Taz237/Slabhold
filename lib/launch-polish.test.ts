@@ -158,9 +158,13 @@ describe("manifest", () => {
     assert.doesNotMatch(layout, /metadataBaseUrl/);
     assert.doesNotMatch(layout, /apple-mobile-web-app-capable/);
     assert.match(layout, /viewportFit: "cover"/);
-    assert.match(layout, /themeColor: BRAND_PURPLE/);
+    assert.match(layout, /prefers-color-scheme: light/);
+    assert.match(layout, /#f4f4f5/);
+    assert.match(layout, /prefers-color-scheme: dark/);
+    assert.match(layout, /#09090b/);
+    assert.doesNotMatch(layout, /black-translucent/);
     assert.match(layout, /capable: true/);
-    assert.match(layout, /statusBarStyle: "black-translucent"/);
+    assert.match(layout, /statusBarStyle: "default"/);
     assert.match(layout, /\/apple-touch-icon\.png/);
     assert.match(layout, /sizes: "180x180"/);
 

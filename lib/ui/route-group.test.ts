@@ -11,9 +11,12 @@ import { describe, it } from "node:test";
  */
 const ROUTE_FILE = /^(page|layout|loading|error)\.(tsx|ts|jsx|js)$/;
 
-/** Allowed outside app/(app)/. */
+/**
+ * Allowed outside app/(app)/. Next only picks up global-error at the app root;
+ * it replaces the root layout when that layout itself throws.
+ */
 function allowed(path: string) {
-  if (path === "app/layout.tsx" || path === "app/not-found.tsx") return true;
+  if (path === "app/layout.tsx" || path === "app/not-found.tsx" || path === "app/global-error.tsx") return true;
   return ["app/welcome/", "app/api/", "app/auth/"].some((prefix) => path.startsWith(prefix));
 }
 

@@ -181,7 +181,7 @@ export function PostView({ id }: { id: string }) {
           type="button"
           onClick={() => goBackWithMotion(() => router.back())}
           aria-label="Back"
-          className="grid h-9 w-9 place-items-center rounded-full hover:bg-zinc-100 dark:hover:bg-white/10"
+          className="hit-44 grid h-9 w-9 place-items-center rounded-full hover:bg-zinc-100 dark:hover:bg-white/10"
         >
           <ArrowLeft className="h-5 w-5" />
         </button>

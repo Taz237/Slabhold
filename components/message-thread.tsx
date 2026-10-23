@@ -7,6 +7,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Avatar } from "@/components/avatar";
 import { DealSheet } from "@/components/deal-sheet";
 import { DealThreadPanel } from "@/components/deal-response";
+import { MentionText } from "@/components/mention-text";
 import { MessageAttachments } from "@/components/message-attachments";
 import { CardMessagePreviewCard } from "@/components/open-to-offers";
 import { useReducedMotion } from "@/components/timeline-ui";
@@ -386,7 +387,14 @@ function MessageRow({
               }}
               className="cursor-default rounded-[inherit] px-3.5 py-2 text-[15px] leading-5 break-words whitespace-pre-wrap outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
             >
-              {text}
+              <MentionText
+                text={message.content}
+                linkClassName={
+                  mine
+                    ? "font-medium break-all text-white underline decoration-white/70 underline-offset-2"
+                    : "font-medium break-all text-sky-700 underline decoration-sky-700/70 underline-offset-2 dark:text-sky-300 dark:decoration-sky-300/80"
+                }
+              />
             </div>
             {last ? <BubbleTail mine={mine} /> : null}
           </div>
