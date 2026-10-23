@@ -13,6 +13,7 @@ import { clipText } from "./link-preview";
 import {
   cardShareImage,
   homeShareImage,
+  playerShareImage,
   mailDayPhotoUrls,
   postShareImage,
   scrubPublicText,
@@ -434,6 +435,27 @@ describe("share image renderer", () => {
     const home = await renderOg(homeShareImage());
     assert.deepEqual(bytes, Buffer.from(await plain.arrayBuffer()));
     assert.notDeepEqual(bytes, Buffer.from(await home.arrayBuffer()));
+  });
+
+  it("renders a player name in Arabic or Persian instead of crashing", async () => {
+    const route = readFileSync(join(process.cwd(), "app/p/[player]/opengraph-image.tsx"), "utf8");
+    assert.match(route, /return renderOg\(/);
+    const image = playerShareImage({
+      found: true,
+      name: "سلام علی",
+      sport: "Football",
+    });
+    assert.equal(image.kind, "player");
+    assert.equal(image.imageUrl, null);
+    assert.equal(JSON.stringify(image).toLowerCase().includes("logo"), false);
+    const response = await renderOg(image);
+    assert.equal(response.headers.get("content-type"), "image/png");
+    const bytes = Buffer.from(await response.arrayBuffer());
+    assert.equal(bytes[0], 0x89);
+    assert.equal(bytes[1], 0x50);
+    assert.ok(bytes.length > 1000);
+    const plain = await renderOg(playerShareImage({ found: true, name: "Player", sport: "Football" }));
+    assert.deepEqual(bytes, Buffer.from(await plain.arrayBuffer()));
   });
 
   it("serves the home image when rendering fails for a reason other than font shaping", async () => {

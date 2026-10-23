@@ -20,6 +20,7 @@ import { quoteCount } from "@/lib/social/quotes";
 import type { Post, PostComment, Profile, PublicCard } from "@/lib/social/types";
 import { userHref } from "@/lib/social/user-href";
 import { MailDayCard } from "@/components/mail-day-card";
+import { PlayerNameLink } from "@/components/player-name-link";
 import { EbaySoldLink } from "@/components/ebay-sold-link";
 import { shareTitleForPost } from "@/lib/social/mail-day-copy";
 import { useAttachedChip } from "@/lib/social/use-attachment-label";
@@ -581,11 +582,8 @@ function CardMedia({
     ? `/cards/${card.id}`
     : `${userHref(username)}/cards/${encodeURIComponent(card.id)}`;
   return (
-    <div className="mt-3">
-      <Link
-        href={href}
-        className="block overflow-hidden rounded-2xl border border-zinc-200 hover:bg-zinc-50 dark:border-white/10 dark:hover:bg-white/[0.04]"
-      >
+    <div className="mt-3 overflow-hidden rounded-2xl border border-zinc-200 dark:border-white/10">
+      <Link href={href} className="block hover:bg-zinc-50 dark:hover:bg-white/[0.04]">
         {card.photoDataUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={card.photoDataUrl} alt="" className="max-h-80 w-full object-cover" />
@@ -597,15 +595,19 @@ function CardMedia({
             {initials(card.playerName)}
           </div>
         )}
-        <div className="px-3 py-2">
-          <p className="truncate text-sm font-semibold">{card.playerName}</p>
-          <p className="truncate text-xs text-zinc-500">
-            {card.yearLabel || card.year} {card.setBrand}
-            {card.cardNumber ? ` · #${card.cardNumber}` : ""}
-            {price ? ` · ${price}` : ""}
-          </p>
-        </div>
       </Link>
+      <div className="px-3 py-2">
+        <PlayerNameLink
+          name={card.playerName}
+          sport={card.sport}
+          className="block truncate text-sm font-semibold hover:underline"
+        />
+        <Link href={href} className="block truncate text-xs text-zinc-500 hover:underline">
+          {card.yearLabel || card.year} {card.setBrand}
+          {card.cardNumber ? ` · #${card.cardNumber}` : ""}
+          {price ? ` · ${price}` : ""}
+        </Link>
+      </div>
       {soldHref ? (
         <p className="px-1 pt-1.5 text-xs text-zinc-500">
           <EbaySoldLink href={soldHref} />

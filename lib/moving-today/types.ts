@@ -5,6 +5,8 @@ export type MovingTodaySale = {
   cardId: string;
   href: string;
   player: string;
+  /** Sport when the public card has one, so a shared name opens the right page. */
+  sport?: string;
   detail: string;
   imageUrl: string | null;
   accent: string;

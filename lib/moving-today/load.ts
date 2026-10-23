@@ -25,7 +25,7 @@ const IN_CHUNK = 80;
 
 const SALE_COLUMNS = "query_key, card_id, item_id, price, sold_at";
 const CARD_COLUMNS =
-  "id, user_id, player, year, year_label, set, set_name, grade, grader, image_url, accent";
+  "id, user_id, player, sport, year, year_label, set, set_name, grade, grader, image_url, accent";
 
 type Row = Record<string, unknown>;
 
@@ -72,6 +72,7 @@ function mapCard(row: Row): PublicCardRef | null {
     id,
     userId,
     player,
+    sport: typeof row.sport === "string" ? row.sport.trim() : "",
     yearLabel,
     setName,
     grade: [grader, gradeText].filter(Boolean).join(" "),

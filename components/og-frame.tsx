@@ -502,13 +502,14 @@ function paint(
     ) : model.photoFallback ? (
       <PhotoFallback />
     ) : null;
+  const profileLike = model.kind === "profile" || model.kind === "player";
 
   return send(
     <div style={{ display: "flex", width: "100%", height: "100%" }}>
       <Left>
         <Brand />
         <div style={{ display: "flex", flexDirection: "column" }}>
-          {model.kind === "profile" ? (
+          {profileLike ? (
             <div style={{ display: "flex", fontSize: 22, color: "#a1a1aa", marginBottom: 16 }}>
               {model.kicker}
             </div>
@@ -532,10 +533,10 @@ function paint(
               ) : null}
             </div>
           ) : null}
-          {model.kind === "profile"
+          {profileLike
             ? lines(model.title, model.title.length > 42 ? 52 : 64, 700, "#fafafa", 3)
             : lines(model.body || model.title, 46, 700, "#fafafa", 3)}
-          {model.kind === "profile" && model.detail ? (
+          {profileLike && model.detail ? (
             <div style={{ display: "flex", marginTop: 22, fontSize: 32, color: "#e4e4e7" }}>
               {model.detail}
             </div>
@@ -585,7 +586,15 @@ function readableShareImage(model: ShareImage): ShareImage {
   const title = text(model.title);
   const body = text(model.body);
   const fallback =
-    model.kind === "card" ? "Card" : model.kind === "profile" ? "Profile" : model.kind === "home" ? title : "Post";
+    model.kind === "card"
+      ? "Card"
+      : model.kind === "profile"
+        ? "Profile"
+        : model.kind === "player"
+          ? "Player"
+          : model.kind === "home"
+            ? title
+            : "Post";
   return {
     ...model,
     kicker: text(model.kicker),

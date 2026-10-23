@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ArrowLeft, Ellipsis, Pencil } from "lucide-react";
 import { CardThumb } from "@/components/card-thumb";
+import { PlayerNameLink } from "@/components/player-name-link";
 import { PriceFallbackText } from "@/components/price-readout";
 import { useCollection } from "@/components/collection-provider";
 import { cardTitle } from "@/lib/format";
@@ -95,7 +96,7 @@ export function CardHero({
         />
       </div>
       <h1 className="mt-4 text-center text-3xl font-semibold tracking-tight">
-        {card.playerName}
+        <PlayerNameLink name={card.playerName} sport={card.sport} className="hover:underline" />
       </h1>
       <p className="mt-1 text-center text-sm text-zinc-500">
         {cardTitle(card)}
