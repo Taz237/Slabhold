@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useState } from "react";
 import { Logo } from "@/components/logo";
 import { trackEvent } from "@/lib/analytics";
 import { landingLoginHref, landingSignupHref, safeNext } from "@/lib/auth/safe-next";
@@ -37,13 +37,14 @@ export function LandingPage() {
 
         <div className="mt-10 min-w-0 overflow-x-auto overscroll-x-contain pb-2 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
           <div className="flex w-max gap-4">
-            {SHOTS.map((shot) => (
+            {SHOTS.map((shot, index) => (
               <LandingShot
                 key={shot.src}
                 src={shot.src}
                 label={shot.label}
                 width={shot.width}
                 height={shot.height}
+                priority={index === 0}
               />
             ))}
           </div>
@@ -88,37 +89,27 @@ export function LandingActions({ next }: { next: string }) {
   );
 }
 
-function LandingShot({
+export function LandingShot({
   src,
   label,
   width,
   height,
+  priority = false,
 }: {
   src: string;
   label: string;
   width: number;
   height: number;
+  priority?: boolean;
 }) {
-  const [phase, setPhase] = useState<"check" | "ready" | "missing">("check");
-
-  useEffect(() => {
-    let cancelled = false;
-    const probe = new window.Image();
-    probe.onload = () => {
-      if (!cancelled) setPhase("ready");
-    };
-    probe.onerror = () => {
-      if (!cancelled) setPhase("missing");
-    };
-    probe.src = src;
-    return () => {
-      cancelled = true;
-    };
-  }, [src]);
+  const [missingSrc, setMissingSrc] = useState<string | null>(null);
+  const missing = missingSrc === src;
 
   return (
     <div className="w-[min(220px,72vw)] shrink-0 sm:w-[220px]">
-      {phase === "ready" ? (
+      {missing ? (
+        <ShotPlaceholder label={label} width={width} height={height} />
+      ) : (
         <div
           className="relative w-full overflow-hidden rounded-[1.6rem] border border-white/10 shadow-[0_20px_60px_rgba(124,58,237,0.25)]"
           style={{ aspectRatio: `${width} / ${height}` }}
@@ -129,11 +120,12 @@ function LandingShot({
             fill
             sizes="(max-width: 639px) 72vw, 220px"
             className="object-contain"
-            onError={() => setPhase("missing")}
+            priority={priority}
+            fetchPriority={priority ? "high" : "auto"}
+            loading={priority ? "eager" : "lazy"}
+            onError={() => setMissingSrc(src)}
           />
         </div>
-      ) : (
-        <ShotPlaceholder label={label} width={width} height={height} />
       )}
     </div>
   );
