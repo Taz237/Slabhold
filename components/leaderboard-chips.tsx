@@ -22,7 +22,12 @@ function ChipPending({
   useEffect(() => {
     if (!pending) return;
     onPending(id, true);
-    return () => onPending(id, false);
+    const board = document.querySelector("[data-leaderboard]");
+    board?.setAttribute("data-board-pending", "");
+    return () => {
+      onPending(id, false);
+      board?.removeAttribute("data-board-pending");
+    };
   }, [id, pending, onPending]);
   return null;
 }
@@ -75,6 +80,12 @@ export function LeaderboardChips({
             }`}
           >
             <ChipPending id={tab.id} onPending={onPending} />
+            {tab.id === pendingId ? (
+              <span
+                aria-hidden="true"
+                className="lb-chip-spin mr-1.5 inline-block h-3 w-3 shrink-0 rounded-full border-2 border-white/40 border-t-white"
+              />
+            ) : null}
             {tab.label}
           </Link>
         );

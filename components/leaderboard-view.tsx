@@ -186,9 +186,13 @@ export function LeaderboardView({ model }: { model: LeaderboardPageModel }) {
           background-size: 200% 100%;
           animation: lb-shimmer 2.8s linear infinite;
         }
+        .lb-chip-spin { animation: lb-spin .7s linear infinite; }
+        @keyframes lb-spin { to { transform: rotate(360deg); } }
         @media (prefers-reduced-motion: reduce) {
-          .lb-podium, .lb-shimmer { animation: none; }
+          .lb-podium, .lb-shimmer, .lb-chip-spin { animation: none; }
         }
+        [data-board-body] { transition: opacity 150ms ease; }
+        [data-leaderboard][data-board-pending] [data-board-body] { opacity: 0.6; }
       `}</style>
       <div className="border-b border-white/10 px-4 py-4">
         <div className="flex items-start justify-between gap-3">
@@ -199,7 +203,7 @@ export function LeaderboardView({ model }: { model: LeaderboardPageModel }) {
           <ShareIconButton path={LEADERBOARD_PATH} title={model.title} label="Share" />
         </div>
         <p className="mt-3 text-sm text-zinc-400">
-          <span className="font-medium text-zinc-100">{model.weekLabel}</span>
+          <span className="whitespace-nowrap font-medium text-zinc-100">{model.weekLabel}</span>
           <span className="whitespace-nowrap">
             {" ·\u00A0"}
             <span data-standing="">{model.standing}</span>
@@ -235,6 +239,7 @@ export function LeaderboardView({ model }: { model: LeaderboardPageModel }) {
 
       <LeaderboardChips tabs={model.tabs} />
 
+      <div data-board-body="">
       {model.status === "error" ? (
         <div className="px-6 py-12 text-center" data-board-error="">
           <p className="text-[17px] font-bold tracking-tight text-white">{model.errorTitle}</p>
@@ -289,6 +294,7 @@ export function LeaderboardView({ model }: { model: LeaderboardPageModel }) {
           ) : null}
         </div>
       )}
+      </div>
 
       <section className="border-t border-white/10 px-4 py-6" data-how-to="">
         <h2 className="text-sm font-bold text-white">How to get on the leaderboard</h2>
