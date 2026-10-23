@@ -3,6 +3,10 @@
 -- transaction_read_only is on. This script does not insert, update, or
 -- delete follow rows or profile rows. Existing follows are only counted.
 -- The env uuid (OFFICIAL_UPDATES_USER_ID) and this SQL uuid must stay in sync.
+--
+-- The trigger check uses pg_trigger, not pg_get_triggerdef text.
+-- tgtype 5 is ROW (1) + INSERT (4): after insert, for each row, and not
+-- before, update, or delete. tgenabled <> 'D' means the trigger is not disabled.
 
 begin;
 
@@ -14,7 +18,10 @@ declare
   fn_src text;
   fn_definer boolean;
   fn_config text;
-  trigger_def text;
+  fn_triggers integer;
+  good_triggers integer;
+  anon_execute boolean;
+  auth_execute boolean;
   test_follows bigint;
   updates_id pg_catalog.uuid := '6d31ab97-9162-4296-876d-9e0378872fce';
 begin
@@ -25,16 +32,6 @@ begin
   where n.nspname = 'private'
     and p.proname = 'follow_official_updates';
 
-  select pg_catalog.pg_get_triggerdef(t.oid)
-    into trigger_def
-  from pg_catalog.pg_trigger t
-  join pg_catalog.pg_class c on c.oid = t.tgrelid
-  join pg_catalog.pg_namespace ns on ns.oid = c.relnamespace
-  where ns.nspname = 'public'
-    and c.relname = 'profiles'
-    and t.tgname = 'profiles_follow_official_updates'
-    and not t.tgisinternal;
-
   if fn_src is null then
     raise notice 'FAIL: private.follow_official_updates is missing';
   elsif fn_definer then
@@ -44,13 +41,43 @@ begin
     raise notice 'FAIL: skip for is_test or qa_/qa-/test_/vreset_ handles is missing';
   elsif fn_config is distinct from '{"search_path=\"\""}' then
     raise notice 'FAIL: search_path is not set to empty (%)', fn_config;
-  elsif trigger_def is null
-     or trigger_def not ilike '%after insert%'
-     or trigger_def ilike '%insert or update%'
-     or trigger_def ilike '%update of%' then
-    raise notice 'FAIL: trigger is not after insert only (%)', trigger_def;
   else
-    raise notice 'PASS: skips is_test and qa_/qa-/test_/vreset_, not security definer, empty search_path, after insert only';
+    select
+      count(*) filter (
+        where not t.tgisinternal
+          and t.tgfoid = 'private.follow_official_updates()'::regprocedure
+      ),
+      count(*) filter (
+        where not t.tgisinternal
+          and t.tgfoid = 'private.follow_official_updates()'::regprocedure
+          and t.tgtype = 5
+          and t.tgenabled <> 'D'
+      )
+      into fn_triggers, good_triggers
+    from pg_catalog.pg_trigger t
+    join pg_catalog.pg_class c on c.oid = t.tgrelid
+    join pg_catalog.pg_namespace ns on ns.oid = c.relnamespace
+    where ns.nspname = 'public'
+      and c.relname = 'profiles';
+
+    anon_execute := pg_catalog.has_function_privilege(
+      'anon',
+      'private.follow_official_updates()',
+      'EXECUTE'
+    );
+    auth_execute := pg_catalog.has_function_privilege(
+      'authenticated',
+      'private.follow_official_updates()',
+      'EXECUTE'
+    );
+
+    if fn_triggers is distinct from 1 or good_triggers is distinct from 1 then
+      raise notice 'FAIL: expected exactly 1 non-internal after insert row trigger (tgtype 5, tgenabled <> D) on public.profiles, found % calling the function (% matching)', fn_triggers, good_triggers;
+    elsif anon_execute or auth_execute then
+      raise notice 'FAIL: anon or authenticated can execute private.follow_official_updates()';
+    else
+      raise notice 'PASS: skips is_test and qa_/qa-/test_/vreset_, not security definer, empty search_path, after insert only, execute revoked';
+    end if;
   end if;
 
   select count(*)
