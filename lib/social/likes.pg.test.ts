@@ -133,7 +133,9 @@ create table public.notifications (
   actor_id uuid references public.profiles (id) on delete set null,
   kind text not null,
   post_id uuid references public.posts (id) on delete set null,
+  href text,
   preview text,
+  metadata jsonb,
   created_at timestamptz not null default now(),
   check (actor_id is null or actor_id <> recipient_id)
 );
@@ -148,8 +150,37 @@ create table public.comments (
   id uuid primary key default gen_random_uuid(),
   post_id uuid not null references public.posts (id) on delete cascade,
   user_id uuid not null references public.profiles (id) on delete cascade,
-  body text not null
+  body text not null,
+  created_at timestamptz not null default now()
 );
+
+create table public.follows (
+  follower_id uuid not null references public.profiles (id) on delete cascade,
+  following_id uuid not null references public.profiles (id) on delete cascade,
+  primary key (follower_id, following_id)
+);
+
+create table public.reposts (
+  user_id uuid not null references public.profiles (id) on delete cascade,
+  post_id uuid not null references public.posts (id) on delete cascade,
+  primary key (user_id, post_id)
+);
+
+create or replace function public.enforce_mail_day_post()
+returns trigger
+language plpgsql
+as $$
+begin
+  if tg_op = 'UPDATE'
+     and new.like_count is distinct from old.like_count
+     and (to_jsonb(new) - 'like_count') is not distinct from (to_jsonb(old) - 'like_count') then
+    raise exception 'mail day saw a like_count-only update';
+  end if;
+  return new;
+end;
+$$;
+
+grant execute on function public.enforce_mail_day_post() to anon, authenticated;
 
 create or replace function private.is_blocked(a uuid, b uuid)
 returns boolean
@@ -269,9 +300,28 @@ begin
   if cnt <> 0 then raise exception 'delete count %, expected 0', cnt; end if;
   select count(*) into notes from public.notifications
   where kind = 'like' and post_id = '${VISIBLE}' and actor_id = '${LIKER}';
-  if notes <> 0 then raise exception 'notification survived unlike'; end if;
+  if notes <> 1 then raise exception 'unlike removed the like notification (% )', notes; end if;
 end
 $check$;
+
+set local role authenticated;
+insert into public.likes (post_id, user_id) values ('${VISIBLE}', '${LIKER}');
+reset role;
+do $check$
+declare
+  notes int;
+  cnt int;
+begin
+  select count(*) into notes from public.notifications
+  where kind = 'like' and post_id = '${VISIBLE}' and actor_id = '${LIKER}';
+  if notes <> 1 then raise exception 'relike created another notification (% )', notes; end if;
+  select like_count into cnt from public.posts where id = '${VISIBLE}';
+  if cnt <> 1 then raise exception 'relike count %, expected 1', cnt; end if;
+end
+$check$;
+set local role authenticated;
+delete from public.likes where post_id = '${VISIBLE}' and user_id = '${LIKER}';
+reset role;
 
 update public.posts set like_count = 0 where id = '${VISIBLE}';
 insert into public.likes (post_id, user_id) values ('${VISIBLE}', '${LIKER}');
@@ -376,8 +426,6 @@ end
 $check$;
 delete from public.likes where post_id = '${VISIBLE}' and user_id = '${AUTHOR}';
 
-insert into public.notifications (recipient_id, actor_id, kind, post_id, preview)
-values ('${AUTHOR}', '${LIKER}', 'like', '${VISIBLE}', 'already');
 select set_config('app.user_id', '${LIKER}', true);
 set local role authenticated;
 insert into public.likes (post_id, user_id) values ('${VISIBLE}', '${LIKER}');
@@ -476,14 +524,84 @@ exception
     null;
 end
 $check$;
+do $check$
+begin
+  insert into public.notifications (recipient_id, actor_id, kind, post_id, preview)
+  values ('${AUTHOR}', '${LIKER}', 'comment', '${QUIET}', 'no comment');
+  raise exception 'comment notification without a comment was allowed';
+exception
+  when insufficient_privilege then
+    null;
+end
+$check$;
+do $check$
+begin
+  insert into public.notifications (recipient_id, actor_id, kind, post_id, preview)
+  values ('${AUTHOR}', '${LIKER}', 'repost', '${VISIBLE}', 'FREE GIFT CARDS');
+  raise exception 'repost notification without a repost was allowed';
+exception
+  when insufficient_privilege then
+    null;
+end
+$check$;
+do $check$
+begin
+  insert into public.notifications (recipient_id, actor_id, kind, post_id, preview)
+  values ('${AUTHOR}', '${LIKER}', 'follow', null, null);
+  raise exception 'follow notification without a follow was allowed';
+exception
+  when insufficient_privilege then
+    null;
+end
+$check$;
+do $check$
+begin
+  insert into public.notifications (recipient_id, actor_id, kind, post_id, preview, href)
+  values ('${AUTHOR}', '${LIKER}', 'comment', '${VISIBLE}', 'nice', 'https://evil.example');
+  raise exception 'notification href was allowed';
+exception
+  when insufficient_privilege then
+    null;
+end
+$check$;
+reset role;
+insert into public.reposts (user_id, post_id) values ('${LIKER}', '${VISIBLE}');
+insert into public.follows (follower_id, following_id) values ('${LIKER}', '${OTHER}');
+set local role authenticated;
 insert into public.notifications (recipient_id, actor_id, kind, post_id, preview)
-values ('${AUTHOR}', '${LIKER}', 'comment', '${VISIBLE}', 'nice');
+values ('${AUTHOR}', '${LIKER}', 'comment', '${VISIBLE}', 'FREE GIFT CARDS');
+do $check$
+begin
+  insert into public.notifications (recipient_id, actor_id, kind, post_id, preview)
+  values ('${AUTHOR}', '${LIKER}', 'comment', '${VISIBLE}', 'again');
+  raise exception 'second comment notification for one comment was allowed';
+exception
+  when insufficient_privilege then
+    null;
+end
+$check$;
+reset role;
+insert into public.comments (post_id, user_id, body, created_at)
+values ('${VISIBLE}', '${LIKER}', 'second note', pg_catalog.clock_timestamp());
+set local role authenticated;
 insert into public.notifications (recipient_id, actor_id, kind, post_id, preview)
-values ('${AUTHOR}', '${LIKER}', 'repost', '${VISIBLE}', 'again');
+values ('${AUTHOR}', '${LIKER}', 'comment', '${VISIBLE}', 'FREE GIFT CARDS');
+insert into public.notifications (recipient_id, actor_id, kind, post_id, preview)
+values ('${AUTHOR}', '${LIKER}', 'repost', '${VISIBLE}', 'FREE GIFT CARDS');
 insert into public.notifications (recipient_id, actor_id, kind, post_id, preview)
 values ('${OTHER}', '${LIKER}', 'follow', null, null);
-insert into public.notifications (recipient_id, actor_id, kind, post_id, preview)
-values ('${OTHER}', '${LIKER}', 'mention', '${VISIBLE}', 'hey @other');
+do $check$
+begin
+  insert into public.notifications (recipient_id, actor_id, kind, post_id, preview)
+  values ('${OTHER}', '${LIKER}', 'follow', null, 'not null');
+  raise exception 'follow notification with a preview was allowed';
+exception
+  when insufficient_privilege then
+    null;
+end
+$check$;
+insert into public.notifications (recipient_id, actor_id, kind, post_id, preview, metadata)
+values ('${OTHER}', '${LIKER}', 'mention', '${VISIBLE}', 'hey @other', '{"source":"reply"}'::jsonb);
 do $check$
 begin
   insert into public.notifications (recipient_id, actor_id, kind, post_id, preview)
@@ -506,16 +624,32 @@ begin
   select count(*) into comments from public.notifications
   where kind = 'comment' and actor_id = '${LIKER}' and recipient_id = '${AUTHOR}';
   select count(*) into reposts from public.notifications
-  where kind = 'repost' and actor_id = '${LIKER}' and recipient_id = '${AUTHOR}';
+  where kind = 'repost' and actor_id = '${LIKER}' and recipient_id = '${AUTHOR}'
+    and preview = left(repeat('a', 90), 77) || '…';
   select count(*) into follows from public.notifications
   where kind = 'follow' and actor_id = '${LIKER}' and recipient_id = '${OTHER}' and post_id is null;
   select count(*) into mentions from public.notifications
   where kind = 'mention' and actor_id = '${LIKER}' and recipient_id = '${OTHER}';
   select count(*) into likes from public.notifications
   where kind = 'like' and actor_id = '${LIKER}' and preview = 'forged';
-  if comments <> 1 or reposts <> 1 or follows <> 1 or mentions <> 1 or likes <> 0 then
+  if comments <> 2 or reposts <> 1 or follows <> 1 or mentions <> 1 or likes <> 0 then
     raise exception 'client notification rows comments % reposts % follows % mentions % forged %',
       comments, reposts, follows, mentions, likes;
+  end if;
+  if exists (
+    select 1 from public.notifications
+    where actor_id = '${LIKER}' and kind = 'comment' and preview = 'FREE GIFT CARDS'
+  ) then
+    raise exception 'comment preview kept the client text';
+  end if;
+  if not exists (
+    select 1 from public.notifications
+    where actor_id = '${LIKER}' and kind = 'comment' and preview = 'second note'
+  ) or not exists (
+    select 1 from public.notifications
+    where actor_id = '${LIKER}' and kind = 'comment' and preview = 'hey @other'
+  ) then
+    raise exception 'comment previews were not taken from the comments';
   end if;
 end
 $check$;
@@ -585,6 +719,109 @@ exception
 end
 $check$;
 
+grant insert on public.posts to authenticated;
+drop policy if exists posts_test_insert on public.posts;
+create policy posts_test_insert on public.posts for insert with check (true);
+select set_config('app.user_id', '${LIKER}', true);
+set local role authenticated;
+insert into public.posts (id, user_id, content, like_count)
+values ('dddddddd-dddd-4ddd-8ddd-dddddddddddd', '${LIKER}', 'forged', 1000000);
+insert into public.posts (id, user_id, content, like_count)
+values ('eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee', '${LIKER}', 'neg', -5);
+reset role;
+do $check$
+declare
+  hi int;
+  lo int;
+begin
+  select like_count into hi from public.posts where id = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
+  select like_count into lo from public.posts where id = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee';
+  if hi <> 0 or lo <> 0 then
+    raise exception 'forged insert like_count hi % lo %', hi, lo;
+  end if;
+end
+$check$;
+do $check$
+begin
+  update public.posts set like_count = -1 where id = '${VISIBLE}';
+  raise exception 'negative like_count was stored';
+exception
+  when check_violation then
+    null;
+end
+$check$;
+
+insert into public.likes (post_id, user_id) values ('${VISIBLE}', '${LIKER}')
+on conflict do nothing;
+insert into public.blocks (blocker_id, blocked_id) values ('${LIKER}', '${OTHER}');
+set local role authenticated;
+select set_config('app.user_id', '${OTHER}', true);
+do $check$
+declare
+  seen int;
+begin
+  select count(*) into seen from public.likes
+  where post_id = '${VISIBLE}' and user_id = '${LIKER}';
+  if seen <> 0 then raise exception 'blocked viewer saw the liker'; end if;
+end
+$check$;
+select set_config('app.user_id', '${AUTHOR}', true);
+do $check$
+declare
+  seen int;
+begin
+  select count(*) into seen from public.likes
+  where post_id = '${VISIBLE}' and user_id = '${LIKER}';
+  if seen <> 1 then raise exception 'author could not see an unblocked like'; end if;
+end
+$check$;
+reset role;
+delete from public.blocks;
+
+insert into private.like_rate (user_id, window_start, hits)
+values (
+  '${LIKER}',
+  to_timestamp(floor(extract(epoch from pg_catalog.now()) / 3600) * 3600),
+  300
+)
+on conflict (user_id, window_start) do update set hits = 300;
+select set_config('app.user_id', '${LIKER}', true);
+set local role authenticated;
+do $check$
+begin
+  insert into public.likes (post_id, user_id)
+  values ('eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee', '${LIKER}');
+  raise exception 'like over the hourly cap was allowed';
+exception
+  when program_limit_exceeded then
+    if sqlerrm not ilike '%liking posts too quickly%' then
+      raise;
+    end if;
+end
+$check$;
+reset role;
+
+do $check$
+declare
+  n int;
+begin
+  for n in 1..18 loop
+    perform public.migrate_local_likes(array['${QUIET}']::uuid[]);
+  end loop;
+end
+$check$;
+do $check$
+begin
+  perform public.migrate_local_likes(array['${QUIET}']::uuid[]);
+  raise exception 'import past the one-shot window was allowed';
+exception
+  when insufficient_privilege then
+    if sqlerrm not ilike '%already imported%' then
+      raise;
+    end if;
+end
+$check$;
+
 delete from public.posts where id = '${VISIBLE}';
 do $check$
 declare
@@ -615,6 +852,19 @@ describe("likes postgres", {
     requireLocalLikesDatabase();
     psql({ sql: fixture });
     psql({ file: migrationPath });
+    psql({
+      sql: `
+        create schema if not exists supabase_migrations;
+        create table if not exists supabase_migrations.schema_migrations (
+          version text primary key,
+          statements text[],
+          name text
+        );
+        insert into supabase_migrations.schema_migrations (version, name)
+        values ('20261023120000', 'likes')
+        on conflict (version) do nothing;
+      `,
+    });
     psql({ file: verifyPath });
     psql({ sql: behavior });
   });

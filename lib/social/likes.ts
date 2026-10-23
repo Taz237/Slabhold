@@ -2,23 +2,27 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { isUuid } from "@/lib/value/card-value-access";
 import type { Post, PostLike } from "./types";
 
-/** Set after this browser's local likes have been copied to the account. */
+/** Prefix for the per-account flag. The stored key is `likes_migrated_v1:<userId>`. */
 export const LIKES_MIGRATED_KEY = "likes_migrated_v1";
 
 /** Matches migrate_local_likes, which rejects a larger batch. */
 export const LIKE_MIGRATION_BATCH = 100;
 
-export function likesMigratedFlag(): boolean {
-  if (typeof window === "undefined") return false;
+export function likesMigratedStorageKey(userId: string): string {
+  return `${LIKES_MIGRATED_KEY}:${userId}`;
+}
+
+export function likesMigratedFlag(userId: string | null | undefined): boolean {
+  if (typeof window === "undefined" || !userId) return false;
   try {
-    return window.localStorage.getItem(LIKES_MIGRATED_KEY) === "1";
+    return window.localStorage.getItem(likesMigratedStorageKey(userId)) === "1";
   } catch {
     return false;
   }
 }
 
-export function markLikesMigrated(): void {
-  window.localStorage.setItem(LIKES_MIGRATED_KEY, "1");
+export function markLikesMigrated(userId: string): void {
+  window.localStorage.setItem(likesMigratedStorageKey(userId), "1");
 }
 
 export function readLikeCount(value: unknown): number | undefined {
@@ -36,7 +40,7 @@ export function missingLikeCountColumn(error: { code?: string; message?: string 
   return (error.code === "42703" || error.code === "PGRST204") && /like_count/i.test(message);
 }
 
-function missingLikesTable(error: { code?: string; message?: string } | null): boolean {
+export function missingLikesRelation(error: { code?: string; message?: string } | null): boolean {
   if (!error) return false;
   return error.code === "PGRST205" || error.code === "42P01" || /schema cache/i.test(error.message ?? "");
 }
@@ -137,7 +141,7 @@ export async function loadViewerLikes(
     .eq("user_id", userId)
     .in("post_id", ids);
   if (error) {
-    if (missingLikesTable(error)) return null;
+    if (missingLikesRelation(error)) return null;
     throw new Error(error.message);
   }
   return ((data ?? []) as { post_id: string; user_id: string; created_at: string }[]).map(

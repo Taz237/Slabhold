@@ -451,7 +451,7 @@ export async function loadPostsForCard(
     loadLikeCounts(supabase, visible.map((post) => post.id)),
     loadViewerLikes(supabase, viewerId, visible.map((post) => post.id)),
   ]);
-  const migrated = likesMigratedFlag();
+  const migrated = likesMigratedFlag(viewerId);
   const stamp = (list: Post[]) =>
     applyViewerLikes(applyLikeCounts(list, counts), likes, viewerId, migrated);
 

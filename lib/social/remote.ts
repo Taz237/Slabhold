@@ -481,7 +481,7 @@ export async function loadSupabaseSocial(supabase: SupabaseClient): Promise<Soci
     ...posts.map((post) => post.id),
     ...homePosts.map((post) => post.id),
   ]);
-  const migrated = likesMigratedFlag();
+  const migrated = likesMigratedFlag(viewerId);
   posts = applyViewerLikes(posts, viewerLikes, viewerId, migrated);
   const stampedHome = applyViewerLikes(homePosts, viewerLikes, viewerId, migrated);
 

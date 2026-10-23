@@ -524,7 +524,7 @@ export async function loadFeedPage(
     input.viewerId,
     [...posts, ...relatedPosts].map((post) => post.id),
   );
-  const migrated = likesMigratedFlag();
+  const migrated = likesMigratedFlag(input.viewerId);
   const stamp = (list: Post[]) => applyViewerLikes(list, likes, input.viewerId, migrated);
   const stampedPosts = stamp(posts);
   const stampedRelated = stamp(relatedPosts);
@@ -908,7 +908,7 @@ export async function loadPostPage(
     ...relatedPosts.map((item) => item.id),
     ...quotingPosts.map((item) => item.id),
   ]);
-  const migrated = likesMigratedFlag();
+  const migrated = likesMigratedFlag(viewerId);
   const [stampedPost] = applyViewerLikes([post], likes, viewerId, migrated);
   return {
     post: stampedPost ?? post,

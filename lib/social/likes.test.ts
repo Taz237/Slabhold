@@ -7,6 +7,10 @@ import {
   applyViewerLikes,
   likeBatches,
   likeIdsToMigrate,
+  likesMigratedFlag,
+  likesMigratedStorageKey,
+  markLikesMigrated,
+  missingLikesRelation,
   optimisticLikeCount,
   unionLikes,
 } from "./likes";
@@ -106,8 +110,85 @@ describe("like wiring", () => {
       remote.indexOf("export async function remoteSendMessage"),
     );
     assert.equal(replyLike.includes(".insert("), false);
-    assert.match(provider, /likes_migrated_v1|likesMigratedFlag\(/);
+    assert.match(provider, /likesMigratedFlag\(userId\)/);
+    assert.match(provider, /markLikesMigrated\(userId\)/);
     assert.match(provider, /migrateStoredLikes\(/);
     assert.match(provider, /after 2026-11-06/);
+    assert.match(action, /missingLikesRelation/);
+    assert.match(action, /fallback: true/);
+    assert.match(toggle, /if \(result\.fallback\) return;/);
+    const effect = provider.slice(
+      provider.indexOf("migrateStoredLikes("),
+      provider.indexOf("const suggestionUserId"),
+    );
+    assert.match(effect, /try\s*\{[\s\S]*markLikesMigrated\(userId\);[\s\S]*\}\s*catch/);
+    const marked = effect.indexOf("markLikesMigrated(userId)");
+    const caught = effect.indexOf("setLikesMigrated(true)", marked);
+    assert.ok(marked > -1 && caught > marked);
+    const migration = read("supabase/migrations/20261023120000_likes.sql");
+    assert.match(migration, /check \(like_count >= 0\)/);
+    assert.match(migration, /new\.like_count := 0/);
+    assert.equal(migration.includes("pg_trigger_depth"), false);
+    assert.match(migration, /enforce_like_rate/);
+    assert.match(migration, /used_hits > 300/);
+    assert.match(migration, /likes already imported/);
+    assert.match(migration, /quota\.calls < 20/);
+    assert.equal(migration.includes("delete from public.notifications"), false);
+    assert.match(migration, /deal_confirm/);
+    assert.match(migration, /stamp_notification_preview/);
+  });
+});
+
+describe("likes migrated flag", () => {
+  it("stores the flag per user and reports a missing likes table", () => {
+    assert.equal(likesMigratedStorageKey(ME), `likes_migrated_v1:${ME}`);
+    assert.equal(missingLikesRelation({ code: "PGRST205", message: "schema cache" }), true);
+    assert.equal(
+      missingLikesRelation({ code: "42P01", message: 'relation "public.likes" does not exist' }),
+      true,
+    );
+    assert.equal(missingLikesRelation({ code: "42501", message: "permission denied" }), false);
+
+    const store = new Map<string, string>();
+    Object.defineProperty(globalThis, "window", {
+      configurable: true,
+      value: {
+        localStorage: {
+          getItem: (key: string) => store.get(key) ?? null,
+          setItem: (key: string, value: string) => {
+            store.set(key, value);
+          },
+        },
+      },
+    });
+    try {
+      assert.equal(likesMigratedFlag(ME), false);
+      assert.equal(likesMigratedFlag(null), false);
+      markLikesMigrated(ME);
+      assert.equal(likesMigratedFlag(ME), true);
+      assert.equal(likesMigratedFlag(OTHER), false);
+      assert.equal(store.get(`likes_migrated_v1:${ME}`), "1");
+    } finally {
+      delete (globalThis as { window?: unknown }).window;
+    }
+  });
+
+  it("still throws from markLikesMigrated so the caller can catch it", () => {
+    Object.defineProperty(globalThis, "window", {
+      configurable: true,
+      value: {
+        localStorage: {
+          getItem: () => null,
+          setItem: () => {
+            throw new Error("quota");
+          },
+        },
+      },
+    });
+    try {
+      assert.throws(() => markLikesMigrated(ME), /quota/);
+    } finally {
+      delete (globalThis as { window?: unknown }).window;
+    }
   });
 });

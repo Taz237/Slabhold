@@ -4,14 +4,18 @@ import { consumeLikeLimit, LIKE_LIMIT_MESSAGE } from "@/lib/comps/rate-limit";
 import { BLOCKED_INTERACTION } from "@/lib/safety/block";
 import { createSupabaseServer, getAuthUserId } from "@/lib/supabase/server";
 import { isUuid } from "@/lib/value/card-value-access";
-import { readLikeCount } from "./likes";
+import { missingLikesRelation, readLikeCount } from "./likes";
 
 export type SyncLikeResult =
-  | { ok: true; likeCount: number | null; liked: boolean }
+  | { ok: true; likeCount: number | null; liked: boolean; fallback?: boolean }
   | { ok: false; error: string };
 
 function blockedByPolicy(message: string | undefined): boolean {
   return /row-level security|violates row-level/i.test(message ?? "");
+}
+
+function likeLimited(message: string | undefined): boolean {
+  return /liking posts too quickly/i.test(message ?? "");
 }
 
 /** Write one like or unlike after the hourly bucket. The screen updates first. */
@@ -37,6 +41,10 @@ export async function syncPostLike(input: {
       user_id: userId,
     });
     if (error && error.code !== "23505") {
+      if (missingLikesRelation(error)) {
+        return { ok: true, likeCount: null, liked: true, fallback: true };
+      }
+      if (likeLimited(error.message)) return { ok: false, error: LIKE_LIMIT_MESSAGE };
       if (blockedByPolicy(error.message)) return { ok: false, error: BLOCKED_INTERACTION };
       return { ok: false, error: error.message };
     }
@@ -46,7 +54,13 @@ export async function syncPostLike(input: {
       .delete()
       .eq("post_id", input.postId)
       .eq("user_id", userId);
-    if (error) return { ok: false, error: error.message };
+    if (error) {
+      if (missingLikesRelation(error)) {
+        return { ok: true, likeCount: null, liked: false, fallback: true };
+      }
+      if (likeLimited(error.message)) return { ok: false, error: LIKE_LIMIT_MESSAGE };
+      return { ok: false, error: error.message };
+    }
   }
 
   const { data, error } = await supabase

@@ -573,7 +573,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
     if (!userId) return;
     const client = supabaseRef.current;
     let cancelled = false;
-    if (likesMigratedFlag()) {
+    if (likesMigratedFlag(userId)) {
       void Promise.resolve().then(() => {
         if (!cancelled) setLikesMigrated(true);
       });
@@ -584,7 +584,11 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
     if (!client) return;
     void migrateStoredLikes(client, userId, loadActivity().likes).then((result) => {
       if (cancelled || !result.ok) return;
-      markLikesMigrated();
+      try {
+        markLikesMigrated(userId);
+      } catch {
+        // Quota or disabled storage. The rows are already copied, so don't retry every load.
+      }
       setLikesMigrated(true);
       if (result.inserted.length === 0) return;
       const inserted = new Set(result.inserted);
@@ -1212,6 +1216,8 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
                 paint(wasLiked, baseCount);
                 return;
               }
+              // Table is not installed yet. Keep the device heart already painted.
+              if (result.fallback) return;
               if (typeof result.likeCount === "number") paint(result.liked, result.likeCount);
             } catch (error) {
               if (likeGeneration.current.get(postId) !== generation) return;
