@@ -791,6 +791,18 @@ function missingRelation(error: { code?: string; message?: string } | null) {
   return error.code === "PGRST205" || error.code === "42P01" || /schema cache|does not exist/i.test(error.message ?? "");
 }
 
+/** One row per post id. A second copy of the same id must not query again. */
+export function dedupeMailDayRows(rows: readonly MailDaySourceRow[]): MailDaySourceRow[] {
+  const seen = new Set<string>();
+  const unique: MailDaySourceRow[] = [];
+  for (const row of rows) {
+    if (!row.id || seen.has(row.id)) continue;
+    seen.add(row.id);
+    unique.push(row);
+  }
+  return unique;
+}
+
 /** Load post_cards, public membership, and paid, then assemble every Mail Day card. */
 export async function loadMailDayViews(
   supabase: SupabaseClient,
@@ -798,7 +810,7 @@ export async function loadMailDayViews(
   viewerId: string | null,
 ): Promise<Map<string, MailDayCardView[]>> {
   const result = new Map<string, MailDayCardView[]>();
-  const mailRows = rows.filter((row) => row.post_type === "mail_day");
+  const mailRows = dedupeMailDayRows(rows).filter((row) => row.post_type === "mail_day");
   if (!mailRows.length) return result;
 
   const paidByPost = await loadMailDayPaid(

@@ -89,14 +89,16 @@ export function PostView({ id }: { id: string }) {
       router.push(signupPath(pathname));
       return;
     }
+    const text = draft;
+    setDraft("");
     setPending(true);
-    const result = await addComment(id, draft);
+    const result = await addComment(id, text);
     setPending(false);
     if (result.error) {
+      setDraft(text);
       setError(result.error);
       return;
     }
-    setDraft("");
     setError(result.notice ?? null);
     if (replyRef.current) {
       replyRef.current.style.height = "auto";

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Star } from "lucide-react";
 import { useSocial } from "@/components/social-provider";
@@ -28,6 +28,7 @@ export function WantButton({
   fairHigh?: number | null;
 }) {
   const { user } = useSocial();
+  const router = useRouter();
   const pathname = usePathname() || "/";
   const [record, setRecord] = useState<{ scope: string; want: SavedWant | null } | null>(null);
   const [open, setOpen] = useState(false);
@@ -108,6 +109,12 @@ export function WantButton({
       setError("Want list isn't available right now.");
       return;
     }
+    const previous = record;
+    const scopeKey = `${user!.id}:${cardKey}`;
+    setRecord({
+      scope: scopeKey,
+      want: { id: want?.id ?? "pending", targetPrice: parsed.value },
+    });
     setSaving(true);
     const { data, error: saveError } = await supabase
       .from("want_list")
@@ -125,16 +132,18 @@ export function WantButton({
       .single();
     setSaving(false);
     if (saveError || !data) {
+      setRecord(previous);
       setError(saveError?.message ?? "Couldn't save that want.");
       return;
     }
     setRecord({
-      scope: `${user!.id}:${cardKey}`,
+      scope: scopeKey,
       want: {
         id: data.id as string,
         targetPrice: data.target_price == null ? null : Number(data.target_price),
       },
     });
+    router.refresh();
     setError(null);
     setOpen(false);
   }
@@ -143,14 +152,18 @@ export function WantButton({
     if (!want) return;
     const supabase = createSupabaseBrowser();
     if (!supabase) return;
+    const previous = record;
+    setRecord({ scope: `${user!.id}:${cardKey}`, want: null });
     setSaving(true);
     const { error: deleteError } = await supabase.from("want_list").delete().eq("id", want.id);
     setSaving(false);
     if (deleteError) {
+      setRecord(previous);
       setError(deleteError.message);
       return;
     }
     setRecord({ scope: `${user!.id}:${cardKey}`, want: null });
+    router.refresh();
     setDraft("");
     setError(null);
     setOpen(false);

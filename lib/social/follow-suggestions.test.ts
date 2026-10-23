@@ -136,13 +136,9 @@ describe("followSuggestions", () => {
     assert.equal(followAll.includes("Follow all"), true);
     assert.equal(followAll.includes("whitespace-nowrap"), true);
     assert.equal(followAll.includes("shrink-0"), true);
-    assert.match(remote, /needsSuggestionHeadroom\(profiles\.length\)/);
-    assert.match(remote, /suggestionExtraRange\(profiles\.length\)/);
-    assert.match(
-      remote,
-      /from\("profiles"\)\.select\("\*"\)\.order\("created_at", \{ ascending: true \}\)/,
-    );
-    assert.match(remote, /\.order\("created_at", \{ ascending: true \}\)\s*\.range\(from, to\)/);
+    assert.doesNotMatch(remote, /from\("profiles"\)\.select\("\*"\)/);
+    assert.doesNotMatch(remote, /needsSuggestionHeadroom\(/);
+    assert.match(provider, /loadServerSuggestions\(/);
     assert.doesNotMatch(search, /isTestAccount|followSuggestions/);
     assert.doesNotMatch(cards, /isTestAccount|followSuggestions/);
   });

@@ -83,14 +83,16 @@ export function MessageThread({ username }: { username: string }) {
       router.push(signupPath(pathname));
       return;
     }
+    const text = draft;
+    setDraft("");
     setPending(true);
-    const result = await sendMessage(partner.id, draft, offerAttachment);
+    const result = await sendMessage(partner.id, text, offerAttachment);
     setPending(false);
     if (result.error) {
+      setDraft(text);
       setError(result.error);
       return;
     }
-    setDraft("");
     setError(null);
   }
 

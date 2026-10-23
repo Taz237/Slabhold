@@ -47,6 +47,7 @@ import {
   profileStepDone,
 } from "@/lib/social/get-started";
 import { followingAuthorIds, homeHead, showsNewPosts } from "@/lib/social/feed-page";
+import { loadNewestFeedHead } from "@/lib/social/scoped-reads";
 import { presentForYouFeed } from "@/lib/social/for-you-display";
 import { addUnblockedProfiles, presentPagedItems } from "@/lib/social/paged-items";
 import { publicTimeline } from "@/lib/social/timeline";
@@ -89,7 +90,6 @@ export function FeedView({ movingToday }: { movingToday?: ReactNode } = {}) {
     suggestionsReady,
     profiles,
     followingCount,
-    refresh,
     mode,
     postCardValuesMessage,
     rememberPosts,
@@ -141,11 +141,11 @@ export function FeedView({ movingToday }: { movingToday?: ReactNode } = {}) {
   const [capturedHead, setCapturedHead] = useState<{ key: number; head: ReturnType<typeof homeHead> } | null>(
     null,
   );
+  const [peekHead, setPeekHead] = useState<ReturnType<typeof homeHead> | null>(null);
   const followingIds = useMemo(
     () => (user ? followingAuthorIds(follows, user.id) : []),
     [follows, user],
   );
-  const head = homeHead(homePosts, homeReposts);
   const paging = mode === "supabase" && ready;
   const forYouPage = usePagedTimeline({
     enabled: paging,
@@ -166,11 +166,46 @@ export function FeedView({ movingToday }: { movingToday?: ReactNode } = {}) {
     mutedIds,
     rememberPosts,
   });
-  if (paging && !forYouPage.loading && (capturedHead === null || capturedHead.key !== refreshKey)) {
-    setCapturedHead({ key: refreshKey, head });
-  }
+  const head = peekHead ?? capturedHead?.head ?? homeHead(homePosts, homeReposts);
+  useEffect(() => {
+    setPeekHead(null);
+  }, [refreshKey]);
+  useEffect(() => {
+    if (!paging || forYouPage.loading) return;
+    const supabase = createSupabaseBrowser();
+    if (!supabase) return;
+    let cancelled = false;
+    void loadNewestFeedHead(supabase, user?.id ?? null)
+      .then((next) => {
+        if (!cancelled) setCapturedHead({ key: refreshKey, head: next });
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [forYouPage.loading, paging, refreshKey, user?.id]);
+  useEffect(() => {
+    if (!paging) return;
+    const supabase = createSupabaseBrowser();
+    if (!supabase) return;
+    let cancelled = false;
+    const peek = () => {
+      if (document.hidden) return;
+      void loadNewestFeedHead(supabase, user?.id ?? null)
+        .then((next) => {
+          if (!cancelled) setPeekHead(next);
+        })
+        .catch(() => undefined);
+    };
+    document.addEventListener("visibilitychange", peek);
+    return () => {
+      cancelled = true;
+      document.removeEventListener("visibilitychange", peek);
+    };
+  }, [paging, user?.id]);
   const hasNewPosts =
     paging &&
+    peekHead !== null &&
     capturedHead !== null &&
     capturedHead.key === refreshKey &&
     !forYouPage.loading &&
@@ -239,7 +274,6 @@ export function FeedView({ movingToday }: { movingToday?: ReactNode } = {}) {
     return (
       <PullToRefresh
         onRefresh={async () => {
-          await refresh();
           setRefreshKey((key) => key + 1);
         }}
         className="-mx-4 -mt-5"
@@ -252,7 +286,6 @@ export function FeedView({ movingToday }: { movingToday?: ReactNode } = {}) {
   return (
     <PullToRefresh
       onRefresh={async () => {
-        await refresh();
         setRefreshKey((key) => key + 1);
       }}
       className="-mx-4 -mt-5"
