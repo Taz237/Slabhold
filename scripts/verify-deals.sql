@@ -164,7 +164,9 @@ select 'block_before_confirm',
       and p.prosecdef
       and position('return ''declined''' in p.prosrc) > 0
       and position('private.is_blocked' in p.prosrc) > position('return ''declined''' in p.prosrc)
-      and position('already sold' in p.prosrc) > position('private.is_blocked' in p.prosrc)
+      and position('status = ''cancelled''' in p.prosrc) > position('private.is_blocked' in p.prosrc)
+      and position('return ''already sold''' in p.prosrc) > position('status = ''cancelled''' in p.prosrc)
+      and position('raise exception ''already sold''' in p.prosrc) = 0
   ) then 'PASS' else 'FAIL' end
 
 union all
@@ -178,6 +180,7 @@ select 'hourly_limit',
       and p.proname = 'create_deal'
       and p.prosrc like '%v_recent >= 5%'
       and p.prosrc like '%interval ''1 hour''%'
+      and p.prosrc like '%pg_advisory_xact_lock%'
   ) then 'PASS' else 'FAIL' end
 
 union all
@@ -192,6 +195,8 @@ select 'sold_column_guard',
       and t.tgname = 'cards_reject_direct_sold_write'
       and not t.tgisinternal
       and p.proname = 'reject_direct_sold_write'
+      and (t.tgtype & 4) = 4
+      and (t.tgtype & 16) = 16
   ) then 'PASS' else 'FAIL' end
 
 union all
@@ -218,8 +223,49 @@ select 'public_cards_deal_sold_only',
     join pg_namespace n on n.oid = c.relnamespace
     where n.nspname = 'public'
       and c.relname = 'public_cards'
-      and pg_get_viewdef(c.oid, true) like '%sold_at is null%'
-      and pg_get_viewdef(c.oid, true) not like '%sell_price is null%'
+      and pg_get_viewdef(c.oid, true) ilike '%sold_at is null%'
+      and pg_get_viewdef(c.oid, true) not ilike '%sell_price is null%'
   ) then 'PASS' else 'FAIL' end
+
+union all
+
+select 'no_qualified_coalesce',
+  case
+    when (
+      select count(*)
+      from pg_proc p
+      join pg_namespace n on n.oid = p.pronamespace
+      where n.nspname in ('public', 'private')
+        and p.proname in (
+          'reject_direct_deal_write',
+          'reject_direct_sold_write',
+          'cancel_pending_deals_for_card',
+          'create_deal',
+          'respond_deal',
+          'cancel_deal'
+        )
+    ) >= 9
+    and not exists (
+      select 1
+      from pg_proc p
+      join pg_namespace n on n.oid = p.pronamespace
+      where n.nspname in ('public', 'private')
+        and p.proname in (
+          'reject_direct_deal_write',
+          'reject_direct_sold_write',
+          'cancel_pending_deals_for_card',
+          'create_deal',
+          'respond_deal',
+          'cancel_deal'
+        )
+        and (
+          p.prosrc like '%pg_catalog.coalesce(%'
+          or p.prosrc like '%pg_catalog.nullif(%'
+          or p.prosrc like '%pg_catalog.greatest(%'
+          or p.prosrc like '%pg_catalog.least(%'
+        )
+    )
+    then 'PASS' else 'FAIL'
+  end
 
 order by 1;

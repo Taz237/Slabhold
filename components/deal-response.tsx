@@ -66,6 +66,7 @@ export function DealConfirmActions({
     setPending(false);
     if ("error" in result) {
       setError(result.error);
+      if (result.error === "This card was already marked sold.") onChanged();
       return;
     }
     setError(null);
@@ -104,6 +105,7 @@ export function DealThreadPanel({ partnerId }: { partnerId: string }) {
     setPendingId(null);
     if ("error" in result) {
       setError(result.error);
+      if (result.error === "This card was already marked sold.") refresh();
       return;
     }
     setError(null);

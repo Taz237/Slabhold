@@ -53,6 +53,7 @@ export function dealErrorMessage(error: { code?: string; message?: string } | nu
   }
   if (/already sold/i.test(message)) return "This card was already marked sold.";
   if (/too many deals/i.test(message)) return "You can send 5 deals to the same person each hour.";
+  if (/price must be positive/i.test(message)) return "Price must be positive.";
   if (/price too high|deals_price_cents/i.test(message) || code === "23514") {
     return "Enter a price up to $1,000,000.";
   }
@@ -97,6 +98,14 @@ export async function respondDeal(
     p_decision: decision,
   });
   if (error) return { error: dealErrorMessage(error) };
+  return respondDealOutcome(data, decision);
+}
+
+export function respondDealOutcome(
+  data: unknown,
+  decision: "confirmed" | "declined",
+): { status: string } | { error: string } {
+  if (data === "already sold") return { error: dealErrorMessage({ message: "already sold" }) };
   return { status: typeof data === "string" ? data : decision };
 }
 

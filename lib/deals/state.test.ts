@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { DealActionButtons } from "@/components/deal-actions";
-import { dealErrorMessage } from "@/lib/deals/client";
+import { dealErrorMessage, respondDealOutcome } from "@/lib/deals/client";
 import { catalogCardFromParams } from "@/lib/search/catalog-results";
 import {
   ADD_TO_COLLECTION_LABEL,
@@ -229,11 +229,20 @@ describe("deal actions", () => {
   it("blocks confirm and still explains a hand-recorded sale", () => {
     assert.equal(confirmAllowed(true), false);
     assert.equal(confirmAllowed(false), true);
+    assert.equal(
+      dealErrorMessage({ code: "22023", message: "price must be positive" }),
+      "Price must be positive.",
+    );
     assert.equal(dealErrorMessage({ code: "42501", message: "not allowed" }), "You can't do that.");
     assert.equal(
       dealErrorMessage({ code: "42501", message: "already sold" }),
       "This card was already marked sold.",
     );
+    assert.deepEqual(respondDealOutcome("already sold", "confirmed"), {
+      error: "This card was already marked sold.",
+    });
+    assert.deepEqual(respondDealOutcome("confirmed", "confirmed"), { status: "confirmed" });
+    assert.deepEqual(respondDealOutcome("declined", "declined"), { status: "declined" });
   });
 
   it("asks the buyer to confirm the card and never says marketplace", () => {
@@ -243,6 +252,9 @@ describe("deal actions", () => {
     const sheet = readFileSync(join(process.cwd(), "components/deal-sheet.tsx"), "utf8");
     const cardPage = readFileSync(join(process.cwd(), "components/card-detail.tsx"), "utf8");
     const thread = readFileSync(join(process.cwd(), "components/message-thread.tsx"), "utf8");
+    const response = readFileSync(join(process.cwd(), "components/deal-response.tsx"), "utf8");
+    assert.match(response, /This card was already marked sold\."\) onChanged\(\)/);
+    assert.match(response, /This card was already marked sold\."\) refresh\(\)/);
     assert.equal(MARK_SOLD_LABEL, "Mark as sold/traded");
     assert.match(cardPage, /MARK_SOLD_LABEL/);
     assert.match(cardPage, /min-h-11[\s\S]*Mark as sold/);

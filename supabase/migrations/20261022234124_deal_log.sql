@@ -117,13 +117,17 @@ language plpgsql
 set search_path = ''
 as $$
 begin
-  if current_user in ('anon', 'authenticated')
-     and (
-       new.sold_at is distinct from old.sold_at
-       or new.sold_deal_id is distinct from old.sold_deal_id
-     ) then
-    raise exception 'permission denied for column sold_at'
-      using errcode = '42501';
+  if current_user in ('anon', 'authenticated') then
+    if tg_op = 'INSERT' then
+      if new.sold_at is not null or new.sold_deal_id is not null then
+        raise exception 'permission denied for column sold_at'
+          using errcode = '42501';
+      end if;
+    elsif new.sold_at is distinct from old.sold_at
+       or new.sold_deal_id is distinct from old.sold_deal_id then
+      raise exception 'permission denied for column sold_at'
+        using errcode = '42501';
+    end if;
   end if;
   return new;
 end;
@@ -134,7 +138,7 @@ grant execute on function private.reject_direct_sold_write() to authenticated;
 
 drop trigger if exists cards_reject_direct_sold_write on public.cards;
 create trigger cards_reject_direct_sold_write
-  before update of sold_at, sold_deal_id on public.cards
+  before insert or update of sold_at, sold_deal_id on public.cards
   for each row
   execute function private.reject_direct_sold_write();
 
@@ -224,7 +228,10 @@ begin
   if p_kind is distinct from 'sale' and p_kind is distinct from 'trade' then
     raise exception 'invalid kind' using errcode = '22023';
   end if;
-  if p_price_cents is not null and (p_price_cents < 0 or p_price_cents > 100000000) then
+  if p_price_cents is not null and p_price_cents < 0 then
+    raise exception 'price must be positive' using errcode = '22023';
+  end if;
+  if p_price_cents is not null and p_price_cents > 100000000 then
     raise exception 'price too high' using errcode = '22023';
   end if;
   if p_buyer_id is null or p_buyer_id = v_seller then
@@ -237,8 +244,8 @@ begin
 
   select
     player,
-    pg_catalog.coalesce(pg_catalog.nullif(pg_catalog.btrim(year_label), ''), year::text),
-    pg_catalog.coalesce(pg_catalog.nullif(pg_catalog.btrim(set_name), ''), "set"),
+    coalesce(nullif(pg_catalog.btrim(year_label), ''), year::text),
+    coalesce(nullif(pg_catalog.btrim(set_name), ''), "set"),
     card_number,
     parallel,
     sport,
@@ -263,6 +270,11 @@ begin
   ) then
     raise exception 'no conversation' using errcode = '42501';
   end if;
+
+  perform pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtext(v_seller::text),
+    pg_catalog.hashtext(p_buyer_id::text)
+  );
 
   select count(*)
   into v_recent
@@ -294,11 +306,11 @@ begin
     p_kind,
     p_price_cents,
     'pending',
-    pg_catalog.coalesce(v_player, ''),
-    pg_catalog.coalesce(v_year, ''),
-    pg_catalog.coalesce(v_set, ''),
-    pg_catalog.coalesce(v_num, ''),
-    pg_catalog.coalesce(v_parallel, '')
+    coalesce(v_player, ''),
+    coalesce(v_year, ''),
+    coalesce(v_set, ''),
+    coalesce(v_num, ''),
+    coalesce(v_parallel, '')
   )
   returning id into v_deal;
 
@@ -317,19 +329,19 @@ begin
     p_buyer_id,
     v_seller,
     'deal_confirm',
-    'Confirm deal for ' || pg_catalog.coalesce(pg_catalog.nullif(pg_catalog.btrim(v_player), ''), 'this card') || '?',
-    '/messages/' || pg_catalog.coalesce(v_username, ''),
+    'Confirm deal for ' || coalesce(nullif(pg_catalog.btrim(v_player), ''), 'this card') || '?',
+    '/messages/' || coalesce(v_username, ''),
     pg_catalog.jsonb_build_object(
       'deal_id', v_deal,
       'card_id', p_card_id,
       'actor_id', v_seller,
-      'player', pg_catalog.coalesce(v_player, ''),
-      'year', pg_catalog.coalesce(v_year, ''),
-      'set', pg_catalog.coalesce(v_set, ''),
-      'num', pg_catalog.coalesce(v_num, ''),
-      'parallel', pg_catalog.coalesce(v_parallel, ''),
-      'sport', pg_catalog.coalesce(v_sport, ''),
-      'rookie', pg_catalog.coalesce(v_rookie, false)
+      'player', coalesce(v_player, ''),
+      'year', coalesce(v_year, ''),
+      'set', coalesce(v_set, ''),
+      'num', coalesce(v_num, ''),
+      'parallel', coalesce(v_parallel, ''),
+      'sport', coalesce(v_sport, ''),
+      'rookie', coalesce(v_rookie, false)
     )
   );
 
@@ -388,7 +400,12 @@ begin
   if not found
      or v_sold_at is not null
      or (v_sell_price is not null and v_sell_date is not null) then
-    raise exception 'already sold' using errcode = '42501';
+    update public.deals
+    set status = 'cancelled',
+        updated_at = pg_catalog.now()
+    where id = v_deal.id
+      and status = 'pending';
+    return 'already sold';
   end if;
 
   update public.deals
