@@ -22,6 +22,7 @@ import {
 } from "./reply-mentions";
 import { draftPostPhotos } from "./post-photos";
 import { decidePin, pinnedPostIdAfterDelete } from "./profile-tabs";
+import { replyNoticePreview } from "./reply-images";
 import { shouldNotifyQuoteAuthor, validateQuoteContent } from "./quotes";
 import { COMMENT_LIMIT, MESSAGE_LIMIT } from "./types";
 import { isOfficialUpdatesAccount } from "./official-updates";
@@ -149,7 +150,8 @@ export function notificationsFromActivity(db: LocalDb): Notification[] {
       actorId: comment.authorId,
       kind: "comment",
       postId: post.id,
-      preview: previewText(comment.body),
+      preview: replyNoticePreview(comment.body, comment.images),
+      ...(comment.images?.length ? { metadata: { images: [...comment.images] } } : {}),
       createdAt: comment.createdAt,
       read: false,
     });
@@ -655,16 +657,19 @@ export function localAddComment(
   db: LocalDb,
   postId: string,
   body: string,
+  images?: readonly string[] | null,
 ): { db: LocalDb; error?: string } {
   if (!db.sessionUserId) return { db, error: "Log in to comment." };
   const text = body.trim().slice(0, COMMENT_LIMIT);
-  if (!text) return { db, error: "Write a comment." };
+  const photos = draftPostPhotos({ images: images ?? [] });
+  if (!text && photos.length === 0) return { db, error: "Write a comment." };
   if (!db.posts.some((post) => post.id === postId)) return { db, error: "That post is gone." };
   const comment: PostComment = {
     id: `comment-${Date.now().toString(36)}`,
     postId,
     authorId: db.sessionUserId,
     body: text,
+    ...(photos.length ? { images: photos } : {}),
     createdAt: new Date().toISOString(),
   };
   const next: LocalDb = { ...db, comments: [...(db.comments ?? []), comment] };
@@ -675,7 +680,8 @@ export function localAddComment(
     actorId: db.sessionUserId,
     kind: "comment",
     postId,
-    preview: previewText(text),
+    preview: replyNoticePreview(text, photos),
+    ...(photos.length ? { metadata: { images: photos } } : {}),
     createdAt: comment.createdAt,
   });
   const mentioned = replyMentionCandidates({
@@ -692,8 +698,8 @@ export function localAddComment(
         actorId: db.sessionUserId,
         kind: "mention",
         postId,
-        preview: previewText(text),
-        metadata: REPLY_MENTION_METADATA,
+        preview: replyNoticePreview(text, photos),
+        metadata: photos.length ? { ...REPLY_MENTION_METADATA, images: photos } : REPLY_MENTION_METADATA,
         createdAt: comment.createdAt,
       },
     );
@@ -910,10 +916,25 @@ export function canDeleteReply(viewerId: string | null | undefined, authorId: st
 function isOwnReplyPreviewNotification(note: Notification, comment: PostComment) {
   if (note.actorId !== comment.authorId) return false;
   if (note.postId !== comment.postId) return false;
-  const preview = previewText(comment.body);
+  if (comment.body.trim().length === 0) return false;
+  const preview = replyNoticePreview(comment.body, comment.images);
   if (!preview || note.preview !== preview) return false;
   if (note.kind === "comment") return true;
   return note.kind === "mention" && isReplyMentionMetadata(note.metadata);
+}
+
+/** Photo-only notices are preview NULL on the server and "Photo" locally. Keep the newest one. */
+function newestPhotoOnlyNoticeId(notes: readonly Notification[], comment: PostComment): string | null {
+  let best: Notification | null = null;
+  for (const note of notes) {
+    if (note.actorId !== comment.authorId || note.postId !== comment.postId) continue;
+    if (note.kind !== "comment") continue;
+    if (note.preview !== null && note.preview !== "Photo") continue;
+    if (!best || note.createdAt > best.createdAt || (note.createdAt === best.createdAt && note.id > best.id)) {
+      best = note;
+    }
+  }
+  return best?.id ?? null;
 }
 
 /** Drops the reply and rows tied to it. An error keeps the previous rows. */
@@ -935,7 +956,11 @@ export function stateAfterReplyDelete(
     reposts: before.reposts.filter((repost) => repost.postId !== commentId),
     notifications: before.notifications.filter((note) => {
       if (note.postId === commentId) return false;
-      if (comment && isOwnReplyPreviewNotification(note, comment)) return false;
+      if (!comment) return true;
+      if (comment.body.trim().length === 0 && (comment.images?.length ?? 0) > 0) {
+        return note.id !== newestPhotoOnlyNoticeId(before.notifications, comment);
+      }
+      if (isOwnReplyPreviewNotification(note, comment)) return false;
       return true;
     }),
   };

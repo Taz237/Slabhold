@@ -58,6 +58,7 @@ export type ProfileReply = {
   id: string;
   postId: string;
   body: string;
+  images?: string[];
   createdAt: string;
 };
 
@@ -118,7 +119,10 @@ export function profileReplies(
   const dropMissing = parents ? parents.dropMissing !== false : false;
   return comments
     .filter((comment) => {
-      if (comment.authorId !== userId || comment.body.trim().length === 0) return false;
+      if (comment.authorId !== userId) return false;
+      if (comment.body.trim().length === 0 && !(comment.images && comment.images.length > 0)) {
+        return false;
+      }
       if (!parents) return true;
       const parent = postsById.get(comment.postId);
       if (!parent) return !dropMissing;
@@ -128,6 +132,7 @@ export function profileReplies(
       id: comment.id,
       postId: comment.postId,
       body: comment.body,
+      ...(comment.images?.length ? { images: [...comment.images] } : {}),
       createdAt: comment.createdAt,
     }))
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.id.localeCompare(a.id));

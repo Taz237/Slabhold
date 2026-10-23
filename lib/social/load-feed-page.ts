@@ -21,6 +21,12 @@ import {
   readLikeCount,
 } from "./likes";
 import { mappedPostImages } from "./post-photos";
+import {
+  COMMENT_COLUMNS_WITH_IMAGES,
+  noteReplyImagesMissing,
+  replyImageColumnMissing,
+  replyImagesFromValue,
+} from "./reply-images";
 import type { TimelineItem } from "./timeline";
 import type {
   DirectMessage,
@@ -549,6 +555,7 @@ type CommentRow = {
   user_id: string;
   body: string;
   created_at: string;
+  image_urls?: unknown;
 };
 
 /** Same cap as the old home window. The quotes tab stays bounded to this post. */
@@ -628,11 +635,13 @@ export function postPageAuthorFilters(
 }
 
 function mapComment(row: CommentRow): PostComment {
+  const images = replyImagesFromValue(row.image_urls);
   return {
     id: row.id,
     postId: row.post_id,
     authorId: row.user_id,
     body: row.body,
+    ...(images.length ? { images } : {}),
     createdAt: row.created_at,
   };
 }
@@ -655,12 +664,19 @@ async function selectCommentsForPosts(
 ): Promise<CommentRow[]> {
   const ids = [...new Set(postIds)].filter((id) => isUuid(id));
   if (ids.length === 0) return [];
-  let query = supabase
-    .from("comments")
-    .select("id, post_id, user_id, body, created_at") as unknown as PostExec;
-  query = match === "eq" && ids[0] ? query.eq("post_id", ids[0]) : query.in("post_id", ids);
-  query = query.order("created_at", { ascending: true });
-  const { data, error } = await execute(query, viewerId, true, hidden);
+  const run = async (columns: string) => {
+    let query = supabase.from("comments").select(columns) as unknown as PostExec;
+    query = match === "eq" && ids[0] ? query.eq("post_id", ids[0]) : query.in("post_id", ids);
+    query = query.order("created_at", { ascending: true });
+    return execute(query, viewerId, true, hidden);
+  };
+  let { data, error } = await run(COMMENT_COLUMNS_WITH_IMAGES);
+  if (error && replyImageColumnMissing(error)) {
+    noteReplyImagesMissing();
+    const retry = await run("id, post_id, user_id, body, created_at");
+    data = retry.data;
+    error = retry.error;
+  }
   if (error) {
     if (missingTable(error)) return [];
     throw new Error(error.message);

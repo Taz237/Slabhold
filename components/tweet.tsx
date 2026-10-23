@@ -8,6 +8,7 @@ import { Avatar } from "@/components/avatar";
 import { useCollection } from "@/components/collection-provider";
 import { useImageLightbox } from "@/components/image-lightbox";
 import { PostPhotoGrid } from "@/components/post-photo-grid";
+import { ReplyPhotos } from "@/components/reply-photos";
 import { MentionText } from "@/components/mention-text";
 import { QuotedPostEmbed } from "@/components/quoted-post-embed";
 import { SafetyMenu } from "@/components/safety-menu";
@@ -204,9 +205,12 @@ function CommentPreview({ postId, comments }: { postId: string; comments: PostCo
               ) : (
                 <p className="truncate text-[13px] leading-5 font-bold">{name}</p>
               )}
-              <p className="line-clamp-2 text-[13px] leading-5 text-zinc-600 dark:text-zinc-300">
-                <MentionText text={comment.body} />
-              </p>
+              {comment.body ? (
+                <p className="line-clamp-2 text-[13px] leading-5 text-zinc-600 dark:text-zinc-300">
+                  <MentionText text={comment.body} />
+                </p>
+              ) : null}
+              <ReplyPhotos images={comment.images} />
             </div>
           </div>
         );

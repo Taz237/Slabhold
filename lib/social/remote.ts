@@ -39,6 +39,15 @@ import {
 } from "./reply-mentions";
 import { isReservedUsername, normalizeUsername, usernameChangeError, usernameError } from "./local-db";
 import { followOfficialUpdates } from "./official-updates";
+import {
+  noteReplyImagesMissing,
+  replyImageColumnMissing,
+  replyImagesFromValue,
+  replyImagesKnownMissing,
+  replyNoticePreview,
+  replyNotificationImages,
+  REPLY_PHOTOS_UNAVAILABLE,
+} from "./reply-images";
 import { isTestAccount } from "../test-accounts";
 import { ilikeExact, TAKEN_USERNAME, usernameTakenMessage } from "./username-taken";
 import { validateQuoteContent } from "./quotes";
@@ -110,6 +119,7 @@ type CommentRow = {
   user_id: string;
   body: string;
   created_at: string;
+  image_urls?: unknown;
 };
 
 type NotificationRow = {
@@ -422,15 +432,17 @@ export async function loadSupabaseSocial(supabase: SupabaseClient): Promise<Soci
   const publicCards = ((cardsRes.data ?? []) as PublicCardRow[]).map((row) =>
     mapPublicCard(row),
   );
-  const comments = ((commentsRes.data ?? []) as CommentRow[]).map(
-    (row): PostComment => ({
+  const comments = ((commentsRes.data ?? []) as CommentRow[]).map((row): PostComment => {
+    const images = replyImagesFromValue(row.image_urls);
+    return {
       id: row.id,
       postId: row.post_id,
       authorId: row.user_id,
       body: row.body,
+      ...(images.length ? { images } : {}),
       createdAt: row.created_at,
-    }),
-  );
+    };
+  });
   const notifications = ((notificationsRes.data ?? []) as NotificationRow[]).map(
     (row): Notification => ({
       id: row.id,
@@ -784,9 +796,12 @@ export async function remoteAddComment(
   postId: string,
   body: string,
   postAuthorId: string | null,
+  images?: readonly string[] | null,
 ): Promise<AuthResult> {
   const text = body.trim().slice(0, COMMENT_LIMIT);
-  if (!text) return { error: "Write a comment." };
+  const photos = draftPostPhotos({ images: images ?? [] });
+  if (!text && photos.length === 0) return { error: "Write a comment." };
+  if (photos.length > 0 && replyImagesKnownMissing()) return { error: REPLY_PHOTOS_UNAVAILABLE };
   if (
     postAuthorId &&
     postAuthorId !== authorId &&
@@ -794,18 +809,28 @@ export async function remoteAddComment(
   ) {
     return { error: BLOCKED_INTERACTION };
   }
-  const { error } = await supabase.from("comments").insert({
+  const uploaded = photos.length
+    ? await uploadPostImages(supabase, authorId, photos)
+    : { urls: [] as string[], createdPaths: [] as string[] };
+  if (uploaded.error) return { error: uploaded.error };
+  const row: { post_id: string; user_id: string; body: string; image_urls?: string[] } = {
     post_id: postId,
     user_id: authorId,
     body: text,
-  });
+  };
+  if (uploaded.urls.length) row.image_urls = uploaded.urls;
+  const { error } = await supabase.from("comments").insert(row);
   if (error) {
-    if (missingTable(error)) {
-      return { error: SETUP_FAILED };
+    await discardPostImages(supabase, uploaded.createdPaths);
+    if (replyImageColumnMissing(error)) {
+      noteReplyImagesMissing();
+      return { error: REPLY_PHOTOS_UNAVAILABLE };
     }
+    if (missingTable(error)) return { error: SETUP_FAILED };
     return { error: rlsBlocked(error) ? BLOCKED_INTERACTION : error.message };
   }
 
+  const noticeImages = replyNotificationImages(uploaded.urls);
   let notice: string | undefined;
   try {
     let recipientId = postAuthorId;
@@ -823,7 +848,7 @@ export async function remoteAddComment(
         actor_id: authorId,
         kind: "comment",
         post_id: postId,
-        preview: previewText(text),
+        preview: replyNoticePreview(text, noticeImages),
       });
       if (noteError && !missingTable(noteError)) notice = noteError.message;
     }
@@ -1264,22 +1289,30 @@ export async function remoteDeletePost(supabase: SupabaseClient, authorId: strin
 }
 
 /**
- * Notifications have no comment id. After the reply is gone, drop only the
- * deleter's own comment notice and reply-mention notices (metadata.source =
- * reply) on that post whose preview is this reply.
+ * Notifications have no comment id. The likes insert rule only allows mention
+ * metadata {"source":"reply"}, so a comment id cannot be stored.
+ *
+ * Text replies match the stamped preview. A photo-only reply is stamped with
+ * preview NULL. Deleting one drops only the newest NULL comment notice for
+ * this actor and post, not every NULL preview.
  *
  * "Delete notifications you sent" (auth.uid() = actor_id) already allows this.
  * Migrations never drop it. A rejected cleanup, including RLS, is ignored so
  * the reply stays deleted.
  */
+/** Rows already stored on the comment. Render filtering is for display, not cleanup. */
+function storedReplyImages(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((item): item is string => typeof item === "string" && item.length > 0);
+}
+
 async function deleteOwnReplyPreviewNotifications(
   supabase: SupabaseClient,
   actorId: string,
   postId: string,
   body: string,
+  images?: readonly string[] | null,
 ) {
-  const preview = previewText(body);
-  if (!preview) return;
   const run = async (query: PromiseLike<unknown>) => {
     try {
       await query;
@@ -1287,6 +1320,30 @@ async function deleteOwnReplyPreviewNotifications(
       // The reply is already deleted.
     }
   };
+  const text = body.trim();
+  if (!text) {
+    if (!images || images.length === 0) return;
+    let id: string | null = null;
+    try {
+      const found = await supabase
+        .from("notifications")
+        .select("id")
+        .eq("actor_id", actorId)
+        .eq("post_id", postId)
+        .eq("kind", "comment")
+        .is("preview", null)
+        .order("created_at", { ascending: false })
+        .limit(1);
+      id = Array.isArray(found.data) ? (found.data[0] as { id?: string } | undefined)?.id ?? null : null;
+    } catch {
+      return;
+    }
+    if (!id) return;
+    await run(supabase.from("notifications").delete().eq("id", id).eq("actor_id", actorId));
+    return;
+  }
+  const preview = replyNoticePreview(text, images);
+  if (!preview) return;
   await run(
     supabase
       .from("notifications")
@@ -1313,12 +1370,25 @@ export async function remoteDeleteComment(
   authorId: string,
   commentId: string,
 ) {
-  const { data, error } = await supabase
+  const removed = await supabase
     .from("comments")
     .delete()
     .eq("id", commentId)
     .eq("user_id", authorId)
-    .select("id, post_id, body");
+    .select("id, post_id, body, image_urls");
+  let data = removed.data;
+  let error = removed.error;
+  if (error && replyImageColumnMissing(error)) {
+    noteReplyImagesMissing();
+    const retry = await supabase
+      .from("comments")
+      .delete()
+      .eq("id", commentId)
+      .eq("user_id", authorId)
+      .select("id, post_id, body");
+    data = retry.data as typeof data;
+    error = retry.error;
+  }
   if (error) {
     return {
       error: rlsBlocked(error) ? "You can only delete your own replies." : error.message,
@@ -1328,13 +1398,19 @@ export async function remoteDeleteComment(
   if (!Array.isArray(data) || data.length === 0) {
     return { error: "Could not delete that reply." };
   }
-  const deleted = data[0] as { id: string; post_id?: string | null; body?: string | null };
+  const deleted = data[0] as {
+    id: string;
+    post_id?: string | null;
+    body?: string | null;
+    image_urls?: unknown;
+  };
   if (deleted.post_id) {
     await deleteOwnReplyPreviewNotifications(
       supabase,
       authorId,
       deleted.post_id,
       deleted.body ?? "",
+      storedReplyImages(deleted.image_urls),
     );
   }
   return {};

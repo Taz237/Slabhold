@@ -23,6 +23,7 @@ import { useSocial } from "@/components/social-provider";
 import { loginPath, signupPath } from "@/lib/auth/safe-next";
 import { userHref } from "@/lib/social/user-href";
 import { ShareIconButton } from "@/components/share-button";
+import { ReplyPhotos } from "@/components/reply-photos";
 import { Tweet } from "@/components/tweet";
 import { normalizeUsername } from "@/lib/social/local-db";
 import { ilikeExact } from "@/lib/social/username-taken";
@@ -414,9 +415,12 @@ export function ProfileView({ username }: { username?: string }) {
                 className="min-w-0 border-b border-zinc-200 px-4 py-3 dark:border-white/10"
               >
                 <p className="text-[13px] font-bold text-zinc-500">Reply</p>
-                <p className="mt-1 text-[15px] leading-5 break-words whitespace-pre-wrap">
-                  <MentionText text={reply.body} />
-                </p>
+                {reply.body.trim() ? (
+                  <p className="mt-1 text-[15px] leading-5 break-words whitespace-pre-wrap">
+                    <MentionText text={reply.body} />
+                  </p>
+                ) : null}
+                <ReplyPhotos images={reply.images} />
                 <Link
                   href={`/posts/${reply.postId}`}
                   className="mt-1 inline-block text-[13px] font-medium text-sky-600 hover:underline dark:text-sky-400"
