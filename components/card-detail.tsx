@@ -17,6 +17,7 @@ import { CardPeopleSections } from "@/components/card-people";
 import { WantButton } from "@/components/want-button";
 import { CategoryPicker } from "@/components/category-picker";
 import { FirstCardPrivacyPrompt } from "@/components/first-card-privacy-prompt";
+import { MakePublicChip } from "@/components/visibility-choice";
 import { SharedPostNote } from "@/components/shared-post-note";
 import { useCollection } from "@/components/collection-provider";
 import {
@@ -337,6 +338,14 @@ export function CardDetail({ id }: { id: string }) {
             >
               {card.isPublic ? "Public on profile" : "Private"}
             </button>
+            {card.isPublic ? null : (
+              <MakePublicChip
+                onClick={() => {
+                  updateCard(card.id, publicTogglePatch(card, true));
+                  dismissPrivacyNudge();
+                }}
+              />
+            )}
           </div>
           <div className="min-w-0">
             <p className="mb-2 text-sm text-zinc-500">Move this card</p>
