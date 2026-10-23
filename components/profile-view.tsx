@@ -49,13 +49,7 @@ import { ebaySoldSearchUrlForCard } from "@/lib/value/ebay-sold";
 import { resolvePriceRead, tilePriceText } from "@/lib/value/price-fallback";
 import { useCardValues } from "@/lib/value/use-card-values";
 
-export function ProfileView({
-  username,
-  badges = [],
-}: {
-  username?: string;
-  badges?: readonly string[];
-}) {
+export function ProfileView({ username }: { username?: string }) {
   const router = useRouter();
   const pathname = usePathname() || "/";
   const social = useSocial();
@@ -370,18 +364,6 @@ export function ProfileView({
         </div>
         <h1 className="mt-3 text-xl font-bold tracking-tight">{profile.displayName}</h1>
         <p className="text-[15px] text-zinc-500">@{profile.username}</p>
-        {badges.length > 0 ? (
-          <div className="mt-2 flex flex-wrap gap-2">
-            {badges.map((chip) => (
-              <span
-                key={chip}
-                className="rounded-full bg-violet-600/10 px-2.5 py-1 text-xs font-semibold text-violet-800 dark:text-violet-200"
-              >
-                {chip}
-              </span>
-            ))}
-          </div>
-        ) : null}
         {profile.bio ? <p className="mt-3 text-[15px] leading-5">{profile.bio}</p> : null}
         <p className="mt-3 flex gap-4 text-sm">
           <CountLink

@@ -47,7 +47,7 @@ async function listUserIdsWithCards(): Promise<string[]> {
  * Daily cron at 03:30 UTC, about 11:30 PM America/New_York
  * (11:30 PM EDT, 10:30 PM EST). Snapshots every collector who has cards,
  * which includes every leaderboard opt-in, from cached card_values only.
- * Writes today's collection total and each card's median.
+ * Writes today's collection total and each card's median, sale count, and self-reported flag.
  * Auth: Authorization: Bearer <CRON_SECRET>
  * Never calls Trawl.
  */

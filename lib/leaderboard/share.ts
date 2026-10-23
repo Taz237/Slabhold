@@ -2,16 +2,12 @@ import type { ShareImage } from "@/lib/social/share-image";
 
 export const ESTIMATED_FROM_SOLD = "Est. from recent sold prices";
 
-export function rankShareText(input: {
-  username: string;
-  percent: number;
-  window: "day" | "week";
-}): string {
+export function rankShareText(input: { username: string; percent: number }): string {
   const handle = input.username.trim().replace(/^@+/, "");
+  if (input.percent >= 1) return `@${handle} up 100% or more this week on Slabhold`;
   const magnitude = Math.abs(input.percent * 100).toFixed(1);
   const direction = input.percent < 0 ? "down" : "up";
-  const when = input.window === "week" ? "this week" : "today";
-  return `@${handle} ${direction} ${magnitude}% ${when} on Slabhold`;
+  return `@${handle} ${direction} ${magnitude}% this week on Slabhold`;
 }
 
 function image(partial: Pick<ShareImage, "kicker" | "title" | "detail" | "cardLines">): ShareImage {
@@ -36,13 +32,13 @@ function image(partial: Pick<ShareImage, "kicker" | "title" | "detail" | "cardLi
   };
 }
 
-/** Board preview. Text only: no team or league marks. */
+/** Value-board preview. Percents only: no collection totals and no team marks. */
 export function leaderboardBoardShareImage(
   rows: readonly { username: string; percentLabel: string }[],
 ): ShareImage {
   return image({
-    kicker: "LEADERBOARD",
-    title: "Collection leaderboard",
+    kicker: "VALUE",
+    title: "Value leaderboard",
     detail: ESTIMATED_FROM_SOLD,
     cardLines: rows.slice(0, 3).map((row) => ({
       name: `@${row.username.replace(/^@+/, "")}`,
@@ -51,14 +47,12 @@ export function leaderboardBoardShareImage(
   });
 }
 
-/** Personal rank card. The estimate label sits under the sentence. */
 export function leaderboardRankShareImage(input: {
   username: string;
   percent: number;
-  window: "day" | "week";
 }): ShareImage {
   return image({
-    kicker: "LEADERBOARD",
+    kicker: "VALUE",
     title: rankShareText(input),
     detail: ESTIMATED_FROM_SOLD,
     cardLines: [],

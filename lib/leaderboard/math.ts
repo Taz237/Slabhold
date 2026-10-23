@@ -1,81 +1,161 @@
-export type MedianPoint = {
+export const TRUSTED_MIN_SALES = 2;
+export const TRUSTED_MIN_MEDIAN = 5;
+export const VALUE_PERCENT_CAP = 1;
+
+export type ValueCard = {
   cardId: string;
-  median: number | null;
+  startMedian: number | null;
+  endMedian: number | null;
+  startSales: number | null;
+  endSales: number | null;
+  selfReported: boolean;
+  openFlag: boolean;
 };
 
-export type SameCardsChange = {
-  priorSum: number;
-  todaySum: number;
-  delta: number;
-  /** Null when the prior sum is 0, so the percent is not a divide-by-zero. */
+export type ValueFlagReason = "single_sale" | "self_reported";
+
+export type ValueBoardChange = {
+  /** Null when no trusted card remains, so the percent is not a divide-by-zero. */
   percent: number | null;
+  /** Capped dollar move. Used to break ties. Never shown. */
+  dollarGain: number;
+  startSum: number;
   cardCount: number;
+  flagged: boolean;
+  flagReasons: ValueFlagReason[];
 };
 
-function finiteMedian(value: number | null): number | null {
+function finite(value: number | null): number | null {
   if (value == null || !Number.isFinite(value)) return null;
   return value;
 }
 
+function trustedMedian(value: number | null, sales: number | null): number | null {
+  const median = finite(value);
+  const count = finite(sales);
+  if (median == null || count == null) return null;
+  if (count < TRUSTED_MIN_SALES) return null;
+  if (median < TRUSTED_MIN_MEDIAN) return null;
+  return median;
+}
+
 /**
- * Same-cards change. Cards only on one date are ignored.
- * A null median on either date is ignored. Each card counts once.
- * percent = sum(today - prior) / sum(prior).
+ * Cap each positive card move so it cannot exceed the other positive moves.
+ * That card is then at most half of the positive gain. Negative moves stay.
+ * A lone positive card is capped to zero.
  */
-export function sameCardsChange(input: {
-  prior: readonly MedianPoint[];
-  today: readonly MedianPoint[];
-}): SameCardsChange {
-  const priorById = new Map<string, number>();
-  for (const row of input.prior) {
-    const median = finiteMedian(row.median);
-    if (median == null || !row.cardId) continue;
-    priorById.set(row.cardId, median);
+export function capPositiveDeltas(deltas: readonly number[]): number[] {
+  const next = deltas.slice();
+  for (let pass = 0; pass < next.length; pass += 1) {
+    let changed = false;
+    for (let index = 0; index < next.length; index += 1) {
+      if (next[index] <= 0) continue;
+      let others = 0;
+      for (let other = 0; other < next.length; other += 1) {
+        if (other !== index && next[other] > 0) others += next[other];
+      }
+      if (next[index] > others) {
+        next[index] = others;
+        changed = true;
+      }
+    }
+    if (!changed) break;
   }
+  return next;
+}
 
-  let priorSum = 0;
-  let todaySum = 0;
-  let cardCount = 0;
+/**
+ * Same-cards percent for cards already limited to the week's starting lineup.
+ * Trusted prices need two matched sales and a median of at least $5 at both ends.
+ * An open wrong-sale report freezes the card. One card cannot be more than half
+ * the positive gain.
+ */
+export function valueBoardChange(cards: readonly ValueCard[]): ValueBoardChange {
+  const included: {
+    start: number;
+    rawDelta: number;
+    selfReported: boolean;
+    singleSale: boolean;
+  }[] = [];
   const seen = new Set<string>();
-  for (const row of input.today) {
-    if (!row.cardId || seen.has(row.cardId)) continue;
-    const todayMedian = finiteMedian(row.median);
-    if (todayMedian == null) continue;
-    const priorMedian = priorById.get(row.cardId);
-    if (priorMedian == null) continue;
-    seen.add(row.cardId);
-    priorSum += priorMedian;
-    todaySum += todayMedian;
-    cardCount += 1;
+
+  for (const card of cards) {
+    if (!card.cardId || seen.has(card.cardId) || card.openFlag) continue;
+    const start = trustedMedian(card.startMedian, card.startSales);
+    const end = trustedMedian(card.endMedian, card.endSales);
+    if (start == null || end == null) continue;
+    seen.add(card.cardId);
+    const rawDelta = end - start;
+    const startSales = finite(card.startSales);
+    const endSales = finite(card.endSales);
+    included.push({
+      start,
+      rawDelta,
+      selfReported: card.selfReported,
+      singleSale:
+        startSales != null && endSales != null && endSales === startSales + 1 && rawDelta > 0,
+    });
   }
 
-  const delta = todaySum - priorSum;
+  if (included.length === 0) {
+    return {
+      percent: null,
+      dollarGain: 0,
+      startSum: 0,
+      cardCount: 0,
+      flagged: false,
+      flagReasons: [],
+    };
+  }
+
+  const capped = capPositiveDeltas(included.map((card) => card.rawDelta));
+  let startSum = 0;
+  let dollarGain = 0;
+  const reasons = new Set<ValueFlagReason>();
+  for (let index = 0; index < included.length; index += 1) {
+    const card = included[index];
+    startSum += card.start;
+    dollarGain += capped[index];
+    if (card.rawDelta > 0 && card.selfReported) reasons.add("self_reported");
+    if (card.singleSale) reasons.add("single_sale");
+  }
+
+  const flagReasons = [...reasons];
   return {
-    priorSum,
-    todaySum,
-    delta,
-    percent: priorSum > 0 ? delta / priorSum : null,
-    cardCount,
+    percent: startSum > 0 ? dollarGain / startSum : null,
+    dollarGain,
+    startSum,
+    cardCount: included.length,
+    flagged: flagReasons.length > 0,
+    flagReasons,
   };
 }
 
-export type Rankable = {
+export function valuePercentLabel(percent: number): string {
+  if (percent >= VALUE_PERCENT_CAP) return "+100% or more";
+  const magnitude = Math.abs(percent * 100).toFixed(1);
+  const sign = percent >= 0 ? "+" : "−";
+  return `${sign}${magnitude}%`;
+}
+
+export type ValueRankable = {
   userId: string;
   username: string;
   percent: number;
-  delta: number;
+  dollarGain: number;
 };
 
-/** Gainers: highest percent first. Losers: lowest percent first. Ties break on dollars, then handle. */
-export function rankLeaderboard<T extends Rankable>(
+/**
+ * Highest capped percent first. +100% or more ties break on the capped dollar
+ * gain, then the handle. The dollar gain is not displayed.
+ */
+export function rankValueBoard<T extends ValueRankable>(
   rows: readonly T[],
-  direction: "gainers" | "losers",
 ): (T & { rank: number })[] {
   const sorted = [...rows].sort((a, b) => {
-    const percent = direction === "gainers" ? b.percent - a.percent : a.percent - b.percent;
+    const percent = Math.min(b.percent, VALUE_PERCENT_CAP) - Math.min(a.percent, VALUE_PERCENT_CAP);
     if (percent !== 0) return percent;
-    const dollars = direction === "gainers" ? b.delta - a.delta : a.delta - b.delta;
-    if (dollars !== 0) return dollars;
+    if (b.dollarGain !== a.dollarGain) return b.dollarGain - a.dollarGain;
     const handle = a.username.localeCompare(b.username);
     if (handle !== 0) return handle;
     return a.userId.localeCompare(b.userId);

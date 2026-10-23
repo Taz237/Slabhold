@@ -6,6 +6,7 @@ import { createSupabaseBrowser } from "@/lib/supabase/browser";
 import {
   isLeaderboardEligible,
   leaderboardMinimums,
+  type LeaderboardMinimums,
 } from "@/lib/leaderboard/eligibility";
 import {
   LEADERBOARD_OPT_IN_HELP,
@@ -16,15 +17,18 @@ import {
   saveLeaderboardOptIn,
   type LeaderboardOptInDb,
 } from "@/lib/leaderboard/opt-in";
+import { leaderboardRequirementsLine } from "@/lib/leaderboard/requirements";
 
 export function LeaderboardOptInControl({
   checked,
   disabled,
   onToggle,
+  minimums = leaderboardMinimums(),
 }: {
   checked: boolean;
   disabled: boolean;
   onToggle: (next: boolean) => void;
+  minimums?: LeaderboardMinimums;
 }) {
   return (
     <div className="flex items-start justify-between gap-4">
@@ -35,6 +39,7 @@ export function LeaderboardOptInControl({
         <p id="leaderboard-opt-in-help" className="mt-1 text-sm text-zinc-500">
           {LEADERBOARD_OPT_IN_HELP}
         </p>
+        <p className="mt-1 text-sm text-zinc-500">{leaderboardRequirementsLine(minimums)}</p>
       </div>
       <label htmlFor="show-on-leaderboards" className="relative mt-0.5 inline-flex shrink-0">
         <input
@@ -56,7 +61,11 @@ export function LeaderboardOptInControl({
   );
 }
 
-export function LeaderboardOptInSwitch() {
+export function LeaderboardOptInSwitch({
+  minimums = leaderboardMinimums(),
+}: {
+  minimums?: LeaderboardMinimums;
+} = {}) {
   const { user } = useSocial();
   const [checked, setChecked] = useState(false);
   const [ready, setReady] = useState(false);
@@ -99,6 +108,7 @@ export function LeaderboardOptInSwitch() {
       <LeaderboardOptInControl
         checked={checked}
         disabled={!ready || busy}
+        minimums={minimums}
         onToggle={(next) => void toggle(next)}
       />
       {error ? <p className="mt-2 text-sm text-rose-600">{error}</p> : null}
@@ -109,19 +119,24 @@ export function LeaderboardOptInSwitch() {
 export function LeaderboardPrompt({
   valuedCards,
   value,
+  publicCollection,
   ready,
+  minimums = leaderboardMinimums(),
 }: {
   valuedCards: number;
   value: number;
+  publicCollection: boolean;
   ready: boolean;
+  minimums?: LeaderboardMinimums;
 }) {
   const { user } = useSocial();
   const [visible, setVisible] = useState(false);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    const id = user?.id;
-    if (!id || !ready) return;
+    const account = user;
+    if (!account || !ready) return;
+    const id = account.id;
     const supabase = createSupabaseBrowser();
     if (!supabase) return;
     let cancel = false;
@@ -133,16 +148,17 @@ export function LeaderboardPrompt({
       } catch {
         dismissed = false;
       }
-      const minimums = leaderboardMinimums();
       const eligible = isLeaderboardEligible({
         optedIn: true,
-        publicCollection: valuedCards > 0,
+        publicCollection,
         valuedCards,
         value,
-        username: user.username,
-        isTest: user.isTest === true,
+        username: account.username,
+        isTest: account.isTest === true,
+        accountCreatedAt: account.createdAt,
         minCards: minimums.minCards,
         minValue: minimums.minValue,
+        minAccountDays: minimums.minAccountDays,
       });
       setVisible(
         leaderboardPromptVisible({
@@ -155,7 +171,7 @@ export function LeaderboardPrompt({
     return () => {
       cancel = true;
     };
-  }, [ready, user, valuedCards, value]);
+  }, [minimums, publicCollection, ready, user, valuedCards, value]);
 
   if (!visible || !user) return null;
   const account = user;
@@ -189,8 +205,9 @@ export function LeaderboardPrompt({
     >
       <p className="text-sm leading-5">
         Your public cards cleared the leaderboard minimums. {LEADERBOARD_OPT_IN_LABEL} stays off
-        until you turn it on.
+        until you turn it on. Turning it off later takes you off the board.
       </p>
+      <p className="mt-2 text-sm text-zinc-500">{leaderboardRequirementsLine(minimums)}</p>
       <div className="mt-3 flex flex-wrap gap-2">
         <button
           type="button"

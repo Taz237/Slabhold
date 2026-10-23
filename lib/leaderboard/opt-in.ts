@@ -1,7 +1,7 @@
 export const LEADERBOARD_OPT_IN_LABEL = "Show me on leaderboards";
 
 export const LEADERBOARD_OPT_IN_HELP =
-  "Your public cards can appear on the Day and Week boards. Off until you turn it on.";
+  "Your public cards can appear on the Value board. Turning this off takes you off the board. Off until you turn it on.";
 
 export function leaderboardPromptDismissKey(userId: string): string {
   return `slabhold.leaderboard-prompt.dismissed.${userId}`;

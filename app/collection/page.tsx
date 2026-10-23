@@ -1,6 +1,7 @@
 import { after } from "next/server";
 import { Dashboard } from "@/components/dashboard";
 import { upsertTodaysCollectionSnapshot } from "@/lib/collection/totals";
+import { leaderboardMinimums } from "@/lib/leaderboard/eligibility";
 import { getAuthUserId } from "@/lib/supabase/server";
 
 export default async function CollectionPage() {
@@ -16,5 +17,5 @@ export default async function CollectionPage() {
     });
   }
 
-  return <Dashboard />;
+  return <Dashboard minimums={leaderboardMinimums()} />;
 }

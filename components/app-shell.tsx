@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect } from "react";
-import { Bell, Camera, Compass, Ellipsis, Search, Trophy, WalletCards } from "lucide-react";
+import { Bell, Camera, CircleUser, Compass, Ellipsis, Mail, Search, WalletCards } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { useSocial } from "@/components/social-provider";
 import { AccountDeletedToast } from "@/components/account-deleted-toast";
@@ -23,14 +23,11 @@ import {
   requestPageRefresh,
 } from "@/lib/ui/pull-refresh";
 
-/**
- * Five items so the labels stay on one line at 390px.
- * Profile and Messages live in More. Messages was the least-used tab.
- */
 const TABS = [
+  { href: "/profile", label: "Profile", icon: CircleUser },
   { href: "/", label: "Home", icon: Compass },
-  { href: "/leaderboard", label: "Leaderboard", icon: Trophy },
   { href: "/cards/new", label: "Add card", icon: Camera },
+  { href: "/messages", label: "Messages", icon: Mail },
   { href: "/collection", label: "Collection", icon: WalletCards },
   { href: "/more", label: "More", icon: Ellipsis },
 ] as const;
@@ -186,17 +183,17 @@ function Shell({
                   </Link>
                 );
               }
-              const messageBadge = tab.href === "/more" ? unreadMessageCount : 0;
+              const messageBadge = tab.href === "/messages" ? unreadMessageCount : 0;
               return (
                 <Link
                   key={tab.href}
                   href={tab.href}
                   onClick={onTabClick}
                   aria-label={
-                    messageBadge > 0 ? `More, ${messageBadge} unread messages` : tab.label
+                    messageBadge > 0 ? `Messages, ${messageBadge} unread` : tab.label
                   }
                   aria-current={active ? "page" : undefined}
-                  className={`relative flex min-w-0 flex-1 flex-col items-center gap-0.5 px-0.5 py-1 text-[10px] font-medium leading-none whitespace-nowrap ${
+                  className={`relative flex min-w-0 flex-1 flex-col items-center gap-0.5 px-0.5 py-1 text-[10px] font-medium leading-none ${
                     active ? "text-zinc-900 dark:text-white" : "text-zinc-500"
                   }`}
                 >

@@ -1,28 +1,30 @@
-export type LeaderboardEntry = {
+export type ValueBoardRow = {
   userId: string;
   username: string;
   displayName: string;
   avatarUrl: string | null;
   accent: string;
   percent: number;
-  delta: number;
-  cardCount: number;
   percentLabel: string;
-  deltaLabel: string;
+  flagged: boolean;
+  rank: number;
 };
 
-export type LeaderboardWindow = {
-  open: boolean;
-  rows: LeaderboardEntry[];
-  message: string | null;
+export type ValueBracketBoard = {
+  id: string;
+  label: string;
+  rows: ValueBoardRow[];
 };
 
-export type LeaderboardModel = {
-  today: string;
-  dateLabel: string;
-  monday: boolean;
+export type ValueBoardModel = {
+  start: string;
+  end: string;
+  weekLabel: string;
   note: string;
-  day: LeaderboardWindow;
-  week: LeaderboardWindow;
+  /** Set when every bracket has fewer than 10 people. */
+  closedMessage: string | null;
+  /** Set when the board is open and this viewer has nobody left to see. */
+  emptyMessage: string | null;
+  brackets: ValueBracketBoard[];
   viewerUserId: string | null;
 };

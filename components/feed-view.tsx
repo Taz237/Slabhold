@@ -283,13 +283,6 @@ export function FeedView({ movingToday }: { movingToday?: ReactNode } = {}) {
       </div>
 
       {lane === "foryou" ? movingToday ?? <MovingToday /> : null}
-      {lane === "foryou" ? (
-        <p className="border-b border-zinc-200 px-4 py-2 text-sm dark:border-white/10">
-          <Link href="/leaderboard" className="font-semibold">
-            Leaderboard
-          </Link>
-        </p>
-      ) : null}
 
       {user ? (
         <Composer onPosted={() => setRefreshKey((key) => key + 1)} />

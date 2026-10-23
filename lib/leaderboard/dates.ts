@@ -41,3 +41,30 @@ export function isNewYorkMonday(now: Date = new Date()): boolean {
   }).format(now);
   return weekday === "Mon";
 }
+
+const WEEKDAY_INDEX: Record<string, number> = {
+  Mon: 0,
+  Tue: 1,
+  Wed: 2,
+  Thu: 3,
+  Fri: 4,
+  Sat: 5,
+  Sun: 6,
+};
+
+/** Monday–Sunday window in America/New_York. `end` is the New York calendar day of `now`. */
+export function currentValueWeek(now: Date = new Date()): { start: string; end: string } {
+  const end = snapshotDateInNewYork(now);
+  const weekday = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    weekday: "short",
+  }).format(new Date(`${end}T16:00:00.000Z`));
+  const index = WEEKDAY_INDEX[weekday] ?? 0;
+  return { start: addDaysToYmd(end, -index), end };
+}
+
+/** "Oct 19–Oct 23" from snapshot dates. UTC calendar so server and browser match. */
+export function formatWeekLabel(start: string, end: string): string {
+  if (start === end) return formatSnapshotDate(start);
+  return `${formatSnapshotDate(start)}–${formatSnapshotDate(end)}`;
+}

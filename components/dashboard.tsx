@@ -40,7 +40,8 @@ import {
   type PortfolioFilter,
 } from "@/lib/types";
 import { displayedCollectionTotal } from "@/lib/collection/displayed-value";
-import { publicValuedTotals } from "@/lib/leaderboard/public-value";
+import { leaderboardMinimums, type LeaderboardMinimums } from "@/lib/leaderboard/eligibility";
+import { trustedPublicTotals } from "@/lib/leaderboard/public-value";
 import {
   investedAmountLabel,
   investedCardLabel,
@@ -71,7 +72,11 @@ const FILTERS: { id: PortfolioFilter; label: string }[] = [
   { id: "loss", label: "Loss" },
 ];
 
-export function Dashboard() {
+export function Dashboard({
+  minimums = leaderboardMinimums(),
+}: {
+  minimums?: LeaderboardMinimums;
+} = {}) {
   const { cards, ready, syncError, reload } = useCollection();
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<PortfolioFilter>("all");
@@ -97,7 +102,8 @@ export function Dashboard() {
     () => displayedCollectionTotal(inLane, values),
     [inLane, values],
   );
-  const publicValued = useMemo(() => publicValuedTotals(inLane, values), [inLane, values]);
+  const publicValued = useMemo(() => trustedPublicTotals(cards, values), [cards, values]);
+  const publicCollection = useMemo(() => cards.some((card) => card.isPublic), [cards]);
   const profitTotal = totals.unrealizedProfit + totals.realizedProfit;
   const pricedCount = totals.pricedCount;
   const cardCount = inLane.length;
@@ -138,11 +144,13 @@ export function Dashboard() {
   return (
     <PullToRefresh onRefresh={refreshCollection}>
     <div className="space-y-6">
-      <CollectionHeader extra={<LeaderboardOptInSwitch />} />
+      <CollectionHeader extra={<LeaderboardOptInSwitch minimums={minimums} />} />
       <LeaderboardPrompt
         valuedCards={publicValued.count}
         value={publicValued.value}
+        publicCollection={publicCollection}
         ready={cards.length > 0 && !valuesLoading && !valuesFailed}
+        minimums={minimums}
       />
       {syncError ? (
         <p className="text-sm text-rose-600 dark:text-rose-400">{syncError}</p>

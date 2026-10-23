@@ -1,23 +1,38 @@
 import assert from "node:assert/strict";
 import { createElement } from "react";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, it } from "node:test";
 import { renderOg } from "@/components/og-frame";
-import { LeaderboardView } from "@/components/leaderboard-view";
-import { dailyTopGainerBadge, leaderboardBadgeChips, weeklyTopBadge } from "@/lib/leaderboard/badges";
+import { ValueBoardView } from "@/components/value-board";
+import { assembleValueBoard, type ValueBoardSourceCard } from "@/lib/leaderboard/assemble";
+import { valueBracketId } from "@/lib/leaderboard/brackets";
 import { withoutBlocked } from "@/lib/leaderboard/blocks";
-import { addDaysToYmd, formatSnapshotDate, isNewYorkMonday, leaderboardDates } from "@/lib/leaderboard/dates";
+import {
+  addDaysToYmd,
+  currentValueWeek,
+  formatSnapshotDate,
+  formatWeekLabel,
+  isNewYorkMonday,
+  leaderboardDates,
+} from "@/lib/leaderboard/dates";
 import {
   LEADERBOARD_CLOSED_COPY,
   LEADERBOARD_NOTE,
+  accountOldEnough,
   isLeaderboardEligible,
   leaderboardMinimums,
   leaderboardOpens,
 } from "@/lib/leaderboard/eligibility";
-import { rankLeaderboard, sameCardsChange } from "@/lib/leaderboard/math";
 import {
+  rankValueBoard,
+  valueBoardChange,
+  valuePercentLabel,
+  type ValueCard,
+} from "@/lib/leaderboard/math";
+import {
+  LEADERBOARD_OPT_IN_HELP,
   LEADERBOARD_OPT_IN_LABEL,
   leaderboardPromptDismissKey,
   leaderboardPromptVisible,
@@ -25,13 +40,17 @@ import {
   saveLeaderboardOptIn,
   type LeaderboardOptInDb,
 } from "@/lib/leaderboard/opt-in";
-import { publicValuedTotals } from "@/lib/leaderboard/public-value";
+import { trustedPublicTotals } from "@/lib/leaderboard/public-value";
+import { leaderboardChecklist } from "@/lib/leaderboard/requirements";
+import { saleSourceIsSelfReported } from "@/lib/leaderboard/self-reported";
 import {
   ESTIMATED_FROM_SOLD,
   leaderboardRankShareImage,
   rankShareText,
 } from "@/lib/leaderboard/share";
-import type { LeaderboardModel } from "@/lib/leaderboard/types";
+import { cardValueSnapshotFields } from "@/lib/leaderboard/snapshot-fields";
+import { VALUE_BOARD_TAB } from "@/lib/leaderboard/tab";
+import type { ValueBoardModel } from "@/lib/leaderboard/types";
 import { cardValueHistoryEnabled } from "@/lib/collection/card-value-history";
 import type { SportsCard } from "@/lib/types";
 import type { CardValueResult } from "@/lib/value/types";
@@ -70,77 +89,150 @@ function memoryDb(initial: boolean | null, missing = false): LeaderboardOptInDb 
   };
 }
 
-function point(cardId: string, median: number | null) {
-  return { cardId, median };
+function card(partial: Partial<ValueCard> & Pick<ValueCard, "cardId">): ValueCard {
+  return {
+    startMedian: 20,
+    endMedian: 30,
+    startSales: 2,
+    endSales: 2,
+    selfReported: false,
+    openFlag: false,
+    ...partial,
+  };
 }
 
-describe("leaderboard math", () => {
-  it("ranks the percent change of cards held on both dates", () => {
-    const change = sameCardsChange({
-      prior: [point("a", 40), point("b", 60), point("c", 10)],
-      today: [point("a", 50), point("b", 50), point("c", 10)],
-    });
-    assert.equal(change.priorSum, 110);
-    assert.equal(change.todaySum, 110);
-    assert.equal(change.delta, 0);
-    assert.equal(change.percent, 0);
+const NOW = new Date("2026-10-23T16:00:00.000Z");
+const OLD_ACCOUNT = "2026-10-01T00:00:00.000Z";
+const MINIMUMS = { minCards: 10, minValue: 250, minAccountDays: 7 };
+
+describe("value board math", () => {
+  it("caps one card at half the positive gain and labels +100% or more", () => {
+    const change = valueBoardChange([
+      card({ cardId: "a", startMedian: 20, endMedian: 120, endSales: 3 }),
+      card({ cardId: "b", startMedian: 20, endMedian: 40 }),
+      card({ cardId: "c", startMedian: 20, endMedian: 30 }),
+    ]);
+    assert.equal(change.dollarGain, 60);
+    assert.equal(change.startSum, 60);
+    assert.equal(change.percent, 1);
     assert.equal(change.cardCount, 3);
-
-    const gain = sameCardsChange({
-      prior: [point("a", 80), point("b", 20)],
-      today: [point("a", 100), point("b", 28)],
-    });
-    assert.equal(gain.delta, 28);
-    assert.equal(gain.percent, 0.28);
-    assert.equal(gain.cardCount, 2);
-
-    const loss = sameCardsChange({
-      prior: [point("a", 50)],
-      today: [point("a", 40)],
-    });
-    assert.equal(loss.delta, -10);
-    assert.equal(loss.percent, -0.2);
+    assert.equal(valuePercentLabel(change.percent ?? 0), "+100% or more");
+    assert.equal(change.flagged, true);
+    assert.deepEqual(change.flagReasons, ["single_sale"]);
   });
 
-  it("ignores cards added, removed, or missing a median, and skips divide-by-zero", () => {
-    const change = sameCardsChange({
-      prior: [point("kept", 25), point("sold", 40), point("blank", null), point("zero", 0)],
-      today: [point("kept", 30), point("added", 99), point("blank", 10), point("none", null)],
-    });
-    assert.equal(change.cardCount, 1);
-    assert.equal(change.priorSum, 25);
-    assert.equal(change.todaySum, 30);
-    assert.equal(change.delta, 5);
+  it("caps a lone positive card to zero and still flags a single new sale", () => {
+    const lone = valueBoardChange([
+      card({ cardId: "a", startMedian: 50, endMedian: 150, endSales: 3 }),
+    ]);
+    assert.equal(lone.percent, 0);
+    assert.equal(lone.dollarGain, 0);
+    assert.equal(lone.flagged, true);
+    assert.deepEqual(lone.flagReasons, ["single_sale"]);
+  });
+
+  it("keeps the locked lineup and drops untrusted, cheap, frozen, and duplicate cards", () => {
+    const change = valueBoardChange([
+      card({ cardId: "kept", startMedian: 20, endMedian: 24 }),
+      card({ cardId: "pair", startMedian: 20, endMedian: 24 }),
+      card({ cardId: "cheap-start", startMedian: 4.99, endMedian: 20 }),
+      card({ cardId: "cheap-end", startMedian: 20, endMedian: 4 }),
+      card({ cardId: "few-sales", startSales: 1, endSales: 2 }),
+      card({ cardId: "lost-sales", startSales: 2, endSales: 1 }),
+      card({ cardId: "flagged", openFlag: true, endMedian: 80 }),
+      card({ cardId: "kept", endMedian: 99 }),
+      card({ cardId: "blank", startMedian: null, endMedian: 40 }),
+    ]);
+    assert.equal(change.cardCount, 2);
+    assert.equal(change.startSum, 40);
+    assert.equal(change.dollarGain, 8);
     assert.equal(change.percent, 0.2);
+    assert.equal(change.flagged, false);
 
-    const zero = sameCardsChange({
-      prior: [point("a", 0), point("b", null)],
-      today: [point("a", 10), point("b", 10)],
-    });
-    assert.equal(zero.priorSum, 0);
-    assert.equal(zero.percent, null);
-    assert.equal(zero.cardCount, 1);
-
-    const empty = sameCardsChange({ prior: [], today: [point("a", 10)] });
+    const empty = valueBoardChange([card({ cardId: "flagged", openFlag: true })]);
     assert.equal(empty.percent, null);
     assert.equal(empty.cardCount, 0);
   });
 
-  it("orders gainers and losers, then dollars, then handle", () => {
-    const rows = [
-      { userId: "2", username: "bea", percent: 0.1, delta: 5 },
-      { userId: "1", username: "ada", percent: 0.2, delta: 1 },
-      { userId: "3", username: "cy", percent: 0.1, delta: 9 },
-    ];
+  it("flags a self-reported sale that moved the card up", () => {
+    const change = valueBoardChange([
+      card({
+        cardId: "a",
+        startMedian: 20,
+        endMedian: 40,
+        startSales: 4,
+        endSales: 6,
+        selfReported: true,
+      }),
+      card({ cardId: "b", startMedian: 20, endMedian: 30 }),
+    ]);
+    assert.equal(change.flagged, true);
+    assert.deepEqual(change.flagReasons, ["self_reported"]);
+    assert.equal(saleSourceIsSelfReported("Self"), true);
+    assert.equal(saleSourceIsSelfReported("owner"), true);
+    assert.equal(saleSourceIsSelfReported("reported"), true);
+    assert.equal(saleSourceIsSelfReported("trawl"), false);
+    assert.deepEqual(cardValueSnapshotFields({ median: 12, nSales: 2 } as CardValueResult, "owner"), {
+      median: 12,
+      n_sales: 2,
+      self_reported: true,
+    });
+  });
+
+  it("breaks +100% ties by capped dollar gain, then handle", () => {
+    const ranked = rankValueBoard([
+      { userId: "1", username: "bea", percent: 1.4, dollarGain: 50 },
+      { userId: "2", username: "ada", percent: 2, dollarGain: 80 },
+      { userId: "3", username: "cy", percent: 0.4, dollarGain: 200 },
+      { userId: "5", username: "bea-tie", percent: 0.1, dollarGain: 5 },
+      { userId: "4", username: "ada-tie", percent: 0.1, dollarGain: 5 },
+    ]);
     assert.deepEqual(
-      rankLeaderboard(rows, "gainers").map((row) => row.username),
-      ["ada", "cy", "bea"],
+      ranked.map((row) => row.username),
+      ["ada", "bea", "cy", "ada-tie", "bea-tie"],
     );
-    assert.equal(rankLeaderboard(rows, "gainers")[0]?.rank, 1);
-    assert.deepEqual(
-      rankLeaderboard(rows, "losers").map((row) => row.username),
-      ["bea", "cy", "ada"],
-    );
+    assert.equal(ranked[0]?.rank, 1);
+    assert.equal(valuePercentLabel(-0.082), "−8.2%");
+    assert.equal(valuePercentLabel(0.082), "+8.2%");
+  });
+});
+
+describe("value board brackets", () => {
+  function person(index: number): ValueBoardSourceCard[] {
+    const end = 20 + index + 1;
+    return [0, 1].map((copy) => ({
+      ...card({ cardId: `c-${index}-${copy}`, startMedian: 20, endMedian: end }),
+      userId: `u-${index}`,
+      username: `user${String(index).padStart(2, "0")}`,
+      displayName: `User ${index}`,
+      avatarUrl: null,
+      accent: "#7c5cff",
+      bracket: "under-1k" as const,
+    }));
+  }
+
+  it("places a week-start value and leaves a missing snapshot unbracketed", () => {
+    assert.equal(valueBracketId(0), "under-1k");
+    assert.equal(valueBracketId(999.99), "under-1k");
+    assert.equal(valueBracketId(1000), "1k-10k");
+    assert.equal(valueBracketId(9999), "1k-10k");
+    assert.equal(valueBracketId(10000), "10k-plus");
+    assert.equal(valueBracketId(null), null);
+  });
+
+  it("hides a bracket under 10 people and ranks an open bracket without dollar totals", () => {
+    const closed = assembleValueBoard(Array.from({ length: 9 }, (_, index) => person(index)).flat());
+    const under = closed.find((bracket) => bracket.id === "under-1k");
+    assert.equal(under?.open, false);
+    assert.deepEqual(under?.rows, []);
+
+    const open = assembleValueBoard(Array.from({ length: 10 }, (_, index) => person(index)).flat());
+    const shown = open.find((bracket) => bracket.id === "under-1k");
+    assert.equal(shown?.open, true);
+    assert.equal(shown?.rows.length, 10);
+    assert.equal(shown?.rows[0]?.username, "user09");
+    assert.equal("dollarGain" in (shown?.rows[0] ?? {}), false);
+    assert.equal(open.every((bracket) => bracket.id !== "1k-10k" || !bracket.open), true);
   });
 });
 
@@ -148,21 +240,32 @@ describe("leaderboard eligibility", () => {
   const base = {
     optedIn: true,
     publicCollection: true,
-    valuedCards: 5,
-    value: 100,
+    valuedCards: 10,
+    value: 250,
     username: "ada",
+    accountCreatedAt: OLD_ACCOUNT,
+    now: NOW,
   };
 
-  it("requires a public opted-in book of 5 valued cards and $100", () => {
+  it("requires a public opted-in book of 10 trusted cards, $250, and 7 days", () => {
     assert.equal(isLeaderboardEligible(base), true);
     assert.equal(isLeaderboardEligible({ ...base, optedIn: false }), false);
     assert.equal(isLeaderboardEligible({ ...base, publicCollection: false }), false);
-    assert.equal(isLeaderboardEligible({ ...base, valuedCards: 4 }), false);
-    assert.equal(isLeaderboardEligible({ ...base, value: 99.99 }), false);
-    assert.equal(isLeaderboardEligible({ ...base, value: 100 }), true);
+    assert.equal(isLeaderboardEligible({ ...base, valuedCards: 9 }), false);
+    assert.equal(isLeaderboardEligible({ ...base, value: 249.99 }), false);
+    assert.equal(isLeaderboardEligible({ ...base, accountCreatedAt: null }), false);
+    assert.equal(accountOldEnough("not-a-date", NOW, 7), false);
+    assert.equal(
+      accountOldEnough(new Date(NOW.getTime() - 6 * 86400000).toISOString(), NOW, 7),
+      false,
+    );
+    assert.equal(
+      accountOldEnough(new Date(NOW.getTime() - 7 * 86400000).toISOString(), NOW, 7),
+      true,
+    );
   });
 
-  it("drops test accounts and raises the floor from the environment", () => {
+  it("drops test accounts and only lets the environment raise the floors", () => {
     assert.equal(isLeaderboardEligible({ ...base, isTest: true }), false);
     assert.equal(isLeaderboardEligible({ ...base, username: "qa_ada" }), false);
     assert.equal(isLeaderboardEligible({ ...base, username: "qa-ada" }), false);
@@ -171,57 +274,61 @@ describe("leaderboard eligibility", () => {
     assert.equal(isLeaderboardEligible({ ...base, username: "qa_vreset_1021" }), false);
     assert.equal(isLeaderboardEligible({ ...base, username: "slabhold" }), true);
 
-    assert.deepEqual(leaderboardMinimums({}), { minCards: 5, minValue: 100 });
+    assert.deepEqual(leaderboardMinimums({}), MINIMUMS);
     assert.deepEqual(
-      leaderboardMinimums({ LEADERBOARD_MIN_CARDS: "8", LEADERBOARD_MIN_VALUE: "250" }),
-      { minCards: 8, minValue: 250 },
+      leaderboardMinimums({
+        LEADERBOARD_MIN_CARDS: "12",
+        LEADERBOARD_MIN_VALUE: "400",
+        LEADERBOARD_MIN_ACCOUNT_DAYS: "14",
+      }),
+      { minCards: 12, minValue: 400, minAccountDays: 14 },
     );
     assert.deepEqual(
-      leaderboardMinimums({ LEADERBOARD_MIN_CARDS: "1", LEADERBOARD_MIN_VALUE: "10" }),
-      { minCards: 5, minValue: 100 },
-    );
-    assert.equal(
-      isLeaderboardEligible({ ...base, valuedCards: 5, minCards: 8, minValue: 100 }),
-      false,
+      leaderboardMinimums({
+        LEADERBOARD_MIN_CARDS: "1",
+        LEADERBOARD_MIN_VALUE: "10",
+        LEADERBOARD_MIN_ACCOUNT_DAYS: "1",
+      }),
+      MINIMUMS,
     );
   });
 
-  it("counts only public held cards that have a median", () => {
-    const valued = {
+  it("counts only public held cards with two sales and a median of at least $5", () => {
+    const trusted = {
       status: "ok",
       median: 40,
       low: 30,
       high: 50,
-      nSales: 3,
+      nSales: 2,
       matchedAt: null,
     } satisfies CardValueResult;
     const cards = [
       { id: "public", isPublic: true, sellPrice: null, sellDate: null },
       { id: "private", isPublic: false, sellPrice: null, sellDate: null },
       { id: "sold", isPublic: true, sellPrice: 10, sellDate: "2026-10-01" },
-      { id: "empty", isPublic: true, sellPrice: null, sellDate: null },
+      { id: "thin", isPublic: true, sellPrice: null, sellDate: null },
+      { id: "cheap", isPublic: true, sellPrice: null, sellDate: null },
+      { id: "stale", isPublic: true, sellPrice: null, sellDate: null },
     ] as SportsCard[];
     const values = new Map<string, CardValueResult>([
-      ["public", valued],
-      ["private", valued],
-      ["sold", valued],
-      ["empty", { ...valued, median: null, status: "no_sales", nSales: 0 }],
+      ["public", trusted],
+      ["private", trusted],
+      ["sold", trusted],
+      ["thin", { ...trusted, nSales: 1 }],
+      ["cheap", { ...trusted, median: 4.99 }],
+      ["stale", { ...trusted, status: "stale" }],
     ]);
-    assert.deepEqual(publicValuedTotals(cards, values), { count: 1, value: 40 });
+    assert.deepEqual(trustedPublicTotals(cards, values), { count: 1, value: 40 });
   });
 
-  it("opens a tab only at 10 qualifying collections", () => {
+  it("opens a bracket only at 10 qualifying collections", () => {
     assert.equal(leaderboardOpens(9), false);
     assert.equal(leaderboardOpens(10), true);
     assert.equal(LEADERBOARD_CLOSED_COPY, "Leaderboard opens when 10 collectors join, opt in");
   });
 
   it("hides people who blocked each other", () => {
-    const rows = [
-      { userId: "ada" },
-      { userId: "bea" },
-      { userId: "cy" },
-    ];
+    const rows = [{ userId: "ada" }, { userId: "bea" }, { userId: "cy" }];
     assert.deepEqual(
       withoutBlocked(rows, new Set(["bea"])).map((row) => row.userId),
       ["ada", "cy"],
@@ -229,20 +336,65 @@ describe("leaderboard eligibility", () => {
   });
 });
 
+describe("leaderboard requirements", () => {
+  it("opens the checklist for a signed-in collector who is not on the board yet", () => {
+    const checklist = leaderboardChecklist({
+      signedIn: true,
+      checksReady: true,
+      publicCollection: true,
+      optedIn: false,
+      trustedCards: 3,
+      value: 40,
+      accountCreatedAt: OLD_ACCOUNT,
+      username: "ada",
+      now: NOW,
+      minimums: MINIMUMS,
+    });
+    assert.equal(checklist.openByDefault, true);
+    assert.equal(checklist.eligible, false);
+    assert.equal(checklist.status, null);
+    assert.equal(checklist.items.find((item) => item.id === "cards")?.label, "3 of 10 valued cards");
+    assert.equal(checklist.items.find((item) => item.id === "cards")?.met, false);
+    assert.equal(checklist.items.find((item) => item.id === "opt-in")?.href, "/settings/privacy#show-on-leaderboards");
+    assert.match(checklist.line, /at least 10 trusted cards worth \$250/);
+    assert.match(checklist.line, /at least 7 days old/);
+    assert.match(checklist.sameCardsNote, /same cards over the week/);
+  });
+
+  it("says you're on the board once every check is met", () => {
+    const checklist = leaderboardChecklist({
+      signedIn: true,
+      checksReady: true,
+      publicCollection: true,
+      optedIn: true,
+      trustedCards: 10,
+      value: 250,
+      accountCreatedAt: OLD_ACCOUNT,
+      username: "ada",
+      now: NOW,
+      minimums: MINIMUMS,
+    });
+    assert.equal(checklist.openByDefault, false);
+    assert.equal(checklist.eligible, true);
+    assert.equal(checklist.status, "You're on the board");
+  });
+});
+
 describe("leaderboard opt-in", () => {
-  it("stays off until the owner turns it on", async () => {
+  it("stays off until the owner turns it on, and turning it off removes them", async () => {
     const db = memoryDb(null);
     assert.deepEqual(await readLeaderboardOptIn(db, "ada"), { optedIn: false });
     assert.deepEqual(await saveLeaderboardOptIn(db, "ada", true), { optedIn: true });
-    assert.deepEqual(await readLeaderboardOptIn(db, "ada"), { optedIn: true });
+    assert.deepEqual(await saveLeaderboardOptIn(db, "ada", false), { optedIn: false });
     assert.equal(LEADERBOARD_OPT_IN_LABEL, "Show me on leaderboards");
+    assert.match(LEADERBOARD_OPT_IN_HELP, /Turning this off takes you off the board/);
     assert.equal(leaderboardPromptDismissKey("ada"), "slabhold.leaderboard-prompt.dismissed.ada");
   });
 
   it("treats a missing column as opted out", async () => {
-    const read = await readLeaderboardOptIn(memoryDb(null, true), "ada");
-    assert.equal(read.optedIn, false);
-    assert.equal(read.error, undefined);
+    const readResult = await readLeaderboardOptIn(memoryDb(null, true), "ada");
+    assert.equal(readResult.optedIn, false);
+    assert.equal(readResult.error, undefined);
   });
 
   it("prompts once when the book clears the minimums and the owner is still opted out", () => {
@@ -265,38 +417,8 @@ describe("leaderboard opt-in", () => {
   });
 });
 
-describe("leaderboard badges and sharing", () => {
-  it("gives the daily leader a dated chip and the week top 3 a Monday chip", () => {
-    assert.equal(dailyTopGainerBadge({ rank: 1, dateLabel: "Oct 22" }), "Top gainer, Oct 22");
-    assert.equal(dailyTopGainerBadge({ rank: 2, dateLabel: "Oct 22" }), null);
-    assert.equal(weeklyTopBadge({ rank: 3, monday: true }), "Top 3 this week");
-    assert.equal(weeklyTopBadge({ rank: 3, monday: false }), null);
-    assert.equal(weeklyTopBadge({ rank: 4, monday: true }), null);
-    assert.deepEqual(
-      leaderboardBadgeChips({
-        userId: "ada",
-        day: [{ userId: "ada", rank: 1 }],
-        week: [{ userId: "ada", rank: 2 }],
-        monday: true,
-        dateLabel: "Oct 19",
-        hidden: false,
-      }),
-      ["Top gainer, Oct 19", "Top 3 this week"],
-    );
-    assert.deepEqual(
-      leaderboardBadgeChips({
-        userId: "ada",
-        day: [{ userId: "ada", rank: 1 }],
-        week: [],
-        monday: true,
-        dateLabel: "Oct 19",
-        hidden: true,
-      }),
-      [],
-    );
-  });
-
-  it("compares yesterday and seven days ago on the New York calendar", () => {
+describe("value board week and sharing", () => {
+  it("uses the Monday–Sunday New York week and keeps yesterday for the snapshot cron", () => {
     const dates = leaderboardDates(new Date("2026-10-22T03:30:00.000Z"));
     assert.equal(dates.today, "2026-10-21");
     assert.equal(dates.yesterday, "2026-10-20");
@@ -304,27 +426,35 @@ describe("leaderboard badges and sharing", () => {
     assert.equal(addDaysToYmd("2026-10-22", -7), "2026-10-15");
     assert.equal(formatSnapshotDate("2026-10-22"), "Oct 22");
     assert.equal(isNewYorkMonday(new Date("2026-10-19T16:00:00.000Z")), true);
-    assert.equal(isNewYorkMonday(new Date("2026-10-20T16:00:00.000Z")), false);
+    assert.deepEqual(currentValueWeek(NOW), { start: "2026-10-19", end: "2026-10-23" });
+    assert.deepEqual(currentValueWeek(new Date("2026-10-19T03:00:00.000Z")), {
+      start: "2026-10-12",
+      end: "2026-10-18",
+    });
+    assert.equal(formatWeekLabel("2026-10-19", "2026-10-23"), "Oct 19–Oct 23");
   });
 
-  it("shares a rank card from sold prices without a team logo", async () => {
+  it("shares a weekly rank card from sold prices without a team logo", async () => {
     assert.equal(
-      rankShareText({ username: "user", percent: 0.082, window: "day" }),
-      "@user up 8.2% today on Slabhold",
+      rankShareText({ username: "user", percent: 0.082 }),
+      "@user up 8.2% this week on Slabhold",
     );
     assert.equal(
-      rankShareText({ username: "@user", percent: -0.082, window: "week" }),
+      rankShareText({ username: "@user", percent: -0.082 }),
       "@user down 8.2% this week on Slabhold",
+    );
+    assert.equal(
+      rankShareText({ username: "user", percent: 1.2 }),
+      "@user up 100% or more this week on Slabhold",
     );
     const image = leaderboardRankShareImage({
       username: "مرحبا",
       percent: 0.082,
-      window: "day",
     });
     assert.equal(image.imageUrl, null);
     assert.deepEqual(image.photos, []);
     assert.equal(image.detail, ESTIMATED_FROM_SOLD);
-    assert.match(read("app/leaderboard/opengraph-image.tsx"), /return renderOg\(/);
+    assert.match(read("app/leaderboard/value/opengraph-image.tsx"), /return renderOg\(/);
     const response = await renderOg(image);
     assert.equal(response.headers.get("content-type"), "image/png");
     const bytes = Buffer.from(await response.arrayBuffer());
@@ -333,50 +463,60 @@ describe("leaderboard badges and sharing", () => {
     assert.ok(bytes.length > 1000);
   });
 
-  it("shows the closed board, a ranked row, and the sold-price note", () => {
-    const closed: LeaderboardModel = {
-      today: "2026-10-22",
-      dateLabel: "Oct 22",
-      monday: false,
+  it("shows percents, a flag, and the requirements without a dollar total", () => {
+    const checklist = leaderboardChecklist({
+      signedIn: true,
+      checksReady: true,
+      publicCollection: false,
+      optedIn: false,
+      trustedCards: 3,
+      value: 40,
+      accountCreatedAt: OLD_ACCOUNT,
+      username: "ada",
+      now: NOW,
+      minimums: MINIMUMS,
+    });
+    const model: ValueBoardModel = {
+      start: "2026-10-19",
+      end: "2026-10-23",
+      weekLabel: "Oct 19–Oct 23",
       note: LEADERBOARD_NOTE,
-      day: { open: false, rows: [], message: LEADERBOARD_CLOSED_COPY },
-      week: { open: false, rows: [], message: LEADERBOARD_CLOSED_COPY },
-      viewerUserId: null,
-    };
-    const closedHtml = renderToStaticMarkup(createElement(LeaderboardView, { model: closed }));
-    assert.match(closedHtml, /Leaderboard opens when 10 collectors join, opt in/);
-    assert.match(closedHtml, /Based on recent sold prices; values update as new sales come in\./);
-    assert.doesNotMatch(closedHtml, /investment|returns|eBay data/i);
-
-    const open: LeaderboardModel = {
-      ...closed,
+      closedMessage: LEADERBOARD_CLOSED_COPY,
+      emptyMessage: null,
+      brackets: [
+        {
+          id: "under-1k",
+          label: "Under $1,000",
+          rows: [
+            {
+              userId: "ada",
+              username: "user",
+              displayName: "User",
+              avatarUrl: null,
+              accent: "#7c5cff",
+              percent: 0.082,
+              percentLabel: "+8.2%",
+              flagged: true,
+              rank: 1,
+            },
+          ],
+        },
+      ],
       viewerUserId: "ada",
-      day: {
-        open: true,
-        message: null,
-        rows: [
-          {
-            userId: "ada",
-            username: "user",
-            displayName: "User",
-            avatarUrl: null,
-            accent: "#7c5cff",
-            percent: 0.082,
-            delta: 42,
-            cardCount: 6,
-            percentLabel: "+8.2%",
-            deltaLabel: "+$42.00",
-          },
-        ],
-      },
     };
-    const html = renderToStaticMarkup(createElement(LeaderboardView, { model: open }));
+    const html = renderToStaticMarkup(createElement(ValueBoardView, { model, checklist }));
+    assert.match(html, /Leaderboard opens when 10 collectors join, opt in/);
+    assert.match(html, /Based on recent sold prices; values update as new sales come in\./);
+    assert.match(html, /How to get on the leaderboard/);
+    assert.match(html, /3 of 10 valued cards/);
+    assert.match(html, /href="\/settings\/privacy#show-on-leaderboards"/);
     assert.match(html, /@user/);
     assert.match(html, /\+8\.2%/);
-    assert.match(html, /6 cards/);
-    assert.match(html, /@user up 8\.2% today on Slabhold/);
+    assert.match(html, /Flagged/);
     assert.match(html, /Est\. from recent sold prices/);
-    assert.match(html, /Share my rank/);
+    assert.doesNotMatch(html, /\+\$|\$42|6 cards/);
+    assert.doesNotMatch(html, /investment|returns|eBay data/i);
+    assert.match(html, /open=""/);
   });
 });
 
@@ -384,14 +524,26 @@ describe("leaderboard wiring", () => {
   it("adds one idempotent migration and does not turn the history flag on in code", () => {
     const sql = read("supabase/migrations/20261023001052_leaderboard_opt_in.sql");
     assert.match(sql, /add column if not exists leaderboard_opt_in boolean not null default false/);
+    assert.match(sql, /add column if not exists n_sales integer/);
+    assert.match(sql, /add column if not exists self_reported boolean not null default false/);
     assert.match(sql, /security definer/);
     assert.match(sql, /set search_path = ''/);
-    assert.match(sql, /grant execute on function public\.leaderboard_rows\(date, date, integer, numeric\) to anon, authenticated, service_role/);
+    assert.match(
+      sql,
+      /grant execute on function public\.leaderboard_rows\(date, date, integer, numeric, integer, timestamptz\) to anon, authenticated, service_role/,
+    );
     assert.match(sql, /is_public is true/);
     assert.match(sql, /is_test/);
     assert.match(sql, /qa_/);
     assert.match(sql, /test_/);
     assert.match(sql, /vreset_/);
+    assert.match(sql, /comp_flags/);
+    assert.match(sql, /snapshot_date = p_start/);
+    assert.match(sql, /cs\.value < 1000 then 'under-1k'/);
+    assert.match(sql, /cs\.value < 10000 then '1k-10k'/);
+    assert.match(sql, /greatest\(coalesce\(p_min_cards, 10\), 10\)/);
+    assert.match(sql, /greatest\(coalesce\(p_min_value, 250\), 250\)/);
+    assert.match(sql, /p_min_account_days/);
     assert.doesNotMatch(sql, /drop table/i);
     assert.equal(cardValueHistoryEnabled({}), false);
     assert.equal(cardValueHistoryEnabled({ CARD_VALUE_HISTORY_ENABLED: "1" }), true);
@@ -410,33 +562,35 @@ describe("leaderboard wiring", () => {
     assert.match(cron, /11:30 PM/);
   });
 
-  it("gives leaderboard its own tab and keeps messages in More", () => {
+  it("ships the value board as its own route and leaves the nav tab to the weekly frame", () => {
     const shell = read("components/app-shell.tsx");
     const tabs = shell.slice(shell.indexOf("const TABS"), shell.indexOf("] as const;"));
-    assert.match(tabs, /Trophy/);
-    assert.match(tabs, /href: "\/leaderboard", label: "Leaderboard"/);
-    assert.equal(tabs.match(/href:/g)?.length, 5);
-    assert.doesNotMatch(tabs, /\/messages/);
-    assert.doesNotMatch(tabs, /\/profile/);
-    const more = read("components/more-view.tsx");
-    assert.match(more, /href="\/messages"/);
-    assert.match(more, /href="\/profile"/);
-    assert.match(read("components/feed-view.tsx"), /href="\/leaderboard"/);
+    assert.doesNotMatch(tabs, /Trophy/);
+    assert.doesNotMatch(tabs, /\/leaderboard/);
+    assert.equal(tabs.match(/href:/g)?.length, 6);
+    assert.match(tabs, /href: "\/profile"/);
+    assert.match(tabs, /href: "\/messages"/);
+    assert.doesNotMatch(read("components/feed-view.tsx"), /href="\/leaderboard"/);
+    assert.doesNotMatch(read("components/more-view.tsx"), /href="\/leaderboard"/);
     assert.match(read("components/privacy-lists.tsx"), /LeaderboardOptInSwitch/);
     assert.match(read("components/dashboard.tsx"), /LeaderboardOptInSwitch/);
     assert.match(read("components/dashboard.tsx"), /LeaderboardPrompt/);
     assert.match(read("lib/leaderboard/load.ts"), /revalidate: LEADERBOARD_CACHE_SECONDS/);
     assert.match(read("lib/leaderboard/load.ts"), /LEADERBOARD_CACHE_SECONDS = 15 \* 60/);
-    assert.equal(read("lib/auth/route-access.ts").includes('"/leaderboard"'), true);
+    assert.equal(read("lib/auth/route-access.ts").includes('"/leaderboard/value"'), true);
+    assert.equal(VALUE_BOARD_TAB.id, "value");
+    assert.equal(existsSync(join(process.cwd(), "app/leaderboard/value/page.tsx")), true);
+    assert.equal(existsSync(join(process.cwd(), "app/leaderboard/page.tsx")), false);
   });
 
   it("keeps investment, returns, and eBay wording out of the board", () => {
     const files = [
-      "components/leaderboard-view.tsx",
+      "components/value-board.tsx",
       "components/leaderboard-opt-in.tsx",
-      "app/leaderboard/page.tsx",
+      "app/leaderboard/value/page.tsx",
       "lib/leaderboard/share.ts",
       "lib/leaderboard/eligibility.ts",
+      "lib/leaderboard/requirements.ts",
     ];
     for (const file of files) {
       const source = read(file);
