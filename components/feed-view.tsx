@@ -20,6 +20,7 @@ import { usePagedTimeline } from "@/components/use-paged-timeline";
 import { EmptyState, LoadingRows, TimelineSkeleton } from "@/components/status";
 import { CollectionToday } from "@/components/collection-today";
 import { MovingToday } from "@/components/moving-today";
+import { TrendingNow } from "@/components/trending-now";
 import { shouldShowFirstCardWelcome } from "@/lib/collection/welcome";
 import { Tweet } from "@/components/tweet";
 import { WhatsNewCard } from "@/components/whats-new-card";
@@ -282,6 +283,7 @@ export function FeedView({ movingToday }: { movingToday?: ReactNode } = {}) {
         </LaneTab>
       </div>
 
+      {lane === "foryou" ? <TrendingNow /> : null}
       {lane === "foryou" ? movingToday ?? <MovingToday /> : null}
 
       {user ? (
