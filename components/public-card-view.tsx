@@ -16,7 +16,11 @@ import { CardThumb } from "@/components/card-thumb";
 import { CompBasis } from "@/components/comp-basis";
 import { CompsList } from "@/components/comps-list";
 import { FairPriceCheck } from "@/components/fair-price-check";
-import { PublicCardCompsPreview } from "@/components/public-card-comps";
+import {
+  PublicCardCompsPreview,
+  PublicCompsPlaceholder,
+  publicCompsGate,
+} from "@/components/public-card-comps";
 import { useCollection } from "@/components/collection-provider";
 import { ProfileSkeleton } from "@/components/status";
 import { useSocial } from "@/components/social-provider";
@@ -70,21 +74,13 @@ export function PublicCardView({
   const social = useSocial();
   const { cards, ready: cardsReady } = useCollection();
   const snapshotProfile = social.profileByUsername(username);
-  // A full snapshot drops hidden authors from profiles. Missing there is the
-  // hidden-author set. A failed snapshot does not count, so the server card
-  // stays up when we never learned who is hidden.
-  const hiddenAuthorIds =
-    social.ready &&
-    social.hasFullSnapshot &&
-    serverProfile &&
-    snapshotProfile?.id !== serverProfile.id
-      ? [serverProfile.id]
-      : [];
+  // Hide only ids hidden_author_ids returned. A collector outside the loaded
+  // profile page is still shown. A failed snapshot leaves this list empty.
   const hidden = publicCardHiddenFromViewer({
-    ready: social.ready,
+    ready: social.ready && social.hasFullSnapshot,
     profileId: serverProfile?.id ?? snapshotProfile?.id ?? null,
     blockedIds: social.blockedIds ?? [],
-    hiddenAuthorIds,
+    hiddenAuthorIds: social.hiddenAuthorIds,
   });
   const profile = hidden ? undefined : (serverProfile ?? snapshotProfile);
   const isOwn = Boolean(profile && social.user && profile.id === social.user.id);
@@ -135,7 +131,9 @@ export function PublicCardView({
       card={card}
       displayName={profile.displayName}
       backHref={backHref}
-      userId={social.user?.id ?? null}
+      userId={social.sessionUserId ?? social.user?.id ?? null}
+      sessionKnown={social.sessionKnown}
+      sessionUserId={social.sessionUserId}
       canFlag={isCardOwner(profile.id, social.user?.id ?? null)}
       publicComps={publicComps}
       people={people}
@@ -149,6 +147,8 @@ function PublicCardAnalytics({
   displayName,
   backHref,
   userId,
+  sessionKnown,
+  sessionUserId,
   canFlag,
   publicComps,
   people,
@@ -158,6 +158,8 @@ function PublicCardAnalytics({
   displayName: string;
   backHref: string;
   userId: string | null;
+  sessionKnown: boolean;
+  sessionUserId: string | null;
   canFlag: boolean;
   publicComps: PublicCardComps;
   people: OwnersAndHunters | null;
@@ -204,7 +206,14 @@ function PublicCardAnalytics({
     }
   }, [retryValue, sold.data?.fetchedAt, sold.status]);
 
-  const authRequired = !userId || sold.status === "auth_required";
+  const compsGate = publicCompsGate({
+    sessionKnown,
+    sessionUserId,
+    profileUserId: userId,
+    soldStatus: sold.status,
+  });
+  const authRequired = compsGate === "required";
+  const compsPending = compsGate === "pending";
   const rateLimited = sold.status === "rate_limited";
   const unavailable = sold.status === "unavailable";
   const soldCopy = soldNotice(sold.status, sold.message);
@@ -410,7 +419,12 @@ function PublicCardAnalytics({
         />
       ) : null}
 
-      {collapsePrices || (authRequired && publicComps.status === "hidden") ? null : (
+      {compsPending ? (
+        <section className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-white/10 dark:bg-white/[0.03]">
+          <h2 className="font-semibold">Recent sales</h2>
+          <PublicCompsPlaceholder />
+        </section>
+      ) : collapsePrices || (authRequired && publicComps.status === "hidden") ? null : (
         <section className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-white/10 dark:bg-white/[0.03]">
         <div className="flex flex-wrap items-end justify-between gap-2">
           <div>
@@ -439,7 +453,7 @@ function PublicCardAnalytics({
           </div>
         </div>
         {authRequired ? (
-          <PublicCardCompsPreview comps={publicComps} pathname={pathname} />
+          <PublicCardCompsPreview comps={publicComps} pathname={pathname} showSignup />
         ) : null}
         {usingLive && !compsLoading && !authRequired ? (
           <p className="mt-3 text-[11px] text-zinc-400">

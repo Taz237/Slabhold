@@ -4,10 +4,12 @@ import { notFound } from "next/navigation";
 import { offersColumnMissing } from "@/lib/offers/open-to-offers";
 import { isUuid } from "@/lib/value/card-value-access";
 import { createSupabaseServer } from "@/lib/supabase/server";
+import { loadHiddenAuthorIds } from "@/lib/safety/filters";
 import { mapPublicCard, PUBLIC_CARD_SELECT } from "./cards";
 import { normalizeUsername } from "./local-db";
 import type { OwnedCard, Profile } from "./types";
 import {
+  hiddenOwnerNotFound,
   missingRecordAction,
   postLookupResult,
   profileLookupResult,
@@ -85,7 +87,7 @@ export type PublicCardGate = {
   card: OwnedCard | null;
 };
 
-/** /u/[username]/cards/[id]. Private or wrong-owner cards are a 404. */
+/** /u/[username]/cards/[id]. Private, wrong-owner, blocked, or hidden cards are a 404. */
 export async function requirePublicCard(
   username: string,
   cardId: string,
@@ -99,17 +101,18 @@ export async function requirePublicCard(
   let cardOwnerId: string | null = null;
   let profile: Profile | null = null;
   let card: OwnedCard | null = null;
+  let viewerId: string | null = null;
   if (normalized && isUuid(cardId)) {
-    const profilePromise = supabase
-      .from("profiles")
-      .select(PROFILE_COLUMNS)
-      .eq("username", normalized)
-      .maybeSingle();
-    let cardRes = await supabase
-      .from("public_cards")
-      .select(`${PUBLIC_CARD_SELECT}, open_to_offers`)
-      .eq("id", cardId)
-      .maybeSingle();
+    const [profileRes, cardFirst, userRes] = await Promise.all([
+      supabase.from("profiles").select(PROFILE_COLUMNS).eq("username", normalized).maybeSingle(),
+      supabase
+        .from("public_cards")
+        .select(`${PUBLIC_CARD_SELECT}, open_to_offers`)
+        .eq("id", cardId)
+        .maybeSingle(),
+      supabase.auth.getUser(),
+    ]);
+    let cardRes = cardFirst;
     if (offersColumnMissing(cardRes.error)) {
       cardRes = await supabase
         .from("public_cards")
@@ -117,7 +120,6 @@ export async function requirePublicCard(
         .eq("id", cardId)
         .maybeSingle();
     }
-    const profileRes = await profilePromise;
     profileError = Boolean(profileRes.error);
     profileId = (profileRes.data?.id as string | undefined) ?? null;
     if (profileRes.data && !profileError) {
@@ -127,6 +129,12 @@ export async function requirePublicCard(
     cardOwnerId = (cardRes.data?.user_id as string | undefined) ?? null;
     if (cardRes.data && !cardError && profileId && cardOwnerId === profileId) {
       card = mapPublicCard(cardRes.data);
+    }
+    viewerId = userRes.data.user?.id ?? null;
+    const hiddenAuthorIds =
+      viewerId && profileId ? await loadHiddenAuthorIds(supabase, false) : [];
+    if (hiddenOwnerNotFound({ viewerId, ownerId: profileId, hiddenAuthorIds })) {
+      notFound();
     }
   }
   finish(

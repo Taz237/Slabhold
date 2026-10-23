@@ -114,7 +114,7 @@ import type {
 } from "@/lib/social/types";
 import { draftPostPhotos, type PostWrite } from "@/lib/social/post-photos";
 import { profileReplies, profileWithPin } from "@/lib/social/profile-tabs";
-import { shouldSkipSocialSnapshot } from "@/lib/auth/shell-paint";
+import { shouldSkipSocialSnapshot, withSessionTimeout } from "@/lib/auth/shell-paint";
 
 type SocialContextValue = {
   ready: boolean;
@@ -184,6 +184,8 @@ type SocialContextValue = {
   homePosts: Post[];
   homeReposts: PostRepost[];
   blockedIds: string[];
+  /** hidden_author_ids for this viewer. Not "missing from profiles". */
+  hiddenAuthorIds: string[];
   mutedIds: string[];
   safetyAccounts: Profile[];
   applySafetyChange: (change: {
@@ -411,38 +413,62 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
     // SIGNED_IN also fires on load and whenever a tab becomes visible. Remember the
     // session user first so those repeats do not reload public_cards.
     let unsubscribe = () => {};
-    void client.auth
-      .getSession()
-      .then(({ data: sessionData }) => {
-        if (cancelled) return;
-        const id = sessionData.session?.user?.id ?? null;
-        lastUserIdRef.current = id;
-        setSessionUserId(id);
-      })
-      .finally(() => {
-        if (cancelled) return;
-        setSessionKnown(true);
-        const { data } = client.auth.onAuthStateChange((event, session) => {
-          if (event !== "SIGNED_IN" && event !== "SIGNED_OUT") return;
-          const decision = authSnapshotReload({
-            event,
-            nextUserId: session?.user?.id ?? null,
-            lastUserId: lastUserIdRef.current,
-          });
-          lastUserIdRef.current = decision.lastUserId;
-          setSessionUserId(decision.lastUserId);
-          if (!decision.reload) return;
-          setTimeout(() => {
-            void reloadRef
-              .current(client)
-              .then(() => setStatus(null))
-              .catch((error: unknown) => {
-                setStatus(error instanceof Error ? error.message : "Could not reach Supabase.");
-              });
-          }, 0);
+    let listenAttached = false;
+    let sessionApplied = false;
+    const reloadSession = () => {
+      void reloadRef
+        .current(client)
+        .then(() => setStatus(null))
+        .catch((error: unknown) => {
+          setStatus(error instanceof Error ? error.message : "Could not reach Supabase.");
         });
-        unsubscribe = () => data.subscription.unsubscribe();
+    };
+    const applySession = (id: string | null) => {
+      const changed = sessionApplied && lastUserIdRef.current !== id;
+      sessionApplied = true;
+      lastUserIdRef.current = id;
+      setSessionUserId(id);
+      setSessionKnown(true);
+      return changed;
+    };
+    const attachListener = () => {
+      if (cancelled || listenAttached) return;
+      listenAttached = true;
+      const { data } = client.auth.onAuthStateChange((event, session) => {
+        if (event !== "SIGNED_IN" && event !== "SIGNED_OUT") return;
+        const decision = authSnapshotReload({
+          event,
+          nextUserId: session?.user?.id ?? null,
+          lastUserId: lastUserIdRef.current,
+        });
+        lastUserIdRef.current = decision.lastUserId;
+        setSessionUserId(decision.lastUserId);
+        if (!decision.reload) return;
+        setTimeout(() => reloadSession(), 0);
       });
+      unsubscribe = () => data.subscription.unsubscribe();
+    };
+    const readSession = client.auth.getSession();
+    void withSessionTimeout(readSession).then((timed) => {
+      if (cancelled) return;
+      if (!timed) {
+        applySession(null);
+        attachListener();
+        void readSession
+          .then(({ data: sessionData }) => {
+            if (cancelled) return;
+            const id = sessionData.session?.user?.id ?? null;
+            if (!applySession(id)) return;
+            reloadSession();
+          })
+          .catch(() => {
+            // The timeout already painted the guest shell.
+          });
+        return;
+      }
+      applySession(timed.data.session?.user?.id ?? null);
+      attachListener();
+    });
 
     return () => {
       cancelled = true;
@@ -1503,6 +1529,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
   const homePosts = snapshot.homePosts ?? snapshot.posts;
   const homeReposts = snapshot.homeReposts ?? snapshot.reposts;
   const blockedIds = snapshot.blockedIds ?? [];
+  const hiddenAuthorIds = snapshot.hiddenAuthorIds ?? [];
   const mutedIds = snapshot.mutedIds ?? [];
   const safetyAccounts = snapshot.safetyAccounts ?? [];
 
@@ -1660,6 +1687,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       homePosts,
       homeReposts,
       blockedIds,
+      hiddenAuthorIds,
       mutedIds,
       safetyAccounts,
       applySafetyChange,
@@ -1690,6 +1718,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       addComment,
       applySafetyChange,
       blockedIds,
+      hiddenAuthorIds,
       commentsFor,
       markNotificationsRead,
       markThreadRead,

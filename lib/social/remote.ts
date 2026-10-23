@@ -485,6 +485,7 @@ export async function loadSupabaseSocial(supabase: SupabaseClient): Promise<Soci
     blockedIds,
     mutedIds,
     safetyAccounts,
+    hiddenAuthorIds: blockedHidden,
   };
 }
 

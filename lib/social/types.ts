@@ -163,6 +163,11 @@ export type SocialSnapshot = {
   homeReposts?: PostRepost[];
   /** Accounts the viewer blocked. */
   blockedIds?: string[];
+  /**
+   * Authors hidden_author_ids returned for this viewer (blocks, not mutes).
+   * Card pages use this list. Absence from `profiles` is not a hide.
+   */
+  hiddenAuthorIds?: string[];
   /** Accounts the viewer muted. */
   mutedIds?: string[];
   /** Profiles for the block and mute lists, including people hidden from the feed. */

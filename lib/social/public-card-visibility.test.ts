@@ -54,6 +54,15 @@ describe("public card block filter", () => {
       }),
       false,
     );
+    assert.equal(
+      publicCardHiddenFromViewer({
+        ready: true,
+        profileId: BOB,
+        blockedIds: [],
+        hiddenAuthorIds: [ALICE],
+      }),
+      false,
+    );
 
     const view = readFileSync(
       join(process.cwd(), "components/public-card-view.tsx"),
@@ -64,5 +73,7 @@ describe("public card block filter", () => {
     assert.ok(gate > 0 && gate < serverCard);
     assert.match(view, /title="Profile not found"/);
     assert.match(view, /hidden \? undefined : \(serverProfile \?\? snapshotProfile\)/);
+    assert.match(view, /hiddenAuthorIds: social\.hiddenAuthorIds/);
+    assert.equal(view.includes("snapshotProfile?.id !== serverProfile.id"), false);
   });
 });

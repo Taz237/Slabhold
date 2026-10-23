@@ -48,3 +48,26 @@ export function paintBeforeSession(pathname: string): {
     showChildren: !home && !account,
   };
 }
+
+/** How long the shell waits on getSession before painting the signed-out state. */
+export const SESSION_READ_MS = 5_000;
+
+/**
+ * Resolve a session read, or null when it exceeds the timeout or rejects.
+ * Null is the guest fallback so a hung getSession cannot hold the shell.
+ */
+export function withSessionTimeout<T>(read: Promise<T>, ms = SESSION_READ_MS): Promise<T | null> {
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => resolve(null), ms);
+    read.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      () => {
+        clearTimeout(timer);
+        resolve(null);
+      },
+    );
+  });
+}

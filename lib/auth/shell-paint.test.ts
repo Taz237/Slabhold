@@ -2,7 +2,13 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { join } from "node:path";
-import { isGuestHome, paintBeforeSession, shouldSkipSocialSnapshot } from "./shell-paint";
+import {
+  isGuestHome,
+  paintBeforeSession,
+  SESSION_READ_MS,
+  shouldSkipSocialSnapshot,
+  withSessionTimeout,
+} from "./shell-paint";
 
 describe("guest landing paint", () => {
   it("treats signed-out home as the landing page before a session exists", () => {
@@ -76,5 +82,15 @@ describe("guest landing paint", () => {
     assert.doesNotMatch(pending, /<JoinBar/);
     assert.doesNotMatch(pending, /Log in|Sign up/);
     assert.ok(shell.indexOf("if (!sessionKnown)") < shell.indexOf("const guestHome"));
+  });
+
+  it("falls back to guest when getSession does not finish within 5 seconds", async () => {
+    assert.equal(SESSION_READ_MS, 5_000);
+    assert.equal(await withSessionTimeout(new Promise(() => {}), 20), null);
+    assert.equal(await withSessionTimeout(Promise.resolve("user-1"), 5_000), "user-1");
+    assert.equal(await withSessionTimeout(Promise.reject(new Error("down")), 5_000), null);
+    const provider = readFileSync(join(process.cwd(), "components/social-provider.tsx"), "utf8");
+    assert.match(provider, /withSessionTimeout\(readSession\)/);
+    assert.match(provider, /if \(!timed\) \{\s*applySession\(null\)/);
   });
 });
