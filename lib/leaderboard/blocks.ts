@@ -8,9 +8,16 @@ export function withoutBlocked<T extends { userId: string }>(
 }
 
 /**
- * Combine both block lists. hidden_author_ids returns uuids. blocked_by_ids
- * returns `{ blocker_id }`. A failed list is omitted by the caller.
+ * Combine block ids. leaderboard_hidden_ids returns uuids. A failed list hides
+ * the board for that viewer.
  */
+export function viewerBlockIds(
+  results: readonly { error?: unknown; data?: unknown }[],
+): Set<string> | null {
+  if (results.some((result) => result.error)) return null;
+  return blockedUserIds(results.map((result) => result.data));
+}
+
 export function blockedUserIds(lists: readonly unknown[]): Set<string> {
   const ids = new Set<string>();
   for (const list of lists) {

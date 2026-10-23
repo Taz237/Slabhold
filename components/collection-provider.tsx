@@ -17,6 +17,8 @@ import { isSaveTimeout } from "@/lib/save/attempt";
 import { loadCollection, newId, nextAccent, saveCollection } from "@/lib/storage";
 import { createSupabaseBrowser } from "@/lib/supabase/browser";
 import type { CardInput, SportsCard } from "@/lib/types";
+import { snapshotOwnedCollection } from "@/lib/leaderboard/snapshot-before";
+import { cardChangeNeedsSnapshot } from "@/lib/leaderboard/snapshot-trigger";
 import { shouldRefreshCardValueOnEdit } from "@/lib/value/price-refresh";
 import { scheduleCardValueRefresh } from "@/lib/value/use-card-values";
 import { isPublicForSaleListing } from "@/lib/wants/listing";
@@ -204,8 +206,11 @@ export function CollectionProvider({ children }: { children: React.ReactNode }) 
         if (client) {
           const needsRefresh =
             !previous || shouldRefreshCardValueOnEdit(previous, updated);
+          const needsSnapshot =
+            !previous || cardChangeNeedsSnapshot(previous, updated);
           saved = enqueue(id, async () => {
             try {
+              if (needsSnapshot) await snapshotOwnedCollection();
               await saveUserCard(client, userId, updated);
               if (isPublicForSaleListing(updated)) pingWantMatch("listing", updated.id);
               setSyncError(null);
@@ -234,6 +239,7 @@ export function CollectionProvider({ children }: { children: React.ReactNode }) 
         if (client) {
           enqueue(id, async () => {
             try {
+              await snapshotOwnedCollection();
               await removeUserCard(client, userId, id);
               setSyncError(null);
             } catch (error) {

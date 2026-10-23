@@ -8,7 +8,7 @@ import { renderOg } from "@/components/og-frame";
 import { ValueBoardView } from "@/components/value-board";
 import { assembleValueBoard, type ValueBoardSourceCard } from "@/lib/leaderboard/assemble";
 import { valueBracketId } from "@/lib/leaderboard/brackets";
-import { blockedUserIds, withoutBlocked } from "@/lib/leaderboard/blocks";
+import { blockedUserIds, viewerBlockIds, withoutBlocked } from "@/lib/leaderboard/blocks";
 import {
   addDaysToYmd,
   currentValueWeek,
@@ -57,6 +57,8 @@ import {
   medianOnlySnapshotInsert,
   snapshotSaleSource,
 } from "@/lib/leaderboard/snapshot-fields";
+import { allowValueBoardRevalidate } from "@/lib/leaderboard/revalidate-limit";
+import { cardChangeNeedsSnapshot } from "@/lib/leaderboard/snapshot-trigger";
 import { VALUE_BOARD_TAB } from "@/lib/leaderboard/tab";
 import type { ValueBoardModel } from "@/lib/leaderboard/types";
 import { cardValueHistoryEnabled } from "@/lib/collection/card-value-history";
@@ -266,6 +268,73 @@ describe("value board math", () => {
     assert.equal(edited.dollarGain, 0);
     assert.equal(edited.flagged, false);
   });
+
+  it("scores 0 when card number, serial, auto, or qualifier changes", () => {
+    const base = {
+      playerName: "Ada",
+      year: 2020,
+      setBrand: "Prizm",
+      parallel: "Silver",
+      grade: "PSA 10",
+    };
+    const startKey = identityKey(cardIdentity(base));
+    for (const patch of [
+      { cardNumber: "9" },
+      { serialRun: 1 },
+      { isAuto: true },
+      { gradeQualifier: "OC" },
+    ]) {
+      const endKey = identityKey(cardIdentity({ ...base, ...patch }));
+      assert.notEqual(startKey, endKey);
+      const change = valueBoardChange([
+        card({
+          cardId: "edited",
+          identityKey: startKey,
+          startMedian: 30,
+          endMedian: 500,
+          identityChanged: startKey !== endKey,
+        }),
+        card({ cardId: "flat", identityKey: "flat", startMedian: 30, endMedian: 30 }),
+      ]);
+      assert.equal(change.percent, 0);
+      assert.equal(change.dollarGain, 0);
+    }
+    const priced = valueBoardChange([
+      card({ cardId: "edited", identityKey: startKey, startMedian: 30, endMedian: 500 }),
+      card({ cardId: "other", identityKey: "other", startMedian: 30, endMedian: 60 }),
+    ]);
+    assert.notEqual(priced.dollarGain, 0);
+  });
+
+  it("scores a card made private mid-week at its last public value", () => {
+    const lastPublic = valueBoardChange([
+      card({
+        cardId: "went-private",
+        startMedian: 100,
+        endMedian: 110,
+        endSales: 2,
+        endResolved: true,
+      }),
+      card({ cardId: "other", startMedian: 100, endMedian: 200 }),
+    ]);
+    assert.equal(lastPublic.cardCount, 2);
+    assert.equal(lastPublic.startSum, 200);
+    assert.equal(lastPublic.dollarGain, 20);
+    assert.equal(lastPublic.percent, 20 / 200);
+
+    const privateSpike = valueBoardChange([
+      card({
+        cardId: "went-private",
+        startMedian: 100,
+        endMedian: 5000,
+        endSales: 2,
+        endResolved: true,
+      }),
+      card({ cardId: "other", startMedian: 100, endMedian: 200 }),
+    ]);
+    assert.equal(privateSpike.dollarGain, 200);
+    assert.notEqual(lastPublic.dollarGain, privateSpike.dollarGain);
+  });
 });
 
 describe("value board brackets", () => {
@@ -420,6 +489,9 @@ describe("leaderboard eligibility", () => {
       withoutBlocked(rows, hidden).map((row) => row.userId),
       ["ada"],
     );
+    assert.equal(viewerBlockIds([{ error: { message: "nope" }, data: ["ada"] }]), null);
+    const fromRpc = viewerBlockIds([{ error: null, data: ["bea", "cy"] }]);
+    assert.deepEqual([...(fromRpc ?? [])].sort(), ["bea", "cy"]);
   });
 });
 
@@ -543,8 +615,12 @@ describe("value board week and sharing", () => {
       end: "2026-10-18",
     });
     assert.deepEqual(resolveValueWeek({ today: "2026-10-19", latest: "2026-10-19" }), {
+      start: "2026-10-11",
+      end: "2026-10-18",
+    });
+    assert.deepEqual(resolveValueWeek({ today: "2026-10-26", latest: "2026-10-26" }), {
       start: "2026-10-18",
-      end: "2026-10-19",
+      end: "2026-10-25",
     });
     assert.deepEqual(resolveValueWeek({ today: "2026-10-23", latest: "2026-10-22" }), {
       start: "2026-10-18",
@@ -665,9 +741,28 @@ describe("leaderboard wiring", () => {
       /grant execute on function public\.leaderboard_rows\(date, date, integer, numeric, integer, timestamptz\) to service_role;/,
     );
     assert.doesNotMatch(sql, /to anon, authenticated/);
-    assert.match(sql, /function public\.blocked_by_ids\(\)/);
-    assert.match(sql, /grant execute on function public\.blocked_by_ids\(\) to authenticated;/);
-    assert.match(sql, /where b\.blocked_id = auth\.uid\(\)/);
+    assert.match(sql, /drop function if exists public\.blocked_by_ids\(\)/);
+    assert.match(sql, /function public\.leaderboard_hidden_ids\(p_viewer uuid\)/);
+    assert.match(sql, /returns setof uuid/);
+    assert.match(sql, /where b\.blocker_id = p_viewer/);
+    assert.match(sql, /where b\.blocked_id = p_viewer/);
+    assert.match(
+      sql,
+      /revoke all on function public\.leaderboard_hidden_ids\(uuid\) from public, anon, authenticated;/,
+    );
+    assert.match(
+      sql,
+      /grant execute on function public\.leaderboard_hidden_ids\(uuid\) to service_role;/,
+    );
+    assert.doesNotMatch(sql, /grant execute on function public\.blocked_by_ids/);
+    assert.match(sql, /card_value_snapshots_date_idx/);
+    assert.match(sql, /p_card_number text/);
+    assert.match(sql, /p_serial_run text/);
+    assert.match(sql, /p_is_auto boolean/);
+    assert.match(sql, /p_is_relic boolean/);
+    assert.match(sql, /p_grade_qualifier text/);
+    assert.match(sql, /p_year_label text/);
+    assert.match(sql, /p_condition_type text/);
     assert.match(sql, /is_public is true/);
     assert.match(sql, /is_test/);
     assert.match(sql, /qa_/);
@@ -701,6 +796,25 @@ describe("leaderboard wiring", () => {
     );
     assert.doesNotMatch(fn, /join public\.cards/);
     assert.doesNotMatch(fn, /p\.created_at/);
+    const opted = fn.slice(fn.indexOf("with opted as ("), fn.indexOf("lineup as ("));
+    assert.match(opted, /p_start is not null/);
+    assert.match(opted, /p_end is not null/);
+    assert.match(opted, /p_end >= p_start/);
+    const chosenEnd = fn.slice(fn.indexOf("chosen_end as ("), fn.indexOf("from eligible e"));
+    assert.match(chosenEnd, /and s\.is_public is true/);
+    assert.match(sql, /card_value_snapshots_card_id_date_idx/);
+    assert.match(
+      sql,
+      /create unique index if not exists card_value_snapshots_card_id_date_idx\n  on public\.card_value_snapshots \(card_id, snapshot_date\);/,
+    );
+    assert.match(sql, /new\.card_key := coalesce\(new\.card_key, new\.card_id\)/);
+    assert.match(sql, /before insert on public\.card_value_snapshots/);
+    assert.match(
+      sql,
+      /revoke all on function public\.card_value_snapshot_defaults\(\) from public, anon, authenticated;/,
+    );
+    assert.match(sql, /references auth\.users \(id\) on delete cascade/);
+    assert.match(sql, /last public trusted value/);
     assert.match(read("supabase/schema.sql"), /function public\.card_snapshot_identity/);
     const identity = cardIdentity({
       playerName: "Ada",
@@ -709,7 +823,25 @@ describe("leaderboard wiring", () => {
       parallel: "Silver",
       grade: "PSA 10",
     });
-    assert.equal(identityKey(identity), "ada|2020|prizm|silver|10|psa");
+    assert.equal(identityKey(identity), "ada|2020||prizm|silver|10|psa|||0|0||");
+    const numbered = cardIdentity({
+      playerName: "Ada",
+      year: 2020,
+      yearLabel: "2020-21",
+      setBrand: "Prizm",
+      parallel: "Silver",
+      grade: "PSA 10",
+      cardNumber: "#47",
+      serialRun: 99,
+      isAuto: true,
+      isRelic: false,
+      gradeQualifier: "OC",
+      conditionType: "graded",
+    });
+    assert.equal(
+      identityKey(numbered),
+      "ada|2020|2020-21|prizm|silver|10|psa|47|99|1|0|oc|graded",
+    );
     assert.equal(isMissingSnapshotColumn({ code: "42703", message: "column card_key does not exist" }), true);
     assert.equal(isMissingSnapshotColumn({ code: "PGRST204", message: "schema cache" }), true);
     assert.equal(isMissingSnapshotColumn({ code: "23505", message: "duplicate" }), false);
@@ -741,6 +873,19 @@ describe("leaderboard wiring", () => {
     assert.equal(cardValueHistoryEnabled({ CARD_VALUE_HISTORY_ENABLED: "1" }), true);
     const history = read("lib/collection/card-value-history.ts");
     assert.match(history, /CARD_VALUE_HISTORY_ENABLED === "1"/);
+  });
+
+  it("returns no rows for null or reversed dates and ignores a private mid-week value", () => {
+    const sql = read("supabase/migrations/20261023001052_leaderboard_opt_in.sql");
+    const fn = sql.slice(
+      sql.indexOf("function public.leaderboard_rows"),
+      sql.indexOf("comment on function public.leaderboard_rows"),
+    );
+    const opted = fn.slice(fn.indexOf("with opted as ("), fn.indexOf("lineup as ("));
+    assert.match(opted, /and p_start is not null\n\s+and p_end is not null\n\s+and p_end >= p_start/);
+    const chosenEnd = fn.slice(fn.indexOf("chosen_end as ("), fn.indexOf("from eligible e"));
+    assert.match(chosenEnd, /and s\.snapshot_date <= p_end\n\s+and s\.is_public is true/);
+    assert.doesNotMatch(chosenEnd, /is_public is false/);
   });
 
   it("schedules the snapshot cron near 11:30 PM New York and keeps the history cron off the schedule", () => {
@@ -776,20 +921,60 @@ describe("leaderboard wiring", () => {
     assert.match(load, /LEADERBOARD_CACHE_SECONDS = 15 \* 60/);
     assert.match(load, /VALUE_BOARD_CACHE_TAG/);
     assert.match(load, /resolveValueWeek/);
-    assert.match(read("components/leaderboard-opt-in.tsx"), /revalidateValueBoard/);
+    assert.match(load, /\.lt\("snapshot_date", today\)/);
+    assert.doesNotMatch(load, /\.lte\("snapshot_date"/);
+    assert.match(read("components/leaderboard-opt-in.tsx"), /setLeaderboardOptIn/);
+    assert.doesNotMatch(read("components/leaderboard-opt-in.tsx"), /revalidateValueBoard/);
+    const optInAction = read("lib/leaderboard/revalidate.ts");
+    assert.match(optInAction, /getAuthUserId\(\)/);
+    assert.match(optInAction, /allowValueBoardRevalidate/);
+    assert.match(optInAction, /saveLeaderboardOptIn/);
+    assert.doesNotMatch(optInAction, /export async function revalidateValueBoard/);
+    const rateAt = 1_700_000_000_000;
+    assert.equal(allowValueBoardRevalidate("rate-ada", rateAt), true);
+    assert.equal(allowValueBoardRevalidate("rate-ada", rateAt + 5_000), false);
+    assert.equal(allowValueBoardRevalidate("rate-ada", rateAt + 10_000), true);
+    const edit = {
+      id: "card-1",
+      playerName: "Ada",
+      year: 2020,
+      setBrand: "Prizm",
+      cardNumber: "1",
+      grade: "PSA 10",
+      parallel: "Silver",
+    };
+    assert.equal(cardChangeNeedsSnapshot(edit, edit), false);
+    assert.equal(cardChangeNeedsSnapshot(edit, { ...edit, cardNumber: "2" }), true);
+    assert.equal(
+      cardChangeNeedsSnapshot({ ...edit, isPublic: true }, { ...edit, isPublic: false }),
+      true,
+    );
+    assert.equal(
+      cardChangeNeedsSnapshot(edit, { ...edit, sellPrice: 12, sellDate: "2026-10-23" }),
+      true,
+    );
+    assert.match(read("components/collection-provider.tsx"), /snapshotOwnedCollection\(\)/);
+    assert.match(read("components/collection-provider.tsx"), /cardChangeNeedsSnapshot\(previous, updated\)/);
+    assert.match(read("app/api/cron/refresh-card-values/route.ts"), /snapshotOwnersAfterRefresh/);
+    assert.match(read("lib/account/delete-account.ts"), /"card_value_snapshots", "user_id"/);
+    assert.match(read("components/collection-today.tsx"), /card_id != null/);
+    assert.match(read("components/collection-today.tsx"), /\.not\("card_id", "is", null\)/);
     assert.match(read("app/leaderboard/value/page.tsx"), /getAuthUserCreatedAt/);
     assert.match(read("components/value-board.tsx"), /accountCreatedAt/);
     assert.equal(existsSync(join(process.cwd(), "app/leaderboard/value/loading.tsx")), true);
     assert.equal(existsSync(join(process.cwd(), "app/leaderboard/value/error.tsx")), true);
     assert.match(load, /return createSupabaseAdmin\(\)/);
     assert.doesNotMatch(load, /anonKey|createClient\(/);
-    assert.match(load, /hidden_author_ids/);
-    assert.match(load, /blocked_by_ids/);
+    assert.match(load, /leaderboard_hidden_ids/);
+    assert.match(load, /p_viewer: viewerId/);
+    assert.match(load, /\[leaderboard\] block lists failed/);
+    assert.match(load, /hidden == null/);
+    assert.doesNotMatch(load, /hidden_author_ids|blocked_by_ids/);
     const cachedRead = load.slice(
       load.indexOf("async function readPublicValueBoard"),
       load.indexOf("export async function getPublicValueBoard"),
     );
-    assert.doesNotMatch(cachedRead, /hidden_author_ids|blocked_by_ids/);
+    assert.doesNotMatch(cachedRead, /leaderboard_hidden_ids|hidden_author_ids|blocked_by_ids/);
     const viewerRead = load.slice(load.indexOf("export async function getValueBoard"));
     assert.match(viewerRead, /getPublicValueBoard\(input\)/);
     assert.match(viewerRead, /hiddenIds\(viewerUserId\)/);
@@ -799,10 +984,18 @@ describe("leaderboard wiring", () => {
     const schemaFn = schema.slice(schema.indexOf("function public.leaderboard_rows"));
     assert.match(schemaFn, /left join lateral/);
     assert.match(schemaFn, /Bracket comes from the week-start value of public held cards only/);
-    assert.match(schemaFn, /function public\.blocked_by_ids\(\)/);
+    assert.match(schemaFn, /function public\.leaderboard_hidden_ids\(p_viewer uuid\)/);
+    assert.match(schemaFn, /s\.card_number/);
+    assert.doesNotMatch(schemaFn, /function public\.blocked_by_ids/);
     assert.match(schemaFn, /auth\.users/);
     assert.match(schemaFn, /s\.is_public is true/);
     assert.match(schemaFn, /s\.held is true/);
+    assert.match(schemaFn, /p_end >= p_start/);
+    const schemaChosen = schemaFn.slice(
+      schemaFn.indexOf("chosen_end as ("),
+      schemaFn.indexOf("from eligible e"),
+    );
+    assert.match(schemaChosen, /and s\.is_public is true/);
     assert.doesNotMatch(schemaFn, /collection_snapshots/);
     assert.doesNotMatch(schemaFn, /join public\.cards/);
     assert.equal(read("lib/auth/route-access.ts").includes('"/leaderboard/value"'), true);

@@ -4,10 +4,10 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { unstable_cache } from "next/cache";
 import { snapshotDateInNewYork } from "@/lib/collection/totals-shared";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
-import { createSupabaseServer, getAuthUserId } from "@/lib/supabase/server";
+import { getAuthUserId } from "@/lib/supabase/server";
 import { assembleValueBoard, type AssembledBracket, type ValueBoardSourceCard } from "./assemble";
 import { valueBracketId, type ValueBracketId } from "./brackets";
-import { blockedUserIds, withoutBlocked } from "./blocks";
+import { viewerBlockIds, withoutBlocked } from "./blocks";
 import { VALUE_BOARD_CACHE_TAG } from "./cache";
 import { currentValueWeek, formatWeekLabel, resolveValueWeek } from "./dates";
 import { LEADERBOARD_CLOSED_COPY, LEADERBOARD_NOTE, leaderboardMinimums } from "./eligibility";
@@ -99,7 +99,7 @@ async function latestSnapshotDate(
   const { data, error } = await client
     .from("card_value_snapshots")
     .select("snapshot_date")
-    .lte("snapshot_date", today)
+    .lt("snapshot_date", today)
     .order("snapshot_date", { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -129,7 +129,7 @@ async function readPublicValueBoard(start: string, end: string): Promise<PublicV
   return { start, end, brackets: assembleValueBoard(cards) };
 }
 
-/** Latest snapshot on or before today. A missing snapshot keeps the previous finished week. */
+/** Latest cron snapshot strictly before today. A same-day visit does not end the week. */
 async function readAutoValueBoard(today: string): Promise<PublicValueBoard> {
   const client = reader();
   if (!client) {
@@ -200,23 +200,33 @@ export async function getPublicValueBoard(input?: {
  * People this viewer blocked, plus people who blocked this viewer.
  * Called after the shared board cache so one viewer's blocks are not cached for everyone.
  */
-async function hiddenIds(viewerId: string | null): Promise<Set<string>> {
+async function hiddenIds(viewerId: string | null): Promise<Set<string> | null> {
   if (!viewerId) return new Set();
-  const supabase = await createSupabaseServer();
-  if (!supabase) return new Set();
-  const [blocked, blockedBy] = await Promise.all([
-    supabase.rpc("hidden_author_ids", { apply_mute: false }),
-    supabase.rpc("blocked_by_ids"),
-  ]);
-  return blockedUserIds([blocked.error ? null : blocked.data, blockedBy.error ? null : blockedBy.data]);
+  const admin = createSupabaseAdmin();
+  if (!admin) {
+    console.error("[leaderboard] block lists failed", "admin");
+    return null;
+  }
+  const { data, error } = await admin.rpc("leaderboard_hidden_ids", { p_viewer: viewerId });
+  const hidden = viewerBlockIds([{ error, data }]);
+  if (hidden == null) {
+    console.error("[leaderboard] block lists failed", error?.message ?? "error");
+  }
+  return hidden;
 }
 
-function present(board: PublicValueBoard, hidden: ReadonlySet<string>): {
+function present(board: PublicValueBoard, hidden: ReadonlySet<string> | null): {
   closedMessage: string | null;
   emptyMessage: string | null;
   brackets: ValueBracketBoard[];
 } {
   const opened = board.brackets.filter((bracket) => bracket.open);
+  if (opened.length === 0) {
+    return { closedMessage: LEADERBOARD_CLOSED_COPY, emptyMessage: null, brackets: [] };
+  }
+  if (hidden == null) {
+    return { closedMessage: null, emptyMessage: "No collectors to show.", brackets: [] };
+  }
   const visible = opened
     .map((bracket) => ({
       id: bracket.id,
@@ -224,9 +234,6 @@ function present(board: PublicValueBoard, hidden: ReadonlySet<string>): {
       rows: withoutBlocked(bracket.rows, hidden),
     }))
     .filter((bracket) => bracket.rows.length > 0);
-  if (opened.length === 0) {
-    return { closedMessage: LEADERBOARD_CLOSED_COPY, emptyMessage: null, brackets: [] };
-  }
   return {
     closedMessage: null,
     emptyMessage: visible.length === 0 ? "No collectors to show." : null,

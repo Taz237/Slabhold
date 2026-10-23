@@ -14,10 +14,9 @@ import {
   leaderboardPromptDismissKey,
   leaderboardPromptVisible,
   readLeaderboardOptIn,
-  saveLeaderboardOptIn,
   type LeaderboardOptInDb,
 } from "@/lib/leaderboard/opt-in";
-import { revalidateValueBoard } from "@/lib/leaderboard/revalidate";
+import { setLeaderboardOptIn } from "@/lib/leaderboard/revalidate";
 import { leaderboardRequirementsLine } from "@/lib/leaderboard/requirements";
 
 export function LeaderboardOptInControl({
@@ -91,13 +90,10 @@ export function LeaderboardOptInSwitch({
   }, [user?.id]);
 
   async function toggle(next: boolean) {
-    const id = user?.id;
-    const supabase = createSupabaseBrowser();
-    if (!id || !supabase) return;
+    if (!user?.id) return;
     setBusy(true);
     setError(null);
-    const result = await saveLeaderboardOptIn(supabase as unknown as LeaderboardOptInDb, id, next);
-    if (!result.error) await revalidateValueBoard();
+    const result = await setLeaderboardOptIn(next);
     setBusy(false);
     setChecked(result.optedIn);
     setError(result.error ?? null);
@@ -190,19 +186,10 @@ export function LeaderboardPrompt({
   }
 
   async function optIn() {
-    const supabase = createSupabaseBrowser();
-    if (!supabase) return;
     setBusy(true);
-    const result = await saveLeaderboardOptIn(
-      supabase as unknown as LeaderboardOptInDb,
-      account.id,
-      true,
-    );
+    const result = await setLeaderboardOptIn(true);
     setBusy(false);
-    if (!result.error) {
-      await revalidateValueBoard();
-      dismiss();
-    }
+    if (!result.error) dismiss();
   }
 
   return (

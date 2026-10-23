@@ -10,7 +10,7 @@ export type ValueCard = {
   endSales: number | null;
   selfReported: boolean;
   openFlag: boolean;
-  /** Same player, year, set, parallel, grade, and grader. Defaults to the card id. */
+  /** Comps identity without the card id. Defaults to the card id. */
   identityKey?: string | null;
   /** End value was already resolved to the last trusted price, or 0. */
   endResolved?: boolean;

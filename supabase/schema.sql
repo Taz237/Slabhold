@@ -1059,7 +1059,14 @@ create table if not exists public.card_value_snapshots (
   set_name text,
   parallel text,
   grade text,
-  grader text
+  grader text,
+  year_label text,
+  card_number text,
+  serial_run text,
+  is_auto boolean,
+  is_relic boolean,
+  grade_qualifier text,
+  condition_type text
 );
 
 create table if not exists public.comp_flags (
@@ -1083,7 +1090,11 @@ create table if not exists public.blocks (
 -- The function returns card rows for eligible, opted-in public collections:
 -- medians and sale counts the value board needs, a bracket id, and flags.
 -- The bracket is the week-start sum of public held cards. Private holdings stay out.
--- The lineup is the week-start snapshot. Deleted, sold, and private cards stay in it.
+-- The lineup is the week-start public snapshot. Deleted or sold cards stay in it.
+-- A card made private mid-week still counts, at its last public trusted value.
+-- A snapshot taken while the card was private never reaches the percent.
+-- Identity is player, year, year label, set, parallel, grade, grader, card number,
+-- serial, auto, relic, qualifier, and condition. Any change contributes 0.
 -- It does not return collection dollar totals, paid prices, notes, or certs.
 --
 -- Account age uses auth.users.created_at. profiles.created_at is not the gate.
@@ -1170,6 +1181,27 @@ alter table public.card_value_snapshots
 alter table public.card_value_snapshots
   add column if not exists grader text;
 
+alter table public.card_value_snapshots
+  add column if not exists year_label text;
+
+alter table public.card_value_snapshots
+  add column if not exists card_number text;
+
+alter table public.card_value_snapshots
+  add column if not exists serial_run text;
+
+alter table public.card_value_snapshots
+  add column if not exists is_auto boolean;
+
+alter table public.card_value_snapshots
+  add column if not exists is_relic boolean;
+
+alter table public.card_value_snapshots
+  add column if not exists grade_qualifier text;
+
+alter table public.card_value_snapshots
+  add column if not exists condition_type text;
+
 comment on column public.card_value_snapshots.n_sales is
   'Matched sales behind the median. Null is not a trusted price.';
 
@@ -1205,6 +1237,57 @@ create unique index if not exists card_value_snapshots_card_key_date_idx
 
 create index if not exists card_value_snapshots_user_date_idx
   on public.card_value_snapshots (user_id, snapshot_date);
+
+-- Keep the pre-PR writer (upsert on conflict (card_id, snapshot_date), no card_key)
+-- working between "migration applied" and "new app deployed".
+create unique index if not exists card_value_snapshots_card_id_date_idx
+  on public.card_value_snapshots (card_id, snapshot_date);
+
+create index if not exists card_value_snapshots_date_idx
+  on public.card_value_snapshots (snapshot_date);
+
+create or replace function public.card_value_snapshot_defaults()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  new.card_key := coalesce(new.card_key, new.card_id);
+  if new.user_id is null and new.card_id is not null then
+    select c.user_id into new.user_id from public.cards c where c.id = new.card_id;
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists card_value_snapshot_defaults on public.card_value_snapshots;
+create trigger card_value_snapshot_defaults
+  before insert on public.card_value_snapshots
+  for each row execute function public.card_value_snapshot_defaults();
+
+revoke all on function public.card_value_snapshot_defaults() from public, anon, authenticated;
+
+do $$
+declare
+  user_fk text;
+begin
+  select pg_get_constraintdef(con.oid)
+    into user_fk
+  from pg_constraint con
+  where con.conname = 'card_value_snapshots_user_id_fkey'
+    and con.conrelid = 'public.card_value_snapshots'::regclass;
+
+  if user_fk is null then
+    alter table public.card_value_snapshots
+      add constraint card_value_snapshots_user_id_fkey
+      foreign key (user_id) references auth.users (id) on delete cascade;
+  elsif user_fk not ilike '%delete cascade%' then
+    alter table public.card_value_snapshots drop constraint card_value_snapshots_user_id_fkey;
+    alter table public.card_value_snapshots
+      add constraint card_value_snapshots_user_id_fkey
+      foreign key (user_id) references auth.users (id) on delete cascade;
+  end if;
+end $$;
 
 -- The old primary key includes card_id, so the card cannot be set null until
 -- that key is replaced. Match the full definition. "card_id" contains "id".
@@ -1273,13 +1356,22 @@ grant select, insert, update, delete on public.card_value_snapshots to service_r
 create index if not exists comp_flags_card_id_idx
   on public.comp_flags (card_id);
 
+drop function if exists public.card_snapshot_identity(text, text, text, text, text, text);
+
 create or replace function public.card_snapshot_identity(
   p_player text,
   p_year text,
+  p_year_label text,
   p_set text,
   p_parallel text,
   p_grade text,
-  p_grader text
+  p_grader text,
+  p_card_number text,
+  p_serial_run text,
+  p_is_auto boolean,
+  p_is_relic boolean,
+  p_grade_qualifier text,
+  p_condition_type text
 )
 returns text
 language sql
@@ -1288,13 +1380,20 @@ set search_path = ''
 as $$
   select lower(coalesce(p_player, '')) || '|' ||
          lower(coalesce(p_year, '')) || '|' ||
+         lower(coalesce(p_year_label, '')) || '|' ||
          lower(coalesce(p_set, '')) || '|' ||
          lower(coalesce(p_parallel, '')) || '|' ||
          lower(coalesce(p_grade, '')) || '|' ||
-         lower(coalesce(p_grader, ''));
+         lower(coalesce(p_grader, '')) || '|' ||
+         lower(regexp_replace(btrim(coalesce(p_card_number, '')), '^#', '')) || '|' ||
+         lower(coalesce(p_serial_run, '')) || '|' ||
+         case when coalesce(p_is_auto, false) then '1' else '0' end || '|' ||
+         case when coalesce(p_is_relic, false) then '1' else '0' end || '|' ||
+         lower(coalesce(p_grade_qualifier, '')) || '|' ||
+         lower(coalesce(p_condition_type, ''));
 $$;
 
-revoke all on function public.card_snapshot_identity(text, text, text, text, text, text) from public, anon, authenticated;
+revoke all on function public.card_snapshot_identity(text, text, text, text, text, text, text, text, text, boolean, boolean, text, text) from public, anon, authenticated;
 
 drop function if exists public.leaderboard_rows(date, date, integer, numeric);
 drop function if exists public.leaderboard_rows(date, date, integer, numeric, integer, timestamptz);
@@ -1352,6 +1451,9 @@ as $$
         and s.held is true
     ) pv on true
     where p.leaderboard_opt_in is true
+      and p_start is not null
+      and p_end is not null
+      and p_end >= p_start
       and coalesce(p.is_test, false) = false
       and u.created_at <= least(coalesce(p_as_of, now()), now()) - (least(greatest(coalesce(p_min_account_days, 7), 7), 1000000) * interval '1 day')
       and lower(p.username) <> 'qa_vreset_1021'
@@ -1369,7 +1471,10 @@ as $$
       s.n_sales,
       s.self_reported,
       s.player,
-      public.card_snapshot_identity(s.player, s.year, s.set_name, s.parallel, s.grade, s.grader) as identity_key
+      public.card_snapshot_identity(
+        s.player, s.year, s.year_label, s.set_name, s.parallel, s.grade, s.grader,
+        s.card_number, s.serial_run, s.is_auto, s.is_relic, s.grade_qualifier, s.condition_type
+      ) as identity_key
     from public.card_value_snapshots s
     where s.snapshot_date = p_start
       and s.card_key is not null
@@ -1403,10 +1508,14 @@ as $$
       s.n_sales,
       s.self_reported,
       s.player,
-      public.card_snapshot_identity(s.player, s.year, s.set_name, s.parallel, s.grade, s.grader) as identity_key
+      public.card_snapshot_identity(
+        s.player, s.year, s.year_label, s.set_name, s.parallel, s.grade, s.grader,
+        s.card_number, s.serial_run, s.is_auto, s.is_relic, s.grade_qualifier, s.condition_type
+      ) as identity_key
     from public.card_value_snapshots s
     where s.snapshot_date >= p_start
       and s.snapshot_date <= p_end
+      and s.is_public is true
       and s.status in ('ok', 'sample')
       and s.median is not null
       and s.median >= 5
@@ -1466,21 +1575,23 @@ revoke all on function public.leaderboard_rows(date, date, integer, numeric, int
 revoke execute on function public.leaderboard_rows(date, date, integer, numeric, integer, timestamptz) from public, anon, authenticated;
 grant execute on function public.leaderboard_rows(date, date, integer, numeric, integer, timestamptz) to service_role;
 
--- People who blocked the signed-in user. The other direction is hidden_author_ids.
-create or replace function public.blocked_by_ids()
-returns table (blocker_id uuid)
+-- Block ids for the value board, both directions, for one verified viewer.
+-- Service role only: load.ts passes the viewer id from auth.getUser().
+-- Signed-in users must not be able to list who blocked them.
+drop function if exists public.blocked_by_ids();
+
+create or replace function public.leaderboard_hidden_ids(p_viewer uuid)
+returns setof uuid
 language sql
 stable
 security definer
 set search_path = ''
 as $$
-  select b.blocker_id
-  from public.blocks b
-  where b.blocked_id = auth.uid();
+  select b.blocked_id from public.blocks b where b.blocker_id = p_viewer
+  union
+  select b.blocker_id from public.blocks b where b.blocked_id = p_viewer;
 $$;
 
-comment on function public.blocked_by_ids() is
-  'Accounts that blocked the signed-in user. Granted to authenticated only.';
+revoke all on function public.leaderboard_hidden_ids(uuid) from public, anon, authenticated;
+grant execute on function public.leaderboard_hidden_ids(uuid) to service_role;
 
-revoke all on function public.blocked_by_ids() from public, anon, authenticated, service_role;
-grant execute on function public.blocked_by_ids() to authenticated;

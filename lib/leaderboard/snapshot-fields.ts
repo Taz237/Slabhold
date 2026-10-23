@@ -61,10 +61,17 @@ export type CardSnapshotInsert = {
   held: boolean;
   player: string;
   year: string;
+  year_label: string;
   set_name: string;
   parallel: string;
   grade: string;
   grader: string;
+  card_number: string;
+  serial_run: string;
+  is_auto: boolean;
+  is_relic: boolean;
+  grade_qualifier: string;
+  condition_type: string;
 };
 
 /** Full row written after the leaderboard migration. Today's date only. */
@@ -74,9 +81,16 @@ export function cardSnapshotInsert(input: {
   snapshotDate: string;
   playerName?: string | null;
   year?: number | string | null;
+  yearLabel?: string | null;
   setBrand?: string | null;
   parallel?: string | null;
   grade?: string | null;
+  cardNumber?: string | null;
+  serialRun?: number | string | null;
+  isAuto?: boolean | null;
+  isRelic?: boolean | null;
+  gradeQualifier?: string | null;
+  conditionType?: string | null;
   isPublic: boolean;
   held: boolean;
   value: CardValueResult | null | undefined;
@@ -97,10 +111,17 @@ export function cardSnapshotInsert(input: {
     held: input.held,
     player: identity.player,
     year: identity.year,
+    year_label: identity.yearLabel,
     set_name: identity.setName,
     parallel: identity.parallel,
     grade: identity.grade,
     grader: identity.grader,
+    card_number: identity.cardNumber,
+    serial_run: identity.serialRun,
+    is_auto: identity.isAuto,
+    is_relic: identity.isRelic,
+    grade_qualifier: identity.gradeQualifier,
+    condition_type: identity.conditionType,
   };
 }
 

@@ -76,10 +76,10 @@ export function currentValueWeek(now: Date = new Date()): { start: string; end: 
 }
 
 /**
- * End is the latest snapshot on or before today.
- * When that snapshot is not after the previous Sunday, use the prior finished week.
- * Monday before the new snapshot is not a zero-length board, and a missing
- * snapshot today does not close the board.
+ * End is the latest cron-completed snapshot strictly before today.
+ * A same-day /collection visit is not a week end. When that snapshot is not
+ * after the previous Sunday, use the prior finished week. Monday stays on
+ * last week's board until a snapshot from an earlier date exists.
  */
 export function resolveValueWeek(input: {
   today: string;
@@ -87,7 +87,7 @@ export function resolveValueWeek(input: {
 }): { start: string; end: string } {
   const start = previousSunday(input.today);
   const latest =
-    input.latest && /^\d{4}-\d{2}-\d{2}$/.test(input.latest) && input.latest <= input.today
+    input.latest && /^\d{4}-\d{2}-\d{2}$/.test(input.latest) && input.latest < input.today
       ? input.latest
       : null;
   if (!latest || latest <= start) {
