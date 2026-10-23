@@ -9,7 +9,12 @@ import { pathToFileURL } from "node:url";
 import { sanitizeProps } from "@/lib/analytics";
 import { safeNext, signupPath } from "@/lib/auth/safe-next";
 import { buildQueryKey } from "@/lib/comps/query-key";
-import { PublicCardCompsPreview, trackPublicCompsCta } from "@/components/public-card-comps";
+import {
+  PublicCardCompsPreview,
+  PublicCompsPlaceholder,
+  publicCompsGate,
+  trackPublicCompsCta,
+} from "@/components/public-card-comps";
 import { money } from "@/lib/format";
 import { mapCardRow, type CardRow } from "@/lib/social/cards";
 import {
@@ -632,6 +637,52 @@ describe("public comps signup", () => {
     assert.equal(href, `/signup?next=${encodeURIComponent(safeNext(CARD_PATH))}`);
     assert.ok(linked.includes(`href="${href}"`));
     assert.match(linked, /Sign up free to see full history, charts and alerts/);
+    const quiet = renderToStaticMarkup(
+      createElement(PublicCardCompsPreview, { comps, pathname: CARD_PATH, showSignup: false }),
+    );
+    assert.equal(quiet.includes("Sign up free"), false);
+    const placeholder = renderToStaticMarkup(createElement(PublicCompsPlaceholder));
+    assert.equal(placeholder.includes("Sign up free"), false);
+    assert.equal(
+      publicCompsGate({
+        sessionKnown: false,
+        sessionUserId: null,
+        profileUserId: null,
+        soldStatus: "idle",
+      }),
+      "pending",
+    );
+    assert.equal(
+      publicCompsGate({
+        sessionKnown: true,
+        sessionUserId: "user-1",
+        profileUserId: null,
+        soldStatus: "idle",
+      }),
+      "open",
+    );
+    assert.equal(
+      publicCompsGate({
+        sessionKnown: true,
+        sessionUserId: null,
+        profileUserId: null,
+        soldStatus: "idle",
+      }),
+      "required",
+    );
+    assert.equal(
+      publicCompsGate({
+        sessionKnown: false,
+        sessionUserId: null,
+        profileUserId: null,
+        soldStatus: "auth_required",
+      }),
+      "required",
+    );
+    const cardView = readFileSync(join(process.cwd(), "components/public-card-view.tsx"), "utf8");
+    assert.equal(cardView.includes("Sign up free"), false);
+    assert.match(cardView, /publicCompsGate\(/);
+    assert.match(cardView, /<PublicCompsPlaceholder \/>/);
 
     const rejected = renderPreview(comps, "https://evil.example/phish");
     assert.ok(rejected.includes('href="/signup?next=%2F"'));

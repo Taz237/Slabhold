@@ -1,10 +1,15 @@
 import "server-only";
 
 import { notFound } from "next/navigation";
+import { offersColumnMissing } from "@/lib/offers/open-to-offers";
 import { isUuid } from "@/lib/value/card-value-access";
 import { createSupabaseServer } from "@/lib/supabase/server";
+import { loadHiddenAuthorIds } from "@/lib/safety/filters";
+import { mapPublicCard, PUBLIC_CARD_SELECT } from "./cards";
 import { normalizeUsername } from "./local-db";
+import type { OwnedCard, Profile } from "./types";
 import {
+  hiddenOwnerNotFound,
   missingRecordAction,
   postLookupResult,
   profileLookupResult,
@@ -49,31 +54,87 @@ export async function requireProfile(username: string): Promise<void> {
   finish(profileLookupResult({ configured: true, username, error, found }));
 }
 
-/** /u/[username]/cards/[id]. Private or wrong-owner cards are a 404. */
-export async function requirePublicCard(username: string, cardId: string): Promise<void> {
+const PROFILE_COLUMNS =
+  "id, username, display_name, bio, avatar_url, cover_url, accent, created_at";
+
+type ProfileLookupRow = {
+  id: string;
+  username: string;
+  display_name: string;
+  bio: string | null;
+  avatar_url: string | null;
+  cover_url: string | null;
+  accent: string | null;
+  created_at: string;
+};
+
+function mapLookupProfile(row: ProfileLookupRow): Profile {
+  return {
+    id: row.id,
+    email: "",
+    username: row.username,
+    displayName: row.display_name,
+    bio: row.bio ?? "",
+    avatarDataUrl: row.avatar_url,
+    coverDataUrl: row.cover_url ?? null,
+    accent: row.accent ?? "#7c5cff",
+    createdAt: row.created_at,
+  };
+}
+
+export type PublicCardGate = {
+  profile: Profile | null;
+  card: OwnedCard | null;
+};
+
+/** /u/[username]/cards/[id]. Private, wrong-owner, blocked, or hidden cards are a 404. */
+export async function requirePublicCard(
+  username: string,
+  cardId: string,
+): Promise<PublicCardGate> {
   const supabase = await createSupabaseServer();
-  if (!supabase) return;
+  if (!supabase) return { profile: null, card: null };
   const normalized = normalizeUsername(username);
   let profileError = false;
   let cardError = false;
   let profileId: string | null = null;
   let cardOwnerId: string | null = null;
+  let profile: Profile | null = null;
+  let card: OwnedCard | null = null;
+  let viewerId: string | null = null;
   if (normalized && isUuid(cardId)) {
-    const profile = await supabase
-      .from("profiles")
-      .select("id")
-      .eq("username", normalized)
-      .maybeSingle();
-    profileError = Boolean(profile.error);
-    profileId = (profile.data?.id as string | undefined) ?? null;
-    if (profileId && !profileError) {
-      const card = await supabase
+    const [profileRes, cardFirst, userRes] = await Promise.all([
+      supabase.from("profiles").select(PROFILE_COLUMNS).eq("username", normalized).maybeSingle(),
+      supabase
         .from("public_cards")
-        .select("id, user_id")
+        .select(`${PUBLIC_CARD_SELECT}, open_to_offers`)
+        .eq("id", cardId)
+        .maybeSingle(),
+      supabase.auth.getUser(),
+    ]);
+    let cardRes = cardFirst;
+    if (offersColumnMissing(cardRes.error)) {
+      cardRes = await supabase
+        .from("public_cards")
+        .select(PUBLIC_CARD_SELECT)
         .eq("id", cardId)
         .maybeSingle();
-      cardError = Boolean(card.error);
-      cardOwnerId = (card.data?.user_id as string | undefined) ?? null;
+    }
+    profileError = Boolean(profileRes.error);
+    profileId = (profileRes.data?.id as string | undefined) ?? null;
+    if (profileRes.data && !profileError) {
+      profile = mapLookupProfile(profileRes.data as ProfileLookupRow);
+    }
+    cardError = Boolean(cardRes.error);
+    cardOwnerId = (cardRes.data?.user_id as string | undefined) ?? null;
+    if (cardRes.data && !cardError && profileId && cardOwnerId === profileId) {
+      card = mapPublicCard(cardRes.data);
+    }
+    viewerId = userRes.data.user?.id ?? null;
+    const hiddenAuthorIds =
+      viewerId && profileId ? await loadHiddenAuthorIds(supabase, false) : [];
+    if (hiddenOwnerNotFound({ viewerId, ownerId: profileId, hiddenAuthorIds })) {
+      notFound();
     }
   }
   finish(
@@ -87,4 +148,5 @@ export async function requirePublicCard(username: string, cardId: string): Promi
       cardOwnerId,
     }),
   );
+  return { profile, card };
 }

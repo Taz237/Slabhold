@@ -114,9 +114,14 @@ import type {
 } from "@/lib/social/types";
 import { draftPostPhotos, type PostWrite } from "@/lib/social/post-photos";
 import { profileReplies, profileWithPin } from "@/lib/social/profile-tabs";
+import { shouldSkipSocialSnapshot, withSessionTimeout } from "@/lib/auth/shell-paint";
 
 type SocialContextValue = {
   ready: boolean;
+  /** True after the local session read finishes. The shell does not wait on the snapshot. */
+  sessionKnown: boolean;
+  /** Auth user id from getSession, before the profile row is loaded. */
+  sessionUserId: string | null;
   /** True after the site snapshot is in memory. A cold post page leaves this false. */
   hasFullSnapshot: boolean;
   /** Set while a post screen is fetching a post that is not in memory yet. */
@@ -179,6 +184,8 @@ type SocialContextValue = {
   homePosts: Post[];
   homeReposts: PostRepost[];
   blockedIds: string[];
+  /** hidden_author_ids for this viewer. Not "missing from profiles". */
+  hiddenAuthorIds: string[];
   mutedIds: string[];
   safetyAccounts: Profile[];
   applySafetyChange: (change: {
@@ -238,6 +245,8 @@ const emptySnapshot: SocialSnapshot = {
 export function SocialProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() || "/";
   const [ready, setReady] = useState(false);
+  const [sessionKnown, setSessionKnown] = useState(false);
+  const [sessionUserId, setSessionUserId] = useState<string | null>(null);
   const [loadingPostId, setLoadingPostId] = useState<string | null>(null);
   const [resolvedPostId, setResolvedPostId] = useState<string | null>(null);
   const [hasFullSnapshot, setHasFullSnapshot] = useState(false);
@@ -267,12 +276,21 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
   const inflightRef = useRef(new Map<string, Promise<unknown>>());
   const reloadRef = useRef<(client: SupabaseClient) => Promise<void>>(async () => {});
   const lastUserIdRef = useRef<string | null>(null);
+  const sessionKnownRef = useRef(false);
   localRef.current = local;
+
+  useEffect(() => {
+    sessionKnownRef.current = sessionKnown;
+  }, [sessionKnown]);
 
   const routePostId = postIdFromPath(pathname);
   const routePostKnown =
     routePostId !== null && remote.posts.some((post) => post.id === routePostId);
-  if (mode === "supabase" && !routePostId && !hasFullSnapshot && !snapshotError && ready) {
+  if (
+    mode === "supabase" &&
+    !routePostId && !hasFullSnapshot && !snapshotError && ready &&
+    !shouldSkipSocialSnapshot({ pathname, sessionKnown, sessionUserId })
+  ) {
     setReady(false);
   }
   if (resolvedPostId && resolvedPostId !== routePostId) {
@@ -346,7 +364,21 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     reloadRef.current = async (client) => {
-      const id = postIdFromPath(window.location.pathname);
+      const path = window.location.pathname;
+      if (
+        shouldSkipSocialSnapshot({
+          pathname: path,
+          sessionKnown: sessionKnownRef.current,
+          sessionUserId: lastUserIdRef.current,
+        })
+      ) {
+        fullSnapshotRef.current = false;
+        setHasFullSnapshot(false);
+        setRemote(emptySnapshot);
+        setReady(true);
+        return;
+      }
+      const id = postIdFromPath(path);
       if (id && !fullSnapshotRef.current) {
         const page = await loadPostPage(client, id);
         applyPostPage(page);
@@ -363,6 +395,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
     if (!client) {
       const { issue } = getSupabaseConfig();
       if (issue) setStatus(issue);
+      setSessionKnown(true);
       loadOrCreateLocalDb().then((db) => {
         if (cancelled) return;
         setMode("local");
@@ -380,33 +413,62 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
     // SIGNED_IN also fires on load and whenever a tab becomes visible. Remember the
     // session user first so those repeats do not reload public_cards.
     let unsubscribe = () => {};
-    void client.auth
-      .getSession()
-      .then(({ data: sessionData }) => {
-        if (!cancelled) lastUserIdRef.current = sessionData.session?.user?.id ?? null;
-      })
-      .finally(() => {
-        if (cancelled) return;
-        const { data } = client.auth.onAuthStateChange((event, session) => {
-          if (event !== "SIGNED_IN" && event !== "SIGNED_OUT") return;
-          const decision = authSnapshotReload({
-            event,
-            nextUserId: session?.user?.id ?? null,
-            lastUserId: lastUserIdRef.current,
-          });
-          lastUserIdRef.current = decision.lastUserId;
-          if (!decision.reload) return;
-          setTimeout(() => {
-            void reloadRef
-              .current(client)
-              .then(() => setStatus(null))
-              .catch((error: unknown) => {
-                setStatus(error instanceof Error ? error.message : "Could not reach Supabase.");
-              });
-          }, 0);
+    let listenAttached = false;
+    let sessionApplied = false;
+    const reloadSession = () => {
+      void reloadRef
+        .current(client)
+        .then(() => setStatus(null))
+        .catch((error: unknown) => {
+          setStatus(error instanceof Error ? error.message : "Could not reach Supabase.");
         });
-        unsubscribe = () => data.subscription.unsubscribe();
+    };
+    const applySession = (id: string | null) => {
+      const changed = sessionApplied && lastUserIdRef.current !== id;
+      sessionApplied = true;
+      lastUserIdRef.current = id;
+      setSessionUserId(id);
+      setSessionKnown(true);
+      return changed;
+    };
+    const attachListener = () => {
+      if (cancelled || listenAttached) return;
+      listenAttached = true;
+      const { data } = client.auth.onAuthStateChange((event, session) => {
+        if (event !== "SIGNED_IN" && event !== "SIGNED_OUT") return;
+        const decision = authSnapshotReload({
+          event,
+          nextUserId: session?.user?.id ?? null,
+          lastUserId: lastUserIdRef.current,
+        });
+        lastUserIdRef.current = decision.lastUserId;
+        setSessionUserId(decision.lastUserId);
+        if (!decision.reload) return;
+        setTimeout(() => reloadSession(), 0);
       });
+      unsubscribe = () => data.subscription.unsubscribe();
+    };
+    const readSession = client.auth.getSession();
+    void withSessionTimeout(readSession).then((timed) => {
+      if (cancelled) return;
+      if (!timed) {
+        applySession(null);
+        attachListener();
+        void readSession
+          .then(({ data: sessionData }) => {
+            if (cancelled) return;
+            const id = sessionData.session?.user?.id ?? null;
+            if (!applySession(id)) return;
+            reloadSession();
+          })
+          .catch(() => {
+            // The timeout already painted the guest shell.
+          });
+        return;
+      }
+      applySession(timed.data.session?.user?.id ?? null);
+      attachListener();
+    });
 
     return () => {
       cancelled = true;
@@ -1154,6 +1216,18 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
     };
 
     if (!postId) {
+      // The signed-out landing page has no feed. Don't download the site snapshot.
+      if (
+        shouldSkipSocialSnapshot({
+          pathname,
+          sessionKnown,
+          sessionUserId: lastUserIdRef.current,
+        })
+      ) {
+        setReady(true);
+        return;
+      }
+      if (!sessionKnown) return;
       // public_cards is part of this snapshot. Load it once per mount.
       if (!shouldFetchPublicCatalog({ loaded: fullSnapshotRef.current, source: "mount" })) return;
       // Home and the rest of the app still need the snapshot. Don't paint the
@@ -1225,7 +1299,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
         setLoadingPostId((current) => (current === postId ? null : current));
         setReady(true);
       });
-  }, [applyPostPage, mode, pathname, refreshRemote]);
+  }, [applyPostPage, mode, pathname, refreshRemote, sessionKnown]);
 
   const isLiked = useCallback(
     (postId: string) =>
@@ -1574,6 +1648,8 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
   const value = useMemo<SocialContextValue>(
     () => ({
       ready,
+      sessionKnown,
+      sessionUserId,
       hasFullSnapshot,
       loadingPostId,
       mode,
@@ -1610,6 +1686,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       homePosts,
       homeReposts,
       blockedIds,
+      hiddenAuthorIds: snapshot.hiddenAuthorIds ?? [],
       mutedIds,
       safetyAccounts,
       applySafetyChange,
@@ -1640,6 +1717,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       addComment,
       applySafetyChange,
       blockedIds,
+      snapshot.hiddenAuthorIds,
       commentsFor,
       markNotificationsRead,
       markThreadRead,
@@ -1679,6 +1757,8 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       postCardValuesLoading,
       postCardValuesMessage,
       ready,
+      sessionKnown,
+      sessionUserId,
       refresh,
       refreshSuggestions,
       signIn,

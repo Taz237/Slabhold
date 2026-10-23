@@ -16,12 +16,45 @@ export function trackPublicCompsCta(send?: AnalyticsSender): void {
   trackEvent("signup_started", { source: "card_comps" }, send);
 }
 
+/**
+ * Signup copy only after the session is known to be signed out.
+ * Before that, and for a signed-in viewer, the card shows a placeholder or the live comps.
+ */
+export function publicCompsGate(input: {
+  sessionKnown: boolean;
+  sessionUserId: string | null;
+  profileUserId: string | null;
+  soldStatus: string;
+}): "pending" | "required" | "open" {
+  if (input.soldStatus === "auth_required") return "required";
+  if (!input.sessionKnown) return "pending";
+  if (input.sessionUserId || input.profileUserId) return "open";
+  return "required";
+}
+
+/** Neutral comps block. No signup link, so a signed-in first paint cannot flash one. */
+export function PublicCompsPlaceholder() {
+  return (
+    <div className="mt-3 space-y-3" aria-busy="true">
+      {Array.from({ length: 4 }, (_, index) => (
+        <div
+          key={index}
+          className="h-12 animate-pulse rounded-xl bg-zinc-100 dark:bg-white/5"
+        />
+      ))}
+    </div>
+  );
+}
+
 export function PublicCardCompsPreview({
   comps,
   pathname,
+  showSignup = true,
 }: {
   comps: PublicCardComps;
   pathname: string;
+  /** Guest CTA. False keeps the sales list and omits the signup link. */
+  showSignup?: boolean;
 }) {
   const verdict = publicCompsVerdict(comps);
   if (verdict.kind === "hidden") return null;
@@ -78,13 +111,17 @@ export function PublicCardCompsPreview({
         <p className="mt-3 text-[11px] text-zinc-400">{verdict.credit}</p>
       ) : null}
 
-      <Link
-        href={href}
-        onClick={() => trackPublicCompsCta()}
-        className="mt-4 flex min-h-11 w-full items-center justify-center rounded-full bg-[#7C3AED] px-4 text-center text-sm font-bold text-white"
-      >
-        Sign up free to see full history, charts and alerts
-      </Link>
+      {showSignup ? (
+        <Link
+          href={href}
+          onClick={() => trackPublicCompsCta()}
+          className="mt-4 flex min-h-11 w-full items-center justify-center rounded-full bg-[#7C3AED] px-4 text-center text-sm font-bold text-white"
+        >
+          Sign up free to see full history, charts and alerts
+        </Link>
+      ) : (
+        <PublicCompsPlaceholder />
+      )}
     </div>
   );
 }

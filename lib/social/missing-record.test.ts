@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { join } from "node:path";
 import {
+  hiddenOwnerNotFound,
   missingRecordAction,
   postLookupResult,
   profileLookupResult,
@@ -95,6 +96,25 @@ describe("missing record 404", () => {
       }),
       "found",
     );
+
+    const owner = "11111111-1111-4111-8111-111111111111";
+    const viewer = "22222222-2222-4222-8222-222222222222";
+    assert.equal(
+      hiddenOwnerNotFound({ viewerId: viewer, ownerId: owner, hiddenAuthorIds: [owner] }),
+      true,
+    );
+    assert.equal(
+      hiddenOwnerNotFound({ viewerId: null, ownerId: owner, hiddenAuthorIds: [owner] }),
+      false,
+    );
+    assert.equal(
+      hiddenOwnerNotFound({ viewerId: viewer, ownerId: owner, hiddenAuthorIds: [] }),
+      false,
+    );
+    assert.equal(
+      hiddenOwnerNotFound({ viewerId: viewer, ownerId: null, hiddenAuthorIds: [owner] }),
+      false,
+    );
   });
 
   it("dynamic card, post, and profile pages call notFound before rendering a miss", () => {
@@ -102,7 +122,7 @@ describe("missing record 404", () => {
     callsBefore("app/u/[username]/page.tsx", "await requireProfile(username)", "<ProfileView");
     callsBefore(
       "app/u/[username]/cards/[id]/page.tsx",
-      "await requirePublicCard(username, id)",
+      "requirePublicCard(username, id)",
       "<PublicCardView",
     );
     callsBefore(
@@ -128,5 +148,19 @@ describe("missing record 404", () => {
     const requireRecord = read("lib/social/require-record.ts");
     assert.match(requireRecord, /notFound\(\)/);
     assert.match(requireRecord, /missingRecordAction\(/);
+    assert.match(requireRecord, /offersColumnMissing\(cardRes\.error\)/);
+    assert.match(requireRecord, /select\(PUBLIC_CARD_SELECT\)/);
+    assert.match(requireRecord, /Promise\.all\(\[/);
+    assert.match(requireRecord, /loadHiddenAuthorIds\(supabase, false\)/);
+    const hiddenAt = requireRecord.indexOf("hiddenOwnerNotFound(");
+    const notFoundAt = requireRecord.indexOf("notFound()", hiddenAt);
+    const returnAt = requireRecord.indexOf("return { profile, card }");
+    assert.ok(hiddenAt > 0 && notFoundAt > hiddenAt && returnAt > notFoundAt);
+    const cardPage = read("app/u/[username]/cards/[id]/page.tsx");
+    const requireAt = cardPage.indexOf("await requirePublicCard(username, id)");
+    const compsAt = cardPage.indexOf("getPublicCardComps(id)");
+    const peopleAt = cardPage.indexOf("loadCardPeople(id)");
+    assert.ok(requireAt > 0 && requireAt < compsAt && requireAt < peopleAt);
+    assert.doesNotMatch(cardPage, /Promise\.all\(\[\s*requirePublicCard/);
   });
 });
