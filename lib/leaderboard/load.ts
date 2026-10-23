@@ -100,16 +100,25 @@ function mapCard(row: Row): BoardCard | null {
   const id = text(row.id);
   const userId = text(row.user_id);
   if (!id || !userId) return null;
+  const yearRaw = row.year;
+  const year = typeof yearRaw === "number" ? yearRaw : Number(yearRaw);
   return {
     id,
     userId,
     isPublic: row.is_public === true,
     player: text(row.player),
+    year: Number.isFinite(year) ? year : 0,
+    setName: text(row.set),
+    parallel: text(row.parallel),
+    imageUrl: text(row.image_url) || null,
+    createdAt: text(row.created_at),
+    hidden: false,
+    deleted: false,
   };
 }
 
-async function readInput(admin: Admin, startIso: string, endIso: string): Promise<ScoreInput> {
-  const [replyRows, followRows, blockRows] = await Promise.all([
+async function readInput(admin: Admin, startIso: string, endIso: string): Promise<Omit<ScoreInput, "now">> {
+  const [replyRows, followRows, blockRows, addedCardRows] = await Promise.all([
     pageRows(admin, "comments", "id, user_id, post_id, created_at", ["id"], (query) =>
       query.gte("created_at", startIso).lt("created_at", endIso),
     ),
@@ -121,6 +130,13 @@ async function readInput(admin: Admin, startIso: string, endIso: string): Promis
       (query) => query.gte("created_at", startIso).lt("created_at", endIso),
     ),
     pageRows(admin, "blocks", "blocker_id, blocked_id", ["blocker_id", "blocked_id"], (query) => query),
+    pageRows(
+      admin,
+      "cards",
+      "id, user_id, player, year, set, parallel, image_url, is_public, created_at",
+      ["created_at", "id"],
+      (query) => query.gte("created_at", startIso).lt("created_at", endIso),
+    ),
   ]);
 
   const mappedReplies: BoardReply[] = [];
@@ -136,6 +152,8 @@ async function readInput(admin: Admin, startIso: string, endIso: string): Promis
       postId,
       createdAt,
       undone: false,
+      hidden: false,
+      deleted: false,
     });
   }
 
@@ -163,7 +181,7 @@ async function readInput(admin: Admin, startIso: string, endIso: string): Promis
   const postRows = await rowsIn(
     admin,
     "posts",
-    "id, user_id, content, hidden_at, post_type, attached_card_id:card->>id",
+    "id, user_id, content, hidden_at, post_type, created_at, attached_card_id:card->>id",
     "id",
     [...postIds],
   );
@@ -191,6 +209,7 @@ async function readInput(admin: Admin, startIso: string, endIso: string): Promis
         deleted: false,
         cardIds: cardIdList(row, linksByPost.get(id) ?? []),
         postType: text(row.post_type) === "mail_day" ? "mail_day" : "post",
+        createdAt: text(row.created_at),
       },
     ];
   });
@@ -203,6 +222,10 @@ async function readInput(admin: Admin, startIso: string, endIso: string): Promis
   const personIds = new Set<string>(actorIds);
   for (const follow of mappedFollows) personIds.add(follow.followingId);
   for (const post of posts) personIds.add(post.authorId);
+  for (const row of addedCardRows) {
+    const userId = text(row.user_id);
+    if (userId) personIds.add(userId);
+  }
 
   const cardIds = posts.flatMap((post) => post.cardIds);
   const [profileRows, attachedCards, cardOwners, actorPosts] = await Promise.all([
@@ -239,10 +262,26 @@ async function readInput(admin: Admin, startIso: string, endIso: string): Promis
     const card = mapCard(row);
     if (card) cards.set(card.id, card);
   }
+  for (const row of addedCardRows) {
+    const card = mapCard(row);
+    if (card) cards.set(card.id, card);
+  }
   const owners = new Set([...cards.values()].map((card) => card.userId));
   for (const userId of cardOwners) {
     if (owners.has(userId)) continue;
-    cards.set(`exists:${userId}`, { id: `exists:${userId}`, userId, isPublic: false, player: "" });
+    cards.set(`exists:${userId}`, {
+      id: `exists:${userId}`,
+      userId,
+      isPublic: false,
+      player: "",
+      year: 0,
+      setName: "",
+      parallel: "",
+      imageUrl: null,
+      createdAt: "",
+      hidden: false,
+      deleted: false,
+    });
   }
 
   const usersWithPost = new Set<string>();
@@ -271,7 +310,8 @@ async function readSnapshot(weekStart: Date): Promise<LeaderboardSnapshot> {
   const current = weekContaining(weekStart);
   const previous = previousWeek(weekStart);
   const input = await readInput(admin as unknown as Admin, previous.start.toISOString(), current.end.toISOString());
-  return snapshotFromInput(input, weekStart);
+  const scoredAt = new Date();
+  return snapshotFromInput({ ...input, now: weekStart }, weekStart, scoredAt);
 }
 
 /**

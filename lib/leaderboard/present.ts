@@ -2,10 +2,12 @@ import {
   BOARD_ERROR_DETAIL,
   BOARD_ERROR_TITLE,
   CLOSED_NOTE,
+  EMPTY_BOARD_TITLE,
   FINAL_LABEL,
   LAST_WEEK_LABEL,
   LAST_WEEK_DESCRIPTION,
   LEADERBOARD_DESCRIPTION,
+  MOST_CARDS_LEAD_LAST_WEEK,
   RISING_LEAD_LAST_WEEK,
   LEADERBOARD_MIN_ENTRIES,
   LEADERBOARD_TABS,
@@ -13,8 +15,8 @@ import {
   LEADERBOARD_TOP_LIMIT,
   PROVISIONAL_LABEL,
   THIS_WEEK_LABEL,
-  THIN_BOARD_TITLE,
   YOU_LABEL,
+  boardCallToAction,
   leaderboardHref,
   scoreUnit,
   leaderboardTab,
@@ -34,6 +36,8 @@ export type RankedEntry = {
   avatarUrl: string | null;
   accent: string;
   scoreLabel: string;
+  /** True when this user was not on the same board last week. */
+  isNew: boolean;
 };
 
 export type YouRow = {
@@ -44,6 +48,9 @@ export type YouRow = {
   href: string;
   scoreLabel: string;
   label: string;
+  gap: string;
+  ctaLabel: string | null;
+  ctaHref: string | null;
 };
 
 export type LeaderboardWeekSlice = {
@@ -101,12 +108,44 @@ function scoreOf(contributions: readonly Contribution[], hidden: ReadonlySet<str
   return total;
 }
 
+function rivalHandle(entry: RankedEntry): string {
+  const subtitle = entry.subtitle.trim();
+  if (subtitle.startsWith("@")) return subtitle;
+  const title = entry.title.trim().replace(/^@/, "");
+  return title ? `@${title}` : "the next spot";
+}
+
+function gapLine(need: number, scoreLabel: string, handle: string, reachTopTen: boolean): string {
+  const unit = scoreUnit(scoreLabel, need);
+  if (reachTopTen) return `${need} more ${unit} to reach the top 10`;
+  return `${need} more ${unit} to pass ${handle}`;
+}
+
+function unrankedYou(boardId: string, week: "current" | "previous", scoreLabel: string): YouRow {
+  const cta = boardCallToAction(boardId, week);
+  return {
+    rank: 0,
+    score: 0,
+    title: "Not ranked",
+    subtitle: "",
+    href: cta.href,
+    scoreLabel,
+    label: "Your rank",
+    gap: cta.step,
+    ctaLabel: cta.label,
+    ctaHref: cta.href,
+  };
+}
+
 export function rankBoard(
   rows: readonly CandidateRow[],
   hiddenIds: readonly string[],
   viewerId: string | null,
   scoreLabel: string,
+  options?: { boardId?: string; week?: "current" | "previous" },
 ): { entries: RankedEntry[]; you: YouRow | null; thin: boolean } {
+  const boardId = options?.boardId ?? "top-card-post";
+  const week = options?.week ?? "current";
   const hidden = new Set(hiddenIds);
   if (viewerId) hidden.delete(viewerId);
   const ranked: RankedEntry[] = [];
@@ -125,24 +164,18 @@ export function rankBoard(
       avatarUrl: row.avatarUrl,
       accent: row.accent,
       scoreLabel: scoreUnit(scoreLabel, score),
+      isNew: false,
     });
   }
   ranked.sort((a, b) => b.score - a.score || a.title.localeCompare(b.title) || a.id.localeCompare(b.id));
   ranked.forEach((row, index) => {
     row.rank = index + 1;
   });
-  if (ranked.length < LEADERBOARD_MIN_ENTRIES) {
-    return { entries: [], you: null, thin: true };
-  }
-  let you: YouRow | null = null;
-  if (viewerId) {
-    const mine = ranked.filter((row) => row.userId === viewerId);
-    const best = mine.reduce<RankedEntry | null>(
-      (pick, row) => (pick == null || row.rank < pick.rank ? row : pick),
-      null,
-    );
-    if (best) {
-      you = {
+  const youFor = (best: RankedEntry | null): YouRow | null => {
+    if (!viewerId) return null;
+    if (!best) return unrankedYou(boardId, week, scoreLabel);
+    if (best.rank === 1) {
+      return {
         rank: best.rank,
         score: best.score,
         title: best.title,
@@ -150,10 +183,65 @@ export function rankBoard(
         href: best.href,
         scoreLabel: best.scoreLabel,
         label: `${YOU_LABEL}: #${best.rank}`,
+        gap: "You're in the top spot",
+        ctaLabel: null,
+        ctaHref: null,
       };
     }
+    const reachTopTen = best.rank > LEADERBOARD_TOP_LIMIT;
+    const ahead = reachTopTen ? ranked[LEADERBOARD_TOP_LIMIT - 1] : ranked[best.rank - 2];
+    const need = ahead ? Math.max(1, ahead.score - best.score) : 1;
+    return {
+      rank: best.rank,
+      score: best.score,
+      title: best.title,
+      subtitle: best.subtitle,
+      href: best.href,
+      scoreLabel: best.scoreLabel,
+      label: `${YOU_LABEL}: #${best.rank}`,
+      gap: ahead ? gapLine(need, scoreLabel, rivalHandle(ahead), reachTopTen) : "",
+      ctaLabel: null,
+      ctaHref: null,
+    };
+  };
+  const best = bestForViewer(ranked, viewerId);
+  if (ranked.length < LEADERBOARD_MIN_ENTRIES) {
+    return { entries: [], you: thinViewerYou(best, boardId, week, scoreLabel, viewerId), thin: true };
   }
-  return { entries: ranked.slice(0, LEADERBOARD_TOP_LIMIT), you, thin: false };
+  return { entries: ranked.slice(0, LEADERBOARD_TOP_LIMIT), you: youFor(best), thin: false };
+}
+
+function bestForViewer(ranked: readonly RankedEntry[], viewerId: string | null): RankedEntry | null {
+  if (!viewerId) return null;
+  let best: RankedEntry | null = null;
+  for (const row of ranked) {
+    if (row.userId !== viewerId) continue;
+    if (best == null || row.rank < best.rank) best = row;
+  }
+  return best;
+}
+
+function thinViewerYou(
+  best: RankedEntry | null,
+  boardId: string,
+  week: "current" | "previous",
+  scoreLabel: string,
+  viewerId: string | null,
+): YouRow | null {
+  if (!viewerId) return null;
+  if (!best || best.score <= 0) return unrankedYou(boardId, week, scoreLabel);
+  return {
+    rank: 0,
+    score: best.score,
+    title: best.title,
+    subtitle: best.subtitle,
+    href: best.href,
+    scoreLabel: best.scoreLabel,
+    label: `${YOU_LABEL}: ${best.score} ${best.scoreLabel}`,
+    gap: "",
+    ctaLabel: null,
+    ctaHref: null,
+  };
 }
 
 export function presentLeaderboard(input: {
@@ -177,7 +265,19 @@ export function presentLeaderboard(input: {
     input.now,
   );
   const board = slice.boards[tab.id];
-  const ranked = rankBoard(board?.rows ?? [], input.viewer.hiddenIds, input.viewer.userId, tab.scoreLabel);
+  const ranked = rankBoard(board?.rows ?? [], input.viewer.hiddenIds, input.viewer.userId, tab.scoreLabel, {
+    boardId: tab.id,
+    week: input.week,
+  });
+  const priorUsers = new Set(
+    input.week === "current"
+      ? (input.snapshot.previous.boards[tab.id]?.rows ?? []).map((row) => row.userId)
+      : [],
+  );
+  const entries = ranked.entries.map((entry) => ({
+    ...entry,
+    isNew: input.week === "current" && !priorUsers.has(entry.userId),
+  }));
   const countdown = countdownTo(new Date(input.snapshot.current.end), input.now);
   return {
     title: LEADERBOARD_TITLE,
@@ -214,12 +314,14 @@ export function presentLeaderboard(input: {
     errorDetail: "",
     standingNote: standing === FINAL_LABEL ? CLOSED_NOTE : null,
     thin: ranked.thin,
-    thinTitle: THIN_BOARD_TITLE,
+    thinTitle: EMPTY_BOARD_TITLE,
     thinDetail:
       tab.id === "rising-collectors" && input.week === "previous"
         ? RISING_LEAD_LAST_WEEK
-        : (tab.howTo[0] ?? THIN_BOARD_TITLE),
-    entries: ranked.entries,
+        : tab.id === "most-cards-added" && input.week === "previous"
+          ? MOST_CARDS_LEAD_LAST_WEEK
+          : (tab.howTo[0] ?? EMPTY_BOARD_TITLE),
+    entries,
     you: ranked.you,
     howTo: LEADERBOARD_TABS.map((item) => ({
       id: item.id,

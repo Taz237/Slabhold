@@ -4,10 +4,11 @@ import { isTestAccount, normalizeAccountHandle } from "@/lib/test-accounts";
 import {
   ACTOR_MIN_AGE_DAYS,
   ACTOR_MIN_CONTENT,
+  DAILY_CARD_CAP,
   OFFICIAL_UPDATES_HANDLE,
   type LeaderboardBoardId,
 } from "./rules";
-import { inWeek, type WeekWindow } from "./week";
+import { inWeek, isoDate, zonedParts, type WeekWindow } from "./week";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -30,6 +31,7 @@ export type BoardPost = {
   /** Card ids attached on the post. Mail Day posts are not scored. */
   cardIds: string[];
   postType: "post" | "mail_day";
+  createdAt: string;
 };
 
 export type BoardCard = {
@@ -37,6 +39,13 @@ export type BoardCard = {
   userId: string;
   isPublic: boolean;
   player: string;
+  year: number;
+  setName: string;
+  parallel: string;
+  imageUrl: string | null;
+  createdAt: string;
+  hidden: boolean;
+  deleted: boolean;
 };
 
 export type BoardLike = {
@@ -53,6 +62,9 @@ export type BoardReply = {
   postId: string;
   createdAt: string;
   undone: boolean;
+  /** Hidden replies do not count. Deleted rows never reach the loader. */
+  hidden: boolean;
+  deleted: boolean;
 };
 
 export type BoardFollow = {
@@ -82,6 +94,8 @@ export type ScoreInput = {
   follows: readonly BoardFollow[];
   /** Either direction. A pair drops replies and follows between those two accounts. */
   blockPairs: readonly BlockPair[];
+  /** Snapshot time. A card created after this does not count. */
+  now: Date;
 };
 
 /**
@@ -205,8 +219,9 @@ function contributionsFrom(bucket: Map<string, number>): Contribution[] {
   return rows;
 }
 
-function postQualifies(post: BoardPost, index: ActorIndex): BoardCard | null {
+function postQualifies(post: BoardPost, index: ActorIndex, week: WeekWindow): BoardCard | null {
   if (post.deleted || post.hiddenAt || post.postType === "mail_day") return null;
+  if (!post.createdAt || !inWeek(new Date(post.createdAt), week)) return null;
   for (const cardId of post.cardIds) {
     const card = index.publicCards.get(cardId);
     if (card) return card;
@@ -233,18 +248,18 @@ function scorePosts(input: ScoreInput, week: WeekWindow, index: ActorIndex): Can
     const post = posts.get(like.postId);
     if (!post || like.actorId === post.authorId) continue;
     if (blockedPair(index, like.actorId, post.authorId)) continue;
-    if (!postQualifies(post, index)) continue;
+    if (!postQualifies(post, index, week)) continue;
     if (!actorQualifies(index, like.actorId, like.createdAt)) continue;
     note(post.id, like.actorId);
   }
 
   for (const reply of input.replies) {
-    if (reply.undone || !reply.actorId || !reply.postId) continue;
+    if (reply.undone || reply.hidden || reply.deleted || !reply.actorId || !reply.postId) continue;
     if (!inWeek(new Date(reply.createdAt), week)) continue;
     const post = posts.get(reply.postId);
     if (!post || reply.actorId === post.authorId) continue;
     if (blockedPair(index, reply.actorId, post.authorId)) continue;
-    if (!postQualifies(post, index)) continue;
+    if (!postQualifies(post, index, week)) continue;
     if (!actorQualifies(index, reply.actorId, reply.createdAt)) continue;
     note(post.id, reply.actorId);
   }
@@ -254,8 +269,8 @@ function scorePosts(input: ScoreInput, week: WeekWindow, index: ActorIndex): Can
     const post = posts.get(postId);
     if (!post) continue;
     const author = entrantOk(index, post.authorId);
-    if (!author) continue;
-    const card = postQualifies(post, index);
+    if (!author || isOfficialEntrant(author)) continue;
+    const card = postQualifies(post, index, week);
     if (!card) continue;
     const list = [...set].map((actorId) => ({ actorId, points: 1 }));
     if (list.length === 0) continue;
@@ -339,11 +354,115 @@ function scoreRising(input: ScoreInput, week: WeekWindow, index: ActorIndex): Ca
   return rows;
 }
 
+function normLabel(value: string): string {
+  return value.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+/** Pathname of a card photo that counts, or null. Dedupe uses this pathname. */
+function realPhoto(url: string | null, userId: string): string | null {
+  const owner = userId.trim();
+  const raw = url?.trim() ?? "";
+  if (!raw || !owner) return null;
+  const lowered = raw.toLowerCase();
+  if (lowered.includes("..") || lowered.includes("%2e") || lowered.includes("%2f") || lowered.includes("%25")) {
+    return null;
+  }
+  let origin: string;
+  try {
+    origin = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL!.trim()).origin;
+  } catch {
+    return null;
+  }
+  let parsed: URL;
+  try {
+    parsed = new URL(raw);
+  } catch {
+    return null;
+  }
+  if (parsed.origin !== origin || parsed.search || parsed.hash) return null;
+  const prefix = `/storage/v1/object/public/card-photos/${owner}/`;
+  if (!parsed.pathname.startsWith(prefix)) return null;
+  return parsed.pathname;
+}
+
+function parallelKey(value: string): string {
+  const label = normLabel(value);
+  if (label === "" || label === "base") return "base";
+  return label;
+}
+
+function cardIdentity(card: BoardCard): string {
+  return [normLabel(card.player), String(card.year), normLabel(card.setName), parallelKey(card.parallel)].join("\0");
+}
+
+function cardDay(createdAt: string): string {
+  const parts = zonedParts(new Date(createdAt));
+  return isoDate(parts.year, parts.month, parts.day);
+}
+
+function scoreCards(input: ScoreInput, week: WeekWindow, index: ActorIndex): CandidateRow[] {
+  const byUser = new Map<string, BoardCard[]>();
+  for (const card of input.cards) {
+    if (!card.userId || card.id.startsWith("exists:")) continue;
+    if (!card.isPublic || card.hidden || card.deleted) continue;
+    if (!realPhoto(card.imageUrl, card.userId)) continue;
+    const createdMs = Date.parse(card.createdAt);
+    if (!card.createdAt || !Number.isFinite(createdMs) || createdMs > input.now.getTime()) continue;
+    if (!inWeek(new Date(createdMs), week)) continue;
+    if (!actorQualifies(index, card.userId, card.createdAt)) continue;
+    const profile = entrantOk(index, card.userId);
+    if (!profile || isOfficialEntrant(profile)) continue;
+    const list = byUser.get(card.userId) ?? [];
+    list.push(card);
+    byUser.set(card.userId, list);
+  }
+
+  const rows: CandidateRow[] = [];
+  for (const [userId, list] of byUser) {
+    const profile = index.profiles.get(userId);
+    if (!profile) continue;
+    const ordered = [...list].sort(
+      (a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id),
+    );
+    const seen = new Set<string>();
+    const seenPhotos = new Set<string>();
+    const perDay = new Map<string, number>();
+    let count = 0;
+    for (const card of ordered) {
+      const photo = realPhoto(card.imageUrl, card.userId);
+      if (!photo || seenPhotos.has(photo)) continue;
+      const key = cardIdentity(card);
+      if (seen.has(key)) continue;
+      const day = cardDay(card.createdAt);
+      const used = perDay.get(day) ?? 0;
+      if (used >= DAILY_CARD_CAP) continue;
+      seenPhotos.add(photo);
+      seen.add(key);
+      perDay.set(day, used + 1);
+      count += 1;
+    }
+    if (count === 0) continue;
+    const name = profile.displayName.trim() || profile.username;
+    rows.push({
+      id: profile.id,
+      userId: profile.id,
+      title: name,
+      subtitle: handleOf(profile),
+      href: profileHref(profile),
+      avatarUrl: profile.avatarUrl,
+      accent: profile.accent || "#2dd4bf",
+      contributions: [{ actorId: userId, points: count }],
+    });
+  }
+  return rows;
+}
+
 /** Qualified rows for one week. Scores are summed later, after the viewer filter. */
 export function buildWeekBoards(input: ScoreInput, week: WeekWindow): WeekBoards {
   const index = indexInput(input);
   return {
     "top-card-post": { rows: scorePosts(input, week, index) },
     "rising-collectors": { rows: scoreRising(input, week, index) },
+    "most-cards-added": { rows: scoreCards(input, week, index) },
   };
 }

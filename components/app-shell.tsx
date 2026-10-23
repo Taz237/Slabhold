@@ -211,7 +211,13 @@ function Shell({
                   }`}
                 >
                   <span className="relative">
-                    <Icon className="h-5 w-5" />
+                    <Icon
+                      className={`h-5 w-5 ${
+                        active && tab.href === "/leaderboard"
+                          ? "text-violet-400 drop-shadow-[0_0_8px_rgba(167,139,250,0.95)]"
+                          : ""
+                      }`}
+                    />
                     {messageBadge > 0 ? (
                       <span className="absolute -top-1.5 -right-2.5 grid h-4 min-w-4 place-items-center rounded-full bg-red-500 px-1 text-[10px] font-bold leading-none text-white">
                         {messageBadge > 9 ? "9+" : messageBadge}

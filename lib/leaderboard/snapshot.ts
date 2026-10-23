@@ -2,7 +2,8 @@ import type { LeaderboardSnapshot } from "./present";
 import { buildWeekBoards, type ScoreInput } from "./score";
 import { previousWeek, weekContaining } from "./week";
 
-export function snapshotFromInput(input: ScoreInput, now: Date): LeaderboardSnapshot {
+export function snapshotFromInput(input: ScoreInput, now: Date, scoredAt: Date = now): LeaderboardSnapshot {
+  const scored: ScoreInput = { ...input, now: scoredAt };
   const current = weekContaining(now);
   const previous = previousWeek(now);
   const slice = (week: typeof current) => ({
@@ -10,7 +11,7 @@ export function snapshotFromInput(input: ScoreInput, now: Date): LeaderboardSnap
     end: week.end.toISOString(),
     finalAt: week.finalAt.toISOString(),
     label: week.label,
-    boards: buildWeekBoards(input, week),
+    boards: buildWeekBoards(scored, week),
   });
   return {
     generatedAt: now.toISOString(),
@@ -30,6 +31,7 @@ export function emptySnapshot(now: Date): LeaderboardSnapshot {
       replies: [],
       follows: [],
       blockPairs: [],
+      now,
     },
     now,
   );
