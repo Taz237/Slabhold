@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { Plus } from "lucide-react";
 import { useSocial } from "@/components/social-provider";
 import { showCreateMenu } from "@/lib/social/show-create-menu";
+import { useCloseOnOutsideTap } from "@/lib/ui/menu-outside-tap";
 
 export function CreateMenu() {
   const pathname = usePathname();
@@ -14,21 +15,7 @@ export function CreateMenu() {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (!open) return;
-    function onPointer(event: MouseEvent) {
-      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
-    }
-    function onKey(event: KeyboardEvent) {
-      if (event.key === "Escape") setOpen(false);
-    }
-    document.addEventListener("mousedown", onPointer);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onPointer);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [open]);
+  useCloseOnOutsideTap(open, rootRef, () => setOpen(false));
 
   if (!visible) return null;
 
