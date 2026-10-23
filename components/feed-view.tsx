@@ -167,9 +167,10 @@ export function FeedView({ movingToday }: { movingToday?: ReactNode } = {}) {
     rememberPosts,
   });
   const head = peekHead ?? capturedHead?.head ?? homeHead(homePosts, homeReposts);
-  useEffect(() => {
+  function reloadNewest() {
     setPeekHead(null);
-  }, [refreshKey]);
+    setRefreshKey((key) => key + 1);
+  }
   useEffect(() => {
     if (!paging || forYouPage.loading) return;
     const supabase = createSupabaseBrowser();
@@ -274,7 +275,7 @@ export function FeedView({ movingToday }: { movingToday?: ReactNode } = {}) {
     return (
       <PullToRefresh
         onRefresh={async () => {
-          setRefreshKey((key) => key + 1);
+          reloadNewest();
         }}
         className="-mx-4 -mt-5"
       >
@@ -286,7 +287,7 @@ export function FeedView({ movingToday }: { movingToday?: ReactNode } = {}) {
   return (
     <PullToRefresh
       onRefresh={async () => {
-        setRefreshKey((key) => key + 1);
+        reloadNewest();
       }}
       className="-mx-4 -mt-5"
     >
@@ -318,7 +319,7 @@ export function FeedView({ movingToday }: { movingToday?: ReactNode } = {}) {
       {lane === "foryou" ? movingToday ?? <MovingToday /> : null}
 
       {user ? (
-        <Composer onPosted={() => setRefreshKey((key) => key + 1)} />
+        <Composer onPosted={reloadNewest} />
       ) : (
         <SignedOutBanner />
       )}
@@ -328,7 +329,7 @@ export function FeedView({ movingToday }: { movingToday?: ReactNode } = {}) {
           <button
             type="button"
             onClick={() => {
-              setRefreshKey((key) => key + 1);
+              reloadNewest();
               window.scrollTo({ top: 0, behavior: "smooth" });
             }}
             className="rounded-full bg-zinc-900 px-3 py-1 text-xs font-semibold text-white shadow dark:bg-white dark:text-zinc-900"
