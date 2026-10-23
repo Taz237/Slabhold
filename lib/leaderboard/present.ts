@@ -3,6 +3,8 @@ import {
   BOARD_ERROR_TITLE,
   CLOSED_NOTE,
   EMPTY_BOARD_TITLE,
+  ON_BOARD_THIN_DETAIL,
+  ON_BOARD_THIN_TITLE,
   FINAL_LABEL,
   LAST_WEEK_LABEL,
   LAST_WEEK_DESCRIPTION,
@@ -314,13 +316,15 @@ export function presentLeaderboard(input: {
     errorDetail: "",
     standingNote: standing === FINAL_LABEL ? CLOSED_NOTE : null,
     thin: ranked.thin,
-    thinTitle: EMPTY_BOARD_TITLE,
+    thinTitle: ranked.thin && (ranked.you?.score ?? 0) > 0 ? ON_BOARD_THIN_TITLE : EMPTY_BOARD_TITLE,
     thinDetail:
-      tab.id === "rising-collectors" && input.week === "previous"
-        ? RISING_LEAD_LAST_WEEK
-        : tab.id === "most-cards-added" && input.week === "previous"
-          ? MOST_CARDS_LEAD_LAST_WEEK
-          : (tab.howTo[0] ?? EMPTY_BOARD_TITLE),
+      ranked.thin && (ranked.you?.score ?? 0) > 0
+        ? ON_BOARD_THIN_DETAIL
+        : tab.id === "rising-collectors" && input.week === "previous"
+          ? RISING_LEAD_LAST_WEEK
+          : tab.id === "most-cards-added" && input.week === "previous"
+            ? MOST_CARDS_LEAD_LAST_WEEK
+            : (tab.howTo[0] ?? EMPTY_BOARD_TITLE),
     entries,
     you: ranked.you,
     howTo: LEADERBOARD_TABS.map((item) => ({
