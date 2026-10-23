@@ -29,6 +29,7 @@ import {
   type HomeLane,
 } from "@/components/timeline-ui";
 import { MovingToday } from "@/components/moving-today";
+import { TrendingNow } from "@/components/trending-now";
 import { shouldShowFirstCardWelcome } from "@/lib/collection/welcome";
 import { Tweet } from "@/components/tweet";
 import { WhatsNewCard } from "@/components/whats-new-card";
@@ -402,6 +403,7 @@ export function FeedView({
           />
         ) : null}
 
+        {lane === "foryou" ? <TrendingNow /> : null}
         {lane === "foryou" ? movingToday ?? <MovingToday /> : null}
 
         {user ? (
