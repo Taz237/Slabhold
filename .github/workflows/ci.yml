@@ -47,9 +47,12 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y postgresql
 
       - name: Test
-        run: npm test
+        run: |
+          psql "postgres://postgres@127.0.0.1:5433/postgres" -v ON_ERROR_STOP=1 -c "create database likes_test"
+          npm test
         env:
           DEAL_TEST_DATABASE_URL: postgres://postgres@127.0.0.1:5433/postgres
+          LIKES_TEST_DATABASE_URL: postgres://postgres@127.0.0.1:5433/likes_test?sslmode=disable
 
       - name: Lint
         run: npm run lint:ci

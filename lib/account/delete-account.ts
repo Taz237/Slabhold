@@ -218,6 +218,7 @@ async function deleteOwnRows(
     ["collection_snapshots", "user_id"],
     ["comments", "user_id"],
     ["reposts", "user_id"],
+    ["likes", "user_id"],
     ["notifications", "recipient_id"],
   ];
 

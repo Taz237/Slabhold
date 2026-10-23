@@ -13,6 +13,13 @@ import {
   type FeedRow,
 } from "./feed-page";
 import { loadMailDayViews } from "./mail-day";
+import {
+  applyViewerLikes,
+  likesMigratedFlag,
+  loadViewerLikes,
+  missingLikeCountColumn,
+  readLikeCount,
+} from "./likes";
 import { mappedPostImages } from "./post-photos";
 import type { TimelineItem } from "./timeline";
 import type {
@@ -21,12 +28,14 @@ import type {
   Notification,
   Post,
   PostComment,
+  PostLike,
   PostRepost,
   Profile,
 } from "./types";
 
-const POST_SELECT =
+const POST_COLUMNS =
   "id, user_id, content, image_url, card, quoted_post_id, created_at, hidden_at, post_type, show_paid, meta";
+const POST_SELECT = `${POST_COLUMNS}, like_count`;
 const PROFILE_SELECT =
   "id, username, display_name, bio, avatar_url, cover_url, accent, created_at";
 
@@ -42,6 +51,7 @@ type PostRow = {
   post_type?: string | null;
   show_paid?: boolean | null;
   meta?: unknown;
+  like_count?: number | null;
 };
 
 type ProfileRow = {
@@ -70,6 +80,8 @@ export type LoadedFeedPage = {
   profiles: Profile[];
   hasMore: boolean;
   nextCursor: FeedCursor | null;
+  /** Null when the likes table is not installed yet. */
+  likes: PostLike[] | null;
 };
 
 const emptyPage: LoadedFeedPage = {
@@ -79,6 +91,7 @@ const emptyPage: LoadedFeedPage = {
   profiles: [],
   hasMore: false,
   nextCursor: null,
+  likes: null,
 };
 
 function missingTable(error: { code?: string; message?: string } | null) {
@@ -112,7 +125,13 @@ function mapPost(row: PostRow, mailDayCards: MailDayCardView[]): Post {
         }
       : null,
     mailDayCards,
+    ...likeCountField(row.like_count),
   };
+}
+
+function likeCountField(value: unknown): { likeCount: number } | Record<string, never> {
+  const likeCount = readLikeCount(value);
+  return typeof likeCount === "number" ? { likeCount } : {};
 }
 
 function mapProfile(row: ProfileRow): Profile {
@@ -193,22 +212,30 @@ async function selectPosts(
     ids?: string[];
   },
 ): Promise<PostRow[]> {
-  let query = supabase.from("posts").select(POST_SELECT) as unknown as PostExec;
-  if (options.ids) {
-    if (options.ids.length === 0) return [];
-    query = query.in("id", options.ids);
+  const run = async (columns: string) => {
+    let query = supabase.from("posts").select(columns) as unknown as PostExec;
+    if (options.ids) {
+      if (options.ids.length === 0) return { data: [] as PostRow[], error: null };
+      query = query.in("id", options.ids);
+    }
+    if (options.authorIds) query = query.in("user_id", options.authorIds);
+    if (options.cursor) query = query.or(keysetOrFilter(options.cursor, "posts"));
+    if (!options.ids) {
+      query = query
+        .order("created_at", { ascending: false })
+        .order("id", { ascending: true })
+        .limit(options.limit);
+    }
+    return execute(query, viewerId, options.mute, options.hidden);
+  };
+  const first = await run(POST_SELECT);
+  if (first.error && missingLikeCountColumn(first.error)) {
+    const second = await run(POST_COLUMNS);
+    if (second.error) throw new Error(second.error.message);
+    return (second.data ?? []) as PostRow[];
   }
-  if (options.authorIds) query = query.in("user_id", options.authorIds);
-  if (options.cursor) query = query.or(keysetOrFilter(options.cursor, "posts"));
-  if (!options.ids) {
-    query = query
-      .order("created_at", { ascending: false })
-      .order("id", { ascending: true })
-      .limit(options.limit);
-  }
-  const { data, error } = await execute(query, viewerId, options.mute, options.hidden);
-  if (error) throw new Error(error.message);
-  return (data ?? []) as PostRow[];
+  if (first.error) throw new Error(first.error.message);
+  return (first.data ?? []) as PostRow[];
 }
 
 async function selectReposts(
@@ -492,7 +519,28 @@ export async function loadFeedPage(
   for (const person of quoteAuthors) profileIds.set(person.id, person);
   profiles.push(...profileIds.values());
 
-  return { items, posts, relatedPosts, profiles, hasMore, nextCursor };
+  const likes = await loadViewerLikes(
+    supabase,
+    input.viewerId,
+    [...posts, ...relatedPosts].map((post) => post.id),
+  );
+  const migrated = likesMigratedFlag();
+  const stamp = (list: Post[]) => applyViewerLikes(list, likes, input.viewerId, migrated);
+  const stampedPosts = stamp(posts);
+  const stampedRelated = stamp(relatedPosts);
+  const stampedById = new Map(
+    [...stampedPosts, ...stampedRelated].map((post) => [post.id, post]),
+  );
+
+  return {
+    items: items.map((item) => ({ ...item, post: stampedById.get(item.post.id) ?? item.post })),
+    posts: stampedPosts,
+    relatedPosts: stampedRelated,
+    profiles,
+    hasMore,
+    nextCursor,
+    likes,
+  };
 }
 
 type CommentRow = {
@@ -523,6 +571,8 @@ export type LoadedPostPage = {
   messages: DirectMessage[];
   blockedIds: string[];
   mutedIds: string[];
+  /** Null when the likes table is not installed yet. */
+  likes: PostLike[] | null;
 };
 
 const emptyPostPage: LoadedPostPage = {
@@ -537,6 +587,7 @@ const emptyPostPage: LoadedPostPage = {
   messages: [],
   blockedIds: [],
   mutedIds: [],
+  likes: null,
 };
 
 function idColumn(data: unknown, key: string): string[] {
@@ -709,16 +760,24 @@ async function selectQuotingPosts(
   viewerId: string | null,
   hidden: readonly string[] | null,
 ): Promise<PostRow[]> {
-  const query = supabase
-    .from("posts")
-    .select(POST_SELECT)
-    .eq("quoted_post_id", postId)
-    .order("created_at", { ascending: false })
-    .order("id", { ascending: true })
-    .limit(QUOTE_WINDOW) as unknown as PostExec;
-  const { data, error } = await execute(query, viewerId, false, hidden);
-  if (error) throw new Error(error.message);
-  return (data ?? []) as PostRow[];
+  const run = async (columns: string) => {
+    const query = supabase
+      .from("posts")
+      .select(columns)
+      .eq("quoted_post_id", postId)
+      .order("created_at", { ascending: false })
+      .order("id", { ascending: true })
+      .limit(QUOTE_WINDOW) as unknown as PostExec;
+    return execute(query, viewerId, false, hidden);
+  };
+  const first = await run(POST_SELECT);
+  if (first.error && missingLikeCountColumn(first.error)) {
+    const second = await run(POST_COLUMNS);
+    if (second.error) throw new Error(second.error.message);
+    return (second.data ?? []) as PostRow[];
+  }
+  if (first.error) throw new Error(first.error.message);
+  return (first.data ?? []) as PostRow[];
 }
 
 async function selectRepostsFor(
@@ -751,7 +810,7 @@ async function selectRepostsFor(
  * Everything a single post screen needs, and nothing site-wide.
  * One hidden_author_ids call. No follows or paged-off posts.
  * Unread notifications and received messages are loaded so the badges stay.
- * Likes stay on the device (see activity.ts), so this does not query them.
+ * like_count comes from the post row. One likes query answers "did I like these".
  */
 export async function loadPostPage(
   supabase: SupabaseClient,
@@ -810,6 +869,7 @@ export async function loadPostPage(
       messages: inbox.messages,
       blockedIds,
       mutedIds,
+      likes: null,
     };
   }
 
@@ -843,10 +903,17 @@ export async function loadPostPage(
     ...comments.map((comment) => comment.authorId),
   ]);
   const viewer = withViewerEmail(people, viewerId, email);
+  const likes = await loadViewerLikes(supabase, viewerId, [
+    post.id,
+    ...relatedPosts.map((item) => item.id),
+    ...quotingPosts.map((item) => item.id),
+  ]);
+  const migrated = likesMigratedFlag();
+  const [stampedPost] = applyViewerLikes([post], likes, viewerId, migrated);
   return {
-    post,
-    relatedPosts,
-    quotingPosts,
+    post: stampedPost ?? post,
+    relatedPosts: applyViewerLikes(relatedPosts, likes, viewerId, migrated),
+    quotingPosts: applyViewerLikes(quotingPosts, likes, viewerId, migrated),
     profiles: viewer.profiles,
     user: viewer.user,
     comments,
@@ -855,6 +922,7 @@ export async function loadPostPage(
     messages: inbox.messages,
     blockedIds,
     mutedIds,
+    likes,
   };
 }
 

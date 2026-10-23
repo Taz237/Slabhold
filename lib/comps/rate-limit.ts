@@ -207,3 +207,15 @@ export async function consumeWantMatchLimit(userId: string): Promise<boolean> {
     WANT_MATCH_LIMIT,
   );
 }
+
+/** Post likes per signed-in user per hour. Separate from comps and card values. */
+const LIKES_BUCKET = "likes";
+export const LIKES_LIMIT = 300;
+export const LIKES_WINDOW_MS = 60 * 60 * 1000;
+
+export const LIKE_LIMIT_MESSAGE =
+  "You're liking posts too quickly. Please wait a bit and try again.";
+
+export async function consumeLikeLimit(userId: string): Promise<boolean> {
+  return consumeRateLimit(userId, LIKES_BUCKET, LIKES_WINDOW_MS, LIKES_LIMIT);
+}

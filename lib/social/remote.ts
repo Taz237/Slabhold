@@ -4,6 +4,7 @@ import { emailConfirmRedirect } from "@/lib/auth/safe-next";
 import { EMAIL_NOT_CONFIRMED, isEmailNotConfirmed } from "@/lib/auth/signup-fields";
 import { removeUploadedMedia, uploadMedia } from "@/lib/supabase/media";
 import { sanitizeAttachedCard } from "./card-posts";
+import { applyViewerLikes, likesMigratedFlag, loadViewerLikes, readLikeCount } from "./likes";
 import { loadMailDayViews } from "./mail-day";
 import {
   loadMessageRows,
@@ -88,6 +89,7 @@ type PostRow = {
   post_type?: string | null;
   show_paid?: boolean | null;
   meta?: unknown;
+  like_count?: number | null;
 };
 
 type FollowRow = {
@@ -207,7 +209,13 @@ function mapPost(row: PostRow, mailDayCards: MailDayCardView[]): Post {
         }
       : null,
     mailDayCards,
+    ...likeCountField(row.like_count),
   };
+}
+
+function likeCountField(value: unknown): { likeCount: number } | Record<string, never> {
+  const likeCount = readLikeCount(value);
+  return typeof likeCount === "number" ? { likeCount } : {};
 }
 
 async function mapPostRows(
@@ -354,7 +362,7 @@ export async function loadSupabaseSocial(supabase: SupabaseClient): Promise<Soci
       );
     }
   }
-  const posts = await mapPostRows(supabase, (postsRes.data ?? []) as PostRow[], viewerId);
+  let posts = await mapPostRows(supabase, (postsRes.data ?? []) as PostRow[], viewerId);
   const reposts = ((repostsRes.data ?? []) as RepostRow[]).map(
     (row): PostRepost => ({
       postId: row.post_id,
@@ -469,18 +477,27 @@ export async function loadSupabaseSocial(supabase: SupabaseClient): Promise<Soci
     ];
   }
 
+  const viewerLikes = await loadViewerLikes(supabase, viewerId, [
+    ...posts.map((post) => post.id),
+    ...homePosts.map((post) => post.id),
+  ]);
+  const migrated = likesMigratedFlag();
+  posts = applyViewerLikes(posts, viewerLikes, viewerId, migrated);
+  const stampedHome = applyViewerLikes(homePosts, viewerLikes, viewerId, migrated);
+
   return {
     user: profiles.find((profile) => profile.id === session?.user.id) ?? null,
     profiles,
     posts,
     follows,
-    likes: [],
+    likes: viewerLikes ?? [],
+    likesReady: viewerLikes !== null,
     reposts,
     comments,
     notifications,
     messages,
     publicCards,
-    homePosts,
+    homePosts: stampedHome,
     homeReposts,
     blockedIds,
     mutedIds,

@@ -249,6 +249,11 @@ describe("account delete", () => {
     assert.ok(cardHrefUpdate < storageList);
     assert.ok(storageList < firstDelete);
     assert.ok(cardHrefUpdate < cardsDelete);
+    const likesDelete = fake.calls.indexOf("delete:likes");
+    const postsDelete = fake.calls.indexOf("delete:posts");
+    const authDelete = fake.calls.indexOf("auth:real-user");
+    assert.ok(likesDelete > firstDelete && likesDelete < postsDelete);
+    assert.ok(postsDelete < authDelete);
     assert.equal(
       fake.updates[2]?.filters.some((filter) => filter.startsWith("actor_id=")),
       false,

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { FEED_PAGE_SIZE, type FeedCursor } from "@/lib/social/feed-page";
 import { loadFeedPage, type FeedPageScope } from "@/lib/social/load-feed-page";
 import type { TimelineItem } from "@/lib/social/timeline";
-import type { Post, Profile } from "@/lib/social/types";
+import type { Post, PostLike, Profile } from "@/lib/social/types";
 import { createSupabaseBrowser } from "@/lib/supabase/browser";
 
 type PageState = {
@@ -35,7 +35,7 @@ export function usePagedTimeline(input: {
   /** Changing either list reloads page 1 so a new block or mute leaves the feed. */
   blockedIds?: readonly string[];
   mutedIds?: readonly string[];
-  rememberPosts?: (posts: Post[], profiles?: Profile[]) => void;
+  rememberPosts?: (posts: Post[], profiles?: Profile[], likes?: PostLike[] | null) => void;
 }) {
   const authorKey = input.authorIds?.join(",") ?? "";
   const scopeKey = [
@@ -97,7 +97,11 @@ export function usePagedTimeline(input: {
         seenRef.current = new Set(next.items.map((item) => item.post.id));
         setPage(next);
         setLoading(false);
-        rememberRef.current?.([...next.posts, ...next.relatedPosts], next.profiles);
+        rememberRef.current?.(
+          [...next.posts, ...next.relatedPosts],
+          next.profiles,
+          next.likes,
+        );
       })
       .catch((reason: unknown) => {
         if (epochRef.current !== token) return;
@@ -138,7 +142,11 @@ export function usePagedTimeline(input: {
           hasMore: next.hasMore,
           nextCursor: next.nextCursor,
         }));
-        rememberRef.current?.([...next.posts, ...next.relatedPosts], next.profiles);
+        rememberRef.current?.(
+          [...next.posts, ...next.relatedPosts],
+          next.profiles,
+          next.likes,
+        );
       })
       .catch((reason: unknown) => {
         if (epochRef.current !== token) return;

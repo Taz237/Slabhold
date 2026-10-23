@@ -50,6 +50,7 @@ function postRow(id: string, userId: string, quotedPostId: string | null) {
     post_type: "post",
     show_paid: false,
     meta: null,
+    like_count: 4,
   };
 }
 
@@ -226,6 +227,7 @@ describe("loadPostPage", () => {
     const page = await loadPostPage(fake.supabase, POST);
 
     assert.equal(page.post?.id, POST);
+    assert.equal(page.post?.likeCount, 4);
     assert.equal(page.post?.authorId, AUTHOR);
     assert.equal(page.post?.quotedPostId, QUOTE_TARGET);
     assert.equal(page.relatedPosts[0]?.id, QUOTE_TARGET);
@@ -263,9 +265,18 @@ describe("loadPostPage", () => {
     assert.equal(tables(fake.calls, "reposts").length, 1);
     assert.equal(tables(fake.calls, "notifications").length, 1);
     assert.equal(tables(fake.calls, "messages").length, 1);
-    for (const name of ["follows", "public_cards", "likes"]) {
+    for (const name of ["follows", "public_cards"]) {
       assert.equal(tables(fake.calls, name).length, 0, name);
     }
+    const likeReads = tables(fake.calls, "likes");
+    assert.equal(likeReads.length, 1);
+    assert.ok(likeReads[0]?.ops.includes(`eq:user_id:${VIEWER}`));
+    const likedIds = likeReads[0]?.ops.find((op) => op.startsWith("in:post_id:"));
+    assert.equal(likedIds?.includes(POST), true);
+    assert.equal(likedIds?.includes(QUOTE_TARGET), true);
+    assert.equal(likedIds?.includes(QUOTING), true);
+    assert.equal(likedIds?.includes(REPLY), false);
+    assert.equal(likedIds?.includes(QUOTE_REPLY), false);
 
     const posts = tables(fake.calls, "posts");
     assert.equal(posts.length, 3);
@@ -348,6 +359,7 @@ describe("loadPostPage", () => {
     assert.equal(tables(fake.calls, "notifications").length, 0);
     assert.equal(tables(fake.calls, "messages").length, 0);
     assert.equal(tables(fake.calls, "follows").length, 0);
+    assert.equal(tables(fake.calls, "likes").length, 0);
     const comments = tables(fake.calls, "comments")[0];
     assert.equal(comments?.ops.some((op) => op.startsWith("not:")), false);
   });

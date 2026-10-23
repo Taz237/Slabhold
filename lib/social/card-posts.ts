@@ -4,9 +4,18 @@ import { formatGrade, parseGrade } from "@/lib/card-options";
 import { isUuid } from "@/lib/value/card-value-access";
 import { cardIdentityKey, type IdentityCard } from "./card-identity";
 import { loadMailDayViews } from "./mail-day";
+import {
+  applyLikeCounts,
+  applyViewerLikes,
+  likesMigratedFlag,
+  loadLikeCounts,
+  loadViewerLikes,
+  missingLikeCountColumn,
+  readLikeCount,
+} from "./likes";
 import { mappedPostImages } from "./post-photos";
 import { mapPublicCard, PUBLIC_CARD_SELECT, type CardRow } from "./cards";
-import type { MailDayCardView, Post, Profile, PublicCard } from "./types";
+import type { MailDayCardView, Post, PostLike, Profile, PublicCard } from "./types";
 import { userHref } from "./user-href";
 
 export type CardPostsCursor = {
@@ -64,8 +73,9 @@ export function toPublicAttachment(card: {
   };
 }
 
-const POST_SELECT =
+const POST_COLUMNS =
   "id, user_id, content, image_url, card, quoted_post_id, created_at, hidden_at, post_type, show_paid, meta";
+const POST_SELECT = `${POST_COLUMNS}, like_count`;
 const PROFILE_SELECT =
   "id, username, display_name, bio, avatar_url, cover_url, accent, created_at";
 
@@ -81,6 +91,7 @@ type PostRow = {
   post_type?: string | null;
   show_paid?: boolean | null;
   meta?: unknown;
+  like_count?: number | null;
 };
 
 type ProfileRow = {
@@ -149,7 +160,13 @@ function mapPostRow(row: PostRow, mailDayCards: MailDayCardView[]): Post {
         }
       : null,
     mailDayCards,
+    ...likeCountField(row.like_count),
   };
+}
+
+function likeCountField(value: unknown): { likeCount: number } | Record<string, never> {
+  const likeCount = readLikeCount(value);
+  return typeof likeCount === "number" ? { likeCount } : {};
 }
 
 function mapProfileRow(row: ProfileRow): Profile {
@@ -226,7 +243,17 @@ async function loadQuotedPosts(
     supabase.from("posts").select(POST_SELECT).in("id", missing),
     viewerId,
   );
-  const { data, error } = await quotedQuery;
+  let { data, error } = await quotedQuery;
+  if (missingLikeCountColumn(error)) {
+    const { query: plain } = await withAuthorSafety(
+      supabase,
+      supabase.from("posts").select(POST_COLUMNS).in("id", missing),
+      viewerId,
+    );
+    const retry = await plain;
+    data = retry.data as typeof data;
+    error = retry.error;
+  }
   if (error) throw new Error(error.message);
   const quotedRows = (data ?? []) as PostRow[];
   const quotedPosts = await mapPostRows(supabase, quotedRows, viewerId);
@@ -248,7 +275,15 @@ async function loadQuotedPosts(
       supabase.from("posts").select(POST_SELECT).in("id", nestedMissing),
       viewerId,
     );
-    const nested = await nestedQuery;
+    let nested = await nestedQuery;
+    if (missingLikeCountColumn(nested.error)) {
+      const { query: plain } = await withAuthorSafety(
+        supabase,
+        supabase.from("posts").select(POST_COLUMNS).in("id", nestedMissing),
+        viewerId,
+      );
+      nested = (await plain) as typeof nested;
+    }
     if (nested.error) throw new Error(nested.error.message);
     const nestedRows = (nested.data ?? []) as PostRow[];
     related.push(...(await mapPostRows(supabase, nestedRows, viewerId)));
@@ -289,6 +324,7 @@ export type CardPostsPage = {
   authors: Map<string, Profile>;
   hasMore: boolean;
   nextCursor: CardPostsCursor | null;
+  likes: PostLike[] | null;
 };
 
 function attachedGrade(row: AboutCardRow): string | undefined {
@@ -410,13 +446,22 @@ export async function loadPostsForCard(
   ];
   const authors = await loadProfilesById(supabase, authorIds);
   const last = posts[posts.length - 1];
+  const visible = [...posts, ...withPublicCards];
+  const [counts, likes] = await Promise.all([
+    loadLikeCounts(supabase, visible.map((post) => post.id)),
+    loadViewerLikes(supabase, viewerId, visible.map((post) => post.id)),
+  ]);
+  const migrated = likesMigratedFlag();
+  const stamp = (list: Post[]) =>
+    applyViewerLikes(applyLikeCounts(list, counts), likes, viewerId, migrated);
 
   return {
-    posts,
-    relatedPosts: withPublicCards,
+    posts: stamp(posts),
+    relatedPosts: stamp(withPublicCards),
     authors,
     hasMore,
     nextCursor: hasMore && last ? { createdAt: last.createdAt, id: last.id } : null,
+    likes,
   };
 }
 
