@@ -4,3 +4,4 @@
  * the old address, which links already shared and code that builds it use.
  */
 export { default, alt, size, contentType } from "@/app/(app)/profile/opengraph-image";
+export const dynamic = "force-dynamic";

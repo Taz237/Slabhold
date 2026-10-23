@@ -364,6 +364,8 @@ function paint(
   homeShot: string | null,
   canvas: Canvas = LANDSCAPE,
 ): ImageResponse {
+  const forced = nextOgPaintErrors.shift();
+  if (forced) throw forced;
   const designed = shareNode(model, canvas);
   if (designed) {
     return new ImageResponse(<>{designed}</>, {
@@ -476,11 +478,22 @@ async function paintWithinBudget(
 }
 
 /** Render a share image. Only a font-shaping failure retries without that script. */
-/** A failed public image uses the short cache. A private profile image stays private. */
+/** A failed public image uses the short cache. Any private header stays private. */
 function ogFailureCache(cacheControl: string): string {
-  return cacheControl === PRIVATE_OG_CACHE_CONTROL
-    ? PRIVATE_OG_CACHE_CONTROL
-    : OG_FAILURE_CACHE_CONTROL;
+  return cacheControl.startsWith("private") ? PRIVATE_OG_CACHE_CONTROL : OG_FAILURE_CACHE_CONTROL;
+}
+
+/** Test-only queue. Each paint throws the next error instead of drawing. */
+const nextOgPaintErrors: Error[] = [];
+
+/** Test-only. The next share-image paint throws `error` instead of drawing. */
+export function failNextOgPaint(error: Error): void {
+  nextOgPaintErrors.push(error);
+}
+
+/** Test-only. Drops paint failures queued by `failNextOgPaint`. */
+export function resetOgPaintFailures(): void {
+  nextOgPaintErrors.length = 0;
 }
 
 export async function renderOg(
@@ -512,13 +525,18 @@ export async function renderOg(
   }
 }
 
-export function renderProfileOg(
+export async function renderProfileOg(
   preview: LinkPreview,
   kicker: string,
   cacheControl = PUBLIC_OG_CACHE_CONTROL,
   extra?: Parameters<typeof profileShareImage>[2],
-) {
-  return renderOg(profileShareImage(preview, kicker, extra), cacheControl);
+): Promise<ImageResponse> {
+  try {
+    return await renderOg(profileShareImage(preview, kicker, extra), cacheControl);
+  } catch (error) {
+    console.error("[og] share image render failed", { kind: "profile", stage: "render" }, error);
+    return consumeOg(paint(homeShareImage(), ogFailureCache(cacheControl), await homeShotSrc()));
+  }
 }
 
 export async function renderHomeOg() {

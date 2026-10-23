@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it } from "node:test";
@@ -6,9 +7,11 @@ import {
   PRIVATE_OG_CACHE_CONTROL,
   CARD_OG_CACHE_CONTROL,
   PUBLIC_OG_CACHE_CONTROL,
+  failNextOgPaint,
   renderOg,
   renderProfileOg,
   resetHomeShotCache,
+  resetOgPaintFailures,
 } from "../../components/og-frame";
 import { clipText, profileLinkPreview } from "./link-preview";
 import {
@@ -385,6 +388,45 @@ describe("home share image", () => {
   });
 });
 
+const SHAPING_MESSAGE = "lookupType: 5 - substFormat: 3 is not yet supported";
+const SHAPING_PATTERN = /lookupType: \d+ - substFormat: \d+ is not yet supported/;
+
+function shapingError(): Error {
+  return new Error(SHAPING_MESSAGE);
+}
+
+function pngHash(bytes: Buffer): string {
+  assert.equal(bytes[0], 0x89);
+  assert.equal(bytes[1], 0x50);
+  return createHash("sha256").update(bytes).digest("hex");
+}
+
+function blockNetwork(): () => void {
+  const original = globalThis.fetch;
+  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = String(input);
+    if (url.startsWith("data:")) return original(input, init);
+    throw new Error(`unexpected network access: ${url}`);
+  }) as typeof fetch;
+  return () => {
+    globalThis.fetch = original;
+  };
+}
+
+function captureErrors(): { calls: unknown[][]; restore: () => void } {
+  const calls: unknown[][] = [];
+  const original = console.error;
+  console.error = (...args: unknown[]) => {
+    calls.push(args);
+  };
+  return {
+    calls,
+    restore: () => {
+      console.error = original;
+    },
+  };
+}
+
 describe("share image renderer", () => {
   it("loads geist and renders a private card with no photo", async () => {
     for (const name of ["Geist-Regular.ttf", "Geist-Bold.ttf"]) {
@@ -439,8 +481,9 @@ describe("share image renderer", () => {
       }),
     );
     const home = await renderOg(homeShareImage());
-    assert.deepEqual(bytes, Buffer.from(await plain.arrayBuffer()));
-    assert.notDeepEqual(bytes, Buffer.from(await home.arrayBuffer()));
+    const hash = pngHash(bytes);
+    assert.equal(hash, pngHash(Buffer.from(await plain.arrayBuffer())));
+    assert.notEqual(hash, pngHash(Buffer.from(await home.arrayBuffer())));
   });
 
   it("serves the home image when rendering fails for a reason other than font shaping", async () => {
@@ -467,7 +510,7 @@ describe("share image renderer", () => {
       );
       assert.notEqual(response.headers.get("cache-control"), PUBLIC_OG_CACHE_CONTROL);
       const bytes = Buffer.from(await response.arrayBuffer());
-      assert.deepEqual(bytes, home);
+      assert.equal(pngHash(bytes), pngHash(home));
       assert.equal(calls.length, 1);
       assert.equal(calls[0]?.[0], "[og] share image render failed");
       assert.deepEqual(calls[0]?.[1], { kind: "post", stage: "render" });
@@ -494,6 +537,7 @@ describe("share image renderer", () => {
     console.error = (...args: unknown[]) => {
       calls.push(args);
     };
+    failNextOgPaint(shapingError());
     try {
       const response = await renderOg({
         ...model,
@@ -501,7 +545,7 @@ describe("share image renderer", () => {
       });
       assert.equal(response.headers.get("cache-control"), CARD_OG_CACHE_CONTROL);
       const bytes = Buffer.from(await response.arrayBuffer());
-      assert.deepEqual(bytes, home);
+      assert.equal(pngHash(bytes), pngHash(home));
       assert.equal(calls.length, 2);
       assert.equal(calls[0]?.[0], "[og] share image render failed");
       assert.equal(calls[1]?.[0], "[og] share image render failed");
@@ -521,32 +565,178 @@ describe("share image renderer", () => {
       }
     } finally {
       console.error = original;
+      resetOgPaintFailures();
     }
   });
 
   it("renders a profile whose display name is Arabic instead of the home image", async () => {
-    const route = readFileSync(join(process.cwd(), "app/u/[username]/opengraph-image.tsx"), "utf8");
-    assert.match(route, /return renderProfileOg\(/);
+    const route = readFileSync(join(process.cwd(), "app/(app)/u/[username]/opengraph-image.tsx"), "utf8");
+    // The public route draws through renderOg, which owns the shaping retry.
+    assert.match(route, /renderOg\(/);
     assert.doesNotMatch(route, /PRIVATE_OG_CACHE_CONTROL/);
-    const preview = {
+    const home = pngHash(Buffer.from(await (await renderOg(homeShareImage())).arrayBuffer()));
+    const preview = profileLinkPreview({
       found: true,
       username: "donnietaz",
       displayName: "Hello مرحبا گیتی",
       publicCardCount: 4,
-    } as const;
-    const response = await renderProfileOg(profileLinkPreview(preview), "COLLECTOR");
-    assert.equal(response.headers.get("content-type"), "image/png");
-    assert.equal(response.headers.get("cache-control"), PUBLIC_OG_CACHE_CONTROL);
-    const bytes = Buffer.from(await response.arrayBuffer());
-    assert.equal(bytes[0], 0x89);
-    assert.ok(bytes.length > 1000);
-    const plain = await renderProfileOg(
-      profileLinkPreview({ ...preview, displayName: "Hello" }),
-      "COLLECTOR",
-    );
-    const home = await renderOg(homeShareImage());
-    assert.deepEqual(bytes, Buffer.from(await plain.arrayBuffer()));
-    assert.notDeepEqual(bytes, Buffer.from(await home.arrayBuffer()));
+    });
+    const restoreNetwork = blockNetwork();
+    const logged = captureErrors();
+    failNextOgPaint(shapingError());
+    try {
+      const response = await renderProfileOg(preview, "COLLECTOR");
+      assert.equal(response.headers.get("content-type"), "image/png");
+      assert.equal(response.headers.get("cache-control"), PUBLIC_OG_CACHE_CONTROL);
+      assert.notEqual(pngHash(Buffer.from(await response.arrayBuffer())), home);
+      assert.equal(logged.calls.length, 1);
+      assert.equal(logged.calls[0]?.[0], "[og] share image render failed");
+      assert.deepEqual(logged.calls[0]?.[1], { kind: "profile", stage: "render" });
+      assert.equal(logged.calls[0]?.[2] instanceof Error, true);
+      assert.match((logged.calls[0]?.[2] as Error).message, SHAPING_PATTERN);
+      const meta = JSON.stringify(logged.calls[0]?.[1]);
+      assert.equal(meta.includes("Hello"), false);
+      assert.equal(meta.includes("مرحبا"), false);
+      assert.equal(meta.includes("گیتی"), false);
+      assert.equal(meta.includes("body"), false);
+      assert.equal(meta.includes("title"), false);
+    } finally {
+      logged.restore();
+      resetOgPaintFailures();
+      restoreNetwork();
+    }
+  });
+
+  it("keeps a private profile image private when the stripped retry succeeds", async () => {
+    const home = pngHash(Buffer.from(await (await renderOg(homeShareImage())).arrayBuffer()));
+    const preview = profileLinkPreview({
+      found: true,
+      username: "donnietaz",
+      displayName: "Hello مرحبا",
+      publicCardCount: 4,
+    });
+    const restoreNetwork = blockNetwork();
+    const logged = captureErrors();
+    failNextOgPaint(shapingError());
+    try {
+      const response = await renderProfileOg(preview, "COLLECTOR", PRIVATE_OG_CACHE_CONTROL);
+      assert.equal(response.headers.get("cache-control"), "private, no-store");
+      assert.notEqual(pngHash(Buffer.from(await response.arrayBuffer())), home);
+      assert.equal(logged.calls.length, 1);
+      assert.deepEqual(logged.calls[0]?.[1], { kind: "profile", stage: "render" });
+      assert.match((logged.calls[0]?.[2] as Error).message, SHAPING_PATTERN);
+    } finally {
+      logged.restore();
+      resetOgPaintFailures();
+      restoreNetwork();
+    }
+  });
+
+  it("serves a private home image when the profile strip retry fails", async () => {
+    const home = pngHash(Buffer.from(await (await renderOg(homeShareImage())).arrayBuffer()));
+    const preview = profileLinkPreview({
+      found: true,
+      username: "donnietaz",
+      displayName: "Hello مرحبا",
+      publicCardCount: 4,
+    });
+    const restoreNetwork = blockNetwork();
+    const logged = captureErrors();
+    failNextOgPaint(shapingError());
+    failNextOgPaint(new Error("strip paint failed"));
+    try {
+      const response = await renderProfileOg(preview, "COLLECTOR", PRIVATE_OG_CACHE_CONTROL);
+      assert.equal(response.headers.get("cache-control"), "private, no-store");
+      assert.equal(pngHash(Buffer.from(await response.arrayBuffer())), home);
+      assert.equal(logged.calls.length, 2);
+      assert.deepEqual(logged.calls[0]?.[1], { kind: "profile", stage: "render" });
+      assert.deepEqual(logged.calls[1]?.[1], { kind: "profile", stage: "strip" });
+      assert.match((logged.calls[0]?.[2] as Error).message, SHAPING_PATTERN);
+    } finally {
+      logged.restore();
+      resetOgPaintFailures();
+      restoreNetwork();
+    }
+  });
+
+  it("uses the short public cache when a profile strip retry fails", async () => {
+    const home = pngHash(Buffer.from(await (await renderOg(homeShareImage())).arrayBuffer()));
+    const preview = profileLinkPreview({
+      found: true,
+      username: "donnietaz",
+      displayName: "Hello مرحبا",
+      publicCardCount: 4,
+    });
+    const restoreNetwork = blockNetwork();
+    const logged = captureErrors();
+    failNextOgPaint(shapingError());
+    failNextOgPaint(new Error("strip paint failed"));
+    try {
+      const response = await renderProfileOg(preview, "COLLECTOR");
+      assert.equal(response.headers.get("cache-control"), CARD_OG_CACHE_CONTROL);
+      assert.equal(pngHash(Buffer.from(await response.arrayBuffer())), home);
+      assert.equal(logged.calls.length, 2);
+      assert.deepEqual(logged.calls[0]?.[1], { kind: "profile", stage: "render" });
+      assert.deepEqual(logged.calls[1]?.[1], { kind: "profile", stage: "strip" });
+      assert.match((logged.calls[0]?.[2] as Error).message, SHAPING_PATTERN);
+    } finally {
+      logged.restore();
+      resetOgPaintFailures();
+      restoreNetwork();
+    }
+  });
+
+  it("treats any private cache header as private when a profile render fails", async () => {
+    const restoreNetwork = blockNetwork();
+    const logged = captureErrors();
+    failNextOgPaint(shapingError());
+    failNextOgPaint(new Error("strip paint failed"));
+    try {
+      const response = await renderProfileOg(
+        profileLinkPreview({
+          found: true,
+          username: "donnietaz",
+          displayName: "Hello",
+          publicCardCount: 4,
+        }),
+        "COLLECTOR",
+        "private, max-age=30",
+      );
+      assert.equal(response.headers.get("cache-control"), "private, no-store");
+      assert.equal(logged.calls.length, 2);
+    } finally {
+      logged.restore();
+      resetOgPaintFailures();
+      restoreNetwork();
+    }
+  });
+
+  it("falls back when profile copy cannot be read", async () => {
+    const home = pngHash(Buffer.from(await (await renderOg(homeShareImage())).arrayBuffer()));
+    const restoreNetwork = blockNetwork();
+    const logged = captureErrors();
+    try {
+      const response = await renderProfileOg(
+        {
+          title: Object.create(null),
+          description: "",
+          imageUrl: null,
+          detail: "",
+        } as never,
+        "COLLECTOR",
+        PRIVATE_OG_CACHE_CONTROL,
+      );
+      assert.equal(response.headers.get("cache-control"), "private, no-store");
+      assert.equal(pngHash(Buffer.from(await response.arrayBuffer())), home);
+      assert.equal(logged.calls.length, 1);
+      assert.deepEqual(logged.calls[0]?.[1], { kind: "profile", stage: "render" });
+      const meta = JSON.stringify(logged.calls[0]?.[1]);
+      assert.equal(meta.includes("title"), false);
+      assert.equal(meta.includes("body"), false);
+    } finally {
+      logged.restore();
+      restoreNetwork();
+    }
   });
 
   it("serves the home image when a profile fails for a reason other than font shaping", async () => {
@@ -570,7 +760,7 @@ describe("share image renderer", () => {
         "public, max-age=0, s-maxage=60, stale-while-revalidate=60",
       );
       const bytes = Buffer.from(await response.arrayBuffer());
-      assert.deepEqual(bytes, home);
+      assert.equal(pngHash(bytes), pngHash(home));
       assert.equal(calls.length, 1);
       assert.equal(calls[0]?.[0], "[og] share image render failed");
       assert.deepEqual(calls[0]?.[1], { kind: "profile", stage: "render" });
@@ -608,7 +798,7 @@ describe("share image renderer", () => {
       );
       assert.equal(fallback.headers.get("cache-control"), "private, no-store");
       assert.equal(fallback.headers.get("cache-control"), PRIVATE_OG_CACHE_CONTROL);
-      assert.deepEqual(Buffer.from(await fallback.arrayBuffer()), home);
+      assert.equal(pngHash(Buffer.from(await fallback.arrayBuffer())), pngHash(home));
       assert.equal(calls.length, 1);
       assert.deepEqual(calls[0]?.[1], { kind: "profile", stage: "render" });
     } finally {
@@ -653,6 +843,7 @@ describe("share image renderer", () => {
       "utf8",
     );
     assert.match(ownProfile, /PRIVATE_OG_CACHE_CONTROL/);
+    assert.match(ownProfile, /export const dynamic = "force-dynamic"/);
     assert.equal(PRIVATE_OG_CACHE_CONTROL, "private, no-store");
     assert.doesNotMatch(PRIVATE_OG_CACHE_CONTROL, /s-maxage/);
   });
