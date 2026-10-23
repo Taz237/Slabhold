@@ -7,7 +7,9 @@ import { outlineButton } from "@/components/button-styles";
 import { CategoryBadge } from "@/components/category-picker";
 import { CollectionHeader } from "@/components/collection-header";
 import { CollectionValueHistory } from "@/components/collection-value-history";
+import { CollectionValueTrend } from "@/components/collection-value-trend";
 import { useCollection } from "@/components/collection-provider";
+import { useSocial } from "@/components/social-provider";
 import { CardThumb } from "@/components/card-thumb";
 import { CollectionLaneEmpty } from "@/components/collection-lane-empty";
 import { FirstCardWelcome } from "@/components/first-card-welcome";
@@ -39,6 +41,7 @@ import {
   type PortfolioFilter,
 } from "@/lib/types";
 import { displayedCollectionTotal } from "@/lib/collection/displayed-value";
+import { ESTIMATED_VALUE_LABEL } from "@/lib/collection/value-trend";
 import {
   investedAmountLabel,
   investedCardLabel,
@@ -71,6 +74,7 @@ const FILTERS: { id: PortfolioFilter; label: string }[] = [
 
 export function Dashboard() {
   const { cards, ready, syncError, reload } = useCollection();
+  const { user } = useSocial();
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<PortfolioFilter>("all");
   const [lane, setLane] = useState<(typeof LANES)[number]["id"]>("all");
@@ -127,8 +131,8 @@ export function Dashboard() {
 
   const valueHint =
     totals.withoutValueCount > 0
-      ? `${totals.withoutValueCount} card${totals.withoutValueCount === 1 ? "" : "s"} without a value yet`
-      : "Held book value";
+      ? `${ESTIMATED_VALUE_LABEL} · ${totals.withoutValueCount} card${totals.withoutValueCount === 1 ? "" : "s"} without a value yet`
+      : ESTIMATED_VALUE_LABEL;
   const investedLabel = investedCardLabel(paidCount, cardCount);
   const profitLabel = profitCardLabel(pricedCount, cardCount);
 
@@ -187,6 +191,15 @@ export function Dashboard() {
             ) : undefined
           }
           loading={valuesLoading}
+          extra={
+            valuesLoading ? undefined : (
+              <CollectionValueTrend
+                viewerId={user?.id ?? null}
+                ownerId={user?.id ?? null}
+                collectionPublic={false}
+              />
+            )
+          }
         />
         <Stat
           label="Profit"
@@ -460,6 +473,7 @@ function Stat({
   tone,
   loading,
   message,
+  extra,
 }: {
   label: string;
   value: string;
@@ -467,6 +481,7 @@ function Stat({
   tone?: "up" | "down" | "neutral";
   loading?: boolean;
   message?: ReactNode;
+  extra?: ReactNode;
 }) {
   const toneClass =
     tone === "up"
@@ -494,12 +509,14 @@ function Stat({
       ) : message ? (
         <div className="mt-1 text-sm font-medium leading-snug text-zinc-800 dark:text-zinc-100">
           {message}
+          {extra}
         </div>
       ) : (
         <>
           <p className={`mt-1 text-2xl font-semibold tracking-tight ${toneClass}`}>
             {value}
           </p>
+          {extra}
           {hint ? <p className="mt-1 text-xs text-zinc-500">{hint}</p> : null}
         </>
       )}

@@ -109,19 +109,45 @@ function parseStamp(iso: string | null | undefined) {
   return then;
 }
 
-function calendarDate(then: Date) {
-  const includeYear = then.getFullYear() !== new Date().getFullYear();
+/** Product clock. Server UTC and a browser in another zone must format the same text. */
+const STAMP_TIME_ZONE = "America/New_York";
+
+function zonedYmd(date: Date): { y: number; m: number; d: number } | null {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: STAMP_TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const value = (type: Intl.DateTimeFormatPartTypes) =>
+    Number(parts.find((part) => part.type === type)?.value);
+  const y = value("year");
+  const m = value("month");
+  const d = value("day");
+  if (!y || !m || !d) return null;
+  return { y, m, d };
+}
+
+function calendarDate(then: Date, now: Date) {
+  const thenParts = zonedYmd(then);
+  const nowParts = zonedYmd(now);
+  if (!thenParts) return "";
+  const includeYear = !nowParts || thenParts.y !== nowParts.y;
   return then.toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
+    timeZone: STAMP_TIME_ZONE,
     ...(includeYear ? { year: "numeric" as const } : {}),
   });
 }
 
 function calendarDaysBetween(then: Date, now: Date) {
-  const start = Date.UTC(then.getFullYear(), then.getMonth(), then.getDate());
-  const end = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
-  return Math.round((end - start) / 86_400_000);
+  const start = zonedYmd(then);
+  const end = zonedYmd(now);
+  if (!start || !end) return 0;
+  const startUtc = Date.UTC(start.y, start.m - 1, start.d);
+  const endUtc = Date.UTC(end.y, end.m - 1, end.d);
+  return Math.round((endUtc - startUtc) / 86_400_000);
 }
 
 export function exactTime(iso: string | null | undefined) {
@@ -133,6 +159,7 @@ export function exactTime(iso: string | null | undefined) {
     year: "numeric",
     hour: "numeric",
     minute: "2-digit",
+    timeZone: STAMP_TIME_ZONE,
   });
 }
 
@@ -140,7 +167,7 @@ export function timeAgo(iso: string | null | undefined, now = new Date()) {
   const then = parseStamp(iso);
   if (!then) return "";
   const delta = now.getTime() - then.getTime();
-  if (delta < 0) return calendarDate(then);
+  if (delta < 0) return calendarDate(then, now);
 
   const dayDiff = calendarDaysBetween(then, now);
   if (dayDiff <= 0) {
@@ -153,7 +180,7 @@ export function timeAgo(iso: string | null | undefined, now = new Date()) {
   const elapsedDays = Math.floor(delta / 86_400_000);
   if (elapsedDays >= 1 && elapsedDays < 7) return `${elapsedDays}d`;
   if (dayDiff < 7) return `${dayDiff}d`;
-  return calendarDate(then);
+  return calendarDate(then, now);
 }
 
 export function initials(name: string) {
