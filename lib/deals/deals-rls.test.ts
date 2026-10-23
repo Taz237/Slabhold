@@ -9,7 +9,7 @@ function read(path: string): string {
   return readFileSync(join(process.cwd(), path), "utf8");
 }
 
-const migration = "supabase/migrations/20261022234124_deal_log.sql";
+const migration = "supabase/migrations/20261023000500_deal_log.sql";
 
 function functionBody(sql: string, name: string): string {
   const start = sql.search(new RegExp(`function ${name.replace(".", "\\.")}\\b`));
@@ -131,7 +131,14 @@ describe("deal log SQL", () => {
     assert.match(schema, /100000000/);
   });
 
-  it("calls private.create_deal on PostgreSQL 17", async () => {
+  it("calls private.create_deal on PostgreSQL 17", async (t) => {
+    if (!process.env.DEAL_TEST_DATABASE_URL) {
+      if (process.env.CI) {
+        throw new Error("DEAL_TEST_DATABASE_URL is required in CI");
+      }
+      t.skip("DEAL_TEST_DATABASE_URL not set: PG17 deal test skipped");
+      return;
+    }
     const seller = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
     const buyer = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
     const seller2 = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
@@ -403,30 +410,10 @@ function psqlFailure(database: string, sql: string): string {
 
 function psqlCommand(database: string): { command: string; args: string[] } {
   const url = process.env.DEAL_TEST_DATABASE_URL;
-  if (url) {
-    return {
-      command: "psql",
-      args: [databaseUrl(url, database), "-v", "ON_ERROR_STOP=1", "-At", "-F", "|", "-f", "-"],
-    };
-  }
+  if (!url) throw new Error("DEAL_TEST_DATABASE_URL is not set");
   return {
-    command: "sudo",
-    args: [
-      "-u",
-      "postgres",
-      "psql",
-      "--cluster",
-      "17/main",
-      "-d",
-      database,
-      "-v",
-      "ON_ERROR_STOP=1",
-      "-At",
-      "-F",
-      "|",
-      "-f",
-      "-",
-    ],
+    command: "psql",
+    args: [databaseUrl(url, database), "-v", "ON_ERROR_STOP=1", "-At", "-F", "|", "-f", "-"],
   };
 }
 
