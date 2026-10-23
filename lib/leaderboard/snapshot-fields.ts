@@ -1,3 +1,5 @@
+import { buildQueryKey } from "@/lib/comps/query-key";
+import { queryKeyCard } from "@/lib/value/price-refresh";
 import type { CardValueResult } from "@/lib/value/types";
 import { cardIdentity } from "./identity";
 import { saleSourceIsSelfReported } from "./self-reported";
@@ -72,6 +74,7 @@ export type CardSnapshotInsert = {
   is_relic: boolean;
   grade_qualifier: string;
   condition_type: string;
+  query_key: string;
 };
 
 /** Full row written after the leaderboard migration. Today's date only. */
@@ -122,6 +125,24 @@ export function cardSnapshotInsert(input: {
     is_relic: identity.isRelic,
     grade_qualifier: identity.gradeQualifier,
     condition_type: identity.conditionType,
+    query_key: buildQueryKey(
+      queryKeyCard({
+        id: input.cardId,
+        year: typeof input.year === "number" ? input.year : undefined,
+        yearLabel: input.yearLabel,
+        setBrand: input.setBrand,
+        cardNumber: input.cardNumber,
+        grade: input.grade,
+        parallel: input.parallel,
+        serialRun: typeof input.serialRun === "number" ? input.serialRun : null,
+        isAuto: input.isAuto === true,
+        isRelic: input.isRelic === true,
+        gradeQualifier: input.gradeQualifier,
+        conditionType: input.conditionType === "raw" || input.conditionType === "graded"
+          ? input.conditionType
+          : undefined,
+      }),
+    ),
   };
 }
 

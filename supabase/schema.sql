@@ -1066,7 +1066,8 @@ create table if not exists public.card_value_snapshots (
   is_auto boolean,
   is_relic boolean,
   grade_qualifier text,
-  condition_type text
+  condition_type text,
+  query_key text
 );
 
 create table if not exists public.comp_flags (
@@ -1201,6 +1202,9 @@ alter table public.card_value_snapshots
 
 alter table public.card_value_snapshots
   add column if not exists condition_type text;
+
+alter table public.card_value_snapshots
+  add column if not exists query_key text;
 
 comment on column public.card_value_snapshots.n_sales is
   'Matched sales behind the median. Null is not a trusted price.';
@@ -1471,6 +1475,7 @@ as $$
       s.n_sales,
       s.self_reported,
       s.player,
+      s.query_key,
       public.card_snapshot_identity(
         s.player, s.year, s.year_label, s.set_name, s.parallel, s.grade, s.grader,
         s.card_number, s.serial_run, s.is_auto, s.is_relic, s.grade_qualifier, s.condition_type
@@ -1508,6 +1513,7 @@ as $$
       s.n_sales,
       s.self_reported,
       s.player,
+      s.query_key,
       public.card_snapshot_identity(
         s.player, s.year, s.year_label, s.set_name, s.parallel, s.grade, s.grader,
         s.card_number, s.serial_run, s.is_auto, s.is_relic, s.grade_qualifier, s.condition_type
@@ -1532,24 +1538,42 @@ as $$
     start_snap.card_key,
     start_snap.median,
     case
-      when start_snap.player is not null
-       and end_snap.player is not null
-       and start_snap.identity_key is distinct from end_snap.identity_key
+      when (
+        start_snap.player is not null
+        and end_snap.player is not null
+        and start_snap.identity_key is distinct from end_snap.identity_key
+      ) or (
+        start_snap.query_key is not null
+        and end_snap.query_key is not null
+        and start_snap.query_key is distinct from end_snap.query_key
+      )
       then start_snap.median
       else coalesce(end_snap.median, 0)
     end,
     start_snap.n_sales,
     case
-      when start_snap.player is not null
-       and end_snap.player is not null
-       and start_snap.identity_key is distinct from end_snap.identity_key
+      when (
+        start_snap.player is not null
+        and end_snap.player is not null
+        and start_snap.identity_key is distinct from end_snap.identity_key
+      ) or (
+        start_snap.query_key is not null
+        and end_snap.query_key is not null
+        and start_snap.query_key is distinct from end_snap.query_key
+      )
       then start_snap.n_sales
       else coalesce(end_snap.n_sales, 0)
     end,
     case
-      when start_snap.player is not null
-       and end_snap.player is not null
-       and start_snap.identity_key is distinct from end_snap.identity_key
+      when (
+        start_snap.player is not null
+        and end_snap.player is not null
+        and start_snap.identity_key is distinct from end_snap.identity_key
+      ) or (
+        start_snap.query_key is not null
+        and end_snap.query_key is not null
+        and start_snap.query_key is distinct from end_snap.query_key
+      )
       then coalesce(start_snap.self_reported, false)
       else (coalesce(start_snap.self_reported, false) or coalesce(end_snap.self_reported, false))
     end,

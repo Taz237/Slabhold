@@ -58,7 +58,10 @@ import {
   snapshotSaleSource,
 } from "@/lib/leaderboard/snapshot-fields";
 import { allowValueBoardRevalidate } from "@/lib/leaderboard/revalidate-limit";
+import { profileChangeRefreshesBoard } from "@/lib/leaderboard/profile-refresh";
 import { cardChangeNeedsSnapshot } from "@/lib/leaderboard/snapshot-trigger";
+import { buildQueryKey } from "@/lib/comps/query-key";
+import { queryKeyCard } from "@/lib/value/price-refresh";
 import { VALUE_BOARD_TAB } from "@/lib/leaderboard/tab";
 import type { ValueBoardModel } from "@/lib/leaderboard/types";
 import { cardValueHistoryEnabled } from "@/lib/collection/card-value-history";
@@ -304,6 +307,36 @@ describe("value board math", () => {
       card({ cardId: "other", identityKey: "other", startMedian: 30, endMedian: 60 }),
     ]);
     assert.notEqual(priced.dollarGain, 0);
+  });
+
+  it("scores 0 when card number, serial, or auto changes the comps query key", () => {
+    const base = {
+      id: "card-1",
+      playerName: "Ada",
+      year: 2020,
+      setBrand: "Prizm",
+      cardNumber: "1",
+      grade: "PSA 10",
+      parallel: "Silver",
+      serialRun: null as number | null,
+      isAuto: false,
+    };
+    const startKey = buildQueryKey(queryKeyCard(base));
+    for (const patch of [{ cardNumber: "9" }, { serialRun: 1 }, { isAuto: true }] as const) {
+      const endKey = buildQueryKey(queryKeyCard({ ...base, ...patch }));
+      assert.notEqual(startKey, endKey);
+      const change = valueBoardChange([
+        card({
+          cardId: "edited",
+          startMedian: 30,
+          endMedian: 500,
+          identityChanged: startKey !== endKey,
+        }),
+        card({ cardId: "flat", identityKey: "flat", startMedian: 30, endMedian: 30 }),
+      ]);
+      assert.equal(change.percent, 0);
+      assert.equal(change.dollarGain, 0);
+    }
   });
 
   it("scores a card made private mid-week at its last public value", () => {
@@ -763,6 +796,8 @@ describe("leaderboard wiring", () => {
     assert.match(sql, /p_grade_qualifier text/);
     assert.match(sql, /p_year_label text/);
     assert.match(sql, /p_condition_type text/);
+    assert.match(sql, /add column if not exists query_key text/);
+    assert.match(sql, /start_snap\.query_key is distinct from end_snap\.query_key/);
     assert.match(sql, /is_public is true/);
     assert.match(sql, /is_test/);
     assert.match(sql, /qa_/);
@@ -864,6 +899,18 @@ describe("leaderboard wiring", () => {
     assert.equal(row.status, "ok");
     assert.equal(row.held, true);
     assert.equal(row.player, "ada");
+    assert.equal(
+      row.query_key,
+      buildQueryKey(
+        queryKeyCard({
+          id: "card-1",
+          year: 2020,
+          setBrand: "Prizm",
+          parallel: "Silver",
+          grade: "PSA 10",
+        }),
+      ),
+    );
     assert.deepEqual(medianOnlySnapshotInsert(row), {
       card_id: "card-1",
       snapshot_date: "2026-10-23",
@@ -929,7 +976,8 @@ describe("leaderboard wiring", () => {
     assert.match(optInAction, /getAuthUserId\(\)/);
     assert.match(optInAction, /allowValueBoardRevalidate/);
     assert.match(optInAction, /saveLeaderboardOptIn/);
-    assert.doesNotMatch(optInAction, /export async function revalidateValueBoard/);
+    assert.doesNotMatch(optInAction, /export async function revalidateValueBoard\(/);
+    assert.match(optInAction, /export async function revalidateValueBoardForAccount/);
     const rateAt = 1_700_000_000_000;
     assert.equal(allowValueBoardRevalidate("rate-ada", rateAt), true);
     assert.equal(allowValueBoardRevalidate("rate-ada", rateAt + 5_000), false);
@@ -957,6 +1005,22 @@ describe("leaderboard wiring", () => {
     assert.match(read("components/collection-provider.tsx"), /cardChangeNeedsSnapshot\(previous, updated\)/);
     assert.match(read("app/api/cron/refresh-card-values/route.ts"), /snapshotOwnersAfterRefresh/);
     assert.match(read("lib/account/delete-account.ts"), /"card_value_snapshots", "user_id"/);
+    assert.match(read("app/api/account/delete/route.ts"), /flushValueBoardCache/);
+    assert.match(read("components/social-provider.tsx"), /revalidateValueBoardForAccount/);
+    assert.match(read("components/social-provider.tsx"), /profileChangeRefreshesBoard/);
+    const sameProfile = {
+      beforeUsername: "ada",
+      afterUsername: "ada",
+      beforeAvatar: "pic",
+      afterAvatar: "pic",
+      beforeTestFlag: false,
+      afterTestFlag: false,
+    };
+    assert.equal(profileChangeRefreshesBoard(sameProfile), false);
+    assert.equal(profileChangeRefreshesBoard({ ...sameProfile, afterUsername: "ada2" }), true);
+    assert.equal(profileChangeRefreshesBoard({ ...sameProfile, afterAvatar: "new" }), true);
+    assert.equal(profileChangeRefreshesBoard({ ...sameProfile, afterTestFlag: true }), true);
+    assert.equal(profileChangeRefreshesBoard({ ...sameProfile, afterUsername: "qa_ada" }), true);
     assert.match(read("components/collection-today.tsx"), /card_id != null/);
     assert.match(read("components/collection-today.tsx"), /\.not\("card_id", "is", null\)/);
     assert.match(read("app/leaderboard/value/page.tsx"), /getAuthUserCreatedAt/);
@@ -986,6 +1050,8 @@ describe("leaderboard wiring", () => {
     assert.match(schemaFn, /Bracket comes from the week-start value of public held cards only/);
     assert.match(schemaFn, /function public\.leaderboard_hidden_ids\(p_viewer uuid\)/);
     assert.match(schemaFn, /s\.card_number/);
+    assert.match(schemaFn, /s\.query_key/);
+    assert.match(schemaFn, /query_key is distinct from end_snap\.query_key/);
     assert.doesNotMatch(schemaFn, /function public\.blocked_by_ids/);
     assert.match(schemaFn, /auth\.users/);
     assert.match(schemaFn, /s\.is_public is true/);
