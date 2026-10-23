@@ -230,6 +230,93 @@ describe("leaderboard page", () => {
     assert.equal(ranked.entries.some((entry) => entry.score <= 0), false);
   });
 
+  it("renders places 4 through 10 with profile links and drops hidden or unqualified entrants", () => {
+    const now = new Date("2026-10-23T16:00:00.000Z");
+    const snap = emptySnapshot(now);
+    const rows = Array.from({ length: 12 }, (_, index) => ({
+      id: `p${index}`,
+      userId: `u${index}`,
+      title: index === 4 ? "Very Long Display Name That Must Truncate On A Narrow Phone" : `Card ${String(index).padStart(2, "0")}`,
+      subtitle: `@u${index}`,
+      href: `/posts/p${index}`,
+      avatarUrl: null,
+      accent: "#7c5cff",
+      contributions: [{ actorId: "fan", points: 20 - index }],
+    }));
+    rows.push({
+      id: "zero",
+      userId: "zero",
+      title: "Zero",
+      subtitle: "@zero",
+      href: "/posts/zero",
+      avatarUrl: null,
+      accent: "#7c5cff",
+      contributions: [{ actorId: "fan", points: 0 }],
+    });
+    snap.current.boards["top-card-post"] = { rows };
+    const model = presentLeaderboard({
+      snapshot: snap,
+      viewer: { userId: "u5", hiddenIds: ["u1"] },
+      week: "current",
+      boardId: "top-card-post",
+      now,
+    });
+    assert.equal(model.thin, false);
+    assert.equal(model.entries.length, 10);
+    assert.equal(model.entries.some((entry) => entry.userId === "u1" || entry.userId === "zero" || entry.userId === "u11"), false);
+    assert.equal(model.entries[3]?.rank, 4);
+    assert.equal(model.entries.at(-1)?.rank, 10);
+    assert.equal(model.you?.rank, 5);
+    const html = renderToStaticMarkup(createElement(LeaderboardView, { model }));
+    assert.match(html, /data-podium=""/);
+    assert.match(html, /data-rank-rows=""/);
+    assert.match(html, /data-rank="4"/);
+    assert.match(html, /data-rank="10"/);
+    assert.doesNotMatch(html, /data-rank="11"/);
+    assert.match(html, /href="\/u\/u0"/);
+    assert.match(html, /href="\/u\/u10"/);
+    assert.doesNotMatch(html, /href="\/posts\//);
+    assert.doesNotMatch(html, /href="\/u\/u1"/);
+    assert.doesNotMatch(html, /href="\/u\/zero"/);
+    assert.match(html, /data-viewer-row=""/);
+    assert.match(html, />NEW</);
+    assert.match(html, /min-h-16/);
+    snap.previous.boards["top-card-post"] = { rows };
+    const last = presentLeaderboard({
+      snapshot: snap,
+      viewer: { userId: "u5", hiddenIds: ["u1"] },
+      week: "previous",
+      boardId: "top-card-post",
+      now,
+    });
+    const lastHtml = renderToStaticMarkup(createElement(LeaderboardView, { model: last }));
+    assert.match(lastHtml, /data-rank="4"/);
+    assert.match(lastHtml, /href="\/u\/u4"/);
+    assert.doesNotMatch(lastHtml, /href="\/posts\//);
+
+    snap.current.boards["rising-collectors"] = {
+      rows: [
+        { id: "a", userId: "ada", title: "Ada Lovelace", subtitle: "@ada", href: "/u/ada", avatarUrl: null, accent: "#10b981", contributions: [{ actorId: "fan", points: 4 }] },
+        { id: "b", userId: "bea", title: "Bea", subtitle: "@bea", href: "/u/bea", avatarUrl: null, accent: "#10b981", contributions: [{ actorId: "fan", points: 3 }] },
+        { id: "c", userId: "cy", title: "Cy", subtitle: "@cy", href: "/u/cy", avatarUrl: null, accent: "#10b981", contributions: [{ actorId: "fan", points: 2 }] },
+        { id: "d", userId: "dee", title: "Dee Collector", subtitle: "@dee", href: "/u/dee", avatarUrl: null, accent: "#10b981", contributions: [{ actorId: "fan", points: 1 }] },
+      ],
+    };
+    const rising = presentLeaderboard({
+      snapshot: snap,
+      viewer: { userId: null, hiddenIds: [] },
+      week: "current",
+      boardId: "rising-collectors",
+      now,
+    });
+    const risingHtml = renderToStaticMarkup(createElement(LeaderboardView, { model: rising }));
+    assert.match(risingHtml, /data-rank="4"/);
+    assert.match(risingHtml, /Dee Collector/);
+    assert.match(risingHtml, /@dee/);
+    assert.match(risingHtml, /href="\/u\/dee"/);
+    assert.match(risingHtml, /new follower/);
+  });
+
   it("hides an entrant who blocked the viewer and shows an error instead of an empty board", () => {
     const hidden = hiddenIdsForViewer(
       "viewer",
