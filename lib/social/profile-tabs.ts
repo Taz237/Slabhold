@@ -61,10 +61,69 @@ export type ProfileReply = {
   createdAt: string;
 };
 
-/** Replies are comments this person wrote, newest first. */
-export function profileReplies(comments: readonly PostComment[], userId: string): ProfileReply[] {
+export type ReplyParent = Pick<Post, "id" | "authorId" | "hiddenAt">;
+
+export type ReplyParentFilter = {
+  posts: readonly ReplyParent[];
+  blockedIds?: readonly string[];
+  viewerId?: string | null;
+  /**
+   * When true (local mode), a parent that is not in `posts` is deleted and the
+   * reply is dropped. Supabase leaves unknowns in place and checks them with
+   * `visibleReplyParentIds`, because the loaded page is not the whole table.
+   */
+  dropMissing?: boolean;
+};
+
+/** True when this viewer can see the parent post. A missing parent is deleted. */
+export function replyParentVisible(
+  parent: ReplyParent | undefined,
+  blockedIds: readonly string[],
+  viewerId: string | null,
+): boolean {
+  if (!parent) return false;
+  if (blockedIds.includes(parent.authorId)) return false;
+  if (parent.hiddenAt && parent.authorId !== viewerId) return false;
+  return true;
+}
+
+/**
+ * Parent ids the viewer's posts select returned. RLS drops a deleted post, a
+ * post hidden from this viewer, and a post by someone blocked in either direction.
+ */
+export async function visibleReplyParentIds(
+  supabase: SupabaseClient,
+  ids: readonly string[],
+): Promise<Set<string>> {
+  const unique = [...new Set(ids.filter((id) => id.length > 0))];
+  if (unique.length === 0) return new Set();
+  const { data, error } = await supabase.from("posts").select("id").in("id", unique);
+  if (error || !data) return new Set();
+  const visible = new Set<string>();
+  for (const row of data as { id?: string }[]) {
+    if (typeof row.id === "string") visible.add(row.id);
+  }
+  return visible;
+}
+
+/** Replies are comments this person wrote, newest first, whose parent the viewer can see. */
+export function profileReplies(
+  comments: readonly PostComment[],
+  userId: string,
+  parents?: ReplyParentFilter,
+): ProfileReply[] {
+  const postsById = new Map((parents?.posts ?? []).map((post) => [post.id, post]));
+  const blockedIds = parents?.blockedIds ?? [];
+  const viewerId = parents?.viewerId ?? null;
+  const dropMissing = parents ? parents.dropMissing !== false : false;
   return comments
-    .filter((comment) => comment.authorId === userId && comment.body.trim().length > 0)
+    .filter((comment) => {
+      if (comment.authorId !== userId || comment.body.trim().length === 0) return false;
+      if (!parents) return true;
+      const parent = postsById.get(comment.postId);
+      if (!parent) return !dropMissing;
+      return replyParentVisible(parent, blockedIds, viewerId);
+    })
     .map((comment) => ({
       id: comment.id,
       postId: comment.postId,

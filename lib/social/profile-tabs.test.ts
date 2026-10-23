@@ -14,6 +14,7 @@ import {
   profileMediaItems,
   profileReplies,
   profileTabFromQuery,
+  visibleReplyParentIds,
   profileWithPin,
   withPinnedFirst,
   type ProfileTabCard,
@@ -173,6 +174,15 @@ describe("pin and unpin rules", () => {
       },
     } as unknown as SupabaseClient;
     assert.equal((await remotePinPost(denied, "px")).error, "You can only pin your own post.");
+    const hidden = {
+      rpc() {
+        return Promise.resolve({ error: { code: "42501", message: "can only pin your own post" } });
+      },
+      from() {
+        throw new Error("pin must not update profiles from the client");
+      },
+    } as unknown as SupabaseClient;
+    assert.equal((await remotePinPost(hidden, "p1")).error, "Hidden posts can't be pinned.");
   });
 
   it("clears the pin when that post is deleted and keeps a different pin", () => {
@@ -235,6 +245,62 @@ describe("profile tab filters", () => {
     );
     assert.equal(pinned.filter((entry) => entry.post.id === "photo").length, 1);
     assert.equal(withPinnedFirst(items, replyPhoto, me).some((entry) => entry.key.startsWith("pinned:")), false);
+  });
+
+  it("drops a reply when its parent is hidden, blocked, or deleted", () => {
+    const viewer = "viewer";
+    const blocked = "blocked-author";
+    const comments: PostComment[] = [
+      { id: "c-ok", postId: "p-ok", authorId: ME, body: "visible", createdAt: "2026-10-22T00:00:01.000Z" },
+      { id: "c-hidden", postId: "p-hidden", authorId: ME, body: "hidden parent", createdAt: "2026-10-22T00:00:04.000Z" },
+      { id: "c-own", postId: "p-own", authorId: ME, body: "own hidden parent", createdAt: "2026-10-22T00:00:03.000Z" },
+      { id: "c-blocked", postId: "p-blocked", authorId: ME, body: "blocked parent", createdAt: "2026-10-22T00:00:05.000Z" },
+      { id: "c-gone", postId: "p-gone", authorId: ME, body: "deleted parent", createdAt: "2026-10-22T00:00:06.000Z" },
+    ];
+    const posts = [
+      post("p-ok", OTHER),
+      post("p-hidden", OTHER, { hiddenAt: "2026-10-22T00:00:00.000Z" }),
+      post("p-own", viewer, { hiddenAt: "2026-10-22T00:00:00.000Z" }),
+      post("p-blocked", blocked),
+    ];
+    const replies = profileReplies(comments, ME, {
+      posts,
+      blockedIds: [blocked],
+      viewerId: viewer,
+      dropMissing: true,
+    });
+    assert.deepEqual(replies.map((reply) => reply.id), ["c-own", "c-ok"]);
+  });
+
+  it("keeps only parent ids the viewer's posts select returns", async () => {
+    const seen: { table?: string; columns?: string; ids?: string[] } = {};
+    const supabase = {
+      from(table: string) {
+        seen.table = table;
+        return {
+          select(columns: string) {
+            seen.columns = columns;
+            return {
+              in(_column: string, ids: string[]) {
+                seen.ids = ids;
+                return Promise.resolve({
+                  data: [{ id: "p-ok" }],
+                  error: null,
+                });
+              },
+            };
+          },
+        };
+      },
+    };
+    const visible = await visibleReplyParentIds(
+      supabase as unknown as SupabaseClient,
+      ["p-ok", "p-hidden", "p-ok"],
+    );
+    assert.equal(seen.table, "posts");
+    assert.equal(seen.columns, "id");
+    assert.deepEqual(seen.ids, ["p-ok", "p-hidden"]);
+    assert.deepEqual([...visible], ["p-ok"]);
   });
 
   it("replacing a pin moves the new post to the front", () => {
@@ -379,6 +445,7 @@ describe("profile pin menu and tabs", () => {
     assert.match(menu, /unpinPost\(\)/);
     const ownMenu = menu.slice(menu.indexOf("open && mine"));
     assert.match(ownMenu, /Pin to profile/);
+    assert.match(ownMenu, /post\.hiddenAt \? null/);
     const safety = menu.slice(0, menu.indexOf("open && mine"));
     assert.doesNotMatch(safety, /Pin to profile/);
 

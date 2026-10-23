@@ -1226,8 +1226,9 @@ export async function searchProfilesForMention(
   );
 }
 
-function pinError(error: { message?: string } | null): string | undefined {
+function pinError(error: { code?: string; message?: string } | null): string | undefined {
   if (!error) return undefined;
+  if (error.code === "42501") return "Hidden posts can't be pinned.";
   if (/can only pin your own post/i.test(error.message ?? "")) {
     return "You can only pin your own post.";
   }

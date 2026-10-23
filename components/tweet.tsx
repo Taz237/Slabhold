@@ -355,23 +355,41 @@ function PostMenu({ post }: { post: Post }) {
             </div>
           ) : (
             <>
-              <button
-                type="button"
-                role="menuitem"
-                disabled={pinning}
-                onClick={() => {
-                  if (!user) return;
-                  setPinning(true);
-                  const run = user.pinnedPostId === post.id ? unpinPost() : pinPost(post.id);
-                  void run.finally(() => {
-                    setPinning(false);
-                    close();
-                  });
-                }}
-                className="block w-full px-4 py-2.5 text-left text-[15px] font-bold hover:bg-zinc-100 disabled:opacity-60 dark:hover:bg-white/10"
-              >
-                {user.pinnedPostId === post.id ? "Unpin" : "Pin to profile"}
-              </button>
+              {user.pinnedPostId === post.id ? (
+                <button
+                  type="button"
+                  role="menuitem"
+                  disabled={pinning}
+                  onClick={() => {
+                    if (!user) return;
+                    setPinning(true);
+                    void unpinPost().finally(() => {
+                      setPinning(false);
+                      close();
+                    });
+                  }}
+                  className="block w-full px-4 py-2.5 text-left text-[15px] font-bold hover:bg-zinc-100 disabled:opacity-60 dark:hover:bg-white/10"
+                >
+                  Unpin
+                </button>
+              ) : post.hiddenAt ? null : (
+                <button
+                  type="button"
+                  role="menuitem"
+                  disabled={pinning}
+                  onClick={() => {
+                    if (!user) return;
+                    setPinning(true);
+                    void pinPost(post.id).finally(() => {
+                      setPinning(false);
+                      close();
+                    });
+                  }}
+                  className="block w-full px-4 py-2.5 text-left text-[15px] font-bold hover:bg-zinc-100 disabled:opacity-60 dark:hover:bg-white/10"
+                >
+                  Pin to profile
+                </button>
+              )}
               <button
                 type="button"
                 role="menuitem"

@@ -35,6 +35,7 @@ import {
   profileCardsTab,
   profileMediaItems,
   profileTabFromQuery,
+  visibleReplyParentIds,
   withPinnedFirst,
   type ProfileTab,
 } from "@/lib/social/profile-tabs";
@@ -82,6 +83,9 @@ export function ProfileView({ username }: { username?: string }) {
   const [viewCards, setViewCards] = useState<{ ownerId: string; rows: OwnedCard[] } | null>(null);
   const [pinnedExtra, setPinnedExtra] = useState<Post | null>(null);
   const [postsRefreshKey, setPostsRefreshKey] = useState(0);
+  const [replyParents, setReplyParents] = useState<{ key: string; ids: ReadonlySet<string> } | null>(
+    null,
+  );
   const pagedPosts = usePagedTimeline({
     enabled: mode === "supabase" && Boolean(profile?.id),
     scope: "profile",
@@ -168,6 +172,31 @@ export function ProfileView({ username }: { username?: string }) {
       cancelled = true;
     };
   }, [mode, profile?.id, postsRefreshKey]);
+
+  const replyAuthorId = profile?.id ?? "";
+  const loadedReplies = replyAuthorId ? repliesBy(replyAuthorId) : [];
+  const replyParentKey = loadedReplies.map((reply) => `${reply.id}:${reply.postId}`).join("|");
+  const replyParentsReady =
+    mode !== "supabase" || loadedReplies.length === 0 || replyParents?.key === replyParentKey;
+  const replies = replyParentsReady
+    ? mode === "supabase" && replyParents
+      ? loadedReplies.filter((reply) => replyParents.ids.has(reply.postId))
+      : loadedReplies
+    : [];
+
+  useEffect(() => {
+    if (mode !== "supabase" || !replyAuthorId || !replyParentKey) return;
+    const supabase = createSupabaseBrowser();
+    if (!supabase) return;
+    const ids = replyParentKey.split("|").map((part) => part.slice(part.indexOf(":") + 1));
+    let cancelled = false;
+    void visibleReplyParentIds(supabase, ids).then((idsVisible) => {
+      if (!cancelled) setReplyParents({ key: replyParentKey, ids: idsVisible });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [mode, replyAuthorId, replyParentKey]);
 
   useEffect(() => {
     const ownerId = profile?.id;
@@ -269,7 +298,6 @@ export function ProfileView({ username }: { username?: string }) {
     tab === "media"
       ? profileMediaItems(activity, profile.id)
       : withPinnedFirst(activity, tab === "posts" ? pinnedPost : null, profile);
-  const replies = repliesBy(profile.id);
   const postsLoading = mode === "supabase" && pagedPosts.loading && shownActivity.length === 0;
 
   return (
@@ -368,7 +396,9 @@ export function ProfileView({ username }: { username?: string }) {
       </div>
 
       {tab === "replies" ? (
-        replies.length === 0 ? (
+        !replyParentsReady ? (
+          <LoadingRows />
+        ) : replies.length === 0 ? (
           <EmptyState
             icon={<MessageCircle className="h-5 w-5" />}
             title="No replies yet"

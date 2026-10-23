@@ -1396,8 +1396,14 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
   );
 
   const repliesBy = useCallback(
-    (userId: string) => profileReplies(snapshot.comments, userId),
-    [snapshot.comments],
+    (userId: string) =>
+      profileReplies(snapshot.comments, userId, {
+        posts: snapshot.posts,
+        blockedIds: snapshot.blockedIds ?? [],
+        viewerId: snapshot.user?.id ?? null,
+        dropMissing: mode !== "supabase",
+      }),
+    [mode, snapshot.blockedIds, snapshot.comments, snapshot.posts, snapshot.user?.id],
   );
 
   const followerCount = useCallback(
