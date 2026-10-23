@@ -22,6 +22,7 @@ describe("route access", () => {
       "/search",
       "/search?q=wemby",
       "/moving-today",
+      "/leaderboard",
       `/posts/${CARD}`,
       "/u/maya",
       "/u/maya/followers",

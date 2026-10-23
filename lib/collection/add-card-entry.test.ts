@@ -70,7 +70,8 @@ describe("Add a card on Collection", () => {
     assert.doesNotMatch(more, /href="\/scan"/);
     assert.doesNotMatch(more, /Scan a card/);
     const shell = read("components/app-shell.tsx");
-    assert.match(shell, /href: "\/cards\/new", label: "Add card"/);
+    assert.match(read("lib/ui/bottom-nav.ts"), /href: "\/cards\/new", label: "Add card"/);
+    assert.match(shell, /BOTTOM_NAV/);
     assert.match(shell, /aria-label="Add card"/);
     assert.match(shell, />\s*Add card\s*</);
     assert.doesNotMatch(shell, /href: "\/scan"/);

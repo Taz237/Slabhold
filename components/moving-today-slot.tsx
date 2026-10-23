@@ -1,3 +1,4 @@
+import { LeaderboardHomeLink } from "@/components/leaderboard-home-link";
 import { MovingToday, MovingTodayCached } from "@/components/moving-today";
 import { getMovingToday } from "@/lib/moving-today/load";
 import type { MovingTodayPayload } from "@/lib/moving-today/types";
@@ -10,6 +11,10 @@ export async function MovingTodaySlot() {
   } catch {
     payload = null;
   }
-  if (!payload) return <MovingToday />;
-  return <MovingTodayCached payload={payload} />;
+  return (
+    <>
+      {payload ? <MovingTodayCached payload={payload} /> : <MovingToday />}
+      <LeaderboardHomeLink />
+    </>
+  );
 }

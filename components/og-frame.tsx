@@ -4,6 +4,9 @@ import { ImageResponse } from "next/og";
 import type { ReactNode } from "react";
 import { siteUrlFrom } from "@/lib/site-url";
 import { cleanImageUrl, type LinkPreview } from "@/lib/social/link-preview";
+import { leaderboardCacheControl } from "@/lib/leaderboard/cache";
+import type { LeaderboardShareModel } from "@/lib/leaderboard/share";
+import { stripUnsupportedOgText } from "@/lib/og/safe-text";
 import { movingTodayCacheControl } from "@/lib/moving-today/cache";
 import type { MovingTodayShareModel } from "@/lib/moving-today/share";
 import {
@@ -572,14 +575,6 @@ function paint(
   );
 }
 
-/** Arabic-script shaping crashes the OG font. Other scripts we ship stay. */
-const UNSUPPORTED_OG_SCRIPT =
-  /[\u0600-\u06FF\u0750-\u077F\u0870-\u089F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/g;
-
-function stripUnsupportedOgText(value: string): string {
-  return value.replace(UNSUPPORTED_OG_SCRIPT, " ").replace(/\s+/g, " ").trim();
-}
-
 function readableShareImage(model: ShareImage): ShareImage {
   const text = stripUnsupportedOgText;
   const title = text(model.title);
@@ -706,4 +701,72 @@ export function renderMovingTodayOg(model: MovingTodayShareModel) {
     </div>,
     movingTodayCacheControl(),
   );
+}
+
+function leaderboardNode(model: LeaderboardShareModel) {
+  const title = stripUnsupportedOgText(model.title) || "Leaderboard";
+  const kicker = stripUnsupportedOgText(model.kicker);
+  const detail = stripUnsupportedOgText(model.detail);
+  const lines = model.lines
+    .map((line) => ({
+      place: stripUnsupportedOgText(line.place),
+      name: stripUnsupportedOgText(line.name) || "Collector",
+      detail: stripUnsupportedOgText(line.detail),
+    }))
+    .filter((line) => line.name);
+  return (
+    <div style={{ display: "flex", width: "100%", height: "100%" }}>
+      <Left>
+        <Brand />
+        <div style={{ display: "flex", flexDirection: "column" }}>
+          <div style={{ display: "flex", fontSize: 22, letterSpacing: 2, color: "#c4b5fd" }}>
+            {title.toUpperCase()}
+          </div>
+          {kicker ? (
+            <div style={{ display: "flex", marginTop: 10, fontSize: 28, color: "#a1a1aa" }}>{kicker}</div>
+          ) : null}
+          {detail ? (
+            <div style={{ display: "flex", marginTop: 18, fontSize: 32, fontWeight: 700 }}>{detail}</div>
+          ) : null}
+          <div style={{ display: "flex", flexDirection: "column", marginTop: 28 }}>
+            {lines.map((line) => (
+              <div
+                key={`${line.place}-${line.name}`}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  marginTop: 16,
+                }}
+              >
+                <div style={{ display: "flex", width: 72, fontSize: 28, color: "#c4b5fd" }}>{line.place}</div>
+                <div style={{ display: "flex", flexDirection: "column" }}>
+                  <div style={{ display: "flex", fontSize: 32, fontWeight: 700, lineClamp: 1 }}>{line.name}</div>
+                  {line.detail ? (
+                    <div style={{ display: "flex", marginTop: 4, fontSize: 22, color: "#d4d4d8" }}>
+                      {line.detail}
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </Left>
+    </div>
+  );
+}
+
+/** Text and the Slabhold mark only. Arabic-script names are removed before draw. */
+export async function renderLeaderboardOg(model: LeaderboardShareModel) {
+  try {
+    return await consumeOg(respond(leaderboardNode(model), leaderboardCacheControl()));
+  } catch (error) {
+    console.error("[og] leaderboard image render failed", error);
+    return consumeOg(
+      respond(
+        leaderboardNode({ title: "Leaderboard", kicker: "", detail: "", lines: [] }),
+        leaderboardCacheControl(),
+      ),
+    );
+  }
 }
