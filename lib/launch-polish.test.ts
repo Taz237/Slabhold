@@ -164,7 +164,8 @@ describe("manifest", () => {
     assert.match(layout, /sizes: "180x180"/);
 
     const shell = read("components/app-shell.tsx");
-    assert.match(shell, /label: "Home"/);
+    assert.match(read("lib/ui/bottom-nav.ts"), /label: "Home"/);
+    assert.match(shell, /BOTTOM_NAV/);
     assert.match(shell, /env\(safe-area-inset-bottom\)/);
     assert.match(shell, /env\(safe-area-inset-top\)/);
     const css = read("app/globals.css");

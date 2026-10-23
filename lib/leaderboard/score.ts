@@ -27,8 +27,9 @@ export type BoardPost = {
   body: string;
   hiddenAt: string | null;
   deleted: boolean;
-  /** Card ids attached on the post, including mail-day links. */
+  /** Card ids attached on the post. Mail Day posts are not scored. */
   cardIds: string[];
+  postType: "post" | "mail_day";
 };
 
 export type BoardCard = {
@@ -65,16 +66,31 @@ export type BoardFollow = {
   removedAt: string | null;
 };
 
+export type BlockPair = {
+  blockerId: string;
+  blockedId: string;
+};
+
 export type ScoreInput = {
   profiles: readonly BoardProfile[];
   posts: readonly BoardPost[];
   cards: readonly BoardCard[];
-  /** User ids with at least one non-hidden post, even if that post is not scored. */
+  /** User ids with at least one non-hidden, non-Mail-Day post, even if that post is not scored. */
   usersWithPost: readonly string[];
   likes: readonly BoardLike[];
   replies: readonly BoardReply[];
   follows: readonly BoardFollow[];
+  /** Either direction. A pair drops replies and follows between those two accounts. */
+  blockPairs: readonly BlockPair[];
 };
+
+/**
+ * Like actors for scoring. Notifications are client-forgeable, so this
+ * returns nothing until a follow-up can read a likes table.
+ */
+export function getPostLikeActors(): readonly BoardLike[] {
+  return [];
+}
 
 export type Contribution = {
   actorId: string;
@@ -99,6 +115,7 @@ type ActorIndex = {
   cardCount: Map<string, number>;
   postCount: Map<string, number>;
   publicCards: Map<string, BoardCard>;
+  blocks: Set<string>;
 };
 
 function bump(map: Map<string, number>, id: string) {
@@ -119,11 +136,24 @@ function indexInput(input: ScoreInput): ActorIndex {
   const listedPosts = new Set(input.usersWithPost);
   for (const userId of input.usersWithPost) bump(postCount, userId);
   for (const post of input.posts) {
-    if (post.deleted || post.hiddenAt) continue;
+    if (post.deleted || post.hiddenAt || post.postType === "mail_day") continue;
     if (listedPosts.has(post.authorId)) continue;
     bump(postCount, post.authorId);
   }
-  return { profiles, cardCount, postCount, publicCards };
+  const blocks = new Set<string>();
+  for (const pair of input.blockPairs) {
+    if (!pair.blockerId || !pair.blockedId || pair.blockerId === pair.blockedId) continue;
+    blocks.add(pairKey(pair.blockerId, pair.blockedId));
+  }
+  return { profiles, cardCount, postCount, publicCards, blocks };
+}
+
+function pairKey(a: string, b: string): string {
+  return a < b ? `${a}\0${b}` : `${b}\0${a}`;
+}
+
+function blockedPair(index: ActorIndex, a: string, b: string): boolean {
+  return index.blocks.has(pairKey(a, b));
 }
 
 function isTestProfile(profile: BoardProfile): boolean {
@@ -176,7 +206,7 @@ function contributionsFrom(bucket: Map<string, number>): Contribution[] {
 }
 
 function postQualifies(post: BoardPost, index: ActorIndex): BoardCard | null {
-  if (post.deleted || post.hiddenAt) return null;
+  if (post.deleted || post.hiddenAt || post.postType === "mail_day") return null;
   for (const cardId of post.cardIds) {
     const card = index.publicCards.get(cardId);
     if (card) return card;
@@ -186,25 +216,26 @@ function postQualifies(post: BoardPost, index: ActorIndex): BoardCard | null {
 
 function scorePosts(input: ScoreInput, week: WeekWindow, index: ActorIndex): CandidateRow[] {
   const posts = new Map(input.posts.map((post) => [post.id, post]));
-  const points = new Map<string, Map<string, number>>();
-  const seenLikes = new Set<string>();
+  const actors = new Map<string, Set<string>>();
+  const note = (postId: string, actorId: string) => {
+    let set = actors.get(postId);
+    if (!set) {
+      set = new Set();
+      actors.set(postId, set);
+    }
+    set.add(actorId);
+  };
 
+  // Likes are whatever the caller supplied. Production passes getPostLikeActors(), which is empty.
   for (const like of input.likes) {
     if (like.undone || !like.actorId || !like.postId) continue;
     if (!inWeek(new Date(like.createdAt), week)) continue;
-    const key = `${like.actorId}:${like.postId}`;
-    if (seenLikes.has(key)) continue;
-    seenLikes.add(key);
     const post = posts.get(like.postId);
     if (!post || like.actorId === post.authorId) continue;
+    if (blockedPair(index, like.actorId, post.authorId)) continue;
     if (!postQualifies(post, index)) continue;
     if (!actorQualifies(index, like.actorId, like.createdAt)) continue;
-    let bucket = points.get(post.id);
-    if (!bucket) {
-      bucket = new Map();
-      points.set(post.id, bucket);
-    }
-    addPoints(bucket, like.actorId, 1);
+    note(post.id, like.actorId);
   }
 
   for (const reply of input.replies) {
@@ -212,25 +243,21 @@ function scorePosts(input: ScoreInput, week: WeekWindow, index: ActorIndex): Can
     if (!inWeek(new Date(reply.createdAt), week)) continue;
     const post = posts.get(reply.postId);
     if (!post || reply.actorId === post.authorId) continue;
+    if (blockedPair(index, reply.actorId, post.authorId)) continue;
     if (!postQualifies(post, index)) continue;
     if (!actorQualifies(index, reply.actorId, reply.createdAt)) continue;
-    let bucket = points.get(post.id);
-    if (!bucket) {
-      bucket = new Map();
-      points.set(post.id, bucket);
-    }
-    addPoints(bucket, reply.actorId, 1);
+    note(post.id, reply.actorId);
   }
 
   const rows: CandidateRow[] = [];
-  for (const [postId, bucket] of points) {
+  for (const [postId, set] of actors) {
     const post = posts.get(postId);
     if (!post) continue;
     const author = entrantOk(index, post.authorId);
     if (!author) continue;
     const card = postQualifies(post, index);
     if (!card) continue;
-    const list = contributionsFrom(bucket);
+    const list = [...set].map((actorId) => ({ actorId, points: 1 }));
     if (list.length === 0) continue;
     const player = card.player.trim();
     const body = post.body.trim().replace(/\s+/g, " ");
@@ -264,6 +291,7 @@ function scoreRising(input: ScoreInput, week: WeekWindow, index: ActorIndex): Ca
   for (const follow of input.follows) {
     if (!follow.followerId || !follow.followingId) continue;
     if (follow.followerId === follow.followingId) continue;
+    if (blockedPair(index, follow.followerId, follow.followingId)) continue;
     const delta = followDelta(follow, week);
     if (delta === 0) continue;
     const when = delta > 0 ? follow.createdAt : (follow.removedAt ?? follow.createdAt);

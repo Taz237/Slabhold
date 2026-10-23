@@ -21,7 +21,16 @@ export function snapshotFromInput(input: ScoreInput, now: Date): LeaderboardSnap
 
 export function emptySnapshot(now: Date): LeaderboardSnapshot {
   return snapshotFromInput(
-    { profiles: [], posts: [], cards: [], usersWithPost: [], likes: [], replies: [], follows: [] },
+    {
+      profiles: [],
+      posts: [],
+      cards: [],
+      usersWithPost: [],
+      likes: [],
+      replies: [],
+      follows: [],
+      blockPairs: [],
+    },
     now,
   );
 }

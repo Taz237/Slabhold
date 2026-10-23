@@ -36,6 +36,11 @@ export function LeaderboardView({ model }: { model: LeaderboardPageModel }) {
           {" · "}
           <LeaderboardCountdown resetsAt={model.resetsAt} initialLabel={model.countdownLabel} />
         </p>
+        {model.standingNote ? (
+          <p className="mt-1 text-sm text-zinc-500" data-closed-note="">
+            {model.standingNote}
+          </p>
+        ) : null}
       </div>
 
       <div className="grid grid-cols-2 border-b border-zinc-200 text-[15px] dark:border-white/10">
@@ -44,7 +49,7 @@ export function LeaderboardView({ model }: { model: LeaderboardPageModel }) {
             key={link.id}
             href={link.href}
             aria-current={link.active ? "page" : undefined}
-            className={`px-3 py-3 text-center font-semibold ${
+            className={`flex min-h-11 items-center justify-center px-3 text-center font-semibold ${
               link.active ? "text-zinc-900 dark:text-white" : "text-zinc-500"
             }`}
           >
@@ -63,7 +68,7 @@ export function LeaderboardView({ model }: { model: LeaderboardPageModel }) {
             href={tab.href}
             aria-current={tab.active ? "page" : undefined}
             data-board={tab.id}
-            className={`shrink-0 rounded-full px-3 py-1.5 text-sm font-semibold ${
+            className={`inline-flex min-h-11 shrink-0 items-center rounded-full px-4 text-sm font-semibold ${
               tab.active
                 ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-950"
                 : "bg-zinc-100 text-zinc-600 dark:bg-white/10 dark:text-zinc-300"
@@ -74,7 +79,12 @@ export function LeaderboardView({ model }: { model: LeaderboardPageModel }) {
         ))}
       </div>
 
-      {model.thin ? (
+      {model.status === "error" ? (
+        <div className="px-6 py-12 text-center" data-board-error="">
+          <p className="text-[17px] font-bold tracking-tight">{model.errorTitle}</p>
+          <p className="mx-auto mt-1.5 max-w-[18rem] text-sm leading-5 text-zinc-500">{model.errorDetail}</p>
+        </div>
+      ) : model.thin ? (
         <div className="px-6 py-12 text-center" data-thin-board="">
           <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-full bg-zinc-100 text-zinc-500 dark:bg-white/10">
             <Trophy className="h-5 w-5" />
@@ -135,6 +145,18 @@ export function LeaderboardView({ model }: { model: LeaderboardPageModel }) {
             </div>
           ))}
         </div>
+      </section>
+
+      <section className="border-t border-zinc-200 px-4 py-6 dark:border-white/10" data-checklist="">
+        <h2 className="text-sm font-bold">Your checklist</h2>
+        <ul className="mt-3 space-y-2 text-sm leading-5 text-zinc-600 dark:text-zinc-300">
+          {model.checklist.map((item) => (
+            <li key={item.id}>
+              <span className="font-semibold text-zinc-800 dark:text-zinc-100">{item.label}. </span>
+              {item.line}
+            </li>
+          ))}
+        </ul>
       </section>
     </div>
   );

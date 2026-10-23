@@ -14,7 +14,7 @@ export const LEADERBOARD_TOP_LIMIT = 10;
 /** Fewer qualifying rows than this, and the board shows the thin state. */
 export const LEADERBOARD_MIN_ENTRIES = 3;
 
-/** Likes, replies, and follows only count from accounts at least this many days old. */
+/** Replies and follows only count from accounts at least this many days old. */
 export const ACTOR_MIN_AGE_DAYS = 7;
 
 /** The actor also needs at least this many cards or this many posts. */
@@ -34,7 +34,18 @@ export const THIN_BOARD_TITLE = "Board fills up as collectors post and follow";
 
 export const PROVISIONAL_LABEL = "Provisional";
 
-export const FINAL_LABEL = "Final";
+/**
+ * A week after Tuesday 00:00 ET. Relabeled from "Final" because this build
+ * does not store a frozen snapshot. The count is read again from current rows.
+ */
+export const FINAL_LABEL = "Closed";
+
+export const CLOSED_NOTE =
+  "Closed weeks are read from current records. They are not a stored freeze.";
+
+export const BOARD_ERROR_TITLE = "Leaderboard didn't load";
+
+export const BOARD_ERROR_DETAIL = "Refresh the page to try again.";
 
 export const THIS_WEEK_LABEL = "This week";
 
@@ -61,9 +72,18 @@ export type LeaderboardTab = {
   howTo: readonly string[];
 };
 
-export const TOP_CARD_LEAD = "Post a card. Likes and replies from real collectors count.";
+export const TOP_CARD_LEAD = "Post a card. Replies from real collectors count.";
 
 export const RISING_LEAD = "Get follows from real collectors this week.";
+
+export const ONCE_PER_COLLECTOR_RULE = "Each collector counts once per post.";
+
+export const REMOVED_FOLLOW_RULE =
+  "A new follow counts while it is still in place. A follow that was removed does not count.";
+
+export const BLOCK_PAIR_RULE = "People who blocked each other do not count.";
+
+export const MAIL_DAY_RULE = "Mail Day posts do not count.";
 
 export function realCollectorRule(): string {
   return `A real collector has had an account for at least ${ACTOR_MIN_AGE_DAYS} days and has at least ${ACTOR_MIN_CONTENT} card or ${ACTOR_MIN_CONTENT} post.`;
@@ -87,13 +107,15 @@ export const LEADERBOARD_TABS: readonly LeaderboardTab[] = [
   {
     id: "top-card-post",
     label: "Top card post",
-    scoreLabel: "likes and replies",
+    scoreLabel: "replies",
     howTo: [
       TOP_CARD_LEAD,
+      ONCE_PER_COLLECTOR_RULE,
       ...SHARED_ACTOR_RULES,
-      "Your own likes and replies do not count.",
-      "One like per collector per post. Undone likes do not count.",
+      "Your own replies do not count.",
       "Hidden or deleted posts and private cards do not count.",
+      MAIL_DAY_RULE,
+      BLOCK_PAIR_RULE,
     ],
   },
   {
@@ -102,9 +124,10 @@ export const LEADERBOARD_TABS: readonly LeaderboardTab[] = [
     scoreLabel: "new followers",
     howTo: [
       RISING_LEAD,
-      "New follows this week count. Follows removed this week come off when that removal is still on record.",
+      REMOVED_FOLLOW_RULE,
       ...SHARED_ACTOR_RULES,
       officialUpdatesRule(),
+      BLOCK_PAIR_RULE,
     ],
   },
 ];

@@ -34,13 +34,14 @@ describe("leaderboard weeks", () => {
     assert.equal(week.end.getTime() - week.start.getTime(), 169 * 60 * 60 * 1000);
   });
 
-  it("marks a week Provisional until Tuesday 00:00 ET, then Final", () => {
+  it("marks a week Provisional until Tuesday 00:00 ET, then Closed", () => {
     const week = weekContaining(FRIDAY);
     assert.equal(week.finalAt.toISOString(), "2026-10-27T04:00:00.000Z");
     assert.equal(weekStanding(week, FRIDAY), PROVISIONAL_LABEL);
     const monday = new Date("2026-10-26T05:00:00.000Z");
     assert.equal(weekStanding(week, monday), PROVISIONAL_LABEL);
     assert.equal(weekStanding(week, new Date("2026-10-27T03:59:59.000Z")), PROVISIONAL_LABEL);
+    assert.equal(FINAL_LABEL, "Closed");
     assert.equal(weekStanding(week, new Date("2026-10-27T04:00:00.000Z")), FINAL_LABEL);
     const next = weekContaining(monday);
     assert.equal(next.start.toISOString(), "2026-10-26T04:00:00.000Z");
@@ -55,5 +56,7 @@ describe("leaderboard weeks", () => {
     assert.equal(left.hours, 10);
     assert.equal(left.label, "Resets in 2d 10h 00m 00s");
     assert.equal(countdownTo(week.end, week.end).label, "Resets in 0d 00h 00m 00s");
+    assert.equal(countdownTo(week.end, week.end).done, true);
+    assert.equal(left.done, false);
   });
 });

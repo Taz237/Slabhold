@@ -1,4 +1,7 @@
 import {
+  BOARD_ERROR_DETAIL,
+  BOARD_ERROR_TITLE,
+  CLOSED_NOTE,
   FINAL_LABEL,
   LAST_WEEK_LABEL,
   LEADERBOARD_DESCRIPTION,
@@ -14,6 +17,7 @@ import {
   leaderboardTab,
 } from "./rules";
 import type { CandidateRow, Contribution, WeekBoards } from "./score";
+import { emptySnapshot } from "./snapshot";
 import { countdownTo, weekStanding } from "./week";
 
 export type RankedEntry = {
@@ -70,12 +74,18 @@ export type LeaderboardPageModel = {
   countdownLabel: string;
   weekLinks: { id: "current" | "previous"; label: string; href: string; active: boolean }[];
   tabs: { id: string; label: string; href: string; active: boolean }[];
+  status: "ready" | "error";
+  errorTitle: string;
+  errorDetail: string;
+  standingNote: string | null;
   thin: boolean;
   thinTitle: string;
   thinDetail: string;
   entries: RankedEntry[];
   you: YouRow | null;
   howTo: { id: string; label: string; lines: readonly string[] }[];
+  /** Lead line per board, from the same tab rules as howTo. */
+  checklist: { id: string; label: string; line: string }[];
 };
 
 function scoreOf(contributions: readonly Contribution[], hidden: ReadonlySet<string>): number {
@@ -194,6 +204,10 @@ export function presentLeaderboard(input: {
       href: leaderboardHref(input.week, item.id),
       active: item.id === tab.id,
     })),
+    status: "ready",
+    errorTitle: "",
+    errorDetail: "",
+    standingNote: standing === FINAL_LABEL ? CLOSED_NOTE : null,
     thin: ranked.thin,
     thinTitle: THIN_BOARD_TITLE,
     thinDetail: tab.howTo[0] ?? THIN_BOARD_TITLE,
@@ -204,5 +218,35 @@ export function presentLeaderboard(input: {
       label: item.label,
       lines: item.howTo,
     })),
+    checklist: LEADERBOARD_TABS.map((item) => ({
+      id: item.id,
+      label: item.label,
+      line: item.howTo[0] ?? "",
+    })),
+  };
+}
+
+/** Shown when the shared read or the viewer block list fails. Never an unfiltered board. */
+export function unavailableLeaderboard(input: {
+  week: "current" | "previous";
+  boardId: string;
+  now: Date;
+}): LeaderboardPageModel {
+  const model = presentLeaderboard({
+    snapshot: emptySnapshot(input.now),
+    viewer: { userId: null, hiddenIds: [] },
+    week: input.week,
+    boardId: input.boardId,
+    now: input.now,
+  });
+  return {
+    ...model,
+    status: "error",
+    errorTitle: BOARD_ERROR_TITLE,
+    errorDetail: BOARD_ERROR_DETAIL,
+    standingNote: null,
+    thin: false,
+    entries: [],
+    you: null,
   };
 }

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { OFFICIAL_UPDATES_USER_ID } from "@/lib/social/official-updates";
-import { buildWeekBoards, type BoardCard, type BoardFollow, type BoardLike, type BoardPost, type BoardProfile, type BoardReply, type ScoreInput } from "./score";
+import { buildWeekBoards, getPostLikeActors, type BoardCard, type BoardFollow, type BoardLike, type BoardPost, type BoardProfile, type BoardReply, type ScoreInput } from "./score";
 import { ACTOR_MIN_AGE_DAYS, OFFICIAL_UPDATES_HANDLE } from "./rules";
 import { rankBoard } from "./present";
 import { weekContaining } from "./week";
@@ -29,7 +29,16 @@ function card(id: string, userId: string, isPublic = true): BoardCard {
 }
 
 function post(id: string, authorId: string, cardIds: string[], extra: Partial<BoardPost> = {}): BoardPost {
-  return { id, authorId, body: "Look at this", hiddenAt: null, deleted: false, cardIds, ...extra };
+  return {
+    id,
+    authorId,
+    body: "Look at this",
+    hiddenAt: null,
+    deleted: false,
+    cardIds,
+    postType: "post",
+    ...extra,
+  };
 }
 
 function base(extra: Partial<ScoreInput> = {}): ScoreInput {
@@ -46,6 +55,7 @@ function base(extra: Partial<ScoreInput> = {}): ScoreInput {
     likes: [],
     replies: [],
     follows: [],
+    blockPairs: [],
     ...extra,
   };
 }
@@ -63,7 +73,26 @@ function boards(input: ScoreInput) {
 }
 
 describe("top card post scoring", () => {
-  it("ranks a card post by likes plus replies from real collectors", () => {
+  it("counts each collector once per post across replies and likes", () => {
+    const many = boards(
+      base({
+        replies: Array.from({ length: 25 }, (_, index) => reply(`r${index}`, "fan")),
+      }),
+    );
+    const once = many["top-card-post"]?.rows[0];
+    assert.ok(once);
+    assert.equal(once.contributions.reduce((sum, item) => sum + item.points, 0), 1);
+    assert.deepEqual(once.contributions.map((item) => item.actorId), ["fan"]);
+
+    const both = boards(
+      base({
+        likes: [like("fan")],
+        replies: [reply("r1", "fan")],
+      }),
+    );
+    const combined = both["top-card-post"]?.rows[0];
+    assert.equal(combined?.contributions.reduce((sum, item) => sum + item.points, 0), 1);
+
     const scored = boards(
       base({
         likes: [like("fan"), like("fan2")],
@@ -72,9 +101,10 @@ describe("top card post scoring", () => {
     );
     const row = scored["top-card-post"]?.rows[0];
     assert.ok(row);
-    assert.equal(row.contributions.reduce((sum, item) => sum + item.points, 0), 4);
+    assert.equal(row.contributions.reduce((sum, item) => sum + item.points, 0), 3);
     assert.equal(row.title, "Player card-1");
     assert.equal(row.href, "/posts/post-1");
+    assert.deepEqual(getPostLikeActors(), []);
   });
 
   it("drops self, duplicates, undone likes, young accounts, empty accounts, and test accounts", () => {
@@ -122,10 +152,18 @@ describe("top card post scoring", () => {
         post("gone", "author", ["card-1"], { deleted: true }),
         post("text", "author", []),
         post("private", "author", ["card-2"]),
+        post("mail", "author", ["card-1"], { postType: "mail_day" }),
         post("public", "author", ["card-1"]),
       ],
       cards: [card("card-1", "author", true), card("card-2", "author", false)],
-      likes: [like("fan", "hidden"), like("fan", "gone"), like("fan", "text"), like("fan", "private"), like("fan2", "public")],
+      likes: [
+        like("fan", "hidden"),
+        like("fan", "gone"),
+        like("fan", "text"),
+        like("fan", "private"),
+        like("fan", "mail"),
+        like("fan2", "public"),
+      ],
     });
     const rows = boards(input)["top-card-post"]?.rows ?? [];
     assert.deepEqual(rows.map((row) => row.id), ["public"]);
@@ -171,6 +209,40 @@ describe("rising collectors scoring", () => {
     const rows = boards(input)["rising-collectors"]?.rows ?? [];
     assert.deepEqual(rows.map((row) => row.id), ["author"]);
     assert.deepEqual(rows[0]?.contributions.map((item) => item.actorId), ["fan"]);
+  });
+
+  it("drops replies and follows when either person blocked the other", () => {
+    const replies = boards(
+      base({
+        replies: [reply("r1", "fan"), reply("r2", "fan2"), reply("r3", "fan3")],
+        blockPairs: [
+          { blockerId: "author", blockedId: "fan" },
+          { blockerId: "fan2", blockedId: "author" },
+        ],
+      }),
+    );
+    const replyActors = (replies["top-card-post"]?.rows ?? []).flatMap((row) =>
+      row.contributions.map((item) => item.actorId),
+    );
+    assert.deepEqual(replyActors, ["fan3"]);
+
+    const follows = boards(
+      base({
+        follows: [
+          { followerId: "fan", followingId: "author", createdAt: IN_WEEK, removedAt: null },
+          { followerId: "fan2", followingId: "author", createdAt: IN_WEEK, removedAt: null },
+          { followerId: "fan3", followingId: "author", createdAt: IN_WEEK, removedAt: null },
+        ],
+        blockPairs: [
+          { blockerId: "author", blockedId: "fan" },
+          { blockerId: "fan2", blockedId: "author" },
+        ],
+      }),
+    );
+    const followActors = (follows["rising-collectors"]?.rows ?? []).flatMap((row) =>
+      row.contributions.map((item) => item.actorId),
+    );
+    assert.deepEqual(followActors, ["fan3"]);
   });
 });
 

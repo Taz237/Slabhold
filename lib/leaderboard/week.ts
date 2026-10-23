@@ -157,6 +157,8 @@ export type Countdown = {
   minutes: number;
   seconds: number;
   label: string;
+  /** True when the Monday reset instant has been reached. */
+  done: boolean;
 };
 
 export function countdownTo(resetsAt: Date, now: Date): Countdown {
@@ -174,6 +176,7 @@ export function countdownTo(resetsAt: Date, now: Date): Countdown {
     hours,
     minutes,
     seconds,
+    done: ms === 0,
     label: `Resets in ${days}d ${hh}h ${mm}m ${ss}s`,
   };
 }

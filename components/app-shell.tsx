@@ -16,6 +16,7 @@ import { clearLogoutHome, logoutHomePending } from "@/lib/auth/logout-home";
 import { requiresAccount, routeAccess } from "@/lib/auth/route-access";
 import { loginPath, pathWithQuery } from "@/lib/auth/safe-next";
 import type { Profile } from "@/lib/social/types";
+import { BOTTOM_NAV } from "@/lib/ui/bottom-nav";
 import {
   activeTabAction,
   isCurrentTabScreen,
@@ -23,13 +24,19 @@ import {
   requestPageRefresh,
 } from "@/lib/ui/pull-refresh";
 
-const TABS = [
-  { href: "/", label: "Home", icon: Compass },
-  { href: "/leaderboard", label: "Leaderboard", icon: Trophy },
-  { href: "/cards/new", label: "Add card", icon: Camera },
-  { href: "/collection", label: "Collection", icon: WalletCards },
-  { href: "/more", label: "More", icon: Ellipsis },
-] as const;
+const TAB_ICONS = {
+  "/": Compass,
+  "/leaderboard": Trophy,
+  "/cards/new": Camera,
+  "/collection": WalletCards,
+  "/more": Ellipsis,
+} as const;
+
+const TABS = BOTTOM_NAV.map((tab) => ({
+  href: tab.href,
+  label: tab.label,
+  icon: TAB_ICONS[tab.href],
+}));
 
 function profileUsernameFromPath(pathname: string): string | null {
   if (!pathname.startsWith("/u/")) return null;

@@ -12,12 +12,17 @@ export function LeaderboardCountdown({
   initialLabel: string;
 }) {
   const node = useRef<HTMLSpanElement>(null);
+  const refreshed = useRef(false);
 
   useEffect(() => {
     const el = node.current;
     if (!el) return;
     const tick = () => {
-      el.textContent = countdownTo(new Date(resetsAt), new Date()).label;
+      const left = countdownTo(new Date(resetsAt), new Date());
+      el.textContent = left.label;
+      if (!left.done || refreshed.current) return;
+      refreshed.current = true;
+      window.location.reload();
     };
     tick();
     const id = window.setInterval(tick, 1000);
