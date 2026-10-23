@@ -142,9 +142,11 @@ export function ValueBoardRequirements({ checklist }: { checklist: LeaderboardCh
 export function ValueBoard({
   model,
   minimums,
+  accountCreatedAt,
 }: {
   model: ValueBoardModel;
   minimums: LeaderboardMinimums;
+  accountCreatedAt?: string | null;
 }) {
   const { user } = useSocial();
   const { cards, ready: cardsReady } = useCollection();
@@ -177,7 +179,8 @@ export function ValueBoard({
     optedIn,
     trustedCards: totals.count,
     value: totals.value,
-    accountCreatedAt: user?.createdAt ?? null,
+    accountCreatedAt: accountCreatedAt !== undefined ? accountCreatedAt : (user?.createdAt ?? null),
+    boardClosed: Boolean(model.closedMessage),
     username: user?.username ?? "",
     isTest: user?.isTest === true,
     minimums,

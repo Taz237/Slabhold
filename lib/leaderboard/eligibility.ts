@@ -5,7 +5,10 @@ export const LEADERBOARD_MIN_VALUE_DEFAULT = 250;
 export const LEADERBOARD_MIN_ACCOUNT_DAYS_DEFAULT = 7;
 export const LEADERBOARD_MIN_COLLECTORS = 10;
 
-export const LEADERBOARD_CLOSED_COPY = "Leaderboard opens when 10 collectors join, opt in";
+export const LEADERBOARD_CLOSED_COPY =
+  "Rankings appear once 10 collectors qualify in a bracket.";
+
+const ENV_MIN_CAP = 1_000_000;
 
 export const LEADERBOARD_NOTE =
   "Based on recent sold prices; values update as new sales come in.";
@@ -20,13 +23,14 @@ function raised(raw: string | undefined, floor: number): number {
   if (raw == null || raw.trim() === "") return floor;
   const value = Number(raw);
   if (!Number.isFinite(value)) return floor;
-  return value > floor ? value : floor;
+  const next = value > floor ? value : floor;
+  return next > ENV_MIN_CAP ? ENV_MIN_CAP : next;
 }
 
 /**
  * Defaults are 10 trusted valued cards, $250, and an account 7 days old.
  * LEADERBOARD_MIN_CARDS, LEADERBOARD_MIN_VALUE, and LEADERBOARD_MIN_ACCOUNT_DAYS
- * can raise those floors. A lower env value stays at the floor, matching SQL.
+ * can raise those floors, up to 1,000,000. A lower env value stays at the floor, matching SQL.
  */
 export function leaderboardMinimums(
   env: {

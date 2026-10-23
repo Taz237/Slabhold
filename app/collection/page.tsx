@@ -2,13 +2,13 @@ import { after } from "next/server";
 import { Dashboard } from "@/components/dashboard";
 import { upsertTodaysCollectionSnapshot } from "@/lib/collection/totals";
 import { leaderboardMinimums } from "@/lib/leaderboard/eligibility";
-import { getAuthUserId } from "@/lib/supabase/server";
+import { getAuthUser } from "@/lib/supabase/server";
 
 export default async function CollectionPage() {
-  const userId = await getAuthUserId();
-  if (userId) {
+  const account = await getAuthUser();
+  if (account) {
     after(() => {
-      void upsertTodaysCollectionSnapshot(userId).catch((err) => {
+      void upsertTodaysCollectionSnapshot(account.id).catch((err) => {
         console.warn(
           "[collection_snapshots]",
           err instanceof Error ? err.message : err,
@@ -17,5 +17,7 @@ export default async function CollectionPage() {
     });
   }
 
-  return <Dashboard minimums={leaderboardMinimums()} />;
+  return (
+    <Dashboard minimums={leaderboardMinimums()} accountCreatedAt={account?.createdAt ?? null} />
+  );
 }

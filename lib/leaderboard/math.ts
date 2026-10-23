@@ -10,6 +10,12 @@ export type ValueCard = {
   endSales: number | null;
   selfReported: boolean;
   openFlag: boolean;
+  /** Same player, year, set, parallel, grade, and grader. Defaults to the card id. */
+  identityKey?: string | null;
+  /** End value was already resolved to the last trusted price, or 0. */
+  endResolved?: boolean;
+  /** Identity changed during the week, so this card adds nothing. */
+  identityChanged?: boolean;
 };
 
 export type ValueFlagReason = "single_sale" | "self_reported";
@@ -40,9 +46,9 @@ function trustedMedian(value: number | null, sales: number | null): number | nul
 }
 
 /**
- * Cap each positive card move so it cannot exceed the other positive moves.
- * That card is then at most half of the positive gain. Negative moves stay.
- * A lone positive card is capped to zero.
+ * Cap each positive move so it cannot exceed the other positive moves.
+ * That move is then at most half of the positive gain. Negative moves stay.
+ * A lone positive move is capped to zero.
  */
 export function capPositiveDeltas(deltas: readonly number[]): number[] {
   const next = deltas.slice();
@@ -64,39 +70,62 @@ export function capPositiveDeltas(deltas: readonly number[]): number[] {
   return next;
 }
 
+function resolvedEnd(card: ValueCard, start: number): number | null {
+  if (card.identityChanged) return start;
+  if (card.endResolved) {
+    const end = finite(card.endMedian);
+    return end == null ? 0 : end;
+  }
+  return trustedMedian(card.endMedian, card.endSales);
+}
+
 /**
  * Same-cards percent for cards already limited to the week's starting lineup.
- * Trusted prices need two matched sales and a median of at least $5 at both ends.
- * An open wrong-sale report freezes the card. One card cannot be more than half
- * the positive gain.
+ * Trusted prices need two matched sales and a median of at least $5 at the start.
+ * An end that is no longer trusted uses the resolved value, including 0.
+ * An open wrong-sale report freezes the card. The 50% cap is per identity, so
+ * duplicate copies cannot each take a full uncapped gain. The returned percent
+ * never exceeds +100%.
  */
 export function valueBoardChange(cards: readonly ValueCard[]): ValueBoardChange {
-  const included: {
-    start: number;
-    rawDelta: number;
-    selfReported: boolean;
-    singleSale: boolean;
-  }[] = [];
+  const groups = new Map<
+    string,
+    { start: number; rawDelta: number; selfReported: boolean; singleSale: boolean }
+  >();
   const seen = new Set<string>();
+  let cardCount = 0;
 
   for (const card of cards) {
     if (!card.cardId || seen.has(card.cardId) || card.openFlag) continue;
     const start = trustedMedian(card.startMedian, card.startSales);
-    const end = trustedMedian(card.endMedian, card.endSales);
-    if (start == null || end == null) continue;
+    if (start == null) continue;
+    const end = resolvedEnd(card, start);
+    if (end == null) continue;
     seen.add(card.cardId);
+    cardCount += 1;
     const rawDelta = end - start;
+    const key = card.identityKey?.trim() || card.cardId;
     const startSales = finite(card.startSales);
-    const endSales = finite(card.endSales);
-    included.push({
-      start,
-      rawDelta,
-      selfReported: card.selfReported,
-      singleSale:
-        startSales != null && endSales != null && endSales === startSales + 1 && rawDelta > 0,
-    });
+    const endSales = card.identityChanged ? startSales : finite(card.endSales);
+    const singleSale =
+      startSales != null && endSales != null && endSales === startSales + 1 && rawDelta > 0;
+    const existing = groups.get(key);
+    if (!existing) {
+      groups.set(key, {
+        start,
+        rawDelta,
+        selfReported: card.selfReported,
+        singleSale,
+      });
+    } else {
+      existing.start += start;
+      existing.rawDelta += rawDelta;
+      existing.selfReported = existing.selfReported || card.selfReported;
+      existing.singleSale = existing.singleSale || singleSale;
+    }
   }
 
+  const included = [...groups.values()];
   if (included.length === 0) {
     return {
       percent: null,
@@ -108,24 +137,25 @@ export function valueBoardChange(cards: readonly ValueCard[]): ValueBoardChange 
     };
   }
 
-  const capped = capPositiveDeltas(included.map((card) => card.rawDelta));
+  const capped = capPositiveDeltas(included.map((group) => group.rawDelta));
   let startSum = 0;
   let dollarGain = 0;
   const reasons = new Set<ValueFlagReason>();
   for (let index = 0; index < included.length; index += 1) {
-    const card = included[index];
-    startSum += card.start;
+    const group = included[index];
+    startSum += group.start;
     dollarGain += capped[index];
-    if (card.rawDelta > 0 && card.selfReported) reasons.add("self_reported");
-    if (card.singleSale) reasons.add("single_sale");
+    if (group.rawDelta > 0 && group.selfReported) reasons.add("self_reported");
+    if (group.singleSale) reasons.add("single_sale");
   }
 
   const flagReasons = [...reasons];
+  const raw = startSum > 0 ? dollarGain / startSum : null;
   return {
-    percent: startSum > 0 ? dollarGain / startSum : null,
+    percent: raw == null ? null : Math.min(raw, VALUE_PERCENT_CAP),
     dollarGain,
     startSum,
-    cardCount: included.length,
+    cardCount,
     flagged: flagReasons.length > 0,
     flagReasons,
   };
@@ -134,7 +164,8 @@ export function valueBoardChange(cards: readonly ValueCard[]): ValueBoardChange 
 export function valuePercentLabel(percent: number): string {
   if (percent >= VALUE_PERCENT_CAP) return "+100% or more";
   const magnitude = Math.abs(percent * 100).toFixed(1);
-  const sign = percent >= 0 ? "+" : "−";
+  if (magnitude === "0.0") return "+0.0%";
+  const sign = percent > 0 ? "+" : "−";
   return `${sign}${magnitude}%`;
 }
 

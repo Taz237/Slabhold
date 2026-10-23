@@ -38,8 +38,9 @@ BEGIN
   INSERT INTO public.want_alerts (want_id, user_id, source_type, source_id)
   VALUES (want_id, bot_id, 'sale', 'item-rls');
 
-  INSERT INTO public.card_value_snapshots (card_id, snapshot_date, median)
-  VALUES (owned_card, DATE '2026-10-17', 10);
+  -- card_key is required after 20261023001052. It survives a later card delete.
+  INSERT INTO public.card_value_snapshots (card_id, card_key, snapshot_date, median)
+  VALUES (owned_card, owned_card, DATE '2026-10-17', 10);
 
   PERFORM set_config(
     'request.jwt.claims',
@@ -107,8 +108,8 @@ BEGIN
 
   rejected := false;
   BEGIN
-    INSERT INTO public.card_value_snapshots (card_id, snapshot_date, median)
-    VALUES (owned_card, DATE '2026-10-16', 9);
+    INSERT INTO public.card_value_snapshots (card_id, card_key, snapshot_date, median)
+    VALUES (owned_card, owned_card, DATE '2026-10-16', 9);
   EXCEPTION WHEN OTHERS THEN
     rejected := true;
   END;

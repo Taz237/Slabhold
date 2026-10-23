@@ -17,6 +17,7 @@ import {
   saveLeaderboardOptIn,
   type LeaderboardOptInDb,
 } from "@/lib/leaderboard/opt-in";
+import { revalidateValueBoard } from "@/lib/leaderboard/revalidate";
 import { leaderboardRequirementsLine } from "@/lib/leaderboard/requirements";
 
 export function LeaderboardOptInControl({
@@ -96,6 +97,7 @@ export function LeaderboardOptInSwitch({
     setBusy(true);
     setError(null);
     const result = await saveLeaderboardOptIn(supabase as unknown as LeaderboardOptInDb, id, next);
+    if (!result.error) await revalidateValueBoard();
     setBusy(false);
     setChecked(result.optedIn);
     setError(result.error ?? null);
@@ -122,12 +124,14 @@ export function LeaderboardPrompt({
   publicCollection,
   ready,
   minimums = leaderboardMinimums(),
+  accountCreatedAt,
 }: {
   valuedCards: number;
   value: number;
   publicCollection: boolean;
   ready: boolean;
   minimums?: LeaderboardMinimums;
+  accountCreatedAt?: string | null;
 }) {
   const { user } = useSocial();
   const [visible, setVisible] = useState(false);
@@ -155,7 +159,7 @@ export function LeaderboardPrompt({
         value,
         username: account.username,
         isTest: account.isTest === true,
-        accountCreatedAt: account.createdAt,
+        accountCreatedAt: accountCreatedAt === undefined ? account.createdAt : accountCreatedAt,
         minCards: minimums.minCards,
         minValue: minimums.minValue,
         minAccountDays: minimums.minAccountDays,
@@ -171,7 +175,7 @@ export function LeaderboardPrompt({
     return () => {
       cancel = true;
     };
-  }, [minimums, publicCollection, ready, user, valuedCards, value]);
+  }, [accountCreatedAt, minimums, publicCollection, ready, user, valuedCards, value]);
 
   if (!visible || !user) return null;
   const account = user;
@@ -195,7 +199,10 @@ export function LeaderboardPrompt({
       true,
     );
     setBusy(false);
-    if (!result.error) dismiss();
+    if (!result.error) {
+      await revalidateValueBoard();
+      dismiss();
+    }
   }
 
   return (

@@ -16,7 +16,9 @@ import {
   formatWeekLabel,
   isNewYorkMonday,
   leaderboardDates,
+  resolveValueWeek,
 } from "@/lib/leaderboard/dates";
+import { cardIdentity, identityKey } from "@/lib/leaderboard/identity";
 import {
   LEADERBOARD_CLOSED_COPY,
   LEADERBOARD_NOTE,
@@ -48,7 +50,13 @@ import {
   leaderboardRankShareImage,
   rankShareText,
 } from "@/lib/leaderboard/share";
-import { cardValueSnapshotFields, snapshotSaleSource } from "@/lib/leaderboard/snapshot-fields";
+import {
+  cardSnapshotInsert,
+  cardValueSnapshotFields,
+  isMissingSnapshotColumn,
+  medianOnlySnapshotInsert,
+  snapshotSaleSource,
+} from "@/lib/leaderboard/snapshot-fields";
 import { VALUE_BOARD_TAB } from "@/lib/leaderboard/tab";
 import type { ValueBoardModel } from "@/lib/leaderboard/types";
 import { cardValueHistoryEnabled } from "@/lib/collection/card-value-history";
@@ -210,6 +218,53 @@ describe("value board math", () => {
     assert.equal(ranked[0]?.rank, 1);
     assert.equal(valuePercentLabel(-0.082), "−8.2%");
     assert.equal(valuePercentLabel(0.082), "+8.2%");
+    assert.equal(valuePercentLabel(-0.0004), "+0.0%");
+    assert.equal(valuePercentLabel(0), "+0.0%");
+  });
+
+  it("caps duplicate copies by identity and never returns an uncapped percent", () => {
+    const copies = valueBoardChange([
+      card({ cardId: "copy-a", identityKey: "same", startMedian: 20, endMedian: 120 }),
+      card({ cardId: "copy-b", identityKey: "same", startMedian: 20, endMedian: 120 }),
+      card({ cardId: "other", identityKey: "other", startMedian: 20, endMedian: 30 }),
+    ]);
+    assert.equal(copies.cardCount, 3);
+    assert.equal(copies.startSum, 60);
+    assert.equal(copies.dollarGain, 20);
+    assert.equal(copies.percent, 20 / 60);
+
+    const doubled = valueBoardChange([
+      card({ cardId: "a", identityKey: "a", startMedian: 20, endMedian: 50 }),
+      card({ cardId: "b", identityKey: "b", startMedian: 20, endMedian: 50 }),
+    ]);
+    assert.equal(doubled.dollarGain, 60);
+    assert.equal(doubled.percent, 1);
+    assert.equal(valuePercentLabel(doubled.percent ?? 0), "+100% or more");
+  });
+
+  it("keeps a card that is untrusted at the end and zeros an identity edit", () => {
+    const fell = valueBoardChange([
+      card({ cardId: "fell", startMedian: 40, endMedian: 0, endSales: 0, endResolved: true }),
+      card({ cardId: "flat", startMedian: 40, endMedian: 40 }),
+    ]);
+    assert.equal(fell.cardCount, 2);
+    assert.equal(fell.percent, -0.5);
+    assert.equal(fell.dollarGain, -40);
+
+    const edited = valueBoardChange([
+      card({
+        cardId: "edited",
+        startMedian: 40,
+        endMedian: 400,
+        endSales: 9,
+        identityChanged: true,
+      }),
+      card({ cardId: "flat", startMedian: 40, endMedian: 40 }),
+    ]);
+    assert.equal(edited.cardCount, 2);
+    assert.equal(edited.percent, 0);
+    assert.equal(edited.dollarGain, 0);
+    assert.equal(edited.flagged, false);
   });
 });
 
@@ -307,6 +362,14 @@ describe("leaderboard eligibility", () => {
       }),
       MINIMUMS,
     );
+    assert.deepEqual(
+      leaderboardMinimums({
+        LEADERBOARD_MIN_CARDS: "999999999",
+        LEADERBOARD_MIN_VALUE: "999999999",
+        LEADERBOARD_MIN_ACCOUNT_DAYS: "999999999",
+      }),
+      { minCards: 1000000, minValue: 1000000, minAccountDays: 1000000 },
+    );
   });
 
   it("counts only public held cards with two sales and a median of at least $5", () => {
@@ -340,7 +403,10 @@ describe("leaderboard eligibility", () => {
   it("opens a bracket only at 10 qualifying collections", () => {
     assert.equal(leaderboardOpens(9), false);
     assert.equal(leaderboardOpens(10), true);
-    assert.equal(LEADERBOARD_CLOSED_COPY, "Leaderboard opens when 10 collectors join, opt in");
+    assert.equal(
+      LEADERBOARD_CLOSED_COPY,
+      "Rankings appear once 10 collectors qualify in a bracket.",
+    );
   });
 
   it("hides people who blocked each other", () => {
@@ -398,6 +464,22 @@ describe("leaderboard requirements", () => {
     assert.equal(checklist.openByDefault, false);
     assert.equal(checklist.eligible, true);
     assert.equal(checklist.status, "You're on the board");
+    assert.equal(checklist.openByDefault, false);
+    const thin = leaderboardChecklist({
+      signedIn: true,
+      checksReady: true,
+      publicCollection: true,
+      optedIn: true,
+      trustedCards: 10,
+      value: 250,
+      accountCreatedAt: OLD_ACCOUNT,
+      username: "ada",
+      now: NOW,
+      minimums: MINIMUMS,
+      boardClosed: true,
+    });
+    assert.equal(thin.eligible, true);
+    assert.equal(thin.openByDefault, true);
   });
 });
 
@@ -447,12 +529,28 @@ describe("value board week and sharing", () => {
     assert.equal(addDaysToYmd("2026-10-22", -7), "2026-10-15");
     assert.equal(formatSnapshotDate("2026-10-22"), "Oct 22");
     assert.equal(isNewYorkMonday(new Date("2026-10-19T16:00:00.000Z")), true);
-    assert.deepEqual(currentValueWeek(NOW), { start: "2026-10-19", end: "2026-10-23" });
+    assert.deepEqual(currentValueWeek(NOW), { start: "2026-10-18", end: "2026-10-23" });
     assert.deepEqual(currentValueWeek(new Date("2026-10-19T03:00:00.000Z")), {
-      start: "2026-10-12",
+      start: "2026-10-11",
       end: "2026-10-18",
     });
-    assert.equal(formatWeekLabel("2026-10-19", "2026-10-23"), "Oct 19–Oct 23");
+    assert.deepEqual(resolveValueWeek({ today: "2026-10-19", latest: null }), {
+      start: "2026-10-11",
+      end: "2026-10-18",
+    });
+    assert.deepEqual(resolveValueWeek({ today: "2026-10-19", latest: "2026-10-18" }), {
+      start: "2026-10-11",
+      end: "2026-10-18",
+    });
+    assert.deepEqual(resolveValueWeek({ today: "2026-10-19", latest: "2026-10-19" }), {
+      start: "2026-10-18",
+      end: "2026-10-19",
+    });
+    assert.deepEqual(resolveValueWeek({ today: "2026-10-23", latest: "2026-10-22" }), {
+      start: "2026-10-18",
+      end: "2026-10-22",
+    });
+    assert.equal(formatWeekLabel("2026-10-18", "2026-10-23"), "Oct 18–Oct 23");
   });
 
   it("shares a weekly rank card from sold prices without a team logo", async () => {
@@ -526,7 +624,7 @@ describe("value board week and sharing", () => {
       viewerUserId: "ada",
     };
     const html = renderToStaticMarkup(createElement(ValueBoardView, { model, checklist }));
-    assert.match(html, /Leaderboard opens when 10 collectors join, opt in/);
+    assert.match(html, /Rankings appear once 10 collectors qualify in a bracket\./);
     assert.match(html, /Based on recent sold prices; values update as new sales come in\./);
     assert.match(html, /How to get on the leaderboard/);
     assert.match(html, /3 of 10 valued cards/);
@@ -582,6 +680,63 @@ describe("leaderboard wiring", () => {
     assert.match(sql, /greatest\(coalesce\(p_min_value, 250\), 250\)/);
     assert.match(sql, /p_min_account_days/);
     assert.doesNotMatch(sql, /drop table/i);
+    assert.match(sql, /protect_profile_created_at/);
+    assert.match(sql, /auth\.role\(\) is distinct from 'service_role'/);
+    assert.match(sql, /new\.created_at := old\.created_at/);
+    assert.match(sql, /join auth\.users u on u\.id = p\.id/);
+    assert.match(sql, /u\.created_at <= least\(coalesce\(p_as_of, now\(\)\), now\(\)\)/);
+    assert.match(sql, /on delete set null/);
+    assert.match(sql, /card_key/);
+    assert.match(sql, /status in \('ok', 'sample'\)/);
+    assert.match(sql, /s\.held is true/);
+    assert.match(sql, /f\.user_id is distinct from e\.id/);
+    assert.match(sql, /f\.created_at < \(p_start \+ interval '1 day'\)/);
+    assert.match(sql, /comp_flags_card_id_idx/);
+    assert.match(sql, /1000000/);
+    assert.match(sql, /identity_key is distinct from end_snap\.identity_key/);
+    assert.match(sql, /coalesce\(end_snap\.median, 0\)/);
+    const fn = sql.slice(
+      sql.indexOf("function public.leaderboard_rows"),
+      sql.indexOf("comment on function public.leaderboard_rows"),
+    );
+    assert.doesNotMatch(fn, /join public\.cards/);
+    assert.doesNotMatch(fn, /p\.created_at/);
+    assert.match(read("supabase/schema.sql"), /function public\.card_snapshot_identity/);
+    const identity = cardIdentity({
+      playerName: "Ada",
+      year: 2020,
+      setBrand: "Prizm",
+      parallel: "Silver",
+      grade: "PSA 10",
+    });
+    assert.equal(identityKey(identity), "ada|2020|prizm|silver|10|psa");
+    assert.equal(isMissingSnapshotColumn({ code: "42703", message: "column card_key does not exist" }), true);
+    assert.equal(isMissingSnapshotColumn({ code: "PGRST204", message: "schema cache" }), true);
+    assert.equal(isMissingSnapshotColumn({ code: "23505", message: "duplicate" }), false);
+    const row = cardSnapshotInsert({
+      cardId: "card-1",
+      userId: "user-1",
+      snapshotDate: "2026-10-23",
+      playerName: "Ada",
+      year: 2020,
+      setBrand: "Prizm",
+      parallel: "Silver",
+      grade: "PSA 10",
+      isPublic: true,
+      held: true,
+      value: { status: "ok", median: 40, low: 30, high: 50, nSales: 2, matchedAt: null },
+      saleSource: "owner",
+    });
+    assert.equal(row.card_key, "card-1");
+    assert.equal(row.self_reported, true);
+    assert.equal(row.status, "ok");
+    assert.equal(row.held, true);
+    assert.equal(row.player, "ada");
+    assert.deepEqual(medianOnlySnapshotInsert(row), {
+      card_id: "card-1",
+      snapshot_date: "2026-10-23",
+      median: 40,
+    });
     assert.equal(cardValueHistoryEnabled({}), false);
     assert.equal(cardValueHistoryEnabled({ CARD_VALUE_HISTORY_ENABLED: "1" }), true);
     const history = read("lib/collection/card-value-history.ts");
@@ -597,6 +752,10 @@ describe("leaderboard wiring", () => {
     assert.match(cron, /CRON_SECRET/);
     assert.match(cron, /upsertTodaysCollectionSnapshot/);
     assert.match(cron, /11:30 PM/);
+    assert.match(cron, /status: failed > 0 \? 500 : 200/);
+    assert.match(read("lib/collection/totals.ts"), /isMissingSnapshotColumn/);
+    assert.match(read("lib/collection/totals.ts"), /onConflict: "card_id,snapshot_date"/);
+    assert.match(read("lib/collection/totals.ts"), /snapshotDateInNewYork\(\)/);
   });
 
   it("ships the value board as its own route and leaves the nav tab to the weekly frame", () => {
@@ -615,6 +774,13 @@ describe("leaderboard wiring", () => {
     const load = read("lib/leaderboard/load.ts");
     assert.match(load, /revalidate: LEADERBOARD_CACHE_SECONDS/);
     assert.match(load, /LEADERBOARD_CACHE_SECONDS = 15 \* 60/);
+    assert.match(load, /VALUE_BOARD_CACHE_TAG/);
+    assert.match(load, /resolveValueWeek/);
+    assert.match(read("components/leaderboard-opt-in.tsx"), /revalidateValueBoard/);
+    assert.match(read("app/leaderboard/value/page.tsx"), /getAuthUserCreatedAt/);
+    assert.match(read("components/value-board.tsx"), /accountCreatedAt/);
+    assert.equal(existsSync(join(process.cwd(), "app/leaderboard/value/loading.tsx")), true);
+    assert.equal(existsSync(join(process.cwd(), "app/leaderboard/value/error.tsx")), true);
     assert.match(load, /return createSupabaseAdmin\(\)/);
     assert.doesNotMatch(load, /anonKey|createClient\(/);
     assert.match(load, /hidden_author_ids/);
@@ -634,7 +800,11 @@ describe("leaderboard wiring", () => {
     assert.match(schemaFn, /left join lateral/);
     assert.match(schemaFn, /Bracket comes from the week-start value of public held cards only/);
     assert.match(schemaFn, /function public\.blocked_by_ids\(\)/);
+    assert.match(schemaFn, /auth\.users/);
+    assert.match(schemaFn, /s\.is_public is true/);
+    assert.match(schemaFn, /s\.held is true/);
     assert.doesNotMatch(schemaFn, /collection_snapshots/);
+    assert.doesNotMatch(schemaFn, /join public\.cards/);
     assert.equal(read("lib/auth/route-access.ts").includes('"/leaderboard/value"'), true);
     assert.equal(VALUE_BOARD_TAB.id, "value");
     assert.equal(existsSync(join(process.cwd(), "app/leaderboard/value/page.tsx")), true);

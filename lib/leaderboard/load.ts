@@ -2,12 +2,14 @@ import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { unstable_cache } from "next/cache";
+import { snapshotDateInNewYork } from "@/lib/collection/totals-shared";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { createSupabaseServer, getAuthUserId } from "@/lib/supabase/server";
 import { assembleValueBoard, type AssembledBracket, type ValueBoardSourceCard } from "./assemble";
 import { valueBracketId, type ValueBracketId } from "./brackets";
 import { blockedUserIds, withoutBlocked } from "./blocks";
-import { currentValueWeek, formatWeekLabel } from "./dates";
+import { VALUE_BOARD_CACHE_TAG } from "./cache";
+import { currentValueWeek, formatWeekLabel, resolveValueWeek } from "./dates";
 import { LEADERBOARD_CLOSED_COPY, LEADERBOARD_NOTE, leaderboardMinimums } from "./eligibility";
 import type { ValueBoardModel, ValueBracketBoard } from "./types";
 
@@ -28,6 +30,7 @@ type RawCard = {
   end_n_sales?: unknown;
   self_reported?: unknown;
   open_flag?: unknown;
+  identity_key?: unknown;
 };
 
 type PublicValueBoard = {
@@ -84,7 +87,25 @@ function toCard(row: RawCard): ValueBoardSourceCard | null {
     endSales: numeric(row.end_n_sales),
     selfReported: flag(row.self_reported),
     openFlag: flag(row.open_flag),
+    identityKey: text(row.identity_key) || cardId,
+    endResolved: true,
   };
+}
+
+async function latestSnapshotDate(
+  client: SupabaseClient,
+  today: string,
+): Promise<string | null> {
+  const { data, error } = await client
+    .from("card_value_snapshots")
+    .select("snapshot_date")
+    .lte("snapshot_date", today)
+    .order("snapshot_date", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  const date = data?.snapshot_date;
+  return typeof date === "string" ? date : null;
 }
 
 async function readPublicValueBoard(start: string, end: string): Promise<PublicValueBoard> {
@@ -108,36 +129,70 @@ async function readPublicValueBoard(start: string, end: string): Promise<PublicV
   return { start, end, brackets: assembleValueBoard(cards) };
 }
 
+/** Latest snapshot on or before today. A missing snapshot keeps the previous finished week. */
+async function readAutoValueBoard(today: string): Promise<PublicValueBoard> {
+  const client = reader();
+  if (!client) {
+    const week = resolveValueWeek({ today, latest: null });
+    return { start: week.start, end: week.end, brackets: [] };
+  }
+  const latest = await latestSnapshotDate(client, today);
+  const week = resolveValueWeek({ today, latest });
+  return readPublicValueBoard(week.start, week.end);
+}
+
 export async function getPublicValueBoard(input?: {
   start?: string;
   end?: string;
   now?: Date;
 }): Promise<PublicValueBoard> {
-  const week = currentValueWeek(input?.now ?? new Date());
-  let start = ymd(input?.start, week.start);
-  let end = ymd(input?.end, week.end);
-  if (start > end) {
-    const swap = start;
-    start = end;
-    end = swap;
-  }
+  const now = input?.now ?? new Date();
+  const today = snapshotDateInNewYork(now);
+  const week = currentValueWeek(now);
   const minimums = leaderboardMinimums();
+  const cacheOptions = {
+    revalidate: LEADERBOARD_CACHE_SECONDS,
+    tags: [VALUE_BOARD_CACHE_TAG],
+  };
+  const minimumKey = [
+    String(minimums.minCards),
+    String(minimums.minValue),
+    String(minimums.minAccountDays),
+  ];
   try {
+    if (input?.start || input?.end) {
+      let start = ymd(input.start, week.start);
+      let end = ymd(input.end, week.end);
+      if (start > end) {
+        const swap = start;
+        start = end;
+        end = swap;
+      }
+      return await unstable_cache(
+        () => readPublicValueBoard(start, end),
+        ["value-board", start, end, ...minimumKey],
+        cacheOptions,
+      )();
+    }
     return await unstable_cache(
-      () => readPublicValueBoard(start, end),
-      [
-        "value-board",
-        start,
-        end,
-        String(minimums.minCards),
-        String(minimums.minValue),
-        String(minimums.minAccountDays),
-      ],
-      { revalidate: LEADERBOARD_CACHE_SECONDS },
+      () => readAutoValueBoard(today),
+      ["value-board", "auto", today, ...minimumKey],
+      cacheOptions,
     )();
   } catch (error) {
     console.error("[leaderboard] read failed", error instanceof Error ? error.message : "error");
-    return { start, end, brackets: [] };
+    if (input?.start || input?.end) {
+      let start = ymd(input.start, week.start);
+      let end = ymd(input.end, week.end);
+      if (start > end) {
+        const swap = start;
+        start = end;
+        end = swap;
+      }
+      return { start, end, brackets: [] };
+    }
+    const fallback = resolveValueWeek({ today, latest: null });
+    return { start: fallback.start, end: fallback.end, brackets: [] };
   }
 }
 

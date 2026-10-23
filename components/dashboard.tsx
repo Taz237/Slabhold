@@ -74,8 +74,10 @@ const FILTERS: { id: PortfolioFilter; label: string }[] = [
 
 export function Dashboard({
   minimums = leaderboardMinimums(),
+  accountCreatedAt,
 }: {
   minimums?: LeaderboardMinimums;
+  accountCreatedAt?: string | null;
 } = {}) {
   const { cards, ready, syncError, reload } = useCollection();
   const [query, setQuery] = useState("");
@@ -151,6 +153,7 @@ export function Dashboard({
         publicCollection={publicCollection}
         ready={cards.length > 0 && !valuesLoading && !valuesFailed}
         minimums={minimums}
+        accountCreatedAt={accountCreatedAt}
       />
       {syncError ? (
         <p className="text-sm text-rose-600 dark:text-rose-400">{syncError}</p>

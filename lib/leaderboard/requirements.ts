@@ -60,6 +60,8 @@ export function leaderboardChecklist(input: {
   isTest?: boolean;
   now?: Date;
   minimums?: LeaderboardMinimums;
+  /** Open the how-to box while the public board is still thin. */
+  boardClosed?: boolean;
 }): LeaderboardChecklist {
   const minimums = input.minimums ?? leaderboardMinimums();
   const now = input.now ?? new Date();
@@ -103,7 +105,7 @@ export function leaderboardChecklist(input: {
   });
   const showChecks = input.signedIn && input.checksReady;
   return {
-    openByDefault: showChecks && !eligible,
+    openByDefault: Boolean(input.boardClosed) || (showChecks && !eligible),
     eligible,
     status: showChecks && eligible ? LEADERBOARD_ON_BOARD : null,
     line: leaderboardRequirementsLine(minimums),
