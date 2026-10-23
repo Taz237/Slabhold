@@ -26,7 +26,7 @@ import type {
 } from "./types";
 
 const POST_SELECT =
-  "id, user_id, content, image_url, card, quoted_post_id, created_at, post_type, show_paid, meta";
+  "id, user_id, content, image_url, card, quoted_post_id, created_at, hidden_at, post_type, show_paid, meta";
 const PROFILE_SELECT =
   "id, username, display_name, bio, avatar_url, cover_url, accent, created_at";
 
@@ -38,6 +38,7 @@ type PostRow = {
   card: unknown;
   quoted_post_id?: string | null;
   created_at: string;
+  hidden_at?: string | null;
   post_type?: string | null;
   show_paid?: boolean | null;
   meta?: unknown;
@@ -98,6 +99,7 @@ function mapPost(row: PostRow, mailDayCards: MailDayCardView[]): Post {
     card,
     quotedPostId: row.quoted_post_id ?? null,
     createdAt: row.created_at,
+    hiddenAt: row.hidden_at ?? null,
     postType: row.post_type === "mail_day" ? "mail_day" : "post",
     showPaid: row.show_paid === true,
     mailDay: first

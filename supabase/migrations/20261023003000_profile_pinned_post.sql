@@ -58,13 +58,15 @@ begin
   if new.pinned_post_id is null then
     return new;
   end if;
-  if not exists (
-    select 1
-    from public.posts
-    where public.posts.id = new.pinned_post_id
-      and public.posts.user_id = new.id
-      and public.posts.hidden_at is null
-  ) then
+  -- Share lock so a moderator hide waits, then clears this pin, instead of
+  -- committing a hidden post that this transaction already decided to pin.
+  perform 1
+  from public.posts
+  where public.posts.id = new.pinned_post_id
+    and public.posts.user_id = new.id
+    and public.posts.hidden_at is null
+  for share;
+  if not found then
     raise exception 'can only pin your own post'
       using errcode = '42501';
   end if;

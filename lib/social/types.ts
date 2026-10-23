@@ -71,6 +71,8 @@ export type Post = {
   /** Original post this quote references, if any. */
   quotedPostId: string | null;
   createdAt: string;
+  /** Set when posts.hidden_at is set. Hidden posts are not shown as pinned. */
+  hiddenAt?: string | null;
   postType?: "post" | "mail_day";
   showPaid?: boolean;
   mailDay?: MailDayInfo | null;

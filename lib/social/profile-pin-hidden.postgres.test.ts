@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { existsSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
 import { tmpdir, userInfo } from "node:os";
@@ -127,6 +127,24 @@ function run(bin: string, args: string[]) {
   return spawnSync(bin, args, { encoding: "utf8" });
 }
 
+function psqlSql(bin: string, args: string[], sql: string) {
+  return new Promise<{ status: number; stdout: string; stderr: string }>((resolve) => {
+    const child = spawn(bin, args, { stdio: ["pipe", "pipe", "pipe"] });
+    let stdout = "";
+    let stderr = "";
+    child.stdout.setEncoding("utf8");
+    child.stderr.setEncoding("utf8");
+    child.stdout.on("data", (chunk: string) => {
+      stdout += chunk;
+    });
+    child.stderr.on("data", (chunk: string) => {
+      stderr += chunk;
+    });
+    child.on("close", (status) => resolve({ status: status ?? 1, stdout, stderr }));
+    child.stdin.end(sql);
+  });
+}
+
 function must(bin: string, args: string[], label: string) {
   const result = run(bin, args);
   if (result.status !== 0) {
@@ -192,6 +210,58 @@ describe("profile pin hidden posts", () => {
       "migration",
     );
     must(psql, [...psqlArgs, join(cluster.root, "behavior.sql")], "pin behavior");
+
+    const sessionArgs = psqlArgs.slice(0, -1);
+    writeFileSync(
+      join(cluster.root, "race-post.sql"),
+      `insert into public.posts (id, user_id, content)
+       values ('44444444-4444-4444-4444-444444444444', '11111111-1111-1111-1111-111111111111', 'race');`,
+    );
+    must(psql, [...psqlArgs, join(cluster.root, "race-post.sql")], "race post");
+    const holder = psqlSql(
+      psql,
+      sessionArgs,
+      `begin;
+       select set_config('app.user_id', '11111111-1111-1111-1111-111111111111', true);
+       select public.pin_post('44444444-4444-4444-4444-444444444444');
+       select pg_sleep(4);
+       commit;`,
+    );
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    const waiter = await psqlSql(
+      psql,
+      sessionArgs,
+      `do $$
+       declare
+         locked boolean := false;
+         i int;
+       begin
+         for i in 1..30 loop
+           begin
+             perform 1
+             from public.posts
+             where public.posts.id = '44444444-4444-4444-4444-444444444444'
+             for update nowait;
+           exception
+             when lock_not_available then
+               locked := true;
+               exit;
+           end;
+           perform pg_sleep(0.1);
+         end loop;
+         if not locked then
+           raise exception 'pin did not hold for share on the post';
+         end if;
+       end
+       $$;`,
+    );
+    const held = await holder;
+    if (held.status !== 0) {
+      throw new Error(`pin holder failed\n${held.stdout}\n${held.stderr}`);
+    }
+    if (waiter.status !== 0) {
+      throw new Error(`share lock was not held\n${waiter.stdout}\n${waiter.stderr}`);
+    }
 
     const verify = must(
       psql,

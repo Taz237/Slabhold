@@ -31,7 +31,10 @@ declare
   pin_trigger_enabled "char";
   hidden_trigger_def text;
   hidden_trigger_enabled "char";
+  hidden_tgtype int;
+  hidden_fn text;
   qualified_body text;
+  profiles_rls boolean;
   policy_qual text;
 begin
   select c.is_nullable
@@ -118,8 +121,10 @@ begin
     and p.proname = 'pin_post'
     and pg_get_function_identity_arguments(p.oid) = 'post_id uuid';
 
-  if coalesce(pin_src, '') ilike '%auth.uid()%'
-     and coalesce(pin_src, '') ilike '%user_id%' then
+  pin_src := regexp_replace(regexp_replace(coalesce(pin_src, ''), $cmt$/\*.*?\*/$cmt$, '', 'g'), $cmt$--[^\r\n]*$cmt$, '', 'g');
+
+  if pin_src ilike '%auth.uid()%'
+     and pin_src ilike '%user_id%' then
     raise notice 'PASS: pin_post checks the caller owns the post';
   else
     raise notice 'FAIL: pin_post is missing an ownership check';
@@ -132,12 +137,15 @@ begin
   where n.nspname = 'private'
     and p.proname = 'enforce_own_pinned_post';
 
-  if coalesce(trigger_src, '') ilike '%user_id = new.id%'
-     and coalesce(pin_src, '') ilike '%hidden_at is null%'
-     and coalesce(trigger_src, '') ilike '%hidden_at is null%' then
+  trigger_src := regexp_replace(regexp_replace(coalesce(trigger_src, ''), $cmt$/\*.*?\*/$cmt$, '', 'g'), $cmt$--[^\r\n]*$cmt$, '', 'g');
+
+  if trigger_src ilike '%user_id = new.id%'
+     and pin_src ilike '%hidden_at is null%'
+     and trigger_src ilike '%hidden_at is null%'
+     and trigger_src ilike '%for share%' then
     raise notice 'PASS: pin checks require a visible post the profile owns';
   else
-    raise notice 'FAIL: enforce_own_pinned_post or pin_post is missing hidden_at is null';
+    raise notice 'FAIL: enforce_own_pinned_post or pin_post is missing hidden_at is null or for share';
   end if;
 
   select pg_get_functiondef(p.oid)
@@ -148,8 +156,10 @@ begin
     and p.proname = 'clear_pin_when_post_hidden'
     and pg_get_function_identity_arguments(p.oid) = '';
 
-  if coalesce(clear_src, '') ilike '%pinned_post_id = null%'
-     and coalesce(clear_src, '') ilike '%new.hidden_at is not null%' then
+  clear_src := regexp_replace(regexp_replace(coalesce(clear_src, ''), $cmt$/\*.*?\*/$cmt$, '', 'g'), $cmt$--[^\r\n]*$cmt$, '', 'g');
+
+  if clear_src ilike '%pinned_post_id = null%'
+     and clear_src ilike '%new.hidden_at is not null%' then
     raise notice 'PASS: hiding a post clears profiles.pinned_post_id';
   else
     raise notice 'FAIL: clear_pin_when_post_hidden is missing';
@@ -163,7 +173,12 @@ begin
   where n.nspname in ('public', 'private')
     and p.prokind in ('f', 'p')
     and l.lanname in ('sql', 'plpgsql')
-    and coalesce(pg_get_functiondef(p.oid), '') ~* $re$pg_catalog\s*\.\s*(coalesce|nullif|greatest|least)\s*\($re$
+    and regexp_replace(
+      regexp_replace(coalesce(pg_get_functiondef(p.oid), ''), $cmt$/\*.*?\*/$cmt$, '', 'g'),
+      $cmt$--[^\r\n]*$cmt$,
+      '',
+      'g'
+    ) ~* $re$pg_catalog\s*\.\s*(coalesce|nullif|greatest|least)\s*\($re$
   limit 1;
 
   if qualified_body is null then
@@ -217,21 +232,40 @@ begin
       username_trigger, pin_trigger_def, pin_trigger_enabled;
   end if;
 
-  select pg_get_triggerdef(t.oid), t.tgenabled
-    into hidden_trigger_def, hidden_trigger_enabled
+  select pg_get_triggerdef(t.oid), t.tgenabled, t.tgtype,
+         fn_ns.nspname || '.' || fn.proname || '()'
+    into hidden_trigger_def, hidden_trigger_enabled, hidden_tgtype, hidden_fn
   from pg_trigger t
   join pg_class c on c.oid = t.tgrelid
   join pg_namespace n on n.oid = c.relnamespace
+  join pg_proc fn on fn.oid = t.tgfoid
+  join pg_namespace fn_ns on fn_ns.oid = fn.pronamespace
   where n.nspname = 'public'
     and c.relname = 'posts'
     and t.tgname = 'posts_clear_pin_when_hidden'
     and not t.tgisinternal;
 
   if coalesce(hidden_trigger_def, '') ilike '%after update of hidden_at%'
-     and hidden_trigger_enabled in ('O', 'A') then
+     and hidden_trigger_enabled in ('O', 'A')
+     and hidden_tgtype = 17
+     and hidden_fn = 'private.clear_pin_when_post_hidden()' then
     raise notice 'PASS: posts_clear_pin_when_hidden is enabled';
   else
-    raise notice 'FAIL: hidden trigger=% enabled=%', hidden_trigger_def, hidden_trigger_enabled;
+    raise notice 'FAIL: hidden trigger=% enabled=% tgtype=% fn=%',
+      hidden_trigger_def, hidden_trigger_enabled, hidden_tgtype, hidden_fn;
+  end if;
+
+  select c.relrowsecurity
+    into profiles_rls
+  from pg_class c
+  join pg_namespace n on n.oid = c.relnamespace
+  where n.nspname = 'public'
+    and c.relname = 'profiles';
+
+  if profiles_rls then
+    raise notice 'PASS: profiles row level security is enabled';
+  else
+    raise notice 'FAIL: profiles row level security is %', profiles_rls;
   end if;
 
   if to_regprocedure('private.enforce_own_pinned_post()') is null

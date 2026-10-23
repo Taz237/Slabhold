@@ -178,7 +178,7 @@ export function ProfileView({ username }: { username?: string }) {
     void loadPostById(supabase, pinTarget, user?.id ?? null).then((result) => {
       if (cancelled) return;
       const loaded = result?.post;
-      if (!loaded || loaded.authorId !== ownerId) {
+      if (!loaded || loaded.authorId !== ownerId || loaded.hiddenAt) {
         setPinnedExtra(null);
         return;
       }
@@ -262,7 +262,7 @@ export function ProfileView({ username }: { username?: string }) {
       posts.find((post) => post.id === pinTarget) ??
       pagedPosts.posts.find((post) => post.id === pinTarget) ??
       (pinnedExtra?.id === pinTarget ? pinnedExtra : undefined);
-    if (!known || known.authorId !== profile.id) return null;
+    if (!known || known.authorId !== profile.id || known.hiddenAt) return null;
     return known;
   })();
   const shownActivity =

@@ -303,7 +303,8 @@ describe("profile pin migration", () => {
       /foreign key \(pinned_post_id\)\s+references public\.posts \(id\)\s+on delete set null/i,
     );
     assert.match(sql, /before insert or update of pinned_post_id on public\.profiles/);
-    assert.match(sql, /public\.posts\.user_id = new\.id\s+and public\.posts\.hidden_at is null/);
+    assert.match(sql, /public\.posts\.user_id = new\.id\s+and public\.posts\.hidden_at is null\s+for share/);
+    assert.match(sql, /if not found then/);
     assert.match(sql, /public\.posts\.user_id = uid\s+and public\.posts\.hidden_at is null/);
     assert.match(sql, /raise exception 'can only pin your own post'\s+using errcode = '42501'/);
     assert.match(sql, /after update of hidden_at on public\.posts/);
@@ -352,7 +353,12 @@ describe("profile pin migration", () => {
     assert.match(verify, /t\.tgenabled/);
     assert.match(verify, /in \('O', 'A'\)/);
     assert.match(verify, /after update of hidden_at/);
-    assert.match(schema, /public\.posts\.user_id = new\.id\s+and public\.posts\.hidden_at is null/);
+    assert.match(verify, /for share/);
+    assert.match(verify, /regexp_replace/);
+    assert.match(verify, /hidden_tgtype = 17/);
+    assert.match(verify, /private\.clear_pin_when_post_hidden\(\)/);
+    assert.match(verify, /relrowsecurity/);
+    assert.match(schema, /public\.posts\.user_id = new\.id\s+and public\.posts\.hidden_at is null\s+for share/);
     assert.match(schema, /public\.posts\.user_id = uid\s+and public\.posts\.hidden_at is null/);
     assert.match(schema, /after update of hidden_at on public\.posts/);
     assert.match(
@@ -387,6 +393,7 @@ describe("profile pin menu and tabs", () => {
     assert.match(profile, /loadProfilePublicCards/);
     assert.match(profile, /OpenToOffersFilter/);
     assert.match(profile, /pinned=\{item\.key\.startsWith\("pinned:"\)\}/);
+    assert.match(profile, /known\.hiddenAt/);
     assert.match(tweet, />\s*Pinned\s*</);
     assert.doesNotMatch(profile, /from\("cards"\)/);
     assert.doesNotMatch(profile, /overflow-x-auto/);

@@ -84,6 +84,7 @@ type PostRow = {
   card: PublicCard | null;
   quoted_post_id?: string | null;
   created_at: string;
+  hidden_at?: string | null;
   post_type?: string | null;
   show_paid?: boolean | null;
   meta?: unknown;
@@ -193,6 +194,7 @@ function mapPost(row: PostRow, mailDayCards: MailDayCardView[]): Post {
     card,
     quotedPostId: row.quoted_post_id ?? null,
     createdAt: row.created_at,
+    hiddenAt: row.hidden_at ?? null,
     postType: row.post_type === "mail_day" ? "mail_day" : "post",
     showPaid: row.show_paid === true,
     mailDay: first
