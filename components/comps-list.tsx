@@ -10,6 +10,7 @@ import {
 } from "@/lib/comps/flag-reasons";
 import type { CompListing } from "@/lib/types";
 import type { CompFlagToast, HiddenSale } from "@/components/use-comp-flags";
+import { useCloseOnOutsideTap } from "@/lib/ui/menu-outside-tap";
 
 const SALES_PAGE = 10;
 
@@ -254,23 +255,16 @@ function RowMenu({
   const buttonRef = useRef<HTMLButtonElement>(null);
   const itemRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
-  useEffect(() => {
-    if (!open) return;
-    function onPointer(event: MouseEvent) {
-      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
-    }
-    document.addEventListener("mousedown", onPointer);
-    return () => document.removeEventListener("mousedown", onPointer);
-  }, [open]);
-
-  useEffect(() => {
-    if (open) itemRefs.current[0]?.focus();
-  }, [open]);
-
   function closeAndFocusButton() {
     setOpen(false);
     buttonRef.current?.focus();
   }
+
+  useCloseOnOutsideTap(open, rootRef, closeAndFocusButton);
+
+  useEffect(() => {
+    if (open) itemRefs.current[0]?.focus();
+  }, [open]);
 
   function onMenuKey(event: KeyboardEvent<HTMLDivElement>) {
     if (event.key === "Escape") {

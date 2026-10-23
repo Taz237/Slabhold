@@ -228,7 +228,7 @@ export function CollectionValueHistory({
                     pinned.current = false;
                     setRange(item.id);
                   }}
-                  className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                  className={`hit-44 min-h-8 rounded-full px-3 py-1 text-xs font-semibold ${
                     active
                       ? "bg-white text-zinc-950 shadow-sm dark:bg-zinc-950 dark:text-zinc-100"
                       : enabled

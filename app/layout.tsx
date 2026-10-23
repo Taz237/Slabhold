@@ -7,7 +7,6 @@ import { SITE_URL } from "@/lib/site-url";
 import { CollectionProvider } from "@/components/collection-provider";
 import { ImageLightboxProvider } from "@/components/image-lightbox";
 import { SocialProvider } from "@/components/social-provider";
-import { BRAND_PURPLE } from "@/lib/pwa/manifest";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -24,7 +23,10 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  themeColor: BRAND_PURPLE,
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#f4f4f5" },
+    { media: "(prefers-color-scheme: dark)", color: "#09090b" },
+  ],
 };
 
 export const metadata: Metadata = {
@@ -36,7 +38,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     title: "Slabhold",
-    statusBarStyle: "black-translucent",
+    statusBarStyle: "default",
   },
   openGraph: {
     title: "Slabhold",
