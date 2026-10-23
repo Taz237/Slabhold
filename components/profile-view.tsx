@@ -31,7 +31,6 @@ import { profileTimeline } from "@/lib/social/timeline";
 import { loadPostById } from "@/lib/social/load-feed-page";
 import {
   PROFILE_TAB_LABELS,
-  loadProfilePublicCards,
   profileCardsTab,
   profileMediaItems,
   profileTabFromQuery,
@@ -39,7 +38,7 @@ import {
   withPinnedFirst,
   type ProfileTab,
 } from "@/lib/social/profile-tabs";
-import type { OwnedCard, Post, PublicCard } from "@/lib/social/types";
+import type { Post, PublicCard } from "@/lib/social/types";
 import { EbaySoldLink } from "@/components/ebay-sold-link";
 import {
   filterOpenToOffers,
@@ -65,6 +64,8 @@ export function ProfileView({ username }: { username?: string }) {
     followerCount,
     followingCount,
     refresh,
+    cardsHasMore,
+    loadMoreCards,
     blockedIds,
     safetyAccounts,
     applySafetyChange,
@@ -80,12 +81,27 @@ export function ProfileView({ username }: { username?: string }) {
   const [openedEdit, setOpenedEdit] = useState(false);
   const [tab, setTab] = useState<ProfileTab>(() => profileTabFromQuery(searchParams.get("tab")));
   const [offersOnly, setOffersOnly] = useState(false);
-  const [viewCards, setViewCards] = useState<{ ownerId: string; rows: OwnedCard[] } | null>(null);
   const [pinnedExtra, setPinnedExtra] = useState<Post | null>(null);
+  const [loadingMoreCards, setLoadingMoreCards] = useState(false);
   const [postsRefreshKey, setPostsRefreshKey] = useState(0);
   const [replyParents, setReplyParents] = useState<{ key: string; ids: ReadonlySet<string> } | null>(
     null,
   );
+  const sliceKey = `${mode}:${username ?? user?.id ?? ""}`;
+  const [loadedSlice, setLoadedSlice] = useState<string | null>(null);
+  useEffect(() => {
+    if (!ready || mode !== "supabase") return;
+    let cancelled = false;
+    void refresh()
+      .catch(() => undefined)
+      .finally(() => {
+        if (!cancelled) setLoadedSlice(sliceKey);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [mode, ready, refresh, sliceKey]);
+  const sliceReady = mode !== "supabase" || loadedSlice === sliceKey;
   const pagedPosts = usePagedTimeline({
     enabled: mode === "supabase" && Boolean(profile?.id),
     scope: "profile",
@@ -118,17 +134,14 @@ export function ProfileView({ username }: { username?: string }) {
             isPublic: true,
           }))
       : [];
-    const listed =
-      viewCards && viewCards.ownerId === profile.id
-        ? viewCards.rows
-        : publicCards.filter((card) => card.ownerId === profile.id);
+    const listed = publicCards.filter((card) => card.ownerId === profile.id);
     return profileCardsTab({
       ownerId: profile.id,
       viewerId: user?.id ?? null,
       publicCards: listed,
       ownBook: sharedFromBook,
     });
-  }, [cards, isOwn, profile, publicCards, user?.id, viewCards]);
+  }, [cards, isOwn, profile, publicCards, user?.id]);
 
   const offersAvailable = openToOffersFilterAvailable(collection);
   const shownCollection = useMemo(
@@ -154,24 +167,6 @@ export function ProfileView({ username }: { username?: string }) {
         pagedPosts.posts.some((post) => post.id === pinTarget) ||
         pagedPosts.items.some((item) => item.post.id === pinTarget)),
   );
-
-  useEffect(() => {
-    const ownerId = profile?.id;
-    if (mode !== "supabase" || !ownerId) return;
-    const supabase = createSupabaseBrowser();
-    if (!supabase) return;
-    let cancelled = false;
-    void loadProfilePublicCards(supabase, ownerId)
-      .then((rows) => {
-        if (!cancelled) setViewCards({ ownerId, rows });
-      })
-      .catch(() => {
-        if (!cancelled) setViewCards(null);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [mode, profile?.id, postsRefreshKey]);
 
   const replyAuthorId = profile?.id ?? "";
   const loadedReplies = replyAuthorId ? repliesBy(replyAuthorId) : [];
@@ -219,7 +214,7 @@ export function ProfileView({ username }: { username?: string }) {
     };
   }, [mode, pinInMemory, pinTarget, profile?.id, rememberPosts, user?.id]);
 
-  if (!ready) return <ProfileSkeleton />;
+  if (!ready || !sliceReady) return <ProfileSkeleton />;
 
   if (!username && !user) {
     return (
@@ -494,6 +489,16 @@ export function ProfileView({ username }: { username?: string }) {
               })}
             </ul>
           )}
+          {mode === "supabase" ? (
+            <LoadMore
+              hasMore={cardsHasMore}
+              loading={loadingMoreCards}
+              onLoadMore={() => {
+                setLoadingMoreCards(true);
+                void loadMoreCards().finally(() => setLoadingMoreCards(false));
+              }}
+            />
+          ) : null}
         </div>
       ) : postsLoading ? (
         <LoadingRows count={3} />

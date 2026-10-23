@@ -3,27 +3,17 @@ import { captchaRetryMessage } from "@/lib/auth/captcha";
 import { emailConfirmRedirect } from "@/lib/auth/safe-next";
 import { EMAIL_NOT_CONFIRMED, isEmailNotConfirmed } from "@/lib/auth/signup-fields";
 import { removeUploadedMedia, uploadMedia } from "@/lib/supabase/media";
-import { sanitizeAttachedCard } from "./card-posts";
-import { loadMailDayViews } from "./mail-day";
 import {
   loadMessageRows,
-  mapDirectMessage,
   offerSendError,
   offersColumnMissing,
   parseCardPreview,
 } from "@/lib/offers/open-to-offers";
-import { mapPublicCard } from "./cards";
+import { olderThanCursor, pageAfter, type PageCursor } from "./page-cursor";
+import { loadViewerShell, mapMessageRows } from "./scoped-reads";
 import type {
   AuthResult,
   CardMessagePreview,
-  FollowEdge,
-  Notification,
-  NotificationKind,
-  MailDayCardView,
-  Post,
-  PostComment,
-  PostRepost,
-  Profile,
   ProfilePatch,
   PublicCard,
   SignUpInput,
@@ -44,7 +34,6 @@ import { validateQuoteContent } from "./quotes";
 import { pingWantMatch } from "@/lib/wants/ping";
 import {
   draftPostPhotos,
-  mappedPostImages,
   metaColumnMissing,
   metaWithImages,
   noteMultiPhotoMissing,
@@ -53,7 +42,6 @@ import {
 import { BLOCKED_INTERACTION } from "@/lib/safety/block";
 import { canNotify, supabaseSafety } from "@/lib/safety/can-notify";
 import { applyAuthorSafety, loadHiddenAuthorIds, withAuthorSafety } from "@/lib/safety/filters";
-import { needsSuggestionHeadroom, suggestionExtraRange } from "./follow-suggestions";
 
 /** Swappable so a shared-card post can be tested without hitting the network. */
 export const postWantAlerts = {
@@ -63,96 +51,14 @@ export const postWantAlerts = {
 /** Public columns only — used by @mention autocomplete. */
 const MENTION_PROFILE_SELECT = "id, username, display_name, avatar_url";
 
-type ProfileRow = {
-  id: string;
-  username: string;
-  display_name: string;
-  bio: string | null;
-  avatar_url: string | null;
-  cover_url: string | null;
-  accent: string | null;
-  created_at: string;
-  is_test?: boolean | null;
-  pinned_post_id?: string | null;
-};
+/** One DM page. Older rows stay reachable through the created_at + id cursor. */
+export const MESSAGE_PAGE_SIZE = 80;
 
-type PostRow = {
-  id: string;
-  user_id: string;
-  content: string;
-  image_url: string | null;
-  card: PublicCard | null;
-  quoted_post_id?: string | null;
-  created_at: string;
-  hidden_at?: string | null;
-  post_type?: string | null;
-  show_paid?: boolean | null;
-  meta?: unknown;
-};
-
-type FollowRow = {
-  follower_id: string;
-  following_id: string;
-  created_at: string;
-};
-
-type RepostRow = {
-  user_id: string;
-  post_id: string;
-  created_at: string;
-};
-
-type CommentRow = {
-  id: string;
-  post_id: string;
-  user_id: string;
-  body: string;
-  created_at: string;
-};
-
-type NotificationRow = {
-  id: string;
-  recipient_id: string;
-  actor_id: string | null;
-  kind: NotificationKind;
-  post_id: string | null;
-  preview: string | null;
-  href?: string | null;
-  metadata?: Record<string, unknown> | null;
-  read: boolean;
-  created_at: string;
-};
-
-type MessageRow = {
-  id: string;
-  sender_id: string;
-  receiver_id: string;
-  content: string;
-  created_at: string;
-  read: boolean;
-  kind?: string | null;
-  card_preview?: unknown;
-};
-
-/** Row from public.public_cards — no paid_price / purchase_date / notes / cert_number. */
-type PublicCardRow = {
-  id: string;
-  user_id: string;
-  player: string;
-  year: number;
-  set: string;
-  grade: string | null;
-  parallel: string | null;
-  estimated_value: number | null;
-  image_url: string | null;
-  card_number: string | null;
-  sport: string | null;
-  accent: string | null;
-  is_public: boolean | null;
-  created_at: string;
-  updated_at: string | null;
-  year_label?: string | null;
-  set_name?: string | null;
+export type MessagePage = {
+  messages: ReturnType<typeof mapMessageRows>;
+  hasMore: boolean;
+  cursor: PageCursor | null;
+  error: string | null;
 };
 
 function previewText(value: string) {
@@ -181,311 +87,83 @@ async function allowNotice(
   return canNotify(supabaseSafety(supabase), actorId, recipientId);
 }
 
-function mapPost(row: PostRow, mailDayCards: MailDayCardView[]): Post {
-  const card = sanitizeAttachedCard(row.card);
-  const first = mailDayCards[0];
-  const photos = mappedPostImages(row);
-  return {
-    id: row.id,
-    authorId: row.user_id,
-    body: row.content ?? "",
-    imageDataUrl: photos.imageDataUrl,
-    images: photos.images,
-    card,
-    quotedPostId: row.quoted_post_id ?? null,
-    createdAt: row.created_at,
-    hiddenAt: row.hidden_at ?? null,
-    postType: row.post_type === "mail_day" ? "mail_day" : "post",
-    showPaid: row.show_paid === true,
-    mailDay: first
-      ? {
-          source: first.source,
-          photos: first.photos,
-          paid: first.paid,
-          isPublic: first.isPublic,
-          showValue: first.showValue,
-        }
-      : null,
-    mailDayCards,
-  };
+function messagePageFrom(result: {
+  data: unknown;
+  error: { code?: string; message?: string } | null;
+}): MessagePage {
+  if (result.error) {
+    if (missingTable(result.error)) return { messages: [], hasMore: false, cursor: null, error: null };
+    return {
+      messages: [],
+      hasMore: false,
+      cursor: null,
+      error: result.error.message ?? "Could not load messages.",
+    };
+  }
+  const rows = (Array.isArray(result.data) ? result.data : []) as Parameters<typeof mapMessageRows>[0][number][];
+  const tail = pageAfter(rows, MESSAGE_PAGE_SIZE);
+  return { messages: mapMessageRows(rows), hasMore: tail.hasMore, cursor: tail.cursor, error: null };
 }
 
-async function mapPostRows(
+async function loadMessagePage(
   supabase: SupabaseClient,
-  rows: PostRow[],
-  viewerId: string | null,
-): Promise<Post[]> {
-  const views = await loadMailDayViews(
+  viewerId: string,
+  filter: string,
+  cursor: PageCursor | null,
+) {
+  const hidden = await loadHiddenAuthorIds(supabase, false);
+  const older = cursor ? olderThanCursor(cursor) : null;
+  return loadMessageRows((columns) => {
+    let query = supabase
+      .from("messages")
+      .select(columns)
+      .or(filter)
+      .order("created_at", { ascending: false })
+      .order("id", { ascending: false })
+      .limit(MESSAGE_PAGE_SIZE);
+    if (older) query = query.or(older);
+    query = applyAuthorSafety(query, viewerId, hidden, { authorColumn: "sender_id" });
+    query = applyAuthorSafety(query, viewerId, hidden, { authorColumn: "receiver_id" });
+    return query;
+  });
+}
+
+export async function loadRecentMessages(
+  supabase: SupabaseClient,
+  viewerId: string,
+  cursor?: PageCursor | null,
+) {
+  return loadMessagePage(
     supabase,
-    rows.map((row) => ({
-      id: row.id,
-      user_id: row.user_id,
-      post_type: row.post_type,
-      show_paid: row.show_paid,
-      meta: row.meta,
-      card: sanitizeAttachedCard(row.card),
-    })),
     viewerId,
+    `sender_id.eq.${viewerId},receiver_id.eq.${viewerId}`,
+    cursor ?? null,
   );
-  return rows.map((row) => mapPost(row, views.get(row.id) ?? []));
 }
 
-function mapProfile(row: ProfileRow, email = ""): Profile {
-  return {
-    id: row.id,
-    email,
-    username: row.username,
-    displayName: row.display_name,
-    bio: row.bio ?? "",
-    avatarDataUrl: row.avatar_url,
-    coverDataUrl: row.cover_url ?? null,
-    accent: row.accent ?? "#7c5cff",
-    createdAt: row.created_at,
-    pinnedPostId: typeof row.pinned_post_id === "string" ? row.pinned_post_id : null,
-    ...(row.is_test === true ? { isTest: true } : {}),
-  };
+/** Newest messages with anyone, for the inbox. */
+export async function loadInboxPage(
+  supabase: SupabaseClient,
+  viewerId: string,
+  cursor: PageCursor | null,
+): Promise<MessagePage> {
+  return messagePageFrom(await loadRecentMessages(supabase, viewerId, cursor));
 }
 
+/** One page of a single conversation, newest first. */
+export async function loadThreadPage(
+  supabase: SupabaseClient,
+  viewerId: string,
+  partnerId: string,
+  cursor: PageCursor | null,
+): Promise<MessagePage> {
+  const pair = `and(sender_id.eq.${viewerId},receiver_id.eq.${partnerId}),and(sender_id.eq.${partnerId},receiver_id.eq.${viewerId})`;
+  return messagePageFrom(await loadMessagePage(supabase, viewerId, pair, cursor));
+}
+
+/** Viewer shell only. Page data is loaded by the screen that shows it. */
 export async function loadSupabaseSocial(supabase: SupabaseClient): Promise<SocialSnapshot> {
-  const { data: sessionData } = await supabase.auth.getSession();
-  const session = sessionData.session;
-  const viewerId = session?.user.id ?? null;
-  const [blockedHidden, mutedHidden] = viewerId
-    ? await Promise.all([
-        loadHiddenAuthorIds(supabase, false),
-        loadHiddenAuthorIds(supabase, true),
-      ])
-    : [[], []];
-  const guard = <Q extends Parameters<typeof applyAuthorSafety>[0]>(
-    query: Q,
-    ids: readonly string[],
-    options?: Parameters<typeof applyAuthorSafety>[3],
-  ) => applyAuthorSafety(query, viewerId, ids, options);
-
-  const loadMessages = () =>
-    loadMessageRows((columns) => {
-      let query = supabase.from("messages").select(columns).order("created_at", { ascending: true });
-      query = guard(query, blockedHidden, { authorColumn: "sender_id" });
-      query = guard(query, blockedHidden, { authorColumn: "receiver_id" });
-      return query;
-    });
-
-  const [profilesRes, postsRes, homePostsRes, followsRes, cardsRes, commentsRes, notificationsRes, messagesRes, repostsRes, homeRepostsRes, myBlocksRes, myMutesRes] =
-    await Promise.all([
-      guard(
-        supabase.from("profiles").select("*").order("created_at", { ascending: true }),
-        blockedHidden,
-        { authorColumn: "id" },
-      ),
-      guard(
-        supabase.from("posts").select("*").order("created_at", { ascending: false }).limit(100),
-        blockedHidden,
-      ),
-      guard(
-        supabase.from("posts").select("*").order("created_at", { ascending: false }).limit(100),
-        mutedHidden,
-        { mute: true },
-      ),
-      supabase.from("follows").select("*"),
-      supabase.from("public_cards").select("*"),
-      guard(
-        supabase.from("comments").select("*").order("created_at", { ascending: true }),
-        mutedHidden,
-        { mute: true },
-      ),
-      guard(
-        supabase.from("notifications").select("*").order("created_at", { ascending: false }),
-        mutedHidden,
-        { authorColumn: "actor_id", mute: true, keepNullAuthor: true },
-      ),
-      loadMessages(),
-      guard(
-        supabase.from("reposts").select("*").order("created_at", { ascending: false }),
-        blockedHidden,
-      ),
-      guard(
-        supabase.from("reposts").select("*").order("created_at", { ascending: false }),
-        mutedHidden,
-        { mute: true },
-      ),
-      viewerId
-        ? supabase.from("blocks").select("blocked_id")
-        : Promise.resolve({ data: [], error: null }),
-      viewerId
-        ? supabase.from("mutes").select("muted_id")
-        : Promise.resolve({ data: [], error: null }),
-    ]);
-  const failure =
-    profilesRes.error || postsRes.error || homePostsRes.error || followsRes.error || cardsRes.error;
-  if (failure) throw new Error(failure.message);
-  if (commentsRes.error && !missingTable(commentsRes.error)) throw new Error(commentsRes.error.message);
-  if (notificationsRes.error && !missingTable(notificationsRes.error)) {
-    throw new Error(notificationsRes.error.message);
-  }
-  if (messagesRes.error && !missingTable(messagesRes.error)) throw new Error(messagesRes.error.message);
-  if (repostsRes.error && !missingTable(repostsRes.error)) throw new Error(repostsRes.error.message);
-  if (homeRepostsRes.error && !missingTable(homeRepostsRes.error)) {
-    throw new Error(homeRepostsRes.error.message);
-  }
-  if (myBlocksRes.error && !missingTable(myBlocksRes.error)) throw new Error(myBlocksRes.error.message);
-  if (myMutesRes.error && !missingTable(myMutesRes.error)) throw new Error(myMutesRes.error.message);
-
-  const profiles = ((profilesRes.data ?? []) as ProfileRow[]).map((row) =>
-    mapProfile(row, row.id === session?.user.id ? (session.user.email ?? "") : ""),
-  );
-  if (needsSuggestionHeadroom(profiles.length)) {
-    const { from, to } = suggestionExtraRange(profiles.length);
-    const extraRes = await guard(
-      supabase
-        .from("profiles")
-        .select("*")
-        .order("created_at", { ascending: true })
-        .range(from, to),
-      blockedHidden,
-      { authorColumn: "id" },
-    );
-    if (extraRes.error) throw new Error(extraRes.error.message);
-    const known = new Set(profiles.map((profile) => profile.id));
-    for (const row of (extraRes.data ?? []) as ProfileRow[]) {
-      if (known.has(row.id)) continue;
-      known.add(row.id);
-      profiles.push(
-        mapProfile(row, row.id === session?.user.id ? (session.user.email ?? "") : ""),
-      );
-    }
-  }
-  const posts = await mapPostRows(supabase, (postsRes.data ?? []) as PostRow[], viewerId);
-  const reposts = ((repostsRes.data ?? []) as RepostRow[]).map(
-    (row): PostRepost => ({
-      postId: row.post_id,
-      userId: row.user_id,
-      createdAt: row.created_at,
-    }),
-  );
-  const knownPostIds = new Set(posts.map((post) => post.id));
-  const missingFromReposts = [...new Set(reposts.map((repost) => repost.postId))].filter(
-    (id) => !knownPostIds.has(id),
-  );
-  const missingQuoted = [
-    ...new Set(
-      posts
-        .map((post) => post.quotedPostId)
-        .filter((id): id is string => Boolean(id) && !knownPostIds.has(id!)),
-    ),
-  ];
-  const missingPostIds = [...new Set([...missingFromReposts, ...missingQuoted])];
-  if (missingPostIds.length > 0) {
-    const extra = await guard(
-      supabase.from("posts").select("*").in("id", missingPostIds),
-      blockedHidden,
-    );
-    if (extra.error && !missingTable(extra.error)) throw new Error(extra.error.message);
-    for (const mapped of await mapPostRows(supabase, (extra.data ?? []) as PostRow[], viewerId)) {
-      posts.push(mapped);
-      knownPostIds.add(mapped.id);
-    }
-    // One more hop for nested quote targets referenced by freshly loaded quotes.
-    const nestedMissing = [
-      ...new Set(
-        posts
-          .map((post) => post.quotedPostId)
-          .filter((id): id is string => Boolean(id) && !knownPostIds.has(id!)),
-      ),
-    ];
-    if (nestedMissing.length > 0) {
-      const nested = await guard(
-        supabase.from("posts").select("*").in("id", nestedMissing),
-        blockedHidden,
-      );
-      if (nested.error && !missingTable(nested.error)) throw new Error(nested.error.message);
-      posts.push(
-        ...(await mapPostRows(supabase, (nested.data ?? []) as PostRow[], viewerId)),
-      );
-    }
-    posts.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-  }
-  const follows = ((followsRes.data ?? []) as FollowRow[]).map(
-    (row): FollowEdge => ({
-      followerId: row.follower_id,
-      followingId: row.following_id,
-      createdAt: row.created_at,
-    }),
-  );
-  const publicCards = ((cardsRes.data ?? []) as PublicCardRow[]).map((row) =>
-    mapPublicCard(row),
-  );
-  const comments = ((commentsRes.data ?? []) as CommentRow[]).map(
-    (row): PostComment => ({
-      id: row.id,
-      postId: row.post_id,
-      authorId: row.user_id,
-      body: row.body,
-      createdAt: row.created_at,
-    }),
-  );
-  const notifications = ((notificationsRes.data ?? []) as NotificationRow[]).map(
-    (row): Notification => ({
-      id: row.id,
-      recipientId: row.recipient_id,
-      actorId: row.actor_id,
-      kind: row.kind,
-      postId: row.post_id,
-      preview: row.preview,
-      href: row.href ?? null,
-      metadata: row.metadata ?? null,
-      createdAt: row.created_at,
-      read: row.read,
-    }),
-  );
-  const messages = ((messagesRes.data ?? []) as unknown as MessageRow[]).map((row) => mapDirectMessage(row));
-  const homePosts = await mapPostRows(
-    supabase,
-    (homePostsRes.data ?? []) as PostRow[],
-    viewerId,
-  );
-  const homeReposts = ((homeRepostsRes.data ?? []) as RepostRow[]).map(
-    (row): PostRepost => ({
-      postId: row.post_id,
-      userId: row.user_id,
-      createdAt: row.created_at,
-    }),
-  );
-  const blockedIds = ((myBlocksRes.data ?? []) as { blocked_id: string }[]).map(
-    (row) => row.blocked_id,
-  );
-  const mutedIds = ((myMutesRes.data ?? []) as { muted_id: string }[]).map((row) => row.muted_id);
-  const safetyIds = [...new Set([...blockedIds, ...mutedIds])];
-  let safetyAccounts: Profile[] = profiles.filter((profile) => safetyIds.includes(profile.id));
-  const missingSafety = safetyIds.filter((id) => !safetyAccounts.some((profile) => profile.id === id));
-  if (missingSafety.length > 0) {
-    const extraProfiles = await supabase
-      .from("profiles")
-      .select("*")
-      .in("id", missingSafety);
-    if (extraProfiles.error) throw new Error(extraProfiles.error.message);
-    safetyAccounts = [
-      ...safetyAccounts,
-      ...((extraProfiles.data ?? []) as ProfileRow[]).map((row) => mapProfile(row)),
-    ];
-  }
-
-  return {
-    user: profiles.find((profile) => profile.id === session?.user.id) ?? null,
-    profiles,
-    posts,
-    follows,
-    likes: [],
-    reposts,
-    comments,
-    notifications,
-    messages,
-    publicCards,
-    homePosts,
-    homeReposts,
-    blockedIds,
-    mutedIds,
-    safetyAccounts,
-  };
+  return loadViewerShell(supabase);
 }
 
 export async function remoteSignUp(
@@ -767,7 +445,7 @@ export async function remoteAddComment(
   postId: string,
   body: string,
   postAuthorId: string | null,
-): Promise<AuthResult> {
+): Promise<AuthResult & { commentId?: string }> {
   const text = body.trim().slice(0, COMMENT_LIMIT);
   if (!text) return { error: "Write a comment." };
   if (
@@ -777,11 +455,17 @@ export async function remoteAddComment(
   ) {
     return { error: BLOCKED_INTERACTION };
   }
-  const { error } = await supabase.from("comments").insert({
-    post_id: postId,
-    user_id: authorId,
-    body: text,
-  });
+  const inserted = await supabase
+    .from("comments")
+    .insert({
+      post_id: postId,
+      user_id: authorId,
+      body: text,
+    })
+    .select("id")
+    .maybeSingle();
+  const error = inserted.error;
+  const commentId = typeof inserted.data?.id === "string" ? inserted.data.id : undefined;
   if (error) {
     if (missingTable(error)) {
       return { error: SETUP_FAILED };
@@ -819,7 +503,7 @@ export async function remoteAddComment(
   } catch {
     // The reply is already saved. A notification failure must not fail it.
   }
-  return notice ? { notice } : {};
+  return notice ? { notice, commentId } : { commentId };
 }
 
 export async function remoteSyncLikeNotification(
@@ -861,7 +545,7 @@ export async function remoteSendMessage(
   receiverId: string,
   content: string,
   preview?: CardMessagePreview | null,
-): Promise<AuthResult> {
+): Promise<AuthResult & { messageId?: string }> {
   const text = content.trim().slice(0, MESSAGE_LIMIT);
   const cardPreview = preview ? parseCardPreview(preview) : null;
   if (!text && !cardPreview) return { error: "Write a message." };
@@ -884,7 +568,8 @@ export async function remoteSendMessage(
     row.kind = "card_preview";
     row.card_preview = { cardId: cardPreview.cardId };
   }
-  const { error } = await supabase.from("messages").insert(row);
+  const inserted = await supabase.from("messages").insert(row).select("id").maybeSingle();
+  const error = inserted.error;
   if (error) {
     if (missingTable(error)) return { error: SETUP_FAILED };
     if (cardPreview && offersColumnMissing(error)) {
@@ -892,7 +577,8 @@ export async function remoteSendMessage(
     }
     return { error: rlsBlocked(error) ? BLOCKED_INTERACTION : error.message };
   }
-  return {};
+  const messageId = typeof inserted.data?.id === "string" ? inserted.data.id : undefined;
+  return { messageId };
 }
 
 async function senderMuted(
@@ -1215,7 +901,7 @@ export async function searchProfilesForMention(
   }
   const { data, error } = await req;
   if (error || !data) return [];
-  return (data as Pick<ProfileRow, "id" | "username" | "display_name" | "avatar_url">[]).map(
+  return (data as { id: string; username: string; display_name: string; avatar_url: string | null }[]).map(
     (row) => ({
       id: row.id,
       username: row.username,

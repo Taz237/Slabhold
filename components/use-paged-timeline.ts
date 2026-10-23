@@ -35,6 +35,8 @@ export function usePagedTimeline(input: {
   /** Changing either list reloads page 1 so a new block or mute leaves the feed. */
   blockedIds?: readonly string[];
   mutedIds?: readonly string[];
+  /** Null asks the feed page to load hidden authors. An array reuses the shell's list. */
+  hiddenAuthorIds?: readonly string[] | null;
   rememberPosts?: (posts: Post[], profiles?: Profile[]) => void;
 }) {
   const authorKey = input.authorIds?.join(",") ?? "";
@@ -47,6 +49,7 @@ export function usePagedTimeline(input: {
     String(input.refreshKey),
     [...(input.blockedIds ?? [])].sort().join(","),
     [...(input.mutedIds ?? [])].sort().join(","),
+    input.hiddenAuthorIds == null ? "" : input.hiddenAuthorIds.join(","),
   ].join("|");
 
   const [page, setPage] = useState<PageState>(idle);
@@ -90,6 +93,7 @@ export function usePagedTimeline(input: {
       profileId: current.profileId,
       cursor: null,
       limit: FEED_PAGE_SIZE,
+      ...(current.hiddenAuthorIds != null ? { hiddenAuthorIds: current.hiddenAuthorIds } : {}),
     })
       .then((next) => {
         if (epochRef.current !== token) return;
@@ -125,6 +129,7 @@ export function usePagedTimeline(input: {
       cursor,
       seenPostIds: seenRef.current,
       limit: FEED_PAGE_SIZE,
+      ...(current.hiddenAuthorIds != null ? { hiddenAuthorIds: current.hiddenAuthorIds } : {}),
     })
       .then((next) => {
         if (epochRef.current !== token) return;

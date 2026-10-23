@@ -123,6 +123,14 @@ export function SearchView() {
   }, [rawQ, router, urlQ]);
 
   useEffect(() => {
+    if (!socialReady || !typed.trim()) return;
+    const timer = window.setTimeout(() => {
+      void refresh();
+    }, 250);
+    return () => window.clearTimeout(timer);
+  }, [refresh, socialReady, typed]);
+
+  useEffect(() => {
     if (!wantsCatalogSearch(typed)) {
       catalogRequest.current += 1;
       return;

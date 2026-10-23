@@ -14,7 +14,7 @@ import { loginPath, signupPath } from "@/lib/auth/safe-next";
 export function MoreView() {
   const router = useRouter();
   const pathname = usePathname() || "/";
-  const { ready, user, signOut, mode, status } = useSocial();
+  const { ready, user, signOut, mode, status, unreadMessageCount } = useSocial();
 
   if (!ready) {
     return (
@@ -91,8 +91,16 @@ export function MoreView() {
         <h2 className="text-sm font-bold">Shortcuts</h2>
         <ul className="mt-2 divide-y divide-zinc-200 text-sm dark:divide-white/10">
           <li>
-            <Link href="/messages" className="block py-3">
-              Messages
+            <Link href="/messages" className="flex items-center justify-between py-3">
+              <span>Messages</span>
+              {unreadMessageCount > 0 ? (
+                <span
+                  className="grid h-5 min-w-5 place-items-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white"
+                  aria-label={`${unreadMessageCount} unread`}
+                >
+                  {unreadMessageCount > 9 ? "9+" : unreadMessageCount}
+                </span>
+              ) : null}
             </Link>
           </li>
           <li>

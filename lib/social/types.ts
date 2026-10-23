@@ -78,6 +78,8 @@ export type Post = {
   mailDay?: MailDayInfo | null;
   /** Every card on a Mail Day post. Empty for a normal post. */
   mailDayCards?: MailDayCardView[];
+  /** Shown before the server accepts the post. Cleared on success or rollback. */
+  pending?: boolean;
 };
 
 export type FollowEdge = {
@@ -104,6 +106,8 @@ export type PostComment = {
   authorId: string;
   body: string;
   createdAt: string;
+  /** Shown before the server accepts the reply. Cleared on success or rollback. */
+  pending?: boolean;
 };
 
 export type NotificationKind =
@@ -144,6 +148,8 @@ export type DirectMessage = {
   read: boolean;
   kind?: "text" | "card_preview";
   cardPreview?: CardMessagePreview | null;
+  /** Shown before the server accepts the message. Cleared on success or rollback. */
+  pending?: boolean;
 };
 
 export type SocialSnapshot = {
@@ -163,6 +169,11 @@ export type SocialSnapshot = {
   homeReposts?: PostRepost[];
   /** Accounts the viewer blocked. */
   blockedIds?: string[];
+  /**
+   * Authors hidden_author_ids returned for this viewer (blocks, not mutes).
+   * Card pages use this list. Absence from `profiles` is not a hide.
+   */
+  hiddenAuthorIds?: string[];
   /** Accounts the viewer muted. */
   mutedIds?: string[];
   /** Profiles for the block and mute lists, including people hidden from the feed. */

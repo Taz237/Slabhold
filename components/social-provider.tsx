@@ -47,7 +47,8 @@ import {
   type LocalDb,
 } from "@/lib/social/local-db";
 import {
-  loadSupabaseSocial,
+  loadInboxPage,
+  loadThreadPage,
   remoteAddComment,
   remoteCreatePost,
   remoteDeleteComment,
@@ -67,6 +68,40 @@ import {
   remoteUpdatePost,
   remoteUpdateProfile,
 } from "@/lib/social/remote";
+import { type PageCursor } from "@/lib/social/page-cursor";
+import {
+  appendFollowList,
+  appendOwnerCards,
+  applyViewerShell,
+  loadFollowList,
+  loadNotificationPage,
+  loadOwnerCardPage,
+  loadProfileSlice,
+  loadSearchSlice,
+  loadShellBundle,
+  loadUnreadCounts,
+  loadMessagePartners,
+  mergeFollowList,
+  mergePosts,
+  mergeProfiles,
+  replaceOwnerCards,
+  socialRoute,
+  type ShellBundle,
+  type UnreadCounts,
+} from "@/lib/social/scoped-reads";
+import {
+  countsFromEdges,
+  dropById,
+  followManyLocal,
+  insertFirst,
+  pendingComment,
+  pendingMessage,
+  pendingPost,
+  replaceId,
+  toggleFollowLocal,
+  toggleRepostLocal,
+  type FollowCountMap,
+} from "@/lib/social/optimistic-patch";
 import { offerSendError, parseCardPreview } from "@/lib/offers/open-to-offers";
 import { authSnapshotReload } from "@/lib/social/auth-snapshot";
 import { loadPostById, loadPostPage, type LoadedPostPage } from "@/lib/social/load-feed-page";
@@ -114,9 +149,14 @@ import type {
 } from "@/lib/social/types";
 import { draftPostPhotos, type PostWrite } from "@/lib/social/post-photos";
 import { profileReplies, profileWithPin } from "@/lib/social/profile-tabs";
+import { shouldSkipSocialSnapshot, withSessionTimeout } from "@/lib/auth/shell-paint";
 
 type SocialContextValue = {
   ready: boolean;
+  /** True after the local session read finishes. The shell does not wait on the snapshot. */
+  sessionKnown: boolean;
+  /** Auth user id from getSession, before the profile row is loaded. */
+  sessionUserId: string | null;
   /** True after the site snapshot is in memory. A cold post page leaves this false. */
   hasFullSnapshot: boolean;
   /** Set while a post screen is fetching a post that is not in memory yet. */
@@ -159,9 +199,21 @@ type SocialContextValue = {
   repliesBy: (userId: string) => ReturnType<typeof profileReplies>;
   notifications: Notification[];
   unreadCount: number;
+  notificationsHasMore: boolean;
+  loadMoreNotifications: () => Promise<void>;
   markNotificationsRead: (ids?: readonly string[]) => void;
   messages: DirectMessage[];
   unreadMessageCount: number;
+  messagesHasMore: boolean;
+  loadMoreMessages: () => Promise<void>;
+  threadHasMore: boolean;
+  loadMoreThread: () => Promise<void>;
+  followsHasMore: boolean;
+  loadMoreFollows: () => Promise<void>;
+  cardsHasMore: boolean;
+  loadMoreCards: () => Promise<void>;
+  /** Hidden authors from the shell batch. Null until that batch finishes for a signed-in viewer. */
+  homeHiddenAuthorIds: readonly string[] | null;
   sendMessage: (
     receiverId: string,
     content: string,
@@ -179,6 +231,8 @@ type SocialContextValue = {
   homePosts: Post[];
   homeReposts: PostRepost[];
   blockedIds: string[];
+  /** hidden_author_ids for this viewer. Not "missing from profiles". */
+  hiddenAuthorIds: string[];
   mutedIds: string[];
   safetyAccounts: Profile[];
   applySafetyChange: (change: {
@@ -215,6 +269,12 @@ function loadOnce<T>(
   return task;
 }
 
+function mergeById<T extends { id: string }>(current: readonly T[], page: readonly T[]): T[] {
+  const seen = new Set(current.map((item) => item.id));
+  const extra = page.filter((item) => !seen.has(item.id));
+  return extra.length === 0 ? [...current] : [...current, ...extra];
+}
+
 function notificationsFor(user: { id: string } | null, notes: Notification[]): Notification[] {
   if (!user) return [];
   return notes
@@ -238,6 +298,8 @@ const emptySnapshot: SocialSnapshot = {
 export function SocialProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() || "/";
   const [ready, setReady] = useState(false);
+  const [sessionKnown, setSessionKnown] = useState(false);
+  const [sessionUserId, setSessionUserId] = useState<string | null>(null);
   const [loadingPostId, setLoadingPostId] = useState<string | null>(null);
   const [resolvedPostId, setResolvedPostId] = useState<string | null>(null);
   const [hasFullSnapshot, setHasFullSnapshot] = useState(false);
@@ -253,6 +315,25 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
   const [suggestionEpoch, setSuggestionEpoch] = useState(0);
   const [activity, setActivity] = useState<ActivityStore>(emptyActivity);
   const [removedPostIds, setRemovedPostIds] = useState<ReadonlySet<string>>(() => new Set());
+  const [followCounts, setFollowCounts] = useState<FollowCountMap>({});
+  const followCountsRef = useRef<FollowCountMap>({});
+  const [inboxUnread, setInboxUnread] = useState<UnreadCounts>({ notifications: 0, messages: 0 });
+  const [homeHiddenAuthorIds, setHomeHiddenAuthorIds] = useState<readonly string[] | null>(null);
+  const [notificationsHasMore, setNotificationsHasMore] = useState(false);
+  const [messagesHasMore, setMessagesHasMore] = useState(false);
+  const [threadHasMore, setThreadHasMore] = useState(false);
+  const [followsHasMore, setFollowsHasMore] = useState(false);
+  const [cardsHasMore, setCardsHasMore] = useState(false);
+  const notificationCursorRef = useRef<PageCursor | null>(null);
+  const messageCursorRef = useRef<PageCursor | null>(null);
+  const threadCursorRef = useRef<PageCursor | null>(null);
+  const threadPartnerRef = useRef<string | null>(null);
+  const followCursorRef = useRef<PageCursor | null>(null);
+  const followListRef = useRef<{ direction: "followers" | "following"; username: string | null } | null>(null);
+  const cardCursorRef = useRef<PageCursor | null>(null);
+  const cardOwnerRef = useRef<string | null>(null);
+  const pagingLock = useRef(new Set<string>());
+  const refreshUnreadRef = useRef<() => void>(() => {});
   const supabaseRef = useRef<SupabaseClient | null>(null);
   const localRef = useRef<LocalDb | null>(null);
   const likeQueue = useRef(Promise.resolve());
@@ -262,17 +343,26 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
   const fullSnapshotRef = useRef(false);
   const snapshotErrorRef = useRef(false);
   const requestRef = useRef(0);
-  const snapshotRefreshRef = useRef(createSnapshotRefresher<SocialSnapshot>());
+  const snapshotRefreshRef = useRef(createSnapshotRefresher<ShellBundle>());
   const appliedRemoteRef = useRef<SocialSnapshot | null>(null);
   const inflightRef = useRef(new Map<string, Promise<unknown>>());
   const reloadRef = useRef<(client: SupabaseClient) => Promise<void>>(async () => {});
   const lastUserIdRef = useRef<string | null>(null);
+  const sessionKnownRef = useRef(false);
   localRef.current = local;
+
+  useEffect(() => {
+    sessionKnownRef.current = sessionKnown;
+  }, [sessionKnown]);
 
   const routePostId = postIdFromPath(pathname);
   const routePostKnown =
     routePostId !== null && remote.posts.some((post) => post.id === routePostId);
-  if (mode === "supabase" && !routePostId && !hasFullSnapshot && !snapshotError && ready) {
+  if (
+    mode === "supabase" &&
+    !routePostId && !hasFullSnapshot && !snapshotError && ready &&
+    !shouldSkipSocialSnapshot({ pathname, sessionKnown, sessionUserId })
+  ) {
     setReady(false);
   }
   if (resolvedPostId && resolvedPostId !== routePostId) {
@@ -292,18 +382,55 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
     removedRef.current = removedPostIds;
   }, [removedPostIds]);
 
+  useEffect(() => {
+    followCountsRef.current = followCounts;
+  }, [followCounts]);
+
   const refreshRemote = useCallback(async (client: SupabaseClient) => {
     await snapshotRefreshRef.current(
-      () => loadSupabaseSocial(client),
-      (snapshot) => {
+      () => loadShellBundle(client),
+      (bundle) => {
+        const shell = bundle.shell;
         if (snapshotErrorRef.current) setStatus(null);
         snapshotErrorRef.current = false;
         setSnapshotError(false);
         fullSnapshotRef.current = true;
         setHasFullSnapshot(true);
-        const merged = mergeRememberedSnapshot(snapshot, rememberedRef.current, removedRef.current);
-        appliedRemoteRef.current = merged;
-        setRemote(merged);
+        setInboxUnread(bundle.unread);
+        setHomeHiddenAuthorIds(shell.user ? bundle.hiddenAuthorIds : null);
+        const previousUserId = appliedRemoteRef.current?.user?.id ?? null;
+        const nextUserId = shell.user?.id ?? null;
+        if (previousUserId !== nextUserId) {
+          notificationCursorRef.current = null;
+          messageCursorRef.current = null;
+          threadCursorRef.current = null;
+          threadPartnerRef.current = null;
+          followCursorRef.current = null;
+          followListRef.current = null;
+          cardCursorRef.current = null;
+          cardOwnerRef.current = null;
+          setNotificationsHasMore(false);
+          setMessagesHasMore(false);
+          setThreadHasMore(false);
+          setFollowsHasMore(false);
+          setCardsHasMore(false);
+        }
+        setRemote((existing) => {
+          const switched = !shell.user || Boolean(existing.user && shell.user && existing.user.id !== shell.user.id);
+          if (switched) rememberedRef.current = createRememberedPosts();
+          const next = switched ? shell : applyViewerShell(existing, shell);
+          const merged = shell.user
+            ? mergeRememberedSnapshot(next, rememberedRef.current, removedRef.current)
+            : next;
+          appliedRemoteRef.current = merged;
+          return merged;
+        });
+        if (shell.user) {
+          const seeded = countsFromEdges(shell.follows, shell.user.id);
+          setFollowCounts((current) => ({ ...current, [shell.user!.id]: current[shell.user!.id] ?? seeded }));
+        } else {
+          setFollowCounts({});
+        }
         if (!postIdFromPath(window.location.pathname)) setReady(true);
       },
     );
@@ -346,10 +473,33 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     reloadRef.current = async (client) => {
-      const id = postIdFromPath(window.location.pathname);
+      const path = window.location.pathname;
+      if (
+        shouldSkipSocialSnapshot({
+          pathname: path,
+          sessionKnown: sessionKnownRef.current,
+          sessionUserId: lastUserIdRef.current,
+        })
+      ) {
+        fullSnapshotRef.current = false;
+        setHasFullSnapshot(false);
+        setRemote(emptySnapshot);
+        setReady(true);
+        return;
+      }
+      const id = postIdFromPath(path);
       if (id && !fullSnapshotRef.current) {
         const page = await loadPostPage(client, id);
         applyPostPage(page);
+        const viewerId = page.user?.id ?? null;
+        if (viewerId) {
+          try {
+            const counts = await loadUnreadCounts(client, viewerId);
+            if (lastUserIdRef.current === viewerId) setInboxUnread(counts);
+          } catch {
+            // The post is on screen. Focus and realtime refresh the badges.
+          }
+        }
         return;
       }
       await refreshRemote(client);
@@ -363,6 +513,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
     if (!client) {
       const { issue } = getSupabaseConfig();
       if (issue) setStatus(issue);
+      setSessionKnown(true);
       loadOrCreateLocalDb().then((db) => {
         if (cancelled) return;
         setMode("local");
@@ -380,33 +531,62 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
     // SIGNED_IN also fires on load and whenever a tab becomes visible. Remember the
     // session user first so those repeats do not reload public_cards.
     let unsubscribe = () => {};
-    void client.auth
-      .getSession()
-      .then(({ data: sessionData }) => {
-        if (!cancelled) lastUserIdRef.current = sessionData.session?.user?.id ?? null;
-      })
-      .finally(() => {
-        if (cancelled) return;
-        const { data } = client.auth.onAuthStateChange((event, session) => {
-          if (event !== "SIGNED_IN" && event !== "SIGNED_OUT") return;
-          const decision = authSnapshotReload({
-            event,
-            nextUserId: session?.user?.id ?? null,
-            lastUserId: lastUserIdRef.current,
-          });
-          lastUserIdRef.current = decision.lastUserId;
-          if (!decision.reload) return;
-          setTimeout(() => {
-            void reloadRef
-              .current(client)
-              .then(() => setStatus(null))
-              .catch((error: unknown) => {
-                setStatus(error instanceof Error ? error.message : "Could not reach Supabase.");
-              });
-          }, 0);
+    let listenAttached = false;
+    let sessionApplied = false;
+    const reloadSession = () => {
+      void reloadRef
+        .current(client)
+        .then(() => setStatus(null))
+        .catch((error: unknown) => {
+          setStatus(error instanceof Error ? error.message : "Could not reach Supabase.");
         });
-        unsubscribe = () => data.subscription.unsubscribe();
+    };
+    const applySession = (id: string | null) => {
+      const changed = sessionApplied && lastUserIdRef.current !== id;
+      sessionApplied = true;
+      lastUserIdRef.current = id;
+      setSessionUserId(id);
+      setSessionKnown(true);
+      return changed;
+    };
+    const attachListener = () => {
+      if (cancelled || listenAttached) return;
+      listenAttached = true;
+      const { data } = client.auth.onAuthStateChange((event, session) => {
+        if (event !== "SIGNED_IN" && event !== "SIGNED_OUT") return;
+        const decision = authSnapshotReload({
+          event,
+          nextUserId: session?.user?.id ?? null,
+          lastUserId: lastUserIdRef.current,
+        });
+        lastUserIdRef.current = decision.lastUserId;
+        setSessionUserId(decision.lastUserId);
+        if (!decision.reload) return;
+        setTimeout(() => reloadSession(), 0);
       });
+      unsubscribe = () => data.subscription.unsubscribe();
+    };
+    const readSession = client.auth.getSession();
+    void withSessionTimeout(readSession).then((timed) => {
+      if (cancelled) return;
+      if (!timed) {
+        applySession(null);
+        attachListener();
+        void readSession
+          .then(({ data: sessionData }) => {
+            if (cancelled) return;
+            const id = sessionData.session?.user?.id ?? null;
+            if (!applySession(id)) return;
+            reloadSession();
+          })
+          .catch(() => {
+            // The timeout already painted the guest shell.
+          });
+        return;
+      }
+      applySession(timed.data.session?.user?.id ?? null);
+      attachListener();
+    });
 
     return () => {
       cancelled = true;
@@ -436,6 +616,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       debounceMs: REALTIME_DEBOUNCE_MS,
       hidden: () => document.hidden,
       reload: (slices) => {
+        if (slices.has("notifications") || slices.has("messages")) refreshUnreadRef.current();
         const currentPost = postIdFromPath(window.location.pathname);
         // A cold post screen still reloads that post only. The site snapshot,
         // including public_cards, stays out of this path.
@@ -501,6 +682,38 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       : baseSnapshot;
   const snapshotRef = useRef(snapshot);
   snapshotRef.current = snapshot;
+
+  const refreshUnread = useCallback(() => {
+    const client = supabaseRef.current;
+    const viewerId = snapshotRef.current.user?.id;
+    if (mode !== "supabase" || !client || !viewerId) return;
+    const requestedFor = viewerId;
+    void loadUnreadCounts(client, viewerId)
+      .then((counts) => {
+        if (snapshotRef.current.user?.id !== requestedFor) return;
+        setInboxUnread(counts);
+      })
+      .catch(() => undefined);
+  }, [mode]);
+
+  useEffect(() => {
+    refreshUnreadRef.current = refreshUnread;
+  }, [refreshUnread]);
+
+  useEffect(() => {
+    if (mode !== "supabase" || !ready || !remote.user?.id) return;
+    const onFocus = () => {
+      if (document.hidden) return;
+      refreshUnreadRef.current();
+    };
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onFocus);
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onFocus);
+    };
+  }, [mode, ready, remote.user?.id]);
+
   const suggestionUserId = snapshot.user?.id ?? null;
   const seenDraftUserId = useRef(suggestionUserId);
   useEffect(() => {
@@ -578,6 +791,123 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
   const refresh = useCallback(async (): Promise<Notification[]> => {
     const client = supabaseRef.current;
     if (mode === "supabase" && client) {
+      const path = typeof window === "undefined" ? "/" : window.location.pathname;
+      const search = typeof window === "undefined" ? "" : window.location.search;
+      const route = socialRoute(path);
+      const current = snapshotRef.current;
+      const viewer = current.user;
+      const viewerId = viewer?.id ?? null;
+      const publish = (patch: (existing: SocialSnapshot) => SocialSnapshot) => {
+        setRemote((existing) => {
+          const next = patch(existing);
+          appliedRemoteRef.current = next;
+          return next;
+        });
+      };
+      if (route.kind === "notifications" && viewerId) {
+        const page = await loadNotificationPage(client, viewerId, null);
+        notificationCursorRef.current = page.cursor;
+        setNotificationsHasMore(page.hasMore);
+        publish((existing) => ({
+          ...existing,
+          notifications: page.notifications,
+          profiles: mergeProfiles(existing.profiles, page.profiles),
+        }));
+        snapshotRef.current = {
+          ...current,
+          notifications: page.notifications,
+          profiles: mergeProfiles(current.profiles, page.profiles),
+        };
+        return notificationsFor(viewer, page.notifications);
+      }
+      if (route.kind === "messages" && viewerId) {
+        if (route.username) {
+          const people = await loadMessagePartners(client, viewerId, [], route.username);
+          const partner = people.find(
+            (person) => person.username.toLowerCase() === route.username?.toLowerCase(),
+          );
+          if (partner) {
+            const page = await loadThreadPage(client, viewerId, partner.id, null);
+            if (page.error) throw new Error(page.error);
+            threadCursorRef.current = page.cursor;
+            threadPartnerRef.current = partner.id;
+            setThreadHasMore(page.hasMore);
+            publish((existing) => ({
+              ...existing,
+              messages: mergeById(existing.messages ?? [], page.messages),
+              profiles: mergeProfiles(existing.profiles, people),
+            }));
+            return notificationsFor(viewer, current.notifications);
+          }
+        }
+        const page = await loadInboxPage(client, viewerId, null);
+        if (page.error) throw new Error(page.error);
+        const people = await loadMessagePartners(client, viewerId, page.messages, route.username);
+        messageCursorRef.current = page.cursor;
+        setMessagesHasMore(page.hasMore);
+        publish((existing) => ({
+          ...existing,
+          messages: page.messages,
+          profiles: mergeProfiles(existing.profiles, people),
+        }));
+        return notificationsFor(viewer, current.notifications);
+      }
+      if ((route.kind === "followers" || route.kind === "following") && (viewer || route.username)) {
+        const page = await loadFollowList(client, {
+          direction: route.kind,
+          username: route.username,
+          viewer,
+          cursor: null,
+        });
+        if (page.profile) {
+          const profile = page.profile;
+          followCursorRef.current = page.cursor;
+          followListRef.current = { direction: route.kind, username: route.username };
+          setFollowsHasMore(page.hasMore);
+          publish((existing) => ({
+            ...existing,
+            profiles: mergeProfiles(existing.profiles, [profile, ...page.profiles]),
+            follows: mergeFollowList(existing.follows, page.follows, profile.id, route.kind),
+          }));
+          return notificationsFor(viewer, current.notifications);
+        }
+      }
+      if (route.kind === "profile") {
+        const slice = await loadProfileSlice(client, { username: route.username, viewerId, viewer });
+        if (slice.profile) {
+          const profile = slice.profile;
+          cardCursorRef.current = slice.cardsCursor;
+          cardOwnerRef.current = profile.id;
+          setCardsHasMore(slice.cardsHasMore);
+          setFollowCounts((counts) => ({ ...counts, [profile.id]: slice.counts }));
+          publish((existing) => ({
+            ...existing,
+            profiles: mergeProfiles(existing.profiles, [profile]),
+            publicCards: replaceOwnerCards(existing.publicCards, profile.id, slice.cards),
+            user:
+              existing.user && profile.id === existing.user.id
+                ? { ...existing.user, ...profile, email: existing.user.email }
+                : existing.user,
+          }));
+          return notificationsFor(viewer, current.notifications);
+        }
+      }
+      if (route.kind === "search") {
+        const term = new URLSearchParams(search).get("q") ?? "";
+        if (term.trim()) {
+          const found = await loadSearchSlice(client, term, viewerId);
+          publish((existing) => ({
+            ...existing,
+            profiles: mergeProfiles(existing.profiles, found.profiles),
+            posts: mergePosts(existing.posts, found.posts),
+            homePosts: mergePosts(existing.homePosts ?? existing.posts, found.posts),
+          }));
+        }
+        return notificationsFor(viewer, current.notifications);
+      }
+      if (route.kind === "home") {
+        return notificationsFor(current.user, current.notifications);
+      }
       await refreshRemote(client);
       const merged = appliedRemoteRef.current;
       if (merged?.user) {
@@ -660,7 +990,34 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       if (mode === "supabase" && client && snapshot.user) {
         try {
           const result = await remoteUpdateProfile(client, snapshot.user.id, patch);
-          if (!result.error) await refreshRemote(client);
+          if (!result.error) {
+            const userId = snapshot.user.id;
+            setRemote((existing) => ({
+              ...existing,
+              user: existing.user
+                ? {
+                    ...existing.user,
+                    username: patch.username,
+                    displayName: patch.displayName,
+                    bio: patch.bio,
+                    avatarDataUrl: patch.avatarDataUrl,
+                    coverDataUrl: patch.coverDataUrl,
+                  }
+                : existing.user,
+              profiles: existing.profiles.map((profile) =>
+                profile.id === userId
+                  ? {
+                      ...profile,
+                      username: patch.username,
+                      displayName: patch.displayName,
+                      bio: patch.bio,
+                      avatarDataUrl: patch.avatarDataUrl,
+                      coverDataUrl: patch.coverDataUrl,
+                    }
+                  : profile,
+              ),
+            }));
+          }
           return result;
         } catch (error) {
           return { error: error instanceof Error ? error.message : "Could not save your profile." };
@@ -672,7 +1029,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       if (!result.error) commitLocal(result.db);
       return { error: result.error };
     },
-    [commitLocal, mode, refreshRemote, snapshot.user],
+    [commitLocal, mode, snapshot.user],
   );
 
   const isFollowing = useCallback(
@@ -692,19 +1049,39 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       if (!current.user || current.user.id === userId) return {};
       const client = supabaseRef.current;
       if (mode === "supabase" && client) {
-        const following = current.follows.some(
-          (edge) => edge.followerId === current.user?.id && edge.followingId === userId,
-        );
+        const viewerId = current.user.id;
+        const beforeFollows = current.follows;
+        const beforeCounts = followCountsRef.current;
+        const next = toggleFollowLocal({
+          follows: beforeFollows,
+          counts: beforeCounts,
+          viewerId,
+          targetId: userId,
+          now: new Date().toISOString(),
+          viewerFollowingCount: beforeCounts[viewerId]?.following ?? beforeFollows.filter((edge) => edge.followerId === viewerId).length,
+          targetFollowerCount: beforeCounts[userId]?.followers ?? 0,
+        });
+        followCountsRef.current = next.counts;
+        snapshotRef.current = { ...current, follows: next.follows };
+        setFollowCounts(next.counts);
+        setRemote((existing) => ({ ...existing, follows: next.follows }));
         try {
-          const result = await remoteToggleFollow(client, current.user.id, userId, following);
+          const result = await remoteToggleFollow(client, viewerId, userId, !next.following);
           if (result.error) {
+            followCountsRef.current = beforeCounts;
+            snapshotRef.current = { ...snapshotRef.current, follows: beforeFollows };
+            setFollowCounts(beforeCounts);
+            setRemote((existing) => ({ ...existing, follows: beforeFollows }));
             setStatus(result.error);
             return result;
           }
-          await refreshRemote(client);
           setStatus(result.notice ?? null);
           return result;
         } catch (error) {
+          followCountsRef.current = beforeCounts;
+          snapshotRef.current = { ...snapshotRef.current, follows: beforeFollows };
+          setFollowCounts(beforeCounts);
+          setRemote((existing) => ({ ...existing, follows: beforeFollows }));
           const message = error instanceof Error ? error.message : "Could not update that follow.";
           setStatus(message);
           return { error: message };
@@ -713,7 +1090,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       if (localRef.current) commitLocal(localToggleFollow(localRef.current, userId));
       return {};
     },
-    [commitLocal, mode, refreshRemote],
+    [commitLocal, mode],
   );
 
   const followMany = useCallback(
@@ -730,16 +1107,38 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       if (ids.length === 0) return {};
       const client = supabaseRef.current;
       if (mode === "supabase" && client) {
+        const viewerId = current.user.id;
+        const beforeFollows = current.follows;
+        const beforeCounts = followCountsRef.current;
+        const next = followManyLocal({
+          follows: beforeFollows,
+          counts: beforeCounts,
+          viewerId,
+          targetIds: ids,
+          now: new Date().toISOString(),
+          viewerFollowingCount: beforeCounts[viewerId]?.following ?? beforeFollows.filter((edge) => edge.followerId === viewerId).length,
+        });
+        followCountsRef.current = next.counts;
+        snapshotRef.current = { ...current, follows: next.follows };
+        setFollowCounts(next.counts);
+        setRemote((existing) => ({ ...existing, follows: next.follows }));
         try {
-          const result = await remoteFollowAll(client, current.user.id, ids);
+          const result = await remoteFollowAll(client, viewerId, ids);
           if (result.error) {
+            followCountsRef.current = beforeCounts;
+            snapshotRef.current = { ...snapshotRef.current, follows: beforeFollows };
+            setFollowCounts(beforeCounts);
+            setRemote((existing) => ({ ...existing, follows: beforeFollows }));
             setStatus(result.error);
             return result;
           }
-          await refreshRemote(client);
           setStatus(result.notice ?? null);
           return result;
         } catch (error) {
+          followCountsRef.current = beforeCounts;
+          snapshotRef.current = { ...snapshotRef.current, follows: beforeFollows };
+          setFollowCounts(beforeCounts);
+          setRemote((existing) => ({ ...existing, follows: beforeFollows }));
           const message = error instanceof Error ? error.message : "Could not follow those collectors.";
           setStatus(message);
           return { error: message };
@@ -757,7 +1156,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       commitLocal(next);
       return {};
     },
-    [commitLocal, mode, refreshRemote],
+    [commitLocal, mode],
   );
 
   const refreshSuggestions = useCallback(() => {
@@ -768,15 +1167,52 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
     async (input: PostWrite): Promise<AuthResult & { postId?: string }> => {
       const client = supabaseRef.current;
       if (mode === "supabase" && client && snapshot.user) {
+        const authorId = snapshot.user.id;
+        const tempId = `pending-${Date.now()}`;
+        const photos = draftPostPhotos(input);
+        const pending = pendingPost({
+          id: tempId,
+          authorId,
+          body: input.body.trim(),
+          imageDataUrl: photos[0] ?? null,
+          images: photos,
+          card: input.card ?? null,
+          quotedPostId: input.quotedPostId?.trim() || null,
+          createdAt: new Date().toISOString(),
+        });
+        const place = (posts: Post[]) => insertFirst(posts, pending);
+        setRemote((existing) => ({
+          ...existing,
+          posts: place(existing.posts),
+          homePosts: place(existing.homePosts ?? existing.posts),
+        }));
         try {
-          const result = await remoteCreatePost(client, snapshot.user.id, input);
-          if (!result.error) {
-            trackEvent("post_created");
-            await refreshRemote(client);
-            if (result.notice) setStatus(result.notice);
+          const result = await remoteCreatePost(client, authorId, input);
+          if (result.error || !result.postId) {
+            const drop = (posts: Post[]) => dropById(posts, tempId);
+            setRemote((existing) => ({
+              ...existing,
+              posts: drop(existing.posts),
+              homePosts: drop(existing.homePosts ?? []),
+            }));
+            return result.error ? result : { error: "Could not publish that post." };
           }
+          const swap = (posts: Post[]) => replaceId(posts, tempId, result.postId!);
+          setRemote((existing) => ({
+            ...existing,
+            posts: swap(existing.posts),
+            homePosts: swap(existing.homePosts ?? []),
+          }));
+          trackEvent("post_created");
+          if (result.notice) setStatus(result.notice);
           return result;
         } catch (error) {
+          const drop = (posts: Post[]) => dropById(posts, tempId);
+          setRemote((existing) => ({
+            ...existing,
+            posts: drop(existing.posts),
+            homePosts: drop(existing.homePosts ?? []),
+          }));
           return { error: error instanceof Error ? error.message : "Could not publish that post." };
         }
       }
@@ -789,7 +1225,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       }
       return { error: result.error, postId: result.postId };
     },
-    [commitLocal, mode, refreshRemote, snapshot.user],
+    [commitLocal, mode, snapshot.user],
   );
 
   const updatePost = useCallback(
@@ -809,19 +1245,25 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
             );
             if (known) {
               const photos = draftPostPhotos(input);
+              const edited = {
+                ...known,
+                body: input.body,
+                imageDataUrl: photos[0] ?? null,
+                images: photos,
+              };
               storeRemembered(
                 rememberedRef.current,
-                [{
-                  ...known,
-                  body: input.body,
-                  imageDataUrl: photos[0] ?? null,
-                  images: photos,
-                }],
+                [edited],
                 [],
                 new Set(snapshotRef.current.blockedIds ?? []),
               );
+              const swap = (posts: Post[]) => posts.map((post) => (post.id === postId ? edited : post));
+              setRemote((existing) => ({
+                ...existing,
+                posts: swap(existing.posts),
+                homePosts: swap(existing.homePosts ?? []),
+              }));
             }
-            await refreshRemote(client);
             if (result.notice) setStatus(result.notice);
           }
           return result;
@@ -835,7 +1277,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       if (!result.error) commitLocal(result.db);
       return { error: result.error };
     },
-    [commitLocal, mode, refreshRemote, snapshot.user],
+    [commitLocal, mode, snapshot.user],
   );
 
   const deletePost = useCallback(
@@ -851,7 +1293,11 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
             removedRef.current = removed;
             setRemovedPostIds(removed);
             rememberActivity(localDeletePost(activityShell(), postId).db);
-            await refreshRemote(client);
+            setRemote((existing) => ({
+              ...existing,
+              posts: dropById(existing.posts, postId),
+              homePosts: dropById(existing.homePosts ?? [], postId),
+            }));
           }
           return result;
         } catch (error) {
@@ -864,7 +1310,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       if (!result.error) commitLocal(result.db);
       return { error: result.error };
     },
-    [commitLocal, mode, refreshRemote, snapshot.user],
+    [activityShell, commitLocal, mode, rememberActivity, snapshot.user],
   );
 
   const pinPost = useCallback(
@@ -1036,18 +1482,14 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
               preview: post.body,
               liked: !wasLiked,
             });
-            if (result.error) {
-              setStatus(result.error);
-              return;
-            }
-            if (fullSnapshotRef.current) await refreshRemote(client);
+            if (result.error) setStatus(result.error);
           });
         return;
       }
       if (!localRef.current) return;
       commitLocal(localToggleLike(localRef.current, postId));
     },
-    [activityShell, commitLocal, mode, refreshRemote, rememberActivity],
+    [activityShell, commitLocal, mode, rememberActivity],
   );
 
   const toggleRepost = useCallback(
@@ -1069,15 +1511,19 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
         const reposted = current.reposts.some(
           (repost) => repost.postId === postId && repost.userId === userId,
         );
-        const reposts = reposted
-          ? current.reposts.filter((repost) => !(repost.postId === postId && repost.userId === userId))
-          : [...current.reposts, { postId, userId, createdAt: new Date().toISOString() }];
+        const before = current.reposts;
+        const reposts = toggleRepostLocal(before, postId, userId, new Date().toISOString());
         const knownPosts = new Set(current.posts.map((item) => item.id));
+        const visible = (rows: typeof reposts) => rows.filter((repost) => knownPosts.has(repost.postId));
         snapshotRef.current = { ...current, reposts };
         setRemote((existing) => ({
           ...existing,
-          reposts: reposts.filter((repost) => knownPosts.has(repost.postId)),
+          reposts: visible(reposts),
         }));
+        const restore = () => {
+          snapshotRef.current = { ...snapshotRef.current, reposts: before };
+          setRemote((existing) => ({ ...existing, reposts: visible(before) }));
+        };
         repostQueue.current = repostQueue.current
           .catch(() => undefined)
           .then(async () => {
@@ -1088,12 +1534,16 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
               preview: post.body,
               reposted,
             });
-            if (result.error || result.notice) setStatus(result.error ?? result.notice ?? null);
-            await reloadRef.current(client);
+            if (result.error) {
+              restore();
+              setStatus(result.error);
+              return;
+            }
+            if (result.notice) setStatus(result.notice);
           })
           .catch((error: unknown) => {
+            restore();
             setStatus(error instanceof Error ? error.message : "Could not update that repost.");
-            return reloadRef.current(client).catch(() => undefined);
           });
         return;
       }
@@ -1114,6 +1564,15 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
           removedIds: removedRef.current,
           blockedIds: new Set(current.blockedIds ?? []),
         });
+        const tempId = `pending-${Date.now()}`;
+        const comment = pendingComment({
+          id: tempId,
+          postId,
+          authorId: current.user.id,
+          body: body.trim(),
+          createdAt: new Date().toISOString(),
+        });
+        setRemote((existing) => ({ ...existing, comments: insertFirst(existing.comments, comment) }));
         try {
           const result = await remoteAddComment(
             client,
@@ -1122,12 +1581,22 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
             body,
             post?.authorId ?? null,
           );
-          if (!result.error) {
-            await reloadRef.current(client);
-            if (result.notice) setStatus(result.notice);
+          if (result.error) {
+            setRemote((existing) => ({ ...existing, comments: dropById(existing.comments, tempId) }));
+            return result;
           }
+          setRemote((existing) => ({
+            ...existing,
+            comments: result.commentId
+              ? replaceId(existing.comments, tempId, result.commentId)
+              : existing.comments.map((item) =>
+                  item.id === tempId ? { ...item, pending: false } : item,
+                ),
+          }));
+          if (result.notice) setStatus(result.notice);
           return result;
         } catch (error) {
+          setRemote((existing) => ({ ...existing, comments: dropById(existing.comments, tempId) }));
           return { error: error instanceof Error ? error.message : "Could not post that comment." };
         }
       }
@@ -1154,6 +1623,18 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
     };
 
     if (!postId) {
+      // The signed-out landing page has no feed. Don't download the site snapshot.
+      if (
+        shouldSkipSocialSnapshot({
+          pathname,
+          sessionKnown,
+          sessionUserId: lastUserIdRef.current,
+        })
+      ) {
+        setReady(true);
+        return;
+      }
+      if (!sessionKnown) return;
       // public_cards is part of this snapshot. Load it once per mount.
       if (!shouldFetchPublicCatalog({ loaded: fullSnapshotRef.current, source: "mount" })) return;
       // Home and the rest of the app still need the snapshot. Don't paint the
@@ -1225,7 +1706,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
         setLoadingPostId((current) => (current === postId ? null : current));
         setReady(true);
       });
-  }, [applyPostPage, mode, pathname, refreshRemote]);
+  }, [applyPostPage, mode, pathname, refreshRemote, sessionKnown]);
 
   const isLiked = useCallback(
     (postId: string) =>
@@ -1262,7 +1743,8 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
     [snapshot.notifications, snapshot.user],
   );
 
-  const unreadCount = useMemo(() => unreadGroupCount(notifications), [notifications]);
+  const groupedUnread = useMemo(() => unreadGroupCount(notifications), [notifications]);
+  const unreadCount = mode === "supabase" ? inboxUnread.notifications : groupedUnread;
 
   const markNotificationsRead = useCallback((ids?: readonly string[]) => {
     const current = snapshotRef.current;
@@ -1274,6 +1756,15 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       note.recipientId === userId && !note.read && (!only || only.has(note.id));
     if (!current.notifications.some(matches)) return;
     if (mode === "supabase") {
+      const beforeGroups = unreadGroupCount(current.notifications);
+      const afterGroups = unreadGroupCount(
+        current.notifications.map((note) => (matches(note) ? { ...note, read: true } : note)),
+      );
+      const markedGroups = Math.max(0, beforeGroups - afterGroups);
+      setInboxUnread((counts) => ({
+        ...counts,
+        notifications: Math.max(0, counts.notifications - markedGroups),
+      }));
       setRemote((existing) => ({
         ...existing,
         notifications: existing.notifications.map((note) =>
@@ -1284,6 +1775,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       if (!client) return;
       void remoteMarkNotificationsRead(client, userId, ids).then((result) => {
         if (result.error) setStatus(result.error);
+        else refreshUnreadRef.current();
       });
       return;
     }
@@ -1299,9 +1791,10 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
   }, [snapshot.messages, snapshot.user]);
 
-  const unreadMessageCount = messages.filter(
+  const listedUnreadMessages = messages.filter(
     (message) => message.receiverId === snapshot.user?.id && !message.read,
   ).length;
+  const unreadMessageCount = mode === "supabase" ? inboxUnread.messages : listedUnreadMessages;
 
   const sendMessage = useCallback(
     async (
@@ -1323,6 +1816,19 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       if (mode === "supabase") {
         const client = supabaseRef.current;
         if (!client) return { error: "Still loading." };
+        const tempId = `pending-${Date.now()}`;
+        const message = pendingMessage({
+          id: tempId,
+          senderId: current.user.id,
+          receiverId,
+          content: content.trim(),
+          createdAt: new Date().toISOString(),
+          cardPreview,
+        });
+        setRemote((existing) => ({
+          ...existing,
+          messages: insertFirst(existing.messages ?? [], message),
+        }));
         try {
           const result = await remoteSendMessage(
             client,
@@ -1331,9 +1837,27 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
             content,
             cardPreview,
           );
-          if (!result.error) await refreshRemote(client);
+          if (result.error) {
+            setRemote((existing) => ({
+              ...existing,
+              messages: dropById(existing.messages ?? [], tempId),
+            }));
+            return result;
+          }
+          setRemote((existing) => ({
+            ...existing,
+            messages: result.messageId
+              ? replaceId(existing.messages ?? [], tempId, result.messageId)
+              : (existing.messages ?? []).map((item) =>
+                  item.id === tempId ? { ...item, pending: false } : item,
+                ),
+          }));
           return result;
         } catch (error) {
+          setRemote((existing) => ({
+            ...existing,
+            messages: dropById(existing.messages ?? [], tempId),
+          }));
           return { error: error instanceof Error ? error.message : "Could not send that message." };
         }
       }
@@ -1342,7 +1866,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       if (!result.error) commitLocal(result.db);
       return { error: result.error };
     },
-    [commitLocal, mode, refreshRemote],
+    [commitLocal, mode],
   );
 
   const markThreadRead = useCallback(
@@ -1355,6 +1879,13 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       );
       if (!hasUnread) return;
       if (mode === "supabase") {
+        const marked = (current.messages ?? []).filter(
+          (message) => message.senderId === partnerId && message.receiverId === userId && !message.read,
+        ).length;
+        setInboxUnread((counts) => ({
+          ...counts,
+          messages: Math.max(0, counts.messages - marked),
+        }));
         setRemote((existing) => ({
           ...existing,
           messages: (existing.messages ?? []).map((message) =>
@@ -1367,6 +1898,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
         if (!client) return;
         void remoteMarkThreadRead(client, userId, partnerId).then((result) => {
           if (result.error) setStatus(result.error);
+          else refreshUnreadRef.current();
         });
         return;
       }
@@ -1415,12 +1947,22 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
   );
 
   const followerCount = useCallback(
-    (userId: string) => snapshot.follows.filter((edge) => edge.followingId === userId).length,
-    [snapshot.follows],
+    (userId: string) => {
+      const known = followCounts[userId];
+      if (known) return known.followers;
+      if (mode === "supabase" && userId !== snapshot.user?.id) return 0;
+      return snapshot.follows.filter((edge) => edge.followingId === userId).length;
+    },
+    [followCounts, mode, snapshot.follows, snapshot.user?.id],
   );
   const followingCount = useCallback(
-    (userId: string) => snapshot.follows.filter((edge) => edge.followerId === userId).length,
-    [snapshot.follows],
+    (userId: string) => {
+      const known = followCounts[userId];
+      if (known) return known.following;
+      if (mode === "supabase" && userId !== snapshot.user?.id) return 0;
+      return snapshot.follows.filter((edge) => edge.followerId === userId).length;
+    },
+    [followCounts, mode, snapshot.follows, snapshot.user?.id],
   );
 
   const profilesById = useMemo(
@@ -1460,6 +2002,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
 
   const applySafetyChange = useCallback(
     (change: { type: "block" | "unblock" | "mute" | "unmute"; userId: string }) => {
+      setHomeHiddenAuthorIds(null);
       setRemote((existing) => {
         const blocked = new Set(existing.blockedIds ?? []);
         const muted = new Set(existing.mutedIds ?? []);
@@ -1571,9 +2114,117 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
     [snapshot.profiles],
   );
 
+  const withPagingLock = useCallback(async (key: string, run: () => Promise<void>) => {
+    if (pagingLock.current.has(key)) return;
+    pagingLock.current.add(key);
+    try {
+      await run();
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Could not load more.");
+    } finally {
+      pagingLock.current.delete(key);
+    }
+  }, []);
+
+  const loadMoreNotifications = useCallback(async () => {
+    const client = supabaseRef.current;
+    const viewerId = snapshotRef.current.user?.id;
+    const cursor = notificationCursorRef.current;
+    if (mode !== "supabase" || !client || !viewerId || !cursor) return;
+    await withPagingLock("notifications", async () => {
+      const page = await loadNotificationPage(client, viewerId, cursor);
+      notificationCursorRef.current = page.cursor;
+      setNotificationsHasMore(page.hasMore);
+      setRemote((existing) => ({
+        ...existing,
+        notifications: mergeById(existing.notifications, page.notifications),
+        profiles: mergeProfiles(existing.profiles, page.profiles),
+      }));
+    });
+  }, [mode, withPagingLock]);
+
+  const loadMoreMessages = useCallback(async () => {
+    const client = supabaseRef.current;
+    const viewerId = snapshotRef.current.user?.id;
+    const cursor = messageCursorRef.current;
+    if (mode !== "supabase" || !client || !viewerId || !cursor) return;
+    await withPagingLock("messages", async () => {
+      const page = await loadInboxPage(client, viewerId, cursor);
+      if (page.error) throw new Error(page.error);
+      messageCursorRef.current = page.cursor;
+      setMessagesHasMore(page.hasMore);
+      const people = await loadMessagePartners(client, viewerId, page.messages, null);
+      setRemote((existing) => ({
+        ...existing,
+        messages: mergeById(existing.messages ?? [], page.messages),
+        profiles: mergeProfiles(existing.profiles, people),
+      }));
+    });
+  }, [mode, withPagingLock]);
+
+  const loadMoreThread = useCallback(async () => {
+    const client = supabaseRef.current;
+    const viewerId = snapshotRef.current.user?.id;
+    const partnerId = threadPartnerRef.current;
+    const cursor = threadCursorRef.current;
+    if (mode !== "supabase" || !client || !viewerId || !partnerId || !cursor) return;
+    await withPagingLock("thread", async () => {
+      const page = await loadThreadPage(client, viewerId, partnerId, cursor);
+      if (page.error) throw new Error(page.error);
+      threadCursorRef.current = page.cursor;
+      setThreadHasMore(page.hasMore);
+      setRemote((existing) => ({
+        ...existing,
+        messages: mergeById(existing.messages ?? [], page.messages),
+      }));
+    });
+  }, [mode, withPagingLock]);
+
+  const loadMoreFollows = useCallback(async () => {
+    const client = supabaseRef.current;
+    const cursor = followCursorRef.current;
+    const list = followListRef.current;
+    if (mode !== "supabase" || !client || !cursor || !list) return;
+    await withPagingLock("follows", async () => {
+      const page = await loadFollowList(client, {
+        direction: list.direction,
+        username: list.username,
+        viewer: snapshotRef.current.user,
+        cursor,
+      });
+      followCursorRef.current = page.cursor;
+      setFollowsHasMore(page.hasMore);
+      if (!page.profile) return;
+      const profile = page.profile;
+      setRemote((existing) => ({
+        ...existing,
+        profiles: mergeProfiles(existing.profiles, [profile, ...page.profiles]),
+        follows: appendFollowList(existing.follows, page.follows),
+      }));
+    });
+  }, [mode, withPagingLock]);
+
+  const loadMoreCards = useCallback(async () => {
+    const client = supabaseRef.current;
+    const ownerId = cardOwnerRef.current;
+    const cursor = cardCursorRef.current;
+    if (mode !== "supabase" || !client || !ownerId || !cursor) return;
+    await withPagingLock("cards", async () => {
+      const page = await loadOwnerCardPage(client, ownerId, cursor);
+      cardCursorRef.current = page.cursor;
+      setCardsHasMore(page.hasMore);
+      setRemote((existing) => ({
+        ...existing,
+        publicCards: appendOwnerCards(existing.publicCards, ownerId, page.cards),
+      }));
+    });
+  }, [mode, withPagingLock]);
+
   const value = useMemo<SocialContextValue>(
     () => ({
       ready,
+      sessionKnown,
+      sessionUserId,
       hasFullSnapshot,
       loadingPostId,
       mode,
@@ -1610,6 +2261,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       homePosts,
       homeReposts,
       blockedIds,
+      hiddenAuthorIds: snapshot.hiddenAuthorIds ?? [],
       mutedIds,
       safetyAccounts,
       applySafetyChange,
@@ -1617,9 +2269,20 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       repliesBy,
       notifications,
       unreadCount,
+      notificationsHasMore,
+      loadMoreNotifications,
       markNotificationsRead,
       messages,
       unreadMessageCount,
+      messagesHasMore,
+      loadMoreMessages,
+      threadHasMore,
+      loadMoreThread,
+      followsHasMore,
+      loadMoreFollows,
+      cardsHasMore,
+      loadMoreCards,
+      homeHiddenAuthorIds,
       sendMessage,
       markThreadRead,
       feed,
@@ -1640,6 +2303,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       addComment,
       applySafetyChange,
       blockedIds,
+      snapshot.hiddenAuthorIds,
       commentsFor,
       markNotificationsRead,
       markThreadRead,
@@ -1679,6 +2343,8 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       postCardValuesLoading,
       postCardValuesMessage,
       ready,
+      sessionKnown,
+      sessionUserId,
       refresh,
       refreshSuggestions,
       signIn,
@@ -1698,6 +2364,17 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       toggleRepost,
       unreadCount,
       unreadMessageCount,
+      notificationsHasMore,
+      loadMoreNotifications,
+      messagesHasMore,
+      loadMoreMessages,
+      threadHasMore,
+      loadMoreThread,
+      followsHasMore,
+      loadMoreFollows,
+      cardsHasMore,
+      loadMoreCards,
+      homeHiddenAuthorIds,
       updateProfile,
     ],
   );

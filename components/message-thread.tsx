@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, X } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Avatar } from "@/components/avatar";
 import { solidButton } from "@/components/button-styles";
 import { CardMessagePreviewCard } from "@/components/open-to-offers";
+import { LoadMore } from "@/components/load-more";
 import { EmptyState, LoadingRows } from "@/components/status";
 import { useSocial } from "@/components/social-provider";
 import { signupPath } from "@/lib/auth/safe-next";
@@ -26,6 +27,8 @@ export function MessageThread({ username }: { username: string }) {
     sendMessage,
     markThreadRead,
     refresh,
+    threadHasMore,
+    loadMoreThread,
     blockedIds,
     mutedIds,
     safetyAccounts,
@@ -51,7 +54,9 @@ export function MessageThread({ username }: { username: string }) {
   const [draft, setDraft] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [loadingOlder, setLoadingOlder] = useState(false);
   const scroller = useRef<HTMLDivElement>(null);
+  const olderAnchor = useRef<{ height: number; top: number } | null>(null);
   const thread = partner
     ? messages.filter(
         (message) =>
@@ -70,11 +75,28 @@ export function MessageThread({ username }: { username: string }) {
     markThreadRead(partner.id);
   }, [markThreadRead, messages, partner, ready, user]);
 
+  const newestId = thread[thread.length - 1]?.id ?? "";
   useEffect(() => {
     const node = scroller.current;
     if (!node) return;
     node.scrollTop = node.scrollHeight;
-  }, [thread.length, partner?.id]);
+  }, [newestId, partner?.id]);
+
+  const loadOlder = useCallback(() => {
+    const node = scroller.current;
+    if (node) olderAnchor.current = { height: node.scrollHeight, top: node.scrollTop };
+    setLoadingOlder(true);
+    void loadMoreThread().finally(() => setLoadingOlder(false));
+  }, [loadMoreThread]);
+
+  useLayoutEffect(() => {
+    const anchor = olderAnchor.current;
+    const node = scroller.current;
+    if (!anchor || !node) return;
+    olderAnchor.current = null;
+    const delta = node.scrollHeight - anchor.height;
+    if (delta !== 0) node.scrollTop = anchor.top + delta;
+  }, [thread.length]);
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -83,14 +105,16 @@ export function MessageThread({ username }: { username: string }) {
       router.push(signupPath(pathname));
       return;
     }
+    const text = draft;
+    setDraft("");
     setPending(true);
-    const result = await sendMessage(partner.id, draft, offerAttachment);
+    const result = await sendMessage(partner.id, text, offerAttachment);
     setPending(false);
     if (result.error) {
+      setDraft(text);
       setError(result.error);
       return;
     }
-    setDraft("");
     setError(null);
   }
 
@@ -163,6 +187,11 @@ export function MessageThread({ username }: { username: string }) {
       </div>
 
       <div ref={scroller} className="min-h-0 flex-1 space-y-2 overflow-y-auto px-4 py-3">
+        <LoadMore
+          hasMore={threadHasMore}
+          loading={loadingOlder}
+          onLoadMore={loadOlder}
+        />
         {thread.length === 0 ? (
           <p className="px-6 pt-10 text-center text-sm text-zinc-500">
             This is the start of your conversation with {partner.displayName}.

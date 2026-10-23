@@ -47,6 +47,7 @@ import {
   profileStepDone,
 } from "@/lib/social/get-started";
 import { followingAuthorIds, homeHead, showsNewPosts } from "@/lib/social/feed-page";
+import { loadNewestFeedHead } from "@/lib/social/scoped-reads";
 import { presentForYouFeed } from "@/lib/social/for-you-display";
 import { addUnblockedProfiles, presentPagedItems } from "@/lib/social/paged-items";
 import { publicTimeline } from "@/lib/social/timeline";
@@ -89,13 +90,13 @@ export function FeedView({ movingToday }: { movingToday?: ReactNode } = {}) {
     suggestionsReady,
     profiles,
     followingCount,
-    refresh,
     mode,
     postCardValuesMessage,
     rememberPosts,
     removedPostIds,
     blockedIds,
     mutedIds,
+    homeHiddenAuthorIds,
   } = useSocial();
   const { cards, ready: cardsReady, syncError } = useCollection();
   const { dismissed, dismiss } = useGetStartedDismissed(user?.id ?? null);
@@ -141,11 +142,11 @@ export function FeedView({ movingToday }: { movingToday?: ReactNode } = {}) {
   const [capturedHead, setCapturedHead] = useState<{ key: number; head: ReturnType<typeof homeHead> } | null>(
     null,
   );
+  const [peekHead, setPeekHead] = useState<ReturnType<typeof homeHead> | null>(null);
   const followingIds = useMemo(
     () => (user ? followingAuthorIds(follows, user.id) : []),
     [follows, user],
   );
-  const head = homeHead(homePosts, homeReposts);
   const paging = mode === "supabase" && ready;
   const forYouPage = usePagedTimeline({
     enabled: paging,
@@ -154,6 +155,7 @@ export function FeedView({ movingToday }: { movingToday?: ReactNode } = {}) {
     refreshKey,
     blockedIds,
     mutedIds,
+    hiddenAuthorIds: homeHiddenAuthorIds,
     rememberPosts,
   });
   const followingPage = usePagedTimeline({
@@ -164,13 +166,50 @@ export function FeedView({ movingToday }: { movingToday?: ReactNode } = {}) {
     refreshKey,
     blockedIds,
     mutedIds,
+    hiddenAuthorIds: homeHiddenAuthorIds,
     rememberPosts,
   });
-  if (paging && !forYouPage.loading && (capturedHead === null || capturedHead.key !== refreshKey)) {
-    setCapturedHead({ key: refreshKey, head });
+  const head = peekHead ?? capturedHead?.head ?? homeHead(homePosts, homeReposts);
+  function reloadNewest() {
+    setPeekHead(null);
+    setRefreshKey((key) => key + 1);
   }
+  useEffect(() => {
+    if (!paging || forYouPage.loading) return;
+    const supabase = createSupabaseBrowser();
+    if (!supabase) return;
+    let cancelled = false;
+    void loadNewestFeedHead(supabase, user?.id ?? null, homeHiddenAuthorIds ?? undefined)
+      .then((next) => {
+        if (!cancelled) setCapturedHead({ key: refreshKey, head: next });
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [forYouPage.loading, homeHiddenAuthorIds, paging, refreshKey, user?.id]);
+  useEffect(() => {
+    if (!paging) return;
+    const supabase = createSupabaseBrowser();
+    if (!supabase) return;
+    let cancelled = false;
+    const peek = () => {
+      if (document.hidden) return;
+      void loadNewestFeedHead(supabase, user?.id ?? null, homeHiddenAuthorIds ?? undefined)
+        .then((next) => {
+          if (!cancelled) setPeekHead(next);
+        })
+        .catch(() => undefined);
+    };
+    document.addEventListener("visibilitychange", peek);
+    return () => {
+      cancelled = true;
+      document.removeEventListener("visibilitychange", peek);
+    };
+  }, [homeHiddenAuthorIds, paging, user?.id]);
   const hasNewPosts =
     paging &&
+    peekHead !== null &&
     capturedHead !== null &&
     capturedHead.key === refreshKey &&
     !forYouPage.loading &&
@@ -239,8 +278,7 @@ export function FeedView({ movingToday }: { movingToday?: ReactNode } = {}) {
     return (
       <PullToRefresh
         onRefresh={async () => {
-          await refresh();
-          setRefreshKey((key) => key + 1);
+          reloadNewest();
         }}
         className="-mx-4 -mt-5"
       >
@@ -252,8 +290,7 @@ export function FeedView({ movingToday }: { movingToday?: ReactNode } = {}) {
   return (
     <PullToRefresh
       onRefresh={async () => {
-        await refresh();
-        setRefreshKey((key) => key + 1);
+        reloadNewest();
       }}
       className="-mx-4 -mt-5"
     >
@@ -285,7 +322,7 @@ export function FeedView({ movingToday }: { movingToday?: ReactNode } = {}) {
       {lane === "foryou" ? movingToday ?? <MovingToday /> : null}
 
       {user ? (
-        <Composer onPosted={() => setRefreshKey((key) => key + 1)} />
+        <Composer onPosted={reloadNewest} />
       ) : (
         <SignedOutBanner />
       )}
@@ -295,7 +332,7 @@ export function FeedView({ movingToday }: { movingToday?: ReactNode } = {}) {
           <button
             type="button"
             onClick={() => {
-              setRefreshKey((key) => key + 1);
+              reloadNewest();
               window.scrollTo({ top: 0, behavior: "smooth" });
             }}
             className="rounded-full bg-zinc-900 px-3 py-1 text-xs font-semibold text-white shadow dark:bg-white dark:text-zinc-900"

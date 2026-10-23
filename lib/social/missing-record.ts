@@ -47,3 +47,16 @@ export function publicCardLookupResult(input: {
   if (!input.profileId || input.cardOwnerId !== input.profileId) return "missing";
   return "found";
 }
+
+/**
+ * A signed-in viewer must not receive a card whose owner is in hidden_author_ids.
+ * Signed-out visitors are not checked. An owner missing from that list stays public.
+ */
+export function hiddenOwnerNotFound(input: {
+  viewerId: string | null;
+  ownerId: string | null;
+  hiddenAuthorIds: readonly string[];
+}): boolean {
+  if (!input.viewerId || !input.ownerId) return false;
+  return input.hiddenAuthorIds.includes(input.ownerId);
+}

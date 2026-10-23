@@ -16,10 +16,15 @@ import { CardThumb } from "@/components/card-thumb";
 import { CompBasis } from "@/components/comp-basis";
 import { CompsList } from "@/components/comps-list";
 import { FairPriceCheck } from "@/components/fair-price-check";
-import { PublicCardCompsPreview } from "@/components/public-card-comps";
+import {
+  PublicCardCompsPreview,
+  PublicCompsPlaceholder,
+  publicCompsGate,
+} from "@/components/public-card-comps";
 import { useCollection } from "@/components/collection-provider";
 import { ProfileSkeleton } from "@/components/status";
 import { useSocial } from "@/components/social-provider";
+import { publicCardHiddenFromViewer } from "@/lib/social/public-card-visibility";
 import { ValueChart } from "@/components/value-chart";
 import { isCardOwner } from "@/lib/comps/ownership";
 import { messageOwnerHref, showOpenToOffersBadge } from "@/lib/offers/open-to-offers";
@@ -35,7 +40,7 @@ import {
   type PublicCardComps,
 } from "@/lib/comps/public-types";
 import type { OwnersAndHunters } from "@/lib/cards/people";
-import type { PublicCard } from "@/lib/social/types";
+import type { OwnedCard, Profile, PublicCard } from "@/lib/social/types";
 import {
   cardValueHasAmount,
   isLowConfidenceValue,
@@ -54,22 +59,36 @@ export function PublicCardView({
   id,
   publicComps = hiddenPublicComps(),
   people = null,
+  profile: serverProfile = null,
+  card: serverCard = null,
 }: {
   username: string;
   id: string;
   publicComps?: PublicCardComps;
   people?: OwnersAndHunters | null;
+  /** Server-loaded collector. The page paints this without the social snapshot. */
+  profile?: Profile | null;
+  /** Server-loaded public card. Ownership still waits for the session. */
+  card?: OwnedCard | null;
 }) {
   const social = useSocial();
   const { cards, ready: cardsReady } = useCollection();
-  const profile = social.profileByUsername(username);
+  const snapshotProfile = social.profileByUsername(username);
+  // Hide only ids hidden_author_ids returned. A collector outside the loaded
+  // profile page is still shown. A failed snapshot leaves this list empty.
+  const hidden = publicCardHiddenFromViewer({
+    ready: social.ready && social.hasFullSnapshot,
+    profileId: serverProfile?.id ?? snapshotProfile?.id ?? null,
+    blockedIds: social.blockedIds ?? [],
+    hiddenAuthorIds: social.hiddenAuthorIds,
+  });
+  const profile = hidden ? undefined : (serverProfile ?? snapshotProfile);
   const isOwn = Boolean(profile && social.user && profile.id === social.user.id);
-
-  if (!social.ready || (isOwn && !cardsReady)) return <ProfileSkeleton />;
 
   const backHref = `${userHref(username)}?tab=collection`;
 
   if (!profile) {
+    if (!social.ready) return <ProfileSkeleton />;
     return (
       <Missing
         title="Profile not found"
@@ -80,9 +99,11 @@ export function PublicCardView({
     );
   }
 
-  const owned = isOwn ? cards.find((card) => card.id === id) : undefined;
-  const listed = social.publicCards.find((card) => card.id === id && card.ownerId === profile.id);
+  const owned = isOwn && cardsReady ? cards.find((card) => card.id === id) : undefined;
+  const listed =
+    serverCard ?? social.publicCards.find((card) => card.id === id && card.ownerId === profile.id);
   const card = owned ? (owned.isPublic ? toPublicCard(owned) : null) : (listed ?? null);
+  if (!card && !serverCard && (!social.ready || (isOwn && !cardsReady))) return <ProfileSkeleton />;
 
   if (!card) {
     return (
@@ -110,7 +131,9 @@ export function PublicCardView({
       card={card}
       displayName={profile.displayName}
       backHref={backHref}
-      userId={social.user?.id ?? null}
+      userId={social.sessionUserId ?? social.user?.id ?? null}
+      sessionKnown={social.sessionKnown}
+      sessionUserId={social.sessionUserId}
       canFlag={isCardOwner(profile.id, social.user?.id ?? null)}
       publicComps={publicComps}
       people={people}
@@ -124,6 +147,8 @@ function PublicCardAnalytics({
   displayName,
   backHref,
   userId,
+  sessionKnown,
+  sessionUserId,
   canFlag,
   publicComps,
   people,
@@ -133,6 +158,8 @@ function PublicCardAnalytics({
   displayName: string;
   backHref: string;
   userId: string | null;
+  sessionKnown: boolean;
+  sessionUserId: string | null;
   canFlag: boolean;
   publicComps: PublicCardComps;
   people: OwnersAndHunters | null;
@@ -179,7 +206,14 @@ function PublicCardAnalytics({
     }
   }, [retryValue, sold.data?.fetchedAt, sold.status]);
 
-  const authRequired = !userId || sold.status === "auth_required";
+  const compsGate = publicCompsGate({
+    sessionKnown,
+    sessionUserId,
+    profileUserId: userId,
+    soldStatus: sold.status,
+  });
+  const authRequired = compsGate === "required";
+  const compsPending = compsGate === "pending";
   const rateLimited = sold.status === "rate_limited";
   const unavailable = sold.status === "unavailable";
   const soldCopy = soldNotice(sold.status, sold.message);
@@ -385,7 +419,12 @@ function PublicCardAnalytics({
         />
       ) : null}
 
-      {collapsePrices || (authRequired && publicComps.status === "hidden") ? null : (
+      {compsPending ? (
+        <section className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-white/10 dark:bg-white/[0.03]">
+          <h2 className="font-semibold">Recent sales</h2>
+          <PublicCompsPlaceholder />
+        </section>
+      ) : collapsePrices || (authRequired && publicComps.status === "hidden") ? null : (
         <section className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-white/10 dark:bg-white/[0.03]">
         <div className="flex flex-wrap items-end justify-between gap-2">
           <div>
@@ -414,7 +453,7 @@ function PublicCardAnalytics({
           </div>
         </div>
         {authRequired ? (
-          <PublicCardCompsPreview comps={publicComps} pathname={pathname} />
+          <PublicCardCompsPreview comps={publicComps} pathname={pathname} showSignup />
         ) : null}
         {usingLive && !compsLoading && !authRequired ? (
           <p className="mt-3 text-[11px] text-zinc-400">

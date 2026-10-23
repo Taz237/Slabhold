@@ -28,7 +28,7 @@ import type {
 const POST_SELECT =
   "id, user_id, content, image_url, card, quoted_post_id, created_at, hidden_at, post_type, show_paid, meta";
 const PROFILE_SELECT =
-  "id, username, display_name, bio, avatar_url, cover_url, accent, created_at";
+  "id, username, display_name, bio, avatar_url, cover_url, accent, created_at, pinned_post_id";
 
 type PostRow = {
   id: string;
@@ -53,6 +53,7 @@ type ProfileRow = {
   cover_url: string | null;
   accent: string | null;
   created_at: string;
+  pinned_post_id?: string | null;
 };
 
 type RepostRow = {
@@ -126,6 +127,7 @@ function mapProfile(row: ProfileRow): Profile {
     coverDataUrl: row.cover_url ?? null,
     accent: row.accent ?? "#7c5cff",
     createdAt: row.created_at,
+    pinnedPostId: typeof row.pinned_post_id === "string" ? row.pinned_post_id : null,
   };
 }
 
@@ -357,13 +359,19 @@ export async function loadFeedPage(
     cursor?: FeedCursor | null;
     seenPostIds?: ReadonlySet<string>;
     limit: number;
+    /** When the shell already loaded hidden authors, skip a second rpc. */
+    hiddenAuthorIds?: readonly string[];
   },
 ): Promise<LoadedFeedPage> {
   const limit = Math.min(50, Math.max(1, input.limit));
   const authors = authorScope(input);
   if (authors && authors.length === 0) return emptyPage;
   const mute = input.scope !== "profile";
-  const hidden = input.viewerId ? await loadHiddenAuthorIds(supabase, mute) : null;
+  const hidden = input.viewerId
+    ? input.hiddenAuthorIds !== undefined
+      ? input.hiddenAuthorIds
+      : await loadHiddenAuthorIds(supabase, mute)
+    : null;
   const seen = new Set(input.seenPostIds ?? []);
   let cursor = input.cursor && isFeedCursor(input.cursor) ? input.cursor : null;
   const items: TimelineItem[] = [];
