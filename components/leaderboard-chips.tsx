@@ -11,6 +11,8 @@ const PILL: Record<string, string> = {
 
 const INACTIVE = "bg-white/10 text-zinc-300";
 
+let boardPendingToken = 0;
+
 function ChipPending({
   id,
   onPending,
@@ -21,11 +23,13 @@ function ChipPending({
   const { pending } = useLinkStatus();
   useEffect(() => {
     if (!pending) return;
+    const token = ++boardPendingToken;
     onPending(id, true);
     const board = document.querySelector("[data-leaderboard]");
     board?.setAttribute("data-board-pending", "");
     return () => {
       onPending(id, false);
+      if (token !== boardPendingToken) return;
       board?.removeAttribute("data-board-pending");
     };
   }, [id, pending, onPending]);

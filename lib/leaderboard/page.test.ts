@@ -117,7 +117,7 @@ describe("leaderboard page", () => {
     assert.doesNotMatch(html, /8\.25rem|11\.25rem/);
     assert.match(
       html,
-      /whitespace-nowrap font-medium text-zinc-100">[^<]*<\/span><span class="whitespace-nowrap"> ·\u00A0<span data-standing="">Provisional/,
+      /whitespace-nowrap font-medium text-zinc-100">[^<]*<\/span> <span class="whitespace-nowrap">·\u00A0<span data-standing="">Provisional<\/span><\/span> <span class="whitespace-nowrap">·\u00A0/,
     );
     assert.match(html, /whitespace-nowrap tabular-nums/);
     assert.doesNotMatch(html, /data-board="value"/);
@@ -290,6 +290,7 @@ describe("leaderboard page", () => {
     assert.match(read("components/leaderboard-chips.tsx"), /pendingId \? tab\.id === pendingId : tab\.active/);
     assert.match(read("components/leaderboard-chips.tsx"), /lb-chip-spin/);
     assert.match(read("components/leaderboard-chips.tsx"), /data-board-pending/);
+    assert.match(read("components/leaderboard-chips.tsx"), /token !== boardPendingToken/);
     assert.match(read("components/leaderboard-view.tsx"), /data-board-body/);
     assert.match(read("components/leaderboard-view.tsx"), /opacity: 0\.6/);
     assert.match(read("components/leaderboard-chips.tsx"), /<Link/);

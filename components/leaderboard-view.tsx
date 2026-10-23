@@ -204,15 +204,19 @@ export function LeaderboardView({ model }: { model: LeaderboardPageModel }) {
         </div>
         <p className="mt-3 text-sm text-zinc-400">
           <span className="whitespace-nowrap font-medium text-zinc-100">{model.weekLabel}</span>
+          {" "}
           <span className="whitespace-nowrap">
-            {" ·\u00A0"}
+            {"·\u00A0"}
             <span data-standing="">{model.standing}</span>
           </span>
           {model.showCountdown ? (
-            <span className="whitespace-nowrap">
-              {" ·\u00A0"}
-              <LeaderboardCountdown resetsAt={model.resetsAt} initialLabel={model.countdownLabel} />
-            </span>
+            <>
+              {" "}
+              <span className="whitespace-nowrap">
+                {"·\u00A0"}
+                <LeaderboardCountdown resetsAt={model.resetsAt} initialLabel={model.countdownLabel} />
+              </span>
+            </>
           ) : null}
         </p>
         {model.standingNote ? (
