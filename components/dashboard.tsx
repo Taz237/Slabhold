@@ -6,6 +6,7 @@ import { Info, Search, TrendingDown, TrendingUp, WalletCards } from "lucide-reac
 import { outlineButton } from "@/components/button-styles";
 import { CategoryBadge } from "@/components/category-picker";
 import { CollectionHeader } from "@/components/collection-header";
+import { LeaderboardOptInSwitch, LeaderboardPrompt } from "@/components/leaderboard-opt-in";
 import { CollectionValueHistory } from "@/components/collection-value-history";
 import { useCollection } from "@/components/collection-provider";
 import { CardThumb } from "@/components/card-thumb";
@@ -39,6 +40,7 @@ import {
   type PortfolioFilter,
 } from "@/lib/types";
 import { displayedCollectionTotal } from "@/lib/collection/displayed-value";
+import { publicValuedTotals } from "@/lib/leaderboard/public-value";
 import {
   investedAmountLabel,
   investedCardLabel,
@@ -95,6 +97,7 @@ export function Dashboard() {
     () => displayedCollectionTotal(inLane, values),
     [inLane, values],
   );
+  const publicValued = useMemo(() => publicValuedTotals(inLane, values), [inLane, values]);
   const profitTotal = totals.unrealizedProfit + totals.realizedProfit;
   const pricedCount = totals.pricedCount;
   const cardCount = inLane.length;
@@ -135,7 +138,12 @@ export function Dashboard() {
   return (
     <PullToRefresh onRefresh={refreshCollection}>
     <div className="space-y-6">
-      <CollectionHeader />
+      <CollectionHeader extra={<LeaderboardOptInSwitch />} />
+      <LeaderboardPrompt
+        valuedCards={publicValued.count}
+        value={publicValued.value}
+        ready={cards.length > 0 && !valuesLoading && !valuesFailed}
+      />
       {syncError ? (
         <p className="text-sm text-rose-600 dark:text-rose-400">{syncError}</p>
       ) : null}

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { ProfileView } from "@/components/profile-view";
 import { ProfileSkeleton } from "@/components/status";
+import { leaderboardChipsFor } from "@/lib/leaderboard/load";
 import { previewMetadata } from "@/lib/social/link-preview";
 import { loadProfilePreview } from "@/lib/social/link-preview-load";
 import { requireProfile } from "@/lib/social/require-record";
@@ -16,9 +17,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function PublicProfilePage({ params }: Props) {
   const { username } = await params;
   await requireProfile(username);
+  const badges = await leaderboardChipsFor({ username });
   return (
     <Suspense fallback={<ProfileSkeleton />}>
-      <ProfileView username={username} />
+      <ProfileView username={username} badges={badges} />
     </Suspense>
   );
 }
