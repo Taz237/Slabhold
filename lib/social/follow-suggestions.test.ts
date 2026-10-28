@@ -140,7 +140,7 @@ describe("followSuggestions", () => {
     assert.match(remote, /suggestionExtraRange\(profiles\.length\)/);
     assert.match(
       remote,
-      /from\("profiles"\)\.select\("\*"\)\.order\("created_at", \{ ascending: true \}\)/,
+      /from\("profiles"\)\.select<string, ProfileRow>\(columns\)\.order\("created_at", \{ ascending: true \}\)/,
     );
     assert.match(remote, /\.order\("created_at", \{ ascending: true \}\)\s*\.range\(from, to\)/);
     assert.doesNotMatch(search, /isTestAccount|followSuggestions/);

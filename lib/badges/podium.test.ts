@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, it } from "node:test";
 import type { LeaderboardWeekSlice } from "@/lib/leaderboard/present";
 import type { CandidateRow } from "@/lib/leaderboard/score";
-import { podiumFinishes } from "./podium";
+import { closedPodiums, podiumFinishes } from "./podium";
 
 function row(id: string, userId: string, points: number): CandidateRow {
   return {
@@ -53,3 +55,26 @@ describe("podium finishes", () => {
     assert.deepEqual(podiumFinishes(slice, new Date("2026-10-26T12:00:00.000Z")), []);
   });
 });
+
+describe("closed podiums from a snapshot", () => {
+  const current = { ...slice, start: slice.end, end: "2026-11-02T05:00:00.000Z", finalAt: "2026-11-03T05:00:00.000Z" };
+
+  it("records nothing from a cached snapshot scored before the week was final", () => {
+    // Scored Monday night, still served from the cache after Tuesday 00:00 ET.
+    const stale = { generatedAt: current.start, scoredAt: "2026-10-27T03:58:00.000Z", current, previous: slice };
+    assert.deepEqual(closedPodiums(stale), []);
+    // A snapshot cached before scoredAt existed.
+    assert.deepEqual(closedPodiums({ ...stale, scoredAt: undefined as unknown as string }), []);
+  });
+
+  it("records the top 3 from a snapshot scored after the close", () => {
+    const fresh = { generatedAt: current.start, scoredAt: "2026-10-27T04:02:00.000Z", current, previous: slice };
+    assert.equal(closedPodiums(fresh).length, 5);
+  });
+
+  it("is recorded when anyone opens the leaderboard", () => {
+    const page = readFileSync(join(process.cwd(), "app/leaderboard/page.tsx"), "utf8");
+    assert.match(page, /after\(\(\) => recordClosedPodiums\(\)\)/);
+  });
+});
+

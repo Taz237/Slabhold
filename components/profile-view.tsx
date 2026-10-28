@@ -34,6 +34,7 @@ import { loadPostById } from "@/lib/social/load-feed-page";
 import {
   PROFILE_TAB_LABELS,
   loadProfilePublicCards,
+  profileCardCount,
   profileCardsTab,
   profileMediaItems,
   profileTabFromQuery,
@@ -48,14 +49,18 @@ import {
 } from "@/lib/offers/open-to-offers";
 import { useCardValues } from "@/lib/value/use-card-values";
 import type { ProfileBadges } from "@/lib/badges/load";
+import type { ServerCardCount } from "@/lib/social/profile-card-count";
 
 export function ProfileView({
   username,
   badges = null,
+  cardCount: serverCardCount = null,
 }: {
   username?: string;
   /** Read on the server, so the strip never pops in after the header. */
   badges?: ProfileBadges | null;
+  /** Read on the server, so Cards never shows 0 while the lists load. */
+  cardCount?: ServerCardCount | null;
 }) {
   const router = useRouter();
   const pathname = usePathname() || "/";
@@ -301,7 +306,16 @@ export function ProfileView({
     if (!known || known.authorId !== profile.id || known.hiddenAt) return null;
     return known;
   })();
-  const cardCount = collection.length;
+  const remote = mode === "supabase";
+  const cardCount = profileCardCount({
+    own: isOwn,
+    server:
+      serverCardCount && serverCardCount.username.toLowerCase() === profile.username.toLowerCase()
+        ? serverCardCount.count
+        : null,
+    publicLoaded: !remote || viewCards?.ownerId === profile.id ? collection.length : null,
+    ownTotal: cardsReady ? cards.length : null,
+  });
   // Server badges are for the profile in the URL; a client-side rename drops them.
   const badgeView =
     badges && badges.username.toLowerCase() === profile.username.toLowerCase() ? badges.view : null;
@@ -388,7 +402,14 @@ export function ProfileView({
             onClick={() => setTab("cards")}
             className="inline-flex min-h-11 items-center gap-1 rounded-md pr-1 hover:underline"
           >
-            <span className="font-bold tabular-nums">{cardCount}</span>
+            {cardCount == null ? (
+              <span
+                className="inline-block h-4 w-5 animate-pulse rounded bg-zinc-200/80 motion-reduce:animate-none dark:bg-white/10"
+                aria-hidden
+              />
+            ) : (
+              <span className="font-bold tabular-nums">{cardCount}</span>
+            )}
             <span className="text-zinc-500">{cardCount === 1 ? "Card" : "Cards"}</span>
           </button>
           <span aria-hidden className="text-zinc-400 dark:text-zinc-600">

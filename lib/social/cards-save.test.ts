@@ -47,7 +47,7 @@ function client(options?: {
   upload?: () => Promise<{ error: { message: string } | null }>;
   upsert?: (
     row: Record<string, unknown>,
-  ) => Promise<{ error: { message: string; code?: string } | null }>;
+  ) => Promise<{ error: { message: string; code?: string } | null; status?: number }>;
 }) {
   const removed: string[] = [];
   const upserts: Array<Record<string, unknown>> = [];
@@ -150,6 +150,37 @@ describe("saveUserCard photos", () => {
       /Could not save this card/,
     );
     assert.deepEqual(existing.removed, []);
+  });
+
+  it("keeps a new photo when the write fails with no answer from the database", async () => {
+    // The row may have landed. Deleting the photo would leave it pointing at a 404.
+    for (const failure of [
+      { error: { message: "TypeError: Failed to fetch", code: "" }, status: 0 },
+      { error: { message: "Bad gateway", code: "" }, status: 502 },
+    ]) {
+      const unknown = client({ upsert: async () => failure });
+      const error = await saveUserCard(unknown.supabase, "user-1", sample({ id: "maybe-saved" }), 5_000).then(
+        () => null,
+        (reason: unknown) => reason,
+      );
+      assert.ok(isSaveTimeout(error), `status ${failure.status} is an unknown outcome`);
+      assert.deepEqual(unknown.removed, []);
+      assert.match(
+        error instanceof SaveTimeoutError ? (error.photoUrl ?? "") : "",
+        /^https:\/\/cdn\.example\/user-1\/.+\.jpg$/,
+      );
+    }
+  });
+
+  it("deletes a new photo when the database answers with a rejection", async () => {
+    const rejected = client({
+      upsert: async () => ({ error: { message: "new row violates row-level security", code: "" }, status: 403 }),
+    });
+    await assert.rejects(
+      saveUserCard(rejected.supabase, "user-1", sample({ id: "refused" }), 5_000),
+      /row-level security/,
+    );
+    assert.equal(rejected.removed.length, 1);
   });
 
   it("keeps one row and its photo when the upsert lands after a timeout, and retry does not add another", async () => {

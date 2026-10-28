@@ -31,3 +31,31 @@ export function profileBadgeView(input: {
   const pins = profilePins(input.pinned, input.earned);
   return { kind: "strip", pins, more: Math.max(0, input.earned.length - pins.length) };
 }
+
+export type ProfileBadges = {
+  username: string;
+  view: ProfileBadgeView;
+  earned: EarnedBadge[];
+};
+
+/**
+ * What a profile page receives about badges. When show_badges is off, other
+ * viewers get no pins and no badges, even if a read returned some.
+ */
+export function profileBadges(input: {
+  username: string;
+  ownerId: string;
+  viewerId: string | null;
+  showBadges: boolean;
+  earned: readonly EarnedBadge[];
+  pinned: readonly string[];
+  firstGoal: { value: number } | null;
+}): ProfileBadges {
+  const own = Boolean(input.viewerId) && input.viewerId === input.ownerId;
+  if (!input.showBadges && !own) return { username: input.username, view: { kind: "hidden" }, earned: [] };
+  return {
+    username: input.username,
+    view: profileBadgeView(input),
+    earned: [...input.earned],
+  };
+}

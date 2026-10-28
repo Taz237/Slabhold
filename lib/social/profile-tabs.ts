@@ -223,6 +223,24 @@ export function profileCardsTab(input: {
   return out;
 }
 
+/**
+ * The Cards number in a profile header. The owner sees every card they hold,
+ * public and private; everyone else sees public cards. Until the client list
+ * loads, the server count shows. Null means no count yet: show a skeleton, not 0.
+ */
+export function profileCardCount(input: {
+  own: boolean;
+  /** Read on the server for this profile. */
+  server: number | null;
+  /** Public cards on the profile, once loaded for this profile. */
+  publicLoaded: number | null;
+  /** The owner's whole collection, once loaded. */
+  ownTotal: number | null;
+}): number | null {
+  const loaded = input.own ? input.ownTotal : input.publicLoaded;
+  return loaded ?? input.server;
+}
+
 /** One profile's rows from public_cards. Private cards are not in that view. */
 export async function loadProfilePublicCards(
   supabase: SupabaseClient,

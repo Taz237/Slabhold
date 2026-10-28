@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { initials } from "@/lib/format";
 import type { SportsCard } from "@/lib/types";
 
@@ -13,14 +14,22 @@ export function CardThumb({
   /** Detail view: decode off the critical path and ask for the photo first. */
   priority?: boolean;
 }) {
-  if (card.photoDataUrl) {
+  // A photo missing from storage shows the no-photo fallback, not a broken image.
+  const [failed, setFailed] = useState<string | null>(null);
+  if (card.photoDataUrl && failed !== card.photoDataUrl) {
+    const src = card.photoDataUrl;
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img
-        src={card.photoDataUrl}
+        src={src}
         alt={card.playerName}
         decoding="async"
         fetchPriority={priority ? "high" : "auto"}
+        ref={(img) => {
+          // A server-rendered photo can fail before hydration adds onError.
+          if (img?.complete && img.naturalWidth === 0) setFailed(src);
+        }}
+        onError={() => setFailed(src)}
         className={`object-cover ${className}`}
       />
     );

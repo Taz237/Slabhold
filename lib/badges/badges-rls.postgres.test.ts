@@ -165,15 +165,51 @@ end
 $$;
 `;
 
+const initplanSql = `
+do $$
+begin
+  if exists (
+    select 1
+    from pg_policies
+    where schemaname = 'public'
+      and tablename = 'user_badges'
+      and (
+        replace(coalesce(qual, ''), 'SELECT auth.uid()', '') like '%auth.uid()%'
+        or replace(coalesce(with_check, ''), 'SELECT auth.uid()', '') like '%auth.uid()%'
+      )
+  ) then
+    raise exception 'a user_badges policy still calls auth.uid() per row';
+  end if;
+  if (select count(*) from pg_policies where schemaname = 'public' and tablename = 'user_badges') <> 2 then
+    raise exception 'expected the same two user_badges policies';
+  end if;
+end
+$$;
+`;
+
+const BADGES = "supabase/migrations/20261028200000_achievements_badges.sql";
+const INITPLAN = "supabase/migrations/20261029120000_user_badges_rls_initplan.sql";
+
 describe("badges migration", () => {
-  let stop: (() => void) | null = null;
-  after(() => stop?.());
+  const stops: Array<() => void> = [];
+  after(() => stops.forEach((stop) => stop()));
 
   it("hides badges when show_badges is off and keeps tiers server-only", { timeout: 120_000 }, async () => {
     const db = await startPostgres("pgbadges-");
-    stop = db.stop;
+    stops.push(db.stop);
     db.run(setupSql, "setup");
-    db.runFile(join(process.cwd(), "supabase/migrations/20261028200000_achievements_badges.sql"), "migration");
+    db.runFile(join(process.cwd(), BADGES), "migration");
+    db.run(seedSql, "seed");
+    db.run(behaviorSql, "behavior");
+  });
+
+  it("keeps the same rules with (select auth.uid()) in both policies", { timeout: 120_000 }, async () => {
+    const db = await startPostgres("pgbadges-initplan-");
+    stops.push(db.stop);
+    db.run(setupSql, "setup");
+    db.runFile(join(process.cwd(), BADGES), "migration");
+    db.runFile(join(process.cwd(), INITPLAN), "initplan migration");
+    db.run(initplanSql, "initplan policies");
     db.run(seedSql, "seed");
     db.run(behaviorSql, "behavior");
   });

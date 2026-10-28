@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { autoPins, formatPin, parsePin, profilePins, togglePin } from "./pins";
+import { autoPins, formatPin, parsePin, profilePins, togglePin, upgradePins } from "./pins";
 import { profileBadgeView } from "./visibility";
 import type { EarnedBadge } from "./progress";
 
@@ -42,9 +42,9 @@ describe("auto-pin", () => {
 
   it("uses saved pins when there are any, and auto-pins when the list is empty", () => {
     assert.deepEqual(profilePins([], earned), autoPins(earned));
-    assert.deepEqual(profilePins(["following:bronze", "collector:bronze"], earned), [
+    assert.deepEqual(profilePins(["following:bronze", "streak:bronze"], earned), [
       { category: "following", tier: "bronze" },
-      { category: "collector", tier: "bronze" },
+      { category: "streak", tier: "bronze" },
     ]);
   });
 
@@ -61,6 +61,38 @@ describe("auto-pin", () => {
       ],
     );
     assert.deepEqual(profilePins(["collector:legendary"], earned), autoPins(earned));
+  });
+});
+
+describe("pin upgrades", () => {
+  it("shows the highest earned tier for a pinned category", () => {
+    // collector:bronze was pinned before Gold was earned.
+    assert.deepEqual(profilePins(["collector:bronze", "streak:bronze"], earned), [
+      { category: "collector", tier: "gold" },
+      { category: "streak", tier: "bronze" },
+    ]);
+  });
+
+  it("upgrades the saved pins, merges repeats, and keeps order", () => {
+    assert.deepEqual(upgradePins(["streak:bronze", "collector:bronze", "collector:silver"], earned), [
+      "streak:bronze",
+      "collector:gold",
+    ]);
+    assert.deepEqual(upgradePins(["slab-king:bronze"], earned), ["slab-king:silver"]);
+  });
+
+  it("leaves pins alone when nothing higher is earned, and drops pins that are not earned", () => {
+    assert.deepEqual(upgradePins(["collector:gold", "following:bronze"], earned), [
+      "collector:gold",
+      "following:bronze",
+    ]);
+    assert.deepEqual(upgradePins(["rainbow-chaser:bronze", "junk"], earned), []);
+    assert.deepEqual(upgradePins([], earned), []);
+  });
+
+  it("lets the owner unpin an upgraded badge", () => {
+    const shown = profilePins(["collector:bronze"], earned).map(formatPin);
+    assert.deepEqual(togglePin(shown, { category: "collector", tier: "gold" }).pins, []);
   });
 });
 
