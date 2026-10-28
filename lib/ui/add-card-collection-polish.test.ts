@@ -82,10 +82,11 @@ describe("add card form polish", () => {
     assert.match(page, /<CardForm initialQuery=\{initialQuery\} initialCatalog=\{initialCatalog\} \/>/);
   });
 
-  it("defaults a new card's purchase date to today without touching a saved date", () => {
+  it("starts a new card's purchase date empty without touching a saved date", () => {
     assert.equal(todayDateInput(new Date(2026, 9, 21)), "2026-10-21");
     assert.equal(todayDateInput(new Date(2026, 0, 5)), "2026-01-05");
-    assert.match(form, /existing \? \(existing\.purchaseDate \?\? ""\) : todayDateInput\(\)/);
+    // Bin cards have no purchase date, so Add no longer seeds today.
+    assert.match(form, /existing \? \(existing\.purchaseDate \?\? ""\) : ""/);
     assert.match(form, /suppressHydrationWarning/);
   });
 

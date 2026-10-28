@@ -24,7 +24,8 @@ describe("add a card first impression", () => {
   it("keeps the form, offers Retry, and ignores a second submit", () => {
     const form = read("components/card-form.tsx");
     const submitStart = form.indexOf("async function submit");
-    const submit = form.slice(submitStart, form.indexOf("return (", submitStart));
+    // The function ends at the first two-space closing brace after it starts.
+    const submit = form.slice(submitStart, form.indexOf("\n  }\n", submitStart));
     assert.match(submit, /claimSubmit\(savingRef\)/);
     assert.match(submit, /await saved/);
     const catchAt = submit.indexOf("} catch");
