@@ -8,6 +8,8 @@ export type BadgeCheckResult =
       total: number;
       /** The pins the profile shows now, auto pins included. */
       pinned: string[];
+      /** False when the owner turned badges off on their profile. */
+      showBadges: boolean;
       reveal: BadgeReveal | null;
     };
 

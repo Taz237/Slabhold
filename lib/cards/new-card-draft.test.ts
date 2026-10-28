@@ -370,7 +370,7 @@ describe("sign out drops the new-card draft", () => {
     );
     assert.match(signOut, /clearNewCardDraft\(\)/);
     assert.match(provider, /seenDraftUserId\.current === suggestionUserId/);
-    const more = readFileSync("components/more-view.tsx", "utf8");
+    const more = readFileSync("components/side-menu.tsx", "utf8");
     const logout = more.slice(more.indexOf("markLogoutHome()"), more.indexOf("Log out"));
     assert.match(logout, /clearNewCardDraft\(\)/);
     const remove = readFileSync("components/delete-account.tsx", "utf8");

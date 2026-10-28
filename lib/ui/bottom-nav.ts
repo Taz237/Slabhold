@@ -13,19 +13,15 @@ export const BOTTOM_NAV = [
   { href: "/leaderboard", label: "Leaderboard" },
   { href: "/cards/new", label: "Add card" },
   { href: "/collection", label: "Collection" },
-  { href: "/more", label: "More" },
+  { href: "/messages", label: "Messages" },
 ] as const;
 
 /**
- * Taken off the bar so five labels fit at 390px.
- * Messages is the least-used tab (it already lives in More, and inboxes are
- * empty while the community is small). Profile is the next one: More already
- * opens it, and Collection stays because that is the collection itself.
+ * Taken off the bar so five labels fit at 390px. The side menu opens them
+ * from the avatar at the top left, like X. Settings and the old More links
+ * live there too, so the bar has room for Messages and its unread badge.
  */
-export const MOVED_TO_MORE = [
-  { href: "/messages", label: "Messages" },
-  { href: "/profile", label: "Profile" },
-] as const;
+export const MOVED_TO_MENU = [{ href: "/profile", label: "Profile" }] as const;
 
 /** Rough Geist 10px width. Wide enough that a passing label is not cramped. */
 const LABEL_PX_PER_CHAR = 6.2;

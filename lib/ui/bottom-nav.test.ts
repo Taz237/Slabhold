@@ -6,7 +6,7 @@ import {
   BOTTOM_NAV,
   BOTTOM_NAV_MAX_ITEMS,
   BOTTOM_NAV_VIEWPORT_PX,
-  MOVED_TO_MORE,
+  MOVED_TO_MENU,
   bottomNavLabelsFit,
   labelWidthFits,
 } from "./bottom-nav";
@@ -26,8 +26,12 @@ describe("bottom nav", () => {
     assert.equal(labelWidthFits("Leaderboard", 7), false);
     assert.equal(BOTTOM_NAV.some((tab) => tab.href === "/leaderboard" && tab.label === "Leaderboard"), true);
     assert.deepEqual(
-      MOVED_TO_MORE.map((tab) => tab.label),
-      ["Messages", "Profile"],
+      BOTTOM_NAV.map((tab) => tab.label),
+      ["Home", "Leaderboard", "Add card", "Collection", "Messages"],
+    );
+    assert.deepEqual(
+      MOVED_TO_MENU.map((tab) => tab.label),
+      ["Profile"],
     );
     const shell = read("components/app-shell.tsx");
     const nav = read("lib/ui/bottom-nav.ts");
@@ -37,10 +41,14 @@ describe("bottom nav", () => {
     for (const tab of BOTTOM_NAV) {
       assert.match(nav, new RegExp(`href: "${tab.href}", label: "${tab.label}"`));
     }
-    assert.doesNotMatch(shell, /href: "\/messages"/);
-    const more = read("components/more-view.tsx");
-    assert.match(more, /href="\/profile"/);
-    assert.match(more, /href="\/messages"/);
-    assert.match(more, /Messages, \$\{unreadMessageCount\} unread/);
+    assert.doesNotMatch(nav, /"\/more"/);
+    assert.doesNotMatch(shell, /Ellipsis/);
+  });
+
+  it("puts the unread badge on Messages", () => {
+    const shell = read("components/app-shell.tsx");
+    assert.match(shell, /tab\.href === "\/messages" \? unreadMessageCount : 0/);
+    assert.match(shell, /`Messages, \$\{messageBadge\} unread`/);
+    assert.doesNotMatch(shell, /More, \$\{messageBadge\}/);
   });
 });

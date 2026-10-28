@@ -46,12 +46,13 @@ describe("launch entry points", () => {
     assert.equal((menu.match(/aria-label="Post"/g) ?? []).length, 2);
   });
 
-  it("keeps the scan route and stops More from offering a scan", () => {
+  it("keeps the scan route and stops the side menu from offering a scan", () => {
     assert.match(read("app/scan/page.tsx"), /ScanView/);
     assert.match(read("components/scan-view.tsx"), /export function ScanView/);
-    const more = read("components/more-view.tsx");
+    const more = read("lib/ui/side-menu.ts");
     assert.doesNotMatch(more, /\/scan/);
-    assert.match(more, /href="\/cards\/new"/);
+    assert.doesNotMatch(read("components/side-menu.tsx"), /\/scan/);
+    assert.match(more, /href: "\/cards\/new"/);
   });
 });
 
