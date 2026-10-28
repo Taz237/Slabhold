@@ -57,6 +57,18 @@ export function formatDate(iso: string | null) {
   });
 }
 
+/** Card page dates. A card with no purchase date (a bin card) skips "Bought". */
+export function cardDatesLine(input: {
+  purchaseDate: string | null | undefined;
+  sold: boolean;
+  soldDate: string | null | undefined;
+}): string {
+  const parts: string[] = [];
+  if (input.purchaseDate) parts.push(`Bought ${formatDate(input.purchaseDate)}`);
+  parts.push(input.sold ? `Sold ${formatDate(input.soldDate || null)}` : "Still held");
+  return parts.join(" · ");
+}
+
 export function cardTitle(
   card: Pick<SportsCard, "year" | "setBrand"> & { yearLabel?: string },
 ) {
