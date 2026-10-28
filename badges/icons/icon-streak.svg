@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512"><defs>
+<filter id="drop" x="-20%" y="-20%" width="140%" height="150%">
+  <feDropShadow dx="0" dy="5" stdDeviation="6" flood-color="#000" flood-opacity=".55"/></filter>
+<filter id="soft" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="14"/></filter>
+<filter id="soft6" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="6"/></filter>
+<filter id="soft3" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="2.5"/></filter>
+<filter id="grain" x="0" y="0" width="100%" height="100%">
+  <feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="2" seed="7" result="n"/>
+  <feColorMatrix type="saturate" values="0"/>
+  <feComponentTransfer><feFuncA type="table" tableValues="0 .22"/></feComponentTransfer>
+  <feComposite in2="SourceGraphic" operator="in"/></filter>
+<filter id="iconsh" x="-20%" y="-20%" width="140%" height="150%">
+  <feDropShadow dx="0" dy="2.2" stdDeviation="1.6" flood-color="#000" flood-opacity=".6"/></filter>
+<linearGradient id="iv" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#D9D6E3"/></linearGradient>
+<linearGradient id="ac" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#C4B1FF"/><stop offset="1" stop-color="#7C3AED"/></linearGradient></defs><g filter="url(#iconsh)" transform="translate(51,51) scale(4.1)"><path d="M50,8 C56,22 74,30 76,52 C78,72 65,90 50,90 C35,90 22,78 23,60 C24,46 32,40 36,30 C39,38 42,42 46,43 C46,30 46,18 50,8 Z" fill="url(#iv)" stroke="url(#iv)" stroke-width="1.5" stroke-linejoin="round"/><path d="M51,46 C55,56 64,61 63.5,72 C63,80 57,85 50,85 C43,85 37.5,79.5 38,72 C38.5,65 43,62 45,56 C47,60 49,62 51,62 C50.5,57 50,52 51,46 Z" fill="url(#ac)"/></g></svg>

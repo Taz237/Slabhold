@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512"><defs>
+<filter id="drop" x="-20%" y="-20%" width="140%" height="150%">
+  <feDropShadow dx="0" dy="5" stdDeviation="6" flood-color="#000" flood-opacity=".55"/></filter>
+<filter id="soft" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="14"/></filter>
+<filter id="soft6" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="6"/></filter>
+<filter id="soft3" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="2.5"/></filter>
+<filter id="grain" x="0" y="0" width="100%" height="100%">
+  <feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="2" seed="7" result="n"/>
+  <feColorMatrix type="saturate" values="0"/>
+  <feComponentTransfer><feFuncA type="table" tableValues="0 .22"/></feComponentTransfer>
+  <feComposite in2="SourceGraphic" operator="in"/></filter>
+<filter id="iconsh" x="-20%" y="-20%" width="140%" height="150%">
+  <feDropShadow dx="0" dy="2.2" stdDeviation="1.6" flood-color="#000" flood-opacity=".6"/></filter>
+<linearGradient id="iv" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#D9D6E3"/></linearGradient>
+<linearGradient id="ac" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#C4B1FF"/><stop offset="1" stop-color="#7C3AED"/></linearGradient></defs><g filter="url(#iconsh)" transform="translate(51,51) scale(4.1)">
+<path d="M30,18 H16 V28 C16,38 23,45 33,46" fill="none" stroke="url(#iv)" stroke-width="6" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M70,18 H84 V28 C84,38 77,45 67,46" fill="none" stroke="url(#iv)" stroke-width="6" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M28,12 H72 V36 C72,52 62,62 50,62 C38,62 28,52 28,36 Z" fill="url(#iv)" stroke="url(#iv)" stroke-width="2" stroke-linejoin="round"/>
+<path d="M49.63,23.93 Q50,23 50.37,23.93 L52.69,29.86 Q53.06,30.79 54.05,30.85 L60.41,31.23 Q61.41,31.29 60.64,31.93 L55.72,35.97 Q54.95,36.61 55.2,37.57 L56.8,43.74 Q57.05,44.71 56.21,44.17 L50.84,40.74 Q50,40.2 49.16,40.74 L43.79,44.17 Q42.95,44.71 43.2,43.74 L44.8,37.57 Q45.05,36.61 44.28,35.97 L39.36,31.93 Q38.59,31.29 39.59,31.23 L45.95,30.85 Q46.94,30.79 47.31,29.86 Z" fill="url(#ac)"/>
+<path d="M44,60 H56 L58,74 H42 Z" fill="url(#iv)"/>
+<rect x="30" y="74" width="40" height="14" rx="3.5" fill="url(#iv)"/>
+<rect x="36" y="79" width="28" height="4.2" rx="2.1" fill="url(#ac)"/>
+</g></svg>
