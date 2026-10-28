@@ -4,7 +4,6 @@ import { useRouter } from "next/navigation";
 import { Fragment, useEffect, useMemo, useRef, useState, type SetStateAction } from "react";
 import { ChevronDown, ScanSearch } from "lucide-react";
 import { CardPhotoField } from "@/components/card-photo-field";
-import { CardSearch } from "@/components/card-search";
 import { CategoryPicker } from "@/components/category-picker";
 import { useCollection, useDefaultAccent } from "@/components/collection-provider";
 import { NativeSelect, SearchSelect, SET_PARALLEL_HINT } from "@/components/search-select";
@@ -577,32 +576,6 @@ export function CardForm({
     applyCatalog(matchForApply(match, form.parallel));
   }
 
-  function applyManualSearch(prefill: {
-    playerName: string;
-    yearLabel: string;
-    cardNumber: string;
-  }) {
-    catalogPick.current = null;
-    // Clear catalog leftovers, then prefill only what the query parsed.
-    setForm((prev) => ({
-      ...prev,
-      playerName: prefill.playerName,
-      yearLabel: prefill.yearLabel,
-      setBrand: "",
-      cardNumber: prefill.cardNumber,
-      parallel: "Base",
-    }));
-    setSetIsCustom(false);
-    setParallelIsCustom(false);
-    setIdentified(null);
-    requestAnimationFrame(() => {
-      const el = document.querySelector<HTMLInputElement>(
-        '[data-field="playerName"]',
-      );
-      el?.focus();
-    });
-  }
-
   function chooseGradeCompany(company: string) {
     setGradeCompany(company);
     setGradeNumber((current) =>
@@ -878,26 +851,17 @@ export function CardForm({
 
   const categoryNode = <CategoryPicker value={category} onChange={setCategory} />;
 
-  const searchNode = !existing ? (
-        <>
-          <CardSearch
-            initialQuery={existing ? "" : initialQuery}
-            onSelect={applyCatalog}
-            onManual={applyManualSearch}
-          />
-          {sportOffer ? (
-            <button
-              type="button"
-              onClick={() => {
-                setForm((prev) => ({ ...prev, sport: sportOffer }));
-                setSportOffer("");
-              }}
-              className="mt-2 text-left text-xs font-semibold text-violet-700 underline-offset-2 hover:underline dark:text-violet-300"
-            >
-              This card is listed as {mailDaySportLabel(sportOffer)}. Use that?
-            </button>
-          ) : null}
-        </>
+  const sportOfferNode = sportOffer ? (
+        <button
+          type="button"
+          onClick={() => {
+            setForm((prev) => ({ ...prev, sport: sportOffer }));
+            setSportOffer("");
+          }}
+          className="min-h-11 text-left text-xs font-semibold text-violet-700 underline-offset-2 hover:underline dark:text-violet-300"
+        >
+          This card is listed as {mailDaySportLabel(sportOffer)}. Use that?
+        </button>
   ) : null;
 
   const startOverNode = showingRestored ? (
@@ -1567,17 +1531,11 @@ export function CardForm({
       openToOffers: offersNode,
       notes: notesNode,
       shareToFeed: shareToFeedNode,
-      photo: photoNode,
       category: categoryNode,
     };
 
     const visibleNodes: Record<AddVisibleField, React.ReactNode> = {
-      search: (
-        <>
-          {searchNode}
-          {startOverNode}
-        </>
-      ),
+      photo: photoNode,
       playerName: playerNode,
       yearLabel: yearNode,
       setBrand: setNode,
@@ -1588,6 +1546,7 @@ export function CardForm({
       submit: (
         <>
           {matchNode}
+          {sportOfferNode}
           <details
             open={moreOpen}
             onToggle={(e) => setMoreOpen(e.currentTarget.open)}
@@ -1597,7 +1556,7 @@ export function CardForm({
               <span className="min-w-0">
                 <span className="block text-sm font-semibold">{MORE_DETAILS_LABEL}</span>
                 <span className="block text-xs text-zinc-500">
-                  What you paid, photo, notes, sharing
+                  What you paid, notes, sharing
                 </span>
               </span>
               <ChevronDown
@@ -1632,6 +1591,7 @@ export function CardForm({
     return (
       <form ref={formRef} onSubmit={onSubmit} className="mx-auto max-w-xl space-y-5">
         {headerNode}
+        {startOverNode}
         {sections.visible.map((key) => (
           <Fragment key={key}>{visibleNodes[key]}</Fragment>
         ))}
@@ -1644,8 +1604,6 @@ export function CardForm({
       {headerNode}
 
       {categoryNode}
-
-      {searchNode}
 
       {startOverNode}
 

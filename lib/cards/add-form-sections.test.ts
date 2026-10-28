@@ -78,13 +78,16 @@ function draft(patch: Partial<NewCardDraft> = {}, form: Partial<CardDraftForm> =
 }
 
 describe("add card sections", () => {
-  it("shows only search, card identity, grading, and the Add button on Add", () => {
+  it("shows only the photo, card identity, grading, and the Add button on Add", () => {
     const sections = addFormSections(false);
     assert.ok(sections);
+    assert.equal(sections.visible[0], "photo");
+    assert.ok(!sections.visible.includes("search" as never), "no player search on Add");
+    assert.ok(!sections.more.includes("photo" as never), "photo is not in More details");
     assert.deepEqual(
       [...sections.visible],
       [
-        "search",
+        "photo",
         "playerName",
         "yearLabel",
         "setBrand",
@@ -114,7 +117,6 @@ describe("add card sections", () => {
       "openToOffers",
       "notes",
       "shareToFeed",
-      "photo",
       "category",
     ]) {
       assert.ok(sections.more.includes(key as never), `${key} is in More details`);
@@ -135,7 +137,9 @@ describe("add card sections", () => {
     assert.match(form, /<details/);
     assert.match(form, /MORE_DETAILS_LABEL/);
     // Edit keeps its old subline. Add uses the new one.
-    assert.equal(ADD_FORM_SUBLINE, "Search for your card. Everything else is optional.");
+    assert.equal(ADD_FORM_SUBLINE, "Snap a photo or fill in the basics. Everything else is optional.");
+    assert.match(form, /What you paid, notes, sharing/);
+    assert.doesNotMatch(form, /What you paid, photo, notes, sharing/);
     assert.match(form, /Player, set, what you paid, and a photo\./);
   });
 
@@ -209,7 +213,8 @@ describe("opening More details", () => {
     assert.equal(draftOpensMoreDetails(draft({ unknownPurchase: true })), true);
     assert.equal(draftOpensMoreDetails(draft({ sold: true })), true);
     assert.equal(draftOpensMoreDetails(draft({ share: true })), true);
-    assert.equal(draftOpensMoreDetails(draft({ hadPhoto: true })), true);
+    // The photo sits on top now, so a restored photo leaves the section closed.
+    assert.equal(draftOpensMoreDetails(draft({ hadPhoto: true })), false);
     assert.equal(draftOpensMoreDetails(draft({ isAuto: true })), true);
     assert.equal(draftOpensMoreDetails(draft({ certNumber: "123" })), true);
     assert.equal(draftOpensMoreDetails(draft({ category: "flipping" })), true);

@@ -3,11 +3,11 @@ import type { assessNewCardSubmit, CardDraftForm, NewCardDraft } from "@/lib/car
 export const MORE_DETAILS_LABEL = "More details (optional)";
 
 /** Add card header subline. Edit keeps its own. */
-export const ADD_FORM_SUBLINE = "Search for your card. Everything else is optional.";
+export const ADD_FORM_SUBLINE = "Snap a photo or fill in the basics. Everything else is optional.";
 
 /** Add card shows only these, in this order. */
 export const ADD_VISIBLE_FIELDS = [
-  "search",
+  "photo",
   "playerName",
   "yearLabel",
   "setBrand",
@@ -32,7 +32,6 @@ export const MORE_DETAILS_FIELDS = [
   "openToOffers",
   "notes",
   "shareToFeed",
-  "photo",
   "category",
 ] as const;
 
@@ -109,7 +108,6 @@ export function draftOpensMoreDetails(draft: NewCardDraft | null): boolean {
     filled(form.notes) ||
     draft.shareToFeed ||
     filled(draft.caption) ||
-    draft.hadPhoto ||
     draft.category !== "pc"
   );
 }

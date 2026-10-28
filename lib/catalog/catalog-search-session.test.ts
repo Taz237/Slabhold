@@ -174,7 +174,8 @@ describe("catalog search timeout", () => {
       catalogSearchNeedsRetry({ aborted: true, timedOut: true, remote: null, results: [] }),
       false,
     );
-    assert.match(form, /<CardSearch/);
+    // Add card dropped its search for now. Mail Day keeps it.
+    assert.doesNotMatch(form, /<CardSearch|@\/components\/card-search/);
     assert.match(mail, /<CardSearch/);
   });
 });
