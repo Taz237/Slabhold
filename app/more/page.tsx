@@ -1,5 +1,7 @@
-import { MoreView } from "@/components/more-view";
+import { redirect } from "next/navigation";
+import { MENU_OPEN_HREF } from "@/lib/ui/side-menu";
 
+/** More moved into the side menu. Old links open it on the home page. */
 export default function MorePage() {
-  return <MoreView />;
+  redirect(MENU_OPEN_HREF);
 }

@@ -6,7 +6,7 @@ export const runtime = "nodejs";
 
 /**
  * Check the signed-in user's badge progress and store new badges. Called
- * after a card add, a post, a follow, opening More, and opening the app.
+ * after a card add, a post, a follow, opening the side menu, and opening the app.
  * One user per call. Never calls Trawl.
  */
 export async function POST() {
@@ -20,6 +20,7 @@ export async function POST() {
       earnedCount: state.earnedCount,
       total: state.total,
       pinned: profilePins(state.pinned, state.earned).map(formatPin),
+      showBadges: state.showBadges,
       reveal: unseenReveal(state),
     },
     { headers: { "cache-control": "no-store" } },

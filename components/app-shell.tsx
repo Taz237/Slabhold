@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect } from "react";
-import { Bell, Camera, Compass, Ellipsis, Search, Trophy, WalletCards } from "lucide-react";
+import { Bell, Camera, Compass, Mail, Search, Trophy, WalletCards } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { useSocial } from "@/components/social-provider";
 import { AccountDeletedToast } from "@/components/account-deleted-toast";
@@ -12,6 +12,7 @@ import { CollectPrompt } from "@/components/collect-prompt";
 import { CreateMenu } from "@/components/create-menu";
 import { JoinBar } from "@/components/join-bar";
 import { LandingPage } from "@/components/landing-page";
+import { AccountMenu } from "@/components/side-menu";
 import { isAuthPage, shouldShowJoinBar } from "@/lib/auth/guest-paths";
 import { clearLogoutHome, logoutHomePending } from "@/lib/auth/logout-home";
 import { requiresAccount, routeAccess } from "@/lib/auth/route-access";
@@ -30,7 +31,7 @@ const TAB_ICONS = {
   "/leaderboard": Trophy,
   "/cards/new": Camera,
   "/collection": WalletCards,
-  "/more": Ellipsis,
+  "/messages": Mail,
 } as const;
 
 const TABS = BOTTOM_NAV.map((tab) => ({
@@ -62,15 +63,6 @@ function isActive(pathname: string, href: string, user: Profile | null) {
         pathname.startsWith("/cards"))
     );
   }
-  if (href === "/more") {
-    if (pathname.startsWith("/more") || pathname === "/login") return true;
-    if (pathname.startsWith("/achievements")) return true;
-    if (pathname.startsWith("/messages") || pathname.startsWith("/profile")) return true;
-    const routeUsername = profileUsernameFromPath(pathname);
-    if (!routeUsername || !user) return false;
-    const onOwnProfile = routeUsername.toLowerCase() === user.username.toLowerCase();
-    return onOwnProfile && pathname.split("/").length === 3;
-  }
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
@@ -82,6 +74,7 @@ function Shell({
   user,
   showNav,
   showJoin,
+  showLogin,
 }: {
   children: React.ReactNode;
   unreadCount: number;
@@ -90,6 +83,8 @@ function Shell({
   user: Profile | null;
   showNav: boolean;
   showJoin: boolean;
+  /** Signed-out visitors get Log in at the top left once the session is known. */
+  showLogin: boolean;
 }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -108,13 +103,19 @@ function Shell({
     <div className="min-h-full bg-[var(--background)] text-[var(--foreground)]">
       <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(124,92,255,0.16),_transparent_50%)]" />
       <header className="sticky top-0 z-20 border-b border-zinc-200/80 bg-[color-mix(in_oklab,var(--background)_88%,transparent)] pt-[env(safe-area-inset-top)] backdrop-blur-xl dark:border-white/10">
-        <div className="mx-auto flex max-w-lg items-center justify-between px-4 py-2.5">
-          <Link href="/" className="flex items-center gap-2 rounded-md py-1">
-            <Logo />
-            <span className="text-[17px] font-bold tracking-tight">Slabhold</span>
+        <div className="mx-auto grid max-w-lg grid-cols-[1fr_auto_1fr] items-center px-4 py-1">
+          <div className="flex items-center justify-self-start">
+            <AccountMenu user={user} showLogin={showLogin} />
+          </div>
+          <Link
+            href="/"
+            aria-label="Slabhold home"
+            className="grid h-11 w-11 place-items-center rounded-full focus-visible:ring-2 focus-visible:ring-violet-600 focus-visible:outline-none"
+          >
+            <Logo className="h-8 w-8" />
           </Link>
           {showNav ? (
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1 justify-self-end">
               <Link
                 href="/notifications"
                 aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : "Notifications"}
@@ -145,7 +146,9 @@ function Shell({
                 <Search className="h-5 w-5" />
               </Link>
             </div>
-          ) : null}
+          ) : (
+            <span aria-hidden />
+          )}
         </div>
       </header>
       {status ? (
@@ -199,14 +202,14 @@ function Shell({
                   </Link>
                 );
               }
-              const messageBadge = tab.href === "/more" ? unreadMessageCount : 0;
+              const messageBadge = tab.href === "/messages" ? unreadMessageCount : 0;
               return (
                 <Link
                   key={tab.href}
                   href={tab.href}
                   onClick={onTabClick}
                   aria-label={
-                    messageBadge > 0 ? `More, ${messageBadge} unread messages` : tab.label
+                    messageBadge > 0 ? `Messages, ${messageBadge} unread` : tab.label
                   }
                   aria-current={active ? "page" : undefined}
                   className={`relative flex min-w-0 flex-1 flex-col items-center gap-0.5 px-0.5 py-1 text-[10px] font-medium leading-none ${
@@ -222,7 +225,7 @@ function Shell({
                       }`}
                     />
                     {messageBadge > 0 ? (
-                      <span className="absolute -top-1.5 -right-2.5 grid h-4 min-w-4 place-items-center rounded-full bg-red-500 px-1 text-[10px] font-bold leading-none text-white">
+                      <span className="absolute -top-1.5 -right-2.5 grid h-4 min-w-4 place-items-center rounded-full bg-[#7C3AED] px-1 text-[10px] font-bold leading-none text-white ring-2 ring-[var(--background)]">
                         {messageBadge > 9 ? "9+" : messageBadge}
                       </span>
                     ) : null}
@@ -302,6 +305,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             user={null}
             showNav={false}
             showJoin={false}
+            showLogin={false}
           >
             {children}
           </Shell>
@@ -321,6 +325,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             user={user}
             showNav
             showJoin={false}
+            showLogin={false}
           >
             {children}
           </Shell>
@@ -375,6 +380,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         user={user}
         showNav={showNav}
         showJoin={showJoin}
+        showLogin={!user}
       >
         {children}
       </Shell>

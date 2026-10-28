@@ -107,7 +107,7 @@ describe("email confirm next", () => {
 describe("logout and plain auth links", () => {
   it("sends log out to / and keeps the signup gate from stealing it", () => {
     const root = process.cwd();
-    const more = readFileSync(join(root, "components/more-view.tsx"), "utf8");
+    const more = readFileSync(join(root, "components/side-menu.tsx"), "utf8");
     const shell = readFileSync(join(root, "components/app-shell.tsx"), "utf8");
     assert.match(more, /markLogoutHome\(\)/);
     assert.match(more, /router\.replace\("\/"\)/);
@@ -119,7 +119,7 @@ describe("logout and plain auth links", () => {
     const root = process.cwd();
     for (const file of [
       "components/profile-view.tsx",
-      "components/more-view.tsx",
+      "components/side-menu.tsx",
       "components/feed-view.tsx",
       "components/notifications-view.tsx",
       "components/messages-view.tsx",
@@ -132,10 +132,6 @@ describe("logout and plain auth links", () => {
     }
     assert.match(
       readFileSync(join(root, "components/profile-view.tsx"), "utf8"),
-      /signupPath\(pathname\)/,
-    );
-    assert.match(
-      readFileSync(join(root, "components/more-view.tsx"), "utf8"),
       /signupPath\(pathname\)/,
     );
   });

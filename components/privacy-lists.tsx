@@ -10,6 +10,7 @@ import { EmptyState, LoadingRows } from "@/components/status";
 import { HunterSettingSwitch } from "@/components/hunter-setting";
 import { loginPath } from "@/lib/auth/safe-next";
 import { unblockAccount, unmuteAccount } from "@/lib/safety/actions";
+import { MENU_OPEN_HREF } from "@/lib/ui/side-menu";
 
 export function PrivacyLists() {
   const pathname = usePathname() || "/";
@@ -72,7 +73,7 @@ export function PrivacyLists() {
     <div className="-mx-4 -mt-5">
       <div className="flex items-center gap-3 border-b border-zinc-200 px-2 py-2 dark:border-white/10">
         <Link
-          href="/more"
+          href={MENU_OPEN_HREF}
           aria-label="Back"
           className="grid h-9 w-9 place-items-center rounded-full hover:bg-zinc-100 dark:hover:bg-white/10"
         >

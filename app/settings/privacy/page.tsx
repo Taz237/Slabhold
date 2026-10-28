@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { DeleteAccount } from "@/components/delete-account";
 import { PrivacyLists } from "@/components/privacy-lists";
 
 export default function PrivacyPage() {
@@ -10,6 +11,7 @@ export default function PrivacyPage() {
         </Link>
       </p>
       <PrivacyLists />
+      <DeleteAccount />
     </div>
   );
 }
