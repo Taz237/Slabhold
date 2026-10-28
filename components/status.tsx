@@ -89,25 +89,24 @@ export function ProfileSkeleton() {
 
 export function CollectionSkeleton() {
   return (
-    <div className="space-y-6" aria-busy="true" aria-live="polite">
+    <div className="space-y-4" aria-busy="true" aria-live="polite">
       <span className="sr-only">Loading collection</span>
-      <div>
-        <div className="h-3 w-16 animate-pulse rounded-full bg-zinc-200/70 dark:bg-white/[0.06]" />
-        <div className="mt-2 h-7 w-40 animate-pulse rounded-full bg-zinc-200/80 dark:bg-white/10" />
+      <div className="rounded-3xl border border-zinc-200 p-4 dark:border-white/10 sm:p-5">
+        <div className="h-3 w-28 animate-pulse rounded-full bg-zinc-200/70 dark:bg-white/[0.06]" />
+        <div className="mt-3 h-10 w-44 animate-pulse rounded-lg bg-zinc-200/80 dark:bg-white/10" />
+        <div className="mt-3 h-5 w-32 animate-pulse rounded-full bg-zinc-200/70 dark:bg-white/[0.06]" />
       </div>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        {Array.from({ length: 3 }, (_, index) => (
-          <div key={index} className="h-24 animate-pulse rounded-2xl bg-zinc-200/70 dark:bg-white/5" />
+      <div className="flex gap-1.5 overflow-hidden py-1">
+        {Array.from({ length: 5 }, (_, index) => (
+          <div key={index} className="h-9 w-16 shrink-0 animate-pulse rounded-full bg-zinc-200/70 dark:bg-white/[0.06]" />
         ))}
       </div>
-      <div className="space-y-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
         {Array.from({ length: 4 }, (_, index) => (
-          <div key={index} className="flex items-center gap-3">
-            <div className="h-14 w-11 shrink-0 animate-pulse rounded-lg bg-zinc-200/80 dark:bg-white/10" />
-            <div className="min-w-0 flex-1 space-y-2">
-              <div className="h-3 w-32 animate-pulse rounded-full bg-zinc-200/80 dark:bg-white/10" />
-              <div className="h-3 w-48 max-w-full animate-pulse rounded-full bg-zinc-200/70 dark:bg-white/[0.06]" />
-            </div>
+          <div key={index} className="p-1">
+            <div className="aspect-[3/5] w-full animate-pulse rounded-[10px] bg-zinc-200/80 dark:bg-white/[0.06]" />
+            <div className="mt-2 h-3.5 w-3/4 animate-pulse rounded-full bg-zinc-200/80 dark:bg-white/10" />
+            <div className="mt-1.5 h-3 w-1/2 animate-pulse rounded-full bg-zinc-200/70 dark:bg-white/[0.06]" />
           </div>
         ))}
       </div>

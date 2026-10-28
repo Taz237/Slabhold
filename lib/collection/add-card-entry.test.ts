@@ -34,12 +34,15 @@ describe("Add a card on Collection", () => {
     assert.doesNotMatch(html, /Mail Day/);
     assert.doesNotMatch(html, /\/mail-day/);
 
+    // Empty: the header row. With cards: the hero, which carries Add a card.
     const dash = read("components/dashboard.tsx");
     const header = dash.indexOf("<CollectionHeader");
+    const hero = dash.indexOf("<PortfolioHero");
     const welcome = dash.indexOf("<FirstCardWelcome");
-    const cards = dash.indexOf("visible.map");
-    assert.ok(header > 0 && welcome > header && cards > header);
-    const emptyBranch = dash.indexOf("cards.length === 0 ? (");
+    const cards = dash.indexOf("<CollectionGrid");
+    assert.ok(header > 0 && hero > header && welcome > hero && cards > hero);
+    assert.match(read("components/portfolio-hero.tsx"), /<AddCardLink \/>/);
+    const emptyBranch = dash.indexOf("cards.length === 0 ? (", hero);
     assert.ok(emptyBranch > header);
     assert.ok(welcome > emptyBranch);
   });

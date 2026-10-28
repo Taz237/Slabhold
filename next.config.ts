@@ -9,6 +9,24 @@ const nextConfig: NextConfig = {
   outputFileTracingExcludes: {
     "*": ["node_modules/sharp/**", "node_modules/@img/**", "public/landing/2.png"],
   },
+  // Collection tile photos only. Card photos are uploaded under random UUID
+  // paths and never change, so a long cache is safe. One quality and short
+  // size lists keep the number of transformations small.
+  images: {
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "knuwflptobyutrauxblj.supabase.co",
+        port: "",
+        pathname: "/storage/v1/object/public/**",
+        search: "",
+      },
+    ],
+    qualities: [75],
+    deviceSizes: [640, 828, 1200],
+    imageSizes: [256, 384],
+    minimumCacheTTL: 60 * 60 * 24 * 31,
+  },
   async redirects() {
     return [
       {

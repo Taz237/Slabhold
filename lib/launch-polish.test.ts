@@ -91,9 +91,10 @@ describe("label mapping", () => {
     assert.equal(needsDetails(complete), false);
     assert.equal(needsDetails({ ...complete, noNumber: true, cardNumber: "" }), false);
 
-    const dashboard = read("components/dashboard.tsx");
-    assert.match(dashboard, /needsDetailsLabel\(card\)/);
-    assert.doesNotMatch(dashboard, /Needs details/);
+    // Collection tiles show a small amber dot named by the label.
+    const grid = read("components/collection-grid.tsx");
+    assert.match(grid, /aria-label=\{needsDetailsLabel\(card\)\}/);
+    assert.doesNotMatch(grid, /Needs details/);
   });
 });
 
