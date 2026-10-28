@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { X } from "lucide-react";
+import { Check, X } from "lucide-react";
 import { searchCatalog } from "@/lib/card-catalog";
 import { collapseInitials } from "@/lib/players/initials";
 import { nameSuggestionLabel, withDirectoryPlayers } from "@/lib/players/suggest";
@@ -17,6 +17,9 @@ import { compactInterest, normInterest, type CollectInterest } from "@/lib/socia
 import { createSupabaseBrowser } from "@/lib/supabase/browser";
 import { getSupabaseConfig } from "@/lib/supabase/client";
 
+const bigChipClass =
+  "inline-flex min-h-14 items-center gap-1.5 rounded-2xl border px-5 text-[17px] font-semibold transition-colors duration-150 motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:outline-none";
+
 const chipClass =
   "inline-flex min-h-11 items-center justify-center rounded-full border px-4 text-sm font-semibold";
 
@@ -24,28 +27,29 @@ export function SportChips({
   sports,
   selected,
   onToggle,
+  big = false,
 }: {
   sports: readonly string[];
   selected: readonly string[];
   onToggle: (sport: string) => void;
+  /** First-run setup: larger chips in brand purple. */
+  big?: boolean;
 }) {
   const picked = new Set(selected.map((sport) => sport.toLowerCase()));
   return (
-    <div className="flex flex-wrap gap-2" role="group" aria-label="Sports">
+    <div className={`flex flex-wrap ${big ? "gap-2.5" : "gap-2"}`} role="group" aria-label="Sports">
       {sports.map((sport) => {
         const on = picked.has(sport.toLowerCase());
+        const tone = big
+          ? on
+            ? `${bigChipClass} border-violet-600 bg-violet-600 text-white shadow-[0_8px_24px_-10px_rgba(124,58,237,0.9)]`
+            : `${bigChipClass} border-zinc-300 bg-white text-zinc-900 dark:border-white/15 dark:bg-white/[0.04] dark:text-zinc-100`
+          : on
+            ? `${chipClass} border-zinc-900 bg-zinc-900 text-white dark:border-zinc-100 dark:bg-zinc-100 dark:text-zinc-950`
+            : `${chipClass} border-zinc-300 bg-white text-zinc-900 dark:border-white/15 dark:bg-transparent`;
         return (
-          <button
-            key={sport}
-            type="button"
-            aria-pressed={on}
-            onClick={() => onToggle(sport)}
-            className={
-              on
-                ? `${chipClass} border-zinc-900 bg-zinc-900 text-white dark:border-zinc-100 dark:bg-zinc-100 dark:text-zinc-950`
-                : `${chipClass} border-zinc-300 bg-white text-zinc-900 dark:border-white/15 dark:bg-transparent`
-            }
-          >
+          <button key={sport} type="button" aria-pressed={on} onClick={() => onToggle(sport)} className={tone}>
+            {big && on ? <Check aria-hidden className="h-4 w-4" strokeWidth={3} /> : null}
             {sport}
           </button>
         );

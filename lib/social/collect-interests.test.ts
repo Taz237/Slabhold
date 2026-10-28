@@ -501,7 +501,7 @@ describe("skip and complete", () => {
 describe("collecting UI", () => {
   it("is skippable, editable in settings, and quiet when the table is missing", () => {
     const root = process.cwd();
-    const prompt = readFileSync(join(root, "components/collect-prompt.tsx"), "utf8");
+    const prompt = readFileSync(join(root, "components/onboarding/first-run-setup.tsx"), "utf8");
     const settings = readFileSync(join(root, "components/collect-settings.tsx"), "utf8");
     const settingsPage = readFileSync(join(root, "app/settings/collecting/page.tsx"), "utf8");
     const editor = readFileSync(join(root, "components/collect-editor.tsx"), "utf8");
@@ -519,7 +519,7 @@ describe("collecting UI", () => {
     assert.match(prompt, /PICK_LIMIT_MESSAGE/);
     assert.match(settings, /PICK_LIMIT_MESSAGE/);
     assert.match(prompt, /Skip/);
-    assert.match(prompt, /collectPromptVisible\(/);
+    assert.match(prompt, /setupVisible\(/);
     assert.match(prompt, /interestWriteRows\("skip"/);
     assert.match(prompt, /interestWriteRows\("complete"/);
     assert.match(prompt, /schemaMissing\(/);

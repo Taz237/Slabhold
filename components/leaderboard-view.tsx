@@ -22,7 +22,7 @@ const BOARD_ICON: Record<string, typeof Layers> = {
 
 const PLACE: Record<number, string> = { 1: "1ST", 2: "2ND", 3: "3RD" };
 
-const STYLES = `
+export const LEADERBOARD_STYLES = `
   @keyframes lb-rise {
     from { opacity: 0; transform: translateY(10px); }
     to { opacity: 1; transform: none; }
@@ -139,7 +139,7 @@ function mineRing(mine: boolean, accent: string): CSSProperties | undefined {
   return mine ? { boxShadow: `0 0 0 2px #09090b, 0 0 0 4px ${accent}` } : undefined;
 }
 
-function PodiumRow({ entry, boardId }: { entry: BoardRow; boardId: string }) {
+export function PodiumRow({ entry, boardId }: { entry: BoardRow; boardId: string }) {
   const accent = boardAccent(boardId);
   const labels = person(entry, boardId);
   return (
@@ -354,7 +354,7 @@ export function LeaderboardView({ model }: { model: LeaderboardPageModel }) {
   const closed = model.standing === FINAL_LABEL;
   return (
     <div className="-mx-4 -mt-5 bg-zinc-950 text-zinc-100" data-leaderboard="">
-      <style>{STYLES}</style>
+      <style>{LEADERBOARD_STYLES}</style>
       <div className="px-4 pt-4 pb-3">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">

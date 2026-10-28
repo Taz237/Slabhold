@@ -1,5 +1,5 @@
 /**
- * Bundled player directory for the collect-prompt name step.
+ * Bundled player directory for the first-run setup and collecting settings name search.
  * Refresh with `node scripts/build-player-directory.mjs` (ESPN public rosters
  * plus the retired-star list in that script). Names, sport, and team only.
  * Normalized names are computed once, when this chunk loads.

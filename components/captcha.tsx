@@ -22,6 +22,7 @@ export function Captcha({
   onFail,
   onActivity,
   onInteractive,
+  quiet = false,
   ref,
 }: {
   onToken: (token: string) => void;
@@ -29,6 +30,11 @@ export function Captcha({
   onFail: () => void;
   onActivity: () => void;
   onInteractive: (waiting: boolean) => void;
+  /**
+   * Hide the widget unless Turnstile needs a tap. Same check, same token
+   * rules: only the visible box changes.
+   */
+  quiet?: boolean;
   ref?: Ref<CaptchaHandle>;
 }) {
   const siteKey = turnstileSiteKey();
@@ -57,7 +63,7 @@ export function Captcha({
     <Turnstile
       ref={widget}
       siteKey={siteKey}
-      options={{ theme: "light", size: "flexible" }}
+      options={{ theme: "light", size: "flexible", appearance: quiet ? "interaction-only" : "always" }}
       scriptOptions={{ onError: onFail }}
       onSuccess={onToken}
       onExpire={() => {
@@ -113,6 +119,8 @@ export function useCaptchaWatch(enabled: boolean, token: string | null) {
 
   return {
     failed: watch.failed,
+    /** Turnstile is waiting for a tap. */
+    interactive: watch.interactive,
     onActivity,
     onInteractive,
     onSolved,

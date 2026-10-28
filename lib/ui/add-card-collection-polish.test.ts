@@ -212,11 +212,13 @@ describe("collection screens", () => {
 });
 
 describe("signed-out landing overflow", () => {
-  it("keeps the hero shots inside the column without a visible scrollbar", () => {
+  it("keeps the feature panels inside the column without a visible scrollbar", () => {
     const landing = read("components/landing-page.tsx");
-    assert.match(landing, /min-w-0 overflow-x-auto/);
-    assert.match(landing, /scrollbar-width:none/);
-    assert.match(landing, /flex w-max gap-4/);
-    assert.doesNotMatch(landing, /mt-10 flex gap-4 overflow-x-auto/);
+    const panels = read("components/landing/feature-panels.tsx");
+    assert.match(landing, /overflow-x-clip/);
+    assert.match(panels, /flex min-w-0 snap-x snap-mandatory/);
+    assert.match(panels, /overflow-x-auto/);
+    assert.match(panels, /scrollbar-width:none/);
+    assert.match(panels, /w-full shrink-0 snap-start/);
   });
 });

@@ -8,15 +8,19 @@ import { Logo } from "@/components/logo";
 import { useSocial } from "@/components/social-provider";
 import { AccountDeletedToast } from "@/components/account-deleted-toast";
 import { BadgeRevealGate } from "@/components/badges/badge-reveal";
-import { CollectPrompt } from "@/components/collect-prompt";
 import { CreateMenu } from "@/components/create-menu";
 import { JoinBar } from "@/components/join-bar";
 import { LandingPage } from "@/components/landing-page";
+import { CoachTour } from "@/components/onboarding/coach-tour";
+import { FirstRunSetup } from "@/components/onboarding/first-run-setup";
+import { useOnboardingBusy } from "@/components/onboarding/use-onboarding";
+import { YoureIn } from "@/components/onboarding/youre-in";
 import { AccountMenu } from "@/components/side-menu";
 import { isAuthPage, shouldShowJoinBar } from "@/lib/auth/guest-paths";
 import { clearLogoutHome, logoutHomePending } from "@/lib/auth/logout-home";
 import { requiresAccount, routeAccess } from "@/lib/auth/route-access";
 import { loginPath, pathWithQuery } from "@/lib/auth/safe-next";
+import type { TourTarget } from "@/lib/onboarding/first-run";
 import type { Profile } from "@/lib/social/types";
 import { BOTTOM_NAV } from "@/lib/ui/bottom-nav";
 import {
@@ -34,10 +38,19 @@ const TAB_ICONS = {
   "/messages": Mail,
 } as const;
 
+/** Coach-mark anchors for the quick tour. Home has none. */
+const TAB_TOUR: Partial<Record<(typeof BOTTOM_NAV)[number]["href"], TourTarget>> = {
+  "/leaderboard": "leaderboard",
+  "/cards/new": "add-card",
+  "/collection": "collection",
+  "/messages": "messages",
+};
+
 const TABS = BOTTOM_NAV.map((tab) => ({
   href: tab.href,
   label: tab.label,
   icon: TAB_ICONS[tab.href],
+  tour: TAB_TOUR[tab.href],
 }));
 
 function profileUsernameFromPath(pathname: string): string | null {
@@ -89,6 +102,7 @@ function Shell({
   const pathname = usePathname();
   const router = useRouter();
   const { mode } = useSocial();
+  const onboardingBusy = useOnboardingBusy();
   /** Collection needs a wider desktop column; feed/timeline stay max-w-lg. */
   const wideMain =
     pathname.startsWith("/collection") || pathname.startsWith("/portfolio");
@@ -191,6 +205,7 @@ function Shell({
                     key={tab.href}
                     href={tab.href}
                     onClick={onTabClick}
+                    data-tour={tab.tour}
                     aria-label="Add card"
                     aria-current={active ? "page" : undefined}
                     className="flex min-w-0 flex-1 flex-col items-center gap-0.5 px-0.5 py-1 text-[10px] font-medium leading-none text-violet-700 dark:text-violet-200"
@@ -208,6 +223,7 @@ function Shell({
                   key={tab.href}
                   href={tab.href}
                   onClick={onTabClick}
+                  data-tour={tab.tour}
                   aria-label={
                     messageBadge > 0 ? `Messages, ${messageBadge} unread` : tab.label
                   }
@@ -239,8 +255,12 @@ function Shell({
       ) : null}
       {showJoin ? <JoinBar /> : null}
       {showNav ? <CreateMenu key={pathname} /> : null}
-      {user ? <CollectPrompt /> : null}
-      {user && mode === "supabase" ? <BadgeRevealGate userId={user.id} username={user.username} /> : null}
+      {user ? <FirstRunSetup /> : null}
+      {user ? <YoureIn userId={user.id} username={user.username} /> : null}
+      {user ? <CoachTour userId={user.id} /> : null}
+      {user && mode === "supabase" && !onboardingBusy ? (
+        <BadgeRevealGate userId={user.id} username={user.username} />
+      ) : null}
     </div>
   );
 }

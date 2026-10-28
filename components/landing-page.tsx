@@ -1,53 +1,72 @@
 "use client";
 
-import Image from "next/image";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useState } from "react";
+import { Suspense } from "react";
+import { HeroSlabs } from "@/components/landing/hero-slabs";
 import { Logo } from "@/components/logo";
 import { trackEvent } from "@/lib/analytics";
 import { landingLoginHref, landingSignupHref, safeNext } from "@/lib/auth/safe-next";
 
-const SHOTS = [
-  { src: "/landing/1.png", label: "The timeline", width: 860, height: 1860 },
-  { src: "/landing/2.png", label: "Your slabs", width: 860, height: 1734 },
-  { src: "/landing/3.png", label: "Sold prices", width: 860, height: 1860 },
-] as const;
+/** Below the hero, so it loads in its own chunk after the hero paints. */
+const FeaturePanels = dynamic(
+  () => import("@/components/landing/feature-panels").then((mod) => mod.FeaturePanels),
+  { loading: () => <PanelsSkeleton /> },
+);
 
 export function LandingPage() {
   return (
-    <div className="min-h-dvh bg-[#09090b] text-zinc-100">
-      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(124,58,237,0.28),_transparent_55%)]" />
-      <div className="relative mx-auto flex min-h-dvh w-full max-w-lg flex-col px-6 pt-[max(2.75rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))]">
-        <div className="flex items-center gap-2">
-          <Logo />
-          <span className="text-[17px] font-bold tracking-tight">Slabhold</span>
-        </div>
+    <div className="min-h-dvh overflow-x-clip bg-[#09090b] text-zinc-100">
+      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(124,58,237,0.32),_transparent_58%)]" />
+      <div className="relative mx-auto flex min-h-dvh w-full max-w-lg flex-col px-6 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))] lg:max-w-5xl">
+        <header className="flex min-h-14 items-center justify-between">
+          <span className="flex items-center gap-2">
+            <Logo />
+            <span className="text-[17px] font-bold tracking-tight">Slabhold</span>
+          </span>
+          <Suspense fallback={<LoginLink next="/" />}>
+            <FromSearch render={(next) => <LoginLink next={next} />} />
+          </Suspense>
+        </header>
 
-        <h1 className="mt-10 text-[2rem] font-bold leading-[1.15] tracking-tight">
-          The social home for sports card collectors.
-        </h1>
-        <p className="mt-3 max-w-sm text-[15px] leading-6 text-zinc-400">
-          Track your slabs, see real sold prices, post your pickups, and follow collectors.
-        </p>
-
-        <Suspense fallback={<LandingActions next="/" />}>
-          <LandingActionsFromSearch />
-        </Suspense>
-
-        <div className="mt-10 min-w-0 overflow-x-auto overscroll-x-contain pb-2 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-          <div className="flex w-max gap-4">
-            {SHOTS.map((shot) => (
-              <LandingShot
-                key={shot.src}
-                src={shot.src}
-                label={shot.label}
-                width={shot.width}
-                height={shot.height}
-              />
-            ))}
+        <section className="mt-6 lg:mt-14 lg:grid lg:grid-cols-[1.05fr_1fr] lg:items-center lg:gap-12">
+          <div className="lg:order-2">
+            <HeroSlabs />
           </div>
-        </div>
+          <div className="mt-6 text-center lg:mt-0 lg:text-left">
+            <h1 className="text-[2.5rem] leading-[1.05] font-extrabold tracking-[-0.035em] text-white sm:text-5xl lg:text-6xl">
+              Your cards.
+              <br />
+              Your comps.
+              <br />
+              <span className="bg-gradient-to-r from-[#A78BFA] to-[#7C3AED] bg-clip-text text-transparent">
+                Your people.
+              </span>
+            </h1>
+            <p className="mx-auto mt-4 max-w-sm text-[16px] leading-6 text-zinc-400 lg:mx-0">
+              Track your sports cards with recent sold prices, and share them with collectors who get it.
+            </p>
+            <Suspense fallback={<LandingActions next="/" />}>
+              <LandingActionsFromSearch />
+            </Suspense>
+          </div>
+        </section>
+
+        <FeaturePanels />
+
+        <section className="mt-16 rounded-[2rem] border border-white/10 bg-gradient-to-b from-[#2e1065]/70 to-[#09090b] px-6 py-10 text-center">
+          <Logo className="mx-auto h-12 w-12" />
+          <h2 className="mt-4 text-[2rem] leading-tight font-extrabold tracking-tight text-white">Join free</h2>
+          <p className="mx-auto mt-2 max-w-xs text-[15px] leading-6 text-zinc-400">
+            Bring your collection. Find your people. It takes a minute.
+          </p>
+          <div className="mx-auto max-w-sm">
+            <Suspense fallback={<LandingActions next="/" />}>
+              <LandingActionsFromSearch />
+            </Suspense>
+          </div>
+        </section>
 
         <footer className="mt-auto flex gap-4 pt-10 text-sm text-zinc-400">
           <Link href="/privacy" className="hit-44 inline-flex items-center font-semibold underline underline-offset-2">
@@ -62,99 +81,57 @@ export function LandingPage() {
   );
 }
 
+function FromSearch({ render }: { render: (next: string) => React.ReactNode }) {
+  const next = safeNext(useSearchParams().get("next"));
+  return <>{render(next)}</>;
+}
+
 function LandingActionsFromSearch() {
   const next = safeNext(useSearchParams().get("next"));
   return <LandingActions next={next} />;
 }
 
+function LoginLink({ next }: { next: string }) {
+  return (
+    <Link
+      href={landingLoginHref(next)}
+      onClick={() => trackEvent("landing_cta_clicked", { button: "login" })}
+      className="inline-flex min-h-11 items-center rounded-full px-3 text-[15px] font-semibold text-zinc-200 hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-[#A78BFA] focus-visible:outline-none"
+    >
+      Log in
+    </Link>
+  );
+}
+
 export function LandingActions({ next }: { next: string }) {
   return (
-    <div className="mt-8 space-y-3">
+    <div className="mt-7 space-y-2">
       <Link
         href={landingSignupHref(next)}
         onClick={() => trackEvent("landing_cta_clicked", { button: "signup" })}
-        className="block w-full rounded-full bg-[#7C3AED] py-3.5 text-center text-[15px] font-semibold text-white"
+        className="flex h-14 w-full items-center justify-center rounded-full bg-[#7C3AED] text-[17px] font-semibold text-white shadow-[0_14px_40px_-12px_rgba(124,58,237,0.95)] transition-transform duration-150 active:scale-[0.98] motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-[#A78BFA] focus-visible:ring-offset-2 focus-visible:ring-offset-[#09090b] focus-visible:outline-none lg:max-w-sm"
       >
-        Sign up
+        Create account
       </Link>
-      <Link
-        href={landingLoginHref(next)}
-        onClick={() => trackEvent("landing_cta_clicked", { button: "login" })}
-        className="block w-full rounded-full border border-white/15 py-3.5 text-center text-[15px] font-semibold text-white"
-      >
-        Log in
-      </Link>
-    </div>
-  );
-}
-
-function LandingShot({
-  src,
-  label,
-  width,
-  height,
-}: {
-  src: string;
-  label: string;
-  width: number;
-  height: number;
-}) {
-  const [phase, setPhase] = useState<"check" | "ready" | "missing">("check");
-
-  useEffect(() => {
-    let cancelled = false;
-    const probe = new window.Image();
-    probe.onload = () => {
-      if (!cancelled) setPhase("ready");
-    };
-    probe.onerror = () => {
-      if (!cancelled) setPhase("missing");
-    };
-    probe.src = src;
-    return () => {
-      cancelled = true;
-    };
-  }, [src]);
-
-  return (
-    <div className="w-[min(220px,72vw)] shrink-0 sm:w-[220px]">
-      {phase === "ready" ? (
-        <div
-          className="relative w-full overflow-hidden rounded-[1.6rem] border border-white/10 shadow-[0_20px_60px_rgba(124,58,237,0.25)]"
-          style={{ aspectRatio: `${width} / ${height}` }}
+      <p className="text-center text-[15px] text-zinc-400 lg:max-w-sm">
+        Have an account?{" "}
+        <Link
+          href={landingLoginHref(next)}
+          onClick={() => trackEvent("landing_cta_clicked", { button: "login" })}
+          className="hit-44 inline-flex items-center font-semibold text-white underline underline-offset-4"
         >
-          <Image
-            src={src}
-            alt={`${label} screenshot`}
-            fill
-            sizes="(max-width: 639px) 72vw, 220px"
-            className="object-contain"
-            onError={() => setPhase("missing")}
-          />
-        </div>
-      ) : (
-        <ShotPlaceholder label={label} width={width} height={height} />
-      )}
+          Log in
+        </Link>
+      </p>
     </div>
   );
 }
 
-function ShotPlaceholder({
-  label,
-  width,
-  height,
-}: {
-  label: string;
-  width: number;
-  height: number;
-}) {
+function PanelsSkeleton() {
   return (
-    <div
-      className="flex w-full flex-col items-center justify-center rounded-[1.6rem] border border-white/10 bg-gradient-to-b from-[#2e1065] to-[#09090b] px-4 text-center"
-      style={{ aspectRatio: `${width} / ${height}` }}
-    >
-      <Logo className="h-12 w-12" />
-      <p className="mt-4 text-sm font-semibold text-white">{label}</p>
+    <div aria-hidden className="mt-14">
+      <div className="skeleton-shimmer h-[392px] w-full rounded-[1.75rem] sm:w-[340px]" />
+      <div className="mt-4 h-11" />
     </div>
   );
 }

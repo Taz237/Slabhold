@@ -16,6 +16,7 @@ import { createPortal } from "react-dom";
 import {
   Award,
   Camera,
+  Compass,
   FileText,
   Info,
   LogOut,
@@ -36,6 +37,7 @@ import { useSocial } from "@/components/social-provider";
 import { markLogoutHome } from "@/lib/auth/logout-home";
 import { loginPath } from "@/lib/auth/safe-next";
 import { requestBadgeCheck } from "@/lib/badges/client";
+import { startTour } from "@/lib/onboarding/store";
 import { parsePin } from "@/lib/badges/pins";
 import type { EarnedBadge } from "@/lib/badges/progress";
 import { clearNewCardDraft } from "@/lib/cards/new-card-draft";
@@ -50,6 +52,8 @@ import {
   menuItemActive,
   menuQueryOpens,
   swipeCloses,
+  TAKE_TOUR_LABEL,
+  TOUR_AFTER_CLOSE_MS,
 } from "@/lib/ui/side-menu";
 
 const ITEM_ICONS: Record<string, LucideIcon> = {
@@ -135,6 +139,7 @@ export function AccountMenu({ user, showLogin }: { user: Profile | null; showLog
         aria-haspopup="dialog"
         aria-expanded={open}
         aria-controls={panelId}
+        data-tour="menu"
         onClick={openMenu}
         className="-ml-1.5 grid h-11 w-11 place-items-center rounded-full focus-visible:ring-2 focus-visible:ring-[#7C3AED] focus-visible:outline-none"
       >
@@ -304,6 +309,12 @@ export function SideMenu({
     touchStart.current = null;
     setDrag(null);
     if (start && touch && swipeCloses(touch.clientX - start.x, touch.clientY - start.y)) onClose();
+  }
+
+  /** Close first, so the tour spotlights the real top bar and tabs. */
+  function takeTour() {
+    onClose();
+    window.setTimeout(startTour, TOUR_AFTER_CLOSE_MS);
   }
 
   const items = SIDE_MENU_ITEMS.filter((item) => item.href !== "/achievements" || hosted);
@@ -476,6 +487,12 @@ export function SideMenu({
                 }}
               />
             ) : null}
+            <li>
+              <button type="button" onClick={takeTour} className={`${settingsRow} ${rowTone(false)} w-full text-left`}>
+                <Compass aria-hidden className="h-5 w-5 shrink-0" />
+                {TAKE_TOUR_LABEL}
+              </button>
+            </li>
             <li>
               <button type="button" onClick={logOut} className={`${settingsRow} ${rowTone(false)} w-full text-left`}>
                 <LogOut aria-hidden className="h-5 w-5 shrink-0" />
