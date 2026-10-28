@@ -123,15 +123,13 @@ export function shareSlab(src: string, card: ShareCardFields): ShareSlab {
   };
 }
 
-/** "PUKA NACUA · 2023 PRIZM · SILVER · PSA 10". Grade only when graded. */
+/**
+ * "PUKA NACUA · 2023 PRIZM · SILVER". No grade: the slab label already shows
+ * it, and on long names it was the part that got cut off.
+ */
 export function shareChip(card: ShareCardFields): string {
-  const fields = { grade: card.grade ?? "", grader: card.grader ?? "", conditionType: card.conditionType ?? null };
-  const graded = tileKind(fields) === "slab";
-  const grade = graded ? [slabCompany(fields), slabNumber(fields)].filter(Boolean).join(" ") : "";
   const yearSet = [yearOf(card), scrubPublicText(card.setBrand)].filter(Boolean).join(" ");
-  const parts = [scrubPublicText(card.player), yearSet, cleanParallel(card.parallel), scrubPublicText(grade)].filter(
-    Boolean,
-  );
+  const parts = [scrubPublicText(card.player), yearSet, cleanParallel(card.parallel)].filter(Boolean);
   return clipText(parts.join(" · ").toUpperCase(), 64);
 }
 
