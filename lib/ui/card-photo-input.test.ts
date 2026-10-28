@@ -255,7 +255,8 @@ describe("accepted photo files", () => {
 
   it("disables Save while a photo is reading and drops a stale read", () => {
     const source = read("components/card-form.tsx");
-    assert.equal((source.match(/disabled=\{saving \|\| readingPhoto\}/g) ?? []).length, 2);
+    // Retry, the Add button, and the Edit button.
+    assert.equal((source.match(/disabled=\{saving \|\| readingPhoto\}/g) ?? []).length, 3);
     const clear = source.slice(source.indexOf("function clearPhoto"), source.indexOf("async function scanFile"));
     assert.match(clear, /photoReadId\.current \+= 1/);
     assert.match(clear, /setReadingPhoto\(false\)/);

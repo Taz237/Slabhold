@@ -62,7 +62,7 @@ describe("opening a card from the collection", () => {
     assert.match(detail, /Mark as sold/);
     assert.match(form, />\s*Cancel\s*</);
     assert.match(form, /type="button"/);
-    assert.match(form, /router\.push\(`\/cards\/\$\{card\.id\}`\)/);
+    assert.match(form, /router\.push\(existing \? `\/cards\/\$\{card\.id\}` : addedCardPath\(card\.id\)\)/);
     assert.match(people, /requireCardPageAccess/);
     assert.match(people, /loadCardPeople/);
   });

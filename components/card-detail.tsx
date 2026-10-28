@@ -12,6 +12,7 @@ import {
 } from "react";
 import { useCompFlagState } from "@/components/use-comp-flags";
 import { CardCollectorsSaying } from "@/components/card-collectors-saying";
+import { CardAddedPanel } from "@/components/card-added-panel";
 import { CardOwnersSection } from "@/components/card-owners";
 import { CardPeopleSections } from "@/components/card-people";
 import { WantButton } from "@/components/want-button";
@@ -42,6 +43,7 @@ import {
   readBrowserFirstCardPrivacy,
   subscribeFirstCardPrivacy,
 } from "@/lib/collection/first-card-privacy";
+import { showAddedPanel } from "@/lib/cards/added-panel";
 import type { OwnersAndHunters } from "@/lib/cards/people";
 import { gradeDetailSpecs } from "@/lib/cards/grading-company";
 import { canonicalParallelName } from "@/lib/cards/parallels";
@@ -49,7 +51,7 @@ import { basedOnSalesLabel, countForSalesLabel, valueFromShownSales } from "@/li
 import { soldNotice } from "@/lib/comps/sold-response";
 import { useSoldComps } from "@/lib/comps/use-sold-comps";
 import {
-  formatDate,
+  cardDatesLine,
   formatPaidLabel,
   hasPaid,
   isSold,
@@ -102,7 +104,7 @@ type CardFormView = ComponentType<{
   onSaved?: () => void;
 }>;
 
-export function CardDetail({ id }: { id: string }) {
+export function CardDetail({ id, added = false }: { id: string; added?: boolean }) {
   const router = useRouter();
   const pathname = usePathname() || "/";
   const { user } = useSocial();
@@ -112,6 +114,7 @@ export function CardDetail({ id }: { id: string }) {
   const [editing, setEditing] = useState(false);
   const [dealOpen, setDealOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [addedDismissed, setAddedDismissed] = useState(false);
   const privacyNudge = useSyncExternalStore(
     subscribeFirstCardPrivacy,
     () => readBrowserFirstCardPrivacy(user?.id ?? null, card?.id ?? null, Boolean(card?.isPublic)),
@@ -169,6 +172,11 @@ export function CardDetail({ id }: { id: string }) {
       cancelled = true;
     };
   }, [chartAttempt]);
+
+  useEffect(() => {
+    // Drop ?added=1 so a refresh does not show the panel again.
+    if (added) window.history.replaceState(null, "", pathname);
+  }, [added, pathname]);
 
   useEffect(() => {
     if (!editing) return;
@@ -314,6 +322,17 @@ export function CardDetail({ id }: { id: string }) {
         onEdit={toggleEdit}
         onMenu={toggleMenu}
       />
+
+      {/* card comes from the viewer's own collection, and the page is owner-only. */}
+      {showAddedPanel({ added, owned: Boolean(card), dismissed: addedDismissed }) ? (
+        <CardAddedPanel
+          cardId={card.id}
+          value={cardValue}
+          loading={valueLoading}
+          onDismiss={() => setAddedDismissed(true)}
+          onSeeSales={scrollToSales}
+        />
+      ) : null}
 
       <CardHero
         card={card}
@@ -474,10 +493,11 @@ export function CardDetail({ id }: { id: string }) {
             <p className="text-sm leading-6 text-zinc-700 dark:text-zinc-300">{card.notes}</p>
           ) : null}
           <p className="text-sm text-zinc-500">
-            Bought {formatDate(card.purchaseDate)}
-            {cardSold
-              ? ` · Sold ${formatDate((card.sellDate || card.soldAt || "").slice(0, 10))}`
-              : " · Still held"}
+            {cardDatesLine({
+              purchaseDate: card.purchaseDate,
+              sold: cardSold,
+              soldDate: (card.sellDate || card.soldAt || "").slice(0, 10),
+            })}
           </p>
 
           <WantButton
@@ -720,6 +740,18 @@ export function CardDetail({ id }: { id: string }) {
       <CardCollectorsSaying cardId={card.id} heading="Who's talking about this card" />
     </div>
   );
+}
+
+/** Scroll to the sales graph. Its wrapper is display: contents, so use its first box. */
+function scrollToSales() {
+  const slot = document.querySelector<HTMLElement>('[data-slot="sales-chart"]');
+  if (!slot) return;
+  const target =
+    getComputedStyle(slot).display === "contents"
+      ? ((slot.firstElementChild as HTMLElement | null) ?? slot)
+      : slot;
+  const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+  target.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
 }
 
 function isPeople(value: unknown): value is OwnersAndHunters {

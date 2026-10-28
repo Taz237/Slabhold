@@ -48,6 +48,8 @@ export type NewCardDraft = {
   category: CardCategory;
   sportTouched: boolean;
   sportOffer: string;
+  /** "Don't know (bin card)": no purchase date or price. */
+  unknownPurchase: boolean;
 };
 
 let draft: NewCardDraft | null = null;
@@ -75,6 +77,27 @@ export function clearNewCardDraft(): void {
  */
 export function formForSubmit<T>(snapshot: T, persisted: T | null): T {
   return persisted ?? snapshot;
+}
+
+function optionalPrice(value: string): number | null {
+  const trimmed = value.trim();
+  if (trimmed === "") return null;
+  const n = Number(trimmed);
+  if (!Number.isFinite(n) || n === 0) return null;
+  return n;
+}
+
+/** Purchase fields for the save payload. A bin card saves no date and no price. */
+export function purchaseForSubmit(input: {
+  unknownPurchase: boolean;
+  purchasePrice: string;
+  purchaseDate: string;
+}): { purchasePrice: number | null; purchaseDate: string } {
+  if (input.unknownPurchase) return { purchasePrice: null, purchaseDate: "" };
+  return {
+    purchasePrice: optionalPrice(input.purchasePrice),
+    purchaseDate: input.purchaseDate,
+  };
 }
 
 function negativePrice(value: string): boolean {

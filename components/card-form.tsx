@@ -1,8 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState, type SetStateAction } from "react";
-import { ScanSearch } from "lucide-react";
+import { Fragment, useEffect, useMemo, useRef, useState, type SetStateAction } from "react";
+import { ChevronDown, ScanSearch } from "lucide-react";
 import { CardPhotoField } from "@/components/card-photo-field";
 import { CardSearch } from "@/components/card-search";
 import { CategoryPicker } from "@/components/category-picker";
@@ -13,8 +13,20 @@ import { toPublicAttachment } from "@/lib/social/card-posts";
 import { sharePostFromCard, shareSessionStore, shareToFeedControl, writeSharedPost } from "@/lib/social/share-to-feed";
 import { POST_LIMIT } from "@/lib/social/types";
 import { takeScan } from "@/lib/capture";
-import type { CatalogCard } from "@/lib/card-catalog";
+import { catalogLabel, type CatalogCard } from "@/lib/card-catalog";
+import {
+  CATALOG_MATCH_DEBOUNCE_MS,
+  CATALOG_MISSING_NOTE,
+  bestCatalogMatch,
+  catalogMatchKey,
+  catalogMatchQuery,
+  catalogMatchView,
+  matchForApply,
+  type CatalogMatchLookup,
+} from "@/lib/catalog/auto-match";
 import { catalogPickFields } from "@/lib/catalog/catalog-pick";
+import { loadCatalogSearchSession } from "@/lib/catalog/catalog-search-session";
+import { searchCatalogRemote } from "@/lib/catalog/search-remote";
 import {
   catalogPickStillMatches,
   shouldSubmitCatalogCard,
@@ -39,12 +51,23 @@ import {
   gradingCompanyFromCard,
   gradingCompanyOptions,
 } from "@/lib/cards/grading-company";
-import { todayDateInput } from "@/lib/cards/form-defaults";
+import {
+  ADD_FORM_SUBLINE,
+  MORE_DETAILS_LABEL,
+  addFormSections,
+  draftOpensMoreDetails,
+  firstInvalidField,
+  revealField,
+  type AddVisibleField,
+  type MoreDetailsField,
+} from "@/lib/cards/add-form-sections";
+import { addedCardPath } from "@/lib/cards/added-panel";
 import {
   assessNewCardSubmit,
   clearNewCardDraft,
   formForSubmit,
   newCardSeed,
+  purchaseForSubmit,
   readNewCardDraft,
   writeNewCardDraft,
   type CardDraftForm,
@@ -84,14 +107,6 @@ import type {
 
 const DEMO_IDENTIFY =
   process.env.NEXT_PUBLIC_ENABLE_DEMO_IDENTIFY === "true";
-
-function parseOptionalPrice(value: string): number | null {
-  const trimmed = value.trim();
-  if (trimmed === "") return null;
-  const n = Number(trimmed);
-  if (!Number.isFinite(n) || n === 0) return null;
-  return n;
-}
 
 export function CardForm({
   existing,
@@ -195,7 +210,12 @@ export function CardForm({
   );
   const [isAuto, setIsAuto] = useState(restored?.isAuto ?? Boolean(existing?.isAuto));
   const [isRelic, setIsRelic] = useState(restored?.isRelic ?? Boolean(existing?.isRelic));
+  const [unknownPurchase, setUnknownPurchase] = useState(restored?.unknownPurchase ?? false);
   const [touched, setTouched] = useState<Record<string, boolean>>({});
+  const sections = addFormSections(Boolean(existing));
+  const [moreOpen, setMoreOpen] = useState(() => draftOpensMoreDetails(restored));
+  const [matchLookup, setMatchLookup] = useState<CatalogMatchLookup | null>(null);
+  const [matchDismissed, setMatchDismissed] = useState(false);
 
   const manualPrefill =
     !existing && !catalogStart && initialQuery.trim() ? parseManualPrefill(initialQuery) : null;
@@ -214,7 +234,7 @@ export function CardForm({
     serialNo: existing?.serialNo != null ? String(existing.serialNo) : "",
     sport: existing?.sport ?? catalogStart?.form.sport ?? "Basketball",
     purchasePrice: hasPaid(existing) ? String(existing!.purchasePrice) : "",
-    purchaseDate: existing ? (existing.purchaseDate ?? "") : todayDateInput(),
+    purchaseDate: existing ? (existing.purchaseDate ?? "") : "",
     estimatedSellPrice: estimateInputFromCard(existing?.estimatedSellPrice),
     sellPrice: existing?.sellPrice != null ? String(existing.sellPrice) : "",
     sellDate: existing?.sellDate ?? "",
@@ -257,6 +277,7 @@ export function CardForm({
       category,
       sportTouched,
       sportOffer,
+      unknownPurchase,
     };
   }
 
@@ -275,6 +296,7 @@ export function CardForm({
       !isRookie &&
       !isAuto &&
       !isRelic &&
+      !unknownPurchase &&
       gradeNumber.trim() === "" &&
       certNumber.trim() === "" &&
       pendingCardId == null &&
@@ -284,6 +306,7 @@ export function CardForm({
       form.cardNumber.trim() === "" &&
       form.notes.trim() === "" &&
       form.purchasePrice.trim() === "" &&
+      form.purchaseDate.trim() === "" &&
       form.estimatedSellPrice.trim() === "" &&
       form.sellPrice.trim() === "";
     if (untouched) {
@@ -314,6 +337,7 @@ export function CardForm({
       category,
       sportTouched,
       sportOffer,
+      unknownPurchase,
     });
   }, [
     seed,
@@ -342,6 +366,7 @@ export function CardForm({
     category,
     sportTouched,
     sportOffer,
+    unknownPurchase,
   ]);
 
   const view = assessNewCardSubmit({
@@ -402,6 +427,49 @@ export function CardForm({
     gradeQualifier,
   ]);
 
+  const matchForm = useMemo(
+    () =>
+      existing
+        ? null
+        : {
+            playerName: form.playerName,
+            yearLabel: form.yearLabel,
+            setBrand: form.setBrand,
+            cardNumber: form.cardNumber,
+            noNumber,
+          },
+    [existing, form.playerName, form.yearLabel, form.setBrand, form.cardNumber, noNumber],
+  );
+  const matchKey = matchForm ? catalogMatchKey(matchForm) : null;
+
+  // One debounced catalog lookup for a typed card that was not picked from search.
+  useEffect(() => {
+    if (!matchForm || !matchKey) return;
+    const query = catalogMatchQuery(matchForm);
+    if (!query) return;
+    const pick = catalogPick.current;
+    const picked = catalogPickStillMatches(catalogPick.current, {
+      playerName: matchForm.playerName,
+      yearLabel: matchForm.yearLabel,
+      setBrand: matchForm.setBrand,
+      cardNumber: matchForm.noNumber ? "" : normalizeCardNumberInput(matchForm.cardNumber),
+      // Parallel can differ from the catalog row.
+      parallel: pick?.parallel ?? "Base",
+    });
+    if (picked) return;
+    const session = loadCatalogSearchSession({
+      query,
+      search: searchCatalogRemote,
+      debounceMs: CATALOG_MATCH_DEBOUNCE_MS,
+      limit: 20,
+    });
+    void session.done.then((snapshot) => {
+      if (snapshot.aborted) return;
+      setMatchLookup({ query: matchKey, match: bestCatalogMatch(matchForm, snapshot.results) });
+    });
+    return () => session.abort();
+  }, [matchForm, matchKey]);
+
   function markTouched(key: string) {
     setTouched((prev) => ({ ...prev, [key]: true }));
   }
@@ -410,26 +478,10 @@ export function CardForm({
     check: ReturnType<typeof assessNewCardSubmit>,
     values: CardDraftForm,
   ) {
-    const order = [
-      !check.playerOk ? "playerName" : null,
-      !check.setOk ? "setBrand" : null,
-      !check.yearOk ? "yearLabel" : null,
-      !check.cardNumberOk ? "cardNumber" : null,
-      check.companyMissing ? "gradingCompany" : null,
-      check.graded && !check.gradeNumber ? "grade" : null,
-      check.purchaseNeg ? "purchasePrice" : null,
-      check.estNeg ? "estimatedSellPrice" : null,
-      check.sellNeg ? "sellPrice" : null,
-      check.sold && !values.sellDate ? "sellDate" : null,
-    ].filter(Boolean) as string[];
-    const key = order[0];
+    const key = firstInvalidField(check, values);
     if (!key || !formRef.current) return;
-    const el = formRef.current.querySelector<HTMLElement>(
-      `[data-field="${key}"]`,
-    );
-    if (!el) return;
-    el.scrollIntoView({ behavior: "smooth", block: "center" });
-    el.focus();
+    const el = revealField(formRef.current, key);
+    if (el?.closest("details")) setMoreOpen(true);
   }
 
   function openCamera() {
@@ -517,6 +569,12 @@ export function CardForm({
     setParallelIsCustom(picked.parallelIsCustom);
     setParallelNote("");
     setIdentified(null);
+    setMatchLookup(null);
+  }
+
+  /** "Use this" on the match chip. Grade and parallel stay as typed. */
+  function acceptMatch(match: CatalogCard) {
+    applyCatalog(matchForApply(match, form.parallel));
   }
 
   function applyManualSearch(prefill: {
@@ -597,6 +655,10 @@ export function CardForm({
     setIsRookie(Boolean(catalogStart?.isRookie));
     setIsAuto(false);
     setIsRelic(false);
+    setUnknownPurchase(false);
+    setMoreOpen(false);
+    setMatchLookup(null);
+    setMatchDismissed(false);
     setTouched({});
     setSaveError(null);
     setForm(seededForm);
@@ -674,8 +736,11 @@ export function CardForm({
       gradeQualifier: liveCondition === "graded" ? gradeQualifier : "",
       certNumber: liveCondition === "graded" ? certNumber.trim() : "",
       sport: values.sport,
-      purchasePrice: parseOptionalPrice(values.purchasePrice),
-      purchaseDate: values.purchaseDate,
+      ...purchaseForSubmit({
+        unknownPurchase,
+        purchasePrice: values.purchasePrice,
+        purchaseDate: values.purchaseDate,
+      }),
       estimatedSellPrice: Number(values.estimatedSellPrice) || 0,
       sellPrice: sold && values.sellPrice ? Number(values.sellPrice) : null,
       sellDate: sold && values.sellDate ? values.sellDate : null,
@@ -755,7 +820,7 @@ export function CardForm({
           }
         }
       }
-      router.push(`/cards/${card.id}`);
+      router.push(existing ? `/cards/${card.id}` : addedCardPath(card.id));
       onSaved?.();
     } catch (error) {
       if (isSaveTimeout(error)) {
@@ -788,9 +853,7 @@ export function CardForm({
     }
   }
 
-  return (
-    <form ref={formRef} onSubmit={onSubmit} className="mx-auto max-w-xl space-y-5">
-      {embedded ? null : (
+  const headerNode = embedded ? null : (
       <div>
         <p
           className={
@@ -805,17 +868,17 @@ export function CardForm({
           {existing ? `Edit ${existing.playerName}` : "Add a card"}
         </h1>
         <p className="mt-1 text-sm text-zinc-500">
-          Player, set, what you paid, and a photo.{" "}
+          {existing ? "Player, set, what you paid, and a photo." : ADD_FORM_SUBLINE}{" "}
           {mode === "supabase"
             ? "Saved to your account."
             : "Saved in this browser."}
         </p>
       </div>
-      )}
+  );
 
-      <CategoryPicker value={category} onChange={setCategory} />
+  const categoryNode = <CategoryPicker value={category} onChange={setCategory} />;
 
-      {!existing ? (
+  const searchNode = !existing ? (
         <>
           <CardSearch
             initialQuery={existing ? "" : initialQuery}
@@ -835,9 +898,9 @@ export function CardForm({
             </button>
           ) : null}
         </>
-      ) : null}
+  ) : null;
 
-      {showingRestored ? (
+  const startOverNode = showingRestored ? (
         <button
           type="button"
           onClick={startOver}
@@ -845,8 +908,10 @@ export function CardForm({
         >
           Start over
         </button>
-      ) : null}
+  ) : null;
 
+  const photoNode = (
+    <>
       {photoMissing && !photo ? (
         <p className="text-sm text-amber-800 dark:text-amber-200">Photo needs re-adding</p>
       ) : null}
@@ -905,7 +970,10 @@ export function CardForm({
               </>
             ) : null}
       </CardPhotoField>
+    </>
+  );
 
+  const playerNode = (
       <Field
         label="Player name"
         required
@@ -924,8 +992,9 @@ export function CardForm({
           placeholder="Victor Wembanyama"
         />
       </Field>
+  );
 
-      <div className="grid grid-cols-2 gap-3">
+  const yearNode = (
         <Field
           label="Year"
           required
@@ -957,6 +1026,9 @@ export function CardForm({
             }}
           />
         </Field>
+  );
+
+  const sportNode = (
         <Field label="Sport">
           <NativeSelect
             label="Sport"
@@ -969,8 +1041,9 @@ export function CardForm({
             }}
           />
         </Field>
-      </div>
+  );
 
+  const setNode = (
       <Field
         label="Set / product"
         required
@@ -1001,7 +1074,9 @@ export function CardForm({
           }}
         />
       </Field>
+  );
 
+  const cardNumberNode = (
       <div className="space-y-2">
         <Field
           label="Card number"
@@ -1045,8 +1120,9 @@ export function CardForm({
           No number on card
         </label>
       </div>
+  );
 
-      <div className="grid grid-cols-2 gap-3">
+  const parallelNode = (
         <Field label="Parallel">
           <SearchSelect
             label="Parallel"
@@ -1068,6 +1144,9 @@ export function CardForm({
           />
           {parallelNote ? <p className="mt-1 text-xs text-zinc-500">{parallelNote}</p> : null}
         </Field>
+  );
+
+  const serialRunNode = (
         <Field label="Serial run">
           <div className="flex items-center gap-1">
             <span className="text-sm text-zinc-500">/</span>
@@ -1086,8 +1165,9 @@ export function CardForm({
             />
           </div>
         </Field>
-      </div>
+  );
 
+  const serialNoNode = (
       <Field label="Serial number">
         <input
           type="number"
@@ -1102,7 +1182,9 @@ export function CardForm({
           placeholder="e.g. 7"
         />
       </Field>
+  );
 
+  const traitsNode = (
       <div className="flex flex-wrap gap-4">
         <Toggle
           label="Rookie"
@@ -1116,7 +1198,9 @@ export function CardForm({
           onChange={setIsRelic}
         />
       </div>
+  );
 
+  const gradingCompanyNode = (
       <Field
         label="Grading company"
         required
@@ -1131,9 +1215,9 @@ export function CardForm({
           onChange={chooseGradeCompany}
         />
       </Field>
+  );
 
-      {graded ? (
-        <div className="space-y-3">
+  const gradeNode = graded ? (
           <Field
             label="Grade"
             required
@@ -1152,6 +1236,9 @@ export function CardForm({
               }}
             />
           </Field>
+  ) : null;
+
+  const gradeExtrasNode = graded ? (
           <div className="grid grid-cols-2 gap-3">
             <Field label="Cert #">
               <input
@@ -1172,9 +1259,10 @@ export function CardForm({
               />
             </Field>
           </div>
-        </div>
-      ) : null}
+  ) : null;
 
+  const purchaseNode = (
+    <div className="space-y-2">
       <div className="grid grid-cols-2 gap-3">
         <Field label="Purchase date">
           <input
@@ -1182,11 +1270,12 @@ export function CardForm({
             data-field="purchaseDate"
             suppressHydrationWarning
             value={form.purchaseDate}
+            disabled={unknownPurchase}
             onBlur={() => markTouched("purchaseDate")}
             onChange={(e) =>
               setForm((prev) => ({ ...prev, purchaseDate: e.target.value }))
             }
-            className={inputClass}
+            className={`${inputClass} disabled:opacity-50`}
           />
         </Field>
         <Field
@@ -1202,26 +1291,49 @@ export function CardForm({
             inputMode="decimal"
             min={0}
             step="0.01"
+            data-field="purchasePrice"
             value={form.purchasePrice}
+            disabled={unknownPurchase}
             onBlur={() => markTouched("purchasePrice")}
             onChange={(e) =>
               setForm((prev) => ({ ...prev, purchasePrice: e.target.value }))
             }
-            className={inputClass}
+            className={`${inputClass} disabled:opacity-50`}
             placeholder="e.g. 25.00"
           />
         </Field>
       </div>
+      {existing ? null : (
+        <label className="flex min-h-11 items-center gap-2 text-sm text-zinc-600 dark:text-zinc-400">
+          <CheckHit>
+            <input
+              type="checkbox"
+              checked={unknownPurchase}
+              onChange={(e) => {
+                setUnknownPurchase(e.target.checked);
+                if (e.target.checked) {
+                  setForm((prev) => ({ ...prev, purchasePrice: "", purchaseDate: "" }));
+                }
+              }}
+              className="size-5 accent-violet-500"
+            />
+          </CheckHit>
+          Don’t know (bin card)
+        </label>
+      )}
+    </div>
+  );
 
-      {existing ? (
+  const currentValueNode = existing ? (
         <p className="min-w-0 text-sm font-medium text-zinc-700 tabular-nums whitespace-nowrap dark:text-zinc-200">
           {current.loading
             ? "Current value …"
             : (currentValueLine ??
               formatCardValueLabel(current.value, { createdAt: existing.createdAt }))}
         </p>
-      ) : null}
+  ) : null;
 
+  const estimateNode = (
       <Field
         label="Your estimate"
         error={
@@ -1235,6 +1347,7 @@ export function CardForm({
           inputMode="decimal"
           min={0}
           step="0.01"
+          data-field="estimatedSellPrice"
           value={form.estimatedSellPrice}
           onBlur={() => markTouched("estimatedSellPrice")}
           onChange={(e) =>
@@ -1247,7 +1360,9 @@ export function CardForm({
           placeholder="e.g. 25.00"
         />
       </Field>
+  );
 
+  const soldToggleNode = (
       <label className="flex min-h-11 items-center gap-3 rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm dark:border-white/10 dark:bg-white/[0.03]">
         <CheckHit>
           <input
@@ -1259,7 +1374,9 @@ export function CardForm({
         </CheckHit>
         This card has been sold
       </label>
+  );
 
+  const publicNode = (
       <div className="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm dark:border-white/10 dark:bg-white/[0.03]">
         <label className="flex min-h-11 items-center gap-3">
           <CheckHit>
@@ -1282,7 +1399,9 @@ export function CardForm({
           Cards are private by default. You can show them on your profile.
         </p>
       </div>
+  );
 
+  const offersNode = (
       <OpenToOffersToggle
         visible={showOpenToOffersToggle({
           isEdit: Boolean(existing),
@@ -1293,8 +1412,9 @@ export function CardForm({
         checked={openToOffers}
         onChange={setOpenToOffers}
       />
+  );
 
-      {sold && (
+  const sellFieldsNode = sold ? (
         <div className="grid grid-cols-2 gap-3">
           <Field
             label="Actual sell price"
@@ -1333,8 +1453,9 @@ export function CardForm({
             />
           </Field>
         </div>
-      )}
+  ) : null;
 
+  const notesNode = (
       <Field label="Notes">
         <textarea
           rows={4}
@@ -1346,7 +1467,9 @@ export function CardForm({
           placeholder="Condition, centering, why you bought it…"
         />
       </Field>
+  );
 
+  const previewNode = (
       <p className="rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-700 dark:border-white/10 dark:bg-white/[0.04] dark:text-zinc-200">
         <span className="text-xs tracking-wide text-zinc-500 uppercase">
           Preview
@@ -1361,8 +1484,9 @@ export function CardForm({
           {preview.text}
         </span>
       </p>
+  );
 
-      {existing ? null : (
+  const shareToFeedNode = existing ? null : (
         <ShareToFeedField
           isPublic={share}
           share={shareToFeed}
@@ -1370,9 +1494,9 @@ export function CardForm({
           onShare={setShareToFeed}
           onCaption={setCaption}
         />
-      )}
+  );
 
-      {saveError ? (
+  const saveErrorNode = saveError ? (
         <div role="alert" className="space-y-2">
           <p className="text-sm text-rose-600 dark:text-rose-400">{saveError}</p>
           <button
@@ -1383,7 +1507,200 @@ export function CardForm({
             Retry
           </button>
         </div>
+  ) : null;
+
+  if (sections) {
+    const matchView = catalogMatchView({
+      query: matchKey,
+      dismissed: matchDismissed,
+      lookup: matchLookup,
+    });
+    const match = matchView === "chip" ? (matchLookup?.match ?? null) : null;
+    const matchNode = match ? (
+      <div
+        role="status"
+        className="rounded-2xl border border-violet-400/30 bg-violet-500/10 p-3"
+      >
+        <p className="text-sm text-zinc-700 dark:text-zinc-200">
+          Is this your card?{" "}
+          <span className="font-semibold text-zinc-900 dark:text-zinc-50">
+            {catalogLabel(matchForApply(match, form.parallel))}
+          </span>
+        </p>
+        <div className="mt-2 flex gap-2">
+          <button
+            type="button"
+            onClick={() => acceptMatch(match)}
+            className="inline-flex min-h-11 items-center rounded-full bg-violet-600 px-5 text-sm font-semibold text-white hover:bg-violet-500"
+          >
+            Use this
+          </button>
+          <button
+            type="button"
+            onClick={() => setMatchDismissed(true)}
+            aria-label="No, that's not my card"
+            className="inline-flex min-h-11 items-center rounded-full border border-zinc-200 px-5 text-sm font-semibold text-zinc-700 hover:bg-zinc-50 dark:border-white/10 dark:text-zinc-200 dark:hover:bg-white/5"
+          >
+            No
+          </button>
+        </div>
+      </div>
+    ) : matchView === "missing" ? (
+      <p className="text-xs leading-5 text-zinc-500">{CATALOG_MISSING_NOTE}</p>
+    ) : null;
+
+    const moreNodes: Record<MoreDetailsField, React.ReactNode> = {
+      sport: sportNode,
+      serialRun: serialRunNode,
+      serialNo: serialNoNode,
+      traits: traitsNode,
+      gradeExtras: gradeExtrasNode,
+      purchase: purchaseNode,
+      estimatedSellPrice: estimateNode,
+      sold: (
+        <>
+          {soldToggleNode}
+          {sellFieldsNode}
+        </>
+      ),
+      isPublic: publicNode,
+      openToOffers: offersNode,
+      notes: notesNode,
+      shareToFeed: shareToFeedNode,
+      photo: photoNode,
+      category: categoryNode,
+    };
+
+    const visibleNodes: Record<AddVisibleField, React.ReactNode> = {
+      search: (
+        <>
+          {searchNode}
+          {startOverNode}
+        </>
+      ),
+      playerName: playerNode,
+      yearLabel: yearNode,
+      setBrand: setNode,
+      cardNumber: cardNumberNode,
+      parallel: parallelNode,
+      gradingCompany: gradingCompanyNode,
+      grade: gradeNode,
+      submit: (
+        <>
+          {matchNode}
+          <details
+            open={moreOpen}
+            onToggle={(e) => setMoreOpen(e.currentTarget.open)}
+            className="group rounded-2xl border border-zinc-200 bg-white dark:border-white/10 dark:bg-white/[0.03]"
+          >
+            <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 rounded-2xl px-4 py-3 [&::-webkit-details-marker]:hidden">
+              <span className="min-w-0">
+                <span className="block text-sm font-semibold">{MORE_DETAILS_LABEL}</span>
+                <span className="block text-xs text-zinc-500">
+                  What you paid, photo, notes, sharing
+                </span>
+              </span>
+              <ChevronDown
+                aria-hidden
+                className="size-4 shrink-0 text-zinc-500 transition-transform duration-150 group-open:rotate-180 motion-reduce:transition-none"
+              />
+            </summary>
+            <div className="space-y-5 border-t border-zinc-200 px-4 pt-4 pb-5 dark:border-white/10">
+              {sections.more.map((key) => (
+                <Fragment key={key}>{moreNodes[key]}</Fragment>
+              ))}
+            </div>
+          </details>
+          {saveErrorNode}
+          <div className="sticky bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-10 -mx-4 bg-[color-mix(in_oklab,var(--background)_96%,transparent)] px-4 py-3 backdrop-blur-xl sm:mx-0 sm:px-0">
+            <button
+              type="submit"
+              disabled={saving || readingPhoto}
+              onMouseDown={(e) => {
+                // Keep focus so onBlur validation cannot swallow the first click.
+                if (e.button === 0) e.preventDefault();
+              }}
+              className="min-h-12 w-full rounded-full bg-violet-600 px-6 py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40 hover:bg-violet-500"
+            >
+              {saving ? "Adding…" : "Add to collection"}
+            </button>
+          </div>
+        </>
+      ),
+    };
+
+    return (
+      <form ref={formRef} onSubmit={onSubmit} className="mx-auto max-w-xl space-y-5">
+        {headerNode}
+        {sections.visible.map((key) => (
+          <Fragment key={key}>{visibleNodes[key]}</Fragment>
+        ))}
+      </form>
+    );
+  }
+
+  return (
+    <form ref={formRef} onSubmit={onSubmit} className="mx-auto max-w-xl space-y-5">
+      {headerNode}
+
+      {categoryNode}
+
+      {searchNode}
+
+      {startOverNode}
+
+      {photoNode}
+
+      {playerNode}
+
+      <div className="grid grid-cols-2 gap-3">
+        {yearNode}
+        {sportNode}
+      </div>
+
+      {setNode}
+
+      {cardNumberNode}
+
+      <div className="grid grid-cols-2 gap-3">
+        {parallelNode}
+        {serialRunNode}
+      </div>
+
+      {serialNoNode}
+
+      {traitsNode}
+
+      {gradingCompanyNode}
+
+      {graded ? (
+        <div className="space-y-3">
+          {gradeNode}
+          {gradeExtrasNode}
+        </div>
       ) : null}
+
+      {purchaseNode}
+
+      {currentValueNode}
+
+      {estimateNode}
+
+      {soldToggleNode}
+
+      {publicNode}
+
+      {offersNode}
+
+      {sellFieldsNode}
+
+      {notesNode}
+
+      {previewNode}
+
+      {shareToFeedNode}
+
+      {saveErrorNode}
 
       <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-between">
         {existing ? (
