@@ -246,7 +246,8 @@ export function SideMenu({
     const root = document.documentElement;
     const overflow = root.style.overflow;
     root.style.overflow = "hidden";
-    panel?.querySelector<HTMLElement>(FOCUSABLE)?.focus();
+    // The panel takes focus so no item shows a ring until you press Tab.
+    panel?.focus();
 
     function onKey(event: KeyboardEvent) {
       if (event.key === "Escape") {
@@ -335,8 +336,9 @@ export function SideMenu({
         role="dialog"
         aria-modal="true"
         aria-label="Menu"
+        tabIndex={-1}
         style={drag !== null && open ? { transform: `translateX(${drag}px)`, transition: "none" } : undefined}
-        className={`absolute inset-y-0 left-0 flex w-[80%] max-w-[320px] flex-col overflow-y-auto overscroll-contain border-r border-zinc-200 bg-white pt-[env(safe-area-inset-top)] pb-[max(1rem,env(safe-area-inset-bottom))] pl-[env(safe-area-inset-left)] shadow-2xl transition-transform duration-200 ease-out motion-reduce:transition-none dark:border-white/10 dark:bg-[#09090B] ${
+        className={`absolute inset-y-0 left-0 flex w-[80%] max-w-[320px] flex-col overflow-y-auto overscroll-contain border-r border-zinc-200 bg-white pt-[env(safe-area-inset-top)] pb-[max(1rem,env(safe-area-inset-bottom))] pl-[env(safe-area-inset-left)] shadow-2xl outline-none transition-transform duration-200 ease-out motion-reduce:transition-none dark:border-white/10 dark:bg-[#09090B] ${
           open ? "translate-x-0" : "-translate-x-full"
         }`}
       >
