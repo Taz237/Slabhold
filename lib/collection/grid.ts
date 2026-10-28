@@ -9,7 +9,11 @@ import { cardProfit, cardProfitPct } from "@/lib/portfolio";
 import type { SportsCard } from "@/lib/types";
 import type { CardValueResult } from "@/lib/value/types";
 
-type GradeFields = Pick<SportsCard, "grade" | "conditionType"> & { grader?: string | null };
+type GradeFields = {
+  grade?: string | null;
+  conditionType?: SportsCard["conditionType"] | null;
+  grader?: string | null;
+};
 
 export type TileKind = "slab" | "card";
 
@@ -147,7 +151,11 @@ export function tileGain(
 }
 
 /** "Luka Dončić 2018 Prizm, PSA 10, $412.00" */
-export function tileAccessibleName(card: SportsCard, valueText: string | null): string {
+export function tileAccessibleName(
+  card: GradeFields &
+    Pick<SportsCard, "playerName" | "year" | "setBrand"> & { yearLabel?: string },
+  valueText: string | null,
+): string {
   const grade = slabLabel(card) || (tileKind(card) === "slab" ? "Graded" : "Raw");
   return [`${card.playerName} ${cardTitle(card)}`.trim(), grade, valueText]
     .filter(Boolean)

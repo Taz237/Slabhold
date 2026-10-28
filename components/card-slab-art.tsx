@@ -18,18 +18,22 @@ import {
 } from "@/lib/collection/grid";
 import type { SportsCard } from "@/lib/types";
 
-type ArtCard = Pick<
+export type ArtCard = Pick<
   SportsCard,
   | "playerName"
   | "year"
   | "yearLabel"
   | "setBrand"
   | "grade"
-  | "conditionType"
   | "gradeQualifier"
   | "certNumber"
   | "accent"
->;
+> & {
+  /** Public cards may not say. The grade then decides. */
+  conditionType?: SportsCard["conditionType"];
+  /** public_cards.grader, when known. */
+  grader?: string;
+};
 
 /** Flat label colors. Text only, no grader logos. */
 const LABEL_TONES: Record<SlabTone, string> = {
@@ -57,15 +61,24 @@ export function CardSlabArt({
   source,
   status,
   onStatus,
+  sizes = TILE_IMAGE_SIZES,
 }: {
   card: ArtCard;
   index: number;
   source: PhotoSource;
   status: PhotoStatus;
   onStatus: (event: "load" | "error") => void;
+  sizes?: string;
 }) {
   const photo = (
-    <CardFace card={card} index={index} source={source} status={status} onStatus={onStatus} />
+    <CardFace
+      card={card}
+      index={index}
+      source={source}
+      status={status}
+      onStatus={onStatus}
+      sizes={sizes}
+    />
   );
 
   if (tileKind(card) === "card") {
@@ -139,12 +152,14 @@ function CardFace({
   source,
   status,
   onStatus,
+  sizes,
 }: {
   card: ArtCard;
   index: number;
   source: PhotoSource;
   status: PhotoStatus;
   onStatus: (event: "load" | "error") => void;
+  sizes: string;
 }) {
   // A cached photo can finish before hydration, so check once on mount.
   const imgRef = useCallback(
@@ -172,7 +187,7 @@ function CardFace({
           src={source.src}
           alt=""
           fill
-          sizes={TILE_IMAGE_SIZES}
+          sizes={sizes}
           quality={75}
           loading={eager ? "eager" : "lazy"}
           fetchPriority={eager ? "high" : "auto"}

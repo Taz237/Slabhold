@@ -93,8 +93,11 @@ describe("label mapping", () => {
 
     // Collection tiles show a small amber dot named by the label.
     const grid = read("components/collection-grid.tsx");
-    assert.match(grid, /aria-label=\{needsDetailsLabel\(card\)\}/);
+    assert.match(grid, /needsDetailsLabel=\{needsDetails\(card\) \? needsDetailsLabel\(card\) : null\}/);
     assert.doesNotMatch(grid, /Needs details/);
+    const tile = read("components/card-tile.tsx");
+    assert.match(tile, /aria-label=\{needsDetailsLabel\}/);
+    assert.doesNotMatch(tile, /Needs details/);
   });
 });
 

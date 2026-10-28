@@ -6,8 +6,8 @@ import { useEffect, useMemo, useState } from "react";
 import { MessageCircle, WalletCards } from "lucide-react";
 import { Avatar } from "@/components/avatar";
 import { outlineButton, solidButton } from "@/components/button-styles";
-import { CardThumb } from "@/components/card-thumb";
-import { OpenToOffersFilter, ProfileCardCaption } from "@/components/open-to-offers";
+import { OpenToOffersFilter } from "@/components/open-to-offers";
+import { ProfileCardGrid } from "@/components/profile-card-grid";
 import { ProfileEditSheet } from "@/components/profile-edit-sheet";
 import { LoadMore } from "@/components/load-more";
 import { MentionText } from "@/components/mention-text";
@@ -41,13 +41,10 @@ import {
   type ProfileTab,
 } from "@/lib/social/profile-tabs";
 import type { OwnedCard, Post, PublicCard } from "@/lib/social/types";
-import { EbaySoldLink } from "@/components/ebay-sold-link";
 import {
   filterOpenToOffers,
   openToOffersFilterAvailable,
 } from "@/lib/offers/open-to-offers";
-import { ebaySoldSearchUrlForCard } from "@/lib/value/ebay-sold";
-import { resolvePriceRead, tilePriceText } from "@/lib/value/price-fallback";
 import { useCardValues } from "@/lib/value/use-card-values";
 
 export function ProfileView({ username }: { username?: string }) {
@@ -467,36 +464,11 @@ export function ProfileView({ username }: { username?: string }) {
               ) : null}
             </EmptyState>
           ) : (
-            <ul className="grid grid-cols-2 gap-3">
-              {shownCollection.map((card) => {
-                const stored = cardValues.get(card.id);
-                const ebayHref = ebaySoldSearchUrlForCard(card);
-                const priceRead = resolvePriceRead({
-                  value: stored,
-                  createdAt: "createdAt" in card ? (card.createdAt as string) : null,
-                  similar: stored?.similar,
-                  ebayHref,
-                  card,
-                });
-                const priceText = tilePriceText(priceRead, true);
-                return (
-                  <li key={card.id}>
-                    <Link
-                      href={`${userHref(profile.username)}/cards/${encodeURIComponent(card.id)}`}
-                      className="block overflow-hidden rounded-2xl border border-zinc-200 transition hover:border-zinc-300 active:bg-zinc-50 dark:border-white/10 dark:hover:border-white/20 dark:active:bg-white/[0.04]"
-                    >
-                      <CardThumb card={card} className="h-36 w-full" />
-                      <ProfileCardCaption card={card} valueLabel={priceText} />
-                    </Link>
-                    {priceRead.showEbaySold && ebayHref ? (
-                      <p className="px-1 pt-1 text-xs text-zinc-500">
-                        <EbaySoldLink href={ebayHref} />
-                      </p>
-                    ) : null}
-                  </li>
-                );
-              })}
-            </ul>
+            <ProfileCardGrid
+              cards={shownCollection}
+              username={profile.username}
+              values={cardValues}
+            />
           )}
         </div>
       ) : postsLoading ? (

@@ -870,9 +870,11 @@ describe("open to offers polish", () => {
     assert.doesNotMatch(thread, /\/(?:u|messages)\/\$\{(?!userHref\()/);
 
     const profile = readFileSync(join(process.cwd(), "components/profile-view.tsx"), "utf8");
+    assert.match(profile, /<ProfileCardGrid[\s\S]*?username=\{profile\.username\}/);
+    const cardGrid = readFileSync(join(process.cwd(), "components/profile-card-grid.tsx"), "utf8");
     assert.match(
-      profile,
-      /\$\{userHref\(profile\.username\)\}\/cards\/\$\{encodeURIComponent\(card\.id\)\}/,
+      cardGrid,
+      /\$\{userHref\(username\)\}\/cards\/\$\{encodeURIComponent\(card\.id\)\}/,
     );
     assert.match(profile, /path=\{userHref\(profile\.username\)\}/);
     assert.match(profile, /userHref\(profile\.username, "messages"\)/);
