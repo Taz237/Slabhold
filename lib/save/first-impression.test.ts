@@ -17,8 +17,6 @@ describe("add a card first impression", () => {
     assert.match(page, /Add a card · Slabhold/);
     assert.match(form, /<Field label="Purchase date">/);
     assert.doesNotMatch(form, /Boolean\(form\.purchaseDate\)/);
-    const mailDay = read("components/mail-day-form.tsx");
-    assert.match(mailDay, /category: "flipping"/);
   });
 
   it("keeps the form, offers Retry, and ignores a second submit", () => {
@@ -49,26 +47,8 @@ describe("add a card first impression", () => {
   });
 });
 
-describe("mail day save", () => {
-  it("times out, retries, and cleans up a photo without resetting what was typed", () => {
-    const form = read("components/mail-day-form.tsx");
-    const submitStart = form.indexOf("async function submit");
-    const submit = form.slice(submitStart, form.indexOf("return (", submitStart));
-    assert.match(submit, /claimSubmit\(sendingRef\)/);
-    assert.match(submit, /withSaveTimeout/);
-    assert.match(form, /if \(!sending\) sendingRef\.current = false/);
-    assert.match(form, /finally \{\s*setSending\(false\);\s*\}/);
-    assert.match(submit, /if \(!isSaveTimeout\(err\)\) throw err;/);
-    assert.match(submit, /withSaveTimeout\(\(\) =>\s*createMailDayPost\(/);
-    const outerCatch = form.slice(form.lastIndexOf("} catch (err) {"), form.indexOf("} finally {"));
-    assert.match(outerCatch, /setError\(mailDaySubmitError\(err\)\)/);
-    assert.doesNotMatch(outerCatch, /removeMailDayPhotos/);
-    assert.doesNotMatch(submit, /setCaption\(/);
-    assert.doesNotMatch(submit, /blankCard\(\)/);
-    assert.match(form, />\s*Retry\s*</);
-    const postTimeout = submit.slice(submit.indexOf("if (!isSaveTimeout(err)) throw err;"));
-    assert.doesNotMatch(postTimeout.slice(0, postTimeout.indexOf("if (!result.ok)")), /removeMailDayPhotos/);
-    assert.match(form, /postId: postId\.current/);
+describe("collection save", () => {
+  it("times out without dropping a saved card", () => {
     const provider = read("components/collection-provider.tsx");
     const addCard = provider.slice(
       provider.indexOf("const addCard = useCallback("),

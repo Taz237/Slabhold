@@ -1,8 +1,11 @@
-export function formatRelativeTime(iso: string | null | undefined): string {
+export function formatRelativeTime(
+  iso: string | null | undefined,
+  now: number = Date.now(),
+): string {
   if (!iso) return "unknown";
   const then = new Date(iso).getTime();
   if (Number.isNaN(then)) return "unknown";
-  const seconds = Math.round((Date.now() - then) / 1000);
+  const seconds = Math.round((now - then) / 1000);
   if (seconds < 45) return "just now";
   if (seconds < 90) return "1 minute ago";
   const minutes = Math.round(seconds / 60);

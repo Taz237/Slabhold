@@ -34,6 +34,7 @@ import { CompBasis } from "@/components/comp-basis";
 import { CompsList } from "@/components/comps-list";
 import { SimilarCardsLine, EbaySoldLine } from "@/components/price-readout";
 import { FairPriceCheck } from "@/components/fair-price-check";
+import { SoldFreshness } from "@/components/sold-freshness";
 import { useSocial } from "@/components/social-provider";
 import { loginPath } from "@/lib/auth/safe-next";
 import { publicTogglePatch } from "@/lib/offers/open-to-offers";
@@ -59,12 +60,12 @@ import {
   pct,
   signedMoney,
 } from "@/lib/format";
-import { formatRelativeTime } from "@/lib/relative-time";
 import {
   cardValueHasAmount,
   estSellTileCopy,
   formatCardValueLabel,
   isLowConfidenceValue,
+  shownCardValue,
 } from "@/lib/value/format";
 import { peekCardValue } from "@/lib/value/card-value-memory";
 import type { SportsCard } from "@/lib/types";
@@ -239,7 +240,7 @@ export function CardDetail({ id, added = false }: { id: string; added?: boolean 
     cardValueHasAmount(shownValue) ? shownValue.nSales : null,
     sold.status === "ready" ? onScreenComps.length : null,
   );
-  const storedAmount = cardValueHasAmount(shownValue) ? shownValue.median : null;
+  const storedAmount = shownCardValue(card, shownValue);
   const earlyValue = cardValue ?? remembered;
   const ebayHref = ebaySoldSearchUrlForCard(card);
   const exactSales =
@@ -502,8 +503,8 @@ export function CardDetail({ id, added = false }: { id: string; added?: boolean 
 
           <WantButton
             card={card}
-            fairLow={cardValueHasAmount(shownValue) ? shownValue.low : null}
-            fairHigh={cardValueHasAmount(shownValue) ? shownValue.high : null}
+            fairLow={storedAmount != null ? (shownValue?.low ?? null) : null}
+            fairHigh={storedAmount != null ? (shownValue?.high ?? null) : null}
           />
 
           {!cardSold ? (
@@ -692,13 +693,13 @@ export function CardDetail({ id, added = false }: { id: string; added?: boolean 
                         ? priceRead?.kind === "similar"
                           ? SIMILAR_CARDS_LABEL
                           : (priceRead?.text ?? NO_SALES_FOUND_LABEL)
-                        : `${basedOnSalesLabel(salesCount)}${
-                            salesCount < 5 ? " · Low confidence" : ""
-                          }${
-                            sold.data?.fetchedAt
-                              ? ` · Updated ${formatRelativeTime(sold.data.fetchedAt)}`
-                              : ""
-                          }`
+                        : (
+                            <>
+                              {basedOnSalesLabel(salesCount)}
+                              {salesCount < 5 ? " · Low confidence" : ""}
+                              <SoldFreshness comps={onScreenComps} fetchedAt={sold.data?.fetchedAt} />
+                            </>
+                          )
                       : usingSample
                         ? "Sample listings"
                         : ""}

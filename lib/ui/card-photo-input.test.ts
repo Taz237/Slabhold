@@ -108,8 +108,6 @@ describe("photo file inputs", () => {
       input.includes('data-photo-input="camera"'),
     );
     assert.match(camera ?? "", /capture="environment"/);
-    assert.doesNotMatch(read("components/mail-day-form.tsx"), /capture=/);
-    assert.doesNotMatch(read("components/mail-day-form.tsx"), /PhotoFileInputs/);
   });
 });
 
@@ -122,11 +120,7 @@ describe("image file inputs", () => {
         if (/accept=/.test(input)) owners.push(file.slice(process.cwd().length + 1));
       }
     }
-    // Mail Day keeps its own library-only input (no capture, checked above).
-    assert.deepEqual([...new Set(owners)].sort(), [
-      "components/mail-day-form.tsx",
-      "components/photo-file-inputs.tsx",
-    ]);
+    assert.deepEqual([...new Set(owners)].sort(), ["components/photo-file-inputs.tsx"]);
   });
 
   it("does not tuck the Add card photo into More details", () => {

@@ -158,12 +158,10 @@ describe("parallels by set", () => {
     assert.equal(reset.reset, true);
   });
 
-  it("is the one list imported by Add Card and Mail Day", () => {
+  it("is the one list imported by Add Card", () => {
     const cardForm = readFileSync(join(process.cwd(), "components/card-form.tsx"), "utf8");
-    const mailForm = readFileSync(join(process.cwd(), "components/mail-day-form.tsx"), "utf8");
     const options = readFileSync(join(process.cwd(), "lib/card-options.ts"), "utf8");
     assert.match(cardForm, /from "@\/lib\/cards\/parallels"/);
-    assert.match(mailForm, /from "@\/lib\/cards\/parallels"/);
     assert.equal(options.includes("export const PARALLELS"), false);
   });
 });

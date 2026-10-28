@@ -157,7 +157,12 @@ export function mapPublicCard(
     | "set_name"
     | "grader"
     | "condition_type"
-  > & { created_at?: string | null; is_rookie?: boolean | null },
+  > & {
+    created_at?: string | null;
+    is_rookie?: boolean | null;
+    is_auto?: boolean | null;
+    serial_run?: number | null;
+  },
 ): OwnedCard {
   const setBrand = (row.set_name || row.set || "").trim();
   const yearLabel = (row.year_label || "").trim() || String(row.year);
@@ -186,6 +191,8 @@ export function mapPublicCard(
     grade,
     parallel: row.parallel ?? "Base",
     isRookie: Boolean(row.is_rookie),
+    isAuto: Boolean(row.is_auto),
+    serialRun: row.serial_run ?? null,
     yearLabel,
     conditionType:
       row.condition_type === "graded" || row.condition_type === "raw"

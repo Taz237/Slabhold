@@ -1,4 +1,5 @@
 import { money } from "@/lib/format";
+import { singleSaleTrusted, type PremiumCardFields } from "@/lib/value/price-fallback";
 import type { CardValueResult } from "./types";
 
 /** Shown instead of a dollar amount when no matching sales were kept. */
@@ -106,6 +107,19 @@ export function cardValueHasAmount(
     value.nSales >= 1 &&
     (value.status === "ok" || value.status === "sample")
   );
+}
+
+/**
+ * The dollar amount a screen may show for a card. Null when there is no
+ * amount, or when one cheap sale is all that backs a premium card's price.
+ */
+export function shownCardValue(
+  card: PremiumCardFields | null | undefined,
+  value: CardValueResult | null | undefined,
+): number | null {
+  if (!cardValueHasAmount(value)) return null;
+  if (!singleSaleTrusted(card, value)) return null;
+  return value.median;
 }
 
 export function isLowConfidenceValue(

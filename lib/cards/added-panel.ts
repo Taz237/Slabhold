@@ -2,7 +2,8 @@ import { money } from "@/lib/format";
 import { displayedCollectionTotal } from "@/lib/collection/displayed-value";
 import { summarize } from "@/lib/portfolio";
 import type { SportsCard } from "@/lib/types";
-import { cardValueHasAmount } from "@/lib/value/format";
+import { cardValueHasAmount, shownCardValue } from "@/lib/value/format";
+import type { PremiumCardFields } from "@/lib/value/price-fallback";
 import type { CardValueResult } from "@/lib/value/types";
 
 /** Where Add card goes after a save. The card page shows the "Added" panel once. */
@@ -29,12 +30,19 @@ export type AddedValueLine = {
 };
 
 /** The new card's value from card_values. Pending until a value or a no-sales result comes back. */
-export function addedValueLine(value: CardValueResult | null, loading: boolean): AddedValueLine {
-  if (cardValueHasAmount(value)) {
+export function addedValueLine(
+  value: CardValueResult | null,
+  loading: boolean,
+  card?: PremiumCardFields | null,
+): AddedValueLine {
+  const amount = shownCardValue(card, value);
+  if (value && amount != null) {
     const sales = value.nSales === 1 ? "1 recent sale" : `${value.nSales} recent sales`;
-    return { kind: "ok", text: `Worth about ${money(value.median)} based on ${sales}.` };
+    return { kind: "ok", text: `Worth about ${money(amount)} based on ${sales}.` };
   }
-  if (!loading && value?.status === "no_sales") {
+  // A lone cheap sale on a premium card reads like no sales yet.
+  const heldBack = cardValueHasAmount(value);
+  if (heldBack || (!loading && value?.status === "no_sales")) {
     return { kind: "no_sales", text: "No recent sales found yet. We'll keep checking daily." };
   }
   return { kind: "pending", text: "Finding recent sales…" };

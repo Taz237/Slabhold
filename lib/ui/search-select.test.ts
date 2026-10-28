@@ -53,16 +53,15 @@ describe("search select commit", () => {
     );
   });
 
-  it("is what Enter uses for Set and Parallel on Add Card and Mail Day", () => {
+  it("is what Enter uses for Set and Parallel on Add Card", () => {
     const select = readFileSync(join(process.cwd(), "components/search-select.tsx"), "utf8");
     const card = readFileSync(join(process.cwd(), "components/card-form.tsx"), "utf8");
-    const mail = readFileSync(join(process.cwd(), "components/mail-day-form.tsx"), "utf8");
     assert.match(select, /searchSelectCommit\(/);
     assert.match(select, /Can't find it\? Type it exactly as on the card or slab\./);
     const useRow = select.indexOf("Use \"");
     const options = select.indexOf("filtered.map");
     assert.ok(useRow > 0 && options > useRow);
-    for (const source of [card, mail]) {
+    for (const source of [card]) {
       assert.match(source, /label="Set[\s\S]*?allowCustom/);
       assert.match(source, /label="Set[\s\S]*?customHint/);
       assert.match(source, /label="Parallel"[\s\S]*?allowCustom/);
