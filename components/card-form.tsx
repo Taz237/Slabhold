@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { Fragment, useEffect, useMemo, useRef, useState, type SetStateAction } from "react";
 import { ChevronDown, ScanSearch } from "lucide-react";
+import { AddCardFlow } from "@/components/add-card/add-card-flow";
 import { CardPhotoField } from "@/components/card-photo-field";
 import { CategoryPicker } from "@/components/category-picker";
 import { useCollection, useDefaultAccent } from "@/components/collection-provider";
@@ -50,8 +51,10 @@ import {
   gradingCompanyFromCard,
   gradingCompanyOptions,
 } from "@/lib/cards/grading-company";
+import { ADD_FLOW_SUBLINE, type FlowPatch } from "@/lib/cards/add-flow";
 import {
   ADD_FORM_SUBLINE,
+  MORE_DETAILS_FIELDS,
   MORE_DETAILS_LABEL,
   addFormSections,
   draftOpensMoreDetails,
@@ -114,6 +117,8 @@ export function CardForm({
   onSaved,
   initialQuery = "",
   initialCatalog = null,
+  guided = false,
+  initialSport = "",
 }: {
   existing?: SportsCard;
   /** Inline on the card page: skip the extra title, keep the same save. */
@@ -124,8 +129,14 @@ export function CardForm({
   initialQuery?: string;
   /** Catalog row chosen from Search. Same fields as picking it in Add card. */
   initialCatalog?: CatalogCard | null;
+  /** Add card as the one-question-at-a-time picker. Edit ignores it. */
+  guided?: boolean;
+  /** Sport to start with, e.g. kept from "Add another". */
+  initialSport?: string;
 }) {
   const catalogStart = !existing && initialCatalog ? catalogPickFields(initialCatalog, "") : null;
+  const guidedAdd = guided && !existing;
+  const startSport = SPORT_PICKER_OPTIONS.includes(initialSport) ? initialSport : "Basketball";
   const router = useRouter();
   const { addCard, updateCard, removeCard, cards, ready: cardsReady, syncError } = useCollection();
   const { mode, user, createPost } = useSocial();
@@ -231,7 +242,7 @@ export function CardForm({
     parallel: existing?.parallel || catalogStart?.form.parallel || "Base",
     serialRun: existing?.serialRun != null ? String(existing.serialRun) : "",
     serialNo: existing?.serialNo != null ? String(existing.serialNo) : "",
-    sport: existing?.sport ?? catalogStart?.form.sport ?? "Basketball",
+    sport: existing?.sport ?? catalogStart?.form.sport ?? startSport,
     purchasePrice: hasPaid(existing) ? String(existing!.purchasePrice) : "",
     purchaseDate: existing ? (existing.purchaseDate ?? "") : "",
     estimatedSellPrice: estimateInputFromCard(existing?.estimatedSellPrice),
@@ -428,7 +439,7 @@ export function CardForm({
 
   const matchForm = useMemo(
     () =>
-      existing
+      existing || guidedAdd
         ? null
         : {
             playerName: form.playerName,
@@ -437,7 +448,7 @@ export function CardForm({
             cardNumber: form.cardNumber,
             noNumber,
           },
-    [existing, form.playerName, form.yearLabel, form.setBrand, form.cardNumber, noNumber],
+    [existing, guidedAdd, form.playerName, form.yearLabel, form.setBrand, form.cardNumber, noNumber],
   );
   const matchKey = matchForm ? catalogMatchKey(matchForm) : null;
 
@@ -574,6 +585,27 @@ export function CardForm({
   /** "Use this" on the match chip. Grade and parallel stay as typed. */
   function acceptMatch(match: CatalogCard) {
     applyCatalog(matchForApply(match, form.parallel));
+  }
+
+  /** One answer from the guided picker, written into the same state the form saves. */
+  function applyFlowPatch(patch: FlowPatch) {
+    const formPatch = patch.form;
+    if (formPatch) {
+      setForm((prev) => ({ ...prev, ...formPatch }));
+      if (formPatch.parallel) {
+        const parallel = formPatch.parallel;
+        setIsRookie((current) => current || textLooksRookie(parallel));
+      }
+    }
+    if (patch.noNumber !== undefined) setNoNumber(patch.noNumber);
+    if (patch.setIsCustom !== undefined) setSetIsCustom(patch.setIsCustom);
+    if (patch.parallelIsCustom !== undefined) {
+      setParallelIsCustom(patch.parallelIsCustom);
+      setParallelNote("");
+    }
+    if (patch.isAuto !== undefined) setIsAuto(patch.isAuto);
+    if (patch.gradeCompany !== undefined) chooseGradeCompany(patch.gradeCompany);
+    if (patch.gradeNumber !== undefined) setGradeNumber(patch.gradeNumber);
   }
 
   function chooseGradeCompany(company: string) {
@@ -841,7 +873,11 @@ export function CardForm({
           {existing ? `Edit ${existing.playerName}` : "Add a card"}
         </h1>
         <p className="mt-1 text-sm text-zinc-500">
-          {existing ? "Player, set, what you paid, and a photo." : ADD_FORM_SUBLINE}{" "}
+          {existing
+            ? "Player, set, what you paid, and a photo."
+            : guidedAdd
+              ? ADD_FLOW_SUBLINE
+              : ADD_FORM_SUBLINE}{" "}
           {mode === "supabase"
             ? "Saved to your account."
             : "Saved in this browser."}
@@ -1472,6 +1508,63 @@ export function CardForm({
           </button>
         </div>
   ) : null;
+
+  if (guidedAdd) {
+    const guidedMoreNodes: Record<MoreDetailsField, React.ReactNode> = {
+      sport: sportNode,
+      serialRun: null,
+      serialNo: null,
+      traits: traitsNode,
+      gradeExtras: gradeExtrasNode,
+      purchase: purchaseNode,
+      estimatedSellPrice: estimateNode,
+      sold: (
+        <>
+          {soldToggleNode}
+          {sellFieldsNode}
+        </>
+      ),
+      isPublic: publicNode,
+      openToOffers: offersNode,
+      notes: notesNode,
+      shareToFeed: shareToFeedNode,
+      category: categoryNode,
+    };
+    // Serial run and number are their own step in the picker.
+    const guidedMore = MORE_DETAILS_FIELDS.filter((key) => key !== "serialRun" && key !== "serialNo");
+    return (
+      <form ref={formRef} onSubmit={onSubmit} className="mx-auto max-w-xl">
+        <AddCardFlow
+          form={form}
+          noNumber={noNumber}
+          parallelIsCustom={parallelIsCustom}
+          isAuto={isAuto}
+          gradeCompany={gradeCompany}
+          gradeNumber={gradeNumber}
+          gradeQualifier={gradeQualifier}
+          certNumber={certNumber}
+          photo={photo}
+          accent={accent}
+          saving={saving}
+          readingPhoto={readingPhoto}
+          resumed={showingRestored}
+          positionKey={seed != null ? `${userId ?? ""}\n${seed}` : null}
+          apply={applyFlowPatch}
+          pickCatalog={applyCatalog}
+          onStartOver={startOver}
+          header={headerNode}
+          photoBlock={photoNode}
+          moreDetails={guidedMore.map((key) => (
+            <Fragment key={key}>{guidedMoreNodes[key]}</Fragment>
+          ))}
+          moreOpen={moreOpen}
+          onMoreOpen={setMoreOpen}
+          sportOffer={sportOfferNode}
+          saveError={saveErrorNode}
+        />
+      </form>
+    );
+  }
 
   if (sections) {
     const matchView = catalogMatchView({

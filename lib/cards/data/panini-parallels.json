@@ -1,0 +1,6350 @@
+[
+ {
+  "sport": "Basketball",
+  "yearLabel": "2014-15",
+  "product": "Panini Prizm",
+  "manufacturer": "Panini",
+  "source": "2014 Panini Prizm (14-15) (Basketball).csv",
+  "official": true,
+  "parallels": [
+   {
+    "subset": "Base",
+    "name": "Base",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Blue Mojo",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Blue Wave",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Blue and Green Mosaic",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Green",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Red White and Blue Pulsar",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Yellow and Red Mosaic",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Orange Die Cut",
+    "serialRun": 139
+   },
+   {
+    "subset": "Base",
+    "name": "Purple Die Cut",
+    "serialRun": 139
+   },
+   {
+    "subset": "Base",
+    "name": "Blue",
+    "serialRun": 99
+   },
+   {
+    "subset": "Base",
+    "name": "Light Blue",
+    "serialRun": 49
+   },
+   {
+    "subset": "Base",
+    "name": "Red",
+    "serialRun": 49
+   },
+   {
+    "subset": "Base",
+    "name": "Red Pulsar",
+    "serialRun": 25
+   },
+   {
+    "subset": "Base",
+    "name": "Gold",
+    "serialRun": 10
+   },
+   {
+    "subset": "Base",
+    "name": "Gold Pulsar",
+    "serialRun": 10
+   },
+   {
+    "subset": "Base",
+    "name": "Black",
+    "serialRun": 1
+   },
+   {
+    "subset": "Base",
+    "name": "Black Pulsar",
+    "serialRun": 1
+   }
+  ]
+ },
+ {
+  "sport": "Basketball",
+  "yearLabel": "2020-21",
+  "product": "Donruss Optic",
+  "manufacturer": "Panini",
+  "source": "2020 Donruss Optic (20-21) (Basketball).csv",
+  "official": true,
+  "parallels": [
+   {
+    "subset": "Base",
+    "name": "Base",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Blue Pulsar",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Blue Velocity",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Checkerboard",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Choice Dragon",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Choice Red and Green",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Fanatics Box Set",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Fanatics Rated Rookies Box Set",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Fast Break Holo",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Gold Wave",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Holo",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Hyper Pink",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Photon",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Purple",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Purple Shock",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Red Pulsar",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Red Wave",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Target Box Set",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Target Rated Rookies Box Set",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Premium Box Set",
+    "serialRun": 249
+   },
+   {
+    "subset": "Base",
+    "name": "Orange",
+    "serialRun": 199
+   },
+   {
+    "subset": "Base",
+    "name": "Lime Green",
+    "serialRun": 149
+   },
+   {
+    "subset": "Base",
+    "name": "Red",
+    "serialRun": 99
+   },
+   {
+    "subset": "Base",
+    "name": "Fast Break Purple",
+    "serialRun": 95
+   },
+   {
+    "subset": "Base",
+    "name": "Choice Red",
+    "serialRun": 88
+   },
+   {
+    "subset": "Base",
+    "name": "Fast Break Red",
+    "serialRun": 85
+   },
+   {
+    "subset": "Base",
+    "name": "Pink Velocity",
+    "serialRun": 79
+   },
+   {
+    "subset": "Base",
+    "name": "Blue",
+    "serialRun": 59
+   },
+   {
+    "subset": "Base",
+    "name": "Fast Break Blue",
+    "serialRun": 50
+   },
+   {
+    "subset": "Base",
+    "name": "Black Velocity",
+    "serialRun": 39
+   },
+   {
+    "subset": "Base",
+    "name": "Pink",
+    "serialRun": 25
+   },
+   {
+    "subset": "Base",
+    "name": "Fast Break Pink",
+    "serialRun": 20
+   },
+   {
+    "subset": "Base",
+    "name": "Purple Stars FOTL",
+    "serialRun": 13
+   },
+   {
+    "subset": "Base",
+    "name": "Fast Break Gold",
+    "serialRun": 10
+   },
+   {
+    "subset": "Base",
+    "name": "Gold",
+    "serialRun": 10
+   },
+   {
+    "subset": "Base",
+    "name": "Gold Pulsar",
+    "serialRun": 10
+   },
+   {
+    "subset": "Base",
+    "name": "Choice Black Gold",
+    "serialRun": 8
+   },
+   {
+    "subset": "Base",
+    "name": "Lucky Envelopes",
+    "serialRun": 8
+   },
+   {
+    "subset": "Base",
+    "name": "Green",
+    "serialRun": 5
+   },
+   {
+    "subset": "Base",
+    "name": "Black",
+    "serialRun": 1
+   },
+   {
+    "subset": "Base",
+    "name": "Choice Nebula",
+    "serialRun": 1
+   },
+   {
+    "subset": "Base",
+    "name": "Fast Break Black",
+    "serialRun": 1
+   },
+   {
+    "subset": "Base",
+    "name": "Gold Vinyl",
+    "serialRun": 1
+   },
+   {
+    "subset": "Rated Rookies",
+    "name": "Base",
+    "serialRun": null
+   },
+   {
+    "subset": "Rated Rookies",
+    "name": "Blue Pulsar",
+    "serialRun": null
+   },
+   {
+    "subset": "Rated Rookies",
+    "name": "Blue Velocity",
+    "serialRun": null
+   },
+   {
+    "subset": "Rated Rookies",
+    "name": "Checkerboard",
+    "serialRun": null
+   },
+   {
+    "subset": "Rated Rookies",
+    "name": "Choice",
+    "serialRun": null
+   },
+   {
+    "subset": "Rated Rookies",
+    "name": "Choice Dragon",
+    "serialRun": null
+   },
+   {
+    "subset": "Rated Rookies",
+    "name": "Choice Red and Green",
+    "serialRun": null
+   },
+   {
+    "subset": "Rated Rookies",
+    "name": "Fanatics Green Pulsar",
+    "serialRun": null
+   },
+   {
+    "subset": "Rated Rookies",
+    "name": "Fast Break Holo",
+    "serialRun": null
+   },
+   {
+    "subset": "Rated Rookies",
+    "name": "Gold Wave",
+    "serialRun": null
+   },
+   {
+    "subset": "Rated Rookies",
+    "name": "Holo",
+    "serialRun": null
+   },
+   {
+    "subset": "Rated Rookies",
+    "name": "Hyper Pink",
+    "serialRun": null
+   },
+   {
+    "subset": "Rated Rookies",
+    "name": "Photon",
+    "serialRun": null
+   },
+   {
+    "subset": "Rated Rookies",
+    "name": "Purple",
+    "serialRun": null
+   },
+   {
+    "subset": "Rated Rookies",
+    "name": "Purple Shock",
+    "serialRun": null
+   },
+   {
+    "subset": "Rated Rookies",
+    "name": "Red Pulsar",
+    "serialRun": null
+   },
+   {
+    "subset": "Rated Rookies",
+    "name": "Red Wave",
+    "serialRun": null
+   },
+   {
+    "subset": "Rated Rookies",
+    "name": "Target Purple Pulsar",
+    "serialRun": null
+   },
+   {
+    "subset": "Rated Rookies",
+    "name": "Premium Box Set",
+    "serialRun": 249
+   },
+   {
+    "subset": "Rated Rookies",
+    "name": "Orange",
+    "serialRun": 199
+   },
+   {
+    "subset": "Rated Rookies",
+    "name": "Lime Green",
+    "serialRun": 149
+   },
+   {
+    "subset": "Rated Rookies",
+    "name": "Red",
+    "serialRun": 99
+   },
+   {
+    "subset": "Rated Rookies",
+    "name": "Fast Break Purple",
+    "serialRun": 95
+   },
+   {
+    "subset": "Rated Rookies",
+    "name": "Choice Red",
+    "serialRun": 88
+   },
+   {
+    "subset": "Rated Rookies",
+    "name": "Fast Break Red",
+    "serialRun": 85
+   },
+   {
+    "subset": "Rated Rookies",
+    "name": "Pink Velocity",
+    "serialRun": 79
+   },
+   {
+    "subset": "Rated Rookies",
+    "name": "Blue",
+    "serialRun": 59
+   },
+   {
+    "subset": "Rated Rookies",
+    "name": "Fast Break Blue",
+    "serialRun": 50
+   },
+   {
+    "subset": "Rated Rookies",
+    "name": "Black Velocity",
+    "serialRun": 39
+   },
+   {
+    "subset": "Rated Rookies",
+    "name": "Pink",
+    "serialRun": 25
+   },
+   {
+    "subset": "Rated Rookies",
+    "name": "Fast Break Pink",
+    "serialRun": 20
+   },
+   {
+    "subset": "Rated Rookies",
+    "name": "Purple Stars FOTL",
+    "serialRun": 13
+   },
+   {
+    "subset": "Rated Rookies",
+    "name": "Fast Break Gold",
+    "serialRun": 10
+   },
+   {
+    "subset": "Rated Rookies",
+    "name": "Gold",
+    "serialRun": 10
+   },
+   {
+    "subset": "Rated Rookies",
+    "name": "Gold Pulsar",
+    "serialRun": 10
+   },
+   {
+    "subset": "Rated Rookies",
+    "name": "Choice Black Gold",
+    "serialRun": 8
+   },
+   {
+    "subset": "Rated Rookies",
+    "name": "Lucky Envelopes",
+    "serialRun": 8
+   },
+   {
+    "subset": "Rated Rookies",
+    "name": "Green",
+    "serialRun": 5
+   },
+   {
+    "subset": "Rated Rookies",
+    "name": "Black",
+    "serialRun": 1
+   },
+   {
+    "subset": "Rated Rookies",
+    "name": "Choice Nebula",
+    "serialRun": 1
+   },
+   {
+    "subset": "Rated Rookies",
+    "name": "Fast Break Black",
+    "serialRun": 1
+   },
+   {
+    "subset": "Rated Rookies",
+    "name": "Gold Vinyl",
+    "serialRun": 1
+   }
+  ]
+ },
+ {
+  "sport": "Basketball",
+  "yearLabel": "2020-21",
+  "product": "Panini Prizm",
+  "manufacturer": "Panini",
+  "source": "2020 Panini Prizm (20-21) (Basketball).csv",
+  "official": true,
+  "parallels": [
+   {
+    "subset": "Base",
+    "name": "Base",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Blue Wave",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Choice Blue Yellow and Green",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Choice Tiger Stripe",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Fast Break",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Gold Wave",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Green",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Green Ice",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Hyper",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Orange Ice",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Pink Ice",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Purple Wave",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Red Ice",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Red White and Blue",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Ruby Wave",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Silver",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "White Sparkle",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Red",
+    "serialRun": 299
+   },
+   {
+    "subset": "Base",
+    "name": "Blue",
+    "serialRun": 199
+   },
+   {
+    "subset": "Base",
+    "name": "Fast Break Blue",
+    "serialRun": 175
+   },
+   {
+    "subset": "Base",
+    "name": "Purple Ice",
+    "serialRun": 175
+   },
+   {
+    "subset": "Base",
+    "name": "Blue Ice",
+    "serialRun": 125
+   },
+   {
+    "subset": "Base",
+    "name": "Fast Break Red",
+    "serialRun": 125
+   },
+   {
+    "subset": "Base",
+    "name": "Purple",
+    "serialRun": 99
+   },
+   {
+    "subset": "Base",
+    "name": "Choice Red",
+    "serialRun": 88
+   },
+   {
+    "subset": "Base",
+    "name": "Fast Break Purple",
+    "serialRun": 75
+   },
+   {
+    "subset": "Base",
+    "name": "Orange Wave",
+    "serialRun": 60
+   },
+   {
+    "subset": "Base",
+    "name": "Fast Break Pink",
+    "serialRun": 50
+   },
+   {
+    "subset": "Base",
+    "name": "Choice Blue",
+    "serialRun": 49
+   },
+   {
+    "subset": "Base",
+    "name": "Orange",
+    "serialRun": 49
+   },
+   {
+    "subset": "Base",
+    "name": "Pink Pulsar",
+    "serialRun": 42
+   },
+   {
+    "subset": "Base",
+    "name": "Blue Shimmer",
+    "serialRun": 35
+   },
+   {
+    "subset": "Base",
+    "name": "Purple Pulsar",
+    "serialRun": 35
+   },
+   {
+    "subset": "Base",
+    "name": "Green Pulsar",
+    "serialRun": 25
+   },
+   {
+    "subset": "Base",
+    "name": "Mojo",
+    "serialRun": 25
+   },
+   {
+    "subset": "Base",
+    "name": "Fast Break Bronze",
+    "serialRun": 20
+   },
+   {
+    "subset": "Base",
+    "name": "Gold",
+    "serialRun": 10
+   },
+   {
+    "subset": "Base",
+    "name": "Gold Shimmer",
+    "serialRun": 10
+   },
+   {
+    "subset": "Base",
+    "name": "Choice Green",
+    "serialRun": 8
+   },
+   {
+    "subset": "Base",
+    "name": "Lucky Envelopes",
+    "serialRun": 8
+   },
+   {
+    "subset": "Base",
+    "name": "Black Gold",
+    "serialRun": 5
+   },
+   {
+    "subset": "Base",
+    "name": "Fast Break Neon Green",
+    "serialRun": 5
+   },
+   {
+    "subset": "Base",
+    "name": "Green Shimmer",
+    "serialRun": 5
+   },
+   {
+    "subset": "Base",
+    "name": "Black",
+    "serialRun": 1
+   },
+   {
+    "subset": "Base",
+    "name": "Black Shimmer",
+    "serialRun": 1
+   },
+   {
+    "subset": "Base",
+    "name": "Choice Nebula",
+    "serialRun": 1
+   }
+  ]
+ },
+ {
+  "sport": "Basketball",
+  "yearLabel": "2020-21",
+  "product": "Panini Select",
+  "manufacturer": "Panini",
+  "source": "2020 Panini Select (20-21) (Basketball).csv",
+  "official": true,
+  "parallels": [
+   {
+    "subset": "Base",
+    "name": "Set - Concourse",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Blue",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Blue Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Blue White Purple Cracked Ice",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Disco Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Elephant Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Gold Wave Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Green White Purple",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Red Wave Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Red White Green Cracked Ice",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Red White Orange Flash",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Red White Orange Shimmer",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Scope Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Silver Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Tiger Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Tri-Color Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Zebra Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Blue",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Blue Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Blue White Purple Cracked Ice",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Disco Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Elephant Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Gold Wave Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Green White Purple",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Red Wave Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Red White Green Cracked Ice",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Red White Orange Flash",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Red White Orange Shimmer",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Silver Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Tiger Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Zebra Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Blue",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Blue Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Blue White Purple Cracked Ice",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Disco Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Elephant Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Gold Wave Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Green White Purple",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Red Wave Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Red White Green Cracked Ice",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Red White Orange Flash",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Red White Orange Shimmer",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Scope Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Silver Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Tiger Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Tri-Color Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Zebra Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Light Blue Prizms",
+    "serialRun": 299
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Blue Prizms Die Cut",
+    "serialRun": 249
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Red Prizms",
+    "serialRun": 199
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Maroon Prizms Die Cut",
+    "serialRun": 175
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - White Prizms",
+    "serialRun": 149
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Purple Prizms Die Cut",
+    "serialRun": 99
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Neon Green Prizms",
+    "serialRun": 75
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Orange Prizms Die Cut",
+    "serialRun": 65
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Blue White Green Flash",
+    "serialRun": 49
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Blue White Green Shimmer",
+    "serialRun": 49
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Red Disco Prizms",
+    "serialRun": 49
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Teal White Pink",
+    "serialRun": 49
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Red Disco Prizms",
+    "serialRun": 49
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Red Disco Prizms",
+    "serialRun": 49
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Blue Disco Prizms",
+    "serialRun": 25
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Tie-Dye Prizms",
+    "serialRun": 25
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Blue Disco Prizms",
+    "serialRun": 25
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Tie-Dye Prizms",
+    "serialRun": 25
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Blue Disco Prizms",
+    "serialRun": 25
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Blue White Green Flash",
+    "serialRun": 25
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Blue White Green Shimmer",
+    "serialRun": 25
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Teal White Pink",
+    "serialRun": 25
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Tie-Dye Prizms Die-Cut",
+    "serialRun": 25
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Neon Orange Pulsar Prizms FOTL",
+    "serialRun": 15
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Neon Orange Pulsar Prizms FOTL",
+    "serialRun": 15
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Neon Orange Pulsar Prizms FOTL",
+    "serialRun": 15
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Gold Disco Prizms",
+    "serialRun": 10
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Gold Prizms",
+    "serialRun": 10
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Blue White Green Flash",
+    "serialRun": 10
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Blue White Green Shimmer",
+    "serialRun": 10
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Gold Disco Prizms",
+    "serialRun": 10
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Gold Prizms",
+    "serialRun": 10
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Teal White Pink",
+    "serialRun": 10
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Gold Disco Prizms",
+    "serialRun": 10
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Gold Prizms Die Cut",
+    "serialRun": 10
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse Lucky Envelopes",
+    "serialRun": 8
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside Lucky Envelopes",
+    "serialRun": 8
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level Lucky Envelopes",
+    "serialRun": 8
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Green Disco Prizms",
+    "serialRun": 5
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Green Prizms",
+    "serialRun": 5
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Neon Purple Pulsar Prizms FOTL",
+    "serialRun": 5
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Green Disco Prizms",
+    "serialRun": 5
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Green Prizms",
+    "serialRun": 5
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Neon Purple Pulsar Prizms FOTL",
+    "serialRun": 5
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Green Disco Prizms",
+    "serialRun": 5
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Green Prizms Die Cut",
+    "serialRun": 5
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Neon Purple Pulsar Prizms FOTL",
+    "serialRun": 5
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Black Disco Prizms",
+    "serialRun": 1
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Black Prizms",
+    "serialRun": 1
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Black Snake Skin Pulsar Prizms FOTL",
+    "serialRun": 1
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Black White Gold",
+    "serialRun": 1
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Black White Gold Flash",
+    "serialRun": 1
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Black White Gold Shimmer",
+    "serialRun": 1
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Black Disco Prizms",
+    "serialRun": 1
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Black Prizms",
+    "serialRun": 1
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Black Snake Skin Pulsar Prizms FOTL",
+    "serialRun": 1
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Black White Gold",
+    "serialRun": 1
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Black White Gold Flash",
+    "serialRun": 1
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Black White Gold Shimmer",
+    "serialRun": 1
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Black Disco Prizms",
+    "serialRun": 1
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Black Prizms Die Cut",
+    "serialRun": 1
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Black Snake Skin Pulsar Prizms FOTL",
+    "serialRun": 1
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Black White Gold",
+    "serialRun": 1
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Black White Gold Flash",
+    "serialRun": 1
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Black White Gold Shimmer",
+    "serialRun": 1
+   }
+  ]
+ },
+ {
+  "sport": "Basketball",
+  "yearLabel": "2023-24",
+  "product": "Panini Hoops",
+  "manufacturer": "Panini",
+  "source": "2023 Panini Hoops (23-24) (Basketball).csv",
+  "official": true,
+  "parallels": [
+   {
+    "subset": "Base",
+    "name": "Base",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Blue",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Hoops Tribute",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Hoops Tribute Blue",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Hoops Tribute Hyper Blue",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Hoops Tribute Impulse",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Hoops Tribute Neon Green",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Hoops Tribute Purple",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Hoops Tribute Purple Winter",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Hoops Tribute Red Backs",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Hoops Tribute Teal Explosion",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Hoops Tribute Winter",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Hoops Tribute Yellow",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Hyper Blue",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Impulse",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Neon Green",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Purple",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Purple Winter",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Red Backs",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Teal Explosion",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Winter",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Yellow",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Hoops Tribute Premium Box Set",
+    "serialRun": 199
+   },
+   {
+    "subset": "Base",
+    "name": "Hoops Tribute Silver",
+    "serialRun": 199
+   },
+   {
+    "subset": "Base",
+    "name": "Premium Box Set",
+    "serialRun": 199
+   },
+   {
+    "subset": "Base",
+    "name": "Silver",
+    "serialRun": 199
+   },
+   {
+    "subset": "Base",
+    "name": "Green",
+    "serialRun": 99
+   },
+   {
+    "subset": "Base",
+    "name": "Hoops Tribute Green",
+    "serialRun": 99
+   },
+   {
+    "subset": "Base",
+    "name": "Hoops Tribute Hyper Red",
+    "serialRun": 99
+   },
+   {
+    "subset": "Base",
+    "name": "Hyper Red",
+    "serialRun": 99
+   },
+   {
+    "subset": "Base",
+    "name": "Gravity",
+    "serialRun": 75
+   },
+   {
+    "subset": "Base",
+    "name": "Hoops Tribute Gravity",
+    "serialRun": 75
+   },
+   {
+    "subset": "Base",
+    "name": "Hoops Tribute Red",
+    "serialRun": 75
+   },
+   {
+    "subset": "Base",
+    "name": "Red",
+    "serialRun": 75
+   },
+   {
+    "subset": "Base",
+    "name": "Blue Explosion",
+    "serialRun": 59
+   },
+   {
+    "subset": "Base",
+    "name": "Hoops Tribute Blue Explosion",
+    "serialRun": 59
+   },
+   {
+    "subset": "Base",
+    "name": "Artist Proof",
+    "serialRun": 25
+   },
+   {
+    "subset": "Base",
+    "name": "Hoops Tribute Artist Proof",
+    "serialRun": 25
+   },
+   {
+    "subset": "Base",
+    "name": "Hoops Tribute Hyper Green",
+    "serialRun": 25
+   },
+   {
+    "subset": "Base",
+    "name": "Hoops Tribute Orange Explosion",
+    "serialRun": 25
+   },
+   {
+    "subset": "Base",
+    "name": "Hyper Green",
+    "serialRun": 25
+   },
+   {
+    "subset": "Base",
+    "name": "Orange Explosion",
+    "serialRun": 25
+   },
+   {
+    "subset": "Base",
+    "name": "Hoops Tribute Red Explosion",
+    "serialRun": 15
+   },
+   {
+    "subset": "Base",
+    "name": "Red Explosion",
+    "serialRun": 15
+   },
+   {
+    "subset": "Base",
+    "name": "Artist Proof Gold",
+    "serialRun": 10
+   },
+   {
+    "subset": "Base",
+    "name": "Hoops Tribute Artist Proof Gold",
+    "serialRun": 10
+   },
+   {
+    "subset": "Base",
+    "name": "Hoops Tribute Hyper Gold",
+    "serialRun": 10
+   },
+   {
+    "subset": "Base",
+    "name": "Hyper Gold",
+    "serialRun": 10
+   },
+   {
+    "subset": "Base",
+    "name": "Artist Proof Black",
+    "serialRun": 1
+   },
+   {
+    "subset": "Base",
+    "name": "Hoops Tribute Artist Proof Black",
+    "serialRun": 1
+   },
+   {
+    "subset": "Rookies",
+    "name": "Base",
+    "serialRun": null
+   },
+   {
+    "subset": "Rookies",
+    "name": "Blue",
+    "serialRun": null
+   },
+   {
+    "subset": "Rookies",
+    "name": "Hyper Blue",
+    "serialRun": null
+   },
+   {
+    "subset": "Rookies",
+    "name": "Impulse",
+    "serialRun": null
+   },
+   {
+    "subset": "Rookies",
+    "name": "Neon Green",
+    "serialRun": null
+   },
+   {
+    "subset": "Rookies",
+    "name": "Purple",
+    "serialRun": null
+   },
+   {
+    "subset": "Rookies",
+    "name": "Purple Winter",
+    "serialRun": null
+   },
+   {
+    "subset": "Rookies",
+    "name": "Red Backs",
+    "serialRun": null
+   },
+   {
+    "subset": "Rookies",
+    "name": "Teal Explosion",
+    "serialRun": null
+   },
+   {
+    "subset": "Rookies",
+    "name": "Winter",
+    "serialRun": null
+   },
+   {
+    "subset": "Rookies",
+    "name": "Yellow",
+    "serialRun": null
+   },
+   {
+    "subset": "Rookies",
+    "name": "Premium Box Set",
+    "serialRun": 199
+   },
+   {
+    "subset": "Rookies",
+    "name": "Silver",
+    "serialRun": 199
+   },
+   {
+    "subset": "Rookies",
+    "name": "Green",
+    "serialRun": 99
+   },
+   {
+    "subset": "Rookies",
+    "name": "Hyper Red",
+    "serialRun": 99
+   },
+   {
+    "subset": "Rookies",
+    "name": "Gravity",
+    "serialRun": 75
+   },
+   {
+    "subset": "Rookies",
+    "name": "Red",
+    "serialRun": 75
+   },
+   {
+    "subset": "Rookies",
+    "name": "Blue Explosion",
+    "serialRun": 59
+   },
+   {
+    "subset": "Rookies",
+    "name": "Artist Proof",
+    "serialRun": 25
+   },
+   {
+    "subset": "Rookies",
+    "name": "Hyper Green",
+    "serialRun": 25
+   },
+   {
+    "subset": "Rookies",
+    "name": "Orange Explosion",
+    "serialRun": 25
+   },
+   {
+    "subset": "Rookies",
+    "name": "Red Explosion",
+    "serialRun": 15
+   },
+   {
+    "subset": "Rookies",
+    "name": "Artist Proof Gold",
+    "serialRun": 10
+   },
+   {
+    "subset": "Rookies",
+    "name": "Hyper Gold",
+    "serialRun": 10
+   },
+   {
+    "subset": "Rookies",
+    "name": "Artist Proof Black",
+    "serialRun": 1
+   }
+  ]
+ },
+ {
+  "sport": "Basketball",
+  "yearLabel": "2023-24",
+  "product": "Panini Prizm",
+  "manufacturer": "Panini",
+  "source": "2023 Panini Prizm (23-24) (Basketball).csv",
+  "official": true,
+  "parallels": [
+   {
+    "subset": "Base",
+    "name": "Base",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Blue Wave",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Choice Blue Yellow and Green",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Choice Tiger Stripe",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Fast Break",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Glitter",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Green",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Green Ice",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Green Pulsar",
+    "serialRun": null,
+    "runVaries": true
+   },
+   {
+    "subset": "Base",
+    "name": "Green Wave",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Hyper",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Ice",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Orange Ice",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Pink Ice",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Pulsar",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Red Ice",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Red Sparkle",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Red White and Blue",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Ruby Wave",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Silver",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Snakeskin",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "White Sparkle",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Red",
+    "serialRun": 299
+   },
+   {
+    "subset": "Base",
+    "name": "Red Seismic",
+    "serialRun": 299
+   },
+   {
+    "subset": "Base",
+    "name": "Teal Ice",
+    "serialRun": 225
+   },
+   {
+    "subset": "Base",
+    "name": "Blue",
+    "serialRun": 199
+   },
+   {
+    "subset": "Base",
+    "name": "White",
+    "serialRun": 175
+   },
+   {
+    "subset": "Base",
+    "name": "Fast Break Blue",
+    "serialRun": 150
+   },
+   {
+    "subset": "Base",
+    "name": "Premium Factory Set",
+    "serialRun": 150
+   },
+   {
+    "subset": "Base",
+    "name": "Purple Ice",
+    "serialRun": 149
+   },
+   {
+    "subset": "Base",
+    "name": "Blue Sparkle",
+    "serialRun": 144
+   },
+   {
+    "subset": "Base",
+    "name": "Blue Ice",
+    "serialRun": 125
+   },
+   {
+    "subset": "Base",
+    "name": "Fast Break Red",
+    "serialRun": 100
+   },
+   {
+    "subset": "Base",
+    "name": "Blue Seismic",
+    "serialRun": 99
+   },
+   {
+    "subset": "Base",
+    "name": "Purple",
+    "serialRun": 99
+   },
+   {
+    "subset": "Base",
+    "name": "Choice Red",
+    "serialRun": 88
+   },
+   {
+    "subset": "Base",
+    "name": "Multi Wave",
+    "serialRun": 88
+   },
+   {
+    "subset": "Base",
+    "name": "Fast Break Purple",
+    "serialRun": 75
+   },
+   {
+    "subset": "Base",
+    "name": "Red Power",
+    "serialRun": 75
+   },
+   {
+    "subset": "Base",
+    "name": "Orange Wave",
+    "serialRun": 60
+   },
+   {
+    "subset": "Base",
+    "name": "Fast Break Pink",
+    "serialRun": 50
+   },
+   {
+    "subset": "Base",
+    "name": "Choice Blue",
+    "serialRun": 49
+   },
+   {
+    "subset": "Base",
+    "name": "Orange",
+    "serialRun": 49
+   },
+   {
+    "subset": "Base",
+    "name": "Pink Pulsar",
+    "serialRun": 42
+   },
+   {
+    "subset": "Base",
+    "name": "White Wave",
+    "serialRun": 38
+   },
+   {
+    "subset": "Base",
+    "name": "Blue Shimmer FOTL",
+    "serialRun": 35
+   },
+   {
+    "subset": "Base",
+    "name": "Purple Pulsar",
+    "serialRun": 35
+   },
+   {
+    "subset": "Base",
+    "name": "White Ice",
+    "serialRun": 35
+   },
+   {
+    "subset": "Base",
+    "name": "Mojo",
+    "serialRun": 25
+   },
+   {
+    "subset": "Base",
+    "name": "Gold Sparkle",
+    "serialRun": 24
+   },
+   {
+    "subset": "Base",
+    "name": "Choice Cherry Blossom",
+    "serialRun": 20
+   },
+   {
+    "subset": "Base",
+    "name": "Fast Break Bronze",
+    "serialRun": 20
+   },
+   {
+    "subset": "Base",
+    "name": "Gold",
+    "serialRun": 10
+   },
+   {
+    "subset": "Base",
+    "name": "Gold Shimmer FOTL",
+    "serialRun": 10
+   },
+   {
+    "subset": "Base",
+    "name": "Gold Wave",
+    "serialRun": 10
+   },
+   {
+    "subset": "Base",
+    "name": "Choice Green",
+    "serialRun": 8
+   },
+   {
+    "subset": "Base",
+    "name": "Green Sparkle",
+    "serialRun": 8
+   },
+   {
+    "subset": "Base",
+    "name": "Lucky Envelopes",
+    "serialRun": 8
+   },
+   {
+    "subset": "Base",
+    "name": "Black Gold",
+    "serialRun": 5
+   },
+   {
+    "subset": "Base",
+    "name": "Fast Break Neon Green",
+    "serialRun": 5
+   },
+   {
+    "subset": "Base",
+    "name": "Green Shimmer FOTL",
+    "serialRun": 5
+   },
+   {
+    "subset": "Base",
+    "name": "Black",
+    "serialRun": 1
+   },
+   {
+    "subset": "Base",
+    "name": "Black Shimmer FOTL",
+    "serialRun": 1
+   },
+   {
+    "subset": "Base",
+    "name": "Choice Nebula",
+    "serialRun": 1
+   }
+  ]
+ },
+ {
+  "sport": "Basketball",
+  "yearLabel": "2023-24",
+  "product": "Panini Select",
+  "manufacturer": "Panini",
+  "source": "2023 Panini Select (23-24) (Basketball).csv",
+  "official": true,
+  "parallels": [
+   {
+    "subset": "Base",
+    "name": "Set - Concourse",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Blue",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Blue Cracked Ice Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Blue Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Cosmic Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Disco Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Elephant Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Gold Glitter Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Green Ice Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Green Shock Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Green White Purple Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Orange Flash Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Orange Tectonic Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Red Cracked Ice Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Red Wave Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Scope Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Silver Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Tectonic Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Tiger Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Tri-Color Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - White Sparkle Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Zebra Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Blue",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Blue Cracked Ice Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Blue Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Cosmic Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Disco Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Elephant Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Gold Glitter Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Green Ice Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Green Shock Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Green White Purple Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Orange Flash Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Orange Tectonic Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Red Cracked Ice Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Red Wave Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Silver Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Tectonic Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Tiger Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - White Sparkle Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Zebra Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Mezzanine Level",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Mezzanine Level - Green Ice Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Mezzanine Level - Green Shock Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Mezzanine Level Blue Cracked Ice Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Mezzanine Level Blue Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Mezzanine Level Elephant Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Mezzanine Level Orange Flash Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Mezzanine Level Orange Tectonic Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Mezzanine Level Red Cracked Ice Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Mezzanine Level Silver Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Mezzanine Level Tectonic Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Mezzanine Level Tiger Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Mezzanine Level Zebra Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Blue",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Blue Cracked Ice Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Blue Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Cosmic Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Disco Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Elephant Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Gold Glitter Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Green Ice Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Green Shock Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Green White Purple Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Orange Flash Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Orange Tectonic Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Red Cracked Ice Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Red Wave Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Scope Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Silver Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Tectonic Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Tiger Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Tri-Color Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - White Sparkle Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Zebra Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Light Blue Prizms",
+    "serialRun": 299
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Blue Scope Prizms",
+    "serialRun": 249
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Blue Prizms Die Cut",
+    "serialRun": 249
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Red Prizms",
+    "serialRun": 199
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Maroon Prizms",
+    "serialRun": 175
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Purple Flash Prizms",
+    "serialRun": 175
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Mezzanine Level - Maroon Prizms",
+    "serialRun": 175
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Mezzanine Level Purple Flash Prizms",
+    "serialRun": 175
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Maroon Prizms Die Cut",
+    "serialRun": 175
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Purple Flash Prizms",
+    "serialRun": 175
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - White Prizms",
+    "serialRun": 149
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Mezzanine Level - White Prizms",
+    "serialRun": 149
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - White Prizms Die Cut",
+    "serialRun": 149
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Blue Flash Prizms",
+    "serialRun": 99
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Blue Tectonic Prizms",
+    "serialRun": 99
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Light Blue Disco Prizms",
+    "serialRun": 99
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Pink Cracked Ice Prizms",
+    "serialRun": 99
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Purple Cracked Ice Prizms",
+    "serialRun": 99
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Blue Flash Prizms",
+    "serialRun": 99
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Blue Tectonic Prizms",
+    "serialRun": 99
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Light Blue Disco Prizms",
+    "serialRun": 99
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Pink Cracked Ice Prizms",
+    "serialRun": 99
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Purple Cracked Ice Prizms",
+    "serialRun": 99
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Mezzanine Level Blue Flash Prizms",
+    "serialRun": 99
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Mezzanine Level Blue Tectonic Prizms",
+    "serialRun": 99
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Mezzanine Level Pink Cracked Ice Prizms",
+    "serialRun": 99
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Mezzanine Level Purple Cracked Ice Prizms",
+    "serialRun": 99
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Blue Flash Prizms",
+    "serialRun": 99
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Blue Tectonic Prizms",
+    "serialRun": 99
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Light Blue Disco Prizms",
+    "serialRun": 99
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Pink Cracked Ice Prizms",
+    "serialRun": 99
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Purple Cracked Ice Prizms",
+    "serialRun": 99
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Purple Prizms Die Cut",
+    "serialRun": 99
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Blue Wave Prizms",
+    "serialRun": 75
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Neon Green Prizms",
+    "serialRun": 75
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - White Disco Prizms",
+    "serialRun": 75
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Blue Wave Prizms",
+    "serialRun": 75
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - White Disco Prizms",
+    "serialRun": 75
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Blue Wave Prizms",
+    "serialRun": 75
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Neon Green Prizms Die Cut",
+    "serialRun": 75
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - White Disco Prizms",
+    "serialRun": 75
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Orange Prizms Die Cut",
+    "serialRun": 65
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Green Wave Prizms",
+    "serialRun": 50
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Green Wave Prizms",
+    "serialRun": 50
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Green Wave Prizms",
+    "serialRun": 50
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Bronze Checker Prizms",
+    "serialRun": 49
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Red Disco Prizms",
+    "serialRun": 49
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Teal White Pink Prizms",
+    "serialRun": 49
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Red Disco Prizms",
+    "serialRun": 49
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Teal White Pink Prizms",
+    "serialRun": 49
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Bronze Checker Prizms Die Cut",
+    "serialRun": 49
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Red Disco Prizms",
+    "serialRun": 49
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Teal White Pink Prizms",
+    "serialRun": 49
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Blue Disco Prizms",
+    "serialRun": 25
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Tie-Dye Prizms",
+    "serialRun": 25
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Blue Disco Prizms",
+    "serialRun": 25
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Tie-Dye Prizms",
+    "serialRun": 25
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Mezzanine Level Tie-Dye Prizms",
+    "serialRun": 25
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Blue Disco Prizms",
+    "serialRun": 25
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Tie-Dye Prizms Die-Cut",
+    "serialRun": 25
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Neon Orange Pulsar Prizms FOTL",
+    "serialRun": 15
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Neon Orange Pulsar Prizms FOTL",
+    "serialRun": 15
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Neon Orange Pulsar Prizms FOTL",
+    "serialRun": 15
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Gold Cracked Ice Prizms",
+    "serialRun": 10
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Gold Disco Prizms",
+    "serialRun": 10
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Gold Flash Prizms",
+    "serialRun": 10
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Gold Prizms",
+    "serialRun": 10
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Gold Tectonic Prizms",
+    "serialRun": 10
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Gold Wave Prizms",
+    "serialRun": 10
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Pink Prizms Marketing",
+    "serialRun": 10
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Gold Cracked Ice Prizms",
+    "serialRun": 10
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Gold Disco Prizms",
+    "serialRun": 10
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Gold Flash Prizms",
+    "serialRun": 10
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Gold Prizms",
+    "serialRun": 10
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Gold Tectonic Prizms",
+    "serialRun": 10
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Gold Wave Prizms",
+    "serialRun": 10
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Mezzanine Level Gold Cracked Ice Prizms",
+    "serialRun": 10
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Mezzanine Level Gold Flash Prizms",
+    "serialRun": 10
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Mezzanine Level Gold Prizms",
+    "serialRun": 10
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Mezzanine Level Gold Tectonic Prizms",
+    "serialRun": 10
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Gold Cracked Ice Prizms",
+    "serialRun": 10
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Gold Disco Prizms",
+    "serialRun": 10
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Gold Flash Prizms",
+    "serialRun": 10
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Gold Prizms Die Cut",
+    "serialRun": 10
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Gold Tectonic Prizms",
+    "serialRun": 10
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Gold Wave Prizms",
+    "serialRun": 10
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Dragon Scale Prizms",
+    "serialRun": 8
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Lucky Envelopes Prizms",
+    "serialRun": 8
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Dragon Scale Prizms",
+    "serialRun": 8
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Lucky Envelopes Prizms",
+    "serialRun": 8
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Dragon Scale Prizms",
+    "serialRun": 8
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Lucky Envelopes Prizms",
+    "serialRun": 8
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Green Disco Prizms",
+    "serialRun": 5
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Green Prizms",
+    "serialRun": 5
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Neon Purple Pulsar Prizms FOTL",
+    "serialRun": 5
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Green Disco Prizms",
+    "serialRun": 5
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Green Prizms",
+    "serialRun": 5
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Neon Purple Pulsar Prizms FOTL",
+    "serialRun": 5
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Mezzanine Level Green Prizms",
+    "serialRun": 5
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Green Disco Prizms",
+    "serialRun": 5
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Green Prizms Die Cut",
+    "serialRun": 5
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Neon Purple Pulsar Prizms FOTL",
+    "serialRun": 5
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Pink Prizms Marketing",
+    "serialRun": 4
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Black Disco Prizms",
+    "serialRun": 1
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Black Finite Prizms",
+    "serialRun": 1
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Black Snake Skin Pulsar Prizms FOTL",
+    "serialRun": 1
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Black White Gold Prizms",
+    "serialRun": 1
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Black Disco Prizms",
+    "serialRun": 1
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Black Finite Prizms",
+    "serialRun": 1
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Black Snake Skin Pulsar Prizms FOTL",
+    "serialRun": 1
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Black White Gold Prizms",
+    "serialRun": 1
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Pink Prizms Marketing",
+    "serialRun": 1
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Mezzanine Level Black Finite Prizms",
+    "serialRun": 1
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Black Disco Prizms",
+    "serialRun": 1
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Black Finite Prizms Die Cut",
+    "serialRun": 1
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Black Snake Skin Pulsar Prizms FOTL",
+    "serialRun": 1
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Black White Gold Prizms",
+    "serialRun": 1
+   }
+  ]
+ },
+ {
+  "sport": "Basketball",
+  "yearLabel": "2024",
+  "product": "Panini Prizm WNBA",
+  "manufacturer": "Panini",
+  "source": "2024 Panini WNBA Prizm (Basketball).csv",
+  "official": true,
+  "parallels": [
+   {
+    "subset": "Base",
+    "name": "Base",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Blue Velocity",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Checkerboard",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Green",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Ice",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Orange Ice",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Orange Velocity",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Silver",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Snake Skin",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "WNBA Logo",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "White Sparkle",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Pulsar",
+    "serialRun": 499
+   },
+   {
+    "subset": "Base",
+    "name": "Red",
+    "serialRun": 299
+   },
+   {
+    "subset": "Base",
+    "name": "Red Pulsar",
+    "serialRun": 299
+   },
+   {
+    "subset": "Base",
+    "name": "Blue",
+    "serialRun": 199
+   },
+   {
+    "subset": "Base",
+    "name": "Blue Pulsar",
+    "serialRun": 199
+   },
+   {
+    "subset": "Base",
+    "name": "Purple",
+    "serialRun": 149
+   },
+   {
+    "subset": "Base",
+    "name": "Orange",
+    "serialRun": 99
+   },
+   {
+    "subset": "Base",
+    "name": "Premium Box Set",
+    "serialRun": 99
+   },
+   {
+    "subset": "Base",
+    "name": "Pink Velocity",
+    "serialRun": 79
+   },
+   {
+    "subset": "Base",
+    "name": "Teal",
+    "serialRun": 49
+   },
+   {
+    "subset": "Base",
+    "name": "Black Velocity",
+    "serialRun": 39
+   },
+   {
+    "subset": "Base",
+    "name": "White Ice",
+    "serialRun": 35
+   },
+   {
+    "subset": "Base",
+    "name": "Green Pulsar",
+    "serialRun": 25
+   },
+   {
+    "subset": "Base",
+    "name": "Mojo",
+    "serialRun": 25
+   },
+   {
+    "subset": "Base",
+    "name": "Cherry Blossom FOTL",
+    "serialRun": 20
+   },
+   {
+    "subset": "Base",
+    "name": "Gold",
+    "serialRun": 10
+   },
+   {
+    "subset": "Base",
+    "name": "Gold Ice",
+    "serialRun": 10
+   },
+   {
+    "subset": "Base",
+    "name": "Black Gold",
+    "serialRun": 5
+   },
+   {
+    "subset": "Base",
+    "name": "Lotus Flower FOTL",
+    "serialRun": 3
+   },
+   {
+    "subset": "Base",
+    "name": "Mosaic",
+    "serialRun": 3
+   },
+   {
+    "subset": "Base",
+    "name": "Black Finite",
+    "serialRun": 1
+   },
+   {
+    "subset": "Base",
+    "name": "Gold Vinyl",
+    "serialRun": 1
+   }
+  ]
+ },
+ {
+  "sport": "Basketball",
+  "yearLabel": "2024-25",
+  "product": "Panini Donruss",
+  "manufacturer": "Panini",
+  "source": "2024 Donruss Donruss (24-25) (Basketball).csv",
+  "official": true,
+  "parallels": [
+   {
+    "subset": "Base",
+    "name": "Base",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Choice Dragon",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Disco",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Holo Green Laser",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Holo Winter",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "International",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "International Holo Maroon Laser",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Press Proof Silver",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Red Wedges",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Wedges",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Winter",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Yellow Flood",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Storm",
+    "serialRun": 299
+   },
+   {
+    "subset": "Base",
+    "name": "Press Proof Purple",
+    "serialRun": 199
+   },
+   {
+    "subset": "Base",
+    "name": "Cubic",
+    "serialRun": 175
+   },
+   {
+    "subset": "Base",
+    "name": "Holo Laser",
+    "serialRun": 149
+   },
+   {
+    "subset": "Base",
+    "name": "Red Disco",
+    "serialRun": 149
+   },
+   {
+    "subset": "Base",
+    "name": "Teal Explosion",
+    "serialRun": 149
+   },
+   {
+    "subset": "Base",
+    "name": "Crystals",
+    "serialRun": 125
+   },
+   {
+    "subset": "Base",
+    "name": "Holo Orange Laser",
+    "serialRun": 125
+   },
+   {
+    "subset": "Base",
+    "name": "Hyper",
+    "serialRun": 125
+   },
+   {
+    "subset": "Base",
+    "name": "International Red Stars",
+    "serialRun": 125
+   },
+   {
+    "subset": "Base",
+    "name": "Choice Red",
+    "serialRun": 99
+   },
+   {
+    "subset": "Base",
+    "name": "Holo Purple Laser",
+    "serialRun": 99
+   },
+   {
+    "subset": "Base",
+    "name": "Holo Red Laser",
+    "serialRun": 99
+   },
+   {
+    "subset": "Base",
+    "name": "Holo Red and Green Laser",
+    "serialRun": 99
+   },
+   {
+    "subset": "Base",
+    "name": "Dots",
+    "serialRun": 85
+   },
+   {
+    "subset": "Base",
+    "name": "International Blue Fireworks",
+    "serialRun": 85
+   },
+   {
+    "subset": "Base",
+    "name": "Blue Disco",
+    "serialRun": 75
+   },
+   {
+    "subset": "Base",
+    "name": "Blue Wedges",
+    "serialRun": 75
+   },
+   {
+    "subset": "Base",
+    "name": "Blue Winter",
+    "serialRun": 75
+   },
+   {
+    "subset": "Base",
+    "name": "Press Proof Silver Die-Cut",
+    "serialRun": 75
+   },
+   {
+    "subset": "Base",
+    "name": "Holo Pink Laser",
+    "serialRun": 50
+   },
+   {
+    "subset": "Base",
+    "name": "Checkerboard",
+    "serialRun": 49
+   },
+   {
+    "subset": "Base",
+    "name": "Choice Blue",
+    "serialRun": 49
+   },
+   {
+    "subset": "Base",
+    "name": "Holo Blue Laser",
+    "serialRun": 49
+   },
+   {
+    "subset": "Base",
+    "name": "Blue Explosion",
+    "serialRun": 45
+   },
+   {
+    "subset": "Base",
+    "name": "Holo Blue and Green Laser",
+    "serialRun": 30
+   },
+   {
+    "subset": "Base",
+    "name": "Holo Teal Laser",
+    "serialRun": 25
+   },
+   {
+    "subset": "Base",
+    "name": "Holo Yellow Laser",
+    "serialRun": 25
+   },
+   {
+    "subset": "Base",
+    "name": "Pink Disco",
+    "serialRun": 25
+   },
+   {
+    "subset": "Base",
+    "name": "Press Proof Gold Die-Cut",
+    "serialRun": 25
+   },
+   {
+    "subset": "Base",
+    "name": "Holo Red and Blue Laser",
+    "serialRun": 15
+   },
+   {
+    "subset": "Base",
+    "name": "Lava",
+    "serialRun": 15
+   },
+   {
+    "subset": "Base",
+    "name": "Choice Gold",
+    "serialRun": 10
+   },
+   {
+    "subset": "Base",
+    "name": "Gold Wedges",
+    "serialRun": 10
+   },
+   {
+    "subset": "Base",
+    "name": "Gold Winter",
+    "serialRun": 10
+   },
+   {
+    "subset": "Base",
+    "name": "Holo Gold Laser",
+    "serialRun": 10
+   },
+   {
+    "subset": "Base",
+    "name": "Choice Black Gold",
+    "serialRun": 8
+   },
+   {
+    "subset": "Base",
+    "name": "International Green Scope",
+    "serialRun": 5
+   },
+   {
+    "subset": "Base",
+    "name": "Swirlorama",
+    "serialRun": 5
+   },
+   {
+    "subset": "Base",
+    "name": "Black Wedges",
+    "serialRun": 1
+   },
+   {
+    "subset": "Base",
+    "name": "Choice Black",
+    "serialRun": 1
+   },
+   {
+    "subset": "Base",
+    "name": "Holo Black Laser",
+    "serialRun": 1
+   }
+  ]
+ },
+ {
+  "sport": "Basketball",
+  "yearLabel": "2024-25",
+  "product": "Panini Prizm",
+  "manufacturer": "Panini",
+  "source": "2024 Panini Prizm (24-25) (Basketball).csv",
+  "official": true,
+  "parallels": [
+   {
+    "subset": "Base",
+    "name": "Base",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Black White",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "China Variation",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Choice Blue Yellow and Green",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Choice Tiger Stripe",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Fast Break",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Glitter",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Green Ice",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Green Wave",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Hyper",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Ice",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Legends",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Legends China Variation",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Legends Prizms Black White",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Legends Prizms Choice Blue Yellow and Green",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Legends Prizms Choice Tiger Stripe",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Legends Prizms Fast Break",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Legends Prizms Glitter",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Legends Prizms Green Ice",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Legends Prizms Green Wave",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Legends Prizms Hyper",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Legends Prizms Ice",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Legends Prizms Orange Ice",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Legends Prizms Pink Ice",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Legends Prizms Pulsar",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Legends Prizms Red Ice",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Legends Prizms Red Sparkle",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Legends Prizms Red White and Blue",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Legends Prizms Ruby Wave",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Legends Prizms Silver",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Legends Prizms Snakeskin",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Legends Prizms Wave",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Legends Prizms White Sparkle",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Legends Prizms White Tiger Stripe",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Orange Ice",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Pink Ice",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Pulsar",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Red Ice",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Red Sparkle",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Red White and Blue",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Ruby Wave",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Silver",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Snakeskin",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Variations",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Wave",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "White Sparkle",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "White Tiger Stripe",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Legends Prizms Red",
+    "serialRun": 299
+   },
+   {
+    "subset": "Base",
+    "name": "Legends Prizms Red Seismic",
+    "serialRun": 299
+   },
+   {
+    "subset": "Base",
+    "name": "Red",
+    "serialRun": 299
+   },
+   {
+    "subset": "Base",
+    "name": "Red Seismic",
+    "serialRun": 299
+   },
+   {
+    "subset": "Base",
+    "name": "Legends Prizms White Lazer",
+    "serialRun": 275
+   },
+   {
+    "subset": "Base",
+    "name": "White Lazer",
+    "serialRun": 275
+   },
+   {
+    "subset": "Base",
+    "name": "Legends Prizms Pink",
+    "serialRun": 249
+   },
+   {
+    "subset": "Base",
+    "name": "Legends Prizms Skewed",
+    "serialRun": 249
+   },
+   {
+    "subset": "Base",
+    "name": "Pink",
+    "serialRun": 249
+   },
+   {
+    "subset": "Base",
+    "name": "Skewed",
+    "serialRun": 249
+   },
+   {
+    "subset": "Base",
+    "name": "Basketball",
+    "serialRun": 225
+   },
+   {
+    "subset": "Base",
+    "name": "Legends Prizms Basketball",
+    "serialRun": 225
+   },
+   {
+    "subset": "Base",
+    "name": "Legends Prizms Teal Ice",
+    "serialRun": 225
+   },
+   {
+    "subset": "Base",
+    "name": "Teal Ice",
+    "serialRun": 225
+   },
+   {
+    "subset": "Base",
+    "name": "Blue",
+    "serialRun": 199
+   },
+   {
+    "subset": "Base",
+    "name": "Legends Prizms Blue",
+    "serialRun": 199
+   },
+   {
+    "subset": "Base",
+    "name": "Legends Prizms Orange Seismic",
+    "serialRun": 199
+   },
+   {
+    "subset": "Base",
+    "name": "Orange Seismic",
+    "serialRun": 199
+   },
+   {
+    "subset": "Base",
+    "name": "Legends Prizms White",
+    "serialRun": 175
+   },
+   {
+    "subset": "Base",
+    "name": "White",
+    "serialRun": 175
+   },
+   {
+    "subset": "Base",
+    "name": "Fast Break Blue",
+    "serialRun": 150
+   },
+   {
+    "subset": "Base",
+    "name": "Legends Prizms Fast Break Blue",
+    "serialRun": 150
+   },
+   {
+    "subset": "Base",
+    "name": "Legends Prizms Premium Factory Set",
+    "serialRun": 150
+   },
+   {
+    "subset": "Base",
+    "name": "Premium Factory Set",
+    "serialRun": 150
+   },
+   {
+    "subset": "Base",
+    "name": "Legends Prizms Purple Ice",
+    "serialRun": 149
+   },
+   {
+    "subset": "Base",
+    "name": "Purple Ice",
+    "serialRun": 149
+   },
+   {
+    "subset": "Base",
+    "name": "Blue Sparkle",
+    "serialRun": 144
+   },
+   {
+    "subset": "Base",
+    "name": "Legends Prizms Blue Sparkle",
+    "serialRun": 144
+   },
+   {
+    "subset": "Base",
+    "name": "Blue Ice",
+    "serialRun": 125
+   },
+   {
+    "subset": "Base",
+    "name": "Blue Wave",
+    "serialRun": 125
+   },
+   {
+    "subset": "Base",
+    "name": "Fast Break Orange",
+    "serialRun": 125
+   },
+   {
+    "subset": "Base",
+    "name": "Legends Prizms Blue Ice",
+    "serialRun": 125
+   },
+   {
+    "subset": "Base",
+    "name": "Legends Prizms Blue Wave",
+    "serialRun": 125
+   },
+   {
+    "subset": "Base",
+    "name": "Legends Prizms Fast Break Orange",
+    "serialRun": 125
+   },
+   {
+    "subset": "Base",
+    "name": "Fast Break Red",
+    "serialRun": 100
+   },
+   {
+    "subset": "Base",
+    "name": "Legends Prizms Fast Break Red",
+    "serialRun": 100
+   },
+   {
+    "subset": "Base",
+    "name": "Blue Pulsar",
+    "serialRun": 99
+   },
+   {
+    "subset": "Base",
+    "name": "Blue Seismic",
+    "serialRun": 99
+   },
+   {
+    "subset": "Base",
+    "name": "Legends Prizms Blue Pulsar",
+    "serialRun": 99
+   },
+   {
+    "subset": "Base",
+    "name": "Legends Prizms Blue Seismic",
+    "serialRun": 99
+   },
+   {
+    "subset": "Base",
+    "name": "Legends Prizms Purple",
+    "serialRun": 99
+   },
+   {
+    "subset": "Base",
+    "name": "Purple",
+    "serialRun": 99
+   },
+   {
+    "subset": "Base",
+    "name": "Choice Red",
+    "serialRun": 88
+   },
+   {
+    "subset": "Base",
+    "name": "Dragon Year",
+    "serialRun": 88
+   },
+   {
+    "subset": "Base",
+    "name": "Legends Prizms Choice Red",
+    "serialRun": 88
+   },
+   {
+    "subset": "Base",
+    "name": "Legends Prizms Dragon Year",
+    "serialRun": 88
+   },
+   {
+    "subset": "Base",
+    "name": "Legends Prizms Multi Wave",
+    "serialRun": 88
+   },
+   {
+    "subset": "Base",
+    "name": "Multi Wave",
+    "serialRun": 88
+   },
+   {
+    "subset": "Base",
+    "name": "Fast Break Purple",
+    "serialRun": 75
+   },
+   {
+    "subset": "Base",
+    "name": "Legends Prizms Fast Break Purple",
+    "serialRun": 75
+   },
+   {
+    "subset": "Base",
+    "name": "Legends Prizms Red Power",
+    "serialRun": 75
+   },
+   {
+    "subset": "Base",
+    "name": "Legends Prizms Red Pulsar",
+    "serialRun": 75
+   },
+   {
+    "subset": "Base",
+    "name": "Red Power",
+    "serialRun": 75
+   },
+   {
+    "subset": "Base",
+    "name": "Red Pulsar",
+    "serialRun": 75
+   },
+   {
+    "subset": "Base",
+    "name": "Legends Prizms Orange Wave",
+    "serialRun": 60
+   },
+   {
+    "subset": "Base",
+    "name": "Orange Wave",
+    "serialRun": 60
+   },
+   {
+    "subset": "Base",
+    "name": "Fast Break Pink",
+    "serialRun": 50
+   },
+   {
+    "subset": "Base",
+    "name": "Legends Prizms Fast Break Pink",
+    "serialRun": 50
+   },
+   {
+    "subset": "Base",
+    "name": "Choice Blue",
+    "serialRun": 49
+   },
+   {
+    "subset": "Base",
+    "name": "Legends Prizms Choice Blue",
+    "serialRun": 49
+   },
+   {
+    "subset": "Base",
+    "name": "Legends Prizms Orange",
+    "serialRun": 49
+   },
+   {
+    "subset": "Base",
+    "name": "Orange",
+    "serialRun": 49
+   },
+   {
+    "subset": "Base",
+    "name": "Jade Dragon Scale",
+    "serialRun": 48
+   },
+   {
+    "subset": "Base",
+    "name": "Legends Prizms Jade Dragon Scale",
+    "serialRun": 48
+   },
+   {
+    "subset": "Base",
+    "name": "Legends Prizms Pink Pulsar",
+    "serialRun": 42
+   },
+   {
+    "subset": "Base",
+    "name": "Pink Pulsar",
+    "serialRun": 42
+   },
+   {
+    "subset": "Base",
+    "name": "Legends Prizms White Wave",
+    "serialRun": 38
+   },
+   {
+    "subset": "Base",
+    "name": "White Wave",
+    "serialRun": 38
+   },
+   {
+    "subset": "Base",
+    "name": "Blue Shimmer FOTL",
+    "serialRun": 35
+   },
+   {
+    "subset": "Base",
+    "name": "Legends Prizms Blue Shimmer FOTL",
+    "serialRun": 35
+   },
+   {
+    "subset": "Base",
+    "name": "Legends Prizms Purple Pulsar",
+    "serialRun": 35
+   },
+   {
+    "subset": "Base",
+    "name": "Legends Prizms Red Lazer",
+    "serialRun": 35
+   },
+   {
+    "subset": "Base",
+    "name": "Legends Prizms White Ice",
+    "serialRun": 35
+   },
+   {
+    "subset": "Base",
+    "name": "Purple Pulsar",
+    "serialRun": 35
+   },
+   {
+    "subset": "Base",
+    "name": "Red Lazer",
+    "serialRun": 35
+   },
+   {
+    "subset": "Base",
+    "name": "White Ice",
+    "serialRun": 35
+   },
+   {
+    "subset": "Base",
+    "name": "Green Pulsar",
+    "serialRun": 25
+   },
+   {
+    "subset": "Base",
+    "name": "Legends Prizms Green Pulsar",
+    "serialRun": 25
+   },
+   {
+    "subset": "Base",
+    "name": "Legends Prizms Mojo",
+    "serialRun": 25
+   },
+   {
+    "subset": "Base",
+    "name": "Mojo",
+    "serialRun": 25
+   },
+   {
+    "subset": "Base",
+    "name": "Gold Sparkle",
+    "serialRun": 24
+   },
+   {
+    "subset": "Base",
+    "name": "Legends Prizms Gold Sparkle",
+    "serialRun": 24
+   },
+   {
+    "subset": "Base",
+    "name": "Choice Cherry Blossom",
+    "serialRun": 20
+   },
+   {
+    "subset": "Base",
+    "name": "Fast Break Bronze",
+    "serialRun": 20
+   },
+   {
+    "subset": "Base",
+    "name": "Legends Prizms Choice Cherry Blossum",
+    "serialRun": 20
+   },
+   {
+    "subset": "Base",
+    "name": "Legends Prizms Fast Break Bronze",
+    "serialRun": 20
+   },
+   {
+    "subset": "Base",
+    "name": "Legends Prizms Lotus Flower",
+    "serialRun": 18
+   },
+   {
+    "subset": "Base",
+    "name": "Lotus Flower",
+    "serialRun": 18
+   },
+   {
+    "subset": "Base",
+    "name": "Gold",
+    "serialRun": 10
+   },
+   {
+    "subset": "Base",
+    "name": "Gold Ice",
+    "serialRun": 10
+   },
+   {
+    "subset": "Base",
+    "name": "Gold Lazer",
+    "serialRun": 10
+   },
+   {
+    "subset": "Base",
+    "name": "Gold Shimmer FOTL",
+    "serialRun": 10
+   },
+   {
+    "subset": "Base",
+    "name": "Gold Wave",
+    "serialRun": 10
+   },
+   {
+    "subset": "Base",
+    "name": "Legends Prizms Gold",
+    "serialRun": 10
+   },
+   {
+    "subset": "Base",
+    "name": "Legends Prizms Gold Ice",
+    "serialRun": 10
+   },
+   {
+    "subset": "Base",
+    "name": "Legends Prizms Gold Lazer",
+    "serialRun": 10
+   },
+   {
+    "subset": "Base",
+    "name": "Legends Prizms Gold Shimmer FOTL",
+    "serialRun": 10
+   },
+   {
+    "subset": "Base",
+    "name": "Legends Prizms Gold Wave",
+    "serialRun": 10
+   },
+   {
+    "subset": "Base",
+    "name": "Choice Green",
+    "serialRun": 8
+   },
+   {
+    "subset": "Base",
+    "name": "Green Sparkle",
+    "serialRun": 8
+   },
+   {
+    "subset": "Base",
+    "name": "Legends Prizms Choice Green",
+    "serialRun": 8
+   },
+   {
+    "subset": "Base",
+    "name": "Legends Prizms Green Sparkle",
+    "serialRun": 8
+   },
+   {
+    "subset": "Base",
+    "name": "Legends Prizms Lucky Envelopes",
+    "serialRun": 8
+   },
+   {
+    "subset": "Base",
+    "name": "Legends Prizms Plum Blossom",
+    "serialRun": 8
+   },
+   {
+    "subset": "Base",
+    "name": "Lucky Envelopes",
+    "serialRun": 8
+   },
+   {
+    "subset": "Base",
+    "name": "Plum Blossom",
+    "serialRun": 8
+   },
+   {
+    "subset": "Base",
+    "name": "Black Gold",
+    "serialRun": 5
+   },
+   {
+    "subset": "Base",
+    "name": "Fast Break Neon Green",
+    "serialRun": 5
+   },
+   {
+    "subset": "Base",
+    "name": "Green Shimmer FOTL",
+    "serialRun": 5
+   },
+   {
+    "subset": "Base",
+    "name": "Legends Prizms Black Gold",
+    "serialRun": 5
+   },
+   {
+    "subset": "Base",
+    "name": "Legends Prizms Fast Break Neon Green",
+    "serialRun": 5
+   },
+   {
+    "subset": "Base",
+    "name": "Legends Prizms Green Shimmer FOTL",
+    "serialRun": 5
+   },
+   {
+    "subset": "Base",
+    "name": "Black",
+    "serialRun": 1
+   },
+   {
+    "subset": "Base",
+    "name": "Black Shimmer FOTL",
+    "serialRun": 1
+   },
+   {
+    "subset": "Base",
+    "name": "Choice Nebula",
+    "serialRun": 1
+   },
+   {
+    "subset": "Base",
+    "name": "Legends Prizms Black",
+    "serialRun": 1
+   },
+   {
+    "subset": "Base",
+    "name": "Legends Prizms Black Shimmer FOTL",
+    "serialRun": 1
+   },
+   {
+    "subset": "Base",
+    "name": "Legends Prizms Choice Nebula",
+    "serialRun": 1
+   }
+  ]
+ },
+ {
+  "sport": "Basketball",
+  "yearLabel": "2025",
+  "product": "Panini Donruss WNBA",
+  "manufacturer": "Panini",
+  "source": "2025 Donruss WNBA Donruss (Basketball).csv",
+  "official": true,
+  "parallels": [
+   {
+    "subset": "Base",
+    "name": "Base",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Cubic",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Dragon",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Green Laser",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Green Shimmer",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Holo WNBA Logo",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Lava",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Red Lava",
+    "serialRun": 399
+   },
+   {
+    "subset": "Base",
+    "name": "Red Shimmer",
+    "serialRun": 399
+   },
+   {
+    "subset": "Base",
+    "name": "Red Holo",
+    "serialRun": 299
+   },
+   {
+    "subset": "Base",
+    "name": "Orange Laser",
+    "serialRun": 199
+   },
+   {
+    "subset": "Base",
+    "name": "Orange Lava",
+    "serialRun": 199
+   },
+   {
+    "subset": "Base",
+    "name": "Teal Laser",
+    "serialRun": 125
+   },
+   {
+    "subset": "Base",
+    "name": "Purple Laser",
+    "serialRun": 99
+   },
+   {
+    "subset": "Base",
+    "name": "Purple Lava",
+    "serialRun": 99
+   },
+   {
+    "subset": "Base",
+    "name": "Purple Shimmer",
+    "serialRun": 99
+   },
+   {
+    "subset": "Base",
+    "name": "Light Blue Lava",
+    "serialRun": 75
+   },
+   {
+    "subset": "Base",
+    "name": "Blue Laser",
+    "serialRun": 49
+   },
+   {
+    "subset": "Base",
+    "name": "Blue Shimmer",
+    "serialRun": 49
+   },
+   {
+    "subset": "Base",
+    "name": "Artist Proof",
+    "serialRun": 25
+   },
+   {
+    "subset": "Base",
+    "name": "Pink Laser",
+    "serialRun": 25
+   },
+   {
+    "subset": "Base",
+    "name": "Pink Shimmer",
+    "serialRun": 25
+   },
+   {
+    "subset": "Base",
+    "name": "Holo Team Logo",
+    "serialRun": 13
+   },
+   {
+    "subset": "Base",
+    "name": "Gold Shimmer",
+    "serialRun": 10
+   },
+   {
+    "subset": "Base",
+    "name": "Holo Gold Laser",
+    "serialRun": 10
+   },
+   {
+    "subset": "Base",
+    "name": "Black Gold Laser",
+    "serialRun": 5
+   },
+   {
+    "subset": "Base",
+    "name": "Yellow Lava",
+    "serialRun": 5
+   },
+   {
+    "subset": "Base",
+    "name": "Black Holo Press Proof",
+    "serialRun": 1
+   },
+   {
+    "subset": "Base",
+    "name": "Black Shimmer",
+    "serialRun": 1
+   },
+   {
+    "subset": "Base",
+    "name": "Holo Black Laser",
+    "serialRun": 1
+   }
+  ]
+ },
+ {
+  "sport": "Basketball",
+  "yearLabel": "2025-26",
+  "product": "Panini Prizm",
+  "manufacturer": "Panini",
+  "source": "2025 Panini Prizm (25-26) (Basketball).csv",
+  "official": true,
+  "parallels": [
+   {
+    "subset": "Base",
+    "name": "Base",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Green",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Hyper",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Orange Ice",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Pulsar",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Purple Wave",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Raywave",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Red Ice",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Silver",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Snakeskin",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Tiger Stripe",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Red Pulsar",
+    "serialRun": 299
+   },
+   {
+    "subset": "Base",
+    "name": "Red Wave",
+    "serialRun": 299
+   },
+   {
+    "subset": "Base",
+    "name": "Red Seismic",
+    "serialRun": 275
+   },
+   {
+    "subset": "Base",
+    "name": "Blue Wave",
+    "serialRun": 249
+   },
+   {
+    "subset": "Base",
+    "name": "Teal",
+    "serialRun": 215
+   },
+   {
+    "subset": "Base",
+    "name": "Blue Seismic",
+    "serialRun": 199
+   },
+   {
+    "subset": "Base",
+    "name": "Pink Pulsar",
+    "serialRun": 199
+   },
+   {
+    "subset": "Base",
+    "name": "Purple Ice",
+    "serialRun": 199
+   },
+   {
+    "subset": "Base",
+    "name": "Orange Pulsar",
+    "serialRun": 175
+   },
+   {
+    "subset": "Base",
+    "name": "Purple Pulsar",
+    "serialRun": 175
+   },
+   {
+    "subset": "Base",
+    "name": "Purple Seismic",
+    "serialRun": 149
+   },
+   {
+    "subset": "Base",
+    "name": "Pink Scope",
+    "serialRun": 125
+   },
+   {
+    "subset": "Base",
+    "name": "Raywave Red",
+    "serialRun": 125
+   },
+   {
+    "subset": "Base",
+    "name": "Blue Pulsar",
+    "serialRun": 99
+   },
+   {
+    "subset": "Base",
+    "name": "Pink Seismic",
+    "serialRun": 99
+   },
+   {
+    "subset": "Base",
+    "name": "White Lazer",
+    "serialRun": 99
+   },
+   {
+    "subset": "Base",
+    "name": "Red Scope",
+    "serialRun": 88
+   },
+   {
+    "subset": "Base",
+    "name": "Orange Seismic",
+    "serialRun": 75
+   },
+   {
+    "subset": "Base",
+    "name": "Red Power",
+    "serialRun": 75
+   },
+   {
+    "subset": "Base",
+    "name": "Blue Ice",
+    "serialRun": 49
+   },
+   {
+    "subset": "Base",
+    "name": "Green Seismic",
+    "serialRun": 49
+   },
+   {
+    "subset": "Base",
+    "name": "Green Pulsar",
+    "serialRun": 25
+   },
+   {
+    "subset": "Base",
+    "name": "Mojo",
+    "serialRun": 25
+   },
+   {
+    "subset": "Base",
+    "name": "Cherry Blossom",
+    "serialRun": 20
+   },
+   {
+    "subset": "Base",
+    "name": "Blue Shimmer FOTL",
+    "serialRun": 15
+   },
+   {
+    "subset": "Base",
+    "name": "Raywave Blue",
+    "serialRun": 15
+   },
+   {
+    "subset": "Base",
+    "name": "Gold",
+    "serialRun": 10
+   },
+   {
+    "subset": "Base",
+    "name": "Gold Glitter",
+    "serialRun": 10
+   },
+   {
+    "subset": "Base",
+    "name": "Gold Shimmer FOTL",
+    "serialRun": 10
+   },
+   {
+    "subset": "Base",
+    "name": "Green Scope",
+    "serialRun": 8
+   },
+   {
+    "subset": "Base",
+    "name": "Plum Blossom",
+    "serialRun": 8
+   },
+   {
+    "subset": "Base",
+    "name": "Black Gold",
+    "serialRun": 5
+   },
+   {
+    "subset": "Base",
+    "name": "Gold VInyl FOTL",
+    "serialRun": 5
+   },
+   {
+    "subset": "Base",
+    "name": "Green Mojo",
+    "serialRun": 5
+   },
+   {
+    "subset": "Base",
+    "name": "Raywave Black Gold",
+    "serialRun": 5
+   },
+   {
+    "subset": "Base",
+    "name": "Black",
+    "serialRun": 1
+   },
+   {
+    "subset": "Base",
+    "name": "Black Shimmer FOTL",
+    "serialRun": 1
+   },
+   {
+    "subset": "Base",
+    "name": "Nebula",
+    "serialRun": 1
+   }
+  ]
+ },
+ {
+  "sport": "Basketball",
+  "yearLabel": "2025-26",
+  "product": "Panini Select",
+  "manufacturer": "Panini",
+  "source": "2025 Panini Select (25-26) (Basketball).csv",
+  "official": true,
+  "parallels": [
+   {
+    "subset": "Base",
+    "name": "Set - Concourse",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Blue Cracked Ice Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Blue Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Cosmic Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Disco Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Dragon Scale Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Elephant Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Gold Glitter Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Green Mojo Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Orange Flash Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Red Cracked Ice Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Scope Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Silver Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Tiger Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - White Sparkle Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Zebra Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Blue Cracked Ice Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Blue Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Cosmic Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Dragon Scale Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Elephant Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Gold Glitter Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Green Mojo Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Orange Flash Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Red Cracked Ice Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Silver Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Tiger Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - White Sparkle Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Zebra Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Mezzanine Level",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Mezzanine Level - Blue Cracked Ice Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Mezzanine Level - Blue Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Mezzanine Level - Elephant Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Mezzanine Level - Green Mojo Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Mezzanine Level - Orange Flash Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Mezzanine Level - Red Cracked Ice Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Mezzanine Level - Silver Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Mezzanine Level - Tiger Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Mezzanine Level - Zebra Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Blue Cracked Ice Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Blue Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Cosmic Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Disco Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Dragon Scale Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Elephant Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Gold Glitter Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Green Mojo Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Orange Flash Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Red Cracked Ice Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Scope Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Silver Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Tiger Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - White Sparkle Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Zebra Prizms",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Light Blue Prizms",
+    "serialRun": 299
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Red Flash Prizms",
+    "serialRun": 299
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Mezzanine Level - Red Flash Prizms",
+    "serialRun": 299
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Light Blue Prizms",
+    "serialRun": 299
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Red Flash Prizms",
+    "serialRun": 299
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Orange Cracked Ice Prizms",
+    "serialRun": 275
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Mezzanine Level - Orange Cracked Ice Prizms",
+    "serialRun": 275
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Orange Cracked Ice Prizms",
+    "serialRun": 275
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Blue Scope Prizms",
+    "serialRun": 249
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Purple Flash Prizms",
+    "serialRun": 249
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Mezzanine Level - Purple Flash Prizms",
+    "serialRun": 249
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Purple Flash Prizms",
+    "serialRun": 249
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Red Scope Prizms",
+    "serialRun": 249
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Stars Prizms",
+    "serialRun": 225
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Light Blue Cracked Ice Prizms",
+    "serialRun": 199
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Red Prizms",
+    "serialRun": 199
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Mezzanine Level - Light Blue Cracked Ice Prizms",
+    "serialRun": 199
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Light Blue Cracked Ice Prizms",
+    "serialRun": 199
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Red Prizms",
+    "serialRun": 199
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Maroon Prizms",
+    "serialRun": 175
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Maroon Prizms",
+    "serialRun": 175
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - White Prizms",
+    "serialRun": 149
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - White Prizms",
+    "serialRun": 149
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Red Disco Prizms",
+    "serialRun": 135
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Red Disco Prizms",
+    "serialRun": 135
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Purple Prizms",
+    "serialRun": 125
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Green Camo Prizms",
+    "serialRun": 125
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Blue Camo Prizms",
+    "serialRun": 99
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Blue Flash Prizms",
+    "serialRun": 99
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Pink Cracked Ice Prizms",
+    "serialRun": 99
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Purple Cracked Ice Prizms",
+    "serialRun": 99
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Blue Flash Prizms",
+    "serialRun": 99
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Pink Cracked Ice Prizms",
+    "serialRun": 99
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Purple Cracked Ice Prizms",
+    "serialRun": 99
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Mezzanine Level - Blue Flash Prizms",
+    "serialRun": 99
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Mezzanine Level - Pink Cracked Ice Prizms",
+    "serialRun": 99
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Mezzanine Level - Purple Cracked Ice Prizms",
+    "serialRun": 99
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Blue Flash Prizms",
+    "serialRun": 99
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Pink Cracked Ice Prizms",
+    "serialRun": 99
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Purple Cracked Ice Prizms",
+    "serialRun": 99
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Purple Prizms",
+    "serialRun": 99
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Neon Green Prizms",
+    "serialRun": 75
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Neon Green Prizms",
+    "serialRun": 75
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Orange Prizms",
+    "serialRun": 65
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Orange Prizms",
+    "serialRun": 65
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Bronze Checker Prizms",
+    "serialRun": 49
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - White Wave Prizms",
+    "serialRun": 49
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - White Wave Prizms",
+    "serialRun": 49
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Mezzanine Level - White Mojo Prizms",
+    "serialRun": 49
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Bronze Checker Prizms",
+    "serialRun": 49
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - White Wave Prizms",
+    "serialRun": 49
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - White Scope Prizms",
+    "serialRun": 35
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level -  White Scope Prizms",
+    "serialRun": 35
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Green Wave Prizms",
+    "serialRun": 25
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Tie-Dye Prizms",
+    "serialRun": 25
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Green Wave Prizms",
+    "serialRun": 25
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Tie-Dye Prizms",
+    "serialRun": 25
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Mezzanine Level - Tie-Dye Prizms",
+    "serialRun": 25
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Green Wave Prizms",
+    "serialRun": 25
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Tie-Dye Prizms",
+    "serialRun": 25
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Red Mojo Prizms",
+    "serialRun": 20
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Red Mojo Prizms",
+    "serialRun": 20
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Mezzanine Level - Red Mojo Prizms",
+    "serialRun": 20
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Red Mojo Prizms",
+    "serialRun": 20
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Gold Cracked Ice Prizms",
+    "serialRun": 10
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Gold Flash Prizms",
+    "serialRun": 10
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Gold Prizms",
+    "serialRun": 10
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Spectris Gold FOTL",
+    "serialRun": 10
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Gold Cracked Ice Prizms",
+    "serialRun": 10
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Gold Flash Prizms",
+    "serialRun": 10
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Gold Prizms",
+    "serialRun": 10
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Spectris Gold FOTL",
+    "serialRun": 10
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Mezzanine Level - Gold Cracked Ice Prizms",
+    "serialRun": 10
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Mezzanine Level - Gold Flash Prizms",
+    "serialRun": 10
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Mezzanine Level - Gold Prizms",
+    "serialRun": 10
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Gold Cracked Ice Prizms",
+    "serialRun": 10
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Gold Flash Prizms",
+    "serialRun": 10
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Gold Prizms",
+    "serialRun": 10
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Spectris Gold FOTL",
+    "serialRun": 10
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Green Prizms",
+    "serialRun": 5
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Silver Vinyl Prizms",
+    "serialRun": 5
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Spectris Green FOTL",
+    "serialRun": 5
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Green Prizms",
+    "serialRun": 5
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Silver Vinyl Prizms",
+    "serialRun": 5
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Spectris Green FOTL",
+    "serialRun": 5
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Mezzanine Level - Green Prizms",
+    "serialRun": 5
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Mezzanine Level - Silver Vinyl Prizms",
+    "serialRun": 5
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Green Prizms",
+    "serialRun": 5
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Silver Vinyl Prizms",
+    "serialRun": 5
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Spectris Green FOTL",
+    "serialRun": 5
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Black Finite Prizms",
+    "serialRun": 1
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Black Snake Skin Prizms FOTL",
+    "serialRun": 1
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Concourse - Gold Vinyl Prizms",
+    "serialRun": 1
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Black Finite Prizms",
+    "serialRun": 1
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Black Snake Skin Pulsar Prizms FOTL",
+    "serialRun": 1
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Courtside - Gold Vinyl Prizms",
+    "serialRun": 1
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Mezzanine Level - Black Finite Prizms",
+    "serialRun": 1
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Black Finite Prizms",
+    "serialRun": 1
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Black Snake Skin Pulsar Prizms FOTL",
+    "serialRun": 1
+   },
+   {
+    "subset": "Base",
+    "name": "Set - Premier Level - Gold Vinyl Prizms",
+    "serialRun": 1
+   }
+  ]
+ },
+ {
+  "sport": "Football",
+  "yearLabel": "2024",
+  "product": "Panini Donruss",
+  "manufacturer": "Panini",
+  "source": "2024 Donruss Donruss (Football).csv",
+  "official": true,
+  "parallels": [
+   {
+    "subset": "Base",
+    "name": "Base",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Aqueous Test",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Canvas",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Jersey Number",
+    "serialRun": null,
+    "runVaries": true
+   },
+   {
+    "subset": "Base",
+    "name": "No Name",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Press Proof Blue",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Press Proof Green",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Press Proof Purple",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Press Proof Red",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Press Proof Yellow",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Season Stat Line",
+    "serialRun": null,
+    "runVaries": true
+   },
+   {
+    "subset": "Base",
+    "name": "Press Proof Silver",
+    "serialRun": 100
+   },
+   {
+    "subset": "Base",
+    "name": "Press Proof Silver Die-Cut",
+    "serialRun": 75
+   },
+   {
+    "subset": "Base",
+    "name": "Press Proof Gold",
+    "serialRun": 50
+   },
+   {
+    "subset": "Base",
+    "name": "Press Proof Gold Die-Cut",
+    "serialRun": 25
+   },
+   {
+    "subset": "Base",
+    "name": "Press Proof Black",
+    "serialRun": 10
+   },
+   {
+    "subset": "Base",
+    "name": "Press Proof Black Die-Cut",
+    "serialRun": 1
+   }
+  ]
+ },
+ {
+  "sport": "Football",
+  "yearLabel": "2024",
+  "product": "Panini Prizm",
+  "manufacturer": "Panini",
+  "source": "2024 Panini Prizm (Football).csv",
+  "official": true,
+  "parallels": [
+   {
+    "subset": "Base",
+    "name": "Base",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Black and Red Checker",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Black and White Checker",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Blue",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Choice Blue Yellow and Green",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Choice Tiger Stripe",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Disco",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Green",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Green Ice",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Green Wave",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Lazer",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Neon Green Pulsar",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "No Huddle",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Orange Ice",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Pink",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Pink Wave",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Press Proof",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Purple Pulsar",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Red",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Red Sparkle",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Red White and Blue",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Silver",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Snakeskin",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "White Sparkle",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Pandora",
+    "serialRun": 400
+   },
+   {
+    "subset": "Base",
+    "name": "Orange",
+    "serialRun": 249
+   },
+   {
+    "subset": "Base",
+    "name": "Blue Wave",
+    "serialRun": 230
+   },
+   {
+    "subset": "Base",
+    "name": "Purple Ice",
+    "serialRun": 225
+   },
+   {
+    "subset": "Base",
+    "name": "Hyper",
+    "serialRun": 180
+   },
+   {
+    "subset": "Base",
+    "name": "Red Wave",
+    "serialRun": 149
+   },
+   {
+    "subset": "Base",
+    "name": "Purple",
+    "serialRun": 125
+   },
+   {
+    "subset": "Base",
+    "name": "Blue Ice",
+    "serialRun": 99
+   },
+   {
+    "subset": "Base",
+    "name": "No Huddle Blue",
+    "serialRun": 99
+   },
+   {
+    "subset": "Base",
+    "name": "Purple Wave",
+    "serialRun": 99
+   },
+   {
+    "subset": "Base",
+    "name": "Blue Sparkle",
+    "serialRun": 96
+   },
+   {
+    "subset": "Base",
+    "name": "Green Scope",
+    "serialRun": 75
+   },
+   {
+    "subset": "Base",
+    "name": "No Huddle Red",
+    "serialRun": 75
+   },
+   {
+    "subset": "Base",
+    "name": "Orange Wave",
+    "serialRun": 60
+   },
+   {
+    "subset": "Base",
+    "name": "No Huddle Purple",
+    "serialRun": 49
+   },
+   {
+    "subset": "Base",
+    "name": "Purple Power",
+    "serialRun": 49
+   },
+   {
+    "subset": "Base",
+    "name": "Red and Yellow",
+    "serialRun": 44
+   },
+   {
+    "subset": "Base",
+    "name": "Red Shimmer",
+    "serialRun": 35
+   },
+   {
+    "subset": "Base",
+    "name": "White",
+    "serialRun": 35
+   },
+   {
+    "subset": "Base",
+    "name": "Blue Shimmer",
+    "serialRun": 25
+   },
+   {
+    "subset": "Base",
+    "name": "Navy Camo",
+    "serialRun": 25
+   },
+   {
+    "subset": "Base",
+    "name": "No Huddle Pink",
+    "serialRun": 25
+   },
+   {
+    "subset": "Base",
+    "name": "Gold Sparkle",
+    "serialRun": 24
+   },
+   {
+    "subset": "Base",
+    "name": "Choice Red",
+    "serialRun": 20
+   },
+   {
+    "subset": "Base",
+    "name": "Choice Cherry Blossom",
+    "serialRun": 15
+   },
+   {
+    "subset": "Base",
+    "name": "Forest Camo",
+    "serialRun": 15
+   },
+   {
+    "subset": "Base",
+    "name": "Choice Blue",
+    "serialRun": 14
+   },
+   {
+    "subset": "Base",
+    "name": "Choice Gold",
+    "serialRun": 10
+   },
+   {
+    "subset": "Base",
+    "name": "Gold",
+    "serialRun": 10
+   },
+   {
+    "subset": "Base",
+    "name": "Gold Shimmer",
+    "serialRun": 10
+   },
+   {
+    "subset": "Base",
+    "name": "Gold Wave",
+    "serialRun": 10
+   },
+   {
+    "subset": "Base",
+    "name": "No Huddle Neon Green",
+    "serialRun": 10
+   },
+   {
+    "subset": "Base",
+    "name": "Green Sparkle",
+    "serialRun": 8
+   },
+   {
+    "subset": "Base",
+    "name": "Gold Vinyl",
+    "serialRun": 5
+   },
+   {
+    "subset": "Base",
+    "name": "Green Shimmer",
+    "serialRun": 5
+   },
+   {
+    "subset": "Base",
+    "name": "White Knight",
+    "serialRun": 3
+   },
+   {
+    "subset": "Base",
+    "name": "Black Finite",
+    "serialRun": 1
+   },
+   {
+    "subset": "Base",
+    "name": "Black Shimmer",
+    "serialRun": 1
+   },
+   {
+    "subset": "Base",
+    "name": "Black Stars",
+    "serialRun": 1
+   },
+   {
+    "subset": "Base",
+    "name": "Choice Nebula",
+    "serialRun": 1
+   }
+  ]
+ },
+ {
+  "sport": "Football",
+  "yearLabel": "2025",
+  "product": "Panini Prizm",
+  "manufacturer": "Panini",
+  "source": "2025 Panini Prizm (Football).csv",
+  "official": true,
+  "parallels": [
+   {
+    "subset": "Base",
+    "name": "Base",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Black and Blue Checker",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Black and Red Checker",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Black and White Checker",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Blue",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Choice Blue Yellow and Green",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Choice Tiger Stripe",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Green Flash",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Green Ice",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Green Wave",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Lazer",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Neon Green Pulsar",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "No Huddle",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Orange Ice",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Pink",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Pink Wave",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Press Proof",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Purple Pulsar",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Red",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Red Flash",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Red Sparkle",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Red White and Blue",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Silver",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Snakeskin",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "White Disco",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "White Sparkle",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Pandora",
+    "serialRun": 400
+   },
+   {
+    "subset": "Base",
+    "name": "Orange",
+    "serialRun": 249
+   },
+   {
+    "subset": "Base",
+    "name": "Blue Wave",
+    "serialRun": 230
+   },
+   {
+    "subset": "Base",
+    "name": "Purple Ice",
+    "serialRun": 225
+   },
+   {
+    "subset": "Base",
+    "name": "Hyper",
+    "serialRun": 200
+   },
+   {
+    "subset": "Base",
+    "name": "Pigskin",
+    "serialRun": 180
+   },
+   {
+    "subset": "Base",
+    "name": "Red Wave",
+    "serialRun": 149
+   },
+   {
+    "subset": "Base",
+    "name": "No Huddle Blue",
+    "serialRun": 125
+   },
+   {
+    "subset": "Base",
+    "name": "Purple",
+    "serialRun": 125
+   },
+   {
+    "subset": "Base",
+    "name": "Blue Ice",
+    "serialRun": 99
+   },
+   {
+    "subset": "Base",
+    "name": "No Huddle Red",
+    "serialRun": 99
+   },
+   {
+    "subset": "Base",
+    "name": "Purple Wave",
+    "serialRun": 99
+   },
+   {
+    "subset": "Base",
+    "name": "Blue Sparkle",
+    "serialRun": 96
+   },
+   {
+    "subset": "Base",
+    "name": "Green Scope",
+    "serialRun": 75
+   },
+   {
+    "subset": "Base",
+    "name": "No Huddle Purple",
+    "serialRun": 75
+   },
+   {
+    "subset": "Base",
+    "name": "Orange Wave",
+    "serialRun": 65
+   },
+   {
+    "subset": "Base",
+    "name": "Kangaroo",
+    "serialRun": 61
+   },
+   {
+    "subset": "Base",
+    "name": "Super Bowl LX",
+    "serialRun": 60
+   },
+   {
+    "subset": "Base",
+    "name": "Purple Power",
+    "serialRun": 49
+   },
+   {
+    "subset": "Base",
+    "name": "Red Shimmer",
+    "serialRun": 49
+   },
+   {
+    "subset": "Base",
+    "name": "Red and Yellow",
+    "serialRun": 44
+   },
+   {
+    "subset": "Base",
+    "name": "Blue Shimmer",
+    "serialRun": 35
+   },
+   {
+    "subset": "Base",
+    "name": "White",
+    "serialRun": 35
+   },
+   {
+    "subset": "Base",
+    "name": "Navy Camo",
+    "serialRun": 25
+   },
+   {
+    "subset": "Base",
+    "name": "No Huddle Pink",
+    "serialRun": 25
+   },
+   {
+    "subset": "Base",
+    "name": "Gold Sparkle",
+    "serialRun": 24
+   },
+   {
+    "subset": "Base",
+    "name": "Choice Red",
+    "serialRun": 20
+   },
+   {
+    "subset": "Base",
+    "name": "Panini Logo",
+    "serialRun": 20
+   },
+   {
+    "subset": "Base",
+    "name": "Lotus Flower",
+    "serialRun": 18
+   },
+   {
+    "subset": "Base",
+    "name": "Choice Cherry Blossom",
+    "serialRun": 15
+   },
+   {
+    "subset": "Base",
+    "name": "Forest Camo",
+    "serialRun": 15
+   },
+   {
+    "subset": "Base",
+    "name": "Purple Shimmer",
+    "serialRun": 15
+   },
+   {
+    "subset": "Base",
+    "name": "Choice Blue",
+    "serialRun": 14
+   },
+   {
+    "subset": "Base",
+    "name": "Choice Gold",
+    "serialRun": 10
+   },
+   {
+    "subset": "Base",
+    "name": "Gold",
+    "serialRun": 10
+   },
+   {
+    "subset": "Base",
+    "name": "Gold Shimmer",
+    "serialRun": 10
+   },
+   {
+    "subset": "Base",
+    "name": "Gold Wave",
+    "serialRun": 10
+   },
+   {
+    "subset": "Base",
+    "name": "No Huddle Neon Green",
+    "serialRun": 10
+   },
+   {
+    "subset": "Base",
+    "name": "Green Sparkle",
+    "serialRun": 8
+   },
+   {
+    "subset": "Base",
+    "name": "Plum Blossom",
+    "serialRun": 8
+   },
+   {
+    "subset": "Base",
+    "name": "Gold Vinyl",
+    "serialRun": 5
+   },
+   {
+    "subset": "Base",
+    "name": "Green Shimmer",
+    "serialRun": 5
+   },
+   {
+    "subset": "Base",
+    "name": "White Knight",
+    "serialRun": 3
+   },
+   {
+    "subset": "Base",
+    "name": "Black Finite",
+    "serialRun": 1
+   },
+   {
+    "subset": "Base",
+    "name": "Black Shimmer",
+    "serialRun": 1
+   },
+   {
+    "subset": "Base",
+    "name": "Black Stars",
+    "serialRun": 1
+   },
+   {
+    "subset": "Base",
+    "name": "Choice Nebula",
+    "serialRun": 1
+   }
+  ]
+ }
+]

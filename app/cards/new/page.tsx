@@ -38,5 +38,12 @@ export default async function NewCardPage({ searchParams }: Props) {
     sport: one(params.sport),
     rookie: one(params.rookie),
   });
-  return <CardForm initialQuery={initialQuery} initialCatalog={initialCatalog} />;
+  return (
+    <CardForm
+      guided
+      initialQuery={initialQuery}
+      initialCatalog={initialCatalog}
+      initialSport={one(params.sport)}
+    />
+  );
 }

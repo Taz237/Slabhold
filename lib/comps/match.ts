@@ -29,7 +29,11 @@ const TITLE_JUNK =
 
 const AUTO_RE = /\b(?:auto|autograph|autographed|signed)\b/i;
 const RELIC_RE = /\b(?:patch|relic)\b/i;
-const SERIAL_RE = /\/(\d+)\b/;
+/** "/99", "#/99", "23/99", "23 / 99". The left number is kept to spot seasons and grades. */
+const SERIAL_RE = /(?:(\d+(?:\.\d+)?)\s*)?\/\s*(\d+)\b/g;
+/** "#'d to 99", "#d /99", "numbered to 99", "numbered /99". */
+const SERIAL_WORDS_RE = /(?:#\s*['’]?\s*d\b|\bnumbered)\s*(?:to|out\s+of|of)?\s*\/?\s*#?(\d+)\b/gi;
+const ONE_OF_ONE_RE = /\b(?:1\s*of\s*1|one\s+of\s+one)\b/i;
 /** Graders / slab brands that disqualify a listing from raw comps. */
 const GRADER_NAMES = SLAB_TITLE_GRADER_PATTERN;
 const TITLE_GRADE_RE = new RegExp(
@@ -798,17 +802,58 @@ export function titleHasDisallowedParallel(
   return false;
 }
 
+/**
+ * Print runs a title names: "/99", "#/99", "23/99", "#'d to 99", "numbered to 99",
+ * "1 of 1". Season text ("2023/24") and grade text ("9.5/10") are not runs.
+ */
+export function titleSerialRuns(title: string): number[] {
+  const runs: number[] = [];
+  for (const match of title.matchAll(SERIAL_RE)) {
+    const left = match[1] ?? "";
+    const right = match[2];
+    if (isSeasonPair(left, right)) continue;
+    if (left.includes(".") && Number(right) === 10) continue;
+    runs.push(Number(right));
+  }
+  for (const match of title.matchAll(SERIAL_WORDS_RE)) runs.push(Number(match[1]));
+  if (ONE_OF_ONE_RE.test(title)) runs.push(1);
+  return runs.filter((run) => Number.isFinite(run) && run > 0);
+}
+
+function isSeasonPair(left: string, right: string): boolean {
+  if (!/^\d{4}$/.test(left)) return false;
+  const start = Number(left);
+  if (start < 1900 || start > 2100) return false;
+  if (right.length === 2) return Number(right) === (start + 1) % 100;
+  if (right.length === 4) return Number(right) === start + 1;
+  return false;
+}
+
 export function titleSerialOk(
   title: string,
   serialRun?: number | null,
 ): boolean {
-  const match = title.match(SERIAL_RE);
+  const runs = titleSerialRuns(title);
   if (serialRun != null && serialRun > 0) {
-    if (!match) return false;
-    return Number(match[1]) === serialRun;
+    return runs.length > 0 && runs.every((run) => run === serialRun);
   }
-  // Card has no serial run → exclude any /NN serial in title
-  return !match;
+  // Card has no serial run → exclude any numbered listing
+  return runs.length === 0;
+}
+
+/**
+ * The run comps should expect: the saved serial_run, else the checklist run
+ * from `checklistRun` (product data), else none.
+ */
+export function expectedSerialRun(
+  card: MatchCard,
+  checklistRun?: (card: MatchCard) => number | null | undefined,
+): number | null {
+  const saved = card.serialRun;
+  if (typeof saved === "number" && Number.isFinite(saved) && saved > 0) return saved;
+  const known = checklistRun?.(card);
+  if (typeof known === "number" && Number.isFinite(known) && known > 0) return known;
+  return null;
 }
 
 export function titleLooksExcluded(title: string): boolean {
