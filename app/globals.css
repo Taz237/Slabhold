@@ -129,6 +129,63 @@ textarea {
   }
 }
 
+/* Add card picker: each step slides in. Reduced motion uses add-fade only. */
+@keyframes add-step-in {
+  from {
+    opacity: 0;
+    transform: translateX(18px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes add-step-back {
+  from {
+    opacity: 0;
+    transform: translateX(-18px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes add-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Finish reveal: the slab turns and scales in once. Skipped for reduced motion. */
+@keyframes slab-reveal {
+  0% {
+    opacity: 0;
+    transform: perspective(900px) rotateY(-28deg) scale(0.82);
+  }
+  60% {
+    opacity: 1;
+    transform: perspective(900px) rotateY(4deg) scale(1.03);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes reveal-glow {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 /* Skeleton shimmer: one gradient sweep, no shadows or blur. */
 @keyframes skeleton-shimmer {
   from {

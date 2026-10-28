@@ -240,7 +240,8 @@ describe("search sections", () => {
     assert.doesNotThrow(() => encodeURIComponent(addCardQuery(`${"a".repeat(99)}\uDC00`)));
     const page = read("app/cards/new/page.tsx");
     assert.match(page, /addCardQuery\(/);
-    assert.match(page, /<CardForm initialQuery=\{initialQuery\} initialCatalog=\{initialCatalog\} \/>/);
+    // Add card opens the guided picker. It still gets the query and the Search pick.
+    assert.match(page, /<CardForm\s+guided\s+initialQuery=\{initialQuery\}\s+initialCatalog=\{initialCatalog\}/);
   });
 });
 

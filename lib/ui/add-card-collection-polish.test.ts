@@ -80,7 +80,8 @@ describe("add card form polish", () => {
     const page = read("app/cards/new/page.tsx");
     assert.match(page, /searchParams: Promise</);
     assert.match(page, /await searchParams/);
-    assert.match(page, /<CardForm initialQuery=\{initialQuery\} initialCatalog=\{initialCatalog\} \/>/);
+    // Add card opens the guided picker. It still gets the query and the Search pick.
+    assert.match(page, /<CardForm\s+guided\s+initialQuery=\{initialQuery\}\s+initialCatalog=\{initialCatalog\}/);
   });
 
   it("starts a new card's purchase date empty without touching a saved date", () => {

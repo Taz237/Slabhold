@@ -47,7 +47,9 @@ import {
 import { showAddedPanel } from "@/lib/cards/added-panel";
 import type { OwnersAndHunters } from "@/lib/cards/people";
 import { gradeDetailSpecs } from "@/lib/cards/grading-company";
-import { canonicalParallelName } from "@/lib/cards/parallels";
+import { canonicalParallelName, parallelMatchKey } from "@/lib/cards/parallels";
+import { parallelIn } from "@/lib/cards/product-data";
+import { useProductData } from "@/lib/cards/use-product-data";
 import { basedOnSalesLabel, countForSalesLabel, valueFromShownSales } from "@/lib/comps/shared-value";
 import { soldNotice } from "@/lib/comps/sold-response";
 import { useSoldComps } from "@/lib/comps/use-sold-comps";
@@ -71,7 +73,13 @@ import { peekCardValue } from "@/lib/value/card-value-memory";
 import type { SportsCard } from "@/lib/types";
 import { ebaySoldSearchUrlForCard } from "@/lib/value/ebay-sold";
 import { shouldCollapseEmptyPrices } from "@/lib/value/empty-price";
-import { NO_SALES_FOUND_LABEL, resolvePriceRead, SIMILAR_CARDS_LABEL } from "@/lib/value/price-fallback";
+import { confidenceCopy, matchConfidence } from "@/lib/value/match-confidence";
+import {
+  NO_SALES_FOUND_LABEL,
+  resolvePriceRead,
+  SIMILAR_CARDS_LABEL,
+  type PriceRead,
+} from "@/lib/value/price-fallback";
 import { useCardValue } from "@/lib/value/use-card-values";
 
 function subscribeCardValueMemory() {
@@ -142,6 +150,10 @@ export function CardDetail({ id, added = false }: { id: string; added?: boolean 
     retry: retryValue,
   } = useCardValue(card?.id ?? null);
   const sold = useSoldComps(user ? (card?.id ?? null) : null);
+  // The checklist only matters for a colored parallel saved without a run.
+  const checklist = useProductData(
+    Boolean(card && !card.serialRun && parallelMatchKey(card.parallel || "Base") !== "base"),
+  );
   const flags = useCompFlagState(
     card?.id ?? null,
     Boolean(user && card),
@@ -247,22 +259,39 @@ export function CardDetail({ id, added = false }: { id: string; added?: boolean 
     sold.status === "ready"
       ? onScreenComps.map((comp) => ({ price: comp.soldPrice, soldAt: comp.soldDate }))
       : undefined;
-  const priceRead = resolvePriceRead({
-    value: shownValue,
-    createdAt: card.createdAt,
-    exactSales,
-    similar: cardValue?.similar ?? remembered?.similar ?? null,
-    ebayHref,
-    card,
-  });
-  const pricePending = (!cardSold && valueLoading && !earlyValue) || (compsLoading && !earlyValue);
+  const checklistRow = checklist.data
+    ? parallelIn(checklist.data, card.sport, card.yearLabel || String(card.year), card.setBrand, card.parallel)
+    : null;
+  const confidenceOptions = {
+    knownRun: checklistRow?.serialRun ?? null,
+    runVaries: Boolean(checklistRow?.runVaries),
+    sales: exactSales,
+  };
+  // Only a strong match shows a dollar figure. Weak and none say what's missing.
+  const confidence = cardSold ? "strong" : matchConfidence(card, shownValue, confidenceOptions);
+  const heldCopy = confidenceCopy(confidence, card, confidenceOptions);
+  const pricedAmount = heldCopy ? null : storedAmount;
+  const priceRead: PriceRead = heldCopy
+    ? { kind: "status", text: heldCopy.text, isEstimate: false, showEbaySold: false }
+    : resolvePriceRead({
+        value: shownValue,
+        createdAt: card.createdAt,
+        exactSales,
+        similar: cardValue?.similar ?? remembered?.similar ?? null,
+        ebayHref,
+        card,
+      });
+  const pricePending =
+    (!cardSold && valueLoading && !earlyValue) ||
+    (compsLoading && !earlyValue) ||
+    (!cardSold && checklist.loading);
   const pendingLabel = pricePending
     ? null
     : priceRead?.kind === "similar"
       ? SIMILAR_CARDS_LABEL
       : (priceRead?.text ?? null);
 
-  const estSell = cardSold ? card.sellPrice! : priceRead?.kind === "estimate" ? storedAmount : null;
+  const estSell = cardSold ? card.sellPrice! : priceRead?.kind === "estimate" ? pricedAmount : null;
   const paid = card.purchasePrice;
   const paidKnown = hasPaid(card);
   const delta = estSell != null && paidKnown ? estSell - (paid as number) : 0;
@@ -329,7 +358,11 @@ export function CardDetail({ id, added = false }: { id: string; added?: boolean 
         <CardAddedPanel
           cardId={card.id}
           value={cardValue}
-          loading={valueLoading}
+          loading={valueLoading || checklist.loading}
+          sales={sold.status === "ready" ? onScreenComps : null}
+          salesLoading={compsLoading}
+          confidence={confidence}
+          copy={heldCopy}
           onDismiss={() => setAddedDismissed(true)}
           onSeeSales={scrollToSales}
         />
@@ -343,6 +376,23 @@ export function CardDetail({ id, added = false }: { id: string; added?: boolean 
           setEditing(true);
         }}
       />
+
+      {heldCopy && !editing && !(showAddedPanel({ added, owned: true, dismissed: addedDismissed })) ? (
+        <p
+          data-slot="price-held"
+          className="mx-auto max-w-sm rounded-xl border border-violet-400/30 bg-violet-500/10 px-3 py-1 text-center text-sm text-zinc-800 dark:text-zinc-200"
+        >
+          {heldCopy.text}.{" "}
+          {heldCopy.fix ? (
+            <Link
+              href={`/cards/${card.id}/edit`}
+              className="inline-flex min-h-11 items-center font-semibold text-violet-700 underline underline-offset-2 dark:text-[#A78BFA]"
+            >
+              {heldCopy.fix.label}
+            </Link>
+          ) : null}
+        </p>
+      ) : null}
 
       {editing ? null : (
         <section aria-label="Visibility and collection" className="min-w-0 space-y-3">
@@ -503,8 +553,8 @@ export function CardDetail({ id, added = false }: { id: string; added?: boolean 
 
           <WantButton
             card={card}
-            fairLow={storedAmount != null ? (shownValue?.low ?? null) : null}
-            fairHigh={storedAmount != null ? (shownValue?.high ?? null) : null}
+            fairLow={pricedAmount != null ? (shownValue?.low ?? null) : null}
+            fairHigh={pricedAmount != null ? (shownValue?.high ?? null) : null}
           />
 
           {!cardSold ? (
@@ -592,7 +642,7 @@ export function CardDetail({ id, added = false }: { id: string; added?: boolean 
           <ValueChart
             card={{
               id: card.id,
-              estimatedSellPrice: storedAmount ?? 0,
+              estimatedSellPrice: pricedAmount ?? 0,
               purchasePrice: paid ?? 0,
             }}
             points={usingLive ? sold.data?.history : null}
