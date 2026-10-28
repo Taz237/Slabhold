@@ -13,10 +13,9 @@ import {
 import { useCompFlagState } from "@/components/use-comp-flags";
 import { CardCollectorsSaying } from "@/components/card-collectors-saying";
 import { CardAddedPanel } from "@/components/card-added-panel";
-import { CardOwnersSection } from "@/components/card-owners";
-import { CardPeopleSections } from "@/components/card-people";
 import { WantButton } from "@/components/want-button";
 import { CategoryPicker } from "@/components/category-picker";
+import { CardVisibilitySwitch } from "@/components/card-visibility";
 import { FirstCardPrivacyPrompt } from "@/components/first-card-privacy-prompt";
 import { SharedPostNote } from "@/components/shared-post-note";
 import { useCollection } from "@/components/collection-provider";
@@ -33,7 +32,6 @@ import {
 import { CompBasis } from "@/components/comp-basis";
 import { CompsList } from "@/components/comps-list";
 import { SimilarCardsLine, EbaySoldLine } from "@/components/price-readout";
-import { FairPriceCheck } from "@/components/fair-price-check";
 import { SoldFreshness } from "@/components/sold-freshness";
 import { useSocial } from "@/components/social-provider";
 import { loginPath } from "@/lib/auth/safe-next";
@@ -45,7 +43,6 @@ import {
   subscribeFirstCardPrivacy,
 } from "@/lib/collection/first-card-privacy";
 import { showAddedPanel } from "@/lib/cards/added-panel";
-import type { OwnersAndHunters } from "@/lib/cards/people";
 import { gradeDetailSpecs } from "@/lib/cards/grading-company";
 import { canonicalParallelName, parallelMatchKey } from "@/lib/cards/parallels";
 import { parallelIn } from "@/lib/cards/product-data";
@@ -55,12 +52,8 @@ import { soldNotice } from "@/lib/comps/sold-response";
 import { useSoldComps } from "@/lib/comps/use-sold-comps";
 import {
   cardDatesLine,
-  formatPaidLabel,
-  hasPaid,
   isSold,
   money,
-  pct,
-  signedMoney,
 } from "@/lib/format";
 import {
   cardValueHasAmount,
@@ -291,13 +284,8 @@ export function CardDetail({ id, added = false }: { id: string; added?: boolean 
       ? SIMILAR_CARDS_LABEL
       : (priceRead?.text ?? null);
 
-  const estSell = cardSold ? card.sellPrice! : priceRead?.kind === "estimate" ? pricedAmount : null;
+  // Card pages show the value only. Paid and profit stay in the data and the edit form.
   const paid = card.purchasePrice;
-  const paidKnown = hasPaid(card);
-  const delta = estSell != null && paidKnown ? estSell - (paid as number) : 0;
-  const showProfit = (cardSold || estSell != null) && paidKnown;
-  const profitPctValue = showProfit ? delta / (paid as number) : null;
-  const max = Math.max(paidKnown ? (paid as number) : 0, estSell ?? 0, 1);
   const rawValueLabel = cardSold
     ? null
     : valueLoading && !flags.priced && !earlyValue
@@ -353,6 +341,17 @@ export function CardDetail({ id, added = false }: { id: string; added?: boolean 
         onMenu={toggleMenu}
       />
 
+      {editing ? null : (
+        <CardVisibilitySwitch
+          isPublic={Boolean(card.isPublic)}
+          onChange={(next) => {
+            const result = updateCard(card.id, publicTogglePatch(card, next));
+            if (next) dismissPrivacyNudge();
+            return result;
+          }}
+        />
+      )}
+
       {/* card comes from the viewer's own collection, and the page is owner-only. */}
       {showAddedPanel({ added, owned: Boolean(card), dismissed: addedDismissed }) ? (
         <CardAddedPanel
@@ -395,23 +394,7 @@ export function CardDetail({ id, added = false }: { id: string; added?: boolean 
       ) : null}
 
       {editing ? null : (
-        <section aria-label="Visibility and collection" className="min-w-0 space-y-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                updateCard(card.id, publicTogglePatch(card, !card.isPublic));
-                if (!card.isPublic) dismissPrivacyNudge();
-              }}
-              className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                card.isPublic
-                  ? "bg-violet-500/15 text-violet-700 dark:text-violet-300"
-                  : "bg-zinc-100 text-zinc-600 dark:bg-white/10 dark:text-zinc-300"
-              }`}
-            >
-              {card.isPublic ? "Public on profile" : "Private"}
-            </button>
-          </div>
+        <section aria-label="Collection" className="min-w-0 space-y-3">
           <div className="min-w-0">
             <p className="mb-2 text-sm text-zinc-500">Move this card</p>
             <CategoryPicker
@@ -477,8 +460,7 @@ export function CardDetail({ id, added = false }: { id: string; added?: boolean 
         >
           <div>
             <h2 className="font-semibold">Value</h2>
-            <div className="mt-3 grid min-w-0 grid-cols-2 gap-3">
-              <Metric label="Paid" value={formatPaidLabel(card.purchasePrice, true)} />
+            <div className="mt-3 grid min-w-0 grid-cols-1 gap-3">
               <EstSellMetric
                 cardSold={cardSold}
                 soldPrice={card.sellPrice}
@@ -494,47 +476,6 @@ export function CardDetail({ id, added = false }: { id: string; added?: boolean 
                 count={priceRead?.kind === "estimate" ? (shownValue?.nSales ?? 0) : 0}
                 sample={shownValue?.status === "sample"}
                 lowConfidence={priceRead?.kind === "estimate" && isLowConfidenceValue(shownValue)}
-              />
-              <Metric
-                label="Profit"
-                value={
-                  showProfit && profitPctValue != null
-                    ? `${signedMoney(delta, true)} ${pct(profitPctValue)}`
-                    : valueLoading && !flags.priced && !earlyValue
-                      ? "…"
-                      : "—"
-                }
-                tone={!showProfit ? undefined : delta >= 0 ? "up" : "down"}
-              />
-            </div>
-            <div className="mt-4 space-y-3">
-              <p className="text-sm font-medium">
-                Paid vs {cardSold ? "sold" : priceRead.kind === "estimate" ? "estimate" : "price"}
-              </p>
-              <p className="text-xs text-zinc-500">
-                {cardSold ? "Closed flip" : "Open position"}
-                {" · "}
-                {showProfit ? signedMoney(delta, true) : "—"}
-              </p>
-              <Bar
-                label="Paid"
-                value={paid ?? 0}
-                max={max}
-                color="bg-zinc-400 dark:bg-zinc-500"
-                empty={!paidKnown}
-              />
-              <Bar
-                label={cardSold ? "Sold" : priceRead.kind === "estimate" ? "Estimated sell" : "Price"}
-                value={estSell ?? 0}
-                max={max}
-                color={
-                  estSell == null
-                    ? "bg-zinc-300 dark:bg-zinc-600"
-                    : delta >= 0
-                      ? "bg-emerald-500"
-                      : "bg-rose-500"
-                }
-                empty={!cardSold && estSell == null}
               />
             </div>
           </div>
@@ -586,36 +527,8 @@ export function CardDetail({ id, added = false }: { id: string; added?: boolean 
             </div>
           ) : null}
 
-          <FairPriceCheck
-            card={{
-              id: card.id,
-              playerName: card.playerName,
-              year: card.year,
-              yearLabel: card.yearLabel,
-              setBrand: card.setBrand,
-              cardNumber: card.cardNumber,
-              grade: card.grade,
-              parallel: card.parallel,
-              sport: card.sport,
-              photoDataUrl: card.photoDataUrl,
-              accent: card.accent,
-              estimatedSellPrice: card.estimatedSellPrice,
-              conditionType: card.conditionType,
-              isPublic: card.isPublic,
-            }}
-            salePrices={onScreenComps.map((comp) => comp.soldPrice)}
-            canShow
-            compsReady={sold.status === "ready"}
-            compsLoading={compsLoading}
-            needsLogin={!user}
-          />
-
-          <div>
-            <h2 className="font-semibold">Owners and hunters</h2>
-            <div className="mt-3">
-              <CardPeoplePanel id={card.id} card={card} />
-            </div>
-          </div>
+          {/* Owners and hunters and the fair price check are off for now. lib/cards/people.ts,
+              lib/comps/fair-price.ts and the people API route stay for when they come back. */}
 
           <button
             type="button"
@@ -805,63 +718,6 @@ function scrollToSales() {
   target.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
 }
 
-function isPeople(value: unknown): value is OwnersAndHunters {
-  if (!value || typeof value !== "object") return false;
-  const row = value as OwnersAndHunters;
-  return Boolean(row.owners && Array.isArray(row.owners.people));
-}
-
-function CardPeoplePanel({ id, card }: { id: string; card: SportsCard }) {
-  const [people, setPeople] = useState<OwnersAndHunters | null>(null);
-  const [phase, setPhase] = useState<"loading" | "ready" | "fallback">("loading");
-
-  useEffect(() => {
-    const controller = new AbortController();
-    let cancelled = false;
-    fetch(`/api/cards/people?id=${encodeURIComponent(id)}`, { signal: controller.signal })
-      .then(async (res) => {
-        if (!res.ok) return null;
-        return (await res.json()) as unknown;
-      })
-      .then((body) => {
-        if (cancelled) return;
-        if (isPeople(body)) {
-          setPeople(body);
-          setPhase("ready");
-          return;
-        }
-        setPhase("fallback");
-      })
-      .catch(() => {
-        if (!cancelled) setPhase("fallback");
-      });
-    return () => {
-      cancelled = true;
-      controller.abort();
-    };
-  }, [id]);
-
-  if (phase === "loading") {
-    return <div className="h-24 animate-pulse rounded-xl bg-zinc-100 dark:bg-white/5" />;
-  }
-  if (phase === "ready" && people) return <CardPeopleSections data={people} />;
-  return (
-    <CardOwnersSection
-      card={{
-        id: card.id,
-        playerName: card.playerName,
-        year: card.year,
-        yearLabel: card.yearLabel,
-        setBrand: card.setBrand,
-        cardNumber: card.cardNumber,
-        parallel: card.parallel,
-        grade: card.grade,
-        conditionType: card.conditionType,
-      }}
-    />
-  );
-}
-
 function EstSellMetric({
   cardSold,
   soldPrice,
@@ -1008,39 +864,6 @@ function Metric({
       >
         {value}
       </p>
-    </div>
-  );
-}
-
-function Bar({
-  label,
-  value,
-  max,
-  color,
-  empty = false,
-}: {
-  label: string;
-  value: number;
-  max: number;
-  color: string;
-  empty?: boolean;
-}) {
-  return (
-    <div>
-      <div className="mb-1 flex justify-between text-xs text-zinc-500">
-        <span>{label}</span>
-        <span className="tabular-nums text-zinc-800 dark:text-zinc-200">
-          {empty ? "—" : money(value, true)}
-        </span>
-      </div>
-      <div className="h-2 overflow-hidden rounded-full bg-zinc-200 dark:bg-white/10">
-        <div
-          className={`h-full rounded-full ${color}`}
-          style={{
-            width: empty ? "0%" : `${Math.min(100, (value / max) * 100)}%`,
-          }}
-        />
-      </div>
     </div>
   );
 }

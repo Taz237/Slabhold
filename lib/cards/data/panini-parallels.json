@@ -5547,6 +5547,96 @@
  },
  {
   "sport": "Football",
+  "yearLabel": "2023",
+  "product": "Donruss Optic",
+  "manufacturer": "Panini",
+  "source": "Slabhold Donruss Optic list plus Stars (2023 football). Not from an official CSV.",
+  "official": false,
+  "parallels": [
+   {
+    "subset": "Base",
+    "name": "Base",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Holo",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Silver Holo",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Stars",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Red",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Blue",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Green",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Orange",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Purple",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Pink",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Gold",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Black",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Shock",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Velocity",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Fast Break",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Rated Rookie",
+    "serialRun": null
+   }
+  ]
+ },
+ {
+  "sport": "Football",
   "yearLabel": "2024",
   "product": "Panini Donruss",
   "manufacturer": "Panini",

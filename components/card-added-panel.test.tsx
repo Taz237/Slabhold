@@ -187,7 +187,8 @@ describe("card page value line", () => {
     assert.match(detail, /heldCopy\s*\? \{ kind: "status", text: heldCopy\.text/);
     // A held price reads as a status, so the chart's median (estimate only) stays empty.
     assert.match(detail, /median=\{priceRead\?\.kind === "estimate" \? storedAmount : null\}/);
-    assert.match(detail, /priceRead\?\.kind === "estimate" \? pricedAmount : null/);
+    // Paid vs estimate is off the card page, so nothing else reads the held amount.
+    assert.doesNotMatch(detail, /const estSell = /);
     assert.doesNotMatch(detail, /estimatedSellPrice: storedAmount/);
     assert.match(detail, /data-slot="price-held"/);
   });

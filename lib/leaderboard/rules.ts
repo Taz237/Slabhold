@@ -129,7 +129,7 @@ export const WEEK_POST_RULE = "Only a card post from this week counts.";
 
 export const HIDDEN_REPLY_RULE = "Hidden or deleted replies do not count.";
 
-export const HIDDEN_CARD_RULE = "Private, hidden, or deleted cards do not count.";
+export const HIDDEN_CARD_RULE = "Hidden or deleted cards do not count. Private cards count, and stay private.";
 
 export const ONCE_PER_COLLECTOR_RULE = "Each collector counts once per post.";
 

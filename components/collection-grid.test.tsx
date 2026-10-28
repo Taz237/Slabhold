@@ -54,7 +54,11 @@ function ok(median: number): CardValueResult {
 function render(
   cards: SportsCard[],
   values = new Map<string, CardValueResult>(),
-  extra: { valuesLoading?: boolean; valuesFailed?: boolean } = {},
+  extra: {
+    valuesLoading?: boolean;
+    valuesFailed?: boolean;
+    onVisibility?: (card: SportsCard, isPublic: boolean) => void;
+  } = {},
 ) {
   // The bundler normally injects next.config images. Tests pass it in, so
   // a photo outside the allowed pattern fails here too.
@@ -67,6 +71,7 @@ function render(
         values,
         valuesLoading: extra.valuesLoading ?? false,
         valuesFailed: extra.valuesFailed ?? false,
+        onVisibility: extra.onVisibility,
       }),
     ),
   );
@@ -77,6 +82,16 @@ function tiles(html: string) {
 }
 
 describe("CollectionGrid", () => {
+  it("puts a named public/private switch on each tile only when the owner can save it", () => {
+    const cards = [card({ id: "a", isPublic: true }), card({ id: "b", isPublic: false, playerName: "Puka Nacua" })];
+    const html = render(cards, new Map(), { onVisibility: () => undefined });
+    const [first, second] = tiles(html);
+    assert.match(first, /role="switch" aria-checked="true" aria-label="Luka Dončić: public on profile"/);
+    assert.match(second, /role="switch" aria-checked="false" aria-label="Puka Nacua: private"/);
+    assert.match(html, /h-11 w-11/);
+    assert.doesNotMatch(render(cards), /role="switch"/);
+  });
+
   it("lays out 2, 3 and 4 columns", () => {
     const html = render([card()]);
     assert.match(html, /class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4/);

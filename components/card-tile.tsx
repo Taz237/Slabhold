@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useState, type CSSProperties, type ReactNode } from "react";
 import { Camera, TrendingDown, TrendingUp } from "lucide-react";
 import { CardSlabArt, type ArtCard } from "@/components/card-slab-art";
+import { TileVisibilityButton, type VisibilitySave } from "@/components/card-visibility";
 import {
   photoSource,
   photoStatusAfter,
@@ -65,6 +66,7 @@ export function CardTile({
   sold = false,
   needsDetailsLabel = null,
   addPhotoHref = null,
+  visibility = null,
   badge = null,
   sizes,
   as: Tag = "li",
@@ -85,6 +87,8 @@ export function CardTile({
   needsDetailsLabel?: string | null;
   /** "Add photo" hint over a missing photo. Only for your own cards. */
   addPhotoHref?: string | null;
+  /** Public/private lock over the art. Only for your own cards. */
+  visibility?: { isPublic: boolean; onChange: (next: boolean) => VisibilitySave | void } | null;
   badge?: ReactNode;
   sizes?: string;
   as?: "li" | "div";
@@ -176,6 +180,14 @@ export function CardTile({
       </Link>
       {placeholder && addPhotoHref ? (
         <AddPhotoHint href={addPhotoHref} playerName={card.playerName} />
+      ) : null}
+      {visibility ? (
+        <TileVisibilityButton
+          isPublic={visibility.isPublic}
+          playerName={card.playerName}
+          onChange={visibility.onChange}
+          raised={Boolean(placeholder && addPhotoHref)}
+        />
       ) : null}
       {children}
     </Tag>

@@ -182,7 +182,9 @@ describe("route access", () => {
     const proxySource = readFileSync(join(root, "proxy.ts"), "utf8");
     assert.match(profile, /path=\{userHref\(profile\.username\)\}/);
     assert.match(tweet, /sharePath=\{`\/posts\/\$\{post\.id\}`\}/);
-    assert.doesNotMatch(card, /\/cards\/\$\{/);
+    // The only owner-only link is the owner's own Manage card link, never a share path.
+    assert.equal(card.match(/\/cards\/\$\{/g)?.length ?? 0, 1);
+    assert.match(card, /manageHref=\{owned \? `\/cards\/\$\{owned\.id\}` : null\}/);
     assert.match(share, /new URL\(path,/);
     assert.match(proxySource, /isStaticPublicPath\(request\.nextUrl\.pathname\)/);
     const matcher = proxySource.slice(proxySource.indexOf("matcher:"));

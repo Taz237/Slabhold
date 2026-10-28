@@ -669,7 +669,7 @@ describe("signed-in comps stay in place", () => {
     assert.match(view, /<CompsList/);
     assert.match(view, /<ValueChart/);
     assert.match(view, /<WantButton/);
-    assert.match(view, /<FairPriceCheck/);
+    assert.doesNotMatch(view, /<FairPriceCheck/);
     assert.match(view, /soldNotice/);
     assert.match(view, /useSoldComps/);
     assert.match(detail, /to see sold comps/);
