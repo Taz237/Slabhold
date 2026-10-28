@@ -15,6 +15,7 @@ export function snapshotFromInput(input: ScoreInput, now: Date, scoredAt: Date =
   });
   return {
     generatedAt: now.toISOString(),
+    scoredAt: scoredAt.toISOString(),
     current: slice(current),
     previous: slice(previous),
   };

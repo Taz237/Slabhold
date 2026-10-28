@@ -73,6 +73,26 @@ export const postWantAlerts = {
 /** Public columns only — used by @mention autocomplete. */
 const MENTION_PROFILE_SELECT = "id, username, display_name, avatar_url";
 
+/**
+ * Profile columns the social snapshot reads. Never "*": that would send every
+ * account's pinned_badges and show_badges to every viewer.
+ */
+export const SOCIAL_PROFILE_COLUMNS =
+  "id, username, display_name, bio, avatar_url, cover_url, accent, created_at, is_test, pinned_post_id";
+const SOCIAL_PROFILE_COLUMNS_BASE = "id, username, display_name, bio, avatar_url, cover_url, accent, created_at";
+
+/** A database without is_test or pinned_post_id yet falls back to the base columns. */
+async function loadProfileRows<R extends { error: { code?: string; message?: string } | null }>(
+  run: (columns: string) => PromiseLike<R>,
+): Promise<R> {
+  const probe = await run(SOCIAL_PROFILE_COLUMNS);
+  const error = probe.error;
+  if (!error || !(error.code === "42703" || error.code === "PGRST204" || /column/i.test(error.message ?? ""))) {
+    return probe;
+  }
+  return run(SOCIAL_PROFILE_COLUMNS_BASE);
+}
+
 type ProfileRow = {
   id: string;
   username: string;
@@ -290,10 +310,12 @@ export async function loadSupabaseSocial(supabase: SupabaseClient): Promise<Soci
 
   const [profilesRes, postsRes, homePostsRes, followsRes, cardsRes, commentsRes, notificationsRes, messagesRes, repostsRes, homeRepostsRes, myBlocksRes, myMutesRes] =
     await Promise.all([
-      guard(
-        supabase.from("profiles").select("*").order("created_at", { ascending: true }),
-        blockedHidden,
-        { authorColumn: "id" },
+      loadProfileRows((columns) =>
+        guard(
+          supabase.from("profiles").select<string, ProfileRow>(columns).order("created_at", { ascending: true }),
+          blockedHidden,
+          { authorColumn: "id" },
+        ),
       ),
       guard(
         supabase.from("posts").select("*").order("created_at", { ascending: false }).limit(100),
@@ -353,14 +375,16 @@ export async function loadSupabaseSocial(supabase: SupabaseClient): Promise<Soci
   );
   if (needsSuggestionHeadroom(profiles.length)) {
     const { from, to } = suggestionExtraRange(profiles.length);
-    const extraRes = await guard(
-      supabase
-        .from("profiles")
-        .select("*")
-        .order("created_at", { ascending: true })
-        .range(from, to),
-      blockedHidden,
-      { authorColumn: "id" },
+    const extraRes = await loadProfileRows((columns) =>
+      guard(
+        supabase
+          .from("profiles")
+          .select<string, ProfileRow>(columns)
+          .order("created_at", { ascending: true })
+          .range(from, to),
+        blockedHidden,
+        { authorColumn: "id" },
+      ),
     );
     if (extraRes.error) throw new Error(extraRes.error.message);
     const known = new Set(profiles.map((profile) => profile.id));
@@ -478,10 +502,9 @@ export async function loadSupabaseSocial(supabase: SupabaseClient): Promise<Soci
   let safetyAccounts: Profile[] = profiles.filter((profile) => safetyIds.includes(profile.id));
   const missingSafety = safetyIds.filter((id) => !safetyAccounts.some((profile) => profile.id === id));
   if (missingSafety.length > 0) {
-    const extraProfiles = await supabase
-      .from("profiles")
-      .select("*")
-      .in("id", missingSafety);
+    const extraProfiles = await loadProfileRows((columns) =>
+      supabase.from("profiles").select<string, ProfileRow>(columns).in("id", missingSafety),
+    );
     if (extraProfiles.error) throw new Error(extraProfiles.error.message);
     safetyAccounts = [
       ...safetyAccounts,

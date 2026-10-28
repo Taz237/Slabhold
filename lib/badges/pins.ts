@@ -20,12 +20,7 @@ export function parsePin(value: string): EarnedBadge | null {
 
 /** The best tier in each category, highest first, then category order. Top 3. */
 export function autoPins(earned: readonly EarnedBadge[]): EarnedBadge[] {
-  const best = new Map<string, EarnedBadge>();
-  for (const badge of earned) {
-    const held = best.get(badge.category);
-    if (!held || tierRank(badge.tier) > tierRank(held.tier)) best.set(badge.category, badge);
-  }
-  return [...best.values()]
+  return [...bestTiers(earned).values()]
     .sort(
       (a, b) =>
         tierRank(b.tier) - tierRank(a.tier) ||
@@ -34,20 +29,40 @@ export function autoPins(earned: readonly EarnedBadge[]): EarnedBadge[] {
     .slice(0, MAX_PINNED_BADGES);
 }
 
-/** Saved pins that are earned, in order, at most 3. Auto-pins when none are left. */
-export function profilePins(pinned: readonly string[], earned: readonly EarnedBadge[]): EarnedBadge[] {
+/** The highest earned tier in each category. */
+function bestTiers(earned: readonly EarnedBadge[]): Map<string, EarnedBadge> {
+  const best = new Map<string, EarnedBadge>();
+  for (const badge of earned) {
+    const held = best.get(badge.category);
+    if (!held || tierRank(badge.tier) > tierRank(held.tier)) best.set(badge.category, badge);
+  }
+  return best;
+}
+
+/**
+ * Saved pins with each one moved up to the highest tier earned in its
+ * category. Drops pins that are not earned and repeats, keeps order.
+ * "collector:bronze" becomes "collector:gold" once Gold is earned.
+ */
+export function upgradePins(pinned: readonly string[], earned: readonly EarnedBadge[]): string[] {
   const have = new Set(earned.map(formatPin));
-  const shown: EarnedBadge[] = [];
-  const seen = new Set<string>();
+  const best = bestTiers(earned);
+  const out: string[] = [];
   for (const value of pinned) {
     const badge = parsePin(value);
-    if (!badge) continue;
-    const key = formatPin(badge);
-    if (!have.has(key) || seen.has(key)) continue;
-    seen.add(key);
-    shown.push(badge);
-    if (shown.length === MAX_PINNED_BADGES) break;
+    if (!badge || !have.has(formatPin(badge))) continue;
+    const top = best.get(badge.category) ?? badge;
+    const key = formatPin(tierRank(top.tier) > tierRank(badge.tier) ? top : badge);
+    if (!out.includes(key)) out.push(key);
   }
+  return out;
+}
+
+/** Saved pins, upgraded, at most 3. Auto-pins when none are left. */
+export function profilePins(pinned: readonly string[], earned: readonly EarnedBadge[]): EarnedBadge[] {
+  const shown = upgradePins(pinned, earned)
+    .slice(0, MAX_PINNED_BADGES)
+    .flatMap((value) => parsePin(value) ?? []);
   return shown.length > 0 ? shown : autoPins(earned);
 }
 

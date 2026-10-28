@@ -65,6 +65,8 @@ export type LeaderboardWeekSlice = {
 
 export type LeaderboardSnapshot = {
   generatedAt: string;
+  /** When the boards were scored. A cached snapshot can be older than a week's finalAt. */
+  scoredAt: string;
   current: LeaderboardWeekSlice;
   previous: LeaderboardWeekSlice;
 };

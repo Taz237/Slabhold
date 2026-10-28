@@ -332,10 +332,31 @@ async function writeUserCard(
   try {
     await writeCardRows(supabase, extended, base, category, card, signal);
   } catch (error) {
-    if (signal.aborted || isSaveTimeout(error)) throw new SaveTimeoutError(uploaded.url);
+    if (signal.aborted || isSaveTimeout(error) || error instanceof UnknownWriteError) {
+      throw new SaveTimeoutError(uploaded.url);
+    }
     if (createdPath) await removeUploadedMedia(supabase, "card-photos", createdPath);
     throw error;
   }
+}
+
+/** No answer from the database: the row may have landed, so its photo must stay. */
+class UnknownWriteError extends Error {}
+
+type WriteResult = {
+  error: { message: string; code?: string } | null;
+  status?: number;
+};
+
+/**
+ * A dropped connection (status 0) or a gateway error with no Postgres code
+ * says nothing about whether the upsert committed.
+ */
+function writeFailure(result: WriteResult): Error {
+  const message = result.error?.message ?? "Could not save this card.";
+  const status = result.status ?? 400;
+  const answered = Boolean(result.error?.code) || (status >= 400 && status < 500);
+  return answered ? new Error(message) : new UnknownWriteError(message);
 }
 
 async function writeCardRows(
@@ -361,16 +382,16 @@ async function writeCardRows(
     const withCategory = await supabase.from("cards").upsert({ ...base, category });
     if (!withCategory.error) return;
     if (missingColumnError(withCategory.error)) {
-      const { error } = await supabase.from("cards").upsert(base);
-      if (!error) return;
+      const last = await supabase.from("cards").upsert(base);
+      if (!last.error) return;
       if (signal.aborted) return;
-      throw new Error(error.message);
+      throw writeFailure(last);
     }
     if (signal.aborted) return;
-    throw new Error(withCategory.error.message);
+    throw writeFailure(withCategory);
   }
   if (signal.aborted) return;
-  throw new Error(full.error.message);
+  throw writeFailure(full);
 }
 
 export async function removeUserCard(

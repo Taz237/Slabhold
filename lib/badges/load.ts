@@ -8,7 +8,8 @@ import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { normalizeUsername } from "@/lib/social/local-db";
 import { PROGRESS_CATEGORIES, isBadgeCategory, isBadgeTier, TOTAL_BADGES } from "./config";
-import { podiumFinishes } from "./podium";
+import { upgradePins } from "./pins";
+import { closedPodiums } from "./podium";
 import {
   badgeCounts,
   badgeEligible,
@@ -23,7 +24,9 @@ import {
   type EarnedBadge,
 } from "./progress";
 import { revealFor, type BadgeReveal, type UnseenBadge } from "./reveal";
-import { profileBadgeView, type ProfileBadgeView } from "./visibility";
+import { profileBadges, type ProfileBadges } from "./visibility";
+
+export type { ProfileBadges };
 
 type Row = Record<string, unknown>;
 
@@ -211,17 +214,27 @@ async function readInput(admin: PageAdmin, user: BoardProfile, now: Date): Promi
 
 let recordedWeek = "";
 
-/** Top 3 of the last closed week. Idempotent; one write per instance per week. */
-async function recordClosedPodiums(admin: SupabaseClient, now: Date): Promise<void> {
-  const snapshot = await getLeaderboardSnapshot(now);
-  const finishes = podiumFinishes(snapshot.previous, now);
-  const week = finishes[0]?.weekStart ?? "";
-  if (!week || week === recordedWeek) return;
-  const { error } = await admin.from("leaderboard_podiums").upsert(
-    finishes.map((row) => ({ week_start: row.weekStart, board_id: row.boardId, user_id: row.userId, rank: row.rank })),
-    { onConflict: "week_start,board_id,user_id", ignoreDuplicates: true },
-  );
-  if (!error) recordedWeek = week;
+/**
+ * Top 3 of the last closed week, from a snapshot scored after the close. A
+ * cached snapshot from before finalAt records nothing; a later call records
+ * once the cache refreshes. Runs on badge checks and leaderboard opens.
+ * Idempotent; one write per instance per week. Never throws.
+ */
+export async function recordClosedPodiums(now = new Date()): Promise<void> {
+  const admin = createSupabaseAdmin();
+  if (!admin) return;
+  try {
+    const finishes = closedPodiums(await getLeaderboardSnapshot(now));
+    const week = finishes[0]?.weekStart ?? "";
+    if (!week || week === recordedWeek) return;
+    const { error } = await admin.from("leaderboard_podiums").upsert(
+      finishes.map((row) => ({ week_start: row.weekStart, board_id: row.boardId, user_id: row.userId, rank: row.rank })),
+      { onConflict: "week_start,board_id,user_id", ignoreDuplicates: true },
+    );
+    if (!error) recordedWeek = week;
+  } catch {
+    // The next badge check or leaderboard open tries again.
+  }
 }
 
 async function readProfile(admin: SupabaseClient, userId: string) {
@@ -244,6 +257,19 @@ async function readEarned(admin: SupabaseClient, userId: string): Promise<Stored
   return asRows(data).flatMap((row) => toBadge(row) ?? []);
 }
 
+/** Move saved pins up to the highest earned tier, so the stored pins match what profiles show. */
+async function saveUpgradedPins(
+  admin: SupabaseClient,
+  userId: string,
+  saved: string[],
+  earned: readonly EarnedBadge[],
+): Promise<string[]> {
+  const upgraded = upgradePins(saved, earned);
+  if (upgraded.join(",") === saved.join(",")) return saved;
+  const { error } = await admin.from("profiles").update({ pinned_badges: upgraded }).eq("id", userId);
+  return error ? saved : upgraded;
+}
+
 /**
  * Check one user's progress and store any new badges. Returns null when the
  * database or the badges migration is not available.
@@ -254,7 +280,7 @@ export async function checkBadges(userId: string, now = new Date()): Promise<Bad
   try {
     const profileRow = await readProfile(admin, userId);
     if (!profileRow) return null;
-    await recordClosedPodiums(admin, now).catch(() => undefined);
+    await recordClosedPodiums(now);
     const user = toProfile(profileRow);
     const [input, stored] = await Promise.all([
       readInput(admin as unknown as PageAdmin, user, now),
@@ -273,6 +299,7 @@ export async function checkBadges(userId: string, now = new Date()): Promise<Bad
         );
       if (!error) earned = (await readEarned(admin, userId)) ?? stored;
     }
+    const pinned = await saveUpgradedPins(admin, userId, pinsFrom(profileRow.pinned_badges), earned);
     return {
       eligible: badgeEligible(user),
       counts,
@@ -281,7 +308,7 @@ export async function checkBadges(userId: string, now = new Date()): Promise<Bad
         categoryStatus(category, displayValue(category, counts), earned),
       ),
       showBadges: profileRow.show_badges !== false,
-      pinned: pinsFrom(profileRow.pinned_badges),
+      pinned,
       earnedCount: earned.length,
       total: TOTAL_BADGES,
     };
@@ -296,12 +323,6 @@ export function unseenReveal(state: BadgeState): BadgeReveal | null {
     .map((badge) => ({ id: badge.id, category: badge.category, tier: badge.tier }));
   return revealFor(unseen, state.counts);
 }
-
-export type ProfileBadges = {
-  username: string;
-  view: ProfileBadgeView;
-  earned: EarnedBadge[];
-};
 
 /**
  * Badges for a profile, read as the viewer so show_badges is enforced by RLS.
@@ -348,18 +369,15 @@ export async function loadProfileBadges(
         firstGoal = { value: collectorCount(cards, ownerId, new Date()) };
       }
     }
-    return {
+    return profileBadges({
       username: text(profile.username),
-      view: profileBadgeView({
-        ownerId,
-        viewerId,
-        showBadges,
-        earned,
-        pinned: pinsFrom(profile.pinned_badges),
-        firstGoal,
-      }),
+      ownerId,
+      viewerId,
+      showBadges,
       earned,
-    };
+      pinned: pinsFrom(profile.pinned_badges),
+      firstGoal,
+    });
   } catch {
     return null;
   }

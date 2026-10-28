@@ -5,6 +5,7 @@ import { ProfileSkeleton } from "@/components/status";
 import { loadProfileBadges } from "@/lib/badges/load";
 import { previewMetadata } from "@/lib/social/link-preview";
 import { loadOwnProfilePreview } from "@/lib/social/link-preview-load";
+import { loadProfileCardCount } from "@/lib/social/profile-card-count";
 import { getAuthUserId } from "@/lib/supabase/server";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -12,10 +13,14 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function ProfilePage() {
-  const badges = await loadProfileBadges({ own: true }, await getAuthUserId());
+  const viewerId = await getAuthUserId();
+  const [badges, cardCount] = await Promise.all([
+    loadProfileBadges({ own: true }, viewerId),
+    loadProfileCardCount({ own: true }, viewerId),
+  ]);
   return (
     <Suspense fallback={<ProfileSkeleton />}>
-      <ProfileView badges={badges} />
+      <ProfileView badges={badges} cardCount={cardCount} />
     </Suspense>
   );
 }

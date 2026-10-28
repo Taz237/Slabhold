@@ -1,4 +1,4 @@
-import { rankBoard, type LeaderboardWeekSlice } from "@/lib/leaderboard/present";
+import { rankBoard, type LeaderboardSnapshot, type LeaderboardWeekSlice } from "@/lib/leaderboard/present";
 import { LEADERBOARD_MIN_ENTRIES } from "@/lib/leaderboard/rules";
 import { weekContaining } from "@/lib/leaderboard/week";
 
@@ -10,9 +10,13 @@ export type PodiumFinish = {
   rank: number;
 };
 
-/** Top 3 on each board of a closed week. One row per user per board, best rank. */
-export function podiumFinishes(slice: LeaderboardWeekSlice, now: Date): PodiumFinish[] {
-  if (now.getTime() < Date.parse(slice.finalAt)) return [];
+/**
+ * Top 3 on each board of a closed week. One row per user per board, best rank.
+ * `scoredAt` is when the boards were scored: before finalAt they are not final.
+ */
+export function podiumFinishes(slice: LeaderboardWeekSlice, scoredAt: Date): PodiumFinish[] {
+  // An unknown scoring time (NaN) is not final either.
+  if (!(scoredAt.getTime() >= Date.parse(slice.finalAt))) return [];
   const weekStart = weekContaining(new Date(slice.start)).startDate;
   const finishes: PodiumFinish[] = [];
   for (const [boardId, board] of Object.entries(slice.boards)) {
@@ -26,4 +30,9 @@ export function podiumFinishes(slice: LeaderboardWeekSlice, now: Date): PodiumFi
     }
   }
   return finishes;
+}
+
+/** Last week's podiums, only when the snapshot was scored after that week closed. */
+export function closedPodiums(snapshot: Pick<LeaderboardSnapshot, "previous" | "scoredAt">): PodiumFinish[] {
+  return podiumFinishes(snapshot.previous, new Date(snapshot.scoredAt));
 }
