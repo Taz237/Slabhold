@@ -7,6 +7,7 @@ import { Ellipsis, Heart, MessageCircle, Pin, Quote, Repeat2 } from "lucide-reac
 import { Avatar } from "@/components/avatar";
 import { useCollection } from "@/components/collection-provider";
 import { useImageLightbox } from "@/components/image-lightbox";
+import { PostCardTile, postCardHref } from "@/components/post-card-tile";
 import { PostPhotoGrid } from "@/components/post-photo-grid";
 import { ReplyPhotos } from "@/components/reply-photos";
 import { MentionText } from "@/components/mention-text";
@@ -15,13 +16,12 @@ import { SafetyMenu } from "@/components/safety-menu";
 import { ShareAction } from "@/components/share-button";
 import { useSocial } from "@/components/social-provider";
 import { signupPath } from "@/lib/auth/safe-next";
-import { exactTime, initials, timeAgo } from "@/lib/format";
+import { exactTime, timeAgo } from "@/lib/format";
 import { imagesFromPost, photosBesideCard } from "@/lib/social/post-photos";
 import { quoteCount } from "@/lib/social/quotes";
 import type { Post, PostComment, Profile, PublicCard } from "@/lib/social/types";
 import { userHref } from "@/lib/social/user-href";
 import { MailDayCard } from "@/components/mail-day-card";
-import { EbaySoldLink } from "@/components/ebay-sold-link";
 import { shareTitleForPost } from "@/lib/social/mail-day-copy";
 import { useAttachedChip } from "@/lib/social/use-attachment-label";
 import type { CardValueResult } from "@/lib/value/types";
@@ -625,43 +625,13 @@ function CardMedia({
     values: cardValues,
     loading: cardValuesLoading,
   });
-  const price = chip.text;
-  const soldHref = chip.soldHref;
   const owned = cards.some((item) => item.id === card.id);
-  const href = owned
-    ? `/cards/${card.id}`
-    : `${userHref(username)}/cards/${encodeURIComponent(card.id)}`;
   return (
-    <div className="mt-3">
-      <Link
-        href={href}
-        className="block overflow-hidden rounded-2xl border border-zinc-200 hover:bg-zinc-50 dark:border-white/10 dark:hover:bg-white/[0.04]"
-      >
-        {card.photoDataUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={card.photoDataUrl} alt="" className="max-h-80 w-full object-cover" />
-        ) : (
-          <div
-            className="grid h-36 place-items-center text-lg font-semibold text-white"
-            style={{ background: `linear-gradient(160deg, ${card.accent}, #18181b)` }}
-          >
-            {initials(card.playerName)}
-          </div>
-        )}
-        <div className="px-3 py-2">
-          <p className="truncate text-sm font-semibold">{card.playerName}</p>
-          <p className="truncate text-xs text-zinc-500">
-            {card.yearLabel || card.year} {card.setBrand}
-            {card.cardNumber ? ` · #${card.cardNumber}` : ""}
-            {price ? ` · ${price}` : ""}
-          </p>
-        </div>
-      </Link>
-      {soldHref ? (
-        <p className="px-1 pt-1.5 text-xs text-zinc-500">
-          <EbaySoldLink href={soldHref} />
-        </p>
-      ) : null}
-    </div>
+    <PostCardTile
+      card={card}
+      href={postCardHref({ cardId: card.id, username, owned })}
+      priceText={chip.text}
+      soldHref={chip.soldHref}
+    />
   );
 }
