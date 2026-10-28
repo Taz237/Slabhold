@@ -127,7 +127,7 @@ describe("grid layout", () => {
 });
 
 describe("tile photos", () => {
-  it("optimizes only Supabase public storage photos", () => {
+  it("optimizes only photos in the card-photos bucket", () => {
     assert.deepEqual(photoSource(SUPABASE), { kind: "optimized", src: SUPABASE });
     assert.deepEqual(photoSource("data:image/jpeg;base64,abc"), {
       kind: "plain",
@@ -135,6 +135,10 @@ describe("tile photos", () => {
     });
     assert.equal(photoSource(`${SUPABASE}?v=1`).kind, "plain");
     assert.equal(photoSource("https://example.com/a.jpg").kind, "plain");
+    const storage = "https://knuwflptobyutrauxblj.supabase.co/storage/v1/object/public/";
+    assert.equal(photoSource(`${storage}avatars/u1/a.jpg`).kind, "plain");
+    assert.equal(photoSource(`${storage}post-images/u1/a.jpg`).kind, "plain");
+    assert.equal(photoSource(`${storage}card-photos-old/u1/a.jpg`).kind, "plain");
     assert.deepEqual(photoSource(null), { kind: "none" });
     assert.deepEqual(photoSource("  "), { kind: "none" });
   });
@@ -287,7 +291,7 @@ describe("sparklinePath", () => {
 });
 
 describe("next.config images", () => {
-  it("allows only the Supabase public storage path", () => {
+  it("allows only the card-photos bucket", () => {
     const images = nextConfig.images;
     assert.ok(images);
     assert.equal(images.remotePatterns?.length, 1);
@@ -295,7 +299,7 @@ describe("next.config images", () => {
     assert.ok(pattern && !(pattern instanceof URL));
     assert.equal(pattern.protocol, "https");
     assert.equal(pattern.hostname, "knuwflptobyutrauxblj.supabase.co");
-    assert.equal(pattern.pathname, "/storage/v1/object/public/**");
+    assert.equal(pattern.pathname, "/storage/v1/object/public/card-photos/**");
     assert.equal(pattern.search, "");
   });
 

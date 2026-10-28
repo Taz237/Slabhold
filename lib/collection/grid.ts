@@ -76,14 +76,15 @@ export function showGhostTile(count: number): boolean {
 
 /** Must match images.remotePatterns in next.config.ts. */
 export const CARD_PHOTO_ORIGIN = "https://knuwflptobyutrauxblj.supabase.co";
-export const CARD_PHOTO_PATH = "/storage/v1/object/public/";
+/** The bucket card photos upload to (uploadMedia "card-photos"). */
+export const CARD_PHOTO_PATH = "/storage/v1/object/public/card-photos/";
 
 export type PhotoSource =
   | { kind: "none" }
   | { kind: "optimized"; src: string }
   | { kind: "plain"; src: string };
 
-/** next/image only for our public storage. Data URLs and anything else stay a plain img. */
+/** next/image only for card photos. Avatars, other buckets and data URLs stay a plain img. */
 export function photoSource(url: string | null | undefined): PhotoSource {
   const src = (url ?? "").trim();
   if (!src) return { kind: "none" };
