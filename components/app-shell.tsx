@@ -7,6 +7,7 @@ import { Bell, Camera, Compass, Ellipsis, Search, Trophy, WalletCards } from "lu
 import { Logo } from "@/components/logo";
 import { useSocial } from "@/components/social-provider";
 import { AccountDeletedToast } from "@/components/account-deleted-toast";
+import { BadgeRevealGate } from "@/components/badges/badge-reveal";
 import { CollectPrompt } from "@/components/collect-prompt";
 import { CreateMenu } from "@/components/create-menu";
 import { JoinBar } from "@/components/join-bar";
@@ -63,6 +64,7 @@ function isActive(pathname: string, href: string, user: Profile | null) {
   }
   if (href === "/more") {
     if (pathname.startsWith("/more") || pathname === "/login") return true;
+    if (pathname.startsWith("/achievements")) return true;
     if (pathname.startsWith("/messages") || pathname.startsWith("/profile")) return true;
     const routeUsername = profileUsernameFromPath(pathname);
     if (!routeUsername || !user) return false;
@@ -91,6 +93,7 @@ function Shell({
 }) {
   const pathname = usePathname();
   const router = useRouter();
+  const { mode } = useSocial();
   /** Collection needs a wider desktop column; feed/timeline stay max-w-lg. */
   const wideMain =
     pathname.startsWith("/collection") || pathname.startsWith("/portfolio");
@@ -234,6 +237,7 @@ function Shell({
       {showJoin ? <JoinBar /> : null}
       {showNav ? <CreateMenu key={pathname} /> : null}
       {user ? <CollectPrompt /> : null}
+      {user && mode === "supabase" ? <BadgeRevealGate userId={user.id} /> : null}
     </div>
   );
 }

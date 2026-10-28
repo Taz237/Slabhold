@@ -12,6 +12,7 @@ import {
 import { usePathname } from "next/navigation";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { trackEvent } from "@/lib/analytics";
+import { pingBadgeCheck } from "@/lib/badges/client";
 import { clearNewCardDraft } from "@/lib/cards/new-card-draft";
 import { activityFrom, emptyActivity, loadActivity, saveActivity, type ActivityStore } from "@/lib/social/activity";
 import {
@@ -819,6 +820,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
             setStatus(result.error);
             return result;
           }
+          if (!following) pingBadgeCheck();
           await refreshRemote(client);
           setStatus(result.notice ?? null);
           return result;
@@ -854,6 +856,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
             setStatus(result.error);
             return result;
           }
+          pingBadgeCheck();
           await refreshRemote(client);
           setStatus(result.notice ?? null);
           return result;
@@ -890,6 +893,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
           const result = await remoteCreatePost(client, snapshot.user.id, input);
           if (!result.error) {
             trackEvent("post_created");
+            pingBadgeCheck();
             await refreshRemote(client);
             if (result.notice) setStatus(result.notice);
           }

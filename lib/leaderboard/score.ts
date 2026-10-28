@@ -124,7 +124,7 @@ export type CandidateRow = {
 
 export type WeekBoards = Partial<Record<LeaderboardBoardId, { rows: CandidateRow[] }>>;
 
-type ActorIndex = {
+export type ActorIndex = {
   profiles: Map<string, BoardProfile>;
   cardCount: Map<string, number>;
   postCount: Map<string, number>;
@@ -137,7 +137,7 @@ function bump(map: Map<string, number>, id: string) {
   map.set(id, (map.get(id) ?? 0) + 1);
 }
 
-function indexInput(input: ScoreInput): ActorIndex {
+export function indexInput(input: ScoreInput): ActorIndex {
   const profiles = new Map<string, BoardProfile>();
   for (const profile of input.profiles) profiles.set(profile.id, profile);
   const cardCount = new Map<string, number>();
@@ -166,15 +166,15 @@ function pairKey(a: string, b: string): string {
   return a < b ? `${a}\0${b}` : `${b}\0${a}`;
 }
 
-function blockedPair(index: ActorIndex, a: string, b: string): boolean {
+export function blockedPair(index: ActorIndex, a: string, b: string): boolean {
   return index.blocks.has(pairKey(a, b));
 }
 
-function isTestProfile(profile: BoardProfile): boolean {
+export function isTestProfile(profile: BoardProfile): boolean {
   return profile.isTest || isTestAccount(profile.username);
 }
 
-function actorQualifies(index: ActorIndex, actorId: string, actionAt: string): boolean {
+export function actorQualifies(index: ActorIndex, actorId: string, actionAt: string): boolean {
   const profile = index.profiles.get(actorId);
   if (!profile || isTestProfile(profile)) return false;
   const acted = Date.parse(actionAt);
@@ -192,7 +192,7 @@ function entrantOk(index: ActorIndex, userId: string): BoardProfile | null {
   return profile;
 }
 
-function isOfficialEntrant(profile: BoardProfile): boolean {
+export function isOfficialEntrant(profile: BoardProfile): boolean {
   if (isOfficialUpdatesAccount(profile.id)) return true;
   return normalizeAccountHandle(profile.username) === OFFICIAL_UPDATES_HANDLE;
 }
@@ -354,12 +354,12 @@ function scoreRising(input: ScoreInput, week: WeekWindow, index: ActorIndex): Ca
   return rows;
 }
 
-function normLabel(value: string): string {
+export function normLabel(value: string): string {
   return value.trim().toLowerCase().replace(/\s+/g, " ");
 }
 
 /** Pathname of a card photo that counts, or null. Dedupe uses this pathname. */
-function realPhoto(url: string | null, userId: string): string | null {
+export function realPhoto(url: string | null, userId: string): string | null {
   const owner = userId.trim();
   const raw = url?.trim() ?? "";
   if (!raw || !owner) return null;
@@ -385,17 +385,17 @@ function realPhoto(url: string | null, userId: string): string | null {
   return parsed.pathname;
 }
 
-function parallelKey(value: string): string {
+export function parallelKey(value: string): string {
   const label = normLabel(value);
   if (label === "" || label === "base") return "base";
   return label;
 }
 
-function cardIdentity(card: BoardCard): string {
+export function cardIdentity(card: BoardCard): string {
   return [normLabel(card.player), String(card.year), normLabel(card.setName), parallelKey(card.parallel)].join("\0");
 }
 
-function cardDay(createdAt: string): string {
+export function cardDay(createdAt: string): string {
   const parts = zonedParts(new Date(createdAt));
   return isoDate(parts.year, parts.month, parts.day);
 }
