@@ -6,8 +6,6 @@ import { useEffect } from "react";
 import { useCompFlagState } from "@/components/use-comp-flags";
 import { ArrowLeft } from "lucide-react";
 import { CardCollectorsSaying } from "@/components/card-collectors-saying";
-import { CardOwnersSection } from "@/components/card-owners";
-import { CardPeopleSections } from "@/components/card-people";
 import { OpenToOffersBadge } from "@/components/open-to-offers";
 import { EbaySoldLine, PriceFallbackText, SimilarCardsLine } from "@/components/price-readout";
 import { WantButton } from "@/components/want-button";
@@ -15,7 +13,6 @@ import { outlineButton } from "@/components/button-styles";
 import { CardThumb } from "@/components/card-thumb";
 import { CompBasis } from "@/components/comp-basis";
 import { CompsList } from "@/components/comps-list";
-import { FairPriceCheck } from "@/components/fair-price-check";
 import { PublicCardCompsPreview } from "@/components/public-card-comps";
 import { useCollection } from "@/components/collection-provider";
 import { ProfileSkeleton } from "@/components/status";
@@ -29,12 +26,11 @@ import { basedOnSalesLabel, countForSalesLabel, valueFromShownSales } from "@/li
 import { soldNotice } from "@/lib/comps/sold-response";
 import { useSoldComps } from "@/lib/comps/use-sold-comps";
 import { canonicalParallelName } from "@/lib/cards/parallels";
-import { cardTitle, formatPaidLabel } from "@/lib/format";
+import { cardTitle } from "@/lib/format";
 import {
   hiddenPublicComps,
   type PublicCardComps,
 } from "@/lib/comps/public-types";
-import type { OwnersAndHunters } from "@/lib/cards/people";
 import type { PublicCard } from "@/lib/social/types";
 import {
   cardValueHasAmount,
@@ -54,12 +50,10 @@ export function PublicCardView({
   username,
   id,
   publicComps = hiddenPublicComps(),
-  people = null,
 }: {
   username: string;
   id: string;
   publicComps?: PublicCardComps;
-  people?: OwnersAndHunters | null;
 }) {
   const social = useSocial();
   const { cards, ready: cardsReady } = useCollection();
@@ -114,8 +108,8 @@ export function PublicCardView({
       userId={social.user?.id ?? null}
       canFlag={isCardOwner(profile.id, social.user?.id ?? null)}
       publicComps={publicComps}
-      people={people}
       messageHref={messageHref}
+      manageHref={owned ? `/cards/${owned.id}` : null}
     />
   );
 }
@@ -127,8 +121,8 @@ function PublicCardAnalytics({
   userId,
   canFlag,
   publicComps,
-  people,
   messageHref,
+  manageHref,
 }: {
   card: PublicCard;
   displayName: string;
@@ -136,8 +130,9 @@ function PublicCardAnalytics({
   userId: string | null;
   canFlag: boolean;
   publicComps: PublicCardComps;
-  people: OwnersAndHunters | null;
   messageHref: string | null;
+  /** Your own card: where to switch public or private. */
+  manageHref: string | null;
 }) {
   const pathname = usePathname() || "/";
   const specs = [
@@ -153,9 +148,6 @@ function PublicCardAnalytics({
       : null,
     card.grade?.trim() ? { label: "Grade", value: card.grade.trim() } : null,
   ].filter((spec): spec is { label: string; value: string } => Boolean(spec));
-  // Paid is private — only present when viewing your own card from the collection.
-  const showPaid =
-    typeof card.purchasePrice === "number" && Number.isFinite(card.purchasePrice);
 
   const {
     value: cardValue,
@@ -273,18 +265,15 @@ function PublicCardAnalytics({
             Message owner
           </Link>
         ) : null}
+        {manageHref ? (
+          <Link href={manageHref} className={`${outlineButton} mt-4 min-h-11`}>
+            Manage card and privacy
+          </Link>
+        ) : null}
       </div>
 
       {collapsePrices ? (
         <>
-          {showPaid ? (
-            <section className="grid grid-cols-1 gap-3">
-              <Metric
-                label="Paid"
-                value={formatPaidLabel(card.purchasePrice ?? 0, true)}
-              />
-            </section>
-          ) : null}
           {priceRead?.kind === "similar" ? (
             <SimilarCardsLine read={priceRead} />
           ) : (
@@ -299,7 +288,7 @@ function PublicCardAnalytics({
           )}
         </>
       ) : (
-      <section className={`grid gap-3 ${showPaid ? "grid-cols-2" : "grid-cols-1"}`}>
+      <section className="grid grid-cols-1 gap-3">
         <div className="min-w-0 rounded-2xl border border-zinc-200 bg-white px-4 py-4 dark:border-white/10 dark:bg-white/[0.03]">
           {priceRead?.kind === "similar" ? (
             <SimilarCardsLine read={priceRead} />
@@ -339,12 +328,6 @@ function PublicCardAnalytics({
             </span>
           ) : null}
         </div>
-        {showPaid ? (
-          <Metric
-            label="Paid"
-            value={formatPaidLabel(card.purchasePrice ?? 0, true)}
-          />
-        ) : null}
       </section>
       )}
 
@@ -448,50 +431,7 @@ function PublicCardAnalytics({
         </section>
       )}
 
-      <FairPriceCheck
-        card={{
-          id: card.id,
-          playerName: card.playerName,
-          year: card.year,
-          yearLabel: card.yearLabel,
-          setBrand: card.setBrand,
-          cardNumber: card.cardNumber,
-          grade: card.grade,
-          parallel: card.parallel,
-          sport: card.sport,
-          photoDataUrl: card.photoDataUrl,
-          accent: card.accent,
-          estimatedSellPrice: card.estimatedSellPrice,
-          conditionType: card.conditionType,
-          grader: card.grader,
-          isPublic: true,
-        }}
-        salePrices={onScreenComps.map((comp) => comp.soldPrice)}
-        canShow
-        compsReady={sold.status === "ready"}
-        compsLoading={compsLoading}
-        needsLogin={!userId}
-      />
-
-      {people ? (
-        <CardPeopleSections data={people} />
-      ) : (
-        <CardOwnersSection
-          card={{
-            id: card.id,
-            playerName: card.playerName,
-            year: card.year,
-            yearLabel: card.yearLabel,
-            setBrand: card.setBrand,
-            cardNumber: card.cardNumber,
-            parallel: card.parallel,
-            grade: card.grade,
-            conditionType: card.conditionType,
-            grader: card.grader,
-          }}
-        />
-      )}
-
+      {/* Owners and hunters and the fair price check are off for now. */}
       <CardCollectorsSaying cardId={card.id} />
     </div>
   );
@@ -527,17 +467,6 @@ function toPublicCard(card: {
     purchasePrice: card.purchasePrice,
     openToOffers: card.openToOffers ?? null,
   };
-}
-
-function Metric({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="min-w-0 rounded-2xl border border-zinc-200 bg-white px-4 py-4 dark:border-white/10 dark:bg-white/[0.03]">
-      <p className="text-[11px] tracking-wide text-zinc-500 uppercase">{label}</p>
-      <p className="mt-1 min-w-0 text-[clamp(1.25rem,5vw,1.5rem)] font-semibold tracking-tight tabular-nums whitespace-nowrap">
-        {value}
-      </p>
-    </div>
-  );
 }
 
 function Missing({

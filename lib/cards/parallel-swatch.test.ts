@@ -25,7 +25,7 @@ describe("parallelSwatch", () => {
       const swatch = parallelSwatch(name);
       assert.equal(typeof swatch.background, "string", name);
       assert.ok(swatch.background.length > 0, name);
-      assert.ok(["solid", "shimmer", "multi", "dark", "neutral", "base"].includes(swatch.kind), name);
+      assert.ok(["solid", "shimmer", "stars", "multi", "dark", "neutral", "base"].includes(swatch.kind), name);
     }
   });
 
@@ -52,5 +52,13 @@ describe("parallelSwatch", () => {
     assert.deepEqual(parallelSwatch(""), NEUTRAL_SWATCH);
     assert.deepEqual(parallelSwatch("   "), NEUTRAL_SWATCH);
     assert.deepEqual(parallelSwatch(undefined as unknown as string), NEUTRAL_SWATCH);
+  });
+
+  it("gives Stars a silver star pattern and keeps a color word first", () => {
+    const stars = parallelSwatch("Stars");
+    assert.equal(stars.kind, "stars");
+    assert.match(stars.background, /radial-gradient/);
+    assert.equal(parallelSwatch("Red Stars").kind, "solid");
+    assert.equal(parallelSwatch("Purple Stars").kind, "solid");
   });
 });

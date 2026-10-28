@@ -402,14 +402,13 @@ describe("most cards added", () => {
     return card(id, userId, true, { imageUrl: photo(userId, id), player: `Player ${id}`, ...extra });
   }
 
-  it("requires a real photo and skips private, hidden, deleted, and duplicate cards", () => {
+  it("requires a real photo and skips hidden, deleted, and duplicate cards", () => {
     const rows = boards(
       base({
         cards: [
           added("photo", "author"),
           added("blank", "author", { imageUrl: "" }),
           added("data", "author", { imageUrl: "data:image/jpeg;base64,abc", player: "Data" }),
-          added("private", "author", { isPublic: false, player: "Private" }),
           added("hidden", "author", { hidden: true, player: "Hidden" }),
           added("gone", "author", { deleted: true, player: "Gone" }),
           added("dup-a", "author", { player: "LeBron James", year: 2020, setName: "Prizm", parallel: "Silver" }),
@@ -427,6 +426,45 @@ describe("most cards added", () => {
     )["most-cards-added"]?.rows ?? [];
     const author = rows.find((row) => row.userId === "author");
     assert.equal(author?.contributions[0]?.points, 3);
+  });
+
+  it("counts a private card with a real photo but not a private card with no photo", () => {
+    const rows = boards(
+      base({
+        cards: [
+          added("private-photo", "author", { isPublic: false, player: "Private photo" }),
+          added("private-blank", "author", { isPublic: false, imageUrl: null, player: "Private blank" }),
+        ],
+      }),
+    )["most-cards-added"]?.rows ?? [];
+    assert.equal(rows.find((row) => row.userId === "author")?.contributions[0]?.points, 1);
+  });
+
+  it("never puts a private card's id, image, or title in the board response", () => {
+    const privatePhoto = photo("author", "secret-card-id");
+    const snapshot = snapshotFromInput(
+      base({
+        posts: [],
+        cards: [
+          added("secret-card-id", "author", {
+            isPublic: false,
+            imageUrl: privatePhoto,
+            player: "Secret Rookie Auto",
+            setName: "Secret Set",
+          }),
+        ],
+      }),
+      new Date(SNAPSHOT_NOW),
+    );
+    const board = snapshot.current.boards["most-cards-added"]?.rows ?? [];
+    const author = board.find((row) => row.userId === "author");
+    assert.equal(author?.contributions[0]?.points, 1);
+    assert.equal(author?.href, "/u/author");
+    const json = JSON.stringify(snapshot);
+    assert.doesNotMatch(json, /secret-card-id/);
+    assert.doesNotMatch(json, /Secret Rookie Auto/);
+    assert.doesNotMatch(json, /Secret Set/);
+    assert.doesNotMatch(json, /card-photos/);
   });
 
   it("caps a user at 25 cards per day and leaves out test accounts and @slabholdupdates", () => {

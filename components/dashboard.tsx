@@ -24,6 +24,7 @@ import { displayedCollectionTotal } from "@/lib/collection/displayed-value";
 import { sumPaid } from "@/lib/collection/profit-label";
 import { GRID_SORTS, sortGridCards, type GridSort } from "@/lib/collection/grid";
 import { useCardValues } from "@/lib/value/use-card-values";
+import { publicTogglePatch } from "@/lib/offers/open-to-offers";
 import { WantList } from "@/components/want-list";
 import { PullToRefresh } from "@/components/pull-to-refresh";
 
@@ -49,7 +50,7 @@ const chipOff =
   "bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-white/[0.06] dark:text-zinc-300 dark:hover:bg-white/10";
 
 export function Dashboard() {
-  const { cards, ready, syncError, reload } = useCollection();
+  const { cards, ready, syncError, reload, updateCard } = useCollection();
   const [query, setQuery] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
@@ -279,6 +280,7 @@ export function Dashboard() {
           values={values}
           valuesLoading={valuesLoading}
           valuesFailed={valuesFailed}
+          onVisibility={(card, isPublic) => updateCard(card.id, publicTogglePatch(card, isPublic))}
         />
       )}
     </div>

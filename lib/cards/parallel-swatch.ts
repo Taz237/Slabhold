@@ -1,9 +1,9 @@
 /**
  * A color for a parallel chip. Pure, so any name gets a swatch and nothing throws.
  * Order: Base, multi-color patterns, the first color word in the name,
- * then a shine word (Silver, Refractor, Prizm), then neutral.
+ * then Stars, then a shine word (Silver, Refractor, Prizm), then neutral.
  */
-export type SwatchKind = "base" | "solid" | "shimmer" | "multi" | "dark" | "neutral";
+export type SwatchKind = "base" | "solid" | "shimmer" | "stars" | "multi" | "dark" | "neutral";
 
 export type ParallelSwatch = {
   kind: SwatchKind;
@@ -28,6 +28,13 @@ const SHIMMER_SWATCH: ParallelSwatch = {
   kind: "shimmer",
   background:
     "linear-gradient(135deg, #f4f4f5 0%, #a1a1aa 30%, #fafafa 50%, #a1a1aa 70%, #e4e4e7 100%)",
+};
+
+/** Optic Stars: silver with small white star points. */
+const STARS_SWATCH: ParallelSwatch = {
+  kind: "stars",
+  background:
+    "radial-gradient(circle at 30% 30%, #ffffff 0 1.5px, transparent 2px), radial-gradient(circle at 70% 45%, #ffffff 0 1.5px, transparent 2px), radial-gradient(circle at 40% 72%, #ffffff 0 1px, transparent 1.5px), linear-gradient(135deg, #e4e4e7 0%, #a1a1aa 45%, #f4f4f5 60%, #71717a 100%)",
 };
 
 const MULTI_SWATCH: ParallelSwatch = {
@@ -165,6 +172,8 @@ export function parallelSwatch(name: string): ParallelSwatch {
     }
   }
   if (best) return best.swatch;
+  // "Red Stars" took its color above. Plain Stars is silver with stars.
+  if (wordIndex(text, "stars") >= 0) return STARS_SWATCH;
   if (SHINE_WORDS.some((word) => wordIndex(text, word) >= 0)) return SHIMMER_SWATCH;
   return NEUTRAL_SWATCH;
 }

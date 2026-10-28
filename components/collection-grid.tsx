@@ -4,6 +4,7 @@ import Link from "next/link";
 import { type CSSProperties } from "react";
 import { Plus } from "lucide-react";
 import { CardTile, tileFocusRing } from "@/components/card-tile";
+import type { VisibilitySave } from "@/components/card-visibility";
 import {
   GRID_CLASS,
   showGhostTile,
@@ -25,11 +26,14 @@ export function CollectionGrid({
   values,
   valuesLoading,
   valuesFailed,
+  onVisibility,
 }: {
   cards: SportsCard[];
   values: Map<string, CardValueResult>;
   valuesLoading: boolean;
   valuesFailed: boolean;
+  /** Saves a card's public/private switch. Leave out to hide the lock. */
+  onVisibility?: (card: SportsCard, isPublic: boolean) => VisibilitySave | void;
 }) {
   return (
     <ul className={GRID_CLASS} aria-label="Your cards">
@@ -41,6 +45,7 @@ export function CollectionGrid({
           values={values}
           valuesLoading={valuesLoading}
           valuesFailed={valuesFailed}
+          onVisibility={onVisibility}
         />
       ))}
       {showGhostTile(cards.length) ? <GhostTile index={cards.length} /> : null}
@@ -94,12 +99,14 @@ export function CollectionTile({
   values,
   valuesLoading,
   valuesFailed,
+  onVisibility,
 }: {
   card: SportsCard;
   index: number;
   values: Map<string, CardValueResult>;
   valuesLoading: boolean;
   valuesFailed: boolean;
+  onVisibility?: (card: SportsCard, isPublic: boolean) => VisibilitySave | void;
 }) {
   const { sold, valuePending, label, gain } = tileValue(
     card,
@@ -120,6 +127,11 @@ export function CollectionTile({
       sold={sold}
       needsDetailsLabel={needsDetails(card) ? needsDetailsLabel(card) : null}
       addPhotoHref={`/cards/${card.id}/edit`}
+      visibility={
+        onVisibility
+          ? { isPublic: Boolean(card.isPublic), onChange: (next) => onVisibility(card, next) }
+          : null
+      }
       className="motion-safe:animate-[tile-in_420ms_cubic-bezier(0.2,0.7,0.2,1)_both]"
       style={staggerStyle(index)}
     />

@@ -404,7 +404,8 @@ function scoreCards(input: ScoreInput, week: WeekWindow, index: ActorIndex): Can
   const byUser = new Map<string, BoardCard[]>();
   for (const card of input.cards) {
     if (!card.userId || card.id.startsWith("exists:")) continue;
-    if (!card.isPublic || card.hidden || card.deleted) continue;
+    // Private cards count too. The board only shows the collector's name and count.
+    if (card.hidden || card.deleted) continue;
     if (!realPhoto(card.imageUrl, card.userId)) continue;
     const createdMs = Date.parse(card.createdAt);
     if (!card.createdAt || !Number.isFinite(createdMs) || createdMs > input.now.getTime()) continue;

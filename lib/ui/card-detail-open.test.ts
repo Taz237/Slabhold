@@ -55,10 +55,10 @@ describe("opening a card from the collection", () => {
     assert.match(detail, /onSaved=\{/);
     assert.match(detail, /gradeDetailSpecs\(/);
     assert.match(detail, /<WantButton/);
-    assert.match(detail, /<FairPriceCheck/);
-    assert.match(detail, /Owners and hunters/);
+    assert.doesNotMatch(detail, /<FairPriceCheck/);
+    assert.doesNotMatch(detail, /<CardOwnersSection|<CardPeopleSections|\/api\/cards\/people/);
     assert.match(detail, /Delete/);
-    assert.match(detail, /Public on profile/);
+    assert.match(detail, /<CardVisibilitySwitch/);
     assert.match(detail, /Mark as sold/);
     assert.match(form, />\s*Cancel\s*</);
     assert.match(form, /type="button"/);
@@ -67,20 +67,34 @@ describe("opening a card from the collection", () => {
     assert.match(people, /loadCardPeople/);
   });
 
-  it("shows visibility and move for the owner without opening the menu", () => {
+  it("shows the value only, with no Paid or Profit, on both card pages", () => {
+    const view = read("components/public-card-view.tsx");
+    for (const source of [detail, view]) {
+      assert.doesNotMatch(source, /label="Paid"|label="Profit"|Paid vs|formatPaidLabel|showPaid/);
+      assert.doesNotMatch(source, /<FairPriceCheck|<CardOwnersSection|<CardPeopleSections/);
+    }
+    assert.match(detail, /grid min-w-0 grid-cols-1 gap-3">\s*<EstSellMetric/);
+    assert.match(view, /<section className="grid grid-cols-1 gap-3">/);
+    assert.doesNotMatch(read("app/u/[username]/cards/[id]/page.tsx"), /loadCardPeople/);
+  });
+
+  it("shows visibility at the top and move for the owner without opening the menu", () => {
     const menuAt = detail.indexOf("{menuOpen ? (");
     const moveAt = detail.indexOf("Move this card");
-    const publicAt = detail.indexOf("Public on profile");
+    const topBarAt = detail.indexOf("<CardTopBar");
+    const publicAt = detail.indexOf("<CardVisibilitySwitch");
+    const heroAt = detail.indexOf("<CardHero");
+    assert.ok(topBarAt < publicAt && publicAt < heroAt, "the switch sits above the card photo");
     assert.ok(menuAt > moveAt && menuAt > publicAt);
     assert.equal(detail.indexOf("Move this card", menuAt), -1);
-    assert.equal(detail.indexOf("Public on profile", menuAt), -1);
-    assert.match(detail, /aria-label="Visibility and collection"/);
+    assert.equal(detail.indexOf("<CardVisibilitySwitch", menuAt), -1);
+    assert.match(detail, /updateCard\(card\.id, publicTogglePatch\(card, next\)\)/);
+    assert.match(detail, /aria-label="Collection"/);
     assert.match(detail, /min-w-0 space-y-3/);
-    assert.match(detail, /flex flex-wrap items-center gap-2/);
     const visible = detail.slice(0, menuAt);
     assert.match(visible, /editing \? null : \(/);
     assert.doesNotMatch(read("components/public-card-view.tsx"), /Move this card/);
-    assert.doesNotMatch(read("components/public-card-view.tsx"), /Public on profile/);
+    assert.doesNotMatch(read("components/public-card-view.tsx"), /CardVisibilitySwitch/);
   });
 
   it("reserves the sales graph and list so they do not pop in from zero height", () => {
