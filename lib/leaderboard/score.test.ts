@@ -310,7 +310,7 @@ describe("rising collectors scoring", () => {
 });
 
 describe("viewer rows", () => {
-  it("hides blocked actors and entrants, keeps a You row, and refuses a short list", () => {
+  it("hides blocked actors and entrants, keeps a You row, and flags a short list as thin", () => {
     const scored = boards(
       base({
         profiles: [
@@ -329,7 +329,10 @@ describe("viewer rows", () => {
     const rows = scored["top-card-post"]?.rows ?? [];
     const open = rankBoard(rows, [], null, "likes and replies");
     assert.equal(open.thin, true);
-    assert.deepEqual(open.entries, []);
+    assert.deepEqual(
+      open.entries.map((entry) => entry.id),
+      ["post-1", "post-2"],
+    );
 
     const full = boards(
       base({
@@ -592,7 +595,7 @@ describe("most cards added", () => {
 });
 
 describe("thin board viewer", () => {
-  it("shows a viewer's points when the board is still hidden", () => {
+  it("keeps a thin board's rows and ranks the viewer on it", () => {
     const row = (userId: string, points: number) => ({
       id: userId,
       userId,
@@ -607,12 +610,12 @@ describe("thin board viewer", () => {
       boardId: "most-cards-added",
     });
     assert.equal(thin.thin, true);
-    assert.equal(thin.entries.length, 0);
+    assert.equal(thin.entries.length, 2);
     assert.equal(thin.you?.score, 4);
     assert.equal(thin.you?.scoreLabel, "cards");
     assert.equal(thin.you?.title, "mina");
     assert.notEqual(thin.you?.title, "Not ranked");
-    assert.equal(thin.you?.label, "You: 4 cards");
+    assert.equal(thin.you?.label, "You: #1");
 
     const empty = rankBoard([row("mina", 4), row("other", 1)], [], "guest", "cards", {
       boardId: "most-cards-added",
