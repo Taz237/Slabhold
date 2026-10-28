@@ -9,6 +9,7 @@ import { outlineButton, solidButton } from "@/components/button-styles";
 import { OpenToOffersFilter } from "@/components/open-to-offers";
 import { ProfileCardGrid } from "@/components/profile-card-grid";
 import { ProfileEditSheet } from "@/components/profile-edit-sheet";
+import { ProfileBadgeStrip } from "@/components/badges/profile-badge-strip";
 import { LoadMore } from "@/components/load-more";
 import { MentionText } from "@/components/mention-text";
 import { PullToRefresh } from "@/components/pull-to-refresh";
@@ -46,8 +47,16 @@ import {
   openToOffersFilterAvailable,
 } from "@/lib/offers/open-to-offers";
 import { useCardValues } from "@/lib/value/use-card-values";
+import type { ProfileBadges } from "@/lib/badges/load";
 
-export function ProfileView({ username }: { username?: string }) {
+export function ProfileView({
+  username,
+  badges = null,
+}: {
+  username?: string;
+  /** Read on the server, so the strip never pops in after the header. */
+  badges?: ProfileBadges | null;
+}) {
   const router = useRouter();
   const pathname = usePathname() || "/";
   const social = useSocial();
@@ -292,6 +301,10 @@ export function ProfileView({ username }: { username?: string }) {
     if (!known || known.authorId !== profile.id || known.hiddenAt) return null;
     return known;
   })();
+  const cardCount = collection.length;
+  // Server badges are for the profile in the URL; a client-side rename drops them.
+  const badgeView =
+    badges && badges.username.toLowerCase() === profile.username.toLowerCase() ? badges.view : null;
   const shownActivity =
     tab === "media"
       ? profileMediaItems(activity, profile.id)
@@ -360,21 +373,44 @@ export function ProfileView({ username }: { username?: string }) {
             )}
           </div>
         </div>
-        <h1 className="mt-3 text-xl font-bold tracking-tight">{profile.displayName}</h1>
-        <p className="text-[15px] text-zinc-500">@{profile.username}</p>
-        {profile.bio ? <p className="mt-3 text-[15px] leading-5">{profile.bio}</p> : null}
-        <p className="mt-3 flex gap-4 text-sm">
-          <CountLink
-            href={`${username ? userHref(profile.username) : "/profile"}/following`}
-            count={followingCount(profile.id)}
-            label="Following"
-          />
+        <h1 className="mt-3 text-[22px] leading-7 font-extrabold tracking-tight break-words">
+          {profile.displayName}
+        </h1>
+        <p className="text-[15px] leading-5 font-medium text-zinc-500">@{profile.username}</p>
+        {profile.bio ? (
+          <p className="mt-2.5 text-[15px] leading-[1.4] break-words text-zinc-800 dark:text-zinc-200">
+            {profile.bio}
+          </p>
+        ) : null}
+        <div className="mt-2 flex flex-wrap items-center gap-x-1 text-sm">
+          <button
+            type="button"
+            onClick={() => setTab("cards")}
+            className="inline-flex min-h-11 items-center gap-1 rounded-md pr-1 hover:underline"
+          >
+            <span className="font-bold tabular-nums">{cardCount}</span>
+            <span className="text-zinc-500">{cardCount === 1 ? "Card" : "Cards"}</span>
+          </button>
+          <span aria-hidden className="text-zinc-400 dark:text-zinc-600">
+            ·
+          </span>
           <CountLink
             href={`${username ? userHref(profile.username) : "/profile"}/followers`}
             count={followerCount(profile.id)}
             label="Followers"
           />
-        </p>
+          <span aria-hidden className="text-zinc-400 dark:text-zinc-600">
+            ·
+          </span>
+          <CountLink
+            href={`${username ? userHref(profile.username) : "/profile"}/following`}
+            count={followingCount(profile.id)}
+            label="Following"
+          />
+        </div>
+        {badgeView ? (
+          <ProfileBadgeStrip view={badgeView} badgesHref={`${userHref(profile.username)}/badges`} />
+        ) : null}
       </div>
 
       <div
@@ -559,8 +595,9 @@ export function ProfileView({ username }: { username?: string }) {
 
 function CountLink({ href, count, label }: { href: string; count: number; label: string }) {
   return (
-    <Link href={href} className="rounded-md py-1 hover:underline">
-      <span className="font-bold">{count}</span> <span className="text-zinc-500">{label}</span>
+    <Link href={href} className="inline-flex min-h-11 items-center gap-1 rounded-md px-1 hover:underline">
+      <span className="font-bold tabular-nums">{count}</span>
+      <span className="text-zinc-500">{label}</span>
     </Link>
   );
 }

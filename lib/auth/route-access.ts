@@ -14,7 +14,7 @@ function pathOnly(pathname: string): string {
  * /cards/new, /cards/:id, /cards/:id/edit,
  * /compose, /scan,
  * /messages, /messages/:username,
- * /notifications, /more,
+ * /notifications, /more, /achievements,
  * /profile, /profile/followers, /profile/following,
  * /settings, /settings/privacy (and any other /settings/*)
  */
@@ -27,6 +27,7 @@ const ACCOUNT_EXACT = new Set([
   "/messages",
   "/notifications",
   "/more",
+  "/achievements",
   "/profile",
   "/profile/followers",
   "/profile/following",
@@ -91,7 +92,7 @@ function isPublicPath(path: string): boolean {
   if (path === "/mail-day" || path.startsWith("/mail-day/")) return true;
   if (/^\/posts\/[^/]+$/.test(path)) return true;
   if (/^\/u\/[^/]+$/.test(path)) return true;
-  if (/^\/u\/[^/]+\/(?:followers|following)$/.test(path)) return true;
+  if (/^\/u\/[^/]+\/(?:followers|following|badges)$/.test(path)) return true;
   if (/^\/u\/[^/]+\/cards\/[^/]+$/.test(path)) return true;
   if (/^\/cards\/[^/]+\/posts$/.test(path)) return true;
   return false;

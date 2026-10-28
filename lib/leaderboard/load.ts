@@ -31,7 +31,7 @@ function asRows(data: unknown): Row[] {
   return data.filter((row): row is Row => Boolean(row) && typeof row === "object");
 }
 
-async function rowsIn(
+export async function rowsIn(
   admin: Admin,
   table: string,
   columns: string,
@@ -51,7 +51,7 @@ async function rowsIn(
 }
 
 /** One card row per actor. A full collection read can pass the page cap and blank the board. */
-async function usersWithACard(admin: Admin, userIds: readonly string[]): Promise<string[]> {
+export async function usersWithACard(admin: Admin, userIds: readonly string[]): Promise<string[]> {
   const ids = [...new Set(userIds.filter(Boolean))];
   const found: string[] = [];
   const probe = admin as unknown as {

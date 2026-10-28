@@ -82,6 +82,7 @@ const CAMPAIGN_PARAMS = new Set(["utm_source", "utm_medium", "utm_campaign"]);
 export const PAGE_PATTERNS = [
   "/",
   "/about",
+  "/achievements",
   "/admin/comp-flags",
   "/admin/reports",
   "/cards/[id]",
@@ -113,6 +114,7 @@ export const PAGE_PATTERNS = [
   "/signup",
   "/terms",
   "/u/[username]",
+  "/u/[username]/badges",
   "/u/[username]/cards/[id]",
   "/u/[username]/followers",
   "/u/[username]/following",

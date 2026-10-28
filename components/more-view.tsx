@@ -2,11 +2,14 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { ChevronRight } from "lucide-react";
 import { Avatar } from "@/components/avatar";
 import { LoadingRows } from "@/components/status";
 import { AdminMoreSection } from "@/components/admin-nav-link";
 import { DeleteAccount } from "@/components/delete-account";
 import { useSocial } from "@/components/social-provider";
+import { requestBadgeCheck } from "@/lib/badges/client";
 import { markLogoutHome } from "@/lib/auth/logout-home";
 import { clearNewCardDraft } from "@/lib/cards/new-card-draft";
 import { loginPath, signupPath } from "@/lib/auth/safe-next";
@@ -15,6 +18,23 @@ export function MoreView() {
   const router = useRouter();
   const pathname = usePathname() || "/";
   const { ready, user, signOut, mode, status, unreadMessageCount } = useSocial();
+  const userId = user?.id ?? null;
+  const [badges, setBadges] = useState<{ userId: string; label: string | null } | null>(null);
+
+  // Opening More checks badge progress for this user and shows the count.
+  useEffect(() => {
+    if (!userId || mode !== "supabase") return;
+    let cancelled = false;
+    void requestBadgeCheck().then((result) => {
+      if (cancelled) return;
+      const label = result?.available ? `${result.earnedCount} / ${result.total}` : null;
+      setBadges({ userId, label });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [mode, userId]);
+  const badgeCount = badges?.userId === userId ? badges.label : undefined;
 
   if (!ready) {
     return (
@@ -90,6 +110,27 @@ export function MoreView() {
       <section className="mt-4 rounded-3xl border border-zinc-200 bg-white p-4 dark:border-white/10 dark:bg-white/[0.03]">
         <h2 className="text-sm font-bold">Shortcuts</h2>
         <ul className="mt-2 divide-y divide-zinc-200 text-sm dark:divide-white/10">
+          {user && mode === "supabase" ? (
+            <li>
+              <Link
+                href="/achievements"
+                aria-label={badgeCount ? `Achievements, ${badgeCount} badges earned` : "Achievements"}
+                className="flex min-h-11 items-center justify-between gap-3 py-3"
+              >
+                <span>Achievements</span>
+                <span className="flex items-center gap-1.5">
+                  {badgeCount === undefined ? (
+                    <span aria-hidden className="skeleton-shimmer h-5 w-12 rounded-full" />
+                  ) : badgeCount ? (
+                    <span className="rounded-full bg-violet-600/10 px-2 py-0.5 font-mono text-xs font-medium text-violet-700 tabular-nums dark:bg-violet-400/15 dark:text-[#A78BFA]">
+                      {badgeCount}
+                    </span>
+                  ) : null}
+                  <ChevronRight aria-hidden className="h-4 w-4 text-zinc-400" />
+                </span>
+              </Link>
+            </li>
+          ) : null}
           <li>
             <Link href="/profile" className="block py-3">
               Profile

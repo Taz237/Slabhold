@@ -11,6 +11,7 @@ import {
 } from "react";
 import { useSocial } from "@/components/social-provider";
 import { trackEvent } from "@/lib/analytics";
+import { pingBadgeCheck } from "@/lib/badges/client";
 import { mergeCategories } from "@/lib/card-category";
 import { loadUserCards, removeUserCard, saveUserCard } from "@/lib/social/cards";
 import { isSaveTimeout } from "@/lib/save/attempt";
@@ -158,6 +159,7 @@ export function CollectionProvider({ children }: { children: React.ReactNode }) 
             try {
               await saveUserCard(client, userId, card);
               trackEvent("card_added");
+              pingBadgeCheck();
               if (card.isPublic) pingWantMatch("card", card.id);
               if (isPublicForSaleListing(card)) pingWantMatch("listing", card.id);
               setSyncError(null);
