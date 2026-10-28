@@ -9,6 +9,7 @@ import { createSupabaseServer } from "@/lib/supabase/server";
 import { normalizeUsername } from "@/lib/social/local-db";
 import { PROGRESS_CATEGORIES, isBadgeCategory, isBadgeTier, TOTAL_BADGES } from "./config";
 import { upgradePins } from "./pins";
+import { readVisiblePins } from "./visible-pins";
 import { closedPodiums } from "./podium";
 import {
   badgeCounts,
@@ -338,7 +339,7 @@ export async function loadProfileBadges(
   const supabase = await createSupabaseServer();
   if (!supabase) return null;
   try {
-    let query = supabase.from("profiles").select("id, username, show_badges, pinned_badges");
+    let query = supabase.from("profiles").select("id, username, show_badges");
     if ("own" in target) {
       if (!viewerId) return null;
       query = query.eq("id", viewerId);
@@ -351,6 +352,7 @@ export async function loadProfileBadges(
     if (error || !profile) return null;
     const ownerId = text(profile.id);
     const showBadges = profile.show_badges !== false;
+    const pinned = await readVisiblePins(supabase, ownerId);
     let earned: EarnedBadge[] = [];
     if (showBadges || viewerId === ownerId) {
       const { data, error: badgeError } = await supabase
@@ -378,7 +380,7 @@ export async function loadProfileBadges(
       viewerId,
       showBadges,
       earned,
-      pinned: pinsFrom(profile.pinned_badges),
+      pinned,
       firstGoal,
     });
   } catch {
