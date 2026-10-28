@@ -146,7 +146,7 @@ function TrackVisual() {
       <div className="min-w-0 flex-1">
         <p className="font-mono text-[10px] tracking-wider text-zinc-500 uppercase">Value</p>
         <p className="text-[28px] font-extrabold tracking-tight text-white tabular-nums">$412</p>
-        <p className="text-sm font-semibold text-[#34C1AE] tabular-nums">+$38 · 10.2%</p>
+        <p className="text-sm font-semibold text-[#A78BFA] tabular-nums">+$38 · 10.2%</p>
         <div className="mt-2">
           <ValueLine />
         </div>
