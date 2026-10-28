@@ -396,7 +396,13 @@ export function AddCardFlow(props: AddCardFlowProps) {
   return (
     <div className="space-y-5">
       {props.header}
-      {flow.step === "player" ? props.photoBlock : null}
+      {flow.step === "player" ? (
+        // Same photo block as before, with the tile beside the buttons on a phone too,
+        // so the player search stays above the fold.
+        <div className="[&_section>div.grid]:grid-cols-[96px_1fr] [&_section>div.grid]:items-center">
+          {props.photoBlock}
+        </div>
+      ) : null}
       {showStartOver ? (
         <button
           type="button"

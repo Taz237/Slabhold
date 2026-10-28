@@ -62,35 +62,6 @@ export function PlayerStep({
 
   return (
     <div className="space-y-5">
-      {recent.length > 0 ? (
-        <div>
-          <SectionLabel>Recent</SectionLabel>
-          <div className="flex flex-wrap gap-2">
-            {recent.map((name) => (
-              <Chip key={`recent:${name}`} onClick={() => onPick({ name, sport: sportFor(name) })}>
-                {name}
-              </Chip>
-            ))}
-          </div>
-        </div>
-      ) : null}
-
-      {owned.length > 0 ? (
-        <div>
-          <SectionLabel>In your collection</SectionLabel>
-          <div className="flex flex-wrap gap-2">
-            {owned.map((item) => (
-              <Chip
-                key={`owned:${item.name}`}
-                onClick={() => onPick({ name: item.name, sport: item.sport || null })}
-              >
-                {item.name}
-              </Chip>
-            ))}
-          </div>
-        </div>
-      ) : null}
-
       <div>
         <label className="relative block">
           <span className="sr-only">Player name</span>
@@ -168,6 +139,35 @@ export function PlayerStep({
           </p>
         ) : null}
       </div>
+      {recent.length > 0 ? (
+        <div>
+          <SectionLabel>Recent</SectionLabel>
+          <div className="flex flex-wrap gap-2">
+            {recent.map((name) => (
+              <Chip key={`recent:${name}`} onClick={() => onPick({ name, sport: sportFor(name) })}>
+                {name}
+              </Chip>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      {owned.length > 0 ? (
+        <div>
+          <SectionLabel>In your collection</SectionLabel>
+          <div className="flex flex-wrap gap-2">
+            {owned.map((item) => (
+              <Chip
+                key={`owned:${item.name}`}
+                onClick={() => onPick({ name: item.name, sport: item.sport || null })}
+              >
+                {item.name}
+              </Chip>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
     </div>
   );
 }

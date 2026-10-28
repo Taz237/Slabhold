@@ -544,7 +544,7 @@ async function waitFor(check: () => boolean, attempts = 100) {
   throw new Error(win.document.body.textContent?.slice(0, 800) ?? "timed out");
 }
 
-function Harness({ children, capture }: { children: ReactNode; capture: Saved[] }) {
+function Harness({ children, capture }: { children?: ReactNode; capture: Saved[] }) {
   const social = {
     ready: true,
     mode: "local" as const,
