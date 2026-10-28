@@ -1,3 +1,5 @@
+import type { BadgeCategory, BadgeTier } from "@/lib/badges/config";
+import { slabCompany, slabNumber, tileKind } from "@/lib/collection/grid";
 import { basedOnSalesLabel } from "@/lib/comps/shared-value";
 import { capGrapheme, cleanImageUrl, clipText, textGraphemes, type LinkPreview } from "./link-preview";
 
@@ -7,8 +9,23 @@ export type ShareCardLine = {
   value: string;
 };
 
+/** A card photo drawn in the in-app slab look. Only public cards become slabs. */
+export type ShareSlab = {
+  src: string;
+  graded: boolean;
+  /** "PSA". Empty for raw cards. */
+  company: string;
+  /** "10". Empty for raw cards. */
+  grade: string;
+  player: string;
+  /** "2023 · Prizm". */
+  line: string;
+};
+
+export type ShareBadge = { category: BadgeCategory; tier: BadgeTier };
+
 export type ShareImage = {
-  kind: "home" | "profile" | "post" | "mail" | "card";
+  kind: "home" | "profile" | "post" | "mail" | "card" | "badge";
   kicker: string;
   title: string;
   detail: string;
@@ -25,6 +42,15 @@ export type ShareImage = {
   salesLabel: string;
   showValue: boolean;
   photoFallback: boolean;
+  avatarUrl: string | null;
+  /** The post's own photos, at most 3. */
+  postPhotos: string[];
+  /** Public card photos in the slab look, at most 3. */
+  slabs: ShareSlab[];
+  /** Mono line for the first public card: player, year, set, parallel, grade. */
+  chip: string;
+  /** Profile pins when show_badges is on, or the shared badge. */
+  badges: ShareBadge[];
 };
 
 const EMAIL = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi;
@@ -52,7 +78,61 @@ function blank(): Omit<ShareImage, "kind" | "kicker" | "title" | "detail"> {
     salesLabel: "",
     showValue: false,
     photoFallback: false,
+    avatarUrl: null,
+    postPhotos: [],
+    slabs: [],
+    chip: "",
+    badges: [],
   };
+}
+
+/** Grade and set fields for a public card, as the loaders read them. */
+export type ShareCardFields = {
+  player?: string | null;
+  yearLabel?: string | null;
+  year?: number | null;
+  setBrand?: string | null;
+  parallel?: string | null;
+  grade?: string | null;
+  grader?: string | null;
+  conditionType?: "raw" | "graded" | null;
+};
+
+function yearOf(card: ShareCardFields): string {
+  const label = (card.yearLabel ?? "").trim();
+  if (label) return label;
+  return card.year != null && card.year > 0 ? String(Math.floor(card.year)) : "";
+}
+
+function cleanParallel(value: string | null | undefined): string {
+  const text = scrubPublicText(value);
+  return /^base$/i.test(text) ? "" : text;
+}
+
+/** The slab label for one card. Raw cards get the case with no grade. */
+export function shareSlab(src: string, card: ShareCardFields): ShareSlab {
+  const fields = { grade: card.grade ?? "", grader: card.grader ?? "", conditionType: card.conditionType ?? null };
+  const graded = tileKind(fields) === "slab";
+  return {
+    src,
+    graded,
+    company: graded ? clipText(scrubPublicText(slabCompany(fields)), 8) : "",
+    grade: graded ? clipText(scrubPublicText(slabNumber(fields)), 6) : "",
+    player: clipText(scrubPublicText(card.player), 32),
+    line: clipText(scrubPublicText([yearOf(card), card.setBrand ?? ""].filter(Boolean).join(" · ")), 40),
+  };
+}
+
+/** "PUKA NACUA · 2023 PRIZM · SILVER · PSA 10". Grade only when graded. */
+export function shareChip(card: ShareCardFields): string {
+  const fields = { grade: card.grade ?? "", grader: card.grader ?? "", conditionType: card.conditionType ?? null };
+  const graded = tileKind(fields) === "slab";
+  const grade = graded ? [slabCompany(fields), slabNumber(fields)].filter(Boolean).join(" ") : "";
+  const yearSet = [yearOf(card), scrubPublicText(card.setBrand)].filter(Boolean).join(" ");
+  const parts = [scrubPublicText(card.player), yearSet, cleanParallel(card.parallel), scrubPublicText(grade)].filter(
+    Boolean,
+  );
+  return clipText(parts.join(" · ").toUpperCase(), 64);
 }
 
 /** Drop emails and ids, then collapse whitespace. Optional hard cap, no ellipsis. */
@@ -120,14 +200,36 @@ export function homeShareImage(): ShareImage {
   };
 }
 
-export function profileShareImage(preview: LinkPreview, kicker: string): ShareImage {
+export function profileShareImage(
+  preview: LinkPreview,
+  kicker: string,
+  extra: {
+    username?: string | null;
+    /** Only pass pins when show_badges is on. */
+    badges?: readonly ShareBadge[];
+    /** Public card photos with their details. */
+    cards?: readonly ({ imageUrl?: string | null } & ShareCardFields)[];
+  } = {},
+): ShareImage {
+  const avatar = cleanImageUrl(preview.imageUrl);
+  const slabs: ShareSlab[] = [];
+  for (const card of extra.cards ?? []) {
+    const src = cleanImageUrl(card.imageUrl);
+    if (!src || slabs.some((slab) => slab.src === src)) continue;
+    slabs.push(shareSlab(src, card));
+    if (slabs.length >= 3) break;
+  }
   return {
     ...blank(),
     kind: "profile",
     kicker,
     title: clipText(scrubPublicText(preview.title), 80) || "Profile",
     detail: clipText(scrubPublicText(preview.detail), 80),
-    imageUrl: cleanImageUrl(preview.imageUrl),
+    imageUrl: avatar,
+    avatarUrl: avatar,
+    authorHandle: publicHandle(extra.username),
+    badges: (extra.badges ?? []).slice(0, 3),
+    slabs,
   };
 }
 
@@ -171,27 +273,40 @@ export function postShareImage(input: {
   imageUrl?: string | null;
   postType?: "post" | "mail_day" | null;
   mailDayPhotos?: readonly (string | null | undefined)[] | null;
-  cards?: readonly {
+  avatarUrl?: string | null;
+  /** The post's own photos (image_url and meta.images). */
+  postPhotos?: readonly (string | null | undefined)[] | null;
+  cards?: readonly ({
     isPublic: boolean;
     name?: string | null;
     valueLabel?: string | null;
     imageUrl?: string | null;
-  }[] | null;
+    /** The photo saved on the post's card snapshot. Used only when the card is public. */
+    snapshotImageUrl?: string | null;
+  } & ShareCardFields)[] | null;
 }): ShareImage {
   const mail = input.found && input.postType === "mail_day";
   const body = input.found ? scrubPublicText(input.body, 280) : "";
   const authorHandle = input.found ? publicHandle(input.authorHandle) : "";
   const authorName = input.found ? clipText(scrubPublicText(input.authorName), 48) : "";
   const cardLines: ShareCardLine[] = [];
+  const slabs: ShareSlab[] = [];
+  let chip = "";
   let cardPhoto: string | null = null;
   if (input.found) {
     for (const card of input.cards ?? []) {
       if (!card.isPublic) continue;
+      const src = cleanImageUrl(card.imageUrl) || cleanImageUrl(card.snapshotImageUrl);
+      if (src && slabs.length < 3 && !slabs.some((slab) => slab.src === src)) {
+        slabs.push(shareSlab(src, { ...card, player: card.player ?? card.name }));
+      }
+      if (!chip && card.player) chip = shareChip(card);
       const name = clipText(scrubPublicText(card.name), 80);
       if (!name) continue;
+      if (!chip) chip = clipText(name.toUpperCase(), 64);
+      if (cardLines.length >= 3) continue;
       cardLines.push({ name, value: publicDollar(card.valueLabel) });
-      if (!cardPhoto) cardPhoto = cleanImageUrl(card.imageUrl);
-      if (cardLines.length >= 3) break;
+      if (!cardPhoto) cardPhoto = src;
     }
   }
   const photos = mail ? uniquePhotos([...(input.mailDayPhotos ?? []), input.imageUrl]) : [];
@@ -209,7 +324,38 @@ export function postShareImage(input: {
     photos,
     cardLines,
     photoFallback: false,
+    avatarUrl: input.found ? cleanImageUrl(input.avatarUrl) : null,
+    postPhotos: input.found && !mail ? uniquePhotos([input.imageUrl, ...(input.postPhotos ?? [])]) : [],
+    slabs,
+    chip,
   };
+}
+
+export type PostLayout = "photo" | "slab" | "fan-slabs" | "fan-photos" | "text";
+
+/**
+ * Which hero a post preview draws. Several cards fan out as slabs; the
+ * post's own photo beats a single card; nothing public falls back to text.
+ */
+export function postLayout(model: Pick<ShareImage, "kind" | "photos" | "postPhotos" | "slabs">): PostLayout {
+  if (model.kind === "mail") return model.photos.length > 1 ? "fan-photos" : model.photos.length ? "photo" : "text";
+  if (model.slabs.length >= 2) return "fan-slabs";
+  if (model.postPhotos.length >= 2) return "fan-photos";
+  if (model.postPhotos.length === 1) return "photo";
+  if (model.slabs.length === 1) return "slab";
+  return "text";
+}
+
+/** iMessage shows the caption under the image, so it names the author and carries the post. */
+export function postOgCopy(input: {
+  authorName?: string | null;
+  authorHandle?: string | null;
+  body?: string | null;
+}): { title: string; description: string } | null {
+  const name = clipText(scrubPublicText(input.authorName), 48) || (publicHandle(input.authorHandle) ? `@${publicHandle(input.authorHandle)}` : "");
+  if (!name) return null;
+  const body = clipText(scrubPublicText(input.body), 220);
+  return { title: `${name} on Slabhold`, description: body || `A post by ${name} on Slabhold.` };
 }
 
 export function cardShareImage(input: {
@@ -225,6 +371,11 @@ export function cardShareImage(input: {
   imageUrl?: string | null;
   valueAmount?: string | null;
   salesCount?: number | null;
+  parallel?: string | null;
+  grader?: string | null;
+  conditionType?: "raw" | "graded" | null;
+  /** The owner's @handle, shown under the card. */
+  ownerHandle?: string | null;
 }): ShareImage {
   const visible = Boolean(input.found && input.isPublic);
   const player = visible ? clipText(scrubPublicText(input.player), 48) : "";
@@ -258,5 +409,38 @@ export function cardShareImage(input: {
     salesLabel,
     showValue: Boolean(valueLabel),
     photoFallback: !imageUrl,
+    authorHandle: visible ? publicHandle(input.ownerHandle) : "",
+    slabs: imageUrl ? [shareSlab(imageUrl, { ...input, player: name })] : [],
+    chip: visible ? clipText(scrubPublicText([cleanParallel(input.parallel)].filter(Boolean).join(" · ")).toUpperCase(), 40) : "",
   };
+}
+
+/** A shared badge. The page and loader decide it is earned and shown before this runs. */
+export function badgeShareImage(input: {
+  category: BadgeCategory;
+  tier: BadgeTier;
+  name: string;
+  tierLabel: string;
+  username: string;
+  displayName?: string | null;
+  avatarUrl?: string | null;
+  earnedLabel?: string | null;
+}): ShareImage {
+  const handle = publicHandle(input.username);
+  return {
+    ...blank(),
+    kind: "badge",
+    kicker: input.tierLabel,
+    title: input.name,
+    detail: scrubPublicText(input.earnedLabel),
+    authorName: clipText(scrubPublicText(input.displayName), 48),
+    authorHandle: handle,
+    avatarUrl: cleanImageUrl(input.avatarUrl),
+    badges: [{ category: input.category, tier: input.tier }],
+  };
+}
+
+/** True for the image a private, deleted, or unknown card gets. */
+export function isGenericCardImage(model: ShareImage): boolean {
+  return JSON.stringify(model) === JSON.stringify(cardShareImage({ found: false }));
 }

@@ -13,9 +13,15 @@ import { clipText } from "./link-preview";
 import {
   cardShareImage,
   homeShareImage,
+  badgeShareImage,
+  isGenericCardImage,
   mailDayPhotoUrls,
+  postLayout,
+  postOgCopy,
   postShareImage,
+  profileShareImage,
   scrubPublicText,
+  shareChip,
 } from "./share-image";
 
 const SUPABASE_ORIGIN = "https://project.supabase.co";
@@ -725,5 +731,169 @@ describe("home screenshot fallback", () => {
     } finally {
       restoreEnv(saved);
     }
+  });
+});
+
+describe("post previews", () => {
+  const puka = {
+    isPublic: true,
+    name: "2023 Prizm Puka Nacua Silver PSA 10",
+    valueLabel: "$120.00",
+    player: "Puka Nacua",
+    yearLabel: "2023",
+    setBrand: "Prizm",
+    parallel: "Silver",
+    grade: "PSA 10",
+    grader: "PSA",
+    conditionType: "graded" as const,
+  };
+
+  it("uses the card photo as a slab hero, with the mono chip", () => {
+    process.env.NEXT_PUBLIC_SUPABASE_URL = SUPABASE_ORIGIN;
+    const image = postShareImage({
+      found: true,
+      body: "New Puka added",
+      authorName: "Demo Collector",
+      authorHandle: "democollector",
+      cards: [{ ...puka, imageUrl: STORAGE }],
+    });
+    assert.equal(postLayout(image), "slab");
+    assert.equal(image.slabs[0]?.src, STORAGE);
+    assert.equal(image.slabs[0]?.company, "PSA");
+    assert.equal(image.slabs[0]?.grade, "10");
+    assert.equal(image.chip, "PUKA NACUA · 2023 PRIZM · SILVER · PSA 10");
+  });
+
+  it("falls back to the photo on the post's card snapshot when the card row has none", () => {
+    process.env.NEXT_PUBLIC_SUPABASE_URL = SUPABASE_ORIGIN;
+    const image = postShareImage({
+      found: true,
+      body: "New Puka added",
+      authorName: "Demo Collector",
+      authorHandle: "democollector",
+      cards: [{ ...puka, imageUrl: null, snapshotImageUrl: STORAGE_2 }],
+    });
+    assert.equal(postLayout(image), "slab");
+    assert.equal(image.slabs[0]?.src, STORAGE_2);
+  });
+
+  it("fans up to three public cards", () => {
+    process.env.NEXT_PUBLIC_SUPABASE_URL = SUPABASE_ORIGIN;
+    const image = postShareImage({
+      found: true,
+      body: "Pickups",
+      authorName: "Demo Collector",
+      authorHandle: "democollector",
+      cards: [STORAGE, STORAGE_2, STORAGE_3, STORAGE_4].map((imageUrl) => ({ ...puka, imageUrl })),
+    });
+    assert.equal(postLayout(image), "fan-slabs");
+    assert.equal(image.slabs.length, 3);
+  });
+
+  it("falls back to text only when the attached card is private", () => {
+    process.env.NEXT_PUBLIC_SUPABASE_URL = SUPABASE_ORIGIN;
+    const image = postShareImage({
+      found: true,
+      body: "New one",
+      authorName: "Demo Collector",
+      authorHandle: "democollector",
+      cards: [{ ...puka, isPublic: false, player: "Secret Player", imageUrl: STORAGE, snapshotImageUrl: STORAGE_2 }],
+    });
+    const packed = JSON.stringify(image);
+    assert.equal(postLayout(image), "text");
+    assert.equal(image.chip, "");
+    assert.equal(image.slabs.length, 0);
+    assert.equal(packed.includes("Secret"), false);
+    assert.equal(packed.includes("card.jpg"), false);
+    assert.equal(packed.includes("two.jpg"), false);
+  });
+
+  it("prefers the post's own photo over a single card", () => {
+    process.env.NEXT_PUBLIC_SUPABASE_URL = SUPABASE_ORIGIN;
+    const image = postShareImage({
+      found: true,
+      body: "Shot of the PC",
+      authorName: "Demo Collector",
+      authorHandle: "democollector",
+      imageUrl: STORAGE_3,
+      cards: [{ ...puka, imageUrl: STORAGE }],
+    });
+    assert.equal(postLayout(image), "photo");
+    assert.deepEqual(image.postPhotos, [STORAGE_3]);
+    assert.equal(image.chip, "PUKA NACUA · 2023 PRIZM · SILVER · PSA 10");
+  });
+
+  it("leaves the grade off a raw card chip and drops Base", () => {
+    assert.equal(
+      shareChip({ player: "Puka Nacua", year: 2023, setBrand: "Prizm", parallel: "Base", grade: "", conditionType: "raw" }),
+      "PUKA NACUA · 2023 PRIZM",
+    );
+  });
+
+  it("captions the link with the author, not a copy of the image text", () => {
+    assert.deepEqual(postOgCopy({ authorName: "DonnieTaz", authorHandle: "donnietaz", body: "New Puka added" }), {
+      title: "DonnieTaz on Slabhold",
+      description: "New Puka added",
+    });
+    assert.equal(postOgCopy({ authorName: "", authorHandle: "", body: "x" }), null);
+  });
+});
+
+describe("profile and badge previews", () => {
+  it("keeps up to three public card photos and three pins", () => {
+    process.env.NEXT_PUBLIC_SUPABASE_URL = SUPABASE_ORIGIN;
+    const image = profileShareImage(
+      { title: "Demo Collector", description: "", imageUrl: null, detail: "42 cards" },
+      "COLLECTOR",
+      {
+        username: "democollector",
+        badges: [
+          { category: "collector", tier: "gold" },
+          { category: "streak", tier: "silver" },
+          { category: "slab-king", tier: "bronze" },
+          { category: "following", tier: "bronze" },
+        ],
+        cards: [STORAGE, STORAGE_2, STORAGE_3, STORAGE_4, "https://evil.example/x.jpg"].map((imageUrl) => ({
+          imageUrl,
+          player: "Puka Nacua",
+        })),
+      },
+    );
+    assert.equal(image.badges.length, 3);
+    assert.deepEqual(
+      image.slabs.map((slab) => slab.src),
+      [STORAGE, STORAGE_2, STORAGE_3],
+    );
+    assert.equal(image.authorHandle, "democollector");
+  });
+
+  it("builds the badge image copy", () => {
+    const image = badgeShareImage({
+      category: "collector",
+      tier: "gold",
+      name: "Gold Collector",
+      tierLabel: "GOLD · COLLECTOR",
+      username: "democollector",
+      earnedLabel: "Earned Oct 20, 2026",
+    });
+    assert.equal(image.kind, "badge");
+    assert.equal(image.kicker, "GOLD · COLLECTOR");
+    assert.equal(image.authorHandle, "democollector");
+    assert.deepEqual(image.badges, [{ category: "collector", tier: "gold" }]);
+  });
+});
+
+describe("saved card image", () => {
+  it("treats a private or missing card as generic, so no image is made", () => {
+    assert.equal(isGenericCardImage(cardShareImage({ found: false })), true);
+    assert.equal(
+      isGenericCardImage(cardShareImage({ found: true, isPublic: false, player: "Secret", imageUrl: STORAGE })),
+      true,
+    );
+    process.env.NEXT_PUBLIC_SUPABASE_URL = SUPABASE_ORIGIN;
+    assert.equal(
+      isGenericCardImage(cardShareImage({ found: true, isPublic: true, player: "Puka Nacua", imageUrl: STORAGE })),
+      false,
+    );
   });
 });

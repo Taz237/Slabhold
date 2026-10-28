@@ -16,6 +16,7 @@ import { CardAddedPanel } from "@/components/card-added-panel";
 import { WantButton } from "@/components/want-button";
 import { CategoryPicker } from "@/components/category-picker";
 import { CardVisibilitySwitch } from "@/components/card-visibility";
+import { CardShareButton } from "@/components/card-share";
 import { FirstCardPrivacyPrompt } from "@/components/first-card-privacy-prompt";
 import { SharedPostNote } from "@/components/shared-post-note";
 import { useCollection } from "@/components/collection-provider";
@@ -331,6 +332,13 @@ export function CardDetail({ id, added = false }: { id: string; added?: boolean 
     setMenuOpen((open) => !open);
   }
 
+  function setPublic(next: boolean) {
+    if (!card) return;
+    const result = updateCard(card.id, publicTogglePatch(card, next));
+    if (next) dismissPrivacyNudge();
+    return result;
+  }
+
   return (
     <div className="space-y-6">
       {dealOpen ? <DealSheet fixedCard={card} onClose={() => setDealOpen(false)} /> : null}
@@ -339,17 +347,11 @@ export function CardDetail({ id, added = false }: { id: string; added?: boolean 
         menuOpen={menuOpen}
         onEdit={toggleEdit}
         onMenu={toggleMenu}
+        share={<CardShareButton card={card} username={user?.username} onTogglePublic={setPublic} />}
       />
 
       {editing ? null : (
-        <CardVisibilitySwitch
-          isPublic={Boolean(card.isPublic)}
-          onChange={(next) => {
-            const result = updateCard(card.id, publicTogglePatch(card, next));
-            if (next) dismissPrivacyNudge();
-            return result;
-          }}
-        />
+        <CardVisibilitySwitch isPublic={Boolean(card.isPublic)} onChange={setPublic} />
       )}
 
       {/* card comes from the viewer's own collection, and the page is owner-only. */}
@@ -458,6 +460,7 @@ export function CardDetail({ id, added = false }: { id: string; added?: boolean 
           ref={menuRef}
           className={`${cardPanelClass} scroll-mt-24 space-y-5`}
         >
+          <CardShareButton card={card} username={user?.username} onTogglePublic={setPublic} variant="row" />
           <div>
             <h2 className="font-semibold">Value</h2>
             <div className="mt-3 grid min-w-0 grid-cols-1 gap-3">

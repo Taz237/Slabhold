@@ -4,12 +4,15 @@ import { track, type BeforeSendEvent } from "@vercel/analytics";
  * Hobby hides custom events in the dashboard. These calls stay so an upgrade records them.
  * Only short, non-identifying values are sent.
  */
-const ALLOWED_PROP_KEYS = ["button", "utm_source", "utm_medium", "utm_campaign", "source"] as const;
+const ALLOWED_PROP_KEYS = ["button", "utm_source", "utm_medium", "utm_campaign", "source", "method"] as const;
 
 const BUTTONS = new Set(["signup", "login"]);
 
 /** signup_started and follow attribution. Any other source is dropped. */
-const SOURCES = new Set(["card_comps", "owners", "hunters", "card_owners", "card_hunters"]);
+const SOURCES = new Set(["card_comps", "owners", "hunters", "card_owners", "card_hunters", "badge", "card"]);
+
+/** How a share went out: the native sheet, X, a copied link, or a saved image. */
+const SHARE_METHODS = new Set(["native", "x", "copy", "image"]);
 
 /** 1–48 characters. Blocks emails, sentences, urls, and query strings. */
 const SAFE_TOKEN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,47}$/;
@@ -49,6 +52,10 @@ export function sanitizeProps(props: unknown): Partial<Record<AllowedKey, string
       if (typeof value === "string" && BUTTONS.has(value.trim())) safe.button = value.trim();
       continue;
     }
+    if (key === "method") {
+      if (typeof value === "string" && SHARE_METHODS.has(value.trim())) safe.method = value.trim();
+      continue;
+    }
     if (key === "source") {
       if (typeof value === "string" && SOURCES.has(value.trim())) safe.source = value.trim();
       continue;
@@ -74,6 +81,9 @@ export function trackEvent(name: string, props?: unknown, send?: AnalyticsSender
 }
 
 const CAMPAIGN_PARAMS = new Set(["utm_source", "utm_medium", "utm_campaign"]);
+
+/** Shared links carry ref=share. Any other ref value is dropped. */
+const REF_VALUES = new Set(["share"]);
 
 /**
  * Page routes. A fully static path outranks a dynamic segment, so /cards/new
@@ -115,6 +125,7 @@ export const PAGE_PATTERNS = [
   "/terms",
   "/u/[username]",
   "/u/[username]/badges",
+  "/u/[username]/badges/[category]/[tier]",
   "/u/[username]/cards/[id]",
   "/u/[username]/followers",
   "/u/[username]/following",
@@ -159,6 +170,10 @@ export function routePattern(pathname: string): string {
 function campaignQuery(params: URLSearchParams): string {
   const kept = new URLSearchParams();
   for (const [key, value] of params) {
+    if (key === "ref" && !kept.has(key) && REF_VALUES.has(value)) {
+      kept.append(key, value);
+      continue;
+    }
     if (!CAMPAIGN_PARAMS.has(key) || kept.has(key)) continue;
     const token = cleanToken(value);
     if (!token) continue;

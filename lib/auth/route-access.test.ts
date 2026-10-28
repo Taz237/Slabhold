@@ -27,6 +27,8 @@ describe("route access", () => {
       "/u/maya",
       "/u/maya/followers",
       "/u/maya/badges",
+      "/u/maya/badges/collector/gold",
+      "/u/maya/badges/collector/gold?ref=share",
       "/u/maya/following",
       `/u/maya/cards/${CARD}`,
       `/cards/${CARD}/posts`,

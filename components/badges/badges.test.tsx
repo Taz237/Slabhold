@@ -152,6 +152,32 @@ describe("earn reveal", () => {
   });
 });
 
+describe("earn reveal share", () => {
+  it("puts Share next to Pin to profile for the owner", () => {
+    mount(createElement(BadgeRevealView, { reveal, pinned: [], username: "democollector", onClose() {} }));
+    const buttons = [...document.querySelectorAll("button")].map((button) => button.textContent);
+    assert.deepEqual(buttons, ["Pin to profile", "Share", "Nice"]);
+  });
+
+  it("opens the share sheet with the badge link when there is no native share", async () => {
+    mount(createElement(BadgeRevealView, { reveal, pinned: [], username: "democollector", onClose() {} }));
+    const share = [...document.querySelectorAll("button")].find((button) => button.textContent === "Share");
+    await act(async () => {
+      share!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+    const sheet = [...document.querySelectorAll("[role='dialog']")].find((node) => node.textContent?.includes("Post on X"));
+    assert.ok(sheet, "share sheet");
+    const x = sheet.querySelector<HTMLAnchorElement>("a[target='_blank']");
+    const intent = new URL(x!.getAttribute("href")!);
+    assert.equal(intent.origin + intent.pathname, "https://x.com/intent/post");
+    assert.equal(intent.searchParams.get("text"), "Just unlocked Legendary Collector on Slabhold");
+    assert.match(intent.searchParams.get("url") ?? "", /\/u\/democollector\/badges\/collector\/legendary\?ref=share$/);
+    const save = [...sheet.querySelectorAll("a")].find((link) => link.textContent?.includes("Save image"));
+    assert.equal(save?.getAttribute("href"), "/api/share-image/badge/democollector/collector/legendary");
+    assert.ok([...sheet.querySelectorAll("button")].some((button) => button.textContent === "Copy link"));
+  });
+});
+
 describe("profile strip", () => {
   it("renders nothing when badges are hidden", () => {
     const html = renderToStaticMarkup(

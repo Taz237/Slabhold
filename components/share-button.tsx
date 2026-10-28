@@ -6,11 +6,11 @@ import { trackEvent } from "@/lib/analytics";
 import { postSharePayload, shareOrCopy } from "@/lib/share/sheet";
 import { publicOrigin } from "@/lib/site-url";
 
-function absoluteUrl(path: string) {
+export function absoluteUrl(path: string) {
   return new URL(path, publicOrigin(window.location.origin)).href;
 }
 
-async function copyText(value: string) {
+export async function copyText(value: string) {
   try {
     if (navigator.clipboard?.writeText) {
       await navigator.clipboard.writeText(value);

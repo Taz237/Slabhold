@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { join } from "node:path";
-import { isShareAbort, postSharePayload, shareOrCopy, type SharePayload } from "./sheet";
+import { isShareAbort, nativeShareOrSheet, postSharePayload, shareOrCopy, type SharePayload } from "./sheet";
 
 function read(path: string) {
   return readFileSync(join(process.cwd(), path), "utf8");
@@ -126,5 +126,25 @@ describe("share sheet", () => {
     assert.match(button, /h-11 w-11/);
     assert.match(button, /hit-44/);
     assert.match(read("lib/share/sheet.ts"), /name === "AbortError"/);
+  });
+});
+
+describe("native share or sheet", () => {
+  const data = { title: "Gold Collector", text: "Just unlocked Gold Collector on Slabhold", url: "https://slabhold.app/u/demo/badges/collector/gold?ref=share" };
+
+  it("opens the sheet when there is no native share", async () => {
+    assert.equal(await nativeShareOrSheet(data, undefined), "sheet");
+  });
+
+  it("uses the native sheet when it works", async () => {
+    const seen: SharePayload[] = [];
+    assert.equal(await nativeShareOrSheet(data, async (payload) => void seen.push(payload)), "shared");
+    assert.deepEqual(seen, [data]);
+  });
+
+  it("does nothing on cancel and falls back to the sheet on other errors", async () => {
+    const abort = Object.assign(new Error("cancel"), { name: "AbortError" });
+    assert.equal(await nativeShareOrSheet(data, async () => Promise.reject(abort)), "cancelled");
+    assert.equal(await nativeShareOrSheet(data, async () => Promise.reject(new Error("NotAllowed"))), "sheet");
   });
 });

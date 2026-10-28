@@ -106,6 +106,7 @@ function requestAuth(input: RequestInfo | URL, init?: RequestInit): string {
 }
 
 let loadPostShareImage: (id: string) => Promise<ShareImage>;
+let loadBadgeShare: (username: string, category: string, tier: string) => Promise<{ name: string; username: string } | null>;
 let loadCardShareImage: (id: string) => Promise<ShareImage>;
 let loadPublicCardPreview: (id: string) => Promise<{
   title: string;
@@ -130,6 +131,7 @@ let sharePriceText: (
 before(async () => {
   const loaded = await import("./link-preview-load");
   loadPostShareImage = loaded.loadPostShareImage;
+  loadBadgeShare = loaded.loadBadgeShare;
   loadCardShareImage = loaded.loadCardShareImage;
   loadPublicCardPreview = loaded.loadPublicCardPreview;
   sharePriceText = loaded.sharePriceText;
@@ -400,5 +402,82 @@ describe("share image loaders", () => {
       if (previousKey === undefined) delete process.env.SUPABASE_SERVICE_ROLE_KEY;
       else process.env.SUPABASE_SERVICE_ROLE_KEY = previousKey;
     }
+  });
+});
+
+describe("badge share page loader", () => {
+  const OWNER = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+
+  async function withRows<T>(
+    rows: { profile: Record<string, unknown> | null; badges: Record<string, unknown>[] },
+    run: () => Promise<T>,
+  ): Promise<{ result: T; badgeReads: number }> {
+    let badgeReads = 0;
+    const fetchMock = mock.method(globalThis, "fetch", async (input: RequestInfo | URL) => {
+      const url = requestUrl(input);
+      let body: unknown = [];
+      if (url.includes("/rest/v1/profiles")) body = rows.profile ? [rows.profile] : [];
+      if (url.includes("/rest/v1/user_badges")) {
+        badgeReads += 1;
+        body = rows.badges;
+      }
+      return new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } });
+    });
+    try {
+      return { result: await run(), badgeReads };
+    } finally {
+      fetchMock.mock.restore();
+    }
+  }
+
+  const profile = {
+    id: OWNER,
+    username: "democollector",
+    display_name: "Demo Collector",
+    avatar_url: null,
+    show_badges: true,
+  };
+  const gold = { category: "collector", tier: "gold", earned_at: "2026-10-20T15:00:00Z" };
+
+  it("loads an earned badge", async () => {
+    const { result } = await withRows({ profile, badges: [gold] }, () =>
+      loadBadgeShare("democollector", "collector", "gold"),
+    );
+    assert.equal(result?.name, "Gold Collector");
+    assert.equal(result?.username, "democollector");
+  });
+
+  it("404s when the badge isn't earned", async () => {
+    const { result } = await withRows({ profile: { ...profile, username: "notearned" }, badges: [] }, () =>
+      loadBadgeShare("notearned", "collector", "gold"),
+    );
+    assert.equal(result, null);
+  });
+
+  it("404s when badges are off, without reading badges", async () => {
+    const { result, badgeReads } = await withRows(
+      { profile: { ...profile, username: "hidden", show_badges: false }, badges: [gold] },
+      () => loadBadgeShare("hidden", "collector", "gold"),
+    );
+    assert.equal(result, null);
+    assert.equal(badgeReads, 0);
+  });
+
+  it("404s for an unknown category or tier without any reads", async () => {
+    const { result, badgeReads } = await withRows({ profile, badges: [gold] }, () =>
+      loadBadgeShare("democollector", "pokemon", "gold"),
+    );
+    assert.equal(result, null);
+    assert.equal(badgeReads, 0);
+  });
+
+  it("the page and its images 404 when the loader finds nothing", () => {
+    for (const path of [
+      "app/u/[username]/badges/[category]/[tier]/page.tsx",
+      "app/u/[username]/badges/[category]/[tier]/opengraph-image.tsx",
+    ]) {
+      assert.match(read(path), /if \(!view\) notFound\(\)/, path);
+    }
+    assert.match(read("app/api/share-image/badge/[username]/[category]/[tier]/route.tsx"), /status: 404/);
   });
 });
