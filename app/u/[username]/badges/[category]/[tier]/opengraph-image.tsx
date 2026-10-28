@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { ogContentType, ogSize, reachableShare, renderOg } from "@/components/og-frame";
+import { CARD_OG_CACHE_CONTROL, ogContentType, ogSize, reachableShare, renderOg } from "@/components/og-frame";
 import { earnedOnLabel } from "@/lib/badges/share";
 import { loadBadgeShare } from "@/lib/social/link-preview-load";
 import { badgeShareImage } from "@/lib/social/share-image";
@@ -16,5 +16,5 @@ export default async function Image({
   const { username, category, tier } = await params;
   const view = await loadBadgeShare(decodeURIComponent(username), category, tier);
   if (!view) notFound();
-  return renderOg(await reachableShare(badgeShareImage({ ...view, earnedLabel: earnedOnLabel(view.earnedAt) })));
+  return renderOg(await reachableShare(badgeShareImage({ ...view, earnedLabel: earnedOnLabel(view.earnedAt) })), CARD_OG_CACHE_CONTROL);
 }
