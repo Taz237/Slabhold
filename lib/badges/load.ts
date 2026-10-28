@@ -33,6 +33,8 @@ type Row = Record<string, unknown>;
 export type StoredBadge = EarnedBadge & { id: string; earnedAt: string; seenAt: string | null };
 
 export type BadgeState = {
+  /** The owner's handle, for share links. */
+  username: string;
   eligible: boolean;
   counts: BadgeCounts;
   earned: StoredBadge[];
@@ -301,6 +303,7 @@ export async function checkBadges(userId: string, now = new Date()): Promise<Bad
     }
     const pinned = await saveUpgradedPins(admin, userId, pinsFrom(profileRow.pinned_badges), earned);
     return {
+      username: text(profileRow.username),
       eligible: badgeEligible(user),
       counts,
       earned,

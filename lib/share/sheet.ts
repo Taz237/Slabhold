@@ -48,3 +48,17 @@ export async function shareOrCopy(
   const copied = await deps.copy(payload.url);
   return copied ? "copied" : "failed";
 }
+
+/** iPhone and other native sheets first. No share API, or a failed one, opens our own sheet. */
+export async function nativeShareOrSheet(
+  payload: SharePayload,
+  share: ((data: SharePayload) => Promise<void>) | undefined,
+): Promise<"shared" | "cancelled" | "sheet"> {
+  if (typeof share !== "function") return "sheet";
+  try {
+    await share(payload);
+    return "shared";
+  } catch (error) {
+    return isShareAbort(error) ? "cancelled" : "sheet";
+  }
+}

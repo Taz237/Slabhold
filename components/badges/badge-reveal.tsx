@@ -3,17 +3,19 @@
 import Link from "next/link";
 import { useEffect, useId, useRef, useState } from "react";
 import { Badge } from "@/components/badges/badge";
+import { ShareButton } from "@/components/share-sheet";
 import { useReducedMotion } from "@/components/timeline-ui";
 import { requestBadgeCheck } from "@/lib/badges/client";
 import { MAX_PINNED_BADGES, TIER_LABELS, CATEGORY_COPY } from "@/lib/badges/config";
 import { togglePin } from "@/lib/badges/pins";
 import type { BadgeReveal } from "@/lib/badges/reveal";
 import { markBadgesSeen, savePinnedBadges } from "@/lib/badges/save";
+import { badgeImagePath, badgeSharePath, badgeShareText } from "@/lib/share/links";
 
 const CHECKED_KEY = "badge-check:";
 
 /** Checks once per app open, then shows the reveal for unseen badges. */
-export function BadgeRevealGate({ userId }: { userId: string }) {
+export function BadgeRevealGate({ userId, username }: { userId: string; username?: string }) {
   const [reveal, setReveal] = useState<{ reveal: BadgeReveal; pinned: string[] } | null>(null);
 
   useEffect(() => {
@@ -40,6 +42,7 @@ export function BadgeRevealGate({ userId }: { userId: string }) {
     <BadgeRevealView
       reveal={reveal.reveal}
       pinned={reveal.pinned}
+      username={username}
       onClose={() => setReveal(null)}
     />
   );
@@ -48,10 +51,13 @@ export function BadgeRevealGate({ userId }: { userId: string }) {
 export function BadgeRevealView({
   reveal,
   pinned,
+  username,
   onClose,
 }: {
   reveal: BadgeReveal;
   pinned: readonly string[];
+  /** The owner's handle. Share shows only when it is known. */
+  username?: string;
   onClose: () => void;
 }) {
   const reduce = useReducedMotion();
@@ -150,24 +156,39 @@ export function BadgeRevealView({
           ) : null}
         </div>
         <div className="mt-8 flex w-full flex-col gap-2.5">
-          {pinState === "full" ? (
-            <Link
-              href="/achievements"
-              onClick={onClose}
-              className="flex min-h-12 items-center justify-center rounded-full bg-violet-600 px-5 text-[15px] font-semibold text-white"
-            >
-              Choose pins
-            </Link>
-          ) : (
-            <button
-              type="button"
-              disabled={pinState === "saving" || pinState === "pinned"}
-              onClick={() => void onPin()}
-              className="min-h-12 rounded-full bg-violet-600 px-5 text-[15px] font-semibold text-white transition-opacity disabled:opacity-70"
-            >
-              {pinState === "pinned" ? "Pinned to profile" : pinState === "saving" ? "Pinning…" : "Pin to profile"}
-            </button>
-          )}
+          <div className="flex gap-2.5">
+            {pinState === "full" ? (
+              <Link
+                href="/achievements"
+                onClick={onClose}
+                className="flex min-h-12 flex-1 items-center justify-center rounded-full bg-violet-600 px-5 text-[15px] font-semibold text-white"
+              >
+                Choose pins
+              </Link>
+            ) : (
+              <button
+                type="button"
+                disabled={pinState === "saving" || pinState === "pinned"}
+                onClick={() => void onPin()}
+                className="min-h-12 flex-1 rounded-full bg-violet-600 px-5 text-[15px] font-semibold text-white transition-opacity disabled:opacity-70"
+              >
+                {pinState === "pinned" ? "Pinned to profile" : pinState === "saving" ? "Pinning…" : "Pin to profile"}
+              </button>
+            )}
+            {username ? (
+              <ShareButton
+                variant="reveal"
+                className="flex-1"
+                target={{
+                  path: badgeSharePath(username, headline.category, headline.tier),
+                  title: `${TIER_LABELS[headline.tier]} ${CATEGORY_COPY[headline.category].label}`,
+                  text: badgeShareText(headline.category, headline.tier),
+                  imagePath: badgeImagePath(username, headline.category, headline.tier),
+                  source: "badge",
+                }}
+              />
+            ) : null}
+          </div>
           <button
             ref={niceRef}
             type="button"

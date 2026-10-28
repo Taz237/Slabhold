@@ -18,6 +18,7 @@ export default async function AchievementsPage() {
       state={
         state
           ? {
+              username: state.username,
               eligible: state.eligible,
               statuses: state.statuses,
               earned: state.earned.map(({ category, tier, earnedAt }) => ({ category, tier, earnedAt })),

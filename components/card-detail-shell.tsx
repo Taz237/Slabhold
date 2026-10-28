@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import type { ReactNode } from "react";
 import { ArrowLeft, Ellipsis, Pencil } from "lucide-react";
 import { CardThumb } from "@/components/card-thumb";
 import { PriceFallbackText } from "@/components/price-readout";
@@ -34,12 +35,15 @@ export function CardTopBar({
   menuOpen = false,
   onEdit,
   onMenu,
+  share,
   disabled = false,
 }: {
   editing?: boolean;
   menuOpen?: boolean;
   onEdit?: () => void;
   onMenu?: () => void;
+  /** The owner's Share button. */
+  share?: ReactNode;
   disabled?: boolean;
 }) {
   return (
@@ -62,6 +66,7 @@ export function CardTopBar({
           <Pencil className="h-3.5 w-3.5" />
           Edit card
         </button>
+        {share}
         <button
           type="button"
           className={menuButtonClass}

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useId, useRef, useState } from "react";
 import { ChevronRight, X } from "lucide-react";
 import { Badge, badgeLabel } from "@/components/badges/badge";
+import { ShareButton } from "@/components/share-sheet";
 import {
   BADGE_THRESHOLDS,
   BADGE_TIERS,
@@ -17,8 +18,11 @@ import {
 import { formatPin, profilePins, togglePin } from "@/lib/badges/pins";
 import type { CategoryStatus, EarnedBadge } from "@/lib/badges/progress";
 import { savePinnedBadges, saveShowBadges } from "@/lib/badges/save";
+import { badgeImagePath, badgeSharePath, badgeShareText } from "@/lib/share/links";
 
 export type AchievementsState = {
+  /** The owner's handle, for share links. */
+  username?: string;
   eligible: boolean;
   statuses: CategoryStatus[];
   earned: (EarnedBadge & { earnedAt: string })[];
@@ -210,6 +214,8 @@ function Achievements({ state }: { state: AchievementsState }) {
           status={openStatus}
           earned={state.earned}
           pins={effective}
+          // A shared badge page 404s while badges are hidden, so Share needs them shown.
+          shareAs={show ? (state.username ?? "") : ""}
           note={note}
           onTogglePin={(badge) => void onTogglePin(badge)}
           onClose={() => {
@@ -280,6 +286,7 @@ function TierSheet({
   status,
   earned,
   pins,
+  shareAs,
   note,
   onTogglePin,
   onClose,
@@ -287,6 +294,8 @@ function TierSheet({
   status: CategoryStatus;
   earned: (EarnedBadge & { earnedAt: string })[];
   pins: readonly string[];
+  /** Owner handle. Empty hides Share. */
+  shareAs: string;
   note: string | null;
   onTogglePin: (badge: EarnedBadge) => void;
   onClose: () => void;
@@ -368,6 +377,7 @@ function TierSheet({
               value={status.value}
               earned={earned.find((badge) => badge.category === status.category && badge.tier === tier) ?? null}
               pinned={pins.includes(`${status.category}:${tier}`)}
+              shareAs={shareAs}
               onTogglePin={onTogglePin}
             />
           ))}
@@ -389,6 +399,7 @@ function TierRow({
   value,
   earned,
   pinned,
+  shareAs,
   onTogglePin,
 }: {
   category: BadgeCategory;
@@ -397,6 +408,7 @@ function TierRow({
   value: number;
   earned: { earnedAt: string } | null;
   pinned: boolean;
+  shareAs: string;
   onTogglePin: (badge: EarnedBadge) => void;
 }) {
   const copy = CATEGORY_COPY[category];
@@ -419,6 +431,19 @@ function TierRow({
           {earned ? `${target} ${unit} · ${earnedDate(earned.earnedAt)}` : `${Math.min(value, target)} / ${target} ${unit}`}
         </p>
       </div>
+      {earned && shareAs ? (
+        <ShareButton
+          variant="icon"
+          label={`Share ${TIER_LABELS[tier]} ${copy.label}`}
+          target={{
+            path: badgeSharePath(shareAs, category, tier),
+            title: `${TIER_LABELS[tier]} ${copy.label}`,
+            text: badgeShareText(category, tier),
+            imagePath: badgeImagePath(shareAs, category, tier),
+            source: "badge",
+          }}
+        />
+      ) : null}
       {earned ? (
         <button
           type="button"

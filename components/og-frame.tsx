@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { ImageResponse } from "next/og";
 import type { ReactNode } from "react";
+import { LANDSCAPE, shareNode, type Canvas } from "@/components/og-share";
 import { siteUrlFrom } from "@/lib/site-url";
 import { cleanImageUrl, type LinkPreview } from "@/lib/social/link-preview";
 import { leaderboardCacheControl } from "@/lib/leaderboard/cache";
@@ -34,6 +35,9 @@ const OG_FAILURE_CACHE_CONTROL =
 export const PRIVATE_OG_CACHE_CONTROL = "private, no-store";
 
 const MAX_FETCH_BYTES = 5 * 1024 * 1024;
+
+/** iMessage and X skip big preview images. A render over this redraws with smaller photos. */
+export const OG_BYTE_BUDGET = 480 * 1024;
 
 function dataUrl(bytes: Buffer, mime: string): string {
   return `data:${mime};base64,${bytes.toString("base64")}`;
@@ -145,6 +149,12 @@ const ogFonts = [
     weight: 700 as const,
     style: "normal" as const,
   },
+  {
+    name: "Geist Mono",
+    data: fontBytes(readFileSync(join(process.cwd(), "assets/og/GeistMono-Medium.ttf"))),
+    weight: 500 as const,
+    style: "normal" as const,
+  },
 ];
 
 /** Confirm a cleaned image URL. Redirects are not followed. */
@@ -185,6 +195,37 @@ export async function reachableImages(urls: readonly string[]): Promise<string[]
     if (safe && !found.includes(safe)) found.push(safe);
   }
   return found;
+}
+
+/**
+ * Check every image a share model draws. Unreachable photos are dropped, so
+ * the design falls back (fewer slabs, text only) instead of a broken box.
+ */
+export async function reachableShare(model: ShareImage): Promise<ShareImage> {
+  const check = async (urls: readonly string[]) => {
+    const found: string[] = [];
+    for (const url of urls) {
+      const safe = await reachableImage(url);
+      if (safe) found.push(safe);
+    }
+    return found;
+  };
+  const [imageUrl, avatarUrl, photos, postPhotos, slabSrcs] = await Promise.all([
+    reachableImage(model.imageUrl),
+    reachableImage(model.avatarUrl),
+    check(model.photos),
+    check(model.postPhotos),
+    check(model.slabs.map((slab) => slab.src)),
+  ]);
+  return {
+    ...model,
+    imageUrl,
+    avatarUrl,
+    photos,
+    postPhotos,
+    slabs: model.slabs.filter((slab) => slabSrcs.includes(slab.src)),
+    photoFallback: model.kind === "card" ? !imageUrl : model.photoFallback,
+  };
 }
 
 function Brand() {
@@ -244,113 +285,6 @@ function Left({ children }: { children: ReactNode }) {
       }}
     >
       {children}
-    </div>
-  );
-}
-
-function LargePhoto({ src }: { src: string }) {
-  return (
-    <div
-      style={{
-        display: "flex",
-        width: 440,
-        height: "100%",
-        alignItems: "center",
-        justifyContent: "center",
-        paddingRight: 48,
-      }}
-    >
-      <div
-        style={{
-          display: "flex",
-          borderRadius: 28,
-          overflow: "hidden",
-          boxShadow: "0 18px 44px rgba(0,0,0,0.45)",
-        }}
-      >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={src} alt="" width={360} height={480} style={{ objectFit: "cover" }} />
-      </div>
-    </div>
-  );
-}
-
-function PhotoFallback() {
-  return (
-    <div
-      style={{
-        display: "flex",
-        width: 440,
-        height: "100%",
-        alignItems: "center",
-        justifyContent: "center",
-        paddingRight: 48,
-      }}
-    >
-      <div
-        style={{
-          display: "flex",
-          width: 360,
-          height: 480,
-          borderRadius: 28,
-          background: "#2e1065",
-          border: "2px solid rgba(196,181,253,0.45)",
-          alignItems: "center",
-          justifyContent: "center",
-          flexDirection: "column",
-        }}
-      >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={iconSrc} alt="" width={96} height={96} style={{ borderRadius: 24 }} />
-        <div
-          style={{
-            display: "flex",
-            marginTop: 22,
-            fontSize: 22,
-            fontWeight: 700,
-            letterSpacing: 3,
-            color: "#c4b5fd",
-          }}
-        >
-          SLABHOLD
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function Fan({ photos }: { photos: string[] }) {
-  const tilts = photos.length === 2 ? [-8, 8] : [-12, 0, 12];
-  const width = photos.length === 1 ? 280 : photos.length === 2 ? 210 : 176;
-  const height = photos.length === 1 ? 380 : photos.length === 2 ? 286 : 246;
-  return (
-    <div
-      style={{
-        display: "flex",
-        width: 520,
-        height: "100%",
-        alignItems: "center",
-        justifyContent: "center",
-        paddingRight: 36,
-      }}
-    >
-      {photos.map((src, index) => (
-        <div
-          key={`${index}-${src.slice(0, 24)}`}
-          style={{
-            display: "flex",
-            marginLeft: index === 0 ? 0 : photos.length === 3 ? -48 : -36,
-            transform: `rotate(${tilts[index] ?? 0}deg)`,
-            borderRadius: 22,
-            overflow: "hidden",
-            border: "3px solid rgba(255,255,255,0.18)",
-            boxShadow: "0 16px 36px rgba(0,0,0,0.45)",
-          }}
-        >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={src} alt="" width={width} height={height} style={{ objectFit: "cover" }} />
-        </div>
-      ))}
     </div>
   );
 }
@@ -424,13 +358,17 @@ function paint(
   model: ShareImage,
   cacheControl: string,
   homeShot: string | null,
+  canvas: Canvas = LANDSCAPE,
 ): ImageResponse {
+  const designed = shareNode(model, canvas);
+  if (designed) {
+    return new ImageResponse(<>{designed}</>, {
+      ...canvas,
+      fonts: ogFonts,
+      headers: { "Cache-Control": cacheControl },
+    });
+  }
   const send = (node: ReactNode) => respond(node, cacheControl);
-  const imageUrl = cleanImageUrl(model.imageUrl);
-  const photos = model.photos
-    .map((url) => cleanImageUrl(url))
-    .filter((url): url is string => Boolean(url))
-    .slice(0, 3);
 
   if (model.kind === "home") {
     return send(
@@ -454,125 +392,8 @@ function paint(
     );
   }
 
-  if (model.kind === "card") {
-    return send(
-      <div style={{ display: "flex", width: "100%", height: "100%" }}>
-        <Left>
-          <Brand />
-          <div style={{ display: "flex", flexDirection: "column" }}>
-            {lines(model.player || "Card", 58, 700, "#fafafa", 2)}
-            {model.yearSet ? (
-              <div style={{ display: "flex", marginTop: 16, fontSize: 30, color: "#e4e4e7" }}>
-                {model.yearSet}
-              </div>
-            ) : null}
-            {model.grade ? (
-              <div style={{ display: "flex", marginTop: 8, fontSize: 28, color: "#c4b5fd" }}>
-                {model.grade}
-              </div>
-            ) : null}
-            {model.showValue && model.valueLabel ? (
-              <div style={{ display: "flex", flexDirection: "column", marginTop: 32 }}>
-                <div
-                  style={{
-                    display: "flex",
-                    fontSize: 64,
-                    fontWeight: 700,
-                    letterSpacing: -1,
-                  }}
-                >
-                  {model.valueLabel}
-                </div>
-                {model.salesLabel ? (
-                  <div style={{ display: "flex", marginTop: 10, fontSize: 26, color: "#a1a1aa" }}>
-                    {model.salesLabel}
-                  </div>
-                ) : null}
-              </div>
-            ) : null}
-          </div>
-        </Left>
-        {imageUrl ? <LargePhoto src={imageUrl} /> : <PhotoFallback />}
-      </div>,
-    );
-  }
-
-  const side =
-    model.kind === "mail" && photos.length > 0 ? (
-      <Fan photos={photos} />
-    ) : imageUrl ? (
-      <LargePhoto src={imageUrl} />
-    ) : model.photoFallback ? (
-      <PhotoFallback />
-    ) : null;
-
-  return send(
-    <div style={{ display: "flex", width: "100%", height: "100%" }}>
-      <Left>
-        <Brand />
-        <div style={{ display: "flex", flexDirection: "column" }}>
-          {model.kind === "profile" ? (
-            <div style={{ display: "flex", fontSize: 22, color: "#a1a1aa", marginBottom: 16 }}>
-              {model.kicker}
-            </div>
-          ) : null}
-          {model.authorName || model.authorHandle ? (
-            <div style={{ display: "flex", flexDirection: "column", marginBottom: 18 }}>
-              {model.authorName ? (
-                <div style={{ display: "flex", fontSize: 34, fontWeight: 700 }}>{model.authorName}</div>
-              ) : null}
-              {model.authorHandle ? (
-                <div
-                  style={{
-                    display: "flex",
-                    marginTop: model.authorName ? 6 : 0,
-                    fontSize: 26,
-                    color: "#c4b5fd",
-                  }}
-                >
-                  @{model.authorHandle}
-                </div>
-              ) : null}
-            </div>
-          ) : null}
-          {model.kind === "profile"
-            ? lines(model.title, model.title.length > 42 ? 52 : 64, 700, "#fafafa", 3)
-            : lines(model.body || model.title, 46, 700, "#fafafa", 3)}
-          {model.kind === "profile" && model.detail ? (
-            <div style={{ display: "flex", marginTop: 22, fontSize: 32, color: "#e4e4e7" }}>
-              {model.detail}
-            </div>
-          ) : null}
-          {model.cardLines.length > 0 ? (
-            <div style={{ display: "flex", flexDirection: "column", marginTop: 26 }}>
-              {model.cardLines.map((line, index) => (
-                <div
-                  key={`${index}-${line.name}`}
-                  style={{ display: "flex", flexDirection: "column", marginTop: 8 }}
-                >
-                  <div style={{ display: "flex", fontSize: 24, color: "#d4d4d8" }}>{line.name}</div>
-                  {line.value ? (
-                    <div
-                      style={{
-                        display: "flex",
-                        marginTop: 4,
-                        fontSize: 32,
-                        fontWeight: 700,
-                        color: "#c4b5fd",
-                      }}
-                    >
-                      {line.value}
-                    </div>
-                  ) : null}
-                </div>
-              ))}
-            </div>
-          ) : null}
-        </div>
-      </Left>
-      {side}
-    </div>,
-  );
+  // Every other kind is drawn by shareNode above.
+  return send(<div style={{ display: "flex", width: "100%", height: "100%" }} />);
 }
 
 function readableShareImage(model: ShareImage): ShareImage {
@@ -580,7 +401,15 @@ function readableShareImage(model: ShareImage): ShareImage {
   const title = text(model.title);
   const body = text(model.body);
   const fallback =
-    model.kind === "card" ? "Card" : model.kind === "profile" ? "Profile" : model.kind === "home" ? title : "Post";
+    model.kind === "card"
+      ? "Card"
+      : model.kind === "profile"
+        ? "Profile"
+        : model.kind === "badge"
+          ? "Badge"
+          : model.kind === "home"
+            ? title
+            : "Post";
   return {
     ...model,
     kicker: text(model.kicker),
@@ -597,35 +426,67 @@ function readableShareImage(model: ShareImage): ShareImage {
     cardLines: model.cardLines
       .map((line) => ({ name: text(line.name), value: text(line.value) }))
       .filter((line) => line.name),
+    chip: text(model.chip),
+    slabs: model.slabs.map((slab) => ({
+      ...slab,
+      company: text(slab.company),
+      grade: text(slab.grade),
+      player: text(slab.player),
+      line: text(slab.line),
+    })),
   };
 }
 
 async function consumeOg(response: ImageResponse): Promise<ImageResponse> {
+  return packOg(await ogBytes(response), response);
+}
+
+async function ogBytes(response: ImageResponse): Promise<Buffer> {
   const bytes = Buffer.from(await response.arrayBuffer());
   if (!isPng(bytes) || bytes.length < 32) throw new Error("Open Graph image was empty");
-  return new Response(bytes, {
+  return bytes;
+}
+
+function packOg(bytes: Buffer, response: ImageResponse): ImageResponse {
+  return new Response(new Uint8Array(bytes), {
     status: response.status,
     headers: response.headers,
   }) as ImageResponse;
+}
+
+/** Photo-heavy images can run large. Redraw once with smaller photos when over budget. */
+async function paintWithinBudget(
+  model: ShareImage,
+  cacheControl: string,
+  homeShot: string | null,
+  canvas: Canvas,
+): Promise<ImageResponse> {
+  const first = paint(model, cacheControl, homeShot, canvas);
+  const bytes = await ogBytes(first);
+  if (bytes.length <= OG_BYTE_BUDGET || canvas.compact || canvas.height > canvas.width) return packOg(bytes, first);
+  const smaller = paint(model, cacheControl, homeShot, { ...canvas, compact: true });
+  const compact = await ogBytes(smaller);
+  return compact.length < bytes.length ? packOg(compact, smaller) : packOg(bytes, first);
 }
 
 /** Render a share image. Only a font-shaping failure retries without that script. */
 export async function renderOg(
   model: ShareImage,
   cacheControl = PUBLIC_OG_CACHE_CONTROL,
+  canvas: Canvas = LANDSCAPE,
 ): Promise<ImageResponse> {
   const isShapingError = (e: unknown) =>
     e instanceof Error && /lookupType: \d+ - substFormat: \d+ is not yet supported/.test(e.message);
   const homeShot = model.kind === "home" ? await homeShotSrc() : null;
   try {
-    return await consumeOg(paint(model, cacheControl, homeShot));
+    return await paintWithinBudget(model, cacheControl, homeShot, canvas);
   } catch (error) {
     console.error("[og] share image render failed", { kind: model.kind, stage: "render" }, error);
     if (isShapingError(error)) {
       try {
         const stripped = readableShareImage(model);
         const shot = stripped.kind === "home" ? (homeShot ?? (await homeShotSrc())) : null;
-        return await consumeOg(paint(stripped, cacheControl, shot));
+        return await paintWithinBudget(stripped, cacheControl, shot, canvas);
       } catch (stripError) {
         console.error(
           "[og] share image render failed",
@@ -642,8 +503,9 @@ export function renderProfileOg(
   preview: LinkPreview,
   kicker: string,
   cacheControl = PUBLIC_OG_CACHE_CONTROL,
+  extra?: Parameters<typeof profileShareImage>[2],
 ) {
-  return paint(profileShareImage(preview, kicker), cacheControl, null);
+  return renderOg(profileShareImage(preview, kicker, extra), cacheControl);
 }
 
 export async function renderHomeOg() {

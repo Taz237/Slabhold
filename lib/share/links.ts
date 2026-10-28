@@ -1,0 +1,62 @@
+import { badgeName, type BadgeCategory, type BadgeTier } from "@/lib/badges/config";
+import { userHref } from "@/lib/social/user-href";
+
+/** Marks a link as shared from the app, so landings can be told apart. */
+export function withShareRef(url: string): string {
+  const parsed = new URL(url);
+  const params = new URLSearchParams(parsed.search);
+  params.delete("ref");
+  const rest = params.toString();
+  parsed.search = rest ? `?ref=share&${rest}` : "?ref=share";
+  return parsed.toString();
+}
+
+/** X compose intent. Each value is encoded on its own so `&`, `#`, and emoji survive. */
+export function xIntentUrl(input: { text: string; url: string }): string {
+  return `https://x.com/intent/post?text=${encodeURIComponent(input.text)}&url=${encodeURIComponent(input.url)}`;
+}
+
+function handle(username: string): string {
+  return username.replace(/^@/, "").trim().toLowerCase();
+}
+
+export function badgeSharePath(username: string, category: BadgeCategory, tier: BadgeTier): string {
+  return `${userHref(handle(username))}/badges/${category}/${tier}`;
+}
+
+/** 1080×1350 portrait for Instagram. */
+export function badgeImagePath(username: string, category: BadgeCategory, tier: BadgeTier): string {
+  return `/api/share-image/badge/${encodeURIComponent(handle(username))}/${category}/${tier}`;
+}
+
+export function badgeShareText(category: BadgeCategory, tier: BadgeTier): string {
+  return `Just unlocked ${badgeName(category, tier)} on Slabhold`;
+}
+
+/** 1080×1350 portrait for Instagram. */
+export function cardImagePath(cardId: string): string {
+  return `/api/share-image/card/${encodeURIComponent(cardId)}`;
+}
+
+export const PRIVATE_CARD_SHARE = "Make this card public to share";
+
+export type CardShareState =
+  | { kind: "private"; message: string }
+  | { kind: "unavailable" }
+  | { kind: "share"; path: string; imagePath: string };
+
+/** Private cards are never shared: no link, no image. */
+export function cardShareState(input: {
+  isPublic: boolean;
+  username: string | null | undefined;
+  cardId: string;
+}): CardShareState {
+  if (!input.isPublic) return { kind: "private", message: PRIVATE_CARD_SHARE };
+  const name = handle(input.username ?? "");
+  if (!name || !input.cardId) return { kind: "unavailable" };
+  return {
+    kind: "share",
+    path: `${userHref(name)}/cards/${input.cardId}`,
+    imagePath: cardImagePath(input.cardId),
+  };
+}

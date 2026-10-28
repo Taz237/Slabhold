@@ -1,4 +1,4 @@
-import { CARD_OG_CACHE_CONTROL, ogContentType, ogSize, reachableImage, renderOg } from "@/components/og-frame";
+import { CARD_OG_CACHE_CONTROL, ogContentType, ogSize, reachableShare, renderOg } from "@/components/og-frame";
 import { loadCardShareImage } from "@/lib/social/link-preview-load";
 
 export const alt = "Card on Slabhold";
@@ -11,7 +11,5 @@ export default async function Image({
   params: Promise<{ username: string; id: string }>;
 }) {
   const { id } = await params;
-  const preview = await loadCardShareImage(id);
-  const imageUrl = await reachableImage(preview.imageUrl);
-  return renderOg({ ...preview, imageUrl, photoFallback: !imageUrl }, CARD_OG_CACHE_CONTROL);
+  return renderOg(await reachableShare(await loadCardShareImage(id)), CARD_OG_CACHE_CONTROL);
 }

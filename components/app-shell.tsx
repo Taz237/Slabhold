@@ -237,7 +237,7 @@ function Shell({
       {showJoin ? <JoinBar /> : null}
       {showNav ? <CreateMenu key={pathname} /> : null}
       {user ? <CollectPrompt /> : null}
-      {user && mode === "supabase" ? <BadgeRevealGate userId={user.id} /> : null}
+      {user && mode === "supabase" ? <BadgeRevealGate userId={user.id} username={user.username} /> : null}
     </div>
   );
 }

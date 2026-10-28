@@ -173,6 +173,23 @@ function samplePath(pattern: string): string {
     .join("/");
 }
 
+describe("share events", () => {
+  it("keeps the share source and method from the allowed sets only", () => {
+    assert.deepEqual(sanitizeProps({ source: "badge", method: "native" }), { source: "badge", method: "native" });
+    assert.deepEqual(sanitizeProps({ source: "card", method: "image" }), { source: "card", method: "image" });
+    assert.deepEqual(sanitizeProps({ method: "x" }), { method: "x" });
+    assert.deepEqual(sanitizeProps({ method: "copy" }), { method: "copy" });
+    assert.deepEqual(sanitizeProps({ method: "email" }), {});
+    assert.deepEqual(sanitizeProps({ method: "https://x.com" }), {});
+  });
+
+  it("keeps ref=share on page views and drops other ref values", () => {
+    assert.equal(scrubbed("/u/democollector/badges/collector/gold?ref=share"), "/u/[username]/badges/[category]/[tier]?ref=share");
+    assert.equal(scrubbed("/posts/abc?ref=share&q=1"), "/posts/[id]?ref=share");
+    assert.equal(scrubbed("/posts/abc?ref=ada%40x.com"), "/posts/[id]");
+  });
+});
+
 describe("scrubAnalyticsUrl", () => {
   it("keeps the page type and the campaign params", () => {
     assert.equal(scrubbed("/messages/donnietaz?x=1"), "/messages/[username]");
