@@ -405,16 +405,12 @@ describe("mail day form rules", () => {
       sport: "Baseball",
       offer: "",
     });
-    const mailDayForm = readFileSync(join(process.cwd(), "components/mail-day-form.tsx"), "utf8");
     const cardForm = readFileSync(join(process.cwd(), "components/card-form.tsx"), "utf8");
-    assert.match(mailDayForm, /sportAfterCatalogPick\(section\.sport, card\.sport\)/);
     assert.match(cardForm, /sportAfterCatalogPick\(sportTouched \? form\.sport : "", card\.sport\)/);
     assert.match(cardForm, /sportAfterCatalogPick\(sportTouched \? form\.sport : "", result\.sport\)/);
     assert.match(cardForm, /useState\(restored\?\.sportTouched \?\? Boolean\(existing\)\)/);
     assert.match(cardForm, /setSportTouched\(true\)/);
-    assert.match(mailDayForm, /This card is listed as/);
     assert.match(cardForm, /This card is listed as/);
-    assert.match(mailDayForm, /RC \/ Rookie/);
   });
 
   it("checks Rookie when Will Johnson 2025 Topps Chrome #349 is picked", () => {
@@ -433,9 +429,7 @@ describe("mail day form rules", () => {
     assert.equal(rookieAfterCatalogPick(true, { ...willJohnson, isRookie: false }), true);
 
     const cardForm = readFileSync(join(process.cwd(), "components/card-form.tsx"), "utf8");
-    const mailDayForm = readFileSync(join(process.cwd(), "components/mail-day-form.tsx"), "utf8");
     assert.match(cardForm, /setIsRookie\(\(current\) => rookieAfterCatalogPick\(current, card\)\)/);
-    assert.match(mailDayForm, /isRookie: rookieAfterCatalogPick\(section\.isRookie, card\)/);
   });
 
   it("does not treat the new card Basketball default as a chosen sport", () => {
@@ -760,41 +754,16 @@ describe("mail day photo upload", () => {
     );
   });
 
-  it("uploads from the browser, then resets sending if the post throws", () => {
-    const form = readFileSync(join(process.cwd(), "components/mail-day-form.tsx"), "utf8");
-    const actions = readFileSync(join(process.cwd(), "app/mail-day/actions.ts"), "utf8");
+  it("keeps Mail Day photos in the owner's folder", () => {
     const sql = readFileSync(
       join(process.cwd(), "supabase/migrations/20261019250000_mail_day_own_photos.sql"),
       "utf8",
     );
-    assert.equal(form.includes("_key"), false);
-    assert.equal(form.includes("_open"), false);
-    assert.equal(form.includes("_note"), false);
-    assert.match(form, /uploadMedia\(/);
-    assert.match(form, /uploadMailDayPhotosWith\(/);
-    assert.match(
-      form,
-      /try \{[\s\S]*uploadMailDayPhotos[\s\S]*createMailDayPost\([\s\S]*\} catch \(err\) \{[\s\S]*mailDaySubmitError\(err\)[\s\S]*\} finally \{[\s\S]*setSending\(false\)/,
-    );
-    const catchBlock = form.slice(form.lastIndexOf("} catch (err) {"), form.indexOf("} finally {"));
-    assert.match(catchBlock, /mailDaySubmitError\(err\)/);
-    assert.doesNotMatch(catchBlock, /removeMailDayPhotos/);
-    assert.match(
-      form,
-      /try \{\s*cards = await uploadMailDayPhotos\(user\.id, drafts, created\);\s*\} catch \(err\) \{\s*if \(isSaveTimeout\(err\)\) \{\s*setError\(SAVE_TIMEOUT_MESSAGE\);\s*return;\s*\}\s*await removeMailDayPhotos\(\s*createSupabaseBrowser\(\),\s*user\.id,\s*created\s*\);\s*setError\(mailDaySubmitError\(err\)\);\s*return;\s*\}/,
-    );
-    assert.match(actions, /mailDayPhotoOwnedBy\(photo, userId\)/);
     assert.match(sql, /auth\.uid\(\)::text = \(storage\.foldername\(name\)\)\[1\]/);
     assert.match(sql, /mail_day_photo_ok\(new\.image_url, new\.user_id\)/);
     assert.match(sql, /mail_day_photo_ok\(photo, new\.user_id\)/);
     assert.match(sql, /card-photos\/'/);
     assert.match(sql, /drop function if exists public\.mail_day_photo_ok\(text\)/);
-    assert.match(actions, /mailDayPhotosToRemove\(/);
-    assert.match(form, /mailDayPhotosToRemove\(/);
-    assert.match(actions, /removeMailDayPhotos\(/);
-    assert.match(form, /removeMailDayPhotos\(/);
-    assert.doesNotMatch(actions, /MAIL_DAY_POST_FAILED/);
-    assert.doesNotMatch(form, /MAIL_DAY_POST_FAILED/);
   });
 
   async function saveMailDayClient(input: {
@@ -881,14 +850,6 @@ describe("mail day photo upload", () => {
     assert.deepEqual(removed, [[`${userId}/${files[0]}`, `${userId}/${files[1]}`]]);
     assert.equal(result.error, "Could not upload that photo.");
     assert.equal(result.sending, false);
-    const form = readFileSync(join(process.cwd(), "components/mail-day-form.tsx"), "utf8");
-    assert.match(form, /disabled=\{sending \|\| Boolean\(blocker\)\}/);
-    assert.match(form, /\{error \? <p className="text-sm text-rose-600/);
-    assert.match(form, /finally \{\s*setSending\(false\);\s*\}/);
-    assert.match(
-      form,
-      /if \(isSaveTimeout\(err\)\) \{\s*setError\(SAVE_TIMEOUT_MESSAGE\);\s*return;\s*\}\s*await removeMailDayPhotos\(\s*createSupabaseBrowser\(\),\s*user\.id,\s*created\s*\);\s*setError\(mailDaySubmitError\(err\)\);\s*return;/,
-    );
   });
 
   it("leaves photos in place when the server throws after cards are saved", async () => {
@@ -932,13 +893,6 @@ describe("mail day photo upload", () => {
     assert.equal(removeCalls, 0);
     assert.equal(result.error, "Could not reach Mail Day.");
     assert.equal(result.sending, false);
-    const form = readFileSync(join(process.cwd(), "components/mail-day-form.tsx"), "utf8");
-    const outerCatch = form.slice(form.lastIndexOf("} catch (err) {"), form.indexOf("} finally {"));
-    assert.match(outerCatch, /setError\(mailDaySubmitError\(err\)\)/);
-    assert.doesNotMatch(outerCatch, /removeMailDayPhotos/);
-    assert.match(form, /finally \{\s*setSending\(false\);\s*\}/);
-    assert.match(form, /disabled=\{sending \|\| Boolean\(blocker\)\}/);
-    assert.match(form, /\{error \? <p className="text-sm text-rose-600/);
   });
 
   it("keeps saved cards' photos and drops only unsaved uploads", () => {
@@ -1384,19 +1338,5 @@ describe("mail day failed save restores photos for retry", () => {
     assert.deepEqual(savedPosts, [urls[0]]);
     assert.equal(savedCards.flat().includes(urls[1]), false);
     assert.equal(savedPosts.includes(urls[1]), false);
-  });
-
-  it("does not delete or put photos back when the post times out", () => {
-    const form = readFileSync(join(process.cwd(), "components/mail-day-form.tsx"), "utf8");
-    const submitStart = form.indexOf("async function submit");
-    const submit = form.slice(submitStart, form.indexOf("return (", submitStart));
-    const postTimeout = submit.slice(submit.indexOf("if (!isSaveTimeout(err)) throw err;"));
-    const beforeResult = postTimeout.slice(0, postTimeout.indexOf("if (!result.ok)"));
-    assert.doesNotMatch(beforeResult, /removeMailDayPhotos/);
-    assert.doesNotMatch(beforeResult, /restoreRemovedMailDayPhotos/);
-    assert.match(
-      submit,
-      /const originals = mailDayPhotoOriginals\(drafts, cards\);[\s\S]*photos: cards\[index\]\.photos[\s\S]*if \(!result\.ok\) \{[\s\S]*const removed = mailDayPhotosToRemove\([\s\S]*await removeMailDayPhotos\(createSupabaseBrowser\(\), user\.id, removed\);[\s\S]*restoreRemovedMailDayPhotos\(current, removed, originals\)/,
-    );
   });
 });

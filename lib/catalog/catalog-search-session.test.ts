@@ -133,10 +133,9 @@ describe("catalog search timeout", () => {
     assert.deepEqual(current.remote, []);
   });
 
-  it("is the search_cards path for Add Card and Mail Day", () => {
+  it("is the search_cards path for Add Card", () => {
     const search = readFileSync(join(process.cwd(), "components/card-search.tsx"), "utf8");
     const form = readFileSync(join(process.cwd(), "components/card-form.tsx"), "utf8");
-    const mail = readFileSync(join(process.cwd(), "components/mail-day-form.tsx"), "utf8");
     assert.match(search, /loadCatalogSearchSession\(/);
     assert.match(search, /session\.abort\(\)/);
     assert.match(search, /snapshot\.aborted \|\| id !== requestId\.current/);
@@ -174,8 +173,7 @@ describe("catalog search timeout", () => {
       catalogSearchNeedsRetry({ aborted: true, timedOut: true, remote: null, results: [] }),
       false,
     );
-    // Add card dropped its search for now. Mail Day keeps it.
+    // Add card dropped its search for now.
     assert.doesNotMatch(form, /<CardSearch|@\/components\/card-search/);
-    assert.match(mail, /<CardSearch/);
   });
 });

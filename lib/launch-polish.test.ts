@@ -125,10 +125,7 @@ describe("sport picker", () => {
     assert.equal(optionsWithCurrent(SPORT_PICKER_OPTIONS, "Basketball").includes("Pokémon"), false);
 
     const form = read("components/card-form.tsx");
-    const mail = read("components/mail-day-form.tsx");
     assert.match(form, /optionsWithCurrent\(SPORT_PICKER_OPTIONS, form\.sport\)/);
-    assert.match(mail, /optionsWithCurrent\(\[\.\.\.MAIL_DAY_SPORT_PICKER\], section\.sport\)/);
-    assert.match(mail, /mailDaySportLabel\(sport\)/);
     assert.doesNotMatch(form, /\bSPORTS\b/);
   });
 });

@@ -98,8 +98,13 @@ describe("route access", () => {
     assert.match(config, /destination:\s*"\/cards\/new"/);
     assert.equal((config.match(/destination:\s*"\/cards\/new"/g) ?? []).length, 2);
     assert.match(page, /redirect\("\/cards\/new"\)/);
-    assert.doesNotMatch(page, /MailDayForm/);
     assert.doesNotMatch(page, /loginPath\("\/mail-day"\)/);
+    assert.doesNotMatch(page, /mail-day-form/);
+
+    const shell = readFileSync(join(root, "components/app-shell.tsx"), "utf8");
+    assert.match(shell, /requiresAccount\(pathname\)/);
+    assert.match(shell, /routeAccess\(pathname\) === "unknown"/);
+    assert.doesNotMatch(shell, /path === "\/mail-day"/);
   });
 
   it("does not treat a public card's posts as an owner page", () => {

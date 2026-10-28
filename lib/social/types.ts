@@ -35,6 +35,9 @@ export type PublicCard = {
   purchasePrice?: number | null;
   /** From public_cards.is_rookie. Absent until that row is loaded. */
   isRookie?: boolean;
+  /** From public_cards.is_auto and serial_run. Used to hold back a lone cheap sale. */
+  isAuto?: boolean;
+  serialRun?: number | null;
   /** Null when public_cards has no open_to_offers column yet. */
   openToOffers?: boolean | null;
 };

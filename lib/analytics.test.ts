@@ -358,8 +358,6 @@ describe("analytics wiring", () => {
 
     assert.match(read("components/collection-provider.tsx"), /trackEvent\("card_added"\)/);
     assert.match(read("components/social-provider.tsx"), /trackEvent\("post_created"\)/);
-    assert.match(read("components/mail-day-form.tsx"), /trackEvent\("card_added"\)/);
-    assert.match(read("components/mail-day-form.tsx"), /trackEvent\("post_created"\)/);
     assert.match(read("components/follow-button.tsx"), /trackEvent\("follow_clicked"\)/);
     assert.match(read("components/share-button.tsx"), /trackEvent\("share_clicked"\)/);
 

@@ -129,9 +129,7 @@ describe("grade select display", () => {
     assert.deepEqual(gradeSelectOptions("BGS", ""), GRADE_NUMBERS.BGS);
 
     const form = read("components/card-form.tsx").toString("utf8");
-    const mail = read("components/mail-day-form.tsx").toString("utf8");
     assert.match(form, /gradeSelectOptions\(gradeCompany, gradeNumber\)/);
-    assert.match(mail, /gradeSelectOptions\(section\.grader, section\.grade\)/);
     assert.match(read("lib/cards/new-card-draft.ts").toString("utf8"), /Boolean\(input\.gradeNumber\)/);
   });
 });

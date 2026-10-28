@@ -13,6 +13,12 @@ import type { CardValueResult, CardValueSale, CardValueSimilar } from "@/lib/val
 /** Below this, the median is not shown as the estimate. Matches the fair-price minimum. */
 export const NORMAL_ESTIMATE_MIN_SALES = 3;
 
+/**
+ * One sale under this on an auto, a /99 or lower, or a 1/1 is not shown as the price.
+ * Starting value. The team may change it.
+ */
+export const PREMIUM_SINGLE_SALE_FLOOR = 10;
+
 export const NO_SALES_FOUND_LABEL = "No sales found yet";
 export const SIMILAR_CARDS_LABEL = "Similar cards";
 
@@ -57,6 +63,12 @@ export type SimilarCandidate = {
   parallel?: string | null;
   grade?: string | null;
   sales: PriceSale[];
+};
+
+/** Card fields that mark a premium card. */
+export type PremiumCardFields = {
+  isAuto?: boolean | null;
+  serialRun?: number | null;
 };
 
 type SubjectCard = {
@@ -137,6 +149,33 @@ function isPriced(value: number | null | undefined): value is number {
 function pricedSales(sales: readonly PriceSale[] | null | undefined): PriceSale[] {
   if (!sales) return [];
   return sales.filter((sale) => isPriced(sale.price));
+}
+
+function isPremiumCard(card: PremiumCardFields | null | undefined): boolean {
+  if (card?.isAuto) return true;
+  const run = card?.serialRun;
+  return typeof run === "number" && Number.isFinite(run) && run >= 1 && run <= 99;
+}
+
+/**
+ * False when one cheap sale is all that backs the price of an auto or a /99
+ * or lower. That sale stays in the sold list. Only the headline price is held back.
+ * Pass `sales` when the on-screen list is the source; otherwise the stored count is used.
+ */
+export function singleSaleTrusted(
+  card: PremiumCardFields | null | undefined,
+  value: Pick<CardValueResult, "nSales" | "median"> | null | undefined,
+  sales?: readonly PriceSale[] | null,
+): boolean {
+  if (!isPremiumCard(card)) return true;
+  let price: number | null = null;
+  if (sales) {
+    const priced = pricedSales(sales);
+    if (priced.length === 1) price = priced[0].price;
+  } else if (value?.nSales === 1 && isPriced(value.median)) {
+    price = value.median;
+  }
+  return price == null || price >= PREMIUM_SINGLE_SALE_FLOOR;
 }
 
 function salesWord(count: number): string {
@@ -322,12 +361,16 @@ function isNormalEstimate(
   );
 }
 
-function storedCountRange(value: CardValueResult): PriceRead | null {
+function storedCountRange(
+  value: CardValueResult,
+  card: PremiumCardFields | null | undefined,
+): PriceRead | null {
   if (value.status !== "ok") return null;
   if (value.nSales < 1 || value.nSales >= NORMAL_ESTIMATE_MIN_SALES) return null;
   const mid = positiveAmount(value.median);
   if (mid == null) return null;
   if (value.nSales === 1) {
+    if (!singleSaleTrusted(card, value)) return null;
     return {
       kind: "last_sale",
       text: `Last sold ${money(mid)}`,
@@ -358,6 +401,7 @@ export function splitFallbackLabel(text: string): string[] {
  * What to show when the normal estimate is not available.
  * Order: last sale (one dated sale), then a range from the few sales we have,
  * then similar cards, then "No sales found yet".
+ * A lone cheap sale on a premium card is skipped (see singleSaleTrusted).
  * A fallback is never `isEstimate`.
  */
 export function resolvePriceRead(input: {
@@ -368,7 +412,7 @@ export function resolvePriceRead(input: {
   exactSales?: readonly PriceSale[] | null;
   similar?: CardValueSimilar | null;
   ebayHref?: string | null;
-  card?: EbaySoldCard | null;
+  card?: (EbaySoldCard & PremiumCardFields) | null;
 }): PriceRead {
   const value = input.value ?? null;
   if (value?.status === "unavailable" || value?.status === "stale") {
@@ -396,7 +440,7 @@ export function resolvePriceRead(input: {
 
   const similar = input.similar ?? value?.similar ?? null;
 
-  if (list && list.length === 1) {
+  if (list && list.length === 1 && singleSaleTrusted(input.card, value, list)) {
     const day = saleDayLabel(list[0].soldAt);
     if (day) {
       return {
@@ -425,7 +469,7 @@ export function resolvePriceRead(input: {
   }
 
   if (list === undefined && value) {
-    const stored = storedCountRange(value);
+    const stored = storedCountRange(value, input.card);
     if (stored) return stored;
   }
 

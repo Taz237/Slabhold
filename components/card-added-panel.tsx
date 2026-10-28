@@ -34,7 +34,8 @@ export function CardAddedPanel({
     next.set(cardId, value);
     return next;
   }, [book.values, cardId, value]);
-  const valueLine = addedValueLine(value, loading);
+  const card = cards.find((item) => item.id === cardId) ?? null;
+  const valueLine = addedValueLine(value, loading, card);
   const collectionLine = addedCollectionLine(cards, values, !book.loading && !book.error);
 
   return (

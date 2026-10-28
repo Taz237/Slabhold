@@ -19,6 +19,7 @@ import { FairPriceCheck } from "@/components/fair-price-check";
 import { PublicCardCompsPreview } from "@/components/public-card-comps";
 import { useCollection } from "@/components/collection-provider";
 import { ProfileSkeleton } from "@/components/status";
+import { SoldFreshness } from "@/components/sold-freshness";
 import { useSocial } from "@/components/social-provider";
 import { ValueChart } from "@/components/value-chart";
 import { isCardOwner } from "@/lib/comps/ownership";
@@ -29,7 +30,6 @@ import { soldNotice } from "@/lib/comps/sold-response";
 import { useSoldComps } from "@/lib/comps/use-sold-comps";
 import { canonicalParallelName } from "@/lib/cards/parallels";
 import { cardTitle, formatPaidLabel } from "@/lib/format";
-import { formatRelativeTime } from "@/lib/relative-time";
 import {
   hiddenPublicComps,
   type PublicCardComps,
@@ -39,6 +39,7 @@ import type { PublicCard } from "@/lib/social/types";
 import {
   cardValueHasAmount,
   isLowConfidenceValue,
+  shownCardValue,
 } from "@/lib/value/format";
 import { ebaySoldSearchUrlForCard } from "@/lib/value/ebay-sold";
 import { shouldCollapseEmptyPrices } from "@/lib/value/empty-price";
@@ -199,7 +200,7 @@ function PublicCardAnalytics({
     cardValueHasAmount(shownValue) ? shownValue.nSales : null,
     sold.status === "ready" ? onScreenComps.length : null,
   );
-  const storedAmount = cardValueHasAmount(shownValue) ? shownValue.median : null;
+  const storedAmount = shownCardValue(card, shownValue);
   const ebayHref = ebaySoldSearchUrlForCard(card);
   const exactSales =
     sold.status === "ready"
@@ -250,8 +251,8 @@ function PublicCardAnalytics({
           </div>
           <WantButton
             card={card}
-            fairLow={cardValueHasAmount(shownValue) ? shownValue.low : null}
-            fairHigh={cardValueHasAmount(shownValue) ? shownValue.high : null}
+            fairLow={storedAmount != null ? (shownValue?.low ?? null) : null}
+            fairHigh={storedAmount != null ? (shownValue?.high ?? null) : null}
           />
         </div>
         {specs.length > 0 ? (
@@ -401,11 +402,12 @@ function PublicCardAnalytics({
                         ? priceRead?.kind === "similar"
                           ? SIMILAR_CARDS_LABEL
                           : (priceRead?.text ?? NO_SALES_FOUND_LABEL)
-                        : `${basedOnSalesLabel(salesCount)}${
-                            sold.data?.fetchedAt
-                              ? ` · Updated ${formatRelativeTime(sold.data.fetchedAt)}`
-                              : ""
-                          }`
+                        : (
+                            <>
+                              {basedOnSalesLabel(salesCount)}
+                              <SoldFreshness comps={onScreenComps} fetchedAt={sold.data?.fetchedAt} />
+                            </>
+                          )
                       : usingSample
                         ? "Sample listings"
                         : ""}
