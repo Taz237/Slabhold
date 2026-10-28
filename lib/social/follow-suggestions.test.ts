@@ -113,7 +113,7 @@ describe("followSuggestions", () => {
     const root = process.cwd();
     const provider = readFileSync(join(root, "components/social-provider.tsx"), "utf8");
     const search = readFileSync(join(root, "components/search-view.tsx"), "utf8");
-    const feed = readFileSync(join(root, "components/feed-view.tsx"), "utf8");
+    const feed = readFileSync(join(root, "components/collector-suggestions.tsx"), "utf8");
     const cards = readFileSync(join(root, "lib/cards/people.ts"), "utf8");
     const remote = readFileSync(join(root, "lib/social/remote.ts"), "utf8");
     assert.match(provider, /followSuggestionFetchLimit\(displayLimit\)/);
@@ -121,11 +121,11 @@ describe("followSuggestions", () => {
     assert.match(feed, /Collectors to follow/);
     const suggestions = feed.slice(
       feed.indexOf("function CollectorSuggestions"),
-      feed.indexOf("function LaneTab"),
+      feed.indexOf("function FollowingEmpty"),
     );
     assert.equal(
       suggestions.includes(
-        '<div className="mb-2 flex items-center justify-between gap-2 max-md:pr-20">',
+        '<div className="mb-3 flex min-h-11 items-center justify-between gap-2 px-4 max-md:pr-20">',
       ),
       true,
     );

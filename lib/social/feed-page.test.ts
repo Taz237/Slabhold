@@ -287,7 +287,9 @@ describe("paged safety", () => {
     assert.equal(hook.includes("headToken"), false);
     assert.match(more, /Try again/);
     assert.match(more, /loading \|\| failed\) return/);
-    assert.match(view, /New posts/);
+    assert.match(view, /<NewPostsPill/);
+    const pill = readFileSync(join(process.cwd(), "components/timeline-ui.tsx"), "utf8");
+    assert.match(pill, /New posts/);
   });
 });
 

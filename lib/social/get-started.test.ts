@@ -278,7 +278,9 @@ describe("home wiring", () => {
     assert.match(feed, /createdAt: user\?\.createdAt/);
     assert.doesNotMatch(feed, /useOwnPostCount/);
     assert.doesNotMatch(feed, /posts\.filter\(\(post\) => post\.authorId/);
-    assert.match(feed, /id="collectors-to-follow"/);
+    assert.match(feed, /<CollectorSuggestions profiles=\{suggestionRail\} \/>/);
+    const rail = readFileSync(join(root, "components/collector-suggestions.tsx"), "utf8");
+    assert.match(rail, /id="collectors-to-follow"/);
     assert.match(feed, /checklistDismissKey\(userId\)|useGetStartedDismissed/);
     assert.match(feed, /user && started\.visible/);
     assert.match(feed, /checklistBlocksAddToHomeTip\(/);

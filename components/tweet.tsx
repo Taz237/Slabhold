@@ -24,6 +24,8 @@ import { userHref } from "@/lib/social/user-href";
 import { MailDayCard } from "@/components/mail-day-card";
 import { shareTitleForPost } from "@/lib/social/mail-day-copy";
 import { useAttachedChip } from "@/lib/social/use-attachment-label";
+import { PostBody, PostPill, useReducedMotion } from "@/components/timeline-ui";
+import { postPill } from "@/lib/ui/timeline";
 import type { CardValueResult } from "@/lib/value/types";
 
 export function Tweet({
@@ -75,13 +77,17 @@ export function Tweet({
     router.push(`/posts/${post.id}#reply`);
   }
 
-  const bodyClass =
-    variant === "detail" ? "mt-1 text-[17px] leading-6" : "mt-0.5 text-[15px] leading-5";
+  const bodyClass = variant === "detail" ? "text-[17px] leading-6" : "text-[15px] leading-[1.4]";
+  const pill = postPill(post);
 
   return (
     <article
       onClick={openPost}
-      className={`border-b border-zinc-200 dark:border-white/10 ${variant === "feed" ? "cursor-pointer" : ""}`}
+      className={`border-b border-zinc-200/70 dark:border-white/[0.07] ${
+        variant === "feed"
+          ? "cursor-pointer transition-colors duration-150 hover:bg-zinc-900/[0.015] dark:hover:bg-white/[0.015]"
+          : ""
+      }`}
     >
       {pinned ? (
         <p className="flex items-center gap-3 px-4 pt-3 text-[13px] font-bold text-zinc-500">
@@ -102,7 +108,7 @@ export function Tweet({
           <span className="truncate hover:underline">{repostedBy.displayName} reposted</span>
         </Link>
       ) : null}
-      <div className={`flex gap-3 px-4 ${pinned || repostedBy ? "pt-1 pb-3" : "py-3"}`}>
+      <div className={`flex gap-3 px-4 pb-1.5 ${pinned || repostedBy ? "pt-1" : "pt-3.5"}`}>
       <Link href={userHref(author.username)} className="shrink-0">
         <Avatar name={author.displayName} image={author.avatarDataUrl} accent={author.accent} />
       </Link>
@@ -117,9 +123,14 @@ export function Tweet({
           <PostMenu post={post} />
         </div>
         {post.body ? (
-          <p className={`whitespace-pre-wrap ${bodyClass}`}>
-            <MentionText text={post.body} />
-          </p>
+          <div className="mt-1">
+            <PostBody text={post.body} className={bodyClass} collapsible={variant === "feed"} />
+          </div>
+        ) : null}
+        {pill && post.postType === "mail_day" ? (
+          <div className="mt-3 -mb-1">
+            <PostPill label={pill} />
+          </div>
         ) : null}
         {post.postType === "mail_day" && post.card ? (
           <MailDayCard
@@ -132,6 +143,11 @@ export function Tweet({
         ) : (
           <>
             {photos.length ? <PostPhotoGrid images={photos} onOpen={openImage} /> : null}
+            {post.card && pill ? (
+              <div className="mt-3 -mb-1 flex justify-center">
+                <PostPill label={pill} />
+              </div>
+            ) : null}
             {post.card ? (
               <CardMedia
                 card={post.card}
@@ -175,7 +191,7 @@ function CommentPreview({ postId, comments }: { postId: string; comments: PostCo
   const authors = new Map(profiles.map((profile) => [profile.id, profile]));
 
   return (
-    <div className="mt-2 space-y-2 border-l-2 border-zinc-200 pl-2.5 dark:border-white/10">
+    <div className="mt-1 mb-2 space-y-2 border-l-2 border-zinc-200/70 pl-2.5 dark:border-white/[0.07]">
       {preview.map((comment) => {
         const person = authors.get(comment.authorId);
         const name = person?.displayName ?? "Collector";
@@ -218,7 +234,7 @@ function CommentPreview({ postId, comments }: { postId: string; comments: PostCo
       {comments.length > preview.length ? (
         <Link
           href={`/posts/${postId}`}
-          className="inline-block text-[13px] font-medium text-sky-600 hover:underline dark:text-sky-400"
+          className="inline-block text-[13px] font-medium text-violet-600 hover:underline dark:text-[#A78BFA]"
         >
           View all comments
         </Link>
@@ -243,15 +259,15 @@ export function AuthorLine({
 
   return (
     <div className="flex min-w-0 flex-1 items-baseline gap-x-1 text-[15px]">
-      <Link href={href} className="max-w-[46%] truncate font-bold hover:underline">
+      <Link href={href} className="max-w-[52%] truncate font-bold tracking-tight hover:underline">
         {name}
       </Link>
-      <span className="min-w-0 truncate text-zinc-500">@{username}</span>
+      <span className="min-w-0 truncate text-[14px] text-zinc-500">@{username}</span>
       {relative ? (
         <time
           dateTime={createdAt}
           title={exact || undefined}
-          className="shrink-0 whitespace-nowrap text-zinc-500"
+          className="shrink-0 text-[14px] whitespace-nowrap text-zinc-500"
         >
           · {relative}
         </time>
@@ -455,6 +471,10 @@ export function Engagement({
   const quotes = quoteCount(posts, targetId);
   const [repostMenuOpen, setRepostMenuOpen] = useState(false);
   const repostMenuRef = useRef<HTMLDivElement>(null);
+  const reduceMotion = useReducedMotion();
+  /** Bumped to replay the heart pop or repost bounce. Stays 0 under reduced motion. */
+  const [likeBurst, setLikeBurst] = useState(0);
+  const [repostBurst, setRepostBurst] = useState(0);
 
   useEffect(() => {
     if (!repostMenuOpen) return;
@@ -481,17 +501,19 @@ export function Engagement({
   }
 
   return (
-    <div className="mt-1.5 -ml-2 flex items-center text-zinc-500">
+    <div data-engagement="" className="mt-0.5 -ml-2.5 flex min-w-0 items-center text-zinc-500">
       <ActionButton label="Reply" count={replyCount} active={false} tone="sky" onClick={onReply}>
         <MessageCircle className="h-[18px] w-[18px]" />
       </ActionButton>
-      <div ref={repostMenuRef} className="relative flex min-h-9 flex-1 items-center">
+      <div ref={repostMenuRef} className="relative flex min-h-11 min-w-0 flex-1 items-center">
         <ActionButton
           label={reposted ? "Repost options" : "Repost"}
           count={repostCount(targetId)}
           active={reposted}
           pressed={reposted}
           tone="emerald"
+          burst={reposted ? repostBurst : 0}
+          burstKind="bounce"
           onClick={() => {
             if (!requireUser()) return;
             setRepostMenuOpen((open) => !open);
@@ -509,6 +531,7 @@ export function Engagement({
               role="menuitem"
               onClick={() => {
                 setRepostMenuOpen(false);
+                if (!reposted && !reduceMotion) setRepostBurst((count) => count + 1);
                 toggleRepost(targetId);
               }}
               className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-[15px] font-bold hover:bg-zinc-100 dark:hover:bg-white/10"
@@ -539,8 +562,12 @@ export function Engagement({
         active={liked}
         pressed={liked}
         tone="rose"
+        burst={liked ? likeBurst : 0}
+        burstKind="pop"
         onClick={() => {
-          if (requireUser()) toggleLike(targetId);
+          if (!requireUser()) return;
+          if (!liked && !reduceMotion) setLikeBurst((count) => count + 1);
+          toggleLike(targetId);
         }}
       >
         <Heart className={`h-[18px] w-[18px] ${liked ? "fill-current" : ""}`} />
@@ -569,6 +596,8 @@ function ActionButton({
   active,
   pressed,
   tone,
+  burst = 0,
+  burstKind,
   onClick,
   children,
 }: {
@@ -577,6 +606,9 @@ function ActionButton({
   active: boolean;
   pressed?: boolean;
   tone: "sky" | "emerald" | "rose";
+  /** Above 0 plays the pop or bounce once; a new number replays it. */
+  burst?: number;
+  burstKind?: "pop" | "bounce";
   onClick: () => void;
   children: React.ReactNode;
 }) {
@@ -601,10 +633,29 @@ function ActionButton({
       aria-label={count > 0 ? `${label}, ${count}` : label}
       aria-pressed={pressed}
       onClick={onClick}
-      className={`hit-44 group inline-flex min-h-9 flex-1 items-center ${active ? on : color}`}
+      className={`group inline-flex min-h-11 min-w-0 flex-1 items-center transition-colors duration-150 ${active ? on : color}`}
     >
-      <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-full ${wash}`}>{children}</span>
-      {count > 0 ? <span className="text-[13px] tabular-nums">{count}</span> : null}
+      <span
+        className={`grid h-9 w-9 shrink-0 place-items-center rounded-full transition-colors duration-150 group-active:scale-90 motion-reduce:transform-none ${wash}`}
+      >
+        {burst > 0 && burstKind ? (
+          <span
+            key={burst}
+            data-like-pop={burstKind === "pop" ? "" : undefined}
+            data-repost-bounce={burstKind === "bounce" ? "" : undefined}
+            className={`grid place-items-center ${
+              burstKind === "pop"
+                ? "motion-safe:animate-[like-pop_380ms_cubic-bezier(0.2,0.7,0.2,1)]"
+                : "motion-safe:animate-[repost-bounce_360ms_ease-out]"
+            }`}
+          >
+            {children}
+          </span>
+        ) : (
+          children
+        )}
+      </span>
+      {count > 0 ? <span className="min-w-0 truncate pr-1 text-[13px] tabular-nums">{count}</span> : null}
     </button>
   );
 }
