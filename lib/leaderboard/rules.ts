@@ -9,7 +9,10 @@ export const FINAL_WEEKDAY = 2;
 
 export const LEADERBOARD_TOP_LIMIT = 10;
 
-/** Fewer qualifying rows than this, and the board shows the thin state. */
+/**
+ * Podium places. A board with fewer ranked rows than this is thin: its real
+ * rows still show, and open spots fill the rest of the podium.
+ */
 export const LEADERBOARD_MIN_ENTRIES = 3;
 
 /** Replies and follows only count from accounts at least this many days old. */
@@ -26,10 +29,10 @@ export const LEADERBOARD_PATH = "/leaderboard";
 export const LEADERBOARD_TITLE = "Leaderboard";
 
 export const LEADERBOARD_DESCRIPTION =
-  "This week's card posts, new followers, and cards added.";
+  "This week's cards added, new followers, and card posts.";
 
 export const LAST_WEEK_DESCRIPTION =
-  "Last week's card posts, new followers, and cards added.";
+  "Last week's cards added, new followers, and card posts.";
 
 /** Singular label when a row's score is exactly 1. */
 export function scoreUnit(label: string, score: number): string {
@@ -42,13 +45,23 @@ export function scoreUnit(label: string, score: number): string {
 
 export const THIN_BOARD_TITLE = "Board fills up as collectors post and follow";
 
-/** Shown when a board has fewer than LEADERBOARD_MIN_ENTRIES qualifying rows. */
-export const EMPTY_BOARD_TITLE = "Be the first name here";
-
-/** Thin board when the signed-in viewer already has points. */
+/** Thin board this week when the signed-in viewer already has points. Never on Last week. */
 export const ON_BOARD_THIN_TITLE = "You're on the board";
 
-export const ON_BOARD_THIN_DETAIL = `Names appear once ${LEADERBOARD_MIN_ENTRIES} collectors qualify.`;
+export const ON_BOARD_THIN_DETAIL = "Hold your spot. Open spots fill as collectors join in.";
+
+/** Ghost row for an empty podium place this week. */
+export const OPEN_SPOT_LABEL = "Open spot";
+
+/** Ghost row for an empty podium place on a past week. No call to action. */
+export const OPEN_SPOT_CLOSED_LABEL = "No one took this spot";
+
+/** The one rules line under the header. The full rules sit behind the info control. */
+export const RULES_LINE = "Real collectors only · Resets Monday 12 AM ET";
+
+export const RULES_SHEET_LABEL = "How the boards work";
+
+export const YOUR_SPOT_LABEL = "Your spot";
 
 export const PROVISIONAL_LABEL = "Provisional";
 
@@ -98,6 +111,8 @@ export type LeaderboardTab = {
 };
 
 export const TOP_CARD_LEAD = "Post a card. Replies from real collectors count.";
+
+export const TOP_CARD_LEAD_LAST_WEEK = "Last week's card posts, by replies from real collectors.";
 
 export const RISING_LEAD = "Get follows from real collectors this week.";
 
@@ -172,6 +187,13 @@ export function boardCallToAction(
   };
 }
 
+/** One-line lead under a board's title. */
+export function boardLead(boardId: string, week: "current" | "previous"): string {
+  if (boardId === "most-cards-added") return week === "previous" ? MOST_CARDS_LEAD_LAST_WEEK : MOST_CARDS_LEAD;
+  if (boardId === "rising-collectors") return week === "previous" ? RISING_LEAD_LAST_WEEK : RISING_LEAD;
+  return week === "previous" ? TOP_CARD_LEAD_LAST_WEEK : TOP_CARD_LEAD;
+}
+
 const SHARED_ACTOR_RULES = [realCollectorRule(), testAccountRule()] as const;
 
 /**
@@ -223,6 +245,19 @@ export const LEADERBOARD_TABS: readonly LeaderboardTab[] = [
   },
 ];
 
+/** The page stacks every board, in this order. The share card still uses LEADERBOARD_TABS[0]. */
+export const LEADERBOARD_PAGE_ORDER: readonly LeaderboardBoardId[] = [
+  "most-cards-added",
+  "rising-collectors",
+  "top-card-post",
+];
+
+export function leaderboardPageTabs(): LeaderboardTab[] {
+  return LEADERBOARD_PAGE_ORDER.map((id) => leaderboardTab(id)).filter(
+    (tab): tab is LeaderboardTab => tab !== null,
+  );
+}
+
 export function leaderboardTab(id: string): LeaderboardTab | null {
   return LEADERBOARD_TABS.find((tab) => tab.id === id) ?? null;
 }
@@ -234,6 +269,11 @@ export function leaderboardHref(week: "current" | "previous", boardId: string): 
   if (boardId && boardId !== first) params.set("board", boardId);
   const query = params.toString();
   return query ? `${LEADERBOARD_PATH}?${query}` : LEADERBOARD_PATH;
+}
+
+/** The board a `?board=` link asks to scroll to. Null without a known board. */
+export function leaderboardFocus(board: string | undefined): string | null {
+  return leaderboardTab(board ?? "")?.id ?? null;
 }
 
 export function parseLeaderboardQuery(

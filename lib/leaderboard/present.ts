@@ -2,26 +2,26 @@ import {
   BOARD_ERROR_DETAIL,
   BOARD_ERROR_TITLE,
   CLOSED_NOTE,
-  EMPTY_BOARD_TITLE,
   ON_BOARD_THIN_DETAIL,
   ON_BOARD_THIN_TITLE,
+  OPEN_SPOT_CLOSED_LABEL,
+  OPEN_SPOT_LABEL,
   FINAL_LABEL,
   LAST_WEEK_LABEL,
   LAST_WEEK_DESCRIPTION,
   LEADERBOARD_DESCRIPTION,
-  MOST_CARDS_LEAD_LAST_WEEK,
-  RISING_LEAD_LAST_WEEK,
   LEADERBOARD_MIN_ENTRIES,
-  LEADERBOARD_TABS,
   LEADERBOARD_TITLE,
   LEADERBOARD_TOP_LIMIT,
   PROVISIONAL_LABEL,
+  RULES_LINE,
   THIS_WEEK_LABEL,
   YOU_LABEL,
   boardCallToAction,
+  boardLead,
   leaderboardHref,
+  leaderboardPageTabs,
   scoreUnit,
-  leaderboardTab,
 } from "./rules";
 import type { CandidateRow, Contribution, WeekBoards } from "./score";
 import { emptySnapshot } from "./snapshot";
@@ -75,30 +75,58 @@ export type LeaderboardViewer = {
   hiddenIds: readonly string[];
 };
 
+/** A podium place (rank 1 to 3) nobody holds yet. */
+export type OpenSpot = {
+  rank: number;
+  title: string;
+  ctaLabel: string | null;
+  ctaHref: string | null;
+};
+
+export type BoardRow = RankedEntry & {
+  /** This row belongs to the signed-in viewer. Matched by user id. */
+  mine: boolean;
+};
+
+export type LeaderboardBoard = {
+  id: string;
+  label: string;
+  scoreLabel: string;
+  /** Bold lead-in before `lead`. Only "You're on the board", and only this week. */
+  leadTitle: string | null;
+  lead: string;
+  /** Fewer than LEADERBOARD_MIN_ENTRIES ranked rows. */
+  thin: boolean;
+  focused: boolean;
+  entries: BoardRow[];
+  /** Fills podium places 1 to 3 that nobody holds. Never past rank 3. */
+  ghosts: OpenSpot[];
+  you: YouRow | null;
+  /** The viewer's row at the bottom of the board. Null when signed out or already in the top 10. */
+  yourSpot: YouRow | null;
+};
+
 export type LeaderboardPageModel = {
   title: string;
   description: string;
   week: "current" | "previous";
-  boardId: string;
+  /** Board a `?board=` link scrolls to. */
+  focusBoardId: string | null;
   weekLabel: string;
   standing: typeof PROVISIONAL_LABEL | typeof FINAL_LABEL;
   resetsAt: string;
   countdownLabel: string;
   showCountdown: boolean;
   weekLinks: { id: "current" | "previous"; label: string; href: string; active: boolean }[];
-  tabs: { id: string; label: string; href: string; active: boolean }[];
   status: "ready" | "error";
   errorTitle: string;
   errorDetail: string;
   standingNote: string | null;
-  thin: boolean;
-  thinTitle: string;
-  thinDetail: string;
-  entries: RankedEntry[];
-  you: YouRow | null;
-  howTo: { id: string; label: string; lines: readonly string[] }[];
-  /** Lead line per board, from the same tab rules as howTo. */
-  checklist: { id: string; label: string; line: string }[];
+  rulesLine: string;
+  /** Each board's how-to lines from rules.ts, behind the info control. */
+  rules: { id: string; label: string; lines: readonly string[] }[];
+  viewerUserId: string | null;
+  boards: LeaderboardBoard[];
 };
 
 function scoreOf(contributions: readonly Contribution[], hidden: ReadonlySet<string>): number {
@@ -125,6 +153,20 @@ function gapLine(need: number, scoreLabel: string, handle: string, reachTopTen: 
 
 function unrankedYou(boardId: string, week: "current" | "previous", scoreLabel: string): YouRow {
   const cta = boardCallToAction(boardId, week);
+  if (week === "previous") {
+    return {
+      rank: 0,
+      score: 0,
+      title: "Not ranked",
+      subtitle: "",
+      href: cta.href,
+      scoreLabel,
+      label: "Your rank",
+      gap: "Not on this board last week.",
+      ctaLabel: null,
+      ctaHref: null,
+    };
+  }
   return {
     rank: 0,
     score: 0,
@@ -207,10 +249,11 @@ export function rankBoard(
     };
   };
   const best = bestForViewer(ranked, viewerId);
-  if (ranked.length < LEADERBOARD_MIN_ENTRIES) {
-    return { entries: [], you: thinViewerYou(best, boardId, week, scoreLabel, viewerId), thin: true };
-  }
-  return { entries: ranked.slice(0, LEADERBOARD_TOP_LIMIT), you: youFor(best), thin: false };
+  return {
+    entries: ranked.slice(0, LEADERBOARD_TOP_LIMIT),
+    you: youFor(best),
+    thin: ranked.length < LEADERBOARD_MIN_ENTRIES,
+  };
 }
 
 function bestForViewer(ranked: readonly RankedEntry[], viewerId: string | null): RankedEntry | null {
@@ -223,37 +266,27 @@ function bestForViewer(ranked: readonly RankedEntry[], viewerId: string | null):
   return best;
 }
 
-function thinViewerYou(
-  best: RankedEntry | null,
-  boardId: string,
-  week: "current" | "previous",
-  scoreLabel: string,
-  viewerId: string | null,
-): YouRow | null {
-  if (!viewerId) return null;
-  if (!best || best.score <= 0) return unrankedYou(boardId, week, scoreLabel);
-  return {
-    rank: 0,
-    score: best.score,
-    title: best.title,
-    subtitle: best.subtitle,
-    href: best.href,
-    scoreLabel: best.scoreLabel,
-    label: `${YOU_LABEL}: ${best.score} ${best.scoreLabel}`,
-    gap: "",
-    ctaLabel: null,
-    ctaHref: null,
-  };
+function openSpots(filled: number, boardId: string, week: "current" | "previous"): OpenSpot[] {
+  const cta = week === "current" ? boardCallToAction(boardId, week) : null;
+  const spots: OpenSpot[] = [];
+  for (let rank = filled + 1; rank <= LEADERBOARD_MIN_ENTRIES; rank += 1) {
+    spots.push({
+      rank,
+      title: cta ? OPEN_SPOT_LABEL : OPEN_SPOT_CLOSED_LABEL,
+      ctaLabel: cta?.label ?? null,
+      ctaHref: cta?.href ?? null,
+    });
+  }
+  return spots;
 }
 
 export function presentLeaderboard(input: {
   snapshot: LeaderboardSnapshot;
   viewer: LeaderboardViewer;
   week: "current" | "previous";
-  boardId: string;
+  focusBoardId: string | null;
   now: Date;
 }): LeaderboardPageModel {
-  const tab = leaderboardTab(input.boardId) ?? LEADERBOARD_TABS[0];
   const slice = input.week === "previous" ? input.snapshot.previous : input.snapshot.current;
   const standing = weekStanding(
     {
@@ -266,26 +299,45 @@ export function presentLeaderboard(input: {
     },
     input.now,
   );
-  const board = slice.boards[tab.id];
-  const ranked = rankBoard(board?.rows ?? [], input.viewer.hiddenIds, input.viewer.userId, tab.scoreLabel, {
-    boardId: tab.id,
-    week: input.week,
+  const viewerId = input.viewer.userId;
+  const tabs = leaderboardPageTabs();
+  const boards = tabs.map((tab): LeaderboardBoard => {
+    const ranked = rankBoard(slice.boards[tab.id]?.rows ?? [], input.viewer.hiddenIds, viewerId, tab.scoreLabel, {
+      boardId: tab.id,
+      week: input.week,
+    });
+    const priorUsers = new Set(
+      input.week === "current"
+        ? (input.snapshot.previous.boards[tab.id]?.rows ?? []).map((row) => row.userId)
+        : [],
+    );
+    const entries = ranked.entries.map((entry) => ({
+      ...entry,
+      isNew: input.week === "current" && !priorUsers.has(entry.userId),
+      mine: viewerId != null && entry.userId === viewerId,
+    }));
+    const onBoard = entries.some((entry) => entry.mine);
+    const onThinBoard = input.week === "current" && ranked.thin && onBoard;
+    return {
+      id: tab.id,
+      label: tab.label,
+      scoreLabel: tab.scoreLabel,
+      leadTitle: onThinBoard ? ON_BOARD_THIN_TITLE : null,
+      lead: onThinBoard ? ON_BOARD_THIN_DETAIL : boardLead(tab.id, input.week),
+      thin: ranked.thin,
+      focused: tab.id === input.focusBoardId,
+      entries,
+      ghosts: openSpots(entries.length, tab.id, input.week),
+      you: ranked.you,
+      yourSpot: onBoard ? null : ranked.you,
+    };
   });
-  const priorUsers = new Set(
-    input.week === "current"
-      ? (input.snapshot.previous.boards[tab.id]?.rows ?? []).map((row) => row.userId)
-      : [],
-  );
-  const entries = ranked.entries.map((entry) => ({
-    ...entry,
-    isNew: input.week === "current" && !priorUsers.has(entry.userId),
-  }));
   const countdown = countdownTo(new Date(input.snapshot.current.end), input.now);
   return {
     title: LEADERBOARD_TITLE,
     description: input.week === "previous" ? LAST_WEEK_DESCRIPTION : LEADERBOARD_DESCRIPTION,
     week: input.week,
-    boardId: tab.id,
+    focusBoardId: boards.some((board) => board.focused) ? input.focusBoardId : null,
     weekLabel: slice.label,
     standing,
     resetsAt: input.snapshot.current.end,
@@ -295,62 +347,38 @@ export function presentLeaderboard(input: {
       {
         id: "current",
         label: THIS_WEEK_LABEL,
-        href: leaderboardHref("current", tab.id),
+        href: leaderboardHref("current", ""),
         active: input.week === "current",
       },
       {
         id: "previous",
         label: LAST_WEEK_LABEL,
-        href: leaderboardHref("previous", tab.id),
+        href: leaderboardHref("previous", ""),
         active: input.week === "previous",
       },
     ],
-    tabs: LEADERBOARD_TABS.map((item) => ({
-      id: item.id,
-      label: item.label,
-      href: leaderboardHref(input.week, item.id),
-      active: item.id === tab.id,
-    })),
     status: "ready",
     errorTitle: "",
     errorDetail: "",
     standingNote: standing === FINAL_LABEL ? CLOSED_NOTE : null,
-    thin: ranked.thin,
-    thinTitle: ranked.thin && (ranked.you?.score ?? 0) > 0 ? ON_BOARD_THIN_TITLE : EMPTY_BOARD_TITLE,
-    thinDetail:
-      ranked.thin && (ranked.you?.score ?? 0) > 0
-        ? ON_BOARD_THIN_DETAIL
-        : tab.id === "rising-collectors" && input.week === "previous"
-          ? RISING_LEAD_LAST_WEEK
-          : tab.id === "most-cards-added" && input.week === "previous"
-            ? MOST_CARDS_LEAD_LAST_WEEK
-            : (tab.howTo[0] ?? EMPTY_BOARD_TITLE),
-    entries,
-    you: ranked.you,
-    howTo: LEADERBOARD_TABS.map((item) => ({
-      id: item.id,
-      label: item.label,
-      lines: item.howTo,
-    })),
-    checklist: LEADERBOARD_TABS.map((item) => ({
-      id: item.id,
-      label: item.label,
-      line: item.howTo[0] ?? "",
-    })),
+    rulesLine: RULES_LINE,
+    rules: tabs.map((tab) => ({ id: tab.id, label: tab.label, lines: tab.howTo })),
+    viewerUserId: viewerId,
+    boards,
   };
 }
 
 /** Shown when the shared read or the viewer block list fails. Never an unfiltered board. */
 export function unavailableLeaderboard(input: {
   week: "current" | "previous";
-  boardId: string;
+  focusBoardId: string | null;
   now: Date;
 }): LeaderboardPageModel {
   const model = presentLeaderboard({
     snapshot: emptySnapshot(input.now),
     viewer: { userId: null, hiddenIds: [] },
     week: input.week,
-    boardId: input.boardId,
+    focusBoardId: null,
     now: input.now,
   });
   return {
@@ -359,8 +387,6 @@ export function unavailableLeaderboard(input: {
     errorTitle: BOARD_ERROR_TITLE,
     errorDetail: BOARD_ERROR_DETAIL,
     standingNote: null,
-    thin: false,
-    entries: [],
-    you: null,
+    boards: [],
   };
 }

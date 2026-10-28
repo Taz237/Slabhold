@@ -11,7 +11,7 @@ import {
   type LeaderboardSnapshot,
   type LeaderboardViewer,
 } from "./present";
-import { LEADERBOARD_CACHE_SECONDS, parseLeaderboardQuery } from "./rules";
+import { LEADERBOARD_CACHE_SECONDS, leaderboardFocus, parseLeaderboardQuery } from "./rules";
 import { getPostLikeActors, type BlockPair, type BoardCard, type BoardFollow, type BoardLike, type BoardPost, type BoardProfile, type BoardReply, type ScoreInput } from "./score";
 import { snapshotFromInput } from "./snapshot";
 import { hiddenIdsForViewer, type ViewerBlock, type ViewerMute } from "./viewer";
@@ -355,7 +355,8 @@ export async function getLeaderboardPage(input: {
 }): Promise<LeaderboardPageModel> {
   const now = input.now ?? new Date();
   const parsed = parseLeaderboardQuery(input.week, input.board);
-  const failed = () => unavailableLeaderboard({ week: parsed.week, boardId: parsed.boardId, now });
+  const focusBoardId = leaderboardFocus(input.board);
+  const failed = () => unavailableLeaderboard({ week: parsed.week, focusBoardId, now });
   let snapshot: LeaderboardSnapshot;
   try {
     snapshot = await getLeaderboardSnapshot(now);
@@ -365,5 +366,5 @@ export async function getLeaderboardPage(input: {
   const viewer = await readViewer();
   if (!viewer.ok) return failed();
   const ready: LeaderboardViewer = { userId: viewer.userId, hiddenIds: viewer.hiddenIds };
-  return presentLeaderboard({ snapshot, viewer: ready, week: parsed.week, boardId: parsed.boardId, now });
+  return presentLeaderboard({ snapshot, viewer: ready, week: parsed.week, focusBoardId, now });
 }

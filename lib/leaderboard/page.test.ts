@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, it } from "node:test";
@@ -17,7 +17,6 @@ import {
   BOARD_ERROR_TITLE,
   CLOSED_NOTE,
   FINAL_LABEL,
-  EMPTY_BOARD_TITLE,
   ON_BOARD_THIN_DETAIL,
   ON_BOARD_THIN_TITLE,
   REMOVED_FOLLOW_RULE,
@@ -79,50 +78,33 @@ describe("leaderboard page", () => {
       snapshot: snapshot(),
       viewer: { userId: "me", hiddenIds: ["b"] },
       week: "current",
-      boardId: "top-card-post",
+      focusBoardId: null,
       now: new Date("2026-10-23T18:00:00.000Z"),
     });
-    assert.equal(model.tabs.some((tab) => tab.id === "value"), false);
-    assert.equal(model.entries.some((entry) => entry.userId === "b"), false);
-    assert.equal(model.you?.label, "You: #3");
-    assert.equal(model.you?.gap, "2 more replies to pass @c");
-    assert.equal(model.entries[0]?.isNew, true);
-    assert.equal(model.tabs.some((tab) => tab.id === "most-cards-added"), true);
+    const posts = model.boards.find((board) => board.id === "top-card-post");
+    assert.equal(model.boards.some((board) => board.id === "value"), false);
+    assert.equal(posts?.entries.some((entry) => entry.userId === "b"), false);
+    assert.equal(posts?.you?.label, "You: #3");
+    assert.equal(posts?.you?.gap, "2 more replies to pass @c");
+    assert.equal(posts?.entries[0]?.isNew, true);
+    assert.equal(model.boards.some((board) => board.id === "most-cards-added"), true);
     assert.equal(model.standing, "Provisional");
     assert.match(model.countdownLabel, /^Resets in /);
     assert.equal(model.showCountdown, true);
+    assert.equal(model.rules[0]?.lines[0], LEADERBOARD_TABS.find((tab) => tab.id === model.rules[0]?.id)?.howTo[0]);
     const html = renderToStaticMarkup(createElement(LeaderboardView, { model }));
-    assert.match(html, /How to get on the leaderboard/);
     assert.match(html, /Test accounts are left out\./);
     assert.doesNotMatch(html, /Mail Day posts do not count/);
     assert.doesNotMatch(html, /qa_/);
     assert.match(html, /Post a card\. Replies from real collectors count\./);
-    assert.match(html, /Your checklist/);
     assert.match(html, new RegExp(REMOVED_FOLLOW_RULE.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
     assert.doesNotMatch(html, /removal is still on record|likes and replies|Undone likes/i);
-    assert.equal(model.checklist[0]?.line, TOP_CARD_LEAD);
-    assert.equal(model.howTo[0]?.lines[0], model.checklist[0]?.line);
-    assert.match(html, /You: #3/);
     assert.match(html, /data-board="top-card-post"/);
     assert.match(html, /data-board="rising-collectors"/);
     assert.match(html, /data-board="most-cards-added"/);
-    assert.match(html, /data-podium/);
-    assert.match(html, /data-you-row=""/);
-    assert.match(html, /data-you-spacer=""/);
-    assert.match(
-      html,
-      /fixed inset-x-0 bottom-\[calc\(5\.25rem\+env\(safe-area-inset-bottom\)\)\] z-10 mx-auto w-full max-w-lg/,
-    );
-    assert.doesNotMatch(html, /pb-\[10\.5rem\]|sticky bottom-/);
-    assert.match(html, /data-you-row=""[\s\S]{0,40}bg-zinc-950 |bg-zinc-950 px-3 py-2" data-you-row=""/);
-    assert.doesNotMatch(html, /bg-zinc-950\/95/);
-    assert.match(html, /-mb-\[calc\(7rem\+env\(safe-area-inset-bottom\)\)\]/);
-    assert.match(html, /md:-mb-\[calc\(10rem\+env\(safe-area-inset-bottom\)\)\]/);
-    assert.doesNotMatch(html, /8\.25rem|11\.25rem/);
-    assert.match(
-      html,
-      /whitespace-nowrap font-medium text-zinc-100">[^<]*<\/span> <span class="whitespace-nowrap">·\u00A0<span data-standing="">Provisional<\/span><\/span> <span class="whitespace-nowrap">·\u00A0/,
-    );
+    assert.match(html, /data-viewer-row=""/);
+    assert.doesNotMatch(html, /data-you-row|data-you-spacer|sticky bottom-/);
+    assert.match(html, /data-standing=""[^>]*>Provisional</);
     assert.match(html, /whitespace-nowrap tabular-nums/);
     assert.doesNotMatch(html, /data-board="value"/);
     assert.doesNotMatch(html, BANNED);
@@ -132,34 +114,33 @@ describe("leaderboard page", () => {
       snapshot: emptySnapshot(new Date("2026-10-23T18:00:00.000Z")),
       viewer: { userId: null, hiddenIds: [] },
       week: "previous",
-      boardId: "rising-collectors",
+      focusBoardId: "rising-collectors",
       now: new Date("2026-10-27T04:00:00.000Z"),
     });
-    assert.equal(thin.thin, true);
+    const rising = thin.boards.find((board) => board.id === "rising-collectors");
+    assert.equal(rising?.thin, true);
     assert.equal(thin.standing, FINAL_LABEL);
     assert.equal(FINAL_LABEL, "Closed");
     assert.equal(thin.standingNote, CLOSED_NOTE);
-    assert.equal(thin.entries.length, 0);
-    assert.equal(thin.you, null);
+    assert.equal(rising?.entries.length, 0);
+    assert.equal(rising?.you, null);
     assert.equal(thin.description.startsWith("Last week's"), true);
     assert.equal(thin.description.includes("This week's"), false);
     assert.equal(thin.showCountdown, false);
-    assert.equal(thin.thinDetail, "Get follows from real collectors last week.");
-    assert.doesNotMatch(thin.thinDetail, /this week/);
+    assert.equal(rising?.lead, "Get follows from real collectors last week.");
+    assert.doesNotMatch(rising?.lead ?? "", /this week/);
     const thinHtml = renderToStaticMarkup(createElement(LeaderboardView, { model: thin }));
     assert.doesNotMatch(thinHtml, /Resets in/);
     assert.match(thinHtml, /Get follows from real collectors last week/);
-    assert.match(thinHtml, /Last week(?:'|&#x27;)s card posts/);
+    assert.match(thinHtml, /Last week(?:'|&#x27;)s cards added/);
     assert.doesNotMatch(thinHtml, /This week(?:'|&#x27;)s/);
-    assert.match(thinHtml, new RegExp(EMPTY_BOARD_TITLE));
-    assert.match(thinHtml, /data-empty-cta/);
-    assert.match(thinHtml, /Find collectors to follow/);
-    assert.match(thinHtml, /href="\/search"/);
-    assert.doesNotMatch(thinHtml, /data-empty-cta=""[^>]*href="\/compose"|href="\/compose"[^>]*data-empty-cta=""/);
-    assert.doesNotMatch(thinHtml, /#1/);
+    assert.match(thinHtml, /data-standing=""[^>]*>Closed</);
+    assert.match(thinHtml, /No one took this spot/);
+    assert.doesNotMatch(thinHtml, /href="\/search"|href="\/compose"|href="\/cards\/new"/);
+    assert.doesNotMatch(thinHtml, />#\d|You: #/);
   });
 
-  it("tells a scored viewer the board is waiting for 3 names", () => {
+  it("tells a scored viewer this week that they are on a thin board", () => {
     const snap = emptySnapshot(new Date("2026-10-23T18:00:00.000Z"));
     const row = (id: string, userId: string, points: number) => ({
       id,
@@ -177,40 +158,45 @@ describe("leaderboard page", () => {
       snapshot: snap,
       viewer: { userId: "me", hiddenIds: [] },
       week: "current",
-      boardId: "top-card-post",
+      focusBoardId: null,
       now,
     });
-    assert.equal(scored.thin, true);
-    assert.equal(scored.entries.length, 0);
-    assert.equal(scored.you?.label, "You: 2 replies");
-    assert.equal(scored.thinTitle, ON_BOARD_THIN_TITLE);
-    assert.equal(scored.thinDetail, ON_BOARD_THIN_DETAIL);
+    const posts = scored.boards.find((board) => board.id === "top-card-post");
+    assert.equal(posts?.thin, true);
+    assert.equal(posts?.entries.length, 2);
+    assert.equal(posts?.you?.label, "You: #1");
+    assert.equal(posts?.yourSpot, null);
+    assert.equal(posts?.leadTitle, ON_BOARD_THIN_TITLE);
+    assert.equal(posts?.lead, ON_BOARD_THIN_DETAIL);
+    assert.equal(posts?.ghosts.length, 1);
     const html = renderToStaticMarkup(createElement(LeaderboardView, { model: scored }));
-    assert.doesNotMatch(html, new RegExp(EMPTY_BOARD_TITLE));
     assert.match(html, /You&#x27;re on the board/);
-    assert.match(html, /Names appear once 3 collectors qualify/);
-    assert.match(html, /You: 2 replies/);
+    assert.match(html, /data-ghost-rank="3"/);
 
     const guest = presentLeaderboard({
       snapshot: snap,
       viewer: { userId: null, hiddenIds: [] },
       week: "current",
-      boardId: "top-card-post",
+      focusBoardId: null,
       now,
     });
-    assert.equal(guest.you, null);
-    assert.equal(guest.thinTitle, EMPTY_BOARD_TITLE);
+    const guestPosts = guest.boards.find((board) => board.id === "top-card-post");
+    assert.equal(guestPosts?.you, null);
+    assert.equal(guestPosts?.leadTitle, null);
+    assert.equal(guestPosts?.lead, TOP_CARD_LEAD);
 
     const none = presentLeaderboard({
       snapshot: emptySnapshot(now),
       viewer: { userId: "me", hiddenIds: [] },
       week: "current",
-      boardId: "top-card-post",
+      focusBoardId: null,
       now,
     });
-    assert.equal(none.thin, true);
-    assert.equal(none.you?.score, 0);
-    assert.equal(none.thinTitle, EMPTY_BOARD_TITLE);
+    const nonePosts = none.boards.find((board) => board.id === "top-card-post");
+    assert.equal(nonePosts?.thin, true);
+    assert.equal(nonePosts?.you?.score, 0);
+    assert.equal(nonePosts?.yourSpot?.ctaHref, "/compose");
+    assert.equal(nonePosts?.leadTitle, null);
   });
 
   it("caps the list at 10 and still ranks the viewer past that", () => {
@@ -258,17 +244,19 @@ describe("leaderboard page", () => {
       snapshot: snap,
       viewer: { userId: "u5", hiddenIds: ["u1"] },
       week: "current",
-      boardId: "top-card-post",
+      focusBoardId: null,
       now,
     });
-    assert.equal(model.thin, false);
-    assert.equal(model.entries.length, 10);
-    assert.equal(model.entries.some((entry) => entry.userId === "u1" || entry.userId === "zero" || entry.userId === "u11"), false);
-    assert.equal(model.entries[3]?.rank, 4);
-    assert.equal(model.entries.at(-1)?.rank, 10);
-    assert.equal(model.you?.rank, 5);
+    const posts = model.boards.find((board) => board.id === "top-card-post");
+    assert.equal(posts?.thin, false);
+    assert.equal(posts?.entries.length, 10);
+    assert.equal(posts?.entries.some((entry) => entry.userId === "u1" || entry.userId === "zero" || entry.userId === "u11"), false);
+    assert.equal(posts?.entries[3]?.rank, 4);
+    assert.equal(posts?.entries.at(-1)?.rank, 10);
+    assert.equal(posts?.you?.rank, 5);
+    assert.equal(posts?.ghosts.length, 0);
     const html = renderToStaticMarkup(createElement(LeaderboardView, { model }));
-    assert.match(html, /data-podium=""/);
+    assert.match(html, /lb-banner lb-banner-1/);
     assert.match(html, /data-rank-rows=""/);
     assert.match(html, /data-rank="4"/);
     assert.match(html, /data-rank="10"/);
@@ -280,13 +268,13 @@ describe("leaderboard page", () => {
     assert.doesNotMatch(html, /href="\/u\/zero"/);
     assert.match(html, /data-viewer-row=""/);
     assert.match(html, />NEW</);
-    assert.match(html, /min-h-16/);
+    assert.match(html, /min-h-14/);
     snap.previous.boards["top-card-post"] = { rows };
     const last = presentLeaderboard({
       snapshot: snap,
       viewer: { userId: "u5", hiddenIds: ["u1"] },
       week: "previous",
-      boardId: "top-card-post",
+      focusBoardId: null,
       now,
     });
     const lastHtml = renderToStaticMarkup(createElement(LeaderboardView, { model: last }));
@@ -306,7 +294,7 @@ describe("leaderboard page", () => {
       snapshot: snap,
       viewer: { userId: null, hiddenIds: [] },
       week: "current",
-      boardId: "rising-collectors",
+      focusBoardId: "rising-collectors",
       now,
     });
     const risingHtml = renderToStaticMarkup(createElement(LeaderboardView, { model: rising }));
@@ -379,18 +367,16 @@ describe("leaderboard page", () => {
 
     const error = unavailableLeaderboard({
       week: "current",
-      boardId: "top-card-post",
+      focusBoardId: "top-card-post",
       now: new Date("2026-10-23T18:00:00.000Z"),
     });
     assert.equal(error.status, "error");
-    assert.equal(error.thin, false);
-    assert.deepEqual(error.entries, []);
+    assert.deepEqual(error.boards, []);
     assert.equal(error.errorTitle, BOARD_ERROR_TITLE);
     const html = renderToStaticMarkup(createElement(LeaderboardView, { model: error }));
     assert.match(html, /data-board-error/);
-    assert.doesNotMatch(html, new RegExp(EMPTY_BOARD_TITLE));
-    assert.match(html, /How to get on the leaderboard/);
-    assert.match(html, /Your checklist/);
+    assert.doesNotMatch(html, /Open spot/);
+    assert.match(html, /data-rules=""/);
   });
 
   it("keeps the shared cache free of the viewer and off the home and login bundles", async () => {
@@ -423,24 +409,13 @@ describe("leaderboard page", () => {
     assert.match(viewer, /return \{ ok: false \}/);
     assert.doesNotMatch(viewer.slice(viewer.indexOf("catch")), /hiddenIds/);
     assert.match(read("components/leaderboard-view.tsx"), /min-h-11/);
+    assert.equal(existsSync(join(process.cwd(), "components/leaderboard-chips.tsx")), false);
+    assert.match(read("components/leaderboard-focus.tsx"), /prefers-reduced-motion: reduce/);
     assert.match(read("components/leaderboard-countdown.tsx"), /left\.done/);
     assert.match(read("components/leaderboard-countdown.tsx"), /pastAtMount/);
     assert.match(read("components/leaderboard-countdown.tsx"), /sessionStorage/);
     assert.match(read("components/leaderboard-countdown.tsx"), /location\.reload\(\)/);
     assert.match(read("components/leaderboard-countdown.tsx"), /whitespace-nowrap tabular-nums/);
-    assert.match(read("components/leaderboard-chips.tsx"), /scrollLeft/);
-    assert.doesNotMatch(read("components/leaderboard-chips.tsx"), /scrollIntoView/);
-    assert.match(read("components/leaderboard-chips.tsx"), /useLinkStatus/);
-    assert.match(read("components/leaderboard-chips.tsx"), /aria-current=\{highlighted \? "page" : undefined\}/);
-    assert.match(read("components/leaderboard-chips.tsx"), /pendingId \? tab\.id === pendingId : tab\.active/);
-    assert.match(read("components/leaderboard-chips.tsx"), /lb-chip-spin/);
-    assert.match(read("components/leaderboard-chips.tsx"), /data-board-pending/);
-    assert.match(read("components/leaderboard-chips.tsx"), /token !== boardPendingToken/);
-    assert.match(read("components/leaderboard-view.tsx"), /data-board-body/);
-    assert.match(read("components/leaderboard-view.tsx"), /opacity: 0\.6/);
-    assert.match(read("components/leaderboard-chips.tsx"), /<Link/);
-    assert.doesNotMatch(read("components/leaderboard-chips.tsx"), /preventDefault/);
-    assert.match(read("components/leaderboard-chips.tsx"), /touch-manipulation/);
     assert.match(read("lib/leaderboard/rules.ts"), /Find collectors to follow/);
     assert.match(read("lib/leaderboard/rules.ts"), /href: "\/search"/);
     assert.equal(scoreUnit("replies", 1), "reply");
