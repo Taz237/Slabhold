@@ -118,12 +118,13 @@ describe("useCardValues failure", { concurrency: 1 }, () => {
     assert.match(detail, /soldNotice/);
     assert.match(publicCard, /\{errorMessage\}/);
     assert.match(publicCard, /soldNotice/);
-    const dashboard = readFileSync(join(process.cwd(), "components/dashboard.tsx"), "utf8");
-    const invested = dashboard.slice(
-      dashboard.indexOf('label="Total invested"'),
-      dashboard.indexOf('label="Estimated value"'),
+    const hero = readFileSync(join(process.cwd(), "components/portfolio-hero.tsx"), "utf8");
+    const invested = hero.slice(
+      hero.indexOf('label="Total invested"'),
+      hero.indexOf('label="Estimated value"'),
     );
-    assert.equal(invested.includes("loading={valuesLoading}"), false);
+    assert.ok(invested.length > 0);
+    assert.equal(invested.includes("loading="), false);
   });
 
   it("honors Retry-After and does not send another price check until it passes", async () => {

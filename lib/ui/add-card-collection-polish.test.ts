@@ -191,9 +191,10 @@ describe("collection screens", () => {
     assert.match(dash, /<CollectionLaneEmpty lane=\{lane\} onShowAll=/);
   });
 
-  it("marks each collection card public or private", () => {
-    const dash = read("components/dashboard.tsx");
-    assert.match(dash, /card\.isPublic \? "Public" : "Private"/);
+  it("keeps Public and Private on the card page, off the collection tile", () => {
+    const grid = read("components/collection-grid.tsx");
+    assert.doesNotMatch(grid, /isPublic/);
+    assert.match(read("components/card-detail.tsx"), /isPublic/);
   });
 
   it("shows the profile collection note only to the owner with no public cards", () => {

@@ -27,11 +27,6 @@ import { snapshotDateInNewYork } from "@/lib/collection/totals-shared";
 import type { ValuePoint } from "@/lib/value-history";
 import { createSupabaseBrowser } from "@/lib/supabase/browser";
 
-type SnapshotRow = {
-  snapshot_date: string;
-  value: number;
-};
-
 function formatLabel(isoDate: string) {
   const [y, m, d] = isoDate.split("-").map(Number);
   if (!y || !m || !d) return isoDate;
@@ -53,29 +48,20 @@ function readIndex(state: {
   return null;
 }
 
-export function CollectionValueHistory({
-  currentValue,
-  valueLoading = false,
-  valueError = false,
-  onRetry,
-}: {
-  /** Live estimated value from Collection summary — fills today if cron hasn't written yet. */
-  currentValue: number;
-  /** True while card values are still loading. Keeps $0 off the headline. */
-  valueLoading?: boolean;
-  /** True when the live read failed. Headline stays on the saved snapshot. */
-  valueError?: boolean;
-  /** Retry the live value read. Shown with an em dash when today has no snapshot. */
-  onRetry?: () => void;
-}) {
-  const [range, setRange] = useState<HistoryRangeId>("7d");
+export type SnapshotRow = {
+  snapshot_date: string;
+  value: number;
+};
+
+export type CollectionSnapshots = { rows: SnapshotRow[]; loading: boolean };
+
+/** Saved daily values. Pass enabled=false when a parent already loaded them. */
+export function useCollectionSnapshots(enabled = true): CollectionSnapshots {
   const [rows, setRows] = useState<SnapshotRow[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [activeIndex, setActiveIndex] = useState<number | null>(null);
-  const pinned = useRef(false);
-  const touchedAt = useRef(0);
+  const [loading, setLoading] = useState(enabled);
 
   useEffect(() => {
+    if (!enabled) return;
     let cancelled = false;
     const supabase = createSupabaseBrowser();
     if (!supabase) {
@@ -105,7 +91,35 @@ export function CollectionValueHistory({
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [enabled]);
+
+  return { rows, loading };
+}
+
+export function CollectionValueHistory({
+  currentValue,
+  valueLoading = false,
+  valueError = false,
+  onRetry,
+  snapshots,
+}: {
+  /** Live estimated value from Collection summary — fills today if cron hasn't written yet. */
+  currentValue: number;
+  /** True while card values are still loading. Keeps $0 off the headline. */
+  valueLoading?: boolean;
+  /** True when the live read failed. Headline stays on the saved snapshot. */
+  valueError?: boolean;
+  /** Retry the live value read. Shown with an em dash when today has no snapshot. */
+  onRetry?: () => void;
+  /** Already-loaded snapshots, so the Collection hero and chart share one read. */
+  snapshots?: CollectionSnapshots;
+}) {
+  const [range, setRange] = useState<HistoryRangeId>("7d");
+  const own = useCollectionSnapshots(snapshots === undefined);
+  const { rows, loading } = snapshots ?? own;
+  const [activeIndex, setActiveIndex] = useState<number | null>(null);
+  const pinned = useRef(false);
+  const touchedAt = useRef(0);
 
   const today = snapshotDateInNewYork();
   const liveReady = !valueLoading && !valueError;
