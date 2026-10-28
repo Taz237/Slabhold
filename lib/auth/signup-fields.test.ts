@@ -155,7 +155,7 @@ describe("signup form wiring", () => {
     assert.match(auth, /autoComplete="email"/);
     assert.match(auth, /autoComplete=\{mode === "login" \? "current-password" : "new-password"\}/);
     assert.match(auth, /hint=\{USERNAME_HINT\}/);
-    assert.match(auth, /hint=\{mode === "signup" \? PASSWORD_HINT : undefined\}/);
+    assert.match(auth, /hint=\{mode === "signup" \? passwordStrength\(password\)\.label : undefined\}/);
     assert.match(auth, /onBlur=\{\(\) => touch\("username"\)\}/);
     assert.match(auth, /onBlur=\{mode === "signup" \? \(\) => touch\("email"\) : undefined\}/);
     assert.match(auth, /onBlur=\{mode === "signup" \? \(\) => touch\("password"\) : undefined\}/);
@@ -175,7 +175,8 @@ describe("signup form wiring", () => {
     assert.match(auth, /showTurnstileContinue\(turnstileSiteKey\(\), resendToken\)/);
     assert.match(auth, /disabled=\{submitBlocked\(resendBusy \|\| resendSeconds > 0, resendToken\)\}/);
     assert.match(auth, /releaseCaptcha\(resendCaptchaRef\.current, \(\) => setResendToken\(null\)\)/);
-    assert.match(auth, /signupInboxCopy\(confirmEmail\)/);
+    assert.match(auth, /We sent a confirmation link to/);
+    assert.match(auth, /\{confirmEmail\}/);
     assert.match(auth, /Resend email/);
     assert.match(auth, /resendCooldownSeconds\(resendAt, now\)/);
     assert.match(auth, /signupResendFeedback\(sendError\)/);

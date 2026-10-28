@@ -1,6 +1,6 @@
 # Landing screenshots
 
-The signed-out home page loads these files with `next/image`:
+The home-feed share image (`components/og-frame.tsx`) uses `2.png` as its backdrop. The signed-out home page no longer shows these.
 
 - `1.png`
 - `2.png`

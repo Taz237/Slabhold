@@ -12,6 +12,7 @@ import { AddToHomeTip } from "@/components/add-to-home-tip";
 import { AttachCardField } from "@/components/attach-card-field";
 import { HomeFirstCardPrompt } from "@/components/home-first-card-prompt";
 import { GetStartedCard, useGetStartedDismissed, useRememberNewUser } from "@/components/get-started";
+import { useOnboardingBusy } from "@/components/onboarding/use-onboarding";
 import { useSocial } from "@/components/social-provider";
 import { LoadMore } from "@/components/load-more";
 import { PullToRefresh } from "@/components/pull-to-refresh";
@@ -107,6 +108,8 @@ export function FeedView({ movingToday }: { movingToday?: ReactNode } = {}) {
   } = useSocial();
   const { cards, ready: cardsReady, syncError } = useCollection();
   const { dismissed, dismiss } = useGetStartedDismissed(user?.id ?? null);
+  // First-run setup, "You're in" and the tour come first. Older prompts wait.
+  const onboardingBusy = useOnboardingBusy();
   const following = user ? followingCount(user.id) : 0;
   const countsReady = Boolean(user) && ready && cardsReady && !syncError;
   const wasNewOnLoad = newUserOnFullSnapshot({
@@ -129,6 +132,7 @@ export function FeedView({ movingToday }: { movingToday?: ReactNode } = {}) {
   });
   const showAddToHome =
     Boolean(user) &&
+    !onboardingBusy &&
     !checklistBlocksAddToHomeTip({
       visible: started.visible,
       complete: started.complete,
@@ -138,6 +142,7 @@ export function FeedView({ movingToday }: { movingToday?: ReactNode } = {}) {
     });
   const showWelcome =
     Boolean(user) &&
+    !onboardingBusy &&
     !started.visible &&
     shouldShowFirstCardWelcome({
       cardCount: cards.length,
@@ -277,7 +282,7 @@ export function FeedView({ movingToday }: { movingToday?: ReactNode } = {}) {
       }}
       className="-mx-4 -mt-5"
     >
-      {user && started.visible ? (
+      {user && started.visible && !onboardingBusy ? (
         <GetStartedCard
           state={started}
           followingCount={following}

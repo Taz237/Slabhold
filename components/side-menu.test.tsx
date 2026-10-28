@@ -17,6 +17,8 @@ import {
   menuItemActive,
   menuQueryOpens,
   swipeCloses,
+  TAKE_TOUR_LABEL,
+  TOUR_AFTER_CLOSE_MS,
 } from "@/lib/ui/side-menu";
 import type { Profile } from "@/lib/social/types";
 
@@ -281,6 +283,33 @@ describe("side menu", () => {
       });
       assert.equal(isOpen(), false);
     } finally {
+      view.unmount();
+    }
+  });
+
+  it("replays the quick tour from Take the tour, after the menu closes", async () => {
+    const store = await import("@/lib/onboarding/store");
+    store.resetOnboarding();
+    store.markTourSeen(maya.id);
+    const view = await mount({ user: maya, showLogin: false });
+    try {
+      assert.equal(menuButton().getAttribute("data-tour"), "menu", "the tour's first stop");
+      await openMenu();
+      const replay = [...dialog().querySelectorAll<HTMLButtonElement>("button")].find(
+        (button) => button.textContent?.trim() === TAKE_TOUR_LABEL,
+      );
+      assert.ok(replay, "Take the tour is in the menu");
+      await act(async () => {
+        replay.click();
+      });
+      assert.equal(isOpen(), false);
+      assert.equal(store.onboardingState().tourIndex, null, "waits for the slide-out");
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, TOUR_AFTER_CLOSE_MS + 20));
+      });
+      assert.equal(store.onboardingState().tourIndex, 0, "starts even after it was seen");
+    } finally {
+      store.resetOnboarding();
       view.unmount();
     }
   });

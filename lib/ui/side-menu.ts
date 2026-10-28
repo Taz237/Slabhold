@@ -28,6 +28,12 @@ export const SIDE_MENU_SETTINGS = [
   { href: "/terms", label: "Terms" },
 ] as const;
 
+/** Replays the quick tour. A button after the settings links. */
+export const TAKE_TOUR_LABEL = "Take the tour";
+
+/** The menu slides out (200ms) before the tour starts. */
+export const TOUR_AFTER_CLOSE_MS = 240;
+
 /** Admin-only. Hidden until the admin check allows them. */
 export const SIDE_MENU_ADMIN = [
   { href: "/admin/reports", label: "Reports" },
