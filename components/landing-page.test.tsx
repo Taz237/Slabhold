@@ -5,6 +5,9 @@ import { join } from "node:path";
 import { afterEach, describe, it } from "node:test";
 import { act, createElement, type ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+import { ImageConfigContext } from "next/dist/shared/lib/image-config-context.shared-runtime";
+import { imageConfigDefault } from "next/dist/shared/lib/image-config";
+import nextConfig from "@/next.config";
 import { installDom } from "@/lib/test/dom";
 
 const { win, state } = installDom();
@@ -119,10 +122,118 @@ describe("landing page", () => {
     assert.equal(calls.at(-1)?.behavior, "auto");
   });
 
+  it("uses brand purple, not teal, for the sample gain and an available username", () => {
+    const panels = read("components/landing/feature-panels.tsx");
+    const auth = read("components/auth-form.tsx");
+    for (const source of [panels, auth]) assert.doesNotMatch(source, /#34C1AE|#1f9e8c/i);
+    assert.match(panels, /text-\[#A78BFA\] tabular-nums">\+\$38 · 10\.2%/);
+    assert.match(auth, /text-\[#7C3AED\] dark:text-\[#A78BFA\]">\s*@\{check\.value\} is available/);
+  });
+
   it("floats the hero slabs in CSS and stops them for reduced motion", () => {
     const css = read("app/globals.css");
     assert.match(css, /@keyframes landing-float/);
     assert.match(css, /@media \(prefers-reduced-motion: reduce\) \{\s*\.landing-float \{\s*animation: none;/);
+  });
+});
+
+const PHOTOS = "https://knuwflptobyutrauxblj.supabase.co/storage/v1/object/public/card-photos";
+
+function founderCard(id: string, playerName: string) {
+  return {
+    id,
+    photoUrl: `${PHOTOS}/owner/${id}.jpg`,
+    playerName,
+    year: 2023,
+    yearLabel: "2023",
+    setBrand: "Prizm",
+    grade: "PSA 10",
+    gradeQualifier: "",
+    certNumber: "",
+    accent: "#7c5cff",
+    conditionType: "graded" as const,
+    grader: "PSA",
+  };
+}
+
+const FOUNDER = {
+  profile: { username: "donnietaz", displayName: "Donnie", avatarUrl: "https://cdn.example/avatar.png" },
+  cards: [founderCard("a", "Top Card"), founderCard("b", "Second Card"), founderCard("c", "Third Card")],
+};
+
+describe("landing founder touch", () => {
+  it("holds the hero slabs hidden while the founder's cards load", async () => {
+    const html = await landingHtml();
+    assert.match(html, /data-hero-slabs="sample"/);
+    assert.match(html, /opacity-0/);
+    assert.match(html, /data-founder-note="loading"/);
+  });
+
+  it("puts the founder's 3 public card photos in the hero, best in the center", async () => {
+    const { HeroSlabs } = await import("@/components/landing/hero-slabs");
+    const html = renderToStaticMarkup(
+      createElement(
+        ImageConfigContext.Provider,
+        { value: { ...imageConfigDefault, ...nextConfig.images } },
+        createElement(HeroSlabs, { cards: FOUNDER.cards, owner: "donnietaz" }),
+      ),
+    );
+    assert.match(html, /data-hero-slabs="founder"/);
+    const images = [...html.matchAll(/<img[^>]+src="([^"]+)"/g)].map((match) => decodeURIComponent(match[1]));
+    assert.equal(images.length, 3);
+    assert.ok(images.every((src) => src.startsWith("/_next/image?url=") && src.includes("/card-photos/owner/")));
+    const order = ["Second Card", "Top Card", "Third Card"].map((name) => html.indexOf(name));
+    assert.ok(order.every((at) => at > 0) && order[0] < order[1] && order[1] < order[2], "left, center, right");
+    assert.match(text(html), /From @donnietaz(&#x27;|')s collection/);
+    assert.doesNotMatch(html, /Your grail/);
+  });
+
+  it("falls back to the sample slabs, marked as samples, with no founder cards", async () => {
+    const { HeroSlabs, heroSlots } = await import("@/components/landing/hero-slabs");
+    const html = renderToStaticMarkup(createElement(HeroSlabs, { cards: [], owner: "donnietaz" }));
+    assert.match(html, /data-hero-slabs="sample"/);
+    assert.match(text(html), /Your grail.*Rookie auto.*Short print/);
+    assert.match(text(html), /Sample slabs/);
+    assert.doesNotMatch(html, /<img/);
+    const mixed = heroSlots(FOUNDER.cards.slice(0, 1));
+    assert.deepEqual(mixed.map((slot) => Boolean(slot.photo)), [false, true, false]);
+  });
+
+  it("keeps the side slabs clear of the center slab's space", async () => {
+    const { HERO_PLACES } = await import("@/components/landing/hero-slabs");
+    const pct = (className: string, prop: string) => Number(className.match(new RegExp(`${prop}-\\[([\\d.]+)%\\]`))?.[1]);
+    const centerStart = 50 - pct(HERO_PLACES[1].className, "w") / 2;
+    assert.ok(pct(HERO_PLACES[0].className, "left") + pct(HERO_PLACES[0].className, "w") <= centerStart);
+    assert.ok(pct(HERO_PLACES[2].className, "right") + pct(HERO_PLACES[2].className, "w") <= centerStart);
+  });
+
+  it("shows the founder's avatar, name and handle with a follow link to the profile", async () => {
+    const { FounderNote } = await import("@/components/landing/founder-note");
+    const html = renderToStaticMarkup(createElement(FounderNote, { showcase: FOUNDER }));
+    assert.match(html, /aria-label="From the founder"/);
+    assert.match(html, /<img[^>]+src="https:\/\/cdn\.example\/avatar\.png"[^>]*>/);
+    assert.match(html, /<img[^>]+loading="lazy"/);
+    assert.match(html, /width="48"[^>]*height="48"/);
+    assert.match(text(html), /Donnie @donnietaz/);
+    assert.match(html, /href="\/u\/donnietaz"[^>]*>Follow on Slabhold/);
+  });
+
+  it("shows a plain note, no follow link, when the founder can't load", async () => {
+    const { FounderNote } = await import("@/components/landing/founder-note");
+    const html = renderToStaticMarkup(createElement(FounderNote, { showcase: { profile: null, cards: [] } }));
+    assert.match(text(html), /Built by collectors, for collectors\./);
+    assert.doesNotMatch(html, /<a /);
+  });
+
+  it("drops off-site photos and non-https avatars from the payload", async () => {
+    const { readFounderShowcase } = await import("@/components/landing/use-founder");
+    const read = readFounderShowcase({
+      profile: { username: "donnietaz", displayName: "", avatarUrl: "http://x/a.png" },
+      cards: [{ ...founderCard("a", "Ok") }, { ...founderCard("b", "Off"), photoUrl: "https://evil.example/b.jpg" }, null],
+    });
+    assert.deepEqual(read.profile, { username: "donnietaz", displayName: "donnietaz", avatarUrl: null });
+    assert.deepEqual(read.cards.map((card) => card.id), ["a"]);
+    assert.deepEqual(readFounderShowcase("nope"), { profile: null, cards: [] });
   });
 });
 
