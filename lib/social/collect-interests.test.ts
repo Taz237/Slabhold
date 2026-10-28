@@ -507,7 +507,7 @@ describe("collecting UI", () => {
     const editor = readFileSync(join(root, "components/collect-editor.tsx"), "utf8");
     const more = readFileSync(join(root, "components/more-view.tsx"), "utf8");
     const profile = readFileSync(join(root, "components/profile-edit-sheet.tsx"), "utf8");
-    const feed = readFileSync(join(root, "components/feed-view.tsx"), "utf8");
+    const feed = readFileSync(join(root, "components/collector-suggestions.tsx"), "utf8");
     const provider = readFileSync(join(root, "components/social-provider.tsx"), "utf8");
     assert.match(prompt, /What do you collect\?/);
     assert.match(prompt, /role="dialog"/);

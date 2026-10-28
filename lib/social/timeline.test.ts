@@ -146,7 +146,9 @@ describe("following tab", () => {
   it("uses the followed feed and the empty-state copy", () => {
     const feed = readFileSync(join(process.cwd(), "components/feed-view.tsx"), "utf8");
     assert.match(feed, /lane === "following" \? feed : everyone/);
-    assert.match(feed, /Follow collectors to fill this feed/);
-    assert.match(feed, /id="collectors-to-follow"/);
+    assert.match(feed, /<FollowingEmpty profiles=\{suggestionRail\} \/>/);
+    const empty = readFileSync(join(process.cwd(), "components/collector-suggestions.tsx"), "utf8");
+    assert.match(empty, /Your Following feed is quiet/);
+    assert.match(empty, /id="collectors-to-follow"/);
   });
 });

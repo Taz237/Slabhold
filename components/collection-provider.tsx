@@ -39,7 +39,7 @@ type CollectionContextValue = {
   reload: () => void;
 };
 
-const CollectionContext = createContext<CollectionContextValue | null>(null);
+export const CollectionContext = createContext<CollectionContextValue | null>(null);
 
 export function CollectionProvider({ children }: { children: React.ReactNode }) {
   const { ready: socialReady, mode, user } = useSocial();

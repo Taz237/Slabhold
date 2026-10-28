@@ -2,12 +2,11 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Compass, ImagePlus } from "lucide-react";
 import { Avatar } from "@/components/avatar";
 import { MentionTextarea } from "@/components/mention-textarea";
 import { solidButton } from "@/components/button-styles";
-import { FollowButton } from "@/components/follow-button";
 import { useCollection } from "@/components/collection-provider";
 import { AddToHomeTip } from "@/components/add-to-home-tip";
 import { AttachCardField } from "@/components/attach-card-field";
@@ -17,14 +16,23 @@ import { useSocial } from "@/components/social-provider";
 import { LoadMore } from "@/components/load-more";
 import { PullToRefresh } from "@/components/pull-to-refresh";
 import { usePagedTimeline } from "@/components/use-paged-timeline";
-import { EmptyState, LoadingRows, TimelineSkeleton } from "@/components/status";
+import { EmptyState, PostSkeletonList, TimelineSkeleton } from "@/components/status";
+import { CollectorSuggestions, FollowingEmpty } from "@/components/collector-suggestions";
+import {
+  FeedItem,
+  LaneTabs,
+  NewPostsPill,
+  useEntranceDelays,
+  useLaneScroll,
+  useNewPostsAbove,
+  type HomeLane,
+} from "@/components/timeline-ui";
 import { CollectionToday } from "@/components/collection-today";
 import { MovingToday } from "@/components/moving-today";
 import { shouldShowFirstCardWelcome } from "@/lib/collection/welcome";
 import { Tweet } from "@/components/tweet";
 import { WhatsNewCard } from "@/components/whats-new-card";
-import { loginPath } from "@/lib/auth/safe-next";
-import { userHref } from "@/lib/social/user-href";
+import { loginPath, signupPath } from "@/lib/auth/safe-next";
 import { takeCompose } from "@/lib/capture";
 import { createSupabaseBrowser } from "@/lib/supabase/browser";
 import { ComposePhotoDrafts } from "@/components/compose-photo-drafts";
@@ -50,7 +58,7 @@ import { followingAuthorIds, homeHead, showsNewPosts } from "@/lib/social/feed-p
 import { presentForYouFeed } from "@/lib/social/for-you-display";
 import { addUnblockedProfiles, presentPagedItems } from "@/lib/social/paged-items";
 import { publicTimeline } from "@/lib/social/timeline";
-import { POST_LIMIT, type Profile, type PublicCard } from "@/lib/social/types";
+import { POST_LIMIT, type PublicCard } from "@/lib/social/types";
 
 function readComposerPhoto(file: File) {
   return readPhotoFile(file, 960);
@@ -136,7 +144,16 @@ export function FeedView({ movingToday }: { movingToday?: ReactNode } = {}) {
       ready: cardsReady,
       syncError,
     });
-  const [lane, setLane] = useState<"following" | "foryou">("foryou");
+  const [lane, setLane] = useState<HomeLane>("foryou");
+  const laneStartRef = useRef<HTMLDivElement>(null);
+  const laneTop = useCallback(() => {
+    const start = laneStartRef.current;
+    if (!start) return 0;
+    const tabs = start.nextElementSibling;
+    const stick = tabs ? parseFloat(getComputedStyle(tabs).top) || 0 : 0;
+    return start.getBoundingClientRect().top + window.scrollY - stick;
+  }, []);
+  const switchLane = useLaneScroll(lane, setLane, laneTop);
   const [refreshKey, setRefreshKey] = useState(0);
   const [capturedHead, setCapturedHead] = useState<{ key: number; head: ReturnType<typeof homeHead> } | null>(
     null,
@@ -213,6 +230,9 @@ export function FeedView({ movingToday }: { movingToday?: ReactNode } = {}) {
     !activeLoading &&
     !activePage.error &&
     visible.length === 0;
+  const feedKeys = Array.from(feedEntries, (entry) => (entry.kind === "whats-new" ? entry.key : entry.item.key));
+  const newAbove = useNewPostsAbove({ lane, keys: feedKeys });
+  const entranceDelay = useEntranceDelays(feedKeys);
 
   useEffect(() => {
     if (!ready || !cardsReady || !user) return;
@@ -273,14 +293,16 @@ export function FeedView({ movingToday }: { movingToday?: ReactNode } = {}) {
         </p>
       ) : null}
 
-      <div className="grid grid-cols-2 border-b border-zinc-200 text-[15px] dark:border-white/10">
-        <LaneTab active={lane === "foryou"} onClick={() => setLane("foryou")}>
-          For You
-        </LaneTab>
-        <LaneTab active={lane === "following"} onClick={() => setLane("following")}>
-          Following
-        </LaneTab>
-      </div>
+      <div ref={laneStartRef} aria-hidden="true" />
+      <LaneTabs lane={lane} onChange={switchLane} />
+      {hasNewPosts || newAbove.show ? (
+        <NewPostsPill
+          onClick={() => {
+            if (hasNewPosts) setRefreshKey((key) => key + 1);
+            newAbove.dismiss();
+          }}
+        />
+      ) : null}
 
       {lane === "foryou" ? movingToday ?? <MovingToday /> : null}
 
@@ -290,36 +312,15 @@ export function FeedView({ movingToday }: { movingToday?: ReactNode } = {}) {
         <SignedOutBanner />
       )}
 
-      {hasNewPosts ? (
-        <div className="sticky top-16 z-10 flex justify-center py-2">
-          <button
-            type="button"
-            onClick={() => {
-              setRefreshKey((key) => key + 1);
-              window.scrollTo({ top: 0, behavior: "smooth" });
-            }}
-            className="rounded-full bg-zinc-900 px-3 py-1 text-xs font-semibold text-white shadow dark:bg-white dark:text-zinc-900"
-          >
-            New posts
-          </button>
-        </div>
-      ) : null}
-
       {suggestionRail.length > 0 && !followingEmpty ? (
         <CollectorSuggestions profiles={suggestionRail} />
       ) : null}
 
-      <div>
+      <div id="home-lane-panel" role="tabpanel" aria-labelledby={`lane-tab-${lane}`}>
         {activeLoading ? (
-          <LoadingRows count={3} />
+          <PostSkeletonList count={3} />
         ) : followingEmpty ? (
-          <EmptyState icon={<Compass className="h-5 w-5" />} title="Follow collectors to fill this feed">
-            {suggestionRail.length === 0 ? (
-              <Link href="/search" className={solidButton}>
-                Find collectors
-              </Link>
-            ) : null}
-          </EmptyState>
+          <FollowingEmpty profiles={suggestionRail} />
         ) : activePage.error && visible.length === 0 ? (
           <p className="px-4 py-8 text-center text-sm text-rose-600 dark:text-rose-400">
             {activePage.error}
@@ -349,20 +350,25 @@ export function FeedView({ movingToday }: { movingToday?: ReactNode } = {}) {
             {feedEntries.map((entry) => {
               if (entry.kind === "whats-new") {
                 const noteAuthor = authors.get(entry.items[0]?.post.authorId ?? "") ?? null;
-                return <WhatsNewCard key={entry.key} items={entry.items} author={noteAuthor} />;
+                return (
+                  <FeedItem key={entry.key} itemKey={entry.key} delay={entranceDelay(entry.key)}>
+                    <WhatsNewCard items={entry.items} author={noteAuthor} />
+                  </FeedItem>
+                );
               }
               const item = entry.item;
               const author = authors.get(item.post.authorId);
               if (!author) return null;
               return (
-                <Tweet
-                  key={item.key}
-                  post={item.post}
-                  author={author}
-                  repostedBy={item.repostedBy}
-                  extraPosts={activePage.relatedPosts}
-                  extraProfiles={activePage.profiles}
-                />
+                <FeedItem key={item.key} itemKey={item.key} delay={entranceDelay(item.key)}>
+                  <Tweet
+                    post={item.post}
+                    author={author}
+                    repostedBy={item.repostedBy}
+                    extraPosts={activePage.relatedPosts}
+                    extraProfiles={activePage.profiles}
+                  />
+                </FeedItem>
               );
             })}
             {paging ? (
@@ -381,94 +387,40 @@ export function FeedView({ movingToday }: { movingToday?: ReactNode } = {}) {
           </>
         )}
       </div>
-      {followingEmpty && suggestionRail.length > 0 ? (
-        <CollectorSuggestions profiles={suggestionRail} />
-      ) : null}
     </PullToRefresh>
   );
 }
 
-function CollectorSuggestions({
-  profiles,
-}: {
-  profiles: Array<Profile & { suggestionReason?: string | null }>;
-}) {
-  const { followMany, isFollowing, user } = useSocial();
-  const pending = profiles.filter((profile) => user && profile.id !== user.id && !isFollowing(profile.id));
-  return (
-    <section
-      id="collectors-to-follow"
-      className="scroll-mt-20 border-b border-zinc-200 px-4 py-3 dark:border-white/10"
-    >
-      <div className="mb-2 flex items-center justify-between gap-2 max-md:pr-20">
-        <p className="text-xs font-medium text-zinc-500">Collectors to follow</p>
-        {pending.length > 0 ? (
-          <button
-            type="button"
-            onClick={() => void followMany(pending.map((profile) => profile.id))}
-            className="inline-flex min-h-11 items-center rounded-full bg-zinc-900 px-3 text-xs font-bold text-white dark:bg-zinc-100 dark:text-zinc-950 shrink-0 whitespace-nowrap"
-          >
-            Follow all
-          </button>
-        ) : null}
-      </div>
-      <div className="flex gap-2 overflow-x-auto pb-1" data-no-pull="">
-        {profiles.map((profile) => (
-          <div
-            key={profile.id}
-            className="flex w-64 shrink-0 items-center gap-2.5 rounded-2xl border border-zinc-200 p-2.5 dark:border-white/10"
-          >
-            <Link href={userHref(profile.username)}>
-              <Avatar name={profile.displayName} image={profile.avatarDataUrl} accent={profile.accent} />
-            </Link>
-            <div className="min-w-0 flex-1">
-              <Link href={userHref(profile.username)} className="block truncate text-sm font-bold">
-                {profile.displayName}
-              </Link>
-              <p className="truncate text-xs text-zinc-500">@{profile.username}</p>
-              {profile.suggestionReason ? (
-                <p className="truncate text-xs text-zinc-500">{profile.suggestionReason}</p>
-              ) : null}
-            </div>
-            <FollowButton userId={profile.id} />
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function LaneTab({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: string;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`relative py-3.5 font-medium ${active ? "font-bold" : "text-zinc-500"}`}
-    >
-      {children}
-      {active ? (
-        <span className="absolute bottom-0 left-1/2 h-1 w-14 -translate-x-1/2 rounded-full bg-zinc-900 dark:bg-zinc-100" />
-      ) : null}
-    </button>
-  );
-}
-
+/** An invite for signed-out readers, in brand purple. */
 function SignedOutBanner() {
   const pathname = usePathname() || "/";
   return (
-    <div className="flex items-center justify-between gap-3 border-b border-zinc-200 px-4 py-3 dark:border-white/10">
-      <p className="text-[15px]">See what collectors are posting.</p>
-      <Link href={loginPath(pathname)} className={solidButton}>
-        Log in
-      </Link>
+    <div className="border-b border-zinc-200/70 px-4 py-4 dark:border-white/[0.07]">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#7C3AED] to-[#5B21B6] p-4 text-white">
+        <p className="font-mono text-[11px] font-semibold tracking-wider text-white/70 uppercase">
+          Join the collectors
+        </p>
+        <p className="mt-1 text-[19px] leading-6 font-extrabold tracking-tight text-balance">
+          Track your cards and see what collectors are posting.
+        </p>
+        <p className="mt-1.5 text-sm leading-5 text-white/80">
+          Recent sold prices for your collection, plus pickups and pulls from the hobby.
+        </p>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Link
+            href={signupPath(pathname)}
+            className="inline-flex min-h-11 items-center rounded-full bg-white px-5 text-sm font-bold text-[#5B21B6] transition-transform active:scale-95 motion-reduce:transform-none"
+          >
+            Sign up
+          </Link>
+          <Link
+            href={loginPath(pathname)}
+            className="inline-flex min-h-11 items-center rounded-full px-5 text-sm font-semibold text-white ring-1 ring-white/40 ring-inset hover:bg-white/10"
+          >
+            Log in
+          </Link>
+        </div>
+      </div>
     </div>
   );
 }
@@ -548,7 +500,7 @@ function Composer({ onPosted }: { onPosted?: () => void }) {
   return (
     <form
       onSubmit={(e) => void submit(e)}
-      className="hidden gap-3 border-b border-zinc-200 px-4 py-3 md:flex dark:border-white/10"
+      className="hidden gap-3 border-b border-zinc-200/70 px-4 py-3 md:flex dark:border-white/[0.07]"
     >
       {user ? (
         <Avatar

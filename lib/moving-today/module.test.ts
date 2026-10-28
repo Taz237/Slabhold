@@ -231,8 +231,11 @@ describe("For You placement", () => {
     assert.ok(grouping > 0 && grouping < map);
     assert.ok(notes > map);
     assert.ok(moving < map);
-    assert.match(feed, /For You/);
-    assert.match(feed, /New posts/);
+    assert.match(feed, /<LaneTabs/);
+    assert.match(feed, /<NewPostsPill/);
+    const tabs = read("components/timeline-ui.tsx");
+    assert.match(tabs, /For You/);
+    assert.match(tabs, /New posts/);
     assert.doesNotMatch(feed, /card_value_history|shouldShowYourCardsSinceYesterday/);
   });
 });
