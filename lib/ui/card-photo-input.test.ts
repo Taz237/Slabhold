@@ -113,6 +113,35 @@ describe("photo file inputs", () => {
   });
 });
 
+describe("image file inputs", () => {
+  it("keeps every image file input in PhotoFileInputs", () => {
+    const roots = ["app", "components"].map((dir) => join(process.cwd(), dir));
+    const owners: string[] = [];
+    for (const file of roots.flatMap(walk)) {
+      for (const input of fileInputs(readFileSync(file, "utf8"))) {
+        if (/accept=/.test(input)) owners.push(file.slice(process.cwd().length + 1));
+      }
+    }
+    // Mail Day keeps its own library-only input (no capture, checked above).
+    assert.deepEqual([...new Set(owners)].sort(), [
+      "components/mail-day-form.tsx",
+      "components/photo-file-inputs.tsx",
+    ]);
+  });
+
+  it("does not tuck the Add card photo into More details", () => {
+    const form = read("components/card-form.tsx");
+    const more = form.slice(
+      form.indexOf("const moreNodes"),
+      form.indexOf("const visibleNodes"),
+    );
+    assert.ok(more.length > 0);
+    assert.doesNotMatch(more, /photoNode/);
+    const visible = form.slice(form.indexOf("const visibleNodes"), form.indexOf("submit: ("));
+    assert.match(visible, /photo: photoNode/);
+  });
+});
+
 describe("add card photo controls", () => {
   const form = read("components/card-form.tsx");
   const photoField = read("components/card-photo-field.tsx");
