@@ -60,3 +60,31 @@ export function cardShareState(input: {
     imagePath: cardImagePath(input.cardId),
   };
 }
+
+/** What an invite says, next to the link. */
+export const INVITE_SHARE_TEXT = "Join me on Slabhold, the home for your card collection";
+
+/** Personal invite link: /i/<username>. */
+export function invitePath(username: string): string {
+  return `/i/${encodeURIComponent(handle(username))}`;
+}
+
+/** Public, read-only collection page. */
+export function collectionSharePath(username: string): string {
+  return `${userHref(handle(username))}/collection`;
+}
+
+/** 1080×1920 PNG for Instagram Stories. */
+export function collectionStoryPath(username: string): string {
+  return `/api/share-image/collection/${encodeURIComponent(handle(username))}`;
+}
+
+/** Saved file name for the Story image. */
+export function collectionStoryFilename(username: string): string {
+  return `slabhold-${handle(username)}-collection.png`;
+}
+
+export function collectionShareText(count: number | null): string {
+  if (count == null || count <= 0) return "My collection on Slabhold";
+  return `My collection on Slabhold: ${count} ${count === 1 ? "card" : "cards"}`;
+}

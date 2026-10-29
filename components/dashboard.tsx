@@ -27,6 +27,7 @@ import { useCardValues } from "@/lib/value/use-card-values";
 import { publicTogglePatch } from "@/lib/offers/open-to-offers";
 import { WantList } from "@/components/want-list";
 import { PullToRefresh } from "@/components/pull-to-refresh";
+import { ShareCollectionCard } from "@/components/invite/share-collection-card";
 
 const LANES: { id: "all" | CardCategory | "wants"; label: string }[] = [
   { id: "all", label: "All" },
@@ -141,6 +142,7 @@ export function Dashboard() {
           onRetry={retryValues}
         />
       )}
+      {cards.length > 0 ? <ShareCollectionCard /> : null}
       {syncError ? (
         <p className="text-sm text-rose-600 dark:text-rose-400">{syncError}</p>
       ) : null}

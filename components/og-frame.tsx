@@ -410,6 +410,8 @@ function readableShareImage(model: ShareImage): ShareImage {
         ? "Profile"
         : model.kind === "badge"
           ? "Badge"
+          : model.kind === "invite" || model.kind === "collection"
+            ? "Slabhold"
           : model.kind === "home"
             ? title
             : "Post";

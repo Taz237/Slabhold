@@ -459,7 +459,7 @@ describe("side menu", () => {
     assert.match(read("components/admin-nav-link.tsx"), /if \(!show\) return null/);
     assert.deepEqual(
       SIDE_MENU_ITEMS.map((item) => item.label),
-      ["Profile", "Collection", "Achievements", "Messages", "Add card", "Leaderboard"],
+      ["Profile", "Collection", "Achievements", "Messages", "Add card", "Leaderboard", "Invite a collector"],
     );
     assert.deepEqual(
       SIDE_MENU_SETTINGS.map((item) => item.href),

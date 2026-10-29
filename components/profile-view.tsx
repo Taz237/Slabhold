@@ -50,6 +50,8 @@ import {
 import { useCardValues } from "@/lib/value/use-card-values";
 import type { ProfileBadges } from "@/lib/badges/load";
 import type { ServerCardCount } from "@/lib/social/profile-card-count";
+import { InviteButton } from "@/components/invite/invite-button";
+import { ShareCollectionCard } from "@/components/invite/share-collection-card";
 
 export function ProfileView({
   username,
@@ -367,9 +369,12 @@ export function ProfileView({
               label={`Share ${profile.displayName}`}
             />
             {isOwn ? (
-              <button type="button" onClick={() => setEditing(true)} className={outlineButton}>
-                Edit profile
-              </button>
+              <>
+                <InviteButton username={profile.username} className={outlineButton} />
+                <button type="button" onClick={() => setEditing(true)} className={outlineButton}>
+                  Edit profile
+                </button>
+              </>
             ) : (
               <>
                 <SafetyMenu
@@ -433,6 +438,11 @@ export function ProfileView({
         </div>
         {badgeView ? (
           <ProfileBadgeStrip view={badgeView} badgesHref={`${userHref(profile.username)}/badges`} />
+        ) : null}
+        {isOwn ? (
+          <div className="mt-3">
+            <ShareCollectionCard />
+          </div>
         ) : null}
       </div>
 

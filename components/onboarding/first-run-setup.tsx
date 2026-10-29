@@ -16,6 +16,7 @@ import {
 } from "@/components/collect-editor";
 import { useCollection } from "@/components/collection-provider";
 import { FollowButton } from "@/components/follow-button";
+import { InviteWelcome } from "@/components/invite/invite-welcome";
 import { InstallGuide, useInstallPlatform, type GuidePlatform } from "@/components/onboarding/install-step";
 import { useSocial } from "@/components/social-provider";
 import {
@@ -426,6 +427,9 @@ export function FirstRunSetup() {
       </header>
 
       <div className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain">
+        <div className="mx-auto w-full max-w-lg px-5 pt-5 empty:hidden">
+          <InviteWelcome />
+        </div>
         <div key={step} className={`mx-auto w-full max-w-lg px-5 pt-7 pb-6 ${direction === 1 ? STEP_IN : STEP_BACK}`}>
           {step === "collect" ? (
             <>

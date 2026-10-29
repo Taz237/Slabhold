@@ -9,6 +9,9 @@ export const SIDE_MENU_MAX_PX = 320;
 /** Leftward finger travel, in px, that closes the menu. */
 export const SWIPE_CLOSE_PX = 60;
 
+/** "Invite a collector" opens the share sheet with your invite link; it isn't a page. */
+export const INVITE_MENU_HREF = "#invite";
+
 /** Main items, top to bottom. Achievements shows only with hosted accounts. */
 export const SIDE_MENU_ITEMS = [
   { href: "/profile", label: "Profile" },
@@ -17,6 +20,7 @@ export const SIDE_MENU_ITEMS = [
   { href: "/messages", label: "Messages" },
   { href: "/cards/new", label: "Add card" },
   { href: "/leaderboard", label: "Leaderboard" },
+  { href: INVITE_MENU_HREF, label: "Invite a collector" },
 ] as const;
 
 /** Below the divider. Log out is a button after these. */

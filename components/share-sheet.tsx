@@ -8,7 +8,7 @@ import { trackEvent } from "@/lib/analytics";
 import { withShareRef, xIntentUrl } from "@/lib/share/links";
 import { nativeShareOrSheet } from "@/lib/share/sheet";
 
-export type ShareSource = "badge" | "card";
+export type ShareSource = "badge" | "card" | "invite" | "collection";
 
 export type ShareTarget = {
   /** Page to link to, e.g. /u/democollector/badges/collector/gold. */
@@ -224,6 +224,15 @@ export function ShareSheet({ target, onClose }: { target: ShareTarget; onClose: 
           {copied === "failed" ? "Couldn't copy. Press and hold the link to copy it." : ""}
         </p>
       </div>
+      {copied === "copied" ? (
+        <p
+          role="status"
+          data-share-toast=""
+          className="pointer-events-none fixed top-[max(1rem,env(safe-area-inset-top))] left-1/2 z-[71] -translate-x-1/2 rounded-full bg-zinc-900 px-4 py-2 text-sm font-bold text-white shadow-lg motion-safe:animate-[pill-in_260ms_cubic-bezier(0.2,0.7,0.2,1)_both] dark:bg-zinc-100 dark:text-zinc-950"
+        >
+          Link copied
+        </p>
+      ) : null}
     </div>,
     document.body,
   );
