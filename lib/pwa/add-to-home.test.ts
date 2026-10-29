@@ -82,6 +82,11 @@ describe("shouldShowAddToHomeTip", () => {
     assert.equal(addToHomeDismissKey("user-1"), "slabhold.add-to-home.dismissed.user-1");
   });
 
+  it("stays away for anyone who answered the onboarding step", () => {
+    assert.equal(shouldShowAddToHomeTip({ ...browser, stepAnswered: true }), false);
+    assert.equal(shouldShowAddToHomeTip({ ...browser, stepAnswered: false }), true);
+  });
+
   it("never shows on Android, desktop, or iOS Chrome", () => {
     assert.equal(shouldShowAddToHomeTip({ ...browser, userAgent: ANDROID_CHROME, platform: "Linux armv8l" }), false);
     assert.equal(

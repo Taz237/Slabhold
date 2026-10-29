@@ -31,7 +31,10 @@ export const SIDE_MENU_SETTINGS = [
 /** Replays the quick tour. A button after the settings links. */
 export const TAKE_TOUR_LABEL = "Take the tour";
 
-/** The menu slides out (200ms) before the tour starts. */
+/** Opens the Add to Home Screen guide. Phones only, never inside the installed app. */
+export const ADD_TO_HOME_LABEL = "Add to Home Screen";
+
+/** The menu slides out (200ms) before the tour or the home-screen guide starts. */
 export const TOUR_AFTER_CLOSE_MS = 240;
 
 /** Admin-only. Hidden until the admin check allows them. */

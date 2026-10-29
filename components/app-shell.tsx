@@ -19,6 +19,7 @@ import { AccountMenu } from "@/components/side-menu";
 import { isAuthPage, shouldShowJoinBar } from "@/lib/auth/guest-paths";
 import { clearLogoutHome, logoutHomePending } from "@/lib/auth/logout-home";
 import { requiresAccount, routeAccess } from "@/lib/auth/route-access";
+import { listenForInstallPrompt } from "@/lib/pwa/install-prompt";
 import { loginPath, pathWithQuery } from "@/lib/auth/safe-next";
 import type { TourTarget } from "@/lib/onboarding/first-run";
 import type { Profile } from "@/lib/social/types";
@@ -342,6 +343,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!user && pathname === "/") clearLogoutHome();
   }, [user, pathname]);
+
+  // Chrome can offer its install prompt before the Add to Home Screen step is up.
+  useEffect(() => {
+    listenForInstallPrompt();
+  }, []);
 
   if (!ready) {
     if (shellShowsPageWhileLoading(pathname)) {

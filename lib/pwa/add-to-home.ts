@@ -33,16 +33,19 @@ export function isStandaloneApp(input: {
   return input.navigatorStandalone || input.displayModeStandalone;
 }
 
+/** The old timeline card. Gone for anyone who answered the onboarding step. */
 export function shouldShowAddToHomeTip(input: {
   signedIn: boolean;
   dismissed: boolean;
+  /** The Add to Home Screen onboarding step was answered on this device. */
+  stepAnswered?: boolean;
   userAgent: string;
   platform?: string;
   maxTouchPoints?: number;
   navigatorStandalone: boolean;
   displayModeStandalone: boolean;
 }): boolean {
-  if (!input.signedIn || input.dismissed) return false;
+  if (!input.signedIn || input.dismissed || input.stepAnswered) return false;
   if (
     isStandaloneApp({
       navigatorStandalone: input.navigatorStandalone,

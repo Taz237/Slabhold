@@ -24,6 +24,7 @@ import {
   Scale,
   ShieldCheck,
   SlidersHorizontal,
+  SquarePlus,
   Trophy,
   User,
   WalletCards,
@@ -33,11 +34,13 @@ import {
 import { Avatar } from "@/components/avatar";
 import { AdminMenuLinks } from "@/components/admin-nav-link";
 import { Badge, badgeLabel } from "@/components/badges/badge";
+import { InstallGuide, useInstallPlatform, type GuidePlatform } from "@/components/onboarding/install-step";
 import { useSocial } from "@/components/social-provider";
 import { markLogoutHome } from "@/lib/auth/logout-home";
 import { loginPath } from "@/lib/auth/safe-next";
 import { requestBadgeCheck } from "@/lib/badges/client";
-import { startTour } from "@/lib/onboarding/store";
+import { startTour, writeInstallChoice } from "@/lib/onboarding/store";
+import { installMenuShows } from "@/lib/pwa/install-step";
 import { parsePin } from "@/lib/badges/pins";
 import type { EarnedBadge } from "@/lib/badges/progress";
 import { clearNewCardDraft } from "@/lib/cards/new-card-draft";
@@ -45,6 +48,7 @@ import { trapTabTarget } from "@/lib/social/collect-interests";
 import type { Profile } from "@/lib/social/types";
 import { userHref } from "@/lib/social/user-href";
 import {
+  ADD_TO_HOME_LABEL,
   SIDE_MENU_ITEMS,
   SIDE_MENU_SETTINGS,
   countLabel,
@@ -109,14 +113,21 @@ export function AccountMenu({ user, showLogin }: { user: Profile | null; showLog
   const pathname = usePathname() || "/";
   const [open, setOpen] = useState(false);
   const [everOpened, setEverOpened] = useState(false);
+  const [guideOpen, setGuideOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const panelId = useId();
+  const platform = useInstallPlatform();
 
   const openMenu = useCallback(() => {
     setOpen(true);
     setEverOpened(true);
   }, []);
   const closeMenu = useCallback(() => setOpen(false), []);
+  /** Close first, so the guide doesn't open over the sliding menu. */
+  const openGuide = useCallback(() => {
+    setOpen(false);
+    window.setTimeout(() => setGuideOpen(true), TOUR_AFTER_CLOSE_MS);
+  }, []);
 
   if (!user) {
     if (!showLogin) return <span aria-hidden className="h-11 w-11" />;
@@ -161,7 +172,18 @@ export function AccountMenu({ user, showLogin }: { user: Profile | null; showLog
         mountExtras={everOpened}
         onClose={closeMenu}
         returnFocus={buttonRef}
+        onAddToHome={installMenuShows(platform) ? openGuide : undefined}
       />
+      {guideOpen && installMenuShows(platform) ? (
+        <InstallGuide
+          platform={platform as GuidePlatform}
+          variant="menu"
+          onDone={(choice) => {
+            if (choice === "added") writeInstallChoice(user.id, "added");
+            setGuideOpen(false);
+          }}
+        />
+      ) : null}
     </>
   );
 }
@@ -198,6 +220,7 @@ export function SideMenu({
   mountExtras,
   onClose,
   returnFocus,
+  onAddToHome,
 }: {
   id: string;
   user: Profile;
@@ -206,6 +229,8 @@ export function SideMenu({
   mountExtras: boolean;
   onClose: () => void;
   returnFocus?: React.RefObject<HTMLElement | null>;
+  /** Shown as "Add to Home Screen" when set: phones that haven't installed. */
+  onAddToHome?: () => void;
 }) {
   const onClient = useOnClient();
   const router = useRouter();
@@ -486,6 +511,18 @@ export function SideMenu({
                   );
                 }}
               />
+            ) : null}
+            {onAddToHome ? (
+              <li>
+                <button
+                  type="button"
+                  onClick={onAddToHome}
+                  className={`${settingsRow} ${rowTone(false)} w-full text-left`}
+                >
+                  <SquarePlus aria-hidden className="h-5 w-5 shrink-0" />
+                  {ADD_TO_HOME_LABEL}
+                </button>
+              </li>
             ) : null}
             <li>
               <button type="button" onClick={takeTour} className={`${settingsRow} ${rowTone(false)} w-full text-left`}>
