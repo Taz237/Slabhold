@@ -44,15 +44,23 @@ export function isInvitePage(pathname: string): boolean {
   return /^\/i\/[^/]+$/.test(pathOnly(pathname));
 }
 
+/** /compose: the composer is a full-screen sheet, so no header, tabs or join bar around it. */
+export function isChromelessPath(pathname: string): boolean {
+  return pathOnly(pathname) === "/compose";
+}
+
 /**
  * What the shell draws before the social snapshot says who is looking.
  * "plain": unknown URLs (404s) in the plain shell, whoever is looking.
  * "shell": public pages in the plain shell (no nav, join bar or Log in yet)
  * unless the reader is already known. "bare": Home, which draws its own
  * landing page. "blank": pages that redirect or swap layout once the session
- * is known.
+ * is known. "chromeless": the composer, which draws its own sheet skeleton.
  */
-export function loadingShellFor(pathname: string): "plain" | "shell" | "bare" | "blank" {
+export function loadingShellFor(
+  pathname: string,
+): "plain" | "shell" | "bare" | "blank" | "chromeless" {
+  if (isChromelessPath(pathname)) return "chromeless";
   const access = routeAccess(pathname);
   if (access === "unknown") return "plain";
   if (access === "account") return "blank";
