@@ -151,26 +151,32 @@ export async function pathIsMissing(input: {
   if (check.kind === "profile" || check.kind === "public-card") {
     const username = normalizeUsername(check.username);
     if (!USERNAME.test(username)) return true;
-    const profiles = await restRows(
+    if (check.kind === "public-card" && !isUuid(check.id)) return true;
+    const profileRead = restRows(
       url,
       key,
       `profiles?username=eq.${encodeURIComponent(username)}&select=id`,
       key,
       fetchImpl,
     );
+    // The card read does not wait for the profile. The owner check runs after.
+    const cardRead =
+      check.kind === "public-card"
+        ? restRows(
+            url,
+            key,
+            `public_cards?id=eq.${encodeURIComponent(check.id)}&select=user_id`,
+            key,
+            fetchImpl,
+          )
+        : null;
+    const [profiles, cards] = await Promise.all([profileRead, cardRead]);
     if (profiles == null) return false;
     const profileId = profiles[0]?.id;
     if (!profileId) return true;
     if (check.kind === "profile") return false;
-    if (!isUuid(check.id)) return true;
-    const cards = await restRows(
-      url,
-      key,
-      `public_cards?id=eq.${encodeURIComponent(check.id)}&user_id=eq.${encodeURIComponent(profileId)}&select=id`,
-      key,
-      fetchImpl,
-    );
-    return cards != null && cards.length === 0;
+    if (cards == null) return false;
+    return cards[0]?.user_id !== profileId;
   }
 
   if (check.kind === "card-posts") {

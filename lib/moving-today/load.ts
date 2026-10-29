@@ -31,6 +31,7 @@ const CARD_COLUMNS =
 const NEWEST_COLUMNS = `${CARD_COLUMNS}, created_at, estimated_value`;
 
 type Row = Record<string, unknown>;
+type Admin = NonNullable<ReturnType<typeof createSupabaseAdmin>>;
 
 const memoryCache = createTtlCache<MovingTodayPayload>(
   MOVING_TODAY_CACHE_SECONDS * 1000,
@@ -92,7 +93,7 @@ function mapCard(row: Row): PublicCardRef | null {
 }
 
 async function selectSales(
-  admin: NonNullable<ReturnType<typeof createSupabaseAdmin>>,
+  admin: Admin,
   build: (
     query: ReturnType<ReturnType<typeof admin.from>["select"]>,
   ) => ReturnType<ReturnType<typeof admin.from>["select"]>,
@@ -112,7 +113,7 @@ function utcMidnight(date: string): string {
 }
 
 async function readWindowSales(
-  admin: NonNullable<ReturnType<typeof createSupabaseAdmin>>,
+  admin: Admin,
   startDate: string,
   endDate: string,
 ): Promise<RawCompSale[]> {
@@ -128,53 +129,76 @@ async function readWindowSales(
   );
 }
 
-async function readMovingToday(now: Date): Promise<MovingTodayPayload> {
-  const admin = createSupabaseAdmin();
+/** One uncached read. Tests pass a fake `admin`. */
+export async function readMovingToday(
+  now: Date,
+  admin: Admin | null = createSupabaseAdmin(),
+): Promise<MovingTodayPayload> {
   const window = newYorkDayWindow(now);
   const updatedAt = now.toISOString();
   if (!admin) return emptyMovingToday(window.date);
 
+  // Each wave runs its reads together. Only a read that needs an earlier
+  // answer waits for it.
   const monthStart = addCalendarDays(window.date, -(MOVING_MONTH_DAYS - 1));
-  const sales = await readWindowSales(admin, monthStart, addCalendarDays(window.date, 1));
-  const newest =
-    MOVING_STRIP_MODE === "all-public" ? await readNewestPublicCards(admin, MOVING_PUBLIC_CAP) : [];
+  const [sales, newest] = await Promise.all([
+    readWindowSales(admin, monthStart, addCalendarDays(window.date, 1)),
+    MOVING_STRIP_MODE === "all-public" ? readNewestPublicCards(admin, MOVING_PUBLIC_CAP) : [],
+  ]);
   if (sales.length === 0 && newest.length === 0) {
     return { ...emptyMovingToday(window.date), updatedAt };
   }
 
+  // Window sales' cards with the history. A sale's own card decides whether
+  // its key needs an alternate, so that check does not wait for history.
   const keys = [...new Set(sales.map((sale) => sale.queryKey))];
   const historyStart = utcMidnight(addCalendarDays(monthStart, -RECENT_AVERAGE_DAYS));
   const historyEnd = utcMidnight(window.date);
-  const history: RawCompSale[] = [];
-  for (const group of chunks(keys, IN_CHUNK)) {
-    const rows = await selectSales(admin, (query) =>
-      query
-        .in("query_key", group)
-        .gte("sold_at", historyStart)
-        .lt("sold_at", historyEnd)
-        .gt("price", 0)
-        .neq("item_id", "__empty__")
-        .order("sold_at", { ascending: false })
-        .limit(HISTORY_LIMIT),
-    );
-    history.push(...rows);
-  }
+  const saleIds = [...new Set(sales.map((sale) => sale.cardId))];
+  const [historyGroups, saleCards, saleOwners, saleFlags] = await Promise.all([
+    Promise.all(
+      chunks(keys, IN_CHUNK).map((group) =>
+        selectSales(admin, (query) =>
+          query
+            .in("query_key", group)
+            .gte("sold_at", historyStart)
+            .lt("sold_at", historyEnd)
+            .gt("price", 0)
+            .neq("item_id", "__empty__")
+            .order("sold_at", { ascending: false })
+            .limit(HISTORY_LIMIT),
+        ),
+      ),
+    ),
+    readPublicCards(admin, saleIds),
+    readCardOwners(admin, saleIds),
+    readCompFlags(admin, saleIds),
+  ]);
+  const history = historyGroups.flat();
 
-  const cardIds = [
-    ...new Set([...sales, ...history].map((sale) => sale.cardId)),
-  ];
-  let owners = await readCardOwners(admin, cardIds);
-  let flags = await readCompFlags(admin, cardIds);
-  const cards = await readPublicCards(admin, cardIds);
-  const covered = new Set(cards.map((card) => card.id));
+  const saleIdSet = new Set(saleIds);
+  const historyIds = [...new Set(history.map((sale) => sale.cardId))].filter((id) => !saleIdSet.has(id));
+  const saleCovered = new Set(saleCards.map((card) => card.id));
   const missingKeys = [
-    ...new Set(sales.filter((sale) => !covered.has(sale.cardId)).map((sale) => sale.queryKey)),
+    ...new Set(sales.filter((sale) => !saleCovered.has(sale.cardId)).map((sale) => sale.queryKey)),
   ];
-  const alternates = await readAlternates(admin, missingKeys);
+  const [historyCards, historyOwners, historyFlags, alternates] = await Promise.all([
+    readPublicCards(admin, historyIds),
+    readCardOwners(admin, historyIds),
+    readCompFlags(admin, historyIds),
+    readAlternates(admin, missingKeys),
+  ]);
+  const cards = [...saleCards, ...historyCards];
+  const covered = new Set(cards.map((card) => card.id));
   const extraIds = alternates.map((row) => row.cardId).filter((id) => !covered.has(id));
-  cards.push(...(await readPublicCards(admin, extraIds)));
-  owners = owners.concat(await readCardOwners(admin, extraIds));
-  flags = flags.concat(await readCompFlags(admin, extraIds));
+  const [extraCards, extraOwners, extraFlags] = await Promise.all([
+    readPublicCards(admin, extraIds),
+    readCardOwners(admin, extraIds),
+    readCompFlags(admin, extraIds),
+  ]);
+  cards.push(...extraCards);
+  const owners = [...saleOwners, ...historyOwners, ...extraOwners];
+  const flags = [...saleFlags, ...historyFlags, ...extraFlags];
 
   const userIds = [...new Set([...cards, ...newest].map((card) => card.userId))];
   const profiles = await readProfiles(admin, userIds);
@@ -193,68 +217,66 @@ async function readMovingToday(now: Date): Promise<MovingTodayPayload> {
   });
 }
 
-async function readCardOwners(
-  admin: NonNullable<ReturnType<typeof createSupabaseAdmin>>,
-  ids: string[],
-): Promise<{ id: string; userId: string }[]> {
-  const owners: { id: string; userId: string }[] = [];
-  for (const group of chunks([...new Set(ids)], IN_CHUNK)) {
-    if (group.length === 0) continue;
-    const { data, error } = await admin.from("cards").select("id, user_id").in("id", group);
+type Read = PromiseLike<{ data: unknown[] | null; error: { message: string } | null }>;
+
+/** IN-list reads, all chunks at once. Rows keep chunk order, so results match a one-by-one read. */
+async function readInChunks<T>(
+  values: string[],
+  read: (group: string[]) => Read,
+  map: (row: Row) => T | null,
+): Promise<T[]> {
+  const groups = chunks(values, IN_CHUNK).filter((group) => group.length > 0);
+  const results = await Promise.all(groups.map((group) => read(group)));
+  const out: T[] = [];
+  for (const { data, error } of results) {
     if (error) throw new Error(error.message);
     for (const row of data ?? []) {
-      const record = row as Row;
-      const id = typeof record.id === "string" ? record.id : "";
-      const userId = typeof record.user_id === "string" ? record.user_id : "";
-      if (id && userId) owners.push({ id, userId });
+      const item = map(row as Row);
+      if (item) out.push(item);
     }
   }
-  return owners;
+  return out;
 }
 
-async function readCompFlags(
-  admin: NonNullable<ReturnType<typeof createSupabaseAdmin>>,
+function readCardOwners(admin: Admin, ids: string[]): Promise<{ id: string; userId: string }[]> {
+  return readInChunks(
+    [...new Set(ids)],
+    (group) => admin.from("cards").select("id, user_id").in("id", group),
+    (record) => {
+      const id = typeof record.id === "string" ? record.id : "";
+      const userId = typeof record.user_id === "string" ? record.user_id : "";
+      return id && userId ? { id, userId } : null;
+    },
+  );
+}
+
+function readCompFlags(
+  admin: Admin,
   cardIds: string[],
 ): Promise<{ cardId: string; userId: string; itemId: string }[]> {
-  const flags: { cardId: string; userId: string; itemId: string }[] = [];
-  for (const group of chunks([...new Set(cardIds)], IN_CHUNK)) {
-    if (group.length === 0) continue;
-    const { data, error } = await admin
-      .from("comp_flags")
-      .select("card_id, user_id, item_id")
-      .in("card_id", group);
-    if (error) throw new Error(error.message);
-    for (const row of data ?? []) {
-      const record = row as Row;
+  return readInChunks(
+    [...new Set(cardIds)],
+    (group) => admin.from("comp_flags").select("card_id, user_id, item_id").in("card_id", group),
+    (record) => {
       const cardId = typeof record.card_id === "string" ? record.card_id : "";
       const userId = typeof record.user_id === "string" ? record.user_id : "";
       const itemId = typeof record.item_id === "string" ? record.item_id : "";
-      if (cardId && userId && itemId) flags.push({ cardId, userId, itemId });
-    }
-  }
-  return flags;
+      return cardId && userId && itemId ? { cardId, userId, itemId } : null;
+    },
+  );
 }
 
-async function readPublicCards(
-  admin: NonNullable<ReturnType<typeof createSupabaseAdmin>>,
-  ids: string[],
-): Promise<PublicCardRef[]> {
-  const cards: PublicCardRef[] = [];
-  for (const group of chunks([...new Set(ids)], IN_CHUNK)) {
-    if (group.length === 0) continue;
-    const { data, error } = await admin.from("public_cards").select(CARD_COLUMNS).in("id", group);
-    if (error) throw new Error(error.message);
-    for (const row of data ?? []) {
-      const card = mapCard(row as Row);
-      if (card) cards.push(card);
-    }
-  }
-  return cards;
+function readPublicCards(admin: Admin, ids: string[]): Promise<PublicCardRef[]> {
+  return readInChunks(
+    [...new Set(ids)],
+    (group) => admin.from("public_cards").select(CARD_COLUMNS).in("id", group),
+    mapCard,
+  );
 }
 
 /** Every public card, newest first, up to `limit`. Only the public_cards view. */
 async function readNewestPublicCards(
-  admin: NonNullable<ReturnType<typeof createSupabaseAdmin>>,
+  admin: Admin,
   limit: number,
 ): Promise<PublicCardRef[]> {
   const { data, error } = await admin
@@ -271,46 +293,28 @@ async function readNewestPublicCards(
   return cards;
 }
 
-async function readAlternates(
-  admin: NonNullable<ReturnType<typeof createSupabaseAdmin>>,
-  queryKeys: string[],
-): Promise<{ queryKey: string; cardId: string }[]> {
-  const alternates: { queryKey: string; cardId: string }[] = [];
-  for (const group of chunks(queryKeys, IN_CHUNK)) {
-    if (group.length === 0) continue;
-    const { data, error } = await admin
-      .from("card_values")
-      .select("card_id, query_key")
-      .in("query_key", group)
-      .limit(500);
-    if (error) throw new Error(error.message);
-    for (const row of data ?? []) {
-      const record = row as Row;
+function readAlternates(admin: Admin, queryKeys: string[]): Promise<{ queryKey: string; cardId: string }[]> {
+  return readInChunks(
+    queryKeys,
+    (group) => admin.from("card_values").select("card_id, query_key").in("query_key", group).limit(500),
+    (record) => {
       const queryKey = typeof record.query_key === "string" ? record.query_key : "";
       const cardId = typeof record.card_id === "string" ? record.card_id : "";
-      if (queryKey && cardId) alternates.push({ queryKey, cardId });
-    }
-  }
-  return alternates;
+      return queryKey && cardId ? { queryKey, cardId } : null;
+    },
+  );
 }
 
-async function readProfiles(
-  admin: NonNullable<ReturnType<typeof createSupabaseAdmin>>,
-  userIds: string[],
-): Promise<ProfileRef[]> {
-  const profiles: ProfileRef[] = [];
-  for (const group of chunks(userIds, IN_CHUNK)) {
-    if (group.length === 0) continue;
-    const { data, error } = await admin.from("profiles").select("id, username").in("id", group);
-    if (error) throw new Error(error.message);
-    for (const row of data ?? []) {
-      const record = row as Row;
+function readProfiles(admin: Admin, userIds: string[]): Promise<ProfileRef[]> {
+  return readInChunks(
+    userIds,
+    (group) => admin.from("profiles").select("id, username").in("id", group),
+    (record) => {
       const id = typeof record.id === "string" ? record.id : "";
       const username = typeof record.username === "string" ? record.username : "";
-      if (id && username) profiles.push({ id, username });
-    }
-  }
-  return profiles;
+      return id && username ? { id, username } : null;
+    },
+  );
 }
 
 /**

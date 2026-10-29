@@ -8,7 +8,6 @@ import {
   useState,
   useSyncExternalStore,
   type CSSProperties,
-  type PointerEvent,
   type RefObject,
 } from "react";
 import { ChevronRight } from "lucide-react";
@@ -17,7 +16,6 @@ import { EAGER_TILES } from "@/lib/collection/grid";
 import { freshenMovingToday } from "@/lib/moving-today/rank";
 import {
   compactRangeLabel,
-  countUpText,
   moveBadgeText,
   moverAccessibleName,
   moverFreshness,
@@ -42,6 +40,12 @@ export const TOP_GLOW = "[&_[data-kind]]:drop-shadow-[0_10px_22px_rgba(124,58,23
 /** Tiles past the first three start off screen: they skip layout and paint until swiped near. */
 const RAIL_PAINTED_TILES = 3;
 
+/**
+ * Tiles on screen at 390px prefetch their whole card page (an ISR hit), so a
+ * tap needs no request. The fourth starts off screen, so a swipe fetches nothing.
+ */
+export const RAIL_PREFETCH_TILES = RAIL_PAINTED_TILES;
+
 /** The first paint hydrates this many tiles. The rest mount when the page is idle. */
 export const RAIL_FIRST_TILES = 4;
 const OFFSCREEN_TILE = "[content-visibility:auto] [contain-intrinsic-size:auto_120px_auto_257px]";
@@ -49,7 +53,6 @@ const OFFSCREEN_TILE = "[content-visibility:auto] [contain-intrinsic-size:auto_1
 const STAGGER_MS = 35;
 /** Only tiles that start on screen fade in. */
 const STAGGER_TILES = 3;
-const COUNT_UP_MS = 480;
 
 const ENTER = "motion-safe:animate-[tile-in_240ms_cubic-bezier(0.2,0.7,0.2,1)_both]";
 const DOT_PULSE = "motion-safe:animate-[live-dot_2.4s_ease-in-out_infinite]";
@@ -90,59 +93,51 @@ function useMinute(): number | null {
   return useSyncExternalStore(subscribeMinute, clockSnapshot, () => null);
 }
 
-/** Warm the page a finger lands on. Links themselves don't prefetch. */
-export function useWarmOnPointerDown() {
-  const router = useRouter();
-  const warmed = useRef(new Set<string>());
-  return (event: PointerEvent<HTMLElement>) => {
-    const link = (event.target as HTMLElement).closest<HTMLAnchorElement>("a[href^='/']");
-    const href = link?.getAttribute("href");
-    if (!href || warmed.current.has(href)) return;
-    warmed.current.add(href);
-    router.prefetch(href);
-  };
-}
-
-function reducedMotion() {
-  return typeof window !== "undefined" && Boolean(window.matchMedia?.("(prefers-reduced-motion: reduce)").matches);
-}
+/** Under this much finger travel, a touch on a rail tile is a tap. */
+export const TAP_SLOP_PX = 8;
 
 /**
- * The % chips count up from 0 once, only for tiles in view that are still
- * entering. A hydrated server render that already painted keeps its numbers.
+ * iOS can start a snap scroll on a few pixels of drift and drop the click.
+ * When the browser took the touch (pointercancel) but the finger moved less
+ * than TAP_SLOP_PX, open the tile anyway. A real swipe never navigates.
  */
-function useChipCountUp(list: RefObject<HTMLElement | null>, enabled: boolean) {
+export function useTapThroughDrift(list: RefObject<HTMLElement | null>) {
+  const router = useRouter();
   useEffect(() => {
     const root = list.current;
-    if (!enabled || !root || reducedMotion()) return;
-    const box = root.getBoundingClientRect();
-    if (box.bottom <= 0 || box.top >= window.innerHeight) return;
-    const nodes: { node: Text; final: string }[] = [];
-    for (const chip of root.querySelectorAll<HTMLElement>("[data-gain-text]")) {
-      const rect = chip.getBoundingClientRect();
-      if (rect.right <= box.left || rect.left >= box.right) continue;
-      const tile = chip.closest<HTMLElement>("[data-tile]");
-      const entering = tile?.getAnimations?.().some((animation) => animation.playState === "running");
-      if (!entering) continue;
-      const node = chip.firstChild;
-      if (node instanceof Text && node.nodeValue) nodes.push({ node, final: node.nodeValue });
-    }
-    if (nodes.length === 0) return;
-    const start = performance.now();
-    let frame = 0;
-    const step = (time: number) => {
-      const progress = Math.min(1, (time - start) / COUNT_UP_MS);
-      const eased = 1 - (1 - progress) ** 3;
-      for (const { node, final } of nodes) node.nodeValue = countUpText(final, eased);
-      if (progress < 1) frame = requestAnimationFrame(step);
+    if (!root) return;
+    let start: { x: number; y: number; href: string } | null = null;
+    let cancelled = false;
+    const onPointerDown = (event: globalThis.PointerEvent) => {
+      cancelled = false;
+      start = null;
+      if (event.pointerType !== "touch" || !event.isPrimary) return;
+      const link = (event.target as Element | null)?.closest<HTMLAnchorElement>("a[href^='/']");
+      const href = link?.getAttribute("href");
+      if (href) start = { x: event.clientX, y: event.clientY, href };
     };
-    for (const { node, final } of nodes) node.nodeValue = countUpText(final, 0);
-    frame = requestAnimationFrame(step);
+    const onPointerCancel = () => {
+      cancelled = true;
+    };
+    const onTouchEnd = (event: TouchEvent) => {
+      const tap = start;
+      const wasCancelled = cancelled;
+      start = null;
+      cancelled = false;
+      const touch = event.changedTouches?.[0];
+      if (!tap || !wasCancelled || !touch) return;
+      if (Math.hypot(touch.clientX - tap.x, touch.clientY - tap.y) >= TAP_SLOP_PX) return;
+      router.push(tap.href);
+    };
+    root.addEventListener("pointerdown", onPointerDown, { passive: true });
+    root.addEventListener("pointercancel", onPointerCancel, { passive: true });
+    root.addEventListener("touchend", onTouchEnd, { passive: true });
     return () => {
-      cancelAnimationFrame(frame);
-      for (const { node, final } of nodes) node.nodeValue = final;
+      root.removeEventListener("pointerdown", onPointerDown);
+      root.removeEventListener("pointercancel", onPointerCancel);
+      root.removeEventListener("touchend", onTouchEnd);
     };
-  }, [list, enabled]);
+  }, [list, router]);
 }
 
 /** Emerald and pulsing for today. Zinc and still for every other window. */
@@ -212,11 +207,14 @@ export function MoverTile({
   index,
   variant,
   animate = false,
+  prefetch = false,
   className = "",
   style,
 }: {
   sale: MovingTodaySale;
   index: number;
+  /** Prefetch when on screen. Only tiles in the first view do, so a swipe or scroll fetches nothing. */
+  prefetch?: boolean;
   /** Top is the rail's first, wider tile. Its glow and badge are for a mover only. */
   variant: "top" | "rail" | "grid";
   animate?: boolean;
@@ -238,9 +236,10 @@ export function MoverTile({
       priceLabel={sale.priceLabel || null}
       gain={gain}
       chip={!mover && sale.isNew ? <NewChip /> : null}
-      prefetch={false}
+      prefetch={prefetch}
       as="li"
       density="compact"
+      countUp={rail && animate && index < STAGGER_TILES}
       sizes={rail ? "120px" : "(min-width: 640px) 170px, 50vw"}
       className={
         rail
@@ -284,7 +283,7 @@ export function MovingTodayPanel({ payload }: { payload: MovingTodayPayload }) {
   const [animate] = useState(() => !railEntered);
   const [expanded, setExpanded] = useState(false);
   const list = useRef<HTMLUListElement>(null);
-  const warm = useWarmOnPointerDown();
+  useTapThroughDrift(list);
   useEffect(() => {
     railEntered = true;
     // Off-screen tiles wait for an idle moment, so hydration stays short.
@@ -295,7 +294,6 @@ export function MovingTodayPanel({ payload }: { payload: MovingTodayPayload }) {
     const timer = setTimeout(() => setExpanded(true), 200);
     return () => clearTimeout(timer);
   }, []);
-  useChipCountUp(list, animate);
 
   const sales = shouldShowMovingToday(payload.sales) ? payload.sales : [];
   if (sales.length === 0) return <MovingQuiet />;
@@ -309,7 +307,6 @@ export function MovingTodayPanel({ payload }: { payload: MovingTodayPayload }) {
     <section
       aria-label={payload.title}
       data-moving-today=""
-      onPointerDown={warm}
       className="py-3"
     >
       <div className="flex h-6 items-center gap-1.5 px-4">
@@ -336,6 +333,7 @@ export function MovingTodayPanel({ payload }: { payload: MovingTodayPayload }) {
             index={index}
             variant={index === 0 ? "top" : "rail"}
             animate={animate}
+            prefetch={index < RAIL_PREFETCH_TILES}
           />
         ))}
         {total > MOVING_RAIL_COUNT ? (

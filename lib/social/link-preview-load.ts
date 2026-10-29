@@ -1,8 +1,8 @@
 import "server-only";
 
 import { cache } from "react";
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { getSupabaseConfig } from "@/lib/supabase/client";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { createAnonReader } from "@/lib/supabase/anon";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { wantLabel } from "@/lib/wants/label";
 import { feedChipPrice, resolvePriceRead, type PriceRead } from "@/lib/value/price-fallback";
@@ -35,14 +35,6 @@ import { readVisiblePins } from "@/lib/badges/visible-pins";
 import { isBadgeCategory, isBadgeTier } from "@/lib/badges/config";
 import { createSupabaseServer, getAuthUserId } from "@/lib/supabase/server";
 
-/** Share images are cached on a public CDN, so this client never reads cookies. */
-function createAnonReader(): SupabaseClient | null {
-  const { url, anonKey, configured } = getSupabaseConfig();
-  if (!configured) return null;
-  return createClient(url, anonKey, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-}
 
 async function publicCardCount(
   userId: string,

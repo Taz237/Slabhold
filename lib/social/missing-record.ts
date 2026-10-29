@@ -47,3 +47,52 @@ export function publicCardLookupResult(input: {
   if (!input.profileId || input.cardOwnerId !== input.profileId) return "missing";
   return "found";
 }
+
+type LookupRow = { data: Record<string, unknown> | null; error: { message: string } | null };
+
+/** The slice of a Supabase client the public card lookup reads. */
+export type LookupClient = {
+  from(table: string): {
+    select(columns: string): {
+      eq(column: string, value: string): { maybeSingle(): PromiseLike<LookupRow> };
+    };
+  };
+};
+
+/**
+ * Profile by username and public card by id, read together. The owner check
+ * runs after, so a private card (no public_cards row) or a card under the
+ * wrong owner's URL is still "missing".
+ */
+export async function readPublicCardLookup(
+  client: LookupClient | null,
+  username: string,
+  cardId: string,
+): Promise<RecordLookup> {
+  if (!client) return "unconfigured";
+  const normalized = normalizeUsername(username);
+  if (!normalized || !isUuid(cardId)) {
+    return publicCardLookupResult({
+      configured: true,
+      username,
+      cardId,
+      profileError: false,
+      cardError: false,
+      profileId: null,
+      cardOwnerId: null,
+    });
+  }
+  const [profile, card] = await Promise.all([
+    client.from("profiles").select("id").eq("username", normalized).maybeSingle(),
+    client.from("public_cards").select("id, user_id").eq("id", cardId).maybeSingle(),
+  ]);
+  return publicCardLookupResult({
+    configured: true,
+    username,
+    cardId,
+    profileError: Boolean(profile.error),
+    cardError: Boolean(card.error),
+    profileId: (profile.data?.id as string | undefined) ?? null,
+    cardOwnerId: (card.data?.user_id as string | undefined) ?? null,
+  });
+}
