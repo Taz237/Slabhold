@@ -1,6 +1,10 @@
 import "server-only";
 
+import { cache } from "react";
+import { unstable_cache } from "next/cache";
 import { notFound } from "next/navigation";
+import { createAnonReader } from "@/lib/supabase/anon";
+import { cardCacheTag } from "@/lib/value/card-cache";
 import { isUuid } from "@/lib/value/card-value-access";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { normalizeUsername } from "./local-db";
@@ -8,9 +12,13 @@ import {
   missingRecordAction,
   postLookupResult,
   profileLookupResult,
-  publicCardLookupResult,
+  readPublicCardLookup,
+  type LookupClient,
   type RecordLookup,
 } from "./missing-record";
+
+/** The public card page's ISR window. A page export must be a literal, so it repeats this. */
+export const PUBLIC_CARD_REVALIDATE_SECONDS = 300;
 
 function finish(lookup: RecordLookup): void {
   if (missingRecordAction(lookup) === "notFound") notFound();
@@ -49,42 +57,17 @@ export async function requireProfile(username: string): Promise<void> {
   finish(profileLookupResult({ configured: true, username, error, found }));
 }
 
-/** /u/[username]/cards/[id]. Private or wrong-owner cards are a 404. */
-export async function requirePublicCard(username: string, cardId: string): Promise<void> {
-  const supabase = await createSupabaseServer();
-  if (!supabase) return;
-  const normalized = normalizeUsername(username);
-  let profileError = false;
-  let cardError = false;
-  let profileId: string | null = null;
-  let cardOwnerId: string | null = null;
-  if (normalized && isUuid(cardId)) {
-    const profile = await supabase
-      .from("profiles")
-      .select("id")
-      .eq("username", normalized)
-      .maybeSingle();
-    profileError = Boolean(profile.error);
-    profileId = (profile.data?.id as string | undefined) ?? null;
-    if (profileId && !profileError) {
-      const card = await supabase
-        .from("public_cards")
-        .select("id, user_id")
-        .eq("id", cardId)
-        .maybeSingle();
-      cardError = Boolean(card.error);
-      cardOwnerId = (card.data?.user_id as string | undefined) ?? null;
-    }
-  }
-  finish(
-    publicCardLookupResult({
-      configured: true,
-      username,
-      cardId,
-      profileError,
-      cardError,
-      profileId,
-      cardOwnerId,
-    }),
-  );
-}
+/**
+ * /u/[username]/cards/[id]. Private or wrong-owner cards are a 404.
+ * Cookie-free, so the page is ISR. The read carries `card:${id}`, so a
+ * revalidate of that tag also refreshes the page. React.cache shares it
+ * within one render.
+ */
+export const requirePublicCard = cache(async (username: string, cardId: string): Promise<void> => {
+  const lookup = await unstable_cache(
+    () => readPublicCardLookup(createAnonReader() as LookupClient | null, username, cardId),
+    ["public-card-lookup", normalizeUsername(username), cardId],
+    { tags: [cardCacheTag(cardId)], revalidate: PUBLIC_CARD_REVALIDATE_SECONDS },
+  )();
+  finish(lookup);
+});

@@ -193,6 +193,51 @@ describe("pathIsMissing", () => {
   });
 });
 
+describe("public card proxy check", () => {
+  const OWNER = "11111111-1111-4111-8111-111111111111";
+  const run = (cardRows: unknown[] | null, profileRows: unknown[] | null = [{ id: OWNER }]) => {
+    const started: string[] = [];
+    let settled = 0;
+    let startedBeforeSettle = 0;
+    const missing = pathIsMissing({
+      pathname: `/u/maya/cards/${CARD}`,
+      supabaseUrl: URL,
+      anonKey: KEY,
+      cookies: [],
+      fetchImpl: async (input) => {
+        const url = String(input);
+        started.push(url);
+        if (settled === 0) startedBeforeSettle += 1;
+        await new Promise((resolve) => setTimeout(resolve, 5));
+        settled += 1;
+        const rows = url.includes("/profiles?") ? profileRows : cardRows;
+        return rows == null ? json([], 500) : json(rows);
+      },
+    });
+    return { missing, started, parallel: () => startedBeforeSettle };
+  };
+
+  it("404s a private card and a wrong-owner URL, and keeps the owner's public card", async () => {
+    assert.equal(await run([]).missing, true, "private: no public_cards row");
+    assert.equal(await run([{ id: CARD, user_id: "someone-else" }]).missing, true, "wrong owner");
+    assert.equal(await run([{ id: CARD, user_id: OWNER }]).missing, false, "public");
+    assert.equal(await run([{ id: CARD, user_id: OWNER }], []).missing, true, "no profile");
+  });
+
+  it("leaves lookup errors on the page", async () => {
+    assert.equal(await run(null).missing, false);
+    assert.equal(await run([{ id: CARD, user_id: OWNER }], null).missing, false);
+  });
+
+  it("reads the profile and the card together", async () => {
+    const check = run([{ id: CARD, user_id: OWNER }]);
+    await check.missing;
+    assert.equal(check.started.length, 2);
+    assert.equal(check.parallel(), 2, "both requests start before either returns");
+    assert.ok(check.started.some((url) => url.includes(`public_cards?id=eq.${CARD}&select=user_id`)));
+  });
+});
+
 describe("styled missing pages", () => {
   const previousUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const previousKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;

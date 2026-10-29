@@ -102,7 +102,7 @@ describe("missing record 404", () => {
     callsBefore("app/u/[username]/page.tsx", "await requireProfile(username)", "<ProfileView");
     callsBefore(
       "app/u/[username]/cards/[id]/page.tsx",
-      "await requirePublicCard(username, id)",
+      "requirePublicCard(username, id)",
       "<PublicCardView",
     );
     callsBefore(

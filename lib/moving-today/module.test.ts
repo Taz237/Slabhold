@@ -43,8 +43,11 @@ import type { MovingTodayPayload, MovingTodaySale } from "./types";
 const { state } = installDom();
 
 const prefetched: string[] = [];
+const pushed: string[] = [];
 const router = {
-  push: () => {},
+  push: (href: string) => {
+    pushed.push(href);
+  },
   replace: () => {},
   refresh: () => {},
   prefetch: (href: string) => {
@@ -72,6 +75,7 @@ beforeEach(() => {
   root = createRoot(host);
   state.reducedMotion = false;
   prefetched.length = 0;
+  pushed.length = 0;
 });
 
 afterEach(() => {
@@ -325,16 +329,63 @@ describe("Movers rail", () => {
     assert.doesNotMatch(host.textContent ?? "", /Updated|Live/);
   });
 
-  it("warms a tile or See all on pointerdown, and links do not prefetch", () => {
-    mount(createElement(MovingTodayPanel, { payload: payload(4) }));
-    const seeAll = host.querySelector('a[aria-label="See all 4 cards"]');
-    act(() => {
-      seeAll?.dispatchEvent(new window.PointerEvent("pointerdown", { bubbles: true }));
-    });
-    assert.deepEqual(prefetched, ["/moving-today"]);
+  it("never prefetches on pointerdown; only the tiles on screen prefetch", () => {
+    mount(createElement(MovingTodayPanel, { payload: payload(8) }));
+    for (const link of host.querySelectorAll("a")) {
+      act(() => {
+        link.dispatchEvent(new window.PointerEvent("pointerdown", { bubbles: true }));
+      });
+    }
+    assert.deepEqual(prefetched, []);
     const source = read("components/moving-today.tsx");
-    assert.match(source, /prefetch=\{false\}/);
+    assert.doesNotMatch(source, /useWarmOnPointerDown|router\.prefetch|onPointerDown=/);
+    assert.match(source, /prefetch=\{index < RAIL_PREFETCH_TILES\}/);
+    assert.match(source, /export const RAIL_PREFETCH_TILES = RAIL_PAINTED_TILES;/);
+    assert.match(source, /const RAIL_PAINTED_TILES = 3;/);
+    // Full prefetch: the auto prefetch of an ISR route with new params only fetches the route tree.
+    assert.match(source, /prefetch=\{prefetch\}/);
+    const page = read("components/moving-today-page.tsx");
+    assert.doesNotMatch(page, /useWarmOnPointerDown|onPointerDown=/);
+    assert.match(page, /prefetch=\{index < PAINTED_TILES\}/);
+    assert.match(source, /href=\{MOVING_TODAY_PATH\}\s+prefetch=\{false\}/);
     assert.doesNotMatch(source, /CardThumb|max-md:pr-20|w-\[38%\]/);
+  });
+
+  it("opens a tile after a tiny drift the scroller took, and never after a swipe", () => {
+    mount(createElement(MovingTodayPanel, { payload: payload(4) }));
+    const rail = host.querySelector("[data-mover-rail]")!;
+    const link = rail.querySelector<HTMLAnchorElement>("a[href^='/u/']")!;
+    const href = link.getAttribute("href");
+    const touch = (start: [number, number], end: [number, number], cancel: boolean) => {
+      act(() => {
+        link.dispatchEvent(
+          new window.PointerEvent("pointerdown", {
+            bubbles: true,
+            pointerType: "touch",
+            isPrimary: true,
+            clientX: start[0],
+            clientY: start[1],
+          }),
+        );
+        if (cancel) link.dispatchEvent(new window.PointerEvent("pointercancel", { bubbles: true }));
+        const end_ = new window.Event("touchend", { bubbles: true });
+        Object.defineProperty(end_, "changedTouches", { value: [{ clientX: end[0], clientY: end[1] }] });
+        link.dispatchEvent(end_);
+      });
+    };
+    touch([50, 100], [55, 102], true);
+    assert.deepEqual(pushed, [href], "a 5px drift the scroller claimed still opens the card");
+    touch([50, 100], [90, 100], true);
+    assert.deepEqual(pushed, [href], "a swipe does not navigate");
+    touch([50, 100], [51, 100], false);
+    assert.deepEqual(pushed, [href], "a normal tap is left to the link's own click");
+  });
+
+  it("tile links answer a tap at once on iOS", () => {
+    const tile = read("components/card-tile.tsx");
+    assert.match(tile, /touch-manipulation/);
+    assert.match(tile, /\[-webkit-tap-highlight-color:transparent\]/);
+    assert.match(tile, /motion-safe:active:scale-\[0\.97\]/);
   });
 });
 
@@ -573,7 +624,7 @@ describe("See all", () => {
     act(() => {
       featured?.querySelector("a")?.dispatchEvent(new window.PointerEvent("pointerdown", { bubbles: true }));
     });
-    assert.deepEqual(prefetched, [`/u/ada/cards/${id(1)}`]);
+    assert.deepEqual(prefetched, [], "the featured tile prefetches on screen, not on press");
     assert.ok(host.querySelector("[data-moving-backdrop]"));
 
     act(() => root!.render(withRouter(null)));

@@ -195,7 +195,8 @@ describe("share image loaders", () => {
     assert.match(own, /getAuthUserId/);
     assert.doesNotMatch(rest, /createSupabaseServer\(/);
     assert.doesNotMatch(rest, /getAuthUserId\(/);
-    assert.match(source, /persistSession:\s*false/);
+    assert.match(source, /import \{ createAnonReader \} from "@\/lib\/supabase\/anon"/);
+    assert.match(read("lib/supabase/anon.ts"), /persistSession:\s*false/);
     const attaches = [...source.matchAll(/attachPriceContext\(([^)]*)\)/g)];
     assert.equal(attaches.length, 2);
     for (const call of attaches) assert.match(call[1] ?? "", /\bnull\b/);

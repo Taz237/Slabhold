@@ -10,7 +10,6 @@ import {
   FreshnessDot,
   MoverTile,
   TOP_GLOW,
-  useWarmOnPointerDown,
 } from "@/components/moving-today";
 import { ShareIconButton } from "@/components/share-button";
 import { useReducedMotion } from "@/components/timeline-ui";
@@ -41,7 +40,10 @@ const ENTER = "motion-safe:animate-[tile-in_240ms_cubic-bezier(0.2,0.7,0.2,1)_bo
 /** A segment or sport switch crossfades the grid instead of replaying the stagger. */
 const SWAP = "motion-safe:animate-[lightbox-fade_160ms_ease-out_both]";
 
-/** Past the first two rows, tiles skip layout and paint until scrolled near. */
+/**
+ * Past the first two rows, tiles skip layout and paint until scrolled near.
+ * Only those first rows prefetch their card page.
+ */
 const PAINTED_TILES = 4;
 const OFFSCREEN_TILE = "[content-visibility:auto] [contain-intrinsic-size:auto_180px_auto_340px]";
 
@@ -80,18 +82,17 @@ function TopRow({ payload }: { payload: MovingTodayPayload }) {
 /** The top mover, large, beside its move, price and sale date. */
 function Featured({ payload, reduced }: { payload: MovingTodayPayload; reduced: boolean }) {
   const sale = payload.sales[0];
-  const warm = useWarmOnPointerDown();
   const gain = sale ? moverGain(sale) : null;
   if (!sale || sale.kind !== "mover" || !gain) return null;
   return (
-    <div data-featured={sale.cardId} onPointerDown={warm} className="mt-5 flex items-center gap-4">
+    <div data-featured={sale.cardId} className="mt-5 flex items-center gap-4">
       <CardTile
         card={moverTileCard(sale)}
         href={sale.href}
         index={0}
         ariaLabel={moverAccessibleName(sale)}
         priceLabel={null}
-        prefetch={false}
+        prefetch
         as="div"
         sizes="172px"
         className={`w-[172px] shrink-0 ${TOP_GLOW} ${reduced ? "" : ENTER}`}
@@ -298,7 +299,6 @@ export function MovingTodayAll({
   const [sport, setSport] = useState<MovingSport | null>(initialSport);
   const [switched, setSwitched] = useState(false);
   const reduced = useReducedMotion();
-  const warm = useWarmOnPointerDown();
   const chips = useMemo(() => sportChips(payload.sales), [payload.sales]);
   const activeSport = sport && chips.some((chip) => chip.id === sport) ? sport : null;
   const counts = useMemo(() => directionCounts(payload.sales, activeSport), [payload.sales, activeSport]);
@@ -358,7 +358,6 @@ export function MovingTodayAll({
           id="moving-grid"
           role="tabpanel"
           aria-labelledby={`moving-tab-${direction}`}
-          onPointerDown={warm}
           data-mover-grid={direction}
           className={`grid grid-cols-2 gap-x-2 gap-y-3 px-3 pt-1 pb-8 sm:grid-cols-3 ${switched && !reduced ? SWAP : ""}`}
         >
@@ -368,6 +367,7 @@ export function MovingTodayAll({
               sale={sale}
               index={index}
               variant="grid"
+              prefetch={index < PAINTED_TILES}
               className={`${index >= PAINTED_TILES ? OFFSCREEN_TILE : ""} ${
                 animate && index < STAGGER_TILES ? ENTER : ""
               }`}

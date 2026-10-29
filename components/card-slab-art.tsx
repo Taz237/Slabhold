@@ -150,6 +150,19 @@ export function CardSlabArt({
   );
 }
 
+/**
+ * First-screen photos (eager or preloaded) are visible from the server
+ * render, so they paint as soon as their bytes arrive, before hydration.
+ * Only photos that load later fade in, once loaded.
+ */
+export function photoClass({ eager, status }: { eager: boolean; status: PhotoStatus }): string {
+  const base = "absolute inset-0 h-full w-full object-cover";
+  if (eager) return base;
+  return `${base} transition-opacity duration-300 motion-reduce:transition-none ${
+    status === "loaded" ? "opacity-100" : "opacity-0"
+  }`;
+}
+
 function CardFace({
   card,
   index,
@@ -180,9 +193,7 @@ function CardFace({
   if (source.kind === "none" || showPhotoPlaceholder(source, status)) return placeholder;
 
   const eager = tileLoading(index) === "eager";
-  const imgClass = `absolute inset-0 h-full w-full object-cover transition-opacity duration-300 motion-reduce:transition-none ${
-    status === "loaded" ? "opacity-100" : "opacity-0"
-  }`;
+  const imgClass = photoClass({ eager: eager || preload, status });
 
   return (
     <>

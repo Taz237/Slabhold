@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useState, type CSSProperties, type ReactNode } from "react";
 import { Camera, TrendingDown, TrendingUp } from "lucide-react";
 import { CardSlabArt, type ArtCard } from "@/components/card-slab-art";
+import { CountUp } from "@/components/count-up";
 import { TileVisibilityButton, type VisibilitySave } from "@/components/card-visibility";
 import {
   photoSource,
@@ -73,6 +74,7 @@ export function CardTile({
   as: Tag = "li",
   prefetch,
   density = "regular",
+  countUp = false,
   className = "",
   style,
   children,
@@ -97,10 +99,15 @@ export function CardTile({
   badge?: ReactNode;
   sizes?: string;
   as?: "li" | "div";
-  /** False in long feeds: the card page warms on tap instead of as rows scroll by. */
-  prefetch?: false;
+  /**
+   * False in long feeds, so rows scrolling by fetch nothing. True prefetches
+   * the whole page when on screen, for the first few tiles of a rail or grid.
+   */
+  prefetch?: boolean;
   /** Compact: tighter text under the art, for rails and 3-column grids. */
   density?: "regular" | "compact";
+  /** The gain chip's % counts up once (Home rail, first paint). */
+  countUp?: boolean;
   className?: string;
   style?: CSSProperties;
   /** Below the tile link, e.g. an eBay sold link. */
@@ -135,7 +142,7 @@ export function CardTile({
         href={href}
         prefetch={prefetch}
         aria-label={ariaLabel}
-        className={`group block min-h-11 rounded-xl p-1 transition-transform duration-150 ease-out motion-safe:active:scale-[0.97] ${tileFocusRing}`}
+        className={`group block min-h-11 touch-manipulation rounded-xl p-1 [-webkit-tap-highlight-color:transparent] transition-transform duration-150 ease-out motion-safe:active:scale-[0.97] ${tileFocusRing}`}
       >
         <div className="[perspective:900px]">
           <div className="relative transition-transform duration-300 ease-out motion-safe:group-hover:[transform:translateY(-4px)_rotateX(5deg)_rotateY(-7deg)]">
@@ -195,7 +202,7 @@ export function CardTile({
                 {priceLabel}
               </p>
             )}
-            {gain ? <GainChip gain={gain} compact={compact} /> : chip}
+            {gain ? <GainChip gain={gain} compact={compact} countUp={countUp} /> : chip}
           </div>
         </div>
       </Link>
@@ -220,9 +227,12 @@ export function GainChip({
   gain,
   compact = false,
   large = false,
+  countUp = false,
 }: {
   gain: TileGain;
   compact?: boolean;
+  /** The % counts up once from 0, for rail tiles that are entering. */
+  countUp?: boolean;
   /** The featured mover's chip on See all. */
   large?: boolean;
 }) {
@@ -245,7 +255,7 @@ export function GainChip({
       ) : (
         <TrendingDown className={large ? "h-4 w-4" : "h-3 w-3"} aria-hidden />
       )}
-      <span data-gain-text="">{gain.pctText}</span>
+      <CountUp text={gain.pctText} run={countUp} />
     </span>
   );
 }
