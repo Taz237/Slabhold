@@ -18,6 +18,7 @@ function payload(): MovingTodayPayload {
     dateLabel: "Oct 22",
     sales: [
       {
+        kind: "mover",
         cardId: "ba95893e-89fe-4735-be3f-1509b6b6f3b9",
         href: "/u/ada/cards/ba95893e-89fe-4735-be3f-1509b6b6f3b9",
         player: "Victor Wembanyama ada@example.com",
@@ -38,6 +39,8 @@ function payload(): MovingTodayPayload {
         percentLabel: "+24%",
       },
       {
+        kind: "card",
+        isNew: true,
         cardId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
         href: "/u/ada/cards/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
         player: "Luka Doncic",
@@ -58,11 +61,13 @@ function payload(): MovingTodayPayload {
         percentLabel: null,
       },
     ],
+    moverCount: 1,
+    totalCount: 2,
   };
 }
 
 describe("Moving today share image", () => {
-  it("draws the price, the honest percent, and the sale date", async () => {
+  it("draws movers first with the honest percent, and a card with New, never a percent", async () => {
     const model = movingTodayShareModel(payload());
     assert.equal(model.title, "Moving today");
     assert.equal(model.dateLabel, "Oct 22");
@@ -71,6 +76,11 @@ describe("Moving today share image", () => {
     assert.equal(model.lines[0]?.move, "+24%");
     assert.equal(model.lines[0]?.sold, "Oct 22");
     assert.equal(model.lines[1]?.move, "");
+    assert.equal(model.lines[1]?.sold, "New");
+    // A card tile never shows a percent on the image, even if one leaked into the payload.
+    const leaked = payload();
+    leaked.sales[1] = { ...leaked.sales[1]!, percentLabel: "+90%" };
+    assert.equal(movingTodayShareModel(leaked).lines[1]?.move, "");
     assert.equal(JSON.stringify(model).includes("ada@example.com"), false);
     assert.equal(JSON.stringify(model).includes("ba95893e"), false);
 

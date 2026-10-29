@@ -57,8 +57,8 @@ function scrollBehavior(): ScrollBehavior {
   return window.matchMedia?.(REDUCED_MOTION).matches ? "auto" : "smooth";
 }
 
-/** Sticks just under the app header. */
-export const LANE_TABS_TOP = "top-[calc(env(safe-area-inset-top)+3.8125rem)]";
+/** Sticks flush under the app header: the same --app-header-h the header is built from. */
+export const LANE_TABS_TOP = "top-[var(--app-header-h)]";
 
 const LANES: Array<{ id: HomeLane; label: string }> = [
   { id: "foryou", label: "For You" },
@@ -82,10 +82,13 @@ export function LaneTabs({ lane, onChange }: { lane: HomeLane; onChange: (lane: 
     <div
       data-lane-tabs=""
       data-scrolled={scrolled ? "true" : "false"}
-      className={`sticky ${LANE_TABS_TOP} z-10 border-b backdrop-blur-xl backdrop-saturate-150 transition-[background-color,box-shadow,border-color] duration-200 motion-reduce:transition-none ${
+      data-no-pull=""
+      // One unit with the header: the same background and blur, and the only hairline.
+      // Above the pull-to-refresh mark (z-15), so the mark slides out from under the tabs.
+      className={`sticky ${LANE_TABS_TOP} z-[16] border-b bg-[var(--chrome-bg)] backdrop-blur-xl backdrop-saturate-150 transition-[box-shadow,border-color] duration-200 motion-reduce:transition-none ${
         scrolled
-          ? "border-zinc-200 bg-[color-mix(in_oklab,var(--background)_72%,transparent)] shadow-[0_10px_24px_-18px_rgba(24,24,27,0.45)] dark:border-white/[0.09] dark:shadow-[0_10px_28px_-16px_rgba(0,0,0,0.9)]"
-          : "border-zinc-200/70 bg-[color-mix(in_oklab,var(--background)_82%,transparent)] dark:border-white/[0.07]"
+          ? "border-zinc-200 shadow-[0_10px_24px_-18px_rgba(24,24,27,0.45)] dark:border-white/[0.09] dark:shadow-[0_10px_28px_-16px_rgba(0,0,0,0.9)]"
+          : "border-zinc-200/70 dark:border-white/[0.07]"
       }`}
     >
       <div role="tablist" aria-label="Home timeline" onKeyDown={onKeyDown} className="relative grid grid-cols-2">

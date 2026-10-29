@@ -15,7 +15,10 @@ export type MovingTodayShareModel = {
   lines: MovingTodayShareLine[];
 };
 
-/** Copy for the share image. Emails and ids are dropped. At most four sales. */
+/**
+ * Copy for the share image. Emails and ids are dropped. At most four tiles,
+ * movers first. A plain card shows its price and "New", never a percent.
+ */
 export function movingTodayShareModel(payload: MovingTodayPayload): MovingTodayShareModel {
   const lines: MovingTodayShareLine[] = [];
   for (const sale of payload.sales) {
@@ -24,8 +27,8 @@ export function movingTodayShareModel(payload: MovingTodayPayload): MovingTodayS
     lines.push({
       name,
       price: sale.priceLabel,
-      move: sale.percentLabel ?? "",
-      sold: sale.soldLabel,
+      move: sale.kind === "mover" ? (sale.percentLabel ?? "") : "",
+      sold: sale.kind === "mover" ? (sale.soldLabel ?? "") : sale.isNew ? "New" : "",
     });
     if (lines.length >= 4) break;
   }

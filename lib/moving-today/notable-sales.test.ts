@@ -13,9 +13,13 @@ import {
   MOVING_THIS_WEEK_TITLE,
   MOVING_TODAY_MIN_DAY_MOVERS,
   MOVING_TODAY_MIN_DAY_ROWS,
-  MOVING_TODAY_MIN_WEEK_MOVERS,
   MOVING_TODAY_MIN_LEAD_CENTS,
-  MOVING_TODAY_MIN_WEEK_ROWS,
+  MOVING_FRESH_DAYS,
+  MOVING_FULL_ROW,
+  MOVING_MONTH_DAYS,
+  MOVING_PUBLIC_CAP,
+  MOVING_RAIL_MAX,
+  MOVING_STRIP_MODE,
   MOVING_TODAY_WEEK_DAYS,
   freshenMovingToday,
   movingDayHeading,
@@ -228,9 +232,13 @@ describe("New York sale day", () => {
   it("keeps the day and week thresholds and the honest headings", () => {
     assert.equal(MOVING_TODAY_WEEK_DAYS, 7);
     assert.equal(MOVING_TODAY_MIN_DAY_ROWS, 5);
-    assert.equal(MOVING_TODAY_MIN_WEEK_ROWS, 3);
     assert.equal(MOVING_TODAY_MIN_DAY_MOVERS, 6);
-    assert.equal(MOVING_TODAY_MIN_WEEK_MOVERS, 3);
+    assert.equal(MOVING_FULL_ROW, 6);
+    assert.equal(MOVING_MONTH_DAYS, 30);
+    assert.equal(MOVING_RAIL_MAX, 12);
+    assert.equal(MOVING_FRESH_DAYS, 14);
+    assert.equal(MOVING_PUBLIC_CAP, 300);
+    assert.equal(MOVING_STRIP_MODE, "all-public");
     assert.equal(MOVERS_CAP, 60);
     assert.equal(MOVING_TODAY_MIN_LEAD_CENTS, 500);
     assert.equal(movingDayHeading(TODAY, TODAY), "Moving today");
@@ -256,6 +264,7 @@ function id(n: number): string {
 
 function mover(n: number, partial: Partial<MovingTodaySale> = {}): MovingTodaySale {
   return {
+    kind: "mover",
     cardId: id(n),
     href: `/u/ada/cards/${id(n)}`,
     player: `Player ${n}`,
@@ -317,7 +326,17 @@ describe("movers", () => {
 
   it("validates the tile fields and still rejects a bad payload", () => {
     assert.equal(isMovingTodaySale(mover(1)), true);
-    assert.equal(isMovingTodaySale(mover(1, { percent: null, percentLabel: null })), true);
+    // A mover always has a real percent. A card never does.
+    assert.equal(isMovingTodaySale(mover(1, { percent: null, percentLabel: null })), false);
+    assert.equal(isMovingTodaySale(mover(1, { kind: "card", percent: null, percentLabel: null })), true);
+    assert.equal(isMovingTodaySale(mover(1, { kind: "card" })), false);
+    assert.equal(
+      isMovingTodaySale(
+        mover(1, { kind: "card", percent: null, percentLabel: null, soldOn: undefined, soldLabel: undefined }),
+      ),
+      true,
+    );
+    assert.equal(isMovingTodaySale({ ...mover(1), kind: undefined }), false);
     const noYear: Partial<MovingTodaySale> = mover(1);
     delete noYear.yearLabel;
     assert.equal(isMovingTodaySale(noYear), false);
@@ -341,6 +360,8 @@ describe("cached movers across midnight", () => {
     window: "day",
     updatedAt: "2026-10-22T18:00:00.000Z",
     sales: Array.from({ length: count }, (_, n) => mover(n + 1, { percent: 10 + n })),
+    moverCount: count,
+    totalCount: count,
   });
 
   it("stays Moving today on the same New York date with six movers", () => {
@@ -356,7 +377,7 @@ describe("cached movers across midnight", () => {
     );
   });
 
-  it("falls back to the week after midnight, and to empty once out of range", () => {
+  it("falls back to the week after midnight, then the month, never to empty", () => {
     const afterMidnight = freshenMovingToday(dayPayload(6), new Date("2026-10-23T04:30:00.000Z"));
     assert.equal(afterMidnight.title, MOVING_THIS_WEEK_TITLE);
     assert.equal(afterMidnight.window, "week");
@@ -365,18 +386,32 @@ describe("cached movers across midnight", () => {
     assert.equal(afterMidnight.updatedAt, "2026-10-22T18:00:00.000Z");
 
     const eighthDay = freshenMovingToday(dayPayload(6), new Date("2026-10-30T16:00:00.000Z"));
-    assert.equal(eighthDay.sales.length, 0);
+    assert.equal(eighthDay.window, "month");
+    assert.equal(eighthDay.title, "Moving this month");
+    assert.equal(eighthDay.dateLabel, "Last 30 days");
+    assert.equal(eighthDay.sales.length, 6);
     assert.equal(eighthDay.updatedAt, "2026-10-22T18:00:00.000Z");
+
+    // Past 30 days the movers become plain cards: no percent, still shown.
+    const later = freshenMovingToday(dayPayload(6), new Date("2026-11-30T16:00:00.000Z"));
+    assert.equal(later.window, "fresh");
+    assert.equal(later.title, "Fresh on Slabhold");
+    assert.equal(later.sales.length, 6);
+    assert.equal(later.moverCount, 0);
+    assert.equal(later.sales.every((sale) => sale.kind === "card" && sale.percent === null), true);
+    // Movers-only drops them instead.
+    assert.equal(freshenMovingToday(dayPayload(6), new Date("2026-11-30T16:00:00.000Z"), "movers-only").sales.length, 0);
   });
 
-  it("drops to the week below six movers, and to empty below three", () => {
+  it("drops to the week below six movers and keeps even two", () => {
     const five = freshenMovingToday(dayPayload(5), new Date("2026-10-22T19:00:00.000Z"));
     assert.equal(five.title, MOVING_THIS_WEEK_TITLE);
     assert.equal(five.window, "week");
     assert.equal(five.sales.length, 5);
     const two = freshenMovingToday(dayPayload(2), new Date("2026-10-22T19:00:00.000Z"));
-    assert.equal(two.sales.length, 0);
-    assert.equal(two.title, "Moving today");
+    assert.equal(two.sales.length, 2);
+    assert.equal(two.title, MOVING_THIS_WEEK_TITLE);
+    assert.equal(two.moverCount, 2);
   });
 
   it("never shows a cached row without a real percent", () => {
@@ -398,6 +433,8 @@ describe("cached movers across midnight", () => {
       dateLabel: "Oct 22",
       window: "week",
       sales,
+      moverCount: 3,
+      totalCount: 3,
     };
     const sameEvening = freshenMovingToday(cached, new Date("2026-10-23T03:30:00.000Z"));
     assert.equal(sameEvening.title, MOVING_THIS_WEEK_TITLE);
@@ -406,7 +443,9 @@ describe("cached movers across midnight", () => {
     const afterMidnight = freshenMovingToday(cached, new Date("2026-10-23T04:30:00.000Z"));
     assert.equal(afterMidnight.dateLabel, "Oct 17 – Oct 23");
     const lateWeek = freshenMovingToday(cached, new Date("2026-10-28T23:59:00-04:00"));
-    assert.equal(lateWeek.sales.length, 0, "only the Oct 22 sale is inside the week ending Oct 28");
+    // Only the Oct 22 sale is inside the week ending Oct 28, so the month holds more.
+    assert.equal(lateWeek.window, "month");
+    assert.equal(lateWeek.sales.length, 3);
   });
 });
 
@@ -510,7 +549,7 @@ describe("public card assembly", () => {
     assert.equal(payload.sales.every(isMovingTodaySale), true);
   });
 
-  it("excludes cards without a real percent and sorts by the size of the move", () => {
+  it("puts cards without a real percent after the movers, as plain cards", () => {
     const pad = fillers(6);
     const noComps = raw("dart", id(99), 900, "dart");
     const down = raw("down", id(98), 30, "down");
@@ -528,13 +567,21 @@ describe("public card assembly", () => {
       profiles: ada,
       alternates: [],
     });
-    assert.equal(payload.sales.some((sale) => sale.player === "Jaxson Dart"), false);
-    assert.equal(payload.sales.some((sale) => sale.percent == null), false);
+    const movers = payload.sales.filter((sale) => sale.kind === "mover");
+    const dart = payload.sales.find((sale) => sale.player === "Jaxson Dart");
+    assert.equal(dart?.kind, "card");
+    assert.equal(dart?.percent, null);
+    assert.equal(dart?.percentLabel, null);
+    assert.equal(dart?.priceLabel, "$900.00");
+    assert.equal(payload.sales.at(-1)?.player, "Jaxson Dart");
+    assert.equal(movers.some((sale) => sale.percent == null), false);
     assert.equal(payload.sales[0]?.player, "Big Card");
     assert.equal(payload.sales[0]?.percent, 115);
-    assert.equal(payload.sales.at(-1)?.player, "Down Card");
-    assert.equal(payload.sales.at(-1)?.percent, -40);
-    const moves = payload.sales.map((sale) => Math.abs(sale.percent ?? 0));
+    assert.equal(movers.at(-1)?.player, "Down Card");
+    assert.equal(movers.at(-1)?.percent, -40);
+    assert.equal(payload.moverCount, 8);
+    assert.equal(payload.totalCount, 9);
+    const moves = movers.map((sale) => Math.abs(sale.percent ?? 0));
     assert.deepEqual(moves, [...moves].sort((a, b) => b - a));
   });
 
@@ -549,7 +596,10 @@ describe("public card assembly", () => {
       alternates: [],
     });
     assert.equal(payload.window, "day");
-    assert.equal(payload.sales.length, MOVERS_CAP);
+    assert.equal(payload.moverCount, MOVERS_CAP);
+    // Movers past the cap still show, as plain cards after the movers.
+    assert.equal(payload.totalCount, 70);
+    assert.equal(payload.sales.slice(MOVERS_CAP).every((sale) => sale.kind === "card"), true);
     const twelve = fillers(12);
     const all = assembleMovingToday({
       today: TODAY,
@@ -589,7 +639,9 @@ describe("public card assembly", () => {
     assert.equal(week.title, MOVING_THIS_WEEK_TITLE);
     assert.equal(week.window, "week");
     assert.equal(week.dateLabel, "Oct 16 – Oct 22");
-    assert.equal(week.sales.length, 5);
+    assert.equal(week.moverCount, 5);
+    assert.equal(week.sales.at(-1)?.player, "Thin");
+    assert.equal(week.sales.at(-1)?.kind, "card");
   });
 
   it("uses the week when only yesterday moved, never a Moving yesterday heading", () => {
@@ -608,7 +660,7 @@ describe("public card assembly", () => {
     assert.equal(payload.sales[0]?.soldLabel, "Oct 21");
   });
 
-  it("widens a thin day to the week and hides a week under three movers", () => {
+  it("widens a thin day to the week, and keeps a two-mover week with its cards", () => {
     const thinDay = fillers(2, "2026-10-22T00:00:00+00:00", 30);
     const earlier = fillers(3, "2026-10-18T00:00:00+00:00", 50, 3);
     const week = assembleMovingToday({
@@ -635,8 +687,14 @@ describe("public card assembly", () => {
       profiles: ada,
       alternates: [],
     });
-    assert.equal(hidden.sales.length, 0);
-    assert.equal(hidden.title, "Moving today");
+    assert.equal(hidden.title, MOVING_THIS_WEEK_TITLE);
+    assert.equal(hidden.moverCount, 2);
+    assert.equal(hidden.totalCount, 6);
+    assert.deepEqual(
+      hidden.sales.map((sale) => sale.kind),
+      ["mover", "mover", "card", "card", "card", "card"],
+    );
+    assert.equal(hidden.sales.slice(2).every((sale) => sale.percent === null), true);
     assert.equal(hidden.updatedAt, "2026-10-22T18:00:00.000Z");
   });
 
@@ -714,8 +772,11 @@ describe("public card assembly", () => {
       alternates: [],
     });
     assert.equal(day.window, "day");
-    assert.equal(day.sales.length, 6);
-    assert.equal(day.sales.some((sale) => sale.priceCents < 500), false);
+    assert.equal(day.moverCount, 6);
+    assert.equal(
+      day.sales.some((sale) => sale.kind === "mover" && (sale.priceCents ?? 0) < 500),
+      false,
+    );
 
     const threeLead = fillers(3, "2026-10-22T00:00:00+00:00", 20);
     const threeCheap = fillers(3, "2026-10-22T00:00:00+00:00", 1, 30);
@@ -729,7 +790,7 @@ describe("public card assembly", () => {
     });
     assert.equal(kept.window, "day");
     assert.equal(kept.sales.length, 6);
-    assert.equal(kept.sales.some((sale) => sale.priceCents < 500), true);
+    assert.equal(kept.sales.some((sale) => (sale.priceCents ?? 0) < 500), true);
 
     const shortLead = fillers(2, "2026-10-20T00:00:00+00:00", 12);
     const shortCheap = fillers(1, "2026-10-22T00:00:00+00:00", 2, 41);
@@ -743,10 +804,10 @@ describe("public card assembly", () => {
     });
     assert.equal(shortWeek.window, "week");
     assert.equal(shortWeek.sales.length, 3);
-    assert.equal(shortWeek.sales.some((sale) => sale.priceCents < 500), true);
+    assert.equal(shortWeek.sales.some((sale) => (sale.priceCents ?? 0) < 500), true);
   });
 
-  it("shows one row when two query keys share a card, and hides a two-card week", () => {
+  it("shows one row when two query keys share a card, and keeps a two-card week", () => {
     const shared = id(70);
     const pad = fillers(5);
     const alpha = raw("alpha", id(71), 100, "alpha");
@@ -784,7 +845,222 @@ describe("public card assembly", () => {
       profiles: ada,
       alternates: weekKeys.map((row) => ({ queryKey: row.key, cardId: row.cardId })),
     });
-    assert.equal(hidden.sales.length, 0);
-    assert.equal(hidden.title, "Moving today");
+    assert.equal(hidden.sales.length, 2);
+    assert.equal(hidden.title, MOVING_THIS_WEEK_TITLE);
+  });
+  describe("every public card while the app is small", () => {
+    const ASOF = "2026-10-29";
+    const day = (offset: number) => `${addCalendarDays(ASOF, offset)}T00:00:00+00:00`;
+    const added = (offset: number) => `${addCalendarDays(ASOF, offset)}T15:00:00.000Z`;
+    const pub = (n: number, player: string, createdAt: string, extra: Partial<PublicCardRef> = {}) => ({
+      ...card(id(n), "user-1", player),
+      createdAt,
+      ...extra,
+    });
+
+    /** Live data for Oct 23–29: two movers, Dart with sales and no %, a private card, 17 quiet cards. */
+    function liveShape() {
+      const lebron = raw("lebron", id(1), 138, "lebron-1", day(-2));
+      const mccarthy = raw("mccarthy", id(2), 215, "mcc-1", day(-1));
+      const mccarthyMore = [80, 90, 70].map((price, n) => raw("mccarthy", id(2), price, `mcc-${n + 2}`, day(-3 - n)));
+      const dart = [60, 55, 58, 62, 50, 57].map((price, n) => raw("dart", id(3), price, `dart-${n}`, day(-n)));
+      const secret = raw("secret", id(9), 400, "secret-1", day(0));
+      const others = Array.from({ length: 17 }, (_, n) =>
+        pub(100 + n, `Quiet ${n + 1}`, added(-3 - n * 2), n === 0 ? { estimatedValue: 12.5 } : {}),
+      );
+      const cards = [
+        pub(1, "LeBron James", added(-40)),
+        pub(2, "J.J. McCarthy", added(-30)),
+        pub(3, "Jaxson Dart", added(-1)),
+      ];
+      return {
+        sales: [lebron, mccarthy, ...mccarthyMore, ...dart, secret, raw("secret", id(9), 390, "secret-2", day(-1))],
+        history: [...comps(lebron, 38), ...comps(mccarthy, 115), ...comps(secret, 300)],
+        cards,
+        newest: [...cards, ...others],
+      };
+    }
+
+    it("shows the live shape: real movers first, then every public card newest first", () => {
+      const live = liveShape();
+      const payload = assembleMovingToday({
+        today: ASOF,
+        sales: live.sales,
+        history: live.history,
+        cards: live.cards,
+        newest: live.newest,
+        profiles: ada,
+        alternates: [],
+      });
+      assert.equal(payload.window, "week", "the month has no more movers than the week");
+      assert.equal(payload.title, MOVING_THIS_WEEK_TITLE);
+      assert.equal(payload.moverCount, 2);
+      assert.equal(payload.totalCount, 20);
+      assert.equal(payload.sales.length, 20);
+      assert.deepEqual(
+        payload.sales.slice(0, 4).map((sale) => sale.player),
+        ["J.J. McCarthy", "LeBron James", "Jaxson Dart", "Quiet 1"],
+      );
+      assert.deepEqual(payload.sales.slice(0, 2).map((sale) => sale.percentLabel), ["+115%", "+38%"]);
+      assert.equal(payload.sales.slice(2).every((sale) => sale.kind === "card"), true);
+      // No fabricated percent anywhere.
+      assert.equal(payload.sales.filter((sale) => sale.percent != null).length, 2);
+      assert.equal(payload.sales.some((sale) => sale.kind === "card" && sale.percentLabel != null), false);
+      // The private card never shows, though it has sales and a big move.
+      assert.equal(payload.sales.some((sale) => sale.cardId === id(9)), false);
+      assert.equal(JSON.stringify(payload).includes(id(9)), false);
+      // Dart: newest, its latest comp as the price, and the New chip.
+      const dart = payload.sales[2]!;
+      assert.equal(dart.priceLabel, "$60.00");
+      assert.equal(dart.isNew, true);
+      // A card with no comp shows its estimated value, or no price line.
+      assert.equal(payload.sales[3]?.priceLabel, "$12.50");
+      assert.equal(payload.sales[4]?.priceLabel, "");
+      assert.equal(payload.sales[4]?.priceCents, null);
+      // Added 40 days ago: not new.
+      assert.equal(payload.sales[1]?.isNew, false);
+      // The rest stay newest first.
+      const added = payload.sales.slice(2).map((sale) => sale.addedAt ?? "");
+      assert.deepEqual(added, [...added].sort().reverse());
+      assert.equal(payload.sales.every(isMovingTodaySale), true);
+    });
+
+    it("titles a thin week the month when the month holds more movers", () => {
+      const live = liveShape();
+      const older = raw("older", id(4), 90, "older-1", day(-20));
+      const payload = assembleMovingToday({
+        today: ASOF,
+        sales: [...live.sales, older],
+        history: [...live.history, ...comps(older, -25)],
+        cards: [...live.cards, pub(4, "Older Mover", added(-60))],
+        newest: live.newest,
+        profiles: ada,
+        alternates: [],
+      });
+      assert.equal(payload.window, "month");
+      assert.equal(payload.title, "Moving this month");
+      assert.equal(payload.dateLabel, "Last 30 days");
+      assert.equal(payload.moverCount, 3);
+      assert.equal(payload.totalCount, 21);
+    });
+
+    it("says Fresh on Slabhold with no movers, and is empty with no public cards", () => {
+      const five = Array.from({ length: 5 }, (_, n) => pub(200 + n, `Fresh ${n + 1}`, added(-n)));
+      const fresh = assembleMovingToday({
+        today: ASOF,
+        sales: [],
+        history: [],
+        cards: [],
+        newest: five,
+        profiles: ada,
+        alternates: [],
+      });
+      assert.equal(fresh.title, "Fresh on Slabhold");
+      assert.equal(fresh.window, "fresh");
+      assert.equal(fresh.dateLabel, "");
+      assert.equal(fresh.moverCount, 0);
+      assert.equal(fresh.totalCount, 5);
+      assert.deepEqual(fresh.sales.map((sale) => sale.kind), ["card", "card", "card", "card", "card"]);
+      assert.equal(shouldShowMovingToday(fresh.sales), true);
+
+      const none = assembleMovingToday({
+        today: ASOF,
+        sales: [],
+        history: [],
+        cards: [],
+        newest: [],
+        profiles: ada,
+        alternates: [],
+      });
+      assert.equal(none.sales.length, 0);
+      assert.equal(none.totalCount, 0);
+      assert.equal(shouldShowMovingToday(none.sales), false);
+    });
+
+    it("drops a card whose owner has no public handle", () => {
+      const payload = assembleMovingToday({
+        today: ASOF,
+        sales: [],
+        history: [],
+        cards: [],
+        newest: [pub(300, "Linked", added(0)), { ...pub(301, "Orphan", added(0)), userId: "user-x" }],
+        profiles: ada,
+        alternates: [],
+      });
+      assert.deepEqual(payload.sales.map((sale) => sale.player), ["Linked"]);
+    });
+
+    it("says Moving today at six movers today, then the other cards", () => {
+      const six = fillers(6, day(0));
+      const extra = [pub(400, "Extra Card", added(-2))];
+      const payload = assembleMovingToday({
+        today: ASOF,
+        sales: six.sales,
+        history: six.history,
+        cards: six.cards,
+        newest: [...six.cards.map((c) => ({ ...c, createdAt: added(-50) })), ...extra],
+        profiles: ada,
+        alternates: [],
+      });
+      assert.equal(payload.title, "Moving today");
+      assert.equal(payload.window, "day");
+      assert.equal(payload.moverCount, 6);
+      assert.equal(payload.totalCount, 7);
+      assert.equal(payload.sales.slice(0, 6).every((sale) => sale.kind === "mover"), true);
+      assert.equal(payload.sales[6]?.player, "Extra Card");
+    });
+
+    it("movers-only mode keeps real movers and hides with none", () => {
+      const live = liveShape();
+      const only = assembleMovingToday({
+        today: ASOF,
+        sales: live.sales,
+        history: live.history,
+        cards: live.cards,
+        newest: live.newest,
+        profiles: ada,
+        alternates: [],
+        mode: "movers-only",
+      });
+      assert.deepEqual(only.sales.map((sale) => sale.player), ["J.J. McCarthy", "LeBron James"]);
+      assert.equal(only.totalCount, 2);
+      const none = assembleMovingToday({
+        today: ASOF,
+        sales: [],
+        history: [],
+        cards: [],
+        newest: live.newest,
+        profiles: ada,
+        alternates: [],
+        mode: "movers-only",
+      });
+      assert.equal(none.sales.length, 0);
+      assert.equal(none.totalCount, 0);
+    });
+
+    it("keeps card tiles after midnight and never empties a non-empty payload", () => {
+      const live = liveShape();
+      const payload = assembleMovingToday({
+        today: ASOF,
+        sales: live.sales,
+        history: live.history,
+        cards: live.cards,
+        newest: live.newest,
+        profiles: ada,
+        alternates: [],
+      });
+      const asDay: MovingTodayPayload = { ...payload, window: "day", date: ASOF };
+      const next = freshenMovingToday(asDay, new Date("2026-10-30T05:00:00.000Z"));
+      assert.equal(next.window, "week");
+      assert.equal(next.totalCount, 20);
+      assert.equal(next.sales.filter((sale) => sale.kind === "card").length, 18);
+      // Months later the movers join the cards, newest first, with no percent.
+      const much = freshenMovingToday(payload, new Date("2027-01-15T17:00:00.000Z"));
+      assert.equal(much.window, "fresh");
+      assert.equal(much.totalCount, 20);
+      assert.equal(much.sales.some((sale) => sale.percent != null), false);
+      assert.equal(much.sales[0]?.player, "Jaxson Dart");
+      assert.equal(much.sales.at(-1)?.player, "LeBron James");
+    });
   });
 });

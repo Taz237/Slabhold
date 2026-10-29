@@ -1,7 +1,13 @@
 import { dollarsToCents } from "@/lib/comps/stats";
 import { userHref } from "@/lib/social/user-href";
 import { isUuid } from "@/lib/value/card-value-access";
-import { emptyMovingToday, MOVING_TODAY_TITLE, type MovingTodayPayload } from "./types";
+import {
+  emptyMovingToday,
+  MOVING_TODAY_TITLE,
+  type MovingTodayPayload,
+  type MovingTodaySale,
+  type MovingTodayWindow,
+} from "./types";
 
 const NEW_YORK = "America/New_York";
 
@@ -20,14 +26,21 @@ export const MOVING_TODAY_MIN_DAY_ROWS = 5;
 /** Thin days widen to this many New York calendar dates, including today. */
 export const MOVING_TODAY_WEEK_DAYS = 7;
 
-/** Fewer rows than this, and the week module stays hidden. */
-export const MOVING_TODAY_MIN_WEEK_ROWS = 3;
+/** A thin week widens to this many New York calendar dates, including today. */
+export const MOVING_MONTH_DAYS = 30;
+
+export type MovingStripMode = "all-public" | "movers-only";
+
+/** "all-public": movers first, then every public card newest first (small app).
+ *  "movers-only": real movers only (flip when the app is bigger). */
+export const MOVING_STRIP_MODE: "all-public" | "movers-only" = "all-public";
+export const MOVING_RAIL_MAX = 12;
+export const MOVING_FULL_ROW = 6;       // movers needed to stay on a narrow window
+export const MOVING_FRESH_DAYS = 14;    // "New" chip
+export const MOVING_PUBLIC_CAP = 300;   // max public cards read for the strip
 
 /** "Moving today" needs this many cards with a real percent from today's comps. */
-export const MOVING_TODAY_MIN_DAY_MOVERS = 6;
-
-/** Fewer movers than this in the week, and the quiet row shows instead of a rail. */
-export const MOVING_TODAY_MIN_WEEK_MOVERS = MOVING_TODAY_MIN_WEEK_ROWS;
+export const MOVING_TODAY_MIN_DAY_MOVERS = MOVING_FULL_ROW;
 
 /** Hard cap on movers in one payload. */
 export const MOVERS_CAP = 60;
@@ -36,6 +49,9 @@ export const MOVERS_CAP = 60;
 export const MOVING_TODAY_MIN_LEAD_CENTS = 500;
 
 export const MOVING_THIS_WEEK_TITLE = "Moving this week";
+export const MOVING_THIS_MONTH_TITLE = "Moving this month";
+export const MOVING_FRESH_TITLE = "Fresh on Slabhold";
+export const MOVING_MONTH_LABEL = "Last 30 days";
 
 export const BIGGEST_SALE_COUNT = 3;
 export const BIG_MOVE_COUNT = 3;
@@ -105,45 +121,116 @@ export function movingDayIsRecent(
   return shownDate >= addCalendarDays(today, -days);
 }
 
+export type MoverWindow = "day" | "week" | "month";
+
+/**
+ * Week when it fills a row, else the month when that does. Below a full row
+ * either way, the narrower window unless the month adds movers.
+ */
+export function pickMoverWindow(counts: { week: number; month: number }): "week" | "month" {
+  if (counts.week >= MOVING_FULL_ROW) return "week";
+  if (counts.month >= MOVING_FULL_ROW) return "month";
+  return counts.month > counts.week ? "month" : "week";
+}
+
+/** Title and date line for a window ending on `asOf`. */
+export function movingWindowHeading(
+  window: MovingTodayWindow,
+  asOf: string,
+): { title: string; dateLabel: string } {
+  if (window === "day") return { title: MOVING_TODAY_TITLE, dateLabel: formatSaleDate(asOf) };
+  if (window === "week") return { title: MOVING_THIS_WEEK_TITLE, dateLabel: weekDateLabel(asOf) };
+  if (window === "month") return { title: MOVING_THIS_MONTH_TITLE, dateLabel: MOVING_MONTH_LABEL };
+  return { title: MOVING_FRESH_TITLE, dateLabel: "" };
+}
+
+/** Newest added first. Tiles with no add time keep their order at the end. */
+export function newestFirst<T extends { addedAt?: string }>(rows: readonly T[]): T[] {
+  return rows
+    .map((row, index) => ({ row, index, at: row.addedAt ? Date.parse(row.addedAt) : Number.NaN }))
+    .sort((a, b) => {
+      const aKnown = Number.isFinite(a.at);
+      const bKnown = Number.isFinite(b.at);
+      if (aKnown && bKnown && a.at !== b.at) return b.at - a.at;
+      if (aKnown !== bKnown) return aKnown ? -1 : 1;
+      return a.index - b.index;
+    })
+    .map((entry) => entry.row);
+}
+
+/** A mover shown as a plain card: the price stays, the percent never does. */
+export function asCardTile(sale: MovingTodaySale): MovingTodaySale {
+  return { ...sale, kind: "card", percent: null, percentLabel: null };
+}
+
+/** Movers, then cards. Fresh when there are cards but no movers. Empty with neither. */
+export function buildMovingPayload(input: {
+  asOf: string;
+  window: MoverWindow;
+  movers: readonly MovingTodaySale[];
+  cards: readonly MovingTodaySale[];
+  updatedAt?: string;
+}): MovingTodayPayload {
+  const updatedAt = input.updatedAt ? { updatedAt: input.updatedAt } : {};
+  const sales = [...input.movers, ...input.cards];
+  if (sales.length === 0) return { ...emptyMovingToday(input.asOf), ...updatedAt };
+  const window: MovingTodayWindow = input.movers.length > 0 ? input.window : "fresh";
+  return {
+    ...movingWindowHeading(window, input.asOf),
+    date: input.asOf,
+    sales,
+    window,
+    moverCount: input.movers.length,
+    totalCount: sales.length,
+    ...updatedAt,
+  };
+}
+
 /**
  * Heading from the sale dates and the current New York date. Cached title
  * text is ignored. A day list stays "Moving today" only while it is today's
- * and still has enough movers. Otherwise it falls back to the week, keeping
- * only sales inside the recomputed 7-day window, and hides below the week
- * minimum. Rows without a real percent are dropped, so an older cached
- * shape never shows one.
+ * and still has a full row. Otherwise it falls back to the week or the
+ * month. Movers that fall out of the window join the card section as plain
+ * cards, newest first, so a non-empty list never empties. Movers-only mode
+ * drops them instead.
  */
 export function freshenMovingToday(
   payload: MovingTodayPayload,
   now: Date = new Date(),
+  mode: MovingStripMode = MOVING_STRIP_MODE,
 ): MovingTodayPayload {
   const today = calendarDateInTimeZone(now);
-  const movers = rankMovers(payload.sales);
-  const updatedAt = payload.updatedAt ? { updatedAt: payload.updatedAt } : {};
-  if (payload.window === "day" && payload.date === today) {
-    const day = movers.filter((sale) => sale.soldOn === today);
-    if (day.length >= MOVING_TODAY_MIN_DAY_MOVERS) {
-      return {
-        ...payload,
-        date: today,
-        title: MOVING_TODAY_TITLE,
-        dateLabel: formatSaleDate(today),
-        sales: day,
-        window: "day",
-      };
-    }
+  const tiles = Array.isArray(payload.sales) ? payload.sales : [];
+  const movers = rankMovers(tiles.filter((sale) => sale.kind === "mover"));
+  const cards = mode === "all-public" ? tiles.filter((sale) => sale.kind === "card") : [];
+  const since = (days: number) =>
+    movers.filter((sale) => {
+      const soldOn = sale.soldOn ?? "";
+      return soldOn >= addCalendarDays(today, -(days - 1)) && soldOn <= today;
+    });
+
+  let window: MoverWindow;
+  let shown: MovingTodaySale[];
+  const day = movers.filter((sale) => sale.soldOn === today);
+  if (payload.window === "day" && payload.date === today && day.length >= MOVING_FULL_ROW) {
+    window = "day";
+    shown = day;
+  } else {
+    const week = since(MOVING_TODAY_WEEK_DAYS);
+    const month = since(MOVING_MONTH_DAYS);
+    window = pickMoverWindow({ week: week.length, month: month.length });
+    shown = window === "week" ? week : month;
   }
-  const start = addCalendarDays(today, -(MOVING_TODAY_WEEK_DAYS - 1));
-  const sales = movers.filter((sale) => sale.soldOn >= start && sale.soldOn <= today);
-  if (sales.length < MOVING_TODAY_MIN_WEEK_MOVERS) return { ...emptyMovingToday(today), ...updatedAt };
-  return {
-    ...payload,
-    date: today,
-    title: MOVING_THIS_WEEK_TITLE,
-    dateLabel: weekDateLabel(today),
-    sales,
-    window: "week",
-  };
+  const kept = new Set(shown.map((sale) => sale.cardId));
+  const demoted =
+    mode === "all-public" ? movers.filter((sale) => !kept.has(sale.cardId)).map(asCardTile) : [];
+  return buildMovingPayload({
+    asOf: today,
+    window,
+    movers: shown,
+    cards: demoted.length > 0 ? newestFirst([...cards, ...demoted]) : cards,
+    updatedAt: payload.updatedAt,
+  });
 }
 
 /** Inclusive label for the 7-day window ending on `asOf`, as calendar dates. */
@@ -159,6 +246,8 @@ export function movingTodayDescription(title: string): string {
   if (title === "Moving yesterday") return "Yesterday's notable sales across the Slabhold catalog.";
   if (title === "Moving today") return "Today's notable sales across the Slabhold catalog.";
   if (title === MOVING_THIS_WEEK_TITLE) return "This week's notable sales across the Slabhold catalog.";
+  if (title === MOVING_THIS_MONTH_TITLE) return "This month's notable sales, then the newest cards on Slabhold.";
+  if (title === MOVING_FRESH_TITLE) return "The newest cards on Slabhold.";
   const day = title.replace(/^Moving\s+/, "");
   if (day && day !== title) return `Notable sales from ${day} across the Slabhold catalog.`;
   return "Notable sales across the Slabhold catalog.";
@@ -272,7 +361,7 @@ function byPrice(a: NotableSale, b: NotableSale): number {
 }
 
 type PricedRow = {
-  priceCents: number;
+  priceCents: number | null;
   percent: number | null;
   queryKey?: string;
   itemId?: string;
@@ -280,11 +369,11 @@ type PricedRow = {
 };
 
 function rowIdentity(row: PricedRow): string {
-  return `${row.queryKey ?? row.cardId ?? ""}|${row.itemId ?? ""}|${row.priceCents}`;
+  return `${row.queryKey ?? row.cardId ?? ""}|${row.itemId ?? ""}|${row.priceCents ?? ""}`;
 }
 
 function pricedSort(a: PricedRow, b: PricedRow): number {
-  if (a.priceCents !== b.priceCents) return b.priceCents - a.priceCents;
+  if (a.priceCents !== b.priceCents) return (b.priceCents ?? 0) - (a.priceCents ?? 0);
   const aMove = a.percent == null ? -1 : Math.abs(a.percent);
   const bMove = b.percent == null ? -1 : Math.abs(b.percent);
   if (aMove !== bMove) return bMove - aMove;

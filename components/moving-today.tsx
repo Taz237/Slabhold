@@ -4,18 +4,17 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   useEffect,
-  useMemo,
   useRef,
   useState,
   useSyncExternalStore,
+  type CSSProperties,
   type PointerEvent,
   type RefObject,
 } from "react";
-import { ArrowLeft, ChevronRight } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import { CardTile, tileFocusRing } from "@/components/card-tile";
-import { ShareIconButton } from "@/components/share-button";
 import { EAGER_TILES } from "@/lib/collection/grid";
-import { freshenMovingToday, MOVING_TODAY_MIN_WEEK_MOVERS, splitMovers } from "@/lib/moving-today/rank";
+import { freshenMovingToday } from "@/lib/moving-today/rank";
 import {
   compactRangeLabel,
   countUpText,
@@ -25,7 +24,6 @@ import {
   moverGain,
   moverTileCard,
   MOVING_RAIL_COUNT,
-  type MoverDirection,
 } from "@/lib/moving-today/rail";
 import {
   MOVING_TODAY_PATH,
@@ -39,7 +37,7 @@ export const RAIL_TOP_WIDTH = "w-[132px]";
 export const RAIL_TILE_WIDTH = "w-[120px]";
 
 /** A soft purple glow on the top mover's slab only, not a box around the tile. */
-const TOP_GLOW = "[&_[data-kind]]:drop-shadow-[0_10px_22px_rgba(124,58,237,0.42)]";
+export const TOP_GLOW = "[&_[data-kind]]:drop-shadow-[0_10px_22px_rgba(124,58,237,0.42)]";
 
 /** Tiles past the first three start off screen: they skip layout and paint until swiped near. */
 const RAIL_PAINTED_TILES = 3;
@@ -55,6 +53,8 @@ const COUNT_UP_MS = 480;
 
 const ENTER = "motion-safe:animate-[tile-in_240ms_cubic-bezier(0.2,0.7,0.2,1)_both]";
 const DOT_PULSE = "motion-safe:animate-[live-dot_2.4s_ease-in-out_infinite]";
+/** The client fallback's held box fades its final content in. */
+const FADE_IN = "motion-safe:animate-[lightbox-fade_200ms_ease-out_both]";
 
 /** The rail fades in once per page load, not on every lane switch or remount. */
 let railEntered = false;
@@ -91,7 +91,7 @@ function useMinute(): number | null {
 }
 
 /** Warm the page a finger lands on. Links themselves don't prefetch. */
-function useWarmOnPointerDown() {
+export function useWarmOnPointerDown() {
   const router = useRouter();
   const warmed = useRef(new Set<string>());
   return (event: PointerEvent<HTMLElement>) => {
@@ -145,18 +145,21 @@ function useChipCountUp(list: RefObject<HTMLElement | null>, enabled: boolean) {
   }, [list, enabled]);
 }
 
-function FreshnessDot({ day }: { day: boolean }) {
+/** Emerald and pulsing for today. Zinc and still for every other window. */
+export function FreshnessDot({ day, still = false }: { day: boolean; still?: boolean }) {
   return (
     <span
       aria-hidden="true"
       data-live-dot={day ? "day" : "week"}
-      className={`h-1.5 w-1.5 shrink-0 rounded-full ${day ? "bg-emerald-500" : "bg-zinc-400 dark:bg-zinc-500"} ${DOT_PULSE}`}
+      className={`h-1.5 w-1.5 shrink-0 rounded-full ${day ? "bg-emerald-500" : "bg-zinc-400 dark:bg-zinc-500"} ${
+        day && !still ? DOT_PULSE : ""
+      }`}
     />
   );
 }
 
 /** "LIVE · Updated 12m ago". Empty until the client knows the time. */
-function Freshness({
+export function Freshness({
   payload,
   lead,
   short = false,
@@ -192,41 +195,61 @@ function Freshness({
 const SEE_ALL_LINK =
   "text-[#7C3AED] dark:text-[#A78BFA] font-semibold";
 
-function MoverTile({
+/** Neutral, never a percent: a card added in the last two weeks. */
+export function NewChip() {
+  return (
+    <span
+      data-new-chip=""
+      className="inline-flex shrink-0 items-center rounded-full bg-zinc-500/15 px-1.5 py-0.5 font-mono text-[9px] leading-[14px] font-semibold tracking-wider text-zinc-600 uppercase dark:text-zinc-300"
+    >
+      New
+    </span>
+  );
+}
+
+export function MoverTile({
   sale,
   index,
   variant,
   animate = false,
+  className = "",
+  style,
 }: {
   sale: MovingTodaySale;
   index: number;
+  /** Top is the rail's first, wider tile. Its glow and badge are for a mover only. */
   variant: "top" | "rail" | "grid";
   animate?: boolean;
+  className?: string;
+  style?: CSSProperties;
 }) {
   const rail = variant !== "grid";
-  const badge = variant === "top" ? moveBadgeText(sale.percent) : "";
+  const mover = sale.kind === "mover";
+  const lead = variant === "top";
+  const badge = lead && mover ? moveBadgeText(sale.percent) : "";
   const gain = moverGain(sale);
   return (
     <CardTile
       card={moverTileCard(sale)}
       href={sale.href}
       // The first three load eagerly. The rest wait for the scroll.
-      index={index < 3 ? index : index + EAGER_TILES}
+      index={rail ? (index < 3 ? index : index + EAGER_TILES) : index}
       ariaLabel={moverAccessibleName(sale)}
-      priceLabel={sale.priceLabel}
+      priceLabel={sale.priceLabel || null}
       gain={gain}
+      chip={!mover && sale.isNew ? <NewChip /> : null}
       prefetch={false}
       as="li"
       density="compact"
-      sizes={rail ? "120px" : "(min-width: 1024px) 180px, (min-width: 640px) 25vw, 33vw"}
+      sizes={rail ? "120px" : "(min-width: 640px) 170px, 50vw"}
       className={
         rail
-          ? `shrink-0 snap-start ${variant === "top" ? `${RAIL_TOP_WIDTH} ${TOP_GLOW}` : RAIL_TILE_WIDTH} ${
+          ? `shrink-0 snap-start ${lead ? `${RAIL_TOP_WIDTH} ${mover ? TOP_GLOW : ""}` : RAIL_TILE_WIDTH} ${
               index >= RAIL_PAINTED_TILES ? OFFSCREEN_TILE : ""
             } ${animate && index < STAGGER_TILES ? ENTER : ""}`
-          : "min-w-0"
+          : `min-w-0 ${className}`
       }
-      style={animate ? { animationDelay: `${index * STAGGER_MS}ms` } : undefined}
+      style={rail ? (animate ? { animationDelay: `${index * STAGGER_MS}ms` } : undefined) : style}
     >
       {badge && gain ? (
         // Straddles the slab's bottom edge, so the top tile is no taller below the art.
@@ -242,7 +265,7 @@ function MoverTile({
           {badge}
         </span>
       ) : null}
-      {rail ? null : (
+      {rail || !mover || !sale.soldLabel ? null : (
         <p className="px-1.5 pb-1 text-[11px] leading-4 text-zinc-500">Sold {sale.soldLabel}</p>
       )}
     </CardTile>
@@ -254,7 +277,8 @@ const RAIL_LIST =
 
 /**
  * Home movers: one line of header, then a swipeable row of shared card tiles,
- * biggest move first, ending in "See all N". Thin weeks get the quiet row.
+ * biggest move first, then the newest public cards, ending in "See all N"
+ * when there are more than fit. The quiet row shows only with no cards at all.
  */
 export function MovingTodayPanel({ payload }: { payload: MovingTodayPayload }) {
   const [animate] = useState(() => !railEntered);
@@ -274,10 +298,12 @@ export function MovingTodayPanel({ payload }: { payload: MovingTodayPayload }) {
   useChipCountUp(list, animate);
 
   const sales = shouldShowMovingToday(payload.sales) ? payload.sales : [];
-  if (sales.length < MOVING_TODAY_MIN_WEEK_MOVERS) return <MovingQuiet />;
+  if (sales.length === 0) return <MovingQuiet />;
+  const total = sales.length;
   const shown = sales.slice(0, expanded ? MOVING_RAIL_COUNT : RAIL_FIRST_TILES);
   const day = payload.window === "day";
-  const range = day ? "" : compactRangeLabel(payload.dateLabel);
+  const range =
+    payload.window === "week" || payload.window === "month" ? compactRangeLabel(payload.dateLabel) : "";
 
   return (
     <section
@@ -296,7 +322,7 @@ export function MovingTodayPanel({ payload }: { payload: MovingTodayPayload }) {
         <Link
           href={MOVING_TODAY_PATH}
           prefetch={false}
-          aria-label={`See all ${sales.length} movers`}
+          aria-label={`See all ${total} cards`}
           className={`-my-2.5 shrink-0 rounded py-2.5 pl-2 text-[13px] ${SEE_ALL_LINK} ${tileFocusRing}`}
         >
           See all
@@ -312,25 +338,27 @@ export function MovingTodayPanel({ payload }: { payload: MovingTodayPayload }) {
             animate={animate}
           />
         ))}
-        <li
-          className={`${RAIL_TILE_WIDTH} shrink-0 snap-start self-stretch p-1 ${OFFSCREEN_TILE}`}
-        >
-          <Link
-            href={MOVING_TODAY_PATH}
-            prefetch={false}
-            data-see-all-tile=""
-            className={`flex h-full min-h-44 flex-col items-center justify-center gap-1 rounded-[10px] bg-zinc-100 text-center transition-transform duration-150 ease-out motion-safe:active:scale-[0.97] dark:bg-white/[0.04] ${tileFocusRing}`}
+        {total > MOVING_RAIL_COUNT ? (
+          <li
+            className={`${RAIL_TILE_WIDTH} shrink-0 snap-start self-stretch p-1 ${OFFSCREEN_TILE}`}
           >
-            <span className={`text-[13px] ${SEE_ALL_LINK}`}>See all {sales.length}</span>
-            <ChevronRight aria-hidden className="h-4 w-4 text-zinc-400" />
-          </Link>
-        </li>
+            <Link
+              href={MOVING_TODAY_PATH}
+              prefetch={false}
+              data-see-all-tile=""
+              className={`flex h-full min-h-44 flex-col items-center justify-center gap-1 rounded-[10px] bg-zinc-100 text-center transition-transform duration-150 ease-out motion-safe:active:scale-[0.97] dark:bg-white/[0.04] ${tileFocusRing}`}
+            >
+              <span className={`text-[13px] ${SEE_ALL_LINK}`}>See all {total}</span>
+              <ChevronRight aria-hidden className="h-4 w-4 text-zinc-400" />
+            </Link>
+          </li>
+        ) : null}
       </ul>
     </section>
   );
 }
 
-/** A thin week: one slim row, the header's height, no tiles. */
+/** No public cards at all: one slim row, the header's height, no tiles. */
 export function MovingQuiet() {
   return (
     <section aria-label="Moving this week" data-moving-today="quiet" className="py-3">
@@ -392,24 +420,34 @@ export function MovingTodayCached({ payload }: { payload: MovingTodayPayload }) 
   return <MovingTodayPanel payload={payload} />;
 }
 
-/** Client fallback when the server read failed. A sized skeleton holds the spot. */
+/**
+ * Client fallback when the server read failed. A sized skeleton holds the
+ * spot. If the answer is the quiet row or nothing, the skeleton's box stays
+ * and the row fades in inside it, so nothing below moves.
+ */
 export function MovingToday() {
   const [view, setView] = useState<MovingTodayPayload | "loading" | null>("loading");
+  const [hold, setHold] = useState<number | null>(null);
+  const box = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const controller = new AbortController();
     let cancelled = false;
+    const settle = (next: MovingTodayPayload | null) => {
+      if (!next || !shouldShowMovingToday(next.sales)) setHold(box.current?.offsetHeight || null);
+      setView(next);
+    };
     void (async () => {
       try {
         const response = await fetch("/api/moving-today", { signal: controller.signal });
         if (!response.ok) throw new Error("Moving today unavailable");
         const payload = freshenMovingToday((await response.json()) as MovingTodayPayload);
         if (cancelled) return;
-        setView(payload);
+        settle(payload);
       } catch (error) {
         if (cancelled) return;
         if (error instanceof DOMException && error.name === "AbortError") return;
-        setView(null);
+        settle(null);
       }
     })();
     return () => {
@@ -418,111 +456,19 @@ export function MovingToday() {
     };
   }, []);
 
-  if (view === "loading") return <MovingTodaySkeleton />;
-  if (!view) return null;
-  return <MovingTodayPanel payload={view} />;
-}
-
-const SEGMENT =
-  "flex min-h-11 items-center justify-center gap-1.5 rounded-full text-sm font-semibold transition-[background-color,color,transform] duration-150 ease-out motion-safe:active:scale-[0.97]";
-
-/** See all: Up or Down, biggest move first, in a 3-column grid of shared tiles. */
-export function MovingTodayAll({
-  payload,
-  initialDirection,
-}: {
-  payload: MovingTodayPayload;
-  initialDirection: MoverDirection;
-}) {
-  const [direction, setDirection] = useState<MoverDirection>(initialDirection);
-  const { up, down } = useMemo(() => splitMovers(payload.sales), [payload.sales]);
-  const warm = useWarmOnPointerDown();
-  const list = direction === "up" ? up : down;
-  const period = payload.window === "day" ? "today" : "this week";
-
-  function choose(next: MoverDirection) {
-    if (next === direction) return;
-    setDirection(next);
-    navigator.vibrate?.(8);
-    window.history.replaceState(null, "", `?dir=${next}`);
-  }
-
   return (
-    <div className="-mx-4 -mt-5" data-moving-all="">
-      <header className="flex items-center gap-1 px-2 py-2">
-        <Link
-          href="/"
-          data-nav-back=""
-          aria-label="Back to Home"
-          className={`grid h-11 w-11 shrink-0 place-items-center rounded-full hover:bg-zinc-100 dark:hover:bg-white/10 ${tileFocusRing}`}
-        >
-          <ArrowLeft aria-hidden className="h-5 w-5" />
-        </Link>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <h1 className="truncate text-lg leading-6 font-bold tracking-tight">{payload.title}</h1>
-            <FreshnessDot day={payload.window === "day"} />
-          </div>
-          <p className="truncate text-xs text-zinc-500">
-            {payload.dateLabel ? (
-              <span className="font-mono text-[11px] tracking-wider uppercase">{payload.dateLabel}</span>
-            ) : null}
-            <Freshness payload={payload} lead={Boolean(payload.dateLabel)} />
-          </p>
-        </div>
-        <ShareIconButton path={MOVING_TODAY_PATH} title={payload.title} label="Share" variant="ghost" />
-      </header>
-
-      <div className="px-4 pb-3">
-        <div
-          role="group"
-          aria-label="Direction"
-          className="grid grid-cols-2 rounded-full bg-zinc-100 p-1 dark:bg-white/[0.06]"
-        >
-          {(
-            [
-              { id: "up", label: "Up", count: up.length },
-              { id: "down", label: "Down", count: down.length },
-            ] as const
-          ).map((option) => {
-            const active = option.id === direction;
-            return (
-              <button
-                key={option.id}
-                type="button"
-                aria-pressed={active}
-                data-direction={option.id}
-                onClick={() => choose(option.id)}
-                className={`${SEGMENT} ${tileFocusRing} ${
-                  active
-                    ? "bg-white text-[var(--foreground)] shadow-[0_1px_2px_rgba(0,0,0,0.08)] dark:bg-white/[0.12]"
-                    : "text-zinc-500"
-                }`}
-              >
-                {option.label}
-                <span className="text-xs font-medium text-zinc-500 tabular-nums">{option.count}</span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {list.length === 0 ? (
-        <p className="px-4 py-12 text-center text-sm text-zinc-500">
-          No cards {direction === "up" ? "up" : "down"} {period} yet.
-        </p>
-      ) : (
-        <ul
-          key={direction}
-          onPointerDown={warm}
-          data-mover-grid={direction}
-          className="grid grid-cols-3 gap-x-1.5 gap-y-3 px-3 pb-6 sm:grid-cols-4 lg:grid-cols-5"
-        >
-          {list.map((sale, index) => (
-            <MoverTile key={sale.cardId} sale={sale} index={index} variant="grid" />
-          ))}
-        </ul>
-      )}
+    <div
+      ref={box}
+      data-moving-hold={hold ? "" : undefined}
+      style={hold ? { minHeight: hold } : undefined}
+    >
+      {view === "loading" ? (
+        <MovingTodaySkeleton />
+      ) : hold ? (
+        <div className={FADE_IN}>{view ? <MovingTodayPanel payload={view} /> : null}</div>
+      ) : view ? (
+        <MovingTodayPanel payload={view} />
+      ) : null}
     </div>
   );
 }
