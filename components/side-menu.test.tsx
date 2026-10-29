@@ -17,6 +17,7 @@ import {
   menuItemActive,
   menuQueryOpens,
   swipeCloses,
+  ADD_TO_HOME_LABEL,
   TAKE_TOUR_LABEL,
   TOUR_AFTER_CLOSE_MS,
 } from "@/lib/ui/side-menu";
@@ -310,6 +311,71 @@ describe("side menu", () => {
       assert.equal(store.onboardingState().tourIndex, 0, "starts even after it was seen");
     } finally {
       store.resetOnboarding();
+      view.unmount();
+    }
+  });
+
+  it("has Add to Home Screen on a phone that hasn't installed, and opens the guide", async () => {
+    const store = await import("@/lib/onboarding/store");
+    store.resetOnboarding();
+    const jsdomAgent = win.navigator.userAgent;
+    const setAgent = (value: string, standalone = false) => {
+      Object.defineProperty(win.navigator, "userAgent", { configurable: true, get: () => value });
+      Object.defineProperty(win.navigator, "standalone", { configurable: true, get: () => standalone });
+    };
+    const findItem = () =>
+      [...dialog().querySelectorAll<HTMLButtonElement>("button")].find(
+        (button) => button.textContent?.trim() === ADD_TO_HOME_LABEL,
+      );
+    const desktop = await mount({ user: maya, showLogin: false });
+    try {
+      await openMenu();
+      assert.equal(findItem(), undefined, "not on a computer");
+    } finally {
+      desktop.unmount();
+    }
+    setAgent(
+      "Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Mobile/15E148 Safari/604.1",
+      true,
+    );
+    const installed = await mount({ user: maya, showLogin: false });
+    try {
+      await openMenu();
+      assert.equal(findItem(), undefined, "not inside the installed app");
+    } finally {
+      installed.unmount();
+    }
+    setAgent(
+      "Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Mobile/15E148 Safari/604.1",
+    );
+    const view = await mount({ user: maya, showLogin: false });
+    try {
+      await openMenu();
+      const item = findItem();
+      assert.ok(item, "Add to Home Screen is in the menu");
+      await act(async () => {
+        item.click();
+      });
+      assert.equal(isOpen(), false, "the menu slides away first");
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, TOUR_AFTER_CLOSE_MS + 20));
+      });
+      const guide = win.document.querySelector<HTMLElement>("[data-install-step]");
+      assert.ok(guide, "the same guide as onboarding");
+      assert.match(guide.textContent ?? "", /Put Slabhold on your home screen/);
+      const added = [...guide.querySelectorAll<HTMLButtonElement>("button")].find(
+        (button) => button.textContent?.trim() === "I added it",
+      );
+      assert.ok(added);
+      await act(async () => {
+        added.click();
+      });
+      assert.equal(win.document.querySelector("[data-install-step]"), null);
+      assert.equal(win.localStorage.getItem("slabhold.install-step.user-maya"), "added");
+    } finally {
+      setAgent(jsdomAgent);
+      store.resetOnboarding();
+      win.localStorage.clear();
       view.unmount();
     }
   });

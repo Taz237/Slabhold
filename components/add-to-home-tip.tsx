@@ -2,6 +2,7 @@
 
 import { useSyncExternalStore } from "react";
 import { Share, X } from "lucide-react";
+import { readInstallChoice } from "@/lib/onboarding/store";
 import { addToHomeDismissKey, shouldShowAddToHomeTip } from "@/lib/pwa/add-to-home";
 
 const tipHiddenForSession = new Set<string>();
@@ -18,6 +19,7 @@ function readTipVisible(userId: string) {
   return shouldShowAddToHomeTip({
     signedIn: true,
     dismissed,
+    stepAnswered: readInstallChoice(userId) !== null,
     userAgent: nav.userAgent,
     platform: nav.platform,
     maxTouchPoints: nav.maxTouchPoints ?? 0,
@@ -39,7 +41,10 @@ function emitDismiss() {
   for (const listener of listeners) listener();
 }
 
-/** iPhone Safari only. Hidden once dismissed, and hidden inside the installed app. */
+/**
+ * iPhone Safari only, for collectors who joined before the onboarding step.
+ * Hidden once dismissed or answered, and inside the installed app.
+ */
 export function AddToHomeTip({ userId }: { userId: string }) {
   const visible = useSyncExternalStore(subscribe, () => readTipVisible(userId), () => false);
 

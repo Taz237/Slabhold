@@ -96,6 +96,9 @@ describe("empty card prompts", () => {
     assert.match(html, /href="\/cards\/new"/);
     assert.match(html, />Add your first card</);
     assert.match(html, /min-h-11/);
+    assert.match(html, /recent sold prices/, "a full row with a reason, not a bare link");
+    assert.match(html, /rounded-2xl/);
+    assert.doesNotMatch(html, /underline/);
     const feed = read("components/feed-view.tsx");
     assert.match(feed, /showWelcome \? <HomeFirstCardPrompt \/>/);
     assert.doesNotMatch(feed, /<FirstCardWelcome/);

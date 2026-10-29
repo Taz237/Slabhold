@@ -16,6 +16,7 @@ import {
 } from "@/components/collect-editor";
 import { useCollection } from "@/components/collection-provider";
 import { FollowButton } from "@/components/follow-button";
+import { InstallGuide, useInstallPlatform, type GuidePlatform } from "@/components/onboarding/install-step";
 import { useSocial } from "@/components/social-provider";
 import {
   SETUP_STEPS,
@@ -26,7 +27,15 @@ import {
   type SetupState,
   type SetupStep,
 } from "@/lib/onboarding/first-run";
-import { completeSetup, readSetupState, setSetupActive, writeSetupState } from "@/lib/onboarding/store";
+import {
+  completeSetup,
+  readInstallChoice,
+  readSetupState,
+  setSetupActive,
+  writeInstallChoice,
+  writeSetupState,
+} from "@/lib/onboarding/store";
+import { installStepShows, type InstallChoice } from "@/lib/pwa/install-step";
 import {
   canAddPick,
   interestWriteRows,
@@ -103,9 +112,10 @@ async function writeInterests(
 }
 
 /**
- * First-run setup: what you collect, a few collectors to follow, then your
- * first card. Every step can be skipped. Replaces the old collecting prompt,
- * and Home's older prompts wait while it is open.
+ * First-run setup: Add to Home Screen (phones only), then what you collect, a
+ * few collectors to follow, and your first card. Every step can be skipped.
+ * Replaces the old collecting prompt, and Home's older prompts wait while it
+ * is open.
  */
 export function FirstRunSetup() {
   const pathname = usePathname() || "/";
@@ -115,6 +125,10 @@ export function FirstRunSetup() {
   const userId = user?.id ?? null;
   const [load, setLoad] = useState<InterestLoad>({ status: "loading" });
   const [stored, setStored] = useState<{ userId: string | null; value: SetupState | null }>({
+    userId: null,
+    value: null,
+  });
+  const [installChoice, setInstallChoice] = useState<{ userId: string | null; value: InstallChoice | null }>({
     userId: null,
     value: null,
   });
@@ -130,11 +144,16 @@ export function FirstRunSetup() {
   const closeRef = useRef<() => void>(() => {});
   const titleId = useId();
   const sportOptions = useCollectSports(catalogSports);
+  const platform = useInstallPlatform();
 
   if (stored.userId !== userId) {
     const value = userId && typeof window !== "undefined" ? readSetupState(userId) : null;
     setStored({ userId, value });
     if (value && value !== "done") setStep(value);
+  }
+  if (installChoice.userId !== userId) {
+    const value = userId && typeof window !== "undefined" ? readInstallChoice(userId) : null;
+    setInstallChoice({ userId, value });
   }
 
   useEffect(() => {
@@ -167,6 +186,13 @@ export function FirstRunSetup() {
       pathname,
       localNewUser,
     });
+
+  // Add to Home Screen comes first, once, before setup's own steps.
+  const installFirst =
+    visible &&
+    installChoice.userId === userId &&
+    installStepShows({ platform, choice: installChoice.value, setupStored: stored.value });
+  const setupShown = visible && !installFirst;
 
   useEffect(() => {
     setSetupActive(visible);
@@ -203,7 +229,7 @@ export function FirstRunSetup() {
   });
 
   useEffect(() => {
-    if (!visible) return;
+    if (!setupShown) return;
     const root = dialogRef.current;
     if (!root) return;
     const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -232,10 +258,24 @@ export function FirstRunSetup() {
       docEl.style.overflow = overflow;
       if (previous && document.contains(previous)) previous.focus();
     };
-  }, [visible]);
+  }, [setupShown]);
 
   if (!visible || !user) return null;
   const me = user;
+
+  if (installFirst) {
+    return (
+      <InstallGuide
+        platform={platform as GuidePlatform}
+        variant="onboarding"
+        email={me.email}
+        onDone={(choice) => {
+          writeInstallChoice(me.id, choice);
+          setInstallChoice({ userId: me.id, value: choice });
+        }}
+      />
+    );
+  }
 
   const pickCount = sports.length + names.length;
   const limitMessage = limitNote ?? (pickCount >= PICK_LIMIT ? PICK_LIMIT_MESSAGE : null);

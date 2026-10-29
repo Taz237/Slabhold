@@ -1,4 +1,6 @@
 import { parseSetupState, setupKey, tourKey, type SetupState } from "@/lib/onboarding/first-run";
+import { addToHomeDismissKey } from "@/lib/pwa/add-to-home";
+import { installStepKey, parseInstallChoice, type InstallChoice } from "@/lib/pwa/install-step";
 
 /**
  * What the onboarding layers are doing right now, shared across the shell,
@@ -20,6 +22,7 @@ const IDLE: OnboardingState = { setupActive: false, welcomePending: false, celeb
 
 let state: OnboardingState = IDLE;
 const listeners = new Set<() => void>();
+const installChoiceThisVisit = new Map<string, InstallChoice>();
 
 function update(patch: Partial<OnboardingState>) {
   const next = { ...state, ...patch };
@@ -81,6 +84,7 @@ export function endTour() {
 
 export function resetOnboarding() {
   state = IDLE;
+  installChoiceThisVisit.clear();
   for (const listener of listeners) listener();
 }
 
@@ -117,4 +121,16 @@ export function tourSeen(userId: string): boolean {
 export function markTourSeen(userId: string) {
   seenThisVisit.add(userId);
   writeStorage(tourKey(userId), "1");
+}
+
+
+export function readInstallChoice(userId: string): InstallChoice | null {
+  return installChoiceThisVisit.get(userId) ?? parseInstallChoice(readStorage(installStepKey(userId)));
+}
+
+/** The step was answered. The old timeline banner stays away from now on. */
+export function writeInstallChoice(userId: string, choice: InstallChoice) {
+  installChoiceThisVisit.set(userId, choice);
+  writeStorage(installStepKey(userId), choice);
+  writeStorage(addToHomeDismissKey(userId), "1");
 }

@@ -49,6 +49,7 @@ import {
   type SignupStep,
 } from "@/lib/onboarding/signup-flow";
 import { TAKEN_USERNAME } from "@/lib/social/username-taken";
+import { forgetEmailHint, readEmailHint } from "@/lib/pwa/install-step";
 import { readStoredUtm } from "@/lib/utm";
 import { createSupabaseBrowser } from "@/lib/supabase/browser";
 
@@ -86,10 +87,15 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
   const pathname = usePathname();
   const next = safeNext(params.get("next"));
   const destination = afterAuthPath(next);
+  /** Opened from the installed app, which may not share Safari's login. */
+  const fromApp = mode === "login" && params.get("app") === "1";
   const signedIn = Boolean(user);
   const captchaRef = useRef<CaptchaHandle>(null);
   const resendCaptchaRef = useRef<CaptchaHandle>(null);
-  const [email, setEmail] = useState("");
+  // The installed app's first login: Safari may have left the email behind.
+  const [email, setEmail] = useState(() =>
+    fromApp && typeof document !== "undefined" ? (readEmailHint(document.cookie) ?? "") : "",
+  );
   const [password, setPassword] = useState("");
   const [username, setUsername] = useState("");
   const [displayName, setDisplayName] = useState("");
@@ -175,6 +181,7 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
       return;
     }
     if (mode === "signup") trackEvent("signup_completed", readStoredUtm());
+    if (fromApp) forgetEmailHint();
     releaseCaptcha(captchaRef.current, () => setCaptchaToken(null));
     if (result.notice) {
       if (mode === "signup") {
@@ -512,7 +519,9 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
         <AuthTopBar homeHref={authLogoHref(next)} backHref={authLogoHref(next)} backLabel="Back to Slabhold" />
         <h1 className="mt-8 text-[28px] font-extrabold leading-tight tracking-tight">Welcome back</h1>
         <p className="mt-2 text-[15px] leading-6 text-zinc-600 dark:text-zinc-400">
-          Log in to your collection, your feed and your DMs.
+          {fromApp
+            ? "Log in once to finish setup. You'll pick up right where you left off."
+            : "Log in to your collection, your feed and your DMs."}
         </p>
         <form
           onSubmit={(e) => {
