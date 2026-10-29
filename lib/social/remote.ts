@@ -333,12 +333,15 @@ export async function loadSupabaseSocial(supabase: SupabaseClient): Promise<Soci
         mutedHidden,
         { mute: true },
       ),
-      guard(
-        supabase.from("notifications").select("*").order("created_at", { ascending: false }),
-        mutedHidden,
-        { authorColumn: "actor_id", mute: true, keepNullAuthor: true },
-      ),
-      loadMessages(),
+      // A visitor with no session has no inbox; RLS would return nothing.
+      viewerId
+        ? guard(
+            supabase.from("notifications").select("*").order("created_at", { ascending: false }),
+            mutedHidden,
+            { authorColumn: "actor_id", mute: true, keepNullAuthor: true },
+          )
+        : Promise.resolve({ data: [], error: null }),
+      viewerId ? loadMessages() : Promise.resolve({ data: [], error: null }),
       guard(
         supabase.from("reposts").select("*").order("created_at", { ascending: false }),
         blockedHidden,
