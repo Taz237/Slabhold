@@ -105,6 +105,9 @@ function PageFrame({
   );
 }
 
+/** The header's bottom hairline. A shadow, so it never adds to the 52px row. */
+const HEADER_HAIRLINE = "shadow-[inset_0_-1px_0_rgba(228,228,231,0.8)] dark:shadow-[inset_0_-1px_0_rgba(255,255,255,0.1)]";
+
 function Shell({
   children,
   unreadCount,
@@ -114,6 +117,7 @@ function Shell({
   showNav,
   showJoin,
   showLogin,
+  attachedTabs = false,
 }: {
   children: React.ReactNode;
   unreadCount: number;
@@ -124,6 +128,8 @@ function Shell({
   showJoin: boolean;
   /** Signed-out visitors get Log in at the top left once the session is known. */
   showLogin: boolean;
+  /** Home: the For You / Following tabs sit flush under the header and carry its hairline. */
+  attachedTabs?: boolean;
 }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -144,8 +150,11 @@ function Shell({
       <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(124,92,255,0.16),_transparent_50%)]" />
       <header
         style={{ viewTransitionName: "app-header" }}
-        className="sticky top-0 z-20 border-b border-zinc-200/80 bg-[color-mix(in_oklab,var(--background)_88%,transparent)] pt-[env(safe-area-inset-top)] backdrop-blur-xl dark:border-white/10">
-        <div className="mx-auto grid max-w-lg grid-cols-[1fr_auto_1fr] items-center px-4 py-1">
+        data-attached-tabs={attachedTabs ? "" : undefined}
+        className={`sticky top-0 z-20 bg-[var(--chrome-bg)] pt-[env(safe-area-inset-top)] backdrop-blur-xl backdrop-saturate-150 ${
+          attachedTabs ? "" : HEADER_HAIRLINE
+        }`}>
+        <div className="mx-auto grid h-[3.25rem] max-w-lg grid-cols-[1fr_auto_1fr] items-center px-4">
           <div className="flex items-center justify-self-start">
             <AccountMenu user={user} showLogin={showLogin} />
           </div>
@@ -382,6 +391,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             showNav
             showJoin={false}
             showLogin={false}
+            attachedTabs={pathname === "/"}
           >
             {children}
           </Shell>
@@ -448,6 +458,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         showNav={showNav}
         showJoin={showJoin}
         showLogin={!user}
+        attachedTabs={pathname === "/"}
       >
         {children}
       </Shell>

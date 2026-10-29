@@ -14,6 +14,12 @@
   }
 }
 
+/* One source for the sticky chrome. The header row is a fixed 52px. */
+:root {
+  --app-header-h: calc(env(safe-area-inset-top) + 3.25rem);
+  --chrome-bg: color-mix(in oklab, var(--background) 82%, transparent);
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);

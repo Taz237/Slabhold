@@ -63,6 +63,7 @@ export function CardTile({
   priceLabel,
   pricePending = false,
   gain = null,
+  chip = null,
   sold = false,
   needsDetailsLabel = null,
   addPhotoHref = null,
@@ -84,6 +85,8 @@ export function CardTile({
   priceLabel: string | null;
   pricePending?: boolean;
   gain?: TileGain | null;
+  /** A neutral chip in the gain slot, e.g. "New". Shown only with no gain. */
+  chip?: ReactNode;
   sold?: boolean;
   /** Amber dot. Only for your own cards. */
   needsDetailsLabel?: string | null;
@@ -192,7 +195,7 @@ export function CardTile({
                 {priceLabel}
               </p>
             )}
-            {gain ? <GainChip gain={gain} compact={compact} /> : null}
+            {gain ? <GainChip gain={gain} compact={compact} /> : chip}
           </div>
         </div>
       </Link>
@@ -213,21 +216,34 @@ export function CardTile({
 }
 
 /** Green up, red down. Movers pass a percent-only gain through the same chip. */
-export function GainChip({ gain, compact = false }: { gain: TileGain; compact?: boolean }) {
+export function GainChip({
+  gain,
+  compact = false,
+  large = false,
+}: {
+  gain: TileGain;
+  compact?: boolean;
+  /** The featured mover's chip on See all. */
+  large?: boolean;
+}) {
   return (
     <span
       data-gain={gain.tone}
       title={[gain.amountText, gain.pctText].filter(Boolean).join(" ")}
-      className={`inline-flex shrink-0 items-center gap-0.5 rounded-full ${compact ? "px-1" : "px-1.5"} py-0.5 text-[10px] font-semibold tabular-nums ${
+      className={`inline-flex shrink-0 items-center rounded-full ${
+        large
+          ? "gap-1 px-2.5 py-1 text-base font-bold"
+          : `gap-0.5 ${compact ? "px-1" : "px-1.5"} py-0.5 text-[10px] font-semibold`
+      } tabular-nums ${
         gain.tone === "up"
           ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400"
           : "bg-rose-500/15 text-rose-700 dark:text-rose-400"
       }`}
     >
       {compact ? null : gain.tone === "up" ? (
-        <TrendingUp className="h-3 w-3" aria-hidden />
+        <TrendingUp className={large ? "h-4 w-4" : "h-3 w-3"} aria-hidden />
       ) : (
-        <TrendingDown className="h-3 w-3" aria-hidden />
+        <TrendingDown className={large ? "h-4 w-4" : "h-3 w-3"} aria-hidden />
       )}
       <span data-gain-text="">{gain.pctText}</span>
     </span>

@@ -13,19 +13,22 @@ import {
 import {
   addCalendarDays,
   freshenMovingToday,
-  MOVING_TODAY_WEEK_DAYS,
+  MOVING_MONTH_DAYS,
+  MOVING_PUBLIC_CAP,
+  MOVING_STRIP_MODE,
   newYorkDayWindow,
   RECENT_AVERAGE_DAYS,
 } from "./rank";
 import { emptyMovingToday, type MovingTodayPayload } from "./types";
 
-const WEEK_SALE_LIMIT = 2000;
+const WINDOW_SALE_LIMIT = 2000;
 const HISTORY_LIMIT = 2000;
 const IN_CHUNK = 80;
 
 const SALE_COLUMNS = "query_key, card_id, item_id, price, sold_at";
 const CARD_COLUMNS =
-  "id, user_id, player, year, year_label, set, set_name, grade, grader, condition_type, is_rookie, image_url, accent";
+  "id, user_id, player, year, year_label, set, set_name, grade, grader, condition_type, is_rookie, image_url, accent, sport";
+const NEWEST_COLUMNS = `${CARD_COLUMNS}, created_at, estimated_value`;
 
 type Row = Record<string, unknown>;
 
@@ -81,6 +84,10 @@ function mapCard(row: Row): PublicCardRef | null {
     conditionType:
       row.condition_type === "raw" || row.condition_type === "graded" ? row.condition_type : null,
     isRookie: row.is_rookie === true,
+    sport: typeof row.sport === "string" ? row.sport : null,
+    createdAt: typeof row.created_at === "string" ? row.created_at : null,
+    estimatedValue:
+      row.estimated_value == null || row.estimated_value === "" ? null : Number(row.estimated_value),
   };
 }
 
@@ -117,7 +124,7 @@ async function readWindowSales(
       .neq("item_id", "__empty__")
       .not("query_key", "is", null)
       .order("sold_at", { ascending: false })
-      .limit(WEEK_SALE_LIMIT),
+      .limit(WINDOW_SALE_LIMIT),
   );
 }
 
@@ -127,14 +134,16 @@ async function readMovingToday(now: Date): Promise<MovingTodayPayload> {
   const updatedAt = now.toISOString();
   if (!admin) return emptyMovingToday(window.date);
 
-  const weekStart = addCalendarDays(window.date, -(MOVING_TODAY_WEEK_DAYS - 1));
-  const sales = await readWindowSales(admin, weekStart, addCalendarDays(window.date, 1));
-  if (sales.length === 0) {
+  const monthStart = addCalendarDays(window.date, -(MOVING_MONTH_DAYS - 1));
+  const sales = await readWindowSales(admin, monthStart, addCalendarDays(window.date, 1));
+  const newest =
+    MOVING_STRIP_MODE === "all-public" ? await readNewestPublicCards(admin, MOVING_PUBLIC_CAP) : [];
+  if (sales.length === 0 && newest.length === 0) {
     return { ...emptyMovingToday(window.date), updatedAt };
   }
 
   const keys = [...new Set(sales.map((sale) => sale.queryKey))];
-  const historyStart = utcMidnight(addCalendarDays(weekStart, -RECENT_AVERAGE_DAYS));
+  const historyStart = utcMidnight(addCalendarDays(monthStart, -RECENT_AVERAGE_DAYS));
   const historyEnd = utcMidnight(window.date);
   const history: RawCompSale[] = [];
   for (const group of chunks(keys, IN_CHUNK)) {
@@ -167,7 +176,7 @@ async function readMovingToday(now: Date): Promise<MovingTodayPayload> {
   owners = owners.concat(await readCardOwners(admin, extraIds));
   flags = flags.concat(await readCompFlags(admin, extraIds));
 
-  const userIds = [...new Set(cards.map((card) => card.userId))];
+  const userIds = [...new Set([...cards, ...newest].map((card) => card.userId))];
   const profiles = await readProfiles(admin, userIds);
   return assembleMovingToday({
     today: window.date,
@@ -176,6 +185,7 @@ async function readMovingToday(now: Date): Promise<MovingTodayPayload> {
     sales,
     history,
     cards,
+    newest,
     profiles,
     alternates,
     owners,
@@ -242,6 +252,25 @@ async function readPublicCards(
   return cards;
 }
 
+/** Every public card, newest first, up to `limit`. Only the public_cards view. */
+async function readNewestPublicCards(
+  admin: NonNullable<ReturnType<typeof createSupabaseAdmin>>,
+  limit: number,
+): Promise<PublicCardRef[]> {
+  const { data, error } = await admin
+    .from("public_cards")
+    .select(NEWEST_COLUMNS)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (error) throw new Error(error.message);
+  const cards: PublicCardRef[] = [];
+  for (const row of data ?? []) {
+    const card = mapCard(row as Row);
+    if (card) cards.push(card);
+  }
+  return cards;
+}
+
 async function readAlternates(
   admin: NonNullable<ReturnType<typeof createSupabaseAdmin>>,
   queryKeys: string[],
@@ -293,8 +322,8 @@ async function readProfiles(
 export async function getMovingToday(now: Date = new Date()): Promise<MovingTodayPayload> {
   const cached = await unstable_cache(
     () => memoryCache.read(() => readMovingToday(new Date())),
-    // v2: movers only, with tile fields and updatedAt. An older cached shape is not reused.
-    ["moving-today-v2"],
+    // v3: movers, then every public card, with kind and counts. An older cached shape is not reused.
+    ["moving-today-v3"],
     { revalidate: MOVING_TODAY_CACHE_SECONDS },
   )();
   return freshenMovingToday(cached, now);

@@ -11,11 +11,11 @@ import { installDom } from "@/lib/test/dom";
 import {
   MovingQuiet,
   MovingToday,
-  MovingTodayAll,
   MovingTodayPanel,
   MovingTodaySkeleton,
   RAIL_FIRST_TILES,
 } from "@/components/moving-today";
+import { MovingTodayAll } from "@/components/moving-today-page";
 import {
   createTtlCache,
   MOVING_TODAY_CACHE_SECONDS,
@@ -26,11 +26,17 @@ import {
   compactRangeLabel,
   countUpText,
   defaultDirection,
+  directionCounts,
+  directionTiles,
   moveBadgeText,
   moverFreshness,
   moverGain,
   MOVING_RAIL_COUNT,
+  movingQuery,
+  noMatchText,
   parseDirection,
+  parseSport,
+  sportChips,
 } from "./rail";
 import type { MovingTodayPayload, MovingTodaySale } from "./types";
 
@@ -87,6 +93,7 @@ function id(n: number) {
 
 function sale(n: number, partial: Partial<MovingTodaySale> = {}): MovingTodaySale {
   return {
+    kind: "mover",
     cardId: id(n),
     href: `/u/ada/cards/${id(n)}`,
     player: `Player ${n}`,
@@ -120,8 +127,34 @@ function payload(count: number, partial: Partial<MovingTodayPayload> = {}): Movi
       const percent = n % 3 === 2 ? -(60 - n) : 120 - n;
       return sale(n + 1, { percent, percentLabel: `${percent > 0 ? "+" : "−"}${Math.abs(percent)}%` });
     }),
+    moverCount: count,
+    totalCount: count,
     ...partial,
   };
+}
+
+/** A plain public card: no percent, ever. */
+function cardTile(n: number, partial: Partial<MovingTodaySale> = {}): MovingTodaySale {
+  return sale(n, {
+    kind: "card",
+    percent: null,
+    percentLabel: null,
+    soldOn: undefined,
+    soldLabel: undefined,
+    priceCents: null,
+    priceLabel: "",
+    ...partial,
+  });
+}
+
+/** Movers first, then cards, as the server builds it. */
+function mixed(movers: number, cards: number, partial: Partial<MovingTodayPayload> = {}): MovingTodayPayload {
+  const base = payload(movers);
+  const sales = [
+    ...base.sales,
+    ...Array.from({ length: cards }, (_, n) => cardTile(100 + n, n % 2 === 0 ? { isNew: true } : { priceCents: 1250, priceLabel: "$12.50" })),
+  ];
+  return { ...base, sales, moverCount: movers, totalCount: sales.length, ...partial };
 }
 
 function classOf(markup: string, attr: string): string {
@@ -153,7 +186,7 @@ describe("Movers rail", () => {
     assert.match(out, /data-gain="down"[^>]*class="[^"]*rose/);
     assert.match(out, /data-kind="slab"/);
     assert.match(out, /See all 15/);
-    assert.match(out, /aria-label="See all 15 movers"/);
+    assert.match(out, /aria-label="See all 15 cards"/);
     assert.match(out, /href="\/moving-today"/);
     assert.match(out, /data-no-pull=""/);
     assert.match(out, /snap-x snap-mandatory scroll-px-4/);
@@ -189,21 +222,65 @@ describe("Movers rail", () => {
     assert.equal((out.match(/data-top-badge/g) ?? []).length, 1);
   });
 
-  it("never shows a one- or two-tile rail: thin weeks get the quiet row", () => {
-    for (const count of [0, 1, 2]) {
-      const out = html(createElement(MovingTodayPanel, { payload: payload(count) }));
-      assert.doesNotMatch(out, /data-tile=/);
-      assert.match(out, /data-moving-today="quiet"/);
-      assert.match(out, /Prices are quiet this week\./);
-      assert.match(out, /Add a card to see its comps/);
-      assert.match(out, /href="\/cards\/new"/);
+  it("shows the quiet row only with zero public cards", () => {
+    const out = html(createElement(MovingTodayPanel, { payload: payload(0) }));
+    assert.doesNotMatch(out, /data-tile=/);
+    assert.match(out, /data-moving-today="quiet"/);
+    assert.match(out, /Prices are quiet this week\./);
+    assert.match(out, /Add a card to see its comps/);
+    assert.match(out, /href="\/cards\/new"/);
+    for (const count of [1, 2, 3]) {
+      assert.match(html(createElement(MovingTodayPanel, { payload: payload(count) })), /data-tile=/);
     }
-    assert.match(html(createElement(MovingTodayPanel, { payload: payload(3) })), /data-tile=/);
+    // No movers, only cards: still a full rail, never the quiet row.
+    const fresh = html(createElement(MovingTodayPanel, { payload: mixed(0, 5, { title: "Fresh on Slabhold", window: "fresh", dateLabel: "" }) }));
+    assert.match(fresh, /data-tile=/);
+    assert.doesNotMatch(fresh, /quiet/);
     assert.equal(html(createElement(MovingQuiet)).includes("$0"), false);
   });
 
+  it("shows plain cards after movers with a New chip or their value, never a percent", () => {
+    const out = html(createElement(MovingTodayPanel, { payload: mixed(2, 2) }));
+    const tiles = out.split("data-tile=").slice(1);
+    assert.equal(tiles.length, 4);
+    assert.match(tiles[0]!, /data-gain="up"/);
+    assert.doesNotMatch(tiles[2]!, /data-gain=/);
+    assert.match(tiles[2]!, /data-new-chip=""[^>]*>New</);
+    assert.doesNotMatch(tiles[3]!, /data-gain=|data-new-chip/);
+    assert.match(tiles[3]!, /\$12\.50/);
+    assert.equal((out.match(/data-gain-text/g) ?? []).length, 2);
+  });
+
+  it("gives a card in first place no glow and no Up badge, at the same width", () => {
+    const out = html(createElement(MovingTodayPanel, { payload: mixed(0, 4, { window: "fresh", title: "Fresh on Slabhold", dateLabel: "" }) }));
+    const first = classOf(out, `data-tile="${id(100)}"`);
+    assert.match(first, /w-\[132px\]/);
+    assert.doesNotMatch(first, /rgba\(124,58,237/);
+    assert.doesNotMatch(out, /data-top-badge/);
+    assert.match(out, /<h2[^>]*>Fresh on Slabhold<\/h2>/);
+    assert.match(out, /data-live-dot="week"[^>]*class="[^"]*bg-zinc-400/);
+  });
+
+  it("shows at most 12 tiles, and the See all N end tile only past 12", async () => {
+    mount(createElement(MovingTodayPanel, { payload: mixed(2, 18) }));
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 250));
+    });
+    assert.equal(host.querySelectorAll("[data-tile]").length, 12);
+    assert.equal(host.querySelector("[data-see-all-tile]")?.textContent, "See all 20");
+    act(() => root!.render(withRouter(null)));
+    mount(createElement(MovingTodayPanel, { payload: mixed(2, 10) }));
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 250));
+    });
+    assert.equal(host.querySelectorAll("[data-tile]").length, 12);
+    assert.equal(host.querySelector("[data-see-all-tile]"), null);
+    // The header link always leads to See all.
+    assert.ok(host.querySelector('a[aria-label="See all 12 cards"]'));
+  });
+
   it("gates every animation on motion-safe", () => {
-    const out = html(createElement(MovingTodayPanel, { payload: payload(8) }));
+    const out = html(createElement(MovingTodayPanel, { payload: payload(8, { window: "day", title: "Moving today" }) }));
     const classes = [...out.matchAll(/class="([^"]*)"/g)].flatMap((m) => m[1].split(/\s+/));
     const animated = classes.filter((name) => /animate-/.test(name));
     assert.ok(animated.length > 0);
@@ -250,7 +327,7 @@ describe("Movers rail", () => {
 
   it("warms a tile or See all on pointerdown, and links do not prefetch", () => {
     mount(createElement(MovingTodayPanel, { payload: payload(4) }));
-    const seeAll = host.querySelector("[data-see-all-tile]");
+    const seeAll = host.querySelector('a[aria-label="See all 4 cards"]');
     act(() => {
       seeAll?.dispatchEvent(new window.PointerEvent("pointerdown", { bubbles: true }));
     });
@@ -281,6 +358,44 @@ describe("Movers skeleton", () => {
   it("holds the spot while the client fetch runs", () => {
     const loading = html(createElement(MovingToday));
     assert.match(loading, /data-moving-today="skeleton"/);
+  });
+
+  it("keeps the skeleton's box when the client fetch finds nothing, then fades in", async () => {
+    const realFetch = globalThis.fetch;
+    const height = Object.getOwnPropertyDescriptor(window.HTMLElement.prototype, "offsetHeight");
+    Object.defineProperty(window.HTMLElement.prototype, "offsetHeight", { configurable: true, get: () => 332 });
+    globalThis.fetch = (async () =>
+      new Response(JSON.stringify(payload(0)), { status: 200 })) as typeof fetch;
+    try {
+      mount(createElement(MovingToday));
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 10));
+      });
+      const hold = host.querySelector<HTMLElement>("[data-moving-hold]");
+      assert.equal(hold?.style.minHeight, "332px");
+      assert.ok(hold?.querySelector('[data-moving-today="quiet"]'));
+      assert.match(hold?.innerHTML ?? "", /motion-safe:animate-\[lightbox-fade/);
+    } finally {
+      globalThis.fetch = realFetch;
+      if (height) Object.defineProperty(window.HTMLElement.prototype, "offsetHeight", height);
+      else delete (window.HTMLElement.prototype as { offsetHeight?: number }).offsetHeight;
+    }
+  });
+
+  it("swaps the skeleton for a full rail with no held box", async () => {
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = (async () =>
+      new Response(JSON.stringify(mixed(2, 6, { date: "", window: "week" })), { status: 200 })) as typeof fetch;
+    try {
+      mount(createElement(MovingToday));
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 10));
+      });
+      assert.equal(host.querySelector("[data-moving-hold]"), null);
+      assert.ok(host.querySelector("[data-mover-rail]"));
+    } finally {
+      globalThis.fetch = realFetch;
+    }
   });
 });
 
@@ -315,67 +430,261 @@ describe("Movers helpers", () => {
     assert.equal(moverFreshness("not a date", "day", at), null);
   });
 
-  it("reads ?dir= and defaults to the bigger side, Up on a tie", () => {
+  it("reads ?dir= and ?sport=, and defaults to All while movers are under a row", () => {
     assert.equal(parseDirection("down"), "down");
+    assert.equal(parseDirection("all"), "all");
     assert.equal(parseDirection(["up", "down"]), "up");
     assert.equal(parseDirection("sideways"), null);
     assert.equal(parseDirection(undefined), null);
-    assert.equal(defaultDirection([{ percent: 5 }, { percent: -5 }]), "up");
-    assert.equal(defaultDirection([{ percent: 5 }, { percent: -5 }, { percent: -9 }]), "down");
+    assert.equal(defaultDirection({ moverCount: 0 }), "all");
+    assert.equal(defaultDirection({ moverCount: 5 }), "all");
+    assert.equal(defaultDirection({ moverCount: 6 }), "up");
+    assert.equal(parseSport("football"), "football");
+    assert.equal(parseSport("FootBall"), "football");
+    assert.equal(parseSport([" Hockey "]), "hockey");
+    assert.equal(parseSport("pokemon"), null);
+    assert.equal(parseSport(undefined), null);
+    assert.equal(movingQuery("down", "hockey"), "?dir=down&sport=hockey");
+    assert.equal(movingQuery("all", null), "?dir=all");
+    assert.equal(noMatchText("down", "hockey"), "No hockey cards moving down");
+    assert.equal(noMatchText("up", null), "No cards moving up");
+  });
+
+  it("filters by direction and sport, and shows only sports that are present", () => {
+    const sales = [
+      sale(1, { percent: 30, sport: "football" }),
+      sale(2, { percent: -10, sport: "basketball" }),
+      sale(3, { percent: 80, sport: "basketball" }),
+      cardTile(4, { sport: "football" }),
+      cardTile(5, { sport: "Baseball" }),
+      cardTile(6, { sport: "" }),
+    ];
+    assert.deepEqual(directionTiles(sales, "up").map((row) => row.percent), [80, 30]);
+    assert.deepEqual(directionTiles(sales, "down").map((row) => row.percent), [-10]);
+    assert.deepEqual(directionTiles(sales, "all").map((row) => row.cardId), sales.map((row) => row.cardId));
+    assert.deepEqual(directionTiles(sales, "all", "football").map((row) => row.cardId), [id(1), id(4)]);
+    assert.deepEqual(directionCounts(sales), { up: 2, down: 1, all: 6 });
+    assert.deepEqual(directionCounts(sales, "basketball"), { up: 1, down: 1, all: 2 });
+    assert.deepEqual(
+      sportChips(sales).map((chip) => [chip.id, chip.count]),
+      [
+        ["baseball", 1],
+        ["basketball", 2],
+        ["football", 2],
+      ],
+    );
+    assert.deepEqual(sportChips([sale(1, { sport: "football" }), cardTile(2, { sport: "football" })]), []);
+    assert.deepEqual(sportChips([cardTile(2, { sport: "" })]), []);
   });
 });
 
-describe("See all movers", () => {
-  it("toggles Up and Down in ?dir=, sorted by the move, in a 3-column tile grid", () => {
-    const vibrations: number[] = [];
+describe("See all", () => {
+  function setVibrate(log: number[]) {
     Object.defineProperty(window.navigator, "vibrate", {
       configurable: true,
       value: (ms: number) => {
-        vibrations.push(ms);
+        log.push(ms);
         return true;
       },
     });
+  }
+
+  it("toggles Up, Down and All in ?dir=, with counts, in a 2-column grid of shared tiles", () => {
+    const vibrations: number[] = [];
+    setVibrate(vibrations);
     const data = payload(9);
     mount(createElement(MovingTodayAll, { payload: data, initialDirection: "up" }));
     const grid = () => host.querySelector("[data-mover-grid]");
     assert.equal(grid()?.getAttribute("data-mover-grid"), "up");
-    assert.match(grid()?.className ?? "", /grid-cols-3/);
-    const upPercents = [...host.querySelectorAll("[data-gain-text]")].map((node) => node.textContent);
+    assert.match(grid()?.className ?? "", /grid-cols-2/);
+    assert.match(grid()?.className ?? "", /sm:grid-cols-3/);
+    const upPercents = [...host.querySelectorAll("[data-mover-grid] [data-gain-text]")].map((node) => node.textContent);
     assert.deepEqual(upPercents, ["+120%", "+119%", "+117%", "+116%", "+114%", "+113%"]);
-    assert.match(host.textContent ?? "", /Sold Oct 22/);
-    assert.equal(host.querySelector("[data-direction=up]")?.getAttribute("aria-pressed"), "true");
+    assert.match(grid()?.textContent ?? "", /Sold Oct 22/);
+    const tab = (dir: string) => host.querySelector<HTMLButtonElement>(`[data-direction=${dir}]`);
+    assert.equal(tab("up")?.getAttribute("aria-selected"), "true");
+    assert.equal(tab("up")?.getAttribute("role"), "tab");
+    assert.ok(host.querySelector('[role="tablist"][aria-label="Direction"]'));
     assert.ok(host.querySelector('[aria-label="Share"]'));
     assert.ok(host.querySelector('a[aria-label="Back to Home"][data-nav-back]'));
 
-    const down = host.querySelector<HTMLButtonElement>("[data-direction=down]");
     act(() => {
-      down?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      tab("down")?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     });
     assert.equal(window.location.search, "?dir=down");
-    assert.equal(down?.getAttribute("aria-pressed"), "true");
+    assert.equal(tab("down")?.getAttribute("aria-selected"), "true");
     assert.equal(grid()?.getAttribute("data-mover-grid"), "down");
-    const downPercents = [...host.querySelectorAll("[data-gain-text]")].map((node) => node.textContent);
+    const downPercents = [...host.querySelectorAll("[data-mover-grid] [data-gain-text]")].map((node) => node.textContent);
     assert.deepEqual(downPercents, ["−58%", "−55%", "−52%"]);
     assert.deepEqual(vibrations, [8]);
+    // The pill slides by transform only.
+    assert.equal(host.querySelector<HTMLElement>("[data-segment-pill]")?.style.transform, "translateX(100%)");
+    assert.match(host.querySelector("[data-segment-pill]")?.className ?? "", /bg-violet-600/);
     assert.match(host.textContent ?? "", /Up6/);
     assert.match(host.textContent ?? "", /Down3/);
+    assert.match(host.textContent ?? "", /All9/);
+
+    // Arrow keys move between segments.
+    act(() => {
+      host.querySelector('[role="tablist"]')?.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
+    });
+    assert.equal(tab("all")?.getAttribute("aria-selected"), "true");
+    assert.equal(window.location.search, "?dir=all");
   });
 
-  it("shows a designed empty side instead of a blank grid", () => {
+  it("lists movers then the newest cards under All, with New or a value and never a percent", () => {
+    mount(createElement(MovingTodayAll, { payload: mixed(2, 4), initialDirection: "all" }));
+    const tiles = [...host.querySelectorAll("[data-mover-grid] > [data-tile]")];
+    assert.equal(tiles.length, 6);
+    assert.deepEqual(
+      tiles.map((tile) => tile.getAttribute("data-tile")),
+      [id(1), id(2), id(100), id(101), id(102), id(103)],
+    );
+    for (const tile of tiles.slice(2)) {
+      assert.equal(tile.querySelector("[data-gain]"), null);
+      assert.doesNotMatch(tile.textContent ?? "", /Sold|%/);
+    }
+    assert.equal(tiles[2]?.querySelector("[data-new-chip]")?.textContent, "New");
+    assert.match(tiles[3]?.textContent ?? "", /\$12\.50/);
+    // Two rows paint at once. The rest skip layout until scrolled near.
+    assert.doesNotMatch(tiles[3]?.className ?? "", /content-visibility/);
+    assert.match(tiles[4]?.className ?? "", /\[content-visibility:auto\]/);
+  });
+
+  it("disables an empty segment and shows its 0", () => {
     const allUp = payload(3, { sales: [sale(1), sale(2), sale(3)] });
-    mount(createElement(MovingTodayAll, { payload: allUp, initialDirection: "down" }));
-    assert.match(host.textContent ?? "", /No cards down this week yet\./);
+    mount(createElement(MovingTodayAll, { payload: allUp, initialDirection: "up" }));
+    const down = host.querySelector<HTMLButtonElement>("[data-direction=down]");
+    assert.equal(down?.disabled, true);
+    assert.match(down?.textContent ?? "", /Down0/);
   });
 
-  it("keeps the URL, reads ?dir=, redirects when empty, and keeps the OG images", () => {
+  it("features the top mover in the hero, and only a mover", () => {
+    mount(createElement(MovingTodayAll, { payload: mixed(2, 3), initialDirection: "all" }));
+    const hero = host.querySelector("[data-moving-hero]");
+    assert.match(hero?.querySelector("h1")?.textContent ?? "", /Moving this week/);
+    assert.match(hero?.textContent ?? "", /5 cards · 2 moving/);
+    const featured = hero?.querySelector("[data-featured]");
+    assert.equal(featured?.getAttribute("data-featured"), id(1));
+    assert.match(featured?.querySelector("[data-tile]")?.className ?? "", /w-\[172px\]/);
+    assert.match(featured?.querySelector("[data-tile]")?.className ?? "", /rgba\(124,58,237/);
+    assert.equal(featured?.querySelector("[data-gain-text]")?.textContent, "+120%");
+    assert.match(featured?.querySelector("a")?.getAttribute("href") ?? "", /^\/u\/ada\/cards\//);
+    act(() => {
+      featured?.querySelector("a")?.dispatchEvent(new window.PointerEvent("pointerdown", { bubbles: true }));
+    });
+    assert.deepEqual(prefetched, [`/u/ada/cards/${id(1)}`]);
+    assert.ok(host.querySelector("[data-moving-backdrop]"));
+
+    act(() => root!.render(withRouter(null)));
+    mount(
+      createElement(MovingTodayAll, {
+        payload: mixed(0, 3, { title: "Fresh on Slabhold", window: "fresh", dateLabel: "" }),
+        initialDirection: "all",
+      }),
+    );
+    assert.equal(host.querySelector("[data-featured]"), null);
+    assert.match(host.textContent ?? "", /The newest cards on Slabhold/);
+    assert.match(host.textContent ?? "", /3 cards · 0 moving/);
+  });
+
+  it("filters by sport chip in ?sport=, hides absent sports, and offers Show all on no match", () => {
+    const data = mixed(0, 0);
+    data.sales = [
+      sale(1, { percent: 40, sport: "football" }),
+      sale(2, { percent: -20, sport: "basketball" }),
+      cardTile(3, { sport: "football" }),
+      cardTile(4, { sport: "basketball" }),
+    ];
+    data.moverCount = 2;
+    data.totalCount = 4;
+    mount(createElement(MovingTodayAll, { payload: data, initialDirection: "down", initialSport: "football" }));
+    const chips = [...host.querySelectorAll("[data-sport-chips] [data-sport]")].map((chip) => chip.getAttribute("data-sport"));
+    assert.deepEqual(chips, ["all", "basketball", "football"]);
+    assert.ok(host.querySelector("[data-sport-chips][data-no-pull]"));
+    assert.equal(host.querySelector("[data-sport=football]")?.getAttribute("aria-pressed"), "true");
+    assert.equal(host.querySelector("[data-moving-no-match]")?.textContent, "No football cards moving down");
+    // Counts follow the sport.
+    assert.match(host.textContent ?? "", /Up1/);
+    assert.match(host.textContent ?? "", /All2/);
+
+    const showAll = [...host.querySelectorAll("button")].find((button) => button.textContent === "Show all");
+    act(() => {
+      showAll?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+    assert.equal(window.location.search, "?dir=all");
+    assert.equal(host.querySelectorAll("[data-mover-grid] > [data-tile]").length, 4);
+
+    act(() => {
+      host.querySelector("[data-sport=basketball]")?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+    assert.equal(window.location.search, "?dir=all&sport=basketball");
+    assert.equal(host.querySelectorAll("[data-mover-grid] > [data-tile]").length, 2);
+  });
+
+  it("staggers the first 12 tiles once, then crossfades on a switch", () => {
+    mount(createElement(MovingTodayAll, { payload: mixed(8, 10), initialDirection: "all" }));
+    const delays = [...host.querySelectorAll<HTMLElement>("[data-mover-grid] > [data-tile]")]
+      .filter((tile) => tile.className.includes("animate-[tile-in"))
+      .map((tile) => tile.style.animationDelay);
+    assert.equal(delays.length, 12);
+    assert.deepEqual(delays.slice(0, 3), ["0ms", "30ms", "60ms"]);
+    act(() => {
+      host.querySelector("[data-direction=up]")?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+    assert.doesNotMatch(host.querySelector("[data-mover-grid]")?.innerHTML ?? "", /animate-\[tile-in/);
+    assert.match(host.querySelector("[data-mover-grid]")?.className ?? "", /motion-safe:animate-\[lightbox-fade/);
+  });
+
+  it("has no animation classes with reduced motion", () => {
+    state.reducedMotion = true;
+    mount(
+      createElement(MovingTodayAll, {
+        payload: mixed(8, 4, { window: "day", title: "Moving today" }),
+        initialDirection: "all",
+      }),
+    );
+    assert.doesNotMatch(host.innerHTML, /animate-/);
+    assert.doesNotMatch(host.querySelector("[data-segment-pill]")?.className ?? "", /transition-transform/);
+    act(() => {
+      host.querySelector("[data-direction=up]")?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+    assert.doesNotMatch(host.innerHTML, /animate-/);
+  });
+
+  it("shows a designed empty state with no cards, not a redirect", () => {
+    mount(createElement(MovingTodayAll, { payload: payload(0), initialDirection: "all", signedIn: true }));
+    assert.match(host.textContent ?? "", /No cards on Slabhold yet/);
+    assert.equal(
+      [...host.querySelectorAll("a")].find((a) => a.textContent === "Add a card")?.getAttribute("href"),
+      "/cards/new",
+    );
+    assert.equal(host.querySelector("[data-mover-grid]"), null);
+    act(() => root!.render(withRouter(null)));
+    mount(createElement(MovingTodayAll, { payload: payload(0), initialDirection: "all", signedIn: false }));
+    assert.equal(
+      [...host.querySelectorAll("a")].find((a) => a.textContent === "Join Slabhold")?.getAttribute("href"),
+      "/signup",
+    );
+    assert.doesNotMatch(host.textContent ?? "", /Add a card/);
+  });
+
+  it("keeps the URL, reads ?dir= and ?sport=, never redirects when empty, and keeps the OG images", () => {
     const page = read("app/moving-today/page.tsx");
     assert.match(page, /searchParams/);
     assert.match(page, /parseDirection\(params\.dir\)/);
-    assert.match(page, /defaultDirection\(payload\.sales\)/);
-    assert.match(page, /if \(!shouldShowMovingToday\(payload\.sales\)\) redirect\("\/"\)/);
+    assert.match(page, /parseSport\(params\.sport\)/);
+    assert.match(page, /defaultDirection\(payload\)/);
+    assert.doesNotMatch(page, /if \(!shouldShowMovingToday\(payload\.sales\)\) redirect/);
     assert.match(page, /MovingTodayAll/);
+    assert.match(page, /force-dynamic/);
     assert.match(read("app/moving-today/opengraph-image.tsx"), /renderMovingTodayOg/);
     assert.match(read("app/moving-today/twitter-image.tsx"), /opengraph-image/);
+    const component = read("components/moving-today-page.tsx");
+    assert.match(component, /sticky top-\[var\(--app-header-h\)\]/);
+    assert.match(component, /bg-\[var\(--chrome-bg\)\] backdrop-blur-xl/);
+    assert.match(component, /radial-gradient\(ellipse_at_top,rgba\(124,58,237,0\.18\),transparent_60%\)/);
+    assert.doesNotMatch(component, /recharts|chart/i);
   });
 });
 
@@ -479,7 +788,6 @@ describe("Moving today cache", () => {
     assert.match(route, /getMovingToday/);
     assert.match(route, /movingTodayCacheControl/);
     assert.match(route, /private, no-store/);
-    assert.match(load, /MOVING_TODAY_WEEK_DAYS/);
     const home = read("app/page.tsx");
     assert.match(home, /export const revalidate = 1800/);
     assert.doesNotMatch(home, /cookies\(|no-store|connection\(/);
@@ -494,7 +802,12 @@ describe("Moving today cache", () => {
     assert.match(slot, /MovingTodayCached/);
     assert.match(read("app/page.tsx"), /export const revalidate = 1800/);
     assert.match(load, /sold_comps_cache/);
-    assert.match(load, /\["moving-today-v2"\]/);
+    assert.match(load, /\["moving-today-v3"\]/);
+    assert.doesNotMatch(load, /moving-today-v2/);
+    assert.match(load, /from\("public_cards"\)\s*\.select\(NEWEST_COLUMNS\)\s*\.order\("created_at", \{ ascending: false \}\)\s*\.limit\(limit\)/);
+    assert.match(load, /created_at, estimated_value/);
+    assert.match(load, /MOVING_MONTH_DAYS/);
+    assert.match(load, /readNewestPublicCards\(admin, MOVING_PUBLIC_CAP\)/);
     assert.match(load, /updatedAt/);
     const page = read("app/moving-today/page.tsx");
     assert.match(page, /generateMetadata/);

@@ -259,7 +259,7 @@ export function SearchView() {
           event.preventDefault();
           remember(typed);
         }}
-        className="sticky top-[3.6rem] z-10 border-b border-zinc-200 bg-[var(--background)] px-4 py-2.5 dark:border-white/10"
+        className="sticky top-[var(--app-header-h)] z-10 border-b border-zinc-200 bg-[var(--background)] px-4 py-2.5 dark:border-white/10"
       >
         <label className="flex min-h-12 items-center gap-2 rounded-full bg-zinc-100 px-3 dark:bg-white/10">
           <Search className="h-5 w-5 shrink-0 text-zinc-500" />

@@ -318,11 +318,11 @@ export function FeedView({ movingToday }: { movingToday?: ReactNode } = {}) {
     );
   }
 
+  // The tabs sit outside the pull-to-refresh content, so a pull moves only the
+  // feed and the header and tabs stay together. The wrapper spans the whole
+  // feed, so the tabs stay stuck all the way down.
   return (
-    <PullToRefresh
-      onRefresh={refreshFeeds}
-      className="-mx-4 -mt-5"
-    >
+    <div className="-mx-4 -mt-5">
       {user && started.visible && !onboardingBusy ? (
         <GetStartedCard
           state={started}
@@ -341,107 +341,109 @@ export function FeedView({ movingToday }: { movingToday?: ReactNode } = {}) {
 
       <div ref={laneStartRef} aria-hidden="true" />
       <LaneTabs lane={lane} onChange={switchLane} />
-      {hasNewPosts || newAbove.show ? (
-        <NewPostsPill
-          onClick={() => {
-            if (hasNewPosts) void refreshFeeds();
-            newAbove.dismiss();
-          }}
-        />
-      ) : null}
+      <PullToRefresh onRefresh={refreshFeeds}>
+        {hasNewPosts || newAbove.show ? (
+          <NewPostsPill
+            onClick={() => {
+              if (hasNewPosts) void refreshFeeds();
+              newAbove.dismiss();
+            }}
+          />
+        ) : null}
 
-      {lane === "foryou" ? movingToday ?? <MovingToday /> : null}
+        {lane === "foryou" ? movingToday ?? <MovingToday /> : null}
 
-      {user ? (
-        <Composer onPosted={() => void refreshFeeds()} />
-      ) : (
-        <SignedOutBanner />
-      )}
-
-      {suggestionRail.length > 0 && !followingEmpty ? (
-        <CollectorSuggestions profiles={suggestionRail} />
-      ) : null}
-
-      <div id="home-lane-panel" role="tabpanel" aria-labelledby={`lane-tab-${lane}`}>
-        {activeLoading ? (
-          <PostSkeletonList count={3} />
-        ) : followingEmpty ? (
-          <FollowingEmpty profiles={suggestionRail} />
-        ) : activePage.error && visible.length === 0 ? (
-          <p className="px-4 py-8 text-center text-sm text-rose-600 dark:text-rose-400">
-            {activePage.error}
-          </p>
-        ) : visible.length === 0 && !showWelcome ? (
-          <EmptyState
-            icon={<Compass className="h-5 w-5" />}
-            title="No posts yet"
-            detail={
-              lane === "following"
-                ? "Log in to see posts from people you follow."
-                : "When collectors post, they'll show up here."
-            }
-          >
-            {user ? (
-              <Link href="/compose" className={solidButton}>
-                Post something
-              </Link>
-            ) : (
-              <Link href={loginPath(pathname)} className={solidButton}>
-                Log in
-              </Link>
-            )}
-          </EmptyState>
+        {user ? (
+          <Composer onPosted={() => void refreshFeeds()} />
         ) : (
-          <>
-            {feedEntries.map((entry, index) => {
-              const whoToFollow = whoToFollowAfter(index, inlineSuggestions);
-              const inline = whoToFollow.length ? <WhoToFollowCard profiles={whoToFollow} /> : null;
-              if (entry.kind === "whats-new") {
-                const noteAuthor = authors.get(entry.items[0]?.post.authorId ?? "") ?? null;
+          <SignedOutBanner />
+        )}
+
+        {suggestionRail.length > 0 && !followingEmpty ? (
+          <CollectorSuggestions profiles={suggestionRail} />
+        ) : null}
+
+        <div id="home-lane-panel" role="tabpanel" aria-labelledby={`lane-tab-${lane}`}>
+          {activeLoading ? (
+            <PostSkeletonList count={3} />
+          ) : followingEmpty ? (
+            <FollowingEmpty profiles={suggestionRail} />
+          ) : activePage.error && visible.length === 0 ? (
+            <p className="px-4 py-8 text-center text-sm text-rose-600 dark:text-rose-400">
+              {activePage.error}
+            </p>
+          ) : visible.length === 0 && !showWelcome ? (
+            <EmptyState
+              icon={<Compass className="h-5 w-5" />}
+              title="No posts yet"
+              detail={
+                lane === "following"
+                  ? "Log in to see posts from people you follow."
+                  : "When collectors post, they'll show up here."
+              }
+            >
+              {user ? (
+                <Link href="/compose" className={solidButton}>
+                  Post something
+                </Link>
+              ) : (
+                <Link href={loginPath(pathname)} className={solidButton}>
+                  Log in
+                </Link>
+              )}
+            </EmptyState>
+          ) : (
+            <>
+              {feedEntries.map((entry, index) => {
+                const whoToFollow = whoToFollowAfter(index, inlineSuggestions);
+                const inline = whoToFollow.length ? <WhoToFollowCard profiles={whoToFollow} /> : null;
+                if (entry.kind === "whats-new") {
+                  const noteAuthor = authors.get(entry.items[0]?.post.authorId ?? "") ?? null;
+                  return (
+                    <Fragment key={entry.key}>
+                      <FeedItem itemKey={entry.key} delay={entranceDelay(entry.key)}>
+                        <WhatsNewCard items={entry.items} author={noteAuthor} />
+                      </FeedItem>
+                      {inline}
+                    </Fragment>
+                  );
+                }
+                const item = entry.item;
+                const author = authors.get(item.post.authorId);
+                if (!author) return inline ? <Fragment key={item.key}>{inline}</Fragment> : null;
                 return (
-                  <Fragment key={entry.key}>
-                    <FeedItem itemKey={entry.key} delay={entranceDelay(entry.key)}>
-                      <WhatsNewCard items={entry.items} author={noteAuthor} />
+                  <Fragment key={item.key}>
+                    <FeedItem itemKey={item.key} delay={entranceDelay(item.key)}>
+                      <Tweet
+                        post={item.post}
+                        author={author}
+                        repostedBy={item.repostedBy}
+                        extraPosts={activePage.relatedPosts}
+                        extraProfiles={activePage.profiles}
+                      />
                     </FeedItem>
                     {inline}
                   </Fragment>
                 );
-              }
-              const item = entry.item;
-              const author = authors.get(item.post.authorId);
-              if (!author) return inline ? <Fragment key={item.key}>{inline}</Fragment> : null;
-              return (
-                <Fragment key={item.key}>
-                  <FeedItem itemKey={item.key} delay={entranceDelay(item.key)}>
-                    <Tweet
-                      post={item.post}
-                      author={author}
-                      repostedBy={item.repostedBy}
-                      extraPosts={activePage.relatedPosts}
-                      extraProfiles={activePage.profiles}
-                    />
-                  </FeedItem>
-                  {inline}
-                </Fragment>
-              );
-            })}
-            {paging ? (
-              <LoadMore
-                hasMore={activePage.hasMore}
-                loading={activePage.loadingMore}
-                failed={Boolean(activePage.error)}
-                onLoadMore={activePage.loadMore}
-              />
-            ) : null}
-            {activePage.error ? (
-              <p className="px-4 py-3 text-center text-sm text-rose-600 dark:text-rose-400">
-                {activePage.error}
-              </p>
-            ) : null}
-          </>
-        )}
-      </div>
-    </PullToRefresh>
+              })}
+              {paging ? (
+                <LoadMore
+                  hasMore={activePage.hasMore}
+                  loading={activePage.loadingMore}
+                  failed={Boolean(activePage.error)}
+                  onLoadMore={activePage.loadMore}
+                />
+              ) : null}
+              {activePage.error ? (
+                <p className="px-4 py-3 text-center text-sm text-rose-600 dark:text-rose-400">
+                  {activePage.error}
+                </p>
+              ) : null}
+            </>
+          )}
+        </div>
+      </PullToRefresh>
+    </div>
   );
 }
 
