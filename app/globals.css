@@ -129,6 +129,87 @@ textarea {
   }
 }
 
+/* Like burst: a purple ring and sparks fly out once. Only mounted when motion is allowed. */
+@keyframes like-ring {
+  0% {
+    opacity: 0.9;
+    transform: scale(0.4);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.35);
+  }
+}
+
+@keyframes like-spark {
+  0% {
+    opacity: 1;
+    transform: translate(-50%, -50%) rotate(var(--spark-angle)) translateY(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) rotate(var(--spark-angle)) translateY(-19px) scale(0.4);
+  }
+}
+
+/* Counts roll to the new number. */
+@keyframes count-up {
+  from {
+    opacity: 0;
+    transform: translateY(70%);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes count-down {
+  from {
+    opacity: 0;
+    transform: translateY(-70%);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* The composer rises in when it opens. */
+@keyframes composer-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Messages: a sent or new bubble rises into place. */
+@keyframes bubble-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Empty inbox: the brand shapes drift a little. */
+@keyframes inbox-float {
+  0%,
+  100% {
+    transform: translateY(0) rotate(var(--tilt, 0deg));
+  }
+  50% {
+    transform: translateY(-5px) rotate(var(--tilt, 0deg));
+  }
+}
+
 /* Add card picker: each step slides in. Reduced motion uses add-fade only. */
 @keyframes add-step-in {
   from {
@@ -198,7 +279,7 @@ textarea {
 
 .skeleton-shimmer {
   background-color: rgb(228 228 231 / 0.8);
-  background-image: linear-gradient(90deg, transparent 0%, rgb(255 255 255 / 0.55) 50%, transparent 100%);
+  background-image: linear-gradient(90deg, transparent 0%, rgb(167 139 250 / 0.28) 50%, transparent 100%);
   background-size: 200% 100%;
   background-repeat: no-repeat;
   animation: skeleton-shimmer 1.4s ease-in-out infinite;
@@ -207,7 +288,7 @@ textarea {
 @media (prefers-color-scheme: dark) {
   .skeleton-shimmer {
     background-color: rgb(255 255 255 / 0.06);
-    background-image: linear-gradient(90deg, transparent 0%, rgb(255 255 255 / 0.06) 50%, transparent 100%);
+    background-image: linear-gradient(90deg, transparent 0%, rgb(124 58 237 / 0.2) 50%, transparent 100%);
   }
 }
 

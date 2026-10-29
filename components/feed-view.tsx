@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Compass, ImagePlus } from "lucide-react";
 import { Avatar } from "@/components/avatar";
 import { MentionTextarea } from "@/components/mention-textarea";
@@ -18,7 +18,7 @@ import { LoadMore } from "@/components/load-more";
 import { PullToRefresh } from "@/components/pull-to-refresh";
 import { usePagedTimeline } from "@/components/use-paged-timeline";
 import { EmptyState, PostSkeletonList, TimelineSkeleton } from "@/components/status";
-import { CollectorSuggestions, FollowingEmpty } from "@/components/collector-suggestions";
+import { CollectorSuggestions, FollowingEmpty, WhoToFollowCard } from "@/components/collector-suggestions";
 import {
   FeedItem,
   LaneTabs,
@@ -59,6 +59,7 @@ import { followingAuthorIds, homeHead, showsNewPosts } from "@/lib/social/feed-p
 import { presentForYouFeed } from "@/lib/social/for-you-display";
 import { addUnblockedProfiles, presentPagedItems } from "@/lib/social/paged-items";
 import { publicTimeline } from "@/lib/social/timeline";
+import { whoToFollowAfter } from "@/lib/ui/timeline";
 import { POST_LIMIT, type PublicCard } from "@/lib/social/types";
 
 function readComposerPhoto(file: File) {
@@ -207,6 +208,8 @@ export function FeedView({ movingToday }: { movingToday?: ReactNode } = {}) {
   const suggestionRail = (suggestionIds.current ?? (suggestionsReady ? suggestions.map((profile) => profile.id) : []))
     .map((id) => suggestionById.get(id) ?? profiles.find((profile) => profile.id === id))
     .filter((profile) => profile != null);
+  // Inline "Who to follow" cards reuse the rail's people, so the same exclusions apply.
+  const inlineSuggestions = user ? suggestionRail : [];
   const blocked = useMemo(() => new Set(blockedIds), [blockedIds]);
   const muted = useMemo(() => new Set(mutedIds), [mutedIds]);
   const postsById = useMemo(() => new Map(posts.map((post) => [post.id, post])), [posts]);
@@ -352,28 +355,36 @@ export function FeedView({ movingToday }: { movingToday?: ReactNode } = {}) {
           </EmptyState>
         ) : (
           <>
-            {feedEntries.map((entry) => {
+            {feedEntries.map((entry, index) => {
+              const whoToFollow = whoToFollowAfter(index, inlineSuggestions);
+              const inline = whoToFollow.length ? <WhoToFollowCard profiles={whoToFollow} /> : null;
               if (entry.kind === "whats-new") {
                 const noteAuthor = authors.get(entry.items[0]?.post.authorId ?? "") ?? null;
                 return (
-                  <FeedItem key={entry.key} itemKey={entry.key} delay={entranceDelay(entry.key)}>
-                    <WhatsNewCard items={entry.items} author={noteAuthor} />
-                  </FeedItem>
+                  <Fragment key={entry.key}>
+                    <FeedItem itemKey={entry.key} delay={entranceDelay(entry.key)}>
+                      <WhatsNewCard items={entry.items} author={noteAuthor} />
+                    </FeedItem>
+                    {inline}
+                  </Fragment>
                 );
               }
               const item = entry.item;
               const author = authors.get(item.post.authorId);
-              if (!author) return null;
+              if (!author) return inline ? <Fragment key={item.key}>{inline}</Fragment> : null;
               return (
-                <FeedItem key={item.key} itemKey={item.key} delay={entranceDelay(item.key)}>
-                  <Tweet
-                    post={item.post}
-                    author={author}
-                    repostedBy={item.repostedBy}
-                    extraPosts={activePage.relatedPosts}
-                    extraProfiles={activePage.profiles}
-                  />
-                </FeedItem>
+                <Fragment key={item.key}>
+                  <FeedItem itemKey={item.key} delay={entranceDelay(item.key)}>
+                    <Tweet
+                      post={item.post}
+                      author={author}
+                      repostedBy={item.repostedBy}
+                      extraPosts={activePage.relatedPosts}
+                      extraProfiles={activePage.profiles}
+                    />
+                  </FeedItem>
+                  {inline}
+                </Fragment>
               );
             })}
             {paging ? (

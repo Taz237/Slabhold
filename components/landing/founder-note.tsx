@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { Logo } from "@/components/logo";
@@ -45,14 +46,14 @@ export function FounderNote({ showcase }: { showcase: FounderShowcase | null }) 
   return (
     <section aria-label="From the founder" className={BOX} data-founder-note="founder">
       {profile.avatarUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
+        // Unoptimized: avatars are outside the card-photos optimizer pattern.
+        <Image
           src={profile.avatarUrl}
           alt=""
           width={48}
           height={48}
+          unoptimized
           loading="lazy"
-          decoding="async"
           className="h-12 w-12 shrink-0 rounded-full object-cover ring-2 ring-[#7C3AED]/60"
         />
       ) : (

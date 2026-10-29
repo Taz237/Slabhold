@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Compass } from "lucide-react";
+import { Compass, UsersRound } from "lucide-react";
 import { Avatar } from "@/components/avatar";
 import { solidButton } from "@/components/button-styles";
 import { FollowButton } from "@/components/follow-button";
@@ -99,13 +99,11 @@ export function FollowingEmpty({ profiles }: { profiles: Suggestion[] }) {
         <p className="mx-auto mt-1.5 max-w-[19rem] text-sm leading-5 text-zinc-500">
           Follow a few collectors and their posts, pickups and cards land here.
         </p>
-        {profiles.length === 0 ? (
-          <div className="mt-4">
-            <Link href="/search" className={solidButton}>
-              Find collectors
-            </Link>
-          </div>
-        ) : null}
+        <div className="mt-4">
+          <Link href="/search" className={solidButton}>
+            Find collectors
+          </Link>
+        </div>
       </div>
       {profiles.length > 0 ? (
         <div className="mt-4">
@@ -113,5 +111,67 @@ export function FollowingEmpty({ profiles }: { profiles: Suggestion[] }) {
         </div>
       ) : null}
     </div>
+  );
+}
+
+/**
+ * Inline "Who to follow" between feed posts: a few collectors from the same
+ * suggestions as the rail and onboarding, so the same people are left out.
+ */
+export function WhoToFollowCard({ profiles }: { profiles: Suggestion[] }) {
+  if (profiles.length === 0) return null;
+  return (
+    <section
+      data-who-to-follow=""
+      aria-label="Who to follow"
+      className="border-b border-zinc-200/70 px-4 py-4 dark:border-white/[0.07]"
+    >
+      <div className="relative overflow-hidden rounded-2xl border border-violet-500/15 bg-white shadow-[0_12px_32px_-22px_rgba(124,58,237,0.55)] dark:border-violet-400/15 dark:bg-white/[0.03]">
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-violet-600/[0.09] to-transparent dark:from-violet-500/[0.14]"
+        />
+        <div className="relative flex items-center gap-2 px-4 pt-3.5 pb-1">
+          <span className="grid h-7 w-7 place-items-center rounded-full bg-violet-600 text-white" aria-hidden="true">
+            <UsersRound className="h-3.5 w-3.5" />
+          </span>
+          <h2 className="text-[15px] font-bold tracking-tight">Who to follow</h2>
+        </div>
+        <ul className="relative">
+          {profiles.map((profile) => (
+            <li key={profile.id} className="flex min-h-16 items-center gap-3 px-4 py-2">
+              <Link href={userHref(profile.username)} aria-label={profile.displayName} className="shrink-0 rounded-full">
+                <Avatar
+                  name={profile.displayName}
+                  image={profile.avatarDataUrl}
+                  accent={profile.accent}
+                  expandable={false}
+                  className="h-11 w-11"
+                />
+              </Link>
+              <div className="min-w-0 flex-1">
+                <Link
+                  href={userHref(profile.username)}
+                  className="block truncate text-[15px] leading-5 font-bold tracking-tight hover:underline"
+                >
+                  {profile.displayName}
+                </Link>
+                <p className="truncate text-[13px] leading-5 text-zinc-500">
+                  @{profile.username}
+                  {profile.suggestionReason ? ` · ${profile.suggestionReason}` : ""}
+                </p>
+              </div>
+              <FollowButton userId={profile.id} />
+            </li>
+          ))}
+        </ul>
+        <Link
+          href="/search"
+          className="relative flex min-h-11 items-center border-t border-zinc-200/70 px-4 text-sm font-semibold text-violet-600 hover:bg-violet-600/[0.04] dark:border-white/[0.07] dark:text-[#A78BFA]"
+        >
+          Find more collectors
+        </Link>
+      </div>
+    </section>
   );
 }

@@ -23,7 +23,10 @@ export function shouldCollapseBody(text: string): boolean {
   return estimateBodyLines(text) > BODY_COLLAPSE_LINES;
 }
 
-function gradedLabel(card: NonNullable<Post["card"]>): string | null {
+/** "PSA 10" for a graded card, null for raw or ungraded. */
+export function gradedLabel(
+  card: Pick<NonNullable<Post["card"]>, "grade" | "grader" | "conditionType">,
+): string | null {
   const grader = (card.grader ?? "").trim();
   const grade = (card.grade ?? "").trim();
   const rawGrader = grader !== "" && isRawGradingCompany(grader);
@@ -86,4 +89,20 @@ export function createLaneScrollMemory() {
       return spots.get(lane) ?? laneTop;
     },
   };
+}
+
+/** An inline "Who to follow" card goes after every this many feed items. */
+export const WHO_TO_FOLLOW_EVERY = 15;
+
+/** People on each inline card. */
+export const WHO_TO_FOLLOW_SIZE = 3;
+
+/**
+ * The people for the inline card after feed item `index`, or [] when no card
+ * goes there. Each card takes the next few suggestions, so nobody repeats.
+ */
+export function whoToFollowAfter<T>(index: number, people: readonly T[]): T[] {
+  if ((index + 1) % WHO_TO_FOLLOW_EVERY !== 0) return [];
+  const slot = (index + 1) / WHO_TO_FOLLOW_EVERY - 1;
+  return people.slice(slot * WHO_TO_FOLLOW_SIZE, (slot + 1) * WHO_TO_FOLLOW_SIZE);
 }

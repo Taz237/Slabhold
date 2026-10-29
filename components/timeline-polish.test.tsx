@@ -13,7 +13,10 @@ import { CollectionContext } from "@/components/collection-provider";
 import { SocialContext } from "@/components/social-provider";
 import { Tweet } from "@/components/tweet";
 import { PostSkeleton, TimelineSkeleton } from "@/components/status";
-import { FollowingEmpty } from "@/components/collector-suggestions";
+import { FollowingEmpty, WhoToFollowCard } from "@/components/collector-suggestions";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { OFFICIAL_UPDATES_USER_ID } from "@/lib/social/official-updates";
 import {
   LaneTabs,
   NewPostsPill,
@@ -387,5 +390,154 @@ describe("7. Engagement bar", () => {
     }
     const article = document.querySelector("article");
     assert.doesNotMatch(article?.innerHTML ?? "", /w-\[(39[1-9]|[4-9]\d\d)px\]/);
+  });
+});
+
+function source(path: string) {
+  return readFileSync(join(process.cwd(), path), "utf8");
+}
+
+describe("8. Like burst and counts", () => {
+  it("bursts purple around the heart and ticks the count up", () => {
+    mount(feedPost());
+    const like = document.querySelector("button[aria-label^='Like']");
+    assert.equal(like?.querySelector("[data-count]")?.getAttribute("data-count-dir"), null, "no tick on first paint");
+    click(like);
+    const liked = document.querySelector("button[aria-label^='Unlike']");
+    assert.ok(liked);
+    const burst = liked.querySelector("[data-like-burst]");
+    assert.ok(burst, "burst ring");
+    assert.match(burst.innerHTML + burst.getAttribute("class"), /violet|7C3AED|A78BFA/i);
+    const count = liked.querySelector("[data-count]");
+    assert.equal(count?.textContent, "3");
+    assert.equal(count?.getAttribute("data-count-dir"), "up");
+    click(liked);
+    assert.equal(
+      document.querySelector("button[aria-label^='Like'] [data-count]")?.getAttribute("data-count-dir"),
+      "down",
+    );
+  });
+
+  it("skips the burst and the tick under reduced motion", () => {
+    state.reducedMotion = true;
+    mount(feedPost());
+    click(document.querySelector("button[aria-label^='Like']"));
+    const liked = document.querySelector("button[aria-label^='Unlike']");
+    assert.equal(liked?.querySelector("[data-like-burst]"), null);
+    assert.equal(liked?.querySelector("[data-count]")?.getAttribute("data-count-dir"), null);
+  });
+});
+
+describe("9. Names", () => {
+  it("marks the official updates account by id, and nobody else", () => {
+    const official = { ...maya, id: OFFICIAL_UPDATES_USER_ID, username: "slabholdupdates", displayName: "Slabhold" };
+    mount(createElement(Providers, null, createElement(Tweet, { post: post({ authorId: official.id }), author: official })));
+    const mark = document.querySelector("[data-official-mark]");
+    assert.ok(mark);
+    assert.equal(mark.getAttribute("aria-label"), "Official Slabhold account");
+    mount(feedPost());
+    assert.equal(document.querySelector("[data-official-mark]"), null);
+  });
+
+  it("keeps the name bold and the handle and time muted", () => {
+    mount(feedPost());
+    const name = document.querySelector("article a[href='/u/waxroom'].font-bold");
+    assert.ok(name);
+    assert.match(document.querySelector("article time")?.className ?? "", /text-zinc-500/);
+  });
+});
+
+describe("10. Card and photo frames", () => {
+  it("frames a graded card in a purple-tinted slab with a solid purple grade badge", () => {
+    mount(feedPost({ card: card({ grade: "10", grader: "PSA", conditionType: "graded" }) }));
+    const pill = document.querySelector("[data-post-pill]");
+    assert.equal(pill?.textContent, "PSA 10");
+    assert.equal(pill?.getAttribute("data-grade-badge"), "");
+    assert.match(pill?.className ?? "", /bg-violet-600/);
+    const frame = document.querySelector("article [data-tile]");
+    assert.ok(frame);
+    assert.match(frame.className, /before:shadow-\[[^\]]*rgba\(124,58,237/);
+  });
+
+  it("keeps the soft pill for a raw card", () => {
+    mount(feedPost({ card: card({ conditionType: "raw" }) }));
+    const pill = document.querySelector("[data-post-pill]");
+    assert.equal(pill?.textContent, "Raw");
+    assert.equal(pill?.getAttribute("data-grade-badge"), null);
+  });
+
+  it("rounds post photos with a purple-tinted edge, lazy and sized", () => {
+    mount(feedPost({ imageDataUrl: "https://example.com/a.jpg", images: ["https://example.com/a.jpg"] }));
+    const img = document.querySelector<HTMLImageElement>("article img[src='https://example.com/a.jpg']");
+    assert.ok(img);
+    assert.equal(img.getAttribute("loading"), "lazy");
+    assert.equal(img.getAttribute("decoding"), "async");
+    const frame = img.closest("[data-photo-frame]");
+    assert.ok(frame);
+    assert.match(frame.className, /rounded-2xl/);
+    assert.match(frame.className, /violet/);
+  });
+});
+
+describe("11. Header on scroll", () => {
+  it("firms up the tab bar once the feed scrolls under it", () => {
+    mount(createElement(LaneTabs, { lane: "foryou", onChange: () => {} }));
+    const bar = document.querySelector("[data-lane-tabs]");
+    assert.equal(bar?.getAttribute("data-scrolled"), "false");
+    state.scrollY = 120;
+    act(() => {
+      window.dispatchEvent(new Event("scroll"));
+    });
+    assert.equal(bar?.getAttribute("data-scrolled"), "true");
+    state.scrollY = 0;
+    act(() => {
+      window.dispatchEvent(new Event("scroll"));
+    });
+    assert.equal(bar?.getAttribute("data-scrolled"), "false");
+  });
+});
+
+describe("12. Who to follow", () => {
+  it("lists a few collectors with Follow, and links to search", () => {
+    mount(createElement(Providers, null, createElement(WhoToFollowCard, { profiles: [maya] })));
+    const card = document.querySelector("[data-who-to-follow]");
+    assert.ok(card);
+    assert.match(card.textContent ?? "", /Who to follow/);
+    assert.match(card.textContent ?? "", /Maya Chen/);
+    assert.match(card.textContent ?? "", /@waxroom/);
+    assert.ok([...card.querySelectorAll("button")].some((button) => button.textContent === "Follow"));
+    assert.ok(card.querySelector("a[href='/search']"));
+  });
+
+  it("renders nothing with nobody to suggest", () => {
+    mount(createElement(Providers, null, createElement(WhoToFollowCard, { profiles: [] })));
+    assert.equal(document.querySelector("[data-who-to-follow]"), null);
+  });
+
+  it("is placed in the feed from the same suggestions as onboarding", () => {
+    const feed = source("components/feed-view.tsx");
+    assert.match(feed, /whoToFollowAfter\(index, inlineSuggestions\)/);
+    assert.match(feed, /<WhoToFollowCard/);
+  });
+});
+
+describe("13. Following empty, compose and skeletons", () => {
+  it("always offers Find collectors on an empty Following tab", () => {
+    mount(createElement(Providers, { suggestions: [maya] }, createElement(FollowingEmpty, { profiles: [maya] })));
+    assert.ok(document.querySelector("a[href='/search']"));
+    assert.match(document.querySelector("a[href='/search']")?.textContent ?? "", /Find collectors/);
+  });
+
+  it("gives the Post button a soft purple glow and opens the composer smoothly", () => {
+    assert.match(source("components/create-menu.tsx"), /shadow-\[0_10px_30px_-6px_rgba\(124,58,237/);
+    assert.match(source("components/compose-view.tsx"), /motion-safe:animate-\[composer-in/);
+    assert.match(source("app/globals.css"), /@keyframes composer-in/);
+  });
+
+  it("shimmers skeletons with a purple tint, and holds still for reduced motion", () => {
+    const css = source("app/globals.css");
+    const shimmer = css.slice(css.indexOf(".skeleton-shimmer {"), css.indexOf("/*", css.indexOf(".skeleton-shimmer {")));
+    assert.match(shimmer, /124 58 237|167 139 250/);
+    assert.match(shimmer, /prefers-reduced-motion: reduce[\s\S]*animation: none/);
   });
 });
