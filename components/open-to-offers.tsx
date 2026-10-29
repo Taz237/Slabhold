@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { useSocial } from "@/components/social-provider";
 import {
   MESSAGE_OWNER_LABEL,
@@ -9,6 +10,7 @@ import {
   messagePreviewPriceLabel,
   resolveLiveCardPreview,
 } from "@/lib/offers/open-to-offers";
+import { initials } from "@/lib/format";
 import type { CardMessagePreview } from "@/lib/social/types";
 import { useCardValue } from "@/lib/value/use-card-values";
 
@@ -99,6 +101,10 @@ export function ProfileCardCaption({
   );
 }
 
+/**
+ * A card shared in a message: photo, player, year and set, grade, and the
+ * estimate when there is one. Every field comes from the live card.
+ */
 export function CardMessagePreviewBody({
   card,
 }: {
@@ -108,12 +114,14 @@ export function CardMessagePreviewBody({
     player: string;
     year: string;
     set: string;
-    estimateLabel: string;
+    estimateLabel?: string;
+    /** "PSA 10" for a graded card. */
+    grade?: string | null;
   } | null;
 }) {
   if (!card) {
     return (
-      <span className="mt-1 inline-flex rounded-full bg-zinc-100 px-2 py-1 text-xs font-semibold text-zinc-500 dark:bg-white/10">
+      <span className="mt-1 inline-flex min-h-8 items-center rounded-full bg-zinc-100 px-3 text-xs font-semibold text-zinc-500 dark:bg-white/10">
         Card no longer available
       </span>
     );
@@ -121,24 +129,65 @@ export function CardMessagePreviewBody({
   return (
     <Link
       href={card.href}
-      className="mt-1 flex max-w-full gap-2 rounded-xl border border-zinc-200 bg-white p-2 text-left dark:border-white/10 dark:bg-zinc-950"
+      data-shared-card=""
+      className="group mt-1 flex w-64 max-w-full items-center gap-3 rounded-2xl border border-violet-500/15 bg-white p-2.5 pr-3.5 text-left shadow-[0_10px_28px_-18px_rgba(124,58,237,0.6)] transition-transform duration-150 active:scale-[0.98] motion-reduce:transition-none dark:border-violet-400/20 dark:bg-zinc-900"
     >
-      {card.imageUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={card.imageUrl} alt="" className="h-14 w-10 shrink-0 rounded-md object-cover" />
-      ) : (
-        <span className="grid h-14 w-10 shrink-0 place-items-center rounded-md bg-zinc-200 text-[10px] font-semibold dark:bg-white/10">
-          {card.player.slice(0, 1)}
-        </span>
-      )}
-      <span className="min-w-0">
-        <span className="block truncate text-sm font-semibold">{card.player}</span>
-        <span className="block truncate text-xs text-zinc-500">
+      <SharedCardPhoto imageUrl={card.imageUrl} player={card.player} />
+      <span className="min-w-0 flex-1">
+        {card.grade ? (
+          <span className="mb-1 inline-flex h-5 items-center rounded-full bg-violet-600 px-2 font-mono text-[10px] font-semibold tracking-wider text-white uppercase">
+            {card.grade}
+          </span>
+        ) : null}
+        <span className="block truncate text-[15px] leading-5 font-bold tracking-tight">{card.player}</span>
+        <span className="block truncate text-[13px] leading-5 text-zinc-500">
           {card.year} {card.set}
         </span>
-        <span className="block truncate text-xs text-zinc-500">{card.estimateLabel}</span>
+        {card.estimateLabel ? (
+          <span className="block truncate text-[13px] leading-5 font-semibold tabular-nums">{card.estimateLabel}</span>
+        ) : null}
       </span>
     </Link>
+  );
+}
+
+/** 5:7 photo in a thin slab edge. A designed stand-in when there is no photo or it fails. */
+export function SharedCardPhoto({
+  imageUrl,
+  player,
+  size = "md",
+}: {
+  imageUrl: string | null;
+  player: string;
+  size?: "sm" | "md";
+}) {
+  const [failed, setFailed] = useState<string | null>(null);
+  const box =
+    size === "sm"
+      ? "h-10 w-[29px] rounded-[5px] p-[2px]"
+      : "h-[78px] w-14 rounded-lg p-[3px]";
+  const show = imageUrl && failed !== imageUrl ? imageUrl : null;
+  return (
+    <span
+      aria-hidden="true"
+      className={`relative block shrink-0 bg-gradient-to-b from-zinc-100 to-zinc-300 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.6),0_4px_10px_-4px_rgba(0,0,0,0.45)] dark:from-white/20 dark:to-white/5 ${box}`}
+    >
+      {show ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={show}
+          alt=""
+          loading="lazy"
+          decoding="async"
+          onError={() => setFailed(show)}
+          className="h-full w-full rounded-[3px] bg-zinc-900 object-cover"
+        />
+      ) : (
+        <span className="grid h-full w-full place-items-center rounded-[3px] bg-gradient-to-br from-[#7C3AED] to-[#5B21B6] text-[10px] font-extrabold text-white">
+          {initials(player) || "?"}
+        </span>
+      )}
+    </span>
   );
 }
 
@@ -156,6 +205,7 @@ export function CardMessagePreviewCard({ preview }: { preview: CardMessagePrevie
         year: live.year,
         set: live.set,
         estimateLabel: messagePreviewPriceLabel(value.value, live.createdAt),
+        grade: live.grade,
       }}
     />
   );

@@ -2,6 +2,10 @@
 
 import { imagesFromPost, postPhotoCellClass, postPhotoGridClass } from "@/lib/social/post-photos";
 
+/** Rounded, with a hairline purple-tinted edge and a soft purple shadow. */
+const PHOTO_FRAME =
+  "overflow-hidden rounded-2xl bg-zinc-100 ring-1 ring-violet-500/15 shadow-[0_10px_28px_-16px_rgba(124,58,237,0.45)] dark:bg-white/[0.04] dark:ring-violet-400/20";
+
 export function PostPhotoGrid({
   images,
   onOpen,
@@ -21,13 +25,16 @@ export function PostPhotoGrid({
           event.stopPropagation();
           onOpen(photos[0], "Post photo", photos);
         }}
-        className="mt-3 block w-full cursor-zoom-in scroll-mb-[calc(14rem+env(safe-area-inset-bottom))]"
+        data-photo-frame=""
+        className={`mt-3 block w-full cursor-zoom-in scroll-mb-[calc(14rem+env(safe-area-inset-bottom))] ${PHOTO_FRAME}`}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={photos[0]}
           alt=""
-          className="max-h-80 w-full rounded-2xl border border-zinc-200 object-cover dark:border-white/10"
+          loading="lazy"
+          decoding="async"
+          className="max-h-80 w-full object-cover"
         />
       </button>
     );
@@ -36,7 +43,8 @@ export function PostPhotoGrid({
   return (
     <div
       data-photo-grid={photos.length}
-      className={`mt-3 overflow-hidden rounded-2xl border border-zinc-200 dark:border-white/10 ${postPhotoGridClass(photos.length)}`}
+      data-photo-frame=""
+      className={`mt-3 ${PHOTO_FRAME} ${postPhotoGridClass(photos.length)}`}
     >
       {photos.map((src, index) => (
         <button
@@ -51,7 +59,7 @@ export function PostPhotoGrid({
           className={`relative block min-h-0 w-full cursor-zoom-in scroll-mb-[calc(14rem+env(safe-area-inset-bottom))] overflow-hidden ${postPhotoCellClass(photos.length, index)}`}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={src} alt="" className="h-full w-full object-cover" />
+          <img src={src} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
         </button>
       ))}
     </div>

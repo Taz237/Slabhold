@@ -169,6 +169,73 @@ describe("landing founder touch", () => {
     assert.match(html, /data-founder-note="loading"/);
   });
 
+  it("draws the founder's slabs and note on first paint when the server sends the showcase", async () => {
+    const { LandingPage } = await import("@/components/landing-page");
+    const html = renderToStaticMarkup(
+      createElement(
+        ImageConfigContext.Provider,
+        { value: { ...imageConfigDefault, ...nextConfig.images } },
+        createElement(
+          SearchParamsContext.Provider,
+          { value: new URLSearchParams() },
+          createElement(LandingPage, { founder: FOUNDER }),
+        ),
+      ),
+    );
+    assert.match(html, /data-hero-slabs="founder"/);
+    assert.doesNotMatch(html, /data-founder-note="loading"/);
+    assert.match(html, /data-founder-note="founder"/);
+    assert.match(html, /data-hero-slabs="founder"><div[^>]*><\/div><div class="[^"]*transition-opacity[^"]*opacity-100"/);
+  });
+
+  it("keeps the sample slabs when the server showcase is empty, with no client fetch", async () => {
+    const calls: string[] = [];
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = (async (input: RequestInfo | URL) => {
+      calls.push(String(input));
+      return new Response("{}");
+    }) as typeof fetch;
+    try {
+      const { LandingPage } = await import("@/components/landing-page");
+      const { createRoot } = await import("react-dom/client");
+      const host = win.document.createElement("div");
+      win.document.body.appendChild(host);
+      const root = createRoot(host);
+      await act(async () => {
+        root.render(
+          createElement(
+            SearchParamsContext.Provider,
+            { value: new URLSearchParams() },
+            createElement(LandingPage, { founder: { profile: null, cards: [] } }),
+          ),
+        );
+      });
+      cleanup = () => {
+        act(() => root.unmount());
+        host.remove();
+      };
+      assert.equal(host.querySelector("[data-hero-slabs]")?.getAttribute("data-hero-slabs"), "sample");
+      assert.equal(host.querySelector("[data-founder-note]")?.getAttribute("data-founder-note"), "plain");
+      assert.deepEqual(calls.filter((url) => url.includes("/api/landing/founder")), []);
+    } finally {
+      globalThis.fetch = realFetch;
+    }
+  });
+
+  it("loads the showcase on the server through the hour cache and preloads the hero photos", () => {
+    const page = read("app/page.tsx");
+    assert.match(page, /cachedFounderShowcase\(\)/);
+    assert.match(page, /<HomeGate founder=\{founder\}/);
+    const loader = read("lib/landing/founder-load.ts");
+    assert.match(loader, /unstable_cache\(\s*loadFounderShowcase,\s*\["landing-founder"\],\s*\{\s*revalidate: 3600/);
+    assert.match(read("app/api/landing/founder/route.ts"), /cachedFounderShowcase\(\)/);
+    assert.doesNotMatch(read("components/app-shell.tsx"), /<LandingPage/);
+    assert.match(read("components/landing/hero-slabs.tsx"), /preload/);
+    const note = read("components/landing/founder-note.tsx");
+    assert.match(note, /from "next\/image"/);
+    assert.doesNotMatch(note, /no-img-element/);
+  });
+
   it("puts the founder's 3 public card photos in the hero, best in the center", async () => {
     const { HeroSlabs } = await import("@/components/landing/hero-slabs");
     const html = renderToStaticMarkup(

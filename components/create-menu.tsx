@@ -44,7 +44,7 @@ export function CreateMenu() {
         aria-expanded={open}
         aria-haspopup="menu"
         onClick={() => setOpen((value) => !value)}
-        className="fixed right-[calc(max(0px,50vw-16rem)+1rem)] bottom-[calc(5.25rem+env(safe-area-inset-bottom))] z-40 flex h-14 w-14 flex-col items-center justify-center rounded-full bg-violet-600 text-white shadow-lg shadow-violet-600/30 md:hidden"
+        className="fixed right-[calc(max(0px,50vw-16rem)+1rem)] bottom-[calc(5.25rem+env(safe-area-inset-bottom))] z-40 flex h-14 w-14 flex-col items-center justify-center rounded-full bg-violet-600 text-white shadow-[0_10px_30px_-6px_rgba(124,58,237,0.65)] ring-1 ring-white/15 transition-transform duration-150 active:scale-95 motion-reduce:transition-none md:hidden"
       >
         <Plus className="h-6 w-6" strokeWidth={2.25} />
         <span className="text-[10px] font-bold leading-none">Post</span>
@@ -55,7 +55,7 @@ export function CreateMenu() {
         aria-expanded={open}
         aria-haspopup="menu"
         onClick={() => setOpen((value) => !value)}
-        className="fixed bottom-24 left-4 z-40 hidden h-14 w-14 flex-col items-center justify-center rounded-full bg-violet-600 text-white shadow-lg shadow-violet-600/30 md:flex"
+        className="fixed bottom-24 left-4 z-40 hidden h-14 w-14 flex-col items-center justify-center rounded-full bg-violet-600 text-white shadow-[0_10px_30px_-6px_rgba(124,58,237,0.65)] ring-1 ring-white/15 transition-transform duration-150 active:scale-95 motion-reduce:transition-none md:flex"
       >
         <Plus className="h-6 w-6" strokeWidth={2.25} />
         <span className="text-[10px] font-bold leading-none">Post</span>

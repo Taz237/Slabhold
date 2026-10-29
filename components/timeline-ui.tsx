@@ -37,6 +37,20 @@ export function useReducedMotion(): boolean {
   );
 }
 
+function subscribeScroll(onChange: () => void) {
+  window.addEventListener("scroll", onChange, { passive: true });
+  return () => window.removeEventListener("scroll", onChange);
+}
+
+/** True once the page has scrolled a little. False on the server. */
+export function useScrolled(threshold = 4): boolean {
+  return useSyncExternalStore(
+    subscribeScroll,
+    () => window.scrollY > threshold,
+    () => false,
+  );
+}
+
 function scrollBehavior(): ScrollBehavior {
   return window.matchMedia?.(REDUCED_MOTION).matches ? "auto" : "smooth";
 }
@@ -52,6 +66,7 @@ const LANES: Array<{ id: HomeLane; label: string }> = [
 /** For You / Following: a translucent bar with a violet underline that slides between tabs. */
 export function LaneTabs({ lane, onChange }: { lane: HomeLane; onChange: (lane: HomeLane) => void }) {
   const index = LANES.findIndex((item) => item.id === lane);
+  const scrolled = useScrolled();
 
   function onKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
     if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
@@ -64,7 +79,12 @@ export function LaneTabs({ lane, onChange }: { lane: HomeLane; onChange: (lane: 
   return (
     <div
       data-lane-tabs=""
-      className={`sticky ${LANE_TABS_TOP} z-10 border-b border-zinc-200/70 bg-[color-mix(in_oklab,var(--background)_82%,transparent)] backdrop-blur-xl backdrop-saturate-150 dark:border-white/[0.07]`}
+      data-scrolled={scrolled ? "true" : "false"}
+      className={`sticky ${LANE_TABS_TOP} z-10 border-b backdrop-blur-xl backdrop-saturate-150 transition-[background-color,box-shadow,border-color] duration-200 motion-reduce:transition-none ${
+        scrolled
+          ? "border-zinc-200 bg-[color-mix(in_oklab,var(--background)_72%,transparent)] shadow-[0_10px_24px_-18px_rgba(24,24,27,0.45)] dark:border-white/[0.09] dark:shadow-[0_10px_28px_-16px_rgba(0,0,0,0.9)]"
+          : "border-zinc-200/70 bg-[color-mix(in_oklab,var(--background)_82%,transparent)] dark:border-white/[0.07]"
+      }`}
     >
       <div role="tablist" aria-label="Home timeline" onKeyDown={onKeyDown} className="relative grid grid-cols-2">
         {LANES.map((item) => {
@@ -265,12 +285,17 @@ export function PostBody({
   );
 }
 
-/** Small brand pill above a card on a post: Pickup, PSA 10, Rookie. */
-export function PostPill({ label }: { label: string }) {
+/** Small brand pill above a card on a post: Pickup, PSA 10, Rookie. A grade is a solid purple badge. */
+export function PostPill({ label, solid = false }: { label: string; solid?: boolean }) {
   return (
     <span
       data-post-pill=""
-      className="inline-flex h-6 items-center rounded-full bg-violet-600/10 px-2.5 font-mono text-[11px] font-semibold tracking-wider text-violet-700 uppercase ring-1 ring-violet-600/20 ring-inset dark:bg-violet-500/15 dark:text-[#A78BFA] dark:ring-violet-400/25"
+      data-grade-badge={solid ? "" : undefined}
+      className={`inline-flex h-6 items-center rounded-full px-2.5 font-mono text-[11px] font-semibold tracking-wider uppercase ${
+        solid
+          ? "bg-violet-600 text-white shadow-[0_4px_14px_-4px_rgba(124,58,237,0.7)] ring-1 ring-white/15 ring-inset"
+          : "bg-violet-600/10 text-violet-700 ring-1 ring-violet-600/20 ring-inset dark:bg-violet-500/15 dark:text-[#A78BFA] dark:ring-violet-400/25"
+      }`}
     >
       {label}
     </span>

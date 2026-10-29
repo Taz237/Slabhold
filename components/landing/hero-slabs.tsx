@@ -104,6 +104,7 @@ function PhotoSlab({ art, photo, index }: { art: ArtCard; photo: string; index: 
       status={status}
       onStatus={onStatus}
       sizes={SLAB_SIZES}
+      preload
     />
   );
 }

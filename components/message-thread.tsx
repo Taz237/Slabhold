@@ -2,21 +2,41 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, X } from "lucide-react";
+import { ArrowLeft, SendHorizontal, X } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Avatar } from "@/components/avatar";
-import { solidButton } from "@/components/button-styles";
 import { DealSheet } from "@/components/deal-sheet";
 import { DealThreadPanel } from "@/components/deal-response";
+import { MessageAttachments } from "@/components/message-attachments";
 import { CardMessagePreviewCard } from "@/components/open-to-offers";
+import { useReducedMotion } from "@/components/timeline-ui";
 import { MARK_SOLD_LABEL } from "@/lib/deals/state";
 import { EmptyState, LoadingRows } from "@/components/status";
 import { useSocial } from "@/components/social-provider";
 import { signupPath } from "@/lib/auth/safe-next";
-import { exactTime, timeAgo } from "@/lib/format";
+import { exactTime } from "@/lib/format";
 import { offerCardForThread } from "@/lib/offers/open-to-offers";
+import { seenMessageId, threadRows, threadTimeLabel } from "@/lib/social/dm-inbox";
 import { userHref } from "@/lib/social/user-href";
-import { MESSAGE_LIMIT } from "@/lib/social/types";
+import { MESSAGE_LIMIT, type DirectMessage } from "@/lib/social/types";
+
+/**
+ * Keys that showed up after the list first had content. The first batch is
+ * remembered without animating, so opening a thread doesn't replay it.
+ */
+function useFreshKeys(keys: readonly string[], ready: boolean): ReadonlySet<string> {
+  const signature = keys.join("\n");
+  const [state, setState] = useState<{ signature: string; seen: ReadonlySet<string> | null; fresh: ReadonlySet<string> }>(
+    () => ({ signature: "", seen: null, fresh: new Set() }),
+  );
+  if (ready && state.signature !== signature) {
+    const seen = state.seen;
+    const fresh = seen ? new Set([...state.fresh, ...keys.filter((key) => !seen.has(key))]) : state.fresh;
+    setState({ signature, seen: new Set([...(seen ?? []), ...keys]), fresh });
+    return fresh;
+  }
+  return state.fresh;
+}
 
 export function MessageThread({ username }: { username: string }) {
   const router = useRouter();
@@ -55,7 +75,10 @@ export function MessageThread({ username }: { username: string }) {
   const [dealOpen, setDealOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [openTime, setOpenTime] = useState<string | null>(null);
+  const reduceMotion = useReducedMotion();
   const scroller = useRef<HTMLDivElement>(null);
+  const scrolledOnce = useRef(false);
   const thread = partner
     ? messages.filter(
         (message) =>
@@ -74,11 +97,20 @@ export function MessageThread({ username }: { username: string }) {
     markThreadRead(partner.id);
   }, [markThreadRead, messages, partner, ready, user]);
 
+  const fresh = useFreshKeys(
+    thread.map((message) => message.id),
+    ready && Boolean(partner),
+  );
+
+  // Opening jumps to the newest message. Later messages glide into view.
   useEffect(() => {
     const node = scroller.current;
     if (!node) return;
-    node.scrollTop = node.scrollHeight;
-  }, [thread.length, partner?.id]);
+    const glide = scrolledOnce.current && !reduceMotion && typeof node.scrollTo === "function";
+    scrolledOnce.current = true;
+    if (glide) node.scrollTo({ top: node.scrollHeight, behavior: "smooth" });
+    else node.scrollTop = node.scrollHeight;
+  }, [thread.length, partner?.id, reduceMotion]);
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -141,14 +173,17 @@ export function MessageThread({ username }: { username: string }) {
     );
   }
 
+  const seenId = seenMessageId(thread, user.id);
+  const canSend = !pending && Boolean(draft.trim() || offerAttachment);
+
   return (
     <div className="-mx-4 -mt-5 -mb-28 flex h-[calc(100dvh-3.5rem-6.15rem-env(safe-area-inset-top)-env(safe-area-inset-bottom))] flex-col">
-      <div className="flex shrink-0 items-center gap-2 border-b border-zinc-200 px-2 py-2 dark:border-white/10">
+      <div className="flex shrink-0 items-center gap-2 border-b border-zinc-200/80 bg-[color-mix(in_oklab,var(--background)_88%,transparent)] px-2 py-1.5 backdrop-blur-xl dark:border-white/[0.08]">
         <button
           type="button"
           onClick={() => router.push("/messages")}
           aria-label="Back to messages"
-          className="grid h-9 w-9 place-items-center rounded-full hover:bg-zinc-100 dark:hover:bg-white/10"
+          className="grid h-11 w-11 shrink-0 place-items-center rounded-full hover:bg-zinc-100 dark:hover:bg-white/10"
         >
           <ArrowLeft className="h-5 w-5" />
         </button>
@@ -157,7 +192,8 @@ export function MessageThread({ username }: { username: string }) {
             name={partner.displayName}
             image={partner.avatarDataUrl}
             accent={partner.accent}
-            className="h-8 w-8"
+            expandable={false}
+            className="h-9 w-9"
           />
           <span className="min-w-0">
             <span className="block truncate text-[15px] font-bold leading-5">{partner.displayName}</span>
@@ -171,49 +207,50 @@ export function MessageThread({ username }: { username: string }) {
       {dealOpen ? <DealSheet fixedBuyerId={partner.id} onClose={() => setDealOpen(false)} /> : null}
       <DealThreadPanel partnerId={partner.id} />
 
-      <div ref={scroller} className="min-h-0 flex-1 space-y-2 overflow-y-auto px-4 py-3">
+      <div ref={scroller} className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pt-3 pb-2">
         {thread.length === 0 ? (
-          <p className="px-6 pt-10 text-center text-sm text-zinc-500">
-            This is the start of your conversation with {partner.displayName}.
-          </p>
+          <ThreadHint
+            name={partner.displayName}
+            username={partner.username}
+            avatar={partner.avatarDataUrl}
+            accent={partner.accent}
+          />
         ) : (
-          thread.map((message) => {
-            const mine = message.senderId === user.id;
-            const stamp = timeAgo(message.createdAt);
+          threadRows(thread, user.id).map((row) => {
+            if (row.kind === "gap") {
+              return (
+                <p
+                  key={row.key}
+                  data-thread-time=""
+                  className="pt-4 pb-2 text-center text-[11px] font-semibold tracking-wide text-zinc-500"
+                >
+                  <time dateTime={row.at} title={exactTime(row.at)}>
+                    {threadTimeLabel(row.at)}
+                  </time>
+                </p>
+              );
+            }
             return (
-              <div key={message.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
-                <div className={`max-w-[80%] ${mine ? "items-end" : "items-start"} flex flex-col`}>
-                  {message.cardPreview ? (
-                    <CardMessagePreviewCard preview={message.cardPreview} />
-                  ) : null}
-                  {message.content.trim() ? (
-                    <p
-                      className={`rounded-2xl px-3 py-2 text-[15px] leading-5 whitespace-pre-wrap ${
-                        mine
-                          ? "rounded-br-md bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-950"
-                          : "rounded-bl-md bg-zinc-100 text-zinc-900 dark:bg-white/10 dark:text-zinc-100"
-                      }`}
-                    >
-                      {message.content}
-                    </p>
-                  ) : null}
-                  {stamp ? (
-                    <time
-                      dateTime={message.createdAt}
-                      title={exactTime(message.createdAt)}
-                      className="mt-1 px-1 text-[11px] text-zinc-500"
-                    >
-                      {stamp}
-                    </time>
-                  ) : null}
-                </div>
-              </div>
+              <MessageRow
+                key={row.key}
+                message={row.message}
+                mine={row.mine}
+                first={row.first}
+                last={row.last}
+                fresh={fresh.has(row.message.id)}
+                timeOpen={openTime === row.message.id}
+                onToggleTime={() => setOpenTime((current) => (current === row.message.id ? null : row.message.id))}
+                seen={seenId === row.message.id}
+              />
             );
           })
         )}
       </div>
 
-      <form onSubmit={submit} className="shrink-0 border-t border-zinc-200 px-3 py-2 dark:border-white/10">
+      <form
+        onSubmit={submit}
+        className="shrink-0 border-t border-zinc-200/80 bg-[color-mix(in_oklab,var(--background)_92%,transparent)] px-3 py-2 backdrop-blur-xl dark:border-white/[0.08]"
+      >
         {error ? <p className="mb-1 text-xs text-rose-600 dark:text-rose-400">{error}</p> : null}
         {offerAttachment ? (
           <div className="mb-2 flex items-start gap-2">
@@ -224,7 +261,7 @@ export function MessageThread({ username }: { username: string }) {
               type="button"
               aria-label="Remove card"
               onClick={() => router.replace(userHref(partner.username, "messages"))}
-              className="mt-2 grid h-8 w-8 shrink-0 place-items-center rounded-full hover:bg-zinc-100 dark:hover:bg-white/10"
+              className="mt-2 grid h-11 w-11 shrink-0 place-items-center rounded-full hover:bg-zinc-100 dark:hover:bg-white/10"
             >
               <X className="h-4 w-4" />
             </button>
@@ -241,17 +278,139 @@ export function MessageThread({ username }: { username: string }) {
             }}
             rows={1}
             placeholder="Start a message"
-            className="max-h-32 min-h-10 flex-1 resize-none rounded-2xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-[15px] leading-5 outline-none placeholder:text-zinc-500 dark:border-white/10 dark:bg-white/10"
+            aria-label={`Message ${partner.displayName}`}
+            className="max-h-32 min-h-11 flex-1 resize-none rounded-[22px] border border-zinc-200 bg-white px-4 py-[11px] text-[15px] leading-5 outline-none placeholder:text-zinc-500 focus:border-violet-500/60 focus:ring-2 focus:ring-violet-600/20 dark:border-white/10 dark:bg-white/[0.06] dark:focus:border-violet-400/50"
           />
           <button
             type="submit"
-            disabled={pending || (!draft.trim() && !offerAttachment)}
-            className={`${solidButton} mb-0.5`}
+            aria-label="Send"
+            disabled={!canSend}
+            className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-violet-600 text-white shadow-[0_8px_20px_-8px_rgba(124,58,237,0.8)] transition-[transform,opacity,box-shadow] duration-150 active:scale-90 disabled:bg-zinc-300 disabled:text-zinc-500 disabled:shadow-none motion-reduce:transition-none dark:disabled:bg-white/10 dark:disabled:text-zinc-500"
           >
-            Send
+            <SendHorizontal className="h-5 w-5" aria-hidden="true" />
           </button>
         </div>
       </form>
+    </div>
+  );
+}
+
+function MessageRow({
+  message,
+  mine,
+  first,
+  last,
+  fresh,
+  timeOpen,
+  onToggleTime,
+  seen,
+}: {
+  message: DirectMessage;
+  mine: boolean;
+  first: boolean;
+  last: boolean;
+  /** Arrived after the thread opened: it rises in. */
+  fresh: boolean;
+  timeOpen: boolean;
+  onToggleTime: () => void;
+  seen: boolean;
+}) {
+  const text = message.content.trim() ? message.content : "";
+  // Grouped bubbles: the corners facing the rest of the group tighten, and only the last gets a tail.
+  const shape = mine
+    ? `rounded-[20px] ${first ? "" : "rounded-tr-md"} ${last ? "rounded-br-[6px]" : "rounded-br-md"}`
+    : `rounded-[20px] ${first ? "" : "rounded-tl-md"} ${last ? "rounded-bl-[6px]" : "rounded-bl-md"}`;
+  const tone = mine
+    ? "bg-gradient-to-br from-[#7C3AED] to-[#5B21B6] text-white shadow-[0_6px_16px_-10px_rgba(91,33,182,0.9)]"
+    : "bg-zinc-200 text-zinc-900 dark:bg-zinc-800 dark:text-zinc-100";
+  return (
+    <div
+      data-message-row=""
+      className={`flex ${mine ? "justify-end" : "justify-start"} ${first ? "mt-2.5" : "mt-0.5"} ${
+        fresh ? "motion-safe:animate-[bubble-in_240ms_cubic-bezier(0.2,0.7,0.2,1)_both]" : ""
+      }`}
+      style={fresh ? { transformOrigin: mine ? "bottom right" : "bottom left" } : undefined}
+    >
+      <div className={`flex max-w-[78%] flex-col ${mine ? "items-end" : "items-start"}`}>
+        {message.cardPreview ? <CardMessagePreviewCard preview={message.cardPreview} /> : null}
+        {text ? (
+          <div data-bubble={mine ? "mine" : "theirs"} className={`relative ${tone} ${shape}`}>
+            {/* A div, not a button, so the text can still be long-pressed and copied on iOS. */}
+            <div
+              role="button"
+              tabIndex={0}
+              aria-expanded={timeOpen}
+              onClick={onToggleTime}
+              onKeyDown={(event) => {
+                if (event.key !== "Enter" && event.key !== " ") return;
+                event.preventDefault();
+                onToggleTime();
+              }}
+              className="cursor-default rounded-[inherit] px-3.5 py-2 text-[15px] leading-5 break-words whitespace-pre-wrap outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
+            >
+              {text}
+            </div>
+            {last ? <BubbleTail mine={mine} /> : null}
+          </div>
+        ) : null}
+        {text ? <MessageAttachments text={text} /> : null}
+        {timeOpen ? (
+          <time
+            data-bubble-time=""
+            dateTime={message.createdAt}
+            className="mt-1 px-1 text-[11px] text-zinc-500 motion-safe:animate-[add-fade_160ms_ease-out_both]"
+          >
+            {exactTime(message.createdAt)}
+          </time>
+        ) : null}
+        {seen ? (
+          <span data-seen="" className="mt-1 px-1 text-[11px] font-semibold text-zinc-500">
+            Seen
+          </span>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+/** A small curl at the bottom corner, in the bubble's own color. */
+function BubbleTail({ mine }: { mine: boolean }) {
+  return (
+    <svg
+      data-tail=""
+      aria-hidden="true"
+      viewBox="0 0 10 14"
+      className={`absolute bottom-0 h-3.5 w-2.5 ${
+        mine ? "-right-[5px] text-[#5B21B6]" : "-left-[5px] -scale-x-100 text-zinc-200 dark:text-zinc-800"
+      }`}
+    >
+      <path d="M0 0c0 7 3.5 11.5 10 14H0z" fill="currentColor" />
+    </svg>
+  );
+}
+
+/** A new conversation: who it's with, and a nudge for the first message. */
+function ThreadHint({
+  name,
+  username,
+  avatar,
+  accent,
+}: {
+  name: string;
+  username: string;
+  avatar: string | null;
+  accent: string;
+}) {
+  return (
+    <div data-thread-hint="" className="flex flex-col items-center px-6 pt-10 text-center">
+      <span className="rounded-full p-1 ring-2 ring-violet-500/40">
+        <Avatar name={name} image={avatar} accent={accent} expandable={false} className="h-16 w-16 text-base" />
+      </span>
+      <p className="mt-3 text-[17px] font-bold tracking-tight">{name}</p>
+      <p className="text-[13px] text-zinc-500">@{username}</p>
+      <p className="mt-4 max-w-[16rem] text-sm leading-5 text-zinc-500">
+        This is the start of your conversation. Say hi, ask about a card, or talk pickups.
+      </p>
     </div>
   );
 }

@@ -62,6 +62,7 @@ export function CardSlabArt({
   status,
   onStatus,
   sizes = TILE_IMAGE_SIZES,
+  preload = false,
 }: {
   card: ArtCard;
   index: number;
@@ -69,6 +70,8 @@ export function CardSlabArt({
   status: PhotoStatus;
   onStatus: (event: "load" | "error") => void;
   sizes?: string;
+  /** Above the fold: the photo is preloaded from the document head. */
+  preload?: boolean;
 }) {
   const photo = (
     <CardFace
@@ -78,6 +81,7 @@ export function CardSlabArt({
       status={status}
       onStatus={onStatus}
       sizes={sizes}
+      preload={preload}
     />
   );
 
@@ -153,6 +157,7 @@ function CardFace({
   status,
   onStatus,
   sizes,
+  preload,
 }: {
   card: ArtCard;
   index: number;
@@ -160,6 +165,7 @@ function CardFace({
   status: PhotoStatus;
   onStatus: (event: "load" | "error") => void;
   sizes: string;
+  preload: boolean;
 }) {
   // A cached photo can finish before hydration, so check once on mount.
   const imgRef = useCallback(
@@ -189,8 +195,10 @@ function CardFace({
           fill
           sizes={sizes}
           quality={75}
-          loading={eager ? "eager" : "lazy"}
-          fetchPriority={eager ? "high" : "auto"}
+          // next/image takes preload, or loading and fetchPriority, not both.
+          {...(preload
+            ? { preload: true }
+            : { loading: eager ? "eager" : "lazy", fetchPriority: eager ? "high" : "auto" } as const)}
           onLoad={() => onStatus("load")}
           onError={() => onStatus("error")}
           className={imgClass}

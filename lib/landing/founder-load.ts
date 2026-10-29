@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createClient } from "@supabase/supabase-js";
+import { unstable_cache } from "next/cache";
 import { getSupabaseConfig } from "@/lib/supabase/client";
 import {
   EMPTY_FOUNDER_SHOWCASE,
@@ -42,3 +43,14 @@ export async function loadFounderShowcase(): Promise<FounderShowcase> {
     .returns<FounderCardRow[]>();
   return founderShowcase(profile, cardError ? [] : (rows ?? []));
 }
+
+/**
+ * The showcase, cached for about an hour. Home and the landing route share it,
+ * so the hero renders with the first paint and Supabase is read once an hour.
+ * A failed read throws and is not cached.
+ */
+export const cachedFounderShowcase = unstable_cache(
+  loadFounderShowcase,
+  ["landing-founder"],
+  { revalidate: 3600 },
+);

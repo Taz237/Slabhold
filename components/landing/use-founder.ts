@@ -61,10 +61,18 @@ export function readFounderShowcase(value: unknown): FounderShowcase {
   };
 }
 
-/** The founder's public profile and top cards, from the hour-cached landing route. */
-export function useFounderShowcase(): FounderState {
-  const [state, setState] = useState<FounderState>({ status: "loading" });
+/**
+ * The founder's public profile and top cards. Home passes the server's
+ * hour-cached copy as `initial`, so nothing is fetched. Without it, this reads
+ * the hour-cached landing route.
+ */
+export function useFounderShowcase(initial?: FounderShowcase | null): FounderState {
+  const [state, setState] = useState<FounderState>(() =>
+    initial ? { status: "ready", showcase: readFounderShowcase(initial) } : { status: "loading" },
+  );
+  const fromServer = Boolean(initial);
   useEffect(() => {
+    if (fromServer) return;
     let live = true;
     const controller = new AbortController();
     const timer = window.setTimeout(() => controller.abort(), FOUNDER_TIMEOUT_MS);
@@ -81,6 +89,6 @@ export function useFounderShowcase(): FounderState {
       window.clearTimeout(timer);
       controller.abort();
     };
-  }, []);
+  }, [fromServer]);
   return state;
 }

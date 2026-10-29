@@ -7,6 +7,7 @@ import { Suspense } from "react";
 import { FounderNote } from "@/components/landing/founder-note";
 import { HeroSlabs } from "@/components/landing/hero-slabs";
 import { useFounderShowcase } from "@/components/landing/use-founder";
+import type { FounderShowcase } from "@/lib/landing/founder";
 import { Logo } from "@/components/logo";
 import { trackEvent } from "@/lib/analytics";
 import { landingLoginHref, landingSignupHref, safeNext } from "@/lib/auth/safe-next";
@@ -17,8 +18,9 @@ const FeaturePanels = dynamic(
   { loading: () => <PanelsSkeleton /> },
 );
 
-export function LandingPage() {
-  const founder = useFounderShowcase();
+/** `founder` is the server's hour-cached showcase, so the hero slabs paint with the page. */
+export function LandingPage({ founder: initial = null }: { founder?: FounderShowcase | null }) {
+  const founder = useFounderShowcase(initial);
   const showcase = founder.status === "ready" ? founder.showcase : null;
   return (
     <div className="min-h-dvh overflow-x-clip bg-[#09090b] text-zinc-100">

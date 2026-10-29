@@ -10,7 +10,6 @@ import { AccountDeletedToast } from "@/components/account-deleted-toast";
 import { BadgeRevealGate } from "@/components/badges/badge-reveal";
 import { CreateMenu } from "@/components/create-menu";
 import { JoinBar } from "@/components/join-bar";
-import { LandingPage } from "@/components/landing-page";
 import { CoachTour } from "@/components/onboarding/coach-tour";
 import { FirstRunSetup } from "@/components/onboarding/first-run-setup";
 import { useOnboardingBusy } from "@/components/onboarding/use-onboarding";
@@ -360,11 +359,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     );
   }
 
+  // Home renders the landing page itself (HomeGate), with the founder showcase
+  // the server already loaded. No header or tabs around it.
   if (!user && pathname === "/") {
     return (
       <>
         <AccountDeletedToast />
-        <LandingPage />
+        {children}
       </>
     );
   }

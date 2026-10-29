@@ -256,7 +256,10 @@ export function ComposeView() {
   }
 
   return (
-    <form onSubmit={(e) => void submit(e)} className="-mx-4 -mt-5 flex flex-col pb-16">
+    <form
+      onSubmit={(e) => void submit(e)}
+      className="-mx-4 -mt-5 flex flex-col pb-16 motion-safe:animate-[composer-in_280ms_cubic-bezier(0.2,0.7,0.2,1)_both]"
+    >
       <div className="flex items-center justify-between border-b border-zinc-200 px-4 py-2.5 dark:border-white/10">
         <button
           type="button"

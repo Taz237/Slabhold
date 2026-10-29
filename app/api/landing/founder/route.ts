@@ -1,4 +1,4 @@
-import { loadFounderShowcase } from "@/lib/landing/founder-load";
+import { cachedFounderShowcase } from "@/lib/landing/founder-load";
 import { EMPTY_FOUNDER_SHOWCASE } from "@/lib/landing/founder";
 
 export const runtime = "nodejs";
@@ -11,7 +11,7 @@ const CACHE_CONTROL = "public, max-age=0, s-maxage=3600, stale-while-revalidate=
 /** The founder's public profile and top 3 public card photos for the signed-out landing page. */
 export async function GET() {
   try {
-    return Response.json(await loadFounderShowcase(), {
+    return Response.json(await cachedFounderShowcase(), {
       headers: { "Cache-Control": CACHE_CONTROL },
     });
   } catch (error) {

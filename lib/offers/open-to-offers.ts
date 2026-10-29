@@ -2,6 +2,7 @@ import { signupPath } from "@/lib/auth/safe-next";
 import { BLOCKED_INTERACTION } from "@/lib/safety/block";
 import type { CardMessagePreview } from "@/lib/social/types";
 import { userHref } from "@/lib/social/user-href";
+import { gradedLabel } from "@/lib/ui/timeline";
 import { resolvePriceRead, tilePriceText } from "@/lib/value/price-fallback";
 import type { CardValueResult } from "@/lib/value/types";
 
@@ -218,6 +219,8 @@ export type LiveCardPreview = {
   set: string;
   imageUrl: string | null;
   createdAt: string | null;
+  /** "PSA 10" for a graded card, null otherwise. */
+  grade: string | null;
 };
 
 type LiveOfferCard = {
@@ -230,6 +233,9 @@ type LiveOfferCard = {
   setBrand: string;
   photoDataUrl: string | null;
   createdAt?: string | null;
+  grade?: string;
+  grader?: string;
+  conditionType?: "raw" | "graded";
 };
 
 /**
@@ -261,6 +267,7 @@ export function resolveLiveCardPreview(
     set,
     imageUrl: card.photoDataUrl,
     createdAt: card.createdAt ?? null,
+    grade: gradedLabel(card),
   };
 }
 

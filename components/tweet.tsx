@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { Ellipsis, Heart, MessageCircle, Pin, Quote, Repeat2 } from "lucide-react";
+import { BadgeCheck, Ellipsis, Heart, MessageCircle, Pin, Quote, Repeat2 } from "lucide-react";
 import { Avatar } from "@/components/avatar";
 import { useCollection } from "@/components/collection-provider";
 import { useImageLightbox } from "@/components/image-lightbox";
@@ -25,7 +25,8 @@ import { MailDayCard } from "@/components/mail-day-card";
 import { shareTitleForPost } from "@/lib/social/mail-day-copy";
 import { useAttachedChip } from "@/lib/social/use-attachment-label";
 import { PostBody, PostPill, useReducedMotion } from "@/components/timeline-ui";
-import { postPill } from "@/lib/ui/timeline";
+import { isOfficialUpdatesAccount } from "@/lib/social/official-updates";
+import { gradedLabel, postPill } from "@/lib/ui/timeline";
 import type { CardValueResult } from "@/lib/value/types";
 
 export function Tweet({
@@ -79,6 +80,7 @@ export function Tweet({
 
   const bodyClass = variant === "detail" ? "text-[17px] leading-6" : "text-[15px] leading-[1.4]";
   const pill = postPill(post);
+  const graded = Boolean(post.card && post.postType !== "mail_day" && gradedLabel(post.card));
 
   return (
     <article
@@ -119,6 +121,7 @@ export function Tweet({
             username={author.username}
             href={userHref(author.username)}
             createdAt={post.createdAt}
+            official={isOfficialUpdatesAccount(author.id)}
           />
           <PostMenu post={post} />
         </div>
@@ -145,7 +148,7 @@ export function Tweet({
             {photos.length ? <PostPhotoGrid images={photos} onOpen={openImage} /> : null}
             {post.card && pill ? (
               <div className="mt-3 -mb-1 flex justify-center">
-                <PostPill label={pill} />
+                <PostPill label={pill} solid={graded} />
               </div>
             ) : null}
             {post.card ? (
@@ -248,11 +251,14 @@ export function AuthorLine({
   username,
   href,
   createdAt,
+  official = false,
 }: {
   name: string;
   username: string;
   href: string;
   createdAt: string;
+  /** The official updates account, matched by profile id. */
+  official?: boolean;
 }) {
   const relative = timeAgo(createdAt);
   const exact = exactTime(createdAt);
@@ -262,6 +268,14 @@ export function AuthorLine({
       <Link href={href} className="max-w-[52%] truncate font-bold tracking-tight hover:underline">
         {name}
       </Link>
+      {official ? (
+        <BadgeCheck
+          data-official-mark=""
+          role="img"
+          aria-label="Official Slabhold account"
+          className="h-4 w-4 shrink-0 self-center fill-violet-600 text-white dark:fill-violet-500 dark:text-[#09090B]"
+        />
+      ) : null}
       <span className="min-w-0 truncate text-[14px] text-zinc-500">@{username}</span>
       {relative ? (
         <time
@@ -626,6 +640,7 @@ function ActionButton({
       : tone === "emerald"
         ? "group-hover:bg-emerald-500/10"
         : "group-hover:bg-rose-500/10";
+  const reduceMotion = useReducedMotion();
 
   return (
     <button
@@ -636,8 +651,9 @@ function ActionButton({
       className={`group inline-flex min-h-11 min-w-0 flex-1 items-center transition-colors duration-150 ${active ? on : color}`}
     >
       <span
-        className={`grid h-9 w-9 shrink-0 place-items-center rounded-full transition-colors duration-150 group-active:scale-90 motion-reduce:transform-none ${wash}`}
+        className={`relative grid h-9 w-9 shrink-0 place-items-center rounded-full transition-[color,background-color,transform] duration-150 group-active:scale-90 motion-reduce:transform-none ${wash}`}
       >
+        {burst > 0 && burstKind === "pop" ? <LikeBurst key={burst} /> : null}
         {burst > 0 && burstKind ? (
           <span
             key={burst}
@@ -655,8 +671,55 @@ function ActionButton({
           children
         )}
       </span>
-      {count > 0 ? <span className="min-w-0 truncate pr-1 text-[13px] tabular-nums">{count}</span> : null}
+      <TickCount value={count} animate={!reduceMotion} />
     </button>
+  );
+}
+
+const BURST_SPARKS = [0, 60, 120, 180, 240, 300];
+
+/** A purple ring and six sparks around the heart, once. Only mounted when motion is allowed. */
+function LikeBurst() {
+  return (
+    <span data-like-burst="" aria-hidden="true" className="pointer-events-none absolute inset-0">
+      <span className="absolute inset-0 rounded-full border-2 border-violet-500 opacity-0 motion-safe:animate-[like-ring_460ms_cubic-bezier(0.2,0.7,0.2,1)_both]" />
+      {BURST_SPARKS.map((angle) => (
+        <span
+          key={angle}
+          className="absolute top-1/2 left-1/2 h-1 w-1 rounded-full bg-[#A78BFA] opacity-0 motion-safe:animate-[like-spark_520ms_cubic-bezier(0.2,0.7,0.2,1)_both]"
+          style={{ "--spark-angle": `${angle}deg` } as React.CSSProperties}
+        />
+      ))}
+    </span>
+  );
+}
+
+/** The count beside an action. A change rolls the new number in from below (up) or above (down). */
+function TickCount({ value, animate }: { value: number; animate: boolean }) {
+  const [shown, setShown] = useState<{ value: number; dir: "up" | "down" | null }>({ value, dir: null });
+  let current = shown;
+  if (shown.value !== value) {
+    current = { value, dir: animate ? (value > shown.value ? "up" : "down") : null };
+    setShown(current);
+  }
+  if (value <= 0) return null;
+  return (
+    <span className="min-w-0 overflow-hidden pr-1 text-[13px] tabular-nums">
+      <span
+        key={value}
+        data-count=""
+        data-count-dir={current.dir ?? undefined}
+        className={`block truncate ${
+          current.dir === "up"
+            ? "motion-safe:animate-[count-up_240ms_cubic-bezier(0.2,0.7,0.2,1)]"
+            : current.dir === "down"
+              ? "motion-safe:animate-[count-down_240ms_cubic-bezier(0.2,0.7,0.2,1)]"
+              : ""
+        }`}
+      >
+        {value}
+      </span>
+    </span>
   );
 }
 
