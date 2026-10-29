@@ -1,0 +1,14 @@
+/**
+ * Before the social snapshot lands nobody knows who is signed in, and
+ * Home's server HTML is the landing page. A tiny script in <head> tags
+ * <html data-session> when a Supabase auth cookie is present, before the
+ * first paint, so a signed-in reload never flashes the landing page while
+ * signed-out visitors see it right away. A hint only: the snapshot decides.
+ */
+const SESSION_COOKIE = /(?:^|;\s*)sb-[^=;]+-auth-token(?:\.\d+)?=/;
+
+export function hasSessionCookie(cookie: string): boolean {
+  return SESSION_COOKIE.test(cookie);
+}
+
+export const SESSION_HINT_SCRIPT = `try{if(${SESSION_COOKIE}.test(document.cookie))document.documentElement.dataset.session=""}catch(e){}`;

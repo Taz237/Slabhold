@@ -837,3 +837,12 @@ html[data-nav="none"]::view-transition-new(.page-in) {
     opacity: 0.35;
   }
 }
+
+/*
+ * Signed-out Home before the snapshot loads. lib/auth/session-hint.ts tags
+ * <html data-session> from the auth cookie before the first paint, so a
+ * signed-in reload never flashes the landing page.
+ */
+html[data-session] [data-guest-pending] {
+  display: none;
+}

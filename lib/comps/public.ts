@@ -7,7 +7,7 @@ import { buildQueryKey } from "@/lib/comps/query-key";
 import { dollarsToCents } from "@/lib/comps/stats";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { isUuid, soldCompsAccess } from "@/lib/value/card-value-access";
-import { cardCacheTag } from "@/lib/value/card-cache";
+import { cardCacheTag, cardVisibilityTag } from "@/lib/value/card-cache";
 import {
   blankPublicComps,
   hiddenPublicComps,
@@ -340,6 +340,6 @@ export async function getPublicCardComps(
   return unstable_cache(
     async () => readPublicCardComps(cardKey, createSupabaseAdmin() as PublicCompsClient | null),
     ["public-card-comps", cardKey],
-    { tags: [cardCacheTag(cardKey)], revalidate: PUBLIC_COMPS_REVALIDATE_SECONDS },
+    { tags: [cardCacheTag(cardKey), cardVisibilityTag(cardKey)], revalidate: PUBLIC_COMPS_REVALIDATE_SECONDS },
   )();
 }

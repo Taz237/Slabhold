@@ -16,9 +16,15 @@ import { FirstRunSetup } from "@/components/onboarding/first-run-setup";
 import { useOnboardingBusy } from "@/components/onboarding/use-onboarding";
 import { YoureIn } from "@/components/onboarding/youre-in";
 import { AccountMenu } from "@/components/side-menu";
-import { isAuthPage, isInvitePage, shouldShowJoinBar } from "@/lib/auth/guest-paths";
+import {
+  isAuthPage,
+  isInvitePage,
+  isJoinBarPage,
+  loadingShellFor,
+  shouldShowJoinBar,
+} from "@/lib/auth/guest-paths";
 import { clearLogoutHome, logoutHomePending } from "@/lib/auth/logout-home";
-import { requiresAccount, routeAccess } from "@/lib/auth/route-access";
+import { requiresAccount } from "@/lib/auth/route-access";
 import { listenForInstallPrompt } from "@/lib/pwa/install-prompt";
 import { loginPath, pathWithQuery } from "@/lib/auth/safe-next";
 import type { TourTarget } from "@/lib/onboarding/first-run";
@@ -117,6 +123,7 @@ function Shell({
   showNav,
   showJoin,
   showLogin,
+  reserveJoin = false,
   attachedTabs = false,
 }: {
   children: React.ReactNode;
@@ -128,6 +135,8 @@ function Shell({
   showJoin: boolean;
   /** Signed-out visitors get Log in at the top left once the session is known. */
   showLogin: boolean;
+  /** Keep the join bar's room while the session loads, so its arrival moves nothing. */
+  reserveJoin?: boolean;
   /** Home: the For You / Following tabs sit flush under the header and carry its hairline. */
   attachedTabs?: boolean;
 }) {
@@ -141,7 +150,7 @@ function Shell({
   const mainMax = wideMain ? "max-w-5xl" : "max-w-lg";
   const mainPad = showNav
     ? "pb-[calc(7rem+env(safe-area-inset-bottom))] md:pb-[calc(10rem+env(safe-area-inset-bottom))]"
-    : showJoin
+    : showJoin || reserveJoin
       ? "pb-[calc(5.25rem+env(safe-area-inset-bottom))]"
       : "pb-[max(1.5rem,env(safe-area-inset-bottom))]";
 
@@ -316,10 +325,6 @@ function AuthLayout({ children }: { children: React.ReactNode }) {
   );
 }
 
-function shellShowsPageWhileLoading(pathname: string) {
-  return routeAccess(pathname) === "unknown";
-}
-
 function GuestGate() {
   return (
     <Suspense fallback={<div className="min-h-dvh bg-[var(--background)]" />}>
@@ -353,32 +358,39 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     if (!user && pathname === "/") clearLogoutHome();
   }, [user, pathname]);
 
+  // The snapshot says nobody is signed in: drop a stale session hint.
+  useEffect(() => {
+    if (ready && !user) delete document.documentElement.dataset.session;
+  }, [ready, user]);
+
   // Chrome can offer its install prompt before the Add to Home Screen step is up.
   useEffect(() => {
     listenForInstallPrompt();
   }, []);
 
   if (!ready) {
-    if (shellShowsPageWhileLoading(pathname)) {
-      return (
-        <>
-          <AccountDeletedToast />
-          <Shell
-            unreadCount={0}
-            unreadMessageCount={0}
-            status={null}
-            user={null}
-            showNav={false}
-            showJoin={false}
-            showLogin={false}
-          >
-            {children}
-          </Shell>
-        </>
-      );
-    }
+    const loading = loadingShellFor(pathname);
+    const plainShell = (
+      <>
+        <AccountDeletedToast />
+        <Shell
+          unreadCount={0}
+          unreadMessageCount={0}
+          status={null}
+          user={null}
+          showNav={false}
+          showJoin={false}
+          showLogin={false}
+          reserveJoin={loading === "shell" && isJoinBarPage(pathname)}
+        >
+          {children}
+        </Shell>
+      </>
+    );
+    if (loading === "plain") return plainShell;
     // Leaving a cold post page reloads the site snapshot. Keep the header and
-    // tabs up, with the page's own loading state in the main column.
+    // tabs up, with the page's own loading state in the main column. Checked
+    // before the signed-out paths so a known reader never sees guest chrome.
     if (user) {
       return (
         <>
@@ -395,6 +407,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           >
             {children}
           </Shell>
+        </>
+      );
+    }
+    // Public pages draw at once: the server HTML and each page's own
+    // skeleton. Nav or the join bar and Log in follow with the snapshot.
+    if (loading === "shell") return plainShell;
+    // Home draws its landing page itself, hidden by CSS while a session
+    // cookie says someone is signed in (see lib/auth/session-hint.ts).
+    if (loading === "bare") {
+      return (
+        <>
+          <AccountDeletedToast />
+          {children}
         </>
       );
     }

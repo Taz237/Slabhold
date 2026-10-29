@@ -107,7 +107,9 @@ describe("route access", () => {
 
     const shell = readFileSync(join(root, "components/app-shell.tsx"), "utf8");
     assert.match(shell, /requiresAccount\(pathname\)/);
-    assert.match(shell, /routeAccess\(pathname\) === "unknown"/);
+    assert.match(shell, /loadingShellFor\(pathname\)/);
+    const guest = readFileSync(join(root, "lib/auth/guest-paths.ts"), "utf8");
+    assert.match(guest, /access === "unknown"/);
     assert.doesNotMatch(shell, /path === "\/mail-day"/);
   });
 

@@ -13,6 +13,7 @@ import {
   navKind,
   popEntry,
   pushEntry,
+  querySync,
   routeStep,
   restoreStep,
   startStack,
@@ -140,5 +141,41 @@ describe("scroll restore", () => {
     assert.equal(restoreStep({ target: 1200, maxScroll: 400 }), "wait");
     assert.equal(restoreStep({ target: 1200, maxScroll: 1200 }), "scroll");
     assert.ok(RESTORE_TIMEOUT_MS <= 2000);
+  });
+});
+
+describe("query-only replace", () => {
+  it("keeps scroll memory keyed by the new href", () => {
+    // /moving-today swaps ?dir with history.replaceState, so the pathname
+    // never changes and the route effect does not run.
+    const positions = new Map<string, number>();
+    let stack = startStack("/moving-today");
+    let current = "/moving-today";
+    const here = "/moving-today?dir=up";
+
+    const synced = querySync(stack, current, here);
+    assert.ok(synced);
+    stack = synced;
+    current = here;
+    assert.deepEqual(stack, { entries: ["/moving-today?dir=up"], index: 0 });
+
+    // Scroll, then tap a card: the spot is saved under the URL on screen.
+    positions.set(current, 607);
+    stack = routeStep(stack, "/u/a/cards/1", "push").stack;
+
+    // Back lands on the tab's URL, which has the saved spot.
+    const back = routeStep(stack, "/moving-today?dir=up", "traverse");
+    assert.equal(back.direction, "back");
+    assert.equal(positions.get("/moving-today?dir=up"), 607);
+  });
+
+  it("leaves real route changes and unchanged URLs to the route effect", () => {
+    const stack = startStack("/moving-today");
+    assert.equal(querySync(stack, "/moving-today", "/moving-today"), null);
+    assert.equal(querySync(stack, "/moving-today", "/u/a/cards/1"), null);
+    assert.deepEqual(querySync(stack, "/moving-today?dir=up", "/moving-today"), {
+      entries: ["/moving-today"],
+      index: 0,
+    });
   });
 });
