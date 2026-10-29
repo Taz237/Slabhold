@@ -25,7 +25,7 @@ const IN_CHUNK = 80;
 
 const SALE_COLUMNS = "query_key, card_id, item_id, price, sold_at";
 const CARD_COLUMNS =
-  "id, user_id, player, year, year_label, set, set_name, grade, grader, image_url, accent";
+  "id, user_id, player, year, year_label, set, set_name, grade, grader, condition_type, is_rookie, image_url, accent";
 
 type Row = Record<string, unknown>;
 
@@ -77,6 +77,10 @@ function mapCard(row: Row): PublicCardRef | null {
     grade: [grader, gradeText].filter(Boolean).join(" "),
     imageUrl: typeof row.image_url === "string" ? cleanImageUrl(row.image_url) : null,
     accent: typeof row.accent === "string" && row.accent.trim() ? row.accent.trim() : "#7c5cff",
+    grader,
+    conditionType:
+      row.condition_type === "raw" || row.condition_type === "graded" ? row.condition_type : null,
+    isRookie: row.is_rookie === true,
   };
 }
 
@@ -120,12 +124,13 @@ async function readWindowSales(
 async function readMovingToday(now: Date): Promise<MovingTodayPayload> {
   const admin = createSupabaseAdmin();
   const window = newYorkDayWindow(now);
+  const updatedAt = now.toISOString();
   if (!admin) return emptyMovingToday(window.date);
 
   const weekStart = addCalendarDays(window.date, -(MOVING_TODAY_WEEK_DAYS - 1));
   const sales = await readWindowSales(admin, weekStart, addCalendarDays(window.date, 1));
   if (sales.length === 0) {
-    return { ...emptyMovingToday(window.date), dateLabel: "" };
+    return { ...emptyMovingToday(window.date), updatedAt };
   }
 
   const keys = [...new Set(sales.map((sale) => sale.queryKey))];
@@ -164,9 +169,10 @@ async function readMovingToday(now: Date): Promise<MovingTodayPayload> {
 
   const userIds = [...new Set(cards.map((card) => card.userId))];
   const profiles = await readProfiles(admin, userIds);
-  const payload = assembleMovingToday({
+  return assembleMovingToday({
     today: window.date,
     asOf: window.date,
+    updatedAt,
     sales,
     history,
     cards,
@@ -175,7 +181,6 @@ async function readMovingToday(now: Date): Promise<MovingTodayPayload> {
     owners,
     flags,
   });
-  return payload.sales.length > 0 ? payload : { ...emptyMovingToday(window.date), dateLabel: payload.dateLabel };
 }
 
 async function readCardOwners(
@@ -281,14 +286,15 @@ async function readProfiles(
 
 /**
  * Cached catalog read from sold_comps_cache. No live listing fetch.
- * The sale list is cached. The heading is chosen from the sale date and
+ * The mover list is cached with the time it was read (updatedAt). The heading is chosen from the sale date and
  * the current New York date after the cache returns. A thrown read is
  * remembered for about a minute, then tried again.
  */
 export async function getMovingToday(now: Date = new Date()): Promise<MovingTodayPayload> {
   const cached = await unstable_cache(
     () => memoryCache.read(() => readMovingToday(new Date())),
-    ["moving-today"],
+    // v2: movers only, with tile fields and updatedAt. An older cached shape is not reused.
+    ["moving-today-v2"],
     { revalidate: MOVING_TODAY_CACHE_SECONDS },
   )();
   return freshenMovingToday(cached, now);

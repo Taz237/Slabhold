@@ -820,3 +820,14 @@ html[data-nav="none"]::view-transition-new(.page-in) {
     display: none;
   }
 }
+
+/* Moving today: the freshness dot breathes slowly. Opacity only. */
+@keyframes live-dot {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}

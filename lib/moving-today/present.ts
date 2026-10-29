@@ -7,21 +7,24 @@ import {
   formatMovePercent,
   formatSaleDate,
   MOVING_THIS_WEEK_TITLE,
-  MOVING_TODAY_MIN_DAY_ROWS,
+  MOVING_TODAY_MIN_DAY_MOVERS,
   MOVING_TODAY_MIN_LEAD_CENTS,
-  MOVING_TODAY_MIN_WEEK_ROWS,
+  MOVING_TODAY_MIN_WEEK_MOVERS,
   MOVING_TODAY_WEEK_DAYS,
-  bestRowPerCard,
-  capNotableSales,
-  movingDayHeading,
   orderedNotableSales,
+  rankMovers,
   publicCardHref,
   toSaleRecord,
   weekDateLabel,
   type NotableSale,
   type SaleRecord,
 } from "./rank";
-import { emptyMovingToday, type MovingTodayPayload, type MovingTodaySale } from "./types";
+import {
+  emptyMovingToday,
+  MOVING_TODAY_TITLE,
+  type MovingTodayPayload,
+  type MovingTodaySale,
+} from "./types";
 
 export type RawCompSale = {
   queryKey: string;
@@ -37,9 +40,13 @@ export type PublicCardRef = {
   player: string;
   yearLabel: string;
   setName: string;
+  /** "PSA 10": grader and grade together. */
   grade: string;
   imageUrl: string | null;
   accent: string;
+  grader?: string;
+  conditionType?: "raw" | "graded" | null;
+  isRookie?: boolean;
 };
 
 export type ProfileRef = {
@@ -102,6 +109,12 @@ function projectSales(ranked: readonly NotableSale[], context: ShowContext): Mov
       href,
       player: card.player.trim() || "Card",
       detail: cardDetailLine(card),
+      yearLabel: card.yearLabel,
+      setBrand: card.setName,
+      grade: card.grade,
+      grader: card.grader ?? "",
+      conditionType: card.conditionType ?? null,
+      isRookie: card.isRookie ?? false,
       imageUrl: cleanImageUrl(card.imageUrl),
       accent: card.accent || "#7c5cff",
       priceCents: sale.priceCents,
@@ -112,10 +125,11 @@ function projectSales(ranked: readonly NotableSale[], context: ShowContext): Mov
       percentLabel: formatMovePercent(sale.percent),
     });
   }
-  return bestRowPerCard(shown);
+  return shown;
 }
 
-function rowsFor(
+/** Movers from the $5+ sales when they reach the minimum, else from every sale. */
+function moversFor(
   sales: readonly SaleRecord[],
   history: readonly SaleRecord[],
   from: string,
@@ -124,7 +138,7 @@ function rowsFor(
   context: ShowContext,
 ): MovingTodaySale[] {
   const show = (pool: readonly SaleRecord[]) =>
-    capNotableSales(
+    rankMovers(
       projectSales(orderedNotableSales({ today: to, from, to, sales: pool, history }), context),
     );
   const lead = sales.filter((sale) => sale.priceCents >= MOVING_TODAY_MIN_LEAD_CENTS);
@@ -133,10 +147,16 @@ function rowsFor(
   return show(sales);
 }
 
-/** Rank the window's sales and keep the ones that open a public card page. */
+/**
+ * Movers for the window: every public card with a real percent, biggest move
+ * first. "Moving today" needs MOVING_TODAY_MIN_DAY_MOVERS from today's comps.
+ * Otherwise the week, which hides below MOVING_TODAY_MIN_WEEK_MOVERS.
+ */
 export function assembleMovingToday(input: {
   today: string;
   asOf?: string;
+  /** ISO time of the read. */
+  updatedAt?: string;
   sales: readonly RawCompSale[];
   history: readonly RawCompSale[];
   cards: readonly PublicCardRef[];
@@ -160,6 +180,7 @@ export function assembleMovingToday(input: {
     .map((sale) => toSaleRecord(sale))
     .filter((sale): sale is NonNullable<typeof sale> => sale != null);
   const asOf = input.asOf ?? input.today;
+  const updatedAt = input.updatedAt ? { updatedAt: input.updatedAt } : {};
   const context: ShowContext = {
     cards: new Map(input.cards.map((card) => [card.id, card])),
     handles: new Map(input.profiles.map((profile) => [profile.id, profile.username])),
@@ -168,42 +189,37 @@ export function assembleMovingToday(input: {
     flags,
   };
   const weekStart = addCalendarDays(asOf, -(MOVING_TODAY_WEEK_DAYS - 1));
-  const yesterday = addCalendarDays(asOf, -1);
   const inWeek = sales.filter((sale) => sale.soldOn >= weekStart && sale.soldOn <= asOf);
-  const days = [...new Set(inWeek.map((sale) => sale.soldOn))].sort();
 
-  for (let index = days.length - 1; index >= 0; index -= 1) {
-    const day = days[index] ?? "";
-    const dayRows = rowsFor(
-      inWeek.filter((sale) => sale.soldOn === day),
-      history,
-      day,
-      day,
-      MOVING_TODAY_MIN_DAY_ROWS,
-      context,
-    );
-    if (dayRows.length === 0) continue;
-    if ((day === asOf || day === yesterday) && dayRows.length >= MOVING_TODAY_MIN_DAY_ROWS) {
-      return {
-        ...emptyMovingToday(day),
-        title: movingDayHeading(day, asOf),
-        dateLabel: formatSaleDate(day),
-        sales: dayRows,
-        window: "day",
-      };
-    }
-    break;
+  const dayRows = moversFor(
+    inWeek.filter((sale) => sale.soldOn === asOf),
+    history,
+    asOf,
+    asOf,
+    MOVING_TODAY_MIN_DAY_MOVERS,
+    context,
+  );
+  if (dayRows.length >= MOVING_TODAY_MIN_DAY_MOVERS) {
+    return {
+      ...emptyMovingToday(asOf),
+      title: MOVING_TODAY_TITLE,
+      dateLabel: formatSaleDate(asOf),
+      sales: dayRows,
+      window: "day",
+      ...updatedAt,
+    };
   }
 
-  const weekRows = rowsFor(inWeek, history, weekStart, asOf, MOVING_TODAY_MIN_WEEK_ROWS, context);
-  if (weekRows.length >= MOVING_TODAY_MIN_WEEK_ROWS) {
+  const weekRows = moversFor(inWeek, history, weekStart, asOf, MOVING_TODAY_MIN_WEEK_MOVERS, context);
+  if (weekRows.length >= MOVING_TODAY_MIN_WEEK_MOVERS) {
     return {
       ...emptyMovingToday(asOf),
       title: MOVING_THIS_WEEK_TITLE,
       dateLabel: weekDateLabel(asOf),
       sales: weekRows,
       window: "week",
+      ...updatedAt,
     };
   }
-  return { ...emptyMovingToday(asOf), dateLabel: "" };
+  return { ...emptyMovingToday(asOf), ...updatedAt };
 }

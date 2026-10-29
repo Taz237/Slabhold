@@ -114,10 +114,13 @@ export function ShareIconButton({
   path,
   title,
   label,
+  variant = "outline",
 }: {
   path: string;
   title: string;
   label: string;
+  /** Ghost: no ring, for a page header. The tap target stays 44px. */
+  variant?: "outline" | "ghost";
 }) {
   const { copied, share } = useShare(path, title, title);
 
@@ -127,7 +130,11 @@ export function ShareIconButton({
         type="button"
         aria-label={label}
         onClick={(event) => void share(event)}
-        className="hit-44 grid h-11 w-11 shrink-0 place-items-center rounded-full border border-zinc-300 text-zinc-800 dark:border-white/20 dark:text-zinc-100"
+        className={`hit-44 grid h-11 w-11 shrink-0 place-items-center rounded-full text-zinc-800 dark:text-zinc-100 ${
+          variant === "ghost"
+            ? "hover:bg-zinc-100 dark:hover:bg-white/10"
+            : "border border-zinc-300 dark:border-white/20"
+        }`}
       >
         <Share className="h-4 w-4" />
       </button>
