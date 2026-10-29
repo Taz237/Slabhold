@@ -104,36 +104,40 @@ export function InviteWelcomeNote({
     <div
       role="status"
       data-invite-welcome={outcome}
-      className="mb-6 flex items-center gap-3 rounded-2xl border border-violet-500/25 bg-violet-600/[0.07] p-3 motion-safe:animate-[pill-in_260ms_cubic-bezier(0.2,0.7,0.2,1)_both] dark:border-violet-400/20 dark:bg-violet-500/10"
+      className="mb-6 flex items-start gap-3 rounded-2xl border border-violet-500/25 bg-violet-600/[0.07] py-3 pr-1 pl-3 motion-safe:animate-[pill-in_260ms_cubic-bezier(0.2,0.7,0.2,1)_both] dark:border-violet-400/20 dark:bg-violet-500/10"
     >
-      <Avatar name={name} image={inviter.avatarUrl} expandable={false} className="h-11 w-11 shrink-0" />
-      <p className="min-w-0 flex-1 text-[14px] leading-5">
-        {outcome === "following" ? (
-          <>
-            You&apos;re following <b className="font-bold">{name}</b>, and they follow you back.
-          </>
-        ) : (
-          <>
-            <b className="font-bold">{name}</b> invited you. Follow them to see their pickups.
-          </>
-        )}
-      </p>
-      {outcome === "following" ? (
-        <button
-          type="button"
-          onClick={onUndo}
-          className="min-h-11 shrink-0 rounded-full px-3 text-[14px] font-semibold text-violet-700 hover:bg-violet-600/10 focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:outline-none dark:text-[#A78BFA]"
-        >
-          Undo
-        </button>
-      ) : (
-        <FollowButton userId={inviter.id} />
-      )}
+      <Avatar name={name} image={inviter.avatarUrl} expandable={false} className="mt-0.5 h-11 w-11 shrink-0" />
+      <div className="min-w-0 flex-1 pt-0.5">
+        <p className="text-[14px] leading-5">
+          {outcome === "following" ? (
+            <>
+              You&apos;re following <b className="font-bold">{name}</b>, and they follow you back.
+            </>
+          ) : (
+            <>
+              <b className="font-bold">{name}</b> invited you. Follow them to see their pickups.
+            </>
+          )}
+        </p>
+        <div className="mt-2">
+          {outcome === "following" ? (
+            <button
+              type="button"
+              onClick={onUndo}
+              className="-ml-3 min-h-11 rounded-full px-3 text-[14px] font-semibold text-violet-700 hover:bg-violet-600/10 focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:outline-none dark:text-[#A78BFA]"
+            >
+              Undo
+            </button>
+          ) : (
+            <FollowButton userId={inviter.id} />
+          )}
+        </div>
+      </div>
       <button
         type="button"
         aria-label="Dismiss"
         onClick={onDismiss}
-        className="-mr-1 grid h-11 w-11 shrink-0 place-items-center rounded-full text-zinc-500 hover:bg-zinc-900/5 focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:outline-none dark:hover:bg-white/10"
+        className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-zinc-500 hover:bg-zinc-900/5 focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:outline-none dark:hover:bg-white/10"
       >
         <X aria-hidden className="h-4 w-4" />
       </button>

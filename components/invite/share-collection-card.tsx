@@ -27,7 +27,7 @@ function XLogo({ className }: { className?: string }) {
 }
 
 const action =
-  "inline-flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-full px-3 text-[14px] font-semibold whitespace-nowrap transition-transform duration-150 active:scale-[0.97] motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:outline-none";
+  "inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full text-[14px] font-semibold whitespace-nowrap transition-transform duration-150 active:scale-[0.97] motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:outline-none";
 
 /** The preview a link to your collection unfurls into. A designed block until it loads, never a broken image. */
 function PreviewThumb({ src }: { src: string }) {
@@ -140,7 +140,7 @@ export function ShareCollectionCard() {
       </div>
       <PreviewThumb src={`${path}/opengraph-image`} />
       <div className="mt-3 flex gap-2">
-        <button type="button" onClick={() => void share()} className={`${action} bg-violet-600 text-white`}>
+        <button type="button" onClick={() => void share()} className={`${action} bg-violet-600 px-5 text-white`}>
           <Share aria-hidden className="h-4 w-4" />
           Share
         </button>
@@ -150,7 +150,7 @@ export function ShareCollectionCard() {
           rel="noopener noreferrer"
           aria-label="Share to X"
           onClick={() => trackEvent("share", { source: "collection", method: "x" })}
-          className={`${action} max-w-14 flex-none bg-zinc-950 text-white dark:bg-white dark:text-zinc-950`}
+          className={`${action} w-11 shrink-0 bg-zinc-950 text-white dark:bg-white dark:text-zinc-950`}
         >
           <XLogo className="h-4 w-4" />
         </a>
@@ -159,7 +159,7 @@ export function ShareCollectionCard() {
           disabled={saving}
           onPointerDown={() => void warmStory()}
           onClick={() => void saveStory()}
-          className={`${action} border border-zinc-300 disabled:opacity-60 dark:border-white/15`}
+          className={`${action} min-w-0 flex-1 border px-3 border-zinc-300 disabled:opacity-60 dark:border-white/15`}
         >
           <Download aria-hidden className="h-4 w-4" />
           {saving ? "Saving…" : "Save for Stories"}
