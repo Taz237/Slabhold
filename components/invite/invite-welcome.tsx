@@ -29,9 +29,10 @@ async function findInviter(username: string, local: Profile[]): Promise<Inviter 
 }
 
 /**
- * First-run setup, after signing up through someone's /i/ link: follow each
- * other once (public.accept_invite), then a small note with Undo. Without the
- * RPC it offers a plain Follow. The remembered invite is cleared either way.
+ * First-run setup, after signing up through someone's /i/ link: follow them
+ * once (public.accept_invite; they follow back only when the link had their
+ * code), then a small note with Undo. Without the RPC it offers a plain
+ * Follow. The remembered invite is cleared either way.
  */
 export function InviteWelcome() {
   const { mode, user, profiles, refresh, isFollowing, toggleFollow } = useSocial();
@@ -55,16 +56,17 @@ export function InviteWelcome() {
   useEffect(() => {
     if (!userId || started.current) return;
     const store = inviteStore();
-    const handle = store ? readInvite(store) : null;
-    if (!store || !handle) return;
+    const invite = store ? readInvite(store) : null;
+    if (!store || !invite) return;
+    const handle = invite.username;
     started.current = true;
     // Once only, whatever happens next.
     clearInvite(store);
     void (async () => {
       const supabase = mode === "supabase" ? createSupabaseBrowser() : null;
-      const result = await acceptInvite(supabase, handle);
-      if (result === "failed") return;
-      if (result === "accepted") await latest.current.refresh().catch(() => undefined);
+      const result = await acceptInvite(supabase, handle, invite.code);
+      if (result === "failed" || result === "skipped") return;
+      if (result !== "missing") await latest.current.refresh().catch(() => undefined);
       const inviter = await findInviter(handle, latest.current.profiles).catch(() => null);
       if (!inviter || inviter.id === userId || !mounted.current) return;
       const outcome = inviteOutcome(result, latest.current.isFollowing(inviter.id));
@@ -87,7 +89,7 @@ export function InviteWelcome() {
   );
 }
 
-/** The note itself: who invited you, and Undo (following) or Follow (prompt). */
+/** The note itself: who invited you, and Undo (mutual, following) or Follow (prompt). */
 export function InviteWelcomeNote({
   outcome,
   inviter,
@@ -109,9 +111,13 @@ export function InviteWelcomeNote({
       <Avatar name={name} image={inviter.avatarUrl} expandable={false} className="mt-0.5 h-11 w-11 shrink-0" />
       <div className="min-w-0 flex-1 pt-0.5">
         <p className="text-[14px] leading-5">
-          {outcome === "following" ? (
+          {outcome === "mutual" ? (
             <>
               You&apos;re following <b className="font-bold">{name}</b>, and they follow you back.
+            </>
+          ) : outcome === "following" ? (
+            <>
+              You&apos;re following <b className="font-bold">{name}</b>.
             </>
           ) : (
             <>
@@ -120,7 +126,7 @@ export function InviteWelcomeNote({
           )}
         </p>
         <div className="mt-2">
-          {outcome === "following" ? (
+          {outcome !== "prompt" ? (
             <button
               type="button"
               onClick={onUndo}

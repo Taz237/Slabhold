@@ -11,7 +11,10 @@ import {
   rememberInvite,
   type InviteStore,
 } from "./attribution";
+import { fetchInviteCode, inviteCode } from "./code";
 import { inviteCount } from "./count";
+
+const CODE = "0123456789abcdef0123456789abcdef";
 
 function memory(): InviteStore & { data: Map<string, string> } {
   const data = new Map<string, string>();
@@ -24,18 +27,31 @@ function memory(): InviteStore & { data: Map<string, string> } {
 }
 
 describe("invite attribution", () => {
-  it("remembers the inviter's handle for 7 days, then forgets it", () => {
+  it("remembers the inviter's handle and code for 7 days, then forgets it", () => {
     const store = memory();
     const now = 1_000_000_000_000;
-    assert.equal(rememberInvite("@Maya_C", store, now), true);
-    assert.deepEqual(JSON.parse(store.data.get(INVITE_STORAGE_KEY) ?? ""), { username: "maya_c", savedAt: now });
-    assert.equal(readInvite(store, now + 1000), "maya_c");
+    assert.equal(rememberInvite("@Maya_C", CODE, store, now), true);
+    assert.deepEqual(JSON.parse(store.data.get(INVITE_STORAGE_KEY) ?? ""), { username: "maya_c", code: CODE, savedAt: now });
+    assert.deepEqual(readInvite(store, now + 1000), { username: "maya_c", code: CODE });
     assert.equal(readInvite(store, now + INVITE_TTL_MS + 1), null);
+  });
+
+  it("keeps a link without a code, or with a bad one, as handle only", () => {
+    const store = memory();
+    rememberInvite("maya", null, store);
+    assert.deepEqual(readInvite(store), { username: "maya", code: null });
+    rememberInvite("maya", "not-a-code", store);
+    assert.deepEqual(readInvite(store), { username: "maya", code: null });
+    // An invite saved before codes existed still reads.
+    store.data.set(INVITE_STORAGE_KEY, JSON.stringify({ username: "maya", savedAt: Date.now() }));
+    assert.deepEqual(readInvite(store), { username: "maya", code: null });
+    store.data.set(INVITE_STORAGE_KEY, JSON.stringify({ username: "maya", code: "<x>", savedAt: Date.now() }));
+    assert.deepEqual(readInvite(store), { username: "maya", code: null });
   });
 
   it("is cleared after use", () => {
     const store = memory();
-    rememberInvite("maya", store);
+    rememberInvite("maya", CODE, store);
     clearInvite(store);
     assert.equal(readInvite(store), null);
     assert.equal(store.data.has(INVITE_STORAGE_KEY), false);
@@ -43,10 +59,10 @@ describe("invite attribution", () => {
 
   it("stores a handle only, never an id or junk, and never a reserved name", () => {
     const store = memory();
-    assert.equal(rememberInvite("6d31ab97-9162-4296-876d-9e0378872fce", store), false);
-    assert.equal(rememberInvite("<script>", store), false);
-    assert.equal(rememberInvite("admin", store), false);
-    assert.equal(rememberInvite("slabhold", store), false);
+    assert.equal(rememberInvite("6d31ab97-9162-4296-876d-9e0378872fce", CODE, store), false);
+    assert.equal(rememberInvite("<script>", CODE, store), false);
+    assert.equal(rememberInvite("admin", CODE, store), false);
+    assert.equal(rememberInvite("slabhold", CODE, store), false);
     assert.equal(store.data.size, 0);
     assert.equal(inviteHandle("  Ada  "), "ada");
     assert.equal(inviteHandle("a"), null);
@@ -72,16 +88,16 @@ describe("invite attribution", () => {
       },
     };
     assert.equal(readInvite(broken), null);
-    assert.equal(rememberInvite("maya", broken), false);
+    assert.equal(rememberInvite("maya", CODE, broken), false);
     assert.doesNotThrow(() => clearInvite(broken));
   });
 });
 
-function rpcClient(result: { error: { code?: string; message: string } | null } | Error) {
+function rpcClient(result: { data?: unknown; error: { code?: string; message: string } | null } | Error) {
   const calls: unknown[] = [];
   const client = {
-    async rpc(name: string, args: unknown) {
-      calls.push([name, args]);
+    async rpc(name: string, args?: unknown) {
+      calls.push(args === undefined ? [name] : [name, args]);
       if (result instanceof Error) throw result;
       return { data: null, ...result };
     },
@@ -90,24 +106,52 @@ function rpcClient(result: { error: { code?: string; message: string } | null } 
 }
 
 describe("acceptInvite", () => {
-  it("calls accept_invite with the handle", async () => {
-    const { client, calls } = rpcClient({ error: null });
-    assert.equal(await acceptInvite(client, "maya"), "accepted");
-    assert.deepEqual(calls, [["accept_invite", { inviter_username: "maya" }]]);
+  it("calls accept_invite with the handle and code, and reports what it did", async () => {
+    const { client, calls } = rpcClient({ data: "mutual", error: null });
+    assert.equal(await acceptInvite(client, "maya", CODE), "mutual");
+    assert.deepEqual(calls, [["accept_invite", { inviter_username: "maya", code: CODE }]]);
+    const plain = rpcClient({ data: "following", error: null });
+    assert.equal(await acceptInvite(plain.client, "maya", null), "following");
+    assert.deepEqual(plain.calls, [["accept_invite", { inviter_username: "maya", code: null }]]);
+    assert.equal(await acceptInvite(rpcClient({ data: null, error: null }).client, "maya", CODE), "skipped");
+    assert.equal(await acceptInvite(rpcClient({ data: "anything", error: null }).client, "maya", CODE), "skipped");
   });
 
   it("says missing when the function isn't installed, or in local mode", async () => {
-    assert.equal(await acceptInvite(rpcClient({ error: { code: "PGRST202", message: "x" } }).client, "maya"), "missing");
+    assert.equal(await acceptInvite(rpcClient({ error: { code: "PGRST202", message: "x" } }).client, "maya", CODE), "missing");
     assert.equal(
-      await acceptInvite(rpcClient({ error: { message: "Could not find the function public.accept_invite" } }).client, "maya"),
+      await acceptInvite(rpcClient({ error: { message: "Could not find the function public.accept_invite" } }).client, "maya", CODE),
       "missing",
     );
-    assert.equal(await acceptInvite(null, "maya"), "missing");
+    assert.equal(await acceptInvite(null, "maya", CODE), "missing");
   });
 
   it("never throws", async () => {
-    assert.equal(await acceptInvite(rpcClient({ error: { code: "500", message: "boom" } }).client, "maya"), "failed");
-    assert.equal(await acceptInvite(rpcClient(new Error("network")).client, "maya"), "failed");
+    assert.equal(await acceptInvite(rpcClient({ error: { code: "500", message: "boom" } }).client, "maya", CODE), "failed");
+    assert.equal(await acceptInvite(rpcClient(new Error("network")).client, "maya", CODE), "failed");
+  });
+});
+
+describe("invite codes", () => {
+  it("accepts only 32 lowercase hex characters", () => {
+    assert.equal(inviteCode(CODE), CODE);
+    assert.equal(inviteCode(` ${CODE.toUpperCase()} `), CODE);
+    assert.equal(inviteCode("abc"), null);
+    assert.equal(inviteCode(`${CODE}0`), null);
+    assert.equal(inviteCode("g123456789abcdef0123456789abcdef"), null);
+    assert.equal(inviteCode(["x"]), null);
+    assert.equal(inviteCode(undefined), null);
+  });
+
+  it("reads your own code from my_invite_code, and is null on any miss", async () => {
+    const { client, calls } = rpcClient({ data: CODE, error: null });
+    assert.equal(await fetchInviteCode(client), CODE);
+    assert.deepEqual(calls, [["my_invite_code"]]);
+    assert.equal(await fetchInviteCode(rpcClient({ data: null, error: null }).client), null);
+    assert.equal(await fetchInviteCode(rpcClient({ data: "junk", error: null }).client), null);
+    assert.equal(await fetchInviteCode(rpcClient({ error: { code: "PGRST202", message: "x" } }).client), null);
+    assert.equal(await fetchInviteCode(rpcClient(new Error("network")).client), null);
+    assert.equal(await fetchInviteCode(null), null);
   });
 });
 
@@ -147,9 +191,13 @@ describe("inviteCount", () => {
 });
 
 describe("inviteOutcome", () => {
-  it("confirms the follow-back, offers Follow without the RPC, and stays quiet otherwise", () => {
-    assert.equal(inviteOutcome("accepted", true), "following");
-    assert.equal(inviteOutcome("accepted", false), "none", "skipped by the RPC: a block or an earlier invite");
+  it("confirms the follow-back only when there was one, offers Follow without the RPC, and stays quiet otherwise", () => {
+    assert.equal(inviteOutcome("mutual", true), "mutual");
+    assert.equal(inviteOutcome("following", true), "following", "no code: you follow them, no follow-back");
+    assert.equal(inviteOutcome("mutual", false), "none");
+    assert.equal(inviteOutcome("following", false), "none");
+    assert.equal(inviteOutcome("skipped", false), "none", "skipped by the RPC: a block or an earlier invite");
+    assert.equal(inviteOutcome("skipped", true), "none");
     assert.equal(inviteOutcome("missing", false), "prompt");
     assert.equal(inviteOutcome("missing", true), "none", "already following: nothing to ask");
     assert.equal(inviteOutcome("failed", false), "none");

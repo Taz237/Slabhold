@@ -34,10 +34,20 @@ function count(value: number, one: string, many: string) {
 
 /**
  * /i/<username>, signed out: who invited you, their top public cards, and one
- * button to join. The invite is remembered on this device for 7 days. An
- * unknown, reserved or private handle gets the same page with no one on it.
+ * button to join. The invite (handle and code) is remembered on this device
+ * for 7 days. An unknown, reserved or private handle gets the same page with
+ * no one on it.
  */
-export function InviteLanding({ handle, collector: server }: { handle: string | null; collector: PublicCollector | null }) {
+export function InviteLanding({
+  handle,
+  code = null,
+  collector: server,
+}: {
+  handle: string | null;
+  /** The inviter's code from ?c=, so the new collector gets a follow-back. */
+  code?: string | null;
+  collector: PublicCollector | null;
+}) {
   const router = useRouter();
   const { ready, user } = useSocial();
   const collector = usePublicCollector(handle, server, INVITE_CARD_LIMIT);
@@ -51,8 +61,8 @@ export function InviteLanding({ handle, collector: server }: { handle: string | 
   useEffect(() => {
     if (!username) return;
     const store = inviteStore();
-    if (store) rememberInvite(username, store);
-  }, [username]);
+    if (store) rememberInvite(username, code, store);
+  }, [username, code]);
 
   const next = username ? userHref(username) : "/";
   const name = collector?.displayName ?? "";

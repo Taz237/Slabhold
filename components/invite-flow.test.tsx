@@ -121,7 +121,19 @@ describe("invite landing", () => {
     assert.equal(join?.getAttribute("href"), "/signup?next=%2Fu%2Fmaya");
     const saved = JSON.parse(win.localStorage.getItem(INVITE_STORAGE_KEY) ?? "{}");
     assert.equal(saved.username, "maya");
+    assert.equal(saved.code, null, "no ?c= on the link: no code, so no follow-back later");
     assert.deepEqual(replaced, []);
+  });
+
+  it("remembers the inviter's code from ?c= with the handle", async () => {
+    const { InviteLanding } = await import("@/components/invite/invite-landing");
+    const code = "0123456789abcdef0123456789abcdef";
+    cleanup = await render(createElement(InviteLanding, { handle: "maya", code, collector }), social());
+    const saved = JSON.parse(win.localStorage.getItem(INVITE_STORAGE_KEY) ?? "{}");
+    assert.deepEqual([saved.username, saved.code], ["maya", code]);
+    const page = readFileSync(join(process.cwd(), "app/i/[username]/page.tsx"), "utf8");
+    assert.match(page, /const code = inviteCode\(\(await searchParams\)\[INVITE_CODE_PARAM\]\);/);
+    assert.match(page, /<InviteLanding handle=\{handle\} code=\{code\} collector=\{collector\} \/>/);
   });
 
   it("is the generic invite for an unknown, reserved or private handle, and remembers nothing", async () => {
@@ -170,15 +182,16 @@ describe("after signing up through an invite", () => {
 
   it("confirms the follow-back after the RPC, and Undo unfollows", async () => {
     const accept = readFileSync(join(process.cwd(), "lib/invites/accept.ts"), "utf8");
-    assert.match(accept, /supabase\.rpc\("accept_invite", \{ inviter_username: username \}\)/);
+    assert.match(accept, /supabase\.rpc\("accept_invite", \{ inviter_username: username, code \}\)/);
     const welcome = readFileSync(join(process.cwd(), "components/invite/invite-welcome.tsx"), "utf8");
+    assert.match(welcome, /await acceptInvite\(supabase, handle, invite\.code\)/);
     assert.match(welcome, /You&apos;re following <b className="font-bold">\{name\}<\/b>, and they follow you back\./);
     assert.match(welcome, /if \(isFollowing\(inviter\.id\)\) void toggleFollow\(inviter\.id\);/);
     const { InviteWelcomeNote } = await import("@/components/invite/invite-welcome");
     let undone = 0;
     cleanup = await render(
       createElement(InviteWelcomeNote, {
-        outcome: "following",
+        outcome: "mutual",
         inviter: { id: maya.id, username: "maya", displayName: "Maya Chen", avatarUrl: null },
         onUndo: () => undone++,
         onDismiss: () => {},
@@ -194,6 +207,27 @@ describe("after signing up through an invite", () => {
     assert.ok(welcome.indexOf("clearInvite(store)") < welcome.indexOf("await acceptInvite("));
     const setup = readFileSync(join(process.cwd(), "components/onboarding/first-run-setup.tsx"), "utf8");
     assert.match(setup, /<InviteWelcome \/>/);
+  });
+
+  it("without a follow-back, says only that you follow them, with Undo", async () => {
+    const { InviteWelcomeNote } = await import("@/components/invite/invite-welcome");
+    let undone = 0;
+    cleanup = await render(
+      createElement(InviteWelcomeNote, {
+        outcome: "following",
+        inviter: { id: maya.id, username: "maya", displayName: "Maya Chen", avatarUrl: null },
+        onUndo: () => undone++,
+        onDismiss: () => {},
+      }),
+      social({ user: newbie }),
+    );
+    const note = win.document.querySelector("[data-invite-welcome]");
+    assert.equal(note?.getAttribute("data-invite-welcome"), "following");
+    assert.equal(note?.textContent?.includes("You're following Maya Chen."), true);
+    assert.equal(note?.textContent?.includes("follow you back"), false);
+    const undo = [...(note?.querySelectorAll("button") ?? [])].find((button) => button.textContent === "Undo");
+    await act(async () => undo?.click());
+    assert.equal(undone, 1);
   });
 });
 
@@ -244,6 +278,16 @@ describe("invite a collector", () => {
     });
     await settle();
     assert.equal(win.document.querySelector("[data-share-toast]")?.textContent, "Link copied");
+  });
+
+  it("carries your invite code on the link once it has loaded", async () => {
+    const { inviteTarget } = await import("@/components/invite/invite-button");
+    const code = "0123456789abcdef0123456789abcdef";
+    assert.equal(inviteTarget("maya", code).path, `/i/maya?c=${code}`);
+    assert.equal(inviteTarget("maya").path, "/i/maya");
+    const button = readFileSync(join(process.cwd(), "components/invite/invite-button.tsx"), "utf8");
+    assert.match(button, /const code = useInviteCode\(\);\s*return useShareSheet\(inviteTarget\(username, code\)\);/);
+    assert.match(button, /fetchInviteCode\(createSupabaseBrowser\(\)\)/);
   });
 
   it("is in the side menu and on your own profile only", () => {

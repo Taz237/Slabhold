@@ -1,4 +1,5 @@
 import { badgeName, type BadgeCategory, type BadgeTier } from "@/lib/badges/config";
+import { INVITE_CODE_PARAM, inviteCode } from "@/lib/invites/code";
 import { userHref } from "@/lib/social/user-href";
 
 /** Marks a link as shared from the app, so landings can be told apart. */
@@ -64,9 +65,15 @@ export function cardShareState(input: {
 /** What an invite says, next to the link. */
 export const INVITE_SHARE_TEXT = "Join me on Slabhold, the home for your card collection";
 
-/** Personal invite link: /i/<username>. */
-export function invitePath(username: string): string {
-  return `/i/${encodeURIComponent(handle(username))}`;
+/**
+ * Personal invite link: /i/<username>?c=<code>. Only a link with the
+ * inviter's code gets a follow-back; without one, /i/<username> still works
+ * and the new collector just follows the inviter.
+ */
+export function invitePath(username: string, code?: string | null): string {
+  const path = `/i/${encodeURIComponent(handle(username))}`;
+  const valid = inviteCode(code);
+  return valid ? `${path}?${INVITE_CODE_PARAM}=${valid}` : path;
 }
 
 /** Public, read-only collection page. */

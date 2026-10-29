@@ -91,6 +91,11 @@ describe("card share state", () => {
 describe("invite and collection links", () => {
   it("builds the invite link and its share text", () => {
     assert.equal(invitePath("@Maya"), "/i/maya");
+    const code = "0123456789abcdef0123456789abcdef";
+    assert.equal(invitePath("@Maya", code), `/i/maya?c=${code}`);
+    assert.equal(invitePath("maya", null), "/i/maya");
+    assert.equal(invitePath("maya", "bad&code"), "/i/maya");
+    assert.equal(withShareRef(`https://slabhold.app${invitePath("maya", code)}`), `https://slabhold.app/i/maya?ref=share&c=${code}`);
     assert.equal(INVITE_SHARE_TEXT, "Join me on Slabhold, the home for your card collection");
     assert.equal(
       xIntentUrl({ text: INVITE_SHARE_TEXT, url: "https://slabhold.app/i/maya" }),
