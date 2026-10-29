@@ -199,6 +199,8 @@ export function NavMotion() {
     cleanupSwipe.current?.();
     cleanupSwipe.current = null;
     if (pop) restoreScroll(positions.current.get(next) ?? 0, stopRestore);
+    // The skeleton sat at the top of the screen, so the page it hands over to does too.
+    else if (pending) window.scrollTo(0, 0);
     // A Back started by goBackWithMotion: name the new page and let the transition capture it.
     if (manualBack) {
       document.querySelector<HTMLElement>(PAGE_SELECTOR)?.style.setProperty("view-transition-name", "page-back-new");

@@ -118,6 +118,8 @@ describe("tap feedback wiring", () => {
     assert.match(nav, /clearPendingNav\(document\)/);
     // A route the skeleton already slid in for swaps in place, no second slide.
     assert.match(nav, /pending \? "none"/);
+    // ...and opens at the top, where the skeleton was, not at the old page's scroll.
+    assert.match(nav, /else if \(pending\) window\.scrollTo\(0, 0\)/);
   });
 
   it("keeps a static skeleton in the shell that CSS alone shows", () => {
