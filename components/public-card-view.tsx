@@ -14,6 +14,7 @@ import { CardThumb } from "@/components/card-thumb";
 import { CompBasis } from "@/components/comp-basis";
 import { CompsList } from "@/components/comps-list";
 import { PublicCardCompsPreview } from "@/components/public-card-comps";
+import { PublicCardSkeleton } from "@/components/public-card-skeleton";
 import { useCollection } from "@/components/collection-provider";
 import { SoldFreshness } from "@/components/sold-freshness";
 import { useSocial } from "@/components/social-provider";
@@ -30,7 +31,8 @@ import {
   hiddenPublicComps,
   type PublicCardComps,
 } from "@/lib/comps/public-types";
-import type { PublicCard } from "@/lib/social/types";
+import type { PublicCardOwner } from "@/lib/social/missing-record";
+import type { OwnedCard, PublicCard } from "@/lib/social/types";
 import {
   cardValueHasAmount,
   isLowConfidenceValue,
@@ -45,23 +47,50 @@ import {
 } from "@/lib/value/price-fallback";
 import { useCardValue } from "@/lib/value/use-card-values";
 
+export { PublicCardSkeleton };
+
 export function PublicCardView({
   username,
   id,
   publicComps = hiddenPublicComps(),
+  initialCard = null,
+  initialOwner = null,
 }: {
   username: string;
   id: string;
   publicComps?: PublicCardComps;
+  /** Server-read public_cards row, so the card paints before the snapshot. Public data only. */
+  initialCard?: OwnedCard | null;
+  initialOwner?: PublicCardOwner | null;
 }) {
   const social = useSocial();
   const { cards, ready: cardsReady } = useCollection();
   const profile = social.profileByUsername(username);
   const isOwn = Boolean(profile && social.user && profile.id === social.user.id);
-
-  if (!social.ready || (isOwn && !cardsReady)) return <PublicCardSkeleton />;
-
   const backHref = `${userHref(username)}?tab=collection`;
+
+  if (!social.ready || (isOwn && !cardsReady)) {
+    // Until the snapshot says who is viewing, paint the public card with no
+    // viewer: no own-card, message, block or mute state, room held for them.
+    const early =
+      initialCard && initialOwner && initialCard.id === id && initialCard.ownerId === initialOwner.id
+        ? initialCard
+        : null;
+    if (!early || !initialOwner) return <PublicCardSkeleton />;
+    return (
+      <PublicCardAnalytics
+        card={early}
+        displayName={initialOwner.displayName}
+        backHref={backHref}
+        userId={null}
+        canFlag={false}
+        publicComps={publicComps}
+        messageHref={null}
+        reserveMessage={early.openToOffers === true}
+        manageHref={null}
+      />
+    );
+  }
 
   if (!profile) {
     return (
@@ -113,54 +142,6 @@ export function PublicCardView({
   );
 }
 
-const BAR = "rounded bg-zinc-200/80 dark:bg-white/[0.06]";
-
-/**
- * The card page's boxes before data: back row, slab, title lines, chips and
- * the value card. Same sizes as the page, so the swap does not move anything.
- * loading.tsx and the page's own wait for the social store both use it.
- */
-export function PublicCardSkeleton() {
-  return (
-    <div className="space-y-6" aria-busy="true" data-public-card-skeleton="">
-      <span className="sr-only">Loading card</span>
-      <div className="flex min-h-11 items-center gap-1.5" aria-hidden="true">
-        <div className={`h-4 w-4 ${BAR}`} />
-        <div className={`h-4 w-24 ${BAR}`} />
-      </div>
-      <div aria-hidden="true" className="skeleton-shimmer mx-auto h-96 w-64 rounded-2xl" />
-      <div aria-hidden="true">
-        <div className="flex h-5 items-center">
-          <div className={`h-3.5 w-44 ${BAR}`} />
-        </div>
-        <div className="mt-1 flex h-9 items-center">
-          <div className={`h-7 w-52 rounded-lg ${BAR}`} />
-        </div>
-        <div className="mt-3 flex flex-wrap gap-2">
-          {[64, 56, 88].map((width) => (
-            <div
-              key={width}
-              style={{ width }}
-              className="h-[46px] rounded-full border border-zinc-200 bg-zinc-50 dark:border-white/10 dark:bg-white/5"
-            />
-          ))}
-        </div>
-      </div>
-      <div
-        aria-hidden="true"
-        className="rounded-2xl border border-zinc-200 bg-white px-4 py-4 dark:border-white/10 dark:bg-white/[0.03]"
-      >
-        <div className="flex h-4 items-center">
-          <div className={`h-2.5 w-24 ${BAR}`} />
-        </div>
-        <div className="mt-1 flex h-8 items-center">
-          <div className={`h-6 w-28 rounded-md ${BAR}`} />
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function PublicCardAnalytics({
   card,
   displayName,
@@ -169,6 +150,7 @@ function PublicCardAnalytics({
   canFlag,
   publicComps,
   messageHref,
+  reserveMessage = false,
   manageHref,
 }: {
   card: PublicCard;
@@ -178,6 +160,8 @@ function PublicCardAnalytics({
   canFlag: boolean;
   publicComps: PublicCardComps;
   messageHref: string | null;
+  /** Before the snapshot: hold the Message owner button's room so it doesn't push the page. */
+  reserveMessage?: boolean;
   /** Your own card: where to switch public or private. */
   manageHref: string | null;
 }) {
@@ -279,6 +263,7 @@ function PublicCardAnalytics({
 
       <CardThumb
         card={card}
+        priority
         className="mx-auto h-96 w-64 rounded-2xl object-cover shadow-xl shadow-black/20"
       />
 
@@ -312,6 +297,10 @@ function PublicCardAnalytics({
           <Link href={messageHref} className={`${outlineButton} mt-4`}>
             Message owner
           </Link>
+        ) : reserveMessage ? (
+          <span aria-hidden="true" className={`${outlineButton} invisible mt-4`}>
+            Message owner
+          </span>
         ) : null}
         {manageHref ? (
           <Link href={manageHref} className={`${outlineButton} mt-4 min-h-11`}>

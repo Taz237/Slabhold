@@ -12,8 +12,9 @@ import {
   missingRecordAction,
   postLookupResult,
   profileLookupResult,
-  readPublicCardLookup,
+  readPublicCardPage,
   type LookupClient,
+  type PublicCardPage,
   type RecordLookup,
 } from "./missing-record";
 
@@ -59,15 +60,20 @@ export async function requireProfile(username: string): Promise<void> {
 
 /**
  * /u/[username]/cards/[id]. Private or wrong-owner cards are a 404.
- * Cookie-free, so the page is ISR. The read carries `card:${id}` and
- * `card-visibility:${id}`, so a revalidate of either also refreshes the
- * page. React.cache shares it within one render.
+ * Cookie-free, so the page is ISR. Returns the public card row and the
+ * owner's public profile so the page paints the card before the social
+ * snapshot. The read carries `card:${id}` and `card-visibility:${id}`, so a
+ * revalidate of either also refreshes the page. React.cache shares it
+ * within one render.
  */
-export const requirePublicCard = cache(async (username: string, cardId: string): Promise<void> => {
-  const lookup = await unstable_cache(
-    () => readPublicCardLookup(createAnonReader() as LookupClient | null, username, cardId),
-    ["public-card-lookup", normalizeUsername(username), cardId],
-    { tags: [cardCacheTag(cardId), cardVisibilityTag(cardId)], revalidate: PUBLIC_CARD_REVALIDATE_SECONDS },
-  )();
-  finish(lookup);
-});
+export const requirePublicCard = cache(
+  async (username: string, cardId: string): Promise<Pick<PublicCardPage, "card" | "owner">> => {
+    const page = await unstable_cache(
+      () => readPublicCardPage(createAnonReader() as LookupClient | null, username, cardId),
+      ["public-card-page", normalizeUsername(username), cardId],
+      { tags: [cardCacheTag(cardId), cardVisibilityTag(cardId)], revalidate: PUBLIC_CARD_REVALIDATE_SECONDS },
+    )();
+    finish(page.lookup);
+    return { card: page.card, owner: page.owner };
+  },
+);

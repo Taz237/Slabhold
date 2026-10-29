@@ -124,6 +124,22 @@ export function movingQuery(direction: MoverDirection, sport: MovingSport | null
   return `?${params.toString()}`;
 }
 
+export type MovingFilters = { direction: MoverDirection; sport: MovingSport | null };
+
+/**
+ * The filters a `location.search` carries. A URL with neither `dir` nor
+ * `sport` keeps the fallback. A tab switch always writes `dir`, so once it
+ * is there a missing sport means every sport.
+ */
+export function filtersFromSearch(search: string, fallback: MovingFilters): MovingFilters {
+  const params = new URLSearchParams(search);
+  if (!params.has("dir") && !params.has("sport")) return fallback;
+  return {
+    direction: parseDirection(params.get("dir")) ?? fallback.direction,
+    sport: parseSport(params.get("sport")),
+  };
+}
+
 /** "No hockey cards moving down" for a filter with no match. */
 export function noMatchText(direction: MoverDirection, sport: MovingSport | null): string {
   const what = sport ? `${sport} cards` : "cards";

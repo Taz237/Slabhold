@@ -63,6 +63,7 @@ export function CardSlabArt({
   onStatus,
   sizes = TILE_IMAGE_SIZES,
   preload = false,
+  fetchPriority,
 }: {
   card: ArtCard;
   index: number;
@@ -72,6 +73,8 @@ export function CardSlabArt({
   sizes?: string;
   /** Above the fold: the photo is preloaded from the document head. */
   preload?: boolean;
+  /** Overrides the index-based priority, e.g. "high" for the page's LCP photo only. */
+  fetchPriority?: "high" | "auto";
 }) {
   const photo = (
     <CardFace
@@ -82,6 +85,7 @@ export function CardSlabArt({
       onStatus={onStatus}
       sizes={sizes}
       preload={preload}
+      fetchPriority={fetchPriority}
     />
   );
 
@@ -171,6 +175,7 @@ function CardFace({
   onStatus,
   sizes,
   preload,
+  fetchPriority,
 }: {
   card: ArtCard;
   index: number;
@@ -179,6 +184,7 @@ function CardFace({
   onStatus: (event: "load" | "error") => void;
   sizes: string;
   preload: boolean;
+  fetchPriority?: "high" | "auto";
 }) {
   // A cached photo can finish before hydration, so check once on mount.
   const imgRef = useCallback(
@@ -193,6 +199,7 @@ function CardFace({
   if (source.kind === "none" || showPhotoPlaceholder(source, status)) return placeholder;
 
   const eager = tileLoading(index) === "eager";
+  const priority = fetchPriority ?? (eager ? "high" : "auto");
   const imgClass = photoClass({ eager: eager || preload, status });
 
   return (
@@ -206,10 +213,11 @@ function CardFace({
           fill
           sizes={sizes}
           quality={75}
-          // next/image takes preload, or loading and fetchPriority, not both.
+          // next/image takes preload or loading, not both. A preload with
+          // fetchPriority "high" also raises its <link> in the head.
           {...(preload
-            ? { preload: true }
-            : { loading: eager ? "eager" : "lazy", fetchPriority: eager ? "high" : "auto" } as const)}
+            ? { preload: true, ...(fetchPriority ? { fetchPriority } : {}) }
+            : { loading: eager ? "eager" : "lazy", fetchPriority: priority } as const)}
           onLoad={() => onStatus("load")}
           onError={() => onStatus("error")}
           className={imgClass}
@@ -223,7 +231,7 @@ function CardFace({
           alt=""
           decoding="async"
           loading={eager ? "eager" : "lazy"}
-          fetchPriority={eager ? "high" : "auto"}
+          fetchPriority={priority}
           onLoad={() => onStatus("load")}
           onError={() => onStatus("error")}
           className={imgClass}

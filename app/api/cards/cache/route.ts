@@ -1,6 +1,7 @@
 import { revalidateTag } from "next/cache";
 import { postCardCacheRefresh } from "@/lib/cards/card-cache-request";
-import { createSupabaseServer, getAuthUserId } from "@/lib/supabase/server";
+import { createSupabaseAdmin } from "@/lib/supabase/admin";
+import { getAuthUserId } from "@/lib/supabase/server";
 import { cardVisibilityTag } from "@/lib/value/card-cache";
 
 export const runtime = "nodejs";
@@ -10,10 +11,12 @@ export async function POST(request: Request) {
   return postCardCacheRefresh(request, {
     getUserId: getAuthUserId,
     async cardOwner(cardId) {
-      const supabase = await createSupabaseServer();
-      if (!supabase) return null;
-      const { data } = await supabase.from("cards").select("user_id").eq("id", cardId).maybeSingle();
-      return typeof data?.user_id === "string" ? data.user_id : null;
+      // Admin read: the user's RLS client sees another user's private card as missing.
+      const admin = createSupabaseAdmin();
+      if (!admin) return { ok: false };
+      const { data, error } = await admin.from("cards").select("user_id").eq("id", cardId).maybeSingle();
+      if (error) return { ok: false };
+      return { ok: true, ownerId: typeof data?.user_id === "string" ? data.user_id : null };
     },
     revalidate(cardId) {
       revalidateTag(cardVisibilityTag(cardId), { expire: 0 });

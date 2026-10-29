@@ -2,8 +2,12 @@ import { isUuid } from "@/lib/value/card-value-access";
 
 export type CardCacheDeps = {
   getUserId: () => Promise<string | null>;
-  /** The card's owner, or null when the card is gone (just deleted). */
-  cardOwner: (cardId: string) => Promise<string | null>;
+  /**
+   * The card's owner, read past RLS so a private card is not mistaken for a
+   * deleted one. ownerId is null when the card is gone (just deleted).
+   * ok is false when the owner can't be read, and the refresh is refused.
+   */
+  cardOwner: (cardId: string) => Promise<{ ok: true; ownerId: string | null } | { ok: false }>;
   revalidate: (cardId: string) => void;
 };
 
@@ -30,7 +34,7 @@ export async function postCardCacheRefresh(request: Request, deps: CardCacheDeps
   }
 
   const owner = await deps.cardOwner(cardId);
-  if (owner !== null && owner !== userId) {
+  if (!owner.ok || (owner.ownerId !== null && owner.ownerId !== userId)) {
     return Response.json({ error: "Not your card." }, { status: 403 });
   }
 

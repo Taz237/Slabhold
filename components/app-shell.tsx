@@ -11,6 +11,7 @@ import { BadgeRevealGate } from "@/components/badges/badge-reveal";
 import { CreateMenu } from "@/components/create-menu";
 import { JoinBar } from "@/components/join-bar";
 import { NavMotion } from "@/components/nav-motion";
+import { NavPendingSkeleton } from "@/components/nav-pending-skeleton";
 import { CoachTour } from "@/components/onboarding/coach-tour";
 import { FirstRunSetup } from "@/components/onboarding/first-run-setup";
 import { useOnboardingBusy } from "@/components/onboarding/use-onboarding";
@@ -220,6 +221,7 @@ function Shell({
         {children}
       </PageFrame>
       <NavMotion />
+      <NavPendingSkeleton />
       {showNav ? (
         <nav
           style={{ viewTransitionName: "app-nav" }}

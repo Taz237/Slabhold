@@ -2,6 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import { useEffect, useLayoutEffect, useRef } from "react";
+import { clearPendingNav, installTapFeedback } from "@/lib/ui/tap-feedback";
 import {
   RESTORE_TIMEOUT_MS,
   canGoBack,
@@ -168,6 +169,8 @@ export function NavMotion() {
     const next = hereHref();
     const previous = currentRef.current;
     currentRef.current = next;
+    // The tap-time skeleton already slid in. The page takes its place now.
+    const pending = clearPendingNav(document);
     if (!stackRef.current || previous === null) {
       stackRef.current = startStack(next);
       return;
@@ -184,7 +187,7 @@ export function NavMotion() {
 
     const kind: NavKind = swipeDone.current
       ? "none"
-      : navKind({ from: previous, to: next, direction });
+      : pending ? "none" : navKind({ from: previous, to: next, direction });
     swipeDone.current = false;
     setNav(kind);
     if (clearNav.current !== null) window.clearTimeout(clearNav.current);
@@ -196,6 +199,8 @@ export function NavMotion() {
     cleanupSwipe.current?.();
     cleanupSwipe.current = null;
     if (pop) restoreScroll(positions.current.get(next) ?? 0, stopRestore);
+    // The skeleton sat at the top of the screen, so the page it hands over to does too.
+    else if (pending) window.scrollTo(0, 0);
     // A Back started by goBackWithMotion: name the new page and let the transition capture it.
     if (manualBack) {
       document.querySelector<HTMLElement>(PAGE_SELECTOR)?.style.setProperty("view-transition-name", "page-back-new");
@@ -280,6 +285,9 @@ export function NavMotion() {
       }
     }
 
+    // Press state and the card skeleton, straight from the DOM events.
+    const uninstallTaps = installTapFeedback(window);
+
     // iOS only paints :active press states when the page listens for touches.
     const noop = () => {};
     document.addEventListener("touchstart", noop, { passive: true });
@@ -288,6 +296,7 @@ export function NavMotion() {
     document.addEventListener("click", onClick, true);
     return () => {
       history.scrollRestoration = before;
+      uninstallTaps();
       window.cancelAnimationFrame(saveFrame);
       document.removeEventListener("touchstart", noop);
       window.removeEventListener("scroll", onScroll);

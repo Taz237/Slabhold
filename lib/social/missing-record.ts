@@ -1,5 +1,7 @@
 import { isUuid } from "@/lib/value/card-value-access";
+import { mapPublicCard } from "./cards";
 import { normalizeUsername } from "./local-db";
+import type { OwnedCard } from "./types";
 
 export type RecordLookup = "unconfigured" | "found" | "missing" | "error";
 
@@ -59,34 +61,54 @@ export type LookupClient = {
   };
 };
 
+/** The owner fields the public card page may cache in its HTML. */
+export type PublicCardOwner = {
+  id: string;
+  username: string;
+  displayName: string;
+  avatarUrl: string | null;
+};
+
+/** The lookup plus the card and owner, set only when the lookup is "found". */
+export type PublicCardPage = {
+  lookup: RecordLookup;
+  card: OwnedCard | null;
+  owner: PublicCardOwner | null;
+};
+
 /**
  * Profile by username and public card by id, read together. The owner check
  * runs after, so a private card (no public_cards row) or a card under the
- * wrong owner's URL is still "missing".
+ * wrong owner's URL is still "missing". Only public_cards columns and public
+ * profile fields come back, so the result is safe to cache for everyone.
  */
-export async function readPublicCardLookup(
+export async function readPublicCardPage(
   client: LookupClient | null,
   username: string,
   cardId: string,
-): Promise<RecordLookup> {
-  if (!client) return "unconfigured";
+): Promise<PublicCardPage> {
+  const miss = (lookup: RecordLookup): PublicCardPage => ({ lookup, card: null, owner: null });
+  if (!client) return miss("unconfigured");
   const normalized = normalizeUsername(username);
   if (!normalized || !isUuid(cardId)) {
-    return publicCardLookupResult({
-      configured: true,
-      username,
-      cardId,
-      profileError: false,
-      cardError: false,
-      profileId: null,
-      cardOwnerId: null,
-    });
+    return miss(
+      publicCardLookupResult({
+        configured: true,
+        username,
+        cardId,
+        profileError: false,
+        cardError: false,
+        profileId: null,
+        cardOwnerId: null,
+      }),
+    );
   }
   const [profile, card] = await Promise.all([
-    client.from("profiles").select("id").eq("username", normalized).maybeSingle(),
-    client.from("public_cards").select("id, user_id").eq("id", cardId).maybeSingle(),
+    client.from("profiles").select("id, username, display_name, avatar_url").eq("username", normalized).maybeSingle(),
+    // The same columns the social snapshot reads, so the swap to it changes nothing.
+    client.from("public_cards").select("*").eq("id", cardId).maybeSingle(),
   ]);
-  return publicCardLookupResult({
+  const lookup = publicCardLookupResult({
     configured: true,
     username,
     cardId,
@@ -95,4 +117,23 @@ export async function readPublicCardLookup(
     profileId: (profile.data?.id as string | undefined) ?? null,
     cardOwnerId: (card.data?.user_id as string | undefined) ?? null,
   });
+  if (lookup !== "found" || !profile.data || !card.data) return miss(lookup);
+  return {
+    lookup,
+    card: mapPublicCard(card.data as Parameters<typeof mapPublicCard>[0]),
+    owner: {
+      id: profile.data.id as string,
+      username: String(profile.data.username ?? normalized),
+      displayName: String(profile.data.display_name ?? profile.data.username ?? normalized),
+      avatarUrl: (profile.data.avatar_url as string | null | undefined) ?? null,
+    },
+  };
+}
+
+export async function readPublicCardLookup(
+  client: LookupClient | null,
+  username: string,
+  cardId: string,
+): Promise<RecordLookup> {
+  return (await readPublicCardPage(client, username, cardId)).lookup;
 }
