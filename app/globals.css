@@ -464,6 +464,48 @@ html {
   opacity: 0.7;
 }
 
+/*
+ * Set on pointerdown by lib/ui/tap-feedback.ts, so a press shows on the next
+ * frame. :active alone waits on touch while the browser checks for a scroll.
+ * Tiles and .tap buttons shrink a touch; other links dim. Post rows keep
+ * their own delayed tint, so a scroll starting on the feed never flashes.
+ */
+.tap[data-pressed],
+[data-tile] a[data-pressed] {
+  scale: 0.97;
+  transition-duration: 90ms;
+}
+
+a[data-pressed]:not(.tap, .tap-row, [data-tile] a, .tap-row a),
+[data-nav-href][data-pressed]:not(.tap-row, .tap-row *) {
+  opacity: 0.7;
+}
+
+/*
+ * A card tile tap shows the card skeleton at once (NavPendingSkeleton), with
+ * the same slide a pushed screen gets. The page then swaps in place.
+ */
+[data-nav-pending-skeleton] {
+  display: none;
+}
+
+html[data-nav-pending="card"] [data-nav-pending-skeleton] {
+  display: block;
+  animation: var(--page-slide) var(--page-ease) both page-from-right;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tap[data-pressed],
+  [data-tile] a[data-pressed] {
+    scale: none;
+    opacity: 0.75;
+  }
+
+  html[data-nav-pending="card"] [data-nav-pending-skeleton] {
+    animation: none;
+  }
+}
+
 /* Post rows tint instead of shrinking. The short delay keeps a scroll flick from flashing. */
 .tap-row {
   transition: background-color 120ms ease-out;

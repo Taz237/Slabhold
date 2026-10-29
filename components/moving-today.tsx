@@ -29,6 +29,7 @@ import {
   type MovingTodayPayload,
   type MovingTodaySale,
 } from "@/lib/moving-today/types";
+import { startPendingNav } from "@/lib/ui/tap-feedback";
 
 /** Rail widths: the top mover is a little larger. The third tile is cut at 390px, so the row reads as a swipe. */
 export const RAIL_TOP_WIDTH = "w-[132px]";
@@ -127,6 +128,7 @@ export function useTapThroughDrift(list: RefObject<HTMLElement | null>) {
       const touch = event.changedTouches?.[0];
       if (!tap || !wasCancelled || !touch) return;
       if (Math.hypot(touch.clientX - tap.x, touch.clientY - tap.y) >= TAP_SLOP_PX) return;
+      startPendingNav(window, tap.href);
       router.push(tap.href);
     };
     root.addEventListener("pointerdown", onPointerDown, { passive: true });
