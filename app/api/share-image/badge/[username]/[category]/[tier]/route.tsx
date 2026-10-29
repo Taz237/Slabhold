@@ -1,5 +1,5 @@
 import { PORTRAIT } from "@/components/og-share";
-import { PUBLIC_OG_CACHE_CONTROL, reachableShare, renderOg } from "@/components/og-frame";
+import { CARD_OG_CACHE_CONTROL, reachableShare, renderOg } from "@/components/og-frame";
 import { earnedOnLabel } from "@/lib/badges/share";
 import { loadBadgeShare } from "@/lib/social/link-preview-load";
 import { badgeShareImage } from "@/lib/social/share-image";
@@ -17,11 +17,11 @@ export async function GET(
   if (!view) return new Response("Not found", { status: 404 });
   const image = await renderOg(
     await reachableShare(badgeShareImage({ ...view, earnedLabel: earnedOnLabel(view.earnedAt) })),
-    PUBLIC_OG_CACHE_CONTROL,
+    CARD_OG_CACHE_CONTROL,
     PORTRAIT,
   );
   return new Response(image.body, {
     status: 200,
-    headers: saveImageHeaders(`slabhold-${view.tier}-${view.category}.png`, PUBLIC_OG_CACHE_CONTROL),
+    headers: saveImageHeaders(`slabhold-${view.tier}-${view.category}.png`, CARD_OG_CACHE_CONTROL),
   });
 }

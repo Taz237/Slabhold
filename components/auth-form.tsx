@@ -955,7 +955,7 @@ function UsernameField({
   else if (check.status === "checking") status = <span className="text-zinc-500">Checking…</span>;
   else if (check.status === "available")
     status = (
-      <span className="inline-flex items-center gap-1 font-medium text-[#1f9e8c] dark:text-[#34C1AE]">
+      <span className="inline-flex items-center gap-1 font-medium text-[#7C3AED] dark:text-[#A78BFA]">
         @{check.value} is available
         <Check aria-hidden className="h-4 w-4" strokeWidth={3} />
       </span>

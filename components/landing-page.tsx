@@ -4,7 +4,9 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
+import { FounderNote } from "@/components/landing/founder-note";
 import { HeroSlabs } from "@/components/landing/hero-slabs";
+import { useFounderShowcase } from "@/components/landing/use-founder";
 import { Logo } from "@/components/logo";
 import { trackEvent } from "@/lib/analytics";
 import { landingLoginHref, landingSignupHref, safeNext } from "@/lib/auth/safe-next";
@@ -16,6 +18,8 @@ const FeaturePanels = dynamic(
 );
 
 export function LandingPage() {
+  const founder = useFounderShowcase();
+  const showcase = founder.status === "ready" ? founder.showcase : null;
   return (
     <div className="min-h-dvh overflow-x-clip bg-[#09090b] text-zinc-100">
       <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(124,58,237,0.32),_transparent_58%)]" />
@@ -32,7 +36,7 @@ export function LandingPage() {
 
         <section className="mt-6 lg:mt-14 lg:grid lg:grid-cols-[1.05fr_1fr] lg:items-center lg:gap-12">
           <div className="lg:order-2">
-            <HeroSlabs />
+            <HeroSlabs cards={showcase ? showcase.cards : null} owner={showcase?.profile?.username ?? null} />
           </div>
           <div className="mt-6 text-center lg:mt-0 lg:text-left">
             <h1 className="text-[2.5rem] leading-[1.05] font-extrabold tracking-[-0.035em] text-white sm:text-5xl lg:text-6xl">
@@ -55,7 +59,11 @@ export function LandingPage() {
 
         <FeaturePanels />
 
-        <section className="mt-16 rounded-[2rem] border border-white/10 bg-gradient-to-b from-[#2e1065]/70 to-[#09090b] px-6 py-10 text-center">
+        <div className="mt-12 lg:mx-auto lg:w-full lg:max-w-md">
+          <FounderNote showcase={showcase} />
+        </div>
+
+        <section className="mt-10 rounded-[2rem] border border-white/10 bg-gradient-to-b from-[#2e1065]/70 to-[#09090b] px-6 py-10 text-center">
           <Logo className="mx-auto h-12 w-12" />
           <h2 className="mt-4 text-[2rem] leading-tight font-extrabold tracking-tight text-white">Join free</h2>
           <p className="mx-auto mt-2 max-w-xs text-[15px] leading-6 text-zinc-400">

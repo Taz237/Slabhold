@@ -496,16 +496,19 @@ describe("share image renderer", () => {
     assert.match(PUBLIC_OG_CACHE_CONTROL, /stale-while-revalidate=86400/);
     assert.match(CARD_OG_CACHE_CONTROL, /s-maxage=60/);
     assert.doesNotMatch(CARD_OG_CACHE_CONTROL, /s-maxage=3600/);
+    // Cards, posts, profiles and badges: 60s, so an edit shows up quickly.
     for (const path of [
       "app/cards/[id]/opengraph-image.tsx",
       "app/u/[username]/cards/[id]/opengraph-image.tsx",
+      "app/posts/[id]/opengraph-image.tsx",
+      "app/u/[username]/opengraph-image.tsx",
+      "app/u/[username]/badges/[category]/[tier]/opengraph-image.tsx",
+      "app/api/share-image/badge/[username]/[category]/[tier]/route.tsx",
     ]) {
-      assert.match(readFileSync(join(process.cwd(), path), "utf8"), /CARD_OG_CACHE_CONTROL/);
+      const source = readFileSync(join(process.cwd(), path), "utf8");
+      assert.match(source, /CARD_OG_CACHE_CONTROL/, path);
+      assert.doesNotMatch(source, /PUBLIC_OG_CACHE_CONTROL/, path);
     }
-    assert.doesNotMatch(
-      readFileSync(join(process.cwd(), "app/posts/[id]/opengraph-image.tsx"), "utf8"),
-      /CARD_OG_CACHE_CONTROL/,
-    );
     const bytes = Buffer.from(await response.arrayBuffer());
     assert.equal(bytes[0], 0x89);
     assert.ok(bytes.length > 5000);
@@ -761,7 +764,7 @@ describe("post previews", () => {
     assert.equal(image.slabs[0]?.src, STORAGE);
     assert.equal(image.slabs[0]?.company, "PSA");
     assert.equal(image.slabs[0]?.grade, "10");
-    assert.equal(image.chip, "PUKA NACUA · 2023 PRIZM · SILVER · PSA 10");
+    assert.equal(image.chip, "PUKA NACUA · 2023 PRIZM · SILVER", "no grade: the slab label shows it, and it was cut off");
   });
 
   it("falls back to the photo on the post's card snapshot when the card row has none", () => {
@@ -820,7 +823,14 @@ describe("post previews", () => {
     });
     assert.equal(postLayout(image), "photo");
     assert.deepEqual(image.postPhotos, [STORAGE_3]);
-    assert.equal(image.chip, "PUKA NACUA · 2023 PRIZM · SILVER · PSA 10");
+    assert.equal(image.chip, "PUKA NACUA · 2023 PRIZM · SILVER", "no grade: the slab label shows it, and it was cut off");
+  });
+
+  it("leaves the grade off a graded card chip", () => {
+    assert.equal(
+      shareChip({ player: "Puka Nacua", year: 2023, setBrand: "Prizm", parallel: "Silver", grade: "PSA 10", grader: "PSA", conditionType: "graded" }),
+      "PUKA NACUA · 2023 PRIZM · SILVER",
+    );
   });
 
   it("leaves the grade off a raw card chip and drops Base", () => {

@@ -31,6 +31,7 @@ import {
 } from "./share-image";
 import { badgeShareView, earnedOnLabel, type BadgeShareView } from "@/lib/badges/share";
 import { profilePins } from "@/lib/badges/pins";
+import { readVisiblePins } from "@/lib/badges/visible-pins";
 import { isBadgeCategory, isBadgeTier } from "@/lib/badges/config";
 import { createSupabaseServer, getAuthUserId } from "@/lib/supabase/server";
 
@@ -537,13 +538,13 @@ export const loadProfileShareImage = cache(async (username: string): Promise<Sha
 
   const { data, error } = await supabase
     .from("profiles")
-    .select("id, username, display_name, avatar_url, show_badges, pinned_badges")
+    .select("id, username, display_name, avatar_url, show_badges")
     .eq("username", normalized)
     .maybeSingle();
   if (error || !data) return generic;
   const userId = data.id as string;
 
-  const [count, cardRows, badgeRows] = await Promise.all([
+  const [count, cardRows, badgeRows, pinned] = await Promise.all([
     publicCardCount(userId),
     supabase
       .from("public_cards")
@@ -555,14 +556,12 @@ export const loadProfileShareImage = cache(async (username: string): Promise<Sha
     data.show_badges === false
       ? Promise.resolve({ data: [] as unknown[] })
       : supabase.from("user_badges").select("category, tier").eq("user_id", userId),
+    data.show_badges === false ? Promise.resolve([] as string[]) : readVisiblePins(supabase, userId),
   ]);
 
   const earned: ShareBadge[] = ((badgeRows.data ?? []) as { category?: unknown; tier?: unknown }[]).flatMap((row) =>
     isBadgeCategory(row.category) && isBadgeTier(row.tier) ? [{ category: row.category, tier: row.tier }] : [],
   );
-  const pinned = Array.isArray(data.pinned_badges)
-    ? (data.pinned_badges as unknown[]).filter((pin): pin is string => typeof pin === "string")
-    : [];
   const badges = data.show_badges === false ? [] : profilePins(pinned, earned);
 
   const cards = ((cardRows.data ?? []) as Parameters<typeof mapPublicCard>[0][]).map((row) => {
