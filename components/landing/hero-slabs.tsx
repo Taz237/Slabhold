@@ -35,6 +35,9 @@ export const HERO_PLACES: { className: string; style: CSSProperties }[] = [
 /** Best card in the center, then left, then right. Gaps keep the sample slab. */
 const FILL_ORDER = [1, 0, 2];
 
+/** The center slab is the widest, and the Home LCP for a visitor. */
+const LCP_SLOT = FILL_ORDER[0];
+
 type Slot = { key: string; art: ArtCard; photo: string | null };
 
 export function heroSlots(cards: readonly FounderCard[]): Slot[] {
@@ -71,7 +74,7 @@ export function HeroSlabs({
             <div key={slot.key} className={`absolute ${HERO_PLACES[index].className}`}>
               <div className="landing-float drop-shadow-[0_18px_40px_rgba(124,58,237,0.45)]" style={HERO_PLACES[index].style}>
                 {slot.photo ? (
-                  <PhotoSlab art={slot.art} photo={slot.photo} index={index} />
+                  <PhotoSlab art={slot.art} photo={slot.photo} index={index} lcp={index === LCP_SLOT} />
                 ) : (
                   <CardSlabArt card={slot.art} index={index} source={NO_PHOTO} status="loading" onStatus={noop} sizes={SLAB_SIZES} />
                 )}
@@ -90,7 +93,11 @@ export function HeroSlabs({
   );
 }
 
-function PhotoSlab({ art, photo, index }: { art: ArtCard; photo: string; index: number }) {
+/**
+ * Only the center photo is preloaded from the head, at high priority. The
+ * side slabs load eagerly at normal priority so they don't compete with it.
+ */
+function PhotoSlab({ art, photo, index, lcp }: { art: ArtCard; photo: string; index: number; lcp: boolean }) {
   const [status, setStatus] = useState<PhotoStatus>("loading");
   const onStatus = useCallback(
     (event: "load" | "error") => setStatus((current) => photoStatusAfter(current, event)),
@@ -104,7 +111,8 @@ function PhotoSlab({ art, photo, index }: { art: ArtCard; photo: string; index: 
       status={status}
       onStatus={onStatus}
       sizes={SLAB_SIZES}
-      preload
+      preload={lcp}
+      fetchPriority={lcp ? "high" : "auto"}
     />
   );
 }

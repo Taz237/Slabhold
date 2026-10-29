@@ -255,6 +255,26 @@ describe("landing founder touch", () => {
     assert.doesNotMatch(html, /Your grail/);
   });
 
+  it("asks for the center slab's photo first and loads none of the hero lazily", async () => {
+    const { HeroSlabs } = await import("@/components/landing/hero-slabs");
+    const html = renderToStaticMarkup(
+      createElement(
+        ImageConfigContext.Provider,
+        { value: { ...imageConfigDefault, ...nextConfig.images } },
+        createElement(HeroSlabs, { cards: FOUNDER.cards, owner: "donnietaz" }),
+      ),
+    );
+    const imgs = [...html.matchAll(/<img[^>]+>/g)].map((match) => match[0]);
+    assert.equal(imgs.length, 3);
+    // Left, center, right. The center slab is the widest: the Home LCP.
+    assert.deepEqual(
+      imgs.map((img) => /fetchPriority="high"/i.test(img)),
+      [false, true, false],
+    );
+    assert.ok(imgs.every((img) => !/loading="lazy"/.test(img)), "no hero photo lazy-loads");
+    assert.ok(imgs.every((img) => /sizes="\(min-width: 1024px\) 140px, 38vw"/.test(img)));
+  });
+
   it("falls back to the sample slabs, marked as samples, with no founder cards", async () => {
     const { HeroSlabs, heroSlots } = await import("@/components/landing/hero-slabs");
     const html = renderToStaticMarkup(createElement(HeroSlabs, { cards: [], owner: "donnietaz" }));
