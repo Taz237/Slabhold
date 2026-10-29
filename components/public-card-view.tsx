@@ -30,7 +30,8 @@ import {
   hiddenPublicComps,
   type PublicCardComps,
 } from "@/lib/comps/public-types";
-import type { PublicCard } from "@/lib/social/types";
+import type { PublicCardOwner } from "@/lib/social/missing-record";
+import type { OwnedCard, PublicCard } from "@/lib/social/types";
 import {
   cardValueHasAmount,
   isLowConfidenceValue,
@@ -49,19 +50,44 @@ export function PublicCardView({
   username,
   id,
   publicComps = hiddenPublicComps(),
+  initialCard = null,
+  initialOwner = null,
 }: {
   username: string;
   id: string;
   publicComps?: PublicCardComps;
+  /** Server-read public_cards row, so the card paints before the snapshot. Public data only. */
+  initialCard?: OwnedCard | null;
+  initialOwner?: PublicCardOwner | null;
 }) {
   const social = useSocial();
   const { cards, ready: cardsReady } = useCollection();
   const profile = social.profileByUsername(username);
   const isOwn = Boolean(profile && social.user && profile.id === social.user.id);
-
-  if (!social.ready || (isOwn && !cardsReady)) return <PublicCardSkeleton />;
-
   const backHref = `${userHref(username)}?tab=collection`;
+
+  if (!social.ready || (isOwn && !cardsReady)) {
+    // Until the snapshot says who is viewing, paint the public card with no
+    // viewer: no own-card, message, block or mute state, room held for them.
+    const early =
+      initialCard && initialOwner && initialCard.id === id && initialCard.ownerId === initialOwner.id
+        ? initialCard
+        : null;
+    if (!early || !initialOwner) return <PublicCardSkeleton />;
+    return (
+      <PublicCardAnalytics
+        card={early}
+        displayName={initialOwner.displayName}
+        backHref={backHref}
+        userId={null}
+        canFlag={false}
+        publicComps={publicComps}
+        messageHref={null}
+        reserveMessage={early.openToOffers === true}
+        manageHref={null}
+      />
+    );
+  }
 
   if (!profile) {
     return (
@@ -169,6 +195,7 @@ function PublicCardAnalytics({
   canFlag,
   publicComps,
   messageHref,
+  reserveMessage = false,
   manageHref,
 }: {
   card: PublicCard;
@@ -178,6 +205,8 @@ function PublicCardAnalytics({
   canFlag: boolean;
   publicComps: PublicCardComps;
   messageHref: string | null;
+  /** Before the snapshot: hold the Message owner button's room so it doesn't push the page. */
+  reserveMessage?: boolean;
   /** Your own card: where to switch public or private. */
   manageHref: string | null;
 }) {
@@ -279,6 +308,7 @@ function PublicCardAnalytics({
 
       <CardThumb
         card={card}
+        priority
         className="mx-auto h-96 w-64 rounded-2xl object-cover shadow-xl shadow-black/20"
       />
 
@@ -312,6 +342,10 @@ function PublicCardAnalytics({
           <Link href={messageHref} className={`${outlineButton} mt-4`}>
             Message owner
           </Link>
+        ) : reserveMessage ? (
+          <span aria-hidden="true" className={`${outlineButton} invisible mt-4`}>
+            Message owner
+          </span>
         ) : null}
         {manageHref ? (
           <Link href={manageHref} className={`${outlineButton} mt-4 min-h-11`}>
