@@ -71,6 +71,7 @@ export function CardTile({
   sizes,
   as: Tag = "li",
   prefetch,
+  density = "regular",
   className = "",
   style,
   children,
@@ -95,6 +96,8 @@ export function CardTile({
   as?: "li" | "div";
   /** False in long feeds: the card page warms on tap instead of as rows scroll by. */
   prefetch?: false;
+  /** Compact: tighter text under the art, for rails and 3-column grids. */
+  density?: "regular" | "compact";
   className?: string;
   style?: CSSProperties;
   /** Below the tile link, e.g. an eBay sold link. */
@@ -121,6 +124,7 @@ export function CardTile({
 
   const art = tileArtCard(card);
   const placeholder = showPhotoPlaceholder(source, status);
+  const compact = density === "compact";
 
   return (
     <Tag data-tile={card.id} className={`relative ${className}`.trim()} style={style}>
@@ -143,10 +147,16 @@ export function CardTile({
             {sold ? <SoldRibbon /> : null}
           </div>
         </div>
-        <div className="mt-2 px-0.5">
+        <div className={compact ? "mt-1.5 px-0.5" : "mt-2 px-0.5"} data-density={density}>
           {badge}
           <div className="flex min-w-0 items-center gap-1.5">
-            <p className="min-w-0 truncate text-sm font-semibold tracking-tight">
+            <p
+              className={
+                compact
+                  ? "min-w-0 truncate text-[13px] leading-[18px] font-semibold tracking-tight"
+                  : "min-w-0 truncate text-sm font-semibold tracking-tight"
+              }
+            >
               {card.playerName}
             </p>
             {card.isRookie ? (
@@ -163,8 +173,12 @@ export function CardTile({
               />
             ) : null}
           </div>
-          <p className="truncate text-xs text-zinc-500">{yearSetLine(art)}</p>
-          <div className="mt-1 flex min-h-5 min-w-0 items-center justify-between gap-1.5">
+          <p className={compact ? "truncate text-[11px] leading-4 text-zinc-500" : "truncate text-xs text-zinc-500"}>
+            {yearSetLine(art)}
+          </p>
+          <div
+            className={`${compact ? "mt-0.5" : "mt-1"} flex min-h-5 min-w-0 items-center justify-between gap-1.5`}
+          >
             {pricePending ? (
               <span
                 className="h-4 w-16 animate-pulse rounded bg-zinc-200/80 dark:bg-white/10"
@@ -172,7 +186,7 @@ export function CardTile({
               />
             ) : (
               <p
-                className="min-w-0 truncate text-sm font-bold tracking-tight tabular-nums"
+                className={`min-w-0 truncate ${compact ? "text-[13px]" : "text-sm"} font-bold tracking-tight tabular-nums`}
                 title={priceLabel ?? undefined}
               >
                 {priceLabel}
@@ -198,11 +212,12 @@ export function CardTile({
   );
 }
 
-function GainChip({ gain }: { gain: TileGain }) {
+/** Green up, red down. Movers pass a percent-only gain through the same chip. */
+export function GainChip({ gain }: { gain: TileGain }) {
   return (
     <span
       data-gain={gain.tone}
-      title={`${gain.amountText} ${gain.pctText}`}
+      title={[gain.amountText, gain.pctText].filter(Boolean).join(" ")}
       className={`inline-flex shrink-0 items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-semibold tabular-nums ${
         gain.tone === "up"
           ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400"
@@ -214,7 +229,7 @@ function GainChip({ gain }: { gain: TileGain }) {
       ) : (
         <TrendingDown className="h-3 w-3" aria-hidden />
       )}
-      {gain.pctText}
+      <span data-gain-text="">{gain.pctText}</span>
     </span>
   );
 }

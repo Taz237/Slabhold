@@ -101,9 +101,7 @@ describe("card value history rows", () => {
     assert.equal(shouldShowYourCardsSinceYesterday({ tableExists: true, moverCount: 0 }), false);
     assert.equal(shouldShowYourCardsSinceYesterday({ tableExists: true, moverCount: 2 }), true);
     const feed = read("components/feed-view.tsx");
-    const today = read("components/collection-today.tsx");
     assert.doesNotMatch(feed, /card_value_history|card-value-history/);
-    assert.doesNotMatch(today, /card_value_history/);
   });
 });
 

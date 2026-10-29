@@ -123,8 +123,9 @@ export function yearSetLine(
 
 export type TileGain = {
   tone: "up" | "down";
-  amount: number;
-  amountText: string;
+  /** Left out for a percent-only move, like a mover's change versus recent comps. */
+  amount?: number;
+  amountText?: string;
   pctText: string;
 };
 

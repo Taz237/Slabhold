@@ -22,6 +22,12 @@ function payload(): MovingTodayPayload {
         href: "/u/ada/cards/ba95893e-89fe-4735-be3f-1509b6b6f3b9",
         player: "Victor Wembanyama ada@example.com",
         detail: "2023-24 Prizm",
+        yearLabel: "2023-24",
+        setBrand: "Prizm",
+        grade: "PSA 10",
+        grader: "PSA",
+        conditionType: "graded",
+        isRookie: true,
         imageUrl: null,
         accent: "#7c5cff",
         priceCents: 18500,
@@ -36,6 +42,12 @@ function payload(): MovingTodayPayload {
         href: "/u/ada/cards/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
         player: "Luka Doncic",
         detail: "2018 Prizm",
+        yearLabel: "2018",
+        setBrand: "Prizm",
+        grade: "",
+        grader: "",
+        conditionType: "raw",
+        isRookie: false,
         imageUrl: null,
         accent: "#7c5cff",
         priceCents: 4000,
@@ -63,6 +75,7 @@ describe("Moving today share image", () => {
     assert.equal(JSON.stringify(model).includes("ba95893e"), false);
 
     const response = renderMovingTodayOg(model);
+    assert.equal(response.status, 200);
     assert.equal(response.headers.get("content-type"), "image/png");
     assert.equal(response.headers.get("cache-control"), movingTodayCacheControl());
     const bytes = Buffer.from(await response.arrayBuffer());
@@ -73,6 +86,7 @@ describe("Moving today share image", () => {
 
   it("still renders a clean image when the day has no sales", async () => {
     const response = renderMovingTodayOg(movingTodayShareModel(emptyMovingToday("2026-10-22")));
+    assert.equal(response.status, 200);
     const bytes = Buffer.from(await response.arrayBuffer());
     assert.equal(bytes[0], 0x89);
     assert.ok(bytes.length > 500);

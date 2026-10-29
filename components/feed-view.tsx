@@ -28,7 +28,6 @@ import {
   useNewPostsAbove,
   type HomeLane,
 } from "@/components/timeline-ui";
-import { CollectionToday } from "@/components/collection-today";
 import { MovingToday } from "@/components/moving-today";
 import { shouldShowFirstCardWelcome } from "@/lib/collection/welcome";
 import { Tweet } from "@/components/tweet";
@@ -333,7 +332,7 @@ export function FeedView({ movingToday }: { movingToday?: ReactNode } = {}) {
         />
       ) : null}
       {showAddToHome && user ? <AddToHomeTip userId={user.id} /> : null}
-      {showWelcome ? <HomeFirstCardPrompt /> : user ? <CollectionToday /> : null}
+      {showWelcome ? <HomeFirstCardPrompt /> : null}
       {postCardValuesMessage ? (
         <p className="border-b border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
           {postCardValuesMessage}

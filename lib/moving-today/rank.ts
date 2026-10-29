@@ -1,7 +1,7 @@
 import { dollarsToCents } from "@/lib/comps/stats";
 import { userHref } from "@/lib/social/user-href";
 import { isUuid } from "@/lib/value/card-value-access";
-import { emptyMovingToday, type MovingTodayPayload } from "./types";
+import { emptyMovingToday, MOVING_TODAY_TITLE, type MovingTodayPayload } from "./types";
 
 const NEW_YORK = "America/New_York";
 
@@ -22,6 +22,15 @@ export const MOVING_TODAY_WEEK_DAYS = 7;
 
 /** Fewer rows than this, and the week module stays hidden. */
 export const MOVING_TODAY_MIN_WEEK_ROWS = 3;
+
+/** "Moving today" needs this many cards with a real percent from today's comps. */
+export const MOVING_TODAY_MIN_DAY_MOVERS = 6;
+
+/** Fewer movers than this in the week, and the quiet row shows instead of a rail. */
+export const MOVING_TODAY_MIN_WEEK_MOVERS = MOVING_TODAY_MIN_WEEK_ROWS;
+
+/** Hard cap on movers in one payload. */
+export const MOVERS_CAP = 60;
 
 /** Sales under $5 drop out when enough other rows remain. */
 export const MOVING_TODAY_MIN_LEAD_CENTS = 500;
@@ -97,40 +106,43 @@ export function movingDayIsRecent(
 }
 
 /**
- * Heading from the sale date and the current New York date.
- * Cached title text is ignored. A day list is kept only for today or yesterday.
- * A week list drops sales outside the recomputed 7-day window, then hides
- * itself when fewer than the week minimum remain.
+ * Heading from the sale dates and the current New York date. Cached title
+ * text is ignored. A day list stays "Moving today" only while it is today's
+ * and still has enough movers. Otherwise it falls back to the week, keeping
+ * only sales inside the recomputed 7-day window, and hides below the week
+ * minimum. Rows without a real percent are dropped, so an older cached
+ * shape never shows one.
  */
 export function freshenMovingToday(
   payload: MovingTodayPayload,
   now: Date = new Date(),
 ): MovingTodayPayload {
   const today = calendarDateInTimeZone(now);
-  if (payload.window === "week") {
-    const start = addCalendarDays(today, -(MOVING_TODAY_WEEK_DAYS - 1));
-    const sales = payload.sales.filter((sale) => sale.soldOn >= start && sale.soldOn <= today);
-    if (sales.length < MOVING_TODAY_MIN_WEEK_ROWS) return emptyMovingToday(today);
-    return {
-      ...payload,
-      date: today,
-      title: MOVING_THIS_WEEK_TITLE,
-      dateLabel: weekDateLabel(today),
-      sales,
-      window: "week",
-    };
+  const movers = rankMovers(payload.sales);
+  const updatedAt = payload.updatedAt ? { updatedAt: payload.updatedAt } : {};
+  if (payload.window === "day" && payload.date === today) {
+    const day = movers.filter((sale) => sale.soldOn === today);
+    if (day.length >= MOVING_TODAY_MIN_DAY_MOVERS) {
+      return {
+        ...payload,
+        date: today,
+        title: MOVING_TODAY_TITLE,
+        dateLabel: formatSaleDate(today),
+        sales: day,
+        window: "day",
+      };
+    }
   }
-  const saleDate = payload.date || payload.sales.find((sale) => sale.soldOn)?.soldOn || "";
-  const yesterday = addCalendarDays(today, -1);
-  if ((saleDate !== today && saleDate !== yesterday) || payload.sales.length === 0) {
-    return emptyMovingToday(today);
-  }
+  const start = addCalendarDays(today, -(MOVING_TODAY_WEEK_DAYS - 1));
+  const sales = movers.filter((sale) => sale.soldOn >= start && sale.soldOn <= today);
+  if (sales.length < MOVING_TODAY_MIN_WEEK_MOVERS) return { ...emptyMovingToday(today), ...updatedAt };
   return {
     ...payload,
-    date: saleDate,
-    title: movingDayHeading(saleDate, today),
-    dateLabel: formatSaleDate(saleDate),
-    window: "day",
+    date: today,
+    title: MOVING_THIS_WEEK_TITLE,
+    dateLabel: weekDateLabel(today),
+    sales,
+    window: "week",
   };
 }
 
@@ -289,6 +301,32 @@ export function bestRowPerCard<T extends PricedRow & { cardId: string }>(rows: r
     kept.push(row);
   }
   return kept;
+}
+
+/** A card that moved: a real comp-based percent, not null and not flat. */
+export function isMover(row: { percent: number | null }): boolean {
+  return row.percent != null && Number.isFinite(row.percent) && row.percent !== 0;
+}
+
+function byMove(a: PricedRow, b: PricedRow): number {
+  const aMove = Math.abs(a.percent ?? 0);
+  const bMove = Math.abs(b.percent ?? 0);
+  if (aMove !== bMove) return bMove - aMove;
+  return pricedSort(a, b);
+}
+
+/** Every mover, one row per card, biggest move first, up to MOVERS_CAP. */
+export function rankMovers<T extends PricedRow & { cardId: string }>(rows: readonly T[]): T[] {
+  return bestRowPerCard(rows.filter(isMover)).sort(byMove).slice(0, MOVERS_CAP);
+}
+
+/** Up is biggest gain first. Down is the biggest drop first. */
+export function splitMovers<T extends { percent: number | null }>(
+  rows: readonly T[],
+): { up: T[]; down: T[] } {
+  const up = rows.filter((row) => (row.percent ?? 0) > 0).sort((a, b) => (b.percent ?? 0) - (a.percent ?? 0));
+  const down = rows.filter((row) => (row.percent ?? 0) < 0).sort((a, b) => (a.percent ?? 0) - (b.percent ?? 0));
+  return { up, down };
 }
 
 /**
