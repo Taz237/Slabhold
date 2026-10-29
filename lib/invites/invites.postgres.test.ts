@@ -14,7 +14,8 @@ create role authenticated nologin;
 create table public.profiles (
   id uuid primary key,
   username text not null unique,
-  is_test boolean not null default false
+  is_test boolean not null default false,
+  created_at timestamptz not null default now()
 );
 alter table public.profiles enable row level security;
 create policy "Profiles are public" on public.profiles for select using (true);
@@ -47,6 +48,12 @@ const CAL = "33333333-3333-3333-3333-333333333333";
 const QA = "44444444-4444-4444-4444-444444444444";
 const DEE = "55555555-5555-5555-5555-555555555555";
 const EVE = "66666666-6666-6666-6666-666666666666";
+const OLD = "77777777-7777-7777-7777-777777777777";
+const TST = "88888888-8888-8888-8888-888888888888";
+const GUS = "99999999-9999-9999-9999-999999999999";
+const PAST = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
+// Fresh accounts that all accept Gus's invite, for the 25 a day cap.
+const fresh = (n: number) => `00000000-0000-0000-0000-${String(n).padStart(12, "0")}`;
 
 const seedSql = `
 insert into public.profiles (id, username, is_test) values
@@ -56,7 +63,18 @@ insert into public.profiles (id, username, is_test) values
   ('${QA}', 'qa_guard_1', false),
   ('${DEE}', 'dee', false),
   ('${EVE}', 'eve', true);
+insert into public.profiles (id, username, is_test, created_at) values
+  ('${OLD}', 'old_timer', false, now() - interval '2 days'),
+  ('${TST}', 'tester', true, now()),
+  ('${GUS}', 'gus', false, now() - interval '30 days'),
+  ('${PAST}', 'past', false, now() - interval '3 days');
+insert into public.profiles (id, username)
+  select ('00000000-0000-0000-0000-' || lpad(n::text, 12, '0'))::uuid, 'fresh_' || n
+  from generate_series(1, 26) as n;
 insert into public.blocks (blocker_id, blocked_id) values ('${ADA}', '${DEE}');
+-- An invite from two days ago doesn't count toward Gus's daily cap.
+insert into public.invites (inviter_id, invitee_id, created_at)
+  values ('${GUS}', '${PAST}', now() - interval '2 days');
 `;
 
 const behaviorSql = `
@@ -170,6 +188,59 @@ begin
 end
 $$;
 
+-- An account older than 24 hours can't accept, so it can't farm follow-backs.
+select set_config('app.user_id', '${OLD}', false);
+select public.accept_invite('ada');
+do $$
+begin
+  if exists (select 1 from public.invites where invitee_id = '${OLD}') then
+    raise exception 'an old account was credited';
+  end if;
+  if exists (select 1 from public.follows where follower_id = '${OLD}' or following_id = '${OLD}') then
+    raise exception 'an old account made follows';
+  end if;
+end
+$$;
+
+-- A brand-new test account can't accept either.
+select set_config('app.user_id', '${TST}', false);
+select public.accept_invite('ada');
+do $$
+begin
+  if exists (select 1 from public.follows where follower_id = '${TST}' or following_id = '${TST}') then
+    raise exception 'a test account made follows';
+  end if;
+end
+$$;
+
+-- 25 a day: the first 25 new accounts follow Gus and he follows back; the
+-- 26th still follows Gus but gets no follow-back.
+do $$
+begin
+  for n in 1..26 loop
+    perform set_config('app.user_id', '00000000-0000-0000-0000-' || lpad(n::text, 12, '0'), false);
+    perform public.accept_invite('gus');
+  end loop;
+end
+$$;
+select set_config('app.user_id', '${GUS}', false);
+do $$
+begin
+  if (select count(*) from public.follows where following_id = '${GUS}') <> 26 then
+    raise exception 'every new account should follow the inviter';
+  end if;
+  if (select count(*) from public.follows where follower_id = '${GUS}') <> 25 then
+    raise exception 'the inviter should follow back exactly 25 in a day';
+  end if;
+  if exists (select 1 from public.follows where follower_id = '${GUS}' and following_id = '${fresh(26)}') then
+    raise exception 'the 26th invitee got a follow-back';
+  end if;
+  if (select count(*) from public.invites where inviter_id = '${GUS}') <> 27 then
+    raise exception 'capped invites should still be credited';
+  end if;
+end
+$$;
+
 -- The inviter sees their row.
 select set_config('app.user_id', '${ADA}', false);
 do $$
@@ -188,7 +259,7 @@ describe("invites migration", () => {
   const stops: Array<() => void> = [];
   after(() => stops.forEach((stop) => stop()));
 
-  it("follows both ways once, skips blocked, QA and repeat invites, and keeps rows private", { timeout: 120_000 }, async () => {
+  it("follows both ways once for new accounts, caps follow-backs at 25 a day, skips old, blocked, QA and repeat invites, and keeps rows private", { timeout: 120_000 }, async () => {
     const db = await startPostgres("pginvites-");
     stops.push(db.stop);
     db.run(setupSql, "setup");

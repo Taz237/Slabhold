@@ -12,14 +12,20 @@
 --   Called once by a newly signed-up user who arrived through /i/<username>.
 --   auth.uid() is the invitee; the inviter is looked up by username. It
 --   writes the invites row and both follows rows (invitee -> inviter and
---   inviter -> invitee), on conflict do nothing. It does nothing, silently,
+--   inviter -> invitee, subject to the daily cap below), on conflict do
+--   nothing. It does nothing, silently,
 --   when:
 --     - there is no signed-in user, or the username matches no profile;
 --     - inviter = invitee;
 --     - either has blocked the other (public.blocks, both directions);
 --     - the inviter is a test or QA profile (is_test, or a qa_/qa-/test_/
 --       vreset_ handle, the same rule as private.follow_official_updates);
---     - the invitee already accepted an invite (the unique invitee_id).
+--     - the invitee already accepted an invite (the unique invitee_id);
+--     - the invitee's profile is more than 24 hours old, or is a test
+--       profile (so an existing account can't farm follow-backs).
+--   If the inviter already has 25 or more invites in the last 24 hours, the
+--   invites row and the invitee -> inviter follow are still written, but
+--   there is no follow-back.
 --   Calling it again is a no-op, so it is idempotent.
 --
 -- SECURITY REVIEW: security definer, because the inviter -> invitee follow is
@@ -70,6 +76,7 @@ declare
   inviter_handle pg_catalog.text;
   inviter_test pg_catalog.bool;
   credited pg_catalog.uuid;
+  capped pg_catalog.bool;
 begin
   if invitee is null or inviter_username is null then
     return;
@@ -99,9 +106,27 @@ begin
     return;
   end if;
 
-  if not exists (select 1 from public.profiles as p where p.id = invitee) then
+  -- Only a brand-new, non-test account can accept. Otherwise any existing
+  -- account could make anyone follow it back.
+  if not exists (
+    select 1 from public.profiles p
+    where p.id = invitee
+      and p.created_at > pg_catalog.now() - interval '24 hours'
+      and coalesce(p.is_test, false) = false
+  ) then
     return;
   end if;
+
+  -- One accept at a time per inviter, so the daily cap below is exact.
+  perform pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended('accept_invite:' || inviter::pg_catalog.text, 0)
+  );
+
+  select pg_catalog.count(*) >= 25
+    into capped
+  from public.invites as i
+  where i.inviter_id = inviter
+    and i.created_at > pg_catalog.now() - interval '24 hours';
 
   insert into public.invites (inviter_id, invitee_id)
   values (inviter, invitee)
@@ -114,7 +139,16 @@ begin
   end if;
 
   insert into public.follows (follower_id, following_id)
-  values (invitee, inviter), (inviter, invitee)
+  values (invitee, inviter)
+  on conflict (follower_id, following_id) do nothing;
+
+  -- Over 25 invites in 24 hours: no follow-back.
+  if capped then
+    return;
+  end if;
+
+  insert into public.follows (follower_id, following_id)
+  values (inviter, invitee)
   on conflict (follower_id, following_id) do nothing;
 end;
 $$;
