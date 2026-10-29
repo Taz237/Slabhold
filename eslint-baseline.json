@@ -7,7 +7,6 @@
   "error components/collection-today.tsx:react-hooks/set-state-in-effect": 2,
   "error components/collection-value-history.tsx:react-hooks/set-state-in-effect": 1,
   "error components/compose-view.tsx:react-hooks/set-state-in-effect": 3,
-  "error components/feed-view.tsx:react-hooks/refs": 7,
   "error components/follow-button.tsx:react-hooks/set-state-in-effect": 1,
   "error components/portfolio-context.tsx:react-hooks/set-state-in-effect": 1,
   "error components/post-view.tsx:react-hooks/set-state-in-effect": 1,

@@ -70,6 +70,7 @@ export function CardTile({
   badge = null,
   sizes,
   as: Tag = "li",
+  prefetch,
   className = "",
   style,
   children,
@@ -92,6 +93,8 @@ export function CardTile({
   badge?: ReactNode;
   sizes?: string;
   as?: "li" | "div";
+  /** False in long feeds: the card page warms on tap instead of as rows scroll by. */
+  prefetch?: false;
   className?: string;
   style?: CSSProperties;
   /** Below the tile link, e.g. an eBay sold link. */
@@ -123,6 +126,7 @@ export function CardTile({
     <Tag data-tile={card.id} className={`relative ${className}`.trim()} style={style}>
       <Link
         href={href}
+        prefetch={prefetch}
         aria-label={ariaLabel}
         className={`group block min-h-11 rounded-xl p-1 transition-transform duration-150 ease-out motion-safe:active:scale-[0.97] ${tileFocusRing}`}
       >

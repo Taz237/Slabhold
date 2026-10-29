@@ -28,6 +28,7 @@ import {
   inAppBrowserName,
   installPlatform,
   openInBrowserName,
+  settleInstallChoice,
   type InstallChoice,
   type InstallPlatform,
 } from "@/lib/pwa/install-step";
@@ -487,8 +488,14 @@ export function InstallGuide({
   const steps = stepsFor(platform, browser);
   const nativePrompt = platform === "android" && promptReady;
 
+  // Every answer goes through here so "Maybe later" drops the email hint.
+  function done(choice: InstallChoice) {
+    settleInstallChoice(choice);
+    onDone(choice);
+  }
+
   useEffect(() => {
-    doneRef.current = onDone;
+    doneRef.current = done;
   });
 
   // The installed app on iPhone may open logged out. This lets its login
@@ -541,7 +548,7 @@ export function InstallGuide({
 
   async function install() {
     const outcome = await promptInstall();
-    if (outcome === "accepted") onDone("added");
+    if (outcome === "accepted") done("added");
   }
 
   async function copyLink() {
@@ -654,12 +661,12 @@ export function InstallGuide({
             Install Slabhold
           </button>
         ) : (
-          <button type="button" onClick={() => onDone("added")} className={primaryButton}>
+          <button type="button" onClick={() => done("added")} className={primaryButton}>
             <Check aria-hidden className="h-5 w-5" />
             I added it
           </button>
         )}
-        <button type="button" onClick={() => onDone("later")} className={quietButton}>
+        <button type="button" onClick={() => done("later")} className={quietButton}>
           Maybe later
         </button>
         {platform === "ios-safari" ? (

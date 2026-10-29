@@ -25,7 +25,7 @@ export type ShareSlab = {
 export type ShareBadge = { category: BadgeCategory; tier: BadgeTier };
 
 export type ShareImage = {
-  kind: "home" | "profile" | "post" | "mail" | "card" | "badge";
+  kind: "home" | "profile" | "post" | "mail" | "card" | "badge" | "invite" | "collection";
   kicker: string;
   title: string;
   detail: string;
@@ -441,4 +441,95 @@ export function badgeShareImage(input: {
 /** True for the image a private, deleted, or unknown card gets. */
 export function isGenericCardImage(model: ShareImage): boolean {
   return JSON.stringify(model) === JSON.stringify(cardShareImage({ found: false }));
+}
+
+/** A public collector as the invite and collection images draw them. */
+export type ShareCollector = {
+  username: string;
+  displayName: string;
+  avatarUrl: string | null;
+  /** Public cards with photos, most valuable first. */
+  cards: readonly ({ imageUrl?: string | null } & ShareCardFields)[];
+  /** Every public card, with or without a photo. Null when unknown. */
+  publicCardCount?: number | null;
+};
+
+function collectorSlabs(collector: ShareCollector, limit: number): ShareSlab[] {
+  const slabs: ShareSlab[] = [];
+  for (const card of collector.cards) {
+    const src = cleanImageUrl(card.imageUrl);
+    if (!src || slabs.some((slab) => slab.src === src)) continue;
+    slabs.push(shareSlab(src, card));
+    if (slabs.length >= limit) break;
+  }
+  return slabs;
+}
+
+function collectorName(collector: ShareCollector, handle: string): string {
+  return clipText(scrubPublicText(collector.displayName), 40) || handle;
+}
+
+/**
+ * "<Name> invited you to Slabhold" with their avatar and up to 3 public card
+ * photos. Null (unknown, reserved or unreadable) is the generic invite: no
+ * name, no photos, nothing about anyone.
+ */
+export function inviteShareImage(collector: ShareCollector | null): ShareImage {
+  const handle = collector ? publicHandle(collector.username) : "";
+  if (!collector || !handle) {
+    return {
+      ...blank(),
+      kind: "invite",
+      kicker: "YOU'RE INVITED",
+      title: "Slabhold",
+      detail: "",
+      body: "You're invited to Slabhold",
+    };
+  }
+  const name = collectorName(collector, handle);
+  const avatar = cleanImageUrl(collector.avatarUrl);
+  return {
+    ...blank(),
+    kind: "invite",
+    kicker: "YOU'RE INVITED",
+    title: name,
+    detail: "",
+    body: `${name} invited you to Slabhold`,
+    authorName: name,
+    authorHandle: handle,
+    imageUrl: avatar,
+    avatarUrl: avatar,
+    slabs: collectorSlabs(collector, 3),
+  };
+}
+
+/**
+ * Top 4 to 6 public cards by value, the public card count and the handle.
+ * Null is the generic collection image, never anyone's cards.
+ */
+export function collectionShareImage(collector: ShareCollector | null): ShareImage {
+  const handle = collector ? publicHandle(collector.username) : "";
+  if (!collector || !handle) {
+    return { ...blank(), kind: "collection", kicker: "COLLECTION", title: "Slabhold", detail: "" };
+  }
+  const name = collectorName(collector, handle);
+  const avatar = cleanImageUrl(collector.avatarUrl);
+  const count = collector.publicCardCount;
+  return {
+    ...blank(),
+    kind: "collection",
+    kicker: "COLLECTION",
+    title: name,
+    detail: count == null ? "" : count === 1 ? "1 card" : `${count} cards`,
+    authorName: name,
+    authorHandle: handle,
+    imageUrl: avatar,
+    avatarUrl: avatar,
+    slabs: collectorSlabs(collector, 6),
+  };
+}
+
+/** True for the generic invite or collection image: no collector is drawn. */
+export function isGenericCollectorImage(model: ShareImage): boolean {
+  return !model.authorHandle;
 }

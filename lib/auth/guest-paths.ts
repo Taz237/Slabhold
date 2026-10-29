@@ -36,3 +36,8 @@ export function isAuthPage(pathname: string): boolean {
     path === "/reset-password"
   );
 }
+
+/** /i/<username>: the invite landing draws its own full-screen page, like Home's landing. */
+export function isInvitePage(pathname: string): boolean {
+  return /^\/i\/[^/]+$/.test(pathOnly(pathname));
+}

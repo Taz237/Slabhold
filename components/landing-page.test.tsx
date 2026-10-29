@@ -228,7 +228,7 @@ describe("landing founder touch", () => {
     assert.match(page, /<HomeGate founder=\{founder\}/);
     const loader = read("lib/landing/founder-load.ts");
     assert.match(loader, /unstable_cache\(\s*loadFounderShowcase,\s*\["landing-founder"\],\s*\{\s*revalidate: 3600/);
-    assert.match(read("app/api/landing/founder/route.ts"), /cachedFounderShowcase\(\)/);
+    assert.match(read("app/api/landing/founder/route.ts"), /founderResponse\(cachedFounderShowcase\)/);
     assert.doesNotMatch(read("components/app-shell.tsx"), /<LandingPage/);
     assert.match(read("components/landing/hero-slabs.tsx"), /preload/);
     const note = read("components/landing/founder-note.tsx");

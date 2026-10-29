@@ -135,6 +135,10 @@ describe("route access", () => {
       `/posts/${CARD}/twitter-image`,
       "/u/maya/opengraph-image",
       "/u/maya/twitter-image",
+      "/i/maya/opengraph-image",
+      "/i/maya/twitter-image",
+      "/u/maya/collection/opengraph-image",
+      "/u/maya/collection/twitter-image",
       `/u/maya/cards/${CARD}/opengraph-image`,
       `/u/maya/cards/${CARD}/twitter-image`,
       `/cards/${CARD}/opengraph-image`,
@@ -151,6 +155,10 @@ describe("route access", () => {
       `/posts/${CARD}`,
       "/u/maya",
       `/u/maya/cards/${CARD}`,
+      "/i/maya",
+      "/i/maya?ref=share",
+      "/u/maya/collection",
+      "/u/maya/collection?ref=share",
     ];
     for (const path of paths) {
       assert.equal(routeAccess(path), "public", path);
@@ -220,5 +228,26 @@ describe("signed-out shell", () => {
     assert.match(notFound, /href="\/signup"/);
     assert.match(notFound, /Home/);
     assert.match(notFound, /Sign up/);
+  });
+});
+
+describe("invite and collection share routes", () => {
+  it("are public, and nothing deeper is", () => {
+    for (const path of ["/i/maya", "/i/maya/", "/u/maya/collection", "/u/maya/collection/"]) {
+      assert.equal(routeAccess(path), "public", path);
+      assert.equal(requiresAccount(path), false, path);
+    }
+    for (const path of ["/i", "/i/maya/extra", "/u/maya/collection/extra"]) {
+      assert.notEqual(routeAccess(path), "public", path);
+    }
+    // Your own /collection still needs an account.
+    assert.equal(requiresAccount("/collection"), true);
+  });
+
+  it("are not 404-checked by the proxy, so unknown and private handles get the generic page", () => {
+    const proxySource = readFileSync(join(process.cwd(), "proxy.ts"), "utf8");
+    const matcher = proxySource.slice(proxySource.indexOf("matcher:"));
+    assert.equal(matcher.includes('"/i/'), false);
+    assert.equal(matcher.includes("/collection"), false);
   });
 });

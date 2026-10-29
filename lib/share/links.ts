@@ -1,4 +1,5 @@
 import { badgeName, type BadgeCategory, type BadgeTier } from "@/lib/badges/config";
+import { INVITE_CODE_PARAM, inviteCode } from "@/lib/invites/code";
 import { userHref } from "@/lib/social/user-href";
 
 /** Marks a link as shared from the app, so landings can be told apart. */
@@ -59,4 +60,38 @@ export function cardShareState(input: {
     path: `${userHref(name)}/cards/${input.cardId}`,
     imagePath: cardImagePath(input.cardId),
   };
+}
+
+/** What an invite says, next to the link. */
+export const INVITE_SHARE_TEXT = "Join me on Slabhold, the home for your card collection";
+
+/**
+ * Personal invite link: /i/<username>?c=<code>. Only a link with the
+ * inviter's code gets a follow-back; without one, /i/<username> still works
+ * and the new collector just follows the inviter.
+ */
+export function invitePath(username: string, code?: string | null): string {
+  const path = `/i/${encodeURIComponent(handle(username))}`;
+  const valid = inviteCode(code);
+  return valid ? `${path}?${INVITE_CODE_PARAM}=${valid}` : path;
+}
+
+/** Public, read-only collection page. */
+export function collectionSharePath(username: string): string {
+  return `${userHref(handle(username))}/collection`;
+}
+
+/** 1080×1920 PNG for Instagram Stories. */
+export function collectionStoryPath(username: string): string {
+  return `/api/share-image/collection/${encodeURIComponent(handle(username))}`;
+}
+
+/** Saved file name for the Story image. */
+export function collectionStoryFilename(username: string): string {
+  return `slabhold-${handle(username)}-collection.png`;
+}
+
+export function collectionShareText(count: number | null): string {
+  if (count == null || count <= 0) return "My collection on Slabhold";
+  return `My collection on Slabhold: ${count} ${count === 1 ? "card" : "cards"}`;
 }

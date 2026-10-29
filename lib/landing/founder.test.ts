@@ -119,6 +119,7 @@ describe("founder showcase", () => {
     assert.match(load, /\.eq\("user_id", /);
     const route = readFileSync(join(process.cwd(), "app/api/landing/founder/route.ts"), "utf8");
     assert.match(route, /export const revalidate = 3600/);
-    assert.match(route, /s-maxage=3600/);
+    const response = readFileSync(join(process.cwd(), "lib/landing/founder-response.ts"), "utf8");
+    assert.match(response, /s-maxage=3600/);
   });
 });

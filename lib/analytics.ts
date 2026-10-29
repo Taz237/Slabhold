@@ -9,7 +9,17 @@ const ALLOWED_PROP_KEYS = ["button", "utm_source", "utm_medium", "utm_campaign",
 const BUTTONS = new Set(["signup", "login"]);
 
 /** signup_started and follow attribution. Any other source is dropped. */
-const SOURCES = new Set(["card_comps", "owners", "hunters", "card_owners", "card_hunters", "badge", "card"]);
+const SOURCES = new Set([
+  "card_comps",
+  "owners",
+  "hunters",
+  "card_owners",
+  "card_hunters",
+  "badge",
+  "card",
+  "invite",
+  "collection",
+]);
 
 /** How a share went out: the native sheet, X, a copied link, or a saved image. */
 const SHARE_METHODS = new Set(["native", "x", "copy", "image"]);
@@ -103,6 +113,7 @@ export const PAGE_PATTERNS = [
   "/compose",
   "/forgot-password",
   "/home",
+  "/i/[username]",
   "/leaderboard",
   "/login",
   "/messages",
@@ -127,6 +138,7 @@ export const PAGE_PATTERNS = [
   "/u/[username]/badges",
   "/u/[username]/badges/[category]/[tier]",
   "/u/[username]/cards/[id]",
+  "/u/[username]/collection",
   "/u/[username]/followers",
   "/u/[username]/following",
 ] as const;

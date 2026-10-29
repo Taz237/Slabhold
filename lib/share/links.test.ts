@@ -1,11 +1,17 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  INVITE_SHARE_TEXT,
   badgeImagePath,
   badgeSharePath,
   badgeShareText,
   cardImagePath,
   cardShareState,
+  collectionSharePath,
+  collectionShareText,
+  collectionStoryFilename,
+  collectionStoryPath,
+  invitePath,
   withShareRef,
   xIntentUrl,
 } from "./links";
@@ -79,5 +85,31 @@ describe("card share state", () => {
 
   it("no username means nothing to link to yet", () => {
     assert.deepEqual(cardShareState({ isPublic: true, username: "", cardId: id }), { kind: "unavailable" });
+  });
+});
+
+describe("invite and collection links", () => {
+  it("builds the invite link and its share text", () => {
+    assert.equal(invitePath("@Maya"), "/i/maya");
+    const code = "0123456789abcdef0123456789abcdef";
+    assert.equal(invitePath("@Maya", code), `/i/maya?c=${code}`);
+    assert.equal(invitePath("maya", null), "/i/maya");
+    assert.equal(invitePath("maya", "bad&code"), "/i/maya");
+    assert.equal(withShareRef(`https://slabhold.app${invitePath("maya", code)}`), `https://slabhold.app/i/maya?ref=share&c=${code}`);
+    assert.equal(INVITE_SHARE_TEXT, "Join me on Slabhold, the home for your card collection");
+    assert.equal(
+      xIntentUrl({ text: INVITE_SHARE_TEXT, url: "https://slabhold.app/i/maya" }),
+      "https://x.com/intent/post?text=Join%20me%20on%20Slabhold%2C%20the%20home%20for%20your%20card%20collection&url=https%3A%2F%2Fslabhold.app%2Fi%2Fmaya",
+    );
+  });
+
+  it("builds the collection page, Story image and file name", () => {
+    assert.equal(collectionSharePath("Maya"), "/u/maya/collection");
+    assert.equal(collectionStoryPath("maya"), "/api/share-image/collection/maya");
+    assert.equal(collectionStoryFilename("Maya"), "slabhold-maya-collection.png");
+    assert.equal(collectionShareText(12), "My collection on Slabhold: 12 cards");
+    assert.equal(collectionShareText(1), "My collection on Slabhold: 1 card");
+    assert.equal(collectionShareText(0), "My collection on Slabhold");
+    assert.equal(collectionShareText(null), "My collection on Slabhold");
   });
 });

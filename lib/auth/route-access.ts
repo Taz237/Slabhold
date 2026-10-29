@@ -95,6 +95,9 @@ function isPublicPath(path: string): boolean {
   if (/^\/u\/[^/]+\/(?:followers|following|badges)$/.test(path)) return true;
   if (/^\/u\/[^/]+\/badges\/[^/]+\/[^/]+$/.test(path)) return true;
   if (/^\/u\/[^/]+\/cards\/[^/]+$/.test(path)) return true;
+  // Invite a collector, and Share my collection.
+  if (/^\/i\/[^/]+$/.test(path)) return true;
+  if (/^\/u\/[^/]+\/collection$/.test(path)) return true;
   if (/^\/cards\/[^/]+\/posts$/.test(path)) return true;
   return false;
 }

@@ -90,6 +90,20 @@ textarea {
   }
 }
 
+/*
+ * Home feed rows: off screen, a row skips style, layout and paint. Its last
+ * real height is kept (contain-intrinsic-size: auto, set per row), so the
+ * page never jumps. A row showing a menu, dialog or toast draws normally,
+ * since containment would clip the menu and pin fixed layers to the row.
+ */
+.feed-row {
+  content-visibility: auto;
+}
+
+.feed-row:has([role="menu"], [role="dialog"], [role="status"], .fixed) {
+  content-visibility: visible;
+}
+
 @keyframes pill-in {
   from {
     opacity: 0;

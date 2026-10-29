@@ -45,6 +45,7 @@ export function PostCardTile({
       href={href}
       // Feed tiles load lazily.
       index={EAGER_TILES}
+      prefetch={false}
       sizes="260px"
       ariaLabel={tileAccessibleName(card, label)}
       priceLabel={label}

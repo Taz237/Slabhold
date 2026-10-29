@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { Compass, UsersRound } from "lucide-react";
 import { Avatar } from "@/components/avatar";
 import { solidButton } from "@/components/button-styles";
@@ -118,7 +119,11 @@ export function FollowingEmpty({ profiles }: { profiles: Suggestion[] }) {
  * Inline "Who to follow" between feed posts: a few collectors from the same
  * suggestions as the rail and onboarding, so the same people are left out.
  */
-export function WhoToFollowCard({ profiles }: { profiles: Suggestion[] }) {
+export function WhoToFollowCard({ profiles: offered }: { profiles: Suggestion[] }) {
+  // Keep the people first shown. Following one says "Following" in place
+  // instead of the card reshuffling under your thumb.
+  const [profiles, setProfiles] = useState(offered);
+  if (profiles.length === 0 && offered.length > 0) setProfiles(offered);
   if (profiles.length === 0) return null;
   return (
     <section

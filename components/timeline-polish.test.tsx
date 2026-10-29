@@ -514,10 +514,22 @@ describe("12. Who to follow", () => {
     assert.equal(document.querySelector("[data-who-to-follow]"), null);
   });
 
-  it("is placed in the feed from the same suggestions as onboarding", () => {
+  it("is placed in the feed from the people after the rail, never repeating it", () => {
     const feed = source("components/feed-view.tsx");
     assert.match(feed, /whoToFollowAfter\(index, inlineSuggestions\)/);
     assert.match(feed, /<WhoToFollowCard/);
+    assert.match(feed, /\.slice\(0, SUGGESTION_RAIL_SIZE\)/);
+    assert.match(feed, /inlineSuggestionPool\(\{/);
+    assert.match(feed, /railIds: suggestionRail\.map/);
+    for (const key of ["followingIds", "blockedIds", "mutedIds", "officialId", "viewerId: user.id"]) {
+      assert.ok(feed.includes(key), key);
+    }
+  });
+
+  it("keeps the people it first showed when the pool changes under it", () => {
+    mount(createElement(Providers, null, createElement(WhoToFollowCard, { profiles: [maya] })));
+    mount(createElement(Providers, null, createElement(WhoToFollowCard, { profiles: [] })));
+    assert.match(document.querySelector("[data-who-to-follow]")?.textContent ?? "", /Maya Chen/);
   });
 });
 

@@ -16,7 +16,7 @@ import { FirstRunSetup } from "@/components/onboarding/first-run-setup";
 import { useOnboardingBusy } from "@/components/onboarding/use-onboarding";
 import { YoureIn } from "@/components/onboarding/youre-in";
 import { AccountMenu } from "@/components/side-menu";
-import { isAuthPage, shouldShowJoinBar } from "@/lib/auth/guest-paths";
+import { isAuthPage, isInvitePage, shouldShowJoinBar } from "@/lib/auth/guest-paths";
 import { clearLogoutHome, logoutHomePending } from "@/lib/auth/logout-home";
 import { requiresAccount, routeAccess } from "@/lib/auth/route-access";
 import { listenForInstallPrompt } from "@/lib/pwa/install-prompt";
@@ -399,6 +399,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   // Home renders the landing page itself (HomeGate), with the founder showcase
   // the server already loaded. No header or tabs around it.
   if (!user && pathname === "/") {
+    return (
+      <>
+        <AccountDeletedToast />
+        {children}
+      </>
+    );
+  }
+
+  if (!user && isInvitePage(pathname)) {
     return (
       <>
         <AccountDeletedToast />

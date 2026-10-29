@@ -12,6 +12,7 @@ export function MentionText({ text }: { text: string }) {
         if (part.type === "mention") {
           return (
             <Link
+              prefetch={false}
               key={`${index}-${part.username}`}
               href={userHref(part.username)}
               className="font-medium text-sky-600 hover:underline dark:text-sky-400"
@@ -22,6 +23,7 @@ export function MentionText({ text }: { text: string }) {
         }
         return (
           <Link
+            prefetch={false}
             key={`${index}-checklist`}
             href={part.href}
             className="font-medium text-violet-700 underline underline-offset-2 dark:text-violet-300"

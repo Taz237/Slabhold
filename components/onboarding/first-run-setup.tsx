@@ -16,6 +16,7 @@ import {
 } from "@/components/collect-editor";
 import { useCollection } from "@/components/collection-provider";
 import { FollowButton } from "@/components/follow-button";
+import { InviteWelcome } from "@/components/invite/invite-welcome";
 import { InstallGuide, useInstallPlatform, type GuidePlatform } from "@/components/onboarding/install-step";
 import { useSocial } from "@/components/social-provider";
 import {
@@ -51,7 +52,7 @@ import {
 } from "@/lib/social/collect-interests";
 import type { CollectInterest } from "@/lib/social/follow-rank";
 import { isRecentAccount } from "@/lib/social/get-started";
-import { loadServerSuggestions, SUGGESTION_DISPLAY_LIMIT } from "@/lib/social/load-suggestions";
+import { loadServerSuggestions, SETUP_SUGGESTION_LIMIT } from "@/lib/social/load-suggestions";
 import type { ServerSuggestion } from "@/lib/social/suggestion-order";
 import { createSupabaseBrowser } from "@/lib/supabase/browser";
 
@@ -365,7 +366,7 @@ export function FirstRunSetup() {
         score: 0,
       })),
     me.id,
-  ).slice(0, SUGGESTION_DISPLAY_LIMIT);
+  ).slice(0, SETUP_SUGGESTION_LIMIT);
   const unfollowed = shownPeople.filter((profile) => !isFollowing(profile.userId));
   const stepNumber = SETUP_STEPS.indexOf(step) + 1;
 
@@ -426,6 +427,9 @@ export function FirstRunSetup() {
       </header>
 
       <div className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain">
+        <div className="mx-auto w-full max-w-lg px-5 pt-5 empty:hidden">
+          <InviteWelcome />
+        </div>
         <div key={step} className={`mx-auto w-full max-w-lg px-5 pt-7 pb-6 ${direction === 1 ? STEP_IN : STEP_BACK}`}>
           {step === "collect" ? (
             <>

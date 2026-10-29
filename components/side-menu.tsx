@@ -27,6 +27,7 @@ import {
   SquarePlus,
   Trophy,
   User,
+  UserPlus,
   WalletCards,
   Wrench,
   type LucideIcon,
@@ -47,8 +48,10 @@ import { clearNewCardDraft } from "@/lib/cards/new-card-draft";
 import { trapTabTarget } from "@/lib/social/collect-interests";
 import type { Profile } from "@/lib/social/types";
 import { userHref } from "@/lib/social/user-href";
+import { useInviteShare } from "@/components/invite/invite-button";
 import {
   ADD_TO_HOME_LABEL,
+  INVITE_MENU_HREF,
   SIDE_MENU_ITEMS,
   SIDE_MENU_SETTINGS,
   countLabel,
@@ -67,6 +70,7 @@ const ITEM_ICONS: Record<string, LucideIcon> = {
   "/messages": Mail,
   "/cards/new": Camera,
   "/leaderboard": Trophy,
+  [INVITE_MENU_HREF]: UserPlus,
   "/settings/privacy": ShieldCheck,
   "/settings/collecting": SlidersHorizontal,
   "/about": Info,
@@ -243,6 +247,7 @@ export function SideMenu({
   const [badges, setBadges] = useState<BadgeSummary | null>(null);
   const userId = user.id;
   const hosted = mode === "supabase";
+  const invite = useInviteShare(user.username);
 
   useEffect(() => {
     closeRef.current = onClose;
@@ -344,7 +349,9 @@ export function SideMenu({
 
   const items = SIDE_MENU_ITEMS.filter((item) => item.href !== "/achievements" || hosted);
 
-  return createPortal(
+  return (
+    <>
+      {createPortal(
     <div
       className={`fixed inset-0 z-50 transition-[visibility] duration-200 motion-reduce:duration-0 ${
         open ? "visible" : "invisible"
@@ -451,6 +458,25 @@ export function SideMenu({
                   </span>
                 );
               }
+              if (item.href === INVITE_MENU_HREF) {
+                return (
+                  <li key={item.href}>
+                    <button
+                      type="button"
+                      data-invite-menu=""
+                      onClick={() => {
+                        // Share first, in the tap, so the phone's sheet is allowed to open.
+                        void invite.share();
+                        onClose();
+                      }}
+                      className={`${mainRow} w-full text-left ${rowTone(false)}`}
+                    >
+                      <Icon aria-hidden className={`h-6 w-6 shrink-0 ${iconTone(false)}`} />
+                      <span className="min-w-0 flex-1 truncate">{item.label}</span>
+                    </button>
+                  </li>
+                );
+              }
               return (
                 <li key={item.href}>
                   <Link
@@ -552,6 +578,9 @@ export function SideMenu({
       </div>
     </div>,
     document.body,
+      )}
+      {invite.sheet}
+    </>
   );
 }
 

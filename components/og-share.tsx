@@ -56,6 +56,9 @@ function heroScale(canvas: Canvas): number {
 
 export const LANDSCAPE: Canvas = { width: 1200, height: 630 };
 export const PORTRAIT: Canvas = { width: 1080, height: 1350 };
+/** Instagram Stories. Keep content out of the top and bottom STORY_SAFE px. */
+export const STORY: Canvas = { width: 1080, height: 1920 };
+export const STORY_SAFE = 250;
 
 const row: CSSProperties = { display: "flex", alignItems: "center" };
 const col: CSSProperties = { display: "flex", flexDirection: "column" };
@@ -727,12 +730,195 @@ function BadgePortrait({ model, canvas }: { model: ShareImage; canvas: Canvas })
   );
 }
 
+// Invite and collection
+
+/** A thin purple frame just inside the edge. */
+function BrandFrame({ canvas, inset = 18 }: { canvas: Canvas; inset?: number }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        position: "absolute",
+        left: inset,
+        top: inset,
+        width: canvas.width - inset * 2,
+        height: canvas.height - inset * 2,
+        borderRadius: 30,
+        border: "2px solid rgba(124,58,237,0.55)",
+      }}
+    />
+  );
+}
+
+/** 0 cards: the empty slab. 1: one slab. 2 or 3: a fan. */
+function SlabFan({ slabs, width, box }: { slabs: ShareSlab[]; width: number; box: number }) {
+  if (slabs.length <= 1) return <Slab slab={slabs[0] ?? null} width={width} />;
+  return (
+    <Fan
+      box={{ width: box, height: slabHeight(slabs[0] ?? null, width) + 40, item: width }}
+      items={slabs.map((slab) => <Slab key={slab.src} slab={slab} width={width} />)}
+    />
+  );
+}
+
+/** Up to 6 slabs, rows of 3, the last row centered. 0 to 3 cards fall back to the fan. */
+function SlabGrid({ slabs, width, gap }: { slabs: ShareSlab[]; width: number; gap: number }) {
+  const rows = [slabs.slice(0, 3), slabs.slice(3, 6)].filter((items) => items.length);
+  return (
+    <div style={{ ...col, alignItems: "center" }}>
+      {rows.map((items, index) => (
+        <div key={index} style={{ ...row, alignItems: "flex-start", marginTop: index ? gap : 0 }}>
+          {items.map((slab, at) => (
+            <div key={slab.src} style={{ display: "flex", marginLeft: at ? gap : 0 }}>
+              <Slab slab={slab} width={width} />
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function Identity({ model, size }: { model: ShareImage; size: number }) {
+  return (
+    <div style={row}>
+      <Avatar src={model.avatarUrl} name={model.title} size={size} />
+      <div style={{ ...col, marginLeft: size * 0.28, minWidth: 0 }}>
+        <div
+          style={{
+            display: "block",
+            maxWidth: size * 5.2,
+            fontSize: size * 0.4,
+            fontWeight: 700,
+            letterSpacing: -0.5,
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+          }}
+        >
+          {model.authorName}
+        </div>
+        <div style={{ display: "flex", marginTop: 2, fontSize: size * 0.3, color: C.accent }}>@{model.authorHandle}</div>
+      </div>
+    </div>
+  );
+}
+
+function InviteLandscape({ model, canvas }: { model: ShareImage; canvas: Canvas }) {
+  const slabs = model.slabs;
+  const width = Math.round((slabs.length >= 3 ? 200 : slabs.length === 2 ? 220 : 250) * heroScale(canvas));
+  const generic = !model.authorHandle;
+  return (
+    <Stage canvas={canvas}>
+      <Pattern canvas={canvas} />
+      <Glow size={820} x={940} y={canvas.height / 2} strength={0.6} />
+      <BrandFrame canvas={canvas} />
+      <div style={{ display: "flex", width: "100%", height: "100%" }}>
+        <div style={{ ...col, flex: 1, justifyContent: "space-between", padding: "60px 16px 56px 76px" }}>
+          <Footer />
+          <div style={col}>
+            <div style={{ display: "flex", marginBottom: 22, fontFamily: MONO, fontSize: 20, letterSpacing: 3, color: C.accent }}>
+              {model.kicker}
+            </div>
+            <Quote text={model.body} box={{ width: 600, height: 200, maxLines: 3, sizes: [64, 56, 48, 42] }} />
+          </div>
+          {generic ? (
+            <div style={{ display: "flex", fontSize: 24, color: C.muted }}>Track your cards. Follow collectors.</div>
+          ) : (
+            <Identity model={model} size={72} />
+          )}
+        </div>
+        <div style={{ display: "flex", width: 500, height: "100%", alignItems: "center", justifyContent: "center", paddingRight: 36 }}>
+          <SlabFan slabs={slabs} width={width} box={460} />
+        </div>
+      </div>
+    </Stage>
+  );
+}
+
+function CollectionLandscape({ model, canvas }: { model: ShareImage; canvas: Canvas }) {
+  const slabs = model.slabs;
+  const generic = !model.authorHandle;
+  const grid = slabs.length >= 4;
+  const width = Math.round((grid ? 138 : slabs.length >= 3 ? 200 : slabs.length === 2 ? 220 : 250) * heroScale(canvas));
+  return (
+    <Stage canvas={canvas}>
+      <Pattern canvas={canvas} />
+      <Glow size={860} x={920} y={canvas.height / 2} strength={0.55} />
+      <BrandFrame canvas={canvas} />
+      <div style={{ display: "flex", width: "100%", height: "100%" }}>
+        <div style={{ ...col, flex: 1, justifyContent: "space-between", padding: "60px 16px 56px 76px" }}>
+          <Footer />
+          <div style={col}>
+            <div style={{ display: "flex", fontFamily: MONO, fontSize: 20, letterSpacing: 3, color: C.accent }}>
+              {generic ? "COLLECTIONS ON SLABHOLD" : "THE COLLECTION"}
+            </div>
+            <div style={{ display: "flex", marginTop: 14, fontSize: 92, lineHeight: 1, fontWeight: 700, letterSpacing: -3 }}>
+              {generic ? "Your cards, one place" : model.detail || "Collection"}
+            </div>
+          </div>
+          {generic ? (
+            <div style={{ display: "flex", fontSize: 24, color: C.muted }}>Track your cards. Follow collectors.</div>
+          ) : (
+            <Identity model={model} size={72} />
+          )}
+        </div>
+        <div style={{ display: "flex", width: 560, height: "100%", alignItems: "center", justifyContent: "center", paddingRight: 44 }}>
+          {grid ? <SlabGrid slabs={slabs} width={width} gap={16} /> : <SlabFan slabs={slabs} width={width} box={480} />}
+        </div>
+      </div>
+    </Stage>
+  );
+}
+
+function CollectionStory({ model, canvas }: { model: ShareImage; canvas: Canvas }) {
+  const slabs = model.slabs;
+  const grid = slabs.length >= 4;
+  const width = grid ? 262 : slabs.length >= 3 ? 330 : slabs.length === 2 ? 360 : 420;
+  return (
+    <Stage canvas={canvas}>
+      <Pattern canvas={canvas} />
+      <Glow size={1500} x={canvas.width / 2} y={1080} strength={0.55} />
+      <BrandFrame canvas={canvas} inset={28} />
+      <div
+        style={{
+          ...col,
+          position: "absolute",
+          left: 0,
+          top: STORY_SAFE,
+          width: canvas.width,
+          height: canvas.height - STORY_SAFE * 2,
+          alignItems: "center",
+          justifyContent: "space-between",
+          padding: "8px 72px",
+        }}
+      >
+        <div style={{ ...col, alignItems: "center" }}>
+          <Identity model={model} size={104} />
+          <div style={{ display: "flex", marginTop: 34, fontFamily: MONO, fontSize: 26, letterSpacing: 4, color: C.accent }}>
+            THE COLLECTION
+          </div>
+          <div style={{ display: "flex", marginTop: 8, fontSize: 132, lineHeight: 1, fontWeight: 700, letterSpacing: -4 }}>
+            {model.detail || "Collection"}
+          </div>
+        </div>
+        {grid ? <SlabGrid slabs={slabs} width={width} gap={24} /> : <SlabFan slabs={slabs} width={width} box={900} />}
+        <Footer size={52} />
+      </div>
+    </Stage>
+  );
+}
+
 /** The share designs. Home, leaderboard, and Moving today keep their own frames. */
 export function shareNode(model: ShareImage, canvas: Canvas): ReactNode | null {
   const portrait = canvas.height > canvas.width;
   if (model.kind === "badge") return portrait ? <BadgePortrait model={model} canvas={canvas} /> : <BadgeLandscape model={model} canvas={canvas} />;
   if (model.kind === "card") return portrait ? <CardPortrait model={model} canvas={canvas} /> : <CardLandscape model={model} canvas={canvas} />;
   if (model.kind === "profile") return <ProfileLandscape model={model} canvas={canvas} />;
+  if (model.kind === "invite") return <InviteLandscape model={model} canvas={canvas} />;
+  if (model.kind === "collection") {
+    return portrait ? <CollectionStory model={model} canvas={canvas} /> : <CollectionLandscape model={model} canvas={canvas} />;
+  }
   if (model.kind === "post" || model.kind === "mail") {
     const hero = postHero(model, canvas);
     return hero ? <PostWithHero model={model} hero={hero} canvas={canvas} /> : <PostText model={model} canvas={canvas} />;
