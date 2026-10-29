@@ -14,6 +14,7 @@ import {
   MovingTodayAll,
   MovingTodayPanel,
   MovingTodaySkeleton,
+  RAIL_FIRST_TILES,
 } from "@/components/moving-today";
 import {
   createTtlCache,
@@ -129,10 +130,24 @@ function classOf(markup: string, attr: string): string {
 }
 
 describe("Movers rail", () => {
-  it("renders shared CardTiles, biggest move first, then See all N", () => {
+  it("renders shared CardTiles, biggest move first, then See all N", async () => {
     const out = html(createElement(MovingTodayPanel, { payload: payload(15) }));
-    const tiles = out.match(/data-tile="/g) ?? [];
-    assert.equal(tiles.length, MOVING_RAIL_COUNT);
+    // The first paint hydrates the tiles near the screen. The rest follow at idle.
+    assert.equal((out.match(/data-tile="/g) ?? []).length, RAIL_FIRST_TILES);
+    mount(createElement(MovingTodayPanel, { payload: payload(15) }));
+    // First mount in this file: the tiles on screen fade in, staggered.
+    const entering = [...host.querySelectorAll<HTMLElement>("[data-tile]")].filter((tile) =>
+      tile.className.includes("animate-[tile-in_240ms"),
+    );
+    assert.deepEqual(
+      entering.map((tile) => tile.style.animationDelay),
+      ["0ms", "35ms", "70ms"],
+    );
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 250));
+    });
+    assert.equal(host.querySelectorAll("[data-tile]").length, MOVING_RAIL_COUNT);
+    assert.equal(host.querySelector("[data-mover-rail] > li:last-child [data-see-all-tile]")?.textContent, "See all 15");
     assert.match(out, /data-density="compact"/);
     assert.match(out, /data-gain="up"[^>]*class="[^"]*emerald/);
     assert.match(out, /data-gain="down"[^>]*class="[^"]*rose/);
@@ -151,7 +166,7 @@ describe("Movers rail", () => {
   it("keeps the header to one line with no share button", () => {
     const out = html(createElement(MovingTodayPanel, { payload: payload(5) }));
     assert.match(out, /<h2[^>]*text-\[15px\][^>]*>Moving this week<\/h2>/);
-    assert.match(out, /· Oct 23–29/);
+    assert.match(out, /font-mono">· Oct 23–29/);
     assert.doesNotMatch(out, /aria-label="Share"/);
     assert.doesNotMatch(out, /Oct 23 – Oct 29/);
     assert.match(out, /text-\[#7C3AED\] dark:text-\[#A78BFA\]/);
@@ -159,15 +174,18 @@ describe("Movers rail", () => {
     assert.doesNotMatch(classOf(out, "data-moving-today"), /border/);
   });
 
-  it("sizes tiles at 112px and the top mover at 132px with its badge and glow", () => {
+  it("sizes tiles at 120px and the top mover at 132px with its badge and glow", () => {
     const out = html(createElement(MovingTodayPanel, { payload: payload(4) }));
     const first = classOf(out, `data-tile="${id(1)}"`);
     const second = classOf(out, `data-tile="${id(2)}"`);
     assert.match(first, /w-\[132px\]/);
-    assert.match(first, /rgba\(124,58,237/);
-    assert.match(second, /\bw-28\b/);
+    assert.match(first, /drop-shadow-\[0_10px_22px_rgba\(124,58,237/);
+    assert.match(second, /w-\[120px\]/);
     assert.doesNotMatch(second, /rgba\(124,58,237/);
     assert.match(out, /data-top-badge=""[^>]*>Up 120%</);
+    // Past the third tile, the rail skips layout and paint until swiped near.
+    assert.doesNotMatch(classOf(out, `data-tile="${id(3)}"`), /content-visibility/);
+    assert.match(classOf(out, `data-tile="${id(4)}"`), /\[content-visibility:auto\]/);
     assert.equal((out.match(/data-top-badge/g) ?? []).length, 1);
   });
 
@@ -198,9 +216,7 @@ describe("Movers rail", () => {
   });
 
   it("fades in on first paint only, not when the lane comes back", () => {
-    mount(createElement(MovingTodayPanel, { payload: payload(6) }));
-    assert.match(host.innerHTML, /animate-\[tile-in_240ms/);
-    act(() => root!.render(withRouter(null)));
+    // The first test above mounted the rail once already.
     mount(createElement(MovingTodayPanel, { payload: payload(6) }));
     assert.doesNotMatch(host.innerHTML, /animate-\[tile-in/);
     // The chips keep their real numbers when there is no entrance to ride on.
@@ -212,6 +228,7 @@ describe("Movers rail", () => {
     assert.doesNotMatch(server, /Updated/);
     mount(createElement(MovingTodayPanel, { payload: payload(4, { updatedAt: new Date(Date.now() - 12 * 60_000).toISOString() }) }));
     assert.match(host.textContent ?? "", /Updated 12m ago/);
+    assert.match(host.innerHTML, /max-\[399px\]:hidden">Updated <\/span>12m ago/);
     assert.doesNotMatch(host.textContent ?? "", /Live/);
     act(() => root!.render(withRouter(null)));
     mount(
@@ -249,16 +266,16 @@ describe("Movers skeleton", () => {
     const skeleton = html(createElement(MovingTodaySkeleton));
     const rail = html(createElement(MovingTodayPanel, { payload: payload(6) }));
     assert.match(skeleton, /aria-busy="true"/);
-    const widths = [...skeleton.matchAll(/data-skeleton-tile=""|class="(w-\[132px\]|w-28) shrink-0"/g)]
+    const widths = [...skeleton.matchAll(/data-skeleton-tile=""|class="(w-\[132px\]|w-\[120px\]) shrink-0"/g)]
       .map((m) => m[1])
       .filter(Boolean);
-    assert.deepEqual(widths, ["w-[132px]", "w-28", "w-28", "w-28"]);
-    for (const shared of ["py-3", "flex h-6 items-center gap-2 px-4", "aspect-[3/5]", "mt-1.5 px-0.5"]) {
+    assert.deepEqual(widths, ["w-[132px]", "w-[120px]", "w-[120px]", "w-[120px]"]);
+    for (const shared of ["py-3", "flex h-6 items-center gap-1.5 px-4", "aspect-[3/5]", "mt-1.5 px-0.5"]) {
       assert.ok(skeleton.includes(shared), shared);
       assert.ok(rail.includes(shared), shared);
     }
-    assert.match(skeleton, /mb-1 h-5/);
-    assert.match(rail, /mb-1 inline-flex h-5/);
+    // The top badge sits on the art, so no tile grows a line under it.
+    assert.match(rail, /data-top-badge=""[^>]*absolute/);
   });
 
   it("holds the spot while the client fetch runs", () => {

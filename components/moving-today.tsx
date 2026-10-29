@@ -34,12 +34,23 @@ import {
   type MovingTodaySale,
 } from "@/lib/moving-today/types";
 
-/** Rail widths: the top mover is a little larger. The third tile peeks at 390px. */
+/** Rail widths: the top mover is a little larger. The third tile is cut at 390px, so the row reads as a swipe. */
 export const RAIL_TOP_WIDTH = "w-[132px]";
-export const RAIL_TILE_WIDTH = "w-28";
+export const RAIL_TILE_WIDTH = "w-[120px]";
+
+/** A soft purple glow on the top mover's slab only, not a box around the tile. */
+const TOP_GLOW = "[&_[data-kind]]:drop-shadow-[0_10px_22px_rgba(124,58,237,0.42)]";
+
+/** Tiles past the first three start off screen: they skip layout and paint until swiped near. */
+const RAIL_PAINTED_TILES = 3;
+
+/** The first paint hydrates this many tiles. The rest mount when the page is idle. */
+export const RAIL_FIRST_TILES = 4;
+const OFFSCREEN_TILE = "[content-visibility:auto] [contain-intrinsic-size:auto_120px_auto_257px]";
 
 const STAGGER_MS = 35;
-const STAGGER_TILES = 6;
+/** Only tiles that start on screen fade in. */
+const STAGGER_TILES = 3;
 const COUNT_UP_MS = 480;
 
 const ENTER = "motion-safe:animate-[tile-in_240ms_cubic-bezier(0.2,0.7,0.2,1)_both]";
@@ -145,7 +156,16 @@ function FreshnessDot({ day }: { day: boolean }) {
 }
 
 /** "LIVE · Updated 12m ago". Empty until the client knows the time. */
-function Freshness({ payload, lead }: { payload: MovingTodayPayload; lead: boolean }) {
+function Freshness({
+  payload,
+  lead,
+  short = false,
+}: {
+  payload: MovingTodayPayload;
+  lead: boolean;
+  /** The rail drops the word "Updated" on a 390px phone so the line fits. */
+  short?: boolean;
+}) {
   const now = useMinute();
   const fresh = now == null ? null : moverFreshness(payload.updatedAt, payload.window, now);
   if (!fresh) return null;
@@ -157,7 +177,14 @@ function Freshness({ payload, lead }: { payload: MovingTodayPayload; lead: boole
           Live ·{" "}
         </span>
       ) : null}
-      {fresh.label}
+      {short ? (
+        <>
+          <span className="max-[399px]:hidden">Updated </span>
+          {fresh.label.replace(/^Updated /, "")}
+        </>
+      ) : (
+        fresh.label
+      )}
     </span>
   );
 }
@@ -192,29 +219,29 @@ function MoverTile({
       as="li"
       density="compact"
       sizes={rail ? "120px" : "(min-width: 1024px) 180px, (min-width: 640px) 25vw, 33vw"}
-      badge={
-        badge && gain ? (
-          <span
-            data-top-badge=""
-            className={`mb-1 inline-flex h-5 items-center rounded-full px-1.5 text-[10px] font-semibold tabular-nums ${
-              gain.tone === "up"
-                ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400"
-                : "bg-rose-500/15 text-rose-700 dark:text-rose-400"
-            }`}
-          >
-            {badge}
-          </span>
-        ) : null
-      }
       className={
         rail
-          ? `shrink-0 snap-start ${variant === "top" ? `${RAIL_TOP_WIDTH} rounded-xl shadow-[0_0_0_1px_rgba(124,58,237,0.16),0_14px_32px_-16px_rgba(124,58,237,0.55)]` : RAIL_TILE_WIDTH} ${
-              animate ? ENTER : ""
-            }`
+          ? `shrink-0 snap-start ${variant === "top" ? `${RAIL_TOP_WIDTH} ${TOP_GLOW}` : RAIL_TILE_WIDTH} ${
+              index >= RAIL_PAINTED_TILES ? OFFSCREEN_TILE : ""
+            } ${animate && index < STAGGER_TILES ? ENTER : ""}`
           : "min-w-0"
       }
-      style={animate ? { animationDelay: `${Math.min(index, STAGGER_TILES) * STAGGER_MS}ms` } : undefined}
+      style={animate ? { animationDelay: `${index * STAGGER_MS}ms` } : undefined}
     >
+      {badge && gain ? (
+        // Straddles the slab's bottom edge, so the top tile is no taller below the art.
+        <span
+          data-top-badge=""
+          aria-hidden="true"
+          className={`pointer-events-none absolute top-[calc((132px-8px)*5/3-12px)] left-1/2 inline-flex h-5 -translate-x-1/2 items-center rounded-full px-2 text-[10px] font-semibold whitespace-nowrap tabular-nums shadow-[0_4px_12px_-4px_rgba(0,0,0,0.5)] backdrop-blur-sm ${
+            gain.tone === "up"
+              ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/90 dark:text-emerald-400"
+              : "bg-rose-50 text-rose-700 dark:bg-rose-950/90 dark:text-rose-400"
+          }`}
+        >
+          {badge}
+        </span>
+      ) : null}
       {rail ? null : (
         <p className="px-1.5 pb-1 text-[11px] leading-4 text-zinc-500">Sold {sale.soldLabel}</p>
       )}
@@ -231,16 +258,24 @@ const RAIL_LIST =
  */
 export function MovingTodayPanel({ payload }: { payload: MovingTodayPayload }) {
   const [animate] = useState(() => !railEntered);
+  const [expanded, setExpanded] = useState(false);
   const list = useRef<HTMLUListElement>(null);
   const warm = useWarmOnPointerDown();
   useEffect(() => {
     railEntered = true;
+    // Off-screen tiles wait for an idle moment, so hydration stays short.
+    if (typeof window.requestIdleCallback === "function") {
+      const handle = window.requestIdleCallback(() => setExpanded(true), { timeout: 1200 });
+      return () => window.cancelIdleCallback(handle);
+    }
+    const timer = setTimeout(() => setExpanded(true), 200);
+    return () => clearTimeout(timer);
   }, []);
   useChipCountUp(list, animate);
 
   const sales = shouldShowMovingToday(payload.sales) ? payload.sales : [];
   if (sales.length < MOVING_TODAY_MIN_WEEK_MOVERS) return <MovingQuiet />;
-  const shown = sales.slice(0, MOVING_RAIL_COUNT);
+  const shown = sales.slice(0, expanded ? MOVING_RAIL_COUNT : RAIL_FIRST_TILES);
   const day = payload.window === "day";
   const range = day ? "" : compactRangeLabel(payload.dateLabel);
 
@@ -251,12 +286,12 @@ export function MovingTodayPanel({ payload }: { payload: MovingTodayPayload }) {
       onPointerDown={warm}
       className="py-3"
     >
-      <div className="flex h-6 items-center gap-2 px-4">
+      <div className="flex h-6 items-center gap-1.5 px-4">
         <FreshnessDot day={day} />
         <h2 className="shrink-0 text-[15px] leading-6 font-bold tracking-tight">{payload.title}</h2>
-        <p className="min-w-0 flex-1 truncate text-xs text-zinc-500">
-          {range ? <span className="font-mono text-[11px] tracking-wider uppercase">· {range}</span> : null}
-          <Freshness payload={payload} lead={Boolean(range)} />
+        <p className="min-w-0 flex-1 truncate text-[11px] text-zinc-500">
+          {range ? <span className="font-mono">· {range}</span> : null}
+          <Freshness payload={payload} lead={Boolean(range)} short />
         </p>
         <Link
           href={MOVING_TODAY_PATH}
@@ -278,8 +313,7 @@ export function MovingTodayPanel({ payload }: { payload: MovingTodayPayload }) {
           />
         ))}
         <li
-          className={`${RAIL_TILE_WIDTH} shrink-0 snap-start self-stretch p-1 ${animate ? ENTER : ""}`}
-          style={animate ? { animationDelay: `${Math.min(shown.length, STAGGER_TILES) * STAGGER_MS}ms` } : undefined}
+          className={`${RAIL_TILE_WIDTH} shrink-0 snap-start self-stretch p-1 ${OFFSCREEN_TILE}`}
         >
           <Link
             href={MOVING_TODAY_PATH}
@@ -320,7 +354,6 @@ function TileSkeleton({ top }: { top: boolean }) {
       <div className="p-1">
         <div className="skeleton-shimmer aspect-[3/5] w-full rounded-[10px] dark:bg-white/[0.06]" />
         <div className="mt-1.5 px-0.5">
-          {top ? <div className="mb-1 h-5 w-14 rounded-full bg-zinc-200/80 dark:bg-white/[0.06]" /> : null}
           <div className="flex h-[18px] items-center">
             <div className="h-3 w-4/5 rounded bg-zinc-200/80 dark:bg-white/[0.06]" />
           </div>
@@ -340,7 +373,7 @@ function TileSkeleton({ top }: { top: boolean }) {
 export function MovingTodaySkeleton() {
   return (
     <section aria-label="Loading movers" aria-busy="true" data-moving-today="skeleton" className="py-3">
-      <div className="flex h-6 items-center gap-2 px-4" aria-hidden="true">
+      <div className="flex h-6 items-center gap-1.5 px-4" aria-hidden="true">
         <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-zinc-300 dark:bg-zinc-700" />
         <div className="h-3.5 w-32 rounded bg-zinc-200/80 dark:bg-white/[0.06]" />
         <div className="ml-auto h-3 w-11 rounded bg-zinc-200/60 dark:bg-white/[0.04]" />
