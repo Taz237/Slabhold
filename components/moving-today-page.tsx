@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState, type KeyboardEvent } from "react";
+import { useEffect, useMemo, useState, type KeyboardEvent } from "react";
 import { ArrowLeft } from "lucide-react";
 import { CardTile, GainChip, tileFocusRing } from "@/components/card-tile";
 import { Logo } from "@/components/logo";
@@ -16,6 +16,7 @@ import { useReducedMotion } from "@/components/timeline-ui";
 import {
   directionCounts,
   directionTiles,
+  filtersFromSearch,
   moverAccessibleName,
   moverGain,
   moverTileCard,
@@ -23,6 +24,7 @@ import {
   noMatchText,
   sportChips,
   type MoverDirection,
+  type MovingFilters,
   type MovingSport,
 } from "@/lib/moving-today/rail";
 import { MOVING_TODAY_PATH, type MovingTodayPayload } from "@/lib/moving-today/types";
@@ -280,6 +282,18 @@ export function MovingEmpty({ signedIn }: { signedIn: boolean }) {
 }
 
 /**
+ * On Back the router redraws this page from props fetched before the reader
+ * switched a tab, but the URL kept the switch (history.replaceState). Read it
+ * while rendering, so the first client paint is already filtered and the
+ * restored scroll lands on the same tile. On the server, and on a fresh load
+ * where the server read the same URL, the props already match.
+ */
+function filtersNow(fallback: MovingFilters): MovingFilters {
+  if (typeof window === "undefined") return fallback;
+  return filtersFromSearch(window.location.search, fallback);
+}
+
+/**
  * See all: a hero with the top mover, a sticky Up / Down / All control, sport
  * chips, then a 2-column grid of shared tiles. All is movers by the size of
  * the move, then the newest public cards. The filters live in the URL.
@@ -295,9 +309,21 @@ export function MovingTodayAll({
   initialSport?: MovingSport | null;
   signedIn?: boolean;
 }) {
-  const [direction, setDirection] = useState<MoverDirection>(initialDirection);
-  const [sport, setSport] = useState<MovingSport | null>(initialSport);
+  const [{ direction, sport }, setFilters] = useState<MovingFilters>(() =>
+    filtersNow({ direction: initialDirection, sport: initialSport }),
+  );
   const [switched, setSwitched] = useState(false);
+
+  // A popstate to another query on this same page follows the URL too.
+  useEffect(() => {
+    const onPop = () =>
+      setFilters((current) => {
+        const next = filtersFromSearch(window.location.search, current);
+        return next.direction === current.direction && next.sport === current.sport ? current : next;
+      });
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
   const reduced = useReducedMotion();
   const chips = useMemo(() => sportChips(payload.sales), [payload.sales]);
   const activeSport = sport && chips.some((chip) => chip.id === sport) ? sport : null;
@@ -309,8 +335,7 @@ export function MovingTodayAll({
 
   function update(nextDirection: MoverDirection, nextSport: MovingSport | null) {
     if (nextDirection === direction && nextSport === activeSport) return;
-    setDirection(nextDirection);
-    setSport(nextSport);
+    setFilters({ direction: nextDirection, sport: nextSport });
     setSwitched(true);
     navigator.vibrate?.(8);
     window.history.replaceState(null, "", movingQuery(nextDirection, nextSport));

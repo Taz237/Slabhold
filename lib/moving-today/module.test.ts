@@ -28,6 +28,7 @@ import {
   defaultDirection,
   directionCounts,
   directionTiles,
+  filtersFromSearch,
   moveBadgeText,
   moverFreshness,
   moverGain,
@@ -69,6 +70,8 @@ let root: Root | null = null;
 let host: HTMLElement;
 
 beforeEach(() => {
+  // Each test starts on a URL with no filters, like a fresh visit.
+  window.history.replaceState(null, "", "/");
   document.body.innerHTML = "";
   host = document.createElement("div");
   document.body.append(host);
@@ -670,6 +673,51 @@ describe("See all", () => {
       host.querySelector("[data-sport=basketball]")?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     });
     assert.equal(window.location.search, "?dir=all&sport=basketball");
+    assert.equal(host.querySelectorAll("[data-mover-grid] > [data-tile]").length, 2);
+  });
+
+  it("reads the filters from the URL, which wins over stale props", () => {
+    const fallback = { direction: "up", sport: null } as const;
+    assert.deepEqual(filtersFromSearch("", fallback), fallback);
+    assert.deepEqual(filtersFromSearch("?x=1", { direction: "all", sport: "football" }), {
+      direction: "all",
+      sport: "football",
+    });
+    assert.deepEqual(filtersFromSearch("?dir=all&sport=Basketball", fallback), { direction: "all", sport: "basketball" });
+    // A tab switch always writes dir; no sport there means every sport.
+    assert.deepEqual(filtersFromSearch("?dir=down", { direction: "up", sport: "football" }), {
+      direction: "down",
+      sport: null,
+    });
+    assert.deepEqual(filtersFromSearch("?dir=sideways&sport=curling", fallback), { direction: "up", sport: null });
+  });
+
+  it("shows the URL's sport and tab on Back, though the cached props have neither", () => {
+    const data = mixed(0, 0);
+    data.sales = [
+      sale(1, { percent: 40, sport: "football" }),
+      sale(2, { percent: -20, sport: "basketball" }),
+      cardTile(3, { sport: "football" }),
+      cardTile(4, { sport: "basketball" }),
+    ];
+    data.moverCount = 2;
+    data.totalCount = 4;
+    // The router redraws the page from props fetched before the switch.
+    window.history.replaceState(null, "", "/moving-today?dir=all&sport=basketball");
+    mount(createElement(MovingTodayAll, { payload: data, initialDirection: "up" }));
+    assert.equal(host.querySelector("[data-mover-grid]")?.getAttribute("data-mover-grid"), "all");
+    assert.equal(host.querySelector("[data-sport=basketball]")?.getAttribute("aria-pressed"), "true");
+    assert.equal(host.querySelectorAll("[data-mover-grid] > [data-tile]").length, 2);
+    // Read in the state initializer: the first client render is already filtered,
+    // before NavMotion's scroll restore measures the page.
+    assert.match(read("components/moving-today-page.tsx"), /useState<MovingFilters>\(\(\) =>\s*filtersNow\(/);
+
+    // A popstate to a different query follows it too.
+    act(() => {
+      window.history.replaceState(null, "", "/moving-today?dir=all&sport=football");
+      window.dispatchEvent(new window.PopStateEvent("popstate"));
+    });
+    assert.equal(host.querySelector("[data-sport=football]")?.getAttribute("aria-pressed"), "true");
     assert.equal(host.querySelectorAll("[data-mover-grid] > [data-tile]").length, 2);
   });
 
