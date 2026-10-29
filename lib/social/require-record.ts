@@ -4,7 +4,7 @@ import { cache } from "react";
 import { unstable_cache } from "next/cache";
 import { notFound } from "next/navigation";
 import { createAnonReader } from "@/lib/supabase/anon";
-import { cardCacheTag } from "@/lib/value/card-cache";
+import { cardCacheTag, cardVisibilityTag } from "@/lib/value/card-cache";
 import { isUuid } from "@/lib/value/card-value-access";
 import { createSupabaseServer } from "@/lib/supabase/server";
 import { normalizeUsername } from "./local-db";
@@ -59,15 +59,15 @@ export async function requireProfile(username: string): Promise<void> {
 
 /**
  * /u/[username]/cards/[id]. Private or wrong-owner cards are a 404.
- * Cookie-free, so the page is ISR. The read carries `card:${id}`, so a
- * revalidate of that tag also refreshes the page. React.cache shares it
- * within one render.
+ * Cookie-free, so the page is ISR. The read carries `card:${id}` and
+ * `card-visibility:${id}`, so a revalidate of either also refreshes the
+ * page. React.cache shares it within one render.
  */
 export const requirePublicCard = cache(async (username: string, cardId: string): Promise<void> => {
   const lookup = await unstable_cache(
     () => readPublicCardLookup(createAnonReader() as LookupClient | null, username, cardId),
     ["public-card-lookup", normalizeUsername(username), cardId],
-    { tags: [cardCacheTag(cardId)], revalidate: PUBLIC_CARD_REVALIDATE_SECONDS },
+    { tags: [cardCacheTag(cardId), cardVisibilityTag(cardId)], revalidate: PUBLIC_CARD_REVALIDATE_SECONDS },
   )();
   finish(lookup);
 });

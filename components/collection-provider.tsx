@@ -21,6 +21,7 @@ import type { CardInput, SportsCard } from "@/lib/types";
 import { shouldRefreshCardValueOnEdit } from "@/lib/value/price-refresh";
 import { scheduleCardValueRefresh } from "@/lib/value/use-card-values";
 import { isPublicForSaleListing } from "@/lib/wants/listing";
+import { pingCardCache } from "@/lib/cards/card-cache-ping";
 import { pingWantMatch } from "@/lib/wants/ping";
 
 export type SavedCard = {
@@ -209,6 +210,7 @@ export function CollectionProvider({ children }: { children: React.ReactNode }) 
           saved = enqueue(id, async () => {
             try {
               await saveUserCard(client, userId, updated);
+              if (previous && previous.isPublic !== updated.isPublic) pingCardCache(id);
               if (isPublicForSaleListing(updated)) pingWantMatch("listing", updated.id);
               setSyncError(null);
               if (needsRefresh) scheduleCardValueRefresh(id);
@@ -228,6 +230,7 @@ export function CollectionProvider({ children }: { children: React.ReactNode }) 
 
   const removeCard = useCallback(
     (id: string) => {
+      const wasPublic = Boolean(cardsRef.current.find((card) => card.id === id)?.isPublic);
       const next = cardsRef.current.filter((card) => card.id !== id);
       cardsRef.current = next;
       setCards(next);
@@ -237,6 +240,7 @@ export function CollectionProvider({ children }: { children: React.ReactNode }) 
           enqueue(id, async () => {
             try {
               await removeUserCard(client, userId, id);
+              if (wasPublic) pingCardCache(id);
               setSyncError(null);
             } catch (error) {
               report(error);

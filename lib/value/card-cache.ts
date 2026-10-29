@@ -14,3 +14,13 @@ export function revalidateCardCache(
   if (!cardId) return;
   revalidate(cardCacheTag(cardId), { expire: 0 });
 }
+
+/**
+ * Narrow tag for whether a card can be shown publicly: the card page's
+ * public_cards lookup and its public comps read. Busted when the owner flips
+ * the public switch or deletes the card, without touching the comps caches
+ * under `card:${id}`.
+ */
+export function cardVisibilityTag(cardId: string): string {
+  return `card-visibility:${cardId}`;
+}
