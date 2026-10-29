@@ -51,7 +51,7 @@ import {
 } from "@/lib/social/collect-interests";
 import type { CollectInterest } from "@/lib/social/follow-rank";
 import { isRecentAccount } from "@/lib/social/get-started";
-import { loadServerSuggestions, SUGGESTION_DISPLAY_LIMIT } from "@/lib/social/load-suggestions";
+import { loadServerSuggestions, SETUP_SUGGESTION_LIMIT } from "@/lib/social/load-suggestions";
 import type { ServerSuggestion } from "@/lib/social/suggestion-order";
 import { createSupabaseBrowser } from "@/lib/supabase/browser";
 
@@ -365,7 +365,7 @@ export function FirstRunSetup() {
         score: 0,
       })),
     me.id,
-  ).slice(0, SUGGESTION_DISPLAY_LIMIT);
+  ).slice(0, SETUP_SUGGESTION_LIMIT);
   const unfollowed = shownPeople.filter((profile) => !isFollowing(profile.userId));
   const stepNumber = SETUP_STEPS.indexOf(step) + 1;
 

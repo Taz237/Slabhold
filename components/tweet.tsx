@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { memo, useEffect, useRef, useState } from "react";
+import { memo, startTransition, useEffect, useRef, useState } from "react";
 import { BadgeCheck, Ellipsis, Heart, MessageCircle, Pin, Quote, Repeat2 } from "lucide-react";
 import { Avatar } from "@/components/avatar";
 import { useCollection } from "@/components/collection-provider";
@@ -69,9 +69,18 @@ export const Tweet = memo(function Tweet({
 
   const prefetched = useRef(false);
 
-  /** Warm the post page when a finger lands, so the tap opens it at once. */
-  function warmPost() {
-    if (variant !== "feed" || prefetched.current) return;
+  /**
+   * Warm the page a finger lands on, so the tap opens it at once. Links in a
+   * row don't prefetch as they scroll by; that was a lot of work per row.
+   */
+  function warmPost(event: React.PointerEvent<HTMLElement>) {
+    if (variant !== "feed") return;
+    const link = (event.target as HTMLElement).closest<HTMLAnchorElement>("a[href^='/']");
+    if (link) {
+      router.prefetch(link.getAttribute("href") ?? "/");
+      return;
+    }
+    if (prefetched.current) return;
     prefetched.current = true;
     router.prefetch(`/posts/${post.id}`);
   }
@@ -116,6 +125,7 @@ export const Tweet = memo(function Tweet({
       ) : null}
       {repostedBy ? (
         <Link
+          prefetch={false}
           href={userHref(repostedBy.username)}
           className="flex items-center gap-3 px-4 pt-3 text-[13px] font-bold text-zinc-500"
         >
@@ -126,7 +136,7 @@ export const Tweet = memo(function Tweet({
         </Link>
       ) : null}
       <div className={`flex gap-3 px-4 pb-1.5 ${pinned || repostedBy ? "pt-1" : "pt-3.5"}`}>
-      <Link href={userHref(author.username)} className="shrink-0">
+      <Link prefetch={false} href={userHref(author.username)} className="shrink-0">
         <Avatar name={author.displayName} image={author.avatarDataUrl} accent={author.accent} />
       </Link>
       <div className="min-w-0 flex-1">
@@ -218,6 +228,7 @@ function CommentPreview({ postId, comments }: { postId: string; comments: PostCo
           <div key={comment.id} className="flex min-w-0 gap-2">
             {href ? (
               <Link
+                prefetch={false}
                 href={href}
                 className={`${person?.avatarDataUrl ? "" : "hit-44"} mt-0.5 inline-flex shrink-0`}
               >
@@ -233,7 +244,7 @@ function CommentPreview({ postId, comments }: { postId: string; comments: PostCo
             )}
             <div className="min-w-0">
               {href ? (
-                <Link href={href} className="block truncate text-[13px] leading-5 font-bold hover:underline">
+                <Link prefetch={false} href={href} className="block truncate text-[13px] leading-5 font-bold hover:underline">
                   {name}
                 </Link>
               ) : (
@@ -251,6 +262,7 @@ function CommentPreview({ postId, comments }: { postId: string; comments: PostCo
       })}
       {comments.length > preview.length ? (
         <Link
+          prefetch={false}
           href={`/posts/${postId}`}
           className="inline-block text-[13px] font-medium text-violet-600 hover:underline dark:text-[#A78BFA]"
         >
@@ -280,7 +292,7 @@ export function AuthorLine({
 
   return (
     <div className="flex min-w-0 flex-1 items-baseline gap-x-1 text-[15px]">
-      <Link href={href} className="max-w-[52%] truncate font-bold tracking-tight hover:underline">
+      <Link prefetch={false} href={href} className="max-w-[52%] truncate font-bold tracking-tight hover:underline">
         {name}
       </Link>
       {official ? (
@@ -495,7 +507,14 @@ export function Engagement({
     likeCount,
     repostCount,
   } = useSocial();
-  const liked = isLiked(targetId);
+  // A tap shows its heart and count at once; the feed-wide update that follows
+  // runs as a transition so it never holds up the tap (it was ~1s on a slow phone).
+  const [likeTap, setLikeTap] = useState<{ liked: boolean; count: number } | null>(null);
+  const storedLiked = isLiked(targetId);
+  const storedLikes = likeCount(targetId);
+  if (likeTap && likeTap.liked === storedLiked) setLikeTap(null);
+  const liked = likeTap?.liked ?? storedLiked;
+  const likes = likeTap?.count ?? storedLikes;
   const reposted = isReposted(targetId);
   const quotes = quoteCount(posts, targetId);
   const [repostMenuOpen, setRepostMenuOpen] = useState(false);
@@ -587,7 +606,7 @@ export function Engagement({
       </div>
       <ActionButton
         label={liked ? "Unlike" : "Like"}
-        count={likeCount(targetId)}
+        count={likes}
         active={liked}
         pressed={liked}
         tone="rose"
@@ -596,7 +615,8 @@ export function Engagement({
         onClick={() => {
           if (!requireUser()) return;
           if (!liked && !reduceMotion) setLikeBurst((count) => count + 1);
-          toggleLike(targetId);
+          setLikeTap({ liked: !liked, count: Math.max(0, likes + (liked ? -1 : 1)) });
+          startTransition(() => toggleLike(targetId));
         }}
       >
         <Heart className={`h-[18px] w-[18px] ${liked ? "fill-current" : ""}`} />

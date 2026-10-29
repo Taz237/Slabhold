@@ -59,7 +59,8 @@ import { followingAuthorIds, homeHead, showsNewPosts } from "@/lib/social/feed-p
 import { presentForYouFeed } from "@/lib/social/for-you-display";
 import { addUnblockedProfiles, presentPagedItems } from "@/lib/social/paged-items";
 import { publicTimeline } from "@/lib/social/timeline";
-import { whoToFollowAfter } from "@/lib/ui/timeline";
+import { officialUpdatesUserId } from "@/lib/social/official-updates";
+import { SUGGESTION_RAIL_SIZE, inlineSuggestionPool, whoToFollowAfter } from "@/lib/ui/timeline";
 import { POST_LIMIT, type PublicCard } from "@/lib/social/types";
 
 function readComposerPhoto(file: File) {
@@ -223,16 +224,32 @@ export function FeedView({ movingToday }: { movingToday?: ReactNode } = {}) {
   const activePage = lane === "following" ? followingPage : forYouPage;
   // Back from a post: the tab you were reading counts as already picked.
   const pickedFor = useRef<string | null>(rememberedLane?.userId ?? null);
-  const suggestionIds = useRef<string[] | null>(null);
-  if (ready && suggestionsReady && user && suggestionIds.current === null && suggestions.length > 0) {
-    suggestionIds.current = suggestions.map((profile) => profile.id);
+  // The order first shown sticks, so following someone doesn't reshuffle the rail.
+  const [suggestionIds, setSuggestionIds] = useState<string[] | null>(null);
+  if (ready && suggestionsReady && user && suggestionIds === null && suggestions.length > 0) {
+    setSuggestionIds(suggestions.map((profile) => profile.id));
   }
   const suggestionById = new Map(suggestions.map((profile) => [profile.id, profile]));
-  const suggestionRail = (suggestionIds.current ?? (suggestionsReady ? suggestions.map((profile) => profile.id) : []))
-    .map((id) => suggestionById.get(id) ?? profiles.find((profile) => profile.id === id))
+  const rankedIds = suggestionIds ?? (suggestionsReady ? suggestions.map((profile) => profile.id) : []);
+  const suggestionFor = (id: string) => suggestionById.get(id) ?? profiles.find((profile) => profile.id === id);
+  const suggestionRail = rankedIds
+    .slice(0, SUGGESTION_RAIL_SIZE)
+    .map(suggestionFor)
     .filter((profile) => profile != null);
-  // Inline "Who to follow" cards reuse the rail's people, so the same exclusions apply.
-  const inlineSuggestions = user ? suggestionRail : [];
+  // Inline "Who to follow" cards pick up after the rail, so nobody shows twice.
+  const inlineSuggestions = user
+    ? inlineSuggestionPool({
+        ranked: [...new Set([...rankedIds, ...suggestions.map((profile) => profile.id)])]
+          .map(suggestionFor)
+          .filter((profile) => profile != null),
+        railIds: suggestionRail.map((profile) => profile.id),
+        viewerId: user.id,
+        officialId: officialUpdatesUserId(),
+        followingIds,
+        blockedIds,
+        mutedIds,
+      })
+    : [];
   const blocked = useMemo(() => new Set(blockedIds), [blockedIds]);
   const muted = useMemo(() => new Set(mutedIds), [mutedIds]);
   const postsById = useMemo(() => new Map(posts.map((post) => [post.id, post])), [posts]);

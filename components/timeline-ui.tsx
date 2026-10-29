@@ -7,12 +7,14 @@ import {
   useRef,
   useState,
   useSyncExternalStore,
+  type CSSProperties,
   type ReactNode,
 } from "react";
 import { ArrowUp } from "lucide-react";
 import { MentionText } from "@/components/mention-text";
 import {
   createLaneScrollMemory,
+  createRowHeights,
   entranceDelayMs,
   newItemsAbove,
   shouldCollapseBody,
@@ -337,7 +339,27 @@ export function useEntranceDelays(
   return (key: string) => delays.get(key) ?? null;
 }
 
-/** Wraps a feed item with its fade-in. Transform and opacity only, so nothing shifts. */
+const rowHeights = createRowHeights();
+let rowObserver: ResizeObserver | null = null;
+
+function observeRow(node: HTMLElement) {
+  if (typeof ResizeObserver === "undefined") return () => {};
+  rowObserver ??= new ResizeObserver((entries) => {
+    for (const entry of entries) {
+      const key = (entry.target as HTMLElement).dataset.feedKey;
+      if (key) rowHeights.set(key, entry.borderBoxSize?.[0]?.blockSize ?? entry.contentRect.height);
+    }
+  });
+  const observer = rowObserver;
+  observer.observe(node);
+  return () => observer.unobserve(node);
+}
+
+/**
+ * Wraps a feed item with its fade-in. Transform and opacity only, so nothing
+ * shifts. Rows off screen skip layout and paint (`feed-row` in globals.css)
+ * and hold their last real height, so scrolling and Back stay exact.
+ */
 export function FeedItem({
   itemKey,
   delay,
@@ -347,11 +369,18 @@ export function FeedItem({
   delay: number | null;
   children: ReactNode;
 }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => (ref.current ? observeRow(ref.current) : undefined), []);
+  const style: CSSProperties = { containIntrinsicSize: `auto ${rowHeights.get(itemKey)}px` };
+  if (delay) style.animationDelay = `${delay}ms`;
   return (
     <div
+      ref={ref}
       data-feed-key={itemKey}
-      className={delay === null ? undefined : "motion-safe:animate-[feed-in_420ms_cubic-bezier(0.2,0.7,0.2,1)_both]"}
-      style={delay ? { animationDelay: `${delay}ms` } : undefined}
+      className={
+        delay === null ? "feed-row" : "feed-row motion-safe:animate-[feed-in_420ms_cubic-bezier(0.2,0.7,0.2,1)_both]"
+      }
+      style={style}
     >
       {children}
     </div>

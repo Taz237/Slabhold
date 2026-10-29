@@ -138,16 +138,20 @@ function calendarDaysBetween(then: Date, now: Date) {
   return Math.round((end - start) / 86_400_000);
 }
 
+/** Built once: toLocaleString with options builds a new formatter on every call, per post row. */
+let exactFormat: Intl.DateTimeFormat | null = null;
+
 export function exactTime(iso: string | null | undefined) {
   const then = parseStamp(iso);
   if (!then) return "";
-  return then.toLocaleString("en-US", {
+  exactFormat ??= new Intl.DateTimeFormat("en-US", {
     month: "short",
     day: "numeric",
     year: "numeric",
     hour: "numeric",
     minute: "2-digit",
   });
+  return exactFormat.format(then);
 }
 
 export function timeAgo(iso: string | null | undefined, now = new Date()) {

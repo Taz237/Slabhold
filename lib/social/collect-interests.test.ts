@@ -526,7 +526,7 @@ describe("collecting UI", () => {
     assert.match(prompt, /persistInterestRows\(/);
     assert.match(prompt, /if \(!visible\) return/);
     assert.match(prompt, /card_catalog/);
-    assert.match(prompt, /SUGGESTION_DISPLAY_LIMIT/);
+    assert.match(prompt, /SETUP_SUGGESTION_LIMIT/);
     const interests = readFileSync(join(root, "lib/social/collect-interests.ts"), "utf8");
     const save = interests.slice(interests.indexOf("function persistInterestRows"));
     assert.ok(save.indexOf(".upsert(") < save.indexOf(".delete()"));

@@ -15,6 +15,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { trackEvent } from "@/lib/analytics";
 import { pingBadgeCheck } from "@/lib/badges/client";
 import { clearNewCardDraft } from "@/lib/cards/new-card-draft";
+import { forgetEmailHint } from "@/lib/pwa/install-step";
 import { activityFrom, emptyActivity, loadActivity, saveActivity, type ActivityStore } from "@/lib/social/activity";
 import {
   createRememberedPosts,
@@ -765,6 +766,8 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = useCallback(async () => {
     clearNewCardDraft();
+    // Every logout path (side menu, account deletion) comes through here.
+    forgetEmailHint();
     const client = supabaseRef.current;
     if (mode === "supabase" && client) {
       await remoteSignOut(client);

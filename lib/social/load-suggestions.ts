@@ -13,8 +13,15 @@ type RpcRow = {
   score?: number | null;
 };
 
-/** How many collectors the rail asks the server to return. */
-export const SUGGESTION_DISPLAY_LIMIT = 12;
+/**
+ * How many collectors Home asks the server for: the rail's 8, then enough
+ * for a few inline "Who to follow" cards (3 each) without repeating anyone.
+ * Was 12, which left one inline card. suggest_collectors caps at 30.
+ */
+export const SUGGESTION_DISPLAY_LIMIT = 20;
+
+/** First-run setup still lists the top 12. */
+export const SETUP_SUGGESTION_LIMIT = 12;
 
 /** Packed sport marks are not part of the sentence a collector sees. */
 export function visibleSuggestionReason(reason: string | null | undefined): string | null {

@@ -10,6 +10,7 @@ import {
   installPlatform,
   installStepKey,
   installStepShows,
+  loginFinishesSetup,
   openInBrowserName,
   parseInstallChoice,
   readEmailHint,
@@ -168,5 +169,13 @@ describe("installed app login", () => {
     assert.equal(readEmailHint("a=1"), null);
     assert.equal(readEmailHint(`${EMAIL_HINT_COOKIE}=not-an-email`), null);
     assert.equal(readEmailHint(`${EMAIL_HINT_COOKIE}=%E0%A4%A`), null);
+  });
+
+  it("only says finish setup in the installed app with the hint present", () => {
+    const cookie = `${EMAIL_HINT_COOKIE}=ada%40example.com`;
+    assert.equal(loginFinishesSetup({ appParam: "1", standalone: true, cookie }), true);
+    assert.equal(loginFinishesSetup({ appParam: "1", standalone: true, cookie: "" }), false);
+    assert.equal(loginFinishesSetup({ appParam: "1", standalone: false, cookie }), false);
+    assert.equal(loginFinishesSetup({ appParam: null, standalone: true, cookie }), false);
   });
 });

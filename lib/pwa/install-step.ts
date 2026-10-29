@@ -150,6 +150,27 @@ export function forgetEmailHint() {
   document.cookie = clearEmailHintCookie();
 }
 
+/**
+ * The install step was answered. "Maybe later" means no installed-app login
+ * is coming, so the hint goes; "added" keeps it for that first login.
+ */
+export function settleInstallChoice(choice: InstallChoice) {
+  if (choice === "later") forgetEmailHint();
+}
+
+/**
+ * "Log in once to finish setup" is only true in the installed app, between
+ * the install step and its first login. The email hint marks that window, so
+ * someone who just logged out of the app gets the normal login copy.
+ */
+export function loginFinishesSetup(input: {
+  appParam: string | null;
+  standalone: boolean;
+  cookie: string;
+}): boolean {
+  return input.appParam === "1" && input.standalone && readEmailHint(input.cookie) !== null;
+}
+
 export function readEmailHint(cookie: string): string | null {
   for (const part of cookie.split(";")) {
     const [name, ...rest] = part.trim().split("=");

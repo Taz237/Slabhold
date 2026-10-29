@@ -97,12 +97,73 @@ export const WHO_TO_FOLLOW_EVERY = 15;
 /** People on each inline card. */
 export const WHO_TO_FOLLOW_SIZE = 3;
 
+/** The "Collectors to follow" rail at the top of Home shows this many. */
+export const SUGGESTION_RAIL_SIZE = 8;
+
+/**
+ * Who the inline cards can still suggest: the ranked list after the rail's
+ * people, minus the viewer, the updates account, and anyone followed (even
+ * since the rail rendered), blocked or muted. Nobody on the rail comes back.
+ */
+export function inlineSuggestionPool<T extends { id: string }>(input: {
+  ranked: readonly T[];
+  railIds: readonly string[];
+  viewerId: string | null;
+  officialId?: string | null;
+  followingIds: Iterable<string>;
+  blockedIds: Iterable<string>;
+  mutedIds: Iterable<string>;
+}): T[] {
+  const skip = new Set<string>([
+    ...input.railIds,
+    ...input.followingIds,
+    ...input.blockedIds,
+    ...input.mutedIds,
+  ]);
+  if (input.viewerId) skip.add(input.viewerId);
+  const official = input.officialId?.toLowerCase() ?? null;
+  const seen = new Set<string>();
+  return input.ranked.filter((person) => {
+    if (skip.has(person.id) || seen.has(person.id)) return false;
+    if (official && person.id.toLowerCase() === official) return false;
+    seen.add(person.id);
+    return true;
+  });
+}
+
 /**
  * The people for the inline card after feed item `index`, or [] when no card
- * goes there. Each card takes the next few suggestions, so nobody repeats.
+ * goes there. Each card takes the next few suggestions, so nobody repeats,
+ * and once the pool runs out there are no more cards (nobody is recycled).
  */
 export function whoToFollowAfter<T>(index: number, people: readonly T[]): T[] {
   if ((index + 1) % WHO_TO_FOLLOW_EVERY !== 0) return [];
   const slot = (index + 1) / WHO_TO_FOLLOW_EVERY - 1;
   return people.slice(slot * WHO_TO_FOLLOW_SIZE, (slot + 1) * WHO_TO_FOLLOW_SIZE);
+}
+
+/** A feed row's height before it has ever been drawn: about a median post. */
+export const FEED_ROW_ESTIMATE_PX = 440;
+
+/**
+ * Heights of feed rows already drawn, by feed key. Offscreen rows skip their
+ * layout and paint (`content-visibility: auto`); a row drawn again after Back
+ * starts at its real height, so the restored scroll lands on the same post.
+ */
+export function createRowHeights(limit = 1000) {
+  const heights = new Map<string, number>();
+  return {
+    get(key: string): number {
+      return heights.get(key) ?? FEED_ROW_ESTIMATE_PX;
+    },
+    set(key: string, height: number) {
+      if (!(height > 0)) return;
+      heights.delete(key);
+      heights.set(key, Math.round(height));
+      if (heights.size > limit) {
+        const oldest = heights.keys().next().value;
+        if (oldest !== undefined) heights.delete(oldest);
+      }
+    },
+  };
 }

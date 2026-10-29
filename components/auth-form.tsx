@@ -49,7 +49,8 @@ import {
   type SignupStep,
 } from "@/lib/onboarding/signup-flow";
 import { TAKEN_USERNAME } from "@/lib/social/username-taken";
-import { forgetEmailHint, readEmailHint } from "@/lib/pwa/install-step";
+import { isStandaloneApp } from "@/lib/pwa/add-to-home";
+import { forgetEmailHint, loginFinishesSetup, readEmailHint } from "@/lib/pwa/install-step";
 import { readStoredUtm } from "@/lib/utm";
 import { createSupabaseBrowser } from "@/lib/supabase/browser";
 
@@ -80,6 +81,14 @@ const quietLink =
   "flex min-h-11 w-full items-center justify-center text-center text-[15px] font-medium text-zinc-500 focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:outline-none";
 const errorText = "text-sm text-rose-600 dark:text-rose-400";
 
+function readStandalone(): boolean {
+  const nav = window.navigator as Navigator & { standalone?: boolean };
+  return isStandaloneApp({
+    navigatorStandalone: nav.standalone === true,
+    displayModeStandalone: Boolean(window.matchMedia?.("(display-mode: standalone)").matches),
+  });
+}
+
 export function AuthForm({ mode }: { mode: "login" | "signup" }) {
   const router = useRouter();
   const params = useSearchParams();
@@ -95,6 +104,12 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
   // The installed app's first login: Safari may have left the email behind.
   const [email, setEmail] = useState(() =>
     fromApp && typeof document !== "undefined" ? (readEmailHint(document.cookie) ?? "") : "",
+  );
+  const [finishingSetup] = useState(
+    () =>
+      fromApp &&
+      typeof document !== "undefined" &&
+      loginFinishesSetup({ appParam: params.get("app"), standalone: readStandalone(), cookie: document.cookie }),
   );
   const [password, setPassword] = useState("");
   const [username, setUsername] = useState("");
@@ -519,7 +534,7 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
         <AuthTopBar homeHref={authLogoHref(next)} backHref={authLogoHref(next)} backLabel="Back to Slabhold" />
         <h1 className="mt-8 text-[28px] font-extrabold leading-tight tracking-tight">Welcome back</h1>
         <p className="mt-2 text-[15px] leading-6 text-zinc-600 dark:text-zinc-400">
-          {fromApp
+          {finishingSetup
             ? "Log in once to finish setup. You'll pick up right where you left off."
             : "Log in to your collection, your feed and your DMs."}
         </p>
