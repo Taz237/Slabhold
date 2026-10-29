@@ -96,6 +96,21 @@ export function routeStep(
   return { stack: pushEntry(stack, href), direction: "push" };
 }
 
+function pathOf(href: string): string {
+  return href.split("?")[0]?.split("#")[0] ?? href;
+}
+
+/**
+ * A page that swaps only its query in place (history.replaceState, like the
+ * /moving-today tabs) keeps its pathname, so the route effect never runs.
+ * Returns the stack with the current entry renamed to the URL on screen, or
+ * null when there is nothing to sync.
+ */
+export function querySync(stack: NavStack, current: string, here: string): NavStack | null {
+  if (current === here || pathOf(current) !== pathOf(here)) return null;
+  return routeStep(stack, here, "replace").stack;
+}
+
 export function canGoBack(stack: NavStack): boolean {
   return stack.index > 0;
 }

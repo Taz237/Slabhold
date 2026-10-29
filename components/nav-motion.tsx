@@ -10,6 +10,7 @@ import {
   edgeSwipeAllowed,
   edgeSwipeClaims,
   navKind,
+  querySync,
   restoreStep,
   routeStep,
   startStack,
@@ -209,8 +210,21 @@ export function NavMotion() {
     const before = history.scrollRestoration;
     history.scrollRestoration = "manual";
 
+    // Same page, new query: track the URL on screen so scroll is saved under it.
+    function syncCurrent() {
+      const current = currentRef.current;
+      const stack = stackRef.current;
+      if (current === null || !stack) return;
+      const here = hereHref();
+      const synced = querySync(stack, current, here);
+      if (!synced) return;
+      stackRef.current = synced;
+      currentRef.current = here;
+    }
+
     let saveFrame = 0;
     function onScroll() {
+      syncCurrent();
       if (saveFrame) return;
       saveFrame = window.requestAnimationFrame(() => {
         saveFrame = 0;
@@ -226,6 +240,7 @@ export function NavMotion() {
     type NavigateEvent = Event & { navigationType?: string; destination?: { url?: string } };
     const navigation = (window as Window & { navigation?: EventTarget }).navigation;
     function onNavigate(event: Event) {
+      syncCurrent();
       const { navigationType, destination } = event as NavigateEvent;
       if (navigationType !== "push" && navigationType !== "replace" && navigationType !== "traverse") return;
       const from = currentRef.current;
@@ -241,6 +256,7 @@ export function NavMotion() {
     }
 
     function onClick(event: MouseEvent) {
+      syncCurrent();
       const to = tappedHref(event);
       const from = currentRef.current;
       if (!to || from === null || to === from) return;
