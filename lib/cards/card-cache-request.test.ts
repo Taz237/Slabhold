@@ -12,7 +12,7 @@ function deps(over: Partial<CardCacheDeps> = {}) {
   const busted: string[] = [];
   const value: CardCacheDeps = {
     getUserId: async () => ME,
-    cardOwner: async () => ME,
+    cardOwner: async () => ({ ok: true, ownerId: ME }),
     revalidate: (cardId) => busted.push(cardId),
     ...over,
   };
@@ -36,7 +36,7 @@ describe("card cache refresh", () => {
   });
 
   it("busts a card that was just deleted", async () => {
-    const { value, busted } = deps({ cardOwner: async () => null });
+    const { value, busted } = deps({ cardOwner: async () => ({ ok: true, ownerId: null }) });
     const res = await postCardCacheRefresh(post({ cardId: CARD }), value);
     assert.equal(res.status, 200);
     assert.deepEqual(busted, [CARD]);
@@ -47,7 +47,7 @@ describe("card cache refresh", () => {
     assert.equal((await postCardCacheRefresh(post({ cardId: CARD }), signedOut.value)).status, 401);
     assert.deepEqual(signedOut.busted, []);
 
-    const other = deps({ cardOwner: async () => THEM });
+    const other = deps({ cardOwner: async () => ({ ok: true, ownerId: THEM }) });
     assert.equal((await postCardCacheRefresh(post({ cardId: CARD }), other.value)).status, 403);
     assert.deepEqual(other.busted, []);
 
@@ -55,6 +55,34 @@ describe("card cache refresh", () => {
     assert.equal((await postCardCacheRefresh(post({ cardId: "nope" }), bad.value)).status, 400);
     assert.equal((await postCardCacheRefresh(post(null), bad.value)).status, 400);
     assert.deepEqual(bad.busted, []);
+  });
+
+  it("403s someone else's private card and does not refresh it", async () => {
+    // The admin read sees private rows, so another user's private card is
+    // not mistaken for a deleted one.
+    const seen: string[] = [];
+    const other = deps({
+      cardOwner: async (cardId) => {
+        seen.push(cardId);
+        return { ok: true, ownerId: THEM };
+      },
+    });
+    const res = await postCardCacheRefresh(post({ cardId: CARD }), other.value);
+    assert.equal(res.status, 403);
+    assert.deepEqual(seen, [CARD]);
+    assert.deepEqual(other.busted, []);
+  });
+
+  it("fails closed when the owner can't be read", async () => {
+    const missing = deps({ cardOwner: async () => ({ ok: false }) });
+    assert.equal((await postCardCacheRefresh(post({ cardId: CARD }), missing.value)).status, 403);
+    assert.deepEqual(missing.busted, []);
+  });
+
+  it("reads the owner with the admin client", () => {
+    const route = readFileSync(join(process.cwd(), "app/api/cards/cache/route.ts"), "utf8");
+    assert.match(route, /createSupabaseAdmin\(\)/);
+    assert.doesNotMatch(route, /createSupabaseServer/);
   });
 
   it("is pinged after a visibility save and a delete", () => {
