@@ -19,6 +19,7 @@ import { YoureIn } from "@/components/onboarding/youre-in";
 import { AccountMenu } from "@/components/side-menu";
 import {
   isAuthPage,
+  isChromelessPath,
   isInvitePage,
   isJoinBarPage,
   loadingShellFor,
@@ -126,6 +127,7 @@ function Shell({
   showLogin,
   reserveJoin = false,
   attachedTabs = false,
+  chromeless = false,
 }: {
   children: React.ReactNode;
   unreadCount: number;
@@ -140,6 +142,8 @@ function Shell({
   reserveJoin?: boolean;
   /** Home: the For You / Following tabs sit flush under the header and carry its hairline. */
   attachedTabs?: boolean;
+  /** The composer: a full-screen sheet with no header, tabs, create menu or join bar. */
+  chromeless?: boolean;
 }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -149,69 +153,73 @@ function Shell({
   const wideMain =
     pathname.startsWith("/collection") || pathname.startsWith("/portfolio");
   const mainMax = wideMain ? "max-w-5xl" : "max-w-lg";
-  const mainPad = showNav
-    ? "pb-[calc(7rem+env(safe-area-inset-bottom))] md:pb-[calc(10rem+env(safe-area-inset-bottom))]"
-    : showJoin || reserveJoin
-      ? "pb-[calc(5.25rem+env(safe-area-inset-bottom))]"
-      : "pb-[max(1.5rem,env(safe-area-inset-bottom))]";
+  const mainPad = chromeless
+    ? ""
+    : showNav
+      ? "pb-[calc(7rem+env(safe-area-inset-bottom))] md:pb-[calc(10rem+env(safe-area-inset-bottom))]"
+      : showJoin || reserveJoin
+        ? "pb-[calc(5.25rem+env(safe-area-inset-bottom))]"
+        : "pb-[max(1.5rem,env(safe-area-inset-bottom))]";
 
   return (
     <div className="min-h-full bg-[var(--background)] text-[var(--foreground)]">
       <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(124,92,255,0.16),_transparent_50%)]" />
-      <header
-        style={{ viewTransitionName: "app-header" }}
-        data-attached-tabs={attachedTabs ? "" : undefined}
-        className={`sticky top-0 z-20 bg-[var(--chrome-bg)] pt-[env(safe-area-inset-top)] backdrop-blur-xl backdrop-saturate-150 ${
-          attachedTabs ? "" : HEADER_HAIRLINE
-        }`}>
-        <div className="mx-auto grid h-[3.25rem] max-w-lg grid-cols-[1fr_auto_1fr] items-center px-4">
-          <div className="flex items-center justify-self-start">
-            <AccountMenu user={user} showLogin={showLogin} />
-          </div>
-          <Link
-            href="/"
-            aria-label="Slabhold home"
-            className="grid h-11 w-11 place-items-center rounded-full focus-visible:ring-2 focus-visible:ring-violet-600 focus-visible:outline-none"
-          >
-            <Logo className="h-8 w-8" />
-          </Link>
-          {showNav ? (
-            <div className="flex items-center gap-1 justify-self-end">
-              <Link
-                href="/notifications"
-                aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : "Notifications"}
-                aria-current={pathname === "/notifications" ? "page" : undefined}
-                className={`tap relative grid h-9 w-9 place-items-center rounded-full ${
-                  pathname === "/notifications"
-                    ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-950"
-                    : "text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-white/10"
-                }`}
-              >
-                <Bell className="h-5 w-5" />
-                {unreadCount > 0 ? (
-                  <span className="absolute top-0 right-0 grid h-4 min-w-4 place-items-center rounded-full bg-violet-600 px-1 text-[10px] font-bold leading-none text-white">
-                    {unreadCount > 9 ? "9+" : unreadCount}
-                  </span>
-                ) : null}
-              </Link>
-              <Link
-                href="/search"
-                aria-label="Search"
-                aria-current={pathname === "/search" ? "page" : undefined}
-                className={`tap grid h-9 w-9 place-items-center rounded-full ${
-                  pathname === "/search"
-                    ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-950"
-                    : "text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-white/10"
-                }`}
-              >
-                <Search className="h-5 w-5" />
-              </Link>
+      {!chromeless ? (
+        <header
+          style={{ viewTransitionName: "app-header" }}
+          data-attached-tabs={attachedTabs ? "" : undefined}
+          className={`sticky top-0 z-20 bg-[var(--chrome-bg)] pt-[env(safe-area-inset-top)] backdrop-blur-xl backdrop-saturate-150 ${
+            attachedTabs ? "" : HEADER_HAIRLINE
+          }`}>
+          <div className="mx-auto grid h-[3.25rem] max-w-lg grid-cols-[1fr_auto_1fr] items-center px-4">
+            <div className="flex items-center justify-self-start">
+              <AccountMenu user={user} showLogin={showLogin} />
             </div>
-          ) : (
-            <span aria-hidden />
-          )}
-        </div>
-      </header>
+            <Link
+              href="/"
+              aria-label="Slabhold home"
+              className="grid h-11 w-11 place-items-center rounded-full focus-visible:ring-2 focus-visible:ring-violet-600 focus-visible:outline-none"
+            >
+              <Logo className="h-8 w-8" />
+            </Link>
+            {showNav ? (
+              <div className="flex items-center gap-1 justify-self-end">
+                <Link
+                  href="/notifications"
+                  aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : "Notifications"}
+                  aria-current={pathname === "/notifications" ? "page" : undefined}
+                  className={`tap relative grid h-9 w-9 place-items-center rounded-full ${
+                    pathname === "/notifications"
+                      ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-950"
+                      : "text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-white/10"
+                  }`}
+                >
+                  <Bell className="h-5 w-5" />
+                  {unreadCount > 0 ? (
+                    <span className="absolute top-0 right-0 grid h-4 min-w-4 place-items-center rounded-full bg-violet-600 px-1 text-[10px] font-bold leading-none text-white">
+                      {unreadCount > 9 ? "9+" : unreadCount}
+                    </span>
+                  ) : null}
+                </Link>
+                <Link
+                  href="/search"
+                  aria-label="Search"
+                  aria-current={pathname === "/search" ? "page" : undefined}
+                  className={`tap grid h-9 w-9 place-items-center rounded-full ${
+                    pathname === "/search"
+                      ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-950"
+                      : "text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-white/10"
+                  }`}
+                >
+                  <Search className="h-5 w-5" />
+                </Link>
+              </div>
+            ) : (
+              <span aria-hidden />
+            )}
+          </div>
+        </header>
+      ) : null}
       {status ? (
         <p className="border-b border-amber-200 bg-amber-50 px-4 py-2 text-center text-sm text-amber-950 dark:border-amber-400/20 dark:bg-amber-400/10 dark:text-amber-100">
           {status}
@@ -222,7 +230,7 @@ function Shell({
       </PageFrame>
       <NavMotion />
       <NavPendingSkeleton />
-      {showNav ? (
+      {showNav && !chromeless ? (
         <nav
           style={{ viewTransitionName: "app-nav" }}
           className="fixed inset-x-0 bottom-0 z-30 border-t border-zinc-200 bg-[color-mix(in_oklab,var(--background)_92%,transparent)] backdrop-blur-xl dark:border-white/10">
@@ -304,8 +312,8 @@ function Shell({
           </div>
         </nav>
       ) : null}
-      {showJoin ? <JoinBar /> : null}
-      {showNav ? <CreateMenu key={pathname} /> : null}
+      {showJoin && !chromeless ? <JoinBar /> : null}
+      {showNav && !chromeless ? <CreateMenu key={pathname} /> : null}
       {user ? <FirstRunSetup /> : null}
       {user ? <YoureIn userId={user.id} username={user.username} /> : null}
       {user ? <CoachTour userId={user.id} /> : null}
@@ -355,6 +363,7 @@ function GuestRedirect() {
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() || "/";
   const { unreadCount, unreadMessageCount, ready, user, status } = useSocial();
+  const chromeless = isChromelessPath(pathname);
 
   useEffect(() => {
     if (!user && pathname === "/") clearLogoutHome();
@@ -384,12 +393,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           showJoin={false}
           showLogin={false}
           reserveJoin={loading === "shell" && isJoinBarPage(pathname)}
+          chromeless={chromeless}
         >
           {children}
         </Shell>
       </>
     );
-    if (loading === "plain") return plainShell;
+    if (loading === "plain" || loading === "chromeless") return plainShell;
     // Leaving a cold post page reloads the site snapshot. Keep the header and
     // tabs up, with the page's own loading state in the main column. Checked
     // before the signed-out paths so a known reader never sees guest chrome.
@@ -406,6 +416,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             showJoin={false}
             showLogin={false}
             attachedTabs={pathname === "/"}
+            chromeless={chromeless}
           >
             {children}
           </Shell>
@@ -486,6 +497,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         showJoin={showJoin}
         showLogin={!user}
         attachedTabs={pathname === "/"}
+        chromeless={chromeless}
       >
         {children}
       </Shell>

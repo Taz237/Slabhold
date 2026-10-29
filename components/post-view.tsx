@@ -25,27 +25,7 @@ import { photoAttachFull, photoAttachHint, POST_PHOTO_CAP_HINT } from "@/lib/soc
 import { quotesOf } from "@/lib/social/quotes";
 import { commentsSupportReplyImages, isOptimisticReply } from "@/lib/social/reply-images";
 import { COMMENT_LIMIT, type AuthResult, type PostComment } from "@/lib/social/types";
-
-function useReplyKeyboardOffset() {
-  const [offset, setOffset] = useState(0);
-  useEffect(() => {
-    const viewport = window.visualViewport;
-    if (!viewport) return;
-    const update = () => {
-      const overlap = Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop);
-      setOffset(overlap > 80 ? Math.round(overlap) : 0);
-    };
-    viewport.addEventListener("resize", update);
-    viewport.addEventListener("scroll", update);
-    const frame = window.requestAnimationFrame(update);
-    return () => {
-      window.cancelAnimationFrame(frame);
-      viewport.removeEventListener("resize", update);
-      viewport.removeEventListener("scroll", update);
-    };
-  }, []);
-  return offset;
-}
+import { useKeyboardInset } from "@/lib/ui/use-keyboard-inset";
 
 const PAGE_SIZE = 20;
 
@@ -65,7 +45,7 @@ export function PostView({ id }: { id: string }) {
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [replyPhotosOn, setReplyPhotosOn] = useState(mode !== "supabase");
-  const keyboardOffset = useReplyKeyboardOffset();
+  const keyboardOffset = useKeyboardInset();
   const {
     images,
     limit,

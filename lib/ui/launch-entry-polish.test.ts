@@ -86,7 +86,8 @@ describe("empty card prompts", () => {
     const compose = read("components/compose-view.tsx");
     const feed = read("components/feed-view.tsx");
     assert.match(compose, /cardsReady && !syncError \? \([\s\S]*<AttachCardField/);
-    assert.match(compose, /<select[\s\S]*disabled[\s\S]*Attach a card/);
+    assert.match(compose, /aria-label="Attach a card"[\s\S]*disabled=\{!cardsUsable\}/);
+    assert.match(compose, /const cardsUsable = cardsReady && !syncError;/);
     assert.match(feed, /cardsReady && !syncError \? \([\s\S]*<AttachCardField/);
     assert.match(feed, /<select[\s\S]*disabled[\s\S]*Attach a card/);
   });

@@ -4,6 +4,7 @@ import {
   forwardRef,
   useEffect,
   useImperativeHandle,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -21,6 +22,11 @@ import { searchProfilesForMention } from "@/lib/social/remote";
 import { createSupabaseBrowser } from "@/lib/supabase/browser";
 
 const DEBOUNCE_MS = 150;
+
+function fitToText(field: HTMLTextAreaElement) {
+  field.style.height = "auto";
+  field.style.height = `${field.scrollHeight}px`;
+}
 
 function toCandidate(person: {
   id: string;
@@ -51,6 +57,11 @@ export const MentionTextarea = forwardRef<
     id?: string;
     /** `docked` pins the list above the compose toolbar so it stays reachable on a phone. */
     menu?: "inline" | "docked";
+    /**
+     * Grow with the text instead of scrolling inside the box, so the first
+     * line never clips. The parent scrolls. Pair with `overflow-hidden`.
+     */
+    autoGrow?: boolean;
   }
 >(function MentionTextarea(
   {
@@ -63,6 +74,7 @@ export const MentionTextarea = forwardRef<
     className,
     id,
     menu = "inline",
+    autoGrow = false,
   },
   ref,
 ) {
@@ -80,6 +92,24 @@ export const MentionTextarea = forwardRef<
   const [remoteForQuery, setRemoteForQuery] = useState<string | null>(null);
 
   useImperativeHandle(ref, () => fieldRef.current as HTMLTextAreaElement);
+
+  useLayoutEffect(() => {
+    if (autoGrow && fieldRef.current) fitToText(fieldRef.current);
+  }, [autoGrow, value]);
+
+  useEffect(() => {
+    if (!autoGrow) return;
+    // A new width rewraps the text, so measure again.
+    const fit = () => {
+      if (fieldRef.current) fitToText(fieldRef.current);
+    };
+    window.addEventListener("resize", fit);
+    window.visualViewport?.addEventListener("resize", fit);
+    return () => {
+      window.removeEventListener("resize", fit);
+      window.visualViewport?.removeEventListener("resize", fit);
+    };
+  }, [autoGrow]);
 
   const mention = activeMention(value, cursor);
   const query = mentionQueryAt(value, cursor) ?? "";

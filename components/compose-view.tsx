@@ -2,8 +2,16 @@
 
 import { goBackWithMotion } from "@/components/nav-motion";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
-import { Camera, ImagePlus, X } from "lucide-react";
+import {
+  useEffect,
+  useEffectEvent,
+  useLayoutEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
+import { createPortal } from "react-dom";
+import { Camera, Globe, ImagePlus, Layers, X } from "lucide-react";
 import { AttachCardField } from "@/components/attach-card-field";
 import { Avatar } from "@/components/avatar";
 import { ComposePhotoDrafts } from "@/components/compose-photo-drafts";
@@ -12,7 +20,6 @@ import { usePostPhotos } from "@/components/use-post-photos";
 import { useCollection } from "@/components/collection-provider";
 import { QuoteComposePreview } from "@/components/quoted-post-embed";
 import { MentionTextarea } from "@/components/mention-textarea";
-import { LoadingRows } from "@/components/status";
 import { signupPath } from "@/lib/auth/safe-next";
 import { useSocial } from "@/components/social-provider";
 import { takeCompose } from "@/lib/capture";
@@ -31,6 +38,8 @@ import { toPublicAttachment } from "@/lib/social/card-posts";
 import { QUOTE_EMPTY_ERROR, isQuoteSubmitDisabled, shouldConfirmDiscard, validateQuoteContent } from "@/lib/social/quotes";
 import { POST_LIMIT, type PublicCard } from "@/lib/social/types";
 import { createSupabaseBrowser } from "@/lib/supabase/browser";
+import { charRing } from "@/lib/ui/char-ring";
+import { useVisualViewport } from "@/lib/ui/use-keyboard-inset";
 import { isUuid } from "@/lib/value/card-value-access";
 
 function readComposerPhoto(file: File) {
@@ -69,6 +78,10 @@ export function ComposeView() {
   const [error, setError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const textRef = useRef<HTMLTextAreaElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const { frame, inset } = useVisualViewport();
   const editing = posts.find((post) => post.id === editId && post.authorId === user?.id);
   const attachedIsOwned = Boolean(
     attachCardParam && cards.some((card) => card.id === attachCardParam),
@@ -209,13 +222,17 @@ export function ComposeView() {
     router.push(editing ? `/posts/${editing.id}` : "/");
   }
 
-  if (!ready || !user) {
-    return (
-      <div className="-mx-4 -mt-5">
-        <LoadingRows count={2} />
-      </div>
-    );
-  }
+  const loading = !ready || !user;
+
+  // Keep the line being typed above the toolbar. The textarea grows, so the body scrolls.
+  useLayoutEffect(() => {
+    const field = textRef.current;
+    const scroller = scrollRef.current;
+    if (!field || !scroller || document.activeElement !== field) return;
+    if (field.selectionEnd !== field.value.length) return;
+    const hidden = field.getBoundingClientRect().bottom - scroller.getBoundingClientRect().bottom + 12;
+    if (hidden > 0) scroller.scrollTop += hidden;
+  }, [body, frame?.height]);
 
   const ownedAttachment = cards.find((card) => card.id === cardId);
   const attachedPreview = editing
@@ -235,11 +252,7 @@ export function ComposeView() {
     : (body.trim().length > 0 || images.length > 0 || Boolean(cardId)) && !sending && !readingPhoto;
 
   function leave() {
-    if (typeof window !== "undefined" && window.history.length > 1) {
-      goBackWithMotion(() => router.back());
-      return;
-    }
-    router.push("/");
+    leaveCompose(router);
   }
 
   function onCancel() {
@@ -256,193 +269,437 @@ export function ComposeView() {
     leave();
   }
 
+  const showCardButton = !editing && !externalCard;
+  const cardsUsable = cardsReady && !syncError;
+
   return (
-    <form
-      onSubmit={(e) => void submit(e)}
-      className="-mx-4 -mt-5 flex flex-col pb-16 motion-safe:animate-[composer-in_280ms_cubic-bezier(0.2,0.7,0.2,1)_both]"
-    >
-      <div className="flex items-center justify-between border-b border-zinc-200 px-4 py-2.5 dark:border-white/10">
-        <button
-          type="button"
-          onClick={onCancel}
-          className="rounded-full px-2 py-1.5 text-sm font-medium text-zinc-600 dark:text-zinc-300"
-        >
-          Cancel
-        </button>
-        <button
-          type="submit"
-          disabled={!canPost}
-          className="rounded-full bg-violet-600 px-4 py-1.5 text-sm font-bold text-white disabled:opacity-40"
-        >
-          {sending
-            ? editing
-              ? "Saving…"
-              : "Posting…"
-            : editing
-              ? "Save"
-              : quoteId
-                ? "Quote"
-                : "Post"}
-        </button>
-      </div>
-
-      <div className="px-4 py-4">
-        <div className="relative z-20 flex gap-3">
-          <Avatar
-            name={user.displayName}
-            image={user.avatarDataUrl}
-            accent={user.accent}
-            className="h-10 w-10"
-          />
-          <div className="min-w-0 flex-1">
-            <MentionTextarea
-              value={body}
-              onChange={setBody}
-              maxLength={POST_LIMIT}
-              rows={6}
-              autoFocus
-              menu="inline"
-              placeholder={quoteId ? "Add a comment" : "What's happening?"}
-              className="w-full resize-none bg-transparent text-[17px] leading-6 outline-none placeholder:text-zinc-500"
-            />
-            {error ? <p className="mt-3 text-sm text-rose-600 dark:text-rose-400">{error}</p> : null}
-            {photoError ? (
-              <div role="alert" className="mt-3 space-y-2">
-                <p className="text-sm text-rose-600 dark:text-rose-400">{photoError}</p>
-                {photoError === PHOTO_HEIC_ERROR ||
-                photoError === POST_PHOTO_LIMIT_ERROR ||
-                photoError === POST_PHOTO_SINGLE_ERROR ? null : (
-                  <button
-                    type="button"
-                    onClick={retryPhoto}
-                    className="inline-flex min-h-11 items-center rounded-full px-3 text-sm font-semibold text-violet-700 dark:text-violet-300"
-                  >
-                    Try again
-                  </button>
-                )}
+    <ComposeSheet
+      frame={frame}
+      label={editing ? "Edit post" : quoteId ? "Quote post" : "New post"}
+      onDismiss={loading ? leave : onCancel}
+      initialFocus={textRef}
+      overlay={
+        confirmDiscard ? (
+          <div className="fixed inset-0 z-[70] flex items-end justify-center bg-black/50 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:items-center md:pb-3">
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="discard-post-title"
+              className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-2xl motion-safe:animate-[composer-in_200ms_cubic-bezier(0.2,0.7,0.2,1)_backwards] dark:bg-zinc-900"
+            >
+              <h2 id="discard-post-title" className="text-lg font-bold tracking-tight">
+                Discard post?
+              </h2>
+              <p className="mt-1 text-sm text-zinc-500">Your text, photos and card go with it.</p>
+              <div className="mt-5 flex flex-col gap-2">
+                <button
+                  type="button"
+                  onClick={leave}
+                  className="min-h-11 rounded-full bg-rose-600 text-[15px] font-bold text-white active:bg-rose-700"
+                >
+                  Discard
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirmDiscard(false)}
+                  className="min-h-11 rounded-full border border-zinc-300 text-[15px] font-semibold active:bg-zinc-100 dark:border-white/15 dark:active:bg-white/5"
+                >
+                  Keep editing
+                </button>
               </div>
-            ) : null}
-          </div>
-        </div>
-        {quoteId ? (
-          <div className="mt-3 w-full">
-            <QuoteComposePreview
-              quotedPostId={quoteId}
-              onRemove={() => {
-                setQuoteId(null);
-                router.replace("/compose", { scroll: false });
-              }}
-            />
-          </div>
-        ) : null}
-        <ComposePhotoDrafts images={images} onRemove={removePhoto} />
-        {readingPhoto ? <p className="mt-2 text-sm text-zinc-500">Reading photo…</p> : null}
-        {attachedPreview ? (
-          <ComposeCardPreview
-            card={attachedPreview}
-            onRemove={() => {
-              setCardId("");
-              setExternalCard(null);
-            }}
-          />
-        ) : null}
-      </div>
-
-      <div className="fixed inset-x-0 bottom-[calc(6.15rem+env(safe-area-inset-bottom))] z-20 mx-auto flex w-full min-w-0 max-w-lg flex-col border-t border-zinc-200 bg-[var(--background)] px-2 py-2 dark:border-white/10">
-        {photosFull ? (
-          <span id="compose-photo-cap" className="block px-1 pb-1 text-xs text-zinc-500">
-            {photoCapHint}
-          </span>
-        ) : null}
-        <div className="flex w-full min-w-0 items-center gap-1 overflow-hidden">
-          <PhotoFileInputs
-            cameraRef={cameraRef}
-            libraryRef={libraryRef}
-            libraryMultiple
-            onPick={(file) => {
-              if (file) void addFiles([file]);
-            }}
-            onPickMany={(files) => void addFiles(files)}
-          />
-          <button
-            type="button"
-            disabled={photosFull}
-            aria-describedby={photosFull ? "compose-photo-cap" : undefined}
-            onClick={openCamera}
-            className="inline-flex min-h-11 min-w-0 shrink items-center gap-1.5 rounded-full px-2 text-sm font-medium text-violet-700 disabled:opacity-40 dark:text-violet-300"
-          >
-            <Camera className="h-5 w-5 shrink-0" />
-            <span className="truncate">Camera</span>
-          </button>
-          <button
-            type="button"
-            disabled={photosFull}
-            aria-describedby={photosFull ? "compose-photo-cap" : undefined}
-            onClick={openLibrary}
-            className="inline-flex min-h-11 min-w-0 shrink items-center gap-1.5 rounded-full px-2 text-sm font-medium text-violet-700 disabled:opacity-40 dark:text-violet-300"
-          >
-            <ImagePlus className="h-5 w-5 shrink-0" />
-            <span className="truncate">Library</span>
-          </button>
-          {!editing && externalCard ? null : !editing ? (
-            cardsReady && !syncError ? (
-              <AttachCardField
-                cards={cards}
-                value={cardId}
-                onChange={setCardId}
-                selectClassName="min-w-0 flex-1 truncate rounded-full border border-zinc-200 bg-transparent px-2 py-1.5 text-xs text-zinc-600 dark:border-white/10 dark:text-zinc-300"
-              />
-            ) : (
-              <select
-                disabled
-                value=""
-                aria-label="Attach a card"
-                className="min-w-0 flex-1 truncate rounded-full border border-zinc-200 bg-transparent px-2 py-1.5 text-xs text-zinc-600 dark:border-white/10 dark:text-zinc-300"
-              >
-                <option value="">Attach a card</option>
-              </select>
-            )
-          ) : null}
-          <span
-            className={`ml-auto shrink-0 pr-1 text-xs whitespace-nowrap tabular-nums ${
-              body.length > POST_LIMIT - 20 ? "text-rose-500" : "text-zinc-400"
-            }`}
-          >
-            {body.length}/{POST_LIMIT}
-          </span>
-        </div>
-      </div>
-      {confirmDiscard ? (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 px-4">
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="discard-post-title"
-            className="w-full max-w-sm rounded-2xl bg-white p-5 dark:bg-zinc-950"
-          >
-            <h2 id="discard-post-title" className="text-lg font-bold">
-              Discard post?
-            </h2>
-            <div className="mt-4 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setConfirmDiscard(false)}
-                className="rounded-full px-3 py-1.5 text-sm font-semibold"
-              >
-                Keep editing
-              </button>
-              <button
-                type="button"
-                onClick={leave}
-                className="rounded-full bg-zinc-900 px-3 py-1.5 text-sm font-bold text-white dark:bg-zinc-100 dark:text-zinc-950"
-              >
-                Discard
-              </button>
             </div>
           </div>
-        </div>
+        ) : null
+      }
+    >
+      {loading ? (
+        <>
+          <ComposeTopRow onCancel={leave}>
+            <button type="button" disabled className={POST_PILL}>
+              Post
+            </button>
+          </ComposeTopRow>
+          <ComposeSkeletonBody />
+        </>
+      ) : (
+        <form onSubmit={(e) => void submit(e)} className="flex min-h-0 flex-1 flex-col">
+          <ComposeTopRow onCancel={onCancel}>
+            <button type="submit" disabled={!canPost} className={POST_PILL}>
+              {sending
+                ? editing
+                  ? "Saving…"
+                  : "Posting…"
+                : editing
+                  ? "Save"
+                  : quoteId
+                    ? "Quote"
+                    : "Post"}
+            </button>
+          </ComposeTopRow>
+
+          <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pt-3 pb-6">
+            <div className="flex gap-3">
+              <Avatar
+                name={user.displayName}
+                image={user.avatarDataUrl}
+                accent={user.accent}
+                className="h-10 w-10 shrink-0"
+              />
+              <div className="min-w-0 flex-1">
+                <MentionTextarea
+                  ref={textRef}
+                  value={body}
+                  onChange={setBody}
+                  maxLength={POST_LIMIT}
+                  rows={1}
+                  autoGrow
+                  autoFocus
+                  menu="inline"
+                  placeholder={quoteId ? "Add a comment" : "What's happening?"}
+                  className="block w-full resize-none overflow-hidden bg-transparent pt-2 text-[17px] leading-6 caret-[#7C3AED] outline-none placeholder:text-zinc-500"
+                />
+                {error ? <p className="mt-3 text-sm text-rose-600 dark:text-rose-400">{error}</p> : null}
+                {photoError ? (
+                  <div role="alert" className="mt-3 space-y-2">
+                    <p className="text-sm text-rose-600 dark:text-rose-400">{photoError}</p>
+                    {photoError === PHOTO_HEIC_ERROR ||
+                    photoError === POST_PHOTO_LIMIT_ERROR ||
+                    photoError === POST_PHOTO_SINGLE_ERROR ? null : (
+                      <button
+                        type="button"
+                        onClick={retryPhoto}
+                        className="inline-flex min-h-11 items-center rounded-full px-3 text-sm font-semibold text-violet-700 dark:text-violet-300"
+                      >
+                        Try again
+                      </button>
+                    )}
+                  </div>
+                ) : null}
+                <ComposePhotoDrafts images={images} onRemove={removePhoto} />
+                {readingPhoto ? <p className="mt-2 text-sm text-zinc-500">Reading photo…</p> : null}
+                {quoteId ? (
+                  <div className="mt-3 w-full">
+                    <QuoteComposePreview
+                      quotedPostId={quoteId}
+                      onRemove={() => {
+                        setQuoteId(null);
+                        router.replace("/compose", { scroll: false });
+                      }}
+                    />
+                  </div>
+                ) : null}
+                {attachedPreview ? (
+                  <ComposeCardPreview
+                    card={attachedPreview}
+                    onRemove={() => {
+                      setCardId("");
+                      setExternalCard(null);
+                    }}
+                  />
+                ) : null}
+              </div>
+            </div>
+          </div>
+
+          {!editing ? (
+            <p className="flex shrink-0 items-center gap-1.5 px-4 pb-2 text-[13px] font-semibold text-[#7C3AED] dark:text-[#A78BFA]">
+              <Globe aria-hidden className="h-4 w-4" />
+              Everyone can reply
+            </p>
+          ) : null}
+
+          <div
+            className={`relative shrink-0 border-t border-zinc-200 dark:border-white/10 ${
+              inset > 0 ? "" : "pb-[env(safe-area-inset-bottom)]"
+            }`}
+          >
+            {pickerOpen && showCardButton && cardsReady && !syncError ? (
+              <div
+                id="compose-card-picker"
+                className="absolute inset-x-2 bottom-full mb-2 overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-2xl motion-safe:animate-[composer-in_180ms_cubic-bezier(0.2,0.7,0.2,1)_backwards] dark:border-white/10 dark:bg-zinc-900"
+              >
+                <div className="flex items-center justify-between py-1 pr-1 pl-4">
+                  <p className="text-[13px] font-semibold text-zinc-500">Attach a card</p>
+                  <button
+                    type="button"
+                    onClick={() => setPickerOpen(false)}
+                    aria-label="Close card list"
+                    className="grid h-11 w-11 place-items-center rounded-full text-zinc-500 active:bg-zinc-100 dark:active:bg-white/5"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+                <div className="max-h-64 overflow-y-auto overscroll-contain pb-1">
+                  <AttachCardField
+                    variant="list"
+                    cards={cards}
+                    value={cardId}
+                    onChange={(id) => {
+                      setCardId(id);
+                      setPickerOpen(false);
+                    }}
+                  />
+                </div>
+              </div>
+            ) : null}
+            {photosFull ? (
+              <div className="px-3 pt-1.5">
+                <span id="compose-photo-cap" className="block px-1 pb-1 text-xs text-zinc-500">
+                  {photoCapHint}
+                </span>
+              </div>
+            ) : null}
+            <div className="flex h-11 items-center px-1.5">
+              <PhotoFileInputs
+                cameraRef={cameraRef}
+                libraryRef={libraryRef}
+                libraryMultiple
+                onPick={(file) => {
+                  if (file) void addFiles([file]);
+                }}
+                onPickMany={(files) => void addFiles(files)}
+              />
+              <button
+                type="button"
+                aria-label="Camera"
+                disabled={photosFull}
+                aria-describedby={photosFull ? "compose-photo-cap" : undefined}
+                onClick={openCamera}
+                className={TOOL_BUTTON}
+              >
+                <Camera className="h-[22px] w-[22px]" />
+              </button>
+              <button
+                type="button"
+                aria-label="Photo library"
+                disabled={photosFull}
+                aria-describedby={photosFull ? "compose-photo-cap" : undefined}
+                onClick={openLibrary}
+                className={TOOL_BUTTON}
+              >
+                <ImagePlus className="h-[22px] w-[22px]" />
+              </button>
+              {showCardButton ? (
+                <button
+                  type="button"
+                  aria-label="Attach a card"
+                  aria-expanded={pickerOpen && cardsUsable}
+                  aria-controls={pickerOpen && cardsUsable ? "compose-card-picker" : undefined}
+                  disabled={!cardsUsable}
+                  onClick={() => setPickerOpen((open) => !open)}
+                  className={TOOL_BUTTON}
+                >
+                  <Layers className="h-[22px] w-[22px]" />
+                </button>
+              ) : null}
+              <div className="ml-auto flex items-center pr-2.5">
+                <CharacterRing length={body.length} />
+                <span className="sr-only" aria-live="polite">
+                  {body.length}/{POST_LIMIT}
+                </span>
+              </div>
+            </div>
+          </div>
+        </form>
+      )}
+    </ComposeSheet>
+  );
+}
+
+const POST_PILL =
+  "hit-44 h-8 rounded-full bg-[#7C3AED] px-4 text-[15px] font-bold text-white transition-colors active:bg-[#5B21B6] disabled:opacity-50";
+
+const TOOL_BUTTON =
+  "grid h-11 w-11 shrink-0 place-items-center rounded-full text-[#7C3AED] transition-colors active:bg-violet-500/10 disabled:opacity-40 dark:text-[#A78BFA]";
+
+type NavRouter = ReturnType<typeof useRouter>;
+
+function leaveCompose(router: NavRouter) {
+  if (typeof window !== "undefined" && window.history.length > 1) {
+    goBackWithMotion(() => router.back());
+    return;
+  }
+  router.push("/");
+}
+
+const subscribeNothing = () => () => {};
+
+/** True after hydration, so the portal never renders on the server. */
+function useMounted() {
+  return useSyncExternalStore(
+    subscribeNothing,
+    () => true,
+    () => false,
+  );
+}
+
+/**
+ * The composer as a full-screen sheet on phones and a centred modal from md.
+ * Portaled to <body> so no transformed ancestor (the page's view transition,
+ * the swipe-back) can trap it. It is sized to the visual viewport, so its last
+ * child, the toolbar, rests on the keyboard. The entrance animation fills
+ * backwards only: once it ends nothing above the toolbar is transformed.
+ */
+function ComposeSheet({
+  frame,
+  label,
+  onDismiss,
+  initialFocus,
+  overlay,
+  children,
+}: {
+  frame: { top: number; height: number } | null;
+  label: string;
+  onDismiss: () => void;
+  initialFocus: React.RefObject<HTMLTextAreaElement | null>;
+  overlay: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  const mounted = useMounted();
+  const dismiss = useEffectEvent(onDismiss);
+
+  useEffect(() => {
+    const html = document.documentElement;
+    const page = document.body;
+    const before = [html.style.overflow, page.style.overflow] as const;
+    html.style.overflow = "hidden";
+    page.style.overflow = "hidden";
+    return () => {
+      html.style.overflow = before[0];
+      page.style.overflow = before[1];
+    };
+  }, []);
+
+  useEffect(() => {
+    function onKey(event: KeyboardEvent) {
+      if (event.key === "Escape" && !event.defaultPrevented) dismiss();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  useEffect(() => {
+    if (mounted) initialFocus.current?.focus({ preventScroll: true });
+  }, [initialFocus, mounted]);
+
+  if (!mounted) return null;
+  return createPortal(
+    <div
+      className="fixed inset-x-0 top-0 z-[60] h-dvh md:flex md:items-center md:justify-center md:bg-black/50 md:p-6"
+      style={frame ? { top: frame.top, height: frame.height } : undefined}
+      onClick={(event) => {
+        if (event.target === event.currentTarget) onDismiss();
+      }}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={label}
+        className="relative flex h-full w-full flex-col bg-white text-zinc-900 motion-safe:animate-[composer-in_220ms_cubic-bezier(0.2,0.7,0.2,1)_backwards] md:h-auto md:max-h-full md:min-h-[22rem] md:max-w-lg md:rounded-2xl md:shadow-2xl dark:bg-[#09090B] dark:text-zinc-100 md:dark:ring-1 md:dark:ring-white/10"
+      >
+        {children}
+      </div>
+      {overlay}
+    </div>,
+    document.body,
+  );
+}
+
+function ComposeTopRow({ onCancel, children }: { onCancel: () => void; children: React.ReactNode }) {
+  return (
+    <div className="box-content flex h-11 shrink-0 items-center justify-between pt-[env(safe-area-inset-top)] pr-4 pl-2 md:h-14 md:pt-0">
+      <button
+        type="button"
+        onClick={onCancel}
+        className="min-h-11 rounded-full px-2 text-[15px] text-zinc-700 active:opacity-60 dark:text-zinc-300"
+      >
+        Cancel
+      </button>
+      {children}
+    </div>
+  );
+}
+
+function ComposeSkeletonBody() {
+  return (
+    <div aria-hidden className="flex gap-3 px-4 pt-3">
+      <div className="skeleton-shimmer h-10 w-10 shrink-0 rounded-full" />
+      <div className="min-w-0 flex-1 space-y-2.5 pt-3">
+        <div className="skeleton-shimmer h-3.5 w-3/4 rounded-full" />
+        <div className="skeleton-shimmer h-3.5 w-1/2 rounded-full" />
+      </div>
+    </div>
+  );
+}
+
+/** Before the search params resolve: the sheet's frame, drawn in place, no header or tabs. */
+export function ComposeFallback() {
+  return (
+    <div className="fixed inset-0 z-[60] flex flex-col bg-white md:hidden dark:bg-[#09090B]">
+      <div className="box-content flex h-11 shrink-0 items-center justify-between pt-[env(safe-area-inset-top)] pr-4 pl-4">
+        <span className="text-[15px] text-zinc-700 dark:text-zinc-300">Cancel</span>
+        <span className="flex h-8 items-center rounded-full bg-[#7C3AED] px-4 text-[15px] font-bold text-white opacity-50">
+          Post
+        </span>
+      </div>
+      <ComposeSkeletonBody />
+    </div>
+  );
+}
+
+function CharacterRing({ length }: { length: number }) {
+  const ring = charRing(length, POST_LIMIT);
+  if (!ring.visible) return null;
+  const size = ring.label ? 28 : 20;
+  const stroke = 2.5;
+  const radius = (size - stroke) / 2;
+  const around = 2 * Math.PI * radius;
+  const tone =
+    ring.tone === "over"
+      ? "stroke-rose-500"
+      : ring.tone === "warn"
+        ? "stroke-amber-500"
+        : "stroke-[#7C3AED] dark:stroke-[#A78BFA]";
+  return (
+    <span
+      aria-hidden
+      data-tone={ring.tone}
+      className="relative grid place-items-center"
+      style={{ width: size, height: size }}
+    >
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+        <g transform={`rotate(-90 ${size / 2} ${size / 2})`}>
+          <circle
+            cx={size / 2}
+            cy={size / 2}
+            r={radius}
+            fill="none"
+            strokeWidth={stroke}
+            className="stroke-zinc-200 dark:stroke-zinc-700"
+          />
+          <circle
+            cx={size / 2}
+            cy={size / 2}
+            r={radius}
+            fill="none"
+            strokeWidth={stroke}
+            strokeLinecap="round"
+            strokeDasharray={around}
+            strokeDashoffset={around * (1 - ring.progress)}
+            className={tone}
+          />
+        </g>
+      </svg>
+      {ring.label ? (
+        <span
+          className={`absolute text-[11px] font-medium tabular-nums ${
+            ring.tone === "over" ? "text-rose-500" : "text-amber-500"
+          }`}
+        >
+          {ring.label}
+        </span>
       ) : null}
-    </form>
+    </span>
   );
 }
 
