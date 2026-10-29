@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { FEED_PAGE_SIZE, type FeedCursor } from "@/lib/social/feed-page";
+import { memoryFresh, mergeFreshPage } from "@/lib/social/feed-refresh";
 import { loadFeedPage, type FeedPageScope } from "@/lib/social/load-feed-page";
 import type { TimelineItem } from "@/lib/social/timeline";
 import type { Post, PostLike, Profile } from "@/lib/social/types";
@@ -25,6 +26,35 @@ const idle: PageState = {
   nextCursor: null,
 };
 
+type Remembered = { page: PageState; cursor: FeedCursor | null; seen: Set<string>; at: number };
+
+/**
+ * Timelines you just left, so Back draws the same posts at once and the
+ * scroll can land exactly where you were. Lives for this tab session only.
+ */
+const remembered = new Map<string, Remembered>();
+const REMEMBER_LIMIT = 8;
+
+function recall(key: string): Remembered | null {
+  const saved = remembered.get(key);
+  if (!saved) return null;
+  if (!memoryFresh(saved.at, Date.now())) {
+    remembered.delete(key);
+    return null;
+  }
+  return saved;
+}
+
+function remember(key: string, saved: Remembered) {
+  remembered.delete(key);
+  remembered.set(key, saved);
+  while (remembered.size > REMEMBER_LIMIT) {
+    const oldest = remembered.keys().next().value;
+    if (oldest === undefined) break;
+    remembered.delete(oldest);
+  }
+}
+
 export function usePagedTimeline(input: {
   enabled: boolean;
   scope: FeedPageScope;
@@ -38,19 +68,21 @@ export function usePagedTimeline(input: {
   rememberPosts?: (posts: Post[], profiles?: Profile[], likes?: PostLike[] | null) => void;
 }) {
   const authorKey = input.authorIds?.join(",") ?? "";
-  const scopeKey = [
+  const memoryKey = [
     input.enabled ? "1" : "0",
     input.scope,
     input.profileId ?? "",
     authorKey,
     input.viewerId ?? "",
-    String(input.refreshKey),
     [...(input.blockedIds ?? [])].sort().join(","),
     [...(input.mutedIds ?? [])].sort().join(","),
   ].join("|");
+  const scopeKey = `${memoryKey}|${input.refreshKey}`;
 
-  const [page, setPage] = useState<PageState>(idle);
-  const [loading, setLoading] = useState(input.enabled);
+  // Coming back to a timeline within a few minutes: draw it from memory.
+  const [restored] = useState(() => (input.enabled ? recall(memoryKey) : null));
+  const [page, setPage] = useState<PageState>(() => restored?.page ?? idle);
+  const [loading, setLoading] = useState(input.enabled && !restored);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loadedKey, setLoadedKey] = useState(scopeKey);
@@ -62,8 +94,9 @@ export function usePagedTimeline(input: {
     setError(null);
   }
 
-  const cursorRef = useRef<FeedCursor | null>(null);
-  const seenRef = useRef<Set<string>>(new Set());
+  const cursorRef = useRef<FeedCursor | null>(restored?.cursor ?? null);
+  const seenRef = useRef<Set<string>>(restored ? new Set(restored.seen) : new Set());
+  const restoredKey = useRef<string | null>(restored ? scopeKey : null);
   const epochRef = useRef(0);
   const loadingMoreRef = useRef(false);
   const requestRef = useRef(input);
@@ -76,6 +109,9 @@ export function usePagedTimeline(input: {
 
   useEffect(() => {
     const token = ++epochRef.current;
+    // Drawn from memory: keep it. A refresh or a new scope loads as usual.
+    if (restoredKey.current === scopeKey) return;
+    restoredKey.current = null;
     cursorRef.current = null;
     seenRef.current = new Set();
     loadingMoreRef.current = false;
@@ -110,6 +146,51 @@ export function usePagedTimeline(input: {
         setError(reason instanceof Error ? reason.message : "Could not load posts.");
       });
   }, [scopeKey]);
+
+  useEffect(() => {
+    if (!input.enabled || loading || page.items.length === 0) return;
+    remember(memoryKey, {
+      page,
+      cursor: cursorRef.current,
+      seen: new Set(seenRef.current),
+      at: Date.now(),
+    });
+  }, [input.enabled, loading, memoryKey, page]);
+
+  /**
+   * Pull to refresh: fetch the newest page again and lay it over the list
+   * on screen. The list never empties, so nothing jumps while it loads.
+   */
+  const refresh = useCallback(async () => {
+    const current = requestRef.current;
+    if (!current.enabled) return;
+    const supabase = createSupabaseBrowser();
+    if (!supabase) return;
+    const token = epochRef.current;
+    try {
+      const next = await loadFeedPage(supabase, {
+        scope: current.scope,
+        viewerId: current.viewerId,
+        authorIds: current.authorIds,
+        profileId: current.profileId,
+        cursor: null,
+        limit: FEED_PAGE_SIZE,
+      });
+      if (epochRef.current !== token) return;
+      rememberRef.current?.([...next.posts, ...next.relatedPosts], next.profiles, next.likes);
+      setPage((existing) => {
+        const merged = mergeFreshPage(existing, next);
+        cursorRef.current = merged.page.nextCursor;
+        seenRef.current = new Set(merged.page.items.map((item) => item.post.id));
+        return merged.page;
+      });
+      setLoading(false);
+      setError(null);
+    } catch (reason: unknown) {
+      if (epochRef.current !== token) return;
+      setError(reason instanceof Error ? reason.message : "Could not load posts.");
+    }
+  }, []);
 
   const loadMore = useCallback(() => {
     const current = requestRef.current;
@@ -169,6 +250,9 @@ export function usePagedTimeline(input: {
     loadingMore,
     error,
     loadMore,
+    refresh,
+    /** True when this mount drew the timeline from memory instead of loading it. */
+    restored: Boolean(restored),
   };
 }
 

@@ -34,7 +34,7 @@ export function PostPhotoGrid({
           alt=""
           loading="lazy"
           decoding="async"
-          className="max-h-80 w-full object-cover"
+          className="aspect-square max-h-80 w-full object-cover"
         />
       </button>
     );

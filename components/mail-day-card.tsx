@@ -230,6 +230,8 @@ function MailDayPhoto({
       <img
         src={src}
         alt=""
+        loading="lazy"
+        decoding="async"
         data-photo-fit={hero ? "contain" : "cover"}
         className={`aspect-[4/5] w-full ${hero ? "object-contain" : "object-cover"}`}
       />

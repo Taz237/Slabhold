@@ -55,6 +55,8 @@ export function FollowList({
         <button
           type="button"
           onClick={() => router.push(backHref)}
+          data-nav-href={backHref}
+          data-nav-back=""
           aria-label="Back to profile"
           className="grid h-9 w-9 place-items-center rounded-full hover:bg-zinc-100 dark:hover:bg-white/10"
         >

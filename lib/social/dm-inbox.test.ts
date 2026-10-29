@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  SHARED_A_CARD,
+  SHARED_A_POST,
   filterConversations,
+  inboxPreviewText,
   inboxConversations,
   messageLinks,
   seenMessageId,
@@ -150,5 +153,20 @@ describe("threadTimeLabel", () => {
     assert.equal(threadTimeLabel(new Date(2026, 9, 2, 20, 15).toISOString(), now), "Oct 2, 8:15 PM");
     assert.equal(threadTimeLabel(new Date(2025, 0, 2, 20, 15).toISOString(), now), "Jan 2, 2025, 8:15 PM");
     assert.equal(threadTimeLabel("nope", now), "");
+  });
+});
+
+describe("inbox preview for shared links", () => {
+  it("reads Shared a post / Shared a card instead of the raw link", () => {
+    assert.equal(SHARED_A_POST, "Shared a post");
+    assert.equal(SHARED_A_CARD, "Shared a card");
+    assert.equal(inboxPreviewText("https://slabhold.app/posts/abc-123"), SHARED_A_POST);
+    assert.equal(inboxPreviewText("  slabhold.vercel.app/posts/abc  "), SHARED_A_POST);
+    assert.equal(inboxPreviewText("https://slabhold.app/u/maya/cards/9f2c"), SHARED_A_CARD);
+    assert.equal(inboxPreviewText("look at this https://slabhold.app/posts/abc"), "look at this");
+    assert.equal(inboxPreviewText("https://slabhold.app/u/maya"), "https://slabhold.app/u/maya");
+    assert.equal(inboxPreviewText("https://example.com/posts/abc"), "https://example.com/posts/abc");
+    assert.equal(inboxPreviewText("hello"), "hello");
+    assert.equal(inboxPreviewText("   "), "");
   });
 });

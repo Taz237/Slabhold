@@ -421,6 +421,249 @@ textarea {
   }
 }
 
+/*
+ * Taps. No double-tap zoom wait, no grey iOS flash. Press states use the
+ * individual scale property, so they never fight a Tailwind translate.
+ */
+html {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.tap {
+  transition:
+    scale 140ms cubic-bezier(0.2, 0.7, 0.2, 1),
+    opacity 140ms ease-out;
+}
+
+.tap:active {
+  scale: 0.97;
+}
+
+.tap-fade:active {
+  opacity: 0.7;
+}
+
+/* Post rows tint instead of shrinking. The short delay keeps a scroll flick from flashing. */
+.tap-row {
+  transition: background-color 120ms ease-out;
+}
+
+.tap-row:active {
+  background-color: rgb(24 24 27 / 0.045);
+  transition-delay: 60ms;
+}
+
+@media (prefers-color-scheme: dark) {
+  .tap-row:active {
+    background-color: rgb(255 255 255 / 0.045);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tap,
+  .tap-row {
+    transition: none;
+  }
+
+  .tap:active {
+    scale: none;
+    opacity: 0.75;
+  }
+}
+
+/* Pull to refresh: the mark gives one small pop at the trigger point. */
+@keyframes ptr-click {
+  0% {
+    scale: 1;
+  }
+  45% {
+    scale: 1.22;
+  }
+  100% {
+    scale: 1;
+  }
+}
+
+/*
+ * Page changes (View Transitions). nav-motion.tsx sets data-nav on <html>
+ * before each route change: forward slides a pushed screen in from the
+ * right, back slides it off, fade is a quick cross-fade between tabs, none
+ * skips it (the edge swipe already moved the page). The header and the
+ * bottom bar hold still. Browsers without the API swap pages instantly.
+ */
+::view-transition {
+  pointer-events: none;
+}
+
+::view-transition-old(root) {
+  display: none;
+}
+
+::view-transition-new(root) {
+  animation: none;
+}
+
+::view-transition-group(app-header),
+::view-transition-group(app-nav) {
+  animation: none;
+  z-index: 50;
+}
+
+::view-transition-old(app-header),
+::view-transition-old(app-nav) {
+  display: none;
+}
+
+::view-transition-new(app-header),
+::view-transition-new(app-nav) {
+  animation: none;
+}
+
+:root {
+  --page-ease: cubic-bezier(0.32, 0.72, 0, 1);
+  --page-slide: 340ms;
+  --page-fade-out: 110ms;
+  --page-fade-in: 170ms;
+}
+
+/* Default (a change we did not classify) and tabs: a quick cross-fade. */
+::view-transition-old(.page-out) {
+  animation: var(--page-fade-out) ease-out both page-fade reverse;
+}
+
+::view-transition-new(.page-in) {
+  animation: var(--page-fade-in) ease-out both page-fade;
+}
+
+/*
+ * Slides move the whole group with `translate` (the browser already uses
+ * `transform` to place it). The page on top gets a solid background so the
+ * one underneath never shows through.
+ */
+html[data-nav="forward"]::view-transition-old(.page-out),
+html[data-nav="forward"]::view-transition-new(.page-in),
+html[data-nav="back"]::view-transition-old(.page-out),
+html[data-nav="back"]::view-transition-new(.page-in) {
+  animation: none;
+}
+
+html[data-nav="forward"]::view-transition-group(.page-in),
+html[data-nav="back"]::view-transition-group(.page-out) {
+  z-index: 2;
+  background-color: var(--background);
+  box-shadow: -10px 0 28px -12px rgb(0 0 0 / 0.35);
+}
+
+html[data-nav="forward"]::view-transition-group(.page-in) {
+  animation: var(--page-slide) var(--page-ease) both page-from-right;
+}
+
+html[data-nav="forward"]::view-transition-group(.page-out) {
+  animation: var(--page-slide) var(--page-ease) both page-to-behind;
+}
+
+html[data-nav="back"]::view-transition-group(.page-out) {
+  animation: var(--page-slide) var(--page-ease) both page-to-right;
+}
+
+html[data-nav="back"]::view-transition-group(.page-in) {
+  animation: var(--page-slide) var(--page-ease) both page-from-behind;
+}
+
+/* Back from a router.back() arrow (goBackWithMotion in nav-motion.tsx). */
+::view-transition-old(page-back-old),
+::view-transition-new(page-back-new) {
+  animation: none;
+}
+
+::view-transition-group(page-back-old) {
+  z-index: 2;
+  background-color: var(--background);
+  box-shadow: -10px 0 28px -12px rgb(0 0 0 / 0.35);
+  animation: var(--page-slide) var(--page-ease) both page-to-right;
+}
+
+::view-transition-group(page-back-new) {
+  animation: var(--page-slide) var(--page-ease) both page-from-behind;
+}
+
+html[data-nav="none"]::view-transition-old(.page-out) {
+  display: none;
+}
+
+html[data-nav="none"]::view-transition-new(.page-in) {
+  animation: none;
+}
+
+@keyframes page-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes page-from-right {
+  from {
+    translate: 100% 0;
+  }
+  to {
+    translate: 0 0;
+  }
+}
+
+@keyframes page-to-right {
+  from {
+    translate: 0 0;
+  }
+  to {
+    translate: 100% 0;
+  }
+}
+
+@keyframes page-to-behind {
+  from {
+    translate: 0 0;
+    opacity: 1;
+  }
+  to {
+    translate: -30% 0;
+    opacity: 0.55;
+  }
+}
+
+@keyframes page-from-behind {
+  from {
+    translate: -30% 0;
+    opacity: 0.55;
+  }
+  to {
+    translate: 0 0;
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(.page-out),
+  html[data-nav]::view-transition-old(.page-out) {
+    display: none;
+  }
+
+  ::view-transition-new(.page-in),
+  html[data-nav]::view-transition-new(.page-in),
+  ::view-transition-group(.page-in),
+  ::view-transition-group(.page-out),
+  ::view-transition-group(page-back-old),
+  ::view-transition-group(page-back-new),
+  html[data-nav]::view-transition-group(.page-in),
+  html[data-nav]::view-transition-group(.page-out) {
+    animation: none;
+  }
+}
+
+
 /* "You're in": the toast pops, a shine crosses it, and confetti falls once. */
 @keyframes youre-in-pop {
   from {

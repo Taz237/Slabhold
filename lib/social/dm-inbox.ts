@@ -125,6 +125,24 @@ export function messageLinks(text: string): MessageLink[] {
   return found;
 }
 
+export const SHARED_A_POST = "Shared a post";
+export const SHARED_A_CARD = "Shared a card";
+
+/**
+ * Inbox line for a message that shares a Slabhold post or card. The bare
+ * link reads "Shared a post" or "Shared a card"; any words around it stay.
+ */
+export function inboxPreviewText(text: string): string {
+  const links = messageLinks(text);
+  if (links.length === 0) return text.trim();
+  const rest = text
+    .replace(LINK, (whole, path: string) => (POST_PATH.test(path) || CARD_PATH.test(path) ? " " : whole))
+    .replace(/\s+/g, " ")
+    .trim();
+  if (rest) return rest;
+  return links[0].kind === "post" ? SHARED_A_POST : SHARED_A_CARD;
+}
+
 function sameDay(a: Date, b: Date): boolean {
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 }

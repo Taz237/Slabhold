@@ -1,5 +1,6 @@
 "use client";
 
+import { goBackWithMotion } from "@/components/nav-motion";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -198,7 +199,7 @@ export function PostView({ id }: { id: string }) {
       <div className="flex items-center gap-3 border-b border-zinc-200 px-2 py-2 dark:border-white/10">
         <button
           type="button"
-          onClick={() => router.back()}
+          onClick={() => goBackWithMotion(() => router.back())}
           aria-label="Back"
           className="grid h-9 w-9 place-items-center rounded-full hover:bg-zinc-100 dark:hover:bg-white/10"
         >

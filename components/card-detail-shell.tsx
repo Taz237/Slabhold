@@ -50,6 +50,7 @@ export function CardTopBar({
     <div className="flex items-center justify-between gap-3">
       <Link
         href="/collection"
+        data-nav-back=""
         className="inline-flex min-h-11 items-center gap-1.5 text-sm text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
       >
         <ArrowLeft className="h-4 w-4" />

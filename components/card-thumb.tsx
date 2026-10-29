@@ -24,6 +24,7 @@ export function CardThumb({
         src={src}
         alt={card.playerName}
         decoding="async"
+        loading={priority ? "eager" : "lazy"}
         fetchPriority={priority ? "high" : "auto"}
         ref={(img) => {
           // A server-rendered photo can fail before hydration adds onError.

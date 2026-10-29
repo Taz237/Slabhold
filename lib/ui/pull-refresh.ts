@@ -9,6 +9,32 @@ export const PULL_THRESHOLD_PX = 70;
  */
 export const PULL_ARM_PX = 8;
 
+/** The pull never shows further than this, however far the finger goes. */
+export const PULL_MAX_PX = 120;
+
+/** Where the indicator waits while the refresh runs. */
+export const PULL_HOLD_PX = 56;
+
+/**
+ * Rubber band: close to 1:1 at first, then heavier the further you pull.
+ * About 53px of travel shows at the 70px trigger, and it tops out near 120px.
+ */
+export function rubberBand(deltaY: number): number {
+  if (deltaY <= 0) return 0;
+  return PULL_MAX_PX * (1 - Math.exp(-deltaY / PULL_MAX_PX));
+}
+
+/** 0 to 1 on the way to the trigger. Drives the mark's turn and fade. */
+export function pullProgress(deltaY: number): number {
+  if (deltaY <= 0) return 0;
+  return Math.min(1, deltaY / PULL_THRESHOLD_PX);
+}
+
+/** True on the one move that crosses the trigger, for the "click" moment. */
+export function crossedTrigger(previousDeltaY: number, deltaY: number): boolean {
+  return previousDeltaY < PULL_THRESHOLD_PX && deltaY >= PULL_THRESHOLD_PX;
+}
+
 export type PullPhase = "idle" | "pulling" | "refresh";
 
 export type PullGesture = {

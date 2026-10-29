@@ -1,5 +1,6 @@
 import { signupPath } from "@/lib/auth/safe-next";
 import { BLOCKED_INTERACTION } from "@/lib/safety/block";
+import { inboxPreviewText } from "@/lib/social/dm-inbox";
 import type { CardMessagePreview } from "@/lib/social/types";
 import { userHref } from "@/lib/social/user-href";
 import { gradedLabel } from "@/lib/ui/timeline";
@@ -63,13 +64,16 @@ export async function loadMessageRows<T>(
   return run(MESSAGE_LIST_COLUMNS_BASE);
 }
 
-/** Inbox preview. A card with no text reads "Sent a card" instead of a blank line. */
+/**
+ * Inbox preview. A card with no text reads "Sent a card" instead of a blank
+ * line, and a shared post or card link reads "Shared a post" / "Shared a card".
+ */
 export function inboxLastMessage(message: {
   content?: string | null;
   kind?: string | null;
   cardPreview?: { cardId: string } | null;
 }): string {
-  const text = (message.content ?? "").trim();
+  const text = inboxPreviewText(message.content ?? "");
   if (text) return text;
   if (
     message.cardPreview ||

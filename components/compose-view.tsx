@@ -1,5 +1,6 @@
 "use client";
 
+import { goBackWithMotion } from "@/components/nav-motion";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { Camera, ImagePlus, X } from "lucide-react";
@@ -235,7 +236,7 @@ export function ComposeView() {
 
   function leave() {
     if (typeof window !== "undefined" && window.history.length > 1) {
-      router.back();
+      goBackWithMotion(() => router.back());
       return;
     }
     router.push("/");
