@@ -8,6 +8,7 @@ import { CollectionProvider } from "@/components/collection-provider";
 import { ImageLightboxProvider } from "@/components/image-lightbox";
 import { SocialProvider } from "@/components/social-provider";
 import { BRAND_PURPLE } from "@/lib/pwa/manifest";
+import { SESSION_HINT_SCRIPT } from "@/lib/auth/session-hint";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -59,7 +60,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      // The session hint below tags <html> before React hydrates.
+      suppressHydrationWarning
     >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: SESSION_HINT_SCRIPT }} />
+      </head>
       <body className="min-h-full font-sans">
         <ImageLightboxProvider>
           <SocialProvider>
