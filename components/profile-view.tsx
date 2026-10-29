@@ -94,6 +94,7 @@ export function ProfileView({
   const [offersOnly, setOffersOnly] = useState(false);
   const [viewCards, setViewCards] = useState<{ ownerId: string; rows: OwnedCard[] } | null>(null);
   const [pinnedExtra, setPinnedExtra] = useState<Post | null>(null);
+  /** Bumped by pull to refresh. Reloads the shown cards; posts refresh in place. */
   const [postsRefreshKey, setPostsRefreshKey] = useState(0);
   const [replyParents, setReplyParents] = useState<{ key: string; ids: ReadonlySet<string> } | null>(
     null,
@@ -103,7 +104,7 @@ export function ProfileView({
     scope: "profile",
     profileId: profile?.id,
     viewerId: user?.id ?? null,
-    refreshKey: postsRefreshKey,
+    refreshKey: 0,
     rememberPosts,
   });
 
@@ -330,9 +331,10 @@ export function ProfileView({
     <PullToRefresh
       disabled={editing}
       onRefresh={async () => {
-        await refresh();
         reload();
         setPostsRefreshKey((key) => key + 1);
+        // The posts list stays on screen while the newest page loads over it.
+        await Promise.all([refresh(), pagedPosts.refresh()]);
       }}
       className="-mx-4 -mt-5"
     >

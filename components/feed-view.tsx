@@ -82,6 +82,9 @@ function takeComposePrefill(): string | null {
   }
 }
 
+/** The Home tab you were on, so coming Back from a post keeps it. */
+let rememberedLane: { userId: string; lane: HomeLane } | null = null;
+
 export function FeedView({ movingToday }: { movingToday?: ReactNode } = {}) {
   const router = useRouter();
   const pathname = usePathname() || "/";
@@ -150,7 +153,16 @@ export function FeedView({ movingToday }: { movingToday?: ReactNode } = {}) {
       ready: cardsReady,
       syncError,
     });
-  const [lane, setLane] = useState<HomeLane>("foryou");
+  const [lane, setLaneState] = useState<HomeLane>(() =>
+    user && rememberedLane?.userId === user.id ? rememberedLane.lane : "foryou",
+  );
+  const setLane = useCallback(
+    (next: HomeLane) => {
+      setLaneState(next);
+      if (user) rememberedLane = { userId: user.id, lane: next };
+    },
+    [user],
+  );
   const laneStartRef = useRef<HTMLDivElement>(null);
   const laneTop = useCallback(() => {
     const start = laneStartRef.current;
@@ -161,7 +173,10 @@ export function FeedView({ movingToday }: { movingToday?: ReactNode } = {}) {
   }, []);
   const switchLane = useLaneScroll(lane, setLane, laneTop);
   const [refreshKey, setRefreshKey] = useState(0);
-  const [capturedHead, setCapturedHead] = useState<{ key: number; head: ReturnType<typeof homeHead> } | null>(
+  /** Bumps after a soft refresh, so the "New posts" check starts from what is now shown. */
+  const [headKey, setHeadKey] = useState(0);
+  const headEpoch = `${refreshKey}.${headKey}`;
+  const [capturedHead, setCapturedHead] = useState<{ key: string; head: ReturnType<typeof homeHead> } | null>(
     null,
   );
   const followingIds = useMemo(
@@ -189,17 +204,25 @@ export function FeedView({ movingToday }: { movingToday?: ReactNode } = {}) {
     mutedIds,
     rememberPosts,
   });
-  if (paging && !forYouPage.loading && (capturedHead === null || capturedHead.key !== refreshKey)) {
-    setCapturedHead({ key: refreshKey, head });
+  if (paging && !forYouPage.loading && (capturedHead === null || capturedHead.key !== headEpoch)) {
+    setCapturedHead({ key: headEpoch, head });
   }
+  const refreshForYou = forYouPage.refresh;
+  const refreshFollowing = followingPage.refresh;
+  /** Pull to refresh and the pill: newest posts land on top of the list already shown. */
+  const refreshFeeds = useCallback(async () => {
+    await Promise.all([refresh(), refreshForYou(), refreshFollowing()]);
+    setHeadKey((key) => key + 1);
+  }, [refresh, refreshFollowing, refreshForYou]);
   const hasNewPosts =
     paging &&
     capturedHead !== null &&
-    capturedHead.key === refreshKey &&
+    capturedHead.key === headEpoch &&
     !forYouPage.loading &&
     showsNewPosts(capturedHead.head, head, user?.id ?? null, removedPostIds);
   const activePage = lane === "following" ? followingPage : forYouPage;
-  const pickedFor = useRef<string | null>(null);
+  // Back from a post: the tab you were reading counts as already picked.
+  const pickedFor = useRef<string | null>(rememberedLane?.userId ?? null);
   const suggestionIds = useRef<string[] | null>(null);
   if (ready && suggestionsReady && user && suggestionIds.current === null && suggestions.length > 0) {
     suggestionIds.current = suggestions.map((profile) => profile.id);
@@ -240,13 +263,15 @@ export function FeedView({ movingToday }: { movingToday?: ReactNode } = {}) {
     visible.length === 0;
   const feedKeys = Array.from(feedEntries, (entry) => (entry.kind === "whats-new" ? entry.key : entry.item.key));
   const newAbove = useNewPostsAbove({ lane, keys: feedKeys });
-  const entranceDelay = useEntranceDelays(feedKeys);
+  // Only posts that arrive after the feed is on screen fade in. A feed that
+  // is already there on mount (Back from a post) shows at once.
+  const entranceDelay = useEntranceDelays(feedKeys, true);
 
   useEffect(() => {
     if (!ready || !cardsReady || !user) return;
     if (pickedFor.current === user.id) return;
     pickedFor.current = user.id;
-    setLane(
+    setLaneState(
       defaultHomeTab({
         followingCount: followingCount(user.id),
         cardCount: cards.length,
@@ -279,10 +304,7 @@ export function FeedView({ movingToday }: { movingToday?: ReactNode } = {}) {
 
   return (
     <PullToRefresh
-      onRefresh={async () => {
-        await refresh();
-        setRefreshKey((key) => key + 1);
-      }}
+      onRefresh={refreshFeeds}
       className="-mx-4 -mt-5"
     >
       {user && started.visible && !onboardingBusy ? (
@@ -306,7 +328,7 @@ export function FeedView({ movingToday }: { movingToday?: ReactNode } = {}) {
       {hasNewPosts || newAbove.show ? (
         <NewPostsPill
           onClick={() => {
-            if (hasNewPosts) setRefreshKey((key) => key + 1);
+            if (hasNewPosts) void refreshFeeds();
             newAbove.dismiss();
           }}
         />
@@ -315,7 +337,7 @@ export function FeedView({ movingToday }: { movingToday?: ReactNode } = {}) {
       {lane === "foryou" ? movingToday ?? <MovingToday /> : null}
 
       {user ? (
-        <Composer onPosted={() => setRefreshKey((key) => key + 1)} />
+        <Composer onPosted={() => void refreshFeeds()} />
       ) : (
         <SignedOutBanner />
       )}

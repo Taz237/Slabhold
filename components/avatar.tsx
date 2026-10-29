@@ -28,10 +28,16 @@ export function Avatar({
           event.stopPropagation();
           open(image, `${name}'s profile picture`);
         }}
-        className={`hit-44 inline-block shrink-0 cursor-zoom-in rounded-full border-0 bg-transparent p-0 ${className}`}
+        className={`tap hit-44 inline-block shrink-0 cursor-zoom-in rounded-full border-0 bg-transparent p-0 ${className}`}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={image} alt="" className="h-full w-full rounded-full object-cover" />
+        <img
+          src={image}
+          alt=""
+          loading="lazy"
+          decoding="async"
+          className="h-full w-full rounded-full object-cover"
+        />
       </button>
     );
   }
@@ -39,13 +45,19 @@ export function Avatar({
   if (image) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
-      <img src={image} alt="" className={`rounded-full object-cover ${className}`} />
+      <img
+        src={image}
+        alt=""
+        loading="lazy"
+        decoding="async"
+        className={`tap rounded-full object-cover ${className}`}
+      />
     );
   }
 
   return (
     <span
-      className={`grid place-items-center rounded-full text-xs font-semibold text-white ${className}`}
+      className={`tap grid place-items-center rounded-full text-xs font-semibold text-white ${className}`}
       style={{
         background: `linear-gradient(160deg, ${accent}, color-mix(in oklab, ${accent} 35%, #09090b))`,
       }}

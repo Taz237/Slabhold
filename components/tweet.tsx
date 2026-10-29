@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import { BadgeCheck, Ellipsis, Heart, MessageCircle, Pin, Quote, Repeat2 } from "lucide-react";
 import { Avatar } from "@/components/avatar";
 import { useCollection } from "@/components/collection-provider";
@@ -29,7 +29,11 @@ import { isOfficialUpdatesAccount } from "@/lib/social/official-updates";
 import { gradedLabel, postPill } from "@/lib/ui/timeline";
 import type { CardValueResult } from "@/lib/value/types";
 
-export function Tweet({
+/**
+ * One post row. Memoized: the feed re-renders on scroll-driven state (tabs,
+ * the new-posts pill), and rows with the same props skip that work.
+ */
+export const Tweet = memo(function Tweet({
   post,
   author,
   variant = "feed",
@@ -63,6 +67,15 @@ export function Tweet({
   const comments = commentsFor(post.id);
   const quoteAvailable = Boolean(findPost(post.id));
 
+  const prefetched = useRef(false);
+
+  /** Warm the post page when a finger lands, so the tap opens it at once. */
+  function warmPost() {
+    if (variant !== "feed" || prefetched.current) return;
+    prefetched.current = true;
+    router.prefetch(`/posts/${post.id}`);
+  }
+
   function openPost(event: React.MouseEvent<HTMLElement>) {
     if (variant !== "feed") return;
     const target = event.target as HTMLElement;
@@ -85,9 +98,11 @@ export function Tweet({
   return (
     <article
       onClick={openPost}
+      onPointerDown={warmPost}
+      data-nav-href={variant === "feed" ? `/posts/${post.id}` : undefined}
       className={`border-b border-zinc-200/70 dark:border-white/[0.07] ${
         variant === "feed"
-          ? "cursor-pointer transition-colors duration-150 hover:bg-zinc-900/[0.015] dark:hover:bg-white/[0.015]"
+          ? "tap-row cursor-pointer hover:bg-zinc-900/[0.015] dark:hover:bg-white/[0.015]"
           : ""
       }`}
     >
@@ -185,7 +200,7 @@ export function Tweet({
       </div>
     </article>
   );
-}
+});
 
 function CommentPreview({ postId, comments }: { postId: string; comments: PostComment[] }) {
   const { profiles } = useSocial();

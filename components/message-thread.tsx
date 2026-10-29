@@ -75,9 +75,14 @@ export function MessageThread({ username }: { username: string }) {
   const [dealOpen, setDealOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  /** Sent from this screen and still on the way. Drawn at once, like X. */
+  const [outbox, setOutbox] = useState<DirectMessage[]>([]);
+  /** Just confirmed. Their saved copy slides in without a second rise. */
+  const [settled, setSettled] = useState<readonly string[]>([]);
   const [openTime, setOpenTime] = useState<string | null>(null);
   const reduceMotion = useReducedMotion();
   const scroller = useRef<HTMLDivElement>(null);
+  const fieldRef = useRef<HTMLTextAreaElement>(null);
   const scrolledOnce = useRef(false);
   const thread = partner
     ? messages.filter(
@@ -97,8 +102,11 @@ export function MessageThread({ username }: { username: string }) {
     markThreadRead(partner.id);
   }, [markThreadRead, messages, partner, ready, user]);
 
+  const sending = partner ? outbox.filter((message) => message.receiverId === partner.id) : [];
+  const shownThread = sending.length ? [...thread, ...sending] : thread;
+
   const fresh = useFreshKeys(
-    thread.map((message) => message.id),
+    shownThread.map((message) => message.id),
     ready && Boolean(partner),
   );
 
@@ -110,7 +118,7 @@ export function MessageThread({ username }: { username: string }) {
     scrolledOnce.current = true;
     if (glide) node.scrollTo({ top: node.scrollHeight, behavior: "smooth" });
     else node.scrollTop = node.scrollHeight;
-  }, [thread.length, partner?.id, reduceMotion]);
+  }, [shownThread.length, partner?.id, reduceMotion]);
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -119,15 +127,33 @@ export function MessageThread({ username }: { username: string }) {
       router.push(signupPath(pathname));
       return;
     }
+    const text = draft;
+    const outgoing: DirectMessage = {
+      id: `sending-${Date.now()}`,
+      senderId: user.id,
+      receiverId: partner.id,
+      content: text.trim(),
+      createdAt: new Date().toISOString(),
+      read: false,
+      kind: offerAttachment ? "card_preview" : "text",
+      cardPreview: offerAttachment,
+    };
     setPending(true);
-    const result = await sendMessage(partner.id, draft, offerAttachment);
+    setOutbox((list) => [...list, outgoing]);
+    setSettled([]);
+    setDraft("");
+    setError(null);
+    if (fieldRef.current) fieldRef.current.style.height = "";
+    const result = await sendMessage(partner.id, text, offerAttachment);
     setPending(false);
+    setOutbox((list) => list.filter((message) => message.id !== outgoing.id));
     if (result.error) {
+      // Not sent: the words come back so nothing is lost.
+      setDraft((current) => current || text);
       setError(result.error);
       return;
     }
-    setDraft("");
-    setError(null);
+    setSettled([outgoing.content]);
   }
 
   if (!ready) {
@@ -174,6 +200,8 @@ export function MessageThread({ username }: { username: string }) {
   }
 
   const seenId = seenMessageId(thread, user.id);
+  const quiet = (message: DirectMessage) =>
+    message.senderId === user.id && !message.id.startsWith("sending-") && settled.includes(message.content.trim());
   const canSend = !pending && Boolean(draft.trim() || offerAttachment);
 
   return (
@@ -182,6 +210,8 @@ export function MessageThread({ username }: { username: string }) {
         <button
           type="button"
           onClick={() => router.push("/messages")}
+          data-nav-href="/messages"
+          data-nav-back=""
           aria-label="Back to messages"
           className="grid h-11 w-11 shrink-0 place-items-center rounded-full hover:bg-zinc-100 dark:hover:bg-white/10"
         >
@@ -208,7 +238,7 @@ export function MessageThread({ username }: { username: string }) {
       <DealThreadPanel partnerId={partner.id} />
 
       <div ref={scroller} className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pt-3 pb-2">
-        {thread.length === 0 ? (
+        {shownThread.length === 0 ? (
           <ThreadHint
             name={partner.displayName}
             username={partner.username}
@@ -216,7 +246,7 @@ export function MessageThread({ username }: { username: string }) {
             accent={partner.accent}
           />
         ) : (
-          threadRows(thread, user.id).map((row) => {
+          threadRows(shownThread, user.id).map((row) => {
             if (row.kind === "gap") {
               return (
                 <p
@@ -237,7 +267,8 @@ export function MessageThread({ username }: { username: string }) {
                 mine={row.mine}
                 first={row.first}
                 last={row.last}
-                fresh={fresh.has(row.message.id)}
+                fresh={fresh.has(row.message.id) && !quiet(row.message)}
+                sending={row.message.id.startsWith("sending-")}
                 timeOpen={openTime === row.message.id}
                 onToggleTime={() => setOpenTime((current) => (current === row.message.id ? null : row.message.id))}
                 seen={seenId === row.message.id}
@@ -269,6 +300,7 @@ export function MessageThread({ username }: { username: string }) {
         ) : null}
         <div className="flex items-end gap-2">
           <textarea
+            ref={fieldRef}
             value={draft}
             onChange={(event) => {
               setDraft(event.target.value.slice(0, MESSAGE_LIMIT));
@@ -304,11 +336,14 @@ function MessageRow({
   timeOpen,
   onToggleTime,
   seen,
+  sending = false,
 }: {
   message: DirectMessage;
   mine: boolean;
   first: boolean;
   last: boolean;
+  /** Shown before the server confirms it. */
+  sending?: boolean;
   /** Arrived after the thread opened: it rises in. */
   fresh: boolean;
   timeOpen: boolean;
@@ -326,7 +361,10 @@ function MessageRow({
   return (
     <div
       data-message-row=""
+      data-sending={sending ? "" : undefined}
       className={`flex ${mine ? "justify-end" : "justify-start"} ${first ? "mt-2.5" : "mt-0.5"} ${
+        sending ? "opacity-70" : ""
+      } transition-opacity duration-200 ${
         fresh ? "motion-safe:animate-[bubble-in_240ms_cubic-bezier(0.2,0.7,0.2,1)_both]" : ""
       }`}
       style={fresh ? { transformOrigin: mine ? "bottom right" : "bottom left" } : undefined}
@@ -362,6 +400,11 @@ function MessageRow({
           >
             {exactTime(message.createdAt)}
           </time>
+        ) : null}
+        {sending ? (
+          <span data-sending-label="" className="mt-1 px-1 text-[11px] text-zinc-500">
+            Sending…
+          </span>
         ) : null}
         {seen ? (
           <span data-seen="" className="mt-1 px-1 text-[11px] font-semibold text-zinc-500">

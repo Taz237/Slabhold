@@ -9,6 +9,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { withFollowEdge } from "@/lib/social/follow-edge";
 import { usePathname } from "next/navigation";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { trackEvent } from "@/lib/analytics";
@@ -811,12 +812,32 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       if (!current.user || current.user.id === userId) return {};
       const client = supabaseRef.current;
       if (mode === "supabase" && client) {
+        const viewerId = current.user.id;
         const following = current.follows.some(
-          (edge) => edge.followerId === current.user?.id && edge.followingId === userId,
+          (edge) => edge.followerId === viewerId && edge.followingId === userId,
         );
+        // Counts and buttons flip now. The server answer confirms or rolls back.
+        const paintFollow = (on: boolean) => {
+          const follows = withFollowEdge(
+            snapshotRef.current.follows,
+            viewerId,
+            userId,
+            on,
+            new Date().toISOString(),
+          );
+          snapshotRef.current = { ...snapshotRef.current, follows };
+          setRemote((existing) => ({
+            ...existing,
+            follows: withFollowEdge(existing.follows, viewerId, userId, on, new Date().toISOString()),
+          }));
+        };
+        paintFollow(!following);
+        let saved = false;
         try {
-          const result = await remoteToggleFollow(client, current.user.id, userId, following);
+          const result = await remoteToggleFollow(client, viewerId, userId, following);
+          saved = !result.error;
           if (result.error) {
+            paintFollow(following);
             setStatus(result.error);
             return result;
           }
@@ -825,6 +846,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
           setStatus(result.notice ?? null);
           return result;
         } catch (error) {
+          if (!saved) paintFollow(following);
           const message = error instanceof Error ? error.message : "Could not update that follow.";
           setStatus(message);
           return { error: message };

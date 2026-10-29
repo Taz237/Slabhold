@@ -176,6 +176,7 @@ export function CardPostsList({ cardId }: { cardId: string }) {
         <div className="flex min-w-0 items-center gap-2">
           <Link
             href={backHref}
+            data-nav-back=""
             aria-label="Back to card"
             className="grid h-9 w-9 place-items-center rounded-full text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-white/10"
           >

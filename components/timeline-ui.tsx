@@ -306,10 +306,17 @@ export function PostPill({ label, solid = false }: { label: string; solid?: bool
  * Remembers which feed items were already shown, and gives each new batch a
  * short staggered fade. Only the first few in a batch fade, so long pages never wait.
  */
-export function useEntranceDelays(keys: readonly string[]): (key: string) => number | null {
+export function useEntranceDelays(
+  keys: readonly string[],
+  /** The list was drawn from memory (coming Back): don't replay its entrance. */
+  skipFirst = false,
+): (key: string) => number | null {
   const signature = keys.join("\n");
   const [state, setState] = useState<{ signature: string; seen: ReadonlySet<string>; delays: ReadonlyMap<string, number> }>(
-    () => ({ signature: "", seen: new Set(), delays: new Map() }),
+    () =>
+      skipFirst && keys.length > 0
+        ? { signature, seen: new Set(keys), delays: new Map() }
+        : { signature: "", seen: new Set(), delays: new Map() },
   );
   let current = state;
   if (state.signature !== signature) {

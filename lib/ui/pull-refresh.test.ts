@@ -4,6 +4,11 @@ import { describe, it } from "node:test";
 import { join } from "node:path";
 import {
   PULL_ARM_PX,
+  PULL_HOLD_PX,
+  PULL_MAX_PX,
+  crossedTrigger,
+  pullProgress,
+  rubberBand,
   PULL_THRESHOLD_PX,
   activeTabAction,
   isCurrentTabScreen,
@@ -88,6 +93,28 @@ describe("pull to refresh", () => {
     stop();
     assert.equal(requestPageRefresh(), false);
     assert.equal(calls, 1);
+  });
+});
+
+describe("pull to refresh feel", () => {
+  it("follows the finger at first, then resists, and never passes the cap", () => {
+    assert.equal(rubberBand(0), 0);
+    assert.equal(rubberBand(-20), 0);
+    assert.ok(rubberBand(10) > 9 && rubberBand(10) <= 10);
+    const atTrigger = rubberBand(PULL_THRESHOLD_PX);
+    assert.ok(atTrigger > PULL_HOLD_PX - 10 && atTrigger < PULL_THRESHOLD_PX, String(atTrigger));
+    assert.ok(rubberBand(200) - rubberBand(150) < rubberBand(50) - rubberBand(0));
+    assert.ok(rubberBand(5000) <= PULL_MAX_PX);
+    assert.ok(PULL_HOLD_PX < PULL_MAX_PX);
+  });
+
+  it("turns the mark with the pull and clicks once at the trigger", () => {
+    assert.equal(pullProgress(0), 0);
+    assert.equal(pullProgress(35), 0.5);
+    assert.equal(pullProgress(500), 1);
+    assert.equal(crossedTrigger(60, 72), true);
+    assert.equal(crossedTrigger(72, 90), false);
+    assert.equal(crossedTrigger(90, 60), false);
   });
 });
 

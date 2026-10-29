@@ -153,6 +153,8 @@ function EmbedThumb({
       <img
         src={src}
         alt=""
+        loading="lazy"
+        decoding="async"
         className="h-14 w-14 shrink-0 rounded-xl object-cover"
       />
     );

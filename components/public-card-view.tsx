@@ -223,6 +223,7 @@ function PublicCardAnalytics({
     <div className="space-y-6">
       <Link
         href={backHref}
+        data-nav-back=""
         className="inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold text-zinc-600 hover:text-zinc-950 dark:text-zinc-300 dark:hover:text-white"
       >
         <ArrowLeft className="h-4 w-4" />
