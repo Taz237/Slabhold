@@ -8,7 +8,7 @@ import { createRoot } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { ValueChart, type ChartPoint } from "@/components/charts/value-chart";
 import { ValueSpark } from "@/components/charts/value-spark";
-import { SalesChart, moreSalesText, saleLine } from "@/components/sales-chart";
+import { SalesChart, moreSalesText, saleLine, saleSourceShort } from "@/components/sales-chart";
 
 const dom = new JSDOM("<!doctype html><html><body></body></html>", {
   url: "http://localhost/",
@@ -204,7 +204,7 @@ describe("SalesChart", () => {
         },
       }),
     );
-    assert.match(host.textContent ?? "", /\$36\.00 · PSA 10 · Oct 5(, 2026)? · Recent sold/);
+    assert.match(host.textContent ?? "", /\$36\.00 · PSA 10 · Oct 5(, 2026)?· eBay/);
     const svg = host.querySelector("svg");
     assert.ok(svg);
     // Oct 21 is the last dot, at the right edge.
@@ -221,11 +221,18 @@ describe("SalesChart", () => {
     assert.equal(saleLine({ id: "x", price: 36, date: "2025-12-29" }, "2026-10-30"), "$36.00 · Dec 29, 2025");
   });
 
-  it("keeps the source on a tapped sale: short date, and it wraps instead of cutting off", () => {
-    const line = saleLine({ id: "x", price: 37, date: "2026-10-10", grade: "PSA 10", source: "ebay" }, "2026-10-30");
-    assert.equal(line, "$37.00 · PSA 10 · Oct 10 · Recent sold");
+  it("keeps a tapped sale on one line, with a short source, beside the outlier note", () => {
+    const sale = { id: "x", price: 37, date: "2026-10-10", grade: "PSA 10" };
+    assert.equal(saleLine({ ...sale, source: "ebay" }, "2026-10-30"), "$37.00 · PSA 10 · Oct 10 · eBay");
+    assert.equal(saleLine({ ...sale, source: "Recent sold" }, "2026-10-30"), "$37.00 · PSA 10 · Oct 10 · Sold");
+    assert.equal(saleSourceShort("eBay"), "eBay");
+    assert.equal(saleSourceShort("  Trawl "), "Sold");
     const source = readFileSync(join(process.cwd(), "components/sales-chart.tsx"), "utf8");
-    assert.match(source, /line-clamp-2[^"]*">\{saleLine\(selected, today\)\}/);
-    assert.doesNotMatch(source, /truncate[^"]*">\{saleLine/);
+    // The row has a fixed height and never wraps, so tapping a sale can't move the chart.
+    assert.match(source, /data-sale-row=""[^>]*className="flex h-6 [^"]*whitespace-nowrap/);
+    assert.doesNotMatch(source, /line-clamp-2/);
+    // The source never truncates: only the price, grade and date part can.
+    assert.match(source, /className="min-w-0 truncate[^"]*">\{saleLineMain\(selected, today\)\}/);
+    assert.match(source, /className="shrink-0[^"]*">· \{saleSourceShort\(selected\.source\)\}/);
   });
 });
