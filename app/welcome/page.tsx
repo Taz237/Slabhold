@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { AccountDeletedToast } from "@/components/account-deleted-toast";
 import { LandingPage } from "@/components/landing-page";
 import { StandaloneRedirect } from "@/components/landing/standalone-redirect";
+import { WelcomeListeners } from "@/components/landing/welcome-listeners";
 import { founderShowcase } from "@/lib/landing/founder-page";
 
 /**
@@ -22,6 +23,7 @@ export default async function Welcome() {
     <>
       <AccountDeletedToast />
       <StandaloneRedirect />
+      <WelcomeListeners />
       <LandingPage founder={founder} />
     </>
   );

@@ -21,7 +21,7 @@ describe("opening a card from the collection", () => {
   const people = read("app/api/cards/people/route.ts");
 
   it("paints from the collection before the server people query", () => {
-    assert.match(page, /await Promise\.all\(\[requireCardPageAccess\(id\), searchParams\]\)/);
+    assert.match(page, /await requireCardPageAccess\(id\)/);
     const requireAt = page.indexOf("requireCardPageAccess");
     const detailAt = page.indexOf("<CardDetail");
     assert.ok(requireAt > 0 && detailAt > requireAt);

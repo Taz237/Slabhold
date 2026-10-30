@@ -19,12 +19,12 @@ export const TOLERANCE = 0.1;
 
 /**
  * Routes that fail the check. /welcome is signed-out Home (proxy.ts serves it
- * at /), the first screen most visitors see.
+ * at /), the first screen most visitors see; / is signed-in Home.
  */
-export const GUARDED_ROUTES = ["/welcome", "/collection", "/cards/[id]", "/u/[username]/cards/[id]"];
+export const GUARDED_ROUTES = ["/welcome", "/", "/collection", "/cards/[id]", "/u/[username]/cards/[id]"];
 
-/** Printed for reference, never failed on. / is signed-in Home. */
-export const REPORTED_ROUTES = ["/", "/posts/[id]", "/login"];
+/** Printed for reference, never failed on. */
+export const REPORTED_ROUTES = ["/posts/[id]", "/login"];
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const statsPath = join(root, ".next", "diagnostics", "route-bundle-stats.json");

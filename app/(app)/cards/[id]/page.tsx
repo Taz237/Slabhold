@@ -18,7 +18,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function CardDetailPage({ params, searchParams }: Props) {
   const { id } = await params;
-  // The owner check and the query string don't depend on each other.
-  const [, { added }] = await Promise.all([requireCardPageAccess(id), searchParams]);
+  await requireCardPageAccess(id);
+  const { added } = await searchParams;
   return <CardDetail id={id} added={isAddedParam(added)} />;
 }

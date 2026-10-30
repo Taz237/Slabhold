@@ -36,7 +36,7 @@ describe("bundle size check", () => {
   });
 
   it("guards signed-out Home and the key signed-in routes against recorded baselines, in CI after the build", () => {
-    assert.deepEqual(GUARDED_ROUTES, ["/welcome", "/collection", "/cards/[id]", "/u/[username]/cards/[id]"]);
+    assert.deepEqual(GUARDED_ROUTES, ["/welcome", "/", "/collection", "/cards/[id]", "/u/[username]/cards/[id]"]);
     const baseline = JSON.parse(read("bundle-baseline.json")) as Record<string, number>;
     for (const route of GUARDED_ROUTES) {
       assert.ok(Number.isInteger(baseline[route]) && baseline[route] > 0, route);
