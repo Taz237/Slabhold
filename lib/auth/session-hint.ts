@@ -12,3 +12,8 @@ export function hasSessionCookie(cookie: string): boolean {
 }
 
 export const SESSION_HINT_SCRIPT = `try{if(${SESSION_COOKIE}.test(document.cookie))document.documentElement.dataset.session=""}catch(e){}`;
+
+/** True when the head script saw a session cookie. Client only. */
+export function sessionHinted(): boolean {
+  return typeof document !== "undefined" && document.documentElement.dataset.session !== undefined;
+}

@@ -20,13 +20,13 @@ import {
   X,
 } from "lucide-react";
 import { Logo } from "@/components/logo";
+import { useInstallPlatform } from "@/components/onboarding/use-install-platform";
 import { useReducedMotion } from "@/components/timeline-ui";
 import { trapTabTarget } from "@/lib/social/collect-interests";
 import {
   androidChromeIntent,
   emailHintCookie,
   inAppBrowserName,
-  installPlatform,
   openInBrowserName,
   settleInstallChoice,
   type InstallChoice,
@@ -51,23 +51,7 @@ const quietButton =
 
 export type GuidePlatform = Exclude<InstallPlatform, "installed" | "desktop">;
 
-const noopSubscribe = () => () => {};
-
-function readPlatform(): InstallPlatform {
-  const nav = window.navigator as Navigator & { standalone?: boolean };
-  return installPlatform({
-    userAgent: nav.userAgent ?? "",
-    platform: nav.platform,
-    maxTouchPoints: nav.maxTouchPoints ?? 0,
-    navigatorStandalone: nav.standalone === true,
-    displayModeStandalone: Boolean(window.matchMedia?.("(display-mode: standalone)").matches),
-  });
-}
-
-/** This device, from the browser. Null on the server and during hydration. */
-export function useInstallPlatform(): InstallPlatform | null {
-  return useSyncExternalStore(noopSubscribe, readPlatform, () => null);
-}
+export { useInstallPlatform };
 
 function useInstallPromptReady(): boolean {
   return useSyncExternalStore(subscribeInstallPrompt, installPromptReady, () => false);

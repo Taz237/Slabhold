@@ -23,6 +23,13 @@ import { MentionTextarea } from "@/components/mention-textarea";
 import { signupPath } from "@/lib/auth/safe-next";
 import { useSocial } from "@/components/social-provider";
 import { takeCompose } from "@/lib/capture";
+import {
+  clearComposeDraft,
+  composeDraftKey,
+  keepComposeDraft,
+  takeComposeDraft,
+  type ComposeDraft,
+} from "@/lib/social/compose-draft";
 import { initials } from "@/lib/format";
 import { PHOTO_HEIC_ERROR, readPhotoFile } from "@/lib/photos";
 import {
@@ -83,6 +90,13 @@ export function ComposeView() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const { frame, inset } = useVisualViewport();
   const editing = posts.find((post) => post.id === editId && post.authorId === user?.id);
+  const draftKey = composeDraftKey({ edit: editId, quote: quoteParam, card: attachCardParam });
+  // What Back keeps: the latest draft, unless it was posted or discarded.
+  const draftRef = useRef<{ key: string | null; draft: ComposeDraft; settled: boolean }>({
+    key: draftKey,
+    draft: { body: "", images: [], cardId: "", quoteId: null },
+    settled: false,
+  });
   const attachedIsOwned = Boolean(
     attachCardParam && cards.some((card) => card.id === attachCardParam),
   );
@@ -98,9 +112,35 @@ export function ComposeView() {
         return;
       }
     }
+    const kept = draftKey ? takeComposeDraft(draftKey) : null;
+    if (kept) {
+      setBody(kept.body);
+      if (kept.cardId) setCardId(kept.cardId);
+    }
     const captured = takeCompose();
-    if (captured) replaceAll([captured]);
-  }, [editId, posts, ready, replaceAll, user]);
+    const restored = [...(kept?.images ?? []), ...(captured ? [captured] : [])];
+    if (restored.length) replaceAll(restored);
+  }, [draftKey, editId, posts, ready, replaceAll, user]);
+
+  useEffect(() => {
+    draftRef.current.key = draftKey;
+    draftRef.current.draft = { body, images: [...images], cardId, quoteId };
+  });
+
+  // Back (the button, the iOS swipe, Android Back) can't wait for a prompt.
+  // The draft waits in memory for the next composer in the same mode.
+  useEffect(
+    () => () => {
+      const { key, draft, settled } = draftRef.current;
+      if (key && !settled) keepComposeDraft(key, draft);
+    },
+    [],
+  );
+
+  function settleDraft() {
+    draftRef.current.settled = true;
+    clearComposeDraft();
+  }
 
   useEffect(() => {
     if (!ready || !user || editId || !attachCardParam) return;
@@ -219,6 +259,7 @@ export function ComposeView() {
       setError(result.error === QUOTE_EMPTY_ERROR ? QUOTE_EMPTY_ERROR : result.error);
       return;
     }
+    settleDraft();
     router.push(editing ? `/posts/${editing.id}` : "/");
   }
 
@@ -253,6 +294,11 @@ export function ComposeView() {
 
   function leave() {
     leaveCompose(router);
+  }
+
+  function discard() {
+    settleDraft();
+    leave();
   }
 
   function onCancel() {
@@ -294,7 +340,7 @@ export function ComposeView() {
               <div className="mt-5 flex flex-col gap-2">
                 <button
                   type="button"
-                  onClick={leave}
+                  onClick={discard}
                   className="min-h-11 rounded-full bg-rose-600 text-[15px] font-bold text-white active:bg-rose-700"
                 >
                   Discard
@@ -582,9 +628,21 @@ function ComposeSheet({
     if (mounted) initialFocus.current?.focus({ preventScroll: true });
   }, [initialFocus, mounted]);
 
+  // Closing by Back unmounts the sheet with the field focused. Let go of it
+  // while it is still in the page, so the keyboard closes and the page
+  // underneath isn't left offset.
+  useLayoutEffect(
+    () => () => {
+      const active = document.activeElement;
+      if (active instanceof HTMLElement && active.closest("[data-compose-sheet]")) active.blur();
+    },
+    [],
+  );
+
   if (!mounted) return null;
   return createPortal(
     <div
+      data-compose-sheet=""
       className="fixed inset-x-0 top-0 z-[60] h-dvh md:flex md:items-center md:justify-center md:bg-black/50 md:p-6"
       style={frame ? { top: frame.top, height: frame.height } : undefined}
       onClick={(event) => {

@@ -13,6 +13,7 @@ import { resolveQuoteEmbedState } from "@/lib/social/quotes";
 import type { Post, Profile, PublicCard } from "@/lib/social/types";
 import { useAttachedChip } from "@/lib/social/use-attachment-label";
 import { EbaySoldLink } from "@/components/ebay-sold-link";
+import { QUOTE_HEADER } from "@/lib/ui/quote-header";
 import type { CardValueResult } from "@/lib/value/types";
 
 export function QuotedPostEmbed({
@@ -94,12 +95,10 @@ export function QuotedPostEmbed({
           className="h-8 w-8 shrink-0"
         />
         <div className="min-w-0 flex-1">
-          <div className="flex min-w-0 flex-wrap items-baseline gap-x-1 text-[13px]">
-            <span className="max-w-[40%] truncate font-bold">{author.displayName}</span>
-            <span className="truncate text-zinc-500">@{author.username}</span>
-            {relative ? (
-              <span className="shrink-0 text-zinc-500">· {relative}</span>
-            ) : null}
+          <div className={QUOTE_HEADER.row}>
+            <span className={QUOTE_HEADER.name}>{author.displayName}</span>
+            <span className={QUOTE_HEADER.handle}>@{author.username}</span>
+            {relative ? <span className={QUOTE_HEADER.time}>· {relative}</span> : null}
           </div>
           {post.body ? (
             <p className="mt-0.5 line-clamp-3 break-words text-[14px] leading-5 whitespace-pre-wrap">

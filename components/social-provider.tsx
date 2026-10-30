@@ -104,10 +104,12 @@ import {
 } from "@/lib/social/suggestion-order";
 import { unreadGroupCount } from "@/lib/social/group-notifications";
 import { followingTimeline, type TimelineItem } from "@/lib/social/timeline";
-import { createSupabaseBrowser } from "@/lib/supabase/browser";
+import { sessionHinted } from "@/lib/auth/session-hint";
+import { loadSupabaseBrowser } from "@/lib/supabase/browser-lazy";
 import { getSupabaseConfig } from "@/lib/supabase/client";
 import type { CardValueResult } from "@/lib/value/types";
 import { useCardValues } from "@/lib/value/use-card-values";
+import { afterFirstIdle } from "@/lib/ui/idle";
 import type {
   AuthResult,
   CardMessagePreview,
@@ -211,6 +213,10 @@ type SocialContextValue = {
 
 export const SocialContext = createContext<SocialContextValue | null>(null);
 
+// A session cookie says someone is signed in: start fetching the client now,
+// while the page hydrates, so the snapshot read starts as early as before.
+if (sessionHinted()) void loadSupabaseBrowser();
+
 /** Share one in-flight read across a strict-mode remount of the same route. */
 function loadOnce<T>(
   inflight: Map<string, Promise<unknown>>,
@@ -311,6 +317,9 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
   const inflightRef = useRef(new Map<string, Promise<unknown>>());
   const reloadRef = useRef<(client: SupabaseClient) => Promise<void>>(async () => {});
   const lastUserIdRef = useRef<string | null>(null);
+  // Signed-out visitors don't need realtime or card prices for the first
+  // paint. That work waits for the first idle moment after load.
+  const [firstIdle, setFirstIdle] = useState(false);
   localRef.current = local;
 
   const routePostId = postIdFromPath(pathname);
@@ -335,6 +344,8 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     removedRef.current = removedPostIds;
   }, [removedPostIds]);
+
+  useEffect(() => afterFirstIdle(() => setFirstIdle(true)), []);
 
   const refreshRemote = useCallback(async (client: SupabaseClient) => {
     await snapshotRefreshRef.current(
@@ -423,9 +434,9 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let cancelled = false;
-    const client = createSupabaseBrowser();
+    let unsubscribe = () => {};
     setActivity(loadActivity());
-    if (!client) {
+    if (!getSupabaseConfig().configured) {
       const { issue } = getSupabaseConfig();
       if (issue) setStatus(issue);
       loadOrCreateLocalDb().then((db) => {
@@ -439,39 +450,43 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       };
     }
 
-    supabaseRef.current = client;
-    setMode("supabase");
-    // INITIAL_SESSION would repeat the first load. Sign-in and sign-out still refresh.
-    // SIGNED_IN also fires on load and whenever a tab becomes visible. Remember the
-    // session user first so those repeats do not reload public_cards.
-    let unsubscribe = () => {};
-    void client.auth
-      .getSession()
-      .then(({ data: sessionData }) => {
-        if (!cancelled) lastUserIdRef.current = sessionData.session?.user?.id ?? null;
-      })
-      .finally(() => {
-        if (cancelled) return;
-        const { data } = client.auth.onAuthStateChange((event, session) => {
-          if (event !== "SIGNED_IN" && event !== "SIGNED_OUT") return;
-          const decision = authSnapshotReload({
-            event,
-            nextUserId: session?.user?.id ?? null,
-            lastUserId: lastUserIdRef.current,
+    // supabase-js loads in its own chunk, after hydration. The mode flips once
+    // the client is in hand, so every effect keyed on it finds supabaseRef set.
+    void loadSupabaseBrowser().then((client) => {
+      if (cancelled || !client) return;
+      supabaseRef.current = client;
+      setMode("supabase");
+      // INITIAL_SESSION would repeat the first load. Sign-in and sign-out still refresh.
+      // SIGNED_IN also fires on load and whenever a tab becomes visible. Remember the
+      // session user first so those repeats do not reload public_cards.
+      void client.auth
+        .getSession()
+        .then(({ data: sessionData }) => {
+          if (!cancelled) lastUserIdRef.current = sessionData.session?.user?.id ?? null;
+        })
+        .finally(() => {
+          if (cancelled) return;
+          const { data } = client.auth.onAuthStateChange((event, session) => {
+            if (event !== "SIGNED_IN" && event !== "SIGNED_OUT") return;
+            const decision = authSnapshotReload({
+              event,
+              nextUserId: session?.user?.id ?? null,
+              lastUserId: lastUserIdRef.current,
+            });
+            lastUserIdRef.current = decision.lastUserId;
+            if (!decision.reload) return;
+            setTimeout(() => {
+              void reloadRef
+                .current(client)
+                .then(() => setStatus(null))
+                .catch((error: unknown) => {
+                  setStatus(error instanceof Error ? error.message : "Could not reach Supabase.");
+                });
+            }, 0);
           });
-          lastUserIdRef.current = decision.lastUserId;
-          if (!decision.reload) return;
-          setTimeout(() => {
-            void reloadRef
-              .current(client)
-              .then(() => setStatus(null))
-              .catch((error: unknown) => {
-                setStatus(error instanceof Error ? error.message : "Could not reach Supabase.");
-              });
-          }, 0);
+          unsubscribe = () => data.subscription.unsubscribe();
         });
-        unsubscribe = () => data.subscription.unsubscribe();
-      });
+    });
 
     return () => {
       cancelled = true;
@@ -485,6 +500,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
     if (!client) return;
     const postId = postIdFromPath(pathname);
     const viewerId = remote.user?.id ?? null;
+    if (!viewerId && !firstIdle) return;
     const bindings = realtimeBindings({
       viewerId,
       postId,
@@ -549,7 +565,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       document.removeEventListener("visibilitychange", onVisibility);
       void client.removeChannel(channel);
     };
-  }, [applyPostPage, hasFullSnapshot, mode, pathname, ready, remote.user?.id]);
+  }, [applyPostPage, firstIdle, hasFullSnapshot, mode, pathname, ready, remote.user?.id]);
 
   const baseSnapshot = mode === "local" && local ? snapshotFromLocal(local) : remote;
   const postIds = new Set(baseSnapshot.posts.map((post) => post.id));
@@ -659,9 +675,10 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
     if (ids.length === 0) return "";
     return [...ids].sort().join(",");
   }, [snapshot.posts]);
+  const holdCardValues = !snapshot.user && !firstIdle;
   const postCardIds = useMemo(
-    () => (postCardIdKey ? postCardIdKey.split(",") : []),
-    [postCardIdKey],
+    () => (postCardIdKey && !holdCardValues ? postCardIdKey.split(",") : []),
+    [holdCardValues, postCardIdKey],
   );
   const {
     values: postCardValues,

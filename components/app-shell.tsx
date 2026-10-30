@@ -7,16 +7,14 @@ import { Bell, Camera, Compass, Mail, Search, Trophy, WalletCards } from "lucide
 import { Logo } from "@/components/logo";
 import { useSocial } from "@/components/social-provider";
 import { AccountDeletedToast } from "@/components/account-deleted-toast";
-import { BadgeRevealGate } from "@/components/badges/badge-reveal";
-import { CreateMenu } from "@/components/create-menu";
+import { GuestAccount } from "@/components/guest-account";
 import { JoinBar } from "@/components/join-bar";
 import { NavMotion } from "@/components/nav-motion";
 import { NavPendingSkeleton } from "@/components/nav-pending-skeleton";
-import { CoachTour } from "@/components/onboarding/coach-tour";
-import { FirstRunSetup } from "@/components/onboarding/first-run-setup";
 import { useOnboardingBusy } from "@/components/onboarding/use-onboarding";
-import { YoureIn } from "@/components/onboarding/youre-in";
-import { AccountMenu } from "@/components/side-menu";
+import { sessionHinted } from "@/lib/auth/session-hint";
+import { afterFirstIdle } from "@/lib/ui/idle";
+import { lazyPart } from "@/lib/ui/lazy-part";
 import {
   isAuthPage,
   isChromelessPath,
@@ -38,6 +36,34 @@ import {
   keepsBrowserTabGesture,
   requestPageRefresh,
 } from "@/lib/ui/pull-refresh";
+
+/*
+ * The signed-in chrome loads in its own chunks. Signed-out Home renders none
+ * of it, so it never downloads it. A visitor's header slot (Log in) is the
+ * small static GuestAccount, so public pages draw the same on the server.
+ */
+const AccountMenu = lazyPart(() => import("@/components/side-menu").then((mod) => mod.AccountMenu), AccountSlot);
+const CreateMenu = lazyPart(() => import("@/components/create-menu").then((mod) => mod.CreateMenu));
+const FirstRunSetup = lazyPart(() => import("@/components/onboarding/first-run-setup").then((mod) => mod.FirstRunSetup));
+const YoureIn = lazyPart(() => import("@/components/onboarding/youre-in").then((mod) => mod.YoureIn));
+const CoachTour = lazyPart(() => import("@/components/onboarding/coach-tour").then((mod) => mod.CoachTour));
+const BadgeRevealGate = lazyPart(() => import("@/components/badges/badge-reveal").then((mod) => mod.BadgeRevealGate));
+
+/** The avatar's room while the menu's chunk loads. */
+function AccountSlot() {
+  return <span aria-hidden className="h-11 w-11" />;
+}
+
+// A session cookie means the chrome is coming: fetch what the first signed-in
+// frame draws now, while the page hydrates and the snapshot loads. The
+// onboarding overlays wait for the first idle moment so they don't compete
+// with the feed for the main thread.
+if (sessionHinted()) {
+  for (const part of [AccountMenu, CreateMenu]) void part.preload().catch(() => {});
+  afterFirstIdle(() => {
+    for (const part of [FirstRunSetup, YoureIn, CoachTour, BadgeRevealGate]) void part.preload().catch(() => {});
+  });
+}
 
 const TAB_ICONS = {
   "/": Compass,
@@ -173,7 +199,7 @@ function Shell({
           }`}>
           <div className="mx-auto grid h-[3.25rem] max-w-lg grid-cols-[1fr_auto_1fr] items-center px-4">
             <div className="flex items-center justify-self-start">
-              <AccountMenu user={user} showLogin={showLogin} />
+              {user ? <AccountMenu user={user} showLogin={showLogin} /> : <GuestAccount showLogin={showLogin} />}
             </div>
             <Link
               href="/"

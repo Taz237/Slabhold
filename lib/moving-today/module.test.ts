@@ -895,10 +895,12 @@ describe("Moving today cache", () => {
     const cachedCall = load.indexOf("unstable_cache(");
     const freshenCall = load.indexOf("return freshenMovingToday");
     assert.ok(cachedCall > 0 && freshenCall > cachedCall);
-    const slot = read("components/moving-today-slot.tsx");
+    // Home reads the movers with the page and hands them to the timeline as data.
+    assert.match(home, /getMovingToday\(\)/);
+    const slot = read("components/home-feed.tsx");
     assert.doesNotMatch(slot, /connection\(/);
     assert.match(slot, /<MovingToday \/>/);
-    assert.match(slot, /MovingTodayCached/);
+    assert.match(slot, /MovingTodayCached payload=\{movers\}/);
     assert.match(read("app/page.tsx"), /export const revalidate = 1800/);
     assert.match(load, /sold_comps_cache/);
     assert.match(load, /\["moving-today-v3"\]/);
@@ -938,7 +940,7 @@ describe("For You placement", () => {
     assert.match(feed, /showWelcome \? <HomeFirstCardPrompt \/> : null/);
     assert.doesNotMatch(feed, /CollectionToday|collection-today/);
     assert.doesNotMatch(feed, /card_value_history|shouldShowYourCardsSinceYesterday/);
-    assert.doesNotMatch(read("components/moving-today-slot.tsx"), /CollectionToday/);
+    assert.doesNotMatch(read("components/home-feed.tsx"), /CollectionToday/);
     const ui = read("components/timeline-ui.tsx");
     assert.match(ui, /For You/);
     assert.match(ui, /New posts/);
