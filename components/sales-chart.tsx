@@ -110,7 +110,7 @@ export function SalesChart({
   const live = usingLive || lockedToComps;
   const showSample = !lockedToComps && (sample || source === "sample" || source === "off");
 
-  const sales = useMemo(
+  const sales = useMemo<ChartSale[]>(
     () => (live ? (salesProp ?? (pointsProp ?? []).map((point, index) => ({ id: `p${index}`, price: point.value, date: point.date }))) : []),
     [live, salesProp, pointsProp],
   );

@@ -27,6 +27,7 @@ export const SIDE_MENU_ITEMS = [
 export const SIDE_MENU_SETTINGS = [
   { href: "/settings/notifications", label: "Notifications" },
   { href: "/settings/privacy", label: "Privacy & safety" },
+  { href: "/settings/invite", label: "Invite friends" },
   { href: "/settings/collecting", label: "Collecting settings" },
   { href: "/about", label: "About" },
   { href: "/privacy", label: "Privacy policy" },

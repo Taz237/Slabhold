@@ -464,7 +464,7 @@ describe("side menu", () => {
     );
     assert.deepEqual(
       SIDE_MENU_SETTINGS.map((item) => item.href),
-      ["/settings/notifications", "/settings/privacy", "/settings/collecting", "/about", "/privacy", "/terms"],
+      ["/settings/notifications", "/settings/privacy", "/settings/invite", "/settings/collecting", "/about", "/privacy", "/terms"],
     );
     // Delete account moved from More to Privacy & safety.
     assert.match(read("app/settings/privacy/page.tsx"), /<DeleteAccount \/>/);
