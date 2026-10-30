@@ -9,10 +9,11 @@ export const ACTION_SETTLE_MS = 1500;
 /** Existing installed users: first idle on Home, then this much more. */
 export const EXISTING_OPEN_DELAY_MS = 2000;
 /**
- * Accounts created before this are "existing" users: they may get the card
- * once on their next installed-app open. Set to this feature's release.
+ * An account this young when a device first sees it is "new": that sighting
+ * is its first open. Older accounts are "existing" users, who may get the
+ * card once on their next installed-app open. No release date to keep in sync.
  */
-export const PUSH_RELEASE_AT = Date.parse("2026-11-01T00:00:00.000Z");
+export const NEW_ACCOUNT_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 export type AskState = {
   dismissals: number;
@@ -85,12 +86,12 @@ export function cooledDown(state: AskState, now: number): boolean {
 }
 
 /**
- * The first time this device sees a new account is its first open. Accounts
- * from before the release are never on their "first open" here.
+ * The first time this device sees a new account is its first open. Existing
+ * accounts (older than a day) are never on their "first open" here.
  */
-export function startsFirstOpen(input: { state: AskState; accountCreatedAt: number | null }): boolean {
+export function startsFirstOpen(input: { state: AskState; accountCreatedAt: number | null; now: number }): boolean {
   if (input.state.firstSeenAt) return false;
-  return input.accountCreatedAt === null || input.accountCreatedAt >= PUSH_RELEASE_AT;
+  return input.accountCreatedAt === null || input.accountCreatedAt >= input.now - NEW_ACCOUNT_WINDOW_MS;
 }
 
 export type AskInput = {
@@ -121,7 +122,7 @@ export function shouldAsk(input: AskInput): boolean {
       input.standalone &&
       input.pathname === "/" &&
       input.accountCreatedAt !== null &&
-      input.accountCreatedAt < PUSH_RELEASE_AT &&
+      input.accountCreatedAt < (input.state.firstSeenAt ?? input.now) - NEW_ACCOUNT_WINDOW_MS &&
       input.state.lastAt === null &&
       input.state.dismissals === 0
     );

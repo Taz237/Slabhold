@@ -1,7 +1,8 @@
 import { after } from "next/server";
 import { consumeRateLimit } from "@/lib/comps/rate-limit";
 import { flushForActor, logCounts, runTailsWhenDue, sweepTails } from "@/lib/push/dispatch";
-import { gateFlush } from "@/lib/push/handlers";
+import { UNAVAILABLE, gateFlush } from "@/lib/push/handlers";
+import { crossSiteRejection } from "@/lib/push/origin";
 import { pushDispatcher, requestUserId } from "@/lib/push/server";
 
 export const runtime = "nodejs";
@@ -18,9 +19,12 @@ const TAIL_BUDGET_MS = 48_000;
  */
 export async function POST(request: Request) {
   const dispatcher = pushDispatcher();
-  const userId = dispatcher ? await requestUserId(request) : null;
-  const gate = await gateFlush({ available: dispatcher !== null, userId, consume: consumeRateLimit });
-  if (gate.run && dispatcher && userId) {
+  if (!dispatcher) return Response.json(UNAVAILABLE.body, { status: UNAVAILABLE.status });
+  const forbidden = crossSiteRejection(request);
+  if (forbidden) return forbidden;
+  const userId = await requestUserId(request);
+  const gate = await gateFlush({ available: true, userId, consume: consumeRateLimit });
+  if (gate.run && userId) {
     after(async () => {
       try {
         const { counts, tails } = await flushForActor(dispatcher, userId);

@@ -1,5 +1,6 @@
 import { consumeRateLimit } from "@/lib/comps/rate-limit";
-import { gateTest } from "@/lib/push/handlers";
+import { UNAVAILABLE, gateTest } from "@/lib/push/handlers";
+import { crossSiteRejection } from "@/lib/push/origin";
 import { testPayload } from "@/lib/push/payload";
 import { deliver } from "@/lib/push/send";
 import { pushDispatcher, requestUserId } from "@/lib/push/server";
@@ -9,9 +10,12 @@ export const runtime = "nodejs";
 /** "Send a test notification" in Settings: one push to each of the caller's devices. */
 export async function POST(request: Request) {
   const dispatcher = pushDispatcher();
-  const userId = dispatcher ? await requestUserId(request) : null;
-  const gate = await gateTest({ available: dispatcher !== null, userId, consume: consumeRateLimit });
-  if (!gate.run || !dispatcher || !userId) return Response.json(gate.body, { status: gate.status });
+  if (!dispatcher) return Response.json(UNAVAILABLE.body, { status: UNAVAILABLE.status });
+  const forbidden = crossSiteRejection(request);
+  if (forbidden) return forbidden;
+  const userId = await requestUserId(request);
+  const gate = await gateTest({ available: true, userId, consume: consumeRateLimit });
+  if (!gate.run || !userId) return Response.json(gate.body, { status: gate.status });
 
   const subscriptions = await dispatcher.store.subscriptions(userId);
   if (subscriptions.length === 0) {

@@ -111,8 +111,9 @@ export function PushManager({ user }: { user: Profile }) {
     const key = askKey(userId);
     const state = parseAskState(readStorage("local", key));
     if (state.firstSeenAt) return;
-    if (startsFirstOpen({ state, accountCreatedAt })) writeStorage("session", firstOpenSessionKey(userId), "1");
-    writeStorage("local", key, JSON.stringify({ ...state, firstSeenAt: Date.now() }));
+    const now = Date.now();
+    if (startsFirstOpen({ state, accountCreatedAt, now })) writeStorage("session", firstOpenSessionKey(userId), "1");
+    writeStorage("local", key, JSON.stringify({ ...state, firstSeenAt: now }));
   }, [accountCreatedAt, featureOn, userId]);
 
   // The worker, and this device's subscription when this user turned it on here.
