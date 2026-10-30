@@ -210,6 +210,8 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
       }
       return;
     }
+    // Home is two routes (proxy.ts): drop the signed-out one the router may hold.
+    router.refresh();
     router.push(destination);
   }
 
@@ -319,6 +321,8 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
       setError(result.error);
       return;
     }
+    // Home is two routes (proxy.ts): drop the signed-out one the router may hold.
+    router.refresh();
     router.push(destination);
   }
 

@@ -1,20 +1,8 @@
-import { ogContentType, ogSize, renderMovingTodayOg } from "@/components/og-frame";
-import { getMovingToday } from "@/lib/moving-today/load";
-import { movingTodayShareModel } from "@/lib/moving-today/share";
-import { emptyMovingToday, MOVING_TODAY_TITLE } from "@/lib/moving-today/types";
-
-export const alt = MOVING_TODAY_TITLE;
-export const size = ogSize;
-export const contentType = ogContentType;
+/*
+ * Same image at its original address. The page's own image lives in
+ * app/(app), where Next adds a suffix to the address (route group); this keeps
+ * the old address, which links already shared and code that builds it use.
+ */
+export { default, alt, size, contentType } from "@/app/(app)/moving-today/opengraph-image";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-export default async function Image() {
-  let payload = emptyMovingToday();
-  try {
-    payload = await getMovingToday();
-  } catch {
-    payload = emptyMovingToday();
-  }
-  return renderMovingTodayOg(movingTodayShareModel(payload));
-}

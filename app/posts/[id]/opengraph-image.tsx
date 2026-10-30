@@ -1,11 +1,6 @@
-import { CARD_OG_CACHE_CONTROL, ogContentType, ogSize, reachableShare, renderOg } from "@/components/og-frame";
-import { loadPostShareImage } from "@/lib/social/link-preview-load";
-
-export const alt = "Post on Slabhold";
-export const size = ogSize;
-export const contentType = ogContentType;
-
-export default async function Image({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-  return renderOg(await reachableShare(await loadPostShareImage(id)), CARD_OG_CACHE_CONTROL);
-}
+/*
+ * Same image at its original address. The page's own image lives in
+ * app/(app), where Next adds a suffix to the address (route group); this keeps
+ * the old address, which links already shared and code that builds it use.
+ */
+export { default, alt, size, contentType } from "@/app/(app)/posts/[id]/opengraph-image";

@@ -1,35 +1,19 @@
-"use client";
-
-import dynamic from "next/dynamic";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import { Suspense, memo } from "react";
 import { FounderNote } from "@/components/landing/founder-note";
 import { HeroSlabs } from "@/components/landing/hero-slabs";
-import { useFounderShowcase } from "@/components/landing/use-founder";
-import type { FounderShowcase } from "@/lib/landing/founder";
+import { FeaturePanels, LandingCta, LandingLogin } from "@/components/landing/landing-links";
 import { Logo } from "@/components/logo";
-import { trackEvent } from "@/lib/analytics";
-import { landingLoginHref, landingSignupHref, safeNext } from "@/lib/auth/safe-next";
-
-/** Below the hero, so it loads in its own chunk after the hero paints. */
-const FeaturePanels = dynamic(
-  () => import("@/components/landing/feature-panels").then((mod) => mod.FeaturePanels),
-  { loading: () => <PanelsSkeleton /> },
-);
+import type { FounderShowcase } from "@/lib/landing/founder";
+import { readFounderShowcase } from "@/lib/landing/founder-showcase";
 
 /**
- * `founder` is the server's hour-cached showcase, so the hero slabs paint with the page.
- * Memoized: the session snapshot updates Home several times while it loads, and
- * none of those changes reach the landing page.
+ * Signed-out Home, drawn on the server: the hero and its photos paint from
+ * the HTML and never redraw. `founder` is the server's hour-cached showcase,
+ * so the hero slabs paint with the page. The links that read ?next= and the
+ * panels below the hero are the only client code.
  */
-export const LandingPage = memo(function LandingPage({
-  founder: initial = null,
-}: {
-  founder?: FounderShowcase | null;
-}) {
-  const founder = useFounderShowcase(initial);
-  const showcase = founder.status === "ready" ? founder.showcase : null;
+export function LandingPage({ founder = null }: { founder?: FounderShowcase | null }) {
+  const showcase = founder ? readFounderShowcase(founder) : null;
   return (
     <div className="min-h-dvh overflow-x-clip bg-[#09090b] text-zinc-100">
       <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(124,58,237,0.32),_transparent_58%)]" />
@@ -39,9 +23,7 @@ export const LandingPage = memo(function LandingPage({
             <Logo />
             <span className="text-[17px] font-bold tracking-tight">Slabhold</span>
           </span>
-          <Suspense fallback={<LoginLink next="/" />}>
-            <FromSearch render={(next) => <LoginLink next={next} />} />
-          </Suspense>
+          <LandingLogin />
         </header>
 
         <section className="mt-6 lg:mt-14 lg:grid lg:grid-cols-[1.05fr_1fr] lg:items-center lg:gap-12">
@@ -61,9 +43,7 @@ export const LandingPage = memo(function LandingPage({
             <p className="mx-auto mt-4 max-w-sm text-[16px] leading-6 text-zinc-400 lg:mx-0">
               Track your sports cards with recent sold prices, and share them with collectors who get it.
             </p>
-            <Suspense fallback={<LandingActions next="/" />}>
-              <LandingActionsFromSearch />
-            </Suspense>
+            <LandingCta />
           </div>
         </section>
 
@@ -80,9 +60,7 @@ export const LandingPage = memo(function LandingPage({
             Bring your collection. Find your people. It takes a minute.
           </p>
           <div className="mx-auto max-w-sm">
-            <Suspense fallback={<LandingActions next="/" />}>
-              <LandingActionsFromSearch />
-            </Suspense>
+            <LandingCta />
           </div>
         </section>
 
@@ -95,61 +73,6 @@ export const LandingPage = memo(function LandingPage({
           </Link>
         </footer>
       </div>
-    </div>
-  );
-});
-
-function FromSearch({ render }: { render: (next: string) => React.ReactNode }) {
-  const next = safeNext(useSearchParams().get("next"));
-  return <>{render(next)}</>;
-}
-
-function LandingActionsFromSearch() {
-  const next = safeNext(useSearchParams().get("next"));
-  return <LandingActions next={next} />;
-}
-
-function LoginLink({ next }: { next: string }) {
-  return (
-    <Link
-      href={landingLoginHref(next)}
-      onClick={() => trackEvent("landing_cta_clicked", { button: "login" })}
-      className="inline-flex min-h-11 items-center rounded-full px-3 text-[15px] font-semibold text-zinc-200 hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-[#A78BFA] focus-visible:outline-none"
-    >
-      Log in
-    </Link>
-  );
-}
-
-export function LandingActions({ next }: { next: string }) {
-  return (
-    <div className="mt-7 space-y-2">
-      <Link
-        href={landingSignupHref(next)}
-        onClick={() => trackEvent("landing_cta_clicked", { button: "signup" })}
-        className="flex h-14 w-full items-center justify-center rounded-full bg-[#7C3AED] text-[17px] font-semibold text-white shadow-[0_14px_40px_-12px_rgba(124,58,237,0.95)] transition-transform duration-150 active:scale-[0.98] motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-[#A78BFA] focus-visible:ring-offset-2 focus-visible:ring-offset-[#09090b] focus-visible:outline-none lg:max-w-sm"
-      >
-        Create account
-      </Link>
-      <p className="text-center text-[15px] text-zinc-400 lg:max-w-sm">
-        Have an account?{" "}
-        <Link
-          href={landingLoginHref(next)}
-          onClick={() => trackEvent("landing_cta_clicked", { button: "login" })}
-          className="hit-44 inline-flex items-center font-semibold text-white underline underline-offset-4"
-        >
-          Log in
-        </Link>
-      </p>
-    </div>
-  );
-}
-
-function PanelsSkeleton() {
-  return (
-    <div aria-hidden className="mt-14">
-      <div className="skeleton-shimmer h-[392px] w-full rounded-[1.75rem] sm:w-[340px]" />
-      <div className="mt-4 h-11" />
     </div>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { TimelineSkeleton } from "@/components/status";
+import { TimelineSkeleton } from "@/components/post-skeleton";
 import type { MovingTodayPayload } from "@/lib/moving-today/types";
 import { lazyPart } from "@/lib/ui/lazy-part";
 

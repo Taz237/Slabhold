@@ -13,8 +13,8 @@ function read(path: string) {
 }
 
 describe("opening a card from the collection", () => {
-  const page = read("app/cards/[id]/page.tsx");
-  const loading = read("app/cards/[id]/loading.tsx");
+  const page = read("app/(app)/cards/[id]/page.tsx");
+  const loading = read("app/(app)/cards/[id]/loading.tsx");
   const detail = read("components/card-detail.tsx");
   const shell = read("components/card-detail-shell.tsx");
   const form = read("components/card-form.tsx");
@@ -76,7 +76,7 @@ describe("opening a card from the collection", () => {
     }
     assert.match(detail, /grid min-w-0 grid-cols-1 gap-3">\s*<EstSellMetric/);
     assert.match(view, /<section className="grid grid-cols-1 gap-3">/);
-    assert.doesNotMatch(read("app/u/[username]/cards/[id]/page.tsx"), /loadCardPeople/);
+    assert.doesNotMatch(read("app/(app)/u/[username]/cards/[id]/page.tsx"), /loadCardPeople/);
   });
 
   it("shows visibility at the top and move for the owner without opening the menu", () => {

@@ -154,10 +154,10 @@ describe("invite and collection images", () => {
 
   it("are wired to the public loaders and cached like profile images", () => {
     const read = (file: string) => readFileSync(join(process.cwd(), file), "utf8");
-    assert.match(read("app/i/[username]/opengraph-image.tsx"), /inviteImageResponse\(await loadInviteCollector\(username\)\)/);
-    assert.match(read("app/i/[username]/twitter-image.tsx"), /from "\.\/opengraph-image"/);
+    assert.match(read("app/(app)/i/[username]/opengraph-image.tsx"), /inviteImageResponse\(await loadInviteCollector\(username\)\)/);
+    assert.match(read("app/(app)/i/[username]/twitter-image.tsx"), /from "\.\/opengraph-image"/);
     assert.match(
-      read("app/u/[username]/collection/opengraph-image.tsx"),
+      read("app/(app)/u/[username]/collection/opengraph-image.tsx"),
       /collectionImageResponse\(await loadCollectionImageCollector\(username\)\)/,
     );
     assert.match(

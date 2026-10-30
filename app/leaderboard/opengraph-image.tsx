@@ -1,20 +1,7 @@
-import { ogContentType, ogSize, renderLeaderboardOg } from "@/components/og-frame";
-import { getLeaderboardSnapshot } from "@/lib/leaderboard/load";
-import { LEADERBOARD_TITLE } from "@/lib/leaderboard/rules";
-import { leaderboardShareModel } from "@/lib/leaderboard/share";
-import { emptySnapshot } from "@/lib/leaderboard/snapshot";
-
-export const alt = LEADERBOARD_TITLE;
-export const size = ogSize;
-export const contentType = ogContentType;
+/*
+ * Same image at its original address. The page's own image lives in
+ * app/(app), where Next adds a suffix to the address (route group); this keeps
+ * the old address, which links already shared and code that builds it use.
+ */
+export { default, alt, size, contentType } from "@/app/(app)/leaderboard/opengraph-image";
 export const runtime = "nodejs";
-
-export default async function Image() {
-  let snapshot = emptySnapshot(new Date());
-  try {
-    snapshot = await getLeaderboardSnapshot();
-  } catch {
-    snapshot = emptySnapshot(new Date());
-  }
-  return renderLeaderboardOg(leaderboardShareModel(snapshot));
-}

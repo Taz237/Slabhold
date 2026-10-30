@@ -12,6 +12,8 @@
     "lint": "eslint",
     "lint:ci": "node scripts/check-lint-baseline.mjs",
     "lint:baseline": "node scripts/check-lint-baseline.mjs --write",
+    "bundle:check": "node scripts/check-bundle-size.mjs",
+    "bundle:baseline": "node scripts/check-bundle-size.mjs --write",
     "test": "tsx --test \"**/*.test.{ts,tsx}\""
   },
   "dependencies": {

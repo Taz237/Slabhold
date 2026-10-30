@@ -147,7 +147,7 @@ describe("hunter setting", () => {
     const setting = readFileSync(join(process.cwd(), "components", "hunter-setting.tsx"), "utf8");
     const privacy = readFileSync(join(process.cwd(), "components", "privacy-lists.tsx"), "utf8");
     const wants = readFileSync(join(process.cwd(), "components", "want-list.tsx"), "utf8");
-    const policy = readFileSync(join(process.cwd(), "app", "privacy", "page.tsx"), "utf8");
+    const policy = readFileSync(join(process.cwd(), "app", "(app)", "privacy", "page.tsx"), "utf8");
     const schema = readFileSync(join(process.cwd(), "supabase", "schema.sql"), "utf8");
     assert.match(setting, /saveAndReloadShowAsHunter/);
     assert.match(setting, /href="\/settings\/privacy"/);

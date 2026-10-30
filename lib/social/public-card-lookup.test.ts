@@ -168,21 +168,21 @@ describe("public card page caching", () => {
   });
 
   it("passes the server-read card to the view, with no per-request reads", () => {
-    const page = read("app/u/[username]/cards/[id]/page.tsx");
+    const page = read("app/(app)/u/[username]/cards/[id]/page.tsx");
     assert.match(page, /initialCard=\{/);
     assert.match(page, /initialOwner=\{/);
     assert.doesNotMatch(page, /cookies\(|headers\(|createSupabaseServer|getAuthUserId/);
   });
 
   it("is ISR with a 5 minute window and renders new ids on first hit", () => {
-    const page = read("app/u/[username]/cards/[id]/page.tsx");
+    const page = read("app/(app)/u/[username]/cards/[id]/page.tsx");
     assert.match(page, /export const revalidate = 300;/);
     assert.match(page, /export const dynamicParams = true;/);
     assert.match(page, /export function generateStaticParams\(\)[\s\S]{0,80}?\{\s*return \[\];/);
   });
 
   it("has a loading boundary that matches the page", () => {
-    const loading = read("app/u/[username]/cards/[id]/loading.tsx");
+    const loading = read("app/(app)/u/[username]/cards/[id]/loading.tsx");
     assert.match(loading, /PublicCardSkeleton/);
   });
 });

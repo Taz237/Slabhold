@@ -1,20 +1,6 @@
-import { notFound } from "next/navigation";
-import { CARD_OG_CACHE_CONTROL, ogContentType, ogSize, reachableShare, renderOg } from "@/components/og-frame";
-import { earnedOnLabel } from "@/lib/badges/share";
-import { loadBadgeShare } from "@/lib/social/link-preview-load";
-import { badgeShareImage } from "@/lib/social/share-image";
-
-export const alt = "Badge on Slabhold";
-export const size = ogSize;
-export const contentType = ogContentType;
-
-export default async function Image({
-  params,
-}: {
-  params: Promise<{ username: string; category: string; tier: string }>;
-}) {
-  const { username, category, tier } = await params;
-  const view = await loadBadgeShare(decodeURIComponent(username), category, tier);
-  if (!view) notFound();
-  return renderOg(await reachableShare(badgeShareImage({ ...view, earnedLabel: earnedOnLabel(view.earnedAt) })), CARD_OG_CACHE_CONTROL);
-}
+/*
+ * Same image at its original address. The page's own image lives in
+ * app/(app), where Next adds a suffix to the address (route group); this keeps
+ * the old address, which links already shared and code that builds it use.
+ */
+export { default, alt, size, contentType } from "@/app/(app)/u/[username]/badges/[category]/[tier]/opengraph-image";

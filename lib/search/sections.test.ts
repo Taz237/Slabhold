@@ -107,7 +107,7 @@ describe("search sections", () => {
 
   it("puts the search field above intro copy and hides empty section headings", () => {
     const view = read("components/search-view.tsx");
-    const page = read("app/search/page.tsx");
+    const page = read("app/(app)/search/page.tsx");
     const field = view.indexOf('aria-label="Search"');
     const intro = view.indexOf("Search Slabhold");
     const recent = view.indexOf(">Recent<");
@@ -238,7 +238,7 @@ describe("search sections", () => {
     assert.doesNotThrow(() => encodeURIComponent(addCardQuery(`${"a".repeat(99)}\uD83D`)));
     assert.equal(addCardQuery(`${"a".repeat(99)}\uDC00`), "a".repeat(99));
     assert.doesNotThrow(() => encodeURIComponent(addCardQuery(`${"a".repeat(99)}\uDC00`)));
-    const page = read("app/cards/new/page.tsx");
+    const page = read("app/(app)/cards/new/page.tsx");
     assert.match(page, /addCardQuery\(/);
     // Add card opens the guided picker. It still gets the query and the Search pick.
     assert.match(page, /<CardForm\s+guided\s+initialQuery=\{initialQuery\}\s+initialCatalog=\{initialCatalog\}/);

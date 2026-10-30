@@ -77,7 +77,7 @@ describe("add card form polish", () => {
     assert.match(form, /existing\?\.playerName \?\? manualPrefill\?\.playerName/);
     // Add card has no search box now. The query only prefills the typed fields.
     assert.doesNotMatch(form, /<CardSearch/);
-    const page = read("app/cards/new/page.tsx");
+    const page = read("app/(app)/cards/new/page.tsx");
     assert.match(page, /searchParams: Promise</);
     assert.match(page, /await searchParams/);
     // Add card opens the guided picker. It still gets the query and the Search pick.
@@ -213,7 +213,7 @@ describe("collection screens", () => {
 
 describe("signed-out landing overflow", () => {
   it("keeps the feature panels inside the column without a visible scrollbar", () => {
-    const landing = read("components/landing-page.tsx");
+    const landing = (read("components/landing-page.tsx") + read("components/landing/landing-links.tsx"));
     const panels = read("components/landing/feature-panels.tsx");
     assert.match(landing, /overflow-x-clip/);
     assert.match(panels, /flex min-w-0 snap-x snap-mandatory/);

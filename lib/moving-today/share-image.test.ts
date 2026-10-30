@@ -103,8 +103,8 @@ describe("Moving today share image", () => {
   });
 
   it("uses the Open Graph route", () => {
-    const image = read("app/moving-today/opengraph-image.tsx");
-    const twitter = read("app/moving-today/twitter-image.tsx");
+    const image = read("app/(app)/moving-today/opengraph-image.tsx");
+    const twitter = read("app/(app)/moving-today/twitter-image.tsx");
     assert.match(image, /renderMovingTodayOg/);
     assert.match(image, /getMovingToday/);
     assert.match(image, /movingTodayShareModel/);

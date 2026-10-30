@@ -424,7 +424,7 @@ describe("leaderboard page", () => {
     assert.equal(scoreUnit("new followers", 4), "new followers");
     assert.equal(scoreUnit("cards", 1), "card");
     assert.equal(scoreUnit("cards", 25), "cards");
-    assert.match(read("app/leaderboard/loading.tsx"), /data-leaderboard-loading/);
+    assert.match(read("app/(app)/leaderboard/loading.tsx"), /data-leaderboard-loading/);
     assert.throws(() => pageExceededCap("blocks", 20_000, 1000), /row cap/);
     pageExceededCap("blocks", 1000, 1000);
     pageExceededCap("blocks", 20_000, 10);
@@ -449,8 +449,8 @@ describe("leaderboard page", () => {
       (next) => next,
     );
     assert.deepEqual(ordered, ["created_at", "follower_id", "following_id"]);
-    const home = read("app/page.tsx");
-    const login = read("app/login/page.tsx");
+    const home = read("app/(app)/page.tsx");
+    const login = read("app/(app)/login/page.tsx");
     const feed = read("components/feed-view.tsx");
     const bundle = `${home}\n${login}\n${feed}`;
     assert.doesNotMatch(bundle, /leaderboard-countdown|leaderboard-view|getLeaderboardPage|getLeaderboardSnapshot/);

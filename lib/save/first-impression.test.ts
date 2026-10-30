@@ -10,7 +10,7 @@ function read(path: string) {
 describe("add a card first impression", () => {
   it("defaults to PC, says Add a card, and does not require a purchase date", () => {
     const form = read("components/card-form.tsx");
-    const page = read("app/cards/new/page.tsx");
+    const page = read("app/(app)/cards/new/page.tsx");
     assert.match(form, /existing \? cardCategory\(existing\) : "pc"/);
     assert.match(form, /: "Add a card"/);
     assert.doesNotMatch(form, /New position/);

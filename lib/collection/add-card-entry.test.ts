@@ -78,6 +78,6 @@ describe("Add a card on Collection", () => {
     assert.match(shell, />\s*Add card\s*</);
     assert.doesNotMatch(shell, /href: "\/scan"/);
     assert.doesNotMatch(shell, /Scan a card/);
-    assert.match(read("app/scan/page.tsx"), /ScanView/);
+    assert.match(read("app/(app)/scan/page.tsx"), /ScanView/);
   });
 });

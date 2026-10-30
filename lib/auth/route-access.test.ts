@@ -96,7 +96,7 @@ describe("route access", () => {
 
     const root = process.cwd();
     const config = readFileSync(join(root, "next.config.ts"), "utf8");
-    const page = readFileSync(join(root, "app/mail-day/page.tsx"), "utf8");
+    const page = readFileSync(join(root, "app/(app)/mail-day/page.tsx"), "utf8");
     assert.match(config, /source:\s*"\/mail-day"/);
     assert.match(config, /source:\s*"\/mail-day\/:path\*"/);
     assert.match(config, /destination:\s*"\/cards\/new"/);
@@ -222,7 +222,7 @@ describe("signed-out shell", () => {
   it("redirects with requiresAccount and renders the branded 404", () => {
     const root = process.cwd();
     const shell = readFileSync(join(root, "components/app-shell.tsx"), "utf8");
-    const notFound = readFileSync(join(root, "app/not-found.tsx"), "utf8");
+    const notFound = readFileSync(join(root, "components/not-found-view.tsx"), "utf8");
     assert.match(shell, /requiresAccount\(pathname\)/);
     assert.doesNotMatch(shell, /!isGuestContentPage/);
     assert.match(notFound, /Page not found/);

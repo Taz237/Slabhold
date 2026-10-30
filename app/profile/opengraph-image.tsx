@@ -1,18 +1,6 @@
-import {
-  ogContentType,
-  ogSize,
-  PRIVATE_OG_CACHE_CONTROL,
-  reachableImage,
-  renderProfileOg,
-} from "@/components/og-frame";
-import { loadOwnProfilePreview } from "@/lib/social/link-preview-load";
-
-export const alt = "Profile on Slabhold";
-export const size = ogSize;
-export const contentType = ogContentType;
-
-export default async function Image() {
-  const preview = await loadOwnProfilePreview();
-  const imageUrl = await reachableImage(preview.imageUrl);
-  return renderProfileOg({ ...preview, imageUrl }, "COLLECTOR", PRIVATE_OG_CACHE_CONTROL);
-}
+/*
+ * Same image at its original address. The page's own image lives in
+ * app/(app), where Next adds a suffix to the address (route group); this keeps
+ * the old address, which links already shared and code that builds it use.
+ */
+export { default, alt, size, contentType } from "@/app/(app)/profile/opengraph-image";

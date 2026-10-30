@@ -85,7 +85,7 @@ describe("Badge", () => {
       "components/badges/badge-reveal.tsx",
       "components/badges/achievements-view.tsx",
       "components/badges/profile-badge-strip.tsx",
-      "app/u/[username]/badges/page.tsx",
+      "app/(app)/u/[username]/badges/page.tsx",
     ];
     for (const file of files) {
       const source = readFileSync(join(process.cwd(), file), "utf8");
@@ -164,6 +164,8 @@ describe("earn reveal share", () => {
     const share = [...document.querySelectorAll("button")].find((button) => button.textContent === "Share");
     await act(async () => {
       share!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      // The sheet is its own chunk, fetched on the tap.
+      await (await import("@/components/share-sheet")).ShareSheet.preload();
     });
     const sheet = [...document.querySelectorAll("[role='dialog']")].find((node) => node.textContent?.includes("Post on X"));
     assert.ok(sheet, "share sheet");

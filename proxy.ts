@@ -1,9 +1,21 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { LANDING_PATH, servesLanding } from "@/lib/auth/landing-route";
 import { isStaticPublicPath } from "@/lib/auth/route-access";
+import { getSupabaseConfig } from "@/lib/supabase/client";
 import { pathIsMissing } from "@/lib/social/missing-route";
 
 export async function proxy(request: NextRequest) {
+  // Signed-out Home is its own route, with none of the app's code.
+  if (
+    servesLanding({
+      pathname: request.nextUrl.pathname,
+      cookieHeader: request.headers.get("cookie") ?? "",
+      supabaseConfigured: getSupabaseConfig().configured,
+    })
+  ) {
+    return NextResponse.rewrite(new URL(LANDING_PATH, request.url));
+  }
   // Install files, Next assets, and OG images are never missing-page checks.
   if (isStaticPublicPath(request.nextUrl.pathname)) return NextResponse.next();
   const missing = await pathIsMissing({
@@ -24,9 +36,10 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // Positive list only. Manifest, /icons, apple icons, favicon, robots,
+  // Positive list only. / picks signed-out Home's route. Manifest, /icons, apple icons, favicon, robots,
   // /_next, and opengraph/twitter images are not matched.
   matcher: [
+    "/",
     "/posts/:id",
     "/u/:username",
     "/u/:username/followers",

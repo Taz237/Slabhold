@@ -30,7 +30,7 @@ describe("cardPageAccessDecision", () => {
   });
 
   it("page calls requireCardPageAccess before rendering CardDetail", () => {
-    const page = readFileSync(join(process.cwd(), "app/cards/[id]/page.tsx"), "utf8");
+    const page = readFileSync(join(process.cwd(), "app/(app)/cards/[id]/page.tsx"), "utf8");
     assert.match(page, /await requireCardPageAccess\(id\)/);
     const requireAt = page.indexOf("requireCardPageAccess");
     const detailAt = page.indexOf("<CardDetail");

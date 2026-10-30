@@ -1,12 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import { AppShell } from "@/components/app-shell";
 import { CaptureUtm } from "@/components/capture-utm";
-import { WebAnalytics } from "@/components/web-analytics";
+import { WebAnalytics } from "@/components/web-analytics-lazy";
 import { SITE_URL } from "@/lib/site-url";
-import { CollectionProvider } from "@/components/collection-provider";
-import { ImageLightboxProvider } from "@/components/image-lightbox";
-import { SocialProvider } from "@/components/social-provider";
 import { BRAND_PURPLE } from "@/lib/pwa/manifest";
 import { SESSION_HINT_SCRIPT } from "@/lib/auth/session-hint";
 import "./globals.css";
@@ -14,11 +10,14 @@ import "./globals.css";
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
+  display: "swap",
 });
 
+// Small uppercase tags. Preloaded: they are above the fold on most screens.
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+  display: "swap",
 });
 
 export const viewport: Viewport = {
@@ -67,13 +66,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <script dangerouslySetInnerHTML={{ __html: SESSION_HINT_SCRIPT }} />
       </head>
       <body className="min-h-full font-sans">
-        <ImageLightboxProvider>
-          <SocialProvider>
-            <CollectionProvider>
-              <AppShell>{children}</AppShell>
-            </CollectionProvider>
-          </SocialProvider>
-        </ImageLightboxProvider>
+        {/* The app's providers and shell live in app/(app)/layout.tsx, so the
+            signed-out landing page (app/welcome) ships none of them. */}
+        {children}
         <CaptureUtm />
         <WebAnalytics />
       </body>

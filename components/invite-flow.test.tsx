@@ -131,7 +131,7 @@ describe("invite landing", () => {
     cleanup = await render(createElement(InviteLanding, { handle: "maya", code, collector }), social());
     const saved = JSON.parse(win.localStorage.getItem(INVITE_STORAGE_KEY) ?? "{}");
     assert.deepEqual([saved.username, saved.code], ["maya", code]);
-    const page = readFileSync(join(process.cwd(), "app/i/[username]/page.tsx"), "utf8");
+    const page = readFileSync(join(process.cwd(), "app/(app)/i/[username]/page.tsx"), "utf8");
     assert.match(page, /const code = inviteCode\(\(await searchParams\)\[INVITE_CODE_PARAM\]\);/);
     assert.match(page, /<InviteLanding handle=\{handle\} code=\{code\} collector=\{collector\} \/>/);
   });
@@ -153,7 +153,7 @@ describe("invite landing", () => {
   });
 
   it("redirects on the server too, and is a full-screen page signed out", () => {
-    const page = readFileSync(join(process.cwd(), "app/i/[username]/page.tsx"), "utf8");
+    const page = readFileSync(join(process.cwd(), "app/(app)/i/[username]/page.tsx"), "utf8");
     assert.match(page, /if \(collector && \(await getAuthUserId\(\)\)\) redirect\(userHref\(collector\.username\)\)/);
     const shell = readFileSync(join(process.cwd(), "components/app-shell.tsx"), "utf8");
     assert.match(shell, /if \(!user && isInvitePage\(pathname\)\)/);

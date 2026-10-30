@@ -14,7 +14,7 @@ const read = (path: string) => readFileSync(join(process.cwd(), path), "utf8");
 describe("Settings > Invite friends", () => {
   it("is a settings page in the side menu", () => {
     assert.ok(SIDE_MENU_SETTINGS.some((item) => item.href === "/settings/invite" && item.label === "Invite friends"));
-    assert.match(read("app/settings/invite/page.tsx"), /<InviteSettings \/>/);
+    assert.match(read("app/(app)/settings/invite/page.tsx"), /<InviteSettings \/>/);
   });
 
   it("shows the link with its code, without the scheme", () => {
