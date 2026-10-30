@@ -169,7 +169,7 @@ describe("installed app, signed out", () => {
   it("wraps the landing page, and the shell listens for Chrome's prompt", () => {
     const gate = readFileSync(join(process.cwd(), "components/home-gate.tsx"), "utf8");
     const shell = readFileSync(join(process.cwd(), "components/app-shell.tsx"), "utf8");
-    assert.match(gate, /<StandaloneLoginGate>\s*<LandingPage founder=\{founder\} \/>\s*<\/StandaloneLoginGate>/);
+    assert.match(gate, /<StandaloneLoginGate>\s*\{landing\}\s*<\/StandaloneLoginGate>/);
     assert.match(shell, /listenForInstallPrompt\(\)/);
   });
 });

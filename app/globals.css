@@ -1,4 +1,13 @@
-@import "tailwindcss";
+/*
+ * Tailwind reads class names from app code only: not docs, tests, SQL or
+ * scripts, which would add rules no page uses.
+ */
+@import "tailwindcss" source(none);
+@source "../app";
+@source "../components";
+@source "../lib";
+@source not "../**/*.test.ts";
+@source not "../**/*.test.tsx";
 
 :root {
   --background: #f4f4f5;

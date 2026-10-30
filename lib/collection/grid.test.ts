@@ -232,16 +232,18 @@ describe("sortGridCards", () => {
 });
 
 describe("next.config images", () => {
-  it("allows only the card-photos bucket", () => {
+  it("allows only the card-photos and avatars buckets", () => {
     const images = nextConfig.images;
     assert.ok(images);
-    assert.equal(images.remotePatterns?.length, 1);
-    const pattern = images.remotePatterns?.[0];
-    assert.ok(pattern && !(pattern instanceof URL));
-    assert.equal(pattern.protocol, "https");
-    assert.equal(pattern.hostname, "knuwflptobyutrauxblj.supabase.co");
-    assert.equal(pattern.pathname, "/storage/v1/object/public/card-photos/**");
-    assert.equal(pattern.search, "");
+    assert.equal(images.remotePatterns?.length, 2);
+    const buckets = ["card-photos", "avatars"];
+    images.remotePatterns?.forEach((pattern, index) => {
+      assert.ok(pattern && !(pattern instanceof URL));
+      assert.equal(pattern.protocol, "https");
+      assert.equal(pattern.hostname, "knuwflptobyutrauxblj.supabase.co");
+      assert.equal(pattern.pathname, `/storage/v1/object/public/${buckets[index]}/**`);
+      assert.equal(pattern.search, "");
+    });
   });
 
   it("keeps transformations cheap", () => {

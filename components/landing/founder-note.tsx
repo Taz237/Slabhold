@@ -1,11 +1,8 @@
-"use client";
-
-import Image from "next/image";
-import Link from "next/link";
 import { ArrowRight } from "lucide-react";
+import { LandingLink } from "@/components/landing/landing-links";
 import { Logo } from "@/components/logo";
-import { trackEvent } from "@/lib/analytics";
 import { initials } from "@/lib/format";
+import { avatarImage } from "@/lib/ui/avatar-src";
 import type { FounderShowcase } from "@/lib/landing/founder";
 import { userHref } from "@/lib/social/user-href";
 
@@ -46,14 +43,15 @@ export function FounderNote({ showcase }: { showcase: FounderShowcase | null }) 
   return (
     <section aria-label="From the founder" className={BOX} data-founder-note="founder">
       {profile.avatarUrl ? (
-        // Unoptimized: avatars are outside the card-photos optimizer pattern.
-        <Image
-          src={profile.avatarUrl}
+        // A small optimized copy (lib/ui/avatar-src.ts), drawn on the server.
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          {...avatarImage(profile.avatarUrl, 48)}
           alt=""
           width={48}
           height={48}
-          unoptimized
           loading="lazy"
+          decoding="async"
           className="h-12 w-12 shrink-0 rounded-full object-cover ring-2 ring-[#7C3AED]/60"
         />
       ) : (
@@ -70,14 +68,14 @@ export function FounderNote({ showcase }: { showcase: FounderShowcase | null }) 
           <span className="truncate text-[15px] font-bold tracking-tight text-white">{profile.displayName}</span>
           <span className="truncate text-[13px] text-zinc-400">@{profile.username}</span>
         </p>
-        <Link
+        <LandingLink
           href={href}
-          onClick={() => trackEvent("landing_cta_clicked", { button: "founder_follow" })}
+          button="founder_follow"
           className="-my-2.5 inline-flex min-h-11 items-center gap-1 rounded-full text-[14px] font-semibold text-[#A78BFA] hover:text-white focus-visible:ring-2 focus-visible:ring-[#A78BFA] focus-visible:outline-none"
         >
           Follow on Slabhold
           <ArrowRight aria-hidden className="h-4 w-4" />
-        </Link>
+        </LandingLink>
       </div>
     </section>
   );

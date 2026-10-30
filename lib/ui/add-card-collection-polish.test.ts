@@ -213,7 +213,7 @@ describe("collection screens", () => {
 
 describe("signed-out landing overflow", () => {
   it("keeps the feature panels inside the column without a visible scrollbar", () => {
-    const landing = read("components/landing-page.tsx");
+    const landing = (read("components/landing-page.tsx") + read("components/landing/landing-links.tsx"));
     const panels = read("components/landing/feature-panels.tsx");
     assert.match(landing, /overflow-x-clip/);
     assert.match(panels, /flex min-w-0 snap-x snap-mandatory/);

@@ -56,7 +56,7 @@ describe("safeNext", () => {
     assert.equal(safeNext(pathWithQuery("/search", "q=%2F%2Fevil.com")), "/");
 
     const root = process.cwd();
-    const landing = readFileSync(join(root, "components/landing-page.tsx"), "utf8");
+    const landing = (readFileSync(join(root, "components/landing-page.tsx"), "utf8") + readFileSync(join(root, "components/landing/landing-links.tsx"), "utf8"));
     const auth = readFileSync(join(root, "components/auth-form.tsx"), "utf8");
     const shell = readFileSync(join(root, "components/app-shell.tsx"), "utf8");
     const joinBar = readFileSync(join(root, "components/join-bar.tsx"), "utf8");

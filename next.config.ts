@@ -9,9 +9,10 @@ const nextConfig: NextConfig = {
   outputFileTracingExcludes: {
     "*": ["node_modules/sharp/**", "node_modules/@img/**", "public/landing/2.png"],
   },
-  // Collection tile photos only. Card photos are uploaded under random UUID
+  // Card photos and small avatar copies. Both are uploaded under random UUID
   // paths and never change, so a long cache is safe. One quality and short
-  // size lists keep the number of transformations small.
+  // size lists keep the number of transformations small. AVIF first, WebP
+  // for browsers without it.
   images: {
     remotePatterns: [
       {
@@ -21,10 +22,19 @@ const nextConfig: NextConfig = {
         pathname: "/storage/v1/object/public/card-photos/**",
         search: "",
       },
+      {
+        protocol: "https",
+        hostname: "knuwflptobyutrauxblj.supabase.co",
+        port: "",
+        pathname: "/storage/v1/object/public/avatars/**",
+        search: "",
+      },
     ],
+    formats: ["image/avif", "image/webp"],
     qualities: [75],
     deviceSizes: [640, 828, 1200],
-    imageSizes: [256, 384],
+    // 96 is for avatars (lib/ui/avatar-src.ts).
+    imageSizes: [96, 256, 384],
     minimumCacheTTL: 60 * 60 * 24 * 31,
   },
   // The push service worker must never be served stale, so a fix reaches

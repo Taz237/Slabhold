@@ -370,7 +370,7 @@ describe("analytics wiring", () => {
     assert.equal(layout.includes("@vercel/speed-insights/next"), false);
     assert.match(layout, /<CaptureUtm \/>/);
 
-    const landing = read("components/landing-page.tsx");
+    const landing = (read("components/landing-page.tsx") + read("components/landing/landing-links.tsx"));
     assert.match(landing, /trackEvent\("landing_cta_clicked", \{ button: "signup" \}\)/);
     assert.match(landing, /trackEvent\("landing_cta_clicked", \{ button: "login" \}\)/);
 

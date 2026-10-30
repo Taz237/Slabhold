@@ -2,6 +2,7 @@
 
 import { useImageLightbox } from "@/components/image-lightbox";
 import { initials } from "@/lib/format";
+import { avatarImage, avatarPx } from "@/lib/ui/avatar-src";
 
 export function Avatar({
   name,
@@ -17,6 +18,8 @@ export function Avatar({
   expandable?: boolean;
 }) {
   const open = useImageLightbox();
+  const px = avatarPx(className);
+  const photo = image ? avatarImage(image, px) : null;
 
   if (image && expandable) {
     return (
@@ -32,7 +35,10 @@ export function Avatar({
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src={image}
+          src={photo?.src}
+          srcSet={photo?.srcSet}
+          width={px}
+          height={px}
           alt=""
           loading="lazy"
           decoding="async"
@@ -46,7 +52,10 @@ export function Avatar({
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img
-        src={image}
+        src={photo?.src}
+        srcSet={photo?.srcSet}
+        width={px}
+        height={px}
         alt=""
         loading="lazy"
         decoding="async"

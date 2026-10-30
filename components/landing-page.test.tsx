@@ -1,3 +1,4 @@
+import "@/lib/test/image-env";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
@@ -77,8 +78,12 @@ describe("landing page", () => {
 
   it("loads the feature panels lazily, below the hero, with a skeleton", () => {
     const landing = read("components/landing-page.tsx");
-    assert.match(landing, /dynamic\(\s*\(\) => import\("@\/components\/landing\/feature-panels"\)/);
-    assert.match(landing, /loading: \(\) => <PanelsSkeleton \/>/);
+    const links = read("components/landing/landing-links.tsx");
+    // Drawn in the server HTML; the code loads and hydrates once the page is idle.
+    assert.match(links, /lazy\(\(\) =>[\s\S]*afterFirstIdle\(resolve\)[\s\S]*import\("@\/components\/landing\/feature-panels"\)/);
+    assert.match(links, /<Suspense fallback=\{<PanelsSkeleton \/>\}>\s*<LazyPanels \/>/);
+    assert.doesNotMatch(links, /from "next\/dynamic"/);
+    assert.match(landing, /<FeaturePanels \/>/);
     assert.doesNotMatch(landing, /next\/image|\.png/);
     for (const file of ["components/landing-page.tsx", "components/landing/feature-panels.tsx", "components/landing/hero-slabs.tsx"]) {
       assert.doesNotMatch(read(file), /from "(framer-motion|motion|gsap|lottie|swiper|embla)/);
@@ -225,15 +230,16 @@ describe("landing founder touch", () => {
   it("loads the showcase on the server through the hour cache and preloads the hero photos", () => {
     const page = read("app/page.tsx");
     assert.match(page, /cachedFounderShowcase\(\)/);
-    assert.match(page, /<HomeGate founder=\{founder\}/);
+    assert.match(page, /<HomeGate landing=\{<LandingPage founder=\{founder\} \/>\}/);
     const loader = read("lib/landing/founder-load.ts");
     assert.match(loader, /unstable_cache\(\s*loadFounderShowcase,\s*\["landing-founder"\],\s*\{\s*revalidate: 3600/);
     assert.match(read("app/api/landing/founder/route.ts"), /founderResponse\(cachedFounderShowcase\)/);
     assert.doesNotMatch(read("components/app-shell.tsx"), /<LandingPage/);
     assert.match(read("components/landing/hero-slabs.tsx"), /preload/);
+    // The founder's avatar is a small optimized copy, not the full upload.
     const note = read("components/landing/founder-note.tsx");
-    assert.match(note, /from "next\/image"/);
-    assert.doesNotMatch(note, /no-img-element/);
+    assert.match(note, /avatarImage\(profile\.avatarUrl, 48\)/);
+    assert.doesNotMatch(note, /unoptimized/);
   });
 
   it("puts the founder's 3 public card photos in the hero, best in the center", async () => {
@@ -313,7 +319,7 @@ describe("landing founder touch", () => {
   });
 
   it("drops off-site photos and non-https avatars from the payload", async () => {
-    const { readFounderShowcase } = await import("@/components/landing/use-founder");
+    const { readFounderShowcase } = await import("@/lib/landing/founder-showcase");
     const read = readFounderShowcase({
       profile: { username: "donnietaz", displayName: "", avatarUrl: "http://x/a.png" },
       cards: [{ ...founderCard("a", "Ok") }, { ...founderCard("b", "Off"), photoUrl: "https://evil.example/b.jpg" }, null],

@@ -1,15 +1,5 @@
-"use client";
-
-import { useEffect, useState } from "react";
 import { photoSource } from "@/lib/collection/grid";
 import type { FounderCard, FounderShowcase } from "@/lib/landing/founder";
-
-export type FounderState =
-  | { status: "loading" }
-  | { status: "ready"; showcase: FounderShowcase };
-
-/** Past this, the landing page settles on sample slabs and the plain note. */
-const FOUNDER_TIMEOUT_MS = 4000;
 
 const NONE: FounderShowcase = { profile: null, cards: [] };
 
@@ -59,36 +49,4 @@ export function readFounderShowcase(value: unknown): FounderShowcase {
         }).slice(0, 3)
       : [],
   };
-}
-
-/**
- * The founder's public profile and top cards. Home passes the server's
- * hour-cached copy as `initial`, so nothing is fetched. Without it, this reads
- * the hour-cached landing route.
- */
-export function useFounderShowcase(initial?: FounderShowcase | null): FounderState {
-  const [state, setState] = useState<FounderState>(() =>
-    initial ? { status: "ready", showcase: readFounderShowcase(initial) } : { status: "loading" },
-  );
-  const fromServer = Boolean(initial);
-  useEffect(() => {
-    if (fromServer) return;
-    let live = true;
-    const controller = new AbortController();
-    const timer = window.setTimeout(() => controller.abort(), FOUNDER_TIMEOUT_MS);
-    const settle = (showcase: FounderShowcase) => {
-      if (live) setState({ status: "ready", showcase });
-    };
-    fetch("/api/landing/founder", { signal: controller.signal })
-      .then((response) => (response.ok ? response.json() : null))
-      .then((body: unknown) => settle(readFounderShowcase(body)))
-      .catch(() => settle(NONE))
-      .finally(() => window.clearTimeout(timer));
-    return () => {
-      live = false;
-      window.clearTimeout(timer);
-      controller.abort();
-    };
-  }, [fromServer]);
-  return state;
 }

@@ -1,4 +1,5 @@
 import { HomeGate } from "@/components/home-gate";
+import { LandingPage } from "@/components/landing-page";
 import { EMPTY_FOUNDER_SHOWCASE, type FounderShowcase } from "@/lib/landing/founder";
 import { cachedFounderShowcase } from "@/lib/landing/founder-load";
 import { getMovingToday } from "@/lib/moving-today/load";
@@ -27,9 +28,10 @@ async function movers(): Promise<MovingTodayPayload | null> {
 
 /**
  * The movers row goes down as data, not as rendered client components, so
- * signed-out Home doesn't load the timeline's chunks just to skip them.
+ * signed-out Home doesn't load the timeline's chunks just to skip them. The
+ * landing page is a server component: its HTML ships, its code doesn't.
  */
 export default async function Home() {
   const [founder, payload] = await Promise.all([founderShowcase(), movers()]);
-  return <HomeGate founder={founder} movers={payload} />;
+  return <HomeGate landing={<LandingPage founder={founder} />} movers={payload} />;
 }
