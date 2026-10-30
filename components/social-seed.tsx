@@ -1,16 +1,15 @@
 "use client";
 
-import { useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useContext, useLayoutEffect, useMemo, useState, type ReactNode } from "react";
 import { SocialContext, type SocialContextValue } from "@/components/social-provider";
 import type { HomeSeed } from "@/lib/social/home-seed";
 import type { Post } from "@/lib/social/types";
-import { forwardActions, LatestValue } from "@/lib/ui/forward-actions";
+import { ActionQueue, forwardActions, LatestValue } from "@/lib/ui/forward-actions";
 
 /**
  * Signed-in Home's server-read first screen as social state: the same reads
  * the provider answers from its snapshot, limited to what that screen shows.
- * Actions stay the provider's own. Home keeps the seeded screen inert until
- * the provider is ready, so none of them can run against a missing snapshot.
+ * Actions stay the provider's own (see SeededSocial for how early taps wait).
  */
 export function seededSocialValue(outer: SocialContextValue, seed: HomeSeed): SocialContextValue {
   const viewerId = seed.viewer.id;
@@ -74,35 +73,63 @@ export function seededSocialValue(outer: SocialContextValue, seed: HomeSeed): So
   };
 }
 
+/** Provider functions that change data. Tapped before the snapshot, they wait for it. */
+const SOCIAL_ACTIONS: ReadonlySet<string> = new Set([
+  "refresh",
+  "signUp",
+  "signIn",
+  "signOut",
+  "updateProfile",
+  "toggleFollow",
+  "followMany",
+  "createPost",
+  "updatePost",
+  "deletePost",
+  "pinPost",
+  "unpinPost",
+  "deleteComment",
+  "toggleLike",
+  "toggleRepost",
+  "addComment",
+  "markNotificationsRead",
+  "sendMessage",
+  "markThreadRead",
+  "applySafetyChange",
+  "refreshSuggestions",
+]);
+
 /**
- * Until the provider has its snapshot, the subtree reads the seed instead,
- * and stays inert so nothing can act on it. Once the provider is ready the
- * seed is done for good. The provider element and the wrapper stay put
- * either way, so the hand-over re-renders the same tree and nothing remounts.
+ * Until the provider has its snapshot, the subtree reads the seed instead.
+ * It stays fully usable: links are plain links, and a tap on an action (a
+ * like, a follow, a post) is held and replayed once the provider is ready.
+ * Once ready the seed is done for good. The provider element and the
+ * wrapper stay put either way, so the hand-over re-renders the same tree
+ * and nothing remounts. Without a seed it passes the provider through.
  */
 export function SeededSocial({ seed, children }: { seed: HomeSeed | null; children?: ReactNode }) {
   const outer = useContext(SocialContext);
   if (!outer) throw new Error("SeededSocial must be used inside SocialProvider");
   // Read by the forwarded actions when they run, never during render.
   const [live] = useState(() => new LatestValue(outer));
-  useEffect(() => live.set(outer), [live, outer]);
+  const [queue] = useState(() => new ActionQueue());
+  useLayoutEffect(() => live.set(outer), [live, outer]);
   const [handedOver, setHandedOver] = useState(false);
   if (outer.ready && !handedOver) setHandedOver(true);
+  // After live.set above, so replayed taps reach the ready provider.
+  // A layout effect, so a replayed change lands before the handed-over frame paints.
+  useLayoutEffect(() => {
+    if (handedOver) queue.flush();
+  }, [handedOver, queue]);
   const seeded = Boolean(seed) && !outer.ready && !handedOver;
   const [first] = useState(outer);
   const seededValue = useMemo(
-    () => (seed ? seededSocialValue(forwardActions(first, () => live.get()), seed) : null),
-    [first, live, seed],
+    () => (seed ? seededSocialValue(forwardActions(first, () => live.get(), queue, SOCIAL_ACTIONS), seed) : null),
+    [first, live, queue, seed],
   );
   const value = seeded && seededValue ? seededValue : outer;
   return (
     <SocialContext.Provider value={value}>
-      <div
-        inert={seeded}
-        aria-busy={seeded || undefined}
-        data-seeded-viewer={seeded ? "" : undefined}
-        className="contents"
-      >
+      <div data-seeded-viewer={seeded ? "" : undefined} className="contents">
         {children}
       </div>
     </SocialContext.Provider>

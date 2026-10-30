@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { homeSeedEligible } from "./home-seed";
+import { getStartedHintScript, seededChecklist } from "./home-seed";
 import { loadHomeSeed } from "./load-home-seed";
 
 const VIEWER = "11111111-1111-4111-8111-111111111111";
@@ -120,13 +120,35 @@ function fakeClient(options: { follows?: string[]; cards?: number; createdAt?: s
   return { supabase: supabase as unknown as SupabaseClient, calls, rpcs };
 }
 
-describe("home seed eligibility", () => {
-  it("seeds an established collector and keeps the skeleton for a new or empty account", () => {
-    const now = Date.parse("2026-10-30T00:00:00.000Z");
-    assert.equal(homeSeedEligible({ createdAt: OLD, cardCount: 3, now }), true);
-    // Get started can still show for a recent account, and the first-card prompt for an empty one.
-    assert.equal(homeSeedEligible({ createdAt: "2026-10-28T00:00:00.000Z", cardCount: 3, now }), false);
-    assert.equal(homeSeedEligible({ createdAt: OLD, cardCount: 0, now }), false);
+describe("Get started on the server's first screen", () => {
+  const viewer = { id: VIEWER, email: "", username: "ada", displayName: "Ada", bio: "", avatarDataUrl: null, coverDataUrl: null, accent: "#7C3AED" };
+  const now = Date.parse("2026-10-30T00:00:00.000Z");
+
+  it("shows for a recent account with steps left, and not for an older or finished one", () => {
+    const recent = { ...viewer, createdAt: "2026-10-28T00:00:00.000Z" };
+    assert.equal(seededChecklist({ viewer: recent, followingCount: 0, cardCount: 0, now }).visible, true);
+    assert.equal(seededChecklist({ viewer: { ...viewer, createdAt: OLD }, followingCount: 0, cardCount: 0, now }).visible, false);
+    const done = { ...recent, bio: "PC: rookies" };
+    assert.equal(seededChecklist({ viewer: done, followingCount: 3, cardCount: 1, now }).visible, false);
+  });
+
+  it("hides before paint when dismissed here, or when this device first saw the account as not new", () => {
+    const run = (store: Record<string, string>, newNow: boolean) => {
+      const dataset: Record<string, string> = {};
+      const sandbox = {
+        localStorage: { getItem: (key: string) => store[key] ?? null },
+        document: { documentElement: { dataset } },
+      };
+      new Function("localStorage", "document", getStartedHintScript(VIEWER, newNow))(sandbox.localStorage, sandbox.document);
+      return "getStartedHidden" in dataset;
+    };
+    const dismiss = `slabhold.get-started.dismissed.${VIEWER}`;
+    const isNew = `slabhold.get-started.new.${VIEWER}`;
+    assert.equal(run({}, true), false);
+    assert.equal(run({}, false), true);
+    assert.equal(run({ [isNew]: "1" }, false), false);
+    assert.equal(run({ [isNew]: "0" }, true), true);
+    assert.equal(run({ [dismiss]: "1", [isNew]: "1" }, true), true);
   });
 });
 
@@ -141,7 +163,10 @@ describe("loadHomeSeed", () => {
     assert.equal(seed.viewer.email, "ada@example.com");
     assert.deepEqual(seed.page.items.map((item) => item.post.id), [POST]);
     assert.equal(seed.page.posts[0]?.likeCount, 3);
-    assert.ok(seed.page.readAt > 0);
+    assert.match(seed.page.token, /^[0-9a-f-]{36}$/);
+    assert.equal(seed.cardCount, 4);
+    assert.equal(seed.newNow, false);
+    assert.equal(seed.getStarted.visible, false);
     assert.deepEqual(seed.comments.map((comment) => comment.authorId), [REPLIER]);
     assert.ok(seed.profiles.some((person) => person.id === REPLIER), "repliers are named");
     assert.equal(seed.reposts.filter((repost) => repost.postId === POST).length, 1);
@@ -172,9 +197,16 @@ describe("loadHomeSeed", () => {
     assert.equal(seed?.lane, "foryou");
   });
 
-  it("keeps the skeleton for a new account, an empty collection, or a failed read", async () => {
-    assert.equal(await loadHomeSeed(fakeClient({ createdAt: new Date().toISOString() }).supabase, { id: VIEWER, email: "" }), null);
-    assert.equal(await loadHomeSeed(fakeClient({ cards: 0 }).supabase, { id: VIEWER, email: "" }), null);
+  it("seeds a new account and an empty collection too, and only a failed read falls back", async () => {
+    const fresh = await loadHomeSeed(
+      fakeClient({ createdAt: new Date().toISOString(), cards: 0, follows: [] }).supabase,
+      { id: VIEWER, email: "" },
+    );
+    assert.ok(fresh);
+    assert.equal(fresh.cardCount, 0);
+    assert.equal(fresh.newNow, true);
+    assert.equal(fresh.getStarted.visible, true);
+    assert.equal(fresh.lane, "foryou");
     assert.equal(await loadHomeSeed(fakeClient({ failCards: true }).supabase, { id: VIEWER, email: "" }), null);
   });
 });

@@ -1,8 +1,7 @@
 "use client";
 
+import { lazy, Suspense, type ComponentProps } from "react";
 import { TimelineSkeleton } from "@/components/post-skeleton";
-import type { MovingTodayPayload } from "@/lib/moving-today/types";
-import { lazyPart } from "@/lib/ui/lazy-part";
 
 function FeedSkeleton() {
   return (
@@ -12,12 +11,25 @@ function FeedSkeleton() {
   );
 }
 
+const loadHomeFeed = () => import("@/components/home-feed");
+const HomeFeed = lazy(() => loadHomeFeed().then((mod) => ({ default: mod.HomeFeed })));
+
 /**
  * Signed-in Home's timeline, in its own chunk. Signed-out visitors get the
- * landing page and never download it. Until it is in, the feed's own
- * skeleton holds the spot; once preloaded it draws straight away.
+ * landing page and never download it. The server draws it when the request
+ * came with a first screen, and that HTML stays up until the chunk is in;
+ * otherwise the feed's own skeleton holds the spot. React.lazy, not
+ * next/dynamic, so Home's own chunk stays as small as before.
  */
-export const HomeFeedLazy = lazyPart<{ movers: MovingTodayPayload | null }>(
-  () => import("@/components/home-feed").then((mod) => mod.HomeFeed),
-  FeedSkeleton,
-);
+export function HomeFeedLazy(props: ComponentProps<typeof HomeFeed>) {
+  return (
+    <Suspense fallback={<FeedSkeleton />}>
+      <HomeFeed {...props} />
+    </Suspense>
+  );
+}
+
+/** Start fetching the timeline's chunk, e.g. while the page hydrates. */
+export function preloadHomeFeed(): void {
+  void loadHomeFeed().catch(() => {});
+}

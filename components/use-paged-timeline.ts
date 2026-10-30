@@ -34,6 +34,9 @@ type Remembered = { page: PageState; cursor: FeedCursor | null; seen: Set<string
  * scroll can land exactly where you were. Lives for this tab session only.
  */
 const remembered = new Map<string, Remembered>();
+
+/** Server pages already drawn by a mount (see HomeSeedPage.token). */
+const drawnSeeds = new Set<string>();
 const REMEMBER_LIMIT = 8;
 
 function recall(key: string): Remembered | null {
@@ -112,9 +115,11 @@ export function usePagedTimeline(input: {
     rememberRef.current = input.rememberPosts;
   }, [input]);
 
-  // A server-read page joins the provider's posts the same way a loaded one does.
+  // A server-read page joins the provider's posts the same way a loaded one does,
+  // and is spent: a later mount with the same payload loads fresh.
   useEffect(() => {
     if (!seededPage) return;
+    drawnSeeds.add(seededPage.token);
     rememberRef.current?.([...seededPage.posts, ...seededPage.relatedPosts], seededPage.profiles, seededPage.likes);
   }, [seededPage]);
 
@@ -268,7 +273,7 @@ export function usePagedTimeline(input: {
 }
 
 function fromInitial(initial: HomeSeedPage | null | undefined): Remembered | null {
-  if (!initial || initial.items.length === 0 || !memoryFresh(initial.readAt, Date.now())) return null;
+  if (!initial || initial.items.length === 0 || drawnSeeds.has(initial.token)) return null;
   return {
     page: {
       items: initial.items,

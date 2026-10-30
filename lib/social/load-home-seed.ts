@@ -2,7 +2,9 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { loadHiddenAuthorIds } from "@/lib/safety/filters";
 import { FEED_PAGE_SIZE, followingAuthorIds } from "./feed-page";
 import { defaultHomeTab } from "./get-started";
-import { homeSeedEligible, type HomeSeed } from "./home-seed";
+import { randomUUID } from "node:crypto";
+import { isNewUser } from "./get-started";
+import { seededChecklist, type HomeSeed } from "./home-seed";
 import { loadFeedPage, loadPostEngagement } from "./load-feed-page";
 import { loadServerSuggestions } from "./load-suggestions";
 import { loadSocialProfiles } from "./remote";
@@ -36,8 +38,8 @@ async function loadFollows(supabase: SupabaseClient, viewerId: string): Promise<
 /**
  * Signed-in Home's first screen for one verified viewer, with their own
  * cookie client, so RLS and the block and mute filters apply exactly as in
- * the browser. Null when Home should keep its skeleton (see homeSeedEligible)
- * or when any read fails: the browser then loads everything as before.
+ * the browser. Null when any read fails: the browser then loads everything
+ * as before.
  *
  * The reads overlap: the page request starts as soon as the follows are in
  * (they pick the tab), alongside the rest of the first batch.
@@ -77,7 +79,6 @@ export async function loadHomeSeed(
     if (blocksRes.error && !missingTable(blocksRes.error)) return null;
     if (mutesRes.error && !missingTable(mutesRes.error)) return null;
     const cardCount = cardsRes.count ?? 0;
-    if (!homeSeedEligible({ createdAt: user.createdAt, cardCount })) return null;
 
     const blockedIds = idColumn(blocksRes.data, "blocked_id");
     const mutedIds = idColumn(mutesRes.data, "muted_id");
@@ -118,12 +119,15 @@ export async function loadHomeSeed(
         hasMore: page.hasMore,
         nextCursor: page.nextCursor,
         likes: page.likes,
-        readAt: Date.now(),
+        token: randomUUID(),
       },
       profiles,
       comments,
       reposts,
       suggestions,
+      cardCount,
+      getStarted: seededChecklist({ viewer: user, followingCount: follows.length, cardCount }),
+      newNow: isNewUser({ followingCount: follows.length, cardCount }),
     };
   } catch (error) {
     console.warn("[home] first screen read failed:", error instanceof Error ? error.message : error);

@@ -101,7 +101,7 @@ describe("empty card prompts", () => {
     assert.match(html, /rounded-2xl/);
     assert.doesNotMatch(html, /underline/);
     const feed = read("components/feed-view.tsx");
-    assert.match(feed, /showWelcome \? <HomeFirstCardPrompt \/>/);
+    assert.match(feed, /showWelcome \? <HomeFirstCardPrompt afterGetStarted=\{welcomeAfterGetStarted\} \/>/);
     assert.doesNotMatch(feed, /<FirstCardWelcome/);
     const dash = read("components/dashboard.tsx");
     assert.match(dash, /<FirstCardWelcome \/>/);

@@ -966,3 +966,14 @@ html[data-session] [data-guest-pending] {
   display: none;
 }
 
+/*
+ * Server-drawn Home for a new account: Get started and the first-card prompt
+ * are both in the HTML. getStartedHintScript (lib/social/home-seed.ts) tags
+ * <html data-get-started-hidden> before the first paint when this device
+ * dismissed Get started; exactly one of the two shows.
+ */
+html[data-get-started-hidden] [data-get-started],
+html:not([data-get-started-hidden]) [data-after-get-started] {
+  display: none;
+}
+

@@ -55,7 +55,7 @@ import {
   profileStepDone,
 } from "@/lib/social/get-started";
 import { followingAuthorIds, homeHead, showsNewPosts } from "@/lib/social/feed-page";
-import type { HomeSeed } from "@/lib/social/home-seed";
+import { getStartedHintScript, type HomeSeed } from "@/lib/social/home-seed";
 import { presentForYouFeed } from "@/lib/social/for-you-display";
 import { addUnblockedProfiles, presentPagedItems } from "@/lib/social/paged-items";
 import { publicTimeline } from "@/lib/social/timeline";
@@ -130,15 +130,20 @@ export function FeedView({
   // First-run setup, "You're in" and the tour come first. Older prompts wait.
   const onboardingBusy = useOnboardingBusy();
   const following = user ? followingCount(user.id) : 0;
-  const countsReady = Boolean(user) && ready && cardsReady && !syncError;
+  // Drawn from the server's first screen until the full snapshot is in.
+  const seededScreen = Boolean(seed) && !hasFullSnapshot;
+  // Until the collection loads, the card count the server read stands in.
+  const cardCount = cardsReady || !seed ? cards.length : seed.cardCount;
+  const cardsKnown = cardsReady || Boolean(seed);
+  const countsReady = Boolean(user) && ready && cardsKnown && !syncError;
   const wasNewOnLoad = newUserOnFullSnapshot({
     fullSnapshot: countsReady && (mode !== "supabase" || hasFullSnapshot),
     followingCount: following,
-    cardCount: cards.length,
+    cardCount,
   });
   const wasNewUser = useRememberNewUser(user?.id ?? null, wasNewOnLoad);
-  const started = checklistState({
-    cardCount: cards.length,
+  const checklist = checklistState({
+    cardCount,
     followingCount: following,
     profileDone: profileStepDone({
       avatarDataUrl: user?.avatarDataUrl,
@@ -149,6 +154,9 @@ export function FeedView({
     createdAt: user?.createdAt ?? null,
     wasNewUser,
   });
+  // The server's Get started: what localStorage says (dismissed, not new)
+  // is applied before the first paint by getStartedHintScript.
+  const started = seededScreen && seed ? seed.getStarted : checklist;
   const showAddToHome =
     Boolean(user) &&
     !onboardingBusy &&
@@ -162,12 +170,18 @@ export function FeedView({
   const showWelcome =
     Boolean(user) &&
     !onboardingBusy &&
-    !started.visible &&
+    (seededScreen || !started.visible) &&
     shouldShowFirstCardWelcome({
-      cardCount: cards.length,
-      ready: cardsReady,
+      cardCount,
+      ready: cardsKnown,
       syncError,
     });
+  // On the server's screen the first-card prompt is drawn under Get started
+  // too, and CSS shows exactly one of them once the hint script has run.
+  const welcomeAfterGetStarted = seededScreen && started.visible;
+  useEffect(() => {
+    if (!seededScreen) delete document.documentElement.dataset.getStartedHidden;
+  }, [seededScreen]);
   const [lane, setLaneState] = useState<HomeLane>(() =>
     user && rememberedLane?.userId === user.id ? rememberedLane.lane : (seed?.lane ?? "foryou"),
   );
@@ -304,7 +318,6 @@ export function FeedView({
   // The server-drawn first screen holds only what a phone shows. The rest of
   // the page joins below it a few rows per idle moment once the snapshot is
   // in, so no single commit has to lay out the whole page.
-  const seededScreen = Boolean(seed) && !hasFullSnapshot;
   const rowLimit = useProgressiveRows(feedEntries.length, {
     enabled: Boolean(seed),
     step: SEEDED_ENTRIES,
@@ -358,6 +371,9 @@ export function FeedView({
   // feed, so the tabs stay stuck all the way down.
   return (
     <div className="-mx-4 -mt-5">
+      {seededScreen && seed && started.visible ? (
+        <script dangerouslySetInnerHTML={{ __html: getStartedHintScript(seed.viewer.id, seed.newNow) }} />
+      ) : null}
       {user && started.visible && !onboardingBusy ? (
         <GetStartedCard
           state={started}
@@ -367,7 +383,7 @@ export function FeedView({
         />
       ) : null}
       {showAddToHome && user ? <AddToHomeTip userId={user.id} /> : null}
-      {showWelcome ? <HomeFirstCardPrompt /> : null}
+      {showWelcome ? <HomeFirstCardPrompt afterGetStarted={welcomeAfterGetStarted} /> : null}
       {postCardValuesMessage ? (
         <p className="border-b border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
           {postCardValuesMessage}

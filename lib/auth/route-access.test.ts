@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { join } from "node:path";
-import { pathIsMissing } from "../social/missing-route";
+import { missingCheckForPath, pathIsMissing } from "../social/missing-route";
 import { isStaticPublicPath, requiresAccount, routeAccess } from "./route-access";
 
 const CARD = "ba95893e-89fe-4735-be3f-1509b6b6f3b9";
@@ -250,6 +250,8 @@ describe("invite and collection share routes", () => {
     const proxySource = readFileSync(join(process.cwd(), "proxy.ts"), "utf8");
     const matcher = proxySource.slice(proxySource.indexOf("matcher:"));
     assert.equal(matcher.includes('"/i/'), false);
-    assert.equal(matcher.includes("/collection"), false);
+    assert.equal(matcher.includes("/u/:username/collection"), false);
+    // /collection is matched only to mark in-app visits; it has no missing-page check.
+    assert.equal(missingCheckForPath("/collection"), null);
   });
 });

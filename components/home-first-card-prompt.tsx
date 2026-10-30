@@ -1,10 +1,17 @@
 import Link from "next/link";
 import { Camera, ChevronRight } from "lucide-react";
 
-/** Home row for a signed-in collector who has no cards yet. */
-export function HomeFirstCardPrompt() {
+/**
+ * Home row for a signed-in collector who has no cards yet. `afterGetStarted`
+ * marks the server-drawn copy that shows only when Get started is hidden
+ * (see getStartedHintScript and globals.css).
+ */
+export function HomeFirstCardPrompt({ afterGetStarted = false }: { afterGetStarted?: boolean } = {}) {
   return (
-    <div className="border-b border-zinc-200 px-4 py-3 dark:border-white/10">
+    <div
+      data-after-get-started={afterGetStarted ? "" : undefined}
+      className="border-b border-zinc-200 px-4 py-3 dark:border-white/10"
+    >
       <Link
         href="/cards/new"
         className="flex min-h-11 items-center gap-3 rounded-2xl border border-zinc-200 bg-white p-3 transition-colors duration-150 hover:bg-zinc-50 motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-violet-600 focus-visible:outline-none dark:border-white/10 dark:bg-white/[0.03] dark:hover:bg-white/[0.06]"

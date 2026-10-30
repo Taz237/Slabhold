@@ -96,7 +96,7 @@ describe("a timeline page the server already read", () => {
     createdAt: "2026-10-29T12:00:00.000Z",
   };
 
-  function page(readAt: number): HomeSeedPage {
+  function page(token: string): HomeSeedPage {
     return {
       items: [{ key: "post:p1", post, at: post.createdAt, repostedBy: null }],
       posts: [post],
@@ -105,7 +105,7 @@ describe("a timeline page the server already read", () => {
       hasMore: true,
       nextCursor: null,
       likes: [],
-      readAt,
+      token,
     };
   }
 
@@ -121,16 +121,25 @@ describe("a timeline page the server already read", () => {
     return createElement("span", null, `${result.loading ? "loading" : "ready"}:${result.items.length}`);
   }
 
-  it("draws a fresh page at once and hands its posts to the provider", () => {
+  it("draws the server's page at once, whatever the phone's clock says, and hands its posts to the provider", () => {
     const remembered: string[] = [];
-    act(() => root!.render(createElement(Timeline, { initial: page(Date.now()), remembered, viewerId: "v1" })));
+    const realNow = Date.now;
+    Date.now = () => realNow() + 365 * 24 * 60 * 60 * 1000;
+    try {
+      act(() => root!.render(createElement(Timeline, { initial: page("t1"), remembered, viewerId: "v1" })));
+    } finally {
+      Date.now = realNow;
+    }
     assert.equal(host.textContent, "ready:1");
     assert.deepEqual(remembered, ["p1"]);
   });
 
-  it("loads again when the page is older than the timeline's memory", () => {
+  it("loads fresh when the same server page comes back on a later mount", () => {
     const remembered: string[] = [];
-    act(() => root!.render(createElement(Timeline, { initial: page(Date.now() - 60 * 60 * 1000), remembered, viewerId: "v2" })));
+    act(() => root!.render(createElement(Timeline, { initial: page("t2"), remembered, viewerId: "v2" })));
+    act(() => root!.unmount());
+    root = createRoot(host);
+    act(() => root!.render(createElement(Timeline, { initial: page("t2"), remembered, viewerId: "v3" })));
     assert.equal(host.textContent, "loading:0");
   });
 });

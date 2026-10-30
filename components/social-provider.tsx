@@ -106,7 +106,8 @@ import {
 } from "@/lib/social/suggestion-order";
 import { unreadGroupCount } from "@/lib/social/group-notifications";
 import { followingTimeline, type TimelineItem } from "@/lib/social/timeline";
-import { preloadOnHint } from "@/lib/auth/session-hint";
+import { preloadOnHint, sessionHinted } from "@/lib/auth/session-hint";
+import { seedsViewer } from "@/lib/auth/route-access";
 import { loadSupabaseBrowser } from "@/lib/supabase/browser-lazy";
 import { getSupabaseConfig } from "@/lib/supabase/client";
 import type { CardValueResult } from "@/lib/value/types";
@@ -221,6 +222,11 @@ export const SocialContext = createContext<SocialContextValue | null>(null);
 // while the page hydrates, so the snapshot read starts as early as before.
 // A screen the server drew for this viewer fetches it after hydration instead.
 if (preloadOnHint()) void loadSupabaseBrowser();
+
+/** Signed in on a screen the server drew: the snapshot read can wait for idle. */
+function deferUntilIdle(): boolean {
+  return sessionHinted() && seedsViewer(window.location.pathname);
+}
 
 /** Share one in-flight read across a strict-mode remount of the same route. */
 function loadOnce<T>(
@@ -462,7 +468,11 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
 
     // supabase-js loads in its own chunk, after hydration. The mode flips once
     // the client is in hand, so every effect keyed on it finds supabaseRef set.
-    void loadSupabaseBrowser().then((client) => {
+    // A screen the server drew for this viewer already shows its data, so
+    // there the client and the snapshot read wait for the first idle moment
+    // and stay off the main thread while the page hydrates and paints.
+    const startClient = (run: () => void) => (deferUntilIdle() ? afterFirstIdle(run) : (run(), () => {}));
+    const stopStart = startClient(() => void loadSupabaseBrowser().then((client) => {
       if (cancelled || !client) return;
       supabaseRef.current = client;
       setMode("supabase");
@@ -496,10 +506,11 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
           });
           unsubscribe = () => data.subscription.unsubscribe();
         });
-    });
+    }));
 
     return () => {
       cancelled = true;
+      stopStart();
       unsubscribe();
     };
   }, []);
@@ -510,7 +521,8 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
     if (!client) return;
     const postId = postIdFromPath(pathname);
     const viewerId = remote.user?.id ?? null;
-    if (!viewerId && !firstIdle) return;
+    // Realtime waits for the first idle moment, for visitors and readers alike.
+    if (!firstIdle) return;
     const bindings = realtimeBindings({
       viewerId,
       postId,

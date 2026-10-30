@@ -76,7 +76,7 @@ function seed(): HomeSeed {
       hasMore: true,
       nextCursor: null,
       likes: [{ postId: "p2", userId: "someone", createdAt: "2026-10-29T12:00:00.000Z" }],
-      readAt: Date.now(),
+      token: "seed-1",
     },
     profiles: [viewer, author],
     comments: [
@@ -85,6 +85,9 @@ function seed(): HomeSeed {
     ],
     reposts: [{ postId: "p2", userId: viewer.id, createdAt: "2026-10-29T12:03:00.000Z" }],
     suggestions: [],
+    cardCount: 3,
+    getStarted: { visible: false, complete: false, steps: [] },
+    newNow: false,
   };
 }
 
@@ -130,7 +133,7 @@ describe("seeded social state", () => {
     assert.equal(typeof value.toggleLike, "function");
   });
 
-  it("draws the seed inert until the provider is ready, then hands over for good", () => {
+  it("draws the seed, usable, until the provider is ready, then hands over for good", () => {
     let seen: SocialContextValue | null = null;
     const homeSeed = seed();
     const tree = (outer: SocialContextValue) =>
@@ -141,11 +144,12 @@ describe("seeded social state", () => {
       );
     const html = renderToString(tree(outerValue()));
     assert.match(html, /data-seeded-viewer=""/);
-    assert.match(html, /inert=""/);
+    // Never inert: links work as plain links from the first paint.
+    assert.doesNotMatch(html, /inert|aria-busy/);
     assert.match(html, />ada</);
 
     act(() => root!.render(tree(outerValue())));
-    assert.equal(host.querySelector("[data-seeded-viewer]")?.hasAttribute("inert"), true);
+    assert.ok(host.querySelector("[data-seeded-viewer]"));
     assert.equal(seen!.user?.id, viewer.id);
 
     // Unrelated provider updates don't redraw the seeded rows: the value stays the same object.
@@ -157,7 +161,6 @@ describe("seeded social state", () => {
     act(() => root!.render(tree(ready)));
     assert.equal(seen, ready);
     assert.equal(host.querySelector("[data-seeded-viewer]"), null);
-    assert.equal(host.querySelector("[inert]"), null);
 
     // A later reload (ready goes false again) never brings the old seed back.
     const reloading = outerValue({ ready: false, mode: "supabase" });
@@ -165,19 +168,36 @@ describe("seeded social state", () => {
     assert.equal(seen, reloading);
   });
 
-  it("forwards an action to the live provider while seeded", () => {
-    const liked: string[] = [];
+  it("holds a tap made before the provider is ready and replays it, in order, once it is", async () => {
+    const calls: string[] = [];
     let seen: SocialContextValue | null = null;
+    const homeSeed = seed();
     const tree = (outer: SocialContextValue) =>
       createElement(
         SocialContext.Provider,
         { value: outer },
-        createElement(SeededSocial, { seed: seed() }, createElement(Probe, { onValue: (value) => (seen = value) })),
+        createElement(SeededSocial, { seed: homeSeed }, createElement(Probe, { onValue: (value) => (seen = value) })),
       );
-    act(() => root!.render(tree(outerValue())));
-    act(() => root!.render(tree(outerValue({ toggleLike: (id: string) => void liked.push(id) }))));
+    const actions = {
+      toggleLike: (id: string) => void calls.push(`like:${id}`),
+      toggleFollow: async (id: string) => {
+        calls.push(`follow:${id}`);
+        return { error: undefined };
+      },
+    };
+    act(() => root!.render(tree(outerValue(actions))));
     seen!.toggleLike("p1");
-    assert.deepEqual(liked, ["p1"]);
+    const followed = seen!.toggleFollow("a1");
+    // Reads still answer at once; the changes wait for the provider.
+    assert.equal(seen!.likeCount("p1"), 7);
+    assert.deepEqual(calls, []);
+
+    act(() => root!.render(tree(outerValue({ ...actions, ready: true, user: viewer }))));
+    assert.deepEqual(calls, ["like:p1", "follow:a1"]);
+    assert.deepEqual(await followed, { error: undefined });
+    // After the hand-over a tap goes straight through.
+    seen!.toggleLike("p2");
+    assert.deepEqual(calls, ["like:p1", "follow:a1", "like:p2"]);
   });
 });
 
@@ -222,12 +242,54 @@ describe("seeded viewer (Collection and a card page)", () => {
     // The social snapshot alone isn't enough: the collection is still loading.
     act(() => root!.render(tree(outerValue({ ready: true, user: viewer }), { ready: false, cards: [] })));
     assert.equal(host.textContent, "ready:1:Victor Wembanyama:ada");
-    assert.ok(host.querySelector("[inert]"));
+    assert.equal(host.querySelector("[inert]"), null);
 
     act(() => root!.render(tree(outerValue({ ready: true, user: viewer }), { ready: true, cards: [card, { ...card, id: "card-2" }] })));
     assert.equal(host.textContent, "ready:2:Victor Wembanyama:ada");
-    assert.equal(host.querySelector("[inert]"), null);
     assert.equal(host.querySelector("[data-seeded-viewer]"), null);
+  });
+
+  it("shows a card edit made before the hand-over at once and saves it once the providers are ready", async () => {
+    const saved: string[] = [];
+    let collection: { updateCard: (id: string, patch: Partial<SportsCard>) => { saved: Promise<void> } } | null = null;
+    function Editor({ onValue }: { onValue: (value: never) => void }) {
+      const value = useContext(CollectionContext);
+      onValue(value as never);
+      return createElement("span", null, value?.getCard("card-1")?.isPublic ? "public" : "private");
+    }
+    const tree = (ready: boolean) =>
+      createElement(
+        SocialContext.Provider,
+        { value: outerValue(ready ? { ready: true, user: viewer } : {}) },
+        createElement(
+          CollectionContext.Provider,
+          {
+            value: {
+              ready,
+              cards: ready ? [{ ...card, isPublic: true }] : [],
+              syncError: null,
+              getCard: (id: string) => (ready && id === "card-1" ? { ...card, isPublic: true } : undefined),
+              updateCard: (id: string, patch: Partial<SportsCard>) => {
+                saved.push(`${id}:${JSON.stringify(patch)}`);
+                return { card: { ...card, ...patch }, saved: Promise.resolve() };
+              },
+            } as never,
+          },
+          createElement(SeededViewer, { seed: { viewer, cards: [{ ...card, isPublic: false }] } }, createElement(Editor, { onValue: (value) => (collection = value) })),
+        ),
+      );
+    act(() => root!.render(tree(false)));
+    assert.equal(host.textContent, "private");
+    let pending: Promise<void> | null = null;
+    act(() => {
+      pending = collection!.updateCard("card-1", { isPublic: true }).saved;
+    });
+    assert.equal(host.textContent, "public");
+    assert.deepEqual(saved, []);
+    act(() => root!.render(tree(true)));
+    assert.deepEqual(saved, ['card-1:{"isPublic":true}']);
+    await pending;
+    assert.equal(host.textContent, "public");
   });
 
   it("is a plain pass-through without a seed", () => {
@@ -273,8 +335,6 @@ describe("server-drawn signed-in screens", () => {
     assert.doesNotMatch(home, /export const revalidate|use cache|force-static|unstable_cache/);
     assert.match(home, /<Suspense fallback=\{<HomeGate landing=\{null\} movers=\{payload\} \/>\}>/);
     assert.match(home, /const seed = await requestHomeSeed\(\);/);
-    // A visit from inside the app skips the server reads.
-    assert.match(home, /if \(await isRouterRequest\(\)\)/);
     const viewerRead = read("lib/supabase/request-viewer.ts");
     assert.match(viewerRead, /supabase\.auth\.getUser\(\)/);
     assert.doesNotMatch(viewerRead, /getSession\(\)/);

@@ -20,11 +20,16 @@ describe("signed-out Home bundle", () => {
     const gate = read("components/home-gate.tsx");
     assert.ok(!staticImports(gate).includes("@/components/feed-view"));
     assert.ok(!staticImports(gate).includes("@/components/home-feed"));
-    assert.match(gate, /return <HomeFeedLazy movers=\{movers\} \/>;/);
-    assert.match(gate, /^if \(sessionHinted\(\)\) void HomeFeedLazy\.preload\(\)/m);
+    // One timeline tree, seeded or not, so the feed never remounts (and Back keeps its scroll).
+    assert.equal((gate.match(/<HomeFeedLazy /g) ?? []).length, 1);
+    assert.match(gate, /return <HomeFeedLazy movers=\{movers\} seed=\{seed\} \/>;/);
+    assert.match(read("components/home-feed.tsx"), /<SeededSocial seed=\{seed\}>\s*<FeedView/);
+    assert.match(gate, /^if \(sessionHinted\(\)\) preloadHomeFeed\(\);/m);
 
     const lazy = read("components/home-feed-lazy.tsx");
-    assert.match(lazy, /lazyPart<[^>]*>\(\s*\(\) => import\("@\/components\/home-feed"\)/);
+    assert.match(lazy, /const loadHomeFeed = \(\) => import\("@\/components\/home-feed"\)/);
+    assert.match(lazy, /lazy\(\(\) => loadHomeFeed\(\)/);
+    assert.match(lazy, /<Suspense fallback=\{<FeedSkeleton \/>\}>/);
     assert.match(lazy, /<TimelineSkeleton \/>/);
     assert.ok(!staticImports(lazy).includes("@/components/feed-view"));
     assert.ok(!staticImports(lazy).includes("@/components/home-feed"));
@@ -71,7 +76,10 @@ describe("signed-out Home bundle", () => {
   it("defers signed-out realtime and card prices to the first idle moment", () => {
     const provider = read("components/social-provider.tsx");
     assert.match(provider, /useEffect\(\(\) => afterFirstIdle\(\(\) => setFirstIdle\(true\)\), \[\]\);/);
-    assert.match(provider, /if \(!viewerId && !firstIdle\) return;/);
+    // Realtime waits for the first idle moment for everyone now, readers included.
+    assert.match(provider, /if \(!firstIdle\) return;/);
+    // On a screen the server drew, the client and the snapshot read wait for idle too.
+    assert.match(provider, /deferUntilIdle\(\) \? afterFirstIdle\(run\)/);
     assert.match(provider, /const holdCardValues = !snapshot\.user && !firstIdle;/);
   });
 

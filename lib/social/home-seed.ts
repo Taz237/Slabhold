@@ -1,5 +1,11 @@
 import type { FeedCursor } from "./feed-page";
-import { isRecentAccount } from "./get-started";
+import {
+  checklistDismissKey,
+  checklistNewUserKey,
+  checklistState,
+  profileStepDone,
+  type ChecklistState,
+} from "./get-started";
 import type { SuggestedProfile } from "./suggestion-order";
 import type { TimelineItem } from "./timeline";
 import type { FollowEdge, Post, PostComment, PostLike, PostRepost, Profile } from "./types";
@@ -13,8 +19,13 @@ export type HomeSeedPage = {
   hasMore: boolean;
   nextCursor: FeedCursor | null;
   likes: PostLike[] | null;
-  /** When the server read it (ms). A page past the timeline's memory window is read again. */
-  readAt: number;
+  /**
+   * Unique to the request that read it. The timeline draws a server page
+   * once, on the mount that request produced; a replay of the same payload
+   * (Back through the router cache) loads fresh instead. No clocks compared,
+   * so a phone with an off clock draws exactly what the server sent.
+   */
+  token: string;
 };
 
 /**
@@ -37,14 +48,47 @@ export type HomeSeed = {
   reposts: PostRepost[];
   /** Null when suggest_collectors is not installed. */
   suggestions: SuggestedProfile[] | null;
+  cardCount: number;
+  /**
+   * Get started as the server can see it: shown for a recent account with
+   * steps left. Whether this device dismissed it, or first saw this account
+   * as not new, lives in localStorage; getStartedHintScript settles that
+   * before the first paint.
+   */
+  getStarted: ChecklistState;
+  /** No follows and no cards right now: what the browser stores as "new" on a first load. */
+  newNow: boolean;
 };
 
+/** Get started for the first screen, from the counts the server read. */
+export function seededChecklist(input: {
+  viewer: Profile;
+  followingCount: number;
+  cardCount: number;
+  now?: number;
+}): ChecklistState {
+  return checklistState({
+    cardCount: input.cardCount,
+    followingCount: input.followingCount,
+    profileDone: profileStepDone({ avatarDataUrl: input.viewer.avatarDataUrl, bio: input.viewer.bio }),
+    dismissed: false,
+    ready: true,
+    createdAt: input.viewer.createdAt,
+    wasNewUser: true,
+    now: input.now,
+  });
+}
+
 /**
- * Seed only when the first screen can't change once the snapshot is in. A
- * recent account can still get Get started, and an empty collection gets the
- * first-card prompt above the feed. Those keep the skeleton, as before.
+ * Runs in the page before it paints, like the session hint. Tags
+ * <html data-get-started-hidden> when this device dismissed Get started, or
+ * when its stored first answer (or, before one is stored, the counts right
+ * now) says this account isn't new: the same test the browser makes once
+ * the snapshot is in, so nothing appears or vanishes at the hand-over.
  */
-export function homeSeedEligible(input: { createdAt: string; cardCount: number; now?: number }): boolean {
-  if (input.cardCount <= 0) return false;
-  return !isRecentAccount(input.createdAt, input.now ?? Date.now());
+export function getStartedHintScript(userId: string, newNow: boolean): string {
+  const dismissKey = JSON.stringify(checklistDismissKey(userId));
+  const newKey = JSON.stringify(checklistNewUserKey(userId));
+  const notNewNow = newNow ? "false" : "true";
+  return `try{var s=localStorage,n=s.getItem(${newKey});if(s.getItem(${dismissKey})==="1"||n==="0"||(n!=="1"&&${notNewNow}))document.documentElement.dataset.getStartedHidden=""}catch(e){}`;
 }

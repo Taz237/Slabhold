@@ -939,7 +939,7 @@ describe("For You placement", () => {
     assert.ok(notes > map);
     assert.ok(moving < map);
     assert.match(feed, /<NewPostsPill/);
-    assert.match(feed, /showWelcome \? <HomeFirstCardPrompt \/> : null/);
+    assert.match(feed, /showWelcome \? <HomeFirstCardPrompt afterGetStarted=\{welcomeAfterGetStarted\} \/> : null/);
     assert.doesNotMatch(feed, /CollectionToday|collection-today/);
     assert.doesNotMatch(feed, /card_value_history|shouldShowYourCardsSinceYesterday/);
     assert.doesNotMatch(read("components/home-feed.tsx"), /CollectionToday/);
