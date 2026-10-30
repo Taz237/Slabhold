@@ -1,5 +1,5 @@
 import type { TileCard } from "@/components/card-tile";
-import type { TileGain } from "@/lib/collection/grid";
+import { tilePriceSlot, type TileGain } from "@/lib/collection/grid";
 import { MOVING_FULL_ROW, MOVING_RAIL_MAX, splitMovers } from "./rank";
 import { MOVING_SPORTS, normalizeSport, type MovingSport } from "./sport";
 import type { MovingTodayPayload, MovingTodaySale } from "./types";
@@ -181,11 +181,12 @@ export function moverTileCard(sale: MovingTodaySale): TileCard {
 export function moverAccessibleName(sale: MovingTodaySale): string {
   const card = sale.kind === "card";
   const move = card ? "" : moveBadgeText(sale.percent).toLowerCase();
+  const price = tilePriceSlot(sale.priceLabel);
   return [
     sale.player,
     [sale.yearLabel, sale.setBrand].map((part) => part.trim()).filter(Boolean).join(" · "),
     sale.grade,
-    sale.priceLabel ? (card ? `valued at ${sale.priceLabel}` : `sold for ${sale.priceLabel}`) : "",
+    price.muted ? "no value yet" : card ? `valued at ${price.text}` : `sold for ${price.text}`,
     move ? `${move} versus recent comps` : "",
     card && sale.isNew ? "new on Slabhold" : "",
   ]

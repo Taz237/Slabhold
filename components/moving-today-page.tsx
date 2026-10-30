@@ -94,6 +94,7 @@ function Featured({ payload, reduced }: { payload: MovingTodayPayload; reduced: 
         index={0}
         ariaLabel={moverAccessibleName(sale)}
         priceLabel={null}
+        noValue={false}
         prefetch
         as="div"
         sizes="172px"
