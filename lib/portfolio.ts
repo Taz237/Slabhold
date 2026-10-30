@@ -144,6 +144,8 @@ export function matchesFilter(
       return p != null && p > 0;
     case "loss":
       return p != null && p < 0;
+    case "novalue":
+      return !isSold(card) && marketValue(card, values) == null;
     default:
       return true;
   }

@@ -63,6 +63,65 @@ textarea {
   transform: translate(-50%, -50%);
 }
 
+/* Charts (components/charts/value-chart.tsx). The latest point breathes; labels fade in after a range change. */
+.chart-surface {
+  --chart-surface: #ffffff;
+}
+
+@media (prefers-color-scheme: dark) {
+  .chart-surface {
+    --chart-surface: #18181b;
+  }
+}
+
+.chart-halo {
+  paint-order: stroke;
+  stroke: var(--chart-surface);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+}
+
+@keyframes chart-pulse {
+  0% {
+    opacity: 0.45;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(3.2);
+  }
+}
+
+.chart-pulse {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: chart-pulse 1.8s cubic-bezier(0.2, 0.7, 0.2, 1) infinite;
+}
+
+@keyframes chart-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.chart-fade {
+  animation: chart-fade 250ms ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chart-pulse {
+    animation: none;
+    opacity: 0;
+  }
+
+  .chart-fade {
+    animation: none;
+  }
+}
+
 @keyframes lightbox-fade {
   from {
     opacity: 0;
@@ -888,3 +947,4 @@ html[data-nav="none"]::view-transition-new(.page-in) {
 html[data-session] [data-guest-pending] {
   display: none;
 }
+

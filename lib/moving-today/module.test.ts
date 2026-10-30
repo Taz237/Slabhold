@@ -952,6 +952,7 @@ describe("For You placement", () => {
     const today = read("lib/collection/today.ts");
     assert.match(today, /collectionDayChange/);
     assert.match(today, /collectionTodayDismissKey/);
-    assert.ok(read("components/collection-value-history.tsx").length > 0);
+    assert.ok(read("components/charts/value-chart.tsx").length > 0);
+    assert.match(read("components/portfolio-hero.tsx"), /<ValueChart/);
   });
 });

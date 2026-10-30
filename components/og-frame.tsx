@@ -10,6 +10,7 @@ import type { LeaderboardShareModel } from "@/lib/leaderboard/share";
 import { stripUnsupportedOgText } from "@/lib/og/safe-text";
 import { movingTodayCacheControl } from "@/lib/moving-today/cache";
 import type { MovingTodayShareModel } from "@/lib/moving-today/share";
+import { SHARE_CHART, type CollectionValueShare } from "@/lib/share/collection-value";
 import {
   homeShareImage,
   profileShareImage,
@@ -636,4 +637,70 @@ export async function renderLeaderboardOg(model: LeaderboardShareModel) {
       ),
     );
   }
+}
+
+/**
+ * "My collection is up $X this week": 1080×1350, purple brand, the value, the
+ * range change, the line, @handle and slabhold.app. Signed-in owner only.
+ */
+export function renderCollectionValueOg(model: CollectionValueShare, cacheControl = PRIVATE_OG_CACHE_CONTROL) {
+  const tone = model.tone === "up" ? "#34d399" : model.tone === "down" ? "#fb7185" : "#a1a1aa";
+  const chart = `<svg xmlns="http://www.w3.org/2000/svg" width="${SHARE_CHART.width}" height="${SHARE_CHART.height}" viewBox="0 0 ${SHARE_CHART.width} ${SHARE_CHART.height}"><defs><linearGradient id="f" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${tone}" stop-opacity=".32"/><stop offset="1" stop-color="${tone}" stop-opacity="0"/></linearGradient></defs><path d="${model.area}" fill="url(#f)"/><path d="${model.line}" fill="none" stroke="${tone}" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+  const chartSrc = `data:image/svg+xml;base64,${Buffer.from(chart).toString("base64")}`;
+  return new ImageResponse(
+    (
+      <div
+        style={{
+          width: "100%",
+          height: "100%",
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "space-between",
+          padding: "72px 64px 64px",
+          color: "#fafafa",
+          fontFamily: "Geist",
+          background: "radial-gradient(ellipse at top right, rgba(124,58,237,0.55), #110d1c 62%)",
+        }}
+      >
+        <Brand />
+        <div style={{ display: "flex", flexDirection: "column" }}>
+          <div style={{ display: "flex", fontSize: 40, fontWeight: 700, color: "#ddd6fe", letterSpacing: -0.5 }}>
+            {stripUnsupportedOgText(model.headline)}
+          </div>
+          <div style={{ display: "flex", marginTop: 20, fontSize: 132, fontWeight: 700, letterSpacing: -5 }}>
+            {model.value}
+          </div>
+          <div style={{ display: "flex", alignItems: "center", marginTop: 16 }}>
+            <div
+              style={{
+                display: "flex",
+                padding: "10px 22px",
+                borderRadius: 999,
+                fontSize: 32,
+                fontWeight: 700,
+                color: tone,
+                background:
+                  model.tone === "up"
+                    ? "rgba(52,211,153,0.14)"
+                    : model.tone === "down"
+                      ? "rgba(251,113,133,0.14)"
+                      : "rgba(161,161,170,0.14)",
+              }}
+            >
+              {model.change}
+            </div>
+          </div>
+        </div>
+        {/* eslint-disable-next-line @next/next/no-img-element -- Satori draws a plain img */}
+        <img src={chartSrc} alt="" width={SHARE_CHART.width} height={SHARE_CHART.height} />
+        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 30, color: "#a1a1aa" }}>
+          <div style={{ display: "flex", fontWeight: 700, color: "#fafafa" }}>{stripUnsupportedOgText(model.handle)}</div>
+          <div style={{ display: "flex", fontFamily: "Geist Mono", letterSpacing: 2 }}>
+            {`${model.rangeLabel} · ${model.site}`.toUpperCase()}
+          </div>
+        </div>
+      </div>
+    ),
+    { width: 1080, height: 1350, fonts: ogFonts, headers: { "Cache-Control": cacheControl } },
+  );
 }

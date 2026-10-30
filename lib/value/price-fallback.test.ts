@@ -505,7 +505,7 @@ describe("fallback is not drawn as the estimate", () => {
   it("ties the big dollar and the eBay link to an estimate or a real empty search", () => {
     const detail = source("components/card-detail.tsx");
     const publicView = source("components/public-card-view.tsx");
-    const chart = source("components/value-chart.tsx");
+    const chart = source("components/sales-chart.tsx");
     const chip = source("lib/social/use-attachment-label.ts");
     assert.match(detail, /headlineIsEstimate=\{priceRead\?\.kind === "estimate"\}/);
     assert.match(detail, /median=\{priceRead\?\.kind === "estimate" \? storedAmount : null\}/);
