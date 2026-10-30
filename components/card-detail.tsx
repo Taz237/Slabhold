@@ -20,7 +20,7 @@ import { CardShareButton } from "@/components/card-share";
 import { FirstCardPrivacyPrompt } from "@/components/first-card-privacy-prompt";
 import { SharedPostNote } from "@/components/shared-post-note";
 import { useCollection } from "@/components/collection-provider";
-import { DealSheet } from "@/components/deal-sheet";
+import { lazyPart } from "@/lib/ui/lazy-part";
 import { MARK_SOLD_LABEL } from "@/lib/deals/state";
 import {
   CardDetailPending,
@@ -77,6 +77,9 @@ import {
   type PriceRead,
 } from "@/lib/value/price-fallback";
 import { useCardValue } from "@/lib/value/use-card-values";
+
+/** Only drawn after a tap on the card page, so it is its own chunk. */
+const DealSheet = lazyPart(() => import("@/components/deal-sheet").then((mod) => mod.DealSheet));
 
 function subscribeCardValueMemory() {
   return () => {};
@@ -515,7 +518,10 @@ export function CardDetail({ id, added = false }: { id: string; added?: boolean 
             <div className="flex max-w-sm flex-col gap-2">
               <button
                 type="button"
-                onClick={() => setDealOpen(true)}
+                onClick={() => {
+                  void DealSheet.preload().catch(() => {});
+                  setDealOpen(true);
+                }}
                 className="inline-flex min-h-11 w-full items-center justify-center rounded-full bg-violet-600 px-5 text-sm font-medium text-white hover:bg-violet-500"
               >
                 {MARK_SOLD_LABEL}

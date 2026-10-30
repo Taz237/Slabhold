@@ -29,6 +29,8 @@ async function tapShare() {
   assert.ok(button, "share button");
   await act(async () => {
     button.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    // The sheet is its own chunk, fetched on the tap.
+    await (await import("@/components/share-sheet")).ShareSheet.preload();
   });
 }
 
