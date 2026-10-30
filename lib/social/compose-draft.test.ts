@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import { beforeEach, describe, it } from "node:test";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import {
   clearComposeDraft,
   composeDraftKey,
@@ -80,7 +82,6 @@ describe("compose draft store", () => {
 
 describe("composer draft wiring", () => {
   it("keeps on unmount unless posted or discarded, and restores on open", async () => {
-    const { readFileSync } = await import("node:fs");
     const view = readFileSync(new URL("../../components/compose-view.tsx", import.meta.url), "utf8");
     assert.match(view, /composeDraftKey\(\{ edit: editId, quote: quoteParam, card: attachCardParam \}\)/);
     assert.match(view, /if \(key && !settled\) keepComposeDraft\(key, draft\);/);
@@ -92,5 +93,17 @@ describe("composer draft wiring", () => {
     assert.match(view, /shouldConfirmDiscard\(/);
     // No history trap: Back is the browser's own.
     assert.doesNotMatch(view, /pushState|replaceState|popstate/);
+  });
+});
+
+describe("compose draft across accounts", () => {
+  it("is cleared on sign-out and when the signed-in user changes", () => {
+    const provider = readFileSync(join(process.cwd(), "components/social-provider.tsx"), "utf8");
+    const signOut = provider.slice(provider.indexOf("const signOut = useCallback"));
+    const signOutBody = signOut.slice(0, signOut.indexOf("}, [commitLocal"));
+    // Before the Supabase/local split, so both modes clear it.
+    assert.match(signOutBody.slice(0, signOutBody.indexOf("mode ===")), /clearComposeDraft\(\);/);
+    const userChange = provider.slice(provider.indexOf("seenDraftUserId.current = suggestionUserId;"));
+    assert.match(userChange.slice(0, userChange.indexOf("}, [suggestionUserId]);")), /clearComposeDraft\(\);/);
   });
 });

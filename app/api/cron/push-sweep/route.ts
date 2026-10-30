@@ -1,5 +1,7 @@
-import { flushForActor, logCounts, sweepTails } from "@/lib/push/dispatch";
+import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { pushDispatcher } from "@/lib/push/server";
+import { supabasePushStore } from "@/lib/push/supabase-store";
+import { runPushSweep } from "@/lib/push/sweep";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -13,18 +15,18 @@ function cronAuthorized(request: Request): boolean {
 
 /**
  * Safety net for pushes no flush picked up: overdue rows, trailing summaries,
- * and the 7-day prune. Auth: Authorization: Bearer <CRON_SECRET>. Not on a
- * schedule in vercel.json (the plan allows daily crons only); flushes sweep
- * as they go.
+ * and the 7-day prune. Runs once a day from vercel.json (Vercel sends the
+ * Bearer CRON_SECRET itself); flushes sweep as they go. With only the service
+ * role set (no VAPID keys) it still prunes the outbox and sends nothing.
+ * Auth: Authorization: Bearer <CRON_SECRET>.
  */
 export async function GET(request: Request) {
   if (!cronAuthorized(request)) return Response.json({ error: "Unauthorized" }, { status: 401 });
   const dispatcher = pushDispatcher();
-  if (!dispatcher) return Response.json({ ok: true, available: false });
-  // An actor id that matches nothing: only the overdue sweep claims rows.
-  const { counts } = await flushForActor(dispatcher, "00000000-0000-0000-0000-000000000000");
-  await sweepTails(dispatcher, counts);
-  await dispatcher.store.prune();
-  logCounts("sweep", counts);
-  return Response.json({ ok: true, ...counts });
+  const admin = dispatcher ? null : createSupabaseAdmin();
+  const result = await runPushSweep({
+    dispatcher,
+    prune: admin ? () => supabasePushStore(admin).prune() : null,
+  });
+  return Response.json(result);
 }

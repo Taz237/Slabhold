@@ -5,7 +5,12 @@ export type HandlerResult = { status: number; body: Record<string, unknown> };
 
 /** Writes with the service role, so the allowlist above can't be skipped. */
 export type SubscriptionWriter = {
-  /** Insert, or move an existing endpoint to this user (a shared device). */
+  /**
+   * Insert, or refresh the caller's own endpoint in place. An endpoint owned
+   * by another account moves to this user only when the body's p256dh and
+   * auth keys match the stored ones (the same browser: a shared device whose
+   * last sign-out didn't reach us). Otherwise `conflict`, and the row is untouched.
+   */
   upsert(row: {
     user_id: string;
     endpoint: string;
@@ -13,11 +18,15 @@ export type SubscriptionWriter = {
     auth: string;
     platform: string;
     user_agent: string | null;
-  }): Promise<{ error: string | null }>;
+  }): Promise<{ error: string | null; conflict?: boolean }>;
   remove(userId: string, endpoint: string): Promise<{ error: string | null }>;
 };
 
 export const UNAVAILABLE: HandlerResult = { status: 200, body: { ok: true, available: false } };
+const CONFLICT: HandlerResult = {
+  status: 409,
+  body: { error: "This device is linked to another account. Turn notifications off and on again." },
+};
 const UNAUTHORIZED: HandlerResult = { status: 401, body: { error: "Log in to turn on notifications." } };
 
 export async function handleSubscribe(input: {
@@ -31,7 +40,7 @@ export async function handleSubscribe(input: {
   if (!input.userId) return UNAUTHORIZED;
   const parsed = parseSubscriptionBody(input.body);
   if (!parsed) return { status: 400, body: { error: "That push subscription isn't supported." } };
-  const { error } = await input.writer.upsert({
+  const { error, conflict } = await input.writer.upsert({
     user_id: input.userId,
     endpoint: parsed.endpoint,
     p256dh: parsed.p256dh,
@@ -39,6 +48,7 @@ export async function handleSubscribe(input: {
     platform: parsed.platform,
     user_agent: input.userAgent ? input.userAgent.slice(0, 200) : null,
   });
+  if (conflict) return CONFLICT;
   if (error) return { status: 500, body: { error: "Could not save this device." } };
   return { status: 200, body: { ok: true, available: true } };
 }

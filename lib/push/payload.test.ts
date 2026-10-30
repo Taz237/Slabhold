@@ -81,6 +81,24 @@ describe("push payload builder", () => {
     assert.equal(single({ kind: "comment", showPreviews: false }).body, "New reply");
     assert.equal(single({ kind: "dm", postId: null, showPreviews: false }).body, "New message");
     assert.equal(single({ kind: "follow", postId: null, showPreviews: false }).body, "New follower");
+    assert.equal(single({ kind: "repost", showPreviews: false }).body, "New repost");
+    assert.equal(single({ kind: "quote", showPreviews: false }).body, "New quote");
+    assert.equal(single({ kind: "mention", showPreviews: false }).body, "New mention");
+    // The actor's name stays in the title, like X and iOS.
+    assert.equal(single({ showPreviews: false }).title, "Jordan Hale");
+  });
+
+  it("says New message, not Sent a card, for a card DM with previews off", () => {
+    const payload = single({ kind: "dm", postId: null, messageKind: "card_preview", text: "2018 Prizm Luka", showPreviews: false });
+    assert.equal(payload.body, "New message");
+    assert.doesNotMatch(JSON.stringify(payload), /Sent a card|Prizm/);
+  });
+
+  it("puts names, never post or message text, in summaries", () => {
+    const like = summaryPayload({ kind: "like", lead: jordan, names: ["Jordan Hale", "Maya Chen"], count: 4, postId: POST, badge: 1, ts: 1 });
+    assert.equal(like.body, "Jordan Hale and 3 others liked your post");
+    const dm = summaryPayload({ kind: "dm", lead: jordan, names: [], count: 3, postId: null, badge: 1, ts: 1 });
+    assert.equal(dm.body, "3 new messages from Jordan Hale");
   });
 
   it("keeps urls same-origin", () => {

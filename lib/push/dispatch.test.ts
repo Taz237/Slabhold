@@ -14,6 +14,7 @@ import {
   type SendContext,
 } from "./dispatch";
 import { pushGroupKey } from "./group";
+import { runPushSweep } from "./sweep";
 import { DEFAULT_PREFS, type NotificationPrefs, type SourceKind } from "./prefs";
 import type { PushActor, PushPayload } from "./payload";
 import type { DeliveryResult, PushSubscriptionRow, WebPushSender } from "./send";
@@ -40,6 +41,7 @@ class FakeStore implements PushStore {
   unreadDms = 0;
   leases = new Map<string, number>();
   removed: string[] = [];
+  prunes = 0;
   private seq = 0;
 
   constructor() {
@@ -166,7 +168,9 @@ class FakeStore implements PushStore {
   async releaseLease(recipientId: string, groupKey: string) {
     this.leases.delete(`${recipientId}|${groupKey}`);
   }
-  async prune() {}
+  async prune() {
+    this.prunes += 1;
+  }
 }
 
 let store: FakeStore;
@@ -398,5 +402,183 @@ describe("push delivery bookkeeping", () => {
     await flushAll();
     assert.equal(sent.length, 0);
     assert.equal(store.rows[0]!.status, "collapsed");
+  });
+});
+
+/** A burst in one group: the first actor pushes at once, the rest collapse. Returns the rows. */
+async function burst(kind: SourceKind, actors: string[]) {
+  const rows: OutboxRow[] = [];
+  for (const [index, actor] of actors.entries()) {
+    store.now = T0 + index * 5_000;
+    rows.push(store.add(kind, actor));
+    await flushAll();
+  }
+  store.now = T0 + 61_000;
+  return rows;
+}
+
+function groupOf(kind: SourceKind, actor = "a0") {
+  return pushGroupKey(kind, kind === "follow" || kind === "dm" ? null : POST, actor);
+}
+
+const PREVIEW_TEXT = /Pulled a 2018 Prizm Luka silver|Still have the Wemby\?/;
+
+describe("push safety in trailing summaries", () => {
+  for (const kind of ["like", "comment", "repost", "quote", "mention"] as const) {
+    for (const [label, change] of [
+      ["hidden", () => store.hiddenPosts.add(POST)],
+      ["deleted", () => store.deletedPosts.add(POST)],
+    ] as const) {
+      it(`skips a ${kind} summary when the post was ${label} after the first push`, async () => {
+        await burst(kind, ["a0", "a1", "a2"]);
+        assert.equal(sent.length, 1);
+        change();
+        assert.equal(await runTail(dispatcher(), ME, groupOf(kind)), "skipped");
+        assert.equal(sent.length, 1);
+        assert.deepEqual(store.rows.map((row) => row.status), ["sent", "skipped", "skipped"]);
+      });
+    }
+
+    it(`skips a single ${kind} on a hidden post`, async () => {
+      store.hiddenPosts.add(POST);
+      store.add(kind, "a0");
+      await flushAll();
+      assert.equal(sent.length, 0);
+      assert.equal(store.rows[0]!.status, "skipped");
+    });
+  }
+
+  for (const [label, hide] of [
+    ["muted", (actor: string) => store.mutes.add(`${ME}|${actor}`)],
+    ["blocked by the recipient", (actor: string) => store.blocks.add(`${ME}|${actor}`)],
+    ["blocking the recipient", (actor: string) => store.blocks.add(`${actor}|${ME}`)],
+  ] as const) {
+    it(`leaves a ${label} actor who isn't the newest out of names and count`, async () => {
+      await burst("like", ["a0", "a1", "a2", "a3"]);
+      hide("a2");
+      assert.equal(await runTail(dispatcher(), ME, groupOf("like")), "sent");
+      const summary = sent.at(-1)!;
+      assert.equal(summary.body, "Lee Park and 2 others liked your post");
+      assert.doesNotMatch(summary.body, /Sam Ortiz/);
+    });
+
+    it(`leaves a ${label} first actor out of a two-person summary`, async () => {
+      await burst("like", ["a0", "a1", "a2"]);
+      hide("a0");
+      await runTail(dispatcher(), ME, groupOf("like"));
+      assert.equal(sent.at(-1)!.body, "Sam Ortiz and Maya Chen liked your post");
+    });
+
+    it(`skips the summary when the newest actor is ${label} after the first push`, async () => {
+      await burst("like", ["a0", "a1"]);
+      hide("a1");
+      assert.equal(await runTail(dispatcher(), ME, groupOf("like")), "skipped");
+      assert.equal(sent.length, 1);
+    });
+
+    it(`skips a DM summary once the sender is ${label}`, async () => {
+      await burst("dm", ["a0", "a0", "a0"]);
+      store.unreadDms = 3;
+      hide("a0");
+      assert.equal(await runTail(dispatcher(), ME, groupOf("dm")), "skipped");
+      assert.equal(sent.length, 1);
+    });
+  }
+
+  it("with the newest actor muted, sums up only the others still valid", async () => {
+    await burst("like", ["a0", "a1", "a2", "a3"]);
+    store.mutes.add(`${ME}|a3`);
+    assert.equal(await runTail(dispatcher(), ME, groupOf("like")), "sent");
+    assert.equal(sent.at(-1)!.body, "Sam Ortiz and 2 others liked your post");
+    assert.doesNotMatch(JSON.stringify(sent.at(-1)), /Eli Ross|Lee Park/);
+  });
+
+  it("skips the summary when the newest actor's context turns muted after the group read", async () => {
+    await burst("like", ["a0", "a1", "a2"]);
+    const context = store.context.bind(store);
+    store.context = async (row) => ({ ...(await context(row))!, muted: true });
+    assert.equal(await runTail(dispatcher(), ME, groupOf("like")), "skipped");
+    assert.equal(sent.length, 1);
+  });
+});
+
+describe("Show previews off in trailing summaries", () => {
+  beforeEach(() => {
+    store.prefs.set(ME, { ...DEFAULT_PREFS, showPreviews: false });
+  });
+
+  it("sends no message text in a DM summary", async () => {
+    await burst("dm", ["a0", "a0", "a0"]);
+    assert.equal(sent[0]!.body, "New message");
+    store.unreadDms = 3;
+    await runTail(dispatcher(), ME, groupOf("dm"));
+    assert.equal(sent[1]!.title, "Jordan Hale");
+    assert.equal(sent[1]!.body, "3 new messages from Jordan Hale");
+    for (const payload of sent) assert.doesNotMatch(JSON.stringify(payload), PREVIEW_TEXT);
+  });
+
+  it("says New message when one DM is left unread", async () => {
+    await burst("dm", ["a0", "a0"]);
+    store.unreadDms = 1;
+    await runTail(dispatcher(), ME, groupOf("dm"));
+    assert.equal(sent[1]!.body, "New message");
+    assert.equal(sent[1]!.title, "Jordan Hale");
+  });
+
+  for (const kind of ["like", "comment", "repost", "quote", "mention"] as const) {
+    it(`keeps names but no post text in a ${kind} summary`, async () => {
+      await burst(kind, ["a0", "a1", "a2"]);
+      await runTail(dispatcher(), ME, groupOf(kind));
+      assert.equal(sent.length, 2);
+      assert.match(sent[1]!.body, /^Sam Ortiz and 2 others /);
+      for (const payload of sent) assert.doesNotMatch(JSON.stringify(payload), PREVIEW_TEXT);
+    });
+
+    it(`falls back to the private single when one ${kind} actor is left`, async () => {
+      await burst(kind, ["a0", "a1"]);
+      store.sources.delete(store.sourceOf(store.rows[0]!));
+      await runTail(dispatcher(), ME, groupOf(kind));
+      assert.equal(sent[1]!.title, "Maya Chen");
+      assert.doesNotMatch(JSON.stringify(sent[1]), PREVIEW_TEXT);
+    });
+  }
+});
+
+describe("push sweep cron", () => {
+  it("does nothing without the service role", async () => {
+    assert.deepEqual(await runPushSweep({ dispatcher: null, prune: null }), { ok: true, available: false });
+  });
+
+  it("prunes and sends nothing without VAPID keys", async () => {
+    store.add("like", "a0", T0 - 20 * 60_000);
+    const result = await runPushSweep({ dispatcher: null, prune: () => store.prune() });
+    assert.deepEqual(result, { ok: true, available: false, pruned: true });
+    assert.equal(store.prunes, 1);
+    assert.equal(sent.length, 0);
+    assert.equal(store.rows[0]!.status, "pending");
+  });
+
+  it("sweeps overdue rows and tails, then prunes, with push on", async () => {
+    await burst("like", ["a0", "a1", "a2"]);
+    const result = await runPushSweep({ dispatcher: dispatcher(), prune: null });
+    assert.equal(result.summaries, 1);
+    assert.equal(result.pruned, true);
+    assert.equal(store.prunes, 1);
+    assert.equal(sent.length, 2);
+  });
+
+  it("is scheduled once a day after the other crons, and keeps its 401", async () => {
+    const { readFileSync } = await import("node:fs");
+    const read = (path: string) => readFileSync(new URL(`../../${path}`, import.meta.url), "utf8");
+    const vercel = JSON.parse(read("vercel.json")) as { regions: string[]; crons: { path: string; schedule: string }[] };
+    assert.deepEqual(vercel.regions, ["pdx1"]);
+    assert.deepEqual(vercel.crons, [
+      { path: "/api/cron/refresh-card-values", schedule: "0 9 * * *" },
+      { path: "/api/cron/collection-snapshots", schedule: "0 10 * * *" },
+      { path: "/api/cron/push-sweep", schedule: "0 11 * * *" },
+    ]);
+    const route = read("app/api/cron/push-sweep/route.ts");
+    assert.match(route, /if \(!cronAuthorized\(request\)\) return Response\.json\(\{ error: "Unauthorized" \}, \{ status: 401 \}\);/);
+    assert.doesNotMatch(route, /Not on a\s+(\*\s+)?schedule/);
   });
 });

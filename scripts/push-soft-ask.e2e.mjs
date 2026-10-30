@@ -105,7 +105,7 @@ async function newContext(browser, { ua = ANDROID_UA, colorScheme = "light", per
 }
 
 /** Signs in as the seeded local collector "flipcity", with onboarding already done. */
-async function signIn(context, { accountCreatedAt = "2026-11-02T00:00:00.000Z" } = {}) {
+async function signIn(context, { accountCreatedAt = new Date(Date.now() - 60 * 60 * 1000).toISOString() } = {}) {
   const page = await context.newPage();
   await page.goto(`${BASE}/`);
   await page.waitForFunction(() => localStorage.getItem("cardflip.social.v1"));
@@ -212,7 +212,7 @@ async function run() {
     for (const colorScheme of ["light", "dark"]) {
       // Installed app on iPhone: the push soft-ask.
       let shotContext = await newContext(browser, { ua: IPHONE_SAFARI_UA, colorScheme, standalone: true });
-      await signIn(shotContext, { accountCreatedAt: "2026-11-02T00:00:00.000Z" });
+      await signIn(shotContext);
       await followInNewSession(shotContext).then((p) => p.close());
       page = await followInNewSession(shotContext);
       await expectAsk(page, true, "installed soft-ask");

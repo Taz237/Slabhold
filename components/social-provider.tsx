@@ -15,6 +15,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { trackEvent } from "@/lib/analytics";
 import { pingBadgeCheck } from "@/lib/badges/client";
 import { clearNewCardDraft } from "@/lib/cards/new-card-draft";
+import { clearComposeDraft } from "@/lib/social/compose-draft";
 import { forgetEmailHint } from "@/lib/pwa/install-step";
 import { activityFrom, emptyActivity, loadActivity, saveActivity, type ActivityStore } from "@/lib/social/activity";
 import {
@@ -646,6 +647,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
     if (seenDraftUserId.current === suggestionUserId) return;
     seenDraftUserId.current = suggestionUserId;
     clearNewCardDraft();
+    clearComposeDraft();
   }, [suggestionUserId]);
   // Once per signed-in session, plus an explicit refresh after picks change.
   // Toggling provider readiness must not call the RPC again.
@@ -785,6 +787,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = useCallback(async () => {
     clearNewCardDraft();
+    clearComposeDraft();
     // Every logout path (side menu, account deletion) comes through here.
     forgetEmailHint();
     const client = supabaseRef.current;

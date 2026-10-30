@@ -10,6 +10,7 @@ describe("function region", () => {
       crons?: unknown[];
     };
     assert.deepEqual(vercel.regions, ["pdx1"]);
-    assert.equal(vercel.crons?.length, 2, "the crons are unchanged");
+    // The two value crons, plus the daily push sweep.
+    assert.equal(vercel.crons?.length, 3, "the crons are unchanged");
   });
 });

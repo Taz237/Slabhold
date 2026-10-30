@@ -15,7 +15,7 @@ describe("quoted post header", () => {
     assert.ok(!row.includes("flex-wrap"));
   });
 
-  it("truncates the name first, keeping a few letters, then the handle", () => {
+  it("truncates the handle first, keeping a few letters, then the name", () => {
     const weight = (list: string[]) => {
       const arbitrary = list.find((value) => /^shrink-\[\d+\]$/.test(value));
       if (arbitrary) return Number(arbitrary.slice(8, -1));
@@ -24,7 +24,7 @@ describe("quoted post header", () => {
     const name = classes(QUOTE_HEADER.name);
     const handle = classes(QUOTE_HEADER.handle);
     assert.ok(name.includes("truncate") && handle.includes("truncate"));
-    assert.ok(weight(name) >= 50 * weight(handle) && weight(handle) > 0, "the name gives way first");
+    assert.ok(weight(handle) >= 50 * weight(name) && weight(name) > 0, "the handle gives way first");
     assert.ok(name.some((value) => /^min-w-\[[4-6]ch\]$/.test(value)), "about 4 letters of the name stay");
     assert.ok(handle.some((value) => /^min-w-\[[3-5]ch\]$/.test(value)), "the handle never shrinks to a bare @");
     assert.ok(!name.some((value) => value.startsWith("max-w-")));
