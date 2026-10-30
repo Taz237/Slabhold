@@ -41,10 +41,11 @@ describe("opening a card from the collection", () => {
     const list = detail.indexOf("<SalesListPending");
     const talk = detail.indexOf('heading="Who\'s talking about this card"');
     assert.ok(hero > 0 && chart > hero && list > chart && talk > list);
-    assert.match(detail, /<ValueChart/);
+    assert.match(detail, /<SalesChart/);
     assert.match(detail, /<CompsList/);
-    assert.match(detail, /import\("@\/components\/value-chart"\)/);
-    assert.doesNotMatch(detail, /from "@\/components\/value-chart"/);
+    assert.match(detail, /import\("@\/components\/sales-chart"\)/);
+    assert.doesNotMatch(detail, /from "@\/components\/sales-chart"/);
+    assert.doesNotMatch(detail, /from "@\/components\/charts\/value-chart"/);
   });
 
   it("keeps edit, value, delete, and privacy off the main column", () => {

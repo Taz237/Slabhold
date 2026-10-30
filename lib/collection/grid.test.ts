@@ -11,18 +11,15 @@ import {
   TILE_IMAGE_SIZES,
   photoSource,
   photoStatusAfter,
-  readHeroOpen,
   showGhostTile,
   showPhotoPlaceholder,
   slabLabel,
   slabTone,
   sortGridCards,
-  sparklinePath,
   tileAccessibleName,
   tileGain,
   tileKind,
   tileLoading,
-  writeHeroOpen,
   yearSetLine,
 } from "./grid";
 
@@ -231,62 +228,6 @@ describe("sortGridCards", () => {
   it("puts cards without a value after valued ones", () => {
     const d = card({ id: "d" });
     assert.deepEqual(sortGridCards([d, b], "value", values).map((x) => x.id), ["b", "d"]);
-  });
-});
-
-describe("hero open state", () => {
-  function memory(): Storage {
-    const data = new Map<string, string>();
-    return {
-      getItem: (key) => data.get(key) ?? null,
-      setItem: (key, value) => void data.set(key, value),
-      removeItem: (key) => void data.delete(key),
-      clear: () => data.clear(),
-      key: () => null,
-      get length() {
-        return data.size;
-      },
-    };
-  }
-
-  it("is closed by default and remembers the last choice", () => {
-    const storage = memory();
-    assert.equal(readHeroOpen(storage), false);
-    writeHeroOpen(storage, true);
-    assert.equal(readHeroOpen(storage), true);
-    writeHeroOpen(storage, false);
-    assert.equal(readHeroOpen(storage), false);
-  });
-
-  it("survives blocked storage", () => {
-    const blocked = {
-      getItem() {
-        throw new Error("blocked");
-      },
-      setItem() {
-        throw new Error("blocked");
-      },
-    } as unknown as Storage;
-    assert.equal(readHeroOpen(blocked), false);
-    assert.doesNotThrow(() => writeHeroOpen(blocked, true));
-    assert.equal(readHeroOpen(null), false);
-  });
-});
-
-describe("sparklinePath", () => {
-  it("draws nothing for fewer than 2 points", () => {
-    assert.equal(sparklinePath([], 100, 20), "");
-    assert.equal(sparklinePath([5], 100, 20), "");
-  });
-
-  it("spans the box from left to right", () => {
-    const path = sparklinePath([1, 3, 2], 100, 20);
-    assert.match(path, /^M0(\.0+)? /);
-    assert.match(path, /L100(\.0+)? /);
-  });
-
-  it("draws a flat line through the middle for a flat series", () => {
-    assert.equal(sparklinePath([4, 4], 10, 20), "M0 10 L10 10");
   });
 });
 

@@ -73,7 +73,7 @@ export type IdentifyResult = {
   comps: CompListing[];
 };
 
-export type PortfolioFilter = "all" | "held" | "sold" | "profit" | "loss";
+export type PortfolioFilter = "all" | "held" | "sold" | "profit" | "loss" | "novalue";
 
 type DetailCard = Pick<
   SportsCard,

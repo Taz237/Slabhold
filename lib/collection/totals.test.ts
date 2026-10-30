@@ -129,6 +129,19 @@ describe("collectionTotalsFromSummarize sold cards", () => {
   });
 });
 
+describe("no value filter", () => {
+  it("matches held cards that do not have a value yet, the ones Cards tile counts", () => {
+    const valued = card({ id: "a", purchasePrice: 100 });
+    const missing = card({ id: "b", purchasePrice: 40 });
+    const sold = card({ id: "c", purchasePrice: 40, sellPrice: 70, sellDate: "2026-10-22" });
+    const values = new Map<string, CardValueResult>([["a", okValue(150)]]);
+    assert.equal(matchesFilter(valued, "novalue", values), false);
+    assert.equal(matchesFilter(missing, "novalue", values), true);
+    assert.equal(matchesFilter(sold, "novalue", values), false);
+    assert.equal(summarize([valued, missing, sold], values).withoutValueCount, 1);
+  });
+});
+
 describe("snapshotDateInNewYork", () => {
   it("returns YYYY-MM-DD for a known UTC instant", () => {
     // 2026-10-16 03:30 UTC → still 2026-10-15 in America/New_York (EDT, UTC-4)

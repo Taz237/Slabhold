@@ -2,6 +2,7 @@
 
 import { useRef, useState, type ReactNode } from "react";
 import { Avatar } from "@/components/avatar";
+import { ValueSpark } from "@/components/charts/value-spark";
 import { Badge } from "@/components/badges/badge";
 import { CardSlabArt } from "@/components/card-slab-art";
 import { CompsList } from "@/components/comps-list";
@@ -111,30 +112,14 @@ function SampleTag() {
   );
 }
 
-/** A small value-history line. Sample points, no axis. */
+const SAMPLE_LINE = [22, 26, 24, 31, 29, 36, 34, 42, 40, 47, 52, 50, 58].map((value, index) => ({
+  date: `2026-01-${String(index * 2 + 1).padStart(2, "0")}`,
+  value,
+}));
+
+/** A small value-history line. Sample points, no axis. The same spark as the app. */
 function ValueLine() {
-  const points = [22, 26, 24, 31, 29, 36, 34, 42, 40, 47, 52, 50, 58];
-  const max = Math.max(...points);
-  const min = Math.min(...points);
-  const path = points
-    .map((value, index) => {
-      const x = (index / (points.length - 1)) * 200;
-      const y = 56 - ((value - min) / (max - min)) * 48;
-      return `${index === 0 ? "M" : "L"}${x.toFixed(1)} ${y.toFixed(1)}`;
-    })
-    .join(" ");
-  return (
-    <svg viewBox="0 0 200 60" className="h-14 w-full" aria-hidden preserveAspectRatio="none">
-      <defs>
-        <linearGradient id="landing-line-fill" x1="0" x2="0" y1="0" y2="1">
-          <stop offset="0%" stopColor="#7C3AED" stopOpacity="0.45" />
-          <stop offset="100%" stopColor="#7C3AED" stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      <path d={`${path} L200 60 L0 60 Z`} fill="url(#landing-line-fill)" />
-      <path d={path} fill="none" stroke="#A78BFA" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
-    </svg>
-  );
+  return <ValueSpark id="landing-line" points={SAMPLE_LINE} tone="accent" height={56} ariaLabel="Sample value history" className="h-14" />;
 }
 
 function TrackVisual() {

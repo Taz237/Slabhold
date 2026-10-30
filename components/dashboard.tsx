@@ -6,6 +6,7 @@ import { outlineButton } from "@/components/button-styles";
 import { CollectionGrid } from "@/components/collection-grid";
 import { CollectionHeader } from "@/components/collection-header";
 import { useCollection } from "@/components/collection-provider";
+import { useSocial } from "@/components/social-provider";
 import { CollectionLaneEmpty } from "@/components/collection-lane-empty";
 import { FirstCardWelcome } from "@/components/first-card-welcome";
 import { PortfolioHero } from "@/components/portfolio-hero";
@@ -42,6 +43,7 @@ const FILTERS: { id: Exclude<PortfolioFilter, "all">; label: string }[] = [
   { id: "sold", label: "Sold" },
   { id: "profit", label: "Profit" },
   { id: "loss", label: "Loss" },
+  { id: "novalue", label: "No value yet" },
 ];
 
 const chip =
@@ -52,6 +54,8 @@ const chipOff =
 
 export function Dashboard() {
   const { cards, ready, syncError, reload, updateCard } = useCollection();
+  const { user } = useSocial();
+  const toolsRef = useRef<HTMLDivElement>(null);
   const [query, setQuery] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
@@ -105,6 +109,15 @@ export function Dashboard() {
     retryValues();
   }
 
+  function showWithoutValue() {
+    setQuery("");
+    setFilter("novalue");
+    toolsRef.current?.scrollIntoView({
+      behavior: window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+      block: "start",
+    });
+  }
+
   function cycleSort() {
     const index = GRID_SORTS.findIndex((item) => item.id === sort);
     setSort(GRID_SORTS[(index + 1) % GRID_SORTS.length].id);
@@ -140,6 +153,10 @@ export function Dashboard() {
           valuesFailed={valuesFailed}
           valuesMessage={valuesMessage}
           onRetry={retryValues}
+          cards={inLane}
+          values={values}
+          onShowWithoutValue={showWithoutValue}
+          shareable={Boolean(user?.username) && cards.some((card) => card.isPublic)}
         />
       )}
       {cards.length > 0 ? <ShareCollectionCard /> : null}
@@ -147,7 +164,8 @@ export function Dashboard() {
         <p className="text-sm text-rose-600 dark:text-rose-400">{syncError}</p>
       ) : null}
       <div
-        className="-mx-4 flex items-center gap-1.5 overflow-x-auto px-4 py-1 [scrollbar-width:none] sm:mx-0 sm:px-0 [&::-webkit-scrollbar]:hidden"
+        ref={toolsRef}
+        className="-mx-4 flex scroll-mt-[calc(var(--app-header-h)+0.5rem)] items-center gap-1.5 overflow-x-auto px-4 py-1 [scrollbar-width:none] sm:mx-0 sm:px-0 [&::-webkit-scrollbar]:hidden"
         data-no-pull
       >
         {showTools ? (
@@ -226,7 +244,7 @@ export function Dashboard() {
               <ArrowDownUp className="h-3.5 w-3.5" aria-hidden />
               {sortLabel}
             </button>
-            {FILTERS.map((item) => {
+            {FILTERS.filter((item) => item.id !== "novalue" || filter === "novalue" || totals.withoutValueCount > 0).map((item) => {
               const selected = filter === item.id;
               return (
                 <button

@@ -667,7 +667,7 @@ describe("signed-in comps stay in place", () => {
     const view = read("components/public-card-view.tsx");
     const detail = read("components/card-detail.tsx");
     assert.match(view, /<CompsList/);
-    assert.match(view, /<ValueChart/);
+    assert.match(view, /<SalesChart/);
     assert.match(view, /<WantButton/);
     assert.doesNotMatch(view, /<FairPriceCheck/);
     assert.match(view, /soldNotice/);

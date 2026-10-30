@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useCompFlagState } from "@/components/use-comp-flags";
 import { ArrowLeft } from "lucide-react";
 import { CardCollectorsSaying } from "@/components/card-collectors-saying";
@@ -18,7 +18,8 @@ import { PublicCardSkeleton } from "@/components/public-card-skeleton";
 import { useCollection } from "@/components/collection-provider";
 import { SoldFreshness } from "@/components/sold-freshness";
 import { useSocial } from "@/components/social-provider";
-import { ValueChart } from "@/components/value-chart";
+import { SalesChart } from "@/components/sales-chart";
+import { useChartSales } from "@/lib/chart/use-chart-sales";
 import { isCardOwner } from "@/lib/comps/ownership";
 import { messageOwnerHref, showOpenToOffersBadge } from "@/lib/offers/open-to-offers";
 import { userHref } from "@/lib/social/user-href";
@@ -192,6 +193,8 @@ function PublicCardAnalytics({
     canFlag,
     sold.status === "ready" ? (sold.data?.comps ?? []) : [],
   );
+  const [saleId, setSaleId] = useState<string | null>(null);
+  const chartSales = useChartSales(sold.status === "ready" ? flags.visible : null);
 
   useEffect(() => {
     if (
@@ -378,13 +381,17 @@ function PublicCardAnalytics({
           {soldCopy}
         </p>
       ) : showChart ? (
-        <ValueChart
+        <SalesChart
           card={{
             id: card.id,
             estimatedSellPrice: storedAmount ?? 0,
             purchasePrice: card.purchasePrice ?? 0,
           }}
           points={sold.status === "ready" && usingLive ? sold.data?.history : null}
+          sales={sold.status === "ready" && usingLive ? chartSales : null}
+          selectedSaleId={saleId}
+          onSelectSale={setSaleId}
+          fetchedAt={sold.data?.fetchedAt ?? null}
           source={sold.data?.source ?? (usingSample ? "sample" : "trawl")}
           loading={valueLoading}
           median={priceRead?.kind === "estimate" ? storedAmount : null}
@@ -463,6 +470,8 @@ function PublicCardAnalytics({
             onRestore={flags.restore}
             toast={flags.toast}
             onUndo={flags.undo}
+            selectedId={saleId}
+            onSelect={setSaleId}
           />
         ) : null}
         </section>

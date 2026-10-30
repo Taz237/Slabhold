@@ -51,6 +51,8 @@ import { useProductData } from "@/lib/cards/use-product-data";
 import { basedOnSalesLabel, countForSalesLabel, valueFromShownSales } from "@/lib/comps/shared-value";
 import { soldNotice } from "@/lib/comps/sold-response";
 import { useSoldComps } from "@/lib/comps/use-sold-comps";
+import type { ChartSale } from "@/lib/chart/sales";
+import { useChartSales } from "@/lib/chart/use-chart-sales";
 import {
   cardDatesLine,
   isSold,
@@ -83,6 +85,10 @@ function subscribeCardValueMemory() {
 type SalesChartView = ComponentType<{
   card: { id: string; estimatedSellPrice: number; purchasePrice: number };
   points?: { date: string; label: string; value: number }[] | null;
+  sales?: ChartSale[] | null;
+  selectedSaleId?: string | null;
+  onSelectSale?: (id: string | null) => void;
+  fetchedAt?: string | null;
   source?: "trawl" | "sample" | "off";
   loading?: boolean;
   median?: number | null;
@@ -123,7 +129,8 @@ export function CardDetail({ id, added = false }: { id: string; added?: boolean 
     () => readBrowserFirstCardPrivacy(user?.id ?? null, card?.id ?? null, Boolean(card?.isPublic)),
     () => false,
   );
-  const [ValueChart, setValueChart] = useState<SalesChartView | null>(null);
+  const [SalesChart, setSalesChart] = useState<SalesChartView | null>(null);
+  const [saleId, setSaleId] = useState<string | null>(null);
   const [chartFailed, setChartFailed] = useState(false);
   const [chartAttempt, setChartAttempt] = useState(0);
   const [CardForm, setCardForm] = useState<CardFormView | null>(null);
@@ -154,6 +161,9 @@ export function CardDetail({ id, added = false }: { id: string; added?: boolean 
     sold.status === "ready" ? (sold.data?.comps ?? []) : [],
   );
 
+  const shownComps = sold.status === "ready" ? flags.visible : null;
+  const chartSales = useChartSales(shownComps);
+
   useEffect(() => {
     if (
       sold.status === "ready" ||
@@ -166,11 +176,11 @@ export function CardDetail({ id, added = false }: { id: string; added?: boolean 
 
   useEffect(() => {
     let cancelled = false;
-    void import("@/components/value-chart")
+    void import("@/components/sales-chart")
       .then((mod) => {
         if (cancelled) return;
         setChartFailed(false);
-        setValueChart(() => mod.ValueChart);
+        setSalesChart(() => mod.SalesChart);
       })
       .catch(() => {
         if (!cancelled) setChartFailed(true);
@@ -301,7 +311,7 @@ export function CardDetail({ id, added = false }: { id: string; added?: boolean 
   });
   const valueStatusLabel = rawValueLabel;
   const showChart =
-    ValueChart != null &&
+    SalesChart != null &&
     sold.status === "ready" &&
     !collapsePrices &&
     !authRequired &&
@@ -553,15 +563,19 @@ export function CardDetail({ id, added = false }: { id: string; added?: boolean 
         </p>
       ) : null}
 
-      {showChart && ValueChart ? (
+      {showChart && SalesChart ? (
         <div data-slot="sales-chart" className="contents">
-          <ValueChart
+          <SalesChart
             card={{
               id: card.id,
               estimatedSellPrice: pricedAmount ?? 0,
               purchasePrice: paid ?? 0,
             }}
             points={usingLive ? sold.data?.history : null}
+            sales={usingLive ? chartSales : null}
+            selectedSaleId={saleId}
+            onSelectSale={setSaleId}
+            fetchedAt={sold.data?.fetchedAt ?? null}
             source={sold.data?.source ?? (usingSample ? "sample" : "trawl")}
             loading={false}
             median={priceRead?.kind === "estimate" ? storedAmount : null}
@@ -621,7 +635,7 @@ export function CardDetail({ id, added = false }: { id: string; added?: boolean 
               type="button"
               onClick={() => {
                 setChartFailed(false);
-                setValueChart(null);
+                setSalesChart(null);
                 setChartAttempt((attempt) => attempt + 1);
               }}
               className="inline-flex min-h-9 items-center rounded-full bg-violet-600 px-3.5 text-sm font-semibold text-white hover:bg-violet-500"
@@ -697,6 +711,8 @@ export function CardDetail({ id, added = false }: { id: string; added?: boolean 
               onRestore={flags.restore}
               toast={flags.toast}
               onUndo={flags.undo}
+              selectedId={saleId}
+              onSelect={setSaleId}
             />
           ) : collapsePrices ? (
             <p className="mt-3 text-sm text-zinc-500">No sales to show</p>

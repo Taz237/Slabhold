@@ -22,6 +22,8 @@ export function CompsList({
   onRestore,
   toast = null,
   onUndo,
+  selectedId = null,
+  onSelect,
 }: {
   comps: CompListing[];
   cardId?: string;
@@ -32,6 +34,10 @@ export function CompsList({
   onRestore?: (itemId: string) => Promise<boolean>;
   toast?: CompFlagToast | null;
   onUndo?: () => void;
+  /** The sale picked on the chart. Its row is highlighted. */
+  selectedId?: string | null;
+  /** Picks a row's sale on the chart. Tapping the picked row again clears it. */
+  onSelect?: (id: string | null) => void;
 }) {
   const [pending, setPending] = useState<CompListing | null>(null);
   const [reason, setReason] = useState<FlagReason | "">("");
@@ -49,7 +55,9 @@ export function CompsList({
     setShownState({ key: compKey, shown: shown + SALES_PAGE });
   }
 
-  const rows = comps.slice(0, shown);
+  // A sale picked on the chart past the first page still shows.
+  const selectedIndex = selectedId ? comps.findIndex((comp) => comp.id === selectedId) : -1;
+  const rows = comps.slice(0, Math.max(shown, selectedIndex + 1));
 
   async function hideSale() {
     if (!pending || !reason || !onFlag) return;
@@ -70,7 +78,13 @@ export function CompsList({
       {comps.length ? (
         <ul className="divide-y divide-zinc-200 dark:divide-white/10">
           {rows.map((comp) => (
-            <li key={comp.id} className="flex items-start justify-between gap-4 py-3">
+            <li
+              key={comp.id}
+              data-selected={comp.id === selectedId ? "" : undefined}
+              className={`-mx-2 flex items-start justify-between gap-4 px-2 py-3 transition-colors duration-150 motion-reduce:transition-none ${
+                comp.id === selectedId ? "bg-violet-500/10 dark:bg-violet-400/10" : ""
+              }`}
+            >
               <div className="min-w-0">
                 {comp.url ? (
                   <a
@@ -92,7 +106,19 @@ export function CompsList({
                 </p>
               </div>
               <div className="flex shrink-0 items-center gap-1">
-                <p className="text-sm font-medium tabular-nums">{money(comp.soldPrice, true)}</p>
+                {onSelect ? (
+                  <button
+                    type="button"
+                    aria-pressed={comp.id === selectedId}
+                    aria-label={`Show the ${money(comp.soldPrice, true)} sale from ${formatDate(comp.soldDate)} on the chart`}
+                    onClick={() => onSelect(comp.id === selectedId ? null : comp.id)}
+                    className="hit-44 rounded-md text-sm font-medium tabular-nums outline-none focus-visible:ring-2 focus-visible:ring-violet-600"
+                  >
+                    {money(comp.soldPrice, true)}
+                  </button>
+                ) : (
+                  <p className="text-sm font-medium tabular-nums">{money(comp.soldPrice, true)}</p>
+                )}
                 {canFlag && cardId ? (
                   <RowMenu
                     label={`Actions for ${comp.title || "sale"}`}
@@ -116,7 +142,7 @@ export function CompsList({
       ) : (
         <p className="text-sm text-zinc-500">No recent sales found</p>
       )}
-      {shown < comps.length ? (
+      {rows.length < comps.length ? (
         <button
           type="button"
           onClick={showMore}
