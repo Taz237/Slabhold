@@ -35,10 +35,14 @@ describe("bundle size check", () => {
     assert.deepEqual(overBudget({ "/": 10 }, {}), [{ route: "/", actual: 10, baseline: null, limit: 0 }]);
   });
 
-  it("guards signed-out Home against its recorded baseline, in CI after the build", () => {
-    assert.deepEqual(GUARDED_ROUTES, ["/"]);
+  it("guards signed-out Home and the key signed-in routes against recorded baselines, in CI after the build", () => {
+    assert.deepEqual(GUARDED_ROUTES, ["/welcome", "/collection", "/cards/[id]", "/u/[username]/cards/[id]"]);
     const baseline = JSON.parse(read("bundle-baseline.json")) as Record<string, number>;
-    assert.ok(Number.isInteger(baseline["/"]) && baseline["/"] > 0, String(baseline["/"]));
+    for (const route of GUARDED_ROUTES) {
+      assert.ok(Number.isInteger(baseline[route]) && baseline[route] > 0, route);
+    }
+    // Signed-out Home stays under 150 KB gzip.
+    assert.ok(baseline["/welcome"] < 150 * 1024, String(baseline["/welcome"]));
     const pkg = JSON.parse(read("package.json")) as { scripts: Record<string, string> };
     assert.equal(pkg.scripts["bundle:check"], "node scripts/check-bundle-size.mjs");
     const ci = read(".github/workflows/ci.yml");

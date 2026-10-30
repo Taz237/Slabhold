@@ -73,7 +73,7 @@ describe("closed podiums from a snapshot", () => {
   });
 
   it("is recorded when anyone opens the leaderboard", () => {
-    const page = readFileSync(join(process.cwd(), "app/leaderboard/page.tsx"), "utf8");
+    const page = readFileSync(join(process.cwd(), "app/(app)/leaderboard/page.tsx"), "utf8");
     assert.match(page, /after\(\(\) => recordClosedPodiums\(\)\)/);
   });
 });

@@ -1,3 +1,6 @@
 {
-  "/": 213031
+  "/welcome": 146202,
+  "/collection": 321964,
+  "/cards/[id]": 339257,
+  "/u/[username]/cards/[id]": 330136
 }

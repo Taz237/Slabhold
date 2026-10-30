@@ -80,7 +80,7 @@ describe("after Add", () => {
     // so the panel stays up while a refresh no longer shows it.
     assert.match(detail, /window\.history\.replaceState\(null, "", pathname\)/);
     assert.match(detail, /showAddedPanel\(/);
-    const page = read("app/cards/[id]/page.tsx");
+    const page = read("app/(app)/cards/[id]/page.tsx");
     assert.match(page, /isAddedParam\(/);
   });
 });

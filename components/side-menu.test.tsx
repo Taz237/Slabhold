@@ -467,7 +467,7 @@ describe("side menu", () => {
       ["/settings/notifications", "/settings/privacy", "/settings/invite", "/settings/collecting", "/about", "/privacy", "/terms"],
     );
     // Delete account moved from More to Privacy & safety.
-    assert.match(read("app/settings/privacy/page.tsx"), /<DeleteAccount \/>/);
+    assert.match(read("app/(app)/settings/privacy/page.tsx"), /<DeleteAccount \/>/);
   });
 
   it("closes on a sideways swipe left only", () => {
@@ -493,7 +493,7 @@ describe("side menu", () => {
 
 describe("/more", () => {
   it("redirects to home with the menu open", async () => {
-    const { default: MorePage } = await import("@/app/more/page");
+    const { default: MorePage } = await import("@/app/(app)/more/page");
     assert.equal(MENU_OPEN_HREF, "/?menu=open");
     try {
       MorePage();

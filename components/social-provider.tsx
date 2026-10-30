@@ -110,7 +110,6 @@ import { loadSupabaseBrowser } from "@/lib/supabase/browser-lazy";
 import { getSupabaseConfig } from "@/lib/supabase/client";
 import type { CardValueResult } from "@/lib/value/types";
 import { useCardValues } from "@/lib/value/use-card-values";
-import { useEngineStart } from "@/lib/ui/engine-start";
 import { afterFirstIdle } from "@/lib/ui/idle";
 import { runSignOutHook } from "@/lib/auth/sign-out-hook";
 import { emitSocialAction } from "@/lib/social/action-signal";
@@ -436,12 +435,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
     };
   }, [applyPostPage, refreshRemote]);
 
-  // A visitor on signed-out Home never needs the session or the snapshot
-  // (lib/ui/engine-start.ts): nothing loads until they leave Home.
-  const engineStarted = useEngineStart();
-
   useEffect(() => {
-    if (!engineStarted) return;
     let cancelled = false;
     let unsubscribe = () => {};
     setActivity(loadActivity());
@@ -501,7 +495,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       cancelled = true;
       unsubscribe();
     };
-  }, [engineStarted]);
+  }, []);
 
   useEffect(() => {
     if (mode !== "supabase" || !ready) return;

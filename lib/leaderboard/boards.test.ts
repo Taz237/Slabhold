@@ -128,7 +128,7 @@ describe("three boards on one page", () => {
   });
 
   it("draws 3 skeleton board cards while loading", () => {
-    const loading = readFileSync(join(process.cwd(), "app/leaderboard/loading.tsx"), "utf8");
+    const loading = readFileSync(join(process.cwd(), "app/(app)/leaderboard/loading.tsx"), "utf8");
     assert.match(loading, /data-leaderboard-loading/);
     assert.match(loading, /data-board-skeleton/);
     assert.match(loading, /\[0, 1, 2\]\.map/);

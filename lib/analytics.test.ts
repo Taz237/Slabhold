@@ -241,7 +241,8 @@ describe("scrubAnalyticsUrl", () => {
   });
 
   it("rewrites every app page and drops non-campaign query params", () => {
-    const patterns = pagePatterns(join(root, "app")).filter((pattern) => pattern !== "/mail-day");
+    // /welcome is signed-out Home, served at / (proxy.ts): analytics only ever sees /.
+    const patterns = pagePatterns(join(root, "app")).filter((pattern) => pattern !== "/mail-day" && pattern !== "/welcome");
     assert.ok(patterns.includes("/messages/[username]"));
     assert.ok(patterns.includes("/u/[username]/cards/[id]"));
     assert.ok(patterns.includes("/search"));
@@ -254,7 +255,7 @@ describe("scrubAnalyticsUrl", () => {
 
   it("matches the route table to app page files", () => {
     const fromFiles = pagePatterns(join(root, "app"))
-      .filter((pattern) => pattern !== "/mail-day")
+      .filter((pattern) => pattern !== "/mail-day" && pattern !== "/welcome")
       .sort();
     const fromTable = [...PAGE_PATTERNS].sort();
     assert.deepEqual(fromTable, fromFiles);
@@ -384,7 +385,7 @@ describe("analytics wiring", () => {
     assert.match(read("components/follow-button.tsx"), /trackEvent\("follow_clicked"\)/);
     assert.match(read("components/share-button.tsx"), /trackEvent\("share_clicked"\)/);
 
-    const privacy = read("app/privacy/page.tsx");
+    const privacy = read("app/(app)/privacy/page.tsx");
     assert.match(
       privacy,
       /We use Vercel Web Analytics and Speed Insights to count page views and measure performance,\s+with no ads and no cross-site tracking\. Page views record the page type \(no usernames, ids\s+or search text\) plus the referrer, country and device type\./,

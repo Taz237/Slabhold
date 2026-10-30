@@ -47,7 +47,7 @@ describe("launch entry points", () => {
   });
 
   it("keeps the scan route and stops the side menu from offering a scan", () => {
-    assert.match(read("app/scan/page.tsx"), /ScanView/);
+    assert.match(read("app/(app)/scan/page.tsx"), /ScanView/);
     assert.match(read("components/scan-view.tsx"), /export function ScanView/);
     const more = read("lib/ui/side-menu.ts");
     assert.doesNotMatch(more, /\/scan/);

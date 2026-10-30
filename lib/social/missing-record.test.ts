@@ -98,30 +98,30 @@ describe("missing record 404", () => {
   });
 
   it("dynamic card, post, and profile pages call notFound before rendering a miss", () => {
-    callsBefore("app/posts/[id]/page.tsx", "await requirePost(id)", "<PostView");
-    callsBefore("app/u/[username]/page.tsx", "await requireProfile(username)", "<ProfileView");
+    callsBefore("app/(app)/posts/[id]/page.tsx", "await requirePost(id)", "<PostView");
+    callsBefore("app/(app)/u/[username]/page.tsx", "await requireProfile(username)", "<ProfileView");
     callsBefore(
-      "app/u/[username]/cards/[id]/page.tsx",
+      "app/(app)/u/[username]/cards/[id]/page.tsx",
       "requirePublicCard(username, id)",
       "<PublicCardView",
     );
     callsBefore(
-      "app/u/[username]/followers/page.tsx",
+      "app/(app)/u/[username]/followers/page.tsx",
       "await requireProfile(name)",
       "<FollowList",
     );
     callsBefore(
-      "app/u/[username]/following/page.tsx",
+      "app/(app)/u/[username]/following/page.tsx",
       "await requireProfile(name)",
       "<FollowList",
     );
     callsBefore(
-      "app/cards/[id]/posts/page.tsx",
+      "app/(app)/cards/[id]/posts/page.tsx",
       "await requireCardPostsAccess(id)",
       "<CardPostsList",
     );
     callsBefore(
-      "app/cards/[id]/edit/page.tsx",
+      "app/(app)/cards/[id]/edit/page.tsx",
       "await requireCardPageAccess(id)",
       "<EditCardPage",
     );

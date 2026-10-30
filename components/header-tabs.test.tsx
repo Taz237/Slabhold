@@ -129,7 +129,7 @@ describe("Header and Home tabs are one sticky unit", () => {
   });
 
   it("sticks Search's bar flush under the header too", () => {
-    for (const path of ["components/search-view.tsx", "app/search/page.tsx"]) {
+    for (const path of ["components/search-view.tsx", "app/(app)/search/page.tsx"]) {
       const text = source(path);
       assert.match(text, /sticky top-\[var\(--app-header-h\)\]/, path);
       assert.doesNotMatch(text, /top-\[3\.6rem\]/, path);

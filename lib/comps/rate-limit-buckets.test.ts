@@ -129,7 +129,7 @@ describe("card value rate limit bucket", () => {
 
     const rate = read("lib/comps/rate-limit.ts");
     const cron = read("app/api/cron/collection-snapshots/route.ts");
-    const privacy = read("app/privacy/page.tsx");
+    const privacy = read("app/(app)/privacy/page.tsx");
     assert.match(rate, /from\("anon_rate_limits"\)[\s\S]*delete\(\)[\s\S]*lt\("window_start", cutoff\)/);
     assert.match(cron, /pruneAnonRateLimits\(/);
     assert.match(read("lib/comps/anon-subject.ts"), /^import "server-only";/);

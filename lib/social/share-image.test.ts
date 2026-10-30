@@ -413,7 +413,7 @@ describe("share image renderer", () => {
   });
 
   it("renders a post whose body is Arabic instead of crashing", async () => {
-    const route = readFileSync(join(process.cwd(), "app/posts/[id]/opengraph-image.tsx"), "utf8");
+    const route = readFileSync(join(process.cwd(), "app/(app)/posts/[id]/opengraph-image.tsx"), "utf8");
     assert.match(route, /return renderOg\(/);
     const response = await renderOg(
       postShareImage({
@@ -498,11 +498,11 @@ describe("share image renderer", () => {
     assert.doesNotMatch(CARD_OG_CACHE_CONTROL, /s-maxage=3600/);
     // Cards, posts, profiles and badges: 60s, so an edit shows up quickly.
     for (const path of [
-      "app/cards/[id]/opengraph-image.tsx",
-      "app/u/[username]/cards/[id]/opengraph-image.tsx",
-      "app/posts/[id]/opengraph-image.tsx",
-      "app/u/[username]/opengraph-image.tsx",
-      "app/u/[username]/badges/[category]/[tier]/opengraph-image.tsx",
+      "app/(app)/cards/[id]/opengraph-image.tsx",
+      "app/(app)/u/[username]/cards/[id]/opengraph-image.tsx",
+      "app/(app)/posts/[id]/opengraph-image.tsx",
+      "app/(app)/u/[username]/opengraph-image.tsx",
+      "app/(app)/u/[username]/badges/[category]/[tier]/opengraph-image.tsx",
       "app/api/share-image/badge/[username]/[category]/[tier]/route.tsx",
     ]) {
       const source = readFileSync(join(process.cwd(), path), "utf8");
@@ -513,7 +513,7 @@ describe("share image renderer", () => {
     assert.equal(bytes[0], 0x89);
     assert.ok(bytes.length > 5000);
     const ownProfile = readFileSync(
-      join(process.cwd(), "app/profile/opengraph-image.tsx"),
+      join(process.cwd(), "app/(app)/profile/opengraph-image.tsx"),
       "utf8",
     );
     assert.match(ownProfile, /PRIVATE_OG_CACHE_CONTROL/);

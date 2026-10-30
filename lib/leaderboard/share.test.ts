@@ -50,8 +50,8 @@ describe("leaderboard share image", () => {
     assert.ok(node.length > 40);
     assert.match(node, /stripUnsupportedOgText/);
     assert.doesNotMatch(node, /<img|nfl|logo\.svg|http/i);
-    const route = read("app/leaderboard/opengraph-image.tsx");
-    const twitter = read("app/leaderboard/twitter-image.tsx");
+    const route = read("app/(app)/leaderboard/opengraph-image.tsx");
+    const twitter = read("app/(app)/leaderboard/twitter-image.tsx");
     assert.match(route, /renderLeaderboardOg/);
     assert.match(route, /leaderboardShareModel/);
     assert.match(twitter, /opengraph-image/);

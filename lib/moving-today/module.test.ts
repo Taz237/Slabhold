@@ -769,7 +769,7 @@ describe("See all", () => {
   });
 
   it("keeps the URL, reads ?dir= and ?sport=, never redirects when empty, and keeps the OG images", () => {
-    const page = read("app/moving-today/page.tsx");
+    const page = read("app/(app)/moving-today/page.tsx");
     assert.match(page, /searchParams/);
     assert.match(page, /parseDirection\(params\.dir\)/);
     assert.match(page, /parseSport\(params\.sport\)/);
@@ -777,8 +777,8 @@ describe("See all", () => {
     assert.doesNotMatch(page, /if \(!shouldShowMovingToday\(payload\.sales\)\) redirect/);
     assert.match(page, /MovingTodayAll/);
     assert.match(page, /force-dynamic/);
-    assert.match(read("app/moving-today/opengraph-image.tsx"), /renderMovingTodayOg/);
-    assert.match(read("app/moving-today/twitter-image.tsx"), /opengraph-image/);
+    assert.match(read("app/(app)/moving-today/opengraph-image.tsx"), /renderMovingTodayOg/);
+    assert.match(read("app/(app)/moving-today/twitter-image.tsx"), /opengraph-image/);
     const component = read("components/moving-today-page.tsx");
     assert.match(component, /sticky top-\[var\(--app-header-h\)\]/);
     assert.match(component, /bg-\[var\(--chrome-bg\)\] backdrop-blur-xl/);
@@ -887,7 +887,7 @@ describe("Moving today cache", () => {
     assert.match(route, /getMovingToday/);
     assert.match(route, /movingTodayCacheControl/);
     assert.match(route, /private, no-store/);
-    const home = read("app/page.tsx");
+    const home = read("app/(app)/page.tsx");
     assert.match(home, /export const revalidate = 1800/);
     assert.doesNotMatch(home, /cookies\(|no-store|connection\(/);
     assert.match(load, /freshenMovingToday/);
@@ -901,7 +901,7 @@ describe("Moving today cache", () => {
     assert.doesNotMatch(slot, /connection\(/);
     assert.match(slot, /<MovingToday \/>/);
     assert.match(slot, /MovingTodayCached payload=\{movers\}/);
-    assert.match(read("app/page.tsx"), /export const revalidate = 1800/);
+    assert.match(read("app/(app)/page.tsx"), /export const revalidate = 1800/);
     assert.match(load, /sold_comps_cache/);
     assert.match(load, /\["moving-today-v3"\]/);
     assert.doesNotMatch(load, /moving-today-v2/);
@@ -910,7 +910,7 @@ describe("Moving today cache", () => {
     assert.match(load, /MOVING_MONTH_DAYS/);
     assert.match(load, /readNewestPublicCards\(admin, MOVING_PUBLIC_CAP\)/);
     assert.match(load, /updatedAt/);
-    const page = read("app/moving-today/page.tsx");
+    const page = read("app/(app)/moving-today/page.tsx");
     assert.match(page, /generateMetadata/);
     assert.match(page, /payload\.title/);
     assert.doesNotMatch(page, /export const metadata/);

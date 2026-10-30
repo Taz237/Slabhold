@@ -333,7 +333,7 @@ describe("captcha load failure", () => {
       assert.doesNotMatch(source, /Tap the box above/);
     }
 
-    const privacy = read("app/privacy/page.tsx");
+    const privacy = read("app/(app)/privacy/page.tsx");
     assert.match(
       privacy,
       /We use Cloudflare Turnstile on sign-up, log-in and password reset forms to block bots\.\s+Cloudflare processes your IP address and browser signals for this check\./,

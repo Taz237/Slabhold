@@ -85,7 +85,7 @@ describe("Badge", () => {
       "components/badges/badge-reveal.tsx",
       "components/badges/achievements-view.tsx",
       "components/badges/profile-badge-strip.tsx",
-      "app/u/[username]/badges/page.tsx",
+      "app/(app)/u/[username]/badges/page.tsx",
     ];
     for (const file of files) {
       const source = readFileSync(join(process.cwd(), file), "utf8");

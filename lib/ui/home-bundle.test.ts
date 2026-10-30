@@ -13,7 +13,7 @@ function staticImports(source: string): string[] {
 
 describe("signed-out Home bundle", () => {
   it("renders the timeline only for a reader, from its own chunk", () => {
-    const page = read("app/page.tsx");
+    const page = read("app/(app)/page.tsx");
     assert.doesNotMatch(page, /feed-view|moving-today-slot|"@\/components\/moving-today"|<FeedView|<MovingToday[ />]/);
     assert.match(page, /<HomeGate landing=\{<LandingPage founder=\{founder\} \/>\} movers=\{payload\} \/>/);
 
@@ -64,14 +64,6 @@ describe("signed-out Home bundle", () => {
     assert.ok(!staticImports(lazy).includes("./browser"));
     const provider = read("components/social-provider.tsx");
     assert.match(provider, /^if \(sessionHinted\(\)\) void loadSupabaseBrowser\(\);$/m);
-  });
-
-  it("never boots supabase-js or the snapshot for a visitor on signed-out Home", () => {
-    const provider = read("components/social-provider.tsx");
-    assert.match(provider, /const engineStarted = useEngineStart\(\);/);
-    const boot = provider.slice(provider.indexOf("// supabase-js loads in its own chunk") - 600, provider.indexOf("// supabase-js loads in its own chunk"));
-    assert.match(boot, /if \(!engineStarted\) return;/);
-    assert.match(provider, /\}, \[engineStarted\]\);/);
   });
 
   it("defers signed-out realtime and card prices to the first idle moment", () => {

@@ -187,9 +187,9 @@ describe("manifest", () => {
 describe("auth pages", () => {
   it("does not poll on an interval of our own", () => {
     for (const path of [
-      "app/login/page.tsx",
-      "app/signup/page.tsx",
-      "app/forgot-password/page.tsx",
+      "app/(app)/login/page.tsx",
+      "app/(app)/signup/page.tsx",
+      "app/(app)/forgot-password/page.tsx",
       "components/auth-form.tsx",
       "components/forgot-password-form.tsx",
       "components/captcha.tsx",

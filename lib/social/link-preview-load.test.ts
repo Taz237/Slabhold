@@ -210,7 +210,7 @@ describe("share image loaders", () => {
     assert.doesNotMatch(source, /private card keeps its photo and name/i);
     assert.match(source, /valueLabel: null/);
 
-    const ownProfile = read("app/profile/opengraph-image.tsx");
+    const ownProfile = read("app/(app)/profile/opengraph-image.tsx");
     assert.match(ownProfile, /loadOwnProfilePreview/);
     assert.match(ownProfile, /PRIVATE_OG_CACHE_CONTROL/);
     assert.equal(PRIVATE_OG_CACHE_CONTROL, "private, no-store");
@@ -334,12 +334,12 @@ describe("share image loaders", () => {
     });
 
     try {
-      for (const page of ["app/cards/[id]/page.tsx", "app/u/[username]/cards/[id]/page.tsx"]) {
+      for (const page of ["app/(app)/cards/[id]/page.tsx", "app/(app)/u/[username]/cards/[id]/page.tsx"]) {
         const source = read(page);
         assert.match(source, /withCardOgImage\(\s*previewMetadata\(preview\),\s*cardOgImagePath\(/);
         assert.doesNotMatch(source, /loadCardShareImage/);
       }
-      assert.match(read("app/u/[username]/cards/[id]/page.tsx"), /cardOgImagePath\(id, preview\.updatedAt, username\)/);
+      assert.match(read("app/(app)/u/[username]/cards/[id]/page.tsx"), /cardOgImagePath\(id, preview\.updatedAt, username\)/);
 
       const generic = cardShareImage({ found: false });
       const privateImage = await loadCardShareImage(privateId);
@@ -474,8 +474,8 @@ describe("badge share page loader", () => {
 
   it("the page and its images 404 when the loader finds nothing", () => {
     for (const path of [
-      "app/u/[username]/badges/[category]/[tier]/page.tsx",
-      "app/u/[username]/badges/[category]/[tier]/opengraph-image.tsx",
+      "app/(app)/u/[username]/badges/[category]/[tier]/page.tsx",
+      "app/(app)/u/[username]/badges/[category]/[tier]/opengraph-image.tsx",
     ]) {
       assert.match(read(path), /if \(!view\) notFound\(\)/, path);
     }

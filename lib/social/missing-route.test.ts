@@ -277,7 +277,7 @@ describe("styled missing pages", () => {
       assert.equal((await rsc.text()).includes("<html"), false);
       assert.notEqual(rsc.headers.get("content-type"), "text/html; charset=utf-8");
 
-      const notFound = readFileSync(join(process.cwd(), "app/not-found.tsx"), "utf8");
+      const notFound = readFileSync(join(process.cwd(), "components/not-found-view.tsx"), "utf8");
       assert.match(notFound, /className=/);
       assert.match(notFound, /href="\/"/);
       assert.match(notFound, /Page not found/);

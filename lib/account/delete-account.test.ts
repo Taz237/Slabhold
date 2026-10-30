@@ -259,7 +259,7 @@ describe("account delete", () => {
       false,
     );
 
-    const privacy = readFileSync(join(process.cwd(), "app/privacy/page.tsx"), "utf8");
+    const privacy = readFileSync(join(process.cwd(), "app/(app)/privacy/page.tsx"), "utf8");
     assert.match(
       privacy,
       /Notifications you caused for other people stay in their inbox, but your name and any preview of what you wrote are removed\./,

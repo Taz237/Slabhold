@@ -1,5 +1,5 @@
 /**
- * Guard signed-out Home's first-load JS.
+ * Guard first-load JS on the key routes.
  *
  * Reads .next/diagnostics/route-bundle-stats.json from `next build`, gzips each
  * first-load chunk of the guarded routes, and compares the total to
@@ -17,11 +17,14 @@ import { gzipSync } from "node:zlib";
 /** Allowed growth over the baseline: 10%. */
 export const TOLERANCE = 0.1;
 
-/** Routes that fail the check. Signed-out Home is the first screen most visitors see. */
-export const GUARDED_ROUTES = ["/"];
+/**
+ * Routes that fail the check. /welcome is signed-out Home (proxy.ts serves it
+ * at /), the first screen most visitors see.
+ */
+export const GUARDED_ROUTES = ["/welcome", "/collection", "/cards/[id]", "/u/[username]/cards/[id]"];
 
-/** Printed for reference, never failed on. */
-export const REPORTED_ROUTES = ["/collection", "/cards/[id]", "/u/[username]/cards/[id]", "/posts/[id]", "/login"];
+/** Printed for reference, never failed on. / is signed-in Home. */
+export const REPORTED_ROUTES = ["/", "/posts/[id]", "/login"];
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const statsPath = join(root, ".next", "diagnostics", "route-bundle-stats.json");

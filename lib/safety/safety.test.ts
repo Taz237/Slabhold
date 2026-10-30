@@ -315,7 +315,7 @@ describe("notification inserts ignore mutes", () => {
 describe("support email", () => {
   it("shows the support address as a mailto link on terms", () => {
     const support = readFileSync(join(process.cwd(), "lib/support.ts"), "utf8");
-    const terms = readFileSync(join(process.cwd(), "app/terms/page.tsx"), "utf8");
+    const terms = readFileSync(join(process.cwd(), "app/(app)/terms/page.tsx"), "utf8");
     assert.match(support, /slabholdapp@gmail\.com/);
     assert.doesNotMatch(support, /TODO/);
     assert.match(terms, /Contact support:/);

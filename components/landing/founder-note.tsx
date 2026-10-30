@@ -1,8 +1,8 @@
+import { getImageProps } from "next/image";
 import { ArrowRight } from "lucide-react";
 import { LandingLink } from "@/components/landing/landing-links";
 import { Logo } from "@/components/logo";
 import { initials } from "@/lib/format";
-import { avatarImage } from "@/lib/ui/avatar-src";
 import type { FounderShowcase } from "@/lib/landing/founder";
 import { userHref } from "@/lib/social/user-href";
 
@@ -43,15 +43,19 @@ export function FounderNote({ showcase }: { showcase: FounderShowcase | null }) 
   return (
     <section aria-label="From the founder" className={BOX} data-founder-note="founder">
       {profile.avatarUrl ? (
-        // A small optimized copy (lib/ui/avatar-src.ts), drawn on the server.
+        // Unoptimized: avatars are outside the card-photos optimizer pattern.
+        // next/image's props on a plain <img>, so the server draws it with no client code.
         // eslint-disable-next-line @next/next/no-img-element
         <img
-          {...avatarImage(profile.avatarUrl, 48)}
+          {...getImageProps({
+            src: profile.avatarUrl,
+            alt: "",
+            width: 48,
+            height: 48,
+            unoptimized: true,
+            loading: "lazy",
+          }).props}
           alt=""
-          width={48}
-          height={48}
-          loading="lazy"
-          decoding="async"
           className="h-12 w-12 shrink-0 rounded-full object-cover ring-2 ring-[#7C3AED]/60"
         />
       ) : (

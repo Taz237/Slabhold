@@ -228,18 +228,19 @@ describe("landing founder touch", () => {
   });
 
   it("loads the showcase on the server through the hour cache and preloads the hero photos", () => {
-    const page = read("app/page.tsx");
-    assert.match(page, /cachedFounderShowcase\(\)/);
+    const page = read("app/(app)/page.tsx");
+    assert.match(read("lib/landing/founder-page.ts"), /cachedFounderShowcase\(\)/);
+    assert.match(read("app/welcome/page.tsx"), /await founderShowcase\(\)/);
     assert.match(page, /<HomeGate landing=\{<LandingPage founder=\{founder\} \/>\}/);
     const loader = read("lib/landing/founder-load.ts");
     assert.match(loader, /unstable_cache\(\s*loadFounderShowcase,\s*\["landing-founder"\],\s*\{\s*revalidate: 3600/);
     assert.match(read("app/api/landing/founder/route.ts"), /founderResponse\(cachedFounderShowcase\)/);
     assert.doesNotMatch(read("components/app-shell.tsx"), /<LandingPage/);
     assert.match(read("components/landing/hero-slabs.tsx"), /preload/);
-    // The founder's avatar is a small optimized copy, not the full upload.
+    // The founder's avatar keeps next/image's unoptimized props, drawn on the server.
     const note = read("components/landing/founder-note.tsx");
-    assert.match(note, /avatarImage\(profile\.avatarUrl, 48\)/);
-    assert.doesNotMatch(note, /unoptimized/);
+    assert.match(note, /from "next\/image"/);
+    assert.match(note, /unoptimized: true/);
   });
 
   it("puts the founder's 3 public card photos in the hero, best in the center", async () => {
