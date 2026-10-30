@@ -11,7 +11,7 @@ import {
   rememberInvite,
   type InviteStore,
 } from "./attribution";
-import { fetchInviteCode, inviteCode } from "./code";
+import { fetchInviteCode, inviteCode, resetInviteCode } from "./code";
 import { inviteCount } from "./count";
 
 const CODE = "0123456789abcdef0123456789abcdef";
@@ -152,6 +152,22 @@ describe("invite codes", () => {
     assert.equal(await fetchInviteCode(rpcClient({ error: { code: "PGRST202", message: "x" } }).client), null);
     assert.equal(await fetchInviteCode(rpcClient(new Error("network")).client), null);
     assert.equal(await fetchInviteCode(null), null);
+  });
+
+  it("gets a new code from reset_invite_code, and says when the daily limit is hit", async () => {
+    const NEW = "fedcba9876543210fedcba9876543210";
+    const { client, calls } = rpcClient({ data: NEW, error: null });
+    assert.deepEqual(await resetInviteCode(client), { kind: "ok", code: NEW });
+    assert.deepEqual(calls, [["reset_invite_code"]]);
+    assert.deepEqual(
+      await resetInviteCode(rpcClient({ error: { code: "P0001", message: "invite_reset_limit" } }).client),
+      { kind: "limit" },
+    );
+    assert.deepEqual(await resetInviteCode(rpcClient({ error: { code: "PGRST202", message: "x" } }).client), { kind: "missing" });
+    assert.deepEqual(await resetInviteCode(rpcClient({ data: null, error: null }).client), { kind: "failed" });
+    assert.deepEqual(await resetInviteCode(rpcClient({ data: "junk", error: null }).client), { kind: "failed" });
+    assert.deepEqual(await resetInviteCode(rpcClient(new Error("network")).client), { kind: "failed" });
+    assert.deepEqual(await resetInviteCode(null), { kind: "missing" });
   });
 });
 

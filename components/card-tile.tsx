@@ -10,6 +10,7 @@ import {
   photoSource,
   photoStatusAfter,
   showPhotoPlaceholder,
+  tilePriceSlot,
   yearSetLine,
   type PhotoStatus,
   type TileGain,
@@ -63,6 +64,7 @@ export function CardTile({
   ariaLabel,
   priceLabel,
   pricePending = false,
+  noValue = true,
   gain = null,
   chip = null,
   sold = false,
@@ -86,6 +88,11 @@ export function CardTile({
   ariaLabel?: string;
   priceLabel: string | null;
   pricePending?: boolean;
+  /**
+   * With no price, show a muted "No value yet" in the slot. False leaves it
+   * empty, for a tile whose price is shown beside it.
+   */
+  noValue?: boolean;
   gain?: TileGain | null;
   /** A neutral chip in the gain slot, e.g. "New". Shown only with no gain. */
   chip?: ReactNode;
@@ -133,6 +140,7 @@ export function CardTile({
   );
 
   const art = tileArtCard(card);
+  const price = noValue || priceLabel ? tilePriceSlot(priceLabel) : null;
   const placeholder = showPhotoPlaceholder(source, status);
   const compact = density === "compact";
 
@@ -194,12 +202,19 @@ export function CardTile({
                 className="h-4 w-16 animate-pulse rounded bg-zinc-200/80 dark:bg-white/10"
                 aria-hidden
               />
+            ) : price?.muted ? (
+              <p
+                data-no-value=""
+                className={`min-w-0 truncate ${compact ? "text-[13px]" : "text-sm"} font-medium tracking-tight text-zinc-500 dark:text-zinc-400`}
+              >
+                {price.text}
+              </p>
             ) : (
               <p
                 className={`min-w-0 truncate ${compact ? "text-[13px]" : "text-sm"} font-bold tracking-tight tabular-nums`}
-                title={priceLabel ?? undefined}
+                title={price?.text}
               >
-                {priceLabel}
+                {price?.text}
               </p>
             )}
             {gain ? <GainChip gain={gain} compact={compact} countUp={countUp} /> : chip}

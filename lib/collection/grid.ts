@@ -151,6 +151,20 @@ export function tileGain(
   };
 }
 
+export const NO_VALUE_LABEL = "No value yet";
+
+/**
+ * What a tile shows in its price slot. A missing, $0 or NaN price reads "No
+ * value yet", muted, so the slot is never blank and never a fake number.
+ */
+export function tilePriceSlot(label: string | null | undefined): { text: string; muted: boolean } {
+  const text = typeof label === "string" ? label.trim() : "";
+  if (!text || /NaN|Infinity/.test(text) || /^[^\d-]*0(?:\.0+)?$/.test(text)) {
+    return { text: NO_VALUE_LABEL, muted: true };
+  }
+  return { text, muted: false };
+}
+
 /** "Luka Dončić 2018 Prizm, PSA 10, $412.00" */
 export function tileAccessibleName(
   card: GradeFields &

@@ -5,7 +5,6 @@ import { PriceFallbackText } from "@/components/price-readout";
 import { ValueChart, type ChartDot, type ChartPoint } from "@/components/charts/value-chart";
 import { formatPct, pctTone } from "@/lib/chart/range";
 import { saleTrend, splitOutliers, vsDaysAgo, type ChartSale } from "@/lib/chart/sales";
-import { soldSourceLabel } from "@/lib/comps/public-types";
 import { snapshotDateInNewYork } from "@/lib/collection/totals-shared";
 import { money } from "@/lib/format";
 import { formatRelativeTime } from "@/lib/relative-time";
@@ -35,11 +34,19 @@ export function saleDate(ymd: string, today = snapshotDateInNewYork()): string {
   });
 }
 
-/** "$36.00 · PSA 10 · Oct 9 · Recent sold" */
+/** A tapped sale's source, short enough to share a line with "1 outlier hidden". */
+export function saleSourceShort(source: string): string {
+  return source.trim().toLowerCase() === "ebay" ? "eBay" : "Sold";
+}
+
+/** "$36.00 · PSA 10 · Oct 9" */
+export function saleLineMain(sale: ChartSale, today?: string): string {
+  return [money(sale.price), sale.grade, saleDate(sale.date, today)].filter(Boolean).join(" · ");
+}
+
+/** "$36.00 · PSA 10 · Oct 9 · eBay" */
 export function saleLine(sale: ChartSale, today?: string): string {
-  return [money(sale.price), sale.grade, saleDate(sale.date, today), sale.source ? soldSourceLabel(sale.source) : null]
-    .filter(Boolean)
-    .join(" · ");
+  return [saleLineMain(sale, today), sale.source ? saleSourceShort(sale.source) : null].filter(Boolean).join(" · ");
 }
 
 /**
@@ -103,7 +110,7 @@ export function SalesChart({
   const live = usingLive || lockedToComps;
   const showSample = !lockedToComps && (sample || source === "sample" || source === "off");
 
-  const sales = useMemo(
+  const sales = useMemo<ChartSale[]>(
     () => (live ? (salesProp ?? (pointsProp ?? []).map((point, index) => ({ id: `p${index}`, price: point.value, date: point.date }))) : []),
     [live, salesProp, pointsProp],
   );
@@ -231,16 +238,24 @@ export function SalesChart({
 
       {showPlot || stableLayout ? (
         <div className="mt-3">
-          <div className="flex min-h-6 items-center justify-between gap-3 text-xs leading-5" aria-live="polite">
+          {/* Fixed height, one line: tapping a sale never moves the chart. */}
+          <div
+            data-sale-row=""
+            className="flex h-6 items-center justify-between gap-3 overflow-hidden text-xs leading-5 whitespace-nowrap"
+            aria-live="polite"
+          >
             {showSample ? (
-              <span className="text-zinc-500 dark:text-zinc-400">Sample history from recent months</span>
+              <span className="min-w-0 truncate text-zinc-500 dark:text-zinc-400">Sample history from recent months</span>
             ) : selected ? (
-              // Wraps to a second line before it would ever cut off the source.
-              <span className="line-clamp-2 min-w-0 font-semibold tabular-nums">{saleLine(selected, today)}</span>
+              // Only the price, grade and date can truncate. The source always shows.
+              <span className="flex min-w-0 items-center gap-1 font-semibold tabular-nums">
+                <span className="min-w-0 truncate">{saleLineMain(selected, today)}</span>
+                {selected.source ? <span className="shrink-0">· {saleSourceShort(selected.source)}</span> : null}
+              </span>
             ) : showPlot && trend.length < 2 ? (
-              <span className="text-zinc-500 dark:text-zinc-400">{moreSalesText(split.inliers.length)}</span>
+              <span className="min-w-0 truncate text-zinc-500 dark:text-zinc-400">{moreSalesText(split.inliers.length)}</span>
             ) : showPlot ? (
-              <span className="text-zinc-500 dark:text-zinc-400">Tap a sale to see it</span>
+              <span className="min-w-0 truncate text-zinc-500 dark:text-zinc-400">Tap a sale to see it</span>
             ) : (
               <span>&nbsp;</span>
             )}

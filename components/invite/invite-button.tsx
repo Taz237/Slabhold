@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { UserPlus } from "lucide-react";
 import { useShareSheet, type ShareTarget } from "@/components/share-sheet";
 import { useSocial } from "@/components/social-provider";
@@ -19,6 +19,9 @@ export function inviteTarget(username: string, code: string | null = null): Shar
 
 // One read per signed-in user per page load. A miss is forgotten so the next mount retries.
 const codes = new Map<string, Promise<string | null>>();
+// Bumped when a code is replaced, so every mounted entry point reads the new one.
+const listeners = new Set<() => void>();
+let version = 0;
 
 function loadInviteCode(userId: string): Promise<string | null> {
   let pending = codes.get(userId);
@@ -32,28 +35,48 @@ function loadInviteCode(userId: string): Promise<string | null> {
   return pending;
 }
 
+/** After a reset: every invite entry point on the page shares the new code. */
+export function replaceInviteCode(userId: string, code: string) {
+  codes.set(userId, Promise.resolve(code));
+  version += 1;
+  listeners.forEach((listener) => listener());
+}
+
+function subscribe(listener: () => void) {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+}
+
 /**
  * Your invite code, read as soon as an invite entry point mounts so the link is
  * ready by the time you tap. Null in local mode, before the migration, or
  * while it loads; the link then has no code and gets no follow-back.
  */
-function useInviteCode(): string | null {
+export function useInviteCode(): { code: string | null; loading: boolean } {
   const { mode, user } = useSocial();
   const userId = mode === "supabase" ? (user?.id ?? null) : null;
-  const [loaded, setLoaded] = useState<{ userId: string; code: string | null } | null>(null);
+  const current = useSyncExternalStore(subscribe, () => version, () => 0);
+  const [loaded, setLoaded] = useState<{ userId: string; version: number; code: string | null } | null>(null);
 
   useEffect(() => {
     if (!userId) return;
     let cancelled = false;
     void loadInviteCode(userId).then((code) => {
-      if (!cancelled) setLoaded({ userId, code });
+      if (!cancelled) setLoaded({ userId, version: current, code });
     });
     return () => {
       cancelled = true;
     };
-  }, [userId]);
+  }, [userId, current]);
 
-  return loaded && loaded.userId === userId ? loaded.code : null;
+  const ready = loaded && loaded.userId === userId ? loaded : null;
+  return {
+    // A replaced code shows at once; the old one is never shared after a reset.
+    code: ready && ready.version === current ? ready.code : null,
+    loading: Boolean(userId) && !(ready && ready.version === current),
+  };
 }
 
 /**
@@ -61,7 +84,7 @@ function useInviteCode(): string | null {
  * a phone. On a computer, or when sharing fails, our sheet: Post on X and Copy link.
  */
 export function useInviteShare(username: string) {
-  const code = useInviteCode();
+  const { code } = useInviteCode();
   return useShareSheet(inviteTarget(username, code));
 }
 
