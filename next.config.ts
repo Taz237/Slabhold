@@ -27,6 +27,20 @@ const nextConfig: NextConfig = {
     imageSizes: [256, 384],
     minimumCacheTTL: 60 * 60 * 24 * 31,
   },
+  // The push service worker must never be served stale, so a fix reaches
+  // every installed app on its next open.
+  async headers() {
+    return [
+      {
+        source: "/sw.js",
+        headers: [
+          { key: "Cache-Control", value: "no-cache" },
+          { key: "Content-Type", value: "application/javascript; charset=utf-8" },
+          { key: "Service-Worker-Allowed", value: "/" },
+        ],
+      },
+    ];
+  },
   async redirects() {
     return [
       {

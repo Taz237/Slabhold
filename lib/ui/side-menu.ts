@@ -25,6 +25,7 @@ export const SIDE_MENU_ITEMS = [
 
 /** Below the divider. Log out is a button after these. */
 export const SIDE_MENU_SETTINGS = [
+  { href: "/settings/notifications", label: "Notifications" },
   { href: "/settings/privacy", label: "Privacy & safety" },
   { href: "/settings/collecting", label: "Collecting settings" },
   { href: "/about", label: "About" },

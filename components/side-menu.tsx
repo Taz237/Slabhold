@@ -15,6 +15,7 @@ import {
 import { createPortal } from "react-dom";
 import {
   Award,
+  Bell,
   Camera,
   Compass,
   FileText,
@@ -71,6 +72,7 @@ const ITEM_ICONS: Record<string, LucideIcon> = {
   "/cards/new": Camera,
   "/leaderboard": Trophy,
   [INVITE_MENU_HREF]: UserPlus,
+  "/settings/notifications": Bell,
   "/settings/privacy": ShieldCheck,
   "/settings/collecting": SlidersHorizontal,
   "/about": Info,
