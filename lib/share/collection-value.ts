@@ -4,10 +4,13 @@ import { areaPath, downsample, smoothStepPath } from "@/lib/chart/path";
 import {
   availableRanges,
   changeText,
+  changeTone,
+  chartReady,
   pickRange,
   pointsInRange,
   rangeChange,
   RANGES,
+  type ChangeTone,
   type RangeId,
 } from "@/lib/chart/range";
 import { valueScale } from "@/lib/chart/scale";
@@ -42,6 +45,8 @@ export type CollectionValueShare = {
   value: string;
   change: string;
   up: boolean;
+  /** Line and chip color. Exactly no change is neutral. */
+  tone: ChangeTone;
   headline: string;
   rangeLabel: string;
   line: string;
@@ -50,8 +55,8 @@ export type CollectionValueShare = {
 
 /**
  * The share card: value, the selected range's change, the line, @handle and
- * slabhold.app. Uses the same range math as the chart on screen. Null below
- * two saved days.
+ * slabhold.app. Uses the same range math as the chart on screen. Null until
+ * the chart on screen would draw (one saved day plus today is not enough).
  */
 export function collectionValueShareModel(input: {
   username: string;
@@ -64,6 +69,7 @@ export function collectionValueShareModel(input: {
   const all = input.rows
     .map((row) => ({ date: row.snapshot_date, value: row.value }))
     .sort((a, b) => a.date.localeCompare(b.date));
+  if (!chartReady(all)) return null;
   const available = availableRanges(all, input.today);
   if (!available.length) return null;
   const range = pickRange(available, input.range);
@@ -93,6 +99,7 @@ export function collectionValueShareModel(input: {
     value: money(last.value),
     change: changeText(change, range, points[0].date),
     up: change.up,
+    tone: changeTone(change),
     headline,
     rangeLabel: RANGES.find((item) => item.id === range)?.label ?? "",
     line,

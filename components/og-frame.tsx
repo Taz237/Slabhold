@@ -644,7 +644,7 @@ export async function renderLeaderboardOg(model: LeaderboardShareModel) {
  * range change, the line, @handle and slabhold.app. Signed-in owner only.
  */
 export function renderCollectionValueOg(model: CollectionValueShare, cacheControl = PRIVATE_OG_CACHE_CONTROL) {
-  const tone = model.up ? "#34d399" : "#fb7185";
+  const tone = model.tone === "up" ? "#34d399" : model.tone === "down" ? "#fb7185" : "#a1a1aa";
   const chart = `<svg xmlns="http://www.w3.org/2000/svg" width="${SHARE_CHART.width}" height="${SHARE_CHART.height}" viewBox="0 0 ${SHARE_CHART.width} ${SHARE_CHART.height}"><defs><linearGradient id="f" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${tone}" stop-opacity=".32"/><stop offset="1" stop-color="${tone}" stop-opacity="0"/></linearGradient></defs><path d="${model.area}" fill="url(#f)"/><path d="${model.line}" fill="none" stroke="${tone}" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
   const chartSrc = `data:image/svg+xml;base64,${Buffer.from(chart).toString("base64")}`;
   return new ImageResponse(
@@ -679,7 +679,12 @@ export function renderCollectionValueOg(model: CollectionValueShare, cacheContro
                 fontSize: 32,
                 fontWeight: 700,
                 color: tone,
-                background: model.up ? "rgba(52,211,153,0.14)" : "rgba(251,113,133,0.14)",
+                background:
+                  model.tone === "up"
+                    ? "rgba(52,211,153,0.14)"
+                    : model.tone === "down"
+                      ? "rgba(251,113,133,0.14)"
+                      : "rgba(161,161,170,0.14)",
               }}
             >
               {model.change}

@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import { after, describe, it } from "node:test";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { JSDOM } from "jsdom";
 import { act, createElement } from "react";
 import { createRoot } from "react-dom/client";
@@ -202,7 +204,7 @@ describe("SalesChart", () => {
         },
       }),
     );
-    assert.match(host.textContent ?? "", /\$36\.00 · PSA 10 · Oct 5, 2026 · Recent sold/);
+    assert.match(host.textContent ?? "", /\$36\.00 · PSA 10 · Oct 5(, 2026)? · Recent sold/);
     const svg = host.querySelector("svg");
     assert.ok(svg);
     // Oct 21 is the last dot, at the right edge.
@@ -215,6 +217,15 @@ describe("SalesChart", () => {
   it("asks for more sales instead of drawing a broken trend with one or two", () => {
     assert.equal(moreSalesText(1), "Needs 2 more sales to show a trend");
     assert.equal(moreSalesText(2), "Needs 1 more sale to show a trend");
-    assert.equal(saleLine({ id: "x", price: 36, date: "2026-10-09" }), "$36.00 · Oct 9, 2026");
+    assert.equal(saleLine({ id: "x", price: 36, date: "2026-10-09" }, "2026-10-30"), "$36.00 · Oct 9");
+    assert.equal(saleLine({ id: "x", price: 36, date: "2025-12-29" }, "2026-10-30"), "$36.00 · Dec 29, 2025");
+  });
+
+  it("keeps the source on a tapped sale: short date, and it wraps instead of cutting off", () => {
+    const line = saleLine({ id: "x", price: 37, date: "2026-10-10", grade: "PSA 10", source: "ebay" }, "2026-10-30");
+    assert.equal(line, "$37.00 · PSA 10 · Oct 10 · Recent sold");
+    const source = readFileSync(join(process.cwd(), "components/sales-chart.tsx"), "utf8");
+    assert.match(source, /line-clamp-2[^"]*">\{saleLine\(selected, today\)\}/);
+    assert.doesNotMatch(source, /truncate[^"]*">\{saleLine/);
   });
 });

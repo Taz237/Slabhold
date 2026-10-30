@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { memo, useCallback, useMemo, useState, type ReactNode } from "react";
-import { Share, TrendingDown, TrendingUp } from "lucide-react";
+import { Minus, Share, TrendingDown, TrendingUp } from "lucide-react";
 import { AddCardLink } from "@/components/add-card-link";
 import { CardThumb } from "@/components/card-thumb";
 import { ValueChart, type ChartPoint } from "@/components/charts/value-chart";
@@ -10,8 +10,11 @@ import { shareCollectionValue } from "@/components/collection-value-share";
 import {
   availableRanges,
   changeAmount,
+  changeTone,
+  chartReady,
   chartSummary,
   formatPct,
+  pctTone,
   pickRange,
   pointsInRange,
   rangeChange,
@@ -19,6 +22,7 @@ import {
   RANGES,
   readStoredRange,
   writeStoredRange,
+  type ChangeTone,
   type RangeChange,
   type RangeId,
 } from "@/lib/chart/range";
@@ -96,6 +100,13 @@ const tile =
 const label = "font-mono text-[10.5px] font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400";
 const upText = "text-emerald-700 dark:text-emerald-400";
 const downText = "text-rose-700 dark:text-rose-400";
+/** Change chips: green up, red down, gray for exactly no change. */
+const CHIP: Record<ChangeTone, string> = {
+  up: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400",
+  down: "bg-rose-500/15 text-rose-700 dark:text-rose-400",
+  flat: "bg-zinc-500/15 text-zinc-600 dark:text-zinc-400",
+};
+const CHIP_ICON: Record<ChangeTone, typeof TrendingUp> = { up: TrendingUp, down: TrendingDown, flat: Minus };
 
 /** Collection value, the chart and ranges, then a 2×2 of stats and Top movers. */
 export function PortfolioHero(props: PortfolioHeroProps) {
@@ -211,13 +222,13 @@ const CollectionValueCard = memo(function CollectionValueCard({
   const points = useMemo(() => pointsInRange(allPoints, range, today), [allPoints, range, today]);
   const change = rangeChange(points);
   const firstDate = points[0]?.date ?? "";
-  const tone = change && !change.up ? "down" : "up";
+  const tone = changeTone(change);
   const onScrub = useCallback((point: ChartPoint | null) => setScrub(point), []);
 
   const scrubChange: RangeChange | null = scrub && points.length ? rangeChange([points[0], scrub]) : null;
   const headline = scrub ? scrub.value : collectionValue;
   const loading = valuesLoading || snapshots.loading;
-  const canChart = allPoints.length >= 2;
+  const canChart = chartReady(allPoints);
   const ariaLabel = chartSummary("Collection value", collectionValue, change, range, firstDate);
   const countText = `${cardCount} card${cardCount === 1 ? "" : "s"}`;
 
@@ -237,6 +248,8 @@ const CollectionValueCard = memo(function CollectionValueCard({
   }
 
   const shownChange = scrub ? scrubChange : change;
+  const shownTone = changeTone(shownChange);
+  const ChipIcon = CHIP_ICON[shownTone];
 
   return (
     <section
@@ -279,32 +292,22 @@ const CollectionValueCard = memo(function CollectionValueCard({
           </p>
         )}
 
-        <div className="mt-2 flex min-h-6 flex-wrap items-center gap-2">
+        {/* Fixed height, one line: scrubbing never moves the chart. What a scrubbed day added is labeled on the chart. */}
+        <div className="mt-2 flex h-6 items-center gap-2 overflow-hidden whitespace-nowrap" data-slot="hero-change">
           {valuesLoading ? (
             <span className="block h-5 w-36 animate-pulse rounded-full bg-zinc-200/70 dark:bg-white/[0.06]" aria-hidden />
-          ) : liveReady && shownChange ? (
+          ) : liveReady && shownChange && canChart ? (
             <>
               <span
-                data-gain={shownChange.up ? "up" : "down"}
-                className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums ${
-                  shownChange.up
-                    ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400"
-                    : "bg-rose-500/15 text-rose-700 dark:text-rose-400"
-                }`}
+                data-gain={shownTone}
+                className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums ${CHIP[shownTone]}`}
               >
-                {shownChange.up ? (
-                  <TrendingUp className="h-3.5 w-3.5" aria-hidden />
-                ) : (
-                  <TrendingDown className="h-3.5 w-3.5" aria-hidden />
-                )}
+                <ChipIcon className="h-3.5 w-3.5" aria-hidden />
                 {changeAmount(shownChange)}
               </span>
-              <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
+              <span className="truncate text-xs font-medium text-zinc-500 dark:text-zinc-400">
                 {scrub ? `· ${shortDate(scrub.date)}` : rangePhrase(range, firstDate)}
               </span>
-              {scrub?.marker ? (
-                <span className="truncate text-xs font-semibold text-violet-700 dark:text-violet-300">{scrub.marker}</span>
-              ) : null}
             </>
           ) : (
             <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">{countText}</span>
@@ -530,7 +533,8 @@ function TopMovers({ movers }: { movers: Movers<HeroCard> }) {
       {movers.rows.length ? (
         <ul className="pb-1.5">
           {movers.rows.map((row) => {
-            const up = row.pct >= 0;
+            const rowTone = pctTone(row.pct);
+            const word = rowTone === "flat" ? "unchanged" : `${rowTone} ${formatPct(row.pct, false)}`;
             return (
               <li key={row.card.id}>
                 <Link
@@ -538,27 +542,31 @@ function TopMovers({ movers }: { movers: Movers<HeroCard> }) {
                   className="flex min-h-14 items-center gap-3 px-3.5 py-2 outline-none hover:bg-zinc-50 focus-visible:bg-zinc-50 dark:hover:bg-white/[0.03] dark:focus-visible:bg-white/[0.03]"
                 >
                   <CardThumb card={row.card.card} className="h-11 w-[33px] shrink-0 rounded-md" />
+                  {/* The name gets the whole row; the card line shares its row with the spark and %. */}
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-semibold">{row.card.playerName}</span>
-                    <span className="block truncate text-xs text-zinc-500 dark:text-zinc-400">{cardTitle(row.card.card)}</span>
-                  </span>
-                  {row.points.length >= 2 ? (
-                    <span className="w-12 shrink-0">
-                      <ValueChart
-                        variant="spark"
-                        points={row.points}
-                        tone={up ? "up" : "down"}
-                        height={28}
-                        ariaLabel={`${row.card.playerName}, ${up ? "up" : "down"} ${formatPct(row.pct, false)} past 30 days`}
-                      />
+                    <span className="mt-0.5 flex items-center gap-2">
+                      <span className="min-w-0 flex-1 truncate text-xs text-zinc-500 dark:text-zinc-400">
+                        {cardTitle(row.card.card)}
+                      </span>
+                      {row.points.length >= 2 ? (
+                        <span className="w-12 shrink-0">
+                          <ValueChart
+                            variant="spark"
+                            points={row.points}
+                            tone={rowTone}
+                            height={20}
+                            ariaLabel={`${row.card.playerName}, ${word} past 30 days`}
+                          />
+                        </span>
+                      ) : null}
+                      <span
+                        data-gain={rowTone}
+                        className={`w-16 shrink-0 rounded-full px-1.5 py-0.5 text-center text-xs font-semibold tabular-nums ${CHIP[rowTone]}`}
+                      >
+                        {formatPct(row.pct)}
+                      </span>
                     </span>
-                  ) : null}
-                  <span
-                    className={`w-16 shrink-0 rounded-full px-1.5 py-0.5 text-center text-xs font-semibold tabular-nums ${
-                      up ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400" : "bg-rose-500/15 text-rose-700 dark:text-rose-400"
-                    }`}
-                  >
-                    {formatPct(row.pct)}
                   </span>
                 </Link>
               </li>

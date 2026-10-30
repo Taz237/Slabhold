@@ -24,6 +24,26 @@ describe("valueScale", () => {
     assert.ok(labels.every((label) => /^\$\d+$/.test(label)), labels.join(","));
   });
 
+  it("always shows exactly 3 round labels inside the padded range, never just $0 and a top value", () => {
+    const wide = valueScale([28, 285]);
+    assert.deepEqual(wide.ticks, [50, 150, 250]);
+    assert.deepEqual(axisLabels(wide.ticks), ["$50", "$150", "$250"]);
+    for (const values of [[28, 285], [150, 210, 285], [36, 36], [1.1, 1.3], [12_000, 18_000], [4, 120, 285], [995, 1012], [0.5, 0.9]]) {
+      const { domain, ticks } = valueScale(values);
+      assert.equal(ticks.length, 3, `${values}: ${ticks}`);
+      assert.ok(ticks[0] > domain[0] && ticks[2] < domain[1], `${values}: ${ticks} in ${domain}`);
+      assert.ok(Math.abs(ticks[1] - ticks[0] - (ticks[2] - ticks[1])) < 1e-9, `${values}: evenly spaced`);
+      assert.ok(!ticks.includes(0), `${values}: ${ticks}`);
+      const labels = axisLabels(ticks);
+      assert.equal(new Set(labels).size, 3, labels.join(","));
+    }
+  });
+
+  it("keeps labels distinct for a tight range near $1K", () => {
+    const { ticks } = valueScale([995, 1012]);
+    assert.deepEqual(axisLabels(ticks), ["$1,000", "$1,005", "$1,010"]);
+  });
+
   it("pads about 10% so the line never touches the top or bottom", () => {
     const [low, high] = valueScale([100, 200]).domain;
     assert.ok(low <= 90 && low >= 80, String(low));

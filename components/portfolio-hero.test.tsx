@@ -114,6 +114,39 @@ describe("PortfolioHero hero", () => {
     assert.doesNotMatch(out, /Chart range/);
   });
 
+  it("is gray, not green, on the pill and the line when the range did not move", () => {
+    win.localStorage.clear();
+    const still = rows.map((row) => ({ ...row, value: 285 }));
+    const out = html({ snapshots: { rows: still, loading: false } });
+    assert.match(out, /data-gain="flat"[^>]*class="[^"]*zinc/);
+    assert.doesNotMatch(out, /data-gain="(up|down)"/);
+    assert.match(text(out), /\$0\.00 \(0\.0%\) past 30 days/);
+    assert.doesNotMatch(text(out), /\+0\.0%/);
+  });
+
+  it("shows the starts-today state, not a flat line then a jump, with one saved day plus today", () => {
+    win.localStorage.clear();
+    const out = html({ snapshots: { rows: [{ snapshot_date: addDays(today, -1), value: 41 }], loading: false } });
+    assert.match(text(out), /Your chart starts today/);
+    assert.doesNotMatch(out, /data-gain/);
+    assert.doesNotMatch(out, /Chart range/);
+    assert.doesNotMatch(out, /Share your collection chart/);
+  });
+
+  it("keeps the change line one fixed-height row, with no card-added text in the header", () => {
+    win.localStorage.clear();
+    const out = html({
+      cards: [{ ...fixtureCard("a", "Jordan Love", 100), createdAt: `${addDays(today, -3)}T15:00:00Z` }],
+      values: new Map([["a", okValue(285)]]),
+      cardHistory: new Map(),
+    });
+    const row = out.slice(out.indexOf('data-slot="hero-change"') - 120, out.indexOf('data-slot="hero-change"'));
+    assert.match(row, /class="[^"]*\bh-6\b[^"]*overflow-hidden/);
+    assert.doesNotMatch(row, /flex-wrap|min-h-6/);
+    const header = out.slice(0, out.indexOf('role="img"'));
+    assert.doesNotMatch(header, /violet-700[^>]*>\+ /);
+  });
+
   it("never shows $0 while values load", () => {
     const out = html({ collectionValue: 0, valuesLoading: true });
     assert.doesNotMatch(out, /\$0\.00/);
@@ -240,5 +273,15 @@ describe("PortfolioHero top movers and best card", () => {
     assert.equal((movers.match(/role="img"/g) ?? []).length, 3);
     const best = text(out.slice(out.indexOf("Best card")));
     assert.match(best, /Jordan Love \+\$80\.00/);
+  });
+
+  it("shows a mover with no change as a gray 0.0%, not green", () => {
+    win.localStorage.clear();
+    const cards = [fixtureCard("a", "Jordan Love", 40)];
+    const cardHistory = new Map([["a", [{ date: addDays(today, -20), value: 120 }, { date: today, value: 120 }]]]);
+    const out = html({ cards, values: new Map([["a", okValue(120)]]), cardHistory });
+    const movers = out.slice(out.indexOf("Top movers in your collection"));
+    assert.match(movers, /data-gain="flat"[^>]*class="[^"]*zinc[^"]*"[^>]*>0\.0%</);
+    assert.match(movers, /aria-label="Jordan Love, unchanged past 30 days"/);
   });
 });

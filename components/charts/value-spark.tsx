@@ -5,12 +5,14 @@ import { valueScale } from "@/lib/chart/scale";
 /** One value on one day. `marker` names what happened that day ("+ Jordan Love PSA 10"). */
 export type ChartPoint = { date: string; value: number; marker?: string | null };
 
-export type ChartTone = "up" | "down" | "brand" | "accent";
+export type ChartTone = "up" | "down" | "flat" | "brand" | "accent";
 
 /** Line color. Each passes 3:1 on white and on #18181B. */
 export const TONE_CLASS: Record<ChartTone, string> = {
   up: "text-emerald-600 dark:text-emerald-400",
   down: "text-rose-600 dark:text-rose-400",
+  /** Exactly no change: neutral, never green. */
+  flat: "text-zinc-500 dark:text-zinc-400",
   brand: "text-violet-600 dark:text-violet-400",
   /** Light purple on an always-dark panel (landing). */
   accent: "text-[#A78BFA]",

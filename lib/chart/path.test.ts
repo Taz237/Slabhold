@@ -54,6 +54,19 @@ describe("smoothStepPath", () => {
     assert.ok(flatEnd > 50 && flatEnd < 100, String(flatEnd));
     assert.match(path, /100 10$/);
   });
+
+  it("draws tiny daily drift as straight segments, easing only at a real jump", () => {
+    // 0.5px wiggles on a 100px range, then one 99px jump.
+    const path = smoothStepPath([
+      { x: 0, y: 100 },
+      { x: 10, y: 100.5 },
+      { x: 20, y: 100 },
+      { x: 30, y: 100.5 },
+      { x: 40, y: 1 },
+    ]);
+    assert.equal((path.match(/C/g) ?? []).length, 1);
+    assert.match(path, /^M0 100L10 100\.5L20 100L30 100\.5L/);
+  });
 });
 
 describe("areaPath", () => {

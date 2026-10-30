@@ -36,6 +36,7 @@ describe("collection value share image", () => {
       username: "taz",
       rows: [
         { snapshot_date: "2026-10-20", value: 130.58 },
+        { snapshot_date: "2026-10-29", value: 120 },
         { snapshot_date: TODAY, value: 100 },
       ],
       range: "7d",
@@ -43,12 +44,28 @@ describe("collection value share image", () => {
     });
     assert.ok(model);
     assert.equal(model.up, false);
+    assert.equal(model.tone, "down");
     assert.match(model.change, /^−\$30\.58/);
     assert.equal(model.headline, "My collection this week");
   });
 
-  it("is null with fewer than two days, so nothing empty is shared", () => {
+  it("is gray, not green, when the range did not move", () => {
+    const flat = [
+      { snapshot_date: "2026-10-27", value: 50 },
+      { snapshot_date: "2026-10-29", value: 50 },
+      { snapshot_date: TODAY, value: 50 },
+    ];
+    const model = collectionValueShareModel({ username: "taz", rows: flat, range: "7d", today: TODAY });
+    assert.ok(model);
+    assert.equal(model.tone, "flat");
+    assert.equal(model.change, "$0.00 (0.0%) since Oct 27");
+    const frame = readFileSync(join(process.cwd(), "components/og-frame.tsx"), "utf8");
+    assert.match(frame, /model\.tone === "up" \? "#34d399" : model\.tone === "down" \? "#fb7185" : "#a1a1aa"/);
+  });
+
+  it("is null until the chart would draw: one saved day plus today is not enough", () => {
     assert.equal(collectionValueShareModel({ username: "taz", rows: rows.slice(0, 1), range: "30d", today: TODAY }), null);
+    assert.equal(collectionValueShareModel({ username: "taz", rows: rows.slice(2), range: "30d", today: TODAY }), null);
     assert.equal(collectionValueShareModel({ username: "", rows, range: "30d", today: TODAY }), null);
   });
 

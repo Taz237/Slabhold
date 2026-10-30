@@ -51,16 +51,19 @@ export function monotonePath(pts: XY[]): string {
 }
 
 /**
- * Value that changes in steps (a card added): hold flat, then ease into the
- * next value over the last part of the gap. A smooth step, not a cliff.
+ * Value that changes in steps (a card added). A real jump (more than 2% of
+ * the drawn range) holds flat, then eases into the next value over a short
+ * stretch. Small daily drift is a straight segment, so flat reads flat.
  */
 export function smoothStepPath(pts: XY[], ease = 14): string {
   if (!pts.length) return "";
+  const ys = pts.map((pt) => pt.y);
+  const threshold = (Math.max(...ys) - Math.min(...ys)) * 0.02;
   let d = `M${r(pts[0].x)} ${r(pts[0].y)}`;
   for (let i = 1; i < pts.length; i++) {
     const a = pts[i - 1];
     const b = pts[i];
-    if (a.y === b.y) {
+    if (Math.abs(b.y - a.y) <= threshold) {
       d += `L${r(b.x)} ${r(b.y)}`;
       continue;
     }

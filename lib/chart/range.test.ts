@@ -3,8 +3,13 @@ import { describe, it } from "node:test";
 import {
   addDays,
   availableRanges,
+  changeAmount,
   changeText,
+  changeTone,
+  chartReady,
   chartSummary,
+  formatPct,
+  pctTone,
   pickRange,
   pointsInRange,
   rangeChange,
@@ -88,11 +93,27 @@ describe("rangeChange", () => {
     assert.ok(down.delta < 0 && (down.pct ?? 0) < 0);
   });
 
-  it("calls a flat range up (green), and leaves % out when it starts at $0", () => {
+  it("calls exactly no change neutral (gray), and leaves % out when it starts at $0", () => {
     const flat = rangeChange([{ value: 50 }, { value: 50 }]);
-    assert.equal(flat?.up, true);
+    assert.equal(changeTone(flat), "flat");
+    assert.equal(changeAmount(flat!), "$0.00 (0.0%)");
+    assert.equal(changeTone(rangeChange([{ value: 50 }, { value: 50.01 }])), "up");
+    assert.equal(changeTone(rangeChange([{ value: 50 }, { value: 49.99 }])), "down");
+    assert.equal(pctTone(0), "flat");
+    assert.equal(pctTone(0.04), "flat");
+    assert.equal(pctTone(0.05), "up");
+    assert.equal(pctTone(-2), "down");
+    assert.equal(formatPct(0), "0.0%");
+    assert.equal(formatPct(-0.01), "0.0%");
     const fromZero = rangeChange([{ value: 0 }, { value: 50 }]);
     assert.equal(fromZero?.pct, null);
+  });
+
+  it("needs more than one saved day plus today before drawing a line", () => {
+    assert.equal(chartReady([]), false);
+    assert.equal(chartReady([{ date: "2026-10-30" }]), false);
+    assert.equal(chartReady([{ date: "2026-10-29" }, { date: "2026-10-30" }]), false);
+    assert.equal(chartReady([{ date: "2026-10-28" }, { date: "2026-10-29" }, { date: "2026-10-30" }]), true);
   });
 
   it("needs two points", () => {

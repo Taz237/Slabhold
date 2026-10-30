@@ -3,11 +3,11 @@
 import { useMemo } from "react";
 import { PriceFallbackText } from "@/components/price-readout";
 import { ValueChart, type ChartDot, type ChartPoint } from "@/components/charts/value-chart";
-import { formatPct } from "@/lib/chart/range";
+import { formatPct, pctTone } from "@/lib/chart/range";
 import { saleTrend, splitOutliers, vsDaysAgo, type ChartSale } from "@/lib/chart/sales";
 import { soldSourceLabel } from "@/lib/comps/public-types";
 import { snapshotDateInNewYork } from "@/lib/collection/totals-shared";
-import { formatDate, money } from "@/lib/format";
+import { money } from "@/lib/format";
 import { formatRelativeTime } from "@/lib/relative-time";
 import { NOT_ENOUGH_SALES_LABEL } from "@/lib/value/format";
 import { mockValueHistory, type ValuePoint } from "@/lib/value-history";
@@ -23,9 +23,21 @@ export function moreSalesText(count: number): string {
   return `Needs ${missing} more sale${missing === 1 ? "" : "s"} to show a trend`;
 }
 
-/** "$36.00 · PSA 10 · Oct 9, 2026 · Recent sold" */
-export function saleLine(sale: ChartSale): string {
-  return [money(sale.price), sale.grade, formatDate(sale.date), sale.source ? soldSourceLabel(sale.source) : null]
+/** "Oct 9", with the year only when it is not this year. */
+export function saleDate(ymd: string, today = snapshotDateInNewYork()): string {
+  const [y, m, d] = ymd.slice(0, 10).split("-").map(Number);
+  if (!y || !m || !d) return "";
+  return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    ...(String(y) === today.slice(0, 4) ? {} : { year: "numeric" }),
+    timeZone: "UTC",
+  });
+}
+
+/** "$36.00 · PSA 10 · Oct 9 · Recent sold" */
+export function saleLine(sale: ChartSale, today?: string): string {
+  return [money(sale.price), sale.grade, saleDate(sale.date, today), sale.source ? soldSourceLabel(sale.source) : null]
     .filter(Boolean)
     .join(" · ");
 }
@@ -127,8 +139,9 @@ export function SalesChart({
   const estimateShown = showEstimate && live && !noSales;
   const today = snapshotDateInNewYork();
   const vs = estimateShown && displayMedian != null ? vsDaysAgo(trend, displayMedian, 30, today) : null;
-  const trendUp = trend.length >= 2 ? trend[trend.length - 1].value >= trend[0].value : true;
-  const tone = showSample ? "brand" : trend.length >= 2 ? (trendUp ? "up" : "down") : "brand";
+  const trendMove = trend.length >= 2 ? trend[trend.length - 1].value - trend[0].value : 0;
+  const tone = showSample || trend.length < 2 ? "brand" : trendMove > 0 ? "up" : trendMove < 0 ? "down" : "flat";
+  const vsTone = pctTone(vs);
   const selected = selectedSaleId ? sales.find((sale) => sale.id === selectedSaleId) : null;
   const linePoints = showSample ? samplePoints : trend;
   const showPlot = (live && sales.length > 0 && (!noSales || !showEstimate)) || (showSample && samplePoints.length > 1);
@@ -147,7 +160,7 @@ export function SalesChart({
   const ariaLabel = showSample
     ? "Sample price history"
     : `Recent sales${displayMedian != null && estimateShown ? `, median ${money(displayMedian)}` : ""}, ${sales.length} sale${sales.length === 1 ? "" : "s"}${
-        vs != null ? `, ${vs >= 0 ? "up" : "down"} ${formatPct(vs, false)} vs 30 days ago` : ""
+        vs == null ? "" : vsTone === "flat" ? ", unchanged vs 30 days ago" : `, ${vsTone} ${formatPct(vs, false)} vs 30 days ago`
       }`;
 
   if (unavailable && !loading) {
@@ -185,10 +198,13 @@ export function SalesChart({
                 <span className="text-3xl font-semibold tracking-tight tabular-nums">{money(displayMedian ?? 0)}</span>
                 {vs != null ? (
                   <span
+                    data-gain={vsTone}
                     className={`rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums ${
-                      vs >= 0
+                      vsTone === "up"
                         ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400"
-                        : "bg-rose-500/15 text-rose-700 dark:text-rose-400"
+                        : vsTone === "down"
+                          ? "bg-rose-500/15 text-rose-700 dark:text-rose-400"
+                          : "bg-zinc-500/15 text-zinc-600 dark:text-zinc-400"
                     }`}
                   >
                     vs 30 days ago: {formatPct(vs)}
@@ -215,11 +231,12 @@ export function SalesChart({
 
       {showPlot || stableLayout ? (
         <div className="mt-3">
-          <div className="flex min-h-6 items-center justify-between gap-3 text-xs" aria-live="polite">
+          <div className="flex min-h-6 items-center justify-between gap-3 text-xs leading-5" aria-live="polite">
             {showSample ? (
               <span className="text-zinc-500 dark:text-zinc-400">Sample history from recent months</span>
             ) : selected ? (
-              <span className="truncate font-semibold tabular-nums">{saleLine(selected)}</span>
+              // Wraps to a second line before it would ever cut off the source.
+              <span className="line-clamp-2 min-w-0 font-semibold tabular-nums">{saleLine(selected, today)}</span>
             ) : showPlot && trend.length < 2 ? (
               <span className="text-zinc-500 dark:text-zinc-400">{moreSalesText(split.inliers.length)}</span>
             ) : showPlot ? (

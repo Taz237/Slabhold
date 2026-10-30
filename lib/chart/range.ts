@@ -54,6 +54,29 @@ export function pointsInRange<T extends DatedValue>(points: T[], range: RangeId,
 
 export type RangeChange = { delta: number; pct: number | null; up: boolean };
 
+/** Green, red, or gray for exactly no change. */
+export type ChangeTone = "up" | "down" | "flat";
+
+/** Tone of a range change. Exactly $0 is gray, never green. */
+export function changeTone(change: { delta: number } | null | undefined): ChangeTone {
+  if (!change || change.delta === 0) return "flat";
+  return change.delta > 0 ? "up" : "down";
+}
+
+/** Tone of a % chip. Anything that reads "0.0%" is gray. */
+export function pctTone(pct: number | null | undefined): ChangeTone {
+  if (pct == null || Math.round(Math.abs(pct) * 10) === 0) return "flat";
+  return pct > 0 ? "up" : "down";
+}
+
+/**
+ * Enough saved days to draw a line. One saved day plus today would be a flat
+ * line and then a jump, so that still counts as "starts today".
+ */
+export function chartReady(points: { date: string }[]): boolean {
+  return new Set(points.map((point) => point.date)).size >= 3;
+}
+
 /** First to last of one range. `up` drives the color, from the same delta as the text. */
 export function rangeChange(points: { value: number }[]): RangeChange | null {
   if (points.length < 2) return null;
@@ -68,7 +91,7 @@ export function rangeChange(points: { value: number }[]): RangeChange | null {
 export function formatPct(pct: number, signed = true): string {
   const abs = Math.abs(pct);
   const text = abs < 100 ? (Math.round(abs * 10 + 1e-9) / 10).toFixed(1) : String(Math.round(abs));
-  if (!signed) return `${text}%`;
+  if (!signed || pctTone(pct) === "flat") return `${text}%`;
   return `${pct < 0 ? "−" : "+"}${text}%`;
 }
 
