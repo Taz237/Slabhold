@@ -12,9 +12,8 @@ import { solidButton } from "@/components/button-styles";
 import { PullToRefresh } from "@/components/pull-to-refresh";
 import { EmptyState, LoadingRows } from "@/components/status";
 import { useSocial } from "@/components/social-provider";
-import { dealNotificationHref } from "@/lib/deals/state";
 import { loginPath } from "@/lib/auth/safe-next";
-import { userHref } from "@/lib/social/user-href";
+import { groupHref } from "@/lib/social/notification-href";
 import { exactTime, timeAgo } from "@/lib/format";
 import {
   groupHeadlineParts,
@@ -24,7 +23,7 @@ import {
   type NotificationGroup,
 } from "@/lib/social/group-notifications";
 import { imagesForReplyNotice } from "@/lib/social/reply-images";
-import type { NotificationKind, Profile } from "@/lib/social/types";
+import type { NotificationKind } from "@/lib/social/types";
 
 export function NotificationsView() {
   const pathname = usePathname() || "/";
@@ -202,20 +201,6 @@ function photosOnReplyNotice(
   const note = group.notes[0];
   if (!note?.postId) return [];
   return imagesForReplyNotice(note, commentsFor(note.postId));
-}
-
-function groupHref(group: NotificationGroup, authors: Map<string, Profile>) {
-  const note = group.notes[0];
-  const actor = group.actorIds[0] ? authors.get(group.actorIds[0]) : undefined;
-  if (!note) return "/";
-  if (note.kind === "want_alert") {
-    return note.href || (note.postId ? `/posts/${note.postId}` : "/collection");
-  }
-  if (note.kind === "deal_confirm") {
-    return dealNotificationHref(note.actorId, actor?.username, note.href);
-  }
-  if (note.kind === "follow") return actor ? userHref(actor.username) : "/profile";
-  return note.postId ? `/posts/${note.postId}` : "/";
 }
 
 function groupIcon(kind: NotificationKind) {

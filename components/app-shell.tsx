@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Suspense, ViewTransition, useEffect } from "react";
+import { Suspense, ViewTransition, useEffect, useState } from "react";
 import { Bell, Camera, Compass, Mail, Search, Trophy, WalletCards } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { useSocial } from "@/components/social-provider";
@@ -48,6 +48,17 @@ const FirstRunSetup = lazyPart(() => import("@/components/onboarding/first-run-s
 const YoureIn = lazyPart(() => import("@/components/onboarding/youre-in").then((mod) => mod.YoureIn));
 const CoachTour = lazyPart(() => import("@/components/onboarding/coach-tour").then((mod) => mod.CoachTour));
 const BadgeRevealGate = lazyPart(() => import("@/components/badges/badge-reveal").then((mod) => mod.BadgeRevealGate));
+const PushManager = lazyPart(() => import("@/components/push/push-manager").then((mod) => mod.PushManager));
+
+/**
+ * Push (worker, soft-ask, badge, notification taps) for a signed-in reader.
+ * Its chunk loads only after the first idle moment, never for visitors.
+ */
+function PushAfterIdle({ user }: { user: Profile }) {
+  const [idle, setIdle] = useState(false);
+  useEffect(() => afterFirstIdle(() => setIdle(true)), []);
+  return idle ? <PushManager user={user} /> : null;
+}
 
 /** The avatar's room while the menu's chunk loads. */
 function AccountSlot() {
@@ -345,6 +356,9 @@ function Shell({
       {user ? <CoachTour userId={user.id} /> : null}
       {user && mode === "supabase" && !onboardingBusy ? (
         <BadgeRevealGate userId={user.id} username={user.username} />
+      ) : null}
+      {user && process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ? (
+        <PushAfterIdle key={user.id} user={user} />
       ) : null}
     </div>
   );

@@ -174,6 +174,12 @@ function samplePath(pattern: string): string {
 }
 
 describe("share events", () => {
+  it("keeps a push permission result from the allowed set only", () => {
+    assert.deepEqual(sanitizeProps({ result: "granted" }), { result: "granted" });
+    assert.deepEqual(sanitizeProps({ result: "add-to-home" }), { result: "add-to-home" });
+    assert.deepEqual(sanitizeProps({ result: "someone@example.com" }), {});
+  });
+
   it("keeps the share source and method from the allowed sets only", () => {
     assert.deepEqual(sanitizeProps({ source: "badge", method: "native" }), { source: "badge", method: "native" });
     assert.deepEqual(sanitizeProps({ source: "card", method: "image" }), { source: "card", method: "image" });

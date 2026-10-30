@@ -4,7 +4,7 @@ import { track, type BeforeSendEvent } from "@vercel/analytics";
  * Hobby hides custom events in the dashboard. These calls stay so an upgrade records them.
  * Only short, non-identifying values are sent.
  */
-const ALLOWED_PROP_KEYS = ["button", "utm_source", "utm_medium", "utm_campaign", "source", "method"] as const;
+const ALLOWED_PROP_KEYS = ["button", "utm_source", "utm_medium", "utm_campaign", "source", "method", "result"] as const;
 
 const BUTTONS = new Set(["signup", "login"]);
 
@@ -23,6 +23,9 @@ const SOURCES = new Set([
 
 /** How a share went out: the native sheet, X, a copied link, or a saved image. */
 const SHARE_METHODS = new Set(["native", "x", "copy", "image"]);
+
+/** A notification permission answer, or which push soft-ask card was shown. */
+const RESULTS = new Set(["granted", "denied", "default", "push", "add-to-home"]);
 
 /** 1–48 characters. Blocks emails, sentences, urls, and query strings. */
 const SAFE_TOKEN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,47}$/;
@@ -64,6 +67,10 @@ export function sanitizeProps(props: unknown): Partial<Record<AllowedKey, string
     }
     if (key === "method") {
       if (typeof value === "string" && SHARE_METHODS.has(value.trim())) safe.method = value.trim();
+      continue;
+    }
+    if (key === "result") {
+      if (typeof value === "string" && RESULTS.has(value.trim())) safe.result = value.trim();
       continue;
     }
     if (key === "source") {
@@ -131,6 +138,7 @@ export const PAGE_PATTERNS = [
   "/scan",
   "/search",
   "/settings/collecting",
+  "/settings/notifications",
   "/settings/privacy",
   "/signup",
   "/terms",

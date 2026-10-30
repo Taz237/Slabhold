@@ -110,6 +110,8 @@ import { getSupabaseConfig } from "@/lib/supabase/client";
 import type { CardValueResult } from "@/lib/value/types";
 import { useCardValues } from "@/lib/value/use-card-values";
 import { afterFirstIdle } from "@/lib/ui/idle";
+import { runSignOutHook } from "@/lib/auth/sign-out-hook";
+import { emitSocialAction } from "@/lib/social/action-signal";
 import type {
   AuthResult,
   CardMessagePreview,
@@ -787,6 +789,8 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
     forgetEmailHint();
     const client = supabaseRef.current;
     if (mode === "supabase" && client) {
+      // While the session is still valid: this device stops getting pushes.
+      await runSignOutHook();
       await remoteSignOut(client);
       await refreshRemote(client);
       return;
@@ -861,7 +865,10 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
             setStatus(result.error);
             return result;
           }
-          if (!following) pingBadgeCheck();
+          if (!following) {
+            pingBadgeCheck();
+            emitSocialAction("follow");
+          }
           await refreshRemote(client);
           setStatus(result.notice ?? null);
           return result;
@@ -872,7 +879,14 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
           return { error: message };
         }
       }
-      if (localRef.current) commitLocal(localToggleFollow(localRef.current, userId));
+      if (localRef.current) {
+        const db = localRef.current;
+        const wasFollowing = db.follows.some(
+          (edge) => edge.followerId === db.sessionUserId && edge.followingId === userId,
+        );
+        commitLocal(localToggleFollow(db, userId));
+        if (!wasFollowing) emitSocialAction("follow");
+      }
       return {};
     },
     [commitLocal, mode, refreshRemote],
@@ -899,6 +913,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
             return result;
           }
           pingBadgeCheck();
+          emitSocialAction("follow");
           await refreshRemote(client);
           setStatus(result.notice ?? null);
           return result;
@@ -936,6 +951,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
           if (!result.error) {
             trackEvent("post_created");
             pingBadgeCheck();
+            emitSocialAction("post");
             await refreshRemote(client);
             if (result.notice) setStatus(result.notice);
           }
@@ -950,6 +966,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       if (!result.error) {
         commitLocal(result.db);
         trackEvent("post_created");
+        emitSocialAction("post");
       }
       return { error: result.error, postId: result.postId };
     },
@@ -1265,6 +1282,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
               }
               // Table is not installed yet. Keep the device heart already painted.
               if (result.fallback) return;
+              if (result.liked) emitSocialAction("like");
               if (typeof result.likeCount === "number") paint(result.liked, result.likeCount);
             } catch (error) {
               if (likeGeneration.current.get(postId) !== generation) return;
@@ -1320,6 +1338,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
               reposted,
             });
             if (result.error || result.notice) setStatus(result.error ?? result.notice ?? null);
+            if (!result.error && !reposted) emitSocialAction("repost");
             await reloadRef.current(client);
           })
           .catch((error: unknown) => {
@@ -1379,6 +1398,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
               replaceComments((comments) => withoutOptimisticReply(comments, optimistic.id));
               return result;
             }
+            emitSocialAction("reply");
             try {
               await reloadRef.current(client);
               replaceComments((comments) => withoutOptimisticReply(comments, optimistic.id));
@@ -1613,7 +1633,10 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
             content,
             cardPreview,
           );
-          if (!result.error) await refreshRemote(client);
+          if (!result.error) {
+            emitSocialAction("dm");
+            await refreshRemote(client);
+          }
           return result;
         } catch (error) {
           return { error: error instanceof Error ? error.message : "Could not send that message." };
