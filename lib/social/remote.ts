@@ -268,6 +268,26 @@ async function mapPostRows(
   return rows.map((row) => mapPost(row, views.get(row.id) ?? []));
 }
 
+/**
+ * Profiles by id, mapped exactly as the site snapshot maps them. `email` is
+ * the signed-in viewer's, set on their own profile only.
+ */
+export async function loadSocialProfiles(
+  supabase: SupabaseClient,
+  ids: readonly string[],
+  viewer: { id: string; email: string } | null = null,
+): Promise<Profile[]> {
+  const unique = [...new Set(ids)].filter(Boolean);
+  if (unique.length === 0) return [];
+  const { data, error } = await loadProfileRows((columns) =>
+    supabase.from("profiles").select<string, ProfileRow>(columns).in("id", unique),
+  );
+  if (error) throw new Error(error.message);
+  return ((data ?? []) as ProfileRow[]).map((row) =>
+    mapProfile(row, viewer && row.id === viewer.id ? viewer.email : ""),
+  );
+}
+
 function mapProfile(row: ProfileRow, email = ""): Profile {
   return {
     id: row.id,

@@ -888,7 +888,9 @@ describe("Moving today cache", () => {
     assert.match(route, /movingTodayCacheControl/);
     assert.match(route, /private, no-store/);
     const home = read("app/(app)/page.tsx");
-    assert.match(home, /export const revalidate = 1800/);
+    // Home renders per request now (the signed-in first screen); the movers
+    // row keeps its own shared cache, and nothing per viewer is cached.
+    assert.doesNotMatch(home, /export const revalidate|use cache|force-static/);
     assert.doesNotMatch(home, /cookies\(|no-store|connection\(/);
     assert.match(load, /freshenMovingToday/);
     assert.match(load, /MOVING_TODAY_ERROR_CACHE_MS/);
@@ -901,7 +903,7 @@ describe("Moving today cache", () => {
     assert.doesNotMatch(slot, /connection\(/);
     assert.match(slot, /<MovingToday \/>/);
     assert.match(slot, /MovingTodayCached payload=\{movers\}/);
-    assert.match(read("app/(app)/page.tsx"), /export const revalidate = 1800/);
+    assert.doesNotMatch(read("app/(app)/page.tsx"), /export const revalidate/);
     assert.match(load, /sold_comps_cache/);
     assert.match(load, /\["moving-today-v3"\]/);
     assert.doesNotMatch(load, /moving-today-v2/);
@@ -931,7 +933,7 @@ describe("For You placement", () => {
     const tabs = feed.indexOf("<LaneTabs");
     const grouping = feed.indexOf("presentForYouFeed(visible");
     const notes = feed.indexOf("<WhatsNewCard");
-    const map = feed.indexOf("feedEntries.map");
+    const map = feed.indexOf("shownEntries.map");
     assert.ok(moving > tabs && tabs > 0);
     assert.ok(grouping > 0 && grouping < map);
     assert.ok(notes > map);

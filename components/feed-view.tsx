@@ -55,10 +55,12 @@ import {
   profileStepDone,
 } from "@/lib/social/get-started";
 import { followingAuthorIds, homeHead, showsNewPosts } from "@/lib/social/feed-page";
+import type { HomeSeed } from "@/lib/social/home-seed";
 import { presentForYouFeed } from "@/lib/social/for-you-display";
 import { addUnblockedProfiles, presentPagedItems } from "@/lib/social/paged-items";
 import { publicTimeline } from "@/lib/social/timeline";
 import { officialUpdatesUserId } from "@/lib/social/official-updates";
+import { useProgressiveRows } from "@/lib/ui/use-progressive-rows";
 import { SUGGESTION_RAIL_SIZE, inlineSuggestionPool, whoToFollowAfter } from "@/lib/ui/timeline";
 import { POST_LIMIT, type PublicCard } from "@/lib/social/types";
 
@@ -82,10 +84,23 @@ function takeComposePrefill(): string | null {
   }
 }
 
+/** Posts on a phone's first screen. Their photos load at once; the rest load as they scroll in. */
+const FIRST_SCREEN_POSTS = 2;
+
+/** Rows the server draws for Home's first screen, a little past a tall phone. */
+const SEEDED_ENTRIES = 8;
+
 /** The Home tab you were on, so coming Back from a post keeps it. */
 let rememberedLane: { userId: string; lane: HomeLane } | null = null;
 
-export function FeedView({ movingToday }: { movingToday?: ReactNode } = {}) {
+export function FeedView({
+  movingToday,
+  seed = null,
+}: {
+  movingToday?: ReactNode;
+  /** Home's first page, read on the server for this request. */
+  seed?: HomeSeed | null;
+} = {}) {
   const router = useRouter();
   const pathname = usePathname() || "/";
   const {
@@ -154,7 +169,7 @@ export function FeedView({ movingToday }: { movingToday?: ReactNode } = {}) {
       syncError,
     });
   const [lane, setLaneState] = useState<HomeLane>(() =>
-    user && rememberedLane?.userId === user.id ? rememberedLane.lane : "foryou",
+    user && rememberedLane?.userId === user.id ? rememberedLane.lane : (seed?.lane ?? "foryou"),
   );
   const setLane = useCallback(
     (next: HomeLane) => {
@@ -193,6 +208,7 @@ export function FeedView({ movingToday }: { movingToday?: ReactNode } = {}) {
     blockedIds,
     mutedIds,
     rememberPosts,
+    initial: seed?.lane === "foryou" ? seed.page : null,
   });
   const followingPage = usePagedTimeline({
     enabled: paging && Boolean(user),
@@ -203,8 +219,10 @@ export function FeedView({ movingToday }: { movingToday?: ReactNode } = {}) {
     blockedIds,
     mutedIds,
     rememberPosts,
+    initial: seed?.lane === "following" ? seed.page : null,
   });
-  if (paging && !forYouPage.loading && (capturedHead === null || capturedHead.key !== headEpoch)) {
+  // The seeded first screen has no site-wide head yet. "New posts" starts from the full snapshot.
+  if (paging && hasFullSnapshot && !forYouPage.loading && (capturedHead === null || capturedHead.key !== headEpoch)) {
     setCapturedHead({ key: headEpoch, head });
   }
   const refreshForYou = forYouPage.refresh;
@@ -225,12 +243,18 @@ export function FeedView({ movingToday }: { movingToday?: ReactNode } = {}) {
   const pickedFor = useRef<string | null>(rememberedLane?.userId ?? null);
   // The order first shown sticks, so following someone doesn't reshuffle the rail.
   const [suggestionIds, setSuggestionIds] = useState<string[] | null>(null);
+  // The rail as first drawn, so the seeded rail holds while the provider asks again.
+  const [shownSuggestions, setShownSuggestions] = useState<Map<string, (typeof suggestions)[number]> | null>(null);
   if (ready && suggestionsReady && user && suggestionIds === null && suggestions.length > 0) {
     setSuggestionIds(suggestions.map((profile) => profile.id));
+    setShownSuggestions(new Map(suggestions.map((profile) => [profile.id, profile])));
   }
   const suggestionById = new Map(suggestions.map((profile) => [profile.id, profile]));
   const rankedIds = suggestionIds ?? (suggestionsReady ? suggestions.map((profile) => profile.id) : []);
-  const suggestionFor = (id: string) => suggestionById.get(id) ?? profiles.find((profile) => profile.id === id);
+  const suggestionFor = (id: string) =>
+    suggestionById.get(id) ??
+    (suggestionsReady ? undefined : shownSuggestions?.get(id)) ??
+    profiles.find((profile) => profile.id === id);
   const suggestionRail = rankedIds
     .slice(0, SUGGESTION_RAIL_SIZE)
     .map(suggestionFor)
@@ -277,6 +301,17 @@ export function FeedView({ movingToday }: { movingToday?: ReactNode } = {}) {
     !activeLoading &&
     !activePage.error &&
     visible.length === 0;
+  // The server-drawn first screen holds only what a phone shows. The rest of
+  // the page joins below it a few rows per idle moment once the snapshot is
+  // in, so no single commit has to lay out the whole page.
+  const seededScreen = Boolean(seed) && !hasFullSnapshot;
+  const rowLimit = useProgressiveRows(feedEntries.length, {
+    enabled: Boolean(seed),
+    step: SEEDED_ENTRIES,
+    hold: seededScreen,
+  });
+  const shownEntries = feedEntries.slice(0, rowLimit);
+  const moreRows = rowLimit < feedEntries.length;
   const feedKeys = Array.from(feedEntries, (entry) => (entry.kind === "whats-new" ? entry.key : entry.item.key));
   const newAbove = useNewPostsAbove({ lane, keys: feedKeys });
   // Only posts that arrive after the feed is on screen fade in. A feed that
@@ -394,7 +429,7 @@ export function FeedView({ movingToday }: { movingToday?: ReactNode } = {}) {
             </EmptyState>
           ) : (
             <>
-              {feedEntries.map((entry, index) => {
+              {shownEntries.map((entry, index) => {
                 const whoToFollow = whoToFollowAfter(index, inlineSuggestions);
                 const inline = whoToFollow.length ? <WhoToFollowCard profiles={whoToFollow} /> : null;
                 if (entry.kind === "whats-new") {
@@ -420,13 +455,14 @@ export function FeedView({ movingToday }: { movingToday?: ReactNode } = {}) {
                         repostedBy={item.repostedBy}
                         extraPosts={activePage.relatedPosts}
                         extraProfiles={activePage.profiles}
+                        firstScreen={index < FIRST_SCREEN_POSTS}
                       />
                     </FeedItem>
                     {inline}
                   </Fragment>
                 );
               })}
-              {paging ? (
+              {paging && !seededScreen && !moreRows ? (
                 <LoadMore
                   hasMore={activePage.hasMore}
                   loading={activePage.loadingMore}

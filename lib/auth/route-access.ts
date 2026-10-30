@@ -114,3 +114,13 @@ export function routeAccess(pathname: string): RouteAccess {
 export function requiresAccount(pathname: string): boolean {
   return routeAccess(pathname) === "account";
 }
+
+/**
+ * Screens that read their signed-in viewer on the server and draw from that
+ * read before the session snapshot loads: Home, Collection and a card page.
+ */
+export function seedsViewer(pathname: string): boolean {
+  const path = pathOnly(pathname);
+  if (path === "/" || path === "/collection") return true;
+  return /^\/cards\/[^/]+$/.test(path) && path !== "/cards/new";
+}

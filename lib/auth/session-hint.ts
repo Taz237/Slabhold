@@ -1,3 +1,5 @@
+import { seedsViewer } from "./route-access";
+
 /**
  * Before the social snapshot lands nobody knows who is signed in, and
  * Home's server HTML is the landing page. A tiny script in <head> tags
@@ -16,4 +18,13 @@ export const SESSION_HINT_SCRIPT = `try{if(${SESSION_COOKIE}.test(document.cooki
 /** True when the head script saw a session cookie. Client only. */
 export function sessionHinted(): boolean {
   return typeof document !== "undefined" && document.documentElement.dataset.session !== undefined;
+}
+
+/**
+ * Signed in, on a screen drawn from the browser: fetch the signed-in code
+ * while the page hydrates. Screens the server already drew for this viewer
+ * (see seedsViewer) don't need it for their first paint, so there it waits.
+ */
+export function preloadOnHint(): boolean {
+  return sessionHinted() && !seedsViewer(window.location.pathname);
 }

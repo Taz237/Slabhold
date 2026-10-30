@@ -2,6 +2,7 @@
 
 import {
   createContext,
+  startTransition,
   useCallback,
   useContext,
   useEffect,
@@ -105,7 +106,7 @@ import {
 } from "@/lib/social/suggestion-order";
 import { unreadGroupCount } from "@/lib/social/group-notifications";
 import { followingTimeline, type TimelineItem } from "@/lib/social/timeline";
-import { sessionHinted } from "@/lib/auth/session-hint";
+import { preloadOnHint } from "@/lib/auth/session-hint";
 import { loadSupabaseBrowser } from "@/lib/supabase/browser-lazy";
 import { getSupabaseConfig } from "@/lib/supabase/client";
 import type { CardValueResult } from "@/lib/value/types";
@@ -132,7 +133,7 @@ import { draftPostPhotos, type PostWrite } from "@/lib/social/post-photos";
 import { profileReplies, profileWithPin } from "@/lib/social/profile-tabs";
 import { optimisticReply, withoutOptimisticReply } from "@/lib/social/reply-images";
 
-type SocialContextValue = {
+export type SocialContextValue = {
   ready: boolean;
   /** True after the site snapshot is in memory. A cold post page leaves this false. */
   hasFullSnapshot: boolean;
@@ -218,7 +219,8 @@ export const SocialContext = createContext<SocialContextValue | null>(null);
 
 // A session cookie says someone is signed in: start fetching the client now,
 // while the page hydrates, so the snapshot read starts as early as before.
-if (sessionHinted()) void loadSupabaseBrowser();
+// A screen the server drew for this viewer fetches it after hydration instead.
+if (preloadOnHint()) void loadSupabaseBrowser();
 
 /** Share one in-flight read across a strict-mode remount of the same route. */
 function loadOnce<T>(
@@ -354,15 +356,20 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
     await snapshotRefreshRef.current(
       () => loadSupabaseSocial(client),
       (snapshot) => {
-        if (snapshotErrorRef.current) setStatus(null);
+        const hadError = snapshotErrorRef.current;
         snapshotErrorRef.current = false;
-        setSnapshotError(false);
         fullSnapshotRef.current = true;
-        setHasFullSnapshot(true);
         const merged = mergeRememberedSnapshot(snapshot, rememberedRef.current, removedRef.current);
         appliedRemoteRef.current = merged;
-        setRemote(merged);
-        if (!postIdFromPath(window.location.pathname)) setReady(true);
+        // The whole app redraws on a new snapshot. As a transition React
+        // yields between rows, so it never blocks a tap or a frame.
+        startTransition(() => {
+          if (hadError) setStatus(null);
+          setSnapshotError(false);
+          setHasFullSnapshot(true);
+          setRemote(merged);
+          if (!postIdFromPath(window.location.pathname)) setReady(true);
+        });
       },
     );
   }, []);
@@ -534,7 +541,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
         void loadRealtimePatch(client, slices, { viewerId, postId: currentPost })
           .then((patch) => {
             if (cancelled) return;
-            setRemote((existing) => applyRealtimePatch(existing, patch));
+            startTransition(() => setRemote((existing) => applyRealtimePatch(existing, patch)));
           })
           .catch(fail);
       },
@@ -660,7 +667,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
     let cancelled = false;
     const key = suggestionKey;
     void loadServerSuggestions(client).then((rows) => {
-      if (!cancelled) setSuggestionResult({ key, rows });
+      if (!cancelled) startTransition(() => setSuggestionResult({ key, rows }));
     });
     return () => {
       cancelled = true;
@@ -1466,7 +1473,10 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
         })
         .finally(() => {
           const snapshotError = snapshotErrorRef.current || snapshotFailed;
-          if (alive() && (fullSnapshotRef.current || snapshotError)) setReady(true);
+          if (!alive() || !(fullSnapshotRef.current || snapshotError)) return;
+          // Same lane as the snapshot itself, so ready never lands before it.
+          if (snapshotError) setReady(true);
+          else startTransition(() => setReady(true));
         });
       return;
     }

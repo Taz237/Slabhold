@@ -9,9 +9,12 @@ const PHOTO_FRAME =
 export function PostPhotoGrid({
   images,
   onOpen,
+  eager = false,
 }: {
   images: readonly string[];
   onOpen: (src: string, alt: string, gallery?: readonly string[]) => void;
+  /** On the first screen: fetched at once instead of lazily. */
+  eager?: boolean;
 }) {
   const photos = imagesFromPost({ images });
   if (!photos.length) return null;
@@ -32,7 +35,8 @@ export function PostPhotoGrid({
         <img
           src={photos[0]}
           alt=""
-          loading="lazy"
+          loading={eager ? "eager" : "lazy"}
+          fetchPriority={eager ? "high" : "auto"}
           decoding="async"
           className="aspect-square max-h-80 w-full object-cover"
         />
@@ -59,7 +63,13 @@ export function PostPhotoGrid({
           className={`relative block min-h-0 w-full cursor-zoom-in scroll-mb-[calc(14rem+env(safe-area-inset-bottom))] overflow-hidden ${postPhotoCellClass(photos.length, index)}`}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={src} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
+          <img
+            src={src}
+            alt=""
+            loading={eager ? "eager" : "lazy"}
+            decoding="async"
+            className="h-full w-full object-cover"
+          />
         </button>
       ))}
     </div>

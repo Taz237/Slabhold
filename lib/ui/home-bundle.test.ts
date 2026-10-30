@@ -47,7 +47,9 @@ describe("signed-out Home bundle", () => {
     // A visitor's Log in slot stays static, so public pages draw the same on the server.
     assert.ok(imports.includes("@/components/guest-account"));
     assert.match(shell, /\{user \? <AccountMenu user=\{user\} showLogin=\{showLogin\} \/> : <GuestAccount showLogin=\{showLogin\} \/>\}/);
-    assert.match(shell, /^if \(sessionHinted\(\)\) \{\s*for \(const part of \[AccountMenu, CreateMenu\]\) void part\.preload\(\)/m);
+    assert.match(shell, /^if \(sessionHinted\(\)\) \{[\s\S]*?for \(const part of \[AccountMenu, CreateMenu\]\) void part\.preload\(\)/m);
+    // A screen the server drew for this viewer fetches its menus at the first idle moment instead.
+    assert.match(shell, /if \(preloadOnHint\(\)\) preloadMenus\(\);\s*else afterFirstIdle\(preloadMenus\);/);
     assert.match(shell, /afterFirstIdle\(\(\) => \{\s*for \(const part of \[FirstRunSetup, YoureIn, CoachTour, BadgeRevealGate\]\)/);
     assert.doesNotMatch(shell, /from "next\/dynamic"/);
   });
@@ -63,7 +65,7 @@ describe("signed-out Home bundle", () => {
     assert.match(lazy, /import\("\.\/browser"\)/);
     assert.ok(!staticImports(lazy).includes("./browser"));
     const provider = read("components/social-provider.tsx");
-    assert.match(provider, /^if \(sessionHinted\(\)\) void loadSupabaseBrowser\(\);$/m);
+    assert.match(provider, /^if \(preloadOnHint\(\)\) void loadSupabaseBrowser\(\);$/m);
   });
 
   it("defers signed-out realtime and card prices to the first idle moment", () => {

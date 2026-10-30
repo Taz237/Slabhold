@@ -7,7 +7,7 @@ import { Star } from "lucide-react";
 import { useSocial } from "@/components/social-provider";
 import { signupPath } from "@/lib/auth/safe-next";
 import { cardIdentityKey, type IdentityCard } from "@/lib/social/card-identity";
-import { createSupabaseBrowser } from "@/lib/supabase/browser";
+import { loadSupabaseBrowser } from "@/lib/supabase/browser-lazy";
 import { isUuid } from "@/lib/value/card-value-access";
 import { money } from "@/lib/format";
 import { wantChipLabel, wantLabel } from "@/lib/wants/label";
@@ -52,16 +52,20 @@ export function WantButton({
 
   useEffect(() => {
     if (!user || !scope) return;
-    const supabase = createSupabaseBrowser();
-    if (!supabase) return;
     let cancelled = false;
-    void supabase
-      .from("want_list")
-      .select("id, target_price")
-      .eq("user_id", user.id)
-      .eq("card_key", cardKey)
-      .maybeSingle()
-      .then(({ data }) => {
+    void loadSupabaseBrowser()
+      .then((supabase) => {
+        if (cancelled || !supabase) return null;
+        return supabase
+          .from("want_list")
+          .select("id, target_price")
+          .eq("user_id", user.id)
+          .eq("card_key", cardKey)
+          .maybeSingle();
+      })
+      .then((result) => {
+        if (!result) return;
+        const { data } = result;
         if (cancelled) return;
         setRecord({
           scope,
@@ -103,7 +107,7 @@ export function WantButton({
       setError(parsed.error);
       return;
     }
-    const supabase = createSupabaseBrowser();
+    const supabase = await loadSupabaseBrowser();
     if (!supabase) {
       setError("Want list isn't available right now.");
       return;
@@ -141,7 +145,7 @@ export function WantButton({
 
   async function remove() {
     if (!want) return;
-    const supabase = createSupabaseBrowser();
+    const supabase = await loadSupabaseBrowser();
     if (!supabase) return;
     setSaving(true);
     const { error: deleteError } = await supabase.from("want_list").delete().eq("id", want.id);

@@ -45,6 +45,7 @@ export const Tweet = memo(function Tweet({
   cardValues,
   cardValuesLoading,
   pinned = false,
+  firstScreen = false,
 }: {
   post: Post;
   author: Profile;
@@ -59,6 +60,8 @@ export const Tweet = memo(function Tweet({
   cardValuesLoading?: boolean;
   /** Profile Posts tab. The same post is not repeated under this label. */
   pinned?: boolean;
+  /** On the first screen: its photos load at once, at high priority. */
+  firstScreen?: boolean;
 }) {
   const router = useRouter();
   const openImage = useImageLightbox();
@@ -170,7 +173,7 @@ export const Tweet = memo(function Tweet({
           />
         ) : (
           <>
-            {photos.length ? <PostPhotoGrid images={photos} onOpen={openImage} /> : null}
+            {photos.length ? <PostPhotoGrid images={photos} onOpen={openImage} eager={firstScreen} /> : null}
             {post.card && pill ? (
               <div className="mt-3 -mb-1 flex justify-center">
                 <PostPill label={pill} solid={graded} />
@@ -182,6 +185,7 @@ export const Tweet = memo(function Tweet({
                 username={author.username}
                 cardValues={cardValues}
                 cardValuesLoading={cardValuesLoading}
+                eager={firstScreen}
               />
             ) : null}
           </>
@@ -763,11 +767,13 @@ function CardMedia({
   username,
   cardValues,
   cardValuesLoading,
+  eager = false,
 }: {
   card: PublicCard;
   username: string;
   cardValues?: Map<string, CardValueResult>;
   cardValuesLoading?: boolean;
+  eager?: boolean;
 }) {
   const { cards } = useCollection();
   const chip = useAttachedChip(card, {
@@ -781,6 +787,7 @@ function CardMedia({
       href={postCardHref({ cardId: card.id, username, owned })}
       priceText={chip.text}
       soldHref={chip.soldHref}
+      eager={eager}
     />
   );
 }

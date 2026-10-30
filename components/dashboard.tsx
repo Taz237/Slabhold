@@ -25,8 +25,11 @@ import { displayedCollectionTotal } from "@/lib/collection/displayed-value";
 import { sumPaid } from "@/lib/collection/profit-label";
 import { GRID_SORTS, sortGridCards, type GridSort } from "@/lib/collection/grid";
 import { useCardValues } from "@/lib/value/use-card-values";
+import { cardValuesKey, type CollectionSeed } from "@/lib/collection/viewer-seed";
+import { useProgressiveRows } from "@/lib/ui/use-progressive-rows";
 import { publicTogglePatch } from "@/lib/offers/open-to-offers";
-import { WantList } from "@/components/want-list";
+import { afterFirstIdle } from "@/lib/ui/idle";
+import { lazyPart } from "@/lib/ui/lazy-part";
 import { PullToRefresh } from "@/components/pull-to-refresh";
 import { ShareCollectionCard } from "@/components/invite/share-collection-card";
 
@@ -46,13 +49,23 @@ const FILTERS: { id: Exclude<PortfolioFilter, "all">; label: string }[] = [
   { id: "novalue", label: "No value yet" },
 ];
 
+/**
+ * The Want list tab, in its own chunk with its Supabase reads, so the
+ * collection's first load doesn't carry them. Fetched at the first idle
+ * moment, so it is in hand before the tab is opened.
+ */
+const WantList = lazyPart(() => import("@/components/want-list").then((mod) => mod.WantList));
+
+/** Tiles in a server-drawn first screen: a phone's two columns, a little past the fold. */
+const SEEDED_TILES = 12;
+
 const chip =
   "hit-44 inline-flex h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3.5 text-xs font-semibold transition outline-none focus-visible:ring-2 focus-visible:ring-violet-600";
 const chipOn = "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-950";
 const chipOff =
   "bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-white/[0.06] dark:text-zinc-300 dark:hover:bg-white/10";
 
-export function Dashboard() {
+export function Dashboard({ seed = null }: { seed?: CollectionSeed | null } = {}) {
   const { cards, ready, syncError, reload, updateCard } = useCollection();
   const { user } = useSocial();
   const toolsRef = useRef<HTMLDivElement>(null);
@@ -65,13 +78,26 @@ export function Dashboard() {
   const summaryLane = lane === "wants" ? "all" : lane;
 
   const cardIds = useMemo(() => cards.map((card) => card.id), [cards]);
+  // The server's read for this load: values, the chart's daily rows, and
+  // per-card history, so the header and chart draw from the server HTML.
+  const [seeded] = useState(() =>
+    seed
+      ? {
+          values: seed.values
+            ? { key: cardValuesKey(seed.cards.map((card) => card.id)), values: seed.values }
+            : null,
+          snapshots: { rows: seed.snapshots, loading: false },
+          cardHistory: new Map(seed.cardHistory ?? []),
+        }
+      : null,
+  );
   const {
     values,
     loading: valuesLoading,
     error: valuesError,
     errorMessage: valuesMessage,
     retry: retryValues,
-  } = useCardValues(cardIds);
+  } = useCardValues(cardIds, seeded?.values);
   const valuesFailed = valuesError && !valuesLoading;
 
   const inLane = useMemo(
@@ -100,9 +126,15 @@ export function Dashboard() {
     [inLane, query, filter, sort, values],
   );
 
+  // A server-drawn load lays out the first screen of tiles, then the rest
+  // a few at a time while the browser is idle.
+  const gridRows = useProgressiveRows(visible.length, { enabled: Boolean(seed), step: SEEDED_TILES });
+
   useEffect(() => {
     if (searchOpen) searchRef.current?.focus();
   }, [searchOpen]);
+
+  useEffect(() => afterFirstIdle(() => void WantList.preload().catch(() => {})), []);
 
   function refreshCollection() {
     reload();
@@ -157,6 +189,8 @@ export function Dashboard() {
           values={values}
           onShowWithoutValue={showWithoutValue}
           shareable={Boolean(user?.username) && cards.some((card) => card.isPublic)}
+          snapshots={seeded?.snapshots}
+          cardHistory={seeded?.cardHistory}
         />
       )}
       {cards.length > 0 ? <ShareCollectionCard /> : null}
@@ -296,7 +330,7 @@ export function Dashboard() {
         )
       ) : (
         <CollectionGrid
-          cards={visible}
+          cards={visible.slice(0, gridRows)}
           values={values}
           valuesLoading={valuesLoading}
           valuesFailed={valuesFailed}
