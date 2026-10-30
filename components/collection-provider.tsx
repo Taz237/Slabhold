@@ -16,7 +16,7 @@ import { mergeCategories } from "@/lib/card-category";
 import { loadUserCards, removeUserCard, saveUserCard } from "@/lib/social/cards";
 import { isSaveTimeout } from "@/lib/save/attempt";
 import { loadCollection, newId, nextAccent, saveCollection } from "@/lib/storage";
-import { createSupabaseBrowser } from "@/lib/supabase/browser";
+import { loadedSupabaseBrowser } from "@/lib/supabase/browser-lazy";
 import type { CardInput, SportsCard } from "@/lib/types";
 import { shouldRefreshCardValueOnEdit } from "@/lib/value/price-refresh";
 import { scheduleCardValueRefresh } from "@/lib/value/use-card-values";
@@ -84,7 +84,7 @@ export function CollectionProvider({ children }: { children: React.ReactNode }) 
       return;
     }
 
-    const client = createSupabaseBrowser();
+    const client = loadedSupabaseBrowser();
     if (!client) {
       setCards(loadCollection());
       setReady(true);
@@ -154,7 +154,7 @@ export function CollectionProvider({ children }: { children: React.ReactNode }) 
       };
       let saved = Promise.resolve();
       if (remote && userId) {
-        const client = createSupabaseBrowser();
+        const client = loadedSupabaseBrowser();
         if (client) {
           saved = enqueue(card.id, async () => {
             try {
@@ -203,7 +203,7 @@ export function CollectionProvider({ children }: { children: React.ReactNode }) 
       };
       let saved = Promise.resolve();
       if (remote && userId) {
-        const client = createSupabaseBrowser();
+        const client = loadedSupabaseBrowser();
         if (client) {
           const needsRefresh =
             !previous || shouldRefreshCardValueOnEdit(previous, updated);
@@ -235,7 +235,7 @@ export function CollectionProvider({ children }: { children: React.ReactNode }) 
       cardsRef.current = next;
       setCards(next);
       if (remote && userId) {
-        const client = createSupabaseBrowser();
+        const client = loadedSupabaseBrowser();
         if (client) {
           enqueue(id, async () => {
             try {
@@ -254,7 +254,7 @@ export function CollectionProvider({ children }: { children: React.ReactNode }) 
 
   const reload = useCallback(() => {
     if (remote && userId) {
-      const client = createSupabaseBrowser();
+      const client = loadedSupabaseBrowser();
       if (!client) return;
       void loadUserCards(client, userId)
         .then((rows) => {

@@ -2,7 +2,7 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, type ReactNode } from "react";
-import { useInstallPlatform } from "@/components/onboarding/install-step";
+import { useInstallPlatform } from "@/components/onboarding/use-install-platform";
 import { useSocial } from "@/components/social-provider";
 import { standaloneLoginPath, standaloneNeedsLogin } from "@/lib/pwa/install-step";
 

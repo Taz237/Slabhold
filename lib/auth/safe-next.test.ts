@@ -119,7 +119,8 @@ describe("logout and plain auth links", () => {
     const root = process.cwd();
     for (const file of [
       "components/profile-view.tsx",
-      "components/side-menu.tsx",
+      // The top bar's Log in link (the side menu draws it through GuestAccount).
+      "components/guest-account.tsx",
       "components/feed-view.tsx",
       "components/notifications-view.tsx",
       "components/messages-view.tsx",

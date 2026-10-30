@@ -3,7 +3,7 @@
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Suspense } from "react";
+import { Suspense, memo } from "react";
 import { FounderNote } from "@/components/landing/founder-note";
 import { HeroSlabs } from "@/components/landing/hero-slabs";
 import { useFounderShowcase } from "@/components/landing/use-founder";
@@ -18,8 +18,16 @@ const FeaturePanels = dynamic(
   { loading: () => <PanelsSkeleton /> },
 );
 
-/** `founder` is the server's hour-cached showcase, so the hero slabs paint with the page. */
-export function LandingPage({ founder: initial = null }: { founder?: FounderShowcase | null }) {
+/**
+ * `founder` is the server's hour-cached showcase, so the hero slabs paint with the page.
+ * Memoized: the session snapshot updates Home several times while it loads, and
+ * none of those changes reach the landing page.
+ */
+export const LandingPage = memo(function LandingPage({
+  founder: initial = null,
+}: {
+  founder?: FounderShowcase | null;
+}) {
   const founder = useFounderShowcase(initial);
   const showcase = founder.status === "ready" ? founder.showcase : null;
   return (
@@ -89,7 +97,7 @@ export function LandingPage({ founder: initial = null }: { founder?: FounderShow
       </div>
     </div>
   );
-}
+});
 
 function FromSearch({ render }: { render: (next: string) => React.ReactNode }) {
   const next = safeNext(useSearchParams().get("next"));

@@ -33,12 +33,12 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { Avatar } from "@/components/avatar";
+import { GuestAccount } from "@/components/guest-account";
 import { AdminMenuLinks } from "@/components/admin-nav-link";
 import { Badge, badgeLabel } from "@/components/badges/badge";
 import { InstallGuide, useInstallPlatform, type GuidePlatform } from "@/components/onboarding/install-step";
 import { useSocial } from "@/components/social-provider";
 import { markLogoutHome } from "@/lib/auth/logout-home";
-import { loginPath } from "@/lib/auth/safe-next";
 import { requestBadgeCheck } from "@/lib/badges/client";
 import { startTour, writeInstallChoice } from "@/lib/onboarding/store";
 import { installMenuShows } from "@/lib/pwa/install-step";
@@ -114,7 +114,6 @@ type BadgeSummary = { userId: string; label: string | null; pins: EarnedBadge[] 
  * menu. Signed out: a Log in button. Nothing while the session loads.
  */
 export function AccountMenu({ user, showLogin }: { user: Profile | null; showLogin: boolean }) {
-  const pathname = usePathname() || "/";
   const [open, setOpen] = useState(false);
   const [everOpened, setEverOpened] = useState(false);
   const [guideOpen, setGuideOpen] = useState(false);
@@ -133,17 +132,7 @@ export function AccountMenu({ user, showLogin }: { user: Profile | null; showLog
     window.setTimeout(() => setGuideOpen(true), TOUR_AFTER_CLOSE_MS);
   }, []);
 
-  if (!user) {
-    if (!showLogin) return <span aria-hidden className="h-11 w-11" />;
-    return (
-      <Link
-        href={loginPath(pathname)}
-        className="inline-flex min-h-11 items-center rounded-full px-1 text-sm font-semibold"
-      >
-        <span className="rounded-full bg-violet-600 px-3.5 py-1.5 text-white">Log in</span>
-      </Link>
-    );
-  }
+  if (!user) return <GuestAccount showLogin={showLogin} />;
 
   return (
     <>
