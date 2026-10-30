@@ -2,6 +2,7 @@
 
 import {
   createContext,
+  startTransition,
   useCallback,
   useContext,
   useEffect,
@@ -91,14 +92,19 @@ export function CollectionProvider({ children }: { children: React.ReactNode }) 
       return;
     }
 
-    setReady(false);
+    startTransition(() => setReady(false));
     loadUserCards(client, userId)
       .then((rows) => {
         if (cancelled) return;
         const { cards: merged, dirty } = mergeCategories(rows);
         cardsRef.current = merged;
-        setCards(merged);
-        setSyncError(null);
+        // Every card screen redraws when the collection lands. As a
+        // transition React yields between tiles instead of one long task.
+        startTransition(() => {
+          setCards(merged);
+          setSyncError(null);
+          setReady(true);
+        });
         for (const card of dirty) {
           enqueue(card.id, async () => {
             try {
@@ -115,9 +121,7 @@ export function CollectionProvider({ children }: { children: React.ReactNode }) 
         if (cancelled) return;
         report(error);
         setCards([]);
-      })
-      .finally(() => {
-        if (!cancelled) setReady(true);
+        setReady(true);
       });
 
     return () => {

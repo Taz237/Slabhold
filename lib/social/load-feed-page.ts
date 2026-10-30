@@ -823,6 +823,30 @@ async function selectRepostsFor(
 }
 
 /**
+ * Replies and reposts for posts already on screen, filtered the way the site
+ * snapshot filters them: replies drop muted and blocked authors, reposts drop
+ * blocked ones. Signed-in Home's server render uses it for its first page.
+ */
+export async function loadPostEngagement(
+  supabase: SupabaseClient,
+  postIds: readonly string[],
+  viewerId: string,
+  /** hidden_author_ids with and without mutes, when the caller already has them. */
+  hidden?: { muted: readonly string[]; blocked: readonly string[] },
+): Promise<{ comments: PostComment[]; reposts: PostRepost[] }> {
+  const ids = [...new Set(postIds)];
+  if (ids.length === 0) return { comments: [], reposts: [] };
+  const [mutedHidden, blockedHidden] = hidden
+    ? [hidden.muted, hidden.blocked]
+    : await Promise.all([loadHiddenAuthorIds(supabase, true), loadHiddenAuthorIds(supabase, false)]);
+  const [commentRows, reposts] = await Promise.all([
+    selectCommentsForPosts(supabase, ids, viewerId, mutedHidden),
+    selectRepostsFor(supabase, ids, viewerId, blockedHidden),
+  ]);
+  return { comments: commentRows.map(mapComment), reposts };
+}
+
+/**
  * Everything a single post screen needs, and nothing site-wide.
  * One hidden_author_ids call. No follows or paged-off posts.
  * Unread notifications and received messages are loaded so the badges stay.

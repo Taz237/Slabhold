@@ -29,12 +29,15 @@ export function PostCardTile({
   href,
   priceText,
   soldHref,
+  eager = false,
 }: {
   card: PublicCard;
   href: string;
   /** "…" while the value loads. */
   priceText: string | null;
   soldHref: string | null;
+  /** On the first screen: drawn from the server HTML and fetched at once. */
+  eager?: boolean;
 }) {
   const pending = priceText === "…";
   const label = pending ? null : priceText;
@@ -43,8 +46,8 @@ export function PostCardTile({
       as="div"
       card={card}
       href={href}
-      // Feed tiles load lazily.
-      index={EAGER_TILES}
+      // Feed tiles load lazily, except a first-screen one.
+      index={eager ? 0 : EAGER_TILES}
       prefetch={false}
       sizes="260px"
       ariaLabel={tileAccessibleName(card, label)}

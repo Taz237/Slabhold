@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { FEED_PAGE_SIZE, type FeedCursor } from "@/lib/social/feed-page";
 import { memoryFresh, mergeFreshPage } from "@/lib/social/feed-refresh";
 import { loadFeedPage, type FeedPageScope } from "@/lib/social/load-feed-page";
+import type { HomeSeedPage } from "@/lib/social/home-seed";
 import type { TimelineItem } from "@/lib/social/timeline";
 import type { Post, PostLike, Profile } from "@/lib/social/types";
 import { createSupabaseBrowser } from "@/lib/supabase/browser";
@@ -33,6 +34,9 @@ type Remembered = { page: PageState; cursor: FeedCursor | null; seen: Set<string
  * scroll can land exactly where you were. Lives for this tab session only.
  */
 const remembered = new Map<string, Remembered>();
+
+/** Server pages already drawn by a mount (see HomeSeedPage.token). */
+const drawnSeeds = new Set<string>();
 const REMEMBER_LIMIT = 8;
 
 function recall(key: string): Remembered | null {
@@ -66,6 +70,8 @@ export function usePagedTimeline(input: {
   blockedIds?: readonly string[];
   mutedIds?: readonly string[];
   rememberPosts?: (posts: Post[], profiles?: Profile[], likes?: PostLike[] | null) => void;
+  /** Page 1 read on the server for this request. Drawn at once instead of loading it again. */
+  initial?: HomeSeedPage | null;
 }) {
   const authorKey = input.authorIds?.join(",") ?? "";
   const memoryKey = [
@@ -80,7 +86,9 @@ export function usePagedTimeline(input: {
   const scopeKey = `${memoryKey}|${input.refreshKey}`;
 
   // Coming back to a timeline within a few minutes: draw it from memory.
-  const [restored] = useState(() => (input.enabled ? recall(memoryKey) : null));
+  // Otherwise the page the server read for this request, if there is one.
+  const [restored] = useState(() => (input.enabled ? (recall(memoryKey) ?? fromInitial(input.initial)) : null));
+  const [seededPage] = useState(() => (restored && input.initial && restored.page.items === input.initial.items ? input.initial : null));
   const [page, setPage] = useState<PageState>(() => restored?.page ?? idle);
   const [loading, setLoading] = useState(input.enabled && !restored);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -106,6 +114,14 @@ export function usePagedTimeline(input: {
     requestRef.current = input;
     rememberRef.current = input.rememberPosts;
   }, [input]);
+
+  // A server-read page joins the provider's posts the same way a loaded one does,
+  // and is spent: a later mount with the same payload loads fresh.
+  useEffect(() => {
+    if (!seededPage) return;
+    drawnSeeds.add(seededPage.token);
+    rememberRef.current?.([...seededPage.posts, ...seededPage.relatedPosts], seededPage.profiles, seededPage.likes);
+  }, [seededPage]);
 
   useEffect(() => {
     const token = ++epochRef.current;
@@ -253,6 +269,23 @@ export function usePagedTimeline(input: {
     refresh,
     /** True when this mount drew the timeline from memory instead of loading it. */
     restored: Boolean(restored),
+  };
+}
+
+function fromInitial(initial: HomeSeedPage | null | undefined): Remembered | null {
+  if (!initial || initial.items.length === 0 || drawnSeeds.has(initial.token)) return null;
+  return {
+    page: {
+      items: initial.items,
+      posts: initial.posts,
+      relatedPosts: initial.relatedPosts,
+      profiles: initial.profiles,
+      hasMore: initial.hasMore,
+      nextCursor: initial.nextCursor,
+    },
+    cursor: initial.nextCursor,
+    seen: new Set(initial.items.map((item) => item.post.id)),
+    at: Date.now(),
   };
 }
 

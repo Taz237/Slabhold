@@ -31,7 +31,8 @@ describe("cardPageAccessDecision", () => {
 
   it("page calls requireCardPageAccess before rendering CardDetail", () => {
     const page = readFileSync(join(process.cwd(), "app/(app)/cards/[id]/page.tsx"), "utf8");
-    assert.match(page, /await requireCardPageAccess\(id\)/);
+    // The check runs alongside the page's other reads, and the page waits for it.
+    assert.match(page, /await Promise\.all\(\[\s*requireCardPageAccess\(id, cardPageAccessWith\(/);
     const requireAt = page.indexOf("requireCardPageAccess");
     const detailAt = page.indexOf("<CardDetail");
     assert.ok(requireAt > 0 && detailAt > requireAt);

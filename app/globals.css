@@ -957,3 +957,23 @@ html[data-session] [data-guest-pending] {
   display: none;
 }
 
+/*
+ * The signed-in shell before the snapshot loads (app-shell.tsx). It shows
+ * only around a page that read its viewer on the server and says so with
+ * [data-seeded-viewer]. Anything else stays blank until the snapshot, as before.
+ */
+[data-pending-shell]:not(:has([data-seeded-viewer])) {
+  display: none;
+}
+
+/*
+ * Server-drawn Home for a new account: Get started and the first-card prompt
+ * are both in the HTML. getStartedHintScript (lib/social/home-seed.ts) tags
+ * <html data-get-started-hidden> before the first paint when this device
+ * dismissed Get started; exactly one of the two shows.
+ */
+html[data-get-started-hidden] [data-get-started],
+html:not([data-get-started-hidden]) [data-after-get-started] {
+  display: none;
+}
+

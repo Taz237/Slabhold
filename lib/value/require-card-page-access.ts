@@ -38,6 +38,11 @@ const defaultDeps: CardPageAccessDeps = {
   notFound,
 };
 
+/** The default checks with the viewer id from a read the page already started. */
+export function cardPageAccessWith(getUserId: () => Promise<string | null>): CardPageAccessDeps {
+  return { ...defaultDeps, getUserId };
+}
+
 /**
  * /cards/[id] is owner-only. Non-owners call notFound() before any comps,
  * cache, value, or Trawl work. Local (non-UUID) ids and logged-out sessions

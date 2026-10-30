@@ -12,7 +12,7 @@ import {
 } from "@/lib/social/card-posts";
 import type { Post, Profile } from "@/lib/social/types";
 import { collectAttachedCardIds } from "@/lib/social/post-card-value";
-import { createSupabaseBrowser } from "@/lib/supabase/browser";
+import { loadSupabaseBrowser } from "@/lib/supabase/browser-lazy";
 import { useCardValues } from "@/lib/value/use-card-values";
 
 const PREVIEW_LIMIT = 5;
@@ -52,7 +52,7 @@ export function CardCollectorsSaying({
 
     async function load() {
       setLoading(true);
-      const supabase = createSupabaseBrowser();
+      const supabase = await loadSupabaseBrowser();
       try {
         if (supabase) {
           const result = await loadPostsForCard(supabase, cardId, {

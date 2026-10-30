@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { startTransition, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MAX_CARD_VALUE_IDS } from "./card-value-access";
 import { rememberCardValues } from "./card-value-memory";
 import { PRICE_CHECK_LIMIT_MESSAGE } from "./price-check-limit";
@@ -89,15 +89,23 @@ export type CardValuesSessionResult = {
  * Load trusted values for many cards (no Trawl). Requests stay at 100 ids.
  * Failures keep the previous map and set `error`. A 429 is not retried.
  */
-export function useCardValues(cardIds: string[]) {
+export function useCardValues(
+  cardIds: string[],
+  /** Values the server read for this request, for these ids. Drawn at once, not read again. */
+  initial?: { key: string; values: Record<string, CardValueResult> } | null,
+) {
   const key = useMemo(() => {
     const ids = [...new Set(cardIds.filter(Boolean))].sort();
     return ids.join(",");
   }, [cardIds]);
 
-  const [values, setValues] = useState<Map<string, CardValueResult>>(emptyMap);
+  const [values, setValues] = useState<Map<string, CardValueResult>>(() =>
+    initial && initial.key === key ? new Map(Object.entries(initial.values)) : emptyMap,
+  );
   /** Last key whose fetch settled — keeps loading true on first paint / key change. */
-  const [settledKey, setSettledKey] = useState("");
+  const [settledKey, setSettledKey] = useState(() => (initial && initial.key === key ? key : ""));
+  /** The server already read this key: the first effect run keeps it, once. */
+  const seededKey = useRef(initial && initial.key === key ? key : null);
   const [error, setError] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -113,6 +121,12 @@ export function useCardValues(cardIds: string[]) {
   }, [values]);
 
   useEffect(() => {
+    const seeded = seededKey.current;
+    seededKey.current = null;
+    if (seeded && seeded === key) {
+      rememberCardValues(valuesRef.current);
+      return;
+    }
     if (!key) {
       setValues(emptyMap);
       setSettledKey("");
@@ -131,15 +145,17 @@ export function useCardValues(cardIds: string[]) {
 
     session.done.then((result) => {
       if (cancelled) return;
-      setPending(false);
-      setError(result.error);
-      setErrorMessage(result.message);
-      setSettledKey(key);
-      if (result.error) setValues((current) => cardValuesAfterFailure(current));
-      else {
-        rememberCardValues(result.values);
-        setValues(result.values);
-      }
+      if (!result.error) rememberCardValues(result.values);
+      // Prices land on every tile at once. A transition keeps that redraw
+      // from blocking input.
+      startTransition(() => {
+        setPending(false);
+        setError(result.error);
+        setErrorMessage(result.message);
+        setSettledKey(key);
+        if (result.error) setValues((current) => cardValuesAfterFailure(current));
+        else setValues(result.values);
+      });
     }).catch(() => {
       if (cancelled) return;
       setValues((current) => cardValuesAfterFailure(current));

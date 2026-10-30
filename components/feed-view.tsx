@@ -55,10 +55,12 @@ import {
   profileStepDone,
 } from "@/lib/social/get-started";
 import { followingAuthorIds, homeHead, showsNewPosts } from "@/lib/social/feed-page";
+import { getStartedHintScript, type HomeSeed } from "@/lib/social/home-seed";
 import { presentForYouFeed } from "@/lib/social/for-you-display";
 import { addUnblockedProfiles, presentPagedItems } from "@/lib/social/paged-items";
 import { publicTimeline } from "@/lib/social/timeline";
 import { officialUpdatesUserId } from "@/lib/social/official-updates";
+import { useProgressiveRows } from "@/lib/ui/use-progressive-rows";
 import { SUGGESTION_RAIL_SIZE, inlineSuggestionPool, whoToFollowAfter } from "@/lib/ui/timeline";
 import { POST_LIMIT, type PublicCard } from "@/lib/social/types";
 
@@ -82,10 +84,23 @@ function takeComposePrefill(): string | null {
   }
 }
 
+/** Posts on a phone's first screen. Their photos load at once; the rest load as they scroll in. */
+const FIRST_SCREEN_POSTS = 2;
+
+/** Rows the server draws for Home's first screen, a little past a tall phone. */
+const SEEDED_ENTRIES = 8;
+
 /** The Home tab you were on, so coming Back from a post keeps it. */
 let rememberedLane: { userId: string; lane: HomeLane } | null = null;
 
-export function FeedView({ movingToday }: { movingToday?: ReactNode } = {}) {
+export function FeedView({
+  movingToday,
+  seed = null,
+}: {
+  movingToday?: ReactNode;
+  /** Home's first page, read on the server for this request. */
+  seed?: HomeSeed | null;
+} = {}) {
   const router = useRouter();
   const pathname = usePathname() || "/";
   const {
@@ -115,15 +130,20 @@ export function FeedView({ movingToday }: { movingToday?: ReactNode } = {}) {
   // First-run setup, "You're in" and the tour come first. Older prompts wait.
   const onboardingBusy = useOnboardingBusy();
   const following = user ? followingCount(user.id) : 0;
-  const countsReady = Boolean(user) && ready && cardsReady && !syncError;
+  // Drawn from the server's first screen until the full snapshot is in.
+  const seededScreen = Boolean(seed) && !hasFullSnapshot;
+  // Until the collection loads, the card count the server read stands in.
+  const cardCount = cardsReady || !seed ? cards.length : seed.cardCount;
+  const cardsKnown = cardsReady || Boolean(seed);
+  const countsReady = Boolean(user) && ready && cardsKnown && !syncError;
   const wasNewOnLoad = newUserOnFullSnapshot({
     fullSnapshot: countsReady && (mode !== "supabase" || hasFullSnapshot),
     followingCount: following,
-    cardCount: cards.length,
+    cardCount,
   });
   const wasNewUser = useRememberNewUser(user?.id ?? null, wasNewOnLoad);
-  const started = checklistState({
-    cardCount: cards.length,
+  const checklist = checklistState({
+    cardCount,
     followingCount: following,
     profileDone: profileStepDone({
       avatarDataUrl: user?.avatarDataUrl,
@@ -134,6 +154,9 @@ export function FeedView({ movingToday }: { movingToday?: ReactNode } = {}) {
     createdAt: user?.createdAt ?? null,
     wasNewUser,
   });
+  // The server's Get started: what localStorage says (dismissed, not new)
+  // is applied before the first paint by getStartedHintScript.
+  const started = seededScreen && seed ? seed.getStarted : checklist;
   const showAddToHome =
     Boolean(user) &&
     !onboardingBusy &&
@@ -147,14 +170,20 @@ export function FeedView({ movingToday }: { movingToday?: ReactNode } = {}) {
   const showWelcome =
     Boolean(user) &&
     !onboardingBusy &&
-    !started.visible &&
+    (seededScreen || !started.visible) &&
     shouldShowFirstCardWelcome({
-      cardCount: cards.length,
-      ready: cardsReady,
+      cardCount,
+      ready: cardsKnown,
       syncError,
     });
+  // On the server's screen the first-card prompt is drawn under Get started
+  // too, and CSS shows exactly one of them once the hint script has run.
+  const welcomeAfterGetStarted = seededScreen && started.visible;
+  useEffect(() => {
+    if (!seededScreen) delete document.documentElement.dataset.getStartedHidden;
+  }, [seededScreen]);
   const [lane, setLaneState] = useState<HomeLane>(() =>
-    user && rememberedLane?.userId === user.id ? rememberedLane.lane : "foryou",
+    user && rememberedLane?.userId === user.id ? rememberedLane.lane : (seed?.lane ?? "foryou"),
   );
   const setLane = useCallback(
     (next: HomeLane) => {
@@ -193,6 +222,7 @@ export function FeedView({ movingToday }: { movingToday?: ReactNode } = {}) {
     blockedIds,
     mutedIds,
     rememberPosts,
+    initial: seed?.lane === "foryou" ? seed.page : null,
   });
   const followingPage = usePagedTimeline({
     enabled: paging && Boolean(user),
@@ -203,8 +233,10 @@ export function FeedView({ movingToday }: { movingToday?: ReactNode } = {}) {
     blockedIds,
     mutedIds,
     rememberPosts,
+    initial: seed?.lane === "following" ? seed.page : null,
   });
-  if (paging && !forYouPage.loading && (capturedHead === null || capturedHead.key !== headEpoch)) {
+  // The seeded first screen has no site-wide head yet. "New posts" starts from the full snapshot.
+  if (paging && hasFullSnapshot && !forYouPage.loading && (capturedHead === null || capturedHead.key !== headEpoch)) {
     setCapturedHead({ key: headEpoch, head });
   }
   const refreshForYou = forYouPage.refresh;
@@ -225,12 +257,18 @@ export function FeedView({ movingToday }: { movingToday?: ReactNode } = {}) {
   const pickedFor = useRef<string | null>(rememberedLane?.userId ?? null);
   // The order first shown sticks, so following someone doesn't reshuffle the rail.
   const [suggestionIds, setSuggestionIds] = useState<string[] | null>(null);
+  // The rail as first drawn, so the seeded rail holds while the provider asks again.
+  const [shownSuggestions, setShownSuggestions] = useState<Map<string, (typeof suggestions)[number]> | null>(null);
   if (ready && suggestionsReady && user && suggestionIds === null && suggestions.length > 0) {
     setSuggestionIds(suggestions.map((profile) => profile.id));
+    setShownSuggestions(new Map(suggestions.map((profile) => [profile.id, profile])));
   }
   const suggestionById = new Map(suggestions.map((profile) => [profile.id, profile]));
   const rankedIds = suggestionIds ?? (suggestionsReady ? suggestions.map((profile) => profile.id) : []);
-  const suggestionFor = (id: string) => suggestionById.get(id) ?? profiles.find((profile) => profile.id === id);
+  const suggestionFor = (id: string) =>
+    suggestionById.get(id) ??
+    (suggestionsReady ? undefined : shownSuggestions?.get(id)) ??
+    profiles.find((profile) => profile.id === id);
   const suggestionRail = rankedIds
     .slice(0, SUGGESTION_RAIL_SIZE)
     .map(suggestionFor)
@@ -277,6 +315,16 @@ export function FeedView({ movingToday }: { movingToday?: ReactNode } = {}) {
     !activeLoading &&
     !activePage.error &&
     visible.length === 0;
+  // The server-drawn first screen holds only what a phone shows. The rest of
+  // the page joins below it a few rows per idle moment once the snapshot is
+  // in, so no single commit has to lay out the whole page.
+  const rowLimit = useProgressiveRows(feedEntries.length, {
+    enabled: Boolean(seed),
+    step: SEEDED_ENTRIES,
+    hold: seededScreen,
+  });
+  const shownEntries = feedEntries.slice(0, rowLimit);
+  const moreRows = rowLimit < feedEntries.length;
   const feedKeys = Array.from(feedEntries, (entry) => (entry.kind === "whats-new" ? entry.key : entry.item.key));
   const newAbove = useNewPostsAbove({ lane, keys: feedKeys });
   // Only posts that arrive after the feed is on screen fade in. A feed that
@@ -323,6 +371,9 @@ export function FeedView({ movingToday }: { movingToday?: ReactNode } = {}) {
   // feed, so the tabs stay stuck all the way down.
   return (
     <div className="-mx-4 -mt-5">
+      {seededScreen && seed && started.visible ? (
+        <script dangerouslySetInnerHTML={{ __html: getStartedHintScript(seed.viewer.id, seed.newNow) }} />
+      ) : null}
       {user && started.visible && !onboardingBusy ? (
         <GetStartedCard
           state={started}
@@ -332,7 +383,7 @@ export function FeedView({ movingToday }: { movingToday?: ReactNode } = {}) {
         />
       ) : null}
       {showAddToHome && user ? <AddToHomeTip userId={user.id} /> : null}
-      {showWelcome ? <HomeFirstCardPrompt /> : null}
+      {showWelcome ? <HomeFirstCardPrompt afterGetStarted={welcomeAfterGetStarted} /> : null}
       {postCardValuesMessage ? (
         <p className="border-b border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
           {postCardValuesMessage}
@@ -394,7 +445,7 @@ export function FeedView({ movingToday }: { movingToday?: ReactNode } = {}) {
             </EmptyState>
           ) : (
             <>
-              {feedEntries.map((entry, index) => {
+              {shownEntries.map((entry, index) => {
                 const whoToFollow = whoToFollowAfter(index, inlineSuggestions);
                 const inline = whoToFollow.length ? <WhoToFollowCard profiles={whoToFollow} /> : null;
                 if (entry.kind === "whats-new") {
@@ -420,13 +471,14 @@ export function FeedView({ movingToday }: { movingToday?: ReactNode } = {}) {
                         repostedBy={item.repostedBy}
                         extraPosts={activePage.relatedPosts}
                         extraProfiles={activePage.profiles}
+                        firstScreen={index < FIRST_SCREEN_POSTS}
                       />
                     </FeedItem>
                     {inline}
                   </Fragment>
                 );
               })}
-              {paging ? (
+              {paging && !seededScreen && !moreRows ? (
                 <LoadMore
                   hasMore={activePage.hasMore}
                   loading={activePage.loadingMore}

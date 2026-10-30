@@ -12,7 +12,7 @@ import { JoinBar } from "@/components/join-bar";
 import { NavMotion } from "@/components/nav-motion";
 import { NavPendingSkeleton } from "@/components/nav-pending-skeleton";
 import { useOnboardingBusy } from "@/components/onboarding/use-onboarding";
-import { sessionHinted } from "@/lib/auth/session-hint";
+import { preloadOnHint, sessionHinted } from "@/lib/auth/session-hint";
 import { afterFirstIdle } from "@/lib/ui/idle";
 import { lazyPart } from "@/lib/ui/lazy-part";
 import {
@@ -24,7 +24,8 @@ import {
   shouldShowJoinBar,
 } from "@/lib/auth/guest-paths";
 import { clearLogoutHome, logoutHomePending } from "@/lib/auth/logout-home";
-import { requiresAccount } from "@/lib/auth/route-access";
+import { requiresAccount, seedsViewer } from "@/lib/auth/route-access";
+import { getSupabaseConfig } from "@/lib/supabase/client";
 import { listenForInstallPrompt } from "@/lib/pwa/install-prompt";
 import { loginPath, pathWithQuery } from "@/lib/auth/safe-next";
 import type { TourTarget } from "@/lib/onboarding/first-run";
@@ -70,7 +71,13 @@ function AccountSlot() {
 // onboarding overlays wait for the first idle moment so they don't compete
 // with the feed for the main thread.
 if (sessionHinted()) {
-  for (const part of [AccountMenu, CreateMenu]) void part.preload().catch(() => {});
+  // A screen the server drew already has its first frame. Its menus wait for
+  // the first idle moment, so they don't compete with that paint.
+  const preloadMenus = () => {
+    for (const part of [AccountMenu, CreateMenu]) void part.preload().catch(() => {});
+  };
+  if (preloadOnHint()) preloadMenus();
+  else afterFirstIdle(preloadMenus);
   afterFirstIdle(() => {
     for (const part of [FirstRunSetup, YoureIn, CoachTour, BadgeRevealGate]) void part.preload().catch(() => {});
   });
@@ -165,6 +172,7 @@ function Shell({
   reserveJoin = false,
   attachedTabs = false,
   chromeless = false,
+  pending = false,
 }: {
   children: React.ReactNode;
   unreadCount: number;
@@ -181,6 +189,11 @@ function Shell({
   attachedTabs?: boolean;
   /** The composer: a full-screen sheet with no header, tabs, create menu or join bar. */
   chromeless?: boolean;
+  /**
+   * Drawn before the snapshot: CSS keeps it hidden unless the page read its
+   * viewer on the server ([data-seeded-viewer], see globals.css).
+   */
+  pending?: boolean;
 }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -199,7 +212,10 @@ function Shell({
         : "pb-[max(1.5rem,env(safe-area-inset-bottom))]";
 
   return (
-    <div className="min-h-full bg-[var(--background)] text-[var(--foreground)]">
+    <div
+      data-pending-shell={pending ? "" : undefined}
+      className="min-h-full bg-[var(--background)] text-[var(--foreground)]"
+    >
       <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(124,92,255,0.16),_transparent_50%)]" />
       {!chromeless ? (
         <header
@@ -457,6 +473,31 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             showLogin={false}
             attachedTabs={pathname === "/"}
             chromeless={chromeless}
+          >
+            {children}
+          </Shell>
+        </>
+      );
+    }
+    // Home, Collection and a card page read their viewer on the server, so
+    // they draw signed in from the server HTML: the same shell the snapshot
+    // brings, so the page under it never remounts. Without that read (a
+    // visitor, a stale cookie) CSS hides it and these stay blank as before.
+    if (getSupabaseConfig().configured && seedsViewer(pathname)) {
+      return (
+        <>
+          <AccountDeletedToast />
+          <Shell
+            unreadCount={0}
+            unreadMessageCount={0}
+            status={null}
+            user={null}
+            showNav
+            showJoin={false}
+            showLogin={false}
+            attachedTabs={pathname === "/"}
+            chromeless={chromeless}
+            pending
           >
             {children}
           </Shell>
