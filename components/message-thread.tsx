@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, SendHorizontal, X } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Avatar } from "@/components/avatar";
@@ -13,6 +13,7 @@ import { CardMessagePreviewCard } from "@/components/open-to-offers";
 import { useReducedMotion } from "@/components/timeline-ui";
 import { MARK_SOLD_LABEL } from "@/lib/deals/state";
 import { EmptyState, LoadingRows } from "@/components/status";
+import { useLoadMore } from "@/components/load-more";
 import { useSocial } from "@/components/social-provider";
 import { usePublicCards } from "@/lib/social/use-public-cards";
 import { signupPath } from "@/lib/auth/safe-next";
@@ -50,6 +51,8 @@ export function MessageThread({ username }: { username: string }) {
     profileByUsername,
     sendMessage,
     markThreadRead,
+    loadThreadMessages,
+    threadMore,
     refresh,
     blockedIds,
     mutedIds,
@@ -105,6 +108,23 @@ export function MessageThread({ username }: { username: string }) {
     markThreadRead(partner.id);
   }, [markThreadRead, messages, partner, ready, user]);
 
+  // The inbox reads only its newest messages, so a thread reads its own newest page.
+  const partnerId = partner?.id ?? null;
+  useEffect(() => {
+    if (!ready || !user || !partnerId) return;
+    void loadThreadMessages(partnerId).catch(() => {});
+  }, [loadThreadMessages, partnerId, ready, user]);
+
+  /** Distance from the bottom before older messages were added above, so the view holds still. */
+  const holdFromBottom = useRef<number | null>(null);
+  const loadOlder = useCallback(async () => {
+    if (!partnerId) return;
+    const node = scroller.current;
+    holdFromBottom.current = node ? node.scrollHeight - node.scrollTop : null;
+    await loadThreadMessages(partnerId, true);
+  }, [loadThreadMessages, partnerId]);
+  const older = useLoadMore(loadOlder);
+
   const sending = partner ? outbox.filter((message) => message.receiverId === partner.id) : [];
   const shownThread = sending.length ? [...thread, ...sending] : thread;
 
@@ -114,6 +134,9 @@ export function MessageThread({ username }: { username: string }) {
   );
 
   // Opening jumps to the newest message. Later messages glide into view.
+  // Keyed on the newest message, so older ones loading above don't move it.
+  const newestId = shownThread[shownThread.length - 1]?.id ?? null;
+  const oldestId = shownThread[0]?.id ?? null;
   useEffect(() => {
     const node = scroller.current;
     if (!node) return;
@@ -121,7 +144,16 @@ export function MessageThread({ username }: { username: string }) {
     scrolledOnce.current = true;
     if (glide) node.scrollTo({ top: node.scrollHeight, behavior: "smooth" });
     else node.scrollTop = node.scrollHeight;
-  }, [shownThread.length, partner?.id, reduceMotion]);
+  }, [newestId, partner?.id, reduceMotion]);
+
+  // Older messages landed above: keep what was on screen where it was.
+  useLayoutEffect(() => {
+    const node = scroller.current;
+    const hold = holdFromBottom.current;
+    if (!node || hold === null) return;
+    holdFromBottom.current = null;
+    node.scrollTop = node.scrollHeight - hold;
+  }, [oldestId]);
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -241,6 +273,18 @@ export function MessageThread({ username }: { username: string }) {
       <DealThreadPanel partnerId={partner.id} />
 
       <div ref={scroller} className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pt-3 pb-2">
+        {partnerId && threadMore(partnerId) ? (
+          <div className="flex justify-center pb-2">
+            <button
+              type="button"
+              onClick={older.run}
+              disabled={older.loading}
+              className="inline-flex min-h-11 items-center rounded-full px-4 text-sm font-semibold text-violet-700 disabled:opacity-60 dark:text-violet-300"
+            >
+              {older.loading ? "Loading…" : older.failed ? "Try again" : "Load older messages"}
+            </button>
+          </div>
+        ) : null}
         {shownThread.length === 0 ? (
           <ThreadHint
             name={partner.displayName}
