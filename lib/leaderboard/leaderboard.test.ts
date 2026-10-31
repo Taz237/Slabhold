@@ -892,7 +892,11 @@ describe("leaderboard wiring", () => {
       sql,
       /grant execute on function public\.leaderboard_rows\(date, date, integer, numeric, integer, timestamptz\) to service_role;/,
     );
-    assert.doesNotMatch(sql, /to anon, authenticated/);
+    // The only client grant is SELECT on the one new profiles column.
+    assert.doesNotMatch(
+      sql.replaceAll("grant select (leaderboard_opt_in) on public.profiles to anon, authenticated;", ""),
+      /to anon, authenticated/,
+    );
     assert.match(sql, /drop function if exists public\.blocked_by_ids\(\)/);
     assert.match(sql, /function public\.leaderboard_hidden_ids\(p_viewer uuid\)/);
     assert.match(sql, /returns setof uuid/);

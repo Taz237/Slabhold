@@ -1,26 +1,54 @@
--- Collection leaderboard opt-in and the only public read of card snapshots.
--- The function returns card rows for eligible, opted-in public collections:
--- medians and sale counts the value board needs, a bracket id, and flags.
--- The bracket is the week-start sum of public held cards. Private holdings stay out.
--- The lineup is the week-start public snapshot. Deleted or sold cards stay in it.
--- A card made private mid-week still counts, at its last public trusted value.
--- A snapshot taken while the card was private never reaches the percent.
--- Identity is player, year, year label, set, parallel, grade, grader, card number,
--- serial, auto, relic, qualifier, and condition, plus the comps query key.
--- The end is the latest public trusted snapshot in the week whose identity and
--- query key still match the week-start row, so a loss saved before an edit
--- still counts. The start median is used only when no such row exists.
--- A same-day update that would change identity or query key is skipped.
--- It does not return collection dollar totals, paid prices, notes, or certs.
+-- UNAPPLIED. Needs review before running.
 --
--- Account age uses auth.users.created_at. profiles.created_at is not the gate.
--- Anon can still read leaderboard_opt_in: profiles SELECT is public, and hiding
--- one column would break select * on profiles.
+-- Weekly value board: the leaderboard opt-in and the snapshot data it reads.
+-- In order, this file:
 --
--- search_path is empty. Every relation in the body is schema-qualified.
--- Idempotent: column adds, replace, and grants can run again.
--- Do not apply from the app. Ship the file and apply it separately.
-
+-- 1) profiles: adds leaderboard_opt_in (off by default) and a partial index on
+--    it, then grants SELECT on that one column to anon and authenticated:
+--      grant select (leaderboard_opt_in) on public.profiles to anon, authenticated;
+--    Profiles SELECT is granted column by column since
+--    20261031121000_pinned_badges_lock.sql, so a new column is not readable
+--    until it is granted. Never a table-wide grant on profiles: that would
+--    reopen every column, pinned_badges included.
+-- 2) profiles: a protect_profile_created_at trigger keeps created_at as it was
+--    unless the service role writes it.
+-- 3) card_value_snapshots: adds sale count, self-reported flag, status, public
+--    and held flags, the card identity columns, the comps query key, a
+--    surrogate id, card_key and user_id, and backfills card_key and user_id.
+--    The primary key moves from (card_id, snapshot_date) to id. card_id
+--    becomes nullable with ON DELETE SET NULL, so card_key keeps a deleted
+--    card in the lineup. user_id references auth.users ON DELETE CASCADE.
+--    Unique indexes on (card_key, snapshot_date) and (card_id, snapshot_date),
+--    and indexes on (user_id, snapshot_date) and snapshot_date.
+-- 4) card_value_snapshots: a card_value_snapshot_defaults trigger fills
+--    card_key and user_id on insert. RLS lets a signed-in user read only their
+--    own rows. Clients get SELECT for authenticated only; the service role
+--    reads and writes.
+-- 5) card_snapshot_identity() builds the identity key, and a
+--    card_value_snapshot_keep_identity trigger skips a same-day update that
+--    would change a row's identity or query key, so the pre-edit snapshot
+--    survives.
+-- 6) leaderboard_rows(): the board's read of opted-in collections, service
+--    role only (security definer, no client execute). For eligible, opted-in
+--    public collections it returns card rows: medians, sale counts, a bracket
+--    id and flags.
+--    - The bracket is the week-start sum of public held cards.
+--    - The lineup is the week-start public snapshot. Deleted or sold cards
+--      stay in it.
+--    - The end is the latest public trusted snapshot in the week whose
+--      identity and query key still match the week-start row. The start
+--      median is used only when no such row exists.
+--    - A card made private mid-week still counts, at its
+--      last public trusted value. A snapshot taken while it was private
+--      never reaches the percent.
+--    - Account age uses auth.users.created_at.
+--    - It returns no dollar totals, paid prices, notes, certs or opt-in flags.
+-- 7) Drops blocked_by_ids(), and adds leaderboard_hidden_ids(p_viewer), the
+--    viewer's blocks in both directions, service role only.
+--
+-- search_path is empty in every function. Every relation is schema-qualified.
+-- Idempotent: adds use if not exists, functions are replaced, and grants and
+-- revokes can run again. Do not apply from the app.
 begin;
 
 set local lock_timeout = '5s';
@@ -34,6 +62,9 @@ comment on column public.profiles.leaderboard_opt_in is
 create index if not exists profiles_leaderboard_opt_in_idx
   on public.profiles (id)
   where leaderboard_opt_in;
+
+-- Column-level only. Profiles SELECT is granted column by column (see above).
+grant select (leaderboard_opt_in) on public.profiles to anon, authenticated;
 
 -- Signed-in users can update profiles.created_at. Keep the original timestamp
 -- unless the write is the service role.
