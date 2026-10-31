@@ -105,6 +105,14 @@ import { followingTimeline, type TimelineItem } from "@/lib/social/timeline";
 import { preloadOnHint, sessionHinted } from "@/lib/auth/session-hint";
 import { seedsViewer } from "@/lib/auth/route-access";
 import { loadSupabaseBrowser } from "@/lib/supabase/browser-lazy";
+import {
+  cardsForKeys,
+  createPublicCardBatcher,
+  emptyPublicCardCache,
+  mergePublicCards,
+  publicCardsSettled,
+  type PublicCardCache,
+} from "@/lib/social/public-card-cache";
 import { getSupabaseConfig } from "@/lib/supabase/client";
 import type { CardValueResult } from "@/lib/value/types";
 import { useCardValues } from "@/lib/value/use-card-values";
@@ -143,7 +151,15 @@ export type SocialContextValue = {
   user: Profile | null;
   profiles: Profile[];
   posts: Post[];
+  /**
+   * Public cards read so far (hosted), or every public card on this device
+   * (local). Ask for the ones a screen needs with requestPublicCards.
+   */
   publicCards: SocialSnapshot["publicCards"];
+  /** Reads public cards by key (see publicCardKeys). Same-tick asks share one batch. */
+  requestPublicCards: (keys: readonly string[]) => void;
+  /** True once every key has been read, found or not. Always true on local accounts. */
+  publicCardsReady: (keys: readonly string[]) => boolean;
   status: string | null;
   refresh: () => Promise<Notification[]>;
   signUp: (input: SignUpInput) => Promise<AuthResult>;
@@ -607,6 +623,37 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
         }
       : baseSnapshot;
   snapshotRef.current = snapshot;
+
+  const [cardCache, setCardCache] = useState<PublicCardCache>(emptyPublicCardCache);
+  // Every screen part that asks in one tick shares one read (see createPublicCardBatcher).
+  const [cardBatcher] = useState(() =>
+    createPublicCardBatcher(
+      async (keys) => {
+        // The reads load on first use, off every screen's first-load JS.
+        const [client, { loadPublicCardsForKeys }] = await Promise.all([
+          loadSupabaseBrowser(),
+          import("@/lib/social/load-public-cards"),
+        ]);
+        return client ? loadPublicCardsForKeys(client, keys) : [];
+      },
+      (cards, keys) => startTransition(() => setCardCache((current) => mergePublicCards(current, cards, keys))),
+    ),
+  );
+  // Hosted vs local accounts is known from the start, unlike `mode`, which
+  // reads "local" until the first effect, so nothing counts as read early.
+  const hosted = getSupabaseConfig().configured;
+  const requestPublicCards = useCallback(
+    (keys: readonly string[]) => {
+      if (hosted) cardBatcher.request(keys);
+    },
+    [cardBatcher, hosted],
+  );
+  const publicCardsReady = useCallback(
+    (keys: readonly string[]) => !hosted || publicCardsSettled(cardCache, keys),
+    [cardCache, hosted],
+  );
+  const loadedPublicCards = useMemo(() => cardsForKeys(cardCache), [cardCache]);
+  const publicCards = hosted ? loadedPublicCards : snapshot.publicCards;
 
   useEffect(() => {
     if (mode !== "supabase") return;
@@ -1944,7 +1991,9 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       user: snapshot.user,
       profiles: snapshot.profiles,
       posts: snapshot.posts,
-      publicCards: snapshot.publicCards,
+      publicCards,
+      requestPublicCards,
+      publicCardsReady,
       status,
       refresh,
       signUp,
@@ -2052,7 +2101,9 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       signUp,
       snapshot.posts,
       snapshot.profiles,
-      snapshot.publicCards,
+      publicCards,
+      requestPublicCards,
+      publicCardsReady,
       snapshot.user,
       status,
       suggestions,

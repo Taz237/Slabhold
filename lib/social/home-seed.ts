@@ -58,6 +58,12 @@ export type HomeSeed = {
   getStarted: ChecklistState;
   /** No follows and no cards right now: what the browser stores as "new" on a first load. */
   newNow: boolean;
+  /**
+   * "client" when the browser read this itself (no server copy for the visit).
+   * Its first paint never ran getStartedHintScript, so Get started comes from
+   * this device's own checklist instead of `getStarted`.
+   */
+  source?: "client";
 };
 
 /** Get started for the first screen, from the counts the server read. */

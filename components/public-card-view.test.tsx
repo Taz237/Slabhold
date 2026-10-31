@@ -45,7 +45,14 @@ const profile: Profile = {
 };
 
 function render(
-  social: { ready: boolean; user?: { id: string } | null; blockedIds?: string[]; publicCards?: OwnedCard[] },
+  social: {
+    ready: boolean;
+    user?: { id: string } | null;
+    blockedIds?: string[];
+    publicCards?: OwnedCard[];
+    /** The live public row read. Defaults to done once the app is ready. */
+    cardRead?: boolean;
+  },
   props: { initialCard?: OwnedCard | null; initialOwner?: PublicCardOwner | null } = {},
 ) {
   const socialValue = {
@@ -56,6 +63,8 @@ function render(
     homePosts: [],
     blockedIds: social.blockedIds ?? [],
     mutedIds: [],
+    requestPublicCards: () => {},
+    publicCardsReady: () => social.cardRead ?? social.ready,
     profileByUsername: (name: string) => (social.ready && name === "maya" ? profile : undefined),
   };
   const collectionValue = { cards: [], ready: true };
@@ -103,8 +112,20 @@ describe("public card view first paint", () => {
       { initialCard: card, initialOwner: owner },
     );
     assert.doesNotMatch(blocked, /Message owner/);
-    // The snapshot is the source of truth after it lands.
+    // The live public row is the source of truth once it is read.
     const gone = render({ ready: true, publicCards: [] }, { initialCard: card, initialOwner: owner });
     assert.match(gone, /This card isn&#x27;t public/);
+  });
+
+  it("keeps the server card up while its live row is still being read", () => {
+    const pending = render(
+      { ready: true, publicCards: [], cardRead: false },
+      { initialCard: card, initialOwner: owner },
+    );
+    assert.match(pending, /Jalen Brunson/);
+    assert.doesNotMatch(pending, /This card isn&#x27;t public|data-public-card-skeleton/);
+    // No server card and nothing read yet: the skeleton, not "isn't public".
+    const cold = render({ ready: true, publicCards: [], cardRead: false });
+    assert.match(cold, /data-public-card-skeleton/);
   });
 });

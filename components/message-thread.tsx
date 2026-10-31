@@ -14,6 +14,7 @@ import { useReducedMotion } from "@/components/timeline-ui";
 import { MARK_SOLD_LABEL } from "@/lib/deals/state";
 import { EmptyState, LoadingRows } from "@/components/status";
 import { useSocial } from "@/components/social-provider";
+import { usePublicCards } from "@/lib/social/use-public-cards";
 import { signupPath } from "@/lib/auth/safe-next";
 import { exactTime } from "@/lib/format";
 import { offerCardForThread } from "@/lib/offers/open-to-offers";
@@ -57,6 +58,7 @@ export function MessageThread({ username }: { username: string }) {
   } = useSocial();
   const searchParams = useSearchParams();
   const cardParam = searchParams.get("card");
+  usePublicCards({ ids: [cardParam] });
   const partner = profileByUsername(username);
   const mutedPartner = Boolean(partner && mutedIds.includes(partner.id));
   const offerCard = useMemo(

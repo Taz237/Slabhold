@@ -1,8 +1,12 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { getStartedHintScript, seededChecklist } from "./home-seed";
+import { getStartedHintScript, seededChecklist, type HomeSeed } from "./home-seed";
 import { loadHomeSeed } from "./load-home-seed";
+import { wantsClientHomeSeed } from "./use-client-home-seed";
+import { loadViewerShell } from "./viewer-shell";
 
 const VIEWER = "11111111-1111-4111-8111-111111111111";
 const FRIENDS = [
@@ -208,5 +212,83 @@ describe("loadHomeSeed", () => {
     assert.equal(fresh.getStarted.visible, true);
     assert.equal(fresh.lane, "foryou");
     assert.equal(await loadHomeSeed(fakeClient({ failCards: true }).supabase, { id: VIEWER, email: "" }), null);
+  });
+});
+
+describe("viewer shell", () => {
+  it("reads only the viewer's own rows, in one batch, and nothing site-wide", async () => {
+    const fake = fakeClient();
+    const shell = await loadViewerShell(fake.supabase, { id: VIEWER, email: "ada@example.com" });
+    assert.ok(shell);
+    assert.equal(shell.viewer.id, VIEWER);
+    assert.deepEqual(shell.follows.map((edge) => edge.followingId), FRIENDS);
+    assert.deepEqual(shell.blockedIds, [BLOCKED]);
+    assert.deepEqual(shell.mutedIds, [MUTED]);
+    assert.equal(shell.cardCount, 4);
+    // profiles (the viewer), follows, blocks, mutes, a card head count, and both hidden-author lists.
+    assert.deepEqual(fake.calls.map((call) => call.table).sort(), ["blocks", "cards", "follows", "mutes", "profiles"]);
+    assert.equal(fake.rpcs.filter((call) => call.fn === "hidden_author_ids").length, 2);
+    const profiles = fake.calls.find((call) => call.table === "profiles");
+    assert.ok(profiles?.ops.some((op) => op.startsWith("in:id:") && op.includes(VIEWER)));
+    for (const call of fake.calls) {
+      assert.notEqual(call.table, "public_cards");
+      assert.notEqual(call.table, "comments");
+      assert.notEqual(call.table, "notifications");
+      assert.notEqual(call.table, "messages");
+    }
+  });
+
+  it("reuses a follows read the caller already started", async () => {
+    const fake = fakeClient();
+    const follows = Promise.resolve([{ followerId: VIEWER, followingId: FRIENDS[0], createdAt: OLD }]);
+    const shell = await loadViewerShell(fake.supabase, { id: VIEWER, email: "" }, { follows });
+    assert.deepEqual(shell?.follows.map((edge) => edge.followingId), [FRIENDS[0]]);
+    assert.equal(fake.calls.some((call) => call.table === "follows"), false);
+  });
+
+  it("falls back (null) when the viewer's own reads fail", async () => {
+    assert.equal(await loadViewerShell(fakeClient({ failCards: true }).supabase, { id: VIEWER, email: "" }), null);
+  });
+});
+
+describe("Home seed read in the browser", () => {
+  it("is the same first screen, marked as the browser's own", async () => {
+    const fake = fakeClient();
+    const client = await loadHomeSeed(fake.supabase, { id: VIEWER, email: "" }, "client");
+    const server = await loadHomeSeed(fakeClient().supabase, { id: VIEWER, email: "" });
+    assert.ok(client && server);
+    assert.equal(client.source, "client");
+    assert.equal("source" in server, false);
+    assert.deepEqual(client.page.items, server.page.items);
+    assert.deepEqual(client.comments, server.comments);
+    assert.deepEqual(client.follows, server.follows);
+    assert.equal(fake.calls.some((call) => call.table === "public_cards"), false);
+  });
+
+  it("is read only with a session hint, no server copy, and no snapshot yet", () => {
+    const base = { serverSeed: null, ready: false, configured: true, hinted: true };
+    assert.equal(wantsClientHomeSeed(base), true);
+    assert.equal(wantsClientHomeSeed({ ...base, ready: true }), false);
+    assert.equal(wantsClientHomeSeed({ ...base, hinted: false }), false);
+    assert.equal(wantsClientHomeSeed({ ...base, configured: false }), false);
+    assert.equal(wantsClientHomeSeed({ ...base, serverSeed: {} as HomeSeed }), false);
+  });
+
+  it("loads its reads in their own chunk, so Home's first load stays the same size", () => {
+    const hook = readFileSync(join(process.cwd(), "lib/social/use-client-home-seed.ts"), "utf8");
+    assert.match(hook, /import\("\.\/load-home-seed"\)/);
+    assert.doesNotMatch(hook, /from "\.\/load-home-seed"/);
+    const gate = readFileSync(join(process.cwd(), "components/home-gate.tsx"), "utf8");
+    assert.match(gate, /useClientHomeSeed\(\{ serverSeed, ready \}\)/);
+    const load = readFileSync(join(process.cwd(), "lib/social/load-home-seed.ts"), "utf8");
+    assert.doesNotMatch(load, /node:crypto/);
+  });
+
+  it("takes Get started from this device for a browser-read seed", () => {
+    const feed = readFileSync(join(process.cwd(), "components/feed-view.tsx"), "utf8");
+    assert.match(feed, /const serverScreen = seededScreen && seed\?\.source !== "client";/);
+    assert.match(feed, /const started = serverScreen && seed \? seed\.getStarted : checklist;/);
+    assert.match(feed, /\{serverScreen && seed && started\.visible \? \(/);
+    assert.doesNotMatch(feed, /seededScreen && seed \? seed\.getStarted/);
   });
 });

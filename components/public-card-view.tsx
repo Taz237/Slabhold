@@ -48,6 +48,7 @@ import {
   SIMILAR_CARDS_LABEL,
 } from "@/lib/value/price-fallback";
 import { useCardValue } from "@/lib/value/use-card-values";
+import { usePublicCards } from "@/lib/social/use-public-cards";
 
 export { PublicCardSkeleton };
 
@@ -91,6 +92,9 @@ export function PublicCardView({
   const profile = social.profileByUsername(username);
   const isOwn = Boolean(profile && social.user && profile.id === social.user.id);
   const backHref = `${userHref(username)}?tab=collection`;
+  const serverCard = initialCard && initialCard.id === id ? initialCard : null;
+  // The live public row decides. The server's copy only stands in until it is read.
+  const cardRead = usePublicCards({ ids: [id] });
 
   if (!social.ready || (isOwn && !cardsReady)) {
     // Until the snapshot says who is viewing, paint the public card with no
@@ -127,7 +131,10 @@ export function PublicCardView({
   }
 
   const owned = isOwn ? cards.find((card) => card.id === id) : undefined;
-  const listed = social.publicCards.find((card) => card.id === id && card.ownerId === profile.id);
+  const listed =
+    social.publicCards.find((card) => card.id === id && card.ownerId === profile.id) ??
+    (!cardRead.ready && serverCard?.ownerId === profile.id ? serverCard : undefined);
+  if (!owned && !listed && !cardRead.ready) return <PublicCardSkeleton />;
   const card = owned ? (owned.isPublic ? toPublicCard(owned) : null) : (listed ?? null);
 
   if (!card) {
