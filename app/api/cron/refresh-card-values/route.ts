@@ -1,3 +1,4 @@
+import { snapshotOwnersAfterRefresh } from "@/lib/leaderboard/snapshot-owners";
 import { revalidateCard } from "@/lib/value/card-market";
 import {
   listRefreshQueue,
@@ -94,6 +95,7 @@ export async function GET(request: Request) {
     remaining,
   });
   console.log(JSON.stringify(summary));
+  await snapshotOwnersAfterRefresh(picked.map((card) => card.cardId));
 
   return Response.json({
     ok: true,

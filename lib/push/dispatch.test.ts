@@ -574,7 +574,7 @@ describe("push sweep cron", () => {
     assert.deepEqual(vercel.regions, ["pdx1"]);
     assert.deepEqual(vercel.crons, [
       { path: "/api/cron/refresh-card-values", schedule: "0 9 * * *" },
-      { path: "/api/cron/collection-snapshots", schedule: "0 10 * * *" },
+      { path: "/api/cron/collection-snapshots", schedule: "30 3 * * *" },
       { path: "/api/cron/push-sweep", schedule: "0 11 * * *" },
     ]);
     const route = read("app/api/cron/push-sweep/route.ts");
