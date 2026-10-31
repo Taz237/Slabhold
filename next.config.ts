@@ -39,6 +39,17 @@ const nextConfig: NextConfig = {
           { key: "Service-Worker-Allowed", value: "/" },
         ],
       },
+      {
+        // One segment, so /p/:player/opengraph-image keeps its own image cache.
+        // Unknown players must not sit on a year-long 404.
+        source: "/p/:player",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=0, s-maxage=60, stale-while-revalidate=60",
+          },
+        ],
+      },
     ];
   },
   async redirects() {

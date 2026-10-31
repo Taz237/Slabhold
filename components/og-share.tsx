@@ -914,7 +914,7 @@ export function shareNode(model: ShareImage, canvas: Canvas): ReactNode | null {
   const portrait = canvas.height > canvas.width;
   if (model.kind === "badge") return portrait ? <BadgePortrait model={model} canvas={canvas} /> : <BadgeLandscape model={model} canvas={canvas} />;
   if (model.kind === "card") return portrait ? <CardPortrait model={model} canvas={canvas} /> : <CardLandscape model={model} canvas={canvas} />;
-  if (model.kind === "profile") return <ProfileLandscape model={model} canvas={canvas} />;
+  if (model.kind === "profile" || model.kind === "player") return <ProfileLandscape model={model} canvas={canvas} />;
   if (model.kind === "invite") return <InviteLandscape model={model} canvas={canvas} />;
   if (model.kind === "collection") {
     return portrait ? <CollectionStory model={model} canvas={canvas} /> : <CollectionLandscape model={model} canvas={canvas} />;

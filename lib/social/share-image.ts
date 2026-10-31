@@ -25,7 +25,7 @@ export type ShareSlab = {
 export type ShareBadge = { category: BadgeCategory; tier: BadgeTier };
 
 export type ShareImage = {
-  kind: "home" | "profile" | "post" | "mail" | "card" | "badge" | "invite" | "collection";
+  kind: "home" | "profile" | "post" | "mail" | "card" | "badge" | "invite" | "collection" | "player";
   kicker: string;
   title: string;
   detail: string;
@@ -354,6 +354,23 @@ export function postOgCopy(input: {
   if (!name) return null;
   const body = clipText(scrubPublicText(input.body), 220);
   return { title: `${name} on Slabhold`, description: body || `A post by ${name} on Slabhold.` };
+}
+
+/** Player page share card. Name and sport only — no club mark. */
+export function playerShareImage(input: {
+  found: boolean;
+  name?: string | null;
+  sport?: string | null;
+}): ShareImage {
+  const name = input.found ? clipText(scrubPublicText(input.name), 80) : "";
+  const sport = input.found ? clipText(scrubPublicText(input.sport), 48) : "";
+  return {
+    ...blank(),
+    kind: "player",
+    kicker: "PLAYER",
+    title: name || "Player",
+    detail: sport,
+  };
 }
 
 export function cardShareImage(input: {
