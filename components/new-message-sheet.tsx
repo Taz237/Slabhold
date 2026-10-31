@@ -7,6 +7,7 @@ import { Avatar } from "@/components/avatar";
 import { useSocial } from "@/components/social-provider";
 import { hiddenFromSuggestions } from "@/lib/social/follow-rank";
 import type { Profile } from "@/lib/social/types";
+import { usePeopleSearch } from "@/lib/social/use-people-search";
 import { userHref } from "@/lib/social/user-href";
 
 /** Rows shown for a search, so a big profile list stays quick. */
@@ -50,8 +51,10 @@ export function messageCandidates(input: {
 
 /** Pick someone to message. A bottom sheet on phones, a centered panel on desktop. */
 export function NewMessageSheet({ onClose }: { onClose: () => void }) {
-  const { user, profiles, follows, suggestions, blockedIds } = useSocial();
+  const { user, mode, profiles, follows, suggestions, blockedIds } = useSocial();
   const [query, setQuery] = useState("");
+  // Hosted: a search asks the server, never the whole profiles table.
+  const search = usePeopleSearch(mode === "supabase" ? query : "");
   const inputRef = useRef<HTMLInputElement>(null);
   const titleId = useId();
 
@@ -67,7 +70,7 @@ export function NewMessageSheet({ onClose }: { onClose: () => void }) {
   if (!user) return null;
   const people = messageCandidates({
     viewerId: user.id,
-    profiles,
+    profiles: query.trim() && mode === "supabase" ? search.people : profiles,
     followingIds: follows.filter((edge) => edge.followerId === user.id).map((edge) => edge.followingId),
     suggestions,
     blockedIds,
@@ -120,7 +123,11 @@ export function NewMessageSheet({ onClose }: { onClose: () => void }) {
               Suggested
             </p>
           ) : null}
-          {people.length === 0 ? (
+          {search.pending ? (
+            <p className="px-6 py-10 text-center text-sm text-zinc-500" aria-live="polite">
+              Searching…
+            </p>
+          ) : people.length === 0 ? (
             <p className="px-6 py-10 text-center text-sm text-zinc-500">
               {query.trim() ? "No collectors match that." : "Follow a few collectors and they'll show up here."}
             </p>

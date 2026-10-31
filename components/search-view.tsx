@@ -9,6 +9,7 @@ import { ResolvedPlayerName } from "@/components/resolved-player-name";
 import { CardThumb } from "@/components/card-thumb";
 import { useCollection } from "@/components/collection-provider";
 import { useSocial } from "@/components/social-provider";
+import { usePeopleSearch } from "@/lib/social/use-people-search";
 import { PullToRefresh } from "@/components/pull-to-refresh";
 import { EmptyState, LoadingRows } from "@/components/status";
 import { CARD_CATALOG, type CatalogCard } from "@/lib/card-catalog";
@@ -92,7 +93,7 @@ export function SearchView() {
   const searchParams = useSearchParams();
   const rawQ = (searchParams.get("q") ?? "").trim();
   const urlQ = addCardQuery(rawQ);
-  const { ready: socialReady, profiles, homePosts, blockedIds, user, publicCards, refresh } = useSocial();
+  const { ready: socialReady, mode, profiles, homePosts, blockedIds, user, publicCards, refresh } = useSocial();
   const { ready: cardsReady, cards, reload } = useCollection();
   const [query, setQuery] = useState(urlQ);
   const recentOwner = user?.id ?? null;
@@ -159,11 +160,13 @@ export function SearchView() {
     }
   }
 
+  // Hosted: people come from a server search, never the whole profiles table.
+  const { people: serverPeople } = usePeopleSearch(mode === "supabase" ? typed : "");
   const people = useMemo(() => {
     if (!typed) return [];
     const hidden = new Set(blockedIds);
     const rank = typed.toLowerCase().replace(/^@+/, "");
-    return profiles
+    return (mode === "supabase" ? serverPeople : profiles)
       .filter((profile) => !hidden.has(profile.id))
       .filter((profile) => matchesPlainWords(typed, [profile.username, profile.displayName]))
       .sort((a, b) => {
@@ -176,7 +179,7 @@ export function SearchView() {
         };
         return score(a) - score(b);
       });
-  }, [blockedIds, profiles, typed]);
+  }, [blockedIds, mode, profiles, serverPeople, typed]);
 
   const matchedPosts = useMemo(() => {
     if (!typed) return [];

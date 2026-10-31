@@ -116,8 +116,10 @@ import {
   type InboxCursors,
 } from "@/lib/social/inbox-pages";
 import { loadHiddenAuthorIds } from "@/lib/safety/filters";
+import { keepLoadedProfiles, profileKeys } from "@/lib/social/profile-cache";
 import {
   cardsForKeys,
+  createKeyBatcher,
   createPublicCardBatcher,
   emptyPublicCardCache,
   failPublicCards,
@@ -178,6 +180,12 @@ export type SocialContextValue = {
   publicCardsFailed: (keys: readonly string[]) => boolean;
   /** Forgets every public card read, so screens read them again (a visibility change). */
   resetPublicCards: () => void;
+  /** Reads people by key (see profileKeys) into `profiles`. Same-tick asks share one batch. */
+  requestProfiles: (keys: readonly string[]) => void;
+  /** True once every key has been read, found or not. Always true on local accounts. */
+  profilesReady: (keys: readonly string[]) => boolean;
+  /** Any of these keys' last read failed. Asking again (requestProfiles) retries. */
+  profilesFailed: (keys: readonly string[]) => boolean;
   status: string | null;
   refresh: () => Promise<Notification[]>;
   signUp: (input: SignUpInput) => Promise<AuthResult>;
@@ -333,6 +341,14 @@ const emptySnapshot: SocialSnapshot = {
   publicCards: [],
 };
 
+/** The same set without `keys`, or the same object when none were in it. */
+function withoutKeys(set: ReadonlySet<string>, keys: readonly string[]): ReadonlySet<string> {
+  if (!keys.some((key) => set.has(key))) return set;
+  const next = new Set(set);
+  for (const key of keys) next.delete(key);
+  return next;
+}
+
 export function SocialProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() || "/";
   const [ready, setReady] = useState(false);
@@ -417,7 +433,8 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
           setSnapshotError(false);
           setHasFullSnapshot(true);
           // Older notification and message pages the viewer loaded stay.
-          setRemote((existing) => keepLoadedInbox(existing, merged));
+          // People a screen already read stay too, for the same viewer.
+          setRemote((existing) => keepLoadedProfiles(existing, keepLoadedInbox(existing, merged)));
           setInboxCursors((current) => cursorsAfterRefresh(current, snapshot.inbox, snapshot.user?.id ?? null));
           if (!postIdFromPath(window.location.pathname)) setReady(true);
         });
@@ -701,16 +718,82 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
     setCardCache(emptyPublicCardCache());
     setCardGeneration((value) => value + 1);
   }, [cardBatcher]);
-  const cardViewerId = snapshot.user?.id ?? null;
-  const cardViewerRef = useRef<string | null | undefined>(undefined);
-  useEffect(() => {
-    if (cardViewerRef.current === cardViewerId) return;
-    if (!ready) return;
-    const before = cardViewerRef.current;
-    cardViewerRef.current = cardViewerId;
-    if (before !== undefined) resetPublicCards();
-  }, [cardViewerId, ready, resetPublicCards]);
   const loadedPublicCards = useMemo(() => cardsForKeys(cardCache), [cardCache]);
+
+  // People by id or handle, for screens that name someone the snapshot didn't bring.
+  const [profileSettled, setProfileSettled] = useState<ReadonlySet<string>>(() => new Set());
+  // Keys whose last read failed: not settled, so no screen calls the person missing.
+  const [profileFailed, setProfileFailed] = useState<ReadonlySet<string>>(() => new Set());
+  const [profileBatcher] = useState(() =>
+    createKeyBatcher<Profile>(
+      async (keys) => {
+        const [client, { loadProfilesForKeys }] = await Promise.all([
+          loadSupabaseBrowser(),
+          import("@/lib/social/profile-cache"),
+        ]);
+        if (!client) return [];
+        const { data } = await client.auth.getSession();
+        const user = data.session?.user;
+        return loadProfilesForKeys(client, keys, user ? { id: user.id, email: user.email ?? "" } : null);
+      },
+      (people, keys) =>
+        startTransition(() => {
+          if (people.length > 0) {
+            setRemote((existing) => {
+              const byId = new Map(existing.profiles.map((profile) => [profile.id, profile]));
+              for (const profile of people) byId.set(profile.id, profile);
+              return { ...existing, profiles: [...byId.values()] };
+            });
+          }
+          setProfileSettled((current) => new Set([...current, ...keys]));
+          setProfileFailed((current) => withoutKeys(current, keys));
+        }),
+      (keys) => startTransition(() => setProfileFailed((current) => new Set([...current, ...keys]))),
+      // A failed key asked again is on the way, not failed.
+      (keys) => setProfileFailed((current) => withoutKeys(current, keys)),
+    ),
+  );
+  // Bumped on reset, so every screen part asks for its people again.
+  const [peopleGeneration, setPeopleGeneration] = useState(0);
+  const requestProfiles = useCallback(
+    (keys: readonly string[]) => {
+      if (hosted) profileBatcher.request(keys);
+    },
+    // peopleGeneration: a new function after a reset, so screens ask again.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [hosted, profileBatcher, peopleGeneration],
+  );
+  // A new viewer sees different people (blocks go both ways): forget every
+  // read, failed or not, and drop reads on the way.
+  const resetPeople = useCallback(() => {
+    profileBatcher.reset();
+    setProfileSettled(new Set());
+    setProfileFailed(new Set());
+    setPeopleGeneration((value) => value + 1);
+  }, [profileBatcher]);
+  // Everything read for one viewer: on a refresh, sign-in, sign-up, sign-out,
+  // or a new viewer id, it all starts over.
+  const resetViewerReads = useCallback(() => {
+    resetPublicCards();
+    resetPeople();
+  }, [resetPeople, resetPublicCards]);
+  const viewerReadsId = snapshot.user?.id ?? null;
+  const viewerReadsRef = useRef<string | null | undefined>(undefined);
+  useEffect(() => {
+    if (viewerReadsRef.current === viewerReadsId) return;
+    if (!ready) return;
+    const before = viewerReadsRef.current;
+    viewerReadsRef.current = viewerReadsId;
+    if (before !== undefined) resetViewerReads();
+  }, [ready, resetViewerReads, viewerReadsId]);
+  const profilesReady = useCallback(
+    (keys: readonly string[]) => !hosted || keys.every((key) => profileSettled.has(key)),
+    [hosted, profileSettled],
+  );
+  const profilesFailed = useCallback(
+    (keys: readonly string[]) => hosted && keys.some((key) => profileFailed.has(key) && !profileSettled.has(key)),
+    [hosted, profileFailed, profileSettled],
+  );
 
   const loadOlderNotifications = useCallback(async () => {
     const client = supabaseRef.current;
@@ -932,7 +1015,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
   const refresh = useCallback(async (): Promise<Notification[]> => {
     const client = supabaseRef.current;
     if (mode === "supabase" && client) {
-      resetPublicCards();
+      resetViewerReads();
       await refreshRemote(client);
       const merged = appliedRemoteRef.current;
       if (merged?.user) {
@@ -954,7 +1037,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       notifications: snap.notifications,
     };
     return notificationsFor(snap.user, snap.notifications);
-  }, [mode, refreshRemote, resetPublicCards]);
+  }, [mode, refreshRemote, resetViewerReads]);
 
   const signUp = useCallback(
     async (input: SignUpInput): Promise<AuthResult> => {
@@ -963,7 +1046,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
         try {
           const result = await remoteSignUp(client, input);
           if (!result.error && !result.notice) {
-            resetPublicCards();
+            resetViewerReads();
             await refreshRemote(client);
           }
           return result;
@@ -977,7 +1060,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       if (!result.error) commitLocal(result.db);
       return { error: result.error };
     },
-    [commitLocal, mode, refreshRemote, resetPublicCards],
+    [commitLocal, mode, refreshRemote, resetViewerReads],
   );
 
   const signIn = useCallback(
@@ -987,7 +1070,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
         try {
           const result = await remoteSignIn(client, email, password, captchaToken);
           if (!result.error) {
-            resetPublicCards();
+            resetViewerReads();
             await refreshRemote(client);
           }
           return result;
@@ -1001,7 +1084,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       if (!result.error) commitLocal(result.db);
       return { error: result.error };
     },
-    [commitLocal, mode, refreshRemote, resetPublicCards],
+    [commitLocal, mode, refreshRemote, resetViewerReads],
   );
 
   const signOut = useCallback(async () => {
@@ -1014,12 +1097,12 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       // While the session is still valid: this device stops getting pushes.
       await runSignOutHook();
       await remoteSignOut(client);
-      resetPublicCards();
+      resetViewerReads();
       await refreshRemote(client);
       return;
     }
     if (localRef.current) commitLocal(localSignOut(localRef.current));
-  }, [commitLocal, mode, refreshRemote, resetPublicCards]);
+  }, [commitLocal, mode, refreshRemote, resetViewerReads]);
 
   const updateProfile = useCallback(
     async (patch: ProfilePatch): Promise<AuthResult> => {
@@ -1994,6 +2077,27 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
     [snapshot.profiles],
   );
 
+  // Rows that arrive later (an older page, realtime, a new follower) can name
+  // someone not read yet. Read them, so nobody shows as "Someone".
+  const missingPeopleKey = useMemo(() => {
+    if (mode !== "supabase") return "";
+    const missing = new Set<string>();
+    const need = (id: string | null | undefined) => {
+      if (id && !profilesById.has(id)) missing.add(id);
+    };
+    for (const note of snapshot.notifications) need(note.actorId);
+    for (const message of snapshot.messages) {
+      need(message.senderId);
+      need(message.receiverId);
+    }
+    for (const post of snapshot.posts) need(post.authorId);
+    for (const comment of snapshot.comments) need(comment.authorId);
+    return profileKeys({ ids: [...missing] }).join("\n");
+  }, [mode, profilesById, snapshot.comments, snapshot.messages, snapshot.notifications, snapshot.posts]);
+  useEffect(() => {
+    if (missingPeopleKey) requestProfiles(missingPeopleKey.split("\n"));
+  }, [missingPeopleKey, requestProfiles]);
+
   const followersOf = useCallback(
     (userId: string) =>
       snapshot.follows
@@ -2094,6 +2198,9 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
   }, [homePosts, homeReposts, snapshot.follows, snapshot.profiles, snapshot.user]);
 
   const fallbackSuggestions = useMemo(() => {
+    // Hosted: "Who to follow" comes only from the server's ranking (load-suggestions).
+    // Local accounts have every profile on the device, so they rank those as before.
+    if (mode === "supabase") return [];
     const viewerId = snapshot.user?.id ?? null;
     const followingIds = viewerId
       ? snapshot.follows
@@ -2105,7 +2212,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
     const displayLimit = snapshot.profiles.length;
     const candidates = snapshot.profiles.slice(0, followSuggestionFetchLimit(displayLimit));
     return followSuggestions(candidates, { viewerId, followingIds, limit: displayLimit });
-  }, [snapshot.follows, snapshot.profiles, snapshot.user]);
+  }, [mode, snapshot.follows, snapshot.profiles, snapshot.user]);
 
   const suggestions = useMemo(() => {
     const viewerId = snapshot.user?.id ?? null;
@@ -2151,6 +2258,9 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       publicCardsReady,
       publicCardsFailed,
       resetPublicCards,
+      requestProfiles,
+      profilesReady,
+      profilesFailed,
       inboxMore,
       loadOlderNotifications,
       loadOlderMessages,
@@ -2268,6 +2378,9 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       publicCardsReady,
       publicCardsFailed,
       resetPublicCards,
+      requestProfiles,
+      profilesReady,
+      profilesFailed,
       inboxMore,
       loadOlderNotifications,
       loadOlderMessages,

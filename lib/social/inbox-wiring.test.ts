@@ -31,7 +31,7 @@ describe("paged notifications and messages, wired in", () => {
 
   it("keeps loaded pages through a full reload and keeps the viewer's place", () => {
     const provider = read("components/social-provider.tsx");
-    assert.match(provider, /setRemote\(\(existing\) => keepLoadedInbox\(existing, merged\)\);/);
+    assert.match(provider, /setRemote\(\(existing\) => keepLoadedProfiles\(existing, keepLoadedInbox\(existing, merged\)\)\);/);
     assert.match(provider, /cursorsAfterRefresh\(current, snapshot\.inbox/);
   });
 

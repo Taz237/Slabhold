@@ -136,13 +136,11 @@ describe("followSuggestions", () => {
     assert.equal(followAll.includes("Follow all"), true);
     assert.equal(followAll.includes("whitespace-nowrap"), true);
     assert.equal(followAll.includes("shrink-0"), true);
-    assert.match(remote, /needsSuggestionHeadroom\(profiles\.length\)/);
-    assert.match(remote, /suggestionExtraRange\(profiles\.length\)/);
-    assert.match(
-      remote,
-      /from\("profiles"\)\.select<string, ProfileRow>\(columns\)\.order\("created_at", \{ ascending: true \}\)/,
-    );
-    assert.match(remote, /\.order\("created_at", \{ ascending: true \}\)\s*\.range\(from, to\)/);
+    // Hosted: suggestions come only from the server ranking (load-suggestions).
+    // The snapshot never reads the whole profiles table, so there is no headroom read.
+    assert.doesNotMatch(remote, /needsSuggestionHeadroom|suggestionExtraRange/);
+    assert.doesNotMatch(remote, /\.order\("created_at", \{ ascending: true \}\)\s*\.range\(from, to\)/);
+    assert.match(provider, /if \(mode === "supabase"\) return \[\];/);
     assert.doesNotMatch(search, /isTestAccount|followSuggestions/);
     assert.doesNotMatch(cards, /isTestAccount|followSuggestions/);
   });
