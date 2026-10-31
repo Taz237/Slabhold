@@ -3,22 +3,10 @@
 import { useContext, useLayoutEffect, useMemo, useState, type ReactNode } from "react";
 import { CollectionContext, type SavedCard } from "@/components/collection-provider";
 import { SocialContext } from "@/components/social-provider";
+import { SEEDED_SOCIAL_ACTIONS } from "@/lib/social/seeded-actions";
 import type { ViewerSeed } from "@/lib/collection/viewer-seed";
 import type { SportsCard } from "@/lib/types";
 import { ActionQueue, forwardActions, LatestValue } from "@/lib/ui/forward-actions";
-
-/** Social functions a card screen can call that change data. */
-const SOCIAL_ACTIONS: ReadonlySet<string> = new Set([
-  "toggleFollow",
-  "followMany",
-  "createPost",
-  "toggleLike",
-  "toggleRepost",
-  "addComment",
-  "sendMessage",
-  "updateProfile",
-  "refresh",
-]);
 
 /** Collection functions that change data. updateCard is handled on its own below. */
 const COLLECTION_ACTIONS: ReadonlySet<string> = new Set(["removeCard", "reload"]);
@@ -58,7 +46,7 @@ export function SeededViewer({ seed, children }: { seed: ViewerSeed | null; chil
   const seededSocial = useMemo(
     () =>
       seed
-        ? { ...forwardActions(firstSocial, () => liveSocial.get(), queue, SOCIAL_ACTIONS), user: seed.viewer }
+        ? { ...forwardActions(firstSocial, () => liveSocial.get(), queue, SEEDED_SOCIAL_ACTIONS), user: seed.viewer }
         : null,
     [firstSocial, liveSocial, queue, seed],
   );

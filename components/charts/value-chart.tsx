@@ -10,11 +10,9 @@ import {
   useMemo,
   useRef,
   useState,
-  type KeyboardEvent,
-  type PointerEvent,
 } from "react";
 import { money } from "@/lib/format";
-import { athIndex, dateTicks, nearestIndex, toDayMs, xScale, yScale } from "@/lib/chart/geometry";
+import { athIndex, dateTicks, toDayMs, xScale, yScale } from "@/lib/chart/geometry";
 import {
   areaPath,
   downsample,
@@ -26,6 +24,8 @@ import {
 } from "@/lib/chart/path";
 import { axisLabels, valueScale } from "@/lib/chart/scale";
 import { TONE_CLASS, ValueSpark, type ChartTone } from "@/components/charts/value-spark";
+import type { ScrubState } from "@/components/charts/value-chart-scrub";
+import { afterFirstIdle } from "@/lib/ui/idle";
 
 export type { ChartPoint } from "@/components/charts/value-spark";
 
@@ -47,12 +47,21 @@ function reducedMotion(): boolean {
   return typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true;
 }
 
-function tick(): void {
-  try {
-    navigator.vibrate?.(4);
-  } catch {
-    // Not supported. Nothing to do.
-  }
+type ScrubModule = typeof import("@/components/charts/value-chart-scrub");
+
+let scrubModule: ScrubModule | null = null;
+let scrubLoad: Promise<ScrubModule> | null = null;
+
+/** Press, drag and key handling, from its own chunk: fetched at the first idle moment or first touch. */
+function loadScrub(): Promise<ScrubModule> {
+  scrubLoad ??= import("@/components/charts/value-chart-scrub").then(
+    (module) => (scrubModule = module),
+    (error: unknown) => {
+      scrubLoad = null;
+      throw error;
+    },
+  );
+  return scrubLoad;
 }
 
 type Props = {
@@ -199,6 +208,8 @@ function FullChart({
   const pressed = useRef(false);
   const frame = useRef(0);
   const lastTick = useRef(0);
+  /** Handler calls made before the scrub chunk is in, replayed in order once it is. */
+  const held = useRef<((module: ScrubModule) => void)[]>([]);
   const noDots = useMemo<ChartDot[]>(() => [], []);
   const dotList = dots ?? noDots;
   const withDots = dotList.length > 0;
@@ -269,17 +280,10 @@ function FullChart({
   );
 
   const select = useCallback(
-    (index: number | null, haptic: boolean) => {
+    (index: number | null) => {
       if (activeRef.current === index) return;
       activeRef.current = index;
       setActive(index);
-      if (haptic && index != null) {
-        const now = Date.now();
-        if (now - lastTick.current > 40) {
-          lastTick.current = now;
-          tick();
-        }
-      }
       if (withDots) {
         onSelectDot?.(index == null ? null : (geom?.dots[index]?.dot.id ?? null));
       } else {
@@ -294,37 +298,37 @@ function FullChart({
   const shownIndex = withDots ? (selectedIndex >= 0 ? selectedIndex : null) : active;
 
   useEffect(() => () => window.cancelAnimationFrame(frame.current), []);
+  useEffect(() => afterFirstIdle(() => void loadScrub().catch(() => {})), []);
 
-  function scrubTo(event: PointerEvent<SVGSVGElement>) {
-    const rect = event.currentTarget.getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    const haptic = event.pointerType === "touch";
-    window.cancelAnimationFrame(frame.current);
-    frame.current = window.requestAnimationFrame(() => {
-      const index = nearestIndex(xs, x);
-      if (index >= 0) select(index, haptic);
-    });
-  }
+  // Read by the handlers when they run, which can be after a held tap's render.
+  const scrubState = useRef<ScrubState | null>(null);
+  useLayoutEffect(() => {
+    scrubState.current = { xs, withDots, selectedIndex, pressed, frame, activeRef, lastTick, select };
+  });
 
-  function release() {
-    pressed.current = false;
-    window.cancelAnimationFrame(frame.current);
-    if (!withDots) select(null, false);
-  }
-
-  function onKeyDown(event: KeyboardEvent<SVGSVGElement>) {
-    if (!xs.length) return;
-    const current = withDots ? (selectedIndex >= 0 ? selectedIndex : null) : activeRef.current;
-    if (event.key === "ArrowRight" || event.key === "ArrowLeft") {
-      event.preventDefault();
-      const delta = event.key === "ArrowRight" ? 1 : -1;
-      const next = current == null ? (delta > 0 ? 0 : xs.length - 1) : Math.min(xs.length - 1, Math.max(0, current + delta));
-      activeRef.current = current;
-      select(next, false);
-    } else if (event.key === "Escape") {
-      activeRef.current = current;
-      select(null, false);
+  function scrub(call: (module: ScrubModule, state: ScrubState) => void) {
+    const run = (module: ScrubModule) => {
+      if (scrubState.current) call(module, scrubState.current);
+    };
+    if (scrubModule) {
+      run(scrubModule);
+      return;
     }
+    held.current.push(run);
+    void loadScrub().then(
+      (module) => {
+        const calls = held.current;
+        held.current = [];
+        for (const replay of calls) replay(module);
+      },
+      () => {
+        held.current = [];
+      },
+    );
+  }
+
+  function preloadScrub() {
+    if (!scrubModule) void loadScrub().catch(() => {});
   }
 
   const reduce = reducedMotion();
@@ -350,6 +354,8 @@ function FullChart({
           viewBox={`0 0 ${width} ${height}`}
           className={`block cursor-crosshair overflow-visible rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-violet-600 ${TONE_CLASS[tone]}`}
           style={{ touchAction: "pan-y", WebkitTapHighlightColor: "transparent" }}
+          onPointerEnter={preloadScrub}
+          onFocus={preloadScrub}
           onPointerDown={(event) => {
             pressed.current = true;
             try {
@@ -357,34 +363,32 @@ function FullChart({
             } catch {
               // Synthetic events in tests have no live pointer.
             }
-            if (withDots) {
-              // Tapping the chosen dot again clears it.
-              const rect = event.currentTarget.getBoundingClientRect();
-              const index = nearestIndex(xs, event.clientX - rect.left);
-              if (index >= 0 && index === selectedIndex) {
-                activeRef.current = index;
-                select(null, false);
-                pressed.current = false;
-                return;
-              }
-            }
-            // Select on press, not on the next frame, so a quick tap still lands.
-            const rect = event.currentTarget.getBoundingClientRect();
-            const index = nearestIndex(xs, event.clientX - rect.left);
-            if (index >= 0) select(index, event.pointerType === "touch");
+            const x = event.clientX - event.currentTarget.getBoundingClientRect().left;
+            const { pointerType } = event;
+            scrub((module, state) => module.pressAt(state, x, pointerType));
           }}
           onPointerMove={(event) => {
-            if (pressed.current || (event.pointerType === "mouse" && !withDots)) scrubTo(event);
+            if (!pressed.current && !(event.pointerType === "mouse" && !withDots)) return;
+            const x = event.clientX - event.currentTarget.getBoundingClientRect().left;
+            const { pointerType } = event;
+            scrub((module, state) => module.scrubTo(state, x, pointerType));
           }}
-          onPointerUp={release}
-          onPointerCancel={release}
+          onPointerUp={() => scrub((module, state) => module.release(state))}
+          onPointerCancel={() => scrub((module, state) => module.release(state))}
           onPointerLeave={(event) => {
-            if (event.pointerType === "mouse" && !pressed.current) release();
+            if (event.pointerType === "mouse" && !pressed.current) scrub((module, state) => module.release(state));
           }}
           onBlur={() => {
-            if (!withDots) select(null, false);
+            if (!withDots) select(null);
           }}
-          onKeyDown={onKeyDown}
+          onKeyDown={(event) => {
+            if (!xs.length) return;
+            const { key } = event;
+            if (key === "ArrowRight" || key === "ArrowLeft") event.preventDefault();
+            if (key === "ArrowRight" || key === "ArrowLeft" || key === "Escape") {
+              scrub((module, state) => module.keyDown(state, key));
+            }
+          }}
         >
           <defs>
             <linearGradient id={`${id}-fill`} x1="0" y1="0" x2="0" y2="1">

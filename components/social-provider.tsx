@@ -38,7 +38,6 @@ import {
   stateAfterReplyDelete,
   localMarkNotificationsRead,
   localMarkThreadRead,
-  localSendMessage,
   localUpdatePost,
   localSignIn,
   localSignOut,
@@ -60,8 +59,6 @@ import {
   remotePinPost,
   remoteUnpinPost,
   remoteMarkNotificationsRead,
-  remoteMarkThreadRead,
-  remoteSendMessage,
   remoteSignIn,
   remoteSignOut,
   remoteSignUp,
@@ -79,7 +76,6 @@ import {
   optimisticLikeCount,
   unionLikes,
 } from "@/lib/social/likes";
-import { offerSendError, parseCardPreview } from "@/lib/offers/open-to-offers";
 import { authSnapshotReload } from "@/lib/social/auth-snapshot";
 import { loadPostById, loadPostPage, type LoadedPostPage } from "@/lib/social/load-feed-page";
 import { loadRealtimePatch } from "@/lib/social/realtime-slices";
@@ -133,6 +129,9 @@ import type {
 import { draftPostPhotos, type PostWrite } from "@/lib/social/post-photos";
 import { profileReplies, profileWithPin } from "@/lib/social/profile-tabs";
 import { optimisticReply, withoutOptimisticReply } from "@/lib/social/reply-images";
+
+/** Sending and reading DMs, from its own chunk: fetched at the first idle moment, or on first use. */
+const loadDmActions = () => import("@/lib/social/dm-actions");
 
 export type SocialContextValue = {
   ready: boolean;
@@ -1626,6 +1625,11 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
   }, [snapshot.messages, snapshot.user]);
 
+  const signedIn = Boolean(snapshot.user);
+  useEffect(() => {
+    if (firstIdle && signedIn) void loadDmActions().catch(() => {});
+  }, [firstIdle, signedIn]);
+
   const unreadMessageCount = messages.filter(
     (message) => message.receiverId === snapshot.user?.id && !message.read,
   ).length;
@@ -1636,6 +1640,14 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       content: string,
       preview?: CardMessagePreview | null,
     ): Promise<AuthResult> => {
+      if (!snapshotRef.current.user) return { error: "Log in to send a message." };
+      let dm: Awaited<ReturnType<typeof loadDmActions>>;
+      try {
+        dm = await loadDmActions();
+      } catch {
+        return { error: "Could not send that message." };
+      }
+      const { localSendMessage, offerSendError, parseCardPreview, remoteSendMessage } = dm;
       const current = snapshotRef.current;
       if (!current.user) return { error: "Log in to send a message." };
       const cardPreview = preview ? parseCardPreview(preview) : null;
@@ -1695,9 +1707,12 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
         }));
         const client = supabaseRef.current;
         if (!client) return;
-        void remoteMarkThreadRead(client, userId, partnerId).then((result) => {
-          if (result.error) setStatus(result.error);
-        });
+        void loadDmActions()
+          .then(({ remoteMarkThreadRead }) => remoteMarkThreadRead(client, userId, partnerId))
+          .then((result) => {
+            if (result.error) setStatus(result.error);
+          })
+          .catch(() => {});
         return;
       }
       if (!localRef.current) return;

@@ -4,6 +4,7 @@ import { useContext, useLayoutEffect, useMemo, useState, type ReactNode } from "
 import { SocialContext, type SocialContextValue } from "@/components/social-provider";
 import type { HomeSeed } from "@/lib/social/home-seed";
 import type { Post } from "@/lib/social/types";
+import { SEEDED_SOCIAL_ACTIONS } from "@/lib/social/seeded-actions";
 import { ActionQueue, forwardActions, LatestValue } from "@/lib/ui/forward-actions";
 
 /**
@@ -73,31 +74,6 @@ export function seededSocialValue(outer: SocialContextValue, seed: HomeSeed): So
   };
 }
 
-/** Provider functions that change data. Tapped before the snapshot, they wait for it. */
-const SOCIAL_ACTIONS: ReadonlySet<string> = new Set([
-  "refresh",
-  "signUp",
-  "signIn",
-  "signOut",
-  "updateProfile",
-  "toggleFollow",
-  "followMany",
-  "createPost",
-  "updatePost",
-  "deletePost",
-  "pinPost",
-  "unpinPost",
-  "deleteComment",
-  "toggleLike",
-  "toggleRepost",
-  "addComment",
-  "markNotificationsRead",
-  "sendMessage",
-  "markThreadRead",
-  "applySafetyChange",
-  "refreshSuggestions",
-]);
-
 /**
  * Until the provider has its snapshot, the subtree reads the seed instead.
  * It stays fully usable: links are plain links, and a tap on an action (a
@@ -123,7 +99,7 @@ export function SeededSocial({ seed, children }: { seed: HomeSeed | null; childr
   const seeded = Boolean(seed) && !outer.ready && !handedOver;
   const [first] = useState(outer);
   const seededValue = useMemo(
-    () => (seed ? seededSocialValue(forwardActions(first, () => live.get(), queue, SOCIAL_ACTIONS), seed) : null),
+    () => (seed ? seededSocialValue(forwardActions(first, () => live.get(), queue, SEEDED_SOCIAL_ACTIONS), seed) : null),
     [first, live, queue, seed],
   );
   const value = seeded && seededValue ? seededValue : outer;
