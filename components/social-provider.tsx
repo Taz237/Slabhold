@@ -782,12 +782,54 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
     setProfileFailed(new Set());
     setPeopleGeneration((value) => value + 1);
   }, [profileBatcher]);
-  // Everything read for one viewer: on a refresh, sign-in, sign-up, sign-out,
+  // Replies and reposts for posts loaded after the snapshot (another feed page,
+  // a card's posts, a profile), read in one batch per tick.
+  const [engagementBatcher] = useState(() =>
+    createKeyBatcher<{ postIds: string[]; comments: PostComment[]; reposts: PostRepost[] }>(
+      async (keys) => {
+        const postIds = postIdsFromKeys(keys);
+        const client = await loadSupabaseBrowser();
+        if (!client || postIds.length === 0) return [];
+        const { data } = await client.auth.getSession();
+        const viewerId = data.session?.user.id ?? "";
+        const [muted, blocked] = viewerId
+          ? await Promise.all([loadHiddenAuthorIds(client, true), loadHiddenAuthorIds(client, false)])
+          : [[], []];
+        const parts = await Promise.all(
+          Array.from({ length: Math.ceil(postIds.length / 100) }, (_, index) =>
+            loadPostEngagement(client, postIds.slice(index * 100, (index + 1) * 100), viewerId, { muted, blocked }),
+          ),
+        );
+        return [
+          {
+            postIds,
+            comments: parts.flatMap((part) => part.comments),
+            reposts: parts.flatMap((part) => part.reposts),
+          },
+        ];
+      },
+      (reads) =>
+        startTransition(() =>
+          setRemote((existing) =>
+            reads.reduce(
+              (current, read) => mergeEngagement(current, read.postIds, read, isOptimisticReply),
+              existing,
+            ),
+          ),
+        ),
+      // A failed read keeps what is shown; those posts are read again when asked again.
+      () => {},
+    ),
+  );
+
+  // Everything read for one viewer (public cards, people, which posts'
+  // replies and reposts were read): on a refresh, sign-in, sign-up, sign-out,
   // or a new viewer id, it all starts over.
   const resetViewerReads = useCallback(() => {
     resetPublicCards();
     resetPeople();
-  }, [resetPeople, resetPublicCards]);
+    engagementBatcher.reset();
+  }, [engagementBatcher, resetPeople, resetPublicCards]);
   const viewerReadsId = snapshot.user?.id ?? null;
   const viewerReadsRef = useRef<string | null | undefined>(undefined);
   useEffect(() => {
@@ -2153,46 +2195,6 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       commitLocal(localLib().localMarkThreadRead(localRef.current, partnerId));
     },
     [commitLocal, mode],
-  );
-
-  // Replies and reposts for posts loaded after the snapshot (another feed page,
-  // a card's posts, a profile), read in one batch per tick.
-  const [engagementBatcher] = useState(() =>
-    createKeyBatcher<{ postIds: string[]; comments: PostComment[]; reposts: PostRepost[] }>(
-      async (keys) => {
-        const postIds = postIdsFromKeys(keys);
-        const client = await loadSupabaseBrowser();
-        if (!client || postIds.length === 0) return [];
-        const { data } = await client.auth.getSession();
-        const viewerId = data.session?.user.id ?? "";
-        const [muted, blocked] = viewerId
-          ? await Promise.all([loadHiddenAuthorIds(client, true), loadHiddenAuthorIds(client, false)])
-          : [[], []];
-        const parts = await Promise.all(
-          Array.from({ length: Math.ceil(postIds.length / 100) }, (_, index) =>
-            loadPostEngagement(client, postIds.slice(index * 100, (index + 1) * 100), viewerId, { muted, blocked }),
-          ),
-        );
-        return [
-          {
-            postIds,
-            comments: parts.flatMap((part) => part.comments),
-            reposts: parts.flatMap((part) => part.reposts),
-          },
-        ];
-      },
-      (reads) =>
-        startTransition(() =>
-          setRemote((existing) =>
-            reads.reduce(
-              (current, read) => mergeEngagement(current, read.postIds, read, isOptimisticReply),
-              existing,
-            ),
-          ),
-        ),
-      // A failed read keeps what is shown; those posts are read again when asked again.
-      () => {},
-    ),
   );
 
   const rememberPosts = useCallback((posts: Post[], profiles: Profile[] = [], likes: PostLike[] | null = null) => {

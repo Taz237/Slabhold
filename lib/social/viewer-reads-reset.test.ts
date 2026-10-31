@@ -63,4 +63,9 @@ describe("people reads start over with the viewer", () => {
     // Screens that already asked ask again after a reset.
     assert.match(callbackBody(source, "requestProfiles"), /peopleGeneration/);
   });
+
+  it("also forgets which posts' replies and reposts were read", () => {
+    const viewer = callbackBody(provider(), "resetViewerReads");
+    assert.match(viewer, /engagementBatcher\.reset\(\);/);
+  });
 });
