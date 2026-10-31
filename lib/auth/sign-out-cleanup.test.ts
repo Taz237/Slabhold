@@ -68,6 +68,30 @@ describe("sign-out cleanup", () => {
     assert.ok(!win.document.cookie.includes("slabhold_email_hint"));
   });
 
+  it("keeps only the device likes in the activity store, dropping notifications, comments and reposts", async () => {
+    const { installDom } = await import("@/lib/test/dom");
+    const { win } = installDom();
+    const like = { postId: "p1", userId: "user-1", createdAt: "2026-10-30T12:00:00.000Z" };
+    win.localStorage.setItem(
+      "slabhold.activity.v1",
+      JSON.stringify({
+        likes: [like],
+        reposts: [{ postId: "p2", userId: "user-1", createdAt: "2026-10-30T12:00:00.000Z" }],
+        comments: [{ id: "c1", postId: "p1", userId: "user-1", body: "Clean slab", createdAt: "2026-10-30T12:00:00.000Z" }],
+        notifications: [{ id: "n1", userId: "user-1", kind: "like", createdAt: "2026-10-30T12:00:00.000Z" }],
+      }),
+    );
+
+    clearSignedOutDevice();
+
+    assert.deepEqual(JSON.parse(win.localStorage.getItem("slabhold.activity.v1") ?? "null"), {
+      likes: [like],
+      reposts: [],
+      comments: [],
+      notifications: [],
+    });
+  });
+
   it("drops every account's recent searches and the device's recent players", () => {
     const { local, env } = device();
     local.setItem("slabhold.search.recent.v1", "[\"old\"]");
@@ -115,5 +139,14 @@ describe("sign-out cleanup", () => {
   it("names the same keys the features write", () => {
     assert.ok(SIGN_OUT_LOCAL_KEYS.includes(RECENT_PLAYERS_KEY));
     assert.deepEqual([...SIGN_OUT_SESSION_KEYS].sort(), ["cardflip.compose", "cardflip.scan", "slabhold.shared-post"]);
+  });
+});
+
+describe("sign-out cleanup in the social provider", () => {
+  it("reloads the in-memory activity after every cleanup, so dropped reposts leave the feed", async () => {
+    const { readFileSync } = await import("node:fs");
+    const provider = readFileSync("components/social-provider.tsx", "utf8");
+    const calls = provider.match(/clearSignedOutDevice\(\);\s*(?:\/\/[^\n]*\n\s*)?setActivity\(loadActivity\(\)\);/g) ?? [];
+    assert.equal(calls.length, 2, "signOut and the SIGNED_OUT event");
   });
 });

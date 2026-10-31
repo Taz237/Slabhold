@@ -1,6 +1,7 @@
 import { clearNewCardDraft } from "@/lib/cards/new-card-draft";
 import { clearEmailHintCookie } from "@/lib/pwa/install-step";
 import { SHARED_RECENT_SEARCH_KEY } from "@/lib/search/recent";
+import { emptyActivity, loadActivity, saveActivity } from "@/lib/social/activity";
 import { clearComposeDraft } from "@/lib/social/compose-draft";
 
 /**
@@ -82,4 +83,13 @@ export function clearSignedOutDevice(device: SignOutDevice = browserDevice()): v
   }
   remove(device.session, SIGN_OUT_SESSION_KEYS);
   remove(device.local, SIGN_OUT_LOCAL_KEYS, SIGN_OUT_LOCAL_PREFIXES);
+  // The device activity copy keeps only likes, which are filtered by userId and
+  // still feed the likes migration. The last account's notifications, comments
+  // and reposts go. TODO: clear it fully when the likes fallback is removed
+  // (after 2026-11-06).
+  try {
+    saveActivity({ ...emptyActivity, likes: loadActivity().likes });
+  } catch {
+    // Storage must never stop a logout.
+  }
 }

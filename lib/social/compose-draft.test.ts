@@ -105,7 +105,7 @@ describe("compose draft across accounts", () => {
     // clearSignedOutDevice runs clearComposeDraft (lib/auth/sign-out-cleanup.test.ts).
     assert.match(signOutBody.slice(0, signOutBody.indexOf("mode ===")), /clearSignedOutDevice\(\);/);
     // A session that ends on its own clears it too.
-    assert.match(provider, /if \(event === "SIGNED_OUT"\) clearSignedOutDevice\(\);/);
+    assert.match(provider, /if \(event === "SIGNED_OUT"\) \{\s*clearSignedOutDevice\(\);/);
     const userChange = provider.slice(provider.indexOf("seenDraftUserId.current = suggestionUserId;"));
     assert.match(userChange.slice(0, userChange.indexOf("}, [suggestionUserId]);")), /clearComposeDraft\(\);/);
   });

@@ -564,7 +564,10 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
           const { data } = client.auth.onAuthStateChange((event, session) => {
             if (event !== "SIGNED_IN" && event !== "SIGNED_OUT") return;
             // Also an expired session: nothing of this person stays for the next one.
-            if (event === "SIGNED_OUT") clearSignedOutDevice();
+            if (event === "SIGNED_OUT") {
+              clearSignedOutDevice();
+              setActivity(loadActivity());
+            }
             const decision = authSnapshotReload({
               event,
               nextUserId: session?.user?.id ?? null,
@@ -1195,6 +1198,8 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
     // Every logout path (side menu, account deletion) comes through here.
     // A session that ends on its own is cleared on SIGNED_OUT above.
     clearSignedOutDevice();
+    // The in-memory copy follows the trimmed store, so dropped reposts leave the feed now.
+    setActivity(loadActivity());
     const client = supabaseRef.current;
     if (mode === "supabase" && client) {
       // While the session is still valid: this device stops getting pushes.
