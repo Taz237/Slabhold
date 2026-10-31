@@ -10,6 +10,7 @@ import { loadOwnProfilePreview } from "@/lib/social/link-preview-load";
 export const alt = "Profile on Slabhold";
 export const size = ogSize;
 export const contentType = ogContentType;
+export const dynamic = "force-dynamic";
 
 export default async function Image() {
   const preview = await loadOwnProfilePreview();
