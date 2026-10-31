@@ -5,7 +5,7 @@ import { join } from "node:path";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getStartedHintScript, seededChecklist, type HomeSeed } from "./home-seed";
 import { loadHomeSeed } from "./load-home-seed";
-import { wantsClientHomeSeed } from "./use-client-home-seed";
+import { usableClientHomeSeed, wantsClientHomeSeed } from "./use-client-home-seed";
 import { loadViewerShell } from "./viewer-shell";
 
 const VIEWER = "11111111-1111-4111-8111-111111111111";
@@ -274,12 +274,26 @@ describe("Home seed read in the browser", () => {
     assert.equal(wantsClientHomeSeed({ ...base, serverSeed: {} as HomeSeed }), false);
   });
 
+  it("uses a browser-read seed only while it's wanted, and only for the viewer it was read for", () => {
+    const seed = { viewer: { id: "viewer-a" } } as HomeSeed;
+    assert.equal(usableClientHomeSeed({ clientSeed: seed, wanted: true, viewerId: null }), seed);
+    assert.equal(usableClientHomeSeed({ clientSeed: seed, wanted: true, viewerId: "viewer-a" }), seed);
+    // Someone else is signed in now: never draw the last viewer's Home.
+    assert.equal(usableClientHomeSeed({ clientSeed: seed, wanted: true, viewerId: "viewer-b" }), null);
+    // The snapshot is in (or a server seed came): nothing to stand in for.
+    assert.equal(usableClientHomeSeed({ clientSeed: seed, wanted: false, viewerId: "viewer-a" }), null);
+    assert.equal(usableClientHomeSeed({ clientSeed: null, wanted: true, viewerId: null }), null);
+    // And the hook drops the stored seed once it isn't wanted, so it can't come back later.
+    const hook = readFileSync(join(process.cwd(), "lib/social/use-client-home-seed.ts"), "utf8");
+    assert.match(hook, /return \(\) => \{\n\s+cancelled = true;\n\s+setClientSeed\(null\);/);
+  });
+
   it("loads its reads in their own chunk, so Home's first load stays the same size", () => {
     const hook = readFileSync(join(process.cwd(), "lib/social/use-client-home-seed.ts"), "utf8");
     assert.match(hook, /import\("\.\/load-home-seed"\)/);
     assert.doesNotMatch(hook, /from "\.\/load-home-seed"/);
     const gate = readFileSync(join(process.cwd(), "components/home-gate.tsx"), "utf8");
-    assert.match(gate, /useClientHomeSeed\(\{ serverSeed, ready \}\)/);
+    assert.match(gate, /useClientHomeSeed\(\{ serverSeed, ready, viewerId: user\?\.id \?\? null \}\)/);
     const load = readFileSync(join(process.cwd(), "lib/social/load-home-seed.ts"), "utf8");
     assert.doesNotMatch(load, /node:crypto/);
   });

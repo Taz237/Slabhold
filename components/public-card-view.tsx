@@ -134,6 +134,8 @@ export function PublicCardView({
   const listed =
     social.publicCards.find((card) => card.id === id && card.ownerId === profile.id) ??
     (!cardRead.ready && serverCard?.ownerId === profile.id ? serverCard : undefined);
+  // A failed read never means the card is gone: keep the server's copy, or offer a retry.
+  if (!owned && !listed && cardRead.failed) return <PublicCardRetry onRetry={cardRead.retry} />;
   if (!owned && !listed && !cardRead.ready) return <PublicCardSkeleton />;
   const card = owned ? (owned.isPublic ? toPublicCard(owned) : null) : (listed ?? null);
 
@@ -603,6 +605,22 @@ function SalesChartPlaceholder({
         ) : null}
       </div>
     </section>
+  );
+}
+
+function PublicCardRetry({ onRetry }: { onRetry: () => void }) {
+  return (
+    <div data-public-card-retry="" className="py-16 text-center">
+      <p className="text-lg font-semibold">Couldn&apos;t load this card</p>
+      <p className="mx-auto mt-2 max-w-xs text-sm text-zinc-500">Check your connection and try again.</p>
+      <button
+        type="button"
+        onClick={onRetry}
+        className="mt-4 inline-flex min-h-11 items-center rounded-full bg-violet-600 px-5 text-sm font-bold text-white transition-transform duration-150 active:scale-[0.98] motion-reduce:transition-none"
+      >
+        Try again
+      </button>
+    </div>
   );
 }
 

@@ -17,6 +17,22 @@ export function wantsClientHomeSeed(input: {
 }
 
 /**
+ * A browser-read seed stands in only while it's wanted, and only for the
+ * viewer it was read for: once someone else is signed in, it is never drawn.
+ */
+export function usableClientHomeSeed(input: {
+  clientSeed: HomeSeed | null;
+  wanted: boolean;
+  /** The provider's viewer, once it knows; null while the snapshot loads. */
+  viewerId: string | null;
+}): HomeSeed | null {
+  const { clientSeed, wanted, viewerId } = input;
+  if (!clientSeed || !wanted) return null;
+  if (viewerId && clientSeed.viewer.id !== viewerId) return null;
+  return clientSeed;
+}
+
+/**
  * Home's first screen when the server didn't send one (a visit from inside
  * the app, or a server read that failed) and the site snapshot isn't in yet:
  * the browser reads the same viewer shell, first page, and engagement the
@@ -27,6 +43,7 @@ export function useClientHomeSeed(input: {
   serverSeed: HomeSeed | null;
   /** The provider has its snapshot: nothing to stand in for. */
   ready: boolean;
+  viewerId: string | null;
 }): HomeSeed | null {
   const [clientSeed, setClientSeed] = useState<HomeSeed | null>(null);
   const wanted = !input.serverSeed && !input.ready;
@@ -53,7 +70,8 @@ export function useClientHomeSeed(input: {
     })().catch(() => {});
     return () => {
       cancelled = true;
+      setClientSeed(null);
     };
   }, [wanted]);
-  return input.serverSeed ?? clientSeed;
+  return input.serverSeed ?? usableClientHomeSeed({ clientSeed, wanted, viewerId: input.viewerId });
 }

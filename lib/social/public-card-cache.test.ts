@@ -7,8 +7,10 @@ import {
   cardsForKeys,
   createPublicCardBatcher,
   emptyPublicCardCache,
+  failPublicCards,
   mergePublicCards,
   publicCardKeys,
+  publicCardsFailed,
   publicCardsSettled,
   unsettledKeys,
 } from "./public-card-cache";
@@ -170,6 +172,7 @@ describe("public card cache", () => {
         return [];
       },
       (_cards, keys) => settledWith.push([...keys]),
+      () => {},
     );
     batcher.request(["id:a"]);
     batcher.request(["id:a", "id:b"]);
@@ -189,17 +192,83 @@ describe("public card cache", () => {
     assert.equal(reads.length, 1);
   });
 
-  it("settles a failed read too, so no screen waits on it forever", async () => {
+  it("keeps a failed read retryable: nothing settles, and the next ask reads again", async () => {
     const settledWith: string[][] = [];
+    const failedWith: string[][] = [];
+    let reads = 0;
     const batcher = createPublicCardBatcher(
       async () => {
-        throw new Error("offline");
+        reads += 1;
+        if (reads === 1) throw new Error("offline");
+        return [];
       },
       (cards, keys) => settledWith.push([...keys, `cards:${cards.length}`]),
+      (keys) => failedWith.push([...keys]),
     );
     batcher.request(["id:a"]);
     await new Promise((resolve) => setTimeout(resolve, 0));
+    assert.deepEqual(settledWith, []);
+    assert.deepEqual(failedWith, [["id:a"]]);
+    batcher.request(["id:a"]);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    assert.equal(reads, 2);
     assert.deepEqual(settledWith, [["id:a", "cards:0"]]);
+  });
+
+  it("marks failed keys as failed, not settled, until a read succeeds", () => {
+    const failed = failPublicCards(emptyPublicCardCache(), ["id:a"]);
+    assert.equal(publicCardsSettled(failed, ["id:a"]), false);
+    assert.equal(publicCardsFailed(failed, ["id:a", "id:b"]), true);
+    assert.equal(publicCardsFailed(failed, ["id:b"]), false);
+    const read = mergePublicCards(failed, [], ["id:a"]);
+    assert.equal(publicCardsSettled(read, ["id:a"]), true);
+    assert.equal(publicCardsFailed(read, ["id:a"]), false);
+  });
+
+  it("forgets everything on reset, and drops reads that were on the way", async () => {
+    const settledWith: string[][] = [];
+    let release: (rows: never[]) => void = () => {};
+    let reads = 0;
+    const batcher = createPublicCardBatcher(
+      () => {
+        reads += 1;
+        return reads === 1 ? new Promise<never[]>((resolve) => (release = resolve)) : Promise.resolve([]);
+      },
+      (_cards, keys) => settledWith.push([...keys]),
+      () => {},
+    );
+    batcher.request(["id:a"]);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    batcher.reset();
+    release([]);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    // The read from before the reset belongs to the old viewer: dropped.
+    assert.deepEqual(settledWith, []);
+    batcher.request(["id:a"]);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    assert.equal(reads, 2);
+    assert.deepEqual(settledWith, [["id:a"]]);
+    // A key that was done is read again after a reset.
+    batcher.reset();
+    batcher.request(["id:a"]);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    assert.equal(reads, 3);
+  });
+
+  it("clears the cache on refresh, account changes, and the viewer's own visibility changes", () => {
+    const provider = readFileSync(join(process.cwd(), "components/social-provider.tsx"), "utf8");
+    assert.match(provider, /const resetPublicCards = useCallback\(/);
+    assert.match(provider, /cardBatcher\.reset\(\);/);
+    // Pull-to-refresh, sign-in, sign-up, sign-out, and a new viewer id.
+    for (const name of ["refresh", "signUp", "signIn", "signOut"]) {
+      const at = provider.indexOf(`const ${name} = useCallback(`);
+      assert.ok(at > -1, name);
+      const body = provider.slice(at, provider.indexOf("\n  const ", at + 10));
+      assert.match(body, /resetPublicCards\(\)/, name);
+    }
+    assert.match(provider, /useEffect\(\(\) => \{\n\s+if \(cardViewerRef\.current === cardViewerId\) return;/);
+    const collection = readFileSync(join(process.cwd(), "components/collection-provider.tsx"), "utf8");
+    assert.match(collection, /resetPublicCards\(\)/);
   });
 
   it("is not read in full by the site snapshot any more", () => {

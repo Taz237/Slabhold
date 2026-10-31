@@ -56,7 +56,7 @@ const card: OwnedCard = {
 };
 
 /** A provider value that records what is asked for and answers from `loaded`. */
-function social(loaded: { cards: OwnedCard[]; ready: boolean }) {
+function social(loaded: { cards: OwnedCard[]; ready: boolean; failed?: boolean }) {
   const asked: string[][] = [];
   const value = {
     ready: true,
@@ -72,6 +72,7 @@ function social(loaded: { cards: OwnedCard[]; ready: boolean }) {
       asked.push([...keys]);
     },
     publicCardsReady: () => loaded.ready,
+    publicCardsFailed: () => loaded.failed === true,
   } as unknown as SocialContextValue;
   return { value, asked };
 }
@@ -114,6 +115,20 @@ describe("public cards a screen asks for", () => {
     assert.ok(found.host.querySelector("[data-shared-card]"));
     assert.match(found.host.textContent ?? "", /Jalen Brunson/);
     found.unmount();
+  });
+
+  it("offers a retry when the card's read failed, never 'no longer available'", async () => {
+    const { CardMessagePreviewCard } = await import("@/components/open-to-offers");
+    const preview = { cardId: CARD } as never;
+    const failed = social({ cards: [], ready: false, failed: true });
+    const view = await render(failed.value, createElement(CardMessagePreviewCard, { preview }));
+    assert.doesNotMatch(view.host.textContent ?? "", /no longer available/);
+    const retry = view.host.querySelector<HTMLButtonElement>("[data-shared-card-retry]");
+    assert.ok(retry);
+    assert.equal(retry.getAttribute("aria-label"), "Couldn't load this card. Try again");
+    await act(async () => retry.click());
+    assert.deepEqual(failed.asked, [[`id:${CARD}`], [`id:${CARD}`]]);
+    view.unmount();
   });
 
   it("asks for the cards linked in a message, and only those", async () => {

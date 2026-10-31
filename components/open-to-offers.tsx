@@ -124,6 +124,25 @@ function CardMessagePreviewPending() {
   );
 }
 
+/** Same footprint as a shared card when its read failed: tap to read it again. */
+function CardMessagePreviewRetry({ onRetry }: { onRetry: () => void }) {
+  return (
+    <button
+      type="button"
+      data-shared-card-retry=""
+      aria-label="Couldn't load this card. Try again"
+      onClick={onRetry}
+      className="mt-1 flex min-h-11 w-64 max-w-full items-center gap-3 rounded-2xl border border-violet-500/15 bg-white p-2.5 pr-3.5 text-left transition-transform duration-150 active:scale-[0.98] motion-reduce:transition-none dark:border-violet-400/20 dark:bg-zinc-900"
+    >
+      <span className="h-[78px] w-14 shrink-0 rounded-lg bg-zinc-100 dark:bg-white/10" />
+      <span className="min-w-0 flex-1">
+        <span className="block text-[14px] leading-5 font-semibold">Couldn&apos;t load this card</span>
+        <span className="block text-[13px] leading-5 font-semibold text-violet-600 dark:text-[#A78BFA]">Try again</span>
+      </span>
+    </button>
+  );
+}
+
 export function CardMessagePreviewBody({
   card,
 }: {
@@ -212,9 +231,10 @@ export function SharedCardPhoto({
 
 export function CardMessagePreviewCard({ preview }: { preview: CardMessagePreview }) {
   const { publicCards, profiles } = useSocial();
-  const { ready } = usePublicCards({ ids: [preview.cardId] });
+  const { ready, failed, retry } = usePublicCards({ ids: [preview.cardId] });
   const live = resolveLiveCardPreview(preview.cardId, publicCards, profiles);
   const value = useCardValue(live?.cardId ?? null);
+  if (!live && failed) return <CardMessagePreviewRetry onRetry={retry} />;
   if (!live && !ready) return <CardMessagePreviewPending />;
   if (!live) return <CardMessagePreviewBody card={null} />;
   return (

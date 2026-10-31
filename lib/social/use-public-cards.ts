@@ -1,19 +1,32 @@
 "use client";
 
-import { useEffect } from "react";
+import { useCallback, useEffect } from "react";
 import { useSocial } from "@/components/social-provider";
 import { publicCardKeys, type PublicCardRequest } from "./public-card-cache";
 
 /**
  * Reads the public cards a screen part needs (by id, owner, or player) into
  * the provider's cache, and says when that read is done. Pass null to ask
- * for nothing. The cards themselves are on useSocial().publicCards.
+ * for nothing. The cards themselves are on useSocial().publicCards. A failed
+ * read is never "not found": it says `failed`, and asking again retries.
  */
-export function usePublicCards(request: PublicCardRequest | null): { ready: boolean } {
-  const { requestPublicCards, publicCardsReady } = useSocial();
+export function usePublicCards(request: PublicCardRequest | null): {
+  ready: boolean;
+  /** The read failed: not ready, and nothing is missing. `retry` reads again. */
+  failed: boolean;
+  retry: () => void;
+} {
+  const { requestPublicCards, publicCardsReady, publicCardsFailed } = useSocial();
   const key = request ? publicCardKeys(request).join("\n") : "";
   useEffect(() => {
     if (key) requestPublicCards(key.split("\n"));
   }, [key, requestPublicCards]);
-  return { ready: key ? publicCardsReady(key.split("\n")) : true };
+  const retry = useCallback(() => {
+    if (key) requestPublicCards(key.split("\n"));
+  }, [key, requestPublicCards]);
+  return {
+    ready: key ? publicCardsReady(key.split("\n")) : true,
+    failed: key ? publicCardsFailed(key.split("\n")) : false,
+    retry,
+  };
 }

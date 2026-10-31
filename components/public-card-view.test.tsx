@@ -52,6 +52,8 @@ function render(
     publicCards?: OwnedCard[];
     /** The live public row read. Defaults to done once the app is ready. */
     cardRead?: boolean;
+    /** The live row's read failed. */
+    cardFailed?: boolean;
   },
   props: { initialCard?: OwnedCard | null; initialOwner?: PublicCardOwner | null } = {},
 ) {
@@ -65,6 +67,7 @@ function render(
     mutedIds: [],
     requestPublicCards: () => {},
     publicCardsReady: () => social.cardRead ?? social.ready,
+    publicCardsFailed: () => social.cardFailed === true,
     profileByUsername: (name: string) => (social.ready && name === "maya" ? profile : undefined),
   };
   const collectionValue = { cards: [], ready: true };
@@ -127,5 +130,19 @@ describe("public card view first paint", () => {
     // No server card and nothing read yet: the skeleton, not "isn't public".
     const cold = render({ ready: true, publicCards: [], cardRead: false });
     assert.match(cold, /data-public-card-skeleton/);
+  });
+
+  it("keeps the server card when the live read fails, and never says not public or not found", () => {
+    const failed = render(
+      { ready: true, publicCards: [], cardRead: false, cardFailed: true },
+      { initialCard: card, initialOwner: owner },
+    );
+    assert.match(failed, /Jalen Brunson/);
+    assert.doesNotMatch(failed, /This card isn&#x27;t public|not found|data-public-card-skeleton/);
+    // No server card to stand in: a retry, not a missing card.
+    const cold = render({ ready: true, publicCards: [], cardRead: false, cardFailed: true });
+    assert.match(cold, /Couldn&#x27;t load this card/);
+    assert.match(cold, /data-public-card-retry/);
+    assert.doesNotMatch(cold, /This card isn&#x27;t public|not found/);
   });
 });

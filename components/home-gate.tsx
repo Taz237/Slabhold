@@ -33,7 +33,7 @@ export function HomeGate({
   seed?: HomeSeed | null;
 }) {
   const { ready, user } = useSocial();
-  const seed = useClientHomeSeed({ serverSeed, ready });
+  const seed = useClientHomeSeed({ serverSeed, ready, viewerId: user?.id ?? null });
   if (!user && (ready || !seed)) {
     // Drawn from the server HTML on the first paint. While the snapshot loads,
     // CSS hides it when a session cookie says someone is signed in.

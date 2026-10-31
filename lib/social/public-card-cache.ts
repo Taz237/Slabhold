@@ -14,12 +14,14 @@ export type PublicCardRequest = {
 
 export type PublicCardCache = {
   cards: ReadonlyMap<string, OwnedCard>;
-  /** Request keys that finished, found or not. */
+  /** Request keys that read fine, found or not. */
   settled: ReadonlySet<string>;
+  /** Request keys whose last read failed. Never settled: asking again reads again. */
+  failed: ReadonlySet<string>;
 };
 
 export function emptyPublicCardCache(): PublicCardCache {
-  return { cards: new Map(), settled: new Set() };
+  return { cards: new Map(), settled: new Set(), failed: new Set() };
 }
 
 function playerKey(name: string): string {
@@ -48,6 +50,24 @@ export function publicCardsSettled(cache: PublicCardCache, keys: readonly string
   return keys.every((key) => cache.settled.has(key));
 }
 
+/** Any of these keys' last read failed (and none has read fine since). */
+export function publicCardsFailed(cache: PublicCardCache, keys: readonly string[]): boolean {
+  return keys.some((key) => cache.failed.has(key) && !cache.settled.has(key));
+}
+
+/** Marks keys whose read failed. They stay unsettled, so no screen calls them missing. */
+export function failPublicCards(cache: PublicCardCache, keys: readonly string[]): PublicCardCache {
+  return { ...cache, failed: new Set([...cache.failed, ...keys]) };
+}
+
+/** Asking again: these keys are on the way, not failed. */
+export function retryPublicCards(cache: PublicCardCache, keys: readonly string[]): PublicCardCache {
+  if (!keys.some((key) => cache.failed.has(key))) return cache;
+  const failed = new Set(cache.failed);
+  for (const key of keys) failed.delete(key);
+  return { ...cache, failed };
+}
+
 /** Keys still to read: not settled and not already on the way. */
 export function unsettledKeys(
   cache: PublicCardCache,
@@ -65,7 +85,9 @@ export function mergePublicCards(
 ): PublicCardCache {
   const next = new Map(cache.cards);
   for (const card of cards) next.set(card.id, card);
-  return { cards: next, settled: new Set([...cache.settled, ...keys]) };
+  const failed = new Set(cache.failed);
+  for (const key of keys) failed.delete(key);
+  return { cards: next, settled: new Set([...cache.settled, ...keys]), failed };
 }
 
 export function cardsForKeys(cache: PublicCardCache): OwnedCard[] {
@@ -75,16 +97,21 @@ export function cardsForKeys(cache: PublicCardCache): OwnedCard[] {
 /**
  * Collects the keys every screen part asks for in one tick into a single
  * read. A key that is on the way or already read is never asked again. A
- * failed read still settles its keys (with no rows), so nothing waits on it.
+ * failed read is reported with `fail` and stays retryable: its keys leave
+ * the on-the-way set but are never marked done, so the next ask reads again.
+ * `reset` forgets every key (a new viewer, a refresh) and drops reads that
+ * were already on the way, so an old viewer's rows never land.
  */
 export function createPublicCardBatcher(
   load: (keys: string[]) => Promise<OwnedCard[]>,
   settle: (cards: OwnedCard[], keys: string[]) => void,
+  fail: (keys: string[]) => void,
 ) {
   const done = new Set<string>();
   const inflight = new Set<string>();
   let queue: string[] = [];
   let scheduled = false;
+  let generation = 0;
   return {
     request(keys: readonly string[]) {
       const fresh = keys.filter((key) => !done.has(key) && !inflight.has(key));
@@ -95,19 +122,36 @@ export function createPublicCardBatcher(
       }
       if (scheduled) return;
       scheduled = true;
+      const asked = generation;
       queueMicrotask(() => {
         scheduled = false;
+        if (asked !== generation) return;
         const batch = queue;
         queue = [];
-        const finish = (cards: OwnedCard[]) => {
-          for (const key of batch) {
-            done.add(key);
-            inflight.delete(key);
-          }
-          settle(cards, batch);
-        };
-        void load(batch).then(finish, () => finish([]));
+        const current = () => asked === generation;
+        void load(batch).then(
+          (cards) => {
+            if (!current()) return;
+            for (const key of batch) {
+              done.add(key);
+              inflight.delete(key);
+            }
+            settle(cards, batch);
+          },
+          () => {
+            if (!current()) return;
+            for (const key of batch) inflight.delete(key);
+            fail(batch);
+          },
+        );
       });
+    },
+    reset() {
+      generation += 1;
+      done.clear();
+      inflight.clear();
+      queue = [];
+      scheduled = false;
     },
   };
 }
