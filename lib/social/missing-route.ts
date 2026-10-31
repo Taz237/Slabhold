@@ -1,6 +1,6 @@
 import { isStaticPublicPath } from "@/lib/auth/route-access";
 import { isUuid } from "@/lib/value/card-value-access";
-import { normalizeUsername } from "./local-db";
+import { normalizeUsername } from "./usernames";
 
 const USERNAME = /^[a-z0-9_]{3,20}$/;
 

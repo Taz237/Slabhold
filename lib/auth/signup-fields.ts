@@ -1,5 +1,5 @@
 import { captchaRetryMessage } from "@/lib/auth/captcha";
-import { normalizeUsername, usernameError } from "@/lib/social/local-db";
+import { normalizeUsername, usernameError } from "@/lib/social/usernames";
 
 /** Same characters and length as usernameError. */
 export const USERNAME_HINT = "Letters, numbers, and underscores. 3–20 characters.";

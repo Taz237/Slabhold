@@ -1,4 +1,4 @@
-import { isReservedUsername, normalizeUsername } from "@/lib/social/local-db";
+import { isReservedUsername, normalizeUsername } from "@/lib/social/usernames";
 import { inviteCode } from "./code";
 
 /** Who sent you: the inviter's username and code from /i/<username>?c=<code>, kept on this device. */

@@ -36,11 +36,20 @@ describe("bundle size check", () => {
   });
 
   it("guards signed-out Home and the key signed-in routes against recorded baselines, in CI after the build", () => {
-    assert.deepEqual(GUARDED_ROUTES, ["/welcome", "/", "/collection", "/cards/[id]", "/u/[username]/cards/[id]"]);
+    assert.deepEqual(GUARDED_ROUTES, [
+      "/welcome",
+      "/",
+      "/collection",
+      "/cards/[id]",
+      "/u/[username]/cards/[id]",
+      "/posts/[id]",
+    ]);
     const baseline = JSON.parse(read("bundle-baseline.json")) as Record<string, number>;
     for (const route of GUARDED_ROUTES) {
       assert.ok(Number.isInteger(baseline[route]) && baseline[route] > 0, route);
     }
+    // The post page is guarded at main's size when it joined the guard.
+    assert.equal(baseline["/posts/[id]"], 320429);
     // Signed-out Home stays under 150 KB gzip.
     assert.ok(baseline["/welcome"] < 150 * 1024, String(baseline["/welcome"]));
     const pkg = JSON.parse(read("package.json")) as { scripts: Record<string, string> };

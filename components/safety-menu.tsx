@@ -54,7 +54,9 @@ export function SafetyMenu({
 
   async function afterChange(type: "block" | "unblock" | "mute" | "unmute") {
     applySafetyChange({ type, userId: reportedUserId });
-    await refresh();
+    // Block and mute already took their posts, replies and notices off in place.
+    // Unblock and unmute need a read to bring them back.
+    if (type === "unblock" || type === "unmute") await refresh();
   }
 
   async function onReport(event: React.FormEvent) {
