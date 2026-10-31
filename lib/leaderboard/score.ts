@@ -9,6 +9,7 @@ import {
   type LeaderboardBoardId,
 } from "./rules";
 import { inWeek, isoDate, zonedParts, type WeekWindow } from "./week";
+import { BRAND_PURPLE } from "@/lib/pwa/manifest";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -451,7 +452,7 @@ function scoreCards(input: ScoreInput, week: WeekWindow, index: ActorIndex): Can
       subtitle: handleOf(profile),
       href: profileHref(profile),
       avatarUrl: profile.avatarUrl,
-      accent: profile.accent || "#2dd4bf",
+      accent: profile.accent || BRAND_PURPLE,
       contributions: [{ actorId: userId, points: count }],
     });
   }

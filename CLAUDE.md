@@ -29,7 +29,7 @@ Sports cards only. **No Pokemon or other TCG** anywhere in the product or assets
   - purple `#7C3AED` (logo and brand graphics), deep purple `#5B21B6`, light purple accent text `#A78BFA`;
   - in-app buttons use Tailwind violet-600;
   - background black `#09090B` (zinc-950), ink `#18181B`, off-white `#F4F4F5`;
-  - teal `#34C1AE` sparingly, for small highlights only, never instead of purple.
+  - purple only for brand accents. No teal in brand UI (the "Teal" parallel swatch and the card accent palette are card colors, not brand).
 - **Fonts:** Geist (headlines 700/800 with tight tracking, body 400/500) and Geist Mono (small uppercase tags), loaded in `app/layout.tsx`.
 - **Logo:** the purple star tile (`public/logo.svg`, `public/icons/`, `app/apple-icon.png`). Don't recolor, stretch, outline or add glows. Don't rebuild the wordmark in another font.
 - **Tone:**

@@ -97,12 +97,15 @@ describe("composer draft wiring", () => {
 });
 
 describe("compose draft across accounts", () => {
-  it("is cleared on sign-out and when the signed-in user changes", () => {
+  it("is cleared on sign-out, on session expiry, and when the signed-in user changes", () => {
     const provider = readFileSync(join(process.cwd(), "components/social-provider.tsx"), "utf8");
     const signOut = provider.slice(provider.indexOf("const signOut = useCallback"));
     const signOutBody = signOut.slice(0, signOut.indexOf("}, [commitLocal"));
     // Before the Supabase/local split, so both modes clear it.
-    assert.match(signOutBody.slice(0, signOutBody.indexOf("mode ===")), /clearComposeDraft\(\);/);
+    // clearSignedOutDevice runs clearComposeDraft (lib/auth/sign-out-cleanup.test.ts).
+    assert.match(signOutBody.slice(0, signOutBody.indexOf("mode ===")), /clearSignedOutDevice\(\);/);
+    // A session that ends on its own clears it too.
+    assert.match(provider, /if \(event === "SIGNED_OUT"\) \{\s*clearSignedOutDevice\(\);/);
     const userChange = provider.slice(provider.indexOf("seenDraftUserId.current = suggestionUserId;"));
     assert.match(userChange.slice(0, userChange.indexOf("}, [suggestionUserId]);")), /clearComposeDraft\(\);/);
   });

@@ -1,5 +1,6 @@
 import { parseGrade, RAW_GRADE } from "./card-options";
 import type { SportsCard } from "./types";
+import { BRAND_PURPLE } from "./pwa/manifest";
 
 function seed(
   partial: Omit<
@@ -80,7 +81,7 @@ export const SEED_CARDS: SportsCard[] = [
     sellDate: null,
     notes: "Holo, centering looks 60/40. Best hold in the book.",
     photoDataUrl: null,
-    accent: "#2dd4bf",
+    accent: BRAND_PURPLE,
     createdAt: "2024-08-18T18:20:00.000Z",
     updatedAt: "2026-02-01T09:00:00.000Z",
   }),

@@ -17,7 +17,7 @@ import { trackEvent } from "@/lib/analytics";
 import { pingBadgeCheck } from "@/lib/badges/client";
 import { clearNewCardDraft } from "@/lib/cards/new-card-draft";
 import { clearComposeDraft } from "@/lib/social/compose-draft";
-import { forgetEmailHint } from "@/lib/pwa/install-step";
+import { clearSignedOutDevice } from "@/lib/auth/sign-out-cleanup";
 import { profileChangeRefreshesBoard } from "@/lib/leaderboard/profile-refresh";
 import { revalidateValueBoardForAccount } from "@/lib/leaderboard/revalidate";
 import { activityFrom, emptyActivity, loadActivity, saveActivity, type ActivityStore } from "@/lib/social/activity";
@@ -563,6 +563,11 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
           if (cancelled) return;
           const { data } = client.auth.onAuthStateChange((event, session) => {
             if (event !== "SIGNED_IN" && event !== "SIGNED_OUT") return;
+            // Also an expired session: nothing of this person stays for the next one.
+            if (event === "SIGNED_OUT") {
+              clearSignedOutDevice();
+              setActivity(loadActivity());
+            }
             const decision = authSnapshotReload({
               event,
               nextUserId: session?.user?.id ?? null,
@@ -1190,10 +1195,11 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
   );
 
   const signOut = useCallback(async () => {
-    clearNewCardDraft();
-    clearComposeDraft();
     // Every logout path (side menu, account deletion) comes through here.
-    forgetEmailHint();
+    // A session that ends on its own is cleared on SIGNED_OUT above.
+    clearSignedOutDevice();
+    // The in-memory copy follows the trimmed store, so dropped reposts leave the feed now.
+    setActivity(loadActivity());
     const client = supabaseRef.current;
     if (mode === "supabase" && client) {
       // While the session is still valid: this device stops getting pushes.

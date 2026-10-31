@@ -494,7 +494,8 @@ describe("sign out drops the new-card draft", () => {
       provider.indexOf("const signOut = useCallback"),
       provider.indexOf("const updateProfile = useCallback"),
     );
-    assert.match(signOut, /clearNewCardDraft\(\)/);
+    // clearSignedOutDevice runs clearNewCardDraft (lib/auth/sign-out-cleanup.test.ts).
+    assert.match(signOut, /clearSignedOutDevice\(\)/);
     assert.match(provider, /seenDraftUserId\.current === suggestionUserId/);
     const more = readFileSync("components/side-menu.tsx", "utf8");
     const logout = more.slice(more.indexOf("markLogoutHome()"), more.indexOf("Log out"));

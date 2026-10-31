@@ -25,6 +25,7 @@ import { shouldNotifyQuoteAuthor, validateQuoteContent } from "./quotes";
 import { COMMENT_LIMIT } from "./types";
 import { canDeleteReply, stateAfterReplyDelete } from "./reply-delete";
 import { normalizeUsername, usernameChangeError, usernameError } from "./usernames";
+import { BRAND_PURPLE } from "@/lib/pwa/manifest";
 
 export { canDeleteReply, stateAfterReplyDelete } from "./reply-delete";
 export {
@@ -420,7 +421,7 @@ export async function localSignUp(db: LocalDb, input: SignUpInput): Promise<{ db
     bio: "",
     avatarDataUrl: null,
     coverDataUrl: null,
-    accent: "#2dd4bf",
+    accent: BRAND_PURPLE,
     createdAt: new Date().toISOString(),
     passwordHash: await hashPassword(input.password),
   };
