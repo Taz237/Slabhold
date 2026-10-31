@@ -430,12 +430,13 @@ describe("add card survives a remount", () => {
     try {
       await waitFor(() => textIncludes("Add a card"));
       await fillIdentity();
-      await clickCheckbox("Show this card on your public profile");
+      await clickVisibility("Public");
       await clickCheckbox("Share to feed");
       await submit();
       await waitFor(() => textIncludes("Saved the card, but couldn't share it to the feed."));
       assert.equal(saveProbe.adds, 1);
       assert.equal(saveProbe.cards.length, 1);
+      assert.equal(saveProbe.cards[0]?.isPublic, true);
       await submit();
       await waitFor(() => textIncludes("Could not save this card."));
       assert.equal(saveProbe.removes, 0);
