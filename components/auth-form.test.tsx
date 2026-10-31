@@ -134,10 +134,20 @@ async function click(name: string) {
   });
 }
 
-async function wait(ms: number) {
-  await act(async () => {
-    await new Promise((resolve) => setTimeout(resolve, ms));
-  });
+/**
+ * Polls until the page shows `text`. The username check is a debounce plus an
+ * async lookup, so a fixed sleep flakes on a slow runner.
+ */
+async function waitForText(text: RegExp, timeout = 5000) {
+  const deadline = Date.now() + timeout;
+  while (!text.test(win.document.body.textContent ?? "")) {
+    if (Date.now() > deadline) {
+      throw new Error(`timed out waiting for ${text}: ${win.document.body.textContent?.slice(0, 400)}`);
+    }
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    });
+  }
 }
 
 function progress() {
@@ -193,15 +203,13 @@ describe("sign-up flow", () => {
 
     await type("WaxRoom");
     assert.match(view.host.textContent ?? "", /Checking…/);
-    await wait(420);
-    assert.match(view.host.textContent ?? "", /That username is taken\./);
+    await waitForText(/That username is taken\./);
     await pressEnter();
     assert.equal(heading(), "Pick a username", "a taken name can't continue");
 
     await click("Try @waxroom_cards");
     assert.equal(input().value, "waxroom_cards");
-    await wait(420);
-    assert.match(view.host.textContent ?? "", /@waxroom_cards is available/);
+    await waitForText(/@waxroom_cards is available/);
 
     await pressEnter();
     assert.equal(heading(), "What should we call you?");
@@ -218,7 +226,7 @@ describe("sign-up flow", () => {
     await type("secret12");
     await pressEnter();
     await type("wax_room");
-    await wait(420);
+    await waitForText(/@wax_room is available/);
     await pressEnter();
     await type("Ada");
     await pressEnter();
@@ -246,7 +254,7 @@ describe("sign-up flow", () => {
     await type("secret12");
     await pressEnter();
     await type("wax_room");
-    await wait(420);
+    await waitForText(/@wax_room is available/);
     await pressEnter();
     await pressEnter();
     assert.equal(calls.length, 1);
@@ -264,7 +272,7 @@ describe("sign-up flow", () => {
     await type("secret12");
     await pressEnter();
     await type("wax_room");
-    await wait(420);
+    await waitForText(/@wax_room is available/);
     await pressEnter();
     assert.equal(heading(), "What should we call you?");
 
