@@ -113,7 +113,11 @@ describe("share to feed", () => {
     assert.match(form, /shareToFeedControl/);
     assert.match(form, /sharePostFromCard/);
     assert.match(form, /existing \? null : \(/);
-    assert.match(form, /Cards are private by default\. You can show them on your profile\./);
+    assert.match(form, /PRIVATE_VISIBILITY_HINT/);
+    assert.match(
+      read("lib/cards/visibility-choice.ts"),
+      /Cards are private by default\. Your price paid stays private\./,
+    );
     assert.match(read("components/card-detail.tsx"), /SharedPostNote/);
     assert.match(read("components/shared-post-note.tsx"), /View post/);
     assert.match(read("components/card-form.tsx"), /shareSessionStore/);

@@ -66,9 +66,10 @@ describe("add card form polish", () => {
   });
 
   it("explains that cards are private by default", () => {
+    assert.match(form, /PRIVATE_VISIBILITY_HINT/);
     assert.match(
-      form,
-      /Cards are private by default\. You can show them on your profile\./,
+      read("lib/cards/visibility-choice.ts"),
+      /Cards are private by default\. Your price paid stays private\./,
     );
   });
 

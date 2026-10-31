@@ -313,7 +313,7 @@ describe("add card survives a remount", () => {
     try {
       await waitFor(() => textIncludes("Add a card"));
       await fillIdentity();
-      await clickCheckbox("Show this card on your public profile");
+      await clickVisibility("Public");
       await clickCheckbox("Share to feed");
       await submit();
       await waitFor(() => textIncludes("Saved the card, but couldn't share it to the feed."));
@@ -449,6 +449,16 @@ async function chooseSearch(name: string, text: string) {
   await act(async () => {
     setNativeValue(input, text);
     fire(input, new win.KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+  });
+}
+
+async function clickVisibility(label: "Public" | "Private") {
+  const match = [...win.document.querySelectorAll('[role="radio"]')].find(
+    (node) => node.textContent?.trim() === label,
+  );
+  assert.ok(match instanceof win.HTMLButtonElement);
+  await act(async () => {
+    match.click();
   });
 }
 

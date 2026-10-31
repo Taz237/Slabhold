@@ -113,7 +113,6 @@ describe("add card sections", () => {
       "purchase",
       "estimatedSellPrice",
       "sold",
-      "isPublic",
       "openToOffers",
       "notes",
       "shareToFeed",

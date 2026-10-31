@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { Fragment, useEffect, useMemo, useRef, useState, type SetStateAction } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState, useSyncExternalStore, type SetStateAction } from "react";
 import { ChevronDown, ScanSearch } from "lucide-react";
 import { AddCardFlow } from "@/components/add-card/add-card-flow";
 import { CardPhotoField } from "@/components/card-photo-field";
@@ -93,8 +93,15 @@ import {
 } from "@/lib/social/mail-day";
 import { identifyFromPhoto } from "@/lib/comps/sample";
 import { OpenToOffersToggle } from "@/components/open-to-offers";
+import { VisibilityChoice } from "@/components/visibility-choice";
 import { cardCategory } from "@/lib/card-category";
 import { showOpenToOffersToggle } from "@/lib/offers/open-to-offers";
+import {
+  PRIVATE_VISIBILITY_HINT,
+  readBrowserVisibilityChoice,
+  subscribeVisibilityChoice,
+  writeBrowserVisibilityChoice,
+} from "@/lib/cards/visibility-choice";
 import { parseManualPrefill } from "@/lib/card-search-query";
 import { hasPaid } from "@/lib/format";
 import { formatCardValueLabel, marketValueSummary } from "@/lib/value/format";
@@ -175,7 +182,15 @@ export function CardForm({
   }, [existing]);
 
   const [sold, setSold] = useState(restored?.sold ?? Boolean(existing?.sellPrice));
-  const [share, setShare] = useState(restored?.share ?? Boolean(existing?.isPublic));
+  const rememberedShare = useSyncExternalStore(
+    subscribeVisibilityChoice,
+    () => (userId ? readBrowserVisibilityChoice(userId) : null),
+    () => null,
+  );
+  const [shareChoice, setShareChoice] = useState<boolean | null>(
+    restored?.share ?? (existing ? Boolean(existing.isPublic) : null),
+  );
+  const share = shareChoice ?? rememberedShare ?? false;
   const offersKnown = existing?.openToOffers != null;
   const [openToOffers, setOpenToOffers] = useState(
     restored?.openToOffers ?? existing?.openToOffers === true,
@@ -299,7 +314,7 @@ export function CardForm({
       !photoMissing &&
       !noNumber &&
       !sold &&
-      !share &&
+      share === (rememberedShare ?? false) &&
       !shareToFeed &&
       caption.trim() === "" &&
       !sportTouched &&
@@ -370,6 +385,7 @@ export function CardForm({
     isRelic,
     sold,
     share,
+    rememberedShare,
     openToOffers,
     shareToFeed,
     caption,
@@ -632,6 +648,14 @@ export function CardForm({
     else if (existing) router.push(`/cards/${existing.id}`);
   }
 
+  function chooseVisibility(next: boolean) {
+    setShareChoice(next);
+    if (!next) {
+      setOpenToOffers(false);
+      setShareToFeed(false);
+    }
+  }
+
   function startOver() {
     setDraftSealed(false);
     setPendingCardId(null);
@@ -642,7 +666,7 @@ export function CardForm({
     setPhotoError(null);
     setIdentified(null);
     setSold(false);
-    setShare(false);
+    setShareChoice(null);
     setOpenToOffers(false);
     setShareToFeed(false);
     setCaption("");
@@ -784,6 +808,7 @@ export function CardForm({
         pendingId.current = card.id;
         setPendingCardId(card.id);
         clearNewCardDraft();
+        if (user?.id) writeBrowserVisibilityChoice(user.id, payload.isPublic);
       }
       if (offerPrivacy && user) rememberFirstCardPrivacy(user.id, card.id);
       if (mode === "supabase") {
@@ -1376,29 +1401,12 @@ export function CardForm({
       </label>
   );
 
-  const publicNode = (
-      <div className="rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm dark:border-white/10 dark:bg-white/[0.03]">
-        <label className="flex min-h-11 items-center gap-3">
-          <CheckHit>
-            <input
-              type="checkbox"
-              checked={share}
-              onChange={(e) => {
-                setShare(e.target.checked);
-                if (!e.target.checked) {
-                  setOpenToOffers(false);
-                  setShareToFeed(false);
-                }
-              }}
-              className="size-5 accent-violet-500"
-            />
-          </CheckHit>
-          Show this card on your public profile
-        </label>
-        <p className="text-xs leading-5 text-zinc-500">
-          Cards are private by default. You can show them on your profile.
-        </p>
-      </div>
+  const visibilityNode = (
+      <VisibilityChoice
+        isPublic={share}
+        onChange={chooseVisibility}
+        hint={share ? "" : PRIVATE_VISIBILITY_HINT}
+      />
   );
 
   const offersNode = (
@@ -1524,7 +1532,6 @@ export function CardForm({
           {sellFieldsNode}
         </>
       ),
-      isPublic: publicNode,
       openToOffers: offersNode,
       notes: notesNode,
       shareToFeed: shareToFeedNode,
@@ -1553,7 +1560,13 @@ export function CardForm({
           pickCatalog={applyCatalog}
           onStartOver={startOver}
           header={headerNode}
-          photoBlock={photoNode}
+          photoBlock={
+            // Photo buttons stay the first controls; who can see the card sits right under them.
+            <div className="space-y-5">
+              {photoNode}
+              {visibilityNode}
+            </div>
+          }
           moreDetails={guidedMore.map((key) => (
             <Fragment key={key}>{guidedMoreNodes[key]}</Fragment>
           ))}
@@ -1620,7 +1633,6 @@ export function CardForm({
           {sellFieldsNode}
         </>
       ),
-      isPublic: publicNode,
       openToOffers: offersNode,
       notes: notesNode,
       shareToFeed: shareToFeedNode,
@@ -1686,7 +1698,11 @@ export function CardForm({
         {headerNode}
         {startOverNode}
         {sections.visible.map((key) => (
-          <Fragment key={key}>{visibleNodes[key]}</Fragment>
+          <Fragment key={key}>
+            {visibleNodes[key]}
+            {/* Who can see the card sits right under the photo buttons. */}
+            {key === "photo" ? visibilityNode : null}
+          </Fragment>
         ))}
       </form>
     );
@@ -1695,6 +1711,8 @@ export function CardForm({
   return (
     <form ref={formRef} onSubmit={onSubmit} className="mx-auto max-w-xl space-y-5">
       {headerNode}
+
+      {visibilityNode}
 
       {categoryNode}
 
@@ -1738,8 +1756,6 @@ export function CardForm({
       {estimateNode}
 
       {soldToggleNode}
-
-      {publicNode}
 
       {offersNode}
 

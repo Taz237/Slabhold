@@ -348,7 +348,8 @@ export function CardDetail({ id, added = false }: { id: string; added?: boolean 
   function setPublic(next: boolean) {
     if (!card) return;
     const result = updateCard(card.id, publicTogglePatch(card, next));
-    if (next) dismissPrivacyNudge();
+    // The first-card nudge stays up until the card is really public.
+    if (next) void result.saved.then(dismissPrivacyNudge, () => undefined);
     return result;
   }
 
@@ -425,8 +426,8 @@ export function CardDetail({ id, added = false }: { id: string; added?: boolean 
       {privacyNudge ? (
         <FirstCardPrivacyPrompt
           onToggle={() => {
-            updateCard(card.id, { isPublic: !card.isPublic });
-            dismissPrivacyNudge();
+            const { saved } = updateCard(card.id, { isPublic: !card.isPublic });
+            void saved.then(dismissPrivacyNudge, () => undefined);
           }}
           onDismiss={dismissPrivacyNudge}
         />
