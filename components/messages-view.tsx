@@ -297,7 +297,7 @@ function InboxArt() {
         <circle cx="86" cy="27" r="3.4" fill="#F4F4F5" />
         <circle cx="100" cy="27" r="3.4" fill="#F4F4F5" fillOpacity="0.8" />
         <circle cx="114" cy="27" r="3.4" fill="#F4F4F5" fillOpacity="0.6" />
-        <circle cx="134" cy="10" r="4" fill="#34C1AE" />
+        <circle cx="134" cy="10" r="4" fill="#A78BFA" />
       </g>
     </svg>
   );

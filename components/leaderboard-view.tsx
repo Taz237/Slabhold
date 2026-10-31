@@ -11,7 +11,7 @@ import { FINAL_LABEL, LEADERBOARD_PATH, RULES_SHEET_LABEL, YOU_LABEL, YOUR_SPOT_
 const BOARD_ACCENT: Record<string, string> = {
   "top-card-post": "#7c5cff",
   "rising-collectors": "#10b981",
-  "most-cards-added": "#14b8a6",
+  "most-cards-added": "#A78BFA",
 };
 
 const BOARD_ICON: Record<string, typeof Layers> = {

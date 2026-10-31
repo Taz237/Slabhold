@@ -10,7 +10,7 @@ import { endCelebration, startCelebration, startTour, tourSeen } from "@/lib/onb
 /** How long "You're in" stays before the tour starts. */
 export const YOURE_IN_MS = 2600;
 
-const CONFETTI = ["#7C3AED", "#A78BFA", "#5B21B6", "#34C1AE", "#F4F4F5", "#7C3AED", "#A78BFA", "#5B21B6", "#7C3AED", "#A78BFA", "#34C1AE", "#F4F4F5"];
+const CONFETTI = ["#7C3AED", "#A78BFA", "#5B21B6", "#A78BFA", "#F4F4F5", "#7C3AED", "#A78BFA", "#5B21B6", "#7C3AED", "#A78BFA", "#A78BFA", "#F4F4F5"];
 
 /**
  * A small moment on Home right after setup: a shine across the toast and a
