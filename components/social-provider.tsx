@@ -184,6 +184,8 @@ export type SocialContextValue = {
   requestProfiles: (keys: readonly string[]) => void;
   /** True once every key has been read, found or not. Always true on local accounts. */
   profilesReady: (keys: readonly string[]) => boolean;
+  /** Any of these keys' last read failed. Asking again (requestProfiles) retries. */
+  profilesFailed: (keys: readonly string[]) => boolean;
   status: string | null;
   refresh: () => Promise<Notification[]>;
   signUp: (input: SignUpInput) => Promise<AuthResult>;
@@ -338,6 +340,14 @@ const emptySnapshot: SocialSnapshot = {
   messages: [],
   publicCards: [],
 };
+
+/** The same set without `keys`, or the same object when none were in it. */
+function withoutKeys(set: ReadonlySet<string>, keys: readonly string[]): ReadonlySet<string> {
+  if (!keys.some((key) => set.has(key))) return set;
+  const next = new Set(set);
+  for (const key of keys) next.delete(key);
+  return next;
+}
 
 export function SocialProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() || "/";
@@ -721,6 +731,8 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
 
   // People by id or handle, for screens that name someone the snapshot didn't bring.
   const [profileSettled, setProfileSettled] = useState<ReadonlySet<string>>(() => new Set());
+  // Keys whose last read failed: not settled, so no screen calls the person missing.
+  const [profileFailed, setProfileFailed] = useState<ReadonlySet<string>>(() => new Set());
   const [profileBatcher] = useState(() =>
     createKeyBatcher<Profile>(
       async (keys) => {
@@ -743,8 +755,11 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
             });
           }
           setProfileSettled((current) => new Set([...current, ...keys]));
+          setProfileFailed((current) => withoutKeys(current, keys));
         }),
-      (keys) => startTransition(() => setProfileSettled((current) => new Set([...current, ...keys]))),
+      (keys) => startTransition(() => setProfileFailed((current) => new Set([...current, ...keys]))),
+      // A failed key asked again is on the way, not failed.
+      (keys) => setProfileFailed((current) => withoutKeys(current, keys)),
     ),
   );
   const requestProfiles = useCallback(
@@ -756,6 +771,10 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
   const profilesReady = useCallback(
     (keys: readonly string[]) => !hosted || keys.every((key) => profileSettled.has(key)),
     [hosted, profileSettled],
+  );
+  const profilesFailed = useCallback(
+    (keys: readonly string[]) => hosted && keys.some((key) => profileFailed.has(key) && !profileSettled.has(key)),
+    [hosted, profileFailed, profileSettled],
   );
 
   const loadOlderNotifications = useCallback(async () => {
@@ -2223,6 +2242,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       resetPublicCards,
       requestProfiles,
       profilesReady,
+      profilesFailed,
       inboxMore,
       loadOlderNotifications,
       loadOlderMessages,
@@ -2342,6 +2362,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       resetPublicCards,
       requestProfiles,
       profilesReady,
+      profilesFailed,
       inboxMore,
       loadOlderNotifications,
       loadOlderMessages,

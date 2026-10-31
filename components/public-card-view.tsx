@@ -50,6 +50,7 @@ import {
 import { useCardValue } from "@/lib/value/use-card-values";
 import { usePublicCards } from "@/lib/social/use-public-cards";
 import { useProfiles } from "@/lib/social/use-profiles";
+import { ReadRetry } from "@/components/read-retry";
 
 export { PublicCardSkeleton };
 
@@ -106,7 +107,13 @@ export function PublicCardView({
       initialCard && initialOwner && initialCard.id === id && initialCard.ownerId === initialOwner.id
         ? initialCard
         : null;
-    if (!early || !initialOwner) return <PublicCardSkeleton />;
+    if (!early || !initialOwner) {
+      return !profile && ownerRead.failed ? (
+        <ReadRetry title="Couldn't load this card" onRetry={ownerRead.retry} />
+      ) : (
+        <PublicCardSkeleton />
+      );
+    }
     return (
       <PublicCardAnalytics
         card={early}

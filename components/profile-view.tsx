@@ -26,6 +26,7 @@ import { userHref } from "@/lib/social/user-href";
 import { publicCardKeys } from "@/lib/social/public-card-cache";
 import { useFollowCounts } from "@/lib/social/use-follow-counts";
 import { useProfiles } from "@/lib/social/use-profiles";
+import { ReadRetry } from "@/components/read-retry";
 import { ShareIconButton } from "@/components/share-button";
 import { ReplyPhotos } from "@/components/reply-photos";
 import { Tweet } from "@/components/tweet";
@@ -287,6 +288,7 @@ export function ProfileView({
     );
   }
 
+  if (!profile && profileRead.failed) return <ReadRetry title="Couldn't load this profile" onRetry={profileRead.retry} />;
   if (!profile && !profileRead.ready) return <ProfileSkeleton />;
   if (!profile) {
     return <MissingProfile username={username ?? ""} mode={social.mode} />;
