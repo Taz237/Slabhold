@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { loadSupabaseBrowser } from "@/lib/supabase/browser-lazy";
-import { searchPeople } from "./remote";
 import type { Profile } from "./types";
 
 const DEBOUNCE_MS = 200;
@@ -19,8 +18,8 @@ export function usePeopleSearch(typed: string): { people: Profile[]; pending: bo
     if (!query) return;
     let cancelled = false;
     const timer = window.setTimeout(() => {
-      void loadSupabaseBrowser()
-        .then((client) => (client ? searchPeople(client, query.split(/\s+/)) : []))
+      void Promise.all([loadSupabaseBrowser(), import("./remote")])
+        .then(([client, { searchPeople }]) => (client ? searchPeople(client, query.split(/\s+/)) : []))
         .then((people) => {
           if (!cancelled) setFound({ query, people });
         })

@@ -138,6 +138,8 @@ function Providers({
     refresh: async () => {},
     markThreadRead: () => {},
     loadThreadMessages: async () => {},
+    refreshInbox: async () => [],
+    refreshFollows: async () => {},
     threadMore: () => false,
     inboxMore: { notifications: false, messages: false },
     loadOlderMessages: async () => {},

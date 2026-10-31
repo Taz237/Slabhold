@@ -10,7 +10,7 @@ function read(path: string) {
 describe("paged notifications and messages, wired in", () => {
   it("never reads the viewer's whole notification or message history", () => {
     const remote = read("lib/social/remote.ts");
-    const start = remote.indexOf("export async function loadSupabaseSocial");
+    const start = remote.indexOf("export async function loadSocialSnapshot");
     const loader = remote.slice(start, remote.indexOf("\nexport ", start + 10));
     assert.doesNotMatch(loader, /from\("notifications"\)/);
     assert.doesNotMatch(loader, /from\("messages"\)/);

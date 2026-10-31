@@ -2,7 +2,11 @@
 
 import { Suspense, lazy } from "react";
 
-const NotFoundApp = lazy(() => import("@/components/not-found-app").then((mod) => ({ default: mod.NotFoundApp })));
+const NotFoundApp = lazy(() =>
+  import("@/components/not-found-app-loader")
+    .then((loader) => loader.loadNotFoundApp())
+    .then((mod) => ({ default: mod.NotFoundApp })),
+);
 
 /**
  * The root 404 (a link that matches no page) inside the app's shell. Drawn on

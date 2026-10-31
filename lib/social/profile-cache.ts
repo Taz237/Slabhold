@@ -1,6 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { loadHiddenAuthorIds } from "@/lib/safety/filters";
-import { loadVisibleProfiles } from "./remote";
 import type { Profile } from "./types";
 
 /**
@@ -40,6 +39,7 @@ export async function loadProfilesForKeys(
   }
   if (ids.length === 0 && usernames.length === 0) return [];
   const hidden = viewer ? await loadHiddenAuthorIds(supabase, false) : [];
+  const { loadVisibleProfiles } = await import("./remote");
   return loadVisibleProfiles(supabase, { ids, usernames }, viewer, hidden);
 }
 
@@ -115,6 +115,7 @@ export async function loadFollowPage(
   const ids = shown.map((row) => row[other]);
   if (ids.length === 0) return { profiles: [], next };
   const hidden = input.viewer ? await loadHiddenAuthorIds(supabase, false) : [];
+  const { loadVisibleProfiles } = await import("./remote");
   const people = await loadVisibleProfiles(supabase, { ids }, input.viewer, hidden);
   const byId = new Map(people.map((profile) => [profile.id, profile]));
   // Newest follow first; anyone hidden from the viewer is left out.

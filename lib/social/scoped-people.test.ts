@@ -85,7 +85,7 @@ describe("people, read for what a screen shows", () => {
 
   it("never reads the whole profiles table or everyone's follows in the snapshot", () => {
     const remote = read("lib/social/remote.ts");
-    const start = remote.indexOf("export async function loadSupabaseSocial");
+    const start = remote.indexOf("export async function loadSocialSnapshot");
     const loader = remote.slice(start, remote.indexOf("\nexport ", start + 10));
     // The only profiles read left is by id (block and mute list accounts); never the whole table.
     assert.doesNotMatch(loader, /from\("profiles"\)\.select<string, ProfileRow>\(columns\)\.order/);

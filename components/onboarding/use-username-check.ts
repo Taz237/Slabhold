@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useSocial } from "@/components/social-provider";
-import { loadOrCreateLocalDb, normalizeUsername } from "@/lib/social/local-db";
+import { normalizeUsername } from "@/lib/social/usernames";
 import { ilikeExact } from "@/lib/social/username-taken";
 import { checkUsername, USERNAME_CHECK_DELAY, type UsernameCheck, type UsernameLookup } from "@/lib/onboarding/username-check";
 import { createSupabaseBrowser } from "@/lib/supabase/browser";
@@ -22,6 +22,8 @@ async function remoteTaken(username: string): Promise<boolean> {
 
 /** Local accounts: the same list local sign-up checks. */
 async function localTaken(username: string): Promise<boolean> {
+  // On-device accounts only; hosted screens never load local-db.
+  const { loadOrCreateLocalDb } = await import("@/lib/social/local-db");
   const db = await loadOrCreateLocalDb();
   return db.users.some((user) => normalizeUsername(user.username) === username);
 }

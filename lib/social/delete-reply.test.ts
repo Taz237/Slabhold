@@ -407,9 +407,11 @@ describe("delete reply wiring", () => {
 
     const provider = readFileSync(join(process.cwd(), "components/social-provider.tsx"), "utf8");
     const fn = provider.slice(provider.indexOf("const deleteComment"), provider.indexOf("const toggleLike"));
-    const remoteAt = fn.indexOf("await remoteDeleteComment");
-    const refreshAt = fn.indexOf("await refreshRemote");
-    assert.ok(remoteAt > -1 && refreshAt > remoteAt);
+    // In place: the saved result is published over the optimistic delete, with no full reload.
+    const remoteAt = fn.indexOf(".remoteDeleteComment(client");
+    const publishAt = fn.indexOf("publish(stateAfterReplyDelete(before, commentId, result))");
+    assert.ok(remoteAt > -1 && publishAt > remoteAt);
+    assert.doesNotMatch(fn, /refreshRemote\(/);
     assert.match(provider, /createSnapshotRefresher/);
     assert.doesNotMatch(provider, /if \(serial !== refreshSerialRef\.current\) return/);
     const remote = readFileSync(join(process.cwd(), "lib/social/remote.ts"), "utf8");

@@ -6,7 +6,7 @@ import { pageRows, type PageAdmin } from "@/lib/leaderboard/pages";
 import type { BlockPair, BoardFollow, BoardPost, BoardProfile, BoardReply } from "@/lib/leaderboard/score";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { createSupabaseServer } from "@/lib/supabase/server";
-import { normalizeUsername } from "@/lib/social/local-db";
+import { normalizeUsername } from "@/lib/social/usernames";
 import { PROGRESS_CATEGORIES, isBadgeCategory, isBadgeTier, TOTAL_BADGES } from "./config";
 import { upgradePins } from "./pins";
 import { readVisiblePins } from "./visible-pins";

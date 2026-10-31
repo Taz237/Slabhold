@@ -12,7 +12,6 @@ import type {
   FollowEdge,
   MailDayCardView,
   Post,
-  PostComment,
   PostRepost,
   Profile,
   ProfilePatch,
@@ -27,12 +26,11 @@ import {
   mentionsToNotify,
   notifyReplyMentions,
 } from "./reply-mentions";
-import { isReservedUsername, normalizeUsername, usernameChangeError, usernameError } from "./local-db";
+import { isReservedUsername, normalizeUsername, usernameChangeError, usernameError } from "./usernames";
 import { followOfficialUpdates } from "./official-updates";
 import {
   noteReplyImagesMissing,
   replyImageColumnMissing,
-  replyImagesFromValue,
   replyImagesKnownMissing,
   replyNoticePreview,
   replyNotificationImages,
@@ -53,6 +51,7 @@ import {
 import { BLOCKED_INTERACTION } from "@/lib/safety/block";
 import { canNotify, supabaseSafety } from "@/lib/safety/can-notify";
 import { applyAuthorSafety, loadHiddenAuthorIds, withAuthorSafety } from "@/lib/safety/filters";
+import { loadPostEngagement } from "./load-feed-page";
 import {
   loadMessagePage,
   loadNotificationPage,
@@ -127,15 +126,6 @@ type RepostRow = {
   user_id: string;
   post_id: string;
   created_at: string;
-};
-
-type CommentRow = {
-  id: string;
-  post_id: string;
-  user_id: string;
-  body: string;
-  created_at: string;
-  image_urls?: unknown;
 };
 
 /** Row from public.public_cards — no paid_price / purchase_date / notes / cert_number. */
@@ -321,7 +311,18 @@ function mapProfile(row: ProfileRow, email = ""): Profile {
   };
 }
 
-export async function loadSupabaseSocial(supabase: SupabaseClient): Promise<SocialSnapshot> {
+/** Posts and reposts the snapshot reads for the timeline: the newest of each. */
+const SNAPSHOT_TIMELINE_LIMIT = 100;
+/** Post ids per replies/reposts read, so the URL stays well under PostgREST's limit. */
+const ENGAGEMENT_CHUNK = 100;
+
+/**
+ * The signed-in (or visiting) reader's starting state, with every read
+ * bounded: the newest posts and reposts, replies and reposts for those posts
+ * only, the viewer's own follows, blocks, mutes and inbox pages, and profiles
+ * for the people those rows name. Nothing is read as a whole table.
+ */
+export async function loadSocialSnapshot(supabase: SupabaseClient): Promise<SocialSnapshot> {
   const { data: sessionData } = await supabase.auth.getSession();
   const session = sessionData.session;
   const viewerId = session?.user.id ?? null;
@@ -349,7 +350,7 @@ export async function loadSupabaseSocial(supabase: SupabaseClient): Promise<Soci
       loadUnreadMessages(supabase, viewer, blockedHidden),
     ]);
 
-  const [postsRes, homePostsRes, followsRes, commentsRes, notesInbox, messagesInbox, repostsRes, homeRepostsRes, myBlocksRes, myMutesRes] =
+  const [postsRes, homePostsRes, followsRes, notesInbox, messagesInbox, repostsRes, homeRepostsRes, myBlocksRes, myMutesRes] =
     await Promise.all([
       guard(
         supabase.from("posts").select("*").order("created_at", { ascending: false }).limit(100),
@@ -364,20 +365,15 @@ export async function loadSupabaseSocial(supabase: SupabaseClient): Promise<Soci
       viewerId
         ? supabase.from("follows").select("*").or(`follower_id.eq.${viewerId},following_id.eq.${viewerId}`)
         : Promise.resolve({ data: [], error: null }),
-      guard(
-        supabase.from("comments").select("*").order("created_at", { ascending: true }),
-        mutedHidden,
-        { mute: true },
-      ),
       // A visitor with no session has no inbox; RLS would return nothing.
       viewerId ? loadNotes(viewerId) : Promise.resolve(null),
       viewerId ? loadMessages(viewerId) : Promise.resolve(null),
       guard(
-        supabase.from("reposts").select("*").order("created_at", { ascending: false }),
+        supabase.from("reposts").select("*").order("created_at", { ascending: false }).limit(SNAPSHOT_TIMELINE_LIMIT),
         blockedHidden,
       ),
       guard(
-        supabase.from("reposts").select("*").order("created_at", { ascending: false }),
+        supabase.from("reposts").select("*").order("created_at", { ascending: false }).limit(SNAPSHOT_TIMELINE_LIMIT),
         mutedHidden,
         { mute: true },
       ),
@@ -391,7 +387,6 @@ export async function loadSupabaseSocial(supabase: SupabaseClient): Promise<Soci
   const failure =
     postsRes.error || homePostsRes.error || followsRes.error;
   if (failure) throw new Error(failure.message);
-  if (commentsRes.error && !missingTable(commentsRes.error)) throw new Error(commentsRes.error.message);
   if (repostsRes.error && !missingTable(repostsRes.error)) throw new Error(repostsRes.error.message);
   if (homeRepostsRes.error && !missingTable(homeRepostsRes.error)) {
     throw new Error(homeRepostsRes.error.message);
@@ -400,7 +395,7 @@ export async function loadSupabaseSocial(supabase: SupabaseClient): Promise<Soci
   if (myMutesRes.error && !missingTable(myMutesRes.error)) throw new Error(myMutesRes.error.message);
 
   let posts = await mapPostRows(supabase, (postsRes.data ?? []) as PostRow[], viewerId);
-  const reposts = ((repostsRes.data ?? []) as RepostRow[]).map(
+  const timelineReposts = ((repostsRes.data ?? []) as RepostRow[]).map(
     (row): PostRepost => ({
       postId: row.post_id,
       userId: row.user_id,
@@ -408,7 +403,7 @@ export async function loadSupabaseSocial(supabase: SupabaseClient): Promise<Soci
     }),
   );
   const knownPostIds = new Set(posts.map((post) => post.id));
-  const missingFromReposts = [...new Set(reposts.map((repost) => repost.postId))].filter(
+  const missingFromReposts = [...new Set(timelineReposts.map((repost) => repost.postId))].filter(
     (id) => !knownPostIds.has(id),
   );
   const missingQuoted = [
@@ -456,17 +451,6 @@ export async function loadSupabaseSocial(supabase: SupabaseClient): Promise<Soci
       createdAt: row.created_at,
     }),
   );
-  const comments = ((commentsRes.data ?? []) as CommentRow[]).map((row): PostComment => {
-    const images = replyImagesFromValue(row.image_urls);
-    return {
-      id: row.id,
-      postId: row.post_id,
-      authorId: row.user_id,
-      body: row.body,
-      ...(images.length ? { images } : {}),
-      createdAt: row.created_at,
-    };
-  });
   const inbox: SocialSnapshot["inbox"] = viewerId
     ? {
         notifications: notesInbox?.[0] ?? { rows: [], next: null },
@@ -489,6 +473,26 @@ export async function loadSupabaseSocial(supabase: SupabaseClient): Promise<Soci
       createdAt: row.created_at,
     }),
   );
+  // Replies and reposts for the posts loaded here only. A post loaded later
+  // (another page, a card's posts) brings its own (rememberPosts).
+  const engagedIds = [...new Set([...posts, ...homePosts].map((post) => post.id))];
+  const engagement = await Promise.all(
+    Array.from({ length: Math.ceil(engagedIds.length / ENGAGEMENT_CHUNK) }, (_, index) =>
+      loadPostEngagement(
+        supabase,
+        engagedIds.slice(index * ENGAGEMENT_CHUNK, (index + 1) * ENGAGEMENT_CHUNK),
+        viewerId ?? "",
+        { muted: mutedHidden, blocked: blockedHidden },
+      ),
+    ),
+  );
+  const comments = engagement.flatMap((part) => part.comments);
+  const repostKey = (repost: PostRepost) => `${repost.postId}:${repost.userId}`;
+  const reposts = [
+    ...new Map(
+      [...timelineReposts, ...engagement.flatMap((part) => part.reposts)].map((repost) => [repostKey(repost), repost]),
+    ).values(),
+  ];
   const blockedIds = ((myBlocksRes.data ?? []) as { blocked_id: string }[]).map(
     (row) => row.blocked_id,
   );

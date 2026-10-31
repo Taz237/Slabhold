@@ -1,7 +1,7 @@
 import "server-only";
 
 import { createSupabaseServer } from "@/lib/supabase/server";
-import { normalizeUsername } from "./local-db";
+import { normalizeUsername } from "./usernames";
 
 export type ServerCardCount = { username: string; count: number };
 
