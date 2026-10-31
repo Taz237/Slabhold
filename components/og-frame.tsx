@@ -31,8 +31,8 @@ export const PUBLIC_OG_CACHE_CONTROL =
 export const CARD_OG_CACHE_CONTROL =
   "public, max-age=0, s-maxage=60, stale-while-revalidate=60";
 
-/** Failed renders. Do not keep the generic image for the route's normal hour or day. */
-const OG_FAILURE_CACHE_CONTROL =
+/** Failed renders and unknown players. Do not keep the generic image for an hour. */
+export const OG_FAILURE_CACHE_CONTROL =
   "public, max-age=0, s-maxage=60, stale-while-revalidate=60";
 
 /** Own-profile images follow the signed-in user. Do not store them on a shared CDN. */
@@ -411,6 +411,8 @@ function readableShareImage(model: ShareImage): ShareImage {
       ? "Card"
       : model.kind === "profile"
         ? "Profile"
+        : model.kind === "player"
+          ? "Player"
         : model.kind === "badge"
           ? "Badge"
           : model.kind === "invite" || model.kind === "collection"

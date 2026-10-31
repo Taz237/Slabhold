@@ -3,6 +3,8 @@ import type { NextRequest } from "next/server";
 import { LANDING_PATH, servesLanding } from "@/lib/auth/landing-route";
 import { isStaticPublicPath } from "@/lib/auth/route-access";
 import { getSupabaseConfig } from "@/lib/supabase/client";
+import { playerCanonicalPath } from "@/lib/players/canonical-path";
+import { playerRequestIsMissing } from "@/lib/players/player-presence";
 import { pathIsMissing } from "@/lib/social/missing-route";
 import { markRouterRequest } from "@/lib/supabase/router-nav";
 
@@ -30,6 +32,24 @@ export async function proxy(request: NextRequest) {
   }
   // Install files, Next assets, and OG images are never missing-page checks.
   if (isStaticPublicPath(request.nextUrl.pathname)) return next(request);
+  const canonical = playerCanonicalPath(request.nextUrl.pathname);
+  if (canonical) {
+    return NextResponse.redirect(new URL(canonical, request.url), 308);
+  }
+  const playerMissing = await playerRequestIsMissing({
+    pathname: request.nextUrl.pathname,
+    supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
+    anonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+  });
+  if (playerMissing) {
+    return NextResponse.rewrite(new URL("/404", request.url), {
+      status: 404,
+      headers: {
+        "cache-control": "public, max-age=0, s-maxage=60, stale-while-revalidate=60",
+        "x-robots-tag": "noindex",
+      },
+    });
+  }
   const missing = await pathIsMissing({
     pathname: request.nextUrl.pathname,
     supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -61,5 +81,6 @@ export const config = {
     "/collection",
     "/cards/:id/edit",
     "/cards/:id/posts",
+    "/p/:player",
   ],
 };

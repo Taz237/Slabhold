@@ -128,6 +128,7 @@ export const PAGE_PATTERNS = [
   "/more",
   "/moving-today",
   "/notifications",
+  "/p/[player]",
   "/portfolio",
   "/posts/[id]",
   "/privacy",
