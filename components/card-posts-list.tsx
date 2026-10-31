@@ -178,7 +178,7 @@ export function CardPostsList({ cardId }: { cardId: string }) {
             href={backHref}
             data-nav-back=""
             aria-label="Back to card"
-            className="grid h-9 w-9 place-items-center rounded-full text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-white/10"
+            className="hit-44 grid h-9 w-9 place-items-center rounded-full text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-white/10"
           >
             <ArrowLeft className="h-5 w-5" />
           </Link>

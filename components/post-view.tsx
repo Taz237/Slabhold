@@ -26,6 +26,7 @@ import { quotesOf } from "@/lib/social/quotes";
 import { commentsSupportReplyImages, isOptimisticReply } from "@/lib/social/reply-images";
 import { COMMENT_LIMIT, type AuthResult, type PostComment } from "@/lib/social/types";
 import { useKeyboardInset } from "@/lib/ui/use-keyboard-inset";
+import { useCloseOnOutsideTap } from "@/lib/ui/menu-outside-tap";
 
 const PAGE_SIZE = 20;
 
@@ -181,7 +182,7 @@ export function PostView({ id }: { id: string }) {
           type="button"
           onClick={() => goBackWithMotion(() => router.back())}
           aria-label="Back"
-          className="grid h-9 w-9 place-items-center rounded-full hover:bg-zinc-100 dark:hover:bg-white/10"
+          className="hit-44 grid h-9 w-9 place-items-center rounded-full hover:bg-zinc-100 dark:hover:bg-white/10"
         >
           <ArrowLeft className="h-5 w-5" />
         </button>
@@ -407,32 +408,12 @@ function ReplyMenu({
   const rootRef = useRef<HTMLDivElement>(null);
   const started = useRef(false);
 
-  useEffect(() => {
-    if (!open) return;
-    function onPointer(event: MouseEvent) {
-      if (!rootRef.current?.contains(event.target as Node)) {
-        setOpen(false);
-        setConfirming(false);
-      }
-    }
-    function onKey(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        setOpen(false);
-        setConfirming(false);
-      }
-    }
-    document.addEventListener("mousedown", onPointer);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onPointer);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [open]);
-
   function close() {
     setOpen(false);
     setConfirming(false);
   }
+
+  useCloseOnOutsideTap(open, rootRef, close);
 
   return (
     <div ref={rootRef} className="relative -mt-1 shrink-0">
