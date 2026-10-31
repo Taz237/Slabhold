@@ -287,9 +287,11 @@ describe("public card cache", () => {
       const at = provider.indexOf(`const ${name} = useCallback(`);
       assert.ok(at > -1, name);
       const body = provider.slice(at, provider.indexOf("\n  const ", at + 10));
-      assert.match(body, /resetPublicCards\(\)/, name);
+      // resetViewerReads clears public cards and people together.
+      assert.match(body, /resetViewerReads\(\)/, name);
     }
-    assert.match(provider, /useEffect\(\(\) => \{\n\s+if \(cardViewerRef\.current === cardViewerId\) return;/);
+    assert.match(provider, /useEffect\(\(\) => \{\n\s+if \(viewerReadsRef\.current === viewerReadsId\) return;/);
+    assert.match(provider, /const resetViewerReads = useCallback\(\(\) => \{\n\s+resetPublicCards\(\);/);
     const collection = readFileSync(join(process.cwd(), "components/collection-provider.tsx"), "utf8");
     assert.match(collection, /resetPublicCards\(\)/);
   });

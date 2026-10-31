@@ -718,15 +718,6 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
     setCardCache(emptyPublicCardCache());
     setCardGeneration((value) => value + 1);
   }, [cardBatcher]);
-  const cardViewerId = snapshot.user?.id ?? null;
-  const cardViewerRef = useRef<string | null | undefined>(undefined);
-  useEffect(() => {
-    if (cardViewerRef.current === cardViewerId) return;
-    if (!ready) return;
-    const before = cardViewerRef.current;
-    cardViewerRef.current = cardViewerId;
-    if (before !== undefined) resetPublicCards();
-  }, [cardViewerId, ready, resetPublicCards]);
   const loadedPublicCards = useMemo(() => cardsForKeys(cardCache), [cardCache]);
 
   // People by id or handle, for screens that name someone the snapshot didn't bring.
@@ -762,12 +753,39 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       (keys) => setProfileFailed((current) => withoutKeys(current, keys)),
     ),
   );
+  // Bumped on reset, so every screen part asks for its people again.
+  const [peopleGeneration, setPeopleGeneration] = useState(0);
   const requestProfiles = useCallback(
     (keys: readonly string[]) => {
       if (hosted) profileBatcher.request(keys);
     },
-    [hosted, profileBatcher],
+    // peopleGeneration: a new function after a reset, so screens ask again.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [hosted, profileBatcher, peopleGeneration],
   );
+  // A new viewer sees different people (blocks go both ways): forget every
+  // read, failed or not, and drop reads on the way.
+  const resetPeople = useCallback(() => {
+    profileBatcher.reset();
+    setProfileSettled(new Set());
+    setProfileFailed(new Set());
+    setPeopleGeneration((value) => value + 1);
+  }, [profileBatcher]);
+  // Everything read for one viewer: on a refresh, sign-in, sign-up, sign-out,
+  // or a new viewer id, it all starts over.
+  const resetViewerReads = useCallback(() => {
+    resetPublicCards();
+    resetPeople();
+  }, [resetPeople, resetPublicCards]);
+  const viewerReadsId = snapshot.user?.id ?? null;
+  const viewerReadsRef = useRef<string | null | undefined>(undefined);
+  useEffect(() => {
+    if (viewerReadsRef.current === viewerReadsId) return;
+    if (!ready) return;
+    const before = viewerReadsRef.current;
+    viewerReadsRef.current = viewerReadsId;
+    if (before !== undefined) resetViewerReads();
+  }, [ready, resetViewerReads, viewerReadsId]);
   const profilesReady = useCallback(
     (keys: readonly string[]) => !hosted || keys.every((key) => profileSettled.has(key)),
     [hosted, profileSettled],
@@ -997,7 +1015,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
   const refresh = useCallback(async (): Promise<Notification[]> => {
     const client = supabaseRef.current;
     if (mode === "supabase" && client) {
-      resetPublicCards();
+      resetViewerReads();
       await refreshRemote(client);
       const merged = appliedRemoteRef.current;
       if (merged?.user) {
@@ -1019,7 +1037,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       notifications: snap.notifications,
     };
     return notificationsFor(snap.user, snap.notifications);
-  }, [mode, refreshRemote, resetPublicCards]);
+  }, [mode, refreshRemote, resetViewerReads]);
 
   const signUp = useCallback(
     async (input: SignUpInput): Promise<AuthResult> => {
@@ -1028,7 +1046,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
         try {
           const result = await remoteSignUp(client, input);
           if (!result.error && !result.notice) {
-            resetPublicCards();
+            resetViewerReads();
             await refreshRemote(client);
           }
           return result;
@@ -1042,7 +1060,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       if (!result.error) commitLocal(result.db);
       return { error: result.error };
     },
-    [commitLocal, mode, refreshRemote, resetPublicCards],
+    [commitLocal, mode, refreshRemote, resetViewerReads],
   );
 
   const signIn = useCallback(
@@ -1052,7 +1070,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
         try {
           const result = await remoteSignIn(client, email, password, captchaToken);
           if (!result.error) {
-            resetPublicCards();
+            resetViewerReads();
             await refreshRemote(client);
           }
           return result;
@@ -1066,7 +1084,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       if (!result.error) commitLocal(result.db);
       return { error: result.error };
     },
-    [commitLocal, mode, refreshRemote, resetPublicCards],
+    [commitLocal, mode, refreshRemote, resetViewerReads],
   );
 
   const signOut = useCallback(async () => {
@@ -1079,12 +1097,12 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       // While the session is still valid: this device stops getting pushes.
       await runSignOutHook();
       await remoteSignOut(client);
-      resetPublicCards();
+      resetViewerReads();
       await refreshRemote(client);
       return;
     }
     if (localRef.current) commitLocal(localSignOut(localRef.current));
-  }, [commitLocal, mode, refreshRemote, resetPublicCards]);
+  }, [commitLocal, mode, refreshRemote, resetViewerReads]);
 
   const updateProfile = useCallback(
     async (patch: ProfilePatch): Promise<AuthResult> => {
