@@ -1,4 +1,6 @@
-import type { ShareImage } from "@/lib/social/share-image";
+import { stripUnsupportedOgText } from "@/lib/og/safe-text";
+import { formatWeekLabel } from "./dates";
+import type { LeaderboardShareLine, LeaderboardShareModel } from "./share";
 
 export const ESTIMATED_FROM_SOLD = "Est. from recent sold prices";
 
@@ -10,56 +12,40 @@ export function rankShareText(input: { username: string; percent: number }): str
   return `@${handle} ${direction} ${magnitude}% this week on Slabhold`;
 }
 
-function image(partial: Pick<ShareImage, "kicker" | "title" | "detail" | "cardLines">): ShareImage {
+type ShareBracket = {
+  open: boolean;
+  rows: readonly { username: string; rank: number; percentLabel: string }[];
+};
+
+function shareName(username: string): string {
+  const handle = stripUnsupportedOgText(username.trim().replace(/^@+/, "")).replace(/\s+/g, "");
+  return handle ? `@${handle.slice(0, 40)}` : "Collector";
+}
+
+/**
+ * Value-board preview, drawn by renderLeaderboardOg. Percents only: no
+ * collection totals and no team marks. Closed brackets stay off it, so a thin
+ * board has no lines.
+ */
+export function valueBoardShareModel(board: {
+  start: string;
+  end: string;
+  brackets: readonly ShareBracket[];
+}): LeaderboardShareModel {
+  const lines: LeaderboardShareLine[] = board.brackets
+    .filter((bracket) => bracket.open)
+    .flatMap((bracket) => bracket.rows)
+    .slice(0, 3)
+    .map((row) => ({
+      place: `#${row.rank}`,
+      name: shareName(row.username),
+      detail: stripUnsupportedOgText(row.percentLabel),
+    }));
+  const week = board.start && board.end ? stripUnsupportedOgText(formatWeekLabel(board.start, board.end)) : "";
   return {
-    kind: "profile",
-    kicker: partial.kicker,
-    title: partial.title,
-    detail: partial.detail,
-    body: "",
-    authorName: "",
-    authorHandle: "",
-    imageUrl: null,
-    photos: [],
-    cardLines: partial.cardLines,
-    player: "",
-    yearSet: "",
-    grade: "",
-    valueLabel: "",
-    salesLabel: "",
-    showValue: false,
-    photoFallback: false,
-    avatarUrl: null,
-    postPhotos: [],
-    slabs: [],
-    chip: "",
-    badges: [],
-  };
-}
-
-/** Value-board preview. Percents only: no collection totals and no team marks. */
-export function leaderboardBoardShareImage(
-  rows: readonly { username: string; percentLabel: string }[],
-): ShareImage {
-  return image({
-    kicker: "VALUE",
     title: "Value leaderboard",
+    kicker: week || "This week",
     detail: ESTIMATED_FROM_SOLD,
-    cardLines: rows.slice(0, 3).map((row) => ({
-      name: `@${row.username.replace(/^@+/, "")}`,
-      value: row.percentLabel,
-    })),
-  });
-}
-
-export function leaderboardRankShareImage(input: {
-  username: string;
-  percent: number;
-}): ShareImage {
-  return image({
-    kicker: "VALUE",
-    title: rankShareText(input),
-    detail: ESTIMATED_FROM_SOLD,
-    cardLines: [],
-  });
+    lines,
+  };
 }
