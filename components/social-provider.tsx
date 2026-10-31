@@ -1641,7 +1641,13 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       preview?: CardMessagePreview | null,
     ): Promise<AuthResult> => {
       if (!snapshotRef.current.user) return { error: "Log in to send a message." };
-      const { localSendMessage, offerSendError, parseCardPreview, remoteSendMessage } = await loadDmActions();
+      let dm: Awaited<ReturnType<typeof loadDmActions>>;
+      try {
+        dm = await loadDmActions();
+      } catch {
+        return { error: "Could not send that message." };
+      }
+      const { localSendMessage, offerSendError, parseCardPreview, remoteSendMessage } = dm;
       const current = snapshotRef.current;
       if (!current.user) return { error: "Log in to send a message." };
       const cardPreview = preview ? parseCardPreview(preview) : null;
@@ -1705,7 +1711,8 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
           .then(({ remoteMarkThreadRead }) => remoteMarkThreadRead(client, userId, partnerId))
           .then((result) => {
             if (result.error) setStatus(result.error);
-          });
+          })
+          .catch(() => {});
         return;
       }
       if (!localRef.current) return;
