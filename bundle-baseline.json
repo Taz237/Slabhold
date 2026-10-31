@@ -1,7 +1,8 @@
 {
-  "/welcome": 146481,
-  "/": 213798,
-  "/collection": 251751,
-  "/cards/[id]": 270215,
-  "/u/[username]/cards/[id]": 263391
+  "/welcome": 147647,
+  "/": 216317,
+  "/collection": 254100,
+  "/cards/[id]": 275048,
+  "/u/[username]/cards/[id]": 262352,
+  "/posts/[id]": 320429
 }
