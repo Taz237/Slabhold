@@ -100,12 +100,14 @@ export function cardsForKeys(cache: PublicCardCache): OwnedCard[] {
  * failed read is reported with `fail` and stays retryable: its keys leave
  * the on-the-way set but are never marked done, so the next ask reads again.
  * `reset` forgets every key (a new viewer, a refresh) and drops reads that
- * were already on the way, so an old viewer's rows never land.
+ * were already on the way, so an old viewer's rows never land. `start`, when
+ * given, hears each batch as its read begins (a failed key asked again).
  */
-export function createPublicCardBatcher(
-  load: (keys: string[]) => Promise<OwnedCard[]>,
-  settle: (cards: OwnedCard[], keys: string[]) => void,
+export function createKeyBatcher<T>(
+  load: (keys: string[]) => Promise<T[]>,
+  settle: (rows: T[], keys: string[]) => void,
   fail: (keys: string[]) => void,
+  start?: (keys: string[]) => void,
 ) {
   const done = new Set<string>();
   const inflight = new Set<string>();
@@ -128,15 +130,16 @@ export function createPublicCardBatcher(
         if (asked !== generation) return;
         const batch = queue;
         queue = [];
+        start?.(batch);
         const current = () => asked === generation;
         void load(batch).then(
-          (cards) => {
+          (rows) => {
             if (!current()) return;
             for (const key of batch) {
               done.add(key);
               inflight.delete(key);
             }
-            settle(cards, batch);
+            settle(rows, batch);
           },
           () => {
             if (!current()) return;
@@ -154,4 +157,12 @@ export function createPublicCardBatcher(
       scheduled = false;
     },
   };
+}
+
+export function createPublicCardBatcher(
+  load: (keys: string[]) => Promise<OwnedCard[]>,
+  settle: (cards: OwnedCard[], keys: string[]) => void,
+  fail: (keys: string[]) => void,
+) {
+  return createKeyBatcher<OwnedCard>(load, settle, fail);
 }
