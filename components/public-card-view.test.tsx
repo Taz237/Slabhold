@@ -68,6 +68,7 @@ function render(
     requestPublicCards: () => {},
     requestProfiles: () => {},
     profilesReady: () => true,
+    profilesFailed: () => false,
     publicCardsReady: () => social.cardRead ?? social.ready,
     publicCardsFailed: () => social.cardFailed === true,
     profileByUsername: (name: string) => (social.ready && name === "maya" ? profile : undefined),

@@ -11,6 +11,7 @@ import { useSocial } from "@/components/social-provider";
 import type { FollowCursor } from "@/lib/social/profile-cache";
 import type { Profile } from "@/lib/social/types";
 import { useProfiles } from "@/lib/social/use-profiles";
+import { ReadRetry } from "@/components/read-retry";
 import { userHref } from "@/lib/social/user-href";
 import { loadSupabaseBrowser } from "@/lib/supabase/browser-lazy";
 
@@ -98,6 +99,10 @@ export function FollowList({
   useEffect(() => {
     if (ready) void refresh();
   }, [ready, refresh, username, kind]);
+
+  if (!profile && profileRead.failed) {
+    return <ReadRetry title="Couldn't load this profile" onRetry={profileRead.retry} />;
+  }
 
   if (!ready || (!profile && !profileRead.ready) || !paged.ready) {
     return (

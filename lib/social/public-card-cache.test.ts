@@ -5,6 +5,7 @@ import { describe, it } from "node:test";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   cardsForKeys,
+  createKeyBatcher,
   createPublicCardBatcher,
   emptyPublicCardCache,
   failPublicCards,
@@ -213,6 +214,28 @@ describe("public card cache", () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
     assert.equal(reads, 2);
     assert.deepEqual(settledWith, [["id:a", "cards:0"]]);
+  });
+
+  it("says when each batch starts, so a failed key asked again stops counting as failed", async () => {
+    const started: string[][] = [];
+    const failed: string[][] = [];
+    let reads = 0;
+    const batcher = createKeyBatcher<string>(
+      async () => {
+        reads += 1;
+        if (reads === 1) throw new Error("offline");
+        return ["maya"];
+      },
+      () => {},
+      (keys) => failed.push([...keys]),
+      (keys) => started.push([...keys]),
+    );
+    batcher.request(["user:maya"]);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    batcher.request(["user:maya"]);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    assert.deepEqual(failed, [["user:maya"]]);
+    assert.deepEqual(started, [["user:maya"], ["user:maya"]]);
   });
 
   it("marks failed keys as failed, not settled, until a read succeeds", () => {
