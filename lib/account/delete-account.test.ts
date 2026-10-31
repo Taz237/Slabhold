@@ -32,6 +32,8 @@ function admin(opts?: {
   username?: string;
   cardIds?: string[];
   notes?: StoredNote[];
+  snapshotUserMissing?: boolean;
+  snapshotUserError?: string;
 }) {
   const calls: string[] = [];
   const updates: {
@@ -89,10 +91,18 @@ function admin(opts?: {
         },
         delete() {
           return {
-            async eq() {
+            async eq(column: string) {
               calls.push(`delete:${table}`);
               if (opts?.rowError && table === "want_alerts") {
                 return { error: { message: "delete failed" } };
+              }
+              if (table === "card_value_snapshots" && column === "user_id") {
+                if (opts?.snapshotUserMissing) {
+                  return { error: { message: "column user_id does not exist" } };
+                }
+                if (opts?.snapshotUserError) {
+                  return { error: { message: opts.snapshotUserError } };
+                }
               }
               return { error: null };
             },
@@ -341,6 +351,28 @@ describe("account delete", () => {
     const lastHref = fake.calls.lastIndexOf("update:notifications");
     const firstSnapshot = fake.calls.indexOf("delete:card_value_snapshots");
     assert.ok(lastHref >= 0 && lastHref < firstSnapshot);
+    assert.equal(fake.calls.filter((call) => call === "delete:card_value_snapshots").length, 11);
+  });
+
+  it("deletes snapshot rows by user id and ignores a missing user_id column", async () => {
+    const missing = admin({ snapshotUserMissing: true });
+    const result = await runAccountDelete({
+      sessionUserId: "real-user",
+      body: null,
+      admin: missing.client,
+    });
+    assert.equal(result.status, 200);
+    assert.equal(missing.deleted(), "real-user");
+    assert.ok(missing.calls.filter((call) => call === "delete:card_value_snapshots").length >= 2);
+
+    const failed = admin({ snapshotUserError: "permission denied" });
+    const denied = await runAccountDelete({
+      sessionUserId: "real-user",
+      body: null,
+      admin: failed.client,
+    });
+    assert.equal(denied.status, 500);
+    assert.equal(failed.deleted(), null);
   });
 
   it("deletes nothing when the card-link scrub fails", async () => {

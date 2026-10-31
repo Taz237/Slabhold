@@ -5,6 +5,7 @@ import { ArrowDownUp, Search, WalletCards, X } from "lucide-react";
 import { outlineButton } from "@/components/button-styles";
 import { CollectionGrid } from "@/components/collection-grid";
 import { CollectionHeader } from "@/components/collection-header";
+import { LeaderboardOptInSwitch, LeaderboardPrompt } from "@/components/leaderboard-opt-in";
 import { useCollection } from "@/components/collection-provider";
 import { useSocial } from "@/components/social-provider";
 import { CollectionLaneEmpty } from "@/components/collection-lane-empty";
@@ -24,6 +25,8 @@ import { type CardCategory, type PortfolioFilter } from "@/lib/types";
 import { displayedCollectionTotal } from "@/lib/collection/displayed-value";
 import { sumPaid } from "@/lib/collection/profit-label";
 import { GRID_SORTS, sortGridCards, type GridSort } from "@/lib/collection/grid";
+import { leaderboardMinimums, type LeaderboardMinimums } from "@/lib/leaderboard/eligibility";
+import { trustedPublicTotals } from "@/lib/leaderboard/public-value";
 import { useCardValues } from "@/lib/value/use-card-values";
 import { cardValuesKey, type CollectionSeed } from "@/lib/collection/viewer-seed";
 import { useProgressiveRows } from "@/lib/ui/use-progressive-rows";
@@ -65,7 +68,15 @@ const chipOn = "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-950";
 const chipOff =
   "bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-white/[0.06] dark:text-zinc-300 dark:hover:bg-white/10";
 
-export function Dashboard({ seed = null }: { seed?: CollectionSeed | null } = {}) {
+export function Dashboard({
+  seed = null,
+  minimums = leaderboardMinimums(),
+  accountCreatedAt,
+}: {
+  seed?: CollectionSeed | null;
+  minimums?: LeaderboardMinimums;
+  accountCreatedAt?: string | null;
+} = {}) {
   const { cards, ready, syncError, reload, updateCard } = useCollection();
   const { user } = useSocial();
   const toolsRef = useRef<HTMLDivElement>(null);
@@ -109,6 +120,8 @@ export function Dashboard({ seed = null }: { seed?: CollectionSeed | null } = {}
     () => displayedCollectionTotal(inLane, values),
     [inLane, values],
   );
+  const publicValued = useMemo(() => trustedPublicTotals(cards, values), [cards, values]);
+  const publicCollection = useMemo(() => cards.some((card) => card.isPublic), [cards]);
   const profitTotal = totals.unrealizedProfit + totals.realizedProfit;
   const cardCount = inLane.length;
   const paidCount = inLane.filter((card) => hasPaid(card)).length;
@@ -170,29 +183,40 @@ export function Dashboard({ seed = null }: { seed?: CollectionSeed | null } = {}
     <PullToRefresh onRefresh={refreshCollection}>
     <div className="space-y-4">
       {cards.length === 0 ? (
-        <CollectionHeader />
+        <CollectionHeader extra={<LeaderboardOptInSwitch minimums={minimums} />} />
       ) : (
-        <PortfolioHero
-          cardCount={cardCount}
-          collectionValue={collectionValue}
-          profitTotal={profitTotal}
-          pricedCount={totals.pricedCount}
-          pricedInvested={totals.pricedInvested}
-          investedAmount={investedAmount}
-          paidCount={paidCount}
-          withoutValueCount={totals.withoutValueCount}
-          valuesLoading={valuesLoading}
-          valuesFailed={valuesFailed}
-          valuesMessage={valuesMessage}
-          onRetry={retryValues}
-          cards={inLane}
-          values={values}
-          onShowWithoutValue={showWithoutValue}
-          shareable={Boolean(user?.username) && cards.some((card) => card.isPublic)}
-          snapshots={seeded?.snapshots}
-          cardHistory={seeded?.cardHistory}
-        />
+        <>
+          <PortfolioHero
+            cardCount={cardCount}
+            collectionValue={collectionValue}
+            profitTotal={profitTotal}
+            pricedCount={totals.pricedCount}
+            pricedInvested={totals.pricedInvested}
+            investedAmount={investedAmount}
+            paidCount={paidCount}
+            withoutValueCount={totals.withoutValueCount}
+            valuesLoading={valuesLoading}
+            valuesFailed={valuesFailed}
+            valuesMessage={valuesMessage}
+            onRetry={retryValues}
+            cards={inLane}
+            values={values}
+            onShowWithoutValue={showWithoutValue}
+            shareable={Boolean(user?.username) && cards.some((card) => card.isPublic)}
+            snapshots={seeded?.snapshots}
+            cardHistory={seeded?.cardHistory}
+          />
+          <LeaderboardOptInSwitch minimums={minimums} />
+        </>
       )}
+      <LeaderboardPrompt
+        valuedCards={publicValued.count}
+        value={publicValued.value}
+        publicCollection={publicCollection}
+        ready={cards.length > 0 && !valuesLoading && !valuesFailed}
+        minimums={minimums}
+        accountCreatedAt={accountCreatedAt}
+      />
       {cards.length > 0 ? <ShareCollectionCard /> : null}
       {syncError ? (
         <p className="text-sm text-rose-600 dark:text-rose-400">{syncError}</p>
