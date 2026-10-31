@@ -1,10 +1,13 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  CARDS_LOADING_MESSAGE,
+  OFFLINE_SAVE_MESSAGE,
   SAVE_TIMEOUT_MESSAGE,
   SAVE_TIMEOUT_MS,
   claimSubmit,
   isSaveTimeout,
+  saveFailureText,
   withSaveTimeout,
 } from "./attempt";
 
@@ -43,6 +46,25 @@ describe("save attempts", () => {
     const elapsed = Date.now() - started;
     assert.equal(aborted, true);
     assert.ok(elapsed >= 30 && elapsed < 1_000);
+  });
+
+  it("replaces a dropped fetch with a retry message and leaves other errors", () => {
+    assert.equal(saveFailureText(new TypeError("Failed to fetch")), OFFLINE_SAVE_MESSAGE);
+    assert.equal(saveFailureText(new Error("TypeError: Failed to fetch")), OFFLINE_SAVE_MESSAGE);
+    assert.equal(saveFailureText(new TypeError("Load failed")), OFFLINE_SAVE_MESSAGE);
+    assert.equal(saveFailureText(new Error("TypeError: Load failed")), OFFLINE_SAVE_MESSAGE);
+    assert.equal(
+      saveFailureText(new TypeError("NetworkError when attempting to fetch resource.")),
+      OFFLINE_SAVE_MESSAGE,
+    );
+    assert.equal(
+      saveFailureText(new Error("TypeError: NetworkError when attempting to fetch resource.")),
+      OFFLINE_SAVE_MESSAGE,
+    );
+    assert.equal(saveFailureText(new Error("Card not found.")), CARDS_LOADING_MESSAGE);
+    assert.equal(CARDS_LOADING_MESSAGE, "Still loading your cards. Tap Retry.");
+    assert.equal(saveFailureText(new Error("Could not save this card.")), "Could not save this card.");
+    assert.equal(OFFLINE_SAVE_MESSAGE, "Couldn't save. Check your connection and tap Retry.");
   });
 
   it("ignores a second submit while the first is still held", () => {
