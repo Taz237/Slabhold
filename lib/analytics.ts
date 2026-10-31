@@ -122,6 +122,7 @@ export const PAGE_PATTERNS = [
   "/home",
   "/i/[username]",
   "/leaderboard",
+  "/leaderboard/value",
   "/login",
   "/messages",
   "/messages/[username]",

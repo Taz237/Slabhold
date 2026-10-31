@@ -4,9 +4,10 @@ import { Dashboard } from "@/components/dashboard";
 import { SeededViewer } from "@/components/viewer-seed";
 import { loadCollectionSeed } from "@/lib/collection/load-viewer-seed";
 import { upsertTodaysCollectionSnapshot } from "@/lib/collection/totals";
+import { leaderboardMinimums } from "@/lib/leaderboard/eligibility";
 import { isRouterRequest } from "@/lib/supabase/router-request";
 import { requestViewer } from "@/lib/supabase/request-viewer";
-import { getAuthUserId } from "@/lib/supabase/server";
+import { getAuthUser } from "@/lib/supabase/server";
 
 function saveTodaysSnapshot(userId: string | null) {
   if (!userId) return;
@@ -27,8 +28,9 @@ function saveTodaysSnapshot(userId: string | null) {
  */
 export default async function CollectionPage() {
   if (await isRouterRequest()) {
-    saveTodaysSnapshot(await getAuthUserId());
-    return <Dashboard />;
+    const account = await getAuthUser();
+    saveTodaysSnapshot(account?.id ?? null);
+    return <Dashboard minimums={leaderboardMinimums()} accountCreatedAt={account?.createdAt ?? null} />;
   }
   return (
     <Suspense fallback={<Dashboard />}>
@@ -39,11 +41,16 @@ export default async function CollectionPage() {
 
 async function SeededCollection() {
   const viewer = await requestViewer();
-  saveTodaysSnapshot(viewer ? viewer.id : await getAuthUserId());
+  const account = viewer ? { id: viewer.id, createdAt: viewer.createdAt ?? null } : await getAuthUser();
+  saveTodaysSnapshot(account?.id ?? null);
   const seed = viewer ? await loadCollectionSeed(viewer) : null;
   return (
     <SeededViewer seed={seed}>
-      <Dashboard seed={seed} />
+      <Dashboard
+        seed={seed}
+        minimums={leaderboardMinimums()}
+        accountCreatedAt={account?.createdAt ?? null}
+      />
     </SeededViewer>
   );
 }

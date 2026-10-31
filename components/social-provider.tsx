@@ -18,6 +18,8 @@ import { pingBadgeCheck } from "@/lib/badges/client";
 import { clearNewCardDraft } from "@/lib/cards/new-card-draft";
 import { clearComposeDraft } from "@/lib/social/compose-draft";
 import { forgetEmailHint } from "@/lib/pwa/install-step";
+import { profileChangeRefreshesBoard } from "@/lib/leaderboard/profile-refresh";
+import { revalidateValueBoardForAccount } from "@/lib/leaderboard/revalidate";
 import { activityFrom, emptyActivity, loadActivity, saveActivity, type ActivityStore } from "@/lib/social/activity";
 import {
   createRememberedPosts,
@@ -1259,8 +1261,21 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       if (mode === "supabase" && client && snapshot.user) {
         try {
           const result = await (await loadRemote()).remoteUpdateProfile(client, snapshot.user.id, patch);
-          // Just the viewer's own profile, as saved (an uploaded photo comes back as its URL).
-          if (!result.error) await rereadPeople(client, [snapshot.user.id]);
+          if (!result.error) {
+            // Just the viewer's own profile, as saved (an uploaded photo comes back as its URL).
+            await rereadPeople(client, [snapshot.user.id]);
+            const before = snapshot.user;
+            if (
+              profileChangeRefreshesBoard({
+                beforeUsername: before.username,
+                afterUsername: patch.username,
+                beforeAvatar: before.avatarDataUrl,
+                afterAvatar: patch.avatarDataUrl,
+              })
+            ) {
+              await revalidateValueBoardForAccount();
+            }
+          }
           return result;
         } catch (error) {
           return { error: error instanceof Error ? error.message : "Could not save your profile." };

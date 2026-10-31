@@ -15,7 +15,8 @@ export type PriceRefreshCard = IdentityCard & {
   isRookie?: boolean;
 };
 
-function queryKeyCard(card: PriceRefreshCard) {
+/** Same object buildQueryKey uses. The card id stays in the key so two copies do not share a price row. */
+export function queryKeyCard(card: PriceRefreshCard) {
   return {
     id: card.id,
     year: card.year ?? undefined,
