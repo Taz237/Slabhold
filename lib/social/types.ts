@@ -179,6 +179,19 @@ export type SocialSnapshot = {
   safetyAccounts?: Profile[];
   /** True after a likes read succeeded. False or omitted keeps the device fallback. */
   likesReady?: boolean;
+  /**
+   * The newest notification and message pages and every unread row, as read.
+   * `notifications` and `messages` above are these merged; the raw pages let a
+   * later read keep older pages the viewer already loaded (lib/social/inbox-pages.ts).
+   */
+  inbox?: SnapshotInbox;
+};
+
+export type SnapshotInbox = {
+  notifications: { rows: Notification[]; next: { createdAt: string; id: string } | null };
+  unreadNotifications: Notification[];
+  messages: { rows: DirectMessage[]; next: { createdAt: string; id: string } | null };
+  unreadMessages: DirectMessage[];
 };
 
 export type SignUpInput = {

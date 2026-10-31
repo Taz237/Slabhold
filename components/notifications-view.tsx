@@ -10,6 +10,7 @@ import { WantAlertOfferLink } from "@/components/open-to-offers";
 import { ReplyPhotos } from "@/components/reply-photos";
 import { solidButton } from "@/components/button-styles";
 import { PullToRefresh } from "@/components/pull-to-refresh";
+import { LoadMore, useLoadMore } from "@/components/load-more";
 import { EmptyState, LoadingRows } from "@/components/status";
 import { useSocial } from "@/components/social-provider";
 import { loginPath } from "@/lib/auth/safe-next";
@@ -27,7 +28,18 @@ import type { NotificationKind } from "@/lib/social/types";
 
 export function NotificationsView() {
   const pathname = usePathname() || "/";
-  const { ready, user, profiles, notifications, markNotificationsRead, refresh, commentsFor } = useSocial();
+  const {
+    ready,
+    user,
+    profiles,
+    notifications,
+    markNotificationsRead,
+    refresh,
+    commentsFor,
+    inboxMore,
+    loadOlderNotifications,
+  } = useSocial();
+  const older = useLoadMore(loadOlderNotifications);
   const { deals, refresh: refreshDeals } = useMyDeals();
   const userId = user?.id ?? null;
   const unreadOnVisit = useRef<{ userId: string; ids: ReadonlySet<string> } | null>(null);
@@ -95,6 +107,7 @@ export function NotificationsView() {
           </Link>
         </EmptyState>
       ) : (
+        <>
         <ul className="mt-3 divide-y divide-zinc-200 dark:divide-white/10">
           {groups.map((group) => {
             const href = groupHref(group, authors);
@@ -188,6 +201,13 @@ export function NotificationsView() {
             );
           })}
         </ul>
+        <LoadMore
+          hasMore={inboxMore.notifications}
+          loading={older.loading}
+          failed={older.failed}
+          onLoadMore={older.run}
+        />
+        </>
       )}
     </PullToRefresh>
   );

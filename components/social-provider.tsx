@@ -106,6 +106,17 @@ import { preloadOnHint, sessionHinted } from "@/lib/auth/session-hint";
 import { seedsViewer } from "@/lib/auth/route-access";
 import { loadSupabaseBrowser } from "@/lib/supabase/browser-lazy";
 import {
+  cursorsAfterRefresh,
+  emptyInboxCursors,
+  keepLoadedInbox,
+  loadMessagePage,
+  loadNotificationPage,
+  mergeById,
+  mergeNewestPage,
+  type InboxCursors,
+} from "@/lib/social/inbox-pages";
+import { loadHiddenAuthorIds } from "@/lib/safety/filters";
+import {
   cardsForKeys,
   createPublicCardBatcher,
   emptyPublicCardCache,
@@ -209,6 +220,14 @@ export type SocialContextValue = {
     preview?: CardMessagePreview | null,
   ) => Promise<AuthResult>;
   markThreadRead: (partnerId: string) => void;
+  /** Whether Load more has older notifications or inbox messages to read. */
+  inboxMore: { notifications: boolean; messages: boolean };
+  loadOlderNotifications: () => Promise<void>;
+  loadOlderMessages: () => Promise<void>;
+  /** Reads one thread's newest page (first call) or its next older page (`older`). */
+  loadThreadMessages: (partnerId: string, older?: boolean) => Promise<void>;
+  /** True when a thread has older messages to load. */
+  threadMore: (partnerId: string) => boolean;
   feed: TimelineItem[];
   follows: FollowEdge[];
   /** Merge posts loaded by a paged feed so likes, quotes, and edits can see them. */
@@ -353,6 +372,8 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
   // Signed-out visitors don't need realtime or card prices for the first
   // paint. That work waits for the first idle moment after load.
   const [firstIdle, setFirstIdle] = useState(false);
+  /** Where each notifications / messages Load more continues from. */
+  const [inboxCursors, setInboxCursors] = useState<InboxCursors>(emptyInboxCursors);
   localRef.current = local;
 
   const routePostId = postIdFromPath(pathname);
@@ -395,7 +416,9 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
           if (hadError) setStatus(null);
           setSnapshotError(false);
           setHasFullSnapshot(true);
-          setRemote(merged);
+          // Older notification and message pages the viewer loaded stay.
+          setRemote((existing) => keepLoadedInbox(existing, merged));
+          setInboxCursors((current) => cursorsAfterRefresh(current, snapshot.inbox, snapshot.user?.id ?? null));
           if (!postIdFromPath(window.location.pathname)) setReady(true);
         });
       },
@@ -688,6 +711,95 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
     if (before !== undefined) resetPublicCards();
   }, [cardViewerId, ready, resetPublicCards]);
   const loadedPublicCards = useMemo(() => cardsForKeys(cardCache), [cardCache]);
+
+  const loadOlderNotifications = useCallback(async () => {
+    const client = supabaseRef.current;
+    const viewerId = snapshotRef.current.user?.id;
+    const cursor = inboxCursors.notifications;
+    if (mode !== "supabase" || !client || !viewerId || !cursor) return;
+    await loadOnce(inflightRef.current, "older:notifications", async () => {
+      const mutedHidden = await loadHiddenAuthorIds(client, true);
+      const page = await loadNotificationPage(client, viewerId, { cursor, mutedHidden });
+      setRemote((existing) =>
+        existing.user?.id === viewerId
+          ? { ...existing, notifications: mergeById(existing.notifications, page.rows, "newest") }
+          : existing,
+      );
+      setInboxCursors((current) =>
+        current.viewerId === viewerId
+          ? { ...current, notifications: page.next, advanced: { ...current.advanced, notifications: true } }
+          : current,
+      );
+    });
+  }, [inboxCursors.notifications, mode]);
+
+  const loadOlderMessages = useCallback(async () => {
+    const client = supabaseRef.current;
+    const viewerId = snapshotRef.current.user?.id;
+    const cursor = inboxCursors.messages;
+    if (mode !== "supabase" || !client || !viewerId || !cursor) return;
+    await loadOnce(inflightRef.current, "older:messages", async () => {
+      const blockedHidden = await loadHiddenAuthorIds(client, false);
+      const page = await loadMessagePage(client, viewerId, { cursor, blockedHidden });
+      setRemote((existing) =>
+        existing.user?.id === viewerId
+          ? { ...existing, messages: mergeById(existing.messages, page.rows, "oldest") }
+          : existing,
+      );
+      setInboxCursors((current) =>
+        current.viewerId === viewerId
+          ? { ...current, messages: page.next, advanced: { ...current.advanced, messages: true } }
+          : current,
+      );
+    });
+  }, [inboxCursors.messages, mode]);
+
+  const loadThreadMessages = useCallback(
+    async (partnerId: string, older = false) => {
+      const client = supabaseRef.current;
+      const viewerId = snapshotRef.current.user?.id;
+      if (mode !== "supabase" || !client || !viewerId || !partnerId) return;
+      const cursor = inboxCursors.threads[partnerId];
+      // First open reads the newest page once; Load older needs somewhere to continue from.
+      if (older ? !cursor : cursor !== undefined) return;
+      await loadOnce(inflightRef.current, `thread:${partnerId}:${older ? cursor?.id : "newest"}`, async () => {
+        const blockedHidden = await loadHiddenAuthorIds(client, false);
+        const page = await loadMessagePage(client, viewerId, {
+          cursor: older ? (cursor ?? null) : null,
+          blockedHidden,
+          partnerId,
+        });
+        const pair = (message: { senderId: string; receiverId: string }) =>
+          (message.senderId === viewerId && message.receiverId === partnerId) ||
+          (message.senderId === partnerId && message.receiverId === viewerId);
+        setRemote((existing) => {
+          if (existing.user?.id !== viewerId) return existing;
+          const messages = older
+            ? mergeById(existing.messages, page.rows, "oldest")
+            : mergeNewestPage(existing.messages, page.rows, { complete: !page.next, order: "oldest", within: pair });
+          return { ...existing, messages };
+        });
+        setInboxCursors((current) =>
+          current.viewerId === viewerId
+            ? { ...current, threads: { ...current.threads, [partnerId]: page.next } }
+            : current,
+        );
+      });
+    },
+    [inboxCursors.threads, mode],
+  );
+
+  const threadMore = useCallback(
+    (partnerId: string) => Boolean(inboxCursors.threads[partnerId]),
+    [inboxCursors.threads],
+  );
+  const inboxMore = useMemo(
+    () => ({
+      notifications: mode === "supabase" && Boolean(inboxCursors.notifications),
+      messages: mode === "supabase" && Boolean(inboxCursors.messages),
+    }),
+    [inboxCursors.messages, inboxCursors.notifications, mode],
+  );
   const publicCards = hosted ? loadedPublicCards : snapshot.publicCards;
 
   useEffect(() => {
@@ -2039,6 +2151,11 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       publicCardsReady,
       publicCardsFailed,
       resetPublicCards,
+      inboxMore,
+      loadOlderNotifications,
+      loadOlderMessages,
+      loadThreadMessages,
+      threadMore,
       status,
       refresh,
       signUp,
@@ -2151,6 +2268,11 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       publicCardsReady,
       publicCardsFailed,
       resetPublicCards,
+      inboxMore,
+      loadOlderNotifications,
+      loadOlderMessages,
+      loadThreadMessages,
+      threadMore,
       snapshot.user,
       status,
       suggestions,

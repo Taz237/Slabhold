@@ -634,7 +634,10 @@ describe("stored card preview", () => {
     const dm = readFileSync(join(process.cwd(), "lib/social/dm-actions.ts"), "utf8");
     const thread = readFileSync(join(process.cwd(), "components/message-thread.tsx"), "utf8");
     assert.match(dm, /card_preview = \{ cardId: cardPreview\.cardId \}/);
-    assert.match(remote, /loadMessageRows\(/);
+    // Message reads (paged, lib/social/inbox-pages.ts) go through the column-probing loader.
+    const inbox = readFileSync(join(process.cwd(), "lib/social/inbox-pages.ts"), "utf8");
+    assert.match(inbox, /loadMessageRows\(/);
+    assert.doesNotMatch(inbox, /from\("messages"\)\.select\("\*"\)/);
     assert.doesNotMatch(remote, /from\("messages"\)\.select\("\*"\)/);
     assert.match(thread, /cardId: offerCard\.id/);
     assert.doesNotMatch(thread, /imageUrl:|estimateLabel:|href: `\/u\//);

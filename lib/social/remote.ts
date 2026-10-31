@@ -6,15 +6,9 @@ import { removeUploadedMedia, uploadMedia } from "@/lib/supabase/media";
 import { sanitizeAttachedCard } from "./card-posts";
 import { applyViewerLikes, likesMigratedFlag, loadViewerLikes, readLikeCount } from "./likes";
 import { loadMailDayViews } from "./mail-day";
-import {
-  loadMessageRows,
-  mapDirectMessage,
-} from "@/lib/offers/open-to-offers";
 import type {
   AuthResult,
   FollowEdge,
-  Notification,
-  NotificationKind,
   MailDayCardView,
   Post,
   PostComment,
@@ -59,6 +53,13 @@ import { BLOCKED_INTERACTION } from "@/lib/safety/block";
 import { canNotify, supabaseSafety } from "@/lib/safety/can-notify";
 import { applyAuthorSafety, loadHiddenAuthorIds, withAuthorSafety } from "@/lib/safety/filters";
 import { needsSuggestionHeadroom, suggestionExtraRange } from "./follow-suggestions";
+import {
+  loadMessagePage,
+  loadNotificationPage,
+  loadUnreadMessages,
+  loadUnreadNotifications,
+  mergeById,
+} from "./inbox-pages";
 
 /** Swappable so a shared-card post can be tested without hitting the network. */
 export const postWantAlerts = {
@@ -135,30 +136,6 @@ type CommentRow = {
   body: string;
   created_at: string;
   image_urls?: unknown;
-};
-
-type NotificationRow = {
-  id: string;
-  recipient_id: string;
-  actor_id: string | null;
-  kind: NotificationKind;
-  post_id: string | null;
-  preview: string | null;
-  href?: string | null;
-  metadata?: Record<string, unknown> | null;
-  read: boolean;
-  created_at: string;
-};
-
-type MessageRow = {
-  id: string;
-  sender_id: string;
-  receiver_id: string;
-  content: string;
-  created_at: string;
-  read: boolean;
-  kind?: string | null;
-  card_preview?: unknown;
 };
 
 /** Row from public.public_cards — no paid_price / purchase_date / notes / cert_number. */
@@ -315,15 +292,19 @@ export async function loadSupabaseSocial(supabase: SupabaseClient): Promise<Soci
     options?: Parameters<typeof applyAuthorSafety>[3],
   ) => applyAuthorSafety(query, viewerId, ids, options);
 
-  const loadMessages = () =>
-    loadMessageRows((columns) => {
-      let query = supabase.from("messages").select(columns).order("created_at", { ascending: true });
-      query = guard(query, blockedHidden, { authorColumn: "sender_id" });
-      query = guard(query, blockedHidden, { authorColumn: "receiver_id" });
-      return query;
-    });
+  // Newest page plus every unread row: the lists page from here, the badges stay exact.
+  const loadNotes = (viewer: string) =>
+    Promise.all([
+      loadNotificationPage(supabase, viewer, { cursor: null, mutedHidden }),
+      loadUnreadNotifications(supabase, viewer, mutedHidden),
+    ]);
+  const loadMessages = (viewer: string) =>
+    Promise.all([
+      loadMessagePage(supabase, viewer, { cursor: null, blockedHidden }),
+      loadUnreadMessages(supabase, viewer, blockedHidden),
+    ]);
 
-  const [profilesRes, postsRes, homePostsRes, followsRes, commentsRes, notificationsRes, messagesRes, repostsRes, homeRepostsRes, myBlocksRes, myMutesRes] =
+  const [profilesRes, postsRes, homePostsRes, followsRes, commentsRes, notesInbox, messagesInbox, repostsRes, homeRepostsRes, myBlocksRes, myMutesRes] =
     await Promise.all([
       loadProfileRows((columns) =>
         guard(
@@ -348,14 +329,8 @@ export async function loadSupabaseSocial(supabase: SupabaseClient): Promise<Soci
         { mute: true },
       ),
       // A visitor with no session has no inbox; RLS would return nothing.
-      viewerId
-        ? guard(
-            supabase.from("notifications").select("*").order("created_at", { ascending: false }),
-            mutedHidden,
-            { authorColumn: "actor_id", mute: true, keepNullAuthor: true },
-          )
-        : Promise.resolve({ data: [], error: null }),
-      viewerId ? loadMessages() : Promise.resolve({ data: [], error: null }),
+      viewerId ? loadNotes(viewerId) : Promise.resolve(null),
+      viewerId ? loadMessages(viewerId) : Promise.resolve(null),
       guard(
         supabase.from("reposts").select("*").order("created_at", { ascending: false }),
         blockedHidden,
@@ -376,10 +351,6 @@ export async function loadSupabaseSocial(supabase: SupabaseClient): Promise<Soci
     profilesRes.error || postsRes.error || homePostsRes.error || followsRes.error;
   if (failure) throw new Error(failure.message);
   if (commentsRes.error && !missingTable(commentsRes.error)) throw new Error(commentsRes.error.message);
-  if (notificationsRes.error && !missingTable(notificationsRes.error)) {
-    throw new Error(notificationsRes.error.message);
-  }
-  if (messagesRes.error && !missingTable(messagesRes.error)) throw new Error(messagesRes.error.message);
   if (repostsRes.error && !missingTable(repostsRes.error)) throw new Error(repostsRes.error.message);
   if (homeRepostsRes.error && !missingTable(homeRepostsRes.error)) {
     throw new Error(homeRepostsRes.error.message);
@@ -481,21 +452,16 @@ export async function loadSupabaseSocial(supabase: SupabaseClient): Promise<Soci
       createdAt: row.created_at,
     };
   });
-  const notifications = ((notificationsRes.data ?? []) as NotificationRow[]).map(
-    (row): Notification => ({
-      id: row.id,
-      recipientId: row.recipient_id,
-      actorId: row.actor_id,
-      kind: row.kind,
-      postId: row.post_id,
-      preview: row.preview,
-      href: row.href ?? null,
-      metadata: row.metadata ?? null,
-      createdAt: row.created_at,
-      read: row.read,
-    }),
-  );
-  const messages = ((messagesRes.data ?? []) as unknown as MessageRow[]).map((row) => mapDirectMessage(row));
+  const inbox: SocialSnapshot["inbox"] = viewerId
+    ? {
+        notifications: notesInbox?.[0] ?? { rows: [], next: null },
+        unreadNotifications: notesInbox?.[1] ?? [],
+        messages: messagesInbox?.[0] ?? { rows: [], next: null },
+        unreadMessages: messagesInbox?.[1] ?? [],
+      }
+    : undefined;
+  const notifications = inbox ? mergeById(inbox.notifications.rows, inbox.unreadNotifications, "newest") : [];
+  const messages = inbox ? mergeById(inbox.messages.rows, inbox.unreadMessages, "oldest") : [];
   const homePosts = await mapPostRows(
     supabase,
     (homePostsRes.data ?? []) as PostRow[],
@@ -552,6 +518,7 @@ export async function loadSupabaseSocial(supabase: SupabaseClient): Promise<Soci
     blockedIds,
     mutedIds,
     safetyAccounts,
+    ...(inbox ? { inbox } : {}),
   };
 }
 
