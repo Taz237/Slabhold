@@ -55,7 +55,7 @@ export function MessageThread({ username }: { username: string }) {
     markThreadRead,
     loadThreadMessages,
     threadMore,
-    refresh,
+    refreshInbox,
     blockedIds,
     mutedIds,
     safetyAccounts,
@@ -104,8 +104,9 @@ export function MessageThread({ username }: { username: string }) {
 
   useEffect(() => {
     if (!ready) return;
-    void refresh();
-  }, [ready, refresh, username]);
+    // The thread reads its own page (loadThreadMessages); this keeps the inbox badge current.
+    void refreshInbox().catch(() => {});
+  }, [ready, refreshInbox, username]);
 
   useEffect(() => {
     if (!ready || !user || !partner) return;

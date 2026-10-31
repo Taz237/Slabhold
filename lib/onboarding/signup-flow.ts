@@ -1,5 +1,5 @@
 import { emailFieldError, passwordFieldError, usernameFieldError } from "@/lib/auth/signup-fields";
-import { normalizeUsername } from "@/lib/social/local-db";
+import { normalizeUsername } from "@/lib/social/usernames";
 import { TAKEN_USERNAME } from "@/lib/social/username-taken";
 
 /** One question per screen, in this order. Submit follows the last one. */

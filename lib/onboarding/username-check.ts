@@ -1,5 +1,5 @@
 import { usernameFieldError } from "@/lib/auth/signup-fields";
-import { normalizeUsername, usernameError } from "@/lib/social/local-db";
+import { normalizeUsername, usernameError } from "@/lib/social/usernames";
 import { TAKEN_USERNAME } from "@/lib/social/username-taken";
 
 /** Debounce for the live username check. */

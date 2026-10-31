@@ -30,7 +30,7 @@ import { ReadRetry } from "@/components/read-retry";
 import { ShareIconButton } from "@/components/share-button";
 import { ReplyPhotos } from "@/components/reply-photos";
 import { Tweet } from "@/components/tweet";
-import { normalizeUsername } from "@/lib/social/local-db";
+import { normalizeUsername } from "@/lib/social/usernames";
 import { ilikeExact } from "@/lib/social/username-taken";
 import { addUnblockedProfiles, presentPagedItems } from "@/lib/social/paged-items";
 import { profileTimeline } from "@/lib/social/timeline";
@@ -88,6 +88,7 @@ export function ProfileView({
     rememberPosts,
     removedPostIds,
     repliesBy,
+    loadRepliesBy,
   } = social;
 
   const profile = username ? social.profileByUsername(username) : user;
@@ -198,10 +199,25 @@ export function ProfileView({
   }, [mode, profile?.id, postsRefreshKey, requestPublicCards]);
 
   const replyAuthorId = profile?.id ?? "";
+  // Hosted: this person's replies are read for their profile, not site-wide.
+  const [repliesRead, setRepliesRead] = useState<string | null>(null);
+  useEffect(() => {
+    if (mode !== "supabase" || !replyAuthorId) return;
+    let cancelled = false;
+    loadRepliesBy(replyAuthorId)
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setRepliesRead(replyAuthorId);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [loadRepliesBy, mode, replyAuthorId]);
   const loadedReplies = replyAuthorId ? repliesBy(replyAuthorId) : [];
   const replyParentKey = loadedReplies.map((reply) => `${reply.id}:${reply.postId}`).join("|");
   const replyParentsReady =
-    mode !== "supabase" || loadedReplies.length === 0 || replyParents?.key === replyParentKey;
+    mode !== "supabase" ||
+    (repliesRead === replyAuthorId && (loadedReplies.length === 0 || replyParents?.key === replyParentKey));
   const replies = replyParentsReady
     ? mode === "supabase" && replyParents
       ? loadedReplies.filter((reply) => replyParents.ids.has(reply.postId))

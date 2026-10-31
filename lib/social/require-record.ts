@@ -7,7 +7,7 @@ import { createAnonReader } from "@/lib/supabase/anon";
 import { cardCacheTag, cardVisibilityTag } from "@/lib/value/card-cache";
 import { isUuid } from "@/lib/value/card-value-access";
 import { createSupabaseServer } from "@/lib/supabase/server";
-import { normalizeUsername } from "./local-db";
+import { normalizeUsername } from "./usernames";
 import {
   missingRecordAction,
   postLookupResult,

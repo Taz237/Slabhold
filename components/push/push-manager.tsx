@@ -91,7 +91,7 @@ let serverAvailable: Promise<boolean> | null = null;
 export function PushManager({ user }: { user: Profile }) {
   const router = useRouter();
   const pathname = usePathname() || "/";
-  const { refresh, notifications, unreadMessageCount } = useSocial();
+  const { refreshInbox, notifications, unreadMessageCount } = useSocial();
   const onboardingBusy = useOnboardingBusy();
   const [ask, setAsk] = useState<AskSurface | null>(null);
   const [guideOpen, setGuideOpen] = useState(false);
@@ -225,11 +225,11 @@ export function PushManager({ user }: { user: Profile }) {
         router.push(sameOriginPath(data.url));
         return;
       }
-      if (data.type === "push:refresh") void refresh().catch(() => undefined);
+      if (data.type === "push:refresh") void refreshInbox().catch(() => undefined);
     };
     navigator.serviceWorker.addEventListener("message", onMessage);
     return () => navigator.serviceWorker.removeEventListener("message", onMessage);
-  }, [featureOn, refresh, router]);
+  }, [featureOn, refreshInbox, router]);
 
   // App icon badge: unread notifications plus unread DMs, kept current as
   // they're read and whenever the app comes back to the front.

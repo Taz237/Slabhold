@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { loadSupabaseSocial } from "./remote";
+import { loadSocialSnapshot } from "./remote";
 
 /** Any query chain resolves to no rows. Records which tables were read. */
 function fakeClient(session: { user: { id: string; email: string } } | null) {
@@ -30,16 +30,18 @@ function fakeClient(session: { user: { id: string; email: string } } | null) {
 describe("guest snapshot", () => {
   it("skips inbox reads for a visitor with no session", async () => {
     const { client, tables } = fakeClient(null);
-    const snapshot = await loadSupabaseSocial(client);
+    const snapshot = await loadSocialSnapshot(client);
     assert.equal(snapshot.user, null);
     assert.deepEqual(snapshot.notifications, []);
     assert.deepEqual(snapshot.messages, []);
     for (const table of ["notifications", "messages", "blocks", "mutes"]) {
       assert.equal(tables.includes(table), false, table);
     }
-    for (const table of ["posts", "comments", "reposts"]) {
+    for (const table of ["posts", "reposts"]) {
       assert.ok(tables.includes(table), table);
     }
+    // Replies are read for loaded posts only; with no posts, none at all.
+    assert.equal(tables.includes("comments"), false);
     // A visitor has no follow edges of their own, and nobody to read profiles for.
     assert.equal(tables.includes("follows"), false);
     // Public cards are read per screen, never as the whole table.
@@ -48,7 +50,7 @@ describe("guest snapshot", () => {
 
   it("still reads the inbox for a signed-in reader", async () => {
     const { client, tables } = fakeClient({ user: { id: "11111111-1111-4111-8111-111111111111", email: "a@b.c" } });
-    await loadSupabaseSocial(client);
+    await loadSocialSnapshot(client);
     for (const table of ["notifications", "messages", "blocks", "mutes"]) {
       assert.ok(tables.includes(table), table);
     }

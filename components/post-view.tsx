@@ -20,7 +20,7 @@ import { useSocial } from "@/components/social-provider";
 import { createSupabaseBrowser } from "@/lib/supabase/browser";
 import { signupPath } from "@/lib/auth/safe-next";
 import { userHref } from "@/lib/social/user-href";
-import { canDeleteReply } from "@/lib/social/local-db";
+import { canDeleteReply } from "@/lib/social/reply-delete";
 import { photoAttachFull, photoAttachHint, POST_PHOTO_CAP_HINT } from "@/lib/social/post-photos";
 import { quotesOf } from "@/lib/social/quotes";
 import { commentsSupportReplyImages, isOptimisticReply } from "@/lib/social/reply-images";

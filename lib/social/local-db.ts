@@ -23,7 +23,20 @@ import { decidePin, pinnedPostIdAfterDelete } from "./profile-tabs";
 import { replyNoticePreview } from "./reply-images";
 import { shouldNotifyQuoteAuthor, validateQuoteContent } from "./quotes";
 import { COMMENT_LIMIT } from "./types";
-import { isOfficialUpdatesAccount } from "./official-updates";
+import { canDeleteReply, stateAfterReplyDelete } from "./reply-delete";
+import { normalizeUsername, usernameChangeError, usernameError } from "./usernames";
+
+export { canDeleteReply, stateAfterReplyDelete } from "./reply-delete";
+export {
+  RESERVED_USERNAMES,
+  UPDATES_HANDLE_STEMS,
+  isReservedUsername,
+  isUpdatesHandleVariant,
+  normalizeUsername,
+  reservedHandleStem,
+  usernameChangeError,
+  usernameError,
+} from "./usernames";
 
 const STORAGE_KEY = "cardflip.social.v1";
 
@@ -41,71 +54,6 @@ export type LocalDb = {
   messages: DirectMessage[];
   collections: Record<string, PublicCard[]>;
 };
-
-const USERNAME = /^[a-z0-9_]{3,20}$/;
-
-/**
- * Handles a new account cannot claim. Keep this list identical to the
- * reserved array in supabase/migrations/20261022223000_reserve_profile_usernames.sql.
- */
-export const RESERVED_USERNAMES = [
-  "grokbotreview",
-  "slabholdupdates",
-  "slabhold",
-  "slabholdapp",
-  "slabhold_updates",
-  "slabholdteam",
-  "slabholdsupport",
-  "slabholdofficial",
-  "admin",
-  "administrator",
-  "support",
-  "help",
-  "moderator",
-  "mod",
-  "official",
-  "staff",
-  "team",
-] as const;
-
-/** Stems that also reserve lookalikes such as slabholdupdates1 and grokbotreview_. */
-export const UPDATES_HANDLE_STEMS = ["grokbotreview", "slabholdupdates"] as const;
-
-export function normalizeUsername(value: string) {
-  return value.trim().toLowerCase();
-}
-
-/** Lowercase handle with `_`, `.`, `-`, and trailing digits removed. */
-export function reservedHandleStem(value: string) {
-  return normalizeUsername(value).replace(/[_.-]/g, "").replace(/\d+$/, "");
-}
-
-export function isUpdatesHandleVariant(value: string) {
-  return (UPDATES_HANDLE_STEMS as readonly string[]).includes(reservedHandleStem(value));
-}
-
-export function isReservedUsername(value: string) {
-  const handle = normalizeUsername(value);
-  if ((RESERVED_USERNAMES as readonly string[]).includes(handle)) return true;
-  return isUpdatesHandleVariant(value);
-}
-
-export function usernameError(value: string) {
-  if (!USERNAME.test(value)) {
-    return "Usernames are 3–20 characters: letters, numbers, underscores.";
-  }
-  if (isReservedUsername(value)) return "That username is taken.";
-  return null;
-}
-
-/** Existing holders may keep a reserved name. Only the updates id may newly take a variant. */
-export function usernameChangeError(next: string, userId?: string | null, current?: string | null) {
-  const error = usernameError(next);
-  if (!error || !isReservedUsername(next)) return error;
-  if (normalizeUsername(current ?? "") === normalizeUsername(next)) return null;
-  if (isOfficialUpdatesAccount(userId) && isUpdatesHandleVariant(next)) return null;
-  return error;
-}
 
 async function hashPassword(password: string) {
   const data = new TextEncoder().encode(`cardflip.v1:${password}`);
@@ -868,68 +816,6 @@ function withMentionNotifications(
     });
   }
   return [...added, ...kept];
-}
-
-export function canDeleteReply(viewerId: string | null | undefined, authorId: string) {
-  return Boolean(viewerId && viewerId === authorId);
-}
-
-/**
- * True when this row is the deleter's comment notice, or a reply mention they
- * sent, on the parent post, and the stored preview is this reply's preview.
- * Notifications have no comment id, so the preview is the match.
- */
-function isOwnReplyPreviewNotification(note: Notification, comment: PostComment) {
-  if (note.actorId !== comment.authorId) return false;
-  if (note.postId !== comment.postId) return false;
-  if (comment.body.trim().length === 0) return false;
-  const preview = replyNoticePreview(comment.body, comment.images);
-  if (!preview || note.preview !== preview) return false;
-  if (note.kind === "comment") return true;
-  return note.kind === "mention" && isReplyMentionMetadata(note.metadata);
-}
-
-/** Photo-only notices are preview NULL on the server and "Photo" locally. Keep the newest one. */
-function newestPhotoOnlyNoticeId(notes: readonly Notification[], comment: PostComment): string | null {
-  let best: Notification | null = null;
-  for (const note of notes) {
-    if (note.actorId !== comment.authorId || note.postId !== comment.postId) continue;
-    if (note.kind !== "comment") continue;
-    if (note.preview !== null && note.preview !== "Photo") continue;
-    if (!best || note.createdAt > best.createdAt || (note.createdAt === best.createdAt && note.id > best.id)) {
-      best = note;
-    }
-  }
-  return best?.id ?? null;
-}
-
-/** Drops the reply and rows tied to it. An error keeps the previous rows. */
-export function stateAfterReplyDelete(
-  before: {
-    comments: PostComment[];
-    likes: PostLike[];
-    reposts: PostRepost[];
-    notifications: Notification[];
-  },
-  commentId: string,
-  result: { error?: string },
-) {
-  if (result.error) return before;
-  const comment = before.comments.find((item) => item.id === commentId);
-  return {
-    comments: before.comments.filter((item) => item.id !== commentId),
-    likes: before.likes.filter((like) => like.postId !== commentId),
-    reposts: before.reposts.filter((repost) => repost.postId !== commentId),
-    notifications: before.notifications.filter((note) => {
-      if (note.postId === commentId) return false;
-      if (!comment) return true;
-      if (comment.body.trim().length === 0 && (comment.images?.length ?? 0) > 0) {
-        return note.id !== newestPhotoOnlyNoticeId(before.notifications, comment);
-      }
-      if (isOwnReplyPreviewNotification(note, comment)) return false;
-      return true;
-    }),
-  };
 }
 
 export function localDeleteComment(db: LocalDb, commentId: string): { db: LocalDb; error?: string } {

@@ -18,7 +18,7 @@ import {
   profileLinkPreview,
   type LinkPreview,
 } from "./link-preview";
-import { normalizeUsername } from "./local-db";
+import { normalizeUsername } from "./usernames";
 import { mailDayOgTitle } from "./mail-day-copy";
 import {
   cardShareImage,

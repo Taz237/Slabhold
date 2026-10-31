@@ -1,6 +1,6 @@
 import { isUuid } from "@/lib/value/card-value-access";
 import { mapPublicCard } from "./cards";
-import { normalizeUsername } from "./local-db";
+import { normalizeUsername } from "./usernames";
 import type { OwnedCard } from "./types";
 
 export type RecordLookup = "unconfigured" | "found" | "missing" | "error";
