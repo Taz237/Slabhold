@@ -49,7 +49,7 @@ describe("bundle size check", () => {
       assert.ok(Number.isInteger(baseline[route]) && baseline[route] > 0, route);
     }
     // The post page is guarded at main's size when it joined the guard.
-    assert.equal(baseline["/posts/[id]"], 320429);
+    assert.equal(baseline["/posts/[id]"], 253177);
     // Signed-out Home stays under 150 KB gzip.
     assert.ok(baseline["/welcome"] < 150 * 1024, String(baseline["/welcome"]));
     const pkg = JSON.parse(read("package.json")) as { scripts: Record<string, string> };
