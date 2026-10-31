@@ -8,6 +8,7 @@ import { resolveLiveCardPreview } from "@/lib/offers/open-to-offers";
 import { messageLinks, type MessageLink } from "@/lib/social/dm-inbox";
 import { imagesFromPost } from "@/lib/social/post-photos";
 import type { DirectMessage, OwnedCard, Post, Profile } from "@/lib/social/types";
+import { usePublicCards } from "@/lib/social/use-public-cards";
 import { userHref } from "@/lib/social/user-href";
 import { gradedLabel } from "@/lib/ui/timeline";
 
@@ -49,6 +50,7 @@ export function MessageAttachments({ text }: { text: string }) {
   const { findPost, profiles, publicCards, blockedIds } = useSocial();
   const loaded = { findPost, profiles, publicCards, blockedIds };
   const links = messageLinks(text);
+  usePublicCards({ ids: links.map((link) => (link.kind === "card" ? link.cardId : null)) });
   if (links.length === 0) return null;
   return (
     <>
@@ -103,6 +105,10 @@ function SharedPostMini({ post, author }: { post: Post; author: Profile }) {
 export function useInboxThumb(last: DirectMessage): { imageUrl: string | null; label: string } | null {
   const { findPost, profiles, publicCards, blockedIds } = useSocial();
   const loaded = { findPost, profiles, publicCards, blockedIds };
+  const [firstLink] = last.cardPreview ? [] : messageLinks(last.content);
+  usePublicCards({
+    ids: [last.cardPreview?.cardId, firstLink?.kind === "card" ? firstLink.cardId : null],
+  });
   if (last.cardPreview) {
     const live = resolveLiveCardPreview(last.cardPreview.cardId, publicCards, profiles);
     return live ? { imageUrl: live.imageUrl, label: live.player } : null;

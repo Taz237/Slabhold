@@ -37,9 +37,11 @@ describe("guest snapshot", () => {
     for (const table of ["notifications", "messages", "blocks", "mutes"]) {
       assert.equal(tables.includes(table), false, table);
     }
-    for (const table of ["profiles", "posts", "follows", "public_cards", "comments", "reposts"]) {
+    for (const table of ["profiles", "posts", "follows", "comments", "reposts"]) {
       assert.ok(tables.includes(table), table);
     }
+    // Public cards are read per screen, never as the whole table.
+    assert.equal(tables.includes("public_cards"), false);
   });
 
   it("still reads the inbox for a signed-in reader", async () => {
