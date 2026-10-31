@@ -56,7 +56,7 @@ describe("leaderboard_opt_in is readable column by column, never table-wide", ()
     assert.match(schema, /revoke select on public\.profiles from public, anon, authenticated;/);
     assert.match(
       schema,
-      /grant select \(id, username, display_name, bio, avatar_url, cover_url, accent, created_at\) on public\.profiles to anon, authenticated;/,
+      /grant select \(id, username, display_name, bio, avatar_url, cover_url, accent, created_at, show_as_hunter, show_badges\) on public\.profiles to anon, authenticated;/,
     );
     // Every column added later is granted right after it is added.
     for (const column of ["pinned_post_id", "is_test", "leaderboard_opt_in"]) {

@@ -18,8 +18,23 @@ create table if not exists public.profiles (
   avatar_url text,
   cover_url text,
   accent text not null default '#7c5cff',
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  -- Same as supabase/migrations/20261020220000_card_hunters.sql.
+  show_as_hunter boolean not null default false,
+  -- Same as supabase/migrations/20261028200000_achievements_badges.sql.
+  -- pinned_badges is never granted to anon or authenticated; clients read it
+  -- through public.profile_badge_pins (20261031121000_pinned_badges_lock.sql).
+  show_badges boolean not null default true,
+  pinned_badges text[] not null default '{}',
+  constraint profiles_pinned_badges_max check (cardinality(pinned_badges) <= 3)
 );
+
+comment on column public.profiles.show_as_hunter is
+  'When true, card_hunters may list this account for cards they want. Prices and notes stay on want_list.';
+comment on column public.profiles.show_badges is
+  'Badges show on this profile and to other users. On by default.';
+comment on column public.profiles.pinned_badges is
+  'Up to 3 earned badges as "category:tier". Empty means auto-pin the 3 highest tiers.';
 
 create table if not exists public.follows (
   follower_id uuid not null references public.profiles (id) on delete cascade,
@@ -540,7 +555,7 @@ alter table public.reposts enable row level security;
 -- every column, pinned_badges included. Columns added further down are granted
 -- right after they are added.
 revoke select on public.profiles from public, anon, authenticated;
-grant select (id, username, display_name, bio, avatar_url, cover_url, accent, created_at) on public.profiles to anon, authenticated;
+grant select (id, username, display_name, bio, avatar_url, cover_url, accent, created_at, show_as_hunter, show_badges) on public.profiles to anon, authenticated;
 grant insert, update, delete on public.profiles to authenticated;
 grant select on public.follows to anon, authenticated;
 grant insert, delete on public.follows to authenticated;
