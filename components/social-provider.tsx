@@ -105,6 +105,17 @@ import { followingTimeline, type TimelineItem } from "@/lib/social/timeline";
 import { preloadOnHint, sessionHinted } from "@/lib/auth/session-hint";
 import { seedsViewer } from "@/lib/auth/route-access";
 import { loadSupabaseBrowser } from "@/lib/supabase/browser-lazy";
+import {
+  cardsForKeys,
+  createPublicCardBatcher,
+  emptyPublicCardCache,
+  failPublicCards,
+  mergePublicCards,
+  publicCardsFailed as cacheFailed,
+  publicCardsSettled,
+  retryPublicCards,
+  type PublicCardCache,
+} from "@/lib/social/public-card-cache";
 import { getSupabaseConfig } from "@/lib/supabase/client";
 import type { CardValueResult } from "@/lib/value/types";
 import { useCardValues } from "@/lib/value/use-card-values";
@@ -143,7 +154,19 @@ export type SocialContextValue = {
   user: Profile | null;
   profiles: Profile[];
   posts: Post[];
+  /**
+   * Public cards read so far (hosted), or every public card on this device
+   * (local). Ask for the ones a screen needs with requestPublicCards.
+   */
   publicCards: SocialSnapshot["publicCards"];
+  /** Reads public cards by key (see publicCardKeys). Same-tick asks share one batch. */
+  requestPublicCards: (keys: readonly string[]) => void;
+  /** True once every key has been read, found or not. Always true on local accounts. */
+  publicCardsReady: (keys: readonly string[]) => boolean;
+  /** Any of these keys' last read failed. Asking again (requestPublicCards) retries. */
+  publicCardsFailed: (keys: readonly string[]) => boolean;
+  /** Forgets every public card read, so screens read them again (a visibility change). */
+  resetPublicCards: () => void;
   status: string | null;
   refresh: () => Promise<Notification[]>;
   signUp: (input: SignUpInput) => Promise<AuthResult>;
@@ -608,6 +631,65 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       : baseSnapshot;
   snapshotRef.current = snapshot;
 
+  const [cardCache, setCardCache] = useState<PublicCardCache>(emptyPublicCardCache);
+  // Every screen part that asks in one tick shares one read (see createPublicCardBatcher).
+  const [cardBatcher] = useState(() =>
+    createPublicCardBatcher(
+      async (keys) => {
+        // The reads load on first use, off every screen's first-load JS.
+        const [client, { loadPublicCardsForKeys }] = await Promise.all([
+          loadSupabaseBrowser(),
+          import("@/lib/social/load-public-cards"),
+        ]);
+        return client ? loadPublicCardsForKeys(client, keys) : [];
+      },
+      (cards, keys) => startTransition(() => setCardCache((current) => mergePublicCards(current, cards, keys))),
+      (keys) => startTransition(() => setCardCache((current) => failPublicCards(current, keys))),
+    ),
+  );
+  // Bumped on reset, so every screen part asks for its cards again.
+  const [cardGeneration, setCardGeneration] = useState(0);
+  // Hosted vs local accounts is known from the start, unlike `mode`, which
+  // reads "local" until the first effect, so nothing counts as read early.
+  const hosted = getSupabaseConfig().configured;
+  const requestPublicCards = useCallback(
+    (keys: readonly string[]) => {
+      if (!hosted) return;
+      // A failed key asked again is on the way, not failed.
+      setCardCache((current) => retryPublicCards(current, keys));
+      cardBatcher.request(keys);
+    },
+    // cardGeneration: a new function after a reset, so screens ask again.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [cardBatcher, hosted, cardGeneration],
+  );
+  const publicCardsReady = useCallback(
+    (keys: readonly string[]) => !hosted || publicCardsSettled(cardCache, keys),
+    [cardCache, hosted],
+  );
+  const publicCardsFailed = useCallback(
+    (keys: readonly string[]) => hosted && cacheFailed(cardCache, keys),
+    [cardCache, hosted],
+  );
+  // Who can see which card changed (a new viewer, a refresh, the viewer's own
+  // visibility change): forget every read and drop reads on the way.
+  const resetPublicCards = useCallback(() => {
+    cardBatcher.reset();
+    setCardCache(emptyPublicCardCache());
+    setCardGeneration((value) => value + 1);
+  }, [cardBatcher]);
+  const cardViewerId = snapshot.user?.id ?? null;
+  const cardViewerRef = useRef<string | null | undefined>(undefined);
+  useEffect(() => {
+    if (cardViewerRef.current === cardViewerId) return;
+    if (!ready) return;
+    const before = cardViewerRef.current;
+    cardViewerRef.current = cardViewerId;
+    if (before !== undefined) resetPublicCards();
+  }, [cardViewerId, ready, resetPublicCards]);
+  const loadedPublicCards = useMemo(() => cardsForKeys(cardCache), [cardCache]);
+  const publicCards = hosted ? loadedPublicCards : snapshot.publicCards;
+
   useEffect(() => {
     if (mode !== "supabase") return;
     const userId = remote.user?.id;
@@ -738,6 +820,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
   const refresh = useCallback(async (): Promise<Notification[]> => {
     const client = supabaseRef.current;
     if (mode === "supabase" && client) {
+      resetPublicCards();
       await refreshRemote(client);
       const merged = appliedRemoteRef.current;
       if (merged?.user) {
@@ -759,7 +842,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       notifications: snap.notifications,
     };
     return notificationsFor(snap.user, snap.notifications);
-  }, [mode, refreshRemote]);
+  }, [mode, refreshRemote, resetPublicCards]);
 
   const signUp = useCallback(
     async (input: SignUpInput): Promise<AuthResult> => {
@@ -767,7 +850,10 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       if (mode === "supabase" && client) {
         try {
           const result = await remoteSignUp(client, input);
-          if (!result.error && !result.notice) await refreshRemote(client);
+          if (!result.error && !result.notice) {
+            resetPublicCards();
+            await refreshRemote(client);
+          }
           return result;
         } catch (error) {
           return { error: error instanceof Error ? error.message : "Could not create that account." };
@@ -779,7 +865,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       if (!result.error) commitLocal(result.db);
       return { error: result.error };
     },
-    [commitLocal, mode, refreshRemote],
+    [commitLocal, mode, refreshRemote, resetPublicCards],
   );
 
   const signIn = useCallback(
@@ -788,7 +874,10 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       if (mode === "supabase" && client) {
         try {
           const result = await remoteSignIn(client, email, password, captchaToken);
-          if (!result.error) await refreshRemote(client);
+          if (!result.error) {
+            resetPublicCards();
+            await refreshRemote(client);
+          }
           return result;
         } catch (error) {
           return { error: error instanceof Error ? error.message : "Could not log in." };
@@ -800,7 +889,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       if (!result.error) commitLocal(result.db);
       return { error: result.error };
     },
-    [commitLocal, mode, refreshRemote],
+    [commitLocal, mode, refreshRemote, resetPublicCards],
   );
 
   const signOut = useCallback(async () => {
@@ -813,11 +902,12 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       // While the session is still valid: this device stops getting pushes.
       await runSignOutHook();
       await remoteSignOut(client);
+      resetPublicCards();
       await refreshRemote(client);
       return;
     }
     if (localRef.current) commitLocal(localSignOut(localRef.current));
-  }, [commitLocal, mode, refreshRemote]);
+  }, [commitLocal, mode, refreshRemote, resetPublicCards]);
 
   const updateProfile = useCallback(
     async (patch: ProfilePatch): Promise<AuthResult> => {
@@ -1944,7 +2034,11 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       user: snapshot.user,
       profiles: snapshot.profiles,
       posts: snapshot.posts,
-      publicCards: snapshot.publicCards,
+      publicCards,
+      requestPublicCards,
+      publicCardsReady,
+      publicCardsFailed,
+      resetPublicCards,
       status,
       refresh,
       signUp,
@@ -2052,7 +2146,11 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       signUp,
       snapshot.posts,
       snapshot.profiles,
-      snapshot.publicCards,
+      publicCards,
+      requestPublicCards,
+      publicCardsReady,
+      publicCardsFailed,
+      resetPublicCards,
       snapshot.user,
       status,
       suggestions,

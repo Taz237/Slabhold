@@ -23,6 +23,7 @@ import { useCollection } from "@/components/collection-provider";
 import { useSocial } from "@/components/social-provider";
 import { loginPath, signupPath } from "@/lib/auth/safe-next";
 import { userHref } from "@/lib/social/user-href";
+import { publicCardKeys } from "@/lib/social/public-card-cache";
 import { ShareIconButton } from "@/components/share-button";
 import { ReplyPhotos } from "@/components/reply-photos";
 import { Tweet } from "@/components/tweet";
@@ -76,6 +77,7 @@ export function ProfileView({
     reposts,
     profiles,
     publicCards,
+    requestPublicCards,
     followerCount,
     followingCount,
     refresh,
@@ -181,12 +183,15 @@ export function ProfileView({
         if (!cancelled) setViewCards({ ownerId, rows });
       })
       .catch(() => {
-        if (!cancelled) setViewCards(null);
+        if (cancelled) return;
+        setViewCards(null);
+        // The tab then lists this owner's cards from the shared public card read.
+        requestPublicCards(publicCardKeys({ ownerId }));
       });
     return () => {
       cancelled = true;
     };
-  }, [mode, profile?.id, postsRefreshKey]);
+  }, [mode, profile?.id, postsRefreshKey, requestPublicCards]);
 
   const replyAuthorId = profile?.id ?? "";
   const loadedReplies = replyAuthorId ? repliesBy(replyAuthorId) : [];

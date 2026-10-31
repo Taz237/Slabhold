@@ -16,6 +16,7 @@ import {
 } from "@/lib/social/card-posts";
 import type { Post, Profile } from "@/lib/social/types";
 import { collectAttachedCardIds } from "@/lib/social/post-card-value";
+import { usePublicCards } from "@/lib/social/use-public-cards";
 import { createSupabaseBrowser } from "@/lib/supabase/browser";
 import { useCardValues } from "@/lib/value/use-card-values";
 
@@ -47,6 +48,8 @@ export function CardPostsList({ cardId }: { cardId: string }) {
   );
   const { values: cardValues, loading: cardValuesLoading } = useCardValues(attachedIds);
   const owned = cards.some((card) => card.id === cardId);
+  // Only for the Back link: whose card this is.
+  usePublicCards(owned ? null : { ids: [cardId] });
   const owner = publicCards.find((card) => card.id === cardId);
   const ownerProfile = profiles.find((profile) => profile.id === owner?.ownerId);
   const backHref = cardPostsBackHref(cardId, owned, ownerProfile?.username);

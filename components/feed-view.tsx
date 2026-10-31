@@ -133,6 +133,9 @@ export function FeedView({
   const following = user ? followingCount(user.id) : 0;
   // Drawn from the server's first screen until the full snapshot is in.
   const seededScreen = Boolean(seed) && !hasFullSnapshot;
+  // Drawn into the server HTML, where getStartedHintScript ran before paint.
+  // A seed the browser read itself goes by this device's checklist instead.
+  const serverScreen = seededScreen && seed?.source !== "client";
   // Until the collection loads, the card count the server read stands in.
   const cardCount = cardsReady || !seed ? cards.length : seed.cardCount;
   const cardsKnown = cardsReady || Boolean(seed);
@@ -157,7 +160,7 @@ export function FeedView({
   });
   // The server's Get started: what localStorage says (dismissed, not new)
   // is applied before the first paint by getStartedHintScript.
-  const started = seededScreen && seed ? seed.getStarted : checklist;
+  const started = serverScreen && seed ? seed.getStarted : checklist;
   const showAddToHome =
     Boolean(user) &&
     !onboardingBusy &&
@@ -171,7 +174,7 @@ export function FeedView({
   const showWelcome =
     Boolean(user) &&
     !onboardingBusy &&
-    (seededScreen || !started.visible) &&
+    (serverScreen || !started.visible) &&
     shouldShowFirstCardWelcome({
       cardCount,
       ready: cardsKnown,
@@ -179,7 +182,7 @@ export function FeedView({
     });
   // On the server's screen the first-card prompt is drawn under Get started
   // too, and CSS shows exactly one of them once the hint script has run.
-  const welcomeAfterGetStarted = seededScreen && started.visible;
+  const welcomeAfterGetStarted = serverScreen && started.visible;
   useEffect(() => {
     if (!seededScreen) delete document.documentElement.dataset.getStartedHidden;
   }, [seededScreen]);
@@ -372,7 +375,7 @@ export function FeedView({
   // feed, so the tabs stay stuck all the way down.
   return (
     <div className="-mx-4 -mt-5">
-      {seededScreen && seed && started.visible ? (
+      {serverScreen && seed && started.visible ? (
         <script dangerouslySetInnerHTML={{ __html: getStartedHintScript(seed.viewer.id, seed.newNow) }} />
       ) : null}
       {user && started.visible && !onboardingBusy ? (

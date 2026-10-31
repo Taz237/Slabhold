@@ -45,7 +45,7 @@ type CollectionContextValue = {
 export const CollectionContext = createContext<CollectionContextValue | null>(null);
 
 export function CollectionProvider({ children }: { children: React.ReactNode }) {
-  const { ready: socialReady, mode, user } = useSocial();
+  const { ready: socialReady, mode, user, resetPublicCards } = useSocial();
   const [cards, setCards] = useState<SportsCard[]>([]);
   const [ready, setReady] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
@@ -214,7 +214,11 @@ export function CollectionProvider({ children }: { children: React.ReactNode }) 
           saved = enqueue(id, async () => {
             try {
               await saveUserCard(client, userId, updated);
-              if (previous && previous.isPublic !== updated.isPublic) pingCardCache(id);
+              if (previous && previous.isPublic !== updated.isPublic) {
+                pingCardCache(id);
+                // Public card reads are cached per screen: read them again with the new visibility.
+                resetPublicCards();
+              }
               if (isPublicForSaleListing(updated)) pingWantMatch("listing", updated.id);
               setSyncError(null);
               if (needsRefresh) scheduleCardValueRefresh(id);
@@ -229,7 +233,7 @@ export function CollectionProvider({ children }: { children: React.ReactNode }) 
       void saved.catch(() => undefined);
       return { card: updated, saved };
     },
-    [enqueue, remote, report, userId],
+    [enqueue, remote, report, resetPublicCards, userId],
   );
 
   const removeCard = useCallback(

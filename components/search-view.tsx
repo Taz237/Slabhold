@@ -20,6 +20,7 @@ import {
 import { searchCatalogRemote } from "@/lib/catalog/search-remote";
 import { cardSubtitle, cardTitle, timeAgo } from "@/lib/format";
 import { userHref } from "@/lib/social/user-href";
+import { usePublicCards } from "@/lib/social/use-public-cards";
 import {
   SEARCH_CATALOG_LIMIT,
   catalogAddHref,
@@ -106,6 +107,8 @@ export function SearchView() {
   const typed = query.trim();
   const [catalogFor, setCatalogFor] = useState(urlQ.trim());
   const [catalogCards, setCatalogCards] = useState<CatalogCard[]>([]);
+  // Public copies of these players, for each result's "Public card" link.
+  usePublicCards(catalogCards.length > 0 ? { players: catalogCards.map((card) => card.playerName) } : null);
   const [catalogLoading, setCatalogLoading] = useState(wantsCatalogSearch(urlQ.trim()));
   const [catalogTrouble, setCatalogTrouble] = useState(false);
   const [catalogAttempt, setCatalogAttempt] = useState(0);

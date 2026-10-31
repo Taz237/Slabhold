@@ -10,7 +10,6 @@ import {
   loadMessageRows,
   mapDirectMessage,
 } from "@/lib/offers/open-to-offers";
-import { mapPublicCard } from "./cards";
 import type {
   AuthResult,
   FollowEdge,
@@ -163,7 +162,7 @@ type MessageRow = {
 };
 
 /** Row from public.public_cards — no paid_price / purchase_date / notes / cert_number. */
-type PublicCardRow = {
+export type PublicCardRow = {
   id: string;
   user_id: string;
   player: string;
@@ -324,7 +323,7 @@ export async function loadSupabaseSocial(supabase: SupabaseClient): Promise<Soci
       return query;
     });
 
-  const [profilesRes, postsRes, homePostsRes, followsRes, cardsRes, commentsRes, notificationsRes, messagesRes, repostsRes, homeRepostsRes, myBlocksRes, myMutesRes] =
+  const [profilesRes, postsRes, homePostsRes, followsRes, commentsRes, notificationsRes, messagesRes, repostsRes, homeRepostsRes, myBlocksRes, myMutesRes] =
     await Promise.all([
       loadProfileRows((columns) =>
         guard(
@@ -343,7 +342,6 @@ export async function loadSupabaseSocial(supabase: SupabaseClient): Promise<Soci
         { mute: true },
       ),
       supabase.from("follows").select("*"),
-      supabase.from("public_cards").select("*"),
       guard(
         supabase.from("comments").select("*").order("created_at", { ascending: true }),
         mutedHidden,
@@ -375,7 +373,7 @@ export async function loadSupabaseSocial(supabase: SupabaseClient): Promise<Soci
         : Promise.resolve({ data: [], error: null }),
     ]);
   const failure =
-    profilesRes.error || postsRes.error || homePostsRes.error || followsRes.error || cardsRes.error;
+    profilesRes.error || postsRes.error || homePostsRes.error || followsRes.error;
   if (failure) throw new Error(failure.message);
   if (commentsRes.error && !missingTable(commentsRes.error)) throw new Error(commentsRes.error.message);
   if (notificationsRes.error && !missingTable(notificationsRes.error)) {
@@ -472,9 +470,6 @@ export async function loadSupabaseSocial(supabase: SupabaseClient): Promise<Soci
       createdAt: row.created_at,
     }),
   );
-  const publicCards = ((cardsRes.data ?? []) as PublicCardRow[]).map((row) =>
-    mapPublicCard(row),
-  );
   const comments = ((commentsRes.data ?? []) as CommentRow[]).map((row): PostComment => {
     const images = replyImagesFromValue(row.image_urls);
     return {
@@ -550,7 +545,8 @@ export async function loadSupabaseSocial(supabase: SupabaseClient): Promise<Soci
     comments,
     notifications,
     messages,
-    publicCards,
+    // Read per screen through the public card cache (lib/social/public-card-cache.ts).
+    publicCards: [],
     homePosts: stampedHome,
     homeReposts,
     blockedIds,
