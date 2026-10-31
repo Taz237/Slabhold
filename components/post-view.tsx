@@ -17,7 +17,7 @@ import { SafetyMenu } from "@/components/safety-menu";
 import { AuthorLine, Engagement, Tweet } from "@/components/tweet";
 import { usePostPhotos } from "@/components/use-post-photos";
 import { useSocial } from "@/components/social-provider";
-import { createSupabaseBrowser } from "@/lib/supabase/browser";
+import { loadSupabaseBrowser } from "@/lib/supabase/browser-lazy";
 import { signupPath } from "@/lib/auth/safe-next";
 import { userHref } from "@/lib/social/user-href";
 import { canDeleteReply } from "@/lib/social/reply-delete";
@@ -77,11 +77,12 @@ export function PostView({ id }: { id: string }) {
 
   useEffect(() => {
     if (mode !== "supabase") return;
-    const supabase = createSupabaseBrowser();
-    if (!supabase) return;
     let cancelled = false;
-    void commentsSupportReplyImages(supabase).then((ok) => {
-      if (!cancelled) setReplyPhotosOn(ok);
+    void loadSupabaseBrowser().then((supabase) => {
+      if (!supabase || cancelled) return;
+      void commentsSupportReplyImages(supabase).then((ok) => {
+        if (!cancelled) setReplyPhotosOn(ok);
+      });
     });
     return () => {
       cancelled = true;
