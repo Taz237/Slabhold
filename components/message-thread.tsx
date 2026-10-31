@@ -16,6 +16,7 @@ import { EmptyState, LoadingRows } from "@/components/status";
 import { useLoadMore } from "@/components/load-more";
 import { useSocial } from "@/components/social-provider";
 import { usePublicCards } from "@/lib/social/use-public-cards";
+import { useProfiles } from "@/lib/social/use-profiles";
 import { signupPath } from "@/lib/auth/safe-next";
 import { exactTime } from "@/lib/format";
 import { offerCardForThread } from "@/lib/offers/open-to-offers";
@@ -63,6 +64,8 @@ export function MessageThread({ username }: { username: string }) {
   const cardParam = searchParams.get("card");
   usePublicCards({ ids: [cardParam] });
   const partner = profileByUsername(username);
+  // A new conversation can name someone the snapshot didn't bring: read them by handle.
+  const partnerRead = useProfiles(partner ? null : { usernames: [username] });
   const mutedPartner = Boolean(partner && mutedIds.includes(partner.id));
   const offerCard = useMemo(
     () =>
@@ -191,7 +194,7 @@ export function MessageThread({ username }: { username: string }) {
     setSettled([outgoing.content]);
   }
 
-  if (!ready) {
+  if (!ready || (!partner && !partnerRead.ready)) {
     return (
       <div className="-mx-4 -mt-5">
         <LoadingRows count={2} />

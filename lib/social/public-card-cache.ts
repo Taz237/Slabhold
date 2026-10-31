@@ -102,9 +102,9 @@ export function cardsForKeys(cache: PublicCardCache): OwnedCard[] {
  * `reset` forgets every key (a new viewer, a refresh) and drops reads that
  * were already on the way, so an old viewer's rows never land.
  */
-export function createPublicCardBatcher(
-  load: (keys: string[]) => Promise<OwnedCard[]>,
-  settle: (cards: OwnedCard[], keys: string[]) => void,
+export function createKeyBatcher<T>(
+  load: (keys: string[]) => Promise<T[]>,
+  settle: (rows: T[], keys: string[]) => void,
   fail: (keys: string[]) => void,
 ) {
   const done = new Set<string>();
@@ -130,13 +130,13 @@ export function createPublicCardBatcher(
         queue = [];
         const current = () => asked === generation;
         void load(batch).then(
-          (cards) => {
+          (rows) => {
             if (!current()) return;
             for (const key of batch) {
               done.add(key);
               inflight.delete(key);
             }
-            settle(cards, batch);
+            settle(rows, batch);
           },
           () => {
             if (!current()) return;
@@ -154,4 +154,12 @@ export function createPublicCardBatcher(
       scheduled = false;
     },
   };
+}
+
+export function createPublicCardBatcher(
+  load: (keys: string[]) => Promise<OwnedCard[]>,
+  settle: (cards: OwnedCard[], keys: string[]) => void,
+  fail: (keys: string[]) => void,
+) {
+  return createKeyBatcher<OwnedCard>(load, settle, fail);
 }

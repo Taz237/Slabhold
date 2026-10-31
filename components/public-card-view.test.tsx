@@ -66,6 +66,8 @@ function render(
     blockedIds: social.blockedIds ?? [],
     mutedIds: [],
     requestPublicCards: () => {},
+    requestProfiles: () => {},
+    profilesReady: () => true,
     publicCardsReady: () => social.cardRead ?? social.ready,
     publicCardsFailed: () => social.cardFailed === true,
     profileByUsername: (name: string) => (social.ready && name === "maya" ? profile : undefined),

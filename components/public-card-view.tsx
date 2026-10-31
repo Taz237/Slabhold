@@ -50,6 +50,7 @@ import {
 } from "@/lib/value/price-fallback";
 import { useCardValue } from "@/lib/value/use-card-values";
 import { usePublicCards } from "@/lib/social/use-public-cards";
+import { useProfiles } from "@/lib/social/use-profiles";
 
 export { PublicCardSkeleton };
 
@@ -91,13 +92,15 @@ export function PublicCardView({
   const social = useSocial();
   const { cards, ready: cardsReady } = useCollection();
   const profile = social.profileByUsername(username);
+  const ownerRead = useProfiles(profile ? null : { usernames: [username] });
   const isOwn = Boolean(profile && social.user && profile.id === social.user.id);
   const backHref = `${userHref(username)}?tab=collection`;
   const serverCard = initialCard && initialCard.id === id ? initialCard : null;
   // The live public row decides. The server's copy only stands in until it is read.
   const cardRead = usePublicCards({ ids: [id] });
 
-  if (!social.ready || (isOwn && !cardsReady)) {
+  // The owner not read yet counts as "still loading": keep the server's paint up.
+  if (!social.ready || (isOwn && !cardsReady) || (!profile && !ownerRead.ready)) {
     // Until the snapshot says who is viewing, paint the public card with no
     // viewer: no own-card, message, block or mute state, room held for them.
     const early =
