@@ -106,7 +106,14 @@ import { parseManualPrefill } from "@/lib/card-search-query";
 import { hasPaid } from "@/lib/format";
 import { formatCardValueLabel, marketValueSummary } from "@/lib/value/format";
 import { useCardValue } from "@/lib/value/use-card-values";
-import { claimSubmit, isSaveTimeout, SAVE_TIMEOUT_MESSAGE, SaveTimeoutError } from "@/lib/save/attempt";
+import {
+  CARDS_LOADING_MESSAGE,
+  claimSubmit,
+  isSaveTimeout,
+  SAVE_TIMEOUT_MESSAGE,
+  SaveTimeoutError,
+  saveFailureText,
+} from "@/lib/save/attempt";
 import { PHOTO_READ_ERROR, readPhotoFile } from "@/lib/photos";
 import type {
   CardCategory,
@@ -145,7 +152,16 @@ export function CardForm({
   const guidedAdd = guided && !existing;
   const startSport = SPORT_PICKER_OPTIONS.includes(initialSport) ? initialSport : "Basketball";
   const router = useRouter();
-  const { addCard, updateCard, removeCard, cards, ready: cardsReady, syncError } = useCollection();
+  const {
+    addCard,
+    updateCard,
+    removeCard,
+    cards,
+    ready: cardsReady,
+    loaded: cardsLoaded,
+    loadFailed,
+    syncError,
+  } = useCollection();
   const { mode, user, createPost } = useSocial();
   const userId = user?.id ?? null;
   const seed = existing ? null : newCardSeed(initialQuery, initialCatalog?.id ?? null);
@@ -791,17 +807,45 @@ export function CardForm({
       cardsReady,
       syncError,
     });
+    // A restored pending id is only "missing" once this account's cards have loaded.
+    const collectionKnown = cardsLoaded && !loadFailed;
+    const pendingInMemory =
+      pendingCardId != null && cards.some((item) => item.id === pendingCardId);
+    if (!existing && pendingCardId && !collectionKnown && !pendingInMemory) {
+      setSaveError(CARDS_LOADING_MESSAGE);
+      setSaving(false);
+      savingRef.current = false;
+      return;
+    }
     try {
-      const reuseId = existing?.id ?? pendingCardId;
-      const { card, saved } = reuseId
-        ? updateCard(reuseId, payload)
-        : addCard(payload);
+      const targetId = existing?.id ?? pendingCardId;
+      const inMemory =
+        targetId != null && cards.some((item) => item.id === targetId);
+      const updating = Boolean(targetId && (existing || inMemory));
+      let result = updating
+        ? updateCard(targetId as string, payload)
+        : addCard(
+            !existing && pendingCardId ? { ...payload, id: pendingCardId } : payload,
+          );
       if (!existing) {
-        pendingId.current = card.id;
-        setPendingCardId(card.id);
-        createdId = card.id;
+        pendingId.current = result.card.id;
+        setPendingCardId(result.card.id);
+        if (!updating) createdId = result.card.id;
       }
+      const saved = result.saved.then(
+        () => undefined,
+        async (error: unknown) => {
+          const missingCard = error instanceof Error && error.message === "Card not found.";
+          if (!(missingCard && !existing && pendingCardId && collectionKnown)) throw error;
+          result = addCard({ ...payload, id: pendingCardId });
+          pendingId.current = result.card.id;
+          setPendingCardId(result.card.id);
+          createdId = result.card.id;
+          await result.saved;
+        },
+      );
       await saved;
+      const { card } = result;
       createdId = null;
       if (seed != null) {
         setDraftSealed(true);
@@ -871,13 +915,11 @@ export function CardForm({
       }
       const timedOut = createdId != null && timedOutIds.current.has(createdId);
       if (createdId && !timedOut) removeCard(createdId);
-      if (!existing && !timedOut) {
+      if (createdId && !timedOut) {
         pendingId.current = null;
         setPendingCardId(null);
       }
-      setSaveError(
-        error instanceof Error ? error.message : "Could not save this card.",
-      );
+      setSaveError(saveFailureText(error));
       setSaving(false);
       savingRef.current = false;
     }
