@@ -21,15 +21,16 @@ import { userHref } from "@/lib/social/user-href";
 
 export function MessagesView() {
   const pathname = usePathname() || "/";
-  const { ready, user, profiles, messages, refresh, suggestions, inboxMore, loadOlderMessages } = useSocial();
+  const { ready, user, profiles, messages, refresh, refreshInbox, suggestions, inboxMore, loadOlderMessages } = useSocial();
   const older = useLoadMore(loadOlderMessages);
   const [query, setQuery] = useState("");
   const [composing, setComposing] = useState(false);
   const closeCompose = useCallback(() => setComposing(false), []);
 
   useEffect(() => {
-    if (ready && user) void refresh();
-  }, [ready, refresh, user]);
+    // Opening the inbox: its newest page and unread rows, not the whole snapshot.
+    if (ready && user) void refreshInbox().catch(() => {});
+  }, [ready, refreshInbox, user]);
 
   const conversations = useMemo(
     () => (user ? inboxConversations(messages, profiles, user.id) : []),

@@ -250,7 +250,8 @@ describe("notification bell wiring", () => {
     assert.match(view, /bg-sky-500\/15/);
     assert.match(view, /rounded-full bg-sky-500/);
     assert.match(view, /markNotificationsRead\(\[\.\.\.ids\]\)/);
-    const refreshAt = view.indexOf("await refresh()");
+    // Opening the list reads its newest page and unread rows, then marks them read.
+    const refreshAt = view.indexOf("await refreshInbox()");
     const markAt = view.indexOf("markNotificationsRead([...ids])");
     assert.ok(refreshAt !== -1 && markAt > refreshAt);
   });

@@ -26,49 +26,8 @@ import {
   mergeRememberedSnapshot,
   storeRemembered,
 } from "@/lib/social/remembered-posts";
-import {
-  loadOrCreateLocalDb,
-  localAddComment,
-  canDeleteReply,
-  localCreatePost,
-  localDeleteComment,
-  localDeletePost,
-  localPinPost,
-  localUnpinPost,
-  stateAfterReplyDelete,
-  localMarkNotificationsRead,
-  localMarkThreadRead,
-  localUpdatePost,
-  localSignIn,
-  localSignOut,
-  localSignUp,
-  localToggleFollow,
-  localToggleLike,
-  localToggleRepost,
-  localUpdateProfile,
-  saveLocalDb,
-  snapshotFromLocal,
-  type LocalDb,
-} from "@/lib/social/local-db";
-import {
-  loadSupabaseSocial,
-  remoteAddComment,
-  remoteCreatePost,
-  remoteDeleteComment,
-  remoteDeletePost,
-  remotePinPost,
-  remoteUnpinPost,
-  remoteMarkNotificationsRead,
-  remoteSignIn,
-  remoteSignOut,
-  remoteSignUp,
-  remoteSyncLikeNotification,
-  remoteToggleFollow,
-  remoteFollowAll,
-  remoteToggleRepost,
-  remoteUpdatePost,
-  remoteUpdateProfile,
-} from "@/lib/social/remote";
+import type { LocalDb } from "@/lib/social/local-db";
+import { canDeleteReply, stateAfterReplyDelete } from "@/lib/social/reply-delete";
 import {
   likesMigratedFlag,
   markLikesMigrated,
@@ -77,7 +36,7 @@ import {
   unionLikes,
 } from "@/lib/social/likes";
 import { authSnapshotReload } from "@/lib/social/auth-snapshot";
-import { loadPostById, loadPostPage, type LoadedPostPage } from "@/lib/social/load-feed-page";
+import { type LoadedPostPage, loadPostById, loadPostEngagement, loadPostPage } from "@/lib/social/load-feed-page";
 import { loadRealtimePatch } from "@/lib/social/realtime-slices";
 import {
   applyRealtimePatch,
@@ -117,6 +76,7 @@ import {
 } from "@/lib/social/inbox-pages";
 import { loadHiddenAuthorIds } from "@/lib/safety/filters";
 import { keepLoadedProfiles, profileKeys } from "@/lib/social/profile-cache";
+import { engagementKeys, mergeEngagement, postIdsFromKeys } from "@/lib/social/engagement";
 import {
   cardsForKeys,
   createKeyBatcher,
@@ -152,10 +112,12 @@ import type {
 } from "@/lib/social/types";
 import { draftPostPhotos, type PostWrite } from "@/lib/social/post-photos";
 import { profileReplies, profileWithPin } from "@/lib/social/profile-tabs";
-import { optimisticReply, withoutOptimisticReply } from "@/lib/social/reply-images";
+import { isOptimisticReply, optimisticReply, withoutOptimisticReply } from "@/lib/social/reply-images";
 
 /** Sending and reading DMs, from its own chunk: fetched at the first idle moment, or on first use. */
 const loadDmActions = () => import("@/lib/social/dm-actions");
+// The hosted reads and writes come with the Supabase client, off the first load.
+const loadRemote = () => import("@/lib/social/remote");
 
 export type SocialContextValue = {
   ready: boolean;
@@ -236,6 +198,15 @@ export type SocialContextValue = {
   loadThreadMessages: (partnerId: string, older?: boolean) => Promise<void>;
   /** True when a thread has older messages to load. */
   threadMore: (partnerId: string) => boolean;
+  /** Reads one person's newest replies (their profile's Replies tab) into `commentsFor` / `repliesBy`. */
+  loadRepliesBy: (userId: string) => Promise<void>;
+  /**
+   * Opening Notifications or Messages: their newest pages and unread rows only,
+   * merged over what is loaded. Returns the notifications. Local accounts: `refresh`.
+   */
+  refreshInbox: () => Promise<Notification[]>;
+  /** Opening a follow list: the viewer's own follow edges. */
+  refreshFollows: () => Promise<void>;
   feed: TimelineItem[];
   follows: FollowEdge[];
   /** Merge posts loaded by a paged feed so likes, quotes, and edits can see them. */
@@ -267,10 +238,38 @@ export type SocialContextValue = {
 
 export const SocialContext = createContext<SocialContextValue | null>(null);
 
+type LocalAccounts = typeof import("@/lib/social/local-db");
+let localAccounts: LocalAccounts | null = null;
+
+/**
+ * On-device accounts (no Supabase keys). Loaded only in that mode, before its
+ * database exists, so hosted screens never download it.
+ */
+function loadLocalAccounts(): Promise<LocalAccounts> {
+  return import("@/lib/social/local-db").then((lib) => (localAccounts = lib));
+}
+
+/**
+ * Hosted mode also keeps a few on-device records (reply hearts, the activity
+ * fallback) with the same helpers. Runs at once when the code is in (it is
+ * fetched at the first idle moment), else right after it loads.
+ */
+function withLocalAccounts(run: (lib: LocalAccounts) => void) {
+  if (localAccounts) run(localAccounts);
+  else void loadLocalAccounts().then(run);
+}
+
+/** The on-device accounts code. Only called once local mode has loaded it. */
+function localLib(): LocalAccounts {
+  if (!localAccounts) throw new Error("Local accounts are not loaded.");
+  return localAccounts;
+}
+
 // A session cookie says someone is signed in: start fetching the client now,
 // while the page hydrates, so the snapshot read starts as early as before.
 // A screen the server drew for this viewer fetches it after hydration instead.
 if (preloadOnHint()) void loadSupabaseBrowser();
+if (preloadOnHint()) void loadRemote();
 
 /** Signed in on a screen the server drew: the snapshot read can wait for idle. */
 function deferUntilIdle(): boolean {
@@ -416,10 +415,15 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
   }, [removedPostIds]);
 
   useEffect(() => afterFirstIdle(() => setFirstIdle(true)), []);
+  // Hosted mode keeps reply hearts on this device with the local helpers:
+  // have them in hand before the first tap, off the first load.
+  useEffect(() => {
+    if (firstIdle) void loadLocalAccounts().catch(() => {});
+  }, [firstIdle]);
 
   const refreshRemote = useCallback(async (client: SupabaseClient) => {
     await snapshotRefreshRef.current(
-      () => loadSupabaseSocial(client),
+      () => loadRemote().then((remote) => remote.loadSocialSnapshot(client)),
       (snapshot) => {
         const hadError = snapshotErrorRef.current;
         snapshotErrorRef.current = false;
@@ -517,7 +521,9 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
     if (!getSupabaseConfig().configured) {
       const { issue } = getSupabaseConfig();
       if (issue) setStatus(issue);
-      loadOrCreateLocalDb().then((db) => {
+      loadLocalAccounts()
+        .then((lib) => lib.loadOrCreateLocalDb())
+        .then((db) => {
         if (cancelled) return;
         setMode("local");
         setLocal(db);
@@ -534,7 +540,12 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
     // there the client and the snapshot read wait for the first idle moment
     // and stay off the main thread while the page hydrates and paints.
     const startClient = (run: () => void) => (deferUntilIdle() ? afterFirstIdle(run) : (run(), () => {}));
-    const stopStart = startClient(() => void loadSupabaseBrowser().then((client) => {
+    // The hosted reads and writes load alongside the client, so the first read doesn't wait on them.
+    const startHosted = () => {
+      void loadRemote().catch(() => {});
+      return loadSupabaseBrowser();
+    };
+    const stopStart = startClient(() => void startHosted().then((client) => {
       if (cancelled || !client) return;
       supabaseRef.current = client;
       setMode("supabase");
@@ -651,7 +662,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
     };
   }, [applyPostPage, firstIdle, hasFullSnapshot, mode, pathname, ready, remote.user?.id]);
 
-  const baseSnapshot = mode === "local" && local ? snapshotFromLocal(local) : remote;
+  const baseSnapshot = mode === "local" && local ? localLib().snapshotFromLocal(local) : remote;
   const postIds = new Set(baseSnapshot.posts.map((post) => post.id));
   const viewerId = baseSnapshot.user?.id ?? null;
   // TODO: remove the localStorage likes fallback in 2 weeks (after 2026-11-06).
@@ -854,6 +865,23 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
     [inboxCursors.threads, mode],
   );
 
+  /** After a send: that thread's newest page, merged over what is loaded. */
+  const refreshThread = useCallback(async (client: SupabaseClient, viewerId: string, partnerId: string) => {
+    const blockedHidden = await loadHiddenAuthorIds(client, false);
+    const page = await loadMessagePage(client, viewerId, { cursor: null, blockedHidden, partnerId });
+    const pair = (message: { senderId: string; receiverId: string }) =>
+      (message.senderId === viewerId && message.receiverId === partnerId) ||
+      (message.senderId === partnerId && message.receiverId === viewerId);
+    setRemote((existing) =>
+      existing.user?.id === viewerId
+        ? {
+            ...existing,
+            messages: mergeNewestPage(existing.messages, page.rows, { complete: !page.next, order: "oldest", within: pair }),
+          }
+        : existing,
+    );
+  }, []);
+
   const threadMore = useCallback(
     (partnerId: string) => Boolean(inboxCursors.threads[partnerId]),
     [inboxCursors.threads],
@@ -990,7 +1018,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const commitLocal = useCallback((db: LocalDb) => {
-    saveLocalDb(db);
+    localLib().saveLocalDb(db);
     setLocal(db);
   }, []);
 
@@ -1009,10 +1037,10 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       }
       return notificationsFor(snapshotRef.current.user, snapshotRef.current.notifications);
     }
-    const db = await loadOrCreateLocalDb();
+    const db = await (await loadLocalAccounts()).loadOrCreateLocalDb();
     localRef.current = db;
     setLocal(db);
-    const snap = snapshotFromLocal(db);
+    const snap = localLib().snapshotFromLocal(db);
     snapshotRef.current = {
       ...snapshotRef.current,
       user: snap.user,
@@ -1021,12 +1049,42 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
     return notificationsFor(snap.user, snap.notifications);
   }, [mode, refreshRemote, resetPublicCards]);
 
+  const refreshInbox = useCallback(async (): Promise<Notification[]> => {
+    const client = supabaseRef.current;
+    const viewerId = snapshotRef.current.user?.id ?? null;
+    if (mode !== "supabase" || !client || !viewerId) return refresh();
+    const patch = await loadRealtimePatch(client, new Set(["notifications", "messages"]), {
+      viewerId,
+      postId: null,
+    });
+    const merged = applyRealtimePatch(snapshotRef.current, patch);
+    snapshotRef.current = { ...snapshotRef.current, notifications: merged.notifications, messages: merged.messages };
+    setRemote((existing) => applyRealtimePatch(existing, patch));
+    return notificationsFor(merged.user, merged.notifications);
+  }, [mode, refresh]);
+
+  const refreshFollows = useCallback(async () => {
+    const client = supabaseRef.current;
+    const viewerId = snapshotRef.current.user?.id;
+    if (mode !== "supabase" || !client || !viewerId) return;
+    const { data, error } = await client
+      .from("follows")
+      .select("follower_id, following_id, created_at")
+      .or(`follower_id.eq.${viewerId},following_id.eq.${viewerId}`);
+    if (error) return;
+    const follows = ((data ?? []) as { follower_id: string; following_id: string; created_at: string }[]).map(
+      (row): FollowEdge => ({ followerId: row.follower_id, followingId: row.following_id, createdAt: row.created_at }),
+    );
+    setRemote((existing) => (existing.user?.id === viewerId ? { ...existing, follows } : existing));
+    requestProfiles(profileKeys({ ids: follows.flatMap((edge) => [edge.followerId, edge.followingId]) }));
+  }, [mode, requestProfiles]);
+
   const signUp = useCallback(
     async (input: SignUpInput): Promise<AuthResult> => {
       const client = supabaseRef.current;
       if (mode === "supabase" && client) {
         try {
-          const result = await remoteSignUp(client, input);
+          const result = await (await loadRemote()).remoteSignUp(client, input);
           if (!result.error && !result.notice) {
             resetPublicCards();
             await refreshRemote(client);
@@ -1038,7 +1096,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       }
       const current = localRef.current;
       if (!current) return { error: "Still loading." };
-      const result = await localSignUp(current, input);
+      const result = await localLib().localSignUp(current, input);
       if (!result.error) commitLocal(result.db);
       return { error: result.error };
     },
@@ -1050,7 +1108,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       const client = supabaseRef.current;
       if (mode === "supabase" && client) {
         try {
-          const result = await remoteSignIn(client, email, password, captchaToken);
+          const result = await (await loadRemote()).remoteSignIn(client, email, password, captchaToken);
           if (!result.error) {
             resetPublicCards();
             await refreshRemote(client);
@@ -1062,7 +1120,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       }
       const current = localRef.current;
       if (!current) return { error: "Still loading." };
-      const result = await localSignIn(current, email, password);
+      const result = await localLib().localSignIn(current, email, password);
       if (!result.error) commitLocal(result.db);
       return { error: result.error };
     },
@@ -1078,21 +1136,71 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
     if (mode === "supabase" && client) {
       // While the session is still valid: this device stops getting pushes.
       await runSignOutHook();
-      await remoteSignOut(client);
+      await (await loadRemote()).remoteSignOut(client);
       resetPublicCards();
       await refreshRemote(client);
       return;
     }
-    if (localRef.current) commitLocal(localSignOut(localRef.current));
+    if (localRef.current) commitLocal(localLib().localSignOut(localRef.current));
   }, [commitLocal, mode, refreshRemote, resetPublicCards]);
+
+  /** Re-reads these people (even if already loaded) after a change to them. */
+  const rereadPeople = useCallback(async (client: SupabaseClient, ids: readonly string[]) => {
+    if (ids.length === 0) return;
+    const { data } = await client.auth.getSession();
+    const user = data.session?.user;
+    const viewer = user ? { id: user.id, email: user.email ?? "" } : null;
+    const { loadProfilesForKeys } = await import("@/lib/social/profile-cache");
+    const people = await loadProfilesForKeys(client, profileKeys({ ids }), viewer);
+    if (people.length === 0) return;
+    const byId = new Map(people.map((profile) => [profile.id, profile]));
+    setRemote((existing) => ({
+      ...existing,
+      user: existing.user ? (byId.get(existing.user.id) ?? existing.user) : existing.user,
+      profiles: [
+        ...existing.profiles.map((profile) => byId.get(profile.id) ?? profile),
+        ...people.filter((profile) => !existing.profiles.some((known) => known.id === profile.id)),
+      ],
+    }));
+  }, []);
+
+  /** Re-reads one post's replies and reposts after a change to them. */
+  const rereadEngagement = useCallback(async (client: SupabaseClient, postId: string) => {
+    const viewerId = snapshotRef.current.user?.id ?? "";
+    const [muted, blocked] = viewerId
+      ? await Promise.all([loadHiddenAuthorIds(client, true), loadHiddenAuthorIds(client, false)])
+      : [[], []];
+    const fresh = await loadPostEngagement(client, [postId], viewerId, { muted, blocked });
+    setRemote((existing) => {
+      const next = mergeEngagement(existing, [postId], fresh, isOptimisticReply);
+      snapshotRef.current = { ...snapshotRef.current, comments: next.comments, reposts: next.reposts };
+      return next;
+    });
+  }, []);
+
+  /**
+   * After a change to one post's replies or reposts: that post's engagement.
+   * A cold post page (no snapshot yet) reloads its own page instead.
+   */
+  const rereadPost = useCallback(
+    async (client: SupabaseClient, postId: string) => {
+      if (postIdFromPath(window.location.pathname) === postId && !fullSnapshotRef.current) {
+        await reloadRef.current(client);
+        return;
+      }
+      await rereadEngagement(client, postId);
+    },
+    [rereadEngagement],
+  );
 
   const updateProfile = useCallback(
     async (patch: ProfilePatch): Promise<AuthResult> => {
       const client = supabaseRef.current;
       if (mode === "supabase" && client && snapshot.user) {
         try {
-          const result = await remoteUpdateProfile(client, snapshot.user.id, patch);
-          if (!result.error) await refreshRemote(client);
+          const result = await (await loadRemote()).remoteUpdateProfile(client, snapshot.user.id, patch);
+          // Just the viewer's own profile, as saved (an uploaded photo comes back as its URL).
+          if (!result.error) await rereadPeople(client, [snapshot.user.id]);
           return result;
         } catch (error) {
           return { error: error instanceof Error ? error.message : "Could not save your profile." };
@@ -1100,11 +1208,11 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       }
       const current = localRef.current;
       if (!current) return { error: "Still loading." };
-      const result = localUpdateProfile(current, patch);
+      const result = localLib().localUpdateProfile(current, patch);
       if (!result.error) commitLocal(result.db);
       return { error: result.error };
     },
-    [commitLocal, mode, refreshRemote, snapshot.user],
+    [commitLocal, mode, rereadPeople, snapshot.user],
   );
 
   const isFollowing = useCallback(
@@ -1146,7 +1254,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
         paintFollow(!following);
         let saved = false;
         try {
-          const result = await remoteToggleFollow(client, viewerId, userId, following);
+          const result = await (await loadRemote()).remoteToggleFollow(client, viewerId, userId, following);
           saved = !result.error;
           if (result.error) {
             paintFollow(following);
@@ -1156,8 +1264,9 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
           if (!following) {
             pingBadgeCheck();
             emitSocialAction("follow");
+            // The edge is already painted. Their profile, for the viewer's own following list.
+            requestProfiles(profileKeys({ ids: [userId] }));
           }
-          await refreshRemote(client);
           setStatus(result.notice ?? null);
           return result;
         } catch (error) {
@@ -1172,12 +1281,12 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
         const wasFollowing = db.follows.some(
           (edge) => edge.followerId === db.sessionUserId && edge.followingId === userId,
         );
-        commitLocal(localToggleFollow(db, userId));
+        commitLocal(localLib().localToggleFollow(db, userId));
         if (!wasFollowing) emitSocialAction("follow");
       }
       return {};
     },
-    [commitLocal, mode, refreshRemote],
+    [commitLocal, mode, requestProfiles],
   );
 
   const followMany = useCallback(
@@ -1195,14 +1304,21 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       const client = supabaseRef.current;
       if (mode === "supabase" && client) {
         try {
-          const result = await remoteFollowAll(client, current.user.id, ids);
+          const result = await (await loadRemote()).remoteFollowAll(client, current.user.id, ids);
           if (result.error) {
             setStatus(result.error);
             return result;
           }
           pingBadgeCheck();
           emitSocialAction("follow");
-          await refreshRemote(client);
+          // In place: add the new edges, then read those people for the viewer's following list.
+          const viewerId = current.user.id;
+          const at = new Date().toISOString();
+          setRemote((existing) => ({
+            ...existing,
+            follows: ids.reduce((edges, id) => withFollowEdge(edges, viewerId, id, true, at), existing.follows),
+          }));
+          requestProfiles(profileKeys({ ids }));
           setStatus(result.notice ?? null);
           return result;
         } catch (error) {
@@ -1218,12 +1334,12 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
         const already = next.follows.some(
           (edge) => edge.followerId === next.sessionUserId && edge.followingId === id,
         );
-        if (!already) next = localToggleFollow(next, id);
+        if (!already) next = localLib().localToggleFollow(next, id);
       }
       commitLocal(next);
       return {};
     },
-    [commitLocal, mode, refreshRemote],
+    [commitLocal, mode, requestProfiles],
   );
 
   const refreshSuggestions = useCallback(() => {
@@ -1235,12 +1351,34 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       const client = supabaseRef.current;
       if (mode === "supabase" && client && snapshot.user) {
         try {
-          const result = await remoteCreatePost(client, snapshot.user.id, input);
+          const result = await (await loadRemote()).remoteCreatePost(client, snapshot.user.id, input);
           if (!result.error) {
             trackEvent("post_created");
             pingBadgeCheck();
             emitSocialAction("post");
-            await refreshRemote(client);
+            // In place: read just the new post and put it on top.
+            if (result.postId) {
+              const loaded = await loadPostById(client, result.postId, snapshot.user.id).catch(() => null);
+              if (loaded) {
+                storeRemembered(
+                  rememberedRef.current,
+                  [loaded.post, ...loaded.relatedPosts],
+                  loaded.profiles,
+                  new Set(snapshotRef.current.blockedIds ?? []),
+                );
+                setRemote((existing) =>
+                  mergeRememberedSnapshot(
+                    {
+                      ...existing,
+                      posts: [loaded.post, ...existing.posts.filter((post) => post.id !== loaded.post.id)],
+                      homePosts: [loaded.post, ...(existing.homePosts ?? []).filter((post) => post.id !== loaded.post.id)],
+                    },
+                    rememberedRef.current,
+                    removedRef.current,
+                  ),
+                );
+              }
+            }
             if (result.notice) setStatus(result.notice);
           }
           return result;
@@ -1250,7 +1388,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       }
       const current = localRef.current;
       if (!current) return { error: "Still loading." };
-      const result = localCreatePost(current, input);
+      const result = localLib().localCreatePost(current, input);
       if (!result.error) {
         commitLocal(result.db);
         trackEvent("post_created");
@@ -1258,7 +1396,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       }
       return { error: result.error, postId: result.postId };
     },
-    [commitLocal, mode, refreshRemote, snapshot.user],
+    [commitLocal, mode, snapshot.user],
   );
 
   const updatePost = useCallback(
@@ -1269,7 +1407,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       const client = supabaseRef.current;
       if (mode === "supabase" && client && snapshot.user) {
         try {
-          const result = await remoteUpdatePost(client, snapshot.user.id, postId, input);
+          const result = await (await loadRemote()).remoteUpdatePost(client, snapshot.user.id, postId, input);
           if (!result.error) {
             const known = findKnownPost(
               snapshotRef.current.posts,
@@ -1290,7 +1428,15 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
                 new Set(snapshotRef.current.blockedIds ?? []),
               );
             }
-            await refreshRemote(client);
+            // In place: the edited text and photos on every copy of the post.
+            const photos = draftPostPhotos(input);
+            const edit = (post: Post) =>
+              post.id === postId ? { ...post, body: input.body, imageDataUrl: photos[0] ?? null, images: photos } : post;
+            setRemote((existing) => ({
+              ...existing,
+              posts: existing.posts.map(edit),
+              homePosts: existing.homePosts?.map(edit),
+            }));
             if (result.notice) setStatus(result.notice);
           }
           return result;
@@ -1300,11 +1446,11 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       }
       const current = localRef.current;
       if (!current) return { error: "Still loading." };
-      const result = localUpdatePost(current, postId, input);
+      const result = localLib().localUpdatePost(current, postId, input);
       if (!result.error) commitLocal(result.db);
       return { error: result.error };
     },
-    [commitLocal, mode, refreshRemote, snapshot.user],
+    [commitLocal, mode, snapshot.user],
   );
 
   const deletePost = useCallback(
@@ -1312,15 +1458,20 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       const client = supabaseRef.current;
       if (mode === "supabase" && client && snapshot.user) {
         try {
-          const result = await remoteDeletePost(client, snapshot.user.id, postId);
+          const result = await (await loadRemote()).remoteDeletePost(client, snapshot.user.id, postId);
           if (!result.error) {
             forgetRememberedPost(rememberedRef.current, postId);
             const removed = new Set(removedRef.current);
             removed.add(postId);
             removedRef.current = removed;
             setRemovedPostIds(removed);
-            rememberActivity(localDeletePost(activityShell(), postId).db);
-            await refreshRemote(client);
+            withLocalAccounts((lib) => rememberActivity(lib.localDeletePost(activityShell(), postId).db));
+            // In place: off every list (removedPostIds already hides it everywhere else).
+            setRemote((existing) => ({
+              ...existing,
+              posts: existing.posts.filter((post) => post.id !== postId),
+              homePosts: existing.homePosts?.filter((post) => post.id !== postId),
+            }));
           }
           return result;
         } catch (error) {
@@ -1329,11 +1480,11 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       }
       const current = localRef.current;
       if (!current) return { error: "Still loading." };
-      const result = localDeletePost(current, postId);
+      const result = localLib().localDeletePost(current, postId);
       if (!result.error) commitLocal(result.db);
       return { error: result.error };
     },
-    [commitLocal, mode, refreshRemote, snapshot.user],
+    [activityShell, commitLocal, mode, rememberActivity, snapshot.user],
   );
 
   const pinPost = useCallback(
@@ -1352,7 +1503,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       const client = supabaseRef.current;
       if (mode === "supabase" && client) {
         try {
-          const result = await remotePinPost(client, postId);
+          const result = await (await loadRemote()).remotePinPost(client, postId);
           if (result.error) {
             setStatus(result.error);
             return result;
@@ -1363,7 +1514,6 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
             user: existing.user ? profileWithPin([existing.user], userId, postId)[0]! : existing.user,
             profiles: profileWithPin(existing.profiles, userId, postId),
           }));
-          await refreshRemote(client);
           return result;
         } catch (error) {
           const message = error instanceof Error ? error.message : "Could not pin that post.";
@@ -1373,12 +1523,12 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       }
       const localDb = localRef.current;
       if (!localDb) return { error: "Still loading." };
-      const result = localPinPost(localDb, postId);
+      const result = localLib().localPinPost(localDb, postId);
       if (!result.error) commitLocal(result.db);
       else setStatus(result.error);
       return { error: result.error };
     },
-    [commitLocal, mode, refreshRemote],
+    [commitLocal, mode],
   );
 
   const unpinPost = useCallback(async (): Promise<AuthResult> => {
@@ -1388,7 +1538,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
     const client = supabaseRef.current;
     if (mode === "supabase" && client) {
       try {
-        const result = await remoteUnpinPost(client);
+        const result = await (await loadRemote()).remoteUnpinPost(client);
         if (result.error) {
           setStatus(result.error);
           return result;
@@ -1399,7 +1549,6 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
           user: existing.user ? profileWithPin([existing.user], userId, null)[0]! : existing.user,
           profiles: profileWithPin(existing.profiles, userId, null),
         }));
-        await refreshRemote(client);
         return result;
       } catch (error) {
         const message = error instanceof Error ? error.message : "Could not unpin that post.";
@@ -1409,11 +1558,11 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
     }
     const localDb = localRef.current;
     if (!localDb) return { error: "Still loading." };
-    const result = localUnpinPost(localDb);
+    const result = localLib().localUnpinPost(localDb);
     if (!result.error) commitLocal(result.db);
     else setStatus(result.error);
     return { error: result.error };
-  }, [commitLocal, mode, refreshRemote]);
+  }, [commitLocal, mode]);
 
   const deleteComment = useCallback(
     async (commentId: string): Promise<AuthResult> => {
@@ -1452,14 +1601,10 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
         };
         publish(stateAfterReplyDelete(before, commentId, {}));
         try {
-          const result = await remoteDeleteComment(client, current.user.id, commentId);
+          const result = await (await loadRemote()).remoteDeleteComment(client, current.user.id, commentId);
           publish(stateAfterReplyDelete(before, commentId, result));
+          // Already removed in place (publish above).
           if (result.error) return result;
-          try {
-            await refreshRemote(client);
-          } catch {
-            // The reply is already deleted. Keep it off the screen.
-          }
           return {};
         } catch (error) {
           const failed = {
@@ -1472,11 +1617,11 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
 
       const db = localRef.current;
       if (!db) return { error: "Still loading." };
-      const result = localDeleteComment(db, commentId);
+      const result = localLib().localDeleteComment(db, commentId);
       if (!result.error) commitLocal(result.db);
       return { error: result.error };
     },
-    [activityShell, commitLocal, mode, refreshRemote, rememberActivity],
+    [activityShell, commitLocal, mode, rememberActivity],
   );
 
   const toggleLike = useCallback(
@@ -1494,13 +1639,13 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
         if (!knownPost) {
           const reply = current.comments.find((comment) => comment.id === postId);
           const wasLiked = current.likes.some((like) => like.postId === postId && like.userId === userId);
-          rememberActivity(localToggleLike(activityShell(), postId));
+          withLocalAccounts((lib) => rememberActivity(lib.localToggleLike(activityShell(), postId)));
           const client = supabaseRef.current;
           if (!client || !reply) return;
           likeQueue.current = likeQueue.current
             .catch(() => undefined)
             .then(async () => {
-              const result = await remoteSyncLikeNotification(client, {
+              const result = await (await loadRemote()).remoteSyncLikeNotification(client, {
                 actorId: userId,
                 recipientId: reply.authorId,
                 postId,
@@ -1582,7 +1727,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
         return;
       }
       if (!localRef.current) return;
-      commitLocal(localToggleLike(localRef.current, postId));
+      commitLocal(localLib().localToggleLike(localRef.current, postId));
     },
     [activityShell, commitLocal, mode, rememberActivity],
   );
@@ -1600,7 +1745,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
           blockedIds: new Set(current.blockedIds ?? []),
         });
         if (!post) {
-          rememberActivity(localToggleRepost(activityShell(), postId));
+          withLocalAccounts((lib) => rememberActivity(lib.localToggleRepost(activityShell(), postId)));
           return;
         }
         const reposted = current.reposts.some(
@@ -1618,7 +1763,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
         repostQueue.current = repostQueue.current
           .catch(() => undefined)
           .then(async () => {
-            const result = await remoteToggleRepost(client, {
+            const result = await (await loadRemote()).remoteToggleRepost(client, {
               userId,
               postId,
               authorId: post.authorId,
@@ -1627,18 +1772,18 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
             });
             if (result.error || result.notice) setStatus(result.error ?? result.notice ?? null);
             if (!result.error && !reposted) emitSocialAction("repost");
-            await reloadRef.current(client);
+            await rereadPost(client, postId);
           })
           .catch((error: unknown) => {
             setStatus(error instanceof Error ? error.message : "Could not update that repost.");
-            return reloadRef.current(client).catch(() => undefined);
+            return rereadPost(client, postId).catch(() => undefined);
           });
         return;
       }
       if (!localRef.current) return;
-      commitLocal(localToggleRepost(localRef.current, postId));
+      commitLocal(localLib().localToggleRepost(localRef.current, postId));
     },
-    [activityShell, commitLocal, mode, rememberActivity],
+    [activityShell, commitLocal, mode, rememberActivity, rereadPost],
   );
 
   const addComment = useCallback(
@@ -1674,7 +1819,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
             blockedIds: new Set(current.blockedIds ?? []),
           });
           try {
-            const result = await remoteAddComment(
+            const result = await (await loadRemote()).remoteAddComment(
               client,
               current.user.id,
               postId,
@@ -1688,7 +1833,8 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
             }
             emitSocialAction("reply");
             try {
-              await reloadRef.current(client);
+              // In place: this post's replies, as saved.
+              await rereadPost(client, postId);
               replaceComments((comments) => withoutOptimisticReply(comments, optimistic.id));
             } catch {
               // The reply is already saved. Leave the one local preview in place.
@@ -1701,7 +1847,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
           }
         }
         if (!localRef.current) return { error: "Still loading." };
-        const result = localAddComment(localRef.current, postId, text, photos);
+        const result = localLib().localAddComment(localRef.current, postId, text, photos);
         if (!result.error) commitLocal(result.db);
         return { error: result.error };
       })();
@@ -1712,7 +1858,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
         if (inflightRef.current.get(sendKey) === run) inflightRef.current.delete(sendKey);
       }
     },
-    [commitLocal, mode],
+    [commitLocal, mode, rereadPost],
   );
 
   // Kept below the snapshotRef writes. Reading that ref from an earlier effect
@@ -1875,13 +2021,15 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       }));
       const client = supabaseRef.current;
       if (!client) return;
-      void remoteMarkNotificationsRead(client, userId, ids).then((result) => {
+      void loadRemote()
+        .then((remote) => remote.remoteMarkNotificationsRead(client, userId, ids))
+        .then((result) => {
         if (result.error) setStatus(result.error);
       });
       return;
     }
     if (!localRef.current) return;
-    commitLocal(localMarkNotificationsRead(localRef.current, ids));
+    commitLocal(localLib().localMarkNotificationsRead(localRef.current, ids));
   }, [commitLocal, mode]);
 
   const messages = useMemo(() => {
@@ -1939,7 +2087,8 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
           );
           if (!result.error) {
             emitSocialAction("dm");
-            await refreshRemote(client);
+            // In place: that thread's newest page, with the saved message.
+            await refreshThread(client, current.user.id, receiverId).catch(() => {});
           }
           return result;
         } catch (error) {
@@ -1951,7 +2100,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       if (!result.error) commitLocal(result.db);
       return { error: result.error };
     },
-    [commitLocal, mode, refreshRemote],
+    [commitLocal, mode, refreshThread],
   );
 
   const markThreadRead = useCallback(
@@ -1983,13 +2132,56 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
         return;
       }
       if (!localRef.current) return;
-      commitLocal(localMarkThreadRead(localRef.current, partnerId));
+      commitLocal(localLib().localMarkThreadRead(localRef.current, partnerId));
     },
     [commitLocal, mode],
   );
 
+  // Replies and reposts for posts loaded after the snapshot (another feed page,
+  // a card's posts, a profile), read in one batch per tick.
+  const [engagementBatcher] = useState(() =>
+    createKeyBatcher<{ postIds: string[]; comments: PostComment[]; reposts: PostRepost[] }>(
+      async (keys) => {
+        const postIds = postIdsFromKeys(keys);
+        const client = await loadSupabaseBrowser();
+        if (!client || postIds.length === 0) return [];
+        const { data } = await client.auth.getSession();
+        const viewerId = data.session?.user.id ?? "";
+        const [muted, blocked] = viewerId
+          ? await Promise.all([loadHiddenAuthorIds(client, true), loadHiddenAuthorIds(client, false)])
+          : [[], []];
+        const parts = await Promise.all(
+          Array.from({ length: Math.ceil(postIds.length / 100) }, (_, index) =>
+            loadPostEngagement(client, postIds.slice(index * 100, (index + 1) * 100), viewerId, { muted, blocked }),
+          ),
+        );
+        return [
+          {
+            postIds,
+            comments: parts.flatMap((part) => part.comments),
+            reposts: parts.flatMap((part) => part.reposts),
+          },
+        ];
+      },
+      (reads) =>
+        startTransition(() =>
+          setRemote((existing) =>
+            reads.reduce(
+              (current, read) => mergeEngagement(current, read.postIds, read, isOptimisticReply),
+              existing,
+            ),
+          ),
+        ),
+      // A failed read keeps what is shown; those posts are read again when asked again.
+      () => {},
+    ),
+  );
+
   const rememberPosts = useCallback((posts: Post[], profiles: Profile[] = [], likes: PostLike[] | null = null) => {
     if (posts.length === 0 && profiles.length === 0 && likes === null) return;
+    if (getSupabaseConfig().configured && posts.length > 0) {
+      engagementBatcher.request(engagementKeys(posts.map((post) => post.id)));
+    }
     const blocked = new Set(snapshotRef.current.blockedIds ?? []);
     const pending = pendingLikes.current;
     const kept = posts.map((post) => {
@@ -2013,6 +2205,25 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
         },
         rememberedRef.current,
         removedRef.current,
+      );
+    });
+  }, [engagementBatcher]);
+
+  const loadRepliesBy = useCallback(async (userId: string) => {
+    if (!getSupabaseConfig().configured || !userId) return;
+    const client = await loadSupabaseBrowser();
+    if (!client) return;
+    await loadOnce(inflightRef.current, `replies:${userId}`, async () => {
+      const { data } = await client.auth.getSession();
+      const viewerId = data.session?.user.id ?? null;
+      const mutedHidden = viewerId ? await loadHiddenAuthorIds(client, true) : [];
+      const { loadUserReplies } = await import("@/lib/social/user-replies");
+      const replies = await loadUserReplies(client, { userId, viewerId, mutedHidden });
+      startTransition(() =>
+        setRemote((existing) => {
+          const known = new Set(existing.comments.map((comment) => comment.id));
+          return { ...existing, comments: [...existing.comments, ...replies.filter((reply) => !known.has(reply.id))] };
+        }),
       );
     });
   }, []);
@@ -2248,6 +2459,9 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       loadOlderMessages,
       loadThreadMessages,
       threadMore,
+      loadRepliesBy,
+      refreshInbox,
+      refreshFollows,
       status,
       refresh,
       signUp,
@@ -2368,6 +2582,9 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       loadOlderMessages,
       loadThreadMessages,
       threadMore,
+      loadRepliesBy,
+      refreshInbox,
+      refreshFollows,
       snapshot.user,
       status,
       suggestions,

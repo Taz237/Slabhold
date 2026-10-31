@@ -79,7 +79,7 @@ export function FollowList({
   username?: string;
 }) {
   const router = useRouter();
-  const { ready, mode, user, profileByUsername, followersOf, followingOf, refresh } = useSocial();
+  const { ready, mode, user, profileByUsername, followersOf, followingOf, refresh, refreshFollows } = useSocial();
   const profile = username ? profileByUsername(username) : user;
   const profileRead = useProfiles(username && !profile ? { usernames: [username] } : null);
   // The viewer's own lists are complete in memory and follow their taps at once.
@@ -97,8 +97,11 @@ export function FollowList({
   const backHref = username ? userHref(profile?.username ?? username) : "/profile";
 
   useEffect(() => {
-    if (ready) void refresh();
-  }, [ready, refresh, username, kind]);
+    if (!ready) return;
+    // Hosted: just the viewer's own follow edges; anyone else's list reads itself.
+    if (mode === "supabase") void refreshFollows();
+    else void refresh();
+  }, [kind, mode, ready, refresh, refreshFollows, username]);
 
   if (!profile && profileRead.failed) {
     return <ReadRetry title="Couldn't load this profile" onRetry={profileRead.retry} />;

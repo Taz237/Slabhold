@@ -337,7 +337,10 @@ describe("loadPostPage", () => {
 
     const provider = readFileSync(join(process.cwd(), "components/social-provider.tsx"), "utf8");
     const toggle = provider.slice(provider.indexOf("const toggleRepost"), provider.indexOf("const addComment"));
-    assert.match(toggle, /await reloadRef\.current\(client\)/);
+    // In place: that post's replies and reposts. A cold post page still reloads its own page.
+    assert.match(toggle, /await rereadPost\(client, postId\)/);
+    const reread = provider.slice(provider.indexOf("const rereadPost"), provider.indexOf("const updateProfile"));
+    assert.match(reread, /!fullSnapshotRef\.current\) \{\s*await reloadRef\.current\(client\);/);
     assert.match(provider, /const page = await loadPostPage\(client, id\)/);
     assert.match(provider, /reposts: page\.reposts/);
     assert.match(provider, /comments: page\.comments/);
@@ -377,7 +380,7 @@ describe("post page wiring", () => {
     const page = readFileSync(join(process.cwd(), "components/post-view.tsx"), "utf8");
     assert.match(page, /if \(!ready \|\| mode !== "local"\) return;\s*void refresh\(\)/);
     assert.doesNotMatch(page, /loadPostById/);
-    assert.doesNotMatch(page, /loadSupabaseSocial/);
+    assert.doesNotMatch(page, /loadSocialSnapshot/);
     assert.match(page, /loadingPostId/);
 
     const provider = readFileSync(join(process.cwd(), "components/social-provider.tsx"), "utf8");

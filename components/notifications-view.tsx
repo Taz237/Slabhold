@@ -35,6 +35,7 @@ export function NotificationsView() {
     notifications,
     markNotificationsRead,
     refresh,
+    refreshInbox,
     commentsFor,
     inboxMore,
     loadOlderNotifications,
@@ -50,7 +51,8 @@ export function NotificationsView() {
     let cancelled = false;
     void (async () => {
       try {
-        const loaded = await refresh();
+        // Opening the list: its newest page and unread rows, not the whole snapshot.
+        const loaded = await refreshInbox();
         if (cancelled || unreadOnVisit.current?.userId === userId) return;
         const ids = new Set(unreadNotificationIds(loaded));
         unreadOnVisit.current = { userId, ids };
@@ -63,7 +65,7 @@ export function NotificationsView() {
     return () => {
       cancelled = true;
     };
-  }, [markNotificationsRead, ready, refresh, userId]);
+  }, [markNotificationsRead, ready, refreshInbox, userId]);
 
   if (!ready) {
     return (

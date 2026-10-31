@@ -296,7 +296,7 @@ describe("realtime slice patch", () => {
     assert.match(listeners, /loadRealtimePatch\(/);
     assert.match(listeners, /document\.hidden/);
     assert.match(listeners, /visibilitychange/);
-    assert.doesNotMatch(listeners, /refreshRemote\(|loadSupabaseSocial\(|from\("public_cards"\)/);
+    assert.doesNotMatch(listeners, /refreshRemote\(|loadSocialSnapshot\(|from\("public_cards"\)/);
     assert.match(provider, /shouldFetchPublicCatalog\(\{ loaded: fullSnapshotRef\.current, source: "mount" \}\)/);
   });
 });

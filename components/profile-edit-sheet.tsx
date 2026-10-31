@@ -8,7 +8,7 @@ import { solidButton } from "@/components/button-styles";
 import { PhotoFileInputs } from "@/components/photo-file-inputs";
 import { useSocial } from "@/components/social-provider";
 import { PHOTO_HEIC_ERROR, PHOTO_READ_ERROR, readPhotoFile } from "@/lib/photos";
-import { normalizeUsername } from "@/lib/social/local-db";
+import { normalizeUsername } from "@/lib/social/usernames";
 import type { Profile } from "@/lib/social/types";
 
 export function ProfileEditSheet({
