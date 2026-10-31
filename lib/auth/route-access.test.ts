@@ -32,6 +32,8 @@ describe("route access", () => {
       "/u/maya/following",
       `/u/maya/cards/${CARD}`,
       `/cards/${CARD}/posts`,
+      "/p/cj-stroud",
+      "/p/will-smith-baseball",
     ];
     for (const path of paths) {
       assert.equal(routeAccess(path), "public", path);

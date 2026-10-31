@@ -99,6 +99,7 @@ function isPublicPath(path: string): boolean {
   if (/^\/i\/[^/]+$/.test(path)) return true;
   if (/^\/u\/[^/]+\/collection$/.test(path)) return true;
   if (/^\/cards\/[^/]+\/posts$/.test(path)) return true;
+  if (/^\/p\/[^/]+$/.test(path)) return true;
   return false;
 }
 

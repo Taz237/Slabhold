@@ -13,6 +13,7 @@ import { resolveQuoteEmbedState } from "@/lib/social/quotes";
 import type { Post, Profile, PublicCard } from "@/lib/social/types";
 import { useAttachedChip } from "@/lib/social/use-attachment-label";
 import { EbaySoldLink } from "@/components/ebay-sold-link";
+import { PlayerNameLink } from "@/components/player-name-link";
 import { QUOTE_HEADER } from "@/lib/ui/quote-header";
 import type { CardValueResult } from "@/lib/value/types";
 
@@ -119,7 +120,11 @@ export function QuotedPostEmbed({
           ) : null}
           {card && (price || soldHref) ? (
             <p className="mt-1 truncate text-[13px] text-zinc-500">
-              {card.playerName}
+              <PlayerNameLink
+                name={card.playerName}
+                sport={card.sport}
+                className="font-semibold text-zinc-800 hover:underline dark:text-zinc-100"
+              />
               {price ? ` · ${price}` : ""}
               {soldHref ? (
                 <>
