@@ -43,7 +43,8 @@ type CollectionContextValue = {
   addCard: (input: CardInput & { id?: string }) => SavedCard;
   updateCard: (id: string, patch: Partial<SportsCard>) => SavedCard;
   removeCard: (id: string) => void;
-  reload: () => void;
+  /** Reads the cards again. Resolves with them, or null when the read failed. */
+  reload: () => Promise<SportsCard[] | null>;
 };
 
 export const CollectionContext = createContext<CollectionContextValue | null>(null);
@@ -290,31 +291,32 @@ export function CollectionProvider({ children }: { children: React.ReactNode }) 
     [enqueue, remote, report, userId],
   );
 
-  const reload = useCallback(() => {
+  const reload = useCallback(async (): Promise<SportsCard[] | null> => {
     if (remote && userId) {
       const client = loadedSupabaseBrowser();
-      if (!client) return;
-      void loadUserCards(client, userId)
-        .then((rows) => {
-          const { cards: merged } = mergeCategories(rows);
-          cardsRef.current = merged;
-          setCards(merged);
-          setSyncError(null);
-          setLoaded(true);
-          setLoadFailed(false);
-        })
-        .catch((error: unknown) => {
-          report(error);
-          setLoaded(false);
-          setLoadFailed(true);
-        });
-      return;
+      if (!client) return null;
+      try {
+        const rows = await loadUserCards(client, userId);
+        const { cards: merged } = mergeCategories(rows);
+        cardsRef.current = merged;
+        setCards(merged);
+        setSyncError(null);
+        setLoaded(true);
+        setLoadFailed(false);
+        return merged;
+      } catch (error) {
+        report(error);
+        setLoaded(false);
+        setLoadFailed(true);
+        return null;
+      }
     }
     const stored = loadCollection();
     cardsRef.current = stored;
     setCards(stored);
     setLoaded(true);
     setLoadFailed(false);
+    return stored;
   }, [remote, report, userId]);
 
   const value = useMemo(

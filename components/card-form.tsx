@@ -161,6 +161,7 @@ export function CardForm({
     loaded: cardsLoaded,
     loadFailed,
     syncError,
+    reload: reloadCards,
   } = useCollection();
   const { mode, user, createPost } = useSocial();
   const userId = user?.id ?? null;
@@ -808,19 +809,26 @@ export function CardForm({
       syncError,
     });
     // A restored pending id is only "missing" once this account's cards have loaded.
-    const collectionKnown = cardsLoaded && !loadFailed;
+    let knownCards = cards;
+    let collectionKnown = cardsLoaded && !loadFailed;
     const pendingInMemory =
       pendingCardId != null && cards.some((item) => item.id === pendingCardId);
     if (!existing && pendingCardId && !collectionKnown && !pendingInMemory) {
-      setSaveError(CARDS_LOADING_MESSAGE);
-      setSaving(false);
-      savingRef.current = false;
-      return;
+      // A load that failed won't come back on its own: Retry asks for the cards again.
+      const fresh = loadFailed ? await reloadCards() : null;
+      if (!fresh) {
+        setSaveError(CARDS_LOADING_MESSAGE);
+        setSaving(false);
+        savingRef.current = false;
+        return;
+      }
+      knownCards = fresh;
+      collectionKnown = true;
     }
     try {
       const targetId = existing?.id ?? pendingCardId;
       const inMemory =
-        targetId != null && cards.some((item) => item.id === targetId);
+        targetId != null && knownCards.some((item) => item.id === targetId);
       const updating = Boolean(targetId && (existing || inMemory));
       let result = updating
         ? updateCard(targetId as string, payload)

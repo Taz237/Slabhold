@@ -291,6 +291,29 @@ describe("add card survives a remount", () => {
       await submit();
       assert.equal(gateIds(), "");
       assert.equal(textIncludes("Card not found."), false);
+      // Each Retry asks for the cards again; a load that fails again keeps the message.
+      assert.equal(gateProbe.reloads, 2);
+      assert.equal(textIncludes("Still loading your cards. Tap Retry."), true);
+    } finally {
+      view.unmount();
+    }
+  });
+
+  it("reloads a collection that failed to load when Retry is tapped, then saves one card on the same id", async () => {
+    const existing = { ...blankCard, id: "real-card", playerName: "Qa Realplayer" };
+    writeNewCardDraft({
+      ...draftFor({ ...typedForm, playerName: "Qa Realplayer" }),
+      pendingId: "real-card",
+    });
+    const view = await mountGate("failed", existing, false);
+    try {
+      await waitFor(() => inputValue("playerName") === "Qa Realplayer");
+      await submit();
+      await waitFor(() => gateIds() === "real-card");
+      assert.equal(gateProbe.reloads, 1);
+      assert.equal(textIncludes("Still loading your cards. Tap Retry."), false);
+      assert.equal(textIncludes("Card not found."), false);
+      assert.equal(gateIds().split(",").filter(Boolean).length, 1);
     } finally {
       view.unmount();
     }
@@ -679,6 +702,22 @@ function SaveFailureCollection({ children }: { children?: ReactNode }) {
   return createElement(CollectionContext.Provider, { value: value as never }, children);
 }
 
+/**
+ * The gate's cards (writes read the latest list, like the real provider's
+ * ref), how many times its reload ran, and whether that reload fails.
+ */
+const gateProbe = { cards: [] as SportsCard[], reloads: 0, reloadFails: true };
+
+function gateWrite(next: SportsCard[] | ((current: SportsCard[]) => SportsCard[])) {
+  gateProbe.cards = typeof next === "function" ? next(gateProbe.cards) : next;
+  return gateProbe.cards;
+}
+
+function gateReloadSucceeds() {
+  gateProbe.reloads += 1;
+  return !gateProbe.reloadFails;
+}
+
 function GateCollection({
   phase: initialPhase,
   existing,
@@ -689,7 +728,10 @@ function GateCollection({
   children?: ReactNode;
 }) {
   const [phase, setPhase] = useState<"loading" | "failed" | "ready">(initialPhase);
-  const [cards, setCards] = useState<SportsCard[]>([]);
+  const [cards, setCardsState] = useState<SportsCard[]>([]);
+  // Like the real provider, writes read the latest list, not this render's.
+  const setCards = (next: SportsCard[] | ((current: SportsCard[]) => SportsCard[])) =>
+    setCardsState(gateWrite(next));
   const value = {
     ready: phase !== "loading",
     loaded: phase === "ready",
@@ -697,36 +739,46 @@ function GateCollection({
     cards,
     syncError: phase === "failed" ? "Couldn't load your cards." : null,
     getCard(id: string) {
-      return cards.find((card) => card.id === id);
+      return gateProbe.cards.find((card) => card.id === id);
     },
     addCard(input: CardInput & { id?: string }) {
       const now = new Date().toISOString();
-      const id = input.id ?? `added-${cards.length + 1}`;
-      const previous = cards.find((card) => card.id === id);
+      const id = input.id ?? `added-${gateProbe.cards.length + 1}`;
+      const previous = gateProbe.cards.find((card) => card.id === id);
       const card: SportsCard = previous
         ? { ...previous, ...input, id, updatedAt: now }
         : { ...input, id, createdAt: now, updatedAt: now };
       const next = previous
-        ? cards.map((item) => (item.id === id ? card : item))
-        : [card, ...cards];
+        ? gateProbe.cards.map((item) => (item.id === id ? card : item))
+        : [card, ...gateProbe.cards];
       setCards(next);
       return { card, saved: Promise.resolve() };
     },
     updateCard(id: string, patch: Partial<SportsCard>) {
-      const previous = cards.find((card) => card.id === id);
+      const previous = gateProbe.cards.find((card) => card.id === id);
       if (!previous) {
         const saved = Promise.reject(new Error("Card not found."));
         void saved.catch(() => undefined);
         return { card: { ...existing, ...patch, id }, saved };
       }
       const card = { ...previous, ...patch, id, updatedAt: new Date().toISOString() };
-      setCards(cards.map((item) => (item.id === id ? card : item)));
+      setCards(gateProbe.cards.map((item) => (item.id === id ? card : item)));
       return { card, saved: Promise.resolve() };
     },
     removeCard(id: string) {
-      setCards(cards.filter((card) => card.id !== id));
+      setCards(gateProbe.cards.filter((card) => card.id !== id));
     },
-    reload() {},
+    async reload() {
+      if (!gateReloadSucceeds()) {
+        setPhase("failed");
+        return null;
+      }
+      setPhase("ready");
+      setCards((current) =>
+        current.some((card) => card.id === existing.id) ? current : [existing, ...current],
+      );
+      return gateProbe.cards;
+    },
   };
   return createElement(
     "div",
@@ -831,7 +883,10 @@ async function clickButton(label: string) {
   });
 }
 
-async function mountGate(phase: "loading" | "failed", existing: SportsCard) {
+async function mountGate(phase: "loading" | "failed", existing: SportsCard, reloadFails = true) {
+  gateProbe.cards = [];
+  gateProbe.reloads = 0;
+  gateProbe.reloadFails = reloadFails;
   return mountIn(
     createElement(Harness, { gate: { phase, existing } }, createElement(CardForm, {})),
   );
