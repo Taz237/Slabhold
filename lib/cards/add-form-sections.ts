@@ -28,7 +28,6 @@ export const MORE_DETAILS_FIELDS = [
   "purchase",
   "estimatedSellPrice",
   "sold",
-  "isPublic",
   "openToOffers",
   "notes",
   "shareToFeed",
