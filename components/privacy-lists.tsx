@@ -8,11 +8,17 @@ import { Avatar } from "@/components/avatar";
 import { useSocial } from "@/components/social-provider";
 import { EmptyState, LoadingRows } from "@/components/status";
 import { HunterSettingSwitch } from "@/components/hunter-setting";
+import { LeaderboardOptInSwitch } from "@/components/leaderboard-opt-in";
+import { leaderboardMinimums, type LeaderboardMinimums } from "@/lib/leaderboard/eligibility";
 import { loginPath } from "@/lib/auth/safe-next";
 import { unblockAccount, unmuteAccount } from "@/lib/safety/actions";
 import { MENU_OPEN_HREF } from "@/lib/ui/side-menu";
 
-export function PrivacyLists() {
+export function PrivacyLists({
+  minimums = leaderboardMinimums(),
+}: {
+  minimums?: LeaderboardMinimums;
+} = {}) {
   const pathname = usePathname() || "/";
   const { ready, user, blockedIds, mutedIds, safetyAccounts, applySafetyChange, refresh } =
     useSocial();
@@ -82,6 +88,7 @@ export function PrivacyLists() {
         <h1 className="text-lg font-bold">Privacy & safety</h1>
       </div>
       <HunterSettingSwitch />
+      <LeaderboardOptInSwitch minimums={minimums} />
       {error ? <p className="px-4 pt-3 text-sm text-rose-600">{error}</p> : null}
       <AccountList
         title="Blocked accounts"

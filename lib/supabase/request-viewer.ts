@@ -6,7 +6,13 @@ import { hasSessionCookie } from "@/lib/auth/session-hint";
 import { isRouterRequest } from "./router-request";
 import { createSupabaseServer } from "./server";
 
-export type RequestViewer = { supabase: SupabaseClient; id: string; email: string };
+export type RequestViewer = {
+  supabase: SupabaseClient;
+  id: string;
+  email: string;
+  /** auth.users.created_at, for the value board's account-age minimum. */
+  createdAt?: string | null;
+};
 
 /**
  * The signed-in viewer of a full page load, verified with getUser, with the
@@ -22,5 +28,5 @@ export async function requestViewer(): Promise<RequestViewer | null> {
   if (!supabase) return null;
   const { data, error } = await supabase.auth.getUser();
   if (error || !data.user) return null;
-  return { supabase, id: data.user.id, email: data.user.email ?? "" };
+  return { supabase, id: data.user.id, email: data.user.email ?? "", createdAt: data.user.created_at ?? null };
 }

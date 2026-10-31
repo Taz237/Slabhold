@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { DeleteAccount } from "@/components/delete-account";
 import { PrivacyLists } from "@/components/privacy-lists";
+import { leaderboardMinimums } from "@/lib/leaderboard/eligibility";
 
 export default function PrivacyPage() {
   return (
@@ -10,7 +11,7 @@ export default function PrivacyPage() {
           Privacy policy
         </Link>
       </p>
-      <PrivacyLists />
+      <PrivacyLists minimums={leaderboardMinimums()} />
       <DeleteAccount />
     </div>
   );
