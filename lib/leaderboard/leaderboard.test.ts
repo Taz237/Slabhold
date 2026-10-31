@@ -4,7 +4,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, it } from "node:test";
-import { renderOg } from "@/components/og-frame";
+import { renderLeaderboardOg } from "@/components/og-frame";
 import { ValueBoardView } from "@/components/value-board";
 import { assembleValueBoard, type ValueBoardSourceCard } from "@/lib/leaderboard/assemble";
 import { valueBracketId } from "@/lib/leaderboard/brackets";
@@ -47,8 +47,8 @@ import { leaderboardChecklist } from "@/lib/leaderboard/requirements";
 import { saleSourceIsSelfReported } from "@/lib/leaderboard/self-reported";
 import {
   ESTIMATED_FROM_SOLD,
-  leaderboardRankShareImage,
   rankShareText,
+  valueBoardShareModel,
 } from "@/lib/leaderboard/value-share";
 import {
   cardSnapshotInsert,
@@ -755,15 +755,54 @@ describe("value board week and sharing", () => {
       rankShareText({ username: "user", percent: 1.2 }),
       "@user up 100% or more this week on Slabhold",
     );
-    const image = leaderboardRankShareImage({
-      username: "مرحبا",
-      percent: 0.082,
+    const route = read("app/(app)/leaderboard/value/opengraph-image.tsx");
+    assert.match(route, /return renderLeaderboardOg\(valueBoardShareModel\(/);
+    assert.doesNotMatch(route, /renderOg\(|kind: "profile"/);
+    assert.doesNotMatch(read("lib/leaderboard/value-share.ts"), /kind: "profile"|ShareImage/);
+    for (const path of ["app/leaderboard/value/opengraph-image.tsx", "app/leaderboard/value/twitter-image.tsx"]) {
+      assert.match(read(path), /from "@\/app\/\(app\)\/leaderboard\/value\//);
+    }
+  });
+
+  it("draws the value board share card with the leaderboard frame", async () => {
+    const row = (username: string, rank: number, percentLabel: string) => ({
+      username,
+      rank,
+      percentLabel,
     });
-    assert.equal(image.imageUrl, null);
-    assert.deepEqual(image.photos, []);
-    assert.equal(image.detail, ESTIMATED_FROM_SOLD);
-    assert.match(read("app/(app)/leaderboard/value/opengraph-image.tsx"), /return renderOg\(/);
-    const response = await renderOg(image);
+    const model = valueBoardShareModel({
+      start: "2026-10-19",
+      end: "2026-10-25",
+      brackets: [
+        { open: false, rows: [row("hidden", 1, "+90.0%")] },
+        {
+          open: true,
+          rows: [row("@ada", 1, "+8.2%"), row("مرحبا", 2, "+4.0%"), row("lou مرحبا", 3, "-1.5%"), row("max", 4, "-3.0%")],
+        },
+      ],
+    });
+    assert.equal(model.title, "Value leaderboard");
+    assert.equal(model.kicker, formatWeekLabel("2026-10-19", "2026-10-25"));
+    assert.equal(model.detail, ESTIMATED_FROM_SOLD);
+    // A closed bracket stays off the image. Top 3 only, Arabic script removed from names.
+    assert.deepEqual(model.lines, [
+      { place: "#1", name: "@ada", detail: "+8.2%" },
+      { place: "#2", name: "Collector", detail: "+4.0%" },
+      { place: "#3", name: "@lou", detail: "-1.5%" },
+    ]);
+    assert.doesNotMatch(JSON.stringify(model), /\$|hidden|مرحبا/);
+
+    const thin = valueBoardShareModel({
+      start: "2026-10-19",
+      end: "2026-10-25",
+      brackets: [{ open: false, rows: [row("ada", 1, "+8.2%")] }],
+    });
+    assert.deepEqual(thin.lines, []);
+    assert.equal(thin.title, "Value leaderboard");
+    assert.equal(thin.detail, ESTIMATED_FROM_SOLD);
+    assert.equal(valueBoardShareModel({ start: "", end: "", brackets: [] }).kicker, "This week");
+
+    const response = await renderLeaderboardOg(model);
     assert.equal(response.headers.get("content-type"), "image/png");
     const bytes = Buffer.from(await response.arrayBuffer());
     assert.equal(bytes[0], 0x89);
