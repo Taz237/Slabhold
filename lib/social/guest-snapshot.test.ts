@@ -37,9 +37,11 @@ describe("guest snapshot", () => {
     for (const table of ["notifications", "messages", "blocks", "mutes"]) {
       assert.equal(tables.includes(table), false, table);
     }
-    for (const table of ["profiles", "posts", "follows", "comments", "reposts"]) {
+    for (const table of ["posts", "comments", "reposts"]) {
       assert.ok(tables.includes(table), table);
     }
+    // A visitor has no follow edges of their own, and nobody to read profiles for.
+    assert.equal(tables.includes("follows"), false);
     // Public cards are read per screen, never as the whole table.
     assert.equal(tables.includes("public_cards"), false);
   });

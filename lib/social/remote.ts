@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { escapeIlike } from "@/lib/db/escape-ilike";
 import { captchaRetryMessage } from "@/lib/auth/captcha";
 import { emailConfirmRedirect } from "@/lib/auth/safe-next";
 import { EMAIL_NOT_CONFIRMED, isEmailNotConfirmed } from "@/lib/auth/signup-fields";
@@ -52,7 +53,6 @@ import {
 import { BLOCKED_INTERACTION } from "@/lib/safety/block";
 import { canNotify, supabaseSafety } from "@/lib/safety/can-notify";
 import { applyAuthorSafety, loadHiddenAuthorIds, withAuthorSafety } from "@/lib/safety/filters";
-import { needsSuggestionHeadroom, suggestionExtraRange } from "./follow-suggestions";
 import {
   loadMessagePage,
   loadNotificationPage,
@@ -260,6 +260,51 @@ export async function loadSocialProfiles(
   );
 }
 
+/** Ids per profiles query, so the URL stays well under PostgREST's limit. */
+const PROFILE_ID_CHUNK = 150;
+
+/**
+ * Profiles by id or username, with the same filter the old site-wide list
+ * used: people the viewer blocked, or who blocked the viewer, are left out,
+ * so their pages still read "not found". `email` is set on the viewer's own.
+ */
+export async function loadVisibleProfiles(
+  supabase: SupabaseClient,
+  input: { ids?: readonly string[]; usernames?: readonly string[] },
+  viewer: { id: string; email: string } | null,
+  blockedHidden: readonly string[],
+): Promise<Profile[]> {
+  const ids = [...new Set(input.ids ?? [])].filter(Boolean);
+  const usernames = [...new Set((input.usernames ?? []).map((name) => name.trim().toLowerCase()))].filter(Boolean);
+  const reads: Promise<ProfileRow[]>[] = [];
+  const run = (filter: (query: ReturnType<typeof profileQuery>) => ReturnType<typeof profileQuery>) =>
+    loadProfileRows((columns) =>
+      applyAuthorSafety(filter(profileQuery(supabase, columns)), viewer?.id ?? null, blockedHidden, {
+        authorColumn: "id",
+      }),
+    ).then(({ data, error }) => {
+      if (error) throw new Error(error.message);
+      return (data ?? []) as ProfileRow[];
+    });
+  for (let start = 0; start < ids.length; start += PROFILE_ID_CHUNK) {
+    const chunk = ids.slice(start, start + PROFILE_ID_CHUNK);
+    reads.push(run((query) => query.in("id", chunk)));
+  }
+  if (usernames.length > 0) reads.push(run((query) => query.in("username", usernames)));
+  const seen = new Set<string>();
+  const out: Profile[] = [];
+  for (const row of (await Promise.all(reads)).flat()) {
+    if (seen.has(row.id)) continue;
+    seen.add(row.id);
+    out.push(mapProfile(row, viewer && row.id === viewer.id ? viewer.email : ""));
+  }
+  return out;
+}
+
+function profileQuery(supabase: SupabaseClient, columns: string) {
+  return supabase.from("profiles").select<string, ProfileRow>(columns);
+}
+
 function mapProfile(row: ProfileRow, email = ""): Profile {
   return {
     id: row.id,
@@ -304,15 +349,8 @@ export async function loadSupabaseSocial(supabase: SupabaseClient): Promise<Soci
       loadUnreadMessages(supabase, viewer, blockedHidden),
     ]);
 
-  const [profilesRes, postsRes, homePostsRes, followsRes, commentsRes, notesInbox, messagesInbox, repostsRes, homeRepostsRes, myBlocksRes, myMutesRes] =
+  const [postsRes, homePostsRes, followsRes, commentsRes, notesInbox, messagesInbox, repostsRes, homeRepostsRes, myBlocksRes, myMutesRes] =
     await Promise.all([
-      loadProfileRows((columns) =>
-        guard(
-          supabase.from("profiles").select<string, ProfileRow>(columns).order("created_at", { ascending: true }),
-          blockedHidden,
-          { authorColumn: "id" },
-        ),
-      ),
       guard(
         supabase.from("posts").select("*").order("created_at", { ascending: false }).limit(100),
         blockedHidden,
@@ -322,7 +360,10 @@ export async function loadSupabaseSocial(supabase: SupabaseClient): Promise<Soci
         mutedHidden,
         { mute: true },
       ),
-      supabase.from("follows").select("*"),
+      // The viewer's own edges. Anyone else's counts and lists are read on their screens.
+      viewerId
+        ? supabase.from("follows").select("*").or(`follower_id.eq.${viewerId},following_id.eq.${viewerId}`)
+        : Promise.resolve({ data: [], error: null }),
       guard(
         supabase.from("comments").select("*").order("created_at", { ascending: true }),
         mutedHidden,
@@ -348,7 +389,7 @@ export async function loadSupabaseSocial(supabase: SupabaseClient): Promise<Soci
         : Promise.resolve({ data: [], error: null }),
     ]);
   const failure =
-    profilesRes.error || postsRes.error || homePostsRes.error || followsRes.error;
+    postsRes.error || homePostsRes.error || followsRes.error;
   if (failure) throw new Error(failure.message);
   if (commentsRes.error && !missingTable(commentsRes.error)) throw new Error(commentsRes.error.message);
   if (repostsRes.error && !missingTable(repostsRes.error)) throw new Error(repostsRes.error.message);
@@ -358,32 +399,6 @@ export async function loadSupabaseSocial(supabase: SupabaseClient): Promise<Soci
   if (myBlocksRes.error && !missingTable(myBlocksRes.error)) throw new Error(myBlocksRes.error.message);
   if (myMutesRes.error && !missingTable(myMutesRes.error)) throw new Error(myMutesRes.error.message);
 
-  const profiles = ((profilesRes.data ?? []) as ProfileRow[]).map((row) =>
-    mapProfile(row, row.id === session?.user.id ? (session.user.email ?? "") : ""),
-  );
-  if (needsSuggestionHeadroom(profiles.length)) {
-    const { from, to } = suggestionExtraRange(profiles.length);
-    const extraRes = await loadProfileRows((columns) =>
-      guard(
-        supabase
-          .from("profiles")
-          .select<string, ProfileRow>(columns)
-          .order("created_at", { ascending: true })
-          .range(from, to),
-        blockedHidden,
-        { authorColumn: "id" },
-      ),
-    );
-    if (extraRes.error) throw new Error(extraRes.error.message);
-    const known = new Set(profiles.map((profile) => profile.id));
-    for (const row of (extraRes.data ?? []) as ProfileRow[]) {
-      if (known.has(row.id)) continue;
-      known.add(row.id);
-      profiles.push(
-        mapProfile(row, row.id === session?.user.id ? (session.user.email ?? "") : ""),
-      );
-    }
-  }
   let posts = await mapPostRows(supabase, (postsRes.data ?? []) as PostRow[], viewerId);
   const reposts = ((repostsRes.data ?? []) as RepostRow[]).map(
     (row): PostRepost => ({
@@ -478,6 +493,27 @@ export async function loadSupabaseSocial(supabase: SupabaseClient): Promise<Soci
     (row) => row.blocked_id,
   );
   const mutedIds = ((myMutesRes.data ?? []) as { muted_id: string }[]).map((row) => row.muted_id);
+  // Only the people these rows name, never the whole profiles table: authors,
+  // repliers, reposters, notification actors, inbox partners, the viewer's follows.
+  const named = new Set<string>(viewerId ? [viewerId] : []);
+  for (const post of [...posts, ...homePosts]) named.add(post.authorId);
+  for (const comment of comments) named.add(comment.authorId);
+  for (const repost of [...reposts, ...homeReposts]) named.add(repost.userId);
+  for (const note of notifications) if (note.actorId) named.add(note.actorId);
+  for (const message of messages) {
+    named.add(message.senderId);
+    named.add(message.receiverId);
+  }
+  for (const edge of follows) {
+    named.add(edge.followerId);
+    named.add(edge.followingId);
+  }
+  const profiles = await loadVisibleProfiles(
+    supabase,
+    { ids: [...named] },
+    session?.user ? { id: session.user.id, email: session.user.email ?? "" } : null,
+    blockedHidden,
+  );
   const safetyIds = [...new Set([...blockedIds, ...mutedIds])];
   let safetyAccounts: Profile[] = profiles.filter((profile) => safetyIds.includes(profile.id));
   const missingSafety = safetyIds.filter((id) => !safetyAccounts.some((profile) => profile.id === id));
@@ -1155,6 +1191,45 @@ export async function syncMentionNotifications(
   );
   if (!error || error.code === "23505" || missingTable(error)) return null;
   return "Your post was saved, but we couldn't notify everyone you mentioned.";
+}
+
+/**
+ * PostgREST `.or()` for people search on the query's longest word. Keeps
+ * accented letters (names like "Dončić"); drops the characters that would
+ * change the filter itself, and escapes LIKE wildcards.
+ */
+export function peopleIlikeOr(words: readonly string[]): string | null {
+  const longest = [...words].map((word) => word.trim()).sort((a, b) => b.length - a.length)[0] ?? "";
+  const word = longest.replace(/^@+/, "").replace(/[,()"'\\.:*]/g, "").slice(0, 40);
+  if (!word) return null;
+  const pattern = `%${escapeIlike(word)}%`;
+  return `username.ilike.${pattern},display_name.ilike.${pattern}`;
+}
+
+/**
+ * People search on the server: handle or name contains the query's longest
+ * word (the rest is matched by the caller, all words, as before). People the
+ * viewer blocked or who blocked them are left out. Never reads the whole table.
+ */
+export async function searchPeople(
+  supabase: SupabaseClient,
+  words: readonly string[],
+  limit = 40,
+): Promise<Profile[]> {
+  const orFilter = peopleIlikeOr(words);
+  if (!orFilter) return [];
+  const { data: sessionData } = await supabase.auth.getSession();
+  const viewer = sessionData.session?.user ?? null;
+  const hidden = viewer ? await loadHiddenAuthorIds(supabase, false) : [];
+  const { data, error } = await loadProfileRows((columns) =>
+    applyAuthorSafety(profileQuery(supabase, columns).or(orFilter).limit(limit), viewer?.id ?? null, hidden, {
+      authorColumn: "id",
+    }),
+  );
+  if (error) throw new Error(error.message);
+  return ((data ?? []) as ProfileRow[]).map((row) =>
+    mapProfile(row, viewer && row.id === viewer.id ? (viewer.email ?? "") : ""),
+  );
 }
 
 /**

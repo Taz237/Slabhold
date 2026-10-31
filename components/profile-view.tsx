@@ -24,6 +24,8 @@ import { useSocial } from "@/components/social-provider";
 import { loginPath, signupPath } from "@/lib/auth/safe-next";
 import { userHref } from "@/lib/social/user-href";
 import { publicCardKeys } from "@/lib/social/public-card-cache";
+import { useFollowCounts } from "@/lib/social/use-follow-counts";
+import { useProfiles } from "@/lib/social/use-profiles";
 import { ShareIconButton } from "@/components/share-button";
 import { ReplyPhotos } from "@/components/reply-photos";
 import { Tweet } from "@/components/tweet";
@@ -78,8 +80,6 @@ export function ProfileView({
     profiles,
     publicCards,
     requestPublicCards,
-    followerCount,
-    followingCount,
     refresh,
     blockedIds,
     safetyAccounts,
@@ -90,6 +90,9 @@ export function ProfileView({
   } = social;
 
   const profile = username ? social.profileByUsername(username) : user;
+  // Someone the snapshot didn't bring is read by handle before "not found".
+  const profileRead = useProfiles(username && !profile ? { usernames: [username] } : null);
+  const counts = useFollowCounts(profile?.id ?? null);
   const isOwn = Boolean(profile && user && profile.id === user.id);
   const searchParams = useSearchParams();
   const [editing, setEditing] = useState(false);
@@ -284,6 +287,7 @@ export function ProfileView({
     );
   }
 
+  if (!profile && !profileRead.ready) return <ProfileSkeleton />;
   if (!profile) {
     return <MissingProfile username={username ?? ""} mode={social.mode} />;
   }
@@ -429,7 +433,7 @@ export function ProfileView({
           </span>
           <CountLink
             href={`${username ? userHref(profile.username) : "/profile"}/followers`}
-            count={followerCount(profile.id)}
+            count={counts.followers}
             label="Followers"
           />
           <span aria-hidden className="text-zinc-400 dark:text-zinc-600">
@@ -437,7 +441,7 @@ export function ProfileView({
           </span>
           <CountLink
             href={`${username ? userHref(profile.username) : "/profile"}/following`}
-            count={followingCount(profile.id)}
+            count={counts.following}
             label="Following"
           />
         </div>
@@ -631,10 +635,17 @@ export function ProfileView({
   );
 }
 
-function CountLink({ href, count, label }: { href: string; count: number; label: string }) {
+function CountLink({ href, count, label }: { href: string; count: number | null; label: string }) {
   return (
     <Link href={href} className="inline-flex min-h-11 items-center gap-1 rounded-md px-1 hover:underline">
-      <span className="font-bold tabular-nums">{count}</span>
+      {count == null ? (
+        <span
+          className="inline-block h-4 w-5 animate-pulse rounded bg-zinc-200/80 motion-reduce:animate-none dark:bg-white/10"
+          aria-hidden
+        />
+      ) : (
+        <span className="font-bold tabular-nums">{count}</span>
+      )}
       <span className="text-zinc-500">{label}</span>
     </Link>
   );
