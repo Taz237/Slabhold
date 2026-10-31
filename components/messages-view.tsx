@@ -7,6 +7,7 @@ import { Mail, Search, SquarePen } from "lucide-react";
 import { Avatar } from "@/components/avatar";
 import { solidButton } from "@/components/button-styles";
 import { InboxThumb, useInboxThumb } from "@/components/message-attachments";
+import { LoadMore, useLoadMore } from "@/components/load-more";
 import { NewMessageSheet } from "@/components/new-message-sheet";
 import { PullToRefresh } from "@/components/pull-to-refresh";
 import { EmptyState } from "@/components/status";
@@ -20,7 +21,8 @@ import { userHref } from "@/lib/social/user-href";
 
 export function MessagesView() {
   const pathname = usePathname() || "/";
-  const { ready, user, profiles, messages, refresh, suggestions } = useSocial();
+  const { ready, user, profiles, messages, refresh, suggestions, inboxMore, loadOlderMessages } = useSocial();
+  const older = useLoadMore(loadOlderMessages);
   const [query, setQuery] = useState("");
   const [composing, setComposing] = useState(false);
   const closeCompose = useCallback(() => setComposing(false), []);
@@ -101,6 +103,13 @@ export function MessagesView() {
               ))}
             </ul>
           )}
+          {/* Older conversations: the inbox reads its newest messages a page at a time. */}
+          <LoadMore
+            hasMore={inboxMore.messages}
+            loading={older.loading}
+            failed={older.failed}
+            onLoadMore={older.run}
+          />
         </>
       )}
       {composing ? <NewMessageSheet onClose={closeCompose} /> : null}

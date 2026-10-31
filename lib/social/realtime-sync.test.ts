@@ -179,13 +179,14 @@ describe("realtime slice patch", () => {
     const note = { id: "n1", recipientId: VIEWER } as Notification;
     const next = applyRealtimePatch(
       {
+        user: { id: VIEWER },
         notifications: [] as Notification[],
         messages: [],
         comments: [previous, other],
         reposts: [] as PostRepost[],
         publicCards,
       },
-      { notifications: [note], comments: [fresh], postId: POST },
+      { inbox: { notifications: { rows: [note], complete: true, unread: [] } }, comments: [fresh], postId: POST },
     );
     assert.equal(next.publicCards, publicCards);
     assert.deepEqual(
@@ -209,6 +210,10 @@ describe("realtime slice patch", () => {
           return builder;
         },
         order() {
+          return builder;
+        },
+        limit(count: number) {
+          ops.push(`limit:${count}`);
           return builder;
         },
         not() {
@@ -267,13 +272,15 @@ describe("realtime slice patch", () => {
       viewerId: VIEWER,
       postId: null,
     });
-    assert.equal(patch.notifications?.length, 1);
-    assert.equal(patch.notifications?.[0]?.recipientId, VIEWER);
-    assert.equal(patch.messages?.[0]?.senderId, VIEWER);
+    assert.equal(patch.inbox?.notifications?.rows.length, 1);
+    assert.equal(patch.inbox?.notifications?.rows[0]?.recipientId, VIEWER);
+    assert.equal(patch.inbox?.messages?.rows[0]?.senderId, VIEWER);
+    // The newest page and the unread rows, for each list. Never the whole history.
     assert.deepEqual(
       calls.map((call) => call.table).sort(),
-      ["messages", "notifications"],
+      ["messages", "messages", "notifications", "notifications"],
     );
+    for (const call of calls) assert.ok(call.ops.some((op) => op.startsWith("limit:")), call.table);
     assert.equal(
       calls.find((call) => call.table === "notifications")?.ops.includes(`eq:recipient_id:${VIEWER}`),
       true,

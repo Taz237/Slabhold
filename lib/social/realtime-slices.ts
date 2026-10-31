@@ -1,5 +1,4 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { loadMessageRows, mapDirectMessage } from "@/lib/offers/open-to-offers";
 import { applyAuthorSafety, loadHiddenAuthorIds } from "@/lib/safety/filters";
 import { isUuid } from "@/lib/value/card-value-access";
 import type { RealtimePatch, RealtimeSlice } from "./realtime-sync";
@@ -9,7 +8,13 @@ import {
   replyImageColumnMissing,
   replyImagesFromValue,
 } from "./reply-images";
-import type { DirectMessage, Notification, PostComment, PostRepost } from "./types";
+import {
+  loadMessagePage,
+  loadNotificationPage,
+  loadUnreadMessages,
+  loadUnreadNotifications,
+} from "./inbox-pages";
+import type { PostComment, PostRepost } from "./types";
 
 type Row = Record<string, unknown>;
 
@@ -27,42 +32,6 @@ async function rowsOf(
     throw new Error(error.message);
   }
   return Array.isArray(data) ? (data as Row[]) : [];
-}
-
-function text(value: unknown): string | null {
-  return typeof value === "string" ? value : null;
-}
-
-function mapNotification(row: Row): Notification {
-  const metadata =
-    row.metadata && typeof row.metadata === "object"
-      ? (row.metadata as Record<string, unknown>)
-      : null;
-  return {
-    id: String(row.id),
-    recipientId: String(row.recipient_id),
-    actorId: text(row.actor_id),
-    kind: row.kind as Notification["kind"],
-    postId: text(row.post_id),
-    preview: text(row.preview),
-    href: text(row.href),
-    metadata,
-    createdAt: String(row.created_at),
-    read: row.read === true,
-  };
-}
-
-function mapMessage(row: Row): DirectMessage {
-  return mapDirectMessage({
-    id: String(row.id),
-    sender_id: String(row.sender_id),
-    receiver_id: String(row.receiver_id),
-    content: typeof row.content === "string" ? row.content : "",
-    created_at: String(row.created_at),
-    read: row.read === true,
-    kind: typeof row.kind === "string" ? row.kind : null,
-    card_preview: row.card_preview,
-  });
 }
 
 function mapComment(row: Row): PostComment {
@@ -86,7 +55,8 @@ function mapRepost(row: Row): PostRepost {
 }
 
 /**
- * Refetch only the tables a realtime event named.
+ * Refetch only the tables a realtime event named. Notifications and messages
+ * read their newest page and unread rows only; older pages stay as loaded.
  * Never selects public_cards, posts, profiles, or follows.
  */
 export async function loadRealtimePatch(
@@ -117,54 +87,22 @@ export async function loadRealtimePatch(
   const tasks: Promise<void>[] = [];
   if (notes && viewerId) {
     tasks.push(
-      rowsOf(
-        applyAuthorSafety(
-          supabase
-            .from("notifications")
-            .select(
-              "id, recipient_id, actor_id, kind, post_id, preview, href, metadata, read, created_at",
-            )
-            .eq("recipient_id", viewerId)
-            .order("created_at", { ascending: false }),
-          viewerId,
-          mutedHidden,
-          { authorColumn: "actor_id", mute: true, keepNullAuthor: true },
-        ),
-      ).then((rows) => {
-        patch.notifications = rows.map(mapNotification);
+      Promise.all([
+        loadNotificationPage(supabase, viewerId, { cursor: null, mutedHidden }),
+        loadUnreadNotifications(supabase, viewerId, mutedHidden),
+      ]).then(([page, unread]) => {
+        patch.inbox = { ...patch.inbox, notifications: { rows: page.rows, complete: !page.next, unread } };
       }),
     );
   }
   if (messages && viewerId) {
     tasks.push(
-      (async () => {
-        const run = (columns: string) =>
-          applyAuthorSafety(
-            applyAuthorSafety(
-              supabase
-                .from("messages")
-                .select(columns)
-                .or(`sender_id.eq.${viewerId},receiver_id.eq.${viewerId}`)
-                .order("created_at", { ascending: true }),
-              viewerId,
-              blockedHidden,
-              { authorColumn: "sender_id" },
-            ),
-            viewerId,
-            blockedHidden,
-            { authorColumn: "receiver_id" },
-          );
-        const result = await loadMessageRows(run);
-        if (result.error) {
-          if (missingTable(result.error)) {
-            patch.messages = [];
-            return;
-          }
-          throw new Error(result.error.message);
-        }
-        const rows = Array.isArray(result.data) ? (result.data as unknown as Row[]) : [];
-        patch.messages = rows.map(mapMessage);
-      })(),
+      Promise.all([
+        loadMessagePage(supabase, viewerId, { cursor: null, blockedHidden }),
+        loadUnreadMessages(supabase, viewerId, blockedHidden),
+      ]).then(([page, unread]) => {
+        patch.inbox = { ...patch.inbox, messages: { rows: page.rows, complete: !page.next, unread } };
+      }),
     );
   }
   if (comments && postId) {

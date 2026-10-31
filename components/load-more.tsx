@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 export function LoadMore({
   hasMore,
@@ -43,4 +43,24 @@ export function LoadMore({
       </button>
     </div>
   );
+}
+
+/** Loading and failed state for a Load more that calls `load`. One call at a time. */
+export function useLoadMore(load: () => Promise<void>) {
+  const [loading, setLoading] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const busy = useRef(false);
+  const run = useCallback(() => {
+    if (busy.current) return;
+    busy.current = true;
+    setLoading(true);
+    setFailed(false);
+    void load()
+      .catch(() => setFailed(true))
+      .finally(() => {
+        busy.current = false;
+        setLoading(false);
+      });
+  }, [load]);
+  return { loading, failed, run };
 }
