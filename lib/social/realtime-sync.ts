@@ -4,6 +4,7 @@
  */
 
 import type { DirectMessage, Notification, PostComment, PostRepost } from "./types";
+import { applyInboxRefresh, type InboxRefresh } from "./inbox-pages";
 
 export const REALTIME_DEBOUNCE_MS = 5_000;
 
@@ -79,14 +80,15 @@ export function realtimeBindings(input: {
 }
 
 export type RealtimePatch = {
-  notifications?: Notification[];
-  messages?: DirectMessage[];
+  /** Newest notification and message pages plus unread rows (lib/social/inbox-pages.ts). */
+  inbox?: InboxRefresh;
   comments?: PostComment[];
   reposts?: PostRepost[];
   postId?: string;
 };
 
 type PatchSnapshot = {
+  user: { id: string } | null;
   notifications: Notification[];
   messages: DirectMessage[];
   comments: PostComment[];
@@ -95,13 +97,7 @@ type PatchSnapshot = {
 
 /** Merge one inbox or post slice. Leaves every other field, including publicCards, as-is. */
 export function applyRealtimePatch<T extends PatchSnapshot>(existing: T, patch: RealtimePatch): T {
-  let next = existing;
-  if (patch.notifications !== undefined) {
-    next = { ...next, notifications: patch.notifications };
-  }
-  if (patch.messages !== undefined) {
-    next = { ...next, messages: patch.messages };
-  }
+  let next = patch.inbox ? applyInboxRefresh(existing, patch.inbox) : existing;
   if (patch.comments !== undefined && patch.postId) {
     next = {
       ...next,

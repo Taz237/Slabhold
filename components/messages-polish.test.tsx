@@ -137,6 +137,10 @@ function Providers({
     notifications: [],
     refresh: async () => {},
     markThreadRead: () => {},
+    loadThreadMessages: async () => {},
+    threadMore: () => false,
+    inboxMore: { notifications: false, messages: false },
+    loadOlderMessages: async () => {},
     sendMessage: async () => ({}),
     findPost: (id: string) => (id === sharedPost.id ? sharedPost : undefined),
     profileByUsername: (username: string) =>
