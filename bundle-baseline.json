@@ -3,5 +3,6 @@
   "/": 213798,
   "/collection": 251751,
   "/cards/[id]": 270215,
-  "/u/[username]/cards/[id]": 263391
+  "/u/[username]/cards/[id]": 263391,
+  "/posts/[id]": 317354
 }
