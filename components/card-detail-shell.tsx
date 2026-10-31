@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { ArrowLeft, Ellipsis, Pencil } from "lucide-react";
 import { CardThumb } from "@/components/card-thumb";
-import { ResolvedPlayerName } from "@/components/resolved-player-name";
+import { LazyResolvedPlayerName } from "@/components/player-name-lazy";
 import { PriceFallbackText } from "@/components/price-readout";
 import { useCollection } from "@/components/collection-provider";
 import { cardTitle } from "@/lib/format";
@@ -102,7 +102,7 @@ export function CardHero({
         />
       </div>
       <h1 className="mt-4 text-center text-3xl font-semibold tracking-tight">
-        <ResolvedPlayerName name={card.playerName} sport={card.sport} className="hover:underline" />
+        <LazyResolvedPlayerName name={card.playerName} sport={card.sport} className="hover:underline" />
       </h1>
       <p className="mt-1 text-center text-sm text-zinc-500">
         {cardTitle(card)}

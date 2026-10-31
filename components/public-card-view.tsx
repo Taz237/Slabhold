@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState, type ComponentType } from "react";
 import { useCompFlagState } from "@/components/use-comp-flags";
 import { ArrowLeft } from "lucide-react";
-import { PlayerNameLink } from "@/components/player-name-link";
+import { LazyPlayerNameLink } from "@/components/player-name-lazy";
 import { CardCollectorsSaying } from "@/components/card-collectors-saying";
 import { OpenToOffersBadge } from "@/components/open-to-offers";
 import { EbaySoldLine, PriceFallbackText, SimilarCardsLine } from "@/components/price-readout";
@@ -317,7 +317,7 @@ function PublicCardAnalytics({
         <div className="flex items-start justify-between gap-3">
           <div className="mt-1 flex flex-wrap items-center gap-2">
             <h1 className="text-3xl font-semibold tracking-tight">
-              <PlayerNameLink name={card.playerName} sport={card.sport} className="hover:underline" />
+              <LazyPlayerNameLink name={card.playerName} sport={card.sport} className="hover:underline" />
             </h1>
             {showOpenToOffersBadge(card.openToOffers) ? <OpenToOffersBadge /> : null}
           </div>

@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { join } from "node:path";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import {
   dedupeSoldPrices,
   filterHubForViewer,
@@ -310,8 +312,38 @@ describe("player page reads", () => {
     assert.match(search, /setSearchQuery\(name\)/);
     assert.doesNotMatch(search, /PlayerNameLink/);
     assert.match(search, /remember\(typed\)/);
-    assert.match(hero, /ResolvedPlayerName/);
+    assert.match(hero, /<LazyResolvedPlayerName /);
     assert.doesNotMatch(hero, /PlayerNameLink/);
     assert.doesNotMatch(mail, /playerHref|PlayerNameLink/);
+  });
+});
+
+describe("player links stay off the card pages' first load", () => {
+  const read = (path: string) => readFileSync(join(process.cwd(), path), "utf8");
+
+  it("loads the roster and bloom resolvers in their own chunk", () => {
+    for (const path of [
+      "components/card-detail-shell.tsx",
+      "components/public-card-view.tsx",
+      "components/quoted-post-embed.tsx",
+    ]) {
+      const source = read(path);
+      assert.doesNotMatch(source, /from "@\/components\/(resolved-player-name|player-name-link)"/, path);
+      assert.match(source, /from "@\/components\/player-name-lazy"/, path);
+    }
+    const lazy = read("components/player-name-lazy.tsx");
+    assert.match(lazy, /lazyPart(<\w+>)?\(\s*\(\) => import\("@\/components\/resolved-player-name"\)/);
+    assert.match(lazy, /lazyPart(<\w+>)?\(\s*\(\) => import\("@\/components\/player-name-link"\)/);
+    assert.doesNotMatch(lazy, /CARD_CATALOG|player-presence|use-directory|link-href/);
+  });
+
+  it("draws the plain name on the server and until the link loads", async () => {
+    const { LazyPlayerNameLink, LazyResolvedPlayerName } = await import("@/components/player-name-lazy");
+    for (const Part of [LazyPlayerNameLink, LazyResolvedPlayerName]) {
+      const html = renderToStaticMarkup(
+        createElement(Part, { name: "Victor Wembanyama", sport: "Basketball", className: "hover:underline" }),
+      );
+      assert.equal(html, '<span class="hover:underline">Victor Wembanyama</span>');
+    }
   });
 });
