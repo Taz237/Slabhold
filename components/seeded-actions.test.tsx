@@ -110,7 +110,7 @@ function heldBy(wrap: (child: ReactElement) => ReactElement): Set<string> {
     );
   act(() => root!.render(tree(false)));
   for (const name of providerFunctions().keys()) {
-    const fn = (seen as unknown as Record<string, unknown>)[name];
+    const fn: unknown = (seen as unknown as Record<string, unknown>)[name];
     assert.equal(typeof fn, "function", name);
     void Promise.resolve((fn as () => unknown)()).catch(() => undefined);
   }

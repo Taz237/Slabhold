@@ -9,14 +9,10 @@ import { loadMailDayViews } from "./mail-day";
 import {
   loadMessageRows,
   mapDirectMessage,
-  offerSendError,
-  offersColumnMissing,
-  parseCardPreview,
 } from "@/lib/offers/open-to-offers";
 import { mapPublicCard } from "./cards";
 import type {
   AuthResult,
-  CardMessagePreview,
   FollowEdge,
   Notification,
   NotificationKind,
@@ -30,7 +26,7 @@ import type {
   SignUpInput,
   SocialSnapshot,
 } from "./types";
-import { COMMENT_LIMIT, MESSAGE_LIMIT } from "./types";
+import { COMMENT_LIMIT } from "./types";
 import { mentionIlikeOr, type MentionCandidate } from "./mentions";
 import {
   isReplyMentionMetadata,
@@ -933,76 +929,6 @@ export async function remoteSyncLikeNotification(
   }
   // Post likes are inserted by private.sync_like. Clients cannot insert
   // kind=like, including a heart on a reply.
-  return {};
-}
-
-export async function remoteSendMessage(
-  supabase: SupabaseClient,
-  senderId: string,
-  receiverId: string,
-  content: string,
-  preview?: CardMessagePreview | null,
-): Promise<AuthResult> {
-  const text = content.trim().slice(0, MESSAGE_LIMIT);
-  const cardPreview = preview ? parseCardPreview(preview) : null;
-  if (!text && !cardPreview) return { error: "Write a message." };
-  const muted = cardPreview ? await senderMuted(supabase, senderId, receiverId) : false;
-  const blocked = await supabaseSafety(supabase).isBlocked(senderId, receiverId);
-  const refused = offerSendError({
-    senderId,
-    receiverId,
-    blocked,
-    muted,
-    preview: cardPreview,
-  });
-  if (refused) return { error: refused };
-  const row: Record<string, unknown> = {
-    sender_id: senderId,
-    receiver_id: receiverId,
-    content: text,
-  };
-  if (cardPreview) {
-    row.kind = "card_preview";
-    row.card_preview = { cardId: cardPreview.cardId };
-  }
-  const { error } = await supabase.from("messages").insert(row);
-  if (error) {
-    if (missingTable(error)) return { error: SETUP_FAILED };
-    if (cardPreview && offersColumnMissing(error)) {
-      return { error: "Card previews aren't available yet." };
-    }
-    return { error: rlsBlocked(error) ? BLOCKED_INTERACTION : error.message };
-  }
-  return {};
-}
-
-async function senderMuted(
-  supabase: SupabaseClient,
-  senderId: string,
-  receiverId: string,
-): Promise<boolean> {
-  const { data, error } = await supabase
-    .from("mutes")
-    .select("muted_id")
-    .eq("muter_id", senderId)
-    .eq("muted_id", receiverId)
-    .maybeSingle();
-  if (error) return false;
-  return Boolean(data);
-}
-
-export async function remoteMarkThreadRead(
-  supabase: SupabaseClient,
-  userId: string,
-  partnerId: string,
-): Promise<AuthResult> {
-  const { error } = await supabase
-    .from("messages")
-    .update({ read: true })
-    .eq("receiver_id", userId)
-    .eq("sender_id", partnerId)
-    .eq("read", false);
-  if (error && !missingTable(error)) return { error: error.message };
   return {};
 }
 

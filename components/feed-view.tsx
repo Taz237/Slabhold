@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Compass, ImagePlus } from "lucide-react";
 import { Avatar } from "@/components/avatar";
-import { MentionTextarea } from "@/components/mention-textarea";
+import { LazyMentionTextarea } from "@/components/mention-textarea-lazy";
 import { solidButton } from "@/components/button-styles";
 import { useCollection } from "@/components/collection-provider";
 import { AddToHomeTip } from "@/components/add-to-home-tip";
@@ -619,7 +619,7 @@ function Composer({ onPosted }: { onPosted?: () => void }) {
         />
       ) : null}
       <div className="min-w-0 flex-1">
-        <MentionTextarea
+        <LazyMentionTextarea
           value={body}
           onChange={setBody}
           maxLength={POST_LIMIT}

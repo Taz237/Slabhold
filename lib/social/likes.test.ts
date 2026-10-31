@@ -107,7 +107,7 @@ describe("like wiring", () => {
     const remote = read("lib/social/remote.ts");
     const replyLike = remote.slice(
       remote.indexOf("export async function remoteSyncLikeNotification"),
-      remote.indexOf("export async function remoteSendMessage"),
+      remote.indexOf("export async function remoteMarkNotificationsRead"),
     );
     assert.equal(replyLike.includes(".insert("), false);
     assert.match(provider, /likesMigratedFlag\(userId\)/);

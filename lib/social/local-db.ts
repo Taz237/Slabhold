@@ -1,6 +1,4 @@
-import { offerSendError, parseCardPreview } from "@/lib/offers/open-to-offers";
 import type {
-  CardMessagePreview,
   DirectMessage,
   FollowEdge,
   Notification,
@@ -24,7 +22,7 @@ import { draftPostPhotos } from "./post-photos";
 import { decidePin, pinnedPostIdAfterDelete } from "./profile-tabs";
 import { replyNoticePreview } from "./reply-images";
 import { shouldNotifyQuoteAuthor, validateQuoteContent } from "./quotes";
-import { COMMENT_LIMIT, MESSAGE_LIMIT } from "./types";
+import { COMMENT_LIMIT } from "./types";
 import { isOfficialUpdatesAccount } from "./official-updates";
 
 const STORAGE_KEY = "cardflip.social.v1";
@@ -705,38 +703,6 @@ export function localAddComment(
     );
   }
   return { db: { ...next, notifications } };
-}
-
-export function localSendMessage(
-  db: LocalDb,
-  receiverId: string,
-  content: string,
-  preview?: CardMessagePreview | null,
-): { db: LocalDb; error?: string } {
-  if (!db.sessionUserId) return { db, error: "Log in to send a message." };
-  const text = content.trim().slice(0, MESSAGE_LIMIT);
-  const cardPreview = preview ? parseCardPreview(preview) : null;
-  const refused = offerSendError({
-    senderId: db.sessionUserId,
-    receiverId,
-    blocked: false,
-    muted: false,
-    preview: cardPreview,
-  });
-  if (refused) return { db, error: refused };
-  if (!text && !cardPreview) return { db, error: "Write a message." };
-  if (!db.users.some((user) => user.id === receiverId)) return { db, error: "That collector is gone." };
-  const message: DirectMessage = {
-    id: `msg-${Date.now().toString(36)}`,
-    senderId: db.sessionUserId,
-    receiverId,
-    content: text,
-    createdAt: new Date().toISOString(),
-    read: false,
-    kind: cardPreview ? "card_preview" : "text",
-    cardPreview: cardPreview ? { cardId: cardPreview.cardId } : null,
-  };
-  return { db: { ...db, messages: [...(db.messages ?? []), message] } };
 }
 
 export function localMarkThreadRead(db: LocalDb, partnerId: string): LocalDb {

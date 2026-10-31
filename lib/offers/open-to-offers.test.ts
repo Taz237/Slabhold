@@ -17,7 +17,8 @@ import {
 import type { CardPerson } from "@/lib/cards/people";
 import { BLOCKED_INTERACTION } from "@/lib/safety/block";
 import { saveUserCard } from "@/lib/social/cards";
-import { localSendMessage, type LocalDb } from "@/lib/social/local-db";
+import { type LocalDb } from "@/lib/social/local-db";
+import { localSendMessage } from "@/lib/social/dm-actions";
 import type { SportsCard } from "@/lib/types";
 import { notifyWantMatches, type WantAlertDb, type WantRow } from "@/lib/wants/notify-want-matches";
 import {
@@ -630,8 +631,9 @@ describe("stored card preview", () => {
     assert.deepEqual(Object.keys(result.db.messages[0]?.cardPreview ?? {}), ["cardId"]);
 
     const remote = readFileSync(join(process.cwd(), "lib/social/remote.ts"), "utf8");
+    const dm = readFileSync(join(process.cwd(), "lib/social/dm-actions.ts"), "utf8");
     const thread = readFileSync(join(process.cwd(), "components/message-thread.tsx"), "utf8");
-    assert.match(remote, /card_preview = \{ cardId: cardPreview\.cardId \}/);
+    assert.match(dm, /card_preview = \{ cardId: cardPreview\.cardId \}/);
     assert.match(remote, /loadMessageRows\(/);
     assert.doesNotMatch(remote, /from\("messages"\)\.select\("\*"\)/);
     assert.match(thread, /cardId: offerCard\.id/);
