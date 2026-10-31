@@ -18,8 +18,7 @@ import {
   rankMentionMatches,
   type MentionCandidate,
 } from "@/lib/social/mentions";
-import { searchProfilesForMention } from "@/lib/social/remote";
-import { createSupabaseBrowser } from "@/lib/supabase/browser";
+import { loadSupabaseBrowser } from "@/lib/supabase/browser-lazy";
 
 const DEBOUNCE_MS = 150;
 
@@ -164,16 +163,14 @@ export const MentionTextarea = forwardRef<
       return;
     }
 
-    const client = createSupabaseBrowser();
-    if (!client) {
-      setRemoteMatches([]);
-      setRemoteForQuery(debouncedQuery);
-      return;
-    }
-
     const requestQuery = debouncedQuery;
     const controller = new AbortController();
-    searchProfilesForMention(client, requestQuery, 8, controller.signal)
+    Promise.all([loadSupabaseBrowser(), import("@/lib/social/remote")])
+      .then(([client, { searchProfilesForMention }]) => {
+        if (controller.signal.aborted) return [];
+        if (!client) return [];
+        return searchProfilesForMention(client, requestQuery, 8, controller.signal);
+      })
       .then((rows) => {
         if (controller.signal.aborted) return;
         const hidden = new Set(blockedIds);
