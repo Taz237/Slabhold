@@ -218,6 +218,8 @@ export function FirstRunSetup() {
               .filter(Boolean),
           );
         });
+    }).catch(() => {
+      // supabase-js failed to load: the built-in sports list stays.
     });
     return () => {
       cancelled = true;

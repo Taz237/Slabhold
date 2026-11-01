@@ -57,6 +57,15 @@ import type { ServerCardCount } from "@/lib/social/profile-card-count";
 import { InviteButton } from "@/components/invite/invite-button";
 import { ShareCollectionCard } from "@/components/invite/share-collection-card";
 
+/**
+ * Reply parents after supabase-js failed to load: none visible, the same as a
+ * read error in visibleReplyParentIds. Keyed to the current replies, so the
+ * Replies tab leaves its loading state.
+ */
+export function failedReplyParents(key: string): { key: string; ids: ReadonlySet<string> } {
+  return { key, ids: new Set() };
+}
+
 export function ProfileView({
   username,
   badges = null,
@@ -193,6 +202,11 @@ export function ProfileView({
           // The tab then lists this owner's cards from the shared public card read.
           requestPublicCards(publicCardKeys({ ownerId }));
         });
+    }).catch(() => {
+      // supabase-js failed to load: the same fallback as a failed read.
+      if (cancelled) return;
+      setViewCards(null);
+      requestPublicCards(publicCardKeys({ ownerId }));
     });
     return () => {
       cancelled = true;
@@ -234,6 +248,9 @@ export function ProfileView({
       void visibleReplyParentIds(supabase, ids).then((idsVisible) => {
         if (!cancelled) setReplyParents({ key: replyParentKey, ids: idsVisible });
       });
+    }).catch(() => {
+      // supabase-js failed to load: no parents visible, as on a read error, so Replies settles.
+      if (!cancelled) setReplyParents(failedReplyParents(replyParentKey));
     });
     return () => {
       cancelled = true;
@@ -256,6 +273,9 @@ export function ProfileView({
         setPinnedExtra(loaded);
         if (result) rememberPosts([loaded, ...result.relatedPosts], result.profiles);
       });
+    }).catch(() => {
+      // supabase-js failed to load: no pinned post from the server.
+      if (!cancelled) setPinnedExtra(null);
     });
     return () => {
       cancelled = true;

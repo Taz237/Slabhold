@@ -18,12 +18,18 @@ export async function founderShowcase(): Promise<FounderShowcase> {
 
 /**
  * What a failed read becomes on /welcome. During `next build` it is the
- * sample slabs, so a build without Supabase still passes. At runtime it
- * throws, so ISR keeps serving the last good page and the next request
- * tries again, instead of caching sample slabs for the whole revalidate.
+ * sample slabs, so a build without Supabase still passes. Outside production
+ * (`next dev`, tests) it is the sample slabs too, so a missing or flaky local
+ * Supabase never breaks the page. In production at runtime it throws, so ISR
+ * keeps serving the last good page and the next request tries again, instead
+ * of caching sample slabs for the whole revalidate.
  */
-export function founderFailure(error: unknown, phase: string | undefined): FounderShowcase {
-  if (phase === PHASE_PRODUCTION_BUILD) return EMPTY_FOUNDER_SHOWCASE;
+export function founderFailure(
+  error: unknown,
+  phase: string | undefined,
+  nodeEnv: string | undefined,
+): FounderShowcase {
+  if (phase === PHASE_PRODUCTION_BUILD || nodeEnv !== "production") return EMPTY_FOUNDER_SHOWCASE;
   throw error;
 }
 
@@ -31,11 +37,12 @@ export function founderFailure(error: unknown, phase: string | undefined): Found
 export async function welcomeFounderShowcase(
   read: () => Promise<FounderShowcase> = cachedFounderShowcase,
   phase: string | undefined = process.env.NEXT_PHASE,
+  nodeEnv: string | undefined = process.env.NODE_ENV,
 ): Promise<FounderShowcase> {
   try {
     return await read();
   } catch (error) {
     warnFounder(error);
-    return founderFailure(error, phase);
+    return founderFailure(error, phase, nodeEnv);
   }
 }

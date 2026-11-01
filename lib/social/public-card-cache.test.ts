@@ -62,8 +62,8 @@ function fakeClient(rows: ReturnType<typeof row>[]) {
                 const data = rows.filter((item) => {
                   if (joined.includes("in:id")) return joined.includes(item.id);
                   if (joined.includes("eq:user_id")) return joined.includes(item.user_id);
-                  if (joined.includes("ilike:player")) {
-                    return joined.toLowerCase().includes(`ilike:player:${item.player.toLowerCase()}`);
+                  if (joined.includes("or:player.ilike")) {
+                    return joined.toLowerCase().includes(`player.ilike."${item.player.toLowerCase()}"`);
                   }
                   return true;
                 });
@@ -134,19 +134,20 @@ describe("public card cache", () => {
     for (const call of calls) {
       assert.equal(call.table, "public_cards");
       const joined = call.ops.join("|");
-      assert.ok(/in:id|eq:user_id|ilike:player/.test(joined), joined);
+      assert.ok(/in:id|eq:user_id|or:player\.ilike/.test(joined), joined);
       assert.match(joined, /limit:/);
     }
-    const byPlayer = calls.find((call) => call.ops.join("|").includes("ilike:player"));
+    const byPlayer = calls.find((call) => call.ops.join("|").includes("or:player.ilike"));
     assert.ok(byPlayer);
     // Exact name, case-insensitive: the same match search uses (trim + lowercase).
-    assert.match(byPlayer.ops.join("|"), /ilike:player:victor wembanyama/);
+    assert.match(byPlayer.ops.join("|"), /or:player\.ilike\."victor wembanyama"/);
   });
 
   it("escapes LIKE wildcards in player names", async () => {
     const { supabase, calls } = fakeClient([]);
     await loadPublicCardsForKeys(supabase, ["player:50%_off\\"]);
-    assert.match(calls[0].ops.join("|"), /ilike:player:50\\%\\_off\\\\/);
+    // escapeIlike first, then the `or` quoting doubles each backslash.
+    assert.match(calls[0].ops.join("|"), /or:player\.ilike\."50\\\\%\\\\_off\\\\\\\\"/);
   });
 
   it("splits long id lists and skips an empty request", async () => {

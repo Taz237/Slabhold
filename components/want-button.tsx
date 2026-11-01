@@ -76,6 +76,9 @@ export function WantButton({
               }
             : null,
         });
+      })
+      .catch(() => {
+        // supabase-js failed to load: the chip shows "not saved", as before the read lands.
       });
     return () => {
       cancelled = true;

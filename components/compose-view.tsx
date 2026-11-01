@@ -164,6 +164,8 @@ export function ComposeView() {
           setExternalCard(mapped);
           setCardId(mapped.id);
         });
+    }).catch(() => {
+      // supabase-js failed to load: no card attached, as when the card is missing.
     });
     return () => {
       cancelled = true;
@@ -196,6 +198,8 @@ export function ComposeView() {
       void postsSupportMultipleImages(supabase).then((ok) => {
         if (!cancelled) setLimit(postPhotoLimit(ok));
       });
+    }).catch(() => {
+      // supabase-js failed to load: the photo limit stays at its default.
     });
     return () => {
       cancelled = true;
