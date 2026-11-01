@@ -3,8 +3,12 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it } from "node:test";
-import { createElement } from "react";
+import { act, createElement } from "react";
+import { createRoot } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
+import { installDom } from "@/lib/test/dom";
+import { ResolvedPlayerName } from "@/components/resolved-player-name";
+import { answerPlayerLinks, linkRoster } from "@/lib/players/player-link-roster";
 import { CardCollectorsSaying } from "@/components/card-collectors-saying";
 import { CardCollectorsSayingPending } from "@/components/card-talk-frame";
 import { SocialContext, type SocialContextValue } from "@/components/social-provider";
@@ -23,6 +27,8 @@ import {
   type PlayerRef,
 } from "@/lib/players/slug";
 import { saleDayLabel } from "@/lib/value/price-fallback";
+
+installDom();
 
 const read = (path: string) => readFileSync(join(process.cwd(), path), "utf8");
 
@@ -113,11 +119,54 @@ describe("player link roster", () => {
     assert.equal(yields, 0);
   });
 
-  it("is loaded by the card page's player link without the search index", () => {
+  it("is resolved off the main thread, by a worker that holds the roster", () => {
     const source = read("components/resolved-player-name.tsx");
-    assert.ok(!staticImports(source).includes("@/lib/players/use-directory"));
-    assert.match(source, /import\("@\/lib\/players\/directory\.json"\)/);
-    assert.match(source, /prepareRosterIndex\(/);
+    const imports = staticImports(source);
+    assert.ok(!imports.includes("@/lib/players/use-directory"));
+    assert.ok(!imports.some((path) => path.endsWith("directory.json") || path === "@/lib/card-catalog"), imports.join(", "));
+    assert.match(source, /new Worker\(new URL\("\.\.\/lib\/players\/player-link-worker\.ts", import\.meta\.url\)/);
+    // The fallback when a worker can't start: the same roster, built in slices.
+    assert.match(source, /import\("@\/lib\/players\/player-link-roster"\)/);
+    const worker = read("lib/players/player-link-worker.ts");
+    assert.match(worker, /answerPlayerLinks\(/);
+  });
+
+  it("answers each name with the same href the page used to compute", () => {
+    const roster = fullRoster();
+    assert.deepEqual(linkRoster(directory as { name: string; sport: string }[], CARD_CATALOG), roster);
+    const asked = [
+      { key: "a", name: "Ja Morant", sport: "Basketball" },
+      { key: "b", name: "Will Smith", sport: null },
+      { key: "c", name: "Nobody We Know", sport: "Basketball" },
+    ];
+    assert.deepEqual(
+      answerPlayerLinks(asked, roster),
+      asked.map(({ key, name, sport }) => ({ key, href: resolvedPlayerHref(name, sport, roster) })),
+    );
+  });
+
+  it("links the name after the roster resolves, on the main thread when there is no worker", async () => {
+    assert.equal(typeof (globalThis as { Worker?: unknown }).Worker, "undefined");
+    const host = document.createElement("div");
+    document.body.append(host);
+    const root = createRoot(host);
+    act(() => root.render(createElement(ResolvedPlayerName, { name: "Ja Morant", sport: "Basketball", className: "x" })));
+    assert.equal(host.innerHTML, '<span class="x">Ja Morant</span>');
+    for (let i = 0; i < 200 && !host.querySelector("a"); i += 1) {
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 10));
+      });
+    }
+    assert.equal(host.querySelector("a")?.getAttribute("href"), "/p/ja-morant");
+    // A name already resolved links on its first render.
+    const again = document.createElement("div");
+    const second = createRoot(again);
+    act(() => second.render(createElement(ResolvedPlayerName, { name: "Ja Morant", sport: "Basketball" })));
+    assert.equal(again.querySelector("a")?.getAttribute("href"), "/p/ja-morant");
+    act(() => {
+      root.unmount();
+      second.unmount();
+    });
   });
 });
 
