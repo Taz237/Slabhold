@@ -67,7 +67,7 @@ describe("/welcome founder read", () => {
 
   it("decides build or runtime in one pure function", () => {
     const error = new Error("x");
-    assert.equal(founderFailure(error, PHASE_PRODUCTION_BUILD), EMPTY_FOUNDER_SHOWCASE);
+    assert.equal(founderFailure(error, PHASE_PRODUCTION_BUILD, "production"), EMPTY_FOUNDER_SHOWCASE);
     assert.throws(() => founderFailure(error, PHASE_PRODUCTION_SERVER, "production"), /x/);
     assert.throws(() => founderFailure(error, undefined, "production"), /x/);
   });
