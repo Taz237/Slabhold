@@ -17,6 +17,7 @@ const FILES = [
   "components/hunter-setting.tsx",
   "components/leaderboard-opt-in.tsx",
   "components/value-board.tsx",
+  "lib/collection/use-value-history.ts",
 ];
 
 /** `x.name(...)` → the call's method name, else null. */

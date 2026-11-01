@@ -39,7 +39,7 @@ describe("card page parts whose chunk would not load", () => {
     const parts = read("components/card-page-parts.tsx");
     const frame = read("components/card-talk-frame.tsx");
     assert.match(parts, /name: "comps-list", failed: PartLoadFailed/);
-    assert.match(parts, /\{ name: "card-added-panel" \}/);
+    assert.match(parts, /name: "card-added-panel", failed: PartLoadFailed/);
     assert.match(frame, /name: "card-collectors-saying", failed: CardCollectorsSayingFailed/);
     assert.doesNotMatch(parts, /\.catch\(\(\) => \{\}\)/);
     assert.match(parts, /LazyCompsList\.warm\(\);/);

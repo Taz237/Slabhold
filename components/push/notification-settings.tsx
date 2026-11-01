@@ -21,9 +21,17 @@ import { DEFAULT_PREFS, PUSH_TOGGLES, prefsFromRow, prefsToRow, type Notificatio
 import { deviceTimeZone } from "@/lib/push/quiet-hours";
 import type { PermissionState } from "@/lib/push/soft-ask";
 import type { InstallPlatform } from "@/lib/pwa/install-step";
+import { SheetLoadFailed } from "@/components/part-load-failed";
 import { lazyPart } from "@/lib/ui/lazy-part";
 
-const InstallGuide = lazyPart(() => import("@/components/onboarding/install-step").then((mod) => mod.InstallGuide));
+const InstallGuide = lazyPart(
+  () => import("@/components/onboarding/install-step").then((mod) => mod.InstallGuide),
+  null,
+  {
+    name: "install-guide",
+    failed: ({ retry, onDone }) => <SheetLoadFailed retry={retry} onClose={() => onDone("later")} />,
+  },
+);
 
 type DeviceState =
   | { kind: "loading" }

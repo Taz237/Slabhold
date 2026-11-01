@@ -14,16 +14,15 @@ export function lazyBrowserClient(importBrowser: () => Promise<BrowserModule>, c
 
   function load(): Promise<SupabaseClient | null> {
     if (!configured()) return Promise.resolve(null);
-    pending ??= importBrowser().then(
-      ({ createSupabaseBrowser }) => {
+    pending ??= importBrowser()
+      .then(({ createSupabaseBrowser }) => {
         client = createSupabaseBrowser();
         return client;
-      },
-      (error: unknown) => {
+      })
+      .catch((error: unknown) => {
         pending = null;
         throw error;
-      },
-    );
+      });
     return pending;
   }
 

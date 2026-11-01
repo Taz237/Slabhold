@@ -42,10 +42,18 @@ import {
 import { setSignOutHook } from "@/lib/auth/sign-out-hook";
 import { onSocialAction, type SocialAction } from "@/lib/social/action-signal";
 import { afterFirstIdle } from "@/lib/ui/idle";
+import { SheetLoadFailed } from "@/components/part-load-failed";
 import { lazyPart } from "@/lib/ui/lazy-part";
 import type { Profile } from "@/lib/social/types";
 
-const InstallGuide = lazyPart(() => import("@/components/onboarding/install-step").then((mod) => mod.InstallGuide));
+const InstallGuide = lazyPart(
+  () => import("@/components/onboarding/install-step").then((mod) => mod.InstallGuide),
+  null,
+  {
+    name: "install-guide",
+    failed: ({ retry, onDone }) => <SheetLoadFailed retry={retry} onClose={() => onDone("later")} />,
+  },
+);
 
 const ASK_ACTIONS = new Set<SocialAction>(["follow", "post", "like"]);
 const RESUBSCRIBED_KEY = "slabhold.push.resubscribed";

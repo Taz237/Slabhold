@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useSocial } from "@/components/social-provider";
 import { loadSupabaseBrowser } from "@/lib/supabase/browser-lazy";
+import { getSupabaseConfig } from "@/lib/supabase/client";
 import {
   isLeaderboardEligible,
   leaderboardMinimums,
@@ -128,7 +129,7 @@ export function LeaderboardOptInSwitch({
     void loadSupabaseBrowser().then(async (supabase) => {
       if (cancel) return;
       if (!supabase) {
-        setError(LOAD_SETTING_ERROR);
+        // Only without Supabase config (local accounts), where the switch draws nothing.
         setReady(true);
         return;
       }
@@ -149,6 +150,8 @@ export function LeaderboardOptInSwitch({
   }, [user?.id]);
 
   if (!user) return null;
+  // Local accounts have no board to join.
+  if (!getSupabaseConfig().configured) return null;
   const userId = user.id;
 
   function toggle(next: boolean) {

@@ -83,11 +83,10 @@ describe("screens when supabase-js gives no client", () => {
     view.unmount();
   });
 
-  it("the leaderboard switch is enabled with the load error", async () => {
+  it("the leaderboard switch draws nothing", async () => {
     const { LeaderboardOptInSwitch } = await import("@/components/leaderboard-opt-in");
     const view = await render(createElement(LeaderboardOptInSwitch));
-    assert.equal(settingSwitch(view.host).disabled, false);
-    assert.match(view.host.textContent ?? "", /Couldn't load that setting\./);
+    assert.equal(view.host.innerHTML, "");
     view.unmount();
   });
 });
