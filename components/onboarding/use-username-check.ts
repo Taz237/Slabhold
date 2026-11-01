@@ -5,11 +5,11 @@ import { useSocial } from "@/components/social-provider";
 import { normalizeUsername } from "@/lib/social/usernames";
 import { ilikeExact } from "@/lib/social/username-taken";
 import { checkUsername, USERNAME_CHECK_DELAY, type UsernameCheck, type UsernameLookup } from "@/lib/onboarding/username-check";
-import { createSupabaseBrowser } from "@/lib/supabase/browser";
+import { loadSupabaseBrowser } from "@/lib/supabase/browser-lazy";
 
 /** The same profiles lookup sign-up runs before creating the account. */
 async function remoteTaken(username: string): Promise<boolean> {
-  const supabase = createSupabaseBrowser();
+  const supabase = await loadSupabaseBrowser();
   if (!supabase) throw new Error("no client");
   const { data, error } = await supabase
     .from("profiles")

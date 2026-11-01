@@ -17,7 +17,7 @@ import {
 import type { Post, Profile } from "@/lib/social/types";
 import { collectAttachedCardIds } from "@/lib/social/post-card-value";
 import { usePublicCards } from "@/lib/social/use-public-cards";
-import { createSupabaseBrowser } from "@/lib/supabase/browser";
+import { loadSupabaseBrowser } from "@/lib/supabase/browser-lazy";
 import { useCardValues } from "@/lib/value/use-card-values";
 
 const PAGE_LIMIT = 20;
@@ -60,7 +60,7 @@ export function CardPostsList({ cardId }: { cardId: string }) {
 
     async function load() {
       setLoading(true);
-      const supabase = createSupabaseBrowser();
+      const supabase = await loadSupabaseBrowser();
       try {
         if (supabase) {
           const result = await loadPostsForCard(supabase, cardId, {
@@ -122,7 +122,7 @@ export function CardPostsList({ cardId }: { cardId: string }) {
   async function loadMore() {
     if (!cursor || loadingMore) return;
     setLoadingMore(true);
-    const supabase = createSupabaseBrowser();
+    const supabase = await loadSupabaseBrowser();
     try {
       if (supabase) {
         const result = await loadPostsForCard(supabase, cardId, {

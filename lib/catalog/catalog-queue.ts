@@ -1,4 +1,4 @@
-import { createSupabaseBrowser } from "@/lib/supabase/browser";
+import { loadSupabaseBrowser } from "@/lib/supabase/browser-lazy";
 import { normalizeSearchText } from "@/lib/card-search-query";
 
 /** Fields compared to decide the save still matches the catalog row the user picked. */
@@ -91,7 +91,7 @@ async function browserRpc(
   fn: "submit_catalog_card" | "log_catalog_search_miss",
   args: Record<string, unknown>,
 ): Promise<{ error: { code?: string; message?: string } | null }> {
-  const supabase = createSupabaseBrowser();
+  const supabase = await loadSupabaseBrowser();
   if (!supabase) return { error: null };
   const { error } = await supabase.rpc(fn, args);
   return { error: error ? { code: error.code, message: error.message } : null };

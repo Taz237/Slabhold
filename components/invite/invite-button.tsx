@@ -6,7 +6,7 @@ import { useShareSheet, type ShareTarget } from "@/components/share-sheet";
 import { useSocial } from "@/components/social-provider";
 import { fetchInviteCode } from "@/lib/invites/code";
 import { INVITE_SHARE_TEXT, invitePath } from "@/lib/share/links";
-import { createSupabaseBrowser } from "@/lib/supabase/browser";
+import { loadSupabaseBrowser } from "@/lib/supabase/browser-lazy";
 
 export function inviteTarget(username: string, code: string | null = null): ShareTarget {
   return {
@@ -26,7 +26,7 @@ let version = 0;
 function loadInviteCode(userId: string): Promise<string | null> {
   let pending = codes.get(userId);
   if (!pending) {
-    pending = fetchInviteCode(createSupabaseBrowser()).then((code) => {
+    pending = loadSupabaseBrowser().then(fetchInviteCode).then((code) => {
       if (!code) codes.delete(userId);
       return code;
     });

@@ -7,7 +7,7 @@ import { loadFeedPage, type FeedPageScope } from "@/lib/social/load-feed-page";
 import type { HomeSeedPage } from "@/lib/social/home-seed";
 import type { TimelineItem } from "@/lib/social/timeline";
 import type { Post, PostLike, Profile } from "@/lib/social/types";
-import { createSupabaseBrowser } from "@/lib/supabase/browser";
+import { loadSupabaseBrowser } from "@/lib/supabase/browser-lazy";
 
 type PageState = {
   items: TimelineItem[];
@@ -133,34 +133,35 @@ export function usePagedTimeline(input: {
     loadingMoreRef.current = false;
     const current = requestRef.current;
     if (!current.enabled) return;
-    const supabase = createSupabaseBrowser();
-    if (!supabase) return;
-    void loadFeedPage(supabase, {
-      scope: current.scope,
-      viewerId: current.viewerId,
-      authorIds: current.authorIds,
-      profileId: current.profileId,
-      cursor: null,
-      limit: FEED_PAGE_SIZE,
-    })
-      .then((next) => {
-        if (epochRef.current !== token) return;
-        cursorRef.current = next.nextCursor;
-        seenRef.current = new Set(next.items.map((item) => item.post.id));
-        setPage(next);
-        setLoading(false);
-        rememberRef.current?.(
-          [...next.posts, ...next.relatedPosts],
-          next.profiles,
-          next.likes,
-        );
+    void loadSupabaseBrowser().then((supabase) => {
+      if (!supabase || epochRef.current !== token) return;
+      void loadFeedPage(supabase, {
+        scope: current.scope,
+        viewerId: current.viewerId,
+        authorIds: current.authorIds,
+        profileId: current.profileId,
+        cursor: null,
+        limit: FEED_PAGE_SIZE,
       })
-      .catch((reason: unknown) => {
-        if (epochRef.current !== token) return;
-        setPage(idle);
-        setLoading(false);
-        setError(reason instanceof Error ? reason.message : "Could not load posts.");
-      });
+        .then((next) => {
+          if (epochRef.current !== token) return;
+          cursorRef.current = next.nextCursor;
+          seenRef.current = new Set(next.items.map((item) => item.post.id));
+          setPage(next);
+          setLoading(false);
+          rememberRef.current?.(
+            [...next.posts, ...next.relatedPosts],
+            next.profiles,
+            next.likes,
+          );
+        })
+        .catch((reason: unknown) => {
+          if (epochRef.current !== token) return;
+          setPage(idle);
+          setLoading(false);
+          setError(reason instanceof Error ? reason.message : "Could not load posts.");
+        });
+    });
   }, [scopeKey]);
 
   useEffect(() => {
@@ -180,9 +181,9 @@ export function usePagedTimeline(input: {
   const refresh = useCallback(async () => {
     const current = requestRef.current;
     if (!current.enabled) return;
-    const supabase = createSupabaseBrowser();
-    if (!supabase) return;
     const token = epochRef.current;
+    const supabase = await loadSupabaseBrowser();
+    if (!supabase || epochRef.current !== token) return;
     try {
       const next = await loadFeedPage(supabase, {
         scope: current.scope,
@@ -211,49 +212,55 @@ export function usePagedTimeline(input: {
   const loadMore = useCallback(() => {
     const current = requestRef.current;
     if (!current.enabled || loadingMoreRef.current || !cursorRef.current) return;
-    const supabase = createSupabaseBrowser();
-    if (!supabase) return;
     const token = epochRef.current;
     const cursor = cursorRef.current;
     loadingMoreRef.current = true;
     setLoadingMore(true);
     setError(null);
-    void loadFeedPage(supabase, {
-      scope: current.scope,
-      viewerId: current.viewerId,
-      authorIds: current.authorIds,
-      profileId: current.profileId,
-      cursor,
-      seenPostIds: seenRef.current,
-      limit: FEED_PAGE_SIZE,
-    })
-      .then((next) => {
-        if (epochRef.current !== token) return;
-        cursorRef.current = next.nextCursor;
-        for (const item of next.items) seenRef.current.add(item.post.id);
-        setPage((existing) => ({
-          items: mergeItems(existing.items, next.items),
-          posts: mergePosts(existing.posts, next.posts),
-          relatedPosts: mergePosts(existing.relatedPosts, next.relatedPosts),
-          profiles: mergeProfiles(existing.profiles, next.profiles),
-          hasMore: next.hasMore,
-          nextCursor: next.nextCursor,
-        }));
-        rememberRef.current?.(
-          [...next.posts, ...next.relatedPosts],
-          next.profiles,
-          next.likes,
-        );
-      })
-      .catch((reason: unknown) => {
-        if (epochRef.current !== token) return;
-        setError(reason instanceof Error ? reason.message : "Could not load posts.");
-      })
-      .finally(() => {
-        if (epochRef.current !== token) return;
+    void loadSupabaseBrowser().then((supabase) => {
+      if (epochRef.current !== token) return;
+      if (!supabase) {
         loadingMoreRef.current = false;
         setLoadingMore(false);
-      });
+        return;
+      }
+      void loadFeedPage(supabase, {
+        scope: current.scope,
+        viewerId: current.viewerId,
+        authorIds: current.authorIds,
+        profileId: current.profileId,
+        cursor,
+        seenPostIds: seenRef.current,
+        limit: FEED_PAGE_SIZE,
+      })
+        .then((next) => {
+          if (epochRef.current !== token) return;
+          cursorRef.current = next.nextCursor;
+          for (const item of next.items) seenRef.current.add(item.post.id);
+          setPage((existing) => ({
+            items: mergeItems(existing.items, next.items),
+            posts: mergePosts(existing.posts, next.posts),
+            relatedPosts: mergePosts(existing.relatedPosts, next.relatedPosts),
+            profiles: mergeProfiles(existing.profiles, next.profiles),
+            hasMore: next.hasMore,
+            nextCursor: next.nextCursor,
+          }));
+          rememberRef.current?.(
+            [...next.posts, ...next.relatedPosts],
+            next.profiles,
+            next.likes,
+          );
+        })
+        .catch((reason: unknown) => {
+          if (epochRef.current !== token) return;
+          setError(reason instanceof Error ? reason.message : "Could not load posts.");
+        })
+        .finally(() => {
+          if (epochRef.current !== token) return;
+          loadingMoreRef.current = false;
+          setLoadingMore(false);
+        });
+    });
   }, []);
 
   return {

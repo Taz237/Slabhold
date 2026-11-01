@@ -14,7 +14,7 @@ import {
   passwordResetEmailOptions,
   passwordResetSendError,
 } from "@/lib/auth/password-reset";
-import { createSupabaseBrowser } from "@/lib/supabase/browser";
+import { loadSupabaseBrowser } from "@/lib/supabase/browser-lazy";
 
 export function ForgotPasswordForm() {
   const pathname = usePathname();
@@ -38,7 +38,7 @@ export function ForgotPasswordForm() {
     setBusy(true);
     setError(null);
     try {
-      const supabase = createSupabaseBrowser();
+      const supabase = await loadSupabaseBrowser();
       if (!supabase) {
         showError(PASSWORD_RESET_FAILED);
         return;

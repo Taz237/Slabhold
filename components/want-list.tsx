@@ -5,7 +5,7 @@ import { Star } from "lucide-react";
 import { HunterPrompt } from "@/components/hunter-setting";
 import { EmptyState } from "@/components/status";
 import { money } from "@/lib/format";
-import { createSupabaseBrowser } from "@/lib/supabase/browser";
+import { loadSupabaseBrowser } from "@/lib/supabase/browser-lazy";
 import { formatCardValueLabel } from "@/lib/value/format";
 import type { CardValueResult } from "@/lib/value/types";
 
@@ -59,7 +59,7 @@ export function WantList() {
   }, [load]);
 
   async function remove(id: string) {
-    const supabase = createSupabaseBrowser();
+    const supabase = await loadSupabaseBrowser();
     if (!supabase) return;
     const { error: deleteError } = await supabase.from("want_list").delete().eq("id", id);
     if (deleteError) {

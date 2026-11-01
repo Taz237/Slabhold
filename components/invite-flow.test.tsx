@@ -287,7 +287,7 @@ describe("invite a collector", () => {
     assert.equal(inviteTarget("maya").path, "/i/maya");
     const button = readFileSync(join(process.cwd(), "components/invite/invite-button.tsx"), "utf8");
     assert.match(button, /const \{ code \} = useInviteCode\(\);\s*return useShareSheet\(inviteTarget\(username, code\)\);/);
-    assert.match(button, /fetchInviteCode\(createSupabaseBrowser\(\)\)/);
+    assert.match(button, /loadSupabaseBrowser\(\)\.then\(fetchInviteCode\)/);
   });
 
   it("is in the side menu and on your own profile only", () => {

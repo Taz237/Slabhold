@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { Logo } from "@/components/logo";
-import { createSupabaseBrowser } from "@/lib/supabase/browser";
+import { loadSupabaseBrowser } from "@/lib/supabase/browser-lazy";
 
 export function ResetPasswordForm() {
   const router = useRouter();
@@ -22,7 +22,7 @@ export function ResetPasswordForm() {
       setError("Use at least 6 characters.");
       return;
     }
-    const supabase = createSupabaseBrowser();
+    const supabase = await loadSupabaseBrowser();
     if (!supabase) {
       setError("Password reset is unavailable right now.");
       return;

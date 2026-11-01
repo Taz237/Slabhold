@@ -44,7 +44,7 @@ import { mapPublicCard, PUBLIC_CARD_SELECT } from "@/lib/social/cards";
 import { toPublicAttachment } from "@/lib/social/card-posts";
 import { QUOTE_EMPTY_ERROR, isQuoteSubmitDisabled, shouldConfirmDiscard, validateQuoteContent } from "@/lib/social/quotes";
 import { POST_LIMIT, type PublicCard } from "@/lib/social/types";
-import { createSupabaseBrowser } from "@/lib/supabase/browser";
+import { loadSupabaseBrowser } from "@/lib/supabase/browser-lazy";
 import { charRing } from "@/lib/ui/char-ring";
 import { useVisualViewport } from "@/lib/ui/use-keyboard-inset";
 import { isUuid } from "@/lib/value/card-value-access";
@@ -151,19 +151,20 @@ export function ComposeView() {
     }
     if (!isUuid(attachCardParam)) return;
     let cancelled = false;
-    const supabase = createSupabaseBrowser();
-    if (!supabase) return;
-    void supabase
-      .from("public_cards")
-      .select(PUBLIC_CARD_SELECT)
-      .eq("id", attachCardParam)
-      .maybeSingle()
-      .then(({ data }) => {
-        if (cancelled || !data) return;
-        const mapped = toPublicAttachment(mapPublicCard(data));
-        setExternalCard(mapped);
-        setCardId(mapped.id);
-      });
+    void loadSupabaseBrowser().then((supabase) => {
+      if (!supabase || cancelled) return;
+      void supabase
+        .from("public_cards")
+        .select(PUBLIC_CARD_SELECT)
+        .eq("id", attachCardParam)
+        .maybeSingle()
+        .then(({ data }) => {
+          if (cancelled || !data) return;
+          const mapped = toPublicAttachment(mapPublicCard(data));
+          setExternalCard(mapped);
+          setCardId(mapped.id);
+        });
+    });
     return () => {
       cancelled = true;
     };
@@ -189,11 +190,12 @@ export function ComposeView() {
   }, [pathname, params, ready, router, user]);
 
   useEffect(() => {
-    const supabase = createSupabaseBrowser();
-    if (!supabase) return;
     let cancelled = false;
-    void postsSupportMultipleImages(supabase).then((ok) => {
-      if (!cancelled) setLimit(postPhotoLimit(ok));
+    void loadSupabaseBrowser().then((supabase) => {
+      if (!supabase || cancelled) return;
+      void postsSupportMultipleImages(supabase).then((ok) => {
+        if (!cancelled) setLimit(postPhotoLimit(ok));
+      });
     });
     return () => {
       cancelled = true;

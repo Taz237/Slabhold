@@ -20,7 +20,7 @@ import { trustedPublicTotals } from "@/lib/leaderboard/public-value";
 import { VALUE_BOARD_TAB } from "@/lib/leaderboard/tab";
 import type { ValueBoardModel, ValueBoardRow } from "@/lib/leaderboard/types";
 import { userHref } from "@/lib/social/user-href";
-import { createSupabaseBrowser } from "@/lib/supabase/browser";
+import { loadSupabaseBrowser } from "@/lib/supabase/browser-lazy";
 import { useCardValues } from "@/lib/value/use-card-values";
 
 export { VALUE_BOARD_TAB };
@@ -158,16 +158,17 @@ export function ValueBoard({
   useEffect(() => {
     const id = user?.id;
     if (!id) return;
-    const supabase = createSupabaseBrowser();
-    if (!supabase) return;
-    let cancel = false;
-    void readLeaderboardOptIn(supabase as unknown as LeaderboardOptInDb, id).then((result) => {
-      if (cancel) return;
-      setOptedIn(result.optedIn);
-      setOptReady(true);
+    let cancelled = false;
+    void loadSupabaseBrowser().then((supabase) => {
+      if (!supabase || cancelled) return;
+      void readLeaderboardOptIn(supabase as unknown as LeaderboardOptInDb, id).then((result) => {
+        if (cancelled) return;
+        setOptedIn(result.optedIn);
+        setOptReady(true);
+      });
     });
     return () => {
-      cancel = true;
+      cancelled = true;
     };
   }, [user?.id]);
 
