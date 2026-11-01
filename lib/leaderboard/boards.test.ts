@@ -152,11 +152,11 @@ describe("rows", () => {
     for (let rank = 4; rank <= 10; rank += 1) {
       assert.doesNotMatch(rowHtml(rank), /lb-banner|>1ST<|>2ND<|>3RD<|data-crown/);
     }
-    assert.match(rowHtml(1), /href="\/u\/u0"/);
+    assert.match(rowHtml(1), /href="\/u\/u0\?tab=cards"/);
     assert.match(rowHtml(1), /Name u0/);
     assert.match(rowHtml(1), /@u0/);
     assert.match(rowHtml(1), /30<\/span>/);
-    assert.match(rowHtml(4), /min-h-14/);
+    assert.match(rowHtml(4), /min-h-12/);
     assert.doesNotMatch(markup, /data-rank="11"/);
   });
 
@@ -178,7 +178,7 @@ describe("rows", () => {
     assert.doesNotMatch(oddRow, /<a /);
     assert.match(oddRow, /<div/);
     assert.doesNotMatch(markup, /href="\/posts\//);
-    assert.match(markup, /href="\/u\/fine"/);
+    assert.match(markup, /href="\/u\/fine\?tab=cards"/);
   });
 
   it("matches the viewer row by user id, not by rank", () => {
@@ -299,7 +299,7 @@ describe("thin boards", () => {
 });
 
 describe("your spot and rules", () => {
-  it("shows Your spot in each board only when the viewer is signed in and outside the top 10", () => {
+  it("shows the Your spot bar in each board whenever the viewer is signed in, inside or outside the top 10", () => {
     const rows = [...many(12), person("me", 1)];
     const outside = model(snap({ "most-cards-added": rows }), "me");
     const cards = outside.boards[0];
@@ -314,7 +314,8 @@ describe("your spot and rules", () => {
 
     const inside = model(snap({ "most-cards-added": [person("me", 9), ...many(5)] }), "me");
     assert.equal(inside.boards[0]?.yourSpot, null);
-    assert.doesNotMatch(section(html(inside), "most-cards-added"), /data-your-spot/);
+    assert.equal(inside.boards[0]?.you?.rank, 6);
+    assert.match(section(html(inside), "most-cards-added"), /data-your-spot=""[\s\S]*#6/);
 
     const guest = model(snap({ "most-cards-added": rows }));
     for (const board of guest.boards) assert.equal(board.yourSpot, null);
