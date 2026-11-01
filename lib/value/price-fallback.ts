@@ -82,6 +82,8 @@ type SubjectCard = {
   grade?: string | null;
 };
 
+let saleDayFormat: Intl.DateTimeFormat | null = null;
+
 /** "Oct 2" from an ISO timestamp. Null when the sale has no real date. */
 export function saleDayLabel(iso: string | null | undefined): string | null {
   if (!iso) return null;
@@ -89,11 +91,12 @@ export function saleDayLabel(iso: string | null | undefined): string | null {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return null;
   const date = new Date(`${day}T12:00:00Z`);
   if (Number.isNaN(date.getTime())) return null;
-  return new Intl.DateTimeFormat("en-US", {
+  saleDayFormat ??= new Intl.DateTimeFormat("en-US", {
     month: "short",
     day: "numeric",
     timeZone: "UTC",
-  }).format(date);
+  });
+  return saleDayFormat.format(date);
 }
 
 function playerKey(name: string | null | undefined): string {

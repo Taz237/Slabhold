@@ -1,11 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { CARD_TALK_HEADING, CardTalkFrame, CardTalkSkeleton } from "@/components/card-talk-frame";
 import { Tweet } from "@/components/tweet";
 import { useSocial } from "@/components/social-provider";
-import { signupPath } from "@/lib/auth/safe-next";
 import {
   filterLoadedPostsForCard,
   loadPostsForCard,
@@ -19,13 +18,12 @@ const PREVIEW_LIMIT = 5;
 
 export function CardCollectorsSaying({
   cardId,
-  heading = "What collectors are saying",
+  heading = CARD_TALK_HEADING,
 }: {
   cardId: string;
   heading?: string;
 }) {
-  const { user, homePosts: loadedPosts, profiles, publicCards, ready } = useSocial();
-  const pathname = usePathname() || "/";
+  const { homePosts: loadedPosts, profiles, publicCards, ready } = useSocial();
   const [posts, setPosts] = useState<Post[]>([]);
   const [relatedPosts, setRelatedPosts] = useState<Post[]>([]);
   const [authors, setAuthors] = useState<Map<string, Profile>>(new Map());
@@ -104,42 +102,9 @@ export function CardCollectorsSaying({
   }, [cardId, loadedPosts, profileMap, publicCards, publicIds, ready]);
 
   return (
-    <section
-      data-slot="card-talk"
-      className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-white/10 dark:bg-white/[0.03] sm:p-5"
-      aria-busy={loading || undefined}
-    >
-      <div className="flex flex-wrap items-end justify-between gap-2">
-        <div>
-          <h2 className="font-semibold">{heading}</h2>
-          <p className="text-xs text-zinc-500">Posts about this card</p>
-        </div>
-        {user ? (
-          <Link
-            href={`/compose?card=${encodeURIComponent(cardId)}`}
-            className="rounded-full bg-zinc-900 px-3 py-1.5 text-xs font-semibold whitespace-nowrap text-white dark:bg-zinc-100 dark:text-zinc-950"
-          >
-            Post about this card
-          </Link>
-        ) : (
-          <Link
-            href={signupPath(pathname)}
-            className="text-xs font-semibold text-violet-700 underline underline-offset-2 dark:text-violet-300"
-          >
-            Sign up to post
-          </Link>
-        )}
-      </div>
-
+    <CardTalkFrame cardId={cardId} heading={heading} loading={loading}>
       {loading ? (
-        <div className="mt-3 space-y-3">
-          {Array.from({ length: 2 }, (_, i) => (
-            <div
-              key={i}
-              className="h-16 animate-pulse rounded-xl bg-zinc-100 dark:bg-white/5"
-            />
-          ))}
-        </div>
+        <CardTalkSkeleton />
       ) : posts.length === 0 ? (
         <p className="mt-4 text-sm text-zinc-500">No posts yet. Be the first.</p>
       ) : (
@@ -172,6 +137,6 @@ export function CardCollectorsSaying({
           ) : null}
         </div>
       )}
-    </section>
+    </CardTalkFrame>
   );
 }

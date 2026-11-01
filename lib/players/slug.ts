@@ -126,6 +126,33 @@ function allowedPlayer(player: PlayerRef): boolean {
   return true;
 }
 
+/** A deduped row and its compact name, the key the roster index groups by. */
+type DedupeEntry = { player: PlayerRef; compact: string };
+
+/** dedupePlayers' loop over players[from, to), into `map`. */
+function dedupeInto(map: Map<string, DedupeEntry>, players: readonly PlayerRef[], from: number, to: number) {
+  for (let i = from; i < to; i += 1) {
+    const player = players[i];
+    if (!allowedPlayer(player)) continue;
+    const name = player.name.trim().replace(/\s+/g, " ");
+    const sport = sportLabel(player.sport);
+    const compact = compactInterest(name);
+    const id = `${compact}|${sportSlug(sport)}`;
+    const current = map.get(id);
+    if (!current || spellingScore(name) > spellingScore(current.player.name)) {
+      map.set(id, { player: { name, sport }, compact });
+    }
+  }
+}
+
+function sortedEntries(map: Map<string, DedupeEntry>): DedupeEntry[] {
+  return [...map.values()].sort((a, b) => {
+    const byName = a.player.name.localeCompare(b.player.name);
+    if (byName !== 0) return byName;
+    return a.player.sport.localeCompare(b.player.sport);
+  });
+}
+
 /**
  * One row per compact name and sport. "Ja'Marr Chase" and "JaMarr Chase" collapse,
  * and "Luka Dončić" collapses with "Luka Doncic".
@@ -133,22 +160,9 @@ function allowedPlayer(player: PlayerRef): boolean {
  * Pokémon and TCG names are dropped.
  */
 export function dedupePlayers(players: readonly PlayerRef[]): PlayerRef[] {
-  const map = new Map<string, PlayerRef>();
-  for (const player of players) {
-    if (!allowedPlayer(player)) continue;
-    const name = player.name.trim().replace(/\s+/g, " ");
-    const sport = sportLabel(player.sport);
-    const id = `${compactInterest(name)}|${sportSlug(sport)}`;
-    const current = map.get(id);
-    if (!current || spellingScore(name) > spellingScore(current.name)) {
-      map.set(id, { name, sport });
-    }
-  }
-  return [...map.values()].sort((a, b) => {
-    const byName = a.name.localeCompare(b.name);
-    if (byName !== 0) return byName;
-    return a.sport.localeCompare(b.sport);
-  });
+  const map = new Map<string, DedupeEntry>();
+  dedupeInto(map, players, 0, players.length);
+  return sortedEntries(map).map((entry) => entry.player);
 }
 
 type RosterIndex = {
@@ -159,21 +173,72 @@ type RosterIndex = {
 /** One index per roster array. A stable roster is not deduped again on the next lookup. */
 const rosterIndexes = new WeakMap<readonly PlayerRef[], RosterIndex>();
 
+function indexFrom(entries: DedupeEntry[]): RosterIndex {
+  const byCompact = new Map<string, PlayerRef[]>();
+  for (const { player, compact } of entries) {
+    if (!compact) continue;
+    const list = byCompact.get(compact);
+    if (list) list.push(player);
+    else byCompact.set(compact, [player]);
+  }
+  return { byCompact, players: entries.map((entry) => entry.player) };
+}
+
 function rosterIndex(players: readonly PlayerRef[]): RosterIndex {
   const cached = rosterIndexes.get(players);
   if (cached) return cached;
-  const deduped = dedupePlayers(players);
-  const byCompact = new Map<string, PlayerRef[]>();
-  for (const player of deduped) {
-    const key = compactInterest(player.name);
-    if (!key) continue;
-    const list = byCompact.get(key);
-    if (list) list.push(player);
-    else byCompact.set(key, [player]);
-  }
-  const index: RosterIndex = { byCompact, players: deduped };
+  const map = new Map<string, DedupeEntry>();
+  dedupeInto(map, players, 0, players.length);
+  const index = indexFrom(sortedEntries(map));
   rosterIndexes.set(players, index);
   return index;
+}
+
+export type PrepareRosterOptions = {
+  /** Main-thread time per slice before yielding. */
+  budgetMs?: number;
+  yieldToMain?: () => Promise<void>;
+};
+
+const SLICE_ROWS = 64;
+const pendingIndexes = new WeakMap<readonly PlayerRef[], Promise<void>>();
+
+function yieldToBrowser(): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, 0));
+}
+
+/**
+ * Builds the same index the first lookup would, a few milliseconds at a time,
+ * so a roster of thousands never blocks the page in one long task. Lookups
+ * on this roster after it resolves reuse the index.
+ */
+export function prepareRosterIndex(
+  players: readonly PlayerRef[],
+  { budgetMs = 8, yieldToMain = yieldToBrowser }: PrepareRosterOptions = {},
+): Promise<void> {
+  if (rosterIndexes.has(players)) return Promise.resolve();
+  const pending = pendingIndexes.get(players);
+  if (pending) return pending;
+  const task = (async () => {
+    const map = new Map<string, DedupeEntry>();
+    let next = 0;
+    while (next < players.length) {
+      const started = performance.now();
+      do {
+        const end = Math.min(next + SLICE_ROWS, players.length);
+        dedupeInto(map, players, next, end);
+        next = end;
+      } while (next < players.length && performance.now() - started < budgetMs);
+      if (next < players.length) await yieldToMain();
+      // A lookup in the meantime built it in one go.
+      if (rosterIndexes.has(players)) return;
+    }
+    rosterIndexes.set(players, indexFrom(sortedEntries(map)));
+  })().finally(() => {
+    pendingIndexes.delete(players);
+  });
+  pendingIndexes.set(players, task);
+  return task;
 }
 
 function canonicalFromIndex(player: PlayerRef, index: RosterIndex): string {

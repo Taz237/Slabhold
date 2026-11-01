@@ -6,14 +6,14 @@ import { useEffect, useState, type ComponentType } from "react";
 import { useCompFlagState } from "@/components/use-comp-flags";
 import { ArrowLeft } from "lucide-react";
 import { LazyPlayerNameLink } from "@/components/player-name-lazy";
-import { CardCollectorsSaying } from "@/components/card-collectors-saying";
+import { LazyCardCollectorsSaying } from "@/components/card-talk-frame";
+import { LazyCompsList, preloadCompsList } from "@/components/card-page-parts";
 import { OpenToOffersBadge } from "@/components/open-to-offers";
 import { EbaySoldLine, PriceFallbackText, SimilarCardsLine } from "@/components/price-readout";
 import { WantButton } from "@/components/want-button";
 import { outlineButton } from "@/components/button-styles";
 import { CardThumb } from "@/components/card-thumb";
 import { CompBasis } from "@/components/comp-basis";
-import { CompsList } from "@/components/comps-list";
 import { PublicCardCompsPreview } from "@/components/public-card-comps";
 import { PublicCardSkeleton } from "@/components/public-card-skeleton";
 import { useCollection } from "@/components/collection-provider";
@@ -240,6 +240,9 @@ function PublicCardAnalytics({
   const [SalesChart, setSalesChart] = useState<SalesChartView | null>(null);
   const [chartFailed, setChartFailed] = useState(false);
   const [chartAttempt, setChartAttempt] = useState(0);
+
+  // The sales list draws once the sold prices are in: fetch its code meanwhile.
+  useEffect(preloadCompsList, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -535,7 +538,7 @@ function PublicCardAnalytics({
           </div>
         ) : unavailable || rateLimited ? null : sold.status === "ready" &&
           (onScreenComps.length > 0 || flags.hidden.length > 0) ? (
-          <CompsList
+          <LazyCompsList
             comps={onScreenComps}
             cardId={card.id}
             canFlag={canFlag}
@@ -552,7 +555,7 @@ function PublicCardAnalytics({
       )}
 
       {/* Owners and hunters and the fair price check are off for now. */}
-      <CardCollectorsSaying cardId={card.id} />
+      <LazyCardCollectorsSaying cardId={card.id} />
     </div>
   );
 }

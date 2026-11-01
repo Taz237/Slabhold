@@ -70,13 +70,20 @@ export type NotableSale = SaleRecord & {
   percent: number | null;
 };
 
+const dayFormats = new Map<string, Intl.DateTimeFormat>();
+
 export function calendarDateInTimeZone(now: Date, timeZone = NEW_YORK): string {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(now);
+  let format = dayFormats.get(timeZone);
+  if (!format) {
+    format = new Intl.DateTimeFormat("en-CA", {
+      timeZone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    });
+    dayFormats.set(timeZone, format);
+  }
+  return format.format(now);
 }
 
 export function addCalendarDays(date: string, days: number): string {
