@@ -17,6 +17,7 @@ import { useSocial } from "@/components/social-provider";
 import { LoadMore } from "@/components/load-more";
 import { PullToRefresh } from "@/components/pull-to-refresh";
 import { usePagedTimeline } from "@/components/use-paged-timeline";
+import { useReturnRecheck } from "@/components/use-return-recheck";
 import { EmptyState, PostSkeletonList, TimelineSkeleton } from "@/components/status";
 import { CollectorSuggestions, FollowingEmpty, WhoToFollowCard } from "@/components/collector-suggestions";
 import {
@@ -208,6 +209,10 @@ export function FeedView({
   const [refreshKey, setRefreshKey] = useState(0);
   /** Bumps after a soft refresh, so the "New posts" check starts from what is now shown. */
   const [headKey, setHeadKey] = useState(0);
+  /** The lane a return check found newer posts for. */
+  const [returnNewer, setReturnNewer] = useState<HomeLane | null>(null);
+  /** Bumps on every refresh, so a return check that resolves after one is ignored. */
+  const refreshGenRef = useRef(0);
   const headEpoch = `${refreshKey}.${headKey}`;
   const [capturedHead, setCapturedHead] = useState<{ key: string; head: ReturnType<typeof homeHead> } | null>(
     null,
@@ -247,6 +252,8 @@ export function FeedView({
   const refreshFollowing = followingPage.refresh;
   /** Pull to refresh and the pill: newest posts land on top of the list already shown. */
   const refreshFeeds = useCallback(async () => {
+    refreshGenRef.current += 1;
+    setReturnNewer(null);
     await Promise.all([refresh(), refreshForYou(), refreshFollowing()]);
     setHeadKey((key) => key + 1);
   }, [refresh, refreshFollowing, refreshForYou]);
@@ -257,6 +264,24 @@ export function FeedView({
     !forYouPage.loading &&
     showsNewPosts(capturedHead.head, head, user?.id ?? null, removedPostIds);
   const activePage = lane === "following" ? followingPage : forYouPage;
+  // Back on Home: quietly ask whether newer posts are in. A yes shows the
+  // "New posts" pill. The list and the scroll spot stay as they are.
+  const checkActiveNewer = activePage.checkNewer;
+  const onReturn = useCallback(() => {
+    const checkedLane = lane;
+    const gen = refreshGenRef.current;
+    void checkActiveNewer()
+      .then((newer) => {
+        if (newer && refreshGenRef.current === gen) setReturnNewer(checkedLane);
+      })
+      .catch(() => {});
+  }, [checkActiveNewer, lane]);
+  useReturnRecheck({
+    enabled: paging && !activePage.loading,
+    fromMemory: activePage.fromMemory,
+    onReturn,
+  });
+  const showNewPosts = hasNewPosts || returnNewer === lane;
   // Back from a post: the tab you were reading counts as already picked.
   const pickedFor = useRef<string | null>(rememberedLane?.userId ?? null);
   // The order first shown sticks, so following someone doesn't reshuffle the rail.
@@ -397,10 +422,10 @@ export function FeedView({
       <div ref={laneStartRef} aria-hidden="true" />
       <LaneTabs lane={lane} onChange={switchLane} />
       <PullToRefresh onRefresh={refreshFeeds}>
-        {hasNewPosts || newAbove.show ? (
+        {showNewPosts || newAbove.show ? (
           <NewPostsPill
             onClick={() => {
-              if (hasNewPosts) void refreshFeeds();
+              if (showNewPosts) void refreshFeeds();
               newAbove.dismiss();
             }}
           />

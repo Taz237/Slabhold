@@ -367,3 +367,51 @@ describe("post photos", () => {
     assert.doesNotMatch(atStart, /aria-label="Next photo" disabled/);
   });
 });
+
+describe("feed photo frame", () => {
+  it("shows a single feed photo in a 4:5 portrait box that is reserved before load", () => {
+    const html = renderToStaticMarkup(
+      createElement(PostPhotoGrid, { images: ["only"], onOpen: () => undefined }),
+    );
+    assert.match(html, /aspect-\[4\/5\]/);
+    assert.match(html, /object-cover/);
+    assert.match(html, /loading="lazy"/);
+    assert.doesNotMatch(html, /aspect-square/);
+    assert.doesNotMatch(html, /max-h-80/);
+    assert.match(html, /aria-label="View photo"/);
+  });
+
+  it("shows the whole photo uncropped on the post page", () => {
+    const html = renderToStaticMarkup(
+      createElement(PostPhotoGrid, { images: ["only"], onOpen: () => undefined, fit: "full" }),
+    );
+    assert.match(html, /object-contain/);
+    assert.match(html, /aspect-\[4\/5\]/, "the box is reserved before the photo loads");
+    assert.match(html, /max-h-\[80svh\]/);
+    assert.doesNotMatch(html, /object-cover/);
+    assert.doesNotMatch(html, /w-auto|min-h-48/);
+  });
+
+  it("keeps multi-photo grids in fixed cells", () => {
+    const html = renderToStaticMarkup(
+      createElement(PostPhotoGrid, { images: ["a", "b"], onOpen: () => undefined }),
+    );
+    assert.equal(html.match(/aspect-square/g)?.length, 2);
+  });
+
+  it("a return check that resolves after a refresh started shows no stale pill", () => {
+    const feed = read("components/feed-view.tsx");
+    const refresh = feed.slice(feed.indexOf("const refreshFeeds = useCallback"), feed.indexOf("const hasNewPosts"));
+    assert.match(refresh, /refreshGenRef\.current \+= 1/);
+    assert.match(refresh, /setReturnNewer\(null\)/);
+    const onReturn = feed.slice(feed.indexOf("const onReturn = useCallback"), feed.indexOf("useReturnRecheck({"));
+    assert.match(onReturn, /const gen = refreshGenRef\.current/);
+    assert.match(onReturn, /if \(newer && refreshGenRef\.current === gen\) setReturnNewer\(checkedLane\)/);
+    assert.match(onReturn, /\.catch\(\(\) => \{\}\)/);
+  });
+
+  it("the post page passes the full fit and the feed does not", () => {
+    const tweet = read("components/tweet.tsx");
+    assert.match(tweet, /fit=\{variant === "detail" \? "full" : "feed"\}/);
+  });
+});

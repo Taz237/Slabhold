@@ -10,11 +10,18 @@ export function PostPhotoGrid({
   images,
   onOpen,
   eager = false,
+  fit = "feed",
 }: {
   images: readonly string[];
   onOpen: (src: string, alt: string, gallery?: readonly string[]) => void;
   /** On the first screen: fetched at once instead of lazily. */
   eager?: boolean;
+  /**
+   * "feed": a single photo fills a 4:5 portrait box, sized before it loads.
+   * "full": the post page shows the whole photo, uncropped and letterboxed
+   * in the same reserved 4:5 box, so nothing shifts when it loads.
+   */
+  fit?: "feed" | "full";
 }) {
   const photos = imagesFromPost({ images });
   if (!photos.length) return null;
@@ -29,7 +36,7 @@ export function PostPhotoGrid({
           onOpen(photos[0], "Post photo", photos);
         }}
         data-photo-frame=""
-        className={`mt-3 block w-full cursor-zoom-in scroll-mb-[calc(14rem+env(safe-area-inset-bottom))] ${PHOTO_FRAME}`}
+        className={`mt-3 block w-full cursor-zoom-in scroll-mb-[calc(14rem+env(safe-area-inset-bottom))] ${PHOTO_FRAME} ${fit === "feed" ? "sm:max-w-md" : ""}`}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
@@ -38,7 +45,11 @@ export function PostPhotoGrid({
           loading={eager ? "eager" : "lazy"}
           fetchPriority={eager ? "high" : "auto"}
           decoding="async"
-          className="aspect-square max-h-80 w-full object-cover"
+          className={
+            fit === "feed"
+              ? "aspect-[4/5] h-auto w-full object-cover"
+              : "block aspect-[4/5] max-h-[80svh] w-full object-contain"
+          }
         />
       </button>
     );

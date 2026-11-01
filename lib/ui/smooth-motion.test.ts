@@ -57,7 +57,8 @@ describe("smooth motion wiring", () => {
 
   it("refreshes without emptying the list and remembers timelines for Back", () => {
     const hook = read("components/use-paged-timeline.ts");
-    assert.match(hook, /mergeFreshPage\(existing, next\)/);
+    assert.match(hook, /mergeFreshPage\(existing, next, postIdOf\)/);
+    assert.match(hook, /fetchFreshHead\(\{/);
     assert.match(hook, /recall\(memoryKey\)/);
     const feed = read("components/feed-view.tsx");
     assert.match(feed, /onRefresh=\{refreshFeeds\}/);
