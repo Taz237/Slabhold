@@ -18,7 +18,8 @@ export function PostPhotoGrid({
   eager?: boolean;
   /**
    * "feed": a single photo fills a 4:5 portrait box, sized before it loads.
-   * "full": the post page shows the whole photo, uncropped.
+   * "full": the post page shows the whole photo, uncropped and letterboxed
+   * in the same reserved 4:5 box, so nothing shifts when it loads.
    */
   fit?: "feed" | "full";
 }) {
@@ -47,7 +48,7 @@ export function PostPhotoGrid({
           className={
             fit === "feed"
               ? "aspect-[4/5] h-auto w-full object-cover"
-              : "mx-auto block h-auto max-h-[80svh] min-h-48 w-auto max-w-full object-contain"
+              : "block aspect-[4/5] max-h-[80svh] w-full object-contain"
           }
         />
       </button>
