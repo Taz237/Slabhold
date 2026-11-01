@@ -35,7 +35,7 @@ import { Tweet } from "@/components/tweet";
 import { WhatsNewCard } from "@/components/whats-new-card";
 import { loginPath, signupPath } from "@/lib/auth/safe-next";
 import { takeCompose } from "@/lib/capture";
-import { createSupabaseBrowser } from "@/lib/supabase/browser";
+import { loadSupabaseBrowser } from "@/lib/supabase/browser-lazy";
 import { ComposePhotoDrafts } from "@/components/compose-photo-drafts";
 import { PhotoFileInputs } from "@/components/photo-file-inputs";
 import { usePostPhotos } from "@/components/use-post-photos";
@@ -561,11 +561,12 @@ function Composer({ onPosted }: { onPosted?: () => void }) {
     heldComposePrefill = null;
   }, []);
   useEffect(() => {
-    const supabase = createSupabaseBrowser();
-    if (!supabase) return;
     let cancelled = false;
-    void postsSupportMultipleImages(supabase).then((ok) => {
-      if (!cancelled) setLimit(postPhotoLimit(ok));
+    void loadSupabaseBrowser().then((supabase) => {
+      if (!supabase || cancelled) return;
+      void postsSupportMultipleImages(supabase).then((ok) => {
+        if (!cancelled) setLimit(postPhotoLimit(ok));
+      });
     });
     return () => {
       cancelled = true;

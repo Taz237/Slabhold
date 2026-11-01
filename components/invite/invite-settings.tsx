@@ -11,7 +11,7 @@ import { loginPath } from "@/lib/auth/safe-next";
 import { resetInviteCode, resetNotice } from "@/lib/invites/code";
 import { invitePath } from "@/lib/share/links";
 import { SITE_URL } from "@/lib/site-url";
-import { createSupabaseBrowser } from "@/lib/supabase/browser";
+import { loadSupabaseBrowser } from "@/lib/supabase/browser-lazy";
 
 const card = "rounded-2xl bg-white ring-1 ring-zinc-200 dark:bg-white/[0.04] dark:ring-white/10";
 const sectionLabel = "px-1 pb-2 font-mono text-[11px] font-medium tracking-wider text-zinc-500 uppercase";
@@ -116,7 +116,7 @@ export function InviteSettings() {
   async function onConfirm() {
     if (!user || busy) return;
     setBusy(true);
-    const result = await resetInviteCode(createSupabaseBrowser());
+    const result = await resetInviteCode(await loadSupabaseBrowser());
     if (result.kind === "ok") replaceInviteCode(user.id, result.code);
     setNotice({ text: resetNotice(result), ok: result.kind === "ok" });
     setBusy(false);

@@ -54,7 +54,7 @@ import type { CollectInterest } from "@/lib/social/follow-rank";
 import { isRecentAccount } from "@/lib/social/get-started";
 import { loadServerSuggestions, SETUP_SUGGESTION_LIMIT } from "@/lib/social/load-suggestions";
 import type { ServerSuggestion } from "@/lib/social/suggestion-order";
-import { createSupabaseBrowser } from "@/lib/supabase/browser";
+import { loadSupabaseBrowser } from "@/lib/supabase/browser-lazy";
 
 const FOCUSABLE =
   'a[href], button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -85,7 +85,7 @@ function focusable(root: HTMLElement): HTMLElement[] {
 }
 
 async function readInterests(userId: string): Promise<InterestLoad> {
-  const supabase = createSupabaseBrowser();
+  const supabase = await loadSupabaseBrowser();
   if (!supabase) return { status: "missing" };
   const { data, error } = await supabase
     .from("profile_interests")
@@ -107,7 +107,7 @@ async function writeInterests(
   userId: string,
   rows: InterestRow[],
 ): Promise<"saved" | "missing" | "limit" | "error"> {
-  const supabase = createSupabaseBrowser();
+  const supabase = await loadSupabaseBrowser();
   if (!supabase) return "missing";
   return persistInterestRows(supabase, userId, rows);
 }
@@ -203,21 +203,22 @@ export function FirstRunSetup() {
 
   useEffect(() => {
     if (!visible) return;
-    const supabase = createSupabaseBrowser();
-    if (!supabase) return;
     let cancelled = false;
-    void supabase
-      .from("card_catalog")
-      .select("sport")
-      .limit(400)
-      .then(({ data }) => {
-        if (cancelled || !data) return;
-        setCatalogSports(
-          (data as { sport?: string | null }[])
-            .map((row) => row.sport ?? "")
-            .filter(Boolean),
-        );
-      });
+    void loadSupabaseBrowser().then((supabase) => {
+      if (!supabase || cancelled) return;
+      void supabase
+        .from("card_catalog")
+        .select("sport")
+        .limit(400)
+        .then(({ data }) => {
+          if (cancelled || !data) return;
+          setCatalogSports(
+            (data as { sport?: string | null }[])
+              .map((row) => row.sport ?? "")
+              .filter(Boolean),
+          );
+        });
+    });
     return () => {
       cancelled = true;
     };
@@ -321,7 +322,7 @@ export function FirstRunSetup() {
     if (result === "saved") {
       refreshSuggestions();
       if (action === "complete") {
-        const supabase = createSupabaseBrowser();
+        const supabase = await loadSupabaseBrowser();
         const ranked = supabase ? await loadServerSuggestions(supabase) : null;
         if (ranked) setPeople(ranked);
       }

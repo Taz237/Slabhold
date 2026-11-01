@@ -13,7 +13,7 @@ import {
   saveAndReloadShowAsHunter,
   type HunterSettingDb,
 } from "@/lib/social/hunter-setting";
-import { createSupabaseBrowser } from "@/lib/supabase/browser";
+import { loadSupabaseBrowser } from "@/lib/supabase/browser-lazy";
 
 export function HunterSettingControl({
   checked,
@@ -65,17 +65,18 @@ export function HunterSettingSwitch() {
   useEffect(() => {
     const id = user?.id;
     if (!id) return;
-    const supabase = createSupabaseBrowser();
-    if (!supabase) return;
-    let cancel = false;
-    void readShowAsHunter(supabase as unknown as HunterSettingDb, id).then((result) => {
-      if (cancel) return;
-      setChecked(result.showAsHunter);
-      setError(result.error ?? null);
-      setReady(true);
+    let cancelled = false;
+    void loadSupabaseBrowser().then((supabase) => {
+      if (!supabase || cancelled) return;
+      void readShowAsHunter(supabase as unknown as HunterSettingDb, id).then((result) => {
+        if (cancelled) return;
+        setChecked(result.showAsHunter);
+        setError(result.error ?? null);
+        setReady(true);
+      });
     });
     return () => {
-      cancel = true;
+      cancelled = true;
     };
   }, [user?.id]);
 
@@ -83,8 +84,9 @@ export function HunterSettingSwitch() {
   const userId = user.id;
 
   async function toggle(next: boolean) {
-    const supabase = createSupabaseBrowser();
-    if (!supabase || busy) return;
+    if (busy) return;
+    const supabase = await loadSupabaseBrowser();
+    if (!supabase) return;
     setBusy(true);
     setError(null);
     const result = await saveAndReloadShowAsHunter(
@@ -116,16 +118,17 @@ export function HunterPrompt() {
   useEffect(() => {
     const id = user?.id;
     if (!id) return;
-    const supabase = createSupabaseBrowser();
-    if (!supabase) return;
-    let cancel = false;
-    void readShowAsHunter(supabase as unknown as HunterSettingDb, id).then((result) => {
-      if (cancel || result.error) return;
-      const dismissed = window.localStorage.getItem(hunterPromptDismissKey(id)) === "1";
-      setVisible(hunterPromptVisible({ showAsHunter: result.showAsHunter, dismissed }));
+    let cancelled = false;
+    void loadSupabaseBrowser().then((supabase) => {
+      if (!supabase || cancelled) return;
+      void readShowAsHunter(supabase as unknown as HunterSettingDb, id).then((result) => {
+        if (cancelled || result.error) return;
+        const dismissed = window.localStorage.getItem(hunterPromptDismissKey(id)) === "1";
+        setVisible(hunterPromptVisible({ showAsHunter: result.showAsHunter, dismissed }));
+      });
     });
     return () => {
-      cancel = true;
+      cancelled = true;
     };
   }, [user?.id]);
 

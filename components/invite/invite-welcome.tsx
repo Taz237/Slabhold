@@ -8,7 +8,7 @@ import { useSocial } from "@/components/social-provider";
 import { acceptInvite, inviteOutcome, type InviteOutcome } from "@/lib/invites/accept";
 import { clearInvite, inviteStore, readInvite } from "@/lib/invites/attribution";
 import type { Profile } from "@/lib/social/types";
-import { createSupabaseBrowser } from "@/lib/supabase/browser";
+import { loadSupabaseBrowser } from "@/lib/supabase/browser-lazy";
 
 export type Inviter = { id: string; username: string; displayName: string; avatarUrl: string | null };
 
@@ -17,7 +17,7 @@ async function findInviter(username: string, local: Profile[]): Promise<Inviter 
   if (known) {
     return { id: known.id, username: known.username, displayName: known.displayName, avatarUrl: known.avatarDataUrl };
   }
-  const supabase = createSupabaseBrowser();
+  const supabase = await loadSupabaseBrowser();
   if (!supabase) return null;
   const { data } = await supabase
     .from("profiles")
@@ -63,7 +63,7 @@ export function InviteWelcome() {
     // Once only, whatever happens next.
     clearInvite(store);
     void (async () => {
-      const supabase = mode === "supabase" ? createSupabaseBrowser() : null;
+      const supabase = mode === "supabase" ? await loadSupabaseBrowser() : null;
       const result = await acceptInvite(supabase, handle, invite.code);
       if (result === "failed" || result === "skipped") return;
       if (result !== "missing") await latest.current.refresh().catch(() => undefined);

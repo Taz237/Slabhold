@@ -52,7 +52,7 @@ import { TAKEN_USERNAME } from "@/lib/social/username-taken";
 import { isStandaloneApp } from "@/lib/pwa/add-to-home";
 import { forgetEmailHint, loginFinishesSetup, readEmailHint } from "@/lib/pwa/install-step";
 import { readStoredUtm } from "@/lib/utm";
-import { createSupabaseBrowser } from "@/lib/supabase/browser";
+import { loadSupabaseBrowser } from "@/lib/supabase/browser-lazy";
 
 type SignupField = "username" | "email" | "password";
 
@@ -236,7 +236,7 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
     setResendError(null);
     setResendNotice(null);
     try {
-      const supabase = createSupabaseBrowser();
+      const supabase = await loadSupabaseBrowser();
       if (!supabase) {
         setResendError(RESEND_FAILED);
         return;

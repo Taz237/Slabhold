@@ -1,9 +1,9 @@
-import { createSupabaseBrowser } from "@/lib/supabase/browser";
+import { loadSupabaseBrowser } from "@/lib/supabase/browser-lazy";
 
 type Saved = { ok: true } | { ok: false; error: string };
 
 async function ownId() {
-  const supabase = createSupabaseBrowser();
+  const supabase = await loadSupabaseBrowser();
   if (!supabase) return null;
   const { data } = await supabase.auth.getSession();
   const id = data.session?.user.id;

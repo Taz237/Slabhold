@@ -14,7 +14,8 @@ import {
   type InterestHit,
 } from "@/lib/social/collect-interests";
 import { compactInterest, normInterest, type CollectInterest } from "@/lib/social/follow-rank";
-import { createSupabaseBrowser } from "@/lib/supabase/browser";
+import type { createSupabaseBrowser } from "@/lib/supabase/browser";
+import { loadSupabaseBrowser } from "@/lib/supabase/browser-lazy";
 import { getSupabaseConfig } from "@/lib/supabase/client";
 
 const bigChipClass =
@@ -248,11 +249,11 @@ export function NameSearch({
     const requestId = requestRef.current;
     const q = query.trim();
     if (q.length < 1) return;
-    const supabase = createSupabaseBrowser();
-    if (!supabase) return;
+    if (!getSupabaseConfig().configured) return;
     const controller = new AbortController();
     const timer = window.setTimeout(() => {
-      void loadCollectSearchPlayers(supabase, q, controller.signal)
+      void loadSupabaseBrowser()
+        .then((supabase) => (supabase ? loadCollectSearchPlayers(supabase, q, controller.signal) : []))
         .catch(() => [] as { name: string; sport: string }[])
         .then((players) => {
           if (

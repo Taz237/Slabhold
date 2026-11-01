@@ -1,6 +1,6 @@
 import type { CatalogCard } from "@/lib/card-catalog";
 import { catalogSearchQuery } from "@/lib/card-search-query";
-import { createSupabaseBrowser } from "@/lib/supabase/browser";
+import { loadSupabaseBrowser } from "@/lib/supabase/browser-lazy";
 
 type RpcRow = {
   id: string;
@@ -43,7 +43,7 @@ export async function searchCatalogRemote(
   query: string,
   signal: AbortSignal,
 ): Promise<CatalogCard[] | null> {
-  const supabase = createSupabaseBrowser();
+  const supabase = await loadSupabaseBrowser();
   if (!supabase) return null;
 
   const builder = supabase.rpc("search_cards", buildSearchCardsArgs(query));

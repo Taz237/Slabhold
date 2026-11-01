@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useSocial } from "@/components/social-provider";
 import { TrendingNowSkeleton, TrendingNowStrip } from "@/components/trending-now-strip";
-import { createSupabaseBrowser } from "@/lib/supabase/browser";
+import { loadSupabaseBrowser } from "@/lib/supabase/browser-lazy";
 import {
   filterTrendingForViewer,
   rememberTrendingPublic,
@@ -60,7 +60,7 @@ export function TrendingNow() {
     const postIds = items.map((item) => item.id);
     void (async () => {
       try {
-        const supabase = createSupabaseBrowser();
+        const supabase = await loadSupabaseBrowser();
         let ids = postIds;
         if (supabase) {
           const { data, error } = await supabase.from("posts").select("id").in("id", postIds);

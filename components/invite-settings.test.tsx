@@ -45,7 +45,7 @@ describe("Settings > Invite friends", () => {
 
   it("swaps the code everywhere on the page after a reset, so the old link is never shared again", () => {
     const settings = read("components/invite/invite-settings.tsx");
-    assert.match(settings, /resetInviteCode\(createSupabaseBrowser\(\)\)/);
+    assert.match(settings, /resetInviteCode\(await loadSupabaseBrowser\(\)\)/);
     assert.match(settings, /if \(result\.kind === "ok"\) replaceInviteCode\(user\.id, result\.code\)/);
     const button = read("components/invite/invite-button.tsx");
     assert.match(button, /export function replaceInviteCode/);

@@ -25,7 +25,7 @@ import {
 } from "@/lib/social/collect-interests";
 import type { CollectInterest } from "@/lib/social/follow-rank";
 import { loginPath } from "@/lib/auth/safe-next";
-import { createSupabaseBrowser } from "@/lib/supabase/browser";
+import { loadSupabaseBrowser } from "@/lib/supabase/browser-lazy";
 
 export function CollectSettings() {
   const router = useRouter();
@@ -44,38 +44,39 @@ export function CollectSettings() {
 
   useEffect(() => {
     if (!ready || !user || mode !== "supabase") return;
-    const supabase = createSupabaseBrowser();
-    if (!supabase) return;
     let cancelled = false;
-    void supabase
-      .from("profile_interests")
-      .select("kind, value")
-      .eq("user_id", user.id)
-      .then(({ data, error: loadError }) => {
-        if (cancelled) return;
-        if (loadError) {
-          if (!schemaMissing(loadError)) console.warn("profile_interests", loadError.message);
-          setState("missing");
-          return;
-        }
-        const rows = ((data ?? []) as { kind?: string; value?: string }[])
-          .filter((row) => row.kind && row.value)
-          .map((row) => ({ kind: row.kind, value: row.value }) as InterestRow);
-        const picks = picksFromRows(rows);
-        setSports(picks.filter((pick) => pick.kind === "sport").map((pick) => pick.value));
-        setNames(picks.filter((pick) => pick.kind !== "sport"));
-        setState("ready");
-      });
-    void supabase
-      .from("card_catalog")
-      .select("sport")
-      .limit(400)
-      .then(({ data }) => {
-        if (cancelled || !data) return;
-        setCatalogSports(
-          (data as { sport?: string | null }[]).map((row) => row.sport ?? "").filter(Boolean),
-        );
-      });
+    void loadSupabaseBrowser().then((supabase) => {
+      if (!supabase || cancelled) return;
+      void supabase
+        .from("profile_interests")
+        .select("kind, value")
+        .eq("user_id", user.id)
+        .then(({ data, error: loadError }) => {
+          if (cancelled) return;
+          if (loadError) {
+            if (!schemaMissing(loadError)) console.warn("profile_interests", loadError.message);
+            setState("missing");
+            return;
+          }
+          const rows = ((data ?? []) as { kind?: string; value?: string }[])
+            .filter((row) => row.kind && row.value)
+            .map((row) => ({ kind: row.kind, value: row.value }) as InterestRow);
+          const picks = picksFromRows(rows);
+          setSports(picks.filter((pick) => pick.kind === "sport").map((pick) => pick.value));
+          setNames(picks.filter((pick) => pick.kind !== "sport"));
+          setState("ready");
+        });
+      void supabase
+        .from("card_catalog")
+        .select("sport")
+        .limit(400)
+        .then(({ data }) => {
+          if (cancelled || !data) return;
+          setCatalogSports(
+            (data as { sport?: string | null }[]).map((row) => row.sport ?? "").filter(Boolean),
+          );
+        });
+    });
     return () => {
       cancelled = true;
     };
@@ -83,7 +84,7 @@ export function CollectSettings() {
 
   async function save() {
     if (!user) return;
-    const supabase = createSupabaseBrowser();
+    const supabase = await loadSupabaseBrowser();
     if (!supabase) {
       setState("missing");
       return;

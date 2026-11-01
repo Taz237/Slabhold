@@ -18,7 +18,7 @@ import { EmptyState, LoadingRows, ProfileSkeleton } from "@/components/status";
 import { FollowButton } from "@/components/follow-button";
 import { SafetyMenu } from "@/components/safety-menu";
 import { unblockAccount } from "@/lib/safety/actions";
-import { createSupabaseBrowser } from "@/lib/supabase/browser";
+import { loadSupabaseBrowser } from "@/lib/supabase/browser-lazy";
 import { useCollection } from "@/components/collection-provider";
 import { useSocial } from "@/components/social-provider";
 import { loginPath, signupPath } from "@/lib/auth/safe-next";
@@ -180,19 +180,20 @@ export function ProfileView({
   useEffect(() => {
     const ownerId = profile?.id;
     if (mode !== "supabase" || !ownerId) return;
-    const supabase = createSupabaseBrowser();
-    if (!supabase) return;
     let cancelled = false;
-    void loadProfilePublicCards(supabase, ownerId)
-      .then((rows) => {
-        if (!cancelled) setViewCards({ ownerId, rows });
-      })
-      .catch(() => {
-        if (cancelled) return;
-        setViewCards(null);
-        // The tab then lists this owner's cards from the shared public card read.
-        requestPublicCards(publicCardKeys({ ownerId }));
-      });
+    void loadSupabaseBrowser().then((supabase) => {
+      if (!supabase || cancelled) return;
+      void loadProfilePublicCards(supabase, ownerId)
+        .then((rows) => {
+          if (!cancelled) setViewCards({ ownerId, rows });
+        })
+        .catch(() => {
+          if (cancelled) return;
+          setViewCards(null);
+          // The tab then lists this owner's cards from the shared public card read.
+          requestPublicCards(publicCardKeys({ ownerId }));
+        });
+    });
     return () => {
       cancelled = true;
     };
@@ -226,12 +227,13 @@ export function ProfileView({
 
   useEffect(() => {
     if (mode !== "supabase" || !replyAuthorId || !replyParentKey) return;
-    const supabase = createSupabaseBrowser();
-    if (!supabase) return;
     const ids = replyParentKey.split("|").map((part) => part.slice(part.indexOf(":") + 1));
     let cancelled = false;
-    void visibleReplyParentIds(supabase, ids).then((idsVisible) => {
-      if (!cancelled) setReplyParents({ key: replyParentKey, ids: idsVisible });
+    void loadSupabaseBrowser().then((supabase) => {
+      if (!supabase || cancelled) return;
+      void visibleReplyParentIds(supabase, ids).then((idsVisible) => {
+        if (!cancelled) setReplyParents({ key: replyParentKey, ids: idsVisible });
+      });
     });
     return () => {
       cancelled = true;
@@ -241,18 +243,19 @@ export function ProfileView({
   useEffect(() => {
     const ownerId = profile?.id;
     if (!pinTarget || pinInMemory || mode !== "supabase" || !ownerId) return;
-    const supabase = createSupabaseBrowser();
-    if (!supabase) return;
     let cancelled = false;
-    void loadPostById(supabase, pinTarget, user?.id ?? null).then((result) => {
-      if (cancelled) return;
-      const loaded = result?.post;
-      if (!loaded || loaded.authorId !== ownerId || loaded.hiddenAt) {
-        setPinnedExtra(null);
-        return;
-      }
-      setPinnedExtra(loaded);
-      if (result) rememberPosts([loaded, ...result.relatedPosts], result.profiles);
+    void loadSupabaseBrowser().then((supabase) => {
+      if (!supabase || cancelled) return;
+      void loadPostById(supabase, pinTarget, user?.id ?? null).then((result) => {
+        if (cancelled) return;
+        const loaded = result?.post;
+        if (!loaded || loaded.authorId !== ownerId || loaded.hiddenAt) {
+          setPinnedExtra(null);
+          return;
+        }
+        setPinnedExtra(loaded);
+        if (result) rememberPosts([loaded, ...result.relatedPosts], result.profiles);
+      });
     });
     return () => {
       cancelled = true;
@@ -711,12 +714,17 @@ function MissingProfile({
 
   useEffect(() => {
     let cancelled = false;
-    const supabase = createSupabaseBrowser();
-    if (!supabase || mode !== "supabase") {
+    if (mode !== "supabase") {
       setState("missing");
       return;
     }
     void (async () => {
+      const supabase = await loadSupabaseBrowser();
+      if (cancelled) return;
+      if (!supabase) {
+        setState("missing");
+        return;
+      }
       const { data } = await supabase
         .from("profiles")
         .select("id")

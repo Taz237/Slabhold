@@ -1,4 +1,4 @@
-import { createSupabaseBrowser } from "@/lib/supabase/browser";
+import { loadSupabaseBrowser } from "@/lib/supabase/browser-lazy";
 import {
   type Deal,
   type DealKind,
@@ -65,7 +65,7 @@ export function dealErrorMessage(error: { code?: string; message?: string } | nu
 }
 
 async function client() {
-  return createSupabaseBrowser();
+  return loadSupabaseBrowser();
 }
 
 export async function createDeal(input: {
