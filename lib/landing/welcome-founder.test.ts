@@ -48,8 +48,8 @@ afterEach(() => {
 
 describe("/welcome founder read", () => {
   it("throws at runtime, so ISR keeps the last good page and the next request retries", async () => {
-    await assert.rejects(welcomeFounderShowcase(failing, PHASE_PRODUCTION_SERVER), /timeout/);
-    await assert.rejects(welcomeFounderShowcase(failing, undefined), /timeout/);
+    await assert.rejects(welcomeFounderShowcase(failing, PHASE_PRODUCTION_SERVER, "production"), /timeout/);
+    await assert.rejects(welcomeFounderShowcase(failing, undefined, "production"), /timeout/);
     assert.equal(warned[0]?.[0], "[landing-founder]");
   });
 
@@ -68,8 +68,8 @@ describe("/welcome founder read", () => {
   it("decides build or runtime in one pure function", () => {
     const error = new Error("x");
     assert.equal(founderFailure(error, PHASE_PRODUCTION_BUILD), EMPTY_FOUNDER_SHOWCASE);
-    assert.throws(() => founderFailure(error, PHASE_PRODUCTION_SERVER), /x/);
-    assert.throws(() => founderFailure(error, undefined), /x/);
+    assert.throws(() => founderFailure(error, PHASE_PRODUCTION_SERVER, "production"), /x/);
+    assert.throws(() => founderFailure(error, undefined, "production"), /x/);
   });
 
   it("is used by /welcome only; Home keeps the never-throwing read", () => {

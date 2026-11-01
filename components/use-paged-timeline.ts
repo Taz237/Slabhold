@@ -44,8 +44,20 @@ const NEWER_CHECK_LIMIT = 5;
 /** The post behind a row, so one post never shows twice (as itself and as a repost). */
 const postIdOf = (item: TimelineItem) => item.post.id;
 
-/** The error line for a failed read (or a failed supabase-js load). */
-const loadError = (reason: unknown) => (reason instanceof Error ? reason.message : "Could not load posts.");
+/**
+ * The error line for a failed read (or a failed supabase-js load). Always the
+ * plain message; the real reason (a chunk-load or PostgREST error) goes to the console.
+ */
+export function loadError(reason: unknown): string {
+  const message =
+    reason instanceof Error
+      ? reason.message
+      : typeof (reason as { message?: unknown } | null)?.message === "string"
+        ? (reason as { message: string }).message
+        : String(reason);
+  console.warn("[timeline]", message);
+  return "Could not load posts.";
+}
 
 function recall(key: string): Remembered | null {
   const saved = remembered.get(key);
