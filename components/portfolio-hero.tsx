@@ -6,7 +6,6 @@ import { Minus, Share, TrendingDown, TrendingUp } from "lucide-react";
 import { AddCardLink } from "@/components/add-card-link";
 import { CardThumb } from "@/components/card-thumb";
 import { ValueChart, type ChartPoint } from "@/components/charts/value-chart";
-import { shareCollectionValue } from "@/components/collection-value-share";
 import {
   availableRanges,
   changeAmount,
@@ -241,6 +240,8 @@ const CollectionValueCard = memo(function CollectionValueCard({
   async function share() {
     setSharing(true);
     try {
+      // The share code loads on the tap, not with the page.
+      const { shareCollectionValue } = await import("@/components/collection-value-share");
       await shareCollectionValue(range);
     } finally {
       setSharing(false);

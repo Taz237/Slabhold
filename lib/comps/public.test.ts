@@ -666,7 +666,7 @@ describe("signed-in comps stay in place", () => {
   it("keeps the full comps section on the public card and the owner card", () => {
     const view = read("components/public-card-view.tsx");
     const detail = read("components/card-detail.tsx");
-    assert.match(view, /<CompsList/);
+    assert.match(view, /<LazyCompsList/);
     assert.match(view, /<SalesChart/);
     assert.match(view, /<WantButton/);
     assert.doesNotMatch(view, /<FairPriceCheck/);

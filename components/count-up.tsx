@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { countUpText } from "@/lib/moving-today/rail";
+import { countUpText } from "@/lib/ui/count-up-text";
 
 const COUNT_UP_MS = 480;
 

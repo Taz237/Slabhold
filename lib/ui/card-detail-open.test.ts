@@ -42,7 +42,7 @@ describe("opening a card from the collection", () => {
     const talk = detail.indexOf('heading="Who\'s talking about this card"');
     assert.ok(hero > 0 && chart > hero && list > chart && talk > list);
     assert.match(detail, /<SalesChart/);
-    assert.match(detail, /<CompsList/);
+    assert.match(detail, /<LazyCompsList/);
     assert.match(detail, /import\("@\/components\/sales-chart"\)/);
     assert.doesNotMatch(detail, /from "@\/components\/sales-chart"/);
     assert.doesNotMatch(detail, /from "@\/components\/charts\/value-chart"/);

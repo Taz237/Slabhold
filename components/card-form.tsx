@@ -64,6 +64,7 @@ import {
   type MoreDetailsField,
 } from "@/lib/cards/add-form-sections";
 import { addedCardPath } from "@/lib/cards/added-panel";
+import { preloadCardAddedPanel } from "@/components/card-page-parts";
 import {
   assessNewCardSubmit,
   clearNewCardDraft,
@@ -852,6 +853,8 @@ export function CardForm({
           await result.saved;
         },
       );
+      // The card page opens with the "Added" panel: fetch it while the save runs.
+      if (!existing) preloadCardAddedPanel();
       await saved;
       const { card } = result;
       createdId = null;

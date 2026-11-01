@@ -11,8 +11,8 @@ import {
   type ComponentType,
 } from "react";
 import { useCompFlagState } from "@/components/use-comp-flags";
-import { CardCollectorsSaying } from "@/components/card-collectors-saying";
-import { CardAddedPanel } from "@/components/card-added-panel";
+import { LazyCardCollectorsSaying } from "@/components/card-talk-frame";
+import { LazyCardAddedPanel, LazyCompsList, preloadCompsList } from "@/components/card-page-parts";
 import { WantButton } from "@/components/want-button";
 import { CategoryPicker } from "@/components/category-picker";
 import { CardVisibilitySwitch } from "@/components/card-visibility";
@@ -31,7 +31,6 @@ import {
   cardPanelClass,
 } from "@/components/card-detail-shell";
 import { CompBasis } from "@/components/comp-basis";
-import { CompsList } from "@/components/comps-list";
 import { SimilarCardsLine, EbaySoldLine } from "@/components/price-readout";
 import { SoldFreshness } from "@/components/sold-freshness";
 import { useSocial } from "@/components/social-provider";
@@ -176,6 +175,9 @@ export function CardDetail({ id, added = false }: { id: string; added?: boolean 
       retryValue();
     }
   }, [retryValue, sold.data?.fetchedAt, sold.status]);
+
+  // The sales list draws once the sold prices are in: fetch its code meanwhile.
+  useEffect(preloadCompsList, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -370,7 +372,7 @@ export function CardDetail({ id, added = false }: { id: string; added?: boolean 
 
       {/* card comes from the viewer's own collection, and the page is owner-only. */}
       {showAddedPanel({ added, owned: Boolean(card), dismissed: addedDismissed }) ? (
-        <CardAddedPanel
+        <LazyCardAddedPanel
           cardId={card.id}
           value={cardValue}
           loading={valueLoading || checklist.loading}
@@ -709,7 +711,7 @@ export function CardDetail({ id, added = false }: { id: string; added?: boolean 
           ) : null}
           {authRequired || unavailable || rateLimited ? null : sold.status === "ready" &&
             (onScreenComps.length > 0 || flags.hidden.length > 0) ? (
-            <CompsList
+            <LazyCompsList
               comps={onScreenComps}
               cardId={card.id}
               canFlag={Boolean(user)}
@@ -727,7 +729,7 @@ export function CardDetail({ id, added = false }: { id: string; added?: boolean 
         </section>
       )}
 
-      <CardCollectorsSaying cardId={card.id} heading="Who's talking about this card" />
+      <LazyCardCollectorsSaying cardId={card.id} heading="Who's talking about this card" />
     </div>
   );
 }

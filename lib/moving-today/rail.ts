@@ -147,15 +147,8 @@ export function noMatchText(direction: MoverDirection, sport: MovingSport | null
   return `No ${what} moving ${direction}`;
 }
 
-/** A rounded step of the chip count-up: "+115%" at 0.5 reads "+58%". */
-export function countUpText(pctText: string, progress: number): string {
-  const match = /^([+−-]?)(\d+)%$/.exec(pctText);
-  if (!match) return pctText;
-  const t = Math.min(1, Math.max(0, progress));
-  if (t >= 1) return pctText;
-  const value = Math.round(Number(match[2]) * t);
-  return value === 0 ? "0%" : `${match[1]}${value}%`;
-}
+/** Lives with the tile's count-up, so a card tile doesn't load the movers row. */
+export { countUpText } from "@/lib/ui/count-up-text";
 
 /** The shared tile's card fields for a mover. */
 export function moverTileCard(sale: MovingTodaySale): TileCard {

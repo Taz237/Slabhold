@@ -17,12 +17,15 @@ export function collectionTotalsFromSummarize(
   };
 }
 
-/** Calendar date in America/New_York as YYYY-MM-DD. */
+let newYorkDay: Intl.DateTimeFormat | null = null;
+
+/** Calendar date in America/New_York as YYYY-MM-DD. One formatter, made on first use. */
 export function snapshotDateInNewYork(now: Date = new Date()): string {
-  return new Intl.DateTimeFormat("en-CA", {
+  newYorkDay ??= new Intl.DateTimeFormat("en-CA", {
     timeZone: "America/New_York",
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
-  }).format(now);
+  });
+  return newYorkDay.format(now);
 }
