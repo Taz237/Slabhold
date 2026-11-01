@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { FEED_PAGE_SIZE, type FeedCursor } from "@/lib/social/feed-page";
-import { memoryFresh, mergeFreshPage } from "@/lib/social/feed-refresh";
+import { fetchFreshHead, hasNewerItems, memoryFresh, mergeFreshPage } from "@/lib/social/feed-refresh";
 import { loadFeedPage, type FeedPageScope } from "@/lib/social/load-feed-page";
 import type { HomeSeedPage } from "@/lib/social/home-seed";
 import type { TimelineItem } from "@/lib/social/timeline";
@@ -38,6 +38,11 @@ const remembered = new Map<string, Remembered>();
 /** Server pages already drawn by a mount (see HomeSeedPage.token). */
 const drawnSeeds = new Set<string>();
 const REMEMBER_LIMIT = 8;
+/** The quiet "anything newer?" read on return only needs the top few rows. */
+const NEWER_CHECK_LIMIT = 5;
+
+/** The post behind a row, so one post never shows twice (as itself and as a repost). */
+const postIdOf = (item: TimelineItem) => item.post.id;
 
 function recall(key: string): Remembered | null {
   const saved = remembered.get(key);
@@ -107,6 +112,9 @@ export function usePagedTimeline(input: {
   const restoredKey = useRef<string | null>(restored ? scopeKey : null);
   const epochRef = useRef(0);
   const loadingMoreRef = useRef(false);
+  /** Bumps when a refresh replaces the older pages, so a load-more already in flight is dropped. */
+  const headGenRef = useRef(0);
+  const pageRef = useRef(page);
   const requestRef = useRef(input);
   const rememberRef = useRef(input.rememberPosts);
 
@@ -114,6 +122,10 @@ export function usePagedTimeline(input: {
     requestRef.current = input;
     rememberRef.current = input.rememberPosts;
   }, [input]);
+
+  useEffect(() => {
+    pageRef.current = page;
+  }, [page]);
 
   // A server-read page joins the provider's posts the same way a loaded one does,
   // and is spent: a later mount with the same payload loads fresh.
@@ -175,7 +187,7 @@ export function usePagedTimeline(input: {
   }, [input.enabled, loading, memoryKey, page]);
 
   /**
-   * Pull to refresh: fetch the newest page again and lay it over the list
+   * Pull to refresh: fetch the newest pages again and lay them over the list
    * on screen. The list never empties, so nothing jumps while it loads.
    */
   const refresh = useCallback(async () => {
@@ -185,20 +197,35 @@ export function usePagedTimeline(input: {
     const supabase = await loadSupabaseBrowser();
     if (!supabase || epochRef.current !== token) return;
     try {
-      const next = await loadFeedPage(supabase, {
-        scope: current.scope,
-        viewerId: current.viewerId,
-        authorIds: current.authorIds,
-        profileId: current.profileId,
-        cursor: null,
-        limit: FEED_PAGE_SIZE,
+      // Reads on until it reaches the head already loaded, so no posts go
+      // missing between the new head and the older pages.
+      const next = await fetchFreshHead({
+        current: pageRef.current,
+        idOf: postIdOf,
+        fetchPage: async (cursor, seenPostIds) => {
+          const read = await loadFeedPage(supabase, {
+            scope: current.scope,
+            viewerId: current.viewerId,
+            authorIds: current.authorIds,
+            profileId: current.profileId,
+            cursor,
+            seenPostIds,
+            limit: FEED_PAGE_SIZE,
+          });
+          if (epochRef.current === token) {
+            rememberRef.current?.([...read.posts, ...read.relatedPosts], read.profiles, read.likes);
+          }
+          return read;
+        },
       });
       if (epochRef.current !== token) return;
-      rememberRef.current?.([...next.posts, ...next.relatedPosts], next.profiles, next.likes);
       setPage((existing) => {
-        const merged = mergeFreshPage(existing, next);
+        const merged = mergeFreshPage(existing, next, postIdOf);
+        // No overlap: the older pages were dropped and the cursor restarts
+        // below the new head. A load-more from the old cursor would leave a hole.
+        if (!merged.kept) headGenRef.current += 1;
         cursorRef.current = merged.page.nextCursor;
-        seenRef.current = new Set(merged.page.items.map((item) => item.post.id));
+        seenRef.current = new Set(merged.page.items.map(postIdOf));
         return merged.page;
       });
       setLoading(false);
@@ -213,6 +240,7 @@ export function usePagedTimeline(input: {
     const current = requestRef.current;
     if (!current.enabled || loadingMoreRef.current || !cursorRef.current) return;
     const token = epochRef.current;
+    const gen = headGenRef.current;
     const cursor = cursorRef.current;
     loadingMoreRef.current = true;
     setLoadingMore(true);
@@ -234,7 +262,7 @@ export function usePagedTimeline(input: {
         limit: FEED_PAGE_SIZE,
       })
         .then((next) => {
-          if (epochRef.current !== token) return;
+          if (epochRef.current !== token || headGenRef.current !== gen) return;
           cursorRef.current = next.nextCursor;
           for (const item of next.items) seenRef.current.add(item.post.id);
           setPage((existing) => ({
@@ -263,6 +291,35 @@ export function usePagedTimeline(input: {
     });
   }, []);
 
+  /**
+   * Back on the timeline: is anything newer than the loaded head? Reads the
+   * top few rows only and changes nothing on screen.
+   */
+  const checkNewer = useCallback(async (): Promise<boolean> => {
+    const current = requestRef.current;
+    if (!current.enabled || pageRef.current.items.length === 0) return false;
+    const token = epochRef.current;
+    const supabase = await loadSupabaseBrowser();
+    if (!supabase || epochRef.current !== token) return false;
+    try {
+      const next = await loadFeedPage(supabase, {
+        scope: current.scope,
+        viewerId: current.viewerId,
+        authorIds: current.authorIds,
+        profileId: current.profileId,
+        cursor: null,
+        limit: NEWER_CHECK_LIMIT,
+      });
+      if (epochRef.current !== token) return false;
+      return hasNewerItems(
+        pageRef.current.items.map((item) => item.key),
+        next.items.map((item) => item.key),
+      );
+    } catch {
+      return false;
+    }
+  }, []);
+
   return {
     items: page.items,
     posts: page.posts,
@@ -274,8 +331,11 @@ export function usePagedTimeline(input: {
     error,
     loadMore,
     refresh,
+    checkNewer,
     /** True when this mount drew the timeline from memory instead of loading it. */
     restored: Boolean(restored),
+    /** Drawn from what this tab saw before (Back), not from the server's first page. */
+    fromMemory: Boolean(restored) && !seededPage,
   };
 }
 
@@ -298,10 +358,12 @@ function fromInitial(initial: HomeSeedPage | null | undefined): Remembered | nul
 
 function mergeItems(current: TimelineItem[], next: TimelineItem[]) {
   const seen = new Set(current.map((item) => item.key));
+  const seenPosts = new Set(current.map(postIdOf));
   const merged = [...current];
   for (const item of next) {
-    if (seen.has(item.key)) continue;
+    if (seen.has(item.key) || seenPosts.has(item.post.id)) continue;
     seen.add(item.key);
+    seenPosts.add(item.post.id);
     merged.push(item);
   }
   return merged;

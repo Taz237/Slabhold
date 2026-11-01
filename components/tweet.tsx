@@ -174,7 +174,14 @@ export const Tweet = memo(function Tweet({
           />
         ) : (
           <>
-            {photos.length ? <PostPhotoGrid images={photos} onOpen={openImage} eager={firstScreen} /> : null}
+            {photos.length ? (
+              <PostPhotoGrid
+                images={photos}
+                onOpen={openImage}
+                eager={firstScreen}
+                fit={variant === "detail" ? "full" : "feed"}
+              />
+            ) : null}
             {post.card && pill ? (
               <div className="mt-3 -mb-1 flex justify-center">
                 <PostPill label={pill} solid={graded} />
