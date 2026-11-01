@@ -1,4 +1,5 @@
 import { pruneAnonRateLimits } from "@/lib/comps/rate-limit";
+import { pruneInviteCodeResets } from "@/lib/invites/prune";
 import {
   upsertTodaysCollectionSnapshot,
 } from "@/lib/collection/totals";
@@ -57,6 +58,7 @@ export async function GET(request: Request) {
   if (!cronAuthorized(request)) return unauthorized();
 
   const anonRateLimitsPruned = await pruneAnonRateLimits();
+  const inviteCodeResetsPruned = await pruneInviteCodeResets();
   const userIds = await listUserIdsWithCards();
   let written = 0;
   let failed = 0;
@@ -89,6 +91,7 @@ export async function GET(request: Request) {
     {
       ok,
       anonRateLimitsPruned,
+      inviteCodeResetsPruned,
       users: userIds.length,
       written,
       failed,
