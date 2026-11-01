@@ -150,8 +150,10 @@ function tappedHref(event: MouseEvent): string | null {
  * puts the scroll back where you were on Back, and in the home-screen app
  * adds an iOS-style back swipe from the left edge of pushed screens.
  */
-export function NavMotion() {
+export function NavMotion({ ownUsername = null }: { ownUsername?: string | null } = {}) {
   const pathname = usePathname() || "/";
+  /** Your username, so /u/<you> moves like the Profile tab. Null while loading. */
+  const ownRef = useRef(ownUsername);
   const stackRef = useRef<NavStack | null>(null);
   const currentRef = useRef<string | null>(null);
   /** How the next route change started: a tap, or what the Navigation API reported. */
@@ -162,6 +164,11 @@ export function NavMotion() {
   const cleanupSwipe = useRef<(() => void) | null>(null);
   const clearNav = useRef<number | null>(null);
   const stopRestore = useRef<(() => void) | null>(null);
+
+  // Before the route effect below, so a sign-in and a route change in one commit agree.
+  useLayoutEffect(() => {
+    ownRef.current = ownUsername;
+  }, [ownUsername]);
 
   // Route change. Runs in the same commit as the new page, before the
   // view transition paints its new snapshot.
@@ -187,7 +194,7 @@ export function NavMotion() {
 
     const kind: NavKind = swipeDone.current
       ? "none"
-      : pending ? "none" : navKind({ from: previous, to: next, direction });
+      : pending ? "none" : navKind({ from: previous, to: next, direction, ownUsername: ownRef.current });
     swipeDone.current = false;
     setNav(kind);
     if (clearNav.current !== null) window.clearTimeout(clearNav.current);
@@ -268,7 +275,7 @@ export function NavMotion() {
       positions.current.set(from, window.scrollY);
       const back = event.target instanceof Element && Boolean(event.target.closest("[data-nav-back]"));
       intent.current = { type: "push", href: to, back };
-      setNav(navKind({ from, to, direction: back ? "back" : "push" }));
+      setNav(navKind({ from, to, direction: back ? "back" : "push", ownUsername: ownRef.current }));
       if (!isStandalone()) return;
       const page = document.querySelector<HTMLElement>(PAGE_SELECTOR);
       if (!page) return;
@@ -443,6 +450,7 @@ export function NavMotion() {
           pathname: window.location.pathname,
           canGoBack: Boolean(stack && canGoBack(stack)) && window.history.length > 1,
           startX: touch.clientX,
+          ownUsername: ownRef.current,
         })
       ) {
         return;

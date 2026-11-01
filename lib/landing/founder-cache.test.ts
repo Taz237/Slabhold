@@ -71,9 +71,8 @@ describe("founder showcase read errors", () => {
   });
 
   it("Home catches the throw and falls back to sample slabs", () => {
-    for (const home of ["app/(app)/page.tsx", "app/welcome/page.tsx"]) {
-      assert.match(readFileSync(join(process.cwd(), home), "utf8"), /await founderShowcase\(\)|founderShowcase\(\), movers\(\)/, home);
-    }
+    // /welcome uses welcomeFounderShowcase instead (see welcome-founder.test.ts).
+    assert.match(readFileSync(join(process.cwd(), "app/(app)/page.tsx"), "utf8"), /founderShowcase\(\), movers\(\)/);
     const page = readFileSync(join(process.cwd(), "lib/landing/founder-page.ts"), "utf8");
     assert.match(page, /try \{\s*return await cachedFounderShowcase\(\);\s*\} catch/);
     assert.match(page, /return EMPTY_FOUNDER_SHOWCASE;/);

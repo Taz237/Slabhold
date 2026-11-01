@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
 import { useSocial } from "@/components/social-provider";
 import {
@@ -55,11 +55,46 @@ export function HunterSettingControl({
   );
 }
 
+export type HunterToggleDeps = {
+  userId: string;
+  /** Re-entry guard. A ref, so a second tap in the same frame sees it at once. */
+  busyRef: { current: boolean };
+  setBusy: (busy: boolean) => void;
+  setError: (error: string | null) => void;
+  setChecked: (checked: boolean) => void;
+  load: () => Promise<HunterSettingDb | null>;
+  save: typeof saveAndReloadShowAsHunter;
+};
+
+/** One save per tap: busy from the first moment, cleared on every way out. */
+export async function toggleHunterSetting(next: boolean, deps: HunterToggleDeps): Promise<void> {
+  if (deps.busyRef.current) return;
+  deps.busyRef.current = true;
+  deps.setBusy(true);
+  deps.setError(null);
+  try {
+    const supabase = await deps.load();
+    if (!supabase) return;
+    const result = await deps.save(supabase, deps.userId, next);
+    if (result.error) {
+      deps.setError(result.error);
+      return;
+    }
+    deps.setChecked(result.showAsHunter);
+  } catch {
+    deps.setError("Couldn't save that setting.");
+  } finally {
+    deps.busyRef.current = false;
+    deps.setBusy(false);
+  }
+}
+
 export function HunterSettingSwitch() {
   const { user } = useSocial();
   const [checked, setChecked] = useState(false);
   const [ready, setReady] = useState(false);
   const [busy, setBusy] = useState(false);
+  const busyRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -83,23 +118,16 @@ export function HunterSettingSwitch() {
   if (!user) return null;
   const userId = user.id;
 
-  async function toggle(next: boolean) {
-    if (busy) return;
-    const supabase = await loadSupabaseBrowser();
-    if (!supabase) return;
-    setBusy(true);
-    setError(null);
-    const result = await saveAndReloadShowAsHunter(
-      supabase as unknown as HunterSettingDb,
+  function toggle(next: boolean) {
+    return toggleHunterSetting(next, {
       userId,
-      next,
-    );
-    setBusy(false);
-    if (result.error) {
-      setError(result.error);
-      return;
-    }
-    setChecked(result.showAsHunter);
+      busyRef,
+      setBusy,
+      setError,
+      setChecked,
+      load: () => loadSupabaseBrowser() as Promise<HunterSettingDb | null>,
+      save: saveAndReloadShowAsHunter,
+    });
   }
 
   return (

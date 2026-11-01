@@ -44,6 +44,9 @@ const NEWER_CHECK_LIMIT = 5;
 /** The post behind a row, so one post never shows twice (as itself and as a repost). */
 const postIdOf = (item: TimelineItem) => item.post.id;
 
+/** The error line for a failed read (or a failed supabase-js load). */
+const loadError = (reason: unknown) => (reason instanceof Error ? reason.message : "Could not load posts.");
+
 function recall(key: string): Remembered | null {
   const saved = remembered.get(key);
   if (!saved) return null;
@@ -171,9 +174,16 @@ export function usePagedTimeline(input: {
           if (epochRef.current !== token) return;
           setPage(idle);
           setLoading(false);
-          setError(reason instanceof Error ? reason.message : "Could not load posts.");
+          setError(loadError(reason));
         });
-    });
+    })
+      .catch((reason: unknown) => {
+        // supabase-js itself failed to load: settle instead of loading forever.
+        if (epochRef.current !== token) return;
+        setPage(idle);
+        setLoading(false);
+        setError(loadError(reason));
+      });
   }, [scopeKey]);
 
   useEffect(() => {
@@ -194,9 +204,9 @@ export function usePagedTimeline(input: {
     const current = requestRef.current;
     if (!current.enabled) return;
     const token = epochRef.current;
-    const supabase = await loadSupabaseBrowser();
-    if (!supabase || epochRef.current !== token) return;
     try {
+      const supabase = await loadSupabaseBrowser();
+      if (!supabase || epochRef.current !== token) return;
       // Reads on until it reaches the head already loaded, so no posts go
       // missing between the new head and the older pages.
       const next = await fetchFreshHead({
@@ -232,7 +242,7 @@ export function usePagedTimeline(input: {
       setError(null);
     } catch (reason: unknown) {
       if (epochRef.current !== token) return;
-      setError(reason instanceof Error ? reason.message : "Could not load posts.");
+      setError(loadError(reason));
     }
   }, []);
 
@@ -281,14 +291,21 @@ export function usePagedTimeline(input: {
         })
         .catch((reason: unknown) => {
           if (epochRef.current !== token) return;
-          setError(reason instanceof Error ? reason.message : "Could not load posts.");
+          setError(loadError(reason));
         })
         .finally(() => {
           if (epochRef.current !== token) return;
           loadingMoreRef.current = false;
           setLoadingMore(false);
         });
-    });
+    })
+      .catch((reason: unknown) => {
+        // supabase-js itself failed to load: let Load more try again.
+        if (epochRef.current !== token) return;
+        loadingMoreRef.current = false;
+        setLoadingMore(false);
+        setError(loadError(reason));
+      });
   }, []);
 
   /**
@@ -299,9 +316,9 @@ export function usePagedTimeline(input: {
     const current = requestRef.current;
     if (!current.enabled || pageRef.current.items.length === 0) return false;
     const token = epochRef.current;
-    const supabase = await loadSupabaseBrowser();
-    if (!supabase || epochRef.current !== token) return false;
     try {
+      const supabase = await loadSupabaseBrowser();
+      if (!supabase || epochRef.current !== token) return false;
       const next = await loadFeedPage(supabase, {
         scope: current.scope,
         viewerId: current.viewerId,

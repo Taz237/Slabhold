@@ -29,10 +29,22 @@ export const GUARDED_ROUTES = [
   "/cards/[id]",
   "/u/[username]/cards/[id]",
   "/posts/[id]",
+  // The screens #148 slimmed: supabase-js loads after hydration there.
+  "/cards/[id]/edit",
+  "/profile",
+  "/u/[username]",
+  "/cards/new",
+  "/cards/[id]/posts",
+  "/search",
+  "/messages/[username]",
+  "/compose",
+  "/signup",
+  "/login",
+  "/notifications",
 ];
 
 /** Printed for reference, never failed on. */
-export const REPORTED_ROUTES = ["/login"];
+export const REPORTED_ROUTES = [];
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const statsPath = join(root, ".next", "diagnostics", "route-bundle-stats.json");

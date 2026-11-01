@@ -281,7 +281,7 @@ function Shell({
       <PageFrame pathname={pathname} className={`${mainMax} ${mainPad}`}>
         {children}
       </PageFrame>
-      <NavMotion />
+      <NavMotion ownUsername={user?.username ?? null} />
       <NavPendingSkeleton />
       {showNav && !chromeless ? (
         <nav

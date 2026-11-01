@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it } from "node:test";
 import { gzipSync } from "node:zlib";
-import { GUARDED_ROUTES, TOLERANCE, firstLoadGzip, overBudget } from "./check-bundle-size.mjs";
+import { GUARDED_ROUTES, REPORTED_ROUTES, TOLERANCE, firstLoadGzip, overBudget } from "./check-bundle-size.mjs";
 
 const read = (path: string) => readFileSync(join(process.cwd(), path), "utf8");
 
@@ -43,11 +43,32 @@ describe("bundle size check", () => {
       "/cards/[id]",
       "/u/[username]/cards/[id]",
       "/posts/[id]",
+      // The screens #148 slimmed, guarded so supabase-js stays off their first load.
+      "/cards/[id]/edit",
+      "/profile",
+      "/u/[username]",
+      "/cards/new",
+      "/cards/[id]/posts",
+      "/search",
+      "/messages/[username]",
+      "/compose",
+      "/signup",
+      "/login",
+      "/notifications",
     ]);
     const baseline = JSON.parse(read("bundle-baseline.json")) as Record<string, number>;
     for (const route of GUARDED_ROUTES) {
       assert.ok(Number.isInteger(baseline[route]) && baseline[route] > 0, route);
     }
+    // Exactly the guarded routes, nothing stale.
+    assert.deepEqual(Object.keys(baseline).sort(), [...GUARDED_ROUTES].sort());
+    // Adding routes never moved the six that were already guarded.
+    assert.deepEqual(
+      GUARDED_ROUTES.slice(0, 6).map((route) => baseline[route]),
+      [147634, 216000, 256034, 275120, 262978, 253177],
+    );
+    // A guarded route is not also printed as reference only.
+    assert.equal(REPORTED_ROUTES.includes("/login"), false);
     // The post page is guarded at main's size when it joined the guard.
     assert.equal(baseline["/posts/[id]"], 253177);
     // Signed-out Home stays under 150 KB gzip.
