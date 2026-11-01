@@ -75,6 +75,11 @@ export type PortfolioHeroProps = {
 
 type HeroCard = MoverCard & { card: SportsCard };
 
+/** The share code, loaded on the tap, not with the page. An object so tests can stand in for it. */
+export const collectionShare = {
+  load: () => import("@/components/collection-value-share"),
+};
+
 const CHART_ID = "collection";
 const CHART_HEIGHT = 184;
 const NO_CARDS: SportsCard[] = [];
@@ -209,6 +214,7 @@ const CollectionValueCard = memo(function CollectionValueCard({
   const [chosen, setChosen] = useState<RangeId | null>(() => readStoredRange(storage(), CHART_ID));
   const [scrub, setScrub] = useState<ChartPoint | null>(null);
   const [sharing, setSharing] = useState(false);
+  const [shareFailed, setShareFailed] = useState(false);
   const today = snapshotDateInNewYork();
   const liveReady = !valuesLoading && !valuesFailed;
 
@@ -239,10 +245,18 @@ const CollectionValueCard = memo(function CollectionValueCard({
 
   async function share() {
     setSharing(true);
+    setShareFailed(false);
     try {
-      // The share code loads on the tap, not with the page.
-      const { shareCollectionValue } = await import("@/components/collection-value-share");
-      await shareCollectionValue(range);
+      let shareCode: Awaited<ReturnType<typeof collectionShare.load>>;
+      try {
+        shareCode = await collectionShare.load();
+      } catch (error) {
+        // A chunk that would not load (deploy skew, a flaky network). The next tap loads again.
+        console.warn("[collection-share]", error instanceof Error ? error.message : String(error));
+        setShareFailed(true);
+        return;
+      }
+      await shareCode.shareCollectionValue(range);
     } finally {
       setSharing(false);
     }
@@ -279,6 +293,11 @@ const CollectionValueCard = memo(function CollectionValueCard({
             <AddCardLink />
           </div>
         </div>
+        {shareFailed ? (
+          <p role="status" className="mt-1 text-right text-xs text-zinc-500">
+            Couldn&apos;t open sharing. Try again.
+          </p>
+        ) : null}
         {valuesLoading ? (
           <>
             <span className="mt-1 block h-11 w-44 animate-pulse rounded-lg bg-zinc-200/80 dark:bg-white/10" aria-hidden />

@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
+  createContext,
+  useContext,
   useEffect,
   useRef,
   useState,
@@ -29,7 +31,15 @@ import {
   type MovingTodayPayload,
   type MovingTodaySale,
 } from "@/lib/moving-today/types";
+import { signupPath } from "@/lib/auth/safe-next";
 import { startPendingNav } from "@/lib/ui/tap-feedback";
+
+/**
+ * Whether the reader is signed in, for the quiet row's link. The feed sets it
+ * from the same user it shows the signed-out banner for. Elsewhere (the
+ * server-rendered signed-in Home row) it stays signed in.
+ */
+export const MoversSignedIn = createContext(true);
 
 /** Rail widths: the top mover is a little larger. The third tile is cut at 390px, so the row reads as a swipe. */
 export const RAIL_TOP_WIDTH = "w-[132px]";
@@ -297,8 +307,10 @@ export function MovingTodayPanel({ payload }: { payload: MovingTodayPayload }) {
     return () => clearTimeout(timer);
   }, []);
 
+  const signedIn = useContext(MoversSignedIn);
+
   const sales = shouldShowMovingToday(payload.sales) ? payload.sales : [];
-  if (sales.length === 0) return <MovingQuiet />;
+  if (sales.length === 0) return <MovingQuiet signedIn={signedIn} />;
   const total = sales.length;
   const shown = sales.slice(0, expanded ? MOVING_RAIL_COUNT : RAIL_FIRST_TILES);
   const day = payload.window === "day";
@@ -358,12 +370,12 @@ export function MovingTodayPanel({ payload }: { payload: MovingTodayPayload }) {
   );
 }
 
-/** No public cards at all: one slim row, the header's height, no tiles. */
-export function MovingQuiet() {
+/** No public cards at all: one slim row, the header's height, no tiles. Signed out, it goes to sign up first. */
+export function MovingQuiet({ signedIn = true }: { signedIn?: boolean }) {
   return (
     <section aria-label="Moving this week" data-moving-today="quiet" className="py-3">
       <Link
-        href="/cards/new"
+        href={signedIn ? "/cards/new" : signupPath("/cards/new")}
         className={`-my-2.5 flex min-h-11 items-center gap-1 px-4 text-[12px] leading-6 sm:text-[13px] ${tileFocusRing}`}
       >
         <span className="min-w-0 truncate">

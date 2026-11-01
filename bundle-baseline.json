@@ -4,5 +4,16 @@
   "/collection": 256034,
   "/cards/[id]": 275120,
   "/u/[username]/cards/[id]": 262978,
-  "/posts/[id]": 253177
+  "/posts/[id]": 253177,
+  "/cards/[id]/edit": 267523,
+  "/profile": 264113,
+  "/u/[username]": 264113,
+  "/cards/new": 263104,
+  "/cards/[id]/posts": 248673,
+  "/search": 228293,
+  "/messages/[username]": 229661,
+  "/compose": 227330,
+  "/signup": 225800,
+  "/login": 225800,
+  "/notifications": 224965
 }

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { useSocial } from "@/components/social-provider";
+import { PartLoadFailed } from "@/components/card-page-parts";
 import { signupPath } from "@/lib/auth/safe-next";
 import { lazyPart } from "@/lib/ui/lazy-part";
 
@@ -74,6 +75,15 @@ export function CardCollectorsSayingPending(props: CardTalkProps) {
   );
 }
 
+/** The section's chunk would not load: the same box and header, with Try again. */
+export function CardCollectorsSayingFailed({ retry, ...props }: CardTalkProps & { retry: () => void }) {
+  return (
+    <CardTalkFrame {...props} loading={false}>
+      <PartLoadFailed retry={retry} />
+    </CardTalkFrame>
+  );
+}
+
 /**
  * The posts section from its own chunk. Posts, the timeline row and its menus
  * load after the card itself, below the fold.
@@ -81,4 +91,5 @@ export function CardCollectorsSayingPending(props: CardTalkProps) {
 export const LazyCardCollectorsSaying = lazyPart<CardTalkProps>(
   () => import("@/components/card-collectors-saying").then((mod) => mod.CardCollectorsSaying),
   CardCollectorsSayingPending,
+  { name: "card-collectors-saying", failed: CardCollectorsSayingFailed },
 );

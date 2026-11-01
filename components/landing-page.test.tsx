@@ -230,7 +230,7 @@ describe("landing founder touch", () => {
   it("loads the showcase on the server through the hour cache and preloads the hero photos", () => {
     const page = read("app/(app)/page.tsx");
     assert.match(read("lib/landing/founder-page.ts"), /cachedFounderShowcase\(\)/);
-    assert.match(read("app/welcome/page.tsx"), /await founderShowcase\(\)/);
+    assert.match(read("app/welcome/page.tsx"), /await welcomeFounderShowcase\(\)/);
     assert.match(page, /<HomeGate landing=\{<LandingPage founder=\{founder\} \/>\}/);
     const loader = read("lib/landing/founder-load.ts");
     assert.match(loader, /unstable_cache\(\s*loadFounderShowcase,\s*\["landing-founder"\],\s*\{\s*revalidate: 3600/);

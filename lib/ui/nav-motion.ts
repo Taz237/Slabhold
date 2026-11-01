@@ -4,6 +4,8 @@
  * Pure functions only. The browser wiring is in components/nav-motion.tsx.
  */
 
+import { userHref } from "@/lib/social/user-href";
+
 /** Screens on the bottom bar or the top bar. Moving between them cross-fades. */
 export const ROOT_SCREENS = [
   "/",
@@ -23,9 +25,20 @@ function cleanPath(path: string): string {
   return cut || "/";
 }
 
-/** True for a tab root. Everything else (post, profile, card, DM thread, settings page) is pushed. */
-export function isRootScreen(path: string): boolean {
-  return (ROOT_SCREENS as readonly string[]).includes(cleanPath(path));
+/** /u/<you>: the Profile tab, same match as isCurrentTabScreen (any case, encoded or decoded, no trailing slash). */
+function isOwnProfile(path: string, ownUsername: string | null | undefined): boolean {
+  const own = userHref(ownUsername ?? "").toLowerCase();
+  const here = path.toLowerCase();
+  return own !== "/u/" && (here === own || here === decodeURIComponent(own));
+}
+
+/**
+ * True for a tab root, including your own profile once the username is known.
+ * Everything else (post, someone's profile, card, DM thread, settings page) is pushed.
+ */
+export function isRootScreen(path: string, ownUsername?: string | null): boolean {
+  const clean = cleanPath(path);
+  return (ROOT_SCREENS as readonly string[]).includes(clean) || isOwnProfile(clean, ownUsername);
 }
 
 /**
@@ -36,12 +49,17 @@ export function isRootScreen(path: string): boolean {
  */
 export type NavKind = "forward" | "back" | "fade" | "none";
 
-export function navKind(input: { from: string; to: string; direction: "push" | "back" | "forward" }): NavKind {
+export function navKind(input: {
+  from: string;
+  to: string;
+  direction: "push" | "back" | "forward";
+  ownUsername?: string | null;
+}): NavKind {
   const from = cleanPath(input.from);
   const to = cleanPath(input.to);
   if (from === to) return "none";
-  const fromRoot = isRootScreen(from);
-  const toRoot = isRootScreen(to);
+  const fromRoot = isRootScreen(from, input.ownUsername);
+  const toRoot = isRootScreen(to, input.ownUsername);
   if (input.direction === "back") return fromRoot && toRoot ? "fade" : "back";
   if (toRoot) return "fade";
   return "forward";
@@ -136,9 +154,10 @@ export function edgeSwipeAllowed(input: {
   pathname: string;
   canGoBack: boolean;
   startX: number;
+  ownUsername?: string | null;
 }): boolean {
   if (!input.standalone || !input.canGoBack) return false;
-  if (isRootScreen(input.pathname)) return false;
+  if (isRootScreen(input.pathname, input.ownUsername)) return false;
   return input.startX >= 0 && input.startX <= EDGE_START_PX;
 }
 

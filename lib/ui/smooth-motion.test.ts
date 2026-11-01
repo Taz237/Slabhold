@@ -13,7 +13,7 @@ describe("smooth motion wiring", () => {
     assert.match(shell, /<main\s+data-page=""/);
     assert.match(shell, /viewTransitionName: "app-header"/);
     assert.match(shell, /viewTransitionName: "app-nav"/);
-    assert.match(shell, /<NavMotion \/>/);
+    assert.match(shell, /<NavMotion ownUsername=\{user\?\.username \?\? null\} \/>/);
   });
 
   it("slides pushed screens, fades tabs, and turns it all off for reduced motion", () => {
