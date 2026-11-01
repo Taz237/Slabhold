@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSocial } from "@/components/social-provider";
 import { loadSupabaseBrowser } from "@/lib/supabase/browser-lazy";
 import {
@@ -16,10 +16,12 @@ import {
   readLeaderboardOptIn,
   type LeaderboardOptInDb,
 } from "@/lib/leaderboard/opt-in";
+import { publishLeaderboardOptIn, subscribeLeaderboardOptIn } from "@/lib/leaderboard/opt-in-sync";
 import { setLeaderboardOptIn } from "@/lib/leaderboard/revalidate";
 import { leaderboardRequirementsLine } from "@/lib/leaderboard/requirements";
 
 const LOAD_SETTING_ERROR = "Couldn't load that setting.";
+const SAVE_SETTING_ERROR = "Couldn't save that setting.";
 
 export function LeaderboardOptInControl({
   checked,
@@ -63,6 +65,43 @@ export function LeaderboardOptInControl({
   );
 }
 
+export type LeaderboardToggleDeps = {
+  /** Re-entry guard. A ref, so a second tap in the same frame sees it at once. */
+  busyRef: { current: boolean };
+  setBusy: (busy: boolean) => void;
+  setError: (error: string | null) => void;
+  setChecked: (checked: boolean) => void;
+  /** What the switch showed before this tap. Kept when the save fails. */
+  previous: boolean;
+  save?: (optedIn: boolean) => Promise<{ optedIn: boolean; error?: string }>;
+  /** After a save that worked, with the saved value. */
+  onSaved?: (optedIn: boolean) => void;
+};
+
+/** One save per tap: busy from the first moment, the old state kept on failure, cleared on every way out. */
+export async function toggleLeaderboardOptIn(next: boolean, deps: LeaderboardToggleDeps): Promise<void> {
+  if (deps.busyRef.current) return;
+  deps.busyRef.current = true;
+  deps.setBusy(true);
+  deps.setError(null);
+  try {
+    const result = await (deps.save ?? setLeaderboardOptIn)(next);
+    if (result.error) {
+      deps.setChecked(deps.previous);
+      deps.setError(result.error);
+      return;
+    }
+    deps.setChecked(result.optedIn);
+    deps.onSaved?.(result.optedIn);
+  } catch {
+    deps.setChecked(deps.previous);
+    deps.setError(SAVE_SETTING_ERROR);
+  } finally {
+    deps.busyRef.current = false;
+    deps.setBusy(false);
+  }
+}
+
 export function LeaderboardOptInSwitch({
   minimums = leaderboardMinimums(),
 }: {
@@ -72,7 +111,15 @@ export function LeaderboardOptInSwitch({
   const [checked, setChecked] = useState(false);
   const [ready, setReady] = useState(false);
   const [busy, setBusy] = useState(false);
+  const busyRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const id = user?.id;
+    if (!id) return;
+    // A save from the prompt on the same screen moves this switch too.
+    return subscribeLeaderboardOptIn(id, setChecked);
+  }, [user?.id]);
 
   useEffect(() => {
     const id = user?.id;
@@ -101,17 +148,19 @@ export function LeaderboardOptInSwitch({
     };
   }, [user?.id]);
 
-  async function toggle(next: boolean) {
-    if (!user?.id) return;
-    setBusy(true);
-    setError(null);
-    const result = await setLeaderboardOptIn(next);
-    setBusy(false);
-    setChecked(result.optedIn);
-    setError(result.error ?? null);
-  }
-
   if (!user) return null;
+  const userId = user.id;
+
+  function toggle(next: boolean) {
+    return toggleLeaderboardOptIn(next, {
+      busyRef,
+      setBusy,
+      setError,
+      setChecked,
+      previous: checked,
+      onSaved: (optedIn) => publishLeaderboardOptIn({ userId, optedIn }),
+    });
+  }
 
   return (
     <div className="mt-3">
@@ -144,6 +193,17 @@ export function LeaderboardPrompt({
   const { user } = useSocial();
   const [visible, setVisible] = useState(false);
   const [busy, setBusy] = useState(false);
+  const busyRef = useRef(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const id = user?.id;
+    if (!id) return;
+    // Turning the switch on from the same screen hides this prompt.
+    return subscribeLeaderboardOptIn(id, (optedIn) => {
+      if (optedIn) setVisible(false);
+    });
+  }, [user?.id]);
 
   useEffect(() => {
     const account = user;
@@ -200,10 +260,24 @@ export function LeaderboardPrompt({
   }
 
   async function optIn() {
+    if (busyRef.current) return;
+    busyRef.current = true;
     setBusy(true);
-    const result = await setLeaderboardOptIn(true);
-    setBusy(false);
-    if (!result.error) dismiss();
+    setError(null);
+    try {
+      const result = await setLeaderboardOptIn(true);
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
+      publishLeaderboardOptIn({ userId: account.id, optedIn: result.optedIn });
+      dismiss();
+    } catch {
+      setError(SAVE_SETTING_ERROR);
+    } finally {
+      busyRef.current = false;
+      setBusy(false);
+    }
   }
 
   return (
@@ -233,6 +307,7 @@ export function LeaderboardPrompt({
           Not now
         </button>
       </div>
+      {error ? <p className="mt-2 text-sm text-rose-600">{error}</p> : null}
     </section>
   );
 }
