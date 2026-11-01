@@ -14,15 +14,28 @@ import type { OwnedCard } from "./types";
 const ID_CHUNK = 100;
 /** One owner's shelf. Same rows the full table gave for that owner. */
 const OWNER_LIMIT = 1000;
-/** Copies of one player across every public collection. */
-const PLAYER_LIMIT = 500;
+/** Player names per read: one `or` of whole-name matches. */
+const PLAYER_CHUNK = 8;
+/** Copies of those players across every public collection (PostgREST's default max rows). */
+const PLAYER_LIMIT = 1000;
 
 function rowsOf(result: { data: unknown; error: { message: string } | null }): PublicCardRow[] {
   if (result.error) throw new Error(result.error.message);
   return Array.isArray(result.data) ? (result.data as PublicCardRow[]) : [];
 }
 
-/** One read per id chunk, per owner, and per player. Never the whole table. */
+/**
+ * The `.or()` filter for whole-name, case-insensitive matches on `player`.
+ * Each name is LIKE-escaped, then double-quoted with `"` and `\` backslash-escaped,
+ * because `.` and `,` (as in "C.J. Stroud") are reserved in `or` filters.
+ */
+export function playerIlikeOr(names: readonly string[]): string {
+  return names
+    .map((name) => `player.ilike."${escapeIlike(name).replace(/["\\]/g, (char) => `\\${char}`)}"`)
+    .join(",");
+}
+
+/** One read per id chunk, per owner, and per chunk of players. Never the whole table. */
 export async function loadPublicCardsForKeys(
   supabase: SupabaseClient,
   keys: readonly string[],
@@ -57,14 +70,10 @@ export async function loadPublicCardsForKeys(
         .then(rowsOf),
     );
   }
-  for (const player of players) {
+  for (let start = 0; start < players.length; start += PLAYER_CHUNK) {
+    const chunk = players.slice(start, start + PLAYER_CHUNK);
     reads.push(
-      supabase
-        .from("public_cards")
-        .select("*")
-        .ilike("player", escapeIlike(player))
-        .limit(PLAYER_LIMIT)
-        .then(rowsOf),
+      supabase.from("public_cards").select("*").or(playerIlikeOr(chunk)).limit(PLAYER_LIMIT).then(rowsOf),
     );
   }
   const batches = await Promise.all(reads);
