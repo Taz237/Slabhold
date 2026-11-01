@@ -330,10 +330,16 @@ function GhostPlace({ spot }: { spot: OpenSpot }) {
       </span>
     </>
   );
+  const plain: CSSProperties = { background: "transparent" };
   const className = `lb-ghost lb-ghost-${spot.rank} flex min-h-11 min-w-0 flex-col items-center rounded-2xl border-0 bg-transparent text-center`;
-  if (!spot.ctaHref) return <div className={className}>{body}</div>;
+  if (!spot.ctaHref)
+    return (
+      <div className={className} style={plain}>
+        {body}
+      </div>
+    );
   return (
-    <Link href={spot.ctaHref} className={`${className} ${FOCUS_RING}`}>
+    <Link href={spot.ctaHref} className={`${className} ${FOCUS_RING}`} style={plain}>
       {body}
     </Link>
   );
@@ -435,7 +441,7 @@ function SpotAction({ you, boardId }: { you: YouRow; boardId: string }) {
   }
   return (
     <Link href={cta.href} className={ACTION_CLASS}>
-      {cta.label}
+      {boardId === "rising-collectors" ? "Find collectors" : cta.label}
     </Link>
   );
 }
@@ -462,7 +468,7 @@ function PinnedSpot({ you, board, week }: { you: YouRow; board: LeaderboardBoard
       ) : (
         <span aria-hidden="true" className="h-7 w-7 shrink-0 rounded-full border-2 border-dashed border-white/25" />
       )}
-      <span className="line-clamp-2 min-w-0 flex-1 text-[13px] font-semibold leading-4 text-white">
+      <span className="min-w-0 flex-1 break-words text-[13px] font-semibold leading-4 text-white">
         {spotLine(you, board.scoreLabel, week)}
       </span>
       <span className="sr-only">{you.label}</span>
@@ -514,22 +520,24 @@ function Board({ board, week }: { board: LeaderboardBoard; week: "current" | "pr
         </div>
       </header>
       <Podium board={board} delay={delay} />
-      {rest.length > 0 ? (
-        <ol className="relative mt-3 space-y-1" data-rank-rows="">
-          {rest.map((entry, index) => (
-            <li
-              key={entry.id}
-              className="lb-row"
-              style={delay(3 + index)}
-              data-rank={entry.rank}
-              data-viewer-row={entry.mine ? "" : undefined}
-            >
-              <RankRow entry={entry} boardId={board.id} />
-            </li>
-          ))}
-        </ol>
-      ) : null}
-      {board.you ? <PinnedSpot you={board.you} board={board} week={week} /> : null}
+      <div data-board-rest="" className="relative">
+        {rest.length > 0 ? (
+          <ol className="relative mt-3 space-y-1" data-rank-rows="">
+            {rest.map((entry, index) => (
+              <li
+                key={entry.id}
+                className="lb-row"
+                style={delay(3 + index)}
+                data-rank={entry.rank}
+                data-viewer-row={entry.mine ? "" : undefined}
+              >
+                <RankRow entry={entry} boardId={board.id} />
+              </li>
+            ))}
+          </ol>
+        ) : null}
+        {board.you ? <PinnedSpot you={board.you} board={board} week={week} /> : null}
+      </div>
     </section>
   );
 }

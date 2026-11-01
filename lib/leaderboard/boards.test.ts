@@ -309,7 +309,7 @@ describe("your spot and rules", () => {
     assert.equal(outside.boards[1]?.yourSpot?.ctaHref, "/search");
     const markup = html(outside);
     assert.match(section(markup, "most-cards-added"), /data-your-spot=""[\s\S]*#13/);
-    assert.match(section(markup, "rising-collectors"), /data-your-spot=""[\s\S]*Find collectors to follow/);
+    assert.match(section(markup, "rising-collectors"), /data-your-spot=""[\s\S]*>Find collectors</);
     assert.match(section(markup, "top-card-post"), /data-your-spot=""[\s\S]*Post a card/);
 
     const inside = model(snap({ "most-cards-added": [person("me", 9), ...many(5)] }), "me");

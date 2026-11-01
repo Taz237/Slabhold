@@ -47,6 +47,21 @@ describe("pinned your-spot bar", () => {
     assert.match(section, /^data-board="most-cards-added"[^>]*class="[^"]*\boverflow-clip\b/);
     assert.doesNotMatch(section.slice(0, section.indexOf(">")), /overflow-hidden/);
     assert.ok(section.trimEnd().endsWith("</div>"), "the bar is the section's last child");
+    assert.doesNotMatch(bar, /line-clamp/);
+    assert.match(section, /data-board-rest=""[\s\S]*data-your-spot=""/);
+    assert.doesNotMatch(section.slice(0, section.indexOf("data-board-rest")), /data-your-spot/);
+  });
+
+  it("draws podium ghosts with no tinted card behind them", () => {
+    const section = boardHtml(render(pageModel(snap({ "most-cards-added": [row("solo", 2)] }))), "most-cards-added");
+    for (const rank of [2, 3]) {
+      const start = section.indexOf(`data-ghost-rank="${rank}"`);
+      const ghost = section.slice(start, section.indexOf("</li>", start));
+      assert.match(ghost, /<a [^>]*class="lb-ghost lb-ghost-\d[^"]*"[^>]*style="background:transparent"/);
+    }
+    const last = boardHtml(render(pageModel(snap({}), null, "previous")), "most-cards-added");
+    const start = last.indexOf('data-ghost-rank="1"');
+    assert.match(last.slice(start, last.indexOf("</li>", start)), /<div [^>]*class="lb-ghost lb-ghost-1[^"]*"[^>]*style="background:transparent"/);
   });
 
   it("says a tie, a lead, and a lone #1", () => {
@@ -78,7 +93,7 @@ describe("pinned your-spot bar", () => {
     const risingBar = barHtml(boardHtml(markup, "rising-collectors")) ?? "";
     assert.equal(outside.boards[1]?.you?.rival, null);
     assert.match(text(risingBar), /Not ranked yet · /);
-    assert.match(risingBar, /href="\/search"[^>]*>Find collectors to follow</);
+    assert.match(risingBar, /href="\/search"[^>]*>Find collectors</);
     const postBar = barHtml(boardHtml(markup, "top-card-post")) ?? "";
     assert.match(text(postBar), /Not ranked yet · /);
     assert.match(postBar, /href="\/compose"[^>]*>Post a card</);
