@@ -594,6 +594,8 @@ function Composer({ onPosted }: { onPosted?: () => void }) {
       void postsSupportMultipleImages(supabase).then((ok) => {
         if (!cancelled) setLimit(postPhotoLimit(ok));
       });
+    }).catch(() => {
+      // supabase-js failed to load: the photo limit stays at its default.
     });
     return () => {
       cancelled = true;

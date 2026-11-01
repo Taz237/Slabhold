@@ -166,6 +166,11 @@ export function ValueBoard({
         setOptedIn(result.optedIn);
         setOptReady(true);
       });
+    }).catch(() => {
+      // supabase-js failed to load: count as not opted in, so the checklist settles.
+      if (cancelled) return;
+      setOptedIn(false);
+      setOptReady(true);
     });
     return () => {
       cancelled = true;

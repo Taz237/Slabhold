@@ -60,6 +60,8 @@ function PersonFollow({
         .then(({ data }) => {
           if (!cancelled && typeof data?.id === "string") setResolved(data.id);
         });
+    }).catch(() => {
+      // supabase-js failed to load: no Follow button, as when the row is missing.
     });
     return () => {
       cancelled = true;

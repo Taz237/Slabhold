@@ -19,6 +19,8 @@ import {
 import { setLeaderboardOptIn } from "@/lib/leaderboard/revalidate";
 import { leaderboardRequirementsLine } from "@/lib/leaderboard/requirements";
 
+const LOAD_SETTING_ERROR = "Couldn't load that setting.";
+
 export function LeaderboardOptInControl({
   checked,
   disabled,
@@ -77,11 +79,21 @@ export function LeaderboardOptInSwitch({
     if (!id) return;
     let cancel = false;
     void loadSupabaseBrowser().then(async (supabase) => {
-      if (!supabase || cancel) return;
+      if (cancel) return;
+      if (!supabase) {
+        setError(LOAD_SETTING_ERROR);
+        setReady(true);
+        return;
+      }
       const result = await readLeaderboardOptIn(supabase as unknown as LeaderboardOptInDb, id);
       if (cancel) return;
       setChecked(result.optedIn);
       setError(result.error ?? null);
+      setReady(true);
+    }).catch(() => {
+      // supabase-js failed to load: settle with an error instead of a disabled switch.
+      if (cancel) return;
+      setError(LOAD_SETTING_ERROR);
       setReady(true);
     });
     return () => {
@@ -167,6 +179,8 @@ export function LeaderboardPrompt({
           dismissed,
         }),
       );
+    }).catch(() => {
+      // supabase-js failed to load: the prompt stays hidden.
     });
     return () => {
       cancel = true;

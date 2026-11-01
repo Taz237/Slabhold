@@ -83,6 +83,8 @@ export function PostView({ id }: { id: string }) {
       void commentsSupportReplyImages(supabase).then((ok) => {
         if (!cancelled) setReplyPhotosOn(ok);
       });
+    }).catch(() => {
+      // supabase-js failed to load: reply photos stay off.
     });
     return () => {
       cancelled = true;

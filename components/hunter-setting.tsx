@@ -109,6 +109,11 @@ export function HunterSettingSwitch() {
         setError(result.error ?? null);
         setReady(true);
       });
+    }).catch(() => {
+      // supabase-js failed to load: settle with an error instead of a disabled switch.
+      if (cancelled) return;
+      setError("Couldn't load that setting.");
+      setReady(true);
     });
     return () => {
       cancelled = true;
@@ -154,6 +159,8 @@ export function HunterPrompt() {
         const dismissed = window.localStorage.getItem(hunterPromptDismissKey(id)) === "1";
         setVisible(hunterPromptVisible({ showAsHunter: result.showAsHunter, dismissed }));
       });
+    }).catch(() => {
+      // supabase-js failed to load: the prompt stays hidden.
     });
     return () => {
       cancelled = true;

@@ -46,7 +46,11 @@ export function CollectSettings() {
     if (!ready || !user || mode !== "supabase") return;
     let cancelled = false;
     void loadSupabaseBrowser().then((supabase) => {
-      if (!supabase || cancelled) return;
+      if (cancelled) return;
+      if (!supabase) {
+        setState("missing");
+        return;
+      }
       void supabase
         .from("profile_interests")
         .select("kind, value")
@@ -76,6 +80,9 @@ export function CollectSettings() {
             (data as { sport?: string | null }[]).map((row) => row.sport ?? "").filter(Boolean),
           );
         });
+    }).catch(() => {
+      // supabase-js failed to load: the not-available view, not Loading forever.
+      if (!cancelled) setState("missing");
     });
     return () => {
       cancelled = true;
