@@ -13,3 +13,9 @@ export function profileLinkFor(entry: { subtitle: string; href: string }): strin
   if (entry.href.startsWith("/u/")) return entry.href;
   return null;
 }
+
+/** The row's profile opened on the Cards tab, or null when the row stays unlinked. */
+export function profileCardsLinkFor(entry: { subtitle: string; href: string }): string | null {
+  const path = profileLinkFor(entry);
+  return path ? `${path}?tab=cards` : null;
+}

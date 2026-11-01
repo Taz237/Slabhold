@@ -148,7 +148,7 @@ export function testAccountRule(): string {
 }
 
 export function officialUpdatesRule(): string {
-  return `The official @${OFFICIAL_UPDATES_HANDLE} account is left off this board.`;
+  return "Official Slabhold accounts are left off this board.";
 }
 
 export function dailyCardCapRule(): string {

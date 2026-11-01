@@ -1,3 +1,4 @@
+import { getImageProps } from "next/image";
 import Link from "next/link";
 import type { CSSProperties, ReactNode } from "react";
 import { Crown, Info, Layers, MessageCircle, Plus, TrendingUp } from "lucide-react";
@@ -5,8 +6,16 @@ import { LeaderboardCountdown } from "@/components/leaderboard-countdown";
 import { LeaderboardFocus } from "@/components/leaderboard-focus";
 import { ShareIconButton } from "@/components/share-button";
 import type { BoardRow, LeaderboardBoard, LeaderboardPageModel, OpenSpot, YouRow } from "@/lib/leaderboard/present";
-import { profileLinkFor } from "@/lib/leaderboard/profile-link";
-import { FINAL_LABEL, LEADERBOARD_PATH, RULES_SHEET_LABEL, YOU_LABEL, YOUR_SPOT_LABEL } from "@/lib/leaderboard/rules";
+import { profileCardsLinkFor, profileLinkFor } from "@/lib/leaderboard/profile-link";
+import {
+  FINAL_LABEL,
+  LEADERBOARD_PATH,
+  RULES_SHEET_LABEL,
+  YOU_LABEL,
+  boardCallToAction,
+  scoreUnit,
+} from "@/lib/leaderboard/rules";
+import { userHref } from "@/lib/social/user-href";
 
 const BOARD_ACCENT: Record<string, string> = {
   "top-card-post": "#7c5cff",
@@ -179,124 +188,307 @@ export function PodiumRow({ entry, boardId }: { entry: BoardRow; boardId: string
   );
 }
 
-function RankRow({ entry, boardId }: { entry: BoardRow; boardId: string }) {
+/** #2 left, #1 centre, #3 right. DOM order stays 1, 2, 3 for screen readers. */
+const PODIUM_ORDER: Record<number, string> = { 1: "order-2", 2: "order-1", 3: "order-3" };
+const PODIUM_AVATAR: Record<number, number> = { 1: 56, 2: 44, 3: 44 };
+const PLINTH_HEIGHT: Record<number, string> = { 1: "h-[88px]", 2: "h-[68px]", 3: "h-[56px]" };
+const FOCUS_RING =
+  "touch-manipulation focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-400";
+
+/**
+ * Card-shaped thumbnails of this week's public cards. Drawn on the server with
+ * getImageProps, so no client JS. Decorative: the row's link names the person.
+ */
+function PhotoStrip({
+  photos,
+  max,
+  width,
+  height,
+  more,
+}: {
+  photos: readonly string[];
+  max: number;
+  width: number;
+  height: number;
+  more: boolean;
+}) {
+  const shown = photos.slice(0, max);
+  if (shown.length === 0) return null;
+  const extra = more ? photos.length - shown.length : 0;
+  return (
+    <span data-photo-strip="" aria-hidden="true" className="mt-1 flex items-center gap-1">
+      {shown.map((photo) => (
+        <span
+          key={photo}
+          className="relative block shrink-0 overflow-hidden rounded-[3px] bg-zinc-800 ring-1 ring-white/10"
+          style={{ width, height }}
+        >
+          <Thumb photo={photo} />
+        </span>
+      ))}
+      {extra > 0 ? (
+        <span className="grid h-[18px] shrink-0 place-items-center rounded-full bg-white/10 px-1.5 text-[10px] font-bold leading-none tabular-nums text-zinc-200">
+          +{extra}
+        </span>
+      ) : null}
+    </span>
+  );
+}
+
+function Thumb({ photo }: { photo: string }) {
+  let props: ReturnType<typeof getImageProps>["props"];
+  try {
+    ({ props } = getImageProps({ src: photo, alt: "", fill: true, sizes: "24px", quality: 75, loading: "lazy" }));
+  } catch {
+    // A photo next/image will not take keeps the plain placeholder tile.
+    return null;
+  }
+  return (
+    // getImageProps is next/image without its client code: this photo is drawn on the server only.
+    // eslint-disable-next-line @next/next/no-img-element
+    <img {...props} alt="" className="absolute inset-0 h-full w-full object-cover" />
+  );
+}
+
+function PodiumPlace({ entry, boardId }: { entry: BoardRow; boardId: string }) {
   const accent = boardAccent(boardId);
   const labels = person(entry, boardId);
+  const rank = entry.rank;
   return (
     <RowShell
-      href={profileLinkFor(entry)}
-      className="flex min-h-14 min-w-0 items-center gap-3 rounded-2xl border border-white/[0.07] bg-white/[0.03] px-3 py-2"
-      style={{ ...mineRing(entry.mine, accent), backgroundColor: entry.mine ? `${accent}1f` : undefined }}
+      href={profileCardsLinkFor(entry)}
+      className="flex min-h-11 min-w-0 flex-col items-center rounded-2xl text-center"
+      style={mineRing(entry.mine, accent)}
     >
-      <span className="w-6 shrink-0 text-center text-sm font-black tabular-nums" style={{ color: accent }}>
-        {entry.rank}
-      </span>
-      <Avatar title={labels.name} accent={entry.accent} url={entry.avatarUrl} size={40} />
-      <span className="min-w-0 flex-1">
-        <span className="flex min-w-0 items-center gap-1.5">
-          <span className="min-w-0 truncate text-sm font-bold text-white">{labels.name}</span>
-          {entry.isNew ? <Tag tone="light">NEW</Tag> : null}
-          {entry.mine ? <Tag tone="light">{YOU_LABEL}</Tag> : null}
+      <span className={`lb-ring-${rank} shrink-0 rounded-full p-[2px] shadow-[0_2px_10px_rgba(0,0,0,0.35)]`}>
+        <span className="block rounded-full bg-zinc-950 p-[2px]">
+          <Avatar title={labels.name} accent={entry.accent} url={entry.avatarUrl} size={PODIUM_AVATAR[rank] ?? 44} />
         </span>
-        {labels.detail ? <span className="block truncate text-xs text-zinc-400">{labels.detail}</span> : null}
       </span>
-      <span className="shrink-0 text-right">
-        <span className="block text-lg font-black leading-none tabular-nums text-white">{entry.score}</span>
-        <span className="mt-0.5 block text-[11px] text-zinc-400">{entry.scoreLabel}</span>
+      <span className="mt-1.5 block w-full min-w-0 truncate px-1 text-sm font-extrabold tracking-tight text-white">
+        {labels.name}
+      </span>
+      {labels.detail ? (
+        <span className="block w-full min-w-0 truncate px-1 text-[11px] text-zinc-400">{labels.detail}</span>
+      ) : null}
+      {boardId === "most-cards-added" ? (
+        <PhotoStrip photos={entry.photos ?? []} max={3} width={22} height={31} more />
+      ) : null}
+      <span className="mt-1 flex max-w-full items-baseline justify-center gap-1 whitespace-nowrap px-1">
+        <span className="shrink-0 text-lg font-black leading-none tabular-nums text-white">{entry.score}</span>
+        <span className="min-w-0 truncate text-[11px] font-semibold text-zinc-400">{entry.scoreLabel}</span>
+      </span>
+      <span
+        className={`lb-banner lb-banner-${rank} relative mt-2 flex w-full flex-col items-center justify-start gap-1 overflow-hidden rounded-t-xl pt-2 text-zinc-950 ${
+          PLINTH_HEIGHT[rank] ?? "h-[56px]"
+        }`}
+      >
+        {rank === 1 ? (
+          <Crown data-crown="" aria-hidden="true" className="h-5 w-5 fill-zinc-950/15" strokeWidth={2.4} />
+        ) : null}
+        <span className="rounded-sm bg-zinc-950/85 px-1.5 py-[3px] font-mono text-[9px] font-bold leading-none tracking-[0.16em] text-white">
+          {PLACE[rank]}
+        </span>
+        {entry.isNew || entry.mine ? (
+          <span className="flex items-center gap-1">
+            {entry.isNew ? <Tag tone="dark">NEW</Tag> : null}
+            {entry.mine ? <Tag tone="dark">{YOU_LABEL}</Tag> : null}
+          </span>
+        ) : null}
       </span>
     </RowShell>
   );
 }
 
-function GhostRow({ spot }: { spot: OpenSpot }) {
+function GhostPlace({ spot }: { spot: OpenSpot }) {
   const body = (
     <>
-      <span className="w-6 shrink-0 text-center text-lg font-black tabular-nums opacity-70">{spot.rank}</span>
-      <span aria-hidden="true" className="h-11 w-11 shrink-0 rounded-full border-2 border-dashed border-current opacity-60" />
-      <span className="min-w-0 flex-1">
-        <span className="mb-0.5 inline-block font-mono text-[9px] font-bold leading-none tracking-[0.16em]">
-          {PLACE[spot.rank]}
-        </span>
-        <span className="block truncate text-[15px] font-bold tracking-tight text-zinc-200">{spot.title}</span>
-        {spot.ctaLabel ? (
-          <span className="block truncate text-xs font-semibold text-[#A78BFA]">{spot.ctaLabel}</span>
-        ) : null}
+      <span
+        aria-hidden="true"
+        className={`shrink-0 rounded-full border-2 border-dashed border-current opacity-60 ${spot.rank === 1 ? "h-[60px] w-[60px]" : "h-12 w-12"}`}
+      />
+      <span className="mt-1.5 block w-full min-w-0 truncate px-1 text-sm font-bold tracking-tight text-zinc-200">
+        {spot.title}
       </span>
       {spot.ctaLabel ? (
-        <span
-          aria-hidden="true"
-          className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-violet-600 text-white shadow-[0_0_16px_rgba(124,58,237,0.45)]"
-        >
-          <Plus className="h-4 w-4" strokeWidth={2.6} />
-        </span>
+        <span className="block w-full min-w-0 truncate px-1 text-[11px] font-semibold text-[#A78BFA]">{spot.ctaLabel}</span>
       ) : null}
+      <span
+        className={`mt-2 flex w-full flex-col items-center gap-1 rounded-t-xl border-2 border-b-0 border-dashed border-current pt-2 ${
+          PLINTH_HEIGHT[spot.rank] ?? "h-[56px]"
+        }`}
+      >
+        {spot.ctaLabel ? (
+          <span
+            aria-hidden="true"
+            className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-violet-600 text-white shadow-[0_0_16px_rgba(124,58,237,0.45)]"
+          >
+            <Plus className="h-3.5 w-3.5" strokeWidth={2.6} />
+          </span>
+        ) : null}
+        <span className="font-mono text-[9px] font-bold leading-none tracking-[0.16em]">{PLACE[spot.rank]}</span>
+      </span>
     </>
   );
-  const className = `lb-ghost lb-ghost-${spot.rank} flex min-h-[72px] min-w-0 items-center gap-3 rounded-2xl border-2 border-dashed px-3 py-2.5`;
-  if (!spot.ctaHref) return <div className={className}>{body}</div>;
+  const plain: CSSProperties = { background: "transparent" };
+  const className = `lb-ghost lb-ghost-${spot.rank} flex min-h-11 min-w-0 flex-col items-center rounded-2xl border-0 bg-transparent text-center`;
+  if (!spot.ctaHref)
+    return (
+      <div className={className} style={plain}>
+        {body}
+      </div>
+    );
   return (
-    <Link
-      href={spot.ctaHref}
-      className={`${className} touch-manipulation focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-400`}
-    >
+    <Link href={spot.ctaHref} className={`${className} ${FOCUS_RING}`} style={plain}>
       {body}
     </Link>
   );
 }
 
-function YourSpot({ you, accent }: { you: YouRow; accent: string }) {
-  const ranked = you.rank > 0;
+function Podium({ board, delay }: { board: LeaderboardBoard; delay: (index: number) => CSSProperties }) {
+  const top = board.entries.filter((entry) => entry.rank <= 3);
+  return (
+    <ol className="relative grid grid-cols-3 items-end gap-2 pt-1" data-podium="">
+      {top.map((entry, index) => (
+        <li
+          key={entry.id}
+          className={`lb-row min-w-0 ${PODIUM_ORDER[entry.rank] ?? ""}`}
+          style={delay(index)}
+          data-rank={entry.rank}
+          data-viewer-row={entry.mine ? "" : undefined}
+        >
+          <PodiumPlace entry={entry} boardId={board.id} />
+        </li>
+      ))}
+      {board.ghosts.map((spot, index) => (
+        <li
+          key={`open-${spot.rank}`}
+          className={`lb-row min-w-0 ${PODIUM_ORDER[spot.rank] ?? ""}`}
+          style={delay(top.length + index)}
+          data-ghost-rank={spot.rank}
+        >
+          <GhostPlace spot={spot} />
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+function RankRow({ entry, boardId }: { entry: BoardRow; boardId: string }) {
+  const accent = boardAccent(boardId);
+  const labels = person(entry, boardId);
+  return (
+    <RowShell
+      href={profileCardsLinkFor(entry)}
+      className="flex min-h-12 min-w-0 items-center gap-2.5 rounded-xl px-2 py-1.5 hover:bg-white/[0.04]"
+      style={{ ...mineRing(entry.mine, accent), backgroundColor: entry.mine ? `${accent}1f` : undefined }}
+    >
+      <span className="w-6 shrink-0 text-center text-sm font-black tabular-nums" style={{ color: accent }}>
+        {entry.rank}
+      </span>
+      <Avatar title={labels.name} accent={entry.accent} url={entry.avatarUrl} size={32} />
+      <span className="min-w-0 flex-1">
+        <span className="flex min-w-0 items-baseline gap-1.5">
+          <span className="min-w-0 shrink-0 truncate text-sm font-bold text-white max-w-[65%]">{labels.name}</span>
+          {entry.isNew ? <Tag tone="light">NEW</Tag> : null}
+          {entry.mine ? <Tag tone="light">{YOU_LABEL}</Tag> : null}
+          {labels.detail ? <span className="min-w-0 truncate text-xs text-zinc-500">{labels.detail}</span> : null}
+        </span>
+        {boardId === "most-cards-added" ? (
+          <PhotoStrip photos={entry.photos ?? []} max={4} width={20} height={28} more={false} />
+        ) : null}
+      </span>
+      <span className="shrink-0 whitespace-nowrap text-right">
+        <span className="text-base font-black tabular-nums text-white">{entry.score}</span>
+        <span className="ml-1 text-[11px] text-zinc-400">{entry.scoreLabel}</span>
+      </span>
+    </RowShell>
+  );
+}
+
+/** "You're #3 · 2 cards behind Flaherty", or the board's existing gap or step line. */
+function spotLine(you: YouRow, scoreLabel: string, week: "current" | "previous"): string {
+  if (you.rank <= 0) return you.gap ? `Not ranked yet · ${you.gap}` : "Not ranked yet";
+  if (week === "previous") return `You finished #${you.rank}`;
+  const head = `You're #${you.rank}`;
+  const rival = you.rival;
+  if (!rival) return you.rank === 1 || !you.gap ? head : `${head} · ${you.gap}`;
+  if (rival.tied) return `${head} · tied with ${rival.name}`;
+  const amount = `${rival.need} ${scoreUnit(scoreLabel, rival.need)}`;
+  return you.rank === 1 ? `${head} · ${amount} ahead of ${rival.name}` : `${head} · ${amount} behind ${rival.name}`;
+}
+
+const ACTION_CLASS = `inline-flex min-h-11 max-w-[9.5rem] shrink-0 items-center justify-center rounded-full bg-violet-600 px-3.5 py-1 text-center text-sm font-bold leading-4 text-white hover:bg-violet-500 ${FOCUS_RING}`;
+
+function SpotAction({ you, boardId }: { you: YouRow; boardId: string }) {
+  const cta = boardCallToAction(boardId, "current");
+  if (boardId === "most-cards-added") {
+    return (
+      <Link href={cta.href} className={ACTION_CLASS}>
+        Add card
+      </Link>
+    );
+  }
+  if (boardId === "rising-collectors") {
+    const handle = you.subtitle.trim().replace(/^@/, "");
+    if (you.rank > 0 && /^[A-Za-z0-9_][A-Za-z0-9_.-]*$/.test(handle)) {
+      return (
+        <span className="shrink-0 [&>button]:border-0 [&>button]:bg-violet-600 [&>button]:text-white [&>button]:hover:bg-violet-500">
+          <ShareIconButton path={userHref(handle)} title="My Slabhold profile" label="Share profile" />
+        </span>
+      );
+    }
+  }
+  return (
+    <Link href={cta.href} className={ACTION_CLASS}>
+      {boardId === "rising-collectors" ? "Find collectors" : cta.label}
+    </Link>
+  );
+}
+
+/**
+ * The viewer's spot, pinned just above the bottom tab bar while this board is
+ * on screen. CSS sticky only: the next board's bar takes over as it scrolls in.
+ */
+function PinnedSpot({ you, board, week }: { you: YouRow; board: LeaderboardBoard; week: "current" | "previous" }) {
+  if (week === "previous" && you.rank <= 0) return null;
+  const accent = boardAccent(board.id);
   return (
     <div
       data-your-spot=""
-      className="mt-2 flex min-h-14 items-center gap-3 rounded-2xl border border-dashed px-3 py-2"
-      style={{ borderColor: `${accent}66`, backgroundColor: `${accent}12` }}
+      className="sticky z-10 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] mt-3 flex min-h-14 items-center gap-2.5 rounded-2xl bg-zinc-900/95 px-3 py-1.5 shadow-[0_8px_30px_rgba(0,0,0,0.45)] ring-1 ring-white/10 backdrop-blur"
     >
-      <span className="min-w-0 flex-1">
-        <span className="block font-mono text-[10px] font-bold uppercase tracking-[0.14em]" style={{ color: accent }}>
-          {YOUR_SPOT_LABEL}
-        </span>
-        <span className="block truncate text-sm text-zinc-300">
-          {ranked ? (
-            <>
-              <span className="font-black tabular-nums text-white">#{you.rank}</span>
-              {you.gap ? ` · ${you.gap}` : ""}
-            </>
-          ) : you.ctaLabel ? (
-            "Not ranked yet"
-          ) : (
-            you.gap || "Not ranked"
-          )}
-        </span>
+      {you.rank > 0 ? (
+        <Avatar
+          title={board.id === "top-card-post" ? you.subtitle.replace(/^@/, "") || you.title : you.title}
+          accent={you.accent || accent}
+          url={you.avatarUrl}
+          size={28}
+        />
+      ) : (
+        <span aria-hidden="true" className="h-7 w-7 shrink-0 rounded-full border-2 border-dashed border-white/25" />
+      )}
+      <span className="min-w-0 flex-1 break-words text-[13px] font-semibold leading-4 text-white">
+        {spotLine(you, board.scoreLabel, week)}
       </span>
-      {ranked ? (
-        <span className="shrink-0 text-right text-sm font-bold tabular-nums text-white">
-          {you.score} <span className="text-[11px] font-normal text-zinc-400">{you.scoreLabel}</span>
-        </span>
-      ) : you.ctaHref && you.ctaLabel ? (
-        <Link
-          href={you.ctaHref}
-          className="inline-flex min-h-11 shrink-0 touch-manipulation items-center rounded-full bg-violet-600 px-4 text-sm font-bold text-white"
-        >
-          {you.ctaLabel}
-        </Link>
-      ) : null}
       <span className="sr-only">{you.label}</span>
+      {week === "current" ? <SpotAction you={you} boardId={board.id} /> : null}
     </div>
   );
 }
 
-function Board({ board }: { board: LeaderboardBoard }) {
+function Board({ board, week }: { board: LeaderboardBoard; week: "current" | "previous" }) {
   const accent = boardAccent(board.id);
   const Icon = BOARD_ICON[board.id] ?? Layers;
-  const delay = (index: number) => ({ animationDelay: `${index * 45}ms` });
+  const delay = (index: number): CSSProperties => ({ animationDelay: `${index * 45}ms` });
+  const rest = board.entries.filter((entry) => entry.rank > 3);
   return (
     <section
       id={`board-${board.id}`}
       data-board={board.id}
       data-board-focus={board.focused ? "" : undefined}
       aria-labelledby={`board-${board.id}-title`}
-      className="relative scroll-mt-20 overflow-hidden rounded-3xl border border-white/10 bg-zinc-950 px-3 pb-3"
+      className="relative scroll-mt-20 overflow-clip rounded-3xl border border-white/10 bg-zinc-950 px-3 pb-3"
       style={{ "--lb-accent": accent } as CSSProperties}
     >
       <div
@@ -327,25 +519,25 @@ function Board({ board }: { board: LeaderboardBoard }) {
           </p>
         </div>
       </header>
-      <ol className="relative space-y-2" data-rank-rows="">
-        {board.entries.map((entry, index) => (
-          <li
-            key={entry.id}
-            className="lb-row"
-            style={delay(index)}
-            data-rank={entry.rank}
-            data-viewer-row={entry.mine ? "" : undefined}
-          >
-            {entry.rank <= 3 ? <PodiumRow entry={entry} boardId={board.id} /> : <RankRow entry={entry} boardId={board.id} />}
-          </li>
-        ))}
-        {board.ghosts.map((spot, index) => (
-          <li key={`open-${spot.rank}`} className="lb-row" style={delay(board.entries.length + index)} data-ghost-rank={spot.rank}>
-            <GhostRow spot={spot} />
-          </li>
-        ))}
-      </ol>
-      {board.yourSpot ? <YourSpot you={board.yourSpot} accent={accent} /> : null}
+      <Podium board={board} delay={delay} />
+      <div data-board-rest="" className="relative">
+        {rest.length > 0 ? (
+          <ol className="relative mt-3 space-y-1" data-rank-rows="">
+            {rest.map((entry, index) => (
+              <li
+                key={entry.id}
+                className="lb-row"
+                style={delay(3 + index)}
+                data-rank={entry.rank}
+                data-viewer-row={entry.mine ? "" : undefined}
+              >
+                <RankRow entry={entry} boardId={board.id} />
+              </li>
+            ))}
+          </ol>
+        ) : null}
+        {board.you ? <PinnedSpot you={board.you} board={board} week={week} /> : null}
+      </div>
     </section>
   );
 }
@@ -436,7 +628,7 @@ export function LeaderboardView({ model }: { model: LeaderboardPageModel }) {
       ) : (
         <div className="space-y-4 px-3 pt-2 pb-8">
           {model.boards.map((board) => (
-            <Board key={board.id} board={board} />
+            <Board key={board.id} board={board} week={model.week} />
           ))}
         </div>
       )}

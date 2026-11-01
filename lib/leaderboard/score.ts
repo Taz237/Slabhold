@@ -10,6 +10,7 @@ import {
 } from "./rules";
 import { inWeek, isoDate, zonedParts, type WeekWindow } from "./week";
 import { BRAND_PURPLE } from "@/lib/pwa/manifest";
+import { isBrandAccount } from "./brand-accounts";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -121,7 +122,12 @@ export type CandidateRow = {
   avatarUrl: string | null;
   accent: string;
   contributions: Contribution[];
+  /** Most cards added only: public photos of counted cards, newest first, at most CARD_PHOTO_LIMIT. */
+  photos?: string[];
 };
+
+/** Photos kept per collector on Most cards added. */
+export const CARD_PHOTO_LIMIT = 4;
 
 export type WeekBoards = Partial<Record<LeaderboardBoardId, { rows: CandidateRow[] }>>;
 
@@ -194,7 +200,7 @@ function entrantOk(index: ActorIndex, userId: string): BoardProfile | null {
 }
 
 export function isOfficialEntrant(profile: BoardProfile): boolean {
-  if (isOfficialUpdatesAccount(profile.id)) return true;
+  if (isOfficialUpdatesAccount(profile.id) || isBrandAccount(profile.id)) return true;
   return normalizeAccountHandle(profile.username) === OFFICIAL_UPDATES_HANDLE;
 }
 
@@ -405,7 +411,7 @@ function scoreCards(input: ScoreInput, week: WeekWindow, index: ActorIndex): Can
   const byUser = new Map<string, BoardCard[]>();
   for (const card of input.cards) {
     if (!card.userId || card.id.startsWith("exists:")) continue;
-    // Private cards count too. The board only shows the collector's name and count.
+    // Private cards count too, but only public cards' photos reach the board.
     if (card.hidden || card.deleted) continue;
     if (!realPhoto(card.imageUrl, card.userId)) continue;
     const createdMs = Date.parse(card.createdAt);
@@ -429,6 +435,7 @@ function scoreCards(input: ScoreInput, week: WeekWindow, index: ActorIndex): Can
     const seen = new Set<string>();
     const seenPhotos = new Set<string>();
     const perDay = new Map<string, number>();
+    const counted: string[] = [];
     let count = 0;
     for (const card of ordered) {
       const photo = realPhoto(card.imageUrl, card.userId);
@@ -442,6 +449,7 @@ function scoreCards(input: ScoreInput, week: WeekWindow, index: ActorIndex): Can
       seen.add(key);
       perDay.set(day, used + 1);
       count += 1;
+      if (card.isPublic === true && card.imageUrl) counted.push(card.imageUrl.trim());
     }
     if (count === 0) continue;
     const name = profile.displayName.trim() || profile.username;
@@ -454,6 +462,7 @@ function scoreCards(input: ScoreInput, week: WeekWindow, index: ActorIndex): Can
       avatarUrl: profile.avatarUrl,
       accent: profile.accent || BRAND_PURPLE,
       contributions: [{ actorId: userId, points: count }],
+      photos: counted.slice(-CARD_PHOTO_LIMIT).reverse(),
     });
   }
   return rows;

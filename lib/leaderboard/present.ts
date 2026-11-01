@@ -1,3 +1,5 @@
+import { isOfficialUpdatesAccount } from "@/lib/social/official-updates";
+import { isBrandAccount } from "./brand-accounts";
 import {
   BOARD_ERROR_DETAIL,
   BOARD_ERROR_TITLE,
@@ -40,6 +42,19 @@ export type RankedEntry = {
   scoreLabel: string;
   /** True when this user was not on the same board last week. */
   isNew: boolean;
+  /**
+   * Most cards added only: public photos of counted cards, newest first, at most 4.
+   * rankBoard always sets it. Optional so hand-built sample rows can leave it out.
+   */
+  photos?: string[];
+};
+
+/** The entry one place ahead, or the runner-up when the viewer is #1. */
+export type YouRival = {
+  name: string;
+  /** Points behind the rival, or the lead when the viewer is #1. 0 when tied. */
+  need: number;
+  tied: boolean;
 };
 
 export type YouRow = {
@@ -53,6 +68,10 @@ export type YouRow = {
   gap: string;
   ctaLabel: string | null;
   ctaHref: string | null;
+  /** Null below rank 10, when unranked, or at #1 with nobody second. */
+  rival: YouRival | null;
+  avatarUrl: string | null;
+  accent: string;
 };
 
 export type LeaderboardWeekSlice = {
@@ -147,6 +166,19 @@ function rivalHandle(entry: RankedEntry): string {
   return title ? `@${title}` : "the next spot";
 }
 
+function rivalName(entry: RankedEntry, boardId: string): string {
+  if (boardId === "top-card-post") return rivalHandle(entry);
+  return entry.title.trim() || rivalHandle(entry);
+}
+
+function rivalFor(best: RankedEntry, ranked: readonly RankedEntry[], boardId: string): YouRival | null {
+  if (best.rank > LEADERBOARD_TOP_LIMIT) return null;
+  const other = best.rank === 1 ? ranked[1] : ranked[best.rank - 2];
+  if (!other) return null;
+  const need = Math.max(0, best.rank === 1 ? best.score - other.score : other.score - best.score);
+  return { name: rivalName(other, boardId), need, tied: need === 0 };
+}
+
 function gapLine(need: number, scoreLabel: string, handle: string, reachTopTen: boolean): string {
   const unit = scoreUnit(scoreLabel, need);
   if (reachTopTen) return `${need} more ${unit} to reach the top 10`;
@@ -167,6 +199,9 @@ function unrankedYou(boardId: string, week: "current" | "previous", scoreLabel: 
       gap: "Not on this board last week.",
       ctaLabel: null,
       ctaHref: null,
+      rival: null,
+      avatarUrl: null,
+      accent: "",
     };
   }
   return {
@@ -180,6 +215,9 @@ function unrankedYou(boardId: string, week: "current" | "previous", scoreLabel: 
     gap: cta.step,
     ctaLabel: cta.label,
     ctaHref: cta.href,
+    rival: null,
+    avatarUrl: null,
+    accent: "",
   };
 }
 
@@ -211,6 +249,7 @@ export function rankBoard(
       accent: row.accent,
       scoreLabel: scoreUnit(scoreLabel, score),
       isNew: false,
+      photos: row.photos ?? [],
     });
   }
   ranked.sort((a, b) => b.score - a.score || a.title.localeCompare(b.title) || a.id.localeCompare(b.id));
@@ -232,6 +271,9 @@ export function rankBoard(
         gap: "You're in the top spot",
         ctaLabel: null,
         ctaHref: null,
+        rival: rivalFor(best, ranked, boardId),
+        avatarUrl: best.avatarUrl,
+        accent: best.accent,
       };
     }
     const reachTopTen = best.rank > LEADERBOARD_TOP_LIMIT;
@@ -248,6 +290,9 @@ export function rankBoard(
       gap: ahead ? gapLine(need, scoreLabel, rivalHandle(ahead), reachTopTen) : "",
       ctaLabel: null,
       ctaHref: null,
+      rival: rivalFor(best, ranked, boardId),
+      avatarUrl: best.avatarUrl,
+      accent: best.accent,
     };
   };
   const best = bestForViewer(ranked, viewerId);
@@ -302,6 +347,8 @@ export function presentLeaderboard(input: {
     input.now,
   );
   const viewerId = input.viewer.userId;
+  // Official and brand accounts are never ranked, so they get no Your spot bar.
+  const viewerHasSpot = viewerId != null && !isOfficialUpdatesAccount(viewerId) && !isBrandAccount(viewerId);
   const tabs = leaderboardPageTabs();
   const boards = tabs.map((tab): LeaderboardBoard => {
     const ranked = rankBoard(slice.boards[tab.id]?.rows ?? [], input.viewer.hiddenIds, viewerId, tab.scoreLabel, {
@@ -319,6 +366,7 @@ export function presentLeaderboard(input: {
       mine: viewerId != null && entry.userId === viewerId,
     }));
     const onBoard = entries.some((entry) => entry.mine);
+    const you = viewerHasSpot ? ranked.you : null;
     const onThinBoard = input.week === "current" && ranked.thin && onBoard;
     return {
       id: tab.id,
@@ -330,8 +378,8 @@ export function presentLeaderboard(input: {
       focused: tab.id === input.focusBoardId,
       entries,
       ghosts: openSpots(entries.length, tab.id, input.week),
-      you: ranked.you,
-      yourSpot: onBoard ? null : ranked.you,
+      you,
+      yourSpot: onBoard ? null : you,
     };
   });
   const countdown = countdownTo(new Date(input.snapshot.current.end), input.now);
