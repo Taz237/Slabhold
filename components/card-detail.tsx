@@ -20,6 +20,7 @@ import { CardShareButton } from "@/components/card-share";
 import { FirstCardPrivacyPrompt } from "@/components/first-card-privacy-prompt";
 import { SharedPostNote } from "@/components/shared-post-note";
 import { useCollection } from "@/components/collection-provider";
+import { SheetLoadFailed } from "@/components/part-load-failed";
 import { lazyPart } from "@/lib/ui/lazy-part";
 import { MARK_SOLD_LABEL } from "@/lib/deals/state";
 import {
@@ -78,7 +79,10 @@ import {
 import { useCardValue } from "@/lib/value/use-card-values";
 
 /** Only drawn after a tap on the card page, so it is its own chunk. */
-const DealSheet = lazyPart(() => import("@/components/deal-sheet").then((mod) => mod.DealSheet));
+const DealSheet = lazyPart(() => import("@/components/deal-sheet").then((mod) => mod.DealSheet), null, {
+  name: "deal-sheet",
+  failed: SheetLoadFailed,
+});
 
 function subscribeCardValueMemory() {
   return () => {};

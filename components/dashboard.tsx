@@ -32,6 +32,7 @@ import { cardValuesKey, type CollectionSeed } from "@/lib/collection/viewer-seed
 import { useProgressiveRows } from "@/lib/ui/use-progressive-rows";
 import { publicTogglePatch } from "@/lib/offers/open-to-offers";
 import { afterFirstIdle } from "@/lib/ui/idle";
+import { PartLoadFailed } from "@/components/part-load-failed";
 import { lazyPart } from "@/lib/ui/lazy-part";
 import { PullToRefresh } from "@/components/pull-to-refresh";
 import { ShareCollectionCard } from "@/components/invite/share-collection-card";
@@ -57,7 +58,10 @@ const FILTERS: { id: Exclude<PortfolioFilter, "all">; label: string }[] = [
  * collection's first load doesn't carry them. Fetched at the first idle
  * moment, so it is in hand before the tab is opened.
  */
-const WantList = lazyPart(() => import("@/components/want-list").then((mod) => mod.WantList));
+const WantList = lazyPart(() => import("@/components/want-list").then((mod) => mod.WantList), null, {
+  name: "want-list",
+  failed: PartLoadFailed,
+});
 
 /** Tiles in a server-drawn first screen: a phone's two columns, a little past the fold. */
 const SEEDED_TILES = 12;

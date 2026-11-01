@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Share } from "lucide-react";
 import { absoluteUrl } from "@/components/share-button";
 import { trackEvent } from "@/lib/analytics";
+import { SheetLoadFailed } from "@/components/part-load-failed";
 import { lazyPart } from "@/lib/ui/lazy-part";
 import { withShareRef } from "@/lib/share/links";
 import { nativeShareOrSheet } from "@/lib/share/sheet";
@@ -28,7 +29,11 @@ export function shareUrl(path: string): string {
 }
 
 /** The sheet only draws after a tap: its own chunk, fetched on the tap. */
-export const ShareSheet = lazyPart(() => import("@/components/share-sheet-view").then((mod) => mod.ShareSheet));
+export const ShareSheet = lazyPart(
+  () => import("@/components/share-sheet-view").then((mod) => mod.ShareSheet),
+  null,
+  { name: "share-sheet", failed: SheetLoadFailed },
+);
 
 /** Native share sheet on iPhone. Elsewhere, a small sheet: Post on X, Copy link, Save image. */
 export function useShareSheet(target: ShareTarget) {

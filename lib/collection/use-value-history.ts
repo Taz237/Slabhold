@@ -21,10 +21,15 @@ export function useCollectionSnapshots(enabled = true): CollectionSnapshots {
   useEffect(() => {
     if (!enabled) return;
     let cancelled = false;
-    void loadSupabaseBrowser().then(async (supabase) => {
-      const rows = supabase ? await readCollectionSnapshots(supabase) : [];
-      if (!cancelled) setState({ rows, loading: false });
-    });
+    void loadSupabaseBrowser()
+      .then(async (supabase) => {
+        const rows = supabase ? await readCollectionSnapshots(supabase) : [];
+        if (!cancelled) setState({ rows, loading: false });
+      })
+      .catch(() => {
+        // supabase-js failed to load: settle like a failed read, so the hero stops loading.
+        if (!cancelled) setState({ rows: [], loading: false });
+      });
     return () => {
       cancelled = true;
     };
@@ -43,10 +48,13 @@ export function useCardValueHistory(enabled: boolean): CardHistory {
   useEffect(() => {
     if (!enabled) return;
     let cancelled = false;
-    void loadSupabaseBrowser().then(async (supabase) => {
-      const next = supabase ? await readCardValueHistory(supabase) : null;
-      if (!cancelled && next) setHistory(next);
-    });
+    void loadSupabaseBrowser()
+      .then(async (supabase) => {
+        const next = supabase ? await readCardValueHistory(supabase) : null;
+        if (!cancelled && next) setHistory(next);
+      })
+      // supabase-js failed to load: the map stays empty, so Top movers uses the price paid.
+      .catch(() => {});
     return () => {
       cancelled = true;
     };

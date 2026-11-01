@@ -160,7 +160,13 @@ export function ValueBoard({
     if (!id) return;
     let cancelled = false;
     void loadSupabaseBrowser().then((supabase) => {
-      if (!supabase || cancelled) return;
+      if (cancelled) return;
+      if (!supabase) {
+        // No Supabase config (local accounts): not opted in, so the checklist settles.
+        setOptedIn(false);
+        setOptReady(true);
+        return;
+      }
       void readLeaderboardOptIn(supabase as unknown as LeaderboardOptInDb, id).then((result) => {
         if (cancelled) return;
         setOptedIn(result.optedIn);
