@@ -149,6 +149,10 @@ export function createKeyBatcher<T>(
         );
       });
     },
+    /** Reads these keys again on the next ask (their rows were dropped). Keys on the way stay. */
+    forget(keys: readonly string[]) {
+      for (const key of keys) done.delete(key);
+    },
     reset() {
       generation += 1;
       done.clear();

@@ -77,7 +77,7 @@ import {
   type InboxCursors,
 } from "@/lib/social/inbox-pages";
 import { loadHiddenAuthorIds } from "@/lib/safety/filters";
-import { keepLoadedProfiles, profileKeys } from "@/lib/social/profile-cache";
+import { droppedProfileKeys, keepLoadedProfiles, profileKeys } from "@/lib/social/profile-cache";
 import { engagementKeys, mergeEngagement, postIdsFromKeys } from "@/lib/social/engagement";
 import {
   cardsForKeys,
@@ -386,6 +386,8 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
   const inflightRef = useRef(new Map<string, Promise<unknown>>());
   const reloadRef = useRef<(client: SupabaseClient) => Promise<void>>(async () => {});
   const lastUserIdRef = useRef<string | null>(null);
+  // Set below, once the people batcher exists (see forgetPeople).
+  const forgetPeopleRef = useRef<(keys: readonly string[]) => void>(() => {});
   // Signed-out visitors don't need realtime or card prices for the first
   // paint. That work waits for the first idle moment after load.
   const [firstIdle, setFirstIdle] = useState(false);
@@ -432,6 +434,8 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
         fullSnapshotRef.current = true;
         const merged = mergeRememberedSnapshot(snapshot, rememberedRef.current, removedRef.current);
         appliedRemoteRef.current = merged;
+        const shown = snapshotRef.current;
+        const dropped = droppedProfileKeys(shown.profiles, keepLoadedProfiles(shown, merged).profiles);
         // The whole app redraws on a new snapshot. As a transition React
         // yields between rows, so it never blocks a tap or a frame.
         startTransition(() => {
@@ -441,6 +445,8 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
           // Older notification and message pages the viewer loaded stay.
           // People a screen already read stay too, for the same viewer.
           setRemote((existing) => keepLoadedProfiles(existing, keepLoadedInbox(existing, merged)));
+          // Anyone the reload dropped is read again, never "ready" with nobody.
+          forgetPeopleRef.current(dropped);
           setInboxCursors((current) => cursorsAfterRefresh(current, snapshot.inbox, snapshot.user?.id ?? null));
           if (!postIdFromPath(window.location.pathname)) setReady(true);
         });
@@ -792,6 +798,19 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
     setProfileFailed(new Set());
     setPeopleGeneration((value) => value + 1);
   }, [profileBatcher]);
+  // People a reload dropped: no longer read, so screens that name them ask again.
+  const forgetPeople = useCallback(
+    (keys: readonly string[]) => {
+      if (keys.length === 0) return;
+      profileBatcher.forget(keys);
+      setProfileSettled((current) => withoutKeys(current, keys));
+      setPeopleGeneration((value) => value + 1);
+    },
+    [profileBatcher],
+  );
+  useEffect(() => {
+    forgetPeopleRef.current = forgetPeople;
+  }, [forgetPeople]);
   // Replies and reposts for posts loaded after the snapshot (another feed page,
   // a card's posts, a profile), read in one batch per tick.
   const [engagementBatcher] = useState(() =>
