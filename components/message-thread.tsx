@@ -447,7 +447,7 @@ function MessageRow({
                 linkClassName={
                   mine
                     ? "font-medium break-all text-white underline decoration-white/70 underline-offset-2"
-                    : "font-medium break-all text-sky-700 underline decoration-sky-700/70 underline-offset-2 dark:text-sky-300 dark:decoration-sky-300/80"
+                    : "font-medium break-all text-violet-700 underline decoration-violet-700/70 underline-offset-2 dark:text-violet-300 dark:decoration-violet-300/80"
                 }
               />
             </div>

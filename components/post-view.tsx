@@ -223,7 +223,7 @@ export function PostView({ id }: { id: string }) {
               <button
                 type="button"
                 onClick={() => setQuoteLimit((n) => n + PAGE_SIZE)}
-                className="w-full py-3 text-sm font-semibold text-sky-600 dark:text-sky-400"
+                className="w-full py-3 text-sm font-semibold text-violet-700 decoration-violet-700/70 dark:text-violet-300 dark:decoration-violet-300/80"
               >
                 Show more
               </button>
@@ -273,7 +273,7 @@ export function PostView({ id }: { id: string }) {
                     Replying to{" "}
                     <Link
                       href={userHref(author.username)}
-                      className="text-sky-600 hover:underline dark:text-sky-400"
+                      className="text-violet-700 decoration-violet-700/70 dark:text-violet-300 dark:decoration-violet-300/80 hover:underline"
                     >
                       @{author.username}
                     </Link>

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { splitPostText, type PostTextPart } from "@/lib/social/post-text";
 import { userHref } from "@/lib/social/user-href";
 
-const MENTION_CLASS = "font-medium text-sky-600 hover:underline dark:text-sky-400";
+const MENTION_CLASS = "font-medium text-violet-700 decoration-violet-700/70 dark:text-violet-300 dark:decoration-violet-300/80 hover:underline";
 const CHECKLIST_CLASS =
   "font-medium text-violet-700 underline underline-offset-2 dark:text-violet-300";
 
@@ -18,7 +18,7 @@ export function MentionText({
   linkClassName,
 }: {
   text: string;
-  /** Bubble contrast. Posts keep the default sky links. */
+  /** Bubble contrast. Posts keep the default purple links. */
   linkClassName?: string;
 }) {
   const parts = splitPostText(text);

@@ -539,7 +539,7 @@ export function ProfileView({
                 <ReplyPhotos images={reply.images} />
                 <Link
                   href={`/posts/${reply.postId}`}
-                  className="mt-1 inline-block text-[13px] font-medium text-sky-600 hover:underline dark:text-sky-400"
+                  className="mt-1 inline-block text-[13px] font-medium text-violet-700 decoration-violet-700/70 dark:text-violet-300 dark:decoration-violet-300/80 hover:underline"
                 >
                   View post
                 </Link>
