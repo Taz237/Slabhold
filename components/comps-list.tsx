@@ -1,6 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { ArrowUpRight } from "lucide-react";
+import { compCaption, compRowPrice, saleDate, shortDaysSince } from "@/components/comp-basis";
+import { snapshotDateInNewYork } from "@/lib/collection/totals-shared";
 import { formatDate, money } from "@/lib/format";
 import {
   FLAG_REASONS,
@@ -59,6 +62,7 @@ export function CompsList({
   // A sale picked on the chart past the first page still shows.
   const selectedIndex = selectedId ? comps.findIndex((comp) => comp.id === selectedId) : -1;
   const rows = comps.slice(0, Math.max(shown, selectedIndex + 1));
+  const today = snapshotDateInNewYork();
 
   async function hideSale() {
     if (!pending || !reason || !onFlag) return;
@@ -77,68 +81,80 @@ export function CompsList({
   return (
     <div>
       {comps.length ? (
-        <ul className="divide-y divide-zinc-200 dark:divide-white/10">
-          {rows.map((comp) => (
-            <li
-              key={comp.id}
-              data-selected={comp.id === selectedId ? "" : undefined}
-              className={`-mx-2 flex items-start justify-between gap-4 px-2 py-3 transition-colors duration-150 motion-reduce:transition-none ${
-                comp.id === selectedId ? "bg-violet-500/10 dark:bg-violet-400/10" : ""
-              }`}
-            >
-              <div className="min-w-0">
-                {comp.url ? (
-                  <a
-                    href={comp.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="block text-sm text-zinc-900 hover:underline dark:text-zinc-100"
-                  >
-                    {comp.title || "View listing"}
-                  </a>
-                ) : (
-                  <p className="text-sm text-zinc-900 dark:text-zinc-100">
-                    {comp.title || "Sale"}
-                  </p>
-                )}
-                <p className="mt-0.5 text-xs tabular-nums text-zinc-500">
-                  {formatDate(comp.soldDate)}
-                  {comp.condition && comp.condition !== "—" ? ` · ${comp.condition}` : null}
-                </p>
-              </div>
-              <div className="flex shrink-0 items-center gap-1">
+        <ul className="divide-y divide-zinc-950/5 dark:divide-white/[0.06]">
+          {rows.map((comp, index) => {
+            const picked = comp.id === selectedId;
+            const grade = comp.condition && comp.condition !== "—" ? comp.condition : null;
+            const body = (
+              <>
+                <span className="min-w-0 flex-1">
+                  <span className={`block ${compRowPrice}`}>{money(comp.soldPrice, true)}</span>
+                  <span className="block text-xs leading-4 text-zinc-500 tabular-nums">
+                    {[saleDate(comp.soldDate, today), grade].filter(Boolean).join(" · ")}
+                  </span>
+                  <span className={`block truncate leading-3 ${compCaption}`}>{comp.title || "Sale"}</span>
+                </span>
+                <span className={`shrink-0 leading-5 tabular-nums ${compCaption}`}>
+                  {shortDaysSince(comp.soldDate, today)}
+                </span>
+              </>
+            );
+            return (
+              <li
+                key={comp.id}
+                data-selected={picked ? "" : undefined}
+                className={`comp-row-in -mx-2 flex items-start gap-1 rounded-md pr-1 transition-colors duration-150 motion-reduce:transition-none ${
+                  picked
+                    ? "bg-violet-500/10 shadow-[inset_2px_0_0_var(--color-violet-600)] dark:bg-violet-400/10"
+                    : ""
+                }`}
+                style={{ animationDelay: `${Math.min(index, 8) * 30}ms` }}
+              >
                 {onSelect ? (
                   <button
                     type="button"
-                    aria-pressed={comp.id === selectedId}
+                    aria-pressed={picked}
                     aria-label={`Show the ${money(comp.soldPrice, true)} sale from ${formatDate(comp.soldDate)} on the chart`}
-                    onClick={() => onSelect(comp.id === selectedId ? null : comp.id)}
-                    className="hit-44 rounded-md text-sm font-medium tabular-nums outline-none focus-visible:ring-2 focus-visible:ring-violet-600"
+                    onClick={() => onSelect(picked ? null : comp.id)}
+                    className="flex min-h-14 min-w-0 flex-1 items-start gap-3 rounded-md py-3 pl-2 text-left outline-none focus-visible:ring-2 focus-visible:ring-violet-600"
                   >
-                    {money(comp.soldPrice, true)}
+                    {body}
                   </button>
                 ) : (
-                  <p className="text-sm font-medium tabular-nums">{money(comp.soldPrice, true)}</p>
+                  <div className="flex min-h-14 min-w-0 flex-1 items-start gap-3 py-3 pl-2">{body}</div>
                 )}
-                {canFlag && cardId ? (
-                  <RowMenu
-                    label={`Actions for ${comp.title || "sale"}`}
-                    items={[
-                      {
-                        id: "not-a-match",
-                        label: "Not a match",
-                        onSelect: () => {
-                          setPending(comp);
-                          setReason("");
-                          setError(null);
+                <div className="flex shrink-0 items-center gap-1 pt-3">
+                  {comp.url ? (
+                    <a
+                      href={comp.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label="Open listing on eBay"
+                      className="hit-44 grid h-5 w-5 place-items-center rounded-md text-zinc-400 hover:text-violet-700 focus-visible:ring-2 focus-visible:ring-violet-600 focus-visible:outline-none dark:hover:text-violet-300"
+                    >
+                      <ArrowUpRight aria-hidden="true" className="h-3.5 w-3.5" />
+                    </a>
+                  ) : null}
+                  {canFlag && cardId ? (
+                    <RowMenu
+                      label={`Actions for ${comp.title || "sale"}`}
+                      items={[
+                        {
+                          id: "not-a-match",
+                          label: "Not a match",
+                          onSelect: () => {
+                            setPending(comp);
+                            setReason("");
+                            setError(null);
+                          },
                         },
-                      },
-                    ]}
-                  />
-                ) : null}
-              </div>
-            </li>
-          ))}
+                      ]}
+                    />
+                  ) : null}
+                </div>
+              </li>
+            );
+          })}
         </ul>
       ) : (
         <p className="text-sm text-zinc-500">No recent sales found</p>
@@ -147,7 +163,7 @@ export function CompsList({
         <button
           type="button"
           onClick={showMore}
-          className="mt-3 text-sm font-semibold text-violet-700 hover:underline dark:text-violet-300"
+          className="mt-3 h-11 w-full rounded-xl text-sm font-semibold text-violet-700 hover:bg-violet-500/10 focus-visible:ring-2 focus-visible:ring-violet-600 focus-visible:outline-none dark:text-violet-300"
         >
           Show more
         </button>
@@ -330,7 +346,7 @@ function RowMenu({
             setOpen(true);
           }
         }}
-        className="grid h-7 w-7 place-items-center rounded-full text-base leading-none text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-white/10 dark:hover:text-zinc-200"
+        className="hit-44 grid h-7 w-7 place-items-center rounded-full text-base leading-none text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-white/10 dark:hover:text-zinc-200"
       >
         <span aria-hidden="true">⋯</span>
       </button>

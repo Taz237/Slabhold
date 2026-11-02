@@ -1,20 +1,33 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { PriceFallbackText } from "@/components/price-readout";
 import { ValueChart, type ChartDot, type ChartPoint } from "@/components/charts/value-chart";
+import {
+  COMP_PLOT_HEIGHT,
+  CompCardSkeleton,
+  GhostPlot,
+  compCaption,
+  compCard,
+  compHeroValue,
+  compLabel,
+  compSectionValue,
+  compTile,
+  saleDate,
+} from "@/components/comp-basis";
 import { formatPct, pctTone } from "@/lib/chart/range";
 import { saleTrend, splitOutliers, vsDaysAgo, type ChartSale } from "@/lib/chart/sales";
 import { snapshotDateInNewYork } from "@/lib/collection/totals-shared";
 import { money } from "@/lib/format";
-import { formatRelativeTime } from "@/lib/relative-time";
 import { NOT_ENOUGH_SALES_LABEL } from "@/lib/value/format";
 import { mockValueHistory, type ValuePoint } from "@/lib/value-history";
 
 /** A trend needs this many sales on the line. */
 export const TREND_MIN_SALES = 3;
 
-const CHART_HEIGHT = 176;
+const CHART_HEIGHT = COMP_PLOT_HEIGHT;
+/** The hero counts up once, about this long. */
+const COUNT_UP_MS = 500;
 
 /** "Needs 2 more sales to show a trend". */
 export function moreSalesText(count: number): string {
@@ -22,16 +35,102 @@ export function moreSalesText(count: number): string {
   return `Needs ${missing} more sale${missing === 1 ? "" : "s"} to show a trend`;
 }
 
-/** "Oct 9", with the year only when it is not this year. */
-export function saleDate(ymd: string, today = snapshotDateInNewYork()): string {
-  const [y, m, d] = ymd.slice(0, 10).split("-").map(Number);
-  if (!y || !m || !d) return "";
-  return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    ...(String(y) === today.slice(0, 4) ? {} : { year: "numeric" }),
-    timeZone: "UTC",
-  });
+export { saleDate };
+
+export const TRAWL_ATTRIBUTION = "Sold data via Trawl (third-party, not affiliated with eBay)";
+
+/** "2h ago", "3d ago", "just now". Empty when there is no real time. */
+export function shortAgo(iso: string | null | undefined, now: number = Date.now()): string {
+  if (!iso) return "";
+  const then = new Date(iso).getTime();
+  if (Number.isNaN(then)) return "";
+  const minutes = Math.max(0, Math.round((now - then) / 60_000));
+  if (minutes < 1) return "just now";
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.round(hours / 24)}d ago`;
+}
+
+const CHIP_TONE = {
+  up: "bg-emerald-500/12 text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-400",
+  down: "bg-rose-500/12 text-rose-700 dark:bg-rose-400/10 dark:text-rose-400",
+  flat: "bg-zinc-500/10 text-zinc-600 dark:text-zinc-400",
+} as const;
+
+/** "▲ 4.2%", "▼ 3.1%" or "– 0%". The period goes in the caption. */
+export function DeltaChip({ pct, className = "" }: { pct: number; className?: string }) {
+  const tone = pctTone(pct);
+  const text = tone === "up" ? `▲ ${formatPct(pct, false)}` : tone === "down" ? `▼ ${formatPct(pct, false)}` : "– 0%";
+  return (
+    <span
+      data-delta-chip={tone}
+      className={`shrink-0 rounded-md px-1.5 py-0.5 text-xs font-semibold tabular-nums ${CHIP_TONE[tone]} ${className}`}
+    >
+      {text}
+    </span>
+  );
+}
+
+function pct(value: number, lo: number, hi: number): number {
+  if (!(hi > lo)) return 50;
+  return Math.min(100, Math.max(0, ((value - lo) / (hi - lo)) * 100));
+}
+
+/**
+ * Where the middle half of sales lands. A zinc track, the p25–p75 run in faint
+ * violet, and the median as a 2px tick. Pure CSS.
+ */
+export function RangeBar({
+  low,
+  high,
+  median,
+  min,
+  max,
+}: {
+  low: number;
+  high: number;
+  median: number;
+  /** The cheapest and dearest sale, when known. The track pads out to them. */
+  min?: number | null;
+  max?: number | null;
+}) {
+  const pad = Math.max((high - low) * 0.5, high * 0.05, 0.01);
+  const lo = Math.min(low, min ?? low - pad);
+  const hi = Math.max(high, max ?? high + pad);
+  const left = pct(low, lo, hi);
+  const right = pct(high, lo, hi);
+  const mid = pct(median, lo, hi);
+  return (
+    <div data-range-bar="" className={`mt-4 px-3 py-3 ${compTile}`}>
+      <div
+        role="img"
+        aria-label={`Middle half of sales, ${money(low)} to ${money(high)}`}
+        className="relative h-1.5 rounded-full bg-zinc-200 dark:bg-white/10"
+      >
+        <span
+          className="absolute inset-y-0 rounded-full bg-violet-600/25"
+          style={{ left: `${left}%`, width: `${Math.max(right - left, 1)}%` }}
+        />
+        <span
+          className="absolute -top-1 h-3.5 w-0.5 -translate-x-1/2 rounded-full bg-violet-600"
+          style={{ left: `${mid}%` }}
+        />
+      </div>
+      <div className="mt-2 flex justify-between gap-3 leading-4 tabular-nums">
+        <span className={compCaption}>Low {money(low)}</span>
+        <span className={compCaption}>High {money(high)}</span>
+      </div>
+    </div>
+  );
+}
+
+export function TrawlAttribution() {
+  return (
+    <p className={`mt-4 border-t border-zinc-950/5 pt-3 leading-4 dark:border-white/[0.06] ${compCaption}`}>
+      {TRAWL_ATTRIBUTION}
+    </p>
+  );
 }
 
 /** A tapped sale's source, short enough to share a line with "1 outlier hidden". */
@@ -49,10 +148,54 @@ export function saleLine(sale: ChartSale, today?: string): string {
   return [saleLineMain(sale, today), sale.source ? saleSourceShort(sale.source) : null].filter(Boolean).join(" · ");
 }
 
+/** "PSA 10 · Oct 9 · eBay": a tapped sale's caption, under its price in the hero. */
+export function saleMeta(sale: ChartSale, today?: string): string {
+  return [sale.grade, saleDate(sale.date, today), sale.source ? saleSourceShort(sale.source) : null]
+    .filter(Boolean)
+    .join(" · ");
+}
+
+const useClientLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
+
 /**
- * Recent sales on a card page: the price, how it moved, and every sale as a
- * dot on one shared <ValueChart>. Tap a dot (or a row in Recent sales) to see
- * that sale. Outliers are hollow and left off the trend.
+ * The hero dollar. It counts up once, from 60% so it never reads "$0", on the
+ * client's first draw of a real value. Static under reduced motion.
+ */
+function HeroMoney({ value }: { value: number }) {
+  const [shown, setShown] = useState<number | null>(null);
+  const ran = useRef(false);
+  useClientLayoutEffect(() => {
+    if (ran.current) return;
+    ran.current = true;
+    if (!window.requestAnimationFrame || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+    const from = value * 0.6;
+    let frame = 0;
+    let start = 0;
+    setShown(from);
+    const step = (time: number) => {
+      start ||= time;
+      const progress = Math.min(1, (time - start) / COUNT_UP_MS);
+      if (progress < 1) {
+        setShown(from + (value - from) * (1 - (1 - progress) ** 3));
+        frame = window.requestAnimationFrame(step);
+      } else {
+        setShown(null);
+      }
+    };
+    frame = window.requestAnimationFrame(step);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      setShown(null);
+    };
+  }, [value]);
+  return <>{money(shown ?? value)}</>;
+}
+
+/**
+ * The card page's one comp read: the label and freshness, the value with its
+ * 30-day chip, the middle-half range, and every sale as a dot on one shared
+ * <ValueChart>. Tap a dot (or a row in Recent sales) and the hero shows that
+ * sale. Outliers are hollow and left off the trend.
  */
 export function SalesChart({
   card,
@@ -98,7 +241,7 @@ export function SalesChart({
   lockedToComps?: boolean;
   /** Kept for callers; empty comps show "Not enough sales yet". */
   hideStatusLabel?: boolean;
-  /** Replaces the Sold comps / Estimated value eyebrow. */
+  /** The eyebrow: "Last sale", "Recent sales", "Estimated value" or similar cards. */
   heading?: string;
   /** Keep the plot box mounted so an empty result does not collapse the page. */
   stableLayout?: boolean;
@@ -146,8 +289,6 @@ export function SalesChart({
   const estimateShown = showEstimate && live && !noSales;
   const today = snapshotDateInNewYork();
   const vs = estimateShown && displayMedian != null ? vsDaysAgo(trend, displayMedian, 30, today) : null;
-  const trendMove = trend.length >= 2 ? trend[trend.length - 1].value - trend[0].value : 0;
-  const tone = showSample || trend.length < 2 ? "brand" : trendMove > 0 ? "up" : trendMove < 0 ? "down" : "flat";
   const vsTone = pctTone(vs);
   const selected = selectedSaleId ? sales.find((sale) => sale.id === selectedSaleId) : null;
   const linePoints = showSample ? samplePoints : trend;
@@ -158,130 +299,134 @@ export function SalesChart({
     () => (refValue != null ? { value: refValue, label: `Median ${money(refValue)}` } : null),
     [refValue],
   );
-  const bandLow = estimateShown ? displayP25 : null;
-  const bandHigh = estimateShown ? displayP75 : null;
-  const band = useMemo(
-    () => (bandLow != null && bandHigh != null ? { low: bandLow, high: bandHigh } : null),
-    [bandLow, bandHigh],
-  );
+  const showRange = estimateShown && displayMedian != null && displayP25 != null && displayP75 != null;
+  const inlierPrices = split.inliers.map((sale) => sale.price);
   const ariaLabel = showSample
     ? "Sample price history"
     : `Recent sales${displayMedian != null && estimateShown ? `, median ${money(displayMedian)}` : ""}, ${sales.length} sale${sales.length === 1 ? "" : "s"}${
         vs == null ? "" : vsTone === "flat" ? ", unchanged vs 30 days ago" : `, ${vsTone} ${formatPct(vs, false)} vs 30 days ago`
       }`;
+  const eyebrow = heading ?? (showEstimate ? "Estimated value" : "Recent sales");
+  const ago = usingLive ? shortAgo(fetchedAt) : "";
+  const freshness = showSample ? "Sample" : ago ? `eBay sold · ${ago}` : null;
+  const fewSales = split.inliers.length < TREND_MIN_SALES;
+  const chip = !selected && estimateShown && !fewSales && vs != null;
 
   if (unavailable && !loading) {
     return null;
   }
 
   if (loading) {
-    return (
-      <section className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-white/10 dark:bg-white/[0.03] sm:p-5">
-        <p className="text-[11px] tracking-wide text-zinc-500 uppercase">Sold comps</p>
-        <p className="mt-2 text-sm text-zinc-500">Loading sold prices…</p>
-        <div className="skeleton-shimmer mt-3 rounded-xl bg-zinc-100 dark:bg-white/5" style={{ height: CHART_HEIGHT }} />
-      </section>
-    );
+    return <CompCardSkeleton range={showEstimate} />;
   }
 
+  const caption = selected ? (
+    saleMeta(selected, today)
+  ) : showSample ? (
+    "Sample history from recent months"
+  ) : noSales && showEstimate ? (
+    "We'll show a value once this card sells on eBay."
+  ) : fewSales ? (
+    moreSalesText(split.inliers.length)
+  ) : estimateShown ? (
+    `Based on ${n} sale${n === 1 ? "" : "s"}${chip ? " · vs 30 days ago" : ""}`
+  ) : (
+    `Based on ${sales.length} sale${sales.length === 1 ? "" : "s"}`
+  );
+
   return (
-    <section className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-white/10 dark:bg-white/[0.03] sm:p-5">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-[11px] tracking-wide text-zinc-500 uppercase">
-            {heading ?? (usingLive ? "Sold comps" : "Estimated value")}
+    <section data-comp-card="" className={`comp-reveal ${compCard}`}>
+      <div className="flex h-5 items-center justify-between gap-3">
+        <p className={`min-w-0 truncate ${compLabel}`}>{eyebrow}</p>
+        {freshness ? <p className={`shrink-0 ${compCaption}`}>{freshness}</p> : null}
+      </div>
+
+      <div className="mt-1 flex min-h-10 items-baseline gap-2">
+        {selected ? (
+          <p key={`sale-${selected.id}`} data-comp-value="" className={`comp-fade ${compHeroValue}`}>
+            {money(selected.price)}
           </p>
-          <div className={`mt-1 ${stableLayout ? "flex min-h-9 items-end" : ""}`}>
-            {!showEstimate ? (
-              <p className="max-w-full text-[clamp(0.95rem,3.6vw,1.125rem)] font-semibold tracking-tight leading-snug">
-                <PriceFallbackText text={headlineLabel || noSalesLabel || NOT_ENOUGH_SALES_LABEL} />
-              </p>
-            ) : noSales ? (
-              <p className="text-lg font-semibold tracking-tight">
-                {noSalesLabel ?? NOT_ENOUGH_SALES_LABEL}
-              </p>
-            ) : (
-              <p className="flex flex-wrap items-center gap-2">
-                <span className="text-3xl font-semibold tracking-tight tabular-nums">{money(displayMedian ?? 0)}</span>
-                {vs != null ? (
-                  <span
-                    data-gain={vsTone}
-                    className={`rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums ${
-                      vsTone === "up"
-                        ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400"
-                        : vsTone === "down"
-                          ? "bg-rose-500/15 text-rose-700 dark:text-rose-400"
-                          : "bg-zinc-500/15 text-zinc-600 dark:text-zinc-400"
-                    }`}
-                  >
-                    vs 30 days ago: {formatPct(vs)}
-                  </span>
-                ) : null}
-              </p>
-            )}
-          </div>
-          {estimateShown ? (
-            <p className="mt-1 min-h-5 text-sm text-zinc-500 tabular-nums dark:text-zinc-400">
-              Based on {n} sale{n === 1 ? "" : "s"}
-              {fetchedAt ? ` · updated ${formatRelativeTime(fetchedAt)}` : ""}
+        ) : !showEstimate ? (
+          <p key="label" className={`comp-fade max-w-full py-1.5 ${compSectionValue}`}>
+            <PriceFallbackText text={headlineLabel || noSalesLabel || NOT_ENOUGH_SALES_LABEL} />
+          </p>
+        ) : noSales ? (
+          <p className="text-lg font-semibold tracking-tight leading-10 text-zinc-500">No sales yet</p>
+        ) : (
+          <>
+            <p key="value" data-comp-value="" className={`comp-fade ${compHeroValue}`}>
+              <HeroMoney value={displayMedian ?? 0} />
             </p>
-          ) : stableLayout ? (
-            <p className="mt-1 min-h-5 text-sm text-zinc-500">&nbsp;</p>
-          ) : null}
-        </div>
-        {showEstimate && lowConfidence && !noSales ? (
-          <span className="mt-1 inline-block rounded-md bg-amber-500/15 px-2 py-0.5 text-[11px] font-semibold text-amber-800 dark:text-amber-200">
+            {chip && vs != null ? <DeltaChip pct={vs} className="comp-chip-in" /> : null}
+          </>
+        )}
+      </div>
+
+      <p className={`mt-2 flex min-h-4 min-w-0 items-center gap-1.5 leading-4 ${compCaption}`}>
+        <span key={selected ? `c-${selected.id}` : "c"} className="comp-fade min-w-0 truncate tabular-nums">
+          {caption}
+        </span>
+        {!selected && showEstimate && lowConfidence && !noSales ? (
+          <span className="shrink-0 rounded-md bg-amber-500/15 px-1.5 text-[11px] leading-4 font-semibold text-amber-800 dark:text-amber-200">
             Low confidence
           </span>
         ) : null}
-      </div>
+      </p>
 
-      {showPlot || stableLayout ? (
-        <div className="mt-3">
-          {/* Fixed height, one line: tapping a sale never moves the chart. */}
+      {showRange && displayMedian != null && displayP25 != null && displayP75 != null ? (
+        <RangeBar
+          low={displayP25}
+          high={displayP75}
+          median={displayMedian}
+          min={inlierPrices.length ? Math.min(...inlierPrices) : null}
+          max={inlierPrices.length ? Math.max(...inlierPrices) : null}
+        />
+      ) : null}
+
+      {showPlot ? (
+        <div className={`relative mt-4 h-44 px-1 py-3 ${compTile}`}>
+          {/* Read out to screen readers. The hero shows the tapped sale on screen. */}
           <div
             data-sale-row=""
-            className="flex h-6 items-center justify-between gap-3 overflow-hidden text-xs leading-5 whitespace-nowrap"
+            className="flex h-6 items-center justify-between gap-3 overflow-hidden text-xs leading-5 whitespace-nowrap sr-only"
             aria-live="polite"
           >
             {showSample ? (
-              <span className="min-w-0 truncate text-zinc-500 dark:text-zinc-400">Sample history from recent months</span>
+              <span className="min-w-0 truncate">Sample history from recent months</span>
             ) : selected ? (
               // Only the price, grade and date can truncate. The source always shows.
-              <span className="flex min-w-0 items-center gap-1 font-semibold tabular-nums">
+              <span className="flex min-w-0 items-center gap-1">
                 <span className="min-w-0 truncate">{saleLineMain(selected, today)}</span>
                 {selected.source ? <span className="shrink-0">· {saleSourceShort(selected.source)}</span> : null}
               </span>
-            ) : showPlot && trend.length < 2 ? (
-              <span className="min-w-0 truncate text-zinc-500 dark:text-zinc-400">{moreSalesText(split.inliers.length)}</span>
-            ) : showPlot ? (
-              <span className="min-w-0 truncate text-zinc-500 dark:text-zinc-400">Tap a sale to see it</span>
+            ) : trend.length < 2 ? (
+              <span className="min-w-0 truncate">{moreSalesText(split.inliers.length)}</span>
             ) : (
-              <span>&nbsp;</span>
+              <span className="min-w-0 truncate">Tap a sale to see it</span>
             )}
-            {outlierCount > 0 && showPlot ? (
-              <span className="shrink-0 text-zinc-500 dark:text-zinc-400">
-                {outlierCount} outlier{outlierCount === 1 ? "" : "s"} hidden
-              </span>
-            ) : null}
           </div>
-          <div style={{ height: CHART_HEIGHT }}>
-            {showPlot ? (
-              <ValueChart
-                points={linePoints}
-                dots={showSample ? undefined : dots}
-                selectedDotId={selectedSaleId}
-                onSelectDot={onSelectSale}
-                tone={tone}
-                height={CHART_HEIGHT}
-                ariaLabel={ariaLabel}
-                refLine={refLine}
-                band={band}
-              />
-            ) : null}
-          </div>
+          {outlierCount > 0 ? (
+            <p aria-hidden="true" className={`pointer-events-none absolute top-1.5 left-3 leading-4 ${compCaption}`}>
+              {outlierCount} outlier{outlierCount === 1 ? "" : "s"} hidden
+            </p>
+          ) : null}
+          <ValueChart
+            points={linePoints}
+            dots={showSample ? undefined : dots}
+            selectedDotId={selectedSaleId}
+            onSelectDot={onSelectSale}
+            tone="brand"
+            height={CHART_HEIGHT}
+            ariaLabel={ariaLabel}
+            refLine={refLine}
+            minimal
+          />
         </div>
+      ) : stableLayout || (noSales && showEstimate) ? (
+        <GhostPlot />
       ) : null}
+
+      {usingLive ? <TrawlAttribution /> : null}
     </section>
   );
 }

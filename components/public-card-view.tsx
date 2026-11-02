@@ -13,7 +13,17 @@ import { EbaySoldLine, PriceFallbackText, SimilarCardsLine } from "@/components/
 import { WantButton } from "@/components/want-button";
 import { outlineButton } from "@/components/button-styles";
 import { CardThumb } from "@/components/card-thumb";
-import { CompBasis } from "@/components/comp-basis";
+import {
+  CompEmpty,
+  CompRowsSkeleton,
+  compCaption,
+  compCard,
+  compEyebrow,
+  compHeroValue,
+  compLabel,
+  compSectionValue,
+  compTile,
+} from "@/components/comp-basis";
 import { PublicCardCompsPreview } from "@/components/public-card-comps";
 import { PublicCardSkeleton } from "@/components/public-card-skeleton";
 import { useCollection } from "@/components/collection-provider";
@@ -72,6 +82,7 @@ type SalesChartView = ComponentType<{
   lockedToComps?: boolean;
   noSalesLabel?: string;
   hideStatusLabel?: boolean;
+  heading?: string;
   headlineLabel?: string;
   headlineIsEstimate?: boolean;
 }>;
@@ -316,6 +327,11 @@ function PublicCardAnalytics({
     hasSales: onScreenComps.length > 0,
   });
   const showChart = !collapsePrices && !authRequired && !unavailable && !rateLimited;
+  // The comp card (chart, its skeleton, or its retry) carries the price read: no separate price block.
+  const chartCard = showChart && !soldCopy;
+  // The comp card prints the Trawl line only once it has rendered live data.
+  const chartShowsAttribution =
+    chartCard && Boolean(SalesChart) && !chartFailed && !valueLoading && shownValue?.status !== "sample";
 
   return (
     <div className="space-y-6">
@@ -379,59 +395,56 @@ function PublicCardAnalytics({
       </div>
 
       {collapsePrices ? (
-        <>
-          {priceRead?.kind === "similar" ? (
+        priceRead?.kind === "similar" ? (
+          <section className={compCard}>
             <SimilarCardsLine read={priceRead} />
-          ) : (
-            <div className="text-sm text-zinc-500">
-              <p>{priceRead?.text ?? NO_SALES_FOUND_LABEL}</p>
-              {priceRead?.showEbaySold && ebayHref ? (
-                <div className="mt-1">
-                  <EbaySoldLine href={ebayHref} />
-                </div>
-              ) : null}
-            </div>
-          )}
-        </>
-      ) : (
+          </section>
+        ) : (
+          <CompEmpty
+            title={!priceRead || priceRead.text === NO_SALES_FOUND_LABEL ? "No sales yet" : priceRead.text}
+          >
+            {priceRead?.showEbaySold && ebayHref ? <EbaySoldLine href={ebayHref} /> : null}
+          </CompEmpty>
+        )
+      ) : chartCard ? null : (
       <section className="grid grid-cols-1 gap-3">
-        <div className="min-w-0 rounded-2xl border border-zinc-200 bg-white px-4 py-4 dark:border-white/10 dark:bg-white/[0.03]">
+        <div className={`min-w-0 ${compCard}`}>
           {priceRead?.kind === "similar" ? (
             <SimilarCardsLine read={priceRead} />
           ) : (
             <>
-              {priceRead?.kind === "last_sale" || priceRead?.kind === "range" || priceRead?.kind === "estimate" || !priceRead ? (
-                <p className="text-[11px] tracking-wide text-zinc-500 uppercase">
-                  {priceRead?.kind === "last_sale"
-                    ? "Last sale"
-                    : priceRead?.kind === "range"
-                      ? "Recent sales"
-                      : "Estimated value"}
-                </p>
-              ) : null}
-              <p className={`mt-1 min-w-0 font-semibold tracking-tight ${priceRead?.kind === "estimate" || !priceRead ? "text-[clamp(1.25rem,5vw,1.5rem)] tabular-nums whitespace-nowrap" : "max-w-full text-[clamp(0.95rem,3.6vw,1.125rem)] leading-snug"}`}>
+              <p className={`flex h-5 items-center ${compLabel}`}>{compEyebrow(priceRead?.kind ?? "estimate")}</p>
+              <p className={`mt-1 min-h-10 min-w-0 ${priceRead?.kind === "estimate" || !priceRead ? `${compHeroValue} whitespace-nowrap` : `max-w-full py-1.5 ${compSectionValue}`}`}>
                 {valueLoading && !flags.priced ? (
-                  "…"
+                  <span data-skeleton="hero" className="skeleton-shimmer inline-block h-8 w-32 rounded-lg bg-zinc-100 align-middle dark:bg-white/5" />
                 ) : priceRead && priceRead.kind !== "estimate" ? (
                   <PriceFallbackText text={priceRead.text} />
+                ) : priceRead ? (
+                  priceRead.text
                 ) : (
-                  (priceRead?.text ?? "…")
+                  <span data-skeleton="hero" className="skeleton-shimmer inline-block h-8 w-32 rounded-lg bg-zinc-100 align-middle dark:bg-white/5" />
                 )}
               </p>
             </>
           )}
-          {displayEst != null ? (
-            <>
-              {shownValue?.status === "sample" ? (
-                <p className="mt-1 text-xs text-zinc-500">Sample estimate</p>
+          {displayEst != null || (priceRead?.kind === "estimate" && isLowConfidenceValue(shownValue)) ? (
+            <p className={`mt-2 flex min-h-4 flex-wrap items-center gap-x-1.5 leading-4 ${compCaption}`}>
+              {displayEst != null && shownValue?.status === "sample" ? <span>Sample estimate ·</span> : null}
+              {displayEst != null && (shownValue?.nSales ?? 0) > 0 ? (
+                <span>{basedOnSalesLabel(shownValue?.nSales ?? 0)}</span>
               ) : null}
-              <CompBasis count={shownValue?.nSales ?? 0} basis={[]} />
-            </>
+              {priceRead?.kind === "estimate" && isLowConfidenceValue(shownValue) ? (
+                <span className="rounded-md bg-amber-500/15 px-1.5 text-[11px] leading-4 font-semibold text-amber-800 dark:text-amber-200">
+                  Low confidence
+                </span>
+              ) : null}
+            </p>
           ) : null}
-          {priceRead?.kind === "estimate" && isLowConfidenceValue(shownValue) ? (
-            <span className="mt-1 inline-block rounded-md bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-amber-800 dark:text-amber-200">
-              Low confidence
-            </span>
+          {soldCopy && !authRequired ? (
+            <div className={`mt-4 px-4 py-4 text-center ${compTile}`}>
+              <p className="text-sm font-semibold">Sales are taking a break</p>
+              <p className="mt-1 text-sm text-zinc-500">{soldCopy}</p>
+            </div>
           ) : null}
         </div>
       </section>
@@ -442,11 +455,7 @@ function PublicCardAnalytics({
           {errorMessage}
         </p>
       ) : null}
-      {authRequired ? null : soldCopy ? (
-        <p className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">
-          {soldCopy}
-        </p>
-      ) : showChart && SalesChart && !chartFailed ? (
+      {chartCard && SalesChart && !chartFailed ? (
         <SalesChart
           card={{
             id: card.id,
@@ -468,6 +477,7 @@ function PublicCardAnalytics({
           lockedToComps
           noSalesLabel={NO_SALES_FOUND_LABEL}
           hideStatusLabel
+          heading={compEyebrow(priceRead?.kind ?? "estimate", SIMILAR_CARDS_LABEL)}
           headlineLabel={
             priceRead && priceRead.kind !== "estimate"
               ? priceRead.kind === "similar"
@@ -480,76 +490,83 @@ function PublicCardAnalytics({
       ) : showChart && chartFailed ? (
         <SalesChartPlaceholder
           failed={chartFailed}
+          eyebrow={compEyebrow(priceRead?.kind ?? "estimate", SIMILAR_CARDS_LABEL)}
+          value={
+            priceRead?.kind === "estimate"
+              ? priceRead.text
+              : priceRead?.kind === "similar"
+                ? SIMILAR_CARDS_LABEL
+                : (priceRead?.text ?? null)
+          }
           onRetry={() => {
             setChartFailed(false);
             setSalesChart(null);
             setChartAttempt((attempt) => attempt + 1);
           }}
         />
-      ) : showChart ? (
+      ) : chartCard ? (
         <SalesChartPending />
       ) : null}
 
-      {collapsePrices || (authRequired && publicComps.status === "hidden") ? null : (
-        <section className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-white/10 dark:bg-white/[0.03]">
-        <div className="flex flex-wrap items-end justify-between gap-2">
-          <div>
-            <h2 className="font-semibold">Recent sales</h2>
-            {authRequired ? null : (
-              <p className="text-xs text-zinc-500">
-                {compsLoading
-                  ? "Loading sold listings…"
-                  : soldCopy
-                    ? soldCopy
-                    : sold.status === "ready"
-                      ? onScreenComps.length === 0
-                        ? priceRead?.kind === "similar"
-                          ? SIMILAR_CARDS_LABEL
-                          : (priceRead?.text ?? NO_SALES_FOUND_LABEL)
-                        : (
-                            <>
-                              {basedOnSalesLabel(salesCount)}
-                              <SoldFreshness comps={onScreenComps} fetchedAt={sold.data?.fetchedAt} />
-                            </>
-                          )
-                      : usingSample
-                        ? "Sample listings"
-                        : ""}
-              </p>
-            )}
-          </div>
+      {collapsePrices || (authRequired && publicComps.status === "hidden") || (soldCopy && !authRequired) ? null : (
+        <section className={compCard}>
+        <div className="flex items-baseline justify-between gap-3">
+          <h2 className="text-sm font-semibold">Recent sales</h2>
+          {!authRequired && sold.status === "ready" && onScreenComps.length > 0 ? (
+            <p className="shrink-0 text-xs font-medium text-zinc-500 tabular-nums">
+              {salesCount} sale{salesCount === 1 ? "" : "s"}
+            </p>
+          ) : null}
         </div>
+        {authRequired ? null : (
+          <p className={`mt-1 leading-4 ${compCaption}`}>
+            {compsLoading
+              ? "Loading sold listings…"
+              : soldCopy
+                ? soldCopy
+                : sold.status === "ready"
+                  ? onScreenComps.length === 0
+                    ? priceRead?.kind === "similar"
+                      ? SIMILAR_CARDS_LABEL
+                      : (priceRead?.text ?? NO_SALES_FOUND_LABEL)
+                    : (
+                        <>
+                          Recent sold prices
+                          <SoldFreshness comps={onScreenComps} fetchedAt={sold.data?.fetchedAt} />
+                        </>
+                      )
+                  : usingSample
+                    ? "Sample listings"
+                    : ""}
+          </p>
+        )}
         {authRequired ? (
           <PublicCardCompsPreview comps={publicComps} pathname={pathname} />
         ) : null}
-        {usingLive && !compsLoading && !authRequired ? (
+        {authRequired ? null : compsLoading ? (
+          <CompRowsSkeleton />
+        ) : unavailable || rateLimited ? null : sold.status === "ready" &&
+          (onScreenComps.length > 0 || flags.hidden.length > 0) ? (
+          <div className="mt-2">
+            <LazyCompsList
+              comps={onScreenComps}
+              cardId={card.id}
+              canFlag={canFlag}
+              hidden={flags.hidden}
+              onFlag={flags.flag}
+              onRestore={flags.restore}
+              toast={flags.toast}
+              onUndo={flags.undo}
+              selectedId={saleId}
+              onSelect={setSaleId}
+            />
+          </div>
+        ) : null}
+        {/* With the comp card up, the attribution sits in its footer. */}
+        {usingLive && !compsLoading && !authRequired && !chartShowsAttribution ? (
           <p className="mt-3 text-[11px] text-zinc-400">
             Sold data via Trawl (third-party, not affiliated with eBay)
           </p>
-        ) : null}
-        {authRequired ? null : compsLoading ? (
-          <div className="mt-3 space-y-3">
-            {Array.from({ length: 4 }, (_, i) => (
-              <div
-                key={i}
-                className="h-12 animate-pulse rounded-xl bg-zinc-100 dark:bg-white/5"
-              />
-            ))}
-          </div>
-        ) : unavailable || rateLimited ? null : sold.status === "ready" &&
-          (onScreenComps.length > 0 || flags.hidden.length > 0) ? (
-          <LazyCompsList
-            comps={onScreenComps}
-            cardId={card.id}
-            canFlag={canFlag}
-            hidden={flags.hidden}
-            onFlag={flags.flag}
-            onRestore={flags.restore}
-            toast={flags.toast}
-            onUndo={flags.undo}
-            selectedId={saleId}
-            onSelect={setSaleId}
-          />
         ) : null}
         </section>
       )}
@@ -594,30 +611,41 @@ function toPublicCard(card: {
 
 function SalesChartPlaceholder({
   failed,
+  eyebrow,
+  value,
   onRetry,
 }: {
   failed: boolean;
+  eyebrow: string;
+  /** The price read, so the card still answers what it's worth. */
+  value: string | null;
   onRetry: () => void;
 }) {
   return (
-    <section className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-white/10 dark:bg-white/[0.03] sm:p-5">
-      <p className="text-[11px] tracking-wide text-zinc-500 uppercase">Recent sales</p>
-      <p className="mt-2 text-sm text-zinc-500">
-        {failed ? "Couldn't load the sales graph" : "Loading sold prices…"}
-      </p>
-      <div
-        className={`mt-3 h-44 rounded-xl bg-zinc-100 dark:bg-white/5 ${
-          failed ? "flex flex-col items-center justify-center gap-3 px-4 text-center" : "animate-pulse"
-        }`}
-      >
+    <section className={compCard}>
+      <p className={`flex h-5 items-center ${compLabel}`}>{eyebrow}</p>
+      <div className="mt-1 flex min-h-10 items-baseline">
+        {value && /^\$[\d,]+\.\d{2}$/.test(value) ? (
+          <p className={compHeroValue}>{value}</p>
+        ) : value ? (
+          <p className={`max-w-full py-1.5 ${compSectionValue}`}>
+            <PriceFallbackText text={value} />
+          </p>
+        ) : null}
+      </div>
+      <div className={`mt-4 flex h-44 flex-col items-center justify-center gap-1 px-4 text-center ${compTile}`}>
+        <p className="text-sm font-semibold">{failed ? "Sales are taking a break" : "Loading sold prices…"}</p>
         {failed ? (
-          <button
-            type="button"
-            onClick={onRetry}
-            className="inline-flex min-h-9 items-center rounded-full bg-violet-600 px-3.5 text-sm font-semibold text-white hover:bg-violet-500"
-          >
-            Retry
-          </button>
+          <>
+            <p className="text-sm text-zinc-500">{"Couldn't load the sales graph."}</p>
+            <button
+              type="button"
+              onClick={onRetry}
+              className="mt-2 inline-flex h-11 items-center rounded-full px-5 text-sm font-semibold text-violet-700 hover:bg-violet-500/10 focus-visible:ring-2 focus-visible:ring-violet-600 focus-visible:outline-none dark:text-violet-300"
+            >
+              Try again
+            </button>
+          </>
         ) : null}
       </div>
     </section>

@@ -131,6 +131,58 @@ textarea {
   }
 }
 
+/* Quick Comp (components/sales-chart.tsx, components/comps-list.tsx). One-shot only, never looping. */
+@keyframes comp-reveal {
+  from {
+    opacity: 0;
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+  }
+}
+
+@keyframes comp-row-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* The comp card replaces its skeleton. */
+.comp-reveal {
+  animation: comp-reveal 300ms ease-out both;
+}
+
+/* A tapped sale swaps into the hero. */
+.comp-fade {
+  animation: chart-fade 150ms ease-out both;
+}
+
+/* The 30-day chip lands after the hero counts up. */
+.comp-chip-in {
+  animation: chart-fade 200ms ease-out 450ms both;
+}
+
+/* Sales rows, staggered by an inline delay, capped at 8 rows. */
+.comp-row-in {
+  animation: comp-row-in 240ms ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .comp-reveal,
+  .comp-fade,
+  .comp-chip-in,
+  .comp-row-in {
+    animation: none;
+  }
+}
+
 @keyframes lightbox-fade {
   from {
     opacity: 0;
