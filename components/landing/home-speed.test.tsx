@@ -142,20 +142,77 @@ describe("signed-out Home: calls to action warm on intent", () => {
     assert.deepEqual(warmed, ["/signup?next=%2Fleaderboard"]);
 
     await act(async () => {
+      link("/u/fixturefounder").dispatchEvent(new win.FocusEvent("focusin", { bubbles: true }));
+    });
+    assert.deepEqual(warmed, ["/signup?next=%2Fleaderboard", "/u/fixturefounder"]);
+
+    // A touch is also the page's first interaction: /login is warmed once, /signup isn't asked for again.
+    await act(async () => {
       logins[0].dispatchEvent(new win.Event("touchstart", { bubbles: true }));
     });
     await act(async () => {
       logins[1].dispatchEvent(new win.FocusEvent("focusin", { bubbles: true }));
+      signup.dispatchEvent(new win.MouseEvent("pointerover", { bubbles: true, relatedTarget: win.document.body }));
     });
+    assert.deepEqual(warmed, ["/signup?next=%2Fleaderboard", "/u/fixturefounder", "/login?next=%2Fleaderboard"]);
+  });
+
+  it("warms /signup and /login on the first interaction anywhere on the page, once", async () => {
+    const { LandingCta, LandingLogin } = await import("@/components/landing/landing-links");
+    const { createRoot } = await import("react-dom/client");
+    const warmed: string[] = [];
+    const host = win.document.createElement("div");
+    win.document.body.appendChild(host);
+    const root = createRoot(host);
     await act(async () => {
-      link("/u/fixturefounder").dispatchEvent(new win.FocusEvent("focusin", { bubbles: true }));
+      root.render(
+        withContexts(createElement("div", null, createElement(LandingLogin), createElement(LandingCta), createElement(LandingCta)), (href) =>
+          warmed.push(href),
+        ),
+      );
     });
-    assert.deepEqual(warmed, [
-      "/signup?next=%2Fleaderboard",
-      "/login?next=%2Fleaderboard",
-      "/login?next=%2Fleaderboard",
-      "/u/fixturefounder",
-    ]);
+    let unmounted = false;
+    cleanup = () => {
+      if (!unmounted) act(() => root.unmount());
+      host.remove();
+    };
+    assert.deepEqual(warmed, [], "nothing on render");
+    await act(async () => {
+      win.document.body.dispatchEvent(new win.Event("pointermove", { bubbles: true }));
+    });
+    assert.deepEqual(warmed, ["/signup?next=%2Fleaderboard", "/login?next=%2Fleaderboard"]);
+    await act(async () => {
+      for (const type of ["scroll", "pointerdown", "keydown", "touchstart", "pointermove"]) {
+        win.document.dispatchEvent(new win.Event(type, { bubbles: true }));
+      }
+    });
+    assert.equal(warmed.length, 2, "only the first interaction warms");
+
+    // Unmounted before any interaction: nothing is left listening.
+    act(() => root.unmount());
+    unmounted = true;
+    const again: string[] = [];
+    const host2 = win.document.createElement("div");
+    win.document.body.appendChild(host2);
+    const root2 = createRoot(host2);
+    await act(async () => {
+      root2.render(withContexts(createElement(LandingLogin), (href) => again.push(href)));
+    });
+    act(() => root2.unmount());
+    host2.remove();
+    await act(async () => {
+      win.document.body.dispatchEvent(new win.Event("pointerdown", { bubbles: true }));
+    });
+    assert.deepEqual(again, []);
+  });
+
+  it("keeps the idle fallback after load, never in the load window", () => {
+    const links = read("components/landing/landing-links.tsx");
+    assert.match(links, /warmOnFirstInteraction\(\(\) => \{\s*prefetchOnce\(router, landingSignupHref\(next\)\);\s*prefetchOnce\(router, landingLoginHref\(next\)\);/);
+    assert.match(links, /const warm = \(\) => prefetchOnce\(router, href\);/);
+    const warm = read("lib/landing/warm-routes.ts");
+    assert.match(warm, /host\.addEventListener\("load", afterLoad/);
+    assert.match(warm, /afterFirstIdle\(\(\) => \{\s*if \(!done\) timer = host\.setTimeout\(fire, WARM_FALLBACK_MS\);/);
   });
 
   it("still counts each tap as a landing call to action", () => {

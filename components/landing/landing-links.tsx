@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, lazy, type ReactNode } from "react";
+import { Suspense, lazy, useEffect, type ReactNode } from "react";
 import { trackEvent } from "@/lib/analytics";
 import { landingLoginHref, landingSignupHref, safeNext } from "@/lib/auth/safe-next";
+import { prefetchOnce, warmOnFirstInteraction } from "@/lib/landing/warm-routes";
 import { afterFirstIdle } from "@/lib/ui/idle";
 
 /*
@@ -12,20 +13,45 @@ import { afterFirstIdle } from "@/lib/ui/idle";
  * links that carry ?next= and count taps, and the panels below the hero.
  */
 
-/** The app router, or null where none is mounted (the landing page rendered on its own, in tests). */
+/**
+ * The app router, or null where none is mounted (the landing page rendered on
+ * its own, in tests). Then the links just don't prefetch; `next dev` says so.
+ */
 function useOptionalRouter() {
   try {
     return useRouter();
-  } catch {
+  } catch (error) {
+    if (process.env.NODE_ENV === "development") {
+      console.warn("[landing] no app router mounted, so landing links won't prefetch.", error);
+    }
     return null;
   }
 }
 
 /**
+ * Warms /signup and /login (with this page's ?next=) on the reader's first
+ * scroll, pointer, key or touch anywhere on the page, or a few seconds after
+ * load and the first idle moment. Never before load, so none of it competes
+ * with the first paint.
+ */
+function WarmAuthRoutes({ next }: { next: string }) {
+  const router = useOptionalRouter();
+  useEffect(
+    () =>
+      warmOnFirstInteraction(() => {
+        prefetchOnce(router, landingSignupHref(next));
+        prefetchOnce(router, landingLoginHref(next));
+      }),
+    [router, next],
+  );
+  return null;
+}
+
+/**
  * next/link that loads its route when a reader shows intent (pointer over it,
- * a touch, keyboard focus), not when it comes into view. A visitor who never
- * taps doesn't download /signup and /login. Same as the feed: it warms the
- * one you touch.
+ * a touch, keyboard focus), not when it comes into view. Same as the feed: it
+ * warms the one you touch. /signup and /login are also warmed early by
+ * WarmAuthRoutes; each route is asked for once.
  */
 function IntentLink({
   href,
@@ -34,7 +60,7 @@ function IntentLink({
   href: string;
 }) {
   const router = useOptionalRouter();
-  const warm = () => router?.prefetch(href);
+  const warm = () => prefetchOnce(router, href);
   return <Link {...props} href={href} prefetch={false} onPointerEnter={warm} onTouchStart={warm} onFocus={warm} />;
 }
 
@@ -63,11 +89,18 @@ function FromSearch({ render }: { render: (next: string) => ReactNode }) {
   return <>{render(next)}</>;
 }
 
-/** The header's Log in, carrying ?next=. */
+/** The header's Log in, carrying ?next=. It also warms /signup and /login early, once per page. */
 export function LandingLogin() {
   return (
     <Suspense fallback={<LoginLink next="/" />}>
-      <FromSearch render={(next) => <LoginLink next={next} />} />
+      <FromSearch
+        render={(next) => (
+          <>
+            <WarmAuthRoutes next={next} />
+            <LoginLink next={next} />
+          </>
+        )}
+      />
     </Suspense>
   );
 }
