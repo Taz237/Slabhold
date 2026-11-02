@@ -4,7 +4,7 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import { UserPlus } from "lucide-react";
 import { useShareSheet, type ShareTarget } from "@/components/share-sheet";
 import { useSocial } from "@/components/social-provider";
-import { fetchInviteCode } from "@/lib/invites/code";
+import { fetchInviteCode as readInviteCode } from "@/lib/invites/code";
 import { INVITE_SHARE_TEXT, invitePath } from "@/lib/share/links";
 import { loadSupabaseBrowser } from "@/lib/supabase/browser-lazy";
 
@@ -23,13 +23,23 @@ const codes = new Map<string, Promise<string | null>>();
 const listeners = new Set<() => void>();
 let version = 0;
 
-function loadInviteCode(userId: string): Promise<string | null> {
+/**
+ * The cached read for this user. A failed load (supabase-js or the read) settles
+ * to null and is forgotten, so the link works without a code and the next mount
+ * retries. The read is swappable for tests only.
+ */
+export function loadInviteCode(userId: string, fetchInviteCode = readInviteCode): Promise<string | null> {
   let pending = codes.get(userId);
   if (!pending) {
-    pending = loadSupabaseBrowser().then(fetchInviteCode).then((code) => {
-      if (!code) codes.delete(userId);
-      return code;
-    });
+    pending = loadSupabaseBrowser().then(fetchInviteCode)
+      .then((code) => {
+        if (!code) codes.delete(userId);
+        return code;
+      })
+      .catch(() => {
+        codes.delete(userId);
+        return null;
+      });
     codes.set(userId, pending);
   }
   return pending;

@@ -35,6 +35,7 @@ import {
   CompBasis,
   CompEmpty,
   compCaption,
+  lowConfidenceNote,
   compCard,
   compEyebrow,
   compHeroValue,
@@ -303,6 +304,8 @@ export function CardDetail({ id, added = false }: { id: string; added?: boolean 
         ebayHref,
         card,
       });
+  // The comp card's amber tag. The Recent sales caption skips its note when this shows.
+  const estimateTagShown = priceRead?.kind === "estimate" && isLowConfidenceValue(shownValue);
   const pricePending =
     (!cardSold && valueLoading && !earlyValue) ||
     (compsLoading && !earlyValue) ||
@@ -507,7 +510,7 @@ export function CardDetail({ id, added = false }: { id: string; added?: boolean 
                 asEstimate={priceRead?.kind === "estimate" || priceRead == null}
                 count={priceRead?.kind === "estimate" ? (shownValue?.nSales ?? 0) : 0}
                 sample={shownValue?.status === "sample"}
-                lowConfidence={priceRead?.kind === "estimate" && isLowConfidenceValue(shownValue)}
+                lowConfidence={estimateTagShown}
               />
             </div>
           </div>
@@ -697,6 +700,7 @@ export function CardDetail({ id, added = false }: { id: string; added?: boolean 
                     : (
                         <>
                           Recent sold prices
+                          {lowConfidenceNote(salesCount, usingLive, estimateTagShown)}
                           <SoldFreshness comps={onScreenComps} fetchedAt={sold.data?.fetchedAt} />
                         </>
                       )

@@ -1,15 +1,8 @@
 import type { ReactNode } from "react";
 import { snapshotDateInNewYork } from "@/lib/collection/totals-shared";
 import { formatDate, money } from "@/lib/format";
+import { basedOnSalesLabel } from "@/lib/comps/sales-label";
 import type { SaleBasis } from "@/lib/comps/shared-value";
-
-/**
- * Same copy as basedOnSalesLabel in lib/comps/shared-value. Kept here so the
- * card page shell's skeleton doesn't pull the comps matching code into first load.
- */
-function basedOnSalesLabel(count: number): string {
-  return `Based on ${count} sale${count === 1 ? "" : "s"}`;
-}
 
 /** "Based on N sales" plus the date, price, and grade of each sale in that count. */
 export function CompBasis({
@@ -47,6 +40,14 @@ export const compCard =
 /** Inner tile: the range bar, the plot, the retry. */
 export const compTile = "rounded-xl bg-zinc-50 dark:bg-white/[0.03]";
 export const compLabel = "text-xs font-medium text-zinc-500";
+/**
+ * " · Low confidence" after the Recent sales caption for 1–4 live sales, unless
+ * the comp card already shows its amber tag, so it is never on screen twice.
+ */
+export function lowConfidenceNote(salesCount: number, live: boolean, tagShown: boolean): string {
+  return live && salesCount >= 1 && salesCount < 5 && !tagShown ? " · Low confidence" : "";
+}
+
 export const compCaption = "text-[11px] text-zinc-400 dark:text-zinc-500";
 export const compHeroValue = "text-[34px] leading-10 font-semibold tracking-tight tabular-nums";
 export const compSectionValue = "text-xl leading-[26px] font-semibold tabular-nums";
