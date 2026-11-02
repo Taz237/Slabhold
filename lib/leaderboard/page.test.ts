@@ -105,10 +105,25 @@ describe("leaderboard page", () => {
     assert.match(html, /data-viewer-row=""/);
     assert.doesNotMatch(html, /data-you-row|data-you-spacer/);
     const spots = [...html.matchAll(/<div data-your-spot=""[^>]*class="([^"]*)"/g)].map((m) => m[1].split(/\s+/));
-    assert.ok(posts?.you && spots.length > 0);
+    assert.ok(posts?.you, "fixture viewer should be on the posts board");
+    assert.ok(spots.length > 0, "fixture viewer should render a pinned spot");
     for (const cls of spots) assert.ok(cls.includes("sticky") && !cls.includes("fixed"), cls.join(" "));
-    const outsideRest = html.split('data-board-rest=""').map((seg, i) => (i === 0 ? seg : seg.slice(seg.indexOf("</section>"))));
-    assert.doesNotMatch(outsideRest.join(""), /data-your-spot/);
+    // Each data-board-rest div runs to its matching </div>, counting nested divs.
+    const restRanges = [...html.matchAll(/<div\b[^>]*\bdata-board-rest=""/g)].map((open) => {
+      const tags = /<div\b|<\/div>/g;
+      tags.lastIndex = open.index;
+      let depth = 0;
+      for (let tag = tags.exec(html); tag; tag = tags.exec(html)) {
+        depth += tag[0] === "</div>" ? -1 : 1;
+        if (depth === 0) return [open.index, tags.lastIndex] as const;
+      }
+      return assert.fail(`no closing </div> for data-board-rest at ${open.index}`);
+    });
+    assert.ok(restRanges.length > 0, "boards should render a data-board-rest wrapper");
+    for (const spot of html.matchAll(/data-your-spot=""/g)) {
+      const inside = restRanges.some(([from, to]) => spot.index > from && spot.index < to);
+      assert.ok(inside, `pinned spot at ${spot.index} should sit inside data-board-rest`);
+    }
     assert.match(html, /data-standing=""[^>]*>Provisional</);
     assert.match(html, /whitespace-nowrap tabular-nums/);
     assert.doesNotMatch(html, /data-board="value"/);

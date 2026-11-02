@@ -58,6 +58,7 @@ import { canonicalParallelName, parallelMatchKey } from "@/lib/cards/parallels";
 import { parallelIn } from "@/lib/cards/product-data";
 import { useProductData } from "@/lib/cards/use-product-data";
 import { countForSalesLabel, valueFromShownSales } from "@/lib/comps/shared-value";
+import { lowConfidenceNote, lowConfidencePlacement } from "@/lib/value/low-confidence-placement";
 import { soldNotice } from "@/lib/comps/sold-response";
 import { useSoldComps } from "@/lib/comps/use-sold-comps";
 import type { ChartSale } from "@/lib/chart/sales";
@@ -103,6 +104,7 @@ type SalesChartView = ComponentType<{
   sales?: ChartSale[] | null;
   selectedSaleId?: string | null;
   onSelectSale?: (id: string | null) => void;
+  lowConfidence?: boolean;
   fetchedAt?: string | null;
   source?: "trawl" | "sample" | "off";
   loading?: boolean;
@@ -303,8 +305,8 @@ export function CardDetail({ id, added = false }: { id: string; added?: boolean 
         ebayHref,
         card,
       });
-  // The comp card's amber tag. The Recent sales caption skips its note when this shows.
-  const estimateTagShown = priceRead?.kind === "estimate" && isLowConfidenceValue(shownValue);
+  // A low-confidence estimate is the headline value. The actions menu's Est. sell tile tags it.
+  const estimateLowConfidence = priceRead?.kind === "estimate" && isLowConfidenceValue(shownValue);
   const pricePending =
     (!cardSold && valueLoading && !earlyValue) ||
     (compsLoading && !earlyValue) ||
@@ -336,6 +338,17 @@ export function CardDetail({ id, added = false }: { id: string; added?: boolean 
     !collapsePrices &&
     !authRequired &&
     !soldCopy;
+  // Whether SalesChart's amber tag is on screen: the chart is up (chunk loaded,
+  // not failed) with a value and no sale tapped. Otherwise the Recent sales caption says it.
+  const estimateTagShown =
+    lowConfidencePlacement({
+      salesCount,
+      live: usingLive,
+      estimate: estimateLowConfidence && storedAmount != null,
+      showChart,
+      chartReady: SalesChart != null,
+      saleSelected: saleId != null,
+    }) === "chart";
 
   function dismissPrivacyNudge() {
     if (user) dismissFirstCardPrivacyInBrowser(user.id);
@@ -509,7 +522,7 @@ export function CardDetail({ id, added = false }: { id: string; added?: boolean 
                 asEstimate={priceRead?.kind === "estimate" || priceRead == null}
                 count={priceRead?.kind === "estimate" ? (shownValue?.nSales ?? 0) : 0}
                 sample={shownValue?.status === "sample"}
-                lowConfidence={estimateTagShown}
+                lowConfidence={estimateLowConfidence}
               />
             </div>
           </div>
@@ -599,6 +612,7 @@ export function CardDetail({ id, added = false }: { id: string; added?: boolean 
             sales={usingLive ? chartSales : null}
             selectedSaleId={saleId}
             onSelectSale={setSaleId}
+            lowConfidence={estimateTagShown}
             fetchedAt={sold.data?.fetchedAt ?? null}
             source={sold.data?.source ?? (usingSample ? "sample" : "trawl")}
             loading={false}
@@ -762,12 +776,11 @@ function scrollToSales() {
 }
 
 /**
- * " · Low confidence" after the Recent sales caption for 1–4 live sales, unless
- * the comp card (EstSellMetric) already shows its amber tag, so it is never on screen twice.
+ * The Recent sales caption's " · Low confidence" (1–4 live sales). It is skipped
+ * only while SalesChart's amber tag is on screen (`estimateTagShown`: chart loaded,
+ * no sale tapped), so it shows once. EstSellMetric's tag lives in the actions menu.
  */
-export function lowConfidenceNote(salesCount: number, live: boolean, tagShown: boolean): string {
-  return live && salesCount >= 1 && salesCount < 5 && !tagShown ? " · Low confidence" : "";
-}
+export { lowConfidenceNote };
 
 function EstSellMetric({
   cardSold,
