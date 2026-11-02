@@ -733,7 +733,7 @@ export function CardDetail({ id, added = false }: { id: string; added?: boolean 
             <p className="mt-3 text-sm text-zinc-500">No sales to show</p>
           ) : null}
           {/* With the comp card up, the attribution sits in its footer. */}
-          {usingLive && !compsLoading && !authRequired && !(showChart && SalesChart) ? (
+          {usingLive && !compsLoading && !authRequired && !(showChart && SalesChart && shownValue?.status !== "sample") ? (
             <p className="mt-3 text-[11px] text-zinc-400">
               Sold data via Trawl (third-party, not affiliated with eBay)
             </p>

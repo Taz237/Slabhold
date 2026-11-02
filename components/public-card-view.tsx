@@ -329,6 +329,9 @@ function PublicCardAnalytics({
   const showChart = !collapsePrices && !authRequired && !unavailable && !rateLimited;
   // The comp card (chart, its skeleton, or its retry) carries the price read: no separate price block.
   const chartCard = showChart && !soldCopy;
+  // The comp card prints the Trawl line only once it has rendered live data.
+  const chartShowsAttribution =
+    chartCard && Boolean(SalesChart) && !chartFailed && !valueLoading && shownValue?.status !== "sample";
 
   return (
     <div className="space-y-6">
@@ -560,7 +563,7 @@ function PublicCardAnalytics({
           </div>
         ) : null}
         {/* With the comp card up, the attribution sits in its footer. */}
-        {usingLive && !compsLoading && !authRequired && !(chartCard && SalesChart && !chartFailed) ? (
+        {usingLive && !compsLoading && !authRequired && !chartShowsAttribution ? (
           <p className="mt-3 text-[11px] text-zinc-400">
             Sold data via Trawl (third-party, not affiliated with eBay)
           </p>

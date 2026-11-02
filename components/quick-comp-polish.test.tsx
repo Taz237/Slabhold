@@ -209,3 +209,24 @@ describe("quick comp: brand and motion", () => {
     assert.match(reduced, /\.skeleton-shimmer/);
   });
 });
+
+describe("quick comp: Trawl attribution never drops with live rows on screen", () => {
+  it("leaves the comp card's skeleton without the Trawl line", () => {
+    const html = chart({ loading: true });
+    assert.equal(html.includes(TRAWL_ATTRIBUTION), false);
+  });
+
+  it("keeps the line on the sales list until the comp card has drawn live data", () => {
+    const view = read("components/public-card-view.tsx");
+    assert.match(
+      view,
+      /const chartShowsAttribution =\s*chartCard && Boolean\(SalesChart\) && !chartFailed && !valueLoading && shownValue\?\.status !== "sample";/,
+    );
+    assert.match(view, /usingLive && !compsLoading && !authRequired && !chartShowsAttribution/);
+    const detail = read("components/card-detail.tsx");
+    assert.match(
+      detail,
+      /usingLive && !compsLoading && !authRequired && !\(showChart && SalesChart && shownValue\?\.status !== "sample"\)/,
+    );
+  });
+});
