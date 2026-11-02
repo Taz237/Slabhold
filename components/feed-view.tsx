@@ -60,7 +60,13 @@ import { followingAuthorIds, homeHead, showsNewPosts } from "@/lib/social/feed-p
 import { getStartedHintScript, type HomeSeed } from "@/lib/social/home-seed";
 import { presentForYouFeed } from "@/lib/social/for-you-display";
 import { addUnblockedProfiles, presentPagedItems } from "@/lib/social/paged-items";
-import { publicTimeline } from "@/lib/social/timeline";
+import { followedAccountIds, publicTimeline } from "@/lib/social/timeline";
+import {
+  effectiveFollowCount,
+  firstRunEligible,
+  firstRunPeople,
+  firstRunState,
+} from "@/lib/social/first-run";
 import { officialUpdatesUserId } from "@/lib/social/official-updates";
 import { useProgressiveRows } from "@/lib/ui/use-progressive-rows";
 import { SUGGESTION_RAIL_SIZE, inlineSuggestionPool, whoToFollowAfter } from "@/lib/ui/timeline";
@@ -131,7 +137,9 @@ export function FeedView({
   const { dismissed, dismiss } = useGetStartedDismissed(user?.id ?? null);
   // First-run setup, "You're in" and the tour come first. Older prompts wait.
   const onboardingBusy = useOnboardingBusy();
-  const following = user ? followingCount(user.id) : 0;
+  // Chosen follows only: the signup auto-follow of the updates account (and
+  // @slabhold) doesn't count, or a real new collector is never "new".
+  const following = user ? effectiveFollowCount(followedAccountIds(follows, user.id)) : 0;
   // Drawn from the server's first screen until the full snapshot is in.
   const seededScreen = Boolean(seed) && !hasFullSnapshot;
   // Drawn into the server HTML, where getStartedHintScript ran before paint.
@@ -147,20 +155,35 @@ export function FeedView({
     cardCount,
   });
   const wasNewUser = useRememberNewUser(user?.id ?? null, wasNewOnLoad);
-  const checklist = checklistState({
+  const profileDone = profileStepDone({
+    avatarDataUrl: user?.avatarDataUrl,
+    bio: user?.bio,
+  });
+  const recentChecklist = checklistState({
     cardCount,
     followingCount: following,
-    profileDone: profileStepDone({
-      avatarDataUrl: user?.avatarDataUrl,
-      bio: user?.bio,
-    }),
+    profileDone,
     dismissed,
     ready: countsReady,
     createdAt: user?.createdAt ?? null,
     wasNewUser,
   });
-  // The server's Get started: what localStorage says (dismissed, not new)
-  // is applied before the first paint by getStartedHintScript.
+  // First run: also anyone with no cards and no chosen follows, at any age.
+  const firstRun = firstRunEligible({
+    ready: countsReady,
+    dismissed,
+    cardCount,
+    effectiveFollows: following,
+    profileDone,
+    checklistVisible: recentChecklist.visible,
+  });
+  // A card on screen this visit stays up until dismissed, through its "You're set" moment.
+  const [sawFirstRun, setSawFirstRun] = useState(false);
+  const checklist = firstRunState(recentChecklist, { eligible: firstRun, hold: sawFirstRun && !dismissed && countsReady });
+  if (!sawFirstRun && !serverScreen && checklist.visible && !checklist.complete) setSawFirstRun(true);
+  // The server's Get started (zeroNow folded in by loadHomeSeed): what
+  // localStorage says (dismissed, not new) is applied before the first paint
+  // by getStartedHintScript.
   const started = serverScreen && seed ? seed.getStarted : checklist;
   const showAddToHome =
     Boolean(user) &&
@@ -316,6 +339,14 @@ export function FeedView({
         mutedIds,
       })
     : [];
+  // Get started's inline follow step: three real collectors from the same
+  // ranked list, never @slabhold or the updates account.
+  const firstRunPicks = started.visible
+    ? firstRunPeople(
+        rankedIds.map(suggestionFor).filter((profile) => profile != null),
+        { viewerId: user?.id ?? null, blockedIds, mutedIds },
+      )
+    : [];
   const blocked = useMemo(() => new Set(blockedIds), [blockedIds]);
   const muted = useMemo(() => new Set(mutedIds), [mutedIds]);
   const postsById = useMemo(() => new Map(posts.map((post) => [post.id, post])), [posts]);
@@ -401,7 +432,7 @@ export function FeedView({
   return (
     <div className="-mx-4 -mt-5">
       {serverScreen && seed && started.visible ? (
-        <script dangerouslySetInnerHTML={{ __html: getStartedHintScript(seed.viewer.id, seed.newNow) }} />
+        <script dangerouslySetInnerHTML={{ __html: getStartedHintScript(seed.viewer.id, seed.newNow, seed.zeroNow) }} />
       ) : null}
       {user && started.visible && !onboardingBusy ? (
         <GetStartedCard
@@ -409,6 +440,9 @@ export function FeedView({
           followingCount={following}
           onDismiss={dismiss}
           onFollow={openCollectors}
+          userId={user.id}
+          people={firstRunPicks}
+          live={!serverScreen}
         />
       ) : null}
       {showAddToHome && user ? <AddToHomeTip userId={user.id} /> : null}

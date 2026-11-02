@@ -1029,3 +1029,11 @@ html:not([data-get-started-hidden]) [data-after-get-started] {
   display: none;
 }
 
+/* Get started's one entrance: a fade and an 8px rise. motion-safe only. */
+@keyframes first-run-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+

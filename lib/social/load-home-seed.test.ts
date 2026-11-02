@@ -215,6 +215,26 @@ describe("loadHomeSeed", () => {
   });
 });
 
+describe("first run on the server's first screen", () => {
+  it("an old account whose only follow is the updates account is 0/0 now and gets first run", async () => {
+    const seed = await loadHomeSeed(
+      fakeClient({ cards: 0, follows: ["6d31ab97-9162-4296-876d-9e0378872fce"] }).supabase,
+      { id: VIEWER, email: "" },
+    );
+    assert.ok(seed);
+    assert.equal(seed.newNow, true);
+    assert.equal(seed.zeroNow, true);
+    assert.equal(seed.getStarted.visible, true);
+    // The default tab still counts the raw follow, as before.
+    assert.equal(seed.lane, "foryou");
+  });
+
+  it("an account with cards and follows has no zeroNow", async () => {
+    const seed = await loadHomeSeed(fakeClient().supabase, { id: VIEWER, email: "" });
+    assert.equal(seed?.zeroNow, false);
+  });
+});
+
 describe("viewer shell", () => {
   it("reads only the viewer's own rows, in one batch, and nothing site-wide", async () => {
     const fake = fakeClient();
