@@ -43,15 +43,27 @@ export async function loadProfilesForKeys(
   return loadVisibleProfiles(supabase, { ids, usernames }, viewer, hidden);
 }
 
-/** A full reload keeps the people a screen already read, for the same viewer. */
+/**
+ * A full reload keeps the people a screen already read, for the same viewer
+ * (signed out to signed out included). Only a new viewer (sign-in, sign-out,
+ * account switch) starts from the reload alone, so the old viewer's people go.
+ */
 export function keepLoadedProfiles<S extends { user: { id: string } | null; profiles: Profile[] }>(
   existing: Pick<S, "user" | "profiles">,
   next: S,
 ): S {
-  if (!next.user || existing.user?.id !== next.user.id) return next;
+  if ((existing.user?.id ?? null) !== (next.user?.id ?? null)) return next;
   const byId = new Map(existing.profiles.map((profile) => [profile.id, profile]));
   for (const profile of next.profiles) byId.set(profile.id, profile);
   return { ...next, profiles: [...byId.values()] };
+}
+
+/** The id and handle keys of everyone in `before` that `after` left out. */
+export function droppedProfileKeys(before: readonly Profile[], after: readonly Profile[]): string[] {
+  const kept = new Set(after.map((profile) => profile.id));
+  const gone = before.filter((profile) => !kept.has(profile.id));
+  if (gone.length === 0) return [];
+  return profileKeys({ ids: gone.map((profile) => profile.id), usernames: gone.map((profile) => profile.username) });
 }
 
 export async function loadFollowCounts(

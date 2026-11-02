@@ -77,7 +77,7 @@ import {
   type InboxCursors,
 } from "@/lib/social/inbox-pages";
 import { loadHiddenAuthorIds } from "@/lib/safety/filters";
-import { keepLoadedProfiles, profileKeys } from "@/lib/social/profile-cache";
+import { droppedProfileKeys, keepLoadedProfiles, profileKeys } from "@/lib/social/profile-cache";
 import { engagementKeys, mergeEngagement, postIdsFromKeys } from "@/lib/social/engagement";
 import {
   cardsForKeys,
@@ -792,6 +792,26 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
     setProfileFailed(new Set());
     setPeopleGeneration((value) => value + 1);
   }, [profileBatcher]);
+  // People a read already brought that the list no longer has: read them
+  // again, so a screen waits for them instead of calling them missing.
+  const forgetPeople = useCallback(
+    (keys: readonly string[]) => {
+      profileBatcher.forget(keys);
+      setProfileSettled((current) => withoutKeys(current, keys));
+      setPeopleGeneration((value) => value + 1);
+    },
+    [profileBatcher],
+  );
+  const seenPeopleRef = useRef<{ viewerId: string | null; profiles: Profile[] } | null>(null);
+  const remoteViewerId = remote.user?.id ?? null;
+  useEffect(() => {
+    const before = seenPeopleRef.current;
+    seenPeopleRef.current = { viewerId: remoteViewerId, profiles: remote.profiles };
+    // A new viewer resets every read (resetViewerReads).
+    if (!hosted || !before || before.viewerId !== remoteViewerId || before.profiles === remote.profiles) return;
+    const dropped = droppedProfileKeys(before.profiles, remote.profiles);
+    if (dropped.length > 0) forgetPeople(dropped);
+  }, [forgetPeople, hosted, remote.profiles, remoteViewerId]);
   // Replies and reposts for posts loaded after the snapshot (another feed page,
   // a card's posts, a profile), read in one batch per tick.
   const [engagementBatcher] = useState(() =>

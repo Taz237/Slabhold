@@ -100,7 +100,9 @@ export function cardsForKeys(cache: PublicCardCache): OwnedCard[] {
  * failed read is reported with `fail` and stays retryable: its keys leave
  * the on-the-way set but are never marked done, so the next ask reads again.
  * `reset` forgets every key (a new viewer, a refresh) and drops reads that
- * were already on the way, so an old viewer's rows never land. `start`, when
+ * were already on the way, so an old viewer's rows never land. `forget`
+ * un-reads some done keys (their rows went away), so the next ask reads them
+ * again; keys on the way are left alone. `start`, when
  * given, hears each batch as its read begins (a failed key asked again).
  */
 export function createKeyBatcher<T>(
@@ -148,6 +150,9 @@ export function createKeyBatcher<T>(
           },
         );
       });
+    },
+    forget(keys: readonly string[]) {
+      for (const key of keys) done.delete(key);
     },
     reset() {
       generation += 1;
