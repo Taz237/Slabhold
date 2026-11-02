@@ -2,6 +2,7 @@ import { getImageProps } from "next/image";
 import { preload } from "react-dom";
 import type { CSSProperties } from "react";
 import { PhotoPlaceholder, SlabFrame, type ArtCard } from "@/components/card-slab-frame";
+import { NoHeadPreload } from "@/components/landing/no-head-preload";
 import { SAMPLE_SLABS } from "@/components/landing/sample-cards";
 import type { FounderCard } from "@/lib/landing/founder";
 
@@ -92,7 +93,8 @@ export function HeroSlabs({
 /**
  * A plain <img> with next/image's optimizer props (AVIF/WebP, srcset, sizes).
  * Only the center photo is preloaded from the head, at high priority. The
- * side slabs load eagerly at normal priority so they don't compete with it.
+ * side slabs load eagerly at normal priority so they don't compete with it,
+ * and sit in a <picture> so React doesn't preload them from the head too.
  * The placeholder sits under it, so a photo that fails shows the placeholder
  * (alt="" draws no broken-image icon).
  */
@@ -114,9 +116,8 @@ function HeroPhoto({ photo, lcp }: { photo: string; lcp: boolean }) {
       fetchPriority: "high",
     });
   }
-  return (
-    // getImageProps is next/image without its client code: this photo is drawn on the server only.
-    // eslint-disable-next-line @next/next/no-img-element
-    <img {...props} alt="" className="absolute inset-0 h-full w-full object-cover" />
-  );
+  // getImageProps is next/image without its client code: this photo is drawn on the server only.
+  // eslint-disable-next-line @next/next/no-img-element
+  const img = <img {...props} alt="" className="absolute inset-0 h-full w-full object-cover" />;
+  return lcp ? img : <NoHeadPreload>{img}</NoHeadPreload>;
 }

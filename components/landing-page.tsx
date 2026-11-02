@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { FounderNote } from "@/components/landing/founder-note";
 import { HeroSlabs } from "@/components/landing/hero-slabs";
+import { NoHeadPreload } from "@/components/landing/no-head-preload";
 import { FeaturePanels, LandingCta, LandingLogin } from "@/components/landing/landing-links";
 import { Logo } from "@/components/logo";
 import type { FounderShowcase } from "@/lib/landing/founder";
@@ -20,7 +21,9 @@ export function LandingPage({ founder = null }: { founder?: FounderShowcase | nu
       <div className="relative mx-auto flex min-h-dvh w-full max-w-lg flex-col px-6 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))] lg:max-w-5xl">
         <header className="flex min-h-14 items-center justify-between">
           <span className="flex items-center gap-2">
-            <Logo />
+            <NoHeadPreload>
+              <Logo />
+            </NoHeadPreload>
             <span className="text-[17px] font-bold tracking-tight">Slabhold</span>
           </span>
           <LandingLogin />
@@ -54,7 +57,9 @@ export function LandingPage({ founder = null }: { founder?: FounderShowcase | nu
         </div>
 
         <section className="mt-10 rounded-[2rem] border border-white/10 bg-gradient-to-b from-[#2e1065]/70 to-[#09090b] px-6 py-10 text-center">
-          <Logo className="mx-auto h-12 w-12" />
+          <NoHeadPreload>
+            <Logo className="mx-auto h-12 w-12" />
+          </NoHeadPreload>
           <h2 className="mt-4 text-[2rem] leading-tight font-extrabold tracking-tight text-white">Join free</h2>
           <p className="mx-auto mt-2 max-w-xs text-[15px] leading-6 text-zinc-400">
             Bring your collection. Find your people. It takes a minute.
@@ -65,10 +70,10 @@ export function LandingPage({ founder = null }: { founder?: FounderShowcase | nu
         </section>
 
         <footer className="mt-auto flex gap-4 pt-10 text-sm text-zinc-400">
-          <Link href="/privacy" className="hit-44 inline-flex items-center font-semibold underline underline-offset-2">
+          <Link href="/privacy" prefetch={false} className="hit-44 inline-flex items-center font-semibold underline underline-offset-2">
             Privacy
           </Link>
-          <Link href="/terms" className="hit-44 inline-flex items-center font-semibold underline underline-offset-2">
+          <Link href="/terms" prefetch={false} className="hit-44 inline-flex items-center font-semibold underline underline-offset-2">
             Terms
           </Link>
         </footer>

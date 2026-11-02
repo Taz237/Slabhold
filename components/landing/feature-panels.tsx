@@ -8,6 +8,7 @@ import { CardSlabArt } from "@/components/card-slab-art";
 import { CompsList } from "@/components/comps-list";
 import { LEADERBOARD_STYLES, PodiumRow } from "@/components/leaderboard-view";
 import { SAMPLE_SLABS } from "@/components/landing/sample-cards";
+import { NoHeadPreload } from "@/components/landing/no-head-preload";
 import { Logo } from "@/components/logo";
 import { BADGE_TIERS, TIER_LABELS } from "@/lib/badges/config";
 import type { BoardRow } from "@/lib/leaderboard/present";
@@ -224,7 +225,9 @@ function SocialVisual() {
           </p>
         </div>
         <div className="flex items-center gap-2 px-3 py-2">
-          <Logo className="h-4 w-4" />
+          <NoHeadPreload>
+            <Logo className="h-4 w-4" />
+          </NoHeadPreload>
           <span className="font-mono text-[10px] tracking-wider text-zinc-500 uppercase">slabhold.app</span>
         </div>
       </div>
