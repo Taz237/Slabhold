@@ -54,6 +54,10 @@ Sports cards only. **No Pokemon or other TCG** anywhere in the product or assets
 - **Images:** sized, lazy, and with no layout shift.
 - **Accessibility:** accessible names on every interactive element.
 
+## UI work
+- New or changed UI goes through `/unslop` (`.claude/skills/unslop/`).
+- Put the Unslop audit and the 5-line direction in the PR body.
+
 ## How we work (standing rules)
 1. **Test-first.** Write the failing test, then the code. Every PR passes `npm test`, `npm run lint:ci` and `npm run build`.
 2. **One small, focused PR per task, against `main`.** No drive-by refactors.

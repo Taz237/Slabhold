@@ -59,6 +59,12 @@ export type HomeSeed = {
   /** No follows and no cards right now: what the browser stores as "new" on a first load. */
   newNow: boolean;
   /**
+   * No cards and no chosen follows right now (the updates account and
+   * @slabhold don't count). First run shows for this account at any age, so a
+   * stored "not new" must not hide it before paint. Absent on older seeds.
+   */
+  zeroNow?: boolean;
+  /**
    * "client" when the browser read this itself (no server copy for the visit).
    * Its first paint never ran getStartedHintScript, so Get started comes from
    * this device's own checklist instead of `getStarted`.
@@ -91,10 +97,16 @@ export function seededChecklist(input: {
  * when its stored first answer (or, before one is stored, the counts right
  * now) says this account isn't new: the same test the browser makes once
  * the snapshot is in, so nothing appears or vanishes at the hand-over.
+ * With `zeroNow` (no cards, no chosen follows) only a dismiss hides it.
  */
-export function getStartedHintScript(userId: string, newNow: boolean): string {
+export function getStartedHintScript(userId: string, newNow: boolean, zeroNow = false): string {
   const dismissKey = JSON.stringify(checklistDismissKey(userId));
   const newKey = JSON.stringify(checklistNewUserKey(userId));
+  // No cards and no chosen follows right now: first run shows whatever this
+  // device first stored, so only a dismiss here hides it.
+  if (zeroNow) {
+    return `try{if(localStorage.getItem(${dismissKey})==="1")document.documentElement.dataset.getStartedHidden=""}catch(e){}`;
+  }
   const notNewNow = newNow ? "false" : "true";
   return `try{var s=localStorage,n=s.getItem(${newKey});if(s.getItem(${dismissKey})==="1"||n==="0"||(n!=="1"&&${notNewNow}))document.documentElement.dataset.getStartedHidden=""}catch(e){}`;
 }

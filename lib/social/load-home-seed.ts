@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { FEED_PAGE_SIZE, followingAuthorIds } from "./feed-page";
 import { defaultHomeTab } from "./get-started";
 import { isNewUser } from "./get-started";
+import { effectiveFollowCount, seededFirstRun } from "./first-run";
 import { seededChecklist, type HomeSeed } from "./home-seed";
 import { loadFeedPage, loadPostEngagement } from "./load-feed-page";
 import { loadServerSuggestions } from "./load-suggestions";
@@ -55,6 +56,9 @@ export async function loadHomeSeed(
       supabase,
       comments.map((comment) => comment.authorId).filter((id) => !known.has(id)),
     );
+    // The auto-follow of the updates account (and @slabhold) is not a choice.
+    const chosenFollows = effectiveFollowCount(follows.map((edge) => edge.followingId));
+    const zeroNow = cardCount === 0 && chosenFollows === 0;
     const profiles: Profile[] = [user, ...page.profiles.filter((profile) => profile.id !== user.id), ...repliers];
     const suggestions = ranked
       ? mergeRankedSuggestions({
@@ -88,8 +92,10 @@ export async function loadHomeSeed(
       reposts,
       suggestions,
       cardCount,
-      getStarted: seededChecklist({ viewer: user, followingCount: follows.length, cardCount }),
-      newNow: isNewUser({ followingCount: follows.length, cardCount }),
+      // A 0/0 account gets first run at any age; the hint script settles dismiss.
+      getStarted: seededFirstRun(seededChecklist({ viewer: user, followingCount: chosenFollows, cardCount }), zeroNow),
+      newNow: isNewUser({ followingCount: chosenFollows, cardCount }),
+      zeroNow,
       ...(source === "client" ? { source } : {}),
     };
   } catch (error) {
