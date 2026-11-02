@@ -303,6 +303,8 @@ export function CardDetail({ id, added = false }: { id: string; added?: boolean 
         ebayHref,
         card,
       });
+  // The comp card's amber tag. The Recent sales caption skips its note when this shows.
+  const estimateTagShown = priceRead?.kind === "estimate" && isLowConfidenceValue(shownValue);
   const pricePending =
     (!cardSold && valueLoading && !earlyValue) ||
     (compsLoading && !earlyValue) ||
@@ -507,7 +509,7 @@ export function CardDetail({ id, added = false }: { id: string; added?: boolean 
                 asEstimate={priceRead?.kind === "estimate" || priceRead == null}
                 count={priceRead?.kind === "estimate" ? (shownValue?.nSales ?? 0) : 0}
                 sample={shownValue?.status === "sample"}
-                lowConfidence={priceRead?.kind === "estimate" && isLowConfidenceValue(shownValue)}
+                lowConfidence={estimateTagShown}
               />
             </div>
           </div>
@@ -697,6 +699,7 @@ export function CardDetail({ id, added = false }: { id: string; added?: boolean 
                     : (
                         <>
                           Recent sold prices
+                          {lowConfidenceNote(salesCount, usingLive, estimateTagShown)}
                           <SoldFreshness comps={onScreenComps} fetchedAt={sold.data?.fetchedAt} />
                         </>
                       )
@@ -756,6 +759,14 @@ function scrollToSales() {
       : slot;
   const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
   target.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
+}
+
+/**
+ * " · Low confidence" after the Recent sales caption for 1–4 live sales, unless
+ * the comp card (EstSellMetric) already shows its amber tag, so it is never on screen twice.
+ */
+export function lowConfidenceNote(salesCount: number, live: boolean, tagShown: boolean): string {
+  return live && salesCount >= 1 && salesCount < 5 && !tagShown ? " · Low confidence" : "";
 }
 
 function EstSellMetric({

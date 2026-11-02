@@ -123,7 +123,7 @@ export function CompsList({
                 ) : (
                   <div className="flex min-h-14 min-w-0 flex-1 items-start gap-3 py-3 pl-2">{body}</div>
                 )}
-                <div className="flex shrink-0 items-center gap-1 pt-3">
+                <div className="flex shrink-0 items-center gap-5 pt-3">
                   {comp.url ? (
                     <a
                       href={comp.url}

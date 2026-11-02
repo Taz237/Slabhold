@@ -18,6 +18,7 @@ const FILES = [
   "components/leaderboard-opt-in.tsx",
   "components/value-board.tsx",
   "lib/collection/use-value-history.ts",
+  "components/invite/invite-button.tsx",
 ];
 
 /** `x.name(...)` → the call's method name, else null. */

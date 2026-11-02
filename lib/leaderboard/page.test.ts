@@ -103,7 +103,12 @@ describe("leaderboard page", () => {
     assert.match(html, /data-board="rising-collectors"/);
     assert.match(html, /data-board="most-cards-added"/);
     assert.match(html, /data-viewer-row=""/);
-    assert.doesNotMatch(html, /data-you-row|data-you-spacer|sticky bottom-/);
+    assert.doesNotMatch(html, /data-you-row|data-you-spacer/);
+    const spots = [...html.matchAll(/<div data-your-spot=""[^>]*class="([^"]*)"/g)].map((m) => m[1].split(/\s+/));
+    assert.ok(posts?.you && spots.length > 0);
+    for (const cls of spots) assert.ok(cls.includes("sticky") && !cls.includes("fixed"), cls.join(" "));
+    const outsideRest = html.split('data-board-rest=""').map((seg, i) => (i === 0 ? seg : seg.slice(seg.indexOf("</section>"))));
+    assert.doesNotMatch(outsideRest.join(""), /data-your-spot/);
     assert.match(html, /data-standing=""[^>]*>Provisional</);
     assert.match(html, /whitespace-nowrap tabular-nums/);
     assert.doesNotMatch(html, /data-board="value"/);
@@ -268,7 +273,11 @@ describe("leaderboard page", () => {
     assert.doesNotMatch(html, /href="\/u\/zero(?:\?tab=cards)?"/);
     assert.match(html, /data-viewer-row=""/);
     assert.match(html, />NEW</);
-    assert.match(html, /min-h-14/);
+    const rankRows = html.match(/<ol [^>]*data-rank-rows="">([\s\S]*?)<\/ol>/)?.[1] ?? "";
+    const rowClasses = [...rankRows.matchAll(/<li [^>]*data-rank="\d+"[^>]*><(?:a|div) [^>]*class="([^"]*)"/g)].map((m) => m[1].split(/\s+/));
+    assert.equal(rowClasses.length, (rankRows.match(/<li /g) ?? []).length);
+    assert.ok(rowClasses.length > 0 && rowClasses.every((cls) => cls.includes("min-h-12")));
+    assert.match(html.match(/<div data-your-spot=""[^>]*>/)?.[0] ?? "", /class="[^"]*\bmin-h-14\b/);
     snap.previous.boards["top-card-post"] = { rows };
     const last = presentLeaderboard({
       snapshot: snap,

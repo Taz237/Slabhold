@@ -1,15 +1,8 @@
 import type { ReactNode } from "react";
 import { snapshotDateInNewYork } from "@/lib/collection/totals-shared";
 import { formatDate, money } from "@/lib/format";
+import { basedOnSalesLabel } from "@/lib/comps/sales-label";
 import type { SaleBasis } from "@/lib/comps/shared-value";
-
-/**
- * Same copy as basedOnSalesLabel in lib/comps/shared-value. Kept here so the
- * card page shell's skeleton doesn't pull the comps matching code into first load.
- */
-function basedOnSalesLabel(count: number): string {
-  return `Based on ${count} sale${count === 1 ? "" : "s"}`;
-}
 
 /** "Based on N sales" plus the date, price, and grade of each sale in that count. */
 export function CompBasis({

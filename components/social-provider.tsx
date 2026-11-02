@@ -586,6 +586,9 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
           });
           unsubscribe = () => data.subscription.unsubscribe();
         });
+    }).catch(() => {
+      // supabase-js would not load. Say so, as the reload path does.
+      if (!cancelled) setStatus("Could not reach Supabase.");
     }));
 
     return () => {

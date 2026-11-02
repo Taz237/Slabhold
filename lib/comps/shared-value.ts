@@ -163,9 +163,7 @@ export function listingsForCard(
   return cleanedToCompListings(sales);
 }
 
-export function basedOnSalesLabel(count: number): string {
-  return `Based on ${count} sale${count === 1 ? "" : "s"}`;
-}
+export { basedOnSalesLabel } from "./sales-label";
 
 /**
  * "Based on N sales" is the number of rows on screen.
