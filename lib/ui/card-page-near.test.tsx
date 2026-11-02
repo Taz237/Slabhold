@@ -10,7 +10,6 @@ import { installDom } from "@/lib/test/dom";
 import { CardCollectorsSayingPending } from "@/components/card-talk-frame";
 import { NearCardCollectorsSaying } from "@/components/card-talk-near";
 import { SocialContext, type SocialContextValue } from "@/components/social-provider";
-import { openWhenWantButtonReady } from "@/components/card-detail";
 
 installDom();
 
@@ -126,42 +125,6 @@ describe("the owner card page", () => {
     assert.match(source, /<div className="mt-2">\s*<LazyCompsList/);
     // The public card's posts sit just under the fold there, so it is unchanged.
     assert.match(read("components/public-card-view.tsx"), /<LazyCardCollectorsSaying /);
-  });
-});
-
-describe("the ⋯ menu's Want button", () => {
-  it("opens the menu only once the button's chunk is in, so the button is never a dead tap", async () => {
-    let finish!: () => void;
-    let opened = 0;
-    const opening = openWhenWantButtonReady(
-      () => opened++,
-      () => new Promise<void>((resolve) => (finish = resolve)),
-    );
-    await Promise.resolve();
-    assert.equal(opened, 0);
-    finish();
-    await opening;
-    assert.equal(opened, 1);
-  });
-
-  it("still opens the menu when the chunk fails, where its Try again shows", async () => {
-    let opened = 0;
-    await openWhenWantButtonReady(
-      () => opened++,
-      () => Promise.reject(new Error("ChunkLoadError")),
-    );
-    assert.equal(opened, 1);
-  });
-
-  it("loads from its own chunk, fetched when the page is idle, with the usual failure panel", () => {
-    const source = read("components/card-detail.tsx");
-    assert.ok(!staticImports(source).includes("@/components/want-button"));
-    assert.match(source, /import\("@\/components\/want-button"\)/);
-    assert.match(source, /failed: PartLoadFailed/);
-    assert.match(source, /afterFirstIdle\(\(\) => WantButton\.warm\(\)\)/);
-    assert.match(source, /void openWhenWantButtonReady\(\(\) => setMenuOpen\(true\)\)/);
-    // The public card shows it above the fold, so there it stays in the page.
-    assert.ok(staticImports(read("components/public-card-view.tsx")).includes("@/components/want-button"));
   });
 });
 

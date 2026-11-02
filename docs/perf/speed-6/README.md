@@ -29,9 +29,10 @@ To find the floor, a scratch build drew the card page's skeleton instead of the 
    - Until it comes within 200 px of the viewport, it draws the same frame and skeleton it always showed while loading (`components/card-talk-near.tsx`, `lib/ui/when-near.tsx`).
    - Without IntersectionObserver it mounts at idle (2 s timeout).
    - This keeps its chunk, its post reads and its render out of page load.
-2. **The ⋯ menu's Want button is its own chunk.**
-   - It's fetched at first idle, and the menu opens once it's in, so it's never a dead tap. A failed load shows the usual Try again.
-   - Its TBT effect is within noise. It's here because it takes 2.8 KB gz off `/cards/[id]` first-load JS, so the route shrinks.
+2. **The ⋯ menu's Want control is its own chunk** (`components/menu-want-button.tsx`).
+   - It's fetched at first idle. The menu opens at once, as on main.
+   - Until the chunk lands, the Want slot shows a same-size, disabled placeholder (`aria-disabled`, same look as the loaded "Add to want list" chip), then the real control swaps in. A failed load shows the usual Try again.
+   - Its TBT effect is within noise. It's here for the bytes: `/cards/[id]` first-load JS shrinks instead of growing.
 
 ## Results (Lighthouse, medians)
 `main` and the branch were run interleaved (main, PR, main, PR…), round B in the runs file.
@@ -43,6 +44,8 @@ To find the floor, a scratch build drew the card page's skeleton instead of the 
 | `/u/[username]/cards/[id]` (signed out) | 5 pairs | 256 → 252 ms | 5.42 → 5.34 s | 0.001 → 0.001 | 75 → 75 |
 
 Simulated TBT on this machine swings by ±150 ms between identical runs, so the first 5 pairs alone happened to land flat.
+
+After the review fix (the menu opens at once, with a placeholder in the Want slot), one more round of 5 interleaved pairs (round F): TBT 495 → 482 ms, LCP 4.58 → 4.26 s, CLS 0 → 0. The fix only touches the closed-at-load menu, so TBT is unchanged within noise.
 
 **Per-cut rotations** (rounds C and D, 5 runs each, each round rotating its builds run by run). At the time the branch also deferred the sales rows, which round D then dropped:
 
@@ -57,7 +60,7 @@ Simulated TBT on this machine swings by ±150 ms between identical runs, so the 
 So: posts near-viewport ≈ −190 ms (the cut that matters), Want button ≈ −10 ms (noise; kept for the bytes), sales rows ≈ −17 ms (noise; dropped).
 
 ## Screenshots
-390×844 first paint, after the load event, with animations frozen. `main` vs PR are pixel-identical at DSF 3, above the fold and full page, for both routes. The full card page was compared after scrolling to the bottom, so the posts section has loaded.
+390×844 first paint, after the load event, with animations frozen. `main` vs PR were compared at DSF 3 and are pixel-identical, above the fold and full page, for both routes. The committed images are those captures downscaled to DSF 1 (390×844), above the fold only. The full card page was compared after scrolling to the bottom, so the posts section has loaded.
 
 | | main | PR |
 |---|---|---|

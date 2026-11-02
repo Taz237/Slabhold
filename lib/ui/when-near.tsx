@@ -82,6 +82,7 @@ export function WhenNear({
   }, [near, margin]);
 
   return (
+    // IntersectionObserver needs a box to watch, and it stays in both states so nothing moves.
     <div ref={ref} className={className}>
       {near ? children : fallback}
     </div>
