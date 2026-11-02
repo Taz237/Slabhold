@@ -98,6 +98,11 @@ export type MessageLink =
 const LINK = /(?<![\w.-])(?:https?:\/\/)?(?:www\.)?(?:slabhold\.app|slabhold\.vercel\.app)(\/[^\s]*)/gi;
 const POST_PATH = /^\/posts\/([A-Za-z0-9-]+)(?=$|[/?#.,!)])/;
 const CARD_PATH = /^\/u\/([A-Za-z0-9_]+)\/cards\/([A-Za-z0-9-]+)(?=$|[/?#.,!)])/;
+/**
+ * The owner's own card page, copied from the address bar. Inbox and push text
+ * only: it has no owner in the path, so it gets no rich preview (messageLinks).
+ */
+const OWNER_CARD_PATH = /^\/cards\/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\/?(?=$|[?#.,!)])/;
 
 /** At most this many rich previews under one message. */
 export const MESSAGE_LINK_LIMIT = 2;
@@ -133,14 +138,20 @@ export const SHARED_A_CARD = "Shared a card";
  * link reads "Shared a post" or "Shared a card"; any words around it stay.
  */
 export function inboxPreviewText(text: string): string {
-  const links = messageLinks(text);
-  if (links.length === 0) return text.trim();
-  const rest = text
-    .replace(LINK, (whole, path: string) => (POST_PATH.test(path) || CARD_PATH.test(path) ? " " : whole))
-    .replace(/\s+/g, " ")
-    .trim();
-  if (rest) return rest;
-  return links[0].kind === "post" ? SHARED_A_POST : SHARED_A_CARD;
+  // A cast, so the assignment in the callback is not narrowed away.
+  let first = null as typeof SHARED_A_POST | typeof SHARED_A_CARD | null;
+  const rest = text.replace(LINK, (whole, path: string) => {
+    const label = POST_PATH.test(path)
+      ? SHARED_A_POST
+      : CARD_PATH.test(path) || OWNER_CARD_PATH.test(path)
+        ? SHARED_A_CARD
+        : null;
+    if (!label) return whole;
+    first ??= label;
+    return " ";
+  });
+  if (!first) return text.trim();
+  return rest.replace(/\s+/g, " ").trim() || first;
 }
 
 function sameDay(a: Date, b: Date): boolean {

@@ -1,5 +1,6 @@
 import { notificationAction } from "@/lib/social/group-notifications";
 import { notificationHref } from "@/lib/social/notification-href";
+import { inboxPreviewText } from "@/lib/social/dm-inbox";
 import type { NotificationKind } from "@/lib/social/types";
 import { pushKindOf, type PushKind, type SourceKind } from "./prefs";
 import { dmSummaryLine, pushGroupKey, summaryLine } from "./group";
@@ -118,7 +119,8 @@ function singleBody(input: SingleInput, pushKind: PushKind): string {
   if (!input.showPreviews) return PRIVATE_BODY[pushKind];
   if (input.kind === "dm") {
     if (input.messageKind === "card_preview") return "Sent a card";
-    return truncate(input.text, TEXT_PREVIEW_CHARS) || "Sent a message";
+    // A bare shared link reads "Shared a card" / "Shared a post", as in the inbox.
+    return truncate(inboxPreviewText(input.text ?? ""), TEXT_PREVIEW_CHARS) || "Sent a message";
   }
   const verb = notificationAction(input.kind as NotificationKind);
   if (input.kind === "like" || input.kind === "repost") {
