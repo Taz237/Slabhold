@@ -17,20 +17,19 @@ const base: LowConfidenceState = {
   live: true,
   estimate: true,
   showChart: true,
-  chartReady: true,
   saleSelected: false,
 };
 
 const cases: [string, Partial<LowConfidenceState>, "chart" | "caption" | null][] = [
   ["chart shown, no sale selected", {}, "chart"],
   ["a sale selected", { saleSelected: true }, "caption"],
-  ["chart chunk loading", { chartReady: false }, "caption"],
-  ["chart chunk failed", { showChart: false, chartReady: false }, "caption"],
+  ["chart chunk loading", { showChart: false }, "caption"],
+  ["chart chunk failed", { showChart: false }, "caption"],
   ["chart hidden (collapsed or blocked)", { showChart: false }, "caption"],
   ["non-estimate read under 5 sales", { estimate: false }, "caption"],
   ["non-estimate read, sale selected", { estimate: false, saleSelected: true }, "caption"],
   ["5+ sales", { salesCount: 6, estimate: false }, null],
-  ["5+ sales, chart loading", { salesCount: 6, estimate: false, chartReady: false }, null],
+  ["5+ sales, chart loading", { salesCount: 6, estimate: false, showChart: false }, null],
   ["no sales", { salesCount: 0, estimate: false }, null],
   ["not live, chart hidden", { live: false, showChart: false }, null],
   ["not live, non-estimate", { live: false, estimate: false }, null],
@@ -56,7 +55,6 @@ describe("lowConfidencePlacement", () => {
           live: Boolean(flags & 1),
           estimate: Boolean(flags & 2),
           showChart: Boolean(flags & 4),
-          chartReady: Boolean(flags & 8),
           saleSelected: Boolean(flags & 16),
         };
         const at = lowConfidencePlacement(state);
@@ -81,7 +79,6 @@ describe("card-detail wiring", () => {
     assert.match(args, /salesCount/);
     assert.match(args, /live: usingLive/);
     assert.match(args, /showChart/);
-    assert.match(args, /chartReady: SalesChart != null/);
     assert.match(args, /saleSelected: saleId != null/);
   });
 

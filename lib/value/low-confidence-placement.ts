@@ -12,10 +12,8 @@ export type LowConfidenceState = {
   live: boolean;
   /** A low-confidence estimate is the headline value (estimate read, 1–4 sales). */
   estimate: boolean;
-  /** The page wants the comp card's chart up (sales ready, not collapsed or blocked). */
+  /** The comp card's chart is up: its chunk loaded, sales ready, not collapsed or blocked. */
   showChart: boolean;
-  /** The chart chunk has loaded. False while it loads or after it failed. */
-  chartReady: boolean;
   /** A sale is tapped, so the chart caption shows that sale instead of its tag. */
   saleSelected: boolean;
 };
@@ -29,7 +27,7 @@ function fewLiveSales(salesCount: number, live: boolean): boolean {
  * sales caption should carry the note instead, null when neither applies.
  */
 export function lowConfidencePlacement(state: LowConfidenceState): "chart" | "caption" | null {
-  if (state.estimate && state.showChart && state.chartReady && !state.saleSelected) return "chart";
+  if (state.estimate && state.showChart && !state.saleSelected) return "chart";
   return fewLiveSales(state.salesCount, state.live) ? "caption" : null;
 }
 

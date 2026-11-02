@@ -802,7 +802,8 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
   const forgetPeople = useCallback(
     (keys: readonly string[]) => {
       if (keys.length === 0) return;
-      profileBatcher.forget(keys);
+      // None of them read (a sign-out's reset already cleared them): no new generation.
+      if (!profileBatcher.forget(keys)) return;
       setProfileSettled((current) => withoutKeys(current, keys));
       setPeopleGeneration((value) => value + 1);
     },

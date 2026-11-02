@@ -149,9 +149,14 @@ export function createKeyBatcher<T>(
         );
       });
     },
-    /** Reads these keys again on the next ask (their rows were dropped). Keys on the way stay. */
-    forget(keys: readonly string[]) {
-      for (const key of keys) done.delete(key);
+    /**
+     * Reads these keys again on the next ask (their rows were dropped). Keys on
+     * the way stay. True when any of them had been read, so there is something to ask again.
+     */
+    forget(keys: readonly string[]): boolean {
+      let forgot = false;
+      for (const key of keys) forgot = done.delete(key) || forgot;
+      return forgot;
     },
     reset() {
       generation += 1;

@@ -351,7 +351,6 @@ export function CardDetail({ id, added = false }: { id: string; added?: boolean 
       live: usingLive,
       estimate: estimateLowConfidence && storedAmount != null,
       showChart,
-      chartReady: SalesChart != null,
       saleSelected: saleId != null,
     }) === "chart";
 
