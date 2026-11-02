@@ -35,7 +35,6 @@ import {
   CompBasis,
   CompEmpty,
   compCaption,
-  lowConfidenceNote,
   compCard,
   compEyebrow,
   compHeroValue,
@@ -760,6 +759,14 @@ function scrollToSales() {
       : slot;
   const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
   target.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
+}
+
+/**
+ * " · Low confidence" after the Recent sales caption for 1–4 live sales, unless
+ * the comp card (EstSellMetric) already shows its amber tag, so it is never on screen twice.
+ */
+export function lowConfidenceNote(salesCount: number, live: boolean, tagShown: boolean): string {
+  return live && salesCount >= 1 && salesCount < 5 && !tagShown ? " · Low confidence" : "";
 }
 
 function EstSellMetric({

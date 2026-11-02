@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { describe, it } from "node:test";
 import { createElement, Fragment } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { lowConfidenceNote } from "@/components/comp-basis";
+import { lowConfidenceNote } from "@/components/card-detail";
 import { isLowConfidenceValue } from "@/lib/value/format";
 import type { CardValueResult } from "@/lib/value/types";
 
