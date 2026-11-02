@@ -220,6 +220,7 @@ export function SalesChart({
   /** Replaces the dollar headline. A fallback must set headlineIsEstimate false. */
   headlineLabel,
   headlineIsEstimate = true,
+  lowConfidence: lowConfidenceProp,
 }: {
   card: { id: string; estimatedSellPrice: number; purchasePrice: number };
   points?: ValuePoint[] | null;
@@ -248,6 +249,8 @@ export function SalesChart({
   headlineLabel?: string | null;
   /** False when headlineLabel is a last sale, a range, or another fallback. */
   headlineIsEstimate?: boolean;
+  /** The caller's call on the amber "Low confidence" tag, so its page never shows it twice. */
+  lowConfidence?: boolean;
 }) {
   const usingLive = source === "trawl" && !sample;
   const live = usingLive || lockedToComps;
@@ -283,7 +286,7 @@ export function SalesChart({
   const displayP25 = live ? p25 : null;
   const displayP75 = live ? p75 : null;
   const n = live ? count : samplePoints.length;
-  const lowConfidence = live && n > 0 && n < 5;
+  const lowConfidence = lowConfidenceProp ?? (live && n > 0 && n < 5);
   const noSales = live && (n === 0 || displayMedian == null);
   const showEstimate = headlineIsEstimate !== false;
   const estimateShown = showEstimate && live && !noSales;

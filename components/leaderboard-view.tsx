@@ -19,8 +19,17 @@ import { userHref } from "@/lib/social/user-href";
 
 const BOARD_ACCENT: Record<string, string> = {
   "top-card-post": "#7c5cff",
-  "rising-collectors": "#10b981",
+  "rising-collectors": "#7c3aed",
   "most-cards-added": "#A78BFA",
+};
+
+/**
+ * Text-only accent where the board accent is too dark for small text on the
+ * near-black board. Violet-600 is about 3.5:1 there, so Rising's rank numerals
+ * use the light brand purple. Rings, glows and fills keep the board accent.
+ */
+const BOARD_TEXT_ACCENT: Record<string, string> = {
+  "rising-collectors": "#A78BFA",
 };
 
 const BOARD_ICON: Record<string, typeof Layers> = {
@@ -73,6 +82,10 @@ export const LEADERBOARD_STYLES = `
 
 function boardAccent(boardId: string): string {
   return BOARD_ACCENT[boardId] ?? "#7c5cff";
+}
+
+function boardTextAccent(boardId: string): string {
+  return BOARD_TEXT_ACCENT[boardId] ?? boardAccent(boardId);
 }
 
 function Avatar({ title, accent, url, size }: { title: string; accent: string; url: string | null; size: number }) {
@@ -383,7 +396,7 @@ function RankRow({ entry, boardId }: { entry: BoardRow; boardId: string }) {
       className="flex min-h-12 min-w-0 items-center gap-2.5 rounded-xl px-2 py-1.5 hover:bg-white/[0.04]"
       style={{ ...mineRing(entry.mine, accent), backgroundColor: entry.mine ? `${accent}1f` : undefined }}
     >
-      <span className="w-6 shrink-0 text-center text-sm font-black tabular-nums" style={{ color: accent }}>
+      <span className="w-6 shrink-0 text-center text-sm font-black tabular-nums" style={{ color: boardTextAccent(boardId) }}>
         {entry.rank}
       </span>
       <Avatar title={labels.name} accent={entry.accent} url={entry.avatarUrl} size={32} />
