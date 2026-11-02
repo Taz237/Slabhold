@@ -11,9 +11,8 @@ import {
   type ComponentType,
 } from "react";
 import { useCompFlagState } from "@/components/use-comp-flags";
-import { LazyCardCollectorsSaying } from "@/components/card-talk-frame";
+import { NearCardCollectorsSaying } from "@/components/card-talk-near";
 import { LazyCardAddedPanel, LazyCompsList, preloadCompsList } from "@/components/card-page-parts";
-import { WantButton } from "@/components/want-button";
 import { CategoryPicker } from "@/components/category-picker";
 import { CardVisibilitySwitch } from "@/components/card-visibility";
 import { CardShareButton } from "@/components/card-share";
@@ -21,6 +20,8 @@ import { FirstCardPrivacyPrompt } from "@/components/first-card-privacy-prompt";
 import { SharedPostNote } from "@/components/shared-post-note";
 import { useCollection } from "@/components/collection-provider";
 import { SheetLoadFailed } from "@/components/part-load-failed";
+import { MenuWantButton as WantButton } from "@/components/menu-want-button";
+import { afterFirstIdle } from "@/lib/ui/idle";
 import { lazyPart } from "@/lib/ui/lazy-part";
 import { MARK_SOLD_LABEL } from "@/lib/deals/state";
 import {
@@ -193,6 +194,10 @@ export function CardDetail({ id, added = false }: { id: string; added?: boolean 
 
   // The sales list draws once the sold prices are in: fetch its code meanwhile.
   useEffect(preloadCompsList, []);
+
+  // The ⋯ menu's Want control: fetched when the page is idle. A menu opened before
+  // it lands shows its disabled placeholder until then.
+  useEffect(() => afterFirstIdle(() => WantButton.warm()), []);
 
   useEffect(() => {
     let cancelled = false;
@@ -758,7 +763,7 @@ export function CardDetail({ id, added = false }: { id: string; added?: boolean 
         </section>
       )}
 
-      <LazyCardCollectorsSaying cardId={card.id} heading="Who's talking about this card" />
+      <NearCardCollectorsSaying cardId={card.id} heading="Who's talking about this card" />
     </div>
   );
 }

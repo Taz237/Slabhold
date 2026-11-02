@@ -1,0 +1,156 @@
+# Chrome trace, /cards/[id], 390x844 DSF 3, 4x CPU throttling (CDP), local network, main f74e47a, unmangled build (next build --no-mangling) so names show.
+# Three loads; each block: start, duration, layout/recalc/GC inside, scripts evaluated, entry points, components on the stack, top self-time frames (idle/program samples dropped).
+# 'push.SAVE_TIMEOUT_MESSAGE' is V8's guess at an anonymous function's name, not that constant.
+
+## load 1
+long tasks 10 blocking (sum over 50ms) 391
+
+@310ms  63ms  layout 1 recalc 1 gc 0
+  eval: 
+  entry: EventDispatch(pagehide) x2, EventDispatch(visibilitychange) x2, EventDispatch(webkitvisibilitychange) x2, EventDispatch(unload) x2
+  comp: 
+  self: 
+
+@542ms  169ms  layout 0 recalc 0 gc 0
+  eval: 2_eewdsqanb9q.js 168ms
+  entry: v8.run, RunMicrotasks, EventDispatch(load)
+  comp: (no component) 100%
+  self: instantiateModule@turbopack-33qj5b8qptc-y.js 69%, (anon)@2_eewdsqanb9q.js 4%, push.Object.defineProperty.value@375my9u4tmk6q.js 2%, querySelectorAll@(native) 2%, processFullBinaryRow@2xovkvvb6mim6.js 1%, progress@2xovkvvb6mim6.js 1%
+
+@776ms  69ms  layout 27 recalc 22 gc 0
+  eval: 
+  entry: 
+  comp: 
+  self: 
+
+@921ms  124ms  layout 0 recalc 0 gc 0
+  eval: 
+  entry: FunctionCall:performWorkUntilDeadline@2_eewdsqanb9q.js, RunMicrotasks, FunctionCall@2_eewdsqanb9q.js
+  comp: (no component) 94%, SocialProvider 6%
+  self: push.SAVE_TIMEOUT_MESSAGE@1gni5tcwx-y_s.js 42%, instantiateModule@turbopack-33qj5b8qptc-y.js 36%, renderWithHooks@2_eewdsqanb9q.js 8%, (anon)@19hkz879zza1f.js 2%, defineProp@turbopack-33qj5b8qptc-y.js 2%, SocialProvider@19hkz879zza1f.js 2%
+
+@1456ms  64ms  layout 0 recalc 0 gc 0
+  eval: 
+  entry: FunctionCall:performWorkUntilDeadline@2_eewdsqanb9q.js, RunMicrotasks, FunctionCall@2_eewdsqanb9q.js
+  comp: (no component) 100%
+  self: appendChild@(native) 44%, fetch@(native) 17%, doLoadChunk@turbopack-33qj5b8qptc-y.js 10%, (anon)@24--h4dul81xx.js 7%, setTimeout@(native) 5%, loadCardValues@19hkz879zza1f.js 4%
+
+@1682ms  117ms  layout 0 recalc 0 gc 0
+  eval: 
+  entry: FunctionCall:performWorkUntilDeadline@2_eewdsqanb9q.js, RunMicrotasks, FunctionCall@2_eewdsqanb9q.js
+  comp: (no component) 72%, SalesChart 13%, CardDetail 8%, SoldFreshness 4%, CardThumb 1%, CardShareButton 1%
+  self: commitMutationEffectsOnFiber@2_eewdsqanb9q.js 34%, snapshotDateInNewYork@43xh494givc5j.js 7%, removeChild@(native) 6%, renderWithHooks@2_eewdsqanb9q.js 4%, saleDayLabel@1gni5tcwx-y_s.js 3%, commitDeletionEffectsOnFiber@2_eewdsqanb9q.js 3%
+
+@1829ms  58ms  layout 0 recalc 0 gc 0
+  eval: 32d3n5c_byzi1.js 58ms
+  entry: v8.run, RunMicrotasks, FunctionCall@2_eewdsqanb9q.js x2, EventDispatch(load), FunctionCall:dispatchEvent@2_eewdsqanb9q.js
+  comp: (no component) 43%, CompsList 24%, FullChart 21%, CardDetail 4%, RowMenu 2%, LazyPart 1%
+  self: saleDate@43xh494givc5j.js 8%, formatDate@1gni5tcwx-y_s.js 8%, appendChild@(native) 8%, build@2b083i8jjt46t.js 7%, label@24--h4dul81xx.js 4%, renderWithHooks@2_eewdsqanb9q.js 4%
+
+@1936ms  73ms  layout 34 recalc 15 gc 0
+  eval: 
+  entry: EventDispatch(animationstart) x2, FunctionCall:dispatchEvent@2_eewdsqanb9q.js x4, FireAnimationFrame, FunctionCall:step@2b083i8jjt46t.js, RunMicrotasks, FunctionCall@2_eewdsqanb9q.js
+  comp: (no component) 100%
+  self: batchedUpdates$1@2_eewdsqanb9q.js 25%, dispatchEvent@2_eewdsqanb9q.js 25%, requestAnimationFrame@(native) 25%, queueMicrotask@(native) 25%
+
+@2545ms  103ms  layout 0 recalc 0 gc 0
+  eval: 41322saz2ddpz.js 102ms
+  entry: v8.run, RunMicrotasks, FunctionCall@2_eewdsqanb9q.js, EventDispatch(load), FunctionCall:dispatchEvent@2_eewdsqanb9q.js
+  comp: (no component) 86%, SupabaseClient 4%, SupabaseClient>RealtimeClient 4%, SupabaseClient>SupabaseAuthClient>GoTrueClient 2%, SupabaseClient>SupabaseAuthClient 1%, SupabaseClient>RealtimeClient>SocketAdapter 1%
+  self: instantiateModule@turbopack-33qj5b8qptc-y.js 58%, (anon)@41322saz2ddpz.js 6%, __nccwpck_require__@41322saz2ddpz.js 4%, RealtimeClient@41322saz2ddpz.js 3%, getAll@41322saz2ddpz.js 2%, decodeChunkedCookieValue@41322saz2ddpz.js 2%
+
+@2922ms  51ms  layout 0 recalc 0 gc 0
+  eval: 
+  entry: FunctionCall:performWorkUntilDeadline@2_eewdsqanb9q.js, RunMicrotasks, FunctionCall:entries x10, FunctionCall:next x34, FunctionCall@41322saz2ddpz.js x10, FunctionCall@2_eewdsqanb9q.js
+  comp: (no component) 88%, PostgrestFilterBuilder>PostgrestBuilder 4%, PostgrestQueryBuilder 2%, RealtimeChannel 2%, RealtimeChannel>ChannelAdapter 2%, RealtimeChannel>ChannelAdapter>Channel 2%
+  self: fetch@(native) 28%, (anon)@41322saz2ddpz.js 8%, commitHookEffectListMount@2_eewdsqanb9q.js 5%, (anon)@19hkz879zza1f.js 5%, channel@41322saz2ddpz.js 4%, appendChild@(native) 4%
+
+## load 2
+long tasks 6 blocking (sum over 50ms) 435
+
+@239ms  186ms  layout 0 recalc 0 gc 0
+  eval: 2_eewdsqanb9q.js 186ms
+  entry: v8.run, RunMicrotasks, EventDispatch(load)
+  comp: (no component) 100%, Context 0%, ResponseInstance 0%
+  self: instantiateModule@turbopack-33qj5b8qptc-y.js 65%, (anon)@2_eewdsqanb9q.js 7%, push.Object.defineProperty.value@3qq-bkp9ruch6.js 2%, preload@2_eewdsqanb9q.js 2%, _export@375my9u4tmk6q.js 1%, (anon)@375my9u4tmk6q.js 1%
+
+@490ms  73ms  layout 46 recalc 21 gc 0
+  eval: 
+  entry: EventDispatch(readystatechange), EventDispatch(load), EventDispatch(pageshow), FunctionCall@375my9u4tmk6q.js
+  comp: 
+  self: 
+
+@705ms  130ms  layout 0 recalc 0 gc 0
+  eval: 
+  entry: FunctionCall:performWorkUntilDeadline@2_eewdsqanb9q.js, RunMicrotasks, FunctionCall@2_eewdsqanb9q.js
+  comp: (no component) 94%, SocialProvider 6%
+  self: push.SAVE_TIMEOUT_MESSAGE@1gni5tcwx-y_s.js 41%, instantiateModule@turbopack-33qj5b8qptc-y.js 35%, renderWithHooks@2_eewdsqanb9q.js 8%, (anon)@19hkz879zza1f.js 2%, defineProp@turbopack-33qj5b8qptc-y.js 2%, esm@turbopack-33qj5b8qptc-y.js 2%
+
+@1496ms  156ms  layout 0 recalc 0 gc 0
+  eval: 
+  entry: FunctionCall:performWorkUntilDeadline@2_eewdsqanb9q.js, RunMicrotasks, FunctionCall@2_eewdsqanb9q.js
+  comp: (no component) 64%, CompsList 12%, SalesChart 10%, CardDetail 6%, SoldFreshness 4%, RowMenu 2%
+  self: commitMutationEffectsOnFiber@2_eewdsqanb9q.js 25%, snapshotDateInNewYork@43xh494givc5j.js 6%, renderWithHooks@2_eewdsqanb9q.js 5%, removeChild@(native) 5%, saleDate@43xh494givc5j.js 5%, formatDate@1gni5tcwx-y_s.js 5%
+
+@1652ms  67ms  layout 34 recalc 16 gc 0
+  eval: 
+  entry: EventDispatch(animationcancel) x25, FireAnimationFrame, FunctionCall:step@2b083i8jjt46t.js, RunMicrotasks x2, FunctionCall@2_eewdsqanb9q.js x2, FunctionCall@2b083i8jjt46t.js
+  comp: (no component) 100%
+  self: requestAnimationFrame@(native) 33%, step@2b083i8jjt46t.js 33%, (anon)@2b083i8jjt46t.js 33%
+
+@2216ms  122ms  layout 0 recalc 0 gc 0
+  eval: 41322saz2ddpz.js 121ms
+  entry: v8.run, RunMicrotasks, FunctionCall@2_eewdsqanb9q.js, EventDispatch(load), FunctionCall:dispatchEvent@2_eewdsqanb9q.js
+  comp: (no component) 96%, SupabaseClient 2%, SupabaseClient>StorageClient>StorageBucketApi 2%, SupabaseClient>StorageClient 0%
+  self: instantiateModule@turbopack-33qj5b8qptc-y.js 67%, (anon)@41322saz2ddpz.js 4%, __nccwpck_require__@41322saz2ddpz.js 4%, createBrowserClient@41322saz2ddpz.js 3%, stringFromBase64URL1@41322saz2ddpz.js 2%, getAll@41322saz2ddpz.js 2%
+
+## load 3
+long tasks 8 blocking (sum over 50ms) 457
+
+@45ms  57ms  layout 0 recalc 0 gc 1
+  eval: 
+  entry: EventDispatch(pagehide) x2, EventDispatch(visibilitychange) x2, EventDispatch(webkitvisibilitychange) x2, EventDispatch(unload) x2
+  comp: 
+  self: 
+
+@290ms  198ms  layout 0 recalc 0 gc 0
+  eval: 2_eewdsqanb9q.js 198ms
+  entry: v8.run, RunMicrotasks, EventDispatch(load)
+  comp: (no component) 100%, ResponseInstance 0%
+  self: instantiateModule@turbopack-33qj5b8qptc-y.js 72%, (anon)@2_eewdsqanb9q.js 4%, _export@375my9u4tmk6q.js 1%, processFullBinaryRow@2xovkvvb6mim6.js 1%, querySelectorAll@(native) 1%, push.Object.defineProperty.value@375my9u4tmk6q.js 1%
+
+@543ms  78ms  layout 36 recalc 23 gc 0
+  eval: 
+  entry: 
+  comp: 
+  self: 
+
+@743ms  151ms  layout 0 recalc 0 gc 0
+  eval: 
+  entry: FunctionCall:performWorkUntilDeadline@2_eewdsqanb9q.js, RunMicrotasks, FunctionCall@2_eewdsqanb9q.js
+  comp: (no component) 91%, SocialProvider 9%
+  self: push.SAVE_TIMEOUT_MESSAGE@1gni5tcwx-y_s.js 41%, instantiateModule@turbopack-33qj5b8qptc-y.js 33%, renderWithHooks@2_eewdsqanb9q.js 10%, defineProp@turbopack-33qj5b8qptc-y.js 3%, useMemo@2_eewdsqanb9q.js 3%, (anon)@19hkz879zza1f.js 2%
+
+@1372ms  63ms  layout 0 recalc 0 gc 0
+  eval: 
+  entry: FunctionCall:performWorkUntilDeadline@2_eewdsqanb9q.js, RunMicrotasks, FunctionCall@2_eewdsqanb9q.js
+  comp: (no component) 100%
+  self: appendChild@(native) 39%, fetch@(native) 21%, doLoadChunk@turbopack-33qj5b8qptc-y.js 18%, setTimeout@(native) 6%, (anon)@24--h4dul81xx.js 5%, commitHookEffectListMount@2_eewdsqanb9q.js 2%
+
+@1557ms  132ms  layout 0 recalc 0 gc 0
+  eval: 
+  entry: FunctionCall:performWorkUntilDeadline@2_eewdsqanb9q.js, RunMicrotasks, FunctionCall@2_eewdsqanb9q.js
+  comp: (no component) 70%, SalesChart 9%, CompsList 9%, CardDetail 6%, SoldFreshness 3%, RowMenu 1%
+  self: commitMutationEffectsOnFiber@2_eewdsqanb9q.js 30%, snapshotDateInNewYork@43xh494givc5j.js 5%, removeChild@(native) 5%, saleDate@43xh494givc5j.js 5%, renderWithHooks@2_eewdsqanb9q.js 4%, recursivelyTraverseMutationEffects@2_eewdsqanb9q.js 3%
+
+@1688ms  70ms  layout 38 recalc 13 gc 0
+  eval: 
+  entry: EventDispatch(animationcancel) x25, FireAnimationFrame, FunctionCall:step@2b083i8jjt46t.js, RunMicrotasks x2, FunctionCall@2_eewdsqanb9q.js x2, FunctionCall@2b083i8jjt46t.js
+  comp: (no component) 100%
+  self: (anon)@2b083i8jjt46t.js 29%, step@2b083i8jjt46t.js 14%, requestAnimationFrame@(native) 14%, scheduleImmediateRootScheduleTask@2_eewdsqanb9q.js 14%, dispatchSetStateInternal@2_eewdsqanb9q.js 14%, enqueueConcurrentHookUpdate@2_eewdsqanb9q.js 14%
+
+@2278ms  109ms  layout 0 recalc 0 gc 0
+  eval: 41322saz2ddpz.js 108ms
+  entry: v8.run, RunMicrotasks, FunctionCall@2_eewdsqanb9q.js, EventDispatch(load), FunctionCall:dispatchEvent@2_eewdsqanb9q.js
+  comp: (no component) 85%, SupabaseClient 5%, SupabaseClient>SupabaseAuthClient>GoTrueClient 4%, SupabaseClient>RealtimeClient 4%, SupabaseClient>StorageClient>StorageBucketApi 1%, SupabaseClient>SupabaseAuthClient 1%
+  self: instantiateModule@turbopack-33qj5b8qptc-y.js 56%, (anon)@41322saz2ddpz.js 6%, __nccwpck_require__@41322saz2ddpz.js 3%, _initialize@41322saz2ddpz.js 2%, stringFromBase64URL1@41322saz2ddpz.js 2%, createBrowserClient@41322saz2ddpz.js 2%

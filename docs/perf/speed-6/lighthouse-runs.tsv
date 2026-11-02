@@ -1,0 +1,93 @@
+# Lighthouse 12.8.2, mobile, simulated (4x CPU, slow 4G), 390x844 DSF 3. Local production builds, stub Supabase + fixtures.
+# rounds: A = main alone before any change; B = main vs shipped branch, interleaved; C/D = per-cut variants, rotated; E = scratch ceiling build; F = main vs branch after the review fix (Want placeholder), interleaved.
+# columns: round	build	run	TBT_ms	LCP_ms	CLS	score
+A-sequential /cards/[id]	main	1	567	4682	0.000	69
+A-sequential /cards/[id]	main	2	537	4501	0.000	71
+A-sequential /cards/[id]	main	3	459	4518	0.000	73
+A-sequential /cards/[id]	main	4	439	4506	0.000	73
+A-sequential /cards/[id]	main	5	745	4693	0.000	65
+A-sequential /u/[username]/cards/[id]	main	1	313	5665	0.001	72
+A-sequential /u/[username]/cards/[id]	main	2	402	5689	0.001	69
+A-sequential /u/[username]/cards/[id]	main	3	241	5244	0.001	76
+A-sequential /u/[username]/cards/[id]	main	4	338	5438	0.001	72
+A-sequential /u/[username]/cards/[id]	main	5	241	5286	0.001	76
+B-interleaved /cards/[id]	main	1	402	4672	0.000	73
+B-interleaved /cards/[id]	shipped	1	567	4244	0.000	71
+B-interleaved /cards/[id]	main	2	494	4491	0.000	72
+B-interleaved /cards/[id]	shipped	2	506	4399	0.000	72
+B-interleaved /cards/[id]	main	3	460	4395	0.000	73
+B-interleaved /cards/[id]	shipped	3	440	4215	0.000	75
+B-interleaved /cards/[id]	main	4	391	4428	0.000	75
+B-interleaved /cards/[id]	shipped	4	451	4436	0.000	73
+B-interleaved /cards/[id]	main	5	503	4416	0.000	72
+B-interleaved /cards/[id]	shipped	5	328	4250	0.000	78
+B-interleaved /cards/[id]	main	6	442	4525	0.000	73
+B-interleaved /cards/[id]	shipped	6	387	4316	0.000	76
+B-interleaved /cards/[id]	main	7	429	4495	0.000	74
+B-interleaved /cards/[id]	shipped	7	297	4235	0.000	79
+B-interleaved /cards/[id]	main	8	470	4434	0.000	73
+B-interleaved /cards/[id]	shipped	8	361	4270	0.000	77
+B-interleaved /cards/[id]	main	9	487	4451	0.000	72
+B-interleaved /cards/[id]	shipped	9	385	4196	0.000	77
+B-interleaved /cards/[id]	main	10	621	4441	0.000	69
+B-interleaved /cards/[id]	shipped	10	317	4154	0.000	79
+B-interleaved /cards/[id]	main	11	366	4395	0.000	76
+B-interleaved /cards/[id]	shipped	11	366	4292	0.000	77
+B-interleaved /cards/[id]	main	12	537	4620	0.000	70
+B-interleaved /cards/[id]	shipped	12	241	4158	0.000	82
+B-interleaved /cards/[id]	main	13	323	4397	0.000	78
+B-interleaved /cards/[id]	shipped	13	345	4222	0.000	78
+B-interleaved /cards/[id]	main	14	388	4483	0.000	75
+B-interleaved /cards/[id]	shipped	14	305	4276	0.000	79
+B-interleaved /cards/[id]	main	15	389	4426	0.000	75
+B-interleaved /cards/[id]	shipped	15	374	4186	0.000	77
+B-interleaved /u/[username]/cards/[id]	main	1	331	5504	0.001	72
+B-interleaved /u/[username]/cards/[id]	shipped	1	250	5344	0.001	75
+B-interleaved /u/[username]/cards/[id]	main	2	390	5658	0.001	70
+B-interleaved /u/[username]/cards/[id]	shipped	2	252	5199	0.001	76
+B-interleaved /u/[username]/cards/[id]	main	3	232	5423	0.001	76
+B-interleaved /u/[username]/cards/[id]	shipped	3	206	5305	0.001	77
+B-interleaved /u/[username]/cards/[id]	main	4	256	5350	0.001	75
+B-interleaved /u/[username]/cards/[id]	shipped	4	382	5624	0.001	70
+B-interleaved /u/[username]/cards/[id]	main	5	224	5243	0.001	77
+B-interleaved /u/[username]/cards/[id]	shipped	5	382	5357	0.001	71
+C-per-cut /cards/[id]	branch+rows-near, posts eager	1	668	4767	0.000	-
+C-per-cut /cards/[id]	branch+rows-near	1	363	4355	0.000	-
+C-per-cut /cards/[id]	branch+rows-near, want static	1	357	4478	0.000	-
+C-per-cut /cards/[id]	branch+rows-near, posts eager	2	588	4530	0.000	-
+C-per-cut /cards/[id]	branch+rows-near	2	463	4238	0.000	-
+C-per-cut /cards/[id]	branch+rows-near, want static	2	305	4262	0.000	-
+C-per-cut /cards/[id]	branch+rows-near, posts eager	3	535	4481	0.000	-
+C-per-cut /cards/[id]	branch+rows-near	3	302	4168	0.000	-
+C-per-cut /cards/[id]	branch+rows-near, want static	3	307	4292	0.000	-
+C-per-cut /cards/[id]	branch+rows-near, posts eager	4	412	4432	0.000	-
+C-per-cut /cards/[id]	branch+rows-near	4	346	4233	0.000	-
+C-per-cut /cards/[id]	branch+rows-near, want static	4	460	4293	0.000	-
+C-per-cut /cards/[id]	branch+rows-near, posts eager	5	429	4463	0.000	-
+C-per-cut /cards/[id]	branch+rows-near	5	312	4218	0.000	-
+C-per-cut /cards/[id]	branch+rows-near, want static	5	410	4273	0.000	-
+D-per-cut /cards/[id]	shipped (rows eager)	1	369	4462	0.000	-
+D-per-cut /cards/[id]	branch+rows-near	1	604	4239	0.000	-
+D-per-cut /cards/[id]	shipped (rows eager)	2	457	4238	0.000	-
+D-per-cut /cards/[id]	branch+rows-near	2	440	4275	0.000	-
+D-per-cut /cards/[id]	shipped (rows eager)	3	542	4154	0.000	-
+D-per-cut /cards/[id]	branch+rows-near	3	406	4269	0.000	-
+D-per-cut /cards/[id]	shipped (rows eager)	4	472	4219	0.000	-
+D-per-cut /cards/[id]	branch+rows-near	4	456	4267	0.000	-
+D-per-cut /cards/[id]	shipped (rows eager)	5	448	4218	0.000	-
+D-per-cut /cards/[id]	branch+rows-near	5	249	4243	0.000	-
+E-ceiling: card tree replaced by its skeleton (scratch build, not in this PR)	no-card	1	583	2753	0.000	81
+E-ceiling: card tree replaced by its skeleton (scratch build, not in this PR)	no-card	2	307	2863	0.000	89
+E-ceiling: card tree replaced by its skeleton (scratch build, not in this PR)	no-card	3	319	2881	0.000	88
+E-ceiling: card tree replaced by its skeleton (scratch build, not in this PR)	no-card	4	316	3346	0.000	85
+E-ceiling: card tree replaced by its skeleton (scratch build, not in this PR)	no-card	5	239	2871	0.000	91
+F-interleaved after review fix (Want placeholder) /cards/[id]	main	1	980	4604	0.000	62
+F-interleaved after review fix (Want placeholder) /cards/[id]	shipped (review fix)	1	397	4235	0.000	76
+F-interleaved after review fix (Want placeholder) /cards/[id]	main	2	510	4423	0.000	72
+F-interleaved after review fix (Want placeholder) /cards/[id]	shipped (review fix)	2	482	4260	0.000	74
+F-interleaved after review fix (Want placeholder) /cards/[id]	main	3	458	4583	0.000	72
+F-interleaved after review fix (Want placeholder) /cards/[id]	shipped (review fix)	3	516	4393	0.000	72
+F-interleaved after review fix (Want placeholder) /cards/[id]	main	4	465	4492	0.000	73
+F-interleaved after review fix (Want placeholder) /cards/[id]	shipped (review fix)	4	626	4455	0.000	69
+F-interleaved after review fix (Want placeholder) /cards/[id]	main	5	495	4692	0.000	71
+F-interleaved after review fix (Want placeholder) /cards/[id]	shipped (review fix)	5	433	4163	0.000	75
