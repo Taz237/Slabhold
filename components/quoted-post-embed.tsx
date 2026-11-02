@@ -112,7 +112,7 @@ export function QuotedPostEmbed({
               <Link
                 href={nestedLink.href}
                 onClick={(event) => event.stopPropagation()}
-                className="font-medium break-words text-sky-600 hover:underline dark:text-sky-400"
+                className="font-medium break-words text-violet-700 decoration-violet-700/70 dark:text-violet-300 dark:decoration-violet-300/80 hover:underline"
               >
                 @{nestedLink.handle}
               </Link>

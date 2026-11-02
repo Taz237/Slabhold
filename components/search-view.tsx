@@ -312,7 +312,7 @@ export function SearchView() {
                   <button
                     type="button"
                     onClick={clearRecent}
-                    className="rounded-full px-2 py-1 text-sm font-medium text-sky-600 dark:text-sky-400"
+                    className="rounded-full px-2 py-1 text-sm font-medium text-violet-700 decoration-violet-700/70 dark:text-violet-300 dark:decoration-violet-300/80"
                   >
                     Clear all
                   </button>
@@ -435,7 +435,7 @@ export function SearchView() {
                           <Link
                             href={page.href}
                             onClick={() => remember(typed)}
-                            className="inline-flex min-h-11 shrink-0 items-center rounded-full px-3 text-sm font-medium text-sky-600 dark:text-sky-400"
+                            className="inline-flex min-h-11 shrink-0 items-center rounded-full px-3 text-sm font-medium text-violet-700 decoration-violet-700/70 dark:text-violet-300 dark:decoration-violet-300/80"
                           >
                             {page.label}
                           </Link>
