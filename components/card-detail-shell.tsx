@@ -7,6 +7,7 @@ import { ArrowLeft, Ellipsis, Pencil } from "lucide-react";
 import { CardThumb } from "@/components/card-thumb";
 import { LazyResolvedPlayerName } from "@/components/player-name-lazy";
 import { PriceFallbackText } from "@/components/price-readout";
+import { CompCardSkeleton, CompRowsSkeleton, compCard, compTile } from "@/components/comp-basis";
 import { useCollection } from "@/components/collection-provider";
 import { cardTitle } from "@/lib/format";
 import { needsDetails, needsDetailsLabel } from "@/lib/types";
@@ -143,48 +144,40 @@ export function SalesChartPending({
     Boolean(priceLabel) &&
     (priceIsEstimate || /^\$[\d,]+\.\d{2}$/.test(priceLabel ?? ""));
   return (
-    <section
-      data-slot="sales-chart"
-      className={cardPanelClass}
-      aria-busy={busy || undefined}
-    >
-      <p className="text-[11px] tracking-wide text-zinc-500 uppercase">Recent sales</p>
-      <div className="mt-1 flex min-h-9 items-end">
-        {bareEstimate && priceLabel ? (
-          <p className="text-3xl font-semibold tracking-tight tabular-nums">{priceLabel}</p>
+    <CompCardSkeleton
+      slot="sales-chart"
+      busy={busy}
+      plot={
+        <div
+          data-skeleton="plot"
+          className={`mt-4 flex h-44 items-center justify-center ${compTile} ${note ? "" : "skeleton-shimmer"}`}
+        >
+          {note ? <p className="px-4 text-center text-sm text-zinc-500">{note}</p> : null}
+        </div>
+      }
+      range={!priceLabel || bareEstimate}
+      chip={!priceLabel || bareEstimate}
+      hero={
+        bareEstimate && priceLabel ? (
+          <p className="text-3xl leading-10 font-semibold tracking-tight tabular-nums">{priceLabel}</p>
         ) : priceLabel ? (
-          <p className="max-w-full text-[clamp(0.95rem,3.6vw,1.125rem)] font-semibold tracking-tight leading-snug">
+          <p className="max-w-full text-xl leading-[26px] font-semibold tracking-tight">
             <PriceFallbackText text={priceLabel} />
           </p>
-        ) : (
-          <div className="h-9 w-32 animate-pulse rounded-lg bg-zinc-100 dark:bg-white/5" />
-        )}
-      </div>
-      <p className="mt-1 min-h-5 text-sm text-zinc-500">&nbsp;</p>
-      <div
-        className={`mt-3 flex h-44 items-center justify-center rounded-xl bg-zinc-100 dark:bg-white/5 ${
-          note ? "" : "animate-pulse"
-        }`}
-      >
-        {note ? <p className="px-4 text-center text-sm text-zinc-500">{note}</p> : null}
-      </div>
-    </section>
+        ) : undefined
+      }
+    />
   );
 }
 
 export function SalesListPending() {
   return (
-    <section data-slot="sales-list" className={cardPanelClass} aria-busy="true">
-      <h2 className="font-semibold">Recent sales</h2>
-      <p className="text-xs text-zinc-500">Loading sold listings…</p>
-      <div className="mt-3 space-y-3">
-        {Array.from({ length: 4 }, (_, i) => (
-          <div
-            key={i}
-            className="h-12 animate-pulse rounded-xl bg-zinc-100 dark:bg-white/5"
-          />
-        ))}
+    <section data-slot="sales-list" className={compCard} aria-busy="true">
+      <div className="flex items-baseline justify-between gap-3">
+        <h2 className="text-sm font-semibold">Recent sales</h2>
+        <span className="sr-only">Loading sold listings…</span>
       </div>
+      <CompRowsSkeleton />
     </section>
   );
 }

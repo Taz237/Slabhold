@@ -31,7 +31,16 @@ import {
   SalesListPending,
   cardPanelClass,
 } from "@/components/card-detail-shell";
-import { CompBasis } from "@/components/comp-basis";
+import {
+  CompBasis,
+  CompEmpty,
+  compCaption,
+  compCard,
+  compEyebrow,
+  compHeroValue,
+  compLabel,
+  compTile,
+} from "@/components/comp-basis";
 import { SimilarCardsLine, EbaySoldLine } from "@/components/price-readout";
 import { SoldFreshness } from "@/components/sold-freshness";
 import { useSocial } from "@/components/social-provider";
@@ -48,7 +57,7 @@ import { gradeDetailSpecs } from "@/lib/cards/grading-company";
 import { canonicalParallelName, parallelMatchKey } from "@/lib/cards/parallels";
 import { parallelIn } from "@/lib/cards/product-data";
 import { useProductData } from "@/lib/cards/use-product-data";
-import { basedOnSalesLabel, countForSalesLabel, valueFromShownSales } from "@/lib/comps/shared-value";
+import { countForSalesLabel, valueFromShownSales } from "@/lib/comps/shared-value";
 import { soldNotice } from "@/lib/comps/sold-response";
 import { useSoldComps } from "@/lib/comps/use-sold-comps";
 import type { ChartSale } from "@/lib/chart/sales";
@@ -600,7 +609,7 @@ export function CardDetail({ id, added = false }: { id: string; added?: boolean 
             noSalesLabel={NO_SALES_FOUND_LABEL}
             unavailable={false}
             hideStatusLabel
-            heading="Recent sales"
+            heading={compEyebrow(priceRead?.kind, SIMILAR_CARDS_LABEL)}
             stableLayout
             headlineLabel={
               priceRead && priceRead.kind !== "estimate"
@@ -613,37 +622,31 @@ export function CardDetail({ id, added = false }: { id: string; added?: boolean 
           />
         </div>
       ) : collapsePrices ? (
-        <section data-slot="sales-chart" className={cardPanelClass}>
-          <p className="text-[11px] tracking-wide text-zinc-500 uppercase">Recent sales</p>
-          <div className="mt-1 flex min-h-9 items-end">
-            <p className="text-lg font-semibold tracking-tight">
-              {priceRead?.kind === "similar" ? SIMILAR_CARDS_LABEL : (priceRead?.text ?? NO_SALES_FOUND_LABEL)}
-            </p>
-          </div>
-          <p className="mt-1 min-h-5 text-sm text-zinc-500">&nbsp;</p>
-          <div className="mt-3 flex h-44 items-center">
-            {priceRead?.kind === "similar" ? (
-              <SimilarCardsLine read={priceRead} />
-            ) : priceRead?.showEbaySold && ebayHref ? (
-              <EbaySoldLine href={ebayHref} />
+        priceRead?.kind === "similar" ? (
+          <section data-slot="sales-chart" className={compCard}>
+            <SimilarCardsLine read={priceRead} />
+          </section>
+        ) : (
+          <CompEmpty
+            slot="sales-chart"
+            title={!priceRead || priceRead.text === NO_SALES_FOUND_LABEL ? "No sales yet" : priceRead.text}
+          >
+            {priceRead?.showEbaySold && ebayHref ? <EbaySoldLine href={ebayHref} /> : null}
+          </CompEmpty>
+        )
+      ) : chartFailed && !authRequired && !soldCopy ? (
+        <section data-slot="sales-chart" className={compCard}>
+          <p className={`flex h-5 items-center ${compLabel}`}>{compEyebrow(priceRead?.kind, SIMILAR_CARDS_LABEL)}</p>
+          <div className="mt-1 flex min-h-10 items-baseline">
+            {priceRead?.kind === "estimate" && pendingLabel ? (
+              <p className={compHeroValue}>{pendingLabel}</p>
+            ) : pendingLabel ? (
+              <p className="py-1.5 text-xl leading-[26px] font-semibold tracking-tight">{pendingLabel}</p>
             ) : null}
           </div>
-        </section>
-      ) : chartFailed && !authRequired && !soldCopy ? (
-        <section data-slot="sales-chart" className={cardPanelClass}>
-          <p className="text-[11px] tracking-wide text-zinc-500 uppercase">Recent sales</p>
-          <div className="mt-1 flex min-h-9 items-end">
-            {priceRead?.kind === "estimate" && pendingLabel ? (
-              <p className="text-3xl font-semibold tracking-tight tabular-nums">{pendingLabel}</p>
-            ) : pendingLabel ? (
-              <p className="text-lg font-semibold tracking-tight">{pendingLabel}</p>
-            ) : (
-              <div className="h-9 w-32 rounded-lg bg-zinc-100 dark:bg-white/5" />
-            )}
-          </div>
-          <p className="mt-1 min-h-5 text-sm text-zinc-500">&nbsp;</p>
-          <div className="mt-3 flex h-44 flex-col items-center justify-center gap-3 rounded-xl bg-zinc-100 px-4 text-center dark:bg-white/5">
-            <p className="text-sm text-zinc-500">Couldn&apos;t load the sales graph</p>
+          <div className={`mt-4 flex h-44 flex-col items-center justify-center gap-1 px-4 text-center ${compTile}`}>
+            <p className="text-sm font-semibold">Sales are taking a break</p>
+            <p className="text-sm text-zinc-500">Couldn&apos;t load the sales graph.</p>
             <button
               type="button"
               onClick={() => {
@@ -651,9 +654,9 @@ export function CardDetail({ id, added = false }: { id: string; added?: boolean 
                 setSalesChart(null);
                 setChartAttempt((attempt) => attempt + 1);
               }}
-              className="inline-flex min-h-9 items-center rounded-full bg-violet-600 px-3.5 text-sm font-semibold text-white hover:bg-violet-500"
+              className="mt-2 inline-flex h-11 items-center rounded-full px-5 text-sm font-semibold text-violet-700 hover:bg-violet-500/10 focus-visible:ring-2 focus-visible:ring-violet-600 focus-visible:outline-none dark:text-violet-300"
             >
-              Retry
+              Try again
             </button>
           </div>
         </section>
@@ -673,62 +676,67 @@ export function CardDetail({ id, added = false }: { id: string; added?: boolean 
       {compsLoading && !authRequired ? (
         <SalesListPending />
       ) : (
-        <section data-slot="sales-list" className={cardPanelClass}>
-          <div className="flex flex-wrap items-end justify-between gap-2">
-            <div>
-              <h2 className="font-semibold">Recent sales</h2>
-              {authRequired ? null : (
-                <p className="text-xs text-zinc-500">
-                  {soldCopy
-                    ? soldCopy
-                    : sold.status === "ready"
-                      ? onScreenComps.length === 0
-                        ? priceRead?.kind === "similar"
-                          ? SIMILAR_CARDS_LABEL
-                          : (priceRead?.text ?? NO_SALES_FOUND_LABEL)
-                        : (
-                            <>
-                              {basedOnSalesLabel(salesCount)}
-                              {salesCount < 5 ? " · Low confidence" : ""}
-                              <SoldFreshness comps={onScreenComps} fetchedAt={sold.data?.fetchedAt} />
-                            </>
-                          )
-                      : usingSample
-                        ? "Sample listings"
-                        : ""}
-                </p>
-              )}
-            </div>
+        <section data-slot="sales-list" className={compCard}>
+          <div className="flex items-baseline justify-between gap-3">
+            <h2 className="text-sm font-semibold">Recent sales</h2>
+            {!authRequired && !soldCopy && sold.status === "ready" && onScreenComps.length > 0 ? (
+              <p className="shrink-0 text-xs font-medium text-zinc-500 tabular-nums">
+                {salesCount} sale{salesCount === 1 ? "" : "s"}
+              </p>
+            ) : null}
           </div>
+          {authRequired ? null : (
+            <p className={`mt-1 leading-4 ${compCaption}`}>
+              {soldCopy
+                ? soldCopy
+                : sold.status === "ready"
+                  ? onScreenComps.length === 0
+                    ? priceRead?.kind === "similar"
+                      ? SIMILAR_CARDS_LABEL
+                      : (priceRead?.text ?? NO_SALES_FOUND_LABEL)
+                    : (
+                        <>
+                          Recent sold prices
+                          <SoldFreshness comps={onScreenComps} fetchedAt={sold.data?.fetchedAt} />
+                        </>
+                      )
+                  : usingSample
+                    ? "Sample listings"
+                    : ""}
+            </p>
+          )}
           {authRequired ? (
-            <p className="mt-3 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-700 dark:border-white/10 dark:bg-white/5 dark:text-zinc-300">
+            <p className={`mt-3 px-3 py-2 text-xs text-zinc-700 dark:text-zinc-300 ${compTile}`}>
               <Link href={loginPath(pathname)} className="font-semibold underline underline-offset-2">
                 Log in
               </Link>{" "}
               to see sold comps
             </p>
           ) : null}
-          {usingLive && !compsLoading && !authRequired ? (
+          {authRequired || unavailable || rateLimited ? null : sold.status === "ready" &&
+            (onScreenComps.length > 0 || flags.hidden.length > 0) ? (
+            <div className="mt-2">
+              <LazyCompsList
+                comps={onScreenComps}
+                cardId={card.id}
+                canFlag={Boolean(user)}
+                hidden={flags.hidden}
+                onFlag={flags.flag}
+                onRestore={flags.restore}
+                toast={flags.toast}
+                onUndo={flags.undo}
+                selectedId={saleId}
+                onSelect={setSaleId}
+              />
+            </div>
+          ) : collapsePrices ? (
+            <p className="mt-3 text-sm text-zinc-500">No sales to show</p>
+          ) : null}
+          {/* With the comp card up, the attribution sits in its footer. */}
+          {usingLive && !compsLoading && !authRequired && !(showChart && SalesChart) ? (
             <p className="mt-3 text-[11px] text-zinc-400">
               Sold data via Trawl (third-party, not affiliated with eBay)
             </p>
-          ) : null}
-          {authRequired || unavailable || rateLimited ? null : sold.status === "ready" &&
-            (onScreenComps.length > 0 || flags.hidden.length > 0) ? (
-            <LazyCompsList
-              comps={onScreenComps}
-              cardId={card.id}
-              canFlag={Boolean(user)}
-              hidden={flags.hidden}
-              onFlag={flags.flag}
-              onRestore={flags.restore}
-              toast={flags.toast}
-              onUndo={flags.undo}
-              selectedId={saleId}
-              onSelect={setSaleId}
-            />
-          ) : collapsePrices ? (
-            <p className="mt-3 text-sm text-zinc-500">No sales to show</p>
           ) : null}
         </section>
       )}

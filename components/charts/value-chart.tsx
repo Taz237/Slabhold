@@ -43,6 +43,13 @@ const TOP = 22;
 const BOTTOM = 24;
 const GUTTER = 44;
 
+const MINIMAL_TICK = "fill-zinc-400 text-[11px] tabular-nums dark:fill-zinc-500";
+
+/** The first and last tick only. */
+function edgeTicks<T>(ticks: T[]): T[] {
+  return ticks.length > 2 ? [ticks[0], ticks[ticks.length - 1]] : ticks;
+}
+
 function reducedMotion(): boolean {
   return typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true;
 }
@@ -88,6 +95,8 @@ type Props = {
   refLine?: { value: number; label: string } | null;
   /** Faint band behind the line, like the middle 50% of sales. */
   band?: { low: number; high: number } | null;
+  /** Card page comp style: no grid, first and last date, min and max value, a stronger fill. */
+  minimal?: boolean;
   className?: string;
 };
 
@@ -196,6 +205,7 @@ function FullChart({
   onSelectDot,
   refLine = null,
   band = null,
+  minimal = false,
   className = "",
 }: Props) {
   const id = useId();
@@ -339,6 +349,12 @@ function FullChart({
       : withDots
         ? geom.dots[shownIndex]
         : geom.xy[shownIndex];
+  const latestDot = geom
+    ? geom.dots.reduce<(typeof geom.dots)[number] | null>(
+        (best, item) => (!item.dot.hollow && (!best || item.x >= best.x) ? item : best),
+        null,
+      )
+    : null;
   const marker = !withDots && activePt && "point" in activePt ? activePt.point.marker : null;
   const ath = geom && showAth && geom.xy.length >= 3 && shownIndex == null ? geom.xy[geom.ath] : null;
 
@@ -392,40 +408,42 @@ function FullChart({
         >
           <defs>
             <linearGradient id={`${id}-fill`} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="currentColor" stopOpacity={0.22} />
+              <stop offset="0%" stopColor="currentColor" stopOpacity={minimal ? 0.28 : 0.22} />
               <stop offset="100%" stopColor="currentColor" stopOpacity={0} />
             </linearGradient>
           </defs>
 
           <g key={`grid-${morphKey}`} className="chart-fade">
-            {geom.yTicks.map((item) => (
+            {(minimal ? edgeTicks(geom.yTicks) : geom.yTicks).map((item) => (
               <g key={`${item.label}-${item.y}`}>
-                <line
-                  x1={0}
-                  x2={geom.plotRight}
-                  y1={item.y}
-                  y2={item.y}
-                  className="stroke-zinc-200 dark:stroke-white/[0.07]"
-                  strokeWidth={1}
-                />
+                {minimal ? null : (
+                  <line
+                    x1={0}
+                    x2={geom.plotRight}
+                    y1={item.y}
+                    y2={item.y}
+                    className="stroke-zinc-200 dark:stroke-white/[0.07]"
+                    strokeWidth={1}
+                  />
+                )}
                 <text
                   x={width}
                   y={item.y}
                   dy="0.32em"
                   textAnchor="end"
-                  className="fill-zinc-500 text-[10.5px] tabular-nums dark:fill-zinc-400"
+                  className={minimal ? MINIMAL_TICK : "fill-zinc-500 text-[10.5px] tabular-nums dark:fill-zinc-400"}
                 >
                   {item.label}
                 </text>
               </g>
             ))}
-            {geom.xTicks.map((item) => (
+            {(minimal ? edgeTicks(geom.xTicks) : geom.xTicks).map((item) => (
               <text
                 key={`${item.label}-${item.x}`}
                 x={item.x}
                 y={height - 6}
                 textAnchor={item.anchor}
-                className="fill-zinc-500 text-[10.5px] tabular-nums dark:fill-zinc-400"
+                className={minimal ? MINIMAL_TICK : "fill-zinc-500 text-[10.5px] tabular-nums dark:fill-zinc-400"}
               >
                 {item.label}
               </text>
@@ -491,6 +509,9 @@ function FullChart({
               >
                 ATH {money(ath.point.value).replace(/\.00$/, "")}
               </text>
+            ) : null}
+            {minimal && latestDot && shownIndex == null && !reduce ? (
+              <circle cx={latestDot.x} cy={latestDot.y} r={3} fill="currentColor" className="chart-pulse" />
             ) : null}
             {last && !withDots && shownIndex == null ? (
               <g>
