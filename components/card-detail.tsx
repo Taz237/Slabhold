@@ -8,19 +8,21 @@ import {
   useRef,
   useState,
   useSyncExternalStore,
+  type ComponentProps,
   type ComponentType,
 } from "react";
+import type { WantButton as WantButtonView } from "@/components/want-button";
 import { useCompFlagState } from "@/components/use-comp-flags";
-import { LazyCardCollectorsSaying } from "@/components/card-talk-frame";
+import { NearCardCollectorsSaying } from "@/components/card-talk-near";
 import { LazyCardAddedPanel, LazyCompsList, preloadCompsList } from "@/components/card-page-parts";
-import { WantButton } from "@/components/want-button";
 import { CategoryPicker } from "@/components/category-picker";
 import { CardVisibilitySwitch } from "@/components/card-visibility";
 import { CardShareButton } from "@/components/card-share";
 import { FirstCardPrivacyPrompt } from "@/components/first-card-privacy-prompt";
 import { SharedPostNote } from "@/components/shared-post-note";
 import { useCollection } from "@/components/collection-provider";
-import { SheetLoadFailed } from "@/components/part-load-failed";
+import { PartLoadFailed, SheetLoadFailed } from "@/components/part-load-failed";
+import { afterFirstIdle } from "@/lib/ui/idle";
 import { lazyPart } from "@/lib/ui/lazy-part";
 import { MARK_SOLD_LABEL } from "@/lib/deals/state";
 import {
@@ -93,6 +95,21 @@ const DealSheet = lazyPart(() => import("@/components/deal-sheet").then((mod) =>
   name: "deal-sheet",
   failed: SheetLoadFailed,
 });
+
+/**
+ * Only in the ⋯ menu, so it is its own chunk. It is fetched once the page is
+ * idle, and the menu opens only once it is in, so it is never a dead tap.
+ */
+const WantButton = lazyPart<ComponentProps<typeof WantButtonView>>(
+  () => import("@/components/want-button").then((mod) => mod.WantButton),
+  null,
+  { name: "want-button", failed: PartLoadFailed },
+);
+
+/** Opens the ⋯ menu once its Want button's chunk is in (or has failed: then its Try again shows). */
+export function openWhenWantButtonReady(open: () => void, load: () => Promise<unknown> = WantButton.preload) {
+  return load().then(open, open);
+}
 
 function subscribeCardValueMemory() {
   return () => {};
@@ -193,6 +210,9 @@ export function CardDetail({ id, added = false }: { id: string; added?: boolean 
 
   // The sales list draws once the sold prices are in: fetch its code meanwhile.
   useEffect(preloadCompsList, []);
+
+  // The ⋯ menu's Want button: fetched when the page is idle, before anyone opens the menu.
+  useEffect(() => afterFirstIdle(() => WantButton.warm()), []);
 
   useEffect(() => {
     let cancelled = false;
@@ -372,7 +392,11 @@ export function CardDetail({ id, added = false }: { id: string; added?: boolean 
 
   function toggleMenu() {
     setEditing(false);
-    setMenuOpen((open) => !open);
+    if (menuOpen) {
+      setMenuOpen(false);
+      return;
+    }
+    void openWhenWantButtonReady(() => setMenuOpen(true));
   }
 
   function setPublic(next: boolean) {
@@ -758,7 +782,7 @@ export function CardDetail({ id, added = false }: { id: string; added?: boolean 
         </section>
       )}
 
-      <LazyCardCollectorsSaying cardId={card.id} heading="Who's talking about this card" />
+      <NearCardCollectorsSaying cardId={card.id} heading="Who's talking about this card" />
     </div>
   );
 }
