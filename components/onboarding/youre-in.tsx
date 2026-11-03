@@ -58,7 +58,7 @@ export function YoureIn({ userId, username }: { userId: string; username: string
       <div
         role="status"
         aria-live="polite"
-        className="youre-in-pop relative flex items-center gap-3 overflow-hidden rounded-full border border-violet-500/30 bg-[#18181B] py-2.5 pr-5 pl-2.5 text-white shadow-[0_18px_50px_-12px_rgba(124,58,237,0.9)]"
+        className="youre-in-pop relative flex items-center gap-3 overflow-hidden rounded-full border border-white/10 bg-[#18181B] py-2.5 pr-5 pl-2.5 text-white shadow-[0_8px_24px_rgba(0,0,0,0.24)]"
       >
         <Logo className="h-9 w-9" />
         <span>

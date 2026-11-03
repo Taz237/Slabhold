@@ -394,8 +394,7 @@ function Scene({ platform, scene, steps, browser }: { platform: GuidePlatform; s
 function PhoneDemo({ platform, scene, steps, browser }: { platform: GuidePlatform; scene: number; steps: number; browser: string }) {
   return (
     <div aria-hidden className="relative mx-auto w-[160px]">
-      <div className="absolute -inset-10 rounded-full bg-[#7C3AED] opacity-30 blur-[60px]" />
-      <div className="relative h-[200px] rounded-[30px] border border-white/15 bg-[#18181B] p-[5px] shadow-[0_30px_70px_-25px_rgba(124,58,237,0.75)]">
+      <div className="relative h-[200px] rounded-[30px] border border-white/15 bg-[#18181B] p-[5px] shadow-[0_8px_24px_rgba(0,0,0,0.24)]">
         <div className="relative h-full overflow-hidden rounded-[25px] bg-[#09090B]">
           <span className="absolute top-1.5 left-1/2 z-10 h-2.5 w-12 -translate-x-1/2 rounded-full bg-black" />
           {Array.from({ length: steps + 1 }, (_, index) => (

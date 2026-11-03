@@ -103,7 +103,7 @@ export function YearStep({
                       <button
                         type="button"
                         onClick={() => onCatalogPick(card)}
-                        className={`flex min-h-20 w-full flex-col justify-between rounded-xl border border-zinc-200 bg-gradient-to-br from-violet-600/15 via-transparent to-transparent p-3 text-left hover:border-violet-400 dark:border-white/10 ${focusRing}`}
+                        className={`flex min-h-20 w-full flex-col justify-between rounded-xl border border-zinc-200 bg-zinc-50 p-3 text-left hover:border-violet-400 dark:border-white/10 dark:bg-white/[0.04] ${focusRing}`}
                       >
                         <span className="text-[13px] text-zinc-500">
                           {card.yearLabel}

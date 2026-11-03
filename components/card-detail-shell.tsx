@@ -99,7 +99,7 @@ export function CardHero({
         <CardThumb
           card={card}
           priority
-          className="h-full w-full rounded-2xl shadow-xl shadow-violet-950/30 ring-1 ring-black/10 dark:ring-white/10"
+          className="h-full w-full rounded-2xl shadow-xl shadow-black/20 ring-1 ring-black/10 dark:ring-white/10"
         />
       </div>
       <h1 className="mt-4 text-center text-3xl font-semibold tracking-tight">

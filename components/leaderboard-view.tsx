@@ -334,7 +334,7 @@ function GhostPlace({ spot }: { spot: OpenSpot }) {
         {spot.ctaLabel ? (
           <span
             aria-hidden="true"
-            className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-violet-600 text-white shadow-[0_0_16px_rgba(124,58,237,0.45)]"
+            className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-violet-600 text-white"
           >
             <Plus className="h-3.5 w-3.5" strokeWidth={2.6} />
           </span>

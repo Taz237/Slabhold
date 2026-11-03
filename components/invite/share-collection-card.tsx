@@ -128,7 +128,7 @@ export function ShareCollectionCard() {
     <section
       data-share-collection=""
       aria-labelledby="share-collection-title"
-      className="overflow-hidden rounded-3xl border border-violet-500/20 bg-white p-3 shadow-[0_16px_40px_-26px_rgba(124,58,237,0.6)] dark:border-violet-400/15 dark:bg-white/[0.03]"
+      className="overflow-hidden rounded-3xl border border-violet-500/20 bg-white p-3 shadow-[0_1px_2px_rgba(0,0,0,0.05),0_8px_24px_rgba(0,0,0,0.06)] dark:border-violet-400/15 dark:bg-white/[0.03] dark:shadow-none"
     >
       <div className="flex items-baseline justify-between gap-3 px-1 pt-0.5 pb-2.5">
         <h2 id="share-collection-title" className="text-[16px] font-semibold tracking-tight">
