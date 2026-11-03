@@ -188,7 +188,7 @@ export function PodiumRow({ entry, boardId }: { entry: BoardRow; boardId: string
         </span>
         <span className="flex min-w-0 items-center gap-1.5">
           <span className="min-w-0 truncate text-[15px] font-semibold tracking-tight">{labels.name}</span>
-          {entry.isNew ? <Tag tone="dark">NEW</Tag> : null}
+          {entry.isNew ? <Tag tone="dark">New</Tag> : null}
           {entry.mine ? <Tag tone="dark">{YOU_LABEL}</Tag> : null}
         </span>
         {labels.detail ? <span className="block truncate text-xs font-medium text-zinc-950/65">{labels.detail}</span> : null}
@@ -304,7 +304,7 @@ function PodiumPlace({ entry, boardId }: { entry: BoardRow; boardId: string }) {
         </span>
         {entry.isNew || entry.mine ? (
           <span className="flex items-center gap-1">
-            {entry.isNew ? <Tag tone="dark">NEW</Tag> : null}
+            {entry.isNew ? <Tag tone="dark">New</Tag> : null}
             {entry.mine ? <Tag tone="dark">{YOU_LABEL}</Tag> : null}
           </span>
         ) : null}
@@ -403,7 +403,7 @@ function RankRow({ entry, boardId }: { entry: BoardRow; boardId: string }) {
       <span className="min-w-0 flex-1">
         <span className="flex min-w-0 items-baseline gap-1.5">
           <span className="min-w-0 shrink-0 truncate text-sm font-semibold text-white max-w-[65%]">{labels.name}</span>
-          {entry.isNew ? <Tag tone="light">NEW</Tag> : null}
+          {entry.isNew ? <Tag tone="light">New</Tag> : null}
           {entry.mine ? <Tag tone="light">{YOU_LABEL}</Tag> : null}
           {labels.detail ? <span className="min-w-0 truncate text-xs text-zinc-500">{labels.detail}</span> : null}
         </span>
