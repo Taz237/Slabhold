@@ -292,8 +292,8 @@ describe("quick tour", () => {
       await wait(YOURE_IN_MS + 60);
       assert.equal(win.document.querySelector('[role="status"]'), null);
       assert.equal(bubble()?.getAttribute("aria-modal"), "true");
-      assert.match(bubble()?.textContent ?? "", /Your menu: profile, achievements, settings\./);
-      assert.match(bubble()?.textContent ?? "", /1 of 5/);
+      assert.match(bubble()?.textContent ?? "", /Your menu: profile, achievements, Moving today, settings\./);
+      assert.match(bubble()?.textContent ?? "", /1 of 6/);
       assert.equal(win.document.activeElement?.textContent, "Next", "focus moves into the bubble");
       assert.ok(bubble()?.getAttribute("aria-labelledby"));
       assert.ok(bubble()?.getAttribute("aria-describedby"));

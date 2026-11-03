@@ -95,16 +95,18 @@ describe("old prompts", () => {
 });
 
 describe("quick tour", () => {
-  it("has five coach marks on the real UI", () => {
+  it("has six coach marks on the real UI", () => {
     assert.deepEqual(
       TOUR_STEPS.map((step) => step.target),
-      ["menu", "add-card", "leaderboard", "collection", "messages"],
+      ["menu", "add-card", "leaderboard", "quick-comp", "collection", "messages"],
     );
-    assert.equal(TOUR_STEPS[0].body, "Your menu: profile, achievements, settings.");
+    assert.equal(TOUR_STEPS[0].body, "Your menu: profile, achievements, Moving today, settings.");
     assert.equal(TOUR_STEPS[1].body, "Add a card in seconds. We match it to real sold prices.");
     assert.equal(TOUR_STEPS[2].body, "Climb the weekly board.");
-    assert.equal(TOUR_STEPS[3].body, "Your cards and their value.");
-    assert.equal(TOUR_STEPS[4].body, "DM other collectors.");
+    assert.equal(TOUR_STEPS[3].title, "Quick Comp");
+    assert.equal(TOUR_STEPS[3].body, "Comp any card without adding it.");
+    assert.equal(TOUR_STEPS[4].body, "Your cards and their value.");
+    assert.equal(TOUR_STEPS[5].body, "DM other collectors.");
   });
 
   it("is stored per user in localStorage", () => {

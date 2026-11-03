@@ -101,6 +101,7 @@ const TAB_TOUR: Partial<Record<BottomNavTab["href"], TourTarget>> = {
   "/cards/new": "add-card",
   "/collection": "collection",
   "/messages": "messages",
+  "/comp": "quick-comp",
 };
 
 function withIcons(tabs: readonly BottomNavTab[]) {
