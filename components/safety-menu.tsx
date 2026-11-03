@@ -268,7 +268,7 @@ export function SafetyMenu({
   );
 }
 
-function ConfirmDialog({
+export function ConfirmDialog({
   title,
   body,
   confirm,

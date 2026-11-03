@@ -4,7 +4,12 @@ import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { createSupabaseServer, getAuthUserId } from "@/lib/supabase/server";
 import { adminAccess } from "./admin";
 import { blockUser } from "./block";
-import { deleteReportedTarget, hideReportedPost, reviewReport } from "./moderation";
+import {
+  deleteReportedTarget,
+  hideReportedPost,
+  reviewReport,
+  suspendReportedUser,
+} from "./moderation";
 import { saveReport, type ReportInput } from "./report";
 
 async function sessionClient() {
@@ -130,4 +135,9 @@ export async function hideReportPost(reportId: string) {
 
 export async function deleteReportTarget(reportId: string) {
   return deleteReportedTarget(reportId);
+}
+
+/** Only the report id crosses from the client. */
+export async function suspendReportUser(reportId: string) {
+  return suspendReportedUser(reportId);
 }

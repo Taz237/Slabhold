@@ -1,10 +1,11 @@
 import "server-only";
 
 import { notFound } from "next/navigation";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { userHref } from "@/lib/social/user-href";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { getAuthUserId } from "@/lib/supabase/server";
-import { adminAccess } from "./admin";
+import { adminAccess, parseAdminIds } from "./admin";
 import { REPORT_REASONS } from "./report";
 
 export type OpenReportRow = {
@@ -50,10 +51,17 @@ function reasonLabel(reason: string) {
   return REPORT_REASONS.find((item) => item.id === reason)?.label ?? reason;
 }
 
-async function requireModerator() {
-  const userId = await getAuthUserId();
-  if (adminAccess(userId) !== "allow" || !userId) notFound();
-  const admin = createSupabaseAdmin();
+/** Test seams. Production callers pass nothing. */
+export type ModeratorDeps = {
+  getUserId?: () => Promise<string | null>;
+  createAdmin?: () => SupabaseClient | null;
+  adminIds?: string;
+};
+
+async function requireModerator(deps: ModeratorDeps = {}) {
+  const userId = await (deps.getUserId ?? getAuthUserId)();
+  if (adminAccess(userId, deps.adminIds) !== "allow" || !userId) notFound();
+  const admin = (deps.createAdmin ?? createSupabaseAdmin)();
   if (!admin) return { userId, admin: null as null };
   return { userId, admin };
 }
@@ -142,8 +150,8 @@ async function stamp(
   reportId: string,
   adminId: string,
   status: "reviewed" | "actioned",
+  admin: SupabaseClient | null = createSupabaseAdmin(),
 ) {
-  const admin = createSupabaseAdmin();
   if (!admin) return "Moderation is unavailable right now.";
   const { error } = await admin
     .from("reports")
@@ -202,5 +210,44 @@ export async function deleteReportedTarget(reportId: string): Promise<{ error?: 
     return { error: "This report isn't about a post or reply." };
   }
   const failed = await stamp(reportId, userId, "actioned");
+  return failed ? { error: failed } : {};
+}
+
+/** Supabase Auth's built-in ban, about 100 years. Lifted in the dashboard (Unban). */
+export const SUSPEND_BAN_DURATION = "876000h";
+
+/**
+ * Suspends the reported account: an Auth ban so they can't log in, and every
+ * post of theirs hidden the way hideReportedPost hides one.
+ */
+export async function suspendReportedUser(
+  reportId: string,
+  deps: ModeratorDeps = {},
+): Promise<{ error?: string }> {
+  const { userId, admin } = await requireModerator(deps);
+  if (!admin) return { error: "Moderation is unavailable right now." };
+  const { data, error } = await admin
+    .from("reports")
+    .select("reported_user_id")
+    .eq("id", reportId)
+    .maybeSingle();
+  if (error) return { error: error.message };
+  const reportedId = typeof data?.reported_user_id === "string" ? data.reported_user_id : null;
+  if (!reportedId) return { error: "That report is gone." };
+  const adminIds = parseAdminIds(deps.adminIds ?? process.env.ADMIN_USER_IDS);
+  if (reportedId === userId || adminIds.includes(reportedId)) {
+    return { error: "You can't suspend a moderator account." };
+  }
+  const banned = await admin.auth.admin.updateUserById(reportedId, {
+    ban_duration: SUSPEND_BAN_DURATION,
+  });
+  if (banned.error) return { error: banned.error.message };
+  const hidden = await admin
+    .from("posts")
+    .update({ hidden_at: new Date().toISOString(), hidden_by: userId })
+    .eq("user_id", reportedId)
+    .is("hidden_at", null);
+  if (hidden.error) return { error: hidden.error.message };
+  const failed = await stamp(reportId, userId, "actioned", admin);
   return failed ? { error: failed } : {};
 }
