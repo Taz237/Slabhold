@@ -162,7 +162,7 @@ export function QuickCompResult({
           sample={payload.sample}
           lockedToComps
           lowConfidence={false}
-          heading="Recent sales"
+          heading="Median sold price"
           stableLayout
         />
       ) : (
