@@ -1,4 +1,5 @@
 import type { CatalogCard } from "@/lib/card-catalog";
+import { middleFifty } from "@/lib/comps/stats";
 import type { CompListing } from "@/lib/types";
 import type { QuickCompIdentity } from "./identity";
 import type { QuickCompPayload } from "./lookup";
@@ -6,7 +7,7 @@ import { safePhoto, type QuickCompPhoto } from "./photo";
 
 /** Comps kept on this device. Never the shared recent-search key. */
 export const QUICK_COMP_RECENT_LIMIT = 10;
-/** Sales kept per saved comp, enough to redraw the chart and the list. */
+/** Sales kept per comp. The headline, the stats and the list are all priced from these. */
 const SAVED_SALES_LIMIT = 30;
 
 export function quickCompRecentKey(userId: string): string {
@@ -97,14 +98,31 @@ export function readRecentComps(store: Store | null, userId: string | null): Rec
     if (!raw) return [];
     const parsed: unknown = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
-    return parsed.filter(validRecent).slice(0, QUICK_COMP_RECENT_LIMIT);
+    return parsed
+      .filter(validRecent)
+      .slice(0, QUICK_COMP_RECENT_LIMIT)
+      // Rows saved before the headline was priced from the kept sales carry the all-sales median.
+      .map((row) => ({ ...row, payload: fromListedSales(row.payload) }));
   } catch {
     return [];
   }
 }
 
+/**
+ * Keep the newest sales and price exactly those, with the server's own
+ * middleFifty, so the headline, the count, the stats and the list agree.
+ * lowConfidence stays the server's call: the cut only drops sales past 30,
+ * and low confidence means fewer than 5. The photo is left as it came,
+ * including undefined on rows saved before it shipped.
+ */
+export function fromListedSales<T extends SavedPayload>(payload: T): T {
+  const comps = payload.comps.slice(0, SAVED_SALES_LIMIT);
+  const stats = middleFifty(comps.map((comp) => comp.soldPrice));
+  return { ...payload, comps, median: stats.median, p25: stats.p25, p75: stats.p75, count: comps.length };
+}
+
 export function savedPayload(payload: QuickCompPayload): SavedPayload {
-  return {
+  return fromListedSales({
     median: payload.median,
     p25: payload.p25,
     p75: payload.p75,
@@ -113,9 +131,9 @@ export function savedPayload(payload: QuickCompPayload): SavedPayload {
     fetchedAt: payload.fetchedAt,
     lowConfidence: payload.lowConfidence,
     sample: payload.sample,
-    comps: payload.comps.slice(0, SAVED_SALES_LIMIT),
+    comps: payload.comps,
     photo: safePhoto(payload.photo),
-  };
+  });
 }
 
 /** Put this comp first, drop an older copy of the same key, keep the last 10. */
