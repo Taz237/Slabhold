@@ -38,12 +38,13 @@ export function lostWriteBackoffMs(retry: number, random: () => number = Math.ra
 }
 
 /**
- * After every lost-write retry is used up. Want checks and Trawl stay blocked.
+ * After every lost-write retry is used up. Want checks, Trawl and the Quick
+ * Comp daily cap stay blocked.
  * Card values (including anonymous), comps, and any other bucket are allowed.
  * A burst under the limit is expected to pass.
  */
 export function allowsAfterLostWrite(bucket: string): boolean {
-  return bucket !== "want_match" && bucket !== "trawl";
+  return bucket !== "want_match" && bucket !== "trawl" && bucket !== "quick_comp_day";
 }
 
 function defaultSleep(ms: number): Promise<void> {
