@@ -6,9 +6,12 @@ import { describe, it } from "node:test";
 import {
   allowsAfterLostWrite,
   consumeBucketWithStore,
+  failsClosedOnError,
   type BucketRow,
   type BucketStore,
 } from "@/lib/comps/rate-limit-loop";
+import { consumeTrawlLimit } from "@/lib/comps/rate-limit";
+import { consumeQuickCompDayLimit } from "./limits-server";
 import { getQuickComp, type QuickCompDeps } from "./lookup";
 import type { CacheFn } from "./cache";
 import type { QuickCompIdentity } from "./identity";
@@ -187,5 +190,52 @@ describe("quick comp daily cap", () => {
     const source = readFileSync(join(process.cwd(), "lib/quick-comp/limits-server.ts"), "utf8");
     assert.match(source, /consumeRateLimit\(userId, QUICK_COMP_DAY_BUCKET, QUICK_COMP_DAY_MS, QUICK_COMP_DAILY_LIMIT\)/);
     assert.match(source, /consumeHourly: consumeTrawlLimit/);
+  });
+
+  it("fails closed on a read error, and trawl still fails open", async () => {
+    const unreadable: BucketStore = {
+      async read() {
+        return { count: null, error: "fixture read error" };
+      },
+      async insert() {
+        throw new Error("unreachable");
+      },
+      async update() {
+        throw new Error("unreachable");
+      },
+    };
+    assert.equal(failsClosedOnError(QUICK_COMP_DAY_BUCKET), true);
+    assert.equal(failsClosedOnError("trawl"), false);
+    assert.equal(await consumeBucketWithStore(unreadable, row, QUICK_COMP_DAILY_LIMIT), false);
+    assert.equal(await consumeBucketWithStore(unreadable, { ...row, bucket: "trawl" }, 5), true);
+  });
+
+  it("fails closed on a write error, and trawl still fails open", async () => {
+    for (const count of [null, 3]) {
+      const unwritable: BucketStore = {
+        async read() {
+          return { count };
+        },
+        async insert() {
+          return { ok: false, conflict: false, error: "fixture write error" };
+        },
+        async update() {
+          return { ok: false, conflict: false, error: "fixture write error" };
+        },
+      };
+      assert.equal(await consumeBucketWithStore(unwritable, row, QUICK_COMP_DAILY_LIMIT), false, String(count));
+      assert.equal(await consumeBucketWithStore(unwritable, { ...row, bucket: "trawl" }, 5), true, String(count));
+    }
+  });
+
+  it("fails closed with no admin client, and trawl still fails open", async () => {
+    const saved = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+    try {
+      assert.equal(await consumeQuickCompDayLimit("fixture-user"), false);
+      assert.equal(await consumeTrawlLimit("fixture-user"), true);
+    } finally {
+      if (saved != null) process.env.SUPABASE_SERVICE_ROLE_KEY = saved;
+    }
   });
 });

@@ -2,7 +2,7 @@ import "server-only";
 
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { anonymousSubject } from "./anon-subject";
-import { consumeBucketWithStore, type BucketStore } from "./rate-limit-loop";
+import { consumeBucketWithStore, failsClosedOnError, type BucketStore } from "./rate-limit-loop";
 import { WANT_MATCH_WINDOW_MS } from "./rate-window";
 
 export { WANT_MATCH_WINDOW_MS };
@@ -76,7 +76,8 @@ function alignedWindowStart(periodMs: number): string {
 
 /**
  * Increment a rate-limit bucket. Returns false when over the limit.
- * Fail-open if the service-role client or table is unavailable (cache still works).
+ * Fail-open if the service-role client or table is unavailable (cache still works),
+ * except quick_comp_day, which fails closed (failsClosedOnError).
  * A parallel burst reads a count and writes the next one only while that count
  * is still current, pausing briefly between lost writes. After the last lost
  * write, want_match and trawl are blocked. Card values, comps, and anonymous
@@ -91,7 +92,7 @@ async function consumeBucket(
   limit: number,
 ): Promise<boolean> {
   const client = createSupabaseAdmin();
-  if (!client) return true;
+  if (!client) return !failsClosedOnError(bucket);
 
   const windowStart = alignedWindowStart(windowMs);
   const row = { table, subjectColumn, subject, bucket, windowStart };
