@@ -38,12 +38,21 @@ export function lostWriteBackoffMs(retry: number, random: () => number = Math.ra
 }
 
 /**
- * After every lost-write retry is used up. Want checks and Trawl stay blocked.
+ * After every lost-write retry is used up. Want checks, Trawl and the Quick
+ * Comp daily cap stay blocked.
  * Card values (including anonymous), comps, and any other bucket are allowed.
  * A burst under the limit is expected to pass.
  */
 export function allowsAfterLostWrite(bucket: string): boolean {
-  return bucket !== "want_match" && bucket !== "trawl";
+  return bucket !== "want_match" && bucket !== "trawl" && bucket !== "quick_comp_day";
+}
+
+/**
+ * Buckets that block when the store cannot be read or written, or there is no
+ * store at all. Every other bucket fails open, as before.
+ */
+export function failsClosedOnError(bucket: string): boolean {
+  return bucket === "quick_comp_day";
 }
 
 function defaultSleep(ms: number): Promise<void> {
@@ -54,7 +63,8 @@ function defaultSleep(ms: number): Promise<void> {
 
 /**
  * Read a bucket and write the next count only while the read is still current.
- * A read error or a non-conflict write error allows the request. A count that
+ * A read error or a non-conflict write error allows the request, except for
+ * quick_comp_day (failsClosedOnError), which it blocks. A count that
  * is already at the limit blocks it. Lost writes retry with a short jittered
  * pause. The last lost write blocks want_match and trawl, and allows card
  * values, comps, and anonymous card values.
@@ -73,7 +83,7 @@ export async function consumeBucketWithStore(
     if (attempt > 0) await sleep(lostWriteBackoffMs(attempt, random));
 
     const read = await store.read(row);
-    if (read.error) return true;
+    if (read.error) return !failsClosedOnError(row.bucket);
 
     const current = read.count ?? 0;
     if (current >= limit) return false;
@@ -82,7 +92,8 @@ export async function consumeBucketWithStore(
       read.count == null
         ? await store.insert(row, current + 1)
         : await store.update(row, current, current + 1);
-    if (write.ok || !write.conflict) return true;
+    if (write.ok) return true;
+    if (!write.conflict) return !failsClosedOnError(row.bucket);
   }
 
   // want_match and trawl may deny a call that is still slightly under the
