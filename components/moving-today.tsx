@@ -183,7 +183,7 @@ export function Freshness({
     <span data-freshness="">
       {lead ? " · " : ""}
       {fresh.live ? (
-        <span className="font-mono text-[10px] font-semibold tracking-wider text-emerald-600 uppercase dark:text-emerald-400">
+        <span className="font-medium text-emerald-600 dark:text-emerald-400">
           Live ·{" "}
         </span>
       ) : null}
@@ -207,7 +207,7 @@ export function NewChip() {
   return (
     <span
       data-new-chip=""
-      className="inline-flex shrink-0 items-center rounded-full bg-zinc-500/15 px-1.5 py-0.5 font-mono text-[9px] leading-[14px] font-semibold tracking-wider text-zinc-600 uppercase dark:text-zinc-300"
+      className="inline-flex shrink-0 items-center rounded-full bg-zinc-500/15 px-1.5 py-0.5 text-[12px] leading-4 font-medium text-zinc-600 dark:text-zinc-300"
     >
       New
     </span>
@@ -325,7 +325,7 @@ export function MovingTodayPanel({ payload }: { payload: MovingTodayPayload }) {
     >
       <div className="flex h-6 items-center gap-1.5 px-4">
         <FreshnessDot day={day} />
-        <h2 className="shrink-0 text-[15px] leading-6 font-bold tracking-tight">{payload.title}</h2>
+        <h2 className="shrink-0 text-[15px] leading-6 font-semibold tracking-tight">{payload.title}</h2>
         <p className="min-w-0 flex-1 truncate text-[11px] text-zinc-500">
           {range ? <span className="font-mono">· {range}</span> : null}
           <Freshness payload={payload} lead={Boolean(range)} short />

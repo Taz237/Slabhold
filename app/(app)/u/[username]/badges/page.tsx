@@ -35,7 +35,7 @@ export default async function ProfileBadgesPage({ params }: Props) {
       >
         <ChevronLeft aria-hidden className="h-5 w-5" />@{badges.username}
       </Link>
-      <h1 className="mt-1 text-2xl font-bold tracking-tight">Badges</h1>
+      <h1 className="mt-1 text-2xl font-semibold tracking-tight">Badges</h1>
       <p className="mt-1 text-sm text-zinc-500">
         {earned.length} earned by @{badges.username}
       </p>

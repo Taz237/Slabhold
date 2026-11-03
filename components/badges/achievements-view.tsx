@@ -109,12 +109,12 @@ function Achievements({ state }: { state: AchievementsState }) {
           <div className="flex items-center justify-between gap-2">
             <h2
               id="pinned-heading"
-              className="font-mono text-[11px] font-medium text-[#A78BFA]"
+              className="text-[13px] font-medium text-[#A78BFA]"
             >
               Pinned on your profile
             </h2>
             {shown.length > 0 && auto ? (
-              <span className="rounded-full bg-white/10 px-2 py-0.5 font-mono text-[10px] text-zinc-300">
+              <span className="rounded-full bg-white/10 px-2 py-0.5 text-[12px] text-zinc-300">
                 Auto
               </span>
             ) : null}
@@ -271,7 +271,7 @@ function LimitedRow() {
         <p className="text-[15px] font-semibold">{CATEGORY_COPY.limited.label}</p>
         <p className="mt-0.5 text-[13px] text-zinc-500">{CATEGORY_COPY.limited.rule}</p>
       </div>
-      <span className="shrink-0 rounded-full bg-zinc-100 px-2.5 py-1 font-mono text-[10px] text-zinc-500 dark:bg-white/10 dark:text-zinc-400">
+      <span className="shrink-0 rounded-full bg-zinc-100 px-2.5 py-1 text-[12px] text-zinc-500 dark:bg-white/10 dark:text-zinc-400">
         Coming soon
       </span>
     </div>
