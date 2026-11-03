@@ -232,3 +232,24 @@ describe("Quick Comp screen", () => {
     assert.match(lazy, /lazyPart<Props>\(\s*\(\) => import\("\.\/quick-comp-view"\)/);
   });
 });
+
+describe("Quick Comp Home entry", () => {
+  it("draws nothing on Home with the flag off", () => {
+    assert.equal(process.env.NEXT_PUBLIC_QUICK_COMP, undefined);
+    const feed = read("components/home-feed.tsx");
+    // The only Quick Comp markup is behind the flag, first in the For you slot.
+    assert.match(feed, /<>\s*\{quickCompEnabled\(\) \? <QuickCompHomeLink \/> : null\}\s*\{movers \? <MovingTodayCached payload=\{movers\} \/> : <MovingToday \/>\}\s*<LeaderboardHomeLink \/>\s*<\/>/);
+    assert.equal(count(feed, "QuickComp"), 2);
+  });
+
+  it("is a 44px link to /comp with one icon size and the secondary label", async () => {
+    const { QuickCompHomeLink } = await import("@/components/quick-comp-home-link");
+    const html = renderToStaticMarkup(createElement(QuickCompHomeLink));
+    assert.match(html, /href="\/comp"/);
+    assert.match(html, /min-h-11/);
+    assert.match(html, /<span class="font-medium">Comp a card<\/span>/);
+    assert.match(html, /Recent sold prices/);
+    assert.equal(count(html, 'width="16"'), 2);
+    assert.equal(count(html, 'stroke-width="1.5"'), 2);
+  });
+});
