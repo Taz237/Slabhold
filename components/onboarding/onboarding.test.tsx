@@ -145,6 +145,8 @@ beforeEach(async () => {
   const { resetOnboarding } = await import("@/lib/onboarding/store");
   resetOnboarding();
   win.localStorage.clear();
+  // These tests start at "What do you collect?": the new-account intro has its own tests.
+  win.localStorage.setItem("slabhold.intro.seen.user-ada", "1");
   pushed.length = 0;
   followed.length = 0;
 });
