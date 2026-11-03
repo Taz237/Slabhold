@@ -227,7 +227,7 @@ describe("inbox", () => {
     assert.ok(adas.querySelector("[data-unread-dot]"));
     assert.match(adas.querySelector("[data-unread-dot]")?.className ?? "", /bg-\[#7C3AED\]|bg-violet-600/);
     assert.match(adas.textContent ?? "", /2 unread/);
-    assert.match(adas.querySelector("[data-conversation-name]")?.className ?? "", /font-bold/);
+    assert.match(adas.querySelector("[data-conversation-name]")?.className ?? "", /font-semibold/);
     assert.equal(sams.getAttribute("data-unread"), "false");
     assert.equal(sams.querySelector("[data-unread-dot]"), null);
     assert.match(sams.textContent ?? "", /You: Nice pull/);

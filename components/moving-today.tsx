@@ -45,9 +45,6 @@ export const MoversSignedIn = createContext(true);
 export const RAIL_TOP_WIDTH = "w-[132px]";
 export const RAIL_TILE_WIDTH = "w-[120px]";
 
-/** A soft purple glow on the top mover's slab only, not a box around the tile. */
-export const TOP_GLOW = "[&_[data-kind]]:drop-shadow-[0_10px_22px_rgba(124,58,237,0.42)]";
-
 /** Tiles past the first three start off screen: they skip layout and paint until swiped near. */
 const RAIL_PAINTED_TILES = 3;
 
@@ -227,7 +224,7 @@ export function MoverTile({
   index: number;
   /** Prefetch when on screen. Only tiles in the first view do, so a swipe or scroll fetches nothing. */
   prefetch?: boolean;
-  /** Top is the rail's first, wider tile. Its glow and badge are for a mover only. */
+  /** Top is the rail's first, wider tile. Its badge is for a mover only. */
   variant: "top" | "rail" | "grid";
   animate?: boolean;
   className?: string;
@@ -255,7 +252,7 @@ export function MoverTile({
       sizes={rail ? "120px" : "(min-width: 640px) 170px, 50vw"}
       className={
         rail
-          ? `shrink-0 snap-start ${lead ? `${RAIL_TOP_WIDTH} ${mover ? TOP_GLOW : ""}` : RAIL_TILE_WIDTH} ${
+          ? `shrink-0 snap-start ${lead ? RAIL_TOP_WIDTH : RAIL_TILE_WIDTH} ${
               index >= RAIL_PAINTED_TILES ? OFFSCREEN_TILE : ""
             } ${animate && index < STAGGER_TILES ? ENTER : ""}`
           : `min-w-0 ${className}`

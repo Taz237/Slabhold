@@ -185,7 +185,7 @@ describe("after signing up through an invite", () => {
     assert.match(accept, /supabase\.rpc\("accept_invite", \{ inviter_username: username, code \}\)/);
     const welcome = readFileSync(join(process.cwd(), "components/invite/invite-welcome.tsx"), "utf8");
     assert.match(welcome, /await acceptInvite\(supabase, handle, invite\.code\)/);
-    assert.match(welcome, /You&apos;re following <b className="font-bold">\{name\}<\/b>, and they follow you back\./);
+    assert.match(welcome, /You&apos;re following <b className="font-semibold">\{name\}<\/b>, and they follow you back\./);
     assert.match(welcome, /if \(isFollowing\(inviter\.id\)\) void toggleFollow\(inviter\.id\);/);
     const { InviteWelcomeNote } = await import("@/components/invite/invite-welcome");
     let undone = 0;

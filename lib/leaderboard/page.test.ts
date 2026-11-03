@@ -287,7 +287,7 @@ describe("leaderboard page", () => {
     assert.doesNotMatch(html, /href="\/u\/u1(?:\?tab=cards)?"/);
     assert.doesNotMatch(html, /href="\/u\/zero(?:\?tab=cards)?"/);
     assert.match(html, /data-viewer-row=""/);
-    assert.match(html, />NEW</);
+    assert.match(html, />New</);
     const rankRows = html.match(/<ol [^>]*data-rank-rows="">([\s\S]*?)<\/ol>/)?.[1] ?? "";
     const rowClasses = [...rankRows.matchAll(/<li [^>]*data-rank="\d+"[^>]*><(?:a|div) [^>]*class="([^"]*)"/g)].map((m) => m[1].split(/\s+/));
     assert.equal(rowClasses.length, (rankRows.match(/<li /g) ?? []).length);

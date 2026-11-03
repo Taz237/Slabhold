@@ -144,7 +144,7 @@ function ConversationRow({ conversation, viewerId }: { conversation: Conversatio
         <span className="flex items-baseline gap-1.5">
           <span
             data-conversation-name=""
-            className={`min-w-0 truncate text-[15px] tracking-tight ${fresh ? "font-bold" : "font-semibold"}`}
+            className={`min-w-0 truncate text-[15px] tracking-tight ${fresh ? "font-semibold" : "font-medium"}`}
           >
             {person.displayName}
           </span>

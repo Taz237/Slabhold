@@ -19,9 +19,8 @@ export function postCardHref({
   return owned ? `/cards/${cardId}` : `${userHref(username)}/cards/${encodeURIComponent(cardId)}`;
 }
 
-/** Centered at 60% with a cap, and a soft purple glow behind the art (isolate keeps it under the tile). */
-const POST_TILE_FRAME =
-  "isolate mx-auto mt-3 w-[60%] max-w-[260px] before:pointer-events-none before:absolute before:inset-x-[12%] before:top-[10%] before:bottom-[28%] before:-z-10 before:rounded-2xl before:shadow-[0_18px_40px_-8px_rgba(124,58,237,0.5)] before:content-[''] dark:before:shadow-[0_18px_44px_-6px_rgba(124,58,237,0.6)]";
+/** Centered at 60% with a cap, so the card reads without taking over the feed. */
+const POST_TILE_FRAME = "isolate mx-auto mt-3 w-[60%] max-w-[260px]";
 
 /** The card on a post: a Collection slab tile, centered, so it doesn't take over the feed. */
 export function PostCardTile({

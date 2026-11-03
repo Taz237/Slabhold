@@ -9,7 +9,6 @@ import {
   Freshness,
   FreshnessDot,
   MoverTile,
-  TOP_GLOW,
 } from "@/components/moving-today";
 import { ShareIconButton } from "@/components/share-button";
 import { useReducedMotion } from "@/components/timeline-ui";
@@ -55,16 +54,6 @@ const CHROME = "bg-[var(--chrome-bg)] backdrop-blur-xl backdrop-saturate-150";
 const PRIMARY =
   "inline-flex min-h-11 items-center justify-center rounded-full bg-violet-600 px-5 text-sm font-semibold text-white transition-transform duration-150 ease-out motion-safe:active:scale-[0.97]";
 
-function HeroBackdrop() {
-  return (
-    <div
-      aria-hidden="true"
-      data-moving-backdrop=""
-      className="pointer-events-none absolute inset-x-0 top-0 h-96 bg-[radial-gradient(ellipse_at_top,rgba(124,58,237,0.10),transparent_60%)] dark:bg-[radial-gradient(ellipse_at_top,rgba(124,58,237,0.18),transparent_60%)]"
-    />
-  );
-}
-
 function TopRow({ payload }: { payload: MovingTodayPayload }) {
   return (
     <div className="flex items-center justify-between px-2 pt-2">
@@ -98,7 +87,7 @@ function Featured({ payload, reduced }: { payload: MovingTodayPayload; reduced: 
         prefetch
         as="div"
         sizes="172px"
-        className={`w-[172px] shrink-0 ${TOP_GLOW} ${reduced ? "" : ENTER}`}
+        className={`w-[172px] shrink-0 ${reduced ? "" : ENTER}`}
       />
       <div className="min-w-0 flex-1 pb-12">
         <p className="font-mono text-[10px] font-semibold text-[#7C3AED] dark:text-[#A78BFA]">
@@ -345,7 +334,6 @@ export function MovingTodayAll({
   if (payload.sales.length === 0) {
     return (
       <div className="relative -mx-4 -mt-5" data-moving-all="">
-        <HeroBackdrop />
         <div className="relative">
           <TopRow payload={payload} />
           <MovingEmpty signedIn={signedIn} />
@@ -357,7 +345,6 @@ export function MovingTodayAll({
   const animate = !switched && !reduced;
   return (
     <div className="relative -mx-4 -mt-5" data-moving-all="">
-      <HeroBackdrop />
       <div className="relative">
         <TopRow payload={payload} />
         <Hero payload={payload} reduced={reduced} />

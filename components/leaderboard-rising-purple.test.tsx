@@ -52,7 +52,7 @@ describe("Rising collectors board in Slabhold purple", () => {
 
   it("keeps rank numerals at 4.5:1 or better on the board and the viewer's tinted row", () => {
     const html = risingBoard();
-    const colors = [...html.matchAll(/text-sm font-black tabular-nums" style="color:(#[0-9a-f]{6})"/gi)].map((m) => m[1]);
+    const colors = [...html.matchAll(/text-sm font-semibold tabular-nums" style="color:(#[0-9a-f]{6})"/gi)].map((m) => m[1]);
     assert.ok(colors.length > 0, "rank rows render a numeral color");
     const text = colors[0];
     assert.ok(colors.every((color) => color === text), "one numeral color per board");

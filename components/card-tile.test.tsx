@@ -162,7 +162,7 @@ describe("390px layout", () => {
       assert.match(name, /\bmin-w-0\b/);
       assert.match(name, /\btruncate\b/);
       assert.match(html, /<p class="[^"]*\btruncate\b[^"]*">[^<]*Giannis[^<]*<\/p>/);
-      assert.match(html, /<p class="min-w-0 truncate text-sm font-bold[^"]*" title=/);
+      assert.match(html, /<p class="min-w-0 truncate text-sm font-semibold[^"]*" title=/);
       assert.doesNotMatch(html, /(?<![\w-])(?:w|min-w)-\[\d+px\]/);
     }
   });

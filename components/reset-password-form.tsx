@@ -48,7 +48,7 @@ export function ResetPasswordForm() {
       <div className="mx-auto max-w-md">
         <Link href="/" className="mb-8 flex items-center gap-2">
           <Logo />
-          <span className="text-[17px] font-bold tracking-tight">Slabhold</span>
+          <span className="text-[17px] font-semibold tracking-tight">Slabhold</span>
         </Link>
         <h1 className="text-2xl font-semibold tracking-tight">Password updated</h1>
         <p className="mt-1 text-sm text-zinc-500">
@@ -75,7 +75,7 @@ export function ResetPasswordForm() {
     <div className="mx-auto max-w-md">
       <Link href="/" className="mb-8 flex items-center gap-2">
         <Logo />
-        <span className="text-[17px] font-bold tracking-tight">Slabhold</span>
+        <span className="text-[17px] font-semibold tracking-tight">Slabhold</span>
       </Link>
       <h1 className="text-2xl font-semibold tracking-tight">Choose a new password</h1>
       <p className="mt-1 text-sm text-zinc-500">Then we will take you home.</p>
