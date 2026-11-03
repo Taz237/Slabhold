@@ -36,9 +36,14 @@
   --font-mono: var(--font-geist-mono);
 }
 
-/* Brand purple. Every violet-600 class and var(--color-violet-600) is exactly #7C3AED. */
+/* Brand purple. Every violet-600 class and var(--color-violet-600) is exactly #7C3AED.
+   The steps around it are the ramp #7C3AED comes from, so 400 is the #A78BFA dark accent. */
 @theme {
+  --color-violet-300: #C4B5FD;
+  --color-violet-400: #A78BFA;
+  --color-violet-500: #8B5CF6;
   --color-violet-600: #7C3AED;
+  --color-violet-700: #6D28D9;
 }
 
 body {
