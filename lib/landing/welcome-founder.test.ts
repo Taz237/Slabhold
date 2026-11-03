@@ -78,7 +78,7 @@ describe("/welcome founder read", () => {
     assert.doesNotMatch(welcome, /[^e]founderShowcase\(\)/i);
     assert.match(welcome, /export const revalidate = 1800;/);
     const home = readFileSync(join(process.cwd(), "app/(app)/page.tsx"), "utf8");
-    assert.match(home, /founderShowcase\(\), movers\(\)/);
+    assert.match(home, /const founder = await founderShowcase\(\);/);
     assert.doesNotMatch(home, /welcomeFounderShowcase/);
   });
 });

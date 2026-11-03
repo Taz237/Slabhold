@@ -897,8 +897,9 @@ describe("Moving today cache", () => {
     const cachedCall = load.indexOf("unstable_cache(");
     const freshenCall = load.indexOf("return freshenMovingToday");
     assert.ok(cachedCall > 0 && freshenCall > cachedCall);
-    // Home still reads the movers; the timeline no longer draws them.
-    assert.match(home, /getMovingToday\(\)/);
+    // Home doesn't read the movers; /moving-today, its share image and the API route do.
+    assert.doesNotMatch(home, /getMovingToday|moving-today\/load/);
+    assert.match(read("app/(app)/moving-today/page.tsx"), /getMovingToday\(\)/);
     const slot = read("components/home-feed.tsx");
     assert.doesNotMatch(slot, /connection\(/);
     assert.doesNotMatch(slot, /MovingToday/);

@@ -212,7 +212,6 @@ describe("Quick Comp screen", () => {
         .filter((name) => name.endsWith(".tsx") || name.endsWith(".ts"))
         .filter((name) => !name.endsWith(".test.tsx"))
         .map((name) => `${dir}/${name}`),
-      "components/quick-comp-home-link.tsx",
       "app/(app)/comp/page.tsx",
     ];
     for (const file of files) {
@@ -239,16 +238,5 @@ describe("Quick Comp Home entry", () => {
     const feed = read("components/home-feed.tsx");
     // Home has no Quick Comp row, flag on or off
     assert.doesNotMatch(feed, /QuickComp|MovingToday|LeaderboardHomeLink/);
-  });
-
-  it("is a 44px link to /comp with one icon size and the secondary label", async () => {
-    const { QuickCompHomeLink } = await import("@/components/quick-comp-home-link");
-    const html = renderToStaticMarkup(createElement(QuickCompHomeLink));
-    assert.match(html, /href="\/comp"/);
-    assert.match(html, /min-h-11/);
-    assert.match(html, /<span class="font-medium">Quick Comp<\/span>/);
-    assert.match(html, /Recent sold prices/);
-    assert.equal(count(html, 'width="16"'), 2);
-    assert.equal(count(html, 'stroke-width="1.5"'), 2);
   });
 });
