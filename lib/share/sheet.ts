@@ -49,16 +49,55 @@ export async function shareOrCopy(
   return copied ? "copied" : "failed";
 }
 
-/** iPhone and other native sheets first. No share API, or a failed one, opens our own sheet. */
+export type NativeShareData = SharePayload & { files?: File[] };
+
+export type NativeShareOptions = {
+  /** Clock for minCancelMs, e.g. performance.now. */
+  now?: () => number;
+  /**
+   * An AbortError sooner than this is a share that failed to show, not a
+   * person tapping Cancel. iOS rejects with AbortError for both.
+   */
+  minCancelMs?: number;
+  /** Shared with the link when canShare accepts them. */
+  files?: File[];
+  canShare?: (data: NativeShareData) => boolean;
+};
+
+function withFiles(payload: SharePayload, options: NativeShareOptions): NativeShareData {
+  const { files, canShare } = options;
+  if (!files?.length || typeof canShare !== "function") return payload;
+  const data = { ...payload, files };
+  try {
+    return canShare(data) ? data : payload;
+  } catch {
+    return payload;
+  }
+}
+
+/**
+ * iPhone and other native sheets first. No share API, or a failed one, opens our own sheet.
+ * With minCancelMs, an AbortError that comes back too fast opens our sheet too.
+ */
 export async function nativeShareOrSheet(
   payload: SharePayload,
-  share: ((data: SharePayload) => Promise<void>) | undefined,
+  share: ((data: NativeShareData) => Promise<void>) | undefined,
+  options?: NativeShareOptions,
 ): Promise<"shared" | "cancelled" | "sheet"> {
   if (typeof share !== "function") return "sheet";
+  const data = options ? withFiles(payload, options) : payload;
+  const now = options?.now ?? Date.now;
+  const started = now();
   try {
-    await share(payload);
+    await share(data);
     return "shared";
   } catch (error) {
-    return isShareAbort(error) ? "cancelled" : "sheet";
+    if (options && process.env.NODE_ENV !== "production") {
+      console.info("[share]", (error as { name?: unknown } | null)?.name);
+    }
+    if (!isShareAbort(error)) return "sheet";
+    const minCancelMs = options?.minCancelMs;
+    if (typeof minCancelMs === "number" && now() - started < minCancelMs) return "sheet";
+    return "cancelled";
   }
 }

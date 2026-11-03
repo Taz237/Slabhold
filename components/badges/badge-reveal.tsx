@@ -48,6 +48,30 @@ export function BadgeRevealGate({ userId, username }: { userId: string; username
   );
 }
 
+/**
+ * The share image, fetched when the reveal opens so the tap never waits on it.
+ * Until it lands, or if it fails, Share sends the link alone.
+ */
+function usePrefetchedFile(src: string | null, name: string) {
+  const file = useRef<File | null>(null);
+  useEffect(() => {
+    file.current = null;
+    if (!src || typeof fetch !== "function" || typeof File !== "function") return;
+    let cancelled = false;
+    void Promise.resolve()
+      .then(() => fetch(src))
+      .then((response) => (response.ok ? response.blob() : null))
+      .then((blob) => {
+        if (!cancelled && blob) file.current = new File([blob], name, { type: blob.type || "image/png" });
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [src, name]);
+  return file;
+}
+
 export function BadgeRevealView({
   reveal,
   pinned,
@@ -71,6 +95,10 @@ export function BadgeRevealView({
     pinned.includes(`${reveal.headline.category}:${reveal.headline.tier}`) ? "pinned" : "idle",
   );
   const { headline } = reveal;
+  const imageFile = usePrefetchedFile(
+    username ? badgeImagePath(username, headline.category, headline.tier) : null,
+    `slabhold-badge-${headline.category}-${headline.tier}.png`,
+  );
 
   useEffect(() => {
     const previous = document.body.style.overflow;
@@ -184,6 +212,10 @@ export function BadgeRevealView({
                   title: `${TIER_LABELS[headline.tier]} ${CATEGORY_COPY[headline.category].label}`,
                   text: badgeShareText(headline.category, headline.tier),
                   imagePath: badgeImagePath(username, headline.category, headline.tier),
+                  // Read on the tap, so a file that landed after render still goes along.
+                  get files() {
+                    return imageFile.current ? [imageFile.current] : undefined;
+                  },
                   source: "badge",
                 }}
               />

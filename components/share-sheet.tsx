@@ -19,8 +19,13 @@ export type ShareTarget = {
   text: string;
   /** 1080×1350 PNG for Instagram. */
   imagePath?: string;
+  /** Shared with the link where the native sheet takes files. Never awaited on the tap. */
+  files?: File[];
   source: ShareSource;
 };
+
+/** An AbortError sooner than this is a share that failed to show, not a Cancel. */
+export const MIN_CANCEL_MS = 400;
 
 /** The absolute link with ref=share. Before the browser takes over, the bare path. */
 export function shareUrl(path: string): string {
@@ -45,6 +50,15 @@ export function useShareSheet(target: ShareTarget) {
     const result = await nativeShareOrSheet(
       { title: target.title, text: target.text, url },
       typeof navigator !== "undefined" && navigator.share ? navigator.share.bind(navigator) : undefined,
+      {
+        minCancelMs: MIN_CANCEL_MS,
+        now: () => performance.now(),
+        files: target.files,
+        canShare:
+          typeof navigator !== "undefined" && typeof navigator.canShare === "function"
+            ? navigator.canShare.bind(navigator)
+            : undefined,
+      },
     );
     if (result === "shared") trackEvent("share", { source: target.source, method: "native" });
     if (result === "sheet") setOpen(true);
