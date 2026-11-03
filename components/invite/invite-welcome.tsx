@@ -113,15 +113,15 @@ export function InviteWelcomeNote({
         <p className="text-[14px] leading-5">
           {outcome === "mutual" ? (
             <>
-              You&apos;re following <b className="font-bold">{name}</b>, and they follow you back.
+              You&apos;re following <b className="font-semibold">{name}</b>, and they follow you back.
             </>
           ) : outcome === "following" ? (
             <>
-              You&apos;re following <b className="font-bold">{name}</b>.
+              You&apos;re following <b className="font-semibold">{name}</b>.
             </>
           ) : (
             <>
-              <b className="font-bold">{name}</b> invited you. Follow them to see their pickups.
+              <b className="font-semibold">{name}</b> invited you. Follow them to see their pickups.
             </>
           )}
         </p>

@@ -439,9 +439,9 @@ describe("9. Names", () => {
     assert.equal(document.querySelector("[data-official-mark]"), null);
   });
 
-  it("keeps the name bold and the handle and time muted", () => {
+  it("keeps the name semibold and the handle and time muted", () => {
     mount(feedPost());
-    const name = document.querySelector("article a[href='/u/waxroom'].font-bold");
+    const name = document.querySelector("article a[href='/u/waxroom'].font-semibold");
     assert.ok(name);
     assert.match(document.querySelector("article time")?.className ?? "", /text-zinc-500/);
   });

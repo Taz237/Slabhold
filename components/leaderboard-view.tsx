@@ -396,7 +396,7 @@ function RankRow({ entry, boardId }: { entry: BoardRow; boardId: string }) {
       className="flex min-h-12 min-w-0 items-center gap-2.5 rounded-xl px-2 py-1.5 hover:bg-white/[0.04]"
       style={{ ...mineRing(entry.mine, accent), backgroundColor: entry.mine ? `${accent}1f` : undefined }}
     >
-      <span className="w-6 shrink-0 text-center text-sm font-black tabular-nums" style={{ color: boardTextAccent(boardId) }}>
+      <span className="w-6 shrink-0 text-center text-sm font-semibold tabular-nums" style={{ color: boardTextAccent(boardId) }}>
         {entry.rank}
       </span>
       <Avatar title={labels.name} accent={entry.accent} url={entry.avatarUrl} size={32} />

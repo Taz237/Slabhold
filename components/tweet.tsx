@@ -304,7 +304,7 @@ export function AuthorLine({
 
   return (
     <div className="flex min-w-0 flex-1 items-baseline gap-x-1 text-[15px]">
-      <Link prefetch={false} href={href} className="max-w-[52%] truncate font-bold tracking-tight hover:underline">
+      <Link prefetch={false} href={href} className="max-w-[52%] truncate font-semibold tracking-tight hover:underline">
         {name}
       </Link>
       {official ? (
