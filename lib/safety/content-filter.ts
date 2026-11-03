@@ -11,10 +11,7 @@
 
 export const CONTENT_PROBLEM = "This includes words Slabhold doesn't allow. Edit it and try again";
 
-/**
- * Lowercase ASCII after normalising. `word` entries only match as a whole
- * word, even in usernames, because they're common inside harmless names.
- */
+/** Lowercase ASCII after normalising. `word` entries stay whole-word, even in usernames. */
 type Entry = string | { word: string };
 
 const BLOCKED: readonly Entry[] = [
@@ -45,7 +42,7 @@ const BLOCKED: readonly Entry[] = [
   "trannies",
   "shemale",
   // Ableist slurs
-  "retard",
+  { word: "retard" },
   { word: "retarded" },
   { word: "retards" },
   "mongoloid",
@@ -75,69 +72,94 @@ const BLOCKED: readonly Entry[] = [
   "neck yourself",
 ];
 
-const LEET: Record<string, string> = {
-  "0": "o",
-  "1": "i",
-  "3": "e",
-  "4": "a",
-  "5": "s",
-  "7": "t",
-  "@": "a",
-  $: "s",
-};
+/** Cyrillic and Greek letters that pass for Latin ones. */
+const LOOKALIKE = "аaеeоoрpсcуyхxіiјjѕsкkмmтtнhвbοoαaνvιiκkρpτt";
+const LEET = "0o1i3e4a5s7t@a$s";
+
+const MAP: Record<string, string> = {};
+for (const pairs of [LOOKALIKE, LEET]) {
+  for (let i = 0; i < pairs.length; i += 2) MAP[pairs[i]] = pairs[i + 1];
+}
+const MAPPED = new RegExp(`[${Object.keys(MAP).join("")}]`, "g");
 
 const ZERO_WIDTH = /[­᠎​-‏⁠-⁤﻿]/g;
 
-/** Lowercase, NFKD, no diacritics or zero-width characters, leetspeak mapped. */
+/** A letter, or `*` standing in for one. */
+const NON_LETTER = "[^a-z*]";
+
+/**
+ * Lowercase, NFKD, no diacritics or zero-width characters, lookalikes and
+ * leetspeak mapped. `!`, `|` and `+` only count as i, l and t before a
+ * letter, so "kys!" still ends the word.
+ */
 export function normaliseForFilter(text: string): string {
   return text
     .replace(ZERO_WIDTH, "")
     .normalize("NFKD")
     .replace(/\p{M}+/gu, "")
     .toLowerCase()
-    .replace(/[0134578@$]/g, (char) => LEET[char] ?? char);
+    .replace(MAPPED, (char) => MAP[char] ?? char)
+    .replace(/[!|+](?=[a-z])/g, (char) => (char === "!" ? "i" : char === "|" ? "l" : "t"));
 }
+
+/** Runs of single letters split by one non-letter join up: "p.o.r.n" → "porn". */
+const SINGLES = new RegExp(`(?<![a-z*])[a-z*](?:${NON_LETTER}[a-z*](?![a-z*]))+`, "g");
 
 /**
- * Runs of 3 or more of a letter collapse to one ("kyyys" → "kys") and to two
- * ("fagggot" → "faggot"), so stretched words match either spelling.
+ * Every spelling to test: as typed, "ph" as "f", single letters joined, and
+ * runs of 3 or more of a letter collapsed to one ("kyyys") and to two ("fagggot").
  */
-function collapsedForms(text: string): string[] {
-  return [text.replace(/([a-z])\1{2,}/g, "$1"), text.replace(/([a-z])\1{2,}/g, "$1$1")];
+function forms(text: string): string[] {
+  const out = new Set<string>();
+  for (const base of [text, text.replace(/ph/g, "f")]) {
+    for (const joined of [base, base.replace(SINGLES, (run) => run.replace(/[^a-z*]/g, ""))]) {
+      out.add(joined.replace(/([a-z])\1{2,}/g, "$1"));
+      out.add(joined.replace(/([a-z])\1{2,}/g, "$1$1"));
+    }
+  }
+  return [...out];
 }
 
-function entryWord(entry: Entry): string {
-  return typeof entry === "string" ? entry : entry.word;
+/** Inner letters also match `*` (p*rn). Spaces in a phrase match any separators, or none. */
+function pattern(entry: string): string {
+  return [...entry]
+    .map((char, i, all) => {
+      if (char === " ") return `${NON_LETTER}*`;
+      const edge = i === 0 || i === all.length - 1 || all[i - 1] === " " || all[i + 1] === " ";
+      return edge ? char : `[${char}*]`;
+    })
+    .join("");
 }
 
-const WORD_PATTERN = new RegExp(
-  `(?:^|[^a-z])(?:${BLOCKED.map((entry) => entryWord(entry).replace(/ /g, "[^a-z]+")).join("|")})(?=$|[^a-z])`,
+const words = BLOCKED.filter((entry): entry is { word: string } => typeof entry !== "string");
+const plain = BLOCKED.filter((entry): entry is string => typeof entry === "string");
+
+const BLOCKED_PATTERN = new RegExp(
+  [
+    `(?:^|${NON_LETTER})(?:${words.map((entry) => pattern(entry.word)).join("|")})(?=$|${NON_LETTER})`,
+    `(?:^|${NON_LETTER})(?:${plain.filter((entry) => entry.includes(" ")).map(pattern).join("|")})`,
+    plain.filter((entry) => !entry.includes(" ")).map(pattern).join("|"),
+  ].join("|"),
 );
 
-const SUBSTRINGS = BLOCKED.filter((entry): entry is string => typeof entry === "string").map(
-  (entry) => entry.replace(/ /g, ""),
-);
-
-function hasBlockedWord(normalised: string): boolean {
-  return collapsedForms(normalised).some((form) => WORD_PATTERN.test(form));
+function hasBlockedWord(text: string): boolean {
+  return forms(normaliseForFilter(text)).some((form) => BLOCKED_PATTERN.test(form));
 }
 
 /** The error to show for text that includes a blocked word, or null. */
 export function contentProblem(text: string): string | null {
-  if (!text) return null;
-  return hasBlockedWord(normaliseForFilter(text)) ? CONTENT_PROBLEM : null;
+  return text && hasBlockedWord(text) ? CONTENT_PROBLEM : null;
 }
 
-/**
- * Same list, but also matches inside the handle, since usernames have no
- * spaces. Whole-word-only entries still need a boundary such as `_`.
- */
+/** Same list, also read with `_`, `.` and digits squeezed out, since handles have no spaces. */
 export function usernameProblem(name: string): string | null {
   if (!name) return null;
-  const normalised = normaliseForFilter(name);
-  if (hasBlockedWord(normalised)) return CONTENT_PROBLEM;
-  const squashed = collapsedForms(normalised.replace(/[^a-z]/g, ""));
-  return squashed.some((form) => SUBSTRINGS.some((entry) => form.includes(entry)))
+  if (hasBlockedWord(name)) return CONTENT_PROBLEM;
+  const squashed = normaliseForFilter(name).replace(/[^a-z]/g, "");
+  return forms(squashed).some((form) => plain.some((entry) => form.includes(entry.replace(/ /g, ""))))
     ? CONTENT_PROBLEM
     : null;
 }
+
+/** For the SQL sync test. */
+export const BLOCKED_ENTRIES = BLOCKED;

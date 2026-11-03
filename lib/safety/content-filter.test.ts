@@ -238,3 +238,60 @@ describe("demo (local) write paths use the same filter", () => {
     assert.equal(localAddComment(withPost, "post-1", BAD).error, CONTENT_PROBLEM);
   });
 });
+
+describe("ways around the filter", () => {
+  const blockedSpellings = [
+    "porno",
+    "pornhub",
+    "killyourself",
+    "phaggot",
+    "p o r n",
+    "p.o.r.n",
+    "k.y.s",
+    "n.i.g.g.e.r",
+    "p*rn",
+    "c**k",
+    "pоrn", // Cyrillic о
+    "роrn", // Cyrillic р and о
+    "ροrn", // Greek ρ and ο
+    "fаg", // Cyrillic а
+    "+ranny",
+    "n!gga",
+    "kys!",
+    "free p0rn!!",
+  ];
+  for (const text of blockedSpellings) {
+    it(`blocks ${JSON.stringify(text)}`, () => {
+      assert.equal(contentProblem(text), CONTENT_PROBLEM);
+    });
+  }
+
+  const allowedWords = [
+    "Scunthorpe",
+    "Penistone",
+    "Hancock",
+    "Cockrell",
+    "Dickerson",
+    "therapist",
+    "cocktail",
+    "retardant",
+    "top ornament",
+    "Kikuchi",
+    "Spicer",
+    "upskill yourself",
+    "****",
+    "A.J. Ewing",
+    "Raphael Devers",
+    "5* rookie, hit!",
+  ];
+  for (const text of allowedWords) {
+    it(`allows ${JSON.stringify(text)}`, () => {
+      assert.equal(contentProblem(text), null);
+    });
+  }
+
+  it("keeps retard whole-word now that inner matches are on", () => {
+    assert.equal(contentProblem("retard"), CONTENT_PROBLEM);
+    assert.equal(contentProblem("fire retardant spray"), null);
+  });
+});
