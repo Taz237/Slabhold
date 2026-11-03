@@ -122,6 +122,19 @@ describe("Get started card (first run)", () => {
     assert.deepEqual(followAll, [["f1", "f2", "f3"]]);
   });
 
+  it("counts only the people not yet followed in Follow all", async () => {
+    const { SocialContext } = await import("@/components/social-provider");
+    const { FirstRunPeople } = await import("@/components/first-run/first-run-steps");
+    const html = renderToString(
+      createElement(
+        SocialContext.Provider,
+        { value: social(new Set(["f1"]), []) as never },
+        createElement(FirstRunPeople, { people: PEOPLE, current: true }),
+      ),
+    );
+    assert.match(html, />Follow all 2</);
+  });
+
   it("falls back to the rail with fewer than 3 people", async () => {
     const html = renderToString(await tree({ people: PEOPLE.slice(0, 2) }));
     assert.doesNotMatch(html, /h-14 items-center gap-3"/);

@@ -15,7 +15,7 @@ import { SlabFan } from "./slab-fan";
 import { usePublicCollector } from "./use-public-collector";
 
 const primary =
-  "flex h-14 w-full items-center justify-center rounded-full bg-[#7C3AED] px-6 text-[17px] font-semibold text-white shadow-[0_14px_40px_-12px_rgba(124,58,237,0.95)] transition-transform duration-150 active:scale-[0.98] motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-[#A78BFA] focus-visible:ring-offset-2 focus-visible:ring-offset-[#09090b] focus-visible:outline-none";
+  "flex h-14 w-full items-center justify-center rounded-full bg-[#7C3AED] px-6 text-[17px] font-semibold text-white transition-transform duration-150 active:scale-[0.98] motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-[#A78BFA] focus-visible:ring-offset-2 focus-visible:ring-offset-[#09090b] focus-visible:outline-none";
 
 const POINTS = [
   { icon: WalletCards, text: "Track your collection with recent sold prices" },
@@ -78,12 +78,11 @@ export function InviteLanding({
 
   return (
     <div data-invite-landing="" className="min-h-dvh overflow-x-clip bg-[#09090b] text-zinc-100">
-      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(124,58,237,0.32),_transparent_58%)]" />
       <div className="relative mx-auto flex min-h-dvh w-full max-w-lg flex-col px-6 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))] lg:max-w-5xl">
         <header className="flex min-h-14 items-center justify-between">
           <Link href="/" aria-label="Slabhold home" className="flex min-h-11 items-center gap-2 rounded-full focus-visible:ring-2 focus-visible:ring-[#A78BFA] focus-visible:outline-none">
             <Logo className="h-8 w-8" />
-            <span className="text-[17px] font-bold tracking-tight">Slabhold</span>
+            <span className="text-[17px] font-semibold tracking-tight">Slabhold</span>
           </Link>
           <Link
             href={loginPath(next)}
@@ -99,7 +98,7 @@ export function InviteLanding({
           </div>
 
           <div className="mt-6 text-center lg:mt-0 lg:text-left">
-            <p className="font-mono text-[12px] font-medium tracking-[0.18em] text-[#A78BFA] uppercase">You&apos;re invited</p>
+            <p className="font-mono text-[12px] font-medium text-[#A78BFA]">You&apos;re invited</p>
             {collector ? (
               <>
                 <div className="mt-4 flex items-center justify-center gap-3 lg:justify-start">
@@ -110,16 +109,16 @@ export function InviteLanding({
                     className="h-14 w-14 text-base ring-2 ring-[#7C3AED]/70 ring-offset-2 ring-offset-[#09090b]"
                   />
                   <div className="min-w-0 text-left">
-                    <p className="truncate text-[17px] font-bold tracking-tight">{name}</p>
+                    <p className="truncate text-[17px] font-semibold tracking-tight">{name}</p>
                     <p className="truncate text-[14px] text-zinc-400">{facts.join(" · ")}</p>
                   </div>
                 </div>
-                <h1 className="mt-5 text-[2.25rem] leading-[1.06] font-extrabold tracking-[-0.035em] text-white sm:text-5xl">
+                <h1 className="mt-5 text-[2.25rem] leading-[1.06] font-semibold tracking-[-0.035em] text-white sm:text-5xl">
                   {name} invited you to Slabhold
                 </h1>
               </>
             ) : (
-              <h1 className="mt-4 text-[2.25rem] leading-[1.06] font-extrabold tracking-[-0.035em] text-white sm:text-5xl">
+              <h1 className="mt-4 text-[2.25rem] leading-[1.06] font-semibold tracking-[-0.035em] text-white sm:text-5xl">
                 You&apos;re invited to Slabhold
               </h1>
             )}

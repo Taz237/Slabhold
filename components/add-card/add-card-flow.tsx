@@ -419,7 +419,7 @@ export function AddCardFlow(props: AddCardFlowProps) {
           <div className="min-w-0 flex-1">
             <FlowProgress value={flowProgress(flow, answers)} label={`Add card progress: ${counter}`} />
           </div>
-          <span className="shrink-0 font-mono text-[11px] tracking-wider text-zinc-500 uppercase tabular-nums">
+          <span className="shrink-0 font-mono text-[11px] text-zinc-500 tabular-nums">
             {counter}
           </span>
         </div>
@@ -437,14 +437,14 @@ export function AddCardFlow(props: AddCardFlowProps) {
 
         <div key={flow.step} className={`space-y-4 ${animation}`}>
           <div>
-            <p className="font-mono text-[11px] font-medium tracking-wider text-violet-700 uppercase dark:text-[#A78BFA]">
+            <p className="font-mono text-[11px] font-medium text-violet-700 dark:text-[#A78BFA]">
               {STEP_LABELS[flow.step]}
             </p>
             <h2
               id={headingId}
               ref={headingRef}
               tabIndex={-1}
-              className="mt-1 text-2xl font-extrabold tracking-tight outline-none"
+              className="mt-1 text-2xl font-semibold tracking-tight outline-none"
             >
               {STEP_QUESTIONS[flow.step]}
             </h2>
@@ -495,7 +495,7 @@ function DraftStrip({
           aria-label={`Change player, ${answers.playerName}`}
           className={`-mx-1 flex min-h-11 max-w-full items-center rounded-lg px-1 text-left ${focusRing}`}
         >
-          <span className="truncate text-base font-bold tracking-tight">{answers.playerName}</span>
+          <span className="truncate text-base font-semibold tracking-tight">{answers.playerName}</span>
         </button>
         <p className="truncate text-xs text-zinc-500">{line || "Year, set and number next"}</p>
         <p className="mt-1 flex min-w-0 items-center gap-1.5 text-xs font-medium text-zinc-700 dark:text-zinc-300">
@@ -503,7 +503,7 @@ function DraftStrip({
           <span className="truncate">{answers.parallel || "Base"}</span>
           {runShown ? <RunBadge run={runShown} /> : null}
           {isAuto ? (
-            <span className="rounded bg-violet-500/15 px-1 font-mono text-[9px] leading-4 font-semibold tracking-wider text-violet-700 uppercase dark:text-[#A78BFA]">
+            <span className="rounded bg-violet-500/15 px-1 font-mono text-[9px] leading-4 font-semibold text-violet-700 dark:text-[#A78BFA]">
               Auto
             </span>
           ) : null}
@@ -553,10 +553,6 @@ function ReviewStep({
     <div className="space-y-5">
       <div className="flex flex-col items-center text-center">
         <div className="relative w-40">
-          <span
-            aria-hidden
-            className="pointer-events-none absolute -inset-6 rounded-full bg-violet-600/25 blur-2xl"
-          />
           <div className="relative">
             <DraftSlab art={art} photo={photo} />
           </div>
@@ -564,7 +560,7 @@ function ReviewStep({
         <button
           type="button"
           onClick={() => onJump("player")}
-          className={`mt-4 min-h-11 rounded-lg px-2 text-2xl font-extrabold tracking-tight ${focusRing}`}
+          className={`mt-4 min-h-11 rounded-lg px-2 text-2xl font-semibold tracking-tight ${focusRing}`}
           aria-label={`Change player, ${answers.playerName}`}
         >
           {answers.playerName}

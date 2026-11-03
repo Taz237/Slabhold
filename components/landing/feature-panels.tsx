@@ -69,12 +69,12 @@ export function FeaturePanels() {
             key={panel.id}
             aria-roledescription="slide"
             aria-label={`${index + 1} of ${FEATURE_PANELS.length}: ${panel.title}`}
-            className="flex w-full shrink-0 snap-start flex-col overflow-hidden rounded-[1.75rem] border border-white/10 bg-gradient-to-b from-white/[0.06] to-white/[0.02] p-5 sm:w-[340px]"
+            className="flex w-full shrink-0 snap-start flex-col overflow-hidden rounded-[1.75rem] border border-white/10 bg-white/[0.04] p-5 sm:w-[340px]"
           >
-            <p className="font-mono text-[11px] font-medium tracking-[0.16em] text-[#A78BFA] uppercase">
+            <p className="font-mono text-[11px] font-medium text-[#A78BFA]">
               {String(index + 1).padStart(2, "0")} · {panel.tag}
             </p>
-            <h2 className="mt-2 text-[22px] font-extrabold tracking-tight text-white">{panel.title}</h2>
+            <h2 className="mt-2 text-[22px] font-semibold tracking-tight text-white">{panel.title}</h2>
             <p className="mt-1 text-[15px] leading-6 text-zinc-400">{panel.line}</p>
             <div className="relative mt-5 flex min-h-[248px] flex-1 flex-col justify-center">
               <SampleTag />
@@ -107,7 +107,7 @@ export function FeaturePanels() {
 
 function SampleTag() {
   return (
-    <span className="absolute -top-1 right-0 z-10 rounded-full border border-white/15 bg-black/50 px-2 py-0.5 font-mono text-[10px] font-medium tracking-wider text-zinc-300 uppercase backdrop-blur">
+    <span className="absolute -top-1 right-0 z-10 rounded-full border border-white/15 bg-black/50 px-2 py-0.5 font-mono text-[10px] font-medium text-zinc-300 backdrop-blur">
       Sample
     </span>
   );
@@ -126,17 +126,17 @@ function ValueLine() {
 function TrackVisual() {
   return (
     <div className="flex items-center gap-4">
-      <div className="w-[38%] shrink-0 drop-shadow-[0_14px_30px_rgba(124,58,237,0.45)]">
+      <div className="w-[38%] shrink-0">
         <CardSlabArt card={SAMPLE_SLABS[0]} index={9} source={NO_PHOTO} status="loading" onStatus={noop} sizes="130px" />
       </div>
       <div className="min-w-0 flex-1">
-        <p className="font-mono text-[10px] tracking-wider text-zinc-500 uppercase">Value</p>
-        <p className="text-[28px] font-extrabold tracking-tight text-white tabular-nums">$412</p>
+        <p className="font-mono text-[10px] text-zinc-500">Value</p>
+        <p className="text-[28px] font-semibold tracking-tight text-white tabular-nums">$412</p>
         <p className="text-sm font-semibold text-[#A78BFA] tabular-nums">+$38 · 10.2%</p>
         <div className="mt-2">
           <ValueLine />
         </div>
-        <p className="font-mono text-[10px] tracking-wider text-zinc-500 uppercase">Last 90 days</p>
+        <p className="font-mono text-[10px] text-zinc-500">Last 90 days</p>
       </div>
     </div>
   );
@@ -152,8 +152,8 @@ function CompsVisual() {
   return (
     <div className="rounded-2xl border border-zinc-200 bg-white px-4 pt-3 pb-1 text-zinc-900 dark:border-white/10 dark:bg-[#09090B]/70 dark:text-zinc-100">
       <div className="flex items-center justify-between gap-2">
-        <p className="text-sm font-bold">Matched to recent sold prices</p>
-        <p className="shrink-0 font-mono text-[10px] tracking-wider text-zinc-500 uppercase">via Trawl</p>
+        <p className="text-sm font-semibold">Matched to recent sold prices</p>
+        <p className="shrink-0 font-mono text-[10px] text-zinc-500">via Trawl</p>
       </div>
       <div className="mt-1">
         <CompsList comps={SAMPLE_COMPS} />
@@ -196,7 +196,7 @@ function BadgesVisual() {
         <li key={tier} className="flex flex-col items-center gap-1.5">
           <Badge category="collector" tier={tier} size={tier === "legendary" ? 72 : 60} label="" />
           <span
-            className={`font-mono text-[10px] tracking-wider uppercase ${
+            className={`font-mono text-[10px] ${
               tier === "legendary" ? "font-semibold text-[#A78BFA]" : "text-zinc-400"
             }`}
           >
@@ -216,7 +216,7 @@ function SocialVisual() {
   return (
     <div className="space-y-3">
       <div className="overflow-hidden rounded-2xl border border-white/10 bg-[#09090B]">
-        <div className="flex items-center gap-3 bg-gradient-to-br from-[#2e1065] to-[#09090B] p-3">
+        <div className="flex items-center gap-3 bg-white/[0.04] p-3">
           <div className="w-14 shrink-0">
             <CardSlabArt card={SAMPLE_SLABS[2]} index={9} source={NO_PHOTO} status="loading" onStatus={noop} sizes="56px" />
           </div>
@@ -228,11 +228,11 @@ function SocialVisual() {
           <NoHeadPreload>
             <Logo className="h-4 w-4" />
           </NoHeadPreload>
-          <span className="font-mono text-[10px] tracking-wider text-zinc-500 uppercase">slabhold.app</span>
+          <span className="font-mono text-[10px] text-zinc-500">slabhold.app</span>
         </div>
       </div>
       <div className="rounded-2xl border border-white/10 bg-[#09090B]/70">
-        <p className="px-3 pt-2.5 text-sm font-bold text-white">Messages</p>
+        <p className="px-3 pt-2.5 text-sm font-semibold text-white">Messages</p>
         <ul className="divide-y divide-white/10">
           {threads.map((thread) => (
             <li key={thread.name} className="flex items-center gap-3 px-3 py-2.5">

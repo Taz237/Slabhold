@@ -216,7 +216,6 @@ function Shell({
       data-pending-shell={pending ? "" : undefined}
       className="min-h-full bg-[var(--background)] text-[var(--foreground)]"
     >
-      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(124,92,255,0.16),_transparent_50%)]" />
       {!chromeless ? (
         <header
           style={{ viewTransitionName: "app-header" }}
@@ -249,7 +248,7 @@ function Shell({
                 >
                   <Bell className="h-5 w-5" />
                   {unreadCount > 0 ? (
-                    <span className="absolute top-0 right-0 grid h-4 min-w-4 place-items-center rounded-full bg-violet-600 px-1 text-[10px] font-bold leading-none text-white">
+                    <span className="absolute top-0 right-0 grid h-4 min-w-4 place-items-center rounded-full bg-violet-600 px-1 text-[10px] font-semibold leading-none text-white">
                       {unreadCount > 9 ? "9+" : unreadCount}
                     </span>
                   ) : null}
@@ -348,12 +347,12 @@ function Shell({
                     <Icon
                       className={`h-5 w-5 ${
                         active && tab.href === "/leaderboard"
-                          ? "text-violet-400 drop-shadow-[0_0_8px_rgba(167,139,250,0.95)]"
+                          ? "text-[#A78BFA]"
                           : ""
                       }`}
                     />
                     {messageBadge > 0 ? (
-                      <span className="absolute -top-1.5 -right-2.5 grid h-4 min-w-4 place-items-center rounded-full bg-[#7C3AED] px-1 text-[10px] font-bold leading-none text-white ring-2 ring-[var(--background)]">
+                      <span className="absolute -top-1.5 -right-2.5 grid h-4 min-w-4 place-items-center rounded-full bg-[#7C3AED] px-1 text-[10px] font-semibold leading-none text-white ring-2 ring-[var(--background)]">
                         {messageBadge > 9 ? "9+" : messageBadge}
                       </span>
                     ) : null}
@@ -383,7 +382,6 @@ function Shell({
 function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-dvh bg-[var(--background)] text-[var(--foreground)]">
-      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(124,92,255,0.16),_transparent_50%)]" />
       <main className="relative mx-auto w-full max-w-lg px-6 pt-[max(2.5rem,env(safe-area-inset-top))] pb-[max(2rem,env(safe-area-inset-bottom))]">
         {children}
       </main>

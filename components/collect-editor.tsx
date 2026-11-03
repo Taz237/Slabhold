@@ -43,7 +43,7 @@ export function SportChips({
         const on = picked.has(sport.toLowerCase());
         const tone = big
           ? on
-            ? `${bigChipClass} border-violet-600 bg-violet-600 text-white shadow-[0_8px_24px_-10px_rgba(124,58,237,0.9)]`
+            ? `${bigChipClass} border-violet-600 bg-violet-600 text-white`
             : `${bigChipClass} border-zinc-300 bg-white text-zinc-900 dark:border-white/15 dark:bg-white/[0.04] dark:text-zinc-100`
           : on
             ? `${chipClass} border-zinc-900 bg-zinc-900 text-white dark:border-zinc-100 dark:bg-zinc-100 dark:text-zinc-950`

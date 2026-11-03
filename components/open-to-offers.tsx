@@ -91,7 +91,7 @@ export function ProfileCardCaption({
   return (
     <div className="px-2.5 py-2">
       {card.openToOffers === true ? <OpenToOffersBadge className="mb-1" /> : null}
-      <p className="truncate text-sm font-bold">{card.playerName}</p>
+      <p className="truncate text-sm font-semibold">{card.playerName}</p>
       <p className="truncate text-xs text-zinc-500">
         {card.year} {card.setBrand}
       </p>
@@ -173,11 +173,11 @@ export function CardMessagePreviewBody({
       <SharedCardPhoto imageUrl={card.imageUrl} player={card.player} />
       <span className="min-w-0 flex-1">
         {card.grade ? (
-          <span className="mb-1 inline-flex h-5 items-center rounded-full bg-violet-600 px-2 font-mono text-[10px] font-semibold tracking-wider text-white uppercase">
+          <span className="mb-1 inline-flex h-5 items-center rounded-full bg-violet-600 px-2 font-mono text-[10px] font-semibold text-white">
             {card.grade}
           </span>
         ) : null}
-        <span className="block truncate text-[15px] leading-5 font-bold tracking-tight">{card.player}</span>
+        <span className="block truncate text-[15px] leading-5 font-semibold tracking-tight">{card.player}</span>
         <span className="block truncate text-[13px] leading-5 text-zinc-500">
           {card.year} {card.set}
         </span>
@@ -221,7 +221,7 @@ export function SharedCardPhoto({
           className="h-full w-full rounded-[3px] bg-zinc-900 object-cover"
         />
       ) : (
-        <span className="grid h-full w-full place-items-center rounded-[3px] bg-gradient-to-br from-[#7C3AED] to-[#5B21B6] text-[10px] font-extrabold text-white">
+        <span className="grid h-full w-full place-items-center rounded-[3px] bg-[#7C3AED] text-[10px] font-semibold text-white">
           {initials(player) || "?"}
         </span>
       )}

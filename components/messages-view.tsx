@@ -49,7 +49,7 @@ export function MessagesView() {
   if (!user) {
     return (
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Messages</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Messages</h1>
         <EmptyState
           icon={<Mail className="h-5 w-5" />}
           title="Your messages"
@@ -66,12 +66,12 @@ export function MessagesView() {
   return (
     <PullToRefresh onRefresh={refresh} className="-mx-4 -mt-5">
       <div className="flex items-center justify-between gap-3 px-4 pt-4">
-        <h1 className="text-[26px] leading-8 font-extrabold tracking-tight">Messages</h1>
+        <h1 className="text-[26px] leading-8 font-semibold tracking-tight">Messages</h1>
         <button
           type="button"
           aria-label="New message"
           onClick={() => setComposing(true)}
-          className="inline-flex min-h-11 items-center gap-1.5 rounded-full bg-violet-600 px-4 text-sm font-bold text-white shadow-[0_8px_22px_-8px_rgba(124,58,237,0.75)] transition-transform duration-150 active:scale-95 motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)] focus-visible:outline-none"
+          className="inline-flex min-h-11 items-center gap-1.5 rounded-full bg-violet-600 px-4 text-sm font-semibold text-white transition-transform duration-150 active:scale-95 motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)] focus-visible:outline-none"
         >
           <SquarePen className="h-4 w-4" aria-hidden="true" />
           New
@@ -170,7 +170,7 @@ function ConversationRow({ conversation, viewerId }: { conversation: Conversatio
             {inboxLastMessage(last)}
           </span>
           {fresh ? (
-            <span data-unread-dot="" className="h-2.5 w-2.5 shrink-0 rounded-full bg-[#7C3AED] shadow-[0_0_0_3px_rgba(124,58,237,0.18)]">
+            <span data-unread-dot="" className="h-2.5 w-2.5 shrink-0 rounded-full bg-[#7C3AED]">
               <span className="sr-only">{unread} unread</span>
             </span>
           ) : null}
@@ -206,20 +206,20 @@ function InboxEmpty({ suggestions, onStart }: { suggestions: Profile[]; onStart:
   return (
     <div data-inbox-empty="" className="px-6 pt-8 pb-6 text-center">
       <InboxArt />
-      <p className="mt-5 text-[20px] leading-7 font-extrabold tracking-tight">No messages yet</p>
+      <p className="mt-5 text-[20px] leading-7 font-semibold tracking-tight">No messages yet</p>
       <p className="mx-auto mt-1.5 max-w-[17rem] text-[15px] leading-5 text-zinc-500">
         Talk cards, trades and pickups with other collectors.
       </p>
       <button
         type="button"
         onClick={onStart}
-        className="mt-5 inline-flex min-h-11 items-center rounded-full bg-violet-600 px-6 text-[15px] font-bold text-white shadow-[0_10px_28px_-8px_rgba(124,58,237,0.75)] transition-transform duration-150 active:scale-95 motion-reduce:transition-none"
+        className="mt-5 inline-flex min-h-11 items-center rounded-full bg-violet-600 px-6 text-[15px] font-semibold text-white transition-transform duration-150 active:scale-95 motion-reduce:transition-none"
       >
         Start a conversation
       </button>
       {suggestions.length > 0 ? (
         <div className="mx-auto mt-8 max-w-sm text-left">
-          <p className="px-1 font-mono text-[11px] font-semibold tracking-wider text-zinc-500 uppercase">
+          <p className="px-1 font-mono text-[11px] font-semibold text-zinc-500">
             Collectors to message
           </p>
           <ul className="mt-2 overflow-hidden rounded-2xl border border-zinc-200 bg-white dark:border-white/10 dark:bg-white/[0.03]">
@@ -235,13 +235,13 @@ function InboxEmpty({ suggestions, onStart }: { suggestions: Profile[]; onStart:
                   />
                 </Link>
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[15px] leading-5 font-bold tracking-tight">{person.displayName}</span>
+                  <span className="block truncate text-[15px] leading-5 font-semibold tracking-tight">{person.displayName}</span>
                   <span className="block truncate text-[13px] leading-5 text-zinc-500">@{person.username}</span>
                 </span>
                 <Link
                   href={userHref(person.username, "messages")}
                   aria-label={`Message ${person.displayName}`}
-                  className="inline-flex min-h-11 shrink-0 items-center rounded-full px-4 text-sm font-bold text-violet-700 ring-1 ring-violet-600/30 ring-inset hover:bg-violet-600/10 dark:text-[#A78BFA] dark:ring-violet-400/30"
+                  className="inline-flex min-h-11 shrink-0 items-center rounded-full px-4 text-sm font-semibold text-violet-700 ring-1 ring-violet-600/30 ring-inset hover:bg-violet-600/10 dark:text-[#A78BFA] dark:ring-violet-400/30"
                 >
                   Message
                 </Link>

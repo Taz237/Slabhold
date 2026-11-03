@@ -88,7 +88,7 @@ function Achievements({ state }: { state: AchievementsState }) {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold tracking-tight">Achievements</h1>
+      <h1 className="text-2xl font-semibold tracking-tight">Achievements</h1>
       <p className="mt-1 text-sm text-zinc-500">
         <span className="font-semibold text-zinc-900 tabular-nums dark:text-zinc-100">
           {state.earnedCount} / {state.total}
@@ -105,20 +105,16 @@ function Achievements({ state }: { state: AchievementsState }) {
         aria-labelledby="pinned-heading"
         className="relative mt-5 overflow-hidden rounded-3xl border border-violet-500/20 bg-[#09090B] p-4 text-zinc-100"
       >
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(124,58,237,0.32),_transparent_65%)]"
-        />
         <div className="relative">
           <div className="flex items-center justify-between gap-2">
             <h2
               id="pinned-heading"
-              className="font-mono text-[11px] font-medium tracking-[0.14em] text-[#A78BFA] uppercase"
+              className="font-mono text-[11px] font-medium text-[#A78BFA]"
             >
               Pinned on your profile
             </h2>
             {shown.length > 0 && auto ? (
-              <span className="rounded-full bg-white/10 px-2 py-0.5 font-mono text-[10px] tracking-wider text-zinc-300 uppercase">
+              <span className="rounded-full bg-white/10 px-2 py-0.5 font-mono text-[10px] text-zinc-300">
                 Auto
               </span>
             ) : null}
@@ -275,7 +271,7 @@ function LimitedRow() {
         <p className="text-[15px] font-semibold">{CATEGORY_COPY.limited.label}</p>
         <p className="mt-0.5 text-[13px] text-zinc-500">{CATEGORY_COPY.limited.rule}</p>
       </div>
-      <span className="shrink-0 rounded-full bg-zinc-100 px-2.5 py-1 font-mono text-[10px] tracking-wider text-zinc-500 uppercase dark:bg-white/10 dark:text-zinc-400">
+      <span className="shrink-0 rounded-full bg-zinc-100 px-2.5 py-1 font-mono text-[10px] text-zinc-500 dark:bg-white/10 dark:text-zinc-400">
         Coming soon
       </span>
     </div>
@@ -352,7 +348,7 @@ function TierSheet({
       >
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <h2 id={titleId} className="text-lg font-bold tracking-tight">
+            <h2 id={titleId} className="text-lg font-semibold tracking-tight">
               {copy.label}
             </h2>
             <p className="text-sm text-zinc-500">{copy.rule}</p>
@@ -466,7 +462,7 @@ function TierRow({
 function BadgesUnavailable() {
   return (
     <div>
-      <h1 className="text-2xl font-bold tracking-tight">Achievements</h1>
+      <h1 className="text-2xl font-semibold tracking-tight">Achievements</h1>
       <section className={`mt-5 flex flex-col items-center px-6 py-8 text-center ${panel}`}>
         <div className="flex -space-x-3" aria-hidden>
           <Badge category="collector" tier="bronze" size={56} locked label="" />

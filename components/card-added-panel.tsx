@@ -76,7 +76,7 @@ export function CardAddedPanel({
     <section
       aria-label="Added to your collection"
       data-slot="added-panel"
-      className="relative overflow-hidden rounded-3xl border border-violet-400/30 bg-gradient-to-b from-violet-600/15 via-violet-500/5 to-transparent p-4 sm:p-6"
+      className="relative overflow-hidden rounded-3xl border border-zinc-200 bg-zinc-50 p-4 dark:border-white/[0.08] dark:bg-white/[0.03] sm:p-6"
     >
       <button
         type="button"
@@ -89,11 +89,6 @@ export function CardAddedPanel({
 
       <div className="flex flex-col items-center text-center">
         <div className="relative w-36 sm:w-40">
-          <span
-            aria-hidden
-            data-reveal="glow"
-            className="pointer-events-none absolute -inset-8 rounded-full bg-violet-600/30 blur-3xl motion-safe:animate-[reveal-glow_900ms_ease-out_both]"
-          />
           <div data-reveal="slab" className="relative motion-safe:animate-[slab-reveal_700ms_cubic-bezier(0.2,0.7,0.2,1)_both]">
             {card ? <RevealSlab card={card} /> : <div className="aspect-[3/5] w-full rounded-xl skeleton-shimmer" />}
           </div>
@@ -102,7 +97,7 @@ export function CardAddedPanel({
           <span className="grid size-6 shrink-0 place-items-center rounded-full bg-violet-600 text-white">
             <Check className="size-3.5" strokeWidth={3} aria-hidden />
           </span>
-          <h2 className="text-lg font-extrabold tracking-tight">Added to your collection</h2>
+          <h2 className="text-lg font-semibold tracking-tight">Added to your collection</h2>
         </div>
         {card ? (
           <p className="mt-0.5 text-sm text-zinc-500">{card.playerName}</p>
@@ -115,7 +110,7 @@ export function CardAddedPanel({
               <p className="text-sm text-zinc-500">{line.text}</p>
             </div>
           ) : line.kind === "ok" ? (
-            <p className="text-xl font-bold tracking-tight tabular-nums text-zinc-900 dark:text-zinc-50">
+            <p className="text-xl font-semibold tracking-tight tabular-nums text-zinc-900 dark:text-zinc-50">
               {line.text}
             </p>
           ) : (

@@ -70,7 +70,7 @@ export function HeroSlabs({
         >
           {heroSlots(cards ?? []).map((slot, index) => (
             <div key={slot.key} className={`absolute ${HERO_PLACES[index].className}`}>
-              <div className="landing-float drop-shadow-[0_18px_40px_rgba(124,58,237,0.45)]" style={HERO_PLACES[index].style}>
+              <div className="landing-float" style={HERO_PLACES[index].style}>
                 <SlabFrame card={slot.art}>
                   <PhotoPlaceholder card={slot.art} />
                   {slot.photo ? <HeroPhoto photo={slot.photo} lcp={index === LCP_SLOT} /> : null}
@@ -81,7 +81,7 @@ export function HeroSlabs({
         </div>
       </div>
       <p
-        className={`mt-1 h-4 text-center font-mono text-[10px] leading-4 tracking-wider text-zinc-500 uppercase ${ready ? "" : "invisible"}`}
+        className={`mt-1 h-4 text-center font-mono text-[10px] leading-4 text-zinc-500 ${ready ? "" : "invisible"}`}
         data-hero-caption
       >
         {real && owner ? `From @${owner}'s collection` : "Sample slabs"}

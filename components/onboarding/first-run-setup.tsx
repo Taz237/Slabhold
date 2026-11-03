@@ -63,7 +63,7 @@ const STEP_IN = "motion-safe:animate-[add-step-in_220ms_cubic-bezier(0.2,0.7,0.2
 const STEP_BACK = "motion-safe:animate-[add-step-back_220ms_cubic-bezier(0.2,0.7,0.2,1)_both]";
 
 const primaryButton =
-  "flex h-14 w-full items-center justify-center gap-2 rounded-full bg-violet-600 text-[17px] font-semibold text-white shadow-[0_10px_30px_-10px_rgba(124,58,237,0.8)] active:scale-[0.98] disabled:opacity-50 motion-reduce:transform-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)] focus-visible:outline-none";
+  "flex h-14 w-full items-center justify-center gap-2 rounded-full bg-violet-600 text-[17px] font-semibold text-white active:scale-[0.98] disabled:opacity-50 motion-reduce:transform-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)] focus-visible:outline-none";
 const quietButton =
   "flex min-h-11 w-full items-center justify-center rounded-full text-[15px] font-semibold text-zinc-500 focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:outline-none";
 
@@ -383,7 +383,6 @@ export function FirstRunSetup() {
       data-first-run
       className="fixed inset-0 z-50 flex flex-col bg-[var(--background)] text-[var(--foreground)] outline-none"
     >
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(124,58,237,0.18),_transparent_55%)]" />
       <header className="relative mx-auto w-full max-w-lg px-4 pt-[max(0.5rem,env(safe-area-inset-top))]">
         <div className="grid grid-cols-[1fr_auto_1fr] items-center">
           <div className="justify-self-start">
@@ -401,7 +400,7 @@ export function FirstRunSetup() {
               <span aria-hidden className="block h-11 w-11" />
             )}
           </div>
-          <span className="font-mono text-[11px] font-medium tracking-wider text-zinc-500 uppercase">
+          <span className="font-mono text-[11px] font-medium text-zinc-500">
             {stepNumber} of {SETUP_STEPS.length}
           </span>
           <button
@@ -423,7 +422,7 @@ export function FirstRunSetup() {
           className="mt-1 h-1 w-full rounded-full bg-zinc-200 dark:bg-white/10"
         >
           <div
-            className="h-full rounded-full bg-gradient-to-r from-[#5B21B6] to-[#7C3AED] transition-[width] duration-300 ease-out motion-reduce:transition-none"
+            className="h-full rounded-full bg-[#7C3AED] transition-[width] duration-300 ease-out motion-reduce:transition-none"
             style={{ width: `${setupProgress(step) * 100}%` }}
           />
         </div>
@@ -436,7 +435,7 @@ export function FirstRunSetup() {
         <div key={step} className={`mx-auto w-full max-w-lg px-5 pt-7 pb-6 ${direction === 1 ? STEP_IN : STEP_BACK}`}>
           {step === "collect" ? (
             <>
-              <h2 id={titleId} className="text-[28px] leading-tight font-extrabold tracking-tight">
+              <h2 id={titleId} className="text-[28px] leading-tight font-semibold tracking-tight">
                 What do you collect?
               </h2>
               <p className="mt-2 text-[15px] leading-6 text-zinc-600 dark:text-zinc-400">
@@ -447,7 +446,7 @@ export function FirstRunSetup() {
               </div>
               {load.status === "ready" ? (
                 <div className="mt-8">
-                  <h3 className="text-[15px] font-bold">Favorite players or teams</h3>
+                  <h3 className="text-[15px] font-semibold">Favorite players or teams</h3>
                   <p className="mt-0.5 text-sm text-zinc-500">Optional. One is plenty.</p>
                   <div className="mt-3">
                     <NameSearch
@@ -468,7 +467,7 @@ export function FirstRunSetup() {
 
           {step === "people" ? (
             <>
-              <h2 id={titleId} className="text-[28px] leading-tight font-extrabold tracking-tight">
+              <h2 id={titleId} className="text-[28px] leading-tight font-semibold tracking-tight">
                 Follow a few collectors
               </h2>
               <p className="mt-2 text-[15px] leading-6 text-zinc-600 dark:text-zinc-400">
@@ -477,7 +476,7 @@ export function FirstRunSetup() {
               {shownPeople.length > 0 ? (
                 <>
                   <div className="mt-5 flex items-center justify-between">
-                    <p className="font-mono text-[11px] font-medium tracking-wider text-zinc-500 uppercase">
+                    <p className="font-mono text-[11px] font-medium text-zinc-500">
                       Suggested for you
                     </p>
                     <button
@@ -500,7 +499,7 @@ export function FirstRunSetup() {
                           className="h-12 w-12 text-sm"
                         />
                         <div className="min-w-0 flex-1">
-                          <p className="truncate text-[15px] font-bold">{profile.displayName}</p>
+                          <p className="truncate text-[15px] font-semibold">{profile.displayName}</p>
                           <p className="truncate text-sm text-zinc-500">
                             {profile.reason || `@${profile.username}`}
                           </p>
@@ -515,7 +514,7 @@ export function FirstRunSetup() {
                   <span className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-violet-600/10 text-violet-600 dark:text-[#A78BFA]">
                     <Users aria-hidden className="h-6 w-6" />
                   </span>
-                  <p className="mt-3 text-[17px] font-bold tracking-tight">No suggestions yet</p>
+                  <p className="mt-3 text-[17px] font-semibold tracking-tight">No suggestions yet</p>
                   <p className="mx-auto mt-1 max-w-xs text-sm leading-5 text-zinc-500">
                     We&apos;ll suggest collectors as they post. You can search for people any time.
                   </p>
@@ -526,15 +525,14 @@ export function FirstRunSetup() {
 
           {step === "card" ? (
             <>
-              <h2 id={titleId} className="text-[28px] leading-tight font-extrabold tracking-tight">
+              <h2 id={titleId} className="text-[28px] leading-tight font-semibold tracking-tight">
                 Add your first card
               </h2>
               <p className="mt-2 text-[15px] leading-6 text-zinc-600 dark:text-zinc-400">
                 Snap a slab or a raw card. We match it to recent sold prices.
               </p>
               <div aria-hidden className="relative mx-auto mt-10 w-[42%] max-w-[170px]">
-                <div className="absolute inset-[-12%] rounded-full bg-[#7C3AED] opacity-40 blur-[48px]" />
-                <div className="relative drop-shadow-[0_18px_40px_rgba(124,58,237,0.45)]">
+                <div className="relative">
                   <CardSlabArt
                     card={SAMPLE_FIRST_CARD}
                     index={0}

@@ -105,7 +105,7 @@ export function LaneTabs({ lane, onChange }: { lane: HomeLane; onChange: (lane: 
               tabIndex={active ? 0 : -1}
               onClick={() => onChange(item.id)}
               className={`min-h-12 text-[15px] tracking-tight transition-colors duration-200 hover:bg-zinc-900/[0.03] dark:hover:bg-white/[0.03] ${
-                active ? "font-bold text-[var(--foreground)]" : "font-medium text-zinc-500"
+                active ? "font-semibold text-[var(--foreground)]" : "font-medium text-zinc-500"
               }`}
             >
               {item.label}
@@ -221,7 +221,7 @@ export function NewPostsPill({ onClick }: { onClick: () => void }) {
             window.scrollTo({ top: 0, behavior: scrollBehavior() });
             onClick();
           }}
-          className="pointer-events-auto inline-flex min-h-11 items-center gap-1.5 rounded-full bg-violet-600 px-4 text-sm font-bold text-white shadow-lg shadow-violet-950/30 ring-1 ring-white/10 transition-transform active:scale-95 motion-safe:animate-[pill-in_260ms_cubic-bezier(0.2,0.7,0.2,1)_both] motion-reduce:transition-none"
+          className="pointer-events-auto inline-flex min-h-11 items-center gap-1.5 rounded-full bg-violet-600 px-4 text-sm font-semibold text-white shadow-lg shadow-violet-950/30 ring-1 ring-white/10 transition-transform active:scale-95 motion-safe:animate-[pill-in_260ms_cubic-bezier(0.2,0.7,0.2,1)_both] motion-reduce:transition-none"
         >
           <ArrowUp className="h-4 w-4" aria-hidden="true" />
           New posts
@@ -296,9 +296,9 @@ export function PostPill({ label, solid = false }: { label: string; solid?: bool
     <span
       data-post-pill=""
       data-grade-badge={solid ? "" : undefined}
-      className={`inline-flex h-6 items-center rounded-full px-2.5 font-mono text-[11px] font-semibold tracking-wider uppercase ${
+      className={`inline-flex h-6 items-center rounded-full px-2.5 font-mono text-[11px] font-medium ${
         solid
-          ? "bg-violet-600 text-white shadow-[0_4px_14px_-4px_rgba(124,58,237,0.7)] ring-1 ring-white/15 ring-inset"
+          ? "bg-violet-600 text-white ring-1 ring-white/15 ring-inset"
           : "bg-violet-600/10 text-violet-700 ring-1 ring-violet-600/20 ring-inset dark:bg-violet-500/15 dark:text-[#A78BFA] dark:ring-violet-400/25"
       }`}
     >

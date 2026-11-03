@@ -2,9 +2,9 @@
 
 import { imagesFromPost, postPhotoCellClass, postPhotoGridClass } from "@/lib/social/post-photos";
 
-/** Rounded, with a hairline purple-tinted edge and a soft purple shadow. */
+/** Rounded, with a hairline purple-tinted edge and a soft neutral shadow. */
 const PHOTO_FRAME =
-  "overflow-hidden rounded-2xl bg-zinc-100 ring-1 ring-violet-500/15 shadow-[0_10px_28px_-16px_rgba(124,58,237,0.45)] dark:bg-white/[0.04] dark:ring-violet-400/20";
+  "overflow-hidden rounded-2xl bg-zinc-100 ring-1 ring-violet-500/15 shadow-[0_1px_2px_rgba(0,0,0,0.05)] dark:bg-white/[0.04] dark:shadow-none dark:ring-violet-400/20";
 
 export function PostPhotoGrid({
   images,

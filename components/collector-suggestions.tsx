@@ -32,7 +32,7 @@ export function CollectorSuggestions({
       className={`scroll-mt-28 py-4 ${bordered ? "border-b border-zinc-200/70 dark:border-white/[0.07]" : ""}`}
     >
       <div className="mb-3 flex min-h-11 items-center justify-between gap-2 px-4 max-md:pr-20">
-        <h2 className="text-[15px] font-bold tracking-tight">{title}</h2>
+        <h2 className="text-[15px] font-semibold tracking-tight">{title}</h2>
         {pending.length > 0 ? (
           <button
             type="button"
@@ -70,7 +70,7 @@ export function CollectorSuggestions({
             </Link>
             <Link
               href={userHref(profile.username)}
-              className="mt-2 block w-full truncate text-sm font-bold tracking-tight hover:underline"
+              className="mt-2 block w-full truncate text-sm font-semibold tracking-tight hover:underline"
             >
               {profile.displayName}
             </Link>
@@ -96,7 +96,7 @@ export function FollowingEmpty({ profiles }: { profiles: Suggestion[] }) {
         <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-full bg-violet-600/10 text-violet-600 dark:bg-violet-500/15 dark:text-[#A78BFA]">
           <Compass className="h-5 w-5" aria-hidden="true" />
         </div>
-        <p className="text-[17px] font-bold tracking-tight">Your Following feed is quiet</p>
+        <p className="text-[17px] font-semibold tracking-tight">Your Following feed is quiet</p>
         <p className="mx-auto mt-1.5 max-w-[19rem] text-sm leading-5 text-zinc-500">
           Follow a few collectors and their posts, pickups and cards land here.
         </p>
@@ -131,16 +131,12 @@ export function WhoToFollowCard({ profiles: offered }: { profiles: Suggestion[] 
       aria-label="Who to follow"
       className="border-b border-zinc-200/70 px-4 py-4 dark:border-white/[0.07]"
     >
-      <div className="relative overflow-hidden rounded-2xl border border-violet-500/15 bg-white shadow-[0_12px_32px_-22px_rgba(124,58,237,0.55)] dark:border-violet-400/15 dark:bg-white/[0.03]">
-        <span
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-violet-600/[0.09] to-transparent dark:from-violet-500/[0.14]"
-        />
+      <div className="relative overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-[0_1px_2px_rgba(0,0,0,0.05)] dark:border-white/[0.08] dark:bg-white/[0.03] dark:shadow-none">
         <div className="relative flex items-center gap-2 px-4 pt-3.5 pb-1">
           <span className="grid h-7 w-7 place-items-center rounded-full bg-violet-600 text-white" aria-hidden="true">
             <UsersRound className="h-3.5 w-3.5" />
           </span>
-          <h2 className="text-[15px] font-bold tracking-tight">Who to follow</h2>
+          <h2 className="text-[15px] font-semibold tracking-tight">Who to follow</h2>
         </div>
         <ul className="relative">
           {profiles.map((profile) => (
@@ -157,7 +153,7 @@ export function WhoToFollowCard({ profiles: offered }: { profiles: Suggestion[] 
               <div className="min-w-0 flex-1">
                 <Link
                   href={userHref(profile.username)}
-                  className="block truncate text-[15px] leading-5 font-bold tracking-tight hover:underline"
+                  className="block truncate text-[15px] leading-5 font-semibold tracking-tight hover:underline"
                 >
                   {profile.displayName}
                 </Link>

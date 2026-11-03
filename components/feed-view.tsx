@@ -570,11 +570,11 @@ function SignedOutBanner() {
   const pathname = usePathname() || "/";
   return (
     <div className="border-b border-zinc-200/70 px-4 py-4 dark:border-white/[0.07]">
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#7C3AED] to-[#5B21B6] p-4 text-white">
-        <p className="font-mono text-[11px] font-semibold tracking-wider text-white/70 uppercase">
+      <div className="relative overflow-hidden rounded-2xl bg-[#7C3AED] p-4 text-white">
+        <p className="text-[13px] font-medium text-white/70">
           Join the collectors
         </p>
-        <p className="mt-1 text-[19px] leading-6 font-extrabold tracking-tight text-balance">
+        <p className="mt-1 text-[19px] leading-6 font-semibold tracking-tight text-balance">
           Track your cards and see what collectors are posting.
         </p>
         <p className="mt-1.5 text-sm leading-5 text-white/80">
@@ -583,7 +583,7 @@ function SignedOutBanner() {
         <div className="mt-4 flex flex-wrap gap-2">
           <Link
             href={signupPath(pathname)}
-            className="inline-flex min-h-11 items-center rounded-full bg-white px-5 text-sm font-bold text-[#5B21B6] transition-transform active:scale-95 motion-reduce:transform-none"
+            className="inline-flex min-h-11 items-center rounded-full bg-white px-5 text-sm font-semibold text-[#5B21B6] transition-transform active:scale-95 motion-reduce:transform-none"
           >
             Sign up
           </Link>
