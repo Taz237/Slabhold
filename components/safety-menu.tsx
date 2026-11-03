@@ -122,7 +122,7 @@ export function SafetyMenu({
           event.stopPropagation();
           setOpen((value) => !value);
         }}
-        className="grid h-8 w-8 place-items-center rounded-full text-zinc-500 hover:bg-zinc-100 dark:hover:bg-white/10"
+        className="hit-44 grid h-8 w-8 place-items-center rounded-full text-zinc-500 hover:bg-zinc-100 dark:hover:bg-white/10"
       >
         <Ellipsis className="h-5 w-5" />
       </button>
@@ -268,7 +268,7 @@ export function SafetyMenu({
   );
 }
 
-function ConfirmDialog({
+export function ConfirmDialog({
   title,
   body,
   confirm,

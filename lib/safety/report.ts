@@ -81,3 +81,49 @@ export async function saveReport(
   if (!result.error || result.code === "23505") return { ok: true };
   return { ok: false, error: result.error };
 }
+
+export const REPORT_DAILY_LIMIT = 20;
+export const REPORT_LIMIT_MESSAGE = "You've sent a lot of reports today. Try again tomorrow";
+export const REPORT_TARGET_GONE = "That post or reply is gone.";
+
+/** Who wrote a post or reply, read on the server. Null when it's gone or hidden from the reader. */
+export type AuthorLookup = (
+  table: "posts" | "comments",
+  id: string,
+) => Promise<{ userId: string | null; error?: string }>;
+
+/**
+ * The account a report is about. Post and reply reports use the real author,
+ * never the id the client sent. A user report is about its target.
+ */
+export async function reportedAccount(
+  targetType: string,
+  targetId: string,
+  lookup: AuthorLookup,
+): Promise<{ userId: string } | { error: string }> {
+  const id = targetId.trim();
+  if (targetType === "user") return id ? { userId: id } : { error: "Missing report target." };
+  if (targetType !== "post" && targetType !== "reply") {
+    return { error: "That report target isn't supported." };
+  }
+  const found = await lookup(targetType === "post" ? "posts" : "comments", id);
+  if (found.error) return { error: found.error };
+  return found.userId ? { userId: found.userId } : { error: REPORT_TARGET_GONE };
+}
+
+/** Counts the reporter's own reports since a time. A failed count reads as null. */
+export type ReportCounter = (reporterId: string, sinceIso: string) => Promise<number | null>;
+
+/**
+ * True once the reporter has sent the daily limit in the last 24 hours. A
+ * failed count lets the report through; the database cap is the hard stop.
+ */
+export async function reportCapReached(
+  reporterId: string,
+  count: ReportCounter,
+  now = Date.now(),
+): Promise<boolean> {
+  const since = new Date(now - 24 * 60 * 60 * 1000).toISOString();
+  const sent = await count(reporterId, since);
+  return sent !== null && sent >= REPORT_DAILY_LIMIT;
+}

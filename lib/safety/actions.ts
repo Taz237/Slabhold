@@ -4,8 +4,19 @@ import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { createSupabaseServer, getAuthUserId } from "@/lib/supabase/server";
 import { adminAccess } from "./admin";
 import { blockUser } from "./block";
-import { deleteReportedTarget, hideReportedPost, reviewReport } from "./moderation";
-import { saveReport, type ReportInput } from "./report";
+import {
+  deleteReportedTarget,
+  hideReportedPost,
+  reviewReport,
+  suspendReportedUser,
+} from "./moderation";
+import {
+  REPORT_LIMIT_MESSAGE,
+  reportCapReached,
+  reportedAccount,
+  saveReport,
+  type ReportInput,
+} from "./report";
 
 async function sessionClient() {
   const userId = await getAuthUserId();
@@ -22,6 +33,22 @@ export async function submitReport(input: {
 }): Promise<{ ok: true } | { ok: false; error: string }> {
   const { userId, supabase } = await sessionClient();
   if (!userId || !supabase) return { ok: false, error: "Log in to report." };
+  const capped = await reportCapReached(userId, async (reporterId, since) => {
+    const { count, error } = await supabase
+      .from("reports")
+      .select("id", { count: "exact", head: true })
+      .eq("reporter_id", reporterId)
+      .gte("created_at", since);
+    return error ? null : (count ?? 0);
+  });
+  if (capped) return { ok: false, error: REPORT_LIMIT_MESSAGE };
+  // The client's reportedUserId is ignored: the author comes from the row itself.
+  const account = await reportedAccount(input.targetType, input.targetId, async (table, id) => {
+    const { data, error } = await supabase.from(table).select("user_id").eq("id", id).maybeSingle();
+    if (error) return { userId: null, error: error.message };
+    return { userId: typeof data?.user_id === "string" ? data.user_id : null };
+  });
+  if ("error" in account) return { ok: false, error: account.error };
   return saveReport(
     {
       async insert(row) {
@@ -34,7 +61,7 @@ export async function submitReport(input: {
       reporterId: userId,
       targetType: input.targetType,
       targetId: input.targetId,
-      reportedUserId: input.reportedUserId,
+      reportedUserId: account.userId,
       reason: input.reason,
       details: input.details,
     },
@@ -130,4 +157,9 @@ export async function hideReportPost(reportId: string) {
 
 export async function deleteReportTarget(reportId: string) {
   return deleteReportedTarget(reportId);
+}
+
+/** Only the report id crosses from the client. */
+export async function suspendReportUser(reportId: string) {
+  return suspendReportedUser(reportId);
 }

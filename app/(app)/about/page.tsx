@@ -16,6 +16,11 @@ export default function AboutPage() {
           Terms
         </Link>
       </p>
+      <p>
+        <Link href="/support" className="font-medium underline">
+          Support
+        </Link>
+      </p>
     </article>
   );
 }

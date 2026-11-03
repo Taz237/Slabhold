@@ -18,6 +18,7 @@ import { useSocial } from "@/components/social-provider";
 import { usePublicCards } from "@/lib/social/use-public-cards";
 import { useProfiles } from "@/lib/social/use-profiles";
 import { ReadRetry } from "@/components/read-retry";
+import { SafetyMenu } from "@/components/safety-menu";
 import { signupPath } from "@/lib/auth/safe-next";
 import { exactTime } from "@/lib/format";
 import { offerCardForThread } from "@/lib/offers/open-to-offers";
@@ -277,6 +278,12 @@ export function MessageThread({ username }: { username: string }) {
         <button type="button" onClick={() => setDealOpen(true)} className="inline-flex min-h-11 shrink-0 items-center rounded-full px-3 text-xs font-semibold text-violet-700 dark:text-violet-300">
           {MARK_SOLD_LABEL}
         </button>
+        <SafetyMenu
+          targetType="user"
+          targetId={partner.id}
+          reportedUserId={partner.id}
+          username={partner.username}
+        />
       </div>
       {dealOpen ? <DealSheet fixedBuyerId={partner.id} onClose={() => setDealOpen(false)} /> : null}
       <DealThreadPanel partnerId={partner.id} />

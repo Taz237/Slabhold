@@ -1,11 +1,12 @@
 import "server-only";
 
 import { notFound } from "next/navigation";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { userHref } from "@/lib/social/user-href";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { getAuthUserId } from "@/lib/supabase/server";
-import { adminAccess } from "./admin";
-import { REPORT_REASONS } from "./report";
+import { adminAccess, parseAdminIds } from "./admin";
+import { REPORT_REASONS, REPORT_TARGET_GONE, reportedAccount } from "./report";
 
 export type OpenReportRow = {
   id: string;
@@ -50,10 +51,17 @@ function reasonLabel(reason: string) {
   return REPORT_REASONS.find((item) => item.id === reason)?.label ?? reason;
 }
 
-async function requireModerator() {
-  const userId = await getAuthUserId();
-  if (adminAccess(userId) !== "allow" || !userId) notFound();
-  const admin = createSupabaseAdmin();
+/** Test seams. Production callers pass nothing. */
+export type ModeratorDeps = {
+  getUserId?: () => Promise<string | null>;
+  createAdmin?: () => SupabaseClient | null;
+  adminIds?: string;
+};
+
+async function requireModerator(deps: ModeratorDeps = {}) {
+  const userId = await (deps.getUserId ?? getAuthUserId)();
+  if (adminAccess(userId, deps.adminIds) !== "allow" || !userId) notFound();
+  const admin = (deps.createAdmin ?? createSupabaseAdmin)();
   if (!admin) return { userId, admin: null as null };
   return { userId, admin };
 }
@@ -142,8 +150,8 @@ async function stamp(
   reportId: string,
   adminId: string,
   status: "reviewed" | "actioned",
+  admin: SupabaseClient | null = createSupabaseAdmin(),
 ) {
-  const admin = createSupabaseAdmin();
   if (!admin) return "Moderation is unavailable right now.";
   const { error } = await admin
     .from("reports")
@@ -202,5 +210,61 @@ export async function deleteReportedTarget(reportId: string): Promise<{ error?: 
     return { error: "This report isn't about a post or reply." };
   }
   const failed = await stamp(reportId, userId, "actioned");
+  return failed ? { error: failed } : {};
+}
+
+export const SUSPEND_TARGET_GONE = "This post is gone. Suspend from a report on the account";
+export const SUSPEND_AUTHOR_MISMATCH = "This report names a different account than the author";
+
+/** Supabase Auth's built-in ban, about 100 years. Lifted in the dashboard (Unban). */
+export const SUSPEND_BAN_DURATION = "876000h";
+
+/**
+ * Suspends the reported account: an Auth ban so they can't log in, and every
+ * post of theirs hidden the way hideReportedPost hides one.
+ */
+export async function suspendReportedUser(
+  reportId: string,
+  deps: ModeratorDeps = {},
+): Promise<{ error?: string }> {
+  const { userId, admin } = await requireModerator(deps);
+  if (!admin) return { error: "Moderation is unavailable right now." };
+  const { data, error } = await admin
+    .from("reports")
+    .select("target_type, target_id, reported_user_id")
+    .eq("id", reportId)
+    .maybeSingle();
+  if (error) return { error: error.message };
+  if (!data) return { error: "That report is gone." };
+  // reports.reported_user_id is set by the reporter's client. Trust the row's author instead.
+  const author = await reportedAccount(
+    String(data.target_type ?? ""),
+    String(data.target_id ?? ""),
+    async (table, id) => {
+      const found = await admin.from(table).select("user_id").eq("id", id).maybeSingle();
+      if (found.error) return { userId: null, error: found.error.message };
+      return { userId: typeof found.data?.user_id === "string" ? found.data.user_id : null };
+    },
+  );
+  if ("error" in author) {
+    return { error: author.error === REPORT_TARGET_GONE ? SUSPEND_TARGET_GONE : author.error };
+  }
+  const reportedId = author.userId;
+  if (reportedId !== data.reported_user_id) return { error: SUSPEND_AUTHOR_MISMATCH };
+  const adminIds = parseAdminIds(deps.adminIds ?? process.env.ADMIN_USER_IDS);
+  if (reportedId === userId || adminIds.includes(reportedId)) {
+    return { error: "You can't suspend a moderator account." };
+  }
+  const banned = await admin.auth.admin.updateUserById(reportedId, {
+    ban_duration: SUSPEND_BAN_DURATION,
+  });
+  if (banned.error) return { error: banned.error.message };
+  const hidden = await admin
+    .from("posts")
+    .update({ hidden_at: new Date().toISOString(), hidden_by: userId })
+    .eq("user_id", reportedId)
+    .is("hidden_at", null);
+  if (hidden.error) return { error: hidden.error.message };
+  const failed = await stamp(reportId, userId, "actioned", admin);
   return failed ? { error: failed } : {};
 }

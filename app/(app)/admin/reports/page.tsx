@@ -61,6 +61,7 @@ export default async function AdminReportsPage() {
               )}
               <ReportActions
                 reportId={report.id}
+                reported={report.reported}
                 canModeratePost={report.canModeratePost}
                 canDelete={report.canDelete}
               />
@@ -68,6 +69,7 @@ export default async function AdminReportsPage() {
           ))}
         </ul>
       )}
+      <p className="px-4 py-4 text-sm text-zinc-500">Lift a suspension in Supabase Auth</p>
     </div>
   );
 }
