@@ -5,6 +5,7 @@ import { NoHeadPreload } from "@/components/landing/no-head-preload";
 import { FeaturePanels, LandingCta, LandingLogin } from "@/components/landing/landing-links";
 import { Logo } from "@/components/logo";
 import type { FounderShowcase } from "@/lib/landing/founder";
+import { quickCompEnabled } from "@/lib/quick-comp/flag";
 import { readFounderShowcase } from "@/lib/landing/founder-showcase";
 
 /**
@@ -15,6 +16,7 @@ import { readFounderShowcase } from "@/lib/landing/founder-showcase";
  */
 export function LandingPage({ founder = null }: { founder?: FounderShowcase | null }) {
   const showcase = founder ? readFounderShowcase(founder) : null;
+  const quickComp = quickCompEnabled();
   return (
     <div className="min-h-dvh overflow-x-clip bg-[#09090b] text-zinc-100">
       <div className="relative mx-auto flex min-h-dvh w-full max-w-lg flex-col px-6 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))] lg:max-w-5xl">
@@ -43,7 +45,9 @@ export function LandingPage({ founder = null }: { founder?: FounderShowcase | nu
               </span>
             </h1>
             <p className="mx-auto mt-4 max-w-sm text-[16px] leading-6 text-zinc-400 lg:mx-0">
-              Track your sports cards with recent sold prices, and share them with collectors who get it.
+              {quickComp
+                ? "Comps as good as the paid tools, free with an account. Then track your cards and share them with collectors who get it."
+                : "Track your sports cards with recent sold prices, and share them with collectors who get it."}
             </p>
             <LandingCta />
           </div>
@@ -61,7 +65,9 @@ export function LandingPage({ founder = null }: { founder?: FounderShowcase | nu
           </NoHeadPreload>
           <h2 className="mt-4 text-[2rem] leading-tight font-semibold tracking-tight text-white">Join free</h2>
           <p className="mx-auto mt-2 max-w-xs text-[15px] leading-6 text-zinc-400">
-            Bring your collection. Find your people. It takes a minute.
+            {quickComp
+              ? "Comp a card, bring your collection, find your people. It takes a minute."
+              : "Bring your collection, find your people. It takes a minute."}
           </p>
           <div className="mx-auto max-w-sm">
             <LandingCta />

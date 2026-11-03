@@ -384,8 +384,8 @@ describe("home share image", () => {
   it("keeps the headline and the subline", () => {
     const image = homeShareImage();
     assert.equal(image.kind, "home");
-    assert.equal(image.title, "Sports cards, together.");
-    assert.equal(image.detail, "Portfolio, flips, and a feed of collectors.");
+    assert.equal(image.title, "Comp any card.");
+    assert.equal(image.detail, "Recent sold prices, your collection and the collectors behind it.");
   });
 });
 

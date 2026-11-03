@@ -3,7 +3,7 @@ export const BRAND_PURPLE = "#7C3AED";
 export const webAppManifest = {
   name: "Slabhold",
   short_name: "Slabhold",
-  description: "Sports card portfolio, flips, and a feed of collectors",
+  description: "Comp any sports card, track your collection and follow the collectors who get it",
   start_url: "/",
   display: "standalone" as const,
   background_color: BRAND_PURPLE,
