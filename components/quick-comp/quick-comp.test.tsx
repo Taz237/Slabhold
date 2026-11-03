@@ -237,8 +237,9 @@ describe("Quick Comp Home entry", () => {
   it("draws nothing on Home with the flag off", () => {
     assert.equal(process.env.NEXT_PUBLIC_QUICK_COMP, undefined);
     const feed = read("components/home-feed.tsx");
-    // The only Quick Comp markup is behind the flag, first in the For you slot.
-    assert.match(feed, /<>\s*\{quickCompEnabled\(\) \? <QuickCompHomeLink \/> : null\}\s*\{movers \? <MovingTodayCached payload=\{movers\} \/> : <MovingToday \/>\}\s*<LeaderboardHomeLink \/>\s*<\/>/);
+    // The only Quick Comp markup is behind the flag, on both Home tabs.
+    assert.match(feed, /<>\s*\{movers \? <MovingTodayCached payload=\{movers\} \/> : <MovingToday \/>\}\s*<LeaderboardHomeLink \/>\s*<\/>/);
+    assert.match(feed, /homeEntry=\{quickCompEnabled\(\) \? <QuickCompHomeLink \/> : null\}/);
     assert.equal(count(feed, "QuickComp"), 2);
   });
 
@@ -247,7 +248,7 @@ describe("Quick Comp Home entry", () => {
     const html = renderToStaticMarkup(createElement(QuickCompHomeLink));
     assert.match(html, /href="\/comp"/);
     assert.match(html, /min-h-11/);
-    assert.match(html, /<span class="font-medium">Comp a card<\/span>/);
+    assert.match(html, /<span class="font-medium">Quick Comp<\/span>/);
     assert.match(html, /Recent sold prices/);
     assert.equal(count(html, 'width="16"'), 2);
     assert.equal(count(html, 'stroke-width="1.5"'), 2);

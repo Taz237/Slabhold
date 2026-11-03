@@ -25,9 +25,9 @@ export function HomeFeed({
     <SeededSocial seed={seed}>
       <FeedView
         seed={seed}
+        homeEntry={quickCompEnabled() ? <QuickCompHomeLink /> : null}
         movingToday={
           <>
-            {quickCompEnabled() ? <QuickCompHomeLink /> : null}
             {movers ? <MovingTodayCached payload={movers} /> : <MovingToday />}
             <LeaderboardHomeLink />
           </>

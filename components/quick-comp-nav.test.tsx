@@ -219,3 +219,112 @@ describe("Quick Comp nav with the flag unset", () => {
     }
   });
 });
+
+/** Signed-in Home with nothing in the feed. Anything Home asks for that isn't listed is empty. */
+function homeSocial() {
+  const known: Record<string, unknown> = {
+    ...social(),
+    hasFullSnapshot: true,
+    loadingPostId: null,
+    profiles: [sam],
+    posts: [],
+    homePosts: [],
+    homeReposts: [],
+    reposts: [],
+    feed: [],
+    follows: [],
+    suggestions: [],
+    suggestionsReady: true,
+    notifications: [],
+    messages: [],
+    publicCards: [],
+    removedPostIds: new Set<string>(),
+    blockedIds: [],
+    mutedIds: [],
+    postCardValuesMessage: null,
+    inboxMore: { notifications: false, messages: false },
+    refresh: async () => [],
+  };
+  return new Proxy(known, {
+    get(target, key: string) {
+      if (key in target) return target[key];
+      return () => (/Ready$|^is/.test(key) ? true : undefined);
+    },
+  });
+}
+
+async function homeRows(entry: ReactNode): Promise<{ text: () => string; following: () => Promise<void>; done: () => void }> {
+  const [{ FeedView }, { createRoot }] = await Promise.all([import("@/components/feed-view"), import("react-dom/client")]);
+  const host = document.createElement("div");
+  document.body.appendChild(host);
+  const root = createRoot(host);
+  const tree = createElement(
+    AppRouterContext.Provider,
+    { value: router },
+    createElement(
+      PathnameContext.Provider,
+      { value: "/" },
+      createElement(
+        SearchParamsContext.Provider,
+        { value: new URLSearchParams() },
+        createElement(
+          mods.SocialContext.Provider,
+          { value: homeSocial() },
+          createElement(
+            mods.CollectionContext.Provider,
+            { value: { cards: [], ready: true, syncError: null } },
+            createElement(FeedView as ComponentType<{ homeEntry?: ReactNode; movingToday?: ReactNode }>, {
+              homeEntry: entry,
+              movingToday: createElement("p", null, "Moving today slot"),
+            }),
+          ),
+        ),
+      ),
+    ),
+  );
+  await act(async () => {
+    root.render(tree);
+  });
+  return {
+    text: () => host.textContent ?? "",
+    async following() {
+      await act(async () => {
+        host.querySelector<HTMLButtonElement>("#lane-tab-following")?.click();
+      });
+    },
+    done() {
+      act(() => root.unmount());
+      host.remove();
+    },
+  };
+}
+
+describe("Quick Comp Home entry on both tabs", () => {
+  it("draws the entry on For you, before Moving today, and on Following", async () => {
+    const { QuickCompHomeLink } = await import("@/components/quick-comp-home-link");
+    const home = await homeRows(createElement(QuickCompHomeLink));
+    try {
+      const foryou = home.text();
+      assert.ok(foryou.includes("Quick Comp"), "For you");
+      assert.ok(foryou.indexOf("Quick Comp") < foryou.indexOf("Moving today slot"));
+      await home.following();
+      const following = home.text();
+      assert.ok(following.includes("Quick Comp"), "Following");
+      assert.equal(following.includes("Moving today slot"), false);
+      assert.ok(document.querySelector('a[href="/comp"]'));
+    } finally {
+      home.done();
+    }
+  });
+
+  it("draws nothing extra without an entry", async () => {
+    const home = await homeRows(null);
+    try {
+      assert.equal(home.text().includes("Quick Comp"), false);
+      await home.following();
+      assert.equal(document.querySelector('a[href="/comp"]'), null);
+    } finally {
+      home.done();
+    }
+  });
+});

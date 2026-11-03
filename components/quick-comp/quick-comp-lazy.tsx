@@ -12,7 +12,7 @@ function QuickCompShell() {
   return (
     <div data-quick-comp-shell="" className="flex flex-col gap-5 pt-1">
       <header>
-        <h1 className="text-xl leading-7 font-semibold tracking-tight">Comp a card</h1>
+        <h1 className="text-xl leading-7 font-semibold tracking-tight">Quick Comp</h1>
         <p className={`mt-1 text-sm leading-5 ${textSecondary}`}>Recent sold prices, without adding it to your collection</p>
       </header>
       <div>
