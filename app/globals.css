@@ -36,6 +36,11 @@
   --font-mono: var(--font-geist-mono);
 }
 
+/* Brand purple. Every violet-600 class and var(--color-violet-600) is exactly #7C3AED. */
+@theme {
+  --color-violet-600: #7C3AED;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
