@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { useEffect, useId, useRef, useState } from "react";
+import { Check } from "lucide-react";
 import { Badge } from "@/components/badges/badge";
 import { ShareButton } from "@/components/share-sheet";
 import { useReducedMotion } from "@/components/timeline-ui";
 import { requestBadgeCheck } from "@/lib/badges/client";
 import { MAX_PINNED_BADGES, TIER_LABELS, CATEGORY_COPY } from "@/lib/badges/config";
-import { togglePin } from "@/lib/badges/pins";
+import { formatPin, togglePin } from "@/lib/badges/pins";
 import type { BadgeReveal } from "@/lib/badges/reveal";
 import { markBadgesSeen, savePinnedBadges } from "@/lib/badges/save";
 import { badgeImagePath, badgeSharePath, badgeShareText } from "@/lib/share/links";
@@ -77,12 +78,16 @@ export function BadgeRevealView({
   pinned,
   username,
   onClose,
+  savePins = savePinnedBadges,
 }: {
   reveal: BadgeReveal;
+  /** The pins the profile shows now, auto pins included. */
   pinned: readonly string[];
   /** The owner's handle. Share shows only when it is known. */
   username?: string;
   onClose: () => void;
+  /** Tests pass a fake. */
+  savePins?: typeof savePinnedBadges;
 }) {
   const reduce = useReducedMotion();
   const titleId = useId();
@@ -91,10 +96,11 @@ export function BadgeRevealView({
   useEffect(() => {
     onCloseRef.current = onClose;
   });
-  const [pinState, setPinState] = useState<"idle" | "saving" | "pinned" | "full" | "error">(() =>
-    pinned.includes(`${reveal.headline.category}:${reveal.headline.tier}`) ? "pinned" : "idle",
-  );
   const { headline } = reveal;
+  const [pins, setPins] = useState<readonly string[]>(pinned);
+  const [pinState, setPinState] = useState<"idle" | "saving" | "full" | "error">("idle");
+  const [unpinned, setUnpinned] = useState(false);
+  const isPinned = pins.includes(formatPin(headline));
   const imageFile = usePrefetchedFile(
     username ? badgeImagePath(username, headline.category, headline.tier) : null,
     `slabhold-badge-${headline.category}-${headline.tier}.png`,
@@ -114,15 +120,31 @@ export function BadgeRevealView({
     };
   }, []);
 
+  // "Unpinned" stays up for 4s, long enough to read and undo.
+  useEffect(() => {
+    if (!unpinned) return;
+    const timer = window.setTimeout(() => setUnpinned(false), 4000);
+    return () => window.clearTimeout(timer);
+  }, [unpinned]);
+
   async function onPin() {
-    const result = togglePin(pinned, headline);
+    if (pinState === "saving") return;
+    const removing = isPinned;
+    const result = togglePin(pins, headline);
     if (result.full) {
       setPinState("full");
       return;
     }
     setPinState("saving");
-    const saved = await savePinnedBadges(result.pins);
-    setPinState(saved.ok ? "pinned" : "error");
+    setUnpinned(false);
+    const saved = await savePins(result.pins);
+    if (!saved.ok) {
+      setPinState("error");
+      return;
+    }
+    setPins(result.pins);
+    setPinState("idle");
+    setUnpinned(removing);
   }
 
   return (
@@ -196,11 +218,20 @@ export function BadgeRevealView({
             ) : (
               <button
                 type="button"
-                disabled={pinState === "saving" || pinState === "pinned"}
+                aria-busy={pinState === "saving" || undefined}
                 onClick={() => void onPin()}
-                className="min-h-12 flex-1 rounded-full bg-violet-600 px-5 text-[15px] font-semibold text-white transition-opacity disabled:opacity-70"
+                className="inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-full border border-white/15 px-5 text-[15px] font-medium"
               >
-                {pinState === "pinned" ? "Pinned to profile" : pinState === "saving" ? "Pinning…" : "Pin to profile"}
+                {pinState === "saving" ? (
+                  "Saving…"
+                ) : isPinned ? (
+                  <>
+                    <Check aria-hidden size={16} strokeWidth={1.5} />
+                    Pinned
+                  </>
+                ) : (
+                  "Pin to profile"
+                )}
               </button>
             )}
             {username ? (
@@ -233,8 +264,12 @@ export function BadgeRevealView({
             {pinState === "full"
               ? `You already pinned ${MAX_PINNED_BADGES}. Unpin one to make room.`
               : pinState === "error"
-                ? "Couldn't pin it. Try again from Achievements."
-                : ""}
+                ? isPinned
+                  ? "Couldn't unpin it. Try again from Achievements."
+                  : "Couldn't pin it. Try again from Achievements."
+                : unpinned
+                  ? "Unpinned. Tap Pin to profile to undo."
+                  : ""}
           </p>
         </div>
       </div>

@@ -140,7 +140,9 @@ describe("earn reveal", () => {
 
   it("says pinned when the badge already shows on the profile", () => {
     mount(createElement(BadgeRevealView, { reveal, pinned: ["collector:legendary"], onClose() {} }));
-    assert.ok([...document.querySelectorAll("button")].some((button) => button.textContent === "Pinned to profile"));
+    const pinnedButton = [...document.querySelectorAll("button")].find((button) => button.textContent === "Pinned");
+    assert.ok(pinnedButton);
+    assert.equal(pinnedButton.disabled, false);
   });
 
   it("closes on Nice", () => {
