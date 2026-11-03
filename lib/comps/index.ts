@@ -92,7 +92,7 @@ function toMatchCard(card: SoldCompCard): MatchCard {
   };
 }
 
-function samplePayload(card: SoldCompCard): SoldCompsPayload {
+export function samplePayload(card: SoldCompCard): SoldCompsPayload {
   const matchCard = toMatchCard(card);
   const mocks = mockCompsForCard({
     playerName: card.playerName,
@@ -123,7 +123,7 @@ function samplePayload(card: SoldCompCard): SoldCompsPayload {
   };
 }
 
-function payloadFromSales(
+export function payloadFromSales(
   sales: CleanedSale[],
   opts: {
     source: "trawl";
