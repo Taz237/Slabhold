@@ -16,6 +16,17 @@ export const BOTTOM_NAV = [
   { href: "/messages", label: "Messages" },
 ] as const;
 
+/** With Quick Comp on, this tab takes Leaderboard's slot. Leaderboard stays in the side menu. */
+export const QUICK_COMP_TAB = { href: "/comp", label: "Quick Comp" } as const;
+
+export type BottomNavTab = (typeof BOTTOM_NAV)[number] | typeof QUICK_COMP_TAB;
+
+/** The bar for this build: today's five, or Quick Comp in slot 2 instead of Leaderboard. */
+export function bottomNavTabs(quickComp: boolean): readonly BottomNavTab[] {
+  if (!quickComp) return BOTTOM_NAV;
+  return BOTTOM_NAV.map((tab) => (tab.href === "/leaderboard" ? QUICK_COMP_TAB : tab));
+}
+
 /**
  * Taken off the bar so five labels fit at 390px. The side menu opens them
  * from the avatar at the top left, like X. Settings and the old More links

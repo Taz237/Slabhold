@@ -80,6 +80,9 @@ const nextConfig: NextConfig = {
   },
   env: {
     NEXT_PUBLIC_VERCEL_ENV: process.env.NEXT_PUBLIC_VERCEL_ENV || process.env.VERCEL_ENV || "",
+    // Always inlined. Unset, Next leaves a runtime process.env read in the
+    // client; "" lets a build with Quick Comp off drop its nav code.
+    NEXT_PUBLIC_QUICK_COMP: process.env.NEXT_PUBLIC_QUICK_COMP === "1" ? "1" : "",
   },
   cacheComponents: false,
   turbopack: {

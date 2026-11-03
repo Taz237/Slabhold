@@ -103,9 +103,12 @@ let rememberedLane: { userId: string; lane: HomeLane } | null = null;
 
 export function FeedView({
   movingToday,
+  homeEntry,
   seed = null,
 }: {
   movingToday?: ReactNode;
+  /** A row drawn on both Home tabs, under Trending on For you. */
+  homeEntry?: ReactNode;
   /** Home's first page, read on the server for this request. */
   seed?: HomeSeed | null;
 } = {}) {
@@ -466,6 +469,7 @@ export function FeedView({
         ) : null}
 
         {lane === "foryou" ? <TrendingNow /> : null}
+        {homeEntry}
         <MoversSignedIn value={Boolean(user)}>
           {lane === "foryou" ? movingToday ?? <MovingToday /> : null}
         </MoversSignedIn>

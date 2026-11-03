@@ -5,7 +5,7 @@ import { loginPath } from "@/lib/auth/safe-next";
 import { QUICK_COMP_PATH, quickCompEnabled } from "@/lib/quick-comp/flag";
 import { getAuthUserId } from "@/lib/supabase/server";
 
-export const metadata: Metadata = { title: "Comp a card · Slabhold" };
+export const metadata: Metadata = { title: "Quick Comp · Slabhold" };
 
 /**
  * Quick Comp. A 404 with the flag off. Signed out, it sends you to log in
