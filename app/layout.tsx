@@ -12,7 +12,7 @@ const geistSans = Geist({
   display: "swap",
 });
 
-// Small uppercase tags. Preloaded: they are above the fold on most screens.
+// Mono for numbers and short tags. Preloaded: they are above the fold on most screens.
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],

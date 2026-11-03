@@ -90,7 +90,7 @@ function Featured({ payload, reduced }: { payload: MovingTodayPayload; reduced: 
         className={`w-[172px] shrink-0 ${reduced ? "" : ENTER}`}
       />
       <div className="min-w-0 flex-1 pb-12">
-        <p className="font-mono text-[10px] font-semibold text-[#7C3AED] dark:text-[#A78BFA]">
+        <p className="text-[12px] font-medium text-[#7C3AED] dark:text-[#A78BFA]">
           Top mover
         </p>
         <div className="mt-2">
