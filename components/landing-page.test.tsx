@@ -90,24 +90,62 @@ describe("landing page", () => {
     }
   });
 
-  it("shows five sample-marked panels with dots", async () => {
-    const host = await mountPanels();
-    const slides = host.querySelectorAll('[aria-roledescription="slide"]');
-    assert.equal(slides.length, 5);
-    assert.deepEqual(
-      [...slides].map((slide) => slide.querySelector("h2")?.textContent),
-      ["Track your collection", "Real comps", "Weekly leaderboard", "Earn badges", "Post, share, DM"],
-    );
-    for (const slide of slides) assert.match(slide.textContent ?? "", /Sample/);
-    assert.match(slides[1].textContent ?? "", /Matched to recent sold prices/);
-    assert.match(slides[1].textContent ?? "", /via Trawl/);
-    assert.equal(slides[2].querySelectorAll(".lb-banner-1, .lb-banner-2, .lb-banner-3").length, 3);
-    assert.equal(slides[3].querySelectorAll("[data-badge]").length, 6);
-    assert.equal(slides[3].querySelectorAll(".badge-legendary").length, 1, "only Legendary glows");
-    const dots = host.querySelectorAll('[aria-label="Choose a panel"] button');
-    assert.equal(dots.length, 5);
-    assert.equal(dots[0].getAttribute("aria-current"), "true");
-    for (const dot of dots) assert.ok(dot.getAttribute("aria-label")?.startsWith("Show "));
+  it("shows the four sample-marked chapters, Quick Comp first with its flag on", async () => {
+    const flag = process.env.NEXT_PUBLIC_QUICK_COMP;
+    const realObserver = globalThis.IntersectionObserver;
+    // Every chapter is near the viewport, so each demo chunk loads.
+    class NearObserver {
+      constructor(private readonly callback: IntersectionObserverCallback) {}
+      observe(target: Element) {
+        this.callback([{ isIntersecting: true, intersectionRatio: 1, target } as IntersectionObserverEntry], this as never);
+      }
+      unobserve() {}
+      disconnect() {}
+      takeRecords() {
+        return [];
+      }
+    }
+    process.env.NEXT_PUBLIC_QUICK_COMP = "1";
+    Object.defineProperty(globalThis, "IntersectionObserver", { configurable: true, writable: true, value: NearObserver });
+    try {
+      const host = await mountPanels();
+      for (let tries = 0; tries < 20 && !host.querySelector('[data-showcase-demo="quick-comp"]'); tries += 1) {
+        await act(async () => new Promise((resolve) => setTimeout(resolve, 10)));
+      }
+      const chapters = [...host.querySelectorAll("[data-chapter]")];
+      assert.deepEqual(
+        chapters.map((chapter) => chapter.querySelector("h2")?.textContent),
+        ["Quick Comp", "Collectors talking cards", "Your collection, over time", "Earn every tier"],
+      );
+      for (const chapter of chapters) assert.match(chapter.textContent ?? "", /Sample/);
+      const quickComp = chapters[0];
+      assert.match(quickComp.textContent ?? "", /via Trawl/);
+      const signup = quickComp.querySelector<HTMLAnchorElement>('a[href="/signup?next=%2Fcomp"]');
+      assert.equal(signup?.textContent?.trim(), "Sign up to comp any card");
+      const achievements = chapters[3];
+      const slides = achievements.querySelectorAll('[aria-roledescription="slide"]');
+      assert.equal(slides.length, 6);
+      assert.equal(achievements.querySelectorAll("[data-badge]").length, 6);
+      assert.equal(achievements.querySelectorAll(".badge-legendary").length, 1, "only Legendary glows");
+      const dots = host.querySelectorAll('[aria-label="Choose a panel"] button');
+      assert.equal(dots.length, 6);
+      assert.equal(dots[0].getAttribute("aria-current"), "true");
+      for (const dot of dots) assert.ok(dot.getAttribute("aria-label")?.startsWith("Show "));
+      cleanup?.();
+      cleanup = null;
+
+      delete process.env.NEXT_PUBLIC_QUICK_COMP;
+      const off = await mountPanels();
+      assert.deepEqual(
+        [...off.querySelectorAll("[data-chapter]")].map((chapter) => chapter.querySelector("h2")?.textContent),
+        ["Collectors talking cards", "Your collection, over time", "Earn every tier"],
+      );
+      assert.equal(off.querySelector('[data-chapter="quick-comp"]'), null);
+    } finally {
+      if (flag === undefined) delete process.env.NEXT_PUBLIC_QUICK_COMP;
+      else process.env.NEXT_PUBLIC_QUICK_COMP = flag;
+      Object.defineProperty(globalThis, "IntersectionObserver", { configurable: true, writable: true, value: realObserver });
+    }
   });
 
   it("jumps without smooth scrolling for reduced motion", async () => {

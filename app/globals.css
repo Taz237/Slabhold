@@ -625,6 +625,37 @@ textarea {
 }
 
 /*
+ * The landing showcase and the onboarding intro are dark in both themes. The
+ * app parts they reuse (range bar, chart, post pill) take their dark look
+ * there even when the device is in light mode.
+ */
+@media (prefers-color-scheme: light) {
+  [data-always-dark] .bg-zinc-50 {
+    background-color: rgb(255 255 255 / 0.03);
+  }
+  [data-always-dark] .bg-zinc-200 {
+    background-color: rgb(255 255 255 / 0.1);
+  }
+  [data-always-dark] .border-zinc-950\/5 {
+    border-color: rgb(255 255 255 / 0.06);
+  }
+  [data-always-dark] .stroke-zinc-200 {
+    stroke: rgb(255 255 255 / 0.07);
+  }
+  [data-always-dark] .fill-zinc-500 {
+    fill: var(--color-zinc-400);
+  }
+  [data-always-dark] .chart-surface {
+    --chart-surface: #18181b;
+  }
+  [data-always-dark] [data-post-pill] {
+    background-color: rgb(139 92 246 / 0.15);
+    color: #a78bfa;
+    --tw-ring-color: rgb(167 139 250 / 0.25);
+  }
+}
+
+/*
  * Taps. No double-tap zoom wait, no grey iOS flash. Press states use the
  * individual scale property, so they never fight a Tailwind translate.
  */
