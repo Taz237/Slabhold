@@ -140,7 +140,7 @@ export function LandingActions({ next }: { next: string }) {
       <IntentLink
         href={landingSignupHref(next)}
         onClick={() => trackEvent("landing_cta_clicked", { button: "signup" })}
-        className="flex h-14 w-full items-center justify-center rounded-full bg-[#7C3AED] text-[17px] font-semibold text-white shadow-[0_14px_40px_-12px_rgba(124,58,237,0.95)] transition-transform duration-150 active:scale-[0.98] motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-[#A78BFA] focus-visible:ring-offset-2 focus-visible:ring-offset-[#09090b] focus-visible:outline-none lg:max-w-sm"
+        className="flex h-14 w-full items-center justify-center rounded-full bg-[#7C3AED] text-[17px] font-semibold text-white transition-transform duration-150 active:scale-[0.98] motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-[#A78BFA] focus-visible:ring-offset-2 focus-visible:ring-offset-[#09090b] focus-visible:outline-none lg:max-w-sm"
       >
         Create account
       </IntentLink>

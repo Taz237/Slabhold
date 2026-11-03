@@ -101,7 +101,7 @@ function shortDate(ymd: string): string {
 
 const tile =
   "min-w-0 rounded-2xl border border-zinc-200 bg-white p-3.5 dark:border-white/10 dark:bg-white/[0.03]";
-const label = "font-mono text-[10.5px] font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400";
+const label = "font-mono text-[10.5px] font-medium text-zinc-500 dark:text-zinc-400";
 const upText = "text-emerald-700 dark:text-emerald-400";
 const downText = "text-rose-700 dark:text-rose-400";
 /** Change chips: green up, red down, gray for exactly no change. */
@@ -271,10 +271,6 @@ const CollectionValueCard = memo(function CollectionValueCard({
       className="relative overflow-hidden rounded-3xl border border-zinc-200 bg-white dark:border-white/10 dark:bg-[#18181B]"
       aria-label="Collection value"
     >
-      <span
-        className="pointer-events-none absolute -top-24 -right-16 h-56 w-56 rounded-full bg-[#7C3AED]/15 blur-3xl dark:bg-[#7C3AED]/25"
-        aria-hidden
-      />
       <div className="relative p-4 sm:p-5">
         <div className="flex items-center justify-between gap-3">
           <p className={label}>Collection value</p>
@@ -305,7 +301,7 @@ const CollectionValueCard = memo(function CollectionValueCard({
           </>
         ) : (
           <p
-            className="mt-0.5 text-[40px] leading-[1.1] font-extrabold tracking-[-0.03em] tabular-nums"
+            className="mt-0.5 text-[40px] leading-[1.1] font-semibold tracking-[-0.03em] tabular-nums"
             aria-live={scrub ? "off" : "polite"}
           >
             {valuesFailed ? "—" : money(headline)}
@@ -448,7 +444,7 @@ function Tile({
   );
 }
 
-const value = "mt-1 truncate text-xl font-bold tracking-tight tabular-nums";
+const value = "mt-1 truncate text-xl font-semibold tracking-tight tabular-nums";
 const sub = "mt-0.5 truncate text-xs font-medium tabular-nums";
 
 function StatGrid({
@@ -521,7 +517,7 @@ function StatGrid({
           >
             <CardThumb card={best.card.card} className="h-10 w-[30px] shrink-0 rounded-md" />
             <span className="min-w-0">
-              <span className="block truncate text-sm font-bold" title={`${best.card.playerName}, ${formatPct(best.pct)}`}>
+              <span className="block truncate text-sm font-semibold" title={`${best.card.playerName}, ${formatPct(best.pct)}`}>
                 {best.card.playerName}
               </span>
               <span className={`block truncate text-xs font-semibold tabular-nums ${best.gain >= 0 ? upText : downText}`}>
@@ -545,7 +541,7 @@ function TopMovers({ movers }: { movers: Movers<HeroCard> }) {
   return (
     <section aria-labelledby="top-movers-title" className={`${tile} p-0`}>
       <div className="px-3.5 pt-3.5 pb-1">
-        <h2 id="top-movers-title" className="text-[15px] font-bold tracking-tight">
+        <h2 id="top-movers-title" className="text-[15px] font-semibold tracking-tight">
           Top movers in your collection
         </h2>
         {movers.rows.length ? <p className={`${label} mt-0.5`}>{basis}</p> : null}

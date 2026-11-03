@@ -226,7 +226,7 @@ export function MessageThread({ username }: { username: string }) {
         title={blockedPartner ? `You've blocked @${handle}` : `You can't message @${handle}`}
         detail="You can't interact with this account."
       >
-        <Link href="/messages" className="text-sm font-bold">
+        <Link href="/messages" className="text-sm font-semibold">
           Back to Messages
         </Link>
       </EmptyState>
@@ -236,7 +236,7 @@ export function MessageThread({ username }: { username: string }) {
   if (!partner || !user || partner.id === user.id) {
     return (
       <EmptyState title="That conversation isn't available.">
-        <Link href="/messages" className="text-sm font-bold">
+        <Link href="/messages" className="text-sm font-semibold">
           Back to Messages
         </Link>
       </EmptyState>
@@ -270,11 +270,11 @@ export function MessageThread({ username }: { username: string }) {
             className="h-9 w-9"
           />
           <span className="min-w-0">
-            <span className="block truncate text-[15px] font-bold leading-5">{partner.displayName}</span>
+            <span className="block truncate text-[15px] font-semibold leading-5">{partner.displayName}</span>
             <span className="block truncate text-xs text-zinc-500">@{partner.username}</span>
           </span>
         </Link>
-        <button type="button" onClick={() => setDealOpen(true)} className="inline-flex min-h-11 shrink-0 items-center rounded-full px-3 text-xs font-bold text-violet-700 dark:text-violet-300">
+        <button type="button" onClick={() => setDealOpen(true)} className="inline-flex min-h-11 shrink-0 items-center rounded-full px-3 text-xs font-semibold text-violet-700 dark:text-violet-300">
           {MARK_SOLD_LABEL}
         </button>
       </div>
@@ -373,7 +373,7 @@ export function MessageThread({ username }: { username: string }) {
             type="submit"
             aria-label="Send"
             disabled={!canSend}
-            className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-violet-600 text-white shadow-[0_8px_20px_-8px_rgba(124,58,237,0.8)] transition-[transform,opacity,box-shadow] duration-150 active:scale-90 disabled:bg-zinc-300 disabled:text-zinc-500 disabled:shadow-none motion-reduce:transition-none dark:disabled:bg-white/10 dark:disabled:text-zinc-500"
+            className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-violet-600 text-white transition-[transform,opacity] duration-150 active:scale-90 disabled:bg-zinc-300 disabled:text-zinc-500 motion-reduce:transition-none dark:disabled:bg-white/10 dark:disabled:text-zinc-500"
           >
             <SendHorizontal className="h-5 w-5" aria-hidden="true" />
           </button>
@@ -412,7 +412,7 @@ function MessageRow({
     ? `rounded-[20px] ${first ? "" : "rounded-tr-md"} ${last ? "rounded-br-[6px]" : "rounded-br-md"}`
     : `rounded-[20px] ${first ? "" : "rounded-tl-md"} ${last ? "rounded-bl-[6px]" : "rounded-bl-md"}`;
   const tone = mine
-    ? "bg-gradient-to-br from-[#7C3AED] to-[#5B21B6] text-white shadow-[0_6px_16px_-10px_rgba(91,33,182,0.9)]"
+    ? "bg-[#7C3AED] text-white"
     : "bg-zinc-200 text-zinc-900 dark:bg-zinc-800 dark:text-zinc-100";
   return (
     <div
@@ -487,7 +487,7 @@ function BubbleTail({ mine }: { mine: boolean }) {
       aria-hidden="true"
       viewBox="0 0 10 14"
       className={`absolute bottom-0 h-3.5 w-2.5 ${
-        mine ? "-right-[5px] text-[#5B21B6]" : "-left-[5px] -scale-x-100 text-zinc-200 dark:text-zinc-800"
+        mine ? "-right-[5px] text-[#7C3AED]" : "-left-[5px] -scale-x-100 text-zinc-200 dark:text-zinc-800"
       }`}
     >
       <path d="M0 0c0 7 3.5 11.5 10 14H0z" fill="currentColor" />
@@ -512,7 +512,7 @@ function ThreadHint({
       <span className="rounded-full p-1 ring-2 ring-violet-500/40">
         <Avatar name={name} image={avatar} accent={accent} expandable={false} className="h-16 w-16 text-base" />
       </span>
-      <p className="mt-3 text-[17px] font-bold tracking-tight">{name}</p>
+      <p className="mt-3 text-[17px] font-semibold tracking-tight">{name}</p>
       <p className="text-[13px] text-zinc-500">@{username}</p>
       <p className="mt-4 max-w-[16rem] text-sm leading-5 text-zinc-500">
         This is the start of your conversation. Say hi, ask about a card, or talk pickups.

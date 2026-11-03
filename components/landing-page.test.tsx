@@ -135,10 +135,10 @@ describe("landing page", () => {
     assert.match(auth, /text-\[#7C3AED\] dark:text-\[#A78BFA\]">\s*@\{check\.value\} is available/);
   });
 
-  it("floats the hero slabs in CSS and stops them for reduced motion", () => {
+  it("tilts the hero slabs with a static transform and no float loop", () => {
     const css = read("app/globals.css");
-    assert.match(css, /@keyframes landing-float/);
-    assert.match(css, /@media \(prefers-reduced-motion: reduce\) \{\s*\.landing-float \{\s*animation: none;/);
+    assert.doesNotMatch(css, /@keyframes landing-float/);
+    assert.match(css, /\.landing-float \{\s*transform: rotate\(var\(--tilt, 0deg\)\);\s*\}/);
   });
 });
 

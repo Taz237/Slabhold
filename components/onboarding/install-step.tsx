@@ -43,7 +43,7 @@ const SCENE_MS = 2600;
 const RISE = "motion-safe:animate-[install-in_420ms_cubic-bezier(0.2,0.7,0.2,1)_both]";
 
 const primaryButton =
-  "flex h-14 w-full items-center justify-center gap-2 rounded-full bg-violet-600 text-[17px] font-semibold text-white shadow-[0_10px_30px_-10px_rgba(124,58,237,0.8)] transition-transform duration-150 active:scale-[0.98] motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#09090B] focus-visible:outline-none";
+  "flex h-14 w-full items-center justify-center gap-2 rounded-full bg-violet-600 text-[17px] font-semibold text-white transition-transform duration-150 active:scale-[0.98] motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#09090B] focus-visible:outline-none";
 const secondaryButton =
   "flex h-12 w-full items-center justify-center gap-2 rounded-full border border-white/15 text-[16px] font-semibold text-zinc-100 focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:outline-none";
 const quietButton =
@@ -161,7 +161,7 @@ function PageSketch({ dim = false }: { dim?: boolean }) {
             <span className="block h-1.5 w-1/2 rounded-full bg-white/10" />
           </div>
         </div>
-        <span className="mt-2 block h-10 rounded-md bg-gradient-to-br from-[#5B21B6]/50 to-[#7C3AED]/20" />
+        <span className="mt-2 block h-10 rounded-md bg-white/10" />
       </div>
       <span className="block h-1.5 w-2/3 rounded-full bg-white/10" />
       <span className="block h-1.5 w-1/2 rounded-full bg-white/10" />
@@ -181,7 +181,7 @@ function SheetRow({ icon, label, on = false }: { icon: ReactNode; label: string;
   return (
     <span
       className={`flex h-6 items-center justify-between rounded-md px-2 text-[8px] font-medium ${
-        on ? "bg-[#7C3AED] text-white shadow-[0_0_0_2px_rgba(167,139,250,0.55)]" : "text-zinc-300"
+        on ? "bg-[#7C3AED] text-white" : "text-zinc-300"
       }`}
     >
       {label}
@@ -231,7 +231,7 @@ function SafariScene({ step, platform }: { step: number; platform: "ios-safari" 
           <div className="flex items-center gap-1.5 px-1 pb-1.5">
             <Logo className="h-5 w-5" />
             <span className="min-w-0">
-              <span className="block text-[8px] font-bold text-white">Slabhold</span>
+              <span className="block text-[8px] font-semibold text-white">Slabhold</span>
               <span className="block font-mono text-[6px] text-zinc-500">slabhold.app</span>
             </span>
           </div>
@@ -248,9 +248,9 @@ function SafariScene({ step, platform }: { step: number; platform: "ios-safari" 
     <div className="install-sheet absolute inset-x-0 top-0 bottom-0 bg-[#1C1C1F] px-3.5 pt-5">
       <div className="flex items-center justify-between gap-1 text-[7px] whitespace-nowrap">
         <span className="text-zinc-400">Cancel</span>
-        <span className="font-bold text-white">Add to Home Screen</span>
+        <span className="font-semibold text-white">Add to Home Screen</span>
         <Hot on>
-          <span className="px-1 font-bold text-[#A78BFA]">Add</span>
+          <span className="px-1 font-semibold text-[#A78BFA]">Add</span>
         </Hot>
       </div>
       <div className="mt-3 flex items-center gap-2 rounded-xl bg-white/[0.06] p-2">
@@ -307,7 +307,7 @@ function AndroidScene({ step }: { step: number }) {
       {bar(false)}
       <PageSketch dim />
       <div className="install-sheet absolute inset-x-2 top-1/2 -translate-y-1/2 rounded-xl border border-white/10 bg-[#232326] p-2.5 shadow-xl">
-        <p className="text-[9px] font-bold text-white">Install app</p>
+        <p className="text-[9px] font-semibold text-white">Install app</p>
         <div className="mt-2 flex items-center gap-2">
           <Logo className="h-7 w-7 shrink-0" />
           <span>
@@ -361,13 +361,13 @@ function InAppScene({ step, browser }: { step: number; browser: string }) {
 /** The last picture: a home screen of blank tiles, and Slabhold landing on it. */
 function HomeScene() {
   return (
-    <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(124,58,237,0.35),_transparent_70%)] px-3 pt-5">
+    <div className="absolute inset-0 px-3 pt-5">
       <div className="grid grid-cols-4 gap-x-2.5 gap-y-3">
         {Array.from({ length: 11 }, (_, index) => (
           <span key={index} className="aspect-square rounded-[9px] bg-white/[0.08]" />
         ))}
         <span className="install-land flex flex-col items-center gap-0.5">
-          <Logo className="aspect-square h-auto w-full drop-shadow-[0_6px_14px_rgba(124,58,237,0.7)]" />
+          <Logo className="aspect-square h-auto w-full" />
         </span>
       </div>
       <p className="install-land mt-1 text-right text-[7px] font-semibold text-white">Slabhold</p>
@@ -560,10 +560,9 @@ export function InstallGuide({
       data-install-step=""
       className="fixed inset-0 z-50 flex flex-col bg-[#09090B] text-[#F4F4F5] outline-none"
     >
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,_rgba(124,58,237,0.24),_transparent_55%)]" />
       <header className="relative mx-auto flex w-full max-w-lg items-center justify-between px-5 pt-[max(0.75rem,env(safe-area-inset-top))]">
         <Logo className="h-8 w-8" />
-        <span className="font-mono text-[11px] font-medium tracking-wider text-[#A78BFA] uppercase">
+        <span className="font-mono text-[11px] font-medium text-[#A78BFA]">
           {variant === "onboarding" ? "Before you dive in" : "Add to Home Screen"}
         </span>
         <span aria-hidden className="h-8 w-8" />
@@ -571,7 +570,7 @@ export function InstallGuide({
 
       <div className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain">
         <div className={`mx-auto w-full max-w-lg px-5 pt-4 pb-3 ${RISE}`}>
-          <h2 id={titleId} className="text-[28px] leading-[1.1] font-extrabold tracking-tight">
+          <h2 id={titleId} className="text-[28px] leading-[1.1] font-semibold tracking-tight">
             {title}
           </h2>
           <p id={leadId} className="mt-2 text-[15px] leading-6 text-zinc-400">
@@ -583,7 +582,7 @@ export function InstallGuide({
           </div>
 
           {nativePrompt ? (
-            <p className="mt-5 font-mono text-[11px] font-medium tracking-wider text-zinc-500 uppercase">
+            <p className="mt-5 font-mono text-[11px] font-medium text-zinc-500">
               Or use Chrome&apos;s menu
             </p>
           ) : null}
@@ -605,7 +604,7 @@ export function InstallGuide({
                     <span
                       className={`mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full font-mono text-[12px] font-semibold transition-colors duration-200 motion-reduce:transition-none ${
                         current
-                          ? "bg-[#7C3AED] text-white shadow-[0_0_0_4px_rgba(124,58,237,0.25)]"
+                          ? "bg-[#7C3AED] text-white"
                           : past
                             ? "bg-[#5B21B6]/60 text-[#F4F4F5]"
                             : "bg-white/10 text-zinc-400"
@@ -614,7 +613,7 @@ export function InstallGuide({
                       {past ? <Check aria-hidden className="h-3.5 w-3.5" /> : index + 1}
                     </span>
                     <span className="min-w-0">
-                      <span className="block text-[16px] font-bold tracking-tight">{step.title}</span>
+                      <span className="block text-[16px] font-semibold tracking-tight">{step.title}</span>
                       <span className="block text-[14px] leading-5 text-zinc-400">{step.detail}</span>
                     </span>
                   </button>
@@ -655,7 +654,7 @@ export function InstallGuide({
         </button>
         {platform === "ios-safari" ? (
           <div data-share-arrow="" aria-hidden className="flex flex-col items-center text-[#A78BFA]">
-            <span className="font-mono text-[10px] font-medium tracking-wider uppercase">
+            <span className="font-mono text-[10px] font-medium">
               Share is in Safari&apos;s bar below
             </span>
             <ChevronDown className="install-arrow h-6 w-6" strokeWidth={2.5} />

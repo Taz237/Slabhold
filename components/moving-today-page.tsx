@@ -53,7 +53,7 @@ const OFFSCREEN_TILE = "[content-visibility:auto] [contain-intrinsic-size:auto_1
 const CHROME = "bg-[var(--chrome-bg)] backdrop-blur-xl backdrop-saturate-150";
 
 const PRIMARY =
-  "inline-flex min-h-11 items-center justify-center rounded-full bg-violet-600 px-5 text-sm font-bold text-white transition-transform duration-150 ease-out motion-safe:active:scale-[0.97]";
+  "inline-flex min-h-11 items-center justify-center rounded-full bg-violet-600 px-5 text-sm font-semibold text-white transition-transform duration-150 ease-out motion-safe:active:scale-[0.97]";
 
 function HeroBackdrop() {
   return (
@@ -101,13 +101,13 @@ function Featured({ payload, reduced }: { payload: MovingTodayPayload; reduced: 
         className={`w-[172px] shrink-0 ${TOP_GLOW} ${reduced ? "" : ENTER}`}
       />
       <div className="min-w-0 flex-1 pb-12">
-        <p className="font-mono text-[10px] font-semibold tracking-wider text-[#7C3AED] uppercase dark:text-[#A78BFA]">
+        <p className="font-mono text-[10px] font-semibold text-[#7C3AED] dark:text-[#A78BFA]">
           Top mover
         </p>
         <div className="mt-2">
           <GainChip gain={gain} large />
         </div>
-        <p className="mt-3 text-2xl leading-7 font-extrabold tracking-tight tabular-nums">{sale.priceLabel}</p>
+        <p className="mt-3 text-2xl leading-7 font-semibold tracking-tight tabular-nums">{sale.priceLabel}</p>
         {sale.soldLabel ? <p className="mt-0.5 text-[13px] text-zinc-500">Sold {sale.soldLabel}</p> : null}
         <p className="mt-0.5 text-[13px] text-zinc-500">vs. recent sold prices</p>
       </div>
@@ -122,11 +122,11 @@ function Hero({ payload, reduced }: { payload: MovingTodayPayload; reduced: bool
     <section data-moving-hero="" className="px-4 pt-1 pb-5">
       <div className="flex items-center gap-2">
         <FreshnessDot day={day} still={reduced} />
-        <h1 className="min-w-0 truncate text-[28px] leading-9 font-extrabold tracking-tight">{payload.title}</h1>
+        <h1 className="min-w-0 truncate text-[28px] leading-9 font-semibold tracking-tight">{payload.title}</h1>
       </div>
       <p className="mt-0.5 min-h-5 truncate text-[13px] leading-5 text-zinc-500">
         {payload.dateLabel ? (
-          <span className="font-mono text-[11px] tracking-wider uppercase">{payload.dateLabel}</span>
+          <span className="font-mono text-[11px]">{payload.dateLabel}</span>
         ) : null}
         <Freshness payload={payload} lead={Boolean(payload.dateLabel)} />
       </p>
@@ -182,7 +182,7 @@ function Segments({
         <span
           aria-hidden="true"
           data-segment-pill=""
-          className={`pointer-events-none absolute inset-y-1 left-1 w-[calc((100%-0.5rem)/3)] rounded-full bg-violet-600 shadow-[0_6px_16px_-8px_rgba(91,33,182,0.8)] ${
+          className={`pointer-events-none absolute inset-y-1 left-1 w-[calc((100%-0.5rem)/3)] rounded-full bg-violet-600 ${
             reduced ? "" : "transition-transform duration-200 ease-out"
           } motion-reduce:transition-none`}
           style={{ transform: `translateX(${index * 100}%)` }}
@@ -271,7 +271,7 @@ export function MovingEmpty({ signedIn }: { signedIn: boolean }) {
       <div className="grid h-24 w-24 place-items-center rounded-3xl bg-violet-600/10 ring-1 ring-violet-600/20">
         <Logo className="h-14 w-14" />
       </div>
-      <h2 className="mt-6 text-xl font-extrabold tracking-tight">No cards on Slabhold yet</h2>
+      <h2 className="mt-6 text-xl font-semibold tracking-tight">No cards on Slabhold yet</h2>
       <p className="mt-1.5 max-w-xs text-sm text-zinc-600 dark:text-zinc-400">
         Public cards show up here with their recent sold prices.
       </p>

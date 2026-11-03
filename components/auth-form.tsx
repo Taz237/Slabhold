@@ -74,7 +74,7 @@ const STEP_IN = "motion-safe:animate-[add-step-in_220ms_cubic-bezier(0.2,0.7,0.2
 const STEP_BACK = "motion-safe:animate-[add-step-back_220ms_cubic-bezier(0.2,0.7,0.2,1)_both]";
 
 const primaryButton =
-  "flex h-14 w-full items-center justify-center rounded-full bg-violet-600 text-[17px] font-semibold text-white shadow-[0_10px_30px_-10px_rgba(124,58,237,0.8)] transition-[transform,opacity] duration-150 active:scale-[0.98] disabled:opacity-50 disabled:shadow-none motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)] focus-visible:outline-none";
+  "flex h-14 w-full items-center justify-center rounded-full bg-violet-600 text-[17px] font-semibold text-white transition-[transform,opacity] duration-150 active:scale-[0.98] disabled:opacity-50 motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)] focus-visible:outline-none";
 const secondaryButton =
   "flex h-14 w-full items-center justify-center rounded-full border border-zinc-300 text-[16px] font-semibold disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:outline-none dark:border-white/15";
 const quietLink =
@@ -350,10 +350,10 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
       <div className={`mx-auto max-w-md ${AUTH_FORM_SCROLL}`}>
         <AuthTopBar homeHref={authLogoHref(next)} backHref={authLogoHref(next)} backLabel="Back to Slabhold" />
         <div className="mt-8 flex flex-col items-center text-center motion-safe:animate-[add-fade_300ms_ease-out_both]">
-          <span className="relative grid h-20 w-20 place-items-center rounded-[1.6rem] bg-gradient-to-b from-[#7C3AED] to-[#5B21B6] text-white shadow-[0_18px_50px_-12px_rgba(124,58,237,0.9)]">
+          <span className="relative grid h-20 w-20 place-items-center rounded-[1.6rem] bg-[#7C3AED] text-white">
             <MailCheck aria-hidden className="h-9 w-9" strokeWidth={1.8} />
           </span>
-          <h1 className="mt-6 text-[28px] font-extrabold leading-tight tracking-tight">Check your email</h1>
+          <h1 className="mt-6 text-[28px] font-semibold leading-tight tracking-tight">Check your email</h1>
           <p className="mt-2 text-[15px] leading-6 text-zinc-600 dark:text-zinc-400">We sent a confirmation link to</p>
           <p className="mt-1 max-w-full truncate rounded-full bg-violet-600/10 px-3 py-1 font-mono text-[14px] font-medium text-violet-700 dark:bg-violet-500/15 dark:text-[#A78BFA]">
             {confirmEmail}
@@ -418,7 +418,7 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
     return (
       <div className={`mx-auto max-w-md ${AUTH_FORM_SCROLL}`}>
         <AuthTopBar homeHref={authLogoHref(next)} backHref={authLogoHref(next)} backLabel="Back to Slabhold" />
-        <h1 className="mt-8 text-[28px] font-extrabold leading-tight tracking-tight">Resend confirmation</h1>
+        <h1 className="mt-8 text-[28px] font-semibold leading-tight tracking-tight">Resend confirmation</h1>
         <p className="mt-2 text-[15px] leading-6 text-zinc-600 dark:text-zinc-400">{CONFIRM_RESEND_HINT}</p>
         {error ? <p className={`mt-3 ${errorText}`}>{error}</p> : null}
         <form
@@ -536,7 +536,7 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
     return (
       <div className={`mx-auto max-w-md ${AUTH_FORM_SCROLL}`}>
         <AuthTopBar homeHref={authLogoHref(next)} backHref={authLogoHref(next)} backLabel="Back to Slabhold" />
-        <h1 className="mt-8 text-[28px] font-extrabold leading-tight tracking-tight">Welcome back</h1>
+        <h1 className="mt-8 text-[28px] font-semibold leading-tight tracking-tight">Welcome back</h1>
         <p className="mt-2 text-[15px] leading-6 text-zinc-600 dark:text-zinc-400">
           {finishingSetup
             ? "Log in once to finish setup. You'll pick up right where you left off."
@@ -622,7 +622,7 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
         onBack={goBack}
         backLabel={step === "email" ? "Back to Slabhold" : "Back"}
         trailing={
-          <span className="font-mono text-[11px] font-medium tracking-wider text-zinc-500 uppercase">
+          <span className="font-mono text-[11px] font-medium text-zinc-500">
             {stepNumber} of {SIGNUP_STEPS.length}
           </span>
         }
@@ -637,13 +637,13 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
         className="mt-2 h-1 w-full rounded-full bg-zinc-200 dark:bg-white/10"
       >
         <div
-          className="h-full rounded-full bg-gradient-to-r from-[#5B21B6] to-[#7C3AED] transition-[width] duration-300 ease-out motion-reduce:transition-none"
+          className="h-full rounded-full bg-[#7C3AED] transition-[width] duration-300 ease-out motion-reduce:transition-none"
           style={{ width: `${signupProgress(step) * 100}%` }}
         />
       </div>
 
       <div key={step} className={`mt-8 ${direction === 1 ? STEP_IN : STEP_BACK}`}>
-        <h1 className="text-[28px] font-extrabold leading-tight tracking-tight">{copy.title}</h1>
+        <h1 className="text-[28px] font-semibold leading-tight tracking-tight">{copy.title}</h1>
         <p className="mt-2 text-[15px] leading-6 text-zinc-600 dark:text-zinc-400">{copy.lead}</p>
         <form
           id="signup-step"
@@ -741,11 +741,11 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
             </button>
             <p className="text-center text-xs leading-5 text-zinc-500">
               By signing up you agree to the{" "}
-              <Link href="/terms" className="font-bold underline">
+              <Link href="/terms" className="font-semibold underline">
                 Terms
               </Link>{" "}
               and{" "}
-              <Link href="/privacy" className="font-bold underline">
+              <Link href="/privacy" className="font-semibold underline">
                 Privacy
               </Link>
               .

@@ -17,7 +17,6 @@ export type FirstRunPerson = Profile & { suggestionReason?: string | null };
 export function FirstRunPeople({ people, current }: { people: FirstRunPerson[]; current: boolean }) {
   const { followMany, isFollowing, user } = useSocial();
   const pending = people.filter((person) => user && person.id !== user.id && !isFollowing(person.id));
-  const count = people.length;
   return (
     <div className="pb-2 pl-11">
       <div className="flex h-11 items-center justify-between gap-2">
@@ -32,7 +31,7 @@ export function FirstRunPeople({ people, current }: { people: FirstRunPerson[]; 
               : "text-zinc-900 hover:bg-zinc-950/[0.04] dark:text-zinc-100 dark:hover:bg-white/[0.06]"
           }`}
         >
-          {pending.length === 0 ? "Following all" : `Follow all ${count}`}
+          {pending.length === 0 ? "Following all" : `Follow all ${pending.length}`}
         </button>
       </div>
       <ul aria-label="Collectors to follow">

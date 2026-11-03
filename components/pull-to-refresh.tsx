@@ -286,7 +286,7 @@ export function PullToRefresh({
           <span
             ref={markRef}
             role="status"
-            className="relative grid h-9 w-9 place-items-center rounded-full bg-white shadow-[0_6px_18px_-6px_rgba(91,33,182,0.55)] ring-1 ring-zinc-200 dark:bg-zinc-900 dark:ring-white/10"
+            className="relative grid h-9 w-9 place-items-center rounded-full bg-white shadow-[0_1px_2px_rgba(0,0,0,0.05)] ring-1 ring-zinc-200 dark:bg-zinc-900 dark:shadow-none dark:ring-white/10"
           >
             <svg
               ref={spinnerRef}
