@@ -37,6 +37,8 @@ export const SEARCH_LABEL = "Player, year, set or number";
 export const MANUAL_LABEL = "Can't find it? Enter player and year";
 export const ERROR_TITLE = "Sales are taking a break";
 export const OFFLINE_TITLE = "You're offline";
+/** Arrow keys select each grade they pass; only the grade still selected after this looks up. */
+export const GRADE_SETTLE_MS = 400;
 
 type Picked = {
   identity: QuickCompIdentity;
@@ -274,6 +276,13 @@ export function QuickCompView({ userId }: { userId: string | null }) {
   const [Chart, setChart] = useState<typeof SalesChartType | null>(null);
   const [chartAttempt, setChartAttempt] = useState(0);
   const token = useRef(0);
+  const gradeTimer = useRef<number | null>(null);
+
+  function cancelGradeLookup() {
+    if (gradeTimer.current !== null) window.clearTimeout(gradeTimer.current);
+    gradeTimer.current = null;
+  }
+  useEffect(() => cancelGradeLookup, []);
 
   const gate = useMemo(() => createLookupGate((identity) => fetchQuickComp(identity, (url) => fetch(url, { cache: "no-store" }))), []);
   const typing = useMemo(
@@ -339,6 +348,7 @@ export function QuickCompView({ userId }: { userId: string | null }) {
   }
 
   function pick(card: CatalogCard, from: CatalogCard[]) {
+    cancelGradeLookup();
     const identity = identityFromCatalog(card, grade);
     if (!identity) return;
     clearSearch();
@@ -354,12 +364,17 @@ export function QuickCompView({ userId }: { userId: string | null }) {
 
   function changeGrade(next: string) {
     setGrade(next);
-    if (picked && picked.identity.grade !== next) {
-      run({ ...picked, identity: { ...picked.identity, grade: next } });
-    }
+    cancelGradeLookup();
+    if (!picked || picked.identity.grade === next) return;
+    const target = { ...picked, identity: { ...picked.identity, grade: next } };
+    gradeTimer.current = window.setTimeout(() => {
+      gradeTimer.current = null;
+      run(target);
+    }, GRADE_SETTLE_MS);
   }
 
   function openRecent(item: RecentComp) {
+    cancelGradeLookup();
     token.current += 1;
     setManual(false);
     setGrade(item.identity.grade);
@@ -529,6 +544,8 @@ export function QuickCompView({ userId }: { userId: string | null }) {
           onSubmit={(fields) => {
             const year = parseYearLabel(fields.year);
             if (!year) return;
+            // A grade change still waiting to settle must not replace this card.
+            cancelGradeLookup();
             setManual(false);
             clearSearch();
             run({
