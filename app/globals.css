@@ -496,44 +496,125 @@ textarea {
   }
 }
 
-/* Earn reveal: the badge scales in with a shine, then the copy fades up. */
+/*
+ * Earn reveal, a one-shot celebration. The badge flips in and lands with a
+ * spring, a burst of sparks in the tier's metal (--spark), then the copy
+ * fades up in order and Share comes to full strength. Transform and opacity
+ * only, nothing loops.
+ */
 .badge-reveal-in {
-  animation: badge-reveal-in 700ms cubic-bezier(0.2, 0.9, 0.25, 1.15) both;
+  animation: badge-reveal-in 700ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
-.badge-reveal-copy {
-  animation: add-fade 400ms ease-out 450ms both;
+.badge-reveal-copy > * {
+  animation: badge-reveal-up 400ms cubic-bezier(0.22, 1, 0.36, 1) 770ms both;
+}
+
+.badge-reveal-copy > :nth-child(1) {
+  animation-delay: 650ms;
+}
+
+.badge-reveal-copy > :nth-child(2) {
+  animation-delay: 710ms;
 }
 
 .badge-reveal-sheen {
-  animation: badge-shine 1.2s ease-out 350ms 1 both;
+  animation: badge-shine 1.2s cubic-bezier(0.22, 1, 0.36, 1) 650ms 1 both;
+}
+
+.badge-reveal-sparks > i {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 2px;
+  height: 14px;
+  margin: -7px 0 0 -1px;
+  border-radius: 1px;
+  background: var(--spark);
+  opacity: 0;
+  animation: badge-reveal-spark 300ms cubic-bezier(0.22, 1, 0.36, 1) 650ms forwards;
+}
+
+/* Share is tappable from the first frame, it just starts quiet. */
+.badge-reveal-cta {
+  animation: badge-reveal-cta 300ms cubic-bezier(0.22, 1, 0.36, 1) 1100ms both;
+}
+
+.badge-reveal :focus-visible {
+  outline: 2px solid #7c3aed;
+  outline-offset: 2px;
+}
+
+.badge-reveal :focus:not(:focus-visible) {
+  outline: none;
 }
 
 @keyframes badge-reveal-in {
   0% {
     opacity: 0;
-    transform: scale(0.4);
+    transform: rotateY(-540deg) scale(0.4);
   }
-  70% {
+  30% {
     opacity: 1;
-    transform: scale(1.06);
+  }
+  85% {
+    opacity: 1;
+    transform: rotateY(0deg) scale(1.06);
   }
   100% {
     opacity: 1;
+    transform: rotateY(0deg) scale(1);
+  }
+}
+
+@keyframes badge-reveal-spark {
+  0% {
+    opacity: 1;
+    transform: rotate(var(--a)) translateY(-92px) scaleY(0.2);
+  }
+  45% {
+    opacity: 1;
+    transform: rotate(var(--a)) translateY(-108px) scaleY(1);
+  }
+  100% {
+    opacity: 0;
+    transform: rotate(var(--a)) translateY(-124px) scaleY(0.3);
+  }
+}
+
+@keyframes badge-reveal-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
     transform: none;
+  }
+}
+
+@keyframes badge-reveal-cta {
+  from {
+    opacity: 0.4;
+  }
+  to {
+    opacity: 1;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .badge-aura,
   .badge-shine,
-  .badge-reveal-sheen {
+  .badge-reveal-sheen,
+  .badge-reveal-sparks {
     animation: none;
     display: none;
   }
 
   .badge-reveal-in,
-  .badge-reveal-copy {
+  .badge-reveal-copy,
+  .badge-reveal-copy > *,
+  .badge-reveal-cta {
     animation: none;
   }
 }

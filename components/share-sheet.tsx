@@ -19,8 +19,13 @@ export type ShareTarget = {
   text: string;
   /** 1080×1350 PNG for Instagram. */
   imagePath?: string;
+  /** Shared with the link where the native sheet takes files. Never awaited on the tap. */
+  files?: File[];
   source: ShareSource;
 };
+
+/** An AbortError sooner than this is a share that failed to show, not a Cancel. */
+export const MIN_CANCEL_MS = 400;
 
 /** The absolute link with ref=share. Before the browser takes over, the bare path. */
 export function shareUrl(path: string): string {
@@ -45,6 +50,15 @@ export function useShareSheet(target: ShareTarget) {
     const result = await nativeShareOrSheet(
       { title: target.title, text: target.text, url },
       typeof navigator !== "undefined" && navigator.share ? navigator.share.bind(navigator) : undefined,
+      {
+        minCancelMs: MIN_CANCEL_MS,
+        now: () => performance.now(),
+        files: target.files,
+        canShare:
+          typeof navigator !== "undefined" && typeof navigator.canShare === "function"
+            ? navigator.canShare.bind(navigator)
+            : undefined,
+      },
     );
     if (result === "shared") trackEvent("share", { source: target.source, method: "native" });
     if (result === "sheet") setOpen(true);
@@ -61,7 +75,7 @@ export function ShareButton({
   className = "",
 }: {
   target: ShareTarget;
-  variant?: "pill" | "icon" | "reveal";
+  variant?: "pill" | "icon" | "primary";
   /** Accessible name, and the visible text on pill buttons. */
   label?: string;
   className?: string;
@@ -70,8 +84,9 @@ export function ShareButton({
   const styles = {
     pill: "inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full border border-zinc-300 px-4 text-sm font-semibold text-zinc-900 dark:border-white/20 dark:text-zinc-100",
     icon: "grid h-11 w-11 shrink-0 place-items-center rounded-full border border-zinc-200 bg-white text-zinc-700 dark:border-white/10 dark:bg-white/5 dark:text-zinc-100",
-    reveal:
-      "inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-white/15 px-5 text-[15px] font-semibold",
+    // The one big action on a dark sheet: off-white with near-black text.
+    primary:
+      "tap inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-[#F4F4F5] px-5 text-[15px] font-semibold text-[#09090B] transition-colors hover:bg-white",
   }[variant];
   return (
     <>
@@ -85,7 +100,7 @@ export function ShareButton({
         }}
         className={`${styles} ${className}`}
       >
-        <Share aria-hidden className="h-4 w-4" />
+        <Share aria-hidden className="h-4 w-4" strokeWidth={variant === "primary" ? 1.5 : undefined} />
         {variant === "icon" ? null : <span>{label}</span>}
       </button>
       {sheet}
