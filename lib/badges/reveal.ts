@@ -1,7 +1,8 @@
 import { BADGE_CATEGORIES, badgeName, isProgressCategory, tierRank } from "./config";
 import { categoryStatus, displayValue, type BadgeCounts, type EarnedBadge } from "./progress";
 
-export type UnseenBadge = EarnedBadge & { id: string };
+/** earnedAt is the ISO time the badge was stored, for the reveal's date line. */
+export type UnseenBadge = EarnedBadge & { id: string; earnedAt?: string };
 
 export type BadgeReveal = {
   headline: UnseenBadge;

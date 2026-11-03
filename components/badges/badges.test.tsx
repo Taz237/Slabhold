@@ -113,7 +113,7 @@ describe("reduced motion", () => {
     const badge = document.querySelector("[data-reveal-badge]");
     assert.ok(badge?.classList.contains("badge-reveal-in"));
     assert.ok(document.querySelector(".badge-reveal-sheen"));
-    assert.equal(document.querySelector("[role='dialog'] h2")?.textContent, "Legendary Collector unlocked");
+    assert.equal(document.querySelector("[role='dialog'] h2")?.textContent, "Legendary Collector");
   });
 
   it("shows the reveal without scale or shine for reduced motion", () => {
@@ -128,14 +128,14 @@ describe("reduced motion", () => {
 });
 
 describe("earn reveal", () => {
-  it("lists the other badges and offers Pin to profile and Nice", () => {
+  it("lists the other badges and offers Close and Pin to profile", () => {
     mount(createElement(BadgeRevealView, { reveal, pinned: [], onClose() {} }));
     const text = document.body.textContent ?? "";
     assert.match(text, /Also earned/);
     assert.match(text, /Gold Streak/);
-    const buttons = [...document.querySelectorAll("button")].map((button) => button.textContent);
-    assert.deepEqual(buttons, ["Pin to profile", "Nice"]);
-    assert.equal(document.activeElement?.textContent, "Nice");
+    const buttons = [...document.querySelectorAll("button")].map((button) => button.getAttribute("aria-label") ?? button.textContent);
+    assert.deepEqual(buttons, ["Close", "Pin to profile"]);
+    assert.equal(document.activeElement?.getAttribute("role"), "dialog");
   });
 
   it("says pinned when the badge already shows on the profile", () => {
@@ -145,10 +145,10 @@ describe("earn reveal", () => {
     assert.equal(pinnedButton.disabled, false);
   });
 
-  it("closes on Nice", () => {
+  it("closes on the close button", () => {
     let closed = 0;
     mount(createElement(BadgeRevealView, { reveal, pinned: [], onClose: () => (closed += 1) }));
-    const nice = [...document.querySelectorAll("button")].find((button) => button.textContent === "Nice");
+    const nice = [...document.querySelectorAll("button")].find((button) => button.getAttribute("aria-label") === "Close");
     act(() => nice!.dispatchEvent(new MouseEvent("click", { bubbles: true })));
     assert.equal(closed, 1);
   });
@@ -157,8 +157,8 @@ describe("earn reveal", () => {
 describe("earn reveal share", () => {
   it("puts Share next to Pin to profile for the owner", () => {
     mount(createElement(BadgeRevealView, { reveal, pinned: [], username: "democollector", onClose() {} }));
-    const buttons = [...document.querySelectorAll("button")].map((button) => button.textContent);
-    assert.deepEqual(buttons, ["Pin to profile", "Share", "Nice"]);
+    const buttons = [...document.querySelectorAll("button")].map((button) => button.getAttribute("aria-label") ?? button.textContent);
+    assert.deepEqual(buttons, ["Close", "Pin to profile", "Share"]);
   });
 
   it("opens the share sheet with the badge link when there is no native share", async () => {

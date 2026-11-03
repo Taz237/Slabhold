@@ -75,7 +75,7 @@ export function ShareButton({
   className = "",
 }: {
   target: ShareTarget;
-  variant?: "pill" | "icon" | "reveal";
+  variant?: "pill" | "icon" | "primary";
   /** Accessible name, and the visible text on pill buttons. */
   label?: string;
   className?: string;
@@ -84,8 +84,9 @@ export function ShareButton({
   const styles = {
     pill: "inline-flex min-h-11 items-center justify-center gap-1.5 rounded-full border border-zinc-300 px-4 text-sm font-semibold text-zinc-900 dark:border-white/20 dark:text-zinc-100",
     icon: "grid h-11 w-11 shrink-0 place-items-center rounded-full border border-zinc-200 bg-white text-zinc-700 dark:border-white/10 dark:bg-white/5 dark:text-zinc-100",
-    reveal:
-      "inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-white/15 px-5 text-[15px] font-semibold",
+    // The one big action on a dark sheet: off-white with near-black text.
+    primary:
+      "tap inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-[#F4F4F5] px-5 text-[15px] font-semibold text-[#09090B] transition-colors hover:bg-white",
   }[variant];
   return (
     <>
@@ -99,7 +100,7 @@ export function ShareButton({
         }}
         className={`${styles} ${className}`}
       >
-        <Share aria-hidden className="h-4 w-4" />
+        <Share aria-hidden className="h-4 w-4" strokeWidth={variant === "primary" ? 1.5 : undefined} />
         {variant === "icon" ? null : <span>{label}</span>}
       </button>
       {sheet}

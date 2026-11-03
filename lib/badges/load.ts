@@ -324,7 +324,7 @@ export async function checkBadges(userId: string, now = new Date()): Promise<Bad
 export function unseenReveal(state: BadgeState): BadgeReveal | null {
   const unseen: UnseenBadge[] = state.earned
     .filter((badge) => !badge.seenAt)
-    .map((badge) => ({ id: badge.id, category: badge.category, tier: badge.tier }));
+    .map((badge) => ({ id: badge.id, category: badge.category, tier: badge.tier, earnedAt: badge.earnedAt }));
   return revealFor(unseen, state.counts);
 }
 
