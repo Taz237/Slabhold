@@ -14,6 +14,7 @@ import type { QuickCompIdentity } from "@/lib/quick-comp/identity";
 import type { SavedPayload } from "@/lib/quick-comp/recent";
 import { quickCompStats, saleSpan, trustLine } from "@/lib/quick-comp/stats";
 import { catalogAddHref, catalogResultLine } from "@/lib/search/catalog-results";
+import { QuickCompPhotoHero } from "./quick-comp-photo";
 import { StatRowSkeleton } from "./quick-comp-states";
 import { feedback, focusRing, sectionLabel, textMuted, textSecondary } from "./tokens";
 
@@ -136,6 +137,9 @@ export function QuickCompResult({
           ) : null}
         </div>
       ) : null}
+
+      {/* One photo first, so people can tell it's the card they mean. The empty state shows the placeholder. */}
+      <QuickCompPhotoHero photo={payload.photo ?? null} identity={identity} />
 
       {empty ? (
         <CompEmpty
