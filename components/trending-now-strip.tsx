@@ -22,7 +22,7 @@ function Face({ name, image, accent }: { name: string; image: string | null; acc
 
 const RAIL_CLASS = "min-h-44 border-b border-zinc-200 px-4 py-3 dark:border-white/10";
 
-/** Holds the rail's height until the cached ranking is ready, so Moving today stays put. */
+/** Holds the rail's height until the cached ranking is ready, so the timeline below doesn't jump. */
 export function TrendingNowSkeleton() {
   return (
     <section aria-hidden="true" data-trending-skeleton="" className={RAIL_CLASS}>

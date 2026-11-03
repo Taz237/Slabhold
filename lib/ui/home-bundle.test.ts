@@ -15,14 +15,14 @@ describe("signed-out Home bundle", () => {
   it("renders the timeline only for a reader, from its own chunk", () => {
     const page = read("app/(app)/page.tsx");
     assert.doesNotMatch(page, /feed-view|moving-today-slot|"@\/components\/moving-today"|<FeedView|<MovingToday[ />]/);
-    assert.match(page, /<HomeGate landing=\{<LandingPage founder=\{founder\} \/>\} movers=\{payload\} \/>/);
+    assert.match(page, /<HomeGate landing=\{<LandingPage founder=\{founder\} \/>\} \/>/);
 
     const gate = read("components/home-gate.tsx");
     assert.ok(!staticImports(gate).includes("@/components/feed-view"));
     assert.ok(!staticImports(gate).includes("@/components/home-feed"));
     // One timeline tree, seeded or not, so the feed never remounts (and Back keeps its scroll).
     assert.equal((gate.match(/<HomeFeedLazy /g) ?? []).length, 1);
-    assert.match(gate, /return <HomeFeedLazy movers=\{movers\} seed=\{seed\} \/>;/);
+    assert.match(gate, /return <HomeFeedLazy seed=\{seed\} \/>;/);
     assert.match(read("components/home-feed.tsx"), /<SeededSocial seed=\{seed\}>\s*<FeedView/);
     assert.match(gate, /^if \(sessionHinted\(\)\) preloadHomeFeed\(\);/m);
 

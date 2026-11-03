@@ -333,7 +333,7 @@ describe("server-drawn signed-in screens", () => {
   it("renders Home per request and never caches a viewer's first screen", () => {
     const home = read("app/(app)/page.tsx");
     assert.doesNotMatch(home, /export const revalidate|use cache|force-static|unstable_cache/);
-    assert.match(home, /<Suspense fallback=\{<HomeGate landing=\{null\} movers=\{payload\} \/>\}>/);
+    assert.match(home, /<Suspense fallback=\{<HomeGate landing=\{null\} \/>\}>/);
     assert.match(home, /const seed = await requestHomeSeed\(\);/);
     const viewerRead = read("lib/supabase/request-viewer.ts");
     assert.match(viewerRead, /supabase\.auth\.getUser\(\)/);

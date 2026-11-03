@@ -301,8 +301,7 @@ async function homeRows(entry: ReactNode): Promise<{ text: () => string; followi
 
 describe("Quick Comp Home entry on both tabs", () => {
   it("draws no Quick Comp row and no movers on either tab", async () => {
-    const { QuickCompHomeLink } = await import("@/components/quick-comp-home-link");
-    const home = await homeRows(createElement(QuickCompHomeLink));
+    const home = await homeRows(createElement("a", { href: "/comp" }, "Quick Comp"));
     try {
       const foryou = home.text();
       assert.equal(foryou.includes("Quick Comp"), false, "For you");

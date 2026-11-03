@@ -8,7 +8,7 @@ import type { Post, Profile } from "@/lib/social/types";
 
 installDom();
 // Trending's cached read stays pending, so its slot holds the skeleton.
-// Any other read the Home tree makes (it should make none for movers) is recorded.
+// Any other read the Home tree makes is recorded; there should be none for the movers.
 const fetched: string[] = [];
 Object.defineProperty(globalThis, "fetch", {
   configurable: true,
@@ -54,7 +54,7 @@ const post: Post = {
 };
 
 type Mods = {
-  HomeFeed: ComponentType<{ movers: unknown }>;
+  HomeFeed: ComponentType<{ seed?: null }>;
   AccountMenu: ComponentType<{ user: Profile | null; showLogin: boolean }>;
   SocialContext: { Provider: (props: { value: unknown; children?: ReactNode }) => ReactNode };
   CollectionContext: { Provider: (props: { value: unknown; children?: ReactNode }) => ReactNode };
@@ -141,7 +141,7 @@ async function mountHome() {
   document.body.appendChild(host);
   const root = createRoot(host);
   await act(async () => {
-    root.render(providers("/", createElement(mods.HomeFeed, { movers: null })));
+    root.render(providers("/", createElement(mods.HomeFeed, {})));
   });
   // Home keeps the last lane for the session, so start each mount on For you.
   await act(async () => {

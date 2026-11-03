@@ -7,7 +7,6 @@ import { useSocial } from "@/components/social-provider";
 import { sessionHinted } from "@/lib/auth/session-hint";
 import type { HomeSeed } from "@/lib/social/home-seed";
 import { useClientHomeSeed } from "@/lib/social/use-client-home-seed";
-import type { MovingTodayPayload } from "@/lib/moving-today/types";
 
 // A session cookie says someone is signed in: fetch the timeline now, while
 // the page hydrates and the snapshot loads, so it is in hand when they land.
@@ -25,11 +24,9 @@ if (sessionHinted()) preloadHomeFeed();
  */
 export function HomeGate({
   landing,
-  movers,
   seed: serverSeed = null,
 }: {
   landing: ReactNode;
-  movers: MovingTodayPayload | null;
   seed?: HomeSeed | null;
 }) {
   const { ready, user } = useSocial();
@@ -45,5 +42,5 @@ export function HomeGate({
       </div>
     );
   }
-  return <HomeFeedLazy movers={movers} seed={seed} />;
+  return <HomeFeedLazy seed={seed} />;
 }
