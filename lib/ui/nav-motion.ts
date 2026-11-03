@@ -34,10 +34,14 @@ function isOwnProfile(path: string, ownUsername: string | null | undefined): boo
 
 /**
  * True for a tab root, including your own profile once the username is known.
+ * Quick Comp is a root only while its flag puts it on the bar.
  * Everything else (post, someone's profile, card, DM thread, settings page) is pushed.
  */
 export function isRootScreen(path: string, ownUsername?: string | null): boolean {
   const clean = cleanPath(path);
+  // The flag's inlined check, so a build with it off drops this line. "/comp"
+  // is QUICK_COMP_PATH, written out so the flag module stays off the shared chunk.
+  if (process.env.NEXT_PUBLIC_QUICK_COMP === "1" && clean === "/comp") return true;
   return (ROOT_SCREENS as readonly string[]).includes(clean) || isOwnProfile(clean, ownUsername);
 }
 
