@@ -155,5 +155,8 @@ describe("GET /api/quick-comp", () => {
   it("leaves the shared route table alone, so the shell is the same with the flag off", () => {
     assert.equal(routeAccess("/comp"), "unknown");
     assert.equal(requiresAccount("/comp"), false);
+    const page = readFileSync(join(process.cwd(), "app/(app)/comp/page.tsx"), "utf8");
+    // The page itself: 404 with the flag off, then log in when signed out.
+    assert.match(page, /if \(!quickCompEnabled\(\)\) notFound\(\);\s*const userId = await getAuthUserId\(\);\s*if \(!userId\) redirect\(loginPath\(QUICK_COMP_PATH\)\);/);
   });
 });

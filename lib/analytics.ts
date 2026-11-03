@@ -117,6 +117,7 @@ export const PAGE_PATTERNS = [
   "/cards/[id]/posts",
   "/cards/new",
   "/collection",
+  "/comp",
   "/compose",
   "/forgot-password",
   "/home",
