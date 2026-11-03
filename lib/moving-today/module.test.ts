@@ -219,7 +219,7 @@ describe("Movers rail", () => {
     const first = classOf(out, `data-tile="${id(1)}"`);
     const second = classOf(out, `data-tile="${id(2)}"`);
     assert.match(first, /w-\[132px\]/);
-    assert.match(first, /drop-shadow-\[0_10px_22px_rgba\(124,58,237/);
+    assert.doesNotMatch(first, /drop-shadow|rgba\(124,58,237/);
     assert.match(second, /w-\[120px\]/);
     assert.doesNotMatch(second, /rgba\(124,58,237/);
     assert.match(out, /data-top-badge=""[^>]*>Up 120%</);
@@ -621,14 +621,14 @@ describe("See all", () => {
     const featured = hero?.querySelector("[data-featured]");
     assert.equal(featured?.getAttribute("data-featured"), id(1));
     assert.match(featured?.querySelector("[data-tile]")?.className ?? "", /w-\[172px\]/);
-    assert.match(featured?.querySelector("[data-tile]")?.className ?? "", /rgba\(124,58,237/);
+    assert.doesNotMatch(featured?.querySelector("[data-tile]")?.className ?? "", /rgba\(124,58,237/);
     assert.equal(featured?.querySelector("[data-gain-text]")?.textContent, "+120%");
     assert.match(featured?.querySelector("a")?.getAttribute("href") ?? "", /^\/u\/ada\/cards\//);
     act(() => {
       featured?.querySelector("a")?.dispatchEvent(new window.PointerEvent("pointerdown", { bubbles: true }));
     });
     assert.deepEqual(prefetched, [], "the featured tile prefetches on screen, not on press");
-    assert.ok(host.querySelector("[data-moving-backdrop]"));
+    assert.equal(host.querySelector("[data-moving-backdrop]"), null);
 
     act(() => root!.render(withRouter(null)));
     mount(
@@ -782,7 +782,7 @@ describe("See all", () => {
     const component = read("components/moving-today-page.tsx");
     assert.match(component, /sticky top-\[var\(--app-header-h\)\]/);
     assert.match(component, /bg-\[var\(--chrome-bg\)\] backdrop-blur-xl/);
-    assert.match(component, /radial-gradient\(ellipse_at_top,rgba\(124,58,237,0\.18\),transparent_60%\)/);
+    assert.doesNotMatch(component, /radial-gradient/);
     assert.doesNotMatch(component, /recharts|chart/i);
   });
 });

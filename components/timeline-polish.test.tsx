@@ -456,7 +456,7 @@ describe("10. Card and photo frames", () => {
     assert.match(pill?.className ?? "", /bg-violet-600/);
     const frame = document.querySelector("article [data-tile]");
     assert.ok(frame);
-    assert.match(frame.className, /before:shadow-\[[^\]]*rgba\(124,58,237/);
+    assert.doesNotMatch(frame.className, /rgba\(124,58,237/);
   });
 
   it("keeps the soft pill for a raw card", () => {
@@ -540,8 +540,8 @@ describe("13. Following empty, compose and skeletons", () => {
     assert.match(document.querySelector("a[href='/search']")?.textContent ?? "", /Find collectors/);
   });
 
-  it("gives the Post button a soft purple glow and opens the composer smoothly", () => {
-    assert.match(source("components/create-menu.tsx"), /shadow-\[0_10px_30px_-6px_rgba\(124,58,237/);
+  it("gives the Post button a neutral shadow and opens the composer smoothly", () => {
+    assert.doesNotMatch(source("components/create-menu.tsx"), /rgba\(124,58,237/);
     assert.match(source("components/compose-view.tsx"), /motion-safe:animate-\[composer-in/);
     assert.match(source("app/globals.css"), /@keyframes composer-in/);
   });
