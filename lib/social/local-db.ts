@@ -25,6 +25,7 @@ import { shouldNotifyQuoteAuthor, validateQuoteContent } from "./quotes";
 import { COMMENT_LIMIT } from "./types";
 import { canDeleteReply, stateAfterReplyDelete } from "./reply-delete";
 import { normalizeUsername, usernameChangeError, usernameError } from "./usernames";
+import { contentProblem, usernameProblem } from "@/lib/safety/content-filter";
 import { BRAND_PURPLE } from "@/lib/pwa/manifest";
 
 export { canDeleteReply, stateAfterReplyDelete } from "./reply-delete";
@@ -409,6 +410,8 @@ export async function localSignUp(db: LocalDb, input: SignUpInput): Promise<{ db
   if (input.password.length < 6) return { db, error: "Use at least 6 characters." };
   const nameError = usernameError(username);
   if (nameError) return { db, error: nameError };
+  const wordProblem = usernameProblem(username) ?? contentProblem(displayName);
+  if (wordProblem) return { db, error: wordProblem };
   if (db.users.some((user) => user.email === email)) return { db, error: "That email is already in use." };
   if (db.users.some((user) => user.username === username)) {
     return { db, error: "That username is taken." };
@@ -462,6 +465,9 @@ export function localUpdateProfile(
   if (nameError) return { db, error: nameError };
   const displayName = patch.displayName.trim();
   if (!displayName) return { db, error: "Add a display name." };
+  const wordProblem =
+    usernameProblem(username) ?? contentProblem(displayName) ?? contentProblem(patch.bio);
+  if (wordProblem) return { db, error: wordProblem };
   if (db.users.some((user) => user.username === username && user.id !== db.sessionUserId)) {
     return { db, error: "That username is taken." };
   }
@@ -610,6 +616,8 @@ export function localAddComment(
   const text = body.trim().slice(0, COMMENT_LIMIT);
   const photos = draftPostPhotos({ images: images ?? [] });
   if (!text && photos.length === 0) return { db, error: "Write a comment." };
+  const textProblem = contentProblem(text);
+  if (textProblem) return { db, error: textProblem };
   if (!db.posts.some((post) => post.id === postId)) return { db, error: "That post is gone." };
   const comment: PostComment = {
     id: `comment-${Date.now().toString(36)}`,
@@ -694,6 +702,8 @@ export function localCreatePost(
     return { db, error: "Write something, add a photo, or attach a card." };
   }
   if (body.length > 280) return { db, error: "Keep it to 280 characters." };
+  const bodyProblem = contentProblem(body);
+  if (bodyProblem) return { db, error: bodyProblem };
   const createdAt = new Date().toISOString();
   const post: Post = {
     id: `post-${Date.now().toString(36)}`,
@@ -758,6 +768,8 @@ export function localUpdatePost(
     return { db, error: "Write something or add a photo." };
   }
   if (body.length > 280) return { db, error: "Keep it to 280 characters." };
+  const bodyProblem = contentProblem(body);
+  if (bodyProblem) return { db, error: bodyProblem };
   return {
     db: {
       ...db,

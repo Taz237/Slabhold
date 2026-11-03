@@ -49,6 +49,7 @@ import {
   type PostWrite,
 } from "./post-photos";
 import { BLOCKED_INTERACTION } from "@/lib/safety/block";
+import { contentProblem, usernameProblem } from "@/lib/safety/content-filter";
 import { canNotify, supabaseSafety } from "@/lib/safety/can-notify";
 import { applyAuthorSafety, loadHiddenAuthorIds, withAuthorSafety } from "@/lib/safety/filters";
 import { loadPostEngagement } from "./load-feed-page";
@@ -569,6 +570,8 @@ export async function remoteSignUp(
   const username = normalizeUsername(input.username);
   const nameError = usernameError(username);
   if (nameError) return { error: nameError };
+  const wordProblem = usernameProblem(username) ?? contentProblem(input.displayName);
+  if (wordProblem) return { error: wordProblem };
   if (input.password.length < 6) return { error: "Use at least 6 characters." };
   const displayName = input.displayName.trim() || username;
   const { data: existing, error: lookupError } = await supabase
@@ -651,6 +654,9 @@ export async function remoteUpdateProfile(
   patch: ProfilePatch,
 ): Promise<AuthResult> {
   const username = normalizeUsername(patch.username);
+  const wordProblem =
+    usernameProblem(username) ?? contentProblem(patch.displayName) ?? contentProblem(patch.bio);
+  if (wordProblem) return { error: wordProblem };
   let currentUsername: string | null = null;
   if (isReservedUsername(username)) {
     const { data, error } = await supabase
@@ -846,6 +852,8 @@ export async function remoteAddComment(
   const text = body.trim().slice(0, COMMENT_LIMIT);
   const photos = draftPostPhotos({ images: images ?? [] });
   if (!text && photos.length === 0) return { error: "Write a comment." };
+  const textProblem = contentProblem(text);
+  if (textProblem) return { error: textProblem };
   if (photos.length > 0 && replyImagesKnownMissing()) return { error: REPLY_PHOTOS_UNAVAILABLE };
   if (
     postAuthorId &&
@@ -994,6 +1002,8 @@ export async function remoteCreatePost(
     return { error: "Write something, add a photo, or attach a card." };
   }
   if (body.length > 280) return { error: "Keep it to 280 characters." };
+  const bodyProblem = contentProblem(body);
+  if (bodyProblem) return { error: bodyProblem };
 
   if (quotedPostId) {
     const { data: quoted, error: quotedError } = await supabase
@@ -1063,6 +1073,8 @@ export async function remoteUpdatePost(
 ): Promise<AuthResult> {
   const body = input.body.trim();
   if (body.length > 280) return { error: "Keep it to 280 characters." };
+  const bodyProblem = contentProblem(body);
+  if (bodyProblem) return { error: bodyProblem };
   const photos = draftPostPhotos(input);
   const uploaded = await uploadPostImages(supabase, authorId, photos);
   if (uploaded.error) return { error: uploaded.error };

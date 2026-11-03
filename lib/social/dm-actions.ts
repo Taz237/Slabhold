@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { BLOCKED_INTERACTION } from "@/lib/safety/block";
+import { contentProblem } from "@/lib/safety/content-filter";
 import { supabaseSafety } from "@/lib/safety/can-notify";
 import { offerSendError, offersColumnMissing, parseCardPreview } from "@/lib/offers/open-to-offers";
 import type { LocalDb } from "./local-db";
@@ -36,6 +37,8 @@ export async function remoteSendMessage(
   const text = content.trim().slice(0, MESSAGE_LIMIT);
   const cardPreview = preview ? parseCardPreview(preview) : null;
   if (!text && !cardPreview) return { error: "Write a message." };
+  const textProblem = contentProblem(text);
+  if (textProblem) return { error: textProblem };
   const muted = cardPreview ? await senderMuted(supabase, senderId, receiverId) : false;
   const blocked = await supabaseSafety(supabase).isBlocked(senderId, receiverId);
   const refused = offerSendError({
@@ -114,6 +117,8 @@ export function localSendMessage(
   });
   if (refused) return { db, error: refused };
   if (!text && !cardPreview) return { db, error: "Write a message." };
+  const textProblem = contentProblem(text);
+  if (textProblem) return { db, error: textProblem };
   if (!db.users.some((user) => user.id === receiverId)) return { db, error: "That collector is gone." };
   const message: DirectMessage = {
     id: `msg-${Date.now().toString(36)}`,
