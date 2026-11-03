@@ -1,13 +1,14 @@
 import type { CatalogCard } from "@/lib/card-catalog";
 import { parseYearLabel } from "@/lib/card-options";
-import type { SoldCompsPayload } from "@/lib/comps/types";
 import { quickCompIdentityKey, type QuickCompIdentity } from "./identity";
 import type { QuickCompLimitReason } from "./limits";
+import type { QuickCompPayload } from "./lookup";
+import { safePhoto } from "./photo";
 
 export const QUICK_COMP_API = "/api/quick-comp";
 
 export type QuickCompOutcome =
-  | { status: "ready"; payload: SoldCompsPayload }
+  | { status: "ready"; payload: QuickCompPayload }
   | { status: "limited"; reason: QuickCompLimitReason; resetAt: string | null }
   | { status: "error" }
   | { status: "offline" };
@@ -55,7 +56,8 @@ export async function fetchQuickComp(
   }
   const body = (await response.json().catch(() => null)) as Record<string, unknown> | null;
   if (response.ok && body && typeof body === "object" && Array.isArray(body.comps)) {
-    return { status: "ready", payload: body as unknown as SoldCompsPayload };
+    // The photo is checked again here: missing or not eBay's image host is null.
+    return { status: "ready", payload: { ...(body as unknown as QuickCompPayload), photo: safePhoto(body.photo) } };
   }
   if (response.status === 429) {
     const reason = body?.reason === "daily" ? "daily" : "hourly";

@@ -1,9 +1,9 @@
 import { parseGrade, parseYearLabel } from "@/lib/card-options";
 import { SOLD_UNAVAILABLE_MESSAGE } from "@/lib/comps/sold-response";
 import { clipWholeCharacters } from "@/lib/search/recent";
-import type { SoldCompsPayload } from "@/lib/comps/types";
 import type { QuickCompIdentity } from "./identity";
 import type { QuickCompLimitReason } from "./limits";
+import type { QuickCompPayload } from "./lookup";
 
 export const QUICK_COMP_FIELD_LIMIT = 80;
 const GRADE_LIMIT = 24;
@@ -13,7 +13,7 @@ export const QUICK_COMP_DAILY_MESSAGE = "You've used today's comps. Saved ones s
 export const QUICK_COMP_HOURLY_MESSAGE = "You're checking comps quickly. Try again in a few minutes";
 
 type LookupResult =
-  | { ok: true; payload: SoldCompsPayload }
+  | { ok: true; payload: QuickCompPayload }
   | { ok: false; reason: QuickCompLimitReason; resetAt: string }
   | { ok: false; reason: "unavailable" };
 
