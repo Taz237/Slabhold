@@ -32,7 +32,7 @@ const sam = {
 } as Profile;
 
 const TODAY_BAR = ["Home", "Leaderboard", "Add card", "Collection", "Messages"];
-const TODAY_DRAWER = ["Profile", "Collection", "Messages", "Add card", "Leaderboard", "Invite a collector"];
+const TODAY_DRAWER = ["Profile", "Collection", "Messages", "Add card", "Leaderboard", "Moving today", "Invite a collector"];
 
 type Mods = {
   AppShell: ComponentType<{ children: ReactNode }>;
