@@ -86,7 +86,7 @@ const FOCUSABLE =
   'a[href], button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 const mainRow =
-  "flex min-h-12 items-center gap-4 rounded-2xl px-3 text-[19px] font-bold tracking-tight focus-visible:ring-2 focus-visible:ring-[#7C3AED] focus-visible:outline-none";
+  "flex min-h-12 items-center gap-4 rounded-2xl px-3 text-[19px] font-semibold tracking-tight focus-visible:ring-2 focus-visible:ring-[#7C3AED] focus-visible:outline-none";
 const settingsRow =
   "flex min-h-11 items-center gap-3 rounded-2xl px-3 text-[15px] font-medium focus-visible:ring-2 focus-visible:ring-[#7C3AED] focus-visible:outline-none";
 
@@ -393,7 +393,7 @@ export function SideMenu({
               className="h-12 w-12 text-sm"
             />
             <span className="block w-full min-w-0">
-              <span className="block truncate text-[17px] font-extrabold tracking-tight">
+              <span className="block truncate text-[17px] font-semibold tracking-tight">
                 {user.displayName}
               </span>
               <span className="block truncate text-[15px] text-zinc-500">@{user.username}</span>
@@ -446,7 +446,7 @@ export function SideMenu({
               if (item.href === "/messages" && unreadMessageCount > 0) {
                 label = `Messages, ${unreadMessageCount} unread`;
                 trailing = (
-                  <span className="grid h-5 min-w-5 place-items-center rounded-full bg-[#7C3AED] px-1.5 text-[11px] font-bold leading-none text-white">
+                  <span className="grid h-5 min-w-5 place-items-center rounded-full bg-[#7C3AED] px-1.5 text-[11px] font-semibold leading-none text-white">
                     {countLabel(unreadMessageCount)}
                   </span>
                 );
@@ -492,7 +492,7 @@ export function SideMenu({
         <div className="mx-4 my-3 border-t border-zinc-200 dark:border-white/10" />
 
         <div className="px-2">
-          <h2 className="px-3 pb-1 font-mono text-[11px] font-medium tracking-wide text-zinc-500 uppercase">
+          <h2 className="px-3 pb-1 text-[13px] font-medium text-zinc-500">
             Settings and support
           </h2>
           <ul className="space-y-0.5">
@@ -594,7 +594,7 @@ function CountLink({
       onClick={onPick}
       className="inline-flex min-h-11 items-center gap-1 rounded-full px-1 focus-visible:ring-2 focus-visible:ring-[#7C3AED] focus-visible:outline-none first:-ml-1"
     >
-      <span className="font-bold tabular-nums">{count}</span>
+      <span className="font-semibold tabular-nums">{count}</span>
       <span className="text-zinc-500">{label}</span>
     </Link>
   );

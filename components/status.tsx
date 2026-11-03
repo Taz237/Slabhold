@@ -26,7 +26,7 @@ export function EmptyState({
           {icon}
         </div>
       ) : null}
-      <p className={`font-bold tracking-tight ${compact ? "text-[15px]" : "text-[17px]"}`}>
+      <p className={`font-semibold tracking-tight ${compact ? "text-[15px]" : "text-[17px]"}`}>
         {title}
       </p>
       {detail ? (

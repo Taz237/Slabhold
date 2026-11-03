@@ -118,7 +118,7 @@ export function FollowList({
   if (!profile) {
     return (
       <EmptyState title="That profile isn't available.">
-        <Link href="/" className="text-sm font-bold">
+        <Link href="/" className="text-sm font-semibold">
           Back to Home
         </Link>
       </EmptyState>
@@ -139,7 +139,7 @@ export function FollowList({
           <ArrowLeft className="h-5 w-5" />
         </button>
         <div className="min-w-0">
-          <h1 className="truncate text-lg font-bold leading-6">{title}</h1>
+          <h1 className="truncate text-lg font-semibold leading-6">{title}</h1>
           <p className="truncate text-xs text-zinc-500">@{profile.username}</p>
         </div>
       </div>
@@ -165,7 +165,7 @@ export function FollowList({
                   accent={person.accent}
                 />
                 <span className="min-w-0">
-                  <span className="block truncate text-[15px] font-bold leading-5">
+                  <span className="block truncate text-[15px] font-semibold leading-5">
                     {person.displayName}
                   </span>
                   <span className="block truncate text-sm text-zinc-500">@{person.username}</span>

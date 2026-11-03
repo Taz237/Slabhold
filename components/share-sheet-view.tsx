@@ -92,7 +92,7 @@ export function ShareSheet({ target, onClose }: { target: ShareTarget; onClose: 
         <div aria-hidden className="mx-auto mb-1 h-1 w-9 rounded-full bg-zinc-300 sm:hidden dark:bg-white/20" />
         <div className="flex items-center justify-between gap-3 px-2 pt-1">
           <div className="min-w-0">
-            <h2 id={titleId} className="text-base font-bold tracking-tight">
+            <h2 id={titleId} className="text-base font-semibold tracking-tight">
               Share
             </h2>
             <p className="truncate text-[13px] text-zinc-500">{target.title}</p>
@@ -157,7 +157,7 @@ export function ShareSheet({ target, onClose }: { target: ShareTarget; onClose: 
         <p
           role="status"
           data-share-toast=""
-          className="pointer-events-none fixed top-[max(1rem,env(safe-area-inset-top))] left-1/2 z-[71] -translate-x-1/2 rounded-full bg-zinc-900 px-4 py-2 text-sm font-bold text-white shadow-lg motion-safe:animate-[pill-in_260ms_cubic-bezier(0.2,0.7,0.2,1)_both] dark:bg-zinc-100 dark:text-zinc-950"
+          className="pointer-events-none fixed top-[max(1rem,env(safe-area-inset-top))] left-1/2 z-[71] -translate-x-1/2 rounded-full bg-zinc-900 px-4 py-2 text-sm font-semibold text-white shadow-lg motion-safe:animate-[pill-in_260ms_cubic-bezier(0.2,0.7,0.2,1)_both] dark:bg-zinc-100 dark:text-zinc-950"
         >
           Link copied
         </p>

@@ -78,7 +78,7 @@ export function NotificationsView() {
   if (!user) {
     return (
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Notifications</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Notifications</h1>
         <EmptyState
           icon={<Bell className="h-5 w-5" />}
           title="Nothing to see yet"
@@ -97,7 +97,7 @@ export function NotificationsView() {
 
   return (
     <PullToRefresh onRefresh={refresh} className="-mx-4 -mt-5">
-      <h1 className="px-4 pt-5 text-2xl font-bold tracking-tight">Notifications</h1>
+      <h1 className="px-4 pt-5 text-2xl font-semibold tracking-tight">Notifications</h1>
       {notifications.length === 0 ? (
         <EmptyState
           icon={<Bell className="h-5 w-5" />}
@@ -164,7 +164,7 @@ export function NotificationsView() {
                         <span>{group.preview}</span>
                       ) : (
                         <>
-                          <span className="font-bold">{headline.lead}</span>
+                          <span className="font-semibold">{headline.lead}</span>
                           {headline.rest}
                         </>
                       )}

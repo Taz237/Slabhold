@@ -85,7 +85,7 @@ function SharedPostMini({ post, author }: { post: Post; author: Profile }) {
             expandable={false}
             className="h-5 w-5 text-[8px]"
           />
-          <span className="truncate text-[13px] font-bold tracking-tight">{author.displayName}</span>
+          <span className="truncate text-[13px] font-semibold tracking-tight">{author.displayName}</span>
           <span className="truncate text-[13px] text-zinc-500">@{author.username}</span>
         </span>
         {post.body ? (

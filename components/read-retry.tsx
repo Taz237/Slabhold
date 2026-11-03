@@ -7,7 +7,7 @@ export function ReadRetry({ title, onRetry }: { title: string; onRetry: () => vo
       <button
         type="button"
         onClick={onRetry}
-        className="mt-4 inline-flex min-h-11 items-center rounded-full bg-violet-600 px-5 text-sm font-bold text-white transition-transform duration-150 active:scale-[0.98] motion-reduce:transition-none"
+        className="mt-4 inline-flex min-h-11 items-center rounded-full bg-violet-600 px-5 text-sm font-semibold text-white transition-transform duration-150 active:scale-[0.98] motion-reduce:transition-none"
       >
         Try again
       </button>

@@ -75,7 +75,7 @@ function CopiedToast() {
   return (
     <p
       role="status"
-      className="fixed bottom-[calc(5.75rem+env(safe-area-inset-bottom))] left-1/2 z-50 -translate-x-1/2 rounded-full bg-zinc-900 px-4 py-2 text-sm font-bold text-white shadow-lg dark:bg-zinc-100 dark:text-zinc-950"
+      className="fixed bottom-[calc(5.75rem+env(safe-area-inset-bottom))] left-1/2 z-50 -translate-x-1/2 rounded-full bg-zinc-900 px-4 py-2 text-sm font-semibold text-white shadow-lg dark:bg-zinc-100 dark:text-zinc-950"
     >
       Link copied
     </p>

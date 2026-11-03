@@ -120,7 +120,7 @@ export const Tweet = memo(function Tweet({
       }`}
     >
       {pinned ? (
-        <p className="flex items-center gap-3 px-4 pt-3 text-[13px] font-bold text-zinc-500">
+        <p className="flex items-center gap-3 px-4 pt-3 text-[13px] font-medium text-zinc-500">
           <span className="grid w-10 shrink-0 place-items-center">
             <Pin className="h-4 w-4" aria-hidden="true" />
           </span>
@@ -131,7 +131,7 @@ export const Tweet = memo(function Tweet({
         <Link
           prefetch={false}
           href={userHref(repostedBy.username)}
-          className="flex items-center gap-3 px-4 pt-3 text-[13px] font-bold text-zinc-500"
+          className="flex items-center gap-3 px-4 pt-3 text-[13px] font-medium text-zinc-500"
         >
           <span className="grid w-10 shrink-0 place-items-center">
             <Repeat2 className="h-4 w-4" />
@@ -256,11 +256,11 @@ function CommentPreview({ postId, comments }: { postId: string; comments: PostCo
             )}
             <div className="min-w-0">
               {href ? (
-                <Link prefetch={false} href={href} className="block truncate text-[13px] leading-5 font-bold hover:underline">
+                <Link prefetch={false} href={href} className="block truncate text-[13px] leading-5 font-semibold hover:underline">
                   {name}
                 </Link>
               ) : (
-                <p className="truncate text-[13px] leading-5 font-bold">{name}</p>
+                <p className="truncate text-[13px] leading-5 font-semibold">{name}</p>
               )}
               {comment.body ? (
                 <p className="line-clamp-2 text-[13px] leading-5 text-zinc-600 dark:text-zinc-300">
@@ -383,7 +383,7 @@ function PostMenu({ post }: { post: Post }) {
         >
           {confirming ? (
             <div className="px-3 py-2.5">
-              <p className="text-sm font-bold">Delete this post?</p>
+              <p className="text-sm font-semibold">Delete this post?</p>
               <div className="mt-2.5 flex gap-2">
                 <button
                   type="button"
@@ -393,14 +393,14 @@ function PostMenu({ post }: { post: Post }) {
                       if (!result.error && pathname === `/posts/${post.id}`) router.replace("/");
                     });
                   }}
-                  className="flex-1 rounded-full bg-rose-600 py-1.5 text-sm font-bold text-white"
+                  className="flex-1 rounded-full bg-rose-600 py-1.5 text-sm font-semibold text-white"
                 >
                   Delete
                 </button>
                 <button
                   type="button"
                   onClick={() => setConfirming(false)}
-                  className="flex-1 rounded-full border border-zinc-300 py-1.5 text-sm font-bold dark:border-white/20"
+                  className="flex-1 rounded-full border border-zinc-300 py-1.5 text-sm font-semibold dark:border-white/20"
                 >
                   Cancel
                 </button>
@@ -421,7 +421,7 @@ function PostMenu({ post }: { post: Post }) {
                       close();
                     });
                   }}
-                  className="block w-full px-4 py-2.5 text-left text-[15px] font-bold hover:bg-zinc-100 disabled:opacity-60 dark:hover:bg-white/10"
+                  className="block w-full px-4 py-2.5 text-left text-[15px] font-semibold hover:bg-zinc-100 disabled:opacity-60 dark:hover:bg-white/10"
                 >
                   Unpin
                 </button>
@@ -438,7 +438,7 @@ function PostMenu({ post }: { post: Post }) {
                       close();
                     });
                   }}
-                  className="block w-full px-4 py-2.5 text-left text-[15px] font-bold hover:bg-zinc-100 disabled:opacity-60 dark:hover:bg-white/10"
+                  className="block w-full px-4 py-2.5 text-left text-[15px] font-semibold hover:bg-zinc-100 disabled:opacity-60 dark:hover:bg-white/10"
                 >
                   Pin to profile
                 </button>
@@ -447,7 +447,7 @@ function PostMenu({ post }: { post: Post }) {
                 type="button"
                 role="menuitem"
                 onClick={() => router.push(`/compose?edit=${post.id}`)}
-                className="block w-full px-4 py-2.5 text-left text-[15px] font-bold hover:bg-zinc-100 dark:hover:bg-white/10"
+                className="block w-full px-4 py-2.5 text-left text-[15px] font-semibold hover:bg-zinc-100 dark:hover:bg-white/10"
               >
                 Edit post
               </button>
@@ -455,7 +455,7 @@ function PostMenu({ post }: { post: Post }) {
                 type="button"
                 role="menuitem"
                 onClick={() => setConfirming(true)}
-                className="block w-full px-4 py-2.5 text-left text-[15px] font-bold text-rose-600 hover:bg-zinc-100 dark:hover:bg-white/10"
+                className="block w-full px-4 py-2.5 text-left text-[15px] font-semibold text-rose-600 hover:bg-zinc-100 dark:hover:bg-white/10"
               >
                 Delete post
               </button>
@@ -558,7 +558,7 @@ export function Engagement({
                 if (!reposted && !reduceMotion) setRepostBurst((count) => count + 1);
                 toggleRepost(targetId);
               }}
-              className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-[15px] font-bold hover:bg-zinc-100 dark:hover:bg-white/10"
+              className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-[15px] font-semibold hover:bg-zinc-100 dark:hover:bg-white/10"
             >
               <Repeat2 className="h-4 w-4" />
               {reposted ? "Undo repost" : "Repost"}
@@ -572,7 +572,7 @@ export function Engagement({
                 setRepostMenuOpen(false);
                 router.push(`/compose?quote=${encodeURIComponent(targetId)}`);
               }}
-              className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-[15px] font-bold hover:bg-zinc-100 disabled:opacity-40 dark:hover:bg-white/10"
+              className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-[15px] font-semibold hover:bg-zinc-100 disabled:opacity-40 dark:hover:bg-white/10"
             >
               <Quote className="h-4 w-4" />
               Quote

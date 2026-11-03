@@ -8,7 +8,7 @@ export function NotFoundView() {
       <div className="mx-auto grid h-12 w-12 place-items-center">
         <Logo className="h-12 w-12" />
       </div>
-      <h1 className="mt-4 text-[17px] font-bold tracking-tight">Page not found</h1>
+      <h1 className="mt-4 text-[17px] font-semibold tracking-tight">Page not found</h1>
       <p className="mx-auto mt-1.5 max-w-[18rem] text-sm leading-5 text-zinc-500">
         That link does not go anywhere on Slabhold.
       </p>
