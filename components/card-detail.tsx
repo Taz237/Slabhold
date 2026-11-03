@@ -820,7 +820,7 @@ function EstSellMetric({
   if (asEstimate && label?.startsWith("$")) {
     return (
       <div className="min-w-0 overflow-hidden rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-3 dark:border-white/10 dark:bg-black/20">
-        <p className="text-[11px] tracking-wide text-zinc-500 uppercase">Est. sell</p>
+        <p className="text-[13px] text-zinc-500">Est. sell</p>
         <p className="mt-1 min-w-0 overflow-hidden text-[clamp(0.95rem,3.4vw,1.125rem)] font-semibold tabular-nums whitespace-nowrap text-ellipsis">
           {label}
         </p>
@@ -850,7 +850,7 @@ function UnavailableEstSell({ short, detail }: { short: string; detail: string }
   const detailId = useId();
   return (
     <div className="min-w-0 overflow-hidden rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-3 dark:border-white/10 dark:bg-black/20">
-      <p className="text-[11px] tracking-wide text-zinc-500 uppercase">Est. sell</p>
+      <p className="text-[13px] text-zinc-500">Est. sell</p>
       <button
         type="button"
         aria-expanded={open}
@@ -898,7 +898,7 @@ function CardSpecs({
           key={spec.label}
           className="rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 dark:border-white/10 dark:bg-white/5"
         >
-          <dt className="text-[10px] tracking-wide text-zinc-500 uppercase">{spec.label}</dt>
+          <dt className="text-[13px] text-zinc-500">{spec.label}</dt>
           <dd className="text-sm font-semibold">{spec.value}</dd>
         </div>
       ))}
@@ -919,7 +919,7 @@ function Metric({
 }) {
   return (
     <div className="min-w-0 overflow-hidden rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-3 dark:border-white/10 dark:bg-black/20">
-      <p className="text-[11px] tracking-wide text-zinc-500 uppercase">{label}</p>
+      <p className="text-[13px] text-zinc-500">{label}</p>
       <p
         title={title}
         className={`mt-1 min-w-0 max-w-full overflow-hidden text-[clamp(0.95rem,3.4vw,1.125rem)] font-semibold leading-snug break-words tabular-nums ${

@@ -32,7 +32,7 @@ export function CategoryPicker({
                 : "border-zinc-200 bg-white text-zinc-900 dark:border-white/10 dark:bg-white/[0.03] dark:text-zinc-100"
             }`}
           >
-            <span className="block text-sm font-bold">{categoryLabel(option.id)}</span>
+            <span className="block text-sm font-semibold">{categoryLabel(option.id)}</span>
             <span className={`block text-xs ${selected ? "text-white/75 dark:text-zinc-600" : "text-zinc-500"}`}>
               {option.detail}
             </span>

@@ -24,7 +24,7 @@ export function SimilarCardsLine({
 }) {
   return (
     <div className="min-w-0">
-      <p className="text-[11px] tracking-wide text-zinc-500 uppercase">{SIMILAR_CARDS_LABEL}</p>
+      <p className="text-[13px] text-zinc-500">{SIMILAR_CARDS_LABEL}</p>
       <Link
         href={read.href}
         className="mt-1 block text-lg font-semibold tracking-tight text-violet-700 underline-offset-2 hover:underline dark:text-violet-300"

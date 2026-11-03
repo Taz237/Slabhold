@@ -41,7 +41,7 @@ export function ValueBoardView({
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">{VALUE_BOARD_TAB.label}</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">{VALUE_BOARD_TAB.label}</h1>
         <p className="mt-1 text-sm text-zinc-500">{model.weekLabel}</p>
       </div>
 
@@ -61,7 +61,7 @@ export function ValueBoardView({
 
       {model.brackets.map((bracket) => (
         <section key={bracket.id} aria-label={bracket.label} className="space-y-2">
-          <h2 className="text-sm font-bold">{bracket.label}</h2>
+          <h2 className="text-sm font-semibold">{bracket.label}</h2>
           <ol className="divide-y divide-zinc-200 rounded-3xl border border-zinc-200 bg-white dark:divide-white/10 dark:border-white/10 dark:bg-white/[0.03]">
             {bracket.rows.map((row) => (
               <li key={row.userId}>
@@ -81,7 +81,7 @@ export function ValueBoardView({
 function ValueBoardRowView({ row }: { row: ValueBoardRow }) {
   return (
     <Link href={userHref(row.username)} className="flex min-h-11 items-center gap-3 px-3 py-2">
-      <span className="w-6 shrink-0 text-sm font-bold tabular-nums text-zinc-500">{row.rank}</span>
+      <span className="w-6 shrink-0 text-sm font-semibold tabular-nums text-zinc-500">{row.rank}</span>
       <Avatar
         name={row.displayName}
         image={row.avatarUrl}
@@ -108,7 +108,7 @@ export function ValueBoardRequirements({ checklist }: { checklist: LeaderboardCh
       open={checklist.openByDefault}
       className="rounded-3xl border border-zinc-200 bg-white px-4 py-3 dark:border-white/10 dark:bg-white/[0.03]"
     >
-      <summary className="cursor-pointer text-sm font-bold">{LEADERBOARD_HOW_TO}</summary>
+      <summary className="cursor-pointer text-sm font-semibold">{LEADERBOARD_HOW_TO}</summary>
       <div className="mt-3 space-y-3">
         <p className="text-sm text-zinc-600 dark:text-zinc-300">{checklist.line}</p>
         {checklist.status ? <p className="text-sm font-semibold">{checklist.status}</p> : null}

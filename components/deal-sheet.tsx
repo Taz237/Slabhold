@@ -85,7 +85,7 @@ export function DealSheet({
         onClick={(event) => event.stopPropagation()}
         className="w-full max-w-md rounded-t-3xl bg-[var(--background)] p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:rounded-3xl"
       >
-        <h2 id="deal-sheet-title" className="text-lg font-bold">
+        <h2 id="deal-sheet-title" className="text-lg font-semibold">
           {MARK_SOLD_LABEL}
         </h2>
         <p className="mt-1 text-sm text-zinc-500">

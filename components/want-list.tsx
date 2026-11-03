@@ -107,7 +107,7 @@ export function WantList() {
             </div>
             <div className="flex shrink-0 flex-col items-end gap-2">
               {want.deal ? (
-                <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[11px] font-bold text-emerald-700 dark:text-emerald-300">
+                <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300">
                   Deal
                 </span>
               ) : null}
