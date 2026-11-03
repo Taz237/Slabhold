@@ -27,7 +27,7 @@ export function HunterSettingControl({
   return (
     <div className="flex items-start justify-between gap-4">
       <div className="min-w-0">
-        <label htmlFor="show-as-hunter" id="hunter-setting-label" className="text-sm font-bold">
+        <label htmlFor="show-as-hunter" id="hunter-setting-label" className="text-sm font-semibold">
           {HUNTER_SETTING_LABEL}
         </label>
         <p id="hunter-setting-help" className="mt-1 text-sm text-zinc-500">

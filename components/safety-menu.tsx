@@ -14,7 +14,7 @@ import {
 import { REPORT_REASONS, type ReportTargetType } from "@/lib/safety/report";
 
 const menuItem =
-  "block w-full px-4 py-2.5 text-left text-[15px] font-bold hover:bg-zinc-100 dark:hover:bg-white/10";
+  "block w-full px-4 py-2.5 text-left text-[15px] font-semibold hover:bg-zinc-100 dark:hover:bg-white/10";
 
 export function SafetyMenu({
   targetType,
@@ -181,7 +181,7 @@ export function SafetyMenu({
             onSubmit={(event) => void onReport(event)}
             className="w-full max-w-md rounded-2xl bg-white p-5 dark:bg-zinc-950"
           >
-            <h2 id="report-title" className="text-lg font-bold">
+            <h2 id="report-title" className="text-lg font-semibold">
               {reportLabel}
             </h2>
             <fieldset className="mt-3 space-y-2">
@@ -216,14 +216,14 @@ export function SafetyMenu({
               <button
                 type="button"
                 onClick={() => setDialog(null)}
-                className="rounded-full border border-zinc-300 px-4 py-2 text-sm font-bold dark:border-white/20"
+                className="rounded-full border border-zinc-300 px-4 py-2 text-sm font-semibold dark:border-white/20"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={busy || !reason}
-                className="rounded-full bg-zinc-900 px-4 py-2 text-sm font-bold text-white disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-950"
+                className="rounded-full bg-zinc-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-950"
               >
                 Submit
               </button>
@@ -259,7 +259,7 @@ export function SafetyMenu({
       {toast ? (
         <p
           role="status"
-          className="fixed bottom-[calc(5.75rem+env(safe-area-inset-bottom))] left-1/2 z-50 -translate-x-1/2 rounded-full bg-zinc-900 px-4 py-2 text-sm font-bold text-white shadow-lg dark:bg-zinc-100 dark:text-zinc-950"
+          className="fixed bottom-[calc(5.75rem+env(safe-area-inset-bottom))] left-1/2 z-50 -translate-x-1/2 rounded-full bg-zinc-900 px-4 py-2 text-sm font-semibold text-white shadow-lg dark:bg-zinc-100 dark:text-zinc-950"
         >
           {toast}
         </p>
@@ -293,7 +293,7 @@ function ConfirmDialog({
         aria-labelledby="safety-confirm-title"
         className="w-full max-w-md rounded-2xl bg-white p-5 dark:bg-zinc-950"
       >
-        <h2 id="safety-confirm-title" className="text-lg font-bold">
+        <h2 id="safety-confirm-title" className="text-lg font-semibold">
           {title}
         </h2>
         <p className="mt-2 text-sm leading-6 text-zinc-600 dark:text-zinc-300">{body}</p>
@@ -302,7 +302,7 @@ function ConfirmDialog({
           <button
             type="button"
             onClick={onCancel}
-            className="rounded-full border border-zinc-300 px-4 py-2 text-sm font-bold dark:border-white/20"
+            className="rounded-full border border-zinc-300 px-4 py-2 text-sm font-semibold dark:border-white/20"
           >
             Cancel
           </button>
@@ -310,7 +310,7 @@ function ConfirmDialog({
             type="button"
             disabled={busy}
             onClick={onConfirm}
-            className="rounded-full bg-rose-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-50"
+            className="rounded-full bg-rose-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
           >
             {confirm}
           </button>

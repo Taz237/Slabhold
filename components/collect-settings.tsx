@@ -126,7 +126,7 @@ export function CollectSettings() {
   if (mode !== "supabase" || state === "missing") {
     return (
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">What you collect</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">What you collect</h1>
         <p className="mt-2 text-sm text-zinc-500">
           Collecting preferences are not available in this browser yet.
         </p>
@@ -137,7 +137,7 @@ export function CollectSettings() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold tracking-tight">What you collect</h1>
+      <h1 className="text-2xl font-semibold tracking-tight">What you collect</h1>
       <p className="mt-2 text-sm text-zinc-500">
         Sports, teams, and players. This is what we use to suggest collectors.
       </p>
@@ -184,13 +184,13 @@ export function CollectSettings() {
           type="button"
           disabled={saving}
           onClick={() => void save()}
-          className="inline-flex min-h-11 items-center justify-center rounded-full bg-zinc-900 px-5 text-sm font-bold text-white disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-950"
+          className="inline-flex min-h-11 items-center justify-center rounded-full bg-zinc-900 px-5 text-sm font-semibold text-white disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-950"
         >
           {saving ? "Saving" : "Save"}
         </button>
         <Link
           href="/profile"
-          className="inline-flex min-h-11 items-center justify-center rounded-full border border-zinc-300 px-5 text-sm font-bold dark:border-white/15"
+          className="inline-flex min-h-11 items-center justify-center rounded-full border border-zinc-300 px-5 text-sm font-semibold dark:border-white/15"
         >
           Cancel
         </Link>

@@ -131,10 +131,10 @@ export function ShareCollectionCard() {
       className="overflow-hidden rounded-3xl border border-violet-500/20 bg-white p-3 shadow-[0_16px_40px_-26px_rgba(124,58,237,0.6)] dark:border-violet-400/15 dark:bg-white/[0.03]"
     >
       <div className="flex items-baseline justify-between gap-3 px-1 pt-0.5 pb-2.5">
-        <h2 id="share-collection-title" className="text-[16px] font-bold tracking-tight">
+        <h2 id="share-collection-title" className="text-[16px] font-semibold tracking-tight">
           Share my collection
         </h2>
-        <span className="font-mono text-[11px] font-medium tracking-wider text-zinc-500 uppercase">
+        <span className="text-[13px] font-medium text-zinc-500">
           {publicCount} public {publicCount === 1 ? "card" : "cards"}
         </span>
       </div>
