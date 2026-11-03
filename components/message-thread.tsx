@@ -412,7 +412,7 @@ function MessageRow({
     ? `rounded-[20px] ${first ? "" : "rounded-tr-md"} ${last ? "rounded-br-[6px]" : "rounded-br-md"}`
     : `rounded-[20px] ${first ? "" : "rounded-tl-md"} ${last ? "rounded-bl-[6px]" : "rounded-bl-md"}`;
   const tone = mine
-    ? "bg-gradient-to-br from-[#7C3AED] to-[#5B21B6] text-white"
+    ? "bg-[#7C3AED] text-white"
     : "bg-zinc-200 text-zinc-900 dark:bg-zinc-800 dark:text-zinc-100";
   return (
     <div
@@ -487,7 +487,7 @@ function BubbleTail({ mine }: { mine: boolean }) {
       aria-hidden="true"
       viewBox="0 0 10 14"
       className={`absolute bottom-0 h-3.5 w-2.5 ${
-        mine ? "-right-[5px] text-[#5B21B6]" : "-left-[5px] -scale-x-100 text-zinc-200 dark:text-zinc-800"
+        mine ? "-right-[5px] text-[#7C3AED]" : "-left-[5px] -scale-x-100 text-zinc-200 dark:text-zinc-800"
       }`}
     >
       <path d="M0 0c0 7 3.5 11.5 10 14H0z" fill="currentColor" />

@@ -295,12 +295,12 @@ describe("inbox", () => {
 });
 
 describe("conversation", () => {
-  it("draws my bubbles in the purple gradient and theirs on a neutral surface", () => {
+  it("draws my bubbles in solid purple and theirs on a neutral surface", () => {
     thread([dm("1", "ada", "me", 0), dm("2", "me", "ada", 1)]);
     const mine = document.querySelector("[data-bubble='mine']");
     const theirs = document.querySelector("[data-bubble='theirs']");
-    assert.match(mine?.className ?? "", /from-\[#7C3AED\]/);
-    assert.match(mine?.className ?? "", /to-\[#5B21B6\]/);
+    assert.match(mine?.className ?? "", /bg-\[#7C3AED\]/);
+    assert.doesNotMatch(mine?.className ?? "", /gradient/);
     assert.doesNotMatch(theirs?.className ?? "", /7C3AED/);
     assert.match(theirs?.className ?? "", /bg-zinc-200/);
   });

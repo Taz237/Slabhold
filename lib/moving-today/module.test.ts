@@ -947,7 +947,7 @@ describe("For You placement", () => {
     assert.match(ui, /For You/);
     assert.match(ui, /New posts/);
     assert.match(ui, /h-\[2px\]/);
-    assert.match(ui, /rounded-full bg-gradient-to-r from-\[#7C3AED\] to-\[#A78BFA\]/);
+    assert.match(ui, /rounded-full bg-\[#7C3AED\]" \/>/);
   });
 
   it("keeps lib/collection/today.ts and the Collection value history", () => {

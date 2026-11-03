@@ -537,28 +537,9 @@ textarea {
   }
 }
 
-/* Landing hero: the sample slabs drift slowly. Still for reduced motion. */
-@keyframes landing-float {
-  0%,
-  100% {
-    transform: translate3d(0, 0, 0) rotate(var(--tilt, 0deg));
-  }
-  50% {
-    transform: translate3d(0, -10px, 0) rotate(var(--tilt, 0deg));
-  }
-}
-
+/* Landing hero: each sample slab sits at its own static tilt (--tilt). */
 .landing-float {
   transform: rotate(var(--tilt, 0deg));
-  animation: landing-float 7s ease-in-out infinite;
-  will-change: transform;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .landing-float {
-    animation: none;
-    will-change: auto;
-  }
 }
 
 /*

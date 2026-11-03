@@ -118,7 +118,7 @@ export function LaneTabs({ lane, onChange }: { lane: HomeLane; onChange: (lane: 
           className="pointer-events-none absolute bottom-0 left-0 flex h-[2px] w-1/2 justify-center transition-transform duration-300 ease-[cubic-bezier(0.2,0.7,0.2,1)] motion-reduce:transition-none"
           style={{ transform: `translateX(${index * 100}%)` }}
         >
-          <span className="block h-full w-14 rounded-full bg-gradient-to-r from-[#7C3AED] to-[#A78BFA]" />
+          <span className="block h-full w-14 rounded-full bg-[#7C3AED]" />
         </span>
       </div>
     </div>
