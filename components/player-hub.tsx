@@ -34,7 +34,7 @@ function Section({
 }) {
   return (
     <section className="border-b border-zinc-200 py-4 dark:border-white/10">
-      <h2 className="text-xl font-extrabold tracking-tight">{title}</h2>
+      <h2 className="text-xl font-semibold tracking-tight">{title}</h2>
       <div className="mt-2">{children}</div>
     </section>
   );
@@ -52,7 +52,7 @@ function PostList({ posts }: { posts: HubPost[] }) {
           <li key={post.id} className="border-b border-zinc-200 py-3 last:border-b-0 dark:border-white/10">
             <Link href={post.href} className="block">
               <span className="flex min-w-0 items-baseline gap-1 text-[15px]">
-                <span className="truncate font-bold">{post.authorName}</span>
+                <span className="truncate font-semibold">{post.authorName}</span>
                 {stamp ? <span className="shrink-0 text-zinc-500">· {stamp}</span> : null}
               </span>
               <span className="mt-0.5 line-clamp-3 block text-[15px] leading-5 whitespace-pre-wrap">
@@ -86,7 +86,7 @@ function CardList({ cards }: { cards: HubCard[] }) {
               />
             </Link>
             <span className="min-w-0">
-              <Link href={card.href} className="block truncate text-[15px] font-bold hover:underline">
+              <Link href={card.href} className="block truncate text-[15px] font-semibold hover:underline">
                 {card.detail || card.playerName}
               </Link>
               <Link href={card.ownerHref} className="block truncate text-sm text-zinc-500 hover:underline">
@@ -132,7 +132,7 @@ function OwnerList({ owners }: { owners: HubOwner[] }) {
         <li key={owner.id} className="border-b border-zinc-200 last:border-b-0 dark:border-white/10">
           <Link href={owner.href} className="flex min-h-12 items-center justify-between gap-3 py-2">
             <span className="min-w-0">
-              <span className="block truncate text-[15px] font-bold">{owner.displayName}</span>
+              <span className="block truncate text-[15px] font-semibold">{owner.displayName}</span>
               <span className="block truncate text-sm text-zinc-500">@{owner.username}</span>
             </span>
             <span className="shrink-0 text-xs font-semibold text-emerald-700 dark:text-emerald-300">

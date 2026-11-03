@@ -161,11 +161,11 @@ export function MailDayTileBody({
   const [lead, ...rest] = photos;
   const showPrice = Boolean(priceLabel || soldHref || sourceLabel || paidLabel);
   const name = href ? (
-    <Link href={href} className="block break-words text-sm font-bold hover:underline">
+    <Link href={href} className="block break-words text-sm font-semibold hover:underline">
       {player}
     </Link>
   ) : (
-    <p className="break-words text-sm font-bold">{player}</p>
+    <p className="break-words text-sm font-semibold">{player}</p>
   );
 
   return (

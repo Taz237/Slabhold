@@ -5,7 +5,7 @@ import { AddCardLink } from "@/components/add-card-link";
 export function FirstCardWelcome() {
   return (
     <div className="px-6 py-14 text-center">
-      <p className="text-2xl font-bold tracking-tight">Your collection starts here</p>
+      <p className="text-2xl font-semibold tracking-tight">Your collection starts here</p>
       <p className="mx-auto mt-2 max-w-xs text-sm leading-5 text-zinc-500">
         Add a card to track what you paid and what it&apos;s worth.
       </p>

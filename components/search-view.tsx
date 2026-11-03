@@ -308,7 +308,7 @@ export function SearchView() {
             {recent.length > 0 ? (
               <section>
                 <div className="flex items-center justify-between px-4 pt-3 pb-1">
-                  <h2 className="text-xl font-extrabold tracking-tight">Recent</h2>
+                  <h2 className="text-xl font-semibold tracking-tight">Recent</h2>
                   <button
                     type="button"
                     onClick={clearRecent}
@@ -346,7 +346,7 @@ export function SearchView() {
             ) : null}
             {suggestions.length > 0 ? (
               <section>
-                <h2 className="px-4 pt-4 pb-1 text-xl font-extrabold tracking-tight">Suggested</h2>
+                <h2 className="px-4 pt-4 pb-1 text-xl font-semibold tracking-tight">Suggested</h2>
                 <ul className="flex flex-wrap gap-2 px-4 pt-2 pb-4">
                   {suggestions.map((name) => (
                     <li key={name}>
@@ -385,7 +385,7 @@ export function SearchView() {
         <div>
           {catalogLoading || catalogCards.length > 0 || catalogTrouble ? (
             <section aria-busy={catalogLoading} aria-live="polite">
-              <h2 className="px-4 pt-4 pb-1 text-xl font-extrabold tracking-tight">Cards</h2>
+              <h2 className="px-4 pt-4 pb-1 text-xl font-semibold tracking-tight">Cards</h2>
               {catalogLoading ? <span className="sr-only">Searching cards</span> : null}
               {catalogTrouble ? <CatalogTrouble onRetry={retryCatalog} /> : null}
               {catalogLoading ? (
@@ -421,7 +421,7 @@ export function SearchView() {
                             name={card.playerName}
                             sport={card.sport}
                             onClick={() => remember(typed)}
-                            className="block truncate text-[15px] font-bold hover:underline"
+                            className="block truncate text-[15px] font-semibold hover:underline"
                           />
                           <Link
                             href={catalogAddHref(card)}
@@ -450,7 +450,7 @@ export function SearchView() {
 
           {visibleSections.includes("My cards") ? (
             <section>
-              <h2 className="px-4 pt-4 pb-1 text-xl font-extrabold tracking-tight">My cards</h2>
+              <h2 className="px-4 pt-4 pb-1 text-xl font-semibold tracking-tight">My cards</h2>
               <ul>
                 {matchedCards.map((card) => (
                   <li key={card.id} className="border-b border-zinc-200 dark:border-white/10">
@@ -463,7 +463,7 @@ export function SearchView() {
                           name={card.playerName}
                           sport={card.sport}
                           onClick={() => remember(typed)}
-                          className="block truncate text-[15px] font-bold hover:underline"
+                          className="block truncate text-[15px] font-semibold hover:underline"
                         />
                         <Link
                           href={`/cards/${card.id}`}
@@ -483,7 +483,7 @@ export function SearchView() {
 
           {visibleSections.includes("People") ? (
             <section>
-              <h2 className="px-4 pt-4 pb-1 text-xl font-extrabold tracking-tight">People</h2>
+              <h2 className="px-4 pt-4 pb-1 text-xl font-semibold tracking-tight">People</h2>
               <ul>
                 {people.map((profile) => (
                   <li key={profile.id} className="border-b border-zinc-200 dark:border-white/10">
@@ -498,7 +498,7 @@ export function SearchView() {
                         accent={profile.accent}
                       />
                       <span className="min-w-0">
-                        <span className="block truncate text-[15px] font-bold">
+                        <span className="block truncate text-[15px] font-semibold">
                           {profile.displayName}
                         </span>
                         <span className="block truncate text-sm text-zinc-500">
@@ -514,7 +514,7 @@ export function SearchView() {
 
           {visibleSections.includes("Posts") ? (
             <section>
-              <h2 className="px-4 pt-4 pb-1 text-xl font-extrabold tracking-tight">Posts</h2>
+              <h2 className="px-4 pt-4 pb-1 text-xl font-semibold tracking-tight">Posts</h2>
               <ul>
                 {matchedPosts.map((post) => {
                   const author = authors.get(post.authorId);
@@ -536,7 +536,7 @@ export function SearchView() {
                         />
                         <span className="min-w-0 flex-1">
                           <span className="flex min-w-0 items-baseline gap-1 text-[15px]">
-                            <span className="truncate font-bold">{name}</span>
+                            <span className="truncate font-semibold">{name}</span>
                             <span className="truncate text-zinc-500">@{username}</span>
                             {stamp ? (
                               <span className="shrink-0 text-zinc-500">· {stamp}</span>

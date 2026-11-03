@@ -47,7 +47,7 @@ export function DeleteAccount() {
 
   return (
     <section className="mt-4 rounded-3xl border border-rose-300 bg-white p-4 dark:border-rose-400/30 dark:bg-white/[0.03]">
-      <h2 className="text-sm font-bold text-rose-700 dark:text-rose-300">Delete account</h2>
+      <h2 className="text-sm font-semibold text-rose-700 dark:text-rose-300">Delete account</h2>
       <p className="mt-2 text-sm leading-6 text-zinc-500">
         Permanently delete your Slabhold account and everything stored for it.
       </p>
@@ -66,7 +66,7 @@ export function DeleteAccount() {
             aria-labelledby="delete-account-title"
             className="w-full max-w-md rounded-2xl bg-white p-5 dark:bg-zinc-950"
           >
-            <h2 id="delete-account-title" className="text-lg font-bold">
+            <h2 id="delete-account-title" className="text-lg font-semibold">
               Delete account
             </h2>
             <p className="mt-2 text-sm leading-6 text-zinc-600 dark:text-zinc-300">
@@ -99,7 +99,7 @@ export function DeleteAccount() {
                 type="button"
                 onClick={() => void onDelete()}
                 disabled={busy || typed !== "DELETE"}
-                className="rounded-full bg-rose-600 px-3 py-1.5 text-sm font-bold text-white disabled:opacity-40"
+                className="rounded-full bg-rose-600 px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-40"
               >
                 {busy ? "Deleting…" : "Delete"}
               </button>

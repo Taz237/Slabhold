@@ -941,7 +941,7 @@ export function CardForm({
         <p
           className={
             existing
-              ? "text-xs uppercase tracking-[0.2em] text-zinc-500"
+              ? "text-[13px] text-zinc-500"
               : "text-sm font-medium text-zinc-500"
           }
         >
@@ -1029,7 +1029,7 @@ export function CardForm({
                 </p>
                 {identified && (
                   <div className="rounded-xl border border-violet-400/30 bg-violet-500/10 p-3">
-                    <p className="text-[11px] uppercase tracking-wider text-violet-700 dark:text-violet-300">
+                    <p className="text-[13px] text-violet-700 dark:text-violet-300">
                       Demo match · {Math.round(identified.confidence * 100)}%
                     </p>
                     <p className="mt-1 text-sm font-medium">
@@ -1532,7 +1532,7 @@ export function CardForm({
 
   const previewNode = (
       <p className="rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-700 dark:border-white/10 dark:bg-white/[0.04] dark:text-zinc-200">
-        <span className="text-xs tracking-wide text-zinc-500 uppercase">
+        <span className="text-[13px] text-zinc-500">
           Preview
         </span>
         <span

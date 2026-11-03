@@ -308,7 +308,7 @@ export function MessageThread({ username }: { username: string }) {
                 <p
                   key={row.key}
                   data-thread-time=""
-                  className="pt-4 pb-2 text-center text-[11px] font-semibold tracking-wide text-zinc-500"
+                  className="pt-4 pb-2 text-center text-[13px] font-medium text-zinc-500"
                 >
                   <time dateTime={row.at} title={exactTime(row.at)}>
                     {threadTimeLabel(row.at)}

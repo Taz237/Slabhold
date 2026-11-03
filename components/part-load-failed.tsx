@@ -8,7 +8,7 @@ import { createPortal } from "react-dom";
  * retry. Kept apart from every lazy chunk so it is in place when they fail.
  */
 
-const tryAgainClass = `inline-flex min-h-11 items-center rounded-full px-5 font-bold bg-violet-600 text-white transition-transform duration-150 active:scale-[0.98] motion-reduce:transition-none`;
+const tryAgainClass = `inline-flex min-h-11 items-center rounded-full px-5 font-semibold bg-violet-600 text-white transition-transform duration-150 active:scale-[0.98] motion-reduce:transition-none`;
 
 /** The "Couldn't load this" line and Try again. Only the sheet passes `autoFocus`. */
 function TryAgainPanel({ retry, autoFocus = false }: { retry: () => void; autoFocus?: boolean }) {
@@ -72,7 +72,7 @@ export function SheetLoadFailed({ retry, onClose }: { retry: () => void; onClose
       className="fixed inset-x-4 bottom-[max(1rem,env(safe-area-inset-bottom))] z-[70] mx-auto max-w-sm rounded-3xl border border-zinc-200 bg-[var(--background)] pb-2 shadow-2xl dark:border-white/10"
     >
       <TryAgainPanel retry={retry} autoFocus />
-      <button type="button" onClick={onClose} className="mx-auto flex min-h-11 items-center px-5 text-sm font-bold text-zinc-500">
+      <button type="button" onClick={onClose} className="mx-auto flex min-h-11 items-center px-5 text-sm font-semibold text-zinc-500">
         Close
       </button>
     </div>,

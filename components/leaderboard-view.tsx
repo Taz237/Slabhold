@@ -94,7 +94,7 @@ function Avatar({ title, accent, url, size }: { title: string; accent: string; u
   return (
     <span
       aria-hidden="true"
-      className="grid shrink-0 place-items-center rounded-full bg-cover bg-center font-bold text-white"
+      className="grid shrink-0 place-items-center rounded-full bg-cover bg-center font-semibold text-white"
       style={{
         width: size,
         height: size,
@@ -111,7 +111,7 @@ function Avatar({ title, accent, url, size }: { title: string; accent: string; u
 function Tag({ children, tone }: { children: ReactNode; tone: "dark" | "light" }) {
   return (
     <span
-      className={`shrink-0 rounded-full px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase leading-none tracking-wider ${
+      className={`shrink-0 rounded-full px-1.5 py-0.5 text-[12px] font-medium leading-none ${
         tone === "dark" ? "bg-zinc-950/85 text-white" : "bg-white/15 text-white"
       }`}
     >
@@ -174,7 +174,7 @@ export function PodiumRow({ entry, boardId }: { entry: BoardRow; boardId: string
         {entry.rank === 1 ? (
           <Crown data-crown="" aria-hidden="true" className="h-6 w-6 fill-zinc-950/15" strokeWidth={2.4} />
         ) : (
-          <span className="text-lg font-black tabular-nums">{entry.rank}</span>
+          <span className="text-lg font-semibold tabular-nums">{entry.rank}</span>
         )}
       </span>
       <span className={`lb-ring-${entry.rank} shrink-0 rounded-full p-[2px] shadow-[0_2px_10px_rgba(0,0,0,0.25)]`}>
@@ -187,14 +187,14 @@ export function PodiumRow({ entry, boardId }: { entry: BoardRow; boardId: string
           {PLACE[entry.rank]}
         </span>
         <span className="flex min-w-0 items-center gap-1.5">
-          <span className="min-w-0 truncate text-[15px] font-extrabold tracking-tight">{labels.name}</span>
+          <span className="min-w-0 truncate text-[15px] font-semibold tracking-tight">{labels.name}</span>
           {entry.isNew ? <Tag tone="dark">NEW</Tag> : null}
           {entry.mine ? <Tag tone="dark">{YOU_LABEL}</Tag> : null}
         </span>
         {labels.detail ? <span className="block truncate text-xs font-medium text-zinc-950/65">{labels.detail}</span> : null}
       </span>
       <span className="relative shrink-0 text-right">
-        <span className="block text-2xl font-black leading-none tabular-nums">{entry.score}</span>
+        <span className="block text-2xl font-semibold leading-none tabular-nums">{entry.score}</span>
         <span className="mt-0.5 block text-[11px] font-semibold text-zinc-950/70">{entry.scoreLabel}</span>
       </span>
     </RowShell>
@@ -240,7 +240,7 @@ function PhotoStrip({
         </span>
       ))}
       {extra > 0 ? (
-        <span className="grid h-[18px] shrink-0 place-items-center rounded-full bg-white/10 px-1.5 text-[10px] font-bold leading-none tabular-nums text-zinc-200">
+        <span className="grid h-[18px] shrink-0 place-items-center rounded-full bg-white/10 px-1.5 text-[10px] font-semibold leading-none tabular-nums text-zinc-200">
           +{extra}
         </span>
       ) : null}
@@ -278,7 +278,7 @@ function PodiumPlace({ entry, boardId }: { entry: BoardRow; boardId: string }) {
           <Avatar title={labels.name} accent={entry.accent} url={entry.avatarUrl} size={PODIUM_AVATAR[rank] ?? 44} />
         </span>
       </span>
-      <span className="mt-1.5 block w-full min-w-0 truncate px-1 text-sm font-extrabold tracking-tight text-white">
+      <span className="mt-1.5 block w-full min-w-0 truncate px-1 text-sm font-semibold tracking-tight text-white">
         {labels.name}
       </span>
       {labels.detail ? (
@@ -288,7 +288,7 @@ function PodiumPlace({ entry, boardId }: { entry: BoardRow; boardId: string }) {
         <PhotoStrip photos={entry.photos ?? []} max={3} width={22} height={31} more />
       ) : null}
       <span className="mt-1 flex max-w-full items-baseline justify-center gap-1 whitespace-nowrap px-1">
-        <span className="shrink-0 text-lg font-black leading-none tabular-nums text-white">{entry.score}</span>
+        <span className="shrink-0 text-lg font-semibold leading-none tabular-nums text-white">{entry.score}</span>
         <span className="min-w-0 truncate text-[11px] font-semibold text-zinc-400">{entry.scoreLabel}</span>
       </span>
       <span
@@ -320,7 +320,7 @@ function GhostPlace({ spot }: { spot: OpenSpot }) {
         aria-hidden="true"
         className={`shrink-0 rounded-full border-2 border-dashed border-current opacity-60 ${spot.rank === 1 ? "h-[60px] w-[60px]" : "h-12 w-12"}`}
       />
-      <span className="mt-1.5 block w-full min-w-0 truncate px-1 text-sm font-bold tracking-tight text-zinc-200">
+      <span className="mt-1.5 block w-full min-w-0 truncate px-1 text-sm font-semibold tracking-tight text-zinc-200">
         {spot.title}
       </span>
       {spot.ctaLabel ? (
@@ -334,7 +334,7 @@ function GhostPlace({ spot }: { spot: OpenSpot }) {
         {spot.ctaLabel ? (
           <span
             aria-hidden="true"
-            className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-violet-600 text-white shadow-[0_0_16px_rgba(124,58,237,0.45)]"
+            className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-violet-600 text-white"
           >
             <Plus className="h-3.5 w-3.5" strokeWidth={2.6} />
           </span>
@@ -402,7 +402,7 @@ function RankRow({ entry, boardId }: { entry: BoardRow; boardId: string }) {
       <Avatar title={labels.name} accent={entry.accent} url={entry.avatarUrl} size={32} />
       <span className="min-w-0 flex-1">
         <span className="flex min-w-0 items-baseline gap-1.5">
-          <span className="min-w-0 shrink-0 truncate text-sm font-bold text-white max-w-[65%]">{labels.name}</span>
+          <span className="min-w-0 shrink-0 truncate text-sm font-semibold text-white max-w-[65%]">{labels.name}</span>
           {entry.isNew ? <Tag tone="light">NEW</Tag> : null}
           {entry.mine ? <Tag tone="light">{YOU_LABEL}</Tag> : null}
           {labels.detail ? <span className="min-w-0 truncate text-xs text-zinc-500">{labels.detail}</span> : null}
@@ -412,7 +412,7 @@ function RankRow({ entry, boardId }: { entry: BoardRow; boardId: string }) {
         ) : null}
       </span>
       <span className="shrink-0 whitespace-nowrap text-right">
-        <span className="text-base font-black tabular-nums text-white">{entry.score}</span>
+        <span className="text-base font-semibold tabular-nums text-white">{entry.score}</span>
         <span className="ml-1 text-[11px] text-zinc-400">{entry.scoreLabel}</span>
       </span>
     </RowShell>
@@ -431,7 +431,7 @@ function spotLine(you: YouRow, scoreLabel: string, week: "current" | "previous")
   return you.rank === 1 ? `${head} · ${amount} ahead of ${rival.name}` : `${head} · ${amount} behind ${rival.name}`;
 }
 
-const ACTION_CLASS = `inline-flex min-h-11 max-w-[9.5rem] shrink-0 items-center justify-center rounded-full bg-violet-600 px-3.5 py-1 text-center text-sm font-bold leading-4 text-white hover:bg-violet-500 ${FOCUS_RING}`;
+const ACTION_CLASS = `inline-flex min-h-11 max-w-[9.5rem] shrink-0 items-center justify-center rounded-full bg-violet-600 px-3.5 py-1 text-center text-sm font-semibold leading-4 text-white hover:bg-violet-500 ${FOCUS_RING}`;
 
 function SpotAction({ you, boardId }: { you: YouRow; boardId: string }) {
   const cta = boardCallToAction(boardId, "current");
@@ -523,7 +523,7 @@ function Board({ board, week }: { board: LeaderboardBoard; week: "current" | "pr
           <Icon className="h-5 w-5" />
         </span>
         <div className="min-w-0">
-          <h2 id={`board-${board.id}-title`} className="text-[17px] font-bold leading-tight tracking-tight text-white">
+          <h2 id={`board-${board.id}-title`} className="text-[17px] font-semibold leading-tight tracking-tight text-white">
             {board.label}
           </h2>
           <p className="mt-0.5 text-sm leading-5 text-zinc-400">
@@ -563,7 +563,7 @@ export function LeaderboardView({ model }: { model: LeaderboardPageModel }) {
       <div className="px-4 pt-4 pb-3">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <h1 className="text-[28px] font-extrabold leading-tight tracking-tight text-white">{model.title}</h1>
+            <h1 className="text-[28px] font-semibold leading-tight tracking-tight text-white">{model.title}</h1>
             <p className="mt-0.5 text-sm text-zinc-400">{model.description}</p>
           </div>
           <ShareIconButton path={LEADERBOARD_PATH} title={model.title} label="Share" />
@@ -572,7 +572,7 @@ export function LeaderboardView({ model }: { model: LeaderboardPageModel }) {
           <span className="whitespace-nowrap font-medium text-zinc-100">{model.weekLabel}</span>
           <span
             data-standing=""
-            className={`rounded-full px-2 py-1 font-mono text-[10px] font-bold uppercase leading-none tracking-[0.12em] ${
+            className={`rounded-full px-2 py-1 text-[13px] font-medium leading-none ${
               closed ? "bg-white/10 text-zinc-300" : "bg-violet-500/20 text-[#A78BFA]"
             }`}
           >
@@ -614,11 +614,11 @@ export function LeaderboardView({ model }: { model: LeaderboardPageModel }) {
             <Info aria-hidden="true" className="h-[18px] w-[18px]" />
           </summary>
           <div className="absolute inset-x-0 top-full z-20 max-h-[60vh] overflow-y-auto rounded-2xl border border-white/10 bg-[#18181B] p-4 shadow-[0_20px_50px_rgba(0,0,0,0.6)]">
-            <p className="text-sm font-bold text-white">{RULES_SHEET_LABEL}</p>
+            <p className="text-sm font-semibold text-white">{RULES_SHEET_LABEL}</p>
             <div className="mt-3 space-y-4">
               {model.rules.map((board) => (
                 <div key={board.id}>
-                  <p className="font-mono text-[10px] font-bold uppercase tracking-[0.14em]" style={{ color: boardAccent(board.id) }}>
+                  <p className="text-[13px] font-medium" style={{ color: boardAccent(board.id) }}>
                     {board.label}
                   </p>
                   <ul className="mt-1.5 list-disc space-y-1 pl-4 text-[13px] leading-5 text-zinc-300">
@@ -635,7 +635,7 @@ export function LeaderboardView({ model }: { model: LeaderboardPageModel }) {
 
       {model.status === "error" ? (
         <div className="mx-3 mt-3 mb-8 rounded-3xl border border-white/10 px-6 py-12 text-center" data-board-error="">
-          <p className="text-[17px] font-bold tracking-tight text-white">{model.errorTitle}</p>
+          <p className="text-[17px] font-semibold tracking-tight text-white">{model.errorTitle}</p>
           <p className="mx-auto mt-1.5 max-w-[18rem] text-sm leading-5 text-zinc-400">{model.errorDetail}</p>
         </div>
       ) : (

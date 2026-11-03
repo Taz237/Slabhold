@@ -186,7 +186,7 @@ export function CardPostsList({ cardId }: { cardId: string }) {
             <ArrowLeft className="h-5 w-5" />
           </Link>
           <div className="min-w-0">
-            <h1 className="truncate text-lg font-bold tracking-tight">
+            <h1 className="truncate text-lg font-semibold tracking-tight">
               What collectors are saying
             </h1>
             <p className="text-xs text-zinc-500">Posts about this card</p>

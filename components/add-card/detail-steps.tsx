@@ -160,7 +160,7 @@ export function ParallelStep({
       >
         <SwatchDot name="Base" size="lg" />
         <span className="min-w-0">
-          <span className="block text-base font-bold tracking-tight">Base</span>
+          <span className="block text-base font-semibold tracking-tight">Base</span>
           <span className="block text-xs text-zinc-500">No color, no shine, no number</span>
         </span>
       </button>

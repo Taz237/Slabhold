@@ -36,7 +36,7 @@ export function WhatsNewCard({
           ✦
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block text-[15px] font-bold">{whatsNewLabel(items.length)}</span>
+          <span className="block text-[15px] font-semibold">{whatsNewLabel(items.length)}</span>
           <span className="block truncate text-sm text-zinc-500">Updates from @{handle}</span>
         </span>
         <ChevronDown className={`h-4 w-4 shrink-0 text-zinc-500 ${open ? "rotate-180" : ""}`} />

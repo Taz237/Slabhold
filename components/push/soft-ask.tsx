@@ -80,7 +80,7 @@ export function SoftAsk({
             <Bell className="h-6 w-6" strokeWidth={2.25} />
           </span>
           <div className="min-w-0 flex-1 pt-0.5">
-            <h2 id={titleId} className="text-[20px] leading-6 font-extrabold tracking-tight">
+            <h2 id={titleId} className="text-[20px] leading-6 font-semibold tracking-tight">
               {title}
             </h2>
             <p id={bodyId} className="mt-1.5 text-[15px] leading-[1.35rem] text-zinc-600 dark:text-zinc-400">
@@ -105,7 +105,7 @@ export function SoftAsk({
                 className="flex flex-col items-center gap-1 rounded-xl bg-zinc-100 px-1 py-2.5 dark:bg-white/[0.06]"
               >
                 <Icon aria-hidden className="h-4 w-4 text-[#7C3AED] dark:text-[#A78BFA]" />
-                <span className="font-mono text-[10px] font-medium tracking-wider text-zinc-500 uppercase dark:text-zinc-400">
+                <span className="text-[13px] font-medium text-zinc-500 dark:text-zinc-400">
                   {label}
                 </span>
               </li>
@@ -118,7 +118,7 @@ export function SoftAsk({
             ref={primaryRef}
             type="button"
             onClick={onPrimary}
-            className="tap h-12 rounded-full bg-violet-600 text-[15px] font-bold text-white transition-colors hover:bg-violet-700 focus-visible:ring-2 focus-visible:ring-violet-600 focus-visible:ring-offset-2 focus-visible:outline-none dark:focus-visible:ring-offset-[#18181B]"
+            className="tap h-12 rounded-full bg-violet-600 text-[15px] font-semibold text-white transition-colors hover:bg-violet-700 focus-visible:ring-2 focus-visible:ring-violet-600 focus-visible:ring-offset-2 focus-visible:outline-none dark:focus-visible:ring-offset-[#18181B]"
           >
             {home ? "Show me how" : "Turn on"}
           </button>

@@ -178,7 +178,7 @@ export function CardTile({
               {card.playerName}
             </p>
             {card.isRookie ? (
-              <span className="shrink-0 rounded bg-violet-500/15 px-1 font-mono text-[9px] leading-4 font-semibold tracking-wider text-violet-700 uppercase dark:text-[#A78BFA]">
+              <span className="shrink-0 rounded bg-violet-500/15 px-1 text-[12px] leading-4 font-medium text-violet-700 dark:text-[#A78BFA]">
                 RC
               </span>
             ) : null}
@@ -257,7 +257,7 @@ export function GainChip({
       title={[gain.amountText, gain.pctText].filter(Boolean).join(" ")}
       className={`inline-flex shrink-0 items-center rounded-full ${
         large
-          ? "gap-1 px-2.5 py-1 text-base font-bold"
+          ? "gap-1 px-2.5 py-1 text-base font-semibold"
           : `gap-0.5 ${compact ? "px-1" : "px-1.5"} py-0.5 text-[10px] font-semibold`
       } tabular-nums ${
         gain.tone === "up"
@@ -300,7 +300,7 @@ function AddPhotoHint({ href, playerName }: { href: string; playerName: string }
 function SoldRibbon() {
   return (
     <span className="pointer-events-none absolute bottom-0 left-0 h-16 w-16 overflow-hidden rounded-bl-lg" aria-hidden>
-      <span className="absolute bottom-[14px] left-[-26px] w-[100px] rotate-45 bg-sky-500 py-0.5 text-center font-mono text-[9px] font-bold tracking-widest text-white uppercase shadow-md">
+      <span className="absolute bottom-[14px] left-[-26px] w-[100px] rotate-45 bg-sky-500 py-0.5 text-center text-[12px] leading-4 font-semibold text-white shadow-md">
         Sold
       </span>
     </span>

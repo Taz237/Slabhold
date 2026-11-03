@@ -129,7 +129,7 @@ function PrivateShareSheet({
         <div aria-hidden className="mx-auto -mt-1 mb-2 h-1 w-9 rounded-full bg-zinc-300 sm:hidden dark:bg-white/20" />
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <h2 id={titleId} className="text-base font-bold tracking-tight">
+            <h2 id={titleId} className="text-base font-semibold tracking-tight">
               {isPublic ? "Ready to share" : "Make this card public to share"}
             </h2>
             <p className="mt-0.5 text-[13px] leading-5 text-zinc-500">

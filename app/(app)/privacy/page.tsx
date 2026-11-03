@@ -7,7 +7,7 @@ export default function PrivacyPolicyPage() {
   const email = SUPPORT_EMAIL.trim();
   return (
     <article className="space-y-4 text-[15px] leading-6">
-      <h1 className="text-2xl font-bold tracking-tight">Privacy</h1>
+      <h1 className="text-2xl font-semibold tracking-tight">Privacy</h1>
       <p>
         Slabhold stores the account and collection details you give us so you can use the app.
       </p>
@@ -27,7 +27,7 @@ export default function PrivacyPolicyPage() {
         post it shows only if you choose, and never when the card is private.
       </p>
       <p>We don&apos;t sell your data.</p>
-      <h2 className="pt-2 text-lg font-bold tracking-tight">Services we use</h2>
+      <h2 className="pt-2 text-lg font-semibold tracking-tight">Services we use</h2>
       <p>
         Supabase stores accounts, the database, and photos. Vercel hosts the app. Sold prices are
         eBay sold-listing lookups. Those requests send card details (player, year, set, number,
@@ -42,7 +42,7 @@ export default function PrivacyPolicyPage() {
         We use Cloudflare Turnstile on sign-up, log-in and password reset forms to block bots.
         Cloudflare processes your IP address and browser signals for this check.
       </p>
-      <h2 className="pt-2 text-lg font-bold tracking-tight">Cookies and this browser</h2>
+      <h2 className="pt-2 text-lg font-semibold tracking-tight">Cookies and this browser</h2>
       <p>
         Signing in stores the login session in cookies. This browser&apos;s local storage keeps the
         posts you liked, recent searches, whether you dismissed the daily collection summary, and
@@ -57,14 +57,14 @@ export default function PrivacyPolicyPage() {
         To limit price checks from visitors who aren&apos;t signed in, we store a one-way hash of
         your IP address. We keep that hash for up to two days.
       </p>
-      <h2 className="pt-2 text-lg font-bold tracking-tight">What is public</h2>
+      <h2 className="pt-2 text-lg font-semibold tracking-tight">What is public</h2>
       <p>
         Posts, comments, reposts, profiles, follows, and cards you mark public can be read by
         anyone, including people who are not signed in. Hidden posts are left out. If either
         account blocks the other, they do not see each other&apos;s posts or comments.
         Hunters is opt-in.
       </p>
-      <h2 className="pt-2 text-lg font-bold tracking-tight">How long we keep data</h2>
+      <h2 className="pt-2 text-lg font-semibold tracking-tight">How long we keep data</h2>
       <p>We keep account data until you delete it. There is no automatic expiration.</p>
       <p>
         You can delete your account from More. Type DELETE to confirm. That removes your login,
@@ -80,7 +80,7 @@ export default function PrivacyPolicyPage() {
       <p>
         Contact:{" "}
         {email ? (
-          <a className="font-bold underline" href={`mailto:${email}`}>
+          <a className="font-medium underline" href={`mailto:${email}`}>
             {email}
           </a>
         ) : (

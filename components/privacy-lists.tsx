@@ -36,7 +36,7 @@ export function PrivacyLists({
   if (!user) {
     return (
       <EmptyState title="Privacy & safety" detail="Log in to manage blocked and muted accounts.">
-        <Link href={loginPath(pathname)} className="text-sm font-bold">
+        <Link href={loginPath(pathname)} className="text-sm font-semibold">
           Log in
         </Link>
       </EmptyState>
@@ -85,7 +85,7 @@ export function PrivacyLists({
         >
           <ArrowLeft className="h-5 w-5" />
         </Link>
-        <h1 className="text-lg font-bold">Privacy & safety</h1>
+        <h1 className="text-lg font-semibold">Privacy & safety</h1>
       </div>
       <HunterSettingSwitch />
       <LeaderboardOptInSwitch minimums={minimums} />
@@ -107,7 +107,7 @@ export function PrivacyLists({
         onAction={(id) => void unmute(id)}
       />
       <p className="px-4 py-4 text-sm text-zinc-500">
-        <Link href="/terms" className="font-bold underline">
+        <Link href="/terms" className="font-medium underline">
           Terms
         </Link>
       </p>
@@ -132,7 +132,7 @@ function AccountList({
 }) {
   return (
     <section className="border-b border-zinc-200 px-4 py-4 dark:border-white/10">
-      <h2 className="text-sm font-bold">{title}</h2>
+      <h2 className="text-sm font-semibold">{title}</h2>
       {people.length === 0 ? (
         <p className="mt-3 text-sm text-zinc-500">{empty}</p>
       ) : (
@@ -145,14 +145,14 @@ function AccountList({
                 accent={person.accent}
               />
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-bold">{person.displayName}</p>
+                <p className="truncate text-sm font-semibold">{person.displayName}</p>
                 <p className="truncate text-sm text-zinc-500">@{person.username}</p>
               </div>
               <button
                 type="button"
                 disabled={busyId === person.id}
                 onClick={() => onAction(person.id)}
-                className="rounded-full border border-zinc-300 px-3 py-1.5 text-sm font-bold disabled:opacity-50 dark:border-white/20"
+                className="rounded-full border border-zinc-300 px-3 py-1.5 text-sm font-semibold disabled:opacity-50 dark:border-white/20"
               >
                 {action}
               </button>

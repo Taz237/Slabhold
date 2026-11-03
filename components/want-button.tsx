@@ -218,7 +218,7 @@ export function WantButton({
               type="button"
               onClick={() => void save()}
               disabled={saving}
-              className="rounded-full bg-zinc-900 px-3 py-1.5 text-sm font-bold text-white disabled:opacity-40 dark:bg-zinc-100 dark:text-zinc-950"
+              className="rounded-full bg-zinc-900 px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-40 dark:bg-zinc-100 dark:text-zinc-950"
             >
               {saving ? "Saving…" : "Save"}
             </button>

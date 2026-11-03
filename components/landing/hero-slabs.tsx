@@ -17,15 +17,15 @@ const SLAB_SIZES = "(min-width: 1024px) 140px, 38vw";
 export const HERO_PLACES: { className: string; style: CSSProperties }[] = [
   {
     className: "left-[0.5%] top-[14%] w-[31%] z-10",
-    style: { "--tilt": "-8deg", animationDelay: "-2.4s" } as CSSProperties,
+    style: { "--tilt": "-8deg" } as CSSProperties,
   },
   {
     className: "left-1/2 top-0 w-[37%] -translate-x-1/2 z-20",
-    style: { "--tilt": "0deg", animationDelay: "0s" } as CSSProperties,
+    style: { "--tilt": "0deg" } as CSSProperties,
   },
   {
     className: "right-[0.5%] top-[14%] w-[31%] z-10",
-    style: { "--tilt": "8deg", animationDelay: "-4.8s" } as CSSProperties,
+    style: { "--tilt": "8deg" } as CSSProperties,
   },
 ];
 

@@ -260,7 +260,7 @@ export function CardSearch({
                 type="button"
                 onMouseEnter={() => setActive(results.length)}
                 onClick={chooseManual}
-                className="flex min-h-11 w-full items-center justify-center rounded-xl bg-[#7C3AED] px-3 text-sm font-bold text-white"
+                className="flex min-h-11 w-full items-center justify-center rounded-xl bg-[#7C3AED] px-3 text-sm font-semibold text-white"
               >
                 Add this card yourself
               </button>

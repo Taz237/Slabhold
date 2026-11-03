@@ -36,7 +36,7 @@ export function ReportActions({
         type="button"
         disabled={busy}
         onClick={() => void run(markReportReviewed)}
-        className="rounded-full border border-zinc-300 px-3 py-1.5 text-sm font-bold disabled:opacity-50 dark:border-white/20"
+        className="rounded-full border border-zinc-300 px-3 py-1.5 text-sm font-semibold disabled:opacity-50 dark:border-white/20"
       >
         Mark reviewed
       </button>
@@ -45,7 +45,7 @@ export function ReportActions({
           type="button"
           disabled={busy}
           onClick={() => void run(hideReportPost)}
-          className="rounded-full border border-zinc-300 px-3 py-1.5 text-sm font-bold disabled:opacity-50 dark:border-white/20"
+          className="rounded-full border border-zinc-300 px-3 py-1.5 text-sm font-semibold disabled:opacity-50 dark:border-white/20"
         >
           Hide post
         </button>
@@ -55,7 +55,7 @@ export function ReportActions({
           type="button"
           disabled={busy}
           onClick={() => void run(deleteReportTarget)}
-          className="rounded-full bg-rose-600 px-3 py-1.5 text-sm font-bold text-white disabled:opacity-50"
+          className="rounded-full bg-rose-600 px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-50"
         >
           {canModeratePost ? "Delete post" : "Delete reply"}
         </button>

@@ -72,7 +72,7 @@ export function CompFlagsAdmin() {
         />
         <button
           type="submit"
-          className="rounded-full bg-zinc-900 px-4 py-2 text-sm font-bold text-white dark:bg-zinc-100 dark:text-zinc-950"
+          className="rounded-full bg-zinc-900 px-4 py-2 text-sm font-semibold text-white dark:bg-zinc-100 dark:text-zinc-950"
         >
           Search
         </button>
@@ -94,7 +94,7 @@ export function CompFlagsAdmin() {
               type="button"
               disabled={busy === flag.id}
               onClick={() => void restore(flag.id)}
-              className="mt-2 text-sm font-bold text-violet-700 disabled:opacity-40 dark:text-violet-300"
+              className="mt-2 text-sm font-semibold text-violet-700 disabled:opacity-40 dark:text-violet-300"
             >
               {busy === flag.id ? "Restoring…" : "Restore"}
             </button>

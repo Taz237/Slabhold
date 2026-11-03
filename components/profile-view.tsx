@@ -287,7 +287,7 @@ export function ProfileView({
   if (!username && !user) {
     return (
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Profile</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Profile</h1>
         <EmptyState
           title="Your profile"
           detail="Sign in to post, follow collectors, and share cards from your book."
@@ -444,7 +444,7 @@ export function ProfileView({
             )}
           </div>
         </div>
-        <h1 className="mt-3 text-[22px] leading-7 font-extrabold tracking-tight break-words">
+        <h1 className="mt-3 text-[22px] leading-7 font-semibold tracking-tight break-words">
           {profile.displayName}
         </h1>
         <p className="text-[15px] leading-5 font-medium text-zinc-500">@{profile.username}</p>
@@ -465,7 +465,7 @@ export function ProfileView({
                 aria-hidden
               />
             ) : (
-              <span className="font-bold tabular-nums">{cardCount}</span>
+              <span className="font-semibold tabular-nums">{cardCount}</span>
             )}
             <span className="text-zinc-500">{cardCount === 1 ? "Card" : "Cards"}</span>
           </button>
@@ -530,7 +530,7 @@ export function ProfileView({
                 key={reply.id}
                 className="min-w-0 border-b border-zinc-200 px-4 py-3 dark:border-white/10"
               >
-                <p className="text-[13px] font-bold text-zinc-500">Reply</p>
+                <p className="text-[13px] font-medium text-zinc-500">Reply</p>
                 {reply.body.trim() ? (
                   <p className="mt-1 text-[15px] leading-5 break-words whitespace-pre-wrap">
                     <MentionText text={reply.body} />
@@ -685,7 +685,7 @@ function CountLink({ href, count, label }: { href: string; count: number | null;
           aria-hidden
         />
       ) : (
-        <span className="font-bold tabular-nums">{count}</span>
+        <span className="font-semibold tabular-nums">{count}</span>
       )}
       <span className="text-zinc-500">{label}</span>
     </Link>
@@ -774,7 +774,7 @@ function MissingProfile({
   if (state === "unavailable") {
     return (
       <EmptyState title="This account isn't available" detail="You can't interact with this account.">
-        <Link href="/" className="text-sm font-bold">
+        <Link href="/" className="text-sm font-semibold">
           Back to Home
         </Link>
       </EmptyState>
@@ -789,7 +789,7 @@ function MissingProfile({
           : "That profile isn't on this device."
       }
     >
-      <Link href="/" className="text-sm font-bold">
+      <Link href="/" className="text-sm font-semibold">
         Back to Home
       </Link>
     </EmptyState>
@@ -811,7 +811,7 @@ function ProfileTab({
       role="tab"
       aria-selected={active}
       onClick={onClick}
-      className={`relative min-w-0 truncate px-1 py-3.5 font-medium ${active ? "font-bold" : "text-zinc-500"}`}
+      className={`relative min-w-0 truncate px-1 py-3.5 font-medium ${active ? "font-semibold" : "text-zinc-500"}`}
     >
       {children}
       {active ? (

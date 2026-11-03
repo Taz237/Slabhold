@@ -139,7 +139,7 @@ export function ProfileEditSheet({
             >
               Cancel
             </button>
-            <h2 id="edit-profile-title" className="text-[15px] font-bold">
+            <h2 id="edit-profile-title" className="text-[15px] font-semibold">
               Edit profile
             </h2>
             <button type="submit" disabled={saving} className={solidButton}>

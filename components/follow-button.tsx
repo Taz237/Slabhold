@@ -15,10 +15,10 @@ import {
 } from "@/lib/cards/people";
 
 const followButton =
-  "inline-flex min-w-[6.5rem] shrink-0 items-center justify-center whitespace-nowrap rounded-full px-4 py-1.5 text-sm font-bold transition-opacity active:opacity-70";
+  "inline-flex min-w-[6.5rem] shrink-0 items-center justify-center whitespace-nowrap rounded-full px-4 py-1.5 text-sm font-semibold transition-opacity active:opacity-70";
 
 const cardFollowButton =
-  "inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-full px-3 py-1 text-xs font-bold transition-opacity active:opacity-70";
+  "inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-full px-3 py-1 text-xs font-semibold transition-opacity active:opacity-70";
 
 export function FollowButton({
   userId,

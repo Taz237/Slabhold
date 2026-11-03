@@ -46,7 +46,7 @@ export function ScanView() {
 
   return (
     <div className="flex min-h-[70vh] flex-col">
-      <h1 className="text-2xl font-bold tracking-tight">Scan</h1>
+      <h1 className="text-2xl font-semibold tracking-tight">Scan</h1>
       <p className="mt-1 text-sm text-zinc-500">
         Photograph a card, then add it to your book or post it.
       </p>

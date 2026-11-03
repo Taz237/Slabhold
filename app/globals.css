@@ -398,15 +398,6 @@ textarea {
   }
 }
 
-@keyframes reveal-glow {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
 /* Skeleton shimmer: one gradient sweep, no shadows or blur. */
 @keyframes skeleton-shimmer {
   from {

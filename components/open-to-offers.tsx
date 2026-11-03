@@ -168,7 +168,7 @@ export function CardMessagePreviewBody({
     <Link
       href={card.href}
       data-shared-card=""
-      className="group mt-1 flex w-64 max-w-full items-center gap-3 rounded-2xl border border-violet-500/15 bg-white p-2.5 pr-3.5 text-left shadow-[0_10px_28px_-18px_rgba(124,58,237,0.6)] transition-transform duration-150 active:scale-[0.98] motion-reduce:transition-none dark:border-violet-400/20 dark:bg-zinc-900"
+      className="group mt-1 flex w-64 max-w-full items-center gap-3 rounded-2xl border border-violet-500/15 bg-white p-2.5 pr-3.5 text-left shadow-[0_1px_2px_rgba(0,0,0,0.05),0_8px_24px_rgba(0,0,0,0.06)] transition-transform duration-150 active:scale-[0.98] motion-reduce:transition-none dark:border-violet-400/20 dark:bg-zinc-900 dark:shadow-none"
     >
       <SharedCardPhoto imageUrl={card.imageUrl} player={card.player} />
       <span className="min-w-0 flex-1">

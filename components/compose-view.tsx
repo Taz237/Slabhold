@@ -339,7 +339,7 @@ export function ComposeView() {
               aria-labelledby="discard-post-title"
               className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-2xl motion-safe:animate-[composer-in_200ms_cubic-bezier(0.2,0.7,0.2,1)_backwards] dark:bg-zinc-900"
             >
-              <h2 id="discard-post-title" className="text-lg font-bold tracking-tight">
+              <h2 id="discard-post-title" className="text-lg font-semibold tracking-tight">
                 Discard post?
               </h2>
               <p className="mt-1 text-sm text-zinc-500">Your text, photos and card go with it.</p>
@@ -347,7 +347,7 @@ export function ComposeView() {
                 <button
                   type="button"
                   onClick={discard}
-                  className="min-h-11 rounded-full bg-rose-600 text-[15px] font-bold text-white active:bg-rose-700"
+                  className="min-h-11 rounded-full bg-rose-600 text-[15px] font-semibold text-white active:bg-rose-700"
                 >
                   Discard
                 </button>
@@ -559,7 +559,7 @@ export function ComposeView() {
 }
 
 const POST_PILL =
-  "hit-44 h-8 rounded-full bg-[#7C3AED] px-4 text-[15px] font-bold text-white transition-colors active:bg-[#5B21B6] disabled:opacity-50";
+  "hit-44 h-8 rounded-full bg-[#7C3AED] px-4 text-[15px] font-semibold text-white transition-colors active:bg-[#5B21B6] disabled:opacity-50";
 
 const TOOL_BUTTON =
   "grid h-11 w-11 shrink-0 place-items-center rounded-full text-[#7C3AED] transition-colors active:bg-violet-500/10 disabled:opacity-40 dark:text-[#A78BFA]";
@@ -702,7 +702,7 @@ export function ComposeFallback() {
     <div className="fixed inset-0 z-[60] flex flex-col bg-white md:hidden dark:bg-[#09090B]">
       <div className="box-content flex h-11 shrink-0 items-center justify-between pt-[env(safe-area-inset-top)] pr-4 pl-4">
         <span className="text-[15px] text-zinc-700 dark:text-zinc-300">Cancel</span>
-        <span className="flex h-8 items-center rounded-full bg-[#7C3AED] px-4 text-[15px] font-bold text-white opacity-50">
+        <span className="flex h-8 items-center rounded-full bg-[#7C3AED] px-4 text-[15px] font-semibold text-white opacity-50">
           Post
         </span>
       </div>

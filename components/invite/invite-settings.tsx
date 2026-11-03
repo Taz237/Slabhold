@@ -14,7 +14,7 @@ import { SITE_URL } from "@/lib/site-url";
 import { loadSupabaseBrowser } from "@/lib/supabase/browser-lazy";
 
 const card = "rounded-2xl bg-white ring-1 ring-zinc-200 dark:bg-white/[0.04] dark:ring-white/10";
-const sectionLabel = "px-1 pb-2 font-mono text-[11px] font-medium tracking-wider text-zinc-500 uppercase";
+const sectionLabel = "px-1 pb-2 text-[13px] font-medium text-zinc-500";
 const focusRing =
   "outline-none focus-visible:ring-2 focus-visible:ring-violet-600 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]";
 
@@ -59,7 +59,7 @@ export function ResetLinkSheet({
         className="w-full max-w-sm rounded-t-3xl border-t border-zinc-200 bg-[var(--background)] p-4 pb-[max(1rem,env(safe-area-inset-bottom))] text-zinc-900 shadow-2xl sm:rounded-3xl sm:border dark:border-white/10 dark:text-zinc-100"
       >
         <div aria-hidden className="mx-auto mb-3 h-1 w-9 rounded-full bg-zinc-300 sm:hidden dark:bg-white/20" />
-        <h2 id={titleId} className="text-lg font-bold tracking-tight">
+        <h2 id={titleId} className="text-lg font-semibold tracking-tight">
           Get a new link?
         </h2>
         <p className="mt-1.5 text-sm leading-6 text-zinc-600 dark:text-zinc-300">
@@ -71,7 +71,7 @@ export function ResetLinkSheet({
             type="button"
             onClick={onCancel}
             disabled={busy}
-            className={`min-h-11 rounded-full border border-zinc-300 px-4 text-sm font-bold disabled:opacity-50 dark:border-white/20 ${focusRing}`}
+            className={`min-h-11 rounded-full border border-zinc-300 px-4 text-sm font-semibold disabled:opacity-50 dark:border-white/20 ${focusRing}`}
           >
             Cancel
           </button>
@@ -79,7 +79,7 @@ export function ResetLinkSheet({
             type="button"
             onClick={onConfirm}
             disabled={busy}
-            className={`min-h-11 rounded-full bg-violet-600 px-4 text-sm font-bold text-white disabled:opacity-60 ${focusRing}`}
+            className={`min-h-11 rounded-full bg-violet-600 px-4 text-sm font-semibold text-white disabled:opacity-60 ${focusRing}`}
           >
             {busy ? "Getting link…" : "Get new link"}
           </button>
@@ -106,7 +106,7 @@ export function InviteSettings() {
   if (!user) {
     return (
       <EmptyState title="Invite friends" detail="Log in to get your invite link.">
-        <Link href={loginPath(pathname)} className="text-sm font-bold">
+        <Link href={loginPath(pathname)} className="text-sm font-semibold">
           Log in
         </Link>
       </EmptyState>
@@ -126,7 +126,7 @@ export function InviteSettings() {
   return (
     <div className="space-y-6 pb-4">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Invite friends</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Invite friends</h1>
         <p className="mt-1.5 text-sm text-zinc-500">Bring a collector to Slabhold with your own link.</p>
       </div>
       <section>
@@ -158,7 +158,7 @@ export function InviteSettings() {
           <button
             type="button"
             onClick={() => void share()}
-            className={`mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-violet-600 px-4 text-sm font-bold text-white ${focusRing}`}
+            className={`mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-violet-600 px-4 text-sm font-semibold text-white ${focusRing}`}
           >
             <Share aria-hidden className="h-4 w-4" />
             Share invite link
@@ -181,7 +181,7 @@ export function InviteSettings() {
                 setNotice(null);
                 setConfirming(true);
               }}
-              className={`mt-3 inline-flex min-h-11 items-center gap-2 rounded-full border border-zinc-300 px-4 text-sm font-bold dark:border-white/20 ${focusRing}`}
+              className={`mt-3 inline-flex min-h-11 items-center gap-2 rounded-full border border-zinc-300 px-4 text-sm font-semibold dark:border-white/20 ${focusRing}`}
             >
               <RefreshCw aria-hidden className="h-4 w-4" />
               Get a new link

@@ -50,7 +50,7 @@ export function ResetPasswordForm() {
           <Logo />
           <span className="text-[17px] font-bold tracking-tight">Slabhold</span>
         </Link>
-        <h1 className="text-2xl font-bold tracking-tight">Password updated</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Password updated</h1>
         <p className="mt-1 text-sm text-zinc-500">
           Your new password is saved. Continue to Slabhold, or log in with it.
         </p>
@@ -77,7 +77,7 @@ export function ResetPasswordForm() {
         <Logo />
         <span className="text-[17px] font-bold tracking-tight">Slabhold</span>
       </Link>
-      <h1 className="text-2xl font-bold tracking-tight">Choose a new password</h1>
+      <h1 className="text-2xl font-semibold tracking-tight">Choose a new password</h1>
       <p className="mt-1 text-sm text-zinc-500">Then we will take you home.</p>
       <form onSubmit={(e) => void submit(e)} className="mt-5 space-y-3">
         <label className="block text-sm">

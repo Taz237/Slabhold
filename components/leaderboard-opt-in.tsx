@@ -38,7 +38,7 @@ export function LeaderboardOptInControl({
   return (
     <div className="flex items-start justify-between gap-4">
       <div className="min-w-0">
-        <label htmlFor="show-on-leaderboards" className="text-sm font-bold">
+        <label htmlFor="show-on-leaderboards" className="text-sm font-semibold">
           {LEADERBOARD_OPT_IN_LABEL}
         </label>
         <p id="leaderboard-opt-in-help" className="mt-1 text-sm text-zinc-500">

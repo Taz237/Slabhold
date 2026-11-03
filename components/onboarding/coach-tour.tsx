@@ -163,10 +163,10 @@ export function CoachTour({ userId }: { userId: string }) {
           }`}
           style={{ left: arrowLeft - 6 }}
         />
-        <p className="font-mono text-[11px] font-medium tracking-wider text-[#A78BFA] uppercase">
+        <p className="text-[13px] font-medium text-[#A78BFA]">
           {tourIndex + 1} of {TOUR_STEPS.length}
         </p>
-        <h2 id={titleId} className="mt-1 text-[17px] font-extrabold tracking-tight">
+        <h2 id={titleId} className="mt-1 text-[17px] font-semibold tracking-tight">
           {step.title}
         </h2>
         <p id={bodyId} className="mt-1 text-[15px] leading-5 text-zinc-300">

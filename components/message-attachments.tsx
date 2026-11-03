@@ -74,7 +74,7 @@ function SharedPostMini({ post, author }: { post: Post; author: Profile }) {
     <Link
       href={`/posts/${encodeURIComponent(post.id)}`}
       data-shared-post=""
-      className="mt-1 flex w-64 max-w-full gap-3 rounded-2xl border border-zinc-200 bg-white p-3 text-left shadow-[0_10px_28px_-20px_rgba(124,58,237,0.55)] transition-transform duration-150 active:scale-[0.98] motion-reduce:transition-none dark:border-white/10 dark:bg-zinc-900"
+      className="mt-1 flex w-64 max-w-full gap-3 rounded-2xl border border-zinc-200 bg-white p-3 text-left shadow-[0_1px_2px_rgba(0,0,0,0.05),0_8px_24px_rgba(0,0,0,0.06)] transition-transform duration-150 active:scale-[0.98] motion-reduce:transition-none dark:border-white/10 dark:bg-zinc-900 dark:shadow-none"
     >
       <span className="min-w-0 flex-1">
         <span className="flex min-w-0 items-center gap-1.5">
@@ -85,7 +85,7 @@ function SharedPostMini({ post, author }: { post: Post; author: Profile }) {
             expandable={false}
             className="h-5 w-5 text-[8px]"
           />
-          <span className="truncate text-[13px] font-bold tracking-tight">{author.displayName}</span>
+          <span className="truncate text-[13px] font-semibold tracking-tight">{author.displayName}</span>
           <span className="truncate text-[13px] text-zinc-500">@{author.username}</span>
         </span>
         {post.body ? (

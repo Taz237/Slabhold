@@ -44,7 +44,7 @@ type DeviceState =
   | { kind: "ready"; on: boolean };
 
 const card = "rounded-2xl bg-white ring-1 ring-zinc-200 dark:bg-white/[0.04] dark:ring-white/10";
-const sectionLabel = "px-1 pb-2 font-mono text-[11px] font-medium tracking-wider text-zinc-500 uppercase";
+const sectionLabel = "px-1 pb-2 text-[13px] font-medium text-zinc-500";
 
 const noopSubscribe = () => () => {};
 
@@ -290,7 +290,7 @@ export function NotificationSettings() {
   return (
     <div className="space-y-6 pb-4">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Notifications</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Notifications</h1>
         <p className="mt-1.5 text-sm text-zinc-500">
           Choose what we push to your phone. Your notifications list always shows everything.
         </p>
@@ -322,7 +322,7 @@ export function NotificationSettings() {
                 <button
                   type="button"
                   onClick={() => setGuideOpen(true)}
-                  className="tap h-11 w-full rounded-full bg-violet-600 text-[15px] font-bold text-white hover:bg-violet-700 focus-visible:ring-2 focus-visible:ring-violet-600 focus-visible:ring-offset-2 focus-visible:outline-none"
+                  className="tap h-11 w-full rounded-full bg-violet-600 text-[15px] font-semibold text-white hover:bg-violet-700 focus-visible:ring-2 focus-visible:ring-violet-600 focus-visible:ring-offset-2 focus-visible:outline-none"
                 >
                   Show me how
                 </button>
@@ -432,7 +432,7 @@ export function NotificationSettings() {
               {prefs.quietEnabled ? (
                 <div className="grid grid-cols-2 gap-3 px-4 py-4">
                   <label className="block">
-                    <span className="block font-mono text-[11px] font-medium tracking-wider text-zinc-500 uppercase">From</span>
+                    <span className="block text-[13px] font-medium text-zinc-500">From</span>
                     <input
                       type="time"
                       value={prefs.quietStart}
@@ -441,7 +441,7 @@ export function NotificationSettings() {
                     />
                   </label>
                   <label className="block">
-                    <span className="block font-mono text-[11px] font-medium tracking-wider text-zinc-500 uppercase">Until</span>
+                    <span className="block text-[13px] font-medium text-zinc-500">Until</span>
                     <input
                       type="time"
                       value={prefs.quietEnd}

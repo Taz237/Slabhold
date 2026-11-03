@@ -347,7 +347,7 @@ function Shell({
                     <Icon
                       className={`h-5 w-5 ${
                         active && tab.href === "/leaderboard"
-                          ? "text-[#A78BFA]"
+                          ? "text-[#7C3AED] dark:text-[#A78BFA]"
                           : ""
                       }`}
                     />

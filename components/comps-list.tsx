@@ -214,7 +214,7 @@ export function CompsList({
             aria-labelledby="hide-sale-title"
             className="w-full max-w-md rounded-t-3xl bg-white p-5 sm:rounded-2xl dark:bg-zinc-950"
           >
-            <h2 id="hide-sale-title" className="text-lg font-bold">
+            <h2 id="hide-sale-title" className="text-lg font-semibold">
               Hide this sale?
             </h2>
             <p className="mt-2 text-sm text-zinc-700 dark:text-zinc-200">
@@ -247,7 +247,7 @@ export function CompsList({
                   setReason("");
                   setError(null);
                 }}
-                className="rounded-full border border-zinc-300 px-4 py-2 text-sm font-bold dark:border-white/20"
+                className="rounded-full border border-zinc-300 px-4 py-2 text-sm font-semibold dark:border-white/20"
               >
                 Cancel
               </button>
@@ -255,7 +255,7 @@ export function CompsList({
                 type="button"
                 disabled={!reason || busy}
                 onClick={() => void hideSale()}
-                className="rounded-full bg-zinc-900 px-4 py-2 text-sm font-bold text-white disabled:opacity-40 dark:bg-zinc-100 dark:text-zinc-950"
+                className="rounded-full bg-zinc-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-40 dark:bg-zinc-100 dark:text-zinc-950"
               >
                 {busy ? "Hiding…" : "Hide sale"}
               </button>
@@ -267,7 +267,7 @@ export function CompsList({
       {toast ? (
         <p
           role="status"
-          className="fixed bottom-[calc(5.75rem+env(safe-area-inset-bottom))] left-1/2 z-50 flex -translate-x-1/2 items-center gap-3 rounded-full bg-zinc-900 px-4 py-2 text-sm font-bold text-white shadow-lg dark:bg-zinc-100 dark:text-zinc-950"
+          className="fixed bottom-[calc(5.75rem+env(safe-area-inset-bottom))] left-1/2 z-50 flex -translate-x-1/2 items-center gap-3 rounded-full bg-zinc-900 px-4 py-2 text-sm font-semibold text-white shadow-lg dark:bg-zinc-100 dark:text-zinc-950"
         >
           {toast.kind === "hidden" ? (
             <>

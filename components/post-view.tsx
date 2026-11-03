@@ -165,7 +165,7 @@ export function PostView({ id }: { id: string }) {
   if (!post || !author) {
     return (
       <EmptyState title="That post is gone.">
-        <Link href="/" className="text-sm font-bold">
+        <Link href="/" className="text-sm font-semibold">
           Back to Home
         </Link>
       </EmptyState>
@@ -189,7 +189,7 @@ export function PostView({ id }: { id: string }) {
         >
           <ArrowLeft className="h-5 w-5" />
         </button>
-        <h1 className="text-lg font-bold">Post</h1>
+        <h1 className="text-lg font-semibold">Post</h1>
       </div>
 
       <Tweet
@@ -385,7 +385,7 @@ export function PostView({ id }: { id: string }) {
       {deleteNotice ? (
         <p
           role="status"
-          className={`fixed bottom-[calc(5.75rem+env(safe-area-inset-bottom))] left-1/2 z-50 max-w-sm -translate-x-1/2 rounded-full px-4 py-2 text-center text-sm font-bold shadow-lg ${
+          className={`fixed bottom-[calc(5.75rem+env(safe-area-inset-bottom))] left-1/2 z-50 max-w-sm -translate-x-1/2 rounded-full px-4 py-2 text-center text-sm font-semibold shadow-lg ${
             deleteNotice.error
               ? "bg-rose-600 text-white"
               : "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-950"
@@ -440,7 +440,7 @@ function ReplyMenu({
         >
           {confirming ? (
             <div className="px-3 py-2.5">
-              <p className="text-sm font-bold">Delete this reply?</p>
+              <p className="text-sm font-semibold">Delete this reply?</p>
               <div className="mt-2.5 flex gap-2">
                 <button
                   type="button"
@@ -453,14 +453,14 @@ function ReplyMenu({
                       onResult(result);
                     });
                   }}
-                  className="flex-1 rounded-full bg-rose-600 py-1.5 text-sm font-bold text-white"
+                  className="flex-1 rounded-full bg-rose-600 py-1.5 text-sm font-semibold text-white"
                 >
                   Delete
                 </button>
                 <button
                   type="button"
                   onClick={() => setConfirming(false)}
-                  className="flex-1 rounded-full border border-zinc-300 py-1.5 text-sm font-bold dark:border-white/20"
+                  className="flex-1 rounded-full border border-zinc-300 py-1.5 text-sm font-semibold dark:border-white/20"
                 >
                   Cancel
                 </button>
@@ -471,7 +471,7 @@ function ReplyMenu({
               type="button"
               role="menuitem"
               onClick={() => setConfirming(true)}
-              className="block w-full px-4 py-2.5 text-left text-[15px] font-bold text-rose-600 hover:bg-zinc-100 dark:hover:bg-white/10"
+              className="block w-full px-4 py-2.5 text-left text-[15px] font-semibold text-rose-600 hover:bg-zinc-100 dark:hover:bg-white/10"
             >
               Delete reply
             </button>
@@ -503,7 +503,7 @@ function LaneTab({
       type="button"
       onClick={onClick}
       className={`relative py-3 font-medium ${
-        active ? "font-bold text-zinc-900 dark:text-white" : "text-zinc-500"
+        active ? "font-semibold text-zinc-900 dark:text-white" : "text-zinc-500"
       }`}
     >
       {children}

@@ -372,7 +372,7 @@ function PublicCardAnalytics({
                 key={spec.label}
                 className="rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-1 dark:border-white/10 dark:bg-white/5"
               >
-                <dt className="text-[10px] tracking-wide text-zinc-500 uppercase">{spec.label}</dt>
+                <dt className="text-[13px] text-zinc-500">{spec.label}</dt>
                 <dd className="text-sm font-semibold">{spec.value}</dd>
               </div>
             ))}
@@ -660,7 +660,7 @@ function PublicCardRetry({ onRetry }: { onRetry: () => void }) {
       <button
         type="button"
         onClick={onRetry}
-        className="mt-4 inline-flex min-h-11 items-center rounded-full bg-violet-600 px-5 text-sm font-bold text-white transition-transform duration-150 active:scale-[0.98] motion-reduce:transition-none"
+        className="mt-4 inline-flex min-h-11 items-center rounded-full bg-violet-600 px-5 text-sm font-semibold text-white transition-transform duration-150 active:scale-[0.98] motion-reduce:transition-none"
       >
         Try again
       </button>
@@ -683,7 +683,7 @@ function Missing({
     <div className="py-16 text-center">
       <p className="text-lg font-semibold">{title}</p>
       <p className="mx-auto mt-2 max-w-xs text-sm text-zinc-500">{detail}</p>
-      <Link href={href} className="mt-4 inline-flex min-h-11 items-center text-sm font-bold">
+      <Link href={href} className="mt-4 inline-flex min-h-11 items-center text-sm font-semibold">
         {label}
       </Link>
     </div>
