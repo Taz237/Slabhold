@@ -6,7 +6,7 @@ import { userHref } from "@/lib/social/user-href";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { getAuthUserId } from "@/lib/supabase/server";
 import { adminAccess, parseAdminIds } from "./admin";
-import { REPORT_REASONS } from "./report";
+import { REPORT_REASONS, REPORT_TARGET_GONE, reportedAccount } from "./report";
 
 export type OpenReportRow = {
   id: string;
@@ -213,6 +213,9 @@ export async function deleteReportedTarget(reportId: string): Promise<{ error?: 
   return failed ? { error: failed } : {};
 }
 
+export const SUSPEND_TARGET_GONE = "This post is gone. Suspend from a report on the account";
+export const SUSPEND_AUTHOR_MISMATCH = "This report names a different account than the author";
+
 /** Supabase Auth's built-in ban, about 100 years. Lifted in the dashboard (Unban). */
 export const SUSPEND_BAN_DURATION = "876000h";
 
@@ -228,12 +231,26 @@ export async function suspendReportedUser(
   if (!admin) return { error: "Moderation is unavailable right now." };
   const { data, error } = await admin
     .from("reports")
-    .select("reported_user_id")
+    .select("target_type, target_id, reported_user_id")
     .eq("id", reportId)
     .maybeSingle();
   if (error) return { error: error.message };
-  const reportedId = typeof data?.reported_user_id === "string" ? data.reported_user_id : null;
-  if (!reportedId) return { error: "That report is gone." };
+  if (!data) return { error: "That report is gone." };
+  // reports.reported_user_id is set by the reporter's client. Trust the row's author instead.
+  const author = await reportedAccount(
+    String(data.target_type ?? ""),
+    String(data.target_id ?? ""),
+    async (table, id) => {
+      const found = await admin.from(table).select("user_id").eq("id", id).maybeSingle();
+      if (found.error) return { userId: null, error: found.error.message };
+      return { userId: typeof found.data?.user_id === "string" ? found.data.user_id : null };
+    },
+  );
+  if ("error" in author) {
+    return { error: author.error === REPORT_TARGET_GONE ? SUSPEND_TARGET_GONE : author.error };
+  }
+  const reportedId = author.userId;
+  if (reportedId !== data.reported_user_id) return { error: SUSPEND_AUTHOR_MISMATCH };
   const adminIds = parseAdminIds(deps.adminIds ?? process.env.ADMIN_USER_IDS);
   if (reportedId === userId || adminIds.includes(reportedId)) {
     return { error: "You can't suspend a moderator account." };
