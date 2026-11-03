@@ -55,12 +55,9 @@ describe("quiet movers strip and the viewer", () => {
     assert.equal(quietHref(html(createElement(MovingQuiet))), "/cards/new");
   });
 
-  it("is decided in the feed the same way as the signed-out banner", () => {
+  it("leaves the feed with only the signed-out banner check", () => {
     const feed = readFileSync(join(process.cwd(), "components/feed-view.tsx"), "utf8");
-    const provider = feed.indexOf("<MoversSignedIn value={Boolean(user)}>");
-    const slot = feed.indexOf('lane === "foryou" ? movingToday ?? <MovingToday />');
-    const close = feed.indexOf("</MoversSignedIn>");
-    assert.ok(provider > 0 && provider < slot && slot < close);
+    assert.doesNotMatch(feed, /MoversSignedIn|movingToday/);
     assert.match(feed, /\{user \? \(\s*<Composer[^]*?<SignedOutBanner \/>/);
   });
 });

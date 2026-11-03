@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Compass, ImagePlus } from "lucide-react";
 import { Avatar } from "@/components/avatar";
 import { LazyMentionTextarea } from "@/components/mention-textarea-lazy";
@@ -29,7 +29,6 @@ import {
   useNewPostsAbove,
   type HomeLane,
 } from "@/components/timeline-ui";
-import { MovingToday, MoversSignedIn } from "@/components/moving-today";
 import { TrendingNow } from "@/components/trending-now";
 import { shouldShowFirstCardWelcome } from "@/lib/collection/welcome";
 import { Tweet } from "@/components/tweet";
@@ -102,13 +101,8 @@ const SEEDED_ENTRIES = 8;
 let rememberedLane: { userId: string; lane: HomeLane } | null = null;
 
 export function FeedView({
-  movingToday,
-  homeEntry,
   seed = null,
 }: {
-  movingToday?: ReactNode;
-  /** A row drawn on both Home tabs, under Trending on For you. */
-  homeEntry?: ReactNode;
   /** Home's first page, read on the server for this request. */
   seed?: HomeSeed | null;
 } = {}) {
@@ -469,10 +463,6 @@ export function FeedView({
         ) : null}
 
         {lane === "foryou" ? <TrendingNow /> : null}
-        {homeEntry}
-        <MoversSignedIn value={Boolean(user)}>
-          {lane === "foryou" ? movingToday ?? <MovingToday /> : null}
-        </MoversSignedIn>
 
         {user ? (
           <Composer onPosted={() => void refreshFeeds()} />

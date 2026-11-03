@@ -124,7 +124,7 @@ describe("Header and Home tabs are one sticky unit", () => {
     assert.ok(tabs > 0 && pull > tabs, "LaneTabs renders before PullToRefresh");
     assert.ok(main.indexOf("laneStartRef") < tabs);
     assert.ok(main.indexOf("<NewPostsPill") > pull && main.indexOf("<NewPostsPill") < pullEnd);
-    assert.ok(main.indexOf("movingToday ??") > pull);
+    assert.ok(main.indexOf("<TrendingNow />") > pull);
     assert.match(main, /<div className="-mx-4 -mt-5">/);
   });
 

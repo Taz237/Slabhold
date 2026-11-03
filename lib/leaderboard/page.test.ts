@@ -478,7 +478,8 @@ describe("leaderboard page", () => {
     const feed = read("components/feed-view.tsx");
     const bundle = `${home}\n${login}\n${feed}`;
     assert.doesNotMatch(bundle, /leaderboard-countdown|leaderboard-view|getLeaderboardPage|getLeaderboardSnapshot/);
-    assert.match(read("components/home-feed.tsx"), /<LeaderboardHomeLink \/>/);
-    assert.match(feed, /lane === "foryou" \? movingToday \?\? <MovingToday \/>/);
+    assert.doesNotMatch(read("components/home-feed.tsx"), /LeaderboardHomeLink/);
+    assert.doesNotMatch(feed, /MovingToday/);
+    assert.match(read("lib/ui/side-menu.ts"), /\/leaderboard/);
   });
 });
