@@ -124,14 +124,14 @@ export function NotificationsView() {
             const highlighted = groupStaysHighlighted(group, savedUnreadIds);
             const replyPhotos = photosOnReplyNotice(group, commentsFor);
             return (
-              <li key={group.key} className={highlighted ? "bg-sky-500/15 dark:bg-sky-400/15" : undefined}>
+              <li key={group.key} className={highlighted ? "bg-violet-500/10 dark:bg-violet-400/15" : undefined}>
                 <Link
                   href={href}
                   className="relative flex w-full min-w-0 items-start gap-3 px-4 py-3"
                 >
                   {highlighted ? (
                     <span
-                      className="absolute top-7 left-1.5 h-2 w-2 rounded-full bg-sky-500 dark:bg-sky-400"
+                      className="absolute top-7 left-1.5 h-2 w-2 rounded-full bg-violet-600 dark:bg-violet-400"
                       aria-hidden="true"
                     />
                   ) : null}

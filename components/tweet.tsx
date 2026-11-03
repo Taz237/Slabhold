@@ -526,7 +526,7 @@ export function Engagement({
 
   return (
     <div data-engagement="" className="mt-0.5 -ml-2.5 flex min-w-0 items-center text-zinc-500">
-      <ActionButton label="Reply" count={replyCount} active={false} tone="sky" onClick={onReply}>
+      <ActionButton label="Reply" count={replyCount} active={false} tone="violet" onClick={onReply}>
         <MessageCircle className="h-[18px] w-[18px]" />
       </ActionButton>
       <div ref={repostMenuRef} className="relative flex min-h-11 min-w-0 flex-1 items-center">
@@ -602,7 +602,7 @@ export function Engagement({
           label="Quotes"
           count={quotes}
           active={false}
-          tone="sky"
+          tone="violet"
           onClick={onQuotesClick}
         >
           <Quote className="h-[18px] w-[18px]" />
@@ -630,7 +630,7 @@ function ActionButton({
   count: number;
   active: boolean;
   pressed?: boolean;
-  tone: "sky" | "emerald" | "rose";
+  tone: "violet" | "emerald" | "rose";
   /** Above 0 plays the pop or bounce once; a new number replays it. */
   burst?: number;
   burstKind?: "pop" | "bounce";
@@ -638,16 +638,16 @@ function ActionButton({
   children: React.ReactNode;
 }) {
   const color =
-    tone === "sky"
-      ? "hover:text-sky-500"
+    tone === "violet"
+      ? "hover:text-violet-500"
       : tone === "emerald"
         ? "hover:text-emerald-500"
         : "hover:text-rose-500";
   const on =
-    tone === "sky" ? "text-sky-500" : tone === "emerald" ? "text-emerald-500" : "text-rose-500";
+    tone === "violet" ? "text-violet-500" : tone === "emerald" ? "text-emerald-500" : "text-rose-500";
   const wash =
-    tone === "sky"
-      ? "group-hover:bg-sky-500/10"
+    tone === "violet"
+      ? "group-hover:bg-violet-500/10"
       : tone === "emerald"
         ? "group-hover:bg-emerald-500/10"
         : "group-hover:bg-rose-500/10";

@@ -247,8 +247,8 @@ describe("notification bell wiring", () => {
     const view = readFileSync(join(process.cwd(), "components/notifications-view.tsx"), "utf8");
     assert.match(provider, /useMemo\(\(\) => unreadGroupCount\(notifications\), \[notifications\]\)/);
     assert.match(view, /groupStaysHighlighted\(/);
-    assert.match(view, /bg-sky-500\/15/);
-    assert.match(view, /rounded-full bg-sky-500/);
+    assert.match(view, /bg-violet-500\/10/);
+    assert.match(view, /rounded-full bg-violet-600/);
     assert.match(view, /markNotificationsRead\(\[\.\.\.ids\]\)/);
     // Opening the list reads its newest page and unread rows, then marks them read.
     const refreshAt = view.indexOf("await refreshInbox()");

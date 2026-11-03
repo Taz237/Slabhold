@@ -300,7 +300,7 @@ function AddPhotoHint({ href, playerName }: { href: string; playerName: string }
 function SoldRibbon() {
   return (
     <span className="pointer-events-none absolute bottom-0 left-0 h-16 w-16 overflow-hidden rounded-bl-lg" aria-hidden>
-      <span className="absolute bottom-[14px] left-[-26px] w-[100px] rotate-45 bg-sky-500 py-0.5 text-center text-[12px] leading-4 font-semibold text-white shadow-md">
+      <span className="absolute bottom-[14px] left-[-26px] w-[100px] rotate-45 bg-violet-600 py-0.5 text-center text-[12px] leading-4 font-semibold text-white shadow-md">
         Sold
       </span>
     </span>

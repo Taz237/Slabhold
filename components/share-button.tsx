@@ -99,9 +99,9 @@ export function ShareAction({
         type="button"
         aria-label="Share"
         onClick={(event) => void share(event)}
-        className="group inline-flex min-h-11 min-w-0 flex-1 items-center text-zinc-500 hover:text-sky-500"
+        className="group inline-flex min-h-11 min-w-0 flex-1 items-center text-zinc-500 hover:text-violet-500"
       >
-        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full group-hover:bg-sky-500/10">
+        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full group-hover:bg-violet-500/10">
           <Share className="h-[18px] w-[18px]" />
         </span>
       </button>

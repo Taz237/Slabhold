@@ -214,7 +214,7 @@ describe("Movers rail", () => {
     assert.doesNotMatch(classOf(out, "data-moving-today"), /border/);
   });
 
-  it("sizes tiles at 120px and the top mover at 132px with its badge and glow", () => {
+  it("sizes tiles at 120px and the top mover at 132px with its badge", () => {
     const out = html(createElement(MovingTodayPanel, { payload: payload(4) }));
     const first = classOf(out, `data-tile="${id(1)}"`);
     const second = classOf(out, `data-tile="${id(2)}"`);
