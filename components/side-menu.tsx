@@ -53,11 +53,11 @@ import type { Profile } from "@/lib/social/types";
 import { userHref } from "@/lib/social/user-href";
 import { useInviteShare } from "@/components/invite/invite-button";
 import { quickCompEnabled } from "@/lib/quick-comp/flag";
+import { sideMenuItems } from "@/lib/ui/side-menu-items";
 import {
   ADD_TO_HOME_LABEL,
   INVITE_MENU_HREF,
   SIDE_MENU_SETTINGS,
-  sideMenuItems,
   countLabel,
   dragOffset,
   menuItemActive,

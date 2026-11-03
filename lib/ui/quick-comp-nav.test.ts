@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { BOTTOM_NAV, QUICK_COMP_TAB, bottomNavLabelsFit, bottomNavTabs, labelWidthFits } from "./bottom-nav";
-import { SIDE_MENU_ITEMS, sideMenuItems } from "./side-menu";
+import { SIDE_MENU_ITEMS } from "./side-menu";
+import { sideMenuItems } from "./side-menu-items";
 import { isRootScreen, navKind } from "./nav-motion";
 
 describe("Quick Comp in the nav lists", () => {

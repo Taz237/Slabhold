@@ -23,16 +23,6 @@ export const SIDE_MENU_ITEMS = [
   { href: INVITE_MENU_HREF, label: "Invite a collector" },
 ] as const;
 
-export type SideMenuItem = (typeof SIDE_MENU_ITEMS)[number] | { href: "/comp"; label: "Quick Comp" };
-
-/** The main items for this build. With Quick Comp on, it sits right above Add card. */
-export function sideMenuItems(quickComp: boolean): readonly SideMenuItem[] {
-  if (!quickComp) return SIDE_MENU_ITEMS;
-  return SIDE_MENU_ITEMS.flatMap((item): SideMenuItem[] =>
-    item.href === "/cards/new" ? [{ href: "/comp", label: "Quick Comp" }, item] : [item],
-  );
-}
-
 /** Below the divider. Log out is a button after these. */
 export const SIDE_MENU_SETTINGS = [
   { href: "/settings/notifications", label: "Notifications" },
