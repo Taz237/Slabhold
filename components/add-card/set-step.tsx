@@ -48,16 +48,16 @@ export function SetStep({
                 }`}
               >
                 <span className="flex items-start justify-between gap-2">
-                  <span className="font-mono text-[10px] font-medium tracking-wider text-zinc-500 uppercase">
+                  <span className="text-[13px] font-medium text-zinc-500">
                     {choice.maker || "Set"}
                   </span>
                   {tag ? (
-                    <span className="rounded-full bg-violet-500/15 px-1.5 font-mono text-[9px] leading-4 font-semibold tracking-wider text-violet-700 uppercase dark:text-[#A78BFA]">
+                    <span className="rounded-full bg-violet-500/15 px-1.5 text-[12px] leading-4 font-medium text-violet-700 dark:text-[#A78BFA]">
                       {tag}
                     </span>
                   ) : null}
                 </span>
-                <span className="mt-2 text-base leading-tight font-bold tracking-tight">
+                <span className="mt-2 text-base leading-tight font-semibold tracking-tight">
                   {choice.name}
                 </span>
               </button>

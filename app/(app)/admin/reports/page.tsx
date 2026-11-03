@@ -16,9 +16,9 @@ export default async function AdminReportsPage() {
   return (
     <div className="-mx-4 -mt-5">
       <div className="border-b border-zinc-200 px-4 py-3 dark:border-white/10">
-        <h1 className="text-lg font-bold">Open reports</h1>
+        <h1 className="text-lg font-semibold">Open reports</h1>
         <p className="text-sm text-zinc-500">Oldest first. Highlighted rows have waited over 24 hours.</p>
-        <Link href="/admin/comp-flags" className="mt-2 inline-block text-sm font-bold underline">
+        <Link href="/admin/comp-flags" className="mt-2 inline-block text-sm font-medium underline">
           Comp flags
         </Link>
       </div>
@@ -33,7 +33,7 @@ export default async function AdminReportsPage() {
                 report.stale ? "bg-amber-50 dark:bg-amber-400/10" : ""
               }`}
             >
-              <p className="text-sm font-bold">
+              <p className="text-sm font-semibold">
                 Waiting {report.waitingLabel}
                 {report.stale ? " · over 24h" : ""}
               </p>
@@ -41,7 +41,7 @@ export default async function AdminReportsPage() {
                 {report.reporter} reported {report.reported}
               </p>
               <p className="mt-1 text-sm">
-                <span className="font-bold">{report.reason}</span>
+                <span className="font-semibold">{report.reason}</span>
                 <span className="text-zinc-500"> · {report.targetType}</span>
               </p>
               {report.details ? (
@@ -53,7 +53,7 @@ export default async function AdminReportsPage() {
                 </p>
               ) : null}
               {report.href ? (
-                <Link href={report.href} className="mt-2 inline-block text-sm font-bold underline">
+                <Link href={report.href} className="mt-2 inline-block text-sm font-medium underline">
                   View target
                 </Link>
               ) : (

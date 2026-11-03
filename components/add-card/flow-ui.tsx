@@ -70,7 +70,7 @@ export function PrimaryButton({
 
 export function SectionLabel({ children }: { children: ReactNode }) {
   return (
-    <p className="mb-2 font-mono text-[11px] font-medium tracking-wider text-zinc-500 uppercase">
+    <p className="mb-2 text-[13px] font-medium text-zinc-500">
       {children}
     </p>
   );

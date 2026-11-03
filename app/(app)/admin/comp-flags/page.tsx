@@ -13,11 +13,11 @@ export default async function AdminCompFlagsPage() {
   return (
     <div className="-mx-4 -mt-5">
       <div className="border-b border-zinc-200 px-4 py-3 dark:border-white/10">
-        <h1 className="text-lg font-bold">Comp flags</h1>
+        <h1 className="text-lg font-semibold">Comp flags</h1>
         <p className="text-sm text-zinc-500">
           Search by card id or username, then restore a hidden sale.
         </p>
-        <Link href="/admin/reports" className="mt-2 inline-block text-sm font-bold underline">
+        <Link href="/admin/reports" className="mt-2 inline-block text-sm font-medium underline">
           Open reports
         </Link>
       </div>
