@@ -300,18 +300,19 @@ async function homeRows(entry: ReactNode): Promise<{ text: () => string; followi
 }
 
 describe("Quick Comp Home entry on both tabs", () => {
-  it("draws the entry on For you, before Moving today, and on Following", async () => {
+  it("draws no Quick Comp row and no movers on either tab", async () => {
     const { QuickCompHomeLink } = await import("@/components/quick-comp-home-link");
     const home = await homeRows(createElement(QuickCompHomeLink));
     try {
       const foryou = home.text();
-      assert.ok(foryou.includes("Quick Comp"), "For you");
-      assert.ok(foryou.indexOf("Quick Comp") < foryou.indexOf("Moving today slot"));
+      assert.equal(foryou.includes("Quick Comp"), false, "For you");
+      assert.equal(foryou.includes("Moving today slot"), false, "For you");
+      assert.equal(document.querySelector('a[href="/comp"]'), null);
       await home.following();
       const following = home.text();
-      assert.ok(following.includes("Quick Comp"), "Following");
-      assert.equal(following.includes("Moving today slot"), false);
-      assert.ok(document.querySelector('a[href="/comp"]'));
+      assert.equal(following.includes("Quick Comp"), false, "Following");
+      assert.equal(following.includes("Moving today slot"), false, "Following");
+      assert.equal(document.querySelector('a[href="/comp"]'), null);
     } finally {
       home.done();
     }

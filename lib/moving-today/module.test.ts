@@ -897,12 +897,11 @@ describe("Moving today cache", () => {
     const cachedCall = load.indexOf("unstable_cache(");
     const freshenCall = load.indexOf("return freshenMovingToday");
     assert.ok(cachedCall > 0 && freshenCall > cachedCall);
-    // Home reads the movers with the page and hands them to the timeline as data.
+    // Home still reads the movers; the timeline no longer draws them.
     assert.match(home, /getMovingToday\(\)/);
     const slot = read("components/home-feed.tsx");
     assert.doesNotMatch(slot, /connection\(/);
-    assert.match(slot, /<MovingToday \/>/);
-    assert.match(slot, /MovingTodayCached payload=\{movers\}/);
+    assert.doesNotMatch(slot, /MovingToday/);
     assert.doesNotMatch(read("app/(app)/page.tsx"), /export const revalidate/);
     assert.match(load, /sold_comps_cache/);
     assert.match(load, /\["moving-today-v3"\]/);
@@ -927,17 +926,16 @@ describe("Moving today cache", () => {
 });
 
 describe("For You placement", () => {
-  it("sits on For You, under the tabs, with Your collection today gone", () => {
+  it("stays off the timeline, with Your collection today gone", () => {
     const feed = read("components/feed-view.tsx");
-    const moving = feed.indexOf('lane === "foryou" ? movingToday ?? <MovingToday />');
     const tabs = feed.indexOf("<LaneTabs");
     const grouping = feed.indexOf("presentForYouFeed(visible");
     const notes = feed.indexOf("<WhatsNewCard");
     const map = feed.indexOf("shownEntries.map");
-    assert.ok(moving > tabs && tabs > 0);
+    assert.ok(tabs > 0);
+    assert.doesNotMatch(feed, /MovingToday|movingToday|MoversSignedIn/);
     assert.ok(grouping > 0 && grouping < map);
     assert.ok(notes > map);
-    assert.ok(moving < map);
     assert.match(feed, /<NewPostsPill/);
     assert.match(feed, /showWelcome \? <HomeFirstCardPrompt afterGetStarted=\{welcomeAfterGetStarted\} \/> : null/);
     assert.doesNotMatch(feed, /CollectionToday|collection-today/);

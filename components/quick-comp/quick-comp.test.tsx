@@ -237,10 +237,8 @@ describe("Quick Comp Home entry", () => {
   it("draws nothing on Home with the flag off", () => {
     assert.equal(process.env.NEXT_PUBLIC_QUICK_COMP, undefined);
     const feed = read("components/home-feed.tsx");
-    // The only Quick Comp markup is behind the flag, on both Home tabs.
-    assert.match(feed, /<>\s*\{movers \? <MovingTodayCached payload=\{movers\} \/> : <MovingToday \/>\}\s*<LeaderboardHomeLink \/>\s*<\/>/);
-    assert.match(feed, /homeEntry=\{quickCompEnabled\(\) \? <QuickCompHomeLink \/> : null\}/);
-    assert.equal(count(feed, "QuickComp"), 2);
+    // Home has no Quick Comp row, flag on or off
+    assert.doesNotMatch(feed, /QuickComp|MovingToday|LeaderboardHomeLink/);
   });
 
   it("is a 44px link to /comp with one icon size and the secondary label", async () => {

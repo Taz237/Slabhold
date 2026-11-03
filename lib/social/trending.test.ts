@@ -519,8 +519,8 @@ describe("trending strip", () => {
   it("sits on For You only and stays out of login", () => {
     const feed = read("components/feed-view.tsx");
     const trending = feed.indexOf('lane === "foryou" ? <TrendingNow />');
-    const moving = feed.indexOf('lane === "foryou" ? movingToday ?? <MovingToday />');
-    assert.ok(trending > 0 && moving > trending);
+    assert.ok(trending > 0);
+    assert.doesNotMatch(feed, /movingToday|<MovingToday/);
 
     const client = read("components/trending-now.tsx");
     const strip = read("components/trending-now-strip.tsx");
