@@ -34,9 +34,12 @@ export function createSuggestionTyping(options: {
 }) {
   let session: { abort: () => void } | null = null;
   let generation = 0;
+  /** An Enter waiting on this text's suggestions. Any new typing drops it. */
+  let enter: { query: string; run: (results: CatalogCard[]) => void } | null = null;
 
   return {
     type(query: string) {
+      enter = null;
       session?.abort();
       session = null;
       const id = ++generation;
@@ -55,10 +58,26 @@ export function createSuggestionTyping(options: {
       session = next;
       void next.done.then((snapshot) => {
         if (snapshot.aborted || id !== generation) return;
-        options.onChange(suggestionState(q, snapshot));
+        const state = suggestionState(q, snapshot);
+        options.onChange(state);
+        const waiting = enter;
+        if (!waiting || waiting.query !== q) return;
+        enter = null;
+        if (state.status === "ready") waiting.run(state.results);
       });
     },
+    /**
+     * Run once when the suggestions for this text land ready. A miss or
+     * trouble drops it, and so does any later type(), cancelEnter() or dispose().
+     */
+    whenReady(query: string, run: (results: CatalogCard[]) => void) {
+      enter = { query: query.trim(), run };
+    },
+    cancelEnter() {
+      enter = null;
+    },
     dispose() {
+      enter = null;
       generation += 1;
       session?.abort();
       session = null;

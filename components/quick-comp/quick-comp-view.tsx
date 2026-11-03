@@ -26,7 +26,7 @@ import {
   type SavedPayload,
 } from "@/lib/quick-comp/recent";
 import { QUICK_COMP_DAILY_MESSAGE, QUICK_COMP_HOURLY_MESSAGE } from "@/lib/quick-comp/respond";
-import { createSuggestionTyping, type SuggestionState } from "@/lib/quick-comp/typing";
+import { createSuggestionTyping, SUGGEST_MIN_CHARS, type SuggestionState } from "@/lib/quick-comp/typing";
 import { catalogResultLine } from "@/lib/search/catalog-results";
 import { GradeControl } from "./grade-control";
 import { QuickCompResult, identityLine } from "./quick-comp-result";
@@ -265,6 +265,8 @@ export function QuickCompView({ userId }: { userId: string | null }) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
+  /** Set only by the arrows or the pointer, so a miss never preselects the manual option. */
+  const [movedToManual, setMovedToManual] = useState(false);
   const [suggestions, setSuggestions] = useState<SuggestionState>({ status: "idle" });
   const [manual, setManual] = useState(false);
   const [picked, setPicked] = useState<Picked | null>(null);
@@ -345,6 +347,7 @@ export function QuickCompView({ userId }: { userId: string | null }) {
     setQuery("");
     setOpen(false);
     setActive(0);
+    setMovedToManual(false);
   }
 
   /** A grade typed in the search ("psa 9") wins over the chip, so it is the one looked up. */
@@ -396,10 +399,42 @@ export function QuickCompView({ userId }: { userId: string | null }) {
     setComp({ status: "ready", payload: item.payload, savedAt: item.savedAt });
   }
 
+  /** Enter searches: the top suggestion (or the one arrowed to) for the typed text. */
+  function onEnter() {
+    const text = query.trim();
+    if (Array.from(text).length < SUGGEST_MIN_CHARS) return;
+    if (showList && movedToManual) {
+      openManual();
+      return;
+    }
+    setOpen(true);
+    const current = suggestions.status !== "idle" && suggestions.status !== "loading" && suggestions.query === text;
+    if (current && suggestions.status === "ready") {
+      const card = results[active] ?? results[0];
+      if (card) pick(card, results);
+      return;
+    }
+    if (current && suggestions.status === "miss") return;
+    if (current && suggestions.status === "trouble") {
+      typing.type(query);
+      return;
+    }
+    // Still loading, or the suggestions are for older text: look up the top one once they land.
+    if (suggestions.status !== "loading") typing.type(query);
+    typing.whenReady(text, (cards) => {
+      if (cards[0]) pick(cards[0], cards);
+    });
+  }
+
   function onKeyDown(event: KeyboardEvent<HTMLInputElement>) {
     if (event.key === "Escape") {
       event.preventDefault();
       clearSearch();
+      return;
+    }
+    if (event.key === "Enter") {
+      event.preventDefault();
+      onEnter();
       return;
     }
     if (!showList) {
@@ -409,21 +444,26 @@ export function QuickCompView({ userId }: { userId: string | null }) {
       }
       return;
     }
-    if (event.key === "ArrowDown") {
-      event.preventDefault();
-      setActive((index) => (index + 1) % optionCount);
-    } else if (event.key === "ArrowUp") {
-      event.preventDefault();
-      setActive((index) => (index - 1 + optionCount) % optionCount);
-    } else if (event.key === "Enter") {
-      event.preventDefault();
-      const card = results[active];
-      if (card) pick(card, results);
-      else openManual();
-    }
+    if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+    event.preventDefault();
+    // The manual option is hidden while suggestions load, so there is nothing to move to.
+    if (suggestions.status === "loading") return;
+    const from = movedToManual ? results.length : active;
+    const next = event.key === "ArrowDown" ? (from + 1) % optionCount : (from - 1 + optionCount) % optionCount;
+    setActive(next);
+    setMovedToManual(next === results.length);
   }
 
-  const activeId = showList ? (results[active] ? `${listId}-${results[active].id}` : `${listId}-manual`) : undefined;
+  const manualShown = suggestions.status !== "loading";
+  const activeId = !showList
+    ? undefined
+    : movedToManual
+      ? manualShown
+        ? `${listId}-manual`
+        : undefined
+      : results[active]
+        ? `${listId}-${results[active].id}`
+        : undefined;
   const optionClass = (on: boolean) =>
     `flex min-h-14 w-full flex-col justify-center px-3 py-2 text-left ${feedback} ${on ? "bg-zinc-950/[0.04] dark:bg-white/[0.06]" : "hover:bg-zinc-950/[0.03] dark:hover:bg-white/[0.04]"}`;
 
@@ -449,10 +489,14 @@ export function QuickCompView({ userId }: { userId: string | null }) {
               setQuery(next);
               setOpen(true);
               setActive(0);
+              setMovedToManual(false);
               typing.type(next);
             }}
             onFocus={() => setOpen(true)}
-            onBlur={() => setTimeout(() => setOpen(false), 120)}
+            onBlur={() => {
+              typing.cancelEnter();
+              setTimeout(() => setOpen(false), 120);
+            }}
             onKeyDown={onKeyDown}
             role="combobox"
             aria-expanded={showList}
@@ -507,29 +551,35 @@ export function QuickCompView({ userId }: { userId: string | null }) {
               </li>
             ) : null}
             {results.map((card, index) => (
-              <li key={card.id} id={`${listId}-${card.id}`} role="option" aria-selected={index === active}>
+              <li key={card.id} id={`${listId}-${card.id}`} role="option" aria-selected={!movedToManual && index === active}>
                 <button
                   type="button"
                   tabIndex={-1}
                   onMouseDown={(event) => event.preventDefault()}
-                  onMouseEnter={() => setActive(index)}
+                  onMouseEnter={() => {
+                    setActive(index);
+                    setMovedToManual(false);
+                  }}
                   onClick={() => pick(card, results)}
-                  className={optionClass(index === active)}
+                  className={optionClass(!movedToManual && index === active)}
                 >
                   <span className="truncate text-sm leading-5 font-medium">{card.playerName}</span>
                   <span className={`truncate text-xs leading-4 ${textMuted}`}>{catalogResultLine(card)}</span>
                 </button>
               </li>
             ))}
-            {suggestions.status !== "loading" ? (
-              <li id={`${listId}-manual`} role="option" aria-selected={active >= results.length}>
+            {manualShown ? (
+              <li id={`${listId}-manual`} role="option" aria-selected={movedToManual}>
                 <button
                   type="button"
                   tabIndex={-1}
                   onMouseDown={(event) => event.preventDefault()}
-                  onMouseEnter={() => setActive(results.length)}
+                  onMouseEnter={() => {
+                    setActive(results.length);
+                    setMovedToManual(true);
+                  }}
                   onClick={openManual}
-                  className={`${optionClass(active >= results.length)} min-h-11 text-sm font-medium text-violet-700 dark:text-violet-300`}
+                  className={`${optionClass(movedToManual)} min-h-11 text-sm font-medium text-violet-700 dark:text-violet-300`}
                 >
                   {MANUAL_LABEL}
                 </button>
