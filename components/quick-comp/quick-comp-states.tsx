@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { CompCardSkeleton, GhostPlot, compCard, compLabel } from "@/components/comp-basis";
+import { QuickCompPhotoSkeleton } from "./quick-comp-photo";
 import { feedback, focusRing, textMuted } from "./tokens";
 
 /** The stat row while the comps load: the same 3 cells and height as the loaded row. */
@@ -16,10 +17,11 @@ export function StatRowSkeleton() {
   );
 }
 
-/** Comps loading: the #157 skeleton in its final shapes, so the result lands without a shift. */
+/** Comps loading: the photo box and the #157 skeleton in their final shapes, so the result lands without a shift. */
 export function QuickCompLoading() {
   return (
     <div data-quick-comp-state="loading" className="flex flex-col gap-3">
+      <QuickCompPhotoSkeleton />
       <CompCardSkeleton />
       <StatRowSkeleton />
     </div>

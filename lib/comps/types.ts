@@ -26,6 +26,8 @@ export type TrawlItemDetails = {
   best_offer_accepted?: boolean | null;
   sales?: TrawlSale[] | null;
   item_link?: string | null;
+  /** Every image on the listing page, in page order. Absent on removed listings. */
+  images?: string[] | null;
 };
 
 export type TrawlSoldResult = {

@@ -1,7 +1,8 @@
 import type { CatalogCard } from "@/lib/card-catalog";
-import type { SoldCompsPayload } from "@/lib/comps/types";
 import type { CompListing } from "@/lib/types";
 import type { QuickCompIdentity } from "./identity";
+import type { QuickCompPayload } from "./lookup";
+import { safePhoto, type QuickCompPhoto } from "./photo";
 
 /** Comps kept on this device. Never the shared recent-search key. */
 export const QUICK_COMP_RECENT_LIMIT = 10;
@@ -13,9 +14,13 @@ export function quickCompRecentKey(userId: string): string {
 }
 
 export type SavedPayload = Pick<
-  SoldCompsPayload,
+  QuickCompPayload,
   "median" | "p25" | "p75" | "count" | "source" | "fetchedAt" | "lowConfidence" | "sample"
-> & { comps: CompListing[] };
+> & {
+  comps: CompListing[];
+  /** Missing on comps saved before the photo shipped: those show the placeholder. */
+  photo?: QuickCompPhoto | null;
+};
 
 export type RecentComp = {
   key: string;
@@ -98,7 +103,7 @@ export function readRecentComps(store: Store | null, userId: string | null): Rec
   }
 }
 
-export function savedPayload(payload: SoldCompsPayload): SavedPayload {
+export function savedPayload(payload: QuickCompPayload): SavedPayload {
   return {
     median: payload.median,
     p25: payload.p25,
@@ -109,6 +114,7 @@ export function savedPayload(payload: SoldCompsPayload): SavedPayload {
     lowConfidence: payload.lowConfidence,
     sample: payload.sample,
     comps: payload.comps.slice(0, SAVED_SALES_LIMIT),
+    photo: safePhoto(payload.photo),
   };
 }
 
