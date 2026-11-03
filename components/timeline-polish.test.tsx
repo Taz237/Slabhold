@@ -546,10 +546,10 @@ describe("13. Following empty, compose and skeletons", () => {
     assert.match(source("app/globals.css"), /@keyframes composer-in/);
   });
 
-  it("shimmers skeletons with a purple tint, and holds still for reduced motion", () => {
+  it("shimmers skeletons neutrally, and holds still for reduced motion", () => {
     const css = source("app/globals.css");
     const shimmer = css.slice(css.indexOf(".skeleton-shimmer {"), css.indexOf("/*", css.indexOf(".skeleton-shimmer {")));
-    assert.match(shimmer, /124 58 237|167 139 250/);
+    assert.doesNotMatch(shimmer, /124 58 237|167 139 250/);
     assert.match(shimmer, /prefers-reduced-motion: reduce[\s\S]*animation: none/);
   });
 });
