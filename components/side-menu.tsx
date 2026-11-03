@@ -27,6 +27,7 @@ import {
   ShieldCheck,
   SlidersHorizontal,
   SquarePlus,
+  Tag,
   Trophy,
   User,
   UserPlus,
@@ -51,11 +52,12 @@ import { trapTabTarget } from "@/lib/social/collect-interests";
 import type { Profile } from "@/lib/social/types";
 import { userHref } from "@/lib/social/user-href";
 import { useInviteShare } from "@/components/invite/invite-button";
+import { quickCompEnabled } from "@/lib/quick-comp/flag";
 import {
   ADD_TO_HOME_LABEL,
   INVITE_MENU_HREF,
-  SIDE_MENU_ITEMS,
   SIDE_MENU_SETTINGS,
+  sideMenuItems,
   countLabel,
   dragOffset,
   menuItemActive,
@@ -70,6 +72,7 @@ const ITEM_ICONS: Record<string, LucideIcon> = {
   "/collection": WalletCards,
   "/achievements": Award,
   "/messages": Mail,
+  "/comp": Tag,
   "/cards/new": Camera,
   "/leaderboard": Trophy,
   [INVITE_MENU_HREF]: UserPlus,
@@ -340,7 +343,7 @@ export function SideMenu({
     window.setTimeout(startTour, TOUR_AFTER_CLOSE_MS);
   }
 
-  const items = SIDE_MENU_ITEMS.filter((item) => item.href !== "/achievements" || hosted);
+  const items = sideMenuItems(quickCompEnabled()).filter((item) => item.href !== "/achievements" || hosted);
 
   return (
     <>

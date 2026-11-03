@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, ViewTransition, useEffect, useState } from "react";
-import { Bell, Camera, Compass, Mail, Search, Trophy, WalletCards } from "lucide-react";
+import { Bell, Camera, Compass, Mail, Search, Tag, Trophy, WalletCards, type LucideIcon } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { useSocial } from "@/components/social-provider";
 import { AccountDeletedToast } from "@/components/account-deleted-toast";
@@ -30,7 +30,7 @@ import { listenForInstallPrompt } from "@/lib/pwa/install-prompt";
 import { loginPath, pathWithQuery } from "@/lib/auth/safe-next";
 import type { TourTarget } from "@/lib/onboarding/first-run";
 import type { Profile } from "@/lib/social/types";
-import { BOTTOM_NAV } from "@/lib/ui/bottom-nav";
+import { BOTTOM_NAV, bottomNavTabs, type BottomNavTab } from "@/lib/ui/bottom-nav";
 import {
   activeTabAction,
   isCurrentTabScreen,
@@ -89,22 +89,30 @@ const TAB_ICONS = {
   "/cards/new": Camera,
   "/collection": WalletCards,
   "/messages": Mail,
-} as const;
+} as Record<BottomNavTab["href"], LucideIcon>;
+
+// Quick Comp's price tag, only in a build with its flag on. The flag's
+// inlined check, not quickCompEnabled(), so an off build has no Tag at all.
+if (process.env.NEXT_PUBLIC_QUICK_COMP === "1") TAB_ICONS["/comp"] = Tag;
 
 /** Coach-mark anchors for the quick tour. Home has none. */
-const TAB_TOUR: Partial<Record<(typeof BOTTOM_NAV)[number]["href"], TourTarget>> = {
+const TAB_TOUR: Partial<Record<BottomNavTab["href"], TourTarget>> = {
   "/leaderboard": "leaderboard",
   "/cards/new": "add-card",
   "/collection": "collection",
   "/messages": "messages",
 };
 
-const TABS = BOTTOM_NAV.map((tab) => ({
-  href: tab.href,
-  label: tab.label,
-  icon: TAB_ICONS[tab.href],
-  tour: TAB_TOUR[tab.href],
-}));
+function withIcons(tabs: readonly BottomNavTab[]) {
+  return tabs.map((tab) => ({
+    href: tab.href,
+    label: tab.label,
+    icon: TAB_ICONS[tab.href],
+    tour: TAB_TOUR[tab.href],
+  }));
+}
+
+const TABS = withIcons(BOTTOM_NAV);
 
 function profileUsernameFromPath(pathname: string): string | null {
   if (!pathname.startsWith("/u/")) return null;
@@ -199,6 +207,10 @@ function Shell({
   const router = useRouter();
   const { mode } = useSocial();
   const onboardingBusy = useOnboardingBusy();
+  // Quick Comp takes Leaderboard's slot. Next inlines the flag, so with it off
+  // this is a constant false and the Quick Comp branch is not in the bundle.
+  const quickComp = process.env.NEXT_PUBLIC_QUICK_COMP === "1";
+  const tabs = quickComp ? withIcons(bottomNavTabs(true)) : TABS;
   /** Collection needs a wider desktop column; feed/timeline stay max-w-lg. */
   const wideMain =
     pathname.startsWith("/collection") || pathname.startsWith("/portfolio");
@@ -287,7 +299,7 @@ function Shell({
           style={{ viewTransitionName: "app-nav" }}
           className="fixed inset-x-0 bottom-0 z-30 border-t border-zinc-200 bg-[color-mix(in_oklab,var(--background)_92%,transparent)] backdrop-blur-xl dark:border-white/10">
           <div className="mx-auto flex max-w-lg items-end justify-between px-1 pt-1 pb-[max(0.45rem,env(safe-area-inset-bottom))]">
-            {TABS.map((tab) => {
+            {tabs.map((tab) => {
               const active = isActive(pathname, tab.href, user);
               const Icon = tab.icon;
               const onTabClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
