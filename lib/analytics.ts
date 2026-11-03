@@ -145,6 +145,7 @@ export const PAGE_PATTERNS = [
   "/settings/notifications",
   "/settings/privacy",
   "/signup",
+  "/support",
   "/terms",
   "/u/[username]",
   "/u/[username]/badges",

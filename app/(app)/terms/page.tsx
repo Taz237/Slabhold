@@ -13,6 +13,10 @@ export default function TermsPage() {
         violates these terms may be removed and accounts may be suspended.
       </p>
       <p>
+        You must be 13 or older to use Slabhold. Trades and sales between collectors happen
+        between you and the other collector. Slabhold doesn&apos;t process payments.
+      </p>
+      <p>
         Don&apos;t post spam, harassment, hate, sexual content, threats, scams, or fake listings.
         Use report, block, and mute when another collector crosses the line. We review reports
         and may hide or delete posts.
@@ -26,6 +30,11 @@ export default function TermsPage() {
       <p>
         <Link href="/about" className="font-medium underline">
           About Slabhold
+        </Link>
+      </p>
+      <p>
+        <Link href="/support" className="font-medium underline">
+          Support
         </Link>
       </p>
     </article>

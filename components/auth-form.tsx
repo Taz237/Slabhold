@@ -740,7 +740,7 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
               {busy ? "Creating your account…" : "Create account"}
             </button>
             <p className="text-center text-xs leading-5 text-zinc-500">
-              By signing up you agree to the{" "}
+              By signing up you confirm you&apos;re 13 or older and agree to the{" "}
               <Link href="/terms" className="font-semibold underline">
                 Terms
               </Link>{" "}

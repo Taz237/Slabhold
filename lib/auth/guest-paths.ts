@@ -24,7 +24,7 @@ export function shouldShowJoinBar(signedIn: boolean, pathname: string): boolean 
 /** Pages a signed-out visitor can read without the logged-in nav. */
 export function isGuestContentPage(pathname: string): boolean {
   const path = pathOnly(pathname);
-  if (path === "/terms" || path === "/about" || path === "/privacy") return true;
+  if (path === "/terms" || path === "/about" || path === "/privacy" || path === "/support") return true;
   if (isJoinBarPage(path)) return true;
   if (/^\/u\/[^/]+\/(?:followers|following)$/.test(path)) return true;
   return false;
