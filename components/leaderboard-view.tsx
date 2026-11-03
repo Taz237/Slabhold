@@ -50,7 +50,7 @@ export const LEADERBOARD_STYLES = `
     55%, 100% { background-position: -60% 0; }
   }
   @keyframes lb-focus {
-    0%, 35% { box-shadow: 0 0 0 2px var(--lb-accent), 0 0 36px -4px var(--lb-accent); }
+    0%, 35% { box-shadow: 0 0 0 2px var(--lb-accent); }
     100% { box-shadow: 0 0 0 0 transparent; }
   }
   .lb-row { animation: lb-rise .42s cubic-bezier(.2,.7,.2,1) both; }
@@ -504,16 +504,6 @@ function Board({ board, week }: { board: LeaderboardBoard; week: "current" | "pr
       className="relative scroll-mt-20 overflow-clip rounded-3xl border border-white/10 bg-zinc-950 px-3 pb-3"
       style={{ "--lb-accent": accent } as CSSProperties}
     >
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-x-0 top-0 h-28"
-        style={{ background: `radial-gradient(120% 100% at 50% 0%, ${accent}38 0%, transparent 70%)` }}
-      />
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-x-8 top-0 h-px"
-        style={{ background: `linear-gradient(90deg, transparent, ${accent}, transparent)` }}
-      />
       <header className="relative flex items-start gap-3 px-1 pt-4 pb-3">
         <span
           aria-hidden="true"
