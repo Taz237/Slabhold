@@ -571,7 +571,7 @@ function SignedOutBanner() {
   return (
     <div className="border-b border-zinc-200/70 px-4 py-4 dark:border-white/[0.07]">
       <div className="relative overflow-hidden rounded-2xl bg-[#7C3AED] p-4 text-white">
-        <p className="text-[13px] font-medium text-white/70">
+        <p className="text-[13px] font-medium text-white/90">
           Join the collectors
         </p>
         <p className="mt-1 text-[19px] leading-6 font-semibold tracking-tight text-balance">

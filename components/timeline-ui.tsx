@@ -221,7 +221,7 @@ export function NewPostsPill({ onClick }: { onClick: () => void }) {
             window.scrollTo({ top: 0, behavior: scrollBehavior() });
             onClick();
           }}
-          className="pointer-events-auto inline-flex min-h-11 items-center gap-1.5 rounded-full bg-violet-600 px-4 text-sm font-semibold text-white shadow-lg shadow-violet-950/30 ring-1 ring-white/10 transition-transform active:scale-95 motion-safe:animate-[pill-in_260ms_cubic-bezier(0.2,0.7,0.2,1)_both] motion-reduce:transition-none"
+          className="pointer-events-auto inline-flex min-h-11 items-center gap-1.5 rounded-full bg-violet-600 px-4 text-sm font-semibold text-white shadow-lg shadow-black/20 ring-1 ring-white/10 transition-transform active:scale-95 motion-safe:animate-[pill-in_260ms_cubic-bezier(0.2,0.7,0.2,1)_both] motion-reduce:transition-none"
         >
           <ArrowUp className="h-4 w-4" aria-hidden="true" />
           New posts
