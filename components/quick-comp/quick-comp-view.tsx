@@ -15,7 +15,7 @@ import {
   identityFromCatalog,
   type QuickCompOutcome,
 } from "@/lib/quick-comp/client";
-import { DEFAULT_QUICK_GRADE, otherGrade, otherGradeParts } from "@/lib/quick-comp/grades";
+import { DEFAULT_QUICK_GRADE, isPresetGrade, otherGrade, otherGradeParts, splitQueryGrade } from "@/lib/quick-comp/grades";
 import { quickCompIdentityKey, type QuickCompIdentity } from "@/lib/quick-comp/identity";
 import {
   browserRecentStore,
@@ -347,10 +347,22 @@ export function QuickCompView({ userId }: { userId: string | null }) {
     setActive(0);
   }
 
+  /** A grade typed in the search ("psa 9") wins over the chip, so it is the one looked up. */
+  function gradeForPick() {
+    return splitQueryGrade(query).grade ?? grade;
+  }
+
+  function selectGrade(chosen: string) {
+    setGrade(chosen);
+    setOtherOpen(!isPresetGrade(chosen));
+  }
+
   function pick(card: CatalogCard, from: CatalogCard[]) {
     cancelGradeLookup();
-    const identity = identityFromCatalog(card, grade);
+    const chosen = gradeForPick();
+    const identity = identityFromCatalog(card, chosen);
     if (!identity) return;
+    selectGrade(chosen);
     clearSearch();
     setManual(false);
     inputRef.current?.blur();
@@ -539,13 +551,15 @@ export function QuickCompView({ userId }: { userId: string | null }) {
 
       {manual ? (
         <ManualForm
-          initial={query.trim()}
+          initial={splitQueryGrade(query).rest.trim()}
           onCancel={() => setManual(false)}
           onSubmit={(fields) => {
             const year = parseYearLabel(fields.year);
             if (!year) return;
             // A grade change still waiting to settle must not replace this card.
             cancelGradeLookup();
+            const chosen = gradeForPick();
+            selectGrade(chosen);
             setManual(false);
             clearSearch();
             run({
@@ -556,7 +570,7 @@ export function QuickCompView({ userId }: { userId: string | null }) {
                 setBrand: fields.set.trim(),
                 cardNumber: fields.number.trim().replace(/^#/, ""),
                 parallel: "Base",
-                grade,
+                grade: chosen,
               },
               catalog: null,
               alternatives: [],
