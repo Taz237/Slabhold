@@ -528,7 +528,7 @@ describe("PortfolioHero redesign: stat cards and movers", () => {
     assert.equal((movers.match(/data-spark-end/g) ?? []).length, 3);
   });
 
-  it("shows Paid $X instead of a spark for since-you-paid rows", () => {
+  it("shows Paid $X under the name, with no spark slot, for since-you-paid rows", () => {
     win.localStorage.clear();
     const cards = [fixtureCard("a", "Jordan Love", 40), fixtureCard("b", "Cam Ward", 100)];
     const out = html({ cards, values: new Map([["a", okValue(60)], ["b", okValue(80)]]), cardHistory: new Map() });
@@ -537,5 +537,9 @@ describe("PortfolioHero redesign: stat cards and movers", () => {
     assert.doesNotMatch(movers, /role="img"/);
     assert.match(text(movers), /Paid \$40/);
     assert.match(text(movers), /Paid \$100/);
+    // Under the name, at every width, with no empty spark slot taking the name's room.
+    assert.doesNotMatch(movers, /data-spark-slot/);
+    assert.match(text(movers), /Jordan Love Paid \$40/);
+    assert.doesNotMatch(movers, /max-\[359px\]:hidden[^"]*"[^>]*>Paid/);
   });
 });

@@ -41,6 +41,8 @@ export function TopMovers({ movers }: { movers: Movers<HeroCard> }) {
             const word = rowTone === "flat" ? "unchanged" : `${rowTone} ${formatPct(row.pct, false)}`;
             const Arrow = rowTone === "flat" ? null : MOVER_ICON[rowTone];
             const last = row.points[row.points.length - 1]?.value ?? 0;
+            // No history ("Since you paid"): what was paid goes under the name, and the name gets the width.
+            const spark = row.points.length >= 2;
             return (
               <li key={row.card.id}>
                 <Link
@@ -52,13 +54,15 @@ export function TopMovers({ movers }: { movers: Movers<HeroCard> }) {
                     <span className="block truncate text-sm leading-5 font-medium" title={row.card.playerName}>
                       {row.card.playerName}
                     </span>
-                    <span className={`block truncate text-xs leading-4 max-[359px]:hidden ${muted}`}>
-                      {cardTitle(row.card.card)}
-                    </span>
+                    {spark ? (
+                      <span className={`block truncate text-xs leading-4 max-[359px]:hidden ${muted}`}>{cardTitle(row.card.card)}</span>
+                    ) : row.card.paid != null ? (
+                      <span className={`block text-xs leading-4 tabular-nums ${muted}`}>Paid {money(row.card.paid).replace(/\.00$/, "")}</span>
+                    ) : null}
                   </span>
-                  {/* 64x24, reserved. Since-you-paid rows have no history to draw. */}
-                  <span data-spark-slot="" className="flex h-6 w-16 shrink-0 items-center justify-end">
-                    {row.points.length >= 2 ? (
+                  {/* 64x24, reserved, so a row never shifts. */}
+                  {spark ? (
+                    <span data-spark-slot="" className="flex h-6 w-16 shrink-0 items-center">
                       <ValueChart
                         variant="spark"
                         points={row.points}
@@ -67,10 +71,8 @@ export function TopMovers({ movers }: { movers: Movers<HeroCard> }) {
                         minSpan={collectionMinSpan(last)}
                         ariaLabel={`${row.card.playerName}, ${word} past 30 days`}
                       />
-                    ) : row.card.paid != null ? (
-                      <span className={`text-xs whitespace-nowrap tabular-nums ${muted}`}>Paid {money(row.card.paid).replace(/\.00$/, "")}</span>
-                    ) : null}
-                  </span>
+                    </span>
+                  ) : null}
                   <span
                     data-gain={rowTone}
                     className={`inline-flex h-6 w-[72px] shrink-0 items-center justify-center gap-0.5 rounded-full text-xs font-semibold tabular-nums ${PILL_TONE[rowTone]}`}

@@ -14,7 +14,7 @@ import {
   type RangeId,
 } from "@/lib/chart/range";
 import { valueScale } from "@/lib/chart/scale";
-import { collectionMinSpan } from "@/lib/chart/theme";
+import { collectionMinSpan, heroTone } from "@/lib/chart/theme";
 import type { SnapshotRow } from "@/lib/collection/value-series";
 
 /** Plot box inside the 1080×1350 image. */
@@ -50,6 +50,8 @@ export type CollectionValueShare = {
   up: boolean;
   /** Line and chip color. Exactly no change is neutral. */
   tone: ChangeTone;
+  /** Under 0.5% either way: purple, as on the hero. */
+  calm: boolean;
   headline: string;
   rangeLabel: string;
   line: string;
@@ -111,6 +113,7 @@ export function collectionValueShareModel(input: {
     change: changeText(change, range, points[0].date),
     up: change.up,
     tone: changeTone(change),
+    calm: heroTone(change) === "calm",
     headline,
     rangeLabel: RANGES.find((item) => item.id === range)?.label ?? "",
     line,

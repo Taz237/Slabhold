@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { describe, it } from "node:test";
 import { collectionMinSpan, FILL_STOPS, heroLineTone, heroTone, PILL_TONE, TONE_CLASS, TONE_HEX } from "./theme";
 import { TONE_CLASS as SPARK_TONE_CLASS } from "@/components/charts/value-spark";
+import { collectionValueShareModel } from "@/lib/share/collection-value";
 
 const ROOT = process.cwd();
 function read(path: string) {
@@ -70,6 +71,28 @@ describe("chart theme: one place for chart colors", () => {
       [TONE_HEX.up, TONE_HEX.down, TONE_HEX.flat].map((hex) => hex.toLowerCase()),
     );
     assert.match(frame, /FILL_STOPS\.map/);
+  });
+
+  it("shares a calm week in purple, the same purple as TONE_HEX.brand", () => {
+    const today = "2026-10-30";
+    const rows = [
+      { snapshot_date: "2026-10-20", value: 285.5 },
+      { snapshot_date: "2026-10-27", value: 285.5 },
+      { snapshot_date: "2026-10-29", value: 285.5 },
+      { snapshot_date: today, value: 285.31 },
+    ];
+    const model = collectionValueShareModel({ username: "taz", rows, range: "7d", today });
+    assert.ok(model);
+    assert.equal(model.calm, true);
+    assert.equal(model.tone, "down", "tone itself is unchanged");
+    assert.match(model.change, /−\$0\.19 \(−0\.1%\)/);
+    const frame = read("components/og-frame.tsx");
+    const calm = frame.match(/const tone = model\.calm \? "(#\w+)"/)?.[1];
+    assert.equal(calm, TONE_HEX.brand.toLowerCase());
+    assert.match(frame, /model\.tone === "down" && !model\.calm \? ' stroke-dasharray/);
+    assert.match(frame, /model\.calm\s*\? "rgba\(167,139,250,0\.14\)"/);
+    const up = collectionValueShareModel({ username: "taz", rows: rows.map((row, i) => ({ ...row, value: i === 3 ? 300 : 285.5 })), range: "7d", today });
+    assert.equal(up?.calm, false);
   });
 
   it("fills every line the same way: 26%, 10% at 60%, then nothing", () => {
