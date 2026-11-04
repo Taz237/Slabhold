@@ -19,11 +19,12 @@ import {
   linePath,
   monotonePath,
   resampleY,
-  smoothStepPath,
   type XY,
 } from "@/lib/chart/path";
 import { axisLabels, valueScale } from "@/lib/chart/scale";
-import { TONE_CLASS, ValueSpark, type ChartTone } from "@/components/charts/value-spark";
+import { FillStops, TONE_CLASS, ValueSpark, type ChartTone } from "@/components/charts/value-spark";
+import { CHART } from "@/lib/chart/theme";
+import type { ChartLayers, LayerGeom } from "@/components/charts/median-layer";
 import type { ScrubState } from "@/components/charts/value-chart-scrub";
 import { afterFirstIdle } from "@/lib/ui/idle";
 
@@ -43,12 +44,13 @@ const TOP = 22;
 const BOTTOM = 24;
 const GUTTER = 44;
 
-const MINIMAL_TICK = "fill-zinc-400 text-[11px] tabular-nums dark:fill-zinc-500";
-
-/** The first and last tick only. */
-function edgeTicks<T>(ticks: T[]): T[] {
-  return ticks.length > 2 ? [ticks[0], ticks[ticks.length - 1]] : ticks;
-}
+/** 3 dates from this width, else 2. */
+const WIDE = 360;
+/** Sales this close to the line sit on it. */
+const SNAP_PX = 6;
+const PILL_CLEAR = 12;
+/** On screen from here: draws in, pulses. */
+const SEEN = 0.35;
 
 function reducedMotion(): boolean {
   return typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true;
@@ -79,23 +81,28 @@ type Props = {
   /** "spark" is a small line with no axes and no scrub. */
   variant?: "full" | "spark";
   height?: number;
-  /** "step" for values that jump on a day (a card added). */
-  curve?: "monotone" | "step";
+  curve?: "monotone";
   /** Changes when the range changes, so the line morphs instead of jumping. */
   morphKey?: string;
   /** Scrubbed point, or null on release. */
   onScrub?: (point: ChartPoint | null) => void;
-  /** "ATH $285" over the highest point. */
+  /** A quiet "ATH $285" over the highest point. */
   showAth?: boolean;
   /** Sales as dots. With dots, a scrub or tap picks a dot instead of a line point. */
   dots?: ChartDot[];
   selectedDotId?: string | null;
   onSelectDot?: (id: string | null) => void;
-  /** Labeled dashed line, like "Median $34.99". */
+  /** "Median $34.99", drawn by `layers`. */
   refLine?: { value: number; label: string } | null;
-  /** Faint band behind the line, like the middle 50% of sales. */
+  /** The middle half of sales, drawn by `layers`. */
   band?: { low: number; high: number } | null;
-  /** Card page comp style: no grid, first and last date, min and max value, a stronger fill. */
+  /** medianLayers, from the comp chart's chunk. */
+  layers?: (geom: LayerGeom) => ChartLayers;
+  /** Smallest y span. */
+  minSpan?: number;
+  /** Tooltip: "$212.49 · Oct 9", or the date alone (the default with `onScrub`). */
+  tooltip?: "value" | "date";
+  /** Kept for callers; one look for all. */
   minimal?: boolean;
   className?: string;
 };
@@ -110,6 +117,7 @@ type Geometry = {
   xTicks: { x: number; label: string; anchor: "start" | "middle" | "end" }[];
   dots: (XY & { dot: ChartDot })[];
   ath: number;
+  base: { x: number; y: number } | null;
   ref: { y: number; label: string } | null;
   band: { y: number; h: number } | null;
 };
@@ -119,9 +127,9 @@ function build(
   dots: ChartDot[],
   width: number,
   height: number,
-  curve: "monotone" | "step",
   refLine: Props["refLine"],
   band: Props["band"],
+  minSpan: number | undefined,
 ): Geometry | null {
   const series = downsample(
     points.map((point) => ({ ...point, t: toDayMs(point.date) })),
@@ -136,7 +144,7 @@ function build(
     ...(refLine ? [refLine.value] : []),
     ...(band ? [band.low, band.high] : []),
   ];
-  const scale = valueScale(values);
+  const scale = valueScale(values, { minSpan });
   const times = [...series.map((point) => point.t), ...dotTimes.map((item) => item.t)];
   const t0 = Math.min(...times);
   const t1 = Math.max(...times);
@@ -146,9 +154,9 @@ function build(
   const x = xScale(t0, t1, edge, plotRight - edge);
   const y = yScale(scale.domain, TOP, bottom);
   const xy = series.map((point) => ({ x: x(point.t), y: y(point.value), point }));
-  const line = xy.length > 1 ? (curve === "step" ? smoothStepPath(xy) : monotonePath(xy)) : "";
+  const line = xy.length > 1 ? monotonePath(xy) : "";
   const labels = axisLabels(scale.ticks);
-  const xTicks = dateTicks(t0, t1, 4).map((item, index, all) => ({
+  const xTicks = dateTicks(t0, t1, width >= WIDE ? 3 : 2).map((item, index, all) => ({
     x: x(item.t),
     label: item.label,
     anchor: (all.length === 1 ? "middle" : index === 0 ? "start" : index === all.length - 1 ? "end" : "middle") as
@@ -165,9 +173,15 @@ function build(
     yTicks: scale.ticks.map((value, index) => ({ y: y(value), label: labels[index] })),
     xTicks: xTicks.length === 1 ? [{ ...xTicks[0], x: plotRight / 2 }] : xTicks,
     dots: dotTimes
-      .map((item) => ({ x: x(item.t), y: Math.min(Math.max(y(item.dot.value), TOP - 6), bottom), dot: item.dot }))
+      .map((item) => {
+        const cx = x(item.t);
+        const cy = Math.min(Math.max(y(item.dot.value), TOP - 6), bottom);
+        const on = item.dot.hollow || xy.length < 2 ? cy : resampleY(xy, cx, cx, 1)[0];
+        return { x: cx, y: Math.abs(on - cy) <= SNAP_PX ? on : cy, dot: item.dot };
+      })
       .sort((a, b) => a.x - b.x || a.y - b.y),
     ath: athIndex(series),
+    base: xy.length > 1 ? { x: xy[0].x, y: xy[0].y } : null,
     ref: refLine ? { y: y(refLine.value), label: refLine.label } : null,
     band: band ? { y: y(band.high), h: Math.max(y(band.low) - y(band.high), 1) } : null,
   };
@@ -184,6 +198,7 @@ export const ValueChart = memo(function ValueChart(props: Props) {
         tone={props.tone}
         ariaLabel={props.ariaLabel}
         height={props.height}
+        minSpan={props.minSpan}
         className={props.className}
       />
     );
@@ -191,12 +206,14 @@ export const ValueChart = memo(function ValueChart(props: Props) {
   return <FullChart {...props} />;
 });
 
+/** The draw-in: waits for the screen, plays once. */
+type Draw = "wait" | "play" | "done";
+
 function FullChart({
   points,
   ariaLabel,
   tone,
   height = 184,
-  curve = "monotone",
   morphKey = "",
   onScrub,
   showAth = false,
@@ -205,7 +222,9 @@ function FullChart({
   onSelectDot,
   refLine = null,
   band = null,
-  minimal = false,
+  minSpan,
+  tooltip,
+  layers,
   className = "",
 }: Props) {
   const id = useId();
@@ -214,6 +233,9 @@ function FullChart({
   const areaRef = useRef<SVGPathElement>(null);
   const [width, setWidth] = useState(0);
   const [active, setActive] = useState<number | null>(null);
+  const [draw, setDraw] = useState<Draw>(() =>
+    typeof IntersectionObserver === "undefined" || reducedMotion() ? "done" : "wait",
+  );
   const activeRef = useRef<number | null>(null);
   const pressed = useRef(false);
   const frame = useRef(0);
@@ -235,11 +257,37 @@ function FullChart({
     return () => observer.disconnect();
   }, []);
 
-  const geom = useMemo(
-    () => (width > 0 ? build(points, dotList, width, height, curve, refLine, band) : null),
-    [points, dotList, width, height, curve, refLine, band],
-  );
+  // One observer: draws in when first seen; pauses the pulse off screen or in a hidden tab.
+  useEffect(() => {
+    const node = box.current;
+    if (!node || typeof IntersectionObserver === "undefined") return;
+    let inView = false;
+    const sync = () => {
+      const on = inView && document.visibilityState !== "hidden";
+      node.toggleAttribute("data-chart-paused", !on);
+      if (on) setDraw((current) => (current === "wait" ? "play" : current));
+    };
+    sync();
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[entries.length - 1];
+        if (entry) inView = entry.isIntersecting && entry.intersectionRatio >= SEEN * 0.99;
+        sync();
+      },
+      { threshold: [0, SEEN] },
+    );
+    observer.observe(node);
+    document.addEventListener("visibilitychange", sync);
+    return () => {
+      observer.disconnect();
+      document.removeEventListener("visibilitychange", sync);
+    };
+  }, []);
 
+  const geom = useMemo(
+    () => (width > 0 ? build(points, dotList, width, height, refLine, band, minSpan) : null),
+    [points, dotList, width, height, refLine, band, minSpan],
+  );
   // Range morph: animate between the old and new line, straight on the DOM, no re-render per frame.
   const shown = useRef<{ key: string; xy: XY[]; plotRight: number } | null>(null);
   useLayoutEffect(() => {
@@ -308,7 +356,9 @@ function FullChart({
   const shownIndex = withDots ? (selectedIndex >= 0 ? selectedIndex : null) : active;
 
   useEffect(() => () => window.cancelAnimationFrame(frame.current), []);
-  useEffect(() => afterFirstIdle(() => void loadScrub().catch(() => {})), []);
+  // The scrub chunk writes the tooltip: redraw once it is in.
+  const [, setScrubReady] = useState(Boolean(scrubModule));
+  useEffect(() => afterFirstIdle(() => void loadScrub().then(() => setScrubReady(true), () => {})), []);
 
   // Read by the handlers when they run, which can be after a held tap's render.
   const scrubState = useRef<ScrubState | null>(null);
@@ -355,8 +405,39 @@ function FullChart({
         null,
       )
     : null;
-  const marker = !withDots && activePt && "point" in activePt ? activePt.point.marker : null;
-  const ath = geom && showAth && geom.xy.length >= 3 && shownIndex == null ? geom.xy[geom.ath] : null;
+  const ath =
+    geom && showAth && geom.xy.length >= 3 && shownIndex == null && geom.ath >= 0 ? geom.xy[geom.ath] : null;
+  const athIsLast = ath != null && ath === last;
+  const drawing = draw !== "done" && !reduce;
+
+  const decor =
+    geom && layers
+      ? layers({
+          width,
+          plotRight: geom.plotRight,
+          bottom: geom.bottom,
+          ref: geom.ref,
+          band: geom.band,
+          last,
+          dots: geom.dots,
+          shown: shownIndex,
+          latest: latestDot,
+          motion: !reduce,
+        })
+      : null;
+
+  const tip =
+    activePt && geom && scrubModule
+      ? scrubModule.chartTip({
+          x: activePt.x,
+          y: activePt.y,
+          plotRight: geom.plotRight,
+          ...("point" in activePt
+            ? { value: activePt.point.value, date: activePt.point.date, marker: activePt.point.marker }
+            : { value: activePt.dot.value, date: activePt.dot.date, marker: null }),
+          dateOnly: !withDots && (tooltip ?? (onScrub ? "date" : "value")) === "date",
+        })
+      : null;
 
   return (
     <div ref={box} className={`chart-surface relative w-full select-none ${className}`} style={{ height }} data-no-pull="">
@@ -408,115 +489,87 @@ function FullChart({
         >
           <defs>
             <linearGradient id={`${id}-fill`} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="currentColor" stopOpacity={minimal ? 0.28 : 0.22} />
-              <stop offset="100%" stopColor="currentColor" stopOpacity={0} />
+              <FillStops />
             </linearGradient>
           </defs>
 
           <g key={`grid-${morphKey}`} className="chart-fade">
-            {(minimal ? edgeTicks(geom.yTicks) : geom.yTicks).map((item) => (
+            {geom.yTicks.map((item) => (
               <g key={`${item.label}-${item.y}`}>
-                {minimal ? null : (
-                  <line
-                    x1={0}
-                    x2={geom.plotRight}
-                    y1={item.y}
-                    y2={item.y}
-                    className="stroke-zinc-200 dark:stroke-white/[0.07]"
-                    strokeWidth={1}
-                  />
+                <line x1={0} x2={geom.plotRight} y1={item.y} y2={item.y} className={CHART.grid} strokeWidth={1} />
+                {decor?.clearY != null && Math.abs(item.y - decor.clearY) < PILL_CLEAR ? null : (
+                  <text x={width} y={item.y} dy="0.32em" textAnchor="end" className={CHART.tick}>
+                    {item.label}
+                  </text>
                 )}
-                <text
-                  x={width}
-                  y={item.y}
-                  dy="0.32em"
-                  textAnchor="end"
-                  className={minimal ? MINIMAL_TICK : "fill-zinc-500 text-[10.5px] tabular-nums dark:fill-zinc-400"}
-                >
-                  {item.label}
-                </text>
               </g>
             ))}
-            {(minimal ? edgeTicks(geom.xTicks) : geom.xTicks).map((item) => (
-              <text
-                key={`${item.label}-${item.x}`}
-                x={item.x}
-                y={height - 6}
-                textAnchor={item.anchor}
-                className={minimal ? MINIMAL_TICK : "fill-zinc-500 text-[10.5px] tabular-nums dark:fill-zinc-400"}
-              >
+            {geom.xTicks.map((item) => (
+              <text key={`${item.label}-${item.x}`} x={item.x} y={height - 6} textAnchor={item.anchor} className={CHART.tick}>
                 {item.label}
               </text>
             ))}
           </g>
 
-          {geom.band ? (
-            <rect x={0} width={geom.plotRight} y={geom.band.y} height={geom.band.h} fill="currentColor" opacity={0.08} />
-          ) : null}
-          {geom.ref ? (
-            <g>
-              <line
-                x1={0}
-                x2={geom.plotRight}
-                y1={geom.ref.y}
-                y2={geom.ref.y}
-                className="stroke-zinc-400 dark:stroke-zinc-500"
-                strokeDasharray="3 4"
-                strokeWidth={1}
-              />
-              <text
-                x={4}
-                y={geom.ref.y - 5}
-                className="chart-halo fill-zinc-600 text-[10.5px] font-semibold tabular-nums dark:fill-zinc-300"
-              >
-                {geom.ref.label}
-              </text>
-            </g>
+          {decor?.back}
+          {geom.base && !geom.ref ? (
+            <line
+              data-chart-baseline=""
+              x1={geom.base.x}
+              x2={geom.plotRight}
+              y1={geom.base.y}
+              y2={geom.base.y}
+              className={CHART.baseline}
+              strokeWidth={1}
+              strokeDasharray={tone === "down" ? "2 3" : undefined}
+            />
           ) : null}
 
-          <path ref={areaRef} d={geom.area} fill={`url(#${id}-fill)`} />
+          <path
+            ref={areaRef}
+            d={geom.area}
+            fill={`url(#${id}-fill)`}
+            className={drawing ? (draw === "play" ? "chart-draw-fill" : "chart-draw-fill-wait") : undefined}
+          />
           <path
             ref={lineRef}
+            data-chart-line=""
             d={geom.line}
+            pathLength={1}
             fill="none"
             stroke="currentColor"
-            strokeWidth={2}
+            strokeWidth={2.25}
             strokeLinecap="round"
             strokeLinejoin="round"
+            className={drawing ? (draw === "play" ? "chart-draw" : "chart-draw-wait") : undefined}
           />
 
-          {geom.dots.map((item, index) => (
-            <circle
-              key={item.dot.id}
-              cx={item.x}
-              cy={item.y}
-              r={index === shownIndex ? 5 : 3}
-              fill={item.dot.hollow ? "var(--chart-surface)" : "currentColor"}
-              fillOpacity={item.dot.hollow ? 1 : index === shownIndex ? 1 : 0.55}
-              stroke={item.dot.hollow || index === shownIndex ? "currentColor" : "none"}
-              strokeWidth={item.dot.hollow ? 1.5 : 0}
-              className={index === shownIndex ? "drop-shadow-sm" : undefined}
-            />
-          ))}
+          {decor?.mid}
 
-          <g key={`marks-${morphKey}`} className="chart-fade">
+          {decor?.front}
+
+          <g
+            key={`marks-${morphKey}`}
+            className={draw === "wait" && drawing ? "opacity-0" : "chart-fade"}
+            style={draw === "play" ? { animationDelay: "150ms" } : undefined}
+          >
+            {ath && !athIsLast ? (
+              <circle cx={ath.x} cy={ath.y} r={3} fill="none" stroke="currentColor" strokeOpacity={0.6} strokeWidth={1.5} />
+            ) : null}
             {ath ? (
               <text
                 x={Math.min(Math.max(ath.x, 4), geom.plotRight - 4)}
                 y={Math.max(ath.y - 9, 10)}
                 textAnchor={ath.x < 36 ? "start" : ath.x > geom.plotRight - 36 ? "end" : "middle"}
-                className="chart-halo fill-zinc-600 text-[10.5px] font-semibold tabular-nums dark:fill-zinc-300"
+                className="chart-halo chart-tick text-[10.5px] tabular-nums"
               >
                 ATH {money(ath.point.value).replace(/\.00$/, "")}
               </text>
             ) : null}
-            {minimal && latestDot && shownIndex == null && !reduce ? (
-              <circle cx={latestDot.x} cy={latestDot.y} r={3} fill="currentColor" className="chart-pulse" />
-            ) : null}
             {last && !withDots && shownIndex == null ? (
               <g>
-                {reduce ? null : <circle cx={last.x} cy={last.y} r={3.5} fill="currentColor" className="chart-pulse" />}
-                <circle cx={last.x} cy={last.y} r={3.5} fill="currentColor" stroke="var(--chart-surface)" strokeWidth={2} />
+                {reduce ? null : <circle cx={last.x} cy={last.y} r={4} fill="currentColor" className="chart-pulse" />}
+                <circle cx={last.x} cy={last.y} r={4} fill="currentColor" stroke="var(--chart-surface)" strokeWidth={2} />
               </g>
             ) : null}
           </g>
@@ -532,21 +585,16 @@ function FullChart({
                 strokeWidth={1}
               />
               {!withDots ? (
-                <circle cx={activePt.x} cy={activePt.y} r={4.5} fill="currentColor" stroke="var(--chart-surface)" strokeWidth={2} />
-              ) : null}
-              {marker ? (
-                <text
-                  x={Math.min(Math.max(activePt.x, 4), geom.plotRight - 4)}
-                  y={TOP - 11}
-                  textAnchor={activePt.x < 60 ? "start" : activePt.x > geom.plotRight - 60 ? "end" : "middle"}
-                  className="chart-halo fill-violet-700 text-[10.5px] font-semibold dark:fill-violet-300"
-                >
-                  {marker}
-                </text>
+                <circle cx={activePt.x} cy={activePt.y} r={5} fill="currentColor" stroke="var(--chart-surface)" strokeWidth={2} />
               ) : null}
             </g>
           ) : null}
         </svg>
+      ) : null}
+      {tip ? (
+        <div aria-hidden="true" data-chart-tip="" className={CHART.tip} style={{ width: tip.w, transform: `translate(${tip.left}px, ${tip.top}px)` }}>
+          {tip.text}
+        </div>
       ) : null}
     </div>
   );

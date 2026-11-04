@@ -1,6 +1,6 @@
 import { money, signedMoney } from "@/lib/format";
 import { toDayMs, xScale, yScale } from "@/lib/chart/geometry";
-import { areaPath, downsample, smoothStepPath } from "@/lib/chart/path";
+import { areaPath, downsample, monotonePath } from "@/lib/chart/path";
 import {
   availableRanges,
   changeText,
@@ -14,10 +14,13 @@ import {
   type RangeId,
 } from "@/lib/chart/range";
 import { valueScale } from "@/lib/chart/scale";
+import { collectionMinSpan, heroTone } from "@/lib/chart/theme";
 import type { SnapshotRow } from "@/lib/collection/value-series";
 
 /** Plot box inside the 1080×1350 image. */
 export const SHARE_CHART = { width: 952, height: 520 };
+/** Room at the right for the latest-value dot (r 10 and its ring). */
+const DOT_ROOM = 16;
 
 const RANGE_WORDS: Record<RangeId, string> = {
   "7d": "this week",
@@ -47,10 +50,16 @@ export type CollectionValueShare = {
   up: boolean;
   /** Line and chip color. Exactly no change is neutral. */
   tone: ChangeTone;
+  /** Under 0.5% either way: purple, as on the hero. */
+  calm: boolean;
   headline: string;
   rangeLabel: string;
   line: string;
   area: string;
+  /** The latest value's dot. */
+  last: { x: number; y: number };
+  /** The range's first value, as a hairline. */
+  baseY: number;
 };
 
 /**
@@ -79,11 +88,15 @@ export function collectionValueShareModel(input: {
   const last = points[points.length - 1];
 
   const series = downsample(points.map((point) => ({ ...point, t: toDayMs(point.date) })), 120);
-  const scale = valueScale(series.map((point) => point.value));
-  const x = xScale(series[0].t, series[series.length - 1].t, 0, SHARE_CHART.width);
+  // The app's own scale and line: a small move stays small, and the line is smooth, not a cliff.
+  const scale = valueScale(
+    series.map((point) => point.value),
+    { minSpan: collectionMinSpan(last.value) },
+  );
+  const x = xScale(series[0].t, series[series.length - 1].t, 0, SHARE_CHART.width - DOT_ROOM);
   const y = yScale(scale.domain, 16, SHARE_CHART.height - 8);
   const xy = series.map((point) => ({ x: x(point.t), y: y(point.value) }));
-  const line = smoothStepPath(xy, 36);
+  const line = monotonePath(xy);
 
   const words = RANGE_WORDS[range];
   const headline =
@@ -100,9 +113,12 @@ export function collectionValueShareModel(input: {
     change: changeText(change, range, points[0].date),
     up: change.up,
     tone: changeTone(change),
+    calm: heroTone(change) === "calm",
     headline,
     rangeLabel: RANGES.find((item) => item.id === range)?.label ?? "",
     line,
     area: areaPath(line, xy[0].x, xy[xy.length - 1].x, SHARE_CHART.height),
+    last: xy[xy.length - 1],
+    baseY: xy[0].y,
   };
 }

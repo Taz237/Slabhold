@@ -1,4 +1,5 @@
-import { nearestIndex } from "@/lib/chart/geometry";
+import { dayLabel, nearestIndex } from "@/lib/chart/geometry";
+import { money } from "@/lib/format";
 
 /**
  * The full chart's press, drag and arrow-key handling. ValueChart loads
@@ -21,8 +22,13 @@ export type ScrubState = {
   select: (index: number | null) => void;
 };
 
-function tick(): void {
+/**
+ * The one chart haptic: a light tick as the scrub lands on a new point or
+ * sale. Throttled to 40 ms by its caller; never fired on release.
+ */
+export function chartHaptic(): void {
   try {
+    // ios-shell-1: call nativeTap("light") here
     navigator.vibrate?.(4);
   } catch {
     // Not supported. Nothing to do.
@@ -35,7 +41,7 @@ function choose(state: ScrubState, index: number | null, haptic: boolean): void 
     const now = Date.now();
     if (now - state.lastTick.current > 40) {
       state.lastTick.current = now;
-      tick();
+      chartHaptic();
     }
   }
   state.select(index);
@@ -84,4 +90,34 @@ export function keyDown(state: ScrubState, key: string): void {
     state.activeRef.current = current;
     choose(state, null, false);
   }
+}
+
+const TIP_H = 22;
+
+/**
+ * The scrub tooltip: "$212.49 · Oct 9" (or the date alone, when the headline
+ * already shows the value), above the point, below it when there is no room,
+ * and never past the plot's edges. Widths are estimated for Geist at 12px, so
+ * nothing is measured.
+ */
+export function chartTip(input: {
+  x: number;
+  y: number;
+  plotRight: number;
+  value: number;
+  date: string;
+  marker?: string | null;
+  dateOnly: boolean;
+}): { text: string; w: number; left: number; top: number } {
+  const room = Math.floor((input.plotRight - 20) / 7);
+  let text = [input.dateOnly ? null : money(input.value), dayLabel(input.date), input.marker].filter(Boolean).join(" · ");
+  if (text.length > room) text = `${text.slice(0, Math.max(room - 1, 1)).trimEnd()}…`;
+  const w = Math.min(Math.ceil(text.length * 7 + 20), input.plotRight);
+  const above = input.y - 10 - TIP_H;
+  return {
+    text,
+    w,
+    left: Math.round(Math.min(Math.max(input.x - w / 2, 0), input.plotRight - w)),
+    top: Math.round(above >= 0 ? above : input.y + 10),
+  };
 }

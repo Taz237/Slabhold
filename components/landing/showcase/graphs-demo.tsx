@@ -2,21 +2,21 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ValueChart } from "@/components/charts/value-chart";
-import { cancelAll, canAnimate, countUp, dollars, drawChartLine, onceVisible, prefersReducedMotion, rise } from "./motion";
+import { cancelAll, canAnimate, countUp, dollars, onceVisible, prefersReducedMotion, rise } from "./motion";
 import { sampleValueLine } from "./sample-data";
 
-const DRAW_MS = 1100;
+/** The chart's own draw-in. The value counts up alongside it. */
+const DRAW_MS = 400;
 
 /**
  * The collection chart: the app's own ValueChart with a sample 90-day line.
- * The line draws in (stroke-dashoffset), the area fades up under it, and the
- * value counts up to $412. `gain` is the sample gain chip, passed in so its
- * text stays with the landing panels.
+ * The chart draws itself in the first time it is on screen (and again on each
+ * Replay, which remounts it), and the value counts up to $412 with it. `gain`
+ * is the sample gain chip, passed in so its text stays with the landing panels.
  */
 export default function GraphsDemo({ run, gain }: { run: number; gain: ReactNode }) {
   const root = useRef<HTMLDivElement>(null);
   const value = useRef<HTMLSpanElement>(null);
-  const chart = useRef<HTMLDivElement>(null);
   const [points] = useState(() => sampleValueLine());
   const last = points[points.length - 1].value;
   const stop = useRef<() => void>(() => {});
@@ -31,12 +31,10 @@ export default function GraphsDemo({ run, gain }: { run: number; gain: ReactNode
       revealed.current = true;
       animations.push(rise(node));
     }
-    let cancelCount = countUp(value.current, points[0].value, last, { duration: DRAW_MS, delay: 200 });
-    const cancelDraw = drawChartLine(chart.current, { duration: DRAW_MS, delay: 200 });
+    let cancelCount = countUp(value.current, points[0].value, last, { duration: DRAW_MS, delay: 0 });
 
     stop.current = () => {
       cancelAll(animations);
-      cancelDraw();
       cancelCount();
       cancelCount = () => {};
     };
@@ -69,8 +67,15 @@ export default function GraphsDemo({ run, gain }: { run: number; gain: ReactNode
         {gain}
         <span className="text-[13px] text-zinc-500">Last 90 days</span>
       </div>
-      <div ref={chart} className="mt-4">
-        <ValueChart points={points} tone="accent" height={176} ariaLabel={`Sample collection value ${dollars(last)}, up $38 in 90 days`} />
+      <div className="mt-4">
+        {/* Re-keyed on Replay so the built-in draw-in plays again. Off with reduced motion. */}
+        <ValueChart
+          key={run}
+          points={points}
+          tone="accent"
+          height={176}
+          ariaLabel={`Sample collection value ${dollars(last)}, up $38 in 90 days`}
+        />
       </div>
     </div>
   );

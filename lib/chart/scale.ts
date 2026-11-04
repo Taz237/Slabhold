@@ -55,13 +55,27 @@ export type ValueScale = { domain: [number, number]; ticks: number[] };
 /**
  * Y range padded about 10% so the line never touches the edges, and exactly 3
  * round ticks inside it. Starts at $0 only when the values are near $0.
+ *
+ * `minSpan`: when the values span less than this, the domain widens to it,
+ * centered on the values, so a small move looks small. Never below $0 for
+ * positive values. Without it, nothing changes.
  */
-export function valueScale(values: number[]): ValueScale {
+export function valueScale(values: number[], { minSpan }: { minSpan?: number } = {}): ValueScale {
   const finite = values.filter(Number.isFinite);
   if (!finite.length) return { domain: [0, 1], ticks: [] };
   const min = Math.min(...finite);
   const max = Math.max(...finite);
   const span = max - min;
+  if (minSpan != null && minSpan > 0 && span < minSpan) {
+    const mid = (min + max) / 2;
+    let low = mid - minSpan / 2;
+    let high = mid + minSpan / 2;
+    if (min >= 0 && low < 0) {
+      low = 0;
+      high = Math.max(high, minSpan);
+    }
+    return { domain: [low, high], ticks: threeTicks(low, high) };
+  }
   const pad = span === 0 ? Math.max(Math.abs(max) * 0.1, 1) : span * 0.1;
   let low = min - pad;
   const high = max + pad;

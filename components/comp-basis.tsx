@@ -82,13 +82,14 @@ export function shortDaysSince(ymd: string, today: string): string {
   return `${Math.round(days / 365)}y`;
 }
 
-/** A plot tile with no plot yet: a dashed baseline. */
+/** A plot tile with no plot yet: a faint purple dashed baseline, in the chart theme. */
 export function GhostPlot({ children }: { children?: ReactNode }) {
   return (
     <div className={`relative mt-4 flex h-44 flex-col items-center justify-center gap-2 px-4 text-center ${compTile}`}>
       <span
         aria-hidden="true"
-        className="absolute inset-x-4 bottom-8 border-t border-dashed border-zinc-300 dark:border-white/15"
+        data-ghost-baseline=""
+        className="absolute inset-x-4 bottom-8 border-t border-dashed border-violet-600/25 dark:border-violet-400/25"
       />
       {children}
     </div>

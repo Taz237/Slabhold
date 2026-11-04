@@ -4,6 +4,7 @@ import {
   addedMarkers,
   bestCard,
   collectionPoints,
+  topCardByValue,
   topMovers,
   type MoverCard,
 } from "./value-series";
@@ -91,5 +92,41 @@ describe("topMovers", () => {
 
   it("is empty with nothing to compare", () => {
     assert.deepEqual(topMovers([card("a", null, 20)], new Map()).rows, []);
+  });
+});
+
+describe("topCardByValue", () => {
+  const held = (id: string, value: number | null, extra: Partial<MoverCard> = {}): MoverCard => ({
+    id,
+    playerName: id,
+    paid: null,
+    value,
+    sold: false,
+    ...extra,
+  });
+
+  it("is the most valuable held card, skipping sold cards and cards with no value", () => {
+    const top = topCardByValue([
+      held("a", 120),
+      held("b", 900, { sold: true }),
+      held("c", null),
+      held("d", 300),
+      held("e", 0),
+    ]);
+    assert.equal(top?.id, "d");
+  });
+
+  it("breaks a tie by the newest card", () => {
+    const top = topCardByValue([
+      held("old", 300, { createdAt: "2026-09-01T12:00:00Z" }),
+      held("new", 300, { createdAt: "2026-10-20T12:00:00Z" }),
+      held("mid", 300, { createdAt: "2026-10-01T12:00:00Z" }),
+    ]);
+    assert.equal(top?.id, "new");
+  });
+
+  it("is null with no card that has a value", () => {
+    assert.equal(topCardByValue([held("a", null), held("b", 50, { sold: true })]), null);
+    assert.equal(topCardByValue([]), null);
   });
 });

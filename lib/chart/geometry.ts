@@ -39,6 +39,12 @@ function label(t: number, long: boolean): string {
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
 }
 
+/** "Oct 9", for a YYYY-MM-DD. */
+export function dayLabel(ymd: string): string {
+  const t = toDayMs(ymd);
+  return Number.isNaN(t) ? "" : label(t, false);
+}
+
 export type DateTick = { t: number; label: string };
 
 /** At most `max` evenly spaced dates, first and last included, no repeats. */

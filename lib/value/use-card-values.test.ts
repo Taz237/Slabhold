@@ -119,12 +119,8 @@ describe("useCardValues failure", { concurrency: 1 }, () => {
     assert.match(publicCard, /\{errorMessage\}/);
     assert.match(publicCard, /soldNotice/);
     const hero = readFileSync(join(process.cwd(), "components/portfolio-hero.tsx"), "utf8");
-    const invested = hero.slice(
-      hero.indexOf('<Tile name="Invested">'),
-      hero.indexOf('<Tile name="Profit"'),
-    );
-    assert.ok(invested.length > 0);
-    assert.equal(invested.includes("loading="), false);
+    assert.equal(hero.includes('<Tile name="Invested"'), false);
+    assert.equal(hero.includes('<Tile name="Profit"'), false);
   });
 
   it("honors Retry-After and does not send another price check until it passes", async () => {
