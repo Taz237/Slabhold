@@ -1,29 +1,46 @@
 "use client";
 
-import { useRef, useState, type ReactNode } from "react";
-import { Avatar } from "@/components/avatar";
-import { ValueSpark } from "@/components/charts/value-spark";
+import { Suspense, lazy, useEffect, useId, useRef, useState, type ComponentType, type ReactNode } from "react";
+import { ArrowRight, RotateCcw } from "lucide-react";
 import { Badge } from "@/components/badges/badge";
-import { CardSlabArt } from "@/components/card-slab-art";
-import { CompsList } from "@/components/comps-list";
-import { LEADERBOARD_STYLES, PodiumRow } from "@/components/leaderboard-view";
-import { SAMPLE_SLABS } from "@/components/landing/sample-cards";
-import { NoHeadPreload } from "@/components/landing/no-head-preload";
-import { Logo } from "@/components/logo";
-import { BADGE_TIERS, TIER_LABELS } from "@/lib/badges/config";
-import type { BoardRow } from "@/lib/leaderboard/present";
-import type { CompListing } from "@/lib/types";
+import { LandingLink } from "@/components/landing/landing-links";
+import { canAnimate, EASE, onceVisible, prefersReducedMotion } from "@/components/landing/showcase/motion";
+import { SAMPLE_ACCOUNTS_LABEL, SAMPLE_ACCOUNTS_NOTE } from "@/components/landing/showcase/sample-data";
+import { landingSignupHref } from "@/lib/auth/safe-next";
+import { BADGE_THRESHOLDS, BADGE_TIERS, CATEGORY_COPY, TIER_LABELS, type BadgeTier } from "@/lib/badges/config";
+import { QUICK_COMP_PATH, quickCompEnabled } from "@/lib/quick-comp/flag";
+import { WhenNear } from "@/lib/ui/when-near";
 
-const NO_PHOTO = { kind: "none" } as const;
-const noop = () => {};
+/*
+ * Four chapters below the hero, each built from the real app with sample
+ * data. The frames (heading, line, Sample tag, a fixed-height slot) are drawn
+ * on the server; each chapter's demo is its own chunk, loaded when the slot
+ * nears the viewport. No network beyond those chunks and /public files.
+ */
 
-export const FEATURE_PANELS = [
-  { id: "track", tag: "Track", title: "Track your collection", line: "Every slab with its value and a running history." },
-  { id: "comps", tag: "Comps", title: "Real comps", line: "Each card matched to recent sold prices, not asking prices." },
-  { id: "leaderboard", tag: "Compete", title: "Weekly leaderboard", line: "Add cards and post. The top three take the podium." },
-  { id: "badges", tag: "Earn", title: "Earn badges", line: "Climb from Bronze to Legendary as your collection grows." },
-  { id: "social", tag: "Connect", title: "Post, share, DM", line: "Show off pickups, share links that look great, and DM collectors." },
+const QuickCompDemo = lazy(() => import("@/components/landing/showcase/quick-comp-demo"));
+const TimelineDemo = lazy(() => import("@/components/landing/showcase/timeline-demo"));
+const GraphsDemo = lazy(() => import("@/components/landing/showcase/graphs-demo"));
+
+type PopupComponent = ComponentType<{ tier: BadgeTier; onClose: () => void }>;
+
+export const CHAPTERS = [
+  { id: "quick-comp", title: "Quick Comp", line: "Recent sold prices, the median and the range. Free with an account." },
+  { id: "timeline", title: "Collectors talking cards", line: "Follow collectors and see their pickups, questions and replies as they post." },
+  { id: "graphs", title: "Your collection, over time", line: "Your cards add up to one value, with its history drawn day by day." },
+  { id: "achievements", title: "Earn every tier", line: "Climb from Bronze to Legendary as your collection grows." },
 ] as const;
+
+type ChapterId = (typeof CHAPTERS)[number]["id"];
+
+/** The visual slot under each chapter's toolbar. Fixed, so nothing moves while a demo loads. */
+export const CHAPTER_HEIGHTS: Record<ChapterId, string> = {
+  // Narrow phones wrap the card line and the attribution onto one more line each.
+  "quick-comp": "h-[436px] min-[380px]:h-[412px]",
+  timeline: "h-[440px]",
+  graphs: "h-[316px]",
+  achievements: "h-[320px]",
+};
 
 /** Index of the panel closest to the left edge of the scroller. */
 export function panelIndexAt(scrollLeft: number, panelWidth: number, count: number): number {
@@ -31,14 +48,150 @@ export function panelIndexAt(scrollLeft: number, panelWidth: number, count: numb
   return Math.max(0, Math.min(count - 1, Math.round(scrollLeft / panelWidth)));
 }
 
-function reducedMotion(): boolean {
-  return typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true;
+function chapter(id: ChapterId) {
+  return CHAPTERS.find((item) => item.id === id)!;
 }
 
-/** Five swipeable panels: one per screen on a phone, snap scrolling and dots. */
+/** The chapters, Quick Comp first when its flag is on. */
 export function FeaturePanels() {
+  const quickComp = quickCompEnabled();
+  return (
+    <section aria-label="What you can do on Slabhold" data-always-dark="" className="mt-20 flex flex-col gap-24 lg:mt-28 lg:gap-32">
+      {quickComp ? (
+        <Chapter
+          id="quick-comp"
+          extra={
+            <LandingLink
+              button="signup"
+              href={landingSignupHref(QUICK_COMP_PATH)}
+              className="mt-4 inline-flex min-h-11 items-center gap-1.5 rounded-lg text-[15px] font-semibold text-[#A78BFA] underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-[#A78BFA] focus-visible:outline-none"
+            >
+              Sign up to comp any card
+              <ArrowRight aria-hidden size={16} strokeWidth={1.5} />
+            </LandingLink>
+          }
+        >
+          {(run) => <QuickCompDemo run={run} />}
+        </Chapter>
+      ) : null}
+      <Chapter id="timeline" note={SAMPLE_ACCOUNTS_NOTE} region={SAMPLE_ACCOUNTS_LABEL} flip>
+        {(run) => <TimelineDemo run={run} />}
+      </Chapter>
+      <Chapter id="graphs">
+        {(run) => <GraphsDemo run={run} gain={<p className="text-sm font-semibold text-[#A78BFA] tabular-nums">+$38 · 10.2%</p>} />}
+      </Chapter>
+      <Achievements />
+    </section>
+  );
+}
+
+export function SampleTag() {
+  return (
+    <span className="inline-flex h-6 items-center rounded-full border border-white/15 px-2 font-mono text-[11px] font-medium text-zinc-300">
+      Sample
+    </span>
+  );
+}
+
+function ReplayButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="-mr-2 inline-flex min-h-11 items-center gap-1.5 rounded-lg px-2 text-[13px] font-medium text-zinc-400 transition-colors hover:text-zinc-100 focus-visible:ring-2 focus-visible:ring-[#A78BFA] focus-visible:outline-none motion-reduce:hidden"
+    >
+      <RotateCcw aria-hidden size={16} strokeWidth={1.5} />
+      Replay
+    </button>
+  );
+}
+
+function ChapterCopy({ id, titleId, extra }: { id: ChapterId; titleId: string; extra?: ReactNode }) {
+  const { title, line } = chapter(id);
+  return (
+    <div>
+      <h2 id={titleId} className="text-[28px] leading-9 font-semibold tracking-[-0.02em] text-white lg:text-[40px] lg:leading-[48px]">
+        {title}
+      </h2>
+      <p className="mt-2 max-w-sm text-[16px] leading-6 text-zinc-400 lg:text-[18px] lg:leading-7">{line}</p>
+      {extra}
+    </div>
+  );
+}
+
+function Toolbar({ note, children }: { note?: string; children?: ReactNode }) {
+  return (
+    <div className="flex h-11 items-center justify-between gap-3">
+      <span className="flex min-w-0 items-center gap-2">
+        <SampleTag />
+        {note ? <span className="truncate text-[13px] text-zinc-500">{note}</span> : null}
+      </span>
+      {children}
+    </div>
+  );
+}
+
+function DemoSkeleton() {
+  return <div aria-hidden className="skeleton-shimmer h-full w-full rounded-2xl" />;
+}
+
+/**
+ * One chapter: copy on one side, the demo on the other (stacked on phones).
+ * The demo's chunk loads near the viewport; Replay plays it again.
+ */
+function Chapter({
+  id,
+  extra,
+  note,
+  region,
+  flip = false,
+  children,
+}: {
+  id: ChapterId;
+  extra?: ReactNode;
+  note?: string;
+  /** An aria-label for the demo, which then becomes a region. */
+  region?: string;
+  flip?: boolean;
+  children: (run: number) => ReactNode;
+}) {
+  const titleId = useId();
+  const [run, setRun] = useState(0);
+  return (
+    <article data-chapter={id} aria-labelledby={titleId} className="lg:grid lg:grid-cols-2 lg:items-center lg:gap-16">
+      <div className={flip ? "lg:order-2" : undefined}>
+        <ChapterCopy id={id} titleId={titleId} extra={extra} />
+      </div>
+      <div className="mt-6 lg:mt-0">
+        <Toolbar note={note}>
+          <ReplayButton onClick={() => setRun((count) => count + 1)} />
+        </Toolbar>
+        <div role={region ? "region" : undefined} aria-label={region} className={`relative mt-2 ${CHAPTER_HEIGHTS[id]}`}>
+          <WhenNear className="h-full" fallback={<DemoSkeleton />}>
+            <Suspense fallback={<DemoSkeleton />}>{children(run)}</Suspense>
+          </WhenNear>
+        </div>
+      </div>
+    </article>
+  );
+}
+
+/** "100 cards with a real photo". */
+function tierLine(index: number): string {
+  return `${BADGE_THRESHOLDS.collector[index]} ${CATEGORY_COPY.collector.unit} with a real photo`;
+}
+
+/**
+ * Every tier with the real badge art, one per slide, and the real badge
+ * reveal on a tap. Only Legendary keeps its glow.
+ */
+function Achievements() {
+  const titleId = useId();
   const scroller = useRef<HTMLDivElement>(null);
   const [active, setActive] = useState(0);
+  const [Popup, setPopup] = useState<PopupComponent | null>(null);
+  const [open, setOpen] = useState(false);
+  const opener = useRef<HTMLButtonElement>(null);
 
   function panelWidth(): number {
     const first = scroller.current?.firstElementChild as HTMLElement | null;
@@ -51,209 +204,98 @@ export function FeaturePanels() {
     const node = scroller.current;
     if (!node) return;
     setActive(index);
-    node.scrollTo({ left: index * panelWidth(), behavior: reducedMotion() ? "auto" : "smooth" });
+    node.scrollTo({ left: index * panelWidth(), behavior: prefersReducedMotion() ? "auto" : "smooth" });
+  }
+
+  /** The chapter's one reveal: the shown badge lands with a small overshoot. */
+  function land(index: number) {
+    const badge = scroller.current?.children[index]?.querySelector("[data-badge]");
+    if (!canAnimate(badge) || prefersReducedMotion()) return;
+    badge.animate(
+      [
+        { opacity: 0, transform: "translateY(16px) scale(0.85)" },
+        { opacity: 1, transform: "translateY(0) scale(1.04)", offset: 0.7 },
+        { opacity: 1, transform: "translateY(0) scale(1)" },
+      ],
+      { duration: 500, easing: EASE, fill: "backwards" },
+    );
+  }
+
+  useEffect(() => {
+    const node = scroller.current;
+    if (!node) return;
+    return onceVisible(node, () => land(0));
+  }, []);
+
+  async function openPopup() {
+    if (!Popup) {
+      const popup = await import("@/components/landing/showcase/badge-popup");
+      setPopup(() => popup.default);
+    }
+    setOpen(true);
+  }
+
+  function closePopup() {
+    setOpen(false);
+    window.requestAnimationFrame(() => opener.current?.focus({ preventScroll: true }));
   }
 
   return (
-    <section aria-label="What you can do on Slabhold" className="mt-14">
-      <style>{LEADERBOARD_STYLES}</style>
-      <div
-        ref={scroller}
-        onScroll={(event) =>
-          setActive(panelIndexAt(event.currentTarget.scrollLeft, panelWidth(), FEATURE_PANELS.length))
-        }
-        className="-mx-6 flex min-w-0 snap-x snap-mandatory scroll-px-6 gap-4 overflow-x-auto overscroll-x-contain px-6 pb-2 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
-      >
-        {FEATURE_PANELS.map((panel, index) => (
-          <article
-            key={panel.id}
-            aria-roledescription="slide"
-            aria-label={`${index + 1} of ${FEATURE_PANELS.length}: ${panel.title}`}
-            className="flex w-full shrink-0 snap-start flex-col overflow-hidden rounded-[1.75rem] border border-white/10 bg-white/[0.04] p-5 sm:w-[340px]"
-          >
-            <p className="font-mono text-[11px] font-medium text-[#A78BFA]">
-              {String(index + 1).padStart(2, "0")} · {panel.tag}
-            </p>
-            <h2 className="mt-2 text-[22px] font-semibold tracking-tight text-white">{panel.title}</h2>
-            <p className="mt-1 text-[15px] leading-6 text-zinc-400">{panel.line}</p>
-            <div className="relative mt-5 flex min-h-[248px] flex-1 flex-col justify-center">
-              <SampleTag />
-              {PANEL_VISUALS[panel.id]}
+    <article data-chapter="achievements" aria-labelledby={titleId} className="lg:grid lg:grid-cols-2 lg:items-center lg:gap-16">
+      <ChapterCopy id="achievements" titleId={titleId} />
+      <div className="mt-6 min-w-0 lg:mt-0">
+        <Toolbar>
+          <ReplayButton onClick={() => land(active)} />
+        </Toolbar>
+        <div
+          ref={scroller}
+          onScroll={(event) => setActive(panelIndexAt(event.currentTarget.scrollLeft, panelWidth(), BADGE_TIERS.length))}
+          className={`-mx-6 mt-2 flex min-w-0 snap-x snap-mandatory scroll-px-6 gap-4 overflow-x-auto overscroll-x-contain px-6 [scrollbar-width:none] [-ms-overflow-style:none] lg:mx-0 lg:scroll-px-0 lg:px-0 [&::-webkit-scrollbar]:hidden ${CHAPTER_HEIGHTS.achievements}`}
+        >
+          {BADGE_TIERS.map((tier, index) => (
+            <div
+              key={tier}
+              aria-roledescription="slide"
+              aria-label={`${index + 1} of ${BADGE_TIERS.length}: ${TIER_LABELS[tier]}`}
+              className="flex w-full shrink-0 snap-start flex-col items-center justify-center rounded-2xl border border-white/[0.08] bg-white/[0.03] p-6 text-center"
+            >
+              <Badge category="collector" tier={tier} size={tier === "legendary" ? 144 : 128} label="" />
+              <p className="mt-5 text-[20px] leading-7 font-semibold text-white">{TIER_LABELS[tier]}</p>
+              <p className="mt-1 text-[15px] leading-6 text-zinc-400 tabular-nums">{tierLine(index)}</p>
             </div>
-          </article>
-        ))}
-      </div>
-      <div className="mt-4 flex items-center justify-center gap-1" role="group" aria-label="Choose a panel">
-        {FEATURE_PANELS.map((panel, index) => (
-          <button
-            key={panel.id}
-            type="button"
-            onClick={() => show(index)}
-            aria-label={`Show ${panel.title}`}
-            aria-current={index === active ? "true" : undefined}
-            className="grid h-11 w-7 place-items-center rounded-full focus-visible:ring-2 focus-visible:ring-[#A78BFA] focus-visible:outline-none"
-          >
-            <span
-              className={`block h-2 rounded-full transition-[width,background-color] duration-200 motion-reduce:transition-none ${
-                index === active ? "w-5 bg-[#A78BFA]" : "w-2 bg-white/25"
-              }`}
-            />
-          </button>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function SampleTag() {
-  return (
-    <span className="absolute -top-1 right-0 z-10 rounded-full border border-white/15 bg-black/50 px-2 py-0.5 font-mono text-[10px] font-medium text-zinc-300 backdrop-blur">
-      Sample
-    </span>
-  );
-}
-
-const SAMPLE_LINE = [22, 26, 24, 31, 29, 36, 34, 42, 40, 47, 52, 50, 58].map((value, index) => ({
-  date: `2026-01-${String(index * 2 + 1).padStart(2, "0")}`,
-  value,
-}));
-
-/** A small value-history line. Sample points, no axis. The same spark as the app. */
-function ValueLine() {
-  return <ValueSpark id="landing-line" points={SAMPLE_LINE} tone="accent" height={56} ariaLabel="Sample value history" className="h-14" />;
-}
-
-function TrackVisual() {
-  return (
-    <div className="flex items-center gap-4">
-      <div className="w-[38%] shrink-0">
-        <CardSlabArt card={SAMPLE_SLABS[0]} index={9} source={NO_PHOTO} status="loading" onStatus={noop} sizes="130px" />
-      </div>
-      <div className="min-w-0 flex-1">
-        <p className="font-mono text-[10px] text-zinc-500">Value</p>
-        <p className="text-[28px] font-semibold tracking-tight text-white tabular-nums">$412</p>
-        <p className="text-sm font-semibold text-[#A78BFA] tabular-nums">+$38 · 10.2%</p>
-        <div className="mt-2">
-          <ValueLine />
-        </div>
-        <p className="font-mono text-[10px] text-zinc-500">Last 90 days</p>
-      </div>
-    </div>
-  );
-}
-
-const SAMPLE_COMPS: CompListing[] = [
-  { id: "c1", itemId: "c1", title: "Sample rookie · PSA 10", soldPrice: 418, soldDate: "2026-10-24", platform: "eBay", condition: "", shipping: null, url: "" },
-  { id: "c2", itemId: "c2", title: "Sample rookie · PSA 10", soldPrice: 405, soldDate: "2026-10-19", platform: "eBay", condition: "", shipping: null, url: "" },
-  { id: "c3", itemId: "c3", title: "Sample rookie · PSA 10", soldPrice: 399, soldDate: "2026-10-12", platform: "eBay", condition: "", shipping: null, url: "" },
-];
-
-function CompsVisual() {
-  return (
-    <div className="rounded-2xl border border-zinc-200 bg-white px-4 pt-3 pb-1 text-zinc-900 dark:border-white/10 dark:bg-[#09090B]/70 dark:text-zinc-100">
-      <div className="flex items-center justify-between gap-2">
-        <p className="text-sm font-semibold">Matched to recent sold prices</p>
-        <p className="shrink-0 font-mono text-[10px] text-zinc-500">via Trawl</p>
-      </div>
-      <div className="mt-1">
-        <CompsList comps={SAMPLE_COMPS} />
-      </div>
-    </div>
-  );
-}
-
-function sampleRow(rank: number, title: string, score: number, accent: string): BoardRow {
-  return {
-    id: `sample-${rank}`,
-    userId: `sample-${rank}`,
-    rank,
-    score,
-    title,
-    subtitle: "Sample collector",
-    href: "",
-    avatarUrl: null,
-    accent,
-    scoreLabel: "cards",
-    isNew: false,
-    mine: false,
-  };
-}
-
-function LeaderboardVisual() {
-  return (
-    <div className="space-y-2">
-      <PodiumRow entry={sampleRow(1, "Collector one", 42, "#7C3AED")} boardId="most-cards-added" />
-      <PodiumRow entry={sampleRow(2, "Collector two", 35, "#5B21B6")} boardId="most-cards-added" />
-      <PodiumRow entry={sampleRow(3, "Collector three", 28, "#A78BFA")} boardId="most-cards-added" />
-    </div>
-  );
-}
-
-function BadgesVisual() {
-  return (
-    <ol className="grid grid-cols-3 gap-x-2 gap-y-4" aria-label="Badge tiers, Bronze to Legendary">
-      {BADGE_TIERS.map((tier) => (
-        <li key={tier} className="flex flex-col items-center gap-1.5">
-          <Badge category="collector" tier={tier} size={tier === "legendary" ? 72 : 60} label="" />
-          <span
-            className={`font-mono text-[10px] ${
-              tier === "legendary" ? "font-semibold text-[#A78BFA]" : "text-zinc-400"
-            }`}
-          >
-            {TIER_LABELS[tier]}
-          </span>
-        </li>
-      ))}
-    </ol>
-  );
-}
-
-function SocialVisual() {
-  const threads: { name: string; line: string; unread: boolean; accent: string }[] = [
-    { name: "Collector one", line: "Is that the /25? Clean.", unread: true, accent: "#7C3AED" },
-    { name: "Collector two", line: "Sent you the comps.", unread: false, accent: "#5B21B6" },
-  ];
-  return (
-    <div className="space-y-3">
-      <div className="overflow-hidden rounded-2xl border border-white/10 bg-[#09090B]">
-        <div className="flex items-center gap-3 bg-white/[0.04] p-3">
-          <div className="w-14 shrink-0">
-            <CardSlabArt card={SAMPLE_SLABS[2]} index={9} source={NO_PHOTO} status="loading" onStatus={noop} sizes="56px" />
-          </div>
-          <p className="min-w-0 flex-1 text-[15px] leading-5 font-semibold text-white">
-            New pickup. Numbered to 25 and finally in the PC.
-          </p>
-        </div>
-        <div className="flex items-center gap-2 px-3 py-2">
-          <NoHeadPreload>
-            <Logo className="h-4 w-4" />
-          </NoHeadPreload>
-          <span className="font-mono text-[10px] text-zinc-500">slabhold.app</span>
-        </div>
-      </div>
-      <div className="rounded-2xl border border-white/10 bg-[#09090B]/70">
-        <p className="px-3 pt-2.5 text-sm font-semibold text-white">Messages</p>
-        <ul className="divide-y divide-white/10">
-          {threads.map((thread) => (
-            <li key={thread.name} className="flex items-center gap-3 px-3 py-2.5">
-              <Avatar name={thread.name} accent={thread.accent} expandable={false} className="h-9 w-9 text-xs" />
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-semibold text-white">{thread.name}</span>
-                <span className="block truncate text-xs text-zinc-400">{thread.line}</span>
-              </span>
-              {thread.unread ? <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-[#7C3AED]" /> : null}
-            </li>
           ))}
-        </ul>
+        </div>
+        <div className="mt-2 flex flex-wrap items-center justify-between gap-x-3">
+          <div className="-ml-2 flex items-center" role="group" aria-label="Choose a panel">
+            {BADGE_TIERS.map((tier, index) => (
+              <button
+                key={tier}
+                type="button"
+                onClick={() => show(index)}
+                aria-label={`Show ${TIER_LABELS[tier]}`}
+                aria-current={index === active ? "true" : undefined}
+                className="grid h-11 w-7 place-items-center rounded-full focus-visible:ring-2 focus-visible:ring-[#A78BFA] focus-visible:outline-none"
+              >
+                <span
+                  className={`block h-2 rounded-full transition-[width,background-color] duration-200 motion-reduce:transition-none ${
+                    index === active ? "w-5 bg-[#A78BFA]" : "w-2 bg-white/25"
+                  }`}
+                />
+              </button>
+            ))}
+          </div>
+          <button
+            ref={opener}
+            type="button"
+            onClick={() => void openPopup()}
+            aria-haspopup="dialog"
+            className="inline-flex min-h-11 shrink-0 items-center rounded-full border border-white/10 px-4 text-[15px] font-medium text-zinc-100 transition-colors hover:bg-white/[0.06] focus-visible:ring-2 focus-visible:ring-[#A78BFA] focus-visible:outline-none"
+          >
+            See the pop-up
+          </button>
+        </div>
       </div>
-    </div>
+      {open && Popup ? <Popup tier={BADGE_TIERS[active]} onClose={closePopup} /> : null}
+    </article>
   );
 }
-
-const PANEL_VISUALS: Record<(typeof FEATURE_PANELS)[number]["id"], ReactNode> = {
-  track: <TrackVisual />,
-  comps: <CompsVisual />,
-  leaderboard: <LeaderboardVisual />,
-  badges: <BadgesVisual />,
-  social: <SocialVisual />,
-};

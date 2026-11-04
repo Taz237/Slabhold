@@ -193,8 +193,8 @@ export function homeShareImage(): ShareImage {
     ...blank(),
     kind: "home",
     kicker: "FOR COLLECTORS",
-    title: "Sports cards, together.",
-    detail: "Portfolio, flips, and a feed of collectors.",
+    title: "Comp any card.",
+    detail: "Recent sold prices, your collection and the collectors behind it.",
   };
 }
 

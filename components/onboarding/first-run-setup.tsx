@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { Suspense, lazy, useEffect, useId, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { ArrowLeft, Camera, Users } from "lucide-react";
 import { Avatar } from "@/components/avatar";
@@ -36,6 +36,7 @@ import {
   writeInstallChoice,
   writeSetupState,
 } from "@/lib/onboarding/store";
+import { introSeen, introShows } from "@/lib/onboarding/intro";
 import { installStepShows, type InstallChoice } from "@/lib/pwa/install-step";
 import {
   canAddPick,
@@ -55,6 +56,14 @@ import { isRecentAccount } from "@/lib/social/get-started";
 import { loadServerSuggestions, SETUP_SUGGESTION_LIMIT } from "@/lib/social/load-suggestions";
 import type { ServerSuggestion } from "@/lib/social/suggestion-order";
 import { loadSupabaseBrowser } from "@/lib/supabase/browser-lazy";
+
+/** The five-screen intro: its own chunk, fetched only when a new account is about to see it. */
+const OnboardingIntro = lazy(() => import("@/components/onboarding/intro/intro"));
+
+/** Holds the screen while the intro's chunk loads, so the setup never flashes first. */
+function IntroLoading() {
+  return <div aria-hidden data-intro-loading="" className="fixed inset-0 z-50 bg-[#09090B]" />;
+}
 
 const FOCUSABLE =
   'a[href], button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -134,6 +143,7 @@ export function FirstRunSetup() {
     value: null,
   });
   const [step, setStep] = useState<SetupStep>("collect");
+  const [intro, setIntro] = useState<{ userId: string | null; seen: boolean }>({ userId: null, seen: true });
   const [direction, setDirection] = useState<1 | -1>(1);
   const [sports, setSports] = useState<string[]>([]);
   const [names, setNames] = useState<CollectInterest[]>([]);
@@ -151,6 +161,9 @@ export function FirstRunSetup() {
     const value = userId && typeof window !== "undefined" ? readSetupState(userId) : null;
     setStored({ userId, value });
     if (value && value !== "done") setStep(value);
+  }
+  if (intro.userId !== userId) {
+    setIntro({ userId, seen: userId && typeof window !== "undefined" ? introSeen(userId) : true });
   }
   if (installChoice.userId !== userId) {
     const value = userId && typeof window !== "undefined" ? readInstallChoice(userId) : null;
@@ -193,7 +206,10 @@ export function FirstRunSetup() {
     visible &&
     installChoice.userId === userId &&
     installStepShows({ platform, choice: installChoice.value, setupStored: stored.value });
-  const setupShown = visible && !installFirst;
+  // A new account sees the intro first, then "What do you collect?".
+  const introUp =
+    intro.userId === userId && introShows({ setupShown: visible && !installFirst, step, seen: intro.seen });
+  const setupShown = visible && !installFirst && !introUp;
 
   useEffect(() => {
     setSetupActive(visible);
@@ -278,6 +294,14 @@ export function FirstRunSetup() {
           setInstallChoice({ userId: me.id, value: choice });
         }}
       />
+    );
+  }
+
+  if (introUp) {
+    return (
+      <Suspense fallback={<IntroLoading />}>
+        <OnboardingIntro userId={me.id} onEnd={() => setIntro({ userId: me.id, seen: true })} />
+      </Suspense>
     );
   }
 
@@ -494,7 +518,7 @@ export function FirstRunSetup() {
                         <Avatar
                           name={profile.displayName}
                           image={profile.avatarUrl}
-                          accent={profile.accent || "#7c5cff"}
+                          accent={profile.accent || "#7C3AED"}
                           expandable={false}
                           className="h-12 w-12 text-sm"
                         />

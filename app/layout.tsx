@@ -33,7 +33,7 @@ export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   alternates: { canonical: "./" },
   title: "Slabhold",
-  description: "Sports card portfolio, flips, and a feed of collectors",
+  description: "Comp any sports card, track your collection and follow the collectors who get it",
   applicationName: "Slabhold",
   appleWebApp: {
     capable: true,
@@ -42,14 +42,14 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title: "Slabhold",
-    description: "Sports card portfolio, flips, and a feed of collectors",
+    description: "Comp any sports card, track your collection and follow the collectors who get it",
     siteName: "Slabhold",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
     title: "Slabhold",
-    description: "Sports card portfolio, flips, and a feed of collectors",
+    description: "Comp any sports card, track your collection and follow the collectors who get it",
   },
   icons: {
     apple: { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
