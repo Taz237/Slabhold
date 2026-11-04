@@ -2,28 +2,17 @@
 
 import Link from "next/link";
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import {
-  ArrowDownRight,
-  ArrowUpRight,
-  ChevronRight,
-  Layers,
-  Minus,
-  Share,
-  TrendingDown,
-  TrendingUp,
-  Trophy,
-} from "lucide-react";
+import { ChevronRight, Layers, Minus, Share, TrendingDown, TrendingUp, Trophy } from "lucide-react";
 import { AddCardLink } from "@/components/add-card-link";
+import { TopMovers, muted, tile, type HeroCard } from "@/components/collection-movers";
 import { CardThumb } from "@/components/card-thumb";
 import { ValueChart, type ChartPoint } from "@/components/charts/value-chart";
-import { athIndex } from "@/lib/chart/geometry";
+import { athIndex, dayLabel } from "@/lib/chart/geometry";
 import {
   availableRanges,
   changeAmount,
   chartReady,
   chartSummary,
-  formatPct,
-  pctTone,
   pickRange,
   pointsInRange,
   rangeChange,
@@ -34,14 +23,7 @@ import {
   type RangeChange,
   type RangeId,
 } from "@/lib/chart/range";
-import {
-  PILL_TONE,
-  TONE_CLASS,
-  collectionMinSpan,
-  heroLineTone,
-  heroTone,
-  type HeroTone,
-} from "@/lib/chart/theme";
+import { PILL_TONE, TONE_CLASS, collectionMinSpan, heroLineTone, heroTone, type HeroTone } from "@/lib/chart/theme";
 import { snapshotDateInNewYork } from "@/lib/collection/totals-shared";
 import {
   useCardValueHistory,
@@ -56,10 +38,8 @@ import {
   topCardByValue,
   topMovers,
   type BestCard,
-  type MoverCard,
-  type Movers,
 } from "@/lib/collection/value-series";
-import { cardTitle, hasPaid, isSold, money, signedMoney } from "@/lib/format";
+import { hasPaid, isSold, money, signedMoney } from "@/lib/format";
 import type { SportsCard } from "@/lib/types";
 import { shownCardValue } from "@/lib/value/format";
 import type { CardValueResult } from "@/lib/value/types";
@@ -77,12 +57,12 @@ export type PortfolioHeroProps = {
   valuesFailed: boolean;
   valuesMessage: string | null;
   onRetry: () => void;
-  /** Cards in the current lane, for markers, Best card and Top movers. */
+  /** Cards in the lane, for markers, Best card and Top movers. */
   cards?: SportsCard[];
   values?: Map<string, CardValueResult>;
   /** Opens the cards without a value yet. */
   onShowWithoutValue?: () => void;
-  /** False for a private collection (no public cards): no Share button. */
+  /** False for a private collection: no Share button. */
   shareable?: boolean;
   /** Tests pass saved days in. The app reads them. */
   snapshots?: CollectionSnapshots;
@@ -90,9 +70,7 @@ export type PortfolioHeroProps = {
   cardHistory?: CardHistory;
 };
 
-type HeroCard = MoverCard & { card: SportsCard };
-
-/** The share code, loaded on the tap, not with the page. An object so tests can stand in for it. */
+/** The share code, loaded on the tap. An object so tests can stand in for it. */
 export const collectionShare = {
   load: () => import("@/components/collection-value-share"),
 };
@@ -110,31 +88,21 @@ function storage(): Storage | null {
   }
 }
 
-function shortDate(ymd: string): string {
-  const [y, m, d] = ymd.split("-").map(Number);
-  if (!y || !m || !d) return "";
-  return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
-}
-
-const tile =
-  "min-w-0 rounded-2xl border border-zinc-950/[0.08] bg-white p-3.5 dark:border-white/10 dark:bg-white/[0.03]";
-/** Labels: 12px, 500, muted, sentence case. */
 const label = "text-xs font-medium text-zinc-500 dark:text-zinc-400";
-const muted = "text-zinc-500 dark:text-zinc-400";
-/** The hero pill's arrow. Calm keeps the arrow of its sign. */
-function pillIcon(tone: HeroTone, change: RangeChange | null): typeof TrendingUp {
-  if (tone === "flat") return Minus;
-  if (tone === "calm") return (change?.delta ?? 0) < 0 ? TrendingDown : TrendingUp;
-  return tone === "up" ? TrendingUp : TrendingDown;
+const pulse = "animate-pulse bg-zinc-200/70 dark:bg-white/[0.06]";
+/** Calm keeps its sign's arrow. */
+function PillIcon({ tone, change }: { tone: HeroTone; change: RangeChange | null }) {
+  const Icon = tone === "flat" ? Minus : (change?.delta ?? 0) < 0 ? TrendingDown : TrendingUp;
+  return <Icon className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden />;
 }
-const EASE = "cubic-bezier(0.22, 1, 0.36, 1)";
-/** The headline's one count-up, with the chart's draw-in. */
 const COUNT_MS = 400;
+const press =
+  "outline-none transition-[background-color,color,box-shadow] duration-150 ease-[cubic-bezier(0.22,1,0.36,1)] focus-visible:ring-2 focus-visible:ring-violet-600 motion-reduce:transition-none";
 const useClientLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
 
-/** Collection value with its chart and ranges, then Cards and Best card, then Top movers. */
+/** Collection value and chart, Cards and Best card, then Top movers. */
 export function PortfolioHero(props: PortfolioHeroProps) {
-  // Invested and Profit stay on the props (the dashboard passes them) but are not shown here.
+  // Invested and Profit stay on the props (the dashboard passes them), unshown.
   const {
     cardCount,
     collectionValue,
@@ -214,10 +182,7 @@ type ValueCardProps = {
   shareable: boolean;
 };
 
-/**
- * The one hero. Scrub state lives here, so a scrub re-renders the number and
- * the chart, never the page.
- */
+/** The one hero. Scrub state lives here, so a scrub re-renders the number and the chart, never the page. */
 const CollectionValueCard = memo(function CollectionValueCard({
   collectionValue,
   cardCount,
@@ -252,7 +217,7 @@ const CollectionValueCard = memo(function CollectionValueCard({
   const lineTone = heroLineTone(tone);
   const latest = points[points.length - 1]?.value ?? collectionValue;
   const minSpan = collectionMinSpan(latest);
-  // The ATH only when it means something: not the latest point, and at least 1% above it.
+  // ATH only when not the latest point and 1%+ above it.
   const ath = athIndex(points);
   const showAth = !scrub && ath >= 0 && ath < points.length - 1 && points[ath].value >= latest * 1.01;
   const onScrub = useCallback((point: ChartPoint | null) => {
@@ -267,52 +232,43 @@ const CollectionValueCard = memo(function CollectionValueCard({
   const ariaLabel = chartSummary("Collection value", collectionValue, change, range, firstDate);
   const countText = `${cardCount} card${cardCount === 1 ? "" : "s"}`;
 
-  // The count-up: once, when values finish loading on the client, from the
-  // range's first value (never $0), straight to the text node, no re-render.
+  // The count-up: once, as values land, from the range's first value (never $0), on the text node.
   const countFrom = points[0]?.value ?? 0;
   useClientLayoutEffect(() => {
     const was = wasLoading.current;
     wasLoading.current = valuesLoading;
-    if (!was || valuesLoading || valuesFailed) return;
     const node = headlineRef.current;
     const text = node?.firstChild;
     const to = collectionValue;
     const from = countFrom;
-    if (!node || !text || text.nodeType !== 3 || !(from > 0) || Math.abs(to - from) < 0.01) return;
     if (
-      typeof window.requestAnimationFrame !== "function" ||
+      !was ||
+      valuesLoading ||
+      valuesFailed ||
+      !node ||
+      text?.nodeType !== 3 ||
+      !(from > 0) ||
+      Math.abs(to - from) < 0.01 ||
       document.visibilityState === "hidden" ||
       window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
     ) {
       return;
     }
-    const live = node.getAttribute("aria-live");
     node.setAttribute("aria-live", "off");
-    let start = 0;
-    const done = () => {
-      text.nodeValue = money(to);
-      if (live) node.setAttribute("aria-live", live);
-    };
+    let start = -1;
     const step = (time: number) => {
-      start ||= time;
-      const progress = Math.min(1, (time - start) / COUNT_MS);
-      // The brand curve, cubic-bezier(0.22, 1, 0.36, 1), close enough by an ease-out quint.
-      const eased = 1 - (1 - progress) ** 5;
-      if (progress < 1) {
-        text.nodeValue = money(from + (to - from) * eased);
-        counting.current = window.requestAnimationFrame(step);
-      } else {
-        done();
-      }
+      if (start < 0) start = time;
+      const t = Math.min(1, (time - start) / COUNT_MS);
+      text.nodeValue = money(from + (to - from) * (1 - (1 - t) ** 5));
+      if (t < 1) counting.current = window.requestAnimationFrame(step);
+      else node.setAttribute("aria-live", "polite");
     };
     text.nodeValue = money(from);
     counting.current = window.requestAnimationFrame(step);
     return () => {
       window.cancelAnimationFrame(counting.current);
-      done();
+      text.nodeValue = money(to);
     };
-    // Only the loading edge starts it; the values it reads are the ones at that edge.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [valuesLoading]);
 
   function choose(next: RangeId) {
@@ -342,7 +298,6 @@ const CollectionValueCard = memo(function CollectionValueCard({
 
   const shownChange = scrub ? scrubChange : change;
   const shownTone = heroTone(shownChange);
-  const ChipIcon = pillIcon(shownTone, shownChange);
 
   return (
     <section
@@ -388,21 +343,21 @@ const CollectionValueCard = memo(function CollectionValueCard({
           </p>
         )}
 
-        {/* Fixed height, one line: scrubbing never moves the chart. What a scrubbed day added is in the tooltip. */}
+        {/* One fixed line: scrubbing never moves the chart. */}
         <div className="mt-2 flex h-6 items-center gap-2 overflow-hidden whitespace-nowrap" data-slot="hero-change">
           {valuesLoading ? (
-            <span className="block h-5 w-36 animate-pulse rounded-full bg-zinc-200/70 dark:bg-white/[0.06]" aria-hidden />
+            <span className={`block h-5 w-36 rounded-full ${pulse}`} aria-hidden />
           ) : liveReady && shownChange && canChart ? (
             <>
               <span
                 data-gain={shownTone}
                 className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums ${PILL_TONE[shownTone]}`}
               >
-                <ChipIcon className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden />
+                <PillIcon tone={shownTone} change={shownChange} />
                 {changeAmount(shownChange)}
               </span>
               <span className={`truncate text-xs font-medium ${muted}`}>
-                {scrub ? `· ${shortDate(scrub.date)}` : rangePhrase(range, firstDate)}
+                {scrub ? `· ${dayLabel(scrub.date)}` : rangePhrase(range, firstDate)}
               </span>
             </>
           ) : (
@@ -452,7 +407,7 @@ const CollectionValueCard = memo(function CollectionValueCard({
                   type="button"
                   aria-pressed={on}
                   onClick={() => choose(item.id)}
-                  className={`hit-44 h-9 rounded-full text-xs font-semibold tabular-nums relative outline-none transition-[background-color,color,box-shadow] duration-150 ease-[cubic-bezier(0.22,1,0.36,1)] focus-visible:ring-2 focus-visible:ring-violet-600 motion-reduce:transition-none ${
+                  className={`hit-44 h-9 rounded-full text-xs font-semibold tabular-nums relative ${press} ${
                     on
                       ? "bg-white text-zinc-950 shadow-sm dark:bg-zinc-800 dark:text-zinc-50"
                       : "text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
@@ -476,7 +431,7 @@ const CollectionValueCard = memo(function CollectionValueCard({
   );
 });
 
-/** Fewer than two saved days: a designed placeholder, never a flat or broken line. */
+/** Under two saved days: a placeholder, never a flat line. */
 function ThinChart() {
   return (
     <div
@@ -498,7 +453,6 @@ function ThinChart() {
           strokeDasharray="4 6"
           vectorEffect="non-scaling-stroke"
         />
-        {/* A zero-length round cap: a round end dot even though the box stretches. */}
         <path d="M300 22h0" stroke="currentColor" strokeWidth={8} strokeLinecap="round" vectorEffect="non-scaling-stroke" />
       </svg>
       <p className="relative text-sm font-semibold">Your chart starts today</p>
@@ -544,8 +498,8 @@ function Tile({
       </p>
       {loading ? (
         <>
-          <div className="mt-2.5 h-7 w-20 animate-pulse rounded-md bg-zinc-200/80 dark:bg-white/10" aria-hidden />
-          <div className="mt-auto h-3 w-24 max-w-full animate-pulse rounded-full bg-zinc-200/70 dark:bg-white/[0.06]" aria-hidden />
+          <div className={`mt-2.5 h-7 w-20 rounded-md ${pulse}`} aria-hidden />
+          <div className={`mt-auto h-3 w-24 max-w-full rounded-full ${pulse}`} aria-hidden />
           <span className="sr-only">Loading {name}</span>
         </>
       ) : (
@@ -560,7 +514,7 @@ const helper = `mt-auto pt-2 truncate text-xs leading-4 tabular-nums ${muted}`;
 
 type StatPick = { kind: "best"; best: BestCard<HeroCard> } | { kind: "top"; card: HeroCard };
 
-/** Cards and Best card, one 2-up row. Color only on the Best card's gain. */
+/** Cards and Best (or Top) card. Color only on the gain. */
 function StatRow({
   cardCount,
   withoutValueCount,
@@ -591,7 +545,7 @@ function StatRow({
             <button
               type="button"
               onClick={onShowWithoutValue}
-              className="hit-44 inline-flex h-6 max-w-full items-center gap-0.5 rounded-full bg-violet-500/10 pr-1 pl-2 text-xs font-medium text-violet-700 transition-[background-color,color] duration-150 ease-[cubic-bezier(0.22,1,0.36,1)] outline-none hover:bg-violet-500/15 focus-visible:ring-2 focus-visible:ring-violet-600 motion-reduce:transition-none dark:text-violet-300"
+              className={`hit-44 inline-flex h-6 max-w-full items-center gap-0.5 rounded-full bg-violet-500/10 pr-1 pl-2 text-xs font-medium text-violet-700 hover:bg-violet-500/15 dark:text-violet-300 ${press}`}
             >
               <span className="truncate">{withoutText}</span>
               <ChevronRight className="h-4 w-4 shrink-0" strokeWidth={1.5} aria-hidden />
@@ -637,75 +591,5 @@ function StatRow({
         )}
       </Tile>
     </div>
-  );
-}
-
-const MOVER_ICON = { up: ArrowUpRight, down: ArrowDownRight } as const;
-
-function TopMovers({ movers }: { movers: Movers<HeroCard> }) {
-  const basis = movers.basis === "history" ? "Past 30 days" : "Since you paid";
-  return (
-    <section aria-labelledby="top-movers-title" className={`${tile} p-0`}>
-      <div className="px-3.5 pt-3.5 pb-2">
-        <h2 id="top-movers-title" className="text-[15px] leading-5 font-semibold tracking-tight">
-          Top movers in your collection
-        </h2>
-        {movers.rows.length ? <p className={`mt-0.5 text-xs leading-4 ${muted}`}>{basis}</p> : null}
-      </div>
-      {movers.rows.length ? (
-        <ul className="divide-y divide-zinc-950/[0.06] pb-1 dark:divide-white/[0.06]">
-          {movers.rows.map((row) => {
-            const rowTone = pctTone(row.pct);
-            const word = rowTone === "flat" ? "unchanged" : `${rowTone} ${formatPct(row.pct, false)}`;
-            const Arrow = rowTone === "flat" ? null : MOVER_ICON[rowTone];
-            const last = row.points[row.points.length - 1]?.value ?? 0;
-            return (
-              <li key={row.card.id}>
-                <Link
-                  href={`/cards/${row.card.id}`}
-                  className="flex min-h-14 items-center gap-2.5 px-3.5 py-1.5 outline-none hover:bg-zinc-50 focus-visible:bg-zinc-50 dark:hover:bg-white/[0.03] dark:focus-visible:bg-white/[0.03]"
-                >
-                  <CardThumb card={row.card.card} className="h-11 w-[33px] shrink-0 rounded-md" />
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm leading-5 font-medium" title={row.card.playerName}>
-                      {row.card.playerName}
-                    </span>
-                    <span className={`block truncate text-xs leading-4 max-[359px]:hidden ${muted}`}>
-                      {cardTitle(row.card.card)}
-                    </span>
-                  </span>
-                  {/* 64x24, reserved, so a row never shifts. "Since you paid" rows have no history to draw. */}
-                  <span data-spark-slot="" className="flex h-6 w-16 shrink-0 items-center justify-end">
-                    {row.points.length >= 2 ? (
-                      <ValueChart
-                        variant="spark"
-                        points={row.points}
-                        tone={rowTone}
-                        height={24}
-                        minSpan={collectionMinSpan(last)}
-                        ariaLabel={`${row.card.playerName}, ${word} past 30 days`}
-                      />
-                    ) : row.card.paid != null ? (
-                      <span className={`text-xs whitespace-nowrap tabular-nums ${muted}`}>Paid {money(row.card.paid).replace(/\.00$/, "")}</span>
-                    ) : null}
-                  </span>
-                  <span
-                    data-gain={rowTone}
-                    className={`inline-flex h-6 w-[72px] shrink-0 items-center justify-center gap-0.5 rounded-full text-xs font-semibold tabular-nums ${PILL_TONE[rowTone]}`}
-                  >
-                    {Arrow ? <Arrow className="h-4 w-4 shrink-0" strokeWidth={1.5} aria-hidden /> : null}
-                    {formatPct(row.pct)}
-                  </span>
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
-      ) : (
-        <p className={`px-3.5 pt-1 pb-3.5 text-sm ${muted}`}>
-          Add what you paid on a card with a value to see your top movers.
-        </p>
-      )}
-    </section>
   );
 }

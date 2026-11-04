@@ -12,27 +12,19 @@ import {
   useState,
 } from "react";
 import { money } from "@/lib/format";
-import { athIndex, dateTicks, dayLabel, toDayMs, xScale, yScale } from "@/lib/chart/geometry";
+import { athIndex, dateTicks, toDayMs, xScale, yScale } from "@/lib/chart/geometry";
 import {
   areaPath,
   downsample,
   linePath,
   monotonePath,
   resampleY,
-  smoothStepPath,
   type XY,
 } from "@/lib/chart/path";
 import { axisLabels, valueScale } from "@/lib/chart/scale";
 import { FillStops, TONE_CLASS, ValueSpark, type ChartTone } from "@/components/charts/value-spark";
-import {
-  CHART_BAND,
-  CHART_BASELINE,
-  CHART_GRID,
-  CHART_MEDIAN,
-  CHART_MEDIAN_PILL,
-  CHART_TICK,
-  CHART_TIP,
-} from "@/lib/chart/theme";
+import { CHART } from "@/lib/chart/theme";
+import type { ChartLayers, LayerGeom } from "@/components/charts/median-layer";
 import type { ScrubState } from "@/components/charts/value-chart-scrub";
 import { afterFirstIdle } from "@/lib/ui/idle";
 
@@ -52,40 +44,13 @@ const TOP = 22;
 const BOTTOM = 24;
 const GUTTER = 44;
 
-/** Three dates at this width and up, two below it. */
+/** 3 dates from this width, else 2. */
 const WIDE = 360;
-/** Inliers this close to the line sit on it, so the dots read as "the line is these sales". */
+/** Sales this close to the line sit on it. */
 const SNAP_PX = 6;
-/** A y label this close to the median pill hides. */
 const PILL_CLEAR = 12;
-const PILL_H = 18;
-/** Share of the chart on screen before it counts as seen (draws in, pulses). */
+/** On screen from here: draws in, pulses. */
 const SEEN = 0.35;
-const TIP_H = 22;
-
-/** Rough text widths for Geist, so a pill can be clamped without measuring. */
-function tipWidth(text: string): number {
-  return Math.ceil(text.length * 7 + 20);
-}
-
-function pillWidth(text: string): number {
-  return Math.ceil(text.length * 6.3 + 14);
-}
-
-function clamp(value: number, low: number, high: number): number {
-  return Math.min(Math.max(value, low), Math.max(low, high));
-}
-
-/** y of the drawn line at x, read off straight segments between its points. */
-function lineYAt(xy: XY[], x: number): number | null {
-  if (xy.length < 2 || x < xy[0].x || x > xy[xy.length - 1].x) return null;
-  for (let i = 1; i < xy.length; i++) {
-    const a = xy[i - 1];
-    const b = xy[i];
-    if (x <= b.x) return b.x === a.x ? b.y : a.y + ((b.y - a.y) * (x - a.x)) / (b.x - a.x);
-  }
-  return null;
-}
 
 function reducedMotion(): boolean {
   return typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true;
@@ -116,30 +81,28 @@ type Props = {
   /** "spark" is a small line with no axes and no scrub. */
   variant?: "full" | "spark";
   height?: number;
-  /** "step" for values that jump on a day. Every chart in the app now draws monotone. */
-  curve?: "monotone" | "step";
+  curve?: "monotone";
   /** Changes when the range changes, so the line morphs instead of jumping. */
   morphKey?: string;
   /** Scrubbed point, or null on release. */
   onScrub?: (point: ChartPoint | null) => void;
-  /** A quiet "ATH $285" ring and label over the highest point. */
+  /** A quiet "ATH $285" over the highest point. */
   showAth?: boolean;
   /** Sales as dots. With dots, a scrub or tap picks a dot instead of a line point. */
   dots?: ChartDot[];
   selectedDotId?: string | null;
   onSelectDot?: (id: string | null) => void;
-  /** The median: a solid purple line with its label pill, like "Median $34.99". */
+  /** "Median $34.99", drawn by `layers`. */
   refLine?: { value: number; label: string } | null;
-  /** The middle half of sales, as a purple band behind the median. */
+  /** The middle half of sales, drawn by `layers`. */
   band?: { low: number; high: number } | null;
-  /** Smallest y span, so a small move looks small (the collection: 4% of its value, $5 at least). */
+  /** medianLayers, from the comp chart's chunk. */
+  layers?: (geom: LayerGeom) => ChartLayers;
+  /** Smallest y span. */
   minSpan?: number;
-  /**
-   * The scrub tooltip: "$212.49 · Oct 9", or only the date when the headline
-   * already follows the scrub. Defaults to the date when `onScrub` is set.
-   */
+  /** Tooltip: "$212.49 · Oct 9", or the date alone (the default with `onScrub`). */
   tooltip?: "value" | "date";
-  /** Kept for callers. Every chart now shares one look. */
+  /** Kept for callers; one look for all. */
   minimal?: boolean;
   className?: string;
 };
@@ -154,7 +117,6 @@ type Geometry = {
   xTicks: { x: number; label: string; anchor: "start" | "middle" | "end" }[];
   dots: (XY & { dot: ChartDot })[];
   ath: number;
-  /** The range's first value, as a hairline. */
   base: { x: number; y: number } | null;
   ref: { y: number; label: string } | null;
   band: { y: number; h: number } | null;
@@ -165,7 +127,6 @@ function build(
   dots: ChartDot[],
   width: number,
   height: number,
-  curve: "monotone" | "step",
   refLine: Props["refLine"],
   band: Props["band"],
   minSpan: number | undefined,
@@ -193,7 +154,7 @@ function build(
   const x = xScale(t0, t1, edge, plotRight - edge);
   const y = yScale(scale.domain, TOP, bottom);
   const xy = series.map((point) => ({ x: x(point.t), y: y(point.value), point }));
-  const line = xy.length > 1 ? (curve === "step" ? smoothStepPath(xy) : monotonePath(xy)) : "";
+  const line = xy.length > 1 ? monotonePath(xy) : "";
   const labels = axisLabels(scale.ticks);
   const xTicks = dateTicks(t0, t1, width >= WIDE ? 3 : 2).map((item, index, all) => ({
     x: x(item.t),
@@ -215,8 +176,8 @@ function build(
       .map((item) => {
         const cx = x(item.t);
         const cy = Math.min(Math.max(y(item.dot.value), TOP - 6), bottom);
-        const on = item.dot.hollow ? null : lineYAt(xy, cx);
-        return { x: cx, y: on != null && Math.abs(on - cy) <= SNAP_PX ? on : cy, dot: item.dot };
+        const on = item.dot.hollow || xy.length < 2 ? cy : resampleY(xy, cx, cx, 1)[0];
+        return { x: cx, y: Math.abs(on - cy) <= SNAP_PX ? on : cy, dot: item.dot };
       })
       .sort((a, b) => a.x - b.x || a.y - b.y),
     ath: athIndex(series),
@@ -245,7 +206,7 @@ export const ValueChart = memo(function ValueChart(props: Props) {
   return <FullChart {...props} />;
 });
 
-/** "wait" until first on screen, "play" once, "done" with reduced motion or no observer. */
+/** The draw-in: waits for the screen, plays once. */
 type Draw = "wait" | "play" | "done";
 
 function FullChart({
@@ -253,7 +214,6 @@ function FullChart({
   ariaLabel,
   tone,
   height = 184,
-  curve = "monotone",
   morphKey = "",
   onScrub,
   showAth = false,
@@ -264,6 +224,7 @@ function FullChart({
   band = null,
   minSpan,
   tooltip,
+  layers,
   className = "",
 }: Props) {
   const id = useId();
@@ -296,8 +257,7 @@ function FullChart({
     return () => observer.disconnect();
   }, []);
 
-  // One observer: the draw-in waits for the chart's first time on screen, and
-  // the pulse pauses off screen or in a hidden tab. No re-render but the one.
+  // One observer: draws in when first seen; pauses the pulse off screen or in a hidden tab.
   useEffect(() => {
     const node = box.current;
     if (!node || typeof IntersectionObserver === "undefined") return;
@@ -325,8 +285,8 @@ function FullChart({
   }, []);
 
   const geom = useMemo(
-    () => (width > 0 ? build(points, dotList, width, height, curve, refLine, band, minSpan) : null),
-    [points, dotList, width, height, curve, refLine, band, minSpan],
+    () => (width > 0 ? build(points, dotList, width, height, refLine, band, minSpan) : null),
+    [points, dotList, width, height, refLine, band, minSpan],
   );
   // Range morph: animate between the old and new line, straight on the DOM, no re-render per frame.
   const shown = useRef<{ key: string; xy: XY[]; plotRight: number } | null>(null);
@@ -396,7 +356,9 @@ function FullChart({
   const shownIndex = withDots ? (selectedIndex >= 0 ? selectedIndex : null) : active;
 
   useEffect(() => () => window.cancelAnimationFrame(frame.current), []);
-  useEffect(() => afterFirstIdle(() => void loadScrub().catch(() => {})), []);
+  // The scrub chunk writes the tooltip: redraw once it is in.
+  const [, setScrubReady] = useState(Boolean(scrubModule));
+  useEffect(() => afterFirstIdle(() => void loadScrub().then(() => setScrubReady(true), () => {})), []);
 
   // Read by the handlers when they run, which can be after a held tap's render.
   const scrubState = useRef<ScrubState | null>(null);
@@ -449,40 +411,30 @@ function FullChart({
   const drawing = draw !== "done" && !reduce;
   const fewDots = withDots && (geom?.xy.length ?? 0) < 2;
 
-  // The median pill sits at the right edge, or the left one when a sale would hide under it.
-  const pill = (() => {
-    if (!geom?.ref) return null;
-    const w = pillWidth(geom.ref.label);
-    const cy = clamp(geom.ref.y, PILL_H / 2 + 1, geom.bottom - PILL_H / 2);
-    const covers = (x0: number) =>
-      [...geom.dots.filter((item) => !item.dot.hollow), ...(last ? [last] : [])].some(
-        (pt) => pt.x >= x0 - 4 && pt.x <= x0 + w + 4 && Math.abs(pt.y - cy) <= PILL_H / 2 + 4,
-      );
-    const right = width - w;
-    const x = covers(right) && !covers(0) ? 0 : right;
-    return { x, w, cy, right: x === right, label: geom.ref.label };
-  })();
+  const decor =
+    geom && layers
+      ? layers({
+          width,
+          plotRight: geom.plotRight,
+          bottom: geom.bottom,
+          ref: geom.ref,
+          band: geom.band,
+          marks: [...geom.dots.filter((item) => !item.dot.hollow), ...(last ? [last] : [])],
+        })
+      : null;
 
-  // The scrub tooltip: above the point, below it when there is no room, never past the plot's edges.
-  const tip = (() => {
-    if (!activePt || !geom) return null;
-    const point = "point" in activePt ? activePt.point : null;
-    const date = dayLabel(point ? point.date : (activePt as { dot: ChartDot }).dot.date);
-    const value = point ? point.value : (activePt as { dot: ChartDot }).dot.value;
-    const marker = point?.marker ?? null;
-    const dateOnly = !withDots && (tooltip ?? (onScrub ? "date" : "value")) === "date";
-    const room = Math.floor((geom.plotRight - 20) / 7);
-    let text = [dateOnly ? null : money(value), date, marker].filter(Boolean).join(" · ");
-    if (text.length > room) text = `${text.slice(0, Math.max(room - 1, 1)).trimEnd()}…`;
-    const w = Math.min(tipWidth(text), geom.plotRight);
-    const above = activePt.y - 10 - TIP_H;
-    return {
-      text,
-      w,
-      left: Math.round(clamp(activePt.x - w / 2, 0, geom.plotRight - w)),
-      top: Math.round(above >= 0 ? above : activePt.y + 10),
-    };
-  })();
+  const tip =
+    activePt && geom && scrubModule
+      ? scrubModule.chartTip({
+          x: activePt.x,
+          y: activePt.y,
+          plotRight: geom.plotRight,
+          ...("point" in activePt
+            ? { value: activePt.point.value, date: activePt.point.date, marker: activePt.point.marker }
+            : { value: activePt.dot.value, date: activePt.dot.date, marker: null }),
+          dateOnly: !withDots && (tooltip ?? (onScrub ? "date" : "value")) === "date",
+        })
+      : null;
 
   return (
     <div ref={box} className={`chart-surface relative w-full select-none ${className}`} style={{ height }} data-no-pull="">
@@ -541,35 +493,22 @@ function FullChart({
           <g key={`grid-${morphKey}`} className="chart-fade">
             {geom.yTicks.map((item) => (
               <g key={`${item.label}-${item.y}`}>
-                <line x1={0} x2={geom.plotRight} y1={item.y} y2={item.y} className={CHART_GRID} strokeWidth={1} />
-                {pill?.right && Math.abs(item.y - pill.cy) < PILL_CLEAR ? null : (
-                  <text x={width} y={item.y} dy="0.32em" textAnchor="end" className={CHART_TICK}>
+                <line x1={0} x2={geom.plotRight} y1={item.y} y2={item.y} className={CHART.grid} strokeWidth={1} />
+                {decor?.clearY != null && Math.abs(item.y - decor.clearY) < PILL_CLEAR ? null : (
+                  <text x={width} y={item.y} dy="0.32em" textAnchor="end" className={CHART.tick}>
                     {item.label}
                   </text>
                 )}
               </g>
             ))}
             {geom.xTicks.map((item) => (
-              <text key={`${item.label}-${item.x}`} x={item.x} y={height - 6} textAnchor={item.anchor} className={CHART_TICK}>
+              <text key={`${item.label}-${item.x}`} x={item.x} y={height - 6} textAnchor={item.anchor} className={CHART.tick}>
                 {item.label}
               </text>
             ))}
           </g>
 
-          {geom.band ? (
-            <rect data-chart-band="" x={0} width={geom.plotRight} y={geom.band.y} height={geom.band.h} className={CHART_BAND} />
-          ) : null}
-          {geom.ref ? (
-            <line
-              data-chart-median=""
-              x1={0}
-              x2={geom.plotRight}
-              y1={geom.ref.y}
-              y2={geom.ref.y}
-              className={CHART_MEDIAN}
-              strokeWidth={1}
-            />
-          ) : null}
+          {decor?.back}
           {geom.base && !geom.ref ? (
             <line
               data-chart-baseline=""
@@ -577,7 +516,7 @@ function FullChart({
               x2={geom.plotRight}
               y1={geom.base.y}
               y2={geom.base.y}
-              className={CHART_BASELINE}
+              className={CHART.baseline}
               strokeWidth={1}
               strokeDasharray={tone === "down" ? "2 3" : undefined}
             />
@@ -622,20 +561,7 @@ function FullChart({
             })}
           </g>
 
-          {pill ? (
-            <g data-chart-pill="" className={CHART_MEDIAN_PILL} pointerEvents="none">
-              <rect x={pill.x + 0.5} y={pill.cy - PILL_H / 2} width={pill.w - 1} height={PILL_H} rx={PILL_H / 2} strokeWidth={1} />
-              <text
-                x={pill.x + pill.w / 2}
-                y={pill.cy}
-                dy="0.34em"
-                textAnchor="middle"
-                className="text-[10.5px] font-medium tabular-nums"
-              >
-                {pill.label}
-              </text>
-            </g>
-          ) : null}
+          {decor?.front}
 
           <g
             key={`marks-${morphKey}`}
@@ -684,7 +610,7 @@ function FullChart({
         </svg>
       ) : null}
       {tip ? (
-        <div aria-hidden="true" data-chart-tip="" className={CHART_TIP} style={{ width: tip.w, transform: `translate(${tip.left}px, ${tip.top}px)` }}>
+        <div aria-hidden="true" data-chart-tip="" className={CHART.tip} style={{ width: tip.w, transform: `translate(${tip.left}px, ${tip.top}px)` }}>
           {tip.text}
         </div>
       ) : null}

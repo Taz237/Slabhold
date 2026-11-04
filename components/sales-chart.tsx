@@ -3,6 +3,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { PriceFallbackText } from "@/components/price-readout";
 import { ValueChart, type ChartDot, type ChartPoint } from "@/components/charts/value-chart";
+import { medianLayers } from "@/components/charts/median-layer";
 import {
   COMP_PLOT_HEIGHT,
   CompCardSkeleton,
@@ -477,6 +478,7 @@ export function SalesChart({
             ariaLabel={ariaLabel}
             refLine={refLine}
             band={chartBand}
+            layers={medianLayers}
             morphKey={range}
             minimal
           />

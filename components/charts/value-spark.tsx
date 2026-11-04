@@ -10,7 +10,7 @@ export { TONE_CLASS, type ChartTone };
 
 const SPARK_W = 100;
 
-/** Sparkline paths in a 100-wide box, and where the line ends. Empty below two points. */
+/** Spark paths in a 100-wide box and the end point. Empty below two points. */
 export function sparkPaths(
   points: ChartPoint[],
   height: number,
@@ -32,18 +32,13 @@ export function sparkPaths(
   return { line, area: areaPath(line, xy[0].x, xy[xy.length - 1].x, height), end: xy[xy.length - 1] };
 }
 
-/** The shared fill: tone at 26%, 10% at 60%, then nothing. */
 export function FillStops() {
   return FILL_STOPS.map((stop) => (
     <stop key={stop.offset} offset={`${stop.offset * 100}%`} stopColor="currentColor" stopOpacity={stop.opacity} />
   ));
 }
 
-/**
- * The small form of <ValueChart>: same curve, same scale and tones, no axes and
- * no scrub, a solid dot where it ends. No hooks, so a server-rendered page can
- * draw it without chart JS.
- */
+/** The small <ValueChart>: no axes, no scrub, an end dot. No hooks, so it server-renders. */
 export function ValueSpark({
   id,
   points,
@@ -59,7 +54,6 @@ export function ValueSpark({
   tone: ChartTone;
   ariaLabel: string;
   height?: number;
-  /** Smallest y span, so a small move stays small. */
   minSpan?: number;
   className?: string;
 }) {
@@ -92,7 +86,7 @@ export function ValueSpark({
         strokeLinejoin="round"
         vectorEffect="non-scaling-stroke"
       />
-      {/* A zero-length round cap: a true r 1.75 circle even though the box stretches. */}
+      {/* Zero-length round cap: round in a stretched box. */}
       <path
         data-spark-end=""
         d={`M${Math.round(end.x * 10) / 10} ${Math.round(end.y * 10) / 10}h0`}
