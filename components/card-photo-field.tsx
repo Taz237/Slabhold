@@ -3,6 +3,7 @@
 import type { ReactNode, Ref } from "react";
 import { Camera, ImagePlus, Loader2 } from "lucide-react";
 import { PhotoFileInputs } from "@/components/photo-file-inputs";
+import { measureShape, useCardShape } from "@/lib/ui/card-shape";
 import { PHOTO_HEIC_ERROR } from "@/lib/photos";
 
 const photoButton =
@@ -41,6 +42,9 @@ export function CardPhotoField({
   onPick: (file: File | undefined) => void;
   children?: ReactNode;
 }) {
+  // A landscape photo previews wide and whole, the way it will post.
+  const [shape, onShape] = useCardShape(photo);
+  const wide = Boolean(photo) && shape === "landscape";
   return (
     <section className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-white/10 dark:bg-white/[0.03]">
       <p className="text-sm font-medium">Photo</p>
@@ -48,11 +52,19 @@ export function CardPhotoField({
       <div className="mt-3 grid gap-4 sm:grid-cols-[112px_1fr]">
         <div
           className="relative overflow-hidden rounded-xl border border-dashed border-zinc-300 bg-zinc-100 dark:border-white/15 dark:bg-black/30"
-          style={{ aspectRatio: "5 / 7" }}
+          style={{ aspectRatio: wide ? "7 / 5" : "5 / 7" }}
         >
           {photo ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={photo} alt="Card" className="h-full w-full object-cover" />
+            <img
+              src={photo}
+              alt="Card"
+              ref={(img) => {
+                if (img?.complete) measureShape(photo, img, onShape);
+              }}
+              onLoad={(event) => measureShape(photo, event.currentTarget, onShape)}
+              className={`h-full w-full ${wide ? "object-contain" : "object-cover"}`}
+            />
           ) : (
             <button
               type="button"

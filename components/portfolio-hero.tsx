@@ -5,7 +5,7 @@ import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useStat
 import { ChevronRight, Layers, Minus, Share, TrendingDown, TrendingUp, Trophy } from "lucide-react";
 import { AddCardLink } from "@/components/add-card-link";
 import { TopMovers, muted, tile, type HeroCard } from "@/components/collection-movers";
-import { CardThumb } from "@/components/card-thumb";
+import { ShapedCardThumb } from "@/components/card-thumb";
 import { ValueChart, type ChartPoint } from "@/components/charts/value-chart";
 import { athIndex, dayLabel } from "@/lib/chart/geometry";
 import {
@@ -547,7 +547,7 @@ function StatRow({
               className="-m-1 mt-1 block rounded-xl p-1 outline-none focus-visible:ring-2 focus-visible:ring-violet-600"
             >
               <span className="flex min-h-12 items-center gap-2">
-                <CardThumb card={card.card} className="h-12 w-9 shrink-0 rounded-md" />
+                <ShapedCardThumb card={card.card} className="h-12 w-9 shrink-0 rounded-md" landscapeClassName="h-9 w-12 shrink-0 rounded-md" />
                 <span className="min-w-0 truncate text-sm font-medium" title={card.playerName}>
                   {card.playerName}
                 </span>
