@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Logo } from "@/components/logo";
 import { outlineButton, solidButton } from "@/components/button-styles";
+import { NotFoundActions } from "@/components/not-found-actions";
 
 export function NotFoundView() {
   return (
@@ -16,9 +17,17 @@ export function NotFoundView() {
         <Link href="/" className={solidButton}>
           Home
         </Link>
-        <Link href="/signup" className={outlineButton}>
-          Sign up
-        </Link>
+        <NotFoundActions
+          signedIn={
+            <Link href="/search" className={`${outlineButton} min-h-11`}>
+              Search collectors
+            </Link>
+          }
+        >
+          <Link href="/signup" className={`${outlineButton} min-h-11`}>
+            Sign up
+          </Link>
+        </NotFoundActions>
       </div>
     </div>
   );

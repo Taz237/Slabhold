@@ -12,6 +12,7 @@ import { useSocial } from "@/components/social-provider";
 import { toPublicAttachment } from "@/lib/social/card-posts";
 import { sharePostFromCard, shareSessionStore, shareToFeedControl, writeSharedPost } from "@/lib/social/share-to-feed";
 import { POST_LIMIT } from "@/lib/social/types";
+import { CharacterRing } from "@/components/character-ring";
 import { takeScan } from "@/lib/capture";
 import { catalogLabel, type CatalogCard } from "@/lib/card-catalog";
 import {
@@ -215,6 +216,11 @@ export function CardForm({
   );
   const [shareToFeed, setShareToFeed] = useState(restored?.shareToFeed ?? false);
   const [caption, setCaption] = useState(restored?.caption ?? "");
+  // Over the limit with Share to feed on: hold the save rather than cut the caption.
+  const captionOver =
+    !existing && shareToFeedControl({ isPublic: share, share: shareToFeed }).checked && caption.length > POST_LIMIT;
+  // Spread after `disabled` on each submit button so it wins over the saving/photo state.
+  const holdSave = captionOver ? { disabled: true } : undefined;
   const [category, setCategory] = useState<CardCategory>(
     restored?.category ?? (existing ? cardCategory(existing) : "pc"),
   );
@@ -725,6 +731,7 @@ export function CardForm({
   }
 
   async function submit() {
+    if (captionOver) return;
     if (!claimSubmit(savingRef)) return;
     const values = formForSubmit(form, liveForm.current);
     const check = assessNewCardSubmit({
@@ -1563,6 +1570,7 @@ export function CardForm({
           <button
             type="submit"
             disabled={saving || readingPhoto}
+            {...holdSave}
             className="inline-flex h-11 items-center justify-center rounded-full border border-rose-300 px-4 text-sm font-semibold text-rose-700 disabled:opacity-40 dark:border-rose-400/40 dark:text-rose-300"
           >
             Retry
@@ -1606,7 +1614,8 @@ export function CardForm({
           photo={photo}
           accent={accent}
           saving={saving}
-          readingPhoto={readingPhoto}
+          // The flow only uses this to disable Add to collection, so an over-long shared caption holds it too.
+          readingPhoto={readingPhoto || captionOver}
           resumed={showingRestored}
           positionKey={seed != null ? `${userId ?? ""}\n${seed}` : null}
           apply={applyFlowPatch}
@@ -1733,6 +1742,7 @@ export function CardForm({
             <button
               type="submit"
               disabled={saving || readingPhoto}
+              {...holdSave}
               onMouseDown={(e) => {
                 // Keep focus so onBlur validation cannot swallow the first click.
                 if (e.button === 0) e.preventDefault();
@@ -1852,6 +1862,7 @@ export function CardForm({
         <button
           type="submit"
           disabled={saving || readingPhoto}
+          {...holdSave}
           onMouseDown={(e) => {
             // Keep focus so onBlur validation cannot swallow the first click.
             if (e.button === 0) e.preventDefault();
@@ -1908,15 +1919,28 @@ function ShareToFeedField({
         </p>
       )}
       {control.checked ? (
-        <textarea
-          rows={3}
-          value={caption}
-          maxLength={POST_LIMIT}
-          aria-label="Caption"
-          onChange={(e) => onCaption(e.target.value)}
-          className={`${inputClass} mt-3 resize-y`}
-          placeholder="Add a caption"
-        />
+        <>
+          <textarea
+            rows={3}
+            value={caption}
+            aria-label="Caption"
+            aria-invalid={caption.length > POST_LIMIT}
+            onChange={(e) => onCaption(e.target.value)}
+            className={`${inputClass} mt-3 resize-y`}
+            placeholder="Add a caption"
+          />
+          <div className="mt-1 flex min-h-7 items-center justify-end">
+            <CharacterRing length={caption.length} limit={POST_LIMIT} />
+            <span className="sr-only" aria-live="polite">
+              {caption.length}/{POST_LIMIT}
+            </span>
+          </div>
+          {caption.length > POST_LIMIT ? (
+            <p className="mt-1 text-xs leading-5 text-rose-600 dark:text-rose-400">
+              Caption is over 280. Shorten it or turn off Share to feed.
+            </p>
+          ) : null}
+        </>
       ) : null}
     </div>
   );

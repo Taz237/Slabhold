@@ -11,6 +11,7 @@ import { solidButton } from "@/components/button-styles";
 import { ReplyPhotoDrafts } from "@/components/compose-photo-drafts";
 import { MentionText } from "@/components/mention-text";
 import { MentionTextarea } from "@/components/mention-textarea";
+import { CharacterRing } from "@/components/character-ring";
 import { PhotoFileInputs } from "@/components/photo-file-inputs";
 import { ReplyPhotos } from "@/components/reply-photos";
 import { SafetyMenu } from "@/components/safety-menu";
@@ -25,6 +26,7 @@ import { photoAttachFull, photoAttachHint, POST_PHOTO_CAP_HINT } from "@/lib/soc
 import { quotesOf } from "@/lib/social/quotes";
 import { commentsSupportReplyImages, isOptimisticReply } from "@/lib/social/reply-images";
 import { COMMENT_LIMIT, type AuthResult, type PostComment } from "@/lib/social/types";
+import { isOverLimit } from "@/lib/ui/compose-limit";
 import { useKeyboardInset } from "@/lib/ui/use-keyboard-inset";
 import { useCloseOnOutsideTap } from "@/lib/ui/menu-outside-tap";
 
@@ -124,7 +126,7 @@ export function PostView({ id }: { id: string }) {
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (pending) return;
+    if (pending || isOverLimit(draft, COMMENT_LIMIT)) return;
     if (!user) {
       router.push(signupPath(pathname));
       return;
@@ -357,9 +359,20 @@ export function PostView({ id }: { id: string }) {
                 </button>
               </>
             ) : null}
+            <span className="mb-1 flex min-h-11 shrink-0 items-center">
+              <CharacterRing length={draft.length} limit={COMMENT_LIMIT} />
+              <span className="sr-only" aria-live="polite">
+                {draft.length}/{COMMENT_LIMIT}
+              </span>
+            </span>
             <button
               type="submit"
-              disabled={pending || readingPhoto || (!draft.trim() && images.length === 0)}
+              disabled={
+                pending ||
+                readingPhoto ||
+                isOverLimit(draft, COMMENT_LIMIT) ||
+                (!draft.trim() && images.length === 0)
+              }
               className={`${solidButton} mb-1 min-h-11`}
             >
               Reply
