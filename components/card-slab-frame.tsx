@@ -40,8 +40,10 @@ function accentColor(accent: string | null | undefined): string {
 /**
  * The slab or card around a photo, with no state of its own, so the server can
  * draw it (the landing hero) and so can the collection grid. Fills a 3:5 box.
- * A landscape photo gets a 7:5 window centred in the same 3:5 tile, so grid
- * rows keep their height and nothing reflows.
+ * A landscape photo gets a 7:5 window in the same 3:5 tile, so grid rows keep
+ * their height and nothing reflows: at the bottom for a raw card (sharing a
+ * baseline with portrait cards, right above the name and price), centred
+ * under the label for a slab.
  */
 export function SlabFrame({
   card,
@@ -56,7 +58,7 @@ export function SlabFrame({
   if (tileKind(card) === "card") {
     return (
       <div
-        className={`flex aspect-[3/5] w-full flex-col ${wide ? "justify-center" : "justify-end"}`}
+        className="flex aspect-[3/5] w-full flex-col justify-end"
         data-kind="card"
         data-shape={wide ? "landscape" : undefined}
       >

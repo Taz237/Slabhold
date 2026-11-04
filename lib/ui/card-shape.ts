@@ -33,10 +33,8 @@ export function rememberShape(src: string, width: number, height: number): CardS
   if (!key || key.startsWith("data:") || !(width > 0) || !(height > 0)) return shape;
   shapes.delete(key);
   shapes.set(key, shape);
-  if (shapes.size > MAX_SHAPES) {
-    const oldest = shapes.keys().next().value;
-    if (oldest !== undefined) shapes.delete(oldest);
-  }
+  // Maps keep insertion order, so the first key is the oldest.
+  if (shapes.size > MAX_SHAPES) shapes.delete(shapes.keys().next().value!);
   return shape;
 }
 

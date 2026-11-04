@@ -74,10 +74,10 @@ describe("SlabFrame shape", () => {
     assert.ok(frame(SLAB).includes(`class="${SLAB_PHOTO}"`));
   });
 
-  it("gives a raw landscape card a 7:5 window, centred in the same 3:5 tile", () => {
+  it("gives a raw landscape card a 7:5 window at the bottom of the same 3:5 tile", () => {
     const out = frame(RAW, "landscape");
     assert.match(out, /data-shape="landscape"/);
-    assert.match(out, /class="flex aspect-\[3\/5\] w-full flex-col justify-center"/);
+    assert.match(out, /class="flex aspect-\[3\/5\] w-full flex-col justify-end"/);
     assert.match(out, /class="relative aspect-\[7\/5\] w-full overflow-hidden/);
     assert.doesNotMatch(out, /aspect-\[5\/7\]|row-span|col-span/);
   });
