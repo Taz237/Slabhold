@@ -77,13 +77,13 @@ export function DealSheet({
   }
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-end bg-black/50 sm:place-items-center" onClick={onClose}>
+    <div className="backdrop-in fixed inset-0 z-50 grid place-items-end bg-black/50 sm:place-items-center" onClick={onClose}>
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby="deal-sheet-title"
         onClick={(event) => event.stopPropagation()}
-        className="w-full max-w-md rounded-t-3xl bg-[var(--background)] p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:rounded-3xl"
+        className="sheet-up w-full max-w-md rounded-t-3xl bg-[var(--background)] p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:rounded-3xl"
       >
         <h2 id="deal-sheet-title" className="text-lg font-semibold">
           {MARK_SOLD_LABEL}

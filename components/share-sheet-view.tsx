@@ -22,7 +22,7 @@ function XLogo({ className }: { className?: string }) {
 }
 
 const rowClass =
-  "flex min-h-14 w-full items-center gap-3 rounded-2xl px-3 text-left text-[15px] font-semibold transition-colors hover:bg-zinc-100 focus-visible:bg-zinc-100 focus-visible:outline-none dark:hover:bg-white/[0.06] dark:focus-visible:bg-white/[0.06]";
+  "tap-fade flex min-h-14 w-full items-center gap-3 rounded-2xl px-3 text-left text-[15px] font-semibold transition-colors hover:bg-zinc-100 focus-visible:bg-zinc-100 focus-visible:outline-none dark:hover:bg-white/[0.06] dark:focus-visible:bg-white/[0.06]";
 
 const iconWell = "grid h-10 w-10 shrink-0 place-items-center rounded-full";
 
@@ -78,7 +78,7 @@ export function ShareSheet({ target, onClose }: { target: ShareTarget; onClose: 
   if (typeof document === "undefined") return null;
   return createPortal(
     <div
-      className="fixed inset-0 z-[70] grid place-items-end bg-black/60 motion-safe:animate-[lightbox-fade_150ms_ease-out] sm:place-items-center"
+      className="backdrop-in fixed inset-0 z-[70] grid place-items-end bg-black/60 sm:place-items-center"
       onClick={onClose}
     >
       <div
@@ -87,7 +87,7 @@ export function ShareSheet({ target, onClose }: { target: ShareTarget; onClose: 
         aria-modal="true"
         aria-labelledby={titleId}
         onClick={(event) => event.stopPropagation()}
-        className="w-full max-w-sm rounded-t-3xl border-t border-zinc-200 bg-[var(--background)] p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] text-zinc-900 shadow-2xl sm:rounded-3xl sm:border dark:border-white/10 dark:text-zinc-100"
+        className="sheet-up w-full max-w-sm rounded-t-3xl border-t border-zinc-200 bg-[var(--background)] p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] text-zinc-900 shadow-2xl sm:rounded-3xl sm:border dark:border-white/10 dark:text-zinc-100"
       >
         <div aria-hidden className="mx-auto mb-1 h-1 w-9 rounded-full bg-zinc-300 sm:hidden dark:bg-white/20" />
         <div className="flex items-center justify-between gap-3 px-2 pt-1">

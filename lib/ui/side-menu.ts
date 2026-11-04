@@ -42,8 +42,8 @@ export const TAKE_TOUR_LABEL = "Take the tour";
 /** Opens the Add to Home Screen guide. Phones only, never inside the installed app. */
 export const ADD_TO_HOME_LABEL = "Add to Home Screen";
 
-/** The menu slides out (200ms) before the tour or the home-screen guide starts. */
-export const TOUR_AFTER_CLOSE_MS = 240;
+/** The menu slides out (300ms) before the tour or the home-screen guide starts. */
+export const TOUR_AFTER_CLOSE_MS = 340;
 
 /** Admin-only. Hidden until the admin check allows them. */
 export const SIDE_MENU_ADMIN = [
@@ -78,4 +78,49 @@ export function menuItemActive(pathname: string, href: string, username: string 
 /** "9+" past nine, like the other count badges. */
 export function countLabel(count: number): string {
   return count > 9 ? "9+" : String(count);
+}
+
+/*
+ * Edge swipe to open (Home only). Same feel as the back swipe in
+ * lib/ui/nav-motion.ts: the EDGE_* numbers there, copied so this constants
+ * file stays light. drawer-swipe.test.ts keeps them equal.
+ */
+
+/** Touches that start this close to the left edge can pull the menu out. */
+export const MENU_EDGE_PX = 20;
+
+/** Past this share of the panel width, letting go opens (or keeps open). */
+export const MENU_OPEN_RATIO = 0.35;
+
+/** A flick this fast (px per ms) opens or closes even when it is short. */
+export const MENU_FLICK_VELOCITY = 0.45;
+
+/** How far open the panel is, 0..1, for finger travel `dx` from closed. */
+export function menuDragProgress(dx: number, width: number): number {
+  if (width <= 0) return 0;
+  return Math.min(1, Math.max(0, dx / width));
+}
+
+/**
+ * Letting go: a flick wins, otherwise it opens once past 35% from closed, and
+ * an open menu closes once dragged 35% back.
+ */
+export function menuReleaseOpens(input: { progress: number; velocity: number; wasOpen: boolean }): boolean {
+  if (input.velocity >= MENU_FLICK_VELOCITY) return true;
+  if (input.velocity <= -MENU_FLICK_VELOCITY) return false;
+  return input.wasOpen ? input.progress > 1 - MENU_OPEN_RATIO : input.progress > MENU_OPEN_RATIO;
+}
+
+/**
+ * Only on Home: every other page keeps the far-left edge for the back swipe.
+ * Never while the menu or another dialog is already open.
+ */
+export function menuEdgeSwipeAllowed(input: {
+  pathname: string;
+  startX: number;
+  menuOpen: boolean;
+  modalOpen: boolean;
+}): boolean {
+  if (input.pathname !== "/" || input.menuOpen || input.modalOpen) return false;
+  return input.startX >= 0 && input.startX <= MENU_EDGE_PX;
 }

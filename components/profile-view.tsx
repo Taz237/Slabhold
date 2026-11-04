@@ -499,7 +499,7 @@ export function ProfileView({
       <div
         role="tablist"
         aria-label="Profile"
-        className="mt-3 grid min-w-0 grid-cols-4 overflow-x-hidden border-b border-zinc-200 text-[13px] min-[400px]:text-[15px] dark:border-white/10"
+        className="relative mt-3 grid min-w-0 grid-cols-4 overflow-x-hidden border-b border-zinc-200 text-[13px] min-[400px]:text-[15px] dark:border-white/10"
       >
         {PROFILE_TAB_LABELS.map((item) => (
           <ProfileTab
@@ -510,8 +510,19 @@ export function ProfileView({
             {item.label}
           </ProfileTab>
         ))}
+        {/* One underline that slides between tabs, so a switch never flashes. */}
+        <span
+          data-profile-underline=""
+          aria-hidden="true"
+          className="pointer-events-none absolute bottom-0 left-0 flex h-1 w-1/4 justify-center transition-transform duration-[180ms] ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform motion-reduce:transition-none"
+          style={{ transform: `translateX(${Math.max(0, PROFILE_TAB_LABELS.findIndex((item) => item.id === tab)) * 100}%)` }}
+        >
+          <span className="block h-full w-8 max-w-[70%] rounded-full bg-zinc-900 dark:bg-zinc-100" />
+        </span>
       </div>
 
+      {/* Keeps its height while a tab swaps in, so the page never jumps. */}
+      <div data-profile-panel="" className="min-h-[60dvh]">
       {tab === "replies" ? (
         !replyParentsReady ? (
           <LoadingRows />
@@ -658,6 +669,7 @@ export function ProfileView({
           ) : null}
         </>
       )}
+      </div>
     </div>
     </PullToRefresh>
     {editing && isOwn ? (
@@ -811,12 +823,9 @@ function ProfileTab({
       role="tab"
       aria-selected={active}
       onClick={onClick}
-      className={`relative min-w-0 truncate px-1 py-3.5 font-medium ${active ? "font-semibold" : "text-zinc-500"}`}
+      className={`tap-fade relative min-w-0 truncate px-1 py-3.5 font-medium ${active ? "font-semibold" : "text-zinc-500"}`}
     >
       {children}
-      {active ? (
-        <span className="absolute bottom-0 left-1/2 h-1 w-8 max-w-[70%] -translate-x-1/2 rounded-full bg-zinc-900 dark:bg-zinc-100" />
-      ) : null}
     </button>
   );
 }
