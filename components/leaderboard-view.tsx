@@ -5,14 +5,23 @@ import { Crown, Info, Layers, MessageCircle, Plus, TrendingUp } from "lucide-rea
 import { LeaderboardCountdown } from "@/components/leaderboard-countdown";
 import { LeaderboardFocus } from "@/components/leaderboard-focus";
 import { ShareIconButton } from "@/components/share-button";
-import type { BoardRow, LeaderboardBoard, LeaderboardPageModel, OpenSpot, YouRow } from "@/lib/leaderboard/present";
+import type {
+  BoardRow,
+  LastWeekRow,
+  LeaderboardBoard,
+  LeaderboardPageModel,
+  OpenSpot,
+  YouRow,
+} from "@/lib/leaderboard/present";
 import { profileCardsLinkFor, profileLinkFor } from "@/lib/leaderboard/profile-link";
 import {
   FINAL_LABEL,
   LEADERBOARD_PATH,
   RULES_SHEET_LABEL,
   YOU_LABEL,
+  LAST_WEEK_LABEL,
   boardCallToAction,
+  leaderboardHref,
   scoreUnit,
 } from "@/lib/leaderboard/rules";
 import { userHref } from "@/lib/social/user-href";
@@ -387,6 +396,46 @@ function Podium({ board, delay }: { board: LeaderboardBoard; delay: (index: numb
   );
 }
 
+/** Last week's top names under a thin board's open spots. Quiet: zinc only, no podium colours. */
+function LastWeekPreview({ board }: { board: LeaderboardBoard }) {
+  if (board.lastWeekTop.length === 0) return null;
+  const labelId = `board-${board.id}-last-week`;
+  return (
+    <div data-last-week-preview="" className="mt-3 rounded-2xl border border-white/10 px-1 pt-2 pb-1">
+      <p id={labelId} className="px-2 text-xs font-medium text-zinc-500">
+        {LAST_WEEK_LABEL}
+      </p>
+      <ol aria-labelledby={labelId} className="mt-1">
+        {board.lastWeekTop.map((row) => (
+          <li key={row.rank}>
+            <LastWeekLine row={row} />
+          </li>
+        ))}
+      </ol>
+      <Link
+        href={leaderboardHref("previous", board.id)}
+        className={`flex min-h-11 items-center rounded-xl px-2 text-[13px] font-medium text-zinc-400 transition-colors hover:text-white ${FOCUS_RING}`}
+      >
+        See last week
+      </Link>
+    </div>
+  );
+}
+
+function LastWeekLine({ row }: { row: LastWeekRow }) {
+  return (
+    <RowShell
+      href={row.username ? userHref(row.username) : null}
+      className="flex min-h-11 min-w-0 items-center gap-2.5 rounded-xl px-2 transition-colors hover:bg-white/[0.04]"
+    >
+      <span className="w-5 shrink-0 text-center text-[13px] font-medium tabular-nums text-zinc-500">{row.rank}</span>
+      <Avatar title={row.displayName} accent="#3f3f46" url={row.avatarUrl} size={28} />
+      <span className="min-w-0 flex-1 truncate text-sm font-medium text-zinc-200">{row.displayName}</span>
+      <span className="shrink-0 whitespace-nowrap text-[13px] tabular-nums text-zinc-400">{row.scoreText}</span>
+    </RowShell>
+  );
+}
+
 function RankRow({ entry, boardId }: { entry: BoardRow; boardId: string }) {
   const accent = boardAccent(boardId);
   const labels = person(entry, boardId);
@@ -523,6 +572,7 @@ function Board({ board, week }: { board: LeaderboardBoard; week: "current" | "pr
         </div>
       </header>
       <Podium board={board} delay={delay} />
+      <LastWeekPreview board={board} />
       <div data-board-rest="" className="relative">
         {rest.length > 0 ? (
           <ol className="relative mt-3 space-y-1" data-rank-rows="">
