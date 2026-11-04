@@ -125,6 +125,18 @@ export type LeaderboardBoard = {
   you: YouRow | null;
   /** The viewer's row at the bottom of the board. Null when signed out or already in the top 10. */
   yourSpot: YouRow | null;
+  /** Last week's top 3, viewer-filtered. Only on a thin board this week; otherwise empty. */
+  lastWeekTop: LastWeekRow[];
+};
+
+/** One of last week's top names, shown under a thin board's open spots. */
+export type LastWeekRow = {
+  rank: number;
+  /** Clean handle for `/u/<username>`, or "" when the row has none. */
+  username: string;
+  displayName: string;
+  avatarUrl: string | null;
+  scoreText: string;
 };
 
 export type LeaderboardPageModel = {
@@ -313,6 +325,27 @@ function bestForViewer(ranked: readonly RankedEntry[], viewerId: string | null):
   return best;
 }
 
+/** Rows shown in the last-week preview. */
+const LAST_WEEK_PREVIEW_LIMIT = 3;
+const CLEAN_HANDLE = /^[A-Za-z0-9_][A-Za-z0-9_.-]*$/;
+
+function lastWeekRows(entries: readonly RankedEntry[], boardId: string): LastWeekRow[] {
+  return entries.slice(0, LAST_WEEK_PREVIEW_LIMIT).map((entry) => {
+    const handle = entry.subtitle.trim().replace(/^@/, "");
+    const username = CLEAN_HANDLE.test(handle) ? handle : "";
+    const title = entry.title.trim();
+    // Top card post titles are card names, so that board leads with the handle.
+    const displayName = boardId === "top-card-post" ? handle || title : title || handle;
+    return {
+      rank: entry.rank,
+      username,
+      displayName,
+      avatarUrl: entry.avatarUrl,
+      scoreText: `${entry.score} ${entry.scoreLabel}`,
+    };
+  });
+}
+
 function openSpots(filled: number, boardId: string, week: "current" | "previous"): OpenSpot[] {
   const cta = week === "current" ? boardCallToAction(boardId, week) : null;
   const spots: OpenSpot[] = [];
@@ -368,6 +401,16 @@ export function presentLeaderboard(input: {
     const onBoard = entries.some((entry) => entry.mine);
     const you = viewerHasSpot ? ranked.you : null;
     const onThinBoard = input.week === "current" && ranked.thin && onBoard;
+    const lastWeekTop =
+      input.week === "current" && ranked.thin
+        ? lastWeekRows(
+            rankBoard(input.snapshot.previous.boards[tab.id]?.rows ?? [], input.viewer.hiddenIds, viewerId, tab.scoreLabel, {
+              boardId: tab.id,
+              week: "previous",
+            }).entries,
+            tab.id,
+          )
+        : [];
     return {
       id: tab.id,
       label: tab.label,
@@ -380,6 +423,7 @@ export function presentLeaderboard(input: {
       ghosts: openSpots(entries.length, tab.id, input.week),
       you,
       yourSpot: onBoard ? null : you,
+      lastWeekTop,
     };
   });
   const countdown = countdownTo(new Date(input.snapshot.current.end), input.now);
