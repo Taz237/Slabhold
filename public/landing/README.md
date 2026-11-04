@@ -23,6 +23,18 @@ How it was captured (Nov 2026):
 - **Size:** 390×823 CSS px at 2.2×, dark theme, saved as an 860×1815 PNG:
   the same shape as the phone frame (252×532), so nothing is cropped.
 
+## `kitchen-table-card.webp`
+
+Donnie's own card photo, used with his OK on the sample kitchen-table pickup
+(Jake's post) in the landing timeline and on intro screen 4. A raw card in a
+top-loader on a stand: LaBaron Philon, Origins Memorabilia patch, 06/10,
+Panini NIL. It's a real card, so it shows the Panini NIL and Nike marks, and
+no team or league logos.
+
+300×420 (5:7) WebP, quality 85, about 19 KB, metadata stripped, added as
+supplied. Keep it a plain lazy `<img>` with `width`/`height`: no optimizer,
+no next/image, no AVIF, no re-encoding.
+
 ## `avatars/`
 
 Eight fictional, AI-generated demo personas and `personas.md` (handles,

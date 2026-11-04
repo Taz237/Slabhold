@@ -160,7 +160,8 @@ describe("landing chapters", () => {
     const host = await mount(createElement(TimelineDemo, { run: 0 }));
     const images = [...host.querySelectorAll("img")].map((img) => img.getAttribute("src") ?? "");
     assert.ok(images.length > 0);
-    for (const src of images) assert.match(src, /^\/landing\/avatars\/[a-z0-9_]+\.webp$/);
+    // Avatars, plus Donnie's own card photo on the kitchen-table pickup.
+    for (const src of images) assert.match(src, /^\/landing\/(avatars\/[a-z0-9_]+|kitchen-table-card)\.webp$/);
     for (const img of host.querySelectorAll("img")) {
       assert.equal(img.getAttribute("loading"), "lazy");
       assert.equal(img.getAttribute("decoding"), "async");
@@ -170,6 +171,32 @@ describe("landing chapters", () => {
     assert.ok(handles.length > 0);
     for (const handle of handles) assert.ok(personaRows.has(handle), handle);
     assert.equal(host.querySelectorAll("a").length, 0, "no handle is a link");
+  });
+
+  it("puts the real card photo on the kitchen-table pickup only, as a plain lazy image", async () => {
+    assert.ok(existsSync(join(ROOT, "public/landing/kitchen-table-card.webp")));
+    const photo = readFileSync(join(ROOT, "public/landing/kitchen-table-card.webp"));
+    assert.equal(photo.subarray(8, 12).toString(), "WEBP");
+    const { default: TimelineDemo } = await import("@/components/landing/showcase/timeline-demo");
+    const host = await mount(createElement(TimelineDemo, { run: 0 }));
+    const kitchen = host.querySelector('[data-copy="0"] [data-post="p1"]');
+    const img = kitchen?.querySelector('img[src="/landing/kitchen-table-card.webp"]');
+    assert.ok(img, "p1 shows the photo");
+    assert.equal(img.getAttribute("alt"), "Numbered patch card in a top-loader");
+    assert.equal(img.getAttribute("width"), "300");
+    assert.equal(img.getAttribute("height"), "420");
+    assert.equal(img.getAttribute("loading"), "lazy");
+    assert.equal(img.getAttribute("decoding"), "async");
+    assert.match(img.getAttribute("class") ?? "", /aspect-\[5\/7\] w-16/);
+    assert.match(kitchen?.textContent ?? "", /Pickup/, "keeps the Pickup pill");
+    const others = host.querySelectorAll('[data-copy="0"] [data-post]:not([data-post="p1"]) img[src="/landing/kitchen-table-card.webp"]');
+    assert.equal(others.length, 0, "other pickups keep the sample slab");
+    for (const file of ["components/landing/showcase/timeline-demo.tsx", "components/onboarding/intro/screens.tsx"]) {
+      const source = read(file);
+      assert.match(source, /src="\/landing\/kitchen-table-card\.webp"/, file);
+      assert.doesNotMatch(source, /kitchen-table-card[^"]*\.(avif|png|jpe?g)|next\/image/, file);
+    }
+    assert.match(read("components/onboarding/intro/screens.tsx"), /kitchen-table-card\.webp"[^>]*className="aspect-\[5\/7\] w-11/);
   });
 
   it("shows final frames with reduced motion and runs no animations", async () => {

@@ -43,7 +43,8 @@ const DESCRIPTION = "Comp any sports card, track your collection and follow the 
 describe("landing copy", () => {
   it("sells Quick Comp in the sub-line and closing card when the flag is on", async () => {
     const page = await landingText("1");
-    assert.match(page, /Comps as good as the paid tools, free with an account\. Then track your cards and share them with collectors who get it\./);
+    assert.match(page, /Recent sold prices for any card, free with an account\. Then track your cards and share them with collectors who get it\./);
+    assert.doesNotMatch(page, /as good as|paid tools/i, "no comparison claims");
     assert.match(page, /Comp a card, bring your collection, find your people\. It takes a minute\./);
   });
 
@@ -51,7 +52,7 @@ describe("landing copy", () => {
     const page = await landingText(undefined);
     assert.match(page, /Track your sports cards with recent sold prices, and share them with collectors who get it\./);
     assert.match(page, /Bring your collection, find your people\. It takes a minute\./);
-    assert.doesNotMatch(page, /Comp a card|paid tools/);
+    assert.doesNotMatch(page, /Comp a card|Recent sold prices for any card/);
   });
 
   it("describes today's Slabhold in the metadata and the manifest", async () => {
@@ -66,5 +67,18 @@ describe("landing copy", () => {
     const { homeShareImage } = await import("@/lib/social/share-image");
     const image = homeShareImage();
     for (const line of [image.kicker, image.title, image.detail]) assert.doesNotMatch(String(line), /free/i);
+  });
+});
+
+describe("landing claims", () => {
+  it("never compares Quick Comp to other tools, and the chapter line says what it shows", async () => {
+    for (const file of ["components/landing-page.tsx", "components/landing/feature-panels.tsx"]) {
+      assert.doesNotMatch(read(file), /as good as|paid tools/i, file);
+    }
+    const { CHAPTERS } = await import("@/components/landing/feature-panels");
+    assert.equal(
+      CHAPTERS.find((chapter) => chapter.id === "quick-comp")?.line,
+      "Recent sold prices, the median and the range. Free with an account.",
+    );
   });
 });

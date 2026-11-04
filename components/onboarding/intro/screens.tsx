@@ -364,8 +364,10 @@ export function SocialVisual({ motion }: { motion: boolean }) {
                     </div>
                     <p className="mt-2 text-[14px] leading-5 text-zinc-100">{post.body}</p>
                     <div className="mt-2 flex items-center gap-3">
-                      <div className="w-11">
-                        <CardSlabArt card={SAMPLE_SLABS[2]} index={9} source={NO_PHOTO} status="loading" onStatus={noop} sizes="44px" />
+                      <div className="w-11 shrink-0">
+                        {/* Donnie's own card on Jake's kitchen-table post, used with his OK. */}
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src="/landing/kitchen-table-card.webp" alt="Numbered patch card in a top-loader" width={300} height={420} loading="lazy" decoding="async" draggable={false} className="aspect-[5/7] w-11 rounded-md border border-white/10 object-cover" />
                       </div>
                       <span className="flex items-center gap-1.5 text-[13px] text-zinc-500 tabular-nums">
                         <Heart aria-hidden size={16} strokeWidth={1.5} />

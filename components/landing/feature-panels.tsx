@@ -25,7 +25,7 @@ const GraphsDemo = lazy(() => import("@/components/landing/showcase/graphs-demo"
 type PopupComponent = ComponentType<{ tier: BadgeTier; onClose: () => void }>;
 
 export const CHAPTERS = [
-  { id: "quick-comp", title: "Quick Comp", line: "Comps as good as the paid tools. Free with an account." },
+  { id: "quick-comp", title: "Quick Comp", line: "Recent sold prices, the median and the range. Free with an account." },
   { id: "timeline", title: "Collectors talking cards", line: "Follow collectors and see their pickups, questions and replies as they post." },
   { id: "graphs", title: "Your collection, over time", line: "Your cards add up to one value, with its history drawn day by day." },
   { id: "achievements", title: "Earn every tier", line: "Climb from Bronze to Legendary as your collection grows." },

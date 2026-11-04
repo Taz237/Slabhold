@@ -46,7 +46,7 @@ export function LandingPage({ founder = null }: { founder?: FounderShowcase | nu
             </h1>
             <p className="mx-auto mt-4 max-w-sm text-[16px] leading-6 text-zinc-400 lg:mx-0">
               {quickComp
-                ? "Comps as good as the paid tools, free with an account. Then track your cards and share them with collectors who get it."
+                ? "Recent sold prices for any card, free with an account. Then track your cards and share them with collectors who get it."
                 : "Track your sports cards with recent sold prices, and share them with collectors who get it."}
             </p>
             <LandingCta />

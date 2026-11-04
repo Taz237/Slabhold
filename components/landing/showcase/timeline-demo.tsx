@@ -175,14 +175,13 @@ function PostRow({ post, liked }: { post: SamplePost; liked: boolean }) {
           {post.pickup ? (
             <div className="mt-3 flex items-center gap-3">
               <div className="w-16 shrink-0">
-                <CardSlabArt
-                  card={SAMPLE_SLABS[post.id === "p1" ? 2 : 1]}
-                  index={9}
-                  source={NO_PHOTO}
-                  status="loading"
-                  onStatus={noop}
-                  sizes="64px"
-                />
+                {post.id === "p1" ? (
+                  // Donnie's own card, used with his OK. Plain and lazy: no optimizer.
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src="/landing/kitchen-table-card.webp" alt="Numbered patch card in a top-loader" width={300} height={420} loading="lazy" decoding="async" draggable={false} className="aspect-[5/7] w-16 rounded-md border border-white/10 object-cover" />
+                ) : (
+                  <CardSlabArt card={SAMPLE_SLABS[1]} index={9} source={NO_PHOTO} status="loading" onStatus={noop} sizes="64px" />
+                )}
               </div>
               <PostPill label="Pickup" />
             </div>
