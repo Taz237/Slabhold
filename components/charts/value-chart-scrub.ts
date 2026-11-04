@@ -21,8 +21,13 @@ export type ScrubState = {
   select: (index: number | null) => void;
 };
 
-function tick(): void {
+/**
+ * The one chart haptic: a light tick as the scrub lands on a new point or
+ * sale. Throttled to 40 ms by its caller; never fired on release.
+ */
+export function chartHaptic(): void {
   try {
+    // ios-shell-1: call nativeTap("light") here
     navigator.vibrate?.(4);
   } catch {
     // Not supported. Nothing to do.
@@ -35,7 +40,7 @@ function choose(state: ScrubState, index: number | null, haptic: boolean): void 
     const now = Date.now();
     if (now - state.lastTick.current > 40) {
       state.lastTick.current = now;
-      tick();
+      chartHaptic();
     }
   }
   state.select(index);
