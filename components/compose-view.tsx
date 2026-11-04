@@ -20,6 +20,7 @@ import { usePostPhotos } from "@/components/use-post-photos";
 import { useCollection } from "@/components/collection-provider";
 import { QuoteComposePreview } from "@/components/quoted-post-embed";
 import { MentionTextarea } from "@/components/mention-textarea";
+import { CharacterRing } from "@/components/character-ring";
 import { signupPath } from "@/lib/auth/safe-next";
 import { useSocial } from "@/components/social-provider";
 import { takeCompose } from "@/lib/capture";
@@ -45,7 +46,7 @@ import { toPublicAttachment } from "@/lib/social/card-posts";
 import { QUOTE_EMPTY_ERROR, isQuoteSubmitDisabled, shouldConfirmDiscard, validateQuoteContent } from "@/lib/social/quotes";
 import { POST_LIMIT, type PublicCard } from "@/lib/social/types";
 import { loadSupabaseBrowser } from "@/lib/supabase/browser-lazy";
-import { charRing } from "@/lib/ui/char-ring";
+import { isOverLimit } from "@/lib/ui/compose-limit";
 import { useVisualViewport } from "@/lib/ui/use-keyboard-inset";
 import { isUuid } from "@/lib/value/card-value-access";
 
@@ -225,6 +226,7 @@ export function ComposeView() {
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    if (isOverLimit(body, POST_LIMIT)) return;
     const selected = cards.find((card) => card.id === cardId);
     const source =
       selected ?? (externalCard?.id === cardId ? externalCard : null);
@@ -290,13 +292,14 @@ export function ComposeView() {
         ? externalCard
         : null;
 
-  const canPost = quoteId
+  const overLimit = isOverLimit(body, POST_LIMIT);
+  const canPost = !overLimit && (quoteId
     ? !isQuoteSubmitDisabled({
         body,
         imageDataUrl: images[0] ?? null,
         card: attachedPreview,
       }) && !sending && !readingPhoto
-    : (body.trim().length > 0 || images.length > 0 || Boolean(cardId)) && !sending && !readingPhoto;
+    : (body.trim().length > 0 || images.length > 0 || Boolean(cardId)) && !sending && !readingPhoto);
 
   function leave() {
     leaveCompose(router);
@@ -545,7 +548,7 @@ export function ComposeView() {
                 </button>
               ) : null}
               <div className="ml-auto flex items-center pr-2.5">
-                <CharacterRing length={body.length} />
+                <CharacterRing length={body.length} limit={POST_LIMIT} />
                 <span className="sr-only" aria-live="polite">
                   {body.length}/{POST_LIMIT}
                 </span>
@@ -708,62 +711,6 @@ export function ComposeFallback() {
       </div>
       <ComposeSkeletonBody />
     </div>
-  );
-}
-
-function CharacterRing({ length }: { length: number }) {
-  const ring = charRing(length, POST_LIMIT);
-  if (!ring.visible) return null;
-  const size = ring.label ? 28 : 20;
-  const stroke = 2.5;
-  const radius = (size - stroke) / 2;
-  const around = 2 * Math.PI * radius;
-  const tone =
-    ring.tone === "over"
-      ? "stroke-rose-500"
-      : ring.tone === "warn"
-        ? "stroke-amber-500"
-        : "stroke-[#7C3AED] dark:stroke-[#A78BFA]";
-  return (
-    <span
-      aria-hidden
-      data-tone={ring.tone}
-      className="relative grid place-items-center"
-      style={{ width: size, height: size }}
-    >
-      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-        <g transform={`rotate(-90 ${size / 2} ${size / 2})`}>
-          <circle
-            cx={size / 2}
-            cy={size / 2}
-            r={radius}
-            fill="none"
-            strokeWidth={stroke}
-            className="stroke-zinc-200 dark:stroke-zinc-700"
-          />
-          <circle
-            cx={size / 2}
-            cy={size / 2}
-            r={radius}
-            fill="none"
-            strokeWidth={stroke}
-            strokeLinecap="round"
-            strokeDasharray={around}
-            strokeDashoffset={around * (1 - ring.progress)}
-            className={tone}
-          />
-        </g>
-      </svg>
-      {ring.label ? (
-        <span
-          className={`absolute text-[11px] font-medium tabular-nums ${
-            ring.tone === "over" ? "text-rose-500" : "text-amber-500"
-          }`}
-        >
-          {ring.label}
-        </span>
-      ) : null}
-    </span>
   );
 }
 

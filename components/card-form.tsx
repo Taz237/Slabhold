@@ -12,6 +12,7 @@ import { useSocial } from "@/components/social-provider";
 import { toPublicAttachment } from "@/lib/social/card-posts";
 import { sharePostFromCard, shareSessionStore, shareToFeedControl, writeSharedPost } from "@/lib/social/share-to-feed";
 import { POST_LIMIT } from "@/lib/social/types";
+import { CharacterRing } from "@/components/character-ring";
 import { takeScan } from "@/lib/capture";
 import { catalogLabel, type CatalogCard } from "@/lib/card-catalog";
 import {
@@ -1908,15 +1909,23 @@ function ShareToFeedField({
         </p>
       )}
       {control.checked ? (
-        <textarea
-          rows={3}
-          value={caption}
-          maxLength={POST_LIMIT}
-          aria-label="Caption"
-          onChange={(e) => onCaption(e.target.value)}
-          className={`${inputClass} mt-3 resize-y`}
-          placeholder="Add a caption"
-        />
+        <>
+          <textarea
+            rows={3}
+            value={caption}
+            aria-label="Caption"
+            aria-invalid={caption.length > POST_LIMIT}
+            onChange={(e) => onCaption(e.target.value)}
+            className={`${inputClass} mt-3 resize-y`}
+            placeholder="Add a caption"
+          />
+          <div className="mt-1 flex min-h-7 items-center justify-end">
+            <CharacterRing length={caption.length} limit={POST_LIMIT} />
+            <span className="sr-only" aria-live="polite">
+              {caption.length}/{POST_LIMIT}
+            </span>
+          </div>
+        </>
       ) : null}
     </div>
   );

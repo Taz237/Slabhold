@@ -6,6 +6,7 @@ import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "rea
 import { Compass, ImagePlus } from "lucide-react";
 import { Avatar } from "@/components/avatar";
 import { LazyMentionTextarea } from "@/components/mention-textarea-lazy";
+import { CharacterRing } from "@/components/character-ring";
 import { solidButton } from "@/components/button-styles";
 import { useCollection } from "@/components/collection-provider";
 import { AddToHomeTip } from "@/components/add-to-home-tip";
@@ -67,6 +68,7 @@ import {
   firstRunState,
 } from "@/lib/social/first-run";
 import { officialUpdatesUserId } from "@/lib/social/official-updates";
+import { isOverLimit } from "@/lib/ui/compose-limit";
 import { useProgressiveRows } from "@/lib/ui/use-progressive-rows";
 import { SUGGESTION_RAIL_SIZE, inlineSuggestionPool, whoToFollowAfter } from "@/lib/ui/timeline";
 import { POST_LIMIT, type PublicCard } from "@/lib/social/types";
@@ -632,9 +634,11 @@ function Composer({ onPosted }: { onPosted?: () => void }) {
   const [cardId, setCardId] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
+  const overLimit = isOverLimit(body, POST_LIMIT);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    if (overLimit) return;
     const selected = cards.find((card) => card.id === cardId);
     const card: PublicCard | null = selected
       ? {
@@ -731,10 +735,13 @@ function Composer({ onPosted }: { onPosted?: () => void }) {
               <option value="">Attach a card</option>
             </select>
           )}
-          <span className="ml-auto text-xs text-zinc-400">
-            {body.length}/{POST_LIMIT}
+          <span className="ml-auto flex min-h-11 items-center">
+            <CharacterRing length={body.length} limit={POST_LIMIT} />
+            <span className="sr-only" aria-live="polite">
+              {body.length}/{POST_LIMIT}
+            </span>
           </span>
-          <button type="submit" disabled={sending || readingPhoto} className={solidButton}>
+          <button type="submit" disabled={sending || readingPhoto || overLimit} className={solidButton}>
             Post
           </button>
         </div>

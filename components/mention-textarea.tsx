@@ -238,7 +238,8 @@ export const MentionTextarea = forwardRef<
 
   function choose(person: MentionCandidate) {
     if (!mention) return;
-    const next = insertMention(value, mention, person.username, maxLength);
+    // Never cut text: over the limit, the ring shows it and submit waits.
+    const next = insertMention(value, mention, person.username, Number.POSITIVE_INFINITY);
     onChange(next.body);
     setCursor(next.caret);
     setDismissedKey(null);
@@ -340,8 +341,9 @@ export const MentionTextarea = forwardRef<
         placeholder={placeholder}
         aria-autocomplete="list"
         aria-haspopup="listbox"
+        aria-invalid={value.length > maxLength}
         onChange={(event) => {
-          const next = event.target.value.slice(0, maxLength);
+          const next = event.target.value;
           onChange(next);
           setCursor(event.target.selectionStart ?? next.length);
           setDismissedKey(null);

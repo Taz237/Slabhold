@@ -70,7 +70,8 @@ function PlainTextarea({ value, onChange, maxLength, rows = 3, autoFocus = false
         placeholder={placeholder}
         aria-autocomplete="list"
         aria-haspopup="listbox"
-        onChange={(event) => onChange(event.target.value.slice(0, maxLength))}
+        aria-invalid={value.length > maxLength}
+        onChange={(event) => onChange(event.target.value)}
         onFocus={want}
         onPointerDown={want}
         className={className}
