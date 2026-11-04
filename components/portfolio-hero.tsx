@@ -1,15 +1,25 @@
 "use client";
 
 import Link from "next/link";
-import { memo, useCallback, useMemo, useState, type ReactNode } from "react";
-import { Minus, Share, TrendingDown, TrendingUp } from "lucide-react";
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  ArrowDownRight,
+  ArrowUpRight,
+  ChevronRight,
+  Layers,
+  Minus,
+  Share,
+  TrendingDown,
+  TrendingUp,
+  Trophy,
+} from "lucide-react";
 import { AddCardLink } from "@/components/add-card-link";
 import { CardThumb } from "@/components/card-thumb";
 import { ValueChart, type ChartPoint } from "@/components/charts/value-chart";
+import { athIndex } from "@/lib/chart/geometry";
 import {
   availableRanges,
   changeAmount,
-  changeTone,
   chartReady,
   chartSummary,
   formatPct,
@@ -21,11 +31,17 @@ import {
   RANGES,
   readStoredRange,
   writeStoredRange,
-  type ChangeTone,
   type RangeChange,
   type RangeId,
 } from "@/lib/chart/range";
-import { investedAmountLabel, profitAmountLabel, profitAmountTone } from "@/lib/collection/profit-label";
+import {
+  PILL_TONE,
+  TONE_CLASS,
+  collectionMinSpan,
+  heroLineTone,
+  heroTone,
+  type HeroTone,
+} from "@/lib/chart/theme";
 import { snapshotDateInNewYork } from "@/lib/collection/totals-shared";
 import {
   useCardValueHistory,
@@ -37,12 +53,13 @@ import {
   addedMarkers,
   bestCard,
   collectionPoints,
+  topCardByValue,
   topMovers,
   type BestCard,
   type MoverCard,
   type Movers,
 } from "@/lib/collection/value-series";
-import { cardTitle, hasPaid, isSold, money, pct, signedMoney } from "@/lib/format";
+import { cardTitle, hasPaid, isSold, money, signedMoney } from "@/lib/format";
 import type { SportsCard } from "@/lib/types";
 import { shownCardValue } from "@/lib/value/format";
 import type { CardValueResult } from "@/lib/value/types";
@@ -100,28 +117,27 @@ function shortDate(ymd: string): string {
 }
 
 const tile =
-  "min-w-0 rounded-2xl border border-zinc-200 bg-white p-3.5 dark:border-white/10 dark:bg-white/[0.03]";
-const label = "font-mono text-[10.5px] font-medium text-zinc-500 dark:text-zinc-400";
-const upText = "text-emerald-700 dark:text-emerald-400";
-const downText = "text-rose-700 dark:text-rose-400";
-/** Change chips: green up, red down, gray for exactly no change. */
-const CHIP: Record<ChangeTone, string> = {
-  up: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400",
-  down: "bg-rose-500/15 text-rose-700 dark:text-rose-400",
-  flat: "bg-zinc-500/15 text-zinc-600 dark:text-zinc-400",
-};
-const CHIP_ICON: Record<ChangeTone, typeof TrendingUp> = { up: TrendingUp, down: TrendingDown, flat: Minus };
+  "min-w-0 rounded-2xl border border-zinc-950/[0.08] bg-white p-3.5 dark:border-white/10 dark:bg-white/[0.03]";
+/** Labels: 12px, 500, muted, sentence case. */
+const label = "text-xs font-medium text-zinc-500 dark:text-zinc-400";
+const muted = "text-zinc-500 dark:text-zinc-400";
+/** The hero pill's arrow. Calm keeps the arrow of its sign. */
+function pillIcon(tone: HeroTone, change: RangeChange | null): typeof TrendingUp {
+  if (tone === "flat") return Minus;
+  if (tone === "calm") return (change?.delta ?? 0) < 0 ? TrendingDown : TrendingUp;
+  return tone === "up" ? TrendingUp : TrendingDown;
+}
+const EASE = "cubic-bezier(0.22, 1, 0.36, 1)";
+/** The headline's one count-up, with the chart's draw-in. */
+const COUNT_MS = 400;
+const useClientLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
 
-/** Collection value, the chart and ranges, then a 2×2 of stats and Top movers. */
+/** Collection value with its chart and ranges, then Cards and Best card, then Top movers. */
 export function PortfolioHero(props: PortfolioHeroProps) {
+  // Invested and Profit stay on the props (the dashboard passes them) but are not shown here.
   const {
     cardCount,
     collectionValue,
-    profitTotal,
-    pricedCount,
-    pricedInvested,
-    investedAmount,
-    paidCount,
     withoutValueCount,
     valuesLoading,
     valuesFailed,
@@ -145,11 +161,18 @@ export function PortfolioHero(props: PortfolioHeroProps) {
         paid: hasPaid(card) ? (card.purchasePrice as number) : null,
         value: shownCardValue(card, values.get(card.id)),
         sold: isSold(card),
+        createdAt: card.createdAt,
         card,
       })),
     [cards, values],
   );
-  const best = useMemo(() => (valuesLoading || valuesFailed ? null : bestCard(movers)), [movers, valuesLoading, valuesFailed]);
+  const pick = useMemo<StatPick | null>(() => {
+    if (valuesLoading || valuesFailed) return null;
+    const best = bestCard(movers);
+    if (best && best.gain > 0) return { kind: "best", best };
+    const top = topCardByValue(movers);
+    return top ? { kind: "top", card: top } : null;
+  }, [movers, valuesLoading, valuesFailed]);
   const top = useMemo(() => topMovers(movers, history), [movers, history]);
   const markers = useMemo(() => addedMarkers(cards), [cards]);
 
@@ -166,16 +189,11 @@ export function PortfolioHero(props: PortfolioHeroProps) {
         markers={markers}
         shareable={shareable}
       />
-      <StatGrid
-        invested={investedAmount}
-        paidCount={paidCount}
+      <StatRow
         cardCount={cardCount}
-        profit={profitTotal}
-        pricedCount={pricedCount}
-        pricedInvested={pricedInvested}
         withoutValueCount={withoutValueCount}
         onShowWithoutValue={onShowWithoutValue}
-        best={best}
+        pick={pick}
         loading={valuesLoading}
         failed={valuesFailed}
       />
@@ -217,6 +235,9 @@ const CollectionValueCard = memo(function CollectionValueCard({
   const [shareFailed, setShareFailed] = useState(false);
   const today = snapshotDateInNewYork();
   const liveReady = !valuesLoading && !valuesFailed;
+  const headlineRef = useRef<HTMLParagraphElement>(null);
+  const counting = useRef(0);
+  const wasLoading = useRef(valuesLoading);
 
   const allPoints = useMemo(
     () => collectionPoints(snapshots.rows, { today, live: liveReady ? collectionValue : null, markers }),
@@ -227,8 +248,17 @@ const CollectionValueCard = memo(function CollectionValueCard({
   const points = useMemo(() => pointsInRange(allPoints, range, today), [allPoints, range, today]);
   const change = rangeChange(points);
   const firstDate = points[0]?.date ?? "";
-  const tone = changeTone(change);
-  const onScrub = useCallback((point: ChartPoint | null) => setScrub(point), []);
+  const tone = heroTone(change);
+  const lineTone = heroLineTone(tone);
+  const latest = points[points.length - 1]?.value ?? collectionValue;
+  const minSpan = collectionMinSpan(latest);
+  // The ATH only when it means something: not the latest point, and at least 1% above it.
+  const ath = athIndex(points);
+  const showAth = !scrub && ath >= 0 && ath < points.length - 1 && points[ath].value >= latest * 1.01;
+  const onScrub = useCallback((point: ChartPoint | null) => {
+    window.cancelAnimationFrame(counting.current);
+    setScrub(point);
+  }, []);
 
   const scrubChange: RangeChange | null = scrub && points.length ? rangeChange([points[0], scrub]) : null;
   const headline = scrub ? scrub.value : collectionValue;
@@ -236,6 +266,54 @@ const CollectionValueCard = memo(function CollectionValueCard({
   const canChart = chartReady(allPoints);
   const ariaLabel = chartSummary("Collection value", collectionValue, change, range, firstDate);
   const countText = `${cardCount} card${cardCount === 1 ? "" : "s"}`;
+
+  // The count-up: once, when values finish loading on the client, from the
+  // range's first value (never $0), straight to the text node, no re-render.
+  const countFrom = points[0]?.value ?? 0;
+  useClientLayoutEffect(() => {
+    const was = wasLoading.current;
+    wasLoading.current = valuesLoading;
+    if (!was || valuesLoading || valuesFailed) return;
+    const node = headlineRef.current;
+    const text = node?.firstChild;
+    const to = collectionValue;
+    const from = countFrom;
+    if (!node || !text || text.nodeType !== 3 || !(from > 0) || Math.abs(to - from) < 0.01) return;
+    if (
+      typeof window.requestAnimationFrame !== "function" ||
+      document.visibilityState === "hidden" ||
+      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
+    ) {
+      return;
+    }
+    const live = node.getAttribute("aria-live");
+    node.setAttribute("aria-live", "off");
+    let start = 0;
+    const done = () => {
+      text.nodeValue = money(to);
+      if (live) node.setAttribute("aria-live", live);
+    };
+    const step = (time: number) => {
+      start ||= time;
+      const progress = Math.min(1, (time - start) / COUNT_MS);
+      // The brand curve, cubic-bezier(0.22, 1, 0.36, 1), close enough by an ease-out quint.
+      const eased = 1 - (1 - progress) ** 5;
+      if (progress < 1) {
+        text.nodeValue = money(from + (to - from) * eased);
+        counting.current = window.requestAnimationFrame(step);
+      } else {
+        done();
+      }
+    };
+    text.nodeValue = money(from);
+    counting.current = window.requestAnimationFrame(step);
+    return () => {
+      window.cancelAnimationFrame(counting.current);
+      done();
+    };
+    // Only the loading edge starts it; the values it reads are the ones at that edge.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [valuesLoading]);
 
   function choose(next: RangeId) {
     setScrub(null);
@@ -263,12 +341,12 @@ const CollectionValueCard = memo(function CollectionValueCard({
   }
 
   const shownChange = scrub ? scrubChange : change;
-  const shownTone = changeTone(shownChange);
-  const ChipIcon = CHIP_ICON[shownTone];
+  const shownTone = heroTone(shownChange);
+  const ChipIcon = pillIcon(shownTone, shownChange);
 
   return (
     <section
-      className="relative overflow-hidden rounded-3xl border border-zinc-200 bg-white dark:border-white/10 dark:bg-[#18181B]"
+      className="relative overflow-hidden rounded-3xl border border-zinc-950/[0.08] bg-white dark:border-white/10 dark:bg-[#18181B]"
       aria-label="Collection value"
     >
       <div className="relative p-4 sm:p-5">
@@ -301,6 +379,8 @@ const CollectionValueCard = memo(function CollectionValueCard({
           </>
         ) : (
           <p
+            ref={headlineRef}
+            data-slot="hero-value"
             className="mt-0.5 text-[40px] leading-[1.1] font-semibold tracking-[-0.03em] tabular-nums"
             aria-live={scrub ? "off" : "polite"}
           >
@@ -308,7 +388,7 @@ const CollectionValueCard = memo(function CollectionValueCard({
           </p>
         )}
 
-        {/* Fixed height, one line: scrubbing never moves the chart. What a scrubbed day added is labeled on the chart. */}
+        {/* Fixed height, one line: scrubbing never moves the chart. What a scrubbed day added is in the tooltip. */}
         <div className="mt-2 flex h-6 items-center gap-2 overflow-hidden whitespace-nowrap" data-slot="hero-change">
           {valuesLoading ? (
             <span className="block h-5 w-36 animate-pulse rounded-full bg-zinc-200/70 dark:bg-white/[0.06]" aria-hidden />
@@ -316,17 +396,17 @@ const CollectionValueCard = memo(function CollectionValueCard({
             <>
               <span
                 data-gain={shownTone}
-                className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums ${CHIP[shownTone]}`}
+                className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums ${PILL_TONE[shownTone]}`}
               >
-                <ChipIcon className="h-3.5 w-3.5" aria-hidden />
+                <ChipIcon className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden />
                 {changeAmount(shownChange)}
               </span>
-              <span className="truncate text-xs font-medium text-zinc-500 dark:text-zinc-400">
+              <span className={`truncate text-xs font-medium ${muted}`}>
                 {scrub ? `· ${shortDate(scrub.date)}` : rangePhrase(range, firstDate)}
               </span>
             </>
           ) : (
-            <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">{countText}</span>
+            <span className={`text-xs font-medium ${muted}`}>{countText}</span>
           )}
         </div>
         {valuesFailed ? (
@@ -344,11 +424,13 @@ const CollectionValueCard = memo(function CollectionValueCard({
             <ValueChart
               points={points}
               ariaLabel={ariaLabel}
-              tone={tone}
-              curve="step"
+              tone={lineTone}
+              curve="monotone"
               morphKey={range}
               onScrub={onScrub}
-              showAth
+              showAth={showAth}
+              minSpan={minSpan}
+              tooltip="date"
               height={CHART_HEIGHT}
             />
           )}
@@ -358,7 +440,8 @@ const CollectionValueCard = memo(function CollectionValueCard({
           <div
             role="group"
             aria-label="Chart range"
-            className="mt-3 grid gap-1 rounded-full bg-zinc-100 p-1 dark:bg-white/[0.06]"
+            data-slot="range-track"
+            className="mt-3 grid gap-1 rounded-full bg-zinc-100 p-1 dark:bg-white/[0.04]"
             style={{ gridTemplateColumns: `repeat(${available.length}, minmax(0, 1fr))` }}
           >
             {RANGES.filter((item) => available.includes(item.id)).map((item) => {
@@ -369,13 +452,20 @@ const CollectionValueCard = memo(function CollectionValueCard({
                   type="button"
                   aria-pressed={on}
                   onClick={() => choose(item.id)}
-                  className={`hit-44 h-9 rounded-full text-xs font-semibold tabular-nums transition-colors duration-150 outline-none focus-visible:ring-2 focus-visible:ring-violet-600 motion-reduce:transition-none ${
+                  className={`hit-44 h-9 rounded-full text-xs font-semibold tabular-nums relative outline-none transition-[background-color,color,box-shadow] duration-150 ease-[cubic-bezier(0.22,1,0.36,1)] focus-visible:ring-2 focus-visible:ring-violet-600 motion-reduce:transition-none ${
                     on
                       ? "bg-white text-zinc-950 shadow-sm dark:bg-zinc-800 dark:text-zinc-50"
                       : "text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
                   }`}
                 >
                   {item.label}
+                  {on ? (
+                    <span
+                      aria-hidden
+                      data-range-dot=""
+                      className={`absolute bottom-1 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full bg-current ${TONE_CLASS[lineTone]}`}
+                    />
+                  ) : null}
                 </button>
               );
             })}
@@ -393,11 +483,26 @@ function ThinChart() {
       className="relative flex flex-col items-center justify-center gap-1 overflow-hidden rounded-xl bg-zinc-50 px-6 text-center dark:bg-white/[0.03]"
       style={{ height: CHART_HEIGHT }}
     >
-      <svg aria-hidden viewBox="0 0 300 80" preserveAspectRatio="none" className="absolute inset-x-0 bottom-6 h-20 w-full text-violet-500/25">
-        <path d="M0 64 C60 60 90 50 130 52 S210 30 300 22" fill="none" stroke="currentColor" strokeWidth="2" strokeDasharray="4 6" vectorEffect="non-scaling-stroke" />
+      <svg
+        aria-hidden
+        viewBox="0 0 300 80"
+        preserveAspectRatio="none"
+        className="absolute inset-x-4 bottom-6 h-20 w-[calc(100%-2rem)] overflow-visible text-violet-600 dark:text-violet-400"
+      >
+        <path
+          d="M0 64 C60 60 90 50 130 52 S210 30 300 22"
+          fill="none"
+          stroke="currentColor"
+          strokeOpacity={0.25}
+          strokeWidth="2"
+          strokeDasharray="4 6"
+          vectorEffect="non-scaling-stroke"
+        />
+        {/* A zero-length round cap: a round end dot even though the box stretches. */}
+        <path d="M300 22h0" stroke="currentColor" strokeWidth={8} strokeLinecap="round" vectorEffect="non-scaling-stroke" />
       </svg>
       <p className="relative text-sm font-semibold">Your chart starts today</p>
-      <p className="relative text-xs text-zinc-500 dark:text-zinc-400">Check back tomorrow to see it move.</p>
+      <p className={`relative text-xs ${muted}`}>Check back tomorrow to see it move.</p>
     </div>
   );
 }
@@ -419,6 +524,8 @@ export function ValuesRetry({
   );
 }
 
+const TILE_ICON: Record<string, typeof Layers> = { Cards: Layers, "Best card": Trophy, "Top card": Trophy };
+
 function Tile({
   name,
   loading,
@@ -428,13 +535,17 @@ function Tile({
   loading?: boolean;
   children: ReactNode;
 }) {
+  const Icon = TILE_ICON[name] ?? Layers;
   return (
-    <div className={tile}>
-      <p className={label}>{name}</p>
+    <div className={`${tile} flex min-h-[124px] flex-col`} data-stat-tile={name}>
+      <p className={`flex h-4 items-center gap-1.5 ${label}`}>
+        <Icon className="h-4 w-4 shrink-0" strokeWidth={1.5} aria-hidden />
+        {name}
+      </p>
       {loading ? (
         <>
-          <div className="mt-2 h-6 w-20 animate-pulse rounded-md bg-zinc-200/80 dark:bg-white/10" aria-hidden />
-          <div className="mt-2 h-3 w-24 max-w-full animate-pulse rounded-full bg-zinc-200/70 dark:bg-white/[0.06]" aria-hidden />
+          <div className="mt-2.5 h-7 w-20 animate-pulse rounded-md bg-zinc-200/80 dark:bg-white/10" aria-hidden />
+          <div className="mt-auto h-3 w-24 max-w-full animate-pulse rounded-full bg-zinc-200/70 dark:bg-white/[0.06]" aria-hidden />
           <span className="sr-only">Loading {name}</span>
         </>
       ) : (
@@ -444,91 +555,84 @@ function Tile({
   );
 }
 
-const value = "mt-1 truncate text-xl font-semibold tracking-tight tabular-nums";
-const sub = "mt-0.5 truncate text-xs font-medium tabular-nums";
+const value = "mt-2 truncate text-xl leading-7 font-semibold tracking-tight tabular-nums";
+const helper = `mt-auto pt-2 truncate text-xs leading-4 tabular-nums ${muted}`;
 
-function StatGrid({
-  invested,
-  paidCount,
+type StatPick = { kind: "best"; best: BestCard<HeroCard> } | { kind: "top"; card: HeroCard };
+
+/** Cards and Best card, one 2-up row. Color only on the Best card's gain. */
+function StatRow({
   cardCount,
-  profit,
-  pricedCount,
-  pricedInvested,
   withoutValueCount,
   onShowWithoutValue,
-  best,
+  pick,
   loading,
   failed,
 }: {
-  invested: number;
-  paidCount: number;
   cardCount: number;
-  profit: number;
-  pricedCount: number;
-  pricedInvested: number;
   withoutValueCount: number;
   onShowWithoutValue?: () => void;
-  best: BestCard<HeroCard> | null;
+  pick: StatPick | null;
   loading: boolean;
   failed: boolean;
 }) {
-  const profitTone = profitAmountTone(pricedCount, profit);
-  const toneClass = profitTone === "up" ? upText : profitTone === "down" ? downText : "";
-  const profitPct = pricedInvested > 0 && pricedCount > 0 ? pct(profit / pricedInvested) : null;
   const withoutText = `${withoutValueCount} without a value yet`;
+  const name = pick?.kind === "top" ? "Top card" : "Best card";
+  const card = pick ? (pick.kind === "best" ? pick.best.card : pick.card) : null;
 
   return (
     <div className="grid grid-cols-2 gap-2" data-slot="collection-stats">
-      <Tile name="Invested">
-        <p className={value}>{investedAmountLabel(invested)}</p>
-        <p className={`${sub} text-zinc-500 dark:text-zinc-400`}>
-          {paidCount > 0 ? `${paidCount} of ${cardCount} with a price` : "Add what you paid"}
-        </p>
-      </Tile>
-      <Tile name="Profit" loading={loading}>
-        <p className={`${value} ${failed ? "" : toneClass}`}>{failed ? "—" : profitAmountLabel(pricedCount, profit)}</p>
-        <p className={`${sub} ${failed || !profitPct ? "text-zinc-500 dark:text-zinc-400" : toneClass}`}>
-          {failed ? "Values didn't load" : profitPct ? `${profitPct} on ${pricedCount} card${pricedCount === 1 ? "" : "s"}` : "Needs a price paid and a value"}
-        </p>
-      </Tile>
       <Tile name="Cards">
-        <p className={value}>{cardCount}</p>
+        <p className={value}>{cardCount.toLocaleString("en-US")}</p>
         {loading || failed ? (
-          <p className={`${sub} text-zinc-500 dark:text-zinc-400`}>&nbsp;</p>
+          <p className={helper}>&nbsp;</p>
         ) : withoutValueCount > 0 && onShowWithoutValue ? (
-          <button
-            type="button"
-            onClick={onShowWithoutValue}
-            className="hit-44 mt-0.5 block max-w-full truncate text-left text-xs font-semibold text-violet-700 underline-offset-2 hover:underline dark:text-violet-300"
-          >
-            {withoutText}
-          </button>
+          <span className="mt-auto pt-2">
+            <button
+              type="button"
+              onClick={onShowWithoutValue}
+              className="hit-44 inline-flex h-6 max-w-full items-center gap-0.5 rounded-full bg-violet-500/10 pr-1 pl-2 text-xs font-medium text-violet-700 transition-[background-color,color] duration-150 ease-[cubic-bezier(0.22,1,0.36,1)] outline-none hover:bg-violet-500/15 focus-visible:ring-2 focus-visible:ring-violet-600 motion-reduce:transition-none dark:text-violet-300"
+            >
+              <span className="truncate">{withoutText}</span>
+              <ChevronRight className="h-4 w-4 shrink-0" strokeWidth={1.5} aria-hidden />
+            </button>
+          </span>
         ) : (
-          <p className={`${sub} text-zinc-500 dark:text-zinc-400`}>
-            {withoutValueCount > 0 ? withoutText : "All have a value"}
-          </p>
+          <p className={helper}>{withoutValueCount > 0 ? withoutText : "All have a value"}</p>
         )}
       </Tile>
-      <Tile name="Best card" loading={loading}>
-        {best ? (
-          <Link
-            href={`/cards/${best.card.id}`}
-            className="-m-1 mt-0 flex min-h-11 items-center gap-2.5 rounded-xl p-1 outline-none focus-visible:ring-2 focus-visible:ring-violet-600"
-          >
-            <CardThumb card={best.card.card} className="h-10 w-[30px] shrink-0 rounded-md" />
-            <span className="min-w-0">
-              <span className="block truncate text-sm font-semibold" title={`${best.card.playerName}, ${formatPct(best.pct)}`}>
-                {best.card.playerName}
+      <Tile name={name} loading={loading}>
+        {pick && card ? (
+          <>
+            <Link
+              href={`/cards/${card.card.id}`}
+              className="-m-1 mt-1 flex min-h-11 items-center gap-2 rounded-xl p-1 outline-none focus-visible:ring-2 focus-visible:ring-violet-600"
+            >
+              <CardThumb card={card.card} className="h-12 w-9 shrink-0 rounded-md" />
+              <span className="min-w-0">
+                <span className="block truncate text-sm font-medium" title={card.playerName}>
+                  {card.playerName}
+                </span>
+                {pick.kind === "best" ? (
+                  <span
+                    data-gain="up"
+                    className={`mt-1 inline-flex rounded-full px-1.5 py-0.5 text-xs leading-4 font-semibold tabular-nums ${PILL_TONE.up}`}
+                  >
+                    {signedMoney(pick.best.gain)}
+                  </span>
+                ) : (
+                  <span className="mt-0.5 block text-sm font-semibold whitespace-nowrap tabular-nums">
+                    {money(pick.card.value ?? 0)}
+                  </span>
+                )}
               </span>
-              <span className={`block truncate text-xs font-semibold tabular-nums ${best.gain >= 0 ? upText : downText}`}>
-                {signedMoney(best.gain)}
-              </span>
-            </span>
-          </Link>
+            </Link>
+            <p className={helper}>{pick.kind === "best" ? "Since you paid" : "Your most valuable"}</p>
+          </>
         ) : (
           <>
             <p className={value}>—</p>
-            <p className={`${sub} text-zinc-500 dark:text-zinc-400`}>{failed ? "Values didn't load" : "Needs a price paid and a value"}</p>
+            <p className={helper}>{failed ? "Values didn't load" : "Needs a price paid and a value"}</p>
           </>
         )}
       </Tile>
@@ -536,53 +640,61 @@ function StatGrid({
   );
 }
 
+const MOVER_ICON = { up: ArrowUpRight, down: ArrowDownRight } as const;
+
 function TopMovers({ movers }: { movers: Movers<HeroCard> }) {
   const basis = movers.basis === "history" ? "Past 30 days" : "Since you paid";
   return (
     <section aria-labelledby="top-movers-title" className={`${tile} p-0`}>
-      <div className="px-3.5 pt-3.5 pb-1">
-        <h2 id="top-movers-title" className="text-[15px] font-semibold tracking-tight">
+      <div className="px-3.5 pt-3.5 pb-2">
+        <h2 id="top-movers-title" className="text-[15px] leading-5 font-semibold tracking-tight">
           Top movers in your collection
         </h2>
-        {movers.rows.length ? <p className={`${label} mt-0.5`}>{basis}</p> : null}
+        {movers.rows.length ? <p className={`mt-0.5 text-xs leading-4 ${muted}`}>{basis}</p> : null}
       </div>
       {movers.rows.length ? (
-        <ul className="pb-1.5">
+        <ul className="divide-y divide-zinc-950/[0.06] pb-1 dark:divide-white/[0.06]">
           {movers.rows.map((row) => {
             const rowTone = pctTone(row.pct);
             const word = rowTone === "flat" ? "unchanged" : `${rowTone} ${formatPct(row.pct, false)}`;
+            const Arrow = rowTone === "flat" ? null : MOVER_ICON[rowTone];
+            const last = row.points[row.points.length - 1]?.value ?? 0;
             return (
               <li key={row.card.id}>
                 <Link
                   href={`/cards/${row.card.id}`}
-                  className="flex min-h-14 items-center gap-3 px-3.5 py-2 outline-none hover:bg-zinc-50 focus-visible:bg-zinc-50 dark:hover:bg-white/[0.03] dark:focus-visible:bg-white/[0.03]"
+                  className="flex min-h-14 items-center gap-2.5 px-3.5 py-1.5 outline-none hover:bg-zinc-50 focus-visible:bg-zinc-50 dark:hover:bg-white/[0.03] dark:focus-visible:bg-white/[0.03]"
                 >
                   <CardThumb card={row.card.card} className="h-11 w-[33px] shrink-0 rounded-md" />
-                  {/* The name gets the whole row; the card line shares its row with the spark and %. */}
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-semibold">{row.card.playerName}</span>
-                    <span className="mt-0.5 flex items-center gap-2">
-                      <span className="min-w-0 flex-1 truncate text-xs text-zinc-500 dark:text-zinc-400">
-                        {cardTitle(row.card.card)}
-                      </span>
-                      {row.points.length >= 2 ? (
-                        <span className="w-12 shrink-0">
-                          <ValueChart
-                            variant="spark"
-                            points={row.points}
-                            tone={rowTone}
-                            height={20}
-                            ariaLabel={`${row.card.playerName}, ${word} past 30 days`}
-                          />
-                        </span>
-                      ) : null}
-                      <span
-                        data-gain={rowTone}
-                        className={`w-16 shrink-0 rounded-full px-1.5 py-0.5 text-center text-xs font-semibold tabular-nums ${CHIP[rowTone]}`}
-                      >
-                        {formatPct(row.pct)}
-                      </span>
+                    <span className="block truncate text-sm leading-5 font-medium" title={row.card.playerName}>
+                      {row.card.playerName}
                     </span>
+                    <span className={`block truncate text-xs leading-4 max-[359px]:hidden ${muted}`}>
+                      {cardTitle(row.card.card)}
+                    </span>
+                  </span>
+                  {/* 64x24, reserved, so a row never shifts. "Since you paid" rows have no history to draw. */}
+                  <span data-spark-slot="" className="flex h-6 w-16 shrink-0 items-center justify-end">
+                    {row.points.length >= 2 ? (
+                      <ValueChart
+                        variant="spark"
+                        points={row.points}
+                        tone={rowTone}
+                        height={24}
+                        minSpan={collectionMinSpan(last)}
+                        ariaLabel={`${row.card.playerName}, ${word} past 30 days`}
+                      />
+                    ) : row.card.paid != null ? (
+                      <span className={`text-xs whitespace-nowrap tabular-nums ${muted}`}>Paid {money(row.card.paid).replace(/\.00$/, "")}</span>
+                    ) : null}
+                  </span>
+                  <span
+                    data-gain={rowTone}
+                    className={`inline-flex h-6 w-[72px] shrink-0 items-center justify-center gap-0.5 rounded-full text-xs font-semibold tabular-nums ${PILL_TONE[rowTone]}`}
+                  >
+                    {Arrow ? <Arrow className="h-4 w-4 shrink-0" strokeWidth={1.5} aria-hidden /> : null}
+                    {formatPct(row.pct)}
                   </span>
                 </Link>
               </li>
@@ -590,7 +702,7 @@ function TopMovers({ movers }: { movers: Movers<HeroCard> }) {
           })}
         </ul>
       ) : (
-        <p className="px-3.5 pt-1 pb-3.5 text-sm text-zinc-500 dark:text-zinc-400">
+        <p className={`px-3.5 pt-1 pb-3.5 text-sm ${muted}`}>
           Add what you paid on a card with a value to see your top movers.
         </p>
       )}

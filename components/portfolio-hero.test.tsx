@@ -167,15 +167,13 @@ describe("PortfolioHero hero", () => {
 });
 
 describe("PortfolioHero stat grid", () => {
-  it("is one 2x2 of Invested, Profit, Cards and Best card, nothing repeated from the hero", () => {
+  it("is one 2-up row of Cards and Best card, nothing repeated from the hero", () => {
     win.localStorage.clear();
     const out = html();
     const grid = out.slice(out.lastIndexOf("<div", out.indexOf('data-slot="collection-stats"')));
     const words = text(grid);
-    for (const name of ["Invested", "Profit", "Cards", "Best card"]) assert.match(words, new RegExp(name));
-    assert.match(words, /\$1,100\.00/);
-    assert.match(words, /\+\$250\.00/);
-    assert.match(words, /\+25\.0% on 2 cards/);
+    for (const name of ["Cards", "Best card"]) assert.match(words, new RegExp(name));
+    assert.doesNotMatch(words, /Invested|Profit/);
     assert.match(words, /1 without a value yet/);
     assert.doesNotMatch(words, /\$285\.00/);
     assert.match(grid, /grid-cols-2/);
@@ -200,9 +198,11 @@ describe("PortfolioHero stat grid", () => {
     });
   });
 
-  it("paints a loss red", () => {
-    const words = html({ profitTotal: -100 });
-    assert.match(words, /text-rose-700[^"]*"[^>]*>−\$100\.00/);
+  it("never shows invested or profit, even with a loss", () => {
+    const words = text(html({ profitTotal: -100 }));
+    assert.doesNotMatch(words, /−\$100\.00/);
+    assert.doesNotMatch(words, /Profit/);
+    assert.doesNotMatch(words, /Invested/);
   });
 
   it("asks for a price paid until a card has one and a value", () => {

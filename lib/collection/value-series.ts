@@ -52,6 +52,8 @@ export type MoverCard = {
   paid: number | null;
   value: number | null;
   sold: boolean;
+  /** When the card was added. Breaks a tie for the top card. */
+  createdAt?: string;
 };
 
 export type BestCard<T extends MoverCard> = { card: T; gain: number; pct: number };
@@ -65,6 +67,26 @@ export function bestCard<T extends MoverCard>(cards: T[]): BestCard<T> | null {
     if (!best || gain > best.gain) best = { card: item, gain, pct: (gain / item.paid) * 100 };
   }
   return best;
+}
+
+/**
+ * The most valuable held card by its current value, for when no card is up
+ * since it was paid for ("Top card", never a loss under "Best card"). The
+ * newest card wins a tie. Sold cards and cards with no value are skipped.
+ */
+export function topCardByValue<T extends MoverCard>(cards: T[]): T | null {
+  let top: T | null = null;
+  for (const item of cards) {
+    if (item.sold || item.value == null || !(item.value > 0)) continue;
+    if (
+      !top ||
+      item.value > (top.value as number) ||
+      (item.value === top.value && (item.createdAt ?? "") > (top.createdAt ?? ""))
+    ) {
+      top = item;
+    }
+  }
+  return top;
 }
 
 export type MoverRow<T extends MoverCard> = {
