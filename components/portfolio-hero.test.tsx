@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
-import { after, describe, it } from "node:test";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { after, before, describe, it } from "node:test";
 import { JSDOM } from "jsdom";
 import { act, createElement } from "react";
 import { createRoot } from "react-dom/client";
@@ -283,5 +285,257 @@ describe("PortfolioHero top movers and best card", () => {
     const movers = out.slice(out.indexOf("Top movers in your collection"));
     assert.match(movers, /data-gain="flat"[^>]*class="[^"]*zinc[^"]*"[^>]*>0\.0%</);
     assert.match(movers, /aria-label="Jordan Love, unchanged past 30 days"/);
+  });
+});
+
+/** Fires once on observe with a 340px box, like the hero on a phone. */
+class HeroResizeObserver {
+  constructor(private callback: (entries: { contentRect: { width: number } }[]) => void) {}
+  observe() {
+    this.callback([{ contentRect: { width: 340 } }]);
+  }
+  disconnect() {}
+}
+
+async function mountHero(props: Partial<PortfolioHeroProps> = {}) {
+  const host = win.document.createElement("div");
+  win.document.body.appendChild(host);
+  const root = createRoot(host);
+  await act(async () => {
+    root.render(createElement(PortfolioHero, { ...base, ...props }));
+  });
+  return {
+    host,
+    rerender: (next: Partial<PortfolioHeroProps>) =>
+      act(async () => {
+        root.render(createElement(PortfolioHero, { ...base, ...next }));
+      }),
+    unmount: () =>
+      act(async () => {
+        root.unmount();
+        host.remove();
+      }),
+  };
+}
+
+async function settle(ms: number) {
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, ms));
+  });
+}
+
+/** 40 saved days at `start`; the live value is `now`. */
+function steady(start: number) {
+  return { rows: rows.map((row) => ({ ...row, value: start })), loading: false };
+}
+
+describe("PortfolioHero redesign: calm scale and tone", () => {
+  before(() => expose("ResizeObserver", HeroResizeObserver));
+  after(() => expose("ResizeObserver", undefined));
+
+  it("paints a 19-cent week calm purple, sign kept, with no rose anywhere (Donnie's case)", async () => {
+    win.localStorage.setItem("slabhold:chart-range:collection", "7d");
+    const props = { snapshots: steady(285.5), collectionValue: 285.31 };
+    const out = html(props);
+    assert.match(out, /data-gain="calm"[^>]*class="[^"]*bg-violet-500\/12 text-violet-700 dark:text-violet-300/);
+    assert.match(text(out), /−\$0\.19 \(−0\.1%\) past 7 days/);
+    assert.doesNotMatch(out, /rose/);
+    const hero = await mountHero(props);
+    const svg = hero.host.querySelector("svg[role='img']");
+    assert.match(svg?.getAttribute("class") ?? "", /text-violet-600 dark:text-violet-400/);
+    assert.doesNotMatch(hero.host.innerHTML, /rose/);
+    // The ATH ($285.50) is 0.07% above the latest value: hidden.
+    assert.doesNotMatch(hero.host.textContent ?? "", /ATH/);
+    // The y axis spans at least 4% of the value: $280 / $285 / $290, not $285.00 / $285.50.
+    const ticks = [...hero.host.querySelectorAll("text")].map((node) => node.textContent);
+    assert.ok(ticks.includes("$280") && ticks.includes("$290"), ticks.join(","));
+    await hero.unmount();
+    win.localStorage.clear();
+  });
+
+  it("is calm at +0.4%, emerald at +0.6%, rose at −0.6%, and gray at exactly $0", () => {
+    win.localStorage.setItem("slabhold:chart-range:collection", "7d");
+    const gain = (now: number) => html({ snapshots: steady(100), collectionValue: now }).match(/data-gain="(\w+)"[^>]*class="([^"]*)"/);
+    assert.equal(gain(100.4)?.[1], "calm");
+    assert.equal(gain(100.6)?.[1], "up");
+    assert.match(gain(100.6)?.[2] ?? "", /emerald/);
+    assert.equal(gain(99.4)?.[1], "down");
+    assert.match(gain(99.4)?.[2] ?? "", /rose/);
+    assert.equal(gain(100)?.[1], "flat");
+    assert.match(gain(100)?.[2] ?? "", /zinc/);
+    win.localStorage.clear();
+  });
+
+  it("never colors alone: up and down keep their sign, no change reads 0.0%", () => {
+    win.localStorage.setItem("slabhold:chart-range:collection", "7d");
+    assert.match(text(html({ snapshots: steady(100), collectionValue: 110 })), /\+\$10\.00 \(\+10\.0%\)/);
+    assert.match(text(html({ snapshots: steady(100), collectionValue: 90 })), /−\$10\.00 \(−10\.0%\)/);
+    assert.match(text(html({ snapshots: steady(100), collectionValue: 100 })), /\$0\.00 \(0\.0%\)/);
+    win.localStorage.clear();
+  });
+
+  it("draws a smooth line, never steps", () => {
+    const source = readFileSync(join(process.cwd(), "components/portfolio-hero.tsx"), "utf8");
+    assert.match(source, /curve="monotone"/);
+    assert.doesNotMatch(source, /curve="step"/);
+  });
+
+  it("shows the ATH only when it is 1%+ above the latest value, and never while scrubbing", async () => {
+    win.localStorage.clear();
+    const peak = rows.map((row, index) => ({ ...row, value: index === 30 ? 300 : 280 }));
+    const hero = await mountHero({ snapshots: { rows: peak, loading: false }, collectionValue: 285 });
+    assert.match(hero.host.textContent ?? "", /ATH \$300/);
+    const svg = hero.host.querySelector("svg[role='img']");
+    assert.ok(svg);
+    const press = new win.MouseEvent("pointerdown", { bubbles: true, clientX: 100 });
+    Object.defineProperty(press, "pointerType", { value: "touch" });
+    Object.defineProperty(press, "pointerId", { value: 1 });
+    svg.dispatchEvent(press);
+    await settle(60);
+    assert.doesNotMatch(hero.host.textContent ?? "", /ATH/);
+    await hero.unmount();
+
+    const rising = await mountHero({});
+    assert.doesNotMatch(rising.host.textContent ?? "", /ATH/, "the latest point is the high");
+    await rising.unmount();
+  });
+
+  it("puts the range chips in one track under the chart, the active one with a dot in the line's tone", async () => {
+    win.localStorage.clear();
+    const hero = await mountHero({});
+    const track = hero.host.querySelector('[data-slot="range-track"]');
+    assert.ok(track);
+    assert.equal(track.getAttribute("role"), "group");
+    assert.ok(track.previousElementSibling?.querySelector("svg[role='img']"), "right after the chart");
+    const active = track.querySelector("[aria-pressed='true']");
+    const dot = active?.querySelector("[data-range-dot]");
+    assert.ok(dot);
+    assert.match(dot.getAttribute("class") ?? "", /emerald/);
+    assert.equal(track.querySelectorAll("[data-range-dot]").length, 1);
+    await hero.unmount();
+  });
+});
+
+describe("PortfolioHero redesign: the count-up", () => {
+  before(() => expose("ResizeObserver", HeroResizeObserver));
+  after(() => expose("ResizeObserver", undefined));
+
+  const headline = (host: HTMLElement) => host.querySelector('[data-slot="hero-value"]');
+
+  it("does not count when the value is there at mount", async () => {
+    win.localStorage.clear();
+    const hero = await mountHero({});
+    assert.equal(headline(hero.host)?.textContent, "$285.00");
+    await hero.unmount();
+  });
+
+  it("counts once from the range's first value, never $0, when values land, then hands aria-live back", async () => {
+    win.localStorage.clear();
+    const hero = await mountHero({ valuesLoading: true, collectionValue: 0 });
+    await hero.rerender({ valuesLoading: false });
+    const node = headline(hero.host);
+    assert.ok(node);
+    // 30D starts at $41 (carried in); it counts up to $285.
+    assert.equal(node.textContent, "$41.00");
+    assert.equal(node.getAttribute("aria-live"), "off");
+    await settle(120);
+    assert.notEqual(node.textContent, "$0.00");
+    await settle(400);
+    assert.equal(node.textContent, "$285.00");
+    assert.equal(node.getAttribute("aria-live"), "polite");
+    assert.equal((hero.host.textContent ?? "").split("$285.00").length - 1, 1, "one value, no screen-reader copy");
+    await hero.unmount();
+  });
+
+  it("does not count with reduced motion", async () => {
+    win.localStorage.clear();
+    Object.defineProperty(win, "matchMedia", {
+      configurable: true,
+      value: (query: string) => ({ matches: query.includes("reduce"), addEventListener() {}, removeEventListener() {} }),
+    });
+    try {
+      const hero = await mountHero({ valuesLoading: true });
+      await hero.rerender({ valuesLoading: false });
+      assert.equal(headline(hero.host)?.textContent, "$285.00");
+      await hero.unmount();
+    } finally {
+      delete (win as { matchMedia?: unknown }).matchMedia;
+    }
+  });
+});
+
+describe("PortfolioHero redesign: stat cards and movers", () => {
+  it("is exactly two tiles, Cards then Best card, each with an aria-hidden icon", () => {
+    win.localStorage.clear();
+    const out = html();
+    const tiles = [...out.matchAll(/data-stat-tile="([^"]+)"/g)].map((match) => match[1]);
+    assert.deepEqual(tiles, ["Cards", "Best card"]);
+    for (const name of tiles) {
+      const tile = out.slice(out.indexOf(`data-stat-tile="${name}"`));
+      assert.match(tile.slice(0, 600), /<svg[^>]*aria-hidden="true"/);
+    }
+  });
+
+  it("never shows invested or profit, whatever the props say", () => {
+    const words = text(html({ profitTotal: 250, investedAmount: 1100, pricedInvested: 1000, paidCount: 2, pricedCount: 2 }));
+    for (const gone of ["Invested", "Profit", "$1,100.00", "+$250.00", "on 2 cards"]) {
+      assert.equal(words.includes(gone), false, gone);
+    }
+  });
+
+  it("reads Top card, the most valuable card and no red, when every priced card is down", () => {
+    win.localStorage.clear();
+    const cards = [fixtureCard("a", "Jordan Love", 100), fixtureCard("b", "Cam Ward", 300), fixtureCard("c", "Jaxson Dart", 50)];
+    const values = new Map([
+      ["a", okValue(80)],
+      ["b", okValue(210)],
+      ["c", okValue(40)],
+    ]);
+    const out = html({ cards, values, cardHistory: new Map() });
+    const stats = out.slice(out.lastIndexOf("<div", out.indexOf('data-slot="collection-stats"')), out.indexOf("Top movers in your collection"));
+    assert.match(text(stats), /Top card (CW )?Cam Ward \$210\.00 Your most valuable/);
+    assert.doesNotMatch(stats, /Best card/);
+    assert.doesNotMatch(stats, /rose/);
+  });
+
+  it("reads Best card with its gain when one card is up", () => {
+    win.localStorage.clear();
+    const cards = [fixtureCard("a", "Jordan Love", 100), fixtureCard("b", "Cam Ward", 300)];
+    const values = new Map([
+      ["a", okValue(130)],
+      ["b", okValue(210)],
+    ]);
+    const out = html({ cards, values, cardHistory: new Map() });
+    const stats = text(out.slice(out.indexOf('data-slot="collection-stats"'), out.indexOf("Top movers in your collection")));
+    assert.match(stats, /Best card (JL )?Jordan Love \+\$30\.00 Since you paid/);
+    assert.doesNotMatch(stats, /Top card/);
+  });
+
+  it("gives up and down movers an arrow and flat none, reserves 64x24 for each spark", () => {
+    win.localStorage.clear();
+    const cards = [fixtureCard("a", "Jordan Love", 40), fixtureCard("b", "Cam Ward", 100), fixtureCard("c", "Jaxson Dart", 30)];
+    const cardHistory = new Map([
+      ["a", [{ date: addDays(today, -20), value: 60 }, { date: today, value: 120 }]],
+      ["b", [{ date: addDays(today, -20), value: 100 }, { date: today, value: 80 }]],
+      ["c", [{ date: addDays(today, -20), value: 33 }, { date: today, value: 33 }]],
+    ]);
+    const out = html({ cards, values: new Map([["a", okValue(120)], ["b", okValue(80)], ["c", okValue(33)]]), cardHistory });
+    const movers = out.slice(out.indexOf("Top movers in your collection"));
+    assert.match(movers, /data-gain="up"[^>]*><svg/);
+    assert.match(movers, /data-gain="down"[^>]*><svg/);
+    assert.match(movers, /data-gain="flat"[^>]*>0\.0%</);
+    assert.equal((movers.match(/data-spark-slot="" class="[^"]*\bh-6 w-16\b/g) ?? []).length, 3);
+    assert.equal((movers.match(/data-spark-end/g) ?? []).length, 3);
+  });
+
+  it("shows Paid $X instead of a spark for since-you-paid rows", () => {
+    win.localStorage.clear();
+    const cards = [fixtureCard("a", "Jordan Love", 40), fixtureCard("b", "Cam Ward", 100)];
+    const out = html({ cards, values: new Map([["a", okValue(60)], ["b", okValue(80)]]), cardHistory: new Map() });
+    const movers = out.slice(out.indexOf("Top movers in your collection"));
+    assert.match(text(movers), /Since you paid/);
+    assert.doesNotMatch(movers, /role="img"/);
+    assert.match(text(movers), /Paid \$40/);
+    assert.match(text(movers), /Paid \$100/);
   });
 });

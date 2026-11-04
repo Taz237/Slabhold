@@ -89,3 +89,29 @@ describe("valueScale", () => {
     assert.deepEqual(axisLabels([0, 150, 300]), ["$0", "$150", "$300"]);
   });
 });
+
+describe("valueScale minSpan", () => {
+  it("widens a tiny range to the minimum span, centered on the data, with 3 ticks", () => {
+    const values = [285.12, 285.5, 285.31];
+    const { domain, ticks } = valueScale(values, { minSpan: 11.4 });
+    assert.ok(domain[1] - domain[0] >= 11.4 - 1e-9, String(domain));
+    const mid = (285.12 + 285.5) / 2;
+    assert.ok(Math.abs((domain[0] + domain[1]) / 2 - mid) < 1e-9, String(domain));
+    assert.deepEqual(ticks, [280, 285, 290]);
+    assert.deepEqual(axisLabels(ticks), ["$280", "$285", "$290"]);
+  });
+
+  it("changes nothing without the option, or when the data already spans more", () => {
+    for (const values of [[285.12, 285.5, 285.31], [28, 285], [36, 36], [1.1, 1.3]]) {
+      assert.deepEqual(valueScale(values, {}), valueScale(values));
+    }
+    assert.deepEqual(valueScale([100, 200], { minSpan: 5 }), valueScale([100, 200]));
+  });
+
+  it("never pushes positive values below $0", () => {
+    const { domain, ticks } = valueScale([1, 2], { minSpan: 5 });
+    assert.equal(domain[0], 0);
+    assert.ok(domain[1] >= 5);
+    assert.ok(ticks.every((tick) => tick >= 0));
+  });
+});
