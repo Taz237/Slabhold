@@ -59,6 +59,8 @@ const SNAP_PX = 6;
 /** A y label this close to the median pill hides. */
 const PILL_CLEAR = 12;
 const PILL_H = 18;
+/** Share of the chart on screen before it counts as seen (draws in, pulses). */
+const SEEN = 0.35;
 const TIP_H = 22;
 
 /** Rough text widths for Geist, so a pill can be clamped without measuring. */
@@ -306,10 +308,14 @@ function FullChart({
       if (on) setDraw((current) => (current === "wait" ? "play" : current));
     };
     sync();
-    const observer = new IntersectionObserver((entries) => {
-      inView = entries[entries.length - 1]?.isIntersecting ?? inView;
-      sync();
-    });
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[entries.length - 1];
+        if (entry) inView = entry.isIntersecting && entry.intersectionRatio >= SEEN * 0.99;
+        sync();
+      },
+      { threshold: [0, SEEN] },
+    );
     observer.observe(node);
     document.addEventListener("visibilitychange", sync);
     return () => {

@@ -6,7 +6,7 @@ import { Badge } from "@/components/badges/badge";
 import { CardSlabArt } from "@/components/card-slab-art";
 import { ValueChart } from "@/components/charts/value-chart";
 import { SAMPLE_SLABS } from "@/components/landing/sample-cards";
-import { EASE, canAnimate, countUp, dollars, drawChartLine } from "@/components/landing/showcase/motion";
+import { EASE, canAnimate, countUp, dollars } from "@/components/landing/showcase/motion";
 import {
   SAMPLE_ACCOUNTS_LABEL,
   SAMPLE_ACCOUNTS_NOTE,
@@ -207,7 +207,6 @@ export function QuickCompVisual({ motion }: { motion: boolean }) {
 export function CollectionVisual({ motion }: { motion: boolean }) {
   const stack = useRef<HTMLDivElement>(null);
   const spark = useRef<HTMLSpanElement>(null);
-  const chart = useRef<HTMLDivElement>(null);
   const value = useRef<HTMLSpanElement>(null);
   const [points] = useState(() => sampleValueLine());
   const last = points[points.length - 1].value;
@@ -232,12 +231,11 @@ export function CollectionVisual({ motion }: { motion: boolean }) {
       timers.push(window.setTimeout(() => bump(stack.current), delay + 420));
     });
     timers.push(window.setTimeout(() => sparks(spark.current), 300 + 3 * 160 + 420));
-    const cancelDraw = drawChartLine(chart.current, { duration: 1000, delay: 500 });
-    const cancelCount = countUp(value.current, points[0].value, last, { duration: 1000, delay: 500 });
+    // The chart draws itself in (400ms) the first time it is on screen; the value counts up with it.
+    const cancelCount = countUp(value.current, points[0].value, last, { duration: 400, delay: 0 });
     return () => {
       for (const timer of timers) window.clearTimeout(timer);
       for (const animation of running) animation.cancel();
-      cancelDraw();
       cancelCount();
     };
   }, [motion, points, last]);
@@ -266,7 +264,7 @@ export function CollectionVisual({ motion }: { motion: boolean }) {
           <span ref={spark} aria-hidden className="pointer-events-none absolute top-1/2 left-1/2" />
         </div>
       </div>
-      <div ref={chart} className="mt-auto">
+      <div className="mt-auto">
         <ValueChart points={points} tone="accent" height={150} minimal ariaLabel="Sample collection value, up $38 in 90 days" />
       </div>
     </div>

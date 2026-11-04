@@ -11,6 +11,7 @@ import { stripUnsupportedOgText } from "@/lib/og/safe-text";
 import { movingTodayCacheControl } from "@/lib/moving-today/cache";
 import type { MovingTodayShareModel } from "@/lib/moving-today/share";
 import { SHARE_CHART, type CollectionValueShare } from "@/lib/share/collection-value";
+import { FILL_STOPS } from "@/lib/chart/theme";
 import {
   homeShareImage,
   profileShareImage,
@@ -672,7 +673,10 @@ export async function renderLeaderboardOg(model: LeaderboardShareModel) {
  */
 export function renderCollectionValueOg(model: CollectionValueShare, cacheControl = PRIVATE_OG_CACHE_CONTROL) {
   const tone = model.tone === "up" ? "#34d399" : model.tone === "down" ? "#fb7185" : "#a1a1aa";
-  const chart = `<svg xmlns="http://www.w3.org/2000/svg" width="${SHARE_CHART.width}" height="${SHARE_CHART.height}" viewBox="0 0 ${SHARE_CHART.width} ${SHARE_CHART.height}"><defs><linearGradient id="f" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${tone}" stop-opacity=".32"/><stop offset="1" stop-color="${tone}" stop-opacity="0"/></linearGradient></defs><path d="${model.area}" fill="url(#f)"/><path d="${model.line}" fill="none" stroke="${tone}" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+  // The app's chart theme (lib/chart/theme.ts): the same fill stops, a range baseline and the latest-value dot.
+  const stops = FILL_STOPS.map((stop) => `<stop offset="${stop.offset}" stop-color="${tone}" stop-opacity="${stop.opacity}"/>`).join("");
+  const r = (value: number) => Math.round(value * 10) / 10;
+  const chart = `<svg xmlns="http://www.w3.org/2000/svg" width="${SHARE_CHART.width}" height="${SHARE_CHART.height}" viewBox="0 0 ${SHARE_CHART.width} ${SHARE_CHART.height}"><defs><linearGradient id="f" x1="0" y1="0" x2="0" y2="1">${stops}</linearGradient></defs><line x1="0" x2="${SHARE_CHART.width}" y1="${r(model.baseY)}" y2="${r(model.baseY)}" stroke="#a1a1aa" stroke-opacity=".1" stroke-width="2"${model.tone === "down" ? ' stroke-dasharray="6 9"' : ""}/><path d="${model.area}" fill="url(#f)"/><path d="${model.line}" fill="none" stroke="${tone}" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="${r(model.last.x)}" cy="${r(model.last.y)}" r="10" fill="${tone}" stroke="#110d1c" stroke-width="5"/></svg>`;
   const chartSrc = `data:image/svg+xml;base64,${Buffer.from(chart).toString("base64")}`;
   return new ImageResponse(
     (
