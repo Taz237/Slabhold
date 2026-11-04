@@ -476,7 +476,7 @@ export function FeedView({
           <CollectorSuggestions profiles={suggestionRail} />
         ) : null}
 
-        <div id="home-lane-panel" role="tabpanel" aria-labelledby={`lane-tab-${lane}`} className="min-h-[60dvh]">
+        <div id="home-lane-panel" role="tabpanel" aria-labelledby={`lane-tab-${lane}`}>
           {activeLoading ? (
             <PostSkeletonList count={3} />
           ) : followingEmpty ? (

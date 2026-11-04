@@ -522,7 +522,7 @@ export function ProfileView({
       </div>
 
       {/* Keeps its height while a tab swaps in, so the page never jumps. */}
-      <div data-profile-panel="" className="min-h-[60dvh]">
+      <div data-profile-panel="" className="min-h-[40dvh]">
       {tab === "replies" ? (
         !replyParentsReady ? (
           <LoadingRows />
