@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { ArrowLeft, Ellipsis, Pencil } from "lucide-react";
 import { CardThumb } from "@/components/card-thumb";
+import { useCardShape } from "@/lib/ui/card-shape";
 import { LazyResolvedPlayerName } from "@/components/player-name-lazy";
 import { PriceFallbackText } from "@/components/price-readout";
 import { CompCardSkeleton, CompRowsSkeleton, compCard, compTile } from "@/components/comp-basis";
@@ -93,12 +94,15 @@ export function CardHero({
   card: HeroCard;
   onFixDetails?: () => void;
 }) {
+  // A landscape card shows whole and wide; a portrait one keeps its 2:3 slot.
+  const [shape, onShape] = useCardShape(card.photoDataUrl);
   return (
     <section data-slot="card-hero">
-      <div className="mx-auto h-72 w-48">
+      <div className={shape === "landscape" ? "mx-auto aspect-[7/5] w-full max-w-[22rem]" : "mx-auto h-72 w-48"}>
         <CardThumb
           card={card}
           priority
+          onShape={onShape}
           className="h-full w-full rounded-2xl shadow-xl shadow-black/20 ring-1 ring-black/10 dark:ring-white/10"
         />
       </div>

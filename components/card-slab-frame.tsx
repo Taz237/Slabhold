@@ -2,6 +2,7 @@ import type { CSSProperties, ReactNode } from "react";
 import { initials } from "@/lib/format";
 import { slabCompany, slabNumber, slabTone, tileKind, yearSetLine, type SlabTone } from "@/lib/collection/grid";
 import type { SportsCard } from "@/lib/types";
+import type { CardShape } from "@/lib/ui/card-shape";
 
 export type ArtCard = Pick<
   SportsCard,
@@ -39,12 +40,29 @@ function accentColor(accent: string | null | undefined): string {
 /**
  * The slab or card around a photo, with no state of its own, so the server can
  * draw it (the landing hero) and so can the collection grid. Fills a 3:5 box.
+ * A landscape photo gets a 7:5 window in the same 3:5 tile, so grid rows keep
+ * their height and nothing reflows: at the bottom for a raw card (sharing a
+ * baseline with portrait cards, right above the name and price), centred
+ * under the label for a slab.
  */
-export function SlabFrame({ card, children }: { card: ArtCard; children: ReactNode }) {
+export function SlabFrame({
+  card,
+  shape = "portrait",
+  children,
+}: {
+  card: ArtCard;
+  shape?: CardShape;
+  children: ReactNode;
+}) {
+  const wide = shape === "landscape";
   if (tileKind(card) === "card") {
     return (
-      <div className="flex aspect-[3/5] w-full flex-col justify-end" data-kind="card">
-        <div className="relative aspect-[5/7] w-full overflow-hidden rounded-lg border border-black/10 bg-zinc-900 shadow-[0_10px_24px_-10px_rgba(0,0,0,0.55)] dark:border-white/10">
+      <div
+        className="flex aspect-[3/5] w-full flex-col justify-end"
+        data-kind="card"
+        data-shape={wide ? "landscape" : undefined}
+      >
+        <div className={`relative ${wide ? "aspect-[7/5]" : "aspect-[5/7]"} w-full overflow-hidden rounded-lg border border-black/10 bg-zinc-900 shadow-[0_10px_24px_-10px_rgba(0,0,0,0.55)] dark:border-white/10`}>
           {children}
         </div>
       </div>
@@ -62,6 +80,7 @@ export function SlabFrame({ card, children }: { card: ArtCard; children: ReactNo
       className="relative flex aspect-[3/5] w-full flex-col gap-1.5 overflow-hidden rounded-[10px] border border-white/25 bg-gradient-to-b from-zinc-100/90 to-zinc-300/70 p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.7),inset_0_0_0_1px_rgba(255,255,255,0.25),inset_0_-8px_18px_rgba(0,0,0,0.12),0_12px_28px_-12px_rgba(0,0,0,0.6)] dark:border-white/15 dark:from-white/[0.14] dark:to-white/[0.04] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.22),inset_0_0_0_1px_rgba(255,255,255,0.05),inset_0_-10px_20px_rgba(0,0,0,0.35),0_14px_30px_-12px_rgba(0,0,0,0.8)]"
       data-kind="slab"
       data-tone={tone}
+      data-shape={wide ? "landscape" : undefined}
     >
       <div className={`shrink-0 rounded-[5px] px-1.5 py-1 ${LABEL_TONES[tone]}`}>
         <div className="flex items-start justify-between gap-1.5">
@@ -93,7 +112,9 @@ export function SlabFrame({ card, children }: { card: ArtCard; children: ReactNo
         </div>
       </div>
       <div className="flex min-h-0 flex-1 items-center justify-center">
-        <div className="relative aspect-[5/7] h-full max-w-full overflow-hidden rounded-[3px] bg-zinc-900 shadow-[0_0_0_1px_rgba(0,0,0,0.25)]">
+        <div
+          className={`relative ${wide ? "aspect-[7/5] max-h-full w-full" : "aspect-[5/7] h-full max-w-full"} overflow-hidden rounded-[3px] bg-zinc-900 shadow-[0_0_0_1px_rgba(0,0,0,0.25)]`}
+        >
           {children}
         </div>
       </div>

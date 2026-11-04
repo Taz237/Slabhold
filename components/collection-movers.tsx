@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
-import { CardThumb } from "@/components/card-thumb";
+import { ShapedCardThumb } from "@/components/card-thumb";
 import { ValueChart } from "@/components/charts/value-chart";
 import { formatPct, pctTone } from "@/lib/chart/range";
 import { PILL_TONE, collectionMinSpan } from "@/lib/chart/theme";
@@ -46,7 +46,7 @@ export function TopMovers({ movers }: { movers: Movers<HeroCard> }) {
                   href={`/cards/${row.card.id}`}
                   className="flex min-h-14 items-center gap-2.5 px-3.5 py-1.5 outline-none hover:bg-zinc-50 focus-visible:bg-zinc-50 dark:hover:bg-white/[0.03] dark:focus-visible:bg-white/[0.03]"
                 >
-                  <CardThumb card={row.card.card} className="h-11 w-[33px] shrink-0 rounded-md" />
+                  <ShapedCardThumb card={row.card.card} className="h-11 w-[33px] shrink-0 rounded-md" landscapeClassName="h-[33px] w-11 shrink-0 rounded-md" />
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm leading-5 font-medium" title={row.card.playerName}>
                       {row.card.playerName}

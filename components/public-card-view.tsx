@@ -12,7 +12,7 @@ import { OpenToOffersBadge } from "@/components/open-to-offers";
 import { EbaySoldLine, PriceFallbackText, SimilarCardsLine } from "@/components/price-readout";
 import { WantButton } from "@/components/want-button";
 import { outlineButton } from "@/components/button-styles";
-import { CardThumb } from "@/components/card-thumb";
+import { ShapedCardThumb } from "@/components/card-thumb";
 import {
   CompEmpty,
   CompRowsSkeleton,
@@ -344,10 +344,11 @@ function PublicCardAnalytics({
         {displayName}
       </Link>
 
-      <CardThumb
+      <ShapedCardThumb
         card={card}
         priority
         className="mx-auto h-96 w-64 rounded-2xl object-cover shadow-xl shadow-black/20"
+        landscapeClassName="mx-auto aspect-[7/5] w-full max-w-[22rem] rounded-2xl shadow-xl shadow-black/20"
       />
 
       <div>
