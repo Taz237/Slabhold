@@ -183,3 +183,14 @@ describe("chart theme: haptic hook", () => {
     assert.equal(existsSync(join(ROOT, "lib/native")), false);
   });
 });
+
+describe("chart theme: dashboard first load", () => {
+  it("keeps the count-up, the sale dots and the median layer out of the hero's static imports", () => {
+    const hero = read("components/portfolio-hero.tsx");
+    assert.doesNotMatch(hero, /from "@\/components\/hero-count-up"/);
+    assert.match(hero, /import\("@\/components\/hero-count-up"\)/);
+    const chart = read("components/charts/value-chart.tsx");
+    assert.doesNotMatch(chart, /^import \{[^}]*\} from "@\/components\/charts\/median-layer"/m);
+    assert.doesNotMatch(chart, /<circle\s+key=\{item\.dot\.id\}/);
+  });
+});

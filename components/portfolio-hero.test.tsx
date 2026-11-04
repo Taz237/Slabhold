@@ -432,6 +432,7 @@ describe("PortfolioHero redesign: the count-up", () => {
   it("counts once from the range's first value, never $0, when values land, then hands aria-live back", async () => {
     win.localStorage.clear();
     const hero = await mountHero({ valuesLoading: true, collectionValue: 0 });
+    await settle(50); // the count-up's own chunk, fetched on mount, lands before the values do
     await hero.rerender({ valuesLoading: false });
     const node = headline(hero.host);
     assert.ok(node);
@@ -455,6 +456,7 @@ describe("PortfolioHero redesign: the count-up", () => {
     });
     try {
       const hero = await mountHero({ valuesLoading: true });
+      await settle(50);
       await hero.rerender({ valuesLoading: false });
       assert.equal(headline(hero.host)?.textContent, "$285.00");
       await hero.unmount();

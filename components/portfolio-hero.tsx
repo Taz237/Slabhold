@@ -95,7 +95,17 @@ function PillIcon({ tone, change }: { tone: HeroTone; change: RangeChange | null
   const Icon = tone === "flat" ? Minus : (change?.delta ?? 0) < 0 ? TrendingDown : TrendingUp;
   return <Icon className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden />;
 }
-const COUNT_MS = 400;
+type CountUp = typeof import("@/components/hero-count-up");
+let countUp: CountUp | null = null;
+let countUpLoad: Promise<unknown> | null = null;
+/** Fetched as soon as the hero loads (and on mount); used only when values land. */
+function loadCountUp() {
+  countUpLoad ??= import("@/components/hero-count-up").then(
+    (module) => (countUp = module),
+    () => (countUpLoad = null),
+  );
+}
+if (typeof window !== "undefined") loadCountUp();
 const press =
   "outline-none transition-[background-color,color,box-shadow] duration-150 ease-[cubic-bezier(0.22,1,0.36,1)] focus-visible:ring-2 focus-visible:ring-violet-600 motion-reduce:transition-none";
 const useClientLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
@@ -201,8 +211,9 @@ const CollectionValueCard = memo(function CollectionValueCard({
   const today = snapshotDateInNewYork();
   const liveReady = !valuesLoading && !valuesFailed;
   const headlineRef = useRef<HTMLParagraphElement>(null);
-  const counting = useRef(0);
+  const counting = useRef<(() => void) | undefined>(undefined);
   const wasLoading = useRef(valuesLoading);
+  useEffect(loadCountUp, []);
 
   const allPoints = useMemo(
     () => collectionPoints(snapshots.rows, { today, live: liveReady ? collectionValue : null, markers }),
@@ -221,7 +232,7 @@ const CollectionValueCard = memo(function CollectionValueCard({
   const ath = athIndex(points);
   const showAth = !scrub && ath >= 0 && ath < points.length - 1 && points[ath].value >= latest * 1.01;
   const onScrub = useCallback((point: ChartPoint | null) => {
-    window.cancelAnimationFrame(counting.current);
+    counting.current?.();
     setScrub(point);
   }, []);
 
@@ -232,43 +243,16 @@ const CollectionValueCard = memo(function CollectionValueCard({
   const ariaLabel = chartSummary("Collection value", collectionValue, change, range, firstDate);
   const countText = `${cardCount} card${cardCount === 1 ? "" : "s"}`;
 
-  // The count-up: once, as values land, from the range's first value (never $0), on the text node.
+  // The count-up: once, as values land, from the range's first value (never $0). Skipped if its chunk is not in yet.
   const countFrom = points[0]?.value ?? 0;
   useClientLayoutEffect(() => {
     const was = wasLoading.current;
     wasLoading.current = valuesLoading;
     const node = headlineRef.current;
-    const text = node?.firstChild;
-    const to = collectionValue;
-    const from = countFrom;
-    if (
-      !was ||
-      valuesLoading ||
-      valuesFailed ||
-      !node ||
-      text?.nodeType !== 3 ||
-      !(from > 0) ||
-      Math.abs(to - from) < 0.01 ||
-      document.visibilityState === "hidden" ||
-      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
-    ) {
-      return;
-    }
-    node.setAttribute("aria-live", "off");
-    let start = -1;
-    const step = (time: number) => {
-      if (start < 0) start = time;
-      const t = Math.min(1, (time - start) / COUNT_MS);
-      text.nodeValue = money(from + (to - from) * (1 - (1 - t) ** 5));
-      if (t < 1) counting.current = window.requestAnimationFrame(step);
-      else node.setAttribute("aria-live", "polite");
-    };
-    text.nodeValue = money(from);
-    counting.current = window.requestAnimationFrame(step);
-    return () => {
-      window.cancelAnimationFrame(counting.current);
-      text.nodeValue = money(to);
-    };
+    if (!was || valuesLoading || valuesFailed || !node || !countUp) return;
+    const cancel = countUp.heroCountUp(node, countFrom, collectionValue);
+    counting.current = cancel ?? undefined;
+    return cancel ?? undefined;
   }, [valuesLoading]);
 
   function choose(next: RangeId) {

@@ -409,7 +409,6 @@ function FullChart({
     geom && showAth && geom.xy.length >= 3 && shownIndex == null && geom.ath >= 0 ? geom.xy[geom.ath] : null;
   const athIsLast = ath != null && ath === last;
   const drawing = draw !== "done" && !reduce;
-  const fewDots = withDots && (geom?.xy.length ?? 0) < 2;
 
   const decor =
     geom && layers
@@ -419,7 +418,11 @@ function FullChart({
           bottom: geom.bottom,
           ref: geom.ref,
           band: geom.band,
-          marks: [...geom.dots.filter((item) => !item.dot.hollow), ...(last ? [last] : [])],
+          last,
+          dots: geom.dots,
+          shown: shownIndex,
+          latest: latestDot,
+          motion: !reduce,
         })
       : null;
 
@@ -541,25 +544,7 @@ function FullChart({
             className={drawing ? (draw === "play" ? "chart-draw" : "chart-draw-wait") : undefined}
           />
 
-          <g className={fewDots && !reduce ? "chart-dots-in" : undefined}>
-            {geom.dots.map((item, index) => {
-              const on = index === shownIndex;
-              const latest = !on && item === latestDot && shownIndex == null;
-              return (
-                <circle
-                  key={item.dot.id}
-                  cx={item.x}
-                  cy={item.y}
-                  r={on ? 6 : latest ? 4 : 3.5}
-                  fill={item.dot.hollow ? "var(--chart-surface)" : "currentColor"}
-                  fillOpacity={item.dot.hollow || on || latest ? 1 : 0.75}
-                  stroke={item.dot.hollow ? "currentColor" : on ? undefined : "var(--chart-surface)"}
-                  strokeWidth={item.dot.hollow ? 1.5 : on || latest ? 2 : 1}
-                  className={on ? "chart-select" : undefined}
-                />
-              );
-            })}
-          </g>
+          {decor?.mid}
 
           {decor?.front}
 
@@ -580,9 +565,6 @@ function FullChart({
               >
                 ATH {money(ath.point.value).replace(/\.00$/, "")}
               </text>
-            ) : null}
-            {withDots && latestDot && shownIndex == null && !reduce ? (
-              <circle cx={latestDot.x} cy={latestDot.y} r={4} fill="currentColor" className="chart-pulse" />
             ) : null}
             {last && !withDots && shownIndex == null ? (
               <g>

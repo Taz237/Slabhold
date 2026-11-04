@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowDownRight, ArrowUpRight } from "lucide-react";
+import { ArrowUpRight } from "lucide-react";
 import { CardThumb } from "@/components/card-thumb";
 import { ValueChart } from "@/components/charts/value-chart";
 import { formatPct, pctTone } from "@/lib/chart/range";
@@ -22,8 +22,6 @@ export const muted = "text-zinc-500 dark:text-zinc-400";
  * Top movers in the collection, under the hero: 56px rows with the card, a
  * 64x24 spark (or "Paid $X" with no history) and a 72px pill.
  */
-const MOVER_ICON = { up: ArrowUpRight, down: ArrowDownRight } as const;
-
 export function TopMovers({ movers }: { movers: Movers<HeroCard> }) {
   const basis = movers.basis === "history" ? "Past 30 days" : "Since you paid";
   return (
@@ -39,7 +37,6 @@ export function TopMovers({ movers }: { movers: Movers<HeroCard> }) {
           {movers.rows.map((row) => {
             const rowTone = pctTone(row.pct);
             const word = rowTone === "flat" ? "unchanged" : `${rowTone} ${formatPct(row.pct, false)}`;
-            const Arrow = rowTone === "flat" ? null : MOVER_ICON[rowTone];
             const last = row.points[row.points.length - 1]?.value ?? 0;
             // No history ("Since you paid"): what was paid goes under the name, and the name gets the width.
             const spark = row.points.length >= 2;
@@ -77,7 +74,10 @@ export function TopMovers({ movers }: { movers: Movers<HeroCard> }) {
                     data-gain={rowTone}
                     className={`inline-flex h-6 w-[72px] shrink-0 items-center justify-center gap-0.5 rounded-full text-xs font-semibold tabular-nums ${PILL_TONE[rowTone]}`}
                   >
-                    {Arrow ? <Arrow className="h-4 w-4 shrink-0" strokeWidth={1.5} aria-hidden /> : null}
+                    {/* ArrowUpRight turned a quarter is ArrowDownRight, without a second icon in the bundle. */}
+                    {rowTone === "flat" ? null : (
+                      <ArrowUpRight className={`h-4 w-4 shrink-0 ${rowTone === "down" ? "rotate-90" : ""}`} strokeWidth={1.5} aria-hidden />
+                    )}
                     {formatPct(row.pct)}
                   </span>
                 </Link>
