@@ -15,7 +15,8 @@ import {
   compTile,
   saleDate,
 } from "@/components/comp-basis";
-import { formatPct, pctTone } from "@/lib/chart/range";
+import { formatPct, pctTone, rangeStart, type RangeId } from "@/lib/chart/range";
+import { middleFifty } from "@/lib/comps/stats";
 import { saleTrend, splitOutliers, vsDaysAgo, type ChartSale } from "@/lib/chart/sales";
 import { snapshotDateInNewYork } from "@/lib/collection/totals-shared";
 import { money } from "@/lib/format";
@@ -65,7 +66,7 @@ export function DeltaChip({ pct, className = "" }: { pct: number; className?: st
   return (
     <span
       data-delta-chip={tone}
-      className={`shrink-0 rounded-md px-1.5 py-0.5 text-xs font-semibold tabular-nums ${CHIP_TONE[tone]} ${className}`}
+      className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums ${CHIP_TONE[tone]} ${className}`}
     >
       {text}
     </span>
@@ -153,6 +154,43 @@ export function saleMeta(sale: ChartSale, today?: string): string {
   return [sale.grade, saleDate(sale.date, today), sale.source ? saleSourceShort(sale.source) : null]
     .filter(Boolean)
     .join(" · ");
+}
+
+/** The comp chart's zoom ranges. All is the default and always today's read. */
+export const COMP_RANGES: { id: Extract<RangeId, "30d" | "90d" | "all">; label: string; days: number | null; phrase: string }[] = [
+  { id: "30d", label: "30D", days: 30, phrase: "past 30 days" },
+  { id: "90d", label: "90D", days: 90, phrase: "past 90 days" },
+  { id: "all", label: "All", days: null, phrase: "" },
+];
+
+export type CompRange = (typeof COMP_RANGES)[number]["id"];
+
+function dayCount(from: string, to: string): number {
+  return Math.round((Date.parse(`${to.slice(0, 10)}T12:00:00Z`) - Date.parse(`${from.slice(0, 10)}T12:00:00Z`)) / 86_400_000);
+}
+
+/**
+ * Ranges worth a chip: a shorter window shows only when the sales span more
+ * than it and at least TREND_MIN_SALES of them fall inside. Empty (no chips)
+ * when only All would show, which is most comps (about 30 days of sales).
+ */
+export function compRanges(sales: { date: string }[], today: string): CompRange[] {
+  if (sales.length < TREND_MIN_SALES) return [];
+  const dates = sales.map((sale) => sale.date).sort();
+  const span = dayCount(dates[0], dates[dates.length - 1]);
+  const shorter = COMP_RANGES.filter((range) => {
+    if (range.days == null) return false;
+    const start = rangeStart(range.id, today) ?? "";
+    const inside = dates.filter((date) => date >= start).length;
+    return span > range.days && inside >= TREND_MIN_SALES && inside < dates.length;
+  }).map((range) => range.id);
+  return shorter.length ? [...shorter, "all"] : [];
+}
+
+/** The sales inside a comp range. All is every sale. */
+export function salesInCompRange<T extends { date: string }>(sales: T[], range: CompRange, today: string): T[] {
+  const start = range === "all" ? null : rangeStart(range, today);
+  return start == null ? sales : sales.filter((sale) => sale.date >= start);
 }
 
 const useClientLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
@@ -256,10 +294,18 @@ export function SalesChart({
   const live = usingLive || lockedToComps;
   const showSample = !lockedToComps && (sample || source === "sample" || source === "off");
 
-  const sales = useMemo<ChartSale[]>(
+  const allSales = useMemo<ChartSale[]>(
     () => (live ? (salesProp ?? (pointsProp ?? []).map((point, index) => ({ id: `p${index}`, price: point.value, date: point.date }))) : []),
     [live, salesProp, pointsProp],
   );
+  const today = snapshotDateInNewYork();
+  const ranges = useMemo(() => compRanges(allSales, today), [allSales, today]);
+  const [chosenRange, setChosenRange] = useState<CompRange>("all");
+  const range: CompRange = ranges.includes(chosenRange) ? chosenRange : "all";
+  const zoomed = range !== "all";
+  const sales = useMemo(() => salesInCompRange(allSales, range, today), [allSales, range, today]);
+  // A shorter range reads its own median and middle half. All is exactly today's read.
+  const windowRead = useMemo(() => (zoomed ? middleFifty(sales.map((sale) => sale.price)) : null), [zoomed, sales]);
   const split = useMemo(() => splitOutliers(sales), [sales]);
   const trend = useMemo(() => (split.inliers.length >= TREND_MIN_SALES ? saleTrend(split.inliers) : []), [split]);
   const { id: cardId, estimatedSellPrice, purchasePrice } = card;
@@ -278,22 +324,23 @@ export function SalesChart({
     return sales.map((sale) => ({ id: sale.id, date: sale.date, value: sale.price, hollow: hollow.has(sale.id) }));
   }, [sales, split]);
 
-  const displayMedian = lockedToComps
-    ? median
-    : usingLive && median != null
+  const displayMedian = windowRead
+    ? windowRead.median
+    : lockedToComps
       ? median
-      : (samplePoints[samplePoints.length - 1]?.value ?? card.estimatedSellPrice);
-  const displayP25 = live ? p25 : null;
-  const displayP75 = live ? p75 : null;
-  const n = live ? count : samplePoints.length;
+      : usingLive && median != null
+        ? median
+        : (samplePoints[samplePoints.length - 1]?.value ?? card.estimatedSellPrice);
+  const displayP25 = windowRead ? windowRead.p25 : live ? p25 : null;
+  const displayP75 = windowRead ? windowRead.p75 : live ? p75 : null;
+  const n = windowRead ? sales.length : live ? count : samplePoints.length;
   const lowConfidence = lowConfidenceProp ?? (live && n > 0 && n < 5);
   const noSales = live && (n === 0 || displayMedian == null);
   const showEstimate = headlineIsEstimate !== false;
   const estimateShown = showEstimate && live && !noSales;
-  const today = snapshotDateInNewYork();
   const vs = estimateShown && displayMedian != null ? vsDaysAgo(trend, displayMedian, 30, today) : null;
   const vsTone = pctTone(vs);
-  const selected = selectedSaleId ? sales.find((sale) => sale.id === selectedSaleId) : null;
+  const selected = selectedSaleId ? allSales.find((sale) => sale.id === selectedSaleId) : null;
   const linePoints = showSample ? samplePoints : trend;
   const showPlot = (live && sales.length > 0 && (!noSales || !showEstimate)) || (showSample && samplePoints.length > 1);
   const outlierCount = split.outliers.length;
@@ -314,6 +361,13 @@ export function SalesChart({
   const freshness = showSample ? "Sample" : ago ? `eBay sold · ${ago}` : null;
   const fewSales = split.inliers.length < TREND_MIN_SALES;
   const chip = !selected && estimateShown && !fewSales && vs != null;
+  // One tone for the line, its fill, its dots and the chip: the 30-day trend when the chip shows, else purple.
+  const lineTone = chip ? vsTone : "brand";
+  const chartBand = useMemo(
+    () => (showRange && !fewSales && displayP25 != null && displayP75 != null ? { low: displayP25, high: displayP75 } : null),
+    [showRange, fewSales, displayP25, displayP75],
+  );
+  const phrase = COMP_RANGES.find((item) => item.id === range)?.phrase ?? "";
 
   if (unavailable && !loading) {
     return null;
@@ -332,7 +386,7 @@ export function SalesChart({
   ) : fewSales ? (
     moreSalesText(split.inliers.length)
   ) : estimateShown ? (
-    `Based on ${n} sale${n === 1 ? "" : "s"}${chip ? " · vs 30 days ago" : ""}`
+    `Based on ${n} sale${n === 1 ? "" : "s"}${zoomed ? ` · ${phrase}` : ""}${chip ? " · vs 30 days ago" : ""}`
   ) : (
     `Based on ${sales.length} sale${sales.length === 1 ? "" : "s"}`
   );
@@ -418,15 +472,49 @@ export function SalesChart({
             dots={showSample ? undefined : dots}
             selectedDotId={selectedSaleId}
             onSelectDot={onSelectSale}
-            tone="brand"
+            tone={lineTone}
             height={CHART_HEIGHT}
             ariaLabel={ariaLabel}
             refLine={refLine}
+            band={chartBand}
+            morphKey={range}
             minimal
           />
         </div>
       ) : stableLayout || (noSales && showEstimate) ? (
         <GhostPlot />
+      ) : null}
+
+      {showPlot && ranges.length > 1 ? (
+        <div
+          role="group"
+          aria-label="Sales range"
+          data-comp-ranges=""
+          className="mt-3 grid gap-1 rounded-full bg-zinc-100 p-1 dark:bg-white/[0.04]"
+          style={{ gridTemplateColumns: `repeat(${ranges.length}, minmax(0, 1fr))` }}
+        >
+          {COMP_RANGES.filter((item) => ranges.includes(item.id)).map((item) => {
+            const on = item.id === range;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                aria-pressed={on}
+                onClick={() => {
+                  onSelectSale?.(null);
+                  setChosenRange(item.id);
+                }}
+                className={`hit-44 h-9 rounded-full text-xs font-semibold tabular-nums outline-none transition-[background-color,color] duration-150 ease-[cubic-bezier(0.22,1,0.36,1)] focus-visible:ring-2 focus-visible:ring-violet-600 motion-reduce:transition-none ${
+                  on
+                    ? "bg-white text-zinc-950 shadow-sm dark:bg-zinc-800 dark:text-zinc-50"
+                    : "text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
+                }`}
+              >
+                {item.label}
+              </button>
+            );
+          })}
+        </div>
       ) : null}
 
       {usingLive ? <TrawlAttribution /> : null}
