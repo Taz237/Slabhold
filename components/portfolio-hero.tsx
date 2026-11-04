@@ -305,8 +305,8 @@ const CollectionValueCard = memo(function CollectionValueCard({
       aria-label="Collection value"
     >
       <div className="relative p-4 sm:p-5">
-        <div className="flex items-center justify-between gap-3">
-          <p className={label}>Collection value</p>
+        <div className="flex items-center justify-between gap-2">
+          <p className={`whitespace-nowrap ${label}`}>Collection value</p>
           <div className="flex shrink-0 items-center gap-2">
             {shareable && canChart && liveReady ? (
               <button
@@ -545,9 +545,9 @@ function StatRow({
             <button
               type="button"
               onClick={onShowWithoutValue}
-              className={`hit-44 inline-flex h-6 max-w-full items-center gap-0.5 rounded-full bg-violet-500/10 pr-1 pl-2 text-xs font-medium text-violet-700 hover:bg-violet-500/15 dark:text-violet-300 ${press}`}
+              className={`hit-44 inline-flex min-h-6 max-w-full items-center gap-0.5 rounded-xl bg-violet-500/10 py-1 pr-1 pl-2 text-left text-xs leading-4 font-medium text-violet-700 hover:bg-violet-500/15 dark:text-violet-300 ${press}`}
             >
-              <span className="truncate">{withoutText}</span>
+              <span>{withoutText}</span>
               <ChevronRight className="h-4 w-4 shrink-0" strokeWidth={1.5} aria-hidden />
             </button>
           </span>
@@ -560,26 +560,25 @@ function StatRow({
           <>
             <Link
               href={`/cards/${card.card.id}`}
-              className="-m-1 mt-1 flex min-h-11 items-center gap-2 rounded-xl p-1 outline-none focus-visible:ring-2 focus-visible:ring-violet-600"
+              className="-m-1 mt-1 block rounded-xl p-1 outline-none focus-visible:ring-2 focus-visible:ring-violet-600"
             >
-              <CardThumb card={card.card} className="h-12 w-9 shrink-0 rounded-md" />
-              <span className="min-w-0">
-                <span className="block truncate text-sm font-medium" title={card.playerName}>
+              <span className="flex min-h-12 items-center gap-2">
+                <CardThumb card={card.card} className="h-12 w-9 shrink-0 rounded-md" />
+                <span className="min-w-0 truncate text-sm font-medium" title={card.playerName}>
                   {card.playerName}
                 </span>
-                {pick.kind === "best" ? (
-                  <span
-                    data-gain="up"
-                    className={`mt-1 inline-flex rounded-full px-1.5 py-0.5 text-xs leading-4 font-semibold tabular-nums ${PILL_TONE.up}`}
-                  >
-                    {signedMoney(pick.best.gain)}
-                  </span>
-                ) : (
-                  <span className="mt-0.5 block text-sm font-semibold whitespace-nowrap tabular-nums">
-                    {money(pick.card.value ?? 0)}
-                  </span>
-                )}
               </span>
+              {/* Its own line, so a five-figure value fits at 320. */}
+              {pick.kind === "best" ? (
+                <span
+                  data-gain="up"
+                  className={`mt-2 inline-flex rounded-full px-2 py-0.5 text-xs leading-4 font-semibold tabular-nums ${PILL_TONE.up}`}
+                >
+                  {signedMoney(pick.best.gain)}
+                </span>
+              ) : (
+                <span className="mt-2 block text-sm leading-5 font-semibold tabular-nums">{money(pick.card.value ?? 0)}</span>
+              )}
             </Link>
             <p className={helper}>{pick.kind === "best" ? "Since you paid" : "Your most valuable"}</p>
           </>
