@@ -124,7 +124,7 @@ function Toolbar({ note, children }: { note?: string; children?: ReactNode }) {
     <div className="flex h-11 items-center justify-between gap-3">
       <span className="flex min-w-0 items-center gap-2">
         <SampleTag />
-        {note ? <span className="truncate text-[13px] text-zinc-500">{note}</span> : null}
+        {note ? <span className="truncate text-[13px] text-zinc-400">{note}</span> : null}
       </span>
       {children}
     </div>

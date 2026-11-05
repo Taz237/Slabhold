@@ -35,7 +35,7 @@ export function FounderNote({ showcase }: { showcase: FounderShowcase | null }) 
           <Logo className="h-12 w-12 shrink-0" />
         </NoHeadPreload>
         <div className="min-w-0">
-          <p className="text-[13px] text-zinc-500">Slabhold</p>
+          <p className="text-[13px] text-zinc-400">Slabhold</p>
           <p className="mt-0.5 text-[15px] leading-5 font-semibold text-zinc-100">Built by collectors, for collectors.</p>
         </div>
       </div>
@@ -72,7 +72,7 @@ export function FounderNote({ showcase }: { showcase: FounderShowcase | null }) 
         </span>
       )}
       <div className="min-w-0 flex-1">
-        <p className="text-[13px] text-zinc-500">From the founder</p>
+        <p className="text-[13px] text-zinc-400">From the founder</p>
         <p className="mt-0.5 flex min-w-0 items-baseline gap-1.5">
           <span className="truncate text-[15px] font-semibold tracking-tight text-white">{profile.displayName}</span>
           <span className="truncate text-[13px] text-zinc-400">@{profile.username}</span>

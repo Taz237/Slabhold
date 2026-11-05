@@ -81,7 +81,7 @@ export function HeroSlabs({
         </div>
       </div>
       <p
-        className={`mt-1 h-4 text-center font-mono text-[10px] leading-4 text-zinc-500 ${ready ? "" : "invisible"}`}
+        className={`mt-1 h-4 text-center font-mono text-[10px] leading-4 text-zinc-400 ${ready ? "" : "invisible"}`}
         data-hero-caption
       >
         {real && owner ? `From @${owner}'s collection` : "Sample slabs"}
