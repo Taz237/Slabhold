@@ -203,7 +203,36 @@ export function QuickCompVisual({ motion }: { motion: boolean }) {
   );
 }
 
-/** 3. The collection: slabs stack in, the stack bumps, and the real chart draws in. */
+/**
+ * One straight brand slab: a black case, a purple label and the star from the
+ * app icon. The glow breathes and a light sweep crosses it, CSS loops that run
+ * only with motion (globals.css also turns them off for reduced motion).
+ */
+function CollectionSlab({ motion }: { motion: boolean }) {
+  return (
+    <div data-slab="" aria-hidden="true" className="absolute top-[2px] left-[14px] h-[84px] w-[60px]">
+      <span
+        className={`collection-slab-glow pointer-events-none absolute inset-1 rounded-[10px] bg-[#7C3AED] opacity-40 blur-[14px] ${motion ? "collection-slab-glow-pulse" : ""}`}
+      />
+      <div className="relative flex h-full w-full flex-col gap-[3px] overflow-hidden rounded-[8px] border border-white/15 bg-[#09090B] p-[3px]">
+        <p className="flex h-[21px] shrink-0 items-center justify-center rounded-[4px] bg-[#7C3AED] text-center text-[8px] leading-[9px] font-semibold tracking-[-0.02em] text-white">
+          YOUR COLLECTION
+        </p>
+        <div className="flex flex-1 items-center justify-center rounded-[4px] border border-white/[0.06] bg-[#18181B]">
+          <svg viewBox="11.2 14 9.6 9.2" width="26" height="25" fill="#7C3AED">
+            <path d="M16 14.5 17.09 17.55 20.33 17.64 17.76 19.62 18.67 22.73 16 20.9 13.33 22.73 14.24 19.62 11.67 17.64 14.91 17.55Z" />
+          </svg>
+        </div>
+        <span className="pointer-events-none absolute inset-0 bg-[linear-gradient(135deg,transparent_38%,rgb(255_255_255/0.1)_50%,transparent_62%)]" />
+        {motion ? (
+          <span className="collection-slab-sweep pointer-events-none absolute inset-0 bg-[linear-gradient(105deg,transparent_30%,rgb(255_255_255/0.18)_50%,transparent_70%)]" />
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+/** 3. The collection: one slab rises in, the box bumps, and the real chart draws in. */
 export function CollectionVisual({ motion }: { motion: boolean }) {
   const stack = useRef<HTMLDivElement>(null);
   const spark = useRef<HTMLSpanElement>(null);
@@ -215,22 +244,22 @@ export function CollectionVisual({ motion }: { motion: boolean }) {
     if (!motion || !canAnimate(stack.current)) return;
     const running: Animation[] = [];
     const timers: number[] = [];
-    [...stack.current!.children].forEach((slab, index) => {
-      if (!(slab instanceof HTMLElement) || slab.dataset.slab == null) return;
-      const delay = 300 + index * 160;
+    const slab = stack.current!.querySelector("[data-slab]");
+    if (canAnimate(slab)) {
+      // Rises in straight, overshoots a touch and settles; the box answers with a bump and sparks.
       running.push(
         slab.animate(
           [
-            { transform: `translateY(200px) rotate(${index * 12 - 12}deg)`, opacity: 0 },
-            { transform: `translateY(-6px) rotate(${index * 6 - 6}deg)`, opacity: 1, offset: 0.75 },
-            { transform: `translateY(0) rotate(${index * 6 - 6}deg)`, opacity: 1 },
+            { transform: "translateY(200px)", opacity: 0 },
+            { transform: "translateY(-6px)", opacity: 1, offset: 0.75 },
+            { transform: "translateY(0)", opacity: 1 },
           ],
-          { duration: 520, delay, easing: EASE, fill: "backwards" },
+          { duration: 520, delay: 300, easing: EASE, fill: "backwards" },
         ),
       );
-      timers.push(window.setTimeout(() => bump(stack.current), delay + 420));
-    });
-    timers.push(window.setTimeout(() => sparks(spark.current), 300 + 3 * 160 + 420));
+      timers.push(window.setTimeout(() => bump(stack.current), 720));
+      timers.push(window.setTimeout(() => sparks(spark.current), 720));
+    }
     // The chart draws itself in (400ms) the first time it is on screen; the value counts up with it.
     const cancelCount = countUp(value.current, points[0].value, last, { duration: 400, delay: 0 });
     return () => {
@@ -251,16 +280,7 @@ export function CollectionVisual({ motion }: { motion: boolean }) {
           <p className="text-sm font-semibold text-[#A78BFA] tabular-nums">+$38 · 10.2%</p>
         </div>
         <div ref={stack} className="relative mr-2 h-[88px] w-[88px] shrink-0">
-          {[0, 1, 2].map((index) => (
-            <div
-              key={index}
-              data-slab=""
-              className="absolute top-0 w-[52px]"
-              style={{ left: index * 16, transform: `rotate(${index * 6 - 6}deg)` } as CSSProperties}
-            >
-              <CardSlabArt card={SAMPLE_SLABS[index]} index={9} source={NO_PHOTO} status="loading" onStatus={noop} sizes="52px" />
-            </div>
-          ))}
+          <CollectionSlab motion={motion} />
           <span ref={spark} aria-hidden className="pointer-events-none absolute top-1/2 left-1/2" />
         </div>
       </div>
