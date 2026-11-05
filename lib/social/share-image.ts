@@ -1,6 +1,7 @@
 import type { BadgeCategory, BadgeTier } from "@/lib/badges/config";
 import { slabCompany, slabNumber, tileKind } from "@/lib/collection/grid";
 import { basedOnSalesLabel } from "@/lib/comps/shared-value";
+import type { CardShape } from "@/lib/ui/card-shape-core";
 import { capGrapheme, cleanImageUrl, clipText, textGraphemes, type LinkPreview } from "./link-preview";
 
 /** What an Open Graph / Twitter image draws. Metadata copy stays on LinkPreview. */
@@ -20,6 +21,8 @@ export type ShareSlab = {
   player: string;
   /** "2023 · Prizm". */
   line: string;
+  /** From the photo's header when the share image checks it. Unset draws portrait. */
+  shape?: CardShape;
 };
 
 export type ShareBadge = { category: BadgeCategory; tier: BadgeTier };

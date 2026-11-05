@@ -16,7 +16,10 @@ import {
   homeShareImage,
   profileShareImage,
   type ShareImage,
+  type ShareSlab,
 } from "@/lib/social/share-image";
+import { IMAGE_HEAD_BYTES, imageSize, readImageSize, type ImageSize } from "@/lib/share/image-size";
+import { cardShape } from "@/lib/ui/card-shape-core";
 
 export const ogSize = { width: 1200, height: 630 };
 export const ogContentType = "image/png";
@@ -162,11 +165,25 @@ const ogFonts = [
   },
 ];
 
-/** Confirm a cleaned image URL. Redirects are not followed. */
-export async function reachableImage(url: string | null): Promise<string | null> {
+/** A checked photo, and its size when asked for and its header gives one. */
+type Probe = { src: string; size: ImageSize | null };
+
+/** Size from a data: URL's first bytes. */
+function dataUrlSize(url: string): ImageSize | null {
+  const comma = url.indexOf(",");
+  if (comma < 0 || !url.slice(0, comma).endsWith(";base64")) return null;
+  const head = url.slice(comma + 1, comma + 1 + Math.ceil(IMAGE_HEAD_BYTES / 3) * 4);
+  return imageSize(Buffer.from(head, "base64"));
+}
+
+/**
+ * Confirm a cleaned image URL. Redirects are not followed. With `withSize`, the
+ * first bytes of the body (at most 64 KB) are read for the photo's size.
+ */
+async function probeImage(url: string | null, withSize: boolean): Promise<Probe | null> {
   const safe = cleanImageUrl(url);
   if (!safe) return null;
-  if (safe.startsWith("data:")) return safe;
+  if (safe.startsWith("data:")) return { src: safe, size: withSize ? dataUrlSize(safe) : null };
   try {
     const response = await fetch(safe, {
       redirect: "manual",
@@ -183,13 +200,18 @@ export async function reachableImage(url: string | null): Promise<string | null>
       }
       const type = (response.headers.get("content-type") ?? "").toLowerCase();
       if (type && !type.startsWith("image/")) return null;
-      return safe;
+      return { src: safe, size: withSize ? await readImageSize(response.body) : null };
     } finally {
       await response.body?.cancel().catch(() => undefined);
     }
   } catch {
     return null;
   }
+}
+
+/** Confirm a cleaned image URL. Redirects are not followed. */
+export async function reachableImage(url: string | null): Promise<string | null> {
+  return (await probeImage(url, false))?.src ?? null;
 }
 
 export async function reachableImages(urls: readonly string[]): Promise<string[]> {
@@ -215,20 +237,32 @@ export async function reachableShare(model: ShareImage): Promise<ShareImage> {
     }
     return found;
   };
-  const [imageUrl, avatarUrl, photos, postPhotos, slabSrcs] = await Promise.all([
+  const [imageUrl, avatarUrl, photos, postPhotos, slabProbes] = await Promise.all([
     reachableImage(model.imageUrl),
     reachableImage(model.avatarUrl),
     check(model.photos),
     check(model.postPhotos),
-    check(model.slabs.map((slab) => slab.src)),
+    (async () => {
+      const found: (Probe | null)[] = [];
+      for (const slab of model.slabs) found.push(await probeImage(slab.src, true));
+      return found;
+    })(),
   ]);
+  // A slab keeps its place only when its photo is reachable. A wide photo draws
+  // as a landscape slab; an unknown size leaves the slab as it was (portrait).
+  const slabs: ShareSlab[] = [];
+  model.slabs.forEach((slab, index) => {
+    const probe = slabProbes[index];
+    if (probe?.src !== slab.src) return;
+    slabs.push(probe.size ? { ...slab, shape: cardShape(probe.size.width, probe.size.height) } : slab);
+  });
   return {
     ...model,
     imageUrl,
     avatarUrl,
     photos,
     postPhotos,
-    slabs: model.slabs.filter((slab) => slabSrcs.includes(slab.src)),
+    slabs,
     photoFallback: model.kind === "card" ? !imageUrl : model.photoFallback,
   };
 }
