@@ -1,5 +1,6 @@
 import type { PickupDemo } from "@/components/landing/showcase/sample-data";
 import { photoSource, slabLabel } from "@/lib/collection/grid";
+import { mapPublicCard } from "@/lib/social/cards";
 import type { FounderProfileRow } from "./founder";
 
 /*
@@ -18,12 +19,18 @@ export const FOUNDER_PICKUP_GRADE = "10";
 /** Rows read before picking. */
 export const FOUNDER_PICKUP_SCAN = 12;
 
-/** Only what picking needs. No ids beyond the owner check, no value, cert, paid or notes. */
-export const FOUNDER_PICKUP_SELECT = "user_id, player, grade, grader, condition_type, image_url, created_at";
+/** Only what picking and the slab label need. No ids beyond the owner check, no value, cert, paid or notes. */
+export const FOUNDER_PICKUP_SELECT =
+  "user_id, player, year, year_label, set, set_name, parallel, grade, grader, condition_type, image_url, created_at";
 
 export type FounderPickupRow = {
   user_id: string;
   player: string;
+  year: number | null;
+  year_label: string | null;
+  set: string | null;
+  set_name: string | null;
+  parallel: string | null;
   grade: string | null;
   grader: string | null;
   condition_type: string | null;
@@ -46,7 +53,7 @@ function label(row: FounderPickupRow): string {
 
 /**
  * His Jordan Love PSA 10 with a stored photo, newest first, as the public
- * fields the timeline draws: the photo, the player and the grade. Null when
+ * fields the timeline draws: the photo, the player, year, set and grade. Null when
  * there is no such card, so the post keeps its sample slab.
  */
 export function founderPickup(profile: FounderProfileRow | null, rows: readonly FounderPickupRow[]): PickupDemo | null {
@@ -63,5 +70,36 @@ export function founderPickup(profile: FounderProfileRow | null, rows: readonly 
     .sort((a, b) => time(b) - time(a))[0];
   const photo = photoSource(row?.image_url);
   if (!row || photo.kind !== "optimized") return null;
-  return { player: row.player.trim(), grader: FOUNDER_PICKUP_GRADER, grade: FOUNDER_PICKUP_GRADE, photoUrl: photo.src };
+  // Year and set the way founderComp builds them: the label year, then the set plus a non-base parallel.
+  const card = mapPublicCard({
+    id: "",
+    user_id: row.user_id,
+    player: row.player,
+    year: row.year ?? 0,
+    year_label: row.year_label,
+    set: row.set ?? "",
+    set_name: row.set_name,
+    parallel: row.parallel,
+    grade: row.grade,
+    grader: row.grader,
+    estimated_value: null,
+    image_url: null,
+    card_number: null,
+    sport: null,
+    accent: null,
+    condition_type: row.condition_type as "graded" | "raw" | null,
+  });
+  const year = row.year ? card.yearLabel ?? String(card.year) : (row.year_label ?? "").trim();
+  const parallel = (row.parallel ?? "").trim();
+  const set = [card.setBrand, parallel && !/^base$/i.test(parallel) && !card.setBrand.toLowerCase().includes(parallel.toLowerCase()) ? parallel : ""]
+    .filter(Boolean)
+    .join(" ");
+  return {
+    player: row.player.trim(),
+    year,
+    set,
+    grader: FOUNDER_PICKUP_GRADER,
+    grade: FOUNDER_PICKUP_GRADE,
+    photoUrl: photo.src,
+  };
 }

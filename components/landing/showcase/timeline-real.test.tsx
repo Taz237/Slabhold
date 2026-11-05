@@ -1,7 +1,7 @@
 import "@/lib/test/image-env";
 import assert from "node:assert/strict";
 import { afterEach, describe, it } from "node:test";
-import { act, createElement, type ReactElement } from "react";
+import { act, createElement, type ComponentType, type ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { PickupDemo } from "@/components/landing/showcase/sample-data";
 import { installDom } from "@/lib/test/dom";
@@ -15,7 +15,7 @@ afterEach(() => {
 });
 
 const PHOTO = "https://knuwflptobyutrauxblj.supabase.co/storage/v1/object/public/card-photos/f1/love.jpg";
-const REAL: PickupDemo = { player: "Fixture Jordan Love", grader: "PSA", grade: "10", photoUrl: PHOTO };
+const REAL: PickupDemo = { player: "Fixture Jordan Love", year: "2020", set: "Panini Prizm", grader: "PSA", grade: "10", photoUrl: PHOTO };
 const POST_TEXT = "Finally got this back from PSA. Jordan Love 10. Worth the wait.";
 
 async function mount(element: ReactElement) {
@@ -54,16 +54,26 @@ describe("timeline pickup with a real card", () => {
     const slab = row.querySelector('[data-real-pickup]');
     assert.ok(slab, "the real slab");
     assert.equal(slab.getAttribute("role"), "img");
-    assert.equal(slab.getAttribute("aria-label"), "Fixture Jordan Love, PSA 10");
+    assert.equal(slab.getAttribute("aria-label"), "Fixture Jordan Love, 2020 Panini Prizm, PSA 10");
     const img = slab.querySelector("img")!;
     assert.match(decodeURIComponent(img.getAttribute("src") ?? ""), /card-photos\/f1\/love\.jpg/);
     assert.equal(img.getAttribute("loading"), "lazy");
     assert.match(slab.textContent ?? "", /Fixture Jordan Love/);
     assert.match(slab.textContent ?? "", /PSA/);
+    assert.match(slab.textContent ?? "", /2020 · Panini Prizm/, "year and set on the label's top line");
+    assert.doesNotMatch(slab.textContent ?? "", /Graded card/);
 
     // Only Paolo's post carries it. The kitchen-table photo stays on p1.
     assert.equal(host.querySelectorAll('[data-copy="0"] [data-real-pickup]').length, 1);
     assert.ok(host.querySelector('[data-copy="0"] [data-post="p1"] img[src="/landing/kitchen-table-card.webp"]'));
+  });
+
+  it("keeps the Graded card line when year and set are both empty", async () => {
+    const { default: TimelineDemo } = await import("@/components/landing/showcase/timeline-demo");
+    const host = await mount(createElement(TimelineDemo, { run: 0, pickup: { ...REAL, year: "", set: "" } }));
+    const slab = paolo(host).querySelector("[data-real-pickup]")!;
+    assert.match(slab.textContent ?? "", /Graded card/);
+    assert.equal(slab.getAttribute("aria-label"), "Fixture Jordan Love, PSA 10");
   });
 
   it("puts the sample slab back when the real photo fails, keeping the new text", async () => {
@@ -99,14 +109,16 @@ describe("timeline pickup with a real card", () => {
   it("hands the page's card to the lazy timeline through the provider", async () => {
     const { LandingCompProvider, LandingPickupContext } = await import("@/components/landing/landing-links");
     const { use } = await import("react");
+    // Children go in as the third argument, so the props type doesn't require them.
+    const Provider = LandingCompProvider as unknown as ComponentType<{ comp: null; pickup?: PickupDemo | null }>;
     let seen: PickupDemo | null = null;
     function Probe() {
       seen = use(LandingPickupContext);
       return null;
     }
-    renderToStaticMarkup(createElement(LandingCompProvider, { comp: null, pickup: REAL, children: createElement(Probe) }));
+    renderToStaticMarkup(createElement(Provider, { comp: null, pickup: REAL }, createElement(Probe)));
     assert.deepEqual(seen, REAL);
-    renderToStaticMarkup(createElement(LandingCompProvider, { comp: null, children: createElement(Probe) }));
+    renderToStaticMarkup(createElement(Provider, { comp: null }, createElement(Probe)));
     assert.equal(seen, null);
   });
 });

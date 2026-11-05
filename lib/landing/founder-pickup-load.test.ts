@@ -14,6 +14,11 @@ const profile = { id: "f1", username: "donnietaz", display_name: "Donnie", avata
 const card = {
   user_id: "f1",
   player: "Fixture Jordan Love",
+  year: 2020,
+  year_label: "2020",
+  set: "Prizm",
+  set_name: "Panini Prizm",
+  parallel: null,
   grade: "10",
   grader: "PSA",
   condition_type: "graded",
@@ -46,7 +51,15 @@ describe("readFounderPickup", () => {
   it("reads his public Jordan Love cards, public columns only", async () => {
     const calls: string[] = [];
     const pickup = await readFounderPickup(fakeClient([{ data: profile, error: null }, { data: [card], error: null }], calls));
-    assert.deepEqual(pickup, { player: "Fixture Jordan Love", grader: "PSA", grade: "10", photoUrl: `${PHOTOS}/f1/love.jpg` });
+    assert.deepEqual(pickup, {
+      player: "Fixture Jordan Love",
+      year: "2020",
+      set: "Panini Prizm",
+      grader: "PSA",
+      grade: "10",
+      photoUrl: `${PHOTOS}/f1/love.jpg`,
+    });
+    assert.deepEqual(Object.keys(pickup!).sort(), ["grade", "grader", "photoUrl", "player", "set", "year"]);
     assert.deepEqual(calls, [
       "from profiles",
       "eq username donnietaz",
@@ -56,6 +69,9 @@ describe("readFounderPickup", () => {
       "ilike player %Jordan Love%",
     ]);
     assert.doesNotMatch(FOUNDER_PICKUP_SELECT, /\bid\b|value|cert|paid|purchase|notes/);
+    for (const column of ["year", "year_label", "set", "set_name", "parallel"]) {
+      assert.ok(FOUNDER_PICKUP_SELECT.split(", ").includes(column), column);
+    }
   });
 
   it("is null without the founder or the card", async () => {

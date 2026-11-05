@@ -220,14 +220,14 @@ function PostRow({
   );
 }
 
-/** The founder's real slab, drawn like a feed pickup. Only its player, grade and photo. */
+/** The founder's real slab, drawn like a feed pickup. Only its player, year, set, grade and photo. */
 function RealSlab({ pickup, onError }: { pickup: PickupDemo; onError: () => void }) {
   const [status, setStatus] = useState<PhotoStatus>("loading");
   const card: ArtCard = {
     playerName: pickup.player,
-    year: 0,
-    yearLabel: "",
-    setBrand: "",
+    year: Number.parseInt(pickup.year, 10) || 0,
+    yearLabel: pickup.year,
+    setBrand: pickup.set,
     grade: pickup.grade,
     gradeQualifier: "",
     certNumber: "",
@@ -236,7 +236,11 @@ function RealSlab({ pickup, onError }: { pickup: PickupDemo; onError: () => void
     grader: pickup.grader,
   };
   return (
-    <div role="img" aria-label={`${pickup.player}, ${pickup.grader} ${pickup.grade}`} data-real-pickup="">
+    <div
+      role="img"
+      aria-label={[pickup.player, [pickup.year, pickup.set].filter(Boolean).join(" "), `${pickup.grader} ${pickup.grade}`].filter(Boolean).join(", ")}
+      data-real-pickup=""
+    >
       <CardSlabArt
         card={card}
         index={9}

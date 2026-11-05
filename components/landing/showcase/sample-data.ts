@@ -102,9 +102,10 @@ export const REAL_PICKUP_POST = "p6";
 
 /**
  * A real graded card from the founder's public collection, for the timeline's
- * pickup post. Only what the slab draws: the photo, the player and the grade.
+ * pickup post. Only what the slab draws: the photo, the player, the year and
+ * set (empty when missing) and the grade.
  */
-export type PickupDemo = { player: string; grader: string; grade: string; photoUrl: string };
+export type PickupDemo = { player: string; year: string; set: string; grader: string; grade: string; photoUrl: string };
 
 /** A made-up card. Its photo is the neutral sample slab, so no logos. */
 export const SAMPLE_QUERY = "2023 Sample Rookie Prizm PSA 10";
