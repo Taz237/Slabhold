@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { isNativeApp, loadNative } from "@/lib/ios/platform";
+import { hideSplash, isNativeApp, loadNative } from "@/lib/ios/platform";
 
 /**
  * Starts the iOS app's native layer. On the web it renders nothing and loads
@@ -12,6 +12,7 @@ export function NativeBoot() {
   const router = useRouter();
   useEffect(() => {
     if (!isNativeApp()) return;
+    hideSplash();
     let stop: (() => void) | undefined;
     let gone = false;
     loadNative()
