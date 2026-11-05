@@ -17,6 +17,5 @@
   "error lib/comps/use-sold-comps.ts:react-hooks/set-state-in-effect": 1,
   "error lib/value/use-card-values.ts:react-hooks/set-state-in-effect": 1,
   "warning components/social-provider.tsx:react-hooks/exhaustive-deps": 3,
-  "warning lib/comps/clean.ts:@typescript-eslint/no-unused-vars": 9,
-  "error scripts/hand-edited.ts:(blanket-disable)": 1
+  "warning lib/comps/clean.ts:@typescript-eslint/no-unused-vars": 9
 }
