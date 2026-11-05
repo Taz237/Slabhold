@@ -5,6 +5,7 @@ import { BADGE_TIERS, type BadgeCategory, type BadgeTier } from "@/lib/badges/co
 import { fitQuote } from "@/lib/og/fit";
 import { initials } from "@/lib/format";
 import { postLayout, type ShareBadge, type ShareImage, type ShareSlab } from "@/lib/social/share-image";
+import type { CardShape } from "@/lib/ui/card-shape-core";
 
 /** Brand only: Geist on near-black, with the three Slabhold purples. */
 const C = {
@@ -191,7 +192,7 @@ function Chip({ text, size = 19, maxWidth }: { text: string; size?: number; maxW
 function Slab({ slab, width }: { slab: ShareSlab | null; width: number }) {
   const pad = Math.round(width * 0.05);
   const inner = width - pad * 2;
-  const photoHeight = Math.round(inner * 1.4);
+  const photoHeight = slabPhotoHeight(inner, slab?.shape);
   const label = slab?.graded ? (
     <div
       style={{
@@ -264,7 +265,7 @@ function Slab({ slab, width }: { slab: ShareSlab | null; width: number }) {
           alt=""
           width={inner}
           height={photoHeight}
-          style={{ objectFit: "cover", borderRadius: width * 0.02 }}
+          style={{ objectFit: slab.shape === "landscape" ? "contain" : "cover", borderRadius: width * 0.02 }}
         />
       ) : (
         <div
@@ -285,12 +286,52 @@ function Slab({ slab, width }: { slab: ShareSlab | null; width: number }) {
   );
 }
 
+/** The photo's height in a slab: 7:5 for a landscape card, else the portrait case. */
+export function slabPhotoHeight(inner: number, shape: CardShape | undefined): number {
+  return Math.round(shape === "landscape" ? (inner * 5) / 7 : inner * 1.4);
+}
+
 /** Height of a slab drawn at this width, label included. */
-function slabHeight(slab: ShareSlab | null, width: number): number {
+export function slabHeight(slab: ShareSlab | null, width: number): number {
   const pad = Math.round(width * 0.05);
-  const photo = Math.round((width - pad * 2) * 1.4);
+  const photo = slabPhotoHeight(width - pad * 2, slab?.shape);
   const label = slab?.graded ? width * 0.06 + width * 0.04 + width * 0.058 + 6 + pad * 0.8 : 0;
   return pad * 2 + photo + label + 4;
+}
+
+/** The same slab drawn portrait, for sizing a box the way an unknown photo would. */
+function asPortrait(slab: ShareSlab | null): ShareSlab | null {
+  return slab?.shape === "landscape" ? { ...slab, shape: undefined } : slab;
+}
+
+/**
+ * A single-slab hero's width. A landscape slab gets about 1.5x the portrait
+ * width, capped at the hero column and never taller than the portrait slab.
+ */
+export function heroSlabWidth(slab: ShareSlab | null, portraitWidth: number, cap: number): number {
+  if (slab?.shape !== "landscape") return portraitWidth;
+  const limit = slabHeight(asPortrait(slab), portraitWidth);
+  let width = Math.max(portraitWidth, Math.min(Math.round(portraitWidth * 1.5), Math.floor(cap)));
+  while (width > portraitWidth && slabHeight(slab, width) > limit) width -= 2;
+  return width;
+}
+
+/**
+ * A slab in a fan or grid. A landscape slab sits centered in the space a
+ * portrait one takes, so the group keeps its box.
+ */
+function SlabCell({ slab, width }: { slab: ShareSlab; width: number }) {
+  if (slab.shape !== "landscape") return <Slab slab={slab} width={width} />;
+  return (
+    <div style={{ ...col, width, height: slabHeight(asPortrait(slab), width), justifyContent: "center" }}>
+      <Slab slab={slab} width={width} />
+    </div>
+  );
+}
+
+/** The fan box for slabs: the first slab's portrait height, so wide slabs don't shrink it. */
+function fanHeight(slabs: ShareSlab[], width: number): number {
+  return slabHeight(asPortrait(slabs[0] ?? null), width) + 40;
 }
 
 function Photo({ src, width, height }: { src: string; width: number; height: number }) {
@@ -422,8 +463,8 @@ function postHero(model: ShareImage, canvas: Canvas): { node: ReactNode; width: 
   if (layout === "slab") {
     const slab = model.slabs[0] ?? null;
     let width = Math.round(300 * k);
-    while (slabHeight(slab, width) > height - 70 && width > 200) width -= 10;
-    return { node: <Slab slab={slab} width={width} />, width: 470 };
+    while (slabHeight(asPortrait(slab), width) > height - 70 && width > 200) width -= 10;
+    return { node: <Slab slab={slab} width={heroSlabWidth(slab, width, 470)} />, width: 470 };
   }
   if (layout === "photo") {
     const src = model.kind === "mail" ? model.photos[0] : model.postPhotos[0];
@@ -434,8 +475,8 @@ function postHero(model: ShareImage, canvas: Canvas): { node: ReactNode; width: 
     return {
       node: (
         <Fan
-          box={{ width: 520, height: slabHeight(model.slabs[0] ?? null, width) + 40, item: width }}
-          items={model.slabs.map((slab) => <Slab key={slab.src} slab={slab} width={width} />)}
+          box={{ width: 520, height: fanHeight(model.slabs, width), item: width }}
+          items={model.slabs.map((slab) => <SlabCell key={slab.src} slab={slab} width={width} />)}
         />
       ),
       width: 540,
@@ -568,7 +609,9 @@ function Handle({ handle, size = 26 }: { handle: string; size?: number }) {
 function CardLandscape({ model, canvas }: { model: ShareImage; canvas: Canvas }) {
   const slab = model.slabs[0] ?? null;
   let width = Math.round(310 * heroScale(canvas));
-  while (slabHeight(slab, width) > canvas.height - 70 && width > 200) width -= 10;
+  while (slabHeight(asPortrait(slab), width) > canvas.height - 70 && width > 200) width -= 10;
+  // The hero column is 500 wide; leave 20px each side.
+  width = heroSlabWidth(slab, width, 460);
   return (
     <Stage canvas={canvas}>
       <Glow size={780} x={260} y={canvas.height / 2} strength={0.6} />
@@ -589,7 +632,8 @@ function CardLandscape({ model, canvas }: { model: ShareImage; canvas: Canvas })
 function CardPortrait({ model, canvas }: { model: ShareImage; canvas: Canvas }) {
   const slab = model.slabs[0] ?? null;
   let width = Math.round(460 * heroScale(canvas));
-  while (slabHeight(slab, width) > 720 && width > 300) width -= 10;
+  while (slabHeight(asPortrait(slab), width) > 720 && width > 300) width -= 10;
+  width = heroSlabWidth(slab, width, canvas.width - 144);
   return (
     <Stage canvas={canvas}>
       <Pattern canvas={canvas} />
@@ -612,11 +656,11 @@ function ProfileLandscape({ model, canvas }: { model: ShareImage; canvas: Canvas
   const hero =
     slabs.length >= 2 ? (
       <Fan
-        box={{ width: 500, height: slabHeight(slabs[0] ?? null, width) + 40, item: width }}
-        items={slabs.map((slab) => <Slab key={slab.src} slab={slab} width={width} />)}
+        box={{ width: 500, height: fanHeight(slabs, width), item: width }}
+        items={slabs.map((slab) => <SlabCell key={slab.src} slab={slab} width={width} />)}
       />
     ) : (
-      <Slab slab={slabs[0] ?? null} width={width} />
+      <Slab slab={slabs[0] ?? null} width={heroSlabWidth(slabs[0] ?? null, width, 496)} />
     );
   const name = model.title;
   return (
@@ -752,11 +796,11 @@ function BrandFrame({ canvas, inset = 18 }: { canvas: Canvas; inset?: number }) 
 
 /** 0 cards: the empty slab. 1: one slab. 2 or 3: a fan. */
 function SlabFan({ slabs, width, box }: { slabs: ShareSlab[]; width: number; box: number }) {
-  if (slabs.length <= 1) return <Slab slab={slabs[0] ?? null} width={width} />;
+  if (slabs.length <= 1) return <Slab slab={slabs[0] ?? null} width={heroSlabWidth(slabs[0] ?? null, width, box)} />;
   return (
     <Fan
-      box={{ width: box, height: slabHeight(slabs[0] ?? null, width) + 40, item: width }}
-      items={slabs.map((slab) => <Slab key={slab.src} slab={slab} width={width} />)}
+      box={{ width: box, height: fanHeight(slabs, width), item: width }}
+      items={slabs.map((slab) => <SlabCell key={slab.src} slab={slab} width={width} />)}
     />
   );
 }
@@ -770,7 +814,7 @@ function SlabGrid({ slabs, width, gap }: { slabs: ShareSlab[]; width: number; ga
         <div key={index} style={{ ...row, alignItems: "flex-start", marginTop: index ? gap : 0 }}>
           {items.map((slab, at) => (
             <div key={slab.src} style={{ display: "flex", marginLeft: at ? gap : 0 }}>
-              <Slab slab={slab} width={width} />
+              <SlabCell slab={slab} width={width} />
             </div>
           ))}
         </div>
