@@ -130,6 +130,22 @@ export function sampleStats(sales: readonly { price: number }[] = SAMPLE_SALES) 
 }
 
 /**
+ * What the Quick Comp demo draws: the typed search, the card line and photo,
+ * the newest sold prices (whole dollars) and the stats under them. `owner` is
+ * set only for a real card from that collector's public collection.
+ */
+export type CompDemo = {
+  query: string;
+  label: string;
+  photo: { src: string; srcSet?: string; sizes?: string };
+  alt: string;
+  sales: readonly { price: number; when: string }[];
+  stats: { median: number; p25: number; p75: number; min: number; max: number; count: number };
+  basis: string;
+  owner: string | null;
+};
+
+/**
  * A sample collection value over the last 90 days, ending at $412: up $38
  * (10.2%) from $374. Dated from `today` so the axis always reads as recent.
  */

@@ -1,6 +1,8 @@
 import { Suspense } from "react";
 import { HomeGate } from "@/components/home-gate";
 import { LandingPage } from "@/components/landing-page";
+import { LandingCompProvider } from "@/components/landing/landing-links";
+import { landingCompDemo } from "@/lib/landing/founder-comp-load";
 import { founderShowcase } from "@/lib/landing/founder-page";
 import { requestHomeSeed } from "@/lib/social/request-home-seed";
 import { isRouterRequest } from "@/lib/supabase/router-request";
@@ -13,15 +15,25 @@ import { isRouterRequest } from "@/lib/supabase/router-request";
  * viewer is.
  */
 export default async function Home() {
+  // Both cached reads run at once.
+  const compRead = landingCompDemo();
   const founder = await founderShowcase();
+  const comp = await compRead;
+  // The landing's Quick Comp reads the real card from LandingCompProvider.
   // A visit from inside the app already has the timeline in memory.
   if (await isRouterRequest()) {
-    return <HomeGate landing={<LandingPage founder={founder} />} />;
+    return (
+      <LandingCompProvider comp={comp}>
+        <HomeGate landing={<LandingPage founder={founder} />} />
+      </LandingCompProvider>
+    );
   }
   return (
-    <Suspense fallback={<HomeGate landing={null} />}>
-      <SeededHome landing={<LandingPage founder={founder} />} />
-    </Suspense>
+    <LandingCompProvider comp={comp}>
+      <Suspense fallback={<HomeGate landing={null} />}>
+        <SeededHome landing={<LandingPage founder={founder} />} />
+      </Suspense>
+    </LandingCompProvider>
   );
 }
 

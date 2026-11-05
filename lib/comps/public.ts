@@ -190,9 +190,14 @@ async function readRows(
   return query;
 }
 
-async function readPublicCardComps(
+/**
+ * The public comps for one card, read straight through `client` (no Next cache).
+ * `saleLimit` is how many of the newest stored sales come back.
+ */
+export async function readPublicCardComps(
   cardKey: string,
   client: PublicCompsClient | null,
+  saleLimit = 3,
 ): Promise<PublicCardComps> {
   if (!client || !isUuid(cardKey)) return blankPublicComps("unavailable");
 
@@ -244,7 +249,7 @@ async function readPublicCardComps(
   }
 
   const queryKey = storedKey || expectedKey;
-  const sales = await readStoredSales(client, queryKey, cardKey);
+  const sales = await readStoredSales(client, queryKey, cardKey, saleLimit);
 
   return {
     sales,
@@ -292,6 +297,7 @@ async function readStoredSales(
   client: PublicCompsClient,
   queryKey: string,
   cardId: string,
+  limit: number,
 ): Promise<PublicCompSale[]> {
   if (!queryKey) return [];
 
@@ -324,7 +330,7 @@ async function readStoredSales(
   }
   const flagged = await ownerFlaggedItemIds(client, cardId);
   const visible = (data ?? []).filter((row) => !flagged.has(String(row.item_id ?? "")));
-  return newestStoredSales(visible, 3);
+  return newestStoredSales(visible, limit);
 }
 
 /**

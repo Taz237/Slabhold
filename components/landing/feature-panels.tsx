@@ -1,11 +1,11 @@
 "use client";
 
-import { Suspense, lazy, useEffect, useId, useRef, useState, type ComponentType, type ReactNode } from "react";
+import { Suspense, lazy, use, useEffect, useId, useRef, useState, type ComponentType, type ReactNode } from "react";
 import { ArrowRight, RotateCcw } from "lucide-react";
 import { Badge } from "@/components/badges/badge";
-import { LandingLink } from "@/components/landing/landing-links";
+import { LandingCompContext, LandingLink } from "@/components/landing/landing-links";
 import { canAnimate, EASE, onceVisible, prefersReducedMotion } from "@/components/landing/showcase/motion";
-import { SAMPLE_ACCOUNTS_LABEL, SAMPLE_ACCOUNTS_NOTE } from "@/components/landing/showcase/sample-data";
+import { SAMPLE_ACCOUNTS_LABEL, SAMPLE_ACCOUNTS_NOTE, type CompDemo } from "@/components/landing/showcase/sample-data";
 import { landingSignupHref } from "@/lib/auth/safe-next";
 import { BADGE_THRESHOLDS, BADGE_TIERS, CATEGORY_COPY, TIER_LABELS, type BadgeTier } from "@/lib/badges/config";
 import { QUICK_COMP_PATH, quickCompEnabled } from "@/lib/quick-comp/flag";
@@ -52,14 +52,21 @@ function chapter(id: ChapterId) {
   return CHAPTERS.find((item) => item.id === id)!;
 }
 
-/** The chapters, Quick Comp first when its flag is on. */
-export function FeaturePanels() {
+/**
+ * The chapters, Quick Comp first when its flag is on. `comp` is a real card
+ * from the founder's collection for Quick Comp; without it, the sample plays.
+ */
+export function FeaturePanels({ comp }: { comp?: CompDemo | null }) {
   const quickComp = quickCompEnabled();
+  const handed = use(LandingCompContext);
+  // A real photo that fails to load swaps the whole demo back to the sample.
+  const [real, setReal] = useState(comp === undefined ? handed : comp);
   return (
     <section aria-label="What you can do on Slabhold" data-always-dark="" className="mt-20 flex flex-col gap-24 lg:mt-28 lg:gap-32">
       {quickComp ? (
         <Chapter
           id="quick-comp"
+          owner={real?.owner ?? null}
           extra={
             <LandingLink
               button="signup"
@@ -71,7 +78,7 @@ export function FeaturePanels() {
             </LandingLink>
           }
         >
-          {(run) => <QuickCompDemo run={run} />}
+          {(run) => <QuickCompDemo key={real ? "real" : "sample"} run={run} comp={real} onPhotoError={() => setReal(null)} />}
         </Chapter>
       ) : null}
       <Chapter id="timeline" note={SAMPLE_ACCOUNTS_NOTE} region={SAMPLE_ACCOUNTS_LABEL} flip>
@@ -119,11 +126,16 @@ function ChapterCopy({ id, titleId, extra }: { id: ChapterId; titleId: string; e
   );
 }
 
-function Toolbar({ note, children }: { note?: string; children?: ReactNode }) {
+function Toolbar({ note, owner = null, children }: { note?: string; owner?: string | null; children?: ReactNode }) {
   return (
     <div className="flex h-11 items-center justify-between gap-3">
       <span className="flex min-w-0 items-center gap-2">
-        <SampleTag />
+        {/* Over a real card, the collector is named the way the hero caption names them. */}
+        {owner ? (
+          <span className="truncate font-mono text-[10px] leading-4 text-zinc-400">From @{owner}&apos;s collection</span>
+        ) : (
+          <SampleTag />
+        )}
         {note ? <span className="truncate text-[13px] text-zinc-400">{note}</span> : null}
       </span>
       {children}
@@ -143,6 +155,7 @@ function Chapter({
   id,
   extra,
   note,
+  owner = null,
   region,
   flip = false,
   children,
@@ -150,6 +163,8 @@ function Chapter({
   id: ChapterId;
   extra?: ReactNode;
   note?: string;
+  /** A real card's collector, named instead of the Sample tag. */
+  owner?: string | null;
   /** An aria-label for the demo, which then becomes a region. */
   region?: string;
   flip?: boolean;
@@ -163,7 +178,7 @@ function Chapter({
         <ChapterCopy id={id} titleId={titleId} extra={extra} />
       </div>
       <div className="mt-6 lg:mt-0">
-        <Toolbar note={note}>
+        <Toolbar note={note} owner={owner}>
           <ReplayButton onClick={() => setRun((count) => count + 1)} />
         </Toolbar>
         <div role={region ? "region" : undefined} aria-label={region} className={`relative mt-2 ${CHAPTER_HEIGHTS[id]}`}>
