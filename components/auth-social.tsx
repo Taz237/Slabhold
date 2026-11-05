@@ -2,9 +2,8 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { OAUTH_FAILED, oauthRedirectTo, type OAuthProvider } from "@/lib/auth/oauth";
-import { isNativeApp, loadNative } from "@/lib/ios/platform";
-import { loadSupabaseBrowser } from "@/lib/supabase/browser-lazy";
+import { ENABLED_PROVIDERS, OAUTH_FAILED, type OAuthProvider } from "@/lib/auth/oauth";
+import { isNativeApp } from "@/lib/ios/platform";
 
 const base =
   "flex h-14 w-full items-center justify-center gap-2.5 rounded-full text-[17px] font-medium transition-[transform,opacity] duration-150 active:scale-[0.98] disabled:opacity-60 motion-reduce:transition-none motion-reduce:transform-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)] focus-visible:outline-none";
@@ -35,33 +34,17 @@ const BUTTONS: Record<OAuthProvider, { label: string; className: string; icon: R
   },
 };
 
-/** Opens Apple or Google. Web: a normal redirect. iOS app: the in-app browser. */
-async function startOAuth(provider: OAuthProvider, next: string): Promise<boolean> {
-  const supabase = await loadSupabaseBrowser();
-  if (!supabase) return false;
-  const native = isNativeApp();
-  const { data, error } = await supabase.auth.signInWithOAuth({
-    provider,
-    options: { redirectTo: oauthRedirectTo(window.location.origin, next, native), skipBrowserRedirect: native },
-  });
-  if (error) return false;
-  if (native) {
-    if (!data.url) return false;
-    await (await loadNative()).openAuthBrowser(data.url);
-  }
-  return true;
-}
-
 /**
  * Continue with Apple / Google, then an "or" above the email form. Renders
  * nothing when neither flag is on.
  */
 export function SocialSignIn({
-  providers,
+  providers = ENABLED_PROVIDERS,
   next,
   failed,
 }: {
-  providers: readonly OAuthProvider[];
+  /** Defaults to the NEXT_PUBLIC_AUTH_APPLE / _GOOGLE flags. */
+  providers?: readonly OAuthProvider[];
   next: string;
   failed: boolean;
 }) {
@@ -72,7 +55,9 @@ export function SocialSignIn({
   async function go(provider: OAuthProvider) {
     setBusy(provider);
     setError(false);
-    const ok = await startOAuth(provider, next).catch(() => false);
+    const ok = await import("@/lib/auth/oauth-start")
+      .then((mod) => mod.startOAuth(provider, next))
+      .catch(() => false);
     if (!ok) setError(true);
     // On the web the page is leaving, so the button stays busy. In the app the sheet is up.
     if (!ok || isNativeApp()) setBusy(null);

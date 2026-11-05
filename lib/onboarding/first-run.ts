@@ -1,4 +1,4 @@
-import { HANDLE_PATH } from "@/lib/auth/oauth";
+import { HANDLE_PATH } from "@/lib/auth/oauth-paths";
 import { isOfficialUpdatesAccount } from "@/lib/social/official-updates";
 import { NOT_SUGGESTED_HANDLES, isTestAccount, normalizeAccountHandle } from "@/lib/test-accounts";
 

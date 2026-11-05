@@ -1,16 +1,15 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { ArrowLeft, Check, Eye, EyeOff, MailCheck } from "lucide-react";
 import { Captcha, useCaptchaWatch, type CaptchaHandle } from "@/components/captcha";
-import { SocialSignIn } from "@/components/auth-social";
 import { Logo } from "@/components/logo";
 import { useSocial } from "@/components/social-provider";
 import { useUsernameCheck } from "@/components/onboarding/use-username-check";
 import { trackEvent } from "@/lib/analytics";
-import { ENABLED_PROVIDERS } from "@/lib/auth/oauth";
 import { CAPTCHA_LOAD_FAILED, releaseCaptcha, submitBlocked, turnstileSiteKey } from "@/lib/auth/captcha";
 import {
   afterAuthPath,
@@ -71,6 +70,16 @@ const STEP_COPY: Record<SignupStep, { title: string; lead: string }> = {
   username: { title: "Pick a username", lead: "This is your @handle on Slabhold." },
   name: { title: "What should we call you?", lead: "Your display name. You can change it any time." },
 };
+
+/**
+ * Continue with Apple / Google. Next inlines the flags at build time, so with
+ * both off this folds to nothing and the buttons' code never ships. With either
+ * on, it's server-rendered (no layout shift) from its own chunk.
+ */
+const SOCIAL_ON = process.env.NEXT_PUBLIC_AUTH_APPLE === "1" || process.env.NEXT_PUBLIC_AUTH_GOOGLE === "1";
+const SocialSignIn = SOCIAL_ON
+  ? dynamic(() => import("@/components/auth-social").then((mod) => mod.SocialSignIn))
+  : () => null;
 
 /** The first step when Apple or Google is on: the email field sits under them. */
 const SOCIAL_COPY = { title: "Create your account", lead: "Track your cards, see what they sell for and follow other collectors." };
@@ -548,7 +557,7 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
             ? "Log in once to finish setup. You'll pick up right where you left off."
             : "Log in to your collection, your feed and your DMs."}
         </p>
-        <SocialSignIn providers={ENABLED_PROVIDERS} next={destination} failed={oauthFailed} />
+        <SocialSignIn next={destination} failed={oauthFailed} />
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -617,7 +626,7 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
     );
   }
 
-  const social = step === "email" && ENABLED_PROVIDERS.length > 0;
+  const social = step === "email" && SOCIAL_ON;
   const copy = social ? SOCIAL_COPY : STEP_COPY[step];
   const stepNumber = SIGNUP_STEPS.indexOf(step) + 1;
   const blocked = signupStepBlocked(step, { email, password, username, displayName }, usernameCheck.status);
@@ -653,7 +662,7 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
       <div key={step} className={`mt-8 ${direction === 1 ? STEP_IN : STEP_BACK}`}>
         <h1 className="text-[28px] font-semibold leading-tight tracking-tight">{copy.title}</h1>
         <p className="mt-2 text-[15px] leading-6 text-zinc-600 dark:text-zinc-400">{copy.lead}</p>
-        {social ? <SocialSignIn providers={ENABLED_PROVIDERS} next={destination} failed={oauthFailed} /> : null}
+        {social ? <SocialSignIn next={destination} failed={oauthFailed} /> : null}
         <form
           id="signup-step"
           noValidate

@@ -165,6 +165,16 @@ describe("Continue with Apple / Google wiring", () => {
     assert.equal(uses.length, 2);
   });
 
+  it("ships none of the buttons' code unless a flag is on", () => {
+    const form = read("components/auth-form.tsx");
+    assert.match(
+      form,
+      /const SOCIAL_ON = process\.env\.NEXT_PUBLIC_AUTH_APPLE === "1" \|\| process\.env\.NEXT_PUBLIC_AUTH_GOOGLE === "1";/,
+    );
+    assert.match(form, /const SocialSignIn = SOCIAL_ON\s*\? dynamic\(/);
+    assert.doesNotMatch(form, /^import [^;]*auth-social/m);
+  });
+
   it("keeps setup off the handle screen", () => {
     assert.match(read("lib/onboarding/first-run.ts"), /HANDLE_PATH/);
   });

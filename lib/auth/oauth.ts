@@ -1,3 +1,4 @@
+import { APP_RETURN_PATH, HANDLE_PATH, OAUTH_PATH } from "@/lib/auth/oauth-paths";
 import { afterAuthPath, safeNext } from "@/lib/auth/safe-next";
 
 /**
@@ -11,12 +12,7 @@ import { afterAuthPath, safeNext } from "@/lib/auth/safe-next";
  */
 export type OAuthProvider = "apple" | "google";
 
-/** Where Supabase returns on the web: swaps the code for a session. */
-export const OAUTH_PATH = "/auth/oauth";
-/** Where Supabase returns in the iOS app: a universal link back into the app. */
-export const APP_RETURN_PATH = "/auth/app-return";
-/** A new Apple or Google account picks its @handle here first. */
-export const HANDLE_PATH = "/settings/handle";
+export { APP_RETURN_PATH, HANDLE_PATH, OAUTH_PATH };
 
 /** Apple first (App Store rule 4.8), each only when its flag is "1". */
 export function oauthProviders(flags: { apple?: string; google?: string }): OAuthProvider[] {
