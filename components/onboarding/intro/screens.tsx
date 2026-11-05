@@ -215,7 +215,7 @@ function CollectionSlab({ motion }: { motion: boolean }) {
         className={`collection-slab-glow pointer-events-none absolute inset-1 rounded-[10px] bg-[#7C3AED] opacity-40 blur-[14px] ${motion ? "collection-slab-glow-pulse" : ""}`}
       />
       <div className="relative flex h-full w-full flex-col gap-[3px] overflow-hidden rounded-[8px] border border-white/15 bg-[#09090B] p-[3px]">
-        <p className="flex h-[21px] shrink-0 items-center justify-center rounded-[4px] bg-[#7C3AED] text-center text-[8px] leading-[9px] font-bold tracking-[-0.02em] text-white">
+        <p className="flex h-[21px] shrink-0 items-center justify-center rounded-[4px] bg-[#7C3AED] text-center text-[8px] leading-[9px] font-semibold tracking-[-0.02em] text-white">
           YOUR COLLECTION
         </p>
         <div className="flex flex-1 items-center justify-center rounded-[4px] border border-white/[0.06] bg-[#18181B]">
