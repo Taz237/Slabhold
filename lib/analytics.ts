@@ -141,6 +141,7 @@ export const PAGE_PATTERNS = [
   "/scan",
   "/search",
   "/settings/collecting",
+  "/settings/handle",
   "/settings/invite",
   "/settings/notifications",
   "/settings/privacy",
