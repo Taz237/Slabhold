@@ -8,7 +8,7 @@ import type { FounderShowcase } from "@/lib/landing/founder";
 import { userHref } from "@/lib/social/user-href";
 
 const BOX =
-  "flex min-h-[92px] items-center gap-3.5 rounded-[1.25rem] border border-white/10 bg-white/[0.035] px-4 py-3.5";
+  "flex min-h-[92px] items-center gap-3.5 rounded-[1.25rem] border border-white/10 bg-[#121214] px-4 py-3.5";
 
 /**
  * A small "from the founder" line below the panels. Null profile is the plain

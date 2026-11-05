@@ -58,7 +58,7 @@ export default function GraphsDemo({ run, gain }: { run: number; gain: ReactNode
   }, [run]);
 
   return (
-    <div ref={root} data-showcase-demo="graphs" className="h-full rounded-2xl border border-white/[0.08] bg-white/[0.03] p-4">
+    <div ref={root} data-showcase-demo="graphs" className="h-full rounded-2xl border border-white/[0.08] bg-[#101013] p-4">
       <p className="text-[13px] leading-5 text-zinc-400">Collection value</p>
       <p className="mt-1 text-[34px] leading-10 font-semibold tracking-tight text-white tabular-nums">
         <span ref={value}>{dollars(last)}</span>
