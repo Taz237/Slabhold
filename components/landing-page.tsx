@@ -2,6 +2,7 @@ import Link from "next/link";
 import { FounderNote } from "@/components/landing/founder-note";
 import { HeroSlabs } from "@/components/landing/hero-slabs";
 import { NoHeadPreload } from "@/components/landing/no-head-preload";
+import { LandingGalaxy } from "@/components/landing/landing-galaxy";
 import { FeaturePanels, LandingCta, LandingLogin } from "@/components/landing/landing-links";
 import { Logo } from "@/components/logo";
 import type { FounderShowcase } from "@/lib/landing/founder";
@@ -12,13 +13,15 @@ import { readFounderShowcase } from "@/lib/landing/founder-showcase";
  * Signed-out Home, drawn on the server: the hero and its photos paint from
  * the HTML and never redraw. `founder` is the server's hour-cached showcase,
  * so the hero slabs paint with the page. The links that read ?next= and the
- * panels below the hero are the only client code.
+ * panels below the hero are the only client code, with the galaxy backdrop
+ * (the onboarding intro's) fixed behind it all.
  */
 export function LandingPage({ founder = null }: { founder?: FounderShowcase | null }) {
   const showcase = founder ? readFounderShowcase(founder) : null;
   const quickComp = quickCompEnabled();
   return (
-    <div className="min-h-dvh overflow-x-clip bg-[#09090b] text-zinc-100">
+    <div data-always-dark="" className="min-h-dvh overflow-x-clip bg-[#09090b] text-zinc-100">
+      <LandingGalaxy />
       <div className="relative mx-auto flex min-h-dvh w-full max-w-lg flex-col px-6 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))] lg:max-w-5xl">
         <header className="flex min-h-14 items-center justify-between">
           <span className="flex items-center gap-2">
