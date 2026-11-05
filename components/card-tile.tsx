@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useState, type CSSProperties, type ReactNode } from "react";
 import { Camera, TrendingDown, TrendingUp } from "lucide-react";
 import { CardSlabArt, type ArtCard } from "@/components/card-slab-art";
+import type { SlabFit } from "@/components/card-slab-frame";
 import { CountUp } from "@/components/count-up";
 import { TileVisibilityButton, type VisibilitySave } from "@/components/card-visibility";
 import {
@@ -77,6 +78,7 @@ export function CardTile({
   prefetch,
   density = "regular",
   countUp = false,
+  artFit,
   className = "",
   style,
   children,
@@ -115,6 +117,8 @@ export function CardTile({
   density?: "regular" | "compact";
   /** The gain chip's % counts up once (Home rail, first paint). */
   countUp?: boolean;
+  /** "hug" fits a raw card's art to its photo, for posts. Grids leave it unset. */
+  artFit?: SlabFit;
   className?: string;
   style?: CSSProperties;
   /** Below the tile link, e.g. an eBay sold link. */
@@ -161,6 +165,7 @@ export function CardTile({
               status={status}
               onStatus={onStatus}
               sizes={sizes}
+              fit={artFit}
             />
             {sold ? <SoldRibbon /> : null}
           </div>

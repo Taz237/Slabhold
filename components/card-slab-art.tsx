@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useCallback } from "react";
-import { PhotoPlaceholder, SlabFrame, type ArtCard } from "@/components/card-slab-frame";
+import { PhotoPlaceholder, SlabFrame, type ArtCard, type SlabFit } from "@/components/card-slab-frame";
 import {
   TILE_IMAGE_SIZES,
   showPhotoPlaceholder,
@@ -29,6 +29,7 @@ export function CardSlabArt({
   sizes = TILE_IMAGE_SIZES,
   preload = false,
   fetchPriority,
+  fit,
 }: {
   card: ArtCard;
   index: number;
@@ -40,6 +41,8 @@ export function CardSlabArt({
   preload?: boolean;
   /** Overrides the index-based priority, e.g. "high" for the page's LCP photo only. */
   fetchPriority?: "high" | "auto";
+  /** "hug" fits a raw card to its photo (posts). Grids keep the 3:5 tile. */
+  fit?: SlabFit;
 }) {
   // Seeded from photos already measured in this tab, so a revisit doesn't flip.
   const [learned, onShape] = useCardShape(source.kind === "none" ? null : source.src);
@@ -61,7 +64,7 @@ export function CardSlabArt({
     />
   );
 
-  return <SlabFrame card={card} shape={shape}>{photo}</SlabFrame>;
+  return <SlabFrame card={card} shape={shape} fit={fit}>{photo}</SlabFrame>;
 }
 
 /**
