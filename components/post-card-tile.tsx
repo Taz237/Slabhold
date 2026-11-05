@@ -49,6 +49,8 @@ export function PostCardTile({
       index={eager ? 0 : EAGER_TILES}
       prefetch={false}
       sizes="260px"
+      // A raw card fits its photo, with no empty band above it.
+      artFit="hug"
       ariaLabel={tileAccessibleName(card, label)}
       priceLabel={label}
       pricePending={pending}

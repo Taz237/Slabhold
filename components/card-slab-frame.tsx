@@ -30,6 +30,9 @@ const LABEL_TONES: Record<SlabTone, string> = {
   neutral: "bg-zinc-200 text-zinc-900",
 };
 
+/** "tile" fills a 3:5 box so grid rows line up. "hug" fits a raw card to its photo. */
+export type SlabFit = "tile" | "hug";
+
 const FALLBACK_ACCENT = "#7C3AED";
 
 function accentColor(accent: string | null | undefined): string {
@@ -44,25 +47,38 @@ function accentColor(accent: string | null | undefined): string {
  * their height and nothing reflows: at the bottom for a raw card (sharing a
  * baseline with portrait cards, right above the name and price), centred
  * under the label for a slab.
+ *
+ * fit "hug" (posts) draws a raw card as only its photo box, so no empty band
+ * sits above it. A slab draws the same either way.
  */
 export function SlabFrame({
   card,
   shape = "portrait",
+  fit = "tile",
   children,
 }: {
   card: ArtCard;
   shape?: CardShape;
+  fit?: SlabFit;
   children: ReactNode;
 }) {
   const wide = shape === "landscape";
   if (tileKind(card) === "card") {
+    const box = `relative ${wide ? "aspect-[7/5]" : "aspect-[5/7]"} w-full overflow-hidden rounded-lg border border-black/10 bg-zinc-900 shadow-[0_10px_24px_-10px_rgba(0,0,0,0.55)] dark:border-white/10`;
+    if (fit === "hug") {
+      return (
+        <div className={box} data-kind="card" data-fit="hug" data-shape={wide ? "landscape" : undefined}>
+          {children}
+        </div>
+      );
+    }
     return (
       <div
         className="flex aspect-[3/5] w-full flex-col justify-end"
         data-kind="card"
         data-shape={wide ? "landscape" : undefined}
       >
-        <div className={`relative ${wide ? "aspect-[7/5]" : "aspect-[5/7]"} w-full overflow-hidden rounded-lg border border-black/10 bg-zinc-900 shadow-[0_10px_24px_-10px_rgba(0,0,0,0.55)] dark:border-white/10`}>
+        <div className={box}>
           {children}
         </div>
       </div>
