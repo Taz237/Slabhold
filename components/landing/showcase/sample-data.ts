@@ -90,12 +90,21 @@ export const SAMPLE_POSTS: readonly SamplePost[] = [
     id: "p6",
     persona: PERSONAS.paolo,
     ago: "3h",
-    body: "Found my lolo's old binder in the closet. Sleeving every page tonight.",
+    body: "Finally got this back from PSA. Jordan Love 10. Worth the wait.",
     replies: 9,
     likes: 64,
     pickup: true,
   },
 ];
+
+/** The pickup that shows a real card (PickupDemo) when the page hands one over. */
+export const REAL_PICKUP_POST = "p6";
+
+/**
+ * A real graded card from the founder's public collection, for the timeline's
+ * pickup post. Only what the slab draws: the photo, the player and the grade.
+ */
+export type PickupDemo = { player: string; grader: string; grade: string; photoUrl: string };
 
 /** A made-up card. Its photo is the neutral sample slab, so no logos. */
 export const SAMPLE_QUERY = "2023 Sample Rookie Prizm PSA 10";

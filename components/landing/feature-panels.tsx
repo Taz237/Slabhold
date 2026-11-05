@@ -3,9 +3,9 @@
 import { Suspense, lazy, use, useEffect, useId, useRef, useState, type ComponentType, type ReactNode } from "react";
 import { ArrowRight, RotateCcw } from "lucide-react";
 import { Badge } from "@/components/badges/badge";
-import { LandingCompContext, LandingLink } from "@/components/landing/landing-links";
+import { LandingCompContext, LandingLink, LandingPickupContext } from "@/components/landing/landing-links";
 import { canAnimate, EASE, onceVisible, prefersReducedMotion } from "@/components/landing/showcase/motion";
-import { SAMPLE_ACCOUNTS_LABEL, SAMPLE_ACCOUNTS_NOTE, type CompDemo } from "@/components/landing/showcase/sample-data";
+import { SAMPLE_ACCOUNTS_LABEL, SAMPLE_ACCOUNTS_NOTE, type CompDemo, type PickupDemo } from "@/components/landing/showcase/sample-data";
 import { landingSignupHref } from "@/lib/auth/safe-next";
 import { BADGE_THRESHOLDS, BADGE_TIERS, CATEGORY_COPY, TIER_LABELS, type BadgeTier } from "@/lib/badges/config";
 import { QUICK_COMP_PATH, quickCompEnabled } from "@/lib/quick-comp/flag";
@@ -55,10 +55,12 @@ function chapter(id: ChapterId) {
 /**
  * The chapters, Quick Comp first when its flag is on. `comp` is a real card
  * from the founder's collection for Quick Comp; without it, the sample plays.
+ * `pickup` is his real slab for the timeline's pickup post.
  */
-export function FeaturePanels({ comp }: { comp?: CompDemo | null }) {
+export function FeaturePanels({ comp, pickup }: { comp?: CompDemo | null; pickup?: PickupDemo | null }) {
   const quickComp = quickCompEnabled();
   const handed = use(LandingCompContext);
+  const handedPickup = use(LandingPickupContext);
   // A real photo that fails to load swaps the whole demo back to the sample.
   const [real, setReal] = useState(comp === undefined ? handed : comp);
   return (
@@ -82,7 +84,7 @@ export function FeaturePanels({ comp }: { comp?: CompDemo | null }) {
         </Chapter>
       ) : null}
       <Chapter id="timeline" note={SAMPLE_ACCOUNTS_NOTE} region={SAMPLE_ACCOUNTS_LABEL} flip>
-        {(run) => <TimelineDemo run={run} />}
+        {(run) => <TimelineDemo run={run} pickup={pickup === undefined ? handedPickup : pickup} />}
       </Chapter>
       <Chapter id="graphs">
         {(run) => <GraphsDemo run={run} gain={<p className="text-sm font-semibold text-[#A78BFA] tabular-nums">+$38 · 10.2%</p>} />}

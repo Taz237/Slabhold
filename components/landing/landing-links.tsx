@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, createContext, lazy, useEffect, type ReactNode } from "react";
-import type { CompDemo } from "@/components/landing/showcase/sample-data";
+import type { CompDemo, PickupDemo } from "@/components/landing/showcase/sample-data";
 import { trackEvent } from "@/lib/analytics";
 import { landingLoginHref, landingSignupHref, safeNext } from "@/lib/auth/safe-next";
 import { prefetchOnce, warmOnFirstInteraction } from "@/lib/landing/warm-routes";
@@ -88,9 +88,24 @@ export function FeaturePanels() {
 /** The founder's real card for the Quick Comp demo. Null plays the sample. */
 export const LandingCompContext = createContext<CompDemo | null>(null);
 
-/** Set by the page around the landing, so the lazy panels get the real card. */
-export function LandingCompProvider({ comp, children }: { comp: CompDemo | null; children: ReactNode }) {
-  return <LandingCompContext value={comp}>{children}</LandingCompContext>;
+/** The founder's real card for the timeline's pickup post. Null keeps the sample slab. */
+export const LandingPickupContext = createContext<PickupDemo | null>(null);
+
+/** Set by the page around the landing, so the lazy panels get the real cards. */
+export function LandingCompProvider({
+  comp,
+  pickup = null,
+  children,
+}: {
+  comp: CompDemo | null;
+  pickup?: PickupDemo | null;
+  children: ReactNode;
+}) {
+  return (
+    <LandingCompContext value={comp}>
+      <LandingPickupContext value={pickup}>{children}</LandingPickupContext>
+    </LandingCompContext>
+  );
 }
 
 function FromSearch({ render }: { render: (next: string) => ReactNode }) {

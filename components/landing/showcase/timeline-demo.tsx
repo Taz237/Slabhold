@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import type { PhotoStatus } from "@/lib/collection/grid";
 import { Heart, MessageCircle } from "lucide-react";
-import { CardSlabArt } from "@/components/card-slab-art";
+import { CardSlabArt, type ArtCard } from "@/components/card-slab-art";
 import { SAMPLE_SLABS } from "@/components/landing/sample-cards";
 import { PostBody, PostPill } from "@/components/timeline-ui";
 import { EASE, cancelAll, canAnimate, prefersReducedMotion, rise, watchVisible } from "./motion";
-import { SAMPLE_POSTS, avatarSrc, type SamplePost } from "./sample-data";
+import { REAL_PICKUP_POST, SAMPLE_POSTS, avatarSrc, type PickupDemo, type SamplePost } from "./sample-data";
 
 const NO_PHOTO = { kind: "none" } as const;
 const noop = () => {};
@@ -18,9 +19,12 @@ const MOVE_MS = 500;
  * The feed, slowly moving: sample pickups, questions and a reply from the
  * demo personas. Drawn with the feed's own parts (PostBody, PostPill, the
  * slab art) in the feed row's layout. Handles are plain text: these are
- * sample accounts, never linked and never followable.
+ * sample accounts, never linked and never followable. `pickup` is a real
+ * slab from the founder's collection for Paolo's pickup; a photo that fails
+ * puts the sample slab back.
  */
-export default function TimelineDemo({ run }: { run: number }) {
+export default function TimelineDemo({ run, pickup = null }: { run: number; pickup?: PickupDemo | null }) {
+  const [real, setReal] = useState(pickup);
   const root = useRef<HTMLDivElement>(null);
   const track = useRef<HTMLDivElement>(null);
   const [reduce] = useState(prefersReducedMotion);
@@ -127,13 +131,13 @@ export default function TimelineDemo({ run }: { run: number }) {
       <div ref={track}>
         <ul data-copy="0">
           {posts.map((post) => (
-            <PostRow key={post.id} post={post} liked={ticked.has(post.id)} />
+            <PostRow key={post.id} post={post} liked={ticked.has(post.id)} real={post.id === REAL_PICKUP_POST ? real : null} onPhotoError={() => setReal(null)} />
           ))}
         </ul>
         {reduce ? null : (
           <ul data-copy="1" aria-hidden inert>
             {posts.map((post) => (
-              <PostRow key={post.id} post={post} liked />
+              <PostRow key={post.id} post={post} liked real={post.id === REAL_PICKUP_POST ? real : null} onPhotoError={() => setReal(null)} />
             ))}
           </ul>
         )}
@@ -142,7 +146,17 @@ export default function TimelineDemo({ run }: { run: number }) {
   );
 }
 
-function PostRow({ post, liked }: { post: SamplePost; liked: boolean }) {
+function PostRow({
+  post,
+  liked,
+  real,
+  onPhotoError,
+}: {
+  post: SamplePost;
+  liked: boolean;
+  real: PickupDemo | null;
+  onPhotoError: () => void;
+}) {
   const { persona } = post;
   const likes = liked ? post.likes : post.likes - 1;
   return (
@@ -179,6 +193,8 @@ function PostRow({ post, liked }: { post: SamplePost; liked: boolean }) {
                   // Donnie's own card, used with his OK. Plain and lazy: no optimizer.
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src="/landing/kitchen-table-card.webp" alt="Numbered patch card in a top-loader" width={300} height={420} loading="lazy" decoding="async" draggable={false} className="aspect-[5/7] w-16 rounded-md border border-white/10 object-cover" />
+                ) : real ? (
+                  <RealSlab pickup={real} onError={onPhotoError} />
                 ) : (
                   <CardSlabArt card={SAMPLE_SLABS[1]} index={9} source={NO_PHOTO} status="loading" onStatus={noop} sizes="64px" />
                 )}
@@ -201,6 +217,38 @@ function PostRow({ post, liked }: { post: SamplePost; liked: boolean }) {
         </div>
       </article>
     </li>
+  );
+}
+
+/** The founder's real slab, drawn like a feed pickup. Only its player, grade and photo. */
+function RealSlab({ pickup, onError }: { pickup: PickupDemo; onError: () => void }) {
+  const [status, setStatus] = useState<PhotoStatus>("loading");
+  const card: ArtCard = {
+    playerName: pickup.player,
+    year: 0,
+    yearLabel: "",
+    setBrand: "",
+    grade: pickup.grade,
+    gradeQualifier: "",
+    certNumber: "",
+    accent: "#7C3AED",
+    conditionType: "graded",
+    grader: pickup.grader,
+  };
+  return (
+    <div role="img" aria-label={`${pickup.player}, ${pickup.grader} ${pickup.grade}`} data-real-pickup="">
+      <CardSlabArt
+        card={card}
+        index={9}
+        source={{ kind: "optimized", src: pickup.photoUrl }}
+        status={status}
+        onStatus={(event) => {
+          if (event === "error") onError();
+          else setStatus("loaded");
+        }}
+        sizes="64px"
+      />
+    </div>
   );
 }
 

@@ -5,6 +5,7 @@ import { LandingCompProvider } from "@/components/landing/landing-links";
 import { StandaloneRedirect } from "@/components/landing/standalone-redirect";
 import { WelcomeListeners } from "@/components/landing/welcome-listeners";
 import { landingCompDemo } from "@/lib/landing/founder-comp-load";
+import { landingFounderPickup } from "@/lib/landing/founder-pickup-load";
 import { welcomeFounderShowcase } from "@/lib/landing/founder-page";
 
 /**
@@ -22,16 +23,18 @@ export const metadata: Metadata = {
 };
 
 export default async function Welcome() {
-  // Both cached reads run at once.
+  // The cached reads run at once.
   const compRead = landingCompDemo();
+  const pickupRead = landingFounderPickup();
   const founder = await welcomeFounderShowcase();
   const comp = await compRead;
+  const pickup = await pickupRead;
   return (
     <>
       <AccountDeletedToast />
       <StandaloneRedirect />
       <WelcomeListeners />
-      <LandingCompProvider comp={comp}>
+      <LandingCompProvider comp={comp} pickup={pickup}>
         <LandingPage founder={founder} />
       </LandingCompProvider>
     </>
