@@ -162,13 +162,13 @@ function PostRow({ post, liked }: { post: SamplePost; liked: boolean }) {
         <div className="min-w-0 flex-1">
           <p className="flex min-w-0 items-baseline gap-1 text-[15px] leading-5">
             <span className="max-w-[52%] shrink-0 truncate font-semibold text-zinc-100">{persona.name}</span>
-            <span className="min-w-0 truncate text-zinc-500">@{persona.handle}</span>
-            <span aria-hidden className="shrink-0 text-zinc-500">
+            <span className="min-w-0 truncate text-zinc-400">@{persona.handle}</span>
+            <span aria-hidden className="shrink-0 text-zinc-400">
               ·
             </span>
-            <span className="shrink-0 text-zinc-500 tabular-nums">{post.ago}</span>
+            <span className="shrink-0 text-zinc-400 tabular-nums">{post.ago}</span>
           </p>
-          {post.replyTo ? <p className="text-[13px] leading-5 text-zinc-500">Replying to @{post.replyTo.handle}</p> : null}
+          {post.replyTo ? <p className="text-[13px] leading-5 text-zinc-400">Replying to @{post.replyTo.handle}</p> : null}
           <div className="mt-1 text-zinc-100">
             <PostBody text={post.body} collapsible={false} />
           </div>
@@ -186,7 +186,7 @@ function PostRow({ post, liked }: { post: SamplePost; liked: boolean }) {
               <PostPill label="Pickup" />
             </div>
           ) : null}
-          <div className="mt-1 flex h-9 items-center gap-6 text-[13px] text-zinc-500 tabular-nums">
+          <div className="mt-1 flex h-9 items-center gap-6 text-[13px] text-zinc-400 tabular-nums">
             <span className="flex items-center gap-1.5">
               <MessageCircle aria-hidden size={16} strokeWidth={1.5} />
               <span className="sr-only">Replies</span>

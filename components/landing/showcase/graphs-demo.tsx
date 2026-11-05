@@ -65,7 +65,7 @@ export default function GraphsDemo({ run, gain }: { run: number; gain: ReactNode
       </p>
       <div className="mt-1 flex h-5 items-center gap-2">
         {gain}
-        <span className="text-[13px] text-zinc-500">Last 90 days</span>
+        <span className="text-[13px] text-zinc-400">Last 90 days</span>
       </div>
       <div className="mt-4">
         {/* Re-keyed on Replay so the built-in draw-in plays again. Off with reduced motion. */}
