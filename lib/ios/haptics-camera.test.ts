@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { haptic } from "@/lib/ios/haptics";
-import { PHOTO_ACCESS_ERROR, photoFile, pickError, usesNativePicker } from "@/lib/ios/camera";
+import { usesNativePicker } from "@/lib/ios/camera";
+import { PHOTO_ACCESS_ERROR, photoFile, pickError } from "@/lib/ios/native-helpers";
 
 const root = join(import.meta.dirname, "..", "..");
 const read = (path: string) => readFileSync(join(root, path), "utf8");
@@ -22,9 +23,8 @@ describe("haptics", () => {
   it("fires on Like and after a post, loading the plugin only on use", () => {
     assert.match(read("components/tweet.tsx"), /if \(!liked\) haptic\("like"\)/);
     assert.match(read("components/social-provider.tsx"), /haptic\("post"\)/);
-    const source = read("lib/ios/haptics.ts");
-    assert.match(source, /import\("@capacitor\/haptics"\)/);
-    assert.doesNotMatch(source, /^import[^;]*["']@capacitor\//m);
+    assert.match(read("lib/ios/haptics.ts"), /loadNative\(\)/);
+    assert.match(read("lib/ios/native.ts"), /Haptics\.impact\(\{ style: ImpactStyle\.Light \}\)/);
   });
 });
 
@@ -62,9 +62,8 @@ describe("Add card photos in the app", () => {
     assert.match(form, /usesNativePicker\(\)/);
     assert.match(form, /pickNativePhoto\("camera"\)/);
     assert.match(form, /pickNativePhoto\("library"\)/);
-    const camera = read("lib/ios/camera.ts");
-    assert.match(camera, /await import\("@capacitor\/camera"\)/);
-    assert.doesNotMatch(camera, /^import[^;]*["']@capacitor\//m);
+    assert.match(read("lib/ios/camera.ts"), /\(await loadNative\(\)\)\.pickPhoto\(source\)/);
+    assert.match(read("lib/ios/native.ts"), /resultType: CameraResultType\.DataUrl/);
   });
 
   it("asks for camera and photo access in plain words", () => {

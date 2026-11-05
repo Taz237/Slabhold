@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { isShareAbort } from "@/lib/share/sheet";
-import { asShareAbort, shareFunction } from "@/lib/ios/share";
+import { asShareAbort } from "@/lib/ios/native-helpers";
+import { shareFunction } from "@/lib/ios/share";
 
 const root = join(import.meta.dirname, "..", "..");
 const read = (path: string) => readFileSync(join(root, path), "utf8");
@@ -37,7 +38,7 @@ describe("native share", () => {
     assert.match(read("components/share-button.tsx"), /share: isNativeApp\(\) \? nativeShare : navigator\.share/);
     assert.match(read("components/share-sheet.tsx"), /shareFunction\(\)/);
     const share = read("lib/ios/share.ts");
-    assert.match(share, /await import\("@capacitor\/share"\)/);
-    assert.doesNotMatch(share, /^import[^;]*["']@capacitor\//m);
+    assert.match(share, /\(await loadNative\(\)\)\.shareSheet\(data\)/);
+    assert.match(read("lib/ios/native.ts"), /throw asShareAbort\(error\)/);
   });
 });
