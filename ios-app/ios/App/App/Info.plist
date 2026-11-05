@@ -26,6 +26,10 @@
 	<false/>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>Slabhold uses the camera to take photos of cards you add to your collection.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Slabhold opens your photos so you can add card pictures to your collection and posts.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

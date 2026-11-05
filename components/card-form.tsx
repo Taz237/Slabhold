@@ -117,6 +117,7 @@ import {
   saveFailureText,
 } from "@/lib/save/attempt";
 import { PHOTO_READ_ERROR, readPhotoFile } from "@/lib/photos";
+import { pickNativePhoto, usesNativePicker } from "@/lib/ios/camera";
 import type {
   CardCategory,
   IdentifyResult,
@@ -534,13 +535,25 @@ export function CardForm({
     if (el?.closest("details")) setMoreOpen(true);
   }
 
+  /** The iOS app's own camera and photo picker, instead of a file input. */
+  function pickInApp(picking: Promise<File | null>) {
+    setPhotoError(null);
+    picking
+      .then((file) => {
+        if (file) void scanFile(file);
+      })
+      .catch((error: unknown) => setPhotoError(error instanceof Error ? error.message : PHOTO_READ_ERROR));
+  }
+
   function openCamera() {
     photoSource.current = "camera";
+    if (usesNativePicker()) return pickInApp(pickNativePhoto("camera"));
     cameraRef.current?.click();
   }
 
   function openLibrary() {
     photoSource.current = "library";
+    if (usesNativePicker()) return pickInApp(pickNativePhoto("library"));
     libraryRef.current?.click();
   }
 
