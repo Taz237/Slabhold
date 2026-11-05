@@ -1,9 +1,8 @@
 "use client";
 
-import dynamic from "next/dynamic";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { Suspense, lazy, useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { ArrowLeft, Check, Eye, EyeOff, MailCheck } from "lucide-react";
 import { Captcha, useCaptchaWatch, type CaptchaHandle } from "@/components/captcha";
 import { Logo } from "@/components/logo";
@@ -74,12 +73,32 @@ const STEP_COPY: Record<SignupStep, { title: string; lead: string }> = {
 /**
  * Continue with Apple / Google. Next inlines the flags at build time, so with
  * both off this folds to nothing and the buttons' code never ships. With either
- * on, it's server-rendered (no layout shift) from its own chunk.
+ * on, it comes from its own chunk, server-rendered on a first load.
  */
-const SOCIAL_ON = process.env.NEXT_PUBLIC_AUTH_APPLE === "1" || process.env.NEXT_PUBLIC_AUTH_GOOGLE === "1";
-const SocialSignIn = SOCIAL_ON
-  ? dynamic(() => import("@/components/auth-social").then((mod) => mod.SocialSignIn))
-  : () => null;
+const APPLE_ON = process.env.NEXT_PUBLIC_AUTH_APPLE === "1";
+const GOOGLE_ON = process.env.NEXT_PUBLIC_AUTH_GOOGLE === "1";
+const SOCIAL_ON = APPLE_ON || GOOGLE_ON;
+const LazySocial = SOCIAL_ON ? lazy(() => import("@/components/auth-social").then((mod) => ({ default: mod.SocialSignIn }))) : null;
+
+/** Same height as the buttons, so a soft navigation to login doesn't jump. */
+function SocialSignIn(props: { next: string; failed: boolean }) {
+  if (!LazySocial) return null;
+  const buttons = Number(APPLE_ON) + Number(GOOGLE_ON);
+  return (
+    <Suspense
+      fallback={
+        <div aria-hidden className="mt-6 space-y-3">
+          {Array.from({ length: buttons }, (_, i) => (
+            <div key={i} className="h-14 rounded-full bg-zinc-200/70 dark:bg-white/5" />
+          ))}
+          <div className="h-[104px]" />
+        </div>
+      }
+    >
+      <LazySocial {...props} />
+    </Suspense>
+  );
+}
 
 /** The first step when Apple or Google is on: the email field sits under them. */
 const SOCIAL_COPY = { title: "Create your account", lead: "Track your cards, see what they sell for and follow other collectors." };
@@ -819,7 +838,7 @@ function AuthTopBar({
 const inputClass =
   "h-14 w-full rounded-2xl border border-zinc-300 bg-white px-4 text-[17px] outline-none transition-colors placeholder:text-zinc-400 focus:border-violet-500 focus:ring-4 focus:ring-violet-500/15 aria-[invalid=true]:border-rose-500 motion-reduce:transition-none dark:border-white/12 dark:bg-white/[0.04] dark:placeholder:text-zinc-500";
 
-export function Field({
+function Field({
   label,
   value,
   onChange,
@@ -975,7 +994,7 @@ function PasswordField({
   );
 }
 
-export function UsernameField({
+function UsernameField({
   value,
   onChange,
   onBlur,

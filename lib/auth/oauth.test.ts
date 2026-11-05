@@ -167,11 +167,9 @@ describe("Continue with Apple / Google wiring", () => {
 
   it("ships none of the buttons' code unless a flag is on", () => {
     const form = read("components/auth-form.tsx");
-    assert.match(
-      form,
-      /const SOCIAL_ON = process\.env\.NEXT_PUBLIC_AUTH_APPLE === "1" \|\| process\.env\.NEXT_PUBLIC_AUTH_GOOGLE === "1";/,
-    );
-    assert.match(form, /const SocialSignIn = SOCIAL_ON\s*\? dynamic\(/);
+    assert.match(form, /const APPLE_ON = process\.env\.NEXT_PUBLIC_AUTH_APPLE === "1";/);
+    assert.match(form, /const GOOGLE_ON = process\.env\.NEXT_PUBLIC_AUTH_GOOGLE === "1";/);
+    assert.match(form, /const LazySocial = SOCIAL_ON \? lazy\(/);
     assert.doesNotMatch(form, /^import [^;]*auth-social/m);
   });
 
