@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { Share } from "lucide-react";
 import { trackEvent } from "@/lib/analytics";
+import { isNativeApp } from "@/lib/ios/platform";
+import { nativeShare } from "@/lib/ios/share";
 import { postSharePayload, shareOrCopy } from "@/lib/share/sheet";
 import { publicOrigin } from "@/lib/site-url";
 
@@ -41,7 +43,7 @@ export async function copyText(value: string) {
 async function shareLink(path: string, title: string, text: string) {
   const url = absoluteUrl(path);
   return shareOrCopy(postSharePayload({ title, text, url }), {
-    share: navigator.share?.bind(navigator),
+    share: isNativeApp() ? nativeShare : navigator.share?.bind(navigator),
     copy: copyText,
   });
 }
