@@ -55,15 +55,19 @@ import { userHref } from "@/lib/social/user-href";
 import { useInviteShare } from "@/components/invite/invite-button";
 import { quickCompEnabled } from "@/lib/quick-comp/flag";
 import { sideMenuItems } from "@/lib/ui/side-menu-items";
+import { edgeSwipeClaims } from "@/lib/ui/nav-motion";
 import {
   ADD_TO_HOME_LABEL,
   INVITE_MENU_HREF,
   SIDE_MENU_SETTINGS,
   countLabel,
   dragOffset,
+  menuDragProgress,
+  menuEdgeSwipeAllowed,
   menuItemActive,
   menuQueryOpens,
-  swipeCloses,
+  menuReleaseOpens,
+  SIDE_MENU_MAX_PX,
   TAKE_TOUR_LABEL,
   TOUR_AFTER_CLOSE_MS,
 } from "@/lib/ui/side-menu";
@@ -91,9 +95,9 @@ const FOCUSABLE =
   'a[href], button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 const mainRow =
-  "flex min-h-12 items-center gap-4 rounded-2xl px-3 text-[19px] font-semibold tracking-tight focus-visible:ring-2 focus-visible:ring-[#7C3AED] focus-visible:outline-none";
+  "tap-fade flex min-h-12 items-center gap-4 rounded-2xl px-3 text-[19px] font-semibold tracking-tight focus-visible:ring-2 focus-visible:ring-[#7C3AED] focus-visible:outline-none";
 const settingsRow =
-  "flex min-h-11 items-center gap-3 rounded-2xl px-3 text-[15px] font-medium focus-visible:ring-2 focus-visible:ring-[#7C3AED] focus-visible:outline-none";
+  "tap-fade flex min-h-11 items-center gap-3 rounded-2xl px-3 text-[15px] font-medium focus-visible:ring-2 focus-visible:ring-[#7C3AED] focus-visible:outline-none";
 
 function rowTone(active: boolean) {
   return active
@@ -140,6 +144,8 @@ export function AccountMenu({ user, showLogin }: { user: Profile | null; showLog
     setOpen(false);
     window.setTimeout(() => setGuideOpen(true), TOUR_AFTER_CLOSE_MS);
   }, []);
+  const pathname = usePathname() || "/";
+  useMenuEdgeSwipe({ enabled: Boolean(user) && pathname === "/", panelId, open, onOpen: openMenu });
 
   if (!user) return <GuestAccount showLogin={showLogin} />;
 
@@ -188,6 +194,192 @@ export function AccountMenu({ user, showLogin }: { user: Profile | null; showLog
       ) : null}
     </>
   );
+}
+
+/** Drawer and backdrop slide time (side-menu panel classes use the same). */
+const MENU_SLIDE_MS = 300;
+
+/** Another dialog on screen. The closed menu is inert, so it never counts. */
+function otherModalOpen() {
+  return [...document.querySelectorAll<HTMLElement>("[role='dialog'][aria-modal='true']")].some(
+    (dialog) => !dialog.closest("[inert]") && getComputedStyle(dialog).visibility !== "hidden",
+  );
+}
+
+type MenuParts = { wrap: HTMLElement; panel: HTMLElement; backdrop: HTMLElement };
+
+/**
+ * Home only: a sideways drag from the left edge pulls the menu out. The panel
+ * follows the finger (translate), the backdrop fades with it, and letting go
+ * snaps open or shut. Other pages keep that edge for the back swipe.
+ */
+function useMenuEdgeSwipe({
+  enabled,
+  panelId,
+  open,
+  onOpen,
+}: {
+  enabled: boolean;
+  panelId: string;
+  open: boolean;
+  onOpen: () => void;
+}) {
+  const openRef = useRef(open);
+  const onOpenRef = useRef(onOpen);
+  useEffect(() => {
+    openRef.current = open;
+    onOpenRef.current = onOpen;
+  }, [open, onOpen]);
+
+  useEffect(() => {
+    if (!enabled) return;
+    let tracking = false;
+    let claimed = false;
+    let startX = 0;
+    let startY = 0;
+    let deltaX = 0;
+    let width = SIDE_MENU_MAX_PX;
+    let frame = 0;
+    let settleTimer = 0;
+    let samples: Array<{ x: number; t: number }> = [];
+    let parts: MenuParts | null = null;
+
+    function find(): MenuParts | null {
+      const panel = document.getElementById(panelId);
+      const backdrop = panel?.previousElementSibling;
+      const wrap = panel?.parentElement;
+      if (!panel || !(backdrop instanceof HTMLElement) || !wrap) return null;
+      return { wrap, panel, backdrop };
+    }
+
+    function clear(target: MenuParts | null) {
+      if (!target) return;
+      for (const el of [target.wrap, target.panel, target.backdrop]) {
+        el.style.removeProperty("transition");
+        el.style.removeProperty("visibility");
+        el.style.removeProperty("translate");
+        el.style.removeProperty("opacity");
+      }
+    }
+
+    function paint() {
+      frame = 0;
+      if (!parts) return;
+      const progress = menuDragProgress(deltaX, width);
+      parts.panel.style.translate = `${(progress - 1) * 100}% 0`;
+      parts.backdrop.style.opacity = String(progress);
+    }
+
+    function schedule() {
+      if (!frame) frame = window.requestAnimationFrame(paint);
+    }
+
+    /** Mount the panel at the edge, off screen, ready to follow the finger. */
+    function arm(): boolean {
+      window.clearTimeout(settleTimer);
+      clear(parts);
+      parts = find();
+      if (!parts) return false;
+      width = parts.panel.getBoundingClientRect().width || width;
+      parts.wrap.style.visibility = "visible";
+      for (const el of [parts.wrap, parts.panel, parts.backdrop]) el.style.transition = "none";
+      paint();
+      return true;
+    }
+
+    function settle(opens: boolean) {
+      window.cancelAnimationFrame(frame);
+      frame = 0;
+      const target = parts;
+      if (!target) return;
+      // Hand the transition back to the classes, then aim at where they will sit.
+      target.panel.style.removeProperty("transition");
+      target.backdrop.style.removeProperty("transition");
+      target.panel.style.translate = opens ? "0 0" : "-100% 0";
+      target.backdrop.style.opacity = opens ? "1" : "0";
+      if (opens) onOpenRef.current();
+      settleTimer = window.setTimeout(() => {
+        clear(target);
+        if (parts === target) parts = null;
+      }, MENU_SLIDE_MS + 20);
+    }
+
+    function stopWatching() {
+      window.removeEventListener("touchmove", onEdgeMove);
+    }
+
+    function onEdgeStart(event: TouchEvent) {
+      stopWatching();
+      tracking = false;
+      claimed = false;
+      if (event.touches.length !== 1) return;
+      const touch = event.touches[0];
+      if (
+        !menuEdgeSwipeAllowed({
+          pathname: window.location.pathname,
+          startX: touch.clientX,
+          menuOpen: openRef.current,
+          modalOpen: otherModalOpen(),
+        })
+      ) {
+        return;
+      }
+      tracking = true;
+      startX = touch.clientX;
+      startY = touch.clientY;
+      deltaX = 0;
+      samples = [{ x: touch.clientX, t: event.timeStamp }];
+      window.addEventListener("touchmove", onEdgeMove, { passive: false });
+    }
+
+    function onEdgeMove(event: TouchEvent) {
+      if (!tracking || event.touches.length !== 1) return;
+      const touch = event.touches[0];
+      const dx = touch.clientX - startX;
+      const dy = touch.clientY - startY;
+      if (!claimed) {
+        const decision = edgeSwipeClaims(dx, dy);
+        if (decision === "release") {
+          tracking = false;
+          stopWatching();
+          return;
+        }
+        if (decision === "wait" || !arm()) return;
+        claimed = true;
+      }
+      if (event.cancelable) event.preventDefault();
+      deltaX = dx;
+      samples.push({ x: touch.clientX, t: event.timeStamp });
+      if (samples.length > 5) samples.shift();
+      schedule();
+    }
+
+    function onEdgeEnd() {
+      stopWatching();
+      if (!tracking) return;
+      tracking = false;
+      if (!claimed) return;
+      claimed = false;
+      const first = samples[0];
+      const last = samples[samples.length - 1];
+      const elapsed = first && last ? last.t - first.t : 0;
+      const velocity = first && last && elapsed > 0 ? (last.x - first.x) / elapsed : 0;
+      settle(menuReleaseOpens({ progress: menuDragProgress(deltaX, width), velocity, wasOpen: false }));
+    }
+
+    window.addEventListener("touchstart", onEdgeStart, { passive: true });
+    window.addEventListener("touchend", onEdgeEnd);
+    window.addEventListener("touchcancel", onEdgeEnd);
+    return () => {
+      stopWatching();
+      window.cancelAnimationFrame(frame);
+      window.clearTimeout(settleTimer);
+      window.removeEventListener("touchstart", onEdgeStart);
+      window.removeEventListener("touchend", onEdgeEnd);
+      window.removeEventListener("touchcancel", onEdgeEnd);
+      clear(parts);
+    };
+  }, [enabled, panelId]);
 }
 
 /** /more redirects to /?menu=open. Open the menu, then drop the param. */
@@ -240,8 +432,9 @@ export function SideMenu({
   const { mode, status, signOut, followerCount, followingCount, unreadMessageCount } = useSocial();
   const panelRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef(onClose);
-  const touchStart = useRef<{ x: number; y: number } | null>(null);
-  const [drag, setDrag] = useState<number | null>(null);
+  const touchStart = useRef<{ x: number; y: number; t: number } | null>(null);
+  const lastTouch = useRef<{ x: number; t: number } | null>(null);
+  const [drag, setDrag] = useState<{ px: number; progress: number } | null>(null);
   const [badges, setBadges] = useState<BadgeSummary | null>(null);
   const userId = user.id;
   const hosted = mode === "supabase";
@@ -319,7 +512,8 @@ export function SideMenu({
 
   function onTouchStart(event: React.TouchEvent) {
     const touch = event.touches[0];
-    touchStart.current = touch ? { x: touch.clientX, y: touch.clientY } : null;
+    touchStart.current = touch ? { x: touch.clientX, y: touch.clientY, t: event.timeStamp } : null;
+    lastTouch.current = touch ? { x: touch.clientX, t: event.timeStamp } : null;
   }
 
   function onTouchMove(event: React.TouchEvent) {
@@ -328,15 +522,32 @@ export function SideMenu({
     if (!start || !touch) return;
     const dx = touch.clientX - start.x;
     const dy = touch.clientY - start.y;
-    if (Math.abs(dx) > Math.abs(dy)) setDrag(dragOffset(dx));
+    if (Math.abs(dx) > Math.abs(dy)) {
+      const px = dragOffset(dx);
+      const width = panelRef.current?.offsetWidth || SIDE_MENU_MAX_PX;
+      setDrag({ px, progress: menuDragProgress(width + px, width) });
+    }
+    lastTouch.current = { x: touch.clientX, t: event.timeStamp };
   }
 
   function onTouchEnd(event: React.TouchEvent) {
     const start = touchStart.current;
     const touch = event.changedTouches[0];
+    const recent = lastTouch.current;
     touchStart.current = null;
+    lastTouch.current = null;
     setDrag(null);
-    if (start && touch && swipeCloses(touch.clientX - start.x, touch.clientY - start.y)) onClose();
+    if (!start || !touch) return;
+    const dx = touch.clientX - start.x;
+    const dy = touch.clientY - start.y;
+    if (Math.abs(dx) <= Math.abs(dy)) return;
+    // Snap like the edge swipe: 35% of the panel back, or a flick to the left.
+    const width = panelRef.current?.offsetWidth || SIDE_MENU_MAX_PX;
+    const from = recent && event.timeStamp - recent.t < 80 ? recent : { x: start.x, t: start.t };
+    const elapsed = event.timeStamp - from.t;
+    const velocity = elapsed > 0 ? (touch.clientX - from.x) / elapsed : 0;
+    const progress = menuDragProgress(width + dragOffset(dx), width);
+    if (!menuReleaseOpens({ progress, velocity, wasOpen: true })) onClose();
   }
 
   /** Close first, so the tour spotlights the real top bar and tabs. */
@@ -351,7 +562,7 @@ export function SideMenu({
     <>
       {createPortal(
     <div
-      className={`fixed inset-0 z-50 transition-[visibility] duration-200 motion-reduce:duration-0 ${
+      className={`fixed inset-0 z-50 transition-[visibility] duration-300 motion-reduce:duration-0 ${
         open ? "visible" : "invisible"
       }`}
       inert={!open}
@@ -367,7 +578,8 @@ export function SideMenu({
         aria-hidden
         data-menu-backdrop=""
         onClick={onClose}
-        className={`absolute inset-0 bg-black/60 transition-opacity duration-200 motion-reduce:transition-none ${
+        style={drag !== null && open ? { opacity: drag.progress, transition: "none" } : undefined}
+        className={`absolute inset-0 bg-black/60 transition-opacity duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${
           open ? "opacity-100" : "opacity-0"
         }`}
       />
@@ -378,8 +590,8 @@ export function SideMenu({
         aria-modal="true"
         aria-label="Menu"
         tabIndex={-1}
-        style={drag !== null && open ? { transform: `translateX(${drag}px)`, transition: "none" } : undefined}
-        className={`absolute inset-y-0 left-0 flex w-[80%] max-w-[320px] flex-col overflow-y-auto overscroll-contain border-r border-zinc-200 bg-white pt-[env(safe-area-inset-top)] pb-[max(1rem,env(safe-area-inset-bottom))] pl-[env(safe-area-inset-left)] shadow-2xl outline-none transition-transform duration-200 ease-out motion-reduce:transition-none dark:border-white/10 dark:bg-[#09090B] ${
+        style={drag !== null && open ? { transform: `translateX(${drag.px}px)`, transition: "none" } : undefined}
+        className={`absolute inset-y-0 left-0 flex w-[80%] max-w-[320px] flex-col overflow-y-auto overscroll-contain border-r border-zinc-200 bg-white pt-[env(safe-area-inset-top)] pb-[max(1rem,env(safe-area-inset-bottom))] pl-[env(safe-area-inset-left)] shadow-2xl outline-none transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none dark:border-white/10 dark:bg-[#09090B] ${
           open ? "translate-x-0" : "-translate-x-full"
         }`}
       >

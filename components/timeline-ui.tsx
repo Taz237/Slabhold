@@ -104,7 +104,7 @@ export function LaneTabs({ lane, onChange }: { lane: HomeLane; onChange: (lane: 
               aria-controls="home-lane-panel"
               tabIndex={active ? 0 : -1}
               onClick={() => onChange(item.id)}
-              className={`min-h-12 text-[15px] tracking-tight transition-colors duration-200 hover:bg-zinc-900/[0.03] dark:hover:bg-white/[0.03] ${
+              className={`tap-fade min-h-12 text-[15px] tracking-tight transition-colors duration-200 hover:bg-zinc-900/[0.03] dark:hover:bg-white/[0.03] ${
                 active ? "font-semibold text-[var(--foreground)]" : "font-medium text-zinc-500"
               }`}
             >
@@ -115,7 +115,7 @@ export function LaneTabs({ lane, onChange }: { lane: HomeLane; onChange: (lane: 
         <span
           data-lane-underline=""
           aria-hidden="true"
-          className="pointer-events-none absolute bottom-0 left-0 flex h-[2px] w-1/2 justify-center transition-transform duration-300 ease-[cubic-bezier(0.2,0.7,0.2,1)] motion-reduce:transition-none"
+          className="pointer-events-none absolute bottom-0 left-0 flex h-[2px] w-1/2 justify-center transition-transform duration-[180ms] ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform motion-reduce:transition-none"
           style={{ transform: `translateX(${index * 100}%)` }}
         >
           <span className="block h-full w-14 rounded-full bg-[#7C3AED]" />
