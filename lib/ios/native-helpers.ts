@@ -39,6 +39,18 @@ export function pickError(error: unknown): "cancelled" | "denied" | "failed" {
   return "failed";
 }
 
+/**
+ * What pickPhoto throws: null on Cancel, else the user's message. The raw
+ * plugin error goes to the console, so a failure like a missing Info.plist key
+ * shows up in Xcode instead of hiding behind "Couldn't read that photo".
+ */
+export function photoPickFailure(error: unknown): Error | null {
+  const kind = pickError(error);
+  if (kind === "cancelled") return null;
+  console.warn("Slabhold photo pick failed:", error);
+  return new Error(kind === "denied" ? PHOTO_ACCESS_ERROR : PHOTO_PICK_ERROR);
+}
+
 /** Cancel on the iOS share sheet becomes the web's AbortError, so callers treat both alike. */
 export function asShareAbort(error: unknown): unknown {
   const message = (error as { message?: unknown } | null)?.message;

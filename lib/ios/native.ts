@@ -13,7 +13,7 @@ import { StatusBar, Style } from "@capacitor/status-bar";
 import { appLinkPath, routeLink, routeWindowOpen } from "@/lib/ios/links";
 import type { PhotoSource } from "@/lib/ios/camera";
 import type { HapticMoment } from "@/lib/ios/haptics";
-import { PHOTO_ACCESS_ERROR, PHOTO_PICK_ERROR, asShareAbort, photoFile, pickError } from "@/lib/ios/native-helpers";
+import { asShareAbort, photoFile, photoPickFailure } from "@/lib/ios/native-helpers";
 import type { NativeShareData } from "@/lib/share/sheet";
 
 const LAUNCH_KEY = "slabhold.native.launch-url";
@@ -92,6 +92,7 @@ export function startNativeShell({ navigate }: ShellDeps): () => void {
     .catch(() => {});
 
   void StatusBar.setStyle({ style: Style.Default }).catch(() => {});
+  // NativeBoot already hid it through the bridge; this is the fallback.
   void SplashScreen.hide({ fadeOutDuration: 200 }).catch(() => {});
 
   return () => {
@@ -134,8 +135,8 @@ export async function pickPhoto(source: PhotoSource): Promise<File | null> {
     });
     return photoFile(photo);
   } catch (error) {
-    const kind = pickError(error);
-    if (kind === "cancelled") return null;
-    throw new Error(kind === "denied" ? PHOTO_ACCESS_ERROR : PHOTO_PICK_ERROR);
+    const failure = photoPickFailure(error);
+    if (failure) throw failure;
+    return null;
   }
 }
