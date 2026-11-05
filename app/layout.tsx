@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { CaptureUtm } from "@/components/capture-utm";
+import { NativeBoot } from "@/components/native/native-boot";
 import { WebAnalytics } from "@/components/web-analytics-lazy";
 import { SITE_URL } from "@/lib/site-url";
 import { SESSION_HINT_SCRIPT } from "@/lib/auth/session-hint";
@@ -72,6 +73,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             signed-out landing page (app/welcome) ships none of them. */}
         {children}
         <CaptureUtm />
+        <NativeBoot />
         <WebAnalytics />
       </body>
     </html>

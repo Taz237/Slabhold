@@ -40,6 +40,14 @@ const nextConfig: NextConfig = {
         ],
       },
       {
+        // Universal links for the iOS app. No extension, so name the type.
+        source: "/.well-known/apple-app-site-association",
+        headers: [
+          { key: "Content-Type", value: "application/json" },
+          { key: "Cache-Control", value: "public, max-age=3600" },
+        ],
+      },
+      {
         // One segment, so /p/:player/opengraph-image keeps its own image cache.
         // Unknown players must not sit on a year-long 404.
         source: "/p/:player",

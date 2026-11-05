@@ -29,6 +29,7 @@ import { isOfficialUpdatesAccount } from "@/lib/social/official-updates";
 import { gradedLabel, postPill } from "@/lib/ui/timeline";
 import { useCloseOnOutsideTap } from "@/lib/ui/menu-outside-tap";
 import type { CardValueResult } from "@/lib/value/types";
+import { haptic } from "@/lib/ios/haptics";
 
 /**
  * One post row. Memoized: the feed re-renders on scroll-driven state (tabs,
@@ -591,6 +592,7 @@ export function Engagement({
         onClick={() => {
           if (!requireUser()) return;
           if (!liked && !reduceMotion) setLikeBurst((count) => count + 1);
+          if (!liked) haptic("like");
           setLikeTap({ liked: !liked, count: Math.max(0, likes + (liked ? -1 : 1)) });
           startTransition(() => toggleLike(targetId));
         }}

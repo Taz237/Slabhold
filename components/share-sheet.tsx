@@ -6,6 +6,8 @@ import { absoluteUrl } from "@/components/share-button";
 import { trackEvent } from "@/lib/analytics";
 import { SheetLoadFailed } from "@/components/part-load-failed";
 import { lazyPart } from "@/lib/ui/lazy-part";
+import { isNativeApp } from "@/lib/ios/platform";
+import { shareFunction } from "@/lib/ios/share";
 import { withShareRef } from "@/lib/share/links";
 import { nativeShareOrSheet } from "@/lib/share/sheet";
 
@@ -49,13 +51,14 @@ export function useShareSheet(target: ShareTarget) {
     const url = shareUrl(target.path);
     const result = await nativeShareOrSheet(
       { title: target.title, text: target.text, url },
-      typeof navigator !== "undefined" && navigator.share ? navigator.share.bind(navigator) : undefined,
+      shareFunction(),
       {
         minCancelMs: MIN_CANCEL_MS,
         now: () => performance.now(),
         files: target.files,
+        // The app's sheet shares the link only, so no canShare there.
         canShare:
-          typeof navigator !== "undefined" && typeof navigator.canShare === "function"
+          !isNativeApp() && typeof navigator !== "undefined" && typeof navigator.canShare === "function"
             ? navigator.canShare.bind(navigator)
             : undefined,
       },

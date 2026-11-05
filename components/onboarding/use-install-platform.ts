@@ -2,10 +2,13 @@
 
 import { useSyncExternalStore } from "react";
 import { installPlatform, type InstallPlatform } from "@/lib/pwa/install-step";
+import { isNativeApp } from "@/lib/ios/platform";
 
 const noopSubscribe = () => () => {};
 
 function readPlatform(): InstallPlatform {
+  // The iOS app: no install step or Add to Home Screen, same as a computer.
+  if (isNativeApp()) return "desktop";
   const nav = window.navigator as Navigator & { standalone?: boolean };
   return installPlatform({
     userAgent: nav.userAgent ?? "",

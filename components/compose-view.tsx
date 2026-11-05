@@ -49,6 +49,7 @@ import { loadSupabaseBrowser } from "@/lib/supabase/browser-lazy";
 import { isOverLimit } from "@/lib/ui/compose-limit";
 import { useVisualViewport } from "@/lib/ui/use-keyboard-inset";
 import { isUuid } from "@/lib/value/card-value-access";
+import { haptic } from "@/lib/ios/haptics";
 
 function readComposerPhoto(file: File) {
   return readPhotoFile(file, 960);
@@ -267,6 +268,7 @@ export function ComposeView() {
       setError(result.error === QUOTE_EMPTY_ERROR ? QUOTE_EMPTY_ERROR : result.error);
       return;
     }
+    if (!editing) haptic("post");
     settleDraft();
     router.push(editing ? `/posts/${editing.id}` : "/");
   }
