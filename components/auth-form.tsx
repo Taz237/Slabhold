@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { Suspense, lazy, useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { ArrowLeft, Check, Eye, EyeOff, MailCheck } from "lucide-react";
 import { Captcha, useCaptchaWatch, type CaptchaHandle } from "@/components/captcha";
 import { Logo } from "@/components/logo";
@@ -69,6 +69,39 @@ const STEP_COPY: Record<SignupStep, { title: string; lead: string }> = {
   username: { title: "Pick a username", lead: "This is your @handle on Slabhold." },
   name: { title: "What should we call you?", lead: "Your display name. You can change it any time." },
 };
+
+/**
+ * Continue with Apple / Google. Next inlines the flags at build time, so with
+ * both off this folds to nothing and the buttons' code never ships. With either
+ * on, it comes from its own chunk, server-rendered on a first load.
+ */
+const APPLE_ON = process.env.NEXT_PUBLIC_AUTH_APPLE === "1";
+const GOOGLE_ON = process.env.NEXT_PUBLIC_AUTH_GOOGLE === "1";
+const SOCIAL_ON = APPLE_ON || GOOGLE_ON;
+const LazySocial = SOCIAL_ON ? lazy(() => import("@/components/auth-social").then((mod) => ({ default: mod.SocialSignIn }))) : null;
+
+/** Same height as the buttons, so a soft navigation to login doesn't jump. */
+function SocialSignIn(props: { next: string; failed: boolean }) {
+  if (!LazySocial) return null;
+  const buttons = Number(APPLE_ON) + Number(GOOGLE_ON);
+  return (
+    <Suspense
+      fallback={
+        <div aria-hidden className="mt-6 space-y-3">
+          {Array.from({ length: buttons }, (_, i) => (
+            <div key={i} className="h-14 rounded-full bg-zinc-200/70 dark:bg-white/5" />
+          ))}
+          <div className="h-[104px]" />
+        </div>
+      }
+    >
+      <LazySocial {...props} />
+    </Suspense>
+  );
+}
+
+/** The first step when Apple or Google is on: the email field sits under them. */
+const SOCIAL_COPY = { title: "Create your account", lead: "Track your cards, see what they sell for and follow other collectors." };
 
 const STEP_IN = "motion-safe:animate-[add-step-in_220ms_cubic-bezier(0.2,0.7,0.2,1)_both]";
 const STEP_BACK = "motion-safe:animate-[add-step-back_220ms_cubic-bezier(0.2,0.7,0.2,1)_both]";
@@ -490,6 +523,7 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
   }
 
   const otherHref = mode === "login" ? signupPath(next) : loginPath(next);
+  const oauthFailed = params.get("oauth") === "failed";
   const captcha = (
     <Captcha
       key={pathname}
@@ -542,6 +576,7 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
             ? "Log in once to finish setup. You'll pick up right where you left off."
             : "Log in to your collection, your feed and your DMs."}
         </p>
+        <SocialSignIn next={destination} failed={oauthFailed} />
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -610,7 +645,8 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
     );
   }
 
-  const copy = STEP_COPY[step];
+  const social = step === "email" && SOCIAL_ON;
+  const copy = social ? SOCIAL_COPY : STEP_COPY[step];
   const stepNumber = SIGNUP_STEPS.indexOf(step) + 1;
   const blocked = signupStepBlocked(step, { email, password, username, displayName }, usernameCheck.status);
   const finalStep = step === "name";
@@ -645,6 +681,7 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
       <div key={step} className={`mt-8 ${direction === 1 ? STEP_IN : STEP_BACK}`}>
         <h1 className="text-[28px] font-semibold leading-tight tracking-tight">{copy.title}</h1>
         <p className="mt-2 text-[15px] leading-6 text-zinc-600 dark:text-zinc-400">{copy.lead}</p>
+        {social ? <SocialSignIn next={destination} failed={oauthFailed} /> : null}
         <form
           id="signup-step"
           noValidate
@@ -665,7 +702,7 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
               autoComplete="email"
               inputMode="email"
               enterKeyHint="next"
-              focusOnMount
+              focusOnMount={!social}
               value={email}
               onChange={setEmail}
               onBlur={mode === "signup" ? () => touch("email") : undefined}

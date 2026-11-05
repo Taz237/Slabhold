@@ -10,6 +10,7 @@ import { Haptics, ImpactStyle, NotificationType } from "@capacitor/haptics";
 import { Share } from "@capacitor/share";
 import { SplashScreen } from "@capacitor/splash-screen";
 import { StatusBar, Style } from "@capacitor/status-bar";
+import { oauthReturnPath } from "@/lib/auth/oauth";
 import { appLinkPath, routeLink, routeWindowOpen } from "@/lib/ios/links";
 import type { PhotoSource } from "@/lib/ios/camera";
 import type { HapticMoment } from "@/lib/ios/haptics";
@@ -48,6 +49,14 @@ function openInBrowser(url: string) {
 }
 
 /**
+ * Continue with Apple / Google in the app. Google blocks sign-in inside a
+ * WebView, so it opens in the in-app browser and comes back on a universal link.
+ */
+export function openAuthBrowser(url: string): Promise<void> {
+  return Browser.open({ url, presentationStyle: "popover" });
+}
+
+/**
  * Hides the launch splash, sets the status bar, follows universal links
  * (https://slabhold.app/...) and slabhold:// links, and opens other sites, and
  * window.open, in the in-app browser. Returns the undo.
@@ -81,12 +90,21 @@ export function startNativeShell({ navigate }: ShellDeps): () => void {
 
   const urlOpen = App.addListener("appUrlOpen", ({ url }) => {
     const path = appLinkPath(url);
+    // Back from Apple or Google: close the in-app browser and finish the sign-in
+    // here, in the WebView, where the PKCE verifier lives. A full load: it's a route handler.
+    const signIn = oauthReturnPath(path);
+    if (signIn) {
+      void Browser.close().catch(() => {});
+      go(signIn);
+      return;
+    }
     if (path && path !== currentPath()) navigate(path);
   });
 
   void App.getLaunchUrl()
     .then((launch) => {
-      const path = launch?.url ? appLinkPath(launch.url) : null;
+      const link = launch?.url ? appLinkPath(launch.url) : null;
+      const path = oauthReturnPath(link) ?? link;
       if (path && launch && firstTimeFor(launch.url)) go(path);
     })
     .catch(() => {});
