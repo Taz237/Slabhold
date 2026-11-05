@@ -2,6 +2,7 @@
 
 import { useSyncExternalStore } from "react";
 import { installPlatform, type InstallPlatform } from "@/lib/pwa/install-step";
+import { isNativeApp } from "@/lib/ios/platform";
 
 const noopSubscribe = () => () => {};
 
@@ -11,7 +12,7 @@ function readPlatform(): InstallPlatform {
     userAgent: nav.userAgent ?? "",
     platform: nav.platform,
     maxTouchPoints: nav.maxTouchPoints ?? 0,
-    navigatorStandalone: nav.standalone === true,
+    navigatorStandalone: nav.standalone === true || isNativeApp(),
     displayModeStandalone: Boolean(window.matchMedia?.("(display-mode: standalone)").matches),
   });
 }

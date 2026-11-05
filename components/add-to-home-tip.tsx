@@ -4,6 +4,7 @@ import { useSyncExternalStore } from "react";
 import { Share, X } from "lucide-react";
 import { readInstallChoice } from "@/lib/onboarding/store";
 import { addToHomeDismissKey, shouldShowAddToHomeTip } from "@/lib/pwa/add-to-home";
+import { isNativeApp } from "@/lib/ios/platform";
 
 const tipHiddenForSession = new Set<string>();
 
@@ -23,7 +24,7 @@ function readTipVisible(userId: string) {
     userAgent: nav.userAgent,
     platform: nav.platform,
     maxTouchPoints: nav.maxTouchPoints ?? 0,
-    navigatorStandalone: nav.standalone === true,
+    navigatorStandalone: nav.standalone === true || isNativeApp(),
     displayModeStandalone: window.matchMedia("(display-mode: standalone)").matches,
   });
 }

@@ -1,0 +1,19 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": ["Z45KCV676K.app.slabhold"],
+        "components": [
+          { "/": "/api/*", "exclude": true, "comment": "API routes stay on the web" },
+          { "/": "/auth/*", "exclude": true, "comment": "Email confirm and reset links finish where they started" },
+          { "/": "/_next/*", "exclude": true },
+          { "/": "/.well-known/*", "exclude": true },
+          { "/": "/*" }
+        ]
+      }
+    ]
+  },
+  "webcredentials": {
+    "apps": ["Z45KCV676K.app.slabhold"]
+  }
+}
