@@ -1,6 +1,6 @@
 import { afterEach, describe, it, mock } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { PHOTO_ACCESS_ERROR, PHOTO_PICK_ERROR, photoPickFailure } from "@/lib/ios/native-helpers";
 import { hideSplash } from "@/lib/ios/platform";
@@ -23,10 +23,14 @@ describe("the camera's Info.plist keys", () => {
   });
 
   it("matches the keys the installed plugin checks, so an upgrade can't add one quietly", () => {
-    const types = read("ios-app/node_modules/@capacitor/camera/ios/Sources/CameraPlugin/CameraTypes.swift");
-    const block = types.match(/enum CameraPropertyListKeys[^{]*\{([\s\S]*?)var link/)?.[1] ?? "";
-    const keys = [...block.matchAll(/= "(NS\w+)"/g)].map((match) => match[1]);
-    assert.ok(keys.length >= 3, "found the plugin's key list");
+    // CI installs only the root packages, so ios-app/node_modules may be missing.
+    const typesPath = "ios-app/node_modules/@capacitor/camera/ios/Sources/CameraPlugin/CameraTypes.swift";
+    let keys = ["NSCameraUsageDescription", "NSPhotoLibraryUsageDescription", "NSPhotoLibraryAddUsageDescription"];
+    if (existsSync(join(root, typesPath))) {
+      const block = read(typesPath).match(/enum CameraPropertyListKeys[^{]*\{([\s\S]*?)var link/)?.[1] ?? "";
+      keys = [...block.matchAll(/= "(NS\w+)"/g)].map((match) => match[1]);
+      assert.ok(keys.length >= 3, "found the plugin's key list");
+    }
     const plist = read("ios-app/ios/App/App/Info.plist");
     for (const key of keys) assert.match(plist, new RegExp(`<key>${key}</key>`), key);
   });
