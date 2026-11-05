@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import { AccountDeletedToast } from "@/components/account-deleted-toast";
 import { LandingPage } from "@/components/landing-page";
+import { LandingCompProvider } from "@/components/landing/landing-links";
 import { StandaloneRedirect } from "@/components/landing/standalone-redirect";
 import { WelcomeListeners } from "@/components/landing/welcome-listeners";
+import { landingCompDemo } from "@/lib/landing/founder-comp-load";
 import { welcomeFounderShowcase } from "@/lib/landing/founder-page";
 
 /**
@@ -20,13 +22,18 @@ export const metadata: Metadata = {
 };
 
 export default async function Welcome() {
+  // Both cached reads run at once.
+  const compRead = landingCompDemo();
   const founder = await welcomeFounderShowcase();
+  const comp = await compRead;
   return (
     <>
       <AccountDeletedToast />
       <StandaloneRedirect />
       <WelcomeListeners />
-      <LandingPage founder={founder} />
+      <LandingCompProvider comp={comp}>
+        <LandingPage founder={founder} />
+      </LandingCompProvider>
     </>
   );
 }

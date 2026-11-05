@@ -20,12 +20,29 @@ import {
  * Not configured is a real "nothing to show"; a failed read is not.
  */
 export async function loadFounderShowcase(): Promise<FounderShowcase> {
+  const supabase = anonClient();
+  if (!supabase) return EMPTY_FOUNDER_SHOWCASE;
+  return readFounderShowcase(supabase);
+}
+
+/** A logged-out client, or null when Supabase isn't configured. */
+export function anonClient(): SupabaseClient | null {
   const { url, anonKey, configured } = getSupabaseConfig();
-  if (!configured) return EMPTY_FOUNDER_SHOWCASE;
-  const supabase = createClient(url, anonKey, {
+  if (!configured) return null;
+  return createClient(url, anonKey, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
-  return readFounderShowcase(supabase);
+}
+
+/** The founder's public profile, or null. Throws on a read error. */
+export async function readFounderProfile(supabase: SupabaseClient): Promise<FounderProfileRow | null> {
+  const { data: profile, error } = await supabase
+    .from("profiles")
+    .select("id, username, display_name, avatar_url")
+    .eq("username", FOUNDER_USERNAME)
+    .maybeSingle<FounderProfileRow>();
+  if (error) throw new Error(`founder profile read failed: ${error.message}`);
+  return profile ?? null;
 }
 
 /**
@@ -33,12 +50,7 @@ export async function loadFounderShowcase(): Promise<FounderShowcase> {
  * Returns the empty showcase only when the founder genuinely isn't there.
  */
 export async function readFounderShowcase(supabase: SupabaseClient): Promise<FounderShowcase> {
-  const { data: profile, error } = await supabase
-    .from("profiles")
-    .select("id, username, display_name, avatar_url")
-    .eq("username", FOUNDER_USERNAME)
-    .maybeSingle<FounderProfileRow>();
-  if (error) throw new Error(`founder profile read failed: ${error.message}`);
+  const profile = await readFounderProfile(supabase);
   if (!profile) return EMPTY_FOUNDER_SHOWCASE;
 
   const { data: rows, error: cardError } = await supabase

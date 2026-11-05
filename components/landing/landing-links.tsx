@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, lazy, useEffect, type ReactNode } from "react";
+import { Suspense, createContext, lazy, useEffect, type ReactNode } from "react";
+import type { CompDemo } from "@/components/landing/showcase/sample-data";
 import { trackEvent } from "@/lib/analytics";
 import { landingLoginHref, landingSignupHref, safeNext } from "@/lib/auth/safe-next";
 import { prefetchOnce, warmOnFirstInteraction } from "@/lib/landing/warm-routes";
@@ -82,6 +83,14 @@ export function FeaturePanels() {
       <LazyPanels />
     </Suspense>
   );
+}
+
+/** The founder's real card for the Quick Comp demo. Null plays the sample. */
+export const LandingCompContext = createContext<CompDemo | null>(null);
+
+/** Set by the page around the landing, so the lazy panels get the real card. */
+export function LandingCompProvider({ comp, children }: { comp: CompDemo | null; children: ReactNode }) {
+  return <LandingCompContext value={comp}>{children}</LandingCompContext>;
 }
 
 function FromSearch({ render }: { render: (next: string) => ReactNode }) {

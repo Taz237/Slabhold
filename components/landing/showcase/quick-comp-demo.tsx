@@ -1,28 +1,50 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { Search } from "lucide-react";
 import { compCaption, compHeroValue, compLabel } from "@/components/comp-basis";
 import { RangeBar, TrawlAttribution } from "@/components/sales-chart";
 import { SAMPLE_PHOTO_URL } from "@/lib/quick-comp/photo";
 import { EASE, cancelAll, canAnimate, countUp, dollars, prefersReducedMotion, onceVisible, rise } from "./motion";
-import { SAMPLE_QUERY, SAMPLE_SALES, sampleStats } from "./sample-data";
+import { SAMPLE_QUERY, SAMPLE_SALES, sampleStats, type CompDemo } from "./sample-data";
 
-const STATS = sampleStats();
+const SAMPLE_STATS = sampleStats();
+
+/** The made-up card, played whenever the real one can't be shown. */
+const SAMPLE: CompDemo = {
+  query: SAMPLE_QUERY,
+  label: "2023 Sample Rookie Prizm · PSA 10",
+  photo: { src: SAMPLE_PHOTO_URL },
+  alt: "Sample card in a slab",
+  sales: SAMPLE_SALES.map((sale) => ({ price: sale.price, when: `${sale.ago} ago` })),
+  stats: SAMPLE_STATS,
+  basis: `Based on ${SAMPLE_STATS.count} sample sales`,
+  owner: null,
+};
 const TYPE_MS = 34;
 const TYPE_START = 300;
-const PHOTO_AT = TYPE_START + SAMPLE_QUERY.length * TYPE_MS + 180;
-const CHIPS_AT = PHOTO_AT + 260;
 const CHIP_STAGGER = 90;
-const MEDIAN_AT = CHIPS_AT + SAMPLE_SALES.length * CHIP_STAGGER + 260;
 
 /**
- * Quick Comp, played once with static sample data: the search types itself,
- * the sample photo settles in, the sold prices fly into a row, and the median
- * counts up while the middle-half bar fills. Real app parts: the comp hero
+ * Quick Comp, played once: the search types itself, the photo settles in, the
+ * sold prices fly into a row, and the median counts up while the middle-half
+ * bar fills. `comp` is a real card's stored comps, read on the server; without
+ * it the static sample plays. `onPhotoError` hands a failed real photo back to
+ * the chapter, which then plays the sample. Real app parts: the comp hero
  * styles, RangeBar and the Trawl attribution. No lookup, no fetch.
  */
-export default function QuickCompDemo({ run }: { run: number }) {
+export default function QuickCompDemo({
+  run,
+  comp = null,
+  onPhotoError,
+}: {
+  run: number;
+  comp?: CompDemo | null;
+  onPhotoError?: () => void;
+}) {
+  const demo = comp ?? SAMPLE;
+  const { query, sales, stats } = demo;
+  const img = useRef<HTMLImageElement>(null);
   const root = useRef<HTMLDivElement>(null);
   const typed = useRef<HTMLSpanElement>(null);
   const caret = useRef<HTMLSpanElement>(null);
@@ -33,7 +55,7 @@ export default function QuickCompDemo({ run }: { run: number }) {
   const stop = useRef<() => void>(() => {});
   const revealed = useRef(false);
 
-  function play() {
+  const play = useCallback(() => {
     stop.current();
     const node = root.current;
     if (!node || prefersReducedMotion() || !canAnimate(node)) return;
@@ -45,16 +67,20 @@ export default function QuickCompDemo({ run }: { run: number }) {
     }
 
     // The query types itself, one character at a time.
+    // Each beat waits on the query's length and the number of sales.
+    const photoAt = TYPE_START + query.length * TYPE_MS + 180;
+    const chipsAt = photoAt + 260;
+    const medianAt = chipsAt + sales.length * CHIP_STAGGER + 260;
     const text = typed.current;
     if (text) {
       text.textContent = "";
-      for (let index = 1; index <= SAMPLE_QUERY.length; index += 1) {
-        timers.push(window.setTimeout(() => (text.textContent = SAMPLE_QUERY.slice(0, index)), TYPE_START + index * TYPE_MS));
+      for (let index = 1; index <= query.length; index += 1) {
+        timers.push(window.setTimeout(() => (text.textContent = query.slice(0, index)), TYPE_START + index * TYPE_MS));
       }
     }
     animations.push(
       caret.current?.animate([{ opacity: 1 }, { opacity: 1, offset: 0.92 }, { opacity: 0 }], {
-        duration: PHOTO_AT,
+        duration: photoAt,
         fill: "forwards",
       }) ?? null,
     );
@@ -65,7 +91,7 @@ export default function QuickCompDemo({ run }: { run: number }) {
           { opacity: 0, transform: "translateY(8px) scale(0.92)" },
           { opacity: 1, transform: "translateY(0) scale(1)" },
         ],
-        { duration: 420, delay: PHOTO_AT, easing: EASE, fill: "backwards" },
+        { duration: 420, delay: photoAt, easing: EASE, fill: "backwards" },
       ) ?? null,
     );
 
@@ -78,7 +104,7 @@ export default function QuickCompDemo({ run }: { run: number }) {
             { opacity: 1, transform: "translate(0, 0) scale(1.06)", offset: 0.75 },
             { opacity: 1, transform: "translate(0, 0) scale(1)" },
           ],
-          { duration: 460, delay: CHIPS_AT + index * CHIP_STAGGER, easing: EASE, fill: "backwards" },
+          { duration: 460, delay: chipsAt + index * CHIP_STAGGER, easing: EASE, fill: "backwards" },
         ),
       );
     });
@@ -89,23 +115,23 @@ export default function QuickCompDemo({ run }: { run: number }) {
       animations.push(
         fill.animate([{ transform: "scaleX(0)" }, { transform: "scaleX(1)" }], {
           duration: 500,
-          delay: MEDIAN_AT,
+          delay: medianAt,
           easing: EASE,
           fill: "backwards",
         }),
-        tick.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 300, delay: MEDIAN_AT + 300, easing: EASE, fill: "backwards" }),
+        tick.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 300, delay: medianAt + 300, easing: EASE, fill: "backwards" }),
       );
       fill.style.transformOrigin = "left center";
     }
-    const cancelCount = countUp(median.current, STATS.median * 0.6, STATS.median, { duration: 700, delay: MEDIAN_AT });
+    const cancelCount = countUp(median.current, stats.median * 0.6, stats.median, { duration: 700, delay: medianAt });
 
     stop.current = () => {
       cancelAll(animations);
       cancelCount();
       for (const timer of timers) window.clearTimeout(timer);
-      if (text) text.textContent = SAMPLE_QUERY;
+      if (text) text.textContent = query;
     };
-  }
+  }, [query, sales.length, stats.median]);
 
   // Plays once, the first time most of it is on screen.
   useEffect(() => {
@@ -116,11 +142,17 @@ export default function QuickCompDemo({ run }: { run: number }) {
       unwatch();
       stop.current();
     };
-  }, []);
+  }, [play]);
 
   useEffect(() => {
     if (run > 0) play();
-  }, [run]);
+  }, [run, play]);
+
+  // A real photo that failed before hydration fired its error unheard.
+  useEffect(() => {
+    const node = img.current;
+    if (comp && onPhotoError && node?.complete && node.naturalWidth === 0) onPhotoError();
+  }, [comp, onPhotoError]);
 
   return (
     <div
@@ -130,9 +162,9 @@ export default function QuickCompDemo({ run }: { run: number }) {
     >
       <div className="flex h-11 items-center gap-2 rounded-[10px] bg-white/[0.06] px-3">
         <Search aria-hidden size={16} strokeWidth={1.5} className="shrink-0 text-zinc-500" />
-        <span className="sr-only">Search: {SAMPLE_QUERY}</span>
+        <span className="sr-only">Search: {query}</span>
         <span aria-hidden className="min-w-0 truncate text-[15px] text-zinc-100">
-          <span ref={typed}>{SAMPLE_QUERY}</span>
+          <span ref={typed}>{query}</span>
           <span ref={caret} className="ml-px inline-block h-[18px] w-px translate-y-[3px] bg-[#A78BFA] opacity-0" />
         </span>
       </div>
@@ -144,8 +176,12 @@ export default function QuickCompDemo({ run }: { run: number }) {
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={SAMPLE_PHOTO_URL}
-            alt="Sample card in a slab"
+            ref={img}
+            src={demo.photo.src}
+            srcSet={demo.photo.srcSet}
+            sizes={demo.photo.sizes}
+            alt={demo.alt}
+            onError={comp ? onPhotoError : undefined}
             width={104}
             height={156}
             loading="lazy"
@@ -155,20 +191,25 @@ export default function QuickCompDemo({ run }: { run: number }) {
           />
         </div>
         <div className="flex min-w-0 flex-1 flex-col justify-end">
-          <p className="text-[13px] leading-5 text-zinc-300">2023 Sample Rookie Prizm · PSA 10</p>
+          <p className="line-clamp-3 text-[13px] leading-5 text-zinc-300">{demo.label}</p>
           <p className={`mt-3 ${compLabel}`}>Median sold price</p>
           <p className={`${compHeroValue} text-white`}>
-            <span ref={median}>{dollars(STATS.median)}</span>
+            <span ref={median}>{dollars(stats.median)}</span>
           </p>
-          <p className={`mt-1 tabular-nums ${compCaption}`}>Based on {STATS.count} sample sales</p>
+          <p className={`mt-1 tabular-nums ${compCaption}`}>{demo.basis}</p>
         </div>
       </div>
 
-      <ul ref={chips} aria-label="Recent sold prices" className="mt-3 grid grid-cols-5 gap-1.5">
-        {SAMPLE_SALES.map((sale) => (
+      <ul
+        ref={chips}
+        aria-label="Recent sold prices"
+        className="mt-3 grid gap-1.5"
+        style={{ gridTemplateColumns: `repeat(${sales.length}, minmax(0, 1fr))` }}
+      >
+        {sales.map((sale, index) => (
           <li
-            key={sale.ago}
-            aria-label={`${dollars(sale.price)}, sold ${sale.ago} ago`}
+            key={index}
+            aria-label={`${dollars(sale.price)}, sold ${sale.when}`}
             className="flex h-8 items-center justify-center rounded-md border border-white/[0.08] bg-white/[0.04] font-mono text-[13px] text-zinc-100 tabular-nums"
           >
             {dollars(sale.price)}
@@ -177,7 +218,7 @@ export default function QuickCompDemo({ run }: { run: number }) {
       </ul>
 
       <div ref={range}>
-        <RangeBar low={STATS.p25} high={STATS.p75} median={STATS.median} min={STATS.min} max={STATS.max} />
+        <RangeBar low={stats.p25} high={stats.p75} median={stats.median} min={stats.min} max={stats.max} />
       </div>
       <TrawlAttribution />
     </div>
