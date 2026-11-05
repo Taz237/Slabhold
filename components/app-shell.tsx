@@ -14,6 +14,7 @@ import { NavPendingSkeleton } from "@/components/nav-pending-skeleton";
 import { useOnboardingBusy } from "@/components/onboarding/use-onboarding";
 import { preloadOnHint, sessionHinted } from "@/lib/auth/session-hint";
 import { afterFirstIdle } from "@/lib/ui/idle";
+import { isNativeApp } from "@/lib/ios/platform";
 import { lazyPart } from "@/lib/ui/lazy-part";
 import {
   isAuthPage,
@@ -54,10 +55,11 @@ const PushManager = lazyPart(() => import("@/components/push/push-manager").then
 /**
  * Push (worker, soft-ask, badge, notification taps) for a signed-in reader.
  * Its chunk loads only after the first idle moment, never for visitors.
+ * Never in the iOS app: WKWebView has no web push, and app push is its own task.
  */
 function PushAfterIdle({ user }: { user: Profile }) {
   const [idle, setIdle] = useState(false);
-  useEffect(() => afterFirstIdle(() => setIdle(true)), []);
+  useEffect(() => (isNativeApp() ? undefined : afterFirstIdle(() => setIdle(true))), []);
   return idle ? <PushManager user={user} /> : null;
 }
 

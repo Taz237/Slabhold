@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 import { useEffect, useLayoutEffect, useRef } from "react";
 import { clearPendingNav, installTapFeedback } from "@/lib/ui/tap-feedback";
+import { isNativeApp } from "@/lib/ios/platform";
 import {
   RESTORE_TIMEOUT_MS,
   canGoBack,
@@ -33,9 +34,10 @@ function hereHref() {
   return `${window.location.pathname}${window.location.search}`;
 }
 
+/** The home-screen app, or the iOS app: no browser back swipe, so ours runs. */
 function isStandalone() {
   const nav = window.navigator as Navigator & { standalone?: boolean };
-  return nav.standalone === true || window.matchMedia("(display-mode: standalone)").matches;
+  return nav.standalone === true || window.matchMedia("(display-mode: standalone)").matches || isNativeApp();
 }
 
 function reducedMotion() {
