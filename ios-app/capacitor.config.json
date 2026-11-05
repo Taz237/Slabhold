@@ -1,0 +1,30 @@
+{
+  "appId": "app.slabhold",
+  "appName": "Slabhold",
+  "webDir": "www",
+  "server": {
+    "url": "https://slabhold.app",
+    "cleartext": false,
+    "errorPath": "index.html"
+  },
+  "backgroundColor": "#09090B",
+  "ios": {
+    "scheme": "Slabhold",
+    "contentInset": "never",
+    "backgroundColor": "#09090B",
+    "allowsLinkPreview": false
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 4000,
+      "launchAutoHide": true,
+      "launchFadeOutDuration": 200,
+      "backgroundColor": "#09090B",
+      "showSpinner": false
+    },
+    "StatusBar": {
+      "overlaysWebView": true,
+      "style": "DEFAULT"
+    }
+  }
+}
