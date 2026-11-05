@@ -72,6 +72,7 @@ import { isOverLimit } from "@/lib/ui/compose-limit";
 import { useProgressiveRows } from "@/lib/ui/use-progressive-rows";
 import { SUGGESTION_RAIL_SIZE, inlineSuggestionPool, whoToFollowAfter } from "@/lib/ui/timeline";
 import { POST_LIMIT, type PublicCard } from "@/lib/social/types";
+import { haptic } from "@/lib/ios/haptics";
 
 function readComposerPhoto(file: File) {
   return readPhotoFile(file, 960);
@@ -669,6 +670,7 @@ function Composer({ onPosted }: { onPosted?: () => void }) {
     replaceAll([]);
     setCardId("");
     setError(null);
+    haptic("post");
     onPosted?.();
   }
 

@@ -60,6 +60,11 @@ describe("ios-app project", () => {
     assert.doesNotMatch(pbx, /TARGETED_DEVICE_FAMILY = "1,2"/);
     const plist = read("ios-app/ios/App/App/Info.plist");
     assert.match(plist, /<string>arm64<\/string>/);
+    assert.match(
+      plist,
+      /<key>CFBundleURLSchemes<\/key>\s*<array>\s*<string>slabhold<\/string>\s*<\/array>/,
+      "slabhold:// opens the app",
+    );
     assert.doesNotMatch(plist, /armv7/);
     const icon = readFileSync(join(root, "ios-app/ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png"));
     assert.equal(icon.readUInt32BE(16), 1024, "width");

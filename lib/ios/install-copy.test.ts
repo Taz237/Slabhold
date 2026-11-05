@@ -1,51 +1,43 @@
-import { describe, it } from "node:test";
+import { afterEach, describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { installMenuShows, installPlatform, installStepShows } from "@/lib/pwa/install-step";
-import { shouldShowAddToHomeTip } from "@/lib/pwa/add-to-home";
+import { installMenuShows, installStepShows, standaloneNeedsLogin } from "@/lib/pwa/install-step";
 
 const root = join(import.meta.dirname, "..", "..");
 const read = (path: string) => readFileSync(join(root, path), "utf8");
-
-/** WKWebView's user agent has no "Safari" in it. */
-const WKWEBVIEW_UA =
-  "Mozilla/5.0 (iPhone; CPU iPhone OS 27_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148";
+const g = globalThis as { window?: unknown };
 
 describe("install copy in the iOS app", () => {
-  it("counts the app as installed, so no Add to Home Screen anywhere", () => {
-    const platform = installPlatform({
-      userAgent: WKWEBVIEW_UA,
-      navigatorStandalone: true, // what readPlatform passes when isNativeApp()
-      displayModeStandalone: false,
-    });
-    assert.equal(platform, "installed");
-    assert.equal(installMenuShows(platform), false, "side menu");
-    assert.equal(installStepShows({ platform, choice: null, setupStored: null }), false, "onboarding step");
-    assert.equal(
-      shouldShowAddToHomeTip({
-        signedIn: true,
-        dismissed: false,
-        userAgent: WKWEBVIEW_UA,
-        navigatorStandalone: true,
-        displayModeStandalone: false,
-      }),
-      false,
-      "timeline tip",
-    );
+  afterEach(() => {
+    delete g.window;
   });
 
-  it("feeds isNativeApp into every install check that reads the device", () => {
-    for (const path of ["components/onboarding/use-install-platform.ts", "components/add-to-home-tip.tsx"]) {
-      assert.match(read(path), /navigatorStandalone: nav\.standalone === true \|\| isNativeApp\(\)/, path);
-    }
+  it("reads the app as a computer: no install step, no Add to Home Screen", () => {
+    const source = read("components/onboarding/use-install-platform.ts");
+    assert.match(source, /\/\/ The iOS app: no install step or Add to Home Screen, same as a computer\.\n  if \(isNativeApp\(\)\) return "desktop";/);
+    assert.match(source, /navigatorStandalone: nav\.standalone === true,/, "the web's standalone check is unchanged");
+    assert.equal(installMenuShows("desktop"), false, "side menu");
+    assert.equal(installStepShows({ platform: "desktop", choice: null, setupStored: null }), false, "onboarding step");
   });
 
-  it("never tells the app to add itself to the Home Screen for notifications", () => {
-    assert.match(
-      read("components/push/notification-settings.tsx"),
-      /if \(!available \|\| isNativeApp\(\)\) return Promise\.resolve\(\{ kind: "unavailable" \}\)/,
-    );
+  it("shows signed-out readers the landing page, not the installed app's log in", () => {
+    assert.equal(standaloneNeedsLogin({ platform: "desktop", ready: true, signedIn: false, pathname: "/" }), false);
+  });
+
+  it("keeps the timeline tip off in the app", () => {
+    assert.match(read("components/add-to-home-tip.tsx"), /navigatorStandalone: nav\.standalone === true \|\| isNativeApp\(\)/);
+  });
+
+  it("gives Settings > Notifications a short note in the app, and leaves the push settings alone", () => {
+    const page = read("app/(app)/settings/notifications/page.tsx");
+    assert.match(page, /return <NotificationsGate \/>;/);
+    const gate = read("components/native/notifications-gate.tsx");
+    assert.match(gate, /useSyncExternalStore\(noopSubscribe, isNativeApp, \(\) => false\)/, "the server renders the web page");
+    assert.match(gate, /if \(!native\) return <NotificationSettings \/>;/);
+    assert.match(gate, /<h1[^>]*>Notifications<\/h1>/);
+    assert.match(gate, /text-zinc-500">Notifications aren&apos;t on in the iPhone app yet</);
+    assert.doesNotMatch(read("components/push/notification-settings.tsx"), /lib\/ios/, "notification-settings is hands off");
   });
 });
 

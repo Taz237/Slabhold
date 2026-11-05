@@ -59,9 +59,17 @@ describe("appLinkPath", () => {
     assert.equal(appLinkPath("https://www.slabhold.app/"), "/");
   });
 
+  it("maps the app's slabhold:// scheme to the same pages", () => {
+    assert.equal(appLinkPath("slabhold://u/demo"), "/u/demo");
+    assert.equal(appLinkPath("slabhold://u/demo/cards/9?ref=share#top"), "/u/demo/cards/9?ref=share#top");
+    assert.equal(appLinkPath("slabhold:///u/demo"), "/u/demo");
+    assert.equal(appLinkPath("slabhold://posts/"), "/posts");
+    assert.equal(appLinkPath("slabhold://"), "/");
+  });
+
   it("ignores other hosts and schemes", () => {
     assert.equal(appLinkPath("https://example.com/u/demo"), null);
     assert.equal(appLinkPath("http://slabhold.app/u/demo"), null);
-    assert.equal(appLinkPath("slabhold://u/demo"), null);
+    assert.equal(appLinkPath("otherapp://u/demo"), null);
   });
 });

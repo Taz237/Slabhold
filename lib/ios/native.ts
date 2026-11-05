@@ -33,9 +33,15 @@ function firstTimeFor(url: string): boolean {
   return true;
 }
 
+/** A full load: for the launch URL and links opened in a new tab. */
 function go(path: string) {
   if (path !== currentPath()) window.location.assign(path);
 }
+
+export type ShellDeps = {
+  /** The Next router's push, so a link opened while the app is up is a soft navigation. */
+  navigate: (path: string) => void;
+};
 
 function openInBrowser(url: string) {
   void Browser.open({ url, presentationStyle: "popover" }).catch(() => {});
@@ -43,10 +49,10 @@ function openInBrowser(url: string) {
 
 /**
  * Hides the launch splash, sets the status bar, follows universal links
- * (https://slabhold.app/...), and opens other sites, and window.open, in the
- * in-app browser. Returns the undo.
+ * (https://slabhold.app/...) and slabhold:// links, and opens other sites, and
+ * window.open, in the in-app browser. Returns the undo.
  */
-export function startNativeShell(): () => void {
+export function startNativeShell({ navigate }: ShellDeps): () => void {
   function onClick(event: MouseEvent) {
     if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
       return;
@@ -75,7 +81,7 @@ export function startNativeShell(): () => void {
 
   const urlOpen = App.addListener("appUrlOpen", ({ url }) => {
     const path = appLinkPath(url);
-    if (path) go(path);
+    if (path && path !== currentPath()) navigate(path);
   });
 
   void App.getLaunchUrl()

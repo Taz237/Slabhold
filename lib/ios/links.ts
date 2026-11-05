@@ -46,9 +46,23 @@ export function routeWindowOpen(input: { url: string; here: string }): string | 
   return url.href;
 }
 
-/** A universal link (https://slabhold.app/u/name) opened the app: the page to show. */
+/** The app's own URL scheme, as in slabhold://u/name. */
+export const APP_SCHEME = "slabhold";
+
+/**
+ * A link opened the app: the page to show. Universal links
+ * (https://slabhold.app/u/name) and the app's scheme (slabhold://u/name or
+ * slabhold:///u/name) both work.
+ */
 export function appLinkPath(link: string): string | null {
   const url = parse(link, "https://slabhold.app");
-  if (!url || url.protocol !== "https:" || !APP_HOSTS.includes(url.hostname)) return null;
+  if (!url) return null;
+  if (url.protocol === `${APP_SCHEME}:`) {
+    // slabhold://u/name puts "u" in the host; slabhold:///u/name leaves it empty.
+    const rest = url.pathname === "/" ? "" : url.pathname;
+    const path = `${url.host ? `/${url.host}` : ""}${rest}` || "/";
+    return `${path}${url.search}${url.hash}`;
+  }
+  if (url.protocol !== "https:" || !APP_HOSTS.includes(url.hostname)) return null;
   return pathOf(url) || "/";
 }

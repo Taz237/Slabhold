@@ -22,7 +22,10 @@ describe("haptics", () => {
 
   it("fires on Like and after a post, loading the plugin only on use", () => {
     assert.match(read("components/tweet.tsx"), /if \(!liked\) haptic\("like"\)/);
-    assert.match(read("components/social-provider.tsx"), /haptic\("post"\)/);
+    // New posts only: an edit saved from the composer doesn't buzz.
+    assert.match(read("components/compose-view.tsx"), /if \(!editing\) haptic\("post"\);\n    settleDraft\(\);/);
+    assert.match(read("components/feed-view.tsx"), /haptic\("post"\);\n    onPosted\?\.\(\);/);
+    assert.doesNotMatch(read("components/social-provider.tsx"), /lib\/ios/, "social-provider is hands off");
     assert.match(read("lib/ios/haptics.ts"), /loadNative\(\)/);
     assert.match(read("lib/ios/native.ts"), /Haptics\.impact\(\{ style: ImpactStyle\.Light \}\)/);
   });

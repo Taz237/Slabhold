@@ -25,6 +25,7 @@ describe("native shell wiring", () => {
     const boot = read("components/native/native-boot.tsx");
     assert.match(boot, /if \(!isNativeApp\(\)\) return;/);
     assert.match(boot, /loadNative\(\)/);
+    assert.match(boot, /startNativeShell\(\{ navigate: \(path\) => router\.push\(path\) \}\)/);
     assert.match(read("lib/ios/platform.ts"), /return import\("@\/lib\/ios\/native"\);/);
   });
 
@@ -47,6 +48,8 @@ describe("native shell wiring", () => {
     const native = read("lib/ios/native.ts");
     assert.match(native, /SplashScreen\.hide/);
     assert.match(native, /addListener\("appUrlOpen"/);
+    // A link opened while the app is up is a soft navigation; the launch URL is a full load.
+    assert.match(native, /if \(path && path !== currentPath\(\)\) navigate\(path\);/);
     assert.match(native, /getLaunchUrl/);
     assert.match(native, /Browser\.open/);
     assert.match(native, /window\.open = /);

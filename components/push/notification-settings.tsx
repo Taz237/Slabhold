@@ -23,7 +23,6 @@ import type { PermissionState } from "@/lib/push/soft-ask";
 import type { InstallPlatform } from "@/lib/pwa/install-step";
 import { SheetLoadFailed } from "@/components/part-load-failed";
 import { lazyPart } from "@/lib/ui/lazy-part";
-import { isNativeApp } from "@/lib/ios/platform";
 
 const InstallGuide = lazyPart(
   () => import("@/components/onboarding/install-step").then((mod) => mod.InstallGuide),
@@ -147,8 +146,7 @@ function SkeletonRows({ rows }: { rows: number }) {
 
 function readDevice(available: boolean, userId: string): Promise<DeviceState> {
   if (!pushFeatureOn()) return Promise.resolve({ kind: "off-build" });
-  // The iOS app gets native push later, never the web's Home Screen steps.
-  if (!available || isNativeApp()) return Promise.resolve({ kind: "unavailable" });
+  if (!available) return Promise.resolve({ kind: "unavailable" });
   const platform = devicePlatform();
   if (platform === "in-app") return Promise.resolve({ kind: "in-app" });
   if (platform === "ios-safari" || platform === "ios-browser") return Promise.resolve({ kind: "install-first" });

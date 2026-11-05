@@ -115,7 +115,6 @@ import type {
 import { draftPostPhotos, type PostWrite } from "@/lib/social/post-photos";
 import { profileReplies, profileWithPin } from "@/lib/social/profile-tabs";
 import { isOptimisticReply, optimisticReply, withoutOptimisticReply } from "@/lib/social/reply-images";
-import { haptic } from "@/lib/ios/haptics";
 
 /** Sending and reading DMs, from its own chunk: fetched at the first idle moment, or on first use. */
 const loadDmActions = () => import("@/lib/social/dm-actions");
@@ -1459,7 +1458,6 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
           const result = await (await loadRemote()).remoteCreatePost(client, snapshot.user.id, input);
           if (!result.error) {
             trackEvent("post_created");
-            haptic("post");
             pingBadgeCheck();
             emitSocialAction("post");
             // In place: read just the new post and put it on top.

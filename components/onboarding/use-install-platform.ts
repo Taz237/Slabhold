@@ -7,12 +7,14 @@ import { isNativeApp } from "@/lib/ios/platform";
 const noopSubscribe = () => () => {};
 
 function readPlatform(): InstallPlatform {
+  // The iOS app: no install step or Add to Home Screen, same as a computer.
+  if (isNativeApp()) return "desktop";
   const nav = window.navigator as Navigator & { standalone?: boolean };
   return installPlatform({
     userAgent: nav.userAgent ?? "",
     platform: nav.platform,
     maxTouchPoints: nav.maxTouchPoints ?? 0,
-    navigatorStandalone: nav.standalone === true || isNativeApp(),
+    navigatorStandalone: nav.standalone === true,
     displayModeStandalone: Boolean(window.matchMedia?.("(display-mode: standalone)").matches),
   });
 }
