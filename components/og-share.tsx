@@ -610,7 +610,8 @@ function CardLandscape({ model, canvas }: { model: ShareImage; canvas: Canvas })
   const slab = model.slabs[0] ?? null;
   let width = Math.round(310 * heroScale(canvas));
   while (slabHeight(asPortrait(slab), width) > canvas.height - 70 && width > 200) width -= 10;
-  width = heroSlabWidth(slab, width, 500);
+  // The hero column is 500 wide; leave 20px each side.
+  width = heroSlabWidth(slab, width, 460);
   return (
     <Stage canvas={canvas}>
       <Glow size={780} x={260} y={canvas.height / 2} strength={0.6} />
