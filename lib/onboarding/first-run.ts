@@ -1,3 +1,4 @@
+import { HANDLE_PATH } from "@/lib/auth/oauth";
 import { isOfficialUpdatesAccount } from "@/lib/social/official-updates";
 import { NOT_SUGGESTED_HANDLES, isTestAccount, normalizeAccountHandle } from "@/lib/test-accounts";
 
@@ -44,6 +45,8 @@ export function setupVisible(input: {
 }): boolean {
   if (!input.signedIn || input.stored === "done") return false;
   if (input.pathname.startsWith("/settings/collecting")) return false;
+  // A new Apple or Google account picks its @handle first; setup follows.
+  if (input.pathname.startsWith(HANDLE_PATH)) return false;
   if (input.stored) return true;
   if (input.table === "ready") return !input.answered;
   if (input.table === "missing") return input.localNewUser;

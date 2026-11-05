@@ -5,10 +5,12 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { ArrowLeft, Check, Eye, EyeOff, MailCheck } from "lucide-react";
 import { Captcha, useCaptchaWatch, type CaptchaHandle } from "@/components/captcha";
+import { SocialSignIn } from "@/components/auth-social";
 import { Logo } from "@/components/logo";
 import { useSocial } from "@/components/social-provider";
 import { useUsernameCheck } from "@/components/onboarding/use-username-check";
 import { trackEvent } from "@/lib/analytics";
+import { ENABLED_PROVIDERS } from "@/lib/auth/oauth";
 import { CAPTCHA_LOAD_FAILED, releaseCaptcha, submitBlocked, turnstileSiteKey } from "@/lib/auth/captcha";
 import {
   afterAuthPath,
@@ -69,6 +71,9 @@ const STEP_COPY: Record<SignupStep, { title: string; lead: string }> = {
   username: { title: "Pick a username", lead: "This is your @handle on Slabhold." },
   name: { title: "What should we call you?", lead: "Your display name. You can change it any time." },
 };
+
+/** The first step when Apple or Google is on: the email field sits under them. */
+const SOCIAL_COPY = { title: "Create your account", lead: "Track your cards, see what they sell for and follow other collectors." };
 
 const STEP_IN = "motion-safe:animate-[add-step-in_220ms_cubic-bezier(0.2,0.7,0.2,1)_both]";
 const STEP_BACK = "motion-safe:animate-[add-step-back_220ms_cubic-bezier(0.2,0.7,0.2,1)_both]";
@@ -490,6 +495,7 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
   }
 
   const otherHref = mode === "login" ? signupPath(next) : loginPath(next);
+  const oauthFailed = params.get("oauth") === "failed";
   const captcha = (
     <Captcha
       key={pathname}
@@ -542,6 +548,7 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
             ? "Log in once to finish setup. You'll pick up right where you left off."
             : "Log in to your collection, your feed and your DMs."}
         </p>
+        <SocialSignIn providers={ENABLED_PROVIDERS} next={destination} failed={oauthFailed} />
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -610,7 +617,8 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
     );
   }
 
-  const copy = STEP_COPY[step];
+  const social = step === "email" && ENABLED_PROVIDERS.length > 0;
+  const copy = social ? SOCIAL_COPY : STEP_COPY[step];
   const stepNumber = SIGNUP_STEPS.indexOf(step) + 1;
   const blocked = signupStepBlocked(step, { email, password, username, displayName }, usernameCheck.status);
   const finalStep = step === "name";
@@ -645,6 +653,7 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
       <div key={step} className={`mt-8 ${direction === 1 ? STEP_IN : STEP_BACK}`}>
         <h1 className="text-[28px] font-semibold leading-tight tracking-tight">{copy.title}</h1>
         <p className="mt-2 text-[15px] leading-6 text-zinc-600 dark:text-zinc-400">{copy.lead}</p>
+        {social ? <SocialSignIn providers={ENABLED_PROVIDERS} next={destination} failed={oauthFailed} /> : null}
         <form
           id="signup-step"
           noValidate
@@ -665,7 +674,7 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
               autoComplete="email"
               inputMode="email"
               enterKeyHint="next"
-              focusOnMount
+              focusOnMount={!social}
               value={email}
               onChange={setEmail}
               onBlur={mode === "signup" ? () => touch("email") : undefined}
@@ -801,7 +810,7 @@ function AuthTopBar({
 const inputClass =
   "h-14 w-full rounded-2xl border border-zinc-300 bg-white px-4 text-[17px] outline-none transition-colors placeholder:text-zinc-400 focus:border-violet-500 focus:ring-4 focus:ring-violet-500/15 aria-[invalid=true]:border-rose-500 motion-reduce:transition-none dark:border-white/12 dark:bg-white/[0.04] dark:placeholder:text-zinc-500";
 
-function Field({
+export function Field({
   label,
   value,
   onChange,
@@ -957,7 +966,7 @@ function PasswordField({
   );
 }
 
-function UsernameField({
+export function UsernameField({
   value,
   onChange,
   onBlur,
