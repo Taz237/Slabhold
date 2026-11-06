@@ -188,7 +188,8 @@ function PostRow({
           </div>
           {post.pickup ? (
             <div className="mt-3 flex items-center gap-3">
-              <div className="w-16 shrink-0">
+              {/* Slabs get 112px: at 64px the label's year/set line truncated to "2…". */}
+              <div className={`${post.id === "p1" ? "w-16" : "w-28"} shrink-0`}>
                 {post.id === "p1" ? (
                   // Donnie's own card, used with his OK. Plain and lazy: no optimizer.
                   // eslint-disable-next-line @next/next/no-img-element
@@ -196,7 +197,7 @@ function PostRow({
                 ) : real ? (
                   <RealSlab pickup={real} onError={onPhotoError} />
                 ) : (
-                  <CardSlabArt card={SAMPLE_SLABS[1]} index={9} source={NO_PHOTO} status="loading" onStatus={noop} sizes="64px" />
+                  <CardSlabArt card={SAMPLE_SLABS[1]} index={9} source={NO_PHOTO} status="loading" onStatus={noop} sizes="112px" />
                 )}
               </div>
               <PostPill label="Pickup" />
@@ -250,7 +251,7 @@ function RealSlab({ pickup, onError }: { pickup: PickupDemo; onError: () => void
           if (event === "error") onError();
           else setStatus("loaded");
         }}
-        sizes="64px"
+        sizes="112px"
       />
     </div>
   );
