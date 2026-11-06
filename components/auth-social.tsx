@@ -9,10 +9,10 @@ const base =
   "flex h-14 w-full items-center justify-center gap-2.5 rounded-full text-[17px] font-medium transition-[transform,opacity] duration-150 active:scale-[0.98] disabled:opacity-60 motion-reduce:transition-none motion-reduce:transform-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)] focus-visible:outline-none";
 
 const BUTTONS: Record<OAuthProvider, { label: string; className: string; icon: React.ReactNode }> = {
-  // Apple's black style. On the dark theme a hairline keeps its edge.
+  // Apple's white style: white, black logo and text, a light gray hairline.
   apple: {
     label: "Continue with Apple",
-    className: `${base} bg-black text-white dark:ring-1 dark:ring-white/25`,
+    className: `${base} border border-zinc-200 bg-white text-black`,
     icon: (
       <svg aria-hidden viewBox="0 0 24 24" className="-mt-0.5 h-5 w-5" fill="currentColor">
         <path d="M16.37 1.43c0 1.14-.5 2.27-1.18 3.08-.74.9-1.99 1.57-2.99 1.57-.12 0-.23-.02-.3-.03-.01-.06-.04-.22-.04-.39 0-1.15.57-2.27 1.2-2.98.81-.94 2.15-1.64 3.25-1.68.03.13.06.28.06.43Zm4.56 15.71c-.03.07-.46 1.58-1.52 3.12-.94 1.34-1.94 2.71-3.43 2.71-1.52 0-1.9-.88-3.63-.88-1.7 0-2.3.91-3.67.91-1.38 0-2.33-1.26-3.43-2.8C4.97 18.38 3.93 15.57 3.93 12.92c0-4.28 2.8-6.55 5.55-6.55 1.45 0 2.68.95 3.6.95.87 0 2.22-1.01 3.9-1.01.62 0 2.89.06 4.38 2.19-.13.09-2.39 1.37-2.39 4.19 0 3.26 2.86 4.42 2.96 4.45Z" />
