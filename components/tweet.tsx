@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { memo, startTransition, useRef, useState } from "react";
-import { BadgeCheck, Ellipsis, Heart, MessageCircle, Pin, Quote, Repeat2 } from "lucide-react";
+import { BadgeCheck, Ellipsis, Heart, MessageCircle, Pin, Quote, Repeat2, Send } from "lucide-react";
 import { Avatar } from "@/components/avatar";
 import { useCollection } from "@/components/collection-provider";
 import { useImageLightbox } from "@/components/image-lightbox";
@@ -13,12 +13,14 @@ import { ReplyPhotos } from "@/components/reply-photos";
 import { MentionText } from "@/components/mention-text";
 import { QuotedPostEmbed } from "@/components/quoted-post-embed";
 import { SafetyMenu } from "@/components/safety-menu";
+import { SendPostSheet } from "@/components/send-post-sheet";
 import { ShareAction } from "@/components/share-button";
 import { useSocial } from "@/components/social-provider";
 import { signupPath } from "@/lib/auth/safe-next";
 import { exactTime, timeAgo } from "@/lib/format";
 import { imagesFromPost, photosBesideCard } from "@/lib/social/post-photos";
 import { quoteCount } from "@/lib/social/quotes";
+import { askPriceHref, canAskPrice, canSendPost } from "@/lib/social/post-dm";
 import type { Post, PostComment, Profile, PublicCard } from "@/lib/social/types";
 import { userHref } from "@/lib/social/user-href";
 import { MailDayCard } from "@/components/mail-day-card";
@@ -68,9 +70,11 @@ export const Tweet = memo(function Tweet({
   const router = useRouter();
   const openImage = useImageLightbox();
   const photos = photosBesideCard(imagesFromPost(post), post.card?.photoDataUrl);
-  const { commentsFor, findPost } = useSocial();
+  const { user, commentsFor, findPost } = useSocial();
   const comments = commentsFor(post.id);
   const quoteAvailable = Boolean(findPost(post.id));
+  const [sendOpen, setSendOpen] = useState(false);
+  const sendable = canSendPost(post, user?.id ?? null);
 
   const prefetched = useRef(false);
 
@@ -217,7 +221,16 @@ export const Tweet = memo(function Tweet({
           shareText={post.body}
           quoteAvailable={quoteAvailable}
           onQuotesClick={variant === "detail" ? onQuotesClick : undefined}
+          onSend={
+            sendable
+              ? () => {
+                  void SendPostSheet.preload().catch(() => {});
+                  setSendOpen(true);
+                }
+              : undefined
+          }
         />
+        {sendOpen && sendable ? <SendPostSheet post={post} onClose={() => setSendOpen(false)} /> : null}
         {variant === "feed" ? <CommentPreview postId={post.id} comments={comments} /> : null}
       </div>
       </div>
@@ -357,6 +370,7 @@ function PostMenu({ post }: { post: Post }) {
         targetId={post.id}
         reportedUserId={author.id}
         username={author.username}
+        askPriceHref={canAskPrice(post, user.id) ? askPriceHref(author.username, post.id) : undefined}
       />
     );
   }
@@ -477,6 +491,7 @@ export function Engagement({
   shareText,
   quoteAvailable = true,
   onQuotesClick,
+  onSend,
 }: {
   targetId: string;
   replyCount?: number;
@@ -487,6 +502,8 @@ export function Engagement({
   /** False when the post is unavailable and Quote should be disabled. */
   quoteAvailable?: boolean;
   onQuotesClick?: () => void;
+  /** Opens the Send in a DM sheet. Left out when the post can't be sent. */
+  onSend?: () => void;
 }) {
   const router = useRouter();
   const pathname = usePathname() || "/";
@@ -608,6 +625,11 @@ export function Engagement({
           onClick={onQuotesClick}
         >
           <Quote className="h-[18px] w-[18px]" />
+        </ActionButton>
+      ) : null}
+      {onSend ? (
+        <ActionButton label="Send in a DM" count={0} active={false} tone="violet" onClick={onSend}>
+          <Send className="h-[18px] w-[18px]" />
         </ActionButton>
       ) : null}
       {sharePath ? (

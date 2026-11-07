@@ -15,6 +15,7 @@ import { MARK_SOLD_LABEL } from "@/lib/deals/state";
 import { EmptyState, LoadingRows } from "@/components/status";
 import { useLoadMore } from "@/components/load-more";
 import { useSocial } from "@/components/social-provider";
+import { useCollection } from "@/components/collection-provider";
 import { usePublicCards } from "@/lib/social/use-public-cards";
 import { useProfiles } from "@/lib/social/use-profiles";
 import { ReadRetry } from "@/components/read-retry";
@@ -23,6 +24,8 @@ import { signupPath } from "@/lib/auth/safe-next";
 import { exactTime } from "@/lib/format";
 import { offerCardForThread } from "@/lib/offers/open-to-offers";
 import { seenMessageId, threadRows, threadTimeLabel } from "@/lib/social/dm-inbox";
+import { dealCardFromThread } from "@/lib/deals/thread-card";
+import { askPriceDraft } from "@/lib/social/post-dm";
 import { userHref } from "@/lib/social/user-href";
 import { MESSAGE_LIMIT, type DirectMessage } from "@/lib/social/types";
 
@@ -61,9 +64,13 @@ export function MessageThread({ username }: { username: string }) {
     mutedIds,
     safetyAccounts,
     publicCards,
+    findPost,
   } = useSocial();
+  const { cards } = useCollection();
   const searchParams = useSearchParams();
   const cardParam = searchParams.get("card");
+  // Ask price: the post's link, with "How much?" ready in the box. Never sent on its own.
+  const postParam = searchParams.get("post");
   usePublicCards({ ids: [cardParam] });
   const partner = profileByUsername(username);
   // A new conversation can name someone the snapshot didn't bring: read them by handle.
@@ -83,6 +90,8 @@ export function MessageThread({ username }: { username: string }) {
   );
   const offerAttachment = offerCard ? { cardId: offerCard.id } : null;
   const [draft, setDraft] = useState("");
+  /** The ?post= this thread already put in the box, so it fills once. */
+  const [prefilled, setPrefilled] = useState<string | null>(null);
   const [dealOpen, setDealOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -120,6 +129,14 @@ export function MessageThread({ username }: { username: string }) {
     if (!ready || !user || !partnerId) return;
     void loadThreadMessages(partnerId).catch(() => {});
   }, [loadThreadMessages, partnerId, ready, user]);
+
+  // The Ask price draft is two lines: grow the box to fit, as typing does.
+  useLayoutEffect(() => {
+    const field = fieldRef.current;
+    if (!prefilled || !field) return;
+    field.style.height = "auto";
+    field.style.height = `${Math.min(field.scrollHeight, 128)}px`;
+  }, [prefilled]);
 
   /** Distance from the bottom before older messages were added above, so the view holds still. */
   const holdFromBottom = useRef<number | null>(null);
@@ -210,10 +227,10 @@ export function MessageThread({ username }: { username: string }) {
   }
 
   const offerBlocked =
-    Boolean(cardParam) &&
     Boolean(partner) &&
     Boolean(user) &&
-    (blockedIds.includes(partner?.id ?? "") || mutedIds.includes(partner?.id ?? ""));
+    ((Boolean(cardParam) && (blockedIds.includes(partner?.id ?? "") || mutedIds.includes(partner?.id ?? ""))) ||
+      (Boolean(postParam) && blockedIds.includes(partner?.id ?? "")));
   const blockedPartner = safetyAccounts.find(
     (person) =>
       person.id !== user?.id &&
@@ -242,6 +259,11 @@ export function MessageThread({ username }: { username: string }) {
         </Link>
       </EmptyState>
     );
+  }
+
+  if (postParam && prefilled !== postParam) {
+    setPrefilled(postParam);
+    if (!draft.trim()) setDraft(askPriceDraft(postParam));
   }
 
   const seenId = seenMessageId(thread, user.id);
@@ -285,7 +307,13 @@ export function MessageThread({ username }: { username: string }) {
           username={partner.username}
         />
       </div>
-      {dealOpen ? <DealSheet fixedBuyerId={partner.id} onClose={() => setDealOpen(false)} /> : null}
+      {dealOpen ? (
+        <DealSheet
+          fixedBuyerId={partner.id}
+          initialCardId={dealCardFromThread(thread, findPost, cards)}
+          onClose={() => setDealOpen(false)}
+        />
+      ) : null}
       <DealThreadPanel partnerId={partner.id} />
 
       <div ref={scroller} className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pt-3 pb-2">

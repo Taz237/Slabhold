@@ -1,10 +1,13 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { Avatar } from "@/components/avatar";
 import { CardMessagePreviewBody, SharedCardPhoto } from "@/components/open-to-offers";
 import { useSocial } from "@/components/social-provider";
 import { resolveLiveCardPreview } from "@/lib/offers/open-to-offers";
+import { loadPostById } from "@/lib/social/load-feed-page";
+import { loadSupabaseBrowser } from "@/lib/supabase/browser-lazy";
 import { messageLinks, type MessageLink } from "@/lib/social/dm-inbox";
 import { imagesFromPost } from "@/lib/social/post-photos";
 import type { DirectMessage, OwnedCard, Post, Profile } from "@/lib/social/types";
@@ -42,6 +45,70 @@ function linkedPost(postId: string, loaded: Loaded) {
   return author ? { post, author } : null;
 }
 
+/** A shared post's read from the server: still going, found, or done and not there. */
+export type PostRead = "pending" | "found" | "missing";
+
+/** Post ids read for DM previews, shared by every bubble. Found posts go to rememberPosts. */
+const postReads = new Map<string, PostRead>();
+const readListeners = new Set<() => void>();
+
+/**
+ * What a post link in a message draws: the mini card, "Post unavailable"
+ * (hidden, a blocked author, or gone), or nothing yet while it's read.
+ */
+export function sharedPostState(
+  postId: string,
+  loaded: Loaded,
+  read: PostRead | undefined,
+): { kind: "shown"; post: Post; author: Profile } | { kind: "unavailable" } | { kind: "pending" } {
+  const post = loaded.findPost(postId);
+  if (post) {
+    const found = linkedPost(postId, loaded);
+    return found ? { kind: "shown", ...found } : { kind: "unavailable" };
+  }
+  return read === "missing" ? { kind: "unavailable" } : { kind: "pending" };
+}
+
+/**
+ * Reads posts a thread links that aren't loaded on this device yet, once
+ * each. On-device accounts have every post already, so a miss is gone.
+ */
+function usePostReads(ids: readonly string[]): (id: string) => PostRead | undefined {
+  const { mode, user, findPost, rememberPosts } = useSocial();
+  const [, setTick] = useState(0);
+  const key = ids.filter((id) => !findPost(id)).join(",");
+  useEffect(() => {
+    const listener = () => setTick((tick) => tick + 1);
+    readListeners.add(listener);
+    return () => {
+      readListeners.delete(listener);
+    };
+  }, []);
+  const viewerId = user?.id ?? null;
+  useEffect(() => {
+    if (!key || mode !== "supabase") return;
+    for (const id of key.split(",")) {
+      if (postReads.has(id)) continue;
+      postReads.set(id, "pending");
+      void loadSupabaseBrowser()
+        .then((supabase) => (supabase ? loadPostById(supabase, id, viewerId) : null))
+        .then((result) => {
+          if (result) {
+            // Kept as read: findPost has it once rememberPosts lands.
+            postReads.set(id, "found");
+            rememberPosts([result.post, ...result.relatedPosts], result.profiles);
+          } else {
+            postReads.set(id, "missing");
+          }
+          for (const listener of readListeners) listener();
+        })
+        // A failed read stays a plain link; the next thread open tries again.
+        .catch(() => postReads.delete(id));
+    }
+  }, [key, mode, rememberPosts, viewerId]);
+  return (id) => (mode === "supabase" ? postReads.get(id) : "missing");
+}
+
 /**
  * Rich mini cards for Slabhold post and card links in a message. Only things
  * already loaded on this device are drawn; anything else stays a plain link.
@@ -51,6 +118,7 @@ export function MessageAttachments({ text }: { text: string }) {
   const loaded = { findPost, profiles, publicCards, blockedIds };
   const links = messageLinks(text);
   usePublicCards({ ids: links.map((link) => (link.kind === "card" ? link.cardId : null)) });
+  const readOf = usePostReads(links.flatMap((link) => (link.kind === "post" ? [link.id] : [])));
   if (links.length === 0) return null;
   return (
     <>
@@ -59,12 +127,25 @@ export function MessageAttachments({ text }: { text: string }) {
           const card = linkedCard(link.cardId, loaded);
           return card ? <CardMessagePreviewBody key={`card-${link.cardId}`} card={card} /> : null;
         }
-        const found = linkedPost(link.id, loaded);
-        return found ? (
-          <SharedPostMini key={`post-${link.id}`} post={found.post} author={found.author} />
+        const state = sharedPostState(link.id, loaded, readOf(link.id));
+        if (state.kind === "unavailable") return <PostUnavailable key={`post-${link.id}`} />;
+        return state.kind === "shown" ? (
+          <SharedPostMini key={`post-${link.id}`} post={state.post} author={state.author} />
         ) : null;
       })}
     </>
+  );
+}
+
+/** A shared post that's hidden, by a blocked author, or gone. The link text stays in the bubble. */
+function PostUnavailable() {
+  return (
+    <span
+      data-post-unavailable=""
+      className="mt-1 inline-flex min-h-7 items-center rounded-full bg-zinc-100 px-3 text-[13px] font-medium text-zinc-500 dark:bg-white/[0.06] dark:text-zinc-400"
+    >
+      Post unavailable
+    </span>
   );
 }
 

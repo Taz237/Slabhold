@@ -18,14 +18,19 @@ export function DealSheet({
   onClose,
   fixedCard,
   fixedBuyerId,
+  initialCardId,
 }: {
   onClose: () => void;
   fixedCard?: SportsCard | null;
   fixedBuyerId?: string | null;
+  /** Only the starting pick, and only when it's a card you still hold. */
+  initialCardId?: string | null;
 }) {
   const { user, messages, profiles } = useSocial();
   const { cards, reload } = useCollection();
-  const [cardId, setCardId] = useState(fixedCard?.id ?? "");
+  const [cardId, setCardId] = useState(
+    () => fixedCard?.id ?? (initialCardId && heldCards(cards).some((card) => card.id === initialCardId) ? initialCardId : ""),
+  );
   const [buyerId, setBuyerId] = useState(fixedBuyerId ?? "");
   const [kind, setKind] = useState<DealKind>("sale");
   const [price, setPrice] = useState("");
