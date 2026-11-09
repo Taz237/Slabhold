@@ -75,10 +75,8 @@ describe("App Store privacy manifest", () => {
     assert.deepEqual(manifest.NSPrivacyTrackingDomains, []);
   });
 
-  it("declares UserDefaults for the app's own use (CA92.1) and nothing it doesn't use", () => {
-    assert.deepEqual(manifest.NSPrivacyAccessedAPITypes, [
-      { NSPrivacyAccessedAPIType: "NSPrivacyAccessedAPICategoryUserDefaults", NSPrivacyAccessedAPITypeReasons: ["CA92.1"] },
-    ]);
+  it("declares no required-reason APIs: neither the app nor its plugins call any", () => {
+    assert.deepEqual(manifest.NSPrivacyAccessedAPITypes, []);
   });
 
   const linked = [
