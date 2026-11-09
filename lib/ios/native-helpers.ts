@@ -1,7 +1,9 @@
 /**
- * Pure helpers for the app's camera, kept out of first load: only
+ * Pure helpers for the app's camera and push, kept out of first load: only
  * lib/ios/native.ts imports them.
  */
+import { sameOriginPath } from "@/lib/push/payload";
+import type { NativePermission } from "@/lib/push/native-client";
 
 /** What the camera plugin hands back, as far as we read it. */
 export type PickedPhoto = { dataUrl?: string; format?: string };
@@ -60,4 +62,26 @@ export function asShareAbort(error: unknown): unknown {
     return abort;
   }
   return error;
+}
+
+/**
+ * Where a notification tap goes: the payload's url, only as a same-origin
+ * path (anything else opens /notifications).
+ */
+export function pushTapPath(data: unknown): string {
+  return sameOriginPath((data as { url?: unknown } | null | undefined)?.url);
+}
+
+/** The plugin's token is uppercase hex; the server stores lowercase. Null if it isn't a token. */
+export function apnsTokenFrom(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const token = value.trim().toLowerCase();
+  return /^[0-9a-f]{64,200}$/.test(token) ? token : null;
+}
+
+/** "prompt-with-rationale" (Android only) reads as not asked yet. */
+export function nativePermissionFrom(receive: string): NativePermission {
+  if (receive === "granted") return "granted";
+  if (receive === "denied") return "denied";
+  return "prompt";
 }

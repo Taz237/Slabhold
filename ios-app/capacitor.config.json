@@ -25,6 +25,17 @@
     "StatusBar": {
       "overlaysWebView": true,
       "style": "DEFAULT"
+    },
+    "PushNotifications": {
+      "presentationOptions": [
+        "sound",
+        "alert"
+      ]
+    },
+    "Keyboard": {
+      "resize": "none",
+      "style": "DEFAULT",
+      "resizeOnFullScreen": false
     }
   }
 }

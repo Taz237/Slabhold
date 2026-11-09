@@ -51,6 +51,9 @@ const YoureIn = lazyPart(() => import("@/components/onboarding/youre-in").then((
 const CoachTour = lazyPart(() => import("@/components/onboarding/coach-tour").then((mod) => mod.CoachTour));
 const BadgeRevealGate = lazyPart(() => import("@/components/badges/badge-reveal").then((mod) => mod.BadgeRevealGate));
 const PushManager = lazyPart(() => import("@/components/push/push-manager").then((mod) => mod.PushManager));
+const NativePushManager = lazyPart(() =>
+  import("@/components/native/native-push-manager").then((mod) => mod.NativePushManager),
+);
 
 /**
  * Push (worker, soft-ask, badge, notification taps) for a signed-in reader.
@@ -61,6 +64,17 @@ function PushAfterIdle({ user }: { user: Profile }) {
   const [idle, setIdle] = useState(false);
   useEffect(() => (isNativeApp() ? undefined : afterFirstIdle(() => setIdle(true))), []);
   return idle ? <PushManager user={user} /> : null;
+}
+
+/**
+ * The iPhone app's push (APNs soft-ask, token refresh, flush after actions).
+ * Only inside the app, signed in, after the first idle moment. Web visitors
+ * never load its chunk.
+ */
+function NativePushAfterIdle({ user }: { user: Profile }) {
+  const [idle, setIdle] = useState(false);
+  useEffect(() => (isNativeApp() ? afterFirstIdle(() => setIdle(true)) : undefined), []);
+  return idle ? <NativePushManager user={user} /> : null;
 }
 
 /** The avatar's room while the menu's chunk loads. */
@@ -390,6 +404,7 @@ function Shell({
       {user && process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ? (
         <PushAfterIdle key={user.id} user={user} />
       ) : null}
+      {user && mode === "supabase" ? <NativePushAfterIdle key={user.id} user={user} /> : null}
     </div>
   );
 }

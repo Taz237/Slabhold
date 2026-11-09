@@ -43,8 +43,8 @@ type DeviceState =
   | { kind: "denied"; ios: boolean }
   | { kind: "ready"; on: boolean };
 
-const card = "rounded-2xl bg-white ring-1 ring-zinc-200 dark:bg-white/[0.04] dark:ring-white/10";
-const sectionLabel = "px-1 pb-2 text-[13px] font-medium text-zinc-500";
+export const card = "rounded-2xl bg-white ring-1 ring-zinc-200 dark:bg-white/[0.04] dark:ring-white/10";
+export const sectionLabel = "px-1 pb-2 text-[13px] font-medium text-zinc-500";
 
 const noopSubscribe = () => () => {};
 
@@ -62,7 +62,7 @@ function isIos(platform: InstallPlatform): boolean {
     : platform === "ios-safari" || platform === "ios-browser";
 }
 
-function Switch({
+export function Switch({
   checked,
   disabled,
   label,
@@ -117,7 +117,7 @@ function Switch({
   );
 }
 
-function Note({ icon, title, children }: { icon: ReactNode; title: string; children?: ReactNode }) {
+export function Note({ icon, title, children }: { icon: ReactNode; title: string; children?: ReactNode }) {
   return (
     <div className="flex items-start gap-3 px-4 py-4">
       <span aria-hidden className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-zinc-100 text-zinc-500 dark:bg-white/[0.06] dark:text-zinc-400">
@@ -131,7 +131,7 @@ function Note({ icon, title, children }: { icon: ReactNode; title: string; child
   );
 }
 
-function SkeletonRows({ rows }: { rows: number }) {
+export function SkeletonRows({ rows }: { rows: number }) {
   return (
     <div aria-hidden className="divide-y divide-zinc-100 dark:divide-white/[0.06]">
       {Array.from({ length: rows }, (_, index) => (
@@ -160,7 +160,12 @@ function readDevice(available: boolean, userId: string): Promise<DeviceState> {
   }));
 }
 
-export function NotificationSettings() {
+/**
+ * Settings > Notifications. `deviceSection` replaces the web's "This device"
+ * section (the iPhone app passes its own); the prefs below are shared.
+ */
+export function NotificationSettings({ deviceSection }: { deviceSection?: ReactNode } = {}) {
+  const hasDeviceSlot = deviceSection !== undefined;
   const { user, ready, mode } = useSocial();
   const onClient = useOnClient();
   const userId = user?.id ?? null;
@@ -175,13 +180,13 @@ export function NotificationSettings() {
   const zone = onClient ? deviceTimeZone() : null;
 
   const refreshDevice = useCallback(async () => {
-    if (!userId) return;
+    if (!userId || hasDeviceSlot) return;
     const available = await pushServerAvailable();
     setDevice(await readDevice(available, userId));
-  }, [userId]);
+  }, [hasDeviceSlot, userId]);
 
   useEffect(() => {
-    if (!userId) return;
+    if (!userId || hasDeviceSlot) return;
     let cancelled = false;
     void pushServerAvailable()
       .then((available) => readDevice(available, userId))
@@ -191,7 +196,7 @@ export function NotificationSettings() {
     return () => {
       cancelled = true;
     };
-  }, [userId]);
+  }, [hasDeviceSlot, userId]);
 
   useEffect(() => {
     if (!ready || !userId || mode !== "supabase") return;
@@ -285,7 +290,7 @@ export function NotificationSettings() {
 
   const prefsReady = prefs !== null;
   const deviceOn = device.kind === "ready" && device.on;
-  const pushUsable = device.kind !== "off-build" && device.kind !== "unavailable";
+  const pushUsable = hasDeviceSlot || (device.kind !== "off-build" && device.kind !== "unavailable");
 
   return (
     <div className="space-y-6 pb-4">
@@ -296,85 +301,89 @@ export function NotificationSettings() {
         </p>
       </div>
 
-      <section aria-labelledby="push-device">
-        <h2 id="push-device" className={sectionLabel}>
-          This device
-        </h2>
-        <div className={card}>
-          {device.kind === "loading" ? <SkeletonRows rows={1} /> : null}
-          {device.kind === "off-build" || device.kind === "unavailable" ? (
-            <Note icon={<BellOff className="h-5 w-5" />} title="Notifications aren't available yet">
-              We&apos;re getting push notifications ready. Your notifications list still updates as usual.
-            </Note>
-          ) : null}
-          {device.kind === "in-app" ? (
-            <Note icon={<Smartphone className="h-5 w-5" />} title="Open Slabhold in your browser">
-              This app&apos;s browser can&apos;t get push notifications. Open slabhold.app in Safari or Chrome.
-            </Note>
-          ) : null}
-          {device.kind === "install-first" ? (
-            <div>
-              <Note icon={<Share className="h-5 w-5" />} title="Add Slabhold to your Home Screen first">
-                iPhone only sends notifications to apps on your Home Screen. Add Slabhold, open it from there, then
-                turn notifications on here.
+      {hasDeviceSlot ? (
+        deviceSection
+      ) : (
+        <section aria-labelledby="push-device">
+          <h2 id="push-device" className={sectionLabel}>
+            This device
+          </h2>
+          <div className={card}>
+            {device.kind === "loading" ? <SkeletonRows rows={1} /> : null}
+            {device.kind === "off-build" || device.kind === "unavailable" ? (
+              <Note icon={<BellOff className="h-5 w-5" />} title="Notifications aren't available yet">
+                We&apos;re getting push notifications ready. Your notifications list still updates as usual.
               </Note>
-              <div className="px-4 pb-4">
-                <button
-                  type="button"
-                  onClick={() => setGuideOpen(true)}
-                  className="tap h-11 w-full rounded-full bg-violet-600 text-[15px] font-semibold text-white hover:bg-violet-700 focus-visible:ring-2 focus-visible:ring-violet-600 focus-visible:ring-offset-2 focus-visible:outline-none"
-                >
-                  Show me how
-                </button>
+            ) : null}
+            {device.kind === "in-app" ? (
+              <Note icon={<Smartphone className="h-5 w-5" />} title="Open Slabhold in your browser">
+                This app&apos;s browser can&apos;t get push notifications. Open slabhold.app in Safari or Chrome.
+              </Note>
+            ) : null}
+            {device.kind === "install-first" ? (
+              <div>
+                <Note icon={<Share className="h-5 w-5" />} title="Add Slabhold to your Home Screen first">
+                  iPhone only sends notifications to apps on your Home Screen. Add Slabhold, open it from there, then
+                  turn notifications on here.
+                </Note>
+                <div className="px-4 pb-4">
+                  <button
+                    type="button"
+                    onClick={() => setGuideOpen(true)}
+                    className="tap h-11 w-full rounded-full bg-violet-600 text-[15px] font-semibold text-white hover:bg-violet-700 focus-visible:ring-2 focus-visible:ring-violet-600 focus-visible:ring-offset-2 focus-visible:outline-none"
+                  >
+                    Show me how
+                  </button>
+                </div>
               </div>
-            </div>
-          ) : null}
-          {device.kind === "unsupported" ? (
-            <Note icon={<BellOff className="h-5 w-5" />} title="This browser can't get push notifications" />
-          ) : null}
-          {device.kind === "denied" ? (
-            <Note icon={<BellOff className="h-5 w-5" />} title="Notifications are blocked">
-              {device.ios ? (
-                <p>
-                  To turn them back on, open iPhone <strong className="font-semibold text-zinc-700 dark:text-zinc-300">Settings</strong> →{" "}
-                  <strong className="font-semibold text-zinc-700 dark:text-zinc-300">Notifications</strong> →{" "}
-                  <strong className="font-semibold text-zinc-700 dark:text-zinc-300">Slabhold</strong>, and allow notifications.
-                </p>
-              ) : (
-                <p>
-                  To turn them back on, open your browser&apos;s{" "}
-                  <strong className="font-semibold text-zinc-700 dark:text-zinc-300">site settings</strong> for slabhold.app (tap the
-                  icon next to the address), set{" "}
-                  <strong className="font-semibold text-zinc-700 dark:text-zinc-300">Notifications</strong> to Allow, then come back here.
-                </p>
-              )}
-            </Note>
-          ) : null}
-          {device.kind === "ready" ? (
-            <div className="divide-y divide-zinc-100 dark:divide-white/[0.06]">
-              <Switch
-                checked={deviceOn}
-                disabled={busy}
-                label="Push notifications"
-                description={deviceOn ? "On for this device." : "Get notified on this device."}
-                icon={<BellRing className="h-5 w-5" />}
-                onChange={(next) => (next ? turnOn() : turnOff())}
-              />
-              <div className="px-4 py-3">
-                <button
-                  type="button"
-                  onClick={sendTest}
-                  disabled={!deviceOn || testing}
-                  className="tap inline-flex min-h-11 items-center gap-2 rounded-full px-1 text-[15px] font-semibold text-violet-700 focus-visible:ring-2 focus-visible:ring-violet-600 focus-visible:outline-none disabled:text-zinc-400 dark:text-[#A78BFA] dark:disabled:text-zinc-600"
-                >
-                  <Send aria-hidden className="h-4 w-4" />
-                  {testing ? "Sending…" : "Send a test notification"}
-                </button>
+            ) : null}
+            {device.kind === "unsupported" ? (
+              <Note icon={<BellOff className="h-5 w-5" />} title="This browser can't get push notifications" />
+            ) : null}
+            {device.kind === "denied" ? (
+              <Note icon={<BellOff className="h-5 w-5" />} title="Notifications are blocked">
+                {device.ios ? (
+                  <p>
+                    To turn them back on, open iPhone <strong className="font-semibold text-zinc-700 dark:text-zinc-300">Settings</strong> →{" "}
+                    <strong className="font-semibold text-zinc-700 dark:text-zinc-300">Notifications</strong> →{" "}
+                    <strong className="font-semibold text-zinc-700 dark:text-zinc-300">Slabhold</strong>, and allow notifications.
+                  </p>
+                ) : (
+                  <p>
+                    To turn them back on, open your browser&apos;s{" "}
+                    <strong className="font-semibold text-zinc-700 dark:text-zinc-300">site settings</strong> for slabhold.app (tap the
+                    icon next to the address), set{" "}
+                    <strong className="font-semibold text-zinc-700 dark:text-zinc-300">Notifications</strong> to Allow, then come back here.
+                  </p>
+                )}
+              </Note>
+            ) : null}
+            {device.kind === "ready" ? (
+              <div className="divide-y divide-zinc-100 dark:divide-white/[0.06]">
+                <Switch
+                  checked={deviceOn}
+                  disabled={busy}
+                  label="Push notifications"
+                  description={deviceOn ? "On for this device." : "Get notified on this device."}
+                  icon={<BellRing className="h-5 w-5" />}
+                  onChange={(next) => (next ? turnOn() : turnOff())}
+                />
+                <div className="px-4 py-3">
+                  <button
+                    type="button"
+                    onClick={sendTest}
+                    disabled={!deviceOn || testing}
+                    className="tap inline-flex min-h-11 items-center gap-2 rounded-full px-1 text-[15px] font-semibold text-violet-700 focus-visible:ring-2 focus-visible:ring-violet-600 focus-visible:outline-none disabled:text-zinc-400 dark:text-[#A78BFA] dark:disabled:text-zinc-600"
+                  >
+                    <Send aria-hidden className="h-4 w-4" />
+                    {testing ? "Sending…" : "Send a test notification"}
+                  </button>
+                </div>
               </div>
-            </div>
-          ) : null}
-        </div>
-      </section>
+            ) : null}
+          </div>
+        </section>
+      )}
 
       <section aria-labelledby="push-types">
         <h2 id="push-types" className={sectionLabel}>

@@ -6,7 +6,10 @@
 import { App } from "@capacitor/app";
 import { Browser } from "@capacitor/browser";
 import { Camera, CameraResultType, CameraSource } from "@capacitor/camera";
+import { Capacitor } from "@capacitor/core";
 import { Haptics, ImpactStyle, NotificationType } from "@capacitor/haptics";
+import { Keyboard } from "@capacitor/keyboard";
+import { PushNotifications } from "@capacitor/push-notifications";
 import { Share } from "@capacitor/share";
 import { SplashScreen } from "@capacitor/splash-screen";
 import { StatusBar, Style } from "@capacitor/status-bar";
@@ -14,7 +17,8 @@ import { oauthReturnPath } from "@/lib/auth/oauth";
 import { appLinkPath, routeLink, routeWindowOpen } from "@/lib/ios/links";
 import type { PhotoSource } from "@/lib/ios/camera";
 import type { HapticMoment } from "@/lib/ios/haptics";
-import { asShareAbort, photoFile, photoPickFailure } from "@/lib/ios/native-helpers";
+import { apnsTokenFrom, asShareAbort, nativePermissionFrom, photoFile, photoPickFailure, pushTapPath } from "@/lib/ios/native-helpers";
+import type { NativePermission } from "@/lib/push/native-client";
 import type { NativeShareData } from "@/lib/share/sheet";
 
 const LAUNCH_KEY = "slabhold.native.launch-url";
@@ -56,8 +60,116 @@ export function openAuthBrowser(url: string): Promise<void> {
   return Browser.open({ url, presentationStyle: "popover" });
 }
 
+const TOKEN_WAIT_MS = 15_000;
+let pushToken: string | null = null;
+let tokenListening = false;
+const tokenWaiters = new Set<(token: string | null) => void>();
+
+function settleToken(token: string | null) {
+  if (token) pushToken = token;
+  for (const resolve of [...tokenWaiters]) resolve(token ?? pushToken);
+  tokenWaiters.clear();
+}
+
+/** One pair of listeners for APNs registration, kept for the app's life. */
+function listenForToken() {
+  if (tokenListening) return;
+  tokenListening = true;
+  void PushNotifications.addListener("registration", ({ value }) => settleToken(apnsTokenFrom(value))).catch(() => {});
+  void PushNotifications.addListener("registrationError", () => settleToken(null)).catch(() => {});
+}
+
+/** register() and wait for the token: the new one, the last one, or null after ~15s. */
+function registerForToken(): Promise<string | null> {
+  listenForToken();
+  return new Promise<string | null>((resolve) => {
+    const timer = window.setTimeout(() => {
+      tokenWaiters.delete(finish);
+      resolve(pushToken);
+    }, TOKEN_WAIT_MS);
+    function finish(token: string | null) {
+      window.clearTimeout(timer);
+      resolve(token);
+    }
+    tokenWaiters.add(finish);
+    PushNotifications.register().catch(() => {
+      tokenWaiters.delete(finish);
+      window.clearTimeout(timer);
+      resolve(null);
+    });
+  });
+}
+
+/** This build has the PushNotifications plugin. False on TestFlight builds 2 and 3. */
+export function nativePushAvailable(): boolean {
+  try {
+    return Capacitor.isPluginAvailable("PushNotifications");
+  } catch {
+    return false;
+  }
+}
+
+/** The app's notification permission. Never prompts. Null when the plugin isn't there. */
+export async function nativePushPermission(): Promise<NativePermission | null> {
+  if (!nativePushAvailable()) return null;
+  try {
+    return nativePermissionFrom((await PushNotifications.checkPermissions()).receive);
+  } catch {
+    return null;
+  }
+}
+
+/** Asks iOS (only if it hasn't been asked), registers, and resolves with the hex token. Null on deny or error. */
+export async function nativePushEnable(): Promise<string | null> {
+  if (!nativePushAvailable()) return null;
+  try {
+    let permission = nativePermissionFrom((await PushNotifications.checkPermissions()).receive);
+    if (permission === "prompt") permission = nativePermissionFrom((await PushNotifications.requestPermissions()).receive);
+    if (permission !== "granted") return null;
+    return await registerForToken();
+  } catch {
+    return null;
+  }
+}
+
+/** The current token when permission is already granted (a silent register). Never prompts. */
+export async function nativePushToken(): Promise<string | null> {
+  if ((await nativePushPermission()) !== "granted") return null;
+  return pushToken ?? registerForToken();
+}
+
+/** Stop APNs for this app. Turning on again registers afresh. */
+export async function nativePushDisable(): Promise<void> {
+  pushToken = null;
+  if (!nativePushAvailable()) return;
+  await PushNotifications.unregister().catch(() => {});
+}
+
 /**
- * Hides the launch splash, sets the status bar, follows universal links
+ * From launch: a notification tap opens its page (cold starts too, since the
+ * plugin holds the tap until a listener is added), and when permission is
+ * already granted the token refreshes silently. Never prompts.
+ */
+function startNativePush(navigate: (path: string) => void): () => void {
+  if (!nativePushAvailable()) return () => {};
+  const tap = PushNotifications.addListener("pushNotificationActionPerformed", ({ notification }) => {
+    const path = pushTapPath(notification?.data);
+    if (path !== currentPath()) navigate(path);
+  });
+  void tap.catch(() => {});
+  void PushNotifications.checkPermissions()
+    .then(({ receive }) => {
+      if (nativePermissionFrom(receive) === "granted") void registerForToken();
+    })
+    .catch(() => {});
+  return () => {
+    void tap.then((handle) => handle.remove()).catch(() => {});
+  };
+}
+
+/**
+ * Hides the launch splash, sets the status bar, hides the keyboard's accessory
+ * bar, routes notification taps, follows universal links
  * (https://slabhold.app/...) and slabhold:// links, and opens other sites, and
  * window.open, in the in-app browser. Returns the undo.
  */
@@ -109,6 +221,10 @@ export function startNativeShell({ navigate }: ShellDeps): () => void {
     })
     .catch(() => {});
 
+  const stopPush = startNativePush(navigate);
+  // No ‹ › Done strip above the keyboard. Old builds without the plugin just reject.
+  void Keyboard.setAccessoryBarVisible({ isVisible: false }).catch(() => {});
+
   void StatusBar.setStyle({ style: Style.Default }).catch(() => {});
   // NativeBoot already hid it through the bridge; this is the fallback.
   void SplashScreen.hide({ fadeOutDuration: 200 }).catch(() => {});
@@ -117,6 +233,7 @@ export function startNativeShell({ navigate }: ShellDeps): () => void {
     document.removeEventListener("click", onClick, true);
     window.open = webOpen;
     void urlOpen.then((handle) => handle.remove()).catch(() => {});
+    stopPush();
   };
 }
 

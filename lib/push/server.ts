@@ -1,10 +1,13 @@
 import "server-only";
 
+import { createHash } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import webpush from "web-push";
 import { getSupabaseConfig } from "@/lib/supabase/client";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { getAuthUserId } from "@/lib/supabase/server";
+import { apnsConfig, type ApnsConfig } from "./apns-config";
+import { createApnsSender, type ApnsSender } from "./apns";
 import { pushServerConfig } from "./config";
 import type { Dispatcher } from "./dispatch";
 import type { WebPushSender } from "./send";
@@ -27,19 +30,49 @@ export async function requestUserId(request: Request): Promise<string | null> {
   return getAuthUserId();
 }
 
-/** Null when push is off (no VAPID keys or no service-role key). Every caller then no-ops. */
+let apnsCache: { fingerprint: string; config: ApnsConfig | null; sender: ApnsSender | null } | null = null;
+
+/**
+ * The APNs key parsed once per instance, and one sender per key, so the
+ * provider token is reused for ~40 minutes (Apple throttles token churn).
+ */
+function apnsState() {
+  const env = process.env;
+  const fingerprint = createHash("sha256")
+    .update([env.APNS_KEY_ID, env.APNS_TEAM_ID, env.APNS_BUNDLE_ID, env.APNS_PRIVATE_KEY].map((v) => v ?? "").join("\0"))
+    .digest("hex");
+  if (apnsCache?.fingerprint !== fingerprint) {
+    const config = apnsConfig(env);
+    apnsCache = { fingerprint, config, sender: config ? createApnsSender(config) : null };
+  }
+  return apnsCache;
+}
+
+/**
+ * Null when push is off: no VAPID keys and no APNs key, or no service-role
+ * key. Every caller then no-ops. Each channel sends only when its own config
+ * is set.
+ */
 export function pushDispatcher(): Dispatcher | null {
   const config = pushServerConfig();
-  if (!config) return null;
+  const apns = apnsState().sender;
+  if (!config && !apns) return null;
   const admin = createSupabaseAdmin();
   if (!admin) return null;
   return {
-    store: supabasePushStore(admin),
+    store: supabasePushStore(admin, { apns: Boolean(apns) }),
     sender: webpush as unknown as WebPushSender,
     config,
+    apns,
   };
 }
 
+/** Web push (VAPID) works right now. Unchanged by APNs. */
 export function pushAvailable(): boolean {
   return pushServerConfig() !== null && createSupabaseAdmin() !== null;
+}
+
+/** The APNs key is set and the server can write. The table check is the route's. */
+export function apnsConfigured(): boolean {
+  return apnsState().config !== null && createSupabaseAdmin() !== null;
 }

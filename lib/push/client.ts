@@ -65,7 +65,8 @@ export function subscriptionPlatform(platform: InstallPlatform = devicePlatform(
   return "other";
 }
 
-async function authHeaders(): Promise<Record<string, string>> {
+/** The Supabase access token as a Bearer header, or nothing. */
+export async function authHeaders(): Promise<Record<string, string>> {
   try {
     const client = await loadSupabaseBrowser();
     const { data } = (await client?.auth.getSession()) ?? { data: null };
@@ -132,7 +133,7 @@ export function deviceOptInKey(userId: string): string {
   return `slabhold.push.on.${userId}`;
 }
 
-function rememberOptIn(userId: string, on: boolean) {
+export function rememberOptIn(userId: string, on: boolean) {
   try {
     if (on) localStorage.setItem(deviceOptInKey(userId), "1");
     else localStorage.removeItem(deviceOptInKey(userId));
