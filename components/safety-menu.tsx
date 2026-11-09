@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { Ellipsis } from "lucide-react";
 import { useSocial } from "@/components/social-provider";
@@ -21,11 +22,14 @@ export function SafetyMenu({
   targetId,
   reportedUserId,
   username,
+  askPriceHref,
 }: {
   targetType: ReportTargetType;
   targetId: string;
   reportedUserId: string;
   username: string;
+  /** A post with a card: the first item opens a DM with "How much?" ready to send. */
+  askPriceHref?: string;
 }) {
   const { user, blockedIds, mutedIds, applySafetyChange, refresh } = useSocial();
   const [open, setOpen] = useState(false);
@@ -131,6 +135,21 @@ export function SafetyMenu({
           role="menu"
           className="absolute top-9 right-0 z-30 w-56 overflow-hidden rounded-2xl border border-zinc-200 bg-[var(--background)] py-1 shadow-lg dark:border-white/10"
         >
+          {askPriceHref ? (
+            <Link
+              href={askPriceHref}
+              role="menuitem"
+              prefetch={false}
+              data-ask-price=""
+              className={menuItem}
+              onClick={(event) => {
+                event.stopPropagation();
+                setOpen(false);
+              }}
+            >
+              Ask price
+            </Link>
+          ) : null}
           <button
             type="button"
             role="menuitem"
