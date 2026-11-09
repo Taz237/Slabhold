@@ -36,6 +36,9 @@ export const SIDE_MENU_SETTINGS = [
   { href: "/terms", label: "Terms" },
 ] as const;
 
+/** Below the settings links. Apple asks for an easy way to reach support. */
+export const SIDE_MENU_SUPPORT = { href: "/support", label: "Help & support" } as const;
+
 /** Replays the quick tour. A button after the settings links. */
 export const TAKE_TOUR_LABEL = "Take the tour";
 
