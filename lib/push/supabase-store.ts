@@ -5,6 +5,11 @@ import type { GroupRow, GroupState, OutboxRow, OutboxStatus, PushStore, SendCont
 import type { PushActor } from "./payload";
 import { prefsFromRow, type PrefsRow, type SourceKind } from "./prefs";
 import type { DeliveryResult, PushSubscriptionRow } from "./send";
+import type { ApnsDevice } from "./apns";
+
+/** An iPhone token that fails this many sends in a row is dropped. */
+export const APNS_MAX_FAILURES = 10;
+const APNS_TABLE = "push_apns_devices";
 
 type RawRow = {
   id: string;
@@ -56,8 +61,60 @@ function check(error: { message: string } | null, label: string) {
   if (error) throw new Error(`${label}: ${error.message}`);
 }
 
-/** The outbox through the service-role push_* functions; subscriptions through the table. */
-export function supabasePushStore(admin: SupabaseClient): PushStore {
+/**
+ * iPhone app devices. The table may not exist yet (its migration is applied
+ * separately), so every read and write here swallows errors: reads are empty,
+ * writes are no-ops, and web push carries on.
+ */
+function apnsTable(admin: SupabaseClient) {
+  const table = () => admin.from(APNS_TABLE);
+  return {
+    async count(userId: string): Promise<number> {
+      try {
+        const { count: total, error } = await table().select("id", { count: "exact", head: true }).eq("user_id", userId);
+        return error ? 0 : count(total);
+      } catch {
+        return 0;
+      }
+    },
+    async devices(userId: string): Promise<ApnsDevice[]> {
+      try {
+        const { data, error } = await table().select("id, token").eq("user_id", userId).limit(20);
+        if (error) return [];
+        return ((data ?? []) as ApnsDevice[]).filter((row) => typeof row.id === "string" && typeof row.token === "string");
+      } catch {
+        return [];
+      }
+    },
+    async record(result: DeliveryResult, at: string): Promise<void> {
+      try {
+        if (result.gone.length) await table().delete().in("id", result.gone);
+        if (result.delivered.length) {
+          await table().update({ last_success_at: at, failure_count: 0 }).in("id", result.delivered);
+        }
+        if (result.failed.length) {
+          const { data } = await table().select("id, failure_count").in("id", result.failed);
+          for (const row of (data ?? []) as { id: string; failure_count: number }[]) {
+            const failures = (row.failure_count ?? 0) + 1;
+            if (failures >= APNS_MAX_FAILURES) await table().delete().eq("id", row.id);
+            else await table().update({ failure_count: failures }).eq("id", row.id);
+          }
+        }
+      } catch {
+        // Bookkeeping only.
+      }
+    },
+  };
+}
+
+/**
+ * The outbox through the service-role push_* functions; subscriptions through
+ * the table. `apns: true` also counts and reads the iPhone app's devices.
+ */
+export function supabasePushStore(admin: SupabaseClient, options: { apns?: boolean } = {}): PushStore {
+  const iphone = options.apns ? apnsTable(admin) : null;
+  const withIphoneCount = async (web: number, userId: string) =>
+    web > 0 || !iphone ? web : iphone.count(userId);
   return {
     async claimForActor(actorId, limit) {
       const { data, error } = await admin.rpc("push_claim", { p_actor: actorId, p_limit: limit, p_sweep_limit: 0 });
@@ -85,7 +142,9 @@ export function supabasePushStore(admin: SupabaseClient): PushStore {
         blocked: raw.blocked === true,
         muted: raw.muted === true,
         prefs: prefsFromRow((raw.prefs as PrefsRow | null) ?? null),
-        subscriptionCount: count(raw.subscription_count),
+        // push_context counts web subscriptions only. Only "any at all" matters,
+        // so iPhone devices are counted just when there are no web ones.
+        subscriptionCount: await withIphoneCount(count(raw.subscription_count), row.recipientId),
         badge: count(raw.badge),
       };
     },
@@ -145,6 +204,12 @@ export function supabasePushStore(admin: SupabaseClient): PushStore {
         }
       }
     },
+    ...(iphone
+      ? {
+          apnsDevices: (recipientId: string) => iphone.devices(recipientId),
+          recordApnsDelivery: (result: DeliveryResult, at: string) => iphone.record(result, at),
+        }
+      : {}),
     async actors(ids) {
       if (ids.length === 0) return [];
       const { data, error } = await admin

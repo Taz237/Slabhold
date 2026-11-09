@@ -5,6 +5,7 @@ import { inQuietHours } from "./quiet-hours";
 import { recipientAllows } from "./rate";
 import { deliver, type DeliveryResult, type PushSubscriptionRow, type WebPushSender } from "./send";
 import type { PushServerConfig } from "./config";
+import type { ApnsDevice, ApnsSender } from "./apns";
 
 export type OutboxStatus = "pending" | "sent" | "collapsed" | "skipped" | "failed";
 
@@ -70,6 +71,13 @@ export interface PushStore {
   mark(ids: readonly string[], status: OutboxStatus, sentAt: string | null): Promise<void>;
   subscriptions(recipientId: string): Promise<PushSubscriptionRow[]>;
   recordDelivery(result: DeliveryResult, at: string): Promise<void>;
+  /**
+   * The recipient's iPhone app tokens. Optional: stores without APNs leave it
+   * out. Must never throw (the table may not exist yet): errors read as none.
+   */
+  apnsDevices?(recipientId: string): Promise<ApnsDevice[]>;
+  /** Gone tokens deleted, successes reset, failures counted. Must never throw. */
+  recordApnsDelivery?(result: DeliveryResult, at: string): Promise<void>;
   actors(ids: readonly string[]): Promise<PushActor[]>;
   dueTails(limit: number): Promise<{ recipientId: string; groupKey: string }[]>;
   takeLease(recipientId: string, groupKey: string, seconds: number): Promise<boolean>;
@@ -80,7 +88,10 @@ export interface PushStore {
 export type Dispatcher = {
   store: PushStore;
   sender: WebPushSender;
-  config: PushServerConfig;
+  /** Web push (VAPID). Null: web push is off and only APNs sends. */
+  config: PushServerConfig | null;
+  /** The iPhone app's APNs channel. Null or missing: APNs is off. */
+  apns?: ApnsSender | null;
   now?: () => number;
   sleep?: (ms: number) => Promise<void>;
 };
@@ -163,24 +174,84 @@ function parseMs(value: string | null): number | null {
 
 type SendOutcome = "delivered" | "none" | "failed";
 
+/** One payload to every device a user has, on both channels. Counts only. */
+export type UserDelivery = { devices: number; delivered: number; gone: number; failed: number };
+
+const NO_DELIVERY: UserDelivery = { devices: 0, delivered: 0, gone: 0, failed: 0 };
+
+function tally(devices: number, result: DeliveryResult): UserDelivery {
+  return { devices, delivered: result.delivered.length, gone: result.gone.length, failed: result.failed.length };
+}
+
+async function deliverWeb(dispatcher: Dispatcher, recipientId: string, payload: PushPayload, at: number) {
+  const config = dispatcher.config;
+  if (!config) return NO_DELIVERY;
+  const subscriptions = await dispatcher.store.subscriptions(recipientId);
+  if (subscriptions.length === 0) return NO_DELIVERY;
+  const result = await deliver({
+    sender: dispatcher.sender,
+    config,
+    subscriptions,
+    payload,
+    sleep: dispatcher.sleep,
+  });
+  await dispatcher.store.recordDelivery(result, iso(at));
+  return tally(subscriptions.length, result);
+}
+
+/** Never throws: an APNs problem must not stop web push. */
+async function deliverApns(dispatcher: Dispatcher, recipientId: string, payload: PushPayload, at: number) {
+  const { apns, store } = dispatcher;
+  if (!apns || !store.apnsDevices) return NO_DELIVERY;
+  try {
+    const devices = await store.apnsDevices(recipientId);
+    if (devices.length === 0) return NO_DELIVERY;
+    const result = await apns.send(devices, payload, { sleep: dispatcher.sleep });
+    await store.recordApnsDelivery?.(result, iso(at)).catch(() => undefined);
+    return tally(devices.length, result);
+  } catch {
+    return NO_DELIVERY;
+  }
+}
+
+/**
+ * Web push subscriptions (when VAPID is set) and iPhone app devices (when
+ * APNs is set), in parallel. A web error still throws as before, unless the
+ * iPhone got it.
+ */
+export async function deliverToUser(
+  dispatcher: Dispatcher,
+  recipientId: string,
+  payload: PushPayload,
+  at: number,
+): Promise<UserDelivery> {
+  const [web, apns] = await Promise.allSettled([
+    deliverWeb(dispatcher, recipientId, payload, at),
+    deliverApns(dispatcher, recipientId, payload, at),
+  ]);
+  const iphone = apns.status === "fulfilled" ? apns.value : NO_DELIVERY;
+  if (web.status === "rejected") {
+    if (iphone.delivered > 0) return iphone;
+    throw web.reason;
+  }
+  return {
+    devices: web.value.devices + iphone.devices,
+    delivered: web.value.delivered + iphone.delivered,
+    gone: web.value.gone + iphone.gone,
+    failed: web.value.failed + iphone.failed,
+  };
+}
+
 async function sendToRecipient(
   dispatcher: Dispatcher,
   recipientId: string,
   payload: PushPayload,
   at: number,
 ): Promise<SendOutcome> {
-  const subscriptions = await dispatcher.store.subscriptions(recipientId);
-  if (subscriptions.length === 0) return "none";
-  const result = await deliver({
-    sender: dispatcher.sender,
-    config: dispatcher.config,
-    subscriptions,
-    payload,
-    sleep: dispatcher.sleep,
-  });
-  await dispatcher.store.recordDelivery(result, iso(at));
-  if (result.delivered.length > 0) return "delivered";
-  return result.failed.length > 0 ? "failed" : "none";
+  const result = await deliverToUser(dispatcher, recipientId, payload, at);
+  if (result.devices === 0) return "none";
+  if (result.delivered > 0) return "delivered";
+  return result.failed > 0 ? "failed" : "none";
 }
 
 function payloadFor(row: OutboxRow, context: SendContext, ts: number, renotify: boolean): PushPayload {
