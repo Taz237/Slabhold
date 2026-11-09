@@ -112,7 +112,7 @@ export type LimitedEvent = {
   endsAt: string;
 };
 
-/** Seasonal events. None yet, so Limited shows as "Coming soon". */
+/** Seasonal events. None yet, so Achievements hides Limited. */
 export const LIMITED_EVENTS: readonly LimitedEvent[] = [];
 
 /** Earnable badges today: every progress tier plus each Limited event. */

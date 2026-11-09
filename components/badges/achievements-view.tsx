@@ -191,9 +191,6 @@ function Achievements({ state }: { state: AchievementsState }) {
               <CategoryRow status={status} onOpen={() => setOpen(status.category)} />
             </li>
           ))}
-          <li>
-            <LimitedRow />
-          </li>
         </ul>
       </section>
 
@@ -260,21 +257,6 @@ function CategoryRow({ status, onOpen }: { status: CategoryStatus; onOpen: () =>
       ) : null}
       <ChevronRight aria-hidden className="h-4 w-4 shrink-0 text-zinc-400" />
     </button>
-  );
-}
-
-function LimitedRow() {
-  return (
-    <div className="flex min-h-[4.5rem] items-center gap-3 px-4 py-3">
-      <Badge category="limited" tier="bronze" size={52} locked label="" className="opacity-60" />
-      <div className="min-w-0 flex-1">
-        <p className="text-[15px] font-semibold">{CATEGORY_COPY.limited.label}</p>
-        <p className="mt-0.5 text-[13px] text-zinc-500">{CATEGORY_COPY.limited.rule}</p>
-      </div>
-      <span className="shrink-0 rounded-full bg-zinc-100 px-2.5 py-1 text-[12px] text-zinc-500 dark:bg-white/10 dark:text-zinc-400">
-        Coming soon
-      </span>
-    </div>
   );
 }
 

@@ -20,6 +20,7 @@ import {
   Compass,
   FileText,
   Info,
+  LifeBuoy,
   Link2,
   LogOut,
   Mail,
@@ -60,6 +61,7 @@ import {
   ADD_TO_HOME_LABEL,
   INVITE_MENU_HREF,
   SIDE_MENU_SETTINGS,
+  SIDE_MENU_SUPPORT,
   countLabel,
   dragOffset,
   menuDragProgress,
@@ -502,6 +504,7 @@ export function SideMenu({
 
   const summary = badges?.userId === userId ? badges : null;
   const badgesHref = `${userHref(user.username)}/badges`;
+  const supportActive = menuItemActive(pathname, SIDE_MENU_SUPPORT.href, user.username);
 
   function logOut() {
     markLogoutHome();
@@ -730,6 +733,17 @@ export function SideMenu({
                 </li>
               );
             })}
+            <li>
+              <Link
+                href={SIDE_MENU_SUPPORT.href}
+                onClick={onClose}
+                aria-current={supportActive ? "page" : undefined}
+                className={`${settingsRow} ${rowTone(supportActive)}`}
+              >
+                <LifeBuoy aria-hidden className={`h-5 w-5 shrink-0 ${iconTone(supportActive)}`} />
+                {SIDE_MENU_SUPPORT.label}
+              </Link>
+            </li>
             {mountExtras ? (
               <AdminMenuLinks
                 renderLink={(item) => {

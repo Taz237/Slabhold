@@ -84,6 +84,9 @@ export function LandingPage({ founder = null }: { founder?: FounderShowcase | nu
           <Link href="/terms" prefetch={false} className="hit-44 inline-flex items-center font-semibold underline underline-offset-2">
             Terms
           </Link>
+          <Link href="/support" prefetch={false} className="hit-44 inline-flex items-center font-semibold underline underline-offset-2">
+            Support
+          </Link>
         </footer>
       </div>
     </div>
