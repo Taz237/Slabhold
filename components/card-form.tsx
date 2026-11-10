@@ -963,6 +963,8 @@ export function CardForm({
       const { card } = result;
       // Set once this add's post is on the feed: the haptic says "post", not "save".
       let postedNow = false;
+      // The regular form's post failed: the card still saved, so the haptic says "save".
+      let postFailedText: string | null = null;
       createdId = null;
       // A happy moment: a new card makes 3 or more. Only the iPhone app may ask.
       if (!existing && knownCards.filter((item) => item.id !== card.id).length + 1 >= 3) askForReview("third-card");
@@ -1012,10 +1014,7 @@ export function CardForm({
               // The card is saved. The reveal says the post failed and offers Post it.
               if (store) writeCardPostFailed(store, card.id, draft.body);
             } else {
-              setSaveError("Saved the card, but couldn't share it to the feed.");
-              setSaving(false);
-              savingRef.current = false;
-              return;
+              postFailedText = "Saved the card, but couldn't share it to the feed.";
             }
           } else {
             postedFor.current = card.id;
@@ -1028,6 +1027,12 @@ export function CardForm({
         }
       }
       if (!existing) haptic(postedNow ? "post" : "save");
+      if (postFailedText) {
+        setSaveError(postFailedText);
+        setSaving(false);
+        savingRef.current = false;
+        return;
+      }
       router.push(existing ? `/cards/${card.id}` : addedCardPath(card.id));
       onSaved?.();
     } catch (error) {

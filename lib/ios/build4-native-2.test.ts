@@ -107,11 +107,15 @@ describe("build 4 part 2: haptic call sites", () => {
     const source = read("components/card-form.tsx");
     assert.equal(count(source, /haptic\(/g), 1);
     assert.match(source, /import \{ haptic \} from "@\/lib\/ios\/haptics";/);
-    // Fires once the post step is done, right before the reveal opens.
+    // Fires once the post step is done: before the error on a failed post (the card
+    // still saved, so "save"), else right before the reveal opens.
     assert.match(
       source,
-      /if \(!existing\) haptic\(postedNow \? "post" : "save"\);\n\s*router\.push\(existing \? `\/cards\/\$\{card\.id\}` : addedCardPath\(card\.id\)\);/,
+      /if \(!existing\) haptic\(postedNow \? "post" : "save"\);\n\s*if \(postFailedText\) \{\n\s*setSaveError\(postFailedText\);\n\s*setSaving\(false\);\n\s*savingRef\.current = false;\n\s*return;\n\s*\}\n\s*router\.push\(existing \? `\/cards\/\$\{card\.id\}` : addedCardPath\(card\.id\)\);/,
     );
+    // A failed post never counts as posted.
+    assert.match(source, /postFailedText = "Saved the card, but couldn't share it to the feed\.";/);
+    assert.equal(count(source, /postedNow = true;/g), 2);
     // A post that went up now, or one already up for this add, counts as posted.
     assert.match(source, /if \(draft && already\) \{\n\s*postedNow = true;/);
     assert.match(source, /postedFor\.current = card\.id;\n\s*postedNow = true;/);
