@@ -118,4 +118,24 @@ describe("card page: Copy this card for the owner", () => {
     assert.equal(url.searchParams.get("year"), "2024-25");
     assert.doesNotMatch(link.getAttribute("href") ?? "", /Downtown|PSA|grade|parallel|price|notes|cert/);
   });
+
+  it("puts the same Copy this card href in the ⋯ menu", () => {
+    root = createRoot(host);
+    act(() => root!.render(page()));
+    const underHero = host.querySelector<HTMLAnchorElement>('a[data-slot="copy-card"]');
+    assert.ok(underHero);
+    const actions = [...host.querySelectorAll<HTMLButtonElement>("button")].find(
+      (node) => node.getAttribute("aria-label") === "Card actions",
+    );
+    assert.ok(actions, "the ⋯ menu button");
+    act(() => actions.click());
+    const menu = host.querySelector<HTMLElement>("#card-actions");
+    assert.ok(menu, "the menu opened");
+    const inMenu = menu.querySelector<HTMLAnchorElement>('a[data-slot="copy-card-menu"]');
+    assert.ok(inMenu, "Copy this card is in the menu");
+    assert.equal(inMenu.textContent?.trim(), "Copy this card");
+    assert.match(inMenu.getAttribute("aria-label") ?? "", /^Copy this card/);
+    assert.match(inMenu.className, /min-h-11/);
+    assert.equal(inMenu.getAttribute("href"), underHero.getAttribute("href"));
+  });
 });

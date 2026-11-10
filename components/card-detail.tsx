@@ -530,6 +530,15 @@ export function CardDetail({ id, added = false }: { id: string; added?: boolean 
           className={`${cardPanelClass} scroll-mt-24 space-y-5`}
         >
           <CardShareButton card={card} username={user?.username} onTogglePublic={setPublic} variant="row" />
+          {/* Same href as the link under the hero. The page is owner-only. */}
+          <Link
+            href={copyCardPath(card)}
+            data-slot="copy-card-menu"
+            aria-label="Copy this card: add another parallel or grade of it"
+            className="flex min-h-11 items-center rounded-xl text-sm font-medium text-violet-700 underline decoration-violet-700/40 underline-offset-4 outline-none hover:text-violet-600 focus-visible:ring-2 focus-visible:ring-violet-600 dark:text-[#A78BFA] dark:decoration-[#A78BFA]/40"
+          >
+            Copy this card
+          </Link>
           <div>
             <h2 className="font-semibold">Value</h2>
             <div className="mt-3 grid min-w-0 grid-cols-1 gap-3">
