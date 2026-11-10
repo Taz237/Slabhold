@@ -66,3 +66,21 @@ export function appLinkPath(link: string): string | null {
   if (url.protocol !== "https:" || !APP_HOSTS.includes(url.hostname)) return null;
   return pathOf(url) || "/";
 }
+
+/** Paths a link must never open inside the app: API routes, build files, the AASA file, auth. */
+const UNSAFE_APP_PREFIXES = ["/api", "/_next", "/.well-known", "/auth"] as const;
+
+/**
+ * A link's path, if the app may open it. Only same-site paths (one leading
+ * "/", no "//" or "\") and never /api, /_next, /.well-known or /auth (the
+ * OAuth return is handled before this, by oauthReturnPath). Null otherwise.
+ */
+export function safeAppPath(path: string | null): string | null {
+  if (typeof path !== "string" || !path.startsWith("/")) return null;
+  if (path.startsWith("//") || path.includes("\\")) return null;
+  const pathname = path.split(/[?#]/, 1)[0].toLowerCase();
+  for (const prefix of UNSAFE_APP_PREFIXES) {
+    if (pathname === prefix || pathname.startsWith(`${prefix}/`)) return null;
+  }
+  return path;
+}

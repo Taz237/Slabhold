@@ -14,7 +14,7 @@ import { Share } from "@capacitor/share";
 import { SplashScreen } from "@capacitor/splash-screen";
 import { StatusBar, Style } from "@capacitor/status-bar";
 import { oauthReturnPath } from "@/lib/auth/oauth";
-import { appLinkPath, routeLink, routeWindowOpen } from "@/lib/ios/links";
+import { appLinkPath, routeLink, routeWindowOpen, safeAppPath } from "@/lib/ios/links";
 import type { PhotoSource } from "@/lib/ios/camera";
 import type { HapticMoment } from "@/lib/ios/haptics";
 import { apnsTokenFrom, asShareAbort, nativePermissionFrom, photoFile, photoPickFailure, pushTapPath } from "@/lib/ios/native-helpers";
@@ -28,6 +28,10 @@ const LAUNCH_KEY = "slabhold.native.launch-url";
 type SlabholdNativePlugin = {
   requestReview(): Promise<{ asked: boolean }>;
   setBadge(options: { count: number }): Promise<void>;
+  shareFiles(options: {
+    files: { name: string; mime: string; base64: string }[];
+    text?: string;
+  }): Promise<{ shown: boolean; completed?: boolean }>;
 };
 const SlabholdNative = registerPlugin<SlabholdNativePlugin>("SlabholdNative");
 
@@ -209,22 +213,24 @@ export function startNativeShell({ navigate }: ShellDeps): () => void {
   };
 
   const urlOpen = App.addListener("appUrlOpen", ({ url }) => {
-    const path = appLinkPath(url);
+    const link = appLinkPath(url);
     // Back from Apple or Google: close the in-app browser and finish the sign-in
     // here, in the WebView, where the PKCE verifier lives. A full load: it's a route handler.
-    const signIn = oauthReturnPath(path);
+    const signIn = oauthReturnPath(link);
     if (signIn) {
       void Browser.close().catch(() => {});
       go(signIn);
       return;
     }
+    // Only our own pages; never /api, /auth or another site. Otherwise stay put.
+    const path = safeAppPath(link);
     if (path && path !== currentPath()) navigate(path);
   });
 
   void App.getLaunchUrl()
     .then((launch) => {
       const link = launch?.url ? appLinkPath(launch.url) : null;
-      const path = oauthReturnPath(link) ?? link;
+      const path = oauthReturnPath(link) ?? safeAppPath(link);
       if (path && launch && firstTimeFor(launch.url)) go(path);
     })
     .catch(() => {});
@@ -261,10 +267,13 @@ export async function shareSheet(data: NativeShareData): Promise<void> {
   }
 }
 
+/** Which taps are a success buzz; the rest are a light impact. */
+const SUCCESS_MOMENTS: ReadonlySet<HapticMoment> = new Set<HapticMoment>(["post", "save"]);
+
 export function playHaptic(moment: HapticMoment): Promise<void> {
-  return moment === "like"
-    ? Haptics.impact({ style: ImpactStyle.Light })
-    : Haptics.notification({ type: NotificationType.Success });
+  return SUCCESS_MOMENTS.has(moment)
+    ? Haptics.notification({ type: NotificationType.Success })
+    : Haptics.impact({ style: ImpactStyle.Light });
 }
 
 /**
@@ -349,4 +358,49 @@ export function onAppResume(listener: () => void): () => void {
   return () => {
     void handle.then((h) => h.remove()).catch(() => {});
   };
+}
+
+/** This build can share images through the iOS sheet (build 4 and up). */
+export function nativeShareFilesAvailable(): boolean {
+  return nativeExtrasAvailable();
+}
+
+export type NativeFileShareResult = "shared" | "cancelled" | "unavailable";
+
+/** A File as plain base64 (no data: prefix), for the bridge. */
+function fileBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = typeof reader.result === "string" ? reader.result : "";
+      const comma = result.indexOf(",");
+      if (comma < 0) reject(new Error("unreadable file"));
+      else resolve(result.slice(comma + 1));
+    };
+    reader.onerror = () => reject(reader.error ?? new Error("unreadable file"));
+    reader.readAsDataURL(file);
+  });
+}
+
+/**
+ * Files (a share image, say) through the iOS share sheet: Save Image,
+ * Instagram, Messages. "unavailable" on builds without our plugin, when the
+ * sheet couldn't show, or on any error. Never throws.
+ */
+export async function shareFilesNative(input: { files: File[]; text?: string }): Promise<NativeFileShareResult> {
+  if (!nativeShareFilesAvailable()) return "unavailable";
+  try {
+    const files = await Promise.all(
+      input.files.map(async (file) => ({
+        name: file.name,
+        mime: file.type || "application/octet-stream",
+        base64: await fileBase64(file),
+      })),
+    );
+    const result = await SlabholdNative.shareFiles(input.text ? { files, text: input.text } : { files });
+    if (!result?.shown) return "unavailable";
+    return result.completed ? "shared" : "cancelled";
+  } catch {
+    return "unavailable";
+  }
 }

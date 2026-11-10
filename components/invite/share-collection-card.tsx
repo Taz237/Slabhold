@@ -15,8 +15,7 @@ import {
   withShareRef,
   xIntentUrl,
 } from "@/lib/share/links";
-import { isShareAbort } from "@/lib/share/sheet";
-import { isIosDevice, storySaveMethod } from "@/lib/share/story-save";
+import { shareImage } from "@/lib/share/share-image";
 
 function XLogo({ className }: { className?: string }) {
   return (
@@ -91,32 +90,7 @@ export function ShareCollectionCard() {
         window.open(src, "_blank", "noopener");
         return;
       }
-      const file = new File([blob], name, { type: "image/png" });
-      const method = storySaveMethod({
-        canShareFiles: typeof navigator.canShare === "function" && navigator.canShare({ files: [file] }),
-        ios: isIosDevice({ userAgent: navigator.userAgent, platform: navigator.platform, maxTouchPoints: navigator.maxTouchPoints }),
-      });
-      if (method === "share-files") {
-        try {
-          await navigator.share({ files: [file], title: "My collection on Slabhold" });
-          trackEvent("share", { source: "collection", method: "image" });
-        } catch (error) {
-          // The tap's permission ran out while the image loaded: open it instead.
-          if (!isShareAbort(error)) window.open(src, "_blank", "noopener");
-        }
-        return;
-      }
-      if (method === "open") {
-        window.open(src, "_blank", "noopener");
-        return;
-      }
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = name;
-      link.click();
-      window.setTimeout(() => URL.revokeObjectURL(url), 10_000);
-      trackEvent("share", { source: "collection", method: "image" });
+      await shareImage({ blob, filename: name, title: "My collection on Slabhold", src, source: "collection" });
     } finally {
       setSaving(false);
     }

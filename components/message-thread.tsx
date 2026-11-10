@@ -22,6 +22,7 @@ import { ReadRetry } from "@/components/read-retry";
 import { SafetyMenu } from "@/components/safety-menu";
 import { signupPath } from "@/lib/auth/safe-next";
 import { exactTime } from "@/lib/format";
+import { haptic } from "@/lib/ios/haptics";
 import { offerCardForThread } from "@/lib/offers/open-to-offers";
 import { seenMessageId, threadRows, threadTimeLabel } from "@/lib/social/dm-inbox";
 import { dealCardFromThread } from "@/lib/deals/thread-card";
@@ -211,6 +212,7 @@ export function MessageThread({ username }: { username: string }) {
       setError(result.error);
       return;
     }
+    haptic("send");
     setSettled([outgoing.content]);
   }
 

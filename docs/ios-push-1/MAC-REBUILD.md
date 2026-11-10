@@ -1,6 +1,6 @@
 # Rebuild the iPhone app (build 4)
 
-Build 4 has push notifications, a red number on the app icon for what's unread, the "Rate Slabhold" popup, the galaxy splash from #197, the App Store privacy file, and a tidier keyboard. One rebuild covers all of it.
+Build 4 has push notifications, a red number on the app icon for what's unread, the "Rate Slabhold" popup, the galaxy splash from #197, the App Store privacy file, a tidier keyboard, links that open in the app, little taps you can feel, and sharing pictures to Instagram and Messages. One rebuild covers all of it.
 
 The App Store version is now **1.0.1** (1.0 is already live, so Apple won't take a new build under 1.0).
 
@@ -18,15 +18,27 @@ cd ~/Slabhold && git pull && npm install && cd ios-app && npm install && npx cap
 
 Xcode opens when it's done.
 
-## 3. Check three things in Xcode
+## 3. Check one Apple setting (1 minute, probably already on)
+
+1. Go to [developer.apple.com](https://developer.apple.com) and sign in.
+2. Click **Account**, then **Certificates, IDs & Profiles**, then **Identifiers**.
+3. Click **app.slabhold**.
+4. In the list, **Associated Domains** should have a tick.
+   - If it does, don't change anything.
+   - If it doesn't, tick it, click **Save**, then **Confirm**.
+
+This is what lets slabhold.app links open the app. Sign-in with Google already uses it, so it should be on.
+
+## 4. Check three things in Xcode
 
 1. In the left sidebar, open the **App** folder. You should see **PrivacyInfo.xcprivacy** in it.
-   - In the same **App** folder you should also see **SlabholdNativePlugin.swift** and **SlabholdBridgeViewController.swift**. Those two make the popup and the icon number work.
+   - In the same **App** folder you should also see **SlabholdNativePlugin.swift** and **SlabholdBridgeViewController.swift**. Those two make the popup and the icon number work. SlabholdNativePlugin.swift now also does sharing pictures.
 2. Click the blue **App** project at the top of the sidebar, then the **App** target, then the **Signing & Capabilities** tab. You should see **Push Notifications** listed.
    - If there's a red signing error that mentions "aps-environment" or "Push Notifications", click **Try Again**. Automatic signing updates the profile by itself.
+   - You should also see **Associated Domains** with `applinks:slabhold.app` in it. If there's a red signing error about Associated Domains, click **Try Again**. Xcode's automatic signing refreshes the profile by itself.
 3. Click the **General** tab. Under **Identity**, **Version** should say **1.0.1** and **Build** should say **4**.
 
-## 4. Upload
+## 5. Upload
 
 1. At the top of Xcode, pick **Any iOS Device (arm64)** as the device.
 2. Menu bar: **Product** > **Archive**. Wait for it to finish (a few minutes).
@@ -36,7 +48,7 @@ Xcode opens when it's done.
 
 Test push and the badge only from a **TestFlight** install, never from Xcode's â–¶ Run. A Run build gets a test-only push token, and Apple's real push server turns it away.
 
-## 5. Test it on your phone
+## 6. Test it on your phone
 
 1. Open **TestFlight** and install build 4.
 2. Open Slabhold. The galaxy splash shows.
@@ -48,10 +60,15 @@ Test push and the badge only from a **TestFlight** install, never from Xcode's â
 8. Tap the banner. The app opens the right page.
 9. Close the app. Have a friend like your post. The Slabhold icon shows a red number.
 10. Open the app and read your notifications. The red number goes away.
+11. Open the **Notes** app and type `https://slabhold.app/collection`. Tap the link. It opens in Slabhold, not Safari.
+    - Typing a link into Safari's address bar never opens apps. That's normal.
+    - Long-pressing a link and picking **Open in Slabhold** also works.
+12. Like a post, follow someone, send a message, and pull down to refresh. You feel a tiny tap each time.
+13. Go to the **Collection** tab and tap the share button next to **Collection value**. The iPhone share sheet opens with **Save Image** and Instagram in it. **Save for Stories** on the same page does the same.
 
 The Rate Slabhold popup never shows in TestFlight (Apple blocks it there). That's normal.
 
-## 6. Send 1.0.1 to the App Store
+## 7. Send 1.0.1 to the App Store
 
 Only after the push test above works.
 
@@ -61,6 +78,6 @@ Only after the push test above works.
 4. Scroll to **Build**, click **+**, and pick build **4**.
 5. Click **Save**, then **Add for Review**, then **Submit for Review**.
 
-## 7. If the card never shows
+## 8. If the card never shows
 
 The Vercel `APNS_` settings aren't in yet, or the site hasn't been redeployed since they were added. Tell Lead.
