@@ -36,6 +36,3 @@ export type CardValueResult = {
   /** Null when no similar public card has sales. */
   similar?: CardValueSimilar | null;
 };
-
-/** Values older than this (or missing / query_key mismatch) are refresh candidates. */
-export const VALUE_STALE_AFTER_MS = 24 * 60 * 60 * 1000;

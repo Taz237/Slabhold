@@ -16,18 +16,3 @@ export function EbaySoldLink({ href, className }: { href: string; className?: st
     </a>
   );
 }
-
-/** One line when this card and similar cards have no sales. */
-export function EmptyPriceNote({ href }: { href: string | null }) {
-  return (
-    <p className="text-sm text-zinc-500">
-      No sales found yet
-      {href ? (
-        <>
-          {" · "}
-          <EbaySoldLink href={href} />
-        </>
-      ) : null}
-    </p>
-  );
-}

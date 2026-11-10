@@ -87,11 +87,6 @@ function toMatchCard(card?: CleanCardFilter | string): MatchCard {
   };
 }
 
-export function isRawCardGrade(cardGrade: string | undefined): boolean {
-  const parsed = parseGrade(cardGrade ?? "");
-  return parsed.company === RAW_GRADE || !parsed.company;
-}
-
 export function gradesMatch(
   cardGrade: string | undefined,
   detailsGrader: string | null | undefined,

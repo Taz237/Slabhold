@@ -3,7 +3,7 @@
 export const textSecondary = "text-zinc-600 dark:text-zinc-300";
 export const textMuted = "text-zinc-500 dark:text-zinc-400";
 export const focusRing =
-  "outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-600";
+  "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-600";
 /** 150ms color feedback on the one curve. */
 export const feedback =
   "motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-[cubic-bezier(0.22,1,0.36,1)]";

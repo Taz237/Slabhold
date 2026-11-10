@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { CARD_TALK_HEADING, CardTalkFrame, CardTalkSkeleton } from "@/components/card-talk-frame";
 import { Tweet } from "@/components/tweet";
 import { useSocial } from "@/components/social-provider";
@@ -44,6 +44,13 @@ export function CardCollectorsSaying({
   );
   const { values: cardValues, loading: cardValuesLoading } = useCardValues(attachedIds);
 
+  // The offline fallback reads the latest loaded data through a ref. Listing it
+  // as an effect dependency refetched the posts on every social-state change.
+  const fallbackRef = useRef({ loadedPosts, publicIds, publicCards, profileMap });
+  useEffect(() => {
+    fallbackRef.current = { loadedPosts, publicIds, publicCards, profileMap };
+  });
+
   useEffect(() => {
     if (!ready) return;
     let cancelled = false;
@@ -65,30 +72,32 @@ export function CardCollectorsSaying({
             return;
           }
         }
+        const local = fallbackRef.current;
         const fallback = filterLoadedPostsForCard(
-          loadedPosts,
+          local.loadedPosts,
           cardId,
-          publicIds,
+          local.publicIds,
           PREVIEW_LIMIT,
-          { publicCards },
+          { publicCards: local.publicCards },
         );
         if (cancelled) return;
         setPosts(fallback.posts);
         setRelatedPosts([]);
-        setAuthors(profileMap);
+        setAuthors(local.profileMap);
         setHasMore(fallback.hasMore);
       } catch {
         if (cancelled) return;
+        const local = fallbackRef.current;
         const fallback = filterLoadedPostsForCard(
-          loadedPosts,
+          local.loadedPosts,
           cardId,
-          publicIds,
+          local.publicIds,
           PREVIEW_LIMIT,
-          { publicCards },
+          { publicCards: local.publicCards },
         );
         setPosts(fallback.posts);
         setRelatedPosts([]);
-        setAuthors(profileMap);
+        setAuthors(local.profileMap);
         setHasMore(fallback.hasMore);
       } finally {
         if (!cancelled) setLoading(false);
@@ -99,7 +108,7 @@ export function CardCollectorsSaying({
     return () => {
       cancelled = true;
     };
-  }, [cardId, loadedPosts, profileMap, publicCards, publicIds, ready]);
+  }, [cardId, ready]);
 
   return (
     <CardTalkFrame cardId={cardId} heading={heading} loading={loading}>

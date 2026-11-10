@@ -195,6 +195,8 @@ function Lightbox({
   }
 
   function onTouchMove(event: React.TouchEvent) {
+    // A pinch or two-finger gesture is not a swipe to close.
+    if (event.touches.length !== 1) return;
     const next = Math.max(0, event.touches[0].clientY - startY.current);
     if (next > 8) dragged.current = true;
     dragRef.current = next;

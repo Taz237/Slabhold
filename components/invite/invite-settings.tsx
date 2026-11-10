@@ -116,9 +116,14 @@ export function InviteSettings() {
   async function onConfirm() {
     if (!user || busy) return;
     setBusy(true);
-    const result = await resetInviteCode(await loadSupabaseBrowser());
-    if (result.kind === "ok") replaceInviteCode(user.id, result.code);
-    setNotice({ text: resetNotice(result), ok: result.kind === "ok" });
+    try {
+      const result = await resetInviteCode(await loadSupabaseBrowser());
+      if (result.kind === "ok") replaceInviteCode(user.id, result.code);
+      setNotice({ text: resetNotice(result), ok: result.kind === "ok" });
+    } catch {
+      // A failed client load is a failed reset, never a sheet stuck on "Getting link…".
+      setNotice({ text: resetNotice({ kind: "failed" }), ok: false });
+    }
     setBusy(false);
     setConfirming(false);
   }

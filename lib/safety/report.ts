@@ -83,6 +83,9 @@ export async function saveReport(
 }
 
 export const REPORT_DAILY_LIMIT = 20;
+/** Shown when a safety action never reached the server (offline, or a deploy mid-request). */
+export const SAFETY_ACTION_FAILED = "Something went wrong. Try again.";
+
 export const REPORT_LIMIT_MESSAGE = "You've sent a lot of reports today. Try again tomorrow";
 export const REPORT_TARGET_GONE = "That post or reply is gone.";
 

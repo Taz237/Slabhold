@@ -223,10 +223,6 @@ export function listedParallel(setBrand: string, parallel: string): string | nul
   return null;
 }
 
-export function parallelIsListed(setBrand: string, parallel: string): boolean {
-  return listedParallel(setBrand, parallel) != null;
-}
-
 /**
  * One display string for a parallel.
  * A listed name uses the list spelling. Anything else turns hyphens into spaces

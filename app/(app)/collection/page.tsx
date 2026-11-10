@@ -11,14 +11,15 @@ import { getAuthUser } from "@/lib/supabase/server";
 
 function saveTodaysSnapshot(userId: string | null) {
   if (!userId) return;
-  after(() => {
-    void upsertTodaysCollectionSnapshot(userId).catch((err) => {
+  // Return the promise, so the write is kept alive after the response.
+  after(() =>
+    upsertTodaysCollectionSnapshot(userId).catch((err) => {
       console.warn(
         "[collection_snapshots]",
         err instanceof Error ? err.message : err,
       );
-    });
-  });
+    }),
+  );
 }
 
 /**

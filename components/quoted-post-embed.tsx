@@ -82,6 +82,8 @@ export function QuotedPostEmbed({
       }}
       onKeyDown={(event) => {
         if (event.key !== "Enter" && event.key !== " ") return;
+        // A key on a link or button inside the quote belongs to that control.
+        if (event.target !== event.currentTarget) return;
         event.preventDefault();
         event.stopPropagation();
         router.push(`/posts/${post.id}`);

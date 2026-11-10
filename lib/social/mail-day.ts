@@ -369,31 +369,6 @@ export function mailDaySubmitBlocker(cards: readonly MailDayDraftCard[]): string
   return null;
 }
 
-export function mailDayIsDirty(cards: readonly MailDayDraftCard[], caption: string): boolean {
-  if (caption.trim()) return true;
-  if (cards.length !== 1) return true;
-  const card = cards[0];
-  if (!card) return false;
-  return Boolean(
-    card.photos.some(Boolean) ||
-      card.playerName.trim() ||
-      card.yearLabel.trim() ||
-      card.setBrand.trim() ||
-      card.cardNumber.trim() ||
-      (card.parallel.trim() && card.parallel.trim().toLowerCase() !== "base") ||
-      card.parallelIsCustom ||
-      card.setIsCustom ||
-      card.sport.trim() ||
-      card.paid.trim() ||
-      card.source ||
-      card.isPublic ||
-      card.showPaid ||
-      card.category !== "flipping" ||
-      card.conditionType !== "raw" ||
-      card.isRookie,
-  );
-}
-
 function parsePaid(value: string): { ok: true; paid: number | null } | { ok: false; error: string } {
   const trimmed = value.trim();
   if (!trimmed) return { ok: true, paid: null };

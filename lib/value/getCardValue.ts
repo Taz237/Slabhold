@@ -510,6 +510,8 @@ async function selectPage<T>(
     const { data, error } = await client
       .from(table)
       .select(columns)
+      // A stable order, so pages never repeat or skip a row.
+      .order(table === "cards" ? "id" : "card_id")
       .range(from, from + page - 1);
     if (error) {
       console.warn(`[card_values] list ${table} failed:`, error.message);

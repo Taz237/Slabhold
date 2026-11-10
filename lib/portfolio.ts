@@ -155,12 +155,3 @@ export function matchesCategory(card: SportsCard, category: "all" | CardCategory
   if (category === "all") return true;
   return cardCategory(card) === category;
 }
-
-/** Stable newest-first order (not by market value). */
-export function sortCards(cards: SportsCard[]) {
-  return [...cards].sort((a, b) => {
-    const byDate = b.createdAt.localeCompare(a.createdAt);
-    if (byDate !== 0) return byDate;
-    return a.id.localeCompare(b.id);
-  });
-}

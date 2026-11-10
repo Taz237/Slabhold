@@ -33,14 +33,6 @@ export function hasPaid(
   return paid != null && paid > 0;
 }
 
-/** Paid amount for tiles and card page — empty/null/zero shows an em dash. */
-export function formatPaidLabel(
-  purchasePrice: number | null | undefined,
-  exact = false,
-) {
-  return hasPaid(purchasePrice) ? money(purchasePrice as number, exact) : "—";
-}
-
 export function signedMoney(value: number, exact = false) {
   const formatted = money(Math.abs(value), exact);
   if (value > 0) return `+${formatted}`;
@@ -105,11 +97,6 @@ export function profit(card: SportsCard) {
   if (!hasPaid(card)) return 0;
   if (isSold(card) && card.sellPrice == null) return 0;
   return currentValue(card) - (card.purchasePrice as number);
-}
-
-export function profitPct(card: SportsCard) {
-  if (!hasPaid(card)) return 0;
-  return profit(card) / (card.purchasePrice as number);
 }
 
 export function pct(value: number) {

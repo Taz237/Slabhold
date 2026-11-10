@@ -2,9 +2,6 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { isRenderablePostPhoto, normalizePostPhotos } from "./post-photos";
 import type { PostComment } from "./types";
 
-/** Same cap as a normal post. */
-export const MAX_REPLY_PHOTOS = 4;
-
 export const REPLY_PHOTOS_UNAVAILABLE = "Reply photos aren't available yet.";
 
 export const OPTIMISTIC_REPLY_PREFIX = "optimistic-reply-";

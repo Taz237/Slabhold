@@ -146,6 +146,7 @@ export function NotificationsView() {
                             image={person?.avatarDataUrl}
                             accent={person?.accent}
                             className="h-8 w-8 text-[10px] ring-2 ring-[var(--background)]"
+                            expandable={false}
                           />
                         );
                       })}
@@ -155,6 +156,7 @@ export function NotificationsView() {
                       name={lead?.displayName ?? "Collector"}
                       image={lead?.avatarDataUrl}
                       accent={lead?.accent}
+                      expandable={false}
                     />
                   )}
                   <span className="min-w-0 flex-1">

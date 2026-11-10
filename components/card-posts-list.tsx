@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import { Tweet } from "@/components/tweet";
 import { useCollection } from "@/components/collection-provider";
@@ -54,6 +54,13 @@ export function CardPostsList({ cardId }: { cardId: string }) {
   const ownerProfile = profiles.find((profile) => profile.id === owner?.ownerId);
   const backHref = cardPostsBackHref(cardId, owned, ownerProfile?.username);
 
+  // The offline fallback reads the latest loaded data through a ref. Listing it
+  // as an effect dependency refetched the posts on every social-state change.
+  const fallbackRef = useRef({ loadedPosts, publicIds, publicCards, profileMap });
+  useEffect(() => {
+    fallbackRef.current = { loadedPosts, publicIds, publicCards, profileMap };
+  });
+
   useEffect(() => {
     if (!ready) return;
     let cancelled = false;
@@ -81,31 +88,33 @@ export function CardPostsList({ cardId }: { cardId: string }) {
             return;
           }
         }
+        const local = fallbackRef.current;
         const fallback = filterLoadedPostsForCard(
-          loadedPosts,
+          local.loadedPosts,
           cardId,
-          publicIds,
+          local.publicIds,
           PAGE_LIMIT,
-          { publicCards },
+          { publicCards: local.publicCards },
         );
         if (cancelled) return;
         setPosts(fallback.posts);
         setRelatedPosts([]);
-        setAuthors(profileMap);
+        setAuthors(local.profileMap);
         setHasMore(fallback.hasMore);
         setCursor(fallback.nextCursor);
       } catch {
         if (cancelled) return;
+        const local = fallbackRef.current;
         const fallback = filterLoadedPostsForCard(
-          loadedPosts,
+          local.loadedPosts,
           cardId,
-          publicIds,
+          local.publicIds,
           PAGE_LIMIT,
-          { publicCards },
+          { publicCards: local.publicCards },
         );
         setPosts(fallback.posts);
         setRelatedPosts([]);
-        setAuthors(profileMap);
+        setAuthors(local.profileMap);
         setHasMore(fallback.hasMore);
         setCursor(fallback.nextCursor);
       } finally {
@@ -117,7 +126,7 @@ export function CardPostsList({ cardId }: { cardId: string }) {
     return () => {
       cancelled = true;
     };
-  }, [cardId, loadedPosts, profileMap, publicCards, publicIds, ready, rememberPosts]);
+  }, [cardId, ready, rememberPosts]);
 
   async function loadMore() {
     if (!cursor || loadingMore) return;

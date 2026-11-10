@@ -50,7 +50,7 @@ export function ProfileEditSheet({
       if (event.key !== "Tab") return;
       const root = dialogRef.current;
       if (!root) return;
-      const focusable = [...root.querySelectorAll<HTMLElement>("button, input, textarea")].filter(
+      const focusable = [...root.querySelectorAll<HTMLElement>("a[href], button, input, textarea")].filter(
         (element) => !element.hasAttribute("disabled"),
       );
       const first = focusable[0];

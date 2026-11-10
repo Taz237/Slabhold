@@ -125,20 +125,25 @@ function parseYearToken(token: string): string | null {
 }
 
 /** Whole-word alias expansion (multi-word aliases checked first). */
+/** Own keys only: "constructor" or "toString" must not read Object.prototype. */
+function aliasFor(key: string): string | undefined {
+  return Object.prototype.hasOwnProperty.call(PLAYER_ALIASES, key) ? PLAYER_ALIASES[key] : undefined;
+}
+
 export function expandAliasTokens(tokens: string[]): string[] {
   const out: string[] = [];
   let i = 0;
   while (i < tokens.length) {
     if (i + 1 < tokens.length) {
       const pair = `${tokens[i]} ${tokens[i + 1]}`;
-      const alias = PLAYER_ALIASES[pair];
+      const alias = aliasFor(pair);
       if (alias) {
         out.push(...normalizeSearchText(alias).split(" ").filter(Boolean));
         i += 2;
         continue;
       }
     }
-    const single = PLAYER_ALIASES[tokens[i]!];
+    const single = aliasFor(tokens[i]!);
     if (single) {
       out.push(...normalizeSearchText(single).split(" ").filter(Boolean));
     } else {

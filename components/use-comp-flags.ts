@@ -171,17 +171,18 @@ export function useCompFlagState(
     scopeRef.current = next;
     setScope(next);
 
+    // A rejected request (offline) rolls back the same way a refused one does.
     const res = await fetch("/api/comps/flags", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ cardId, itemId: comp.itemId, reason }),
-    });
-    if (!res.ok) {
+    }).catch(() => null);
+    if (!res?.ok) {
       scopeRef.current = prev;
       setScope(prev);
       return false;
     }
-    const body = (await res.json()) as { value?: CardValueResult };
+    const body = (await res.json().catch(() => ({}))) as { value?: CardValueResult };
     if (body.value) {
       const priced = { ...body.value, matchedAt: body.value.matchedAt ?? null };
       const withPrice = { ...scopeRef.current, priced };
@@ -217,13 +218,13 @@ export function useCompFlagState(
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ cardId, itemId }),
-    });
-    if (!res.ok) {
+    }).catch(() => null);
+    if (!res?.ok) {
       scopeRef.current = prev;
       setScope(prev);
       return false;
     }
-    const body = (await res.json()) as { value?: CardValueResult };
+    const body = (await res.json().catch(() => ({}))) as { value?: CardValueResult };
     if (body.value) {
       const priced = { ...body.value, matchedAt: body.value.matchedAt ?? null };
       const withPrice = { ...scopeRef.current, priced };

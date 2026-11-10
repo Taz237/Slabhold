@@ -923,19 +923,6 @@ html[data-nav-pending="card"] [data-nav-pending-skeleton] {
   }
 }
 
-/* Pull to refresh: the mark gives one small pop at the trigger point. */
-@keyframes ptr-click {
-  0% {
-    scale: 1;
-  }
-  45% {
-    scale: 1.22;
-  }
-  100% {
-    scale: 1;
-  }
-}
-
 /*
  * Page changes (View Transitions). nav-motion.tsx sets data-nav on <html>
  * before each route change: forward slides a pushed screen in from the

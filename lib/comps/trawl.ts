@@ -1,6 +1,5 @@
 import "server-only";
 
-import { buildSoldSearchQuery, type MatchCard } from "./match";
 import type { TrawlSoldResponse } from "./types";
 
 const TRAWL_SOLD_URL = "https://api.trawl.dev/ebay/v1/sold";
@@ -24,11 +23,6 @@ function daysAgoIso(days: number): string {
   d.setUTCHours(0, 0, 0, 0);
   d.setUTCDate(d.getUTCDate() - days);
   return d.toISOString().slice(0, 10);
-}
-
-/** Trawl search string — shared with match.buildSoldSearchQuery. */
-export function buildSoldQuery(card: MatchCard): string {
-  return buildSoldSearchQuery(card);
 }
 
 export async function fetchTrawlSold(

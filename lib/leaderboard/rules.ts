@@ -77,8 +77,6 @@ export const RULES_LINE = "Real collectors only · Resets Monday 12 AM ET";
 
 export const RULES_SHEET_LABEL = "How the boards work";
 
-export const YOUR_SPOT_LABEL = "Your spot";
-
 export const PROVISIONAL_LABEL = "Provisional";
 
 /**

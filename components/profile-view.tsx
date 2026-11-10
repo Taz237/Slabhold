@@ -776,7 +776,10 @@ function MissingProfile({
       const interact = await supabase.rpc("can_interact", { other: data.id as string });
       if (cancelled) return;
       setState(interact.data === false ? "unavailable" : "missing");
-    })();
+    })().catch(() => {
+      // A failed load or read must not leave the skeleton up for good.
+      if (!cancelled) setState("missing");
+    });
     return () => {
       cancelled = true;
     };

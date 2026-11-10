@@ -9,7 +9,6 @@ import { lookupSoldCompsAccess } from "@/lib/comps/sold-access";
 import {
   respondSoldComps,
   shouldBustCompsResult,
-  SOLD_UNAVAILABLE_MESSAGE,
 } from "@/lib/comps/sold-response";
 import { getAuthUserId } from "@/lib/supabase/server";
 import { loadCachedCardRefresh } from "@/lib/value/card-market";
@@ -41,8 +40,6 @@ export function scheduleCompsResultBust(
     bustCompsResult(cardId);
   });
 }
-
-export const UNAVAILABLE_MESSAGE = SOLD_UNAVAILABLE_MESSAGE;
 
 export const maxDuration = 15;
 

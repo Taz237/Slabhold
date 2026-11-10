@@ -195,7 +195,8 @@ async function deliverWeb(dispatcher: Dispatcher, recipientId: string, payload: 
     payload,
     sleep: dispatcher.sleep,
   });
-  await dispatcher.store.recordDelivery(result, iso(at));
+  // The push already went out. A bookkeeping error must not mark the row failed.
+  await dispatcher.store.recordDelivery(result, iso(at)).catch(() => undefined);
   return tally(subscriptions.length, result);
 }
 

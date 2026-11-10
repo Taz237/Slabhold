@@ -32,6 +32,8 @@ async function listUserIdsWithCards(): Promise<string[]> {
     const { data, error } = await admin
       .from("cards")
       .select("user_id")
+      // A stable order, so pages never repeat or skip a row.
+      .order("id")
       .range(from, from + CARD_PAGE - 1);
     if (error) throw new Error(error.message);
     const rows = data ?? [];
