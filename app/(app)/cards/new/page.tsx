@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { CardForm } from "@/components/card-form";
 import { catalogCardFromParams } from "@/lib/search/catalog-results";
 import { addCardQuery } from "@/lib/search/recent";
-import { addAnotherPrefill } from "@/lib/cards/added-panel";
+import { addAnotherPrefill, copyCardPrefill } from "@/lib/cards/added-panel";
 
 export const metadata: Metadata = { title: "Add a card · Slabhold" };
 
@@ -16,6 +16,7 @@ type Props = {
     year?: SearchValue;
     set?: SearchValue;
     num?: SearchValue;
+    nonumber?: SearchValue;
     parallel?: SearchValue;
     sport?: SearchValue;
     rookie?: SearchValue;
@@ -39,15 +40,18 @@ export default async function NewCardPage({ searchParams }: Props) {
     sport: one(params.sport),
     rookie: one(params.rookie),
   });
-  // "Add another" keeps sport, player, year and set. A Search pick wins over it.
+  // "Add another" keeps sport, player, year and set. "Copy this card" also keeps
+  // the card number. A Search pick wins over both.
+  const kept = {
+    pick: one(params.pick),
+    player: one(params.player),
+    year: one(params.year),
+    set: one(params.set),
+  };
   const initialPrefill = initialCatalog
     ? null
-    : addAnotherPrefill({
-        pick: one(params.pick),
-        player: one(params.player),
-        year: one(params.year),
-        set: one(params.set),
-      });
+    : (copyCardPrefill({ ...kept, num: one(params.num), nonumber: one(params.nonumber) }) ??
+      addAnotherPrefill(kept));
   return (
     <CardForm
       guided

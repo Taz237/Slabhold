@@ -64,8 +64,8 @@ function insertFamily(setBrand: string): InsertFamily | null {
 
 /** Inserts per set family, most likely first. Kaboom stays on close Panini picks. */
 const FAMILY_INSERTS: Record<InsertFamily, readonly string[]> = {
-  optic: ["Downtown", "Kaboom"],
-  donruss: ["Kaboom", "Downtown"],
+  optic: ["Downtown", "Kaboom", "Color Blast"],
+  donruss: ["Kaboom", "Downtown", "Color Blast"],
   absolute: ["Kaboom"],
   panini: ["Kaboom", "Color Blast"],
 };
@@ -90,6 +90,7 @@ export function insertsForSet(setBrand: string): InsertChips {
 const INSERT_LEAD_SETS: Record<string, readonly string[]> = {
   downtown: ["Donruss Optic", "Panini Donruss"],
   kaboom: ["Panini Donruss", "Donruss Optic", "Panini Absolute"],
+  "color blast": ["Donruss Optic", "Panini Donruss"],
 };
 
 export function insertLeadSets(insert: string): string[] {

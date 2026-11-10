@@ -141,6 +141,12 @@ import type {
   SportsCard,
 } from "@/lib/types";
 
+/** Copy this card keeps the number in the draft key, so it never resumes an Add another draft. */
+function prefillNumberKey(prefill: AddAnotherPrefill): string {
+  if (prefill.noNumber) return "|nonumber";
+  return prefill.number ? `|#${prefill.number}` : "";
+}
+
 const DEMO_IDENTIFY =
   process.env.NEXT_PUBLIC_ENABLE_DEMO_IDENTIFY === "true";
 
@@ -168,7 +174,10 @@ export function CardForm({
   guided?: boolean;
   /** Sport to start with, e.g. kept from "Add another". */
   initialSport?: string;
-  /** Player, year and set kept from "Add another". The flow opens on Card #. */
+  /**
+   * Player, year and set kept from "Add another" (opens on Card #), plus the
+   * number from "Copy this card" (opens on Parallel or insert).
+   */
   initialPrefill?: AddAnotherPrefill | null;
 }) {
   const catalogStart = !existing && initialCatalog ? catalogPickFields(initialCatalog, "") : null;
@@ -193,7 +202,10 @@ export function CardForm({
     ? null
     : newCardSeed(
         initialQuery,
-        initialCatalog?.id ?? (prefill ? `another:${prefill.player}|${prefill.year}|${prefill.set}` : null),
+        initialCatalog?.id ??
+          (prefill
+            ? `another:${prefill.player}|${prefill.year}|${prefill.set}${prefillNumberKey(prefill)}`
+            : null),
       );
   const restored = seed ? readNewCardDraft(seed, userId) : null;
   const current = useCardValue(existing?.id ?? null);
@@ -277,7 +289,9 @@ export function CardForm({
     restored?.gradeQualifier ?? existing?.gradeQualifier ?? "",
   );
   const [certNumber, setCertNumber] = useState(restored?.certNumber ?? existing?.certNumber ?? "");
-  const [noNumber, setNoNumber] = useState(restored?.noNumber ?? Boolean(existing?.noNumber));
+  const [noNumber, setNoNumber] = useState(
+    restored?.noNumber ?? (Boolean(existing?.noNumber) || Boolean(prefill?.noNumber)),
+  );
   const prefillSetIsCustom = Boolean(
     prefill?.set && !SETS.some((name) => name.toLowerCase() === prefill.set.toLowerCase()),
   );
@@ -329,13 +343,15 @@ export function CardForm({
     sellDate: existing?.sellDate ?? "",
     notes: existing?.notes ?? "",
   };
-  // "Add another": same player, year and set. Start over goes back to a blank search.
+  // "Add another": same player, year and set. "Copy this card" adds the number.
+  // Start over goes back to a blank search.
   const seededForm: CardDraftForm = prefill
     ? {
         ...blankForm,
         playerName: prefill.player,
         yearLabel: prefill.year,
         setBrand: prefill.set,
+        cardNumber: prefill.number ?? "",
       }
     : blankForm;
   const [form, setFormState] = useState<CardDraftForm>(restored?.form ?? seededForm);
@@ -404,7 +420,7 @@ export function CardForm({
     const untouched =
       !photo &&
       !photoMissing &&
-      !noNumber &&
+      noNumber === Boolean(prefill?.noNumber) &&
       !sold &&
       share === (rememberedShare ?? false) &&
       !shareToFeedPick &&
@@ -421,7 +437,7 @@ export function CardForm({
       form.playerName.trim() === (prefill?.player ?? "") &&
       form.yearLabel.trim() === (prefill?.year ?? "") &&
       form.setBrand.trim() === (prefill?.set ?? "") &&
-      form.cardNumber.trim() === "" &&
+      form.cardNumber.trim() === (prefill?.number ?? "") &&
       form.notes.trim() === "" &&
       form.purchasePrice.trim() === "" &&
       form.purchaseDate.trim() === "" &&
@@ -488,6 +504,8 @@ export function CardForm({
     prefill?.player,
     prefill?.year,
     prefill?.set,
+    prefill?.number,
+    prefill?.noNumber,
     category,
     sportTouched,
     sportOffer,

@@ -111,8 +111,11 @@ export function addedRevealLine(input: {
   return addedValueLine(input.value, input.loading, input.card);
 }
 
-/** What "Add another" carries over: sport, player, year and set. Nothing else. */
-export type AddAnotherPrefill = { player: string; year: string; set: string };
+/**
+ * What "Add another" carries over: sport, player, year and set. Nothing else.
+ * "Copy this card" also carries the card number (or that it has none).
+ */
+export type AddAnotherPrefill = { player: string; year: string; set: string; number?: string; noNumber?: boolean };
 
 const PREFILL_MAX = 120;
 
@@ -153,4 +156,56 @@ export function addAnotherPrefill(params: {
   const player = prefillText(params.player);
   if (!player) return null;
   return { player, year: prefillText(params.year), set: prefillText(params.set) };
+}
+
+const NUMBER_MAX = 20;
+
+function prefillNumber(value: string | null | undefined): string {
+  return prefillText(value).replace(/^#/, "").trim().slice(0, NUMBER_MAX);
+}
+
+/**
+ * Copy this card: the same card again, for a second parallel or grade.
+ * Sport, player, year, set and the card number (or nonumber=1), so the flow
+ * opens on Parallel or insert at Base. Parallel, grade, serial, photo, price,
+ * notes and cert are never carried over. Add another stays addAnotherPath.
+ */
+export function copyCardPath(
+  card:
+    | {
+        sport?: string | null;
+        playerName?: string | null;
+        yearLabel?: string | null;
+        year?: number | null;
+        setBrand?: string | null;
+        cardNumber?: string | null;
+        noNumber?: boolean | null;
+      }
+    | null,
+): string {
+  if (!card) return "/cards/new";
+  const base = addAnotherPath(card);
+  const number = card.noNumber ? "" : prefillNumber(card.cardNumber);
+  if (!card.noNumber && !number) return base;
+  const params = new URLSearchParams(base.split("?")[1] ?? "");
+  if (number) params.set("num", number);
+  else params.set("nonumber", "1");
+  return `/cards/new?${params.toString().replace(/\+/g, "%20")}`;
+}
+
+/** Copy this card's fields from /cards/new's query. Null without a number, without a player, or for a Search pick. */
+export function copyCardPrefill(params: {
+  pick?: string;
+  player?: string;
+  year?: string;
+  set?: string;
+  num?: string;
+  nonumber?: string;
+}): Required<AddAnotherPrefill> | null {
+  const kept = addAnotherPrefill(params);
+  if (!kept) return null;
+  const noNumber = params.nonumber === "1";
+  const number = noNumber ? "" : prefillNumber(params.num);
+  if (!noNumber && !number) return null;
+  return { ...kept, number, noNumber };
 }

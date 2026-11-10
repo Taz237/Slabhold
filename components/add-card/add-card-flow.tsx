@@ -13,6 +13,7 @@ import {
 } from "@/components/add-card/flow-ui";
 import { GradeStep, NumberStep, ParallelStep, SerialStep } from "@/components/add-card/detail-steps";
 import { PlayerStep, type PlayerPick } from "@/components/add-card/player-step";
+import { ReviewValue } from "@/components/add-card/review-value";
 import { SearchDoor, type DoorPick } from "@/components/add-card/search-door";
 import { SetStep } from "@/components/add-card/set-step";
 import { useProductData } from "@/lib/cards/use-product-data";
@@ -650,6 +651,8 @@ function ReviewStep({
           </p>
         ) : null}
       </div>
+
+      <ReviewValue answers={answers} card={{ isAuto, serialRun: runShown }} />
 
       {photoBlock}
       {feedPost}

@@ -11,6 +11,7 @@ import { useCollection } from "@/components/collection-provider";
 import {
   addAnotherPath,
   addedCollectionLine,
+  copyCardPath,
   addedValueLine,
   recentSoldPrices,
   type AddedRevealLine,
@@ -96,6 +97,7 @@ export function CardAddedPanel({
   // Sold prices only back a strong match. A weak one would read like its price.
   const recent = line.kind === "ok" ? recentSoldPrices(sales) : [];
   const addAnother = addAnotherPath(card);
+  const copyCard = card ? copyCardPath(card) : null;
   const viewerId = viewer?.id ?? null;
   const collector = useMemo(
     () => (viewerId && cards.some((item) => item.id === cardId) ? collectorRevealCopy(collectorReveal(cards, cardId, viewerId)) : null),
@@ -131,7 +133,7 @@ export function CardAddedPanel({
         {/* Phones size the slab by screen height so the buttons below stay on screen. */}
         <div
           data-reveal="frame"
-          className="relative aspect-[3/5] h-[clamp(8.5rem,calc(100svh-34rem-env(safe-area-inset-bottom)),15rem)] md:h-auto md:w-40"
+          className="relative aspect-[3/5] h-[clamp(8.5rem,calc(100svh-36.5rem-env(safe-area-inset-bottom)),15rem)] md:h-auto md:w-40"
         >
           <div
             aria-hidden
@@ -244,6 +246,19 @@ export function CardAddedPanel({
           See all sales
         </button>
       </div>
+      {/* The same card again, for a second parallel or grade. One text line keeps the fit. */}
+      {copyCard ? (
+        <div className="-mt-1 flex justify-center">
+          <Link
+            href={copyCard}
+            data-slot="copy-card"
+            aria-label="Copy this card: add another parallel or grade of it"
+            className={`inline-flex min-h-11 items-center justify-center rounded-full px-4 text-sm font-medium text-violet-700 underline decoration-violet-700/40 underline-offset-4 hover:text-violet-600 dark:text-[#A78BFA] dark:decoration-[#A78BFA]/40 ${focusRing}`}
+          >
+            Copy this card
+          </Link>
+        </div>
+      ) : null}
       {postSheet && card ? (
         <PrivateShareSheet
           isPublic={Boolean(card.isPublic)}
