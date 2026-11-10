@@ -13,7 +13,6 @@ import {
 } from "@/lib/cards/product-data";
 import { parallelOptions } from "@/lib/cards/add-flow";
 import { parallelSwatch } from "@/lib/cards/parallel-swatch";
-import { PARALLELS_BY_SET } from "@/lib/cards/parallels";
 
 type RawProduct = {
   sport: string;
@@ -27,27 +26,34 @@ const raw = JSON.parse(
 ) as RawProduct[];
 
 describe("product data", () => {
-  it("offers a Stars swatch for Football 2023 Donruss Optic and keeps the Optic list", async () => {
+  it("offers a Stars swatch for Football 2023 Donruss Optic from the official checklist", async () => {
     const data = await loadProductData();
     const list = parallelOptions(parallelsIn(data, "Football", "2023", "Donruss Optic"), "Donruss Optic", "");
     const names = list.map((item) => item.name);
     assert.equal(names[0], "Base");
+    // Official 2023 CARD SET names: Base Stars and Rated Rookies Stars.
     assert.ok(names.includes("Stars"));
-    for (const name of PARALLELS_BY_SET["donruss optic"]) assert.ok(names.includes(name), name);
     assert.equal(list.find((item) => item.name === "Stars")?.serialRun, null);
+    assert.equal(list.find((item) => item.name === "Wave")?.serialRun, 300);
     assert.equal(parallelSwatch("Stars").kind, "stars");
-    // Basketball Optic and other football years are unchanged.
+    // Basketball Optic has no Stars.
     assert.equal(parallelsIn(data, "Basketball", "2020-21", "Donruss Optic").some((item) => item.name === "Stars"), false);
-    assert.deepEqual(parallelsIn(data, "Football", "2024", "Donruss Optic"), []);
+    // Official 2024 Optic football is in the checklist too.
+    const optic2024 = parallelsIn(data, "Football", "2024", "Donruss Optic");
+    assert.deepEqual(optic2024[0], { name: "Base", serialRun: null });
+    assert.equal(optic2024.find((item) => item.name === "Team Logo")?.serialRun, 32);
   });
 
-  it("ships the Panini checklist and the official Topps file", async () => {
+  it("ships only official Panini checklist rows and the official Topps file", async () => {
     const data = await loadProductData();
-    assert.equal(raw.length, 17);
+    assert.equal(raw.length, 33);
     assert.equal(
       raw.reduce((sum, product) => sum + product.parallels.length, 0),
-      1237 + 16,
+      4006,
     );
+    assert.ok(raw.every((product) => (product as { official?: boolean }).official === true));
+    const keys = raw.map((product) => `${product.sport}|${product.yearLabel}|${product.product}`);
+    assert.equal(new Set(keys).size, keys.length);
     const topps = JSON.parse(
       readFileSync(new URL("./data/topps-parallels.json", import.meta.url), "utf8"),
     ) as { official: boolean; parallels: unknown[] }[];
@@ -57,7 +63,7 @@ describe("product data", () => {
       318,
     );
     assert.ok(topps.every((product) => product.official === true));
-    assert.equal(data.length, 17 + 7);
+    assert.equal(data.length, 33 + 7);
   });
 
   it("lists Basketball 2023-24 Prizm parallels with Base first and the JSON runs", async () => {
