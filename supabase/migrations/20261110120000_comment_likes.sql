@@ -1,23 +1,15 @@
--- UNAPPLIED. Needs review before running.
+-- ALREADY APPLIED to prod on 2026-11-10 (recorded as migration 20261110112746 comment_likes).
+-- Do not run this file again, do not `supabase db push`, and do not apply it with the Supabase CLI.
+-- This is the QA Guard–fixed version (lock_timeout, plus an insert policy that requires the parent post to be visible).
 --
--- For QA Guard review only. Do not run it, do not `supabase db push`, and do
--- not apply it with the Supabase CLI. The app works without it: reply hearts
--- stay on the device until this table exists.
---
--- Reply hearts on the account.
---
--- public.likes.post_id references public.posts (id), so a reply (a row in
--- public.comments) cannot be liked there: the foreign key rejects comment ids,
--- and migrate_local_likes drops them. This table holds reply likes instead.
---
--- - Only the viewer reads their own reply likes. Replies show no like count,
---   so nobody else needs these rows.
--- - Insert as yourself, on a reply that exists, when neither of you blocked
---   the other. Delete your own.
--- - Shares the post likes' 300-per-hour bucket (private.like_rate), the same
---   cap the server action checks first.
--- - No notification is written here. notifications.post_id references posts,
---   and reply likes never wrote one, so like notifications are unchanged.
+-- Reply hearts on the account. public.likes.post_id references public.posts, so replies
+-- (rows in public.comments) can't be liked there. This table holds reply likes instead.
+-- Only the viewer reads their own reply likes. Shares private.like_rate (300 per hour).
+-- No notifications are written.
+
+begin;
+-- QA FIX 1
+set local lock_timeout = '5s';
 
 create table if not exists public.comment_likes (
   comment_id uuid not null references public.comments (id) on delete cascade,
@@ -94,6 +86,11 @@ create policy "Like replies as yourself" on public.comment_likes
   with check (
     auth.uid() = user_id
     and exists (select 1 from public.comments c where c.id = comment_id)
+    -- QA FIX 2: parent post must be visible to the liker (posts RLS: hidden_at / blocks)
+    and exists (
+      select 1 from public.comments c join public.posts p on p.id = c.post_id
+      where c.id = comment_likes.comment_id
+    )
     and not private.is_blocked(auth.uid(), private.comment_author(comment_id))
   );
 
@@ -102,3 +99,5 @@ create policy "Delete own reply likes" on public.comment_likes
   for delete
   to authenticated
   using (auth.uid() = user_id);
+
+commit;
