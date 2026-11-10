@@ -10,7 +10,22 @@ import { useCollection, useDefaultAccent } from "@/components/collection-provide
 import { NativeSelect, SearchSelect, SET_PARALLEL_HINT } from "@/components/search-select";
 import { useSocial } from "@/components/social-provider";
 import { toPublicAttachment } from "@/lib/social/card-posts";
-import { sharePostFromCard, shareSessionStore, shareToFeedControl, writeSharedPost } from "@/lib/social/share-to-feed";
+import {
+  FEED_POST_LABEL,
+  addCardMayPost,
+  cardPostId,
+  feedPostControl,
+  justAddedCaption,
+  recordCardPost,
+  sharePostFromCard,
+  shareSessionStore,
+  shareToFeedControl,
+  writeCardPostFailed,
+  writeSharedPost,
+} from "@/lib/social/share-to-feed";
+import { isBrandAccount } from "@/lib/leaderboard/brand-accounts";
+import { isOfficialUpdatesAccount } from "@/lib/social/official-updates";
+import { isTestAccount } from "@/lib/test-accounts";
 import { POST_LIMIT } from "@/lib/social/types";
 import { CharacterRing } from "@/components/character-ring";
 import { takeScan } from "@/lib/capture";
@@ -64,7 +79,7 @@ import {
   type AddVisibleField,
   type MoreDetailsField,
 } from "@/lib/cards/add-form-sections";
-import { addedCardPath } from "@/lib/cards/added-panel";
+import { addedCardPath, type AddAnotherPrefill } from "@/lib/cards/added-panel";
 import { preloadCardAddedPanel } from "@/components/card-page-parts";
 import { haptic } from "@/lib/ios/haptics";
 import { askForReview } from "@/lib/ios/review";
@@ -138,6 +153,7 @@ export function CardForm({
   initialCatalog = null,
   guided = false,
   initialSport = "",
+  initialPrefill = null,
 }: {
   existing?: SportsCard;
   /** Inline on the card page: skip the extra title, keep the same save. */
@@ -152,6 +168,8 @@ export function CardForm({
   guided?: boolean;
   /** Sport to start with, e.g. kept from "Add another". */
   initialSport?: string;
+  /** Player, year and set kept from "Add another". The flow opens on Card #. */
+  initialPrefill?: AddAnotherPrefill | null;
 }) {
   const catalogStart = !existing && initialCatalog ? catalogPickFields(initialCatalog, "") : null;
   const guidedAdd = guided && !existing;
@@ -170,7 +188,13 @@ export function CardForm({
   } = useCollection();
   const { mode, user, createPost } = useSocial();
   const userId = user?.id ?? null;
-  const seed = existing ? null : newCardSeed(initialQuery, initialCatalog?.id ?? null);
+  const prefill = !existing && !initialCatalog ? initialPrefill : null;
+  const seed = existing
+    ? null
+    : newCardSeed(
+        initialQuery,
+        initialCatalog?.id ?? (prefill ? `another:${prefill.player}|${prefill.year}|${prefill.set}` : null),
+      );
   const restored = seed ? readNewCardDraft(seed, userId) : null;
   const current = useCardValue(existing?.id ?? null);
   const currentValueLine = marketValueSummary(current.value);
@@ -217,13 +241,23 @@ export function CardForm({
   const [openToOffers, setOpenToOffers] = useState(
     restored?.openToOffers ?? existing?.openToOffers === true,
   );
-  const [shareToFeed, setShareToFeed] = useState(restored?.shareToFeed ?? false);
-  const [caption, setCaption] = useState(restored?.caption ?? "");
-  // Over the limit with Share to feed on: hold the save rather than cut the caption.
-  const captionOver =
-    !existing && shareToFeedControl({ isPublic: share, share: shareToFeed }).checked && caption.length > POST_LIMIT;
-  // Spread after `disabled` on each submit button so it wins over the saving/photo state.
-  const holdSave = captionOver ? { disabled: true } : undefined;
+  const [shareToFeedPick, setShareToFeed] = useState(restored?.shareToFeed ?? false);
+  // Guided Add: until the collector touches "Also post to my feed", a public card starts with it on.
+  const [feedTouched, setFeedTouched] = useState(restored != null);
+  const shareToFeedChoice = guidedAdd && !feedTouched ? null : shareToFeedPick;
+  const [captionText, setCaptionText] = useState(restored?.caption ?? "");
+  // A typed or restored caption is never replaced by the prefilled one.
+  const [captionTouched, setCaptionTouched] = useState(Boolean(restored?.caption));
+  const mayPost = addCardMayPost({
+    isBrand: isBrandAccount(user?.id),
+    isOfficial: isOfficialUpdatesAccount(user?.id),
+    isTest: isTestAccount(user?.username ?? ""),
+  });
+  const feedControl = guidedAdd
+    ? feedPostControl({ isPublic: share, choice: shareToFeedChoice, mayPost })
+    : null;
+  const shareToFeed = feedControl ? feedControl.checked : Boolean(shareToFeedChoice);
+  const postedFor = useRef<string | null>(null);
   const [category, setCategory] = useState<CardCategory>(
     restored?.category ?? (existing ? cardCategory(existing) : "pc"),
   );
@@ -244,9 +278,12 @@ export function CardForm({
   );
   const [certNumber, setCertNumber] = useState(restored?.certNumber ?? existing?.certNumber ?? "");
   const [noNumber, setNoNumber] = useState(restored?.noNumber ?? Boolean(existing?.noNumber));
+  const prefillSetIsCustom = Boolean(
+    prefill?.set && !SETS.some((name) => name.toLowerCase() === prefill.set.toLowerCase()),
+  );
   const [setIsCustom, setSetIsCustom] = useState(
     restored?.setIsCustom ??
-      (Boolean(existing?.setIsCustom) || Boolean(catalogStart?.setIsCustom)),
+      (Boolean(existing?.setIsCustom) || Boolean(catalogStart?.setIsCustom) || prefillSetIsCustom),
   );
   const [parallelIsCustom, setParallelIsCustom] = useState(
     restored?.parallelIsCustom ??
@@ -276,7 +313,7 @@ export function CardForm({
     ? existing.yearLabel || String(existing.year)
     : (catalogStart?.form.yearLabel || manualPrefill?.yearLabel || "");
 
-  const seededForm: CardDraftForm = {
+  const blankForm: CardDraftForm = {
     playerName: catalogStart?.form.playerName ?? existing?.playerName ?? manualPrefill?.playerName ?? "",
     yearLabel: defaultYear,
     setBrand: existing?.setBrand ?? catalogStart?.form.setBrand ?? "",
@@ -292,7 +329,35 @@ export function CardForm({
     sellDate: existing?.sellDate ?? "",
     notes: existing?.notes ?? "",
   };
+  // "Add another": same player, year and set. Start over goes back to a blank search.
+  const seededForm: CardDraftForm = prefill
+    ? {
+        ...blankForm,
+        playerName: prefill.player,
+        yearLabel: prefill.year,
+        setBrand: prefill.set,
+      }
+    : blankForm;
   const [form, setFormState] = useState<CardDraftForm>(restored?.form ?? seededForm);
+  const autoCaption = guidedAdd
+    ? justAddedCaption({
+        yearLabel: form.yearLabel,
+        setBrand: form.setBrand,
+        parallel: form.parallel,
+        playerName: form.playerName,
+      })
+    : "";
+  const caption = guidedAdd && !captionTouched ? autoCaption : captionText;
+  // Over the limit with Share to feed on: hold the save rather than cut the caption.
+  const captionOver =
+    !existing && shareToFeedControl({ isPublic: share, share: shareToFeed }).checked && caption.length > POST_LIMIT;
+  // Spread after `disabled` on each submit button so it wins over the saving/photo state.
+  const holdSave = captionOver ? { disabled: true } : undefined;
+
+  function setCaption(value: string) {
+    setCaptionText(value);
+    setCaptionTouched(true);
+  }
   const liveForm = useRef(form);
 
   function setForm(action: SetStateAction<CardDraftForm>) {
@@ -342,8 +407,9 @@ export function CardForm({
       !noNumber &&
       !sold &&
       share === (rememberedShare ?? false) &&
-      !shareToFeed &&
-      caption.trim() === "" &&
+      !shareToFeedPick &&
+      captionText.trim() === "" &&
+      (form.parallel.trim() === "" || form.parallel === seededForm.parallel) &&
       !sportTouched &&
       !isRookie &&
       !isAuto &&
@@ -352,9 +418,9 @@ export function CardForm({
       gradeNumber.trim() === "" &&
       certNumber.trim() === "" &&
       pendingCardId == null &&
-      form.playerName.trim() === "" &&
-      form.yearLabel.trim() === "" &&
-      form.setBrand.trim() === "" &&
+      form.playerName.trim() === (prefill?.player ?? "") &&
+      form.yearLabel.trim() === (prefill?.year ?? "") &&
+      form.setBrand.trim() === (prefill?.set ?? "") &&
       form.cardNumber.trim() === "" &&
       form.notes.trim() === "" &&
       form.purchasePrice.trim() === "" &&
@@ -415,7 +481,13 @@ export function CardForm({
     rememberedShare,
     openToOffers,
     shareToFeed,
+    shareToFeedPick,
     caption,
+    captionText,
+    seededForm.parallel,
+    prefill?.player,
+    prefill?.year,
+    prefill?.set,
     category,
     sportTouched,
     sportOffer,
@@ -693,6 +765,13 @@ export function CardForm({
       setOpenToOffers(false);
       setShareToFeed(false);
     }
+    // Guided Add: public turns "Also post to my feed" on (they can turn it off); private locks it off.
+    if (guidedAdd) setFeedTouched(false);
+  }
+
+  function chooseFeedPost(next: boolean) {
+    setShareToFeed(next);
+    setFeedTouched(true);
   }
 
   function startOver() {
@@ -708,7 +787,9 @@ export function CardForm({
     setShareChoice(null);
     setOpenToOffers(false);
     setShareToFeed(false);
-    setCaption("");
+    setFeedTouched(false);
+    setCaptionText("");
+    setCaptionTouched(false);
     setCategory("pc");
     setGradeCompany(initialCompany);
     setGradeNumber("");
@@ -729,7 +810,8 @@ export function CardForm({
     setMatchDismissed(false);
     setTouched({});
     setSaveError(null);
-    setForm(seededForm);
+    // "Start a different card" after Add another clears the kept player, year and set too.
+    setForm(blankForm);
   }
 
   if (draftUserId !== userId) {
@@ -909,24 +991,36 @@ export function CardForm({
           void submitCatalogCardQuietly(card.id);
         }
       }
-      if (!existing) {
+      if (!existing && (mayPost || !guidedAdd)) {
         const draft = sharePostFromCard({
           isPublic: payload.isPublic,
           share: shareToFeed,
           caption,
           card: toPublicAttachment(card),
         });
-        if (draft) {
+        const store = shareSessionStore();
+        // One add makes one post at most: a retry after a post that went up never posts again.
+        const already = postedFor.current === card.id ? "posted" : store ? cardPostId(store, card.id) : null;
+        if (draft && already) {
+          if (store && already !== "posted") writeSharedPost(store, card.id, already);
+        } else if (draft) {
           const posted = await createPost(draft);
           if (posted.error) {
-            setSaveError("Saved the card, but couldn't share it to the feed.");
-            setSaving(false);
-            savingRef.current = false;
-            return;
-          }
-          if (posted.postId) {
-            const store = shareSessionStore();
-            if (store) writeSharedPost(store, card.id, posted.postId);
+            if (guidedAdd) {
+              // The card is saved. The reveal says the post failed and offers Post it.
+              if (store) writeCardPostFailed(store, card.id, draft.body);
+            } else {
+              setSaveError("Saved the card, but couldn't share it to the feed.");
+              setSaving(false);
+              savingRef.current = false;
+              return;
+            }
+          } else {
+            postedFor.current = card.id;
+            if (posted.postId && store) {
+              writeSharedPost(store, card.id, posted.postId);
+              recordCardPost(store, card.id, posted.postId);
+            }
           }
         }
       }
@@ -1613,9 +1707,18 @@ export function CardForm({
       ),
       openToOffers: offersNode,
       notes: notesNode,
-      shareToFeed: shareToFeedNode,
+      // On Review instead, next to Public / Private.
+      shareToFeed: null,
       category: categoryNode,
     };
+    const feedPostNode = feedControl ? (
+      <FeedPostField
+        control={feedControl}
+        caption={caption}
+        onShare={chooseFeedPost}
+        onCaption={setCaption}
+      />
+    ) : null;
     // Serial run and number are their own step in the picker.
     const guidedMore = MORE_DETAILS_FIELDS.filter((key) => key !== "serialRun" && key !== "serialNo");
     return (
@@ -1635,6 +1738,7 @@ export function CardForm({
           // The flow only uses this to disable Add to collection, so an over-long shared caption holds it too.
           readingPhoto={readingPhoto || captionOver}
           resumed={showingRestored}
+          prefilled={Boolean(prefill)}
           positionKey={seed != null ? `${userId ?? ""}\n${seed}` : null}
           apply={applyFlowPatch}
           pickCatalog={applyCatalog}
@@ -1654,6 +1758,7 @@ export function CardForm({
           onMoreOpen={setMoreOpen}
           sportOffer={sportOfferNode}
           saveError={saveErrorNode}
+          feedPost={feedPostNode}
         />
       </form>
     );
@@ -2019,3 +2124,64 @@ function Field({
 
 const inputClass =
   "w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-sm text-zinc-900 outline-none placeholder:text-zinc-400 focus:border-violet-500 dark:border-white/10 dark:bg-white/5 dark:text-zinc-100 dark:placeholder:text-zinc-500 dark:[color-scheme:dark]";
+
+/** Guided Add's "Also post to my feed", on Review next to Public / Private. */
+function FeedPostField({
+  control,
+  caption,
+  onShare,
+  onCaption,
+}: {
+  control: { checked: boolean; disabled: boolean; explanation: string | null };
+  caption: string;
+  onShare: (value: boolean) => void;
+  onCaption: (value: string) => void;
+}) {
+  const over = caption.length > POST_LIMIT;
+  return (
+    <div className="rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-sm dark:border-white/10 dark:bg-white/[0.03]">
+      <label className="flex min-h-11 items-center gap-3 font-semibold">
+        <CheckHit>
+          <input
+            type="checkbox"
+            checked={control.checked}
+            disabled={control.disabled}
+            onChange={(e) => onShare(e.target.checked)}
+            className="size-5 accent-violet-500 disabled:opacity-40"
+          />
+        </CheckHit>
+        {FEED_POST_LABEL}
+      </label>
+      {control.explanation ? (
+        <p className="text-xs leading-5 text-zinc-500">{control.explanation}</p>
+      ) : !control.checked ? (
+        <p className="text-xs leading-5 text-zinc-500">Posts this card to your followers after it saves.</p>
+      ) : null}
+      {control.checked ? (
+        <>
+          <textarea
+            rows={2}
+            value={caption}
+            aria-label="Post caption"
+            aria-invalid={over}
+            onChange={(e) => onCaption(e.target.value)}
+            className={`${inputClass} mt-2 resize-y text-[15px]`}
+            placeholder="Say something about it"
+          />
+          <div className="mt-1 flex min-h-7 items-center justify-between gap-3">
+            <p className="text-xs text-zinc-500">The card shows on the post. What you paid stays private.</p>
+            <CharacterRing length={caption.length} limit={POST_LIMIT} />
+            <span className="sr-only" aria-live="polite">
+              {caption.length}/{POST_LIMIT}
+            </span>
+          </div>
+          {over ? (
+            <p className="mt-1 text-xs leading-5 text-rose-600 dark:text-rose-400">
+              Caption is over 280. Shorten it or turn off {FEED_POST_LABEL}.
+            </p>
+          ) : null}
+        </>
+      ) : null}
+    </div>
+  );
+}

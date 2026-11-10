@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Search } from "lucide-react";
 import {
   Chip,
@@ -17,6 +17,7 @@ import {
   SERIAL_RUN_CHIPS,
   gradeNeedsNumber,
   serialNoError,
+  type ParallelGroups,
   type ParallelOption,
   type SerialChoice,
 } from "@/lib/cards/add-flow";
@@ -106,10 +107,17 @@ export function NumberStep({
   );
 }
 
-/** Which parallel. Swatch chips, Base first and big, with a run badge when the checklist knows it. */
+/** Shown under the search on "Parallel or insert", always. */
+export const PARALLEL_TYPE_HINT = "Don't see it? Type it as it reads on the card.";
+
+/**
+ * Which parallel or insert. Base first and big, then insert chips for the set,
+ * then the parallels with a run badge when the checklist knows it. The search
+ * is always there, and a typed name always works.
+ */
 export function ParallelStep({
   value,
-  options,
+  groups,
   loading,
   isAuto,
   onAuto,
@@ -117,7 +125,7 @@ export function ParallelStep({
   onNotSure,
 }: {
   value: string;
-  options: readonly ParallelOption[];
+  groups: ParallelGroups;
   loading: boolean;
   isAuto: boolean;
   onAuto: (isAuto: boolean) => void;
@@ -127,17 +135,48 @@ export function ParallelStep({
   const [query, setQuery] = useState("");
   const [unsure, setUnsure] = useState(false);
   const current = parallelMatchKey(value);
-  const base = options.find((option) => parallelMatchKey(option.name) === "base") ?? {
-    name: "Base",
-    serialRun: null,
-  };
-  const rest = options.filter((option) => parallelMatchKey(option.name) !== "base");
+  const base = groups.base;
   const needle = query.trim().toLowerCase();
-  const shown = useMemo(
-    () => (needle ? rest.filter((option) => option.name.toLowerCase().includes(needle)) : rest),
-    [needle, rest],
-  );
-  const exact = options.some((option) => option.name.toLowerCase() === needle);
+  const matches = (option: ParallelOption) => !needle || option.name.toLowerCase().includes(needle);
+  const inserts = groups.inserts.options.filter(matches);
+  const parallels = groups.parallels.filter(matches);
+  const showBase = !needle || "base".includes(needle);
+  const all = [base, ...groups.inserts.options, ...groups.parallels];
+  const exact = all.some((option) => parallelMatchKey(option.name) === parallelMatchKey(needle));
+  const shown = [...inserts, ...parallels];
+  const total = groups.inserts.options.length + groups.parallels.length;
+
+  function pickTyped() {
+    const typed = query.trim();
+    const exactHit = all.find((option) => parallelMatchKey(option.name) === parallelMatchKey(typed));
+    if (exactHit) onPick(exactHit);
+    else if (typed && shown.length === 0) onPick({ name: typed, serialRun: null });
+    else if (shown[0]) onPick(shown[0]);
+    else if (typed) onPick({ name: typed, serialRun: null });
+  }
+
+  const chip = (option: ParallelOption) => {
+    const selected = parallelMatchKey(option.name) === current;
+    return (
+      <li key={option.name}>
+        <button
+          type="button"
+          aria-pressed={selected}
+          aria-label={option.serialRun ? `${option.name}, numbered to ${option.serialRun}` : option.name}
+          onClick={() => onPick(option)}
+          className={`flex min-h-12 w-full items-center gap-2.5 rounded-xl border px-3 text-left text-sm font-semibold transition-[border-color,transform] duration-150 motion-safe:active:scale-[0.97] motion-reduce:transition-none ${focusRing} ${
+            selected
+              ? "border-violet-600 bg-violet-600/10 ring-1 ring-violet-600"
+              : "border-zinc-200 bg-white hover:border-violet-400 dark:border-white/10 dark:bg-white/[0.04]"
+          }`}
+        >
+          <SwatchDot name={option.name} />
+          <span className="min-w-0 flex-1 truncate">{option.name}</span>
+          {option.serialRun ? <RunBadge run={option.serialRun} /> : null}
+        </button>
+      </li>
+    );
+  };
 
   return (
     <div className="space-y-4">
@@ -148,26 +187,28 @@ export function ParallelStep({
         </Chip>
       </div>
 
-      <button
-        type="button"
-        aria-pressed={current === "base"}
-        onClick={() => onPick(base)}
-        className={`flex min-h-16 w-full items-center gap-3 rounded-2xl border px-4 text-left transition-[border-color,transform] duration-150 motion-safe:active:scale-[0.98] motion-reduce:transition-none ${focusRing} ${
-          current === "base"
-            ? "border-violet-600 bg-violet-600/10 ring-1 ring-violet-600"
-            : "border-zinc-200 bg-white hover:border-violet-400 dark:border-white/10 dark:bg-white/[0.04]"
-        }`}
-      >
-        <SwatchDot name="Base" size="lg" />
-        <span className="min-w-0">
-          <span className="block text-base font-semibold tracking-tight">Base</span>
-          <span className="block text-xs text-zinc-500">No color, no shine, no number</span>
-        </span>
-      </button>
+      {showBase ? (
+        <button
+          type="button"
+          aria-pressed={current === "base"}
+          onClick={() => onPick(base)}
+          className={`flex min-h-16 w-full items-center gap-3 rounded-2xl border px-4 text-left transition-[border-color,transform] duration-150 motion-safe:active:scale-[0.98] motion-reduce:transition-none ${focusRing} ${
+            current === "base"
+              ? "border-violet-600 bg-violet-600/10 ring-1 ring-violet-600"
+              : "border-zinc-200 bg-white hover:border-violet-400 dark:border-white/10 dark:bg-white/[0.04]"
+          }`}
+        >
+          <SwatchDot name="Base" size="lg" />
+          <span className="min-w-0">
+            <span className="block text-base font-semibold tracking-tight">Base</span>
+            <span className="block text-xs text-zinc-500">No color, no shine, no number</span>
+          </span>
+        </button>
+      ) : null}
 
-      {options.length > 12 ? (
+      <div>
         <label className="relative block">
-          <span className="sr-only">Search parallels</span>
+          <span className="sr-only">Search or type a parallel or insert</span>
           <Search className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-zinc-400" aria-hidden />
           <input
             value={query}
@@ -175,58 +216,52 @@ export function ParallelStep({
             onKeyDown={(event) => {
               if (event.key !== "Enter") return;
               event.preventDefault();
-              if (shown[0]) onPick(shown[0]);
-              else if (query.trim()) onPick({ name: query.trim(), serialRun: null });
+              pickTyped();
             }}
-            placeholder={`Search ${options.length} parallels`}
+            placeholder={total > 0 ? `Search ${total} parallels and inserts` : "Type the parallel or insert"}
             autoComplete="off"
+            autoCorrect="off"
+            spellCheck={false}
+            enterKeyHint="done"
             className="min-h-11 w-full rounded-xl border border-zinc-200 bg-white pr-3 pl-10 text-sm outline-none focus:border-violet-500 dark:border-white/10 dark:bg-white/5"
           />
         </label>
-      ) : null}
-
-      <ul className="grid grid-cols-2 gap-2">
-        {loading
-          ? Array.from({ length: 6 }, (_, index) => (
-              <li key={`skeleton-${index}`} aria-hidden>
-                <span className="skeleton-shimmer block h-12 rounded-xl" />
-              </li>
-            ))
-          : shown.map((option) => {
-              const selected = parallelMatchKey(option.name) === current;
-              return (
-                <li key={option.name}>
-                  <button
-                    type="button"
-                    aria-pressed={selected}
-                    aria-label={
-                      option.serialRun
-                        ? `${option.name}, numbered to ${option.serialRun}`
-                        : option.name
-                    }
-                    onClick={() => onPick(option)}
-                    className={`flex min-h-12 w-full items-center gap-2.5 rounded-xl border px-3 text-left text-sm font-semibold transition-[border-color,transform] duration-150 motion-safe:active:scale-[0.97] motion-reduce:transition-none ${focusRing} ${
-                      selected
-                        ? "border-violet-600 bg-violet-600/10 ring-1 ring-violet-600"
-                        : "border-zinc-200 bg-white hover:border-violet-400 dark:border-white/10 dark:bg-white/[0.04]"
-                    }`}
-                  >
-                    <SwatchDot name={option.name} />
-                    <span className="min-w-0 flex-1 truncate">{option.name}</span>
-                    {option.serialRun ? <RunBadge run={option.serialRun} /> : null}
-                  </button>
-                </li>
-              );
-            })}
-      </ul>
+        <p className="mt-1.5 text-xs text-zinc-500">{PARALLEL_TYPE_HINT}</p>
+      </div>
 
       {needle && !exact ? (
         <Chip onClick={() => onPick({ name: query.trim(), serialRun: null })}>
           Use &ldquo;{query.trim()}&rdquo;
         </Chip>
       ) : null}
+
+      {loading ? (
+        <ul className="grid grid-cols-2 gap-2">
+          {Array.from({ length: 6 }, (_, index) => (
+            <li key={`skeleton-${index}`} aria-hidden>
+              <span className="skeleton-shimmer block h-12 rounded-xl" />
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <>
+          {inserts.length > 0 ? (
+            <div>
+              <SectionLabel>{groups.inserts.label}</SectionLabel>
+              <ul className="grid grid-cols-2 gap-2">{inserts.map(chip)}</ul>
+            </div>
+          ) : null}
+          {parallels.length > 0 ? (
+            <div>
+              <SectionLabel>Parallels</SectionLabel>
+              <ul className="grid grid-cols-2 gap-2">{parallels.map(chip)}</ul>
+            </div>
+          ) : null}
+        </>
+      )}
+
       {!loading && needle && shown.length === 0 ? (
-        <p className="text-sm text-zinc-500">No parallel by that name. Type it exactly as on the card.</p>
+        <p className="text-sm text-zinc-500">Nothing by that name here. Use it as typed if that&apos;s what the card says.</p>
       ) : null}
 
       <div>

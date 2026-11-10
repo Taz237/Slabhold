@@ -415,6 +415,8 @@ export function CardDetail({ id, added = false }: { id: string; added?: boolean 
           copy={heldCopy}
           onDismiss={() => setAddedDismissed(true)}
           onSeeSales={scrollToSales}
+          viewer={user ? { id: user.id, username: user.username } : null}
+          onTogglePublic={setPublic}
         />
       ) : null}
 
@@ -456,7 +458,10 @@ export function CardDetail({ id, added = false }: { id: string; added?: boolean 
         </section>
       )}
 
-      <SharedPostNote key={card.id} cardId={card.id} />
+      {/* The Added panel shows this note itself while it is up. */}
+      {showAddedPanel({ added, owned: true, dismissed: addedDismissed }) ? null : (
+        <SharedPostNote key={card.id} cardId={card.id} />
+      )}
 
       {privacyNudge ? (
         <FirstCardPrivacyPrompt

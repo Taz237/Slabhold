@@ -110,3 +110,47 @@ export function addedRevealLine(input: {
   }
   return addedValueLine(input.value, input.loading, input.card);
 }
+
+/** What "Add another" carries over: sport, player, year and set. Nothing else. */
+export type AddAnotherPrefill = { player: string; year: string; set: string };
+
+const PREFILL_MAX = 120;
+
+function prefillText(value: string | null | undefined): string {
+  return (value ?? "").trim().replace(/\s+/g, " ").slice(0, PREFILL_MAX);
+}
+
+/**
+ * Add another opens /cards/new with the same sport, player, year and set, so
+ * the next card starts on Card #. Grade, parallel, number, photo and price
+ * are never carried over.
+ */
+export function addAnotherPath(
+  card: { sport?: string | null; playerName?: string | null; yearLabel?: string | null; year?: number | null; setBrand?: string | null } | null,
+): string {
+  if (!card) return "/cards/new";
+  const params = new URLSearchParams();
+  const sport = prefillText(card.sport);
+  const player = prefillText(card.playerName);
+  const year = prefillText(card.yearLabel) || (card.year && card.year > 0 ? String(card.year) : "");
+  const set = prefillText(card.setBrand);
+  if (sport) params.set("sport", sport);
+  if (player) params.set("player", player);
+  if (year) params.set("year", year);
+  if (set) params.set("set", set);
+  const query = params.toString().replace(/\+/g, "%20");
+  return query ? `/cards/new?${query}` : "/cards/new";
+}
+
+/** The Add another fields from /cards/new's query. Null without a player, or for a Search pick. */
+export function addAnotherPrefill(params: {
+  pick?: string;
+  player?: string;
+  year?: string;
+  set?: string;
+}): AddAnotherPrefill | null {
+  if (params.pick === "1") return null;
+  const player = prefillText(params.player);
+  if (!player) return null;
+  return { player, year: prefillText(params.year), set: prefillText(params.set) };
+}
