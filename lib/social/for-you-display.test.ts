@@ -1,15 +1,16 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { join } from "node:path";
 import {
   isReleaseNotePost,
+  presentFollowingFeed,
   presentForYouFeed,
-  RELEASE_NOTE_HANDLE,
-  whatsNewLabel,
+  withoutReleaseNotes,
   type ForYouSource,
 } from "./for-you-display";
 import { OFFICIAL_UPDATES_USER_ID, isOfficialUpdatesAccount } from "./official-updates";
+import { BRAND_ACCOUNT_IDS } from "../leaderboard/brand-accounts";
 
 function read(path: string) {
   return readFileSync(join(process.cwd(), path), "utf8");
@@ -34,142 +35,112 @@ function row(
 
 const UPDATES = OFFICIAL_UPDATES_USER_ID;
 const IMPOSTER = "11111111-1111-4111-8111-111111111111";
+const BRAND = BRAND_ACCOUNT_IDS[0];
 
-describe("For You display", () => {
-  it("drops duplicate text only inside release notes", () => {
-    const items = [
-      row({ id: "new-scroll", authorId: UPDATES, body: "Keep scrolling!", createdAt: "2026-10-22T02:00:00.000Z" }),
-      row({ id: "maya", authorId: "maya", body: "Mail day pickup", createdAt: "2026-10-22T01:00:00.000Z" }),
-      row({
-        id: "old-scroll",
-        authorId: UPDATES,
-        body: "  Keep scrolling!  ",
-        createdAt: "2026-10-21T02:00:00.000Z",
-      }),
-    ];
-    const before = items.map((item) => item.post.id);
-    const shown = presentForYouFeed(items);
-    assert.deepEqual(items.map((item) => item.post.id), before);
-    const card = shown.find((entry) => entry.kind === "whats-new");
-    assert.equal(card?.kind, "whats-new");
-    if (card?.kind !== "whats-new") return;
-    assert.deepEqual(
-      card.items.map((item) => item.post.id),
-      ["new-scroll"],
-    );
-    assert.equal(whatsNewLabel(card.items.length), "What's new (1)");
-    assert.equal(
-      shown.filter((entry) => entry.kind === "post").map((entry) => entry.item.post.id).join(),
-      "maya",
-    );
-  });
+function ids(entries: { kind: string; item: ForYouSource }[]) {
+  return entries.map((entry) => entry.item.post.id);
+}
 
-  it("shows both collector posts with the same text", () => {
-    const items = [
-      row({ id: "first", authorId: "maya", body: "Nice card" }),
-      row({ id: "again", authorId: "maya", body: "Nice card" }),
-    ];
-    const shown = presentForYouFeed(items);
-    assert.deepEqual(
-      shown.map((entry) => (entry.kind === "post" ? entry.item.post.id : "card")),
-      ["first", "again"],
-    );
-  });
+const lanes = [
+  ["For You", presentForYouFeed],
+  ["Following", presentFollowingFeed],
+] as const;
 
-  it("shows both Mail Days with the same caption", () => {
-    const items = [
-      row({ id: "mail-a", authorId: "kyle", body: "New card testing mail day", postType: "mail_day", card: { id: "a" } }),
-      row({ id: "mail-b", authorId: "kyle", body: "New card testing mail day", postType: "mail_day", card: { id: "b" } }),
-    ];
-    const shown = presentForYouFeed(items);
-    assert.deepEqual(
-      shown.map((entry) => (entry.kind === "post" ? entry.item.post.id : "card")),
-      ["mail-a", "mail-b"],
-    );
-  });
 
-  it("shows a repost and its original", () => {
-    const items = [
-      row(
-        { id: "note", authorId: UPDATES, body: "New on Slabhold: quote posts." },
-        { key: "repost:maya:note", repostedBy: { id: "maya" } },
-      ),
-      row({ id: "note", authorId: UPDATES, body: "New on Slabhold: quote posts." }),
-    ];
-    const shown = presentForYouFeed(items);
-    assert.equal(shown.filter((entry) => entry.kind === "post").length, 1);
-    assert.equal(shown[0]?.kind, "post");
-    if (shown[0]?.kind === "post") assert.equal(shown[0].item.key, "repost:maya:note");
-    const card = shown.find((entry) => entry.kind === "whats-new");
-    assert.equal(card?.kind, "whats-new");
-    if (card?.kind === "whats-new") assert.deepEqual(card.items.map((item) => item.key), ["post:note"]);
-  });
+describe("Home timeline display", () => {
+  for (const [name, present] of lanes) {
+    describe(name, () => {
+      it("hides release notes and never returns a What's new entry", () => {
+        const items = [
+          row({ id: "note-1", authorId: UPDATES, body: "New on Slabhold: card pages open faster." }),
+          row({ id: "sell", authorId: "maya", body: "Have a few of these i would sell" }),
+          row({ id: "note-2", authorId: UPDATES, body: "Keep scrolling! Your feed loads older posts." }),
+          row({ id: "pickup", authorId: "kyle", body: "New pickup", postType: "mail_day", card: { id: "card" } }),
+          row({ id: "note-3", authorId: UPDATES, body: "The Timeline tab is now called Home." }),
+          row({ id: "older", authorId: "maya", body: "Looking to sell" }),
+        ];
+        const before = items.map((item) => item.post.id);
+        const shown = present(items);
+        assert.deepEqual(items.map((item) => item.post.id), before);
+        assert.ok(shown.every((entry) => entry.kind === "post"));
+        assert.deepEqual(ids(shown), ["sell", "pickup", "older"]);
+      });
 
-  it("keeps the same text when a different person posted it", () => {
-    const items = [
-      row({ id: "a", authorId: "maya", body: "Nice card" }),
-      row({ id: "b", authorId: "kyle", body: "Nice card" }),
-    ];
-    const shown = presentForYouFeed(items);
-    assert.deepEqual(
-      shown.map((entry) => (entry.kind === "post" ? entry.item.post.id : "card")),
-      ["a", "b"],
-    );
-  });
+      it("returns nothing when every row is a release note", () => {
+        const shown = present([
+          row({ id: "a", authorId: UPDATES, body: "New on Slabhold: one." }),
+          row({ id: "b", authorId: UPDATES, body: "New on Slabhold: two." }),
+        ]);
+        assert.deepEqual(shown, []);
+      });
 
-  it("does not treat empty captions as duplicates", () => {
-    const items = [
-      row({ id: "pic-a", authorId: "maya", body: "   ", imageDataUrl: "https://example.com/a.jpg" }),
-      row({ id: "pic-b", authorId: "maya", body: "", imageDataUrl: "https://example.com/b.jpg" }),
-    ];
-    const shown = presentForYouFeed(items);
-    assert.equal(shown.length, 2);
-  });
+      it("keeps collector posts in their exact order, duplicates included", () => {
+        const items = [
+          row({ id: "first", authorId: "maya", body: "Nice card" }),
+          row({ id: "again", authorId: "maya", body: "Nice card" }),
+          row({ id: "kyle", authorId: "kyle", body: "Nice card" }),
+          row({ id: "pic-a", authorId: "maya", body: "   ", imageDataUrl: "https://example.com/a.jpg" }),
+          row({ id: "pic-b", authorId: "maya", body: "", imageDataUrl: "https://example.com/b.jpg" }),
+        ];
+        assert.deepEqual(ids(present(items)), ["first", "again", "kyle", "pic-a", "pic-b"]);
+      });
 
-  it("puts the newest collector post first and groups release notes into one card", () => {
+      it("shows @slabhold brand posts normally", () => {
+        assert.notEqual(BRAND, UPDATES);
+        const items = [
+          row({ id: "brand", authorId: BRAND, body: "New on Slabhold: quote posts are live." }),
+          row({ id: "note", authorId: UPDATES, body: "New on Slabhold: quote posts are live." }),
+          row({ id: "maya", authorId: "maya", body: "Pickup" }),
+        ];
+        assert.deepEqual(ids(present(items)), ["brand", "maya"]);
+      });
+
+      it("does not hide an impostor named slabholdupdates", () => {
+        const items = [
+          row({ id: "note", authorId: UPDATES, body: "New on Slabhold: sharing opens the share sheet." }),
+          row({ id: "copy", authorId: IMPOSTER, body: "New on Slabhold: I am slabholdupdates." }),
+        ];
+        assert.deepEqual(ids(present(items)), ["copy"]);
+      });
+
+      it("keeps a repost of a release note with the collector who reposted it", () => {
+        const items = [
+          row(
+            { id: "note", authorId: UPDATES, body: "New on Slabhold: quote posts." },
+            { key: "repost:maya:note", repostedBy: { id: "maya" } },
+          ),
+          row({ id: "note", authorId: UPDATES, body: "New on Slabhold: quote posts." }),
+        ];
+        const shown = present(items);
+        assert.deepEqual(shown.map((entry) => entry.item.key), ["repost:maya:note"]);
+      });
+
+      it("keeps a photo or quote from the updates account", () => {
+        const items = [
+          row({ id: "pic", authorId: UPDATES, body: "#NewProfilePic", imageDataUrl: "https://example.com/pic.jpg" }),
+          row({ id: "quote", authorId: UPDATES, body: "Look at this", quotedPostId: "post-1" }),
+          row({ id: "note", authorId: UPDATES, body: "New on Slabhold: sharing opens the share sheet." }),
+        ];
+        assert.deepEqual(ids(present(items)), ["pic", "quote"]);
+      });
+    });
+  }
+
+  it("both lanes use the same filter", () => {
     const items = [
-      row({ id: "note-1", authorId: UPDATES, body: "New on Slabhold: card pages open faster." }),
-      row({ id: "sell", authorId: "maya", body: "Have a few of these i would sell" }),
-      row({ id: "note-2", authorId: UPDATES, body: "Keep scrolling! Your feed loads older posts." }),
-      row({ id: "mail", authorId: "kyle", body: "New card testing mail day", postType: "mail_day", card: { id: "card" } }),
-      row({ id: "note-3", authorId: UPDATES, body: "The Timeline tab is now called Home." }),
-      row({ id: "older", authorId: "maya", body: "Looking to sell" }),
+      row({ id: "note", authorId: UPDATES, body: "New on Slabhold: hello." }),
+      row({ id: "maya", authorId: "maya", body: "Pickup" }),
+      row({ id: "copy", authorId: IMPOSTER, body: "New on Slabhold: hello." }),
     ];
-    const shown = presentForYouFeed(items);
-    assert.equal(shown[0]?.kind, "post");
-    if (shown[0]?.kind === "post") assert.equal(shown[0].item.post.id, "sell");
-    assert.equal(shown[1]?.kind, "whats-new");
-    if (shown[1]?.kind === "whats-new") {
-      assert.deepEqual(
-        shown[1].items.map((item) => item.post.id),
-        ["note-1", "note-2", "note-3"],
-      );
-    }
-    assert.deepEqual(
-      shown.slice(2).map((entry) => (entry.kind === "post" ? entry.item.post.id : entry.kind)),
-      ["mail", "older"],
-    );
+    assert.deepEqual(withoutReleaseNotes(items).map((item) => item.post.id), ["maya", "copy"]);
+    assert.deepEqual(ids(presentForYouFeed(items)), ids(presentFollowingFeed(items)));
   });
 
   it("treats text from the updates account id as a release note", () => {
-    assert.equal(RELEASE_NOTE_HANDLE, "slabholdupdates");
     assert.equal(UPDATES, "6d31ab97-9162-4296-876d-9e0378872fce");
-    assert.equal(
-      isReleaseNotePost({ authorId: UPDATES, body: "New on Slabhold: hello." }),
-      true,
-    );
-    assert.equal(
-      isReleaseNotePost({ authorId: IMPOSTER, body: "New on Slabhold: hello." }),
-      false,
-    );
-    const items = [
-      row({ id: "note", authorId: UPDATES, body: "New on Slabhold: sharing a post opens the share sheet." }),
-      row({ id: "copy", authorId: IMPOSTER, body: "New on Slabhold: I claimed the old handle." }),
-    ];
-    const shown = presentForYouFeed(items);
-    assert.equal(shown[0]?.kind, "post");
-    if (shown[0]?.kind === "post") assert.equal(shown[0].item.post.id, "copy");
-    assert.equal(shown[1]?.kind, "whats-new");
+    assert.equal(isReleaseNotePost({ authorId: UPDATES, body: "New on Slabhold: hello." }), true);
+    assert.equal(isReleaseNotePost({ authorId: IMPOSTER, body: "New on Slabhold: hello." }), false);
+    assert.equal(isReleaseNotePost({ authorId: BRAND, body: "New on Slabhold: hello." }), false);
   });
 
   it("does not treat a non-official uuid named slabholdupdates or grokbotreview as a release note", () => {
@@ -185,77 +156,41 @@ describe("For You display", () => {
       isReleaseNotePost({ authorId: imposter, body: "New on Slabhold: I am @grokbotreview." }),
       false,
     );
-    const shown = presentForYouFeed([
-      row({ id: "fake-updates", authorId: imposter, body: "New on Slabhold: I am slabholdupdates." }),
-      row({ id: "fake-old", authorId: imposter, body: "New on Slabhold: I am grokbotreview." }),
-    ]);
-    assert.deepEqual(
-      shown.map((entry) => entry.kind),
-      ["post", "post"],
+    for (const [, present] of lanes) {
+      const shown = present([
+        row({ id: "fake-updates", authorId: imposter, body: "New on Slabhold: I am slabholdupdates." }),
+        row({ id: "fake-old", authorId: imposter, body: "New on Slabhold: I am grokbotreview." }),
+      ]);
+      assert.deepEqual(ids(shown), ["fake-updates", "fake-old"]);
+    }
+  });
+
+  it("leaves a photo, repost, or quote from the updates account alone", () => {
+    assert.equal(
+      isReleaseNotePost({ authorId: UPDATES, body: "#NewProfilePic", imageUrl: "https://example.com/pic.jpg" }),
+      false,
+    );
+    assert.equal(isReleaseNotePost({ authorId: UPDATES, body: "New on Slabhold: hi.", reposted: true }), false);
+    assert.equal(
+      isReleaseNotePost({ authorId: UPDATES, body: "New on Slabhold: quoting this.", quotedPostId: "post-1" }),
+      false,
     );
   });
 
-  it("leaves a photo, repost, or quote from the updates account in the feed", () => {
-    assert.equal(
-      isReleaseNotePost({
-        authorId: UPDATES,
-        body: "#NewProfilePic",
-        imageUrl: "https://example.com/pic.jpg",
-      }),
-      false,
-    );
-    assert.equal(
-      isReleaseNotePost({
-        authorId: UPDATES,
-        body: "New on Slabhold: Mail Day.",
-        reposted: true,
-      }),
-      false,
-    );
-    assert.equal(
-      isReleaseNotePost({
-        authorId: UPDATES,
-        body: "New on Slabhold: quoting this.",
-        quotedPostId: "post-1",
-      }),
-      false,
-    );
-    const items = [
-      row({ id: "pic", authorId: UPDATES, body: "#NewProfilePic", imageDataUrl: "https://example.com/pic.jpg" }),
-      row({ id: "note", authorId: UPDATES, body: "New on Slabhold: sharing a post opens the share sheet." }),
-    ];
-    const shown = presentForYouFeed(items);
-    assert.equal(shown[0]?.kind, "post");
-    if (shown[0]?.kind === "post") assert.equal(shown[0].item.post.id, "pic");
-    assert.equal(shown[1]?.kind, "whats-new");
-  });
-
-  it("keeps a repost of a release note with the collector who reposted it", () => {
-    const items = [
-      row(
-        { id: "note", authorId: UPDATES, body: "New on Slabhold: quote posts." },
-        { key: "repost:maya:note", repostedBy: { id: "maya" } },
-      ),
-    ];
-    const shown = presentForYouFeed(items);
-    assert.equal(shown.length, 1);
-    assert.equal(shown[0]?.kind, "post");
-  });
-
-  it("only changes how For You is drawn", () => {
+  it("removes the What's new card and filters both lanes in the feed view", () => {
     const view = read("components/feed-view.tsx");
     const loader = read("lib/social/load-feed-page.ts");
-    assert.match(view, /lane === "foryou"\s*\?\s*presentForYouFeed/);
+    const display = read("lib/social/for-you-display.ts");
+    assert.equal(existsSync(join(process.cwd(), "components/whats-new-card.tsx")), false);
+    assert.doesNotMatch(view, /WhatsNewCard|whats-new/);
+    assert.doesNotMatch(display, /whats-new|whatsNewLabel|What's new/);
+    assert.match(view, /lane === "foryou"\s*\?\s*presentForYouFeed\(visible\)\s*:\s*presentFollowingFeed\(visible\)/);
     assert.match(view, /showsNewPosts\(/);
     assert.match(view, /<LoadMore/);
     assert.match(view, /onLoadMore=\{activePage\.loadMore\}/);
     assert.doesNotMatch(loader, /grokbotreview|slabholdupdates/);
-    const card = read("components/whats-new-card.tsx");
-    const display = read("lib/social/for-you-display.ts");
-    assert.match(card, /isOfficialUpdatesAccount/);
     assert.match(display, /isOfficialUpdatesAccount/);
     assert.doesNotMatch(display, /RELEASE_NOTE_HANDLES/);
-    assert.doesNotMatch(card, /grokbotreview/);
     assert.doesNotMatch(display, /\.delete\(|delete from/i);
   });
 });

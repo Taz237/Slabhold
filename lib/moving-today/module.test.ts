@@ -931,12 +931,11 @@ describe("For You placement", () => {
     const feed = read("components/feed-view.tsx");
     const tabs = feed.indexOf("<LaneTabs");
     const grouping = feed.indexOf("presentForYouFeed(visible");
-    const notes = feed.indexOf("<WhatsNewCard");
     const map = feed.indexOf("shownEntries.map");
     assert.ok(tabs > 0);
     assert.doesNotMatch(feed, /MovingToday|movingToday|MoversSignedIn/);
     assert.ok(grouping > 0 && grouping < map);
-    assert.ok(notes > map);
+    assert.doesNotMatch(feed, /WhatsNewCard|whats-new/);
     assert.match(feed, /<NewPostsPill/);
     assert.match(feed, /showWelcome \? <HomeFirstCardPrompt afterGetStarted=\{welcomeAfterGetStarted\} \/> : null/);
     assert.doesNotMatch(feed, /CollectionToday|collection-today/);
