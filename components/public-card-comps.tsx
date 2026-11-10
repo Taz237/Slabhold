@@ -81,9 +81,9 @@ export function PublicCardCompsPreview({
       <Link
         href={href}
         onClick={() => trackPublicCompsCta()}
-        className="mt-4 flex min-h-11 w-full items-center justify-center rounded-full bg-[#7C3AED] px-4 text-center text-sm font-semibold text-white"
+        className="mt-4 flex min-h-11 w-full items-center justify-center rounded-full bg-[#7C3AED] px-5 py-2.5 text-center text-sm leading-5 font-semibold text-white"
       >
-        Sign up free to see full history, charts and alerts
+        Create an account to see full history and charts
       </Link>
     </div>
   );

@@ -62,7 +62,7 @@ describe("landing page", () => {
     assert.match(text(html), /Your cards\. Your comps\. Your people\./);
     assert.match(html, /href="\/signup\?next=%2Fleaderboard"[^>]*>Create account</);
     assert.match(html, /href="\/login\?next=%2Fleaderboard"/);
-    assert.match(text(html), /Join free/);
+    assert.match(text(html), /Join Slabhold/);
     assert.equal((html.match(/>Create account</g) ?? []).length, 2, "hero and final call to action");
     assert.match(html, /data-hero-slabs/);
   });

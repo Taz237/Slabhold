@@ -53,6 +53,22 @@ export const ON_BOARD_THIN_DETAIL = "Hold your spot. Open spots fill as collecto
 /** Ghost row for an empty podium place this week. */
 export const OPEN_SPOT_LABEL = "Open spot";
 
+/** The join step after the open-spot count, per board. */
+export const OPEN_SPOTS_JOIN_LINE: Readonly<Record<string, string>> = {
+  "most-cards-added": "Add a card to join.",
+  "rising-collectors": "Find collectors to follow.",
+  "top-card-post": "Post a card to join.",
+};
+
+/**
+ * One row for a whole empty podium this week, in place of a ghost per place:
+ * "3 open spots. Add a card to join."
+ */
+export function openSpotsLabel(count: number, boardId: string): string {
+  const spots = count === 1 ? "1 open spot" : `${count} open spots`;
+  return `${spots}. ${OPEN_SPOTS_JOIN_LINE[boardId] ?? OPEN_SPOTS_JOIN_LINE["top-card-post"]}`;
+}
+
 /** Ghost row for an empty podium place on a past week. No call to action. */
 export const OPEN_SPOT_CLOSED_LABEL = "No one took this spot";
 

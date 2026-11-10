@@ -8,6 +8,7 @@ import {
   ON_BOARD_THIN_TITLE,
   OPEN_SPOT_CLOSED_LABEL,
   OPEN_SPOT_LABEL,
+  openSpotsLabel,
   FINAL_LABEL,
   LAST_WEEK_LABEL,
   LAST_WEEK_DESCRIPTION,
@@ -104,6 +105,14 @@ export type OpenSpot = {
   ctaHref: string | null;
 };
 
+/** Every open place on an empty board this week, as one row. */
+export type OpenSpotsRow = {
+  count: number;
+  title: string;
+  ctaLabel: string;
+  ctaHref: string;
+};
+
 export type BoardRow = RankedEntry & {
   /** This row belongs to the signed-in viewer. Matched by user id. */
   mine: boolean;
@@ -122,6 +131,8 @@ export type LeaderboardBoard = {
   entries: BoardRow[];
   /** Fills podium places 1 to 3 that nobody holds. Never past rank 3. */
   ghosts: OpenSpot[];
+  /** The ghosts above as one row when nobody is on the board this week. Null otherwise. */
+  openRow: OpenSpotsRow | null;
   you: YouRow | null;
   /** The viewer's row at the bottom of the board. Null when signed out or already in the top 10. */
   yourSpot: YouRow | null;
@@ -360,6 +371,23 @@ function openSpots(filled: number, boardId: string, week: "current" | "previous"
   return spots;
 }
 
+/**
+ * An empty board this week draws its open places as one row:
+ * "3 open spots. Add a card to join." Null once anyone is on the board, and
+ * on past weeks.
+ */
+export function openSpotsRow(ghosts: readonly OpenSpot[], filled: number, boardId: string): OpenSpotsRow | null {
+  if (filled > 0 || ghosts.length < 2) return null;
+  const cta = ghosts[0];
+  if (!cta.ctaHref || !cta.ctaLabel) return null;
+  return {
+    count: ghosts.length,
+    title: openSpotsLabel(ghosts.length, boardId),
+    ctaLabel: cta.ctaLabel,
+    ctaHref: cta.ctaHref,
+  };
+}
+
 export function presentLeaderboard(input: {
   snapshot: LeaderboardSnapshot;
   viewer: LeaderboardViewer;
@@ -411,6 +439,7 @@ export function presentLeaderboard(input: {
             tab.id,
           )
         : [];
+    const ghosts = openSpots(entries.length, tab.id, input.week);
     return {
       id: tab.id,
       label: tab.label,
@@ -420,7 +449,8 @@ export function presentLeaderboard(input: {
       thin: ranked.thin,
       focused: tab.id === input.focusBoardId,
       entries,
-      ghosts: openSpots(entries.length, tab.id, input.week),
+      ghosts,
+      openRow: openSpotsRow(ghosts, entries.length, tab.id),
       you,
       yourSpot: onBoard ? null : you,
       lastWeekTop,
@@ -428,6 +458,8 @@ export function presentLeaderboard(input: {
   });
   const countdown = countdownTo(new Date(input.snapshot.current.end), input.now);
   return {
+    ...leadBoardFirst(boards, input.week),
+
     title: LEADERBOARD_TITLE,
     description: input.week === "previous" ? LAST_WEEK_DESCRIPTION : LEADERBOARD_DESCRIPTION,
     week: input.week,
@@ -458,8 +490,27 @@ export function presentLeaderboard(input: {
     rulesLine: RULES_LINE,
     rules: tabs.map((tab) => ({ id: tab.id, label: tab.label, lines: tab.howTo })),
     viewerUserId: viewerId,
-    boards,
   };
+}
+
+/**
+ * This week, when the first board in page order is empty, the board with the
+ * most people moves to the front. Ties keep page order, and the rest keep
+ * their order. Board ids and links do not change.
+ */
+export function leadBoardFirst(
+  boards: readonly LeaderboardBoard[],
+  week: "current" | "previous",
+): { boards: LeaderboardBoard[] } {
+  const list = [...boards];
+  if (week !== "current" || list.length === 0 || list[0].entries.length > 0) return { boards: list };
+  let lead = 0;
+  list.forEach((board, index) => {
+    if (board.entries.length > list[lead].entries.length) lead = index;
+  });
+  if (lead === 0) return { boards: list };
+  const [busiest] = list.splice(lead, 1);
+  return { boards: [busiest, ...list] };
 }
 
 /** Shown when the shared read or the viewer block list fails. Never an unfiltered board. */

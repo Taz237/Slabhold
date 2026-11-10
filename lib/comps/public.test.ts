@@ -631,7 +631,7 @@ describe("public comps signup", () => {
     const href = signupPath(CARD_PATH);
     assert.equal(href, `/signup?next=${encodeURIComponent(safeNext(CARD_PATH))}`);
     assert.ok(linked.includes(`href="${href}"`));
-    assert.match(linked, /Sign up free to see full history, charts and alerts/);
+    assert.match(linked, /Create an account to see full history and charts/);
 
     const rejected = renderPreview(comps, "https://evil.example/phish");
     assert.ok(rejected.includes('href="/signup?next=%2F"'));

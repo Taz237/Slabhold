@@ -27,7 +27,7 @@ const IN_CHUNK = 80;
 
 const SALE_COLUMNS = "query_key, card_id, item_id, price, sold_at";
 const CARD_COLUMNS =
-  "id, user_id, player, year, year_label, set, set_name, grade, grader, condition_type, is_rookie, image_url, accent, sport";
+  "id, user_id, player, year, year_label, set, set_name, grade, grader, condition_type, is_rookie, image_url, accent, sport, parallel";
 const NEWEST_COLUMNS = `${CARD_COLUMNS}, created_at, estimated_value`;
 
 type Row = Record<string, unknown>;
@@ -89,6 +89,7 @@ function mapCard(row: Row): PublicCardRef | null {
     createdAt: typeof row.created_at === "string" ? row.created_at : null,
     estimatedValue:
       row.estimated_value == null || row.estimated_value === "" ? null : Number(row.estimated_value),
+    ...(typeof row.parallel === "string" && row.parallel.trim() ? { parallel: row.parallel.trim() } : {}),
   };
 }
 
@@ -200,7 +201,11 @@ export async function readMovingToday(
   const owners = [...saleOwners, ...historyOwners, ...extraOwners];
   const flags = [...saleFlags, ...historyFlags, ...extraFlags];
 
-  const userIds = [...new Set([...cards, ...newest].map((card) => card.userId))];
+  // Owners of every card, private ones too, so a test or review owner's own
+  // sales drop before ranking.
+  const userIds = [
+    ...new Set([...[...cards, ...newest].map((card) => card.userId), ...owners.map((owner) => owner.userId)]),
+  ];
   const profiles = await readProfiles(admin, userIds);
   return assembleMovingToday({
     today: window.date,
@@ -305,16 +310,34 @@ function readAlternates(admin: Admin, queryKeys: string[]): Promise<{ queryKey: 
   );
 }
 
-function readProfiles(admin: Admin, userIds: string[]): Promise<ProfileRef[]> {
-  return readInChunks(
-    userIds,
-    (group) => admin.from("profiles").select("id, username").in("id", group),
-    (record) => {
-      const id = typeof record.id === "string" ? record.id : "";
-      const username = typeof record.username === "string" ? record.username : "";
-      return id && username ? { id, username } : null;
-    },
-  );
+function mapProfile(record: Row): ProfileRef | null {
+  const id = typeof record.id === "string" ? record.id : "";
+  const username = typeof record.username === "string" ? record.username : "";
+  if (!id || !username) return null;
+  return record.is_test === true ? { id, username, isTest: true } : { id, username };
+}
+
+/** Same fallback as trending-read: an older database without profiles.is_test reads handles only. */
+function missingIsTest(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error ?? "");
+  return /is_test/i.test(message);
+}
+
+async function readProfiles(admin: Admin, userIds: string[]): Promise<ProfileRef[]> {
+  try {
+    return await readInChunks(
+      userIds,
+      (group) => admin.from("profiles").select("id, username, is_test").in("id", group),
+      mapProfile,
+    );
+  } catch (error) {
+    if (!missingIsTest(error)) throw error;
+    return readInChunks(
+      userIds,
+      (group) => admin.from("profiles").select("id, username").in("id", group),
+      mapProfile,
+    );
+  }
 }
 
 /**
