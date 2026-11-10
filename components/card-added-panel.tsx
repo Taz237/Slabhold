@@ -148,10 +148,12 @@ export function CardAddedPanel({
       </button>
 
       <div className="flex flex-col items-center text-center">
-        {/* Phones size the slab by screen height so the buttons below stay on screen. */}
+        {/* Phones size the slab by screen height so the buttons below stay on screen.
+            min-w-0: without it, aspect-ratio's automatic minimum lets the slab art's
+            min-content width stretch the frame, and the taller slab covers the line below. */}
         <div
           data-reveal="frame"
-          className="relative aspect-[3/5] h-[clamp(8.5rem,calc(100svh-36.5rem-env(safe-area-inset-bottom)),15rem)] md:h-auto md:w-40"
+          className="relative aspect-[3/5] min-w-0 h-[clamp(8.5rem,calc(100svh-36.5rem-env(safe-area-inset-bottom)),15rem)] md:h-auto md:w-40"
         >
           <div
             aria-hidden

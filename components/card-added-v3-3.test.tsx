@@ -314,6 +314,15 @@ describe("reveal: the slab glides in from Review", () => {
     }
   });
 
+  it("keeps the slab inside its 3:5 frame, so it never covers the Added line", () => {
+    // aspect-ratio's automatic minimum would let the art's min-content width widen
+    // the frame (and so the slab's height). min-w-0 keeps the frame at 3:5.
+    const panel = read("components/card-added-panel.tsx");
+    const frame = panel.match(/data-reveal="frame"\s+className="([^"]+)"/)?.[1] ?? "";
+    assert.match(frame, /(?:^|\s)aspect-\[3\/5\](?:\s|$)/);
+    assert.match(frame, /(?:^|\s)min-w-0(?:\s|$)/);
+  });
+
   it("keeps the glow, off under reduced motion, and adds no confetti, sparkles or second glow", () => {
     const panel = read("components/card-added-panel.tsx");
     assert.match(panel, /data-reveal="glow"[^>]*motion-reduce:hidden/);
