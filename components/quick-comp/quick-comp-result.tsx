@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { RefreshCw } from "lucide-react";
+import { useEffect } from "react";
 import { solidButton } from "@/components/button-styles";
 import { LazyCompsList } from "@/components/card-page-parts";
 import { CompCardSkeleton, CompEmpty, compCard, compLabel } from "@/components/comp-basis";
@@ -10,6 +11,7 @@ import { TREND_MIN_SALES, shortAgo } from "@/components/sales-chart";
 import type { CatalogCard } from "@/lib/card-catalog";
 import { salesFromComps, splitOutliers } from "@/lib/chart/sales";
 import { money } from "@/lib/format";
+import { askForReview } from "@/lib/ios/review";
 import type { QuickCompIdentity } from "@/lib/quick-comp/identity";
 import type { SavedPayload } from "@/lib/quick-comp/recent";
 import { quickCompStats, saleSpan, trustLine } from "@/lib/quick-comp/stats";
@@ -119,6 +121,11 @@ export function QuickCompResult({
   const sales = salesFromComps(payload.comps);
   const empty = payload.comps.length === 0 || payload.median == null;
   const ago = savedAt ? shortAgo(savedAt) : "";
+  // A happy moment: real sales for this card. Only the iPhone app may ask, once.
+  const reviewKey = empty || payload.sample ? null : `${identity.playerName}\u0000${identityLine(identity)}`;
+  useEffect(() => {
+    if (reviewKey) askForReview("first-quick-comp");
+  }, [reviewKey]);
 
   return (
     <div data-quick-comp-state={empty ? "empty" : "result"} className="flex flex-col gap-3">

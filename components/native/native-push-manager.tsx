@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useOnboardingBusy } from "@/components/onboarding/use-onboarding";
 import { PushToast, SoftAsk } from "@/components/push/soft-ask";
+import { useSocial } from "@/components/social-provider";
 import { trackEvent } from "@/lib/analytics";
 import { setSignOutHook } from "@/lib/auth/sign-out-hook";
 import { isAuthPage, isChromelessPath } from "@/lib/auth/guest-paths";
@@ -31,6 +32,39 @@ import {
 import { onSocialAction, type SocialAction } from "@/lib/social/action-signal";
 import { afterFirstIdle } from "@/lib/ui/idle";
 import type { Profile } from "@/lib/social/types";
+
+type NativeModule = Awaited<ReturnType<typeof loadNative>>;
+export type BadgeNative = Pick<NativeModule, "nativeExtrasAvailable" | "setNativeBadge" | "onAppResume">;
+type Listens = Pick<EventTarget, "addEventListener" | "removeEventListener">;
+export type BadgeEnv = { document: Listens & { visibilityState: DocumentVisibilityState }; window: Listens };
+
+/**
+ * The app icon's red number: set it to unread now, and again whenever the app
+ * comes back to the front. Builds without our plugin (2 and 3) make no calls.
+ * Returns the undo.
+ */
+export function keepNativeBadge(native: BadgeNative, unread: number, env: BadgeEnv): () => void {
+  if (!native.nativeExtrasAvailable()) return () => {};
+  const set = () => void native.setNativeBadge(unread).catch(() => undefined);
+  const onVisible = () => {
+    if (env.document.visibilityState === "visible") set();
+  };
+  set();
+  env.document.addEventListener("visibilitychange", onVisible);
+  env.window.addEventListener("focus", onVisible);
+  const stopResume = native.onAppResume(set);
+  return () => {
+    env.document.removeEventListener("visibilitychange", onVisible);
+    env.window.removeEventListener("focus", onVisible);
+    stopResume();
+  };
+}
+
+/** Sign-out: no red number on the icon. A no-op without our plugin. */
+export function clearNativeBadge(native: Pick<BadgeNative, "nativeExtrasAvailable" | "setNativeBadge">): Promise<void> {
+  if (!native.nativeExtrasAvailable()) return Promise.resolve();
+  return native.setNativeBadge(0).catch(() => undefined);
+}
 
 const ASK_ACTIONS = new Set<SocialAction>(["follow", "post", "like"]);
 const RESAVED_KEY = "slabhold.apns.resaved";
@@ -66,7 +100,8 @@ function overlayOpen(): boolean {
  * post or like, or once on Home for existing users), with the native prompt
  * behind "Turn on". Refreshes this phone's token on each launch when this
  * user turned push on here, sends /api/push/flush after social actions, and
- * removes the token on sign-out. Mounted only inside the app, signed in.
+ * removes the token on sign-out. Keeps the app icon badge at unread
+ * notifications plus unread DMs. Mounted only inside the app, signed in.
  * Nothing shows on old builds (no plugin) or while APNs is off on the server.
  */
 export function NativePushManager({ user }: { user: Profile }) {
@@ -74,6 +109,7 @@ export function NativePushManager({ user }: { user: Profile }) {
   const onboardingBusy = useOnboardingBusy();
   const [asking, setAsking] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const { notifications, unreadMessageCount } = useSocial();
   const userId = user.id;
   const accountCreatedAt = Number.isFinite(Date.parse(user.createdAt)) ? Date.parse(user.createdAt) : null;
 
@@ -116,6 +152,34 @@ export function NativePushManager({ user }: { user: Profile }) {
     setSignOutHook(() => forgetApnsToken({ keepalive: true }));
     return () => setSignOutHook(null);
   }, []);
+
+  // App icon badge, the same count as the web's: kept current as things are
+  // read, and on every return to the front. Opening the app clears what's read.
+  const unread = notifications.filter((note) => !note.read).length + unreadMessageCount;
+  useEffect(() => {
+    let cancelled = false;
+    let stop = () => {};
+    void loadNative()
+      .then((native) => {
+        if (!cancelled) stop = keepNativeBadge(native, unread, { document, window });
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+      stop();
+    };
+  }, [unread]);
+
+  // Sign-out unmounts this manager (it only mounts signed in): clear the icon.
+  // The token removal above keeps the one sign-out hook.
+  useEffect(
+    () => () => {
+      void loadNative()
+        .then((native) => clearNativeBadge(native))
+        .catch(() => undefined);
+    },
+    [],
+  );
 
   const evaluate = useCallback(
     async (trigger: "action" | "existing-open") => {

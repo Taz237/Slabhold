@@ -66,6 +66,7 @@ import {
 } from "@/lib/cards/add-form-sections";
 import { addedCardPath } from "@/lib/cards/added-panel";
 import { preloadCardAddedPanel } from "@/components/card-page-parts";
+import { askForReview } from "@/lib/ios/review";
 import {
   assessNewCardSubmit,
   clearNewCardDraft,
@@ -878,6 +879,8 @@ export function CardForm({
       await saved;
       const { card } = result;
       createdId = null;
+      // A happy moment: a new card makes 3 or more. Only the iPhone app may ask.
+      if (!existing && knownCards.filter((item) => item.id !== card.id).length + 1 >= 3) askForReview("third-card");
       if (seed != null) {
         setDraftSealed(true);
         pendingId.current = card.id;
