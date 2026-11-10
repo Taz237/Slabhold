@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Logo } from "@/components/logo";
+import { haptic } from "@/lib/ios/haptics";
 import {
   PULL_HOLD_PX,
   PULL_THRESHOLD_PX,
@@ -187,6 +188,7 @@ export function PullToRefresh({
       }
       // A light tick where the device has one. iOS Safari has none; the pop is the cue.
       if (typeof navigator.vibrate === "function") navigator.vibrate(8);
+      haptic("refresh");
     }
 
     function stopWatching() {

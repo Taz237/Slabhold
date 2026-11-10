@@ -66,6 +66,7 @@ import {
 } from "@/lib/cards/add-form-sections";
 import { addedCardPath } from "@/lib/cards/added-panel";
 import { preloadCardAddedPanel } from "@/components/card-page-parts";
+import { haptic } from "@/lib/ios/haptics";
 import { askForReview } from "@/lib/ios/review";
 import {
   assessNewCardSubmit,
@@ -877,6 +878,7 @@ export function CardForm({
       // The card page opens with the "Added" panel: fetch it while the save runs.
       if (!existing) preloadCardAddedPanel();
       await saved;
+      if (!existing) haptic("save");
       const { card } = result;
       createdId = null;
       // A happy moment: a new card makes 3 or more. Only the iPhone app may ask.

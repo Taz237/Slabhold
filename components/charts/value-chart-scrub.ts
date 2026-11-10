@@ -1,5 +1,6 @@
 import { dayLabel, nearestIndex } from "@/lib/chart/geometry";
 import { money } from "@/lib/format";
+import { haptic } from "@/lib/ios/haptics";
 
 /**
  * The full chart's press, drag and arrow-key handling. ValueChart loads
@@ -28,7 +29,7 @@ export type ScrubState = {
  */
 export function chartHaptic(): void {
   try {
-    // ios-shell-1: call nativeTap("light") here
+    haptic("tick");
     navigator.vibrate?.(4);
   } catch {
     // Not supported. Nothing to do.

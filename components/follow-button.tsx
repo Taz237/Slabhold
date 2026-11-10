@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useSocial } from "@/components/social-provider";
 import { trackEvent } from "@/lib/analytics";
+import { haptic } from "@/lib/ios/haptics";
 import { signupPath } from "@/lib/auth/safe-next";
 import {
   completeCardFollow,
@@ -64,6 +65,7 @@ export function FollowButton({
         event.preventDefault();
         event.stopPropagation();
         if (busy.current) return;
+        if (!following) haptic("follow");
         if (source) {
           busy.current = true;
           const pending = optimisticFollowClick();

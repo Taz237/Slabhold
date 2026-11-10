@@ -178,7 +178,7 @@ describe("chart theme: haptic hook", () => {
   it("is one exported chartHaptic, and adds nothing under lib/native", () => {
     const scrub = read("components/charts/value-chart-scrub.ts");
     assert.match(scrub, /export function chartHaptic\(\): void/);
-    assert.match(scrub, /\/\/ ios-shell-1: call nativeTap\("light"\) here/);
+    assert.match(scrub, /haptic\("tick"\)/);
     assert.doesNotMatch(scrub, /function tick\(/);
     assert.equal(existsSync(join(ROOT, "lib/native")), false);
   });
