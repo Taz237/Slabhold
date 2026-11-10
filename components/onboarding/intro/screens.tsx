@@ -103,7 +103,7 @@ export function WelcomeVisual({ motion }: { motion: boolean }) {
     <div className="relative w-[184px] [perspective:900px]">
       <div ref={tilt} className="relative [transform-style:preserve-3d]">
         <div ref={slab}>
-          <CardSlabArt card={SAMPLE_SLABS[0]} index={9} source={NO_PHOTO} status="loading" onStatus={noop} sizes="184px" />
+          <CardSlabArt card={SAMPLE_SLABS[0]} label="sample" index={9} source={NO_PHOTO} status="loading" onStatus={noop} sizes="184px" />
         </div>
         {motion ? (
           <span aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden rounded-[14px]">

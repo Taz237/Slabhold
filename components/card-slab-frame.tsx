@@ -30,6 +30,16 @@ const LABEL_TONES: Record<SlabTone, string> = {
   neutral: "bg-zinc-200 text-zinc-900",
 };
 
+/**
+ * Made-up sample slabs (landing hero, onboarding) wear a generic label in the
+ * brand purple: "Grade 10", no grader name, no barcode. They never imitate a
+ * grading company.
+ */
+const SAMPLE_LABEL = "bg-gradient-to-br from-[#7C3AED] to-[#5B21B6] text-white ring-1 ring-inset ring-white/15";
+
+/** "grader" draws a real card's grader label. "sample" is the generic label above. */
+export type SlabLabel = "grader" | "sample";
+
 /** "tile" fills a 3:5 box so grid rows line up. "hug" fits a raw card to its photo. */
 export type SlabFit = "tile" | "hug";
 
@@ -55,11 +65,14 @@ export function SlabFrame({
   card,
   shape = "portrait",
   fit = "tile",
+  label = "grader",
   children,
 }: {
   card: ArtCard;
   shape?: CardShape;
   fit?: SlabFit;
+  /** Only made-up sample slabs pass "sample". Real cards keep their grader label. */
+  label?: SlabLabel;
   children: ReactNode;
 }) {
   const wide = shape === "landscape";
@@ -84,6 +97,8 @@ export function SlabFrame({
       </div>
     );
   }
+
+  if (label === "sample") return <SampleSlab card={card} wide={wide}>{children}</SampleSlab>;
 
   const tone = slabTone(card);
   const company = slabCompany(card) || "Graded";
@@ -135,6 +150,50 @@ export function SlabFrame({
         </div>
       </div>
       {/* Acrylic glare, top-left. */}
+      <span
+        className="pointer-events-none absolute inset-0 rounded-[10px] bg-[linear-gradient(135deg,rgba(255,255,255,0.35)_0%,rgba(255,255,255,0.08)_22%,transparent_42%)] mix-blend-screen"
+        aria-hidden
+      />
+    </div>
+  );
+}
+
+const SLAB_SHELL =
+  "relative flex aspect-[3/5] w-full flex-col gap-1.5 overflow-hidden rounded-[10px] border border-white/25 bg-gradient-to-b from-zinc-100/90 to-zinc-300/70 p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.7),inset_0_0_0_1px_rgba(255,255,255,0.25),inset_0_-8px_18px_rgba(0,0,0,0.12),0_12px_28px_-12px_rgba(0,0,0,0.6)] dark:border-white/15 dark:from-white/[0.14] dark:to-white/[0.04] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.22),inset_0_0_0_1px_rgba(255,255,255,0.05),inset_0_-10px_20px_rgba(0,0,0,0.35),0_14px_30px_-12px_rgba(0,0,0,0.8)]";
+
+/**
+ * A made-up slab: the same clear case and photo window as a real one, with a
+ * generic purple label. The label keeps the real label's height (a quiet
+ * spacer where the barcode row sits), so the photo lands in the same place.
+ */
+function SampleSlab({ card, wide, children }: { card: ArtCard; wide: boolean; children: ReactNode }) {
+  const number = slabNumber(card) || card.grade.trim();
+  return (
+    <div className={SLAB_SHELL} data-kind="slab" data-label="sample" data-shape={wide ? "landscape" : undefined}>
+      <div className={`shrink-0 rounded-[5px] px-1.5 py-1 ${SAMPLE_LABEL}`}>
+        <div className="flex items-start justify-between gap-1.5">
+          <div className="min-w-0 flex-1">
+            <p className="truncate font-mono text-[7.5px] leading-[10px] font-medium tracking-wider text-[#DDD6FE] uppercase">
+              {yearSetLine(card) || "Sample card"}
+            </p>
+            <p className="truncate text-[9.5px] leading-3 font-semibold tracking-tight uppercase">{card.playerName}</p>
+          </div>
+          <div className="shrink-0 text-right">
+            <p className="font-mono text-[7.5px] leading-[10px] font-medium tracking-wider text-[#DDD6FE] uppercase">
+              Grade
+            </p>
+            <p className="text-[15px] leading-4 font-semibold tracking-tight tabular-nums">{number || "—"}</p>
+          </div>
+        </div>
+        <div className="mt-0.5 h-[9px]" aria-hidden />
+      </div>
+      <div className="flex min-h-0 flex-1 items-center justify-center">
+        <div
+          className={`relative ${wide ? "aspect-[7/5] max-h-full w-full" : "aspect-[5/7] h-full max-w-full"} overflow-hidden rounded-[3px] bg-zinc-900 shadow-[0_0_0_1px_rgba(0,0,0,0.25)]`}
+        >
+          {children}
+        </div>
+      </div>
       <span
         className="pointer-events-none absolute inset-0 rounded-[10px] bg-[linear-gradient(135deg,rgba(255,255,255,0.35)_0%,rgba(255,255,255,0.08)_22%,transparent_42%)] mix-blend-screen"
         aria-hidden

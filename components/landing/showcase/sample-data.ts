@@ -108,7 +108,7 @@ export const REAL_PICKUP_POST = "p6";
 export type PickupDemo = { player: string; year: string; set: string; grader: string; grade: string; photoUrl: string };
 
 /** A made-up card. Its photo is the neutral sample slab, so no logos. */
-export const SAMPLE_QUERY = "2023 Sample Rookie Prizm PSA 10";
+export const SAMPLE_QUERY = "2023 Sample Rookie Prizm Grade 10";
 
 /** Recent sold prices for the sample card, newest first, whole dollars. */
 export const SAMPLE_SALES: readonly { price: number; ago: string }[] = [

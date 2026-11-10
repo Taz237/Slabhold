@@ -86,7 +86,6 @@ const SAMPLE_FIRST_CARD = {
   certNumber: "",
   accent: "#7C3AED",
   conditionType: "graded" as const,
-  grader: "PSA",
 };
 
 function focusable(root: HTMLElement): HTMLElement[] {
@@ -559,6 +558,7 @@ export function FirstRunSetup() {
                 <div className="relative">
                   <CardSlabArt
                     card={SAMPLE_FIRST_CARD}
+                    label="sample"
                     index={0}
                     source={{ kind: "none" }}
                     status="loading"

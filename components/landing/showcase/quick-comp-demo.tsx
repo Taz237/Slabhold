@@ -13,7 +13,7 @@ const SAMPLE_STATS = sampleStats();
 /** The made-up card, played whenever the real one can't be shown. */
 const SAMPLE: CompDemo = {
   query: SAMPLE_QUERY,
-  label: "2023 Sample Rookie Prizm · PSA 10",
+  label: "2023 Sample Rookie Prizm · Grade 10",
   photo: { src: SAMPLE_PHOTO_URL },
   alt: "Sample card in a slab",
   sales: SAMPLE_SALES.map((sale) => ({ price: sale.price, when: `${sale.ago} ago` })),

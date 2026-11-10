@@ -197,7 +197,7 @@ function PostRow({
                 ) : real ? (
                   <RealSlab pickup={real} onError={onPhotoError} />
                 ) : (
-                  <CardSlabArt card={SAMPLE_SLABS[1]} index={9} source={NO_PHOTO} status="loading" onStatus={noop} sizes="112px" />
+                  <CardSlabArt card={SAMPLE_SLABS[1]} label="sample" index={9} source={NO_PHOTO} status="loading" onStatus={noop} sizes="112px" />
                 )}
               </div>
               <PostPill label="Pickup" />

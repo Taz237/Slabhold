@@ -2,7 +2,8 @@ import type { ArtCard } from "@/components/card-slab-art";
 
 /**
  * Sample slabs for the signed-out landing page. No real player, no real
- * collector, no photo: the slab art draws its own designed face.
+ * collector, no photo: the slab art draws its own designed face. No grader
+ * either: they wear the generic purple "Grade" label, never a look-alike.
  */
 export const SAMPLE_SLABS: readonly ArtCard[] = [
   {
@@ -15,7 +16,6 @@ export const SAMPLE_SLABS: readonly ArtCard[] = [
     certNumber: "",
     accent: "#7C3AED",
     conditionType: "graded",
-    grader: "PSA",
   },
   {
     playerName: "Rookie auto",
@@ -27,7 +27,6 @@ export const SAMPLE_SLABS: readonly ArtCard[] = [
     certNumber: "",
     accent: "#5B21B6",
     conditionType: "graded",
-    grader: "BGS",
   },
   {
     playerName: "Short print",
@@ -39,6 +38,5 @@ export const SAMPLE_SLABS: readonly ArtCard[] = [
     certNumber: "",
     accent: "#A78BFA",
     conditionType: "graded",
-    grader: "SGC",
   },
 ];

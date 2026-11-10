@@ -35,13 +35,14 @@ const FILL_ORDER = [1, 0, 2];
 /** The center slab is the widest, and the Home LCP for a visitor. */
 const LCP_SLOT = FILL_ORDER[0];
 
-type Slot = { key: string; art: ArtCard; photo: string | null };
+/** `sample` slots are made up and wear the generic label; founder cards keep theirs. */
+type Slot = { key: string; art: ArtCard; photo: string | null; sample: boolean };
 
 export function heroSlots(cards: readonly FounderCard[]): Slot[] {
-  const slots: Slot[] = SAMPLE_SLABS.map((art) => ({ key: art.playerName, art, photo: null }));
+  const slots: Slot[] = SAMPLE_SLABS.map((art) => ({ key: art.playerName, art, photo: null, sample: true }));
   cards.slice(0, FILL_ORDER.length).forEach((card, rank) => {
     const { id, photoUrl, ...art } = card;
-    slots[FILL_ORDER[rank]] = { key: id, art, photo: photoUrl };
+    slots[FILL_ORDER[rank]] = { key: id, art, photo: photoUrl, sample: false };
   });
   return slots;
 }
@@ -71,7 +72,7 @@ export function HeroSlabs({
           {heroSlots(cards ?? []).map((slot, index) => (
             <div key={slot.key} className={`absolute ${HERO_PLACES[index].className}`}>
               <div className="landing-float" style={HERO_PLACES[index].style}>
-                <SlabFrame card={slot.art}>
+                <SlabFrame card={slot.art} label={slot.sample ? "sample" : "grader"}>
                   <PhotoPlaceholder card={slot.art} />
                   {slot.photo ? <HeroPhoto photo={slot.photo} lcp={index === LCP_SLOT} /> : null}
                 </SlabFrame>
