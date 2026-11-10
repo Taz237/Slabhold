@@ -609,7 +609,7 @@ function ReviewStep({
   return (
     <div className="space-y-5">
       <div className="flex flex-col items-center text-center">
-        <div className="relative w-40">
+        <div className="relative w-32 sm:w-40">
           <div className="relative">
             <DraftSlab art={art} photo={photo} />
           </div>
@@ -617,7 +617,7 @@ function ReviewStep({
         <button
           type="button"
           onClick={() => onJump("player")}
-          className={`mt-4 min-h-11 rounded-lg px-2 text-2xl font-semibold tracking-tight ${focusRing}`}
+          className={`mt-3 min-h-11 rounded-lg px-2 text-2xl font-semibold tracking-tight ${focusRing}`}
           aria-label={`Change player, ${answers.playerName}`}
         >
           {answers.playerName}
