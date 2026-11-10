@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { CardForm } from "@/components/card-form";
 import { catalogCardFromParams } from "@/lib/search/catalog-results";
 import { addCardQuery } from "@/lib/search/recent";
+import { addAnotherPrefill } from "@/lib/cards/added-panel";
 
 export const metadata: Metadata = { title: "Add a card · Slabhold" };
 
@@ -38,12 +39,22 @@ export default async function NewCardPage({ searchParams }: Props) {
     sport: one(params.sport),
     rookie: one(params.rookie),
   });
+  // "Add another" keeps sport, player, year and set. A Search pick wins over it.
+  const initialPrefill = initialCatalog
+    ? null
+    : addAnotherPrefill({
+        pick: one(params.pick),
+        player: one(params.player),
+        year: one(params.year),
+        set: one(params.set),
+      });
   return (
     <CardForm
       guided
       initialQuery={initialQuery}
       initialCatalog={initialCatalog}
       initialSport={one(params.sport)}
+      initialPrefill={initialPrefill}
     />
   );
 }

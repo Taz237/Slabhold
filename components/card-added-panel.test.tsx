@@ -129,7 +129,7 @@ describe("finish reveal", () => {
       assert.match(text, /via Trawl/);
       assert.doesNotMatch(text, /eBay/);
       const another = [...view.host.querySelectorAll("a")].find((a) => a.textContent === "Add another");
-      assert.equal(another?.getAttribute("href"), "/cards/new?sport=Football");
+      assert.equal(another?.getAttribute("href"), "/cards/new?sport=Football&player=Fixture%20Player&year=2024&set=Panini%20Prizm");
       assert.ok([...view.host.querySelectorAll("button")].some((b) => b.textContent === "See all sales"));
       assert.equal(fetched.filter((url) => url.includes("/api/comps")).length, 0, "no sold comps fetch");
     } finally {

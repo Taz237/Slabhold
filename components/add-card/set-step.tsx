@@ -10,6 +10,7 @@ const SOURCE_TAG: Record<SetChoice["source"], string | null> = {
   catalog: "Their card",
   checklist: "Checklist",
   popular: null,
+  insert: null,
 };
 
 /** Which set. Big card-style buttons, then every set in the search sheet. */

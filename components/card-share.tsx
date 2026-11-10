@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Share, X } from "lucide-react";
 import { CardVisibilitySwitch, type VisibilitySave } from "@/components/card-visibility";
@@ -83,16 +83,26 @@ export function CardShareButton({
   );
 }
 
-function PrivateShareSheet({
+/**
+ * "Show this card on your profile first": the public switch, then the action.
+ * Share uses it for links; the Added panel's Post it uses it for the feed.
+ */
+export function PrivateShareSheet({
   isPublic,
   onTogglePublic,
   onShare,
   onClose,
+  copy,
+  action,
 }: {
   isPublic: boolean;
   onTogglePublic: (next: boolean) => VisibilitySave | void;
   onShare: () => void;
   onClose: () => void;
+  /** Other words for another action, e.g. posting to the feed. */
+  copy?: { title: string; privateText: string; publicTitle: string; publicText: string };
+  /** Replaces the Share button once the card is public. */
+  action?: ReactNode;
 }) {
   const titleId = useId();
   const closeRef = useRef<HTMLButtonElement>(null);
@@ -130,12 +140,12 @@ function PrivateShareSheet({
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <h2 id={titleId} className="text-base font-semibold tracking-tight">
-              {isPublic ? "Ready to share" : "Make this card public to share"}
+              {isPublic ? (copy?.publicTitle ?? "Ready to share") : (copy?.title ?? "Make this card public to share")}
             </h2>
             <p className="mt-0.5 text-[13px] leading-5 text-zinc-500">
               {isPublic
-                ? "It shows on your profile now, so the link works for anyone."
-                : "Private cards stay off share links. Turn on Public to show it on your profile."}
+                ? (copy?.publicText ?? "It shows on your profile now, so the link works for anyone.")
+                : (copy?.privateText ?? "Private cards stay off share links. Turn on Public to show it on your profile.")}
             </p>
           </div>
           <button
@@ -151,7 +161,9 @@ function PrivateShareSheet({
         <div className="mt-3">
           <CardVisibilitySwitch isPublic={isPublic} onChange={onTogglePublic} />
         </div>
-        {isPublic ? (
+        {isPublic && action ? (
+          <div className="mt-3">{action}</div>
+        ) : isPublic ? (
           <button
             type="button"
             onClick={onShare}

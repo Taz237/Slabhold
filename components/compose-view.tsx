@@ -43,6 +43,7 @@ import {
 } from "@/lib/social/post-photos";
 import { mapPublicCard, PUBLIC_CARD_SELECT } from "@/lib/social/cards";
 import { toPublicAttachment } from "@/lib/social/card-posts";
+import { shareSessionStore, takeComposeCaption } from "@/lib/social/share-to-feed";
 import { QUOTE_EMPTY_ERROR, isQuoteSubmitDisabled, shouldConfirmDiscard, validateQuoteContent } from "@/lib/social/quotes";
 import { POST_LIMIT, type PublicCard } from "@/lib/social/types";
 import { loadSupabaseBrowser } from "@/lib/supabase/browser-lazy";
@@ -115,14 +116,19 @@ export function ComposeView() {
       }
     }
     const kept = draftKey ? takeComposeDraft(draftKey) : null;
+    // Post it after Add card: a starter caption for that card, only when nothing was typed yet.
+    const store = !kept?.body && !quoteParam && attachCardParam ? shareSessionStore() : null;
+    const starter = store ? takeComposeCaption(store, attachCardParam) : null;
     if (kept) {
-      setBody(kept.body);
+      setBody(kept.body || starter || "");
       if (kept.cardId) setCardId(kept.cardId);
+    } else if (starter) {
+      setBody(starter);
     }
     const captured = takeCompose();
     const restored = [...(kept?.images ?? []), ...(captured ? [captured] : [])];
     if (restored.length) replaceAll(restored);
-  }, [draftKey, editId, posts, ready, replaceAll, user]);
+  }, [attachCardParam, draftKey, editId, posts, quoteParam, ready, replaceAll, user]);
 
   useEffect(() => {
     draftRef.current.key = draftKey;

@@ -522,6 +522,19 @@ textarea {
   }
 }
 
+/* Added reveal: a soft violet glow comes up once behind the slab. No loop; off with reduced motion. */
+@keyframes reveal-glow {
+  0% {
+    opacity: 0;
+  }
+  55% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.7;
+  }
+}
+
 /* Skeleton shimmer: one gradient sweep, no shadows or blur. */
 @keyframes skeleton-shimmer {
   from {

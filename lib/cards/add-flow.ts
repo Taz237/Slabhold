@@ -10,6 +10,7 @@ import {
   parallelsForSet,
 } from "@/lib/cards/parallels";
 import { NOT_SURE_PARALLEL, serialRunFromName } from "@/lib/value/match-confidence";
+import { canonicalInsertName, insertLeadSets, insertsForSet, seedInsert } from "@/lib/cards/data/popular-inserts";
 
 /**
  * The guided Add card picker: one question per screen.
@@ -30,29 +31,32 @@ export const ADD_FLOW_STEPS = [
 export type AddFlowStep = (typeof ADD_FLOW_STEPS)[number];
 
 /** Add card header subline for the picker. */
-export const ADD_FLOW_SUBLINE = "Snap a photo, then a few quick taps.";
+export const ADD_FLOW_SUBLINE = "Add a photo if you have one, then find the card.";
 
 export const STEP_LABELS: Record<AddFlowStep, string> = {
   player: "Player",
   year: "Year",
   set: "Set",
   number: "Card #",
-  parallel: "Parallel",
+  parallel: "Parallel or insert",
   serial: "Numbered?",
   grade: "Grade",
   review: "Review",
 };
 
 export const STEP_QUESTIONS: Record<AddFlowStep, string> = {
-  player: "Who's on the card?",
+  player: "What's on the card?",
   year: "What year is it?",
   set: "Which set?",
   number: "What's the card number?",
-  parallel: "Which parallel?",
+  parallel: "Which parallel or insert?",
   serial: "Is it numbered?",
   grade: "Graded or raw?",
   review: "Look right?",
 };
+
+/** The Player step after "Or add step by step": the classic player search. */
+export const STEP_BY_STEP_QUESTION = "Who's on the card?";
 
 /** The form values each step reads. Built from CardForm state on every render. */
 export type FlowAnswers = {
@@ -241,7 +245,7 @@ export function answerParallel(
   knownRun: number | null,
   answers: FlowAnswers,
 ): FlowPatch & { form: Partial<CardDraftForm>; parallelIsCustom: boolean } {
-  const chosen = parallelChoice(setBrand, parallel);
+  const chosen = parallelChoice(setBrand, insertOrParallelName(parallel));
   const form: Partial<CardDraftForm> = { parallel: chosen.parallel };
   const changed = parallelMatchKey(chosen.parallel) !== parallelMatchKey(answers.parallel);
   if (knownRun != null) {
@@ -450,14 +454,19 @@ const FEATURED_SET_MAX = 10;
 export type SetChoice = {
   name: string;
   maker: string;
-  source: "catalog" | "checklist" | "popular";
+  source: "catalog" | "checklist" | "popular" | "insert";
 };
 
-/** Catalog sets for this player and year, then checklist sets, then popular ones. The rest live in the search sheet. */
+/**
+ * Catalog sets for this player and year, then checklist sets, then popular ones.
+ * A chosen insert (Downtown, Kaboom) leads with the sets it comes in. The rest live in the search sheet.
+ */
 export function setChoices(input: {
   sport: string;
   catalogSets: readonly string[];
   productSets: readonly string[];
+  /** The parallel or insert already picked, e.g. from the search door. */
+  insert?: string;
 }): SetChoice[] {
   const seen = new Set<string>();
   const out: SetChoice[] = [];
@@ -467,6 +476,7 @@ export function setChoices(input: {
     seen.add(key);
     out.push({ name: name.trim(), maker: setMaker(name), source });
   };
+  for (const name of insertLeadSets(input.insert ?? "")) add(name, "insert");
   for (const name of input.catalogSets) add(name, "catalog");
   for (const name of input.productSets) add(name, "checklist");
   for (const name of POPULAR_SETS[input.sport] ?? POPULAR_SETS.Basketball) add(name, "popular");
@@ -489,6 +499,54 @@ export function parallelOptions(
     list.push({ name: current.trim(), serialRun: serialRunFromName(current) });
   }
   return list;
+}
+
+export type ParallelGroups = {
+  base: ParallelOption;
+  inserts: { label: "Inserts" | "Popular inserts"; options: ParallelOption[] };
+  /** Checklist or built-in parallels, plus a typed name that is not a seed insert. */
+  parallels: ParallelOption[];
+};
+
+/**
+ * "Parallel or insert": Base, then insert chips for the set family, then the
+ * parallels. Every checklist name stays. A seed insert never carries a run.
+ */
+export function parallelGroups(
+  checklist: readonly ParallelOption[] | null,
+  setBrand: string,
+  current: string,
+): ParallelGroups {
+  const all = parallelOptions(checklist, setBrand, current);
+  const base = all.find((option) => parallelMatchKey(option.name) === "base") ?? {
+    name: "Base",
+    serialRun: null,
+  };
+  // Names the checklist or built-in list already has stay parallels, with their runs.
+  const listed = new Set(
+    (checklist?.length ? checklist.map((item) => item.name) : parallelsForSet(setBrand)).map(parallelMatchKey),
+  );
+  const chips = insertsForSet(setBrand);
+  const names = [...chips.names];
+  const picked = seedInsert(current);
+  if (picked && !names.includes(picked.name)) names.push(picked.name);
+  const inserts = names
+    .filter((name) => !listed.has(parallelMatchKey(name)))
+    .map((name) => ({ name, serialRun: null }));
+  const insertKeys = new Set(inserts.map((option) => parallelMatchKey(option.name)));
+  const parallels = all.filter((option) => {
+    const key = parallelMatchKey(option.name);
+    if (key === "base" || insertKeys.has(key)) return false;
+    // "Kaboom!" typed earlier is the Kaboom chip, not a second entry.
+    const seed = seedInsert(option.name);
+    return !(seed && insertKeys.has(parallelMatchKey(seed.name)));
+  });
+  return { base, inserts: { label: chips.label, options: inserts }, parallels };
+}
+
+/** A typed or tapped insert: "Kaboom!" stores as Kaboom. */
+export function insertOrParallelName(name: string): string {
+  return seedInsert(name) ? canonicalInsertName(name) : name.trim();
 }
 
 /** The answers after a patch, so the next step can be chosen before React re-renders. */

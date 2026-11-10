@@ -2,16 +2,33 @@
 
 import Link from "next/link";
 import { useCallback, useMemo, useState } from "react";
-import { Check, X } from "lucide-react";
+import { Award, Check, PenLine, X } from "lucide-react";
+import { CardShareButton, PrivateShareSheet } from "@/components/card-share";
+import type { VisibilitySave } from "@/components/card-visibility";
 import { CardSlabArt } from "@/components/card-slab-art";
 import { tileArtCard } from "@/components/card-tile";
 import { useCollection } from "@/components/collection-provider";
 import {
+  addAnotherPath,
   addedCollectionLine,
   addedValueLine,
   recentSoldPrices,
   type AddedRevealLine,
 } from "@/lib/cards/added-panel";
+import { collectorReveal, collectorRevealCopy } from "@/lib/badges/collector-reveal";
+import {
+  FEED_POST_FAILED_TEXT,
+  SHARE_CONFIRM_TEXT,
+  SHARE_PRIVATE_REASON,
+  cardPostFailed,
+  cardPostId,
+  composeWithCardPath,
+  justAddedCaption,
+  sharePostPath,
+  shareSessionStore,
+  takeSharedPost,
+  writeComposeCaption,
+} from "@/lib/social/share-to-feed";
 import { photoSource, photoStatusAfter, type PhotoStatus } from "@/lib/collection/grid";
 import type { SportsCard } from "@/lib/types";
 import type { ConfidenceCopy, MatchConfidence } from "@/lib/value/match-confidence";
@@ -36,6 +53,8 @@ export function CardAddedPanel({
   copy = null,
   onDismiss,
   onSeeSales,
+  viewer = null,
+  onTogglePublic,
 }: {
   cardId: string;
   value: CardValueResult | null;
@@ -47,6 +66,10 @@ export function CardAddedPanel({
   copy?: ConfidenceCopy | null;
   onDismiss: () => void;
   onSeeSales: () => void;
+  /** The signed-in owner. Collector progress and Share need it. */
+  viewer?: { id: string; username: string } | null;
+  /** Same public switch the card page uses. Share and Post it ask for it on a private card. */
+  onTogglePublic?: (next: boolean) => VisibilitySave | void;
 }) {
   const { cards } = useCollection();
   const ids = useMemo(() => cards.map((card) => card.id), [cards]);
@@ -70,7 +93,20 @@ export function CardAddedPanel({
   const collectionLine = addedCollectionLine(cards, values, !book.loading && !book.error);
   // Sold prices only back a strong match. A weak one would read like its price.
   const recent = line.kind === "ok" ? recentSoldPrices(sales) : [];
-  const addAnother = card?.sport ? `/cards/new?sport=${encodeURIComponent(card.sport)}` : "/cards/new";
+  const addAnother = addAnotherPath(card);
+  const viewerId = viewer?.id ?? null;
+  const collector = useMemo(
+    () => (viewerId && cards.some((item) => item.id === cardId) ? collectorRevealCopy(collectorReveal(cards, cardId, viewerId)) : null),
+    [cardId, cards, viewerId],
+  );
+  // What this add did on the feed, read once: a post id, or a failed post's caption.
+  const [feed] = useState(() => addedFeedState(cardId));
+  const [postSheet, setPostSheet] = useState(false);
+  const postCaption = feed.failedCaption || (card ? justAddedCaption(card) : "");
+  const keepCaption = () => {
+    const store = shareSessionStore();
+    if (store && card) writeComposeCaption(store, card.id, postCaption);
+  };
 
   return (
     <section
@@ -89,6 +125,11 @@ export function CardAddedPanel({
 
       <div className="flex flex-col items-center text-center">
         <div className="relative w-36 sm:w-40">
+          <div
+            aria-hidden
+            data-reveal="glow"
+            className="pointer-events-none absolute -inset-6 rounded-full bg-[radial-gradient(closest-side,rgb(139_92_246/0.35),rgb(124_58_237/0.12)_55%,transparent)] opacity-70 blur-xl motion-safe:animate-[reveal-glow_900ms_ease-out_both]"
+          />
           <div data-reveal="slab" className="relative motion-safe:animate-[slab-reveal_700ms_cubic-bezier(0.2,0.7,0.2,1)_both]">
             {card ? <RevealSlab card={card} /> : <div className="aspect-[3/5] w-full rounded-xl skeleton-shimmer" />}
           </div>
@@ -158,9 +199,99 @@ export function CardAddedPanel({
         ) : null}
 
         <p className="mt-3 text-sm text-zinc-500 tabular-nums">{collectionLine}</p>
+        {collector ? (
+          <p
+            data-slot="collector-progress"
+            className={`mt-2 flex max-w-sm items-start justify-center gap-1.5 text-sm ${
+              collector.kind === "earned"
+                ? "font-semibold text-violet-700 dark:text-[#A78BFA]"
+                : "text-zinc-600 dark:text-zinc-300"
+            }`}
+          >
+            {collector.kind === "earned" ? <Award className="mt-0.5 size-4 shrink-0" aria-hidden /> : null}
+            <span>{collector.text}</span>
+          </p>
+        ) : null}
+        {collector?.kind === "needs_photo" ? (
+          <Link
+            href={`/cards/${cardId}/edit`}
+            className="inline-flex min-h-11 items-center text-sm font-semibold text-violet-700 underline underline-offset-2 dark:text-[#A78BFA]"
+          >
+            Add a photo to this card
+          </Link>
+        ) : null}
       </div>
 
-      <div className="mt-5 grid grid-cols-2 gap-2">
+      {feed.postId ? (
+        <p className="mt-4 rounded-xl border border-zinc-200 bg-white px-4 py-3 text-center text-sm text-zinc-700 dark:border-white/10 dark:bg-white/[0.03] dark:text-zinc-200">
+          {SHARE_CONFIRM_TEXT}{" "}
+          <Link href={sharePostPath(feed.postId)} className="font-semibold underline underline-offset-2">
+            View post
+          </Link>
+        </p>
+      ) : feed.failedCaption != null ? (
+        <p role="status" className="mt-4 text-center text-sm text-rose-600 dark:text-rose-400">
+          {FEED_POST_FAILED_TEXT} Try Post it.
+        </p>
+      ) : null}
+
+      {card ? (
+        <div className="mt-5 grid grid-cols-2 gap-2">
+          <div className="[&>button]:w-full [&>button]:max-w-none">
+            <CardShareButton
+              card={card}
+              username={viewer?.username}
+              onTogglePublic={onTogglePublic ?? (() => undefined)}
+              variant="row"
+            />
+          </div>
+          {feed.postId ? null : card.isPublic ? (
+            <Link
+              href={composeWithCardPath(card.id)}
+              onClick={keepCaption}
+              className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-zinc-300 px-4 text-sm font-semibold text-zinc-900 hover:bg-white dark:border-white/20 dark:text-zinc-100 dark:hover:bg-white/5 ${focusRing}`}
+            >
+              <PenLine className="size-4" aria-hidden />
+              Post it
+            </Link>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setPostSheet(true)}
+              className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-zinc-300 px-4 text-sm font-semibold text-zinc-900 hover:bg-white dark:border-white/20 dark:text-zinc-100 dark:hover:bg-white/5 ${focusRing}`}
+            >
+              <PenLine className="size-4" aria-hidden />
+              Post it
+            </button>
+          )}
+        </div>
+      ) : null}
+      {postSheet && card ? (
+        <PrivateShareSheet
+          isPublic={Boolean(card.isPublic)}
+          onTogglePublic={onTogglePublic ?? (() => undefined)}
+          onShare={() => setPostSheet(false)}
+          onClose={() => setPostSheet(false)}
+          copy={{
+            title: "Make this card public to post it",
+            privateText: SHARE_PRIVATE_REASON,
+            publicTitle: "Ready to post",
+            publicText: "It shows on your profile now. The post opens with this card attached.",
+          }}
+          action={
+            <Link
+              href={composeWithCardPath(card.id)}
+              onClick={keepCaption}
+              className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-violet-600 px-5 text-[15px] font-semibold text-white hover:bg-violet-500"
+            >
+              <PenLine aria-hidden className="size-4" />
+              Post it
+            </Link>
+          }
+        />
+      ) : null}
+
+      <div className="mt-2 grid grid-cols-2 gap-2">
         <Link
           href={addAnother}
           className={`inline-flex min-h-11 items-center justify-center rounded-full bg-violet-600 px-4 text-sm font-semibold text-white hover:bg-violet-500 ${focusRing}`}
@@ -205,4 +336,18 @@ function RevealSlab({ card }: { card: SportsCard }) {
       sizes="160px"
     />
   );
+}
+
+/** Whether this add already posted, or tried to and failed. Read once from this tab's storage. */
+function addedFeedState(cardId: string): { postId: string | null; failedCaption: string | null } {
+  try {
+    const store = shareSessionStore();
+    if (!store) return { postId: null, failedCaption: null };
+    // The panel shows the "Shared to your feed" note, so the card page's one-shot note is used up here.
+    const oneShot = takeSharedPost(store, cardId);
+    const postId = cardPostId(store, cardId) ?? oneShot;
+    return { postId, failedCaption: postId ? null : cardPostFailed(store, cardId) };
+  } catch {
+    return { postId: null, failedCaption: null };
+  }
 }

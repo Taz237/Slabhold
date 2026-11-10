@@ -13,6 +13,7 @@ import {
 } from "@/components/add-card/flow-ui";
 import { GradeStep, NumberStep, ParallelStep, SerialStep } from "@/components/add-card/detail-steps";
 import { PlayerStep, type PlayerPick } from "@/components/add-card/player-step";
+import { SearchDoor, type DoorPick } from "@/components/add-card/search-door";
 import { SetStep } from "@/components/add-card/set-step";
 import { useProductData } from "@/lib/cards/use-product-data";
 import { rememberPlayer, useRecentPlayers } from "@/components/add-card/use-recent-players";
@@ -23,6 +24,7 @@ import { searchCatalog, type CatalogCard } from "@/lib/card-catalog";
 import { parseYearLabel } from "@/lib/card-options";
 import {
   ADD_FLOW_STEPS,
+  STEP_BY_STEP_QUESTION,
   STEP_LABELS,
   STEP_QUESTIONS,
   answerCardNumber,
@@ -42,7 +44,7 @@ import {
   jumpToStep,
   nextStep,
   openingStep,
-  parallelOptions,
+  parallelGroups,
   readFlowPosition,
   resumeStep,
   reviewParts,
@@ -58,6 +60,8 @@ import {
   type ParallelOption,
 } from "@/lib/cards/add-flow";
 import { collectionPlayers } from "@/lib/cards/add-flow-players";
+import { clearDoorQuery, readDoorQuery, writeDoorQuery } from "@/lib/cards/add-door";
+import { seedInsert } from "@/lib/cards/data/popular-inserts";
 import { applyGradingCompany } from "@/lib/cards/grading-company";
 import type { CardDraftForm } from "@/lib/cards/new-card-draft";
 import { parallelIn, parallelsIn, sameSeason, serialRunIn, setNamesIn } from "@/lib/cards/product-data";
@@ -78,6 +82,8 @@ export type AddCardFlowProps = {
   readingPhoto: boolean;
   /** A draft was restored when Add card opened. */
   resumed: boolean;
+  /** Opened from "Add another" with player, year and set already filled. */
+  prefilled?: boolean;
   /** Keys the remembered step to this draft and user. */
   positionKey: string | null;
   apply: (patch: FlowPatch) => void;
@@ -90,6 +96,8 @@ export type AddCardFlowProps = {
   onMoreOpen: (open: boolean) => void;
   sportOffer: ReactNode;
   saveError: ReactNode;
+  /** "Also post to my feed", shown on Review next to Public / Private. */
+  feedPost?: ReactNode;
 };
 
 const STEP_IN = "motion-safe:animate-[add-step-in_220ms_cubic-bezier(0.2,0.7,0.2,1)_both]";
@@ -139,7 +147,8 @@ export function AddCardFlow(props: AddCardFlowProps) {
     return flowStateAt(openingStep(answers), answers);
   });
   const [direction, setDirection] = useState<"forward" | "back">("forward");
-  const [showStartOver, setShowStartOver] = useState(props.resumed);
+  const [showStartOver, setShowStartOver] = useState(props.resumed || Boolean(props.prefilled));
+  const [stepByStep, setStepByStep] = useState(false);
 
   // Their catalog cards: one search_cards call when a player is picked.
   const committedPlayer = flow.step === "player" ? "" : form.playerName.trim();
@@ -193,15 +202,16 @@ export function AddCardFlow(props: AddCardFlowProps) {
               .map((row) => row.setBrand)
           : [],
         productSets: products.data ? setNamesIn(products.data, form.sport, form.yearLabel) : [],
+        insert: form.parallel,
       }),
-    [catalogRows, form.sport, form.yearLabel, products.data],
+    [catalogRows, form.sport, form.yearLabel, form.parallel, products.data],
   );
 
   const parallelList = useMemo(() => {
     const checklist = products.data
       ? parallelsIn(products.data, form.sport, form.yearLabel, form.setBrand)
       : null;
-    return parallelOptions(checklist, form.setBrand, form.parallel);
+    return parallelGroups(checklist, form.setBrand, form.parallel);
   }, [products.data, form.sport, form.yearLabel, form.setBrand, form.parallel]);
 
   function go(next: FlowState, dir: "forward" | "back") {
@@ -227,6 +237,8 @@ export function AddCardFlow(props: AddCardFlowProps) {
   function startOver() {
     props.onStartOver();
     clearFlowPosition();
+    clearDoorQuery();
+    setStepByStep(false);
     setShowStartOver(false);
     go(flowStateAt("player", answers), "back");
   }
@@ -239,7 +251,34 @@ export function AddCardFlow(props: AddCardFlowProps) {
   function pickCatalog(card: CatalogCard) {
     props.pickCatalog(card);
     const jumped = catalogJump(flow, answers, card);
+    // An insert picked on the door stays when the catalog row is the base card.
+    const insert = seedInsert(form.parallel);
+    if (flow.step === "player" && insert && jumped.answers.parallel.trim().toLowerCase() === "base") {
+      props.apply(answerParallel(card.setBrand, insert.name, null, jumped.answers));
+    }
+    clearDoorQuery();
     go(jumped.state, "forward");
+  }
+
+  /** A door pick: the player, plus the insert when the search named one ("Maxey Downtown"). */
+  function pickFromDoor(pick: DoorPick) {
+    rememberPlayer(pick.name);
+    clearDoorQuery();
+    const player = answerPlayer(pick.name, pick.sport);
+    if (!pick.insert) {
+      advance(player);
+      return;
+    }
+    const insert = answerParallel(form.setBrand, pick.insert, null, answers);
+    advance({ form: { ...player.form, ...insert.form }, parallelIsCustom: insert.parallelIsCustom }, null);
+  }
+
+  function pickDoorInsert(name: string | null) {
+    props.apply(answerParallel(form.setBrand, name ?? "Base", null, answers));
+  }
+
+  function pickDoorSet(name: string | null) {
+    props.apply(answerSet(name ?? "", answers, props.parallelIsCustom));
   }
 
   function pickSet(name: string) {
@@ -283,12 +322,26 @@ export function AddCardFlow(props: AddCardFlowProps) {
   let body: ReactNode = null;
   switch (flow.step) {
     case "player":
-      body = (
+      body = stepByStep ? (
         <PlayerStep
           initial={form.playerName}
           recent={recent}
           owned={owned}
           onPick={pickPlayer}
+        />
+      ) : (
+        <SearchDoor
+          initialQuery={readDoorQuery(props.positionKey) || form.playerName}
+          recent={recent}
+          owned={owned}
+          insert={seedInsert(form.parallel)?.name ?? null}
+          setBrand={form.setBrand}
+          onQuery={(query) => writeDoorQuery(props.positionKey, query)}
+          onPickPlayer={pickFromDoor}
+          onPickInsert={pickDoorInsert}
+          onPickSet={pickDoorSet}
+          onPickCatalog={pickCatalog}
+          onStepByStep={() => setStepByStep(true)}
         />
       );
       break;
@@ -329,7 +382,7 @@ export function AddCardFlow(props: AddCardFlowProps) {
       body = (
         <ParallelStep
           value={form.parallel}
-          options={parallelList}
+          groups={parallelList}
           loading={products.loading}
           isAuto={props.isAuto}
           onAuto={(isAuto) => props.apply({ isAuto })}
@@ -385,6 +438,7 @@ export function AddCardFlow(props: AddCardFlowProps) {
           onMoreOpen={props.onMoreOpen}
           sportOffer={props.sportOffer}
           saveError={props.saveError}
+          feedPost={props.feedPost}
           saving={props.saving}
           readingPhoto={props.readingPhoto}
           onIncomplete={() => go(flowStateAt(resumeStep(answers), answers), "back")}
@@ -409,7 +463,7 @@ export function AddCardFlow(props: AddCardFlowProps) {
           onClick={startOver}
           className="min-h-11 text-sm font-semibold text-violet-700 underline decoration-violet-700/40 underline-offset-2 dark:text-[#A78BFA]"
         >
-          Start over
+          {props.prefilled && !props.resumed ? "Start a different card" : "Start over"}
         </button>
       ) : null}
 
@@ -446,7 +500,7 @@ export function AddCardFlow(props: AddCardFlowProps) {
               tabIndex={-1}
               className="mt-1 text-2xl font-semibold tracking-tight outline-none"
             >
-              {STEP_QUESTIONS[flow.step]}
+              {flow.step === "player" && stepByStep ? STEP_BY_STEP_QUESTION : STEP_QUESTIONS[flow.step]}
             </h2>
           </div>
           {body}
@@ -527,6 +581,7 @@ function ReviewStep({
   onMoreOpen,
   sportOffer,
   saveError,
+  feedPost,
   saving,
   readingPhoto,
   onIncomplete,
@@ -544,6 +599,7 @@ function ReviewStep({
   onMoreOpen: (open: boolean) => void;
   sportOffer: ReactNode;
   saveError: ReactNode;
+  feedPost?: ReactNode;
   saving: boolean;
   readingPhoto: boolean;
   onIncomplete: () => void;
@@ -596,6 +652,7 @@ function ReviewStep({
       </div>
 
       {photoBlock}
+      {feedPost}
 
       <details
         open={moreOpen}
@@ -606,7 +663,7 @@ function ReviewStep({
           <span className="min-w-0">
             <span className="block text-sm font-semibold">More details</span>
             <span className="block text-xs text-zinc-500">
-              What you paid, notes, sharing, rookie and patch
+              What you paid, notes, rookie and patch
             </span>
           </span>
           <ChevronDown

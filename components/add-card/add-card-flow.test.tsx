@@ -78,7 +78,7 @@ describe("guided Add card", () => {
   it("keeps the photo buttons as the first controls on /cards/new", async () => {
     const view = await mount({ guided: true });
     try {
-      await waitFor(() => textIncludes("Who's on the card?"));
+      await waitFor(() => textIncludes("What's on the card?"));
       const controls = interactive();
       const take = buttonWithText("Take photo")!;
       const firstIndex = controls.findIndex((el) => el.closest("section")?.textContent?.includes("Take photo"));
@@ -205,7 +205,7 @@ describe("guided Add card", () => {
       await clickButton(buttonByLabel("Back")!);
       assert.ok(textIncludes("Graded or raw?"));
       await clickButton(buttonByLabel("Back")!);
-      assert.ok(textIncludes("Which parallel?"));
+      assert.ok(textIncludes("Which parallel or insert?"));
     } finally {
       view.unmount();
     }
@@ -221,7 +221,7 @@ describe("guided Add card", () => {
           assert.ok(bigEnough(el), `${step}: ${describeEl(el)} is 44px`);
         }
       };
-      await waitFor(() => textIncludes("Who's on the card?"));
+      await waitFor(() => textIncludes("What's on the card?"));
       await act(async () => setNativeValue(playerInput(), "wemb"));
       await waitFor(() => Boolean(buttonWithText("Victor Wembanyama")));
       checkStep("player");
@@ -286,7 +286,7 @@ describe("guided Add card", () => {
       );
       assert.ok(tile);
       await clickButton(tile);
-      await waitFor(() => textIncludes("Which parallel?"));
+      await waitFor(() => textIncludes("Which parallel or insert?"));
       assert.ok(textIncludes("2023-24 · Hoops · #277"));
     } finally {
       view.unmount();
@@ -385,7 +385,7 @@ async function fillClassic(input: {
 }
 
 async function pickPlayer(query: string, name: string) {
-  await waitFor(() => textIncludes("Who's on the card?"));
+  await waitFor(() => textIncludes("What's on the card?"));
   await act(async () => setNativeValue(playerInput(), query));
   await waitFor(() => Boolean(buttonWithText(name)));
   await clickButton(buttonWithText(name)!);
@@ -397,7 +397,7 @@ async function typeCardNumber(value: string) {
   const input = win.document.querySelector<HTMLInputElement>('input[data-field="cardNumber"]')!;
   await act(async () => setNativeValue(input, value));
   await clickText("Next");
-  await waitFor(() => textIncludes("Which parallel?"));
+  await waitFor(() => textIncludes("Which parallel or insert?"));
 }
 
 function playerInput(): HTMLInputElement {
