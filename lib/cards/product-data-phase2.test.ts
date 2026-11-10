@@ -47,7 +47,7 @@ describe("checklists: both files load and official rows stay", () => {
 
   it("a set with no checklist row still gets the built-in list", async () => {
     const data = await loadProductData();
-    assert.deepEqual(parallelsIn(data, "Baseball", "2024", "Topps Chrome"), []);
+    assert.deepEqual(parallelsIn(data, "Baseball", "2023", "Bowman Chrome"), []);
     assert.ok(parallelGroups(null, "Topps Chrome", "Base").parallels.length > 0);
   });
 });
