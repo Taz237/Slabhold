@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useId, useRef, useState, type Ref } from "react";
 import { Search } from "lucide-react";
 import {
   Chip,
@@ -65,6 +65,7 @@ export function NumberStep({
           </span>
           <input
             data-field="cardNumber"
+            data-step-focus=""
             value={value}
             disabled={noNumber}
             inputMode="text"
@@ -155,12 +156,16 @@ export function ParallelStep({
     else if (typed) onPick({ name: typed, serialRun: null });
   }
 
+  // Focus lands on the pre-selected answer (Base unless they picked another), never on Auto.
+  const focusKey = [base, ...shown].some((option) => parallelMatchKey(option.name) === current) ? current : "base";
+
   const chip = (option: ParallelOption) => {
     const selected = parallelMatchKey(option.name) === current;
     return (
       <li key={option.name}>
         <button
           type="button"
+          data-step-focus={parallelMatchKey(option.name) === focusKey ? "" : undefined}
           aria-pressed={selected}
           aria-label={option.serialRun ? `${option.name}, numbered to ${option.serialRun}` : option.name}
           onClick={() => onPick(option)}
@@ -190,6 +195,7 @@ export function ParallelStep({
       {showBase ? (
         <button
           type="button"
+          data-step-focus={focusKey === "base" ? "" : undefined}
           aria-pressed={current === "base"}
           onClick={() => onPick(base)}
           className={`flex min-h-16 w-full items-center gap-3 rounded-2xl border px-4 text-left transition-[border-color,transform] duration-150 motion-safe:active:scale-[0.98] motion-reduce:transition-none ${focusRing} ${
@@ -317,6 +323,15 @@ export function SerialStep({
   const [tried, setTried] = useState(false);
   const error = serialNoError(serialNo, serialRun);
   const shownError = error && (tried || serialNo.trim() !== "") ? error : null;
+  const numberRef = useRef<HTMLInputElement>(null);
+  const focusNumber = useRef(false);
+
+  // A run chip opens "Your number": focus moves on to it, so the next thing is typing.
+  useEffect(() => {
+    if (!focusNumber.current) return;
+    focusNumber.current = false;
+    numberRef.current?.focus({ preventScroll: true });
+  }, [serialRun]);
 
   function applyOther() {
     const value = Number(other);
@@ -342,6 +357,7 @@ export function SerialStep({
             selected={run === chip}
             onClick={() => {
               setOtherOpen(false);
+              focusNumber.current = true;
               onChoose({ kind: "run", run: chip }, false);
             }}
             className="tabular-nums"
@@ -365,6 +381,7 @@ export function SerialStep({
           <input
             value={other}
             inputMode="numeric"
+            enterKeyHint="next"
             aria-label="Print run"
             placeholder="e.g. 149"
             onChange={(event) => setOther(event.target.value.replace(/[^\d]/g, ""))}
@@ -387,8 +404,11 @@ export function SerialStep({
             </span>
             <span className="flex items-center gap-2">
               <input
+                ref={numberRef}
                 value={serialNo}
+                data-step-focus=""
                 inputMode="numeric"
+                enterKeyHint="next"
                 aria-label={`Your number, out of ${run}`}
                 aria-invalid={shownError ? true : undefined}
                 aria-describedby={shownError ? "serial-no-error" : undefined}
@@ -472,6 +492,108 @@ export function GradeStep({
               </Chip>
             ))}
           </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * Condition on Review: Raw is pre-selected, a grader opens its grades and an
+ * optional cert number in place. Text chips only; nothing here is drawn on
+ * the slab art. Writes the same grade company, number and cert CardForm saves.
+ */
+export function ConditionRow({
+  company,
+  number,
+  certNumber,
+  missingGrade,
+  gradesRef,
+  onCompany,
+  onNumber,
+  onCertNumber,
+}: {
+  company: string;
+  number: string;
+  certNumber: string;
+  /** Add was tapped with a grader and no grade. */
+  missingGrade: boolean;
+  gradesRef?: Ref<HTMLDivElement>;
+  onCompany: (company: string) => void;
+  onNumber: (number: string) => void;
+  onCertNumber: (value: string) => void;
+}) {
+  const labelId = useId();
+  const needsNumber = gradeNeedsNumber(company);
+  const listed = GRADE_CHIP_COMPANIES.find((item) => item.value === company);
+  const name = listed?.label ?? company;
+  const numbers = needsNumber ? (GRADE_NUMBERS[company] ?? GRADE_NUMBERS.Other) : [];
+  return (
+    <div
+      data-slot="condition"
+      role="group"
+      aria-labelledby={labelId}
+      className="rounded-2xl border border-zinc-200 bg-white p-4 text-left dark:border-white/10 dark:bg-white/[0.03]"
+    >
+      <p id={labelId} className="text-sm font-semibold">
+        Condition
+      </p>
+      <div className="mt-2 flex flex-wrap gap-2">
+        {GRADE_CHIP_COMPANIES.map((item) => {
+          const selected = needsNumber ? item.value === company : item.value === GRADE_CHIP_COMPANIES[0].value;
+          return (
+            <Chip
+              key={item.value}
+              selected={selected}
+              data-step-focus={selected ? "" : undefined}
+              onClick={() => onCompany(item.value)}
+              className="min-w-11 px-3.5"
+            >
+              {item.label}
+            </Chip>
+          );
+        })}
+      </div>
+      {needsNumber ? (
+        <div className="mt-4 space-y-3 motion-safe:animate-[add-fade_160ms_ease-out]">
+          <div ref={gradesRef} role="group" aria-label={`${name} grade`} data-field="grade">
+            <SectionLabel>{name} grade</SectionLabel>
+            <div className="grid grid-cols-5 gap-2">
+              {numbers.map((grade) => (
+                <Chip
+                  key={grade}
+                  selected={grade === number}
+                  aria-label={`${name} ${grade}`}
+                  onClick={() => onNumber(grade)}
+                  className="w-full px-1 tabular-nums"
+                >
+                  {grade}
+                </Chip>
+              ))}
+            </div>
+            {missingGrade && !number ? (
+              <p role="alert" className="mt-2 text-sm text-rose-600 dark:text-rose-400">
+                Pick the grade on the label
+              </p>
+            ) : null}
+          </div>
+          <label className="block">
+            <span className="mb-1.5 block text-sm text-zinc-500">
+              Cert number <span className="text-zinc-400">(optional)</span>
+            </span>
+            <input
+              value={certNumber}
+              data-field="certNumber"
+              inputMode="numeric"
+              autoComplete="off"
+              autoCorrect="off"
+              spellCheck={false}
+              enterKeyHint="done"
+              placeholder="From the label"
+              onChange={(event) => onCertNumber(event.target.value)}
+              className="min-h-11 w-full rounded-xl border border-zinc-200 bg-white px-3 text-base tabular-nums outline-none focus:border-violet-500 dark:border-white/10 dark:bg-white/5"
+            />
+          </label>
         </div>
       ) : null}
     </div>

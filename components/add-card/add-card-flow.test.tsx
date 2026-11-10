@@ -104,8 +104,6 @@ describe("guided Add card", () => {
       await typeCardNumber("136");
       await waitFor(() => Boolean(buttonByLabel("Red, numbered to 299")));
       await clickButton(buttonByLabel("Base")!);
-      await clickText("Not numbered");
-      await clickText("Raw");
     });
     const classic = await saveClassic(async () => {
       await fillClassic({ player: "Victor Wembanyama", year: "2023-24", set: "Panini Prizm", number: "136" });
@@ -126,6 +124,9 @@ describe("guided Add card", () => {
       await waitFor(() => Boolean(buttonByLabel("Gold")));
       await clickButton(buttonByLabel("Auto (signed)")!);
       await clickButton(buttonByLabel("Gold")!);
+      // Gold has no run in its name, so Numbered? is set from Review.
+      await waitFor(() => textIncludes("Look right?"));
+      await clickButton(buttonByLabel("Numbered? Set a print run")!);
       await waitFor(() => textIncludes("Is it numbered?"));
       await clickText("/50");
       const yours = win.document.querySelector<HTMLInputElement>('input[aria-label="Your number, out of 50"]');
@@ -134,6 +135,7 @@ describe("guided Add card", () => {
       await waitFor(() => textIncludes("Your number must be between 1 and 50."));
       await act(async () => setNativeValue(yours, "23"));
       await clickText("Next");
+      await waitFor(() => textIncludes("Look right?"));
       await clickText("PSA");
       await clickText("10");
     });
@@ -169,8 +171,6 @@ describe("guided Add card", () => {
       await waitFor(() => Boolean(buttonByLabel("Base")));
       await clickText("Not sure?");
       await clickText("I'm not sure, save it anyway");
-      await clickText("Not numbered");
-      await clickText("Raw");
     });
     const classic = await saveClassic(async () => {
       await fillClassic({
@@ -196,14 +196,10 @@ describe("guided Add card", () => {
       await typeCardNumber("136");
       await waitFor(() => Boolean(buttonByLabel("Purple, numbered to 99")));
       await clickButton(buttonByLabel("Purple, numbered to 99")!);
-      await waitFor(() => textIncludes("Graded or raw?"));
-      await clickText("Raw");
       await waitFor(() => textIncludes("Look right?"));
       assert.ok(textIncludes("Numbered to /99 (from the checklist)"));
       assert.ok(textIncludes("2023-24 Panini Prizm · #136 · Purple /99 · Raw"));
-      // Back from Review goes to Grade, then Parallel: Numbered? stays skipped.
-      await clickButton(buttonByLabel("Back")!);
-      assert.ok(textIncludes("Graded or raw?"));
+      // Back from Review goes straight to Parallel: Numbered? and Grade are not screens here.
       await clickButton(buttonByLabel("Back")!);
       assert.ok(textIncludes("Which parallel or insert?"));
     } finally {
@@ -240,14 +236,20 @@ describe("guided Add card", () => {
       await clickText("Not sure?");
       checkStep("parallel");
       await clickButton(buttonByLabel("Base")!);
+      await waitFor(() => textIncludes("Look right?"));
+      await clickButton(buttonByLabel("Numbered? Set a print run")!);
+      await waitFor(() => textIncludes("Is it numbered?"));
       await clickText("/25");
       await clickText("Other");
       checkStep("serial");
       await clickText("Not numbered");
-      await clickText("PSA");
-      checkStep("grade");
-      await clickText("Raw");
       await waitFor(() => textIncludes("Look right?"));
+      await clickText("PSA");
+      for (const el of win.document.querySelectorAll<HTMLElement>('[data-slot="condition"] button, [data-slot="condition"] input')) {
+        assert.ok(accessibleName(el), `condition: ${describeEl(el)} has a name`);
+        assert.ok(bigEnough(el), `condition: ${describeEl(el)} is 44px`);
+      }
+      await clickText("Raw");
       win.document.querySelector("details")!.open = true;
       for (const el of interactive()) {
         if (el.closest("details")) continue; // CardForm's own More details fields

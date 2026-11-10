@@ -151,9 +151,6 @@ describe("Add card v2", () => {
       const search = win.document.querySelector<HTMLInputElement>('input[placeholder^="Search"]')!;
       await act(async () => setNativeValue(search, "Mystery Wave"));
       await clickText('Use \u201cMystery Wave\u201d');
-      await waitFor(() => textIncludes("Is it numbered?"));
-      await clickText("Not numbered");
-      await clickText("Raw");
       await waitFor(() => textIncludes("Look right?"));
       await clickButton(buttonWithText("Add to collection")!);
       await waitFor(() => capture.length === 1);
@@ -268,8 +265,6 @@ async function walkToReview() {
   await typeCardNumber("136");
   await waitFor(() => Boolean(buttonByLabel("Base")));
   await clickButton(buttonByLabel("Base")!);
-  await clickText("Not numbered");
-  await clickText("Raw");
   await waitFor(() => textIncludes("Look right?"));
 }
 

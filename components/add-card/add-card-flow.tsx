@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
 import { ChevronDown, Pencil } from "lucide-react";
 import {
   BackButton,
@@ -11,7 +12,7 @@ import {
   SwatchDot,
   focusRing,
 } from "@/components/add-card/flow-ui";
-import { GradeStep, NumberStep, ParallelStep, SerialStep } from "@/components/add-card/detail-steps";
+import { ConditionRow, GradeStep, NumberStep, ParallelStep, SerialStep } from "@/components/add-card/detail-steps";
 import { PlayerStep, type PlayerPick } from "@/components/add-card/player-step";
 import { ReviewValue } from "@/components/add-card/review-value";
 import { SearchDoor, type DoorPick } from "@/components/add-card/search-door";
@@ -24,7 +25,6 @@ import type { ArtCard } from "@/components/card-slab-art";
 import { searchCatalog, type CatalogCard } from "@/lib/card-catalog";
 import { parseYearLabel } from "@/lib/card-options";
 import {
-  ADD_FLOW_STEPS,
   STEP_BY_STEP_QUESTION,
   STEP_LABELS,
   STEP_QUESTIONS,
@@ -40,7 +40,9 @@ import {
   backStep,
   catalogJump,
   catalogRowsForPlayer,
+  flowCounter,
   flowProgress,
+  gradeNeedsNumber,
   flowStateAt,
   jumpToStep,
   nextStep,
@@ -48,10 +50,11 @@ import {
   parallelGroups,
   readFlowPosition,
   resumeStep,
+  reviewMissing,
+  reviewNumberedPart,
   reviewParts,
   setChoices,
   stepComplete,
-  stepSkipped,
   writeFlowPosition,
   clearFlowPosition,
   type AddFlowStep,
@@ -61,6 +64,8 @@ import {
   type ParallelOption,
 } from "@/lib/cards/add-flow";
 import { collectionPlayers } from "@/lib/cards/add-flow-players";
+import type { AddLastUsed } from "@/lib/cards/add-last-used";
+import { CARD_PAGE_PREFETCH_PATH } from "@/lib/cards/added-panel";
 import { clearDoorQuery, readDoorQuery, writeDoorQuery } from "@/lib/cards/add-door";
 import { seedInsert } from "@/lib/cards/data/popular-inserts";
 import { applyGradingCompany } from "@/lib/cards/grading-company";
@@ -87,7 +92,11 @@ export type AddCardFlowProps = {
   prefilled?: boolean;
   /** Keys the remembered step to this draft and user. */
   positionKey: string | null;
+  /** This person's last saved answers, for the pre-selected chips. Null when signed out. */
+  lastUsed?: AddLastUsed | null;
   apply: (patch: FlowPatch) => void;
+  /** The cert number on Review's Condition row. Same state CardForm saves. */
+  onCertNumber: (value: string) => void;
   pickCatalog: (card: CatalogCard) => void;
   onStartOver: () => void;
   header: ReactNode;
@@ -107,24 +116,52 @@ const STEP_BACK = "motion-safe:animate-[add-step-back_220ms_cubic-bezier(0.2,0.7
 const STEP_FADE = "motion-reduce:animate-[add-fade_150ms_linear_both]";
 
 /**
+ * The control a step hands focus to: its marked input or answer, else the
+ * pre-selected chip, else the first chip, else the first field.
+ */
+function stepFocusTarget(root: HTMLElement | null): HTMLElement | null {
+  if (!root) return null;
+  return (
+    root.querySelector<HTMLElement>("[data-step-focus]:not([disabled])") ??
+    root.querySelector<HTMLElement>('button[aria-pressed="true"]') ??
+    root.querySelector<HTMLElement>("button[aria-pressed]") ??
+    root.querySelector<HTMLElement>("input:not([type=checkbox]):not([disabled]), button")
+  );
+}
+
+function reducedMotion(): boolean {
+  try {
+    return window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Add card as a guided picker: Player → Year → Set → Card # → Parallel →
- * Numbered? → Grade → Review. CardForm keeps the state, the draft and the save;
+ * Review. Numbered? shows only for a parallel that can be numbered, and the
+ * grade is picked on Review. CardForm keeps the state, the draft and the save;
  * this only asks one question at a time and writes the answers back.
  */
 export function AddCardFlow(props: AddCardFlowProps) {
   const { form } = props;
+  const router = useRouter();
   const { cards } = useCollection();
   const recent = useRecentPlayers();
   const products = useProductData(form.playerName.trim() !== "");
   const headingId = useId();
-  const headingRef = useRef<HTMLHeadingElement>(null);
   const sectionRef = useRef<HTMLElement>(null);
+  const stepRef = useRef<HTMLDivElement>(null);
+  const gradesRef = useRef<HTMLDivElement>(null);
   const firstPaint = useRef(true);
+  const graderOffered = useRef(false);
+  const [missingGrade, setMissingGrade] = useState(false);
 
   const knownRow = products.data
     ? parallelIn(products.data, form.sport, form.yearLabel, form.setBrand, form.parallel)
     : null;
   const knownRun = knownRow?.serialRun && knownRow.serialRun >= 1 ? knownRow.serialRun : null;
+  const runVaries = Boolean(knownRow?.runVaries);
 
   const answers: FlowAnswers = {
     playerName: form.playerName,
@@ -139,6 +176,7 @@ export function AddCardFlow(props: AddCardFlowProps) {
     gradeCompany: props.gradeCompany,
     gradeNumber: props.gradeNumber,
     knownRun,
+    runVaries,
   };
 
   const [flow, setFlow] = useState<FlowState>(() => {
@@ -172,19 +210,33 @@ export function AddCardFlow(props: AddCardFlowProps) {
   );
   const catalogLoading = committedPlayer !== "" && catalogFor !== committedPlayer;
 
-  useEffect(() => {
-    if (firstPaint.current) {
-      firstPaint.current = false;
-      return;
-    }
+  // Focus moves forward with the flow: the step's field (so the keyboard opens)
+  // or its pre-selected chip. A layout effect, so it lands inside the tap that
+  // moved the step and iOS still opens the keyboard. The live region below
+  // reads the question out.
+  useLayoutEffect(() => {
+    const first = firstPaint.current;
+    firstPaint.current = false;
+    // A fresh Add card: the search field has its own autofocus, under the photo buttons.
+    if (first && flow.step === "player") return;
     const section = sectionRef.current;
-    if (section && section.getBoundingClientRect().top < 0) {
-      const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-      section.scrollIntoView?.({ block: "start", behavior: reduce ? "auto" : "smooth" });
+    if (!first && section && section.getBoundingClientRect().top < 0) {
+      section.scrollIntoView?.({ block: "start", behavior: reducedMotion() ? "auto" : "smooth" });
     }
-    // The player step focuses its search field; every other step announces its question.
-    if (flow.step !== "player") headingRef.current?.focus({ preventScroll: true });
+    stepFocusTarget(stepRef.current)?.focus({ preventScroll: true });
   }, [flow.step]);
+
+  // A finished Review warms the card page and the next Add card, so the save has no loading flash.
+  const reviewReady = flow.step === "review" && stepComplete("review", answers);
+  useEffect(() => {
+    if (!reviewReady) return;
+    try {
+      router.prefetch(CARD_PAGE_PREFETCH_PATH);
+      router.prefetch("/cards/new");
+    } catch {
+      // Prefetch is a nicety; the save works without it.
+    }
+  }, [reviewReady, router]);
 
   const owned = useMemo(() => {
     return collectionPlayers(cards).map((name) => ({
@@ -204,8 +256,9 @@ export function AddCardFlow(props: AddCardFlowProps) {
           : [],
         productSets: products.data ? setNamesIn(products.data, form.sport, form.yearLabel) : [],
         insert: form.parallel,
+        lastUsed: props.lastUsed?.set,
       }),
-    [catalogRows, form.sport, form.yearLabel, form.parallel, products.data],
+    [catalogRows, form.sport, form.yearLabel, form.parallel, products.data, props.lastUsed?.set],
   );
 
   const parallelList = useMemo(() => {
@@ -216,14 +269,23 @@ export function AddCardFlow(props: AddCardFlowProps) {
   }, [products.data, form.sport, form.yearLabel, form.setBrand, form.parallel]);
 
   function go(next: FlowState, dir: "forward" | "back") {
+    // The first time Review opens, the last-used grader is pre-selected, but
+    // only when the last card was graded and this one still reads Raw.
+    if (next.step === "review" && !graderOffered.current) {
+      graderOffered.current = true;
+      const grader = props.lastUsed?.grader ?? "";
+      if (grader && !props.resumed && !gradeNeedsNumber(answers.gradeCompany)) {
+        props.apply({ gradeCompany: grader });
+      }
+    }
     setDirection(dir);
     setFlow(next);
     writeFlowPosition(props.positionKey, next);
   }
 
-  function advance(patch?: FlowPatch, run: number | null = knownRun) {
+  function advance(patch?: FlowPatch, run: number | null = knownRun, varies?: boolean) {
     if (patch) props.apply(patch);
-    const nextAnswers = patch ? answersWithPatch(answers, patch, run) : answers;
+    const nextAnswers = patch ? answersWithPatch(answers, patch, run, varies) : answers;
     go(nextStep(flow, nextAnswers), "forward");
   }
 
@@ -233,6 +295,31 @@ export function AddCardFlow(props: AddCardFlowProps) {
 
   function jump(step: AddFlowStep) {
     go(jumpToStep(flow, step), "back");
+  }
+
+  /** Brings the grade chips into view and focuses the first one. */
+  function focusGrades() {
+    const grades = gradesRef.current;
+    if (!grades) return;
+    grades.scrollIntoView?.({ block: "center", behavior: reducedMotion() ? "auto" : "smooth" });
+    grades.querySelector<HTMLElement>('button[aria-pressed="true"], button')?.focus({ preventScroll: true });
+  }
+
+  /** Add tapped with something missing: fix it in place, or open that one step and come back. */
+  function finishReview() {
+    const missing = reviewMissing(answers);
+    if (missing === "grade") {
+      setMissingGrade(true);
+      focusGrades();
+      return;
+    }
+    if (missing) go(jumpToStep(flow, missing), "forward");
+  }
+
+  function pickGradeCompany(company: string) {
+    const picked = answerGradeCompany(company);
+    setMissingGrade(false);
+    props.apply({ gradeCompany: picked.gradeCompany });
   }
 
   function startOver() {
@@ -284,10 +371,14 @@ export function AddCardFlow(props: AddCardFlowProps) {
 
   function pickSet(name: string) {
     const patch = answerSet(name, answers, props.parallelIsCustom);
+    const parallel = patch.form.parallel ?? form.parallel;
     const run = products.data
-      ? serialRunIn(products.data, form.sport, form.yearLabel, name, patch.form.parallel ?? form.parallel)
+      ? serialRunIn(products.data, form.sport, form.yearLabel, name, parallel)
       : null;
-    advance(patch, run);
+    const varies = products.data
+      ? Boolean(parallelIn(products.data, form.sport, form.yearLabel, name, parallel)?.runVaries)
+      : false;
+    advance(patch, run, varies);
   }
 
   function pickParallel(option: ParallelOption) {
@@ -296,13 +387,16 @@ export function AddCardFlow(props: AddCardFlowProps) {
       : option.runVaries
         ? null
         : option.serialRun;
-    advance(answerParallel(form.setBrand, option.name, run, answers), run);
+    const varies = products.data
+      ? Boolean(parallelIn(products.data, form.sport, form.yearLabel, form.setBrand, option.name)?.runVaries)
+      : Boolean(option.runVaries);
+    advance(answerParallel(form.setBrand, option.name, run, answers), run, varies);
   }
 
-  const visible = ADD_FLOW_STEPS.filter((step) => step !== "review" && !stepSkipped(step, answers));
-  const stepNumber = visible.indexOf(flow.step) + 1;
-  const counter = flow.step === "review" ? "Review" : `Step ${Math.max(stepNumber, 1)} of ${visible.length}`;
+  const count = flowCounter(flow, answers);
+  const counter = count.kind === "review" ? "Review" : `Step ${count.index} of ${count.total}`;
   const animation = `${direction === "back" ? STEP_BACK : STEP_IN} ${STEP_FADE}`;
+  const question = flow.step === "player" && stepByStep ? STEP_BY_STEP_QUESTION : STEP_QUESTIONS[flow.step];
   const grading = applyGradingCompany({ company: props.gradeCompany, gradeNumber: props.gradeNumber });
   const parsedYear = parseYearLabel(form.yearLabel);
   const art: ArtCard = {
@@ -351,6 +445,7 @@ export function AddCardFlow(props: AddCardFlowProps) {
         <YearStep
           sport={form.sport}
           value={form.yearLabel}
+          lastUsed={props.lastUsed?.year}
           catalog={catalogRows}
           catalogLoading={catalogLoading}
           onPick={(year) => advance(answerYear(year))}
@@ -433,6 +528,26 @@ export function AddCardFlow(props: AddCardFlowProps) {
           knownRun={knownRun}
           runShown={runShown}
           onJump={jump}
+          condition={
+            <ConditionRow
+              company={props.gradeCompany}
+              number={props.gradeNumber}
+              certNumber={props.certNumber}
+              missingGrade={missingGrade}
+              gradesRef={gradesRef}
+              onCompany={pickGradeCompany}
+              onNumber={(gradeNumber) => {
+                setMissingGrade(false);
+                props.apply({ gradeNumber });
+              }}
+              onCertNumber={props.onCertNumber}
+            />
+          }
+          onCondition={() => {
+            const chip = sectionRef.current?.querySelector<HTMLElement>('[data-slot="condition"] [data-step-focus]');
+            chip?.scrollIntoView?.({ block: "center", behavior: reducedMotion() ? "auto" : "smooth" });
+            chip?.focus({ preventScroll: true });
+          }}
           photoBlock={props.photoBlock}
           moreDetails={props.moreDetails}
           moreOpen={props.moreOpen}
@@ -442,7 +557,8 @@ export function AddCardFlow(props: AddCardFlowProps) {
           feedPost={props.feedPost}
           saving={props.saving}
           readingPhoto={props.readingPhoto}
-          onIncomplete={() => go(flowStateAt(resumeStep(answers), answers), "back")}
+          complete={stepComplete("review", answers)}
+          onIncomplete={finishReview}
         />
       );
       break;
@@ -490,18 +606,17 @@ export function AddCardFlow(props: AddCardFlowProps) {
           />
         ) : null}
 
-        <div key={flow.step} className={`space-y-4 ${animation}`}>
+        {/* Focus goes to the step's field or chip, so the question is read out here. */}
+        <p aria-live="polite" className="sr-only">
+          {question}
+        </p>
+        <div key={flow.step} ref={stepRef} className={`space-y-4 ${animation}`}>
           <div>
             <p className="font-mono text-[11px] font-medium text-violet-700 dark:text-[#A78BFA]">
               {STEP_LABELS[flow.step]}
             </p>
-            <h2
-              id={headingId}
-              ref={headingRef}
-              tabIndex={-1}
-              className="mt-1 text-2xl font-semibold tracking-tight outline-none"
-            >
-              {flow.step === "player" && stepByStep ? STEP_BY_STEP_QUESTION : STEP_QUESTIONS[flow.step]}
+            <h2 id={headingId} className="mt-1 text-2xl font-semibold tracking-tight">
+              {question}
             </h2>
           </div>
           {body}
@@ -576,6 +691,8 @@ function ReviewStep({
   knownRun,
   runShown,
   onJump,
+  condition,
+  onCondition,
   photoBlock,
   moreDetails,
   moreOpen,
@@ -585,6 +702,7 @@ function ReviewStep({
   feedPost,
   saving,
   readingPhoto,
+  complete,
   onIncomplete,
 }: {
   answers: FlowAnswers;
@@ -594,6 +712,10 @@ function ReviewStep({
   knownRun: number | null;
   runShown: number | null;
   onJump: (step: AddFlowStep) => void;
+  /** Raw or a grader, the grade and the cert number, edited in place. */
+  condition: ReactNode;
+  /** The summary's grade part: focus the Condition row instead of a Grade screen. */
+  onCondition: () => void;
   photoBlock: ReactNode;
   moreDetails: ReactNode;
   moreOpen: boolean;
@@ -603,14 +725,18 @@ function ReviewStep({
   feedPost?: ReactNode;
   saving: boolean;
   readingPhoto: boolean;
+  complete: boolean;
   onIncomplete: () => void;
 }) {
   const parts = reviewParts(answers, { isAuto });
+  const numbered = reviewNumberedPart(answers);
+  if (numbered) parts.push({ text: " · ", step: null }, numbered);
   return (
     <div className="space-y-5">
       <div className="flex flex-col items-center text-center">
         <div className="relative w-32 sm:w-40">
-          <div className="relative">
+          {/* The reveal after the save glides from here (lib/cards/slab-morph.ts). */}
+          <div className="relative" data-slab-morph="source">
             <DraftSlab art={art} photo={photo} />
           </div>
         </div>
@@ -628,9 +754,17 @@ function ReviewStep({
               <button
                 key={index}
                 type="button"
-                onClick={() => onJump(part.step!)}
-                aria-label={`Change ${STEP_LABELS[part.step].toLowerCase()}: ${part.text}`}
-                className={`inline-flex min-h-11 items-center rounded-md px-0.5 font-semibold text-zinc-900 underline decoration-zinc-300 decoration-dotted underline-offset-4 hover:decoration-violet-500 dark:text-zinc-50 dark:decoration-white/25 ${focusRing}`}
+                onClick={() => (part.step === "grade" ? onCondition() : onJump(part.step!))}
+                aria-label={
+                  part.hint
+                    ? "Numbered? Set a print run"
+                    : `Change ${STEP_LABELS[part.step].toLowerCase()}: ${part.text}`
+                }
+                className={`inline-flex min-h-11 items-center rounded-md px-0.5 underline decoration-dotted underline-offset-4 ${
+                  part.hint
+                    ? "font-medium text-violet-700 decoration-violet-700/40 hover:decoration-violet-500 dark:text-[#A78BFA] dark:decoration-[#A78BFA]/40"
+                    : "font-semibold text-zinc-900 decoration-zinc-300 hover:decoration-violet-500 dark:text-zinc-50 dark:decoration-white/25"
+                } ${focusRing}`}
               >
                 {part.text}
               </button>
@@ -651,6 +785,8 @@ function ReviewStep({
           </p>
         ) : null}
       </div>
+
+      {condition}
 
       <ReviewValue answers={answers} card={{ isAuto, serialRun: runShown }} />
 
@@ -686,16 +822,18 @@ function ReviewStep({
         <button
           type="submit"
           disabled={saving || readingPhoto}
+          // Looks unavailable until complete but stays tappable: a tap shows what's missing.
+          aria-disabled={complete ? undefined : true}
           onMouseDown={(event) => {
             // Keep focus so onBlur validation cannot swallow the first click.
             if (event.button === 0) event.preventDefault();
           }}
           onClick={(event) => {
-            if (stepComplete("review", answers)) return;
+            if (complete) return;
             event.preventDefault();
             onIncomplete();
           }}
-          className={`min-h-12 w-full rounded-full bg-violet-600 px-6 py-3 text-sm font-semibold text-white hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-40 ${focusRing}`}
+          className={`min-h-12 w-full rounded-full bg-violet-600 px-6 py-3 text-sm font-semibold text-white hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-40 aria-disabled:opacity-50 ${focusRing}`}
         >
           {saving ? "Adding…" : "Add to collection"}
         </button>

@@ -175,9 +175,6 @@ describe("Add card v2 phase 2", () => {
     try {
       await waitFor(() => textIncludes("Which parallel or insert?"));
       await clickButton(buttonByLabel("Downtown")!);
-      await waitFor(() => textIncludes("Is it numbered?"));
-      await clickText("Not numbered");
-      await clickText("Raw");
       await waitFor(() => textIncludes("Look right?"));
       assert.ok(textIncludes("Finding recent sales…"), "calm loading line first");
       assert.equal(quickComp.length, 0, "debounced: nothing before 400ms");
@@ -228,9 +225,6 @@ describe("Add card v2 phase 2", () => {
     try {
       await waitFor(() => textIncludes("Which parallel or insert?"));
       await clickButton(buttonByLabel("Kaboom")!);
-      await waitFor(() => textIncludes("Is it numbered?"));
-      await clickText("Not numbered");
-      await clickText("Raw");
       await waitFor(() => textIncludes("Value unavailable right now"));
       const block = win.document.querySelector('[data-slot="review-value"]')?.textContent ?? "";
       assert.doesNotMatch(block, /\$/);
@@ -252,8 +246,6 @@ describe("Add card v2 phase 2", () => {
     try {
       await waitFor(() => textIncludes("Which parallel or insert?"));
       await clickButton(buttonByLabel("Base")!);
-      await clickText("Not numbered");
-      await clickText("Raw");
       await waitFor(() => textIncludes("Look right?"));
       await act(async () => {
         await new Promise((resolve) => setTimeout(resolve, 500));

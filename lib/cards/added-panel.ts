@@ -12,6 +12,12 @@ export function addedCardPath(cardId: string): string {
   return `/cards/${cardId}?added=1`;
 }
 
+/**
+ * Prefetched once Review is complete. The card page is dynamic with a
+ * loading boundary, so any id warms its route code and loading state.
+ */
+export const CARD_PAGE_PREFETCH_PATH = "/cards/prefetch";
+
 export function isAddedParam(value: string | string[] | undefined): boolean {
   const one = Array.isArray(value) ? value[0] : value;
   return one === "1";
@@ -49,17 +55,76 @@ export function addedValueLine(
   return { kind: "pending", text: "Finding recent sales…" };
 }
 
+/** The collection total, or null until at least one held card has a value. Never 0. */
+function knownTotal(
+  cards: SportsCard[],
+  values: Map<string, CardValueResult>,
+  valuesReady: boolean,
+): number | null {
+  if (!valuesReady) return null;
+  const totals = summarize(cards, values);
+  if (totals.heldCount <= totals.withoutValueCount) return null;
+  const total = displayedCollectionTotal(cards, values);
+  return Number.isFinite(total) && total >= 0.01 ? total : null;
+}
+
+/** "Your collection: 3 cards, about $72.00", or just the count without a real total. */
+export function collectionLineText(count: number, total: number | null): string {
+  const cards = `${count} card${count === 1 ? "" : "s"}`;
+  if (total == null || !Number.isFinite(total) || total < 0.01) return `Your collection: ${cards}`;
+  return `Your collection: ${cards}, about ${money(total)}`;
+}
+
 /** Same totals as the collection header. The total shows once at least one held card has a value. */
 export function addedCollectionLine(
   cards: SportsCard[],
   values: Map<string, CardValueResult>,
   valuesReady: boolean,
 ): string {
-  const count = `${cards.length} card${cards.length === 1 ? "" : "s"}`;
-  const totals = summarize(cards, values);
-  const known = valuesReady && totals.heldCount > totals.withoutValueCount;
-  if (!known) return `Your collection: ${count}`;
-  return `Your collection: ${count}, about ${money(displayedCollectionTotal(cards, values))}`;
+  return collectionLineText(cards.length, knownTotal(cards, values, valuesReady));
+}
+
+/**
+ * The reveal's collection line as numbers: the total now and the total
+ * without this card, so the figure can count up from one to the other.
+ * Either is null when it isn't a real value; then nothing animates.
+ */
+export function addedCollectionTotals(
+  cards: SportsCard[],
+  values: Map<string, CardValueResult>,
+  valuesReady: boolean,
+  cardId: string,
+): { count: number; total: number | null; previous: number | null } {
+  const total = knownTotal(cards, values, valuesReady);
+  const others = cards.filter((item) => item.id !== cardId);
+  const previous = total == null || others.length === cards.length ? null : knownTotal(others, values, valuesReady);
+  return { count: cards.length, total, previous: previous != null && previous <= total! ? previous : null };
+}
+
+const COUNT_MILESTONES = [1, 10, 25, 50, 100, 250, 500] as const;
+
+function isSlab(card: Pick<SportsCard, "conditionType">): boolean {
+  return card.conditionType === "graded";
+}
+
+function isNumbered(card: Pick<SportsCard, "serialRun">): boolean {
+  return typeof card.serialRun === "number" && card.serialRun >= 1;
+}
+
+/**
+ * One quiet line for a moment worth naming: the 1st, 10th, 25th… card, the
+ * first slab, or the first numbered card. One line per add, in that order.
+ */
+export function milestoneFor(cards: readonly SportsCard[], added: SportsCard): string | null {
+  if (!cards.some((item) => item.id === added.id)) return null;
+  const count = cards.length;
+  if ((COUNT_MILESTONES as readonly number[]).includes(count)) {
+    return count === 1 ? "Your first card." : `Card ${count} in your collection.`;
+  }
+  const others = cards.filter((item) => item.id !== added.id);
+  if (isSlab(added) && !others.some(isSlab)) return "Your first slab.";
+  if (isNumbered(added) && !others.some(isNumbered)) return "Your first numbered card.";
+  return null;
 }
 
 export type AddedSoldPrice = { key: string; price: number; priceText: string; dateText: string | null };

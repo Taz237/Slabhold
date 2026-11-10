@@ -80,6 +80,8 @@ import {
   type MoreDetailsField,
 } from "@/lib/cards/add-form-sections";
 import { addedCardPath, type AddAnotherPrefill } from "@/lib/cards/added-panel";
+import { browserStorage, lastUsedFromSave, readAddLastUsed, writeAddLastUsed } from "@/lib/cards/add-last-used";
+import { captureSlabMorph } from "@/lib/cards/slab-morph";
 import { preloadCardAddedPanel } from "@/components/card-page-parts";
 import { haptic } from "@/lib/ios/haptics";
 import { askForReview } from "@/lib/ios/review";
@@ -182,7 +184,6 @@ export function CardForm({
 }) {
   const catalogStart = !existing && initialCatalog ? catalogPickFields(initialCatalog, "") : null;
   const guidedAdd = guided && !existing;
-  const startSport = SPORT_PICKER_OPTIONS.includes(initialSport) ? initialSport : "Basketball";
   const router = useRouter();
   const {
     addCard,
@@ -197,6 +198,15 @@ export function CardForm({
   } = useCollection();
   const { mode, user, createPost } = useSocial();
   const userId = user?.id ?? null;
+  // The last guided add's sport, year, set and grader, for the pre-selected answers.
+  // Signed out on the server and on first paint, so it never differs at hydration.
+  // Edit card never reads it.
+  const lastUsed = useMemo(
+    () => (guidedAdd ? readAddLastUsed(browserStorage(), userId) : null),
+    [guidedAdd, userId],
+  );
+  const lastSport = lastUsed?.sport && SPORT_PICKER_OPTIONS.includes(lastUsed.sport) ? lastUsed.sport : null;
+  const startSport = SPORT_PICKER_OPTIONS.includes(initialSport) ? initialSport : (lastSport ?? "Basketball");
   const prefill = !existing && !initialCatalog ? initialPrefill : null;
   const seed = existing
     ? null
@@ -994,6 +1004,20 @@ export function CardForm({
         if (user?.id) writeBrowserVisibilityChoice(user.id, payload.isPublic);
       }
       if (offerPrivacy && user) rememberFirstCardPrivacy(user.id, card.id);
+      // Only a saved guided add is remembered; Edit card never writes it.
+      if (guidedAdd && user?.id) {
+        writeAddLastUsed(
+          browserStorage(),
+          user.id,
+          lastUsedFromSave({
+            sport: payload.sport,
+            yearLabel: payload.yearLabel,
+            setBrand: payload.setBrand,
+            gradeCompany,
+            conditionType: liveCondition,
+          }),
+        );
+      }
       if (mode === "supabase") {
         const picked = catalogPickStillMatches(catalogPick.current, {
           playerName: payload.playerName,
@@ -1044,6 +1068,8 @@ export function CardForm({
           }
         }
       }
+      // The reveal glides its slab in from where the Review slab sits now. Recorded, never awaited.
+      if (guidedAdd) captureSlabMorph();
       if (!existing) haptic(postedNow ? "post" : "save");
       if (postFailedText) {
         setSaveError(postFailedText);
@@ -1485,6 +1511,18 @@ export function CardForm({
           </div>
   ) : null;
 
+  const gradeQualifierNode = graded ? (
+    <Field label="Qualifier">
+      <NativeSelect
+        label="Qualifier"
+        value={gradeQualifier}
+        options={GRADE_QUALIFIERS}
+        placeholder="None"
+        onChange={setGradeQualifier}
+      />
+    </Field>
+  ) : null;
+
   const purchaseNode = (
     <div className="space-y-2">
       <div className="grid grid-cols-2 gap-3">
@@ -1723,7 +1761,8 @@ export function CardForm({
       serialRun: null,
       serialNo: null,
       traits: traitsNode,
-      gradeExtras: gradeExtrasNode,
+      // The cert number is on Review's Condition row; the qualifier stays here.
+      gradeExtras: gradeQualifierNode,
       purchase: purchaseNode,
       estimatedSellPrice: estimateNode,
       sold: (
@@ -1767,7 +1806,9 @@ export function CardForm({
           resumed={showingRestored}
           prefilled={Boolean(prefill)}
           positionKey={seed != null ? `${userId ?? ""}\n${seed}` : null}
+          lastUsed={lastUsed}
           apply={applyFlowPatch}
+          onCertNumber={setCertNumber}
           pickCatalog={applyCatalog}
           onStartOver={startOver}
           header={headerNode}

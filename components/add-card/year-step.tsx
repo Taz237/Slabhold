@@ -5,15 +5,18 @@ import { Chip, QuietButton, SectionLabel, focusRing } from "@/components/add-car
 import { SearchSelect } from "@/components/search-select";
 import type { CatalogCard } from "@/lib/card-catalog";
 import { isValidYear, optionsWithCurrent, yearOptionsForSport } from "@/lib/card-options";
-import { catalogYears, yearChips } from "@/lib/cards/add-flow";
+import { catalogYears, yearChips, yearSuggestion } from "@/lib/cards/add-flow";
 
 /**
  * What year. A chip grid of recent seasons, the player's own years first,
  * and "Older…" for the rest. "Not sure?" offers their catalog cards.
+ * With no answer yet, the last-used year (or the newest) is pre-selected:
+ * highlighted and focused, still a tap or Return to confirm.
  */
 export function YearStep({
   sport,
   value,
+  lastUsed = null,
   catalog,
   catalogLoading,
   onPick,
@@ -21,6 +24,8 @@ export function YearStep({
 }: {
   sport: string;
   value: string;
+  /** The year of the last card this person added. */
+  lastUsed?: string | null;
   catalog: readonly CatalogCard[];
   catalogLoading: boolean;
   onPick: (yearLabel: string) => void;
@@ -30,6 +35,7 @@ export function YearStep({
   const theirs = catalogYears(catalog);
   const chips = yearChips(sport);
   const all = yearOptionsForSport(sport);
+  const suggested = value ? null : yearSuggestion(chips, lastUsed);
 
   return (
     <div className="space-y-5">
@@ -60,7 +66,7 @@ export function YearStep({
           {chips.map((year) => (
             <Chip
               key={year}
-              selected={value === year}
+              selected={value === year || year === suggested}
               onClick={() => onPick(year)}
               className="w-full px-2 tabular-nums"
             >

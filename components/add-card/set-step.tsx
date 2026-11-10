@@ -7,6 +7,7 @@ import { SETS, optionsWithCurrent, sortSetNames } from "@/lib/card-options";
 import type { SetChoice } from "@/lib/cards/add-flow";
 
 const SOURCE_TAG: Record<SetChoice["source"], string | null> = {
+  last: "Last used",
   catalog: "Their card",
   checklist: "Checklist",
   popular: null,
@@ -34,7 +35,10 @@ export function SetStep({
     <div className="space-y-5">
       <ul className="grid grid-cols-2 gap-2">
         {choices.map((choice) => {
-          const selected = choice.name.toLowerCase() === value.trim().toLowerCase();
+          // With no answer yet, the last-used set is pre-selected: highlighted and focused.
+          const selected = value.trim()
+            ? choice.name.toLowerCase() === value.trim().toLowerCase()
+            : choice.source === "last";
           const tag = SOURCE_TAG[choice.source];
           return (
             <li key={choice.name}>
