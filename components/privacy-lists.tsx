@@ -12,6 +12,7 @@ import { LeaderboardOptInSwitch } from "@/components/leaderboard-opt-in";
 import { leaderboardMinimums, type LeaderboardMinimums } from "@/lib/leaderboard/eligibility";
 import { loginPath } from "@/lib/auth/safe-next";
 import { unblockAccount, unmuteAccount } from "@/lib/safety/actions";
+import { SAFETY_ACTION_FAILED } from "@/lib/safety/report";
 import { MENU_OPEN_HREF } from "@/lib/ui/side-menu";
 
 export function PrivacyLists({
@@ -52,8 +53,9 @@ export function PrivacyLists({
   async function unblock(userId: string) {
     setBusyId(userId);
     setError(null);
-    const result = await unblockAccount(userId);
-    setBusyId(null);
+    const result = await unblockAccount(userId)
+      .catch(() => ({ ok: false as const, error: SAFETY_ACTION_FAILED }))
+      .finally(() => setBusyId(null));
     if (!result.ok) {
       setError(result.error);
       return;
@@ -65,8 +67,9 @@ export function PrivacyLists({
   async function unmute(userId: string) {
     setBusyId(userId);
     setError(null);
-    const result = await unmuteAccount(userId);
-    setBusyId(null);
+    const result = await unmuteAccount(userId)
+      .catch(() => ({ ok: false as const, error: SAFETY_ACTION_FAILED }))
+      .finally(() => setBusyId(null));
     if (!result.ok) {
       setError(result.error);
       return;

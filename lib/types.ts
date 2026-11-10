@@ -1,5 +1,3 @@
-export type CardStatus = "held" | "sold";
-
 export type CardCategory = "flipping" | "pc";
 
 export type ConditionType = "raw" | "graded";
@@ -110,19 +108,4 @@ export function needsDetailsLabel(card: DetailCard): string {
  */
 export function needsDetails(card: DetailCard): boolean {
   return missingDetailFields(card).length > 0;
-}
-
-/** @deprecated Prefer needsDetails */
-export function cardNeedsDetails(
-  card: Pick<
-    SportsCard,
-    | "cardNumber"
-    | "noNumber"
-    | "conditionType"
-    | "grade"
-    | "year"
-    | "yearLabel"
-  >,
-): boolean {
-  return needsDetails(card);
 }

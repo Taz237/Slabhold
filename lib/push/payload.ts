@@ -28,7 +28,7 @@ export type PushPayload = {
 
 export const MAX_PAYLOAD_BYTES = 3584;
 export const FALLBACK_ICON = "/icons/icon-192.png";
-export const BADGE_ICON = "/icons/badge-96.png";
+
 export const LIKE_PREVIEW_CHARS = 80;
 export const TEXT_PREVIEW_CHARS = 120;
 const RETRY_BODY_CHARS = 40;
@@ -57,13 +57,25 @@ export function truncate(text: string | null | undefined, max: number): string {
   return `${chars.slice(0, Math.max(0, max - 1)).join("").trimEnd()}…`;
 }
 
-/** The actor's avatar when it is a public https image, else the app icon. */
+function ownStorageHost(): string | null {
+  try {
+    return new URL(process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").host || null;
+  } catch {
+    return null;
+  }
+}
+
+/** The actor's avatar when it is a public https image in our storage, else the app icon. */
 export function pushIcon(avatarUrl: string | null | undefined): string {
   if (!avatarUrl) return FALLBACK_ICON;
   try {
     const url = new URL(avatarUrl);
     if (url.protocol !== "https:" || url.username || url.password) return FALLBACK_ICON;
     if (!url.pathname.includes("/storage/v1/object/public/")) return FALLBACK_ICON;
+    // Only our own storage. Another host with a look-alike path would learn
+    // each recipient's IP when their device fetched the icon.
+    const own = ownStorageHost();
+    if (own && url.host !== own) return FALLBACK_ICON;
     return url.toString();
   } catch {
     return FALLBACK_ICON;

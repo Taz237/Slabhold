@@ -214,39 +214,21 @@ export async function reachableImage(url: string | null): Promise<string | null>
   return (await probeImage(url, false))?.src ?? null;
 }
 
-export async function reachableImages(urls: readonly string[]): Promise<string[]> {
-  const found: string[] = [];
-  for (const url of urls) {
-    if (found.length >= 3) break;
-    const safe = await reachableImage(url);
-    if (safe && !found.includes(safe)) found.push(safe);
-  }
-  return found;
-}
-
 /**
  * Check every image a share model draws. Unreachable photos are dropped, so
  * the design falls back (fewer slabs, text only) instead of a broken box.
  */
 export async function reachableShare(model: ShareImage): Promise<ShareImage> {
   const check = async (urls: readonly string[]) => {
-    const found: string[] = [];
-    for (const url of urls) {
-      const safe = await reachableImage(url);
-      if (safe) found.push(safe);
-    }
-    return found;
+    const probed = await Promise.all(urls.map((url) => reachableImage(url)));
+    return probed.filter((safe): safe is NonNullable<typeof safe> => Boolean(safe));
   };
   const [imageUrl, avatarUrl, photos, postPhotos, slabProbes] = await Promise.all([
     reachableImage(model.imageUrl),
     reachableImage(model.avatarUrl),
     check(model.photos),
     check(model.postPhotos),
-    (async () => {
-      const found: (Probe | null)[] = [];
-      for (const slab of model.slabs) found.push(await probeImage(slab.src, true));
-      return found;
-    })(),
+    Promise.all(model.slabs.map((slab) => probeImage(slab.src, true))),
   ]);
   // A slab keeps its place only when its photo is reachable. A wide photo draws
   // as a landscape slab; an unknown size leaves the slab as it was (portrait).

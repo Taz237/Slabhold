@@ -156,7 +156,12 @@ export function HunterPrompt() {
       if (!supabase || cancelled) return;
       void readShowAsHunter(supabase as unknown as HunterSettingDb, id).then((result) => {
         if (cancelled || result.error) return;
-        const dismissed = window.localStorage.getItem(hunterPromptDismissKey(id)) === "1";
+        let dismissed = false;
+        try {
+          dismissed = window.localStorage.getItem(hunterPromptDismissKey(id)) === "1";
+        } catch {
+          // Storage blocked: treat the prompt as not dismissed.
+        }
         setVisible(hunterPromptVisible({ showAsHunter: result.showAsHunter, dismissed }));
       });
     }).catch(() => {
@@ -171,7 +176,11 @@ export function HunterPrompt() {
   const userId = user.id;
 
   function dismiss() {
-    window.localStorage.setItem(hunterPromptDismissKey(userId), "1");
+    try {
+      window.localStorage.setItem(hunterPromptDismissKey(userId), "1");
+    } catch {
+      // Storage blocked: still hide it for this visit.
+    }
     setVisible(false);
   }
 

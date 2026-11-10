@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ConfirmDialog } from "@/components/safety-menu";
+import { SAFETY_ACTION_FAILED } from "@/lib/safety/report";
 import {
   deleteReportTarget,
   hideReportPost,
@@ -40,8 +41,9 @@ export function ReportActions({
     if (busy) return false;
     setBusy(true);
     setError(null);
-    const result = await action(reportId);
-    setBusy(false);
+    const result = await action(reportId)
+      .catch((): { error?: string } => ({ error: SAFETY_ACTION_FAILED }))
+      .finally(() => setBusy(false));
     if (result.error) {
       setError(result.error);
       return false;

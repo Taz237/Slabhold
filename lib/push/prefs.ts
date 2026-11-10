@@ -4,16 +4,6 @@ export type PushKind = "follow" | "like" | "reply" | "repost" | "quote" | "menti
 /** Outbox kinds: the notification kinds that push, plus `dm` for messages. */
 export type SourceKind = "follow" | "like" | "comment" | "repost" | "quote" | "mention" | "dm";
 
-export const SOURCE_KINDS: readonly SourceKind[] = [
-  "follow",
-  "like",
-  "comment",
-  "repost",
-  "quote",
-  "mention",
-  "dm",
-];
-
 export type NotificationPrefs = Record<PushKind, boolean> & {
   showPreviews: boolean;
   quietEnabled: boolean;

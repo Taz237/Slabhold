@@ -12,7 +12,10 @@ import {
   unblockAccount,
   unmuteAccount,
 } from "@/lib/safety/actions";
-import { REPORT_REASONS, type ReportTargetType } from "@/lib/safety/report";
+import { REPORT_REASONS, SAFETY_ACTION_FAILED, type ReportTargetType } from "@/lib/safety/report";
+
+/** A server action that rejected (offline, or a deploy mid-request). */
+const ACTION_FAILED = { ok: false as const, error: SAFETY_ACTION_FAILED };
 
 const menuItem =
   "block w-full px-4 py-2.5 text-left text-[15px] font-semibold hover:bg-zinc-100 dark:hover:bg-white/10";
@@ -74,8 +77,9 @@ export function SafetyMenu({
       reportedUserId,
       reason,
       details,
-    });
-    setBusy(false);
+    })
+      .catch(() => ACTION_FAILED)
+      .finally(() => setBusy(false));
     if (!result.ok) {
       setError(result.error);
       return;
@@ -90,8 +94,9 @@ export function SafetyMenu({
     if (busy) return;
     setBusy(true);
     setError(null);
-    const result = blocked ? await unblockAccount(reportedUserId) : await blockAccount(reportedUserId);
-    setBusy(false);
+    const result = await (blocked ? unblockAccount(reportedUserId) : blockAccount(reportedUserId))
+      .catch(() => ACTION_FAILED)
+      .finally(() => setBusy(false));
     if (!result.ok) {
       setError(result.error);
       return;
@@ -104,8 +109,9 @@ export function SafetyMenu({
     if (busy) return;
     setBusy(true);
     setError(null);
-    const result = muted ? await unmuteAccount(reportedUserId) : await muteAccount(reportedUserId);
-    setBusy(false);
+    const result = await (muted ? unmuteAccount(reportedUserId) : muteAccount(reportedUserId))
+      .catch(() => ACTION_FAILED)
+      .finally(() => setBusy(false));
     if (!result.ok) {
       setError(result.error);
       return;
@@ -192,7 +198,11 @@ export function SafetyMenu({
       ) : null}
 
       {dialog === "report" ? (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 px-4">
+        <div
+          className="fixed inset-0 z-50 grid place-items-center bg-black/50 px-4"
+          // A tap in the dialog must not open the post row it sits in.
+          onClick={(event) => event.stopPropagation()}
+        >
           <form
             role="dialog"
             aria-modal="true"
@@ -305,7 +315,11 @@ export function ConfirmDialog({
   onConfirm: () => void;
 }) {
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 px-4">
+    <div
+      className="fixed inset-0 z-50 grid place-items-center bg-black/50 px-4"
+      // A tap in the dialog must not open the post row it sits in.
+      onClick={(event) => event.stopPropagation()}
+    >
       <div
         role="dialog"
         aria-modal="true"

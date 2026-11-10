@@ -1,6 +1,6 @@
 import { stripUnsupportedOgText } from "@/lib/og/safe-text";
 import type { LeaderboardSnapshot } from "./present";
-import { LEADERBOARD_DESCRIPTION, LEADERBOARD_TABS, LEADERBOARD_TITLE, THIN_BOARD_TITLE } from "./rules";
+import { LEADERBOARD_TABS, LEADERBOARD_TITLE, THIN_BOARD_TITLE } from "./rules";
 import { rankBoard } from "./present";
 
 export type LeaderboardShareLine = {
@@ -40,8 +40,4 @@ export function leaderboardShareModel(snapshot: LeaderboardSnapshot): Leaderboar
     detail: lines.length > 0 ? safe(tab.label, "Top card post") : safe(THIN_BOARD_TITLE, "Leaderboard"),
     lines,
   };
-}
-
-export function leaderboardShareDescription(): string {
-  return LEADERBOARD_DESCRIPTION;
 }

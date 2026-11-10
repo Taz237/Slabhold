@@ -270,13 +270,6 @@ export function parseYearLabel(value: string): {
   return null;
 }
 
-export function defaultYearLabelForSport(sport: string): string {
-  if (sport === "Basketball" || sport === "Hockey") {
-    return CARD_SEASONS[0] ?? String(CARD_YEAR_MAX);
-  }
-  return String(CARD_YEAR_MAX);
-}
-
 export function yearOptionsForSport(sport: string): string[] {
   if (sport === "Basketball" || sport === "Hockey") {
     return [...CARD_SEASONS, ...CARD_YEARS];

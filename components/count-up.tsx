@@ -11,7 +11,9 @@ const COUNT_UP_MS = 480;
  * under reduced motion.
  */
 export function CountUp({ text, run = false }: { text: string; run?: boolean }) {
-  const [shown, setShown] = useState(text);
+  // The frame being drawn, and the value it belongs to. A frame for an older
+  // value is never shown, so a skipped animation cannot leave a stale number.
+  const [shown, setShown] = useState({ forText: text, value: text });
   const ref = useRef<HTMLSpanElement>(null);
 
   useEffect(() => {
@@ -24,20 +26,20 @@ export function CountUp({ text, run = false }: { text: string; run?: boolean }) 
     const step = (time: number) => {
       start ||= time;
       const progress = Math.min(1, (time - start) / COUNT_UP_MS);
-      setShown(countUpText(text, 1 - (1 - progress) ** 3));
+      setShown({ forText: text, value: countUpText(text, 1 - (1 - progress) ** 3) });
       if (progress < 1) frame = requestAnimationFrame(step);
     };
     // Starts on the next frame, after the first paint.
     frame = requestAnimationFrame(step);
     return () => {
       cancelAnimationFrame(frame);
-      setShown(text);
+      setShown({ forText: text, value: text });
     };
   }, [run, text]);
 
   return (
     <span ref={ref} data-gain-text="">
-      {run ? shown : text}
+      {run && shown.forText === text ? shown.value : text}
     </span>
   );
 }

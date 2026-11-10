@@ -3,10 +3,10 @@
 import { EmptyState } from "@/components/status";
 
 export default function PlayerRouteError({
-  reset,
+  retry,
 }: {
   error: Error & { digest?: string };
-  reset: () => void;
+  retry: () => void;
 }) {
   return (
     <>
@@ -14,7 +14,7 @@ export default function PlayerRouteError({
       <EmptyState title="Couldn't load this player" detail="Try again in a moment.">
         <button
           type="button"
-          onClick={() => reset()}
+          onClick={() => retry()}
           className="inline-flex min-h-11 items-center rounded-full bg-violet-600 px-4 text-sm font-semibold text-white hover:bg-violet-500"
         >
           Try again

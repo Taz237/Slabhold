@@ -54,6 +54,7 @@ import {
   subscribeFirstCardPrivacy,
 } from "@/lib/collection/first-card-privacy";
 import { showAddedPanel } from "@/lib/cards/added-panel";
+import { todayDateInput } from "@/lib/cards/form-defaults";
 import { gradeDetailSpecs } from "@/lib/cards/grading-company";
 import { canonicalParallelName, parallelMatchKey } from "@/lib/cards/parallels";
 import { parallelIn } from "@/lib/cards/product-data";
@@ -363,7 +364,7 @@ export function CardDetail({ id, added = false }: { id: string; added?: boolean 
     if (!price || !card) return;
     updateCard(card.id, {
       sellPrice: price,
-      sellDate: new Date().toISOString().slice(0, 10),
+      sellDate: todayDateInput(),
     });
     setSellPrice("");
   }

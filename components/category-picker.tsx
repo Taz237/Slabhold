@@ -1,6 +1,6 @@
 "use client";
 
-import { cardCategory, categoryLabel } from "@/lib/card-category";
+import { categoryLabel } from "@/lib/card-category";
 import type { CardCategory } from "@/lib/types";
 
 const OPTIONS: { id: CardCategory; detail: string }[] = [
@@ -40,23 +40,5 @@ export function CategoryPicker({
         );
       })}
     </div>
-  );
-}
-
-export function CategoryBadge({ card }: { card: { category?: string | null } }) {
-  const category = cardCategory(card);
-  const label = categoryLabel(category);
-  const pc = category === "pc";
-  return (
-    <span
-      title={label}
-      className={`inline-block max-w-full shrink-0 truncate rounded-full px-2 py-0.5 text-[11px] font-semibold ${
-        pc
-          ? "bg-amber-500/15 text-amber-800 dark:text-amber-200"
-          : "bg-emerald-500/15 text-emerald-800 dark:text-emerald-200"
-      }`}
-    >
-      {label}
-    </span>
   );
 }

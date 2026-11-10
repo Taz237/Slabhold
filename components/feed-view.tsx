@@ -56,6 +56,7 @@ import {
   newUserOnFullSnapshot,
   profileStepDone,
 } from "@/lib/social/get-started";
+import { toPublicAttachment } from "@/lib/social/card-posts";
 import { followingAuthorIds, homeHead, showsNewPosts } from "@/lib/social/feed-page";
 import { getStartedHintScript, type HomeSeed } from "@/lib/social/home-seed";
 import { presentForYouFeed } from "@/lib/social/for-you-display";
@@ -641,19 +642,7 @@ function Composer({ onPosted }: { onPosted?: () => void }) {
     e.preventDefault();
     if (overLimit) return;
     const selected = cards.find((card) => card.id === cardId);
-    const card: PublicCard | null = selected
-      ? {
-          id: selected.id,
-          playerName: selected.playerName,
-          year: selected.year,
-          setBrand: selected.setBrand,
-          cardNumber: selected.cardNumber,
-          sport: selected.sport,
-          photoDataUrl: selected.photoDataUrl,
-          accent: selected.accent,
-          estimatedSellPrice: selected.estimatedSellPrice,
-        }
-      : null;
+    const card: PublicCard | null = selected ? toPublicAttachment(selected) : null;
     setSending(true);
     const result = await createPost({
       body,

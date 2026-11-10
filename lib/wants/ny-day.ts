@@ -3,7 +3,9 @@ import { snapshotDateInNewYork } from "@/lib/collection/totals-shared";
 /** UTC instant of midnight America/New_York for the calendar day containing `now`. */
 export function newYorkDayStartIso(now: Date = new Date()): string {
   const day = snapshotDateInNewYork(now);
-  const probe = new Date(`${day}T12:00:00Z`);
+  // 05:00Z is midnight or 1 AM in New York, always before a 2 AM clock change,
+  // so the offset read here is the one in force at local midnight.
+  const probe = new Date(`${day}T05:00:00Z`);
   const parts = new Intl.DateTimeFormat("en-US", {
     timeZone: "America/New_York",
     timeZoneName: "shortOffset",

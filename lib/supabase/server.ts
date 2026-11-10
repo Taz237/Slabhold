@@ -25,7 +25,7 @@ export async function createSupabaseServer() {
             cookieStore.set(name, value, options);
           }
         } catch {
-          // set from a Server Component without mutable cookies — middleware refreshes sessions
+          // set from a Server Component without mutable cookies. The browser client refreshes the session
         }
       },
     },

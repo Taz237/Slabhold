@@ -29,7 +29,11 @@ export function CompFlagsAdmin() {
       setFlags([]);
       return;
     }
-    const res = await fetch(`/api/admin/comp-flags?q=${encodeURIComponent(q)}`);
+    const res = await fetch(`/api/admin/comp-flags?q=${encodeURIComponent(q)}`).catch(() => null);
+    if (!res) {
+      setStatus("Search failed.");
+      return;
+    }
     if (res.status === 404) {
       setStatus("Not available.");
       setFlags([]);
@@ -51,9 +55,9 @@ export function CompFlagsAdmin() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id }),
-    });
+    }).catch(() => null);
     setBusy(null);
-    if (!res.ok) {
+    if (!res?.ok) {
       setStatus("Couldn't restore that flag.");
       return;
     }

@@ -70,7 +70,3 @@ export function identityKey(identity: CardIdentity): string {
     identity.conditionType,
   ].join("|");
 }
-
-export function sameIdentity(a: CardIdentity, b: CardIdentity): boolean {
-  return identityKey(a) === identityKey(b);
-}

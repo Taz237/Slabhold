@@ -338,22 +338,27 @@ export function FirstRunSetup() {
     setBusy(true);
     const picks = [...sports.map((value) => ({ kind: "sport" as const, value })), ...names];
     const rows = action === "skip" ? interestWriteRows("skip", picks) : interestWriteRows("complete", picks);
-    const result = await writeInterests(me.id, rows);
-    if (result === "limit") {
-      setBusy(false);
-      setLimitNote(PICK_LIMIT_MESSAGE);
-      return false;
-    }
-    if (result === "saved") {
-      refreshSuggestions();
-      if (action === "complete") {
-        const supabase = await loadSupabaseBrowser();
-        const ranked = supabase ? await loadServerSuggestions(supabase) : null;
-        if (ranked) setPeople(ranked);
+    try {
+      const result = await writeInterests(me.id, rows);
+      if (result === "limit") {
+        setLimitNote(PICK_LIMIT_MESSAGE);
+        return false;
       }
+      if (result === "saved") {
+        refreshSuggestions();
+        if (action === "complete") {
+          const supabase = await loadSupabaseBrowser();
+          const ranked = supabase ? await loadServerSuggestions(supabase) : null;
+          if (ranked) setPeople(ranked);
+        }
+      }
+      return true;
+    } catch {
+      // A failed load moves on, the same as a failed save. Setup is never a trap.
+      return true;
+    } finally {
+      setBusy(false);
     }
-    setBusy(false);
-    return true;
   }
 
   function finish(addCard: boolean) {

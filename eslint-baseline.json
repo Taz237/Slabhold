@@ -6,7 +6,6 @@
   "error components/collection-provider.tsx:react-hooks/set-state-in-effect": 1,
   "error components/compose-view.tsx:react-hooks/set-state-in-effect": 3,
   "error components/follow-button.tsx:react-hooks/set-state-in-effect": 1,
-  "error components/portfolio-context.tsx:react-hooks/set-state-in-effect": 1,
   "error components/post-view.tsx:react-hooks/set-state-in-effect": 1,
   "error components/profile-edit-sheet.tsx:react-hooks/refs": 1,
   "error components/profile-view.tsx:react-hooks/set-state-in-effect": 1,

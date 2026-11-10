@@ -163,6 +163,7 @@ export function FollowList({
                   name={person.displayName}
                   image={person.avatarDataUrl}
                   accent={person.accent}
+                  expandable={false}
                 />
                 <span className="min-w-0">
                   <span className="block truncate text-[15px] font-semibold leading-5">

@@ -14,7 +14,7 @@ import type {
   OpenSpotsRow,
   YouRow,
 } from "@/lib/leaderboard/present";
-import { profileCardsLinkFor, profileLinkFor } from "@/lib/leaderboard/profile-link";
+import { profileCardsLinkFor } from "@/lib/leaderboard/profile-link";
 import {
   FINAL_LABEL,
   LEADERBOARD_PATH,
@@ -169,46 +169,6 @@ function RowShell({
 
 function mineRing(mine: boolean, accent: string): CSSProperties | undefined {
   return mine ? { boxShadow: `0 0 0 2px #09090b, 0 0 0 4px ${accent}` } : undefined;
-}
-
-export function PodiumRow({ entry, boardId }: { entry: BoardRow; boardId: string }) {
-  const accent = boardAccent(boardId);
-  const labels = person(entry, boardId);
-  return (
-    <RowShell
-      href={profileLinkFor(entry)}
-      className={`lb-banner lb-banner-${entry.rank} relative flex min-h-[72px] min-w-0 items-center gap-3 overflow-hidden rounded-2xl px-3 py-2.5 text-zinc-950`}
-      style={mineRing(entry.mine, accent)}
-    >
-      <span className="grid w-6 shrink-0 place-items-center">
-        {entry.rank === 1 ? (
-          <Crown data-crown="" aria-hidden="true" className="h-6 w-6 fill-zinc-950/15" strokeWidth={2.4} />
-        ) : (
-          <span className="text-lg font-semibold tabular-nums">{entry.rank}</span>
-        )}
-      </span>
-      <span className={`lb-ring-${entry.rank} shrink-0 rounded-full p-[2px] shadow-[0_2px_10px_rgba(0,0,0,0.25)]`}>
-        <span className="block rounded-full bg-zinc-950 p-[2px]">
-          <Avatar title={labels.name} accent={entry.accent} url={entry.avatarUrl} size={40} />
-        </span>
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="mb-0.5 inline-block rounded-sm bg-zinc-950/85 px-1.5 py-[3px] font-mono text-[9px] font-bold leading-none tracking-[0.16em] text-white">
-          {PLACE[entry.rank]}
-        </span>
-        <span className="flex min-w-0 items-center gap-1.5">
-          <span className="min-w-0 truncate text-[15px] font-semibold tracking-tight">{labels.name}</span>
-          {entry.isNew ? <Tag tone="dark">New</Tag> : null}
-          {entry.mine ? <Tag tone="dark">{YOU_LABEL}</Tag> : null}
-        </span>
-        {labels.detail ? <span className="block truncate text-xs font-medium text-zinc-950/65">{labels.detail}</span> : null}
-      </span>
-      <span className="relative shrink-0 text-right">
-        <span className="block text-2xl font-semibold leading-none tabular-nums">{entry.score}</span>
-        <span className="mt-0.5 block text-[11px] font-semibold text-zinc-950/70">{entry.scoreLabel}</span>
-      </span>
-    </RowShell>
-  );
 }
 
 /** #2 left, #1 centre, #3 right. DOM order stays 1, 2, 3 for screen readers. */
