@@ -1,1 +1,1663 @@
-[]
+[
+ {
+  "sport": "Baseball",
+  "yearLabel": "2023",
+  "product": "Topps Chrome",
+  "manufacturer": "Topps",
+  "source": "https://cdn.shopify.com/s/files/1/0662/9749/5709/files/2023ToppsChromeBaseballOdds.pdf",
+  "official": true,
+  "parallels": [
+   {
+    "subset": "Base",
+    "name": "Base",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Frozenfractor",
+    "serialRun": null,
+    "runVaries": true
+   },
+   {
+    "subset": "Base",
+    "name": "Negative Refractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Pink Refractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Prism",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Refractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Sepia",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "X Fractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Magenta Refractor",
+    "serialRun": 399
+   },
+   {
+    "subset": "Base",
+    "name": "Magenta Speckle",
+    "serialRun": 350
+   },
+   {
+    "subset": "Base",
+    "name": "Purple Speckle",
+    "serialRun": 299
+   },
+   {
+    "subset": "Base",
+    "name": "Purple Sonar Refractor",
+    "serialRun": 275
+   },
+   {
+    "subset": "Base",
+    "name": "Purple Refractor",
+    "serialRun": 250
+   },
+   {
+    "subset": "Base",
+    "name": "Aqua Lava",
+    "serialRun": 199
+   },
+   {
+    "subset": "Base",
+    "name": "Aqua Refractor",
+    "serialRun": 199
+   },
+   {
+    "subset": "Base",
+    "name": "Blue Refractor",
+    "serialRun": 150
+   },
+   {
+    "subset": "Base",
+    "name": "Blue Sonar Refractor",
+    "serialRun": 125
+   },
+   {
+    "subset": "Base",
+    "name": "Green Refractor",
+    "serialRun": 99
+   },
+   {
+    "subset": "Base",
+    "name": "Green Sonar Refractor",
+    "serialRun": 99
+   },
+   {
+    "subset": "Base",
+    "name": "Green Wave",
+    "serialRun": 99
+   },
+   {
+    "subset": "Base",
+    "name": "Wave",
+    "serialRun": 75
+   },
+   {
+    "subset": "Base",
+    "name": "Gold Refractor",
+    "serialRun": 50
+   },
+   {
+    "subset": "Base",
+    "name": "Gold Wave",
+    "serialRun": 50
+   },
+   {
+    "subset": "Base",
+    "name": "Orange Refractor",
+    "serialRun": 25
+   },
+   {
+    "subset": "Base",
+    "name": "Orange Wave",
+    "serialRun": 25
+   },
+   {
+    "subset": "Base",
+    "name": "Red Refractor",
+    "serialRun": 5
+   },
+   {
+    "subset": "Base",
+    "name": "Red Wave",
+    "serialRun": 5
+   },
+   {
+    "subset": "Base",
+    "name": "Printing Plates",
+    "serialRun": 1
+   },
+   {
+    "subset": "Base",
+    "name": "Superfractor",
+    "serialRun": 1
+   },
+   {
+    "subset": "Base Card Image",
+    "name": "Green Speckle",
+    "serialRun": 99
+   },
+   {
+    "subset": "Base Card Image",
+    "name": "Gold Speckle",
+    "serialRun": 50
+   },
+   {
+    "subset": "Base Card Image",
+    "name": "Orange Speckle",
+    "serialRun": 25
+   },
+   {
+    "subset": "Base Card Image",
+    "name": "Red Speckle",
+    "serialRun": 5
+   },
+   {
+    "subset": "Base Card Image",
+    "name": "Superfractor",
+    "serialRun": 1
+   }
+  ]
+ },
+ {
+  "sport": "Baseball",
+  "yearLabel": "2024",
+  "product": "Topps Chrome",
+  "manufacturer": "Topps",
+  "source": "https://cdn.shopify.com/s/files/1/0662/9749/5709/files/2024ToppsChromeBaseballOddsv2.pdf",
+  "official": true,
+  "parallels": [
+   {
+    "subset": "Base",
+    "name": "Base",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Aqua Lava",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Aqua Raywave",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Aqua Refractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Black Raywave",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Black Refractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Blue Raywave",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Blue Refractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Blue Sonar",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Blue Wave",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Gold Raywave",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Gold Refractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Gold Wave",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Green Raywave",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Green Refractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Green Sonar",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Green Wave",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Magenta Speckle",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Negative",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Orange Raywave",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Orange Refractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Orange Wave",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Pink Refractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Printing Plates",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Prism",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Purple Refractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Purple Sonar",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Purple Speckle",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Raywave",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Red Raywave",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Red Refractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Red Wave",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Refractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Sepia",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Superfractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "X-Fractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Base Card Image Variations",
+    "name": "Black Speckle",
+    "serialRun": null
+   },
+   {
+    "subset": "Base Card Image Variations",
+    "name": "Gold Speckle",
+    "serialRun": null
+   },
+   {
+    "subset": "Base Card Image Variations",
+    "name": "Green Speckle",
+    "serialRun": null
+   },
+   {
+    "subset": "Base Card Image Variations",
+    "name": "Orange Speckle",
+    "serialRun": null
+   },
+   {
+    "subset": "Base Card Image Variations",
+    "name": "Red Speckle",
+    "serialRun": null
+   },
+   {
+    "subset": "Base Card Image Variations",
+    "name": "Superfractor",
+    "serialRun": null
+   }
+  ]
+ },
+ {
+  "sport": "Baseball",
+  "yearLabel": "2025",
+  "product": "Topps Chrome",
+  "manufacturer": "Topps",
+  "source": "https://cdn.shopify.com/s/files/1/0662/9749/5709/files/2025ToppsChromeBaseballOdds.pdf",
+  "official": true,
+  "parallels": [
+   {
+    "subset": "Base",
+    "name": "Base",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Aqua Lava",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Aqua Raywave",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Aqua Refractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Black Geometric",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Black Lava",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Black Raywave",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Black Refractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Blue Lava",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Blue Raywave",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Blue Refractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Frozenfractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Geometric",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Gold Geometric",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Gold Lava",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Gold Raywave",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Gold Refractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Gold Wave",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Green Geometric",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Green Lava",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Green Raywave",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Green Refractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Green Wave",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Negative Refractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Orange Geometric",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Orange Lava",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Orange Raywave",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Orange Refractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Orange Wave",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Printing Plates",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Prism",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Purple Raywave",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Purple Refractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Raywave",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Red Geometric",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Red Lava",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Red Raywave",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Red Refractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Red Wave",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Refractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Sepia",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Superfractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Teal Refractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Topps Refractor Parallel",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "X-Fractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Base Card Image Variations",
+    "name": "Black Speckle",
+    "serialRun": null
+   },
+   {
+    "subset": "Base Card Image Variations",
+    "name": "Gold Speckle",
+    "serialRun": null
+   },
+   {
+    "subset": "Base Card Image Variations",
+    "name": "Green Speckle",
+    "serialRun": null
+   },
+   {
+    "subset": "Base Card Image Variations",
+    "name": "Orange",
+    "serialRun": null
+   },
+   {
+    "subset": "Base Card Image Variations",
+    "name": "Red Speckle",
+    "serialRun": null
+   },
+   {
+    "subset": "Base Card Image Variations",
+    "name": "Superfractor",
+    "serialRun": null
+   }
+  ]
+ },
+ {
+  "sport": "Baseball",
+  "yearLabel": "2024",
+  "product": "Bowman Chrome",
+  "manufacturer": "Topps",
+  "source": "https://cdn.shopify.com/s/files/1/0662/9749/5709/files/2024BowmanChromeBaseballOdds.pdf",
+  "official": true,
+  "parallels": [
+   {
+    "subset": "Base",
+    "name": "Base",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Aqua Raywave",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Blue Refractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Fuchsia Refractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Gold Refractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Green Refractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Orange Refractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Pearl Refractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Red Refractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Refractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Superfractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Wave",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Yellow Refractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Bowman Chrome Prospects",
+    "name": "Base",
+    "serialRun": null
+   },
+   {
+    "subset": "Bowman Chrome Prospects",
+    "name": "Aqua Refractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Bowman Chrome Prospects",
+    "name": "Black Refractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Bowman Chrome Prospects",
+    "name": "Blue Refractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Bowman Chrome Prospects",
+    "name": "Fuchsia Shimmer",
+    "serialRun": null
+   },
+   {
+    "subset": "Bowman Chrome Prospects",
+    "name": "Gold Refractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Bowman Chrome Prospects",
+    "name": "Gold Shimmer",
+    "serialRun": null
+   },
+   {
+    "subset": "Bowman Chrome Prospects",
+    "name": "Green Refractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Bowman Chrome Prospects",
+    "name": "Green Shimmer",
+    "serialRun": null
+   },
+   {
+    "subset": "Bowman Chrome Prospects",
+    "name": "Orange Refractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Bowman Chrome Prospects",
+    "name": "Orange Shimmer",
+    "serialRun": null
+   },
+   {
+    "subset": "Bowman Chrome Prospects",
+    "name": "Pearl Refractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Bowman Chrome Prospects",
+    "name": "Purple Refractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Bowman Chrome Prospects",
+    "name": "Purple Shimmer",
+    "serialRun": null
+   },
+   {
+    "subset": "Bowman Chrome Prospects",
+    "name": "Red Refractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Bowman Chrome Prospects",
+    "name": "Red Shimmer",
+    "serialRun": null
+   },
+   {
+    "subset": "Bowman Chrome Prospects",
+    "name": "Refractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Bowman Chrome Prospects",
+    "name": "Reptilian Black Refractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Bowman Chrome Prospects",
+    "name": "Reptilian Blue Refractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Bowman Chrome Prospects",
+    "name": "Reptilian Gold Refractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Bowman Chrome Prospects",
+    "name": "Reptilian Green Refractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Bowman Chrome Prospects",
+    "name": "Reptilian Orange Refractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Bowman Chrome Prospects",
+    "name": "Reptilian Red Refractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Bowman Chrome Prospects",
+    "name": "Shimmer",
+    "serialRun": null
+   },
+   {
+    "subset": "Bowman Chrome Prospects",
+    "name": "Speckle Refractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Bowman Chrome Prospects",
+    "name": "Superfractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Bowman Chrome Prospects",
+    "name": "Yellow Refractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Base Set Etched In Glass Variations",
+    "name": "Base",
+    "serialRun": null
+   },
+   {
+    "subset": "Base Set Retrofractor Variation",
+    "name": "Base",
+    "serialRun": null
+   },
+   {
+    "subset": "Base Set Retrofractor Variation",
+    "name": "Gold Refractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Base Set Retrofractor Variation",
+    "name": "Orange Refractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Base Set Retrofractor Variation",
+    "name": "Red Refractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Base Set Retrofractor Variation",
+    "name": "Superfractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Base Set Rookie Color Run Variations",
+    "name": "Base",
+    "serialRun": null
+   }
+  ]
+ },
+ {
+  "sport": "Baseball",
+  "yearLabel": "2025",
+  "product": "Bowman Chrome",
+  "manufacturer": "Topps",
+  "source": "https://cdn.shopify.com/s/files/1/0662/9749/5709/files/2025_Bowman_Chrome_Baseball_Odds.pdf",
+  "official": true,
+  "parallels": [
+   {
+    "subset": "Base",
+    "name": "Base",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Aqua Geometric Parallel",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Aqua RayWave Refractor Parallel",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Black Geometric Parallel",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Black Refractor Parallel",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Blue Geometric Parallel",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Blue Refractor Parallel",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Blue Wave Refractor Parallel",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Chrome Rookie Red RC Variation",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Fuchsia Refractor Parallel",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Fuchsia Wave Refractor Parallel",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Geometric Refractor Parallel",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Gold Geometric Parallel",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Gold Refractor Parallel",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Green Geometric Parallel",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Green Refractor Parallel",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Green Wave Refractor Parallel",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Orange Geometric Parallel",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Orange Refractor Parallel",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Pulsar Refractor Parallel",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Purple Geometric Parallel",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Red Geometric Parallel",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Red Refractor Parallel",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Refractor Parallel",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Superfractor Parallel",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Wave Refractor Parallel",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Yellow Geometric Parallel",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Yellow Refractor Parallel",
+    "serialRun": null
+   },
+   {
+    "subset": "Bowman Chrome Prospects",
+    "name": "Base",
+    "serialRun": null
+   },
+   {
+    "subset": "Bowman Chrome Prospects",
+    "name": "Aqua Geometric Parallel",
+    "serialRun": null
+   },
+   {
+    "subset": "Bowman Chrome Prospects",
+    "name": "Aqua Pulsar Refractor Parallel",
+    "serialRun": null
+   },
+   {
+    "subset": "Bowman Chrome Prospects",
+    "name": "Aqua Refractor Parallel",
+    "serialRun": null
+   },
+   {
+    "subset": "Bowman Chrome Prospects",
+    "name": "Black Geometric Parallel",
+    "serialRun": null
+   },
+   {
+    "subset": "Bowman Chrome Prospects",
+    "name": "Black Refractor Parallel",
+    "serialRun": null
+   },
+   {
+    "subset": "Bowman Chrome Prospects",
+    "name": "Black Wave Refractor Parallel",
+    "serialRun": null
+   },
+   {
+    "subset": "Bowman Chrome Prospects",
+    "name": "Blue Geometric Parallel",
+    "serialRun": null
+   },
+   {
+    "subset": "Bowman Chrome Prospects",
+    "name": "Blue Refractor Parallel",
+    "serialRun": null
+   },
+   {
+    "subset": "Bowman Chrome Prospects",
+    "name": "Blue Wave Refractor Parallel",
+    "serialRun": null
+   },
+   {
+    "subset": "Bowman Chrome Prospects",
+    "name": "Chrome Shimmer Parallel",
+    "serialRun": null
+   },
+   {
+    "subset": "Bowman Chrome Prospects",
+    "name": "Fuchsia Shimmer Parallel",
+    "serialRun": null
+   },
+   {
+    "subset": "Bowman Chrome Prospects",
+    "name": "Fuschia Geometric Parallel",
+    "serialRun": null
+   },
+   {
+    "subset": "Bowman Chrome Prospects",
+    "name": "Geometric Refractor Parallel",
+    "serialRun": null
+   },
+   {
+    "subset": "Bowman Chrome Prospects",
+    "name": "Gold Geometric Parallel",
+    "serialRun": null
+   },
+   {
+    "subset": "Bowman Chrome Prospects",
+    "name": "Gold Refractor Parallel",
+    "serialRun": null
+   },
+   {
+    "subset": "Bowman Chrome Prospects",
+    "name": "Gold Shimmer Parallel",
+    "serialRun": null
+   },
+   {
+    "subset": "Bowman Chrome Prospects",
+    "name": "Gold Wave Refractor Parallel",
+    "serialRun": null
+   },
+   {
+    "subset": "Bowman Chrome Prospects",
+    "name": "Green Geometric Parallel",
+    "serialRun": null
+   },
+   {
+    "subset": "Bowman Chrome Prospects",
+    "name": "Green Refractor Parallel",
+    "serialRun": null
+   },
+   {
+    "subset": "Bowman Chrome Prospects",
+    "name": "Green Shimmer Parallel",
+    "serialRun": null
+   },
+   {
+    "subset": "Bowman Chrome Prospects",
+    "name": "Green Wave Refractor Parallel",
+    "serialRun": null
+   },
+   {
+    "subset": "Bowman Chrome Prospects",
+    "name": "Mini Diamond Parallel",
+    "serialRun": null
+   },
+   {
+    "subset": "Bowman Chrome Prospects",
+    "name": "Orange Geometric Parallel",
+    "serialRun": null
+   },
+   {
+    "subset": "Bowman Chrome Prospects",
+    "name": "Orange Refractor Parallel",
+    "serialRun": null
+   },
+   {
+    "subset": "Bowman Chrome Prospects",
+    "name": "Orange Shimmer Parallel",
+    "serialRun": null
+   },
+   {
+    "subset": "Bowman Chrome Prospects",
+    "name": "Orange Wave Refractor Parallel",
+    "serialRun": null
+   },
+   {
+    "subset": "Bowman Chrome Prospects",
+    "name": "Pulsar Refractor Parallel",
+    "serialRun": null
+   },
+   {
+    "subset": "Bowman Chrome Prospects",
+    "name": "Purple Geometric Parallel",
+    "serialRun": null
+   },
+   {
+    "subset": "Bowman Chrome Prospects",
+    "name": "Purple Pulsar Refractor Parallel",
+    "serialRun": null
+   },
+   {
+    "subset": "Bowman Chrome Prospects",
+    "name": "Purple Refractor Parallel",
+    "serialRun": null
+   },
+   {
+    "subset": "Bowman Chrome Prospects",
+    "name": "Purple Shimmer Parallel",
+    "serialRun": null
+   },
+   {
+    "subset": "Bowman Chrome Prospects",
+    "name": "Purple Wave Refractor Parallel",
+    "serialRun": null
+   },
+   {
+    "subset": "Bowman Chrome Prospects",
+    "name": "Red Geometric Parallel",
+    "serialRun": null
+   },
+   {
+    "subset": "Bowman Chrome Prospects",
+    "name": "Red Refractor Parallel",
+    "serialRun": null
+   },
+   {
+    "subset": "Bowman Chrome Prospects",
+    "name": "Red Shimmer Parallel",
+    "serialRun": null
+   },
+   {
+    "subset": "Bowman Chrome Prospects",
+    "name": "Red Wave Refractor Parallel",
+    "serialRun": null
+   },
+   {
+    "subset": "Bowman Chrome Prospects",
+    "name": "Refractor Parallel",
+    "serialRun": null
+   },
+   {
+    "subset": "Bowman Chrome Prospects",
+    "name": "Reptilian Black Refractor Parallel",
+    "serialRun": null
+   },
+   {
+    "subset": "Bowman Chrome Prospects",
+    "name": "Reptilian Blue Refractor Parallel",
+    "serialRun": null
+   },
+   {
+    "subset": "Bowman Chrome Prospects",
+    "name": "Reptilian Gold Refractor Parallel",
+    "serialRun": null
+   },
+   {
+    "subset": "Bowman Chrome Prospects",
+    "name": "Reptilian Green Refractor Parallel",
+    "serialRun": null
+   },
+   {
+    "subset": "Bowman Chrome Prospects",
+    "name": "Reptilian Orange Refractor Parallel",
+    "serialRun": null
+   },
+   {
+    "subset": "Bowman Chrome Prospects",
+    "name": "Reptilian Red Refractor Parallel",
+    "serialRun": null
+   },
+   {
+    "subset": "Bowman Chrome Prospects",
+    "name": "Speckle Refractor Parallel",
+    "serialRun": null
+   },
+   {
+    "subset": "Bowman Chrome Prospects",
+    "name": "Superfractor Parallel",
+    "serialRun": null
+   },
+   {
+    "subset": "Bowman Chrome Prospects",
+    "name": "Wave Refractor Parallel",
+    "serialRun": null
+   },
+   {
+    "subset": "Bowman Chrome Prospects",
+    "name": "Yellow Geometric Parallel",
+    "serialRun": null
+   },
+   {
+    "subset": "Bowman Chrome Prospects",
+    "name": "Yellow Refractor Parallel",
+    "serialRun": null
+   },
+   {
+    "subset": "Bowman Chrome Prospects",
+    "name": "Yellow Wave Refractor Parallel",
+    "serialRun": null
+   }
+  ]
+ },
+ {
+  "sport": "Basketball",
+  "yearLabel": "2024-25",
+  "product": "Topps Chrome",
+  "manufacturer": "Topps",
+  "source": "https://cdn.shopify.com/s/files/1/0662/9749/5709/files/2024_25_Topps_Chrome_Basketball_Odds.pdf",
+  "official": true,
+  "parallels": [
+   {
+    "subset": "Base",
+    "name": "Base",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Aqua Refractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Black Geometric",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Black Refractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Blue Basketball",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Blue Lava",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Blue Refractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Blue Sonar",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Frozenfractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Gold Geometric",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Gold Refractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Green Geometric",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Green Refractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Green Wave",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Magenta Refractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Magenta Speckle",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Negative",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Orange Geometric",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Orange Refractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Padpradascha",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Pink Basketball",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Pink Refractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Prism",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Purple Geometric",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Purple Refractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Purple Sonar",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Purple Speckle",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Red Geometric",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Red Refractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Refractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Superfractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Topps Green",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "White Geometric",
+    "serialRun": null
+   }
+  ]
+ },
+ {
+  "sport": "Basketball",
+  "yearLabel": "2025-26",
+  "product": "Topps Chrome",
+  "manufacturer": "Topps",
+  "source": "https://cdn.shopify.com/s/files/1/0662/9749/5709/files/2025-26_Topps_Chrome_Basketball_Odds.pdf",
+  "official": true,
+  "parallels": [
+   {
+    "subset": "Base",
+    "name": "Base",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Aqua",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Basketball",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Black",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Black Wave",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Blue",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Blue Wave",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "First Day",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Frozenfractors",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Geometric",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Gold",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Gold Wave",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Green",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Green Wave",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Magenta",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Negative",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Orange",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Prism",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Pulsar",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Pulsar Black",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Pulsar Gold",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Pulsar Red",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Purple",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "RayWave",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Red",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Red Wave",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Red White",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Skylight",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Superfractors",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Teal",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Wave",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "X-Fractors",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Yellow",
+    "serialRun": null
+   }
+  ]
+ }
+]

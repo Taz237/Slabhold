@@ -41,18 +41,23 @@ describe("product data", () => {
     assert.deepEqual(parallelsIn(data, "Football", "2024", "Donruss Optic"), []);
   });
 
-  it("ships the Panini checklist and an empty Topps file", async () => {
+  it("ships the Panini checklist and the official Topps file", async () => {
     const data = await loadProductData();
     assert.equal(raw.length, 17);
     assert.equal(
       raw.reduce((sum, product) => sum + product.parallels.length, 0),
       1237 + 16,
     );
-    assert.equal(data.length, 17);
     const topps = JSON.parse(
       readFileSync(new URL("./data/topps-parallels.json", import.meta.url), "utf8"),
+    ) as { official: boolean; parallels: unknown[] }[];
+    assert.equal(topps.length, 7);
+    assert.equal(
+      topps.reduce((sum, product) => sum + product.parallels.length, 0),
+      318,
     );
-    assert.deepEqual(topps, []);
+    assert.ok(topps.every((product) => product.official === true));
+    assert.equal(data.length, 17 + 7);
   });
 
   it("lists Basketball 2023-24 Prizm parallels with Base first and the JSON runs", async () => {

@@ -120,7 +120,7 @@ describe("guided Add card", () => {
   it("saves the same columns for a numbered auto graded card", async () => {
     const guided = await saveGuided(async () => {
       await pickPlayer("neto", "Zach Neto");
-      await clickText("2024");
+      await clickText("2022");
       await clickText("Topps Chrome");
       await typeCardNumber("44");
       await waitFor(() => Boolean(buttonByLabel("Gold")));
@@ -140,7 +140,7 @@ describe("guided Add card", () => {
     const classic = await saveClassic(async () => {
       await fillClassic({
         player: "Zach Neto",
-        year: "2024",
+        year: "2022",
         set: "Topps Chrome",
         number: "44",
         parallel: "Gold",
