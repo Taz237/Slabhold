@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useCallback } from "react";
-import { PhotoPlaceholder, SlabFrame, type ArtCard, type SlabFit } from "@/components/card-slab-frame";
+import { PhotoPlaceholder, SlabFrame, type ArtCard, type SlabFit, type SlabLabel } from "@/components/card-slab-frame";
 import {
   TILE_IMAGE_SIZES,
   showPhotoPlaceholder,
@@ -30,6 +30,7 @@ export function CardSlabArt({
   preload = false,
   fetchPriority,
   fit,
+  label,
 }: {
   card: ArtCard;
   index: number;
@@ -43,6 +44,8 @@ export function CardSlabArt({
   fetchPriority?: "high" | "auto";
   /** "hug" fits a raw card to its photo (posts). Grids keep the 3:5 tile. */
   fit?: SlabFit;
+  /** "sample" for a made-up slab only (onboarding). Real cards keep their grader label. */
+  label?: SlabLabel;
 }) {
   // Seeded from photos already measured in this tab, so a revisit doesn't flip.
   const [learned, onShape] = useCardShape(source.kind === "none" ? null : source.src);
@@ -64,7 +67,7 @@ export function CardSlabArt({
     />
   );
 
-  return <SlabFrame card={card} shape={shape} fit={fit}>{photo}</SlabFrame>;
+  return <SlabFrame card={card} shape={shape} fit={fit} label={label}>{photo}</SlabFrame>;
 }
 
 /**

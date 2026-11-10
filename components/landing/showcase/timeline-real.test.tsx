@@ -94,7 +94,7 @@ describe("timeline pickup with a real card", () => {
     const row = paolo(host);
     assert.equal(row.querySelector("[data-real-pickup]"), null);
     assert.match(row.textContent ?? "", /Rookie auto/);
-    assert.match(row.textContent ?? "", /BGS/);
+    assert.match(row.textContent ?? "", /Grade\s*9\.5/);
     assert.match(row.textContent ?? "", /Worth the wait\./);
   });
 

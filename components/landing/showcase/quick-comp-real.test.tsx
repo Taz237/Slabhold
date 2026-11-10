@@ -85,7 +85,7 @@ describe("Quick Comp demo with a real card", () => {
     const { default: QuickCompDemo } = await import("@/components/landing/showcase/quick-comp-demo");
     const host = await mount(createElement(QuickCompDemo, { run: 0 }));
     const text = host.textContent ?? "";
-    assert.match(text, /2023 Sample Rookie Prizm · PSA 10/);
+    assert.match(text, /2023 Sample Rookie Prizm · Grade 10/);
     assert.match(text, /Based on 5 sample sales/);
     assert.equal(host.querySelector("img")?.getAttribute("src"), "/quick-comp/sample-card.svg");
     assert.equal(host.querySelectorAll('[aria-label="Recent sold prices"] li')[0].getAttribute("aria-label"), "$418, sold 2d ago");
