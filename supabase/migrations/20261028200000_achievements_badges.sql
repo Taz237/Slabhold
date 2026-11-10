@@ -1,4 +1,4 @@
--- UNAPPLIED. Needs review before running.
+-- ALREADY APPLIED in prod (under a later timestamp) — do not run
 --
 -- Achievements and badges.
 --

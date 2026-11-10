@@ -1,4 +1,4 @@
--- UNAPPLIED. Needs review before running.
+-- ALREADY APPLIED in prod (under a later timestamp) — do not run
 --
 -- Hide profiles.pinned_badges from other users when show_badges is off.
 --

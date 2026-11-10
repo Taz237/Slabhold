@@ -1,4 +1,4 @@
--- UNAPPLIED. Needs review before running.
+-- ALREADY APPLIED in prod (under a later timestamp) — do not run
 --
 -- Invite a collector: who invited whom, and the follow-each-other on signup.
 --
