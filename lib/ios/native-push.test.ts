@@ -126,9 +126,9 @@ describe("iPhone app push: wiring", () => {
     assert.doesNotMatch(manager, /requestPermissions/);
   });
 
-  it("asks for no badge in the foreground", () => {
+  it("updates the badge in the foreground too", () => {
     const config = JSON.parse(read("ios-app/capacitor.config.json"));
-    assert.deepEqual(config.plugins.PushNotifications, { presentationOptions: ["sound", "alert"] });
+    assert.deepEqual(config.plugins.PushNotifications, { presentationOptions: ["badge", "sound", "alert"] });
     assert.deepEqual(config.plugins.Keyboard, { resize: "none", style: "DEFAULT", resizeOnFullScreen: false });
   });
 });
@@ -146,11 +146,12 @@ describe("iPhone app push: build 4", () => {
     assert.match(entitlements, /<string>applinks:slabhold\.app<\/string>/);
   });
 
-  it("is build 4, version 1.0, with no background modes", () => {
+  it("is build 4, version 1.0.1, with no background modes", () => {
     const pbx = read("ios-app/ios/App/App.xcodeproj/project.pbxproj");
     assert.equal((pbx.match(/CURRENT_PROJECT_VERSION = 4;/g) ?? []).length, 2);
     assert.doesNotMatch(pbx, /CURRENT_PROJECT_VERSION = (?!4;)/);
-    assert.equal((pbx.match(/MARKETING_VERSION = 1\.0;/g) ?? []).length, 2);
+    assert.equal((pbx.match(/MARKETING_VERSION = 1\.0\.1;/g) ?? []).length, 2);
+    assert.doesNotMatch(pbx, /MARKETING_VERSION = (?!1\.0\.1;)/);
     assert.doesNotMatch(read("ios-app/ios/App/App/Info.plist"), /UIBackgroundModes/);
   });
 

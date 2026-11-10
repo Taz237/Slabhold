@@ -6,7 +6,7 @@
 import { App } from "@capacitor/app";
 import { Browser } from "@capacitor/browser";
 import { Camera, CameraResultType, CameraSource } from "@capacitor/camera";
-import { Capacitor } from "@capacitor/core";
+import { Capacitor, registerPlugin } from "@capacitor/core";
 import { Haptics, ImpactStyle, NotificationType } from "@capacitor/haptics";
 import { Keyboard } from "@capacitor/keyboard";
 import { PushNotifications } from "@capacitor/push-notifications";
@@ -18,10 +18,18 @@ import { appLinkPath, routeLink, routeWindowOpen } from "@/lib/ios/links";
 import type { PhotoSource } from "@/lib/ios/camera";
 import type { HapticMoment } from "@/lib/ios/haptics";
 import { apnsTokenFrom, asShareAbort, nativePermissionFrom, photoFile, photoPickFailure, pushTapPath } from "@/lib/ios/native-helpers";
+import { claimReviewAsk, countLaunch, type ReviewMoment } from "@/lib/ios/review-prompt";
 import type { NativePermission } from "@/lib/push/native-client";
 import type { NativeShareData } from "@/lib/share/sheet";
 
 const LAUNCH_KEY = "slabhold.native.launch-url";
+
+/** Our own Swift plugin (ios-app/ios/App/App/SlabholdNativePlugin.swift), build 4 and up. */
+type SlabholdNativePlugin = {
+  requestReview(): Promise<{ asked: boolean }>;
+  setBadge(options: { count: number }): Promise<void>;
+};
+const SlabholdNative = registerPlugin<SlabholdNativePlugin>("SlabholdNative");
 
 function currentPath() {
   return `${window.location.pathname}${window.location.search}${window.location.hash}`;
@@ -221,6 +229,13 @@ export function startNativeShell({ navigate }: ShellDeps): () => void {
     })
     .catch(() => {});
 
+  // Once per app session, for the review prompt's "never on the first launch".
+  try {
+    countLaunch(window.localStorage, window.sessionStorage);
+  } catch {
+    // Storage blocked: the review prompt just never asks.
+  }
+
   const stopPush = startNativePush(navigate);
   // No ‹ › Done strip above the keyboard. Old builds without the plugin just reject.
   void Keyboard.setAccessoryBarVisible({ isVisible: false }).catch(() => {});
@@ -274,4 +289,64 @@ export async function pickPhoto(source: PhotoSource): Promise<File | null> {
     if (failure) throw failure;
     return null;
   }
+}
+
+/** This build has our Swift plugin. False on TestFlight builds 2 and 3, and if registration failed. */
+export function nativeExtrasAvailable(): boolean {
+  try {
+    return Capacitor.isPluginAvailable("SlabholdNative");
+  } catch {
+    return false;
+  }
+}
+
+/** Apple's "Rate Slabhold" popup. Apple decides if it shows. False when unavailable or on error; never throws. */
+export async function requestNativeReview(): Promise<boolean> {
+  if (!nativeExtrasAvailable()) return false;
+  try {
+    return (await SlabholdNative.requestReview()).asked === true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Asks for a review at a happy moment when the rules allow it: not on the first
+ * launch, once per app version, each moment once. Records the ask first.
+ */
+export async function askNativeReview(moment: ReviewMoment): Promise<boolean> {
+  if (!nativeExtrasAvailable()) return false;
+  let version: string | null = null;
+  try {
+    version = (await App.getInfo()).version || null;
+  } catch {
+    return false;
+  }
+  let allowed = false;
+  try {
+    allowed = claimReviewAsk(window.localStorage, moment, version);
+  } catch {
+    return false;
+  }
+  return allowed ? requestNativeReview() : false;
+}
+
+/** The red number on the app icon. 0 clears it. A no-op on builds without our plugin. */
+export async function setNativeBadge(count: number): Promise<void> {
+  if (!nativeExtrasAvailable()) return;
+  const safe = Number.isFinite(count) ? Math.max(0, Math.floor(count)) : 0;
+  try {
+    await SlabholdNative.setBadge({ count: safe });
+  } catch {
+    // Old or failed plugin: the badge stays as the last push set it.
+  }
+}
+
+/** Runs when the app comes back to the front. Returns the undo. */
+export function onAppResume(listener: () => void): () => void {
+  const handle = App.addListener("resume", listener);
+  void handle.catch(() => {});
+  return () => {
+    void handle.then((h) => h.remove()).catch(() => {});
+  };
 }

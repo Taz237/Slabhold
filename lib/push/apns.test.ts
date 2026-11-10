@@ -151,15 +151,17 @@ describe("APNs request", () => {
     assert.equal(stats().connects, 0);
   });
 
-  it("sends alert, sound, thread and a same-origin url, and no badge", () => {
+  it("sends alert, sound, thread and a same-origin url, and the unread badge", () => {
     const body = JSON.parse(apnsBody(like));
     assert.deepEqual(body, {
-      aps: { alert: { title: like.title, body: like.body }, sound: "default", "thread-id": like.tag },
+      aps: { alert: { title: like.title, body: like.body }, sound: "default", "thread-id": like.tag, badge: 3 },
       url: like.url,
     });
-    assert.equal("badge" in body.aps, false);
+    assert.equal(body.aps.badge, 3);
     const summary = summaryPayload({ kind: "like", lead: actor, names: ["Jordan Hale", "Maya Chen"], count: 3, postId: "p1", badge: 9, ts: 1 });
-    assert.equal(JSON.parse(apnsBody(summary)).aps.badge, undefined);
+    assert.equal(JSON.parse(apnsBody(summary)).aps.badge, 9);
+    assert.equal(JSON.parse(apnsBody({ ...like, badge: -4 })).aps.badge, 0);
+    assert.equal(JSON.parse(apnsBody({ ...like, badge: Number.NaN })).aps.badge, 0);
     const evil: PushPayload = { ...testPayload(1), url: "https://evil.example/x" };
     assert.equal(JSON.parse(apnsBody(evil)).url, "/notifications");
   });

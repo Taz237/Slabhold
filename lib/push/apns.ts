@@ -64,9 +64,14 @@ export function apnsHeaders(payload: PushPayload, jwt: string, bundleId: string,
   };
 }
 
+/** The app icon's red number. 0 clears it; junk becomes 0. */
+function badgeCount(badge: number): number {
+  return Number.isFinite(badge) ? Math.max(0, Math.floor(badge)) : 0;
+}
+
 function bodyJson(title: string, body: string, payload: PushPayload): string {
   return JSON.stringify({
-    aps: { alert: { title, body }, sound: "default", "thread-id": payload.tag },
+    aps: { alert: { title, body }, sound: "default", "thread-id": payload.tag, badge: badgeCount(payload.badge) },
     url: sameOriginPath(payload.url),
   });
 }
@@ -75,7 +80,10 @@ function byteLength(text: string): number {
   return Buffer.byteLength(text, "utf8");
 }
 
-/** The APNs JSON: alert, sound, thread, and the page to open. No badge. Trimmed to fit 4 KB. */
+/**
+ * The APNs JSON: alert, sound, thread, the page to open, and the unread count
+ * for the app icon badge. Trimmed to fit 4 KB.
+ */
 export function apnsBody(payload: PushPayload, maxBytes = APNS_MAX_BYTES): string {
   let { title, body } = payload;
   let json = bodyJson(title, body, payload);
