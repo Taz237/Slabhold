@@ -1,4 +1,4 @@
--- UNAPPLIED. Needs review before running. (ios-push-1)
+-- ALREADY APPLIED in prod (under a later timestamp) — do not run
 -- iPhone app push: one row per APNs device token. Written only by the server
 -- (service role) through /api/push/apns; a signed-in user can read and delete
 -- only their own rows. Nothing else changes: push_context and every existing

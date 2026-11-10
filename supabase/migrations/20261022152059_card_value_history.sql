@@ -1,5 +1,5 @@
 -- Daily card value history for "your cards up and down since yesterday".
--- UNAPPLIED. Donnie must approve this SQL and the cron before either runs.
+-- ALREADY APPLIED in prod (under a later timestamp) — do not run
 -- Do not apply database changes from 7:00 PM to 11:00 PM America/New_York.
 -- Service role writes. Authenticated users can read only their own rows.
 -- Retention: after each write, the service-role cron removes rows older than 400 days.

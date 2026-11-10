@@ -144,6 +144,24 @@ export function SkeletonRows({ rows }: { rows: number }) {
   );
 }
 
+type PrefsLoad = { kind: "loading" } | { kind: "loaded" | "error"; userId: string };
+
+/** The prefs read failed: no toggles (nothing to save over), just Retry. */
+export function PrefsLoadFailed({ retry }: { retry: () => void }) {
+  return (
+    <div role="alert" className="flex flex-col items-center gap-3 px-4 py-6 text-center">
+      <p className="text-[15px] text-zinc-500">Something went wrong. Try again.</p>
+      <button
+        type="button"
+        onClick={retry}
+        className="tap inline-flex min-h-11 items-center rounded-full bg-violet-600 px-5 text-[15px] font-semibold text-white hover:bg-violet-700 focus-visible:ring-2 focus-visible:ring-violet-600 focus-visible:ring-offset-2 focus-visible:outline-none"
+      >
+        Retry
+      </button>
+    </div>
+  );
+}
+
 function readDevice(available: boolean, userId: string): Promise<DeviceState> {
   if (!pushFeatureOn()) return Promise.resolve({ kind: "off-build" });
   if (!available) return Promise.resolve({ kind: "unavailable" });
@@ -171,8 +189,14 @@ export function NotificationSettings({ deviceSection }: { deviceSection?: ReactN
   const userId = user?.id ?? null;
   const [device, setDevice] = useState<DeviceState>({ kind: "loading" });
   const [loadedPrefs, setPrefs] = useState<NotificationPrefs | null>(null);
+  const [prefsLoad, setPrefsLoad] = useState<PrefsLoad>({ kind: "loading" });
+  const [loadAttempt, setLoadAttempt] = useState(0);
+  const local = Boolean(ready && userId && mode !== "supabase");
+  // A load from another account (or an older attempt) counts as still loading.
+  const loadStatus = !local && prefsLoad.kind !== "loading" && prefsLoad.userId === userId ? prefsLoad.kind : "loading";
   // Local accounts (no Supabase) have nothing to load: defaults, saved in memory.
-  const prefs = loadedPrefs ?? (ready && userId && mode !== "supabase" ? DEFAULT_PREFS : null);
+  // Supabase accounts only get prefs once the read worked or found no row.
+  const prefs = local ? (loadedPrefs ?? DEFAULT_PREFS) : loadStatus === "loaded" ? loadedPrefs : null;
   const [busy, setBusy] = useState(false);
   const [guideOpen, setGuideOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
@@ -204,16 +228,27 @@ export function NotificationSettings({ deviceSection }: { deviceSection?: ReactN
     void (async () => {
       const { loadSupabaseBrowser } = await import("@/lib/supabase/browser-lazy");
       const client = await loadSupabaseBrowser();
-      if (!client) return;
-      const { data } = await client.from("notification_prefs").select("*").eq("user_id", userId).maybeSingle();
-      if (!cancelled) setPrefs(prefsFromRow((data as PrefsRow | null) ?? null));
+      if (!client) throw new Error("offline");
+      const { data, error } = await client.from("notification_prefs").select("*").eq("user_id", userId).maybeSingle();
+      // A failed read is not "no row": never show (or later save) defaults over a real row.
+      if (error) throw new Error(error.message);
+      if (cancelled) return;
+      setPrefs(prefsFromRow((data as PrefsRow | null) ?? null));
+      setPrefsLoad({ kind: "loaded", userId });
     })().catch(() => {
-      if (!cancelled) setPrefs({ ...DEFAULT_PREFS });
+      if (cancelled) return;
+      setPrefs(null);
+      setPrefsLoad({ kind: "error", userId });
     });
     return () => {
       cancelled = true;
     };
-  }, [mode, ready, userId]);
+  }, [loadAttempt, mode, ready, userId]);
+
+  const retryLoad = () => {
+    setPrefsLoad({ kind: "loading" });
+    setLoadAttempt((attempt) => attempt + 1);
+  };
 
   useEffect(() => {
     if (!toast) return;
@@ -225,6 +260,8 @@ export function NotificationSettings({ deviceSection }: { deviceSection?: ReactN
   const save = useCallback(
     async (patch: Partial<NotificationPrefs>) => {
       if (!userId || !prefs) return;
+      // Only write once the real row (or a confirmed missing one) is on screen.
+      if (!local && loadStatus !== "loaded") return;
       const previous = prefs;
       const next = { ...prefs, ...patch, timeZone: deviceTimeZone() ?? prefs.timeZone };
       setPrefs(next);
@@ -240,7 +277,7 @@ export function NotificationSettings({ deviceSection }: { deviceSection?: ReactN
         setToast("Couldn't save. Try again.");
       }
     },
-    [mode, prefs, userId],
+    [loadStatus, local, mode, prefs, userId],
   );
 
   const turnOn = () => {
@@ -289,6 +326,7 @@ export function NotificationSettings({ deviceSection }: { deviceSection?: ReactN
   };
 
   const prefsReady = prefs !== null;
+  const prefsFailed = !prefsReady && loadStatus === "error";
   const deviceOn = device.kind === "ready" && device.on;
   const pushUsable = hasDeviceSlot || (device.kind !== "off-build" && device.kind !== "unavailable");
 
@@ -390,85 +428,93 @@ export function NotificationSettings({ deviceSection }: { deviceSection?: ReactN
           Push me about
         </h2>
         <div className={`${card} divide-y divide-zinc-100 overflow-hidden dark:divide-white/[0.06]`}>
-          {prefsReady
-            ? PUSH_TOGGLES.map((toggle) => (
-                <Switch
-                  key={toggle.kind}
-                  checked={prefs[toggle.kind]}
-                  disabled={!pushUsable}
-                  label={toggle.label}
-                  onChange={(next) => void save({ [toggle.kind]: next })}
-                />
-              ))
-            : <SkeletonRows rows={PUSH_TOGGLES.length} />}
-        </div>
-      </section>
-
-      <section aria-labelledby="push-previews">
-        <h2 id="push-previews" className="sr-only">
-          Previews
-        </h2>
-        <div className={card}>
           {prefsReady ? (
-            <Switch
-              checked={prefs.showPreviews}
-              disabled={!pushUsable}
-              label="Show previews"
-              description="Show the text of replies and messages. Off, a notification just says “New reply” or “New message”."
-              onChange={(next) => void save({ showPreviews: next })}
-            />
-          ) : (
-            <SkeletonRows rows={1} />
-          )}
-        </div>
-      </section>
-
-      <section aria-labelledby="push-quiet">
-        <h2 id="push-quiet" className={sectionLabel}>
-          Quiet hours
-        </h2>
-        <div className={`${card} divide-y divide-zinc-100 overflow-hidden dark:divide-white/[0.06]`}>
-          {prefsReady ? (
-            <>
+            PUSH_TOGGLES.map((toggle) => (
               <Switch
-                checked={prefs.quietEnabled}
+                key={toggle.kind}
+                checked={prefs[toggle.kind]}
                 disabled={!pushUsable}
-                label="Quiet hours"
-                description="Nothing is pushed during these hours. Your notifications list and badge still update."
-                icon={<Moon className="h-5 w-5" />}
-                onChange={(next) => void save({ quietEnabled: next })}
+                label={toggle.label}
+                onChange={(next) => void save({ [toggle.kind]: next })}
               />
-              {prefs.quietEnabled ? (
-                <div className="grid grid-cols-2 gap-3 px-4 py-4">
-                  <label className="block">
-                    <span className="block text-[13px] font-medium text-zinc-500">From</span>
-                    <input
-                      type="time"
-                      value={prefs.quietStart}
-                      onChange={(event) => event.target.value && void save({ quietStart: event.target.value })}
-                      className="mt-1.5 h-12 w-full rounded-xl bg-zinc-100 px-3 text-[17px] font-semibold tabular-nums outline-none focus-visible:ring-2 focus-visible:ring-violet-600 dark:bg-white/[0.06] dark:[color-scheme:dark]"
-                    />
-                  </label>
-                  <label className="block">
-                    <span className="block text-[13px] font-medium text-zinc-500">Until</span>
-                    <input
-                      type="time"
-                      value={prefs.quietEnd}
-                      onChange={(event) => event.target.value && void save({ quietEnd: event.target.value })}
-                      className="mt-1.5 h-12 w-full rounded-xl bg-zinc-100 px-3 text-[17px] font-semibold tabular-nums outline-none focus-visible:ring-2 focus-visible:ring-violet-600 dark:bg-white/[0.06] dark:[color-scheme:dark]"
-                    />
-                  </label>
-                  <p className="col-span-2 text-[13px] text-zinc-500">
-                    Your local time{zone ? ` (${zone.replace(/_/g, " ")})` : ""}.
-                  </p>
-                </div>
-              ) : null}
-            </>
+            ))
+          ) : prefsFailed ? (
+            <PrefsLoadFailed retry={retryLoad} />
           ) : (
-            <SkeletonRows rows={1} />
+            <SkeletonRows rows={PUSH_TOGGLES.length} />
           )}
         </div>
       </section>
+
+      {prefsFailed ? null : (
+        <>
+          <section aria-labelledby="push-previews">
+            <h2 id="push-previews" className="sr-only">
+              Previews
+            </h2>
+            <div className={card}>
+              {prefsReady ? (
+                <Switch
+                  checked={prefs.showPreviews}
+                  disabled={!pushUsable}
+                  label="Show previews"
+                  description="Show the text of replies and messages. Off, a notification just says “New reply” or “New message”."
+                  onChange={(next) => void save({ showPreviews: next })}
+                />
+              ) : (
+                <SkeletonRows rows={1} />
+              )}
+            </div>
+          </section>
+    
+          <section aria-labelledby="push-quiet">
+            <h2 id="push-quiet" className={sectionLabel}>
+              Quiet hours
+            </h2>
+            <div className={`${card} divide-y divide-zinc-100 overflow-hidden dark:divide-white/[0.06]`}>
+              {prefsReady ? (
+                <>
+                  <Switch
+                    checked={prefs.quietEnabled}
+                    disabled={!pushUsable}
+                    label="Quiet hours"
+                    description="Nothing is pushed during these hours. Your notifications list and badge still update."
+                    icon={<Moon className="h-5 w-5" />}
+                    onChange={(next) => void save({ quietEnabled: next })}
+                  />
+                  {prefs.quietEnabled ? (
+                    <div className="grid grid-cols-2 gap-3 px-4 py-4">
+                      <label className="block">
+                        <span className="block text-[13px] font-medium text-zinc-500">From</span>
+                        <input
+                          type="time"
+                          value={prefs.quietStart}
+                          onChange={(event) => event.target.value && void save({ quietStart: event.target.value })}
+                          className="mt-1.5 h-12 w-full rounded-xl bg-zinc-100 px-3 text-[17px] font-semibold tabular-nums outline-none focus-visible:ring-2 focus-visible:ring-violet-600 dark:bg-white/[0.06] dark:[color-scheme:dark]"
+                        />
+                      </label>
+                      <label className="block">
+                        <span className="block text-[13px] font-medium text-zinc-500">Until</span>
+                        <input
+                          type="time"
+                          value={prefs.quietEnd}
+                          onChange={(event) => event.target.value && void save({ quietEnd: event.target.value })}
+                          className="mt-1.5 h-12 w-full rounded-xl bg-zinc-100 px-3 text-[17px] font-semibold tabular-nums outline-none focus-visible:ring-2 focus-visible:ring-violet-600 dark:bg-white/[0.06] dark:[color-scheme:dark]"
+                        />
+                      </label>
+                      <p className="col-span-2 text-[13px] text-zinc-500">
+                        Your local time{zone ? ` (${zone.replace(/_/g, " ")})` : ""}.
+                      </p>
+                    </div>
+                  ) : null}
+                </>
+              ) : (
+                <SkeletonRows rows={1} />
+              )}
+            </div>
+          </section>
+        </>
+      )}
 
       <p className="px-1 text-[13px] leading-5 text-zinc-500">
         What you choose here applies on all your devices. The push switch is just for this one.

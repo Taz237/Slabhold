@@ -1,4 +1,4 @@
--- UNAPPLIED. Needs review before running.
+-- ALREADY APPLIED in prod (under a later timestamp) — do not run
 --
 -- Weekly value board: the leaderboard opt-in and the snapshot data it reads.
 -- In order, this file:

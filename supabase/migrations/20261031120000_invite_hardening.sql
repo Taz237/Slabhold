@@ -1,4 +1,4 @@
--- UNAPPLIED. Needs review before running.
+-- ALREADY APPLIED in prod (under a later timestamp) — do not run
 --
 -- Invite hardening: drop the old accept_invite overload, and let a user get a
 -- new invite code.

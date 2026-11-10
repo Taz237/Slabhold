@@ -1,4 +1,4 @@
--- UNAPPLIED. Needs review before running.
+-- ALREADY APPLIED in prod (under a later timestamp) — do not run
 --
 -- Lock profiles.pinned_badges to public.profile_badge_pins, the view the
 -- profile page reads (lib/badges/visible-pins.ts).

@@ -19,7 +19,7 @@ function header(sql: string) {
 describe("leaderboard_opt_in is readable column by column, never table-wide", () => {
   it("the migration grants SELECT on the new column only", () => {
     const sql = read(MIGRATION);
-    assert.match(sql, /^-- UNAPPLIED\. Needs review before running\.\n/);
+    assert.match(sql, /^-- ALREADY APPLIED in prod \(under a later timestamp\) — do not run\n/);
     assert.match(sql, /grant select \(leaderboard_opt_in\) on public\.profiles to anon, authenticated;/);
     assert.doesNotMatch(sql, TABLE_WIDE);
     // The grant comes after the column exists, inside the transaction.
