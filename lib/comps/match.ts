@@ -260,7 +260,7 @@ function parallelIsBase(parallel?: string): boolean {
   return !p || p === "base";
 }
 
-function isRawCard(card: MatchCard): boolean {
+export function isRawCard(card: MatchCard): boolean {
   if (card.conditionType === "raw") return true;
   if (card.conditionType === "graded") return false;
   const parsed = parseGrade(card.grade ?? "");

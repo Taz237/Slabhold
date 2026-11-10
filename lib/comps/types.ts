@@ -72,6 +72,10 @@ export type SoldCompCard = {
   gradeQualifier?: string | null;
   estimatedSellPrice?: number;
   sport?: string;
+  /** Sold cards skip paid lookups. Unset when the caller does not know. */
+  sellPrice?: number | null;
+  sellDate?: string | null;
+  soldAt?: string | null;
 };
 
 export type CleanedSale = {

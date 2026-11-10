@@ -84,9 +84,10 @@ export function clearSignedOutDevice(device: SignOutDevice = browserDevice()): v
   remove(device.session, SIGN_OUT_SESSION_KEYS);
   remove(device.local, SIGN_OUT_LOCAL_KEYS, SIGN_OUT_LOCAL_PREFIXES);
   // The device activity copy keeps only likes, which are filtered by userId and
-  // still feed the likes migration. The last account's notifications, comments
-  // and reposts go. TODO: clear it fully when the likes fallback is removed
-  // (after 2026-11-06).
+  // still feed the likes migration and reply hearts (comment ids, which have no
+  // server table until comment_likes is applied). The last account's
+  // notifications, comments and reposts go. TODO: clear it fully when the likes
+  // fallback is removed (after 2026-11-06), once reply hearts are on the server.
   try {
     saveActivity({ ...emptyActivity, likes: loadActivity().likes });
   } catch {

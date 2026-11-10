@@ -25,6 +25,9 @@ export function soldCompCardFromRow(card: SportsCard): SoldCompCard {
     gradeQualifier: card.gradeQualifier || null,
     estimatedSellPrice: card.estimatedSellPrice || undefined,
     sport: card.sport || undefined,
+    sellPrice: card.sellPrice,
+    sellDate: card.sellDate,
+    soldAt: card.soldAt ?? null,
   };
 }
 

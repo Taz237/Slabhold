@@ -32,10 +32,14 @@ import type { LocalDb } from "@/lib/social/local-db";
 import { canDeleteReply, stateAfterReplyDelete } from "@/lib/social/reply-delete";
 import {
   likesMigratedFlag,
+  loadViewerReplyLikes,
   markLikesMigrated,
   migrateStoredLikes,
   optimisticLikeCount,
-  unionLikes,
+  replyLikeTap,
+  viewerLikes,
+  withDeviceLike,
+  type ReplyLikeState,
 } from "@/lib/social/likes";
 import { authSnapshotReload } from "@/lib/social/auth-snapshot";
 import { type LoadedPostPage, loadPostById, loadPostEngagement, loadPostPage } from "@/lib/social/load-feed-page";
@@ -368,6 +372,10 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
   const [suggestionEpoch, setSuggestionEpoch] = useState(0);
   const [activity, setActivity] = useState<ActivityStore>(emptyActivity);
   const [likesMigrated, setLikesMigrated] = useState(false);
+  /** Reply hearts the comment_likes read answered for. See viewerLikes. */
+  const [replyLikes, setReplyLikes] = useState<ReplyLikeState | null>(null);
+  /** Replies with a heart tap still on the way, so a late read can't undo it. */
+  const pendingReplyLikes = useRef(new Set<string>());
   const [removedPostIds, setRemovedPostIds] = useState<ReadonlySet<string>>(() => new Set());
   const supabaseRef = useRef<SupabaseClient | null>(null);
   const localRef = useRef<LocalDb | null>(null);
@@ -682,14 +690,20 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
   const postIds = new Set(baseSnapshot.posts.map((post) => post.id));
   const viewerId = baseSnapshot.user?.id ?? null;
   // TODO: remove the localStorage likes fallback in 2 weeks (after 2026-11-06).
+  // Reply hearts still need it after post likes migrate: see viewerLikes.
   const serverLikesReady = mode === "supabase" && likesMigrated && baseSnapshot.likesReady === true;
   const snapshot =
     mode === "supabase"
       ? {
           ...baseSnapshot,
-          likes: serverLikesReady
-            ? baseSnapshot.likes
-            : unionLikes(baseSnapshot.likes, activity.likes, viewerId),
+          likes: viewerLikes({
+            server: baseSnapshot.likes,
+            device: activity.likes,
+            userId: viewerId,
+            serverReady: serverLikesReady,
+            postIds,
+            replies: replyLikes,
+          }),
           reposts: [
             ...baseSnapshot.reposts,
             ...activity.reposts.filter((repost) => !postIds.has(repost.postId)),
@@ -1036,6 +1050,45 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       cancelled = true;
     };
   }, [mode, remote.user?.id]);
+  // Reply hearts from comment_likes, for replies on screen that were not asked
+  // about yet. A missing table leaves every reply heart to the device copy.
+  const replyLikeUserId = mode === "supabase" ? remote.user?.id ?? null : null;
+  const replyIdKey = remote.comments.map((comment) => comment.id).join(",");
+  useEffect(() => {
+    const userId = replyLikeUserId;
+    const client = supabaseRef.current;
+    if (!userId || !client || !replyIdKey) return;
+    if (replyLikes?.userId === userId && replyLikes.missing) return;
+    const asked = replyLikes?.userId === userId ? replyLikes.known : null;
+    const ids = replyIdKey.split(",").filter((id) => !asked?.has(id));
+    if (ids.length === 0) return;
+    let cancelled = false;
+    void loadViewerReplyLikes(client, userId, ids)
+      .then((liked) => {
+        if (cancelled) return;
+        setReplyLikes((state) => {
+          const base: ReplyLikeState =
+            state && state.userId === userId ? state : { userId, known: new Map(), missing: false };
+          if (liked === null) return { ...base, missing: true };
+          const known = new Map(base.known);
+          for (const id of ids) {
+            // A tap still on the way wins over this read.
+            if (pendingReplyLikes.current.has(id)) continue;
+            known.set(id, liked.has(id));
+          }
+          // Nothing new (every id had a tap on the way): keep the same state, so this doesn't read again.
+          if (state === base && known.size === base.known.size) return state;
+          return { ...base, known };
+        });
+      })
+      .catch(() => {
+        // A failed read leaves those hearts to the device copy.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [replyIdKey, replyLikeUserId, replyLikes]);
+
   const suggestionUserId = snapshot.user?.id ?? null;
   const seenDraftUserId = useRef(suggestionUserId);
   useEffect(() => {
@@ -1738,25 +1791,60 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
           removedIds: removedRef.current,
           blockedIds: new Set(current.blockedIds ?? []),
         });
-        // Reply hearts stay on this device. Comments are not posts, so they
-        // cannot use the likes table.
+        // Reply hearts: comments are not posts, so the likes table's foreign key
+        // rejects them. They go to comment_likes when it is installed, and the
+        // device copy keeps them either way (viewerLikes).
         if (!knownPost) {
           const reply = current.comments.find((comment) => comment.id === postId);
-          const wasLiked = current.likes.some((like) => like.postId === postId && like.userId === userId);
-          withLocalAccounts((lib) => rememberActivity(lib.localToggleLike(activityShell(), postId)));
+          const { wasLiked, liked: nextLiked } = replyLikeTap(current.likes, postId, userId);
+          const setReplyHeart = (liked: boolean) => {
+            const store = activityFrom(activityShell());
+            const next = { ...store, likes: withDeviceLike(store.likes, postId, userId, liked) };
+            try {
+              saveActivity(next);
+            } catch {
+              // Storage full or blocked: the heart still shows for this visit.
+            }
+            setActivity(next);
+            setReplyLikes((state) => {
+              if (!state || state.userId !== userId || !state.known.has(postId)) return state;
+              const known = new Map(state.known);
+              known.set(postId, liked);
+              return { ...state, known };
+            });
+            const latest = snapshotRef.current;
+            snapshotRef.current = { ...latest, likes: withDeviceLike(latest.likes, postId, userId, liked) };
+          };
+          setReplyHeart(nextLiked);
+          if (!reply) return;
+          pendingReplyLikes.current.add(postId);
           const client = supabaseRef.current;
-          if (!client || !reply) return;
           likeQueue.current = likeQueue.current
             .catch(() => undefined)
             .then(async () => {
-              const result = await (await loadRemote()).remoteSyncLikeNotification(client, {
-                actorId: userId,
-                recipientId: reply.authorId,
-                postId,
-                preview: reply.body,
-                liked: !wasLiked,
-              });
-              if (result.error) setStatus(result.error);
+              try {
+                const { syncReplyLike } = await import("@/lib/social/like-action");
+                const result = await syncReplyLike({ commentId: postId, liked: nextLiked });
+                if (!result.ok) {
+                  setStatus(result.error);
+                  setReplyHeart(wasLiked);
+                  return;
+                }
+                if (!client) return;
+                const notice = await (await loadRemote()).remoteSyncLikeNotification(client, {
+                  actorId: userId,
+                  recipientId: reply.authorId,
+                  postId,
+                  preview: reply.body,
+                  liked: nextLiked,
+                });
+                if (notice.error) setStatus(notice.error);
+              } catch (error) {
+                setStatus(error instanceof Error ? error.message : "Could not update that like.");
+                setReplyHeart(wasLiked);
+              } finally {
+                pendingReplyLikes.current.delete(postId);
+              }
             });
           return;
         }

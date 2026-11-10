@@ -198,3 +198,105 @@ export async function migrateStoredLikes(
   }
   return { ok: true, inserted };
 }
+
+/**
+ * Reply hearts read from comment_likes, per viewer. `known` holds replies the
+ * server answered for (true = liked). `missing` is set when the table is not
+ * installed yet; the device copy then covers every reply heart.
+ */
+export type ReplyLikeState = {
+  userId: string;
+  known: ReadonlyMap<string, boolean>;
+  missing: boolean;
+};
+
+/**
+ * The viewer's likes for the snapshot.
+ * - Before post likes are on the account: server plus device (unionLikes).
+ * - After: the server answers for every loaded post. Device likes for ids
+ *   that are not loaded posts stay, because reply hearts (comment ids) live
+ *   only on the device until comment_likes is installed. `migrate_local_likes`
+ *   drops comment ids, so this is their only copy.
+ * - A reply the comment_likes read answered for follows that answer.
+ * TODO: remove the localStorage likes fallback in 2 weeks (after 2026-11-06),
+ * once reply hearts have a server table.
+ */
+export function viewerLikes(input: {
+  server: readonly PostLike[];
+  device: readonly PostLike[];
+  userId: string | null;
+  serverReady: boolean;
+  postIds: ReadonlySet<string>;
+  replies?: ReplyLikeState | null;
+}): PostLike[] {
+  const { server, device, userId } = input;
+  if (!userId) return [...server];
+  let likes: PostLike[];
+  if (!input.serverReady) {
+    likes = unionLikes(server, device, userId);
+  } else {
+    const seen = new Set(server.filter((like) => like.userId === userId).map((like) => like.postId));
+    const extra = device.filter(
+      (like) =>
+        like.userId === userId &&
+        isUuid(like.postId) &&
+        !input.postIds.has(like.postId) &&
+        !seen.has(like.postId),
+    );
+    likes = [...server, ...extra];
+  }
+  const replies = input.replies;
+  if (!replies || replies.userId !== userId || replies.known.size === 0) return likes;
+  const out = likes.filter((like) => !(like.userId === userId && replies.known.has(like.postId)));
+  for (const [replyId, liked] of replies.known) {
+    if (!liked) continue;
+    const before = likes.find((like) => like.userId === userId && like.postId === replyId);
+    out.push(before ?? { postId: replyId, userId, createdAt: new Date(0).toISOString() });
+  }
+  return out;
+}
+
+/** Set one device like on or off. Other rows, and other accounts' rows, stay. */
+export function withDeviceLike(
+  likes: readonly PostLike[],
+  postId: string,
+  userId: string,
+  liked: boolean,
+  createdAt = new Date().toISOString(),
+): PostLike[] {
+  const without = likes.filter((like) => !(like.postId === postId && like.userId === userId));
+  return liked ? [...without, { postId, userId, createdAt }] : without;
+}
+
+/**
+ * A heart tap on a reply. `liked` is the new state: a tap on a heart that is
+ * on is an unlike, so the unlike is what gets sent.
+ */
+export function replyLikeTap(
+  likes: readonly PostLike[],
+  replyId: string,
+  userId: string,
+): { wasLiked: boolean; liked: boolean } {
+  const wasLiked = likes.some((like) => like.postId === replyId && like.userId === userId);
+  return { wasLiked, liked: !wasLiked };
+}
+
+/** One "which of these replies did I like" read. Null when comment_likes is not installed yet. */
+export async function loadViewerReplyLikes(
+  supabase: SupabaseClient,
+  userId: string | null,
+  replyIds: readonly string[],
+): Promise<Set<string> | null> {
+  const ids = [...new Set(replyIds)].filter((id) => isUuid(id));
+  if (!userId || !isUuid(userId) || ids.length === 0) return new Set();
+  const { data, error } = await supabase
+    .from("comment_likes")
+    .select("comment_id")
+    .eq("user_id", userId)
+    .in("comment_id", ids);
+  if (error) {
+    if (missingLikesRelation(error)) return null;
+    throw new Error(error.message);
+  }
+  return new Set(((data ?? []) as { comment_id: string }[]).map((row) => row.comment_id));
+}

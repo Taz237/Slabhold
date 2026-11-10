@@ -89,7 +89,13 @@ export function MessageThread({ username }: { username: string }) {
       }),
     [blockedIds, cardParam, mutedPartner, partner, publicCards, user?.id],
   );
-  const offerAttachment = offerCard ? { cardId: offerCard.id } : null;
+  /**
+   * The ?card= this thread already sent. A sent card is detached at once, so the
+   * next message is text only, even before the URL drops the param.
+   */
+  const [sentCard, setSentCard] = useState<string | null>(null);
+  if (sentCard && cardParam !== sentCard) setSentCard(null);
+  const offerAttachment = offerCard && offerCard.id !== sentCard ? { cardId: offerCard.id } : null;
   const [draft, setDraft] = useState("");
   /** The ?post= this thread already put in the box, so it fills once. */
   const [prefilled, setPrefilled] = useState<string | null>(null);
@@ -214,6 +220,14 @@ export function MessageThread({ username }: { username: string }) {
     }
     haptic("send");
     setSettled([outgoing.content]);
+    if (offerAttachment) {
+      // Sent once: take it out of the composer and the URL. Other params (?post=) stay.
+      setSentCard(offerAttachment.cardId);
+      const rest = new URLSearchParams(searchParams.toString());
+      rest.delete("card");
+      const query = rest.toString();
+      router.replace(`${userHref(partner.username, "messages")}${query ? `?${query}` : ""}`);
+    }
   }
 
   if (!partner && partnerRead.failed) {

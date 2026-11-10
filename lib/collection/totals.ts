@@ -14,7 +14,7 @@ import {
   rowsKeepingPriorIdentity,
   type SnapshotIdentityRow,
 } from "@/lib/leaderboard/snapshot-keep";
-import { getCardValues } from "@/lib/value/getCardValue";
+import { readCardValuesStrict } from "@/lib/value/getCardValue";
 import {
   collectionTotalsFromSummarize,
   snapshotDateInNewYork,
@@ -30,7 +30,8 @@ export { hasPaid };
 
 /**
  * Reuses Collection summary math (summarize + cached card_values).
- * Never calls Trawl.
+ * Never calls Trawl. A failed card_values read throws (CardValuesReadError):
+ * pricing the collection without its values would read as $0.
  */
 async function loadUserCollection(userId: string) {
   const admin = createSupabaseAdmin();
@@ -43,10 +44,11 @@ async function loadUserCollection(userId: string) {
   if (error) throw new Error(error.message);
 
   const cards = ((data ?? []) as CardRow[]).map(mapCardRow);
-  const values = await getCardValues(cards.map((card) => card.id));
+  const values = await readCardValuesStrict(cards.map((card) => card.id));
   return { admin, cards, values };
 }
 
+/** Throws when the card_values read fails, instead of reporting $0. */
 export async function computeCollectionTotals(
   userId: string,
 ): Promise<CollectionTotals> {
@@ -60,6 +62,7 @@ export async function computeCollectionTotals(
  * Upsert today's snapshot for a user (America/New_York date).
  * Service-role write only. Writes today's date only, so past snapshot dates stay frozen.
  * If the leaderboard columns are not applied yet, the median is still saved.
+ * A failed card_values read throws before any write, so today's row is left alone.
  */
 export async function upsertTodaysCollectionSnapshot(
   userId: string,
