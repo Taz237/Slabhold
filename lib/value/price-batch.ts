@@ -1,5 +1,5 @@
 import { CompsResultError } from "@/lib/comps/comps-result-cache";
-import { sharedCompValue } from "@/lib/comps/shared-value";
+import { cachedCompValue } from "@/lib/comps/shared-value";
 import type { CleanedSale, SoldCompCard } from "@/lib/comps/types";
 import type { CardValueSale } from "@/lib/value/types";
 
@@ -287,15 +287,15 @@ export function cleanedFromCacheRows(rows: readonly CachedCompRow[]): CleanedSal
 
 /**
  * Fallback sales for one card.
- * The newest batch goes through the same filter as the estimate, then the
- * owner's flagged item ids are removed.
+ * The newest batch is re-matched with the current rules (it already had its
+ * outlier pass when it was stored), then the owner's flagged item ids are removed.
  */
 export function fallbackSales(
   card: SoldCompCard,
   rows: readonly CachedCompRow[],
   flaggedItemIds: ReadonlySet<string>,
 ): FallbackSale[] {
-  const matched = sharedCompValue(card, cleanedFromCacheRows(rows)).sales;
+  const matched = cachedCompValue(card, cleanedFromCacheRows(rows)).sales;
   return matched
     .filter(
       (sale) =>

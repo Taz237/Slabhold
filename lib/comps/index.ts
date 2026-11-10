@@ -10,6 +10,7 @@ import {
   writeSoldCompsCache,
 } from "./cache";
 import { keptAndDroppedTitles } from "./classify-titles";
+import { trawlSkipReason, type TrawlSkipReason } from "./lookup-guard";
 import { isLowConfidence } from "./clean";
 import { cleanedToCompListings, historyFromSales } from "./map";
 import {
@@ -19,6 +20,7 @@ import {
 import { buildQueryKey } from "./query-key";
 import { mockCompsForCard } from "./sample";
 import {
+  cachedCompValue,
   compListingToCleaned,
   screenValueFromComps,
   sharedCompValue,
@@ -31,6 +33,7 @@ export { isLowConfidence } from "./clean";
 export { filterComps, buildCompsQuery, prepareSales } from "./match";
 export { sharedCompValue, screenValueFromComps } from "./shared-value";
 export { buildQueryKey } from "./query-key";
+export { trawlSkipReason, type TrawlSkipReason } from "./lookup-guard";
 export { filterPriceOutliers } from "./stats";
 
 export type CompsSource = "trawl" | "sample" | "off";
@@ -65,7 +68,7 @@ function reportClassification(
 export type GetSoldCompsResult =
   | { ok: true; payload: SoldCompsPayload }
   | { ok: false; rateLimited: true }
-  | { ok: false; unavailable: true };
+  | { ok: false; unavailable: true; skipped?: TrawlSkipReason };
 
 export function getCompsSource(): CompsSource {
   const raw = process.env.COMPS_SOURCE?.trim().toLowerCase();
@@ -151,7 +154,12 @@ export function payloadFromSales(
 
 /**
  * Generic sold-comps resolver. Trawl key stays server-side.
- * Always re-applies sharedCompValue (shared with refreshCardValue).
+ * A fresh Trawl lookup runs sharedCompValue (match + one outlier pass) and
+ * stores those sales. Cached sales re-apply the match rules only
+ * (cachedCompValue), so the outlier pass never runs twice and a cached price
+ * equals the fresh one.
+ * Cards that cannot use a lookup (sold, no card number, unparsed grade) never
+ * reach Trawl: they get stored comps only, else unavailable with `skipped`.
  */
 export async function getSoldComps(
   card: SoldCompCard,
@@ -181,8 +189,8 @@ export async function getSoldComps(
   const queryKey = buildQueryKey(card);
   const cached = await readSoldCompsCache(queryKey);
   if (cached) {
-    // Re-filter cached rows with the current shared rules.
-    const sales = sharedCompValue(matchCard, cached.sales).sales;
+    // Re-match cached rows with the current rules. They already had their outlier pass.
+    const sales = cachedCompValue(matchCard, cached.sales).sales;
     reportClassification(options, cached.sales, sales);
     return {
       ok: true,
@@ -195,10 +203,14 @@ export async function getSoldComps(
     };
   }
 
-  if (options?.cacheOnly) {
+  // A card that cannot use a lookup gets its stored comps only, like cacheOnly.
+  const skipped = trawlSkipReason(card);
+  if (options?.cacheOnly || skipped) {
     const stale = await readLatestSoldCompsBatch(queryKey);
-    if (!stale) return { ok: false, unavailable: true };
-    const sales = sharedCompValue(matchCard, stale.sales).sales;
+    if (!stale) {
+      return skipped ? { ok: false, unavailable: true, skipped } : { ok: false, unavailable: true };
+    }
+    const sales = cachedCompValue(matchCard, stale.sales).sales;
     reportClassification(options, stale.sales, sales);
     return {
       ok: true,

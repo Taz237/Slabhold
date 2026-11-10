@@ -3,8 +3,10 @@ import type { Notification, PostComment, PostLike, PostRepost } from "./types";
 const STORAGE_KEY = "slabhold.activity.v1";
 
 /**
- * Device copy of activity. Likes are stored on the account now.
- * TODO: remove the localStorage likes fallback in 2 weeks (after 2026-11-06).
+ * Device copy of activity. Post likes are stored on the account now. Reply
+ * hearts (comment ids) stay here until comment_likes is applied.
+ * TODO: remove the localStorage likes fallback in 2 weeks (after 2026-11-06),
+ * once reply hearts have a server table.
  */
 export type ActivityStore = {
   likes: PostLike[];

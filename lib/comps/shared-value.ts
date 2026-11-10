@@ -98,7 +98,23 @@ export function sharedCompValue(
   card: MatchCard,
   comps: TrawlSoldResult[] | CleanedSale[],
 ): SharedCompValue {
-  const sales = filterComps(card, comps);
+  return valueFromSales(filterComps(card, comps));
+}
+
+/**
+ * Price sales read back from sold_comps_cache. Those rows were stored after
+ * sharedCompValue's outlier pass, so this re-applies the current match rules
+ * (player, set, parallel, grade) and skips a second outlier pass. The outlier
+ * filter is not idempotent: a second pass on the kept rows can drop more.
+ */
+export function cachedCompValue(
+  card: MatchCard,
+  sales: CleanedSale[],
+): SharedCompValue {
+  return valueFromSales(matchComps(card, sales));
+}
+
+function valueFromSales(sales: CleanedSale[]): SharedCompValue {
   const stats = statsFromPrices(sales.map((sale) => sale.price));
   return {
     sales,

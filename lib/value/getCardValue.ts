@@ -7,7 +7,9 @@ import {
   type SoldCompCard,
   type SoldCompsPayload,
 } from "@/lib/comps";
-import { loadSoldCompCard } from "@/lib/comps/load-card";
+import { loadSoldCompCard, soldCompCardFromRow } from "@/lib/comps/load-card";
+import { trawlSkipReason } from "@/lib/comps/lookup-guard";
+import { mapCardRow, type CardRow } from "@/lib/social/cards";
 import { buildQueryKey } from "@/lib/comps/query-key";
 import { roundToCent } from "@/lib/comps/stats";
 import { pricePayloadWithoutFlags, valueFromShownSales } from "@/lib/comps/shared-value";
@@ -160,11 +162,21 @@ export async function getCardValue(
   return rowToResult(data as CardValueRow, { expectedQueryKey: expectedKey });
 }
 
+/** A card_values read that failed. Not the same as "no rows for those ids". */
+export class CardValuesReadError extends Error {
+  constructor(message: string) {
+    super(`card_values read failed: ${message}`);
+    this.name = "CardValuesReadError";
+  }
+}
+
 /**
  * Read trusted values for many cards in ONE query. Never calls Trawl.
  * Only ids with a card_values row appear in the map.
+ * A failed read throws CardValuesReadError, so a caller that saves totals
+ * cannot mistake it for an empty collection.
  */
-export async function getCardValues(
+export async function readCardValuesStrict(
   cardIds: string[],
 ): Promise<Map<string, CardValueResult>> {
   const out = new Map<string, CardValueResult>();
@@ -186,16 +198,29 @@ export async function getCardValues(
     .select("card_id, median, low, high, n_sales, status, query_key, matched_at")
     .in("card_id", ids);
 
-  if (error) {
-    console.warn("[card_values] read failed:", error.message);
-    return out;
-  }
+  if (error) throw new CardValuesReadError(error.message);
 
   for (const row of (data ?? []) as CardValueRow[]) {
     out.set(row.card_id, rowToResult(row));
   }
 
   return out;
+}
+
+/**
+ * Display read: like readCardValuesStrict, but a failed read logs and shows
+ * no values. Never use this for anything that saves a total.
+ */
+export async function getCardValues(
+  cardIds: string[],
+): Promise<Map<string, CardValueResult>> {
+  try {
+    return await readCardValuesStrict(cardIds);
+  } catch (err) {
+    if (!(err instanceof CardValuesReadError)) throw err;
+    console.warn("[card_values]", err.message);
+    return new Map();
+  }
 }
 
 export type RefreshCardValueOptions = {
@@ -254,6 +279,15 @@ export async function refreshCardValue(
       return finish(
         existing ?? emptyResult("unavailable"),
         emptyAttempt("skipped", "budget_exhausted"),
+      );
+    }
+    if ("skipped" in result && result.skipped) {
+      // Sold, no card number, or unparsed grade: no Trawl call was made and
+      // nothing is stored for it. Leave the stored value as it is.
+      const existing = await getCardValue(cardId);
+      return finish(
+        existing ?? emptyResult("unavailable"),
+        emptyAttempt("skipped", "unavailable"),
       );
     }
     // Trawl failed. Keep the stored price only when this card's query_key
@@ -524,23 +558,48 @@ async function selectPage<T>(
   return rows;
 }
 
+/** cards columns the refresh queue reads to leave out cards a lookup cannot help. */
+const REFRESH_QUEUE_CARD_COLUMNS =
+  "id, card_number, no_number, grade, grader, condition_type, sell_price, sell_date, sold_at";
+
 /**
- * Every card, valued or not. matched_at is the last attempt (null if never checked).
+ * Cards a lookup can use, valued or not. matched_at is the last attempt (null if never checked).
  * Ordering is applied by takeRefreshBatch: oldest first, nulls first.
+ * Sold cards, cards with no card number, and graded cards whose grade does
+ * not parse are left out (trawlSkipReason), so they never spend the daily
+ * Trawl budget. They are not marked checked; they are simply not queued.
  */
 export async function listRefreshQueue(): Promise<RefreshQueueCard[]> {
   const client = createSupabaseAdmin();
   if (!client) return [];
 
-  const cards = await selectPage<{ id: string }>(client, "cards", "id");
+  // If a guard column is missing in this database, queue every card as before.
+  const probe = await client.from("cards").select(REFRESH_QUEUE_CARD_COLUMNS).limit(1);
+  if (probe.error) {
+    console.warn("[card_values] refresh queue guard columns unavailable:", probe.error.message);
+  }
+  const cards = probe.error
+    ? (await selectPage<{ id: string }>(client, "cards", "id")).map((row) => ({ id: row.id }) as CardRow)
+    : await selectPage<CardRow>(client, "cards", REFRESH_QUEUE_CARD_COLUMNS);
   const values = await selectPage<{ card_id: string; matched_at: string | null }>(
     client,
     "card_values",
     "card_id, matched_at",
   );
+  return refreshQueueFromRows(cards, values, { guard: !probe.error });
+}
+
+/** Pure part of listRefreshQueue. Exported for tests. */
+export function refreshQueueFromRows(
+  cards: readonly CardRow[],
+  values: readonly { card_id: string; matched_at: string | null }[],
+  { guard = true }: { guard?: boolean } = {},
+): RefreshQueueCard[] {
   const matchedAt = new Map(values.map((row) => [row.card_id, row.matched_at]));
-  return cards.map((card) => ({
-    cardId: card.id,
-    matchedAt: matchedAt.has(card.id) ? matchedAt.get(card.id) ?? null : null,
-  }));
+  return cards
+    .filter((row) => !guard || trawlSkipReason(soldCompCardFromRow(mapCardRow(row))) == null)
+    .map((card) => ({
+      cardId: card.id,
+      matchedAt: matchedAt.has(card.id) ? matchedAt.get(card.id) ?? null : null,
+    }));
 }
