@@ -73,6 +73,8 @@ export type FlowAnswers = {
   gradeNumber: string;
   /** Checklist run for the chosen parallel. Null when unnumbered or not in the checklist. */
   knownRun: number | null;
+  /** The checklist says this parallel's run differs card to card, so Numbered? is asked. */
+  runVaries?: boolean;
 };
 
 export function emptyFlowAnswers(): FlowAnswers {
@@ -89,6 +91,7 @@ export function emptyFlowAnswers(): FlowAnswers {
     gradeCompany: RAW_GRADING_COMPANY,
     gradeNumber: "",
     knownRun: null,
+    runVaries: false,
   };
 }
 
@@ -104,9 +107,20 @@ export function initialFlowState(step: AddFlowStep = "player"): FlowState {
   return { step, history: [], returnToReview: false };
 }
 
-/** Numbered? is skipped when the checklist already knows the run. */
+/**
+ * Steps the forward path skips. Numbered? is asked only when the parallel can
+ * be numbered: the checklist says its run varies, or its name implies a run
+ * (Gold /10, Superfractor). A run the checklist knows is filled for you.
+ * Grade is never its own screen: the Condition row on Review holds it.
+ * Both ids stay, so a jump from Review, Back and a restored draft still work.
+ */
 export function stepSkipped(step: AddFlowStep, answers: FlowAnswers): boolean {
-  if (step === "serial") return answers.knownRun != null;
+  if (step === "serial") {
+    if (answers.knownRun != null) return true;
+    if (answers.runVaries) return false;
+    return serialRunFromName(answers.parallel) == null;
+  }
+  if (step === "grade") return true;
   return false;
 }
 
@@ -177,6 +191,28 @@ export function jumpToStep(state: FlowState, step: AddFlowStep): FlowState {
     history: [...state.history, state.step],
     returnToReview: state.step === "review" || state.returnToReview,
   };
+}
+
+export type FlowCounter = { kind: "review" } | { kind: "step"; index: number; total: number };
+
+/** "Step N of M" over the steps actually shown. Review has no number. */
+export function flowCounter(state: FlowState, answers: FlowAnswers): FlowCounter {
+  if (state.step === "review") return { kind: "review" };
+  const steps = visibleSteps(answers).filter((step) => step !== "review");
+  // A step opened from Review (Numbered? on a Base card) counts as one more.
+  if (!steps.includes(state.step)) {
+    const at = steps.filter((step) => ADD_FLOW_STEPS.indexOf(step) < ADD_FLOW_STEPS.indexOf(state.step)).length;
+    return { kind: "step", index: at + 1, total: steps.length + 1 };
+  }
+  return { kind: "step", index: steps.indexOf(state.step) + 1, total: steps.length };
+}
+
+/**
+ * What still stops Add to collection. "grade" is fixed in place on Review's
+ * Condition row; any other step is opened and comes straight back.
+ */
+export function reviewMissing(answers: FlowAnswers): AddFlowStep | null {
+  return ADD_FLOW_STEPS.find((step) => step !== "review" && !stepComplete(step, answers)) ?? null;
 }
 
 /** 0 on the first step, 1 on Review. */
@@ -358,7 +394,8 @@ export function catalogJump(
   };
 }
 
-export type ReviewPart = { text: string; step: AddFlowStep | null };
+/** `hint` marks a prompt rather than an answer, like "Numbered?" on a card with no run. */
+export type ReviewPart = { text: string; step: AddFlowStep | null; hint?: true };
 
 function gradeText(answers: FlowAnswers): string {
   if (!gradeNeedsNumber(answers.gradeCompany)) return "Raw";
@@ -392,6 +429,23 @@ export function reviewParts(answers: FlowAnswers, extras: { isAuto: boolean }): 
   dot();
   parts.push({ text: gradeText(answers), step: "grade" });
   return parts;
+}
+
+/** The pre-selected Year chip: the last-used year when it's a chip, else the newest. */
+export function yearSuggestion(chips: readonly string[], lastUsed: string | null | undefined): string | null {
+  const last = lastUsed?.trim() ?? "";
+  if (last && chips.includes(last)) return last;
+  return chips[0] ?? null;
+}
+
+/**
+ * "Numbered?" after the summary when the card has no run, so a numbered Base
+ * card can still be set. It opens Numbered? and comes straight back.
+ */
+export function reviewNumberedPart(answers: FlowAnswers): ReviewPart | null {
+  const run = Number(answers.serialRun);
+  if (Number.isInteger(run) && run >= 1) return null;
+  return { text: "Numbered?", step: "serial", hint: true };
 }
 
 /** Seasons on the Year step before "Older…". */
@@ -454,7 +508,7 @@ const FEATURED_SET_MAX = 10;
 export type SetChoice = {
   name: string;
   maker: string;
-  source: "catalog" | "checklist" | "popular" | "insert";
+  source: "last" | "catalog" | "checklist" | "popular" | "insert";
 };
 
 /**
@@ -467,6 +521,8 @@ export function setChoices(input: {
   productSets: readonly string[];
   /** The parallel or insert already picked, e.g. from the search door. */
   insert?: string;
+  /** The set of the last card this person added. Leads, tagged "Last used". */
+  lastUsed?: string | null;
 }): SetChoice[] {
   const seen = new Set<string>();
   const out: SetChoice[] = [];
@@ -476,6 +532,7 @@ export function setChoices(input: {
     seen.add(key);
     out.push({ name: name.trim(), maker: setMaker(name), source });
   };
+  if (input.lastUsed?.trim()) add(input.lastUsed, "last");
   for (const name of insertLeadSets(input.insert ?? "")) add(name, "insert");
   for (const name of input.catalogSets) add(name, "catalog");
   for (const name of input.productSets) add(name, "checklist");
@@ -554,6 +611,10 @@ export function answersWithPatch(
   answers: FlowAnswers,
   patch: FlowPatch,
   knownRun: number | null = answers.knownRun,
+  runVaries: boolean = patch.form?.parallel !== undefined &&
+    parallelMatchKey(patch.form.parallel) !== parallelMatchKey(answers.parallel)
+    ? false
+    : Boolean(answers.runVaries),
 ): FlowAnswers {
   const form = patch.form ?? {};
   return {
@@ -570,6 +631,7 @@ export function answersWithPatch(
     gradeCompany: patch.gradeCompany ?? answers.gradeCompany,
     gradeNumber: patch.gradeNumber ?? answers.gradeNumber,
     knownRun,
+    runVaries,
   };
 }
 

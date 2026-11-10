@@ -42,7 +42,7 @@ const filled = answers({
 });
 
 describe("add flow steps", () => {
-  it("runs Player, Year, Set, Card #, Parallel, Numbered?, Grade, Review", () => {
+  it("runs Player, Year, Set, Card #, Parallel, Review for a base card", () => {
     assert.deepEqual(
       [...ADD_FLOW_STEPS],
       ["player", "year", "set", "number", "parallel", "serial", "grade", "review"],
@@ -53,7 +53,8 @@ describe("add flow steps", () => {
       state = nextStep(state, filled);
       seen.push(state.step);
     }
-    assert.deepEqual(seen, [...ADD_FLOW_STEPS]);
+    // Base has no run, so Numbered? is skipped; Grade lives on Review.
+    assert.deepEqual(seen, ["player", "year", "set", "number", "parallel", "review"]);
   });
 
   it("goes back to the previous answered step", () => {
@@ -74,10 +75,11 @@ describe("add flow steps", () => {
   it("skips Numbered? when the parallel has a known run, and back skips it too", () => {
     const red = { ...filled, parallel: "Red", serialRun: "299", knownRun: 299 };
     assert.equal(stepSkipped("serial", red), true);
-    assert.equal(stepSkipped("serial", filled), false);
+    assert.equal(stepSkipped("serial", filled), true, "Base has no run to ask about");
+    assert.equal(stepSkipped("serial", { ...filled, parallel: "Gold /10" }), false);
     const atParallel = { step: "parallel" as const, history: ["player", "year", "set", "number"] as const };
     let state = nextStep({ ...initialFlowState(), ...atParallel, history: [...atParallel.history] }, red);
-    assert.equal(state.step, "grade");
+    assert.equal(state.step, "review");
     state = backStep(state);
     assert.equal(state.step, "parallel");
   });
@@ -268,7 +270,7 @@ describe("flow position", () => {
     const next = answersWithPatch(filled, { form: { parallel: "Red", serialRun: "299" } }, 299);
     assert.equal(next.parallel, "Red");
     assert.equal(next.knownRun, 299);
-    assert.equal(nextStep({ step: "parallel", history: [], returnToReview: false }, next).step, "grade");
+    assert.equal(nextStep({ step: "parallel", history: [], returnToReview: false }, next).step, "review");
   });
 });
 
