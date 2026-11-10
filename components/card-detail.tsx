@@ -53,7 +53,7 @@ import {
   readBrowserFirstCardPrivacy,
   subscribeFirstCardPrivacy,
 } from "@/lib/collection/first-card-privacy";
-import { showAddedPanel } from "@/lib/cards/added-panel";
+import { copyCardPath, showAddedPanel } from "@/lib/cards/added-panel";
 import { todayDateInput } from "@/lib/cards/form-defaults";
 import { gradeDetailSpecs } from "@/lib/cards/grading-company";
 import { canonicalParallelName, parallelMatchKey } from "@/lib/cards/parallels";
@@ -430,6 +430,20 @@ export function CardDetail({ id, added = false }: { id: string; added?: boolean 
         }}
       />
 
+      {/* Owner only: the same card again, for a second parallel or grade. The reveal has its own. */}
+      {editing || showAddedPanel({ added, owned: true, dismissed: addedDismissed }) ? null : (
+        <div className="-mt-3 flex justify-center">
+          <Link
+            href={copyCardPath(card)}
+            data-slot="copy-card"
+            aria-label="Copy this card: add another parallel or grade of it"
+            className="inline-flex min-h-11 items-center justify-center rounded-full px-4 text-sm font-medium text-violet-700 underline decoration-violet-700/40 underline-offset-4 outline-none hover:text-violet-600 focus-visible:ring-2 focus-visible:ring-violet-600 dark:text-[#A78BFA] dark:decoration-[#A78BFA]/40"
+          >
+            Copy this card
+          </Link>
+        </div>
+      )}
+
       {heldCopy && !editing && !(showAddedPanel({ added, owned: true, dismissed: addedDismissed })) ? (
         <p
           data-slot="price-held"
@@ -516,6 +530,15 @@ export function CardDetail({ id, added = false }: { id: string; added?: boolean 
           className={`${cardPanelClass} scroll-mt-24 space-y-5`}
         >
           <CardShareButton card={card} username={user?.username} onTogglePublic={setPublic} variant="row" />
+          {/* Same href as the link under the hero. The page is owner-only. */}
+          <Link
+            href={copyCardPath(card)}
+            data-slot="copy-card-menu"
+            aria-label="Copy this card: add another parallel or grade of it"
+            className="flex min-h-11 items-center rounded-xl text-sm font-medium text-violet-700 underline decoration-violet-700/40 underline-offset-4 outline-none hover:text-violet-600 focus-visible:ring-2 focus-visible:ring-violet-600 dark:text-[#A78BFA] dark:decoration-[#A78BFA]/40"
+          >
+            Copy this card
+          </Link>
           <div>
             <h2 className="font-semibold">Value</h2>
             <div className="mt-3 grid min-w-0 grid-cols-1 gap-3">
