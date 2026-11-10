@@ -33,7 +33,6 @@ import {
 import { TrendingNow } from "@/components/trending-now";
 import { shouldShowFirstCardWelcome } from "@/lib/collection/welcome";
 import { Tweet } from "@/components/tweet";
-import { WhatsNewCard } from "@/components/whats-new-card";
 import { loginPath, signupPath } from "@/lib/auth/safe-next";
 import { takeCompose } from "@/lib/capture";
 import { loadSupabaseBrowser } from "@/lib/supabase/browser-lazy";
@@ -59,7 +58,7 @@ import {
 import { toPublicAttachment } from "@/lib/social/card-posts";
 import { followingAuthorIds, homeHead, showsNewPosts } from "@/lib/social/feed-page";
 import { getStartedHintScript, type HomeSeed } from "@/lib/social/home-seed";
-import { presentForYouFeed } from "@/lib/social/for-you-display";
+import { presentFollowingFeed, presentForYouFeed } from "@/lib/social/for-you-display";
 import { addUnblockedProfiles, presentPagedItems } from "@/lib/social/paged-items";
 import { followedAccountIds, publicTimeline } from "@/lib/social/timeline";
 import {
@@ -368,14 +367,14 @@ export function FeedView({
   const feedEntries =
     lane === "foryou"
       ? presentForYouFeed(visible)
-      : visible.map((item) => ({ kind: "post" as const, item }));
-  const activeLoading = paging && activePage.loading && visible.length === 0;
+      : presentFollowingFeed(visible);
+  const activeLoading = paging && activePage.loading && feedEntries.length === 0;
   const followingEmpty =
     Boolean(user) &&
     lane === "following" &&
     !activeLoading &&
     !activePage.error &&
-    visible.length === 0;
+    feedEntries.length === 0;
   // The server-drawn first screen holds only what a phone shows. The rest of
   // the page joins below it a few rows per idle moment once the snapshot is
   // in, so no single commit has to lay out the whole page.
@@ -386,7 +385,7 @@ export function FeedView({
   });
   const shownEntries = feedEntries.slice(0, rowLimit);
   const moreRows = rowLimit < feedEntries.length;
-  const feedKeys = Array.from(feedEntries, (entry) => (entry.kind === "whats-new" ? entry.key : entry.item.key));
+  const feedKeys = Array.from(feedEntries, (entry) => entry.item.key);
   const newAbove = useNewPostsAbove({ lane, keys: feedKeys });
   // Only posts that arrive after the feed is on screen fade in. A feed that
   // is already there on mount (Back from a post) shows at once.
@@ -483,11 +482,11 @@ export function FeedView({
             <PostSkeletonList count={3} />
           ) : followingEmpty ? (
             <FollowingEmpty profiles={suggestionRail} />
-          ) : activePage.error && visible.length === 0 ? (
+          ) : activePage.error && feedEntries.length === 0 ? (
             <p className="px-4 py-8 text-center text-sm text-rose-600 dark:text-rose-400">
               {activePage.error}
             </p>
-          ) : visible.length === 0 && !showWelcome ? (
+          ) : feedEntries.length === 0 && !showWelcome ? (
             <EmptyState
               icon={<Compass className="h-5 w-5" />}
               title="No posts yet"
@@ -512,17 +511,6 @@ export function FeedView({
               {shownEntries.map((entry, index) => {
                 const whoToFollow = whoToFollowAfter(index, inlineSuggestions);
                 const inline = whoToFollow.length ? <WhoToFollowCard profiles={whoToFollow} /> : null;
-                if (entry.kind === "whats-new") {
-                  const noteAuthor = authors.get(entry.items[0]?.post.authorId ?? "") ?? null;
-                  return (
-                    <Fragment key={entry.key}>
-                      <FeedItem itemKey={entry.key} delay={entranceDelay(entry.key)}>
-                        <WhatsNewCard items={entry.items} author={noteAuthor} />
-                      </FeedItem>
-                      {inline}
-                    </Fragment>
-                  );
-                }
                 const item = entry.item;
                 const author = authors.get(item.post.authorId);
                 if (!author) return inline ? <Fragment key={item.key}>{inline}</Fragment> : null;

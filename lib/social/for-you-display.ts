@@ -1,12 +1,9 @@
 import { isOfficialUpdatesAccount } from "./official-updates";
 
 /**
- * For You display only. Posts stay in the database and on profiles.
+ * Home timeline display only. Posts stay in the database and on profiles.
  * The input list is not mutated.
  */
-
-/** Label when the official profile row has not loaded. Not used to detect release notes. */
-export const RELEASE_NOTE_HANDLE = "slabholdupdates";
 
 export function postTextKey(body: string): string {
   return body.trim();
@@ -46,58 +43,39 @@ export type ForYouSource = {
   repostedBy?: { id: string } | null;
 };
 
-export type ForYouFeedEntry<T> =
-  | { kind: "post"; item: T }
-  | { kind: "whats-new"; key: string; items: T[] };
+export type ForYouFeedEntry<T> = { kind: "post"; item: T };
+
+function isReleaseNoteItem(item: ForYouSource): boolean {
+  return isReleaseNotePost({
+    authorId: item.post.authorId,
+    body: item.post.body,
+    imageUrl: item.post.imageDataUrl,
+    hasCard: Boolean(item.post.card),
+    postType: item.post.postType,
+    quotedPostId: item.post.quotedPostId,
+    reposted: Boolean(item.repostedBy),
+  });
+}
+
+/** Drops updates-account release notes. Everything else keeps its order. */
+export function withoutReleaseNotes<T extends ForYouSource>(items: readonly T[]): T[] {
+  return items.filter((item) => !isReleaseNoteItem(item));
+}
 
 /**
- * Newest-first For You rows.
- * Duplicate text is dropped only inside updates-account release notes.
- * Collector posts, reposts, Mail Days, photos, cards, and quotes stay put.
- * Release notes collapse into one What's new card placed after the newest collector post.
+ * Newest-first For You rows. Release notes from the updates account are hidden.
+ * Collector posts, reposts, photos, cards, and quotes keep their order.
  * Pagination stays on the raw list.
  */
 export function presentForYouFeed<T extends ForYouSource>(
   items: readonly T[],
 ): ForYouFeedEntry<T>[] {
-  const notes: T[] = [];
-  const collectors: T[] = [];
-  for (const item of items) {
-    if (
-      isReleaseNotePost({
-        authorId: item.post.authorId,
-        body: item.post.body,
-        imageUrl: item.post.imageDataUrl,
-        hasCard: Boolean(item.post.card),
-        postType: item.post.postType,
-        quotedPostId: item.post.quotedPostId,
-        reposted: Boolean(item.repostedBy),
-      })
-    ) {
-      notes.push(item);
-    } else {
-      collectors.push(item);
-    }
-  }
-
-  const seenNoteText = new Set<string>();
-  const uniqueNotes: T[] = [];
-  for (const item of notes) {
-    const text = postTextKey(item.post.body);
-    const stamp = `${item.post.authorId}\n${text}`;
-    if (text && seenNoteText.has(stamp)) continue;
-    if (text) seenNoteText.add(stamp);
-    uniqueNotes.push(item);
-  }
-
-  const posts = collectors.map((item) => ({ kind: "post" as const, item }));
-  if (uniqueNotes.length === 0) return posts;
-  const card: ForYouFeedEntry<T> = { kind: "whats-new", key: "whats-new", items: uniqueNotes };
-  if (posts.length === 0) return [card];
-  return [posts[0]!, card, ...posts.slice(1)];
+  return withoutReleaseNotes(items).map((item) => ({ kind: "post" as const, item }));
 }
 
-export function whatsNewLabel(count: number): string {
-  const total = Math.max(0, Math.floor(count));
-  return `What's new (${total})`;
+/** Following rows. Same release-note filter as For You. */
+export function presentFollowingFeed<T extends ForYouSource>(
+  items: readonly T[],
+): ForYouFeedEntry<T>[] {
+  return withoutReleaseNotes(items).map((item) => ({ kind: "post" as const, item }));
 }
