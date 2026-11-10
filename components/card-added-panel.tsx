@@ -38,6 +38,8 @@ import type { CardValueResult } from "@/lib/value/types";
 const focusRing =
   "outline-none focus-visible:ring-2 focus-visible:ring-violet-600 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]";
 
+const primaryButton = `inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-full bg-violet-600 px-5 text-sm font-semibold text-white hover:bg-violet-500 ${focusRing}`;
+
 /**
  * Shown once on the card page right after Add card: the slab reveal, its value,
  * and up to three recent sold prices. Reads card_values and the sold comps the
@@ -103,6 +105,8 @@ export function CardAddedPanel({
   const [feed] = useState(() => addedFeedState(cardId));
   const [postSheet, setPostSheet] = useState(false);
   const postCaption = feed.failedCaption || (card ? justAddedCaption(card) : "");
+  // Post it leads until this add is on the feed; then Add another does.
+  const postFirst = Boolean(card) && !feed.postId;
   const keepCaption = () => {
     const store = shareSessionStore();
     if (store && card) writeComposeCaption(store, card.id, postCaption);
@@ -124,7 +128,11 @@ export function CardAddedPanel({
       </button>
 
       <div className="flex flex-col items-center text-center">
-        <div className="relative w-36 sm:w-40">
+        {/* Phones size the slab by screen height so the buttons below stay on screen. */}
+        <div
+          data-reveal="frame"
+          className="relative aspect-[3/5] h-[clamp(8.5rem,calc(100svh-34rem-env(safe-area-inset-bottom)),15rem)] md:h-auto md:w-40"
+        >
           <div
             aria-hidden
             data-reveal="glow"
@@ -134,24 +142,24 @@ export function CardAddedPanel({
             {card ? <RevealSlab card={card} /> : <div className="aspect-[3/5] w-full rounded-xl skeleton-shimmer" />}
           </div>
         </div>
-        <div className="mt-4 flex items-center gap-2">
+        <div className="mt-3 flex items-center gap-2">
           <span className="grid size-6 shrink-0 place-items-center rounded-full bg-violet-600 text-white">
             <Check className="size-3.5" strokeWidth={3} aria-hidden />
           </span>
           <h2 className="text-lg font-semibold tracking-tight">Added to your collection</h2>
         </div>
         {card ? (
-          <p className="mt-0.5 text-sm text-zinc-500">{card.playerName}</p>
+          <p className="text-sm text-zinc-500">{card.playerName}</p>
         ) : null}
 
-        <div aria-live="polite" className="mt-4 w-full max-w-sm">
+        <div aria-live="polite" className="mt-2 w-full max-w-sm">
           {line.kind === "pending" ? (
-            <div className="flex flex-col items-center gap-2" aria-busy="true">
-              <span className="skeleton-shimmer block h-7 w-40 rounded-lg" aria-hidden />
+            <div className="flex flex-col items-center gap-1.5" aria-busy="true">
+              <span className="skeleton-shimmer block h-6 w-40 rounded-lg" aria-hidden />
               <p className="text-sm text-zinc-500">{line.text}</p>
             </div>
           ) : line.kind === "ok" ? (
-            <p className="text-xl font-semibold tracking-tight tabular-nums text-zinc-900 dark:text-zinc-50">
+            <p className="text-base font-semibold tracking-tight tabular-nums text-balance text-zinc-900 dark:text-zinc-50">
               {line.text}
             </p>
           ) : (
@@ -177,15 +185,100 @@ export function CardAddedPanel({
             </p>
           )}
         </div>
+      </div>
 
+      {feed.postId ? (
+        <p className="mx-auto mt-3 max-w-sm rounded-xl border border-zinc-200 bg-white px-4 py-2.5 text-center text-sm text-zinc-700 dark:border-white/10 dark:bg-white/[0.03] dark:text-zinc-200">
+          {SHARE_CONFIRM_TEXT}{" "}
+          <Link href={sharePostPath(feed.postId)} className="font-semibold underline underline-offset-2">
+            View post
+          </Link>
+        </p>
+      ) : feed.failedCaption != null ? (
+        <p role="status" className="mt-3 text-center text-sm text-rose-600 dark:text-rose-400">
+          {FEED_POST_FAILED_TEXT} Try Post it.
+        </p>
+      ) : null}
+
+      {/* Thumb zone: the main action, Add another right under it, then a quiet link. */}
+      <div data-slot="reveal-actions" className="mx-auto mt-4 flex w-full max-w-sm flex-col gap-2">
+        <div className="flex gap-2">
+          {postFirst && card ? (
+            card.isPublic ? (
+              <Link href={composeWithCardPath(card.id)} onClick={keepCaption} className={primaryButton}>
+                <PenLine className="size-4" aria-hidden />
+                Post it
+              </Link>
+            ) : (
+              <button type="button" onClick={() => setPostSheet(true)} className={primaryButton}>
+                <PenLine className="size-4" aria-hidden />
+                Post it
+              </button>
+            )
+          ) : (
+            <Link href={addAnother} className={primaryButton}>
+              Add another
+            </Link>
+          )}
+          {card ? (
+            <CardShareButton
+              card={card}
+              username={viewer?.username}
+              onTogglePublic={onTogglePublic ?? (() => undefined)}
+            />
+          ) : null}
+        </div>
+        {postFirst ? (
+          <Link
+            href={addAnother}
+            className={`inline-flex min-h-11 w-full items-center justify-center rounded-full border border-zinc-300 bg-white/60 px-4 text-sm font-semibold text-zinc-800 hover:bg-white dark:border-white/15 dark:bg-white/5 dark:text-zinc-100 dark:hover:bg-white/10 ${focusRing}`}
+          >
+            Add another
+          </Link>
+        ) : null}
+        <button
+          type="button"
+          onClick={onSeeSales}
+          className={`mx-auto inline-flex min-h-11 items-center justify-center rounded-full px-4 text-sm font-medium text-zinc-600 underline decoration-zinc-400/50 underline-offset-4 hover:text-zinc-900 dark:text-zinc-400 dark:decoration-white/20 dark:hover:text-zinc-100 ${focusRing}`}
+        >
+          See all sales
+        </button>
+      </div>
+      {postSheet && card ? (
+        <PrivateShareSheet
+          isPublic={Boolean(card.isPublic)}
+          onTogglePublic={onTogglePublic ?? (() => undefined)}
+          onShare={() => setPostSheet(false)}
+          onClose={() => setPostSheet(false)}
+          copy={{
+            title: "Make this card public to post it",
+            privateText: SHARE_PRIVATE_REASON,
+            publicTitle: "Ready to post",
+            publicText: "It shows on your profile now. The post opens with this card attached.",
+          }}
+          action={
+            <Link
+              href={composeWithCardPath(card.id)}
+              onClick={keepCaption}
+              className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-violet-600 px-5 text-[15px] font-semibold text-white hover:bg-violet-500"
+            >
+              <PenLine aria-hidden className="size-4" />
+              Post it
+            </Link>
+          }
+        />
+      ) : null}
+
+      {/* The details read below the fold on a phone: sold prices, collection, progress. */}
+      <div className="mt-2 flex flex-col items-center text-center">
         {line.kind === "ok" && salesLoading ? (
-          <ul className="mt-3 w-full max-w-sm space-y-1.5" aria-hidden>
+          <ul className="mt-2 w-full max-w-sm space-y-1.5" aria-hidden>
             {[0, 1, 2].map((row) => (
               <li key={row} className="skeleton-shimmer h-10 rounded-xl" />
             ))}
           </ul>
         ) : recent.length > 0 ? (
-          <div className="mt-3 w-full max-w-sm">
+          <div className="mt-2 w-full max-w-sm">
             <ul aria-label="Recent sold prices" className="divide-y divide-zinc-200/70 rounded-2xl border border-zinc-200 bg-white/70 text-left dark:divide-white/5 dark:border-white/10 dark:bg-white/[0.03]">
               {recent.map((sale) => (
                 <li key={sale.key} className="flex min-h-10 items-center justify-between gap-3 px-3 text-sm">
@@ -220,91 +313,6 @@ export function CardAddedPanel({
             Add a photo to this card
           </Link>
         ) : null}
-      </div>
-
-      {feed.postId ? (
-        <p className="mt-4 rounded-xl border border-zinc-200 bg-white px-4 py-3 text-center text-sm text-zinc-700 dark:border-white/10 dark:bg-white/[0.03] dark:text-zinc-200">
-          {SHARE_CONFIRM_TEXT}{" "}
-          <Link href={sharePostPath(feed.postId)} className="font-semibold underline underline-offset-2">
-            View post
-          </Link>
-        </p>
-      ) : feed.failedCaption != null ? (
-        <p role="status" className="mt-4 text-center text-sm text-rose-600 dark:text-rose-400">
-          {FEED_POST_FAILED_TEXT} Try Post it.
-        </p>
-      ) : null}
-
-      {card ? (
-        <div className="mt-5 grid grid-cols-2 gap-2">
-          <div className="[&>button]:w-full [&>button]:max-w-none">
-            <CardShareButton
-              card={card}
-              username={viewer?.username}
-              onTogglePublic={onTogglePublic ?? (() => undefined)}
-              variant="row"
-            />
-          </div>
-          {feed.postId ? null : card.isPublic ? (
-            <Link
-              href={composeWithCardPath(card.id)}
-              onClick={keepCaption}
-              className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-zinc-300 px-4 text-sm font-semibold text-zinc-900 hover:bg-white dark:border-white/20 dark:text-zinc-100 dark:hover:bg-white/5 ${focusRing}`}
-            >
-              <PenLine className="size-4" aria-hidden />
-              Post it
-            </Link>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setPostSheet(true)}
-              className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-zinc-300 px-4 text-sm font-semibold text-zinc-900 hover:bg-white dark:border-white/20 dark:text-zinc-100 dark:hover:bg-white/5 ${focusRing}`}
-            >
-              <PenLine className="size-4" aria-hidden />
-              Post it
-            </button>
-          )}
-        </div>
-      ) : null}
-      {postSheet && card ? (
-        <PrivateShareSheet
-          isPublic={Boolean(card.isPublic)}
-          onTogglePublic={onTogglePublic ?? (() => undefined)}
-          onShare={() => setPostSheet(false)}
-          onClose={() => setPostSheet(false)}
-          copy={{
-            title: "Make this card public to post it",
-            privateText: SHARE_PRIVATE_REASON,
-            publicTitle: "Ready to post",
-            publicText: "It shows on your profile now. The post opens with this card attached.",
-          }}
-          action={
-            <Link
-              href={composeWithCardPath(card.id)}
-              onClick={keepCaption}
-              className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-violet-600 px-5 text-[15px] font-semibold text-white hover:bg-violet-500"
-            >
-              <PenLine aria-hidden className="size-4" />
-              Post it
-            </Link>
-          }
-        />
-      ) : null}
-
-      <div className="mt-2 grid grid-cols-2 gap-2">
-        <Link
-          href={addAnother}
-          className={`inline-flex min-h-11 items-center justify-center rounded-full bg-violet-600 px-4 text-sm font-semibold text-white hover:bg-violet-500 ${focusRing}`}
-        >
-          Add another
-        </Link>
-        <button
-          type="button"
-          onClick={onSeeSales}
-          className={`inline-flex min-h-11 items-center justify-center rounded-full border border-zinc-300 bg-white/60 px-4 text-sm font-semibold text-zinc-800 hover:bg-white dark:border-white/15 dark:bg-white/5 dark:text-zinc-100 dark:hover:bg-white/10 ${focusRing}`}
-        >
-          See all sales
-        </button>
       </div>
     </section>
   );

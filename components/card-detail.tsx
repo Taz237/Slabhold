@@ -399,10 +399,6 @@ export function CardDetail({ id, added = false }: { id: string; added?: boolean 
         share={<CardShareButton card={card} username={user?.username} onTogglePublic={setPublic} />}
       />
 
-      {editing ? null : (
-        <CardVisibilitySwitch isPublic={Boolean(card.isPublic)} onChange={setPublic} />
-      )}
-
       {/* card comes from the viewer's own collection, and the page is owner-only. */}
       {showAddedPanel({ added, owned: Boolean(card), dismissed: addedDismissed }) ? (
         <LazyCardAddedPanel
@@ -419,6 +415,11 @@ export function CardDetail({ id, added = false }: { id: string; added?: boolean 
           onTogglePublic={setPublic}
         />
       ) : null}
+
+      {/* Below the reveal, so its buttons fit one phone screen right after an add. */}
+      {editing ? null : (
+        <CardVisibilitySwitch isPublic={Boolean(card.isPublic)} onChange={setPublic} />
+      )}
 
       <CardHero
         card={card}

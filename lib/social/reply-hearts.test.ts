@@ -182,10 +182,16 @@ describe("reply heart wiring", () => {
     assert.match(replyAction, /fallback: true/);
   });
 
-  it("adds comment_likes as an unapplied migration", () => {
+  it("keeps the comment_likes file in sync with what prod applied", () => {
     const sql = read("supabase/migrations/20261110120000_comment_likes.sql");
-    assert.ok(sql.startsWith("-- UNAPPLIED. Needs review before running.\n"));
+    assert.ok(
+      sql.startsWith(
+        "-- ALREADY APPLIED to prod on 2026-11-10 (recorded as migration 20261110112746 comment_likes).\n",
+      ),
+    );
     assert.match(sql, /QA Guard/);
+    assert.match(sql, /set local lock_timeout = '5s';/);
+    assert.match(sql, /join public\.posts p on p\.id = c\.post_id/);
     assert.match(sql, /references public\.comments \(id\) on delete cascade/);
     assert.match(sql, /enable row level security/);
     assert.equal(/insert into public\.likes/i.test(sql), false);

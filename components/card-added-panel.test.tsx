@@ -179,6 +179,87 @@ describe("finish reveal", () => {
   });
 });
 
+describe("reveal fits one phone screen", () => {
+  const label = (el: Element) => (el.getAttribute("aria-label") ?? el.textContent ?? "").trim();
+
+  it("puts Post it first, Add another right under it, then See all sales", async () => {
+    const view = await render(card);
+    try {
+      const actions = view.host.querySelector('[data-slot="reveal-actions"]');
+      assert.ok(actions, "one actions block");
+      const order = [...actions.querySelectorAll("a,button")].map(label);
+      assert.deepEqual(order, ["Post it", "Share card", "Add another", "See all sales"]);
+      const post = [...actions.querySelectorAll("a,button")].find((el) => label(el) === "Post it");
+      assert.match(post?.className ?? "", /bg-violet-600/, "Post it is the main button");
+      const another = [...actions.querySelectorAll("a")].find((el) => label(el) === "Add another");
+      assert.match(another?.className ?? "", /min-h-11/);
+      assert.doesNotMatch(another?.className ?? "", /bg-violet-600/, "one main button");
+      const sales = [...actions.querySelectorAll("button")].find((el) => label(el) === "See all sales");
+      assert.match(sales?.className ?? "", /min-h-11/, "44px tap target");
+      assert.match(sales?.className ?? "", /underline/, "a smaller text link");
+    } finally {
+      view.unmount();
+    }
+  });
+
+  it("makes Add another the main button once the card is already on the feed", async () => {
+    // This tab's storage, as the add flow leaves it after a post went up.
+    const items = new Map<string, string>();
+    const memory = {
+      getItem: (key: string) => items.get(key) ?? null,
+      setItem: (key: string, next: string) => void items.set(key, next),
+      removeItem: (key: string) => void items.delete(key),
+    };
+    Object.defineProperty(globalThis, "sessionStorage", { configurable: true, value: memory });
+    const { recordCardPost } = await import("@/lib/social/share-to-feed");
+    recordCardPost(memory, card.id, "post-9");
+    const view = await render(card);
+    try {
+      const actions = view.host.querySelector('[data-slot="reveal-actions"]');
+      const order = [...(actions?.querySelectorAll("a,button") ?? [])].map(label);
+      assert.deepEqual(order, ["Add another", "Share card", "See all sales"]);
+      const another = [...(actions?.querySelectorAll("a") ?? [])].find((el) => label(el) === "Add another");
+      assert.match(another?.className ?? "", /bg-violet-600/);
+    } finally {
+      view.unmount();
+      Reflect.deleteProperty(globalThis, "sessionStorage");
+    }
+  });
+
+  it("keeps the sold rows and collection line below the buttons", async () => {
+    const view = await render(card);
+    try {
+      const actions = view.host.querySelector('[data-slot="reveal-actions"]');
+      const rows = view.host.querySelector('ul[aria-label="Recent sold prices"]');
+      assert.ok(actions && rows);
+      assert.ok(actions.compareDocumentPosition(rows) & win.Node.DOCUMENT_POSITION_FOLLOWING);
+      const headline = [...view.host.querySelectorAll("h2")].find((h) => /Added to your collection/.test(h.textContent ?? ""));
+      assert.ok(headline && headline.compareDocumentPosition(actions) & win.Node.DOCUMENT_POSITION_FOLLOWING);
+    } finally {
+      view.unmount();
+    }
+  });
+
+  it("puts the reveal above the Private switch on the card page", () => {
+    const detail = read("components/card-detail.tsx");
+    const panelAt = detail.indexOf("<LazyCardAddedPanel");
+    const switchAt = detail.indexOf("<CardVisibilitySwitch");
+    assert.ok(detail.indexOf("<CardTopBar") < panelAt && panelAt < switchAt && switchAt < detail.indexOf("<CardHero"));
+  });
+
+  it("sizes the slab by screen height on phones, never cropped, full size from md up", () => {
+    const panel = read("components/card-added-panel.tsx");
+    const frame = panel.match(/data-reveal="frame"\s+className="([^"]+)"/)?.[1] ?? "";
+    assert.match(frame, /aspect-\[3\/5\]/, "keeps the slab's shape");
+    assert.match(frame, /h-\[clamp\([^\]]*100svh[^\]]*env\(safe-area-inset-bottom\)[^\]]*,15rem\)\]/);
+    assert.match(frame, /md:h-auto md:w-40/);
+    assert.doesNotMatch(frame, /overflow-hidden|object-cover/);
+    // The glow and the slab keep their motion, and only when motion is allowed.
+    assert.match(panel, /data-reveal="glow"[\s\S]*?motion-safe:animate-\[reveal-glow/);
+    assert.match(panel, /data-reveal="slab"[^>]*motion-safe:animate-\[slab-reveal/);
+  });
+});
+
 describe("card page value line", () => {
   it("holds the price back for a weak or none match", () => {
     const detail = read("components/card-detail.tsx");

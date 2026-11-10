@@ -960,8 +960,9 @@ export function CardForm({
       // The card page opens with the "Added" panel: fetch it while the save runs.
       if (!existing) preloadCardAddedPanel();
       await saved;
-      if (!existing) haptic("save");
       const { card } = result;
+      // Set once this add's post is on the feed: the haptic says "post", not "save".
+      let postedNow = false;
       createdId = null;
       // A happy moment: a new card makes 3 or more. Only the iPhone app may ask.
       if (!existing && knownCards.filter((item) => item.id !== card.id).length + 1 >= 3) askForReview("third-card");
@@ -1002,6 +1003,7 @@ export function CardForm({
         // One add makes one post at most: a retry after a post that went up never posts again.
         const already = postedFor.current === card.id ? "posted" : store ? cardPostId(store, card.id) : null;
         if (draft && already) {
+          postedNow = true;
           if (store && already !== "posted") writeSharedPost(store, card.id, already);
         } else if (draft) {
           const posted = await createPost(draft);
@@ -1017,6 +1019,7 @@ export function CardForm({
             }
           } else {
             postedFor.current = card.id;
+            postedNow = true;
             if (posted.postId && store) {
               writeSharedPost(store, card.id, posted.postId);
               recordCardPost(store, card.id, posted.postId);
@@ -1024,6 +1027,7 @@ export function CardForm({
           }
         }
       }
+      if (!existing) haptic(postedNow ? "post" : "save");
       router.push(existing ? `/cards/${card.id}` : addedCardPath(card.id));
       onSaved?.();
     } catch (error) {

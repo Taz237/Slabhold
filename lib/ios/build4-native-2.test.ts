@@ -89,7 +89,6 @@ describe("build 4 part 2: web code stays plugin free", () => {
 
 describe("build 4 part 2: haptic call sites", () => {
   const sites: [string, string, RegExp][] = [
-    ["components/card-form.tsx", "save", /await saved;\n\s*if \(!existing\) haptic\("save"\);/],
     ["components/follow-button.tsx", "follow", /if \(busy\.current\) return;\n\s*if \(!following\) haptic\("follow"\);/],
     ["components/message-thread.tsx", "send", /haptic\("send"\);\n\s*setSettled\(\[outgoing\.content\]\);/],
     ["components/pull-to-refresh.tsx", "refresh", /navigator\.vibrate\(8\);\n\s*haptic\("refresh"\);/],
@@ -103,6 +102,21 @@ describe("build 4 part 2: haptic call sites", () => {
       assert.match(source, /import \{ haptic \} from "@\/lib\/ios\/haptics";/);
     });
   }
+
+  it("components/card-form.tsx: one add haptic, post when it went to the feed, else save", () => {
+    const source = read("components/card-form.tsx");
+    assert.equal(count(source, /haptic\(/g), 1);
+    assert.match(source, /import \{ haptic \} from "@\/lib\/ios\/haptics";/);
+    // Fires once the post step is done, right before the reveal opens.
+    assert.match(
+      source,
+      /if \(!existing\) haptic\(postedNow \? "post" : "save"\);\n\s*router\.push\(existing \? `\/cards\/\$\{card\.id\}` : addedCardPath\(card\.id\)\);/,
+    );
+    // A post that went up now, or one already up for this add, counts as posted.
+    assert.match(source, /if \(draft && already\) \{\n\s*postedNow = true;/);
+    assert.match(source, /postedFor\.current = card\.id;\n\s*postedNow = true;/);
+    assert.doesNotMatch(source, /await saved;\n\s*if \(!existing\) haptic/);
+  });
 
   it("leaves social-provider alone", () => {
     assert.doesNotMatch(read("components/social-provider.tsx"), /haptic/);
