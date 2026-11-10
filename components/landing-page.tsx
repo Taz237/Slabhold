@@ -49,7 +49,7 @@ export function LandingPage({ founder = null }: { founder?: FounderShowcase | nu
             </h1>
             <p className="mx-auto mt-4 max-w-sm text-[16px] leading-6 text-zinc-400 lg:mx-0">
               {quickComp
-                ? "Recent sold prices for any card, free with an account. Then track your cards and share them with collectors who get it."
+                ? "Recent sold prices for any card. Then track your cards and share them with collectors who get it."
                 : "Track your sports cards with recent sold prices, and share them with collectors who get it."}
             </p>
             <LandingCta />
@@ -66,7 +66,7 @@ export function LandingPage({ founder = null }: { founder?: FounderShowcase | nu
           <NoHeadPreload>
             <Logo className="mx-auto h-12 w-12" />
           </NoHeadPreload>
-          <h2 className="mt-4 text-[2rem] leading-tight font-semibold tracking-tight text-white">Join free</h2>
+          <h2 className="mt-4 text-[2rem] leading-tight font-semibold tracking-tight text-white">Join Slabhold</h2>
           <p className="mx-auto mt-2 max-w-xs text-[15px] leading-6 text-zinc-400">
             {quickComp
               ? "Comp a card, bring your collection, find your people. It takes a minute."

@@ -7,6 +7,19 @@ export const TEST_ACCOUNT_HANDLES = ["qa_vreset_1021"] as const;
  */
 export const TEST_ACCOUNT_PREFIXES = ["qa_", "qa-", "test_", "vreset_"] as const;
 
+/**
+ * App Store review account. Not a test account: it signs in, follows and posts
+ * like anyone, and stays in suggestions (the suggest_collectors SQL mirrors
+ * TEST_ACCOUNT_HANDLES, so it is kept off that list). Only lists that show
+ * real collectors' cards, like Moving today, leave it out.
+ */
+export const REVIEW_ACCOUNT_HANDLES = ["slabhold_review"] as const;
+
+/** True for the App Store review account. */
+export function isReviewAccount(username: string) {
+  return listed(REVIEW_ACCOUNT_HANDLES, normalizeAccountHandle(username));
+}
+
 /** Official accounts. Prefix rules must not treat these as test accounts. */
 export const KEPT_ACCOUNT_HANDLES = ["slabhold", "slabholdupdates", "grokbotreview"] as const;
 

@@ -11,6 +11,7 @@ import type {
   LeaderboardBoard,
   LeaderboardPageModel,
   OpenSpot,
+  OpenSpotsRow,
   YouRow,
 } from "@/lib/leaderboard/present";
 import { profileCardsLinkFor, profileLinkFor } from "@/lib/leaderboard/profile-link";
@@ -367,8 +368,59 @@ function GhostPlace({ spot }: { spot: OpenSpot }) {
   );
 }
 
+/**
+ * The whole empty podium this week as one row: the three place marks, the
+ * count and the join step. Each mark keeps its ghost rank.
+ */
+function OpenSpotsLine({
+  row,
+  ghosts,
+  delay,
+}: {
+  row: OpenSpotsRow;
+  ghosts: readonly OpenSpot[];
+  delay: CSSProperties;
+}) {
+  const [count, join] = row.title.split(/(?<=\.)\s+/);
+  return (
+    <div className="lb-row pt-1" style={delay} data-podium="" data-open-spots={row.count}>
+      <Link
+        href={row.ctaHref}
+        aria-label={row.title}
+        className={`flex min-h-[64px] w-full items-center gap-3 rounded-2xl border border-dashed border-white/15 px-3 py-3 text-left transition-colors hover:border-violet-400/50 ${FOCUS_RING}`}
+      >
+        <span aria-hidden="true" className="flex shrink-0 -space-x-2">
+          {ghosts.map((spot) => (
+            <span
+              key={spot.rank}
+              data-ghost-rank={spot.rank}
+              className={`lb-ghost lb-ghost-${spot.rank} h-8 w-8 rounded-full border-2 border-dashed`}
+              style={{ background: "#09090B" }}
+            />
+          ))}
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-[15px] font-semibold tracking-tight text-white">
+            {count?.replace(/\.$/, "")}
+          </span>
+          {join ? <span className="block truncate text-[13px] text-zinc-400">{join.replace(/\.$/, "")}</span> : null}
+        </span>
+        <span
+          aria-hidden="true"
+          className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-violet-600 text-white"
+        >
+          <Plus className="h-4 w-4" strokeWidth={2.6} />
+        </span>
+      </Link>
+    </div>
+  );
+}
+
 function Podium({ board, delay }: { board: LeaderboardBoard; delay: (index: number) => CSSProperties }) {
   const top = board.entries.filter((entry) => entry.rank <= 3);
+  if (board.openRow && top.length === 0) {
+    return <OpenSpotsLine row={board.openRow} ghosts={board.ghosts} delay={delay(0)} />;
+  }
   return (
     <ol className="relative grid grid-cols-3 items-end gap-2 pt-1" data-podium="">
       {top.map((entry, index) => (
@@ -604,7 +656,6 @@ export function LeaderboardView({ model }: { model: LeaderboardPageModel }) {
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <h1 className="text-[28px] font-semibold leading-tight tracking-tight text-white">{model.title}</h1>
-            <p className="mt-0.5 text-sm text-zinc-400">{model.description}</p>
           </div>
           <ShareIconButton path={LEADERBOARD_PATH} title={model.title} label="Share" />
         </div>
@@ -622,11 +673,6 @@ export function LeaderboardView({ model }: { model: LeaderboardPageModel }) {
             <LeaderboardCountdown resetsAt={model.resetsAt} initialLabel={model.countdownLabel} />
           ) : null}
         </p>
-        {model.standingNote ? (
-          <p className="mt-1 text-xs text-zinc-500" data-closed-note="">
-            {model.standingNote}
-          </p>
-        ) : null}
       </div>
 
       <div className="mx-4 grid grid-cols-2 rounded-full bg-white/[0.06] p-1 text-sm">
@@ -646,15 +692,24 @@ export function LeaderboardView({ model }: { model: LeaderboardPageModel }) {
 
       <div className="relative mx-4 mt-2 flex items-center justify-between gap-2">
         <p className="min-w-0 text-xs text-zinc-500">{model.rulesLine}</p>
-        <details data-rules="" className="group">
+        <details data-rules="" className="group shrink-0">
           <summary
             aria-label={RULES_SHEET_LABEL}
-            className="grid h-11 w-11 cursor-pointer list-none place-items-center rounded-full text-zinc-400 hover:text-white group-open:text-white"
+            className="-mr-2 flex min-h-11 cursor-pointer list-none items-center gap-1.5 rounded-full px-2 text-xs font-medium text-zinc-400 hover:text-white group-open:text-white"
           >
+            <span aria-hidden="true" className="hidden min-[440px]:inline">
+              {RULES_SHEET_LABEL}
+            </span>
             <Info aria-hidden="true" className="h-[18px] w-[18px]" />
           </summary>
           <div className="absolute inset-x-0 top-full z-20 max-h-[60vh] overflow-y-auto rounded-2xl border border-white/10 bg-[#18181B] p-4 shadow-[0_20px_50px_rgba(0,0,0,0.6)]">
             <p className="text-sm font-semibold text-white">{RULES_SHEET_LABEL}</p>
+            <p className="mt-1 text-[13px] leading-5 text-zinc-400">{model.description}</p>
+            {model.standingNote ? (
+              <p className="mt-1 text-[13px] leading-5 text-zinc-500" data-closed-note="">
+                {model.standingNote}
+              </p>
+            ) : null}
             <div className="mt-3 space-y-4">
               {model.rules.map((board) => (
                 <div key={board.id}>

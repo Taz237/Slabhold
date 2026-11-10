@@ -43,7 +43,7 @@ const DESCRIPTION = "Comp any sports card, track your collection and follow the 
 describe("landing copy", () => {
   it("sells Quick Comp in the sub-line and closing card when the flag is on", async () => {
     const page = await landingText("1");
-    assert.match(page, /Recent sold prices for any card, free with an account\. Then track your cards and share them with collectors who get it\./);
+    assert.match(page, /Recent sold prices for any card\. Then track your cards and share them with collectors who get it\./);
     assert.doesNotMatch(page, /as good as|paid tools/i, "no comparison claims");
     assert.match(page, /Comp a card, bring your collection, find your people\. It takes a minute\./);
   });
@@ -78,7 +78,7 @@ describe("landing claims", () => {
     const { CHAPTERS } = await import("@/components/landing/feature-panels");
     assert.equal(
       CHAPTERS.find((chapter) => chapter.id === "quick-comp")?.line,
-      "Recent sold prices, the median and the range. Free with an account.",
+      "Recent sold prices, the median and the range.",
     );
   });
 });

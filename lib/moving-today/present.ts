@@ -1,6 +1,7 @@
 import { cleanImageUrl } from "@/lib/social/link-preview";
 import { centsToDollars, dollarsToCents } from "@/lib/comps/stats";
 import { money } from "@/lib/format";
+import { isReviewAccount, isTestAccount, normalizeAccountHandle } from "@/lib/test-accounts";
 import {
   addCalendarDays,
   buildMovingPayload,
@@ -53,12 +54,97 @@ export type PublicCardRef = {
   createdAt?: string | null;
   /** public_cards.estimated_value, in dollars. */
   estimatedValue?: number | null;
+  /** public_cards.parallel. Part of the same-card check. */
+  parallel?: string | null;
 };
 
 export type ProfileRef = {
   id: string;
   username: string;
+  /** profiles.is_test. Missing when the column is not there yet. */
+  isTest?: boolean;
 };
+
+/** Test, QA and review accounts. Their cards and sales stay off Moving today. */
+export function hiddenMovingOwner(profile: Pick<ProfileRef, "username" | "isTest">): boolean {
+  if (profile.isTest === true) return true;
+  return isTestAccount(profile.username) || isReviewAccount(profile.username);
+}
+
+function identityPart(value: string | null | undefined): string {
+  return normalizeAccountHandle(value ?? "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+/**
+ * Player, year, set, parallel, grader and grade, normalized. Null when the
+ * card has no player name, so two blank cards are never treated as one.
+ */
+export function sameCardKey(
+  card: Pick<PublicCardRef, "player" | "yearLabel" | "setName" | "grade" | "parallel">,
+): string | null {
+  const player = identityPart(card.player);
+  if (!player || player === "card") return null;
+  return [player, card.yearLabel, card.setName, card.parallel, card.grade].map(identityPart).join("|");
+}
+
+export type SameCardMeta = {
+  /** sameCardKey, or null to match on query keys only. */
+  identity: string | null;
+  queryKeys: readonly string[];
+  /** Higher wins first. Movers outrank plain card tiles. */
+  priority: number;
+  /** Sales behind the row. More wins after priority. */
+  sales: number;
+  /** Newest sale date or add time. Later wins after sales. */
+  newest: string;
+};
+
+/**
+ * One row per card. Rows that share a sameCardKey or a query key are the same
+ * card; the best-backed row stays (priority, then most sales, then newest) with
+ * its own link. Prices are never summed. Kept rows keep their order.
+ */
+export function groupSameCard<T>(rows: readonly T[], meta: (row: T) => SameCardMeta): T[] {
+  const parent = rows.map((_, index) => index);
+  const find = (index: number): number => {
+    while (parent[index] !== index) {
+      parent[index] = parent[parent[index]];
+      index = parent[index];
+    }
+    return index;
+  };
+  const metas = rows.map(meta);
+  const firstByKey = new Map<string, number>();
+  metas.forEach((entry, index) => {
+    const keys = [
+      ...(entry.identity ? [`card:${entry.identity}`] : []),
+      ...entry.queryKeys.filter(Boolean).map((key) => `key:${key}`),
+    ];
+    for (const key of keys) {
+      const first = firstByKey.get(key);
+      if (first == null) firstByKey.set(key, index);
+      else parent[find(index)] = find(first);
+    }
+  });
+  const better = (a: number, b: number) => {
+    const x = metas[a];
+    const y = metas[b];
+    if (x.priority !== y.priority) return x.priority > y.priority;
+    if (x.sales !== y.sales) return x.sales > y.sales;
+    if (x.newest !== y.newest) return x.newest > y.newest;
+    return a < b;
+  };
+  const winner = new Map<number, number>();
+  rows.forEach((_, index) => {
+    const root = find(index);
+    const current = winner.get(root);
+    if (current == null || better(index, current)) winner.set(root, index);
+  });
+  const kept = new Set(winner.values());
+  return rows.filter((_, index) => kept.has(index));
+}
 
 export function cardDetailLine(input: {
   yearLabel: string;
@@ -91,6 +177,8 @@ function pickCard(
 
 type ShowContext = {
   cards: Map<string, PublicCardRef>;
+  /** Same-card facts per card id, for groupSameCard. */
+  backing?: (cardId: string, priority: number) => SameCardMeta;
   handles: Map<string, string>;
   alternates: readonly { queryKey: string; cardId: string }[];
   owners: readonly { id: string; userId: string }[];
@@ -228,10 +316,13 @@ function moversFor(
   minimum: number,
   context: ShowContext,
 ): MovingTodaySale[] {
-  const show = (pool: readonly SaleRecord[]) =>
-    rankMovers(
+  const show = (pool: readonly SaleRecord[]) => {
+    const ranked = rankMovers(
       projectSales(orderedNotableSales({ today: to, from, to, sales: pool, history }), context, to),
     );
+    const backing = context.backing;
+    return backing ? groupSameCard(ranked, (tile) => backing(tile.cardId, 1)) : ranked;
+  };
   const lead = sales.filter((sale) => sale.priceCents >= MOVING_TODAY_MIN_LEAD_CENTS);
   const leadRows = show(lead);
   if (leadRows.length >= minimum) return leadRows;
@@ -261,25 +352,75 @@ export function assembleMovingToday(input: {
   mode?: MovingStripMode;
 }): MovingTodayPayload {
   const mode = input.mode ?? MOVING_STRIP_MODE;
-  const newest = mode === "all-public" ? (input.newest ?? []) : [];
-  const allCards = [...input.cards, ...newest];
+  const hiddenUsers = new Set(
+    input.profiles.filter((profile) => hiddenMovingOwner(profile)).map((profile) => profile.id),
+  );
+  const shownCard = (card: PublicCardRef) => !hiddenUsers.has(card.userId);
+  const inputCards = input.cards.filter(shownCard);
+  const newest = mode === "all-public" ? (input.newest ?? []).filter(shownCard) : [];
+  const allCards = [...inputCards, ...newest];
   const owners = [...(input.owners ?? [])];
   const seenOwners = new Set(owners.map((owner) => owner.id));
-  for (const card of allCards) {
+  // Every card's owner, hidden ones included, so their own sales can drop.
+  for (const card of [...input.cards, ...(input.newest ?? [])]) {
     if (seenOwners.has(card.id)) continue;
     owners.push({ id: card.id, userId: card.userId });
     seenOwners.add(card.id);
   }
+  const ownerByCard = new Map(owners.map((owner) => [owner.id, owner.userId]));
   const flags = input.flags ?? [];
-  const sales = dropOwnerFlaggedSales(input.sales, owners, flags)
+  // A test owner's own sales drop. Earlier history stays: it is market data
+  // and keeps other owners' percents honest.
+  const ownSales = input.sales.filter((sale) => !hiddenUsers.has(ownerByCard.get(sale.cardId) ?? ""));
+  const sales = dropOwnerFlaggedSales(ownSales, owners, flags)
     .map((sale) => toSaleRecord(sale))
     .filter((sale): sale is NonNullable<typeof sale> => sale != null);
   const history = dropOwnerFlaggedSales(input.history, owners, flags)
     .map((sale) => toSaleRecord(sale))
     .filter((sale): sale is NonNullable<typeof sale> => sale != null);
   const asOf = input.asOf ?? input.today;
+  const cardMap = new Map(allCards.map((card) => [card.id, card]));
+  const keyMap = () => new Map<string, Set<string>>();
+  const addKey = (map: Map<string, Set<string>>, cardId: string, queryKey: string) => {
+    if (!cardId || !queryKey) return;
+    const keys = map.get(cardId) ?? new Set<string>();
+    keys.add(queryKey);
+    map.set(cardId, keys);
+  };
+  // Same-card links use a card's own window sales only. History rows can sit
+  // under an older key and would join unrelated cards.
+  const ownKeys = keyMap();
+  for (const sale of sales) addKey(ownKeys, sale.cardId, sale.queryKey);
+  const keysByCard = keyMap();
+  for (const sale of [...sales, ...history]) addKey(keysByCard, sale.cardId, sale.queryKey);
+  for (const row of input.alternates) addKey(keysByCard, row.cardId, row.queryKey);
+  const itemsByKey = new Map<string, Set<string>>();
+  const newestByKey = new Map<string, string>();
+  for (const sale of [...sales, ...history]) {
+    const items = itemsByKey.get(sale.queryKey) ?? new Set<string>();
+    items.add(sale.itemId);
+    itemsByKey.set(sale.queryKey, items);
+    if (sale.soldOn > (newestByKey.get(sale.queryKey) ?? "")) newestByKey.set(sale.queryKey, sale.soldOn);
+  }
+  const backing = (cardId: string, priority: number): SameCardMeta => {
+    const card = cardMap.get(cardId);
+    const queryKeys = [...(keysByCard.get(cardId) ?? [])];
+    const items = new Set(queryKeys.flatMap((key) => [...(itemsByKey.get(key) ?? [])]));
+    const lastSale = queryKeys.reduce((latest, key) => {
+      const soldOn = newestByKey.get(key) ?? "";
+      return soldOn > latest ? soldOn : latest;
+    }, "");
+    return {
+      identity: card ? sameCardKey(card) : null,
+      queryKeys: [...(ownKeys.get(cardId) ?? [])],
+      priority,
+      sales: items.size,
+      newest: `${lastSale}|${card?.createdAt ?? ""}`,
+    };
+  };
   const context: ShowContext = {
-    cards: new Map(allCards.map((card) => [card.id, card])),
+    cards: cardMap,
+    backing,
     handles: new Map(input.profiles.map((profile) => [profile.id, profile.username])),
     alternates: input.alternates,
     owners,
@@ -309,8 +450,8 @@ export function assembleMovingToday(input: {
     movers = window === "week" ? week : month;
   }
 
-  const pool = [...newest, ...(mode === "all-public" ? input.cards : [])];
-  const cards =
+  const pool = [...newest, ...(mode === "all-public" ? inputCards : [])];
+  const tiles =
     mode === "all-public"
       ? cardTiles(
           pool,
@@ -320,5 +461,16 @@ export function assembleMovingToday(input: {
           asOf,
         )
       : [];
-  return buildMovingPayload({ asOf, window, movers, cards, updatedAt: input.updatedAt });
+  // A card tile that is the same card as a mover, or as another tile, shows once.
+  const grouped = groupSameCard([...movers, ...tiles], (tile) =>
+    backing(tile.cardId, tile.kind === "mover" ? 1 : 0),
+  );
+  const cards = grouped.filter((tile) => tile.kind === "card");
+  return buildMovingPayload({
+    asOf,
+    window,
+    movers: grouped.filter((tile) => tile.kind === "mover"),
+    cards,
+    updatedAt: input.updatedAt,
+  });
 }
