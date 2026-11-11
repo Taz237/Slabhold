@@ -29,7 +29,6 @@ import { leaderboardMinimums, type LeaderboardMinimums } from "@/lib/leaderboard
 import { trustedPublicTotals } from "@/lib/leaderboard/public-value";
 import { useCardValues } from "@/lib/value/use-card-values";
 import { cardValuesKey, type CollectionSeed } from "@/lib/collection/viewer-seed";
-import { useProgressiveRows } from "@/lib/ui/use-progressive-rows";
 import { publicTogglePatch } from "@/lib/offers/open-to-offers";
 import { afterFirstIdle } from "@/lib/ui/idle";
 import { PartLoadFailed } from "@/components/part-load-failed";
@@ -64,7 +63,18 @@ const WantList = lazyPart(() => import("@/components/want-list").then((mod) => m
 });
 
 /** Tiles in a server-drawn first screen: a phone's two columns, a little past the fold. */
-const SEEDED_TILES = 12;
+export const SEEDED_TILES = 12;
+
+/**
+ * How many tiles the first render draws. Only the server HTML stops at
+ * SEEDED_TILES; the first client commit draws them all, as a plain update.
+ * It used to add the rest a step at a time on idle callbacks inside a
+ * transition, which could leave a card past the 12th (a new card with no
+ * value yet sorts last by Value) off the grid.
+ */
+export function firstScreenTiles(serverDrawn: boolean): number {
+  return serverDrawn ? SEEDED_TILES : Number.POSITIVE_INFINITY;
+}
 
 const chip =
   "hit-44 inline-flex h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3.5 text-xs font-semibold transition outline-none focus-visible:ring-2 focus-visible:ring-violet-600";
@@ -143,9 +153,10 @@ export function Dashboard({
     [inLane, query, filter, sort, values],
   );
 
-  // A server-drawn load lays out the first screen of tiles, then the rest
-  // a few at a time while the browser is idle.
-  const gridRows = useProgressiveRows(visible.length, { enabled: Boolean(seed), step: SEEDED_TILES });
+  // A server-drawn load lays out the first screen of tiles in its HTML, then
+  // every tile in the first commit after hydration (see firstScreenTiles).
+  const [gridRows, setGridRows] = useState(() => firstScreenTiles(Boolean(seed)));
+  useEffect(() => setGridRows(Number.POSITIVE_INFINITY), []);
 
   useEffect(() => {
     if (searchOpen) searchRef.current?.focus();

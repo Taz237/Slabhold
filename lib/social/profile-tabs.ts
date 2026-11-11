@@ -189,8 +189,9 @@ export type ProfileTabCard = PublicCard & {
   isPublic?: boolean | null;
 };
 
+/** One row per card. Two copies of the same card (a raw and a PSA 6) are two rows. */
 function cardIdentity(card: ProfileTabCard): string {
-  return `${card.year}|${card.playerName}|${card.cardNumber ?? ""}`.toLowerCase();
+  return card.id;
 }
 
 /**
