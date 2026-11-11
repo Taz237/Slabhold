@@ -20,13 +20,13 @@ const read = (path: string) => readFileSync(join(process.cwd(), path), "utf8");
 describe("TeamBadge", () => {
   it("draws for listed usernames only", async () => {
     const { TeamBadge } = await import("@/components/team-badge");
-    for (const username of ["donnietaz", "slabhold", "DonnieTaz"]) {
+    for (const username of ["donnietaz", "slabhold", "ripsandlots", "kevstuff", "DonnieTaz"]) {
       const html = renderToStaticMarkup(createElement(TeamBadge, { username }));
       assert.match(html, /data-team-badge=""/, username);
       assert.match(html, /aria-label="Slabhold team"/);
       assert.match(html, /<button/);
     }
-    for (const username of ["collector", "slabholdupdates", "donnietaz2", "", null]) {
+    for (const username of ["collector", "slabholdupdates", "donnietaz2", "ripsandlots2", "kevstuffs", "", null]) {
       assert.equal(renderToStaticMarkup(createElement(TeamBadge, { username })), "", String(username));
     }
   });
@@ -107,7 +107,7 @@ describe("TeamBadge", () => {
   });
 
   it("decides who wears it from one list, with no database column", () => {
-    assert.match(read("lib/social/team-badge.ts"), /TEAM_BADGE_USERNAMES[^=]*= \["donnietaz", "slabhold"\]/);
+    assert.match(read("lib/social/team-badge.ts"), /TEAM_BADGE_USERNAMES[^=]*= \["donnietaz", "slabhold", "ripsandlots", "kevstuff"\]/);
     assert.doesNotMatch(read("components/team-badge.tsx"), /supabase|\.from\(/);
   });
 });
