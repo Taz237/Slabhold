@@ -68,62 +68,11 @@ function text(markup: string) {
 }
 
 describe("PortfolioHero hero", () => {
-  it("shows the value once, with the change for the selected range in the same color as its sign", () => {
-    win.localStorage.clear();
-    const out = html();
-    const words = text(out);
-    assert.equal((words.match(/\$285\.00/g) ?? []).length, 1);
-    // 30D by default: $41 carried to the window start, $285 now.
-    assert.match(out, /data-gain="up"[^>]*class="[^"]*emerald/);
-    assert.match(words, /\+\$244\.00 \(\+595%\)/);
-    assert.match(words, /past 30 days/);
-    assert.match(out, /href="\/cards\/new"/);
-    assert.doesNotMatch(words, /Estimated value/);
-    assert.doesNotMatch(out, /aria-expanded/);
-  });
-
-  it("goes red with a minus when the range fell, never a green number next to a red one", () => {
-    win.localStorage.clear();
-    const falling = rows.map((row, index) => ({ ...row, value: index < 15 ? 400 : 300 }));
-    const out = html({ snapshots: { rows: falling, loading: false } });
-    assert.match(out, /data-gain="down"[^>]*class="[^"]*rose/);
-    assert.doesNotMatch(out, /data-gain="up"/);
-    assert.match(text(out), /−\$115\.00 \(−28\.8%\)/);
-  });
-
-  it("uses the remembered range", () => {
-    win.localStorage.setItem("slabhold:chart-range:collection", "7d");
-    const words = text(html());
-    assert.match(words, /\+\$25\.00 \(\+9\.6%\) past 7 days/);
-    win.localStorage.clear();
-  });
-
-  it("offers only ranges that have data, as a labeled group with pressed state", () => {
-    win.localStorage.clear();
-    const out = html();
-    assert.match(out, /role="group" aria-label="Chart range"/);
-    assert.match(out, /aria-pressed="true"[^>]*>30D</);
-    assert.match(out, />7D</);
-    assert.match(out, />All</);
-    assert.doesNotMatch(out, />90D</);
-    assert.doesNotMatch(out, />1Y</);
-  });
-
   it("shows a friendly thin state with fewer than two days, not a flat line", () => {
     const out = html({ snapshots: { rows: [], loading: false } });
     assert.match(text(out), /Your chart starts today/);
     assert.doesNotMatch(out, /data-gain/);
     assert.doesNotMatch(out, /Chart range/);
-  });
-
-  it("is gray, not green, on the pill and the line when the range did not move", () => {
-    win.localStorage.clear();
-    const still = rows.map((row) => ({ ...row, value: 285 }));
-    const out = html({ snapshots: { rows: still, loading: false } });
-    assert.match(out, /data-gain="flat"[^>]*class="[^"]*zinc/);
-    assert.doesNotMatch(out, /data-gain="(up|down)"/);
-    assert.match(text(out), /\$0\.00 \(0\.0%\) past 30 days/);
-    assert.doesNotMatch(text(out), /\+0\.0%/);
   });
 
   it("shows the starts-today state, not a flat line then a jump, with one saved day plus today", () => {
@@ -324,55 +273,9 @@ async function settle(ms: number) {
   });
 }
 
-/** 40 saved days at `start`; the live value is `now`. */
-function steady(start: number) {
-  return { rows: rows.map((row) => ({ ...row, value: start })), loading: false };
-}
-
-describe("PortfolioHero redesign: calm scale and tone", () => {
+describe("PortfolioHero redesign: line, ATH and chips", () => {
   before(() => expose("ResizeObserver", HeroResizeObserver));
   after(() => expose("ResizeObserver", undefined));
-
-  it("paints a 19-cent week calm purple, sign kept, with no rose anywhere (Donnie's case)", async () => {
-    win.localStorage.setItem("slabhold:chart-range:collection", "7d");
-    const props = { snapshots: steady(285.5), collectionValue: 285.31 };
-    const out = html(props);
-    assert.match(out, /data-gain="calm"[^>]*class="[^"]*bg-violet-500\/12 text-violet-700 dark:text-violet-300/);
-    assert.match(text(out), /−\$0\.19 \(−0\.1%\) past 7 days/);
-    assert.doesNotMatch(out, /rose/);
-    const hero = await mountHero(props);
-    const svg = hero.host.querySelector("svg[role='img']");
-    assert.match(svg?.getAttribute("class") ?? "", /text-violet-600 dark:text-violet-400/);
-    assert.doesNotMatch(hero.host.innerHTML, /rose/);
-    // The ATH ($285.50) is 0.07% above the latest value: hidden.
-    assert.doesNotMatch(hero.host.textContent ?? "", /ATH/);
-    // The y axis spans at least 4% of the value: $280 / $285 / $290, not $285.00 / $285.50.
-    const ticks = [...hero.host.querySelectorAll("text")].map((node) => node.textContent);
-    assert.ok(ticks.includes("$280") && ticks.includes("$290"), ticks.join(","));
-    await hero.unmount();
-    win.localStorage.clear();
-  });
-
-  it("is calm at +0.4%, emerald at +0.6%, rose at −0.6%, and gray at exactly $0", () => {
-    win.localStorage.setItem("slabhold:chart-range:collection", "7d");
-    const gain = (now: number) => html({ snapshots: steady(100), collectionValue: now }).match(/data-gain="(\w+)"[^>]*class="([^"]*)"/);
-    assert.equal(gain(100.4)?.[1], "calm");
-    assert.equal(gain(100.6)?.[1], "up");
-    assert.match(gain(100.6)?.[2] ?? "", /emerald/);
-    assert.equal(gain(99.4)?.[1], "down");
-    assert.match(gain(99.4)?.[2] ?? "", /rose/);
-    assert.equal(gain(100)?.[1], "flat");
-    assert.match(gain(100)?.[2] ?? "", /zinc/);
-    win.localStorage.clear();
-  });
-
-  it("never colors alone: up and down keep their sign, no change reads 0.0%", () => {
-    win.localStorage.setItem("slabhold:chart-range:collection", "7d");
-    assert.match(text(html({ snapshots: steady(100), collectionValue: 110 })), /\+\$10\.00 \(\+10\.0%\)/);
-    assert.match(text(html({ snapshots: steady(100), collectionValue: 90 })), /−\$10\.00 \(−10\.0%\)/);
-    assert.match(text(html({ snapshots: steady(100), collectionValue: 100 })), /\$0\.00 \(0\.0%\)/);
-    win.localStorage.clear();
-  });
 
   it("draws a smooth line, never steps", () => {
     const source = readFileSync(join(process.cwd(), "components/portfolio-hero.tsx"), "utf8");
@@ -382,6 +285,7 @@ describe("PortfolioHero redesign: calm scale and tone", () => {
 
   it("shows the ATH only when it is 1%+ above the latest value, and never while scrubbing", async () => {
     win.localStorage.clear();
+    win.localStorage.setItem("slabhold:chart-mode:collection", "value");
     const peak = rows.map((row, index) => ({ ...row, value: index === 30 ? 300 : 280 }));
     const hero = await mountHero({ snapshots: { rows: peak, loading: false }, collectionValue: 285 });
     assert.match(hero.host.textContent ?? "", /ATH \$300/);
@@ -398,11 +302,12 @@ describe("PortfolioHero redesign: calm scale and tone", () => {
     const rising = await mountHero({});
     assert.doesNotMatch(rising.host.textContent ?? "", /ATH/, "the latest point is the high");
     await rising.unmount();
+    win.localStorage.clear();
   });
 
   it("puts the range chips in one track under the chart, the active one with a dot in the line's tone", async () => {
     win.localStorage.clear();
-    const hero = await mountHero({});
+    const hero = await mountHero(market);
     const track = hero.host.querySelector('[data-slot="range-track"]');
     assert.ok(track);
     assert.equal(track.getAttribute("role"), "group");
@@ -543,5 +448,240 @@ describe("PortfolioHero redesign: stat cards and movers", () => {
     assert.doesNotMatch(movers, /data-spark-slot/);
     assert.match(text(movers), /Jordan Love Paid \$40/);
     assert.doesNotMatch(movers, /max-\[359px\]:hidden[^"]*"[^>]*>Paid/);
+  });
+});
+
+/**
+ * The market-move fixture: Jordan Love ($41) is held all along; Cam Ward
+ * ($215) is added 25 days ago. Prices: Love $41 → $45 on that day, then
+ * Love $50 and Ward $235 live today ($285). The saved totals jump $41 → $260
+ * on the add, which the old header read as "+$244.00 (+595%)".
+ */
+const addIndex = 15;
+const addDate = rows[addIndex].snapshot_date;
+const marketCards = [
+  { ...fixtureCard("a", "Jordan Love", 40), createdAt: `${rows[0].snapshot_date}T15:00:00Z` },
+  { ...fixtureCard("b", "Cam Ward", 200), createdAt: `${addDate}T15:00:00Z` },
+];
+const marketDays = rows.flatMap((row, index) => [
+  { cardId: "a", date: row.snapshot_date, value: index < addIndex ? 41 : 45, held: true },
+  ...(index >= addIndex ? [{ cardId: "b", date: row.snapshot_date, value: 215, held: true }] : []),
+]);
+const market: Partial<PortfolioHeroProps> = {
+  cards: marketCards,
+  values: new Map([
+    ["a", okValue(50)],
+    ["b", okValue(235)],
+  ]),
+  cardHistory: new Map(),
+  cardDays: { rows: marketDays, loading: false, failed: false },
+};
+
+/** The value card alone, without Best card and Top movers below it. */
+function heroOnly(props: Partial<PortfolioHeroProps>) {
+  const out = html(props);
+  return out.slice(0, out.indexOf("</section>"));
+}
+
+describe("PortfolioHero market move (Performance)", () => {
+  it("leads with the value and the market move for the range, never counting the add as a gain", () => {
+    win.localStorage.clear();
+    const out = html(market);
+    const words = text(out);
+    assert.equal((words.match(/\$285\.00/g) ?? []).length, 1);
+    // 1M: Love +$4 on $41, then +$25 on $260 = +$29.00, (45/41 × 285/260 − 1) = +20.3%.
+    assert.match(words, /\+\$29\.00 \(\+20\.3%\) market move/);
+    assert.doesNotMatch(words, /595%|\+\$244/);
+    assert.match(out, /data-gain="up"[^>]*class="[^"]*emerald/);
+  });
+
+  it("does not move when a card is added and prices stand still", () => {
+    win.localStorage.clear();
+    const still = rows.flatMap((row, index) => [
+      { cardId: "a", date: row.snapshot_date, value: 50, held: true },
+      ...(index >= addIndex ? [{ cardId: "b", date: row.snapshot_date, value: 235, held: true }] : []),
+    ]);
+    const out = html({ ...market, cardDays: { rows: still, loading: false, failed: false } });
+    assert.match(out, /data-gain="flat"[^>]*class="[^"]*zinc/);
+    assert.match(text(out), /\$0\.00 \(0\.0%\) market move/);
+    assert.doesNotMatch(text(out), /\+0\.0%/);
+  });
+
+  it("goes rose with a minus when prices fell", () => {
+    win.localStorage.setItem("slabhold:chart-range:collection", "7d");
+    const out = heroOnly({
+      ...market,
+      values: new Map([
+        ["a", okValue(36)],
+        ["b", okValue(215)],
+      ]),
+      collectionValue: 251,
+    });
+    assert.match(out, /data-gain="down"[^>]*class="[^"]*rose/);
+    assert.doesNotMatch(out, /data-gain="up"/);
+    assert.match(text(out), /−\$9\.00 \(−3\.5%\) market move/);
+    win.localStorage.clear();
+  });
+
+  it("is green at +0.6%, rose at −0.6%, and gray only when it reads 0.0%", () => {
+    win.localStorage.setItem("slabhold:chart-range:collection", "7d");
+    const gain = (love: number) =>
+      html({ ...market, values: new Map([["a", okValue(love)], ["b", okValue(215)]]) }).match(/data-gain="(\w+)"[^>]*class="([^"]*)"/);
+    // 7D base: $45 + $215 = $260.
+    assert.equal(gain(46.56)?.[1], "up");
+    assert.match(gain(46.56)?.[2] ?? "", /emerald/);
+    assert.equal(gain(43.44)?.[1], "down");
+    assert.match(gain(43.44)?.[2] ?? "", /rose/);
+    assert.equal(gain(45)?.[1], "flat");
+    win.localStorage.clear();
+  });
+
+  it("uses the remembered range, measured from that range's own start", () => {
+    win.localStorage.setItem("slabhold:chart-range:collection", "7d");
+    assert.match(text(html(market)), /\+\$25\.00 \(\+9\.6%\) market move/);
+    win.localStorage.clear();
+  });
+
+  it("offers 1W 1M 3M 1Y All only as far back as the history goes, as a labeled group", () => {
+    win.localStorage.clear();
+    const out = heroOnly(market);
+    assert.match(out, /role="group" aria-label="Chart range"/);
+    assert.match(out, /aria-pressed="true"[^>]*>1M</);
+    assert.match(out, />1W</);
+    assert.match(out, />All</);
+    assert.doesNotMatch(out, />3M</);
+    assert.doesNotMatch(out, />1Y</);
+    assert.doesNotMatch(out, />30D</);
+  });
+
+  it("says Not enough history yet, with no %, when there is under a day of prices", () => {
+    win.localStorage.clear();
+    const out = heroOnly({ ...market, cardDays: { rows: [], loading: false, failed: false } });
+    assert.match(text(out), /Not enough history yet/);
+    assert.doesNotMatch(out, /data-gain/);
+    assert.doesNotMatch(text(out), /%\)/);
+  });
+
+  it("says Not enough history yet instead of a % from a base under $1", () => {
+    win.localStorage.clear();
+    const penny = rows.map((row, index) => ({ cardId: "a", date: row.snapshot_date, value: index < 30 ? 0.01 : 0.5, held: true }));
+    const out = heroOnly({
+      ...market,
+      cards: [marketCards[0]],
+      values: new Map([["a", okValue(0.5)]]),
+      collectionValue: 0.5,
+      cardDays: { rows: penny, loading: false, failed: false },
+    });
+    assert.match(text(out), /Not enough history yet/);
+    assert.doesNotMatch(out, /data-gain/);
+  });
+
+  it("shows a skeleton, never a %, while per-card prices load", () => {
+    win.localStorage.clear();
+    const out = heroOnly({ ...market, cardDays: { rows: [], loading: true, failed: false } });
+    assert.doesNotMatch(out, /data-gain/);
+    assert.doesNotMatch(text(out), /Not enough history/);
+    assert.match(out, /animate-pulse|shimmer/);
+  });
+});
+
+describe("PortfolioHero Performance | Value toggle, chips and scrub", () => {
+  before(() => expose("ResizeObserver", HeroResizeObserver));
+  after(() => expose("ResizeObserver", undefined));
+
+  const headline = (host: HTMLElement) => host.querySelector('[data-slot="hero-value"]')?.textContent;
+  const change = (host: HTMLElement) => host.querySelector('[data-slot="hero-change"]')?.textContent ?? "";
+  const ticks = (host: HTMLElement) =>
+    [...host.querySelectorAll("svg[role='img'] text")].map((node) => node.textContent ?? "");
+  function button(host: HTMLElement, name: string) {
+    const found = [...host.querySelectorAll("button")].find((node) => node.textContent === name);
+    assert.ok(found, name);
+    return found;
+  }
+  async function click(node: Element) {
+    await act(async () => {
+      node.dispatchEvent(new win.MouseEvent("click", { bubbles: true }));
+    });
+  }
+  async function pointer(svg: Element, type: string, clientX: number) {
+    await act(async () => {
+      const event = new win.MouseEvent(type, { bubbles: true, clientX });
+      Object.defineProperty(event, "pointerType", { value: "touch" });
+      Object.defineProperty(event, "pointerId", { value: 1 });
+      svg.dispatchEvent(event);
+    });
+  }
+
+  it("opens on Performance (a % axis from 0%), and Value switches to dollars with add dots, remembered", async () => {
+    win.localStorage.clear();
+    const hero = await mountHero(market);
+    const group = hero.host.querySelector('[role="group"][aria-label="Chart mode"]');
+    assert.ok(group);
+    assert.equal(button(hero.host, "Performance").getAttribute("aria-pressed"), "true");
+    assert.ok(ticks(hero.host).some((tick) => /%$/.test(tick)), ticks(hero.host).join(","));
+    assert.equal(hero.host.querySelectorAll("[data-chart-add]").length, 0);
+
+    await click(button(hero.host, "Value"));
+    assert.equal(button(hero.host, "Value").getAttribute("aria-pressed"), "true");
+    assert.ok(ticks(hero.host).some((tick) => /^\$/.test(tick)), ticks(hero.host).join(","));
+    assert.equal(hero.host.querySelectorAll("[data-chart-add]").length, 1);
+    // The headline is still the market move, not the jump from the add.
+    assert.match(change(hero.host), /\+\$29\.00 \(\+20\.3%\)market move/);
+    assert.equal(win.localStorage.getItem("slabhold:chart-mode:collection"), "value");
+    await hero.unmount();
+
+    const again = await mountHero(market);
+    assert.equal(button(again.host, "Value").getAttribute("aria-pressed"), "true");
+    await again.unmount();
+    win.localStorage.clear();
+  });
+
+  it("switches range from the chips and remembers it", async () => {
+    win.localStorage.clear();
+    const hero = await mountHero(market);
+    await click(button(hero.host, "1W"));
+    assert.equal(button(hero.host, "1W").getAttribute("aria-pressed"), "true");
+    assert.match(change(hero.host), /\+\$25\.00 \(\+9\.6%\)market move/);
+    assert.equal(win.localStorage.getItem("slabhold:chart-range:collection"), "7d");
+    await click(button(hero.host, "All"));
+    assert.match(change(hero.host), /\+\$29\.00/);
+    await hero.unmount();
+    win.localStorage.clear();
+  });
+
+  it("updates the headline live to the scrubbed day's value and move, and snaps back to today on release", async () => {
+    win.localStorage.clear();
+    const hero = await mountHero(market);
+    const svg = hero.host.querySelector("svg[role='img']");
+    assert.ok(svg);
+    assert.equal(headline(hero.host), "$285.00");
+    // The left edge is the range's first day: $41 saved that day, no move yet.
+    await pointer(svg, "pointerdown", 0);
+    await settle(60);
+    assert.equal(headline(hero.host), "$41.00");
+    assert.match(change(hero.host), /\$0\.00 \(0\.0%\)· /);
+    await pointer(svg, "pointerup", 0);
+    await settle(20);
+    assert.equal(headline(hero.host), "$285.00");
+    assert.match(change(hero.host), /market move/);
+    await hero.unmount();
+  });
+
+  it("says Added: <card> when a tap lands on an add dot in Value", async () => {
+    win.localStorage.setItem("slabhold:chart-mode:collection", "value");
+    const hero = await mountHero(market);
+    const svg = hero.host.querySelector("svg[role='img']");
+    const dot = hero.host.querySelector("[data-chart-add]");
+    assert.ok(svg && dot);
+    const x = Number(dot.getAttribute("cx"));
+    await pointer(svg, "pointerdown", x);
+    await settle(60);
+    await pointer(svg, "pointerup", x);
+    await settle(20);
+    const note = hero.host.querySelector('[data-slot="add-note"]');
+    assert.ok(note);
+    assert.match(note.textContent ?? "", /^Added: Cam Ward PSA 10 · /);
+    await hero.unmount();
+    win.localStorage.clear();
   });
 });

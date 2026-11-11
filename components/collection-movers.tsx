@@ -35,8 +35,8 @@ export function TopMovers({ movers }: { movers: Movers<HeroCard> }) {
       {movers.rows.length ? (
         <ul className="divide-y divide-zinc-950/[0.06] pb-1 dark:divide-white/[0.06]">
           {movers.rows.map((row) => {
-            const rowTone = pctTone(row.pct);
-            const word = rowTone === "flat" ? "unchanged" : `${rowTone} ${formatPct(row.pct, false)}`;
+            const rowTone = row.fresh ? "flat" : pctTone(row.pct);
+            const word = row.fresh ? "new" : rowTone === "flat" ? "unchanged" : `${rowTone} ${formatPct(row.pct, false)}`;
             const last = row.points[row.points.length - 1]?.value ?? 0;
             // No history ("Since you paid"): what was paid goes under the name, and the name gets the width.
             const spark = row.points.length >= 2;
@@ -78,7 +78,7 @@ export function TopMovers({ movers }: { movers: Movers<HeroCard> }) {
                     {rowTone === "flat" ? null : (
                       <ArrowUpRight className={`h-4 w-4 shrink-0 ${rowTone === "down" ? "rotate-90" : ""}`} strokeWidth={1.5} aria-hidden />
                     )}
-                    {formatPct(row.pct)}
+                    {row.fresh ? "New" : formatPct(row.pct)}
                   </span>
                 </Link>
               </li>

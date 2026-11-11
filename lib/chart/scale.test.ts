@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { axisLabels, niceStep, valueScale } from "./scale";
+import { axisLabels, niceStep, percentAxisLabels, valueScale } from "./scale";
 
 describe("niceStep", () => {
   it("rounds to 1, 2, 2.5 or 5 times a power of ten", () => {
@@ -113,5 +113,13 @@ describe("valueScale minSpan", () => {
     assert.equal(domain[0], 0);
     assert.ok(domain[1] >= 5);
     assert.ok(ticks.every((tick) => tick >= 0));
+  });
+});
+
+describe("percentAxisLabels", () => {
+  it("signs the ticks, keeps 0% plain, and uses a real minus", () => {
+    assert.deepEqual(percentAxisLabels([-2.5, 0, 2.5]), ["−2.5%", "0%", "+2.5%"]);
+    assert.deepEqual(percentAxisLabels([5, 10, 15]), ["+5%", "+10%", "+15%"]);
+    assert.deepEqual(percentAxisLabels([0.25, 0.5, 0.75]), ["+0.25%", "+0.5%", "+0.75%"]);
   });
 });

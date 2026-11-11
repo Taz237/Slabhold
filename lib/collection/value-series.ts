@@ -1,4 +1,5 @@
 import type { ChartPoint } from "@/components/charts/value-chart";
+import { MIN_BASE } from "@/lib/collection/performance";
 import { snapshotDateInNewYork } from "@/lib/collection/totals-shared";
 
 export type SnapshotRow = { snapshot_date: string; value: number };
@@ -23,7 +24,7 @@ function gradeText(grade: string): string {
   return /^raw$/i.test(text) ? "" : text;
 }
 
-/** "+ Jordan Love PSA 10" on the day a card was added, or "+ Jordan Love and 2 more". */
+/** "Added: Jordan Love PSA 10" on the day a card was added, or "Added: Jordan Love and 2 more". */
 export function addedMarkers(
   cards: { playerName: string; grade: string; createdAt: string }[],
 ): Map<string, string> {
@@ -40,7 +41,7 @@ export function addedMarkers(
   }
   const out = new Map<string, string>();
   for (const [day, names] of byDay) {
-    out.set(day, names.length === 1 ? `+ ${names[0]}` : `+ ${names[0]} and ${names.length - 1} more`);
+    out.set(day, names.length === 1 ? `Added: ${names[0]}` : `Added: ${names[0]} and ${names.length - 1} more`);
   }
   return out;
 }
@@ -92,6 +93,8 @@ export function topCardByValue<T extends MoverCard>(cards: T[]): T | null {
 export type MoverRow<T extends MoverCard> = {
   card: T;
   pct: number;
+  /** Bought for under $1: shown as "New", never a % from a penny. `pct` is 0. */
+  fresh: boolean;
   /** Sparkline. Empty when only the paid price is known. */
   points: { date: string; value: number }[];
 };
@@ -114,8 +117,8 @@ export function topMovers<T extends MoverCard>(
     if (points.length < 2) continue;
     const first = points[0].value;
     const last = points[points.length - 1].value;
-    if (!(first > 0)) continue;
-    fromHistory.push({ card: item, pct: ((last - first) / first) * 100, points });
+    if (!(first >= MIN_BASE)) continue;
+    fromHistory.push({ card: item, pct: ((last - first) / first) * 100, fresh: false, points });
   }
   if (fromHistory.length) {
     return {
@@ -126,7 +129,10 @@ export function topMovers<T extends MoverCard>(
   const fromPaid: MoverRow<T>[] = [];
   for (const item of held) {
     if (item.paid == null || item.paid <= 0 || item.value == null) continue;
-    fromPaid.push({ card: item, pct: ((item.value - item.paid) / item.paid) * 100, points: [] });
+    const fresh = item.paid < MIN_BASE;
+    const pct = fresh ? 0 : ((item.value - item.paid) / item.paid) * 100;
+    fromPaid.push({ card: item, pct, fresh, points: [] });
   }
-  return { basis: "paid", rows: fromPaid.sort((a, b) => Math.abs(b.pct) - Math.abs(a.pct)).slice(0, limit) };
+  const rank = (a: MoverRow<T>, b: MoverRow<T>) => Number(a.fresh) - Number(b.fresh) || Math.abs(b.pct) - Math.abs(a.pct);
+  return { basis: "paid", rows: fromPaid.sort(rank).slice(0, limit) };
 }

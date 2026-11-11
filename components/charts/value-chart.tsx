@@ -21,7 +21,7 @@ import {
   resampleY,
   type XY,
 } from "@/lib/chart/path";
-import { axisLabels, valueScale } from "@/lib/chart/scale";
+import { axisLabels, percentAxisLabels, valueScale } from "@/lib/chart/scale";
 import { FillStops, TONE_CLASS, ValueSpark, type ChartTone } from "@/components/charts/value-spark";
 import { CHART } from "@/lib/chart/theme";
 import type { ChartLayers, LayerGeom } from "@/components/charts/median-layer";
@@ -102,6 +102,14 @@ type Props = {
   minSpan?: number;
   /** Tooltip: "$212.49 · Oct 9", or the date alone (the default with `onScrub`). */
   tooltip?: "value" | "date";
+  /** "percent" labels the y axis "+5%" (Performance). Money by default. */
+  format?: "money" | "percent";
+  /** Small dots on points that carry a marker (cards added that day). The scrub still runs on the line. */
+  markerDots?: boolean;
+  /** Line width in px. */
+  lineWidth?: number;
+  /** Fainter grid, for the collection hero. */
+  faintGrid?: boolean;
   /** Kept for callers; one look for all. */
   minimal?: boolean;
   className?: string;
@@ -130,6 +138,7 @@ function build(
   refLine: Props["refLine"],
   band: Props["band"],
   minSpan: number | undefined,
+  format: "money" | "percent" = "money",
 ): Geometry | null {
   const series = downsample(
     points.map((point) => ({ ...point, t: toDayMs(point.date) })),
@@ -155,7 +164,7 @@ function build(
   const y = yScale(scale.domain, TOP, bottom);
   const xy = series.map((point) => ({ x: x(point.t), y: y(point.value), point }));
   const line = xy.length > 1 ? monotonePath(xy) : "";
-  const labels = axisLabels(scale.ticks);
+  const labels = format === "percent" ? percentAxisLabels(scale.ticks) : axisLabels(scale.ticks);
   const xTicks = dateTicks(t0, t1, width >= WIDE ? 3 : 2).map((item, index, all) => ({
     x: x(item.t),
     label: item.label,
@@ -225,6 +234,10 @@ function FullChart({
   minSpan,
   tooltip,
   layers,
+  format = "money",
+  markerDots = false,
+  lineWidth = 2.25,
+  faintGrid = false,
   className = "",
 }: Props) {
   const id = useId();
@@ -285,8 +298,8 @@ function FullChart({
   }, []);
 
   const geom = useMemo(
-    () => (width > 0 ? build(points, dotList, width, height, refLine, band, minSpan) : null),
-    [points, dotList, width, height, refLine, band, minSpan],
+    () => (width > 0 ? build(points, dotList, width, height, refLine, band, minSpan, format) : null),
+    [points, dotList, width, height, refLine, band, minSpan, format],
   );
   // Range morph: animate between the old and new line, straight on the DOM, no re-render per frame.
   const shown = useRef<{ key: string; xy: XY[]; plotRight: number } | null>(null);
@@ -440,7 +453,7 @@ function FullChart({
       : null;
 
   return (
-    <div ref={box} className={`chart-surface relative w-full select-none ${className}`} style={{ height }} data-no-pull="">
+    <div ref={box} className={`chart-surface relative w-full select-none ${faintGrid ? "chart-faint" : ""} ${className}`} style={{ height }} data-no-pull="">
       {geom ? (
         <svg
           role="img"
@@ -538,7 +551,7 @@ function FullChart({
             pathLength={1}
             fill="none"
             stroke="currentColor"
-            strokeWidth={2.25}
+            strokeWidth={lineWidth}
             strokeLinecap="round"
             strokeLinejoin="round"
             className={drawing ? (draw === "play" ? "chart-draw" : "chart-draw-wait") : undefined}
@@ -566,6 +579,22 @@ function FullChart({
                 ATH {money(ath.point.value).replace(/\.00$/, "")}
               </text>
             ) : null}
+            {markerDots
+              ? geom.xy.map((item, index) =>
+                  item.point.marker && index !== geom.xy.length - 1 ? (
+                    <circle
+                      key={`add-${item.point.date}`}
+                      data-chart-add=""
+                      cx={item.x}
+                      cy={item.y}
+                      r={3}
+                      className="fill-[var(--chart-surface)]"
+                      stroke="currentColor"
+                      strokeWidth={1.5}
+                    />
+                  ) : null,
+                )
+              : null}
             {last && !withDots && shownIndex == null ? (
               <g>
                 {reduce ? null : <circle cx={last.x} cy={last.y} r={4} fill="currentColor" className="chart-pulse" />}
