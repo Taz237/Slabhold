@@ -124,7 +124,7 @@ export function ForgotPasswordForm() {
           >
             Send reset link
           </button>
-          <Link href="/login" className="block py-2 text-center text-sm font-medium text-zinc-500">
+          <Link href="/login" className="hit-44 block py-2 text-center text-sm font-medium text-zinc-500">
             Back to log in
           </Link>
         </form>

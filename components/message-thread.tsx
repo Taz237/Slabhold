@@ -30,6 +30,8 @@ import { askPriceDraft } from "@/lib/social/post-dm";
 import { userHref } from "@/lib/social/user-href";
 import { MESSAGE_LIMIT, type DirectMessage } from "@/lib/social/types";
 import { TeamBadge } from "@/components/team-badge";
+import { useKeyboardInset } from "@/lib/ui/use-keyboard-inset";
+import { threadHeight } from "@/lib/ui/thread-height";
 
 /**
  * Keys that showed up after the list first had content. The first batch is
@@ -111,6 +113,8 @@ export function MessageThread({ username }: { username: string }) {
   const reduceMotion = useReducedMotion();
   const scroller = useRef<HTMLDivElement>(null);
   const fieldRef = useRef<HTMLTextAreaElement>(null);
+  // The keyboard's height, from the iOS app's events or Safari's visual viewport.
+  const keyboardInset = useKeyboardInset();
   const scrolledOnce = useRef(false);
   const thread = partner
     ? messages.filter(
@@ -176,6 +180,12 @@ export function MessageThread({ username }: { username: string }) {
     if (glide) node.scrollTo({ top: node.scrollHeight, behavior: "smooth" });
     else node.scrollTop = node.scrollHeight;
   }, [newestId, partner?.id, reduceMotion]);
+
+  // The keyboard opened: the thread got shorter, so keep the newest message in view.
+  useEffect(() => {
+    const node = scroller.current;
+    if (node && keyboardInset > 0) node.scrollTop = node.scrollHeight;
+  }, [keyboardInset]);
 
   // Older messages landed above: keep what was on screen where it was.
   useLayoutEffect(() => {
@@ -289,7 +299,7 @@ export function MessageThread({ username }: { username: string }) {
   const canSend = !pending && Boolean(draft.trim() || offerAttachment);
 
   return (
-    <div className="-mx-4 -mt-5 -mb-28 flex h-[calc(100dvh-3.5rem-6.15rem-env(safe-area-inset-top)-env(safe-area-inset-bottom))] flex-col">
+    <div data-dm-thread="" data-keyboard-inset={keyboardInset} className="-mx-4 -mt-5 -mb-28 flex flex-col" style={{ height: threadHeight(keyboardInset) }}>
       <div className="flex shrink-0 items-center gap-2 border-b border-zinc-200/80 bg-[color-mix(in_oklab,var(--background)_88%,transparent)] px-2 py-1.5 backdrop-blur-xl dark:border-white/[0.08]">
         <button
           type="button"

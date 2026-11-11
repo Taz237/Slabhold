@@ -195,9 +195,11 @@ export function QuoteComposePreview({
         type="button"
         onClick={onRemove}
         aria-label="Remove quote"
-        className="absolute top-2 right-2 grid h-8 w-8 place-items-center rounded-full bg-black/70 text-white"
+        className="group absolute top-0 right-0 grid h-11 w-11 place-items-center rounded-full text-white"
       >
-        <X className="h-4 w-4" />
+        <span className="grid h-8 w-8 place-items-center rounded-full bg-black/70 group-active:bg-black/80">
+          <X className="h-4 w-4" />
+        </span>
       </button>
     </div>
   );

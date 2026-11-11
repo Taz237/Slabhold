@@ -83,6 +83,8 @@ export type RealtimePatch = {
   /** Newest notification and message pages plus unread rows (lib/social/inbox-pages.ts). */
   inbox?: InboxRefresh;
   comments?: PostComment[];
+  /** A live update's replies: new and re-read ones to upsert, and ids that are gone or now hidden. */
+  replyChanges?: { upsert: PostComment[]; removeIds: string[] };
   reposts?: PostRepost[];
   postId?: string;
 };
@@ -104,6 +106,17 @@ export function applyRealtimePatch<T extends PatchSnapshot>(existing: T, patch: 
       comments: [
         ...next.comments.filter((comment) => comment.postId !== patch.postId),
         ...patch.comments,
+      ],
+    };
+  }
+  if (patch.replyChanges && patch.postId) {
+    const gone = new Set(patch.replyChanges.removeIds);
+    const fresh = new Map(patch.replyChanges.upsert.map((comment) => [comment.id, comment]));
+    next = {
+      ...next,
+      comments: [
+        ...next.comments.filter((comment) => !gone.has(comment.id) && !fresh.has(comment.id)),
+        ...fresh.values(),
       ],
     };
   }

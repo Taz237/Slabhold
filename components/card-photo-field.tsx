@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode, Ref } from "react";
-import { Camera, ImagePlus, Loader2 } from "lucide-react";
+import { Camera, ImagePlus } from "lucide-react";
 import { PhotoFileInputs } from "@/components/photo-file-inputs";
 import { measureShape, useCardShape } from "@/lib/ui/card-shape";
 import { PHOTO_HEIC_ERROR } from "@/lib/photos";
@@ -77,13 +77,13 @@ export function CardPhotoField({
           )}
           {reading ? (
             <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/75 px-2 text-center text-white">
-              <Loader2 className="mb-2 animate-spin text-violet-300" size={20} />
+              <PhotoSkeleton />
               <p className="text-xs font-medium">Reading photo…</p>
             </div>
           ) : null}
           {scanning ? (
             <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/75 px-2 text-center text-white">
-              <Loader2 className="mb-2 animate-spin text-violet-300" size={20} />
+              <PhotoSkeleton />
               <p className="text-xs font-medium">Demo lookup…</p>
               <p className="mt-1 text-[10px] text-zinc-400">Sample match, not a real scan</p>
             </div>
@@ -134,5 +134,16 @@ export function CardPhotoField({
         </div>
       </div>
     </section>
+  );
+}
+
+/** While a photo is read: a quiet card-shaped placeholder, not a spinner. */
+function PhotoSkeleton() {
+  return (
+    <span
+      aria-hidden
+      data-photo-skeleton=""
+      className="mb-2 block aspect-[5/7] w-10 rounded-md bg-white/20 motion-safe:animate-pulse"
+    />
   );
 }

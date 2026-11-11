@@ -664,7 +664,7 @@ export function CardDetail({ id, added = false }: { id: string; added?: boolean 
               removeCard(card.id);
               router.push("/");
             }}
-            className="inline-flex items-center gap-1 rounded-full bg-rose-500/10 px-3 py-1.5 text-sm text-rose-700 hover:bg-rose-500/20 dark:text-rose-300"
+            className="hit-44 inline-flex items-center gap-1 rounded-full bg-rose-500/10 px-3 py-1.5 text-sm text-rose-700 hover:bg-rose-500/20 dark:text-rose-300"
           >
             Delete
           </button>

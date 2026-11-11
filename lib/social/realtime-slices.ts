@@ -18,6 +18,9 @@ import type { PostComment, PostRepost } from "./types";
 
 type Row = Record<string, unknown>;
 
+/** New replies read per live update. More than this arriving at once is read on the next one. */
+const LIVE_REPLY_LIMIT = 50;
+
 function missingTable(error: { code?: string; message?: string } | null) {
   if (!error) return false;
   return error.code === "PGRST205" || error.code === "42P01" || /schema cache/i.test(error.message ?? "");
@@ -62,7 +65,16 @@ function mapRepost(row: Row): PostRepost {
 export async function loadRealtimePatch(
   supabase: SupabaseClient,
   slices: ReadonlySet<RealtimeSlice>,
-  input: { viewerId: string | null; postId: string | null },
+  input: {
+    viewerId: string | null;
+    postId: string | null;
+    /**
+     * What this screen already has. With it, a live update reads only replies
+     * newer than `newestAt`, plus the ones an edit or delete event named,
+     * instead of every reply on the post.
+     */
+    replies?: { newestAt: string | null; touchedIds: readonly string[] };
+  },
 ): Promise<RealtimePatch> {
   const viewerId = input.viewerId && isUuid(input.viewerId) ? input.viewerId : null;
   const postId = input.postId && isUuid(input.postId) ? input.postId : null;
@@ -105,7 +117,55 @@ export async function loadRealtimePatch(
       }),
     );
   }
-  if (comments && postId) {
+  if (comments && postId && input.replies?.newestAt) {
+    const { newestAt, touchedIds } = input.replies;
+    const touched = touchedIds.filter((id) => isUuid(id));
+    tasks.push(
+      (async () => {
+        const read = async (build: (columns: string) => PromiseLike<{ data: unknown; error: { code?: string; message?: string } | null }>) => {
+          try {
+            return (await rowsOf(build(COMMENT_COLUMNS_WITH_IMAGES))).map(mapComment);
+          } catch (error) {
+            const message = error instanceof Error ? error.message : "";
+            if (!replyImageColumnMissing({ message })) throw error;
+            noteReplyImagesMissing();
+            return (await rowsOf(build("id, post_id, user_id, body, created_at"))).map(mapComment);
+          }
+        };
+        const [newer, reread] = await Promise.all([
+          read((columns) =>
+            applyAuthorSafety(
+              supabase
+                .from("comments")
+                .select(columns)
+                .eq("post_id", postId)
+                .gt("created_at", newestAt)
+                .order("created_at", { ascending: true })
+                .limit(LIVE_REPLY_LIMIT),
+              viewerId,
+              mutedHidden,
+              { mute: true },
+            ),
+          ),
+          touched.length
+            ? read((columns) =>
+                applyAuthorSafety(
+                  supabase.from("comments").select(columns).eq("post_id", postId).in("id", touched),
+                  viewerId,
+                  mutedHidden,
+                  { mute: true },
+                ),
+              )
+            : Promise.resolve([] as PostComment[]),
+        ]);
+        const found = new Set(reread.map((comment) => comment.id));
+        patch.replyChanges = {
+          upsert: [...newer, ...reread],
+          removeIds: touched.filter((id) => !found.has(id)),
+        };
+      })(),
+    );
+  } else if (comments && postId) {
     tasks.push(
       (async () => {
         const load = (columns: string) =>

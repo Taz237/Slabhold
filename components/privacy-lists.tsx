@@ -155,7 +155,7 @@ function AccountList({
                 type="button"
                 disabled={busyId === person.id}
                 onClick={() => onAction(person.id)}
-                className="rounded-full border border-zinc-300 px-3 py-1.5 text-sm font-semibold disabled:opacity-50 dark:border-white/20"
+                className="hit-44 rounded-full border border-zinc-300 px-3 py-1.5 text-sm font-semibold disabled:opacity-50 dark:border-white/20"
               >
                 {action}
               </button>

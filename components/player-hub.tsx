@@ -24,6 +24,7 @@ import {
   type PlayerHubChoice,
   type PlayerHubPage,
 } from "@/lib/players/hub";
+import { TeamBadge } from "@/components/team-badge";
 
 function Section({
   title,
@@ -132,7 +133,10 @@ function OwnerList({ owners }: { owners: HubOwner[] }) {
         <li key={owner.id} className="border-b border-zinc-200 last:border-b-0 dark:border-white/10">
           <Link href={owner.href} className="flex min-h-12 items-center justify-between gap-3 py-2">
             <span className="min-w-0">
-              <span className="block truncate text-[15px] font-semibold">{owner.displayName}</span>
+              <span className="flex min-w-0 items-center gap-1">
+                <span className="truncate text-[15px] font-semibold">{owner.displayName}</span>
+                <TeamBadge username={owner.username} inLink />
+              </span>
               <span className="block truncate text-sm text-zinc-500">@{owner.username}</span>
             </span>
             <span className="shrink-0 text-xs font-semibold text-emerald-700 dark:text-emerald-300">

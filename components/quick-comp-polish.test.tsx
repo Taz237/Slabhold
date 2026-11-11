@@ -141,8 +141,10 @@ describe("quick comp: recent sales rows", () => {
   it("selects the sale from the whole row and links out with a small ↗", () => {
     assert.match(rows, /aria-pressed="true"/);
     assert.match(rows, /aria-label="Show the \$36\.00 sale from [^"]+ on the chart"/);
-    assert.match(rows, /<a [^>]*aria-label="Open listing on eBay"[^>]*>|<a [^>]*class="[^"]*hit-44[^"]*"[^>]*aria-label="Open listing on eBay"/);
-    assert.match(rows, /class="[^"]*hit-44[^"]*"[^>]*aria-label="Open listing on eBay"|aria-label="Open listing on eBay"[^>]*class="[^"]*hit-44/);
+    assert.match(rows, /<a [^>]*aria-label="Open the sold listing"[^>]*>|<a [^>]*class="[^"]*hit-44[^"]*"[^>]*aria-label="Open the sold listing"/);
+    assert.match(rows, /class="[^"]*hit-44[^"]*"[^>]*aria-label="Open the sold listing"|aria-label="Open the sold listing"[^>]*class="[^"]*hit-44/);
+    // Screen readers never hear "eBay" (brand rule: sold prices, not eBay data).
+    assert.doesNotMatch(rows, /aria-label="[^"]*eBay/);
     assert.match(rows, /3d/);
   });
 

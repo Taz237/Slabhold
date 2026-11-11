@@ -286,7 +286,7 @@ export function SearchView() {
               type="button"
               onClick={() => setSearchQuery("")}
               aria-label="Clear search"
-              className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-zinc-500 hover:bg-zinc-200/80 dark:hover:bg-white/10"
+              className="hit-44 grid h-8 w-8 shrink-0 place-items-center rounded-full text-zinc-500 hover:bg-zinc-200/80 dark:hover:bg-white/10"
             >
               <X className="h-4 w-4" />
             </button>
@@ -313,7 +313,7 @@ export function SearchView() {
                   <button
                     type="button"
                     onClick={clearRecent}
-                    className="rounded-full px-2 py-1 text-sm font-medium text-violet-700 decoration-violet-700/70 dark:text-violet-300 dark:decoration-violet-300/80"
+                    className="hit-44 rounded-full px-2 py-1 text-sm font-medium text-violet-700 decoration-violet-700/70 dark:text-violet-300 dark:decoration-violet-300/80"
                   >
                     Clear all
                   </button>

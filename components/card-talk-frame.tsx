@@ -38,7 +38,7 @@ export function CardTalkFrame({
         {user ? (
           <Link
             href={`/compose?card=${encodeURIComponent(cardId)}`}
-            className="rounded-full bg-zinc-900 px-3 py-1.5 text-xs font-semibold whitespace-nowrap text-white dark:bg-zinc-100 dark:text-zinc-950"
+            className="hit-44 rounded-full bg-zinc-900 px-3 py-1.5 text-xs font-semibold whitespace-nowrap text-white dark:bg-zinc-100 dark:text-zinc-950"
           >
             Post about this card
           </Link>

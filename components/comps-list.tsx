@@ -129,7 +129,7 @@ export function CompsList({
                       href={comp.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      aria-label="Open listing on eBay"
+                      aria-label="Open the sold listing"
                       className="hit-44 grid h-5 w-5 place-items-center rounded-md text-zinc-400 hover:text-violet-700 focus-visible:ring-2 focus-visible:ring-violet-600 focus-visible:outline-none dark:hover:text-violet-300"
                     >
                       <ArrowUpRight aria-hidden="true" className="h-3.5 w-3.5" />
@@ -247,7 +247,7 @@ export function CompsList({
                   setReason("");
                   setError(null);
                 }}
-                className="rounded-full border border-zinc-300 px-4 py-2 text-sm font-semibold dark:border-white/20"
+                className="hit-44 rounded-full border border-zinc-300 px-4 py-2 text-sm font-semibold dark:border-white/20"
               >
                 Cancel
               </button>
@@ -255,7 +255,7 @@ export function CompsList({
                 type="button"
                 disabled={!reason || busy}
                 onClick={() => void hideSale()}
-                className="rounded-full bg-zinc-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-40 dark:bg-zinc-100 dark:text-zinc-950"
+                className="hit-44 rounded-full bg-zinc-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-40 dark:bg-zinc-100 dark:text-zinc-950"
               >
                 {busy ? "Hiding…" : "Hide sale"}
               </button>
@@ -370,7 +370,7 @@ function RowMenu({
                 setOpen(false);
                 item.onSelect();
               }}
-              className="block w-full px-3 py-1.5 text-left text-xs font-semibold text-zinc-700 hover:bg-zinc-100 disabled:opacity-40 dark:text-zinc-200 dark:hover:bg-white/10"
+              className="flex min-h-11 w-full items-center px-3 text-left text-xs font-semibold text-zinc-700 hover:bg-zinc-100 disabled:opacity-40 dark:text-zinc-200 dark:hover:bg-white/10"
             >
               {item.label}
             </button>

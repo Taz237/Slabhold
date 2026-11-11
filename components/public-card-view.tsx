@@ -62,6 +62,7 @@ import { useCardValue } from "@/lib/value/use-card-values";
 import { usePublicCards } from "@/lib/social/use-public-cards";
 import { useProfiles } from "@/lib/social/use-profiles";
 import { ReadRetry } from "@/components/read-retry";
+import { TeamBadge } from "@/components/team-badge";
 
 export { PublicCardSkeleton };
 
@@ -130,6 +131,7 @@ export function PublicCardView({
       <PublicCardAnalytics
         card={early}
         displayName={initialOwner.displayName}
+        ownerUsername={initialOwner.username}
         backHref={backHref}
         userId={null}
         canFlag={false}
@@ -186,6 +188,7 @@ export function PublicCardView({
     <PublicCardAnalytics
       card={card}
       displayName={profile.displayName}
+      ownerUsername={profile.username}
       backHref={backHref}
       userId={social.user?.id ?? null}
       canFlag={isCardOwner(profile.id, social.user?.id ?? null)}
@@ -199,6 +202,7 @@ export function PublicCardView({
 function PublicCardAnalytics({
   card,
   displayName,
+  ownerUsername,
   backHref,
   userId,
   canFlag,
@@ -209,6 +213,8 @@ function PublicCardAnalytics({
 }: {
   card: PublicCard;
   displayName: string;
+  /** For the Slabhold team badge beside the owner's name. */
+  ownerUsername?: string | null;
   backHref: string;
   userId: string | null;
   canFlag: boolean;
@@ -342,6 +348,7 @@ function PublicCardAnalytics({
       >
         <ArrowLeft className="h-4 w-4" />
         {displayName}
+        <TeamBadge username={ownerUsername} inLink />
       </Link>
 
       <ShapedCardThumb

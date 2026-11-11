@@ -632,7 +632,7 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
             <button
               type="button"
               onClick={() => void loginDemo()}
-              className="mt-3 rounded-full border border-zinc-300 px-3 py-1.5 text-xs font-semibold dark:border-white/15"
+              className="hit-44 mt-3 rounded-full border border-zinc-300 px-3 py-1.5 text-xs font-semibold dark:border-white/15"
             >
               Log in as Maya
             </button>

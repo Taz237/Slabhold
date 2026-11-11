@@ -135,7 +135,7 @@ export function ProfileEditSheet({
             <button
               type="button"
               onClick={onClose}
-              className="rounded-full px-2 py-1.5 text-sm font-medium text-zinc-500"
+              className="hit-44 rounded-full px-2 py-1.5 text-sm font-medium text-zinc-500"
             >
               Cancel
             </button>
@@ -163,7 +163,7 @@ export function ProfileEditSheet({
                   type="button"
                   aria-label={cover ? "Change cover photo" : "Add cover photo"}
                   onClick={openCover}
-                  className="inline-flex items-center gap-1.5 rounded-full bg-black/70 px-3 py-1.5 text-xs font-semibold text-white"
+                  className="hit-44 inline-flex items-center gap-1.5 rounded-full bg-black/70 px-3 py-1.5 text-xs font-semibold text-white"
                 >
                   <Camera className="h-3.5 w-3.5" />
                   {cover ? "Change cover" : "Add cover"}
@@ -172,7 +172,7 @@ export function ProfileEditSheet({
                   <button
                     type="button"
                     onClick={() => setCover(null)}
-                    className="rounded-full bg-black/70 px-3 py-1.5 text-xs font-semibold text-white"
+                    className="hit-44 rounded-full bg-black/70 px-3 py-1.5 text-xs font-semibold text-white"
                   >
                     Remove
                   </button>

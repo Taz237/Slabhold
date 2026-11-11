@@ -63,15 +63,15 @@ function chart(props: Record<string, unknown> = {}) {
 }
 
 describe("launch copy: USD price basis", () => {
-  it("is one exported line next to the Trawl attribution", () => {
+  it("is one line in lib/comps/price-basis.ts, used by the comp chart and the public comps", () => {
     assert.equal(PRICE_BASIS_LINE, "Prices in USD from recent US sold listings");
-    const chartSource = read("components/sales-chart.tsx");
-    assert.equal(count(chartSource, `"${PRICE_BASIS_LINE}"`), 1);
-    assert.ok(chartSource.indexOf("export const PRICE_BASIS_LINE") > chartSource.indexOf("export const TRAWL_ATTRIBUTION"));
     for (const path of [...sourceFiles("components"), ...sourceFiles("app"), ...sourceFiles("lib")]) {
-      if (path === join("components", "sales-chart.tsx")) continue;
+      if (path === join("lib", "comps", "price-basis.ts")) continue;
       assert.equal(read(path).includes(PRICE_BASIS_LINE), false, `${path} repeats the USD line`);
     }
+    assert.match(read("components/sales-chart.tsx"), /export \{ PRICE_BASIS_LINE \}/);
+    assert.match(read("components/public-card-comps.tsx"), /\{PRICE_BASIS_LINE\}/);
+    assert.doesNotMatch(read("components/public-card-comps.tsx"), /from "@\/components\/sales-chart"/);
   });
 
   it("shows once under a real median, after the caption row, in the caption style", () => {
@@ -81,12 +81,15 @@ describe("launch copy: USD price basis", () => {
     assert.match(html, new RegExp(`<p class="[^"]*${compCaption.replace(/[[\]]/g, "\\$&")}[^"]*">${PRICE_BASIS_LINE}</p>`));
   });
 
-  it("stays off sample, no-sales, tapped-sale and fallback-label states", () => {
+  it("stays while a sale is tapped", () => {
+    assert.equal(count(chart({ selectedSaleId: "s2" }), PRICE_BASIS_LINE), 1);
+  });
+
+  it("stays off sample, no-sales and fallback-label states", () => {
     assert.equal(count(chart({ source: "sample", sample: true, lockedToComps: false }), PRICE_BASIS_LINE), 0);
     // Quick Comp locks the chart to its comps, sample payloads included.
     assert.equal(count(chart({ source: "sample", sample: true }), PRICE_BASIS_LINE), 0);
     assert.equal(count(chart({ sales: [], count: 0, median: null, p25: null, p75: null }), PRICE_BASIS_LINE), 0);
-    assert.equal(count(chart({ selectedSaleId: "s2" }), PRICE_BASIS_LINE), 0);
     assert.equal(
       count(chart({ headlineIsEstimate: false, headlineLabel: "Last sale $30.00" }), PRICE_BASIS_LINE),
       0,

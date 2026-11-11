@@ -193,7 +193,7 @@ export function InviteSettings() {
             </button>
             <p
               role="status"
-              className={`mt-2 min-h-5 text-sm ${notice?.ok ? "text-emerald-700 dark:text-emerald-400" : "text-zinc-500"}`}
+              className={`mt-2 min-h-5 text-sm ${notice?.ok ? "text-violet-700 dark:text-violet-300" : "text-zinc-500"}`}
             >
               {notice?.text ?? ""}
             </p>

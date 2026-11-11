@@ -25,6 +25,7 @@ import { useCardValues } from "@/lib/value/use-card-values";
 import { MoveArrow } from "@/components/move-arrow";
 import type { ChangeTone } from "@/lib/chart/range";
 import { MOVE_TEXT } from "@/lib/chart/theme";
+import { TeamBadge } from "@/components/team-badge";
 
 export { VALUE_BOARD_TAB };
 
@@ -91,7 +92,10 @@ function ValueBoardRowView({ row }: { row: ValueBoardRow }) {
         expandable={false}
         className="h-9 w-9"
       />
-      <span className="min-w-0 flex-1 truncate text-sm font-semibold">@{row.username}</span>
+      <span className="flex min-w-0 flex-1 items-center gap-1">
+        <span className="min-w-0 truncate text-sm font-semibold">@{row.username}</span>
+        <TeamBadge username={row.username} inLink />
+      </span>
       <span className="shrink-0 text-right">
         <span
           className={`inline-flex items-center gap-1 text-sm font-semibold tabular-nums ${MOVE_TEXT[percentTone(row.percent)]}`}
@@ -121,7 +125,7 @@ export function ValueBoardRequirements({ checklist }: { checklist: LeaderboardCh
           {checklist.items.map((item) => (
             <li key={item.id} className="flex items-start gap-2" data-met={item.met ? "yes" : "no"}>
               {checklist.showChecks ? (
-                <span className={item.met ? "text-emerald-600" : "text-zinc-400"} aria-hidden>
+                <span className={item.met ? "text-violet-700 dark:text-violet-300" : "text-zinc-400"} aria-hidden>
                   {item.met ? "✓" : "X"}
                 </span>
               ) : null}

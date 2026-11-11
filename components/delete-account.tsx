@@ -55,7 +55,7 @@ export function DeleteAccount() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="mt-3 rounded-full border border-rose-400 px-4 py-2 text-sm font-semibold text-rose-700 dark:border-rose-400/40 dark:text-rose-300"
+        className="hit-44 mt-3 rounded-full border border-rose-400 px-4 py-2 text-sm font-semibold text-rose-700 dark:border-rose-400/40 dark:text-rose-300"
       >
         Delete account
       </button>
@@ -95,7 +95,7 @@ export function DeleteAccount() {
                 type="button"
                 onClick={close}
                 disabled={busy}
-                className="rounded-full px-3 py-1.5 text-sm font-semibold disabled:opacity-40"
+                className="hit-44 rounded-full px-3 py-1.5 text-sm font-semibold disabled:opacity-40"
               >
                 Cancel
               </button>
@@ -103,7 +103,7 @@ export function DeleteAccount() {
                 type="button"
                 onClick={() => void onDelete()}
                 disabled={busy || !isDeleteConfirmation(typed)}
-                className="rounded-full bg-rose-600 px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-40"
+                className="hit-44 rounded-full bg-rose-600 px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-40"
               >
                 {busy ? "Deleting…" : "Delete"}
               </button>

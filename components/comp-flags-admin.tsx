@@ -76,7 +76,7 @@ export function CompFlagsAdmin() {
         />
         <button
           type="submit"
-          className="rounded-full bg-zinc-900 px-4 py-2 text-sm font-semibold text-white dark:bg-zinc-100 dark:text-zinc-950"
+          className="hit-44 rounded-full bg-zinc-900 px-4 py-2 text-sm font-semibold text-white dark:bg-zinc-100 dark:text-zinc-950"
         >
           Search
         </button>

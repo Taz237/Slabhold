@@ -27,6 +27,7 @@ import {
   scoreUnit,
 } from "@/lib/leaderboard/rules";
 import { userHref } from "@/lib/social/user-href";
+import { TeamBadge } from "@/components/team-badge";
 
 const BOARD_ACCENT: Record<string, string> = {
   "top-card-post": "#7c5cff",
@@ -131,14 +132,14 @@ function Tag({ children, tone }: { children: ReactNode; tone: "dark" | "light" }
   );
 }
 
-function person(entry: BoardRow, boardId: string): { name: string; detail: string } {
+function person(entry: BoardRow, boardId: string): { name: string; detail: string; username: string } {
   const handle = entry.subtitle.trim().startsWith("@") ? entry.subtitle.trim() : "";
   const stripped = handle.replace(/^@/, "");
   if (boardId === "top-card-post") {
     const card = entry.title.trim();
-    return { name: stripped || card, detail: [handle, stripped ? card : ""].filter(Boolean).join(" · ") };
+    return { name: stripped || card, detail: [handle, stripped ? card : ""].filter(Boolean).join(" · "), username: stripped };
   }
-  return { name: entry.title.trim() || stripped, detail: handle };
+  return { name: entry.title.trim() || stripped, detail: handle, username: stripped };
 }
 
 /** A profile link, or a plain block when the handle can't make a clean `/u/` path. */
@@ -249,8 +250,9 @@ function PodiumPlace({ entry, boardId }: { entry: BoardRow; boardId: string }) {
           <Avatar title={labels.name} accent={entry.accent} url={entry.avatarUrl} size={PODIUM_AVATAR[rank] ?? 44} />
         </span>
       </span>
-      <span className="mt-1.5 block w-full min-w-0 truncate px-1 text-sm font-semibold tracking-tight text-white">
-        {labels.name}
+      <span className="mt-1.5 flex w-full min-w-0 items-center justify-center gap-1 px-1">
+        <span className="min-w-0 truncate text-sm font-semibold tracking-tight text-white">{labels.name}</span>
+        <TeamBadge username={labels.username} inLink />
       </span>
       {labels.detail ? (
         <span className="block w-full min-w-0 truncate px-1 text-[11px] text-zinc-400">{labels.detail}</span>
@@ -270,7 +272,7 @@ function PodiumPlace({ entry, boardId }: { entry: BoardRow; boardId: string }) {
         {rank === 1 ? (
           <Crown data-crown="" aria-hidden="true" className="h-5 w-5 fill-zinc-950/15" strokeWidth={2.4} />
         ) : null}
-        <span className="rounded-sm bg-zinc-950/85 px-1.5 py-[3px] font-mono text-[9px] font-bold leading-none tracking-[0.16em] text-white">
+        <span className="rounded-sm bg-zinc-950/85 px-1.5 py-[3px] font-mono text-[9px] font-semibold leading-none tracking-[0.16em] text-white">
           {PLACE[rank]}
         </span>
         {entry.isNew || entry.mine ? (
@@ -310,7 +312,7 @@ function GhostPlace({ spot }: { spot: OpenSpot }) {
             <Plus className="h-3.5 w-3.5" strokeWidth={2.6} />
           </span>
         ) : null}
-        <span className="font-mono text-[9px] font-bold leading-none tracking-[0.16em]">{PLACE[spot.rank]}</span>
+        <span className="font-mono text-[9px] font-semibold leading-none tracking-[0.16em]">{PLACE[spot.rank]}</span>
       </span>
     </>
   );
@@ -465,6 +467,7 @@ function RankRow({ entry, boardId }: { entry: BoardRow; boardId: string }) {
       <span className="min-w-0 flex-1">
         <span className="flex min-w-0 items-baseline gap-1.5">
           <span className="min-w-0 shrink-0 truncate text-sm font-semibold text-white max-w-[65%]">{labels.name}</span>
+          <TeamBadge username={labels.username} inLink className="self-center" />
           {entry.isNew ? <Tag tone="light">New</Tag> : null}
           {entry.mine ? <Tag tone="light">{YOU_LABEL}</Tag> : null}
           {labels.detail ? <span className="min-w-0 truncate text-xs text-zinc-500">{labels.detail}</span> : null}
