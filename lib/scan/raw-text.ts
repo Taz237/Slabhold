@@ -222,7 +222,8 @@ function nameGrams(lines: string[]): Gram[] {
   return grams;
 }
 
-function readPlayers(lines: string[], directory: readonly IndexedDirectoryPlayer[]): RawPlayerHit[] {
+/** Directory players named in these lines, best first. Also used for a slab label's player line. */
+export function findPlayers(lines: string[], directory: readonly IndexedDirectoryPlayer[]): RawPlayerHit[] {
   const index = directoryIndex(directory);
   const best = new Map<string, RawPlayerHit & { order: number }>();
   const offer = (player: IndexedDirectoryPlayer, score: number, line: string, order: number) => {
@@ -360,7 +361,7 @@ export function readRawCardText(
 
   const lineWords = clean.map((line) => normInterest(line).split(" ").filter(Boolean));
 
-  read.players = readPlayers(clean, directory);
+  read.players = findPlayers(clean, directory);
   read.yearLabel = readYear(clean);
   read.copyrightYear = clean.map((line) => COPYRIGHT.exec(line)?.[1] ?? "").find(Boolean) ?? "";
   for (const line of clean) {
