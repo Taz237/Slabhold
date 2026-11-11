@@ -56,7 +56,9 @@ describe("founder showcase read errors", () => {
         { data: [], error: null },
       ]),
     );
-    assert.equal(found.profile?.username, "donnietaz");
+    // Found, but only cards go out: never the handle, name or avatar.
+    assert.deepEqual(found, { cards: [] });
+    assert.doesNotMatch(JSON.stringify(found), /donnietaz|Donnie|profile/);
   });
 
   it("serves a failed read for 60 seconds, never with the hour-long header", async () => {

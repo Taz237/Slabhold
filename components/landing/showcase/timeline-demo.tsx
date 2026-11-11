@@ -191,7 +191,7 @@ function PostRow({
               {/* Slabs get 112px: at 64px the label's year/set line truncated to "2…". */}
               <div className={`${post.id === "p1" ? "w-16" : "w-28"} shrink-0`}>
                 {post.id === "p1" ? (
-                  // Donnie's own card, used with his OK. Plain and lazy: no optimizer.
+                  // A team member's own card, used with their OK. Plain and lazy: no optimizer.
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src="/landing/kitchen-table-card.webp" alt="Numbered patch card in a top-loader" width={300} height={420} loading="lazy" decoding="async" draggable={false} className="aspect-[5/7] w-16 rounded-md border border-white/10 object-cover" />
                 ) : real ? (

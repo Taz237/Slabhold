@@ -1,7 +1,7 @@
 import { photoSource } from "@/lib/collection/grid";
 import type { FounderCard, FounderShowcase } from "@/lib/landing/founder";
 
-const NONE: FounderShowcase = { profile: null, cards: [] };
+const NONE: FounderShowcase = { cards: [] };
 
 function str(value: unknown): string {
   return typeof value === "string" ? value : "";
@@ -29,19 +29,11 @@ function readCard(value: unknown): FounderCard | null {
   };
 }
 
-/** Keeps only the shape the landing page draws. Anything else is no founder. */
+/** Keeps only the card fields the landing page draws. Any profile is dropped. */
 export function readFounderShowcase(value: unknown): FounderShowcase {
   if (!value || typeof value !== "object") return NONE;
-  const { profile, cards } = value as { profile?: unknown; cards?: unknown };
-  if (!profile || typeof profile !== "object") return NONE;
-  const { username, displayName, avatarUrl } = profile as Record<string, unknown>;
-  if (typeof username !== "string" || !username) return NONE;
+  const { cards } = value as { cards?: unknown };
   return {
-    profile: {
-      username,
-      displayName: typeof displayName === "string" && displayName ? displayName : username,
-      avatarUrl: typeof avatarUrl === "string" && avatarUrl.startsWith("https://") ? avatarUrl : null,
-    },
     cards: Array.isArray(cards)
       ? cards.flatMap((card) => {
           const read = readCard(card);

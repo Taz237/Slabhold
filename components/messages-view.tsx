@@ -18,6 +18,7 @@ import { inboxLastMessage } from "@/lib/offers/open-to-offers";
 import { filterConversations, inboxConversations, type Conversation } from "@/lib/social/dm-inbox";
 import type { Profile } from "@/lib/social/types";
 import { userHref } from "@/lib/social/user-href";
+import { TeamBadge } from "@/components/team-badge";
 
 export function MessagesView() {
   const pathname = usePathname() || "/";
@@ -148,6 +149,7 @@ function ConversationRow({ conversation, viewerId }: { conversation: Conversatio
           >
             {person.displayName}
           </span>
+          <TeamBadge username={person.username} inLink />
           <span className="min-w-0 shrink truncate text-[13px] text-zinc-500">@{person.username}</span>
           {stamp ? (
             <time
@@ -235,7 +237,10 @@ function InboxEmpty({ suggestions, onStart }: { suggestions: Profile[]; onStart:
                   />
                 </Link>
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[15px] leading-5 font-semibold tracking-tight">{person.displayName}</span>
+                  <span className="flex min-w-0 items-center gap-1">
+                    <span className="truncate text-[15px] leading-5 font-semibold tracking-tight">{person.displayName}</span>
+                    <TeamBadge username={person.username} />
+                  </span>
                   <span className="block truncate text-[13px] leading-5 text-zinc-500">@{person.username}</span>
                 </span>
                 <Link

@@ -200,7 +200,6 @@ function founderCard(id: string, playerName: string) {
 }
 
 const FOUNDER = {
-  profile: { username: "donnietaz", displayName: "Donnie", avatarUrl: "https://cdn.example/avatar.png" },
   cards: [founderCard("a", "Top Card"), founderCard("b", "Second Card"), founderCard("c", "Third Card")],
 };
 
@@ -227,7 +226,8 @@ describe("landing founder touch", () => {
     );
     assert.match(html, /data-hero-slabs="founder"/);
     assert.match(html, /data-founder-note="plain"/);
-    assert.doesNotMatch(html, /From the founder|Follow on Slabhold|@donnietaz<\/span>/);
+    assert.doesNotMatch(html, /From the founder|Follow on Slabhold|donnietaz|Donnie/i);
+    assert.match(text(html), /From a Slabhold collection/);
     assert.match(html, /data-hero-slabs="founder"><div[^>]*><\/div><div class="[^"]*transition-opacity[^"]*opacity-100"/);
   });
 
@@ -249,7 +249,7 @@ describe("landing founder touch", () => {
           createElement(
             SearchParamsContext.Provider,
             { value: new URLSearchParams() },
-            createElement(LandingPage, { founder: { profile: null, cards: [] } }),
+            createElement(LandingPage, { founder: { cards: [] } }),
           ),
         );
       });
@@ -283,7 +283,7 @@ describe("landing founder touch", () => {
       createElement(
         ImageConfigContext.Provider,
         { value: { ...imageConfigDefault, ...nextConfig.images } },
-        createElement(HeroSlabs, { cards: FOUNDER.cards, owner: "donnietaz" }),
+        createElement(HeroSlabs, { cards: FOUNDER.cards }),
       ),
     );
     assert.match(html, /data-hero-slabs="founder"/);
@@ -292,7 +292,8 @@ describe("landing founder touch", () => {
     assert.ok(images.every((src) => src.startsWith("/_next/image?url=") && src.includes("/card-photos/owner/")));
     const order = ["Second Card", "Top Card", "Third Card"].map((name) => html.indexOf(name));
     assert.ok(order.every((at) => at > 0) && order[0] < order[1] && order[1] < order[2], "left, center, right");
-    assert.match(text(html), /From @donnietaz(&#x27;|')s collection/);
+    assert.match(text(html), /From a Slabhold collection/);
+    assert.doesNotMatch(text(html), /From @|donnietaz/);
     assert.doesNotMatch(html, /Your grail/);
   });
 
@@ -302,7 +303,7 @@ describe("landing founder touch", () => {
       createElement(
         ImageConfigContext.Provider,
         { value: { ...imageConfigDefault, ...nextConfig.images } },
-        createElement(HeroSlabs, { cards: FOUNDER.cards, owner: "donnietaz" }),
+        createElement(HeroSlabs, { cards: FOUNDER.cards }),
       ),
     );
     const imgs = [...html.matchAll(/<img[^>]+>/g)].map((match) => match[0]);
@@ -318,7 +319,7 @@ describe("landing founder touch", () => {
 
   it("falls back to the sample slabs, marked as samples, with no founder cards", async () => {
     const { HeroSlabs, heroSlots } = await import("@/components/landing/hero-slabs");
-    const html = renderToStaticMarkup(createElement(HeroSlabs, { cards: [], owner: "donnietaz" }));
+    const html = renderToStaticMarkup(createElement(HeroSlabs, { cards: [] }));
     assert.match(html, /data-hero-slabs="sample"/);
     assert.match(text(html), /Your grail.*Rookie auto.*Short print/);
     assert.match(text(html), /Sample slabs/);
@@ -345,15 +346,16 @@ describe("landing founder touch", () => {
     assert.doesNotMatch(source, /showcase|profile|avatar|founder_follow/);
   });
 
-  it("drops off-site photos and non-https avatars from the payload", async () => {
+  it("drops off-site photos and any profile from the payload", async () => {
     const { readFounderShowcase } = await import("@/lib/landing/founder-showcase");
     const read = readFounderShowcase({
       profile: { username: "donnietaz", displayName: "", avatarUrl: "http://x/a.png" },
       cards: [{ ...founderCard("a", "Ok") }, { ...founderCard("b", "Off"), photoUrl: "https://evil.example/b.jpg" }, null],
     });
-    assert.deepEqual(read.profile, { username: "donnietaz", displayName: "donnietaz", avatarUrl: null });
+    assert.deepEqual(Object.keys(read), ["cards"]);
+    assert.doesNotMatch(JSON.stringify(read), /donnietaz|avatar/);
     assert.deepEqual(read.cards.map((card) => card.id), ["a"]);
-    assert.deepEqual(readFounderShowcase("nope"), { profile: null, cards: [] });
+    assert.deepEqual(readFounderShowcase("nope"), { cards: [] });
   });
 });
 

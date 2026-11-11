@@ -10,6 +10,7 @@ import { useSocial } from "@/components/social-provider";
 import { SnapRail } from "@/components/timeline-ui";
 import type { Profile } from "@/lib/social/types";
 import { userHref } from "@/lib/social/user-href";
+import { TeamBadge } from "@/components/team-badge";
 
 type Suggestion = Profile & { suggestionReason?: string | null };
 
@@ -68,12 +69,15 @@ export function CollectorSuggestions({
                 className="h-14 w-14 text-base"
               />
             </Link>
-            <Link
-              href={userHref(profile.username)}
-              className="mt-2 block w-full truncate text-sm font-semibold tracking-tight hover:underline"
-            >
-              {profile.displayName}
-            </Link>
+            <span className="mt-2 flex w-full min-w-0 items-center justify-center gap-1">
+              <Link
+                href={userHref(profile.username)}
+                className="block min-w-0 truncate text-sm font-semibold tracking-tight hover:underline"
+              >
+                {profile.displayName}
+              </Link>
+              <TeamBadge username={profile.username} />
+            </span>
             <p className="w-full truncate text-xs text-zinc-500">@{profile.username}</p>
             <p className="mt-1 line-clamp-1 min-h-4 w-full text-[11px] text-zinc-500">
               {profile.suggestionReason ?? ""}
@@ -151,12 +155,15 @@ export function WhoToFollowCard({ profiles: offered }: { profiles: Suggestion[] 
                 />
               </Link>
               <div className="min-w-0 flex-1">
-                <Link
-                  href={userHref(profile.username)}
-                  className="block truncate text-[15px] leading-5 font-semibold tracking-tight hover:underline"
-                >
-                  {profile.displayName}
-                </Link>
+                <span className="flex min-w-0 items-center gap-1">
+                  <Link
+                    href={userHref(profile.username)}
+                    className="block min-w-0 truncate text-[15px] leading-5 font-semibold tracking-tight hover:underline"
+                  >
+                    {profile.displayName}
+                  </Link>
+                  <TeamBadge username={profile.username} />
+                </span>
                 <p className="truncate text-[13px] leading-5 text-zinc-500">
                   @{profile.username}
                   {profile.suggestionReason ? ` · ${profile.suggestionReason}` : ""}

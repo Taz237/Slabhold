@@ -27,7 +27,7 @@ const REAL: CompDemo = {
   ],
   stats: { median: 300, p25: 290, p75: 308, min: 285, max: 310, count: 9 },
   basis: "Based on 9 sales",
-  owner: "donnietaz",
+  real: true,
 };
 
 async function mount(element: ReactElement) {
@@ -93,13 +93,14 @@ describe("Quick Comp demo with a real card", () => {
 });
 
 describe("Quick Comp chapter tag", () => {
-  it("names the collector over a real card, in the hero caption's style", async () => {
+  it("tags a real card neutrally, in the hero caption's style, never naming the collector", async () => {
     process.env.NEXT_PUBLIC_QUICK_COMP = "1";
     try {
       const { FeaturePanels } = await import("@/components/landing/feature-panels");
       const html = renderToStaticMarkup(createElement(FeaturePanels, { comp: REAL }));
       const quickComp = html.slice(html.indexOf('data-chapter="quick-comp"'), html.indexOf('data-chapter="timeline"'));
-      assert.match(quickComp, /class="truncate font-mono text-\[10px\] leading-4 text-zinc-400">From @donnietaz(&#x27;|')s collection</);
+      assert.match(quickComp, /class="truncate font-mono text-\[10px\] leading-4 text-zinc-400">From a Slabhold collection</);
+      assert.doesNotMatch(quickComp, /From @|donnietaz/);
       assert.doesNotMatch(quickComp, />Sample</);
       const timeline = html.slice(html.indexOf('data-chapter="timeline"'));
       assert.match(timeline, />Sample</, "the other chapters keep their Sample tag");
@@ -136,13 +137,13 @@ describe("Quick Comp chapter tag", () => {
         await act(async () => new Promise((resolve) => setTimeout(resolve, 10)));
       }
       const chapter = () => host.querySelector('[data-chapter="quick-comp"]')!;
-      assert.match(chapter().textContent ?? "", /From @donnietaz's collection/);
+      assert.match(chapter().textContent ?? "", /From a Slabhold collection/);
       await act(async () => {
         chapter().querySelector("img")!.dispatchEvent(new win.Event("error"));
       });
       assert.match(chapter().textContent ?? "", /2023 Sample Rookie Prizm/);
       assert.match(chapter().textContent ?? "", /Sample/);
-      assert.doesNotMatch(chapter().textContent ?? "", /donnietaz/);
+      assert.doesNotMatch(chapter().textContent ?? "", /From a Slabhold collection/);
     } finally {
       delete process.env.NEXT_PUBLIC_QUICK_COMP;
       Object.defineProperty(globalThis, "IntersectionObserver", { configurable: true, writable: true, value: realObserver });

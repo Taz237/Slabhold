@@ -25,7 +25,7 @@ How it was captured (Nov 2026):
 
 ## `kitchen-table-card.webp`
 
-Donnie's own card photo, used with his OK on the sample kitchen-table pickup
+A team member's own card photo, used with their OK, on the sample kitchen-table pickup
 (Jake's post) in the landing timeline and on intro screen 4. A raw card in a
 top-loader on a stand: LaBaron Philon, Origins Memorabilia patch, 06/10,
 Panini NIL. It's a real card, so it shows the Panini NIL and Nike marks, and
@@ -44,8 +44,9 @@ never linked to a profile.
 
 ## Rules for anything in this folder
 
-- No real users. The only real account shown on the landing page is the
-  founder's own, in the hero and the founder note.
+- No real users by name. The hero slabs, Quick Comp and the timeline pickup
+  can show real public card photos from a team account, but never its name,
+  handle or avatar.
 - No team, league or NFL logos, in captures, card photos, avatars or art.
 - No generated pictures of the app: real captures of the current app with
   demo data, or the live components themselves.

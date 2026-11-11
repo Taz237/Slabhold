@@ -28,6 +28,7 @@ import { shareTitleForPost } from "@/lib/social/mail-day-copy";
 import { useAttachedChip } from "@/lib/social/use-attachment-label";
 import { PostBody, PostPill, useReducedMotion } from "@/components/timeline-ui";
 import { isOfficialUpdatesAccount } from "@/lib/social/official-updates";
+import { TeamBadge } from "@/components/team-badge";
 import { gradedLabel, postPill } from "@/lib/ui/timeline";
 import { useCloseOnOutsideTap } from "@/lib/ui/menu-outside-tap";
 import type { CardValueResult } from "@/lib/value/types";
@@ -269,13 +270,16 @@ function CommentPreview({ postId, comments }: { postId: string; comments: PostCo
               <Avatar name={name} className="mt-0.5 h-6 w-6 text-[9px]" />
             )}
             <div className="min-w-0">
-              {href ? (
-                <Link prefetch={false} href={href} className="block truncate text-[13px] leading-5 font-semibold hover:underline">
-                  {name}
-                </Link>
-              ) : (
-                <p className="truncate text-[13px] leading-5 font-semibold">{name}</p>
-              )}
+              <div className="flex min-w-0 items-center gap-1">
+                {href ? (
+                  <Link prefetch={false} href={href} className="block truncate text-[13px] leading-5 font-semibold hover:underline">
+                    {name}
+                  </Link>
+                ) : (
+                  <p className="truncate text-[13px] leading-5 font-semibold">{name}</p>
+                )}
+                <TeamBadge username={person?.username} />
+              </div>
               {comment.body ? (
                 <p className="line-clamp-2 text-[13px] leading-5 text-zinc-600 dark:text-zinc-300">
                   <MentionText text={comment.body} />
@@ -328,7 +332,9 @@ export function AuthorLine({
           aria-label="Official Slabhold account"
           className="h-4 w-4 shrink-0 self-center fill-violet-600 text-white dark:fill-violet-500 dark:text-[#09090B]"
         />
-      ) : null}
+      ) : (
+        <TeamBadge username={username} />
+      )}
       <span className="min-w-0 truncate text-[14px] text-zinc-500">@{username}</span>
       {relative ? (
         <time

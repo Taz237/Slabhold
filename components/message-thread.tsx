@@ -29,6 +29,7 @@ import { dealCardFromThread } from "@/lib/deals/thread-card";
 import { askPriceDraft } from "@/lib/social/post-dm";
 import { userHref } from "@/lib/social/user-href";
 import { MESSAGE_LIMIT, type DirectMessage } from "@/lib/social/types";
+import { TeamBadge } from "@/components/team-badge";
 
 /**
  * Keys that showed up after the list first had content. The first batch is
@@ -309,7 +310,10 @@ export function MessageThread({ username }: { username: string }) {
             className="h-9 w-9"
           />
           <span className="min-w-0">
-            <span className="block truncate text-[15px] font-semibold leading-5">{partner.displayName}</span>
+            <span className="flex min-w-0 items-center gap-1">
+              <span className="truncate text-[15px] font-semibold leading-5">{partner.displayName}</span>
+              <TeamBadge username={partner.username} inLink />
+            </span>
             <span className="block truncate text-xs text-zinc-500">@{partner.username}</span>
           </span>
         </Link>
@@ -563,7 +567,10 @@ function ThreadHint({
       <span className="rounded-full p-1 ring-2 ring-violet-500/40">
         <Avatar name={name} image={avatar} accent={accent} expandable={false} className="h-16 w-16 text-base" />
       </span>
-      <p className="mt-3 text-[17px] font-semibold tracking-tight">{name}</p>
+      <p className="mt-3 text-[17px] font-semibold tracking-tight">
+        {name}
+        <TeamBadge username={username} className="ml-1 align-[-2px]" />
+      </p>
       <p className="text-[13px] text-zinc-500">@{username}</p>
       <p className="mt-4 max-w-[16rem] text-sm leading-5 text-zinc-500">
         This is the start of your conversation. Say hi, ask about a card, or talk pickups.

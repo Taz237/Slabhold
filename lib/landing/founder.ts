@@ -2,7 +2,10 @@ import type { ArtCard } from "@/components/card-slab-art";
 import { photoSource } from "@/lib/collection/grid";
 import { mapPublicCard } from "@/lib/social/cards";
 
-/** The founder's account. Donnie OK'd his public profile and cards on the landing page. */
+/**
+ * The account whose public cards fill the landing demos. Only card photos and
+ * slab label fields reach the page: never the name, handle or avatar.
+ */
 export const FOUNDER_USERNAME = "donnietaz";
 
 /** Hero slabs. */
@@ -42,12 +45,12 @@ export type FounderProfileRow = {
 /** Slab label fields and the photo. No cert, price, or owner id. */
 export type FounderCard = ArtCard & { id: string; photoUrl: string };
 
+/** Card photos and labels only. Nothing that names whose collection they are. */
 export type FounderShowcase = {
-  profile: { username: string; displayName: string; avatarUrl: string | null } | null;
   cards: FounderCard[];
 };
 
-export const EMPTY_FOUNDER_SHOWCASE: FounderShowcase = { profile: null, cards: [] };
+export const EMPTY_FOUNDER_SHOWCASE: FounderShowcase = { cards: [] };
 
 function value(row: FounderCardRow): number {
   const amount = Number(row.estimated_value);
@@ -104,13 +107,5 @@ export function founderShowcase(
     cards.push(toCard(row, source.src));
     if (cards.length >= FOUNDER_CARD_LIMIT) break;
   }
-  const avatar = (profile.avatar_url ?? "").trim();
-  return {
-    profile: {
-      username: profile.username,
-      displayName: (profile.display_name ?? "").trim() || profile.username,
-      avatarUrl: avatar.startsWith("https://") ? avatar : null,
-    },
-    cards,
-  };
+  return { cards };
 }

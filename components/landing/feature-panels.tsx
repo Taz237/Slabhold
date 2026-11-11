@@ -54,8 +54,8 @@ function chapter(id: ChapterId) {
 
 /**
  * The chapters, Quick Comp first when its flag is on. `comp` is a real card
- * from the founder's collection for Quick Comp; without it, the sample plays.
- * `pickup` is his real slab for the timeline's pickup post.
+ * from a public collection for Quick Comp; without it, the sample plays.
+ * `pickup` is a real slab for the timeline's pickup post.
  */
 export function FeaturePanels({ comp, pickup }: { comp?: CompDemo | null; pickup?: PickupDemo | null }) {
   const quickComp = quickCompEnabled();
@@ -68,7 +68,7 @@ export function FeaturePanels({ comp, pickup }: { comp?: CompDemo | null; pickup
       {quickComp ? (
         <Chapter
           id="quick-comp"
-          owner={real?.owner ?? null}
+          real={Boolean(real?.real)}
           extra={
             <LandingLink
               button="signup"
@@ -128,13 +128,15 @@ function ChapterCopy({ id, titleId, extra }: { id: ChapterId; titleId: string; e
   );
 }
 
-function Toolbar({ note, owner = null, children }: { note?: string; owner?: string | null; children?: ReactNode }) {
+/** Over a real card: neutral, never the collector's name or handle. */
+export const REAL_CARD_TAG = "From a Slabhold collection";
+
+function Toolbar({ note, real = false, children }: { note?: string; real?: boolean; children?: ReactNode }) {
   return (
     <div className="flex h-11 items-center justify-between gap-3">
       <span className="flex min-w-0 items-center gap-2">
-        {/* Over a real card, the collector is named the way the hero caption names them. */}
-        {owner ? (
-          <span className="truncate font-mono text-[10px] leading-4 text-zinc-400">From @{owner}&apos;s collection</span>
+        {real ? (
+          <span className="truncate font-mono text-[10px] leading-4 text-zinc-400">{REAL_CARD_TAG}</span>
         ) : (
           <SampleTag />
         )}
@@ -157,7 +159,7 @@ function Chapter({
   id,
   extra,
   note,
-  owner = null,
+  real = false,
   region,
   flip = false,
   children,
@@ -165,8 +167,8 @@ function Chapter({
   id: ChapterId;
   extra?: ReactNode;
   note?: string;
-  /** A real card's collector, named instead of the Sample tag. */
-  owner?: string | null;
+  /** A real card: the neutral tag replaces the Sample tag. */
+  real?: boolean;
   /** An aria-label for the demo, which then becomes a region. */
   region?: string;
   flip?: boolean;
@@ -180,7 +182,7 @@ function Chapter({
         <ChapterCopy id={id} titleId={titleId} extra={extra} />
       </div>
       <div className="mt-6 lg:mt-0">
-        <Toolbar note={note} owner={owner}>
+        <Toolbar note={note} real={real}>
           <ReplayButton onClick={() => setRun((count) => count + 1)} />
         </Toolbar>
         <div role={region ? "region" : undefined} aria-label={region} className={`relative mt-2 ${CHAPTER_HEIGHTS[id]}`}>

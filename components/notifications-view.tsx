@@ -25,6 +25,7 @@ import {
 } from "@/lib/social/group-notifications";
 import { imagesForReplyNotice } from "@/lib/social/reply-images";
 import type { NotificationKind } from "@/lib/social/types";
+import { TeamBadge } from "@/components/team-badge";
 
 export function NotificationsView() {
   const pathname = usePathname() || "/";
@@ -167,6 +168,7 @@ export function NotificationsView() {
                       ) : (
                         <>
                           <span className="font-semibold">{headline.lead}</span>
+                          <TeamBadge username={lead?.username} inLink className="ml-1 align-[-3px]" />
                           {headline.rest}
                         </>
                       )}

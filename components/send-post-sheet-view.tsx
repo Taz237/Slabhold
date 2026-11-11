@@ -16,6 +16,7 @@ import {
 import type { Post, Profile } from "@/lib/social/types";
 import { useProfiles } from "@/lib/social/use-profiles";
 import { userHref } from "@/lib/social/user-href";
+import { TeamBadge } from "@/components/team-badge";
 
 /*
  * The Send sheet: recent DM partners, then a search over people you follow
@@ -123,8 +124,9 @@ export function SendPostSheetView({ post, onClose }: { post: Post; onClose: () =
             className="h-10 w-10"
           />
           <span className="min-w-0 flex-1">
-            <span className="block truncate text-[15px] font-semibold leading-5 tracking-tight">
-              {person.displayName}
+            <span className="flex min-w-0 items-center gap-1">
+              <span className="truncate text-[15px] font-semibold leading-5 tracking-tight">{person.displayName}</span>
+              <TeamBadge username={person.username} />
             </span>
             <span className="block truncate text-[13px] text-zinc-500">@{person.username}</span>
           </span>

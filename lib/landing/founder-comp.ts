@@ -46,9 +46,8 @@ export type FounderCompRow = {
   created_at: string | null;
 };
 
-/** Public label fields, the photo and prices. No ids, cert, paid or owner id. */
+/** Public label fields, the photo and prices. No ids, cert, paid, owner id or handle. */
 export type FounderComp = {
-  owner: string;
   player: string;
   year: string;
   set: string;
@@ -132,7 +131,6 @@ export function founderComp(
     .filter(Boolean)
     .join(" ");
   return {
-    owner: profile.username,
     player: card.playerName,
     year: card.yearLabel ?? String(card.year),
     set,
@@ -165,6 +163,6 @@ export function compDemoFromFounder(comp: FounderComp, photo: CompDemo["photo"])
       count: comp.count,
     },
     basis: `Based on ${comp.count} sales`,
-    owner: comp.owner,
+    real: true,
   };
 }

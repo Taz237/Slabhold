@@ -36,7 +36,7 @@ export function LandingPage({ founder = null }: { founder?: FounderShowcase | nu
 
         <section className="mt-6 lg:mt-14 lg:grid lg:grid-cols-[1.05fr_1fr] lg:items-center lg:gap-12">
           <div className="lg:order-2">
-            <HeroSlabs cards={showcase ? showcase.cards : null} owner={showcase?.profile?.username ?? null} />
+            <HeroSlabs cards={showcase ? showcase.cards : null} />
           </div>
           <div className="mt-6 text-center lg:mt-0 lg:text-left">
             <h1 className="text-[2.5rem] leading-[1.05] font-semibold tracking-[-0.035em] text-white sm:text-5xl lg:text-6xl">
