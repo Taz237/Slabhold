@@ -1,6 +1,6 @@
-# Card scanner: plan (v2)
+# Card scanner: plan
 
-Status: plan only. No code and no keys yet. v2 replaces v1: we added competitor research, real pricing and a $50/month budget, and dropped the PSA cert API because it's paid-only.
+Status: final plan (PR 1). No code and no keys in this PR. The PSA cert API is not used because it's paid only.
 
 Goal: point the iPhone camera at a raw card or a graded slab. Slabhold identifies it (player, year, set, card #, parallel, plus grader, grade and cert # for slabs) and opens the guided Add card flow already filled in, so the collector just confirms and saves. It should be better than CollX, Card Ladder and the "card scanner" apps, and as smooth as X's iOS camera.
 
@@ -97,15 +97,15 @@ For comparison, Card Dealer Pro charges dealers 1.2–1.8¢ per card. Our Haiku 
 **On-device reading first, catalog and checklist match second, and Haiku 5.5 only when the phone can't settle it. Sonnet 5.5 runs only when the collector taps "Look closer". Image matching waits until after launch.**
 
 Flow for one scan:
-1. **On the phone (free, about 0.5 s):** edge detection, auto-capture, straightened crop, OCR. We also sample border and background color and check for refractor shimmer, using the existing `parallel-swatch` color names as the vocabulary.
-2. **Slab?** We parse the label (grader, grade, qualifier, cert, year, set, player, #, variety), check it against the catalog and checklists, and go to the confirm sheet. **No paid call. Free, unlimited and under 1 s.**
+1. **On the phone (no cost, about 0.5 s):** edge detection, auto-capture, straightened crop, OCR. We also sample border and background color and check for refractor shimmer, using the existing `parallel-swatch` color names as the vocabulary.
+2. **Slab?** We parse the label (grader, grade, qualifier, cert, year, set, player, #, variety), check it against the catalog and checklists, and go to the confirm sheet. **No paid call, no limit, under 1 s.**
 3. **Raw card, and the phone settled it?** That means the player, year, set and # all agree with one catalog row, and the parallel is pinned by text (for example "/99" matching only one parallel in the checklist). Confirm sheet, **no paid call**.
 4. **Raw card, not settled?** We call **Haiku 5.5** with the cropped front (and back if taken), the OCR lines, the top catalog candidates and **that set's real parallel list** from our checklists (`lib/cards/data/*-parallels.json`, `lib/cards/parallels.ts`). The model has to pick from those lists or answer "not sure", and it returns JSON. The catalog stays in charge: a card # or parallel the checklist doesn't have is never shown as the top pick.
 5. **"Look closer" (the collector's choice):** on the confirm sheet, if the parallel is still "Not sure" or the matches look wrong, one tap re-runs the step on **Sonnet 5.5** with both sides. Limited per day (section 5).
 
 We expect about 30–50% of raw scans to be settled on the phone and the rest to need Haiku. That's an estimate, and the eval will measure it.
 
-**Phase 2, after launch (not in the $50 math):** learn from confirmed scans. When a collector confirms a scan, the phone stores an on-device Apple feature print against that catalog row, so the next scan of the same card can be matched for free. This needs a vector table (SQL, separate reviewed step) and only uses photos the owner has made public. It gets better as the community grows, and parallels still come from steps 3–5.
+**Phase 2, after launch (not in the $50 math):** learn from confirmed scans. When a collector confirms a scan, the phone stores an on-device Apple feature print against that catalog row, so the next scan of the same card can be matched with no paid call. This needs a vector table (SQL, separate reviewed step) and only uses photos the owner has made public. It gets better as the community grows, and parallels still come from steps 3–5.
 
 **Fixture eval before choosing models for good:** we run Haiku 5.5 and Sonnet 5.5 on about 100 of the team's own card photos (not the real Jaylen Brown card). That costs under $3, inside the $50 month. If Haiku's parallel picks are within 5 points of Sonnet's, Haiku stays the default. If they aren't, we raise the share of "Look closer" or move to Sonnet with tighter caps.
 
@@ -117,8 +117,8 @@ We expect about 30–50% of raw scans to be settled on the phone and the rest to
    - show color swatches when the collector has to choose.
 
    A wrong guess shown as fact is the #1 complaint, and we never do that.
-2. **Slabs in one shot, free and fast.** We read the whole label: grader, grade, qualifier (OC, MK), cert, card and variety. No "scan just the name and grade" workaround like Card Ladder's, and no paid call.
-3. **No scan paywall, and honest values.** Scanning is free with no 8-scan trap. Every value is recent sold prices via Trawl with the sales shown, so the inflated "$712 vs $180" numbers can't happen.
+2. **Slabs in one shot, fast, with no paid call.** We read the whole label: grader, grade, qualifier (OC, MK), cert, card and variety. No "scan just the name and grade" workaround like Card Ladder's, and no paid call.
+3. **No scan paywall, and honest values.** Scan as many cards as you want, with no 8-scan trap. Every value is recent sold prices via Trawl with the sales shown, so the inflated "$712 vs $180" numbers can't happen.
 
 Also better on feel: auto-capture with no shutter tap needed, slabs to the confirm sheet in under 1 s, and raw cards showing the player instantly while the AI fills in set and parallel.
 
@@ -134,11 +134,11 @@ Our bar for "clearly beats" is the eval's top-1 raw-card accuracy (identity + pa
 
 | Rank | Idea | Impact | Effort | Why | Verdict |
 | --- | --- | --- | --- | --- | --- |
-| 1 | **No paywall on scanning** | High | ~None | The #1 complaint about every scanner app. We have no paywalls. Our real limit is the AI budget, and a capped scan still works (pick the parallel). | **Launch.** Say it plainly in the scan copy. |
+| 1 | **No paywall on scanning** | High | ~None | The #1 complaint about every scanner app. We have no paywalls. Our real limit is the AI budget, and a capped scan still works (pick the parallel). | **Launch.** The `/scan` copy says "Scan as many cards as you want." |
 | 2 | **Top-3 confirm sheet with 1-tap parallel picking** | High | Low (already PR 6) | It turns a wrong guess into one tap, so a miss costs less here than at CollX. A swatch strip of the set's real parallels with our pick preselected, plus serial # entry when the parallel is numbered. | **Launch.** Strengthen PR 6. |
 | 3 | **One-tap scan to collection** | High | Low–med | "Yes, add it" saves straight away with the collector's remembered visibility choice (existing `visibility-choice`). "Edit details" opens Review for anyone who wants it. Paid price stays optional, as today. Target: camera open → saved in **under 5 s** for a slab. | **Launch.** New PR. |
 | 4 | **Social payoff after the scan** | High (nobody else has a feed) | Low | All of it exists already: the card-added panel, "Also post to my feed", and owners and hunters per card (`lib/cards/owners.ts`, `/api/cards/people`). After a scan save we show "Post your pull" plus "**4 collectors own this · 2 are hunting it**", so the scan leads straight into the social app. | **Launch.** New PR. |
-| 5 | **Instant value after the scan** | High in principle, medium today | Low for cached values, **needs Donnie's OK** for fresh ones | We can't add Trawl calls. We **can** show a value instantly when that card identity already has a cached value or comps result (recent sold prices, last sales, trend arrow), using the existing caches with no new Trawl call. When nothing's cached, the card prices on save the way it does now, under the existing Trawl limits, and the panel shows a skeleton and then the value. Fresh comps for every scan would need Donnie's OK. | **Launch, cached-only.** New PR. Fresh pricing stays a question in the PR. |
+| 5 | **Instant value after the scan** | High in principle, medium today | Low (cached values only) | We can't add Trawl calls. We **can** show a value instantly when that card identity already has a cached value or comps result (recent sold prices, last sales, trend arrow), using the existing caches with no new Trawl call. When nothing's cached, the card prices on save the way it does now, under the existing Trawl limits, and the panel shows a skeleton and then the value. Decided: no new Trawl calls per scan. | **Launch, cached-only (decided).** New PR. |
 | 6 | **Learning from fixes** | Medium at launch, grows with use | Medium + **SQL** | When a collector picks match #2 or #3, changes the parallel, or taps "None of these" and then finds the card, we store **only text**: the normalized OCR tokens, our pick and their pick. No photos and no user IDs in the matcher table. The matcher boosts those mappings for everyone, for example "OCR 'PRIZM SILVER' on a 2018 Prizm front → Silver". Repeat fixes for the same card fold into one row. It needs a table, so a separate reviewed migration. Later it feeds Phase 2 image matching. | **First post-launch item.** SQL PR first. |
 | 7 | **Batch scanning a stack** | High for big collectors, low for most | High (native continuous mode, a queue, a review screen) | The camera stays open: card in, auto-capture, swap card, repeat. Each scan lands in a "Stack" review list where the collector confirms all at once and fixes the few marked "check this". It reuses the same pipeline. AI calls still count against the per-user daily cap. Scans past the cap are kept and marked "Pick parallel" rather than blocked. | **Post-launch.** Needs a second iOS build. |
 
@@ -234,7 +234,7 @@ Five layers. Any one of them alone stops the spend.
    | --- | --- | --- |
    | AI-assisted raw scans (Haiku) | **30/day**, 8 per 10 min | fails closed → on-device result + "Pick parallel" |
    | "Look closer" (Sonnet) | **3/day** | fails closed → "Pick it yourself" |
-   | Slab and phone-settled scans | unlimited | free |
+   | Slab and phone-settled scans | unlimited | no paid call |
 
    Worst case for one user per day: 30 × $0.0009 + 3 × $0.022 = **$0.093**. The global daily cap still wins.
 5. **Kill switches:** `SCAN_AI_ENABLED` (server, default off) and `NEXT_PUBLIC_SCANNER` (whole feature).
@@ -313,7 +313,7 @@ Every PR is test-first and passes `npm test`, `lint:ci` and `build`. UI PRs go t
 | 6 | Confirm sheet + all states + **1-tap parallel swatch strip and serial # entry**, behind `NEXT_PUBLIC_SCANNER`, with a fixture dev mode | web, UI |
 | 7 | **One-tap "Yes, add it"**: save straight from the confirm sheet with the remembered visibility, plus "Edit details" | web, UI |
 | 8 | **Post-scan payoff**: "Post your pull", owners and hunters count, cached value with recent sales and trend arrow (no new Trawl calls) | web, UI |
-| 9 | `/scan` hub + web path + "Free, no scan limits" copy; remove the fake "Sample match" state | web, UI |
+| 9 | `/scan` hub + web path + "Scan as many cards as you want." copy; remove the fake "Sample match" state | web, UI |
 | 10 | Native scanner plugin + Info.plist copy | **iOS build** |
 | 11 | *(Needs the key + your OK)* Spend ledgers, caps, kill switch + `/api/scan/identify` (Haiku) + the 100-photo eval, which **sets the accuracy bar result** | web |
 | 12 | "Look closer" (Sonnet) + its daily limit | web, UI |
@@ -337,13 +337,17 @@ The scanner launches with slabs and phone-settled raw cards working even if PR 1
 | PSA cert API | **Not used** (paid only). The cert # comes from the label text. | $0 |
 | Image embeddings | Not used. Phase 2 uses Apple's on-device feature prints. | $0 |
 
-## Decisions we need
-1. Approve PRs 2–10 (free path, including one-tap add and the post-scan payoff) now?
-2. Approve the AI step (PRs 11–12): one Anthropic key, $50 console limit, $40 app ledger, 30 AI scans and 3 "Look closer" per user per day?
-3. Did "Card Scanner Pro" mean a specific app? If so, we'll add it to section 1.
-4. Is the optional back-of-card step OK?
-5. Instant value: is cached-only at launch OK? Fresh comps for every scan would mean new Trawl calls, which needs your OK.
-6. After launch, which first: learning from fixes (needs SQL) or batch scanning (needs a second iOS build)?
+## Decisions
+Decided:
+- **Building starts with PR 2.** PR 1 is this plan.
+- **Instant value is cached-only at launch.** No new Trawl calls per scan.
+- **After launch, learning from fixes comes first,** then batch scanning.
+- **Scan copy** says "Scan as many cards as you want." Scan copy has no pricing words.
+
+Still open:
+1. Approve the AI step (PRs 11–12): one Anthropic key, $50 console limit, $40 app ledger, 30 AI scans and 3 "Look closer" per user per day?
+2. Did "Card Scanner Pro" mean a specific app? If so, we'll add it to section 1.
+3. Is the optional back-of-card step OK?
 
 ---
 
