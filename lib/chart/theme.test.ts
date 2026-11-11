@@ -62,14 +62,9 @@ describe("chart theme: one place for chart colors", () => {
     assert.match(css, /--chart-accent: #a78bfa;/);
   });
 
-  it("keeps the share image's tone literals equal to TONE_HEX", () => {
+  it("draws the share image's line and chip from TONE_HEX, never its own colors", () => {
     const frame = read("components/og-frame.tsx");
-    const match = frame.match(/model\.tone === "up" \? "(#\w+)" : model\.tone === "down" \? "(#\w+)" : "(#\w+)"/);
-    assert.ok(match);
-    assert.deepEqual(
-      [match[1], match[2], match[3]].map((hex) => hex.toLowerCase()),
-      [TONE_HEX.up, TONE_HEX.down, TONE_HEX.flat].map((hex) => hex.toLowerCase()),
-    );
+    assert.match(frame, /const tone = model\.calm \? TONE_HEX\.brand : TONE_HEX\[model\.tone\];/);
     assert.match(frame, /FILL_STOPS\.map/);
   });
 
@@ -87,10 +82,9 @@ describe("chart theme: one place for chart colors", () => {
     assert.equal(model.tone, "down", "tone itself is unchanged");
     assert.match(model.change, /−\$0\.19 \(−0\.1%\)/);
     const frame = read("components/og-frame.tsx");
-    const calm = frame.match(/const tone = model\.calm \? "(#\w+)"/)?.[1];
-    assert.equal(calm, TONE_HEX.brand.toLowerCase());
+    assert.match(frame, /const tone = model\.calm \? TONE_HEX\.brand/);
     assert.match(frame, /model\.tone === "down" && !model\.calm \? ' stroke-dasharray/);
-    assert.match(frame, /model\.calm\s*\? "rgba\(167,139,250,0\.14\)"/);
+    assert.match(frame, /model\.calm \|\| model\.tone === "up" \? "rgba\(167,139,250,0\.16\)"/);
     const up = collectionValueShareModel({ username: "taz", rows: rows.map((row, i) => ({ ...row, value: i === 3 ? 300 : 285.5 })), range: "7d", today });
     assert.equal(up?.calm, false);
   });
@@ -107,7 +101,7 @@ describe("chart theme: one place for chart colors", () => {
 });
 
 describe("chart theme: hero tone", () => {
-  it("is calm purple under 0.5% either way, gray at exactly $0, else green or red", () => {
+  it("is calm purple under 0.5% either way, gray at exactly $0, else up or down", () => {
     assert.equal(heroTone({ delta: -0.19, pct: -0.0665 }), "calm");
     assert.equal(heroTone({ delta: 0.4, pct: 0.4 }), "calm");
     assert.equal(heroTone({ delta: 0.6, pct: 0.6 }), "up");
@@ -121,10 +115,11 @@ describe("chart theme: hero tone", () => {
   });
 
   it("paints calm in violet, never rose or teal", () => {
-    assert.equal(PILL_TONE.calm, "bg-violet-500/12 text-violet-700 dark:text-violet-300");
-    assert.match(PILL_TONE.up, /emerald/);
-    assert.match(PILL_TONE.down, /rose/);
+    assert.match(PILL_TONE.calm, /violet/);
+    assert.match(PILL_TONE.up, /violet/);
+    assert.match(PILL_TONE.down, /zinc/);
     assert.match(PILL_TONE.flat, /zinc/);
+    assert.doesNotMatch(Object.values(PILL_TONE).join(" "), /emerald|rose|teal/);
   });
 
   it("never lets the collection's y span drop under 4% of the value, or $5", () => {

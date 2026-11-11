@@ -9,6 +9,7 @@ import { MOVE_PILL, collectionMinSpan } from "@/lib/chart/theme";
 import type { MoverCard, MoverRow } from "@/lib/collection/value-series";
 import { cardTitle, money } from "@/lib/format";
 import type { SportsCard } from "@/lib/types";
+import { MoveArrow } from "@/components/move-arrow";
 
 /** A held card as the collection block reads it. */
 export type HeroCard = MoverCard & { card: SportsCard };
@@ -19,17 +20,7 @@ export const tile =
 export const muted = "text-zinc-500 dark:text-zinc-400";
 
 /** ▲ up, ▼ down, nothing when flat, plus the word for screen readers. */
-export function MoveArrow({ tone }: { tone: ChangeTone }) {
-  if (tone === "flat") return null;
-  return (
-    <>
-      <span aria-hidden className="text-[10px] leading-none">
-        {tone === "up" ? "▲" : "▼"}
-      </span>
-      <span className="sr-only">{tone}</span>
-    </>
-  );
-}
+export { MoveArrow };
 
 export type MoverBasis = "week" | "paid";
 

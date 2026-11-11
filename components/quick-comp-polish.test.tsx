@@ -92,11 +92,11 @@ describe("quick comp: one comp card", () => {
     assert.doesNotMatch(html, /eBay sold/);
   });
 
-  it("shows an up chip with ▲ in emerald and a down chip with ▼ in rose", () => {
+  it("shows an up chip with ▲ in purple and a down chip with ▼ in gray", () => {
     const up = chart({});
-    assert.match(up, /data-delta-chip="up"[^>]*class="[^"]*emerald[^"]*"[^>]*>▲ \d/);
+    assert.match(up, /data-delta-chip="up"[^>]*class="[^"]*violet[^"]*"[^>]*>▲ \d/);
     const down = chart({ sales: falling, median: 36 });
-    assert.match(down, /data-delta-chip="down"[^>]*class="[^"]*rose[^"]*"[^>]*>▼ \d/);
+    assert.match(down, /data-delta-chip="down"[^>]*class="[^"]*zinc[^"]*"[^>]*>▼ \d/);
     assert.match(renderToStaticMarkup(createElement(DeltaChip, { pct: 4.2 })), />▲ 4\.2%</);
     assert.match(renderToStaticMarkup(createElement(DeltaChip, { pct: -3.1 })), />▼ 3\.1%</);
     assert.match(renderToStaticMarkup(createElement(DeltaChip, { pct: 0 })), />– 0%</);

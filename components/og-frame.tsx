@@ -11,7 +11,7 @@ import { stripUnsupportedOgText } from "@/lib/og/safe-text";
 import { movingTodayCacheControl } from "@/lib/moving-today/cache";
 import type { MovingTodayShareModel } from "@/lib/moving-today/share";
 import { SHARE_CHART, type CollectionValueShare } from "@/lib/share/collection-value";
-import { FILL_STOPS } from "@/lib/chart/theme";
+import { FILL_STOPS, TONE_HEX } from "@/lib/chart/theme";
 import {
   homeShareImage,
   profileShareImage,
@@ -688,7 +688,8 @@ export async function renderLeaderboardOg(model: LeaderboardShareModel) {
  * range change, the line, @handle and slabhold.app. Signed-in owner only.
  */
 export function renderCollectionValueOg(model: CollectionValueShare, cacheControl = PRIVATE_OG_CACHE_CONTROL) {
-  const tone = model.calm ? "#a78bfa" : model.tone === "up" ? "#34d399" : model.tone === "down" ? "#fb7185" : "#a1a1aa";
+  // Purple up, gray down or flat (lib/chart/theme.ts), never green or red. The +/− sign carries direction.
+  const tone = model.calm ? TONE_HEX.brand : TONE_HEX[model.tone];
   // The app's chart theme (lib/chart/theme.ts): the same fill stops, a range baseline and the latest-value dot.
   const stops = FILL_STOPS.map((stop) => `<stop offset="${stop.offset}" stop-color="${tone}" stop-opacity="${stop.opacity}"/>`).join("");
   const r = (value: number) => Math.round(value * 10) / 10;
@@ -726,13 +727,7 @@ export function renderCollectionValueOg(model: CollectionValueShare, cacheContro
                 fontSize: 32,
                 fontWeight: 700,
                 color: tone,
-                background: model.calm
-                  ? "rgba(167,139,250,0.14)"
-                  : model.tone === "up"
-                    ? "rgba(52,211,153,0.14)"
-                    : model.tone === "down"
-                      ? "rgba(251,113,133,0.14)"
-                      : "rgba(161,161,170,0.14)",
+                background: model.calm || model.tone === "up" ? "rgba(167,139,250,0.16)" : "rgba(161,161,170,0.14)",
               }}
             >
               {model.change}

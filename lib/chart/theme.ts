@@ -4,19 +4,24 @@ import type { ChangeTone } from "@/lib/chart/range";
 
 export type ChartTone = "up" | "down" | "flat" | "brand" | "accent";
 
-/** Line color. Each passes 3:1 on white and on #18181B. */
+/**
+ * Line color. Up is brand purple, down and flat are gray: never green or red.
+ * The chip beside a chart (▲ or ▼) and the dashed baseline under a falling
+ * line carry the direction, never the color alone. Each passes 3:1 on white
+ * and on #18181B.
+ */
 export const TONE_CLASS: Record<ChartTone, string> = {
-  up: "text-emerald-600 dark:text-emerald-400",
-  down: "text-rose-600 dark:text-rose-400",
+  up: "text-violet-600 dark:text-violet-400",
+  down: "text-zinc-500 dark:text-zinc-400",
   flat: "text-zinc-500 dark:text-zinc-400",
   brand: "text-violet-600 dark:text-violet-400",
   accent: "text-[#A78BFA]",
 };
 
-/** For Satori: the dark tone colors. */
+/** For Satori (share images, always dark): purple up, gray down. The +/− sign carries direction. */
 export const TONE_HEX: Record<Exclude<ChartTone, "accent">, string> = {
-  up: "#34D399",
-  down: "#FB7185",
+  up: "#A78BFA",
+  down: "#A1A1AA",
   flat: "#A1A1AA",
   brand: "#A78BFA",
 };
@@ -41,7 +46,7 @@ export const CHART = {
 
 export type HeroTone = ChangeTone | "calm";
 
-/** Gray at exactly $0, calm purple under 0.5% either way, else green or red. */
+/** Gray at exactly $0, calm purple under 0.5% either way, else up or down. */
 export function heroTone(change: { delta: number; pct: number | null } | null | undefined): HeroTone {
   if (!change || change.delta === 0) return "flat";
   if (change.pct != null && Math.abs(change.pct) < 0.5) return "calm";
@@ -51,14 +56,6 @@ export function heroTone(change: { delta: number; pct: number | null } | null | 
 export function heroLineTone(tone: HeroTone): ChartTone {
   return tone === "calm" ? "brand" : tone;
 }
-
-/** Change pills. */
-export const PILL_TONE: Record<HeroTone, string> = {
-  up: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400",
-  down: "bg-rose-500/15 text-rose-700 dark:text-rose-400",
-  flat: "bg-zinc-500/15 text-zinc-600 dark:text-zinc-400",
-  calm: "bg-violet-500/12 text-violet-700 dark:text-violet-300",
-};
 
 /**
  * Market-move pills, matching the collection chart: a lighter purple with ▲
@@ -71,6 +68,24 @@ export const MOVE_PILL: Record<ChangeTone, string> = {
   down: "bg-zinc-500/12 text-zinc-600 dark:bg-white/[0.07] dark:text-zinc-400",
   flat: "bg-zinc-500/12 text-zinc-600 dark:bg-white/[0.07] dark:text-zinc-400",
 };
+
+/** Change pills, the same as MOVE_PILL. "calm" (under 0.5% either way) is a quieter purple. */
+export const PILL_TONE: Record<HeroTone, string> = {
+  ...MOVE_PILL,
+  calm: "bg-violet-500/12 text-violet-700 dark:bg-violet-400/15 dark:text-violet-300",
+};
+
+/** A change as plain text (a percent in a list): MOVE_PILL's colors with no tint. 4.5:1 in both themes. */
+export const MOVE_TEXT: Record<ChangeTone, string> = {
+  up: "text-violet-700 dark:text-violet-300",
+  down: "text-zinc-600 dark:text-zinc-400",
+  flat: "text-zinc-600 dark:text-zinc-400",
+};
+
+/** The arrow for a change, for text that can't hold a component. Flat has none. */
+export function moveArrow(tone: ChangeTone): string {
+  return tone === "up" ? "▲" : tone === "down" ? "▼" : "";
+}
 
 /** Smallest y span for collection charts: 4% of the value, $5 at least. */
 export function collectionMinSpan(latest: number): number {

@@ -91,6 +91,7 @@ import {
   type PriceRead,
 } from "@/lib/value/price-fallback";
 import { useCardValue } from "@/lib/value/use-card-values";
+import { MOVE_TEXT } from "@/lib/chart/theme";
 
 /** Only drawn after a tap on the card page, so it is its own chunk. */
 const DealSheet = lazyPart(() => import("@/components/deal-sheet").then((mod) => mod.DealSheet), null, {
@@ -995,11 +996,7 @@ function Metric({
       <p
         title={title}
         className={`mt-1 min-w-0 max-w-full overflow-hidden text-[clamp(0.95rem,3.4vw,1.125rem)] font-semibold leading-snug break-words tabular-nums ${
-          tone === "up"
-            ? "text-emerald-600 dark:text-emerald-400"
-            : tone === "down"
-              ? "text-rose-600 dark:text-rose-400"
-              : ""
+          tone ? MOVE_TEXT[tone] : ""
         }`}
       >
         {value}

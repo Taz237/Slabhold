@@ -33,6 +33,7 @@ import {
 } from "@/lib/moving-today/types";
 import { signupPath } from "@/lib/auth/safe-next";
 import { startPendingNav } from "@/lib/ui/tap-feedback";
+import { moveArrow } from "@/lib/chart/theme";
 
 /**
  * Whether the reader is signed in, for the quiet row's link. The feed sets it
@@ -266,10 +267,13 @@ export function MoverTile({
           aria-hidden="true"
           className={`pointer-events-none absolute top-[calc((132px-8px)*5/3-12px)] left-1/2 inline-flex h-5 -translate-x-1/2 items-center rounded-full px-2 text-[10px] font-semibold whitespace-nowrap tabular-nums shadow-[0_4px_12px_-4px_rgba(0,0,0,0.5)] backdrop-blur-sm ${
             gain.tone === "up"
-              ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/90 dark:text-emerald-400"
-              : "bg-rose-50 text-rose-700 dark:bg-rose-950/90 dark:text-rose-400"
+              ? "bg-violet-50 text-violet-700 dark:bg-[#1e1036] dark:text-violet-300"
+              : "bg-zinc-100 text-zinc-600 dark:bg-zinc-900 dark:text-zinc-400"
           }`}
         >
+          <span aria-hidden className="mr-1 text-[8px] leading-none">
+            {moveArrow(gain.tone)}
+          </span>
           {badge}
         </span>
       ) : null}
