@@ -1925,30 +1925,34 @@ export function CardForm({
       />
     );
 
-  // What you paid is optional and out of the way: Edit's More details only, no validation.
-  const paidRows = (
-    <>
-      <FieldSheetRow
-        label="What you paid (optional)"
-        value={form.purchasePrice}
-        display={moneyRowValue(form.purchasePrice)}
-        type="number"
-        inputMode="decimal"
-        prefix="$"
-        inputPlaceholder="25.00"
-        dataField="purchasePrice"
-        onChange={(purchasePrice) => setForm((prev) => ({ ...prev, purchasePrice }))}
-      />
-      <FieldSheetRow
-        label="Purchase date (optional)"
-        value={form.purchaseDate}
-        display={dateRowValue(form.purchaseDate)}
-        type="date"
-        dataField="purchaseDate"
-        onChange={(purchaseDate) => setForm((prev) => ({ ...prev, purchaseDate }))}
-      />
-    </>
+  // What you paid is optional: a filled value shows like notes do, an empty one stays in More details. No validation.
+  const hasPaidValue = form.purchasePrice.trim() !== "";
+  const hasPurchaseDate = form.purchaseDate.trim() !== "";
+  const paidRow = (
+    <FieldSheetRow
+      label="What you paid (optional)"
+      value={form.purchasePrice}
+      display={moneyRowValue(form.purchasePrice)}
+      type="number"
+      inputMode="decimal"
+      prefix="$"
+      inputPlaceholder="25.00"
+      dataField="purchasePrice"
+      onChange={(purchasePrice) => setForm((prev) => ({ ...prev, purchasePrice }))}
+    />
   );
+  const purchaseDateRow = (
+    <FieldSheetRow
+      label="Purchase date (optional)"
+      value={form.purchaseDate}
+      display={dateRowValue(form.purchaseDate)}
+      type="date"
+      dataField="purchaseDate"
+      onChange={(purchaseDate) => setForm((prev) => ({ ...prev, purchaseDate }))}
+    />
+  );
+  // Short enough to fit at 390px. "paid" covers What you paid and Purchase date while either is empty.
+  const moreSummary = hasPaidValue && hasPurchaseDate ? "Serial, cert #, notes" : "Serial, cert #, notes, paid";
 
   const serialRows = (
     <SheetRow label="Serial" value={serialShown} placeholder="Not numbered" dataField="serialRun">
@@ -2263,16 +2267,19 @@ export function CardForm({
 
       <EditGroup>
         {hasNotes ? notesRow : null}
+        {hasPaidValue ? paidRow : null}
+        {hasPurchaseDate ? purchaseDateRow : null}
         {showMore ? (
           <>
             {serialShown ? null : serialRows}
             {graded && !certNumber.trim() ? certRow : null}
             {graded && !gradeQualifier ? qualifierRow : null}
             {hasNotes ? null : notesRow}
-            {paidRows}
+            {hasPaidValue ? null : paidRow}
+            {hasPurchaseDate ? null : purchaseDateRow}
           </>
         ) : (
-          <EditRow label="More details" value="Serial, cert #, notes, what you paid" onClick={() => setMoreOpen(true)} />
+          <EditRow label="More details" value={moreSummary} onClick={() => setMoreOpen(true)} />
         )}
       </EditGroup>
 

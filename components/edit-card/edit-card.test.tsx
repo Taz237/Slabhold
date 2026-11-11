@@ -298,17 +298,44 @@ describe("Edit card pickers open on their choices, never the keyboard", () => {
 });
 
 describe("Edit card: what you paid is optional and out of the way", () => {
-  it("keeps What you paid and Purchase date inside the closed More details, labeled optional", async () => {
-    const view = await mountEdit();
+  it("hides empty What you paid and Purchase date inside the closed More details, labeled optional", async () => {
+    const view = await mountEdit({ ...card, purchasePrice: null, purchaseDate: "" });
     try {
       assert.equal(findRow("What you paid (optional)"), undefined);
       assert.equal(findRow("Purchase date (optional)"), undefined);
       const money = [...editForm().querySelectorAll("section")].find((el) => el.querySelector("h2")?.textContent === "Your money")!;
       assert.doesNotMatch(money.textContent ?? "", /What you paid|Purchase date/);
-      assert.ok(rowLabel("More details").includes("what you paid"));
+      assert.ok(rowLabel("More details").includes("notes, paid"));
       await click(findRow("More details")!);
+      assert.ok(rowLabel("What you paid (optional)"));
+      assert.ok(rowLabel("Purchase date (optional)"));
+      assert.doesNotMatch(rowLabel("What you paid (optional)"), /\$0/);
+    } finally {
+      view.unmount();
+    }
+  });
+
+  it("shows a filled What you paid and Purchase date outside More details, like notes", async () => {
+    const view = await mountEdit();
+    try {
       assert.ok(rowLabel("What you paid (optional)").includes("$120.00"));
       assert.ok(rowLabel("Purchase date (optional)").includes("Mar 14, 2025"));
+      assert.doesNotMatch(rowLabel("More details"), /paid/);
+      // Opening More details never shows them twice.
+      await click(findRow("More details")!);
+      assert.equal(editForm().querySelectorAll('button[aria-label^="What you paid (optional):"]').length, 1);
+      assert.equal(editForm().querySelectorAll('button[aria-label^="Purchase date (optional):"]').length, 1);
+    } finally {
+      view.unmount();
+    }
+  });
+
+  it("shows only the filled one: a paid value with no date keeps the date in More details", async () => {
+    const view = await mountEdit({ ...card, purchaseDate: "" });
+    try {
+      assert.ok(rowLabel("What you paid (optional)").includes("$120.00"));
+      assert.equal(findRow("Purchase date (optional)"), undefined);
+      assert.ok(rowLabel("More details").includes("notes, paid"));
     } finally {
       view.unmount();
     }
@@ -584,10 +611,10 @@ async function flushFrames() {
   });
 }
 
-async function mountEdit() {
-  win.localStorage.setItem(STORAGE_KEY, JSON.stringify([card]));
+async function mountEdit(existing: SportsCard = card) {
+  win.localStorage.setItem(STORAGE_KEY, JSON.stringify([existing]));
   pushed.length = 0;
-  const view = await mount({ existing: card });
+  const view = await mount({ existing });
   await waitFor(() => Boolean(win.document.querySelector('form[data-slot="edit-card"]')));
   return view;
 }
