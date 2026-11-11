@@ -1,7 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
-import { join } from "node:path";
 import { after, before, describe, it } from "node:test";
 import { JSDOM } from "jsdom";
 import { act, createElement, type ComponentType, type ReactNode } from "react";
@@ -82,10 +80,9 @@ type Social = { user: { id: string; username: string } | null };
 type PostResult = { error: string | null; postId: string | null };
 
 const posts: Saved[] = [];
-let postResult: () => Promise<PostResult> = async () => ({ error: null, postId: "post-1" });
+const postResult: () => Promise<PostResult> = async () => ({ error: null, postId: "post-1" });
 let CardForm: ComponentType<FormProps>;
 
-const fixtureUser: Social = { user: { id: "user-1", username: "fixturecollector" } };
 
 
 before(async () => {
@@ -188,20 +185,7 @@ describe("Add card pickers open on their choices, never the keyboard", () => {
 
 
 /** A pretend iOS keyboard: the visual viewport is `height` px shorter than the window. */
-function keyboardUp(height: number): () => void {
-  const viewport = Object.assign(new win.EventTarget(), {
-    height: win.innerHeight - height,
-    offsetTop: 0,
-  });
-  Object.defineProperty(win, "visualViewport", { configurable: true, value: viewport });
-  return () => {
-    Object.defineProperty(win, "visualViewport", { configurable: true, value: undefined });
-  };
-}
 
-function read(path: string) {
-  return readFileSync(join(process.cwd(), path), "utf8");
-}
 
 function sheet(): HTMLElement {
   const el = win.document.querySelector<HTMLElement>('[role="dialog"]');
@@ -209,25 +193,12 @@ function sheet(): HTMLElement {
   return el;
 }
 
-function sheetSearch(): HTMLInputElement {
-  const el = sheet().querySelector<HTMLInputElement>("input");
-  assert.ok(el);
-  return el;
-}
 
-function sheetText(): string {
-  return sheet().textContent ?? "";
-}
 
 function sheetOptions(): string[] {
   return [...sheet().querySelectorAll("ul button")].map((node) => node.textContent?.trim() ?? "");
 }
 
-function sheetButton(label: string): HTMLButtonElement {
-  const el = [...sheet().querySelectorAll<HTMLButtonElement>("ul button")].find((node) => node.textContent?.trim() === label);
-  assert.ok(el, label);
-  return el;
-}
 
 async function walkToParallel() {
   await pickPlayer("wemb", "Victor Wembanyama");

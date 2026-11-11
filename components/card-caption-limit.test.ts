@@ -17,7 +17,9 @@ describe("card caption over 280", () => {
   it("disables all three submit buttons and stops submit()", () => {
     assert.match(form, /const holdSave = captionOver \? \{ disabled: true \} : undefined;/);
     // The spread comes right after `disabled`, so it wins over the saving/photo state.
-    assert.equal((form.match(/disabled=\{saving \|\| readingPhoto\}\s*\{\.\.\.holdSave\}/g) ?? []).length, 3);
+    assert.equal((form.match(/disabled=\{saving \|\| readingPhoto\}\s*\{\.\.\.holdSave\}/g) ?? []).length, 2);
+    // Edit card's Save also waits for a change.
+    assert.match(form, /disabled=\{!editDirty \|\| saving \|\| readingPhoto\}\s*\{\.\.\.holdSave\}/);
     assert.match(form, /async function submit\(\) \{\s*if \(captionOver\) return;/);
   });
 

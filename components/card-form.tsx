@@ -1,9 +1,22 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { Fragment, useEffect, useId, useMemo, useRef, useState, useSyncExternalStore, type SetStateAction } from "react";
+import { Fragment, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type SetStateAction } from "react";
 import { ChevronDown, ScanSearch } from "lucide-react";
 import { AddCardFlow } from "@/components/add-card/add-card-flow";
+import { Chip, DraftSlab, PrimaryButton, QuietButton, StepDock, focusRing } from "@/components/add-card/flow-ui";
+import type { ArtCard } from "@/components/card-slab-art";
+import {
+  EditGroup,
+  EditRow,
+  EditSheet,
+  FieldSheetRow,
+  SheetRow,
+  dateRowValue,
+  moneyRowValue,
+  serialRowValue,
+  sheetFieldClass,
+} from "@/components/edit-card/edit-parts";
 import { CardPhotoField } from "@/components/card-photo-field";
 import { CategoryPicker } from "@/components/category-picker";
 import { useCollection, useDefaultAccent } from "@/components/collection-provider";
@@ -97,7 +110,6 @@ import {
   type CardDraftForm,
   type NewCardDraft,
 } from "@/lib/cards/new-card-draft";
-import { cardFormPreview } from "@/lib/cards/form-preview";
 import {
   rememberFirstCardPrivacy,
   shouldMarkFirstCardPrivacy,
@@ -116,7 +128,7 @@ import {
 import { identifyFromPhoto } from "@/lib/comps/sample";
 import { OpenToOffersToggle } from "@/components/open-to-offers";
 import { VisibilityChoice } from "@/components/visibility-choice";
-import { cardCategory } from "@/lib/card-category";
+import { cardCategory, categoryLabel } from "@/lib/card-category";
 import { showOpenToOffersToggle } from "@/lib/offers/open-to-offers";
 import {
   PRIVATE_VISIBILITY_HINT,
@@ -533,6 +545,29 @@ export function CardForm({
     gradeNumber,
     sold,
   });
+  // Edit card's Save waits for a change: everything the save writes, as first shown.
+  const editSignature = existing
+    ? JSON.stringify([
+        form,
+        photo,
+        noNumber,
+        setIsCustom,
+        parallelIsCustom,
+        gradeCompany,
+        gradeNumber,
+        gradeQualifier,
+        certNumber,
+        isRookie,
+        isAuto,
+        isRelic,
+        sold,
+        share,
+        openToOffers,
+        category,
+      ])
+    : "";
+  const [firstEditSignature] = useState(editSignature);
+  const editDirty = editSignature !== firstEditSignature;
   const grading = view.grading;
   const conditionType = view.conditionType;
   const graded = view.graded;
@@ -547,41 +582,6 @@ export function CardForm({
   const purchaseNeg = view.purchaseNeg;
   const estNeg = view.estNeg;
   const sellNeg = view.sellNeg;
-
-  const preview = useMemo(() => {
-    return cardFormPreview({
-      playerName: form.playerName,
-      year: parsedYear?.year ?? 0,
-      yearLabel: parsedYear?.yearLabel,
-      setBrand: form.setBrand,
-      cardNumber: noNumber
-        ? undefined
-        : normalizeCardNumberInput(form.cardNumber) || undefined,
-      noNumber,
-      parallel: form.parallel,
-      serialRun: form.serialRun ? Number(form.serialRun) : null,
-      isAuto,
-      isRelic,
-      conditionType,
-      grade: grading.grade,
-      gradeQualifier: gradeQualifier || null,
-      isRookie,
-    });
-  }, [
-    parsedYear,
-    form.playerName,
-    form.setBrand,
-    form.cardNumber,
-    form.parallel,
-    form.serialRun,
-    noNumber,
-    isAuto,
-    isRelic,
-    isRookie,
-    conditionType,
-    grading.grade,
-    gradeQualifier,
-  ]);
 
   const matchForm = useMemo(
     () =>
@@ -1595,15 +1595,6 @@ export function CardForm({
     </div>
   );
 
-  const currentValueNode = existing ? (
-        <p className="min-w-0 text-sm font-medium text-zinc-700 tabular-nums whitespace-nowrap dark:text-zinc-200">
-          {current.loading
-            ? "Current value …"
-            : (currentValueLine ??
-              formatCardValueLabel(current.value, { createdAt: existing.createdAt }))}
-        </p>
-  ) : null;
-
   const estimateNode = (
       <Field
         label="Your estimate"
@@ -1721,23 +1712,6 @@ export function CardForm({
           placeholder="Condition, centering, why you bought it…"
         />
       </Field>
-  );
-
-  const previewNode = (
-      <p className="rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-700 dark:border-white/10 dark:bg-white/[0.04] dark:text-zinc-200">
-        <span className="text-[13px] text-zinc-500">
-          Preview
-        </span>
-        <span
-          className={
-            preview.placeholder
-              ? "mt-1 block text-zinc-400 dark:text-zinc-500"
-              : "mt-1 block font-medium"
-          }
-        >
-          {preview.text}
-        </span>
-      </p>
   );
 
   const shareToFeedNode = existing ? null : (
@@ -1972,69 +1946,399 @@ export function CardForm({
     );
   }
 
+  // Edit card: the slab on top, then grouped rows that each open a sheet.
+  // Same state, checks and submit() as before; only the presentation differs.
+  const editFormId = guidedFormId;
+  const rowError = (key: string, failing: boolean, text: string) => (touched[key] && failing ? text : null);
+  const yearRowError = rowError(
+    "yearLabel",
+    !yearOk,
+    form.yearLabel.trim() === "" ? "Year is required" : "Use 2026 or 2023-24",
+  );
+  const sellMissing = sold && !form.sellPrice.trim();
+  const serialShown = serialRowValue(form.serialNo, form.serialRun);
+  const graderShown = graded ? gradeCompany : gradeCompany ? "Raw" : "";
+  const hasNotes = form.notes.trim() !== "";
+  const showMore = moreOpen;
+  const playerChoices = optionsWithCurrent(
+    [...new Set(cards.map((item) => item.playerName.trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b)),
+    form.playerName.trim(),
+  );
+  const soldShown = sold
+    ? ["Sold", moneyRowValue(form.sellPrice), form.sellDate ? dateRowValue(form.sellDate) : ""].filter(Boolean).join(" · ")
+    : "";
+  const heroArt: ArtCard = {
+    playerName: form.playerName.trim() || existing?.playerName || "Your card",
+    year: parsedYear?.year ?? existing?.year ?? 0,
+    yearLabel: parsedYear?.yearLabel ?? existing?.yearLabel ?? "",
+    setBrand: form.setBrand.trim(),
+    grade: grading.grade,
+    conditionType,
+    grader: graded ? gradeCompany : undefined,
+    gradeQualifier: graded ? gradeQualifier : "",
+    certNumber: graded ? certNumber : "",
+    accent: existing?.accent ?? accent,
+  };
+  const heroLine = [heroArt.yearLabel || (heroArt.year ? String(heroArt.year) : ""), heroArt.setBrand]
+    .filter(Boolean)
+    .join(" · ");
+  const heroGrade = graded ? [grading.grade, gradeQualifier].filter(Boolean).join(" ") : "Raw";
+  const pickerRow =
+    (label: string, display: string, opts: { error?: string | null; dataField?: string; placeholder?: string } = {}) =>
+    // eslint-disable-next-line react/display-name
+    ({ open, expanded }: { open: () => void; expanded: boolean }) => (
+      <EditRow
+        label={label}
+        value={display}
+        placeholder={opts.placeholder ?? "Choose"}
+        error={opts.error}
+        dataField={opts.dataField}
+        expanded={expanded}
+        onClick={open}
+      />
+    );
+
+  const serialRows = (
+    <SheetRow label="Serial" value={serialShown} placeholder="Not numbered" dataField="serialRun">
+      {() => (
+        <SerialFields
+          serialNo={form.serialNo}
+          serialRun={form.serialRun}
+          onSerialNo={(serialNo) => setForm((prev) => ({ ...prev, serialNo }))}
+          onSerialRun={(serialRun) => setForm((prev) => ({ ...prev, serialRun }))}
+        />
+      )}
+    </SheetRow>
+  );
+  const certRow = graded ? (
+    <FieldSheetRow
+      label="Cert #"
+      value={certNumber}
+      placeholder="Add"
+      inputMode="numeric"
+      inputPlaceholder="From the label"
+      dataField="certNumber"
+      onChange={setCertNumber}
+    />
+  ) : null;
+  const qualifierRow = graded ? (
+    <SearchSelect
+      label="Qualifier"
+      value={gradeQualifier}
+      options={GRADE_QUALIFIERS}
+      allowEmpty
+      searchable={false}
+      onChange={setGradeQualifier}
+      renderTrigger={pickerRow("Qualifier", gradeQualifier, { placeholder: "None" })}
+    />
+  ) : null;
+  const notesRow = (
+    <SheetRow label="Notes" value={form.notes.trim()} placeholder="Add">
+      {() => (
+        <NotesField
+          value={form.notes}
+          onChange={(notes) => setForm((prev) => ({ ...prev, notes }))}
+        />
+      )}
+    </SheetRow>
+  );
+
   return (
-    <form ref={formRef} onSubmit={onSubmit} className="mx-auto max-w-xl space-y-5">
-      {headerNode}
-
-      {visibilityNode}
-
-      {categoryNode}
-
-      {startOverNode}
-
-      {photoNode}
-
-      {playerNode}
-
-      <div className="grid grid-cols-2 gap-3">
-        {yearNode}
-        {sportNode}
+    <form
+      id={editFormId}
+      ref={formRef}
+      onSubmit={onSubmit}
+      className="mx-auto max-w-xl space-y-6 pb-2"
+      data-slot="edit-card"
+    >
+      <div className="grid min-h-11 grid-cols-[1fr_auto_1fr] items-center gap-3">
+        <QuietButton onClick={cancelEdit} className="-ml-3 justify-self-start text-zinc-700 dark:text-zinc-200">
+          Cancel
+        </QuietButton>
+        <h1 className="text-base font-semibold">Edit card</h1>
+        <span aria-hidden />
       </div>
 
-      {setNode}
-
-      {cardNumberNode}
-
-      <div className="grid grid-cols-2 gap-3">
-        {parallelNode}
-        {serialRunNode}
-      </div>
-
-      {serialNoNode}
-
-      {traitsNode}
-
-      {gradingCompanyNode}
-
-      {graded ? (
-        <div className="space-y-3">
-          {gradeNode}
-          {gradeExtrasNode}
+      {embedded ? null : (
+        <div className="flex flex-col items-center text-center">
+          <div className="w-36 sm:w-40">
+            <DraftSlab art={heroArt} photo={photo} />
+          </div>
+          <p className="mt-4 max-w-full truncate text-xl font-semibold tracking-tight">{heroArt.playerName}</p>
+          <p className="mt-1 text-sm text-zinc-500 tabular-nums">
+            {[heroLine, heroGrade].filter(Boolean).join(" · ")}
+          </p>
+          <SheetRowButton label={photo ? "Change photo" : "Add a photo"} title="Photo">
+            {() => <div className="space-y-3">{photoNode}</div>}
+          </SheetRowButton>
         </div>
-      ) : null}
+      )}
 
-      {purchaseNode}
+      <EditGroup title="Card">
+        <SearchSelect
+          label="Player"
+          value={form.playerName}
+          options={playerChoices}
+          allowCustom
+          searchPlaceholder="Search or type a player"
+          dataField="playerName"
+          onChange={(playerName) => {
+            markTouched("playerName");
+            setForm((prev) => ({ ...prev, playerName }));
+          }}
+          renderTrigger={pickerRow("Player", form.playerName, {
+            error: rowError("playerName", !playerOk, "Player name is required"),
+            dataField: "playerName",
+          })}
+        />
+        <SearchSelect
+          label="Year"
+          value={form.yearLabel}
+          options={
+            form.yearLabel && isValidYear(form.yearLabel)
+              ? optionsWithCurrent(yearOptions, form.yearLabel)
+              : yearOptions
+          }
+          allowCustom
+          isCustomValid={isValidYear}
+          customInvalidHint="Use 2026 or 2023-24"
+          inputMode="text"
+          onChange={(yearLabel) => {
+            markTouched("yearLabel");
+            setForm((prev) => ({ ...prev, yearLabel }));
+          }}
+          renderTrigger={pickerRow("Year", form.yearLabel, { error: yearRowError, dataField: "yearLabel" })}
+        />
+        <SearchSelect
+          label="Set"
+          value={form.setBrand}
+          options={optionsWithCurrent(sortSetNames(SETS), form.setBrand)}
+          allowCustom
+          customHint={SET_PARALLEL_HINT}
+          searchPlaceholder="Search or type a set"
+          onChange={(setBrand) => {
+            markTouched("setBrand");
+            const known = SETS.some((s) => s.toLowerCase() === setBrand.toLowerCase());
+            setSetIsCustom(Boolean(setBrand) && !known);
+            const next = parallelAfterSetChange({ parallel: form.parallel, parallelIsCustom, setBrand });
+            setParallelIsCustom(next.parallelIsCustom);
+            setParallelNote(next.reset ? "Parallel reset for this set" : "");
+            setForm((prev) => ({ ...prev, setBrand, parallel: next.parallel }));
+          }}
+          renderTrigger={pickerRow("Set", form.setBrand, {
+            error: rowError("setBrand", !setOk, "Set is required"),
+            dataField: "setBrand",
+          })}
+        />
+        <FieldSheetRow
+          label="Card #"
+          value={form.cardNumber}
+          display={noNumber ? "No number" : form.cardNumber ? `#${form.cardNumber}` : ""}
+          prefix="#"
+          inputPlaceholder="136 or BCP-1"
+          dataField="cardNumber"
+          error={rowError("cardNumber", !noNumber && !cardNumberOk, "Add a number or No number")}
+          onChange={(value) => {
+            markTouched("cardNumber");
+            if (noNumber && value) setNoNumber(false);
+            setForm((prev) => ({ ...prev, cardNumber: value.replace(/^#/, "") }));
+          }}
+          extra={
+            <Chip
+              selected={noNumber}
+              onClick={() => {
+                const next = !noNumber;
+                setNoNumber(next);
+                if (next) setForm((prev) => ({ ...prev, cardNumber: "" }));
+              }}
+            >
+              No number on card
+            </Chip>
+          }
+        />
+        <SearchSelect
+          label="Parallel"
+          value={form.parallel}
+          options={optionsWithCurrent([...parallelsForSet(form.setBrand)], form.parallel)}
+          allowCustom
+          customHint={SET_PARALLEL_HINT}
+          searchPlaceholder="Search or type a parallel"
+          onChange={(parallel) => {
+            const next = parallelChoice(form.setBrand, parallel);
+            setParallelIsCustom(next.parallelIsCustom);
+            setParallelNote("");
+            setIsRookie((current) => current || textLooksRookie(next.parallel));
+            setForm((prev) => ({ ...prev, parallel: next.parallel }));
+          }}
+          renderTrigger={pickerRow("Parallel", parallelNote ? `${form.parallel || "Base"} (reset)` : form.parallel || "Base")}
+        />
+        {serialShown || showMore ? serialRows : null}
+        <SearchSelect
+          label="Sport"
+          value={form.sport}
+          options={optionsWithCurrent(SPORT_PICKER_OPTIONS, form.sport)}
+          searchable={false}
+          onChange={(sport) => {
+            setSportTouched(true);
+            setSportOffer("");
+            setForm((prev) => ({ ...prev, sport }));
+          }}
+          renderTrigger={pickerRow("Sport", form.sport)}
+        />
+      </EditGroup>
+      {sportOfferNode}
 
-      {currentValueNode}
+      <EditGroup title="Details">
+        <div className="flex flex-wrap gap-2 px-4 py-3" role="group" aria-label="Rookie, auto, patch">
+          <Chip selected={isRookie} onClick={() => setIsRookie(!isRookie)}>
+            Rookie
+          </Chip>
+          <Chip selected={isAuto} onClick={() => setIsAuto(!isAuto)}>
+            Auto
+          </Chip>
+          <Chip selected={isRelic} onClick={() => setIsRelic(!isRelic)}>
+            Patch / Relic
+          </Chip>
+        </div>
+        <SearchSelect
+          label="Grading company"
+          value={gradeCompany}
+          options={gradingCompanyOptions(gradeCompany)}
+          searchable={false}
+          dataField="gradingCompany"
+          onChange={chooseGradeCompany}
+          renderTrigger={pickerRow("Grading", graderShown, {
+            error: companyMissing ? "Choose a company" : null,
+            dataField: "gradingCompany",
+          })}
+        />
+        {graded ? (
+          <SearchSelect
+            label="Grade"
+            value={gradeNumber}
+            options={gradeChoices}
+            searchable={false}
+            onChange={(number) => {
+              markTouched("grade");
+              setGradeNumber(number);
+            }}
+            renderTrigger={pickerRow("Grade", gradeNumber, {
+              error: rowError("grade", !gradeNumber, "Choose a grade"),
+              dataField: "grade",
+            })}
+          />
+        ) : null}
+        {graded && (certNumber.trim() || showMore) ? certRow : null}
+        {graded && (gradeQualifier || showMore) ? qualifierRow : null}
+      </EditGroup>
 
-      {estimateNode}
+      <EditGroup title="Your money">
+        <FieldSheetRow
+          label="What you paid"
+          value={form.purchasePrice}
+          display={moneyRowValue(form.purchasePrice)}
+          type="number"
+          inputMode="decimal"
+          prefix="$"
+          inputPlaceholder="25.00"
+          dataField="purchasePrice"
+          error={rowError("purchasePrice", purchaseNeg, "Can't be negative")}
+          onChange={(purchasePrice) => setForm((prev) => ({ ...prev, purchasePrice }))}
+        />
+        <FieldSheetRow
+          label="Purchase date"
+          value={form.purchaseDate}
+          display={dateRowValue(form.purchaseDate)}
+          type="date"
+          dataField="purchaseDate"
+          onChange={(purchaseDate) => setForm((prev) => ({ ...prev, purchaseDate }))}
+        />
+        <FieldSheetRow
+          label="Your estimate"
+          value={form.estimatedSellPrice}
+          display={moneyRowValue(form.estimatedSellPrice)}
+          type="number"
+          inputMode="decimal"
+          prefix="$"
+          inputPlaceholder="25.00"
+          dataField="estimatedSellPrice"
+          error={rowError("estimatedSellPrice", estNeg, "Can't be negative")}
+          onChange={(estimatedSellPrice) => setForm((prev) => ({ ...prev, estimatedSellPrice }))}
+        />
+        <EditRow
+          label="Current value"
+          chevron={false}
+          value={
+            current.loading
+              ? "Checking…"
+              : (currentValueLine?.replace(/^Current value /, "") ??
+                formatCardValueLabel(current.value, { createdAt: existing?.createdAt ?? "" }))
+          }
+          placeholder="No sales yet"
+        />
+      </EditGroup>
 
-      {soldToggleNode}
+      <EditGroup title="Sold">
+        <SheetRow
+          label={sold ? "Sold" : "Mark as sold"}
+          value={sold ? soldShown.replace(/^Sold · ?/, "") : ""}
+          placeholder=""
+          title="Mark as sold"
+          dataField="sellPrice"
+          error={
+            touched.sellPrice && sellNeg
+              ? "Can't be negative"
+              : touched.sellPrice && sellMissing
+                ? "Add the sold price"
+                : null
+          }
+        >
+          {() => (
+            <SoldFields
+              sold={sold}
+              onSold={setSold}
+              sellPrice={form.sellPrice}
+              sellDate={form.sellDate}
+              onSellPrice={(sellPrice) => {
+                markTouched("sellPrice");
+                setForm((prev) => ({ ...prev, sellPrice }));
+              }}
+              onSellDate={(sellDate) => setForm((prev) => ({ ...prev, sellDate }))}
+            />
+          )}
+        </SheetRow>
+      </EditGroup>
 
-      {offersNode}
+      <EditGroup title="Sharing">
+        <SheetRow label="Who can see it" value={share ? "Public" : "Private"}>
+          {() => (
+            <div className="space-y-4">
+              {visibilityNode}
+              {offersNode}
+            </div>
+          )}
+        </SheetRow>
+        <SheetRow label="Category" value={categoryLabel(category)}>
+          {() => categoryNode}
+        </SheetRow>
+      </EditGroup>
 
-      {sellFieldsNode}
+      <EditGroup>
+        {hasNotes ? notesRow : null}
+        {showMore ? (
+          <>
+            {serialShown ? null : serialRows}
+            {graded && !certNumber.trim() ? certRow : null}
+            {graded && !gradeQualifier ? qualifierRow : null}
+            {hasNotes ? null : notesRow}
+          </>
+        ) : (
+          <EditRow label="More details" value="Serial, cert #, notes" onClick={() => setMoreOpen(true)} />
+        )}
+      </EditGroup>
 
-      {notesNode}
-
-      {previewNode}
-
-      {shareToFeedNode}
-
-      {saveErrorNode}
-
-      <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-between">
-        {existing ? (
+      {existing ? (
+        <div className="overflow-hidden rounded-2xl bg-white ring-1 ring-zinc-200/80 dark:bg-white/[0.035] dark:ring-white/[0.07]">
           <button
             type="button"
             onClick={() => {
@@ -2043,44 +2347,188 @@ export function CardForm({
                 router.push("/");
               }
             }}
-            className="rounded-full px-4 py-3 text-sm text-rose-400 hover:bg-rose-400/10"
+            className={`flex min-h-12 w-full items-center px-4 text-left text-[15px] text-rose-600 transition-colors hover:bg-rose-500/5 dark:text-rose-400 ${focusRing} focus-visible:ring-inset focus-visible:ring-offset-0`}
           >
             Delete card
           </button>
-        ) : (
-          <span />
-        )}
-        <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
-          {existing ? (
-            <button
-              type="button"
-              onClick={cancelEdit}
-              className="rounded-full border border-zinc-200 px-6 py-3 text-sm font-semibold text-zinc-700 dark:border-white/10 dark:text-zinc-200"
-            >
-              Cancel
-            </button>
-          ) : null}
-        <button
+        </div>
+      ) : null}
+
+      {saveErrorNode}
+
+      <StepDock>
+        <PrimaryButton
           type="submit"
-          disabled={saving || readingPhoto}
+          form={editFormId}
+          disabled={!editDirty || saving || readingPhoto}
           {...holdSave}
           onMouseDown={(e) => {
             // Keep focus so onBlur validation cannot swallow the first click.
             if (e.button === 0) e.preventDefault();
           }}
-          className="rounded-full bg-violet-600 px-6 py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40 hover:bg-violet-500"
         >
-          {saving
-            ? existing
-              ? "Saving…"
-              : "Adding…"
-            : existing
-              ? "Save changes"
-              : "Add to collection"}
-        </button>
-        </div>
-      </div>
+          {saving ? "Saving…" : "Save"}
+        </PrimaryButton>
+      </StepDock>
     </form>
+  );
+}
+
+/** The quiet "Change photo" link under the slab, opening the photo controls in a sheet. */
+function SheetRowButton({
+  label,
+  title,
+  children,
+}: {
+  label: string;
+  title: string;
+  children: (close: () => void) => React.ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+  const close = () => setOpen(false);
+  return (
+    <>
+      <QuietButton className="mt-2" aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen(true)}>
+        {label}
+      </QuietButton>
+      {open ? (
+        <EditSheet
+          title={title}
+          onClose={close}
+          footer={
+            <StepDock layer="sheet">
+              <PrimaryButton onClick={close}>Done</PrimaryButton>
+            </StepDock>
+          }
+        >
+          {children(close)}
+        </EditSheet>
+      ) : null}
+    </>
+  );
+}
+
+/** Your number and the run, side by side. Your number is focused, so the keyboard is up. */
+function SerialFields({
+  serialNo,
+  serialRun,
+  onSerialNo,
+  onSerialRun,
+}: {
+  serialNo: string;
+  serialRun: string;
+  onSerialNo: (value: string) => void;
+  onSerialRun: (value: string) => void;
+}) {
+  const first = useRef<HTMLInputElement>(null);
+  useLayoutEffect(() => {
+    first.current?.focus({ preventScroll: true });
+  }, []);
+  return (
+    <div className="grid grid-cols-[1fr_auto_1fr] items-end gap-3">
+      <label className="block min-w-0">
+        <span className="mb-1.5 block text-sm text-zinc-500">Your number</span>
+        <input
+          ref={first}
+          type="number"
+          inputMode="numeric"
+          min={1}
+          step={1}
+          value={serialNo}
+          onChange={(e) => onSerialNo(e.target.value)}
+          placeholder="7"
+          className={sheetFieldClass}
+        />
+      </label>
+      <span className="pb-3 text-base text-zinc-400" aria-hidden>
+        /
+      </span>
+      <label className="block min-w-0">
+        <span className="mb-1.5 block text-sm text-zinc-500">Out of</span>
+        <input
+          type="number"
+          inputMode="numeric"
+          min={1}
+          step={1}
+          value={serialRun}
+          onChange={(e) => onSerialRun(e.target.value)}
+          placeholder="99"
+          aria-label="Serial run"
+          className={sheetFieldClass}
+        />
+      </label>
+    </div>
+  );
+}
+
+/** "This card has been sold", then the price and date it sold for. */
+function SoldFields({
+  sold,
+  onSold,
+  sellPrice,
+  sellDate,
+  onSellPrice,
+  onSellDate,
+}: {
+  sold: boolean;
+  onSold: (value: boolean) => void;
+  sellPrice: string;
+  sellDate: string;
+  onSellPrice: (value: string) => void;
+  onSellDate: (value: string) => void;
+}) {
+  return (
+    <div className="space-y-4">
+      <Chip selected={sold} onClick={() => onSold(!sold)}>
+        This card has been sold
+      </Chip>
+      {sold ? (
+        <div className="space-y-3">
+          <label className="block">
+            <span className="mb-1.5 block text-sm text-zinc-500">Sold for</span>
+            <span className="relative block">
+              <span aria-hidden className="pointer-events-none absolute top-1/2 left-4 -translate-y-1/2 text-base text-zinc-400">
+                $
+              </span>
+              <input
+                type="number"
+                inputMode="decimal"
+                min={0}
+                step="0.01"
+                data-field="sellPrice"
+                value={sellPrice}
+                onChange={(e) => onSellPrice(e.target.value)}
+                placeholder="25.00"
+                className={`${sheetFieldClass} pl-8`}
+              />
+            </span>
+          </label>
+          <label className="block">
+            <span className="mb-1.5 block text-sm text-zinc-500">Date sold</span>
+            <input
+              type="date"
+              data-field="sellDate"
+              value={sellDate}
+              onChange={(e) => onSellDate(e.target.value)}
+              className={`${sheetFieldClass} appearance-none`}
+            />
+          </label>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function NotesField({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  return (
+    <textarea
+      rows={5}
+      value={value}
+      aria-label="Notes"
+      onChange={(e) => onChange(e.target.value)}
+      placeholder="Condition, centering, why you bought it"
+      className={`${sheetFieldClass} min-h-32 resize-y py-3`}
+    />
   );
 }
 

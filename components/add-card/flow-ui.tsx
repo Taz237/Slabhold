@@ -176,7 +176,16 @@ const dockSurface =
  * since the bar is moved out of the form while the keyboard is up. `done` adds a Done button there that just
  * closes the keyboard.
  */
-export function StepDock({ done = false, children }: { done?: boolean; children: ReactNode }) {
+export function StepDock({
+  done = false,
+  layer = "page",
+  children,
+}: {
+  done?: boolean;
+  /** "sheet": inside a bottom sheet. Keyboard down it sits in the sheet; up, it rides above the sheet. */
+  layer?: "page" | "sheet";
+  children: ReactNode;
+}) {
   const inset = useKeyboardInset();
   const barRef = useRef<HTMLDivElement>(null);
   // Keyboard up: the field being typed in stays in view above the bar, not under it.
@@ -196,14 +205,14 @@ export function StepDock({ done = false, children }: { done?: boolean; children:
     // can scroll its field up above the bar.
     return (
       <>
-        <div aria-hidden style={{ height: inset + 72 }} />
+        <div aria-hidden style={{ height: layer === "sheet" ? 72 : inset + 72 }} />
         {createPortal(
           <div
             ref={barRef}
             data-slot="step-dock"
             data-keyboard="open"
             style={{ bottom: inset }}
-            className={`fixed inset-x-0 z-40 border-t border-zinc-200 px-4 py-2 dark:border-white/10 ${dockSurface}`}
+            className={`fixed inset-x-0 ${layer === "sheet" ? "z-[60]" : "z-40"} border-t border-zinc-200 px-4 py-2 dark:border-white/10 ${dockSurface}`}
           >
             <div className="mx-auto flex max-w-xl items-center gap-2">
               {done ? (
@@ -225,6 +234,13 @@ export function StepDock({ done = false, children }: { done?: boolean; children:
           document.body,
         )}
       </>
+    );
+  }
+  if (layer === "sheet") {
+    return (
+      <div data-slot="step-dock" className="pt-3">
+        <div key="main">{children}</div>
+      </div>
     );
   }
   return (

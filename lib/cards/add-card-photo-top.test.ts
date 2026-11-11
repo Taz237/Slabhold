@@ -226,17 +226,17 @@ describe("add card photo block", () => {
     }
   });
 
-  it("keeps the Edit layout: photo near the top and nothing tucked away", async () => {
+  it("Edit card: the slab on top, the photo controls one tap away in a sheet", async () => {
     win.localStorage.clear();
     const view = await mount({ existing: fixtureCard });
     try {
-      await waitFor(() => textIncludes("Edit Fixture Player"));
+      await waitFor(() => textIncludes("Edit card"));
       assert.equal(win.document.querySelector("details") === null, true);
-      const [camera] = fileInputs('[data-photo-input="camera"]');
-      assert.ok(camera);
-      assert.ok(camera.compareDocumentPosition(field("playerName")) & win.Node.DOCUMENT_POSITION_FOLLOWING);
-      assert.ok(win.document.querySelector("textarea"), "notes visible");
-      assert.ok(textIncludes("Player, set, what you paid, and a photo."));
+      assert.equal(fileInputs('[data-photo-input="camera"]').length, 0, "no form boxes above the rows");
+      const photoButton = button("Add a photo");
+      assert.ok(photoButton.compareDocumentPosition(field("playerName")) & win.Node.DOCUMENT_POSITION_FOLLOWING);
+      await act(async () => photoButton.click());
+      assert.ok(fileInputs('[data-photo-input="camera"]')[0], "the photo sheet has the camera");
     } finally {
       view.unmount();
     }

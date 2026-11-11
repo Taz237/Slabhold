@@ -27,6 +27,8 @@ export function SearchSelect({
   inputMode,
   filter,
   searchPlaceholder,
+  searchable = true,
+  renderTrigger,
 }: {
   label: string;
   value: string;
@@ -48,6 +50,10 @@ export function SearchSelect({
   filter?: (options: string[], query: string) => string[];
   /** The search field's placeholder, when "Search or type a {label}" does not read right. */
   searchPlaceholder?: string;
+  /** Off for a short list (a grader, a grade): the sheet is the list alone. */
+  searchable?: boolean;
+  /** Draws the control that opens the sheet, e.g. Edit card's settings row. */
+  renderTrigger?: (props: { open: () => void; expanded: boolean }) => ReactNode;
 }) {
   const titleId = useId();
   const searchRef = useRef<HTMLInputElement>(null);
@@ -106,6 +112,7 @@ export function SearchSelect({
 
   return (
     <>
+      {renderTrigger ? renderTrigger({ open: () => setOpen(true), expanded: open }) : (
       <button
         type="button"
         aria-haspopup="dialog"
@@ -126,6 +133,7 @@ export function SearchSelect({
         </span>
         <ChevronDown className="h-4 w-4 shrink-0 text-zinc-400" />
       </button>
+      )}
       {/* Portaled, so a transformed parent (Add card's step slide) never pins the sheet to itself. */}
       {open ? createPortal(
         <SheetFrame titleId={titleId} onClose={close}>
@@ -143,6 +151,7 @@ export function SearchSelect({
               <X className="h-4 w-4" />
             </button>
           </div>
+          {searchable ? (
           <label className="flex items-center gap-2 rounded-xl border border-zinc-200 bg-white px-3 py-2.5 dark:border-white/10 dark:bg-white/5">
             <Search className="h-4 w-4 shrink-0 text-zinc-400" />
             <input
@@ -176,6 +185,7 @@ export function SearchSelect({
                 className="min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-zinc-400 sm:text-sm"
             />
           </label>
+          ) : null}
           <ul className="mt-3 min-h-0 flex-1 overflow-y-auto overscroll-contain">
             {showCustom ? (
               <li>
@@ -226,7 +236,7 @@ export function SearchSelect({
  * rests on the keyboard instead of under it. Keyboard up, it takes the whole
  * visible height: title, search, then the results right under the search.
  */
-function SheetFrame({
+export function SheetFrame({
   titleId,
   onClose,
   children,

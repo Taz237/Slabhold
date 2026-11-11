@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { ArrowDownUp, Search, WalletCards, X } from "lucide-react";
 import { outlineButton } from "@/components/button-styles";
 import { CollectionGrid } from "@/components/collection-grid";
@@ -72,6 +72,10 @@ export const SEEDED_TILES = 12;
  * transition, which could leave a card past the 12th (a new card with no
  * value yet sorts last by Value) off the grid.
  */
+const noSubscribe = () => () => {};
+const clientSnapshot = () => true;
+const serverSnapshot = () => false;
+
 export function firstScreenTiles(serverDrawn: boolean): number {
   return serverDrawn ? SEEDED_TILES : Number.POSITIVE_INFINITY;
 }
@@ -154,9 +158,9 @@ export function Dashboard({
   );
 
   // A server-drawn load lays out the first screen of tiles in its HTML, then
-  // every tile in the first commit after hydration (see firstScreenTiles).
-  const [gridRows, setGridRows] = useState(() => firstScreenTiles(Boolean(seed)));
-  useEffect(() => setGridRows(Number.POSITIVE_INFINITY), []);
+  // every tile in the commit right after hydration (see firstScreenTiles).
+  const hydrated = useSyncExternalStore(noSubscribe, clientSnapshot, serverSnapshot);
+  const gridRows = firstScreenTiles(Boolean(seed) && !hydrated);
 
   useEffect(() => {
     if (searchOpen) searchRef.current?.focus();

@@ -206,7 +206,7 @@ describe("a just-added card in Collection", () => {
     act(() =>
       root!.render(
         screen(
-          createElement(SeededViewer, { seed }, createElement(Dashboard, { seed })),
+          createElement(SeededViewer, { seed }, createElement(Dashboard, { seed } as never)),
           cards,
         ),
       ),
