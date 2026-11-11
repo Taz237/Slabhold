@@ -393,8 +393,9 @@ describe("add card survives a remount", () => {
     win.localStorage.setItem(STORAGE_KEY, JSON.stringify([blankCard]));
     const view = await mount({ existing: blankCard });
     try {
-      await waitFor(() => inputValue("playerName") === "Jaylen Brown");
-      assert.equal(inputValue("playerName"), "Jaylen Brown");
+      // Edit card shows the player as a row: label, then the saved name.
+      await waitFor(() => buttonText("playerName").includes("Jaylen Brown"));
+      assert.match(buttonText("playerName"), /Jaylen Brown/);
       assert.match(buttonText("setBrand"), /Panini Prizm/);
       assert.equal(readNewCardDraft(newCardSeed("", null), null)?.form.playerName, "Victor Wembanyama");
     } finally {

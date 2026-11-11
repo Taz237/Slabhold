@@ -26,8 +26,9 @@ export function SearchSelect({
   dataField,
   inputMode,
   filter,
-  autoFocusSearch = true,
   searchPlaceholder,
+  searchable = true,
+  renderTrigger,
 }: {
   label: string;
   value: string;
@@ -47,13 +48,12 @@ export function SearchSelect({
   inputMode?: "decimal" | "numeric" | "text";
   /** Matches and their order for a query. Defaults to "contains". */
   filter?: (options: string[], query: string) => string[];
-  /**
-   * Focus the search when the sheet opens. Off for sheets people mostly tap
-   * through, so the keyboard does not cover the list until they ask for it.
-   */
-  autoFocusSearch?: boolean;
   /** The search field's placeholder, when "Search or type a {label}" does not read right. */
   searchPlaceholder?: string;
+  /** Off for a short list (a grader, a grade): the sheet is the list alone. */
+  searchable?: boolean;
+  /** Draws the control that opens the sheet, e.g. Edit card's settings row. */
+  renderTrigger?: (props: { open: () => void; expanded: boolean }) => ReactNode;
 }) {
   const titleId = useId();
   const searchRef = useRef<HTMLInputElement>(null);
@@ -87,19 +87,17 @@ export function SearchSelect({
     if (!open) return;
     const previous = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    const frame = autoFocusSearch
-      ? window.requestAnimationFrame(() => searchRef.current?.focus())
-      : 0;
+    // The list comes first: nothing is focused when the sheet opens, so the
+    // iOS keyboard only opens when the search field itself is tapped.
     function onKey(event: KeyboardEvent) {
       if (event.key === "Escape") setOpen(false);
     }
     document.addEventListener("keydown", onKey);
     return () => {
       document.body.style.overflow = previous;
-      if (frame) window.cancelAnimationFrame(frame);
       document.removeEventListener("keydown", onKey);
     };
-  }, [open, autoFocusSearch]);
+  }, [open]);
 
   function close() {
     setOpen(false);
@@ -114,6 +112,7 @@ export function SearchSelect({
 
   return (
     <>
+      {renderTrigger ? renderTrigger({ open: () => setOpen(true), expanded: open }) : (
       <button
         type="button"
         aria-haspopup="dialog"
@@ -134,6 +133,7 @@ export function SearchSelect({
         </span>
         <ChevronDown className="h-4 w-4 shrink-0 text-zinc-400" />
       </button>
+      )}
       {/* Portaled, so a transformed parent (Add card's step slide) never pins the sheet to itself. */}
       {open ? createPortal(
         <SheetFrame titleId={titleId} onClose={close}>
@@ -151,6 +151,7 @@ export function SearchSelect({
               <X className="h-4 w-4" />
             </button>
           </div>
+          {searchable ? (
           <label className="flex items-center gap-2 rounded-xl border border-zinc-200 bg-white px-3 py-2.5 dark:border-white/10 dark:bg-white/5">
             <Search className="h-4 w-4 shrink-0 text-zinc-400" />
             <input
@@ -181,9 +182,10 @@ export function SearchSelect({
                   ? `Search or type a ${label.toLowerCase()}`
                   : `Search ${label.toLowerCase()}`)
               }
-                className="min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-zinc-400 sm:text-sm"
+                className="min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-zinc-400"
             />
           </label>
+          ) : null}
           <ul className="mt-3 min-h-0 flex-1 overflow-y-auto overscroll-contain">
             {showCustom ? (
               <li>
@@ -234,7 +236,7 @@ export function SearchSelect({
  * rests on the keyboard instead of under it. Keyboard up, it takes the whole
  * visible height: title, search, then the results right under the search.
  */
-function SheetFrame({
+export function SheetFrame({
   titleId,
   onClose,
   children,

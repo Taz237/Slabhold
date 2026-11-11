@@ -175,7 +175,8 @@ describe("visibility controls", () => {
     // picker and sectioned add). Edit: right under the title.
     assert.match(form, /photoBlock=\{[\s\S]{0,160}\{photoNode\}\s*\{visibilityNode\}/);
     assert.match(form, /\{visibleNodes\[key\]\}[\s\S]{0,120}\{key === "photo" \? visibilityNode : null\}/);
-    assert.match(form, /\{headerNode\}\s*\{visibilityNode\}\s*\{categoryNode\}/);
+    // Edit card: Public / Private in the "Who can see it" row's sheet.
+    assert.match(form, /<SheetRow label="Who can see it"[\s\S]{0,200}\{visibilityNode\}/);
     assert.equal(form.match(/\{visibilityNode\}/g)?.length, 2);
     assert.match(form, /const visibilityNode = \(\s*<VisibilityChoice/);
     assert.doesNotMatch(form, /isPublic: publicNode/);
@@ -643,6 +644,9 @@ describe("add card visibility nudge", () => {
 
     const editing = await mount("ada", { existing: savedCard });
     try {
+      const row = win.document.querySelector('button[aria-label="Who can see it: Private"]');
+      assert.ok(row instanceof win.HTMLButtonElement, "the row reads Private");
+      await act(async () => row.click());
       assert.equal(radioChecked("Private"), true);
       assert.equal(radioChecked("Public"), false);
     } finally {

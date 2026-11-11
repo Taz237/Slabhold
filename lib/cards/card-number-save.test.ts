@@ -123,6 +123,9 @@ describe("card form submit", () => {
     const view = await mount({ existing: blankCard });
     try {
       await waitFor(() => storedCard("jaylen-blank") != null);
+      // Edit card: More details, then the Notes row opens its sheet.
+      await clickRow("More details");
+      await clickRow("Notes");
       const notes = win.document.querySelector("textarea");
       assert.ok(notes);
       await act(async () => {
@@ -133,7 +136,10 @@ describe("card form submit", () => {
       const saved = storedCard("jaylen-blank");
       assert.equal(saved?.cardNumber, "");
       assert.equal(saved?.noNumber, false);
-      assert.equal(numberInput().hasAttribute("required"), false);
+      await clickRow("Card #");
+      const number = win.document.querySelector('[role="dialog"] input');
+      assert.ok(number instanceof win.HTMLInputElement);
+      assert.equal(number.hasAttribute("required"), false);
     } finally {
       view.unmount();
     }
@@ -243,6 +249,16 @@ async function chooseSearch(name: string, text: string) {
   await act(async () => {
     setNativeValue(input, text);
     fire(input, new win.KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+  });
+}
+
+async function clickRow(label: string) {
+  const row = [...win.document.querySelectorAll("button")].find((node) =>
+    node.getAttribute("aria-label")?.startsWith(`${label}:`),
+  );
+  assert.ok(row instanceof win.HTMLButtonElement, `${label} row`);
+  await act(async () => {
+    row.click();
   });
 }
 

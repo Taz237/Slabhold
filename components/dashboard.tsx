@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { ArrowDownUp, Search, WalletCards, X } from "lucide-react";
 import { outlineButton } from "@/components/button-styles";
 import { CollectionGrid } from "@/components/collection-grid";
@@ -29,7 +29,6 @@ import { leaderboardMinimums, type LeaderboardMinimums } from "@/lib/leaderboard
 import { trustedPublicTotals } from "@/lib/leaderboard/public-value";
 import { useCardValues } from "@/lib/value/use-card-values";
 import { cardValuesKey, type CollectionSeed } from "@/lib/collection/viewer-seed";
-import { useProgressiveRows } from "@/lib/ui/use-progressive-rows";
 import { publicTogglePatch } from "@/lib/offers/open-to-offers";
 import { afterFirstIdle } from "@/lib/ui/idle";
 import { PartLoadFailed } from "@/components/part-load-failed";
@@ -64,7 +63,27 @@ const WantList = lazyPart(() => import("@/components/want-list").then((mod) => m
 });
 
 /** Tiles in a server-drawn first screen: a phone's two columns, a little past the fold. */
-const SEEDED_TILES = 12;
+export const SEEDED_TILES = 12;
+
+/**
+ * How many tiles the first render draws. Only the server HTML stops at
+ * SEEDED_TILES; the first client commit draws them all, as a plain update.
+ * It used to add the rest a step at a time on idle callbacks inside a
+ * transition, which could leave a card past the 12th (a new card with no
+ * value yet sorts last by Value) off the grid.
+ */
+/** The filter that is on goes first, so it is never scrolled out of view. */
+export function activeFirst<T extends { id: string }>(items: T[], active: string): T[] {
+  return [...items.filter((item) => item.id === active), ...items.filter((item) => item.id !== active)];
+}
+
+const noSubscribe = () => () => {};
+const clientSnapshot = () => true;
+const serverSnapshot = () => false;
+
+export function firstScreenTiles(serverDrawn: boolean): number {
+  return serverDrawn ? SEEDED_TILES : Number.POSITIVE_INFINITY;
+}
 
 const chip =
   "hit-44 inline-flex h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3.5 text-xs font-semibold transition outline-none focus-visible:ring-2 focus-visible:ring-violet-600";
@@ -143,9 +162,20 @@ export function Dashboard({
     [inLane, query, filter, sort, values],
   );
 
-  // A server-drawn load lays out the first screen of tiles, then the rest
-  // a few at a time while the browser is idle.
-  const gridRows = useProgressiveRows(visible.length, { enabled: Boolean(seed), step: SEEDED_TILES });
+  // A filter or search that hides cards always says so above the grid, with
+  // the count shown, so the header's total never disagrees silently.
+  const narrowed = lane !== "wants" && visible.length < inLane.length;
+  const narrowedBy = [
+    filter !== "all" ? FILTERS.find((item) => item.id === filter)?.label : null,
+    query.trim() ? `"${query.trim()}"` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
+  // A server-drawn load lays out the first screen of tiles in its HTML, then
+  // every tile in the commit right after hydration (see firstScreenTiles).
+  const hydrated = useSyncExternalStore(noSubscribe, clientSnapshot, serverSnapshot);
+  const gridRows = firstScreenTiles(Boolean(seed) && !hydrated);
 
   useEffect(() => {
     if (searchOpen) searchRef.current?.focus();
@@ -165,6 +195,12 @@ export function Dashboard({
       behavior: window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
       block: "start",
     });
+  }
+
+  function clearNarrowing() {
+    setQuery("");
+    setSearchOpen(false);
+    setFilter("all");
   }
 
   function cycleSort() {
@@ -230,9 +266,14 @@ export function Dashboard({
           </button>
         </p>
       ) : null}
+      {/* Sticky under the app header on a solid surface, so tiles never show through it. */}
+      <div
+        data-slot="collection-tools"
+        className="sticky top-[var(--app-header-h)] z-20 -mx-4 border-b border-zinc-200/80 bg-[var(--background)] dark:border-white/[0.07]"
+      >
       <div
         ref={toolsRef}
-        className="-mx-4 flex scroll-mt-[calc(var(--app-header-h)+0.5rem)] items-center gap-1.5 overflow-x-auto px-4 py-1 [scrollbar-width:none] sm:mx-0 sm:px-0 [&::-webkit-scrollbar]:hidden"
+        className="flex scroll-mt-[calc(var(--app-header-h)+0.5rem)] items-center gap-1.5 overflow-x-auto overscroll-x-contain px-4 py-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         data-no-pull
       >
         {showTools ? (
@@ -291,7 +332,11 @@ export function Dashboard({
                 type="button"
                 role="tab"
                 aria-selected={selected}
-                onClick={() => setLane(item.id)}
+                onClick={() => {
+                  setLane(item.id);
+                  // All means every card: it also clears a filter or search left on.
+                  if (item.id === "all") clearNarrowing();
+                }}
                 className={`${chip} ${selected ? chipOn : chipOff}`}
               >
                 {item.label}
@@ -311,7 +356,7 @@ export function Dashboard({
               <ArrowDownUp className="h-3.5 w-3.5" aria-hidden />
               {sortLabel}
             </button>
-            {FILTERS.filter((item) => item.id !== "novalue" || filter === "novalue" || totals.withoutValueCount > 0).map((item) => {
+            {activeFirst(FILTERS.filter((item) => item.id !== "novalue" || filter === "novalue" || totals.withoutValueCount > 0), filter).map((item) => {
               const selected = filter === item.id;
               return (
                 <button
@@ -327,7 +372,29 @@ export function Dashboard({
             })}
           </>
         ) : null}
+        {/* Room after the last chip: Safari ignores a scroller's end padding. */}
+        <span className="w-2 shrink-0" aria-hidden />
       </div>
+      </div>
+      {narrowed ? (
+        <div
+          role="status"
+          data-slot="grid-count"
+          className="flex min-h-11 items-center justify-between gap-3 text-sm text-zinc-600 dark:text-zinc-300"
+        >
+          <p className="min-w-0 truncate tabular-nums">
+            Showing {visible.length} of {inLane.length} {inLane.length === 1 ? "card" : "cards"}
+            {narrowedBy ? <span className="text-zinc-500"> · {narrowedBy}</span> : null}
+          </p>
+          <button
+            type="button"
+            onClick={clearNarrowing}
+            className="hit-44 shrink-0 font-semibold text-violet-700 dark:text-[#A78BFA]"
+          >
+            Show all
+          </button>
+        </div>
+      ) : null}
 
       {cards.length === 0 ? (
         lane === "wants" ? (
