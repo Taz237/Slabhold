@@ -61,7 +61,7 @@ export function LandingPage({ founder = null }: { founder?: FounderShowcase | nu
         <FeaturePanels />
 
         <div className="mt-12 lg:mx-auto lg:w-full lg:max-w-md">
-          <FounderNote showcase={showcase} />
+          <FounderNote />
         </div>
 
         <section className="mt-10 rounded-[2rem] border border-white/[0.08] bg-white/[0.03] px-6 py-10 text-center">

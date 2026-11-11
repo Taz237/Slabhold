@@ -114,7 +114,7 @@ describe("signed-out Home: calls to action warm on intent", () => {
             null,
             createElement(LandingLogin),
             createElement(LandingActions, { next: "/leaderboard" }),
-            createElement(LandingLink, { href: "/u/fixturefounder", button: "founder_follow" }, "Follow"),
+            createElement(LandingLink, { href: "/u/fixturefounder", button: "fixture" }, "Follow"),
           ),
           (href) => warmed.push(href),
         ),
@@ -242,32 +242,6 @@ describe("signed-out Home: one hero photo in the head", () => {
     const heroImgs = [...body.matchAll(/<img[^>]+>/g)].map((m) => m[0]).filter((img) => img.includes("card-photos"));
     assert.equal(heroImgs.length, 3);
     assert.ok(heroImgs.every((img) => !/loading="lazy"/.test(img) && !/fetchPriority="low"/i.test(img)));
-  });
-});
-
-describe("signed-out Home: founder avatar", () => {
-  it("fetches the avatar at twice its drawn size, still with no optimizer", async () => {
-    const { FounderNote } = await import("@/components/landing/founder-note");
-    const html = await documentHtml(createElement(FounderNote, { showcase: FOUNDER }));
-    const img = html.match(/<img[^>]*ring-2[^>]*>/)?.[0] ?? "";
-    assert.match(
-      img,
-      /src="https:\/\/knuwflptobyutrauxblj\.supabase\.co\/storage\/v1\/render\/image\/public\/avatars\/fixture-user\/avatar\.jpg\?width=96&amp;height=96&amp;resize=cover"/,
-    );
-    assert.match(img, /width="48"/);
-    assert.match(img, /height="48"/);
-    assert.match(img, /loading="lazy"/);
-    assert.doesNotMatch(img, /_next\/image/);
-  });
-
-  it("leaves an avatar from anywhere else as it is", async () => {
-    const { FounderNote } = await import("@/components/landing/founder-note");
-    const html = await documentHtml(
-      createElement(FounderNote, {
-        showcase: { ...FOUNDER, profile: { ...FOUNDER.profile!, avatarUrl: "https://cdn.example/avatar.png" } },
-      }),
-    );
-    assert.match(html, /<img[^>]*src="https:\/\/cdn\.example\/avatar\.png"/);
   });
 });
 

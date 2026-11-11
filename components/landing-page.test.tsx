@@ -209,10 +209,10 @@ describe("landing founder touch", () => {
     const html = await landingHtml();
     assert.match(html, /data-hero-slabs="sample"/);
     assert.match(html, /opacity-0/);
-    assert.match(html, /data-founder-note="loading"/);
+    assert.match(html, /data-founder-note="plain"/);
   });
 
-  it("draws the founder's slabs and note on first paint when the server sends the showcase", async () => {
+  it("draws the founder's slabs and the plain brand note on first paint when the server sends the showcase", async () => {
     const { LandingPage } = await import("@/components/landing-page");
     const html = renderToStaticMarkup(
       createElement(
@@ -226,8 +226,8 @@ describe("landing founder touch", () => {
       ),
     );
     assert.match(html, /data-hero-slabs="founder"/);
-    assert.doesNotMatch(html, /data-founder-note="loading"/);
-    assert.match(html, /data-founder-note="founder"/);
+    assert.match(html, /data-founder-note="plain"/);
+    assert.doesNotMatch(html, /From the founder|Follow on Slabhold|@donnietaz<\/span>/);
     assert.match(html, /data-hero-slabs="founder"><div[^>]*><\/div><div class="[^"]*transition-opacity[^"]*opacity-100"/);
   });
 
@@ -275,10 +275,6 @@ describe("landing founder touch", () => {
     assert.match(read("app/api/landing/founder/route.ts"), /founderResponse\(cachedFounderShowcase\)/);
     assert.doesNotMatch(read("components/app-shell.tsx"), /<LandingPage/);
     assert.match(read("components/landing/hero-slabs.tsx"), /preload/);
-    // The founder's avatar keeps next/image's unoptimized props, drawn on the server.
-    const note = read("components/landing/founder-note.tsx");
-    assert.match(note, /from "next\/image"/);
-    assert.match(note, /unoptimized: true/);
   });
 
   it("puts the founder's 3 public card photos in the hero, best in the center", async () => {
@@ -339,22 +335,14 @@ describe("landing founder touch", () => {
     assert.ok(pct(HERO_PLACES[2].className, "right") + pct(HERO_PLACES[2].className, "w") <= centerStart);
   });
 
-  it("shows the founder's avatar, name and handle with a follow link to the profile", async () => {
+  it("always shows the plain brand note, with no founder name, handle, avatar or follow link", async () => {
     const { FounderNote } = await import("@/components/landing/founder-note");
-    const html = renderToStaticMarkup(createElement(FounderNote, { showcase: FOUNDER }));
-    assert.match(html, /aria-label="From the founder"/);
-    assert.match(html, /<img[^>]+src="https:\/\/cdn\.example\/avatar\.png"[^>]*>/);
-    assert.match(html, /<img[^>]+loading="lazy"/);
-    assert.match(html, /width="48"[^>]*height="48"/);
-    assert.match(text(html), /Donnie @donnietaz/);
-    assert.match(html, /href="\/u\/donnietaz"[^>]*>Follow on Slabhold/);
-  });
-
-  it("shows a plain note, no follow link, when the founder can't load", async () => {
-    const { FounderNote } = await import("@/components/landing/founder-note");
-    const html = renderToStaticMarkup(createElement(FounderNote, { showcase: { profile: null, cards: [] } }));
+    const html = renderToStaticMarkup(createElement(FounderNote));
+    assert.match(html, /data-founder-note="plain"/);
     assert.match(text(html), /Built by collectors, for collectors\./);
-    assert.doesNotMatch(html, /<a /);
+    assert.doesNotMatch(html, /<a |rounded-full|avatar|From the founder|Follow on Slabhold/);
+    const source = read("components/landing/founder-note.tsx");
+    assert.doesNotMatch(source, /showcase|profile|avatar|founder_follow/);
   });
 
   it("drops off-site photos and non-https avatars from the payload", async () => {
