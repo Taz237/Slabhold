@@ -133,7 +133,6 @@ export function SearchDoor({
           <input
             data-field="playerName"
             value={query}
-            autoFocus
             autoComplete="off"
             autoCorrect="off"
             spellCheck={false}

@@ -86,7 +86,6 @@ export function YearStep({
             customInvalidHint="Use 2026 or 2023-24"
             inputMode="text"
             filter={yearSearchMatches}
-            autoFocusSearch={false}
             searchPlaceholder="Type a year, like 1990 or 90"
             onChange={(year) => {
               if (isValidYear(year)) onPick(year);

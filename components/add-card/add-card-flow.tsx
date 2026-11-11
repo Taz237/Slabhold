@@ -128,7 +128,9 @@ function stepFocusTarget(root: HTMLElement | null): HTMLElement | null {
     root.querySelector<HTMLElement>("[data-step-focus]:not([disabled])") ??
     root.querySelector<HTMLElement>('button[aria-pressed="true"]') ??
     root.querySelector<HTMLElement>("button[aria-pressed]") ??
-    root.querySelector<HTMLElement>("input:not([type=checkbox]):not([disabled]), button")
+    // Never a search field: a picker step shows its choices first, and the
+    // keyboard opens only when the search itself is tapped.
+    root.querySelector<HTMLElement>("button:not([disabled])")
   );
 }
 
@@ -213,14 +215,14 @@ export function AddCardFlow(props: AddCardFlowProps) {
   );
   const catalogLoading = committedPlayer !== "" && catalogFor !== committedPlayer;
 
-  // Focus moves forward with the flow: the step's field (so the keyboard opens)
-  // or its pre-selected chip. A layout effect, so it lands inside the tap that
+  // Focus moves forward with the flow: a typing step's field (Card #, your
+  // number) so the keyboard opens, or a picker step's pre-selected chip. A layout effect, so it lands inside the tap that
   // moved the step and iOS still opens the keyboard. The live region below
   // reads the question out.
   useLayoutEffect(() => {
     const first = firstPaint.current;
     firstPaint.current = false;
-    // A fresh Add card: the search field has its own autofocus, under the photo buttons.
+    // A fresh Add card opens on the player list with nothing focused.
     if (first && flow.step === "player") return;
     const section = sectionRef.current;
     if (!first && section && section.getBoundingClientRect().top < 0) {

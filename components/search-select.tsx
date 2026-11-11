@@ -26,7 +26,6 @@ export function SearchSelect({
   dataField,
   inputMode,
   filter,
-  autoFocusSearch = true,
   searchPlaceholder,
 }: {
   label: string;
@@ -47,11 +46,6 @@ export function SearchSelect({
   inputMode?: "decimal" | "numeric" | "text";
   /** Matches and their order for a query. Defaults to "contains". */
   filter?: (options: string[], query: string) => string[];
-  /**
-   * Focus the search when the sheet opens. Off for sheets people mostly tap
-   * through, so the keyboard does not cover the list until they ask for it.
-   */
-  autoFocusSearch?: boolean;
   /** The search field's placeholder, when "Search or type a {label}" does not read right. */
   searchPlaceholder?: string;
 }) {
@@ -87,19 +81,17 @@ export function SearchSelect({
     if (!open) return;
     const previous = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    const frame = autoFocusSearch
-      ? window.requestAnimationFrame(() => searchRef.current?.focus())
-      : 0;
+    // The list comes first: nothing is focused when the sheet opens, so the
+    // iOS keyboard only opens when the search field itself is tapped.
     function onKey(event: KeyboardEvent) {
       if (event.key === "Escape") setOpen(false);
     }
     document.addEventListener("keydown", onKey);
     return () => {
       document.body.style.overflow = previous;
-      if (frame) window.cancelAnimationFrame(frame);
       document.removeEventListener("keydown", onKey);
     };
-  }, [open, autoFocusSearch]);
+  }, [open]);
 
   function close() {
     setOpen(false);

@@ -72,7 +72,6 @@ export function PlayerStep({
           <input
             data-field="playerName"
             value={query}
-            autoFocus
             autoComplete="off"
             autoCorrect="off"
             spellCheck={false}
