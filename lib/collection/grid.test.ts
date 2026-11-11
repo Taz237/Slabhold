@@ -6,6 +6,8 @@ import nextConfig from "@/next.config";
 import type { SportsCard } from "@/lib/types";
 import type { CardValueResult } from "@/lib/value/types";
 import {
+  costFilterShown,
+  gridSortsFor,
   EAGER_TILES,
   GRID_CLASS,
   TILE_IMAGE_SIZES,
@@ -260,5 +262,21 @@ describe("collection grid files", () => {
     }
     const art = readFileSync(join(process.cwd(), "components/card-slab-art.tsx"), "utf8");
     assert.match(art, /from "next\/image"/);
+  });
+});
+
+describe("cost basis only when a card has a paid value", () => {
+  it("offers the Gain sort only once a card has a paid value", () => {
+    assert.deepEqual(gridSortsFor(0, "value").map((item) => item.id), ["value", "recent"]);
+    assert.deepEqual(gridSortsFor(1, "value").map((item) => item.id), ["value", "recent", "gain"]);
+    assert.deepEqual(gridSortsFor(0, "gain").map((item) => item.id), ["value", "recent", "gain"]);
+  });
+
+  it("hides the Profit and Loss filters until a card has a paid value", () => {
+    assert.equal(costFilterShown("profit", 0, "all"), false);
+    assert.equal(costFilterShown("loss", 0, "all"), false);
+    assert.equal(costFilterShown("loss", 0, "loss"), true);
+    assert.equal(costFilterShown("profit", 2, "all"), true);
+    assert.equal(costFilterShown("held", 0, "all"), true);
   });
 });

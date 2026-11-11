@@ -5,7 +5,8 @@ import {
   bestCard,
   collectionPoints,
   topCardByValue,
-  topMovers,
+  paidMovers,
+  weekMovers,
   type MoverCard,
 } from "./value-series";
 
@@ -69,44 +70,70 @@ describe("bestCard", () => {
   });
 });
 
-describe("topMovers", () => {
-  it("ranks by the biggest % move over the saved history, up or down, three at most", () => {
+describe("weekMovers", () => {
+  it("ranks by the biggest market move over the past 7 days, up or down, three at most", () => {
     const history = new Map([
-      ["a", [{ date: "2026-10-01", value: 100 }, { date: TODAY, value: 110 }]],
-      ["b", [{ date: "2026-10-01", value: 100 }, { date: TODAY, value: 50 }]],
-      ["c", [{ date: "2026-10-01", value: 100 }, { date: TODAY, value: 130 }]],
-      ["d", [{ date: "2026-10-01", value: 100 }, { date: TODAY, value: 101 }]],
+      ["a", [{ date: "2026-10-24", value: 100 }, { date: TODAY, value: 110 }]],
+      ["b", [{ date: "2026-10-24", value: 100 }, { date: TODAY, value: 50 }]],
+      ["c", [{ date: "2026-10-24", value: 100 }, { date: TODAY, value: 130 }]],
+      ["d", [{ date: "2026-10-24", value: 100 }, { date: TODAY, value: 101 }]],
     ]);
-    const movers = topMovers([card("a", 1, 110), card("b", 1, 50), card("c", 1, 130), card("d", 1, 101)], history);
-    assert.deepEqual(movers.rows.map((row) => row.card.id), ["b", "c", "a"]);
-    assert.equal(movers.basis, "history");
-    assert.equal(Math.round(movers.rows[0].pct), -50);
+    const rows = weekMovers([card("a", null, 110), card("b", null, 50), card("c", null, 130), card("d", null, 101)], history, TODAY);
+    assert.deepEqual(rows.map((row) => row.card.id), ["b", "c", "a"]);
+    assert.equal(Math.round(rows[0].pct), -50);
   });
 
-  it("falls back to the gain since you paid when no card has history yet", () => {
-    const movers = topMovers([card("a", 10, 20), card("b", 10, 11), card("c", null, 40)], new Map());
-    assert.equal(movers.basis, "paid");
-    assert.deepEqual(movers.rows.map((row) => row.card.id), ["a", "b"]);
-    assert.equal(movers.rows[0].pct, 100);
+  it("never needs a price paid: cards with no paid value still move", () => {
+    const history = new Map([["a", [{ date: "2026-10-25", value: 40 }, { date: TODAY, value: 50 }]]]);
+    const rows = weekMovers([card("a", null, 50)], history, TODAY);
+    assert.equal(rows.length, 1);
+    assert.equal(Math.round(rows[0].pct), 25);
+  });
+
+  it("starts from the value a week ago, not the start of the 30 days", () => {
+    const history = new Map([
+      [
+        "a",
+        [
+          { date: "2026-10-01", value: 10 },
+          { date: "2026-10-20", value: 80 },
+          { date: "2026-10-27", value: 90 },
+          { date: TODAY, value: 100 },
+        ],
+      ],
+    ]);
+    const rows = weekMovers([card("a", 5, 100)], history, TODAY);
+    assert.equal(Math.round(rows[0].pct), 25);
+    assert.deepEqual(rows[0].points.map((point) => point.value), [80, 90, 100]);
+  });
+
+  it("skips sold cards, one-day history and a base under $1", () => {
+    const history = new Map([
+      ["sold", [{ date: "2026-10-25", value: 40 }, { date: TODAY, value: 50 }]],
+      ["one", [{ date: TODAY, value: 50 }]],
+      ["penny", [{ date: "2026-10-25", value: 0.01 }, { date: TODAY, value: 5 }]],
+    ]);
+    const rows = weekMovers([card("sold", null, 50, { sold: true }), card("one", null, 50), card("penny", null, 5)], history, TODAY);
+    assert.deepEqual(rows, []);
+  });
+});
+
+describe("paidMovers", () => {
+  it("ranks the gain since you paid, only for cards with a paid value", () => {
+    const rows = paidMovers([card("a", 10, 20), card("b", 10, 11), card("c", null, 40), card("z", 0, 40)]);
+    assert.deepEqual(rows.map((row) => row.card.id), ["a", "b"]);
+    assert.equal(rows[0].pct, 100);
   });
 
   it("shows a card bought for under $1 as New, never a % from a penny, and ranks it last", () => {
-    const movers = topMovers([card("penny", 0.01, 0.06), card("a", 10, 12)], new Map());
-    assert.deepEqual(movers.rows.map((row) => row.card.id), ["a", "penny"]);
-    assert.equal(movers.rows[1].fresh, true);
-    assert.equal(movers.rows[1].pct, 0);
-    assert.equal(movers.rows[0].fresh, false);
+    const rows = paidMovers([card("penny", 0.01, 0.06), card("a", 10, 12)]);
+    assert.deepEqual(rows.map((row) => row.card.id), ["a", "penny"]);
+    assert.equal(rows[1].fresh, true);
+    assert.equal(rows[1].pct, 0);
   });
 
-  it("skips history that starts under $1", () => {
-    const history = new Map([["a", [{ date: "2026-10-01", value: 0.01 }, { date: TODAY, value: 5 }]]]);
-    const movers = topMovers([card("a", 10, 5)], history);
-    assert.equal(movers.basis, "paid");
-    assert.equal(Math.round(movers.rows[0].pct), -50);
-  });
-
-  it("is empty with nothing to compare", () => {
-    assert.deepEqual(topMovers([card("a", null, 20)], new Map()).rows, []);
+  it("is empty when no card has a paid value", () => {
+    assert.deepEqual(paidMovers([card("a", null, 20), card("b", 0, 20)]), []);
   });
 });
 

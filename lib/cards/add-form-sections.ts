@@ -18,14 +18,16 @@ export const ADD_VISIBLE_FIELDS = [
   "submit",
 ] as const;
 
-/** Everything else on Add sits in one closed "More details (optional)" section. */
+/**
+ * Everything else on Add sits in one closed "More details (optional)" section.
+ * What you paid is not on Add at all: it lives in Edit's More details.
+ */
 export const MORE_DETAILS_FIELDS = [
   "sport",
   "serialRun",
   "serialNo",
   "traits",
   "gradeExtras",
-  "purchase",
   "estimatedSellPrice",
   "sold",
   "openToOffers",
@@ -58,7 +60,6 @@ export function firstInvalidField(
     !check.cardNumberOk ? "cardNumber" : null,
     check.companyMissing ? "gradingCompany" : null,
     check.graded && !check.gradeNumber ? "grade" : null,
-    check.purchaseNeg ? "purchasePrice" : null,
     check.estNeg ? "estimatedSellPrice" : null,
     check.sellNeg ? "sellPrice" : null,
     check.sold && !values.sellPrice ? "sellPrice" : null,
@@ -95,9 +96,6 @@ export function draftOpensMoreDetails(draft: NewCardDraft | null): boolean {
     draft.isRelic ||
     filled(draft.certNumber) ||
     filled(draft.gradeQualifier) ||
-    filled(form.purchaseDate) ||
-    filled(form.purchasePrice) ||
-    Boolean(draft.unknownPurchase) ||
     filled(form.estimatedSellPrice) ||
     draft.sold ||
     filled(form.sellPrice) ||

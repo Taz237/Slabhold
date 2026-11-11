@@ -24,7 +24,7 @@ import {
 import { type CardCategory, type PortfolioFilter } from "@/lib/types";
 import { displayedCollectionTotal } from "@/lib/collection/displayed-value";
 import { sumPaid } from "@/lib/collection/profit-label";
-import { GRID_SORTS, sortGridCards, type GridSort } from "@/lib/collection/grid";
+import { costFilterShown, gridSortsFor, sortGridCards, type GridSort } from "@/lib/collection/grid";
 import { leaderboardMinimums, type LeaderboardMinimums } from "@/lib/leaderboard/eligibility";
 import { trustedPublicTotals } from "@/lib/leaderboard/public-value";
 import { useCardValues } from "@/lib/value/use-card-values";
@@ -204,8 +204,9 @@ export function Dashboard({
   }
 
   function cycleSort() {
-    const index = GRID_SORTS.findIndex((item) => item.id === sort);
-    setSort(GRID_SORTS[(index + 1) % GRID_SORTS.length].id);
+    const sorts = gridSortsFor(paidCount, sort);
+    const index = sorts.findIndex((item) => item.id === sort);
+    setSort(sorts[(index + 1) % sorts.length].id);
   }
 
   if (!ready) {
@@ -216,7 +217,7 @@ export function Dashboard({
     );
   }
 
-  const sortLabel = GRID_SORTS.find((item) => item.id === sort)?.label ?? "Value";
+  const sortLabel = gridSortsFor(paidCount, sort).find((item) => item.id === sort)?.label ?? "Value";
   const showTools = cards.length > 0 && lane !== "wants";
 
   return (
@@ -356,7 +357,14 @@ export function Dashboard({
               <ArrowDownUp className="h-3.5 w-3.5" aria-hidden />
               {sortLabel}
             </button>
-            {activeFirst(FILTERS.filter((item) => item.id !== "novalue" || filter === "novalue" || totals.withoutValueCount > 0), filter).map((item) => {
+            {activeFirst(
+              FILTERS.filter(
+                (item) =>
+                  (item.id !== "novalue" || filter === "novalue" || totals.withoutValueCount > 0) &&
+                  costFilterShown(item.id, paidCount, filter),
+              ),
+              filter,
+            ).map((item) => {
               const selected = filter === item.id;
               return (
                 <button

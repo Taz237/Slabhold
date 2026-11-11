@@ -15,7 +15,9 @@ describe("add a card first impression", () => {
     assert.match(form, /: "Add a card"/);
     assert.doesNotMatch(form, /New position/);
     assert.match(page, /Add a card · Slabhold/);
-    assert.match(form, /<Field label="Purchase date">/);
+    // Add has no purchase date at all; Edit keeps it in More details, optional.
+    assert.doesNotMatch(form, /<Field label="Purchase date">/);
+    assert.match(form, /label="Purchase date \(optional\)"/);
     assert.doesNotMatch(form, /Boolean\(form\.purchaseDate\)/);
   });
 

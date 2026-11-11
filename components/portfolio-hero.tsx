@@ -4,7 +4,7 @@ import Link from "next/link";
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ChevronRight, Layers, Share, Trophy } from "lucide-react";
 import { AddCardLink } from "@/components/add-card-link";
-import { TopMovers, muted, tile, type HeroCard } from "@/components/collection-movers";
+import { MoveArrow, TopMovers, muted, tile, type HeroCard } from "@/components/collection-movers";
 import { ShapedCardThumb } from "@/components/card-thumb";
 import { ValueChart, type ChartPoint } from "@/components/charts/value-chart";
 import { athIndex, dayLabel } from "@/lib/chart/geometry";
@@ -22,7 +22,7 @@ import {
   type ChangeTone,
   type RangeId,
 } from "@/lib/chart/range";
-import { PILL_TONE, TONE_CLASS, collectionMinSpan } from "@/lib/chart/theme";
+import { MOVE_PILL, TONE_CLASS, collectionMinSpan } from "@/lib/chart/theme";
 import {
   cardDaysForCollection,
   indexPoints,
@@ -45,8 +45,9 @@ import {
   addedMarkers,
   bestCard,
   collectionPoints,
+  paidMovers,
   topCardByValue,
-  topMovers,
+  weekMovers,
   type BestCard,
 } from "@/lib/collection/value-series";
 import { hasPaid, isSold, money, signedMoney } from "@/lib/format";
@@ -102,29 +103,6 @@ function storage(): Storage | null {
 
 const label = "text-xs font-medium text-zinc-500 dark:text-zinc-400";
 const pulse = "animate-pulse bg-zinc-200/70 dark:bg-white/[0.06]";
-/**
- * The market-move pill. The chart is always brand purple, so up and down live
- * here: a lighter purple with ▲ when up, muted gray with ▼ when down, gray with
- * no arrow when flat. The arrow, the sign and a screen-reader word carry the
- * direction, never the color alone. Text passes 4.5:1 on its tint in both themes.
- */
-const MOVE_PILL: Record<ChangeTone, string> = {
-  up: "bg-violet-500/12 text-violet-700 dark:bg-violet-400/15 dark:text-violet-300",
-  down: "bg-zinc-500/12 text-zinc-600 dark:bg-white/[0.07] dark:text-zinc-400",
-  flat: "bg-zinc-500/12 text-zinc-600 dark:bg-white/[0.07] dark:text-zinc-400",
-};
-
-function MoveArrow({ tone }: { tone: ChangeTone }) {
-  if (tone === "flat") return null;
-  return (
-    <>
-      <span aria-hidden className="text-[10px] leading-none">
-        {tone === "up" ? "▲" : "▼"}
-      </span>
-      <span className="sr-only">{tone}</span>
-    </>
-  );
-}
 type CountUp = typeof import("@/components/hero-count-up");
 let countUp: CountUp | null = null;
 let countUpLoad: Promise<unknown> | null = null;
@@ -190,12 +168,13 @@ export function PortfolioHero(props: PortfolioHeroProps) {
     const top = topCardByValue(movers);
     return top ? { kind: "top", card: top } : null;
   }, [movers, valuesLoading, valuesFailed]);
-  const top = useMemo(() => topMovers(movers, history), [movers, history]);
+  const today = snapshotDateInNewYork();
+  const moversWeek = useMemo(() => weekMovers(movers, history, today), [movers, history, today]);
+  const moversPaid = useMemo(() => paidMovers(movers), [movers]);
   const markers = useMemo(() => addedMarkers(cards), [cards]);
   const cardIds = useMemo(() => cards.map((card) => card.id), [cards]);
   const readDays = useCardDaySnapshots(cardIds, cards.length > 0 && props.cardDays === undefined);
   const days = props.cardDays ?? readDays;
-  const today = snapshotDateInNewYork();
   const liveReady = !valuesLoading && !valuesFailed;
   const perf = useMemo(
     () =>
@@ -237,7 +216,7 @@ export function PortfolioHero(props: PortfolioHeroProps) {
         loading={valuesLoading}
         failed={valuesFailed}
       />
-      {!valuesLoading && !valuesFailed && cards.length > 0 ? <TopMovers movers={top} /> : null}
+      {!valuesLoading && !valuesFailed && cards.length > 0 ? <TopMovers week={moversWeek} paid={moversPaid} /> : null}
     </div>
   );
 }
@@ -735,7 +714,7 @@ const helper = `mt-auto pt-2 truncate text-xs leading-4 tabular-nums ${muted}`;
 
 type StatPick = { kind: "best"; best: BestCard<HeroCard> } | { kind: "top"; card: HeroCard };
 
-/** Cards and Best (or Top) card. Color only on the gain. */
+/** Cards and Best (or Top) card. Brand purple with ▲ on the gain, never green. */
 function StatRow({
   cardCount,
   withoutValueCount,
@@ -793,8 +772,9 @@ function StatRow({
               {pick.kind === "best" ? (
                 <span
                   data-gain="up"
-                  className={`mt-2 inline-flex rounded-full px-2 py-0.5 text-xs leading-4 font-semibold tabular-nums ${PILL_TONE.up}`}
+                  className={`mt-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs leading-4 font-semibold tabular-nums ${MOVE_PILL.up}`}
                 >
+                  <MoveArrow tone="up" />
                   {signedMoney(pick.best.gain)}
                 </span>
               ) : (
@@ -806,7 +786,7 @@ function StatRow({
         ) : (
           <>
             <p className={value}>—</p>
-            <p className={helper}>{failed ? "Values didn't load" : "Needs a price paid and a value"}</p>
+            <p className={helper}>{failed ? "Values didn't load" : "Shows once a card has a value"}</p>
           </>
         )}
       </Tile>

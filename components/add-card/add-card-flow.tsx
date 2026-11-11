@@ -810,7 +810,7 @@ function ReviewStep({
           <span className="min-w-0">
             <span className="block text-sm font-semibold">More details</span>
             <span className="block text-xs text-zinc-500">
-              What you paid, notes, rookie and patch
+              Notes, rookie and patch, sold
             </span>
           </span>
           <ChevronDown

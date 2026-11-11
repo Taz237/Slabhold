@@ -215,3 +215,17 @@ export function sortGridCards(
     return right - left || newestFirst(a, b);
   });
 }
+
+/**
+ * Sorts on offer. Gain needs a price paid, so it is offered only once a card
+ * in the lane has one (or while it is the current sort).
+ */
+export function gridSortsFor(paidCount: number, current: GridSort): { id: GridSort; label: string }[] {
+  return GRID_SORTS.filter((item) => item.id !== "gain" || paidCount > 0 || current === "gain");
+}
+
+/** Profit and Loss filters need a price paid: hidden until a card has one, unless active. */
+export function costFilterShown(id: string, paidCount: number, active: string): boolean {
+  if (id !== "profit" && id !== "loss") return true;
+  return paidCount > 0 || active === id;
+}

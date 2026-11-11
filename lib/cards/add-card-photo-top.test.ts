@@ -186,7 +186,8 @@ describe("add card photo block", () => {
       assert.equal(win.document.querySelector('[role="combobox"]') === null, true, "no search input");
       assert.equal(textIncludes("Search for your card"), false);
       assert.ok(textIncludes("Snap a photo or fill in the basics. Everything else is optional."));
-      assert.ok(textIncludes("What you paid, notes, sharing"));
+      assert.ok(textIncludes("Notes, sharing, sold"));
+      assert.equal(textIncludes("What you paid"), false);
     } finally {
       view.unmount();
     }

@@ -338,7 +338,6 @@ export function CardForm({
   );
   const [isAuto, setIsAuto] = useState(restored?.isAuto ?? Boolean(existing?.isAuto));
   const [isRelic, setIsRelic] = useState(restored?.isRelic ?? Boolean(existing?.isRelic));
-  const [unknownPurchase, setUnknownPurchase] = useState(restored?.unknownPurchase ?? false);
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const sections = addFormSections(Boolean(existing));
   const [moreOpen, setMoreOpen] = useState(() => draftOpensMoreDetails(restored));
@@ -435,7 +434,6 @@ export function CardForm({
       category,
       sportTouched,
       sportOffer,
-      unknownPurchase,
     };
   }
 
@@ -455,7 +453,6 @@ export function CardForm({
       !isRookie &&
       !isAuto &&
       !isRelic &&
-      !unknownPurchase &&
       gradeNumber.trim() === "" &&
       certNumber.trim() === "" &&
       pendingCardId == null &&
@@ -496,7 +493,6 @@ export function CardForm({
       category,
       sportTouched,
       sportOffer,
-      unknownPurchase,
     });
   }, [
     seed,
@@ -534,7 +530,6 @@ export function CardForm({
     category,
     sportTouched,
     sportOffer,
-    unknownPurchase,
   ]);
 
   const view = assessNewCardSubmit({
@@ -579,7 +574,6 @@ export function CardForm({
   const playerOk = view.playerOk;
   const yearOk = view.yearOk;
   const companyMissing = view.companyMissing;
-  const purchaseNeg = view.purchaseNeg;
   const estNeg = view.estNeg;
   const sellNeg = view.sellNeg;
 
@@ -835,7 +829,6 @@ export function CardForm({
     setIsRookie(Boolean(catalogStart?.isRookie));
     setIsAuto(false);
     setIsRelic(false);
-    setUnknownPurchase(false);
     setMoreOpen(false);
     setMatchLookup(null);
     setMatchDismissed(false);
@@ -919,7 +912,6 @@ export function CardForm({
       certNumber: liveCondition === "graded" ? certNumber.trim() : "",
       sport: values.sport,
       ...purchaseForSubmit({
-        unknownPurchase,
         purchasePrice: values.purchasePrice,
         purchaseDate: values.purchaseDate,
       }),
@@ -1133,7 +1125,7 @@ export function CardForm({
         </h1>
         <p className="mt-1 text-sm text-zinc-500">
           {existing
-            ? "Player, set, what you paid, and a photo."
+            ? "Player, set, grade and a photo."
             : guidedAdd
               ? ADD_FLOW_SUBLINE
               : ADD_FORM_SUBLINE}{" "}
@@ -1532,69 +1524,6 @@ export function CardForm({
     </Field>
   ) : null;
 
-  const purchaseNode = (
-    <div className="space-y-2">
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="Purchase date">
-          <input
-            type="date"
-            data-field="purchaseDate"
-            suppressHydrationWarning
-            value={form.purchaseDate}
-            disabled={unknownPurchase}
-            onBlur={() => markTouched("purchaseDate")}
-            onChange={(e) =>
-              setForm((prev) => ({ ...prev, purchaseDate: e.target.value }))
-            }
-            className={`${inputClass} disabled:opacity-50`}
-          />
-        </Field>
-        <Field
-          label="What you paid"
-          error={
-            touched.purchasePrice && purchaseNeg
-              ? "Price can't be negative"
-              : null
-          }
-        >
-          <input
-            type="number"
-            inputMode="decimal"
-            min={0}
-            step="0.01"
-            data-field="purchasePrice"
-            value={form.purchasePrice}
-            disabled={unknownPurchase}
-            onBlur={() => markTouched("purchasePrice")}
-            onChange={(e) =>
-              setForm((prev) => ({ ...prev, purchasePrice: e.target.value }))
-            }
-            className={`${inputClass} disabled:opacity-50`}
-            placeholder="e.g. 25.00"
-          />
-        </Field>
-      </div>
-      {existing ? null : (
-        <label className="flex min-h-11 items-center gap-2 text-sm text-zinc-600 dark:text-zinc-400">
-          <CheckHit>
-            <input
-              type="checkbox"
-              checked={unknownPurchase}
-              onChange={(e) => {
-                setUnknownPurchase(e.target.checked);
-                if (e.target.checked) {
-                  setForm((prev) => ({ ...prev, purchasePrice: "", purchaseDate: "" }));
-                }
-              }}
-              className="size-5 accent-violet-500"
-            />
-          </CheckHit>
-          Don’t know (bin card)
-        </label>
-      )}
-    </div>
-  );
-
   const estimateNode = (
       <Field
         label="Your estimate"
@@ -1746,7 +1675,6 @@ export function CardForm({
       traits: traitsNode,
       // The cert number is on Review's Condition row; the qualifier stays here.
       gradeExtras: gradeQualifierNode,
-      purchase: purchaseNode,
       estimatedSellPrice: estimateNode,
       sold: (
         <>
@@ -1862,7 +1790,6 @@ export function CardForm({
       serialNo: serialNoNode,
       traits: traitsNode,
       gradeExtras: gradeExtrasNode,
-      purchase: purchaseNode,
       estimatedSellPrice: estimateNode,
       sold: (
         <>
@@ -1898,7 +1825,7 @@ export function CardForm({
               <span className="min-w-0">
                 <span className="block text-sm font-semibold">{MORE_DETAILS_LABEL}</span>
                 <span className="block text-xs text-zinc-500">
-                  What you paid, notes, sharing
+                  Notes, sharing, sold
                 </span>
               </span>
               <ChevronDown
@@ -1997,6 +1924,35 @@ export function CardForm({
         onClick={open}
       />
     );
+
+  // What you paid is optional: a filled value shows like notes do, an empty one stays in More details. No validation.
+  const hasPaidValue = form.purchasePrice.trim() !== "";
+  const hasPurchaseDate = form.purchaseDate.trim() !== "";
+  const paidRow = (
+    <FieldSheetRow
+      label="What you paid (optional)"
+      value={form.purchasePrice}
+      display={moneyRowValue(form.purchasePrice)}
+      type="number"
+      inputMode="decimal"
+      prefix="$"
+      inputPlaceholder="25.00"
+      dataField="purchasePrice"
+      onChange={(purchasePrice) => setForm((prev) => ({ ...prev, purchasePrice }))}
+    />
+  );
+  const purchaseDateRow = (
+    <FieldSheetRow
+      label="Purchase date (optional)"
+      value={form.purchaseDate}
+      display={dateRowValue(form.purchaseDate)}
+      type="date"
+      dataField="purchaseDate"
+      onChange={(purchaseDate) => setForm((prev) => ({ ...prev, purchaseDate }))}
+    />
+  );
+  // Short enough to fit at 390px. "paid" covers What you paid and Purchase date while either is empty.
+  const moreSummary = hasPaidValue && hasPurchaseDate ? "Serial, cert #, notes" : "Serial, cert #, notes, paid";
 
   const serialRows = (
     <SheetRow label="Serial" value={serialShown} placeholder="Not numbered" dataField="serialRun">
@@ -2251,26 +2207,6 @@ export function CardForm({
 
       <EditGroup title="Your money">
         <FieldSheetRow
-          label="What you paid"
-          value={form.purchasePrice}
-          display={moneyRowValue(form.purchasePrice)}
-          type="number"
-          inputMode="decimal"
-          prefix="$"
-          inputPlaceholder="25.00"
-          dataField="purchasePrice"
-          error={rowError("purchasePrice", purchaseNeg, "Can't be negative")}
-          onChange={(purchasePrice) => setForm((prev) => ({ ...prev, purchasePrice }))}
-        />
-        <FieldSheetRow
-          label="Purchase date"
-          value={form.purchaseDate}
-          display={dateRowValue(form.purchaseDate)}
-          type="date"
-          dataField="purchaseDate"
-          onChange={(purchaseDate) => setForm((prev) => ({ ...prev, purchaseDate }))}
-        />
-        <FieldSheetRow
           label="Your estimate"
           value={form.estimatedSellPrice}
           display={moneyRowValue(form.estimatedSellPrice)}
@@ -2331,15 +2267,19 @@ export function CardForm({
 
       <EditGroup>
         {hasNotes ? notesRow : null}
+        {hasPaidValue ? paidRow : null}
+        {hasPurchaseDate ? purchaseDateRow : null}
         {showMore ? (
           <>
             {serialShown ? null : serialRows}
             {graded && !certNumber.trim() ? certRow : null}
             {graded && !gradeQualifier ? qualifierRow : null}
             {hasNotes ? null : notesRow}
+            {hasPaidValue ? null : paidRow}
+            {hasPurchaseDate ? null : purchaseDateRow}
           </>
         ) : (
-          <EditRow label="More details" value="Serial, cert #, notes" onClick={() => setMoreOpen(true)} />
+          <EditRow label="More details" value={moreSummary} onClick={() => setMoreOpen(true)} />
         )}
       </EditGroup>
 
@@ -2708,7 +2648,7 @@ function FeedPostField({
             placeholder="Say something about it"
           />
           <div className="mt-1 flex min-h-7 items-center justify-between gap-3">
-            <p className="text-xs text-zinc-500">The card shows on the post. What you paid stays private.</p>
+            <p className="text-xs text-zinc-500">The card shows on the post. Your notes stay private.</p>
             <CharacterRing length={caption.length} limit={POST_LIMIT} />
             <span className="sr-only" aria-live="polite">
               {caption.length}/{POST_LIMIT}
