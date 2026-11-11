@@ -7,12 +7,12 @@ import { createRoot, type Root } from "react-dom/client";
 import { installDom } from "@/lib/test/dom";
 import { CollectionContext } from "@/components/collection-provider";
 import { SocialContext } from "@/components/social-provider";
-import { Dashboard, firstScreenTiles, SEEDED_TILES } from "@/components/dashboard";
+import { activeFirst, Dashboard, firstScreenTiles, SEEDED_TILES } from "@/components/dashboard";
 import { SeededViewer } from "@/components/viewer-seed";
 import { mergeCategories } from "@/lib/card-category";
 import { sortGridCards } from "@/lib/collection/grid";
 import { cardValuesKey, type CollectionSeed } from "@/lib/collection/viewer-seed";
-import { loadUserCards, type CardRow } from "@/lib/social/cards";
+import { loadUserCards, mapCardRow as cardFromRow, type CardRow } from "@/lib/social/cards";
 import type { SportsCard } from "@/lib/types";
 import type { CardValueResult } from "@/lib/value/types";
 import { profileCardsTab } from "@/lib/social/profile-tabs";
@@ -160,7 +160,7 @@ function screen(children: ReactNode, cards: SportsCard[]) {
 function tileIds(): string[] {
   return [...host.querySelectorAll('ul[aria-label="Your cards"] a[href^="/cards/"]')]
     .map((link) => link.getAttribute("href") ?? "")
-    .filter((href) => /^\/cards\/[^/]+$/.test(href))
+    .filter((href) => /^\/cards\/[^/]+$/.test(href) && href !== "/cards/new")
     .map((href) => href.slice("/cards/".length));
 }
 
@@ -227,5 +227,100 @@ describe("a just-added card on the owner's profile", () => {
       ownBook: [{ ...base, id: NEW_ID, grade: "PSA 6" } as never],
     });
     assert.deepEqual(shown.map((card) => card.id), ["older-copy", NEW_ID]);
+  });
+});
+
+describe("Collection shows every card the count includes", () => {
+  /** 14 cards: 7 Flipping, 7 Personal, 2 of the Personal ones sold. */
+  function fourteen(): SportsCard[] {
+    const rows = Array.from({ length: 14 }, (_, index) =>
+      row(`card-${index}`, {
+        category: index < 7 ? "flipping" : "pc",
+        created_at: `2026-10-${String(index + 1).padStart(2, "0")}T00:00:00.000Z`,
+        sell_price: index >= 12 ? 50 : null,
+        sell_date: index >= 12 ? "2026-11-01" : null,
+      }),
+    );
+    return mergeCategories(rows.map(cardFromRow)).cards;
+  }
+
+  function tab(label: string): HTMLButtonElement {
+    const el = [...host.querySelectorAll<HTMLButtonElement>('[role="tab"]')].find((node) => node.textContent === label);
+    assert.ok(el, label);
+    return el;
+  }
+
+  function filterChip(label: string): HTMLButtonElement {
+    const el = [...host.querySelectorAll<HTMLButtonElement>("button[aria-pressed]")].find((node) => node.textContent === label);
+    assert.ok(el, label);
+    return el;
+  }
+
+  function countLine(): string | null {
+    return host.querySelector('[data-slot="grid-count"]')?.textContent ?? null;
+  }
+
+  it("draws all 14 on All, 7 on Flipping and 7 on Personal", async () => {
+    const cards = fourteen();
+    act(() => root!.render(screen(createElement(Dashboard), cards)));
+    assert.equal(tileIds().length, 14);
+    assert.equal(countLine(), null, "nothing hidden, no count line");
+    act(() => tab("Flipping").click());
+    assert.equal(tileIds().length, 7);
+    act(() => tab("Personal").click());
+    assert.equal(tileIds().length, 7);
+    act(() => tab("All").click());
+    assert.equal(tileIds().length, 14);
+  });
+
+  it("a filter that hides cards says so with the shown count, on every tab, and All clears it", async () => {
+    const cards = fourteen();
+    act(() => root!.render(screen(createElement(Dashboard), cards)));
+    act(() => filterChip("Held").click());
+    assert.equal(tileIds().length, 12);
+    assert.match(countLine() ?? "", /Showing 12 of 14 cards · Held/);
+    // The filter stays on across lanes, so the line goes with it.
+    act(() => tab("Flipping").click());
+    assert.equal(tileIds().length, 7);
+    assert.equal(countLine(), null, "all 7 Flipping cards are held");
+    act(() => tab("Personal").click());
+    assert.equal(tileIds().length, 5);
+    assert.match(countLine() ?? "", /Showing 5 of 7 cards · Held/);
+    // The count in the line is the number of tiles drawn.
+    assert.equal(Number(/Showing (\d+)/.exec(countLine() ?? "")?.[1]), tileIds().length);
+    act(() => tab("All").click());
+    assert.equal(tileIds().length, 14, "All shows every card");
+    assert.equal(filterChip("Held").getAttribute("aria-pressed"), "false");
+  });
+
+  it("Show all clears the filter", async () => {
+    const cards = fourteen();
+    act(() => root!.render(screen(createElement(Dashboard), cards)));
+    act(() => filterChip("Sold").click());
+    assert.equal(tileIds().length, 2);
+    const showAll = [...host.querySelectorAll("button")].find((node) => node.textContent === "Show all");
+    assert.ok(showAll);
+    act(() => showAll.click());
+    assert.equal(tileIds().length, 14);
+  });
+
+  it("puts the active filter first so it is never off screen", () => {
+    const items = [{ id: "held" }, { id: "sold" }, { id: "profit" }];
+    assert.deepEqual(activeFirst(items, "profit").map((item) => item.id), ["profit", "held", "sold"]);
+    assert.deepEqual(activeFirst(items, "all").map((item) => item.id), ["held", "sold", "profit"]);
+  });
+
+  it("the tabs row is sticky on a solid surface with a hairline, and scrolls sideways", async () => {
+    const cards = fourteen();
+    act(() => root!.render(screen(createElement(Dashboard), cards)));
+    const bar = host.querySelector<HTMLElement>('[data-slot="collection-tools"]');
+    assert.ok(bar);
+    assert.match(bar.className, /\bsticky\b/);
+    assert.match(bar.className, /top-\[var\(--app-header-h\)\]/);
+    assert.match(bar.className, /bg-\[var\(--background\)\]/);
+    assert.match(bar.className, /\bborder-b\b/);
+    const scroller = bar.firstElementChild as HTMLElement;
+    assert.match(scroller.className, /overflow-x-auto/);
+    assert.match((scroller.lastElementChild as HTMLElement).className, /shrink-0/, "a spacer after the last chip");
   });
 });

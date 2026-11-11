@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { Fragment, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type SetStateAction } from "react";
-import { ChevronDown, ScanSearch } from "lucide-react";
+import { ChevronDown, Loader2, ScanSearch } from "lucide-react";
 import { AddCardFlow } from "@/components/add-card/add-card-flow";
 import { Chip, DraftSlab, PrimaryButton, QuietButton, StepDock, focusRing } from "@/components/add-card/flow-ui";
 import type { ArtCard } from "@/components/card-slab-art";
@@ -2048,8 +2048,10 @@ export function CardForm({
       id={editFormId}
       ref={formRef}
       onSubmit={onSubmit}
-      className="mx-auto max-w-xl space-y-6 pb-2"
+      // Room under the last row for the tab bar and the home indicator.
+      className="mx-auto max-w-xl space-y-6 pb-[calc(5.5rem+env(safe-area-inset-bottom))]"
       data-slot="edit-card"
+      aria-busy={saving || undefined}
     >
       <div className="grid min-h-11 grid-cols-[1fr_auto_1fr] items-center gap-3">
         <QuietButton onClick={cancelEdit} className="-ml-3 justify-self-start text-zinc-700 dark:text-zinc-200">
@@ -2073,6 +2075,21 @@ export function CardForm({
           </SheetRowButton>
         </div>
       )}
+
+      {/* Read-only: recent sold prices for this card, next to the card itself. */}
+      <EditGroup>
+        <EditRow
+          label="Current value"
+          chevron={false}
+          value={
+            current.loading
+              ? "Checking…"
+              : (currentValueLine?.replace(/^Current value /, "") ??
+                formatCardValueLabel(current.value, { createdAt: existing?.createdAt ?? "" }))
+          }
+          placeholder="No sales yet"
+        />
+      </EditGroup>
 
       <EditGroup title="Card">
         <SearchSelect
@@ -2265,17 +2282,6 @@ export function CardForm({
           error={rowError("estimatedSellPrice", estNeg, "Can't be negative")}
           onChange={(estimatedSellPrice) => setForm((prev) => ({ ...prev, estimatedSellPrice }))}
         />
-        <EditRow
-          label="Current value"
-          chevron={false}
-          value={
-            current.loading
-              ? "Checking…"
-              : (currentValueLine?.replace(/^Current value /, "") ??
-                formatCardValueLabel(current.value, { createdAt: existing?.createdAt ?? "" }))
-          }
-          placeholder="No sales yet"
-        />
       </EditGroup>
 
       <EditGroup title="Sold">
@@ -2367,7 +2373,14 @@ export function CardForm({
             if (e.button === 0) e.preventDefault();
           }}
         >
-          {saving ? "Saving…" : "Save"}
+          {saving ? (
+            <span className="inline-flex items-center gap-2">
+              <Loader2 className="size-4 animate-spin motion-reduce:animate-none" aria-hidden data-slot="save-spinner" />
+              Saving…
+            </span>
+          ) : (
+            "Save"
+          )}
         </PrimaryButton>
       </StepDock>
     </form>

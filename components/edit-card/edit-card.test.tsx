@@ -3,7 +3,7 @@ import { createRequire } from "node:module";
 import { after, before, describe, it } from "node:test";
 import { JSDOM } from "jsdom";
 import { createElement, act, useMemo, type ComponentType, type ReactNode } from "react";
-import { CollectionProvider } from "@/components/collection-provider";
+import { CollectionContext, CollectionProvider } from "@/components/collection-provider";
 import { SocialContext } from "@/components/social-provider";
 import { STORAGE_KEY } from "@/lib/storage";
 import type { SportsCard } from "@/lib/types";
@@ -372,6 +372,112 @@ describe("Edit card number, money and date sheets", () => {
     }
   });
 });
+
+describe("Edit card on an iPhone", () => {
+  it("every field on the page and in each sheet is 16px, so iOS never zooms", async () => {
+    const view = await mountEdit();
+    try {
+      await click(findRow("More details")!);
+      const labels = ["Player", "Year", "Card #", "What you paid", "Purchase date", "Your estimate", "Serial", "Cert #", "Notes", "Mark as sold"];
+      let checked = 0;
+      for (const label of labels) {
+        await click(findRow(label)!);
+        if (label === "Mark as sold") {
+          await click([...sheet().querySelectorAll("button")].find((el) => el.textContent?.includes("This card has been sold"))!);
+        }
+        for (const field of win.document.querySelectorAll<HTMLElement>("input:not([type=file]):not([type=checkbox]), textarea, select")) {
+          assert.match(field.className, /\btext-base\b/, `${label}: ${field.outerHTML.slice(0, 80)}`);
+          assert.doesNotMatch(field.className, /\b(sm:)?text-(sm|xs)\b/, label);
+          checked += 1;
+        }
+        await click(sheet().querySelector<HTMLButtonElement>('button[aria-label="Close"]')!);
+      }
+      assert.ok(checked >= 10, `checked ${checked} fields`);
+    } finally {
+      view.unmount();
+    }
+  });
+
+  it("shows Current value as a read-only row up with the card, above the Card group", async () => {
+    const view = await mountEdit();
+    try {
+      const value = [...editForm().querySelectorAll("div")].find((el) => el.textContent?.startsWith("Current value") && el.children.length === 2);
+      assert.ok(value, "a Current value row");
+      const cardGroup = [...editForm().querySelectorAll("section")].find((el) => el.querySelector("h2")?.textContent === "Card");
+      assert.ok(cardGroup);
+      assert.ok(value.compareDocumentPosition(cardGroup) & win.Node.DOCUMENT_POSITION_FOLLOWING);
+    } finally {
+      view.unmount();
+    }
+  });
+
+  it("leaves room for the tab bar and the home indicator under the last row", async () => {
+    const view = await mountEdit();
+    try {
+      assert.match(editForm().className, /pb-\[calc\(5\.5rem\+env\(safe-area-inset-bottom\)\)\]/);
+    } finally {
+      view.unmount();
+    }
+  });
+
+  it("Save shows a spinner while the save runs", async () => {
+    const view = await mountSlowSave();
+    try {
+      await click(chip("Auto"));
+      await act(async () => {
+        fire(editForm(), new win.Event("submit", { bubbles: true, cancelable: true }));
+      });
+      await waitFor(() => Boolean(win.document.querySelector('[data-slot="save-spinner"]')));
+      const busy = win.document.querySelector<HTMLButtonElement>('form[data-slot="edit-card"] button[type="submit"]');
+      assert.match(busy?.textContent ?? "", /Saving/);
+      assert.equal(busy?.disabled, true, "no second tap while saving");
+      assert.equal(editForm().getAttribute("aria-busy"), "true");
+      assert.match(win.document.querySelector('[data-slot="save-spinner"]')!.getAttribute("class") ?? "", /motion-reduce:animate-none/);
+    } finally {
+      view.unmount();
+    }
+  });
+});
+
+/** A collection whose save never settles, to see the saving state. */
+async function mountSlowSave() {
+  const { createRoot } = await import("react-dom/client");
+  const host = win.document.createElement("div");
+  win.document.body.appendChild(host);
+  const root = createRoot(host);
+  const collection = {
+    ready: true,
+    loaded: true,
+    loadFailed: false,
+    cards: [card],
+    syncError: null,
+    getCard: () => card,
+    addCard: () => ({ card, saved: new Promise(() => {}) }),
+    updateCard: (id: string, patch: Partial<SportsCard>) => ({ card: { ...card, ...patch, id }, saved: new Promise(() => {}) }),
+    removeCard() {},
+    reload: async () => [card],
+  };
+  const social = { ready: true, mode: "local", user: null, createPost: async () => ({ error: null, postId: null }) };
+  await act(async () => {
+    root.render(
+      createElement(
+        AppRouterContext.Provider,
+        { value: router },
+        createElement(
+          SocialContext.Provider,
+          { value: social as never },
+          createElement(CollectionContext.Provider, { value: collection as never }, createElement(CardForm, { existing: card })),
+        ),
+      ),
+    );
+  });
+  return {
+    unmount() {
+      act(() => root.unmount());
+      host.remove();
+    },
+  };
+}
 
 function editForm(): HTMLFormElement {
   const form = win.document.querySelector<HTMLFormElement>('form[data-slot="edit-card"]');

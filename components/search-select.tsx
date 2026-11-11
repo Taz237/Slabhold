@@ -182,7 +182,7 @@ export function SearchSelect({
                   ? `Search or type a ${label.toLowerCase()}`
                   : `Search ${label.toLowerCase()}`)
               }
-                className="min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-zinc-400 sm:text-sm"
+                className="min-w-0 flex-1 bg-transparent text-base outline-none placeholder:text-zinc-400"
             />
           </label>
           ) : null}
