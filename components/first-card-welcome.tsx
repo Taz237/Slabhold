@@ -7,7 +7,7 @@ export function FirstCardWelcome() {
     <div className="px-6 py-14 text-center">
       <p className="text-2xl font-semibold tracking-tight">Your collection starts here</p>
       <p className="mx-auto mt-2 max-w-xs text-sm leading-5 text-zinc-500">
-        Add a card to track what you paid and what it&apos;s worth.
+        Add a card to track what it&apos;s worth, with recent sold prices.
       </p>
       <AddCardLink prominent />
       <ul className="mx-auto mt-6 max-w-xs space-y-1.5 text-sm text-zinc-500">

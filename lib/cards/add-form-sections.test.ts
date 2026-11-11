@@ -16,9 +16,6 @@ import {
 import {
   assessNewCardSubmit,
   purchaseForSubmit,
-  readNewCardDraft,
-  writeNewCardDraft,
-  clearNewCardDraft,
   type CardDraftForm,
   type NewCardDraft,
 } from "@/lib/cards/new-card-draft";
@@ -72,7 +69,6 @@ function draft(patch: Partial<NewCardDraft> = {}, form: Partial<CardDraftForm> =
     category: "pc",
     sportTouched: false,
     sportOffer: "",
-    unknownPurchase: false,
     ...patch,
   };
 }
@@ -110,7 +106,6 @@ describe("add card sections", () => {
       "serialNo",
       "traits",
       "gradeExtras",
-      "purchase",
       "estimatedSellPrice",
       "sold",
       "openToOffers",
@@ -122,6 +117,16 @@ describe("add card sections", () => {
       assert.ok(!sections.visible.includes(key as never), `${key} is not visible`);
     }
     assert.deepEqual([...MORE_DETAILS_FIELDS], [...sections.more]);
+  });
+
+  it("has no purchase price or purchase date on Add, not even in More details", () => {
+    assert.ok(!(MORE_DETAILS_FIELDS as readonly string[]).includes("purchase"));
+    assert.ok(!(ADD_VISIBLE_FIELDS as readonly string[]).includes("purchase"));
+    const flow = read("components/add-card/add-card-flow.tsx");
+    assert.doesNotMatch(flow, /What you paid|Purchase date|bin card/i);
+    const form = read("components/card-form.tsx");
+    assert.doesNotMatch(form, /bin card/i);
+    assert.doesNotMatch(form, /purchase: /);
   });
 
   it("keeps the full form on Edit", () => {
@@ -137,9 +142,9 @@ describe("add card sections", () => {
     assert.match(form, /MORE_DETAILS_LABEL/);
     // Edit keeps its old subline. Add uses the new one.
     assert.equal(ADD_FORM_SUBLINE, "Snap a photo or fill in the basics. Everything else is optional.");
-    assert.match(form, /What you paid, notes, sharing/);
-    assert.doesNotMatch(form, /What you paid, photo, notes, sharing/);
-    assert.match(form, /Player, set, what you paid, and a photo\./);
+    assert.match(form, /Notes, sharing, sold/);
+    // Nothing on Add or Edit asks for what you paid up front.
+    assert.doesNotMatch(form, /What you paid, notes|Player, set, what you paid/);
   });
 
   it("keeps the Add button above the bottom nav on mobile", () => {
@@ -207,9 +212,6 @@ describe("opening More details", () => {
     assert.equal(draftOpensMoreDetails(null), false);
     assert.equal(draftOpensMoreDetails(draft()), false);
     assert.equal(draftOpensMoreDetails(draft({}, { notes: "Centered" })), true);
-    assert.equal(draftOpensMoreDetails(draft({}, { purchasePrice: "20" })), true);
-    assert.equal(draftOpensMoreDetails(draft({}, { purchaseDate: "2026-10-01" })), true);
-    assert.equal(draftOpensMoreDetails(draft({ unknownPurchase: true })), true);
     assert.equal(draftOpensMoreDetails(draft({ sold: true })), true);
     assert.equal(draftOpensMoreDetails(draft({ share: true })), true);
     // The photo sits on top now, so a restored photo leaves the section closed.
@@ -221,46 +223,33 @@ describe("opening More details", () => {
   });
 });
 
-describe("bin cards", () => {
+describe("what you paid is optional", () => {
   it("starts a new card with no purchase date", () => {
     const form = read("components/card-form.tsx");
     assert.match(form, /purchaseDate: existing \? \(existing\.purchaseDate \?\? ""\) : ""/);
     assert.doesNotMatch(form, /todayDateInput\(\)/);
   });
 
-  it("saves Don't know as no date and no price", () => {
-    assert.deepEqual(
-      purchaseForSubmit({ unknownPurchase: true, purchasePrice: "25", purchaseDate: "2026-10-01" }),
-      { purchasePrice: null, purchaseDate: "" },
-    );
-    assert.deepEqual(
-      purchaseForSubmit({ unknownPurchase: false, purchasePrice: "25", purchaseDate: "2026-10-01" }),
-      { purchasePrice: 25, purchaseDate: "2026-10-01" },
-    );
-    assert.deepEqual(
-      purchaseForSubmit({ unknownPurchase: false, purchasePrice: " ", purchaseDate: "" }),
-      { purchasePrice: null, purchaseDate: "" },
-    );
-    assert.deepEqual(
-      purchaseForSubmit({ unknownPurchase: false, purchasePrice: "0", purchaseDate: "" }),
-      { purchasePrice: null, purchaseDate: "" },
-    );
+  it("saves an empty, zero or negative price as no price, never a nag", () => {
+    assert.deepEqual(purchaseForSubmit({ purchasePrice: "25", purchaseDate: "2026-10-01" }), {
+      purchasePrice: 25,
+      purchaseDate: "2026-10-01",
+    });
+    for (const blank of [" ", "", "0", "-5", "abc"]) {
+      assert.deepEqual(purchaseForSubmit({ purchasePrice: blank, purchaseDate: "" }), { purchasePrice: null, purchaseDate: "" }, blank);
+    }
   });
 
-  it("disables both inputs while Don't know is checked", () => {
-    const form = read("components/card-form.tsx");
-    assert.match(form, /Don’t know \(bin card\)|Don't know \(bin card\)/);
-    assert.equal((form.match(/disabled=\{unknownPurchase\}/g) ?? []).length, 2);
-    assert.match(form, /purchaseForSubmit\(/);
-  });
-
-  it("keeps Don't know through a draft restore", () => {
-    clearNewCardDraft();
-    writeNewCardDraft(draft({ unknownPurchase: true }));
-    assert.equal(readNewCardDraft("\n", null)?.unknownPurchase, true);
-    clearNewCardDraft();
-    const form = read("components/card-form.tsx");
-    assert.match(form, /useState\(restored\?\.unknownPurchase \?\? false\)/);
-    assert.ok((form.match(/\bunknownPurchase,\n/g) ?? []).length >= 2, "written in both draft builders");
+  it("never blocks save over what you paid", () => {
+    const check = assessNewCardSubmit({
+      isEdit: true,
+      form: { ...emptyForm, playerName: "Luka Dončić", yearLabel: "2018-19", setBrand: "Prizm", cardNumber: "280", purchasePrice: "-20" },
+      noNumber: false,
+      gradeCompany: "Raw",
+      gradeNumber: "",
+      sold: false,
+    });
+    assert.equal(check.ok, true);
+    assert.equal(firstInvalidField(check, emptyForm), null);
   });
 });

@@ -1,4 +1,5 @@
 import type { ChartPoint } from "@/components/charts/value-chart";
+import { addDays } from "@/lib/chart/range";
 import { MIN_BASE } from "@/lib/collection/performance";
 import { snapshotDateInNewYork } from "@/lib/collection/totals-shared";
 
@@ -99,40 +100,49 @@ export type MoverRow<T extends MoverCard> = {
   points: { date: string; value: number }[];
 };
 
-export type Movers<T extends MoverCard> = { basis: "history" | "paid"; rows: MoverRow<T>[] };
+/** Market price change over the past 7 days, from saved daily values. */
+export const WEEK_DAYS = 7;
 
 /**
- * The three biggest moves, up or down. Uses saved daily values when any card
- * has two, and falls back to the gain since the price paid.
+ * Biggest movers this week: market price change, up or down, three at most.
+ * Never uses what was paid. The base is the last saved value on or before a
+ * week ago, else the first value inside the week. A base under $1 is skipped.
  */
-export function topMovers<T extends MoverCard>(
+export function weekMovers<T extends MoverCard>(
   cards: T[],
   history: Map<string, { date: string; value: number }[]>,
+  today: string,
   limit = 3,
-): Movers<T> {
-  const held = cards.filter((item) => !item.sold);
-  const fromHistory: MoverRow<T>[] = [];
-  for (const item of held) {
-    const points = history.get(item.id) ?? [];
+): MoverRow<T>[] {
+  const start = addDays(today, -WEEK_DAYS);
+  const rows: MoverRow<T>[] = [];
+  for (const item of cards) {
+    if (item.sold) continue;
+    const all = history.get(item.id) ?? [];
+    let from = 0;
+    for (let i = 0; i < all.length; i++) if (all[i].date <= start) from = i;
+    const points = all.slice(from).filter((point, i) => i === 0 || point.date > start);
     if (points.length < 2) continue;
     const first = points[0].value;
     const last = points[points.length - 1].value;
     if (!(first >= MIN_BASE)) continue;
-    fromHistory.push({ card: item, pct: ((last - first) / first) * 100, fresh: false, points });
+    rows.push({ card: item, pct: ((last - first) / first) * 100, fresh: false, points });
   }
-  if (fromHistory.length) {
-    return {
-      basis: "history",
-      rows: fromHistory.sort((a, b) => Math.abs(b.pct) - Math.abs(a.pct)).slice(0, limit),
-    };
-  }
-  const fromPaid: MoverRow<T>[] = [];
-  for (const item of held) {
-    if (item.paid == null || item.paid <= 0 || item.value == null) continue;
+  return rows.sort((a, b) => Math.abs(b.pct) - Math.abs(a.pct)).slice(0, limit);
+}
+
+/**
+ * The gain since the price paid, only for held cards with a paid value and a
+ * value. Cards without a paid value never show here, not even as $0.
+ */
+export function paidMovers<T extends MoverCard>(cards: T[], limit = 3): MoverRow<T>[] {
+  const rows: MoverRow<T>[] = [];
+  for (const item of cards) {
+    if (item.sold || item.paid == null || !(item.paid > 0) || item.value == null) continue;
     const fresh = item.paid < MIN_BASE;
     const pct = fresh ? 0 : ((item.value - item.paid) / item.paid) * 100;
-    fromPaid.push({ card: item, pct, fresh, points: [] });
+    rows.push({ card: item, pct, fresh, points: [] });
   }
   const rank = (a: MoverRow<T>, b: MoverRow<T>) => Number(a.fresh) - Number(b.fresh) || Math.abs(b.pct) - Math.abs(a.pct);
-  return { basis: "paid", rows: fromPaid.sort(rank).slice(0, limit) };
+  return rows.sort(rank).slice(0, limit);
 }

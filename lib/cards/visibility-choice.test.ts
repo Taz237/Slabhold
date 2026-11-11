@@ -372,7 +372,6 @@ function filledDraft(userId: string, share: boolean): NewCardDraft {
     category: "pc",
     sportTouched: false,
     sportOffer: "",
-    unknownPurchase: false,
   };
 }
 

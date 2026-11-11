@@ -60,6 +60,18 @@ export const PILL_TONE: Record<HeroTone, string> = {
   calm: "bg-violet-500/12 text-violet-700 dark:text-violet-300",
 };
 
+/**
+ * Market-move pills, matching the collection chart: a lighter purple with ▲
+ * when up, muted gray with ▼ when down, gray with no arrow when flat. Never
+ * green or red. The arrow, the sign and a screen-reader word carry the
+ * direction, never the color alone. Text passes 4.5:1 on its tint in both themes.
+ */
+export const MOVE_PILL: Record<ChangeTone, string> = {
+  up: "bg-violet-500/12 text-violet-700 dark:bg-violet-400/15 dark:text-violet-300",
+  down: "bg-zinc-500/12 text-zinc-600 dark:bg-white/[0.07] dark:text-zinc-400",
+  flat: "bg-zinc-500/12 text-zinc-600 dark:bg-white/[0.07] dark:text-zinc-400",
+};
+
 /** Smallest y span for collection charts: 4% of the value, $5 at least. */
 export function collectionMinSpan(latest: number): number {
   return Math.max(Math.abs(latest) * 0.04, 5);

@@ -88,9 +88,8 @@ describe("add card form polish", () => {
   it("starts a new card's purchase date empty without touching a saved date", () => {
     assert.equal(todayDateInput(new Date(2026, 9, 21)), "2026-10-21");
     assert.equal(todayDateInput(new Date(2026, 0, 5)), "2026-01-05");
-    // Bin cards have no purchase date, so Add no longer seeds today.
+    // Add has no purchase date at all, so nothing seeds today.
     assert.match(form, /existing \? \(existing\.purchaseDate \?\? ""\) : ""/);
-    assert.match(form, /suppressHydrationWarning/);
   });
 
   it("sets decimal and numeric keyboards and 44px checkbox targets", () => {

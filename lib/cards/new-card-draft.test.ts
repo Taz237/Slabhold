@@ -96,7 +96,6 @@ function draftFor(form: CardDraftForm, userId: string | null = null): NewCardDra
     category: "pc",
     sportTouched: false,
     sportOffer: "",
-    unknownPurchase: false,
   };
 }
 

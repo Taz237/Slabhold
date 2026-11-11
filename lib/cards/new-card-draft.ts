@@ -48,8 +48,6 @@ export type NewCardDraft = {
   category: CardCategory;
   sportTouched: boolean;
   sportOffer: string;
-  /** "Don't know (bin card)": no purchase date or price. */
-  unknownPurchase: boolean;
 };
 
 let draft: NewCardDraft | null = null;
@@ -87,15 +85,17 @@ function optionalPrice(value: string): number | null {
   return n;
 }
 
-/** Purchase fields for the save payload. A bin card saves no date and no price. */
+/**
+ * Purchase fields for the save payload. What you paid is optional: empty,
+ * zero, negative or not a number saves as no price, never a validation nag.
+ */
 export function purchaseForSubmit(input: {
-  unknownPurchase: boolean;
   purchasePrice: string;
   purchaseDate: string;
 }): { purchasePrice: number | null; purchaseDate: string } {
-  if (input.unknownPurchase) return { purchasePrice: null, purchaseDate: "" };
+  const price = optionalPrice(input.purchasePrice);
   return {
-    purchasePrice: optionalPrice(input.purchasePrice),
+    purchasePrice: price != null && price > 0 ? price : null,
     purchaseDate: input.purchaseDate,
   };
 }
@@ -131,7 +131,6 @@ export function assessNewCardSubmit(input: {
   });
   const companyMissing = !input.gradeCompany.trim();
   const gradeOk = !companyMissing && (!graded || Boolean(input.gradeNumber));
-  const purchaseNeg = negativePrice(input.form.purchasePrice);
   const estNeg = negativePrice(input.form.estimatedSellPrice);
   const sellNeg = input.sold && negativePrice(input.form.sellPrice);
   const ok =
@@ -140,7 +139,6 @@ export function assessNewCardSubmit(input: {
     setOk &&
     cardNumberOk &&
     gradeOk &&
-    !purchaseNeg &&
     !estNeg &&
     !sellNeg &&
     (!input.sold ||
@@ -157,7 +155,6 @@ export function assessNewCardSubmit(input: {
     cardNumberOk,
     gradeOk,
     companyMissing,
-    purchaseNeg,
     estNeg,
     sellNeg,
     gradeNumber: input.gradeNumber,

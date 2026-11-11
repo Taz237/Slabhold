@@ -36,6 +36,9 @@ expose("IS_REACT_ACT_ENVIRONMENT", true);
 after(() => win.close());
 
 const today = snapshotDateInNewYork();
+const noDays = { rows: [], loading: false, failed: false };
+/** Where the movers section starts in the markup. */
+const MOVERS = 'aria-labelledby="top-movers-title"';
 
 /** 40 saved days from $41 up to $260; the live value is $285. */
 const rows = Array.from({ length: 40 }, (_, index) => ({
@@ -156,12 +159,14 @@ describe("PortfolioHero stat grid", () => {
     assert.doesNotMatch(words, /Invested/);
   });
 
-  it("asks for a price paid until a card has one and a value", () => {
-    assert.match(text(html({ pricedCount: 0 })), /Needs a price paid and a value/);
+  it("never asks for a price paid when no card has one", () => {
+    const words = text(html({ pricedCount: 0, paidCount: 0 }));
+    assert.match(words, /Shows once a card has a value/);
+    assert.doesNotMatch(words, /price paid|what you paid/i);
   });
 });
 
-function fixtureCard(id: string, playerName: string, paid: number): SportsCard {
+function fixtureCard(id: string, playerName: string, paid: number | null): SportsCard {
   return {
     id,
     playerName,
@@ -217,13 +222,13 @@ describe("PortfolioHero top movers and best card", () => {
       ["d", [{ date: addDays(today, -20), value: 50 }, { date: today, value: 55 }]],
     ]);
     const out = html({ cards, values, cardHistory });
-    const movers = out.slice(out.indexOf("Top movers in your collection"));
+    const movers = out.slice(out.indexOf(MOVERS));
     const words = text(movers);
     assert.match(words, /Jordan Love.*\+100%.*Cam Ward.*−20\.0%.*Travis Hunter.*\+10\.0%/);
     assert.doesNotMatch(words, /Jaxson Dart/);
     assert.equal((movers.match(/role="img"/g) ?? []).length, 3);
     const best = text(out.slice(out.indexOf("Best card")));
-    assert.match(best, /Jordan Love \+\$80\.00/);
+    assert.match(best, /Jordan Love ▲ up \+\$80\.00/);
   });
 
   it("shows a mover with no change as a gray 0.0%, not green", () => {
@@ -231,9 +236,80 @@ describe("PortfolioHero top movers and best card", () => {
     const cards = [fixtureCard("a", "Jordan Love", 40)];
     const cardHistory = new Map([["a", [{ date: addDays(today, -20), value: 120 }, { date: today, value: 120 }]]]);
     const out = html({ cards, values: new Map([["a", okValue(120)]]), cardHistory });
-    const movers = out.slice(out.indexOf("Top movers in your collection"));
+    const movers = out.slice(out.indexOf(MOVERS));
     assert.match(movers, /data-gain="flat"[^>]*class="[^"]*zinc[^"]*"[^>]*>0\.0%</);
-    assert.match(movers, /aria-label="Jordan Love, unchanged past 30 days"/);
+    assert.match(movers, /aria-label="Jordan Love, unchanged this week"/);
+  });
+});
+
+describe("PortfolioHero cost basis is optional", () => {
+  it("opens on Biggest movers this week, from market prices, for cards with no paid value", () => {
+    win.localStorage.clear();
+    const cards = [fixtureCard("a", "Jordan Love", null), fixtureCard("b", "Cam Ward", null)];
+    const cardHistory = new Map([
+      ["a", [{ date: addDays(today, -6), value: 100 }, { date: today, value: 125 }]],
+      ["b", [{ date: addDays(today, -3), value: 50 }, { date: today, value: 45 }]],
+    ]);
+    const out = html({ cards, values: new Map([["a", okValue(125)], ["b", okValue(45)]]), cardHistory });
+    const movers = out.slice(out.indexOf(MOVERS));
+    const words = text(movers);
+    assert.match(words, /Biggest movers this week/);
+    assert.match(words, /Jordan Love.*\+25\.0%.*Cam Ward.*−10\.0%/);
+    // No paid value anywhere: no Since you paid, no Paid line, never $0.
+    assert.doesNotMatch(words, /since you paid|Paid|\$0/i);
+    assert.doesNotMatch(movers, /aria-pressed/);
+  });
+
+  it("offers Since you paid only when a card has a paid value, and lists only those cards", async () => {
+    win.localStorage.clear();
+    const cards = [fixtureCard("a", "Jordan Love", 40), fixtureCard("b", "Cam Ward", null), fixtureCard("c", "Jaxson Dart", 0)];
+    const values = new Map([["a", okValue(60)], ["b", okValue(300)], ["c", okValue(20)]]);
+    const hero = await mountHero({ cards, values, cardHistory: new Map(), cardDays: noDays });
+    const section = () => hero.host.querySelector("section[aria-labelledby='top-movers-title']")!;
+    const buttons = [...section().querySelectorAll("button[aria-pressed]")];
+    assert.equal(buttons.length, 2);
+    assert.equal(buttons[0].getAttribute("aria-pressed"), "true");
+    await act(async () => (buttons[1] as HTMLElement).click());
+    const words = text(section().outerHTML);
+    assert.match(words, /Jordan Love Paid \$40/);
+    assert.doesNotMatch(words, /Cam Ward|Jaxson Dart|\$0/);
+    await hero.unmount();
+  });
+
+  it("shows a designed empty state with no history, and never asks for what you paid", () => {
+    win.localStorage.clear();
+    const cards = [fixtureCard("a", "Jordan Love", null)];
+    const out = html({ cards, values: new Map([["a", okValue(60)]]), cardHistory: new Map() });
+    const words = text(out.slice(out.indexOf(MOVERS)));
+    assert.match(words, /No price moves this week yet/);
+    assert.doesNotMatch(text(out), /what you paid|price paid|Paid \$/i);
+  });
+
+  it("reads Top card, never Best card or a gain, when no card has a paid value", () => {
+    win.localStorage.clear();
+    const cards = [fixtureCard("a", "Jordan Love", null)];
+    const out = html({ cards, values: new Map([["a", okValue(60)]]), cardHistory: new Map() });
+    const stats = text(out.slice(out.indexOf('data-slot="collection-stats"'), out.indexOf(MOVERS)));
+    assert.match(stats, /Top card (JL )?Jordan Love \$60\.00 Your most valuable/);
+    assert.doesNotMatch(stats, /Best card|Since you paid|\+\$/);
+  });
+
+  it("uses the chart's purple style: ▲ purple tint or ▼ gray, never green or red", () => {
+    win.localStorage.clear();
+    const cards = [fixtureCard("a", "Jordan Love", 40), fixtureCard("b", "Cam Ward", 100)];
+    const cardHistory = new Map([
+      ["a", [{ date: addDays(today, -5), value: 60 }, { date: today, value: 120 }]],
+      ["b", [{ date: addDays(today, -5), value: 100 }, { date: today, value: 80 }]],
+    ]);
+    const out = html({ cards, values: new Map([["a", okValue(120)], ["b", okValue(80)]]), cardHistory });
+    const lower = out.slice(out.indexOf('data-slot="collection-stats"'));
+    assert.doesNotMatch(lower, /emerald|rose|green|red-/);
+    assert.match(lower, /data-gain="up"[^>]*class="[^"]*violet[^"]*"/);
+    assert.match(lower, /data-gain="down"[^>]*class="[^"]*zinc[^"]*"/);
+    assert.match(text(lower), /▲ up \+100%/);
+    assert.match(text(lower), /▼ down −20\.0%/);
+    // Sparks are brand purple whatever the direction.
+    assert.doesNotMatch(lower.slice(lower.indexOf(MOVERS)), /text-(emerald|rose)/);
   });
 });
 
@@ -399,7 +475,7 @@ describe("PortfolioHero redesign: stat cards and movers", () => {
       ["c", okValue(40)],
     ]);
     const out = html({ cards, values, cardHistory: new Map() });
-    const stats = out.slice(out.lastIndexOf("<div", out.indexOf('data-slot="collection-stats"')), out.indexOf("Top movers in your collection"));
+    const stats = out.slice(out.lastIndexOf("<div", out.indexOf('data-slot="collection-stats"')), out.indexOf(MOVERS));
     assert.match(text(stats), /Top card (CW )?Cam Ward \$210\.00 Your most valuable/);
     assert.doesNotMatch(stats, /Best card/);
     assert.doesNotMatch(stats, /rose/);
@@ -413,8 +489,8 @@ describe("PortfolioHero redesign: stat cards and movers", () => {
       ["b", okValue(210)],
     ]);
     const out = html({ cards, values, cardHistory: new Map() });
-    const stats = text(out.slice(out.indexOf('data-slot="collection-stats"'), out.indexOf("Top movers in your collection")));
-    assert.match(stats, /Best card (JL )?Jordan Love \+\$30\.00 Since you paid/);
+    const stats = text(out.slice(out.indexOf('data-slot="collection-stats"'), out.indexOf(MOVERS)));
+    assert.match(stats, /Best card (JL )?Jordan Love ▲ up \+\$30\.00 Since you paid/);
     assert.doesNotMatch(stats, /Top card/);
   });
 
@@ -427,20 +503,24 @@ describe("PortfolioHero redesign: stat cards and movers", () => {
       ["c", [{ date: addDays(today, -20), value: 33 }, { date: today, value: 33 }]],
     ]);
     const out = html({ cards, values: new Map([["a", okValue(120)], ["b", okValue(80)], ["c", okValue(33)]]), cardHistory });
-    const movers = out.slice(out.indexOf("Top movers in your collection"));
-    assert.match(movers, /data-gain="up"[^>]*><svg/);
-    assert.match(movers, /data-gain="down"[^>]*><svg/);
+    const movers = out.slice(out.indexOf(MOVERS));
+    assert.match(movers, /data-gain="up"[^>]*><span aria-hidden="true"[^>]*>▲</);
+    assert.match(movers, /data-gain="down"[^>]*><span aria-hidden="true"[^>]*>▼</);
     assert.match(movers, /data-gain="flat"[^>]*>0\.0%</);
     assert.equal((movers.match(/data-spark-slot="" class="[^"]*\bh-6 w-16\b/g) ?? []).length, 3);
     assert.equal((movers.match(/data-spark-end/g) ?? []).length, 3);
   });
 
-  it("shows Paid $X under the name, with no spark slot, for since-you-paid rows", () => {
+  it("shows Paid $X under the name, with no spark slot, once Since you paid is picked", async () => {
     win.localStorage.clear();
     const cards = [fixtureCard("a", "Jordan Love", 40), fixtureCard("b", "Cam Ward", 100)];
-    const out = html({ cards, values: new Map([["a", okValue(60)], ["b", okValue(80)]]), cardHistory: new Map() });
-    const movers = out.slice(out.indexOf("Top movers in your collection"));
-    assert.match(text(movers), /Since you paid/);
+    const hero = await mountHero({ cards, values: new Map([["a", okValue(60)], ["b", okValue(80)]]), cardHistory: new Map(), cardDays: noDays });
+    const section = () => hero.host.querySelector("section[aria-labelledby='top-movers-title']")!;
+    assert.equal(section().getAttribute("data-movers"), "week");
+    const paidButton = [...section().querySelectorAll("button")].find((b) => /since you paid/.test(b.textContent ?? ""))!;
+    await act(async () => paidButton.click());
+    const movers = section().outerHTML;
+    assert.match(text(movers), /Since you paid Change vs what you paid/);
     assert.doesNotMatch(movers, /role="img"/);
     assert.match(text(movers), /Paid \$40/);
     assert.match(text(movers), /Paid \$100/);
@@ -448,6 +528,7 @@ describe("PortfolioHero redesign: stat cards and movers", () => {
     assert.doesNotMatch(movers, /data-spark-slot/);
     assert.match(text(movers), /Jordan Love Paid \$40/);
     assert.doesNotMatch(movers, /max-\[359px\]:hidden[^"]*"[^>]*>Paid/);
+    await hero.unmount();
   });
 });
 
@@ -502,7 +583,8 @@ describe("PortfolioHero market move (Performance)", () => {
       { cardId: "a", date: row.snapshot_date, value: 50, held: true },
       ...(index >= addIndex ? [{ cardId: "b", date: row.snapshot_date, value: 235, held: true }] : []),
     ]);
-    const out = html({ ...market, cardDays: { rows: still, loading: false, failed: false } });
+    // The value card alone: Best card below carries its own ▲.
+    const out = heroOnly({ ...market, cardDays: { rows: still, loading: false, failed: false } });
     assert.match(out, /data-gain="flat"[^>]*class="[^"]*zinc/);
     assert.match(text(out), /\$0\.00 \(0\.0%\) market move/);
     assert.doesNotMatch(text(out), /[▲▼]/);
