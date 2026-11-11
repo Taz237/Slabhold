@@ -19,6 +19,7 @@ import {
   type AddedRevealLine,
 } from "@/lib/cards/added-panel";
 import { playSlabMorph, takeSlabMorph } from "@/lib/cards/slab-morph";
+import { pendingCardPost } from "@/lib/social/card-post-queue";
 import { collectorReveal, collectorRevealCopy } from "@/lib/badges/collector-reveal";
 import {
   FEED_POST_FAILED_TEXT,
@@ -122,11 +123,26 @@ export function CardAddedPanel({
     [cardId, cards, viewerId],
   );
   // What this add did on the feed, read once: a post id, or a failed post's caption.
-  const [feed] = useState(() => addedFeedState(cardId));
+  const [feed, setFeed] = useState(() => addedFeedState(cardId));
+  // Add card opens this panel as soon as the card saves; its feed post may still be on the way.
+  const [posting, setPosting] = useState(() => pendingCardPost(cardId) != null);
+  useEffect(() => {
+    const running = pendingCardPost(cardId);
+    if (!running) return;
+    let live = true;
+    void running.then(() => {
+      if (!live) return;
+      setFeed(addedFeedState(cardId));
+      setPosting(false);
+    });
+    return () => {
+      live = false;
+    };
+  }, [cardId]);
   const [postSheet, setPostSheet] = useState(false);
   const postCaption = feed.failedCaption || (card ? justAddedCaption(card) : "");
   // Post it leads until this add is on the feed; then Add another does.
-  const postFirst = Boolean(card) && !feed.postId;
+  const postFirst = Boolean(card) && !feed.postId && !posting;
   const keepCaption = () => {
     const store = shareSessionStore();
     if (store && card) writeComposeCaption(store, card.id, postCaption);
@@ -220,7 +236,11 @@ export function CardAddedPanel({
         <CollectionLine count={totals.count} total={totals.total} previous={totals.previous} />
       </div>
 
-      {feed.postId ? (
+      {posting ? (
+        <p role="status" className="mx-auto mt-3 max-w-sm text-center text-sm text-zinc-500">
+          Posting to your feed…
+        </p>
+      ) : feed.postId ? (
         <p className="mx-auto mt-3 max-w-sm rounded-xl border border-zinc-200 bg-white px-4 py-2.5 text-center text-sm text-zinc-700 dark:border-white/10 dark:bg-white/[0.03] dark:text-zinc-200">
           {SHARE_CONFIRM_TEXT}{" "}
           <Link href={sharePostPath(feed.postId)} className="font-semibold underline underline-offset-2">

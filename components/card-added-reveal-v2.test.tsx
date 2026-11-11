@@ -138,6 +138,27 @@ describe("Added reveal v2", () => {
     }
   });
 
+  it("opens before a background post lands, then shows it without a second post", async () => {
+    win.sessionStorage.clear();
+    const { queueCardPost } = await import("@/lib/social/card-post-queue");
+    let finish: (value: { postId: string | null }) => void = () => undefined;
+    const running = queueCardPost("card-1", () => new Promise((resolve) => (finish = resolve)));
+    const view = await render(card);
+    try {
+      assert.match(view.host.textContent ?? "", /Posting to your feed/);
+      assert.equal(links(view.host).some((a) => a.textContent?.includes("Post it")), false, "no Post it while posting");
+      win.sessionStorage.setItem("slabhold.card-posts", JSON.stringify({ "card-1": "post-3" }));
+      await act(async () => {
+        finish({ postId: "post-3" });
+        await running;
+      });
+      assert.match(view.host.textContent ?? "", /Shared to your feed\./);
+      assert.equal(links(view.host).find((a) => a.textContent === "View post")?.getAttribute("href"), "/posts/post-3");
+    } finally {
+      view.unmount();
+    }
+  });
+
   it("says a failed post failed and still offers Post it", async () => {
     win.sessionStorage.clear();
     win.sessionStorage.setItem("slabhold.card-post-failed", JSON.stringify({ "card-1": "Downtown!" }));

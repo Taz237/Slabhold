@@ -1,10 +1,12 @@
 "use client";
 
-import { useCallback, useState, type ButtonHTMLAttributes, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ButtonHTMLAttributes, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { ChevronLeft } from "lucide-react";
 import { CardSlabArt, type ArtCard } from "@/components/card-slab-art";
 import { photoSource, photoStatusAfter, type PhotoStatus } from "@/lib/collection/grid";
 import { parallelSwatch } from "@/lib/cards/parallel-swatch";
+import { useKeyboardInset } from "@/lib/ui/use-keyboard-inset";
 
 export const focusRing =
   "outline-none focus-visible:ring-2 focus-visible:ring-violet-600 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]";
@@ -161,5 +163,76 @@ export function DraftSlab({ art, photo }: { art: ArtCard; photo: string | null }
   );
   return (
     <CardSlabArt card={art} index={0} source={source} status={status} onStatus={onStatus} sizes="176px" />
+  );
+}
+
+const dockSurface =
+  "bg-[color-mix(in_oklab,var(--background)_96%,transparent)] backdrop-blur-xl";
+
+/**
+ * A step's main button. It sits at the bottom of the step, and while the iOS
+ * keyboard is up it rides on top of the keyboard (window.visualViewport), so
+ * Next or Add is never hidden. A submit button in it needs a `form` attribute,
+ * since the bar is moved out of the form while the keyboard is up. `done` adds a Done button there that just
+ * closes the keyboard.
+ */
+export function StepDock({ done = false, children }: { done?: boolean; children: ReactNode }) {
+  const inset = useKeyboardInset();
+  const barRef = useRef<HTMLDivElement>(null);
+  // Keyboard up: the field being typed in stays in view above the bar, not under it.
+  useEffect(() => {
+    if (inset <= 0) return;
+    const field = document.activeElement;
+    if (!(field instanceof HTMLInputElement)) return;
+    // Whatever scrolls the page, room for the keyboard and the bar under the field.
+    const previous = field.style.scrollMarginBottom;
+    field.style.scrollMarginBottom = `${inset + (barRef.current?.offsetHeight ?? 0) + 12}px`;
+    field.scrollIntoView?.({ block: "nearest" });
+    field.style.scrollMarginBottom = previous;
+  }, [inset]);
+  if (inset > 0 && typeof document !== "undefined") {
+    // Portaled: the step's slide-in leaves a transform, which would pin a fixed bar to the step.
+    // The spacer adds the keyboard's and the bar's height to the page, so even a short step
+    // can scroll its field up above the bar.
+    return (
+      <>
+        <div aria-hidden style={{ height: inset + 72 }} />
+        {createPortal(
+          <div
+            ref={barRef}
+            data-slot="step-dock"
+            data-keyboard="open"
+            style={{ bottom: inset }}
+            className={`fixed inset-x-0 z-40 border-t border-zinc-200 px-4 py-2 dark:border-white/10 ${dockSurface}`}
+          >
+            <div className="mx-auto flex max-w-xl items-center gap-2">
+              {done ? (
+                <QuietButton
+                  key="done"
+                  // Keep the field focused until the tap lands, then let it go.
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => (document.activeElement as HTMLElement | null)?.blur()}
+                  className="shrink-0 px-4"
+                >
+                  Done
+                </QuietButton>
+              ) : null}
+              <div key="main" className="min-w-0 flex-1">
+                {children}
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
+      </>
+    );
+  }
+  return (
+    <div
+      data-slot="step-dock"
+      className={`sticky bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-10 -mx-4 px-4 py-3 sm:mx-0 sm:px-0 ${dockSurface}`}
+    >
+      <div key="main">{children}</div>
+    </div>
   );
 }
