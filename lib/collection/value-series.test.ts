@@ -42,13 +42,13 @@ describe("addedMarkers", () => {
       { playerName: "Cam Ward", grade: "BGS 9.5", createdAt: "2026-10-26T16:00:00Z" },
       { playerName: "Travis Hunter", grade: "Raw", createdAt: "2026-10-26T17:00:00Z" },
     ]);
-    assert.equal(markers.get("2026-10-24"), "+ Jordan Love PSA 10");
-    assert.equal(markers.get("2026-10-26"), "+ Jaxson Dart and 2 more");
+    assert.equal(markers.get("2026-10-24"), "Added: Jordan Love PSA 10");
+    assert.equal(markers.get("2026-10-26"), "Added: Jaxson Dart and 2 more");
   });
 
   it("uses the New York day, like the snapshots", () => {
     const markers = addedMarkers([{ playerName: "A", grade: "", createdAt: "2026-10-25T02:00:00Z" }]);
-    assert.equal(markers.get("2026-10-24"), "+ A");
+    assert.equal(markers.get("2026-10-24"), "Added: A");
   });
 });
 
@@ -88,6 +88,21 @@ describe("topMovers", () => {
     assert.equal(movers.basis, "paid");
     assert.deepEqual(movers.rows.map((row) => row.card.id), ["a", "b"]);
     assert.equal(movers.rows[0].pct, 100);
+  });
+
+  it("shows a card bought for under $1 as New, never a % from a penny, and ranks it last", () => {
+    const movers = topMovers([card("penny", 0.01, 0.06), card("a", 10, 12)], new Map());
+    assert.deepEqual(movers.rows.map((row) => row.card.id), ["a", "penny"]);
+    assert.equal(movers.rows[1].fresh, true);
+    assert.equal(movers.rows[1].pct, 0);
+    assert.equal(movers.rows[0].fresh, false);
+  });
+
+  it("skips history that starts under $1", () => {
+    const history = new Map([["a", [{ date: "2026-10-01", value: 0.01 }, { date: TODAY, value: 5 }]]]);
+    const movers = topMovers([card("a", 10, 5)], history);
+    assert.equal(movers.basis, "paid");
+    assert.equal(Math.round(movers.rows[0].pct), -50);
   });
 
   it("is empty with nothing to compare", () => {

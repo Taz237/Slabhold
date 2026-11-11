@@ -145,6 +145,11 @@ textarea {
   stroke: var(--chart-grid);
 }
 
+/* The collection hero: the grid is barely there, the line carries it. */
+.chart-faint .chart-grid {
+  stroke-opacity: 0.5;
+}
+
 .chart-tick {
   fill: var(--chart-tick);
 }

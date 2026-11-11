@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import type { SavedCardDay } from "@/lib/collection/performance";
 import type { SnapshotRow } from "@/lib/collection/value-series";
 import {
   MOVER_HISTORY_DAYS,
   readCardValueHistory,
+  readCardDaySnapshots,
   readCollectionSnapshots,
   type CardHistory,
 } from "@/lib/collection/value-history-read";
@@ -61,4 +63,41 @@ export function useCardValueHistory(enabled: boolean): CardHistory {
   }, [enabled]);
 
   return history;
+}
+
+export type CardDays = { rows: SavedCardDay[]; loading: boolean; failed: boolean };
+
+/**
+ * Saved per-card days for these cards, for Performance. Refetched only when
+ * the set of ids changes. Off when a parent (or a test) already has them.
+ */
+export function useCardDaySnapshots(cardIds: readonly string[], enabled: boolean): CardDays {
+  const key = [...new Set(cardIds)].sort().join(",");
+  const [state, setState] = useState<CardDays & { key: string }>({
+    rows: [],
+    loading: enabled,
+    failed: false,
+    key: "",
+  });
+
+  useEffect(() => {
+    if (!enabled || !key) return;
+    let cancelled = false;
+    void loadSupabaseBrowser()
+      .then(async (supabase) => {
+        const rows = supabase ? await readCardDaySnapshots(supabase, key.split(",")) : null;
+        if (!cancelled) setState({ rows: rows ?? [], loading: false, failed: rows == null, key });
+      })
+      .catch(() => {
+        if (!cancelled) setState({ rows: [], loading: false, failed: true, key });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [enabled, key]);
+
+  if (!enabled || !key) return { rows: [], loading: false, failed: false };
+  // A new set of ids is loading until its own read lands.
+  if (state.key !== key) return { rows: [], loading: true, failed: false };
+  return state;
 }

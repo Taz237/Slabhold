@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { ChevronRight, Layers, Minus, Share, TrendingDown, TrendingUp, Trophy } from "lucide-react";
+import { ChevronRight, Layers, Share, Trophy } from "lucide-react";
 import { AddCardLink } from "@/components/add-card-link";
 import { TopMovers, muted, tile, type HeroCard } from "@/components/collection-movers";
 import { ShapedCardThumb } from "@/components/card-thumb";
@@ -10,24 +10,34 @@ import { ValueChart, type ChartPoint } from "@/components/charts/value-chart";
 import { athIndex, dayLabel } from "@/lib/chart/geometry";
 import {
   availableRanges,
-  changeAmount,
   chartReady,
-  chartSummary,
+  formatPct,
+  pctTone,
   pickRange,
   pointsInRange,
-  rangeChange,
   rangePhrase,
   RANGES,
   readStoredRange,
   writeStoredRange,
-  type RangeChange,
+  type ChangeTone,
   type RangeId,
 } from "@/lib/chart/range";
-import { PILL_TONE, TONE_CLASS, collectionMinSpan, heroLineTone, heroTone, type HeroTone } from "@/lib/chart/theme";
+import { PILL_TONE, TONE_CLASS, collectionMinSpan } from "@/lib/chart/theme";
+import {
+  cardDaysForCollection,
+  indexPoints,
+  marketMove,
+  performanceSeries,
+  type IndexPoint,
+  type MarketMove,
+  type PerformancePoint,
+} from "@/lib/collection/performance";
 import { snapshotDateInNewYork } from "@/lib/collection/totals-shared";
 import {
+  useCardDaySnapshots,
   useCardValueHistory,
   useCollectionSnapshots,
+  type CardDays,
   type CardHistory,
   type CollectionSnapshots,
 } from "@/lib/collection/use-value-history";
@@ -68,6 +78,8 @@ export type PortfolioHeroProps = {
   snapshots?: CollectionSnapshots;
   /** Tests pass per-card days in. The app reads them. */
   cardHistory?: CardHistory;
+  /** Tests pass saved per-card daily values in. The app reads them. */
+  cardDays?: CardDays;
 };
 
 /** The share code, loaded on the tap. An object so tests can stand in for it. */
@@ -90,10 +102,28 @@ function storage(): Storage | null {
 
 const label = "text-xs font-medium text-zinc-500 dark:text-zinc-400";
 const pulse = "animate-pulse bg-zinc-200/70 dark:bg-white/[0.06]";
-/** Calm keeps its sign's arrow. */
-function PillIcon({ tone, change }: { tone: HeroTone; change: RangeChange | null }) {
-  const Icon = tone === "flat" ? Minus : (change?.delta ?? 0) < 0 ? TrendingDown : TrendingUp;
-  return <Icon className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden />;
+/**
+ * The market-move pill. The chart is always brand purple, so up and down live
+ * here: a lighter purple with ▲ when up, muted gray with ▼ when down, gray with
+ * no arrow when flat. The arrow, the sign and a screen-reader word carry the
+ * direction, never the color alone. Text passes 4.5:1 on its tint in both themes.
+ */
+const MOVE_PILL: Record<ChangeTone, string> = {
+  up: "bg-violet-500/12 text-violet-700 dark:bg-violet-400/15 dark:text-violet-300",
+  down: "bg-zinc-500/12 text-zinc-600 dark:bg-white/[0.07] dark:text-zinc-400",
+  flat: "bg-zinc-500/12 text-zinc-600 dark:bg-white/[0.07] dark:text-zinc-400",
+};
+
+function MoveArrow({ tone }: { tone: ChangeTone }) {
+  if (tone === "flat") return null;
+  return (
+    <>
+      <span aria-hidden className="text-[10px] leading-none">
+        {tone === "up" ? "▲" : "▼"}
+      </span>
+      <span className="sr-only">{tone}</span>
+    </>
+  );
 }
 type CountUp = typeof import("@/components/hero-count-up");
 let countUp: CountUp | null = null;
@@ -109,6 +139,15 @@ if (typeof window !== "undefined") loadCountUp();
 const press =
   "outline-none transition-[background-color,color,box-shadow] duration-150 ease-[cubic-bezier(0.22,1,0.36,1)] focus-visible:ring-2 focus-visible:ring-violet-600 motion-reduce:transition-none";
 const useClientLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
+
+/** The New York day a sold card left, when known. */
+function soldDay(card: SportsCard): string | null {
+  if (card.soldAt) {
+    const stamp = new Date(card.soldAt);
+    if (!Number.isNaN(stamp.getTime())) return snapshotDateInNewYork(stamp);
+  }
+  return card.sellDate && /^\d{4}-\d{2}-\d{2}/.test(card.sellDate) ? card.sellDate.slice(0, 10) : null;
+}
 
 /** Collection value and chart, Cards and Best card, then Top movers. */
 export function PortfolioHero(props: PortfolioHeroProps) {
@@ -153,6 +192,27 @@ export function PortfolioHero(props: PortfolioHeroProps) {
   }, [movers, valuesLoading, valuesFailed]);
   const top = useMemo(() => topMovers(movers, history), [movers, history]);
   const markers = useMemo(() => addedMarkers(cards), [cards]);
+  const cardIds = useMemo(() => cards.map((card) => card.id), [cards]);
+  const readDays = useCardDaySnapshots(cardIds, cards.length > 0 && props.cardDays === undefined);
+  const days = props.cardDays ?? readDays;
+  const today = snapshotDateInNewYork();
+  const liveReady = !valuesLoading && !valuesFailed;
+  const perf = useMemo(
+    () =>
+      performanceSeries(
+        cardDaysForCollection(
+          days.rows,
+          cards.map((card) => ({
+            id: card.id,
+            sold: isSold(card),
+            soldOn: soldDay(card),
+            live: isSold(card) ? null : shownCardValue(card, values.get(card.id)),
+          })),
+          { today, live: liveReady },
+        ),
+      ),
+    [days.rows, cards, values, today, liveReady],
+  );
 
   return (
     <div className="space-y-3">
@@ -166,6 +226,8 @@ export function PortfolioHero(props: PortfolioHeroProps) {
         snapshots={snapshots}
         markers={markers}
         shareable={shareable}
+        perf={perf}
+        perfLoading={days.loading}
       />
       <StatRow
         cardCount={cardCount}
@@ -190,7 +252,67 @@ type ValueCardProps = {
   snapshots: CollectionSnapshots;
   markers: Map<string, string>;
   shareable: boolean;
+  /** Market-only daily performance, oldest first. */
+  perf: PerformancePoint[];
+  perfLoading: boolean;
 };
+
+export type ChartMode = "performance" | "value";
+
+const MODE_KEY = "slabhold:chart-mode:collection";
+const MODES: { id: ChartMode; label: string }[] = [
+  { id: "performance", label: "Performance" },
+  { id: "value", label: "Value" },
+];
+const RANGE_LABEL: Record<RangeId, string> = { "7d": "1W", "30d": "1M", "90d": "3M", "1y": "1Y", all: "All" };
+/** Smallest y span in Performance: 2 points of return, so a quiet week looks quiet. */
+const PERF_MIN_SPAN = 2;
+const NOTE_MS = 4000;
+
+function readStoredMode(store: Storage | null): ChartMode {
+  try {
+    return store?.getItem(MODE_KEY) === "value" ? "value" : "performance";
+  } catch {
+    return "performance";
+  }
+}
+
+function writeStoredMode(store: Storage | null, mode: ChartMode) {
+  try {
+    store?.setItem(MODE_KEY, mode);
+  } catch {
+    // Private mode or blocked storage. The choice still holds for this visit.
+  }
+}
+
+/**
+ * Up, down, or flat when it reads $0.00 and 0.0%. The % leads: it is the
+ * Performance line. Dollars and % can disagree when a gain on a small
+ * early base is followed by a loss on a bigger one; the line wins.
+ */
+export function moveTone(move: MarketMove | null): ChangeTone {
+  if (!move) return "flat";
+  if (move.delta === 0 && pctTone(move.pct) === "flat") return "flat";
+  const pctSide = pctTone(move.pct);
+  if (pctSide !== "flat") return pctSide;
+  return move.delta > 0 ? "up" : "down";
+}
+
+/** "+$12.40 (+3.1%)", or the dollars alone when no % is shown. */
+function moveAmount(move: MarketMove): string {
+  const amount = move.delta === 0 ? money(0) : signedMoney(move.delta);
+  return move.pct == null ? amount : `${amount} (${formatPct(move.pct)})`;
+}
+
+function moveSummary(value: number, move: MarketMove | null, range: RangeId, firstDate: string): string {
+  const head = `Collection value ${money(value)}`;
+  if (!move) return `${head}, not enough history yet for a market move`;
+  const phrase = rangePhrase(range, firstDate);
+  const tone = moveTone(move);
+  if (tone === "flat") return `${head}, market move flat ${phrase}`;
+  const amount = move.pct == null ? money(Math.abs(move.delta)) : formatPct(move.pct, false);
+  return `${head}, market move ${tone} ${amount} ${phrase}`;
+}
 
 /** The one hero. Scrub state lives here, so a scrub re-renders the number and the chart, never the page. */
 const CollectionValueCard = memo(function CollectionValueCard({
@@ -203,9 +325,13 @@ const CollectionValueCard = memo(function CollectionValueCard({
   snapshots,
   markers,
   shareable,
+  perf,
+  perfLoading,
 }: ValueCardProps) {
   const [chosen, setChosen] = useState<RangeId | null>(() => readStoredRange(storage(), CHART_ID));
+  const [mode, setMode] = useState<ChartMode>(() => readStoredMode(storage()));
   const [scrub, setScrub] = useState<ChartPoint | null>(null);
+  const [note, setNote] = useState<{ text: string; date: string } | null>(null);
   const [sharing, setSharing] = useState(false);
   const [shareFailed, setShareFailed] = useState(false);
   const today = snapshotDateInNewYork();
@@ -213,7 +339,12 @@ const CollectionValueCard = memo(function CollectionValueCard({
   const headlineRef = useRef<HTMLParagraphElement>(null);
   const counting = useRef<(() => void) | undefined>(undefined);
   const wasLoading = useRef(valuesLoading);
+  const lastScrub = useRef<ChartPoint | null>(null);
+  const modeRef = useRef(mode);
   useEffect(loadCountUp, []);
+  useEffect(() => {
+    modeRef.current = mode;
+  }, [mode]);
 
   const allPoints = useMemo(
     () => collectionPoints(snapshots.rows, { today, live: liveReady ? collectionValue : null, markers }),
@@ -222,26 +353,54 @@ const CollectionValueCard = memo(function CollectionValueCard({
   const available = useMemo(() => availableRanges(allPoints, today), [allPoints, today]);
   const range = pickRange(available, chosen);
   const points = useMemo(() => pointsInRange(allPoints, range, today), [allPoints, range, today]);
-  const change = rangeChange(points);
+  const perfPoints = useMemo(() => pointsInRange(perf, range, today), [perf, range, today]);
+  const indexed = useMemo<IndexPoint[]>(() => indexPoints(perfPoints, markers), [perfPoints, markers]);
+  const move = useMemo(() => marketMove(perfPoints), [perfPoints]);
   const firstDate = points[0]?.date ?? "";
-  const tone = heroTone(change);
-  const lineTone = heroLineTone(tone);
   const latest = points[points.length - 1]?.value ?? collectionValue;
   const minSpan = collectionMinSpan(latest);
-  // ATH only when not the latest point and 1%+ above it.
+  const performance = mode === "performance";
+  // ATH (Value only) when not the latest point and 1%+ above it.
   const ath = athIndex(points);
-  const showAth = !scrub && ath >= 0 && ath < points.length - 1 && points[ath].value >= latest * 1.01;
+  const showAth = !performance && !scrub && ath >= 0 && ath < points.length - 1 && points[ath].value >= latest * 1.01;
+  const valueOn = useMemo(() => {
+    const byDate = new Map<string, number>();
+    for (const point of perfPoints) byDate.set(point.date, point.value);
+    for (const point of points) byDate.set(point.date, point.value);
+    return byDate;
+  }, [perfPoints, points]);
+
   const onScrub = useCallback((point: ChartPoint | null) => {
     counting.current?.();
+    if (point) {
+      lastScrub.current = point;
+      setNote(null);
+    } else {
+      // Let go on a day a card was added (Value): say what was added.
+      const last = lastScrub.current;
+      lastScrub.current = null;
+      if (last?.marker && modeRef.current === "value") setNote({ text: last.marker, date: last.date });
+    }
     setScrub(point);
   }, []);
 
-  const scrubChange: RangeChange | null = scrub && points.length ? rangeChange([points[0], scrub]) : null;
-  const headline = scrub ? scrub.value : collectionValue;
-  const loading = valuesLoading || snapshots.loading;
+  useEffect(() => {
+    if (!note) return;
+    const timer = window.setTimeout(() => setNote(null), NOTE_MS);
+    return () => window.clearTimeout(timer);
+  }, [note]);
+
+  const scrubMove: MarketMove | null = scrub
+    ? (marketMove(perfPoints.filter((point) => point.date <= scrub.date)) ??
+      (move ? { delta: 0, pct: 0, up: true } : null))
+    : null;
+  const headline = scrub ? (valueOn.get(scrub.date) ?? collectionValue) : collectionValue;
+  const loading = valuesLoading || snapshots.loading || (performance && perfLoading);
   const canChart = chartReady(allPoints);
-  const ariaLabel = chartSummary("Collection value", collectionValue, change, range, firstDate);
+  const perfReady = move != null && indexed.length >= 2;
+  const ariaLabel = moveSummary(collectionValue, move, range, firstDate);
   const countText = `${cardCount} card${cardCount === 1 ? "" : "s"}`;
+  const anyAdds = points.some((point) => point.marker);
 
   // The count-up: once, as values land, from the range's first value (never $0). Skipped if its chunk is not in yet.
   const countFrom = points[0]?.value ?? 0;
@@ -257,8 +416,16 @@ const CollectionValueCard = memo(function CollectionValueCard({
 
   function choose(next: RangeId) {
     setScrub(null);
+    setNote(null);
     setChosen(next);
     writeStoredRange(storage(), CHART_ID, next);
+  }
+
+  function chooseMode(next: ChartMode) {
+    setScrub(null);
+    setNote(null);
+    setMode(next);
+    writeStoredMode(storage(), next);
   }
 
   async function share() {
@@ -280,8 +447,9 @@ const CollectionValueCard = memo(function CollectionValueCard({
     }
   }
 
-  const shownChange = scrub ? scrubChange : change;
-  const shownTone = heroTone(shownChange);
+  const shownMove = scrub ? scrubMove : move;
+  const shownTone = moveTone(shownMove);
+  const changeLoading = valuesLoading || perfLoading;
 
   return (
     <section
@@ -329,21 +497,25 @@ const CollectionValueCard = memo(function CollectionValueCard({
 
         {/* One fixed line: scrubbing never moves the chart. */}
         <div className="mt-2 flex h-6 items-center gap-2 overflow-hidden whitespace-nowrap" data-slot="hero-change">
-          {valuesLoading ? (
+          {changeLoading && !valuesFailed ? (
             <span className={`block h-5 w-36 rounded-full ${pulse}`} aria-hidden />
-          ) : liveReady && shownChange && canChart ? (
+          ) : liveReady && canChart && shownMove ? (
             <>
               <span
                 data-gain={shownTone}
-                className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums ${PILL_TONE[shownTone]}`}
+                className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums ${MOVE_PILL[shownTone]}`}
               >
-                <PillIcon tone={shownTone} change={shownChange} />
-                {changeAmount(shownChange)}
+                <MoveArrow tone={shownTone} />
+                {moveAmount(shownMove)}
               </span>
               <span className={`truncate text-xs font-medium ${muted}`}>
-                {scrub ? `· ${dayLabel(scrub.date)}` : rangePhrase(range, firstDate)}
+                {scrub ? `· ${dayLabel(scrub.date)}` : "market move"}
               </span>
             </>
+          ) : liveReady && canChart ? (
+            <span className={`text-xs font-medium ${muted}`} data-slot="thin-history">
+              Not enough history yet{scrub ? ` · ${dayLabel(scrub.date)}` : ""}
+            </span>
           ) : (
             <span className={`text-xs font-medium ${muted}`}>{countText}</span>
           )}
@@ -354,25 +526,82 @@ const CollectionValueCard = memo(function CollectionValueCard({
           </div>
         ) : null}
 
-        <div className="mt-3" style={{ minHeight: CHART_HEIGHT }}>
+        {canChart && !valuesLoading && !snapshots.loading ? (
+          <div className="mt-3 flex h-8 items-center justify-between gap-2">
+            <div
+              role="group"
+              aria-label="Chart mode"
+              data-slot="mode-toggle"
+              className="inline-flex shrink-0 rounded-full bg-zinc-100 p-0.5 dark:bg-white/[0.06]"
+            >
+              {MODES.map((item) => {
+                const on = item.id === mode;
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    aria-pressed={on}
+                    onClick={() => chooseMode(item.id)}
+                    className={`hit-44 h-7 rounded-full px-3 text-xs font-medium ${press} ${
+                      on
+                        ? "bg-white text-zinc-950 shadow-sm dark:bg-zinc-700 dark:text-zinc-50"
+                        : "text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
+                    }`}
+                  >
+                    {item.label}
+                  </button>
+                );
+              })}
+            </div>
+            <p className={`flex min-w-0 items-center gap-1.5 truncate text-xs ${muted}`} data-slot="mode-hint">
+              {performance ? (
+                "Price moves only"
+              ) : anyAdds ? (
+                <>
+                  <span aria-hidden className={`inline-block h-2 w-2 shrink-0 rounded-full border-[1.5px] border-current ${TONE_CLASS.brand}`} />
+                  Card added
+                </>
+              ) : (
+                "Total value"
+              )}
+            </p>
+          </div>
+        ) : null}
+
+        <div className="relative mt-2" style={{ minHeight: CHART_HEIGHT }}>
           {loading ? (
             <div className="skeleton-shimmer rounded-xl bg-zinc-100 dark:bg-white/5" style={{ height: CHART_HEIGHT }} aria-hidden />
           ) : !canChart ? (
             <ThinChart />
+          ) : performance && !perfReady ? (
+            <ThinChart title="Not enough history yet" detail="Price moves show here once your cards have a few days of sold prices." />
           ) : (
             <ValueChart
-              points={points}
+              points={performance ? indexed : points}
               ariaLabel={ariaLabel}
-              tone={lineTone}
+              tone="brand"
               curve="monotone"
-              morphKey={range}
+              morphKey={`${mode}-${range}`}
               onScrub={onScrub}
               showAth={showAth}
-              minSpan={minSpan}
+              minSpan={performance ? PERF_MIN_SPAN : minSpan}
+              format={performance ? "percent" : "money"}
+              markerDots={!performance}
+              lineWidth={2}
+              faintGrid
               tooltip="date"
               height={CHART_HEIGHT}
             />
           )}
+          {note ? (
+            <p
+              role="status"
+              data-slot="add-note"
+              className="pointer-events-none absolute top-0 left-0 inline-flex h-7 max-w-full items-center truncate rounded-full bg-zinc-900 px-3 text-xs font-medium text-white shadow-sm dark:bg-zinc-100 dark:text-zinc-950"
+            >
+              {note.text} · {dayLabel(note.date)}
+            </p>
+          ) : null}
         </div>
 
         {canChart && available.length > 1 && !loading ? (
@@ -390,6 +619,7 @@ const CollectionValueCard = memo(function CollectionValueCard({
                   key={item.id}
                   type="button"
                   aria-pressed={on}
+                  aria-label={item.id === "all" ? "All time" : item.phrase.replace(/^p/, "P")}
                   onClick={() => choose(item.id)}
                   className={`hit-44 h-9 rounded-full text-xs font-semibold tabular-nums relative ${press} ${
                     on
@@ -397,12 +627,12 @@ const CollectionValueCard = memo(function CollectionValueCard({
                       : "text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
                   }`}
                 >
-                  {item.label}
+                  {RANGE_LABEL[item.id]}
                   {on ? (
                     <span
                       aria-hidden
                       data-range-dot=""
-                      className={`absolute bottom-1 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full bg-current ${TONE_CLASS[lineTone]}`}
+                      className={`absolute bottom-1 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full bg-current ${TONE_CLASS.brand}`}
                     />
                   ) : null}
                 </button>
@@ -415,8 +645,15 @@ const CollectionValueCard = memo(function CollectionValueCard({
   );
 });
 
-/** Under two saved days: a placeholder, never a flat line. */
-function ThinChart() {
+/** Under two saved days (or too little to measure): a placeholder, never a flat line. */
+function ThinChart({
+  title = "Your chart starts today",
+  detail = "Check back tomorrow to see it move.",
+}: {
+  title?: string;
+  detail?: string;
+}) {
+
   return (
     <div
       className="relative flex flex-col items-center justify-center gap-1 overflow-hidden rounded-xl bg-zinc-50 px-6 text-center dark:bg-white/[0.03]"
@@ -439,8 +676,8 @@ function ThinChart() {
         />
         <path d="M300 22h0" stroke="currentColor" strokeWidth={8} strokeLinecap="round" vectorEffect="non-scaling-stroke" />
       </svg>
-      <p className="relative text-sm font-semibold">Your chart starts today</p>
-      <p className={`relative text-xs ${muted}`}>Check back tomorrow to see it move.</p>
+      <p className="relative text-sm font-semibold">{title}</p>
+      <p className={`relative text-xs ${muted}`}>{detail}</p>
     </div>
   );
 }

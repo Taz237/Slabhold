@@ -103,3 +103,13 @@ export function axisLabels(ticks: number[]): string[] {
   // A tight range near $1K ($1,000 / $1,005 / $1,010) needs every dollar.
   return ticks.map((tick) => money(tick).replace(/\.00$/, ""));
 }
+
+/** "−2.5%", "0%", "+5%": Performance's axis, in points of return. */
+export function percentAxisLabels(ticks: number[]): string[] {
+  return ticks.map((tick) => {
+    const value = clean(tick);
+    if (value === 0) return "0%";
+    const text = String(Number(Math.abs(value).toFixed(2)));
+    return `${value < 0 ? "−" : "+"}${text}%`;
+  });
+}
