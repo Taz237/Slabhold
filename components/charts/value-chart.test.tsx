@@ -144,7 +144,8 @@ describe("ValueSpark", () => {
   it("draws a line for two points and nothing broken for one", () => {
     const two = renderToStaticMarkup(createElement(ValueSpark, { id: "a", points, tone: "down", ariaLabel: "Down 5%" }));
     assert.match(two, /<path d="M/);
-    assert.match(two, /text-rose-600/);
+    assert.match(two, /text-zinc-500/);
+    assert.doesNotMatch(two, /rose|emerald/);
     const one = renderToStaticMarkup(
       createElement(ValueSpark, { id: "b", points: points.slice(0, 1), tone: "up", ariaLabel: "One day" }),
     );

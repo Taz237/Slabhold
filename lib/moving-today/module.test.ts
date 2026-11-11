@@ -189,8 +189,8 @@ describe("Movers rail", () => {
     assert.equal(host.querySelectorAll("[data-tile]").length, MOVING_RAIL_COUNT);
     assert.equal(host.querySelector("[data-mover-rail] > li:last-child [data-see-all-tile]")?.textContent, "See all 15");
     assert.match(out, /data-density="compact"/);
-    assert.match(out, /data-gain="up"[^>]*class="[^"]*emerald/);
-    assert.match(out, /data-gain="down"[^>]*class="[^"]*rose/);
+    assert.match(out, /data-gain="up"[^>]*class="[^"]*violet/);
+    assert.match(out, /data-gain="down"[^>]*class="[^"]*zinc/);
     assert.match(out, /data-kind="slab"/);
     assert.match(out, /See all 15/);
     assert.match(out, /aria-label="See all 15 cards"/);
@@ -222,7 +222,7 @@ describe("Movers rail", () => {
     assert.doesNotMatch(first, /drop-shadow|rgba\(124,58,237/);
     assert.match(second, /w-\[120px\]/);
     assert.doesNotMatch(second, /rgba\(124,58,237/);
-    assert.match(out, /data-top-badge=""[^>]*>Up 120%</);
+    assert.match(out, /data-top-badge=""[^>]*><span aria-hidden="true"[^>]*>▲<\/span>Up 120%</);
     // Past the third tile, the rail skips layout and paint until swiped near.
     assert.doesNotMatch(classOf(out, `data-tile="${id(3)}"`), /content-visibility/);
     assert.match(classOf(out, `data-tile="${id(4)}"`), /\[content-visibility:auto\]/);

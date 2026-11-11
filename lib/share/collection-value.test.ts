@@ -60,7 +60,9 @@ describe("collection value share image", () => {
     assert.equal(model.tone, "flat");
     assert.equal(model.change, "$0.00 (0.0%) since Oct 27");
     const frame = readFileSync(join(process.cwd(), "components/og-frame.tsx"), "utf8");
-    assert.match(frame, /model\.tone === "up" \? "#34d399" : model\.tone === "down" \? "#fb7185" : "#a1a1aa"/);
+    // Purple up, gray down or flat, from the theme: never green or red.
+    assert.match(frame, /TONE_HEX\[model\.tone\]/);
+    assert.doesNotMatch(frame, /#34d399|#fb7185/i);
   });
 
   it("is null until the chart would draw: one saved day plus today is not enough", () => {

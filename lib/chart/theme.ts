@@ -20,7 +20,7 @@ export const TONE_CLASS: Record<ChartTone, string> = {
 
 /** For Satori (share images, always dark): purple up, gray down. The +/− sign carries direction. */
 export const TONE_HEX: Record<Exclude<ChartTone, "accent">, string> = {
-  up: "#C4B5FD",
+  up: "#A78BFA",
   down: "#A1A1AA",
   flat: "#A1A1AA",
   brand: "#A78BFA",
