@@ -170,9 +170,11 @@ describe("CollectionGrid", () => {
     const byId = Object.fromEntries(
       tiles(html).map((tile) => [tile.match(/^"([^"]+)"/)?.[1] ?? "", tile]),
     );
-    assert.match(byId.up, /data-gain="up"[^>]*class="[^"]*emerald/);
+    assert.match(byId.up, /data-gain="up"[^>]*class="[^"]*violet/);
+    assert.match(byId.up, /▲/);
     assert.match(byId.up, /\+50\.0%/);
-    assert.match(byId.down, /data-gain="down"[^>]*class="[^"]*rose/);
+    assert.match(byId.down, /data-gain="down"[^>]*class="[^"]*zinc/);
+    assert.match(byId.down, /▼/);
     assert.match(byId.down, /−50\.0%/);
     assert.doesNotMatch(byId.unknown, /data-gain/);
     assert.doesNotMatch(byId.novalue, /data-gain/);

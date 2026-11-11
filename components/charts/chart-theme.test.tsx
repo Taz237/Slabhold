@@ -146,14 +146,14 @@ function comp(props: Record<string, unknown> = {}) {
 }
 
 function toneOf(className: string): string | null {
-  return className.match(/text-(emerald|rose|violet|zinc)-600/)?.[1] ?? null;
+  return className.match(/text-(emerald|rose|violet|zinc)-(?:500|600)/)?.[1] ?? null;
 }
 
 describe("comp chart: the color is the outcome", () => {
-  it("draws rising sales emerald, falling sales rose, and the chip always matches the line", async () => {
+  it("draws rising sales purple, falling sales gray, and the chip always matches the line", async () => {
     for (const [sales, median, line, chip] of [
-      [rising, 35, "emerald", "up"],
-      [falling, 36, "rose", "down"],
+      [rising, 35, "violet", "up"],
+      [falling, 36, "zinc", "down"],
     ] as const) {
       const { host } = await mount(comp({ sales, median }));
       const svg = host.querySelector("svg[role='img']");

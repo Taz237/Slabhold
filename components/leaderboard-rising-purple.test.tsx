@@ -71,12 +71,13 @@ describe("Rising collectors board in Slabhold purple", () => {
     assert.match(boardHtml(html, "most-cards-added"), /--lb-accent:#A78BFA/);
   });
 
-  it("keeps up and down chips emerald and rose", () => {
+  it("keeps up chips purple and down chips gray, never green or red", () => {
     const up = renderToStaticMarkup(createElement(DeltaChip, { pct: 12 }));
     const down = renderToStaticMarkup(createElement(DeltaChip, { pct: -8 }));
     assert.match(up, /data-delta-chip="up"/);
-    assert.match(up, /text-emerald-700/);
+    assert.match(up, /text-violet-700/);
     assert.match(down, /data-delta-chip="down"/);
-    assert.match(down, /text-rose-700/);
+    assert.match(down, /text-zinc-600/);
+    assert.doesNotMatch(up + down, /emerald|rose/);
   });
 });

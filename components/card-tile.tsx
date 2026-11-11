@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useState, type CSSProperties, type ReactNode } from "react";
-import { Camera, TrendingDown, TrendingUp } from "lucide-react";
+import { Camera } from "lucide-react";
 import { CardSlabArt, type ArtCard } from "@/components/card-slab-art";
 import type { SlabFit } from "@/components/card-slab-frame";
 import { CountUp } from "@/components/count-up";
@@ -16,6 +16,8 @@ import {
   type PhotoStatus,
   type TileGain,
 } from "@/lib/collection/grid";
+import { MoveArrow } from "@/components/move-arrow";
+import { MOVE_PILL } from "@/lib/chart/theme";
 
 export const tileFocusRing =
   "outline-none focus-visible:ring-2 focus-visible:ring-violet-600 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]";
@@ -242,7 +244,7 @@ export function CardTile({
   );
 }
 
-/** Green up, red down. Movers pass a percent-only gain through the same chip. */
+/** Purple with ▲ up, gray with ▼ down (MOVE_PILL), never green or red. Movers pass a percent-only gain through the same chip. */
 export function GainChip({
   gain,
   compact = false,
@@ -264,17 +266,9 @@ export function GainChip({
         large
           ? "gap-1 px-2.5 py-1 text-base font-semibold"
           : `gap-0.5 ${compact ? "px-1" : "px-1.5"} py-0.5 text-[10px] font-semibold`
-      } tabular-nums ${
-        gain.tone === "up"
-          ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400"
-          : "bg-rose-500/15 text-rose-700 dark:text-rose-400"
-      }`}
+      } tabular-nums ${MOVE_PILL[gain.tone]}`}
     >
-      {compact ? null : gain.tone === "up" ? (
-        <TrendingUp className={large ? "h-4 w-4" : "h-3 w-3"} aria-hidden />
-      ) : (
-        <TrendingDown className={large ? "h-4 w-4" : "h-3 w-3"} aria-hidden />
-      )}
+      <MoveArrow tone={gain.tone} className={large ? "text-[12px] leading-none" : "text-[8px] leading-none"} />
       <CountUp text={gain.pctText} run={countUp} />
     </span>
   );

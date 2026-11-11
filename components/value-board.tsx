@@ -22,13 +22,15 @@ import type { ValueBoardModel, ValueBoardRow } from "@/lib/leaderboard/types";
 import { userHref } from "@/lib/social/user-href";
 import { loadSupabaseBrowser } from "@/lib/supabase/browser-lazy";
 import { useCardValues } from "@/lib/value/use-card-values";
+import { MoveArrow } from "@/components/move-arrow";
+import type { ChangeTone } from "@/lib/chart/range";
+import { MOVE_TEXT } from "@/lib/chart/theme";
 
 export { VALUE_BOARD_TAB };
 
-function tone(percent: number): string {
-  if (percent > 0) return "text-emerald-600 dark:text-emerald-400";
-  if (percent < 0) return "text-rose-600 dark:text-rose-400";
-  return "text-zinc-500";
+/** Purple up, gray down or flat, with ▲ or ▼ (MOVE_TEXT). Never green or red. */
+function percentTone(percent: number): ChangeTone {
+  return percent > 0 ? "up" : percent < 0 ? "down" : "flat";
 }
 
 export function ValueBoardView({
@@ -91,7 +93,10 @@ function ValueBoardRowView({ row }: { row: ValueBoardRow }) {
       />
       <span className="min-w-0 flex-1 truncate text-sm font-semibold">@{row.username}</span>
       <span className="shrink-0 text-right">
-        <span className={`block text-sm font-semibold tabular-nums ${tone(row.percent)}`}>
+        <span
+          className={`inline-flex items-center gap-1 text-sm font-semibold tabular-nums ${MOVE_TEXT[percentTone(row.percent)]}`}
+        >
+          <MoveArrow tone={percentTone(row.percent)} />
           {row.percentLabel}
         </span>
         {row.flagged ? (

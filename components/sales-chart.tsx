@@ -23,6 +23,7 @@ import { snapshotDateInNewYork } from "@/lib/collection/totals-shared";
 import { money } from "@/lib/format";
 import { NOT_ENOUGH_SALES_LABEL } from "@/lib/value/format";
 import { mockValueHistory, type ValuePoint } from "@/lib/value-history";
+import { MOVE_PILL } from "@/lib/chart/theme";
 
 /** A trend needs this many sales on the line. */
 export const TREND_MIN_SALES = 3;
@@ -56,12 +57,6 @@ export function shortAgo(iso: string | null | undefined, now: number = Date.now(
   return `${Math.round(hours / 24)}d ago`;
 }
 
-const CHIP_TONE = {
-  up: "bg-emerald-500/12 text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-400",
-  down: "bg-rose-500/12 text-rose-700 dark:bg-rose-400/10 dark:text-rose-400",
-  flat: "bg-zinc-500/10 text-zinc-600 dark:text-zinc-400",
-} as const;
-
 /** "▲ 4.2%", "▼ 3.1%" or "– 0%". The period goes in the caption. */
 export function DeltaChip({ pct, className = "" }: { pct: number; className?: string }) {
   const tone = pctTone(pct);
@@ -69,7 +64,7 @@ export function DeltaChip({ pct, className = "" }: { pct: number; className?: st
   return (
     <span
       data-delta-chip={tone}
-      className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums ${CHIP_TONE[tone]} ${className}`}
+      className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums ${MOVE_PILL[tone]} ${className}`}
     >
       {text}
     </span>
