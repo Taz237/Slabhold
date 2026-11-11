@@ -38,10 +38,12 @@ export function setupStepAfter(step: SetupStep, action: "next" | "skip" | "back"
 export function setupVisible(input: {
   signedIn: boolean;
   stored: SetupState | null;
-  table: "loading" | "missing" | "ready";
+  table: "loading" | "missing" | "error" | "ready";
   answered: boolean;
   pathname: string;
   localNewUser: boolean;
+  /** A hosted account made in the last week: a failed read still shows it setup. */
+  recentAccount?: boolean;
 }): boolean {
   if (!input.signedIn || input.stored === "done") return false;
   if (input.pathname.startsWith("/settings/collecting")) return false;
@@ -50,6 +52,8 @@ export function setupVisible(input: {
   if (input.stored) return true;
   if (input.table === "ready") return !input.answered;
   if (input.table === "missing") return input.localNewUser;
+  // A failed read is not an answer. A new account still gets setup; an older one isn't interrupted.
+  if (input.table === "error") return input.recentAccount === true;
   return false;
 }
 

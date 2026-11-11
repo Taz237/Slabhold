@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { AppErrorScreen } from "@/components/app-error-screen";
+import { reportClientError } from "@/lib/errors/client";
 
 export default function AppError({
   error,
@@ -14,6 +15,7 @@ export default function AppError({
 }) {
   useEffect(() => {
     console.error(error);
+    reportClientError(error, "boundary");
   }, [error]);
 
   // Next 16's retry re-fetches this segment and then resets the boundary.

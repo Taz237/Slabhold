@@ -11,6 +11,7 @@ import { GuestAccount } from "@/components/guest-account";
 import { JoinBar } from "@/components/join-bar";
 import { NavMotion } from "@/components/nav-motion";
 import { NavPendingSkeleton } from "@/components/nav-pending-skeleton";
+import { StartupError, StartupNotice } from "@/components/startup-error";
 import { useOnboardingBusy } from "@/components/onboarding/use-onboarding";
 import { preloadOnHint, sessionHinted } from "@/lib/auth/session-hint";
 import { afterFirstIdle } from "@/lib/ui/idle";
@@ -27,6 +28,7 @@ import {
 import { clearLogoutHome, logoutHomePending } from "@/lib/auth/logout-home";
 import { requiresAccount, seedsViewer } from "@/lib/auth/route-access";
 import { getSupabaseConfig } from "@/lib/supabase/client";
+import { startupFallback } from "@/lib/startup/boot";
 import { listenForInstallPrompt } from "@/lib/pwa/install-prompt";
 import { loginPath, pathWithQuery } from "@/lib/auth/safe-next";
 import type { TourTarget } from "@/lib/onboarding/first-run";
@@ -198,6 +200,7 @@ function Shell({
   attachedTabs = false,
   chromeless = false,
   pending = false,
+  notice = null,
 }: {
   children: React.ReactNode;
   unreadCount: number;
@@ -219,6 +222,8 @@ function Shell({
    * viewer on the server ([data-seeded-viewer], see globals.css).
    */
   pending?: boolean;
+  /** Shown under the header in place of the status line: start-up failed, with Try again. */
+  notice?: React.ReactNode;
 }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -301,7 +306,8 @@ function Shell({
           </div>
         </header>
       ) : null}
-      {status ? (
+      {notice}
+      {!notice && status ? (
         <p className="border-b border-amber-200 bg-amber-50 px-4 py-2 text-center text-sm text-amber-950 dark:border-amber-400/20 dark:bg-amber-400/10 dark:text-amber-100">
           {status}
         </p>
@@ -446,7 +452,7 @@ function GuestRedirect() {
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() || "/";
-  const { unreadCount, unreadMessageCount, ready, user, status } = useSocial();
+  const { unreadCount, unreadMessageCount, ready, user, status, startupFailed, retryStartup } = useSocial();
   const chromeless = isChromelessPath(pathname);
 
   useEffect(() => {
@@ -465,6 +471,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   if (!ready) {
     const loading = loadingShellFor(pathname);
+    const seeded = getSupabaseConfig().configured && seedsViewer(pathname);
+    // Start-up failed or ran out of time: never leave a blank screen.
+    const fallback = startupFailed ? startupFallback({ loading, seeded, signedIn: Boolean(user) }) : null;
+    if (fallback === "screen") {
+      return (
+        <>
+          <AccountDeletedToast />
+          <StartupError onRetry={retryStartup} />
+        </>
+      );
+    }
+    const notice = fallback === "notice" ? <StartupNotice onRetry={retryStartup} /> : null;
     const plainShell = (
       <>
         <AccountDeletedToast />
@@ -478,6 +496,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           showLogin={false}
           reserveJoin={loading === "shell" && isJoinBarPage(pathname)}
           chromeless={chromeless}
+          notice={notice}
         >
           {children}
         </Shell>
@@ -501,6 +520,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             showLogin={false}
             attachedTabs={pathname === "/"}
             chromeless={chromeless}
+            notice={notice}
           >
             {children}
           </Shell>
@@ -511,7 +531,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     // they draw signed in from the server HTML: the same shell the snapshot
     // brings, so the page under it never remounts. Without that read (a
     // visitor, a stale cookie) CSS hides it and these stay blank as before.
-    if (getSupabaseConfig().configured && seedsViewer(pathname)) {
+    if (seeded) {
       return (
         <>
           <AccountDeletedToast />

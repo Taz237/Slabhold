@@ -79,6 +79,12 @@ describe("first-run setup visibility", () => {
     assert.equal(setupVisible({ ...base, pathname: "/settings/collecting" }), false);
   });
 
+  it("still shows to a new account when the interests read fails on the network", () => {
+    assert.equal(setupVisible({ ...base, table: "error", recentAccount: true }), true);
+    assert.equal(setupVisible({ ...base, table: "error", recentAccount: false }), false);
+    assert.equal(setupVisible({ ...base, table: "error" }), false);
+  });
+
   it("uses the new-account check when the interests table is missing", () => {
     assert.equal(setupVisible({ ...base, table: "missing" }), false);
     assert.equal(setupVisible({ ...base, table: "missing", localNewUser: true }), true);
