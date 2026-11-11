@@ -983,7 +983,8 @@ export function CardForm({
       // The card page opens with the "Added" panel: fetch it while the save runs.
       if (!existing) preloadCardAddedPanel();
       await saved;
-      const { card } = result;
+      // The stored card: its photo is the uploaded URL, so the feed post never uploads it again.
+      const card = result.stored?.() ?? result.card;
       // Set once this add's post is on the feed: the haptic says "post", not "save".
       let postedNow = false;
       // The regular form's post failed: the card still saved, so the haptic says "save".

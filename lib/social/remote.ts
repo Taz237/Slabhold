@@ -1017,7 +1017,7 @@ export async function remoteCreatePost(
 
   const uploaded = await uploadPostImages(supabase, authorId, photos);
   if (uploaded.error) return { error: uploaded.error };
-  const card = await storedCard(supabase, authorId, input.card);
+  const card = await storedCard(supabase, authorId, input.card, { reuseCardPhoto: Boolean(input.shareOfNewCard) });
   if (card.error) {
     await discardPostImages(supabase, uploaded.createdPaths);
     return { error: card.error };
@@ -1446,8 +1446,20 @@ async function storedCard(
   supabase: SupabaseClient,
   userId: string,
   card: PublicCard | null,
+  { reuseCardPhoto = false }: { reuseCardPhoto?: boolean } = {},
 ): Promise<{ card: PublicCard | null; error?: string; createdPath?: string }> {
   if (!card) return { card: null };
+  // The post for a card just added: its save already uploaded the photo. Attach that one.
+  if (reuseCardPhoto && card.photoDataUrl?.startsWith("data:")) {
+    const { data } = await supabase
+      .from("cards")
+      .select("image_url")
+      .eq("id", card.id)
+      .eq("user_id", userId)
+      .maybeSingle();
+    const stored = (data as { image_url?: string | null } | null)?.image_url;
+    if (stored) return { card: { ...card, photoDataUrl: stored } };
+  }
   const photo = await uploadMedia(supabase, "card-photos", userId, card.photoDataUrl);
   if (photo.error) return { card: null, error: photo.error };
   return { card: { ...card, photoDataUrl: photo.url }, createdPath: photo.createdPath };

@@ -10,6 +10,7 @@ import {
 import { trackEvent, type AnalyticsSender } from "@/lib/analytics";
 import { signupPath } from "@/lib/auth/safe-next";
 import { formatDate, money } from "@/lib/format";
+import { PRICE_BASIS_LINE } from "@/lib/comps/price-basis";
 
 /** Signup from the public comps preview. Props stay on the scrubbed allowlist path. */
 export function trackPublicCompsCta(send?: AnalyticsSender): void {
@@ -64,6 +65,9 @@ export function PublicCardCompsPreview({
           <p className="text-sm font-semibold">{verdict.fair}</p>
           <p className="text-sm text-zinc-700 dark:text-zinc-200">{verdict.typical}</p>
           <p className="text-xs text-zinc-500">{verdict.basis}</p>
+          <p data-price-basis="" className="text-xs text-zinc-500">
+            {PRICE_BASIS_LINE}
+          </p>
         </div>
       ) : null}
 

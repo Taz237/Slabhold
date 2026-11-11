@@ -292,3 +292,20 @@ describe("saveUserCard photos", () => {
     assert.equal(card.purchaseDate, "");
   });
 });
+
+describe("saveUserCard returns the stored photo", () => {
+  it("gives back the uploaded URL, so a post can attach it without uploading again", async () => {
+    const { supabase, upserts } = client();
+    const result = await saveUserCard(supabase, "user-1", sample({ id: "with-photo" }), 5_000);
+    assert.match(String(result.photoUrl), /^https:\/\/cdn\.example\/user-1\//);
+    assert.equal(result.photoUrl, upserts[0]?.image_url);
+  });
+
+  it("gives back a URL photo as it was, and null for no photo", async () => {
+    const hosted = client();
+    const kept = await saveUserCard(hosted.supabase, "user-1", sample({ id: "url", photoDataUrl: "https://cdn.example/x.jpg" }), 5_000);
+    assert.equal(kept.photoUrl, "https://cdn.example/x.jpg");
+    const none = await saveUserCard(hosted.supabase, "user-1", sample({ id: "none", photoDataUrl: null }), 5_000);
+    assert.equal(none.photoUrl, null);
+  });
+});

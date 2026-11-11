@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useId, useRef, useState } from "react";
-import { Loader2, Search, X } from "lucide-react";
+import { Search, X } from "lucide-react";
 import {
   catalogLabel,
   resolveCatalogSearch,
@@ -195,9 +195,6 @@ export function CardSearch({
           placeholder="Player, year, set, or #number"
           className="min-w-0 flex-1 bg-transparent text-sm text-zinc-900 outline-none placeholder:text-zinc-400 dark:text-zinc-100 dark:placeholder:text-zinc-500"
         />
-        {loading ? (
-          <Loader2 className="h-4 w-4 shrink-0 animate-spin text-zinc-400" aria-label="Searching" />
-        ) : null}
         {query ? (
           <button
             type="button"
@@ -206,7 +203,7 @@ export function CardSearch({
               setQuery("");
               setOpen(false);
             }}
-            className="grid h-7 w-7 place-items-center rounded-full text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-white/10 dark:hover:text-zinc-200"
+            className="hit-44 grid h-7 w-7 place-items-center rounded-full text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-white/10 dark:hover:text-zinc-200"
           >
             <X className="h-3.5 w-3.5" />
           </button>
@@ -235,7 +232,17 @@ export function CardSearch({
             </li>
           ) : null}
           {loading && results.length === 0 && !searchTrouble ? (
-            <li className="px-3 py-3 text-sm text-zinc-500">Searching…</li>
+            <li aria-busy="true" data-search-skeleton="" className="space-y-3 px-3 py-3">
+              <span className="sr-only">Searching</span>
+              {[72, 56, 64].map((width) => (
+                <span
+                  key={width}
+                  aria-hidden
+                  style={{ width: `${width}%` }}
+                  className="block h-3.5 rounded-full bg-zinc-200/80 motion-safe:animate-pulse dark:bg-white/10"
+                />
+              ))}
+            </li>
           ) : null}
           {results.map((card, index) => {
             const selected = index === active;

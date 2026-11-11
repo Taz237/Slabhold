@@ -58,7 +58,7 @@ describe("collection save", () => {
     );
     assert.match(
       addCard,
-      /await saveUserCard\(client, userId, card\);\r?\n\s*trackEvent\("card_added"\);/,
+      /const \{ photoUrl \} = await saveUserCard\(client, userId, card\);\r?\n\s*stored = takeStoredPhoto\(card, photoUrl\);\r?\n\s*trackEvent\("card_added"\);/,
     );
     assert.match(addCard, /void saved\.catch\(\(\) => undefined\)/);
     assert.match(addCard, /if \(!isSaveTimeout\(error\)\) forgetCard\(card\.id\)/);

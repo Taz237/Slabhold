@@ -219,7 +219,7 @@ export function PhotoPlaceholder({ card }: { card: ArtCard }) {
       data-placeholder
       aria-hidden
     >
-      <span className="text-3xl font-extrabold tracking-tight drop-shadow-sm">
+      <span className="text-3xl font-semibold tracking-tight drop-shadow-sm">
         {initials(card.playerName) || "?"}
       </span>
       <span className="mt-1 line-clamp-2 font-mono text-[9px] leading-3 tracking-wider text-white/75 uppercase">

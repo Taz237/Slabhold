@@ -181,9 +181,11 @@ describe("manifest", () => {
       read("components/profile-edit-sheet.tsx"),
       /mx-auto flex h-full w-full max-w-lg flex-col bg-\[var\(--background\)\] pt-\[env\(safe-area-inset-top\)\]/,
     );
+    // The DM thread's height now follows the keyboard (lib/ui/thread-height.ts).
+    assert.match(read("components/message-thread.tsx"), /style=\{\{ height: threadHeight\(keyboardInset\) \}\}/);
     assert.match(
-      read("components/message-thread.tsx"),
-      /h-\[calc\(100dvh-3\.5rem-6\.15rem-env\(safe-area-inset-top\)-env\(safe-area-inset-bottom\)\)\]/,
+      read("lib/ui/thread-height.ts"),
+      /calc\(100dvh - 3\.5rem - 6\.15rem - env\(safe-area-inset-top\) - env\(safe-area-inset-bottom\)\)/,
     );
   });
 });

@@ -24,7 +24,7 @@ export function BadgeShareView({ view, signedIn }: { view: BadgeShareModel; sign
             {view.tierLabel}
           </p>
           <Badge category={view.category} tier={view.tier} size={208} label={view.name} className="mt-5" />
-          <h1 id="badge-title" className="mt-5 text-[28px] leading-tight font-extrabold tracking-tight">
+          <h1 id="badge-title" className="mt-5 text-[28px] leading-tight font-semibold tracking-tight">
             {view.name}
           </h1>
           <Link

@@ -2,6 +2,7 @@
 
 import { goBackWithMotion } from "@/components/nav-motion";
 import { ReadRetry } from "@/components/read-retry";
+import { visibleReplies } from "@/lib/social/reply-paging";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -75,6 +76,8 @@ export function PostView({ id }: { id: string }) {
   const photoCapHint = photosFull ? photoAttachHint(limit) : POST_PHOTO_CAP_HINT;
   const [lane, setLane] = useState<"replies" | "quotes">("replies");
   const [quoteLimit, setQuoteLimit] = useState(PAGE_SIZE);
+  /** Replies show 20 at a time; reaching the end of the list shows the next 20. */
+  const [replyPages, setReplyPages] = useState(1);
   const [deleteNotice, setDeleteNotice] = useState<{ text: string; error: boolean } | null>(null);
 
   const quotes = useMemo(() => quotesOf(posts, id), [id, posts]);
@@ -109,6 +112,7 @@ export function PostView({ id }: { id: string }) {
   useEffect(() => {
     setLane("replies");
     setQuoteLimit(PAGE_SIZE);
+    setReplyPages(1);
   }, [id]);
 
   useEffect(() => {
@@ -146,6 +150,8 @@ export function PostView({ id }: { id: string }) {
     }
     setPending(true);
     const result = await addComment(id, draft, replyPhotosOn ? images : []);
+    // Your own reply lands at the end: show every page, so it is on screen.
+    if (!result.error) setReplyPages(Number.POSITIVE_INFINITY);
     setPending(false);
     if (result.error) {
       setError(result.error);
@@ -253,8 +259,9 @@ export function PostView({ id }: { id: string }) {
       ) : replies.length === 0 ? (
         <EmptyState title="No replies yet" detail="Start the conversation." />
       ) : (
+        <>
         <ul>
-          {replies.map((reply) => {
+          {visibleReplies(replies, replyPages).shown.map((reply) => {
             const commenter = authors.get(reply.authorId);
             const name = commenter?.displayName ?? "Collector";
             const username = commenter?.username ?? "user";
@@ -316,6 +323,10 @@ export function PostView({ id }: { id: string }) {
             );
           })}
         </ul>
+        {visibleReplies(replies, replyPages).more ? (
+          <MoreReplies onMore={() => setReplyPages((pages) => pages + 1)} />
+        ) : null}
+        </>
       )}
 
       {user && lane === "replies" && author.id !== user.id && blockedIds.includes(author.id) ? (
@@ -460,7 +471,7 @@ function ReplyMenu({
           setConfirming(false);
           setOpen((value) => !value);
         }}
-        className="grid h-8 w-8 place-items-center rounded-full text-zinc-500 hover:bg-zinc-100 dark:hover:bg-white/10"
+        className="hit-44 grid h-8 w-8 place-items-center rounded-full text-zinc-500 hover:bg-zinc-100 dark:hover:bg-white/10"
       >
         <Ellipsis className="h-5 w-5" />
       </button>
@@ -484,14 +495,14 @@ function ReplyMenu({
                       onResult(result);
                     });
                   }}
-                  className="flex-1 rounded-full bg-rose-600 py-1.5 text-sm font-semibold text-white"
+                  className="hit-44 flex-1 rounded-full bg-rose-600 py-1.5 text-sm font-semibold text-white"
                 >
                   Delete
                 </button>
                 <button
                   type="button"
                   onClick={() => setConfirming(false)}
-                  className="flex-1 rounded-full border border-zinc-300 py-1.5 text-sm font-semibold dark:border-white/20"
+                  className="hit-44 flex-1 rounded-full border border-zinc-300 py-1.5 text-sm font-semibold dark:border-white/20"
                 >
                   Cancel
                 </button>
@@ -541,6 +552,41 @@ function LaneTab({
       {active ? (
         <span className="absolute inset-x-8 bottom-0 h-1 rounded-full bg-violet-600" />
       ) : null}
+    </button>
+  );
+}
+
+/**
+ * The end of a page of replies: the next page shows as it scrolls into view.
+ * The button does the same for VoiceOver, and where IntersectionObserver is missing.
+ */
+function MoreReplies({ onMore }: { onMore: () => void }) {
+  const ref = useRef<HTMLButtonElement>(null);
+  const onMoreRef = useRef(onMore);
+  useEffect(() => {
+    onMoreRef.current = onMore;
+  });
+  useEffect(() => {
+    const node = ref.current;
+    if (!node || typeof IntersectionObserver === "undefined") return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) onMoreRef.current();
+      },
+      { rootMargin: "400px 0px" },
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+  return (
+    <button
+      ref={ref}
+      type="button"
+      data-more-replies=""
+      onClick={onMore}
+      className="flex min-h-11 w-full items-center justify-center text-sm font-semibold text-violet-700 dark:text-violet-300"
+    >
+      Show more replies
     </button>
   );
 }

@@ -274,7 +274,7 @@ function Shell({
                   href="/notifications"
                   aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : "Notifications"}
                   aria-current={pathname === "/notifications" ? "page" : undefined}
-                  className={`tap relative grid h-9 w-9 place-items-center rounded-full ${
+                  className={`hit-44 tap relative grid h-9 w-9 place-items-center rounded-full ${
                     pathname === "/notifications"
                       ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-950"
                       : "text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-white/10"
@@ -291,7 +291,7 @@ function Shell({
                   href="/search"
                   aria-label="Search"
                   aria-current={pathname === "/search" ? "page" : undefined}
-                  className={`tap grid h-9 w-9 place-items-center rounded-full ${
+                  className={`hit-44 tap grid h-9 w-9 place-items-center rounded-full ${
                     pathname === "/search"
                       ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-950"
                       : "text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-white/10"
@@ -354,7 +354,7 @@ function Shell({
                     data-tour={tab.tour}
                     aria-label="Add card"
                     aria-current={active ? "page" : undefined}
-                    className="tap flex min-w-0 flex-1 flex-col items-center gap-0.5 px-0.5 py-1 text-[10px] font-medium leading-none text-violet-700 dark:text-violet-200"
+                    className="hit-44 tap flex min-w-0 flex-1 flex-col items-center gap-0.5 px-0.5 py-1 text-[10px] font-medium leading-none text-violet-700 dark:text-violet-200"
                   >
                     <span className="grid h-11 w-11 -translate-y-3 place-items-center rounded-full bg-violet-600 text-white shadow-lg ring-4 ring-[var(--background)]">
                       <Camera className="h-5 w-5" />
@@ -374,7 +374,7 @@ function Shell({
                     messageBadge > 0 ? `Messages, ${messageBadge} unread` : tab.label
                   }
                   aria-current={active ? "page" : undefined}
-                  className={`tap relative flex min-w-0 flex-1 flex-col items-center gap-0.5 px-0.5 py-1 text-[10px] font-medium leading-none ${
+                  className={`hit-44 tap relative flex min-w-0 flex-1 flex-col items-center gap-0.5 px-0.5 py-1 text-[10px] font-medium leading-none ${
                     active ? "text-zinc-900 dark:text-white" : "text-zinc-500"
                   }`}
                 >

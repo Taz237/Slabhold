@@ -257,14 +257,14 @@ export function SafetyMenu({
               <button
                 type="button"
                 onClick={() => setDialog(null)}
-                className="rounded-full border border-zinc-300 px-4 py-2 text-sm font-semibold dark:border-white/20"
+                className="hit-44 rounded-full border border-zinc-300 px-4 py-2 text-sm font-semibold dark:border-white/20"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={busy || !reason}
-                className="rounded-full bg-zinc-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-950"
+                className="hit-44 rounded-full bg-zinc-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-950"
               >
                 Submit
               </button>
@@ -374,7 +374,7 @@ export function ConfirmDialog({
           <button
             type="button"
             onClick={onCancel}
-            className="rounded-full border border-zinc-300 px-4 py-2 text-sm font-semibold dark:border-white/20"
+            className="hit-44 rounded-full border border-zinc-300 px-4 py-2 text-sm font-semibold dark:border-white/20"
           >
             Cancel
           </button>
@@ -382,7 +382,7 @@ export function ConfirmDialog({
             type="button"
             disabled={busy}
             onClick={onConfirm}
-            className="rounded-full bg-rose-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+            className="hit-44 rounded-full bg-rose-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
           >
             {confirm}
           </button>

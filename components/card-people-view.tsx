@@ -10,6 +10,7 @@ import {
   type CardPerson,
   type OwnersAndHunters,
 } from "@/lib/cards/people";
+import { TeamBadge } from "@/components/team-badge";
 
 const HUNTERS_EMPTY = "No one's hunting this yet";
 
@@ -101,7 +102,10 @@ function PeopleSection({
                   expandable={false}
                 />
                 <span className="flex min-w-0 flex-col">
-                  <span className="max-w-[7.5rem] truncate text-sm font-semibold">@{person.handle}</span>
+                  <span className="flex min-w-0 items-center gap-1">
+                    <span className="max-w-[7.5rem] truncate text-sm font-semibold">@{person.handle}</span>
+                    <TeamBadge username={person.handle} inLink />
+                  </span>
                   {person.openToOffers ? <OpenToOffersBadge className="mt-0.5" /> : null}
                 </span>
               </Link>

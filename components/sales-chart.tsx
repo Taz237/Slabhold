@@ -24,6 +24,7 @@ import { money } from "@/lib/format";
 import { NOT_ENOUGH_SALES_LABEL } from "@/lib/value/format";
 import { mockValueHistory, type ValuePoint } from "@/lib/value-history";
 import { MOVE_PILL } from "@/lib/chart/theme";
+import { PRICE_BASIS_LINE } from "@/lib/comps/price-basis";
 
 /** A trend needs this many sales on the line. */
 export const TREND_MIN_SALES = 3;
@@ -42,7 +43,7 @@ export { saleDate };
 
 export const TRAWL_ATTRIBUTION = "Sold data via Trawl (third-party, not affiliated with eBay)";
 /** Under a real median: what currency and market the comps come from. */
-export const PRICE_BASIS_LINE = "Prices in USD from recent US sold listings";
+export { PRICE_BASIS_LINE };
 
 /** "2h ago", "3d ago", "just now". Empty when there is no real time. */
 export function shortAgo(iso: string | null | undefined, now: number = Date.now()): string {
@@ -359,8 +360,8 @@ export function SalesChart({
   const freshness = showSample ? "Sample" : ago ? `Recent sold · ${ago}` : null;
   const fewSales = split.inliers.length < TREND_MIN_SALES;
   const chip = !selected && estimateShown && !fewSales && vs != null;
-  // The USD line sits under a real median only: never on sample data or a tapped sale.
-  const basisShown = estimateShown && !selected && usingLive;
+  // The USD line sits under real sold prices, and stays while a sale is tapped. Never on sample data.
+  const basisShown = estimateShown && usingLive;
   // One tone for the line, its fill, its dots and the chip: the 30-day trend when the chip shows, else purple.
   const lineTone = chip ? vsTone : "brand";
   const chartBand = useMemo(

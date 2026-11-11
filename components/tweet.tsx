@@ -393,7 +393,7 @@ function PostMenu({ post }: { post: Post }) {
           setConfirming(false);
           setOpen((value) => !value);
         }}
-        className="grid h-8 w-8 place-items-center rounded-full text-zinc-500 hover:bg-zinc-100 dark:hover:bg-white/10"
+        className="hit-44 grid h-8 w-8 place-items-center rounded-full text-zinc-500 hover:bg-zinc-100 dark:hover:bg-white/10"
       >
         <Ellipsis className="h-5 w-5" />
       </button>
@@ -414,14 +414,14 @@ function PostMenu({ post }: { post: Post }) {
                       if (!result.error && pathname === `/posts/${post.id}`) router.replace("/");
                     });
                   }}
-                  className="flex-1 rounded-full bg-rose-600 py-1.5 text-sm font-semibold text-white"
+                  className="hit-44 flex-1 rounded-full bg-rose-600 py-1.5 text-sm font-semibold text-white"
                 >
                   Delete
                 </button>
                 <button
                   type="button"
                   onClick={() => setConfirming(false)}
-                  className="flex-1 rounded-full border border-zinc-300 py-1.5 text-sm font-semibold dark:border-white/20"
+                  className="hit-44 flex-1 rounded-full border border-zinc-300 py-1.5 text-sm font-semibold dark:border-white/20"
                 >
                   Cancel
                 </button>
@@ -559,7 +559,7 @@ export function Engagement({
           count={repostCount(targetId)}
           active={reposted}
           pressed={reposted}
-          tone="emerald"
+          tone="violet"
           burst={reposted ? repostBurst : 0}
           burstKind="bounce"
           onClick={() => {
@@ -660,27 +660,17 @@ function ActionButton({
   count: number;
   active: boolean;
   pressed?: boolean;
-  tone: "violet" | "emerald" | "rose";
+  /** Violet for reply, repost and share (brand purple, never green). Rose is the like heart. */
+  tone: "violet" | "rose";
   /** Above 0 plays the pop or bounce once; a new number replays it. */
   burst?: number;
   burstKind?: "pop" | "bounce";
   onClick: () => void;
   children: React.ReactNode;
 }) {
-  const color =
-    tone === "violet"
-      ? "hover:text-violet-500"
-      : tone === "emerald"
-        ? "hover:text-emerald-500"
-        : "hover:text-rose-500";
-  const on =
-    tone === "violet" ? "text-violet-500" : tone === "emerald" ? "text-emerald-500" : "text-rose-500";
-  const wash =
-    tone === "violet"
-      ? "group-hover:bg-violet-500/10"
-      : tone === "emerald"
-        ? "group-hover:bg-emerald-500/10"
-        : "group-hover:bg-rose-500/10";
+  const color = tone === "violet" ? "hover:text-violet-500" : "hover:text-rose-500";
+  const on = tone === "violet" ? "text-violet-600 dark:text-violet-400" : "text-rose-500";
+  const wash = tone === "violet" ? "group-hover:bg-violet-500/10" : "group-hover:bg-rose-500/10";
   const reduceMotion = useReducedMotion();
 
   return (

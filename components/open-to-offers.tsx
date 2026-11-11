@@ -65,7 +65,7 @@ export function OpenToOffersFilter({
       type="button"
       aria-pressed={active}
       onClick={onToggle}
-      className={`mb-3 rounded-full border px-3 py-1 text-xs font-semibold ${
+      className={`hit-44 mb-3 rounded-full border px-3 py-1 text-xs font-semibold ${
         active
           ? "border-emerald-600 bg-emerald-500/15 text-emerald-800 dark:border-emerald-300 dark:text-emerald-100"
           : "border-zinc-300 text-zinc-600 dark:border-white/20 dark:text-zinc-300"

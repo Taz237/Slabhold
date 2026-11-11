@@ -193,7 +193,7 @@ export function HunterPrompt() {
         type="button"
         onClick={dismiss}
         aria-label="Dismiss"
-        className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-zinc-500 hover:bg-zinc-100 dark:hover:bg-white/10"
+        className="hit-44 grid h-7 w-7 shrink-0 place-items-center rounded-full text-zinc-500 hover:bg-zinc-100 dark:hover:bg-white/10"
       >
         <X className="h-3.5 w-3.5" />
       </button>

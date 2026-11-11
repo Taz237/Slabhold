@@ -44,6 +44,7 @@ import {
 import { authSnapshotReload } from "@/lib/social/auth-snapshot";
 import { type LoadedPostPage, loadPostById, loadPostEngagement, loadPostPage } from "@/lib/social/load-feed-page";
 import { loadRealtimePatch } from "@/lib/social/realtime-slices";
+import { newestReplyAt } from "@/lib/social/reply-paging";
 import {
   applyRealtimePatch,
   createRealtimeScheduler,
@@ -420,6 +421,8 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
   const lastUserIdRef = useRef<string | null>(null);
   // Set below, once the people batcher exists (see forgetPeople).
   const forgetPeopleRef = useRef<(keys: readonly string[]) => void>(() => {});
+  // Set below, once requestProfiles exists: live replies read their authors through it.
+  const requestProfilesRef = useRef<(keys: readonly string[]) => void>(() => {});
   // Signed-out visitors don't need realtime or card prices for the first
   // paint. That work waits for the first idle moment after load.
   const [firstIdle, setFirstIdle] = useState(false);
@@ -680,6 +683,8 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
     if (bindings.length === 0) return;
 
     let cancelled = false;
+    /** Replies an edit or delete event named since the last read. */
+    const touchedReplies = new Set<string>();
     const fail = (error: unknown) => {
       if (cancelled) return;
       setStatus(friendlyError(error, CONNECT_ERROR));
@@ -689,20 +694,20 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       hidden: () => document.hidden,
       reload: (slices) => {
         const currentPost = postIdFromPath(window.location.pathname);
-        // A cold post screen still reloads that post only. The site snapshot,
-        // including public_cards, stays out of this path.
-        if (!fullSnapshotRef.current && currentPost) {
-          void loadPostPage(client, currentPost)
-            .then((page) => {
-              if (!cancelled) applyPostPage(page);
-            })
-            .catch(fail);
-          return;
-        }
-        void loadRealtimePatch(client, slices, { viewerId, postId: currentPost })
+        // Every slice patches in place, a cold post screen included: a new
+        // reply reads that reply, never the whole post page again.
+        const touchedIds = [...touchedReplies];
+        touchedReplies.clear();
+        const replies = currentPost
+          ? { newestAt: newestReplyAt(snapshotRef.current.comments, currentPost, (comment) => isOptimisticReply(comment.id)), touchedIds }
+          : undefined;
+        void loadRealtimePatch(client, slices, { viewerId, postId: currentPost, replies })
           .then((patch) => {
             if (cancelled) return;
             startTransition(() => setRemote((existing) => applyRealtimePatch(existing, patch)));
+            // Someone new replied: read their profile, so the reply never shows a blank author.
+            const authors = (patch.replyChanges?.upsert ?? patch.comments ?? []).map((comment) => comment.authorId);
+            if (authors.length) requestProfilesRef.current(profileKeys({ ids: authors }));
           })
           .catch(fail);
       },
@@ -720,7 +725,14 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
           table: binding.table,
           filter: binding.filter,
         },
-        () => scheduler.onEvent(binding.slice),
+        (payload: { eventType?: string; old?: { id?: unknown }; new?: { id?: unknown } }) => {
+          // An edit or delete names its reply: the next read re-reads just that one.
+          if (binding.slice === "comments" && payload?.eventType && payload.eventType !== "INSERT") {
+            const id = payload.old?.id ?? payload.new?.id;
+            if (typeof id === "string") touchedReplies.add(id);
+          }
+          scheduler.onEvent(binding.slice);
+        },
       );
     }
     channel.subscribe();
@@ -878,6 +890,9 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     forgetPeopleRef.current = forgetPeople;
   }, [forgetPeople]);
+  useEffect(() => {
+    requestProfilesRef.current = requestProfiles;
+  }, [requestProfiles]);
   // Replies and reposts for posts loaded after the snapshot (another feed page,
   // a card's posts, a profile), read in one batch per tick.
   const [engagementBatcher] = useState(() =>

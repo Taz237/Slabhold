@@ -8,7 +8,16 @@ export function EditCardPage({ id }: { id: string }) {
   const { getCard, ready } = useCollection();
   const card = getCard(id);
 
-  if (!ready) return <div className="h-64 animate-pulse rounded-2xl bg-white/5" />;
+  if (!ready) {
+    return (
+      <div
+        aria-busy="true"
+        aria-label="Loading card"
+        data-edit-skeleton=""
+        className="h-64 rounded-2xl bg-zinc-200/80 motion-safe:animate-pulse dark:bg-white/5"
+      />
+    );
+  }
   if (!card) {
     return (
       <div>

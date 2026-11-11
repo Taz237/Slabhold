@@ -16,6 +16,7 @@ import { trackEvent } from "@/lib/analytics";
 import { pingBadgeCheck } from "@/lib/badges/client";
 import { mergeCategories } from "@/lib/card-category";
 import { loadUserCards, removeUserCard, saveUserCard } from "@/lib/social/cards";
+import { adoptStoredPhoto } from "@/lib/collection/stored-photo";
 import { isSaveTimeout } from "@/lib/save/attempt";
 import { loadCollection, newId, nextAccent, saveCollection } from "@/lib/storage";
 import { loadedSupabaseBrowser } from "@/lib/supabase/browser-lazy";
@@ -32,6 +33,8 @@ export type SavedCard = {
   card: SportsCard;
   /** Settles when the queued save finishes. Rejects if that save fails. */
   saved: Promise<void>;
+  /** The card as stored. Once `saved` resolves, its photo is the uploaded URL, not the local copy. */
+  stored?: () => SportsCard;
 };
 
 type CollectionContextValue = {
@@ -168,6 +171,16 @@ export function CollectionProvider({ children }: { children: React.ReactNode }) 
     [cards],
   );
 
+  /** The saved card with its stored photo URL, swapped into the collection in place of the local copy. */
+  const takeStoredPhoto = useCallback((card: SportsCard, photoUrl: string | null): SportsCard => {
+    const next = adoptStoredPhoto(cardsRef.current, card.id, card.photoDataUrl, photoUrl);
+    if (next !== cardsRef.current) {
+      cardsRef.current = next;
+      setCards(next);
+    }
+    return photoUrl && card.photoDataUrl?.startsWith("data:") ? { ...card, photoDataUrl: photoUrl } : card;
+  }, []);
+
   const addCard = useCallback(
     (input: CardInput & { id?: string }) => {
       const now = new Date().toISOString();
@@ -200,12 +213,14 @@ export function CollectionProvider({ children }: { children: React.ReactNode }) 
         setCards(restored);
       };
       let saved = Promise.resolve();
+      let stored = card;
       if (remote && userId) {
         const client = loadedSupabaseBrowser();
         if (client) {
           saved = enqueue(card.id, async () => {
             try {
-              await saveUserCard(client, userId, card);
+              const { photoUrl } = await saveUserCard(client, userId, card);
+              stored = takeStoredPhoto(card, photoUrl);
               trackEvent("card_added");
               pingBadgeCheck();
               if (card.isPublic) pingWantMatch("card", card.id);
@@ -225,9 +240,9 @@ export function CollectionProvider({ children }: { children: React.ReactNode }) 
         }
       }
       void saved.catch(() => undefined);
-      return { card, saved };
+      return { card, saved, stored: () => stored };
     },
-    [enqueue, mode, remote, report, userId],
+    [enqueue, mode, remote, report, takeStoredPhoto, userId],
   );
 
   const updateCard = useCallback(
@@ -242,7 +257,8 @@ export function CollectionProvider({ children }: { children: React.ReactNode }) 
       if (!updated) {
         const saved = Promise.reject(new Error("Card not found."));
         void saved.catch(() => undefined);
-        return { card: (previous ?? { id }) as SportsCard, saved };
+        const card = (previous ?? { id }) as SportsCard;
+        return { card, saved, stored: () => card };
       }
       const revert = () => {
         if (!previous) return;
@@ -253,6 +269,7 @@ export function CollectionProvider({ children }: { children: React.ReactNode }) 
         setCards(restored);
       };
       let saved = Promise.resolve();
+      let stored = updated;
       if (remote && userId) {
         const client = loadedSupabaseBrowser();
         if (client) {
@@ -263,7 +280,8 @@ export function CollectionProvider({ children }: { children: React.ReactNode }) 
           saved = enqueue(id, async () => {
             try {
               if (needsSnapshot) await snapshotOwnedCollection();
-              await saveUserCard(client, userId, updated);
+              const { photoUrl } = await saveUserCard(client, userId, updated);
+              stored = takeStoredPhoto(updated, photoUrl);
               if (previous && previous.isPublic !== updated.isPublic) {
                 pingCardCache(id);
                 // Public card reads are cached per screen: read them again with the new visibility.
@@ -281,9 +299,9 @@ export function CollectionProvider({ children }: { children: React.ReactNode }) 
         }
       }
       void saved.catch(() => undefined);
-      return { card: updated, saved };
+      return { card: updated, saved, stored: () => stored };
     },
-    [enqueue, remote, report, resetPublicCards, userId],
+    [enqueue, remote, report, resetPublicCards, takeStoredPhoto, userId],
   );
 
   const removeCard = useCallback(

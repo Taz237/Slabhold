@@ -14,12 +14,12 @@ export function JoinBarView({ pathname }: { pathname: string }) {
       <div className="mx-auto flex max-w-lg items-center justify-between gap-3 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
         <p className="text-sm font-semibold">Join Slabhold</p>
         <div className="flex items-center gap-2">
-          <Link href={loginPath(pathname)} className="px-2 py-2 text-sm font-semibold text-zinc-600 dark:text-zinc-300">
+          <Link href={loginPath(pathname)} className="hit-44 px-2 py-2 text-sm font-semibold text-zinc-600 dark:text-zinc-300">
             Log in
           </Link>
           <Link
             href={signupPath(pathname)}
-            className="rounded-full bg-[#7C3AED] px-4 py-2 text-sm font-semibold text-white"
+            className="hit-44 rounded-full bg-[#7C3AED] px-4 py-2 text-sm font-semibold text-white"
           >
             Sign up
           </Link>

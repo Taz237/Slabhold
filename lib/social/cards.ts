@@ -232,7 +232,7 @@ export async function saveUserCard(
   userId: string,
   card: SportsCard,
   timeoutMs = SAVE_TIMEOUT_MS,
-) {
+): Promise<{ photoUrl: string | null }> {
   const yearText = (card.yearLabel || String(card.year || "")).trim();
   if (!isValidYear(yearText)) {
     throw new Error("Use 2026 or 2023-24");
@@ -250,6 +250,8 @@ export async function saveUserCard(
     if (isSaveTimeout(error)) throw new SaveTimeoutError(photoUrl);
     throw error;
   }
+  // The stored photo: a post made from this card attaches it instead of uploading again.
+  return { photoUrl };
 }
 
 async function writeUserCard(
