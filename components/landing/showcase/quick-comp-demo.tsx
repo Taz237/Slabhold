@@ -19,7 +19,7 @@ const SAMPLE: CompDemo = {
   sales: SAMPLE_SALES.map((sale) => ({ price: sale.price, when: `${sale.ago} ago` })),
   stats: SAMPLE_STATS,
   basis: `Based on ${SAMPLE_STATS.count} sample sales`,
-  owner: null,
+  real: false,
 };
 const TYPE_MS = 34;
 const TYPE_START = 300;

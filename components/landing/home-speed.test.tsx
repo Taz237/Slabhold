@@ -50,11 +50,6 @@ function card(id: string, playerName: string) {
 }
 
 const FOUNDER: FounderShowcase = {
-  profile: {
-    username: "fixturefounder",
-    displayName: "Fixture Founder",
-    avatarUrl: `${HOST}/storage/v1/object/public/avatars/fixture-user/avatar.jpg`,
-  },
   cards: [card("center", "Top Card"), card("left", "Second Card"), card("right", "Third Card")],
 };
 

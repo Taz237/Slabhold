@@ -56,6 +56,7 @@ import type { ProfileBadges } from "@/lib/badges/load";
 import type { ServerCardCount } from "@/lib/social/profile-card-count";
 import { InviteButton } from "@/components/invite/invite-button";
 import { ShareCollectionCard } from "@/components/invite/share-collection-card";
+import { TeamBadge } from "@/components/team-badge";
 
 /**
  * Reply parents after supabase-js failed to load: none visible, the same as a
@@ -446,6 +447,7 @@ export function ProfileView({
         </div>
         <h1 className="mt-3 text-[22px] leading-7 font-semibold tracking-tight break-words">
           {profile.displayName}
+          <TeamBadge username={profile.username} size="md" className="ml-1.5 align-[-3px]" />
         </h1>
         <p className="text-[15px] leading-5 font-medium text-zinc-500">@{profile.username}</p>
         {profile.bio ? (

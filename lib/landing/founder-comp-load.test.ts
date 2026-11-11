@@ -139,7 +139,8 @@ describe("landingFounderComp", () => {
     assert.ok(demo);
     assert.match(decodeURIComponent(demo.photo.src), /^\/_next\/image\?url=https:\/\/knuwflptobyutrauxblj\.supabase\.co\/.+\/card-photos\/f1\/maxey\.jpg&w=/);
     assert.match(demo.photo.srcSet ?? "", / 2x$/);
-    assert.equal(demo.owner, "donnietaz");
+    assert.equal(demo.real, true);
+    assert.doesNotMatch(JSON.stringify(demo), /donnietaz/);
     assert.equal(await landingCompDemo(async () => null), null);
   });
 

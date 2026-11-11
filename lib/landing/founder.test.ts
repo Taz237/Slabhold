@@ -96,19 +96,11 @@ describe("founder showcase", () => {
     assert.equal("estimated_value" in card, false);
   });
 
-  it("carries the profile, and nothing when the profile is missing", () => {
+  it("never carries the profile: no handle, name or avatar, and nothing when the profile is missing", () => {
     const showcase = founderShowcase(profile, [row()]);
-    assert.deepEqual(showcase.profile, {
-      username: "donnietaz",
-      displayName: "Donnie",
-      avatarUrl: "https://example.com/a.png",
-    });
-    assert.deepEqual(founderShowcase(null, [row()]), { profile: null, cards: [] });
-  });
-
-  it("drops an avatar that isn't https and falls back to the handle for a blank name", () => {
-    const showcase = founderShowcase({ ...profile, display_name: "  ", avatar_url: "javascript:alert(1)" }, []);
-    assert.deepEqual(showcase.profile, { username: "donnietaz", displayName: "donnietaz", avatarUrl: null });
+    assert.deepEqual(Object.keys(showcase), ["cards"]);
+    assert.doesNotMatch(JSON.stringify(showcase), /donnietaz|Donnie|example\.com\/a\.png/);
+    assert.deepEqual(founderShowcase(null, [row()]), { cards: [] });
   });
 
   it("reads public_cards with the anon client and caches for an hour", () => {

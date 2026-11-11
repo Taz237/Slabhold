@@ -82,6 +82,26 @@ textarea {
   transform: translate(-50%, -50%);
 }
 
+/* Slabhold team badge tip: a short fade, none for reduced motion. */
+@keyframes team-badge-tip-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.team-badge-tip {
+  animation: team-badge-tip-in 120ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .team-badge-tip {
+    animation: none;
+  }
+}
+
 /*
  * Charts (components/charts/value-chart.tsx, lib/chart/theme.ts). One theme:
  * the colors are variables on the surface, so an always-dark panel only has

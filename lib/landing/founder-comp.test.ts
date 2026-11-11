@@ -85,7 +85,6 @@ describe("founderComp", () => {
     const comp = founderComp(profile, row(), comps(), NOW);
     assert.ok(comp);
     assert.deepEqual(comp, {
-      owner: "donnietaz",
       player: "Fixture Maxey",
       year: "2021",
       set: "Donruss Optic Downtown",
@@ -141,7 +140,8 @@ describe("compDemoFromFounder", () => {
     assert.equal(demo.query, "Fixture Maxey 2021 Donruss Optic Downtown PSA 10");
     assert.equal(demo.label, "Fixture Maxey · 2021 Donruss Optic Downtown · PSA 10");
     assert.equal(demo.alt, "Fixture Maxey, 2021 Donruss Optic Downtown, PSA 10");
-    assert.equal(demo.owner, "donnietaz");
+    assert.equal(demo.real, true);
+    assert.doesNotMatch(JSON.stringify(demo), /donnietaz/);
     assert.equal(demo.basis, "Based on 9 sales");
     assert.deepEqual(demo.photo, { src: "/_next/image?a", srcSet: "x 1x", sizes: "112px" });
     assert.deepEqual(demo.stats, { median: 300, p25: 290, p75: 308, min: 285, max: 310, count: 9 });

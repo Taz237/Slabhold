@@ -47,6 +47,7 @@ import {
   visibleSearchSections,
 } from "@/lib/search/sections";
 import { matchesEverySearchWord, matchesPlainWords, ownCardSearchFields } from "@/lib/search/words";
+import { TeamBadge } from "@/components/team-badge";
 
 /** @ queries are people searches. Skip the catalog RPC and its skeleton. */
 function wantsCatalogSearch(query: string) {
@@ -498,8 +499,11 @@ export function SearchView() {
                         accent={profile.accent}
                       />
                       <span className="min-w-0">
-                        <span className="block truncate text-[15px] font-semibold">
-                          {profile.displayName}
+                        <span className="flex min-w-0 items-center gap-1">
+                          <span className="truncate text-[15px] font-semibold">
+                            {profile.displayName}
+                          </span>
+                          <TeamBadge username={profile.username} inLink />
                         </span>
                         <span className="block truncate text-sm text-zinc-500">
                           @{profile.username}
@@ -537,6 +541,7 @@ export function SearchView() {
                         <span className="min-w-0 flex-1">
                           <span className="flex min-w-0 items-baseline gap-1 text-[15px]">
                             <span className="truncate font-semibold">{name}</span>
+                            <TeamBadge username={author?.username} inLink />
                             <span className="truncate text-zinc-500">@{username}</span>
                             {stamp ? (
                               <span className="shrink-0 text-zinc-500">· {stamp}</span>

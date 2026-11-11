@@ -15,6 +15,7 @@ import { useAttachedChip } from "@/lib/social/use-attachment-label";
 import { EbaySoldLink } from "@/components/ebay-sold-link";
 import { LazyPlayerNameLink } from "@/components/player-name-lazy";
 import { QUOTE_HEADER } from "@/lib/ui/quote-header";
+import { TeamBadge } from "@/components/team-badge";
 import type { CardValueResult } from "@/lib/value/types";
 
 export function QuotedPostEmbed({
@@ -100,6 +101,7 @@ export function QuotedPostEmbed({
         <div className="min-w-0 flex-1">
           <div className={QUOTE_HEADER.row}>
             <span className={QUOTE_HEADER.name}>{author.displayName}</span>
+            <TeamBadge username={author.username} />
             <span className={QUOTE_HEADER.handle}>@{author.username}</span>
             {relative ? <span className={QUOTE_HEADER.time}>· {relative}</span> : null}
           </div>

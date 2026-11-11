@@ -141,8 +141,8 @@ export function sampleStats(sales: readonly { price: number }[] = SAMPLE_SALES) 
 
 /**
  * What the Quick Comp demo draws: the typed search, the card line and photo,
- * the newest sold prices (whole dollars) and the stats under them. `owner` is
- * set only for a real card from that collector's public collection.
+ * the newest sold prices (whole dollars) and the stats under them. `real` is
+ * true only for a real card from a public collection; the collector is never named.
  */
 export type CompDemo = {
   query: string;
@@ -152,7 +152,7 @@ export type CompDemo = {
   sales: readonly { price: number; when: string }[];
   stats: { median: number; p25: number; p75: number; min: number; max: number; count: number };
   basis: string;
-  owner: string | null;
+  real: boolean;
 };
 
 /**

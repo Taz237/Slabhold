@@ -9,6 +9,7 @@ import { hiddenFromSuggestions } from "@/lib/social/follow-rank";
 import type { Profile } from "@/lib/social/types";
 import { usePeopleSearch } from "@/lib/social/use-people-search";
 import { userHref } from "@/lib/social/user-href";
+import { TeamBadge } from "@/components/team-badge";
 
 /** Rows shown for a search, so a big profile list stays quick. */
 const RESULT_LIMIT = 20;
@@ -148,8 +149,11 @@ export function NewMessageSheet({ onClose }: { onClose: () => void }) {
                       className="h-10 w-10"
                     />
                     <span className="min-w-0">
-                      <span className="block truncate text-[15px] leading-5 font-semibold tracking-tight">
-                        {person.displayName}
+                      <span className="flex min-w-0 items-center gap-1">
+                        <span className="truncate text-[15px] leading-5 font-semibold tracking-tight">
+                          {person.displayName}
+                        </span>
+                        <TeamBadge username={person.username} inLink />
                       </span>
                       <span className="block truncate text-[13px] leading-5 text-zinc-500">@{person.username}</span>
                     </span>

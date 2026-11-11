@@ -14,6 +14,7 @@ import { useProfiles } from "@/lib/social/use-profiles";
 import { ReadRetry } from "@/components/read-retry";
 import { userHref } from "@/lib/social/user-href";
 import { loadSupabaseBrowser } from "@/lib/supabase/browser-lazy";
+import { TeamBadge } from "@/components/team-badge";
 
 type Paged = { key: string; people: Profile[]; next: FollowCursor | null };
 
@@ -166,8 +167,9 @@ export function FollowList({
                   expandable={false}
                 />
                 <span className="min-w-0">
-                  <span className="block truncate text-[15px] font-semibold leading-5">
-                    {person.displayName}
+                  <span className="flex min-w-0 items-center gap-1">
+                    <span className="truncate text-[15px] font-semibold leading-5">{person.displayName}</span>
+                    <TeamBadge username={person.username} inLink />
                   </span>
                   <span className="block truncate text-sm text-zinc-500">@{person.username}</span>
                 </span>

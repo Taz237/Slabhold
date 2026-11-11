@@ -61,7 +61,8 @@ describe("/welcome founder read", () => {
   it("returns a good read in both phases", async () => {
     for (const phase of [PHASE_PRODUCTION_BUILD, PHASE_PRODUCTION_SERVER]) {
       const showcase = await welcomeFounderShowcase(good, phase);
-      assert.equal(showcase.profile?.username, "donnietaz");
+      assert.ok(Array.isArray(showcase.cards));
+      assert.doesNotMatch(JSON.stringify(showcase), /donnietaz|profile/);
     }
   });
 

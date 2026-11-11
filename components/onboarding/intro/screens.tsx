@@ -383,7 +383,7 @@ export function SocialVisual({ motion }: { motion: boolean }) {
                     <p className="mt-2 text-[14px] leading-5 text-zinc-100">{post.body}</p>
                     <div className="mt-2 flex items-center gap-3">
                       <div className="w-11 shrink-0">
-                        {/* Donnie's own card on Jake's kitchen-table post, used with his OK. */}
+                        {/* A team member's own card on Jake's kitchen-table post, used with their OK. */}
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img src="/landing/kitchen-table-card.webp" alt="Numbered patch card in a top-loader" width={300} height={420} loading="lazy" decoding="async" draggable={false} className="aspect-[5/7] w-11 rounded-md border border-white/10 object-cover" />
                       </div>

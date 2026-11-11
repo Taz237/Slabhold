@@ -35,6 +35,9 @@ const FILL_ORDER = [1, 0, 2];
 /** The center slab is the widest, and the Home LCP for a visitor. */
 const LCP_SLOT = FILL_ORDER[0];
 
+/** Under real cards: neutral, never a name or handle. */
+export const REAL_CAPTION = "From a Slabhold collection";
+
 /** `sample` slots are made up and wear the generic label; founder cards keep theirs. */
 type Slot = { key: string; art: ArtCard; photo: string | null; sample: boolean };
 
@@ -49,17 +52,10 @@ export function heroSlots(cards: readonly FounderCard[]): Slot[] {
 
 /**
  * Drawn on the server, once: no client code and no state, so the first paint
- * is the final one. `cards` is null while the founder's cards load: the
+ * is the final one. `cards` is null while the real cards load: the
  * slabs hold their space and fade in once there is something to show.
  */
-export function HeroSlabs({
-  cards,
-  owner = null,
-}: {
-  cards: readonly FounderCard[] | null;
-  /** Shown under the slabs when they are real cards. */
-  owner?: string | null;
-}) {
+export function HeroSlabs({ cards }: { cards: readonly FounderCard[] | null }) {
   const ready = cards !== null;
   const real = Boolean(cards?.length);
   return (
@@ -85,7 +81,7 @@ export function HeroSlabs({
         className={`mt-1 h-4 text-center font-mono text-[10px] leading-4 text-zinc-400 ${ready ? "" : "invisible"}`}
         data-hero-caption
       >
-        {real && owner ? `From @${owner}'s collection` : "Sample slabs"}
+        {real ? REAL_CAPTION : "Sample slabs"}
       </p>
     </div>
   );
