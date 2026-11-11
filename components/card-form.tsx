@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { Fragment, useEffect, useMemo, useRef, useState, useSyncExternalStore, type SetStateAction } from "react";
+import { Fragment, useEffect, useId, useMemo, useRef, useState, useSyncExternalStore, type SetStateAction } from "react";
 import { ChevronDown, ScanSearch } from "lucide-react";
 import { AddCardFlow } from "@/components/add-card/add-card-flow";
 import { CardPhotoField } from "@/components/card-photo-field";
@@ -10,6 +10,7 @@ import { useCollection, useDefaultAccent } from "@/components/collection-provide
 import { NativeSelect, SearchSelect, SET_PARALLEL_HINT } from "@/components/search-select";
 import { useSocial } from "@/components/social-provider";
 import { toPublicAttachment } from "@/lib/social/card-posts";
+import { queueCardPost } from "@/lib/social/card-post-queue";
 import {
   FEED_POST_LABEL,
   addCardMayPost,
@@ -241,6 +242,8 @@ export function CardForm({
   const [photoError, setPhotoError] = useState<string | null>(null);
   const [readingPhoto, setReadingPhoto] = useState(false);
   const [saving, setSaving] = useState(false);
+  // Add to collection rides above the keyboard outside the form, so it names its form.
+  const guidedFormId = useId();
   const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -1046,26 +1049,32 @@ export function CardForm({
         const store = shareSessionStore();
         // One add makes one post at most: a retry after a post that went up never posts again.
         const already = postedFor.current === card.id ? "posted" : store ? cardPostId(store, card.id) : null;
+        const postNow = async (post: NonNullable<typeof draft>) => {
+          const posted = await createPost(post);
+          if (posted.error) {
+            // The card is saved. The reveal says the post failed and offers Post it.
+            if (guidedAdd && store) writeCardPostFailed(store, card.id, post.body);
+            return { postId: null, error: posted.error };
+          }
+          postedFor.current = card.id;
+          if (posted.postId && store) {
+            writeSharedPost(store, card.id, posted.postId);
+            recordCardPost(store, card.id, posted.postId);
+          }
+          return { postId: posted.postId ?? null, error: null };
+        };
         if (draft && already) {
           postedNow = true;
           if (store && already !== "posted") writeSharedPost(store, card.id, already);
+        } else if (draft && guidedAdd) {
+          // Saved is the moment: the reveal opens now and the post lands behind it.
+          // The reveal waits on this post (lib/social/card-post-queue.ts), not the Add button.
+          // Not up yet, so the haptic says "save".
+          void queueCardPost(card.id, () => postNow(draft));
         } else if (draft) {
-          const posted = await createPost(draft);
-          if (posted.error) {
-            if (guidedAdd) {
-              // The card is saved. The reveal says the post failed and offers Post it.
-              if (store) writeCardPostFailed(store, card.id, draft.body);
-            } else {
-              postFailedText = "Saved the card, but couldn't share it to the feed.";
-            }
-          } else {
-            postedFor.current = card.id;
-            postedNow = true;
-            if (posted.postId && store) {
-              writeSharedPost(store, card.id, posted.postId);
-              recordCardPost(store, card.id, posted.postId);
-            }
-          }
+          const posted = await postNow(draft);
+          if (posted.error) postFailedText = "Saved the card, but couldn't share it to the feed.";
+          else postedNow = true;
         }
       }
       // The reveal glides its slab in from where the Review slab sits now. Recorded, never awaited.
@@ -1788,8 +1797,9 @@ export function CardForm({
     // Serial run and number are their own step in the picker.
     const guidedMore = MORE_DETAILS_FIELDS.filter((key) => key !== "serialRun" && key !== "serialNo");
     return (
-      <form ref={formRef} onSubmit={onSubmit} className="mx-auto max-w-xl">
+      <form id={guidedFormId} ref={formRef} onSubmit={onSubmit} className="mx-auto max-w-xl">
         <AddCardFlow
+          formId={guidedFormId}
           form={form}
           noNumber={noNumber}
           parallelIsCustom={parallelIsCustom}

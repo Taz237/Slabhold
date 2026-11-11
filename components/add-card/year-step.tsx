@@ -6,6 +6,7 @@ import { SearchSelect } from "@/components/search-select";
 import type { CatalogCard } from "@/lib/card-catalog";
 import { isValidYear, optionsWithCurrent, yearOptionsForSport } from "@/lib/card-options";
 import { catalogYears, yearChips, yearSuggestion } from "@/lib/cards/add-flow";
+import { yearSearchMatches } from "@/lib/cards/year-search";
 
 /**
  * What year. A chip grid of recent seasons, the player's own years first,
@@ -84,6 +85,9 @@ export function YearStep({
             isCustomValid={isValidYear}
             customInvalidHint="Use 2026 or 2023-24"
             inputMode="text"
+            filter={yearSearchMatches}
+            autoFocusSearch={false}
+            searchPlaceholder="Type a year, like 1990 or 90"
             onChange={(year) => {
               if (isValidYear(year)) onPick(year);
             }}

@@ -9,6 +9,7 @@ import {
   FlowProgress,
   QuietButton,
   RunBadge,
+  StepDock,
   SwatchDot,
   focusRing,
 } from "@/components/add-card/flow-ui";
@@ -74,6 +75,8 @@ import { parallelIn, parallelsIn, sameSeason, serialRunIn, setNamesIn } from "@/
 import { searchCatalogRemote } from "@/lib/catalog/search-remote";
 
 export type AddCardFlowProps = {
+  /** The id of CardForm's form, for the Add button when it sits above the keyboard. */
+  formId?: string;
   form: CardDraftForm;
   noNumber: boolean;
   parallelIsCustom: boolean;
@@ -555,6 +558,7 @@ export function AddCardFlow(props: AddCardFlowProps) {
           sportOffer={props.sportOffer}
           saveError={props.saveError}
           feedPost={props.feedPost}
+          formId={props.formId}
           saving={props.saving}
           readingPhoto={props.readingPhoto}
           complete={stepComplete("review", answers)}
@@ -700,6 +704,7 @@ function ReviewStep({
   sportOffer,
   saveError,
   feedPost,
+  formId,
   saving,
   readingPhoto,
   complete,
@@ -723,6 +728,7 @@ function ReviewStep({
   sportOffer: ReactNode;
   saveError: ReactNode;
   feedPost?: ReactNode;
+  formId?: string;
   saving: boolean;
   readingPhoto: boolean;
   complete: boolean;
@@ -818,9 +824,10 @@ function ReviewStep({
       {sportOffer}
       {saveError}
 
-      <div className="sticky bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-10 -mx-4 bg-[color-mix(in_oklab,var(--background)_96%,transparent)] px-4 py-3 backdrop-blur-xl sm:mx-0 sm:px-0">
+      <StepDock done>
         <button
           type="submit"
+          form={formId}
           disabled={saving || readingPhoto}
           // Looks unavailable until complete but stays tappable: a tap shows what's missing.
           aria-disabled={complete ? undefined : true}
@@ -837,7 +844,7 @@ function ReviewStep({
         >
           {saving ? "Adding…" : "Add to collection"}
         </button>
-      </div>
+      </StepDock>
     </div>
   );
 }

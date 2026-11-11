@@ -118,7 +118,8 @@ describe("build 4 part 2: haptic call sites", () => {
     assert.equal(count(source, /postedNow = true;/g), 2);
     // A post that went up now, or one already up for this add, counts as posted.
     assert.match(source, /if \(draft && already\) \{\n\s*postedNow = true;/);
-    assert.match(source, /postedFor\.current = card\.id;\n\s*postedNow = true;/);
+    // The regular form's post counts once it went up; Add card's background post never does here.
+    assert.match(source, /if \(posted\.error\) postFailedText = [^\n]+\n\s*else postedNow = true;/);
     assert.doesNotMatch(source, /await saved;\n\s*if \(!existing\) haptic/);
   });
 

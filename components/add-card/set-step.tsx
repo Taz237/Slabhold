@@ -86,6 +86,8 @@ export function SetStep({
         allowCustom
         customHint={SET_PARALLEL_HINT}
         dataField="setBrand"
+        autoFocusSearch={false}
+        searchPlaceholder="Search sets or type one"
         onChange={(name) => {
           if (name.trim()) onPick(name);
         }}

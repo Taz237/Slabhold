@@ -8,6 +8,7 @@ import {
   QuietButton,
   RunBadge,
   SectionLabel,
+  StepDock,
   SwatchDot,
   focusRing,
 } from "@/components/add-card/flow-ui";
@@ -103,7 +104,15 @@ export function NumberStep({
         </span>
         No number on card
       </label>
-      <PrimaryButton onClick={next}>Next</PrimaryButton>
+      <StepDock done>
+        <PrimaryButton
+          // Keep the keyboard up through the tap, so it never jumps out from under the finger.
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={next}
+        >
+          Next
+        </PrimaryButton>
+      </StepDock>
     </div>
   );
 }
@@ -158,6 +167,14 @@ export function ParallelStep({
 
   // Focus lands on the pre-selected answer (Base unless they picked another), never on Auto.
   const focusKey = [base, ...shown].some((option) => parallelMatchKey(option.name) === current) ? current : "base";
+
+  /** Next takes the highlighted answer: Base until they pick another. */
+  function pickSelected() {
+    const selected = all.find((option) => parallelMatchKey(option.name) === current);
+    if (selected) onPick(selected);
+    else if (value.trim()) onPick({ name: value.trim(), serialRun: null });
+    else onPick(base);
+  }
 
   const chip = (option: ParallelOption) => {
     const selected = parallelMatchKey(option.name) === current;
@@ -295,6 +312,16 @@ export function ParallelStep({
           </div>
         ) : null}
       </div>
+
+      <StepDock done>
+        <PrimaryButton
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={pickSelected}
+          aria-label={`Next, ${current === "base" || !value.trim() ? "Base" : value.trim()}`}
+        >
+          Next
+        </PrimaryButton>
+      </StepDock>
     </div>
   );
 }
@@ -430,14 +457,17 @@ export function SerialStep({
               {shownError}
             </p>
           ) : null}
-          <PrimaryButton
-            onClick={() => {
-              setTried(true);
-              if (!error) onNext();
-            }}
-          >
-            Next
-          </PrimaryButton>
+          <StepDock done>
+            <PrimaryButton
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => {
+                setTried(true);
+                if (!error) onNext();
+              }}
+            >
+              Next
+            </PrimaryButton>
+          </StepDock>
         </div>
       ) : null}
 
