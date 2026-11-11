@@ -1,317 +1,321 @@
-# Card scanner: plan
+# Card scanner: plan (v2)
 
-Status: plan only, no code. Needs Donnie's decisions (see "Decisions we need" at the end).
+Status: plan only. No code and no keys yet. v2 replaces v1: we added competitor research, real pricing and a $50/month budget, and dropped the PSA cert API because it's paid-only.
 
-Goal: point the iPhone camera at a raw card or a graded slab. Slabhold reads it, then opens the guided Add card flow already filled in, so the collector checks it and taps save. For raw cards we fill player, year, set, card # and parallel. For slabs we also fill grader, grade and cert #. It should feel as quick as X's iOS camera: opens instantly, captures on its own, no waiting on a spinner.
+Goal: point the iPhone camera at a raw card or a graded slab. Slabhold identifies it (player, year, set, card #, parallel, plus grader, grade and cert # for slabs) and opens the guided Add card flow already filled in, so the collector just confirms and saves. It should be better than CollX, Card Ladder and the "card scanner" apps, and as smooth as X's iOS camera.
 
-Note: `CLAUDE.md` lists the scanner as on hold. This plan assumes Donnie is lifting that. The last PR updates `CLAUDE.md`.
+Budget: **up to $50/month for all paid services.** We use paid AI only where it makes the scanner clearly better.
 
----
-
-## 0. What we already have
-
-We don't have to start from zero.
-
-| Piece | Where | What it gives us |
-| --- | --- | --- |
-| `/scan` page | `app/(app)/scan/page.tsx`, `components/scan-view.tsx` | Take or pick a photo, then hand it to Add card. It doesn't read the card. |
-| Photo handoff | `lib/capture.ts` (`saveScan` / `takeScan`, sessionStorage) | Gets the photo into `/cards/new` without uploading it. |
-| Add card prefill | `app/(app)/cards/new/page.tsx` | Already takes `pick, player, year, set, num, parallel, sport, rookie`. It doesn't take grader, grade or cert yet. |
-| Guided flow | `lib/cards/add-flow.ts`, `components/add-card/*` | Steps from player to review. A prefilled draft can open straight on Review. |
-| Catalog search | `card_catalog` + `search_cards` RPC, `lib/catalog/search-remote.ts` | Ranked catalog matches from a text query. Free, with a 1s timeout. |
-| Player directory | `lib/players/directory.json` (5,455 players) | Fuzzy player-name matching on the device, already loaded for Add card. |
-| Parallels and sets | `lib/cards/data/*-parallels.json`, `lib/card-options.ts`, `lib/cards/parallels.ts` | Checklists for parallel names and serial runs. |
-| Grade parsing | `lib/cards/grading-company.ts`, `lib/card-options.ts` (`parseGrade`) | Normalizes PSA, BGS, SGC and CGC grades and qualifiers. |
-| iOS shell | `ios-app/` (Capacitor 8, loads https://slabhold.app) | Our own Swift plugin `SlabholdNative` (`SlabholdNativePlugin.swift`). `@capacitor/camera` 8.2.6 is installed. `NSCameraUsageDescription` is already set. |
-| Rate limits | `lib/comps/rate-limit.ts`, `comps_rate_limits` / `anon_rate_limits` tables | Rate limits by user or subject, with per-bucket fail-closed. New buckets need no SQL. |
-| Fake scan state | `components/card-photo-field.tsx` ("Sample match, not a real scan") | A placeholder that this work replaces. |
+`CLAUDE.md` still lists the scanner as on hold. The last PR updates it.
 
 ---
 
-## 1. Approaches compared
+## 1. How the competitors scan
 
-All three approaches end the same way: they match what was read against our catalog (`search_cards` + player directory + parallels data) and rank the top 3. **No approach is allowed to invent a card the catalog and checklists don't support.** If a reader guesses a card #, the catalog has to agree before we show it as the top pick.
+A caveat on sources: most head-to-head accuracy numbers come from blogs run by competing scanner apps (Cards AI, PreGrade). We quote them as "claimed" and plan to measure our own scanner on our own fixtures (section 6).
 
-### A. On-device text reading (Apple Vision, in our Swift plugin) + catalog matching
+### CollX
+- **How it scans:** image matching ("visual search") against a database CollX says has 20M+ cards, built on deep-learning image recognition. "Scan+" is an enhanced scan mode, marketed at about 95% detection (we couldn't verify that number).
+- **Praise:** fast, good on modern base cards, big catalog, easy cataloging.
+- **Complaints:**
+  - **Wrong parallels.** One comparison claims CollX gets the base card right but misses the parallel about 35% of the time, for example calling a Silver Prizm just "Prizm" (about 65% parallel accuracy, competitor-sourced).
+  - Wrong player, year or reprint (one App Store review: a 1959 Topps Mays read as a 1994 reprint). A Trustpilot reviewer says it still gets cards wrong "50% of the time".
+  - Opaque values that run high (claimed about 22% above sold prices), with the sales behind them not shown.
+  - **Paywall:** Pro is $10/month or $100/year, and Gold is $24.99/month for unlimited Scan+.
 
-How it works: a native full-screen camera, AVFoundation plus Vision, runs on the phone:
-- `VNDetectRectanglesRequest` finds the card or slab edges live.
-- When the frame is steady and sharp, it auto-captures, straightens the crop and runs `VNRecognizeTextRequest` (accurate mode).
+### Card Ladder
+- **How it scans:** a "take a pic" photo search that leads into sales data. Scanning is a side feature; Card Ladder's real strength is comps and indexes.
+- **Praise:** sales data, collection tracking, the app keeps improving.
+- **Complaints:**
+  - **Slabs scan badly.** A reviewer says that with a slab you "pretty much have to scan just the name and grade otherwise you get really bad results."
+  - Photo search "misses a lot of sales", "works maybe 50% of the time", and in one recent version the scan didn't work at all.
+  - **Paywall:** Pro is $19.99/month or $199.99/year.
 
-The plugin sends back only the text lines with their positions, plus the cropped photo. Our web code parses the lines (slab label parser, raw card parser), queries `search_cards`, and ranks the top 3.
+### "Card Scanner Pro" and similar apps
+We couldn't find one app by that exact name. The App Store has many look-alikes ("Sports Card Value Scanner Pro", "CardsPro", "Card Scanner Sports Cards", CardX, Cardstock). Please confirm if you meant a specific one. The pattern across them:
+- **How they scan:** generic AI image identification with an estimated price.
+- **Praise:** "fast", faster than typing a search.
+- **Complaints:**
+  - **Hard paywalls after 1–8 scans** ("only scan 8 cards before being asked to subscribe", "$20 every month").
+  - Wildly wrong values (one user: "$712 vs under $180").
+  - Misreading the year (a 2025 card read as 2023) and missing variations.
 
-- **Accuracy (targets, measured on fixtures before launch):**
-  - Slabs are very good. PSA, BGS, SGC and CGC labels print year, set, player, card #, variety, grade and cert in clean type. Target: the right card first ≥ 90% of the time, and grade + cert right ≥ 97%.
-  - Raw cards are fair on the front alone. The player name is usually readable, but year, set and card # mostly sit on the back, and the set is often only a logo. Target: right player ≥ 90%, exact card in the top 3 ≥ 65% from the front only, ≥ 85% after an optional "show the back" capture.
-  - Parallels are the weak spot. A parallel is a color or finish, and OCR can't see color. We fill it only when text says it (slab label, "/99" serial, insert name). Otherwise the confirm sheet asks.
-- **Speed:** live rectangle detection is roughly 30 fps on the phone. OCR after capture takes about 150–350 ms on iPhone 12 or newer. Matching (one or two `search_cards` calls) takes about 150–400 ms. **About 0.5–0.8 s from capture to the confirm sheet.**
-- **Cost per scan:** $0. Vision is part of iOS. `search_cards` is an RPC we already run. No Trawl calls.
-- **Privacy:** the best of the three. The photo never leaves the phone unless the collector saves the card, which is today's upload. Only the recognized text goes to our catalog search, and we don't store it.
-- **Catches:**
-  - It needs a new iOS build (Swift code).
-  - Web and older builds have no live reader. Safari has no text-detection API, and Tesseract.js is several MB and weak on card fonts.
-  - It's only as good as the catalog's coverage.
+### Ludex and Card Dealer Pro (for reference)
+- **Ludex:** widely called the parallel leader (claimed about 85% parallel accuracy, competitor-sourced). Some users say it "throws out random parallels". Premium is about $19.99/month.
+- **Card Dealer Pro:** a dealer tool for bulk scanning (desktop scanner or phone photos) with AI matching against about 20M card records, plus cert lookup for slabs. It charges per card in "AI credits": $9 for 500, $19 for 1,100 or $59 for 5,000 a month, so **about 1.2–1.8¢ per card**. A reviewer says phone photos needed more fixes than the scanner did.
 
-### B. Vision model API from a Vercel route (e.g. Claude Haiku 5.5 or Sonnet 5.5)
+### What this tells us
+1. **Parallels are the open problem.** Even the leaders miss on roughly 15–35% of parallels, and wrong guesses shown as fact are what make users angry.
+2. **Slabs are badly served** by photo-match scanners, even though the label prints everything in text.
+3. **Paywalls and scan caps** are the biggest source of resentment in this category.
+4. **Unexplained values** erode trust. We already show recent sold prices via Trawl, so we start ahead on this.
+5. We can't beat CollX's 20M-image database on raw image matching at launch, so we shouldn't try. We win with text, checklists and AI that has to pick from real options.
 
-How it works: the phone or browser sends a downscaled card photo (≤ 1024 px long side, JPEG, about 150–300 KB) to `POST /api/scan/identify`. The route asks the model for structured JSON (player, year, set, #, parallel, grader, grade, cert), then runs the same catalog matching.
+---
 
-- **Accuracy:** the best on raw cards. It recognizes set designs, logos and parallel colors with no text to read, so it can often name the set and parallel from the front alone. The risk is a confidently made-up card # or print run, which is why the catalog check stays in charge. On slabs it's about equal to A.
-- **Speed:** about 1.5–4 s per scan (upload + model). That's slower than A, and it shows as a skeleton on the confirm sheet.
-- **Cost per scan** (list prices as of Nov 2026; image ≈ width × height / 750 tokens, so about 1,400–1,900 tokens for a card, plus about 600 prompt and 300–500 output):
-  - Haiku 5.5 ($0.10 in / $0.50 out per 1M tokens) is about **$0.0005 per scan**, so 10,000 scans is about $5.
-  - Sonnet 5.5 ($2 in / $10 out per 1M) is about **$0.01 per scan**, so 10,000 scans is about $100.
-  - Vercel function time is small (one short call per scan).
-- **Privacy:** the photo goes to a third party. The provider doesn't train on API data by default, but we'd still update `/privacy`, keep no copy on our side, and only allow it for signed-in users.
-- **Catches:** it's a new paid service (needs Donnie's OK and a key), adds per-scan latency, and needs hard caps (section 4).
+## 2. Our options compared
 
-### C. Cert # lookup for slabs (PSA Public API)
-
-How it works: read the cert # from the slab (with A or B), then ask PSA's cert API for the card. It returns year, brand, subject, card #, variety and grade.
-
-- **Accuracy:** about 100% for PSA slabs with a readable cert, because it's PSA's own record. BGS, SGC and CGC have no public cert API we can use (only lookup web pages, and we won't scrape them). For those, the label text from A is what we get.
-- **Speed:** about 300–800 ms extra, server to PSA.
-- **Cost per scan:** $0 on PSA's free tier, but that tier has a daily call cap. We'd confirm the current number and the terms when the account is created.
-- **Privacy:** only the cert # is sent to PSA. Cert numbers are already private in our schema (left out of `public_cards`), so we keep them private here too.
-- **Catches:** PSA only. It needs a PSA account and API token, and it adds to A rather than replacing it.
-
-### Side by side
-
-| | A. On-device + catalog | B. Vision model API | C. PSA cert lookup |
+| | A. On-device text reading | B. Image matching vs our catalog | C. Paid vision AI step |
 | --- | --- | --- | --- |
-| Slab accuracy | High | High | Highest (PSA only) |
-| Raw card accuracy | Fair (better with back) | Best | n/a |
-| Parallel detection | Text clues only | Good (sees color) | From PSA record |
-| Capture to matches | ~0.5–0.8 s | ~1.5–4 s | +0.3–0.8 s |
-| Cost per scan | $0 | ~$0.0005–$0.01 | $0 (free tier quota) |
-| Photo leaves phone | No | Yes | No (cert # only) |
-| New iOS build | Yes | No | No |
-| Keys needed | None | Model API key | PSA token |
-| Works on web | Photo + manual only | Yes | Yes |
+| What it is | Apple Vision on the phone: edge detection, auto-capture, crop, OCR | An embedding of the photo compared to reference card images | Send the cropped photo + OCR text to a vision model and get structured JSON back |
+| Slabs | **Excellent.** The label has year, set, player, #, variety, grade and cert in clean type | Weak: the slab case and label dominate the image | Excellent, but not needed when the label reads cleanly |
+| Raw card identity | Fair. The name is usually readable, but year, set and # are mostly on the back | Good **if** we had reference images | **Best.** Recognizes set designs and logos without text |
+| Parallels | Text clues only ("/99", insert names, slab label) | Poor. Parallels share a design and differ by color, so they embed close together | Good when **constrained to the set's real parallel list** |
+| Speed | About 0.2–0.4 s OCR, plus about 0.2–0.4 s catalog match | About 0.1 s on device, plus a vector lookup | About 1.5–3 s (upload + model) |
+| Cost per scan | $0 | On device $0. Hosted embeddings about $0.00003–0.00012/image (Voyage, Titan, Gemini Embedding) | Haiku 5.5 about **$0.0005–0.001**; Sonnet 5.5 about $0.012–0.026 (math below) |
+| Privacy | Photo stays on the phone | On device: stays on the phone | The photo goes to the model provider (no training on API data by default). We keep no copy. |
+| Blocker | Needs a new iOS build | **We have no reference images.** `card_catalog` is text only. Licensed card images don't exist for us, and scraping listing photos would mean new Trawl usage plus image rights. Also needs SQL (vector table). | Needs a key and caps |
 
-### Recommendation
+### Paid AI pricing (list prices, Nov 2026)
 
-**Build A, with catalog matching, now.** It's free, private and the fastest, and it covers the case it's best at, slabs. Raw cards get a clear confirm sheet and a quick "show the back" step.
+| Model | Input / 1M tokens | Output / 1M tokens |
+| --- | --- | --- |
+| Claude Haiku 5.5 | $0.10 | $0.50 |
+| Claude Sonnet 5.5 | $2.00 | $10.00 |
+| Claude Opus 5.5 | $4.00 | $20.00 |
+| Gemini 2.5 Flash-Lite (for comparison) | $0.10 | not checked |
+| Gemini 3.1 / 3.5 Flash-Lite (for comparison) | $0.25 / $0.30 | not checked |
 
-Then, only if Donnie approves:
-1. **Add C** as a free upgrade for PSA slabs, behind the caps in section 4.
-2. **Add B as a fallback, not the default.** It only runs when A's best match is low-confidence (mostly raw cards with no readable text), behind a feature flag, the per-user caps and a monthly spend limit. Start with Haiku 5.5. Move to a bigger model only if fixtures show Haiku misses parallels.
+We only checked Gemini's input prices on Google's pricing page. Haiku 5.5 is the cheapest of these per input token and keeps us on one provider with one key and one spend limit.
 
-The flow, screens and prefill are the same with or without B and C. They plug in as one more "identify" source.
+**Tokens per scan.** Claude counts an image at roughly width × height / 750 tokens. We crop and send each side at ≤ 1024 × 1434 px, which is about 1,950 tokens per side. We'll confirm with the token-counting endpoint during the eval.
+- Input: front only is about 1,950 image + about 1,200 prompt, OCR text and checklist ≈ **3,200 tokens**. Front and back is ≈ **5,200 tokens**.
+- Output: a small JSON answer with thinking off, capped by `max_tokens`. Typical about 300 tokens, **hard ceiling 800** (Haiku) or 1,200 (Sonnet).
+
+| Per call | Typical (front, 300 out) | Worst case (front+back, max out) | Scans $50 covers (typical / worst) |
+| --- | --- | --- | --- |
+| Haiku 5.5 | $0.00032 + $0.00015 = **$0.0005** | $0.00052 + $0.0004 = **$0.0009** | **~100,000 / ~55,000** |
+| Sonnet 5.5 | $0.0064 + $0.003 = **$0.009** | $0.0104 + $0.012 = **$0.022** | ~5,500 / ~2,250 |
+| Opus 5.5 | about $0.018 | about $0.045 | ~2,750 / ~1,100 |
+
+For comparison, Card Dealer Pro charges dealers 1.2–1.8¢ per card. Our Haiku step costs about 0.05–0.09¢.
 
 ---
 
-## 2. Exact UX
+## 3. Recommendation: the combo that beats them
 
-Design for 390 px first. The camera is full-bleed native on iOS. The confirm sheet is our web UI, so it looks the same on web and iOS. Tap targets are ≥ 44 px. Motion respects `prefers-reduced-motion` (native: `UIAccessibility.isReduceMotionEnabled`).
+**On-device reading first, catalog and checklist match second, and Haiku 5.5 only when the phone can't settle it. Sonnet 5.5 runs only when the collector taps "Look closer". Image matching waits until after launch.**
+
+Flow for one scan:
+1. **On the phone (free, about 0.5 s):** edge detection, auto-capture, straightened crop, OCR. We also sample border and background color and check for refractor shimmer, using the existing `parallel-swatch` color names as the vocabulary.
+2. **Slab?** We parse the label (grader, grade, qualifier, cert, year, set, player, #, variety), check it against the catalog and checklists, and go to the confirm sheet. **No paid call. Free, unlimited and under 1 s.**
+3. **Raw card, and the phone settled it?** That means the player, year, set and # all agree with one catalog row, and the parallel is pinned by text (for example "/99" matching only one parallel in the checklist). Confirm sheet, **no paid call**.
+4. **Raw card, not settled?** We call **Haiku 5.5** with the cropped front (and back if taken), the OCR lines, the top catalog candidates and **that set's real parallel list** from our checklists (`lib/cards/data/*-parallels.json`, `lib/cards/parallels.ts`). The model has to pick from those lists or answer "not sure", and it returns JSON. The catalog stays in charge: a card # or parallel the checklist doesn't have is never shown as the top pick.
+5. **"Look closer" (the collector's choice):** on the confirm sheet, if the parallel is still "Not sure" or the matches look wrong, one tap re-runs the step on **Sonnet 5.5** with both sides. Limited per day (section 5).
+
+We expect about 30–50% of raw scans to be settled on the phone and the rest to need Haiku. That's an estimate, and the eval will measure it.
+
+**Phase 2, after launch (not in the $50 math):** learn from confirmed scans. When a collector confirms a scan, the phone stores an on-device Apple feature print against that catalog row, so the next scan of the same card can be matched for free. This needs a vector table (SQL, separate reviewed step) and only uses photos the owner has made public. It gets better as the community grows, and parallels still come from steps 3–5.
+
+**Fixture eval before choosing models for good:** we run Haiku 5.5 and Sonnet 5.5 on about 100 of the team's own card photos (not the real Jaylen Brown card). That costs under $3, inside the $50 month. If Haiku's parallel picks are within 5 points of Sonnet's, Haiku stays the default. If they aren't, we raise the share of "Look closer" or move to Sonnet with tighter caps.
+
+### Three things we'd do better
+1. **Parallels that are right or honestly "not sure".** CollX and Ludex guess from the picture. We:
+   - read the serial ("/99"),
+   - offer only parallels that exist for that set and year,
+   - make the AI pick from that list,
+   - show color swatches when the collector has to choose.
+
+   A wrong guess shown as fact is the #1 complaint, and we never do that.
+2. **Slabs in one shot, free and fast.** We read the whole label: grader, grade, qualifier (OC, MK), cert, card and variety. No "scan just the name and grade" workaround like Card Ladder's, and no paid call.
+3. **No scan paywall, and honest values.** Scanning is free with no 8-scan trap. Every value is recent sold prices via Trawl with the sales shown, so the inflated "$712 vs $180" numbers can't happen.
+
+Also better on feel: auto-capture with no shutter tap needed, slabs to the confirm sheet in under 1 s, and raw cards showing the player instantly while the AI fills in set and parallel.
+
+---
+
+## 4. Exact UX
+
+Design for 390 px first. The camera is native full-bleed on iOS. The confirm sheet is our web UI. Tap targets are ≥ 44 px, motion respects reduced-motion, there are no spinners (skeletons instead) and no broken images (designed placeholders instead).
 
 ### Entry points
-- **iOS:** "Scan a card" is the first choice in the create menu and at the top of Add card's search door ("What's on the card?"). `/scan` opens the native scanner directly.
-- **Web, and iOS builds without the plugin:** the same buttons open today's photo picker, then go to the search door with the photo attached (section 2.7). No dead buttons: the web checks `pluginAvailable('SlabholdScanner')`, the same pattern as `nativeShareFilesAvailable()`.
+- **iOS:** "Scan a card" sits first in the create menu and at the top of Add card's search door. `/scan` opens the native scanner.
+- **Web, and iOS builds without the plugin:** photo pick or the web camera. With AI on, the web path also gets steps 4–5 from a photo (no live reading). With AI off or capped, it goes to the search door with the photo attached. There are no dead buttons: the web checks for the plugin, the same way `nativeShareFilesAvailable()` does.
 
-### 2.1 Camera screen (native)
-
+### Camera screen (native)
 ```
 ┌───────────────────────────────┐
-│ ✕                       ⚡︎    │  close (44px) · torch toggle
-│                               │
+│ ✕                       ⚡︎    │  close (44px) · torch
 │     ┌───────────────────┐     │
-│     │                   │     │  card-shaped guide, 2.5:3.5
-│     │                   │     │  (slab mode: 3.1:5.3, label zone marked)
-│     │                   │     │
-│     │                   │     │
+│     │                   │     │  card guide 2.5:3.5
+│     │                   │     │  (slab: 3.1:5.3, label band marked)
 │     └───────────────────┘     │
 │      Fit the card in the frame│  one-line hint
-│                               │
-│   [ Card | Slab ]             │  segmented, auto-switches
+│   [ Card | Slab ]             │  auto-switches from shape
 │  🖼          ◯          Aa    │  library · shutter · type it instead
 └───────────────────────────────┘
 ```
+- Black (#09090B), live preview, the area outside the guide dimmed.
+- Off-white corner brackets turn brand purple (#7C3AED) and snap to the card edges when we lock on. No glow and no pulsing.
+- Hints, one at a time: "Fit the card in the frame", "Hold still", "Move a little closer", "Too much glare, tilt it a bit", "Got it".
+- The camera opens in under 300 ms. The session is prewarmed while Add card is open and torn down when it closes.
 
-- Black background (#09090B), live preview, everything outside the guide dimmed to about 60%.
-- The guide is four rounded corner brackets in off-white. When we lock onto a card they turn brand purple (#7C3AED) and snap to the detected edges. No glow and no pulsing.
-- Card / Slab toggle: we pick automatically from the detected shape (a slab is taller and has a label band) and flip the toggle to show it. Tapping it forces a mode and changes the guide shape.
-- Hint line (sentence case, one at a time):
-  - "Fit the card in the frame"
-  - "Hold still"
-  - "Move a little closer"
-  - "Too much glare, tilt it a bit"
-  - "Got it"
-- The shutter is always there for manual capture. Torch defaults to off, and we offer it after about 2 s of low light.
-- The camera opens in under 300 ms. The session is prewarmed when the Add card sheet opens, then torn down when it closes, so it doesn't drain the battery.
+### Auto-capture
+Capture fires when all of these hold for about 400 ms:
+- A card- or slab-shaped rectangle (±8%) fills ≥ 55% of the guide.
+- The corners stay steady (less than 2% movement).
+- It's sharp enough (Laplacian variance) and has no heavy glare (highlight clipping).
+- There's a little readable text.
 
-### 2.2 Auto-capture
+On capture: a light haptic, a single shutter flash (a cut with reduced motion), and the crop shrinks down as the confirm sheet rises. With no lock after 6 s, the hint says "Tap the button to take it yourself".
 
-Capture fires when all of these hold for about 400 ms (about 12 frames):
-1. A rectangle with the card or slab aspect ratio (±8%) fills ≥ 55% of the guide.
-2. The corners move less than 2% of the frame width between frames.
-3. Sharpness (Laplacian variance on a downscaled luma frame) is above the threshold.
-4. Highlight clipping is below the glare threshold.
-5. A quick fast-mode OCR pass sees at least a few characters, so we don't capture a blank back or a sleeve's glare.
+**Back of card (raw only, optional):** if the front leaves the card # open, the camera asks "Flip it over for the card #" and offers "Skip".
 
-On capture: a light haptic (`ImpactStyle.Light`), the shutter flashes once (just a cut with reduced motion), and the straightened crop shrinks into the bottom of the screen as the confirm sheet rises. With no lock after 6 s, the hint becomes "Tap the button to take it yourself".
-
-**Raw cards, back of card (optional):** if the front gives a player but several possible card numbers, the camera stays open and asks "Flip it over for the card #" with a "Skip" button. The back capture works the same way. We never ask for slabs.
-
-### 2.3 "Is this your card?" confirm sheet (web UI)
-
-The bottom sheet rises over the captured photo. Skeleton rows show while matching. No spinners and no $0.
-
+### "Is this your card?" confirm sheet
 ```
 ┌───────────────────────────────┐
-│ ▔▔▔                           │
 │ Is this your card?            │
-│ ┌─────┐ Luka Dončić           │  top match, large
-│ │photo│ 2018 Panini Prizm #280│
-│ │crop │ [Silver] [PSA 10]     │  parallel swatch chip, grade chip
-│ └─────┘ Cert ••••5678         │  slabs only, masked
-│ [   Yes, that's it   ]        │  primary violet-600
-│ ─────────────────────────────  │
+│ ┌─────┐ Luka Dončić           │  shows on-device result first
+│ │crop │ 2018 Panini Prizm #280│  set/# rows skeleton until AI returns
+│ └─────┘ ● Silver   [PSA 10]   │  parallel swatch · grade chip
+│         Cert ••••5678         │  slabs only, masked
+│ [   Yes, that's it   ]        │
 │ Or one of these               │
-│  ▢ 2018 Panini Prizm #280 Base│  two compact rows
+│  ▢ 2018 Panini Prizm #280 Base│
 │  ▢ 2018 Donruss Optic #177    │
-│ None of these · Retake        │
+│ Look closer · None of these · Retake │
 └───────────────────────────────┘
 ```
+- **Updates in place:** the player and anything the phone read appear first. Rows still waiting on the AI show skeletons with "Checking the set and parallel" for about 1.5–3 s. Nothing jumps around.
+- **Parallel row:**
+  - If we're sure, it shows one swatch chip.
+  - If we're not, it shows "Pick parallel" with the 3–6 likeliest swatches from that set's checklist plus "Something else". It never shows a guess as fact.
+- **Yes, that's it:** goes to `/cards/new`, filled in, on the Review step (or the first uncertain step), with the photo attached. Save works as it does today.
+- **Look closer:** one Sonnet pass on both sides (asks for the back if we don't have it). After the daily limit, the label reads "Pick it yourself" and opens the parallel step.
+- **None of these:** the guided flow with only the fields we're sure of filled in, and the search door pre-typed.
+- **No match:** "We couldn't find this one yet", with "Add it step by step" (photo kept) and "Retake".
+- **No value shown on this sheet.** Values come after save, as today, so the sheet makes no new Trawl calls.
 
-- **Top match:**
-  - Our cropped photo, not a stock image. If the crop fails, we show the designed card placeholder (`card-slab-art`), never a broken image.
-  - Fields we're unsure of show "Not sure" in muted text, never a guess shown as fact. If only the parallel is uncertain, the chip reads "Pick parallel" and we jump to that step.
-- **Yes, that's it:** opens `/cards/new` with the draft filled and lands on **Review** (or on the first uncertain step, such as parallel or serial #). The photo is attached. Save works as it does today.
-- **Rows 2 and 3:** tapping one makes it the top match. We show at most 3 rows. With only 1 or 2 matches, there's no empty filler.
-- **None of these:** goes to the guided flow. It fills only what we're sure of (usually the player, and the grade on slabs) and attaches the photo. The search door is pre-typed with the best text we read.
-- **Retake:** back to the camera, same mode.
-- **No matches at all:** the sheet says "We couldn't find this one yet" and offers "Add it step by step" (guided flow with the photo) and "Retake". There's no dead end.
-- We don't show a value here. A value would mean a Trawl call, and we're not adding any. If the card already has a cached value in our catalog cache we may show it later, but not in v1.
-
-### 2.4 Manual fallback, available everywhere
-- The "Aa Type it instead" button on the camera screen goes to the search door.
-- If the camera permission is denied, we show a designed state: "Camera's off for Slabhold" with "Open Settings", "Choose a photo" and "Type it instead".
-- If the plugin errors or times out (more than 3 s on OCR), we fall back to the confirm sheet's "No matches" state with the photo kept.
-
-### 2.5 Photo library pick
-- iOS: the library button uses the existing `pickPhoto('library')`. The new plugin method `recognize({ image })` runs the same straighten, crop and OCR on the still photo. Same confirm sheet after that.
-- Web: library pick or the web camera (`<input capture>`) goes to the photo + search door (2.7). Once B is approved, web photos can use B too.
-
-### 2.6 States checklist (for /unslop)
-Matching skeleton · top-3 · 1 match · no match · uncertain parallel · slab with cert · PSA cert-verified badge ("Checked with PSA", only with C) · permission denied · plugin missing (old build) · offline ("You're offline. Add it step by step and we'll keep the photo.") · rate-limited ("Too many scans for now. Add it step by step.").
-
-### 2.7 Web path
-Web can't do live OCR. `/scan` keeps today's photo step, then goes straight to the search door with the photo attached, under the line "Scanning works in the iPhone app". There's no fake "match", so we remove the current "Sample match, not a real scan" state.
+### Other states (for /unslop)
+Permission denied ("Camera's off for Slabhold": Open Settings, Choose a photo, Type it instead) · plugin missing on an older build · offline (the phone-only result still works) · AI unavailable or capped ("Pick the parallel below", same sheet, no error wall) · daily "Look closer" limit reached · photo library pick (same pipeline on a still photo).
 
 ---
 
-## 3. What changes
+## 5. Hard spend cap and per-user limits ($50/month, never over)
 
-### New and changed files (web)
+Five layers. Any one of them alone stops the spend.
+
+1. **Provider console spend limit: $50/month** on a dedicated Anthropic workspace, used only for the scanner. Calls fail there before any bill goes past $50. This is the hard backstop.
+2. **App-side monthly ledger: $40/month** (leaving $10 of headroom under the console limit for the eval and rounding).
+   - Every AI call records its **actual** cost from `response.usage` in micro-dollars, in an `anon_rate_limits` row (subject `global:scan_ai`, bucket `usd_micro_month`, window = start of the month). No SQL; the consume helper gains an "add N" variant.
+   - Before each call we **reserve the worst-case cost** ($0.0009 for Haiku, $0.022 for Sonnet) and fail closed if the ledger would go past $40.
+3. **App-side daily ledger: $2.00/day** (same mechanism, daily window), so one busy day or a bug can't use up the month. That's about 2,200 worst-case Haiku scans a day.
+4. **Per user (signed in only; guests never trigger AI):**
+
+   | Limit | Value | Behavior |
+   | --- | --- | --- |
+   | AI-assisted raw scans (Haiku) | **30/day**, 8 per 10 min | fails closed → on-device result + "Pick parallel" |
+   | "Look closer" (Sonnet) | **3/day** | fails closed → "Pick it yourself" |
+   | Slab and phone-settled scans | unlimited | free |
+
+   Worst case for one user per day: 30 × $0.0009 + 3 × $0.022 = **$0.093**. The global daily cap still wins.
+5. **Kill switches:** `SCAN_AI_ENABLED` (server, default off) and `NEXT_PUBLIC_SCANNER` (whole feature).
+
+Per-request ceilings:
+- Images ≤ 1024 px long side and ≤ 400 KB (413 otherwise), at most 2 per call.
+- `max_tokens` 800 (Haiku) or 1,200 (Sonnet).
+- Thinking off.
+- A 15 s timeout.
+- No retries on the paid call, so a failure falls back to the phone-only result.
+- One in-flight AI call per user.
+- Retake cancels any pending call.
+
+**Do the limits fit the budget?** Example month with 1,500 active scanners, each adding 25 raw cards, 60% needing Haiku, and 5% tapping Look closer:
+
+| Calls | Cost |
+| --- | --- |
+| 22,500 Haiku × $0.0009 | $20.25 |
+| 1,125 Sonnet × $0.022 | $24.75 |
+| **Total** | **$45** |
+
+That's over the $40 app-side ledger, so the ledger would shut off AI before month end. If the eval shows Haiku alone is good enough, we lower Look closer to 1/day. Either way **we can't spend more than $40 in the app, or $50 at the provider.**
+
+When a cap trips, we show "Pick the parallel below" in the same sheet, with no error wall and no paywall.
+
+Other services: Vercel function time and bandwidth for the AI route stay within the current plan (one short call, about 300 KB per AI scan). No Trawl calls in the scan flow. No new paid services beyond the one AI key.
+
+---
+
+## 6. What changes
+
+### Web
 | File | Change |
 | --- | --- |
-| `lib/scan/slab-label.ts` (+ test) | New. Parses OCR lines from PSA, BGS, SGC and CGC labels into grader, grade, qualifier, cert, year, set, player, # and variety. Pure, with fixtures. |
-| `lib/scan/raw-text.ts` (+ test) | New. Pulls out the player (via directory, OCR-tolerant: 0/O, 1/I, accents), year (`©2023`, `2023-24`), card # (`#`, `No.`), serial (`12/99`), RC/rookie, and set and brand words from `SETS`. |
-| `lib/scan/match.ts` (+ test) | New. Builds `search_cards` queries, scores candidates (player, year, set, #, parallel, serial run against checklists) and returns the top 3 with per-field confidence. |
-| `lib/scan/types.ts` | New. `ScanRead` (lines, boxes, side, kind), `ScanMatch`. |
-| `lib/capture.ts` (+ test) | Add `saveScanMatch` / `takeScanMatch` (sessionStorage). **Grade and cert go through here, not the URL**, so the cert # never lands in URLs, logs or analytics. |
-| `components/card-form.tsx`, `lib/cards/new-card-draft.ts`, `lib/cards/add-flow.ts` | Read a scan match into the draft (grader, grade, qualifier, cert included) and pick the start step (Review or the first uncertain step). |
-| `components/scan/confirm-sheet.tsx` (+ test) | New. The "Is this your card?" sheet. |
-| `components/scan-view.tsx`, `app/(app)/scan/page.tsx` | Rework into the scan hub: native scanner when available, the web path otherwise. |
-| `components/card-photo-field.tsx` | Remove the fake "Sample match" state. |
-| `lib/ios/native.ts`, `lib/ios/native-helpers.ts` | `scanCard()`, `recognizePhoto()`, `scannerAvailable()` wrappers for the new plugin methods. |
-| `lib/scan/flag.ts` | `NEXT_PUBLIC_SCANNER === "1"`, the same pattern as `lib/quick-comp/flag.ts`. |
-| `lib/analytics.ts` | Events: `scan_opened`, `scan_captured` (auto or manual), `scan_matched` (rank picked: 1, 2, 3 or none), `scan_fallback`. Counts only, no text and no images. |
-| `app/(app)/privacy/page.tsx` | One line on the scanner: on-device reading. If B or C is approved, also what's sent and to whom. |
+| `lib/scan/slab-label.ts` (+ test) | New. Parses PSA, BGS, SGC and CGC label OCR into grader, grade, qualifier, cert, year, set, player, # and variety. |
+| `lib/scan/raw-text.ts` (+ test) | New. Pulls player (directory, OCR-tolerant), year, #, serial run, RC and set words from OCR lines. |
+| `lib/scan/match.ts` (+ test) | New. `search_cards` queries + checklist parallels + ranking, top 3 with per-field confidence, and a "settled on the phone" check. |
+| `lib/scan/ai-prompt.ts` (+ test) | New. Builds the constrained request (candidates + parallel list) and validates the JSON answer against the checklist. |
+| `lib/scan/spend.ts` (+ test) | New. Monthly and daily ledgers, worst-case reservation, per-user buckets. |
+| `lib/comps/rate-limit.ts`, `rate-limit-loop.ts` | Add the "consume N" variant and the scan buckets. Paid buckets fail closed. |
+| `app/api/scan/identify/route.ts` (+ test) | New. Signed-in only, caps checked, Haiku or Sonnet call, catalog verification. Stores nothing. |
+| `lib/capture.ts` | `saveScanMatch` / `takeScanMatch`, so grade and cert never go in the URL. |
+| `components/card-form.tsx`, `lib/cards/new-card-draft.ts`, `lib/cards/add-flow.ts` | Fill the draft from a scan match and pick the start step. |
+| `components/scan/confirm-sheet.tsx` (+ test) | New. "Is this your card?" with progressive fill and the parallel swatch picker. |
+| `components/scan-view.tsx`, `app/(app)/scan/page.tsx` | Scan hub (native scanner or web path). |
+| `components/card-photo-field.tsx` | Remove the fake "Sample match, not a real scan" state. |
+| `lib/ios/native.ts` | `scanCard()`, `recognizePhoto()`, `scannerAvailable()`. |
+| `lib/analytics.ts` | `scan_captured`, `scan_settled_on_device`, `scan_ai_used`, `scan_pick_rank`, `scan_look_closer`, `scan_capped`. Counts only. |
+| `app/(app)/privacy/page.tsx` | Scanner line: read on the phone; raw-card photos may go to our AI provider to identify the card, and we keep no copy. |
 
-Only if B or C is approved:
-- `app/api/scan/identify/route.ts` (B)
-- `app/api/scan/cert/route.ts` (C)
-- `lib/scan/vision.ts`, `lib/scan/psa.ts`
-- New rate-limit buckets in `lib/comps/rate-limit.ts`
+New dependency: `@anthropic-ai/sdk` (server only, PR 9). Nothing else.
 
-### iOS (`ios-app/`)
-| File | Change |
-| --- | --- |
-| `ios-app/ios/App/App/SlabholdScanner.swift` | New. A full-screen `UIViewController` with AVCaptureSession, rectangle detection, the steadiness, sharpness and glare gate, `AVCapturePhotoOutput`, `CIPerspectiveCorrection` crop and `VNRecognizeTextRequest`. Draws the guide natively. |
-| `ios-app/ios/App/App/SlabholdNativePlugin.swift` | Add `scanCard({ mode })` → `{ lines, boxes, kind, side, image (JPEG base64, 1280px) }`, `recognize({ image })` for library photos, and `scannerAvailable`. |
-| `ios-app/ios/App/App/Info.plist` | Reword `NSCameraUsageDescription`: "Slabhold uses the camera to photograph and identify cards you add to your collection." |
-| `ios-app/ios/App/App/PrivacyInfo.xcprivacy` | Check it. Vision and AVFoundation need no new required-reason entries, but we confirm at build time. |
-
-- **New iOS build: yes.** The Swift plugin code has to ship through TestFlight and the App Store. Web PRs can merge before it, because they detect the plugin and fall back.
-- **New dependencies: none.**
-  - Web: no new npm packages.
-  - iOS: Apple frameworks only (AVFoundation, Vision, CoreImage). No new Capacitor plugin, CocoaPods or SPM packages.
-  - `@capacitor/camera` stays for library picks.
-  - We considered VisionKit's `DataScannerViewController` (iOS 16+), which has nice live text highlighting. But it doesn't give us our own guide, auto-capture rules or crop, so we use AVFoundation + Vision directly.
+### iOS
+- `ios-app/ios/App/App/SlabholdScanner.swift` is new: AVFoundation + Vision (rectangles, OCR), auto-capture gate, perspective crop and color sampling. Apple frameworks only.
+- `SlabholdNativePlugin.swift` gains `scanCard`, `recognize` and `scannerAvailable`.
+- `Info.plist` gets new camera copy: "Slabhold uses the camera to photograph and identify cards you add to your collection."
+- **A new iOS build is needed.** Web PRs can merge first because they check for the plugin.
 
 ### SQL
-**Not needed for the recommended path (A).**
-- `cards.cert_number` and the grade columns already exist.
-- Rate limits reuse `comps_rate_limits` and `anon_rate_limits` with new bucket names.
-- Accuracy metrics go through existing analytics.
-
-**Separate optional step, only with C**: a small cert-lookup cache, so the same cert isn't looked up at PSA twice. It would be one new migration file with the header `-- UNAPPLIED. Needs review before running.`, in its own PR marked "CONTAINS SQL, needs review", and never run by us. Rough shape: `scan_cert_cache(grader text, cert_hash text, payload jsonb, fetched_at timestamptz, primary key (grader, cert_hash))`, RLS on with no client policies (service role only), and rows pruned after 30 days. We skip it unless PSA's daily cap turns out to be tight.
+- **None for launch.** Ledgers and limits reuse `anon_rate_limits` and `comps_rate_limits`, and `cards.cert_number` already exists.
+- **Phase 2 only (image matching from confirmed scans):** a vector table for feature prints. It would be its own migration file with `-- UNAPPLIED. Needs review before running.` in a separate "CONTAINS SQL, needs review" PR, and we never run it.
 
 ---
 
-## 4. Rate limits and cost caps
+## 7. PR breakdown
 
-**Path A costs nothing per scan, but we still cap it:**
-- Live frames are processed on the phone only. Nothing is sent while the camera is open.
-- Each capture makes at most 2 `search_cards` calls (front, plus back if taken), each one already capped at a 1 s timeout and 20 rows.
-- The client allows one in-flight match at a time, and a retake cancels the earlier one.
-- No Trawl calls anywhere in the scan flow. The confirm sheet shows no values, and saving the card prices it the way Add card does today, under the existing Trawl limits.
+Every PR is test-first and passes `npm test`, `lint:ci` and `build`. UI PRs go through /unslop with 390 px screenshots. PRs 2–8 add no keys and no paid calls.
 
-**If C (PSA) is approved:**
-- Bucket `scan_cert`: 20 lookups per user per day. It **fails closed**, like `quick_comp_day`.
-- Global daily cap: counter `global:scan_cert` in `anon_rate_limits` (subject is text, so no SQL), set below PSA's free daily quota (for example 80% of it). Once it's reached we skip C quietly and use the label text.
-- We only call it when a cert # was read cleanly (it passes the PSA cert-number format check) and only for signed-in users.
+| # | PR | Type |
+| --- | --- | --- |
+| 1 | This plan | docs |
+| 2 | Slab label parser + fixtures | web |
+| 3 | Raw card text parser + fixtures | web |
+| 4 | Matcher + checklist parallels + "settled on the phone" check | web |
+| 5 | Scan match handoff + Add card prefill (grade and cert via sessionStorage) | web |
+| 6 | Confirm sheet + all states, behind `NEXT_PUBLIC_SCANNER`, with a fixture dev mode | web, UI |
+| 7 | `/scan` hub + web path; remove the fake "Sample match" state | web, UI |
+| 8 | Native scanner plugin + Info.plist copy | **iOS build** |
+| 9 | *(Needs the key + your OK)* Spend ledgers, caps, kill switch + `/api/scan/identify` (Haiku) + the 100-photo eval | web |
+| 10 | "Look closer" (Sonnet) + its daily limit | web, UI |
+| 11 | Wire the native scanner into `/scan` and Add card, add analytics, update the privacy page | web |
+| 12 | `CLAUDE.md`: take the scanner off hold | docs |
+| later | Phase 2: image matching from confirmed scans (separate SQL PR) | SQL + web + iOS |
 
-**If B (vision model) is approved:**
-- Signed-in only. Guests never trigger a paid call.
-- It only runs as a fallback when A's best match confidence is low. It never runs for slabs whose label read cleanly.
-- Per user: `scan_identify` 10 per 10 minutes and `scan_identify_day` 30 per day, both **fail closed**.
-- Global: counter `global:scan_identify` per day (for example 2,000, which is about $1 a day on Haiku 5.5). When it's hit, B switches off until midnight UTC, and scans fall back to A plus the confirm sheet.
-- Request size: the image is ≤ 1024 px and ≤ 400 KB, otherwise a 413 response. `max_tokens` is small (JSON only). The route's `maxDuration` is 15 s.
-- Backstop: a **monthly spend limit on the provider's console** (for example $25), so a bug in our counters can't run up a bill.
-- Kill switches: `SCAN_VISION_ENABLED` and `SCAN_CERT_ENABLED` server env flags, default off. `NEXT_PUBLIC_SCANNER` hides the whole feature.
-- No storage: we keep no images or model output. Analytics records only which rank was picked.
-
----
-
-## 5. PR breakdown
-
-Small PRs against `main`, web-only first. Every PR is test-first and passes `npm test`, `npm run lint:ci` and `npm run build`. UI PRs go through `/unslop` and include 390 px screenshots. None of PRs 1–9 adds a paid call, key or SQL.
-
-| # | PR | Web / iOS | Notes |
-| --- | --- | --- | --- |
-| 1 | This plan (`docs/scanner-plan.md`) | docs | No SQL. |
-| 2 | Slab label parser + fixtures (PSA, BGS, SGC, CGC label text, hand-written, no real users' data) | web | Pure lib. |
-| 3 | Raw card text parser (player, year, #, serial, RC, set words) + fixtures | web | Pure lib, uses the directory and `SETS`. |
-| 4 | Matcher: `search_cards` queries + ranking + per-field confidence, top 3 | web | Fixture catalog in tests. |
-| 5 | Scan match handoff + Add card prefill (grader, grade, qualifier, cert via sessionStorage; start on Review or the first uncertain step) | web | Testable without a camera. |
-| 6 | "Is this your card?" confirm sheet + all states (2.6), behind `NEXT_PUBLIC_SCANNER` | web, UI | Includes a dev-only fixture mode so we can review it on web. |
-| 7 | `/scan` hub + web path; remove the fake "Sample match" state; entry points in the create menu and search door | web, UI | Old iOS builds fall back here. |
-| 8 | Native scanner: `SlabholdScanner.swift`, plugin methods `scanCard`, `recognize`, `scannerAvailable`; Info.plist copy | **iOS build** | TestFlight first. Web wrappers in `lib/ios/native.ts` with the plugin check. |
-| 9 | Wire the native scanner into `/scan` and Add card; back-of-card step; analytics events; privacy page line | web | Flag on for TestFlight testers, then everyone. |
-| 10 | *(Optional, needs OK + PSA token)* PSA cert check route + `scan_cert` caps + "Checked with PSA" badge | web | No SQL unless 10b. |
-| 10b | *(Optional)* `scan_cert_cache` migration, unapplied | SQL | "CONTAINS SQL, needs review". Separate PR. |
-| 11 | *(Optional, needs OK + API key)* Vision model fallback route + caps + kill switch | web | Haiku 5.5 first, with a fixture eval before it's turned on. |
-| 12 | `CLAUDE.md`: take the scanner off the on-hold list | docs | When we launch it. |
-
-**Accuracy gate before launch:** a fixture set of about 60 OCR dumps (30 slabs across the 4 graders, 30 raw cards front and back) from the team's own cards, not the real Jaylen Brown card and no user data. It runs in `npm test` so we can track the targets in section 1A. We launch when slabs hit the target and raw cards reach the top-3 target with the back step.
+The scanner launches with slabs and phone-settled raw cards working even if PR 9 isn't approved. AI makes raw cards and parallels clearly better.
 
 ---
 
-## 6. Keys and accounts (none added yet)
+## 8. Keys and accounts (none added yet)
 
-| For | What's needed | Cost | Needed for |
-| --- | --- | --- | --- |
-| A (recommended) | Nothing new. The existing Apple developer account ships the new build. | $0 | PRs 2–9 |
-| C, PSA cert check | A PSA account + Public API access token (would be `PSA_API_TOKEN` in Vercel env). Confirm the free-tier daily limit and that app use is allowed. | Free tier | PR 10 |
-| B, vision fallback | An Anthropic API key (would be `ANTHROPIC_API_KEY` in Vercel env), in its own workspace with a monthly spend limit set. | ~$0.0005 per fallback scan on Haiku 5.5 | PR 11 |
-| BGS, SGC, CGC cert check | No public API we can use. We won't scrape. We use label text instead. | n/a | n/a |
+| For | What's needed | Monthly cost |
+| --- | --- | --- |
+| On-device scanner | Nothing new. The existing Apple developer account ships the build. | $0 |
+| AI step | **One Anthropic API key** (`ANTHROPIC_API_KEY` in Vercel env, server only) in its own workspace with a **$50/month spend limit** set in the console. | ≤ $50, held to $40 in the app |
+| PSA cert API | **Not used** (paid only). The cert # comes from the label text. | $0 |
+| Image embeddings | Not used. Phase 2 uses Apple's on-device feature prints. | $0 |
 
 ## Decisions we need
+1. Approve PRs 2–8 (free path) now?
+2. Approve the AI step (PRs 9–10): one Anthropic key, $50 console limit, $40 app ledger, 30 AI scans and 3 "Look closer" per user per day?
+3. Did "Card Scanner Pro" mean a specific app? If so, we'll add it to section 1.
+4. Is the optional back-of-card step OK?
 
-1. OK to lift the scanner off the on-hold list and build A (PRs 2–9)?
-2. Should we set up a PSA API account for cert checks (C)?
-3. Should we allow a paid vision fallback for raw cards (B)? If so, what monthly spend limit (we suggest $25) and global daily cap?
-4. Is the optional back-of-card step OK for raw cards, or should it be front-only and lean on the confirm sheet?
+---
+
+## Sources
+- CollX: [App Store](https://apps.apple.com/us/app/collx-sports-card-scanner/id1581164444?see-all=reviews), [Trustpilot](https://www.trustpilot.com/review/www.collx.com), [CollX Gold](https://collx.app/collx-gold), [TechCrunch](https://techcrunch.com/2025/03/07/collx-raises-10m-to-grow-its-card-collection-marketplace), [Cards AI review (competitor)](https://www.cardsaiapp.com/blog/collx-review), [CollX vs Ludex (competitor)](https://www.cardsaiapp.com/blog/collx-vs-ludex), [Postunreel review](https://postunreel.com/blog/collx-review-2026), [PreGrade guide](https://pregradecards.com/blog/scan-sports-cards-for-value-2026)
+- Card Ladder: [pricing](https://www.cardladder.com/pricing), [Google Play](https://play.google.com/store/apps/details?id=com.ladderstudios.cardladder&hl=en_US), [App Store](https://apps.apple.com/us/app/card-ladder/id1541535971), [MWM listing and reviews](https://mwm.ai/apps/card-ladder/1541535971), [HobbyCardIndex](https://hobbycardindex.com/blog/best-sports-card-scanner-app)
+- Scanner apps: [Cardstock](https://mwm.ai/apps/cardstock-sports-card-scanner/1508888618), [CardX reviews](https://apps.apple.com/us/app/cardx-sports-card-scanner/id6752771264?see-all=reviews&platform=iphone), [Sports Card Value Scanner Pro](https://apps.apple.com/us/app/sports-card-value-scanner-pro/id6746327993), [JustUseApp reviews](https://justuseapp.com/en/app/6760181919/sports-card-scanner-spoly/reviews)
+- Ludex and Card Dealer Pro: [Ludex review (competitor)](https://www.cardsaiapp.com/blog/ludex-review), [JustUseApp Ludex](https://justuseapp.com/en/app/1616691213/ludex-scan-sports-cards-tcg/reviews), [Card Dealer Pro review](https://www.rorzcards.com/card-dealer-pro-review/), [CardLuma vs Card Dealer Pro](https://www.cardluma.com/cardluma_vs_carddealerpro.html)
+- Pricing: Claude list prices (Anthropic, Nov 2026); [Gemini API pricing](https://ai.google.dev/gemini-api/docs/pricing); [Voyage pricing](https://docs.voyageai.com/docs/pricing); [embedding price roundup](https://devtoollab.com/blog/best-embedding-models-apis)
+- Apple Vision feature prints: [developer forum](https://developer.apple.com/forums/thread/732876), [overview](https://blakecrosley.com/blog/vision-framework-built-in)
