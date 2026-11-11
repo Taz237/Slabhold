@@ -134,7 +134,12 @@ describe("launch copy: collection load error", () => {
     assert.match(dash, /\{syncError\}[\s\S]{0,200}<button[^>]*type="button"[^>]*onClick=\{\(\) => void reload\(\)\}[^>]*>\s*Retry\s*<\/button>/);
     assert.match(dash, /className="[^"]*hit-44[^"]*"[^>]*>\s*Retry/);
     assert.doesNotMatch(dash, /syncError \? null :/);
-    assert.match(dash, /shouldShowFirstCardWelcome\(\{ cardCount: cards\.length, ready \}\) \? \(\s*<FirstCardWelcome \/>/);
+    assert.match(
+      dash,
+      /shouldShowFirstCardWelcome\(\{ cardCount: cards\.length, ready, syncError: loadFailed \? syncError : null \}\) \? \(\s*<FirstCardWelcome \/>/,
+    );
+    // A failed load shows Couldn't load with Try again, never the welcome.
+    assert.match(dash, /if \(loadFailed && cards\.length === 0\)[\s\S]{0,300}<ReadRetry title=\{COLLECTION_LOAD_ERROR\} onRetry=\{reload\} \/>/);
   });
 });
 
