@@ -338,7 +338,7 @@ describe("card_added", () => {
     );
     assert.match(
       addCard,
-      /await saveUserCard\(client, userId, card\);\r?\n\s*trackEvent\("card_added"\);/,
+      /const \{ photoUrl \} = await saveUserCard\(client, userId, card\);\r?\n\s*stored = takeStoredPhoto\(card, photoUrl\);\r?\n\s*trackEvent\("card_added"\);/,
     );
     const catchStart = addCard.indexOf("} catch (error) {");
     assert.ok(catchStart > addCard.indexOf("await saveUserCard"));
