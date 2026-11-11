@@ -315,7 +315,7 @@ describe("PortfolioHero redesign: line, ATH and chips", () => {
     const active = track.querySelector("[aria-pressed='true']");
     const dot = active?.querySelector("[data-range-dot]");
     assert.ok(dot);
-    assert.match(dot.getAttribute("class") ?? "", /emerald/);
+    assert.match(dot.getAttribute("class") ?? "", /violet/);
     assert.equal(track.querySelectorAll("[data-range-dot]").length, 1);
     await hero.unmount();
   });
@@ -492,7 +492,8 @@ describe("PortfolioHero market move (Performance)", () => {
     // 1M: Love +$4 on $41, then +$25 on $260 = +$29.00, (45/41 × 285/260 − 1) = +20.3%.
     assert.match(words, /\+\$29\.00 \(\+20\.3%\) market move/);
     assert.doesNotMatch(words, /595%|\+\$244/);
-    assert.match(out, /data-gain="up"[^>]*class="[^"]*emerald/);
+    assert.match(out, /data-gain="up"[^>]*class="[^"]*violet/);
+    assert.match(words, /▲ up \+\$29\.00/);
   });
 
   it("does not move when a card is added and prices stand still", () => {
@@ -504,10 +505,11 @@ describe("PortfolioHero market move (Performance)", () => {
     const out = html({ ...market, cardDays: { rows: still, loading: false, failed: false } });
     assert.match(out, /data-gain="flat"[^>]*class="[^"]*zinc/);
     assert.match(text(out), /\$0\.00 \(0\.0%\) market move/);
+    assert.doesNotMatch(text(out), /[▲▼]/);
     assert.doesNotMatch(text(out), /\+0\.0%/);
   });
 
-  it("goes rose with a minus when prices fell", () => {
+  it("marks a fall with ▼ and a minus in muted gray, never color alone", () => {
     win.localStorage.setItem("slabhold:chart-range:collection", "7d");
     const out = heroOnly({
       ...market,
@@ -517,21 +519,22 @@ describe("PortfolioHero market move (Performance)", () => {
       ]),
       collectionValue: 251,
     });
-    assert.match(out, /data-gain="down"[^>]*class="[^"]*rose/);
+    assert.match(out, /data-gain="down"[^>]*class="[^"]*zinc/);
     assert.doesNotMatch(out, /data-gain="up"/);
-    assert.match(text(out), /−\$9\.00 \(−3\.5%\) market move/);
+    assert.match(text(out), /▼ down −\$9\.00 \(−3\.5%\) market move/);
+    assert.doesNotMatch(out, /rose|emerald|teal/);
     win.localStorage.clear();
   });
 
-  it("is green at +0.6%, rose at −0.6%, and gray only when it reads 0.0%", () => {
+  it("is purple ▲ at +0.6%, gray ▼ at −0.6%, and gray with no arrow only when it reads 0.0%", () => {
     win.localStorage.setItem("slabhold:chart-range:collection", "7d");
     const gain = (love: number) =>
       html({ ...market, values: new Map([["a", okValue(love)], ["b", okValue(215)]]) }).match(/data-gain="(\w+)"[^>]*class="([^"]*)"/);
     // 7D base: $45 + $215 = $260.
     assert.equal(gain(46.56)?.[1], "up");
-    assert.match(gain(46.56)?.[2] ?? "", /emerald/);
+    assert.match(gain(46.56)?.[2] ?? "", /violet/);
     assert.equal(gain(43.44)?.[1], "down");
-    assert.match(gain(43.44)?.[2] ?? "", /rose/);
+    assert.doesNotMatch(gain(43.44)?.[2] ?? "", /rose|violet/);
     assert.equal(gain(45)?.[1], "flat");
     win.localStorage.clear();
   });
@@ -583,6 +586,25 @@ describe("PortfolioHero market move (Performance)", () => {
     assert.doesNotMatch(text(out), /Not enough history/);
     assert.match(out, /animate-pulse|shimmer/);
   });
+});
+
+describe("PortfolioHero chart is always brand purple", () => {
+  before(() => expose("ResizeObserver", HeroResizeObserver));
+  after(() => expose("ResizeObserver", undefined));
+
+  for (const [name, love] of [["up", 50], ["down", 36]] as const) {
+    it(`draws the line, fill and today dot purple when the range is ${name}, in both modes`, async () => {
+      for (const mode of ["performance", "value"]) {
+        win.localStorage.setItem("slabhold:chart-mode:collection", mode);
+        const hero = await mountHero({ ...market, values: new Map([["a", okValue(love)], ["b", okValue(235)]]) });
+        const svg = hero.host.querySelector("svg[role='img']");
+        assert.match(svg?.getAttribute("class") ?? "", /text-violet-600 dark:text-violet-400/);
+        assert.doesNotMatch(svg?.getAttribute("class") ?? "", /emerald|rose|teal/);
+        await hero.unmount();
+      }
+      win.localStorage.clear();
+    });
+  }
 });
 
 describe("PortfolioHero Performance | Value toggle, chips and scrub", () => {

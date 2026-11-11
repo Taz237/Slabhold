@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { ChevronRight, Layers, Minus, Share, TrendingDown, TrendingUp, Trophy } from "lucide-react";
+import { ChevronRight, Layers, Share, Trophy } from "lucide-react";
 import { AddCardLink } from "@/components/add-card-link";
 import { TopMovers, muted, tile, type HeroCard } from "@/components/collection-movers";
 import { ShapedCardThumb } from "@/components/card-thumb";
@@ -22,7 +22,7 @@ import {
   type ChangeTone,
   type RangeId,
 } from "@/lib/chart/range";
-import { PILL_TONE, TONE_CLASS, collectionMinSpan, type HeroTone } from "@/lib/chart/theme";
+import { PILL_TONE, TONE_CLASS, collectionMinSpan } from "@/lib/chart/theme";
 import {
   cardDaysForCollection,
   indexPoints,
@@ -102,10 +102,28 @@ function storage(): Storage | null {
 
 const label = "text-xs font-medium text-zinc-500 dark:text-zinc-400";
 const pulse = "animate-pulse bg-zinc-200/70 dark:bg-white/[0.06]";
-/** The arrow follows the pill's tone. */
-function PillIcon({ tone }: { tone: HeroTone }) {
-  const Icon = tone === "flat" ? Minus : tone === "down" ? TrendingDown : TrendingUp;
-  return <Icon className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden />;
+/**
+ * The market-move pill. The chart is always brand purple, so up and down live
+ * here: a lighter purple with ▲ when up, muted gray with ▼ when down, gray with
+ * no arrow when flat. The arrow, the sign and a screen-reader word carry the
+ * direction, never the color alone. Text passes 4.5:1 on its tint in both themes.
+ */
+const MOVE_PILL: Record<ChangeTone, string> = {
+  up: "bg-violet-500/12 text-violet-700 dark:bg-violet-400/15 dark:text-violet-300",
+  down: "bg-zinc-500/12 text-zinc-600 dark:bg-white/[0.07] dark:text-zinc-400",
+  flat: "bg-zinc-500/12 text-zinc-600 dark:bg-white/[0.07] dark:text-zinc-400",
+};
+
+function MoveArrow({ tone }: { tone: ChangeTone }) {
+  if (tone === "flat") return null;
+  return (
+    <>
+      <span aria-hidden className="text-[10px] leading-none">
+        {tone === "up" ? "▲" : "▼"}
+      </span>
+      <span className="sr-only">{tone}</span>
+    </>
+  );
 }
 type CountUp = typeof import("@/components/hero-count-up");
 let countUp: CountUp | null = null;
@@ -268,8 +286,8 @@ function writeStoredMode(store: Storage | null, mode: ChartMode) {
 }
 
 /**
- * Green up, rose down, gray when it reads $0.00 and 0.0%. The % leads: it is
- * the Performance line. Dollars and % can disagree when a gain on a small
+ * Up, down, or flat when it reads $0.00 and 0.0%. The % leads: it is the
+ * Performance line. Dollars and % can disagree when a gain on a small
  * early base is followed by a loss on a bigger one; the line wins.
  */
 export function moveTone(move: MarketMove | null): ChangeTone {
@@ -339,7 +357,6 @@ const CollectionValueCard = memo(function CollectionValueCard({
   const indexed = useMemo<IndexPoint[]>(() => indexPoints(perfPoints, markers), [perfPoints, markers]);
   const move = useMemo(() => marketMove(perfPoints), [perfPoints]);
   const firstDate = points[0]?.date ?? "";
-  const tone = moveTone(move);
   const latest = points[points.length - 1]?.value ?? collectionValue;
   const minSpan = collectionMinSpan(latest);
   const performance = mode === "performance";
@@ -486,9 +503,9 @@ const CollectionValueCard = memo(function CollectionValueCard({
             <>
               <span
                 data-gain={shownTone}
-                className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums ${PILL_TONE[shownTone]}`}
+                className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums ${MOVE_PILL[shownTone]}`}
               >
-                <PillIcon tone={shownTone} />
+                <MoveArrow tone={shownTone} />
                 {moveAmount(shownMove)}
               </span>
               <span className={`truncate text-xs font-medium ${muted}`}>
@@ -541,7 +558,7 @@ const CollectionValueCard = memo(function CollectionValueCard({
                 "Price moves only"
               ) : anyAdds ? (
                 <>
-                  <span aria-hidden className={`inline-block h-2 w-2 shrink-0 rounded-full border-[1.5px] border-current ${TONE_CLASS[tone]}`} />
+                  <span aria-hidden className={`inline-block h-2 w-2 shrink-0 rounded-full border-[1.5px] border-current ${TONE_CLASS.brand}`} />
                   Card added
                 </>
               ) : (
@@ -562,7 +579,7 @@ const CollectionValueCard = memo(function CollectionValueCard({
             <ValueChart
               points={performance ? indexed : points}
               ariaLabel={ariaLabel}
-              tone={tone}
+              tone="brand"
               curve="monotone"
               morphKey={`${mode}-${range}`}
               onScrub={onScrub}
@@ -615,7 +632,7 @@ const CollectionValueCard = memo(function CollectionValueCard({
                     <span
                       aria-hidden
                       data-range-dot=""
-                      className={`absolute bottom-1 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full bg-current ${TONE_CLASS[tone]}`}
+                      className={`absolute bottom-1 left-1/2 h-1 w-1 -translate-x-1/2 rounded-full bg-current ${TONE_CLASS.brand}`}
                     />
                   ) : null}
                 </button>
