@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { Ellipsis } from "lucide-react";
+import { Ellipsis, X } from "lucide-react";
 import { useSocial } from "@/components/social-provider";
 import { useCloseOnOutsideTap } from "@/lib/ui/menu-outside-tap";
 import {
@@ -13,6 +13,8 @@ import {
   unmuteAccount,
 } from "@/lib/safety/actions";
 import { REPORT_REASONS, SAFETY_ACTION_FAILED, type ReportTargetType } from "@/lib/safety/report";
+
+const SAFETY_ACTIONS = { blockAccount, muteAccount, submitReport, unblockAccount, unmuteAccount };
 
 /** A server action that rejected (offline, or a deploy mid-request). */
 const ACTION_FAILED = { ok: false as const, error: SAFETY_ACTION_FAILED };
@@ -26,6 +28,7 @@ export function SafetyMenu({
   reportedUserId,
   username,
   askPriceHref,
+  actions,
 }: {
   targetType: ReportTargetType;
   targetId: string;
@@ -33,7 +36,10 @@ export function SafetyMenu({
   username: string;
   /** A post with a card: the first item opens a DM with "How much?" ready to send. */
   askPriceHref?: string;
+  /** Tests stand in for the server actions here. */
+  actions?: Partial<typeof SAFETY_ACTIONS>;
 }) {
+  const { blockAccount, muteAccount, submitReport, unblockAccount, unmuteAccount } = { ...SAFETY_ACTIONS, ...actions };
   const { user, blockedIds, mutedIds, applySafetyChange, refresh } = useSocial();
   const [open, setOpen] = useState(false);
   const [dialog, setDialog] = useState<"report" | "block" | "mute" | null>(null);
@@ -42,6 +48,8 @@ export function SafetyMenu({
   const [details, setDetails] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  /** Unblock and Unmute run straight from the menu: a failure shows here, with Try again. */
+  const [undoFailed, setUndoFailed] = useState<"unblock" | "unmute" | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const blocked = blockedIds.includes(reportedUserId);
   const muted = mutedIds.includes(reportedUserId);
@@ -94,11 +102,13 @@ export function SafetyMenu({
     if (busy) return;
     setBusy(true);
     setError(null);
+    setUndoFailed(null);
     const result = await (blocked ? unblockAccount(reportedUserId) : blockAccount(reportedUserId))
       .catch(() => ACTION_FAILED)
       .finally(() => setBusy(false));
     if (!result.ok) {
-      setError(result.error);
+      if (blocked) setUndoFailed("unblock");
+      else setError(result.error);
       return;
     }
     setDialog(null);
@@ -109,11 +119,13 @@ export function SafetyMenu({
     if (busy) return;
     setBusy(true);
     setError(null);
+    setUndoFailed(null);
     const result = await (muted ? unmuteAccount(reportedUserId) : muteAccount(reportedUserId))
       .catch(() => ACTION_FAILED)
       .finally(() => setBusy(false));
     if (!result.ok) {
-      setError(result.error);
+      if (muted) setUndoFailed("unmute");
+      else setError(result.error);
       return;
     }
     setDialog(null);
@@ -283,6 +295,33 @@ export function SafetyMenu({
           onCancel={() => setDialog(null)}
           onConfirm={() => void onMute()}
         />
+      ) : null}
+
+      {undoFailed ? (
+        <div
+          role="alert"
+          className="fixed bottom-[calc(5.75rem+env(safe-area-inset-bottom))] left-1/2 z-50 flex w-max max-w-[calc(100vw-2rem)] -translate-x-1/2 items-center gap-1 rounded-full bg-zinc-900 py-0.5 pr-1 pl-4 text-sm text-white shadow-lg dark:bg-zinc-100 dark:text-zinc-950"
+        >
+          <span className="min-w-0 truncate">
+            {undoFailed === "unblock" ? `Couldn't unblock @${username}` : `Couldn't unmute @${username}`}
+          </span>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => void (undoFailed === "unblock" ? onBlock() : onMute())}
+            className="inline-flex min-h-11 shrink-0 items-center rounded-full px-3 font-semibold text-[#C4B5FD] disabled:opacity-60 dark:text-violet-700"
+          >
+            Try again
+          </button>
+          <button
+            type="button"
+            aria-label="Dismiss"
+            onClick={() => setUndoFailed(null)}
+            className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-zinc-400 hover:text-white dark:text-zinc-500 dark:hover:text-zinc-950"
+          >
+            <X aria-hidden className="h-4 w-4" />
+          </button>
+        </div>
       ) : null}
 
       {toast ? (

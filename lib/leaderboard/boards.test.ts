@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { createElement } from "react";
+import { createElement, type ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, it } from "node:test";
+import { createRequire } from "node:module";
 import { LeaderboardView } from "@/components/leaderboard-view";
 import { presentLeaderboard, rankBoard, unavailableLeaderboard, type LeaderboardSnapshot } from "./present";
 import { profileLinkFor } from "./profile-link";
@@ -22,6 +23,18 @@ import {
 } from "./rules";
 import type { CandidateRow } from "./score";
 import { emptySnapshot } from "./snapshot";
+
+// The error card's Try again uses the app router, as it does in the app.
+const testRouter = { back() {}, forward() {}, refresh() {}, push() {}, replace() {}, prefetch() {} };
+const { AppRouterContext } = createRequire(process.cwd() + "/package.json")(
+  "next/dist/shared/lib/app-router-context.shared-runtime",
+) as {
+  AppRouterContext: { Provider: (props: { value: unknown; children?: ReactNode }) => ReactNode };
+};
+function withRouter(node: ReactNode) {
+  return createElement(AppRouterContext.Provider, { value: testRouter }, node);
+}
+
 
 const NOW = new Date("2026-10-23T18:00:00.000Z");
 const PAGE_ORDER = ["most-cards-added", "rising-collectors", "top-card-post"];
@@ -350,7 +363,7 @@ describe("your spot and rules", () => {
     const error = unavailableLeaderboard({ week: "current", focusBoardId: null, now: NOW });
     assert.equal(error.status, "error");
     assert.deepEqual(error.boards, []);
-    const markup = renderToStaticMarkup(createElement(LeaderboardView, { model: error }));
+    const markup = renderToStaticMarkup(withRouter(createElement(LeaderboardView, { model: error })));
     assert.match(markup, /data-board-error/);
     assert.doesNotMatch(markup, /data-ghost-rank/);
   });

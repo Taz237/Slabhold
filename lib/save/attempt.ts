@@ -1,3 +1,5 @@
+import { friendlyError } from "@/lib/errors/friendly";
+
 export const SAVE_TIMEOUT_MS = 25_000;
 
 export const SAVE_TIMEOUT_MESSAGE = "We couldn't confirm the save. Retry is safe.";
@@ -19,8 +21,7 @@ export function saveFailureText(
   if (message === "Card not found.") return CARDS_LOADING_MESSAGE;
   const stripped = message.replace(/^typeerror:\s*/i, "");
   if (OFFLINE_SAVE_TEXT.test(stripped)) return OFFLINE_SAVE_MESSAGE;
-  if (message) return message;
-  return fallback;
+  return friendlyError(message, fallback);
 }
 
 export class SaveTimeoutError extends Error {

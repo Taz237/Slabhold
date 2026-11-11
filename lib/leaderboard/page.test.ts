@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
-import { createElement } from "react";
+import { createElement, type ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, it } from "node:test";
 import { join } from "node:path";
+import { createRequire } from "node:module";
 import { LeaderboardView } from "@/components/leaderboard-view";
 import { presentLeaderboard, rankBoard, unavailableLeaderboard, type LeaderboardSnapshot } from "./present";
 import {
@@ -30,6 +31,18 @@ import { pageExceededCap, pageRows } from "./pages";
 import { emptySnapshot } from "./snapshot";
 import { hiddenIdsForViewer } from "./viewer";
 import { TEST_ACCOUNT_PREFIXES } from "@/lib/test-accounts";
+
+// The error card's Try again uses the app router, as it does in the app.
+const testRouter = { back() {}, forward() {}, refresh() {}, push() {}, replace() {}, prefetch() {} };
+const { AppRouterContext } = createRequire(process.cwd() + "/package.json")(
+  "next/dist/shared/lib/app-router-context.shared-runtime",
+) as {
+  AppRouterContext: { Provider: (props: { value: unknown; children?: ReactNode }) => ReactNode };
+};
+function withRouter(node: ReactNode) {
+  return createElement(AppRouterContext.Provider, { value: testRouter }, node);
+}
+
 
 function read(path: string) {
   return readFileSync(join(process.cwd(), path), "utf8");
@@ -397,7 +410,7 @@ describe("leaderboard page", () => {
     assert.equal(error.status, "error");
     assert.deepEqual(error.boards, []);
     assert.equal(error.errorTitle, BOARD_ERROR_TITLE);
-    const html = renderToStaticMarkup(createElement(LeaderboardView, { model: error }));
+    const html = renderToStaticMarkup(withRouter(createElement(LeaderboardView, { model: error })));
     assert.match(html, /data-board-error/);
     assert.doesNotMatch(html, /Open spot/);
     assert.match(html, /data-rules=""/);

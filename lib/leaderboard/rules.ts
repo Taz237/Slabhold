@@ -90,7 +90,7 @@ export const CLOSED_NOTE =
 
 export const BOARD_ERROR_TITLE = "Leaderboard didn't load";
 
-export const BOARD_ERROR_DETAIL = "Refresh the page to try again.";
+export const BOARD_ERROR_DETAIL = "Check your connection and try again.";
 
 export const THIS_WEEK_LABEL = "This week";
 

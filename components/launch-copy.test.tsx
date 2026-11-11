@@ -122,7 +122,7 @@ describe("launch copy: marketplace wording", () => {
 
 describe("launch copy: collection load error", () => {
   it("shows a plain message and keeps the raw error in the console", () => {
-    assert.equal(COLLECTION_LOAD_ERROR, "Couldn't load your collection. Pull down to try again.");
+    assert.equal(COLLECTION_LOAD_ERROR, "Couldn't load your collection");
     const provider = read("components/collection-provider.tsx");
     assert.match(provider, /console\.warn\(/);
     // Both load paths (first load and reload) show the plain message.
@@ -134,7 +134,12 @@ describe("launch copy: collection load error", () => {
     assert.match(dash, /\{syncError\}[\s\S]{0,200}<button[^>]*type="button"[^>]*onClick=\{\(\) => void reload\(\)\}[^>]*>\s*Retry\s*<\/button>/);
     assert.match(dash, /className="[^"]*hit-44[^"]*"[^>]*>\s*Retry/);
     assert.doesNotMatch(dash, /syncError \? null :/);
-    assert.match(dash, /shouldShowFirstCardWelcome\(\{ cardCount: cards\.length, ready \}\) \? \(\s*<FirstCardWelcome \/>/);
+    assert.match(
+      dash,
+      /shouldShowFirstCardWelcome\(\{ cardCount: cards\.length, ready, syncError: loadFailed \? syncError : null \}\) \? \(\s*<FirstCardWelcome \/>/,
+    );
+    // A failed load shows Couldn't load with Try again, never the welcome.
+    assert.match(dash, /if \(loadFailed && cards\.length === 0\)[\s\S]{0,300}<ReadRetry title=\{COLLECTION_LOAD_ERROR\} onRetry=\{reload\} \/>/);
   });
 });
 

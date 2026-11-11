@@ -1,5 +1,6 @@
 "use client";
 
+import { friendlyError } from "@/lib/errors/friendly";
 import {
   createContext,
   startTransition,
@@ -50,7 +51,7 @@ type CollectionContextValue = {
 };
 
 /** Shown when the collection fails to load. The raw error goes to the console. */
-export const COLLECTION_LOAD_ERROR = "Couldn't load your collection. Pull down to try again.";
+export const COLLECTION_LOAD_ERROR = "Couldn't load your collection";
 
 export const CollectionContext = createContext<CollectionContextValue | null>(null);
 
@@ -87,9 +88,9 @@ export function CollectionProvider({ children }: { children: React.ReactNode }) 
 
   // The raw error goes to the console. A failed load shows `shown` instead.
   const report = useCallback((error: unknown, shown?: string) => {
-    const raw = error instanceof Error ? error.message : "Could not save your collection.";
+    const raw = error instanceof Error ? error.message : String(error);
     console.warn("[collection] sync failed:", raw);
-    setSyncError(shown ?? raw);
+    setSyncError(shown ?? friendlyError(error, "Couldn't save that change. Try again."));
   }, []);
 
   useEffect(() => {

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { ReadRetry } from "@/components/read-retry";
 import { usePathname, useRouter } from "next/navigation";
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Compass, ImagePlus } from "lucide-react";
@@ -483,9 +484,7 @@ export function FeedView({
           ) : followingEmpty ? (
             <FollowingEmpty profiles={suggestionRail} />
           ) : activePage.error && feedEntries.length === 0 ? (
-            <p className="px-4 py-8 text-center text-sm text-rose-600 dark:text-rose-400">
-              {activePage.error}
-            </p>
+            <FeedLoadError onRetry={activePage.refresh} />
           ) : feedEntries.length === 0 && !showWelcome ? (
             <EmptyState
               icon={<Compass className="h-5 w-5" />}
@@ -747,4 +746,9 @@ function Composer({ onPosted }: { onPosted?: () => void }) {
       </div>
     </form>
   );
+}
+
+/** A lane whose first page didn't load: Try again reads it again, never "No posts yet". */
+export function FeedLoadError({ onRetry }: { onRetry: () => unknown }) {
+  return <ReadRetry title="Couldn't load posts" compact onRetry={onRetry} />;
 }

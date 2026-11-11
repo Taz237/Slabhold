@@ -217,18 +217,26 @@ export function ProfileView({
   const replyAuthorId = profile?.id ?? "";
   // Hosted: this person's replies are read for their profile, not site-wide.
   const [repliesRead, setRepliesRead] = useState<string | null>(null);
+  /** This person's replies didn't load: with none on screen, that is Try again, not "hasn't replied yet". */
+  const [repliesFailed, setRepliesFailed] = useState<string | null>(null);
+  const [repliesAttempt, setRepliesAttempt] = useState(0);
   useEffect(() => {
     if (mode !== "supabase" || !replyAuthorId) return;
     let cancelled = false;
     loadRepliesBy(replyAuthorId)
-      .catch(() => {})
+      .then(() => {
+        if (!cancelled) setRepliesFailed(null);
+      })
+      .catch(() => {
+        if (!cancelled) setRepliesFailed(replyAuthorId);
+      })
       .finally(() => {
         if (!cancelled) setRepliesRead(replyAuthorId);
       });
     return () => {
       cancelled = true;
     };
-  }, [loadRepliesBy, mode, replyAuthorId]);
+  }, [loadRepliesBy, mode, replyAuthorId, repliesAttempt]);
   const loadedReplies = replyAuthorId ? repliesBy(replyAuthorId) : [];
   const replyParentKey = loadedReplies.map((reply) => `${reply.id}:${reply.postId}`).join("|");
   const replyParentsReady =
@@ -528,6 +536,8 @@ export function ProfileView({
       {tab === "replies" ? (
         !replyParentsReady ? (
           <LoadingRows />
+        ) : replies.length === 0 && repliesFailed === replyAuthorId ? (
+          <ReadRetry title="Couldn't load replies" compact onRetry={() => setRepliesAttempt((attempt) => attempt + 1)} />
         ) : replies.length === 0 ? (
           <EmptyState
             icon={<MessageCircle className="h-5 w-5" />}

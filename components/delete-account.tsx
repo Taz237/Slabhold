@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSocial } from "@/components/social-provider";
+import { isDeleteConfirmation } from "@/lib/account/delete-confirm";
 import { clearNewCardDraft } from "@/lib/cards/new-card-draft";
 
 export function DeleteAccount() {
@@ -22,7 +23,7 @@ export function DeleteAccount() {
   }
 
   async function onDelete() {
-    if (lock.current || typed !== "DELETE") return;
+    if (lock.current || !isDeleteConfirmation(typed)) return;
     lock.current = true;
     setBusy(true);
     setError(null);
@@ -81,6 +82,9 @@ export function DeleteAccount() {
               value={typed}
               onChange={(event) => setTyped(event.target.value)}
               autoComplete="off"
+              autoCapitalize="characters"
+              autoCorrect="off"
+              spellCheck={false}
               className="mt-1 w-full rounded-xl border border-zinc-200 bg-transparent px-3 py-2 text-sm outline-none focus:border-rose-500 dark:border-white/10"
             />
             {error ? (
@@ -98,7 +102,7 @@ export function DeleteAccount() {
               <button
                 type="button"
                 onClick={() => void onDelete()}
-                disabled={busy || typed !== "DELETE"}
+                disabled={busy || !isDeleteConfirmation(typed)}
                 className="rounded-full bg-rose-600 px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-40"
               >
                 {busy ? "Deleting…" : "Delete"}

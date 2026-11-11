@@ -319,17 +319,6 @@ export async function runAccountDelete(input: {
     };
   }
 
-  const storageError = await removeStorage(input.admin, userId);
-  if (storageError) {
-    console.error("[account-delete]", userId, "failed", "storage");
-    return {
-      status: 500,
-      body: {
-        error: "Couldn't delete your uploaded images. Your account is still active.",
-      },
-    };
-  }
-
   const rowError = await deleteOwnRows(input.admin, userId, cards.ids);
   if (rowError) {
     console.error("[account-delete]", userId, "failed", "rows");
@@ -338,6 +327,17 @@ export async function runAccountDelete(input: {
       body: {
         error: "Couldn't delete your account data. Your account is still active.",
       },
+    };
+  }
+
+  // Photos go last: a failed row delete must never leave cards or posts
+  // pointing at images that are already gone. A retry finishes the job.
+  const storageError = await removeStorage(input.admin, userId);
+  if (storageError) {
+    console.error("[account-delete]", userId, "failed", "storage");
+    return {
+      status: 500,
+      body: { error: "Couldn't finish deleting your account. Try again." },
     };
   }
 
