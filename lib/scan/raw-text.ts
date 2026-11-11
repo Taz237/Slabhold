@@ -1,0 +1,380 @@
+import { SETS, parseYearLabel } from "@/lib/card-options";
+import { POPULAR_INSERTS, insertKey } from "@/lib/cards/data/popular-inserts";
+import type { IndexedDirectoryPlayer } from "@/lib/players/types";
+import { compactNorm, normInterest } from "@/lib/social/follow-rank";
+
+/**
+ * Reads OCR lines from the front or back of a raw card: the player (from the
+ * bundled directory, forgiving OCR slips), year, card #, serial number,
+ * rookie mark, set words, parallel words and popular inserts.
+ * Pure: the caller passes the directory. The matcher checks all of it
+ * against the catalog and checklists later, so this only reports what it saw.
+ */
+
+export type RawPlayerHit = {
+  name: string;
+  sport: string;
+  team?: string;
+  /** 1 for an exact name match, lower for a near match. */
+  score: number;
+  /** The OCR text the name was read from. */
+  line: string;
+};
+
+export type RawCardRead = {
+  /** Up to 3, best first. Empty when no full name was read. */
+  players: RawPlayerHit[];
+  /** "2023-24" or "2017", only when printed next to a brand. */
+  yearLabel: string;
+  /** The © year on a back. Often the release year, not the card year. */
+  copyrightYear: string;
+  /** Without the leading # or NO. */
+  cardNumber: string;
+  /** A stamped serial such as 12/99. */
+  serial: { number: string; run: string } | null;
+  isRookie: boolean;
+  /** Up to 3 names from SETS, best first. */
+  setNames: string[];
+  /** Color and finish words, such as REFRACTOR or CRACKED ICE. */
+  parallelWords: string[];
+  /** A popular insert named on the card, such as Kaboom. */
+  insert: string;
+  side: "front" | "back" | "unknown";
+  /** The cleaned lines the read used. */
+  lines: string[];
+};
+
+const MAX_LINES = 60;
+const MAX_LINE_LENGTH = 200;
+const MAX_PLAYERS = 3;
+const MAX_SETS = 3;
+const MAX_GRAM_WORDS = 4;
+/** Shorter names need an exact match, because a near match is too often someone else. */
+const FUZZY_MIN_LENGTH = 6;
+/** Near matches are tried on 2 and 3 word runs. Longer runs only match exactly. */
+const FUZZY_MAX_WORDS = 3;
+const FUZZY_MAX_LENGTH = 28;
+
+const PARALLEL_WORDS = [
+  "CRACKED ICE",
+  "GOLD VINYL",
+  "SUPERFRACTOR",
+  "X-FRACTOR",
+  "XFRACTOR",
+  "REFRACTOR",
+  "SILVER",
+  "GOLD",
+  "RED",
+  "BLUE",
+  "GREEN",
+  "ORANGE",
+  "PURPLE",
+  "PINK",
+  "BLACK",
+  "HOLO",
+  "MOJO",
+  "WAVE",
+  "SHIMMER",
+  "SCOPE",
+  "HYPER",
+  "LAZER",
+  "LASER",
+  "ATOMIC",
+  "SAPPHIRE",
+  "SPECKLE",
+  "DISCO",
+  "TIGER",
+  "SNAKESKIN",
+  "CAMO",
+  "VELOCITY",
+  "PULSAR",
+  "NEON",
+] as const;
+
+/** Set words too common to name a set on their own. */
+const GENERIC_SET_WORDS = new Set(["panini", "topps", "bowman", "upper", "deck", "series", "1", "2", "draft", "picks", "s", "the"]);
+
+/** Words a back prints and a front rarely does. */
+const BACK_WORDS = new Set([
+  "ht", "wt", "born", "bats", "throws", "gp", "pts", "reb", "ast", "avg", "hr", "rbi", "era", "yds", "td", "season", "career",
+]);
+
+const CARD_NUMBER = /(?:#|\bNO\.)\s*([A-Z0-9]+(?:-[A-Z0-9]+)*)/i;
+const SERIAL = /(?<![\d/])(\d{1,4})\s*\/\s*(\d{1,4})(?![\d/])/;
+const COPYRIGHT = /(?:©|\(c\)|copyright)\s*(\d{4})/i;
+const YEAR_TOKEN = /\b(\d{4}(?:\s*-\s*\d{2})?)\s+(\S+)/g;
+
+function emptyRead(): RawCardRead {
+  return {
+    players: [],
+    yearLabel: "",
+    copyrightYear: "",
+    cardNumber: "",
+    serial: null,
+    isRookie: false,
+    setNames: [],
+    parallelWords: [],
+    insert: "",
+    side: "unknown",
+    lines: [],
+  };
+}
+
+function cleanLines(lines: readonly string[]): string[] {
+  const out: string[] = [];
+  for (const raw of lines) {
+    if (typeof raw !== "string") continue;
+    const line = raw.slice(0, MAX_LINE_LENGTH).replace(/\s+/g, " ").trim();
+    if (!line) continue;
+    out.push(line);
+    if (out.length >= MAX_LINES) break;
+  }
+  return out;
+}
+
+/** In a word that mixes letters and digits, 0, 1 and 5 are usually O, L and S. */
+function fixOcrLetters(line: string): string {
+  return line
+    .split(" ")
+    .map((word) =>
+      /[a-z]/i.test(word) && /\d/.test(word)
+        ? word.replace(/0/g, "o").replace(/1/g, "l").replace(/5/g, "s")
+        : word,
+    )
+    .join(" ");
+}
+
+/** Edit distance, or max + 1 once it is clearly over max. */
+function boundedDistance(a: string, b: string, max: number): number {
+  if (Math.abs(a.length - b.length) > max) return max + 1;
+  let previous = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= a.length; i += 1) {
+    const current = [i];
+    let rowMin = i;
+    for (let j = 1; j <= b.length; j += 1) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      const value = Math.min(previous[j] + 1, current[j - 1] + 1, previous[j - 1] + cost);
+      current.push(value);
+      if (value < rowMin) rowMin = value;
+    }
+    if (rowMin > max) return max + 1;
+    previous = current;
+  }
+  return previous[b.length];
+}
+
+type DirectoryIndex = {
+  byCompact: Map<string, IndexedDirectoryPlayer[]>;
+  /** Near-match candidates by the first 2 and the last 3 letters, so one slip anywhere still finds them. */
+  byHead: Map<string, IndexedDirectoryPlayer[]>;
+  byTail: Map<string, IndexedDirectoryPlayer[]>;
+};
+
+function push<K, V>(map: Map<K, V[]>, key: K, value: V) {
+  const list = map.get(key);
+  if (list) list.push(value);
+  else map.set(key, [value]);
+}
+
+const indexCache = new WeakMap<readonly IndexedDirectoryPlayer[], DirectoryIndex>();
+
+function directoryIndex(directory: readonly IndexedDirectoryPlayer[]): DirectoryIndex {
+  const cached = indexCache.get(directory);
+  if (cached) return cached;
+  const byCompact = new Map<string, IndexedDirectoryPlayer[]>();
+  const byHead = new Map<string, IndexedDirectoryPlayer[]>();
+  const byTail = new Map<string, IndexedDirectoryPlayer[]>();
+  for (const player of directory) {
+    if (!player.compact) continue;
+    push(byCompact, player.compact, player);
+    push(byHead, player.compact.slice(0, 2), player);
+    push(byTail, player.compact.slice(-3), player);
+  }
+  const index = { byCompact, byHead, byTail };
+  indexCache.set(directory, index);
+  return index;
+}
+
+type Gram = { words: string[]; line: string };
+
+/** 2 to 4 word runs from each line, and runs that cross into the next line. */
+function nameGrams(lines: string[]): Gram[] {
+  const tokens = lines.map((line) => normInterest(fixOcrLetters(line)).split(" ").filter(Boolean));
+  const grams: Gram[] = [];
+  const add = (words: string[], line: string) => {
+    if (words.length >= 2 && words.length <= MAX_GRAM_WORDS) grams.push({ words, line });
+  };
+  tokens.forEach((words, i) => {
+    for (let start = 0; start < words.length; start += 1) {
+      for (let size = 2; size <= MAX_GRAM_WORDS && start + size <= words.length; size += 1) {
+        add(words.slice(start, start + size), lines[i]);
+      }
+    }
+    const next = tokens[i + 1];
+    if (!next || next.length === 0) return;
+    const line = `${lines[i]} ${lines[i + 1]}`;
+    for (let tail = 1; tail <= Math.min(2, words.length); tail += 1) {
+      for (let head = 1; head <= Math.min(2, next.length); head += 1) {
+        add([...words.slice(words.length - tail), ...next.slice(0, head)], line);
+      }
+    }
+  });
+  return grams;
+}
+
+function readPlayers(lines: string[], directory: readonly IndexedDirectoryPlayer[]): RawPlayerHit[] {
+  const index = directoryIndex(directory);
+  const best = new Map<string, RawPlayerHit & { order: number }>();
+  const offer = (player: IndexedDirectoryPlayer, score: number, line: string, order: number) => {
+    const key = `${player.name}|${player.sport}`;
+    const seen = best.get(key);
+    if (seen && seen.score >= score) return;
+    const hit: RawPlayerHit & { order: number } = { name: player.name, sport: player.sport, score, line, order };
+    if (player.team) hit.team = player.team;
+    best.set(key, hit);
+  };
+
+  nameGrams(lines).forEach((gram, order) => {
+    const compact = compactNorm(gram.words.join(" "));
+    const exact = index.byCompact.get(compact);
+    if (exact) {
+      for (const player of exact) offer(player, 1, gram.line, order);
+      return;
+    }
+    if (gram.words.length > FUZZY_MAX_WORDS) return;
+    if (compact.length < FUZZY_MIN_LENGTH || compact.length > FUZZY_MAX_LENGTH) return;
+    const max = compact.length <= 8 ? 1 : 2;
+    const candidates = new Set([
+      ...(index.byHead.get(compact.slice(0, 2)) ?? []),
+      ...(index.byTail.get(compact.slice(-3)) ?? []),
+    ]);
+    for (const player of candidates) {
+      if (Math.abs(player.compact.length - compact.length) > max) continue;
+      const distance = boundedDistance(compact, player.compact, max);
+      if (distance > max) continue;
+      offer(player, 1 - distance / Math.max(compact.length, player.compact.length), gram.line, order);
+    }
+  });
+
+  return [...best.values()]
+    .sort((a, b) => b.score - a.score || a.order - b.order)
+    .slice(0, MAX_PLAYERS)
+    .map((hit) => {
+      const out: RawPlayerHit = { name: hit.name, sport: hit.sport, score: hit.score, line: hit.line };
+      if (hit.team) out.team = hit.team;
+      return out;
+    });
+}
+
+/** First word of every SETS name, so "2017 TOPPS" is a card year and "2019 NYY" is not. */
+const BRAND_WORDS = new Set(SETS.map((name) => normInterest(name).split(" ")[0]));
+
+function readYear(lines: string[]): string {
+  for (const line of lines) {
+    for (const match of line.matchAll(YEAR_TOKEN)) {
+      const next = normInterest(match[2]).split(" ")[0] ?? "";
+      if (!BRAND_WORDS.has(next)) continue;
+      const parsed = parseYearLabel(match[1].replace(/\s+/g, ""));
+      if (parsed) return parsed.yearLabel;
+    }
+  }
+  return "";
+}
+
+function readSerial(lines: string[]): RawCardRead["serial"] {
+  for (const line of lines) {
+    const match = SERIAL.exec(line);
+    if (!match) continue;
+    const number = Number(match[1]);
+    const run = Number(match[2]);
+    if (number >= 1 && run >= 1 && number <= run) return { number: String(number), run: String(run) };
+  }
+  return null;
+}
+
+function hasPhrase(lineWords: string[][], phrase: string[]): boolean {
+  return lineWords.some((words) => {
+    for (let start = 0; start + phrase.length <= words.length; start += 1) {
+      if (phrase.every((word, i) => words[start + i] === word)) return true;
+    }
+    return false;
+  });
+}
+
+function readSets(lineWords: string[][]): string[] {
+  const present = new Set(lineWords.flat());
+  const scored: { name: string; score: number; order: number }[] = [];
+  SETS.forEach((name, order) => {
+    const words = normInterest(name).split(" ");
+    if (hasPhrase(lineWords, words)) {
+      scored.push({ name, score: words.length + 1, order });
+      return;
+    }
+    const distinct = words.filter((word) => !GENERIC_SET_WORDS.has(word));
+    const matched = distinct.filter((word) => present.has(word)).length;
+    if (matched === 0) return;
+    scored.push({ name, score: matched - 0.1 * (words.length - matched), order });
+  });
+  return scored
+    .sort((a, b) => b.score - a.score || a.order - b.order)
+    .slice(0, MAX_SETS)
+    .map((item) => item.name);
+}
+
+function readParallelWords(lineWords: string[][]): string[] {
+  const found: string[] = [];
+  for (const label of PARALLEL_WORDS) {
+    if (hasPhrase(lineWords, normInterest(label).split(" "))) found.push(label);
+  }
+  return found;
+}
+
+function readInsert(lines: string[]): string {
+  const text = ` ${insertKey(lines.join(" "))} `;
+  for (const item of POPULAR_INSERTS) {
+    for (const name of [item.name, ...item.aliases]) {
+      if (text.includes(` ${insertKey(name)} `)) return item.name;
+    }
+  }
+  return "";
+}
+
+function readSide(lines: string[], lineWords: string[][], copyrightYear: string): RawCardRead["side"] {
+  if (lines.length === 0) return "unknown";
+  if (copyrightYear || lines.some((line) => /©|copyright|panini america|topps company/i.test(line))) {
+    return "back";
+  }
+  const backWords = lineWords.flat().filter((word) => BACK_WORDS.has(word)).length;
+  if (backWords >= 2 || lines.length > 12) return "back";
+  return "front";
+}
+
+export function readRawCardText(
+  lines: readonly string[],
+  directory: readonly IndexedDirectoryPlayer[],
+): RawCardRead {
+  const read = emptyRead();
+  const clean = cleanLines(lines);
+  read.lines = clean;
+  if (clean.length === 0) return read;
+
+  const lineWords = clean.map((line) => normInterest(line).split(" ").filter(Boolean));
+
+  read.players = readPlayers(clean, directory);
+  read.yearLabel = readYear(clean);
+  read.copyrightYear = clean.map((line) => COPYRIGHT.exec(line)?.[1] ?? "").find(Boolean) ?? "";
+  for (const line of clean) {
+    const match = CARD_NUMBER.exec(line);
+    if (match) {
+      read.cardNumber = match[1].toUpperCase();
+      break;
+    }
+  }
+  read.serial = readSerial(clean);
+  read.isRookie = clean.some((line) => /\b(RC|ROOKIE)\b/i.test(line));
+  read.setNames = readSets(lineWords);
+  read.parallelWords = readParallelWords(lineWords);
+  read.insert = readInsert(clean);
+  read.side = readSide(clean, lineWords, read.copyrightYear);
+  return read;
+}
