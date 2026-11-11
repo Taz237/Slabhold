@@ -88,7 +88,8 @@ describe("quick comp: one comp card", () => {
   it("puts the eyebrow label left and freshness right", () => {
     const html = chart({ heading: "Estimated value" });
     assert.match(html, /Estimated value/);
-    assert.match(html, /eBay sold · 2h ago/);
+    assert.match(html, /Recent sold · 2h ago/);
+    assert.doesNotMatch(html, /eBay sold/);
   });
 
   it("shows an up chip with ▲ in emerald and a down chip with ▼ in rose", () => {
@@ -154,7 +155,7 @@ describe("quick comp: states", () => {
   it("never shows $0 when there are no sales", () => {
     const empty = renderToStaticMarkup(createElement(CompEmpty, {}));
     assert.match(empty, /No sales yet/);
-    assert.match(empty, /We&#x27;ll show a value once this card sells on eBay\./);
+    assert.match(empty, /We&#x27;ll show a value once this card has a recent sale\./);
     assert.doesNotMatch(empty, /\$0/);
     const none = chart({ sales: [], count: 0, median: null, p25: null, p75: null });
     assert.doesNotMatch(none, /\$0/);

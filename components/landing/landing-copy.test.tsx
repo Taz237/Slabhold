@@ -38,7 +38,10 @@ async function landingText(flag: "1" | undefined) {
   );
 }
 
-const DESCRIPTION = "Comp any sports card, track your collection and follow the collectors who get it";
+const DESCRIPTION =
+  "Comp your sports cards with recent sold prices, track your collection, and talk cards with collectors who get it.";
+// The PWA manifest keeps its own line until it is changed on purpose.
+const MANIFEST_DESCRIPTION = "Comp any sports card, track your collection and follow the collectors who get it";
 
 describe("landing copy", () => {
   it("sells Quick Comp in the sub-line and closing card when the flag is on", async () => {
@@ -60,7 +63,7 @@ describe("landing copy", () => {
     assert.equal(layout.split(`"${DESCRIPTION}"`).length - 1, 3, "description, Open Graph and Twitter");
     assert.doesNotMatch(layout, /portfolio, flips/i);
     const { webAppManifest } = await import("@/lib/pwa/manifest");
-    assert.equal(webAppManifest.description, DESCRIPTION);
+    assert.equal(webAppManifest.description, MANIFEST_DESCRIPTION);
   });
 
   it("keeps \"free\" off the home share image", async () => {

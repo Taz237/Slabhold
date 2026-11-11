@@ -189,7 +189,8 @@ describe("collection screens", () => {
 
     const dash = read("components/dashboard.tsx");
     assert.match(dash, /lane === "flipping" \|\| lane === "pc" \? \(/);
-    assert.match(dash, /syncError \? null : lane === "flipping" \|\| lane === "pc"/);
+    // A failed load still gets the lane's own empty state, under the error and Retry.
+    assert.match(dash, /<WantList \/>\s*\) : lane === "flipping" \|\| lane === "pc"/);
     assert.match(dash, /<CollectionLaneEmpty lane=\{lane\} \/>/);
     assert.match(dash, /<CollectionLaneEmpty lane=\{lane\} onShowAll=/);
   });

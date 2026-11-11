@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { describe, it } from "node:test";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { SalesChart, TRAWL_ATTRIBUTION } from "@/components/sales-chart";
+import { PRICE_BASIS_LINE, SalesChart, TRAWL_ATTRIBUTION } from "@/components/sales-chart";
 import { addDays } from "@/lib/chart/range";
 import { snapshotDateInNewYork } from "@/lib/collection/totals-shared";
 import type { QuickCompIdentity } from "@/lib/quick-comp/identity";
@@ -143,6 +143,9 @@ describe("Quick Comp screen", () => {
     assert.match(sample, /Sample prices, not real sales/);
     // Never "eBay sold" as the freshness line.
     assert.doesNotMatch(live, /eBay sold/);
+    // The USD line under the median: live data only.
+    assert.equal(count(live, PRICE_BASIS_LINE), 1);
+    assert.equal(count(sample, PRICE_BASIS_LINE), 0);
   });
 
   it("puts Add to collection only after the comps", () => {

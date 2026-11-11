@@ -8,12 +8,17 @@ export default function AboutPage() {
     <article className="space-y-4 text-[15px] leading-6">
       <h1 className="text-2xl font-semibold tracking-tight">About</h1>
       <p>
-        Slabhold is a social app for sports card collectors. Share pulls, follow other collectors,
-        and keep a book of what you hold.
+        Slabhold is where sports card collectors comp their cards with recent sold prices, track
+        what their collection is worth, and talk cards.
       </p>
       <p>
         <Link href="/terms" className="font-medium underline">
           Terms
+        </Link>
+      </p>
+      <p>
+        <Link href="/privacy" className="font-medium underline">
+          Privacy
         </Link>
       </p>
       <p>

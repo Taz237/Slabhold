@@ -117,14 +117,9 @@ export default function PrivacyPolicyPage() {
       <p>Slabhold is for people 13 and older.</p>
       <p>
         Contact:{" "}
-        {email ? (
-          <a className="font-medium underline" href={`mailto:${email}`}>
-            {email}
-          </a>
-        ) : (
-          // TODO: set SUPPORT_EMAIL in lib/support.ts
-          <span>support email is not set up yet.</span>
-        )}
+        <a className="font-medium underline" href={`mailto:${email}`}>
+          {email}
+        </a>
         , or see{" "}
         <Link className="font-medium underline" href="/support">
           Support

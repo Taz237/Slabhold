@@ -34,8 +34,10 @@ export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   alternates: { canonical: "./" },
   title: "Slabhold",
-  description: "Comp any sports card, track your collection and follow the collectors who get it",
+  description: "Comp your sports cards with recent sold prices, track your collection, and talk cards with collectors who get it.",
   applicationName: "Slabhold",
+  // Safari's Smart App Banner for the iOS app. Safari only, so never inside the app.
+  itunes: { appId: "6831357026" },
   appleWebApp: {
     capable: true,
     title: "Slabhold",
@@ -43,14 +45,14 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title: "Slabhold",
-    description: "Comp any sports card, track your collection and follow the collectors who get it",
+    description: "Comp your sports cards with recent sold prices, track your collection, and talk cards with collectors who get it.",
     siteName: "Slabhold",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
     title: "Slabhold",
-    description: "Comp any sports card, track your collection and follow the collectors who get it",
+    description: "Comp your sports cards with recent sold prices, track your collection, and talk cards with collectors who get it.",
   },
   icons: {
     apple: { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },

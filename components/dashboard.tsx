@@ -223,7 +223,12 @@ export function Dashboard({
       />
       {cards.length > 0 ? <ShareCollectionCard /> : null}
       {syncError ? (
-        <p className="text-sm text-rose-600 dark:text-rose-400">{syncError}</p>
+        <p className="text-sm text-rose-600 dark:text-rose-400">
+          {syncError}{" "}
+          <button type="button" onClick={() => void reload()} className="hit-44 font-semibold underline">
+            Retry
+          </button>
+        </p>
       ) : null}
       <div
         ref={toolsRef}
@@ -327,9 +332,9 @@ export function Dashboard({
       {cards.length === 0 ? (
         lane === "wants" ? (
           <WantList />
-        ) : syncError ? null : lane === "flipping" || lane === "pc" ? (
+        ) : lane === "flipping" || lane === "pc" ? (
           <CollectionLaneEmpty lane={lane} />
-        ) : shouldShowFirstCardWelcome({ cardCount: cards.length, ready, syncError }) ? (
+        ) : shouldShowFirstCardWelcome({ cardCount: cards.length, ready }) ? (
           <FirstCardWelcome />
         ) : null
       ) : lane === "wants" ? (

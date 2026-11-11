@@ -40,6 +40,8 @@ export function moreSalesText(count: number): string {
 export { saleDate };
 
 export const TRAWL_ATTRIBUTION = "Sold data via Trawl (third-party, not affiliated with eBay)";
+/** Under a real median: what currency and market the comps come from. */
+export const PRICE_BASIS_LINE = "Prices in USD from recent US sold listings";
 
 /** "2h ago", "3d ago", "just now". Empty when there is no real time. */
 export function shortAgo(iso: string | null | undefined, now: number = Date.now()): string {
@@ -359,9 +361,11 @@ export function SalesChart({
       }`;
   const eyebrow = heading ?? (showEstimate ? "Estimated value" : "Recent sales");
   const ago = usingLive ? shortAgo(fetchedAt) : "";
-  const freshness = showSample ? "Sample" : ago ? `eBay sold · ${ago}` : null;
+  const freshness = showSample ? "Sample" : ago ? `Recent sold · ${ago}` : null;
   const fewSales = split.inliers.length < TREND_MIN_SALES;
   const chip = !selected && estimateShown && !fewSales && vs != null;
+  // The USD line sits under a real median only: never on sample data or a tapped sale.
+  const basisShown = estimateShown && !selected && usingLive;
   // One tone for the line, its fill, its dots and the chip: the 30-day trend when the chip shows, else purple.
   const lineTone = chip ? vsTone : "brand";
   const chartBand = useMemo(
@@ -383,7 +387,7 @@ export function SalesChart({
   ) : showSample ? (
     "Sample history from recent months"
   ) : noSales && showEstimate ? (
-    "We'll show a value once this card sells on eBay."
+    "We'll show a value once this card has a recent sale."
   ) : fewSales ? (
     moreSalesText(split.inliers.length)
   ) : estimateShown ? (
@@ -430,6 +434,7 @@ export function SalesChart({
           </span>
         ) : null}
       </p>
+      {basisShown ? <p className={`mt-1 leading-4 ${compCaption}`}>{PRICE_BASIS_LINE}</p> : null}
 
       {showRange && displayMedian != null && displayP25 != null && displayP75 != null ? (
         <RangeBar

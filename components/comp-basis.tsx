@@ -100,7 +100,7 @@ export function GhostPlot({ children }: { children?: ReactNode }) {
 export function CompEmpty({
   label = "Recent sales",
   title = "No sales yet",
-  caption = "We'll show a value once this card sells on eBay.",
+  caption = "We'll show a value once this card has a recent sale.",
   children,
   slot,
 }: {
