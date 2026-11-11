@@ -1,5 +1,6 @@
 import { getImageProps } from "next/image";
 import Link from "next/link";
+import { LeaderboardRetry } from "@/components/leaderboard-retry";
 import type { CSSProperties, ReactNode } from "react";
 import { Crown, Info, Layers, MessageCircle, Plus, TrendingUp } from "lucide-react";
 import { LeaderboardCountdown } from "@/components/leaderboard-countdown";
@@ -692,6 +693,7 @@ export function LeaderboardView({ model }: { model: LeaderboardPageModel }) {
         <div className="mx-3 mt-3 mb-8 rounded-3xl border border-white/10 px-6 py-12 text-center" data-board-error="">
           <p className="text-[17px] font-semibold tracking-tight text-white">{model.errorTitle}</p>
           <p className="mx-auto mt-1.5 max-w-[18rem] text-sm leading-5 text-zinc-400">{model.errorDetail}</p>
+          <LeaderboardRetry />
         </div>
       ) : (
         <div className="space-y-4 px-3 pt-2 pb-8">

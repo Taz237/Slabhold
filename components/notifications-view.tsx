@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { ReadRetry } from "@/components/read-retry";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { AtSign, Bell, Handshake, Heart, MessageCircle, Quote, Repeat2, Star, UserPlus } from "lucide-react";
@@ -46,6 +47,9 @@ export function NotificationsView() {
   const userId = user?.id ?? null;
   const unreadOnVisit = useRef<{ userId: string; ids: ReadonlySet<string> } | null>(null);
   const [savedUnreadIds, setSavedUnreadIds] = useState<ReadonlySet<string> | null>(null);
+  /** The newest page didn't load. With nothing on screen, that is Try again, not "No notifications yet". */
+  const [inboxFailed, setInboxFailed] = useState(false);
+  const [inboxAttempt, setInboxAttempt] = useState(0);
 
   useEffect(() => {
     if (!ready || !userId) return;
@@ -54,6 +58,7 @@ export function NotificationsView() {
       try {
         // Opening the list: its newest page and unread rows, not the whole snapshot.
         const loaded = await refreshInbox();
+        if (!cancelled) setInboxFailed(false);
         if (cancelled || unreadOnVisit.current?.userId === userId) return;
         const ids = new Set(unreadNotificationIds(loaded));
         unreadOnVisit.current = { userId, ids };
@@ -61,12 +66,13 @@ export function NotificationsView() {
         markNotificationsRead([...ids]);
       } catch {
         // Leave the badge alone when the refresh fails.
+        if (!cancelled) setInboxFailed(true);
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [markNotificationsRead, ready, refreshInbox, userId]);
+  }, [inboxAttempt, markNotificationsRead, ready, refreshInbox, userId]);
 
   if (!ready) {
     return (
@@ -99,7 +105,9 @@ export function NotificationsView() {
   return (
     <PullToRefresh onRefresh={refresh} className="-mx-4 -mt-5">
       <h1 className="px-4 pt-5 text-2xl font-semibold tracking-tight">Notifications</h1>
-      {notifications.length === 0 ? (
+      {notifications.length === 0 && inboxFailed ? (
+        <ReadRetry title="Couldn't load notifications" compact onRetry={() => setInboxAttempt((attempt) => attempt + 1)} />
+      ) : notifications.length === 0 ? (
         <EmptyState
           icon={<Bell className="h-5 w-5" />}
           title="No notifications yet"

@@ -8,6 +8,7 @@ import { money } from "@/lib/format";
 import { loadSupabaseBrowser } from "@/lib/supabase/browser-lazy";
 import { formatCardValueLabel } from "@/lib/value/format";
 import type { CardValueResult } from "@/lib/value/types";
+import { friendlyError } from "@/lib/errors/friendly";
 
 type WantItem = {
   id: string;
@@ -63,7 +64,7 @@ export function WantList() {
     if (!supabase) return;
     const { error: deleteError } = await supabase.from("want_list").delete().eq("id", id);
     if (deleteError) {
-      setError(deleteError.message);
+      setError(friendlyError(deleteError, "Couldn't remove that from your want list."));
       return;
     }
     setWants((current) => current.filter((want) => want.id !== id));

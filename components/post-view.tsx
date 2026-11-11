@@ -1,6 +1,7 @@
 "use client";
 
 import { goBackWithMotion } from "@/components/nav-motion";
+import { ReadRetry } from "@/components/read-retry";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -35,8 +36,20 @@ const PAGE_SIZE = 20;
 export function PostView({ id }: { id: string }) {
   const router = useRouter();
   const pathname = usePathname() || "/";
-  const { ready, mode, user, posts, profiles, commentsFor, addComment, refresh, blockedIds, loadingPostId } =
-    useSocial();
+  const {
+    ready,
+    mode,
+    user,
+    posts,
+    profiles,
+    commentsFor,
+    addComment,
+    refresh,
+    blockedIds,
+    loadingPostId,
+    postLoadFailedId,
+    retryPost,
+  } = useSocial();
   const post = posts.find((item) => item.id === id);
   const loadingPost = mode === "supabase" && !post && loadingPostId === id;
   const author = post ? profiles.find((profile) => profile.id === post.authorId) : undefined;
@@ -162,6 +175,11 @@ export function PostView({ id }: { id: string }) {
         <LoadingRows count={2} />
       </div>
     );
+  }
+
+  // The read failed: the post may be fine, so never call it gone.
+  if (!post && postLoadFailedId === id) {
+    return <ReadRetry title="Couldn't load this post" onRetry={() => retryPost(id)} />;
   }
 
   if (!post || !author) {

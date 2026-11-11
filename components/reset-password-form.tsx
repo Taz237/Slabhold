@@ -6,6 +6,7 @@ import { useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { loadSupabaseBrowser } from "@/lib/supabase/browser-lazy";
+import { friendlyError } from "@/lib/errors/friendly";
 
 export function ResetPasswordForm() {
   const router = useRouter();
@@ -37,7 +38,7 @@ export function ResetPasswordForm() {
     const { error: updateError } = await supabase.auth.updateUser({ password });
     setBusy(false);
     if (updateError) {
-      setError(updateError.message);
+      setError(friendlyError(updateError, "Couldn't update your password. Try again."));
       return;
     }
     setUpdated(true);

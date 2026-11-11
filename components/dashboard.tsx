@@ -6,7 +6,8 @@ import { outlineButton } from "@/components/button-styles";
 import { CollectionGrid } from "@/components/collection-grid";
 import { CollectionHeader } from "@/components/collection-header";
 import { LeaderboardOptInSwitch, LeaderboardPrompt } from "@/components/leaderboard-opt-in";
-import { useCollection } from "@/components/collection-provider";
+import { COLLECTION_LOAD_ERROR, useCollection } from "@/components/collection-provider";
+import { ReadRetry } from "@/components/read-retry";
 import { useSocial } from "@/components/social-provider";
 import { CollectionLaneEmpty } from "@/components/collection-lane-empty";
 import { FirstCardWelcome } from "@/components/first-card-welcome";
@@ -100,7 +101,7 @@ export function Dashboard({
   minimums?: LeaderboardMinimums;
   accountCreatedAt?: string | null;
 } = {}) {
-  const { cards, ready, syncError, reload, updateCard } = useCollection();
+  const { cards, ready, loadFailed, syncError, reload, updateCard } = useCollection();
   const { user } = useSocial();
   const toolsRef = useRef<HTMLDivElement>(null);
   const [query, setQuery] = useState("");
@@ -213,6 +214,19 @@ export function Dashboard({
     return (
       <PullToRefresh onRefresh={refreshCollection}>
         <CollectionSkeleton />
+      </PullToRefresh>
+    );
+  }
+
+  // A failed load is never "no cards yet": the welcome would invite re-adding
+  // cards that are already saved, and make duplicates.
+  if (loadFailed && cards.length === 0) {
+    return (
+      <PullToRefresh onRefresh={refreshCollection}>
+        <div className="space-y-4">
+          <CollectionHeader />
+          <ReadRetry title={COLLECTION_LOAD_ERROR} onRetry={reload} />
+        </div>
       </PullToRefresh>
     );
   }
@@ -409,7 +423,7 @@ export function Dashboard({
           <WantList />
         ) : lane === "flipping" || lane === "pc" ? (
           <CollectionLaneEmpty lane={lane} />
-        ) : shouldShowFirstCardWelcome({ cardCount: cards.length, ready }) ? (
+        ) : shouldShowFirstCardWelcome({ cardCount: cards.length, ready, syncError: loadFailed ? syncError : null }) ? (
           <FirstCardWelcome />
         ) : null
       ) : lane === "wants" ? (

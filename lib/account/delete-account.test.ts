@@ -195,7 +195,7 @@ describe("account delete", () => {
     assert.equal(fake.deleted(), "real-user");
   });
 
-  it("does not call deleteUser when storage cleanup fails", async () => {
+  it("does not call deleteUser when storage cleanup fails, after the rows are already gone", async () => {
     const fake = admin({ storageError: true });
     const result = await runAccountDelete({
       sessionUserId: "real-user",
@@ -204,7 +204,9 @@ describe("account delete", () => {
     });
     assert.equal(result.status, 500);
     assert.equal(fake.deleted(), null);
-    assert.equal(fake.calls.includes("delete:want_alerts"), false);
+    // Rows go first, so no card or post is left pointing at a deleted photo.
+    assert.equal(fake.calls.includes("delete:want_alerts"), true);
+    assert.equal(result.body.error, "Couldn't finish deleting your account. Try again.");
   });
 
   it("does not call deleteUser when row cleanup fails", async () => {
@@ -217,6 +219,9 @@ describe("account delete", () => {
     assert.equal(result.status, 500);
     assert.equal(fake.deleted(), null);
     assert.equal(fake.calls.includes("delete:want_alerts"), true);
+    // A failed row delete keeps every photo, so nothing still shown loses its image.
+    assert.equal(fake.calls.includes("storage.list"), false);
+    assert.equal(fake.calls.includes("storage.remove"), false);
   });
 
   it("scrubs notifications this user caused before deleting their rows", async () => {
@@ -257,7 +262,9 @@ describe("account delete", () => {
     const cardsDelete = fake.calls.indexOf("delete:cards");
     assert.ok(fake.calls.indexOf("select:cards") < cardHrefUpdate);
     assert.ok(cardHrefUpdate < storageList);
-    assert.ok(storageList < firstDelete);
+    const lastRowDelete = fake.calls.map((call) => call.startsWith("delete:")).lastIndexOf(true);
+    assert.ok(lastRowDelete < storageList);
+    assert.ok(storageList < fake.calls.indexOf("auth:real-user"));
     assert.ok(cardHrefUpdate < cardsDelete);
     const likesDelete = fake.calls.indexOf("delete:likes");
     const postsDelete = fake.calls.indexOf("delete:posts");
@@ -453,8 +460,16 @@ describe("account delete", () => {
               },
             };
           },
+          // Rows now go before photos, so they run here and succeed.
           delete() {
-            throw new Error("rows should not run");
+            return {
+              async eq() {
+                return { error: null };
+              },
+              async in() {
+                return { error: null };
+              },
+            };
           },
           update() {
             return {

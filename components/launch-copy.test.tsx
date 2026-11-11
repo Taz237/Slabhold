@@ -122,7 +122,7 @@ describe("launch copy: marketplace wording", () => {
 
 describe("launch copy: collection load error", () => {
   it("shows a plain message and keeps the raw error in the console", () => {
-    assert.equal(COLLECTION_LOAD_ERROR, "Couldn't load your collection. Pull down to try again.");
+    assert.equal(COLLECTION_LOAD_ERROR, "Couldn't load your collection");
     const provider = read("components/collection-provider.tsx");
     assert.match(provider, /console\.warn\(/);
     // Both load paths (first load and reload) show the plain message.

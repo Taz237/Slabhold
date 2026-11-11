@@ -120,6 +120,8 @@ import { draftPostPhotos, type PostWrite } from "@/lib/social/post-photos";
 import { profileReplies, profileWithPin } from "@/lib/social/profile-tabs";
 import { isOptimisticReply, optimisticReply, withoutOptimisticReply } from "@/lib/social/reply-images";
 import { createStartupWatch } from "@/lib/startup/boot";
+import { CONNECT_ERROR, NOT_READY, friendlyError } from "@/lib/errors/friendly";
+import { waitForClient } from "@/lib/supabase/wait-for-client";
 
 /** Sending and reading DMs, from its own chunk: fetched at the first idle moment, or on first use. */
 const loadDmActions = () => import("@/lib/social/dm-actions");
@@ -158,6 +160,10 @@ export type SocialContextValue = {
   status: string | null;
   /** Hosted start-up failed or ran past BOOT_TIMEOUT_MS before the app was ready. */
   startupFailed: boolean;
+  /** The post whose read failed on this screen, so it shows Try again, never "gone". */
+  postLoadFailedId: string | null;
+  /** Read that post again. */
+  retryPost: (postId: string) => void;
   /** Try start-up again: a fresh load of the page. */
   retryStartup: () => void;
   refresh: () => Promise<Notification[]>;
@@ -359,11 +365,22 @@ function withoutKeys(set: ReadonlySet<string>, keys: readonly string[]): Readonl
   return next;
 }
 
+/** An action's result with its `error` in plain English: the raw reason never reaches the screen. */
+function plainResult<R extends { error?: string }>(result: R): R {
+  return result?.error ? { ...result, error: friendlyError(result.error) } : result;
+}
+
+/** How long a sign-in tap waits for the data client on a slow start. */
+const AUTH_CLIENT_WAIT_MS = 10_000;
+
 export function SocialProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() || "/";
   const [ready, setReady] = useState(false);
   const [loadingPostId, setLoadingPostId] = useState<string | null>(null);
   const [resolvedPostId, setResolvedPostId] = useState<string | null>(null);
+  /** The post screen whose read failed (not a post that is gone). Try again clears it. */
+  const [failedPostId, setFailedPostId] = useState<string | null>(null);
+  const [postRetryKey, setPostRetryKey] = useState(0);
   const [hasFullSnapshot, setHasFullSnapshot] = useState(false);
   const [snapshotError, setSnapshotError] = useState(false);
   const [mode, setMode] = useState<"local" | "supabase">("local");
@@ -413,6 +430,11 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
   if (ready && startupFailed) setStartupFailed(false);
   // A fresh document load: a failed chunk or client import isn't retried in place by the browser.
   const retryStartup = useCallback(() => window.location.reload(), []);
+  const retryPost = useCallback((postId: string) => {
+    setFailedPostId((current) => (current === postId ? null : current));
+    setResolvedPostId((current) => (current === postId ? null : current));
+    setPostRetryKey((key) => key + 1);
+  }, []);
   useEffect(() => {
     if (ready) startupWatchRef.current?.ready();
   }, [ready]);
@@ -622,7 +644,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
                 .current(client)
                 .then(() => setStatus(null))
                 .catch((error: unknown) => {
-                  setStatus(error instanceof Error ? error.message : "Could not reach Supabase.");
+                  setStatus(friendlyError(error, CONNECT_ERROR));
                 });
             }, 0);
           });
@@ -660,7 +682,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
     let cancelled = false;
     const fail = (error: unknown) => {
       if (cancelled) return;
-      setStatus(error instanceof Error ? error.message : "Could not reach Supabase.");
+      setStatus(friendlyError(error, CONNECT_ERROR));
     };
     const scheduler = createRealtimeScheduler({
       debounceMs: REALTIME_DEBOUNCE_MS,
@@ -1252,10 +1274,21 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
     requestProfiles(profileKeys({ ids: follows.flatMap((edge) => [edge.followerId, edge.followingId]) }));
   }, [mode, requestProfiles]);
 
+  /**
+   * Sign in and sign up on a slow start: wait for the data client (up to
+   * AUTH_CLIENT_WAIT_MS) instead of answering "not ready". Null in local mode,
+   * or when it never loads.
+   */
+  const authClient = useCallback(async (): Promise<SupabaseClient | null> => {
+    if (supabaseRef.current) return supabaseRef.current;
+    if (!getSupabaseConfig().configured) return null;
+    return waitForClient(loadSupabaseBrowser, AUTH_CLIENT_WAIT_MS);
+  }, []);
+
   const signUp = useCallback(
     async (input: SignUpInput): Promise<AuthResult> => {
-      const client = supabaseRef.current;
-      if (mode === "supabase" && client) {
+      const client = await authClient();
+      if (client) {
         try {
           const result = await (await loadRemote()).remoteSignUp(client, input);
           if (!result.error && !result.notice) {
@@ -1264,22 +1297,23 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
           }
           return result;
         } catch (error) {
-          return { error: error instanceof Error ? error.message : "Could not create that account." };
+          return { error: friendlyError(error, "Could not create that account.") };
         }
       }
+      if (getSupabaseConfig().configured) return { error: CONNECT_ERROR };
       const current = localRef.current;
-      if (!current) return { error: "Still loading." };
+      if (!current) return { error: NOT_READY };
       const result = await localLib().localSignUp(current, input);
       if (!result.error) commitLocal(result.db);
       return { error: result.error };
     },
-    [commitLocal, mode, refreshRemote, resetViewerReads],
+    [authClient, commitLocal, refreshRemote, resetViewerReads],
   );
 
   const signIn = useCallback(
     async (email: string, password: string, captchaToken?: string): Promise<AuthResult> => {
-      const client = supabaseRef.current;
-      if (mode === "supabase" && client) {
+      const client = await authClient();
+      if (client) {
         try {
           const result = await (await loadRemote()).remoteSignIn(client, email, password, captchaToken);
           if (!result.error) {
@@ -1288,16 +1322,17 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
           }
           return result;
         } catch (error) {
-          return { error: error instanceof Error ? error.message : "Could not log in." };
+          return { error: friendlyError(error, "Could not log in.") };
         }
       }
+      if (getSupabaseConfig().configured) return { error: CONNECT_ERROR };
       const current = localRef.current;
-      if (!current) return { error: "Still loading." };
+      if (!current) return { error: NOT_READY };
       const result = await localLib().localSignIn(current, email, password);
       if (!result.error) commitLocal(result.db);
       return { error: result.error };
     },
-    [commitLocal, mode, refreshRemote, resetViewerReads],
+    [authClient, commitLocal, refreshRemote, resetViewerReads],
   );
 
   const signOut = useCallback(async () => {
@@ -1390,11 +1425,11 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
           }
           return result;
         } catch (error) {
-          return { error: error instanceof Error ? error.message : "Could not save your profile." };
+          return { error: friendlyError(error, "Could not save your profile.") };
         }
       }
       const current = localRef.current;
-      if (!current) return { error: "Still loading." };
+      if (!current) return { error: NOT_READY };
       const result = localLib().localUpdateProfile(current, patch);
       if (!result.error) commitLocal(result.db);
       return { error: result.error };
@@ -1458,7 +1493,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
           return result;
         } catch (error) {
           if (!saved) paintFollow(following);
-          const message = error instanceof Error ? error.message : "Could not update that follow.";
+          const message = friendlyError(error, "Could not update that follow.");
           setStatus(message);
           return { error: message };
         }
@@ -1509,7 +1544,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
           setStatus(result.notice ?? null);
           return result;
         } catch (error) {
-          const message = error instanceof Error ? error.message : "Could not follow those collectors.";
+          const message = friendlyError(error, "Could not follow those collectors.");
           setStatus(message);
           return { error: message };
         }
@@ -1570,11 +1605,11 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
           }
           return result;
         } catch (error) {
-          return { error: error instanceof Error ? error.message : "Could not publish that post." };
+          return { error: friendlyError(error, "Could not publish that post.") };
         }
       }
       const current = localRef.current;
-      if (!current) return { error: "Still loading." };
+      if (!current) return { error: NOT_READY };
       const result = localLib().localCreatePost(current, input);
       if (!result.error) {
         commitLocal(result.db);
@@ -1628,11 +1663,11 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
           }
           return result;
         } catch (error) {
-          return { error: error instanceof Error ? error.message : "Could not update that post." };
+          return { error: friendlyError(error, "Could not update that post.") };
         }
       }
       const current = localRef.current;
-      if (!current) return { error: "Still loading." };
+      if (!current) return { error: NOT_READY };
       const result = localLib().localUpdatePost(current, postId, input);
       if (!result.error) commitLocal(result.db);
       return { error: result.error };
@@ -1662,11 +1697,11 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
           }
           return result;
         } catch (error) {
-          return { error: error instanceof Error ? error.message : "Could not delete that post." };
+          return { error: friendlyError(error, "Could not delete that post.") };
         }
       }
       const current = localRef.current;
-      if (!current) return { error: "Still loading." };
+      if (!current) return { error: NOT_READY };
       const result = localLib().localDeletePost(current, postId);
       if (!result.error) commitLocal(result.db);
       return { error: result.error };
@@ -1703,13 +1738,13 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
           }));
           return result;
         } catch (error) {
-          const message = error instanceof Error ? error.message : "Could not pin that post.";
+          const message = friendlyError(error, "Could not pin that post.");
           setStatus(message);
           return { error: message };
         }
       }
       const localDb = localRef.current;
-      if (!localDb) return { error: "Still loading." };
+      if (!localDb) return { error: NOT_READY };
       const result = localLib().localPinPost(localDb, postId);
       if (!result.error) commitLocal(result.db);
       else setStatus(result.error);
@@ -1738,13 +1773,13 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
         }));
         return result;
       } catch (error) {
-        const message = error instanceof Error ? error.message : "Could not unpin that post.";
+        const message = friendlyError(error, "Could not unpin that post.");
         setStatus(message);
         return { error: message };
       }
     }
     const localDb = localRef.current;
-    if (!localDb) return { error: "Still loading." };
+    if (!localDb) return { error: NOT_READY };
     const result = localLib().localUnpinPost(localDb);
     if (!result.error) commitLocal(result.db);
     else setStatus(result.error);
@@ -1765,7 +1800,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
 
       if (mode === "supabase") {
         const client = supabaseRef.current;
-        if (!client) return { error: "Still loading." };
+        if (!client) return { error: NOT_READY };
         const comment = before.comments.find((item) => item.id === commentId);
         if (!comment) return { error: "That reply is gone." };
         if (!canDeleteReply(current.user.id, comment.authorId)) {
@@ -1795,7 +1830,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
           return {};
         } catch (error) {
           const failed = {
-            error: error instanceof Error ? error.message : "Could not delete that reply.",
+            error: friendlyError(error, "Could not delete that reply."),
           };
           publish(stateAfterReplyDelete(before, commentId, failed));
           return failed;
@@ -1803,7 +1838,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       }
 
       const db = localRef.current;
-      if (!db) return { error: "Still loading." };
+      if (!db) return { error: NOT_READY };
       const result = localLib().localDeleteComment(db, commentId);
       if (!result.error) commitLocal(result.db);
       return { error: result.error };
@@ -1870,7 +1905,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
                 });
                 if (notice.error) setStatus(notice.error);
               } catch (error) {
-                setStatus(error instanceof Error ? error.message : "Could not update that like.");
+                setStatus(friendlyError(error, "Could not update that like."));
                 setReplyHeart(wasLiked);
               } finally {
                 pendingReplyLikes.current.delete(postId);
@@ -1942,7 +1977,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
             } catch (error) {
               if (likeGeneration.current.get(postId) !== generation) return;
               pendingLikes.current.delete(postId);
-              setStatus(error instanceof Error ? error.message : "Could not update that like.");
+              setStatus(friendlyError(error, "Could not update that like."));
               paint(wasLiked, baseCount);
             }
           });
@@ -1997,7 +2032,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
             await rereadPost(client, postId);
           })
           .catch((error: unknown) => {
-            setStatus(error instanceof Error ? error.message : "Could not update that repost.");
+            setStatus(friendlyError(error, "Could not update that repost."));
             return rereadPost(client, postId).catch(() => undefined);
           });
         return;
@@ -2020,7 +2055,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
         if (mode === "supabase") {
           const client = supabaseRef.current;
           const current = snapshotRef.current;
-          if (!client) return { error: "Still loading." };
+          if (!client) return { error: NOT_READY };
           if (!current.user) return { error: "Log in to comment." };
           const optimistic = optimisticReply({
             postId,
@@ -2065,10 +2100,10 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
             return result;
           } catch (error) {
             replaceComments((comments) => withoutOptimisticReply(comments, optimistic.id));
-            return { error: error instanceof Error ? error.message : "Could not post that comment." };
+            return { error: friendlyError(error, "Could not post that comment.") };
           }
         }
-        if (!localRef.current) return { error: "Still loading." };
+        if (!localRef.current) return { error: NOT_READY };
         const result = localLib().localAddComment(localRef.current, postId, text, photos);
         if (!result.error) commitLocal(result.db);
         return { error: result.error };
@@ -2094,7 +2129,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
     const alive = () => requestRef.current === token;
     const fail = (error: unknown) => {
       if (!alive()) return;
-      setStatus(error instanceof Error ? error.message : "Could not reach Supabase.");
+      setStatus(friendlyError(error, CONNECT_ERROR));
     };
 
     if (!postId) {
@@ -2145,6 +2180,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       .then((result) => {
         if (!alive()) return;
         setStatus(null);
+        setFailedPostId((current) => (current === postId ? null : current));
         if (fullSnapshotRef.current) {
           const loaded = result as Awaited<ReturnType<typeof loadPostById>>;
           if (!loaded) return;
@@ -2165,14 +2201,17 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
         }
         applyPostPage(result as LoadedPostPage);
       })
-      .catch(fail)
+      .catch((error: unknown) => {
+        fail(error);
+        if (alive()) setFailedPostId(postId);
+      })
       .finally(() => {
         if (!alive()) return;
         setResolvedPostId(postId);
         setLoadingPostId((current) => (current === postId ? null : current));
         setReady(true);
       });
-  }, [applyPostPage, mode, pathname, refreshRemote]);
+  }, [applyPostPage, mode, pathname, postRetryKey, refreshRemote]);
 
   const isLiked = useCallback(
     (postId: string) => {
@@ -2298,7 +2337,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       if (refused) return { error: refused };
       if (mode === "supabase") {
         const client = supabaseRef.current;
-        if (!client) return { error: "Still loading." };
+        if (!client) return { error: NOT_READY };
         try {
           const result = await remoteSendMessage(
             client,
@@ -2314,10 +2353,10 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
           }
           return result;
         } catch (error) {
-          return { error: error instanceof Error ? error.message : "Could not send that message." };
+          return { error: friendlyError(error, "Could not send that message.") };
         }
       }
-      if (!localRef.current) return { error: "Still loading." };
+      if (!localRef.current) return { error: NOT_READY };
       const result = localSendMessage(localRef.current, receiverId, content, cardPreview);
       if (!result.error) commitLocal(result.db);
       return { error: result.error };
@@ -2619,6 +2658,60 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
     [snapshot.profiles],
   );
 
+  // Every action's error in plain English (lib/errors/friendly.ts), with each wrapper kept stable.
+  const friendlySignUp = useCallback(
+    async (...args: Parameters<typeof signUp>) => plainResult(await signUp(...args)),
+    [signUp],
+  );
+  const friendlySignIn = useCallback(
+    async (...args: Parameters<typeof signIn>) => plainResult(await signIn(...args)),
+    [signIn],
+  );
+  const friendlyUpdateProfile = useCallback(
+    async (...args: Parameters<typeof updateProfile>) => plainResult(await updateProfile(...args)),
+    [updateProfile],
+  );
+  const friendlyToggleFollow = useCallback(
+    async (...args: Parameters<typeof toggleFollow>) => plainResult(await toggleFollow(...args)),
+    [toggleFollow],
+  );
+  const friendlyCreatePost = useCallback(
+    async (...args: Parameters<typeof createPost>) => plainResult(await createPost(...args)),
+    [createPost],
+  );
+  const friendlyUpdatePost = useCallback(
+    async (...args: Parameters<typeof updatePost>) => plainResult(await updatePost(...args)),
+    [updatePost],
+  );
+  const friendlyDeletePost = useCallback(
+    async (...args: Parameters<typeof deletePost>) => plainResult(await deletePost(...args)),
+    [deletePost],
+  );
+  const friendlyPinPost = useCallback(
+    async (...args: Parameters<typeof pinPost>) => plainResult(await pinPost(...args)),
+    [pinPost],
+  );
+  const friendlyUnpinPost = useCallback(
+    async (...args: Parameters<typeof unpinPost>) => plainResult(await unpinPost(...args)),
+    [unpinPost],
+  );
+  const friendlyDeleteComment = useCallback(
+    async (...args: Parameters<typeof deleteComment>) => plainResult(await deleteComment(...args)),
+    [deleteComment],
+  );
+  const friendlyAddComment = useCallback(
+    async (...args: Parameters<typeof addComment>) => plainResult(await addComment(...args)),
+    [addComment],
+  );
+  const friendlySendMessage = useCallback(
+    async (...args: Parameters<typeof sendMessage>) => plainResult(await sendMessage(...args)),
+    [sendMessage],
+  );
+  const friendlyFollowMany = useCallback(
+    async (...args: Parameters<typeof followMany>) => plainResult(await followMany(...args)),
+    [followMany],
+  );
+
   const value = useMemo<SocialContextValue>(
     () => ({
       ready,
@@ -2647,26 +2740,28 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       status,
       startupFailed,
       retryStartup,
+      postLoadFailedId: failedPostId,
+      retryPost,
       refresh,
-      signUp,
-      signIn,
+      signUp: friendlySignUp,
+      signIn: friendlySignIn,
       signOut,
-      updateProfile,
-      toggleFollow,
+      updateProfile: friendlyUpdateProfile,
+      toggleFollow: friendlyToggleFollow,
       isFollowing,
       followerCount,
       followingCount,
       followersOf,
       followingOf,
-      createPost,
-      updatePost,
-      deletePost,
-      pinPost,
-      unpinPost,
-      deleteComment,
+      createPost: friendlyCreatePost,
+      updatePost: friendlyUpdatePost,
+      deletePost: friendlyDeletePost,
+      pinPost: friendlyPinPost,
+      unpinPost: friendlyUnpinPost,
+      deleteComment: friendlyDeleteComment,
       toggleLike,
       toggleRepost,
-      addComment,
+      addComment: friendlyAddComment,
       isLiked,
       isReposted,
       likeCount,
@@ -2685,7 +2780,7 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       markNotificationsRead,
       messages,
       unreadMessageCount,
-      sendMessage,
+      sendMessage: friendlySendMessage,
       markThreadRead,
       feed,
       follows: snapshot.follows,
@@ -2695,14 +2790,14 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       suggestions,
       suggestionsReady,
       refreshSuggestions,
-      followMany,
+      followMany: friendlyFollowMany,
       profileByUsername,
       postCardValues,
       postCardValuesLoading,
       postCardValuesMessage,
     }),
     [
-      addComment,
+      
       applySafetyChange,
       blockedIds,
       commentsFor,
@@ -2711,14 +2806,14 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       markThreadRead,
       messages,
       notifications,
-      createPost,
-      updatePost,
-      deleteComment,
-      deletePost,
-      pinPost,
-      unpinPost,
+      
+      
+      
+      
+      
+      
       feed,
-      followMany,
+      
       snapshot.follows,
       rememberPosts,
       findPost,
@@ -2746,11 +2841,11 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       ready,
       refresh,
       refreshSuggestions,
-      signIn,
+      
       signOut,
       safetyAccounts,
-      sendMessage,
-      signUp,
+      
+      
       snapshot.posts,
       snapshot.profiles,
       publicCards,
@@ -2773,14 +2868,28 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       status,
       startupFailed,
       retryStartup,
+      failedPostId,
+      retryPost,
       suggestions,
       suggestionsReady,
-      toggleFollow,
+      
       toggleLike,
       toggleRepost,
       unreadCount,
       unreadMessageCount,
-      updateProfile,
+      friendlySignUp,
+      friendlySignIn,
+      friendlyUpdateProfile,
+      friendlyToggleFollow,
+      friendlyCreatePost,
+      friendlyUpdatePost,
+      friendlyDeletePost,
+      friendlyPinPost,
+      friendlyUnpinPost,
+      friendlyDeleteComment,
+      friendlyAddComment,
+      friendlySendMessage,
+      friendlyFollowMany,
     ],
   );
 

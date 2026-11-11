@@ -12,6 +12,7 @@ import { isUuid } from "@/lib/value/card-value-access";
 import { money } from "@/lib/format";
 import { wantChipLabel, wantLabel } from "@/lib/wants/label";
 import { parseTargetPrice } from "@/lib/wants/target-price";
+import { friendlyError } from "@/lib/errors/friendly";
 
 type SavedWant = {
   id: string;
@@ -154,7 +155,7 @@ export function WantButton({
     const { error: deleteError } = await supabase.from("want_list").delete().eq("id", want.id);
     setSaving(false);
     if (deleteError) {
-      setError(deleteError.message);
+      setError(friendlyError(deleteError, "Couldn't remove that from your want list."));
       return;
     }
     setRecord({ scope: `${user!.id}:${cardKey}`, want: null });

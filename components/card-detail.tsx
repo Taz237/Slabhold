@@ -1,5 +1,7 @@
 "use client";
 
+import { ActionError, useActionRetry } from "@/components/action-error";
+import { ReadRetry } from "@/components/read-retry";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -136,7 +138,9 @@ export function CardDetail({ id, added = false }: { id: string; added?: boolean 
   const router = useRouter();
   const pathname = usePathname() || "/";
   const { user } = useSocial();
-  const { ready, getCard, updateCard, removeCard } = useCollection();
+  const { ready, loadFailed, reload, getCard, updateCard, removeCard } = useCollection();
+  const actions = useActionRetry();
+  const [sellPriceNote, setSellPriceNote] = useState<string | null>(null);
   const card = getCard(id);
   const [sellPrice, setSellPrice] = useState("");
   const [editing, setEditing] = useState(false);
@@ -251,11 +255,16 @@ export function CardDetail({ id, added = false }: { id: string; added?: boolean 
   if (!ready) return <CardDetailPending id={id} />;
 
   if (!card) {
+    // The collection didn't load, so this card may well exist: never "not found".
+    if (loadFailed) return <ReadRetry title="Couldn't load this card" onRetry={reload} />;
     return (
       <div className="py-20 text-center">
-        <p className="text-lg font-medium">Card not found</p>
-        <Link href="/collection" className="mt-3 inline-block text-sm text-violet-700 dark:text-violet-300">
-          Back to dashboard
+        <p className="text-lg font-semibold">Card not found</p>
+        <Link
+          href="/collection"
+          className="mt-3 inline-flex min-h-11 items-center text-sm font-semibold text-violet-700 dark:text-[#A78BFA]"
+        >
+          Back to Collection
         </Link>
       </div>
     );
@@ -360,13 +369,28 @@ export function CardDetail({ id, added = false }: { id: string; added?: boolean 
   }
 
   function markSold() {
+    if (!card) return;
     const price = Number(sellPrice);
-    if (!price || !card) return;
-    updateCard(card.id, {
-      sellPrice: price,
-      sellDate: todayDateInput(),
-    });
+    if (!Number.isFinite(price) || price <= 0) {
+      setSellPriceNote("Enter a sold price above $0.");
+      return;
+    }
+    setSellPriceNote(null);
+    const cardId = card.id;
+    const patch = { sellPrice: price, sellDate: todayDateInput() };
     setSellPrice("");
+    void actions
+      .run("sold", "Couldn't mark this card sold.", () => updateCard(cardId, patch).saved)
+      .then((ok) => {
+        // Keep what they typed when it didn't save.
+        if (!ok) setSellPrice(String(price));
+      });
+  }
+
+  function moveCategory(category: ReturnType<typeof cardCategory>) {
+    if (!card) return;
+    const cardId = card.id;
+    void actions.run("category", "Couldn't move this card.", () => updateCard(cardId, { category }).saved);
   }
 
   function toggleEdit() {
@@ -465,10 +489,14 @@ export function CardDetail({ id, added = false }: { id: string; added?: boolean 
         <section aria-label="Collection" className="min-w-0 space-y-3">
           <div className="min-w-0">
             <p className="mb-2 text-sm text-zinc-500">Move this card</p>
-            <CategoryPicker
-              value={cardCategory(card)}
-              onChange={(category) => updateCard(card.id, { category })}
-            />
+            <CategoryPicker value={cardCategory(card)} onChange={moveCategory} />
+            {actions.failureFor("category") ? (
+              <ActionError
+                className="mt-2"
+                message={actions.failureFor("category")!.message}
+                onRetry={actions.failureFor("category")!.retry}
+              />
+            ) : null}
           </div>
         </section>
       )}
@@ -597,10 +625,21 @@ export function CardDetail({ id, added = false }: { id: string; added?: boolean 
                 min={0}
                 step="0.01"
                 value={sellPrice}
-                onChange={(e) => setSellPrice(e.target.value)}
+                onChange={(e) => {
+                  setSellPrice(e.target.value);
+                  setSellPriceNote(null);
+                }}
                 placeholder="Sold price"
+                aria-label="Sold price"
+                aria-invalid={sellPriceNote ? true : undefined}
+                aria-describedby={sellPriceNote ? "sold-price-note" : undefined}
                 className={fieldClass}
               />
+              {sellPriceNote ? (
+                <p id="sold-price-note" className="text-sm text-rose-600 dark:text-rose-400">
+                  {sellPriceNote}
+                </p>
+              ) : null}
               <button
                 type="button"
                 onClick={markSold}
@@ -608,6 +647,9 @@ export function CardDetail({ id, added = false }: { id: string; added?: boolean 
               >
                 Mark as sold
               </button>
+              {actions.failureFor("sold") ? (
+                <ActionError message={actions.failureFor("sold")!.message} onRetry={actions.failureFor("sold")!.retry} />
+              ) : null}
             </div>
           ) : null}
 
