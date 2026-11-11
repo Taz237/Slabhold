@@ -3,6 +3,8 @@
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronDown, Pencil } from "lucide-react";
+import { scanOpeningStep } from "@/lib/scan/handoff";
+import type { ScanMatch } from "@/lib/scan/match";
 import {
   BackButton,
   DraftSlab,
@@ -93,6 +95,8 @@ export type AddCardFlowProps = {
   resumed: boolean;
   /** Opened from "Add another" with player, year and set already filled. */
   prefilled?: boolean;
+  /** A scan's sureness per field: the flow opens on the first one it wasn't sure of, else Review. */
+  scanSureness?: ScanMatch["sureness"];
   /** Keys the remembered step to this draft and user. */
   positionKey: string | null;
   /** This person's last saved answers, for the pre-selected chips. Null when signed out. */
@@ -188,6 +192,7 @@ export function AddCardFlow(props: AddCardFlowProps) {
     if (props.resumed) {
       return readFlowPosition(props.positionKey) ?? flowStateAt(resumeStep(answers), answers);
     }
+    if (props.scanSureness) return flowStateAt(scanOpeningStep(props.scanSureness, answers), answers);
     return flowStateAt(openingStep(answers), answers);
   });
   const [direction, setDirection] = useState<"forward" | "back">("forward");

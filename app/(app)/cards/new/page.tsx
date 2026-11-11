@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { CardForm } from "@/components/card-form";
+import { ScanAddCard } from "@/components/scan/scan-add-card";
+import { isScanId } from "@/lib/scan/handoff";
 import { catalogCardFromParams } from "@/lib/search/catalog-results";
 import { addCardQuery } from "@/lib/search/recent";
 import { addAnotherPrefill, copyCardPrefill } from "@/lib/cards/added-panel";
@@ -20,6 +22,8 @@ type Props = {
     parallel?: SearchValue;
     sport?: SearchValue;
     rookie?: SearchValue;
+    /** A scan id. The match itself stays in sessionStorage, never the URL. */
+    scan?: SearchValue;
   }>;
 };
 
@@ -29,6 +33,8 @@ function one(value: SearchValue): string {
 
 export default async function NewCardPage({ searchParams }: Props) {
   const params = await searchParams;
+  const scanId = one(params.scan);
+  if (isScanId(scanId)) return <ScanAddCard scanId={scanId} />;
   const initialQuery = addCardQuery(one(params.q));
   const initialCatalog = catalogCardFromParams({
     pick: one(params.pick),
