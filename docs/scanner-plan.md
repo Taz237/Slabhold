@@ -124,6 +124,34 @@ Also better on feel: auto-capture with no shutter tap needed, slabs to the confi
 
 ---
 
+## 3.1 If our accuracy doesn't clearly beat them: win around the scan
+
+CollX has a 20M-image database and years of training, so on raw-card accuracy we may only match them. The launch eval (section 7, PR 11) tells us. If we only match, we still win on **what happens after the scan**: the scanner just needs to be "right or a 1-tap fix", and the rest of the flow carries us.
+
+Our bar for "clearly beats" is the eval's top-1 raw-card accuracy (identity + parallel) beating the best competitor's claimed figure by at least 5 points. The competitor figures are only claims, so we treat this bar as rough. Whatever the result, we track **camera open → card saved** time and the **fix rate** (how often the collector changes our top pick), and aim to keep improving both.
+
+### Ranked by impact vs effort
+
+| Rank | Idea | Impact | Effort | Why | Verdict |
+| --- | --- | --- | --- | --- | --- |
+| 1 | **No paywall on scanning** | High | ~None | The #1 complaint about every scanner app. We have no paywalls. Our real limit is the AI budget, and a capped scan still works (pick the parallel). | **Launch.** Say it plainly in the scan copy. |
+| 2 | **Top-3 confirm sheet with 1-tap parallel picking** | High | Low (already PR 6) | It turns a wrong guess into one tap, so a miss costs less here than at CollX. A swatch strip of the set's real parallels with our pick preselected, plus serial # entry when the parallel is numbered. | **Launch.** Strengthen PR 6. |
+| 3 | **One-tap scan to collection** | High | Low–med | "Yes, add it" saves straight away with the collector's remembered visibility choice (existing `visibility-choice`). "Edit details" opens Review for anyone who wants it. Paid price stays optional, as today. Target: camera open → saved in **under 5 s** for a slab. | **Launch.** New PR. |
+| 4 | **Social payoff after the scan** | High (nobody else has a feed) | Low | All of it exists already: the card-added panel, "Also post to my feed", and owners and hunters per card (`lib/cards/owners.ts`, `/api/cards/people`). After a scan save we show "Post your pull" plus "**4 collectors own this · 2 are hunting it**", so the scan leads straight into the social app. | **Launch.** New PR. |
+| 5 | **Instant value after the scan** | High in principle, medium today | Low for cached values, **needs Donnie's OK** for fresh ones | We can't add Trawl calls. We **can** show a value instantly when that card identity already has a cached value or comps result (recent sold prices, last sales, trend arrow), using the existing caches with no new Trawl call. When nothing's cached, the card prices on save the way it does now, under the existing Trawl limits, and the panel shows a skeleton and then the value. Fresh comps for every scan would need Donnie's OK. | **Launch, cached-only.** New PR. Fresh pricing stays a question in the PR. |
+| 6 | **Learning from fixes** | Medium at launch, grows with use | Medium + **SQL** | When a collector picks match #2 or #3, changes the parallel, or taps "None of these" and then finds the card, we store **only text**: the normalized OCR tokens, our pick and their pick. No photos and no user IDs in the matcher table. The matcher boosts those mappings for everyone, for example "OCR 'PRIZM SILVER' on a 2018 Prizm front → Silver". Repeat fixes for the same card fold into one row. It needs a table, so a separate reviewed migration. Later it feeds Phase 2 image matching. | **First post-launch item.** SQL PR first. |
+| 7 | **Batch scanning a stack** | High for big collectors, low for most | High (native continuous mode, a queue, a review screen) | The camera stays open: card in, auto-capture, swap card, repeat. Each scan lands in a "Stack" review list where the collector confirms all at once and fixes the few marked "check this". It reuses the same pipeline. AI calls still count against the per-user daily cap. Scans past the cap are kept and marked "Pick parallel" rather than blocked. | **Post-launch.** Needs a second iOS build. |
+
+Rough priority: 1 and 2 cost almost nothing and fix the category's biggest complaints. 3 and 4 make Slabhold feel faster and more rewarding than any scanner, because the scan ends in your collection and your feed, not a price screen. 5 is strong but limited by the no-new-Trawl-calls rule. 6 and 7 are worth doing, but only once launch data shows where people fix and how many cards they add at once.
+
+### What we measure (analytics, counts only)
+- Camera open → saved time
+- Fix rate by kind (identity, parallel, number)
+- Share of scans posted to the feed
+- Scans per session (this tells us whether batch scanning is worth building)
+
+---
+
 ## 4. Exact UX
 
 Design for 390 px first. The camera is native full-bleed on iOS. The confirm sheet is our web UI. Tap targets are ≥ 44 px, motion respects reduced-motion, there are no spinners (skeletons instead) and no broken images (designed placeholders instead).
@@ -257,7 +285,7 @@ Other services: Vercel function time and bandwidth for the AI route stay within 
 | `lib/analytics.ts` | `scan_captured`, `scan_settled_on_device`, `scan_ai_used`, `scan_pick_rank`, `scan_look_closer`, `scan_capped`. Counts only. |
 | `app/(app)/privacy/page.tsx` | Scanner line: read on the phone; raw-card photos may go to our AI provider to identify the card, and we keep no copy. |
 
-New dependency: `@anthropic-ai/sdk` (server only, PR 9). Nothing else.
+New dependency: `@anthropic-ai/sdk` (server only, PR 11). Nothing else.
 
 ### iOS
 - `ios-app/ios/App/App/SlabholdScanner.swift` is new: AVFoundation + Vision (rectangles, OCR), auto-capture gate, perspective crop and color sampling. Apple frameworks only.
@@ -273,7 +301,7 @@ New dependency: `@anthropic-ai/sdk` (server only, PR 9). Nothing else.
 
 ## 7. PR breakdown
 
-Every PR is test-first and passes `npm test`, `lint:ci` and `build`. UI PRs go through /unslop with 390 px screenshots. PRs 2–8 add no keys and no paid calls.
+Every PR is test-first and passes `npm test`, `lint:ci` and `build`. UI PRs go through /unslop with 390 px screenshots. PRs 2–10 add no keys and no paid calls.
 
 | # | PR | Type |
 | --- | --- | --- |
@@ -282,16 +310,21 @@ Every PR is test-first and passes `npm test`, `lint:ci` and `build`. UI PRs go t
 | 3 | Raw card text parser + fixtures | web |
 | 4 | Matcher + checklist parallels + "settled on the phone" check | web |
 | 5 | Scan match handoff + Add card prefill (grade and cert via sessionStorage) | web |
-| 6 | Confirm sheet + all states, behind `NEXT_PUBLIC_SCANNER`, with a fixture dev mode | web, UI |
-| 7 | `/scan` hub + web path; remove the fake "Sample match" state | web, UI |
-| 8 | Native scanner plugin + Info.plist copy | **iOS build** |
-| 9 | *(Needs the key + your OK)* Spend ledgers, caps, kill switch + `/api/scan/identify` (Haiku) + the 100-photo eval | web |
-| 10 | "Look closer" (Sonnet) + its daily limit | web, UI |
-| 11 | Wire the native scanner into `/scan` and Add card, add analytics, update the privacy page | web |
-| 12 | `CLAUDE.md`: take the scanner off hold | docs |
+| 6 | Confirm sheet + all states + **1-tap parallel swatch strip and serial # entry**, behind `NEXT_PUBLIC_SCANNER`, with a fixture dev mode | web, UI |
+| 7 | **One-tap "Yes, add it"**: save straight from the confirm sheet with the remembered visibility, plus "Edit details" | web, UI |
+| 8 | **Post-scan payoff**: "Post your pull", owners and hunters count, cached value with recent sales and trend arrow (no new Trawl calls) | web, UI |
+| 9 | `/scan` hub + web path + "Free, no scan limits" copy; remove the fake "Sample match" state | web, UI |
+| 10 | Native scanner plugin + Info.plist copy | **iOS build** |
+| 11 | *(Needs the key + your OK)* Spend ledgers, caps, kill switch + `/api/scan/identify` (Haiku) + the 100-photo eval, which **sets the accuracy bar result** | web |
+| 12 | "Look closer" (Sonnet) + its daily limit | web, UI |
+| 13 | Wire the native scanner into `/scan` and Add card, add analytics (save time, fix rate, posts, scans per session), update the privacy page | web |
+| 14 | `CLAUDE.md`: take the scanner off hold | docs |
+| post-launch 1 | **Learning from fixes**: unapplied migration for the fix-mapping table (text only, no photos), its own "CONTAINS SQL, needs review" PR | SQL |
+| post-launch 2 | Learning from fixes: record fixes + matcher boost | web |
+| post-launch 3 | **Batch scanning**: continuous capture + "Stack" review list | **iOS build 2** + web |
 | later | Phase 2: image matching from confirmed scans (separate SQL PR) | SQL + web + iOS |
 
-The scanner launches with slabs and phone-settled raw cards working even if PR 9 isn't approved. AI makes raw cards and parallels clearly better.
+The scanner launches with slabs and phone-settled raw cards working even if PR 11 isn't approved. AI makes raw cards and parallels clearly better. PRs 6–9 make us win even where our accuracy only matches theirs.
 
 ---
 
@@ -305,10 +338,12 @@ The scanner launches with slabs and phone-settled raw cards working even if PR 9
 | Image embeddings | Not used. Phase 2 uses Apple's on-device feature prints. | $0 |
 
 ## Decisions we need
-1. Approve PRs 2–8 (free path) now?
-2. Approve the AI step (PRs 9–10): one Anthropic key, $50 console limit, $40 app ledger, 30 AI scans and 3 "Look closer" per user per day?
+1. Approve PRs 2–10 (free path, including one-tap add and the post-scan payoff) now?
+2. Approve the AI step (PRs 11–12): one Anthropic key, $50 console limit, $40 app ledger, 30 AI scans and 3 "Look closer" per user per day?
 3. Did "Card Scanner Pro" mean a specific app? If so, we'll add it to section 1.
 4. Is the optional back-of-card step OK?
+5. Instant value: is cached-only at launch OK? Fresh comps for every scan would mean new Trawl calls, which needs your OK.
+6. After launch, which first: learning from fixes (needs SQL) or batch scanning (needs a second iOS build)?
 
 ---
 
