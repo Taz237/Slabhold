@@ -2,7 +2,7 @@
  * Who wears the Slabhold team badge in the app. One list, by username: no
  * database column. Edit here to add or remove someone.
  */
-export const TEAM_BADGE_USERNAMES: readonly string[] = ["donnietaz", "slabhold"];
+export const TEAM_BADGE_USERNAMES: readonly string[] = ["donnietaz", "slabhold", "ripsandlots", "kevstuff"];
 
 export const TEAM_BADGE_LABEL = "Slabhold team";
 
