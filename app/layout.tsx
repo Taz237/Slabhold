@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { CaptureUtm } from "@/components/capture-utm";
+import { ClientErrorReporter } from "@/components/client-error-reporter";
 import { NativeBoot } from "@/components/native/native-boot";
 import { WebAnalytics } from "@/components/web-analytics-lazy";
 import { SITE_URL } from "@/lib/site-url";
@@ -73,6 +74,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="min-h-full font-sans">
         {/* The app's providers and shell live in app/(app)/layout.tsx, so the
             signed-out landing page (app/welcome) ships none of them. */}
+        <ClientErrorReporter />
         {children}
         <CaptureUtm />
         <NativeBoot />

@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, lazy, useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { ArrowLeft, Camera, Users } from "lucide-react";
 import { Avatar } from "@/components/avatar";
@@ -17,6 +17,7 @@ import {
 import { useCollection } from "@/components/collection-provider";
 import { FollowButton } from "@/components/follow-button";
 import { InviteWelcome } from "@/components/invite/invite-welcome";
+import { OnboardingIntroPart } from "@/components/onboarding/intro-loader";
 import { InstallGuide, useInstallPlatform, type GuidePlatform } from "@/components/onboarding/install-step";
 import { useSocial } from "@/components/social-provider";
 import {
@@ -37,6 +38,7 @@ import {
   writeSetupState,
 } from "@/lib/onboarding/store";
 import { introSeen, introShows } from "@/lib/onboarding/intro";
+import { interestLoadFromError, readInterestsWithRetry } from "@/lib/onboarding/interests-load";
 import { installStepShows, type InstallChoice } from "@/lib/pwa/install-step";
 import {
   canAddPick,
@@ -56,14 +58,8 @@ import { isRecentAccount } from "@/lib/social/get-started";
 import { loadServerSuggestions, SETUP_SUGGESTION_LIMIT } from "@/lib/social/load-suggestions";
 import type { ServerSuggestion } from "@/lib/social/suggestion-order";
 import { loadSupabaseBrowser } from "@/lib/supabase/browser-lazy";
+import { getSupabaseConfig } from "@/lib/supabase/client";
 
-/** The five-screen intro: its own chunk, fetched only when a new account is about to see it. */
-const OnboardingIntro = lazy(() => import("@/components/onboarding/intro/intro"));
-
-/** Holds the screen while the intro's chunk loads, so the setup never flashes first. */
-function IntroLoading() {
-  return <div aria-hidden data-intro-loading="" className="fixed inset-0 z-50 bg-[#09090B]" />;
-}
 
 const FOCUSABLE =
   'a[href], button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -94,14 +90,15 @@ function focusable(root: HTMLElement): HTMLElement[] {
 
 async function readInterests(userId: string): Promise<InterestLoad> {
   const supabase = await loadSupabaseBrowser();
-  if (!supabase) return { status: "missing" };
+  // Local mode has no client and no interests table. Hosted mode always has one: none means it failed.
+  if (!supabase) return getSupabaseConfig().configured ? { status: "error" } : { status: "missing" };
   const { data, error } = await supabase
     .from("profile_interests")
     .select("kind, value")
     .eq("user_id", userId);
   if (error) {
     if (!schemaMissing(error)) console.warn("profile_interests", error.message);
-    return { status: "missing" };
+    return interestLoadFromError(error);
   }
   return {
     status: "ready",
@@ -172,7 +169,7 @@ export function FirstRunSetup() {
   useEffect(() => {
     if (!userId) return;
     let cancelled = false;
-    void readInterests(userId).then((next) => {
+    void readInterestsWithRetry(() => readInterests(userId)).then((next) => {
       if (!cancelled) setLoad(next);
     });
     return () => {
@@ -198,6 +195,7 @@ export function FirstRunSetup() {
       answered: load.status === "ready" ? interestsAnswered(load.rows) : false,
       pathname,
       localNewUser,
+      recentAccount: mode === "supabase" && isRecentAccount(user?.createdAt ?? ""),
     });
 
   // Add to Home Screen comes first, once, before setup's own steps.
@@ -296,11 +294,13 @@ export function FirstRunSetup() {
     );
   }
 
+  function endIntro() {
+    setIntro({ userId: me.id, seen: true });
+  }
+
   if (introUp) {
     return (
-      <Suspense fallback={<IntroLoading />}>
-        <OnboardingIntro userId={me.id} onEnd={() => setIntro({ userId: me.id, seen: true })} />
-      </Suspense>
+      <OnboardingIntroPart userId={me.id} onEnd={endIntro} />
     );
   }
 

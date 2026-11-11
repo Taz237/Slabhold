@@ -119,6 +119,7 @@ import type {
 import { draftPostPhotos, type PostWrite } from "@/lib/social/post-photos";
 import { profileReplies, profileWithPin } from "@/lib/social/profile-tabs";
 import { isOptimisticReply, optimisticReply, withoutOptimisticReply } from "@/lib/social/reply-images";
+import { createStartupWatch } from "@/lib/startup/boot";
 
 /** Sending and reading DMs, from its own chunk: fetched at the first idle moment, or on first use. */
 const loadDmActions = () => import("@/lib/social/dm-actions");
@@ -155,6 +156,10 @@ export type SocialContextValue = {
   /** Any of these keys' last read failed. Asking again (requestProfiles) retries. */
   profilesFailed: (keys: readonly string[]) => boolean;
   status: string | null;
+  /** Hosted start-up failed or ran past BOOT_TIMEOUT_MS before the app was ready. */
+  startupFailed: boolean;
+  /** Try start-up again: a fresh load of the page. */
+  retryStartup: () => void;
   refresh: () => Promise<Notification[]>;
   signUp: (input: SignUpInput) => Promise<AuthResult>;
   signIn: (email: string, password: string, captchaToken?: string) => Promise<AuthResult>;
@@ -365,6 +370,8 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
   const [local, setLocal] = useState<LocalDb | null>(null);
   const [remote, setRemote] = useState<SocialSnapshot>(emptySnapshot);
   const [status, setStatus] = useState<string | null>(null);
+  const [startupFailed, setStartupFailed] = useState(false);
+  const startupWatchRef = useRef<ReturnType<typeof createStartupWatch> | null>(null);
   const [suggestionResult, setSuggestionResult] = useState<{
     key: string;
     rows: ServerSuggestion[] | null;
@@ -402,6 +409,13 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
   /** Where each notifications / messages Load more continues from. */
   const [inboxCursors, setInboxCursors] = useState<InboxCursors>(emptyInboxCursors);
   localRef.current = local;
+
+  if (ready && startupFailed) setStartupFailed(false);
+  // A fresh document load: a failed chunk or client import isn't retried in place by the browser.
+  const retryStartup = useCallback(() => window.location.reload(), []);
+  useEffect(() => {
+    if (ready) startupWatchRef.current?.ready();
+  }, [ready]);
 
   const routePostId = postIdFromPath(pathname);
   const routePostKnown =
@@ -555,6 +569,16 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
     // A screen the server drew for this viewer already shows its data, so
     // there the client and the snapshot read wait for the first idle moment
     // and stay off the main thread while the page hydrates and paints.
+    // A load that fails, or never lands, shows Try again instead of a blank screen.
+    const watch = createStartupWatch({
+      onFail: () => {
+        if (!cancelled) setStartupFailed(true);
+      },
+      schedule: (fn, ms) => window.setTimeout(fn, ms),
+      cancel: (id) => window.clearTimeout(id),
+    });
+    startupWatchRef.current = watch;
+    watch.start();
     const startClient = (run: () => void) => (deferUntilIdle() ? afterFirstIdle(run) : (run(), () => {}));
     // The hosted reads and writes load alongside the client, so the first read doesn't wait on them.
     const startHosted = () => {
@@ -562,7 +586,11 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       return loadSupabaseBrowser();
     };
     const stopStart = startClient(() => void startHosted().then((client) => {
-      if (cancelled || !client) return;
+      if (cancelled) return;
+      if (!client) {
+        watch.fail();
+        return;
+      }
       supabaseRef.current = client;
       setMode("supabase");
       // INITIAL_SESSION would repeat the first load. Sign-in and sign-out still refresh.
@@ -601,12 +629,14 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
           unsubscribe = () => data.subscription.unsubscribe();
         });
     }).catch(() => {
-      // supabase-js would not load. Say so, as the reload path does.
-      if (!cancelled) setStatus("Could not reach Supabase.");
+      // The data client would not load: the start-up error says so, with Try again.
+      if (!cancelled) watch.fail();
     }));
 
     return () => {
       cancelled = true;
+      watch.stop();
+      startupWatchRef.current = null;
       stopStart();
       unsubscribe();
     };
@@ -2615,6 +2645,8 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       refreshInbox,
       refreshFollows,
       status,
+      startupFailed,
+      retryStartup,
       refresh,
       signUp,
       signIn,
@@ -2739,6 +2771,8 @@ export function SocialProvider({ children }: { children: React.ReactNode }) {
       refreshFollows,
       snapshot.user,
       status,
+      startupFailed,
+      retryStartup,
       suggestions,
       suggestionsReady,
       toggleFollow,

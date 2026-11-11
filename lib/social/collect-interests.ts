@@ -63,6 +63,8 @@ export type InterestRow = {
 export type InterestLoad =
   | { status: "loading" }
   | { status: "missing" }
+  /** The read failed (network, timeout). Not the same as a missing table. */
+  | { status: "error" }
   | { status: "ready"; rows: InterestRow[] };
 
 const TEAM_ROWS: { name: string; sport: string }[] = [
