@@ -49,6 +49,9 @@ type CollectionContextValue = {
   reload: () => Promise<SportsCard[] | null>;
 };
 
+/** Shown when the collection fails to load. The raw error goes to the console. */
+export const COLLECTION_LOAD_ERROR = "Couldn't load your collection. Pull down to try again.";
+
 export const CollectionContext = createContext<CollectionContextValue | null>(null);
 
 export function CollectionProvider({ children }: { children: React.ReactNode }) {
@@ -82,8 +85,11 @@ export function CollectionProvider({ children }: { children: React.ReactNode }) 
     return next;
   }, []);
 
-  const report = useCallback((error: unknown) => {
-    setSyncError(error instanceof Error ? error.message : "Could not save your collection.");
+  // The raw error goes to the console. A failed load shows `shown` instead.
+  const report = useCallback((error: unknown, shown?: string) => {
+    const raw = error instanceof Error ? error.message : "Could not save your collection.";
+    console.warn("[collection] sync failed:", raw);
+    setSyncError(shown ?? raw);
   }, []);
 
   useEffect(() => {
@@ -139,7 +145,7 @@ export function CollectionProvider({ children }: { children: React.ReactNode }) 
       })
       .catch((error: unknown) => {
         if (cancelled) return;
-        report(error);
+        report(error, COLLECTION_LOAD_ERROR);
         setCards([]);
         cardsRef.current = [];
         setLoaded(false);
@@ -334,7 +340,7 @@ export function CollectionProvider({ children }: { children: React.ReactNode }) 
         setLoadFailed(false);
         return merged;
       } catch (error) {
-        report(error);
+        report(error, COLLECTION_LOAD_ERROR);
         setLoaded(false);
         setLoadFailed(true);
         return null;

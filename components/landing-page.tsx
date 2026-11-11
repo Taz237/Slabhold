@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AppStoreLink } from "@/components/landing/app-store-link";
 import { FounderNote } from "@/components/landing/founder-note";
 import { HeroSlabs } from "@/components/landing/hero-slabs";
 import { NoHeadPreload } from "@/components/landing/no-head-preload";
@@ -53,6 +54,7 @@ export function LandingPage({ founder = null }: { founder?: FounderShowcase | nu
                 : "Track your sports cards with recent sold prices, and share them with collectors who get it."}
             </p>
             <LandingCta />
+            <AppStoreLink />
           </div>
         </section>
 
@@ -74,6 +76,7 @@ export function LandingPage({ founder = null }: { founder?: FounderShowcase | nu
           </p>
           <div className="mx-auto max-w-sm">
             <LandingCta />
+            <AppStoreLink />
           </div>
         </section>
 
