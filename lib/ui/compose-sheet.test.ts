@@ -7,7 +7,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { AttachCardField } from "@/components/attach-card-field";
 import { isChromelessPath, loadingShellFor } from "@/lib/auth/guest-paths";
 import { charRing } from "@/lib/ui/char-ring";
-import { keyboardInset, sheetFrame } from "@/lib/ui/use-keyboard-inset";
+import { keyboardInset, resolveKeyboard, sheetFrame } from "@/lib/ui/use-keyboard-inset";
 
 const root = process.cwd();
 const read = (path: string) => readFileSync(join(root, path), "utf8");
@@ -55,6 +55,35 @@ describe("keyboard inset", () => {
     assert.deepEqual(sheetFrame(null), null);
     assert.deepEqual(sheetFrame({ height: 508, offsetTop: 0 }), { top: 0, height: 508 });
     assert.deepEqual(sheetFrame({ height: 507.6, offsetTop: 12.2 }), { top: 12, height: 508 });
+  });
+});
+
+describe("keyboard from the iOS app", () => {
+  it("uses the visual viewport when Safari shrinks it", () => {
+    assert.deepEqual(resolveKeyboard({ viewport: { height: 508, offsetTop: 0 }, innerHeight: 844, native: 0 }), {
+      frame: { top: 0, height: 508 },
+      inset: 336,
+    });
+  });
+
+  it("uses keyboardWillShow's height when the web view stays full height", () => {
+    assert.deepEqual(resolveKeyboard({ viewport: { height: 844, offsetTop: 0 }, innerHeight: 844, native: 336 }), {
+      frame: { top: 0, height: 508 },
+      inset: 336,
+    });
+    assert.deepEqual(resolveKeyboard({ viewport: null, innerHeight: 844, native: 336 }), {
+      frame: { top: 0, height: 508 },
+      inset: 336,
+    });
+  });
+
+  it("never counts the keyboard twice, and ignores a tiny height", () => {
+    assert.equal(resolveKeyboard({ viewport: { height: 508, offsetTop: 0 }, innerHeight: 844, native: 336 }).inset, 336);
+    assert.deepEqual(resolveKeyboard({ viewport: { height: 844, offsetTop: 0 }, innerHeight: 844, native: 40 }), {
+      frame: { top: 0, height: 844 },
+      inset: 0,
+    });
+    assert.deepEqual(resolveKeyboard({ viewport: null, innerHeight: 844, native: 0 }), { frame: null, inset: 0 });
   });
 });
 
