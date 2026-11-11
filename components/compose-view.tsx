@@ -11,7 +11,7 @@ import {
   useSyncExternalStore,
 } from "react";
 import { createPortal } from "react-dom";
-import { Camera, Globe, ImagePlus, Layers, X } from "lucide-react";
+import { Camera, ImagePlus, Layers, X } from "lucide-react";
 import { AttachCardField } from "@/components/attach-card-field";
 import { Avatar } from "@/components/avatar";
 import { ComposePhotoDrafts } from "@/components/compose-photo-drafts";
@@ -92,6 +92,15 @@ export function ComposeView() {
   const textRef = useRef<HTMLTextAreaElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const { frame, inset } = useVisualViewport();
+  const toolbarRef = useRef<HTMLDivElement>(null);
+  const [toolbarHeight, setToolbarHeight] = useState(48);
+  // While the sheet slides in it is transformed, so a fixed toolbar would be
+  // placed against the sheet. Until then it rests on the sheet's bottom edge.
+  const [entered, setEntered] = useState(false);
+  useEffect(() => {
+    const done = window.setTimeout(() => setEntered(true), 260);
+    return () => window.clearTimeout(done);
+  }, []);
   const editing = posts.find((post) => post.id === editId && post.authorId === user?.id);
   const draftKey = composeDraftKey({ edit: editId, quote: quoteParam, card: attachCardParam });
   // What Back keeps: the latest draft, unless it was posted or discarded.
@@ -287,9 +296,31 @@ export function ComposeView() {
     const scroller = scrollRef.current;
     if (!field || !scroller || document.activeElement !== field) return;
     if (field.selectionEnd !== field.value.length) return;
-    const hidden = field.getBoundingClientRect().bottom - scroller.getBoundingClientRect().bottom + 12;
+    // On phones the toolbar floats over the end of the body, so its top edge is the limit.
+    const floor = Math.min(
+      scroller.getBoundingClientRect().bottom,
+      toolbarRef.current?.getBoundingClientRect().top ?? Infinity,
+    );
+    const hidden = field.getBoundingClientRect().bottom - floor + 12;
     if (hidden > 0) scroller.scrollTop += hidden;
-  }, [body, frame?.height]);
+  }, [body, frame?.height, inset]);
+
+  // The toolbar floats over the body on phones, so the body ends with room for it.
+  useLayoutEffect(() => {
+    const height = toolbarRef.current?.offsetHeight;
+    if (height) setToolbarHeight(height);
+  }, [inset, loading, photosFull]);
+
+  /** X-style: a tap anywhere in the empty part of the body goes to the text. */
+  function focusFromBody(event: React.MouseEvent<HTMLDivElement>) {
+    const target = event.target as HTMLElement;
+    if (target.closest("button, a, input, textarea, img, [role='listbox'], [role='option']")) return;
+    const field = textRef.current;
+    if (!field || document.activeElement === field) return;
+    field.focus({ preventScroll: true });
+    const end = field.value.length;
+    field.setSelectionRange(end, end);
+  }
 
   const ownedAttachment = cards.find((card) => card.id === cardId);
   const attachedPreview = editing
@@ -340,6 +371,7 @@ export function ComposeView() {
       frame={frame}
       label={editing ? "Edit post" : quoteId ? "Quote post" : "New post"}
       onDismiss={loading ? leave : onCancel}
+      onEntered={() => setEntered(true)}
       initialFocus={textRef}
       overlay={
         confirmDiscard ? (
@@ -400,7 +432,12 @@ export function ComposeView() {
             </button>
           </ComposeTopRow>
 
-          <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pt-3 pb-6">
+          <div
+            ref={scrollRef}
+            data-slot="compose-body"
+            onClick={focusFromBody}
+            className="min-h-0 flex-1 cursor-text overflow-y-auto overscroll-contain px-4 pt-3 pb-6"
+          >
             <div className="flex gap-3">
               <Avatar
                 name={user.displayName}
@@ -462,17 +499,15 @@ export function ComposeView() {
                 ) : null}
               </div>
             </div>
+            <div aria-hidden className="md:hidden" style={{ height: toolbarHeight }} />
           </div>
 
-          {!editing ? (
-            <p className="flex shrink-0 items-center gap-1.5 px-4 pb-2 text-[13px] font-semibold text-[#7C3AED] dark:text-[#A78BFA]">
-              <Globe aria-hidden className="h-4 w-4" />
-              Everyone can reply
-            </p>
-          ) : null}
-
           <div
-            className={`relative shrink-0 border-t border-zinc-200 dark:border-white/10 ${
+            ref={toolbarRef}
+            data-slot="compose-toolbar"
+            data-keyboard={inset > 0 ? "open" : "closed"}
+            style={{ bottom: entered ? inset : 0 }}
+            className={`${entered ? "fixed" : "absolute"} inset-x-0 z-[61] shrink-0 border-t-[0.5px] border-zinc-300 bg-white md:static md:z-auto md:border-t md:border-zinc-200 dark:border-white/15 dark:bg-[#09090B] md:dark:border-white/10 ${
               inset > 0 ? "" : "pb-[env(safe-area-inset-bottom)]"
             }`}
           >
@@ -512,7 +547,7 @@ export function ComposeView() {
                 </span>
               </div>
             ) : null}
-            <div className="flex h-11 items-center px-1.5">
+            <div className="flex h-12 items-center px-1.5">
               <PhotoFileInputs
                 cameraRef={cameraRef}
                 libraryRef={libraryRef}
@@ -524,16 +559,6 @@ export function ComposeView() {
               />
               <button
                 type="button"
-                aria-label="Camera"
-                disabled={photosFull}
-                aria-describedby={photosFull ? "compose-photo-cap" : undefined}
-                onClick={openCamera}
-                className={TOOL_BUTTON}
-              >
-                <Camera className="h-[22px] w-[22px]" />
-              </button>
-              <button
-                type="button"
                 aria-label="Photo library"
                 disabled={photosFull}
                 aria-describedby={photosFull ? "compose-photo-cap" : undefined}
@@ -541,6 +566,16 @@ export function ComposeView() {
                 className={TOOL_BUTTON}
               >
                 <ImagePlus className="h-[22px] w-[22px]" />
+              </button>
+              <button
+                type="button"
+                aria-label="Camera"
+                disabled={photosFull}
+                aria-describedby={photosFull ? "compose-photo-cap" : undefined}
+                onClick={openCamera}
+                className={TOOL_BUTTON}
+              >
+                <Camera className="h-[22px] w-[22px]" />
               </button>
               {showCardButton ? (
                 <button
@@ -607,6 +642,7 @@ function ComposeSheet({
   frame,
   label,
   onDismiss,
+  onEntered,
   initialFocus,
   overlay,
   children,
@@ -614,6 +650,7 @@ function ComposeSheet({
   frame: { top: number; height: number } | null;
   label: string;
   onDismiss: () => void;
+  onEntered: () => void;
   initialFocus: React.RefObject<HTMLTextAreaElement | null>;
   overlay: React.ReactNode;
   children: React.ReactNode;
@@ -670,6 +707,9 @@ function ComposeSheet({
         role="dialog"
         aria-modal="true"
         aria-label={label}
+        onAnimationEnd={(event) => {
+          if (event.target === event.currentTarget) onEntered();
+        }}
         className="relative flex h-full w-full flex-col bg-white text-zinc-900 motion-safe:animate-[composer-in_220ms_cubic-bezier(0.2,0.7,0.2,1)_backwards] md:h-auto md:max-h-full md:min-h-[22rem] md:max-w-lg md:rounded-2xl md:shadow-2xl dark:bg-[#09090B] dark:text-zinc-100 md:dark:ring-1 md:dark:ring-white/10"
       >
         {children}
