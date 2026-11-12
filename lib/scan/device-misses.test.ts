@@ -141,7 +141,13 @@ describe("device miss 2: 2025 Panini Mosaic Jaxson Dart, orange /199", () => {
 
   it("with no set word and no titles, doesn't invent a set", () => {
     const result = rank(raw(FRONT), []);
-    assert.deepEqual(result.matches, []);
+    // The printed name still shows (the bake-off's player rule), with nothing invented around it.
+    assert.equal(result.matches.length, 1);
+    assert.equal(result.matches[0].playerName, "Jaxson Dart");
+    assert.equal(result.matches[0].setBrand, "");
+    assert.equal(result.matches[0].cardNumber, "");
+    assert.equal(result.matches[0].serialRun, 199);
+    assert.equal(result.matches[0].parallel, "");
   });
 });
 
