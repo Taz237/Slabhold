@@ -30,7 +30,7 @@ export function scanReadFrom(capture: ScanCapture, directory: readonly IndexedDi
   return {
     kind: "raw",
     front: readRawCardText(capture.lines, directory),
-    back: capture.backLines ? readRawCardText(capture.backLines, directory) : null,
+    back: capture.backLines ? readRawCardText(capture.backLines, directory, { side: "back" }) : null,
   };
 }
 
