@@ -120,6 +120,7 @@ describe("Scan to comp, same card", () => {
       },
     );
     assertMiller(result.matches, { set: "", number: "BP-27" });
-    assert.deepEqual(searches, ["2024 Aidan Miller #BP-27 /299"]);
+    assert.deepEqual(searches, ["Aidan Miller Bowman BP-27 /299", "Aidan Miller BP-27 /299", "Aidan Miller Bowman BP-27", "Aidan Miller BP-27"]);
+    assert.doesNotMatch(searches.join(" | "), /CMPO73107|Topps/);
   });
 });

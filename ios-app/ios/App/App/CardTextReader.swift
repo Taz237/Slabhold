@@ -11,12 +11,16 @@ struct CardRead {
     var image: UIImage?
     /// "card", "slab", or nil when no card edge was found.
     var kind: String?
+    /// The outer frame's average color as hue, saturation, brightness (0...1). Raw cards only.
+    /// The web names it and uses it only to break a tie between parallels sold titles offer.
+    var border: [Double]? = nil
 
     /// The shape lib/ios/scanner.ts (scanCaptureFrom) checks.
     var jsObject: [String: Any] {
         var object: [String: Any] = ["lines": lines]
         if let backLines { object["backLines"] = backLines }
         if let kind { object["kind"] = kind }
+        if let border { object["border"] = border }
         if let image, let dataUrl = CardTextReader.jpegDataUrl(image) { object["image"] = dataUrl }
         return object
     }
@@ -49,7 +53,48 @@ enum CardTextReader {
         let kind = edge.map { aspect(of: $0, width: cgImage.width, height: cgImage.height) < slabAspectBelow ? "slab" : "card" }
         // Text is read from the first crop; the photo we keep is tight on the card.
         let photo = edge == nil ? cropped : tighten(cropped, slab: kind == "slab")
-        return CardRead(lines: lines, backLines: nil, image: UIImage(cgImage: photo), kind: kind)
+        // The border color is read from the kept photo, on the phone. Only for a card we found the edges of.
+        let border = kind == "card" ? borderColor(of: photo) : nil
+        return CardRead(lines: lines, backLines: nil, image: UIImage(cgImage: photo), kind: kind, border: border)
+    }
+
+    /// The share of each side, inside the edge, that counts as the frame.
+    static let borderBand: CGFloat = 0.08
+
+    /// The average color of the card's outer frame as [hue, saturation, brightness], each 0...1.
+    /// Drawn small (40 x 56) so it's quick; nil when it can't tell.
+    static func borderColor(of image: CGImage) -> [Double]? {
+        let width = 40, height = 56
+        guard let context = CGContext(
+            data: nil,
+            width: width,
+            height: height,
+            bitsPerComponent: 8,
+            bytesPerRow: width * 4,
+            space: CGColorSpaceCreateDeviceRGB(),
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        ) else { return nil }
+        context.interpolationQuality = .medium
+        context.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
+        guard let data = context.data else { return nil }
+        let pixels = data.bindMemory(to: UInt8.self, capacity: width * height * 4)
+        let bandX = max(1, Int(CGFloat(width) * borderBand))
+        let bandY = max(1, Int(CGFloat(height) * borderBand))
+        var red = 0.0, green = 0.0, blue = 0.0, count = 0.0
+        for y in 0..<height {
+            for x in 0..<width where x < bandX || y < bandY || x >= width - bandX || y >= height - bandY {
+                let index = (y * width + x) * 4
+                red += Double(pixels[index])
+                green += Double(pixels[index + 1])
+                blue += Double(pixels[index + 2])
+                count += 1
+            }
+        }
+        guard count > 0 else { return nil }
+        let color = UIColor(red: red / count / 255, green: green / count / 255, blue: blue / count / 255, alpha: 1)
+        var hue: CGFloat = 0, saturation: CGFloat = 0, brightness: CGFloat = 0, alpha: CGFloat = 0
+        guard color.getHue(&hue, saturation: &saturation, brightness: &brightness, alpha: &alpha) else { return nil }
+        return [Double(hue), Double(saturation), Double(brightness)]
     }
 
     /// The kept photo, tight and close on the card, for the sheet and the timeline.

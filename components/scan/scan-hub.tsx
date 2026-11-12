@@ -74,6 +74,7 @@ async function defaultSolds(capture: ScanCapture, matches: ScanMatch[], signal: 
       lines: capture.lines,
       backLines: capture.backLines,
       kind: capture.kind,
+      border: capture.border ?? null,
       rows: matches.filter((match) => match.catalogId).map((match) => ({
         catalogId: match.catalogId,
         playerName: match.playerName,

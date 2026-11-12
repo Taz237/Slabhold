@@ -307,7 +307,10 @@ export function LastSold({ solds }: { solds: SoldsState }) {
     return (
       <div className={box}>
         <div className="min-w-0">
-          <p className="text-[13px] font-medium text-zinc-500">{COMP_COPY.lastSold}</p>
+          <p className="text-[13px] font-medium text-zinc-500">
+            {COMP_COPY.lastSold}
+            {comp.status === "ok" && comp.parallel ? ` · ${comp.parallel}` : ""}
+          </p>
           <p className="text-xs text-zinc-500">{COMP_COPY.credit}</p>
         </div>
         <p className="shrink-0 text-right">

@@ -101,8 +101,8 @@ describe("the #245 cases still hold", () => {
 
 describe("Scan to comp searches the printed number", () => {
   for (const [front, expected] of [
-    [FRONT, "2024 Bowman Aidan Miller #BP-27 /299"],
-    [FRONT_NO_BOWMAN, "2024 Aidan Miller #BP-27 /299"],
+    [FRONT, "Aidan Miller Bowman BP-27 /299"],
+    [FRONT_NO_BOWMAN, "Aidan Miller Bowman BP-27 /299"],
   ] as const) {
     it(expected, async () => {
       const searches: string[] = [];
@@ -121,7 +121,8 @@ describe("Scan to comp searches the printed number", () => {
           storeQuickComp: async () => {},
         },
       );
-      assert.deepEqual(searches, [expected]);
+      assert.equal(searches[0], expected);
+      assert.doesNotMatch(searches.join(" | "), /FOR-4|Topps|#|2024/i);
       assert.doesNotMatch(JSON.stringify(result), /FOR-4/i);
     });
   }

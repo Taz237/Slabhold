@@ -206,7 +206,7 @@ describe("native scanner: flip for the card #", () => {
 describe("native scanner: the photo we keep", () => {
   it("is tight on the card: the card inside a toploader, a thin trim, a slab keeps its label", () => {
     assert.match(reader, /let photo = edge == nil \? cropped : tighten\(cropped, slab: kind == "slab"\)/);
-    assert.match(reader, /return CardRead\(lines: lines, backLines: nil, image: UIImage\(cgImage: photo\), kind: kind\)/);
+    assert.match(reader, /return CardRead\(lines: lines, backLines: nil, image: UIImage\(cgImage: photo\), kind: kind, border: border\)/);
     // Text is still read from the first crop.
     assert.match(reader, /let lines = recognizeText\(in: cropped\)/);
     assert.match(reader, /if !slab, let inner = detectInnerCard\(in: image\)/);
@@ -221,5 +221,21 @@ describe("native scanner: the photo we keep", () => {
 
   it("leaves the camera screen as it is", () => {
     assert.doesNotMatch(camera, /tighten|detectInnerCard|edgeTrim/);
+  });
+});
+
+describe("native scanner: the border color, for ties only", () => {
+  it("averages the kept photo's outer band on the phone and sends hue, saturation, brightness", () => {
+    assert.match(reader, /var border: \[Double\]\? = nil/);
+    assert.match(reader, /if let border \{ object\["border"\] = border \}/);
+    assert.match(reader, /let border = kind == "card" \? borderColor\(of: photo\) : nil/);
+    assert.match(reader, /static func borderColor\(of image: CGImage\) -> \[Double\]\?/);
+    assert.match(reader, /static let borderBand: CGFloat = 0\.08/);
+    // Read on the phone: nothing is uploaded for it.
+    assert.doesNotMatch(reader, /URLSession|https?:\/\//);
+  });
+
+  it("isn't on the camera screen", () => {
+    assert.doesNotMatch(camera, /borderColor\(of|borderBand/);
   });
 });

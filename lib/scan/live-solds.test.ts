@@ -98,7 +98,8 @@ describe("live eBay solds: the four Nov 12 misses, empty cache", () => {
       ],
     });
     const result = await lookupLiveSolds(input(MILLER_FRONT, MILLER_BACK), "u1", value);
-    assert.deepEqual(calls.searches, ["2024 Bowman Aidan Miller #BP-27 /299"]);
+    // The first rung of the ladder found the sales: no '#', no year (eBay titles often skip them).
+    assert.deepEqual(calls.searches, ["Aidan Miller Bowman BP-27 /299"]);
     for (const match of result.matches) assert.equal(match.playerName, "Aidan Miller");
     const top = result.matches[0];
     assert.equal(line(top), "2024 Bowman #BP-27");
@@ -431,6 +432,7 @@ describe("the live search itself", () => {
 describe("liveSearchQuery", () => {
   it("uses only what the card backed", () => {
     const read = scanReadFrom({ lines: MILLER_FRONT, backLines: MILLER_BACK, image: null, kind: "card" }, INDEXED_DIRECTORY);
-    assert.equal(liveSearchQuery(read, null, INDEXED_DIRECTORY), "Aidan Miller #BP-27 /299");
+    // BP- is a Bowman-only code: Bowman goes in the search, never on the sheet by itself.
+    assert.equal(liveSearchQuery(read, null, INDEXED_DIRECTORY), "Aidan Miller Bowman BP-27 /299");
   });
 });

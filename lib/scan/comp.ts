@@ -25,6 +25,8 @@ export const COMP_COPY = {
   none: "No recent sales for this one yet",
   looking: "Looking up last solds…",
   lastSold: "Last sold",
+  /** The parallel was picked because most of this card's recent sold titles name it. */
+  matchedFromSales: "Matched from recent sales",
   unavailable: "We couldn't load sold prices",
   retry: "Try again",
   assumedBase: "Showing Base. Tap your parallel if it's different.",
@@ -54,6 +56,10 @@ export type ScanCompResult =
       trend: "up" | "down" | "flat" | null;
       asOf: string | null;
       source: ScanCompSource;
+      /** The parallel these sales are for, from their titles ("Pink/Red"). */
+      parallel?: string;
+      /** Every parallel the search found, so Base never prices a Pink/Red. */
+      groups?: { label: string; nSales: number }[];
     }
   /** searched: a live eBay search ran for this card and found no matching sale. */
   | { status: "none"; searched?: boolean }

@@ -17,6 +17,7 @@ export type RawScan = {
   backLines?: unknown;
   image?: unknown;
   kind?: unknown;
+  border?: unknown;
 };
 
 export const SCANNER_PLUGIN = "SlabholdScanner";
@@ -53,5 +54,28 @@ export function scanCaptureFrom(raw: unknown): ScanCapture | null {
     backLines: lines(scan.backLines),
     image: image(scan.image),
     kind: scan.kind === "card" || scan.kind === "slab" ? scan.kind : null,
+    border: borderColorName(scan.border),
   };
+}
+
+/**
+ * The border's color name from the phone's [hue, saturation, brightness]
+ * (each 0...1). Null when it's not a clear color (white, grey, black, washed
+ * out): then it never breaks a tie. Pink/Red cards read pink or red.
+ */
+export function borderColorName(value: unknown): string | null {
+  if (!Array.isArray(value) || value.length !== 3 || !value.every((part) => typeof part === "number" && part >= 0 && part <= 1)) {
+    return null;
+  }
+  const [hue, saturation, brightness] = value as number[];
+  if (saturation < 0.3 || brightness < 0.25) return null;
+  const degrees = hue * 360;
+  if (degrees >= 345 || degrees < 12) return "red";
+  if (degrees < 40) return "orange";
+  if (degrees < 70) return "gold";
+  if (degrees < 165) return "green";
+  if (degrees < 200) return "aqua";
+  if (degrees < 255) return "blue";
+  if (degrees < 290) return "purple";
+  return "pink";
 }

@@ -67,14 +67,35 @@ function compact(result: TrawlSoldResult): TrawlSoldResult {
 
 type Cached = { results: TrawlSoldResult[]; fetchedAt: string };
 
+/**
+ * One scan's lookup across the ladder's rungs. The caps are spent once, on the
+ * first rung that misses the cache; later rungs ride on it. At most
+ * MAX_LOOKUP_CALLS Trawl calls per lookup, whatever happens.
+ */
+export type LookupBudget = { spent: boolean; calls: number };
+export const MAX_LOOKUP_CALLS = 4;
+
+export function newLookupBudget(): LookupBudget {
+  return { spent: false, calls: 0 };
+}
+
 export function makeLiveSearch(deps: LiveSearchDeps) {
-  return async function liveSearch(query: string, userId: string): Promise<LiveSearchResult> {
+  return async function liveSearch(
+    query: string,
+    userId: string,
+    budget: LookupBudget = newLookupBudget(),
+  ): Promise<LiveSearchResult> {
     if (deps.source() !== "trawl" || !deps.hasTrawlKey() || !query.trim()) return { ok: false, reason: "unavailable" };
     try {
       const cached = await deps.cache<Cached>(
         async () => {
-          const spent = await spendQuickCompLookup(userId, { ...deps.limits, now: deps.now });
-          if (!spent.ok) throw new QuickCompFailure(spent.reason, spent.resetAt);
+          if (budget.calls >= MAX_LOOKUP_CALLS) throw new QuickCompFailure("unavailable");
+          if (!budget.spent) {
+            const spent = await spendQuickCompLookup(userId, { ...deps.limits, now: deps.now });
+            if (!spent.ok) throw new QuickCompFailure(spent.reason, spent.resetAt);
+            budget.spent = true;
+          }
+          budget.calls += 1;
           const result = await deps.fetchSold(query, { days: LIVE_SEARCH_DAYS, maxPages: LIVE_SEARCH_MAX_PAGES });
           if (!result.ok) throw new QuickCompFailure("unavailable");
           const results = (result.body.results ?? []).filter(Boolean).slice(0, MAX_RESULTS).map(compact);

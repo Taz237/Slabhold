@@ -19,7 +19,16 @@ const cache = unstable_cache as CacheFn;
 /** Reads the shared cache for a search the sheet already ran. Never Trawl. */
 export const readLiveCache = makeLiveCacheRead(cache);
 
+/**
+ * Dev only: each rung's query, how many results came back, how many were kept,
+ * and why the rest were dropped, so a missing sale can be traced. Card names
+ * only; no user ids. Off in production.
+ */
+const devLog: LiveSoldsDeps["log"] =
+  process.env.NODE_ENV === "production" ? undefined : (event) => console.info("[scan-solds]", JSON.stringify(event));
+
 export const serverLiveSoldsDeps: LiveSoldsDeps = {
+  log: devLog,
   directory: INDEXED_DIRECTORY,
   products: loadProductData,
   cachedTitles: searchCachedSoldTitles,

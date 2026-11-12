@@ -149,6 +149,30 @@ export const PREVIEW_SOLDS: SoldsState = {
   query: "preview",
 };
 
+/** A raw numbered card whose parallel came from its recent sold titles. */
+export const PREVIEW_FROM_SALES: ScanMatch = {
+  ...PREVIEW_NUMBERED,
+  parallel: "Pink/Red",
+  serialRun: 299,
+  serialNo: "137",
+  sureness: { ...PREVIEW_NUMBERED.sureness, parallel: "likely" },
+  parallelOptions: [{ name: "Pink/Red", serialRun: 299 }],
+  parallelSource: "sales",
+};
+
+/** Its last solds: the Pink/Red /299 group only. */
+export const PREVIEW_SOLDS_PARALLEL: SoldsState = {
+  status: "done",
+  comp: {
+    ...summarizeSales(
+      [34.99, 36, 38].map((price, index) => ({ price, soldAt: `2026-10-${String(20 + index * 4).padStart(2, "0")}T12:00:00Z` })),
+      { asOf: "2026-11-08T12:00:00Z", source: "live" },
+    ),
+    ...{ parallel: "Pink/Red", groups: [{ label: "Pink/Red", nSales: 3 }] },
+  } as ScanCompResult,
+  query: "preview",
+};
+
 export const PREVIEW_SOLDS_LOOKING: SoldsState = { status: "looking" };
 export const PREVIEW_SOLDS_NONE: SoldsState = { status: "done", comp: { status: "none", searched: true }, query: "preview" };
 export const PREVIEW_SOLDS_LIMITED: SoldsState = {

@@ -15,7 +15,9 @@ import {
   PREVIEW_PHOTO,
   PREVIEW_RAW,
   PREVIEW_SLAB,
+  PREVIEW_FROM_SALES,
   PREVIEW_SOLDS,
+  PREVIEW_SOLDS_PARALLEL,
   PREVIEW_SOLDS_LIMITED,
   PREVIEW_SOLDS_LOOKING,
   PREVIEW_SOLDS_NONE,
@@ -35,6 +37,8 @@ export type PreviewKind =
   | "comp-looking"
   | "comp-limited"
   | "slab-looking"
+  | "from-sales"
+  | "comp-from-sales"
   | "hub"
   | "hub-comp"
   | "door";
@@ -44,6 +48,8 @@ const SCREENS = new Set<PreviewKind>(["hub", "hub-comp", "door"]);
 const STATES: Record<Exclude<PreviewKind, "hub" | "hub-comp" | "door">, ConfirmSheetState> = {
   slab: { kind: "ready", matches: [PREVIEW_SLAB], solds: PREVIEW_SOLDS },
   "slab-looking": { kind: "ready", matches: [PREVIEW_SLAB], solds: PREVIEW_SOLDS_LOOKING },
+  "from-sales": { kind: "ready", matches: [PREVIEW_FROM_SALES], solds: PREVIEW_SOLDS_PARALLEL },
+  "comp-from-sales": { kind: "ready", matches: [PREVIEW_FROM_SALES], solds: PREVIEW_SOLDS_PARALLEL },
   raw: { kind: "ready", matches: PREVIEW_RAW, solds: PREVIEW_SOLDS_NONE },
   numbered: { kind: "ready", matches: [PREVIEW_NUMBERED, ...PREVIEW_RAW.slice(1)] },
   matching: { kind: "matching" },
@@ -73,6 +79,8 @@ const LABELS: Record<PreviewKind, string> = {
   "comp-looking": "Comp, looking up",
   "comp-limited": "Comp, daily cap",
   "slab-looking": "Slab, looking up",
+  "from-sales": "Parallel from sales",
+  "comp-from-sales": "Comp, parallel from sales",
   hub: "Hub, no reader",
   "hub-comp": "Hub comp, no reader",
   door: "Add card door",
