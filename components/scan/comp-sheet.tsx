@@ -11,6 +11,7 @@ import {
   OtherMatches,
   ParallelStrip,
   SheetFrame,
+  SplitGroups,
   parallelOptionsFor,
   skeletonBar,
 } from "@/components/scan/sheet-parts";
@@ -297,6 +298,14 @@ function ValuePanel({
         <QuietButton onClick={onRetry} className="-ml-3 mt-1">
           {COMP_COPY.retry}
         </QuietButton>
+      </div>
+    );
+  }
+
+  if (result.status === "split") {
+    return (
+      <div className={box}>
+        <SplitGroups groups={result.groups} />
       </div>
     );
   }

@@ -141,6 +141,28 @@ export const BAKEOFF_CASES: BakeoffCase[] = [
     truth: MILLER,
   },
   {
+    name: "Miller, one seller's '2024 Topps … Pink' among Pink/Red titles",
+    front: MILLER_FRONT_NO_LOGO,
+    back: ["AIDAN MILLER", "BP-27", "TOPPS.COM"],
+    live: {
+      atRung: 1,
+      sold: [
+        { title: "Aidan Miller Bowman 1st Paper Pink/Red /299 BP-27", price: 35, soldAt: "2026-11-03" },
+        { title: "Aidan Miller Bowman 1st Paper Pink/Red /299 BP-27", price: 36, soldAt: "2026-10-27" },
+        { title: "2024 Bowman Aidan Miller Pink/Red /299 BP-27", price: 38, soldAt: "2026-10-21" },
+        { title: "2024 Topps Aidan Miller BP-27 Pink /299", price: 30, soldAt: "2026-10-30" },
+      ],
+    },
+    truth: MILLER,
+  },
+  {
+    name: "Miller, front only, one saved '2024 Topps … /299' title",
+    front: MILLER_FRONT_NO_LOGO,
+    back: null,
+    titles: [{ title: "2024 Topps Aidan Miller BP-27 Pink /299", price: 30, soldAt: "2026-10-30" }],
+    truth: MILLER,
+  },
+  {
     name: "Dart, logo-only Mosaic, saved sales",
     front: ["JAXSON DART", "GIANTS", "QB", "RC", "121/199"],
     back: null,

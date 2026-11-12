@@ -4,7 +4,9 @@ import type { TrawlSoldResult } from "@/lib/comps/types";
 import { toMatchCard, type QuickCompIdentity } from "@/lib/quick-comp/identity";
 import type { CardValueSale } from "@/lib/value/types";
 import { summarizeSales, type ScanCompResult } from "./comp";
+import type { IndexedDirectoryPlayer } from "@/lib/players/types";
 import type { SoldTitle } from "./match";
+import { groupByParallel, groupFor, scanSalesFor } from "./scan-sales";
 
 /**
  * Sold prices for a scanned card from caches only. Never calls Trawl and
@@ -29,6 +31,8 @@ export type ScanCompDeps = {
   soldCache?: (playerName: string) => Promise<SoldTitle[]>;
   /** A live eBay search this scan already ran, from the shared cache. Never Trawl. */
   liveCache?: (query: string) => Promise<TrawlSoldResult[] | null>;
+  /** The player directory, so a re-filtered live search groups sales by parallel like the scan did. */
+  directory?: readonly IndexedDirectoryPlayer[];
 };
 
 export type ScanCompOptions = {
@@ -85,8 +89,7 @@ export async function lookupScanComp(
     try {
       const results = await deps.liveCache(options.query);
       if (results) {
-        const card = { ...toMatchCard(identity), serialRun: options.serialRun ?? null };
-        const sales = sharedCompValue(card, [...results]).sales;
+        const sales = deps.directory ? liveGroupSales(identity, options, results, deps.directory) : liveCardSales(identity, options, results);
         const result = summarizeSales(
           sales.map((sale) => ({ price: sale.price, soldAt: sale.soldAt })),
           { asOf: newestSoldAt(sales), source: "live" },
@@ -121,6 +124,29 @@ export async function lookupScanComp(
   }
 
   return failures === sources ? { status: "unavailable" } : { status: "none" };
+}
+
+/** The scan's own filter: same player, # and run, raw or grade, then the picked parallel's group. */
+function liveGroupSales(
+  identity: QuickCompIdentity,
+  options: ScanCompOptions,
+  results: readonly TrawlSoldResult[],
+  directory: readonly IndexedDirectoryPlayer[],
+): { price: number; soldAt: string | null }[] {
+  const { kept } = scanSalesFor(
+    { playerName: identity.playerName, cardNumber: identity.cardNumber, serialRun: options.serialRun ?? null, yearLabel: identity.yearLabel },
+    { grade: identity.grade, setBrand: identity.setBrand, parallel: identity.parallel },
+    results,
+    directory,
+  );
+  const group = groupFor(groupByParallel(kept), identity.parallel || "Base");
+  return (group?.sales ?? []).map((sale) => ({ price: sale.price, soldAt: sale.soldAt }));
+}
+
+/** Without the directory: the card-page title rules. */
+function liveCardSales(identity: QuickCompIdentity, options: ScanCompOptions, results: readonly TrawlSoldResult[]) {
+  const card = { ...toMatchCard(identity), serialRun: options.serialRun ?? null };
+  return sharedCompValue(card, [...results]).sales.map((sale) => ({ price: sale.price, soldAt: sale.soldAt }));
 }
 
 function newestSoldAt(sales: readonly { soldAt: string | null }[]): string | null {

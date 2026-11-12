@@ -280,6 +280,9 @@ export function scanPlayerName(read: ScanRead, directory: readonly IndexedDirect
   return bestPlayerName(evidenceFrom(read, directory));
 }
 
+/** Sets that are only a maker's name: a seller's "Topps" on a Bowman card is the maker. */
+const BARE_MAKER_SET = new Set(["Topps", "Upper Deck", "Leaf"]);
+
 /** Checklist prefixes only Bowman prints. A search hint for solds, never the set on the sheet. */
 const BOWMAN_ONLY_PREFIXES = new Set(["BP", "BCP", "BDC", "BDP", "BPA", "BCPA", "CPA"]);
 
@@ -680,31 +683,91 @@ function titleCandidates(
   const playerName = bestPlayerName(evidence);
   if (!playerName) return [];
   const sport = evidence.players[0]?.sport ?? evidence.sport;
-  const byIdentity = new Map<string, Candidate>();
-  for (const sold of titles.slice(0, MAX_SOLD_TITLES)) {
-    const title = typeof sold?.title === "string" ? sold.title.trim() : "";
-    if (!title || TITLE_LOT.test(title) || !titleNamesPlayer(title, playerName)) continue;
-    const read = readRawCardText([title], directory);
-    const setBrand = read.setNames[0] ?? "";
-    if (!read.yearLabel || !setBrand) continue;
-    const card: Candidate = {
+  const printedNumber = cardNumberKey(evidence.cardNumber);
+  const printedRun = evidence.serial ? Number(evidence.serial.run) : null;
+
+  // Every title for this player (and the printed # and run, when read), with or without a year or a set.
+  const parsed = titles
+    .slice(0, MAX_SOLD_TITLES)
+    .map((sold) => (typeof sold?.title === "string" ? sold.title.trim() : ""))
+    .filter((title) => title && !TITLE_LOT.test(title) && titleNamesPlayer(title, playerName))
+    .map((title) => {
+      const read = readRawCardText([title], directory);
+      return { title, read, number: cardNumberKey(read.cardNumber), runs: titleRuns(title) };
+    })
+    .filter((item) => (!printedNumber || !item.number || item.number === printedNumber))
+    .filter((item) => printedRun == null || item.runs.length === 0 || item.runs.includes(printedRun));
+
+  // A seller's bare "Topps" is the maker, not the set, when the card is a Bowman one: a Bowman-only
+  // code (BP-27) or any matching title that names Bowman.
+  const bowmanCard = (number: string) =>
+    BOWMAN_ONLY_PREFIXES.has(/^([a-z]+)-/.exec(number)?.[1]?.toUpperCase() ?? "") ||
+    parsed.some((item) => item.number === number && item.read.setNames.some((name) => /^bowman/i.test(name)));
+  const titleSet = (item: (typeof parsed)[number]) => {
+    const set = item.read.setNames[0] ?? "";
+    if (BARE_MAKER_SET.has(set) && bowmanCard(item.number || printedNumber)) return "";
+    return set;
+  };
+
+  const groups = new Map<string, { set: string; number: string; years: Map<string, number>; isRookie: boolean }>();
+  for (const item of parsed) {
+    const set = titleSet(item);
+    if (!set) continue;
+    const key = `${setMatchPhrase(set)}|${item.number}`;
+    const group = groups.get(key) ?? { set, number: item.read.cardNumber, years: new Map(), isRookie: false };
+    if (item.read.yearLabel) group.years.set(item.read.yearLabel, (group.years.get(item.read.yearLabel) ?? 0) + 1);
+    if (item.read.isRookie) group.isRookie = true;
+    groups.set(key, group);
+  }
+
+  // No title names a set ("Aidan Miller Pink/Red /299 BP-27"): they still count toward the parallel of
+  // the card the scan built, for its # and run.
+  if (groups.size === 0) return [];
+  return [...groups.values()].map((group) => {
+    // The year most titles give; titles that skip it still count toward everything else.
+    const year = [...group.years.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? (evidence.yearLabel || evidence.copyrightYear);
+    const number = cardNumberKey(group.number);
+    // Agreement is counted across ALL matching titles for this card: no year, no set, or a maker's
+    // bare name on a Bowman card all count; a title naming another set doesn't.
+    const facts = parsed
+      .filter((item) => !number || !item.number || item.number === number)
+      .filter((item) => {
+        const set = titleSet(item);
+        return !set || sameSet(set, group.set);
+      })
+      .map((item) => ({ runs: item.runs, colors: item.read.parallelWords, insert: item.read.insert }));
+    return {
       catalogId: null,
       playerName,
       sport,
-      yearLabel: seasonFor(sport, read.yearLabel),
-      setBrand,
-      cardNumber: read.cardNumber,
-      isRookie: read.isRookie,
+      yearLabel: seasonFor(sport, year),
+      setBrand: group.set,
+      cardNumber: group.number,
+      isRookie: group.isRookie,
       rowsByParallel: new Map(),
-      titles: [],
+      titles: facts,
     };
-    const key = identityKey(card);
-    const seen = byIdentity.get(key) ?? card;
-    byIdentity.set(key, seen);
-    seen.titles!.push({ runs: titleRuns(title), colors: read.parallelWords, insert: read.insert });
-    if (read.isRookie) seen.isRookie = true;
-  }
-  return [...byIdentity.values()];
+  });
+}
+
+/** Facts from matching titles that name no set and no other card #, for the card the scan built. */
+function looseTitleFacts(
+  evidence: Evidence,
+  titles: readonly SoldTitle[],
+  directory: readonly IndexedDirectoryPlayer[],
+): TitleFacts[] {
+  const playerName = bestPlayerName(evidence);
+  const printedNumber = cardNumberKey(evidence.cardNumber);
+  if (!playerName || !printedNumber) return [];
+  const printedRun = evidence.serial ? Number(evidence.serial.run) : null;
+  return titles
+    .slice(0, MAX_SOLD_TITLES)
+    .map((sold) => (typeof sold?.title === "string" ? sold.title.trim() : ""))
+    .filter((title) => title && !TITLE_LOT.test(title) && titleNamesPlayer(title, playerName))
+    .map((title) => ({ title, read: readRawCardText([title], directory), runs: titleRuns(title) }))
+    .filter((item) => cardNumberKey(item.read.cardNumber) === printedNumber && item.read.setNames.length === 0)
+    .filter((item) => printedRun == null || item.runs.includes(printedRun))
+    .map((item) => ({ runs: item.runs, colors: item.read.parallelWords, insert: item.read.insert }));
 }
 
 /** Catalog and sold-listing candidates for the same card become one, keeping the catalog row. */
@@ -742,7 +805,14 @@ export function rankScanMatches(
 ): ScanMatchResult {
   const evidence = evidenceFrom(read, options.directory);
   const fromTitles = evidence.slab && !bestPlayerName(evidence) ? [] : titleCandidates(evidence, options.soldTitles ?? [], options.directory);
-  const scored = mergeTitleCandidates(candidatesFrom(rows, evidence), fromTitles).map((card) => {
+  const merged = mergeTitleCandidates(candidatesFrom(rows, evidence), fromTitles);
+  if (fromTitles.length === 0 && !(evidence.slab && !bestPlayerName(evidence))) {
+    const loose = looseTitleFacts(evidence, options.soldTitles ?? [], options.directory);
+    for (const card of merged) {
+      if (!card.titles?.length && card.playerName === bestPlayerName(evidence)) card.titles = loose;
+    }
+  }
+  const scored = merged.map((card) => {
     const parallel = pickParallel(evidence, checklistFor(options.products, card), card.titles);
     // A slab label prints no run: when every sold title for this parallel names the same one, use it.
     if (parallel.serialRun == null && parallel.parallel && card.titles?.length) {

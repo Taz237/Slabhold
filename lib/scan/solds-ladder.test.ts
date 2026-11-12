@@ -265,3 +265,101 @@ describe("caps and cache across the ladder", () => {
     assert.equal(fetched.length, MAX_LOOKUP_CALLS);
   });
 });
+
+describe("review fixes", () => {
+  it("one seller's bare 'Topps' never names the set or picks the parallel", async () => {
+    const titles = [
+      sold("Aidan Miller Bowman 1st Paper Pink/Red /299 BP-27", 35),
+      sold("Aidan Miller Bowman 1st Paper Pink/Red /299 BP-27", 36),
+      sold("2024 Bowman Aidan Miller Pink/Red /299 BP-27", 38),
+      sold("2024 Topps Aidan Miller BP-27 Pink /299", 30),
+    ];
+    for (const front of [MILLER_FRONT, MILLER_FRONT_NO_LOGO]) {
+      for (const back of [MILLER_BACK, null]) {
+        const { value } = deps({}, { liveSearch: async () => ({ ok: true, results: titles, fetchedAt: "2026-11-12T20:00:00.000Z" }) });
+        const result = await lookupLiveSolds({ capture: capture(front, back), rows: [] }, "u1", value);
+        const top = result.matches[0];
+        assert.equal(top.setBrand, "Bowman");
+        assert.equal(top.parallel, "Pink/Red", "Pink/Red is its own parallel, not Pink");
+        assert.equal(top.parallelSource, "sales");
+        assert.ok(result.comp.status === "ok");
+        assert.deepEqual(result.comp.sales.map((sale) => sale.priceCents).sort(), [3500, 3600, 3800]);
+      }
+    }
+  });
+
+  it("a lone '2024 Topps … /299' title never makes a front-only Bowman card Topps", async () => {
+    const { value } = deps({}, {
+      liveSearch: async () => ({ ok: true, results: [sold("2024 Topps Aidan Miller BP-27 Pink /299", 30)], fetchedAt: "x" }),
+    });
+    const result = await lookupLiveSolds({ capture: capture(MILLER_FRONT_NO_LOGO, null), rows: [] }, "u1", value);
+    assert.doesNotMatch(JSON.stringify(result.matches), /Topps/);
+    assert.equal(result.comp.status, "split", "one sale with the parallel open: shown, not priced");
+  });
+
+  it("an empty early rung, then a cap: the cap message, not 'no recent sales'", async () => {
+    let calls = 0;
+    const { value } = deps({}, {
+      liveSearch: async () =>
+        calls++ === 0
+          ? { ok: true, results: [], fetchedAt: "x" }
+          : { ok: false, reason: "hourly", resetAt: "2026-11-12T21:00:00.000Z" },
+    });
+    const result = await lookupLiveSolds({ capture: capture(MILLER_FRONT, MILLER_BACK), rows: [] }, "u1", value);
+    assert.deepEqual(result.comp, { status: "limited", reason: "hourly", resetAt: "2026-11-12T21:00:00.000Z" });
+    assert.equal(result.matches[0].cardNumber, "BP-27", "the identity still shows");
+  });
+
+  it("an empty early rung, then Trawl failing: unavailable, not 'no recent sales'", async () => {
+    let calls = 0;
+    const { value } = deps({}, {
+      liveSearch: async () => (calls++ === 0 ? { ok: true, results: [], fetchedAt: "x" } : { ok: false, reason: "unavailable" }),
+    });
+    const result = await lookupLiveSolds({ capture: capture(MILLER_FRONT, MILLER_BACK), rows: [] }, "u1", value);
+    assert.deepEqual(result.comp, { status: "unavailable" });
+  });
+
+  it("the parallel open and the groups tie: each group shows, nothing priced at random", async () => {
+    const titles = [
+      sold("2024 Bowman Aidan Miller Pink/Red /299 BP-27", 36),
+      sold("2024 Bowman Aidan Miller Pink/Red /299 BP-27", 37),
+      sold("2024 Bowman Aidan Miller Purple /299 BP-27", 40),
+      sold("2024 Bowman Aidan Miller Purple /299 BP-27", 41),
+    ];
+    const { value } = deps({}, { liveSearch: async () => ({ ok: true, results: titles, fetchedAt: "x" }) });
+    const result = await lookupLiveSolds({ capture: capture(MILLER_FRONT, MILLER_BACK), rows: [] }, "u1", value);
+    assert.equal(result.matches[0].parallel, "");
+    assert.equal(result.comp.status, "split");
+    assert.ok(result.comp.status === "split");
+    assert.deepEqual(result.comp.groups.map((group) => [group.label, group.nSales]).sort(), [["Pink/Red", 2], ["Purple", 2]]);
+  });
+
+  it("the border breaks a tie on titles with no year or set, only between parallels they offer", async () => {
+    const titles = [sold("Aidan Miller Pink/Red /299 BP-27", 36), sold("Aidan Miller Purple /299 BP-27", 40)];
+    const parallel = async (border: string | null) => {
+      const { value } = deps({}, { liveSearch: async () => ({ ok: true, results: titles, fetchedAt: "x" }) });
+      return (await lookupLiveSolds({ capture: capture(MILLER_FRONT, MILLER_BACK, border), rows: [] }, "u1", value)).matches[0].parallel;
+    };
+    assert.equal(await parallel("pink"), "Pink/Red");
+    assert.equal(await parallel("purple"), "Purple");
+    assert.equal(await parallel("green"), "", "green isn't on offer: open");
+    assert.equal(await parallel(null), "");
+  });
+
+  it("picking a parallel after a split re-filters the same search the scan's way, never Trawl", async () => {
+    const { lookupScanComp } = await import("./comp-lookup");
+    const results = [
+      sold("Aidan Miller Bowman 1st Paper Pink/Red #'d 232/299 Phillies BP-27", 34.99),
+      sold("Aidan Miller Bowman Pink/Red /299 BP-27", 36),
+      sold("2024 Bowman Aidan Miller Purple /299 BP-27", 40),
+    ];
+    const comp = await lookupScanComp(
+      { playerName: "Aidan Miller", year: 2024, yearLabel: "2024", setBrand: "Bowman", cardNumber: "BP-27", parallel: "Pink/Red", grade: "Raw" },
+      "u1",
+      { quickCompCache: async () => null, collectionSales: async () => [], liveCache: async () => results, directory: INDEXED_DIRECTORY },
+      { serialRun: 299, query: "Aidan Miller BP-27 /299" },
+    );
+    assert.ok(comp.status === "ok");
+    assert.deepEqual(comp.sales.map((sale) => sale.priceCents).sort(), [3499, 3600]);
+  });
+});

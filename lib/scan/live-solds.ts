@@ -15,7 +15,7 @@ import {
   type SoldTitle,
 } from "./match";
 import { newLookupBudget, type LookupBudget } from "./live-search";
-import { groupByParallel, groupFor, scanSalesFor, type ScanSale, type ScanSalesResult } from "./scan-sales";
+import { groupByParallel, groupFor, scanSalesFor, type ParallelGroup, type ScanSale, type ScanSalesResult } from "./scan-sales";
 import { scanReadFrom, type ScanCapture } from "./session";
 
 /** One rung of the search ladder, for the dev log. Queries carry card names only, never user data. */
@@ -177,12 +177,11 @@ export async function lookupLiveSolds(
     const live = await deps.liveSearch(query, userId, budget).catch((): LiveSearchResult => ({ ok: false, reason: "unavailable" }));
     if (!live.ok) {
       deps.log?.({ rung: index, query, ok: false, reason: live.reason });
-      // A cap or a failure on the first rung means no prices; later rungs keep what earlier ones found.
-      if (usedQuery) break;
+      // Earlier rungs found nothing (or this is the first): say why there are no prices, never "no sales".
       if (live.reason === "daily" || live.reason === "hourly" || live.reason === "safety") {
-        return { matches: first, comp: { status: "limited", reason: live.reason, resetAt: live.resetAt }, query: null };
+        return { matches, comp: { status: "limited", reason: live.reason, resetAt: live.resetAt }, query: usedQuery };
       }
-      return { matches: first, comp: { status: "unavailable" }, query: null };
+      return { matches, comp: { status: "unavailable" }, query: usedQuery };
     }
     usedQuery = query;
     fetchedAt = live.fetchedAt;
@@ -199,10 +198,16 @@ export async function lookupLiveSolds(
   if (!best) return { matches: first, comp: { status: "none", searched: true }, query: usedQuery };
   if (found.kept.length === 0) return { matches, comp: { status: "none", searched: true }, query: usedQuery };
 
-  // 4. Sales by parallel: the picked parallel's group, or the biggest group, labelled.
+  // 4. Sales by parallel: the picked parallel's group, labelled. With the parallel open, only a clear
+  // leader (2+ sales, more than any other group) is priced; otherwise the groups show and it stays open.
   const groups = groupByParallel(found.kept);
-  const group = best.parallel ? groupFor(groups, best.parallel) : groups[0];
-  if (!group) return { matches, comp: { status: "none", searched: true }, query: usedQuery };
+  const leader = groups[0];
+  const clearLeader = leader && leader.sales.length >= 2 && leader.sales.length > (groups[1]?.sales.length ?? 0);
+  if (!best.parallel && !clearLeader) {
+    return { matches, comp: { status: "split", groups: groups.map(groupSummary) }, query: usedQuery };
+  }
+  const group = best.parallel ? groupFor(groups, best.parallel) : leader;
+  if (!group) return { matches, comp: { status: "split", groups: groups.map(groupSummary) }, query: usedQuery };
   const comp = summarizeSales(
     group.sales.map((sale) => ({ price: sale.price, soldAt: sale.soldAt })),
     { asOf: fetchedAt || null, source: "live" },
@@ -222,6 +227,17 @@ export async function lookupLiveSolds(
     matches,
     comp: { ...comp, parallel: group.label, groups: groups.map((item) => ({ label: item.label, nSales: item.sales.length })) },
     query: usedQuery,
+  };
+}
+
+/** A parallel's sales in one line: how many, and the newest price. */
+function groupSummary(group: ParallelGroup) {
+  const newest = [...group.sales].sort((a, b) => (b.soldAt ?? "").localeCompare(a.soldAt ?? ""))[0];
+  return {
+    label: group.label,
+    nSales: group.sales.length,
+    lastPriceCents: newest ? Math.round(newest.price * 100) : null,
+    lastSoldAt: newest?.soldAt ?? null,
   };
 }
 
