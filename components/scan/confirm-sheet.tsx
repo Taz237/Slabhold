@@ -12,7 +12,7 @@ import {
   SheetFrame,
   parallelOptionsFor,
 } from "@/components/scan/sheet-parts";
-import type { SoldsState } from "@/lib/scan/comp";
+import { COMP_COPY, type SoldsState } from "@/lib/scan/comp";
 import {
   CONFIRM_COPY,
   confirmMatch,
@@ -135,7 +135,13 @@ function Ready({
           options={parallelOptionsFor(top)}
           pick={pick}
           deferred={deferred}
-          hint={!pick && !deferred ? CONFIRM_COPY.pickParallel : null}
+          hint={
+            !pick && !deferred
+              ? CONFIRM_COPY.pickParallel
+              : top.parallelSource === "sales" && pick?.name === top.parallel
+                ? COMP_COPY.matchedFromSales
+                : null
+          }
           onChoose={choose}
         />
         {pick?.serialRun ? (

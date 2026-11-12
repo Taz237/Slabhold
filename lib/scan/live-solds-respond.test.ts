@@ -56,7 +56,7 @@ describe("respondLiveSolds", () => {
     );
     assert.equal(response.status, 200);
     assert.equal(response.headers.get("cache-control"), "private, no-store");
-    assert.deepEqual(seen[0].capture, { lines: ["AIDAN MILLER"], backLines: ["BP-27"], kind: "card" });
+    assert.deepEqual(seen[0].capture, { lines: ["AIDAN MILLER"], backLines: ["BP-27"], kind: "card", border: null });
   });
 
   it("keeps at most three catalog rows, with ids", () => {

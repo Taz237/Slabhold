@@ -284,6 +284,35 @@ function saleDay(iso: string | null): string {
 }
 
 /**
+ * Recent sales that name more than one parallel, with the card's still open:
+ * each group's count and newest price, and nothing priced until it's picked.
+ */
+export function SplitGroups({ groups }: { groups: { label: string; nSales: number; lastPriceCents: number | null; lastSoldAt: string | null }[] }) {
+  return (
+    <div role="status">
+      <p className="text-sm font-medium">{COMP_COPY.split}</p>
+      <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">{COMP_COPY.splitBody}</p>
+      <ul className="mt-2 divide-y divide-zinc-200 dark:divide-white/10">
+        {groups.map((group) => (
+          <li key={group.label} className="flex min-h-10 items-center justify-between gap-3 text-sm">
+            <span>
+              {group.label}
+              <span className="text-zinc-500">
+                {" · "}
+                <span className="font-mono tabular-nums">{group.nSales}</span> sold
+              </span>
+            </span>
+            {group.lastPriceCents != null ? (
+              <span className="font-mono font-medium tabular-nums">{money(group.lastPriceCents / 100)}</span>
+            ) : null}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+/**
  * The card's last eBay sold, one line under the match on the Add card sheet.
  * Looking while the live search runs, then the price and day, or plainly why
  * there isn't one. Never a made-up price.
@@ -301,13 +330,23 @@ export function LastSold({ solds }: { solds: SoldsState }) {
     );
   }
   const { comp } = solds;
+  if (comp.status === "split") {
+    return (
+      <div className="rounded-2xl border border-zinc-200 px-4 py-3 dark:border-white/10">
+        <SplitGroups groups={comp.groups} />
+      </div>
+    );
+  }
   const sale = lastSale(comp);
   if (sale) {
     const day = saleDay(sale.soldAt);
     return (
       <div className={box}>
         <div className="min-w-0">
-          <p className="text-[13px] font-medium text-zinc-500">{COMP_COPY.lastSold}</p>
+          <p className="text-[13px] font-medium text-zinc-500">
+            {COMP_COPY.lastSold}
+            {comp.status === "ok" && comp.parallel ? ` · ${comp.parallel}` : ""}
+          </p>
           <p className="text-xs text-zinc-500">{COMP_COPY.credit}</p>
         </div>
         <p className="shrink-0 text-right">

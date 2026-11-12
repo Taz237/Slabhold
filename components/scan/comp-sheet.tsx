@@ -11,6 +11,7 @@ import {
   OtherMatches,
   ParallelStrip,
   SheetFrame,
+  SplitGroups,
   parallelOptionsFor,
   skeletonBar,
 } from "@/components/scan/sheet-parts";
@@ -183,7 +184,7 @@ function Ready({
       <MatchSummary photo={photo} match={top} />
 
       {target ? (
-        <ValuePanel result={result} looking={looking} onRetry={retry} assumedBase={target.assumedBase} />
+        <ValuePanel result={result} looking={looking} onRetry={retry} assumedBase={target.assumedBase} serialRun={serialRun} />
       ) : (
         <p className="text-sm text-zinc-600 dark:text-zinc-400">{COMP_COPY.needYear}</p>
       )}
@@ -193,7 +194,13 @@ function Ready({
         // The prices shown are Base's, so Base reads selected until another parallel is tapped.
         pick={pick ?? (target?.assumedBase ? { name: "Base", serialRun: null } : null)}
         somethingElse={false}
-        hint={target?.assumedBase ? COMP_COPY.assumedBase : null}
+        hint={
+          target?.assumedBase
+            ? COMP_COPY.assumedBase
+            : top.parallelSource === "sales" && pick?.name === top.parallel
+              ? COMP_COPY.matchedFromSales
+              : null
+        }
         onChoose={setPick}
       />
 
@@ -251,8 +258,11 @@ function ValuePanel({
   looking,
   onRetry,
   assumedBase,
+  serialRun = null,
 }: {
   result: ScanCompResult | undefined;
+  /** The card's print run, shown with the parallel the sales are for. */
+  serialRun?: number | null;
   /** The live eBay search is running: say so, it takes a few seconds. */
   looking: boolean;
   onRetry: () => void;
@@ -288,6 +298,14 @@ function ValuePanel({
         <QuietButton onClick={onRetry} className="-ml-3 mt-1">
           {COMP_COPY.retry}
         </QuietButton>
+      </div>
+    );
+  }
+
+  if (result.status === "split") {
+    return (
+      <div className={box}>
+        <SplitGroups groups={result.groups} />
       </div>
     );
   }
@@ -342,7 +360,16 @@ function ValuePanel({
         <p className="text-[15px] font-semibold">{COMP_COPY.fewSales}</p>
       )}
 
-      <p className="mt-4 text-[13px] font-medium text-zinc-500">{COMP_COPY.sales}</p>
+      <p className="mt-4 text-[13px] font-medium text-zinc-500">
+        {COMP_COPY.sales}
+        {result.parallel ? (
+          <span>
+            {" · "}
+            {result.parallel}
+            {serialRun ? <span className="font-mono tabular-nums"> /{serialRun}</span> : null}
+          </span>
+        ) : null}
+      </p>
       <ul className="mt-1 divide-y divide-zinc-200 dark:divide-white/10">
         {result.sales.slice(0, 5).map((sale, index) => (
           <li key={`${sale.soldAt ?? "sale"}-${index}`} className="flex min-h-10 items-center justify-between text-sm">

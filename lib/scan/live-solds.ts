@@ -8,13 +8,20 @@ import type { QuickCompLimitReason } from "@/lib/quick-comp/limits";
 import { compIdentityFromMatch, scanCompGrade, summarizeSales, type ScanCompResult } from "./comp";
 import { salesForCard } from "./comp-lookup";
 import {
-  liveSearchQuery,
+  liveSearchLadder,
   rankScanMatches,
   scanPlayerName,
   type ScanMatch,
   type SoldTitle,
 } from "./match";
+import { newLookupBudget, type LookupBudget } from "./live-search";
+import { groupByParallel, groupFor, scanSalesFor, type ParallelGroup, type ScanSale, type ScanSalesResult } from "./scan-sales";
 import { scanReadFrom, type ScanCapture } from "./session";
+
+/** One rung of the search ladder, for the dev log. Queries carry card names only, never user data. */
+export type LadderLog =
+  | { rung: number; query: string; ok: true; results: number; kept: number; dropped: ScanSalesResult["dropped"] }
+  | { rung: number; query: string; ok: false; reason: string };
 
 /**
  * One scan's last eBay solds. Identify first (what the card prints, plus sold
@@ -49,14 +56,16 @@ export type LiveSoldsDeps = {
   cachedTitles: (player: string) => Promise<SoldTitle[]>;
   /** Quick Comp's shared cache for this exact card and grade. Null on a miss; never fetches. */
   quickCompCache: (identity: QuickCompIdentity) => Promise<{ comps: { soldPrice: number; soldDate: string }[]; fetchedAt: string | null; sample?: boolean } | null>;
-  /** One Trawl sold search, shared per query. Spends the caps only on a miss. */
-  liveSearch: (query: string, userId: string) => Promise<LiveSearchResult>;
+  /** One Trawl sold search, shared per query. Spends the caps only on a miss, once per lookup (the budget). */
+  liveSearch: (query: string, userId: string, budget?: LookupBudget) => Promise<LiveSearchResult>;
+  /** Dev-only trace of each rung: the query, results back, kept, and why the rest were dropped. No user data. */
+  log?: (event: LadderLog) => void;
   /** Puts this card's live sales in Quick Comp's shared cache. */
   storeQuickComp: (identity: QuickCompIdentity, sales: CleanedSale[], results: TrawlSoldResult[], meta: { query: string; fetchedAt: string }) => Promise<void>;
 };
 
 export type LiveSoldsInput = {
-  capture: Pick<ScanCapture, "lines" | "backLines" | "kind">;
+  capture: Pick<ScanCapture, "lines" | "backLines" | "kind" | "border">;
   /** The rows the phone already ranked (catalog cards), so the re-rank keeps them. */
   rows: CatalogCard[];
 };
@@ -155,34 +164,97 @@ export async function lookupLiveSolds(
     }
   }
 
-  // 2. One live search, built from what we know.
-  const query = liveSearchQuery(read, top, deps.directory);
-  if (!query) return { matches: first, comp: { status: "none" }, query: null };
-  const live = await deps.liveSearch(query, userId).catch((): LiveSearchResult => ({ ok: false, reason: "unavailable" }));
-  if (!live.ok) {
-    if (live.reason === "daily" || live.reason === "hourly" || live.reason === "safety") {
-      return { matches: first, comp: { status: "limited", reason: live.reason, resetAt: live.resetAt }, query: null };
+  // 2. The search ladder, built from what we know: stop at the first rung that finds this card's sales.
+  const ladder = liveSearchLadder(read, top, deps.directory);
+  if (ladder.length === 0) return { matches: first, comp: { status: "none" }, query: null };
+  const budget = newLookupBudget();
+  const results: TrawlSoldResult[] = [];
+  let fetchedAt = "";
+  let usedQuery: string | null = null;
+  let matches = first;
+  let found: ScanSalesResult = { kept: [], dropped: emptyDropped() };
+  for (const [index, query] of ladder.entries()) {
+    const live = await deps.liveSearch(query, userId, budget).catch((): LiveSearchResult => ({ ok: false, reason: "unavailable" }));
+    if (!live.ok) {
+      deps.log?.({ rung: index, query, ok: false, reason: live.reason });
+      // Earlier rungs found nothing (or this is the first): say why there are no prices, never "no sales".
+      if (live.reason === "daily" || live.reason === "hourly" || live.reason === "safety") {
+        return { matches, comp: { status: "limited", reason: live.reason, resetAt: live.resetAt }, query: usedQuery };
+      }
+      return { matches, comp: { status: "unavailable" }, query: usedQuery };
     }
-    return { matches: first, comp: { status: "unavailable" }, query: null };
+    usedQuery = query;
+    fetchedAt = live.fetchedAt;
+    results.push(...live.results);
+    // 3. The sold titles help finish the identity (set, #, parallel).
+    matches = rank([...saved, ...liveTitles(results)]);
+    const best = matches[0];
+    found = best ? scanSalesFor(best, { grade: scanCompGrade(best), setBrand: best.setBrand, parallel: best.parallel }, results, deps.directory) : found;
+    deps.log?.({ rung: index, query, ok: true, results: live.results.length, kept: found.kept.length, dropped: found.dropped });
+    if (found.kept.length > 0) break;
   }
 
-  // 3. The sold titles help finish the identity.
-  const matches = rank([...saved, ...liveTitles(live.results)]);
   const best = matches[0];
-  const identity = best ? identityOf(best) : null;
-  if (!best || !identity) return { matches: matches.length > 0 ? matches : first, comp: { status: "none", searched: true }, query };
+  if (!best) return { matches: first, comp: { status: "none", searched: true }, query: usedQuery };
+  if (found.kept.length === 0) return { matches, comp: { status: "none", searched: true }, query: usedQuery };
 
-  // 4. Only this exact card's sales, stored for the next scan or Quick Comp.
-  const sales = liveSalesFor(best, identity, live.results);
-  try {
-    await deps.storeQuickComp(identity, sales, live.results, { query, fetchedAt: live.fetchedAt });
-  } catch {
-    // The prices still show; the next scan searches again.
+  // 4. Sales by parallel: the picked parallel's group, labelled. With the parallel open, only a clear
+  // leader (2+ sales, more than any other group) is priced; otherwise the groups show and it stays open.
+  const groups = groupByParallel(found.kept);
+  const leader = groups[0];
+  const clearLeader = leader && leader.sales.length >= 2 && leader.sales.length > (groups[1]?.sales.length ?? 0);
+  if (!best.parallel && !clearLeader) {
+    return { matches, comp: { status: "split", groups: groups.map(groupSummary) }, query: usedQuery };
   }
+  const group = best.parallel ? groupFor(groups, best.parallel) : leader;
+  if (!group) return { matches, comp: { status: "split", groups: groups.map(groupSummary) }, query: usedQuery };
   const comp = summarizeSales(
-    sales.map((sale) => ({ price: sale.price, soldAt: sale.soldAt })),
-    { asOf: live.fetchedAt, source: "live" },
+    group.sales.map((sale) => ({ price: sale.price, soldAt: sale.soldAt })),
+    { asOf: fetchedAt || null, source: "live" },
   );
-  return { matches, comp: comp.status === "none" ? { status: "none", searched: true } : comp, query };
+  if (comp.status !== "ok") return { matches, comp: { status: "none", searched: true }, query: usedQuery };
+
+  // Stored for the next scan or Quick Comp only when the parallel is known: an open one would file under Base.
+  const identity = identityOf(best);
+  if (identity && best.parallel && usedQuery) {
+    try {
+      await deps.storeQuickComp(identity, group.sales.map(toCleanedSale), results, { query: usedQuery, fetchedAt });
+    } catch {
+      // The prices still show; the next scan searches again.
+    }
+  }
+  return {
+    matches,
+    comp: { ...comp, parallel: group.label, groups: groups.map((item) => ({ label: item.label, nSales: item.sales.length })) },
+    query: usedQuery,
+  };
+}
+
+/** A parallel's sales in one line: how many, and the newest price. */
+function groupSummary(group: ParallelGroup) {
+  const newest = [...group.sales].sort((a, b) => (b.soldAt ?? "").localeCompare(a.soldAt ?? ""))[0];
+  return {
+    label: group.label,
+    nSales: group.sales.length,
+    lastPriceCents: newest ? Math.round(newest.price * 100) : null,
+    lastSoldAt: newest?.soldAt ?? null,
+  };
+}
+
+function emptyDropped(): ScanSalesResult["dropped"] {
+  return { junk: 0, player: 0, number: 0, run: 0, year: 0, grade: 0, removed: 0 };
+}
+
+function toCleanedSale(sale: ScanSale): CleanedSale {
+  return {
+    itemId: sale.itemId,
+    title: sale.title,
+    price: sale.price,
+    currency: "USD",
+    soldAt: sale.soldAt ?? "",
+    grader: null,
+    grade: null,
+    url: "",
+  };
 }
 

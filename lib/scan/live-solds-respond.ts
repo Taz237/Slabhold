@@ -13,6 +13,8 @@ export type LiveSoldsRouteDeps = {
 };
 
 const PRIVATE = { "Cache-Control": "private, no-store" };
+/** The color names lib/ios/scanner.ts gives a border. Anything else is dropped. */
+const BORDER_NAMES = new Set(["red", "orange", "gold", "green", "aqua", "blue", "purple", "pink"]);
 const MAX_ROWS = 3;
 const FIELD = 80;
 
@@ -60,7 +62,15 @@ export async function respondLiveSolds(request: Request, deps: LiveSoldsRouteDep
     return Response.json({ error: LIVE_SOLDS_RATE_MESSAGE }, { status: 429, headers: PRIVATE });
   }
   const result = await deps.lookup(
-    { capture: { lines: capture.lines, backLines: capture.backLines, kind: capture.kind }, rows: rowsFromBody(body?.rows) },
+    {
+      capture: {
+        lines: capture.lines,
+        backLines: capture.backLines,
+        kind: capture.kind,
+        border: typeof body?.border === "string" && BORDER_NAMES.has(body.border) ? body.border : null,
+      },
+      rows: rowsFromBody(body?.rows),
+    },
     userId,
   );
   return Response.json(result, { headers: PRIVATE });

@@ -456,12 +456,15 @@ function readSets(lineWords: string[][], options: { back?: boolean } = {}): stri
   return names.slice(0, MAX_SETS);
 }
 
+/** Color and finish words in the order the card (or title) prints them: "Pink/Red" stays Pink, Red. */
 function readParallelWords(lineWords: string[][]): string[] {
+  const flat = lineWords.flat();
   const found: string[] = [];
   for (const label of PARALLEL_WORDS) {
     if (hasPhrase(lineWords, normInterest(label).split(" "))) found.push(label);
   }
-  return found;
+  const at = (label: string) => flat.indexOf(normInterest(label).split(" ")[0] ?? "");
+  return found.sort((a, b) => at(a) - at(b));
 }
 
 function readInsert(lines: string[]): string {

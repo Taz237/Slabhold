@@ -21,6 +21,8 @@ export type ScanCapture = {
   image: string | null;
   /** The scanner's guess from the shape. Null when it couldn't tell. */
   kind: "card" | "slab" | null;
+  /** The border's color name from the photo (pink, red, purple...), read on the phone. Null when unclear. */
+  border?: string | null;
 };
 
 /** The scanner's slab or card call wins; with no call, a label-looking read is a slab. */
@@ -31,6 +33,7 @@ export function scanReadFrom(capture: ScanCapture, directory: readonly IndexedDi
     kind: "raw",
     front: readRawCardText(capture.lines, directory, { side: "front" }),
     back: capture.backLines ? readRawCardText(capture.backLines, directory, { side: "back" }) : null,
+    border: capture.border ?? null,
   };
 }
 

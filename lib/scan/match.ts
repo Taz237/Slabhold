@@ -31,7 +31,13 @@ import type { SlabLabelRead } from "./slab-label";
 
 export type ScanRead =
   | { kind: "slab"; label: SlabLabelRead }
-  | { kind: "raw"; front: RawCardRead; back?: RawCardRead | null };
+  | {
+      kind: "raw";
+      front: RawCardRead;
+      back?: RawCardRead | null;
+      /** The border's color name from the photo (pink, red, purple...), read on the phone. Only breaks ties. */
+      border?: string | null;
+    };
 
 export type FieldSureness = "sure" | "likely" | "unsure";
 
@@ -65,6 +71,8 @@ export type ScanMatch = {
   sureness: Record<"player" | "year" | "set" | "number" | "parallel", FieldSureness>;
   /** Likely parallels for the picker, best first. One row when the parallel is sure. */
   parallelOptions: ProductParallel[];
+  /** Where a likely parallel came from: the card's print, or sold titles that agree. */
+  parallelSource?: "card" | "sales";
 };
 
 export type ScanMatchResult = {
@@ -115,6 +123,8 @@ type Evidence = {
   sport: string;
   /** An insert the card names, such as Instinct. */
   insert: string;
+  /** The border color read from the photo, for ties only. */
+  border: string | null;
   yearLabel: string;
   copyrightYear: string;
   setNames: string[];
@@ -174,6 +184,7 @@ function evidenceFrom(read: ScanRead, directory: readonly IndexedDirectoryPlayer
       playerBothSides: false,
       sport: "",
       insert: "",
+      border: null,
       yearLabel: label.yearLabel,
       copyrightYear: "",
       setNames: label.setName ? [label.setName] : [],
@@ -246,6 +257,7 @@ function evidenceFrom(read: ScanRead, directory: readonly IndexedDirectoryPlayer
     playerBothSides: Boolean(lockedName) && onBoth(compactName(lockedName)),
     sport: sides.map((side) => side.team?.sport ?? "").find(Boolean) ?? "",
     insert: sides.map((side) => side.insert).find(Boolean) ?? "",
+    border: read.border ?? null,
     yearLabel: sides.map((side) => side.yearLabel).find(Boolean) ?? "",
     copyrightYear: sides.map((side) => side.copyrightYear).find(Boolean) ?? "",
     setNames,
@@ -268,35 +280,58 @@ export function scanPlayerName(read: ScanRead, directory: readonly IndexedDirect
   return bestPlayerName(evidenceFrom(read, directory));
 }
 
+/** Sets that are only a maker's name: a seller's "Topps" on a Bowman card is the maker. */
+const BARE_MAKER_SET = new Set(["Topps", "Upper Deck", "Leaf"]);
+
+/** Checklist prefixes only Bowman prints. A search hint for solds, never the set on the sheet. */
+const BOWMAN_ONLY_PREFIXES = new Set(["BP", "BCP", "BDC", "BDP", "BPA", "BCPA", "CPA"]);
+
+/** Most Trawl calls one scan's search ladder makes. */
+export const MAX_LADDER_RUNGS = 4;
+
 /**
- * The eBay sold search for this scan: only what we know. Year, set, card #
- * and parallel come from the top match when the card backed them (never a
- * catalog guess the card didn't show), plus the printed insert, print run and
- * a slab's grade. "Jaxson Dart /199" or "2024 Bowman Aidan Miller #BP-27 /299".
- * "" with no player: no search.
+ * The eBay sold searches for this scan, broadest last, stopping at the first
+ * that finds this card's sales:
+ *   a. player + set + card # + /run   ("Aidan Miller Bowman BP-27 /299")
+ *   b. player + card # + /run         ("Aidan Miller BP-27 /299")
+ *   c. player + set + card #          ("Aidan Miller Bowman BP-27")
+ *   d. player + card #                ("Aidan Miller BP-27")
+ * No "#" and no year: eBay titles often skip them. The set and card # come from
+ * the top match only when the card backed them; a Bowman-only checklist code
+ * (BP-27) adds "Bowman" to the search, never to the sheet. The printed insert
+ * and a slab's grade ride along. The player alone only when nothing else was read.
  */
+export function liveSearchLadder(
+  read: ScanRead,
+  top: ScanMatch | null | undefined,
+  directory: readonly IndexedDirectoryPlayer[],
+): string[] {
+  const evidence = evidenceFrom(read, directory);
+  const player = top?.playerName || bestPlayerName(evidence);
+  if (!player) return [];
+  const known = (field: keyof ScanMatch["sureness"]) => Boolean(top) && top!.sureness[field] !== "unsure";
+  const number = top && top.sureness.number === "sure" ? top.cardNumber : !top ? evidence.cardNumber : "";
+  const prefix = /^([A-Z]+)-/i.exec(number)?.[1]?.toUpperCase() ?? "";
+  const set = known("set") ? top!.setBrand : BOWMAN_ONLY_PREFIXES.has(prefix) ? "Bowman" : "";
+  const insert = evidence.insert;
+  const run = evidence.serial ? `/${evidence.serial.run}` : "";
+  const grade = evidence.grade?.company && evidence.grade.number ? `${evidence.grade.company} ${evidence.grade.number}` : "";
+  const rung = (...parts: string[]) => [player, ...parts].filter(Boolean).join(" ").replace(/\s+/g, " ").trim();
+  const rungs = number
+    ? [rung(set, insert, number, run, grade), rung(insert, number, run, grade), rung(set, insert, number, grade), rung(insert, number, grade)]
+    : [rung(set, insert, run, grade), rung(insert, run, grade), rung(set, insert, grade)];
+  const useful = [...new Set(rungs)].filter((query) => query !== player);
+  // Nothing but the name was read: search the player once, and let the titles name the card.
+  return (useful.length > 0 ? useful : [player]).slice(0, MAX_LADDER_RUNGS);
+}
+
+/** The first rung of the ladder. "" with no player: no search. */
 export function liveSearchQuery(
   read: ScanRead,
   top: ScanMatch | null | undefined,
   directory: readonly IndexedDirectoryPlayer[],
 ): string {
-  const evidence = evidenceFrom(read, directory);
-  const player = top && evidence.playerLocked ? top.playerName : top?.playerName || bestPlayerName(evidence);
-  if (!player) return "";
-  const known = (field: keyof ScanMatch["sureness"]) => Boolean(top) && top!.sureness[field] !== "unsure";
-  const year = known("year") ? top!.yearLabel : evidence.yearLabel;
-  const set = known("set") ? top!.setBrand : "";
-  const number = top && top.sureness.number === "sure" ? top.cardNumber : !top ? evidence.cardNumber : "";
-  const parallel =
-    top && top.sureness.parallel === "sure" && parallelMatchKey(top.parallel) !== "base" ? top.parallel : "";
-  const insert = evidence.insert && !parallel.toLowerCase().includes(evidence.insert.toLowerCase()) ? evidence.insert : "";
-  const run = evidence.serial ? `/${evidence.serial.run}` : "";
-  const grade = evidence.grade?.company && evidence.grade.number ? `${evidence.grade.company} ${evidence.grade.number}` : "";
-  return [year, set, player, number ? `#${number}` : "", insert, parallel, run, grade]
-    .filter(Boolean)
-    .join(" ")
-    .replace(/\s+/g, " ")
-    .trim();
+  return liveSearchLadder(read, top, directory)[0] ?? "";
 }
 
 /** Up to 2 search_cards queries: the full card, then the player alone. */
@@ -418,7 +453,17 @@ type ParallelPick = {
   sureness: FieldSureness;
   serialRun: number | null;
   options: ProductParallel[];
+  source?: "card" | "sales";
 };
+
+const COLOR_WORDS = new Set(["red", "pink", "magenta", "fuchsia", "purple", "blue", "aqua", "green", "yellow", "orange", "gold", "black", "silver", "bronze", "white"]);
+
+/** "PINK RED" → "Pink/Red" (colors only, the way eBay lists them); "GREEN REFRACTOR" → "Green Refractor". */
+export function parallelLabel(colorWords: readonly string[]): string {
+  const list = colorWords.flatMap((phrase) => words(phrase));
+  if (list.length >= 2 && list.every((word) => COLOR_WORDS.has(word))) return list.map((word) => titleCase(word)).join("/");
+  return titleCase(list.join(" "));
+}
 
 function checklistFor(
   products: readonly ProductRecord[] | null,
@@ -447,13 +492,30 @@ function longestNamed(options: ProductParallel[], shown: readonly string[]): Pro
  * "Green Refractor /99" and "Green 61/99"), or "" when they don't agree or
  * none names one. One listing that disagrees leaves it open.
  */
-function titleColor(titles: readonly TitleFacts[], run: number | null): string {
+function titleColor(titles: readonly TitleFacts[], run: number | null, border: string | null = null): string {
   const named = titles
     .filter((item) => item.colors.length > 0 && (run == null ? item.runs.length === 0 : item.runs.includes(run)))
     .map((item) => item.colors.flatMap((phrase) => phrase.split(" ")));
   if (named.length === 0) return "";
+  // Most of the sales name one parallel: that's it (Pink/Red /299, with one Base /299 listing that's mislabeled).
+  const groups = new Map<string, { words: string[]; count: number }>();
+  for (const list of named) {
+    const key = [...new Set(list)].sort().join(" ");
+    const group = groups.get(key) ?? { words: [...new Set(list)], count: 0 };
+    group.count += 1;
+    groups.set(key, group);
+  }
+  const ranked = [...groups.values()].sort((a, b) => b.count - a.count);
+  if (ranked[0].count >= 2 && ranked[0].count * 2 > named.length) return ranked[0].words.join(" ");
+  // All of them share a color: that much is sure (Green from "Green Refractor" and "Green").
   const shared = named[0].filter((word) => named.every((list) => list.includes(word)));
-  return [...new Set(shared)].join(" ");
+  if (shared.length > 0) return [...new Set(shared)].join(" ");
+  // The titles offer a few parallels at this run: the border's color picks one, only when exactly one fits.
+  if (border) {
+    const fits = ranked.filter((group) => group.words.some((word) => word.toLowerCase() === border.toLowerCase()));
+    if (fits.length === 1) return fits[0].words.join(" ");
+  }
+  return "";
 }
 
 /** The one print run the sold titles naming this parallel agree on, or null. */
@@ -489,11 +551,11 @@ function pickParallel(evidence: Evidence, checklist: ProductParallel[], titles: 
   const run = evidence.serial ? Number(evidence.serial.run) : null;
   // A color word printed on the card wins. Otherwise a clear sold title for this print run can pin one.
   const printedColor = evidence.parallelWords.length > 0;
-  const soldColor = titleColor(titles, run);
+  const soldColor = titleColor(titles, run, evidence.border);
 
   // A printed insert is the card's own name (Instinct), not a guess. Its color comes from the card or a sold title.
   if (evidence.insert) {
-    const color = printedColor ? titleCase(evidence.parallelWords.join(" ")) : soldColor ? titleCase(soldColor) : "";
+    const color = printedColor ? titleCase(evidence.parallelWords.join(" ")) : soldColor ? parallelLabel([soldColor]) : "";
     const name = color ? `${evidence.insert} ${color}` : evidence.insert;
     const options: ProductParallel[] = [{ name, serialRun: run }];
     if (name !== evidence.insert) options.push({ name: evidence.insert, serialRun: run });
@@ -510,8 +572,8 @@ function pickParallel(evidence: Evidence, checklist: ProductParallel[], titles: 
   }
   if (!printedColor && soldColor && named.length === 0) {
     const fromList = longestNamed(fitsRun.length > 0 ? fitsRun : checklist, words(soldColor));
-    const pinned = fromList.length === 1 ? fromList[0].name : titleCase(soldColor);
-    return { parallel: pinned, sureness: "likely", serialRun: run, options: [{ name: pinned, serialRun: run }] };
+    const pinned = fromList.length === 1 ? fromList[0].name : parallelLabel([soldColor]);
+    return { parallel: pinned, sureness: "likely", serialRun: run, options: [{ name: pinned, serialRun: run }], source: "sales" };
   }
   // A numbered card is never Base, and with no checklist run that fits, any color would be a guess:
   // leave it open with no chips. The print run the card showed still shows on the sheet.
@@ -621,31 +683,91 @@ function titleCandidates(
   const playerName = bestPlayerName(evidence);
   if (!playerName) return [];
   const sport = evidence.players[0]?.sport ?? evidence.sport;
-  const byIdentity = new Map<string, Candidate>();
-  for (const sold of titles.slice(0, MAX_SOLD_TITLES)) {
-    const title = typeof sold?.title === "string" ? sold.title.trim() : "";
-    if (!title || TITLE_LOT.test(title) || !titleNamesPlayer(title, playerName)) continue;
-    const read = readRawCardText([title], directory);
-    const setBrand = read.setNames[0] ?? "";
-    if (!read.yearLabel || !setBrand) continue;
-    const card: Candidate = {
+  const printedNumber = cardNumberKey(evidence.cardNumber);
+  const printedRun = evidence.serial ? Number(evidence.serial.run) : null;
+
+  // Every title for this player (and the printed # and run, when read), with or without a year or a set.
+  const parsed = titles
+    .slice(0, MAX_SOLD_TITLES)
+    .map((sold) => (typeof sold?.title === "string" ? sold.title.trim() : ""))
+    .filter((title) => title && !TITLE_LOT.test(title) && titleNamesPlayer(title, playerName))
+    .map((title) => {
+      const read = readRawCardText([title], directory);
+      return { title, read, number: cardNumberKey(read.cardNumber), runs: titleRuns(title) };
+    })
+    .filter((item) => (!printedNumber || !item.number || item.number === printedNumber))
+    .filter((item) => printedRun == null || item.runs.length === 0 || item.runs.includes(printedRun));
+
+  // A seller's bare "Topps" is the maker, not the set, when the card is a Bowman one: a Bowman-only
+  // code (BP-27) or any matching title that names Bowman.
+  const bowmanCard = (number: string) =>
+    BOWMAN_ONLY_PREFIXES.has(/^([a-z]+)-/.exec(number)?.[1]?.toUpperCase() ?? "") ||
+    parsed.some((item) => item.number === number && item.read.setNames.some((name) => /^bowman/i.test(name)));
+  const titleSet = (item: (typeof parsed)[number]) => {
+    const set = item.read.setNames[0] ?? "";
+    if (BARE_MAKER_SET.has(set) && bowmanCard(item.number || printedNumber)) return "";
+    return set;
+  };
+
+  const groups = new Map<string, { set: string; number: string; years: Map<string, number>; isRookie: boolean }>();
+  for (const item of parsed) {
+    const set = titleSet(item);
+    if (!set) continue;
+    const key = `${setMatchPhrase(set)}|${item.number}`;
+    const group = groups.get(key) ?? { set, number: item.read.cardNumber, years: new Map(), isRookie: false };
+    if (item.read.yearLabel) group.years.set(item.read.yearLabel, (group.years.get(item.read.yearLabel) ?? 0) + 1);
+    if (item.read.isRookie) group.isRookie = true;
+    groups.set(key, group);
+  }
+
+  // No title names a set ("Aidan Miller Pink/Red /299 BP-27"): they still count toward the parallel of
+  // the card the scan built, for its # and run.
+  if (groups.size === 0) return [];
+  return [...groups.values()].map((group) => {
+    // The year most titles give; titles that skip it still count toward everything else.
+    const year = [...group.years.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? (evidence.yearLabel || evidence.copyrightYear);
+    const number = cardNumberKey(group.number);
+    // Agreement is counted across ALL matching titles for this card: no year, no set, or a maker's
+    // bare name on a Bowman card all count; a title naming another set doesn't.
+    const facts = parsed
+      .filter((item) => !number || !item.number || item.number === number)
+      .filter((item) => {
+        const set = titleSet(item);
+        return !set || sameSet(set, group.set);
+      })
+      .map((item) => ({ runs: item.runs, colors: item.read.parallelWords, insert: item.read.insert }));
+    return {
       catalogId: null,
       playerName,
       sport,
-      yearLabel: seasonFor(sport, read.yearLabel),
-      setBrand,
-      cardNumber: read.cardNumber,
-      isRookie: read.isRookie,
+      yearLabel: seasonFor(sport, year),
+      setBrand: group.set,
+      cardNumber: group.number,
+      isRookie: group.isRookie,
       rowsByParallel: new Map(),
-      titles: [],
+      titles: facts,
     };
-    const key = identityKey(card);
-    const seen = byIdentity.get(key) ?? card;
-    byIdentity.set(key, seen);
-    seen.titles!.push({ runs: titleRuns(title), colors: read.parallelWords, insert: read.insert });
-    if (read.isRookie) seen.isRookie = true;
-  }
-  return [...byIdentity.values()];
+  });
+}
+
+/** Facts from matching titles that name no set and no other card #, for the card the scan built. */
+function looseTitleFacts(
+  evidence: Evidence,
+  titles: readonly SoldTitle[],
+  directory: readonly IndexedDirectoryPlayer[],
+): TitleFacts[] {
+  const playerName = bestPlayerName(evidence);
+  const printedNumber = cardNumberKey(evidence.cardNumber);
+  if (!playerName || !printedNumber) return [];
+  const printedRun = evidence.serial ? Number(evidence.serial.run) : null;
+  return titles
+    .slice(0, MAX_SOLD_TITLES)
+    .map((sold) => (typeof sold?.title === "string" ? sold.title.trim() : ""))
+    .filter((title) => title && !TITLE_LOT.test(title) && titleNamesPlayer(title, playerName))
+    .map((title) => ({ title, read: readRawCardText([title], directory), runs: titleRuns(title) }))
+    .filter((item) => cardNumberKey(item.read.cardNumber) === printedNumber && item.read.setNames.length === 0)
+    .filter((item) => printedRun == null || item.runs.includes(printedRun))
+    .map((item) => ({ runs: item.runs, colors: item.read.parallelWords, insert: item.read.insert }));
 }
 
 /** Catalog and sold-listing candidates for the same card become one, keeping the catalog row. */
@@ -683,7 +805,14 @@ export function rankScanMatches(
 ): ScanMatchResult {
   const evidence = evidenceFrom(read, options.directory);
   const fromTitles = evidence.slab && !bestPlayerName(evidence) ? [] : titleCandidates(evidence, options.soldTitles ?? [], options.directory);
-  const scored = mergeTitleCandidates(candidatesFrom(rows, evidence), fromTitles).map((card) => {
+  const merged = mergeTitleCandidates(candidatesFrom(rows, evidence), fromTitles);
+  if (fromTitles.length === 0 && !(evidence.slab && !bestPlayerName(evidence))) {
+    const loose = looseTitleFacts(evidence, options.soldTitles ?? [], options.directory);
+    for (const card of merged) {
+      if (!card.titles?.length && card.playerName === bestPlayerName(evidence)) card.titles = loose;
+    }
+  }
+  const scored = merged.map((card) => {
     const parallel = pickParallel(evidence, checklistFor(options.products, card), card.titles);
     // A slab label prints no run: when every sold title for this parallel names the same one, use it.
     if (parallel.serialRun == null && parallel.parallel && card.titles?.length) {
@@ -707,6 +836,7 @@ export function rankScanMatches(
       score: identityScore(evidence, card) + titleScore(evidence, card) + parallelBonus,
       sureness: sureness(evidence, card, parallel),
       parallelOptions: parallel.options,
+      ...(parallel.source ? { parallelSource: parallel.source } : {}),
     };
     return match;
   });

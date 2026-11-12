@@ -6,7 +6,7 @@ describe("scanCaptureFrom", () => {
   it("keeps the lines, back, crop and kind", () => {
     assert.deepEqual(
       scanCaptureFrom({ lines: ["LUKA DONCIC", 7, "PRIZM"], backLines: ["#280"], image: "QUJD", kind: "card" }),
-      { lines: ["LUKA DONCIC", "PRIZM"], backLines: ["#280"], image: "data:image/jpeg;base64,QUJD", kind: "card" },
+      { lines: ["LUKA DONCIC", "PRIZM"], backLines: ["#280"], image: "data:image/jpeg;base64,QUJD", kind: "card", border: null },
     );
   });
 

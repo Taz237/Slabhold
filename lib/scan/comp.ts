@@ -25,6 +25,10 @@ export const COMP_COPY = {
   none: "No recent sales for this one yet",
   looking: "Looking up last solds…",
   lastSold: "Last sold",
+  /** The parallel was picked because most of this card's recent sold titles name it. */
+  matchedFromSales: "Matched from recent sales",
+  split: "Recent sales name more than one parallel",
+  splitBody: "Pick yours to see its value.",
   unavailable: "We couldn't load sold prices",
   retry: "Try again",
   assumedBase: "Showing Base. Tap your parallel if it's different.",
@@ -54,9 +58,21 @@ export type ScanCompResult =
       trend: "up" | "down" | "flat" | null;
       asOf: string | null;
       source: ScanCompSource;
+      /** The parallel these sales are for, from their titles ("Pink/Red"). */
+      parallel?: string;
+      /** Every parallel the search found, so Base never prices a Pink/Red. */
+      groups?: { label: string; nSales: number }[];
     }
   /** searched: a live eBay search ran for this card and found no matching sale. */
   | { status: "none"; searched?: boolean }
+  /**
+   * The sales name more than one parallel and the card's isn't picked: each group shows,
+   * the parallel stays open, and nothing is priced until the collector picks.
+   */
+  | {
+      status: "split";
+      groups: { label: string; nSales: number; lastPriceCents: number | null; lastSoldAt: string | null }[];
+    }
   /** Today's or this hour's live lookups are used up. The identity still shows. */
   | { status: "limited"; reason: "daily" | "hourly" | "safety"; resetAt: string | null }
   | { status: "unavailable" };
