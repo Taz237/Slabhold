@@ -42,7 +42,8 @@ import { isOfficialUpdatesAccount } from "@/lib/social/official-updates";
 import { isTestAccount } from "@/lib/test-accounts";
 import { POST_LIMIT } from "@/lib/social/types";
 import { CharacterRing } from "@/components/character-ring";
-import { takeScan } from "@/lib/capture";
+import { clearScanMatch, takeScan } from "@/lib/capture";
+import { scanCardStart, type ScanHandoff } from "@/lib/scan/handoff";
 import { catalogLabel, type CatalogCard } from "@/lib/card-catalog";
 import {
   CATALOG_MATCH_DEBOUNCE_MS,
@@ -175,6 +176,7 @@ export function CardForm({
   guided = false,
   initialSport = "",
   initialPrefill = null,
+  initialScan = null,
 }: {
   existing?: SportsCard;
   /** Inline on the card page: skip the extra title, keep the same save. */
@@ -194,8 +196,11 @@ export function CardForm({
    * number from "Copy this card" (opens on Parallel or insert).
    */
   initialPrefill?: AddAnotherPrefill | null;
+  /** The card a scan matched. Opens on Review, or on the first step the scan wasn't sure of. */
+  initialScan?: ScanHandoff | null;
 }) {
   const catalogStart = !existing && initialCatalog ? catalogPickFields(initialCatalog, "") : null;
+  const scanStart = !existing && !initialCatalog && initialScan ? scanCardStart(initialScan) : null;
   const guidedAdd = guided && !existing;
   const router = useRouter();
   const {
@@ -220,12 +225,13 @@ export function CardForm({
   );
   const lastSport = lastUsed?.sport && SPORT_PICKER_OPTIONS.includes(lastUsed.sport) ? lastUsed.sport : null;
   const startSport = SPORT_PICKER_OPTIONS.includes(initialSport) ? initialSport : (lastSport ?? "Basketball");
-  const prefill = !existing && !initialCatalog ? initialPrefill : null;
+  const prefill = !existing && !initialCatalog && !scanStart ? initialPrefill : null;
   const seed = existing
     ? null
     : newCardSeed(
         initialQuery,
-        initialCatalog?.id ??
+        (scanStart && initialScan ? `scan:${initialScan.id}` : null) ??
+          initialCatalog?.id ??
           (prefill
             ? `another:${prefill.player}|${prefill.year}|${prefill.set}${prefillNumberKey(prefill)}`
             : null),
@@ -246,7 +252,7 @@ export function CardForm({
   const pendingId = useRef<string | null>(existing?.id ?? restored?.pendingId ?? null);
   const [draftSealed, setDraftSealed] = useState(false);
   const [draftUserId, setDraftUserId] = useState(userId);
-  const catalogPick = useRef<CatalogPickSnapshot | null>(catalogStart?.snapshot ?? null);
+  const catalogPick = useRef<CatalogPickSnapshot | null>(catalogStart?.snapshot ?? scanStart?.snapshot ?? null);
   const timedOutIds = useRef<Set<string>>(new Set());
   const [photo, setPhoto] = useState<string | null>(existing?.photoDataUrl ?? null);
   const [photoMissing, setPhotoMissing] = useState(Boolean(restored?.hadPhoto));
@@ -306,14 +312,18 @@ export function CardForm({
     conditionType: existing?.conditionType,
   });
 
-  const [gradeCompany, setGradeCompany] = useState(restored?.gradeCompany ?? initialCompany);
+  const [gradeCompany, setGradeCompany] = useState(
+    restored?.gradeCompany ?? (scanStart?.gradeCompany || initialCompany),
+  );
   const [gradeNumber, setGradeNumber] = useState(
-    restored?.gradeNumber ?? gradeNumberFromGrade(existing?.grade ?? ""),
+    restored?.gradeNumber ?? (scanStart?.gradeCompany ? scanStart.gradeNumber : gradeNumberFromGrade(existing?.grade ?? "")),
   );
   const [gradeQualifier, setGradeQualifier] = useState(
-    restored?.gradeQualifier ?? existing?.gradeQualifier ?? "",
+    restored?.gradeQualifier ?? existing?.gradeQualifier ?? scanStart?.gradeQualifier ?? "",
   );
-  const [certNumber, setCertNumber] = useState(restored?.certNumber ?? existing?.certNumber ?? "");
+  const [certNumber, setCertNumber] = useState(
+    restored?.certNumber ?? existing?.certNumber ?? scanStart?.certNumber ?? "",
+  );
   const [noNumber, setNoNumber] = useState(
     restored?.noNumber ?? (Boolean(existing?.noNumber) || Boolean(prefill?.noNumber)),
   );
@@ -322,11 +332,16 @@ export function CardForm({
   );
   const [setIsCustom, setSetIsCustom] = useState(
     restored?.setIsCustom ??
-      (Boolean(existing?.setIsCustom) || Boolean(catalogStart?.setIsCustom) || prefillSetIsCustom),
+      (Boolean(existing?.setIsCustom) ||
+        Boolean(catalogStart?.setIsCustom) ||
+        prefillSetIsCustom ||
+        Boolean(scanStart?.setIsCustom)),
   );
   const [parallelIsCustom, setParallelIsCustom] = useState(
     restored?.parallelIsCustom ??
-      (Boolean(existing?.parallelIsCustom) || Boolean(catalogStart?.parallelIsCustom)),
+      (Boolean(existing?.parallelIsCustom) ||
+        Boolean(catalogStart?.parallelIsCustom) ||
+        Boolean(scanStart?.parallelIsCustom)),
   );
   const [parallelNote, setParallelNote] = useState("");
   const [sportOffer, setSportOffer] = useState(
@@ -334,9 +349,12 @@ export function CardForm({
   );
   const [sportTouched, setSportTouched] = useState(restored?.sportTouched ?? Boolean(existing));
   const [isRookie, setIsRookie] = useState(
-    restored?.isRookie ?? (Boolean(existing?.isRookie) || Boolean(catalogStart?.isRookie)),
+    restored?.isRookie ??
+      (Boolean(existing?.isRookie) || Boolean(catalogStart?.isRookie) || Boolean(scanStart?.isRookie)),
   );
-  const [isAuto, setIsAuto] = useState(restored?.isAuto ?? Boolean(existing?.isAuto));
+  const [isAuto, setIsAuto] = useState(
+    restored?.isAuto ?? (Boolean(existing?.isAuto) || Boolean(scanStart?.isAuto)),
+  );
   const [isRelic, setIsRelic] = useState(restored?.isRelic ?? Boolean(existing?.isRelic));
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const sections = addFormSections(Boolean(existing));
@@ -369,7 +387,9 @@ export function CardForm({
   };
   // "Add another": same player, year and set. "Copy this card" adds the number.
   // Start over goes back to a blank search.
-  const seededForm: CardDraftForm = prefill
+  const seededForm: CardDraftForm = scanStart
+    ? { ...blankForm, ...scanStart.form, sport: scanStart.form.sport || blankForm.sport }
+    : prefill
     ? {
         ...blankForm,
         playerName: prefill.player,
@@ -800,6 +820,7 @@ export function CardForm({
   }
 
   function startOver() {
+    clearScanMatch();
     setDraftSealed(false);
     setPendingCardId(null);
     clearNewCardDraft();
@@ -997,6 +1018,7 @@ export function CardForm({
         pendingId.current = card.id;
         setPendingCardId(card.id);
         clearNewCardDraft();
+        clearScanMatch();
         if (user?.id) writeBrowserVisibilityChoice(user.id, payload.isPublic);
       }
       if (offerPrivacy && user) rememberFirstCardPrivacy(user.id, card.id);
@@ -1091,6 +1113,7 @@ export function CardForm({
         if (seed != null) {
           setDraftSealed(true);
           clearNewCardDraft();
+          clearScanMatch();
         }
         if (error instanceof SaveTimeoutError && error.photoUrl) setPhoto(error.photoUrl);
         setSaveError(SAVE_TIMEOUT_MESSAGE);
@@ -1717,7 +1740,8 @@ export function CardForm({
           // The flow only uses this to disable Add to collection, so an over-long shared caption holds it too.
           readingPhoto={readingPhoto || captionOver}
           resumed={showingRestored}
-          prefilled={Boolean(prefill)}
+          prefilled={Boolean(prefill) || Boolean(scanStart)}
+          scanSureness={scanStart && initialScan ? initialScan.sureness : undefined}
           positionKey={seed != null ? `${userId ?? ""}\n${seed}` : null}
           lastUsed={lastUsed}
           apply={applyFlowPatch}
