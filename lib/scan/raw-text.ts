@@ -19,16 +19,25 @@ export type RawPlayerHit = {
   score: number;
   /** The OCR text the name was read from. */
   line: string;
+  /** The line is the name and nothing else: the card's nameplate, not a word in the background or the bio. */
+  nameplate?: boolean;
 };
 
 export type RawCardRead = {
   /** Up to 3, best first. Empty when no full name was read. */
   players: RawPlayerHit[];
+  /**
+   * A line that reads as a person's name on its own (a nameplate), title-cased,
+   * even when the directory doesn't know the player yet (new prospects). "" when none.
+   */
+  printedName: string;
+  /** A team line on the card, from the directory's teams. Gives the sport when the player is new to us. */
+  team: { name: string; sport: string } | null;
   /** "2023-24" or "2017", only when printed next to a brand. */
   yearLabel: string;
   /** The © year on a back. Often the release year, not the card year. */
   copyrightYear: string;
-  /** Without the leading # or NO. */
+  /** Without the leading # or NO. Also a printed code such as BP-27 or INS-13. */
   cardNumber: string;
   /** A stamped serial such as 12/99. */
   serial: { number: string; run: string } | null;
@@ -57,6 +66,11 @@ const FUZZY_MAX_LENGTH = 28;
 
 const PARALLEL_WORDS = [
   "CRACKED ICE",
+  "MAGENTA",
+  "FUCHSIA",
+  "AQUA",
+  "YELLOW",
+  "BRONZE",
   "GOLD VINYL",
   "SUPERFRACTOR",
   "X-FRACTOR",
@@ -100,6 +114,27 @@ const BACK_WORDS = new Set([
 ]);
 
 const CARD_NUMBER = /(?:#|\bNO\.)\s*([A-Z0-9]+(?:-[A-Z0-9]+)*)/i;
+/**
+ * A card # printed as a code with no # in front: BP-27 (Bowman prospects),
+ * INS-13, BCP-50, TC-7. Letters, a hyphen, then digits. Heights (6-7) and
+ * seasons (2024-25) have no letters in front, so they never match.
+ */
+const CODE_NUMBER = /\b([A-Z]{1,5}\d?-\d{1,4}[A-Z]?)\b/;
+/** Copyright and maker lines name the company, not the set. */
+const MAKER_LINE = /©|\(c\)|copyright|topps company|panini america|upper deck company/i;
+/**
+ * Insert marks the scanner reads, on top of the Add card popular inserts.
+ * Scanner-only, so Add card's insert chips don't change.
+ */
+const SCAN_INSERTS = ["Instinct"] as const;
+/** Words that rule a line out as a person's name. */
+const NOT_NAME_WORDS = new Set([
+  "rookie", "rc", "rated", "card", "cards", "1st", "first", "prospect", "prospects", "draft", "edition", "briefing",
+  "company", "inc", "america", "league", "team", "all", "star", "stars", "world", "series", "finals", "mvp", "debut",
+  "auto", "autograph", "autographs", "signed", "game", "used", "patch", "relic", "the", "of", "and", "now", "chrome",
+  "refractor", "prizm", "mosaic", "optic", "select", "base", "insert", "parallel", "numbered", "limited", "baseball",
+  "basketball", "football", "hockey", "soccer", "college", "university", "state", "pick", "picks", "round",
+]);
 const SERIAL = /(?<![\d/])(\d{1,4})\s*\/\s*(\d{1,4})(?![\d/])/;
 const COPYRIGHT = /(?:©|\(c\)|copyright)\s*(\d{4})/i;
 const YEAR_TOKEN = /\b(\d{4}(?:\s*-\s*\d{2})?)\s+(\S+)/g;
@@ -107,6 +142,8 @@ const YEAR_TOKEN = /\b(\d{4}(?:\s*-\s*\d{2})?)\s+(\S+)/g;
 function emptyRead(): RawCardRead {
   return {
     players: [],
+    printedName: "",
+    team: null,
     yearLabel: "",
     copyrightYear: "",
     cardNumber: "",
@@ -226,12 +263,15 @@ function nameGrams(lines: string[]): Gram[] {
 export function findPlayers(lines: string[], directory: readonly IndexedDirectoryPlayer[]): RawPlayerHit[] {
   const index = directoryIndex(directory);
   const best = new Map<string, RawPlayerHit & { order: number }>();
-  const offer = (player: IndexedDirectoryPlayer, score: number, line: string, order: number) => {
+  const lineCompacts = new Set(lines.map((line) => compactNorm(normInterest(fixOcrLetters(line)))));
+  const offer = (player: IndexedDirectoryPlayer, score: number, line: string, order: number, compact: string) => {
     const key = `${player.name}|${player.sport}`;
+    const nameplate = lineCompacts.has(compact);
     const seen = best.get(key);
-    if (seen && seen.score >= score) return;
+    if (seen && (seen.score > score || (seen.score === score && (seen.nameplate || !nameplate)))) return;
     const hit: RawPlayerHit & { order: number } = { name: player.name, sport: player.sport, score, line, order };
     if (player.team) hit.team = player.team;
+    if (nameplate) hit.nameplate = true;
     best.set(key, hit);
   };
 
@@ -239,7 +279,7 @@ export function findPlayers(lines: string[], directory: readonly IndexedDirector
     const compact = compactNorm(gram.words.join(" "));
     const exact = index.byCompact.get(compact);
     if (exact) {
-      for (const player of exact) offer(player, 1, gram.line, order);
+      for (const player of exact) offer(player, 1, gram.line, order, compact);
       return;
     }
     if (gram.words.length > FUZZY_MAX_WORDS) return;
@@ -253,16 +293,18 @@ export function findPlayers(lines: string[], directory: readonly IndexedDirector
       if (Math.abs(player.compact.length - compact.length) > max) continue;
       const distance = boundedDistance(compact, player.compact, max);
       if (distance > max) continue;
-      offer(player, 1 - distance / Math.max(compact.length, player.compact.length), gram.line, order);
+      offer(player, 1 - distance / Math.max(compact.length, player.compact.length), gram.line, order, compact);
     }
   });
 
   return [...best.values()]
-    .sort((a, b) => b.score - a.score || a.order - b.order)
+    // An exact nameplate beats a name found inside other text (a bio, the background).
+    .sort((a, b) => b.score - a.score || Number(Boolean(b.nameplate)) - Number(Boolean(a.nameplate)) || a.order - b.order)
     .slice(0, MAX_PLAYERS)
     .map((hit) => {
       const out: RawPlayerHit = { name: hit.name, sport: hit.sport, score: hit.score, line: hit.line };
       if (hit.team) out.team = hit.team;
+      if (hit.nameplate) out.nameplate = true;
       return out;
     });
 }
@@ -305,10 +347,18 @@ function hasPhrase(lineWords: string[][], phrase: string[]): boolean {
 function readSets(lineWords: string[][]): string[] {
   const present = new Set(lineWords.flat());
   const scored: { name: string; score: number; order: number }[] = [];
+  const printed: string[][] = [];
+  SETS.forEach((name) => {
+    const words = normInterest(name).split(" ");
+    if (hasPhrase(lineWords, words)) printed.push(words);
+  });
+  // "TOPPS NOW" is Topps Now, not also plain Topps: a set inside a longer printed set doesn't count on its own.
+  const inLonger = (words: string[]) =>
+    printed.some((other) => other.length > words.length && hasPhrase([other], words));
   SETS.forEach((name, order) => {
     const words = normInterest(name).split(" ");
     if (hasPhrase(lineWords, words)) {
-      scored.push({ name, score: words.length + 1, order });
+      if (!inLonger(words)) scored.push({ name, score: words.length + 1, order });
       return;
     }
     const distinct = words.filter((word) => !GENERIC_SET_WORDS.has(word));
@@ -337,6 +387,74 @@ function readInsert(lines: string[]): string {
       if (text.includes(` ${insertKey(name)} `)) return item.name;
     }
   }
+  for (const name of SCAN_INSERTS) {
+    if (text.includes(` ${insertKey(name)} `)) return name;
+  }
+  return "";
+}
+
+type TeamIndex = Map<string, { name: string; sport: string }>;
+const teamCache = new WeakMap<readonly IndexedDirectoryPlayer[], { teams: TeamIndex; nicknames: Set<string> }>();
+
+/** Every team in the directory, by its words, and each team's last word (Phillies, Giants, 76ers). */
+function teamIndex(directory: readonly IndexedDirectoryPlayer[]) {
+  const cached = teamCache.get(directory);
+  if (cached) return cached;
+  const teams: TeamIndex = new Map();
+  const nicknames = new Set<string>();
+  for (const player of directory) {
+    if (!player.team) continue;
+    const key = normInterest(player.team);
+    if (!key) continue;
+    if (!teams.has(key)) teams.set(key, { name: player.team, sport: player.sport });
+    const last = key.split(" ").pop();
+    if (last) nicknames.add(last);
+  }
+  const index = { teams, nicknames };
+  teamCache.set(directory, index);
+  return index;
+}
+
+function readTeam(lineWords: string[][], directory: readonly IndexedDirectoryPlayer[]): RawCardRead["team"] {
+  const { teams } = teamIndex(directory);
+  for (const words of lineWords) {
+    // "PHILADELPHIA PHILLIES - 3B": the team can share a line with a position.
+    for (let size = Math.min(words.length, 4); size >= 2; size -= 1) {
+      for (let start = 0; start + size <= words.length; start += 1) {
+        const team = teams.get(words.slice(start, start + size).join(" "));
+        if (team) return team;
+      }
+    }
+  }
+  return null;
+}
+
+const SET_WORDS = new Set(SETS.flatMap((name) => normInterest(name).split(" ")));
+const PARALLEL_WORD_SET = new Set(PARALLEL_WORDS.flatMap((label) => normInterest(label).split(" ")));
+
+/**
+ * A nameplate: a short line that is only a person's name. Two or three words
+ * of letters, no digits, and nothing a card prints that isn't a name (team,
+ * set, color, rookie and maker words). Kept even when the directory doesn't
+ * know the player, so a new prospect still reads as themselves.
+ */
+function readPrintedName(lines: string[], directory: readonly IndexedDirectoryPlayer[]): string {
+  const { teams, nicknames } = teamIndex(directory);
+  for (const line of lines) {
+    if (/\d/.test(line) || line.length > 32) continue;
+    const words = normInterest(line).split(" ").filter(Boolean);
+    if (words.length < 2 || words.length > 3) continue;
+    if (!words.every((word) => /^[a-z]+$/.test(word) && word.length >= 2)) continue;
+    if (teams.has(words.join(" ")) || nicknames.has(words[words.length - 1])) continue;
+    if (words.some((word) => NOT_NAME_WORDS.has(word) || SET_WORDS.has(word) || PARALLEL_WORD_SET.has(word) || BACK_WORDS.has(word))) {
+      continue;
+    }
+    return line
+      .toLowerCase()
+      .replace(/\s+/g, " ")
+      .trim()
+      .replace(/(^|[\s-])([a-z])/g, (_match, lead: string, letter: string) => `${lead}${letter.toUpperCase()}`);
+  }
   return "";
 }
 
@@ -362,6 +480,8 @@ export function readRawCardText(
   const lineWords = clean.map((line) => normInterest(line).split(" ").filter(Boolean));
 
   read.players = findPlayers(clean, directory);
+  read.printedName = readPrintedName(clean, directory);
+  read.team = readTeam(lineWords, directory);
   read.yearLabel = readYear(clean);
   read.copyrightYear = clean.map((line) => COPYRIGHT.exec(line)?.[1] ?? "").find(Boolean) ?? "";
   for (const line of clean) {
@@ -371,9 +491,19 @@ export function readRawCardText(
       break;
     }
   }
+  if (!read.cardNumber) {
+    for (const line of clean) {
+      if (MAKER_LINE.test(line)) continue;
+      const match = CODE_NUMBER.exec(line.toUpperCase());
+      if (match) {
+        read.cardNumber = match[1];
+        break;
+      }
+    }
+  }
   read.serial = readSerial(clean);
   read.isRookie = clean.some((line) => /\b(RC|ROOKIE)\b/i.test(line));
-  read.setNames = readSets(lineWords);
+  read.setNames = readSets(lineWords.filter((_words, i) => !MAKER_LINE.test(clean[i])));
   read.parallelWords = readParallelWords(lineWords);
   read.insert = readInsert(clean);
   read.side = readSide(clean, lineWords, read.copyrightYear);

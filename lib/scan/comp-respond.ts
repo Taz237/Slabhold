@@ -9,7 +9,7 @@ export type ScanCompRouteDeps = {
   userId: () => Promise<string | null>;
   /** False when this user is over the scan comp rate. Reads only, but still capped. */
   allow: (userId: string) => Promise<boolean>;
-  lookup: (identity: QuickCompIdentity, userId: string) => Promise<ScanCompResult>;
+  lookup: (identity: QuickCompIdentity, userId: string, options: { serialRun: number | null }) => Promise<ScanCompResult>;
 };
 
 const PRIVATE = { "Cache-Control": "private, no-store" };
@@ -19,11 +19,17 @@ export async function respondScanComp(request: Request, deps: ScanCompRouteDeps)
   if (!deps.enabled()) return Response.json({ error: "Not found" }, { status: 404 });
   const userId = await deps.userId();
   if (!userId) return Response.json({ error: "Log in to see sold prices" }, { status: 401 });
-  const parsed = parseQuickCompParams(new URL(request.url).searchParams);
+  // run is ours (the card's print run); the rest are /api/quick-comp's fields.
+  const params = new URL(request.url).searchParams;
+  const runText = params.get("run");
+  params.delete("run");
+  const run = runText != null && /^\d{1,4}$/.test(runText) ? Number(runText) : null;
+  if (runText != null && !run) return Response.json({ error: "run is not a print run" }, { status: 400 });
+  const parsed = parseQuickCompParams(params);
   if (!parsed.ok) return Response.json({ error: parsed.error }, { status: 400 });
   if (!(await deps.allow(userId))) {
     return Response.json({ error: SCAN_COMP_RATE_MESSAGE }, { status: 429, headers: PRIVATE });
   }
-  const result = await deps.lookup(parsed.identity, userId);
+  const result = await deps.lookup(parsed.identity, userId, { serialRun: run });
   return Response.json(result, { headers: PRIVATE });
 }
