@@ -1,3 +1,4 @@
+import { isValidCardNumber, isValidYear } from "@/lib/card-options";
 import { serialNoError } from "@/lib/cards/add-flow";
 import type { ScanGrade, ScanMatch } from "./match";
 
@@ -9,6 +10,8 @@ import type { ScanGrade, ScanMatch } from "./match";
 export const CONFIRM_COPY = {
   title: "Is this your card?",
   yes: "Yes, that's it",
+  add: "Yes, add it",
+  editDetails: "Edit details",
   others: "Or one of these",
   parallel: "Parallel",
   pickParallel: "Pick the parallel",
@@ -79,6 +82,17 @@ export function confirmMatch(
       sureness: { ...match.sureness, parallel: "sure" },
     },
   };
+}
+
+/**
+ * Every field Add card needs is filled, so "Yes, add it" can save in one tap.
+ * Otherwise "Yes, that's it" opens Add card on what is missing.
+ */
+export function readyToSave(match: ScanMatch): boolean {
+  if (!match.playerName.trim() || !match.setBrand.trim() || !match.parallel.trim()) return false;
+  if (!isValidYear(match.yearLabel) || !isValidCardNumber(match.cardNumber)) return false;
+  if (match.grade?.company && !match.grade.number && !match.grade.authentic) return false;
+  return true;
 }
 
 /** Tapping "Or one of these" makes that row the top match. */

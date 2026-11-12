@@ -37,10 +37,10 @@ export function ScanSheetPreview({ kind }: { kind: PreviewKind }) {
   const router = useRouter();
   const [open, setOpen] = useState(true);
 
-  function confirm(match: ScanMatch) {
+  function confirm(match: ScanMatch, options: { save: boolean }) {
     const id = newScanId();
     saveScan(PREVIEW_PHOTO);
-    saveScanMatch(scanHandoffFrom(match, id));
+    saveScanMatch(scanHandoffFrom(match, id, { autoSave: options.save }));
     router.push(scanAddPath(id));
   }
 
