@@ -115,7 +115,7 @@ const BACK_WORDS = new Set([
   "ht", "wt", "born", "bats", "throws", "gp", "pts", "reb", "ast", "avg", "hr", "rbi", "era", "yds", "td", "season", "career",
 ]);
 
-const CARD_NUMBER = /(?:#|\bNO\.)\s*([A-Z0-9]+(?:-[A-Z0-9]+)*)/i;
+const CARD_NUMBER = /(?:#|\bNO\.)\s*([A-Z0-9]+(?:-[A-Z0-9]+)*)/gi;
 /**
  * A card # printed as a code with no # in front: BP-27 (Bowman prospects),
  * INS-13, BCP-50, TC-7. Letters, a hyphen, then digits. Heights (6-7) and
@@ -124,6 +124,14 @@ const CARD_NUMBER = /(?:#|\bNO\.)\s*([A-Z0-9]+(?:-[A-Z0-9]+)*)/i;
 const CODE_NUMBER = /\b([A-Z]{1,5}\d?)\s?[-–—‐]\s?(\d{1,4}[A-Z]?)\b/;
 /** Copyright and maker lines name the company, not the set. */
 const MAKER_LINE = /©|\(c\)|copyright|topps company|panini america|upper deck company/i;
+/**
+ * A back line that only names the maker, with or without a year or ©:
+ * "2024 TOPPS", "TOPPS", "THE TOPPS COMPANY", "PANINI AMERICA, INC.". It says
+ * who printed the card, not the set: a Bowman back says Topps. Fronts are
+ * read as printed, so a Topps front still reads Topps.
+ */
+const MAKER_ONLY_LINE =
+  /^(?:©|\(c\))?\s*(?:\d{4}\s*)?(?:the\s+)?(?:topps|panini|upper\s+deck|leaf)(?:\s+(?:company|co\.?|america|inc\.?|llc|international))*[\s.,]*(?:inc\.?)?\s*$/i;
 /**
  * Insert marks the scanner reads, on top of the Add card popular inserts.
  * Scanner-only, so Add card's insert chips don't change.
@@ -139,6 +147,18 @@ const NOT_NAME_WORDS = new Set([
 ]);
 const SERIAL = /(?<![\d/])(\d{1,4})\s*\/\s*(\d{1,4})(?![\d/])/;
 const COPYRIGHT = /(?:©|\(c\)|copyright)\s*(\d{4})/i;
+const MAKER_YEAR = /\b(\d{4})\b/;
+
+/**
+ * A catalog code that can't be a printed card #: a long run of digits or a
+ * long code with no hyphen (CMPO73107). Card numbers look like 280, US50,
+ * BP-27, INS-13 or CPA-AM. Never shown as a card #, from any source.
+ */
+export function looksLikeCatalogSku(value: string): boolean {
+  const text = value.trim().replace(/^#/, "");
+  if (!text || /[-–—]/.test(text)) return false;
+  return /\d{5,}/.test(text) || (text.length >= 8 && /[a-z]/i.test(text) && /\d/.test(text));
+}
 const YEAR_TOKEN = /\b(\d{4}(?:\s*-\s*\d{2})?)\s+(\S+)/g;
 
 function emptyRead(): RawCardRead {
@@ -475,9 +495,27 @@ function readSide(lines: string[], lineWords: string[][], copyrightYear: string)
   return "front";
 }
 
+/** The first printed card #: "#280" or "NO. 280", then a code like BP-27. A SKU is skipped and the search goes on. */
+function readCardNumber(lines: string[]): string {
+  for (const line of lines) {
+    for (const match of line.matchAll(CARD_NUMBER)) {
+      const number = match[1].toUpperCase();
+      if (!looksLikeCatalogSku(number)) return number;
+    }
+  }
+  for (const line of lines) {
+    if (MAKER_LINE.test(line)) continue;
+    // OCR often reads the hyphen as an en or em dash, or puts a space beside it: BP–27, BP - 27.
+    const match = CODE_NUMBER.exec(line.toUpperCase());
+    if (match && !looksLikeCatalogSku(`${match[1]}-${match[2]}`)) return `${match[1]}-${match[2]}`;
+  }
+  return "";
+}
+
 export function readRawCardText(
   lines: readonly string[],
   directory: readonly IndexedDirectoryPlayer[],
+  options: { side?: "front" | "back" } = {},
 ): RawCardRead {
   const read = emptyRead();
   const clean = cleanLines(lines);
@@ -485,33 +523,24 @@ export function readRawCardText(
   if (clean.length === 0) return read;
 
   const lineWords = clean.map((line) => normInterest(line).split(" ").filter(Boolean));
+  // The back's maker lines name the company, not the set, and their year is the © year.
+  const maker = (line: string) => MAKER_LINE.test(line) || (options.side === "back" && MAKER_ONLY_LINE.test(line));
+  const printed = clean.filter((line) => !maker(line));
 
   read.players = findPlayers(clean, directory);
   read.printedName = readPrintedName(clean, directory);
   read.team = readTeam(lineWords, directory);
-  read.yearLabel = readYear(clean);
-  read.copyrightYear = clean.map((line) => COPYRIGHT.exec(line)?.[1] ?? "").find(Boolean) ?? "";
-  for (const line of clean) {
-    const match = CARD_NUMBER.exec(line);
-    if (match) {
-      read.cardNumber = match[1].toUpperCase();
-      break;
-    }
+  read.yearLabel = readYear(printed);
+  read.copyrightYear =
+    clean.map((line) => COPYRIGHT.exec(line)?.[1] ?? "").find(Boolean) ??
+    "";
+  if (!read.copyrightYear && options.side === "back") {
+    read.copyrightYear = clean.filter((line) => MAKER_ONLY_LINE.test(line)).map((line) => MAKER_YEAR.exec(line)?.[1] ?? "").find(Boolean) ?? "";
   }
-  if (!read.cardNumber) {
-    for (const line of clean) {
-      if (MAKER_LINE.test(line)) continue;
-      // OCR often reads the hyphen as an en or em dash, or puts a space beside it: BP–27, BP - 27.
-      const match = CODE_NUMBER.exec(line.toUpperCase());
-      if (match) {
-        read.cardNumber = `${match[1]}-${match[2]}`;
-        break;
-      }
-    }
-  }
+  read.cardNumber = readCardNumber(clean);
   read.serial = readSerial(clean);
   read.isRookie = clean.some((line) => /\b(RC|ROOKIE)\b/i.test(line));
-  read.setNames = readSets(lineWords.filter((_words, i) => !MAKER_LINE.test(clean[i])));
+  read.setNames = readSets(lineWords.filter((_words, i) => !maker(clean[i])));
   read.parallelWords = readParallelWords(lineWords);
   read.insert = readInsert(clean);
   read.side = readSide(clean, lineWords, read.copyrightYear);

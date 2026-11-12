@@ -4,7 +4,9 @@ import { parallelsIn, sameSeason, type ProductParallel, type ProductRecord } fro
 import { setMatchPhrase } from "@/lib/comps/match";
 import type { IndexedDirectoryPlayer } from "@/lib/players/types";
 import { compactNorm, normInterest } from "@/lib/social/follow-rank";
-import { findPlayers, readRawCardText, type RawCardRead, type RawPlayerHit } from "./raw-text";
+import { findPlayers, looksLikeCatalogSku, readRawCardText, type RawCardRead, type RawPlayerHit } from "./raw-text";
+
+export { looksLikeCatalogSku };
 import type { SlabLabelRead } from "./slab-label";
 
 /**
@@ -176,7 +178,7 @@ function evidenceFrom(read: ScanRead, directory: readonly IndexedDirectoryPlayer
       copyrightYear: "",
       setNames: label.setName ? [label.setName] : [],
       setText: label.setName ? "" : label.setText,
-      cardNumber: label.cardNumber,
+      cardNumber: looksLikeCatalogSku(label.cardNumber) ? "" : label.cardNumber,
       serial: null,
       parallelWords: variety.filter((word) => !FLAG_WORDS.has(word)),
       isRookie: label.isRookie,
@@ -570,18 +572,6 @@ function covers(card: Candidate, built: Candidate): boolean {
   if (built.cardNumber && cardNumberKey(card.cardNumber) !== cardNumberKey(built.cardNumber)) return false;
   return true;
 }
-
-/**
- * A catalog code that can't be a printed card #: a long run of digits or a
- * long code with no hyphen (CMPO73107). Card numbers look like 280, US50,
- * BP-27, INS-13 or CPA-AM.
- */
-export function looksLikeCatalogSku(value: string): boolean {
-  const text = value.trim().replace(/^#/, "");
-  if (!text || /[-–—]/.test(text)) return false;
-  return /\d{5,}/.test(text) || (text.length >= 8 && /[a-z]/i.test(text) && /\d/.test(text));
-}
-
 
 function candidatesFrom(rows: readonly CatalogCard[], evidence: Evidence): Candidate[] {
   const byIdentity = new Map<string, Candidate>();

@@ -321,3 +321,38 @@ describe("Aidan Miller from Donnie's phone, front and back", () => {
     }
   });
 });
+
+describe("Aidan Miller after #244: a factory SKU and a copyright Topps on the back, empty catalog", () => {
+  async function messyMatches() {
+    const [{ INDEXED_DIRECTORY }, { rankScanMatches }, { scanReadFrom }] = await Promise.all([
+      import("@/lib/players/directory"),
+      import("@/lib/scan/match"),
+      import("@/lib/scan/session"),
+    ]);
+    const read = scanReadFrom(
+      {
+        lines: ["3B", "PHILADELPHIA PHILLIES", "137/299", "AIDAN MILLER"],
+        backLines: ["AIDAN MILLER", "#CMPO73107", "BP-27", "2024 TOPPS"],
+        image: null,
+        kind: "card",
+      },
+      INDEXED_DIRECTORY,
+    );
+    return rankScanMatches(read, [], { directory: INDEXED_DIRECTORY, products: null, soldTitles: [] }).matches;
+  }
+
+  it("the comp sheet shows #BP-27 and 137/299, and never CMPO73107 or Topps, even in an attribute", async () => {
+    const view = await mount({ kind: "ready", matches: await messyMatches() }, async () => ({ status: "none" as const }));
+    try {
+      const shown = text();
+      assert.ok(shown.includes("Aidan Miller"));
+      assert.ok(shown.includes("#BP-27"));
+      assert.ok(shown.includes("137/299"));
+      const html = win.document.body.innerHTML;
+      assert.equal(/CMPO73107/.test(html), false);
+      assert.equal(/Topps/.test(html), false);
+    } finally {
+      view.unmount();
+    }
+  });
+});
