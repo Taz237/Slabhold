@@ -171,7 +171,10 @@ describe("live eBay solds: never invent a set or a price", () => {
   it("a logo-only Mosaic with no live titles and no cache: no set, no price", async () => {
     const { value } = deps({ live: [] });
     const result = await lookupLiveSolds(input(DART_FRONT), "u1", value);
-    assert.deepEqual(result.matches, []);
+    // The printed name shows, with no set, no number and no price invented.
+    assert.equal(result.matches[0]?.playerName, "Jaxson Dart");
+    assert.equal(result.matches[0]?.setBrand, "");
+    assert.equal(result.matches[0]?.cardNumber, "");
     assert.deepEqual(result.comp, { status: "none", searched: true });
   });
 

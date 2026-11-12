@@ -550,7 +550,8 @@ function synthesized(evidence: Evidence): Candidate | null {
   const setBrand = evidence.setNames[0] ?? (evidence.setText ? titleCase(evidence.setText) : "");
   // No year on the front: the back's © year is usually the card's year (marked likely, not sure).
   const year = evidence.yearLabel || (evidence.slab ? "" : evidence.copyrightYear);
-  if (!year && !setBrand && !evidence.cardNumber) return null;
+  // A clearly printed name with a print run still shows the player, with the set and number open.
+  if (!year && !setBrand && !evidence.cardNumber && !(evidence.playerLocked && evidence.serial)) return null;
   const sport = evidence.players[0]?.sport ?? evidence.sport;
   return {
     catalogId: null,

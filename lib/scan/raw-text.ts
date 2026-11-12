@@ -142,7 +142,7 @@ const NOT_CODE_PREFIX = new Set([
 /** Checklist code prefixes we know (Bowman prospects, inserts, update). Preferred over any other code. */
 const KNOWN_CODE_PREFIX = new Set([
   "BP", "BCP", "BDC", "BDP", "BPA", "CPA", "BCPA", "INS", "US", "USC", "TC", "SP", "RPA", "RA", "FS", "NBA", "TN",
-  "SS", "CA", "BS", "TP", "PD",
+  "CA", "BS", "TP", "PD",
 ]);
 /** A sentence (five words or more) on a scanned card: a bio or a stat note, never where the card # sits. */
 function proseLine(line: string): boolean {
@@ -392,9 +392,33 @@ function hasPhrase(lineWords: string[][], phrase: string[]): boolean {
   });
 }
 
-function readSets(lineWords: string[][]): string[] {
+/** Sets that are only a maker's name. On a back they're legal text; anywhere, a product name beats them. */
+const BARE_MAKER_SETS = new Set(["Topps", "Upper Deck", "Leaf"]);
+
+/** Who makes a set, from its first word. Bowman is a Topps product; Donruss, Hoops and Score are Panini. */
+function makerOf(name: string): string {
+  const first = normInterest(name).split(" ")[0] ?? "";
+  if (first === "topps" || first === "bowman" || first === "bowman's" || first === "bowmans") return "topps";
+  if (["panini", "donruss", "prizm", "hoops", "court", "score"].includes(first)) return "panini";
+  if (["upper", "o", "fleer", "skybox"].includes(first)) return "upper deck";
+  return first;
+}
+
+/** Maker words printed on this side: TOPPS.COM, PANINI AMERICA, UPPER DECK... */
+function printedMakers(lineWords: string[][]): Set<string> {
+  const makers = new Set<string>();
+  for (const words of lineWords) {
+    if (words.includes("topps")) makers.add("topps");
+    if (words.includes("panini")) makers.add("panini");
+    if (hasPhrase([words], ["upper", "deck"])) makers.add("upper deck");
+  }
+  return makers;
+}
+
+function readSets(lineWords: string[][], options: { back?: boolean } = {}): string[] {
   const present = new Set(lineWords.flat());
-  const scored: { name: string; score: number; order: number }[] = [];
+  const makers = printedMakers(lineWords);
+  const scored: { name: string; score: number; order: number; phrase: boolean }[] = [];
   const printed: string[][] = [];
   SETS.forEach((name) => {
     const words = normInterest(name).split(" ");
@@ -406,17 +430,24 @@ function readSets(lineWords: string[][]): string[] {
   SETS.forEach((name, order) => {
     const words = normInterest(name).split(" ");
     if (hasPhrase(lineWords, words)) {
-      if (!inLonger(words)) scored.push({ name, score: words.length + 1, order });
+      if (!inLonger(words)) scored.push({ name, score: words.length + 1, order, phrase: true });
       return;
     }
     const distinct = words.filter((word) => !GENERIC_SET_WORDS.has(word));
     const matched = distinct.filter((word) => present.has(word)).length;
     if (matched === 0) return;
-    scored.push({ name, score: matched - 0.1 * (words.length - matched), order });
+    // "TOPPS CERTIFIED" is legal text, not Panini Certified: a one-word guess at another maker's set doesn't count.
+    if (makers.size > 0 && !makers.has(makerOf(name))) return;
+    scored.push({ name, score: matched - 0.1 * (words.length - matched), order, phrase: false });
   });
-  const names = scored
-    .sort((a, b) => b.score - a.score || a.order - b.order)
-    .map((item) => item.name);
+  let ranked = scored.sort((a, b) => b.score - a.score || a.order - b.order);
+  // On a back, a bare maker name is legal text (TOPPS.COM, MLB TOPPS, PRINTED IN USA TOPPS), never the set.
+  if (options.back) ranked = ranked.filter((item) => !BARE_MAKER_SETS.has(item.name));
+  // Anywhere, a product name beats its bare maker: BOWMAN TOPPS is Bowman.
+  if (ranked.some((item) => !BARE_MAKER_SETS.has(item.name) && item.phrase)) {
+    ranked = ranked.filter((item) => !BARE_MAKER_SETS.has(item.name));
+  }
+  const names = ranked.map((item) => item.name);
   // "Optic Preview" is a parallel on a Donruss card, the same rule card-page comps use.
   if (hasPhrase(lineWords, ["optic", "preview"])) {
     const kept = names.filter((name) => !/optic/i.test(name) && name !== "Panini Donruss");
@@ -521,10 +552,17 @@ function readSide(lines: string[], lineWords: string[][], copyrightYear: string)
   return "front";
 }
 
-/** A code whose letters are a word from a bio or a stat line: "FOR-4", "A-414", "JUNE-4". */
+const POSITIONS = new Set(["SS", "C", "P", "LF", "CF", "RF", "DH", "OF", "IF", "1B", "2B", "3B", "RHP", "LHP", "SP", "RP"]);
+
+/**
+ * A code whose letters are a word from a bio or a stat line ("FOR-4",
+ * "A-414", "JUNE-4"), or a position pair ("SS-3B").
+ */
 function wordCode(number: string): boolean {
   const prefix = /^([A-Z]+)\d?-/.exec(number)?.[1];
-  return Boolean(prefix && NOT_CODE_PREFIX.has(prefix));
+  if (prefix && NOT_CODE_PREFIX.has(prefix)) return true;
+  const [left, right] = number.split("-");
+  return POSITIONS.has(left ?? "") && POSITIONS.has(right ?? "");
 }
 
 /**
@@ -583,7 +621,10 @@ export function readRawCardText(
   read.cardNumber = readCardNumber(clean, Boolean(options.side));
   read.serial = readSerial(clean);
   read.isRookie = clean.some((line) => /\b(RC|ROOKIE)\b/i.test(line));
-  read.setNames = readSets(lineWords.filter((_words, i) => !maker(clean[i])));
+  read.setNames = readSets(
+    lineWords.filter((_words, i) => !maker(clean[i])),
+    { back: options.side === "back" },
+  );
   read.parallelWords = readParallelWords(lineWords);
   read.insert = readInsert(clean);
   read.side = readSide(clean, lineWords, read.copyrightYear);
