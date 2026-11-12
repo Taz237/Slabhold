@@ -34,6 +34,8 @@ export type ScanHandoff = {
   isAuto: boolean;
   grade: ScanGrade | null;
   sureness: ScanMatch["sureness"];
+  /** "Yes, add it": Add card saves on open instead of waiting on Review. */
+  autoSave: boolean;
 };
 
 export function isScanId(value: string): boolean {
@@ -52,7 +54,7 @@ export function scanAddPath(id: string): string {
   return `/cards/new?scan=${id}`;
 }
 
-export function scanHandoffFrom(match: ScanMatch, id: string): ScanHandoff {
+export function scanHandoffFrom(match: ScanMatch, id: string, options: { autoSave?: boolean } = {}): ScanHandoff {
   return {
     v: SCAN_HANDOFF_VERSION,
     id,
@@ -69,6 +71,7 @@ export function scanHandoffFrom(match: ScanMatch, id: string): ScanHandoff {
     isAuto: match.isAuto,
     grade: match.grade,
     sureness: match.sureness,
+    autoSave: options.autoSave === true,
   };
 }
 
@@ -133,6 +136,7 @@ export function parseScanHandoff(raw: string | null): ScanHandoff | null {
   if (grade === undefined) return null;
   const sureness = parseSureness(data.sureness);
   if (!sureness) return null;
+  if (data.autoSave !== undefined && typeof data.autoSave !== "boolean") return null;
   return {
     v: SCAN_HANDOFF_VERSION,
     id: data.id,
@@ -149,6 +153,7 @@ export function parseScanHandoff(raw: string | null): ScanHandoff | null {
     isAuto: data.isAuto,
     grade,
     sureness,
+    autoSave: data.autoSave === true,
   };
 }
 

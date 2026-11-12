@@ -11,6 +11,7 @@ import {
   maskCert,
   matchLine,
   promoteMatch,
+  readyToSave,
   type ParallelPick,
 } from "@/lib/scan/confirm";
 import type { FieldSureness, ScanMatch } from "@/lib/scan/match";
@@ -24,8 +25,11 @@ type Props = {
   /** The cropped scan. Null shows a designed placeholder. */
   photo: string | null;
   state: ConfirmSheetState;
-  /** The top match with the sheet's parallel and serial picks applied. */
-  onConfirm: (match: ScanMatch) => void;
+  /**
+   * The top match with the sheet's parallel and serial picks applied.
+   * save: "Yes, add it" (Add card saves on open). Otherwise Add card opens on Review or what's missing.
+   */
+  onConfirm: (match: ScanMatch, options: { save: boolean }) => void;
   /** None of these, or no match: the guided Add card with the photo. */
   onStepByStep: () => void;
   onRetake: () => void;
@@ -113,7 +117,7 @@ function Ready({
 }: {
   photo: string | null;
   matches: ScanMatch[];
-  onConfirm: (match: ScanMatch) => void;
+  onConfirm: (match: ScanMatch, options: { save: boolean }) => void;
   onStepByStep: () => void;
   onRetake: () => void;
 }) {
@@ -144,13 +148,15 @@ function Ready({
     setError(null);
   }
 
-  function confirm() {
+  const canSave = readyToSave({ ...top, parallel: pick?.name ?? "" });
+
+  function confirm(save: boolean) {
     const result = confirmMatch(top, pick, serialNo);
     if ("error" in result) {
       setError(result.error);
       return;
     }
-    onConfirm(result.match);
+    onConfirm(result.match, { save });
   }
 
   const options = top.parallelOptions.length > 0 ? top.parallelOptions : top.parallel ? [{ name: top.parallel, serialRun: top.serialRun }] : [];
@@ -250,7 +256,14 @@ function Ready({
         ) : null}
       </div>
 
-      <PrimaryButton onClick={confirm}>{CONFIRM_COPY.yes}</PrimaryButton>
+      <div className="space-y-2">
+        <PrimaryButton onClick={() => confirm(canSave)}>{canSave ? CONFIRM_COPY.add : CONFIRM_COPY.yes}</PrimaryButton>
+        {canSave ? (
+          <div className="flex justify-center">
+            <QuietButton onClick={() => confirm(false)}>{CONFIRM_COPY.editDetails}</QuietButton>
+          </div>
+        ) : null}
+      </div>
 
       {rows.length > 1 ? (
         <div>

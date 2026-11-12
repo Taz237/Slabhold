@@ -79,6 +79,16 @@ describe("scanHandoffFrom and parseScanHandoff", () => {
     assert.deepEqual(parsed, handoff);
   });
 
+  it("carries the one-tap save flag, off unless asked", () => {
+    assert.equal(scanHandoffFrom(match(), SCAN_ID).autoSave, false);
+    const saving = scanHandoffFrom(match(), SCAN_ID, { autoSave: true });
+    assert.equal(parseScanHandoff(JSON.stringify(saving))?.autoSave, true);
+    const older: Partial<typeof saving> = { ...saving };
+    delete older.autoSave;
+    assert.equal(parseScanHandoff(JSON.stringify(older))?.autoSave, false);
+    assert.equal(parseScanHandoff(JSON.stringify({ ...saving, autoSave: "yes" })), null);
+  });
+
   it("drops the score and parallel options it doesn't need", () => {
     const handoff = scanHandoffFrom(match(), SCAN_ID) as unknown as Record<string, unknown>;
     assert.equal("score" in handoff, false);

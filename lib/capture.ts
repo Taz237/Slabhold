@@ -21,6 +21,15 @@ export function saveScan(dataUrl: string) {
   }
 }
 
+/** The scan photo without taking it, so a render can read it more than once. */
+export function peekScan(): string | null {
+  try {
+    return storage()?.getItem(SCAN_KEY) ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export function takeScan() {
   try {
     const store = storage();

@@ -24,7 +24,7 @@ expose("IS_REACT_ACT_ENVIRONMENT", true);
 type Props = {
   photo: string | null;
   state: ConfirmSheetState;
-  onConfirm: (match: ScanMatch) => void;
+  onConfirm: (match: ScanMatch, options: { save: boolean }) => void;
   onStepByStep: () => void;
   onRetake: () => void;
   onClose: () => void;
@@ -40,10 +40,10 @@ before(async () => {
 
 after(() => win.close());
 
-type Calls = { confirmed: ScanMatch[]; stepByStep: number; retake: number; close: number };
+type Calls = { confirmed: ScanMatch[]; saves: boolean[]; stepByStep: number; retake: number; close: number };
 
 async function mount(state: ConfirmSheetState, photo: string | null = null) {
-  const calls: Calls = { confirmed: [], stepByStep: 0, retake: 0, close: 0 };
+  const calls: Calls = { confirmed: [], saves: [], stepByStep: 0, retake: 0, close: 0 };
   const { createRoot } = await import("react-dom/client");
   const host = win.document.createElement("div");
   win.document.body.appendChild(host);
@@ -53,7 +53,10 @@ async function mount(state: ConfirmSheetState, photo: string | null = null) {
       createElement(ConfirmSheet, {
         photo,
         state,
-        onConfirm: (match) => calls.confirmed.push(match),
+        onConfirm: (match, options) => {
+          calls.confirmed.push(match);
+          calls.saves.push(options.save);
+        },
         onStepByStep: () => {
           calls.stepByStep += 1;
         },
@@ -113,9 +116,10 @@ describe("ConfirmSheet", () => {
       assert.ok(text().includes("••••0000"));
       assert.equal(text().includes("00000000"), false, "the full cert is never shown");
       assert.equal(button("Silver").getAttribute("aria-pressed"), "true");
-      await click(button("Yes, that's it"));
+      await click(button("Yes, add it"));
       assert.equal(view.calls.confirmed[0]?.parallel, "Silver");
       assert.equal(view.calls.confirmed[0]?.grade?.certNumber, "00000000");
+      assert.deepEqual(view.calls.saves, [true]);
     } finally {
       view.unmount();
     }
@@ -128,9 +132,10 @@ describe("ConfirmSheet", () => {
       assert.equal(button("Silver").getAttribute("aria-pressed"), "false");
       await click(button("Silver"));
       assert.equal(button("Silver").getAttribute("aria-pressed"), "true");
-      await click(button("Yes, that's it"));
+      await click(button("Yes, add it"));
       assert.equal(view.calls.confirmed[0]?.parallel, "Silver");
       assert.equal(view.calls.confirmed[0]?.sureness.parallel, "sure");
+      assert.deepEqual(view.calls.saves, [true]);
     } finally {
       view.unmount();
     }
@@ -143,11 +148,11 @@ describe("ConfirmSheet", () => {
       const input = win.document.querySelector<HTMLInputElement>('input[aria-label="Your number, out of 99"]');
       assert.ok(input);
       await type(input, "120");
-      await click(button("Yes, that's it"));
+      await click(button("Yes, add it"));
       assert.equal(view.calls.confirmed.length, 0);
       assert.ok(text().includes("Your number must be between 1 and 99."));
       await type(input, "12");
-      await click(button("Yes, that's it"));
+      await click(button("Yes, add it"));
       assert.equal(view.calls.confirmed[0]?.serialRun, 99);
       assert.equal(view.calls.confirmed[0]?.serialNo, "12");
     } finally {
@@ -165,6 +170,7 @@ describe("ConfirmSheet", () => {
       await click(select);
       await click(button("Yes, that's it"));
       assert.equal(view.calls.confirmed[0]?.setBrand, "Panini Select");
+      assert.deepEqual(view.calls.saves, [false], "the parallel is still open, so Add card asks");
     } finally {
       view.unmount();
     }
@@ -175,8 +181,21 @@ describe("ConfirmSheet", () => {
     try {
       await click(button("Something else"));
       assert.equal(button("Something else").getAttribute("aria-pressed"), "true");
+      assert.equal(text().includes("Yes, add it"), false);
       await click(button("Yes, that's it"));
       assert.equal(view.calls.confirmed[0]?.parallel, "");
+      assert.deepEqual(view.calls.saves, [false]);
+    } finally {
+      view.unmount();
+    }
+  });
+
+  it("offers Edit details next to the one-tap add, which opens Add card instead", async () => {
+    const view = await mount({ kind: "ready", matches: [fixtures.PREVIEW_SLAB] });
+    try {
+      await click(button("Edit details"));
+      assert.deepEqual(view.calls.saves, [false]);
+      assert.equal(view.calls.confirmed[0]?.parallel, "Silver");
     } finally {
       view.unmount();
     }

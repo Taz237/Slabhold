@@ -8,6 +8,7 @@ import {
   maskCert,
   matchLine,
   promoteMatch,
+  readyToSave,
   scanPreviewAllowed,
   scannerEnabled,
 } from "./confirm";
@@ -108,6 +109,28 @@ describe("confirmMatch", () => {
   });
 });
 
+describe("readyToSave", () => {
+  const full = match({ parallel: "Silver", sureness: { player: "sure", year: "sure", set: "sure", number: "sure", parallel: "sure" } });
+
+  it("is ready when every field Add card needs is filled", () => {
+    assert.equal(readyToSave(full), true);
+  });
+
+  it("is not ready with an open parallel, a missing number or a bad year", () => {
+    assert.equal(readyToSave({ ...full, parallel: "" }), false);
+    assert.equal(readyToSave({ ...full, cardNumber: "" }), false);
+    assert.equal(readyToSave({ ...full, yearLabel: "2023-25" }), false);
+    assert.equal(readyToSave({ ...full, setBrand: " " }), false);
+    assert.equal(readyToSave({ ...full, playerName: "" }), false);
+  });
+
+  it("is not ready when a slab's grader has no grade", () => {
+    const graded = { company: "PSA", number: "", qualifier: "", certNumber: "1", authentic: false, autoGrade: "" };
+    assert.equal(readyToSave({ ...full, grade: graded }), false);
+    assert.equal(readyToSave({ ...full, grade: { ...graded, number: "10" } }), true);
+  });
+});
+
 describe("promoteMatch", () => {
   it("moves the picked row to the top and keeps the rest in order", () => {
     const rows = [match({ catalogId: "a" }), match({ catalogId: "b" }), match({ catalogId: "c" })];
@@ -139,5 +162,7 @@ describe("copy", () => {
       assert.equal(/\bfree\b/i.test(text), false, text);
     }
     assert.equal(CONFIRM_COPY.title, "Is this your card?");
+    assert.equal(CONFIRM_COPY.add, "Yes, add it");
+    assert.equal(CONFIRM_COPY.editDetails, "Edit details");
   });
 });

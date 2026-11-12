@@ -105,6 +105,9 @@ const SLAB = {
   parallelOptions: [],
 } as const;
 
+/** A 1x1 PNG, standing in for the scan photo. */
+const PHOTO = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+
 const RAW_OPEN_PARALLEL = {
   ...SLAB,
   parallel: "",
@@ -131,6 +134,34 @@ describe("Add card from a scan", () => {
       assert.equal(saved[0].isRookie, true);
       assert.equal(win.sessionStorage.getItem("cardflip.scan-match"), null, "the cert is cleared after save");
       assert.equal(win.location.href.includes("45678912"), false);
+    } finally {
+      view.unmount();
+    }
+  });
+
+  it("saves on its own after Yes, add it, with the grade and cert", async () => {
+    const saved: Saved[] = [];
+    const view = await mountScan(SLAB, "scanauto0001", saved, "scanauto0001", { autoSave: true }, false, PHOTO);
+    try {
+      await waitFor(() => saved.length === 1);
+      assert.equal(saved[0].photoDataUrl, PHOTO, "the scan photo saves with it");
+      assert.equal(saved[0].grade, "PSA 10");
+      assert.equal(saved[0].certNumber, "45678912");
+      assert.equal(saved[0].isPublic, false, "private unless the collector chose public before");
+      await settle();
+      assert.equal(saved.length, 1, "saves once");
+      assert.equal(win.sessionStorage.getItem("cardflip.scan-match"), null);
+    } finally {
+      view.unmount();
+    }
+  });
+
+  it("uses the collector's last visibility choice for a one-tap add", async () => {
+    const saved: Saved[] = [];
+    const view = await mountScan(SLAB, "scanauto0002", saved, "scanauto0002", { autoSave: true }, true);
+    try {
+      await waitFor(() => saved.length === 1);
+      assert.equal(saved[0].isPublic, true);
     } finally {
       view.unmount();
     }
@@ -239,6 +270,9 @@ async function mountScan(
   savedId: string,
   saved: Saved[] = [],
   openId: string = savedId,
+  options: { autoSave?: boolean } = {},
+  rememberPublic = false,
+  photo: string | null = null,
 ) {
   win.localStorage.clear();
   win.sessionStorage.clear();
@@ -250,16 +284,22 @@ async function mountScan(
   clearFlowPosition();
   clearDoorQuery();
   if (match) {
-    const stored = handoff.scanHandoffFrom(match as never, savedId);
+    const stored = handoff.scanHandoffFrom(match as never, savedId, options);
     // As after a reload: only sessionStorage has it.
     win.sessionStorage.setItem("cardflip.scan-match", JSON.stringify(stored));
+    if (photo) win.sessionStorage.setItem("cardflip.scan", photo);
+  }
+  const social: Social = rememberPublic ? { user: { id: "user-1", username: "fixturecollector" } } : { user: null };
+  if (rememberPublic) {
+    const { writeBrowserVisibilityChoice } = await import("@/lib/cards/visibility-choice");
+    writeBrowserVisibilityChoice("user-1", true);
   }
   const { createRoot } = await import("react-dom/client");
   const host = win.document.createElement("div");
   win.document.body.appendChild(host);
   const root = createRoot(host);
   await act(async () => {
-    root.render(createElement(Harness, { saved, social: { user: null } }, createElement(ScanAddCard, { scanId: openId })));
+    root.render(createElement(Harness, { saved, social }, createElement(ScanAddCard, { scanId: openId })));
   });
   return {
     unmount() {

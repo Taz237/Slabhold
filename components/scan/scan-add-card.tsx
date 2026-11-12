@@ -2,7 +2,7 @@
 
 import { useSyncExternalStore } from "react";
 import { CardForm } from "@/components/card-form";
-import { readScanMatch } from "@/lib/capture";
+import { peekScan, readScanMatch } from "@/lib/capture";
 import type { ScanHandoff } from "@/lib/scan/handoff";
 
 /** The handoff never changes while this page is open, so there is nothing to subscribe to. */
@@ -22,8 +22,9 @@ export function ScanAddCard({ scanId }: { scanId: string }) {
     () => readScanMatch(scanId),
     () => undefined,
   );
+  const photo = useSyncExternalStore(subscribe, peekScan, () => null);
   if (handoff === undefined) return <ScanAddSkeleton />;
-  return <CardForm key={scanId} guided initialScan={handoff} />;
+  return <CardForm key={scanId} guided initialScan={handoff} initialPhoto={handoff ? photo : null} />;
 }
 
 function ScanAddSkeleton() {

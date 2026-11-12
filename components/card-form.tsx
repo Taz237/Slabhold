@@ -177,6 +177,7 @@ export function CardForm({
   initialSport = "",
   initialPrefill = null,
   initialScan = null,
+  initialPhoto = null,
 }: {
   existing?: SportsCard;
   /** Inline on the card page: skip the extra title, keep the same save. */
@@ -198,6 +199,8 @@ export function CardForm({
   initialPrefill?: AddAnotherPrefill | null;
   /** The card a scan matched. Opens on Review, or on the first step the scan wasn't sure of. */
   initialScan?: ScanHandoff | null;
+  /** The scan's photo, handed in so a one-tap add saves with it. */
+  initialPhoto?: string | null;
 }) {
   const catalogStart = !existing && initialCatalog ? catalogPickFields(initialCatalog, "") : null;
   const scanStart = !existing && !initialCatalog && initialScan ? scanCardStart(initialScan) : null;
@@ -254,7 +257,7 @@ export function CardForm({
   const [draftUserId, setDraftUserId] = useState(userId);
   const catalogPick = useRef<CatalogPickSnapshot | null>(catalogStart?.snapshot ?? scanStart?.snapshot ?? null);
   const timedOutIds = useRef<Set<string>>(new Set());
-  const [photo, setPhoto] = useState<string | null>(existing?.photoDataUrl ?? null);
+  const [photo, setPhoto] = useState<string | null>(existing?.photoDataUrl ?? initialPhoto ?? null);
   const [photoMissing, setPhotoMissing] = useState(Boolean(restored?.hadPhoto));
   const [showingRestored, setShowingRestored] = useState(restored != null);
   const [photoError, setPhotoError] = useState<string | null>(null);
@@ -269,6 +272,16 @@ export function CardForm({
     const scanned = takeScan();
     if (scanned) setPhoto(scanned);
   }, [existing]);
+
+  // "Yes, add it" on the scan sheet: save once, as soon as the collection is ready,
+  // through the same submit as the Add to collection button. A restored draft never auto-saves.
+  const autoSaveScan = Boolean(scanStart && initialScan?.autoSave && !restored);
+  const autoSaved = useRef(false);
+  useEffect(() => {
+    if (!autoSaveScan || autoSaved.current || !cardsReady) return;
+    autoSaved.current = true;
+    formRef.current?.requestSubmit();
+  }, [autoSaveScan, cardsReady]);
 
   const [sold, setSold] = useState(restored?.sold ?? Boolean(existing?.sellPrice));
   const rememberedShare = useSyncExternalStore(
