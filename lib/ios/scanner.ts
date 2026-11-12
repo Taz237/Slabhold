@@ -2,8 +2,9 @@ import type { ScanCapture } from "@/lib/scan/session";
 
 /**
  * The native card scanner's results (ios-app SlabholdScanner, PR 10): a
- * full-screen camera with a card guide, auto-capture, a straightened crop and
- * Apple Vision text reading on the phone. Only the read text and the crop come
+ * full-screen camera the collector taps to take (or a library photo picked on
+ * the camera screen), a straightened crop and Apple Vision text reading on the
+ * phone. Only the read text and the crop come
  * back. The plugin calls live in lib/ios/native.ts, like every Capacitor import;
  * this file only checks what comes back, so no plugin code ships in a route's
  * first load. Builds without the plugin report unavailable, and the scan hub

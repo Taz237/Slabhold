@@ -57,7 +57,7 @@ We couldn't find one app by that exact name. The App Store has many look-alikes 
 
 | | A. On-device text reading | B. Image matching vs our catalog | C. Paid vision AI step |
 | --- | --- | --- | --- |
-| What it is | Apple Vision on the phone: edge detection, auto-capture, crop, OCR | An embedding of the photo compared to reference card images | Send the cropped photo + OCR text to a vision model and get structured JSON back |
+| What it is | Apple Vision on the phone: edge detection, tap to capture, crop, OCR | An embedding of the photo compared to reference card images | Send the cropped photo + OCR text to a vision model and get structured JSON back |
 | Slabs | **Excellent.** The label has year, set, player, #, variety, grade and cert in clean type | Weak: the slab case and label dominate the image | Excellent, but not needed when the label reads cleanly |
 | Raw card identity | Fair. The name is usually readable, but year, set and # are mostly on the back | Good **if** we had reference images | **Best.** Recognizes set designs and logos without text |
 | Parallels | Text clues only ("/99", insert names, slab label) | Poor. Parallels share a design and differ by color, so they embed close together | Good when **constrained to the set's real parallel list** |
@@ -97,7 +97,7 @@ For comparison, Card Dealer Pro charges dealers 1.2–1.8¢ per card. Our Haiku 
 **On-device reading first, catalog and checklist match second, and Haiku 5.5 only when the phone can't settle it. Sonnet 5.5 runs only when the collector taps "Look closer". Image matching waits until after launch.**
 
 Flow for one scan:
-1. **On the phone (no cost, about 0.5 s):** edge detection, auto-capture, straightened crop, OCR. We also sample border and background color and check for refractor shimmer, using the existing `parallel-swatch` color names as the vocabulary.
+1. **On the phone (no cost, about 0.5 s):** edge detection, the collector taps to capture, straightened crop, OCR. We also sample border and background color and check for refractor shimmer, using the existing `parallel-swatch` color names as the vocabulary.
 2. **Slab?** We parse the label (grader, grade, qualifier, cert, year, set, player, #, variety), check it against the catalog and checklists, and go to the confirm sheet. **No paid call, no limit, under 1 s.**
 3. **Raw card, and the phone settled it?** That means the player, year, set and # all agree with one catalog row, and the parallel is pinned by text (for example "/99" matching only one parallel in the checklist). Confirm sheet, **no paid call**.
 4. **Raw card, not settled?** We call **Haiku 5.5** with the cropped front (and back if taken), the OCR lines, the top catalog candidates and **that set's real parallel list** from our checklists (`lib/cards/data/*-parallels.json`, `lib/cards/parallels.ts`). The model has to pick from those lists or answer "not sure", and it returns JSON. The catalog stays in charge: a card # or parallel the checklist doesn't have is never shown as the top pick.
@@ -120,7 +120,7 @@ We expect about 30–50% of raw scans to be settled on the phone and the rest to
 2. **Slabs in one shot, fast, with no paid call.** We read the whole label: grader, grade, qualifier (OC, MK), cert, card and variety. No "scan just the name and grade" workaround like Card Ladder's, and no paid call.
 3. **No scan paywall, and honest values.** Scan as many cards as you want, with no 8-scan trap. Every value is recent sold prices via Trawl with the sales shown, so the inflated "$712 vs $180" numbers can't happen.
 
-Also better on feel: auto-capture with no shutter tap needed, slabs to the confirm sheet in under 1 s, and raw cards showing the player instantly while the AI fills in set and parallel.
+Also better on feel: a big full-screen camera the collector controls, slabs to the confirm sheet in under 1 s, and raw cards showing the player instantly while the AI fills in set and parallel.
 
 ---
 
@@ -161,33 +161,26 @@ Design for 390 px first. The camera is native full-bleed on iOS. The confirm she
 - **Web, and iOS builds without the plugin:** photo pick or the web camera. With AI on, the web path also gets steps 4–5 from a photo (no live reading). With AI off or capped, it goes to the search door with the photo attached. There are no dead buttons: the web checks for the plugin, the same way `nativeShareFilesAvailable()` does.
 
 ### Camera screen (native)
+Decided after a side-by-side with Card Ladder Pro on the same card: a big, plain camera the collector controls.
 ```
 ┌───────────────────────────────┐
-│ ✕                       ⚡︎    │  close (44px) · torch
-│     ┌───────────────────┐     │
-│     │                   │     │  card guide 2.5:3.5
-│     │                   │     │  (slab: 3.1:5.3, label band marked)
-│     └───────────────────┘     │
-│      Fit the card in the frame│  one-line hint
-│   [ Card | Slab ]             │  auto-switches from shape
-│  🖼          ◯          Aa    │  library · shutter · type it instead
+│ ✕                       ⚡︎    │  close · torch (44pt, see-through)
+│                               │
+│   live camera, edge to edge   │  the card can fill most of the screen
+│   ┌───────────────────────┐   │  thin purple line on the card's edge
+│   │                       │   │  (only when a card is seen)
+│   └───────────────────────┘   │
+│ Frame the card, then tap to…  │  one-line hint
+│     🖼        ◯        Skip   │  photo · shutter · Skip (flip step only)
 └───────────────────────────────┘
 ```
-- Black (#09090B), live preview, the area outside the guide dimmed.
-- Off-white corner brackets turn brand purple (#7C3AED) and snap to the card edges when we lock on. No glow and no pulsing.
-- Hints, one at a time: "Fit the card in the frame", "Hold still", "Move a little closer", "Too much glare, tilt it a bit", "Got it".
-- The camera opens in under 300 ms. The session is prewarmed while Add card is open and torn down when it closes.
+- Full-screen live preview like the iPhone camera. No guide box, no dimmed area, no Card or Slab switch: the reader tells a slab from a card by its shape.
+- A thin (2pt) brand purple line follows the card's edge when one is in view. It only shows the card is seen.
+- **No auto-capture.** The collector frames the card and taps the shutter (76pt). A light haptic on the tap, a single flash (none with Reduce Motion).
+- **Photo button next to the shutter** (52pt, "Choose a photo"): the system photo picker, read on the phone with the same reader as a snap, then the same confirm sheet (Add card) or comp sheet (Quick Comp).
+- Hints, one at a time: "Frame the card, then tap to take it", "Reading the card", "Flip it over for the card #", "We couldn't read that one…".
 
-### Auto-capture
-Capture fires when all of these hold for about 400 ms:
-- A card- or slab-shaped rectangle (±8%) fills ≥ 55% of the guide.
-- The corners stay steady (less than 2% movement).
-- It's sharp enough (Laplacian variance) and has no heavy glare (highlight clipping).
-- There's a little readable text.
-
-On capture: a light haptic, a single shutter flash (a cut with reduced motion), and the crop shrinks down as the confirm sheet rises. With no lock after 6 s, the hint says "Tap the button to take it yourself".
-
-**Back of card (raw only, optional):** if the front leaves the card # open, the camera asks "Flip it over for the card #" and offers "Skip".
+**Back of card (raw only, optional):** if the front leaves the card # open, the camera asks "Flip it over for the card #" and waits for a second tap (or a photo), with "Skip". Slabs never ask.
 
 ### "Is this your card?" confirm sheet
 ```
@@ -288,7 +281,7 @@ Other services: Vercel function time and bandwidth for the AI route stay within 
 New dependency: `@anthropic-ai/sdk` (server only, PR 11). Nothing else.
 
 ### iOS
-- `ios-app/ios/App/App/SlabholdScanner.swift` is new: AVFoundation + Vision (rectangles, OCR), auto-capture gate, perspective crop and color sampling. Apple frameworks only.
+- `ios-app/ios/App/App/SlabholdScanner.swift` is new: AVFoundation + Vision (rectangles, OCR), tap to capture, perspective crop and color sampling. Apple frameworks only.
 - `SlabholdNativePlugin.swift` gains `scanCard`, `recognize` and `scannerAvailable`.
 - `Info.plist` gets new camera copy: "Slabhold uses the camera to photograph and identify cards you add to your collection."
 - **A new iOS build is needed.** Web PRs can merge first because they check for the plugin.

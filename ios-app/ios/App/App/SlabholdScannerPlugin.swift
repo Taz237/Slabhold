@@ -16,7 +16,7 @@ public class SlabholdScannerPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "recognize", returnType: CAPPluginReturnPromise)
     ]
 
-    /// The full-screen camera: a card guide, auto-capture, then the read.
+    /// The full-screen camera: the collector taps to take it, or picks a photo, then the read.
     /// Resolves `{ cancelled: true }` on Close, and `{ cancelled: true, denied: true }`
     /// when camera access is off. Rejects only when the camera can't start.
     @objc func scanCard(_ call: CAPPluginCall) {
