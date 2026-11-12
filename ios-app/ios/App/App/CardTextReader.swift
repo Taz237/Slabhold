@@ -31,6 +31,11 @@ enum CardTextReader {
     static let maxLineLength = 200
     /// The crop's long side. Enough for the card photo, small enough to hand over quickly.
     static let maxImageSide: CGFloat = 1280
+    /// A card inside a toploader or sleeve covers about this share of the first crop.
+    static let innerCardMinArea: CGFloat = 0.55
+    static let innerCardMaxArea: CGFloat = 0.97
+    /// Each side of the kept photo loses this share, so no table or plastic edge shows.
+    static let edgeTrim: CGFloat = 0.012
     private static let context = CIContext()
 
     /// Reads a photo: the library pick, or the frame the live camera captured.
@@ -42,7 +47,50 @@ enum CardTextReader {
         let cropped = edge.flatMap { straighten(cgImage, to: $0) } ?? cgImage
         let lines = recognizeText(in: cropped)
         let kind = edge.map { aspect(of: $0, width: cgImage.width, height: cgImage.height) < slabAspectBelow ? "slab" : "card" }
-        return CardRead(lines: lines, backLines: nil, image: UIImage(cgImage: cropped), kind: kind)
+        // Text is read from the first crop; the photo we keep is tight on the card.
+        let photo = edge == nil ? cropped : tighten(cropped, slab: kind == "slab")
+        return CardRead(lines: lines, backLines: nil, image: UIImage(cgImage: photo), kind: kind)
+    }
+
+    /// The kept photo, tight and close on the card, for the sheet and the timeline.
+    /// A raw card in a toploader or sleeve: the card's own edge inside the first
+    /// crop is found and straightened, cutting the plastic away. A slab keeps its
+    /// label. Then a thin sliver comes off each side.
+    static func tighten(_ image: CGImage, slab: Bool) -> CGImage {
+        var out = image
+        if !slab, let inner = detectInnerCard(in: image), let straight = straighten(image, to: inner) {
+            out = straight
+        }
+        return trimmed(out, by: edgeTrim)
+    }
+
+    /// A card-shaped edge filling most, but not all, of the crop: the card inside its holder.
+    static func detectInnerCard(in image: CGImage) -> VNRectangleObservation? {
+        let request = VNDetectRectanglesRequest()
+        request.minimumAspectRatio = 0.6
+        request.maximumAspectRatio = 0.85
+        request.minimumSize = 0.6
+        request.minimumConfidence = 0.7
+        request.maximumObservations = 1
+        request.quadratureTolerance = 15
+        let handler = VNImageRequestHandler(cgImage: image, options: [:])
+        do {
+            try handler.perform([request])
+        } catch {
+            return nil
+        }
+        guard let edge = request.results?.first else { return nil }
+        let area = edge.boundingBox.width * edge.boundingBox.height
+        return area >= innerCardMinArea && area <= innerCardMaxArea ? edge : nil
+    }
+
+    /// The same image with a share of each side cut off.
+    static func trimmed(_ image: CGImage, by share: CGFloat) -> CGImage {
+        let dx = (CGFloat(image.width) * share).rounded()
+        let dy = (CGFloat(image.height) * share).rounded()
+        let rect = CGRect(x: dx, y: dy, width: CGFloat(image.width) - 2 * dx, height: CGFloat(image.height) - 2 * dy)
+        guard rect.width > 0, rect.height > 0 else { return image }
+        return image.cropping(to: rect) ?? image
     }
 
     /// The largest card-shaped rectangle in the image, or nil.

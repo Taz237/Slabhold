@@ -18,8 +18,13 @@ export const COMP_COPY = {
   sales: "Last sales",
   basedOn: "Based on",
   fewSales: "Not enough recent sales for a value yet",
-  none: "No recent sales saved for this card yet",
-  noneBody: "We only show sales we already have. Add it to your collection and we'll price it.",
+  /** After a live eBay search for this card found no matching sale. */
+  noneSearched: "No recent eBay sales found for this card",
+  noneSearchedBody: "We looked at eBay sales from the last 90 days.",
+  /** No live search ran for this pick (another parallel or grade): only saved sales were checked. */
+  none: "No recent sales for this one yet",
+  looking: "Looking up last solds…",
+  lastSold: "Last sold",
   unavailable: "We couldn't load sold prices",
   retry: "Try again",
   assumedBase: "Showing Base. Tap your parallel if it's different.",
@@ -34,7 +39,7 @@ export const COMP_COPY = {
 
 export type ScanCompSale = { priceCents: number; soldAt: string | null };
 
-export type ScanCompSource = "quick-comp" | "sold-cache" | "collections";
+export type ScanCompSource = "quick-comp" | "sold-cache" | "collections" | "live";
 
 export type ScanCompResult =
   | {
@@ -50,8 +55,24 @@ export type ScanCompResult =
       asOf: string | null;
       source: ScanCompSource;
     }
-  | { status: "none" }
+  /** searched: a live eBay search ran for this card and found no matching sale. */
+  | { status: "none"; searched?: boolean }
+  /** Today's or this hour's live lookups are used up. The identity still shows. */
+  | { status: "limited"; reason: "daily" | "hourly"; resetAt: string | null }
   | { status: "unavailable" };
+
+/**
+ * The last solds for the scan's top card, from POST /api/scan/solds. Looking
+ * while the live eBay search runs (a few seconds), so the identity shows first.
+ */
+export type SoldsState =
+  | { status: "looking" }
+  | { status: "done"; comp: ScanCompResult; query: string | null };
+
+/** The newest sale, for the one-line "Last sold" on the Add card sheet. */
+export function lastSale(result: ScanCompResult): ScanCompSale | null {
+  return result.status === "ok" ? (result.sales[0] ?? null) : null;
+}
 
 const MAX_SALES = 10;
 const TREND_MIN_SALES = 4;
@@ -88,7 +109,7 @@ export function compIdentityFromMatch(
 }
 
 /** Same field names as /api/quick-comp, plus the print run the card shows (run) for the sold-listing cache. */
-export function compQueryString(identity: QuickCompIdentity, serialRun?: number | null): string {
+export function compQueryString(identity: QuickCompIdentity, serialRun?: number | null, query?: string | null): string {
   const params = new URLSearchParams();
   params.set("player", identity.playerName);
   params.set("year", identity.yearLabel);
@@ -97,6 +118,7 @@ export function compQueryString(identity: QuickCompIdentity, serialRun?: number 
   params.set("parallel", identity.parallel || "Base");
   params.set("grade", identity.grade);
   if (serialRun != null && Number.isInteger(serialRun) && serialRun > 0) params.set("run", String(serialRun));
+  if (query) params.set("q", query);
   return params.toString();
 }
 

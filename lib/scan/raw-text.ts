@@ -65,6 +65,8 @@ const FUZZY_MAX_WORDS = 3;
 const FUZZY_MAX_LENGTH = 28;
 
 const PARALLEL_WORDS = [
+  // A Donruss parallel family (Optic Preview Pink), not the Donruss Optic set.
+  "OPTIC PREVIEW",
   "CRACKED ICE",
   "MAGENTA",
   "FUCHSIA",
@@ -366,10 +368,15 @@ function readSets(lineWords: string[][]): string[] {
     if (matched === 0) return;
     scored.push({ name, score: matched - 0.1 * (words.length - matched), order });
   });
-  return scored
+  const names = scored
     .sort((a, b) => b.score - a.score || a.order - b.order)
-    .slice(0, MAX_SETS)
     .map((item) => item.name);
+  // "Optic Preview" is a parallel on a Donruss card, the same rule card-page comps use.
+  if (hasPhrase(lineWords, ["optic", "preview"])) {
+    const kept = names.filter((name) => !/optic/i.test(name) && name !== "Panini Donruss");
+    return ["Panini Donruss", ...kept].slice(0, MAX_SETS);
+  }
+  return names.slice(0, MAX_SETS);
 }
 
 function readParallelWords(lineWords: string[][]): string[] {

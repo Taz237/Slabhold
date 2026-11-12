@@ -10,7 +10,17 @@ import { ConfirmSheet, type ConfirmSheetState } from "@/components/scan/confirm-
 import { saveScan, saveScanMatch } from "@/lib/capture";
 import { newScanId, scanAddPath, scanHandoffFrom } from "@/lib/scan/handoff";
 import type { ScanMatch } from "@/lib/scan/match";
-import { PREVIEW_NUMBERED, PREVIEW_PHOTO, PREVIEW_RAW, PREVIEW_SLAB, previewCompLookup } from "@/lib/scan/preview-fixtures";
+import {
+  PREVIEW_NUMBERED,
+  PREVIEW_PHOTO,
+  PREVIEW_RAW,
+  PREVIEW_SLAB,
+  PREVIEW_SOLDS,
+  PREVIEW_SOLDS_LIMITED,
+  PREVIEW_SOLDS_LOOKING,
+  PREVIEW_SOLDS_NONE,
+  previewCompLookup,
+} from "@/lib/scan/preview-fixtures";
 
 export type PreviewKind =
   | "slab"
@@ -22,6 +32,9 @@ export type PreviewKind =
   | "comp"
   | "comp-raw"
   | "comp-none"
+  | "comp-looking"
+  | "comp-limited"
+  | "slab-looking"
   | "hub"
   | "hub-comp"
   | "door";
@@ -29,15 +42,22 @@ export type PreviewKind =
 const SCREENS = new Set<PreviewKind>(["hub", "hub-comp", "door"]);
 
 const STATES: Record<Exclude<PreviewKind, "hub" | "hub-comp" | "door">, ConfirmSheetState> = {
-  slab: { kind: "ready", matches: [PREVIEW_SLAB] },
-  raw: { kind: "ready", matches: PREVIEW_RAW },
+  slab: { kind: "ready", matches: [PREVIEW_SLAB], solds: PREVIEW_SOLDS },
+  "slab-looking": { kind: "ready", matches: [PREVIEW_SLAB], solds: PREVIEW_SOLDS_LOOKING },
+  raw: { kind: "ready", matches: PREVIEW_RAW, solds: PREVIEW_SOLDS_NONE },
   numbered: { kind: "ready", matches: [PREVIEW_NUMBERED, ...PREVIEW_RAW.slice(1)] },
   matching: { kind: "matching" },
   none: { kind: "none" },
   offline: { kind: "none", offline: true },
-  comp: { kind: "ready", matches: [PREVIEW_SLAB] },
+  comp: { kind: "ready", matches: [PREVIEW_SLAB], solds: PREVIEW_SOLDS },
   "comp-raw": { kind: "ready", matches: PREVIEW_RAW },
-  "comp-none": { kind: "ready", matches: [{ ...PREVIEW_RAW[0], playerName: "Paul Skenes", sport: "Baseball", yearLabel: "2024", setBrand: "Topps Update", cardNumber: "US50" }] },
+  "comp-none": {
+    kind: "ready",
+    matches: [{ ...PREVIEW_RAW[0], playerName: "Paul Skenes", sport: "Baseball", yearLabel: "2024", setBrand: "Topps Update", cardNumber: "US50" }],
+    solds: PREVIEW_SOLDS_NONE,
+  },
+  "comp-looking": { kind: "ready", matches: [PREVIEW_SLAB], solds: PREVIEW_SOLDS_LOOKING },
+  "comp-limited": { kind: "ready", matches: [PREVIEW_SLAB], solds: PREVIEW_SOLDS_LIMITED },
 };
 
 const LABELS: Record<PreviewKind, string> = {
@@ -50,6 +70,9 @@ const LABELS: Record<PreviewKind, string> = {
   comp: "Comp a slab",
   "comp-raw": "Comp a raw card",
   "comp-none": "Comp, no sales",
+  "comp-looking": "Comp, looking up",
+  "comp-limited": "Comp, daily cap",
+  "slab-looking": "Slab, looking up",
   hub: "Hub, no reader",
   "hub-comp": "Hub comp, no reader",
   door: "Add card door",

@@ -112,6 +112,7 @@ function nativeDeps(overrides: Partial<ScanHubDeps> = {}): Partial<ScanHubDeps> 
     pickAndRead: async () => CAPTURE,
     identify: async () => result([fixtures.PREVIEW_SLAB]),
     compLookup: fixtures.previewCompLookup,
+    solds: fixtures.previewSolds,
     online: () => true,
     ...overrides,
   };
@@ -185,6 +186,60 @@ describe("ScanHub with the native scanner", () => {
       await act(async () => button("Choose a photo").click());
       await waitFor(() => text().includes("Is this your card?"));
       assert.equal(reads, 1);
+    } finally {
+      view.unmount();
+    }
+  });
+});
+
+describe("ScanHub: identify, then last eBay solds", () => {
+  it("shows the card first, then fills in its last solds", async () => {
+    let release: () => void = () => {};
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const view = await mount(
+      "add",
+      nativeDeps({
+        solds: async (capture, matches) => {
+          await gate;
+          return fixtures.previewSolds(capture, matches);
+        },
+      }),
+    );
+    try {
+      await waitFor(() => text().includes("Looking up last solds…"));
+      assert.ok(text().includes("Luka Doncic"), "the identity shows while the search runs");
+      release();
+      await waitFor(() => text().includes("Last sold"));
+    } finally {
+      view.unmount();
+    }
+  });
+
+  it("a card the catalog didn't find can still be found by the sold titles", async () => {
+    const view = await mount(
+      "comp",
+      nativeDeps({
+        identify: async () => result([]),
+        solds: async () => ({ matches: [fixtures.PREVIEW_SLAB], comp: { status: "none", searched: true }, query: "q" }),
+      }),
+    );
+    try {
+      await waitFor(() => text().includes("No recent eBay sales found for this card"));
+      assert.ok(text().includes("Luka Doncic"));
+    } finally {
+      view.unmount();
+    }
+  });
+
+  it("with nothing found either way, says so", async () => {
+    const view = await mount(
+      "add",
+      nativeDeps({ identify: async () => result([]), solds: async () => ({ matches: [], comp: { status: "none" }, query: null }) }),
+    );
+    try {
+      await waitFor(() => text().includes("We couldn't find this one yet"));
     } finally {
       view.unmount();
     }

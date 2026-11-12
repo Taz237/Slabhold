@@ -1,4 +1,6 @@
-import { titleMatchesCard } from "@/lib/comps/match";
+import { gradesMatchCard, isRawCard, parseGradeFromTitle, titleMatchesCard } from "@/lib/comps/match";
+import { sharedCompValue } from "@/lib/comps/shared-value";
+import type { TrawlSoldResult } from "@/lib/comps/types";
 import { toMatchCard, type QuickCompIdentity } from "@/lib/quick-comp/identity";
 import type { CardValueSale } from "@/lib/value/types";
 import { summarizeSales, type ScanCompResult } from "./comp";
@@ -25,18 +27,34 @@ export type ScanCompDeps = {
   collectionSales: (identity: QuickCompIdentity, viewerId: string) => Promise<CardValueSale[]>;
   /** Cached sold listings whose titles name the player. Filtered to this card here. */
   soldCache?: (playerName: string) => Promise<SoldTitle[]>;
+  /** A live eBay search this scan already ran, from the shared cache. Never Trawl. */
+  liveCache?: (query: string) => Promise<TrawlSoldResult[] | null>;
 };
 
 export type ScanCompOptions = {
   /** The print run the card shows (/199), so numbered listings for it count. */
   serialRun?: number | null;
+  /** The live search the scan ran (from /api/scan/solds), so another parallel or grade reuses it. */
+  query?: string | null;
 };
 
-/** The cached listings that are this exact card: player, year, set, #, parallel, print run, raw or graded. */
+/**
+ * The cached listings that are this exact card: player, year, set, #, parallel,
+ * print run, and raw vs graded. A raw card keeps raw sales only; a PSA 9 keeps
+ * PSA 9 sales only (from the saved grade, else the title). Never mixed.
+ */
 export function salesForCard(titles: readonly SoldTitle[], identity: QuickCompIdentity, options: ScanCompOptions = {}) {
   const card = { ...toMatchCard(identity), serialRun: options.serialRun ?? null };
   return titles
-    .filter((sale) => typeof sale.price === "number" && sale.price > 0 && titleMatchesCard(sale.title, card))
+    .filter((sale) => {
+      if (typeof sale.price !== "number" || !(sale.price > 0)) return false;
+      if (!titleMatchesCard(sale.title, card)) return false;
+      const fromTitle = parseGradeFromTitle(sale.title);
+      const grader = sale.grader?.trim() || fromTitle?.grader || null;
+      const grade = sale.grade?.trim() || fromTitle?.grade || null;
+      if (isRawCard(card)) return !grader && gradesMatchCard(card, grader, grade, sale.title);
+      return gradesMatchCard(card, grader, grade, sale.title);
+    })
     .map((sale) => ({ price: sale.price as number, soldAt: sale.soldAt ?? null }));
 }
 
@@ -60,6 +78,24 @@ export async function lookupScanComp(
     }
   } catch {
     failures += 1;
+  }
+
+  // Another parallel or grade on the same scan: the live search already ran, so filter it again.
+  if (options.query && deps.liveCache) {
+    try {
+      const results = await deps.liveCache(options.query);
+      if (results) {
+        const card = { ...toMatchCard(identity), serialRun: options.serialRun ?? null };
+        const sales = sharedCompValue(card, [...results]).sales;
+        const result = summarizeSales(
+          sales.map((sale) => ({ price: sale.price, soldAt: sale.soldAt })),
+          { asOf: newestSoldAt(sales), source: "live" },
+        );
+        return result.status === "ok" ? result : { status: "none", searched: true };
+      }
+    } catch {
+      // Falls through to the saved sales.
+    }
   }
 
   if (deps.soldCache) {

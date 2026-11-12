@@ -138,6 +138,77 @@ describe("lookupScanComp: cached eBay sold listings", () => {
   });
 });
 
+describe("lookupScanComp: the scan's own live search, again", () => {
+  const DART: QuickCompIdentity = {
+    playerName: "Jaxson Dart",
+    year: 2025,
+    yearLabel: "2025",
+    setBrand: "Panini Mosaic",
+    cardNumber: "362",
+    parallel: "Orange",
+    grade: "Raw",
+  };
+  const result = (title: string, price: number, date: string) => ({
+    title,
+    sale_price: price,
+    shipping_price: null,
+    currency: "USD",
+    condition: "Ungraded",
+    condition_raw: null,
+    date_sold: `${date}T18:00:00.000Z`,
+    buying_format: "Auction",
+    item_id: `${title}-${date}`,
+    item_link: "",
+    image_url: null,
+  });
+  const LIVE = [
+    result("2025 Panini Mosaic Jaxson Dart Orange /199 #362", 45, "2026-08-05"),
+    result("2025 Panini Mosaic Jaxson Dart Blue /99 #362", 70, "2026-08-23"),
+  ];
+
+  it("another parallel reads the same search from the cache, filtered to it", async () => {
+    const asked: string[] = [];
+    const out = await lookupScanComp(
+      { ...DART, parallel: "Blue" },
+      "viewer",
+      deps({ liveCache: async (query) => (asked.push(query), LIVE) }),
+      { serialRun: 99, query: "Jaxson Dart /199" },
+    );
+    assert.deepEqual(asked, ["Jaxson Dart /199"]);
+    assert.ok(out.status === "ok" && out.source === "live");
+    assert.deepEqual(out.status === "ok" ? out.sales.map((sale) => sale.priceCents) : [], [7000]);
+  });
+
+  it("says the search found none for a parallel it covered, and skips it without a query", async () => {
+    const none = await lookupScanComp({ ...DART, parallel: "Gold" }, "viewer", deps({ liveCache: async () => LIVE }), {
+      serialRun: 10,
+      query: "Jaxson Dart /199",
+    });
+    assert.deepEqual(none, { status: "none", searched: true });
+    let reads = 0;
+    await lookupScanComp(DART, "viewer", deps({ liveCache: async () => (reads++, LIVE) }), { serialRun: 199 });
+    assert.equal(reads, 0);
+  });
+
+  it("the route passes q through and keeps it out of the card fields", async () => {
+    let seen: { serialRun: number | null; query: string | null } | null = null;
+    const response = await respondScanComp(
+      new Request("https://slabhold.test/api/scan/comp?player=Jaxson+Dart&year=2025&set=Panini+Mosaic&number=362&parallel=Blue&grade=Raw&run=99&q=Jaxson+Dart+%2F199"),
+      {
+        enabled: () => true,
+        userId: async () => "viewer",
+        allow: async () => true,
+        lookup: async (_identity, _user, options) => {
+          seen = options;
+          return { status: "none" };
+        },
+      },
+    );
+    assert.equal(response.status, 200);
+    assert.deepEqual(seen, { serialRun: 99, query: "Jaxson Dart /199" });
+  });
+});
+
 describe("the server lookup never calls Trawl", () => {
   it("reads caches only and refuses a quick comp cache miss", () => {
     const source = readFileSync(join(process.cwd(), "lib/scan/comp-lookup-server.ts"), "utf8");

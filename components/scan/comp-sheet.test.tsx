@@ -174,7 +174,7 @@ describe("CompSheet", () => {
   it("says plainly when we have no sales, and shows no price", async () => {
     const view = await mount({ kind: "ready", matches: [fixtures.PREVIEW_SLAB] }, async () => ({ status: "none" }));
     try {
-      await waitFor(() => text().includes("No recent sales saved for this card yet"));
+      await waitFor(() => text().includes("No recent sales for this one yet"));
       assert.equal(/\$\d/.test(text()), false, "no dollar figure anywhere");
     } finally {
       view.unmount();
@@ -227,6 +227,50 @@ describe("CompSheet", () => {
         const name = node.getAttribute("aria-label") ?? node.textContent?.trim() ?? "";
         assert.ok(name.length > 0, node.outerHTML.slice(0, 80));
       }
+    } finally {
+      view.unmount();
+    }
+  });
+});
+
+describe("CompSheet: the scan's live eBay search", () => {
+  it("says it's looking up last solds and doesn't look up the same card twice", async () => {
+    const view = await mount({ kind: "ready", matches: [fixtures.PREVIEW_SLAB], solds: fixtures.PREVIEW_SOLDS_LOOKING });
+    try {
+      assert.ok(text().includes("Luka Doncic"));
+      assert.ok(text().includes("Looking up last solds…"));
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      assert.equal(view.calls.lookups.length, 0, "the scan's own search is already running");
+    } finally {
+      view.unmount();
+    }
+  });
+
+  it("shows the scan's last solds with no second lookup", async () => {
+    const view = await mount({ kind: "ready", matches: [fixtures.PREVIEW_SLAB], solds: fixtures.PREVIEW_SOLDS });
+    try {
+      await waitFor(() => text().includes("Based on 6 sales"));
+      assert.equal(view.calls.lookups.length, 0);
+    } finally {
+      view.unmount();
+    }
+  });
+
+  it("a cap shows the Quick Comp message and no price", async () => {
+    const view = await mount({ kind: "ready", matches: [fixtures.PREVIEW_SLAB], solds: fixtures.PREVIEW_SOLDS_LIMITED });
+    try {
+      await waitFor(() => text().includes("You've used today's comps. Saved ones still open"));
+      assert.equal(/\$\d/.test(text()), false);
+    } finally {
+      view.unmount();
+    }
+  });
+
+  it("after a search that found nothing, says so plainly", async () => {
+    const view = await mount({ kind: "ready", matches: [fixtures.PREVIEW_SLAB], solds: fixtures.PREVIEW_SOLDS_NONE });
+    try {
+      await waitFor(() => text().includes("No recent eBay sales found for this card"));
+      assert.ok(text().includes("We looked at eBay sales from the last 90 days."));
     } finally {
       view.unmount();
     }
