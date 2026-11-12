@@ -111,7 +111,7 @@ describe("native scanner: the camera screen", () => {
       assert.match(camera, new RegExp(`${button}\\.heightAnchor\\.constraint\\(equalToConstant: Self\\.minTapTarget\\)`));
     }
     assert.match(camera, /shutterButton\.widthAnchor\.constraint\(equalToConstant: 72\)/);
-    for (const label of ["Close", "Flashlight", "Take photo", "Card or slab"]) {
+    for (const label of ["Close", "Flashlight", "Take photo", "Card or slab", "Skip the back"]) {
       assert.match(camera, new RegExp(`accessibilityLabel = "${label}"`));
     }
   });
@@ -137,8 +137,43 @@ describe("native scanner: the camera screen", () => {
       "Hold still",
       "Got it",
       "Tap the button to take it yourself",
+      "Flip it over for the card #",
       "We couldn't read that one. Try again with the card flat and in good light.",
     ]);
     for (const source of [plugin, camera, reader]) assert.doesNotMatch(source, /\bfree\b/i);
+  });
+});
+
+describe("native scanner: flip for the card #", () => {
+  it("asks for the back only on a raw card whose front shows no card number", () => {
+    assert.match(camera, /static func needsBack\(_ read: CardRead\) -> Bool \{\s*if read\.kind == "slab" \{ return false \}/);
+    const pattern = camera.match(/line\.range\(of: #"(.+?)"#/)?.[1];
+    assert.ok(pattern, "the card number pattern");
+    const number = new RegExp(pattern, "i");
+    assert.equal(number.test("#136"), true);
+    assert.equal(number.test("NO. 280"), true);
+    assert.equal(number.test("VICTOR WEMBANYAMA"), false);
+    assert.equal(number.test("PRIZM"), false);
+  });
+
+  it("puts the back's lines with the front, and Skip sends the front alone", () => {
+    assert.match(camera, /if var front = self\.front \{\s*front\.backLines = read\.lines/);
+    assert.match(camera, /@objc private func skipTapped\(\) \{\s*guard let front, !capturing else \{ return \}\s*end\(\.captured\(front\)\)/);
+    assert.match(camera, /skipButton\.heightAnchor\.constraint\(equalToConstant: Self\.minTapTarget\)/);
+  });
+
+  it("waits for the card to leave the frame, or 1.2 s, so the front isn't taken twice", () => {
+    assert.match(camera, /static let flipClearSeconds: TimeInterval = 1\.2/);
+    assert.match(camera, /if edge == nil \|\| Date\(\)\.timeIntervalSince\(clearRequestedAt\) > Self\.flipClearSeconds/);
+  });
+
+  it("reads the back through the same matcher on the web side", async () => {
+    const { INDEXED_DIRECTORY } = await import("@/lib/players/directory");
+    const { scanReadFrom } = await import("@/lib/scan/session");
+    const read = scanReadFrom(
+      { lines: ["VICTOR WEMBANYAMA", "PRIZM"], backLines: ["#136", "2023-24 PANINI PRIZM"], image: null, kind: "card" },
+      INDEXED_DIRECTORY,
+    );
+    assert.ok(read.kind === "raw" && read.back?.cardNumber === "136" && read.back.yearLabel === "2023-24");
   });
 });
