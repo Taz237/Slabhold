@@ -97,46 +97,74 @@ describe("native scanner: on the phone, private", () => {
 });
 
 describe("native scanner: the camera screen", () => {
-  it("uses the brand purple for a locked card and the brand background, never teal", () => {
+  it("uses the brand purple for the card's edge and the brand background, never teal", () => {
     assert.match(camera, /brandPurple = UIColor\(red: 124 \/ 255, green: 58 \/ 255, blue: 237 \/ 255, alpha: 1\)/);
     assert.match(camera, /background = UIColor\(red: 9 \/ 255, green: 9 \/ 255, blue: 11 \/ 255, alpha: 1\)/);
-    assert.match(camera, /\(locked \? Self\.brandPurple : Self\.offWhite\)/);
+    assert.match(camera, /edgeLayer\.strokeColor = Self\.brandPurple\.cgColor/);
     assert.doesNotMatch(camera, /teal|systemTeal/i);
+  });
+
+  it("fills the screen with the live camera, with no guide box or dimmed table around it", () => {
+    assert.match(camera, /previewLayer\.videoGravity = \.resizeAspectFill/);
+    assert.match(camera, /previewLayer\.frame = view\.bounds/);
+    assert.doesNotMatch(camera, /dimLayer|guideRect|guideLayer/);
+    // A thin line that follows the card's edge is the only guide.
+    assert.match(camera, /static let edgeLineWidth: CGFloat = 2/);
+    assert.match(camera, /layerPointConverted\(fromCaptureDevicePoint:/);
+  });
+
+  it("drops the Card or Slab switch: the reader tells a slab from a card by its shape", () => {
+    assert.doesNotMatch(camera, /UISegmentedControl|modeControl|"Card or slab"/);
+    assert.match(reader, /\? "slab" : "card"/);
   });
 
   it("keeps every control at 44pt or more, with accessible names", () => {
     assert.match(camera, /static let minTapTarget: CGFloat = 44/);
-    for (const button of ["closeButton", "torchButton"]) {
-      assert.match(camera, new RegExp(`${button}\\.widthAnchor\\.constraint\\(equalToConstant: Self\\.minTapTarget\\)`));
-      assert.match(camera, new RegExp(`${button}\\.heightAnchor\\.constraint\\(equalToConstant: Self\\.minTapTarget\\)`));
-    }
-    assert.match(camera, /shutterButton\.widthAnchor\.constraint\(equalToConstant: 72\)/);
-    for (const label of ["Close", "Flashlight", "Take photo", "Card or slab", "Skip the back"]) {
+    assert.match(camera, /static let shutterSize: CGFloat = 76/);
+    assert.match(camera, /static let sideButtonSize: CGFloat = 52/);
+    assert.match(camera, /styleRound\(closeButton, symbol: "xmark", size: Self\.minTapTarget\)/);
+    assert.match(camera, /styleRound\(torchButton, symbol: "bolt\.slash\.fill", size: Self\.minTapTarget\)/);
+    assert.match(camera, /styleRound\(libraryButton, symbol: "photo\.on\.rectangle", size: Self\.sideButtonSize\)/);
+    assert.match(camera, /button\.widthAnchor\.constraint\(equalToConstant: size\)/);
+    assert.match(camera, /shutterButton\.widthAnchor\.constraint\(equalToConstant: Self\.shutterSize\)/);
+    for (const label of ["Close", "Flashlight", "Take photo", "Choose a photo", "Skip the back"]) {
       assert.match(camera, new RegExp(`accessibilityLabel = "${label}"`));
     }
   });
 
-  it("respects Reduce Motion for the flash, the guide and the dismiss", () => {
+  it("respects Reduce Motion for the flash, the picker and the dismiss", () => {
     assert.ok((camera.match(/UIAccessibility\.isReduceMotionEnabled/g) ?? []).length >= 4);
     assert.match(camera, /guard !UIAccessibility\.isReduceMotionEnabled else \{ return \}/);
   });
 
-  it("auto-captures only a steady, big enough card, and keeps a manual shutter", () => {
-    assert.match(camera, /static let steadyFramesNeeded = 6/);
-    assert.match(camera, /static let maxCornerDrift: CGFloat = 0\.02/);
-    assert.match(camera, /if steadyFrames >= Self\.steadyFramesNeeded/);
+  it("waits for the collector to tap: no auto-capture, and a haptic on the tap", () => {
+    assert.doesNotMatch(camera, /steadyFrames|maxCornerDrift|needsClearFrame|flipClearSeconds|Hold still|Got it/);
+    // capture() is called from the shutter and nowhere else.
+    assert.equal([...camera.matchAll(/(?<!func )\bcapture\(\)/g)].length, 1);
     assert.match(camera, /@objc private func shutterTapped\(\) \{\s*capture\(\)/);
+    assert.match(camera, /captureHaptic\.impactOccurred\(\)/);
+    // The live frames only draw the edge line.
+    assert.match(camera, /DispatchQueue\.main\.async \{ self\.drawEdge\(edge\) \}/);
     assert.match(camera, /orientation: \.right/);
+  });
+
+  it("reads a library photo from the camera screen with the same reader as a snap", () => {
+    assert.match(camera, /import PhotosUI/);
+    assert.match(camera, /libraryButton\.trailingAnchor\.constraint\(equalTo: shutterButton\.leadingAnchor/);
+    assert.match(camera, /PHPickerViewController\(configuration: config\)/);
+    assert.match(camera, /config\.filter = \.images/);
+    assert.match(camera, /extension CardScannerViewController: PHPickerViewControllerDelegate/);
+    // Snap and photo both go through handle(): CardTextReader.read, the reader `recognize` uses.
+    assert.equal([...camera.matchAll(/self\.handle\(image\)/g)].length, 2);
+    assert.match(camera, /let read = CardTextReader\.read\(image: image\)/);
+    assert.match(plugin, /CardTextReader\.read\(image: image\)\.jsObject/);
   });
 
   it("says one plain hint at a time, never the word free", () => {
     const hints = [...camera.matchAll(/case \w+ = "([^"]+)"/g)].map((match) => match[1]);
     assert.deepEqual(hints, [
-      "Fit the card in the frame",
-      "Move a little closer",
-      "Hold still",
-      "Got it",
-      "Tap the button to take it yourself",
+      "Frame the card, then tap to take it",
+      "Reading the card",
       "Flip it over for the card #",
       "We couldn't read that one. Try again with the card flat and in good light.",
     ]);
@@ -162,9 +190,10 @@ describe("native scanner: flip for the card #", () => {
     assert.match(camera, /skipButton\.heightAnchor\.constraint\(equalToConstant: Self\.minTapTarget\)/);
   });
 
-  it("waits for the card to leave the frame, or 1.2 s, so the front isn't taken twice", () => {
-    assert.match(camera, /static let flipClearSeconds: TimeInterval = 1\.2/);
-    assert.match(camera, /if edge == nil \|\| Date\(\)\.timeIntervalSince\(clearRequestedAt\) > Self\.flipClearSeconds/);
+  it("waits for a second tap for the back, never taking it on its own", () => {
+    const askForBack = camera.slice(camera.indexOf("private func askForBack"), camera.indexOf("private func capture()"));
+    assert.match(askForBack, /show\(\.flip\)/);
+    assert.doesNotMatch(askForBack, /capture\(|capturePhoto/);
   });
 
   it("reads the back through the same matcher on the web side", async () => {

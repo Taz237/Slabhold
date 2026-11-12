@@ -1,16 +1,18 @@
 import AVFoundation
+import PhotosUI
 import UIKit
 import Vision
 
-/// The live card scanner: a full-screen camera with a card-shaped guide. When a
-/// card fills the guide and holds steady for about half a second it captures on
-/// its own, straightens the card and reads it on the phone. The shutter button
-/// takes it by hand at any time. One hint at a time, 44pt tap targets, and no
-/// flash or snap animation when Reduce Motion is on.
+/// The card scanner: a full-screen live camera, like the iPhone camera. The
+/// collector frames the card and taps the shutter; nothing is taken on its own.
+/// A thin line follows the card's edge when one is in view. The photo button
+/// next to the shutter reads a library photo the same way (CardTextReader, the
+/// reader the plugin's `recognize` method uses). One hint at a time, 44pt tap
+/// targets, and no flash or snap animation when Reduce Motion is on.
 ///
 /// A raw card whose front shows no card number gets one more step: "Flip it
-/// over for the card #", read the back the same way, or Skip. Slabs never ask:
-/// the label carries the number.
+/// over for the card #", then a second tap (or a photo) for the back, or Skip.
+/// Slabs never ask: the label carries the number.
 final class CardScannerViewController: UIViewController {
     enum Outcome {
         case cancelled
@@ -19,11 +21,8 @@ final class CardScannerViewController: UIViewController {
     }
 
     enum Hint: String {
-        case fit = "Fit the card in the frame"
-        case closer = "Move a little closer"
-        case holdStill = "Hold still"
-        case gotIt = "Got it"
-        case manual = "Tap the button to take it yourself"
+        case frame = "Frame the card, then tap to take it"
+        case reading = "Reading the card"
         case flip = "Flip it over for the card #"
         case noText = "We couldn't read that one. Try again with the card flat and in good light."
     }
@@ -33,18 +32,11 @@ final class CardScannerViewController: UIViewController {
     static let background = UIColor(red: 9 / 255, green: 9 / 255, blue: 11 / 255, alpha: 1)
     static let offWhite = UIColor(red: 244 / 255, green: 244 / 255, blue: 245 / 255, alpha: 1)
 
-    /// Raw card 2.5 x 3.5 in; slab about 3.1 x 5.3 in.
-    static let cardAspect: CGFloat = 2.5 / 3.5
-    static let slabAspect: CGFloat = 3.1 / 5.3
-    /// Steady checks in a row before auto-capture. Every 2nd frame at 30 fps: about 0.4 s.
-    static let steadyFramesNeeded = 6
-    /// Most a corner may move between checks, as a share of the frame, and still be steady.
-    static let maxCornerDrift: CGFloat = 0.02
-    /// The card must cover at least this share of the frame.
-    static let minEdgeArea: CGFloat = 0.2
-    /// With no lock after this long, the hint points to the shutter.
-    static let manualHintAfter: TimeInterval = 6
     static let minTapTarget: CGFloat = 44
+    static let shutterSize: CGFloat = 76
+    static let sideButtonSize: CGFloat = 52
+    /// The line that follows the card's edge: thin, so the card stays the picture.
+    static let edgeLineWidth: CGFloat = 2
 
     private let finish: (Outcome) -> Void
     private var finished = false
@@ -57,14 +49,13 @@ final class CardScannerViewController: UIViewController {
     private var device: AVCaptureDevice?
     private lazy var previewLayer = AVCaptureVideoPreviewLayer(session: session)
 
-    private let dimLayer = CAShapeLayer()
-    private let guideLayer = CAShapeLayer()
+    private let edgeLayer = CAShapeLayer()
     private let hintLabel = UILabel()
     private let closeButton = UIButton(type: .system)
     private let torchButton = UIButton(type: .system)
     private let shutterButton = UIButton(type: .custom)
+    private let libraryButton = UIButton(type: .system)
     private let skipButton = UIButton(type: .system)
-    private let modeControl = UISegmentedControl(items: ["Card", "Slab"])
     private let flashView = UIView()
 
     /// The front, kept while the camera waits for the back. Main thread only.
@@ -72,23 +63,13 @@ final class CardScannerViewController: UIViewController {
     /// Main thread only.
     private var capturing = false
     private var currentHint: Hint?
-    private var appearedAt = Date()
-    /// A notice ("We couldn't read that one") stays up this long before frame hints take over again.
+    /// A notice ("We couldn't read that one") stays up this long.
     private var noticeUntil = Date.distantPast
     static let noticeSeconds: TimeInterval = 2.5
-
-    /// Video queue only. After the front is taken, the card must leave the frame
-    /// (it's being flipped) before the back can lock.
-    private var needsClearFrame = false
-    private var clearRequestedAt = Date.distantPast
-    /// A quick flip may never leave the frame; after this long the back can lock anyway.
-    static let flipClearSeconds: TimeInterval = 1.2
     /// Video queue only.
     private var frameCount = 0
-    private var steadyFrames = 0
-    private var lastEdge: VNRectangleObservation?
 
-    private let lockHaptic = UIImpactFeedbackGenerator(style: .light)
+    private let captureHaptic = UIImpactFeedbackGenerator(style: .light)
     private let doneHaptic = UINotificationFeedbackGenerator()
 
     init(finish: @escaping (Outcome) -> Void) {
@@ -106,6 +87,7 @@ final class CardScannerViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = Self.background
+        // Edge to edge, filling the screen like the iPhone camera.
         previewLayer.videoGravity = .resizeAspectFill
         view.layer.addSublayer(previewLayer)
         setUpOverlay()
@@ -115,14 +97,13 @@ final class CardScannerViewController: UIViewController {
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
         previewLayer.frame = view.bounds
-        layoutGuide()
+        edgeLayer.frame = view.bounds
     }
 
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
-        appearedAt = Date()
-        show(.fit, locked: false)
-        lockHaptic.prepare()
+        show(front == nil ? .frame : .flip)
+        captureHaptic.prepare()
         sessionQueue.async { [session] in
             if !session.isRunning { session.startRunning() }
         }
@@ -130,6 +111,8 @@ final class CardScannerViewController: UIViewController {
 
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
+        // The photo picker is a sheet over the camera; the camera keeps running under it.
+        guard presentedViewController == nil else { return }
         setTorch(on: false)
         sessionQueue.async { [session] in
             if session.isRunning { session.stopRunning() }
@@ -181,15 +164,11 @@ final class CardScannerViewController: UIViewController {
     // MARK: Overlay
 
     private func setUpOverlay() {
-        dimLayer.fillRule = .evenOdd
-        dimLayer.fillColor = UIColor.black.withAlphaComponent(0.55).cgColor
-        view.layer.addSublayer(dimLayer)
-
-        guideLayer.fillColor = UIColor.clear.cgColor
-        guideLayer.strokeColor = Self.offWhite.cgColor
-        guideLayer.lineWidth = 4
-        guideLayer.lineCap = .round
-        view.layer.addSublayer(guideLayer)
+        edgeLayer.fillColor = UIColor.clear.cgColor
+        edgeLayer.strokeColor = Self.brandPurple.cgColor
+        edgeLayer.lineWidth = Self.edgeLineWidth
+        edgeLayer.lineJoin = .round
+        view.layer.addSublayer(edgeLayer)
 
         flashView.backgroundColor = .white
         flashView.alpha = 0
@@ -203,36 +182,29 @@ final class CardScannerViewController: UIViewController {
         hintLabel.numberOfLines = 2
         hintLabel.adjustsFontForContentSizeCategory = true
         hintLabel.accessibilityTraits = .updatesFrequently
+        hintLabel.layer.shadowColor = UIColor.black.cgColor
+        hintLabel.layer.shadowOpacity = 0.6
+        hintLabel.layer.shadowRadius = 4
+        hintLabel.layer.shadowOffset = .zero
         hintLabel.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(hintLabel)
 
-        closeButton.setImage(UIImage(systemName: "xmark"), for: .normal)
-        closeButton.tintColor = Self.offWhite
+        styleRound(closeButton, symbol: "xmark", size: Self.minTapTarget)
         closeButton.accessibilityLabel = "Close"
         closeButton.addTarget(self, action: #selector(closeTapped), for: .touchUpInside)
-        closeButton.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(closeButton)
 
-        torchButton.setImage(UIImage(systemName: "bolt.slash.fill"), for: .normal)
-        torchButton.tintColor = Self.offWhite
+        styleRound(torchButton, symbol: "bolt.slash.fill", size: Self.minTapTarget)
         torchButton.accessibilityLabel = "Flashlight"
         torchButton.accessibilityValue = "Off"
         torchButton.isHidden = true
         torchButton.addTarget(self, action: #selector(torchTapped), for: .touchUpInside)
-        torchButton.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(torchButton)
 
-        modeControl.selectedSegmentIndex = 0
-        modeControl.selectedSegmentTintColor = Self.offWhite
-        modeControl.setTitleTextAttributes([.foregroundColor: Self.background], for: .selected)
-        modeControl.setTitleTextAttributes([.foregroundColor: Self.offWhite], for: .normal)
-        modeControl.accessibilityLabel = "Card or slab"
-        modeControl.addTarget(self, action: #selector(modeChanged), for: .valueChanged)
-        modeControl.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(modeControl)
+        styleRound(libraryButton, symbol: "photo.on.rectangle", size: Self.sideButtonSize)
+        libraryButton.accessibilityLabel = "Choose a photo"
+        libraryButton.addTarget(self, action: #selector(libraryTapped), for: .touchUpInside)
 
         shutterButton.backgroundColor = Self.offWhite
-        shutterButton.layer.cornerRadius = 36
+        shutterButton.layer.cornerRadius = Self.shutterSize / 2
         shutterButton.layer.borderWidth = 4
         shutterButton.layer.borderColor = Self.background.withAlphaComponent(0.6).cgColor
         shutterButton.accessibilityLabel = "Take photo"
@@ -257,90 +229,73 @@ final class CardScannerViewController: UIViewController {
             flashView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
 
             closeButton.topAnchor.constraint(equalTo: safe.topAnchor, constant: 8),
-            closeButton.leadingAnchor.constraint(equalTo: safe.leadingAnchor, constant: 8),
-            closeButton.widthAnchor.constraint(equalToConstant: Self.minTapTarget),
-            closeButton.heightAnchor.constraint(equalToConstant: Self.minTapTarget),
+            closeButton.leadingAnchor.constraint(equalTo: safe.leadingAnchor, constant: 12),
 
             torchButton.topAnchor.constraint(equalTo: safe.topAnchor, constant: 8),
-            torchButton.trailingAnchor.constraint(equalTo: safe.trailingAnchor, constant: -8),
-            torchButton.widthAnchor.constraint(equalToConstant: Self.minTapTarget),
-            torchButton.heightAnchor.constraint(equalToConstant: Self.minTapTarget),
+            torchButton.trailingAnchor.constraint(equalTo: safe.trailingAnchor, constant: -12),
 
-            shutterButton.bottomAnchor.constraint(equalTo: safe.bottomAnchor, constant: -24),
+            // Photo · shutter · Skip, in one row low on the screen, where a thumb reaches.
+            shutterButton.bottomAnchor.constraint(equalTo: safe.bottomAnchor, constant: -20),
             shutterButton.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            shutterButton.widthAnchor.constraint(equalToConstant: 72),
-            shutterButton.heightAnchor.constraint(equalToConstant: 72),
+            shutterButton.widthAnchor.constraint(equalToConstant: Self.shutterSize),
+            shutterButton.heightAnchor.constraint(equalToConstant: Self.shutterSize),
+
+            libraryButton.centerYAnchor.constraint(equalTo: shutterButton.centerYAnchor),
+            libraryButton.trailingAnchor.constraint(equalTo: shutterButton.leadingAnchor, constant: -40),
 
             skipButton.centerYAnchor.constraint(equalTo: shutterButton.centerYAnchor),
-            skipButton.leadingAnchor.constraint(equalTo: shutterButton.trailingAnchor, constant: 24),
+            skipButton.leadingAnchor.constraint(equalTo: shutterButton.trailingAnchor, constant: 40),
             skipButton.widthAnchor.constraint(greaterThanOrEqualToConstant: Self.minTapTarget),
             skipButton.heightAnchor.constraint(equalToConstant: Self.minTapTarget),
 
-            modeControl.bottomAnchor.constraint(equalTo: shutterButton.topAnchor, constant: -20),
-            modeControl.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            modeControl.widthAnchor.constraint(equalToConstant: 200),
-            modeControl.heightAnchor.constraint(greaterThanOrEqualToConstant: Self.minTapTarget),
-
-            hintLabel.bottomAnchor.constraint(equalTo: modeControl.topAnchor, constant: -20),
+            hintLabel.bottomAnchor.constraint(equalTo: shutterButton.topAnchor, constant: -16),
             hintLabel.leadingAnchor.constraint(equalTo: safe.leadingAnchor, constant: 24),
             hintLabel.trailingAnchor.constraint(equalTo: safe.trailingAnchor, constant: -24)
         ])
     }
 
-    /// The guide's rectangle: the card shape (or slab shape), centered a little above the middle.
-    private func guideRect() -> CGRect {
-        let bounds = view.bounds
-        let aspect = modeControl.selectedSegmentIndex == 1 ? Self.slabAspect : Self.cardAspect
-        var width = bounds.width - 64
-        var height = width / aspect
-        let maxHeight = bounds.height * 0.58
-        if height > maxHeight {
-            height = maxHeight
-            width = height * aspect
-        }
-        return CGRect(x: (bounds.width - width) / 2, y: bounds.height * 0.42 - height / 2, width: width, height: height)
+    /// A round, see-through control over the preview, at least 44pt.
+    private func styleRound(_ button: UIButton, symbol: String, size: CGFloat) {
+        let config = UIImage.SymbolConfiguration(pointSize: size >= Self.sideButtonSize ? 22 : 17, weight: .medium)
+        button.setImage(UIImage(systemName: symbol, withConfiguration: config), for: .normal)
+        button.tintColor = Self.offWhite
+        button.backgroundColor = UIColor.black.withAlphaComponent(0.4)
+        button.layer.cornerRadius = size / 2
+        button.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(button)
+        NSLayoutConstraint.activate([
+            button.widthAnchor.constraint(equalToConstant: size),
+            button.heightAnchor.constraint(equalToConstant: size)
+        ])
     }
 
-    private func layoutGuide() {
-        let rect = guideRect()
-        let dim = UIBezierPath(rect: view.bounds)
-        dim.append(UIBezierPath(roundedRect: rect, cornerRadius: 14))
-        dimLayer.path = dim.cgPath
-
-        let arm: CGFloat = 28
-        let corners = UIBezierPath()
-        corners.move(to: CGPoint(x: rect.minX, y: rect.minY + arm))
-        corners.addLine(to: CGPoint(x: rect.minX, y: rect.minY))
-        corners.addLine(to: CGPoint(x: rect.minX + arm, y: rect.minY))
-        corners.move(to: CGPoint(x: rect.maxX - arm, y: rect.minY))
-        corners.addLine(to: CGPoint(x: rect.maxX, y: rect.minY))
-        corners.addLine(to: CGPoint(x: rect.maxX, y: rect.minY + arm))
-        corners.move(to: CGPoint(x: rect.maxX, y: rect.maxY - arm))
-        corners.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
-        corners.addLine(to: CGPoint(x: rect.maxX - arm, y: rect.maxY))
-        corners.move(to: CGPoint(x: rect.minX + arm, y: rect.maxY))
-        corners.addLine(to: CGPoint(x: rect.minX, y: rect.maxY))
-        corners.addLine(to: CGPoint(x: rect.minX, y: rect.maxY - arm))
-        guideLayer.path = corners.cgPath
-    }
-
-    /// One hint at a time; the guide turns brand purple while a card is locked.
-    private func show(_ hint: Hint, locked: Bool) {
-        var hint = hint
-        if front != nil && (hint == .fit || hint == .closer || hint == .manual) {
-            hint = .flip
-        }
-        if (hint == .fit || hint == .closer) && Date().timeIntervalSince(appearedAt) > Self.manualHintAfter {
-            hint = .manual
-        }
-        let color = (locked ? Self.brandPurple : Self.offWhite).cgColor
+    /// A thin line on the card's edge while one is in view. It only shows the
+    /// card is seen; it never takes the picture. No line when nothing is found.
+    private func drawEdge(_ edge: VNRectangleObservation?) {
         CATransaction.begin()
-        CATransaction.setDisableActions(UIAccessibility.isReduceMotionEnabled)
-        CATransaction.setAnimationDuration(0.16)
-        guideLayer.strokeColor = color
-        CATransaction.commit()
+        CATransaction.setDisableActions(true)
+        defer { CATransaction.commit() }
+        guard let edge, !capturing else {
+            edgeLayer.path = nil
+            return
+        }
+        // Vision read the frame turned upright (.right): normalized, origin bottom-left.
+        // The preview converts from capture-device points: landscape, origin top-left.
+        func point(_ p: CGPoint) -> CGPoint {
+            previewLayer.layerPointConverted(fromCaptureDevicePoint: CGPoint(x: 1 - p.y, y: 1 - p.x))
+        }
+        let path = UIBezierPath()
+        path.move(to: point(edge.topLeft))
+        path.addLine(to: point(edge.topRight))
+        path.addLine(to: point(edge.bottomRight))
+        path.addLine(to: point(edge.bottomLeft))
+        path.close()
+        edgeLayer.path = path.cgPath
+    }
+
+    /// One hint at a time.
+    private func show(_ hint: Hint) {
         guard hint != currentHint else { return }
-        if hint == .holdStill && currentHint != .holdStill { lockHaptic.impactOccurred() }
         currentHint = hint
         hintLabel.text = hint.rawValue
         UIAccessibility.post(notification: .announcement, argument: hint.rawValue)
@@ -364,42 +319,25 @@ final class CardScannerViewController: UIViewController {
         setTorch(on: device?.torchMode != .on)
     }
 
-    @objc private func modeChanged() {
-        if UIAccessibility.isReduceMotionEnabled {
-            layoutGuide()
-        } else {
-            CATransaction.begin()
-            CATransaction.setAnimationDuration(0.3)
-            layoutGuide()
-            CATransaction.commit()
-        }
-    }
-
+    /// The only way a picture is taken from the camera: the collector taps.
     @objc private func shutterTapped() {
         capture()
+    }
+
+    @objc private func libraryTapped() {
+        guard !capturing, !finished else { return }
+        var config = PHPickerConfiguration()
+        config.filter = .images
+        config.selectionLimit = 1
+        let picker = PHPickerViewController(configuration: config)
+        picker.delegate = self
+        present(picker, animated: !UIAccessibility.isReduceMotionEnabled)
     }
 
     /// Done without the back: the front's read goes through as it is.
     @objc private func skipTapped() {
         guard let front, !capturing else { return }
         end(.captured(front))
-    }
-
-    /// The front is in; wait for the back.
-    private func askForBack(_ read: CardRead) {
-        front = read
-        capturing = false
-        appearedAt = Date()
-        skipButton.isHidden = false
-        modeControl.isEnabled = false
-        videoQueue.async { [weak self] in
-            self?.needsClearFrame = true
-            self?.clearRequestedAt = Date()
-            self?.steadyFrames = 0
-            self?.lastEdge = nil
-        }
-        doneHaptic.notificationOccurred(.success)
-        show(.flip, locked: false)
     }
 
     /// A raw card's front with no card number line: the back usually has it.
@@ -410,13 +348,64 @@ final class CardScannerViewController: UIViewController {
         }
     }
 
+    /// The front is in; wait for the collector to flip it and tap again.
+    private func askForBack(_ read: CardRead) {
+        front = read
+        capturing = false
+        skipButton.isHidden = false
+        doneHaptic.notificationOccurred(.success)
+        show(.flip)
+    }
+
     private func capture() {
         guard !capturing, !finished else { return }
         capturing = true
+        captureHaptic.impactOccurred()
         doneHaptic.prepare()
-        show(.gotIt, locked: true)
+        drawEdge(nil)
+        show(.reading)
         flash()
         photoOutput.capturePhoto(with: AVCapturePhotoSettings(), delegate: self)
+    }
+
+    /// A snapped frame or a library photo: read it on the phone, then finish or ask for the back.
+    private func handle(_ image: UIImage) {
+        capturing = true
+        show(.reading)
+        DispatchQueue.global(qos: .userInitiated).async {
+            let read = CardTextReader.read(image: image)
+            DispatchQueue.main.async { self.finishRead(read) }
+        }
+    }
+
+    private func finishRead(_ read: CardRead) {
+        guard !read.lines.isEmpty else {
+            couldNotRead()
+            return
+        }
+        if var front = self.front {
+            front.backLines = read.lines
+            doneHaptic.notificationOccurred(.success)
+            end(.captured(front))
+            return
+        }
+        if Self.needsBack(read) {
+            askForBack(read)
+            return
+        }
+        doneHaptic.notificationOccurred(.success)
+        end(.captured(read))
+    }
+
+    private func couldNotRead() {
+        capturing = false
+        doneHaptic.notificationOccurred(.warning)
+        noticeUntil = Date().addingTimeInterval(Self.noticeSeconds)
+        show(.noText)
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.noticeSeconds) { [weak self] in
+            guard let self, !self.capturing, !self.finished, Date() >= self.noticeUntil else { return }
+            self.show(self.front == nil ? .frame : .flip)
+        }
     }
 
     private func end(_ outcome: Outcome) {
@@ -426,65 +415,18 @@ final class CardScannerViewController: UIViewController {
             finish(outcome)
         }
     }
-
-    // MARK: Auto-capture (video queue)
-
-    private func evaluate(_ edge: VNRectangleObservation?) {
-        if needsClearFrame {
-            if edge == nil || Date().timeIntervalSince(clearRequestedAt) > Self.flipClearSeconds {
-                needsClearFrame = false
-            }
-            return
-        }
-        guard let edge, edge.confidence >= 0.7 else {
-            steadyFrames = 0
-            lastEdge = nil
-            DispatchQueue.main.async { self.showIfIdle(.fit, locked: false) }
-            return
-        }
-        let box = edge.boundingBox
-        if box.width * box.height < Self.minEdgeArea {
-            steadyFrames = 0
-            lastEdge = edge
-            DispatchQueue.main.async { self.showIfIdle(.closer, locked: false) }
-            return
-        }
-        if let last = lastEdge, Self.drift(last, edge) < Self.maxCornerDrift {
-            steadyFrames += 1
-        } else {
-            steadyFrames = 0
-        }
-        lastEdge = edge
-        if steadyFrames >= Self.steadyFramesNeeded {
-            steadyFrames = 0
-            DispatchQueue.main.async { self.capture() }
-            return
-        }
-        DispatchQueue.main.async { self.showIfIdle(.holdStill, locked: true) }
-    }
-
-    /// While a capture is being read, the hint stays on "Got it".
-    private func showIfIdle(_ hint: Hint, locked: Bool) {
-        guard !capturing, !finished, Date() >= noticeUntil else { return }
-        show(hint, locked: locked)
-    }
-
-    /// The largest distance any corner moved between two checks.
-    static func drift(_ a: VNRectangleObservation, _ b: VNRectangleObservation) -> CGFloat {
-        let pairs = [(a.topLeft, b.topLeft), (a.topRight, b.topRight), (a.bottomLeft, b.bottomLeft), (a.bottomRight, b.bottomRight)]
-        return pairs.map { hypot($0.0.x - $0.1.x, $0.0.y - $0.1.y) }.max() ?? 1
-    }
 }
 
 extension CardScannerViewController: AVCaptureVideoDataOutputSampleBufferDelegate {
+    /// Finds the card's edge for the line on screen. It never triggers a capture.
     func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
         frameCount += 1
-        guard frameCount % 2 == 0, let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
+        guard frameCount % 3 == 0, let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
         let request = VNDetectRectanglesRequest()
         request.minimumAspectRatio = 0.45
         request.maximumAspectRatio = 0.9
         request.minimumSize = 0.2
-        request.minimumConfidence = 0.6
+        request.minimumConfidence = 0.7
         request.maximumObservations = 1
         request.quadratureTolerance = 20
         // The back camera's frames are landscape; .right reads them the way the phone is held.
@@ -494,42 +436,37 @@ extension CardScannerViewController: AVCaptureVideoDataOutputSampleBufferDelegat
         } catch {
             return
         }
-        evaluate(request.results?.first)
+        let edge = request.results?.first
+        DispatchQueue.main.async { self.drawEdge(edge) }
     }
 }
 
 extension CardScannerViewController: AVCapturePhotoCaptureDelegate {
     func photoOutput(_ output: AVCapturePhotoOutput, didFinishProcessingPhoto photo: AVCapturePhoto, error: Error?) {
         guard error == nil, let data = photo.fileDataRepresentation(), let image = UIImage(data: data) else {
-            DispatchQueue.main.async {
-                self.capturing = false
-                self.noticeUntil = Date().addingTimeInterval(Self.noticeSeconds)
-                self.show(.noText, locked: false)
-            }
+            DispatchQueue.main.async { self.couldNotRead() }
             return
         }
-        DispatchQueue.global(qos: .userInitiated).async {
-            let read = CardTextReader.read(image: image)
+        DispatchQueue.main.async { self.handle(image) }
+    }
+}
+
+extension CardScannerViewController: PHPickerViewControllerDelegate {
+    /// A library photo goes through the same reader and the same flip step as a snap.
+    /// The system picker needs no photo library permission.
+    func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
+        picker.dismiss(animated: !UIAccessibility.isReduceMotionEnabled)
+        guard let provider = results.first?.itemProvider, provider.canLoadObject(ofClass: UIImage.self) else { return }
+        capturing = true
+        show(.reading)
+        provider.loadObject(ofClass: UIImage.self) { [weak self] object, _ in
             DispatchQueue.main.async {
-                guard !read.lines.isEmpty else {
-                    self.capturing = false
-                    self.doneHaptic.notificationOccurred(.warning)
-                    self.noticeUntil = Date().addingTimeInterval(Self.noticeSeconds)
-                    self.show(.noText, locked: false)
+                guard let self else { return }
+                guard let image = object as? UIImage else {
+                    self.couldNotRead()
                     return
                 }
-                if var front = self.front {
-                    front.backLines = read.lines
-                    self.doneHaptic.notificationOccurred(.success)
-                    self.end(.captured(front))
-                    return
-                }
-                if Self.needsBack(read) {
-                    self.askForBack(read)
-                    return
-                }
-                self.doneHaptic.notificationOccurred(.success)
-                self.end(.captured(read))
+                self.handle(image)
             }
         }
     }
