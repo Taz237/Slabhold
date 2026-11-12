@@ -7,6 +7,10 @@ import Vision
 /// its own, straightens the card and reads it on the phone. The shutter button
 /// takes it by hand at any time. One hint at a time, 44pt tap targets, and no
 /// flash or snap animation when Reduce Motion is on.
+///
+/// A raw card whose front shows no card number gets one more step: "Flip it
+/// over for the card #", read the back the same way, or Skip. Slabs never ask:
+/// the label carries the number.
 final class CardScannerViewController: UIViewController {
     enum Outcome {
         case cancelled
@@ -20,6 +24,7 @@ final class CardScannerViewController: UIViewController {
         case holdStill = "Hold still"
         case gotIt = "Got it"
         case manual = "Tap the button to take it yourself"
+        case flip = "Flip it over for the card #"
         case noText = "We couldn't read that one. Try again with the card flat and in good light."
     }
 
@@ -58,9 +63,12 @@ final class CardScannerViewController: UIViewController {
     private let closeButton = UIButton(type: .system)
     private let torchButton = UIButton(type: .system)
     private let shutterButton = UIButton(type: .custom)
+    private let skipButton = UIButton(type: .system)
     private let modeControl = UISegmentedControl(items: ["Card", "Slab"])
     private let flashView = UIView()
 
+    /// The front, kept while the camera waits for the back. Main thread only.
+    private var front: CardRead?
     /// Main thread only.
     private var capturing = false
     private var currentHint: Hint?
@@ -69,6 +77,12 @@ final class CardScannerViewController: UIViewController {
     private var noticeUntil = Date.distantPast
     static let noticeSeconds: TimeInterval = 2.5
 
+    /// Video queue only. After the front is taken, the card must leave the frame
+    /// (it's being flipped) before the back can lock.
+    private var needsClearFrame = false
+    private var clearRequestedAt = Date.distantPast
+    /// A quick flip may never leave the frame; after this long the back can lock anyway.
+    static let flipClearSeconds: TimeInterval = 1.2
     /// Video queue only.
     private var frameCount = 0
     private var steadyFrames = 0
@@ -226,6 +240,15 @@ final class CardScannerViewController: UIViewController {
         shutterButton.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(shutterButton)
 
+        skipButton.setTitle("Skip", for: .normal)
+        skipButton.setTitleColor(Self.offWhite, for: .normal)
+        skipButton.titleLabel?.font = UIFont.systemFont(ofSize: 17, weight: .semibold)
+        skipButton.accessibilityLabel = "Skip the back"
+        skipButton.isHidden = true
+        skipButton.addTarget(self, action: #selector(skipTapped), for: .touchUpInside)
+        skipButton.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(skipButton)
+
         let safe = view.safeAreaLayoutGuide
         NSLayoutConstraint.activate([
             flashView.topAnchor.constraint(equalTo: view.topAnchor),
@@ -247,6 +270,11 @@ final class CardScannerViewController: UIViewController {
             shutterButton.centerXAnchor.constraint(equalTo: view.centerXAnchor),
             shutterButton.widthAnchor.constraint(equalToConstant: 72),
             shutterButton.heightAnchor.constraint(equalToConstant: 72),
+
+            skipButton.centerYAnchor.constraint(equalTo: shutterButton.centerYAnchor),
+            skipButton.leadingAnchor.constraint(equalTo: shutterButton.trailingAnchor, constant: 24),
+            skipButton.widthAnchor.constraint(greaterThanOrEqualToConstant: Self.minTapTarget),
+            skipButton.heightAnchor.constraint(equalToConstant: Self.minTapTarget),
 
             modeControl.bottomAnchor.constraint(equalTo: shutterButton.topAnchor, constant: -20),
             modeControl.centerXAnchor.constraint(equalTo: view.centerXAnchor),
@@ -299,6 +327,9 @@ final class CardScannerViewController: UIViewController {
     /// One hint at a time; the guide turns brand purple while a card is locked.
     private func show(_ hint: Hint, locked: Bool) {
         var hint = hint
+        if front != nil && (hint == .fit || hint == .closer || hint == .manual) {
+            hint = .flip
+        }
         if (hint == .fit || hint == .closer) && Date().timeIntervalSince(appearedAt) > Self.manualHintAfter {
             hint = .manual
         }
@@ -348,6 +379,37 @@ final class CardScannerViewController: UIViewController {
         capture()
     }
 
+    /// Done without the back: the front's read goes through as it is.
+    @objc private func skipTapped() {
+        guard let front, !capturing else { return }
+        end(.captured(front))
+    }
+
+    /// The front is in; wait for the back.
+    private func askForBack(_ read: CardRead) {
+        front = read
+        capturing = false
+        appearedAt = Date()
+        skipButton.isHidden = false
+        modeControl.isEnabled = false
+        videoQueue.async { [weak self] in
+            self?.needsClearFrame = true
+            self?.clearRequestedAt = Date()
+            self?.steadyFrames = 0
+            self?.lastEdge = nil
+        }
+        doneHaptic.notificationOccurred(.success)
+        show(.flip, locked: false)
+    }
+
+    /// A raw card's front with no card number line: the back usually has it.
+    static func needsBack(_ read: CardRead) -> Bool {
+        if read.kind == "slab" { return false }
+        return !read.lines.contains { line in
+            line.range(of: #"(#|\bNO\.)\s*[A-Z0-9]"#, options: [.regularExpression, .caseInsensitive]) != nil
+        }
+    }
+
     private func capture() {
         guard !capturing, !finished else { return }
         capturing = true
@@ -368,6 +430,12 @@ final class CardScannerViewController: UIViewController {
     // MARK: Auto-capture (video queue)
 
     private func evaluate(_ edge: VNRectangleObservation?) {
+        if needsClearFrame {
+            if edge == nil || Date().timeIntervalSince(clearRequestedAt) > Self.flipClearSeconds {
+                needsClearFrame = false
+            }
+            return
+        }
         guard let edge, edge.confidence >= 0.7 else {
             steadyFrames = 0
             lastEdge = nil
@@ -448,6 +516,16 @@ extension CardScannerViewController: AVCapturePhotoCaptureDelegate {
                     self.doneHaptic.notificationOccurred(.warning)
                     self.noticeUntil = Date().addingTimeInterval(Self.noticeSeconds)
                     self.show(.noText, locked: false)
+                    return
+                }
+                if var front = self.front {
+                    front.backLines = read.lines
+                    self.doneHaptic.notificationOccurred(.success)
+                    self.end(.captured(front))
+                    return
+                }
+                if Self.needsBack(read) {
+                    self.askForBack(read)
                     return
                 }
                 self.doneHaptic.notificationOccurred(.success)
