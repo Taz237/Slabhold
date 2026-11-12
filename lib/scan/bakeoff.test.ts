@@ -105,7 +105,7 @@ function liveResults(scan: BakeoffCase): TrawlSoldResult[] {
   }));
 }
 
-type LiveRow = Row & { rung: string; solds: string };
+type LiveRow = Row & { rung: string; solds: string; run: number | null };
 
 async function scoreLive(scan: BakeoffCase): Promise<LiveRow> {
   let calls = 0;
@@ -121,6 +121,7 @@ async function scoreLive(scan: BakeoffCase): Promise<LiveRow> {
       liveSearch: async (query) => {
         queries.push(query);
         const rung = calls++;
+        if (scan.live?.failAt?.includes(rung)) return { ok: false, reason: "unavailable" };
         return { ok: true, results: rung === scan.live?.atRung ? liveResults(scan) : [], fetchedAt: "2026-11-12T20:00:00.000Z" };
       },
       storeQuickComp: async () => {},
@@ -140,7 +141,15 @@ async function scoreLive(scan: BakeoffCase): Promise<LiveRow> {
       ? [match.playerName, match.yearLabel, match.setBrand, match.cardNumber ? `#${match.cardNumber}` : "", match.parallel, match.serialRun ? `/${match.serialRun}` : ""].filter(Boolean).join(" · ")
       : "(no match)",
     rung: used >= 0 ? `${"abcd"[used] ?? used}: ${result.query}` : "-",
-    solds: result.comp.status === "ok" ? `${result.comp.nSales} sold${result.comp.parallel ? ` (${result.comp.parallel})` : ""}` : result.comp.status === "none" ? "none" : result.comp.status,
+    solds:
+      result.comp.status === "ok"
+        ? `${result.comp.nSales} sold${result.comp.parallel ? ` (${result.comp.parallel})` : ""}`
+        : result.comp.status === "none"
+          ? result.comp.searched
+            ? "none (searched)"
+            : "none"
+          : result.comp.status,
+    run: match?.serialRun ?? null,
   };
 }
 
@@ -157,7 +166,7 @@ describe("the bake-off with live eBay solds (mocked Trawl, junk included)", () =
           (row) =>
             `${ICON[row.player]} ${ICON[row.set]} ${ICON[row.number]} ${ICON[row.parallel]}  ${row.name.padEnd(56)} ${row.shown.padEnd(58)} ${row.rung.padEnd(36)} ${row.solds}`,
         ),
-        `player ${total("player", "right")}/${rows.length} · set ${total("set", "right")} right ${total("set", "wrong")} wrong · # ${total("number", "right")} right ${total("number", "wrong")} wrong · parallel ${total("parallel", "right")} right ${total("parallel", "wrong")} wrong · solds found ${rows.filter((row) => row.solds.includes("sold")).length}/${rows.length}`,
+        `player ${total("player", "right")}/${rows.length} · set ${total("set", "right")} right ${total("set", "wrong")} wrong · # ${total("number", "right")} right ${total("number", "wrong")} wrong · parallel ${total("parallel", "right")} right ${total("parallel", "wrong")} wrong · solds found ${rows.filter((row) => row.solds.includes("sold")).length}/${rows.filter((row) => cases.find((item) => item.name === row.name)?.live?.solds !== "none").length}`,
       ].join("\n"),
     );
     for (const row of rows) {
@@ -165,12 +174,20 @@ describe("the bake-off with live eBay solds (mocked Trawl, junk included)", () =
       assert.notEqual(row.set, "wrong", `${row.name}: ${row.shown}`);
       assert.notEqual(row.number, "wrong", `${row.name}: ${row.shown}`);
       assert.notEqual(row.parallel, "wrong", `${row.name}: ${row.shown}`);
-      assert.match(row.solds, /sold/, `${row.name}: the card sells, and we found it`);
+      const scan = cases.find((item) => item.name === row.name)!;
+      if (scan.live?.solds === "none") assert.equal(row.solds, "none (searched)", `${row.name}: searched, honestly none, never unavailable`);
+      else assert.match(row.solds, /sold/, `${row.name}: the card sells, and we found it`);
+      if (scan.truth.run) assert.equal(row.run, scan.truth.run, `${row.name}: the print run`);
+      if (scan.live?.pricedFrom) assert.match(row.solds, new RegExp(`sold \\(${scan.live.pricedFrom.replace("/", "\\/")}\\)$`), row.name);
+      // A numbered card is never priced or labelled as Base.
+      if (scan.truth.run) assert.doesNotMatch(row.solds, /\(Base\)/, row.name);
+      // A price is always named by its sales' parallel: never Base for colored sales.
+      if (scan.truth.parallel && row.solds.includes("sold")) assert.match(row.solds, new RegExp(`\\(${scan.truth.parallel.replace("/", "\\/")}\\)$`), row.name);
     }
   });
 
   it("Miller with live solds: 2024 Bowman #BP-27, Pink/Red /299, the Pink/Red sales only", async () => {
-    for (const scan of cases.filter((item) => item.truth.player === "Aidan Miller")) {
+    for (const scan of cases.filter((item) => item.truth.player === "Aidan Miller" && item.truth.parallel === "Pink/Red")) {
       const row = await scoreLive(scan);
       assert.equal(row.set, "right", `${scan.name}: ${row.shown}`);
       assert.equal(row.number === "wrong", false, `${scan.name}: ${row.shown}`);

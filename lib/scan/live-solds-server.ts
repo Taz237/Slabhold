@@ -40,6 +40,8 @@ export const serverLiveSoldsDeps: LiveSoldsDeps = {
     limits: serverQuickCompLimits,
     cache,
     now: Date.now,
+    // Production too: which search failed and why (card names, status, reason). Never a user or the key.
+    warn: (event) => console.warn("[scan-live] search failed", JSON.stringify(event)),
   }),
   /** Same entry Quick Comp reads, so the next scan or Quick Comp of this card spends nothing. */
   async storeQuickComp(identity, sales, results, meta) {

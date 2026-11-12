@@ -17,12 +17,20 @@ export type BakeoffTruth = {
   number: string;
   /** The parallel's words, any order: "Pink/Red" matches "Pink Red". */
   parallel: string;
+  /** The card's print run, when the case checks it (OCR misread /298 for /299). */
+  run?: number;
 };
 
 /** A mocked Trawl answer: eBay sold titles, served only at this rung of the search ladder (0 = the first). */
 export type BakeoffLive = {
   atRung: number;
   sold: { title: string; price: number; soldAt: string; graded?: { grader: string; grade: string } }[];
+  /** Rungs where Trawl fails (throttled or down) instead of answering. */
+  failAt?: number[];
+  /** What the sheet should say, when it isn't a price: "none" (searched, no sales) for a card that truly has none. */
+  solds?: "none";
+  /** The group the price must come from, when the case checks it ("/299, parallel not named"). */
+  pricedFrom?: string;
 };
 
 export type BakeoffCase = {
@@ -154,6 +162,67 @@ export const BAKEOFF_CASES: BakeoffCase[] = [
       ],
     },
     truth: MILLER,
+  },
+  {
+    name: "Miller, OCR read 137/298 (the card is /299)",
+    front: ["3B", "1ST BOWMAN", "PHILADELPHIA PHILLIES", "137/298", "AIDAN MILLER"],
+    back: ["AIDAN MILLER", "TOPPS.COM", "BP-27"],
+    live: { ...MILLER_LIVE, atRung: 2 },
+    truth: { ...MILLER, run: 299 },
+  },
+  {
+    name: "Miller, rungs a-c empty, Trawl fails on rung d",
+    front: MILLER_FRONT,
+    back: ["AIDAN MILLER", "TOPPS.COM", "BP-27"],
+    live: { atRung: -1, sold: [], failAt: [3], solds: "none" },
+    truth: { ...MILLER, parallel: "" },
+  },
+  {
+    name: "Miller, 137/298, only 'Bowman BP-27' answers, 5 unnumbered among 2 /299",
+    front: ["3B", "1ST BOWMAN", "PHILADELPHIA PHILLIES", "137/298", "AIDAN MILLER"],
+    back: ["AIDAN MILLER", "BP-27"],
+    live: {
+      atRung: 2,
+      pricedFrom: "/299, parallel not named",
+      sold: [
+        { title: "2024 Bowman Aidan Miller BP-27 /299 Phillies", price: 30, soldAt: "2026-11-08" },
+        { title: "Aidan Miller Bowman 1st BP-27 #'d 55/299", price: 32, soldAt: "2026-11-03" },
+        { title: "2024 Bowman 1st Aidan Miller BP-27 Phillies", price: 3, soldAt: "2026-11-09" },
+        { title: "2024 Bowman 1st Aidan Miller BP-27 Phillies", price: 3.5, soldAt: "2026-11-07" },
+        { title: "2024 Bowman 1st Aidan Miller BP-27 Phillies", price: 4, soldAt: "2026-11-05" },
+        { title: "2024 Bowman 1st Aidan Miller BP-27 Phillies", price: 4.5, soldAt: "2026-11-02" },
+        { title: "2024 Bowman 1st Aidan Miller BP-27 Phillies", price: 5, soldAt: "2026-10-30" },
+      ],
+    },
+    truth: { ...MILLER, parallel: "", run: 299 },
+  },
+  {
+    name: "Miller, /299 sales that name no color",
+    front: MILLER_FRONT,
+    back: ["AIDAN MILLER", "TOPPS.COM", "BP-27"],
+    live: {
+      atRung: 1,
+      pricedFrom: "/299, parallel not named",
+      sold: [
+        { title: "2024 Bowman Aidan Miller BP-27 /299", price: 28, soldAt: "2026-11-06" },
+        { title: "2024 Bowman 1st Aidan Miller BP-27 12/299", price: 31, soldAt: "2026-11-01" },
+      ],
+    },
+    truth: { ...MILLER, parallel: "", run: 299 },
+  },
+  {
+    name: "Miller, the Nov 12 Fuchsia /299 sales",
+    front: MILLER_FRONT,
+    back: ["AIDAN MILLER", "TOPPS.COM", "BP-27"],
+    live: {
+      atRung: 1,
+      sold: [
+        { title: "2024 Bowman Aidan Miller Fuchsia /299 BP-27 1st", price: 12.99, soldAt: "2026-11-10" },
+        { title: "2024 Bowman 1st Aidan Miller BP-27 Fuchsia 88/299", price: 13, soldAt: "2026-11-06" },
+        { title: "Aidan Miller 2024 Bowman Fuchsia #BP-27 /299", price: 10, soldAt: "2026-11-02" },
+      ],
+    },
+    truth: { ...MILLER, parallel: "Fuchsia" },
   },
   {
     name: "Miller, front only, one saved '2024 Topps … /299' title",

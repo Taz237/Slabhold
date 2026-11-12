@@ -17,6 +17,7 @@ import {
   CONFIRM_COPY,
   confirmMatch,
   initialChoice,
+  matchesKey,
   promoteMatch,
   readyToSave,
   type ParallelPick,
@@ -58,7 +59,7 @@ export function ConfirmSheet({ photo, state, onConfirm, onStepByStep, onRetake, 
       ) : null}
       {state.kind === "ready" ? (
         <Ready
-          key={state.matches.map((match) => match.catalogId ?? match.playerName).join("|")}
+          key={matchesKey(state.matches)}
           photo={photo}
           matches={state.matches}
           solds={state.solds}

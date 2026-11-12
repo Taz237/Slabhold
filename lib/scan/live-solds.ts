@@ -6,7 +6,7 @@ import type { IndexedDirectoryPlayer } from "@/lib/players/types";
 import { toMatchCard, type QuickCompIdentity } from "@/lib/quick-comp/identity";
 import type { QuickCompLimitReason } from "@/lib/quick-comp/limits";
 import { compIdentityFromMatch, scanCompGrade, summarizeSales, type ScanCompResult } from "./comp";
-import { salesForCard } from "./comp-lookup";
+import { cachedSalesFor, salesForCard, type QuickCompCachedSale } from "./comp-lookup";
 import {
   liveSearchLadder,
   rankScanMatches,
@@ -15,7 +15,7 @@ import {
   type SoldTitle,
 } from "./match";
 import { newLookupBudget, type LookupBudget } from "./live-search";
-import { groupByParallel, groupFor, scanSalesFor, type ParallelGroup, type ScanSale, type ScanSalesResult } from "./scan-sales";
+import { groupByParallel, groupFor, isUnnamedRunLabel, scanSalesFor, type ParallelGroup, type ScanSale, type ScanSalesResult } from "./scan-sales";
 import { scanReadFrom, type ScanCapture } from "./session";
 
 /** One rung of the search ladder, for the dev log. Queries carry card names only, never user data. */
@@ -55,7 +55,7 @@ export type LiveSoldsDeps = {
   /** Saved sold listings (sold_comps_cache) naming this player. */
   cachedTitles: (player: string) => Promise<SoldTitle[]>;
   /** Quick Comp's shared cache for this exact card and grade. Null on a miss; never fetches. */
-  quickCompCache: (identity: QuickCompIdentity) => Promise<{ comps: { soldPrice: number; soldDate: string }[]; fetchedAt: string | null; sample?: boolean } | null>;
+  quickCompCache: (identity: QuickCompIdentity) => Promise<{ comps: QuickCompCachedSale[]; fetchedAt: string | null; sample?: boolean } | null>;
   /** One Trawl sold search, shared per query. Spends the caps only on a miss, once per lookup (the budget). */
   liveSearch: (query: string, userId: string, budget?: LookupBudget) => Promise<LiveSearchResult>;
   /** Dev-only trace of each rung: the query, results back, kept, and why the rest were dropped. No user data. */
@@ -95,9 +95,10 @@ async function cachedComp(
 ): Promise<ScanCompResult | null> {
   try {
     const cached = await deps.quickCompCache(identity);
-    if (cached && !cached.sample && cached.comps.length > 0) {
+    const comps = cached ? cachedSalesFor(identity, cached.comps, deps.directory) : [];
+    if (cached && !cached.sample && comps.length > 0) {
       const result = summarizeSales(
-        cached.comps.map((comp) => ({ price: comp.soldPrice, soldAt: comp.soldDate })),
+        comps.map((comp) => ({ price: comp.soldPrice, soldAt: comp.soldDate })),
         { asOf: cached.fetchedAt, source: "quick-comp" },
       );
       if (result.status === "ok") return result;
@@ -177,11 +178,12 @@ export async function lookupLiveSolds(
     const live = await deps.liveSearch(query, userId, budget).catch((): LiveSearchResult => ({ ok: false, reason: "unavailable" }));
     if (!live.ok) {
       deps.log?.({ rung: index, query, ok: false, reason: live.reason });
-      // Earlier rungs found nothing (or this is the first): say why there are no prices, never "no sales".
+      // A cap: say so, never "no sales".
       if (live.reason === "daily" || live.reason === "hourly" || live.reason === "safety") {
         return { matches, comp: { status: "limited", reason: live.reason, resetAt: live.resetAt }, query: usedQuery };
       }
-      return { matches, comp: { status: "unavailable" }, query: usedQuery };
+      // One failed search never wipes out the others: try the next rung. "Unavailable" only when none answered.
+      continue;
     }
     usedQuery = query;
     fetchedAt = live.fetchedAt;
@@ -194,18 +196,21 @@ export async function lookupLiveSolds(
     if (found.kept.length > 0) break;
   }
 
+  if (!usedQuery) return { matches, comp: { status: "unavailable" }, query: null };
   const best = matches[0];
   if (!best) return { matches: first, comp: { status: "none", searched: true }, query: usedQuery };
   if (found.kept.length === 0) return { matches, comp: { status: "none", searched: true }, query: usedQuery };
 
-  // 4. Sales by parallel: the picked parallel's group, labelled. With the parallel open, only a clear
-  // leader (2+ sales, more than any other group) is priced; otherwise the groups show and it stays open.
+  // 4. Sales by parallel: the picked parallel's group, labelled. With the parallel open, only a group
+  // that's most of the sales (2+) is priced, and the card takes its name; otherwise the groups show.
   const groups = groupByParallel(found.kept);
   const leader = groups[0];
-  const clearLeader = leader && leader.sales.length >= 2 && leader.sales.length > (groups[1]?.sales.length ?? 0);
-  if (!best.parallel && !clearLeader) {
+  if (!best.parallel && !isMajority(leader, found.kept.length)) {
     return { matches, comp: { status: "split", groups: groups.map(groupSummary) }, query: usedQuery };
   }
+  // A colored group takes the card's parallel chip. A Base majority, or a numbered card's sales that
+  // name no color ("/299, parallel not named"), leave it open.
+  if (!best.parallel && leader.label !== "Base" && !isUnnamedRunLabel(leader.label)) matches = [withSalesParallel(best, leader.label), ...matches.slice(1)];
   const group = best.parallel ? groupFor(groups, best.parallel) : leader;
   if (!group) return { matches, comp: { status: "split", groups: groups.map(groupSummary) }, query: usedQuery };
   const comp = summarizeSales(
@@ -214,7 +219,7 @@ export async function lookupLiveSolds(
   );
   if (comp.status !== "ok") return { matches, comp: { status: "none", searched: true }, query: usedQuery };
 
-  // Stored for the next scan or Quick Comp only when the parallel is known: an open one would file under Base.
+  // Stored for the next scan or Quick Comp only when the parallel was known: an open one would file under Base.
   const identity = identityOf(best);
   if (identity && best.parallel && usedQuery) {
     try {
@@ -227,6 +232,23 @@ export async function lookupLiveSolds(
     matches,
     comp: { ...comp, parallel: group.label, groups: groups.map((item) => ({ label: item.label, nSales: item.sales.length })) },
     query: usedQuery,
+  };
+}
+
+/** Most of the sales (and at least 2) name this parallel. */
+function isMajority(group: { sales: readonly unknown[] } | undefined, total: number): group is ParallelGroup {
+  return Boolean(group) && group!.sales.length >= 2 && group!.sales.length * 2 > total;
+}
+
+/** The card with the parallel most of its sales name, preselected and marked as from sales. */
+export function withSalesParallel(match: ScanMatch, label: string): ScanMatch {
+  const option = { name: label, serialRun: match.serialRun };
+  return {
+    ...match,
+    parallel: label,
+    parallelSource: "sales",
+    sureness: { ...match.sureness, parallel: "likely" },
+    parallelOptions: [option, ...match.parallelOptions.filter((item) => item.name !== label)],
   };
 }
 

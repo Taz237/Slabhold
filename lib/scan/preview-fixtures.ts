@@ -173,6 +173,27 @@ export const PREVIEW_SOLDS_PARALLEL: SoldsState = {
   query: "preview",
 };
 
+/** A numbered card whose sales name no color: priced from its run's sales, the parallel left open. */
+export const PREVIEW_RUN_ONLY: ScanMatch = {
+  ...PREVIEW_FROM_SALES,
+  parallel: "",
+  parallelSource: undefined,
+  sureness: { ...PREVIEW_FROM_SALES.sureness, parallel: "unsure" },
+  parallelOptions: [],
+};
+
+export const PREVIEW_SOLDS_RUN_ONLY: SoldsState = {
+  status: "done",
+  comp: {
+    ...summarizeSales(
+      [30, 32].map((price, index) => ({ price, soldAt: `2026-11-${String(3 + index * 5).padStart(2, "0")}T12:00:00Z` })),
+      { asOf: "2026-11-08T12:00:00Z", source: "live" },
+    ),
+    ...{ parallel: "/299, parallel not named", groups: [{ label: "/299, parallel not named", nSales: 2 }] },
+  } as ScanCompResult,
+  query: "preview",
+};
+
 export const PREVIEW_SOLDS_LOOKING: SoldsState = { status: "looking" };
 export const PREVIEW_SOLDS_NONE: SoldsState = { status: "done", comp: { status: "none", searched: true }, query: "preview" };
 export const PREVIEW_SOLDS_LIMITED: SoldsState = {

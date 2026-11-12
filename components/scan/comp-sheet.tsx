@@ -29,8 +29,9 @@ import {
   type ScanCompResult,
   type SoldsState,
 } from "@/lib/scan/comp";
-import { CONFIRM_COPY, confirmMatch, initialChoice, promoteMatch, readyToSave, type ParallelPick } from "@/lib/scan/confirm";
+import { CONFIRM_COPY, confirmMatch, initialChoice, matchesKey, promoteMatch, readyToSave, type ParallelPick } from "@/lib/scan/confirm";
 import type { ScanMatch } from "@/lib/scan/match";
+import { isUnnamedRunLabel } from "@/lib/scan/scan-sales";
 
 /**
  * Sold prices for another parallel or grade on this sheet. GET /api/scan/comp
@@ -81,7 +82,7 @@ export function CompSheet({ photo, state, lookup, onAdd, onScanAnother, onSearch
       ) : null}
       {state.kind === "ready" ? (
         <Ready
-          key={state.matches.map((match) => match.catalogId ?? match.playerName).join("|")}
+          key={matchesKey(state.matches)}
           photo={photo}
           matches={state.matches}
           solds={state.solds}
@@ -129,6 +130,8 @@ function Ready({
     [top, pick, grade],
   );
   const serialRun = pick?.serialRun ?? top?.serialRun ?? null;
+  // A numbered card is never Base: with its parallel open, nothing reads as Base.
+  const assumedBase = Boolean(target?.assumedBase) && top?.serialRun == null;
   const key = target ? compQueryString(target.identity, serialRun) : "";
   // The card the live search priced: the top match as it arrived, with its own parallel and grade.
   const [scanKey] = useState(() => {
@@ -184,7 +187,7 @@ function Ready({
       <MatchSummary photo={photo} match={top} />
 
       {target ? (
-        <ValuePanel result={result} looking={looking} onRetry={retry} assumedBase={target.assumedBase} serialRun={serialRun} />
+        <ValuePanel result={result} looking={looking} onRetry={retry} assumedBase={assumedBase} serialRun={serialRun} />
       ) : (
         <p className="text-sm text-zinc-600 dark:text-zinc-400">{COMP_COPY.needYear}</p>
       )}
@@ -192,13 +195,13 @@ function Ready({
       <ParallelStrip
         options={parallelOptionsFor(top)}
         // The prices shown are Base's, so Base reads selected until another parallel is tapped.
-        pick={pick ?? (target?.assumedBase ? { name: "Base", serialRun: null } : null)}
+        pick={pick ?? (assumedBase ? { name: "Base", serialRun: null } : null)}
         somethingElse={false}
         hint={
-          target?.assumedBase
+          assumedBase
             ? COMP_COPY.assumedBase
             : top.parallelSource === "sales" && pick?.name === top.parallel
-              ? COMP_COPY.matchedFromSales
+              ? COMP_COPY.matchedFromSalesTap
               : null
         }
         onChoose={setPick}
@@ -336,7 +339,18 @@ function ValuePanel({
         <>
           <p className="text-[13px] font-medium text-zinc-500">
             {COMP_COPY.value}
-            {assumedBase ? <span> · Base</span> : null}
+            {result.parallel ? (
+              // Named by the sales it's priced from, so a Fuchsia /299 is never called Base.
+              <span>
+                {" · "}
+                {result.parallel}
+                {serialRun && result.parallel !== "Base" && !isUnnamedRunLabel(result.parallel) ? (
+                  <span className="font-mono tabular-nums"> /{serialRun}</span>
+                ) : null}
+              </span>
+            ) : assumedBase ? (
+              <span> · Base</span>
+            ) : null}
           </p>
           <div className="mt-1 flex flex-wrap items-center gap-2">
             <p className="font-mono text-[28px] leading-9 font-semibold tabular-nums">{dollars(result.medianCents)}</p>
@@ -366,7 +380,7 @@ function ValuePanel({
           <span>
             {" · "}
             {result.parallel}
-            {serialRun ? <span className="font-mono tabular-nums"> /{serialRun}</span> : null}
+            {serialRun && !isUnnamedRunLabel(result.parallel) ? <span className="font-mono tabular-nums"> /{serialRun}</span> : null}
           </span>
         ) : null}
       </p>
