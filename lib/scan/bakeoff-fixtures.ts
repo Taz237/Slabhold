@@ -232,6 +232,49 @@ export const BAKEOFF_CASES: BakeoffCase[] = [
     truth: MILLER,
   },
   {
+    name: "Dart, Prizm #332 base (unnumbered), 10 Silver sales among base ones",
+    front: ["PRIZM", "JAXSON DART", "GIANTS", "QB", "RC"],
+    back: ["JAXSON DART", "332", "© 2025 PANINI AMERICA, INC."],
+    rows: [
+      { id: "dart-prizm", playerName: "Jaxson Dart", yearLabel: "2025", setBrand: "Panini Prizm", cardNumber: "332", sport: "Football", parallel: "Base", isRookie: true },
+    ],
+    live: {
+      atRung: 0,
+      pricedFrom: "Base",
+      sold: [
+        ...[65, 49.12, 62.5, 57.5, 67, 58, 61, 55, 63, 59].map((price, index) => ({
+          title: `2025 Panini Prizm Jaxson Dart Silver Prizm #332 RC Giants${index % 2 ? " Rookie" : ""}`,
+          price,
+          soldAt: index < 4 ? "2026-11-12" : "2026-11-11",
+        })),
+        { title: "2025 Panini Prizm Jaxson Dart #332 RC Rookie Giants", price: 9, soldAt: "2026-11-10" },
+        { title: "2025 Prizm Jaxson Dart Rookie #332 base", price: 8, soldAt: "2026-11-08" },
+        { title: "Jaxson Dart 2025 Panini Prizm RC #332", price: 10, soldAt: "2026-11-05" },
+      ],
+    },
+    truth: { player: "Jaxson Dart", set: "Panini Prizm", number: "332", parallel: "" },
+  },
+  {
+    name: "Dart, Mosaic #362 base (unnumbered), a Silver majority",
+    front: ["MOSAIC", "JAXSON DART", "GIANTS", "RC"],
+    back: ["JAXSON DART", "362"],
+    rows: [
+      { id: "dart-mosaic", playerName: "Jaxson Dart", yearLabel: "2025", setBrand: "Panini Mosaic", cardNumber: "362", sport: "Football", parallel: "Base", isRookie: true },
+    ],
+    live: {
+      atRung: 0,
+      pricedFrom: "Base",
+      sold: [
+        { title: "2025 Panini Mosaic Jaxson Dart Silver Mosaic #362 RC", price: 30, soldAt: "2026-11-10" },
+        { title: "2025 Panini Mosaic Jaxson Dart Silver #362 Rookie", price: 32, soldAt: "2026-11-08" },
+        { title: "Jaxson Dart 2025 Mosaic Silver Prizm #362 RC Giants", price: 35, soldAt: "2026-11-06" },
+        { title: "2025 Panini Mosaic Jaxson Dart #362 RC Giants", price: 6, soldAt: "2026-11-09" },
+        { title: "2025 Mosaic Jaxson Dart Rookie #362", price: 7, soldAt: "2026-11-04" },
+      ],
+    },
+    truth: { player: "Jaxson Dart", set: "Panini Mosaic", number: "362", parallel: "" },
+  },
+  {
     name: "Dart, logo-only Mosaic, saved sales",
     front: ["JAXSON DART", "GIANTS", "QB", "RC", "121/199"],
     back: null,

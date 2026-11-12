@@ -327,3 +327,86 @@ describe("3) the price names the parallel it came from", () => {
     assert.equal(matchesKey(open), matchesKey([...open]));
   });
 });
+
+describe("4) an unnumbered card is never flipped to a parallel by sold titles", () => {
+  const DART_ROW = { id: "dart-prizm", playerName: "Jaxson Dart", yearLabel: "2025", setBrand: "Panini Prizm", cardNumber: "332", sport: "Football", parallel: "Base", isRookie: true };
+  const DART_FRONT = ["PRIZM", "JAXSON DART", "GIANTS", "QB", "RC"];
+  const DART_BACK = ["JAXSON DART", "332", "© 2025 PANINI AMERICA, INC."];
+  /** The Nov 11-12 sales Donnie's phone priced as Silver: 10 Silver Prizm titles, and a few base ones. */
+  const SILVER = [65, 49.12, 62.5, 57.5, 67, 58, 61, 55, 63, 59].map((price, index) =>
+    sold(`2025 Panini Prizm Jaxson Dart Silver Prizm #332 RC Giants ${index}`, price, index < 4 ? "2026-11-12" : "2026-11-11"),
+  );
+  const BASE = [
+    sold("2025 Panini Prizm Jaxson Dart #332 RC Rookie Giants", 9, "2026-11-10"),
+    sold("2025 Prizm Jaxson Dart Rookie #332 base", 8, "2026-11-08"),
+    sold("Jaxson Dart 2025 Panini Prizm RC #332", 10, "2026-11-05"),
+  ];
+  const scan = (results: TrawlSoldResult[], extra: Partial<LiveSoldsDeps> = {}) =>
+    lookupLiveSolds({ capture: capture(DART_FRONT, DART_BACK), rows: [DART_ROW] }, "u1", deps(async () => ok(results), extra));
+
+  it("Dart #332 base, 10 Silver and 3 base sales: Base stays, priced from the base sales, Silver offered", async () => {
+    const result = await scan([...SILVER, ...BASE]);
+    const top = result.matches[0];
+    assert.equal(top.playerName, "Jaxson Dart");
+    assert.equal(top.cardNumber, "332");
+    assert.equal(top.serialRun, null);
+    assert.notEqual(top.parallelSource, "sales", "never 'Matched from recent sales'");
+    assert.ok(!/silver/i.test(top.parallel), `parallel: ${top.parallel}`);
+    assert.ok(result.comp.status === "ok");
+    assert.equal(result.comp.parallel, "Base");
+    assert.deepEqual(cents(result.comp), [800, 900, 1000]);
+    assert.deepEqual(result.comp.groups?.find((group) => /silver/i.test(group.label))?.nSales, 10, "Silver is offered to tap");
+  });
+
+  it("Dart #332, only Silver sales: 'No recent Base sales', the groups to tap, nothing priced as Base", async () => {
+    const result = await scan(SILVER);
+    assert.notEqual(result.matches[0].parallelSource, "sales");
+    assert.ok(!/silver/i.test(result.matches[0].parallel));
+    assert.equal(result.comp.status, "split");
+    assert.ok(result.comp.status === "split");
+    assert.equal(result.comp.missing, "Base");
+    assert.deepEqual(result.comp.groups.map((group) => [group.label, group.nSales]), [["Silver", 10]]);
+    assert.equal(COMP_COPY.noBase, "No recent Base sales");
+  });
+
+  it("saved Silver titles never preselect Silver on an unnumbered card either", () => {
+    const read = scanReadFrom(capture(DART_FRONT, DART_BACK), INDEXED_DIRECTORY);
+    const soldTitles = SILVER.map((item) => ({ title: item.title, price: item.sale_price, soldAt: item.date_sold }));
+    const top = rankScanMatches(read, [DART_ROW], { directory: INDEXED_DIRECTORY, products: null, soldTitles }).matches[0];
+    assert.notEqual(top.parallelSource, "sales");
+    assert.ok(!/silver/i.test(top.parallel));
+  });
+
+  it("Mosaic, Optic and Select: a Silver/Holo majority never flips an unnumbered base", async () => {
+    for (const [set, word] of [["Mosaic", "Silver"], ["Donruss Optic", "Holo"], ["Select", "Silver"]] as const) {
+      const row = { ...DART_ROW, id: `dart-${set}`, setBrand: `Panini ${set}`, cardNumber: "362" };
+      const front = [set.toUpperCase().replace("DONRUSS ", ""), "JAXSON DART", "GIANTS", "RC"];
+      const titles = [
+        ...[30, 32, 35, 31].map((price, index) => sold(`2025 Panini ${set} Jaxson Dart ${word} #362 RC ${index}`, price)),
+        sold(`2025 Panini ${set} Jaxson Dart #362 RC`, 6),
+      ];
+      const result = await lookupLiveSolds({ capture: capture(front, ["JAXSON DART", "362"]), rows: [row] }, "u1", deps(async () => ok(titles)));
+      assert.ok(!new RegExp(word, "i").test(result.matches[0].parallel), `${set}: ${result.matches[0].parallel}`);
+      assert.notEqual(result.matches[0].parallelSource, "sales", set);
+      assert.ok(result.comp.status === "ok", set);
+      assert.equal(result.comp.parallel, "Base", set);
+      assert.deepEqual(cents(result.comp), [600], set);
+    }
+  });
+
+  it("the border never picks Silver/Refractor/Holo, even on a numbered chrome card", () => {
+    const read = scanReadFrom({ ...capture(["PRIZM", "JAXSON DART", "GIANTS", "12/199"], DART_BACK), border: "red" }, INDEXED_DIRECTORY);
+    const soldTitles = [
+      { title: "2025 Panini Prizm Jaxson Dart Red Prizm /199 #332", price: 40, soldAt: null },
+      { title: "2025 Panini Prizm Jaxson Dart Silver Refractor /199 #332", price: 30, soldAt: null },
+    ];
+    const top = rankScanMatches(read, [DART_ROW], { directory: INDEXED_DIRECTORY, products: null, soldTitles }).matches[0];
+    assert.ok(!/silver|refractor/i.test(top.parallel), top.parallel);
+  });
+
+  it("numbered consensus still holds: Miller Fuchsia /299 preselects Fuchsia", async () => {
+    const result = await lookupLiveSolds({ capture: capture(FRONT, BACK), rows: [] }, "u1", deps(async () => ok(FUCHSIA)));
+    assert.equal(result.matches[0].parallel, "Fuchsia");
+    assert.equal(result.matches[0].parallelSource, "sales");
+  });
+});

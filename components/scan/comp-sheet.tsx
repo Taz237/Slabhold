@@ -12,6 +12,7 @@ import {
   ParallelStrip,
   SheetFrame,
   SplitGroups,
+  OtherGroups,
   parallelOptionsFor,
   skeletonBar,
 } from "@/components/scan/sheet-parts";
@@ -32,6 +33,7 @@ import {
 import { CONFIRM_COPY, confirmMatch, initialChoice, matchesKey, promoteMatch, readyToSave, type ParallelPick } from "@/lib/scan/confirm";
 import type { ScanMatch } from "@/lib/scan/match";
 import { isUnnamedRunLabel } from "@/lib/scan/scan-sales";
+import type { ProductParallel } from "@/lib/cards/product-data";
 
 /**
  * Sold prices for another parallel or grade on this sheet. GET /api/scan/comp
@@ -94,6 +96,27 @@ export function CompSheet({ photo, state, lookup, onAdd, onScanAnother, onSearch
       ) : null}
     </SheetFrame>
   );
+}
+
+/** The parallels the scan's sales name join the chips, so one tapped from the sales list reads selected. */
+function withSoldGroups(
+  options: ProductParallel[],
+  solds: SoldsState | undefined,
+  serialRun: number | null,
+  assumedBase: boolean,
+): ProductParallel[] {
+  if (solds?.status !== "done") return options;
+  const comp = solds.comp;
+  const groups = comp.status === "ok" || comp.status === "split" ? (comp.groups ?? []) : [];
+  const out = [...options];
+  const has = (name: string) => out.some((option) => option.name.toLowerCase() === name.toLowerCase());
+  // The Base the sheet is showing reads first and selected.
+  if (assumedBase && groups.length > 0 && !has("Base")) out.unshift({ name: "Base", serialRun: null });
+  for (const group of groups) {
+    if (isUnnamedRunLabel(group.label) || has(group.label)) continue;
+    out.push({ name: group.label, serialRun });
+  }
+  return out;
 }
 
 function gradeChoices(scanned: string): string[] {
@@ -187,18 +210,26 @@ function Ready({
       <MatchSummary photo={photo} match={top} />
 
       {target ? (
-        <ValuePanel result={result} looking={looking} onRetry={retry} assumedBase={assumedBase} serialRun={serialRun} />
+        <ValuePanel
+          result={result}
+          looking={looking}
+          onRetry={retry}
+          assumedBase={assumedBase}
+          serialRun={serialRun}
+          onPick={(label) => setPick({ name: label, serialRun: top.serialRun })}
+        />
       ) : (
         <p className="text-sm text-zinc-600 dark:text-zinc-400">{COMP_COPY.needYear}</p>
       )}
 
       <ParallelStrip
-        options={parallelOptionsFor(top)}
+        options={withSoldGroups(parallelOptionsFor(top), solds, top.serialRun, assumedBase)}
         // The prices shown are Base's, so Base reads selected until another parallel is tapped.
         pick={pick ?? (assumedBase ? { name: "Base", serialRun: null } : null)}
         somethingElse={false}
         hint={
-          assumedBase
+          // With no Base sales the panel already says so and asks for a tap.
+          assumedBase && !(result?.status === "split" && result.missing)
             ? COMP_COPY.assumedBase
             : top.parallelSource === "sales" && pick?.name === top.parallel
               ? COMP_COPY.matchedFromSalesTap
@@ -262,8 +293,11 @@ function ValuePanel({
   onRetry,
   assumedBase,
   serialRun = null,
+  onPick,
 }: {
   result: ScanCompResult | undefined;
+  /** Tap another parallel the sales name, to price the card as it. */
+  onPick?: (label: string) => void;
   /** The card's print run, shown with the parallel the sales are for. */
   serialRun?: number | null;
   /** The live eBay search is running: say so, it takes a few seconds. */
@@ -308,7 +342,7 @@ function ValuePanel({
   if (result.status === "split") {
     return (
       <div className={box}>
-        <SplitGroups groups={result.groups} />
+        <SplitGroups groups={result.groups} missing={result.missing} onPick={onPick} />
       </div>
     );
   }
@@ -392,6 +426,9 @@ function ValuePanel({
           </li>
         ))}
       </ul>
+      {onPick && result.parallel === "Base" && result.groups ? (
+        <OtherGroups groups={result.groups.filter((group) => group.label !== "Base")} onPick={onPick} />
+      ) : null}
       <p className="mt-3 text-xs text-zinc-500">
         {COMP_COPY.credit}
         {result.asOf ? ` · updated ${formatRelativeTime(result.asOf)}` : ""}

@@ -424,4 +424,43 @@ describe("Aidan Miller after #245: a bio 'for-4' on the back, empty catalog", ()
       view.unmount();
     }
   });
+
+  it("an unnumbered base: Base priced and labelled, 'Showing Base', Silver offered to tap", async () => {
+    const match = { ...fixtures.PREVIEW_RAW[0], parallel: "", serialRun: null, serialNo: "", parallelSource: undefined };
+    const base = fixtures.PREVIEW_SOLDS_PARALLEL.status === "done" ? fixtures.PREVIEW_SOLDS_PARALLEL.comp : null;
+    assert.ok(base && base.status === "ok");
+    const groups = [{ label: "Silver", nSales: 10 }, { label: "Base", nSales: 3 }];
+    const solds = { status: "done" as const, comp: { ...base, parallel: "Base", groups }, query: "q" };
+    const view = await mount({ kind: "ready", matches: [match], solds });
+    try {
+      await waitFor(() => text().includes("Value · Base"));
+      assert.ok(text().includes("Showing Base. Tap your parallel if it's different."));
+      assert.doesNotMatch(text(), /Matched from recent sales/);
+      assert.ok(text().includes("Other parallels in recent sales"));
+      await click(button("Show Silver sales, 10 sales"));
+      await waitFor(() => view.calls.lookups.length > 0);
+      assert.equal(view.calls.lookups.at(-1)?.parallel, "Silver");
+      const pressed = [...win.document.querySelectorAll("button[aria-pressed='true']")].map((node) => node.textContent ?? "");
+      assert.ok(pressed.some((label) => label.includes("Silver")), pressed.join(" | "));
+    } finally {
+      view.unmount();
+    }
+  });
+
+  it("an unnumbered card with only Silver sales: 'No recent Base sales', never a Base price", async () => {
+    const match = { ...fixtures.PREVIEW_RAW[0], parallel: "", serialRun: null, serialNo: "", parallelSource: undefined };
+    const solds = {
+      status: "done" as const,
+      comp: { status: "split" as const, missing: "Base" as const, groups: [{ label: "Silver", nSales: 10, lastPriceCents: 6500, lastSoldAt: "2026-11-12" }] },
+      query: "q",
+    };
+    const view = await mount({ kind: "ready", matches: [match], solds });
+    try {
+      await waitFor(() => text().includes("No recent Base sales"));
+      assert.doesNotMatch(text(), /Value · /);
+      assert.ok(button("Show Silver sales, 10 sales"));
+    } finally {
+      view.unmount();
+    }
+  });
 });

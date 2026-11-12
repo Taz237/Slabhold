@@ -179,7 +179,7 @@ describe("live eBay solds: never invent a set or a price", () => {
     assert.deepEqual(result.comp, { status: "none", searched: true });
   });
 
-  it("J.J. McCarthy: Optic Preview Pink titles beat a plain Donruss Base", async () => {
+  it("J.J. McCarthy: Optic Preview Pink titles beat a plain Donruss Base, offered to tap, never auto-picked", async () => {
     const { value } = deps({
       live: [
         sold("2024 Panini Donruss Optic Preview Pink J.J. McCarthy #303 RC Vikings", 22, "2026-11-02"),
@@ -192,9 +192,13 @@ describe("live eBay solds: never invent a set or a price", () => {
     const top = result.matches[0];
     // Card-page comps read Optic Preview on a Donruss card as a parallel, not the Optic set.
     assert.equal(line(top), "2024 Panini Donruss #303");
-    assert.equal(top.parallel, "Optic Preview Pink");
-    assert.equal(top.catalogId, "jj-donruss", "the catalog's card, with the parallel the sold titles name");
-    assert.equal(result.comp.status, "ok");
+    // Unnumbered: sold titles never pick the parallel (a base can look like its parallels). No Base
+    // sales came back, so none is priced as Base, and Optic Preview Pink is one tap away.
+    assert.equal(top.parallel, "");
+    assert.equal(top.catalogId, "jj-donruss");
+    assert.ok(result.comp.status === "split");
+    assert.equal(result.comp.missing, "Base");
+    assert.deepEqual(result.comp.groups.map((group) => [group.label, group.nSales]), [["Optic Preview Pink", 3]]);
   });
 
   it("J.J. McCarthy with no titles: no set invented, no price", async () => {

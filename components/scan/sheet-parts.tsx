@@ -9,6 +9,7 @@ import { COMP_COPY, lastSale, type SoldsState } from "@/lib/scan/comp";
 import { CONFIRM_COPY, gradeLabel, maskCert, matchLine, type ParallelPick } from "@/lib/scan/confirm";
 import type { FieldSureness, ScanMatch } from "@/lib/scan/match";
 import type { ProductParallel } from "@/lib/cards/product-data";
+import { isUnnamedRunLabel } from "@/lib/scan/scan-sales";
 
 /** The scanner's bottom sheet: a labelled modal dialog with a grabber, a title and Close. */
 export function SheetFrame({
@@ -287,27 +288,82 @@ function saleDay(iso: string | null): string {
  * Recent sales that name more than one parallel, with the card's still open:
  * each group's count and newest price, and nothing priced until it's picked.
  */
-export function SplitGroups({ groups }: { groups: { label: string; nSales: number; lastPriceCents: number | null; lastSoldAt: string | null }[] }) {
+type GroupRow = { label: string; nSales: number; lastPriceCents?: number | null };
+
+/** A sold group the collector can tap to price their card as that parallel. A run-only group isn't a parallel. */
+function tappable(label: string): boolean {
+  return !isUnnamedRunLabel(label);
+}
+
+function GroupRows({ groups, onPick }: { groups: readonly GroupRow[]; onPick?: (label: string) => void }) {
   return (
-    <div role="status">
-      <p className="text-sm font-medium">{COMP_COPY.split}</p>
-      <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">{COMP_COPY.splitBody}</p>
-      <ul className="mt-2 divide-y divide-zinc-200 dark:divide-white/10">
-        {groups.map((group) => (
-          <li key={group.label} className="flex min-h-10 items-center justify-between gap-3 text-sm">
+    <ul className="mt-2 divide-y divide-zinc-200 dark:divide-white/10">
+      {groups.map((group) => {
+        const body = (
+          <>
             <span>
               {group.label}
               <span className="text-zinc-500">
                 {" · "}
-                <span className="font-mono tabular-nums">{group.nSales}</span> sold
+                <span className="font-mono tabular-nums">{group.nSales}</span> {group.nSales === 1 ? "sale" : "sales"}
               </span>
             </span>
-            {group.lastPriceCents != null ? (
-              <span className="font-mono font-medium tabular-nums">{money(group.lastPriceCents / 100)}</span>
-            ) : null}
+            <span className="flex shrink-0 items-center gap-1">
+              {group.lastPriceCents != null ? (
+                <span className="font-mono font-medium tabular-nums">{money(group.lastPriceCents / 100)}</span>
+              ) : null}
+              {onPick && tappable(group.label) ? <ChevronRight aria-hidden className="size-4 text-zinc-400" /> : null}
+            </span>
+          </>
+        );
+        return (
+          <li key={group.label}>
+            {onPick && tappable(group.label) ? (
+              <button
+                type="button"
+                onClick={() => onPick(group.label)}
+                aria-label={`Show ${group.label} sales, ${group.nSales} ${group.nSales === 1 ? "sale" : "sales"}`}
+                className={`-mx-2 flex min-h-11 w-[calc(100%+1rem)] items-center justify-between gap-3 rounded-lg px-2 text-left text-sm hover:bg-zinc-900/[0.03] dark:hover:bg-white/[0.04] ${focusRing}`}
+              >
+                {body}
+              </button>
+            ) : (
+              <div className="flex min-h-10 items-center justify-between gap-3 text-sm">{body}</div>
+            )}
           </li>
-        ))}
-      </ul>
+        );
+      })}
+    </ul>
+  );
+}
+
+export function SplitGroups({
+  groups,
+  missing,
+  onPick,
+}: {
+  groups: { label: string; nSales: number; lastPriceCents: number | null; lastSoldAt: string | null }[];
+  /** "Base": an unnumbered card had no Base sales, only other parallels. */
+  missing?: "Base";
+  /** Tap a group to price the card as that parallel. */
+  onPick?: (label: string) => void;
+}) {
+  return (
+    <div role="status">
+      <p className="text-sm font-medium">{missing ? COMP_COPY.noBase : COMP_COPY.split}</p>
+      <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">{missing ? COMP_COPY.noBaseBody : COMP_COPY.splitBody}</p>
+      <GroupRows groups={groups} onPick={onPick} />
+    </div>
+  );
+}
+
+/** Under a Base price on an unnumbered card: the other parallels recent sales name, one tap each. */
+export function OtherGroups({ groups, onPick }: { groups: readonly { label: string; nSales: number }[]; onPick: (label: string) => void }) {
+  if (groups.length === 0) return null;
+  return (
+    <div className="mt-4">
+      <p className="text-[13px] font-medium text-zinc-500">{COMP_COPY.otherGroups}</p>
+      <GroupRows groups={groups} onPick={onPick} />
     </div>
   );
 }
@@ -333,7 +389,7 @@ export function LastSold({ solds }: { solds: SoldsState }) {
   if (comp.status === "split") {
     return (
       <div className="rounded-2xl border border-zinc-200 px-4 py-3 dark:border-white/10">
-        <SplitGroups groups={comp.groups} />
+        <SplitGroups groups={comp.groups} missing={comp.missing} />
       </div>
     );
   }
