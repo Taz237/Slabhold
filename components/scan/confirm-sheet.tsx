@@ -21,6 +21,9 @@ import {
 } from "@/lib/scan/confirm";
 import type { ScanMatch } from "@/lib/scan/match";
 
+/** save: Yes, add it. changedRow / changedParallel: the collector fixed the scan's pick (fix-rate counts). */
+export type ConfirmOptions = { save: boolean; changedRow?: boolean; changedParallel?: boolean };
+
 export type ConfirmSheetState =
   | { kind: "matching" }
   | { kind: "ready"; matches: ScanMatch[] }
@@ -34,7 +37,7 @@ type Props = {
    * The top match with the sheet's parallel and serial picks applied.
    * save: "Yes, add it" (Add card saves on open). Otherwise Add card opens on Review or what's missing.
    */
-  onConfirm: (match: ScanMatch, options: { save: boolean }) => void;
+  onConfirm: (match: ScanMatch, options: ConfirmOptions) => void;
   /** None of these, or no match: the guided Add card with the photo. */
   onStepByStep: () => void;
   onRetake: () => void;
@@ -76,7 +79,7 @@ function Ready({
 }: {
   photo: string | null;
   matches: ScanMatch[];
-  onConfirm: (match: ScanMatch, options: { save: boolean }) => void;
+  onConfirm: (match: ScanMatch, options: ConfirmOptions) => void;
   onStepByStep: () => void;
   onRetake: () => void;
 }) {
@@ -115,7 +118,12 @@ function Ready({
       setError(result.error);
       return;
     }
-    onConfirm(result.match, { save });
+    const scanned = initialChoice(top)?.name ?? "";
+    onConfirm(result.match, {
+      save,
+      changedRow: rows[0] !== matches[0],
+      changedParallel: (pick?.name ?? "") !== scanned,
+    });
   }
 
   return (

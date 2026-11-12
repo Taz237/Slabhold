@@ -11,6 +11,15 @@ function read(path: string) {
 }
 
 describe("sanitizeProps", () => {
+  it("keeps the card scanner's sources and outcomes, nothing else", () => {
+    assert.deepEqual(sanitizeProps({ source: "scan_comp" }), { source: "scan_comp" });
+    for (const result of ["settled", "unsure", "none", "one_tap", "edit", "row", "parallel"]) {
+      assert.deepEqual(sanitizeProps({ result }), { result });
+    }
+    assert.deepEqual(sanitizeProps({ result: "Luka Doncic" }), {});
+    assert.deepEqual(sanitizeProps({ source: "scan_cert" }), {});
+  });
+
   it("keeps the button and campaign tokens and drops identifying values", () => {
     const userId = "550e8400-e29b-41d4-a716-446655440000";
     assert.deepEqual(

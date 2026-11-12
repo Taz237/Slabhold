@@ -7,7 +7,8 @@ import { Camera, ImagePlus, ScanLine } from "lucide-react";
 import { PrimaryButton, QuietButton, focusRing } from "@/components/add-card/flow-ui";
 import { PhotoFileInputs } from "@/components/photo-file-inputs";
 import { CompSheet, type CompLookup } from "@/components/scan/comp-sheet";
-import { ConfirmSheet, type ConfirmSheetState } from "@/components/scan/confirm-sheet";
+import { ConfirmSheet, type ConfirmOptions, type ConfirmSheetState } from "@/components/scan/confirm-sheet";
+import { trackEvent } from "@/lib/analytics";
 import { saveScan, saveScanMatch } from "@/lib/capture";
 import { isNativeApp, loadNative } from "@/lib/ios/platform";
 import { PHOTO_READ_ERROR, readPhotoFile } from "@/lib/photos";
@@ -19,8 +20,12 @@ import { HUB_COPY, scanReadFrom, sheetStateFrom, type ScanCapture, type ScanPurp
 export type ScanHubDeps = {
   /** Async so no plugin code ships in /scan's first load. */
   scannerAvailable: () => Promise<boolean>;
-  /** The native camera. Null when cancelled. */
-  scan: () => Promise<ScanCapture | null>;
+  /** The native camera. Null when cancelled, "denied" when camera access is off. */
+  scan: () => Promise<ScanCapture | null | "denied">;
+  /** Slabhold's page in Settings, to turn the camera back on. */
+  openSettings: () => Promise<boolean>;
+  /** Counts only: no card text, images or ids (lib/analytics.ts drops anything else). */
+  track: (name: string, props?: Record<string, string>) => void;
   /** A library photo, read the same way. */
   pickAndRead: () => Promise<ScanCapture | null>;
   /** Read and match against the catalog. Null when the search failed. */
@@ -62,6 +67,8 @@ async function defaultPickAndRead(): Promise<ScanCapture | null> {
 const defaultDeps: ScanHubDeps = {
   scannerAvailable: async () => isNativeApp() && (await loadNative()).scannerAvailable(),
   scan: async () => (await loadNative()).scanCard(),
+  openSettings: async () => (await loadNative()).openCameraSettings(),
+  track: (name, props) => trackEvent(name, props),
   pickAndRead: defaultPickAndRead,
   identify: defaultIdentify,
   compLookup: defaultCompLookup,
@@ -82,6 +89,7 @@ export function ScanHub({ purpose, deps: overrides }: { purpose: ScanPurpose; de
   const [sheet, setSheet] = useState<ConfirmSheetState | null>(null);
   const [photo, setPhoto] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [denied, setDenied] = useState(false);
   const run = useRef<AbortController | null>(null);
   const opened = useRef(false);
   const cameraRef = useRef<HTMLInputElement>(null);
@@ -97,19 +105,29 @@ export function ScanHub({ purpose, deps: overrides }: { purpose: ScanPurpose; de
       setSheet({ kind: "matching" });
       const result = await deps.identify(capture, controller.signal).catch(() => null);
       if (controller.signal.aborted) return;
+      deps.track("scan_matched", {
+        result: !result || result.matches.length === 0 ? "none" : result.settled ? "settled" : "unsure",
+      });
       setSheet(sheetStateFrom(result, deps.online()));
     },
     [deps],
   );
 
   const startScan = useCallback(async () => {
-    let capture: ScanCapture | null = null;
+    let capture: ScanCapture | null | "denied" = null;
     try {
       capture = await deps.scan();
     } catch {
       setError(HUB_COPY.readFailed);
       return;
     }
+    if (capture === "denied") {
+      deps.track("scan_camera_denied");
+      setSheet(null);
+      setDenied(true);
+      return;
+    }
+    setDenied(false);
     if (!capture) {
       setSheet(null);
       return;
@@ -143,6 +161,10 @@ export function ScanHub({ purpose, deps: overrides }: { purpose: ScanPurpose; de
     };
   }, [deps]);
 
+  useEffect(() => {
+    deps.track("scan_opened", { source: purpose === "comp" ? "scan_comp" : "scan" });
+  }, [deps, purpose]);
+
   // The camera opens on arrival: the fewest taps from here to the card.
   useEffect(() => {
     if (!available || opened.current) return;
@@ -152,7 +174,10 @@ export function ScanHub({ purpose, deps: overrides }: { purpose: ScanPurpose; de
 
   useEffect(() => () => run.current?.abort(), []);
 
-  function toAddCard(match: ScanMatch, options: { save: boolean }) {
+  function toAddCard(match: ScanMatch, options: ConfirmOptions) {
+    deps.track("scan_added", { result: options.save ? "one_tap" : "edit" });
+    if (options.changedRow) deps.track("scan_fixed", { result: "row" });
+    if (options.changedParallel) deps.track("scan_fixed", { result: "parallel" });
     const id = newScanId();
     if (photo) saveScan(photo);
     saveScanMatch(scanHandoffFrom(match, id, { autoSave: options.save }));
@@ -192,6 +217,16 @@ export function ScanHub({ purpose, deps: overrides }: { purpose: ScanPurpose; de
         </p>
       ) : null}
 
+      {denied ? (
+        <div role="alert" className="mt-6 rounded-2xl border border-zinc-200 p-4 dark:border-white/10">
+          <p className="text-[15px] font-semibold">{HUB_COPY.cameraOffTitle}</p>
+          <p className="mt-1 text-sm leading-5 text-zinc-600 dark:text-zinc-400">{HUB_COPY.cameraOffBody}</p>
+          <PrimaryButton onClick={() => void deps.openSettings()} className="mt-4">
+            {HUB_COPY.openSettings}
+          </PrimaryButton>
+        </div>
+      ) : null}
+
       {error ? (
         <p role="alert" className="mt-4 text-sm text-rose-600 dark:text-rose-400">
           {error}
@@ -204,10 +239,13 @@ export function ScanHub({ purpose, deps: overrides }: { purpose: ScanPurpose; de
           <div aria-hidden className="h-14 rounded-full bg-zinc-200 motion-safe:animate-pulse dark:bg-white/10" />
         ) : available ? (
           <>
-            <PrimaryButton onClick={() => void startScan()} className="min-h-14 gap-2 text-[15px]">
-              <ScanLine className="size-5" strokeWidth={1.75} aria-hidden />
-              {HUB_COPY.scan}
-            </PrimaryButton>
+            {/* With the camera off, Open Settings above is the one main action. */}
+            {denied ? null : (
+              <PrimaryButton onClick={() => void startScan()} className="min-h-14 gap-2 text-[15px]">
+                <ScanLine className="size-5" strokeWidth={1.75} aria-hidden />
+                {HUB_COPY.scan}
+              </PrimaryButton>
+            )}
             <div className="flex items-center justify-center gap-2">
               <QuietButton onClick={() => void pickFromLibrary()}>
                 <ImagePlus className="size-4" aria-hidden />
