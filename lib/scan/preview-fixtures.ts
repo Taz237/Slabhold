@@ -1,3 +1,5 @@
+import type { QuickCompIdentity } from "@/lib/quick-comp/identity";
+import { summarizeSales, type ScanCompResult } from "./comp";
 import type { ScanMatch } from "./match";
 
 /**
@@ -115,3 +117,23 @@ export const PREVIEW_NUMBERED: ScanMatch = {
   sureness: SURE,
   parallelOptions: [{ name: "Gold", serialRun: 10 }],
 };
+
+/** Made-up cached sales for the scan-to-comp preview, by card, parallel and grade. */
+export async function previewCompLookup(identity: QuickCompIdentity): Promise<ScanCompResult> {
+  await new Promise((resolve) => setTimeout(resolve, 250));
+  const key = `${identity.playerName}|${identity.parallel}|${identity.grade}`;
+  const day = (n: number) => `2026-10-${String(n).padStart(2, "0")}T12:00:00Z`;
+  const sales: Record<string, number[]> = {
+    "Luka Doncic|Silver|PSA 10": [880, 910, 940, 1010, 1060, 1100],
+    "Luka Doncic|Silver|Raw": [190, 205, 210, 220],
+    "Victor Wembanyama|Base|Raw": [18, 21],
+    "Victor Wembanyama|Silver|Raw": [140, 150, 152, 149, 165],
+    "Victor Wembanyama|Base|PSA 10": [95, 102, 99, 110],
+  };
+  const prices = sales[key];
+  if (!prices) return { status: "none" };
+  return summarizeSales(
+    prices.map((price, index) => ({ price, soldAt: day(index * 4 + 1) })),
+    { asOf: day(28), source: "quick-comp" },
+  );
+}
