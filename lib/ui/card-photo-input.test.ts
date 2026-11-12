@@ -42,8 +42,7 @@ function field(props: { photo: string | null; photoError: string | null }) {
   return renderToStaticMarkup(
     createElement(CardPhotoField, {
       ...props,
-      scanning: false,
-      onTake: () => undefined,
+        onTake: () => undefined,
       onLibrary: () => undefined,
       onRemove: () => undefined,
       onRetry: () => undefined,

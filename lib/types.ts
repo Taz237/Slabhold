@@ -60,17 +60,6 @@ export type CompListing = {
   url: string;
 };
 
-export type IdentifyResult = {
-  playerName: string;
-  year: number;
-  setBrand: string;
-  cardNumber: string;
-  sport: string;
-  estimatedSellPrice: number;
-  confidence: number;
-  comps: CompListing[];
-};
-
 export type PortfolioFilter = "all" | "held" | "sold" | "profit" | "loss" | "novalue";
 
 type DetailCard = Pick<

@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useId, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import { ChevronRight, Search, X } from "lucide-react";
+import { ScanEntry } from "@/components/scan/scan-entry";
+import { HUB_COPY, quickCompScanHref, scannerEnabled } from "@/lib/scan/entry";
 import type { SalesChart as SalesChartType } from "@/components/sales-chart";
 import { preloadCompsList } from "@/components/card-page-parts";
 import { CATALOG_SEARCH_TIMEOUT_MESSAGE } from "@/lib/catalog/catalog-search-session";
@@ -260,6 +262,7 @@ function RecentList({ items, onOpen }: { items: RecentComp[]; onOpen: (item: Rec
 }
 
 export function QuickCompView({ userId }: { userId: string | null }) {
+  const scanHref = quickCompScanHref(scannerEnabled());
   const listId = useId();
   const inputRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState("");
@@ -473,6 +476,8 @@ export function QuickCompView({ userId }: { userId: string | null }) {
         <h1 className="text-xl leading-7 font-semibold tracking-tight">Quick Comp</h1>
         <p className={`mt-1 text-sm leading-5 ${textSecondary}`}>Recent sold prices, without adding it to your collection</p>
       </header>
+
+      {scanHref ? <ScanEntry href={scanHref} title={HUB_COPY.compEntry} body={HUB_COPY.compEntryBody} /> : null}
 
       <div className="relative">
         <label htmlFor={`${listId}-input`} className="sr-only">

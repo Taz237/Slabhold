@@ -19,6 +19,8 @@ import { PLAYER_SEARCH_DEBOUNCE_MS } from "@/lib/cards/add-flow-players";
 import { loadCatalogSearchSession } from "@/lib/catalog/catalog-search-session";
 import { searchCatalogRemote } from "@/lib/catalog/search-remote";
 import { usePlayerDirectory } from "@/lib/players/use-directory";
+import { ScanEntry } from "@/components/scan/scan-entry";
+import { HUB_COPY } from "@/lib/scan/entry";
 
 export type DoorPick = PlayerPick & { insert: string | null };
 
@@ -42,7 +44,10 @@ export function SearchDoor({
   onPickSet,
   onPickCatalog,
   onStepByStep,
+  scanHref = null,
 }: {
+  /** The scanner, when it is on: the first thing on the door. */
+  scanHref?: string | null;
   initialQuery: string;
   recent: readonly string[];
   owned: readonly { name: string; sport: string }[];
@@ -123,6 +128,7 @@ export function SearchDoor({
 
   return (
     <div className="space-y-5">
+      {scanHref && !typed ? <ScanEntry href={scanHref} title={HUB_COPY.addEntry} body={HUB_COPY.addEntryBody} /> : null}
       <div>
         <label className="relative block">
           <span className="sr-only">Search a player, insert, set or card</span>

@@ -21,6 +21,8 @@ import { apnsTokenFrom, asShareAbort, nativePermissionFrom, photoFile, photoPick
 import { claimReviewAsk, countLaunch, type ReviewMoment } from "@/lib/ios/review-prompt";
 import type { NativePermission } from "@/lib/push/native-client";
 import type { NativeShareData } from "@/lib/share/sheet";
+import { SCANNER_PLUGIN, scanCaptureFrom, type RawScan } from "@/lib/ios/scanner";
+import type { ScanCapture } from "@/lib/scan/session";
 
 const LAUNCH_KEY = "slabhold.native.launch-url";
 
@@ -34,6 +36,13 @@ type SlabholdNativePlugin = {
   }): Promise<{ shown: boolean; completed?: boolean }>;
 };
 const SlabholdNative = registerPlugin<SlabholdNativePlugin>("SlabholdNative");
+
+/** The card scanner (ios-app SlabholdScanner). lib/ios/scanner.ts checks what it returns. */
+type SlabholdScannerPlugin = {
+  scanCard(options: { mode: "auto" }): Promise<RawScan>;
+  recognize(options: { image: string }): Promise<RawScan>;
+};
+const SlabholdScanner = registerPlugin<SlabholdScannerPlugin>(SCANNER_PLUGIN);
 
 function currentPath() {
   return `${window.location.pathname}${window.location.search}${window.location.hash}`;
@@ -403,4 +412,23 @@ export async function shareFilesNative(input: { files: File[]; text?: string }):
   } catch {
     return "unavailable";
   }
+}
+
+/** This build has the card scanner (SlabholdScanner). False on older builds. */
+export function scannerAvailable(): boolean {
+  try {
+    return Capacitor.isPluginAvailable(SCANNER_PLUGIN);
+  } catch {
+    return false;
+  }
+}
+
+/** Opens the native card scanner. Null when cancelled. Throws only when the plugin fails. */
+export async function scanCard(): Promise<ScanCapture | null> {
+  return scanCaptureFrom(await SlabholdScanner.scanCard({ mode: "auto" }));
+}
+
+/** Reads a library photo with the scanner's text reader. */
+export async function recognizeCardPhoto(dataUrl: string): Promise<ScanCapture | null> {
+  return scanCaptureFrom(await SlabholdScanner.recognize({ image: dataUrl }));
 }

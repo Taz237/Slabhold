@@ -3,16 +3,32 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { SearchDoor } from "@/components/add-card/search-door";
 import { CompSheet } from "@/components/scan/comp-sheet";
+import { ScanHub } from "@/components/scan/scan-hub";
 import { ConfirmSheet, type ConfirmSheetState } from "@/components/scan/confirm-sheet";
 import { saveScan, saveScanMatch } from "@/lib/capture";
 import { newScanId, scanAddPath, scanHandoffFrom } from "@/lib/scan/handoff";
 import type { ScanMatch } from "@/lib/scan/match";
 import { PREVIEW_NUMBERED, PREVIEW_PHOTO, PREVIEW_RAW, PREVIEW_SLAB, previewCompLookup } from "@/lib/scan/preview-fixtures";
 
-export type PreviewKind = "slab" | "raw" | "numbered" | "matching" | "none" | "offline" | "comp" | "comp-raw" | "comp-none";
+export type PreviewKind =
+  | "slab"
+  | "raw"
+  | "numbered"
+  | "matching"
+  | "none"
+  | "offline"
+  | "comp"
+  | "comp-raw"
+  | "comp-none"
+  | "hub"
+  | "hub-comp"
+  | "door";
 
-const STATES: Record<PreviewKind, ConfirmSheetState> = {
+const SCREENS = new Set<PreviewKind>(["hub", "hub-comp", "door"]);
+
+const STATES: Record<Exclude<PreviewKind, "hub" | "hub-comp" | "door">, ConfirmSheetState> = {
   slab: { kind: "ready", matches: [PREVIEW_SLAB] },
   raw: { kind: "ready", matches: PREVIEW_RAW },
   numbered: { kind: "ready", matches: [PREVIEW_NUMBERED, ...PREVIEW_RAW.slice(1)] },
@@ -34,7 +50,15 @@ const LABELS: Record<PreviewKind, string> = {
   comp: "Comp a slab",
   "comp-raw": "Comp a raw card",
   "comp-none": "Comp, no sales",
+  hub: "Hub, no reader",
+  "hub-comp": "Hub comp, no reader",
+  door: "Add card door",
 };
+
+const noop = () => {};
+
+/** The hub as the web sees it: no card reader in this build. */
+const PREVIEW_HUB_DEPS = { scannerAvailable: async () => false };
 
 /**
  * The confirm sheet over a made-up scan. "Yes, that's it" runs the real
@@ -68,7 +92,7 @@ export function ScanSheetPreview({ kind }: { kind: PreviewKind }) {
           </Link>
         ))}
       </nav>
-      {!open ? (
+      {!open && !SCREENS.has(kind) ? (
         <button
           type="button"
           onClick={() => setOpen(true)}
@@ -77,11 +101,32 @@ export function ScanSheetPreview({ kind }: { kind: PreviewKind }) {
           Open the sheet
         </button>
       ) : null}
-      {open && kind.startsWith("comp") ? (
+      {kind === "hub" || kind === "hub-comp" ? (
+        <div className="rounded-3xl border border-zinc-200 p-4 dark:border-white/10">
+          <ScanHub key={kind} purpose={kind === "hub" ? "add" : "comp"} deps={PREVIEW_HUB_DEPS} />
+        </div>
+      ) : null}
+      {kind === "door" ? (
+        <SearchDoor
+          initialQuery=""
+          recent={["Victor Wembanyama", "Caitlin Clark"]}
+          owned={[]}
+          insert={null}
+          setBrand=""
+          onQuery={noop}
+          onPickPlayer={noop}
+          onPickInsert={noop}
+          onPickSet={noop}
+          onPickCatalog={noop}
+          onStepByStep={noop}
+          scanHref="/scan"
+        />
+      ) : null}
+      {open && !SCREENS.has(kind) && kind.startsWith("comp") ? (
         <CompSheet
           key={kind}
           photo={PREVIEW_PHOTO}
-          state={STATES[kind]}
+          state={STATES[kind as keyof typeof STATES]}
           lookup={previewCompLookup}
           onAdd={confirm}
           onScanAnother={() => setOpen(false)}
@@ -89,11 +134,11 @@ export function ScanSheetPreview({ kind }: { kind: PreviewKind }) {
           onClose={() => setOpen(false)}
         />
       ) : null}
-      {open && !kind.startsWith("comp") ? (
+      {open && !SCREENS.has(kind) && !kind.startsWith("comp") ? (
         <ConfirmSheet
           key={kind}
           photo={PREVIEW_PHOTO}
-          state={STATES[kind]}
+          state={STATES[kind as keyof typeof STATES]}
           onConfirm={confirm}
           onStepByStep={() => {
             saveScan(PREVIEW_PHOTO);

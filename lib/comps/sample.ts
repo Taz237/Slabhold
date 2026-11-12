@@ -1,4 +1,4 @@
-import type { CompListing, IdentifyResult, SportsCard } from "@/lib/types";
+import type { CompListing, SportsCard } from "@/lib/types";
 
 const CONDITIONS = ["Raw NM", "Raw LP", "PSA 9", "PSA 10", "SGC 9.5"];
 
@@ -34,48 +34,4 @@ export function mockCompsForCard(
       url: "",
     };
   });
-}
-
-export function averageComp(comps: CompListing[]) {
-  if (!comps.length) return 0;
-  return Math.round(comps.reduce((sum, c) => sum + c.soldPrice, 0) / comps.length);
-}
-
-const IDENTIFY_POOL: Omit<IdentifyResult, "comps" | "confidence">[] = [
-  {
-    playerName: "Victor Wembanyama",
-    year: 2023,
-    setBrand: "Panini Prizm",
-    cardNumber: "136",
-    sport: "Basketball",
-    estimatedSellPrice: 185,
-  },
-  {
-    playerName: "Caitlin Clark",
-    year: 2024,
-    setBrand: "Panini Prizm WNBA",
-    cardNumber: "101",
-    sport: "Basketball",
-    estimatedSellPrice: 240,
-  },
-  {
-    playerName: "Shohei Ohtani",
-    year: 2018,
-    setBrand: "Topps Update",
-    cardNumber: "US1",
-    sport: "Baseball",
-    estimatedSellPrice: 310,
-  },
-];
-
-export async function identifyFromPhoto(): Promise<IdentifyResult> {
-  await new Promise((r) => setTimeout(r, 1600));
-  const pick = IDENTIFY_POOL[Math.floor(Math.random() * IDENTIFY_POOL.length)];
-  const comps = mockCompsForCard(pick);
-  return {
-    ...pick,
-    confidence: 0.86 + Math.random() * 0.1,
-    estimatedSellPrice: averageComp(comps),
-    comps,
-  };
 }

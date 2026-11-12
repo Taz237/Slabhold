@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { Fragment, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type SetStateAction } from "react";
-import { ChevronDown, Loader2, ScanSearch } from "lucide-react";
+import { ChevronDown, Loader2 } from "lucide-react";
 import { AddCardFlow } from "@/components/add-card/add-card-flow";
 import { Chip, DraftSlab, PrimaryButton, QuietButton, StepDock, focusRing } from "@/components/add-card/flow-ui";
 import type { ArtCard } from "@/components/card-slab-art";
@@ -126,7 +126,6 @@ import {
   sportAfterCatalogPick,
   textLooksRookie,
 } from "@/lib/social/mail-day";
-import { identifyFromPhoto } from "@/lib/comps/sample";
 import { OpenToOffersToggle } from "@/components/open-to-offers";
 import { VisibilityChoice } from "@/components/visibility-choice";
 import { cardCategory, categoryLabel } from "@/lib/card-category";
@@ -151,11 +150,7 @@ import {
 } from "@/lib/save/attempt";
 import { PHOTO_READ_ERROR, readPhotoFile } from "@/lib/photos";
 import { pickNativePhoto, usesNativePicker } from "@/lib/ios/camera";
-import type {
-  CardCategory,
-  IdentifyResult,
-  SportsCard,
-} from "@/lib/types";
+import type { CardCategory, SportsCard } from "@/lib/types";
 
 /** Copy this card keeps the number in the draft key, so it never resumes an Add another draft. */
 function prefillNumberKey(prefill: AddAnotherPrefill): string {
@@ -163,8 +158,6 @@ function prefillNumberKey(prefill: AddAnotherPrefill): string {
   return prefill.number ? `|#${prefill.number}` : "";
 }
 
-const DEMO_IDENTIFY =
-  process.env.NEXT_PUBLIC_ENABLE_DEMO_IDENTIFY === "true";
 
 export function CardForm({
   existing,
@@ -317,8 +310,6 @@ export function CardForm({
   const [category, setCategory] = useState<CardCategory>(
     restored?.category ?? (existing ? cardCategory(existing) : "pc"),
   );
-  const [scanning, setScanning] = useState(false);
-  const [identified, setIdentified] = useState<IdentifyResult | null>(null);
 
   const initialCompany = gradingCompanyFromCard({
     grade: existing?.grade ?? "",
@@ -699,7 +690,6 @@ export function CardForm({
     setReadingPhoto(false);
     setPhoto(null);
     setPhotoMissing(false);
-    setIdentified(null);
     setPhotoError(null);
   }
 
@@ -720,33 +710,6 @@ export function CardForm({
     }
     if (photoReadId.current !== requestId) return;
     setPhoto(dataUrl);
-    if (!DEMO_IDENTIFY) return;
-    setScanning(true);
-    setIdentified(null);
-    try {
-      const result = await identifyFromPhoto();
-      setIdentified(result);
-    } finally {
-      setScanning(false);
-    }
-  }
-
-  function applyIdentify(result: IdentifyResult) {
-    const yl = String(result.year);
-    const sport = sportAfterCatalogPick(sportTouched ? form.sport : "", result.sport);
-    setSportOffer(sport.offer);
-    setForm((prev) => ({
-      ...prev,
-      playerName: result.playerName,
-      yearLabel: yl,
-      setBrand: result.setBrand,
-      cardNumber: result.cardNumber,
-      sport: sport.sport,
-      estimatedSellPrice: String(result.estimatedSellPrice),
-    }));
-    setIsRookie((current) => current || textLooksRookie(`${result.playerName} ${result.setBrand}`));
-    setSetIsCustom(!SETS.some((s) => s === result.setBrand));
-    setIdentified(result);
   }
 
   function applyCatalog(card: CatalogCard) {
@@ -763,7 +726,6 @@ export function CardForm({
     setSetIsCustom(picked.setIsCustom);
     setParallelIsCustom(picked.parallelIsCustom);
     setParallelNote("");
-    setIdentified(null);
     setMatchLookup(null);
   }
 
@@ -841,7 +803,6 @@ export function CardForm({
     setPhotoMissing(false);
     setPhoto(null);
     setPhotoError(null);
-    setIdentified(null);
     setSold(false);
     setShareChoice(null);
     setOpenToOffers(false);
@@ -1209,7 +1170,6 @@ export function CardForm({
         photo={photo}
         photoError={photoError}
         reading={readingPhoto}
-        scanning={scanning}
         onTake={openCamera}
         onLibrary={openLibrary}
         onRemove={clearPhoto}
@@ -1217,48 +1177,7 @@ export function CardForm({
         cameraRef={cameraRef}
         libraryRef={libraryRef}
         onPick={(file) => void scanFile(file)}
-      >
-            {DEMO_IDENTIFY ? (
-              <>
-                <button
-                  type="button"
-                  onClick={async () => {
-                    setScanning(true);
-                    try {
-                      applyIdentify(await identifyFromPhoto());
-                    } finally {
-                      setScanning(false);
-                    }
-                  }}
-                  className="inline-flex items-center justify-center gap-2 rounded-full border border-zinc-200 px-4 py-2.5 text-sm text-zinc-700 hover:bg-zinc-50 dark:border-white/10 dark:text-zinc-200 dark:hover:bg-white/5"
-                >
-                  <ScanSearch size={16} />
-                  Demo identify
-                </button>
-                <p className="text-xs leading-5 text-zinc-500">
-                  Demo only. This doesn’t read the photo yet.
-                </p>
-                {identified && (
-                  <div className="rounded-xl border border-violet-400/30 bg-violet-500/10 p-3">
-                    <p className="text-[13px] text-violet-700 dark:text-violet-300">
-                      Demo match · {Math.round(identified.confidence * 100)}%
-                    </p>
-                    <p className="mt-1 text-sm font-medium">
-                      {identified.year} {identified.setBrand}{" "}
-                      {identified.playerName} #{identified.cardNumber}
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => applyIdentify(identified)}
-                      className="mt-2 text-xs font-medium text-violet-700 dark:text-violet-300"
-                    >
-                      Confirm this card
-                    </button>
-                  </div>
-                )}
-              </>
-            ) : null}
-      </CardPhotoField>
+      />
     </>
   );
 

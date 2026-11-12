@@ -189,7 +189,6 @@ describe("CardThumb onShape", () => {
 describe("upload preview", () => {
   const props = {
     photoError: null,
-    scanning: false,
     onTake: () => {},
     onLibrary: () => {},
     onRemove: () => {},

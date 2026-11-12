@@ -4,6 +4,7 @@ import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type Reac
 import { useRouter } from "next/navigation";
 import { ChevronDown, Pencil } from "lucide-react";
 import { scanOpeningStep } from "@/lib/scan/handoff";
+import { addCardScanHref, scannerEnabled } from "@/lib/scan/entry";
 import type { ScanMatch } from "@/lib/scan/match";
 import {
   BackButton,
@@ -447,6 +448,7 @@ export function AddCardFlow(props: AddCardFlowProps) {
           onPickSet={pickDoorSet}
           onPickCatalog={pickCatalog}
           onStepByStep={() => setStepByStep(true)}
+          scanHref={addCardScanHref(scannerEnabled())}
         />
       );
       break;

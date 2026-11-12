@@ -343,6 +343,8 @@ Decided:
 - **Instant value is cached-only at launch.** No new Trawl calls per scan.
 - **After launch, learning from fixes comes first,** then batch scanning.
 - **Scan copy** says "Scan as many cards as you want." Scan copy has no pricing words.
+- **Scan to comp shows cached sales only.** With no cached sales it says so ("No recent sales saved for this card yet") and shows no price. The scanner never offers a live price lookup and never makes a Trawl call. "Add to collection" is the next step; a card in the collection prices the usual way under the existing Trawl limits. Never invent a price.
+- **Owners and hunters show only as two counts** ("4 collectors own this · 2 are hunting it") on the card-added screen after a scan save. No names, avatars or lists, and not on the card page.
 
 Still open:
 1. Approve the AI step (PRs 11–12): one Anthropic key, $50 console limit, $40 app ledger, 30 AI scans and 3 "Look closer" per user per day?

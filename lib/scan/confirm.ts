@@ -1,6 +1,9 @@
 import { isValidCardNumber, isValidYear } from "@/lib/card-options";
 import { serialNoError } from "@/lib/cards/add-flow";
+import { scannerEnabled } from "./entry";
 import type { ScanGrade, ScanMatch } from "./match";
+
+export { scannerEnabled };
 
 /**
  * The "Is this your card?" sheet's logic, pure so the sheet only renders it.
@@ -101,15 +104,6 @@ export function promoteMatch(matches: readonly ScanMatch[], index: number): Scan
   return [matches[index], ...matches.slice(0, index), ...matches.slice(index + 1)];
 }
 
-/**
- * The scanner, off unless exactly "1". NEXT_PUBLIC_ so the entry points can
- * read it; Next inlines it at build, so a toggle needs a redeploy.
- */
-export function scannerEnabled(
-  env: { NEXT_PUBLIC_SCANNER?: string } = { NEXT_PUBLIC_SCANNER: process.env.NEXT_PUBLIC_SCANNER },
-): boolean {
-  return env.NEXT_PUBLIC_SCANNER === "1";
-}
 
 /** The fixture preview of the sheet: preview and local builds, or production with the scanner on. */
 export function scanPreviewAllowed(
