@@ -132,7 +132,7 @@ export function MatchSummary({ photo, match }: { photo: string | null; match: Sc
           <Field sureness={match.sureness.set}>{match.setBrand}</Field>{" "}
           {match.cardNumber ? <Field sureness={match.sureness.number}>{`#${match.cardNumber}`}</Field> : null}
         </p>
-        {grade || match.isRookie || match.isAuto ? (
+        {grade || match.isRookie || match.isAuto || match.serialRun ? (
           <div className="mt-3 flex flex-wrap items-center gap-2">
             {grade ? (
               <span className="rounded-md border border-zinc-300 px-2 py-0.5 font-mono text-xs leading-5 font-medium tabular-nums dark:border-white/20">
@@ -144,6 +144,13 @@ export function MatchSummary({ photo, match }: { photo: string | null; match: Sc
                 <span className="sr-only">Cert ending </span>
                 <span aria-hidden>Cert </span>
                 {cert}
+              </span>
+            ) : null}
+            {match.serialRun ? (
+              // The print run the card showed, even with the parallel still open.
+              <span className="font-mono text-xs leading-5 font-medium tabular-nums">
+                <span className="sr-only">Numbered </span>
+                {match.serialNo ? `${match.serialNo}/${match.serialRun}` : `/${match.serialRun}`}
               </span>
             ) : null}
             {match.isRookie ? <span className="font-mono text-xs leading-5 text-zinc-500">RC</span> : null}

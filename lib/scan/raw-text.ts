@@ -121,7 +121,7 @@ const CARD_NUMBER = /(?:#|\bNO\.)\s*([A-Z0-9]+(?:-[A-Z0-9]+)*)/i;
  * INS-13, BCP-50, TC-7. Letters, a hyphen, then digits. Heights (6-7) and
  * seasons (2024-25) have no letters in front, so they never match.
  */
-const CODE_NUMBER = /\b([A-Z]{1,5}\d?-\d{1,4}[A-Z]?)\b/;
+const CODE_NUMBER = /\b([A-Z]{1,5}\d?)\s?[-–—‐]\s?(\d{1,4}[A-Z]?)\b/;
 /** Copyright and maker lines name the company, not the set. */
 const MAKER_LINE = /©|\(c\)|copyright|topps company|panini america|upper deck company/i;
 /**
@@ -501,9 +501,10 @@ export function readRawCardText(
   if (!read.cardNumber) {
     for (const line of clean) {
       if (MAKER_LINE.test(line)) continue;
+      // OCR often reads the hyphen as an en or em dash, or puts a space beside it: BP–27, BP - 27.
       const match = CODE_NUMBER.exec(line.toUpperCase());
       if (match) {
-        read.cardNumber = match[1];
+        read.cardNumber = `${match[1]}-${match[2]}`;
         break;
       }
     }

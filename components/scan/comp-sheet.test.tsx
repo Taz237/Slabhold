@@ -276,3 +276,48 @@ describe("CompSheet: the scan's live eBay search", () => {
     }
   });
 });
+
+describe("Aidan Miller from Donnie's phone, front and back", () => {
+  async function millerMatches() {
+    const [{ INDEXED_DIRECTORY }, { rankScanMatches }, { scanReadFrom }] = await Promise.all([
+      import("@/lib/players/directory"),
+      import("@/lib/scan/match"),
+      import("@/lib/scan/session"),
+    ]);
+    const read = scanReadFrom(
+      {
+        lines: ["3B", "1ST BOWMAN", "PHILADELPHIA PHILLIES", "137/299", "AIDAN MILLER"],
+        backLines: ["AIDAN MILLER", "BP-27", "© 2024 THE TOPPS COMPANY, INC."],
+        image: null,
+        kind: "card",
+      },
+      INDEXED_DIRECTORY,
+    );
+    const sku = {
+      id: "CMPO73107",
+      playerName: "Aidan Miller",
+      yearLabel: "2024",
+      setBrand: "Topps",
+      cardNumber: "CMPO73107",
+      sport: "Baseball",
+      parallel: "Base",
+      isRookie: false,
+    };
+    return rankScanMatches(read, [sku], { directory: INDEXED_DIRECTORY, products: null, soldTitles: [] }).matches;
+  }
+
+  it("the comp sheet shows 2024 Bowman #BP-27 and 137/299, never CMPO73107, Topps or a guessed color", async () => {
+    const view = await mount({ kind: "ready", matches: await millerMatches() }, async () => ({ status: "none" as const }));
+    try {
+      const shown = text();
+      assert.ok(shown.includes("Aidan Miller"));
+      assert.ok(shown.includes("2024 Bowman #BP-27"));
+      assert.ok(shown.includes("137/299"), "the print run read from the front");
+      assert.equal(/CMPO73107|Topps/.test(shown), false);
+      for (const guess of ["Silver", "Refractor", "Gold", "Green"]) assert.equal(shown.includes(guess), false, guess);
+      assert.equal(win.document.body.innerHTML.includes("CMPO73107"), false, "not even in an attribute");
+    } finally {
+      view.unmount();
+    }
+  });
+});
