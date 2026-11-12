@@ -62,6 +62,8 @@ export type ScanMatchResult = {
   matches: ScanMatch[];
   /** The top match is settled on the phone: no AI step needed. */
   settled: boolean;
+  /** What was read, as a text key (lib/scan/fixes.ts). Lets a fix be recorded and learned from. */
+  readKey?: string;
 };
 
 export type RankOptions = {
@@ -215,7 +217,7 @@ type Candidate = {
   rowsByParallel: Map<string, string>;
 };
 
-function identityKey(card: { playerName: string; yearLabel: string; setBrand: string; cardNumber: string }): string {
+export function identityKey(card: { playerName: string; yearLabel: string; setBrand: string; cardNumber: string }): string {
   return [
     compactName(card.playerName),
     startYear(card.yearLabel) ?? "",

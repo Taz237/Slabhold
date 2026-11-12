@@ -24,6 +24,8 @@ export type ScanHubDeps = {
   scan: () => Promise<ScanCapture | null | "denied">;
   /** Slabhold's page in Settings, to turn the camera back on. */
   openSettings: () => Promise<boolean>;
+  /** Learning from fixes: what the collector chose over the scan's pick. Off behind NEXT_PUBLIC_SCAN_FIXES. */
+  recordFix: (readKey: string, before: ScanMatch, after: ScanMatch) => Promise<void>;
   /** Counts only: no card text, images or ids (lib/analytics.ts drops anything else). */
   track: (name: string, props?: Record<string, string>) => void;
   /** A library photo, read the same way. */
@@ -35,19 +37,35 @@ export type ScanHubDeps = {
 };
 
 async function defaultIdentify(capture: ScanCapture, signal: AbortSignal): Promise<ScanMatchResult | null> {
-  const [{ INDEXED_DIRECTORY }, { searchCatalogRemote }, { loadProductData }, { matchScan }] = await Promise.all([
+  const [{ INDEXED_DIRECTORY }, { searchCatalogRemote }, { loadProductData }, { matchScan }, fixes] = await Promise.all([
     import("@/lib/players/directory"),
     import("@/lib/catalog/search-remote"),
     import("@/lib/cards/product-data"),
     import("@/lib/scan/match"),
+    import("@/lib/scan/fixes"),
   ]);
   const read = scanReadFrom(capture, INDEXED_DIRECTORY);
-  return matchScan(read, {
-    directory: INDEXED_DIRECTORY,
-    search: searchCatalogRemote,
-    products: loadProductData,
-    signal,
-  });
+  const readKey = fixes.readKeyOf(read);
+  const learning = fixes.scanFixesEnabled() && readKey;
+  const [result, boosts] = await Promise.all([
+    matchScan(read, {
+      directory: INDEXED_DIRECTORY,
+      search: searchCatalogRemote,
+      products: loadProductData,
+      signal,
+    }),
+    learning ? import("@/lib/scan/fix-store").then((store) => store.loadFixBoosts(readKey)) : Promise.resolve([]),
+  ]);
+  if (!result) return null;
+  return { ...fixes.applyFixBoosts(result, readKey, boosts), readKey };
+}
+
+async function defaultRecordFix(readKey: string, before: ScanMatch, after: ScanMatch): Promise<void> {
+  const fixes = await import("@/lib/scan/fixes");
+  if (!fixes.scanFixesEnabled()) return;
+  const fix = fixes.fixFrom(readKey, before, after);
+  if (!fix) return;
+  await (await import("@/lib/scan/fix-store")).recordScanFix(fix);
 }
 
 async function defaultCompLookup(identity: Parameters<CompLookup>[0]): Promise<ScanCompResult> {
@@ -69,6 +87,7 @@ const defaultDeps: ScanHubDeps = {
   scan: async () => (await loadNative()).scanCard(),
   openSettings: async () => (await loadNative()).openCameraSettings(),
   track: (name, props) => trackEvent(name, props),
+  recordFix: defaultRecordFix,
   pickAndRead: defaultPickAndRead,
   identify: defaultIdentify,
   compLookup: defaultCompLookup,
@@ -90,6 +109,8 @@ export function ScanHub({ purpose, deps: overrides }: { purpose: ScanPurpose; de
   const [photo, setPhoto] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [denied, setDenied] = useState(false);
+  // The scan as it came back, so a fix can be recorded against it.
+  const lastResult = useRef<ScanMatchResult | null>(null);
   const run = useRef<AbortController | null>(null);
   const opened = useRef(false);
   const cameraRef = useRef<HTMLInputElement>(null);
@@ -108,6 +129,7 @@ export function ScanHub({ purpose, deps: overrides }: { purpose: ScanPurpose; de
       deps.track("scan_matched", {
         result: !result || result.matches.length === 0 ? "none" : result.settled ? "settled" : "unsure",
       });
+      lastResult.current = result;
       setSheet(sheetStateFrom(result, deps.online()));
     },
     [deps],
@@ -178,6 +200,10 @@ export function ScanHub({ purpose, deps: overrides }: { purpose: ScanPurpose; de
     deps.track("scan_added", { result: options.save ? "one_tap" : "edit" });
     if (options.changedRow) deps.track("scan_fixed", { result: "row" });
     if (options.changedParallel) deps.track("scan_fixed", { result: "parallel" });
+    const scanned = lastResult.current;
+    if ((options.changedRow || options.changedParallel) && scanned?.readKey && scanned.matches[0]) {
+      void deps.recordFix(scanned.readKey, scanned.matches[0], match).catch(() => {});
+    }
     const id = newScanId();
     if (photo) saveScan(photo);
     saveScanMatch(scanHandoffFrom(match, id, { autoSave: options.save }));

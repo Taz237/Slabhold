@@ -243,6 +243,49 @@ describe("ScanHub: camera off and counts", () => {
   });
 });
 
+describe("ScanHub: learning from fixes", () => {
+  it("records what the collector chose over the scan's pick, against the read", async () => {
+    const recorded: [string, string, string][] = [];
+    const view = await mount(
+      "add",
+      nativeDeps({
+        identify: async () => ({ ...result([fixtures.PREVIEW_SLAB]), readKey: "slab|luka doncic|2018|panini prizm|280|silver prizm" }),
+        recordFix: async (readKey, before, after) => {
+          recorded.push([readKey, before.parallel, after.parallel]);
+        },
+      }),
+    );
+    try {
+      await waitFor(() => text().includes("Is this your card?"));
+      await act(async () => button("Something else").click());
+      await act(async () => button("Yes, that's it").click());
+      assert.deepEqual(recorded, [["slab|luka doncic|2018|panini prizm|280|silver prizm", "Silver", ""]]);
+    } finally {
+      view.unmount();
+    }
+  });
+
+  it("records nothing when the scan's pick is kept", async () => {
+    let records = 0;
+    const view = await mount(
+      "add",
+      nativeDeps({
+        identify: async () => ({ ...result([fixtures.PREVIEW_SLAB]), readKey: "k" }),
+        recordFix: async () => {
+          records += 1;
+        },
+      }),
+    );
+    try {
+      await waitFor(() => text().includes("Is this your card?"));
+      await act(async () => button("Yes, add it").click());
+      assert.equal(records, 0);
+    } finally {
+      view.unmount();
+    }
+  });
+});
+
 describe("ScanHub without the native scanner", () => {
   it("says reading is coming and keeps the photo and search ways in", async () => {
     let scans = 0;
