@@ -208,12 +208,63 @@ describe("2) a misread print run (OCR /298, the card is /299)", () => {
     assert.equal(backed.serialRun, 298);
   });
 
-  it("an unsure run keeps titles with no print run; a sure one doesn't", () => {
+  it("a numbered card keeps only titles naming its run, even when the run was corrected", () => {
     const titles = [sold("2024 Bowman Aidan Miller Pink/Red BP-27", 35), sold("2024 Bowman Aidan Miller Pink/Red /299 BP-27", 36)];
     const card = { playerName: "Aidan Miller", cardNumber: "BP-27", serialRun: 299, yearLabel: "2024" };
     const raw = { grade: "Raw" };
     assert.equal(scanSalesFor(card, raw, titles, INDEXED_DIRECTORY).kept.length, 1);
-    assert.equal(scanSalesFor({ ...card, runUnsure: true }, raw, titles, INDEXED_DIRECTORY).kept.length, 2);
+    assert.equal(scanSalesFor({ ...card, runUnsure: true }, raw, titles, INDEXED_DIRECTORY).kept.length, 1);
+  });
+
+  it("137/298, only rung c answers, 2 /299 sales and 5 unnumbered: /299, priced from the 2, never Base", async () => {
+    const answer = [
+      sold("2024 Bowman Aidan Miller BP-27 /299 Phillies", 30),
+      sold("Aidan Miller Bowman 1st BP-27 #'d 55/299", 32),
+      ...[3, 3.5, 4, 4.5, 5].map((price) => sold("2024 Bowman 1st Aidan Miller BP-27 Phillies", price)),
+    ];
+    const queries: string[] = [];
+    const result = await lookupLiveSolds({ capture: capture(FRONT_298, ["AIDAN MILLER", "BP-27"]), rows: [] }, "u1", deps(async (query) => {
+      queries.push(query);
+      return ok(query === "Aidan Miller Bowman BP-27" ? answer : []);
+    }));
+    assert.ok(queries.includes("Aidan Miller Bowman BP-27"));
+    const top = result.matches[0];
+    assert.equal(top.serialRun, 299);
+    assert.equal(top.parallel, "", "no color named: the chip stays open");
+    assert.ok(result.comp.status === "ok");
+    assert.deepEqual(cents(result.comp), [3000, 3200]);
+    assert.equal(result.comp.parallel, "/299, parallel not named");
+    assert.ok(!(result.comp.groups ?? []).some((group) => group.label === "Base"));
+    assert.doesNotMatch(JSON.stringify(result), /"Base"/);
+  });
+});
+
+describe("2b) a numbered card is never Base", () => {
+  it("/299 titles naming no color: grouped by the run, the chip left open", async () => {
+    const plain = [sold("2024 Bowman Aidan Miller BP-27 /299", 28), sold("2024 Bowman 1st Aidan Miller BP-27 12/299", 31)];
+    const result = await lookupLiveSolds({ capture: capture(FRONT, BACK), rows: [] }, "u1", deps(async () => ok(plain)));
+    assert.equal(result.matches[0].parallel, "");
+    assert.ok(result.comp.status === "ok");
+    assert.equal(result.comp.parallel, "/299, parallel not named");
+    assert.doesNotMatch(JSON.stringify(result), /"Base"/);
+  });
+
+  it("an unnumbered card's plain titles are still Base", () => {
+    const titles = [sold("2024 Bowman Aidan Miller BP-27", 4)];
+    const kept = scanSalesFor({ playerName: "Aidan Miller", cardNumber: "BP-27", serialRun: null, yearLabel: "2024" }, { grade: "Raw" }, titles, INDEXED_DIRECTORY).kept;
+    assert.equal(kept[0].parallel, "Base");
+  });
+
+  it("another grade on the sheet re-filters to the run's group, not Base", async () => {
+    const results = [sold("2024 Bowman Aidan Miller BP-27 /299", 28), sold("2024 Bowman Aidan Miller BP-27", 4)];
+    const comp = await lookupScanComp(
+      { playerName: "Aidan Miller", year: 2024, yearLabel: "2024", setBrand: "Bowman", cardNumber: "BP-27", parallel: "Base", grade: "Raw" },
+      "u1",
+      { quickCompCache: async () => null, collectionSales: async () => [], liveCache: async () => results, directory: INDEXED_DIRECTORY },
+      { serialRun: 299, query: "Aidan Miller Bowman BP-27" },
+    );
+    assert.ok(comp.status === "ok");
+    assert.deepEqual(cents(comp), [2800]);
   });
 });
 
@@ -238,9 +289,10 @@ describe("3) the price names the parallel it came from", () => {
     assert.equal(result.matches[0].parallel, "");
   });
 
-  it("Base only when the sales really are Base", async () => {
-    const base = [sold("2024 Bowman Aidan Miller BP-27 /299", 8), sold("2024 Bowman Aidan Miller /299 BP-27 1st", 9)];
-    const result = await lookupLiveSolds({ capture: capture(FRONT, BACK), rows: [] }, "u1", deps(async () => ok(base)));
+  it("Base only when the sales really are Base: an unnumbered card", async () => {
+    const base = [sold("2024 Bowman Aidan Miller BP-27", 4), sold("2024 Bowman 1st Aidan Miller BP-27 Phillies", 5)];
+    const unnumbered = ["3B", "1ST BOWMAN", "PHILADELPHIA PHILLIES", "AIDAN MILLER"];
+    const result = await lookupLiveSolds({ capture: capture(unnumbered, BACK), rows: [] }, "u1", deps(async () => ok(base)));
     assert.ok(result.comp.status === "ok");
     assert.equal(result.comp.parallel, "Base");
   });

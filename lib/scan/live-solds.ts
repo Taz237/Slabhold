@@ -15,7 +15,7 @@ import {
   type SoldTitle,
 } from "./match";
 import { newLookupBudget, type LookupBudget } from "./live-search";
-import { groupByParallel, groupFor, scanSalesFor, type ParallelGroup, type ScanSale, type ScanSalesResult } from "./scan-sales";
+import { groupByParallel, groupFor, isUnnamedRunLabel, scanSalesFor, type ParallelGroup, type ScanSale, type ScanSalesResult } from "./scan-sales";
 import { scanReadFrom, type ScanCapture } from "./session";
 
 /** One rung of the search ladder, for the dev log. Queries carry card names only, never user data. */
@@ -208,8 +208,9 @@ export async function lookupLiveSolds(
   if (!best.parallel && !isMajority(leader, found.kept.length)) {
     return { matches, comp: { status: "split", groups: groups.map(groupSummary) }, query: usedQuery };
   }
-  // A colored group takes the card's parallel chip; a Base majority stays open and prices as Base.
-  if (!best.parallel && leader.label !== "Base") matches = [withSalesParallel(best, leader.label), ...matches.slice(1)];
+  // A colored group takes the card's parallel chip. A Base majority, or a numbered card's sales that
+  // name no color ("/299, parallel not named"), leave it open.
+  if (!best.parallel && leader.label !== "Base" && !isUnnamedRunLabel(leader.label)) matches = [withSalesParallel(best, leader.label), ...matches.slice(1)];
   const group = best.parallel ? groupFor(groups, best.parallel) : leader;
   if (!group) return { matches, comp: { status: "split", groups: groups.map(groupSummary) }, query: usedQuery };
   const comp = summarizeSales(

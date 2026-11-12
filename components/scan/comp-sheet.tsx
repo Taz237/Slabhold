@@ -31,6 +31,7 @@ import {
 } from "@/lib/scan/comp";
 import { CONFIRM_COPY, confirmMatch, initialChoice, matchesKey, promoteMatch, readyToSave, type ParallelPick } from "@/lib/scan/confirm";
 import type { ScanMatch } from "@/lib/scan/match";
+import { isUnnamedRunLabel } from "@/lib/scan/scan-sales";
 
 /**
  * Sold prices for another parallel or grade on this sheet. GET /api/scan/comp
@@ -129,6 +130,8 @@ function Ready({
     [top, pick, grade],
   );
   const serialRun = pick?.serialRun ?? top?.serialRun ?? null;
+  // A numbered card is never Base: with its parallel open, nothing reads as Base.
+  const assumedBase = Boolean(target?.assumedBase) && top?.serialRun == null;
   const key = target ? compQueryString(target.identity, serialRun) : "";
   // The card the live search priced: the top match as it arrived, with its own parallel and grade.
   const [scanKey] = useState(() => {
@@ -184,7 +187,7 @@ function Ready({
       <MatchSummary photo={photo} match={top} />
 
       {target ? (
-        <ValuePanel result={result} looking={looking} onRetry={retry} assumedBase={target.assumedBase} serialRun={serialRun} />
+        <ValuePanel result={result} looking={looking} onRetry={retry} assumedBase={assumedBase} serialRun={serialRun} />
       ) : (
         <p className="text-sm text-zinc-600 dark:text-zinc-400">{COMP_COPY.needYear}</p>
       )}
@@ -192,10 +195,10 @@ function Ready({
       <ParallelStrip
         options={parallelOptionsFor(top)}
         // The prices shown are Base's, so Base reads selected until another parallel is tapped.
-        pick={pick ?? (target?.assumedBase ? { name: "Base", serialRun: null } : null)}
+        pick={pick ?? (assumedBase ? { name: "Base", serialRun: null } : null)}
         somethingElse={false}
         hint={
-          target?.assumedBase
+          assumedBase
             ? COMP_COPY.assumedBase
             : top.parallelSource === "sales" && pick?.name === top.parallel
               ? COMP_COPY.matchedFromSalesTap
@@ -341,7 +344,9 @@ function ValuePanel({
               <span>
                 {" · "}
                 {result.parallel}
-                {serialRun && result.parallel !== "Base" ? <span className="font-mono tabular-nums"> /{serialRun}</span> : null}
+                {serialRun && result.parallel !== "Base" && !isUnnamedRunLabel(result.parallel) ? (
+                  <span className="font-mono tabular-nums"> /{serialRun}</span>
+                ) : null}
               </span>
             ) : assumedBase ? (
               <span> · Base</span>
@@ -375,7 +380,7 @@ function ValuePanel({
           <span>
             {" · "}
             {result.parallel}
-            {serialRun ? <span className="font-mono tabular-nums"> /{serialRun}</span> : null}
+            {serialRun && !isUnnamedRunLabel(result.parallel) ? <span className="font-mono tabular-nums"> /{serialRun}</span> : null}
           </span>
         ) : null}
       </p>

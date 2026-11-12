@@ -29,6 +29,8 @@ export type BakeoffLive = {
   failAt?: number[];
   /** What the sheet should say, when it isn't a price: "none" (searched, no sales) for a card that truly has none. */
   solds?: "none";
+  /** The group the price must come from, when the case checks it ("/299, parallel not named"). */
+  pricedFrom?: string;
 };
 
 export type BakeoffCase = {
@@ -174,6 +176,39 @@ export const BAKEOFF_CASES: BakeoffCase[] = [
     back: ["AIDAN MILLER", "TOPPS.COM", "BP-27"],
     live: { atRung: -1, sold: [], failAt: [3], solds: "none" },
     truth: { ...MILLER, parallel: "" },
+  },
+  {
+    name: "Miller, 137/298, only 'Bowman BP-27' answers, 5 unnumbered among 2 /299",
+    front: ["3B", "1ST BOWMAN", "PHILADELPHIA PHILLIES", "137/298", "AIDAN MILLER"],
+    back: ["AIDAN MILLER", "BP-27"],
+    live: {
+      atRung: 2,
+      pricedFrom: "/299, parallel not named",
+      sold: [
+        { title: "2024 Bowman Aidan Miller BP-27 /299 Phillies", price: 30, soldAt: "2026-11-08" },
+        { title: "Aidan Miller Bowman 1st BP-27 #'d 55/299", price: 32, soldAt: "2026-11-03" },
+        { title: "2024 Bowman 1st Aidan Miller BP-27 Phillies", price: 3, soldAt: "2026-11-09" },
+        { title: "2024 Bowman 1st Aidan Miller BP-27 Phillies", price: 3.5, soldAt: "2026-11-07" },
+        { title: "2024 Bowman 1st Aidan Miller BP-27 Phillies", price: 4, soldAt: "2026-11-05" },
+        { title: "2024 Bowman 1st Aidan Miller BP-27 Phillies", price: 4.5, soldAt: "2026-11-02" },
+        { title: "2024 Bowman 1st Aidan Miller BP-27 Phillies", price: 5, soldAt: "2026-10-30" },
+      ],
+    },
+    truth: { ...MILLER, parallel: "", run: 299 },
+  },
+  {
+    name: "Miller, /299 sales that name no color",
+    front: MILLER_FRONT,
+    back: ["AIDAN MILLER", "TOPPS.COM", "BP-27"],
+    live: {
+      atRung: 1,
+      pricedFrom: "/299, parallel not named",
+      sold: [
+        { title: "2024 Bowman Aidan Miller BP-27 /299", price: 28, soldAt: "2026-11-06" },
+        { title: "2024 Bowman 1st Aidan Miller BP-27 12/299", price: 31, soldAt: "2026-11-01" },
+      ],
+    },
+    truth: { ...MILLER, parallel: "", run: 299 },
   },
   {
     name: "Miller, the Nov 12 Fuchsia /299 sales",

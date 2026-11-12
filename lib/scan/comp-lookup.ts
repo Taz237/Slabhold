@@ -6,7 +6,7 @@ import type { CardValueSale } from "@/lib/value/types";
 import { summarizeSales, type ScanCompResult } from "./comp";
 import type { IndexedDirectoryPlayer } from "@/lib/players/types";
 import type { SoldTitle } from "./match";
-import { groupByParallel, groupFor, scanSalesFor, titleParallel } from "./scan-sales";
+import { groupByParallel, groupFor, scanSalesFor, titleParallel, unnamedRunLabel } from "./scan-sales";
 
 /**
  * Sold prices for a scanned card from caches only. Never calls Trawl and
@@ -155,7 +155,10 @@ function liveGroupSales(
     results,
     directory,
   );
-  const group = groupFor(groupByParallel(kept), identity.parallel || "Base");
+  // An open parallel on a numbered card is its run's group, never Base.
+  const open = !identity.parallel || identity.parallel.toLowerCase() === "base";
+  const wanted = open && options.serialRun ? unnamedRunLabel(options.serialRun) : identity.parallel || "Base";
+  const group = groupFor(groupByParallel(kept), wanted);
   return (group?.sales ?? []).map((sale) => ({ price: sale.price, soldAt: sale.soldAt }));
 }
 

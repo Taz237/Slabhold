@@ -405,4 +405,23 @@ describe("Aidan Miller after #245: a bio 'for-4' on the back, empty catalog", ()
       view.unmount();
     }
   });
+
+  it("a numbered card whose sales name no color: labelled by its run, never Base, no chip picked", async () => {
+    const match = { ...fixtures.PREVIEW_FROM_SALES, parallel: "", parallelSource: undefined, sureness: { ...fixtures.PREVIEW_FROM_SALES.sureness, parallel: "unsure" as const }, parallelOptions: [] };
+    const comp = fixtures.PREVIEW_SOLDS_PARALLEL.status === "done" ? fixtures.PREVIEW_SOLDS_PARALLEL.comp : null;
+    assert.ok(comp && comp.status === "ok");
+    const label = "/299, parallel not named";
+    const solds = { status: "done" as const, comp: { ...comp, parallel: label, groups: [{ label, nSales: 3 }] }, query: "q" };
+    const view = await mount({ kind: "ready", matches: [match], solds });
+    try {
+      await waitFor(() => text().includes(`Value · ${label}`));
+      assert.doesNotMatch(text(), /\bBase\b/);
+      assert.doesNotMatch(text(), /Showing Base/);
+      assert.doesNotMatch(text(), /parallel not named \/299/, "the run isn't repeated");
+      assert.equal(win.document.querySelectorAll("button[aria-pressed='true']").length, 1, "only the grade chip");
+      assert.equal(view.calls.lookups.length, 0);
+    } finally {
+      view.unmount();
+    }
+  });
 });

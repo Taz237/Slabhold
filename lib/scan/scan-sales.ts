@@ -49,6 +49,18 @@ function startYear(label: string): number | null {
   return match ? Number(match[1]) : null;
 }
 
+/**
+ * A numbered card's sales whose titles name no color: never "Base" (a numbered card isn't), just
+ * its run. The parallel stays open.
+ */
+export function unnamedRunLabel(run: number): string {
+  return `/${run}, parallel not named`;
+}
+
+export function isUnnamedRunLabel(label: string | null | undefined): boolean {
+  return Boolean(label && /^\/\d+, parallel not named$/.test(label));
+}
+
 /** The parallel a sold title names, from its color and finish words and insert. "Base" when none. */
 export function titleParallel(title: string, directory: readonly IndexedDirectoryPlayer[]): string {
   const read = readRawCardText([title], directory);
@@ -102,9 +114,8 @@ export function scanSalesFor(
       dropped.number += 1;
       continue;
     }
-    // A run the titles corrected (OCR read /298) is unsure: a title naming no run still counts.
-    const runs = match.serialRun ? titleSerialRuns(title) : [];
-    if (match.serialRun && !runs.includes(match.serialRun) && !(match.runUnsure && runs.length === 0)) {
+    // A numbered card keeps only titles naming its run (the corrected one, when OCR misread it).
+    if (match.serialRun && !titleSerialRuns(title).includes(match.serialRun)) {
       dropped.run += 1;
       continue;
     }
@@ -133,7 +144,9 @@ export function scanSalesFor(
       dropped.junk += 1;
       continue;
     }
-    kept.push({ itemId: result.item_id, title, price, soldAt: result.date_sold ?? null, parallel: titleParallel(title, directory) });
+    const named = titleParallel(title, directory);
+    const parallel = named === "Base" && match.serialRun ? unnamedRunLabel(match.serialRun) : named;
+    kept.push({ itemId: result.item_id, title, price, soldAt: result.date_sold ?? null, parallel });
   }
   return { kept, dropped };
 }

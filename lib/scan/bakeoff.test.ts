@@ -178,6 +178,9 @@ describe("the bake-off with live eBay solds (mocked Trawl, junk included)", () =
       if (scan.live?.solds === "none") assert.equal(row.solds, "none (searched)", `${row.name}: searched, honestly none, never unavailable`);
       else assert.match(row.solds, /sold/, `${row.name}: the card sells, and we found it`);
       if (scan.truth.run) assert.equal(row.run, scan.truth.run, `${row.name}: the print run`);
+      if (scan.live?.pricedFrom) assert.match(row.solds, new RegExp(`sold \\(${scan.live.pricedFrom.replace("/", "\\/")}\\)$`), row.name);
+      // A numbered card is never priced or labelled as Base.
+      if (scan.truth.run) assert.doesNotMatch(row.solds, /\(Base\)/, row.name);
       // A price is always named by its sales' parallel: never Base for colored sales.
       if (scan.truth.parallel && row.solds.includes("sold")) assert.match(row.solds, new RegExp(`\\(${scan.truth.parallel.replace("/", "\\/")}\\)$`), row.name);
     }
