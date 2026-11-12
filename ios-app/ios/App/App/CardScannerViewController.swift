@@ -1,11 +1,10 @@
 import AVFoundation
 import PhotosUI
 import UIKit
-import Vision
 
 /// The card scanner: a full-screen live camera, like the iPhone camera. The
 /// collector frames the card and taps the shutter; nothing is taken on its own.
-/// A thin line follows the card's edge when one is in view. The photo button
+/// Nothing is drawn over the live picture: no outline, no guide box. The photo button
 /// next to the shutter reads a library photo the same way (CardTextReader, the
 /// reader the plugin's `recognize` method uses). One hint at a time, 44pt tap
 /// targets, and no flash or snap animation when Reduce Motion is on.
@@ -27,29 +26,23 @@ final class CardScannerViewController: UIViewController {
         case noText = "We couldn't read that one. Try again with the card flat and in good light."
     }
 
-    /// Brand colors from CLAUDE.md: purple #7C3AED, background #09090B, off-white #F4F4F5.
-    static let brandPurple = UIColor(red: 124 / 255, green: 58 / 255, blue: 237 / 255, alpha: 1)
+    /// Brand colors from CLAUDE.md: background #09090B, off-white #F4F4F5.
     static let background = UIColor(red: 9 / 255, green: 9 / 255, blue: 11 / 255, alpha: 1)
     static let offWhite = UIColor(red: 244 / 255, green: 244 / 255, blue: 245 / 255, alpha: 1)
 
     static let minTapTarget: CGFloat = 44
     static let shutterSize: CGFloat = 76
     static let sideButtonSize: CGFloat = 52
-    /// The line that follows the card's edge: thin, so the card stays the picture.
-    static let edgeLineWidth: CGFloat = 2
 
     private let finish: (Outcome) -> Void
     private var finished = false
 
     private let session = AVCaptureSession()
     private let sessionQueue = DispatchQueue(label: "app.slabhold.scanner.session")
-    private let videoQueue = DispatchQueue(label: "app.slabhold.scanner.video")
-    private let videoOutput = AVCaptureVideoDataOutput()
     private let photoOutput = AVCapturePhotoOutput()
     private var device: AVCaptureDevice?
     private lazy var previewLayer = AVCaptureVideoPreviewLayer(session: session)
 
-    private let edgeLayer = CAShapeLayer()
     private let hintLabel = UILabel()
     private let closeButton = UIButton(type: .system)
     private let torchButton = UIButton(type: .system)
@@ -66,8 +59,6 @@ final class CardScannerViewController: UIViewController {
     /// A notice ("We couldn't read that one") stays up this long.
     private var noticeUntil = Date.distantPast
     static let noticeSeconds: TimeInterval = 2.5
-    /// Video queue only.
-    private var frameCount = 0
 
     private let captureHaptic = UIImpactFeedbackGenerator(style: .light)
     private let doneHaptic = UINotificationFeedbackGenerator()
@@ -97,7 +88,6 @@ final class CardScannerViewController: UIViewController {
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
         previewLayer.frame = view.bounds
-        edgeLayer.frame = view.bounds
     }
 
     override func viewWillAppear(_ animated: Bool) {
@@ -139,10 +129,6 @@ final class CardScannerViewController: UIViewController {
                 device.focusMode = .continuousAutoFocus
                 device.unlockForConfiguration()
             }
-            self.videoOutput.videoSettings = [kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA]
-            self.videoOutput.alwaysDiscardsLateVideoFrames = true
-            self.videoOutput.setSampleBufferDelegate(self, queue: self.videoQueue)
-            if self.session.canAddOutput(self.videoOutput) { self.session.addOutput(self.videoOutput) }
             if self.session.canAddOutput(self.photoOutput) { self.session.addOutput(self.photoOutput) }
             self.session.commitConfiguration()
             let hasTorch = device.hasTorch
@@ -164,12 +150,6 @@ final class CardScannerViewController: UIViewController {
     // MARK: Overlay
 
     private func setUpOverlay() {
-        edgeLayer.fillColor = UIColor.clear.cgColor
-        edgeLayer.strokeColor = Self.brandPurple.cgColor
-        edgeLayer.lineWidth = Self.edgeLineWidth
-        edgeLayer.lineJoin = .round
-        view.layer.addSublayer(edgeLayer)
-
         flashView.backgroundColor = .white
         flashView.alpha = 0
         flashView.isUserInteractionEnabled = false
@@ -269,30 +249,6 @@ final class CardScannerViewController: UIViewController {
         ])
     }
 
-    /// A thin line on the card's edge while one is in view. It only shows the
-    /// card is seen; it never takes the picture. No line when nothing is found.
-    private func drawEdge(_ edge: VNRectangleObservation?) {
-        CATransaction.begin()
-        CATransaction.setDisableActions(true)
-        defer { CATransaction.commit() }
-        guard let edge, !capturing else {
-            edgeLayer.path = nil
-            return
-        }
-        // Vision read the frame turned upright (.right): normalized, origin bottom-left.
-        // The preview converts from capture-device points: landscape, origin top-left.
-        func point(_ p: CGPoint) -> CGPoint {
-            previewLayer.layerPointConverted(fromCaptureDevicePoint: CGPoint(x: 1 - p.y, y: 1 - p.x))
-        }
-        let path = UIBezierPath()
-        path.move(to: point(edge.topLeft))
-        path.addLine(to: point(edge.topRight))
-        path.addLine(to: point(edge.bottomRight))
-        path.addLine(to: point(edge.bottomLeft))
-        path.close()
-        edgeLayer.path = path.cgPath
-    }
-
     /// One hint at a time.
     private func show(_ hint: Hint) {
         guard hint != currentHint else { return }
@@ -362,7 +318,6 @@ final class CardScannerViewController: UIViewController {
         capturing = true
         captureHaptic.impactOccurred()
         doneHaptic.prepare()
-        drawEdge(nil)
         show(.reading)
         flash()
         photoOutput.capturePhoto(with: AVCapturePhotoSettings(), delegate: self)
@@ -414,30 +369,6 @@ final class CardScannerViewController: UIViewController {
         dismiss(animated: !UIAccessibility.isReduceMotionEnabled) { [finish] in
             finish(outcome)
         }
-    }
-}
-
-extension CardScannerViewController: AVCaptureVideoDataOutputSampleBufferDelegate {
-    /// Finds the card's edge for the line on screen. It never triggers a capture.
-    func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
-        frameCount += 1
-        guard frameCount % 3 == 0, let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
-        let request = VNDetectRectanglesRequest()
-        request.minimumAspectRatio = 0.45
-        request.maximumAspectRatio = 0.9
-        request.minimumSize = 0.2
-        request.minimumConfidence = 0.7
-        request.maximumObservations = 1
-        request.quadratureTolerance = 20
-        // The back camera's frames are landscape; .right reads them the way the phone is held.
-        let handler = VNImageRequestHandler(cvPixelBuffer: pixelBuffer, orientation: .right, options: [:])
-        do {
-            try handler.perform([request])
-        } catch {
-            return
-        }
-        let edge = request.results?.first
-        DispatchQueue.main.async { self.drawEdge(edge) }
     }
 }
 

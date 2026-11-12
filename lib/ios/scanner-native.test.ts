@@ -97,20 +97,19 @@ describe("native scanner: on the phone, private", () => {
 });
 
 describe("native scanner: the camera screen", () => {
-  it("uses the brand purple for the card's edge and the brand background, never teal", () => {
-    assert.match(camera, /brandPurple = UIColor\(red: 124 \/ 255, green: 58 \/ 255, blue: 237 \/ 255, alpha: 1\)/);
+  it("uses the brand background, never teal", () => {
     assert.match(camera, /background = UIColor\(red: 9 \/ 255, green: 9 \/ 255, blue: 11 \/ 255, alpha: 1\)/);
-    assert.match(camera, /edgeLayer\.strokeColor = Self\.brandPurple\.cgColor/);
     assert.doesNotMatch(camera, /teal|systemTeal/i);
   });
 
-  it("fills the screen with the live camera, with no guide box or dimmed table around it", () => {
+  it("fills the screen with the live camera, with nothing drawn over it: no outline, no guide box", () => {
     assert.match(camera, /previewLayer\.videoGravity = \.resizeAspectFill/);
     assert.match(camera, /previewLayer\.frame = view\.bounds/);
     assert.doesNotMatch(camera, /dimLayer|guideRect|guideLayer/);
-    // A thin line that follows the card's edge is the only guide.
-    assert.match(camera, /static let edgeLineWidth: CGFloat = 2/);
-    assert.match(camera, /layerPointConverted\(fromCaptureDevicePoint:/);
+    // The purple card-finder outline is gone, and nothing replaces it.
+    assert.doesNotMatch(camera, /edgeLayer|drawEdge|edgeLineWidth|layerPointConverted|CAShapeLayer|strokeColor|brandPurple/);
+    // No live card detection on the viewfinder at all.
+    assert.doesNotMatch(camera, /AVCaptureVideoDataOutput|VNDetectRectanglesRequest|import Vision/);
   });
 
   it("drops the Card or Slab switch: the reader tells a slab from a card by its shape", () => {
@@ -143,9 +142,6 @@ describe("native scanner: the camera screen", () => {
     assert.equal([...camera.matchAll(/(?<!func )\bcapture\(\)/g)].length, 1);
     assert.match(camera, /@objc private func shutterTapped\(\) \{\s*capture\(\)/);
     assert.match(camera, /captureHaptic\.impactOccurred\(\)/);
-    // The live frames only draw the edge line.
-    assert.match(camera, /DispatchQueue\.main\.async \{ self\.drawEdge\(edge\) \}/);
-    assert.match(camera, /orientation: \.right/);
   });
 
   it("reads a library photo from the camera screen with the same reader as a snap", () => {
@@ -216,6 +212,11 @@ describe("native scanner: the photo we keep", () => {
     assert.match(reader, /if !slab, let inner = detectInnerCard\(in: image\)/);
     assert.match(reader, /static let innerCardMinArea: CGFloat = 0\.55/);
     assert.match(reader, /static let edgeTrim: CGFloat = 0\.012/);
+  });
+
+  it("keeps the tight crop after capture, and draws no lines on the kept photo", () => {
+    assert.match(reader, /static func detectInnerCard\(in image: CGImage\) -> VNRectangleObservation\?/);
+    assert.doesNotMatch(reader, /stroke|UIBezierPath|CAShapeLayer|addLine/);
   });
 
   it("leaves the camera screen as it is", () => {

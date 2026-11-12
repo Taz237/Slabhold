@@ -511,8 +511,9 @@ function pickParallel(evidence: Evidence, checklist: ProductParallel[], titles: 
     const pinned = fromList.length === 1 ? fromList[0].name : titleCase(soldColor);
     return { parallel: pinned, sureness: "likely", serialRun: run, options: [{ name: pinned, serialRun: run }] };
   }
-  // A numbered card is never Base. With no checklist run that fits, offer the set's colors and leave it open.
-  const pool = run != null && fitsRun.length === 0 ? checklist.filter((option) => parallelMatchKey(option.name) !== "base") : fitsRun;
+  // A numbered card is never Base, and with no checklist run that fits, any color would be a guess:
+  // leave it open with no chips. The print run the card showed still shows on the sheet.
+  const pool = run != null && fitsRun.length === 0 ? [] : fitsRun;
   const ordered = [
     ...named,
     ...pool.filter((option) => !named.includes(option) && parallelMatchKey(option.name) === "base"),
@@ -545,10 +546,10 @@ function synthesized(evidence: Evidence): Candidate | null {
   const playerName = bestPlayerName(evidence);
   if (!playerName) return null;
   const setBrand = evidence.setNames[0] ?? (evidence.setText ? titleCase(evidence.setText) : "");
-  if (!evidence.yearLabel && !setBrand && !evidence.cardNumber) return null;
-  const sport = evidence.players[0]?.sport ?? evidence.sport;
   // No year on the front: the back's © year is usually the card's year (marked likely, not sure).
   const year = evidence.yearLabel || (evidence.slab ? "" : evidence.copyrightYear);
+  if (!year && !setBrand && !evidence.cardNumber) return null;
+  const sport = evidence.players[0]?.sport ?? evidence.sport;
   return {
     catalogId: null,
     playerName,
@@ -570,10 +571,24 @@ function covers(card: Candidate, built: Candidate): boolean {
   return true;
 }
 
+/**
+ * A catalog code that can't be a printed card #: a long run of digits or a
+ * long code with no hyphen (CMPO73107). Card numbers look like 280, US50,
+ * BP-27, INS-13 or CPA-AM.
+ */
+export function looksLikeCatalogSku(value: string): boolean {
+  const text = value.trim().replace(/^#/, "");
+  if (!text || /[-–—]/.test(text)) return false;
+  return /\d{5,}/.test(text) || (text.length >= 8 && /[a-z]/i.test(text) && /\d/.test(text));
+}
+
+
 function candidatesFrom(rows: readonly CatalogCard[], evidence: Evidence): Candidate[] {
   const byIdentity = new Map<string, Candidate>();
   for (const row of rows) {
     if (!playerHit(evidence, row.playerName)) continue;
+    // A row whose number is a catalog SKU is junk: it never shows, not even as an alternative.
+    if (looksLikeCatalogSku(row.cardNumber)) continue;
     const key = identityKey(row);
     let card = byIdentity.get(key);
     if (!card) {
