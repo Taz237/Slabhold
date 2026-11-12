@@ -1,12 +1,12 @@
 # Card scanner: plan
 
-Status: final plan (PR 1). No code and no keys in this PR. The PSA cert API is not used because it's paid only.
+Status: building. PRs 1–8 merged; 9, 10, 10b, 13 and 14 are on branches or open (see "Where it stands" in section 7). No keys, no paid services. The PSA cert API is not used because it's paid only.
 
 Goal: point the iPhone camera at a raw card or a graded slab. Slabhold identifies it (player, year, set, card #, parallel, plus grader, grade and cert # for slabs) and opens the guided Add card flow already filled in, so the collector just confirms and saves. It should be better than CollX, Card Ladder and the "card scanner" apps, and as smooth as X's iOS camera.
 
 Budget: **up to $50/month for all paid services.** We use paid AI only where it makes the scanner clearly better.
 
-`CLAUDE.md` still lists the scanner as on hold. The last PR updates it.
+`CLAUDE.md` lists the scanner as built behind `NEXT_PUBLIC_SCANNER`, off in production until the team turns it on (PR 14).
 
 ---
 
@@ -324,6 +324,19 @@ Every PR is test-first and passes `npm test`, `lint:ci` and `build`. UI PRs go t
 | post-launch 3 | **Batch scanning**: continuous capture + "Stack" review list | **iOS build 2** + web |
 | later | Phase 2: image matching from confirmed scans (separate SQL PR) | SQL + web + iOS |
 
+### Where it stands
+
+| PR | What | State |
+| --- | --- | --- |
+| 1–4 | Plan, slab label reader, raw card reader, matcher | Merged (#228–#231) |
+| 5–8 | Handoff, confirm sheet, one-tap add, scan to comp + owner counts | Merged (#232–#235) |
+| 9 | `/scan` hub, "Scan a card" in Add card and Quick Comp | Open (#236) |
+| 10 | Native live camera (SlabholdScanner) | Branch `scanner-native`; needs an Xcode build |
+| 10b | Flip for the card # on a raw card | Branch `scanner-flip` |
+| 13 | Camera off state, Open Settings, scan counts | Branch `scanner-wiring` |
+| 14 | `CLAUDE.md` + this status | Branch `scanner-docs` |
+| 11, 12 | Paid AI steps | Not started: need a key and Donnie's OK |
+
 The scanner launches with slabs and phone-settled raw cards working even if PR 11 isn't approved. AI makes raw cards and parallels clearly better. PRs 6–9 make us win even where our accuracy only matches theirs.
 
 ---
@@ -349,7 +362,7 @@ Decided:
 Still open:
 1. Approve the AI step (PRs 11–12): one Anthropic key, $50 console limit, $40 app ledger, 30 AI scans and 3 "Look closer" per user per day?
 2. Did "Card Scanner Pro" mean a specific app? If so, we'll add it to section 1.
-3. Is the optional back-of-card step OK?
+3. The back-of-card step is built (PR 10b) as optional with Skip, raw cards only, asked only when the front shows no card number. Keep it?
 
 ---
 

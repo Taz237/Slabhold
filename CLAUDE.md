@@ -37,7 +37,12 @@ Sports cards only. **No Pokemon or other TCG** anywhere in the product or assets
   - say "we" or "the team", never the founder's name;
   - no fake numbers, testimonials or user counts.
 - **Sold data:** call it "recent sold prices" or "via Trawl", never "eBay data". No eBay logos.
-- **On hold, so don't promote:** Grade Reveal, Clubs, the scanner, the marketplace.
+- **On hold, so don't promote:** Grade Reveal, Clubs, the marketplace.
+- **The card scanner** is built behind `NEXT_PUBLIC_SCANNER` (off unless exactly `1`), and stays off in production until the team turns it on. Don't promote it before then. Plan and decisions: `docs/scanner-plan.md`.
+  - Cards are read on the phone (Apple Vision). Scan to comp shows cached sold prices only: no Trawl calls from the scanner, an honest "No recent sales saved for this card yet", and never an invented price.
+  - Scan copy says "Scan as many cards as you want." Never the word "free" or other pricing words.
+  - Owners and hunters show only as two counts after a scan save, never on the card page.
+  - No paid identification (AI or cert APIs) without Donnie's OK.
 - **Retired:** Mail Day. Don't add "mail day" text anywhere. Say "pickups".
 - **No team, league or NFL logos** in UI assets or graphics.
 
