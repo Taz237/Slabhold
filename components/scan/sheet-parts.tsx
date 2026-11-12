@@ -4,7 +4,7 @@ import { useEffect, useId, useRef, type ReactNode } from "react";
 import { ChevronRight, X } from "lucide-react";
 import { Chip, RunBadge, SectionLabel, SwatchDot, focusRing } from "@/components/add-card/flow-ui";
 import { money } from "@/lib/format";
-import { QUICK_COMP_DAILY_MESSAGE, QUICK_COMP_HOURLY_MESSAGE } from "@/lib/quick-comp/respond";
+import { quickCompLimitMessage } from "@/lib/quick-comp/respond";
 import { COMP_COPY, lastSale, type SoldsState } from "@/lib/scan/comp";
 import { CONFIRM_COPY, gradeLabel, maskCert, matchLine, type ParallelPick } from "@/lib/scan/confirm";
 import type { FieldSureness, ScanMatch } from "@/lib/scan/match";
@@ -312,9 +312,7 @@ export function LastSold({ solds }: { solds: SoldsState }) {
   }
   const message =
     comp.status === "limited"
-      ? comp.reason === "daily"
-        ? QUICK_COMP_DAILY_MESSAGE
-        : QUICK_COMP_HOURLY_MESSAGE
+      ? quickCompLimitMessage(comp.reason)
       : comp.status === "unavailable"
         ? COMP_COPY.unavailable
         : comp.status === "none" && comp.searched
