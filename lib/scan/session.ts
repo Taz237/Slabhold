@@ -29,7 +29,7 @@ export function scanReadFrom(capture: ScanCapture, directory: readonly IndexedDi
   if (slab) return { kind: "slab", label: readSlabLabel(capture.lines) };
   return {
     kind: "raw",
-    front: readRawCardText(capture.lines, directory),
+    front: readRawCardText(capture.lines, directory, { side: "front" }),
     back: capture.backLines ? readRawCardText(capture.backLines, directory, { side: "back" }) : null,
   };
 }

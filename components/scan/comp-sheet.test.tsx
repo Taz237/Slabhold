@@ -356,3 +356,35 @@ describe("Aidan Miller after #244: a factory SKU and a copyright Topps on the ba
     }
   });
 });
+
+describe("Aidan Miller after #245: a bio 'for-4' on the back, empty catalog", () => {
+  async function bioMatches() {
+    const [{ INDEXED_DIRECTORY }, { rankScanMatches }, { scanReadFrom }] = await Promise.all([
+      import("@/lib/players/directory"),
+      import("@/lib/scan/match"),
+      import("@/lib/scan/session"),
+    ]);
+    const read = scanReadFrom(
+      {
+        lines: ["3B", "1ST BOWMAN", "PHILADELPHIA PHILLIES", "137/299", "AIDAN MILLER"],
+        backLines: ["AIDAN MILLER", "hasn't had to sacrifice his average for-4 power", "BP-27", "2024 TOPPS"],
+        image: null,
+        kind: "card",
+      },
+      INDEXED_DIRECTORY,
+    );
+    return rankScanMatches(read, [], { directory: INDEXED_DIRECTORY, products: null, soldTitles: [] }).matches;
+  }
+
+  it("the comp sheet shows 2024 Bowman #BP-27 and 137/299, never FOR-4, even in an attribute", async () => {
+    const view = await mount({ kind: "ready", matches: await bioMatches() }, async () => ({ status: "none" as const }));
+    try {
+      assert.ok(text().includes("2024 Bowman #BP-27"));
+      assert.ok(text().includes("137/299"));
+      const html = win.document.body.innerHTML;
+      assert.equal(/FOR-4|CMPO73107|Topps/i.test(html), false);
+    } finally {
+      view.unmount();
+    }
+  });
+});

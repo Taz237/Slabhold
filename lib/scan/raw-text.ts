@@ -121,7 +121,33 @@ const CARD_NUMBER = /(?:#|\bNO\.)\s*([A-Z0-9]+(?:-[A-Z0-9]+)*)/gi;
  * INS-13, BCP-50, TC-7. Letters, a hyphen, then digits. Heights (6-7) and
  * seasons (2024-25) have no letters in front, so they never match.
  */
-const CODE_NUMBER = /\b([A-Z]{1,5}\d?)\s?[-–—‐]\s?(\d{1,4}[A-Z]?)\b/;
+const CODE_NUMBER = /\b([A-Z]{1,5}\d?)\s?[-–—‐]\s?(\d{1,4}[A-Z]?)\b/g;
+/**
+ * Letters that look like a code prefix but are words from a bio or a stat
+ * line: "average for-4 power", "a .414", "born June-4", "round-1". Never a
+ * card #. A lone A or I is an article or pronoun, not a set code.
+ */
+const NOT_CODE_PREFIX = new Set([
+  "A", "I", "AN", "AS", "AT", "BE", "BY", "DO", "GO", "HE", "IF", "IN", "IS", "IT", "ME", "MY", "NO", "OF", "ON", "OR",
+  "SO", "TO", "UP", "WE", "AGE", "ALL", "AND", "ANY", "ARE", "BUT", "CAN", "DAY", "DID", "FOR", "GOT", "HAD", "HAS",
+  "HER", "HIM", "HIS", "HOW", "ITS", "LED", "MAY", "NEW", "NOT", "NOW", "OFF", "OLD", "ONE", "OUR", "OUT", "OWN",
+  "PER", "PUT", "RAN", "RUN", "SAW", "SET", "SHE", "THE", "TOO", "TOP", "TRY", "TWO", "USE", "VIA", "WAS", "WAY",
+  "WHO", "WHY", "WIN", "WON", "YET", "YOU", "ALSO", "BEEN", "BORN", "BOTH", "EACH", "EVEN", "FROM", "GAME", "HAVE",
+  "HITS", "INTO", "JUST", "LAST", "LIKE", "MADE", "MORE", "MOST", "MUCH", "ONLY", "OVER", "SAID", "SOME", "SUCH",
+  "THAN", "THAT", "THEM", "THEN", "THEY", "THIS", "TIME", "VERY", "WENT", "WERE", "WHAT", "WHEN", "WILL", "WITH",
+  "YEAR", "AFTER", "AGAIN", "COULD", "EVERY", "FIRST", "GAMES", "OTHER", "ROUND", "SINCE", "THEIR", "THERE",
+  "THESE", "THREE", "WHERE", "WHICH", "WHILE", "WOULD", "YEARS", "JAN", "FEB", "MAR", "APR", "JUN", "JUL", "AUG",
+  "SEP", "SEPT", "OCT", "NOV", "DEC", "JUNE", "JULY", "MARCH", "APRIL",
+]);
+/** Checklist code prefixes we know (Bowman prospects, inserts, update). Preferred over any other code. */
+const KNOWN_CODE_PREFIX = new Set([
+  "BP", "BCP", "BDC", "BDP", "BPA", "CPA", "BCPA", "INS", "US", "USC", "TC", "SP", "RPA", "RA", "FS", "NBA", "TN",
+  "SS", "CA", "BS", "TP", "PD",
+]);
+/** A sentence (five words or more) on a scanned card: a bio or a stat note, never where the card # sits. */
+function proseLine(line: string): boolean {
+  return line.split(/\s+/).filter((word) => /[a-z]/i.test(word)).length >= 5;
+}
 /** Copyright and maker lines name the company, not the set. */
 const MAKER_LINE = /©|\(c\)|copyright|topps company|panini america|upper deck company/i;
 /**
@@ -495,21 +521,38 @@ function readSide(lines: string[], lineWords: string[][], copyrightYear: string)
   return "front";
 }
 
-/** The first printed card #: "#280" or "NO. 280", then a code like BP-27. A SKU is skipped and the search goes on. */
-function readCardNumber(lines: string[]): string {
+/** A code whose letters are a word from a bio or a stat line: "FOR-4", "A-414", "JUNE-4". */
+function wordCode(number: string): boolean {
+  const prefix = /^([A-Z]+)\d?-/.exec(number)?.[1];
+  return Boolean(prefix && NOT_CODE_PREFIX.has(prefix));
+}
+
+/**
+ * The printed card #: "#280" or "NO. 280" first, then a code like BP-27. A
+ * SKU (CMPO73107) and a word code from the bio (FOR-4, A-414, JUNE-4) are
+ * skipped and the search goes on. Of the codes left, a known checklist prefix
+ * (BP, INS, BCP, US, TC, SP) wins. On a scanned card, a sentence-length line
+ * is a bio and never holds the card #. Nothing left: the number stays open.
+ */
+function readCardNumber(lines: string[], scanned: boolean): string {
+  const usable = (line: string) => !(scanned && proseLine(line));
   for (const line of lines) {
+    if (!usable(line)) continue;
     for (const match of line.matchAll(CARD_NUMBER)) {
       const number = match[1].toUpperCase();
-      if (!looksLikeCatalogSku(number)) return number;
+      if (!looksLikeCatalogSku(number) && !wordCode(number)) return number;
     }
   }
+  const codes: string[] = [];
   for (const line of lines) {
-    if (MAKER_LINE.test(line)) continue;
+    if (MAKER_LINE.test(line) || !usable(line)) continue;
     // OCR often reads the hyphen as an en or em dash, or puts a space beside it: BP–27, BP - 27.
-    const match = CODE_NUMBER.exec(line.toUpperCase());
-    if (match && !looksLikeCatalogSku(`${match[1]}-${match[2]}`)) return `${match[1]}-${match[2]}`;
+    for (const match of line.toUpperCase().matchAll(CODE_NUMBER)) {
+      const number = `${match[1]}-${match[2]}`;
+      if (!looksLikeCatalogSku(number) && !wordCode(number)) codes.push(number);
+    }
   }
-  return "";
+  return codes.find((number) => KNOWN_CODE_PREFIX.has(/^([A-Z]+)/.exec(number)?.[1] ?? "")) ?? codes[0] ?? "";
 }
 
 export function readRawCardText(
@@ -537,7 +580,7 @@ export function readRawCardText(
   if (!read.copyrightYear && options.side === "back") {
     read.copyrightYear = clean.filter((line) => MAKER_ONLY_LINE.test(line)).map((line) => MAKER_YEAR.exec(line)?.[1] ?? "").find(Boolean) ?? "";
   }
-  read.cardNumber = readCardNumber(clean);
+  read.cardNumber = readCardNumber(clean, Boolean(options.side));
   read.serial = readSerial(clean);
   read.isRookie = clean.some((line) => /\b(RC|ROOKIE)\b/i.test(line));
   read.setNames = readSets(lineWords.filter((_words, i) => !maker(clean[i])));
