@@ -13,6 +13,7 @@ import { isNativeApp, loadNative } from "@/lib/ios/platform";
 import { PHOTO_READ_ERROR, readPhotoFile } from "@/lib/photos";
 import { compQueryString, type ScanCompResult } from "@/lib/scan/comp";
 import { newScanId, scanAddPath, scanHandoffFrom } from "@/lib/scan/handoff";
+import type { LiveSoldsResult } from "@/lib/scan/live-solds";
 import type { ScanMatch, ScanMatchResult, SoldTitle } from "@/lib/scan/match";
 import { HUB_COPY, scanReadFrom, sheetStateFrom, type ScanCapture, type ScanPurpose } from "@/lib/scan/session";
 
@@ -25,6 +26,11 @@ export type ScanHubDeps = {
   pickAndRead: () => Promise<ScanCapture | null>;
   /** Read and match against the catalog. Null when the search failed. */
   identify: (capture: ScanCapture, signal: AbortSignal) => Promise<ScanMatchResult | null>;
+  /**
+   * The card's last eBay solds: one live search per scan (capped), or sales we
+   * already have, and the matches re-ranked with those sold titles. Null on failure.
+   */
+  solds: (capture: ScanCapture, matches: ScanMatch[], signal: AbortSignal) => Promise<LiveSoldsResult | null>;
   compLookup: CompLookup;
   online: () => boolean;
 };
@@ -57,8 +63,39 @@ async function defaultSoldTitles(playerName: string, signal: AbortSignal): Promi
   return soldTitlesFromBody(await response.json());
 }
 
+/** POST /api/scan/solds. The read text and the ranked rows only: the photo never leaves the phone here. */
+async function defaultSolds(capture: ScanCapture, matches: ScanMatch[], signal: AbortSignal): Promise<LiveSoldsResult | null> {
+  const response = await fetch("/api/scan/solds", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store",
+    signal,
+    body: JSON.stringify({
+      lines: capture.lines,
+      backLines: capture.backLines,
+      kind: capture.kind,
+      rows: matches.filter((match) => match.catalogId).map((match) => ({
+        catalogId: match.catalogId,
+        playerName: match.playerName,
+        sport: match.sport,
+        yearLabel: match.yearLabel,
+        setBrand: match.setBrand,
+        cardNumber: match.cardNumber,
+        parallel: match.parallel,
+        isRookie: match.isRookie,
+      })),
+    }),
+  });
+  if (!response.ok) return null;
+  const body = (await response.json()) as LiveSoldsResult;
+  if (!body || !Array.isArray(body.matches) || !body.comp || typeof body.comp !== "object") return null;
+  return body;
+}
+
 async function defaultCompLookup(...[identity, options]: Parameters<CompLookup>): Promise<ScanCompResult> {
-  const response = await fetch(`/api/scan/comp?${compQueryString(identity, options?.serialRun)}`, { cache: "no-store" });
+  const response = await fetch(`/api/scan/comp?${compQueryString(identity, options?.serialRun, options?.query)}`, {
+    cache: "no-store",
+  });
   if (!response.ok) return { status: "unavailable" };
   const body = (await response.json()) as ScanCompResult;
   return body && typeof body === "object" && "status" in body ? body : { status: "unavailable" };
@@ -76,6 +113,7 @@ const defaultDeps: ScanHubDeps = {
   scan: async () => (await loadNative()).scanCard(),
   pickAndRead: defaultPickAndRead,
   identify: defaultIdentify,
+  solds: defaultSolds,
   compLookup: defaultCompLookup,
   online: () => (typeof navigator === "undefined" ? true : navigator.onLine !== false),
 };
@@ -109,7 +147,30 @@ export function ScanHub({ purpose, deps: overrides }: { purpose: ScanPurpose; de
       setSheet({ kind: "matching" });
       const result = await deps.identify(capture, controller.signal).catch(() => null);
       if (controller.signal.aborted) return;
-      setSheet(sheetStateFrom(result, deps.online()));
+      const online = deps.online();
+      const first = sheetStateFrom(result, online);
+      // The search itself failed (offline): nothing more to look up.
+      if (!result || !online) {
+        setSheet(first);
+        return;
+      }
+      // The card shows first; its last solds fill in. With no match yet, the
+      // sold titles may still find it (a logo-only set), so keep looking.
+      if (first.kind === "ready") setSheet({ ...first, solds: { status: "looking" } });
+      const solds = await deps.solds(capture, result.matches, controller.signal).catch(() => null);
+      if (controller.signal.aborted) return;
+      const matches = solds && solds.matches.length > 0 ? solds.matches : result.matches;
+      if (matches.length === 0) {
+        setSheet({ kind: "none", offline: false });
+        return;
+      }
+      setSheet({
+        kind: "ready",
+        matches,
+        solds: solds
+          ? { status: "done", comp: solds.comp, query: solds.query }
+          : { status: "done", comp: { status: "unavailable" }, query: null },
+      });
     },
     [deps],
   );

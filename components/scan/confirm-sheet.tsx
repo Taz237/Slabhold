@@ -6,11 +6,13 @@ import {
   CardPhoto,
   MatchSummary,
   MatchingSkeleton,
+  LastSold,
   OtherMatches,
   ParallelStrip,
   SheetFrame,
   parallelOptionsFor,
 } from "@/components/scan/sheet-parts";
+import type { SoldsState } from "@/lib/scan/comp";
 import {
   CONFIRM_COPY,
   confirmMatch,
@@ -23,7 +25,8 @@ import type { ScanMatch } from "@/lib/scan/match";
 
 export type ConfirmSheetState =
   | { kind: "matching" }
-  | { kind: "ready"; matches: ScanMatch[] }
+  /** solds: the top card's last eBay solds, looked up after the card is read. */
+  | { kind: "ready"; matches: ScanMatch[]; solds?: SoldsState }
   | { kind: "none"; offline?: boolean };
 
 type Props = {
@@ -58,6 +61,7 @@ export function ConfirmSheet({ photo, state, onConfirm, onStepByStep, onRetake, 
           key={state.matches.map((match) => match.catalogId ?? match.playerName).join("|")}
           photo={photo}
           matches={state.matches}
+          solds={state.solds}
           onConfirm={onConfirm}
           onStepByStep={onStepByStep}
           onRetake={onRetake}
@@ -70,12 +74,14 @@ export function ConfirmSheet({ photo, state, onConfirm, onStepByStep, onRetake, 
 function Ready({
   photo,
   matches,
+  solds,
   onConfirm,
   onStepByStep,
   onRetake,
 }: {
   photo: string | null;
   matches: ScanMatch[];
+  solds?: SoldsState;
   onConfirm: (match: ScanMatch, options: { save: boolean }) => void;
   onStepByStep: () => void;
   onRetake: () => void;
@@ -121,6 +127,8 @@ function Ready({
   return (
     <div className="space-y-6">
       <MatchSummary photo={photo} match={top} />
+      {/* The last solds are for the card as read; picking another row hides them. */}
+      {solds && top === matches[0] ? <LastSold solds={solds} /> : null}
 
       <div>
         <ParallelStrip

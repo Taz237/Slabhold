@@ -17,6 +17,7 @@ import {
 import { MOVE_PILL } from "@/lib/chart/theme";
 import { money } from "@/lib/format";
 import { QUICK_GRADES } from "@/lib/quick-comp/grades";
+import { QUICK_COMP_DAILY_MESSAGE, QUICK_COMP_HOURLY_MESSAGE } from "@/lib/quick-comp/respond";
 import type { QuickCompIdentity } from "@/lib/quick-comp/identity";
 import { formatRelativeTime } from "@/lib/relative-time";
 import {
@@ -25,12 +26,20 @@ import {
   compQueryString,
   scanCompGrade,
   type ScanCompResult,
+  type SoldsState,
 } from "@/lib/scan/comp";
 import { CONFIRM_COPY, confirmMatch, initialChoice, promoteMatch, readyToSave, type ParallelPick } from "@/lib/scan/confirm";
 import type { ScanMatch } from "@/lib/scan/match";
 
-/** Cached sold prices for a card and grade. GET /api/scan/comp in the app. */
-export type CompLookup = (identity: QuickCompIdentity, options?: { serialRun?: number | null }) => Promise<ScanCompResult>;
+/**
+ * Sold prices for another parallel or grade on this sheet. GET /api/scan/comp
+ * in the app: saved sales, plus the scan's own live search again (query),
+ * never a new Trawl call.
+ */
+export type CompLookup = (
+  identity: QuickCompIdentity,
+  options?: { serialRun?: number | null; query?: string | null },
+) => Promise<ScanCompResult>;
 
 type Props = {
   photo: string | null;
@@ -45,9 +54,10 @@ type Props = {
 };
 
 /**
- * Scan to comp. The top match's recent sold prices show as soon as the match
- * lands, with no tap. A different parallel, grade or card is one tap, and its
- * prices load in place. Cached sales only, so no sales is said plainly.
+ * Scan to comp: a price check, nothing gets added. The card shows as soon as
+ * it's read, then its last eBay solds fill in (one live search per scan, or
+ * sales we already have). A different parallel, grade or card is one tap, and
+ * its prices load in place from the same search. No sales is said plainly.
  */
 export function CompSheet({ photo, state, lookup, onAdd, onScanAnother, onSearch, onClose }: Props) {
   const title = state.kind === "none" ? CONFIRM_COPY.noMatchTitle : COMP_COPY.title;
@@ -73,6 +83,7 @@ export function CompSheet({ photo, state, lookup, onAdd, onScanAnother, onSearch
           key={state.matches.map((match) => match.catalogId ?? match.playerName).join("|")}
           photo={photo}
           matches={state.matches}
+          solds={state.solds}
           lookup={lookup}
           onAdd={onAdd}
           onScanAnother={onScanAnother}
@@ -91,6 +102,7 @@ function gradeChoices(scanned: string): string[] {
 function Ready({
   photo,
   matches,
+  solds,
   lookup,
   onAdd,
   onScanAnother,
@@ -98,6 +110,7 @@ function Ready({
 }: {
   photo: string | null;
   matches: ScanMatch[];
+  solds?: SoldsState;
   lookup: CompLookup;
   onAdd: Props["onAdd"];
   onScanAnother: () => void;
@@ -116,18 +129,28 @@ function Ready({
   );
   const serialRun = pick?.serialRun ?? top?.serialRun ?? null;
   const key = target ? compQueryString(target.identity, serialRun) : "";
+  // The card the live search priced: the top match as it arrived, with its own parallel and grade.
+  const [scanKey] = useState(() => {
+    const first = top ? compIdentityFromMatch({ ...top, parallel: initialChoice(top)?.name ?? "" }, scanCompGrade(top)) : null;
+    return first ? compQueryString(first.identity, top?.serialRun ?? null) : "";
+  });
+  const query = solds?.status === "done" ? solds.query : null;
+  const looking = solds?.status === "looking" && key === scanKey;
+  // Try again on the scan's own card looks it up again instead of reusing the scan's answer.
+  const [retriedScan, setRetriedScan] = useState(false);
+  const fromScan = solds?.status === "done" && key === scanKey && !retriedScan ? solds.comp : undefined;
 
   useEffect(() => {
-    if (!target || results.has(key)) return;
+    if (!target || results.has(key) || looking || fromScan) return;
     let live = true;
     const store = (result: ScanCompResult) => {
       if (live) setResults((prev) => new Map(prev).set(key, result));
     };
-    lookup(target.identity, { serialRun }).then(store, () => store({ status: "unavailable" }));
+    lookup(target.identity, { serialRun, query }).then(store, () => store({ status: "unavailable" }));
     return () => {
       live = false;
     };
-  }, [key, lookup, results, serialRun, target]);
+  }, [fromScan, key, looking, lookup, query, results, serialRun, target]);
 
   if (!top) return null;
 
@@ -139,6 +162,7 @@ function Ready({
   }
 
   function retry() {
+    if (key === scanKey) setRetriedScan(true);
     setResults((prev) => {
       const next = new Map(prev);
       next.delete(key);
@@ -152,14 +176,14 @@ function Ready({
     onAdd(match, { save: readyToSave(match) });
   }
 
-  const result = key ? results.get(key) : undefined;
+  const result = key ? (fromScan ?? results.get(key)) : undefined;
 
   return (
     <div className="space-y-6">
       <MatchSummary photo={photo} match={top} />
 
       {target ? (
-        <ValuePanel result={result} onRetry={retry} assumedBase={target.assumedBase} />
+        <ValuePanel result={result} looking={looking} onRetry={retry} assumedBase={target.assumedBase} />
       ) : (
         <p className="text-sm text-zinc-600 dark:text-zinc-400">{COMP_COPY.needYear}</p>
       )}
@@ -224,10 +248,13 @@ function dollars(cents: number): string {
 
 function ValuePanel({
   result,
+  looking,
   onRetry,
   assumedBase,
 }: {
   result: ScanCompResult | undefined;
+  /** The live eBay search is running: say so, it takes a few seconds. */
+  looking: boolean;
   onRetry: () => void;
   assumedBase: boolean;
 }) {
@@ -236,9 +263,15 @@ function ValuePanel({
   if (!result) {
     return (
       <div className={box} aria-busy="true">
-        <p className="sr-only" role="status">
-          {COMP_COPY.checking}
-        </p>
+        {looking ? (
+          <p className="mb-3 text-[13px] font-medium text-zinc-500" role="status">
+            {COMP_COPY.looking}
+          </p>
+        ) : (
+          <p className="sr-only" role="status">
+            {COMP_COPY.checking}
+          </p>
+        )}
         <div className={`h-4 w-12 ${skeletonBar}`} />
         <div className={`mt-2 h-8 w-32 ${skeletonBar}`} />
         <div className={`mt-3 h-4 w-56 ${skeletonBar}`} />
@@ -259,11 +292,21 @@ function ValuePanel({
     );
   }
 
+  if (result.status === "limited") {
+    return (
+      <div className={box} role="status">
+        <p className="text-sm font-medium">{result.reason === "daily" ? QUICK_COMP_DAILY_MESSAGE : QUICK_COMP_HOURLY_MESSAGE}</p>
+      </div>
+    );
+  }
+
   if (result.status === "none") {
     return (
       <div className={box}>
-        <p className="text-[15px] font-semibold">{COMP_COPY.none}</p>
-        <p className="mt-1 text-sm leading-5 text-zinc-600 dark:text-zinc-400">{COMP_COPY.noneBody}</p>
+        <p className="text-[15px] font-semibold">{result.searched ? COMP_COPY.noneSearched : COMP_COPY.none}</p>
+        {result.searched ? (
+          <p className="mt-1 text-sm leading-5 text-zinc-600 dark:text-zinc-400">{COMP_COPY.noneSearchedBody}</p>
+        ) : null}
       </div>
     );
   }

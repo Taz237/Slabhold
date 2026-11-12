@@ -3,6 +3,9 @@
 import { useEffect, useId, useRef, type ReactNode } from "react";
 import { ChevronRight, X } from "lucide-react";
 import { Chip, RunBadge, SectionLabel, SwatchDot, focusRing } from "@/components/add-card/flow-ui";
+import { money } from "@/lib/format";
+import { QUICK_COMP_DAILY_MESSAGE, QUICK_COMP_HOURLY_MESSAGE } from "@/lib/quick-comp/respond";
+import { COMP_COPY, lastSale, type SoldsState } from "@/lib/scan/comp";
 import { CONFIRM_COPY, gradeLabel, maskCert, matchLine, type ParallelPick } from "@/lib/scan/confirm";
 import type { FieldSureness, ScanMatch } from "@/lib/scan/match";
 import type { ProductParallel } from "@/lib/cards/product-data";
@@ -265,3 +268,61 @@ export function MatchingSkeleton({ photo, label }: { photo: string | null; label
 }
 
 export { skeletonBar };
+
+function saleDay(iso: string | null): string {
+  if (!iso) return "";
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
+}
+
+/**
+ * The card's last eBay sold, one line under the match on the Add card sheet.
+ * Looking while the live search runs, then the price and day, or plainly why
+ * there isn't one. Never a made-up price.
+ */
+export function LastSold({ solds }: { solds: SoldsState }) {
+  const box = "flex min-h-11 items-center justify-between gap-3 rounded-2xl border border-zinc-200 px-4 py-2.5 dark:border-white/10";
+  if (solds.status === "looking") {
+    return (
+      <div className={box} aria-busy="true">
+        <p className="text-sm text-zinc-500" role="status">
+          {COMP_COPY.looking}
+        </p>
+        <div aria-hidden className={`h-5 w-16 ${skeletonBar}`} />
+      </div>
+    );
+  }
+  const { comp } = solds;
+  const sale = lastSale(comp);
+  if (sale) {
+    const day = saleDay(sale.soldAt);
+    return (
+      <div className={box}>
+        <div className="min-w-0">
+          <p className="text-[13px] font-medium text-zinc-500">{COMP_COPY.lastSold}</p>
+          <p className="text-xs text-zinc-500">{COMP_COPY.credit}</p>
+        </div>
+        <p className="shrink-0 text-right">
+          <span className="font-mono text-[17px] font-semibold tabular-nums">{money(sale.priceCents / 100)}</span>
+          {day ? <span className="block font-mono text-xs text-zinc-500 tabular-nums">{day}</span> : null}
+        </p>
+      </div>
+    );
+  }
+  const message =
+    comp.status === "limited"
+      ? comp.reason === "daily"
+        ? QUICK_COMP_DAILY_MESSAGE
+        : QUICK_COMP_HOURLY_MESSAGE
+      : comp.status === "unavailable"
+        ? COMP_COPY.unavailable
+        : comp.status === "none" && comp.searched
+          ? COMP_COPY.noneSearched
+          : COMP_COPY.none;
+  return (
+    <div className={box} role="status">
+      <p className="text-sm text-zinc-600 dark:text-zinc-400">{message}</p>
+    </div>
+  );
+}

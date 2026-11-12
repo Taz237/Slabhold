@@ -254,3 +254,43 @@ describe("ConfirmSheet", () => {
     }
   });
 });
+
+describe("ConfirmSheet: last eBay solds", () => {
+  it("shows the card first and says it's looking up last solds", async () => {
+    const view = await mount({ kind: "ready", matches: [fixtures.PREVIEW_SLAB], solds: fixtures.PREVIEW_SOLDS_LOOKING });
+    try {
+      assert.ok(text().includes("Luka Doncic"), "the identity is there right away");
+      assert.ok(text().includes("Looking up last solds…"));
+      assert.equal(/\$\d/.test(text()), false);
+    } finally {
+      view.unmount();
+    }
+  });
+
+  it("then shows the last sold, via Trawl", async () => {
+    const view = await mount({ kind: "ready", matches: [fixtures.PREVIEW_SLAB], solds: fixtures.PREVIEW_SOLDS });
+    try {
+      assert.ok(text().includes("Last sold"));
+      assert.ok(text().includes("$1,100.00"), "the newest sale");
+      assert.ok(text().includes("Recent sold prices via Trawl"));
+    } finally {
+      view.unmount();
+    }
+  });
+
+  it("says plainly when the search found nothing, or the day's lookups are used, with no price", async () => {
+    for (const [solds, message] of [
+      [fixtures.PREVIEW_SOLDS_NONE, "No recent eBay sales found for this card"],
+      [fixtures.PREVIEW_SOLDS_LIMITED, "You've used today's comps. Saved ones still open"],
+    ] as const) {
+      const view = await mount({ kind: "ready", matches: [fixtures.PREVIEW_SLAB], solds });
+      try {
+        assert.ok(text().includes(message), message);
+        assert.equal(/\$\d/.test(text()), false);
+        assert.equal(/add it to your collection|we'll price it/i.test(text()), false);
+      } finally {
+        view.unmount();
+      }
+    }
+  });
+});

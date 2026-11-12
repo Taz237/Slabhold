@@ -8,7 +8,23 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-const KINDS: readonly PreviewKind[] = ["slab", "raw", "numbered", "matching", "none", "offline", "comp", "comp-raw", "comp-none", "hub", "hub-comp", "door"];
+const KINDS: readonly PreviewKind[] = [
+  "slab",
+  "slab-looking",
+  "raw",
+  "numbered",
+  "matching",
+  "none",
+  "offline",
+  "comp",
+  "comp-raw",
+  "comp-none",
+  "comp-looking",
+  "comp-limited",
+  "hub",
+  "hub-comp",
+  "door",
+];
 
 /** The confirm sheet on made-up scans, for review. Not in production unless the scanner is on. */
 export default async function ScanPreviewPage({

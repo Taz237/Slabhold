@@ -9,7 +9,11 @@ export type ScanCompRouteDeps = {
   userId: () => Promise<string | null>;
   /** False when this user is over the scan comp rate. Reads only, but still capped. */
   allow: (userId: string) => Promise<boolean>;
-  lookup: (identity: QuickCompIdentity, userId: string, options: { serialRun: number | null }) => Promise<ScanCompResult>;
+  lookup: (
+    identity: QuickCompIdentity,
+    userId: string,
+    options: { serialRun: number | null; query: string | null },
+  ) => Promise<ScanCompResult>;
 };
 
 const PRIVATE = { "Cache-Control": "private, no-store" };
@@ -23,6 +27,9 @@ export async function respondScanComp(request: Request, deps: ScanCompRouteDeps)
   const params = new URL(request.url).searchParams;
   const runText = params.get("run");
   params.delete("run");
+  // q: the live search this scan ran. Read from the shared cache only.
+  const query = (params.get("q") ?? "").replace(/\s+/g, " ").trim().slice(0, 200) || null;
+  params.delete("q");
   const run = runText != null && /^\d{1,4}$/.test(runText) ? Number(runText) : null;
   if (runText != null && !run) return Response.json({ error: "run is not a print run" }, { status: 400 });
   const parsed = parseQuickCompParams(params);
@@ -30,6 +37,6 @@ export async function respondScanComp(request: Request, deps: ScanCompRouteDeps)
   if (!(await deps.allow(userId))) {
     return Response.json({ error: SCAN_COMP_RATE_MESSAGE }, { status: 429, headers: PRIVATE });
   }
-  const result = await deps.lookup(parsed.identity, userId, { serialRun: run });
+  const result = await deps.lookup(parsed.identity, userId, { serialRun: run, query });
   return Response.json(result, { headers: PRIVATE });
 }

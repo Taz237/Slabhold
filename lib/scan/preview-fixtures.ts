@@ -1,5 +1,6 @@
 import type { QuickCompIdentity } from "@/lib/quick-comp/identity";
-import { summarizeSales, type ScanCompResult } from "./comp";
+import { compIdentityFromMatch, scanCompGrade, summarizeSales, type ScanCompResult, type SoldsState } from "./comp";
+import type { LiveSoldsResult } from "./live-solds";
 import type { ScanMatch } from "./match";
 
 /**
@@ -136,4 +137,30 @@ export async function previewCompLookup(identity: QuickCompIdentity): Promise<Sc
     prices.map((price, index) => ({ price, soldAt: day(index * 4 + 1) })),
     { asOf: day(28), source: "quick-comp" },
   );
+}
+
+/** The slab's last eBay solds, as the live lookup returns them. */
+export const PREVIEW_SOLDS: SoldsState = {
+  status: "done",
+  comp: summarizeSales(
+    [880, 910, 940, 1010, 1060, 1100].map((price, index) => ({ price, soldAt: `2026-11-${String(index + 1).padStart(2, "0")}T12:00:00Z` })),
+    { asOf: "2026-11-08T12:00:00Z", source: "live" },
+  ),
+  query: "preview",
+};
+
+export const PREVIEW_SOLDS_LOOKING: SoldsState = { status: "looking" };
+export const PREVIEW_SOLDS_NONE: SoldsState = { status: "done", comp: { status: "none", searched: true }, query: "preview" };
+export const PREVIEW_SOLDS_LIMITED: SoldsState = {
+  status: "done",
+  comp: { status: "limited", reason: "daily", resetAt: "2026-11-13T00:00:00.000Z" },
+  query: null,
+};
+
+/** The live lookup for the preview and tests: the same matches, the made-up sales for the top one. */
+export async function previewSolds(_capture: unknown, matches: ScanMatch[]): Promise<LiveSoldsResult> {
+  const top = matches[0];
+  const target = top ? compIdentityFromMatch(top, scanCompGrade(top)) : null;
+  const comp = target ? await previewCompLookup(target.identity) : { status: "none" as const, searched: true };
+  return { matches, comp: comp.status === "none" ? { status: "none", searched: true } : comp, query: "preview" };
 }

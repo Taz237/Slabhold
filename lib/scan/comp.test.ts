@@ -148,8 +148,12 @@ describe("copy", () => {
     for (const text of Object.values(COMP_COPY)) {
       assert.equal(/!/.test(text), false, text);
       assert.equal(/\bfree\b/i.test(text), false, text);
-      assert.equal(/ebay/i.test(text), false, text);
+      // Recent sold prices or via Trawl, never "eBay data".
+      assert.equal(/ebay data/i.test(text), false, text);
+      // Nobody has to add the card to see a price.
+      assert.equal(/add it to your collection|we'll price it/i.test(text), false, text);
     }
     assert.match(COMP_COPY.none, /No recent sales/);
+    assert.match(COMP_COPY.noneSearched, /No recent eBay sales found/);
   });
 });

@@ -72,7 +72,14 @@ export type ScanMatchResult = {
 };
 
 /** One cached eBay sold listing (sold_comps_cache): the title is what identifies the card. */
-export type SoldTitle = { title: string; price?: number | null; soldAt?: string | null };
+export type SoldTitle = {
+  title: string;
+  price?: number | null;
+  soldAt?: string | null;
+  /** The grader and grade the listing was saved with, when known. Null for raw. */
+  grader?: string | null;
+  grade?: string | null;
+};
 
 export type RankOptions = {
   directory: readonly IndexedDirectoryPlayer[];
@@ -254,6 +261,42 @@ function bestPlayerName(evidence: Evidence): string {
   return evidence.players[0]?.name ?? (evidence.playerText ? titleCase(evidence.playerText) : "");
 }
 
+/** The player the card names (nameplate first), or "" when none was read. */
+export function scanPlayerName(read: ScanRead, directory: readonly IndexedDirectoryPlayer[]): string {
+  return bestPlayerName(evidenceFrom(read, directory));
+}
+
+/**
+ * The eBay sold search for this scan: only what we know. Year, set, card #
+ * and parallel come from the top match when the card backed them (never a
+ * catalog guess the card didn't show), plus the printed insert, print run and
+ * a slab's grade. "Jaxson Dart /199" or "2024 Bowman Aidan Miller #BP-27 /299".
+ * "" with no player: no search.
+ */
+export function liveSearchQuery(
+  read: ScanRead,
+  top: ScanMatch | null | undefined,
+  directory: readonly IndexedDirectoryPlayer[],
+): string {
+  const evidence = evidenceFrom(read, directory);
+  const player = top && evidence.playerLocked ? top.playerName : top?.playerName || bestPlayerName(evidence);
+  if (!player) return "";
+  const known = (field: keyof ScanMatch["sureness"]) => Boolean(top) && top!.sureness[field] !== "unsure";
+  const year = known("year") ? top!.yearLabel : evidence.yearLabel;
+  const set = known("set") ? top!.setBrand : "";
+  const number = top && top.sureness.number === "sure" ? top.cardNumber : !top ? evidence.cardNumber : "";
+  const parallel =
+    top && top.sureness.parallel === "sure" && parallelMatchKey(top.parallel) !== "base" ? top.parallel : "";
+  const insert = evidence.insert && !parallel.toLowerCase().includes(evidence.insert.toLowerCase()) ? evidence.insert : "";
+  const run = evidence.serial ? `/${evidence.serial.run}` : "";
+  const grade = evidence.grade?.company && evidence.grade.number ? `${evidence.grade.company} ${evidence.grade.number}` : "";
+  return [year, set, player, number ? `#${number}` : "", insert, parallel, run, grade]
+    .filter(Boolean)
+    .join(" ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 /** Up to 2 search_cards queries: the full card, then the player alone. */
 export function catalogQueriesFor(read: ScanRead, directory: readonly IndexedDirectoryPlayer[]): string[] {
   const evidence = evidenceFrom(read, directory);
@@ -409,6 +452,19 @@ function titleColor(titles: readonly TitleFacts[], run: number | null): string {
   if (named.length === 0) return "";
   const shared = named[0].filter((word) => named.every((list) => list.includes(word)));
   return [...new Set(shared)].join(" ");
+}
+
+/** The one print run the sold titles naming this parallel agree on, or null. */
+function titleRunFor(titles: readonly TitleFacts[], parallel: string): number | null {
+  const own = words(parallel);
+  const runs = new Set<number>();
+  for (const item of titles) {
+    const shown = item.colors.flatMap((phrase) => words(phrase));
+    if (!own.every((word) => shown.includes(word))) continue;
+    if (item.runs.length !== 1) return null;
+    runs.add(item.runs[0]);
+  }
+  return runs.size === 1 ? [...runs][0] : null;
 }
 
 function pickParallel(evidence: Evidence, checklist: ProductParallel[], titles: readonly TitleFacts[] = []): ParallelPick {
@@ -623,6 +679,10 @@ export function rankScanMatches(
   const fromTitles = evidence.slab && !bestPlayerName(evidence) ? [] : titleCandidates(evidence, options.soldTitles ?? [], options.directory);
   const scored = mergeTitleCandidates(candidatesFrom(rows, evidence), fromTitles).map((card) => {
     const parallel = pickParallel(evidence, checklistFor(options.products, card), card.titles);
+    // A slab label prints no run: when every sold title for this parallel names the same one, use it.
+    if (parallel.serialRun == null && parallel.parallel && card.titles?.length) {
+      parallel.serialRun = titleRunFor(card.titles, parallel.parallel);
+    }
     const parallelBonus = parallel.sureness === "sure" ? 10 : parallel.sureness === "likely" ? 5 : 0;
     const rowId = parallel.parallel ? card.rowsByParallel.get(parallelMatchKey(parallel.parallel)) : undefined;
     const match: ScanMatch = {

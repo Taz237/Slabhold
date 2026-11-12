@@ -206,3 +206,19 @@ describe("native scanner: flip for the card #", () => {
     assert.ok(read.kind === "raw" && read.back?.cardNumber === "136" && read.back.yearLabel === "2023-24");
   });
 });
+
+describe("native scanner: the photo we keep", () => {
+  it("is tight on the card: the card inside a toploader, a thin trim, a slab keeps its label", () => {
+    assert.match(reader, /let photo = edge == nil \? cropped : tighten\(cropped, slab: kind == "slab"\)/);
+    assert.match(reader, /return CardRead\(lines: lines, backLines: nil, image: UIImage\(cgImage: photo\), kind: kind\)/);
+    // Text is still read from the first crop.
+    assert.match(reader, /let lines = recognizeText\(in: cropped\)/);
+    assert.match(reader, /if !slab, let inner = detectInnerCard\(in: image\)/);
+    assert.match(reader, /static let innerCardMinArea: CGFloat = 0\.55/);
+    assert.match(reader, /static let edgeTrim: CGFloat = 0\.012/);
+  });
+
+  it("leaves the camera screen as it is", () => {
+    assert.doesNotMatch(camera, /tighten|detectInnerCard|edgeTrim/);
+  });
+});
