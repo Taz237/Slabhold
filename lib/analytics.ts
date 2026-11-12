@@ -139,6 +139,7 @@ export const PAGE_PATTERNS = [
   "/profile/following",
   "/reset-password",
   "/scan",
+  "/scan/preview",
   "/search",
   "/settings/collecting",
   "/settings/handle",
