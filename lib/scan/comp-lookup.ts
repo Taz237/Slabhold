@@ -6,7 +6,7 @@ import type { CardValueSale } from "@/lib/value/types";
 import { summarizeSales, type ScanCompResult } from "./comp";
 import type { IndexedDirectoryPlayer } from "@/lib/players/types";
 import type { SoldTitle } from "./match";
-import { groupByParallel, groupFor, scanSalesFor } from "./scan-sales";
+import { groupByParallel, groupFor, scanSalesFor, titleParallel } from "./scan-sales";
 
 /**
  * Sold prices for a scanned card from caches only. Never calls Trawl and
@@ -20,7 +20,22 @@ import { groupByParallel, groupFor, scanSalesFor } from "./scan-sales";
 
 export type QuickCompCacheRead = (
   identity: QuickCompIdentity,
-) => Promise<{ comps: { soldPrice: number; soldDate: string }[]; fetchedAt: string | null; sample?: boolean } | null>;
+) => Promise<{ comps: QuickCompCachedSale[]; fetchedAt: string | null; sample?: boolean } | null>;
+
+export type QuickCompCachedSale = { soldPrice: number; soldDate: string; title?: string };
+
+/**
+ * Quick Comp's cached sales for Base keep only titles that are Base: a cache filled before the
+ * scan grouped by parallel can hold Fuchsia /299 sales under Base, and those never price as Base.
+ */
+export function cachedSalesFor(
+  identity: Pick<QuickCompIdentity, "parallel">,
+  comps: readonly QuickCompCachedSale[],
+  directory: readonly IndexedDirectoryPlayer[] | undefined,
+): QuickCompCachedSale[] {
+  if (!directory || (identity.parallel || "Base").toLowerCase() !== "base") return [...comps];
+  return comps.filter((comp) => !comp.title || titleParallel(comp.title, directory) === "Base");
+}
 
 export type ScanCompDeps = {
   /** A read that returns null on a miss instead of fetching. */
@@ -73,9 +88,10 @@ export async function lookupScanComp(
 
   try {
     const cached = await deps.quickCompCache(identity);
-    if (cached && !cached.sample && cached.comps.length > 0) {
+    const comps = cached ? cachedSalesFor(identity, cached.comps, deps.directory) : [];
+    if (cached && !cached.sample && comps.length > 0) {
       const result = summarizeSales(
-        cached.comps.map((comp) => ({ price: comp.soldPrice, soldAt: comp.soldDate })),
+        comps.map((comp) => ({ price: comp.soldPrice, soldAt: comp.soldDate })),
         { asOf: cached.fetchedAt, source: "quick-comp" },
       );
       if (result.status === "ok") return result;

@@ -25,11 +25,26 @@ export type LiveSearchDeps = {
   fetchSold: (
     query: string,
     options: { days: number; maxPages: number },
-  ) => Promise<{ ok: true; body: { results?: TrawlSoldResult[] } } | { ok: false }>;
+  ) => Promise<{ ok: true; body: { results?: TrawlSoldResult[] } } | { ok: false; status?: number; error?: string }>;
   limits: QuickCompLimitDeps;
   cache: CacheFn;
   now: () => number;
+  /** Waits before the one retry of a throttled or failed search. */
+  sleep?: (ms: number) => Promise<void>;
+  /** A failed search, logged in production too: the query (card names only) and why. Never a user or the key. */
+  warn?: (event: { query: string; status: number; reason: string; retried: boolean }) => void;
 };
+
+/** A 429 or a 5xx gets one more try, this long after. */
+export const LIVE_SEARCH_RETRY_MS = 400;
+
+function retryable(status: number | undefined): boolean {
+  return status === 429 || (status != null && status >= 500 && status < 600);
+}
+
+const defaultSleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+/** The server passes a real logger (live-solds-server.ts); tests and other callers stay quiet. */
+const defaultWarn: NonNullable<LiveSearchDeps["warn"]> = () => {};
 
 /** Case and spacing don't make a new search. */
 export function liveSearchKey(query: string): string {
@@ -95,8 +110,20 @@ export function makeLiveSearch(deps: LiveSearchDeps) {
             if (!spent.ok) throw new QuickCompFailure(spent.reason, spent.resetAt);
             budget.spent = true;
           }
-          budget.calls += 1;
-          const result = await deps.fetchSold(query, { days: LIVE_SEARCH_DAYS, maxPages: LIVE_SEARCH_MAX_PAGES });
+          const fetchOnce = () => {
+            budget.calls += 1;
+            return deps.fetchSold(query, { days: LIVE_SEARCH_DAYS, maxPages: LIVE_SEARCH_MAX_PAGES });
+          };
+          let result = await fetchOnce();
+          // Throttled or a server error: one more try, still inside the lookup's call cap.
+          if (!result.ok && retryable(result.status) && budget.calls < MAX_LOOKUP_CALLS) {
+            (deps.warn ?? defaultWarn)({ query, status: result.status ?? 0, reason: result.error ?? "failed", retried: false });
+            await (deps.sleep ?? defaultSleep)(LIVE_SEARCH_RETRY_MS);
+            result = await fetchOnce();
+            if (!result.ok) (deps.warn ?? defaultWarn)({ query, status: result.status ?? 0, reason: result.error ?? "failed", retried: true });
+          } else if (!result.ok) {
+            (deps.warn ?? defaultWarn)({ query, status: result.status ?? 0, reason: result.error ?? "failed", retried: false });
+          }
           if (!result.ok) throw new QuickCompFailure("unavailable");
           const results = (result.body.results ?? []).filter(Boolean).slice(0, MAX_RESULTS).map(compact);
           return { results, fetchedAt: new Date(deps.now()).toISOString() };

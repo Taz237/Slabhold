@@ -310,13 +310,13 @@ describe("review fixes", () => {
     assert.equal(result.matches[0].cardNumber, "BP-27", "the identity still shows");
   });
 
-  it("an empty early rung, then Trawl failing: unavailable, not 'no recent sales'", async () => {
+  it("an empty early rung, then Trawl failing: searched and none, since a search did answer", async () => {
     let calls = 0;
     const { value } = deps({}, {
       liveSearch: async () => (calls++ === 0 ? { ok: true, results: [], fetchedAt: "x" } : { ok: false, reason: "unavailable" }),
     });
     const result = await lookupLiveSolds({ capture: capture(MILLER_FRONT, MILLER_BACK), rows: [] }, "u1", value);
-    assert.deepEqual(result.comp, { status: "unavailable" });
+    assert.deepEqual(result.comp, { status: "none", searched: true });
   });
 
   it("the parallel open and the groups tie: each group shows, nothing priced at random", async () => {

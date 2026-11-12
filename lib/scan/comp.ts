@@ -27,6 +27,8 @@ export const COMP_COPY = {
   lastSold: "Last sold",
   /** The parallel was picked because most of this card's recent sold titles name it. */
   matchedFromSales: "Matched from recent sales",
+  /** Scan to comp: the price shown is that parallel's, so say how to change it. */
+  matchedFromSalesTap: "Matched from recent sales. Tap yours if it's different.",
   split: "Recent sales name more than one parallel",
   splitBody: "Pick yours to see its value.",
   unavailable: "We couldn't load sold prices",

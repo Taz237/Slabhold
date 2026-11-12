@@ -29,7 +29,7 @@ import {
   type ScanCompResult,
   type SoldsState,
 } from "@/lib/scan/comp";
-import { CONFIRM_COPY, confirmMatch, initialChoice, promoteMatch, readyToSave, type ParallelPick } from "@/lib/scan/confirm";
+import { CONFIRM_COPY, confirmMatch, initialChoice, matchesKey, promoteMatch, readyToSave, type ParallelPick } from "@/lib/scan/confirm";
 import type { ScanMatch } from "@/lib/scan/match";
 
 /**
@@ -81,7 +81,7 @@ export function CompSheet({ photo, state, lookup, onAdd, onScanAnother, onSearch
       ) : null}
       {state.kind === "ready" ? (
         <Ready
-          key={state.matches.map((match) => match.catalogId ?? match.playerName).join("|")}
+          key={matchesKey(state.matches)}
           photo={photo}
           matches={state.matches}
           solds={state.solds}
@@ -198,7 +198,7 @@ function Ready({
           target?.assumedBase
             ? COMP_COPY.assumedBase
             : top.parallelSource === "sales" && pick?.name === top.parallel
-              ? COMP_COPY.matchedFromSales
+              ? COMP_COPY.matchedFromSalesTap
               : null
         }
         onChoose={setPick}
@@ -336,7 +336,16 @@ function ValuePanel({
         <>
           <p className="text-[13px] font-medium text-zinc-500">
             {COMP_COPY.value}
-            {assumedBase ? <span> · Base</span> : null}
+            {result.parallel ? (
+              // Named by the sales it's priced from, so a Fuchsia /299 is never called Base.
+              <span>
+                {" · "}
+                {result.parallel}
+                {serialRun && result.parallel !== "Base" ? <span className="font-mono tabular-nums"> /{serialRun}</span> : null}
+              </span>
+            ) : assumedBase ? (
+              <span> · Base</span>
+            ) : null}
           </p>
           <div className="mt-1 flex flex-wrap items-center gap-2">
             <p className="font-mono text-[28px] leading-9 font-semibold tabular-nums">{dollars(result.medianCents)}</p>

@@ -73,6 +73,8 @@ export type ScanMatch = {
   parallelOptions: ProductParallel[];
   /** Where a likely parallel came from: the card's print, or sold titles that agree. */
   parallelSource?: "card" | "sales";
+  /** The print run read off the card matched no sold title, and 2+ titles agree on a run within 2 of it: theirs is used. */
+  runUnsure?: boolean;
 };
 
 export type ScanMatchResult = {
@@ -132,6 +134,8 @@ type Evidence = {
   setText: string;
   cardNumber: string;
   serial: { number: string; run: string } | null;
+  /** The read run was replaced by the run sold titles agree on (OCR read /298, titles say /299). */
+  runUnsure?: boolean;
   /** Slab: the variety line with flag words removed. Raw: parallel words. */
   parallelWords: string[];
   isRookie: boolean;
@@ -314,7 +318,8 @@ export function liveSearchLadder(
   const prefix = /^([A-Z]+)-/i.exec(number)?.[1]?.toUpperCase() ?? "";
   const set = known("set") ? top!.setBrand : BOWMAN_ONLY_PREFIXES.has(prefix) ? "Bowman" : "";
   const insert = evidence.insert;
-  const run = evidence.serial ? `/${evidence.serial.run}` : "";
+  // A run the sold titles corrected (/298 read, /299 sold) searches as theirs.
+  const run = evidence.serial ? `/${top?.runUnsure && top.serialRun ? top.serialRun : evidence.serial.run}` : "";
   const grade = evidence.grade?.company && evidence.grade.number ? `${evidence.grade.company} ${evidence.grade.number}` : "";
   const rung = (...parts: string[]) => [player, ...parts].filter(Boolean).join(" ").replace(/\s+/g, " ").trim();
   const rungs = number
@@ -750,6 +755,36 @@ function titleCandidates(
   });
 }
 
+/** How far an OCR'd print run can be from the run sold titles agree on (/298 for /299). */
+const RUN_MISREAD = 2;
+
+/**
+ * The read print run when a sold title backs it. When none does but 2+ titles for this player
+ * (and card #, when read) agree on one run within 2 of it, the titles' run: OCR misread a digit.
+ * The read run then counts as unsure.
+ */
+function withAgreedRun(evidence: Evidence, titles: readonly SoldTitle[], directory: readonly IndexedDirectoryPlayer[]): Evidence {
+  const playerName = bestPlayerName(evidence);
+  if (!evidence.serial || !playerName || titles.length === 0) return evidence;
+  const read = Number(evidence.serial.run);
+  if (!Number.isInteger(read) || read <= 0) return evidence;
+  const printedNumber = cardNumberKey(evidence.cardNumber);
+  const runs = titles
+    .slice(0, MAX_SOLD_TITLES)
+    .map((sold) => (typeof sold?.title === "string" ? sold.title.trim() : ""))
+    .filter((title) => title && !TITLE_LOT.test(title) && titleNamesPlayer(title, playerName))
+    .filter((title) => !printedNumber || cardNumberKey(readRawCardText([title], directory).cardNumber) === printedNumber)
+    .map((title) => titleRuns(title));
+  if (runs.some((list) => list.includes(read))) return evidence;
+  const counts = new Map<number, number>();
+  for (const list of runs) {
+    for (const run of new Set(list)) if (run !== read && Math.abs(run - read) <= RUN_MISREAD) counts.set(run, (counts.get(run) ?? 0) + 1);
+  }
+  const agreed = [...counts.entries()].filter(([, count]) => count >= 2);
+  if (agreed.length !== 1) return evidence;
+  return { ...evidence, serial: { ...evidence.serial, run: String(agreed[0][0]) }, runUnsure: true };
+}
+
 /** Facts from matching titles that name no set and no other card #, for the card the scan built. */
 function looseTitleFacts(
   evidence: Evidence,
@@ -803,7 +838,7 @@ export function rankScanMatches(
   rows: readonly CatalogCard[],
   options: RankOptions,
 ): ScanMatchResult {
-  const evidence = evidenceFrom(read, options.directory);
+  const evidence = withAgreedRun(evidenceFrom(read, options.directory), options.soldTitles ?? [], options.directory);
   const fromTitles = evidence.slab && !bestPlayerName(evidence) ? [] : titleCandidates(evidence, options.soldTitles ?? [], options.directory);
   const merged = mergeTitleCandidates(candidatesFrom(rows, evidence), fromTitles);
   if (fromTitles.length === 0 && !(evidence.slab && !bestPlayerName(evidence))) {
@@ -837,6 +872,7 @@ export function rankScanMatches(
       sureness: sureness(evidence, card, parallel),
       parallelOptions: parallel.options,
       ...(parallel.source ? { parallelSource: parallel.source } : {}),
+      ...(evidence.runUnsure ? { runUnsure: true } : {}),
     };
     return match;
   });

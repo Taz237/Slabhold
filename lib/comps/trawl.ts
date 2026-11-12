@@ -60,10 +60,13 @@ export async function fetchTrawlSold(
   } catch (err) {
     const name = err instanceof Error ? err.name : "";
     const timedOut = name === "TimeoutError" || name === "AbortError";
+    const error = timedOut ? "Trawl request timed out" : "Trawl request failed";
+    // Status and reason only: never the key, the query or a user.
+    console.warn("[trawl] failed", 0, error);
     return {
       ok: false,
       status: 0,
-      error: timedOut ? "Trawl request timed out" : "Trawl request failed",
+      error,
       outOfCredits: false,
       rateLimitRemaining: null,
     };
@@ -81,10 +84,13 @@ export async function fetchTrawlSold(
   if (!response.ok) {
     const retryAfter = response.headers.get("Retry-After");
     const outOfCredits = response.status === 429 && !retryAfter;
+    const error = body.error || `Trawl request failed (${response.status})`;
+    // Status and reason only: never the key, the query or a user.
+    console.warn("[trawl] failed", response.status, error);
     return {
       ok: false,
       status: response.status,
-      error: body.error || `Trawl request failed (${response.status})`,
+      error,
       outOfCredits,
       rateLimitRemaining,
     };

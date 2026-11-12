@@ -53,6 +53,17 @@ export function maskCert(cert: string): string {
   return `••••${text.length > 4 ? text.slice(-4) : ""}`;
 }
 
+/**
+ * A sheet's identity for its matches. When the solds come back with a different card (a set,
+ * #, run or parallel the sold titles settled), the sheet starts over with it, so its price and
+ * its labels always describe the same card.
+ */
+export function matchesKey(matches: readonly ScanMatch[]): string {
+  return matches
+    .map((match) => [match.catalogId ?? match.playerName, match.setBrand, match.cardNumber, match.parallel, match.serialRun ?? ""].join("~"))
+    .join("|");
+}
+
 export function initialChoice(match: ScanMatch): ParallelPick {
   if (!match.parallel) return null;
   const option = match.parallelOptions.find((item) => item.name === match.parallel);

@@ -65,7 +65,7 @@ function salePrice(result: TrawlSoldResult): number {
 }
 
 export function scanSalesFor(
-  match: Pick<ScanMatch, "playerName" | "cardNumber" | "serialRun" | "yearLabel">,
+  match: Pick<ScanMatch, "playerName" | "cardNumber" | "serialRun" | "yearLabel"> & Pick<Partial<ScanMatch>, "runUnsure">,
   identity: Pick<QuickCompIdentity, "grade"> & Partial<QuickCompIdentity>,
   results: readonly TrawlSoldResult[],
   directory: readonly IndexedDirectoryPlayer[],
@@ -102,7 +102,9 @@ export function scanSalesFor(
       dropped.number += 1;
       continue;
     }
-    if (match.serialRun && !titleSerialRuns(title).includes(match.serialRun)) {
+    // A run the titles corrected (OCR read /298) is unsure: a title naming no run still counts.
+    const runs = match.serialRun ? titleSerialRuns(title) : [];
+    if (match.serialRun && !runs.includes(match.serialRun) && !(match.runUnsure && runs.length === 0)) {
       dropped.run += 1;
       continue;
     }

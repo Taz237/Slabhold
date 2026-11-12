@@ -387,4 +387,22 @@ describe("Aidan Miller after #245: a bio 'for-4' on the back, empty catalog", ()
       view.unmount();
     }
   });
+
+  it("Fuchsia /299 sales name the value and preselect Fuchsia, never Base", async () => {
+    const match = { ...fixtures.PREVIEW_FROM_SALES, parallel: "Fuchsia", parallelOptions: [{ name: "Fuchsia", serialRun: 299 }] };
+    const comp = fixtures.PREVIEW_SOLDS_PARALLEL.status === "done" ? fixtures.PREVIEW_SOLDS_PARALLEL.comp : null;
+    assert.ok(comp && comp.status === "ok");
+    const solds = { status: "done" as const, comp: { ...comp, parallel: "Fuchsia", groups: [{ label: "Fuchsia", nSales: 3 }] }, query: "q" };
+    const view = await mount({ kind: "ready", matches: [match], solds });
+    try {
+      await waitFor(() => text().includes("Value · Fuchsia /299"));
+      assert.ok(text().includes("Matched from recent sales. Tap yours if it's different."));
+      const pressed = [...win.document.querySelectorAll("button[aria-pressed='true']")].map((node) => node.textContent ?? "");
+      assert.ok(pressed.some((label) => label.includes("Fuchsia")), pressed.join(" | "));
+      assert.doesNotMatch(text(), /\bBase\b/);
+      assert.equal(view.calls.lookups.length, 0);
+    } finally {
+      view.unmount();
+    }
+  });
 });

@@ -17,12 +17,18 @@ export type BakeoffTruth = {
   number: string;
   /** The parallel's words, any order: "Pink/Red" matches "Pink Red". */
   parallel: string;
+  /** The card's print run, when the case checks it (OCR misread /298 for /299). */
+  run?: number;
 };
 
 /** A mocked Trawl answer: eBay sold titles, served only at this rung of the search ladder (0 = the first). */
 export type BakeoffLive = {
   atRung: number;
   sold: { title: string; price: number; soldAt: string; graded?: { grader: string; grade: string } }[];
+  /** Rungs where Trawl fails (throttled or down) instead of answering. */
+  failAt?: number[];
+  /** What the sheet should say, when it isn't a price: "none" (searched, no sales) for a card that truly has none. */
+  solds?: "none";
 };
 
 export type BakeoffCase = {
@@ -154,6 +160,34 @@ export const BAKEOFF_CASES: BakeoffCase[] = [
       ],
     },
     truth: MILLER,
+  },
+  {
+    name: "Miller, OCR read 137/298 (the card is /299)",
+    front: ["3B", "1ST BOWMAN", "PHILADELPHIA PHILLIES", "137/298", "AIDAN MILLER"],
+    back: ["AIDAN MILLER", "TOPPS.COM", "BP-27"],
+    live: { ...MILLER_LIVE, atRung: 2 },
+    truth: { ...MILLER, run: 299 },
+  },
+  {
+    name: "Miller, rungs a-c empty, Trawl fails on rung d",
+    front: MILLER_FRONT,
+    back: ["AIDAN MILLER", "TOPPS.COM", "BP-27"],
+    live: { atRung: -1, sold: [], failAt: [3], solds: "none" },
+    truth: { ...MILLER, parallel: "" },
+  },
+  {
+    name: "Miller, the Nov 12 Fuchsia /299 sales",
+    front: MILLER_FRONT,
+    back: ["AIDAN MILLER", "TOPPS.COM", "BP-27"],
+    live: {
+      atRung: 1,
+      sold: [
+        { title: "2024 Bowman Aidan Miller Fuchsia /299 BP-27 1st", price: 12.99, soldAt: "2026-11-10" },
+        { title: "2024 Bowman 1st Aidan Miller BP-27 Fuchsia 88/299", price: 13, soldAt: "2026-11-06" },
+        { title: "Aidan Miller 2024 Bowman Fuchsia #BP-27 /299", price: 10, soldAt: "2026-11-02" },
+      ],
+    },
+    truth: { ...MILLER, parallel: "Fuchsia" },
   },
   {
     name: "Miller, front only, one saved '2024 Topps … /299' title",
