@@ -18,6 +18,9 @@
 		9582B6832FE993A70072D4E8 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9582B6822FE993A50072D4E8 /* SceneDelegate.swift */; };
 		B4A7C0012F10000100E4A001 /* SlabholdNativePlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4A7C0012F10000000E4A001 /* SlabholdNativePlugin.swift */; };
 		B4A7C0022F10000100E4A001 /* SlabholdBridgeViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4A7C0022F10000000E4A001 /* SlabholdBridgeViewController.swift */; };
+		B4A7C0032F10000100E4A001 /* SlabholdScannerPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4A7C0032F10000000E4A001 /* SlabholdScannerPlugin.swift */; };
+		B4A7C0042F10000100E4A001 /* CardScannerViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4A7C0042F10000000E4A001 /* CardScannerViewController.swift */; };
+		B4A7C0052F10000100E4A001 /* CardTextReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4A7C0052F10000000E4A001 /* CardTextReader.swift */; };
 		A1B2C3D42F00000100E4A001 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = A1B2C3D42F00000000E4A001 /* PrivacyInfo.xcprivacy */; };
 /* End PBXBuildFile section */
 
@@ -34,6 +37,9 @@
 		9582B6822FE993A50072D4E8 /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
 		B4A7C0012F10000000E4A001 /* SlabholdNativePlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SlabholdNativePlugin.swift; sourceTree = "<group>"; };
 		B4A7C0022F10000000E4A001 /* SlabholdBridgeViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SlabholdBridgeViewController.swift; sourceTree = "<group>"; };
+		B4A7C0032F10000000E4A001 /* SlabholdScannerPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SlabholdScannerPlugin.swift; sourceTree = "<group>"; };
+		B4A7C0042F10000000E4A001 /* CardScannerViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardScannerViewController.swift; sourceTree = "<group>"; };
+		B4A7C0052F10000000E4A001 /* CardTextReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardTextReader.swift; sourceTree = "<group>"; };
 		958DCC722DB07C7200EA8C5F /* debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = debug.xcconfig; path = ../debug.xcconfig; sourceTree = SOURCE_ROOT; };
 		A1B2C3D42F00000000E4A001 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -73,6 +79,9 @@
 				9582B6822FE993A50072D4E8 /* SceneDelegate.swift */,
 				B4A7C0012F10000000E4A001 /* SlabholdNativePlugin.swift */,
 				B4A7C0022F10000000E4A001 /* SlabholdBridgeViewController.swift */,
+				B4A7C0032F10000000E4A001 /* SlabholdScannerPlugin.swift */,
+				B4A7C0042F10000000E4A001 /* CardScannerViewController.swift */,
+				B4A7C0052F10000000E4A001 /* CardTextReader.swift */,
 				50379B222058CBB4000EE86E /* capacitor.config.json */,
 				A1B2C3D42F00000000E4A001 /* PrivacyInfo.xcprivacy */,
 				504EC3071FED79650016851F /* AppDelegate.swift */,
@@ -172,6 +181,9 @@
 				9582B6832FE993A70072D4E8 /* SceneDelegate.swift in Sources */,
 				B4A7C0012F10000100E4A001 /* SlabholdNativePlugin.swift in Sources */,
 				B4A7C0022F10000100E4A001 /* SlabholdBridgeViewController.swift in Sources */,
+				B4A7C0032F10000100E4A001 /* SlabholdScannerPlugin.swift in Sources */,
+				B4A7C0042F10000100E4A001 /* CardScannerViewController.swift in Sources */,
+				B4A7C0052F10000100E4A001 /* CardTextReader.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
