@@ -34,7 +34,7 @@ export const COMP_COPY = {
 
 export type ScanCompSale = { priceCents: number; soldAt: string | null };
 
-export type ScanCompSource = "quick-comp" | "collections";
+export type ScanCompSource = "quick-comp" | "sold-cache" | "collections";
 
 export type ScanCompResult =
   | {
@@ -87,8 +87,8 @@ export function compIdentityFromMatch(
   };
 }
 
-/** Same field names as /api/quick-comp. */
-export function compQueryString(identity: QuickCompIdentity): string {
+/** Same field names as /api/quick-comp, plus the print run the card shows (run) for the sold-listing cache. */
+export function compQueryString(identity: QuickCompIdentity, serialRun?: number | null): string {
   const params = new URLSearchParams();
   params.set("player", identity.playerName);
   params.set("year", identity.yearLabel);
@@ -96,6 +96,7 @@ export function compQueryString(identity: QuickCompIdentity): string {
   if (identity.cardNumber) params.set("number", identity.cardNumber);
   params.set("parallel", identity.parallel || "Base");
   params.set("grade", identity.grade);
+  if (serialRun != null && Number.isInteger(serialRun) && serialRun > 0) params.set("run", String(serialRun));
   return params.toString();
 }
 

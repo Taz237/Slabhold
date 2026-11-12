@@ -30,7 +30,7 @@ import { CONFIRM_COPY, confirmMatch, initialChoice, promoteMatch, readyToSave, t
 import type { ScanMatch } from "@/lib/scan/match";
 
 /** Cached sold prices for a card and grade. GET /api/scan/comp in the app. */
-export type CompLookup = (identity: QuickCompIdentity) => Promise<ScanCompResult>;
+export type CompLookup = (identity: QuickCompIdentity, options?: { serialRun?: number | null }) => Promise<ScanCompResult>;
 
 type Props = {
   photo: string | null;
@@ -114,7 +114,8 @@ function Ready({
     () => (top ? compIdentityFromMatch({ ...top, parallel: pick?.name ?? "" }, grade) : null),
     [top, pick, grade],
   );
-  const key = target ? compQueryString(target.identity) : "";
+  const serialRun = pick?.serialRun ?? top?.serialRun ?? null;
+  const key = target ? compQueryString(target.identity, serialRun) : "";
 
   useEffect(() => {
     if (!target || results.has(key)) return;
@@ -122,11 +123,11 @@ function Ready({
     const store = (result: ScanCompResult) => {
       if (live) setResults((prev) => new Map(prev).set(key, result));
     };
-    lookup(target.identity).then(store, () => store({ status: "unavailable" }));
+    lookup(target.identity, { serialRun }).then(store, () => store({ status: "unavailable" }));
     return () => {
       live = false;
     };
-  }, [key, lookup, results, target]);
+  }, [key, lookup, results, serialRun, target]);
 
   if (!top) return null;
 

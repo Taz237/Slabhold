@@ -17,6 +17,6 @@ export async function GET(request: Request) {
     enabled: () => scanPreviewAllowed(),
     userId: getAuthUserId,
     allow: (userId) => consumeRateLimit(userId, "scan_comp", SCAN_COMP_WINDOW_MS, SCAN_COMP_LIMIT),
-    lookup: (identity, userId) => lookupScanComp(identity, userId, serverScanCompDeps),
+    lookup: (identity, userId, options) => lookupScanComp(identity, userId, serverScanCompDeps, options),
   });
 }

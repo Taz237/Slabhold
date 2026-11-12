@@ -132,3 +132,41 @@ describe("readRawCardText: input", () => {
     assert.ok(result.lines.length <= 60);
   });
 });
+
+describe("readRawCardText: printed codes, nameplates and set marks", () => {
+  it("reads a card # printed as a code with no #: BP-27, INS-13", () => {
+    assert.equal(read(["AIDAN MILLER", "BP-27"]).cardNumber, "BP-27");
+    assert.equal(read(["INSTINCT", "INS-13"]).cardNumber, "INS-13");
+    assert.equal(read(["#136", "BP-27"]).cardNumber, "136", "a # number still wins");
+  });
+
+  it("doesn't read a height, a season or a maker line as a card #", () => {
+    assert.equal(read(["HT: 6-7 WT: 230"]).cardNumber, "");
+    assert.equal(read(["2024-25 SEASON"]).cardNumber, "");
+    assert.equal(read(["© 2024 THE TOPPS COMPANY, INC. TM-2024"]).cardNumber, "");
+  });
+
+  it("keeps a nameplate the directory doesn't know yet, and skips team, set and rookie lines", () => {
+    const result = read(["1ST BOWMAN", "PHILADELPHIA PHILLIES", "AIDAN MILLER"]);
+    assert.equal(result.printedName, "Aidan Miller");
+    assert.deepEqual(result.team, { name: "Philadelphia Phillies", sport: "Baseball" });
+    assert.equal(read(["RATED ROOKIE", "DALLAS MAVERICKS", "TOPPS CHROME"]).printedName, "");
+  });
+
+  it("ranks the nameplate above a name inside other text", () => {
+    const result = read(["AARON JUDGE IS ONE OF THE BEST HITTERS AROUND", "PAUL SKENES"]);
+    assert.equal(result.players[0]?.name, "Paul Skenes");
+    assert.equal(result.players[0]?.nameplate, true);
+    assert.equal(result.players.find((hit) => hit.name === "Aaron Judge")?.nameplate, undefined);
+  });
+
+  it("reads the set from the card, not from the maker's copyright line", () => {
+    assert.deepEqual(read(["AIDAN MILLER", "© 2024 THE TOPPS COMPANY, INC."]).setNames, []);
+    assert.deepEqual(read(["1ST BOWMAN", "© 2024 THE TOPPS COMPANY, INC."]).setNames, ["Bowman"]);
+  });
+
+  it("counts a printed set once: TOPPS NOW is Topps Now, MOSAIC is Panini Mosaic", () => {
+    assert.deepEqual(read(["TOPPS NOW"]).setNames, ["Topps Now"]);
+    assert.equal(read(["MOSAIC", "JAXSON DART"]).setNames[0], "Panini Mosaic");
+  });
+});

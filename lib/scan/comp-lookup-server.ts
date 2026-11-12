@@ -6,6 +6,7 @@ import { toSoldCompCard } from "@/lib/quick-comp/identity";
 import type { QuickCompPayload } from "@/lib/quick-comp/lookup";
 import { readPriceContext } from "@/lib/value/price-context";
 import type { ScanCompDeps } from "./comp-lookup";
+import { searchCachedSoldTitles } from "./sold-titles-server";
 
 /** Not a real card. The price context needs an id; this one matches no row. */
 const SCANNED_CARD_ID = "00000000-0000-0000-0000-000000000000";
@@ -29,6 +30,7 @@ export const serverScanCompDeps: ScanCompDeps = {
       throw error;
     }
   },
+  soldCache: searchCachedSoldTitles,
   async collectionSales(identity, viewerId) {
     const card = { ...toSoldCompCard(identity), id: SCANNED_CARD_ID };
     const context = await readPriceContext(card, viewerId);

@@ -85,6 +85,59 @@ describe("lookupScanComp", () => {
   });
 });
 
+describe("lookupScanComp: cached eBay sold listings", () => {
+  const DART: QuickCompIdentity = {
+    playerName: "Jaxson Dart",
+    year: 2025,
+    yearLabel: "2025",
+    setBrand: "Panini Mosaic",
+    cardNumber: "362",
+    parallel: "Orange",
+    grade: "Raw",
+  };
+  const TITLES = [
+    { title: "Jaxson Dart /199 Rookie 2025 Panini Mosaic - Orange Prizm #362 RC Giants", price: 45, soldAt: "2026-08-05" },
+    { title: "2025 Panini Mosaic Jaxson Dart Orange 88/199 #362 Rookie", price: 52, soldAt: "2026-08-20" },
+    { title: "2025 Panini Mosaic Jaxson Dart Orange /199 #362 PSA 10", price: 140, soldAt: "2026-08-21" },
+    { title: "2025 Panini Prizm Jaxson Dart Orange /199 #332", price: 60, soldAt: "2026-08-22" },
+    { title: "2025 Panini Mosaic Jaxson Dart Blue /99 #362", price: 70, soldAt: "2026-08-23" },
+  ];
+
+  it("shows the last raw sales of this exact card, with its print run", async () => {
+    const result = await lookupScanComp(DART, "viewer", deps({ soldCache: async () => TITLES }), { serialRun: 199 });
+    assert.equal(result.status, "ok");
+    assert.ok(result.status === "ok");
+    assert.equal(result.source, "sold-cache");
+    // The graded sale, the Prizm card and the /99 Blue are other cards.
+    assert.deepEqual(result.sales.map((sale) => sale.priceCents), [5200, 4500]);
+    assert.equal(result.asOf, "2026-08-20");
+  });
+
+  it("without the print run, a numbered listing isn't counted", async () => {
+    const result = await lookupScanComp(DART, "viewer", deps({ soldCache: async () => TITLES }));
+    assert.deepEqual(result, { status: "none" });
+  });
+
+  it("says none honestly when nothing cached matches, and never invents a price", async () => {
+    const result = await lookupScanComp({ ...DART, cardNumber: "999" }, "viewer", deps({ soldCache: async () => TITLES }), { serialRun: 199 });
+    assert.deepEqual(result, { status: "none" });
+  });
+
+  it("is unavailable only when every cache read failed", async () => {
+    const down = async () => {
+      throw new Error("down");
+    };
+    assert.deepEqual(
+      await lookupScanComp(DART, "viewer", { quickCompCache: down, collectionSales: down, soldCache: down }),
+      { status: "unavailable" },
+    );
+    assert.deepEqual(
+      await lookupScanComp(DART, "viewer", { quickCompCache: down, collectionSales: down, soldCache: async () => [] }),
+      { status: "none" },
+    );
+  });
+});
+
 describe("the server lookup never calls Trawl", () => {
   it("reads caches only and refuses a quick comp cache miss", () => {
     const source = readFileSync(join(process.cwd(), "lib/scan/comp-lookup-server.ts"), "utf8");
@@ -135,6 +188,20 @@ describe("respondScanComp", () => {
     assert.equal(response.status, 429);
     assert.equal((await response.json()).error, SCAN_COMP_RATE_MESSAGE);
     assert.equal(seen.length, 0);
+  });
+
+  it("passes the card's print run, and rejects a bad one", async () => {
+    let run: number | null | undefined;
+    const value = route({
+      lookup: async (_identity, _user, options) => {
+        run = options.serialRun;
+        return { status: "none" };
+      },
+    }).value;
+    assert.equal((await respondScanComp(new Request(`${url}&run=199`), value)).status, 200);
+    assert.equal(run, 199);
+    assert.equal((await respondScanComp(new Request(`${url}&run=abc`), value)).status, 400);
+    assert.equal((await respondScanComp(new Request(`${url}&run=0`), value)).status, 400);
   });
 
   it("returns the lookup, private and uncached", async () => {

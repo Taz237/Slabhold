@@ -27,7 +27,7 @@ import type { ScanCompResult } from "@/lib/scan/comp";
 type Props = {
   photo: string | null;
   state: ConfirmSheetState;
-  lookup: (identity: QuickCompIdentity) => Promise<ScanCompResult>;
+  lookup: (identity: QuickCompIdentity, options?: { serialRun?: number | null }) => Promise<ScanCompResult>;
   onAdd: (match: ScanMatch, options: { save: boolean }) => void;
   onScanAnother: () => void;
   onSearch: () => void;
@@ -44,10 +44,10 @@ before(async () => {
 
 after(() => win.close());
 
-type Calls = { lookups: QuickCompIdentity[]; added: ScanMatch[]; saves: boolean[]; next: number; search: number };
+type Calls = { lookups: QuickCompIdentity[]; runs: (number | null | undefined)[]; added: ScanMatch[]; saves: boolean[]; next: number; search: number };
 
 async function mount(state: ConfirmSheetState, lookup?: Props["lookup"]) {
-  const calls: Calls = { lookups: [], added: [], saves: [], next: 0, search: 0 };
+  const calls: Calls = { lookups: [], runs: [], added: [], saves: [], next: 0, search: 0 };
   const { createRoot } = await import("react-dom/client");
   const host = win.document.createElement("div");
   win.document.body.appendChild(host);
@@ -57,8 +57,9 @@ async function mount(state: ConfirmSheetState, lookup?: Props["lookup"]) {
       createElement(CompSheet, {
         photo: null,
         state,
-        lookup: async (identity) => {
+        lookup: async (identity, options) => {
           calls.lookups.push(identity);
+          calls.runs.push(options?.serialRun);
           return (lookup ?? fixtures.previewCompLookup)(identity);
         },
         onAdd: (match, options) => {
@@ -124,6 +125,17 @@ describe("CompSheet", () => {
       assert.ok(text().includes("Based on 6 sales"));
       assert.ok(text().includes("Trending up"));
       assert.ok(text().includes("Recent sold prices via Trawl"));
+    } finally {
+      view.unmount();
+    }
+  });
+
+  it("sends the card's print run, so cached /199 sales of that card count", async () => {
+    const numbered = { ...fixtures.PREVIEW_SLAB, serialRun: 199, serialNo: "88" };
+    const view = await mount({ kind: "ready", matches: [numbered] });
+    try {
+      await waitFor(() => view.calls.lookups.length > 0);
+      assert.equal(view.calls.runs[0], 199);
     } finally {
       view.unmount();
     }

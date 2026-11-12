@@ -13,7 +13,7 @@ import { isNativeApp, loadNative } from "@/lib/ios/platform";
 import { PHOTO_READ_ERROR, readPhotoFile } from "@/lib/photos";
 import { compQueryString, type ScanCompResult } from "@/lib/scan/comp";
 import { newScanId, scanAddPath, scanHandoffFrom } from "@/lib/scan/handoff";
-import type { ScanMatch, ScanMatchResult } from "@/lib/scan/match";
+import type { ScanMatch, ScanMatchResult, SoldTitle } from "@/lib/scan/match";
 import { HUB_COPY, scanReadFrom, sheetStateFrom, type ScanCapture, type ScanPurpose } from "@/lib/scan/session";
 
 export type ScanHubDeps = {
@@ -38,6 +38,7 @@ async function defaultIdentify(capture: ScanCapture, signal: AbortSignal): Promi
   ]);
   const read = scanReadFrom(capture, INDEXED_DIRECTORY);
   return matchScan(read, {
+    soldTitles: defaultSoldTitles,
     directory: INDEXED_DIRECTORY,
     search: searchCatalogRemote,
     products: loadProductData,
@@ -45,8 +46,19 @@ async function defaultIdentify(capture: ScanCapture, signal: AbortSignal): Promi
   });
 }
 
-async function defaultCompLookup(identity: Parameters<CompLookup>[0]): Promise<ScanCompResult> {
-  const response = await fetch(`/api/scan/comp?${compQueryString(identity)}`, { cache: "no-store" });
+/** Cached eBay sold titles for a player: GET /api/scan/sold-titles. A cache read, never Trawl. */
+async function defaultSoldTitles(playerName: string, signal: AbortSignal): Promise<SoldTitle[] | null> {
+  const response = await fetch(`/api/scan/sold-titles?${new URLSearchParams({ player: playerName })}`, {
+    cache: "no-store",
+    signal,
+  });
+  if (!response.ok) return null;
+  const { soldTitlesFromBody } = await import("@/lib/scan/sold-titles");
+  return soldTitlesFromBody(await response.json());
+}
+
+async function defaultCompLookup(...[identity, options]: Parameters<CompLookup>): Promise<ScanCompResult> {
+  const response = await fetch(`/api/scan/comp?${compQueryString(identity, options?.serialRun)}`, { cache: "no-store" });
   if (!response.ok) return { status: "unavailable" };
   const body = (await response.json()) as ScanCompResult;
   return body && typeof body === "object" && "status" in body ? body : { status: "unavailable" };
