@@ -12,6 +12,8 @@ import type { ScanCapture } from "@/lib/scan/session";
 
 export type RawScan = {
   cancelled?: boolean;
+  /** Camera access is off for Slabhold. */
+  denied?: boolean;
   lines?: unknown;
   backLines?: unknown;
   image?: unknown;
@@ -53,4 +55,9 @@ export function scanCaptureFrom(raw: unknown): ScanCapture | null {
     image: image(scan.image),
     kind: scan.kind === "card" || scan.kind === "slab" ? scan.kind : null,
   };
+}
+
+/** The scanner closed because camera access is off: the hub shows how to turn it on. */
+export function scanDeniedFrom(raw: unknown): boolean {
+  return Boolean(raw && typeof raw === "object" && (raw as RawScan).cancelled && (raw as RawScan).denied === true);
 }

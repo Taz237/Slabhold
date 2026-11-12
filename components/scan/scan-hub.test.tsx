@@ -67,6 +67,7 @@ function result(matches: ScanMatch[]): ScanMatchResult {
 
 async function mount(purpose: ScanPurpose, deps: Partial<ScanHubDeps>) {
   pushed.length = 0;
+  tracked.length = 0;
   win.sessionStorage.clear();
   const { createRoot } = await import("react-dom/client");
   const host = win.document.createElement("div");
@@ -105,8 +106,14 @@ async function waitFor(check: () => boolean, attempts = 80) {
   throw new Error(text().slice(0, 600));
 }
 
+const tracked: { name: string; props?: Record<string, string> }[] = [];
+
 function nativeDeps(overrides: Partial<ScanHubDeps> = {}): Partial<ScanHubDeps> {
   return {
+    track: (name, props) => {
+      tracked.push({ name, props });
+    },
+    openSettings: async () => true,
     scannerAvailable: async () => true,
     scan: async () => CAPTURE,
     pickAndRead: async () => CAPTURE,
@@ -185,6 +192,51 @@ describe("ScanHub with the native scanner", () => {
       await act(async () => button("Choose a photo").click());
       await waitFor(() => text().includes("Is this your card?"));
       assert.equal(reads, 1);
+    } finally {
+      view.unmount();
+    }
+  });
+});
+
+describe("ScanHub: camera off and counts", () => {
+  it("shows how to turn the camera back on, and keeps the photo and typing ways in", async () => {
+    let opened = 0;
+    const view = await mount("add", nativeDeps({ scan: async () => "denied", openSettings: async () => (opened++, true) }));
+    try {
+      await waitFor(() => text().includes("Camera's off for Slabhold"));
+      assert.equal(win.document.querySelector('[role="dialog"]'), null);
+      await act(async () => button("Open Settings").click());
+      assert.equal(opened, 1);
+      assert.equal(
+        [...win.document.querySelectorAll("button")].some((node) => node.textContent?.trim() === "Scan a card"),
+        false,
+        "one main action while the camera is off",
+      );
+      assert.ok(button("Choose a photo"));
+      assert.equal(button("Type it instead").getAttribute("href"), "/cards/new");
+      assert.ok(tracked.some((event) => event.name === "scan_camera_denied"));
+    } finally {
+      view.unmount();
+    }
+  });
+
+  it("counts opens, matches, one-tap adds and fixes, with no card details", async () => {
+    const view = await mount("add", nativeDeps());
+    try {
+      await waitFor(() => text().includes("Is this your card?"));
+      await act(async () => button("Something else").click());
+      await act(async () => button("Yes, that's it").click());
+      assert.deepEqual(
+        tracked.map((event) => [event.name, event.props?.source ?? event.props?.result ?? ""]),
+        [
+          ["scan_opened", "scan"],
+          ["scan_matched", "settled"],
+          ["scan_added", "edit"],
+          ["scan_fixed", "parallel"],
+        ],
+      );
+      assert.equal(JSON.stringify(tracked).includes("Luka"), false, "no card text");
+      assert.equal(JSON.stringify(tracked).includes("00000000"), false, "no cert");
     } finally {
       view.unmount();
     }

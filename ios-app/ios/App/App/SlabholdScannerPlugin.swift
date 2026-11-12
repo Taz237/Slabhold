@@ -13,7 +13,8 @@ public class SlabholdScannerPlugin: CAPPlugin, CAPBridgedPlugin {
     public let jsName = "SlabholdScanner"
     public let pluginMethods: [CAPPluginMethod] = [
         CAPPluginMethod(name: "scanCard", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "recognize", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "recognize", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "openSettings", returnType: CAPPluginReturnPromise)
     ]
 
     /// The full-screen camera: a card guide, auto-capture, then the read.
@@ -54,6 +55,21 @@ public class SlabholdScannerPlugin: CAPPlugin, CAPBridgedPlugin {
         }
         DispatchQueue.global(qos: .userInitiated).async {
             call.resolve(CardTextReader.read(image: image).jsObject)
+        }
+    }
+}
+
+extension SlabholdScannerPlugin {
+    /// Slabhold's page in Settings, where camera access is turned back on. Never rejects.
+    @objc func openSettings(_ call: CAPPluginCall) {
+        DispatchQueue.main.async {
+            guard let url = URL(string: UIApplication.openSettingsURLString) else {
+                call.resolve(["opened": false])
+                return
+            }
+            UIApplication.shared.open(url) { opened in
+                call.resolve(["opened": opened])
+            }
         }
     }
 }

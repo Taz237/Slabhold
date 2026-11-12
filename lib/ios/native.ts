@@ -21,7 +21,7 @@ import { apnsTokenFrom, asShareAbort, nativePermissionFrom, photoFile, photoPick
 import { claimReviewAsk, countLaunch, type ReviewMoment } from "@/lib/ios/review-prompt";
 import type { NativePermission } from "@/lib/push/native-client";
 import type { NativeShareData } from "@/lib/share/sheet";
-import { SCANNER_PLUGIN, scanCaptureFrom, type RawScan } from "@/lib/ios/scanner";
+import { SCANNER_PLUGIN, scanCaptureFrom, scanDeniedFrom, type RawScan } from "@/lib/ios/scanner";
 import type { ScanCapture } from "@/lib/scan/session";
 
 const LAUNCH_KEY = "slabhold.native.launch-url";
@@ -41,6 +41,7 @@ const SlabholdNative = registerPlugin<SlabholdNativePlugin>("SlabholdNative");
 type SlabholdScannerPlugin = {
   scanCard(options: { mode: "auto" }): Promise<RawScan>;
   recognize(options: { image: string }): Promise<RawScan>;
+  openSettings(): Promise<{ opened: boolean }>;
 };
 const SlabholdScanner = registerPlugin<SlabholdScannerPlugin>(SCANNER_PLUGIN);
 
@@ -423,9 +424,23 @@ export function scannerAvailable(): boolean {
   }
 }
 
-/** Opens the native card scanner. Null when cancelled. Throws only when the plugin fails. */
-export async function scanCard(): Promise<ScanCapture | null> {
-  return scanCaptureFrom(await SlabholdScanner.scanCard({ mode: "auto" }));
+/**
+ * Opens the native card scanner. Null when cancelled, "denied" when camera
+ * access is off. Throws only when the plugin fails.
+ */
+export async function scanCard(): Promise<ScanCapture | null | "denied"> {
+  const raw = await SlabholdScanner.scanCard({ mode: "auto" });
+  if (scanDeniedFrom(raw)) return "denied";
+  return scanCaptureFrom(raw);
+}
+
+/** Slabhold's page in Settings, to turn the camera back on. */
+export async function openCameraSettings(): Promise<boolean> {
+  try {
+    return (await SlabholdScanner.openSettings()).opened === true;
+  } catch {
+    return false;
+  }
 }
 
 /** Reads a library photo with the scanner's text reader. */

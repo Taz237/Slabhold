@@ -19,13 +19,29 @@ const SOURCES = new Set([
   "card",
   "invite",
   "collection",
+  "scan",
+  "scan_comp",
 ]);
 
 /** How a share went out: the native sheet, X, a copied link, or a saved image. */
 const SHARE_METHODS = new Set(["native", "x", "copy", "image"]);
 
-/** A notification permission answer, or which push soft-ask card was shown. */
-const RESULTS = new Set(["granted", "denied", "default", "push", "add-to-home"]);
+/** A notification permission answer, which push soft-ask card was shown, or a scan outcome. */
+const RESULTS = new Set([
+  "granted",
+  "denied",
+  "default",
+  "push",
+  "add-to-home",
+  // The card scanner: how a match came out, how it was added, and what the collector fixed.
+  "settled",
+  "unsure",
+  "none",
+  "one_tap",
+  "edit",
+  "row",
+  "parallel",
+]);
 
 /** 1–48 characters. Blocks emails, sentences, urls, and query strings. */
 const SAFE_TOKEN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,47}$/;

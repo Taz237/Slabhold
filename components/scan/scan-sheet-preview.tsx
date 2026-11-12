@@ -24,11 +24,12 @@ export type PreviewKind =
   | "comp-none"
   | "hub"
   | "hub-comp"
+  | "hub-denied"
   | "door";
 
-const SCREENS = new Set<PreviewKind>(["hub", "hub-comp", "door"]);
+const SCREENS = new Set<PreviewKind>(["hub", "hub-comp", "hub-denied", "door"]);
 
-const STATES: Record<Exclude<PreviewKind, "hub" | "hub-comp" | "door">, ConfirmSheetState> = {
+const STATES: Record<Exclude<PreviewKind, "hub" | "hub-comp" | "hub-denied" | "door">, ConfirmSheetState> = {
   slab: { kind: "ready", matches: [PREVIEW_SLAB] },
   raw: { kind: "ready", matches: PREVIEW_RAW },
   numbered: { kind: "ready", matches: [PREVIEW_NUMBERED, ...PREVIEW_RAW.slice(1)] },
@@ -52,6 +53,7 @@ const LABELS: Record<PreviewKind, string> = {
   "comp-none": "Comp, no sales",
   hub: "Hub, no reader",
   "hub-comp": "Hub comp, no reader",
+  "hub-denied": "Camera off",
   door: "Add card door",
 };
 
@@ -59,6 +61,14 @@ const noop = () => {};
 
 /** The hub as the web sees it: no card reader in this build. */
 const PREVIEW_HUB_DEPS = { scannerAvailable: async () => false };
+
+/** The hub in the app with camera access turned off. */
+const PREVIEW_DENIED_DEPS = {
+  scannerAvailable: async () => true,
+  scan: async () => "denied" as const,
+  openSettings: async () => false,
+  track: () => {},
+};
 
 /**
  * The confirm sheet over a made-up scan. "Yes, that's it" runs the real
@@ -104,6 +114,11 @@ export function ScanSheetPreview({ kind }: { kind: PreviewKind }) {
       {kind === "hub" || kind === "hub-comp" ? (
         <div className="rounded-3xl border border-zinc-200 p-4 dark:border-white/10">
           <ScanHub key={kind} purpose={kind === "hub" ? "add" : "comp"} deps={PREVIEW_HUB_DEPS} />
+        </div>
+      ) : null}
+      {kind === "hub-denied" ? (
+        <div className="rounded-3xl border border-zinc-200 p-4 dark:border-white/10">
+          <ScanHub purpose="add" deps={PREVIEW_DENIED_DEPS} />
         </div>
       ) : null}
       {kind === "door" ? (

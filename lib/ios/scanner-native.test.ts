@@ -55,7 +55,7 @@ describe("native scanner: the contract with the web side", () => {
     assert.match(plugin, new RegExp(`jsName = "${SCANNER_PLUGIN}"`));
     assert.match(plugin, /class SlabholdScannerPlugin: CAPPlugin, CAPBridgedPlugin/);
     const native = read("lib/ios/native.ts");
-    for (const method of ["scanCard", "recognize"]) {
+    for (const method of ["scanCard", "recognize", "openSettings"]) {
       assert.match(plugin, new RegExp(`CAPPluginMethod\\(name: "${method}", returnType: CAPPluginReturnPromise\\)`));
       assert.match(plugin, new RegExp(`@objc func ${method}\\(_ call: CAPPluginCall\\)`));
       assert.match(native, new RegExp(`SlabholdScanner\\.${method}\\(`));
@@ -175,5 +175,14 @@ describe("native scanner: flip for the card #", () => {
       INDEXED_DIRECTORY,
     );
     assert.ok(read.kind === "raw" && read.back?.cardNumber === "136" && read.back.yearLabel === "2023-24");
+  });
+});
+
+describe("native scanner: camera off", () => {
+  it("opens Slabhold's page in Settings and never rejects", () => {
+    assert.match(plugin, /UIApplication\.openSettingsURLString/);
+    assert.match(plugin, /call\.resolve\(\["opened": opened\]\)/);
+    const native = read("lib/ios/native.ts");
+    assert.match(native, /if \(scanDeniedFrom\(raw\)\) return "denied";/);
   });
 });

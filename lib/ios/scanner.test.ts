@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { scanCaptureFrom } from "./scanner";
+import { scanCaptureFrom, scanDeniedFrom } from "./scanner";
 
 describe("scanCaptureFrom", () => {
   it("keeps the lines, back, crop and kind", () => {
@@ -29,5 +29,14 @@ describe("scanCaptureFrom", () => {
     assert.equal(result.lines.length, 80);
     assert.equal(result.lines[0].length, 200);
     assert.equal(result.backLines, null);
+  });
+});
+
+describe("scanDeniedFrom", () => {
+  it("is true only for a cancel because camera access is off", () => {
+    assert.equal(scanDeniedFrom({ cancelled: true, denied: true }), true);
+    assert.equal(scanDeniedFrom({ cancelled: true }), false);
+    assert.equal(scanDeniedFrom({ denied: true, lines: ["x"] }), false);
+    assert.equal(scanDeniedFrom(null), false);
   });
 });
