@@ -3,13 +3,14 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { CompSheet } from "@/components/scan/comp-sheet";
 import { ConfirmSheet, type ConfirmSheetState } from "@/components/scan/confirm-sheet";
 import { saveScan, saveScanMatch } from "@/lib/capture";
 import { newScanId, scanAddPath, scanHandoffFrom } from "@/lib/scan/handoff";
 import type { ScanMatch } from "@/lib/scan/match";
-import { PREVIEW_NUMBERED, PREVIEW_PHOTO, PREVIEW_RAW, PREVIEW_SLAB } from "@/lib/scan/preview-fixtures";
+import { PREVIEW_NUMBERED, PREVIEW_PHOTO, PREVIEW_RAW, PREVIEW_SLAB, previewCompLookup } from "@/lib/scan/preview-fixtures";
 
-export type PreviewKind = "slab" | "raw" | "numbered" | "matching" | "none" | "offline";
+export type PreviewKind = "slab" | "raw" | "numbered" | "matching" | "none" | "offline" | "comp" | "comp-raw" | "comp-none";
 
 const STATES: Record<PreviewKind, ConfirmSheetState> = {
   slab: { kind: "ready", matches: [PREVIEW_SLAB] },
@@ -18,6 +19,9 @@ const STATES: Record<PreviewKind, ConfirmSheetState> = {
   matching: { kind: "matching" },
   none: { kind: "none" },
   offline: { kind: "none", offline: true },
+  comp: { kind: "ready", matches: [PREVIEW_SLAB] },
+  "comp-raw": { kind: "ready", matches: PREVIEW_RAW },
+  "comp-none": { kind: "ready", matches: [{ ...PREVIEW_RAW[0], playerName: "Paul Skenes", sport: "Baseball", yearLabel: "2024", setBrand: "Topps Update", cardNumber: "US50" }] },
 };
 
 const LABELS: Record<PreviewKind, string> = {
@@ -27,6 +31,9 @@ const LABELS: Record<PreviewKind, string> = {
   matching: "Matching",
   none: "No match",
   offline: "Offline",
+  comp: "Comp a slab",
+  "comp-raw": "Comp a raw card",
+  "comp-none": "Comp, no sales",
 };
 
 /**
@@ -70,7 +77,19 @@ export function ScanSheetPreview({ kind }: { kind: PreviewKind }) {
           Open the sheet
         </button>
       ) : null}
-      {open ? (
+      {open && kind.startsWith("comp") ? (
+        <CompSheet
+          key={kind}
+          photo={PREVIEW_PHOTO}
+          state={STATES[kind]}
+          lookup={previewCompLookup}
+          onAdd={confirm}
+          onScanAnother={() => setOpen(false)}
+          onSearch={() => router.push("/comp")}
+          onClose={() => setOpen(false)}
+        />
+      ) : null}
+      {open && !kind.startsWith("comp") ? (
         <ConfirmSheet
           key={kind}
           photo={PREVIEW_PHOTO}
