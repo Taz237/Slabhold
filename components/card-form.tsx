@@ -42,7 +42,7 @@ import { isOfficialUpdatesAccount } from "@/lib/social/official-updates";
 import { isTestAccount } from "@/lib/test-accounts";
 import { POST_LIMIT } from "@/lib/social/types";
 import { CharacterRing } from "@/components/character-ring";
-import { clearScanMatch, takeScan } from "@/lib/capture";
+import { clearScanMatch, markScanAdded, takeScan } from "@/lib/capture";
 import { scanCardStart, type ScanHandoff } from "@/lib/scan/handoff";
 import { catalogLabel, type CatalogCard } from "@/lib/card-catalog";
 import {
@@ -1032,6 +1032,7 @@ export function CardForm({
         setPendingCardId(card.id);
         clearNewCardDraft();
         clearScanMatch();
+        if (scanStart) markScanAdded(card.id);
         if (user?.id) writeBrowserVisibilityChoice(user.id, payload.isPublic);
       }
       if (offerPrivacy && user) rememberFirstCardPrivacy(user.id, card.id);

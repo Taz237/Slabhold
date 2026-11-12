@@ -37,6 +37,7 @@ import {
 import { photoSource, photoStatusAfter, type PhotoStatus } from "@/lib/collection/grid";
 import type { SportsCard } from "@/lib/types";
 import type { ConfidenceCopy, MatchConfidence } from "@/lib/value/match-confidence";
+import { ScanPeopleLine } from "@/components/scan/scan-people-line";
 import { useCardValues } from "@/lib/value/use-card-values";
 import type { CardValueResult } from "@/lib/value/types";
 
@@ -234,6 +235,8 @@ export function CardAddedPanel({
           )}
         </div>
         <CollectionLine count={totals.count} total={totals.total} previous={totals.previous} />
+        {/* After a scan save only: who else has it, as two counts. */}
+        <ScanPeopleLine cardId={cardId} />
       </div>
 
       {posting ? (

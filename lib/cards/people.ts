@@ -29,6 +29,8 @@ export type CardPerson = {
 export type CardPersonList = {
   count: number;
   people: CardPerson[];
+  /** The viewer is one of `count`. Lets a count say "other collectors". */
+  includesViewer?: boolean;
 };
 
 export type OwnersAndHunters = {
@@ -118,6 +120,7 @@ function listFrom(rows: readonly CollectorFlags[], viewerId: string | null, limi
   const distinct = distinctLatest(rows);
   return {
     count: distinct.length,
+    includesViewer: viewerId != null && distinct.some((row) => row.userId === viewerId),
     people: distinct
       .filter((row) => row.userId !== viewerId)
       .slice(0, limit)
