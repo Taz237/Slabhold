@@ -58,7 +58,7 @@ export type ScanCompResult =
   /** searched: a live eBay search ran for this card and found no matching sale. */
   | { status: "none"; searched?: boolean }
   /** Today's or this hour's live lookups are used up. The identity still shows. */
-  | { status: "limited"; reason: "daily" | "hourly"; resetAt: string | null }
+  | { status: "limited"; reason: "daily" | "hourly" | "safety"; resetAt: string | null }
   | { status: "unavailable" };
 
 /**

@@ -60,7 +60,7 @@ export async function fetchQuickComp(
     return { status: "ready", payload: { ...(body as unknown as QuickCompPayload), photo: safePhoto(body.photo) } };
   }
   if (response.status === 429) {
-    const reason = body?.reason === "daily" ? "daily" : "hourly";
+    const reason = body?.reason === "daily" || body?.reason === "safety" ? body.reason : "hourly";
     return { status: "limited", reason, resetAt: typeof body?.resetAt === "string" ? body.resetAt : null };
   }
   return { status: "error" };

@@ -11,6 +11,15 @@ const ALLOWED = new Set(["player", "year", "set", "number", "parallel", "grade"]
 
 export const QUICK_COMP_DAILY_MESSAGE = "You've used today's comps. Saved ones still open";
 export const QUICK_COMP_HOURLY_MESSAGE = "You're checking comps quickly. Try again in a few minutes";
+/** The team's stuck-loop guard (TEAM_DAILY_SAFETY_LIMIT). Plain, so a loop is easy to spot. */
+export const QUICK_COMP_SAFETY_MESSAGE = "You've hit today's safety limit of 200 live lookups. Saved ones still open";
+
+/** The message for each cap. */
+export function quickCompLimitMessage(reason: QuickCompLimitReason): string {
+  if (reason === "daily") return QUICK_COMP_DAILY_MESSAGE;
+  if (reason === "safety") return QUICK_COMP_SAFETY_MESSAGE;
+  return QUICK_COMP_HOURLY_MESSAGE;
+}
 
 type LookupResult =
   | { ok: true; payload: QuickCompPayload }
@@ -66,10 +75,10 @@ export async function respondQuickComp(request: Request, deps: QuickCompRouteDep
 
   const result = await deps.lookup(parsed.identity, userId);
   if (result.ok) return Response.json(result.payload);
-  if (result.reason === "daily" || result.reason === "hourly") {
+  if (result.reason === "daily" || result.reason === "hourly" || result.reason === "safety") {
     return Response.json(
       {
-        error: result.reason === "daily" ? QUICK_COMP_DAILY_MESSAGE : QUICK_COMP_HOURLY_MESSAGE,
+        error: quickCompLimitMessage(result.reason),
         reason: result.reason,
         resetAt: result.resetAt,
       },

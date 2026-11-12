@@ -17,7 +17,7 @@ import {
 import { MOVE_PILL } from "@/lib/chart/theme";
 import { money } from "@/lib/format";
 import { QUICK_GRADES } from "@/lib/quick-comp/grades";
-import { QUICK_COMP_DAILY_MESSAGE, QUICK_COMP_HOURLY_MESSAGE } from "@/lib/quick-comp/respond";
+import { quickCompLimitMessage } from "@/lib/quick-comp/respond";
 import type { QuickCompIdentity } from "@/lib/quick-comp/identity";
 import { formatRelativeTime } from "@/lib/relative-time";
 import {
@@ -295,7 +295,7 @@ function ValuePanel({
   if (result.status === "limited") {
     return (
       <div className={box} role="status">
-        <p className="text-sm font-medium">{result.reason === "daily" ? QUICK_COMP_DAILY_MESSAGE : QUICK_COMP_HOURLY_MESSAGE}</p>
+        <p className="text-sm font-medium">{quickCompLimitMessage(result.reason)}</p>
       </div>
     );
   }

@@ -27,7 +27,13 @@ import {
   type RecentComp,
   type SavedPayload,
 } from "@/lib/quick-comp/recent";
-import { QUICK_COMP_DAILY_MESSAGE, QUICK_COMP_HOURLY_MESSAGE } from "@/lib/quick-comp/respond";
+import type { QuickCompLimitReason } from "@/lib/quick-comp/limits";
+import {
+  QUICK_COMP_DAILY_MESSAGE,
+  QUICK_COMP_HOURLY_MESSAGE,
+  QUICK_COMP_SAFETY_MESSAGE,
+  quickCompLimitMessage,
+} from "@/lib/quick-comp/respond";
 import { createSuggestionTyping, SUGGEST_MIN_CHARS, type SuggestionState } from "@/lib/quick-comp/typing";
 import { catalogResultLine } from "@/lib/search/catalog-results";
 import { GradeControl } from "./grade-control";
@@ -52,7 +58,7 @@ export type CompState =
   | { status: "idle" }
   | { status: "loading" }
   | { status: "ready"; payload: SavedPayload; savedAt: string | null }
-  | { status: "limited"; reason: "daily" | "hourly"; resetAt: string | null }
+  | { status: "limited"; reason: QuickCompLimitReason; resetAt: string | null }
   | { status: "error" }
   | { status: "offline" };
 
@@ -67,6 +73,9 @@ function resetTime(iso: string | null): string {
 export function CompStateNotice({ state, onRetry }: { state: CompState; onRetry: () => void }) {
   if (state.status === "limited") {
     const at = resetTime(state.resetAt);
+    if (state.reason === "safety") {
+      return <QuickCompNotice state="daily-limit" title={QUICK_COMP_SAFETY_MESSAGE} caption={at ? `More from ${at}` : null} />;
+    }
     return state.reason === "daily" ? (
       <QuickCompNotice state="daily-limit" title={QUICK_COMP_DAILY_MESSAGE} caption={at ? `New comps from ${at}` : null} />
     ) : (
@@ -110,7 +119,7 @@ function announce(picked: Picked | null, state: CompState): string {
     const n = state.payload.comps.length;
     return `${picked.identity.playerName}, ${picked.identity.grade}: ${money(state.payload.median)} from ${n} sale${n === 1 ? "" : "s"}`;
   }
-  if (state.status === "limited") return state.reason === "daily" ? QUICK_COMP_DAILY_MESSAGE : QUICK_COMP_HOURLY_MESSAGE;
+  if (state.status === "limited") return quickCompLimitMessage(state.reason);
   if (state.status === "error") return ERROR_TITLE;
   if (state.status === "offline") return OFFLINE_TITLE;
   return "";

@@ -160,7 +160,7 @@ export async function lookupLiveSolds(
   if (!query) return { matches: first, comp: { status: "none" }, query: null };
   const live = await deps.liveSearch(query, userId).catch((): LiveSearchResult => ({ ok: false, reason: "unavailable" }));
   if (!live.ok) {
-    if (live.reason === "daily" || live.reason === "hourly") {
+    if (live.reason === "daily" || live.reason === "hourly" || live.reason === "safety") {
       return { matches: first, comp: { status: "limited", reason: live.reason, resetAt: live.resetAt }, query: null };
     }
     return { matches: first, comp: { status: "unavailable" }, query: null };
