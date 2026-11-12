@@ -407,7 +407,6 @@ describe("mail day form rules", () => {
     });
     const cardForm = readFileSync(join(process.cwd(), "components/card-form.tsx"), "utf8");
     assert.match(cardForm, /sportAfterCatalogPick\(sportTouched \? form\.sport : "", card\.sport\)/);
-    assert.match(cardForm, /sportAfterCatalogPick\(sportTouched \? form\.sport : "", result\.sport\)/);
     assert.match(cardForm, /useState\(restored\?\.sportTouched \?\? Boolean\(existing\)\)/);
     assert.match(cardForm, /setSportTouched\(true\)/);
     assert.match(cardForm, /This card is listed as/);

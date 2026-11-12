@@ -19,7 +19,6 @@ export function CardPhotoField({
   photo,
   photoError,
   reading = false,
-  scanning,
   onTake,
   onLibrary,
   onRemove,
@@ -32,7 +31,6 @@ export function CardPhotoField({
   photo: string | null;
   photoError: string | null;
   reading?: boolean;
-  scanning: boolean;
   onTake: () => void;
   onLibrary: () => void;
   onRemove: () => void;
@@ -79,13 +77,6 @@ export function CardPhotoField({
             <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/75 px-2 text-center text-white">
               <PhotoSkeleton />
               <p className="text-xs font-medium">Reading photo…</p>
-            </div>
-          ) : null}
-          {scanning ? (
-            <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/75 px-2 text-center text-white">
-              <PhotoSkeleton />
-              <p className="text-xs font-medium">Demo lookup…</p>
-              <p className="mt-1 text-[10px] text-zinc-400">Sample match, not a real scan</p>
             </div>
           ) : null}
         </div>
