@@ -19,6 +19,9 @@ import {
   PREVIEW_SOLDS,
   PREVIEW_SOLDS_PARALLEL,
   PREVIEW_RUN_ONLY,
+  PREVIEW_UNNUMBERED,
+  PREVIEW_SOLDS_BASE_OFFERS,
+  PREVIEW_SOLDS_NO_BASE,
   PREVIEW_SOLDS_RUN_ONLY,
   PREVIEW_SOLDS_LIMITED,
   PREVIEW_SOLDS_LOOKING,
@@ -42,6 +45,8 @@ export type PreviewKind =
   | "from-sales"
   | "comp-from-sales"
   | "comp-run-only"
+  | "comp-unnumbered"
+  | "comp-no-base"
   | "hub"
   | "hub-comp"
   | "door";
@@ -54,6 +59,8 @@ const STATES: Record<Exclude<PreviewKind, "hub" | "hub-comp" | "door">, ConfirmS
   "from-sales": { kind: "ready", matches: [PREVIEW_FROM_SALES], solds: PREVIEW_SOLDS_PARALLEL },
   "comp-from-sales": { kind: "ready", matches: [PREVIEW_FROM_SALES], solds: PREVIEW_SOLDS_PARALLEL },
   "comp-run-only": { kind: "ready", matches: [PREVIEW_RUN_ONLY], solds: PREVIEW_SOLDS_RUN_ONLY },
+  "comp-unnumbered": { kind: "ready", matches: [PREVIEW_UNNUMBERED], solds: PREVIEW_SOLDS_BASE_OFFERS },
+  "comp-no-base": { kind: "ready", matches: [PREVIEW_UNNUMBERED], solds: PREVIEW_SOLDS_NO_BASE },
   raw: { kind: "ready", matches: PREVIEW_RAW, solds: PREVIEW_SOLDS_NONE },
   numbered: { kind: "ready", matches: [PREVIEW_NUMBERED, ...PREVIEW_RAW.slice(1)] },
   matching: { kind: "matching" },
@@ -86,6 +93,8 @@ const LABELS: Record<PreviewKind, string> = {
   "from-sales": "Parallel from sales",
   "comp-from-sales": "Comp, parallel from sales",
   "comp-run-only": "Comp, numbered, no color named",
+  "comp-unnumbered": "Comp, unnumbered base",
+  "comp-no-base": "Comp, no Base sales",
   hub: "Hub, no reader",
   "hub-comp": "Hub comp, no reader",
   door: "Add card door",

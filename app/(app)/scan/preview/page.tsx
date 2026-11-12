@@ -14,6 +14,8 @@ const KINDS: readonly PreviewKind[] = [
   "from-sales",
   "comp-from-sales",
   "comp-run-only",
+  "comp-unnumbered",
+  "comp-no-base",
   "raw",
   "numbered",
   "matching",

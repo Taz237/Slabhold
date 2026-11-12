@@ -194,6 +194,37 @@ export const PREVIEW_SOLDS_RUN_ONLY: SoldsState = {
   query: "preview",
 };
 
+/** An unnumbered base Prizm: priced from Base sales, the parallel left open. */
+export const PREVIEW_UNNUMBERED: ScanMatch = {
+  ...PREVIEW_NUMBERED,
+  parallel: "",
+  serialRun: null,
+  serialNo: "",
+  parallelSource: undefined,
+  sureness: { ...PREVIEW_NUMBERED.sureness, parallel: "unsure" },
+  parallelOptions: [],
+};
+
+/** Its Base sales, with the Silver sales offered to tap. */
+export const PREVIEW_SOLDS_BASE_OFFERS: SoldsState = {
+  status: "done",
+  comp: {
+    ...summarizeSales(
+      [8, 9, 10].map((price, index) => ({ price, soldAt: `2026-11-${String(5 + index * 2).padStart(2, "0")}T12:00:00Z` })),
+      { asOf: "2026-11-12T12:00:00Z", source: "live" },
+    ),
+    ...{ parallel: "Base", groups: [{ label: "Silver", nSales: 10 }, { label: "Base", nSales: 3 }] },
+  } as ScanCompResult,
+  query: "preview",
+};
+
+/** Only Silver sales came back: no Base price. */
+export const PREVIEW_SOLDS_NO_BASE: SoldsState = {
+  status: "done",
+  comp: { status: "split", missing: "Base", groups: [{ label: "Silver", nSales: 10, lastPriceCents: 6500, lastSoldAt: "2026-11-12T12:00:00Z" }] },
+  query: "preview",
+};
+
 export const PREVIEW_SOLDS_LOOKING: SoldsState = { status: "looking" };
 export const PREVIEW_SOLDS_NONE: SoldsState = { status: "done", comp: { status: "none", searched: true }, query: "preview" };
 export const PREVIEW_SOLDS_LIMITED: SoldsState = {

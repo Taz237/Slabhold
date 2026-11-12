@@ -205,6 +205,19 @@ export async function lookupLiveSolds(
   // that's most of the sales (2+) is priced, and the card takes its name; otherwise the groups show.
   const groups = groupByParallel(found.kept);
   const leader = groups[0];
+  // An unnumbered card with its parallel open shows Base: priced from Base sales only, with the
+  // other parallels offered to tap. Never Silver from a title majority.
+  if (!best.parallel && best.serialRun == null) {
+    const base = groupFor(groups, "Base");
+    if (!base) return { matches, comp: { status: "split", groups: groups.map(groupSummary), missing: "Base" }, query: usedQuery };
+    const priced = summarizeSales(base.sales.map((sale) => ({ price: sale.price, soldAt: sale.soldAt })), { asOf: fetchedAt || null, source: "live" });
+    if (priced.status !== "ok") return { matches, comp: { status: "none", searched: true }, query: usedQuery };
+    return {
+      matches,
+      comp: { ...priced, parallel: base.label, groups: groups.map((item) => ({ label: item.label, nSales: item.sales.length })) },
+      query: usedQuery,
+    };
+  }
   if (!best.parallel && !isMajority(leader, found.kept.length)) {
     return { matches, comp: { status: "split", groups: groups.map(groupSummary) }, query: usedQuery };
   }

@@ -492,6 +492,9 @@ function longestNamed(options: ProductParallel[], shown: readonly string[]): Pro
   return named.filter((option) => words(option.name).length === longest);
 }
 
+/** Finishes a base chrome card already looks like: the border can't tell them apart. */
+const CHROME_FINISH = new Set(["SILVER", "REFRACTOR", "HOLO", "PRIZM", "CHROME", "SHIMMER", "MOJO"]);
+
 /**
  * The color every sold listing with this print run names ("GREEN" from
  * "Green Refractor /99" and "Green 61/99"), or "" when they don't agree or
@@ -517,7 +520,12 @@ function titleColor(titles: readonly TitleFacts[], run: number | null, border: s
   if (shared.length > 0) return [...new Set(shared)].join(" ");
   // The titles offer a few parallels at this run: the border's color picks one, only when exactly one fits.
   if (border) {
-    const fits = ranked.filter((group) => group.words.some((word) => word.toLowerCase() === border.toLowerCase()));
+    // A chrome finish (Silver, Refractor, Holo, Prizm) is never told from the border: base chrome looks the same.
+    const fits = ranked.filter(
+      (group) =>
+        !group.words.some((word) => CHROME_FINISH.has(word.toUpperCase())) &&
+        group.words.some((word) => word.toLowerCase() === border.toLowerCase()),
+    );
     if (fits.length === 1) return fits[0].words.join(" ");
   }
   return "";
@@ -556,7 +564,9 @@ function pickParallel(evidence: Evidence, checklist: ProductParallel[], titles: 
   const run = evidence.serial ? Number(evidence.serial.run) : null;
   // A color word printed on the card wins. Otherwise a clear sold title for this print run can pin one.
   const printedColor = evidence.parallelWords.length > 0;
-  const soldColor = titleColor(titles, run, evidence.border);
+  // Sold titles may pick a parallel only for a card with a read print run. An unnumbered card's
+  // base can look like its Silver/Refractor (Prizm, Optic, Select, Mosaic), so titles never flip it.
+  const soldColor = run != null ? titleColor(titles, run, evidence.border) : "";
 
   // A printed insert is the card's own name (Instinct), not a guess. Its color comes from the card or a sold title.
   if (evidence.insert) {

@@ -31,6 +31,11 @@ export const COMP_COPY = {
   matchedFromSalesTap: "Matched from recent sales. Tap yours if it's different.",
   split: "Recent sales name more than one parallel",
   splitBody: "Pick yours to see its value.",
+  /** An unnumbered card's sales were all another parallel: Base isn't priced from them. */
+  noBase: "No recent Base sales",
+  noBaseBody: "Tap your parallel to see its value.",
+  /** Under a Base price: what else recent sales name. */
+  otherGroups: "Other parallels in recent sales",
   unavailable: "We couldn't load sold prices",
   retry: "Try again",
   assumedBase: "Showing Base. Tap your parallel if it's different.",
@@ -74,6 +79,8 @@ export type ScanCompResult =
   | {
       status: "split";
       groups: { label: string; nSales: number; lastPriceCents: number | null; lastSoldAt: string | null }[];
+      /** An unnumbered card shows Base until the collector picks: "Base" when no sale was Base. */
+      missing?: "Base";
     }
   /** Today's or this hour's live lookups are used up. The identity still shows. */
   | { status: "limited"; reason: "daily" | "hourly" | "safety"; resetAt: string | null }
