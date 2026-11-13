@@ -67,7 +67,7 @@ describe("scanner: the card number's prefix picks the list its print run is read
     const top = scan("137/299", "BP-27");
     assert.equal(top?.parallel, "Test Paper A");
     assert.equal(top?.serialRun, 299);
-    assert.equal(top?.sureness.parallel, "sure");
+    assert.equal(top?.sureness.parallel, "likely");
   });
 
   it("names the one chrome parallel at /150 for a BCP- card", () => {
@@ -94,7 +94,9 @@ describe("scanner: 2024 Bowman print runs", () => {
     assert.equal(top?.parallel, "Fuchsia Border");
     assert.equal(top?.serialRun, 299);
     assert.equal(top?.serialNo, "137");
-    assert.equal(top?.sureness.parallel, "sure");
+    // The run alone picked it: likely until the card or a sold title names it.
+    assert.equal(top?.sureness.parallel, "likely");
+    assert.equal(top?.parallelSource, "run");
   });
 
   it("reads a Chrome Prospects BCP- card at /299 as Speckle Refractor, not the paper Fuchsia", async () => {

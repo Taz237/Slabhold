@@ -17,6 +17,8 @@ export type BakeoffTruth = {
   number: string;
   /** The parallel's words, any order: "Pink/Red" matches "Pink Red". "" or "Base" for a base card. */
   parallel: string;
+  /** Other names for the same parallel that also count as right: the checklist's "Fuchsia Border" for the sold titles' "Pink/Red". */
+  parallelAlso?: string[];
   /** The card's year or season: "2024", "2025-26". */
   year?: string;
   /** The card's print run (/299). Null or missing: the card isn't numbered. */
@@ -77,7 +79,7 @@ export type BakeoffCase = {
   truth: BakeoffTruth;
 };
 
-const MILLER: BakeoffTruth = { player: "Aidan Miller", year: "2024", set: "Bowman", number: "BP-27", parallel: "Pink/Red", run: 299 };
+const MILLER: BakeoffTruth = { player: "Aidan Miller", year: "2024", set: "Bowman", number: "BP-27", parallel: "Pink/Red", parallelAlso: ["Fuchsia Border"], run: 299 };
 const MILLER_FRONT = ["3B", "1ST BOWMAN", "PHILADELPHIA PHILLIES", "137/299", "AIDAN MILLER"];
 /** The stylized 1ST BOWMAN logo often doesn't read. */
 const MILLER_FRONT_NO_LOGO = ["3B", "PHILADELPHIA PHILLIES", "137/299", "AIDAN MILLER"];

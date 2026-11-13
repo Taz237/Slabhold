@@ -1,5 +1,5 @@
 import { SETS } from "@/lib/card-options";
-import { parallelMatchKey } from "@/lib/cards/parallels";
+import { parallelMatchKey, sameParallelLoosely } from "@/lib/cards/parallels";
 import { setMatchPhrase } from "@/lib/comps/match";
 
 /**
@@ -225,6 +225,26 @@ export function serialRunIn(
   const row = parallelIn(data, sport, yearLabel, setBrand, parallel);
   const run = row?.serialRun;
   return typeof run === "number" && Number.isFinite(run) && run >= 1 ? run : null;
+}
+
+/**
+ * This parallel is the only one the checklist lists at this print run for this card, so the run
+ * alone says which card a sale is. False when two share the run, or when no checklist covers it.
+ * No sport needed: every product with this year and set name must agree.
+ */
+export function onlyParallelAtRun(
+  data: readonly ProductRecord[],
+  card: { yearLabel: string; setBrand: string; cardNumber: string; parallel: string },
+  run: number | null | undefined,
+): boolean {
+  if (!run || !card.parallel.trim()) return false;
+  const phrase = productPhrase(card.setBrand);
+  const products = data.filter((product) => sameSeason(product.yearLabel, card.yearLabel) && productPhrase(product.product) === phrase);
+  if (!phrase || products.length === 0) return false;
+  return products.every((product) => {
+    const atRun = parallelsIn([product], product.sport, product.yearLabel, product.product, card.cardNumber).filter((item) => item.serialRun === run);
+    return atRun.length === 1 && sameParallelLoosely(atRun[0].name, card.parallel);
+  });
 }
 
 export async function productSetNames(sport: string, yearLabel: string): Promise<string[]> {

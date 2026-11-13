@@ -1,6 +1,7 @@
 import "server-only";
 
 import { unstable_cache } from "next/cache";
+import { loadProductData } from "@/lib/cards/product-data";
 import { loadSharedQuickComp, QuickCompFailure, type CacheFn } from "@/lib/quick-comp/cache";
 import { toSoldCompCard } from "@/lib/quick-comp/identity";
 import type { QuickCompPayload } from "@/lib/quick-comp/lookup";
@@ -35,6 +36,7 @@ export const serverScanCompDeps: ScanCompDeps = {
   soldCache: searchCachedSoldTitles,
   liveCache: makeLiveCacheRead(unstable_cache as CacheFn),
   directory: SCAN_DIRECTORY,
+  products: loadProductData,
   async collectionSales(identity, viewerId) {
     const card = { ...toSoldCompCard(identity), id: SCANNED_CARD_ID };
     const context = await readPriceContext(card, viewerId);
