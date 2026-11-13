@@ -516,6 +516,62 @@ export const WIDE_BAKEOFF_CASES: BakeoffCase[] = [
     truth: { player: "", year: "2026", set: "Bowman U Chrome", number: "BCP-12", parallel: "", run: null },
   },
 
+  // ── Bowman U Chrome is football and basketball only (review of #261) ──────
+  {
+    name: "Not Bowman U: Condon BCP-12, OUTFIELD on the back and a lone GEORGIA row in the stat table",
+    front: ["BOWMAN CHROME", "1ST", "CHARLIE CONDON"],
+    back: [
+      "BCP-12",
+      "CHARLIE CONDON",
+      "OUTFIELD",
+      "HT: 6-6 WT: 216 BATS: RIGHT THROWS: RIGHT",
+      "YR CLUB G AB R H HR RBI AVG",
+      "GEORGIA",
+      "24 60 229 84 99 37 78 .433",
+      "© 2025 THE TOPPS COMPANY, INC. ALL RIGHTS RESERVED.",
+      "TOPPS AND BOWMAN CHROME ARE REGISTERED TRADEMARKS OF THE TOPPS COMPANY, INC.",
+    ],
+    truth: { player: "Charlie Condon", year: "2025", set: "Bowman Chrome", number: "BCP-12", parallel: "", run: null },
+  },
+  {
+    name: "Not Bowman U: a BCP prospect whose team reads as two lines, TEXAS and RANGERS",
+    front: ["BOWMAN CHROME", "1ST", "SEBASTIAN WALCOTT", "TEXAS", "RANGERS"],
+    back: [
+      "BCP-41",
+      "SEBASTIAN WALCOTT",
+      "TEXAS",
+      "RANGERS",
+      "© 2025 THE TOPPS COMPANY, INC. ALL RIGHTS RESERVED.",
+      "TOPPS AND BOWMAN CHROME ARE REGISTERED TRADEMARKS OF THE TOPPS COMPANY, INC.",
+    ],
+    truth: { player: "Sebastian Walcott", year: "2025", set: "Bowman Chrome", number: "BCP-41", parallel: "", run: null },
+  },
+  {
+    name: "Not Bowman U: a pitcher new to us, with an LSU line under his name",
+    front: ["BOWMAN CHROME", "1ST", "COLE TESTERMAN"],
+    back: [
+      "BCP-88",
+      "COLE TESTERMAN",
+      "LSU",
+      "PITCHER",
+      "© 2025 THE TOPPS COMPANY, INC. ALL RIGHTS RESERVED.",
+      "TOPPS AND BOWMAN CHROME ARE REGISTERED TRADEMARKS OF THE TOPPS COMPANY, INC.",
+    ],
+    truth: { player: "Cole Testerman", year: "2025", set: "Bowman Chrome", number: "BCP-88", parallel: "", run: null, playerNew: true },
+  },
+  {
+    name: "Auto trap: Dart Prizm #332, 'auto-pilot' in the bio is not an autograph",
+    front: ["PRIZM", "JAXSON DART", "GIANTS", "QB", "RC"],
+    back: ["No. 332", "JAXSON DART", "QUARTERBACK", "Dart was an auto-pilot leader for the offense all season long.", "2025 PANINI - PRIZM FOOTBALL", "© 2025 Panini America, Inc."],
+    truth: { player: "Jaxson Dart", year: "2025", set: "Panini Prizm", number: "332", parallel: "", run: null, auto: false, rookie: true },
+  },
+  {
+    name: "Unknown name trap: PRIZM and a name nothing backs, so the player is open and the set still shows",
+    front: ["PRIZM", "JOHN DOEMAN"],
+    back: null,
+    truth: { player: "", year: "2024", set: "Panini Prizm", number: "17", parallel: "", run: null },
+  },
+
   // ── Hockey ─────────────────────────────────────────────────────────────────
   {
     name: "Upper Deck: Celebrini Young Guns, series on the back",

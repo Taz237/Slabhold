@@ -141,7 +141,7 @@ export function MatchSummary({ photo, match }: { photo: string | null; match: Sc
       <CardPhoto photo={photo} name={match.playerName} />
       <div className="min-w-0 pt-1">
         <p className="text-[17px] leading-6 font-semibold">
-          <Field sureness={match.sureness.player}>{match.playerName}</Field>
+          <Field sureness={match.sureness.player}>{match.playerName || CONFIRM_COPY.playerOpen}</Field>
         </p>
         <p className="mt-1 text-sm leading-5">
           <Field sureness={match.sureness.year}>{match.yearLabel}</Field>{" "}
@@ -261,7 +261,7 @@ export function RevealName({ match, parallel, photo = null }: { match: ScanMatch
   return (
     <div className="flex flex-col items-center text-center" data-reveal="name">
       <p data-stage="player" className={`text-[22px] leading-7 font-semibold tracking-tight ${player.className}`} style={player.style}>
-        <Field sureness={match.sureness.player}>{match.playerName}</Field>
+        <Field sureness={match.sureness.player}>{match.playerName || CONFIRM_COPY.playerOpen}</Field>
       </p>
       <p className="mt-1 text-[15px] leading-5 text-zinc-600 dark:text-zinc-300">
         <span data-stage="set" className={`inline-block ${set.className}`} style={set.style}>

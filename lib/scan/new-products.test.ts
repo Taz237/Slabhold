@@ -243,6 +243,7 @@ function deps(liveSearch: LiveSoldsDeps["liveSearch"]): LiveSoldsDeps {
     cachedTitles: async () => [],
     quickCompCache: async () => null,
     liveSearch,
+    now: () => Date.parse("2026-11-12T20:00:00.000Z"),
     storeQuickComp: async () => {
       throw new Error("an estimate is never stored as the card's price");
     },
@@ -379,16 +380,25 @@ describe("the card page: a card with no card # is not an outage", () => {
 describe("never an invented player", () => {
   const LONE = ["GOLDEN ARM", "03/10"];
 
-  it("a name-like line the card doesn't back, with no title naming it: the player stays open", () => {
-    assert.equal(top(LONE, ["BCP-68", "© 2026 THE TOPPS COMPANY"]), undefined);
+  it("a name-like line the card doesn't back, with no title naming it: the player stays open, the card still shows", () => {
+    const match = top(LONE, ["BCP-68", "© 2026 THE TOPPS COMPANY"]);
+    assert.equal(match?.playerName, "");
+    assert.equal(match?.sureness.player, "unsure");
+    assert.equal(match?.playerNew, undefined);
+    assert.equal(match?.cardNumber, "BCP-68");
+    assert.equal(match?.serialRun, 10);
+    assert.equal(match?.yearLabel, "2026");
+    const prizm = top(["PRIZM", "JOHN DOEMAN"], null);
+    assert.equal(prizm?.playerName, "");
+    assert.equal(prizm?.setBrand, "Panini Prizm");
   });
 
   it("the same line counts once a sold title names it, and is marked new to us", () => {
     const match = top(LONE, ["BCP-68", "© 2026 THE TOPPS COMPANY"], [{ title: "2026 Bowman Chrome Golden Arm 1st BCP-68 /10", price: 40 }]);
     assert.equal(match?.playerName, "Golden Arm");
     assert.equal(match?.playerNew, true);
-    // A title for somebody else doesn't make it real.
-    assert.equal(top(LONE, ["BCP-68", "© 2026 THE TOPPS COMPANY"], [{ title: "2026 Bowman Chrome Arch Manning 1st BCP-68 /10", price: 40 }]), undefined);
+    // A title for somebody else doesn't make it real, and never puts that somebody on the card.
+    assert.equal(top(LONE, ["BCP-68", "© 2026 THE TOPPS COMPANY"], [{ title: "2026 Bowman Chrome Arch Manning 1st BCP-68 /10", price: 40 }])?.playerName, "");
   });
 
   it("a name beside its position, team or school line, or printed on both sides, needs no title", () => {
@@ -404,12 +414,87 @@ describe("never an invented player", () => {
       return { ok: true, results: [], fetchedAt: "2026-11-12T20:00:00.000Z" };
     }));
     assert.ok(queries.length > 0 && queries[0].startsWith("Golden Arm"));
-    assert.deepEqual(none.matches, []);
+    // The card still shows with the player open; nothing is priced or estimated for nobody, and no photo.
+    assert.equal(none.matches[0]?.playerName, "");
+    assert.deepEqual(none.comp, { status: "none", searched: true });
+    assert.equal(none.similar, undefined);
+    assert.ok(queries.every((query) => !query.startsWith("2025")));
+    assert.equal(none.matches[0]?.listing, undefined);
     const named = await lookupLiveSolds(input, "user", deps(async () => ({
       ok: true,
       results: [sold("2026 Bowman Chrome Golden Arm 1st Bowman BCP-68 /10", 40)],
       fetchedAt: "2026-11-12T20:00:00.000Z",
     })));
     assert.equal(named.matches[0]?.playerName, "Golden Arm");
+  });
+});
+
+describe("review fixes for #261", () => {
+  const TM = "TOPPS AND BOWMAN CHROME ARE REGISTERED TRADEMARKS OF THE TOPPS COMPANY, INC.";
+
+  it("Bowman U Chrome is never picked by the school rule when anything says Baseball", () => {
+    const cases: [string, string[], string[]][] = [
+      ["a baseball position line", ["BOWMAN CHROME", "CHARLIE CONDON"], ["BCP-12", "CHARLIE CONDON", "OUTFIELD", "GEORGIA", TM]],
+      ["a short position", ["BOWMAN CHROME", "COLE TESTERMAN"], ["BCP-88", "COLE TESTERMAN", "LSU", "SS", TM]],
+      ["an MLB nickname line", ["BOWMAN CHROME", "SEBASTIAN WALCOTT", "TEXAS", "RANGERS"], ["BCP-41", "SEBASTIAN WALCOTT", "TEXAS", "RANGERS", TM]],
+      ["the nickname on the front only", ["BOWMAN CHROME", "COLE TESTERMAN", "RANGERS"], ["BCP-88", "COLE TESTERMAN", "TEXAS", TM]],
+      ["the product line", ["BOWMAN CHROME", "COLE TESTERMAN"], ["BCP-88", "COLE TESTERMAN", "LSU", "2025 BOWMAN CHROME BASEBALL", TM]],
+    ];
+    for (const [name, front, back] of cases) {
+      const match = top(front, back);
+      assert.equal(match?.setBrand, "Bowman Chrome", name);
+      assert.match(match?.cardNumber ?? "", /^BCP-/, name);
+    }
+  });
+
+  it("the school must sit in the header: a school alone in a stat table doesn't name Bowman U Chrome", () => {
+    const table = top(["BOWMAN CHROME", "COLE TESTERMAN"], ["BCP-88", "COLE TESTERMAN", "YR CLUB G AB", "GEORGIA", "24 60 229 84", TM]);
+    assert.equal(table?.setBrand, "Bowman Chrome");
+    const read = readRawCardText(["WAYNE KNIGHT", "RUNNING BACK", "UCLA"], INDEXED_DIRECTORY, { side: "back" });
+    assert.equal(read.schoolInHeader, true);
+    assert.equal(readRawCardText(["YR CLUB G AB", "GEORGIA", "24 60 229"], INDEXED_DIRECTORY, { side: "back" }).schoolInHeader, false);
+  });
+
+  it("the logo still names it, and football with a school in the header still does", () => {
+    assert.equal(top(["BOWMAN CHROME U", "WAYNE KNIGHT", "03/10"], ["WAYNE KNIGHT", "RUNNING BACK", "BCP-68"])?.setBrand, "Bowman U Chrome");
+    assert.equal(top(KNIGHT_FRONT, KNIGHT_BACK)?.setBrand, "Bowman U Chrome");
+  });
+
+  it("a college Bowman card with nothing saying Chrome leaves the set open, never Bowman U Chrome", () => {
+    const match = top(["BOWMAN", "1ST", "WAYNE KNIGHT", "03/10"], ["RUNNING BACK", "WAYNE KNIGHT", "UCLA", "© 2026 THE TOPPS COMPANY"]);
+    assert.equal(match?.playerName, "Wayne Knight");
+    assert.equal(match?.setBrand, "");
+  });
+
+  it("auto counts only as its own word on a short line, or as AUTOGRAPH in full", () => {
+    const auto = (line: string) => readRawCardText([line], INDEXED_DIRECTORY, { side: "back" }).isAuto;
+    for (const line of ["AUTO", "ROOKIE AUTO", "TOPPS CERTIFIED AUTOGRAPH ISSUE", "AUTOGRAPHS", "AUTOGRAPHED CARD"]) assert.equal(auto(line), true, line);
+    for (const line of [
+      "Dart was an auto-pilot leader for the offense all season long.",
+      "AUTO-PILOT",
+      "He ran the offense on auto for most of the second half.",
+      "AUTOMATIC",
+      "JAXSON DART",
+    ]) {
+      assert.equal(auto(line), false, line);
+    }
+  });
+
+  it("the estimate runs only for this year's and last year's products", async () => {
+    const run = async (front: string[], back: string[]) => {
+      const queries: string[] = [];
+      const result = await lookupLiveSolds({ capture: { lines: front, backLines: back, kind: "card" as const }, rows: [] }, "user", deps(async (query) => {
+        queries.push(query);
+        return { ok: true, results: [], fetchedAt: "2026-11-12T20:00:00.000Z" };
+      }));
+      return { result, extra: queries.filter((query) => /^\d{4} /.test(query)) };
+    };
+    const miller = await run(["3B", "1ST BOWMAN", "PHILADELPHIA PHILLIES", "137/299", "AIDAN MILLER"], ["AIDAN MILLER", "BP-27", "© 2024 THE TOPPS COMPANY, INC."]);
+    assert.deepEqual(miller.result.comp, { status: "none", searched: true });
+    assert.deepEqual(miller.extra, [], "a 2024 card in 2026 spends no extra searches");
+    const knight = await run(KNIGHT_FRONT, KNIGHT_BACK);
+    assert.equal(knight.extra.length, 1);
+    const lastYear = await run(["1ST BOWMAN", "03/10"], ["RUNNING BACK", "WAYNE KNIGHT", "UCLA", "BCP-68", "© 2025 THE TOPPS COMPANY", "TOPPS AND BOWMAN CHROME ARE REGISTERED TRADEMARKS"]);
+    assert.equal(lastYear.extra.length, 1);
   });
 });

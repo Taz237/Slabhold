@@ -41,6 +41,13 @@ export type RawCardRead = {
   team: { name: string; sport: string } | null;
   /** A college the card prints as its team (UCLA, Alabama): a Bowman U or draft-picks card. "" when none. */
   school: string;
+  /** The school line sits beside the name or the position line (the header), not in a stat table or a bio. */
+  schoolInHeader: boolean;
+  /**
+   * Something on this side says Baseball: the product line, a team, a baseball position line
+   * (OF, SS, PITCHER, INFIELD), or a line that is an MLB nickname ("RANGERS").
+   */
+  baseballSign: boolean;
   /** The sport a position line ("RUNNING BACK") or the product line ("... FOOTBALL") gives. "" when none. */
   sportHint: string;
   /** "2023-24" or "2017", only when printed next to a brand. */
@@ -221,6 +228,8 @@ function emptyRead(): RawCardRead {
     printedNameAnchored: false,
     team: null,
     school: "",
+    schoolInHeader: false,
+    baseballSign: false,
     sportHint: "",
     letterCodes: [],
     isAuto: false,
@@ -799,15 +808,53 @@ function readSportHint(lines: string[]): string {
   return "";
 }
 
-/** A school line, but never a pro team's city ("HOUSTON TEXANS"). */
-function readSchool(lines: string[], directory: readonly IndexedDirectoryPlayer[]): string {
-  for (const line of lines) {
+/**
+ * A school line, but never a pro team's city ("HOUSTON TEXANS"). `inHeader`: it sits beside the
+ * name or the position line, where a card prints its team. A school alone in a stat table
+ * ("GEORGIA" as a college season's row) is not the card's team.
+ */
+function readSchool(lines: string[], directory: readonly IndexedDirectoryPlayer[], nameLines: ReadonlySet<string>): { school: string; inHeader: boolean } {
+  let found = "";
+  for (const [index, line] of lines.entries()) {
     const school = schoolOnLine(line);
     if (!school) continue;
     if (readTeam([normInterest(line).split(" ").filter(Boolean)], directory)) continue;
-    return school;
+    found ||= school;
+    const beside = [lines[index - 1], lines[index + 1]].filter((item): item is string => Boolean(item));
+    if (beside.some((item) => positionLine(item) || nameLines.has(item.trim().toLowerCase()))) return { school, inHeader: true };
   }
-  return "";
+  return { school: found, inHeader: false };
+}
+
+/** Positions only baseball prints. */
+const BASEBALL_POSITION =
+  /\b(?:PITCHER|CATCHER|SHORTSTOP|OUTFIELD(?:ER)?|INFIELD(?:ER)?|(?:FIRST|SECOND|THIRD)\s+BASE(?:MAN)?|DESIGNATED\s+HITTER|RHP|LHP|SS|1B|2B|3B|OF|INF|LF|CF|RF|DH|UTIL)\b/i;
+
+const baseballNicknameCache = new WeakMap<readonly IndexedDirectoryPlayer[], Set<string>>();
+/** MLB nicknames from the directory's baseball teams: rangers, phillies, red sox (as "sox"). */
+function baseballNicknames(directory: readonly IndexedDirectoryPlayer[]): Set<string> {
+  const cached = baseballNicknameCache.get(directory);
+  if (cached) return cached;
+  const names = new Set<string>();
+  for (const player of directory) {
+    if (player.sport !== "Baseball" || !player.team) continue;
+    const last = normInterest(player.team).split(" ").pop();
+    if (last) names.add(last);
+  }
+  baseballNicknameCache.set(directory, names);
+  return names;
+}
+
+/** Any sign on this side that the card is a baseball card. */
+function readBaseballSign(lines: string[], read: RawCardRead, directory: readonly IndexedDirectoryPlayer[]): boolean {
+  if (read.sportHint === "Baseball" || read.team?.sport === "Baseball") return true;
+  const nicknames = baseballNicknames(directory);
+  return lines.some((line) => {
+    if (positionLine(line) && BASEBALL_POSITION.test(line)) return true;
+    // A line that is only a team's nickname, or a city and its nickname: "RANGERS", "TEXAS RANGERS".
+    const words = normInterest(line).split(" ").filter(Boolean);
+    return words.length >= 1 && words.length <= 3 && !/\d/.test(line) && nicknames.has(words[words.length - 1]);
+  });
 }
 
 /** Letters, a hyphen, letters, on a short line: an autograph or relic checklist code (RAV-ML). */
@@ -828,7 +875,16 @@ function readLetterCodes(lines: string[], scanned: boolean): string[] {
 
 /** Checklist prefixes that are autographs: CPA-AM, BCPA-MC, RA-JW, RAV-ML. */
 export const AUTO_CODE_PREFIX = /^(?:CPA|BCPA|BPA|CDA|BDA|CRA|RPA|RA|RAV|FSA|BSA|RDA|IA|IAV)$/;
-const AUTO_WORDS = /\bCERTIFIED\s+AUTOGRAPH\b|\bAUTOGRAPH(?:S|ED)?\b|\bAUTO\b/i;
+/** The card says it is signed, in full: AUTOGRAPH, AUTOGRAPHS, AUTOGRAPHED, CERTIFIED AUTOGRAPH. */
+const AUTOGRAPH_WORDS = /\bAUTOGRAPH(?:S|ED)?\b/i;
+/** "AUTO" as its own word, never part of a hyphenated one ("auto-pilot"). */
+const AUTO_WORD = /(?<![\w-])AUTO(?![\w-])/i;
+
+/** AUTOGRAPH in any form, or "AUTO" alone on a short line that isn't a bio sentence. */
+function saysAuto(line: string): boolean {
+  if (AUTOGRAPH_WORDS.test(line)) return true;
+  return AUTO_WORD.test(line) && !proseLine(line);
+}
 
 /** Legal and maker text around an autograph, never the subset's name. */
 const NOT_SUBSET = /certified|issue|topps|panini|bowman|upper\s+deck|leaf|congratulations|guarantee|witness|authentic|©|\d/i;
@@ -879,11 +935,15 @@ export function readRawCardText(
   read.cardNumber = readCardNumber(clean, Boolean(options.side), options.side, (line) =>
     Boolean(readTeam([normInterest(line).split(" ").filter(Boolean)], directory)),
   );
-  read.school = readSchool(clean, directory);
+  const nameLines = new Set<string>([read.printedName.toLowerCase(), ...read.players.filter((hit) => hit.nameplate).map((hit) => hit.line.trim().toLowerCase())].filter(Boolean));
+  const school = readSchool(clean, directory, nameLines);
+  read.school = school.school;
+  read.schoolInHeader = school.inHeader;
   read.sportHint = readSportHint(clean);
+  read.baseballSign = readBaseballSign(clean, read, directory);
   read.letterCodes = readLetterCodes(clean, Boolean(options.side));
   read.isAuto =
-    clean.some((line) => AUTO_WORDS.test(line)) ||
+    clean.some(saysAuto) ||
     [read.cardNumber, ...read.letterCodes].some((code) => AUTO_CODE_PREFIX.test(/^([A-Z]+)-/.exec(code)?.[1] ?? ""));
   read.subset = readSubset(clean);
   read.serial = readSerial(clean, Boolean(options.side));

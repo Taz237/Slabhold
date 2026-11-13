@@ -63,6 +63,8 @@ export type LiveSoldsDeps = {
   liveSearch: (query: string, userId: string, budget?: LookupBudget) => Promise<LiveSearchResult>;
   /** Dev-only trace of each rung: the query, results back, kept, and why the rest were dropped. No user data. */
   log?: (event: LadderLog) => void;
+  /** The clock, for "this year's and last year's products". Defaults to now. */
+  now?: () => number;
   /** Puts this card's live sales in Quick Comp's shared cache. */
   storeQuickComp: (identity: QuickCompIdentity, sales: CleanedSale[], results: TrawlSoldResult[], meta: { query: string; fetchedAt: string }) => Promise<void>;
 };
@@ -210,7 +212,7 @@ async function lookupSolds(
     // 3. The sold titles help finish the identity (set, #, parallel).
     matches = rank([...saved, ...liveTitles(results)]);
     const best = matches[0];
-    found = best ? scanSalesFor(best, { grade: scanCompGrade(best), setBrand: best.setBrand, parallel: best.parallel }, results, deps.directory) : found;
+    found = best?.playerName ? scanSalesFor(best, { grade: scanCompGrade(best), setBrand: best.setBrand, parallel: best.parallel }, results, deps.directory) : found;
     deps.log?.({ rung: index, query, ok: true, results: live.results.length, kept: found.kept.length, dropped: found.dropped });
     if (found.kept.length > 0) break;
   }
@@ -218,6 +220,8 @@ async function lookupSolds(
   if (!usedQuery) return { matches, comp: { status: "unavailable" }, query: null };
   const best = matches[0];
   if (!best) return { matches: first, comp: { status: "none", searched: true }, query: usedQuery };
+  // The player is still open (an unverified name no title carried): nothing is priced for nobody.
+  if (!best.playerName) return { matches, comp: { status: "none", searched: true }, query: usedQuery };
   if (found.kept.length === 0) {
     // "No sales yet": the search worked and found none. Only then, last year's similar cards.
     const similar = await similarCards(best, userId, budget, deps);
@@ -275,6 +279,10 @@ async function lookupSolds(
  * A failed search here is just no estimate: the sheet still says "No sales yet".
  */
 async function similarCards(best: ScanMatch, userId: string, budget: LookupBudget, deps: LiveSoldsDeps): Promise<ScanEstimateResult | null> {
+  // Only this year's and last year's products: an older card with no sales spends no extra searches.
+  const thisYear = new Date((deps.now ?? Date.now)()).getUTCFullYear();
+  const cardYear = Number(/^(\d{4})/.exec(best.yearLabel)?.[1] ?? Number.NaN);
+  if (!(cardYear >= thisYear - 1)) return null;
   const queries = estimateQueries(best);
   if (queries.length === 0 || budget.outOfCredits) return null;
   budget.maxCalls = budget.calls + ESTIMATE_MAX_CALLS;

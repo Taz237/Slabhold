@@ -143,6 +143,8 @@ type Evidence = {
    * a sold title names it; with neither, the player stays open. Never an invented player.
    */
   playerUnverified?: boolean;
+  /** An unverified name was dropped: the card still shows, with no player. */
+  playerOpen?: boolean;
   /** Read on both the front and the back. */
   playerBothSides: boolean;
   /** From a team line when the player is new to us. */
@@ -360,10 +362,15 @@ function mergedSetNames(sides: readonly RawCardRead[], cardNumber: string): stri
   const lines = sides.flatMap((side) => side.lines);
   const bowman = ordered.some((name) => name === "Bowman" || name === "Bowman Chrome") || lines.some((line) => /\bbowman\b/i.test(line));
   const chrome = lines.some((line) => /\bbowman\s+chrome\b/i.test(line)) || BOWMAN_CHROME_PREFIXES.has(prefix);
-  const school = sides.some((side) => Boolean(side.school)) && !sides.some((side) => side.team);
+  // The school must be the card's team line (beside the name or the position), and Bowman U is
+  // football and basketball only: any sign of baseball on either side rules the school rule out.
+  const baseball = sides.some((side) => side.baseballSign || side.sportHint === "Baseball" || side.team?.sport === "Baseball");
+  const school = sides.some((side) => Boolean(side.school) && side.schoolInHeader) && !sides.some((side) => side.team) && !baseball;
   if (lines.some((line) => BOWMAN_U_LOGO.test(line)) || (bowman && chrome && school)) {
     return ["Bowman U Chrome", ...ordered.filter((name) => name !== "Bowman U Chrome" && name !== "Bowman" && name !== "Bowman Chrome")];
   }
+  // A college Bowman card with nothing saying Chrome: Bowman U has more than one product, so the set stays open.
+  if (bowman && school) return ordered.filter((name) => name !== "Bowman" && name !== "Bowman Chrome");
   if (ordered[0] === "Bowman") {
     if (BOWMAN_CHROME_PREFIXES.has(prefix) && !ordered.includes("Bowman Chrome")) return ["Bowman", "Bowman Chrome", ...ordered.slice(1)];
     if (BOWMAN_DRAFT_PREFIXES.has(prefix)) return ["Bowman Draft", ...ordered.filter((name) => name !== "Bowman Draft")];
@@ -766,7 +773,7 @@ function sureness(evidence: Evidence, card: Candidate, parallel: ParallelPick): 
 
 function synthesized(evidence: Evidence): Candidate | null {
   const playerName = bestPlayerName(evidence);
-  if (!playerName) return null;
+  if (!playerName && !evidence.playerOpen) return null;
   const setBrand = evidence.setNames[0] ?? (evidence.setText ? titleCase(evidence.setText) : "");
   // No year on the front: the back's © year is usually the card's year (marked likely, not sure).
   const year = evidence.yearLabel || (evidence.slab ? "" : evidence.copyrightYear);
@@ -997,7 +1004,8 @@ function withVerifiedPlayer(evidence: Evidence, rows: readonly CatalogCard[], ti
     rows.some((row) => compactName(row.playerName) === compactName(name)) ||
     titles.slice(0, MAX_SOLD_TITLES).some((item) => titleNamesPlayer(item.title, name));
   if (named) return { ...evidence, playerUnverified: false };
-  return { ...evidence, playerText: "", playerLocked: false, playerBothSides: false };
+  // The name is dropped, not the card: the set, year, # and run it printed still show, with the player open.
+  return { ...evidence, playerText: "", playerLocked: false, playerBothSides: false, playerOpen: true };
 }
 
 export function rankScanMatches(
@@ -1047,7 +1055,7 @@ export function rankScanMatches(
       parallelOptions: parallel.options,
       ...(evidence.subset ? { subset: evidence.subset } : {}),
       ...(read.kind === "raw" && [read.front, read.back].some((side) => side?.firstBowman) ? { firstBowman: true } : {}),
-      ...(!evidence.slab && !inDirectory && compactName(card.playerName) === compactName(evidence.playerText) ? { playerNew: true } : {}),
+      ...(!evidence.slab && !inDirectory && card.playerName && compactName(card.playerName) === compactName(evidence.playerText) ? { playerNew: true } : {}),
       ...(parallel.source ? { parallelSource: parallel.source } : {}),
       ...(evidence.runUnsure ? { runUnsure: true } : {}),
     };

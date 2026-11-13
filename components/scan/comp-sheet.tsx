@@ -264,7 +264,7 @@ function Ready({
           estimate={fromScan && solds?.status === "done" ? (solds.similar?.estimate ?? null) : null}
         />
       ) : (
-        <p className="text-sm text-zinc-600 dark:text-zinc-400">{COMP_COPY.needYear}</p>
+        <p className="text-sm text-zinc-600 dark:text-zinc-400">{top.playerName ? COMP_COPY.needYear : COMP_COPY.needPlayer}</p>
       )}
 
       <ParallelStrip

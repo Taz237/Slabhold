@@ -59,7 +59,7 @@ export function listingPhotoFor(
   results: readonly TrawlSoldResult[],
   directory: readonly IndexedDirectoryPlayer[],
 ): ListingPhoto | null {
-  if (results.length === 0) return null;
+  if (results.length === 0 || !match.playerName) return null;
   const { kept } = scanSalesFor(match, { grade: scanCompGrade(match), setBrand: match.setBrand, parallel: match.parallel }, results, directory);
   const wanted = match.parallel || (match.serialRun == null && !match.isAuto && !match.subset ? "Base" : "");
   if (!wanted) return null;

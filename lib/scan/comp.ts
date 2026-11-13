@@ -58,6 +58,7 @@ export const COMP_COPY = {
   yearAgoParallels: "Last year's parallels at this print run",
   search: "Look it up by name",
   needYear: "We need the year to show sold prices. Tap the card below that matches.",
+  needPlayer: "We need the player to show sold prices. Add the card and name the player.",
 } as const;
 
 export type ScanCompSale = { priceCents: number; soldAt: string | null };
