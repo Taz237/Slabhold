@@ -171,6 +171,50 @@ describe("1) a throttled or failed Trawl search gets one retry, inside the cap, 
     assert.equal(calls.length, 2);
   });
 
+  it("a 402 'Out of credits' isn't retried either, and marks the lookup spent", async () => {
+    const { run, calls, waits } = search([{ ok: false, status: 402, error: "Out of credits" }]);
+    const budget = newLookupBudget();
+    assert.deepEqual(await run("Aidan Miller BP-27", "u1", budget), { ok: false, reason: "unavailable" });
+    assert.equal(calls.length, 1);
+    assert.deepEqual(waits, []);
+    assert.equal(budget.outOfCredits, true);
+    // The rest of this lookup never calls Trawl again.
+    assert.deepEqual(await run("Aidan Miller Bowman BP-27", "u1", budget), { ok: false, reason: "unavailable" });
+    assert.equal(calls.length, 1);
+  });
+
+  it("out of credits on every call: one scan makes exactly 1 Trawl call, 0 waits, caps spent once, unavailable", async () => {
+    const calls: string[] = [];
+    const waits: number[] = [];
+    const spent = { daily: 0, hourly: 0 };
+    const liveSearch = makeLiveSearch({
+      source: () => "trawl",
+      hasTrawlKey: () => true,
+      fetchSold: async (query) => {
+        calls.push(query);
+        return { ok: false, status: 429, error: "rate limited", outOfCredits: true };
+      },
+      limits: { consumeDaily: async () => (spent.daily++, true), consumeHourly: async () => (spent.hourly++, true) },
+      cache: passthrough,
+      now: () => Date.parse("2026-11-13T02:30:00.000Z"),
+      sleep: async (ms) => {
+        waits.push(ms);
+      },
+      warn: () => {},
+    });
+    const result = await lookupLiveSolds({ capture: capture(FRONT, BACK), rows: [] }, "u1", deps(liveSearch));
+    assert.equal(calls.length, 1);
+    assert.deepEqual(waits, []);
+    assert.deepEqual(spent, { daily: 1, hourly: 1 });
+    assert.deepEqual(result.comp, { status: "unavailable" });
+  });
+
+  it("a 503, then an answer, still recovers", async () => {
+    const { run, calls } = search([{ ok: false, status: 503, error: "down" }, { ok: true, body: { results: PINK_RED } }]);
+    assert.equal((await run("Aidan Miller BP-27", "u1")).ok, true);
+    assert.equal(calls.length, 2);
+  });
+
   it("a 400 isn't retried", async () => {
     const { run, calls, waits, warnings } = search([{ ok: false, status: 400, error: "bad query" }]);
     assert.deepEqual(await run("Aidan Miller BP-27", "u1"), { ok: false, reason: "unavailable" });
