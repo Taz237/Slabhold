@@ -13,7 +13,7 @@ export type ProductParallelRow = {
   serialRun: number | null;
   /** Numbered, but the run changes card to card. */
   runVaries?: boolean;
-  /** Card-number prefixes this row belongs to ("BP" for BP-27). None: cards whose prefix no row names. */
+  /** Card-number prefixes this row belongs to ("BP" for BP-27, "" for a plain 27). None: every card. */
   cardPrefixes?: readonly string[];
 };
 
@@ -157,14 +157,13 @@ function cardPrefix(cardNumber: string): string {
 
 /**
  * The rows that can be this card. A product with paper and chrome cards in one box keeps a list
- * per card-number prefix: BP-27 reads the BP rows, and a number no row names reads the rest.
+ * per card-number prefix: BP-27 reads the BP rows, 27 reads the "" rows. A row that names no
+ * prefix (Base) is for every card. A prefix no row names gets only those: open beats wrong.
  */
 function rowsForCard(rows: readonly ProductParallelRow[], cardNumber: string | undefined): readonly ProductParallelRow[] {
-  if (!cardNumber?.trim()) return rows;
+  if (!cardNumber?.trim() || !rows.some((row) => row.cardPrefixes)) return rows;
   const prefix = cardPrefix(cardNumber);
-  const own = (row: ProductParallelRow) => Boolean(prefix) && Boolean(row.cardPrefixes?.some((item) => item.toUpperCase() === prefix));
-  if (rows.some(own)) return rows.filter(own);
-  return rows.filter((row) => !row.cardPrefixes?.length);
+  return rows.filter((row) => !row.cardPrefixes || row.cardPrefixes.some((item) => item.toUpperCase() === prefix));
 }
 
 /**

@@ -2274,5 +2274,315 @@
     "serialRun": null
    }
   ]
+ },
+ {
+  "sport": "Baseball",
+  "yearLabel": "2024",
+  "product": "Bowman",
+  "manufacturer": "Topps",
+  "source": "https://www.cardboardconnection.com/2024-bowman-baseball-cards",
+  "official": false,
+  "parallels": [
+   {
+    "subset": "Base",
+    "name": "Base",
+    "serialRun": null
+   },
+   {
+    "subset": "Base and Paper Prospects",
+    "name": "Sky Blue Border",
+    "serialRun": 499,
+    "cardPrefixes": [
+     "",
+     "BP"
+    ]
+   },
+   {
+    "subset": "Base and Paper Prospects",
+    "name": "Neon Green Border",
+    "serialRun": 399,
+    "cardPrefixes": [
+     "",
+     "BP"
+    ]
+   },
+   {
+    "subset": "Base and Paper Prospects",
+    "name": "Fuchsia Border",
+    "serialRun": 299,
+    "cardPrefixes": [
+     "",
+     "BP"
+    ]
+   },
+   {
+    "subset": "Base and Paper Prospects",
+    "name": "Purple Border",
+    "serialRun": 250,
+    "cardPrefixes": [
+     "",
+     "BP"
+    ]
+   },
+   {
+    "subset": "Base and Paper Prospects",
+    "name": "Purple Pattern",
+    "serialRun": 199,
+    "cardPrefixes": [
+     "",
+     "BP"
+    ]
+   },
+   {
+    "subset": "Base and Paper Prospects",
+    "name": "Pink Border",
+    "serialRun": 175,
+    "cardPrefixes": [
+     "",
+     "BP"
+    ]
+   },
+   {
+    "subset": "Base and Paper Prospects",
+    "name": "Blue Border",
+    "serialRun": 150,
+    "cardPrefixes": [
+     "",
+     "BP"
+    ]
+   },
+   {
+    "subset": "Base and Paper Prospects",
+    "name": "Blue Pattern",
+    "serialRun": 150,
+    "cardPrefixes": [
+     "",
+     "BP"
+    ]
+   },
+   {
+    "subset": "Base and Paper Prospects",
+    "name": "Green Border",
+    "serialRun": 99,
+    "cardPrefixes": [
+     "",
+     "BP"
+    ]
+   },
+   {
+    "subset": "Base and Paper Prospects",
+    "name": "Green Pattern",
+    "serialRun": 99,
+    "cardPrefixes": [
+     "",
+     "BP"
+    ]
+   },
+   {
+    "subset": "Base and Paper Prospects",
+    "name": "Yellow Border",
+    "serialRun": 75,
+    "cardPrefixes": [
+     "",
+     "BP"
+    ]
+   },
+   {
+    "subset": "Base and Paper Prospects",
+    "name": "Gold Border",
+    "serialRun": 50,
+    "cardPrefixes": [
+     "",
+     "BP"
+    ]
+   },
+   {
+    "subset": "Base and Paper Prospects",
+    "name": "Red Border",
+    "serialRun": 5,
+    "cardPrefixes": [
+     "",
+     "BP"
+    ]
+   },
+   {
+    "subset": "Base and Paper Prospects",
+    "name": "Platinum Border",
+    "serialRun": 1,
+    "cardPrefixes": [
+     "",
+     "BP"
+    ]
+   },
+   {
+    "subset": "Base and Paper Prospects",
+    "name": "Printing Plates",
+    "serialRun": 1,
+    "cardPrefixes": [
+     "",
+     "BP"
+    ]
+   },
+   {
+    "subset": "Chrome Prospects",
+    "name": "Lunar Glow",
+    "serialRun": null,
+    "cardPrefixes": [
+     "BCP"
+    ]
+   },
+   {
+    "subset": "Chrome Prospects",
+    "name": "Refractor",
+    "serialRun": 499,
+    "cardPrefixes": [
+     "BCP"
+    ]
+   },
+   {
+    "subset": "Chrome Prospects",
+    "name": "Speckle Refractor",
+    "serialRun": 299,
+    "cardPrefixes": [
+     "BCP"
+    ]
+   },
+   {
+    "subset": "Chrome Prospects",
+    "name": "Purple Refractor",
+    "serialRun": 250,
+    "cardPrefixes": [
+     "BCP"
+    ]
+   },
+   {
+    "subset": "Chrome Prospects",
+    "name": "Fuchsia Refractor",
+    "serialRun": 199,
+    "cardPrefixes": [
+     "BCP"
+    ]
+   },
+   {
+    "subset": "Chrome Prospects",
+    "name": "Fuchsia Lunar Refractor",
+    "serialRun": 199,
+    "cardPrefixes": [
+     "BCP"
+    ]
+   },
+   {
+    "subset": "Chrome Prospects",
+    "name": "Blue Refractor",
+    "serialRun": 150,
+    "cardPrefixes": [
+     "BCP"
+    ]
+   },
+   {
+    "subset": "Chrome Prospects",
+    "name": "Blue Shimmer Refractor",
+    "serialRun": 150,
+    "cardPrefixes": [
+     "BCP"
+    ]
+   },
+   {
+    "subset": "Chrome Prospects",
+    "name": "Green Refractor",
+    "serialRun": 99,
+    "cardPrefixes": [
+     "BCP"
+    ]
+   },
+   {
+    "subset": "Chrome Prospects",
+    "name": "Green Grass Refractor",
+    "serialRun": 99,
+    "cardPrefixes": [
+     "BCP"
+    ]
+   },
+   {
+    "subset": "Chrome Prospects",
+    "name": "Green Shimmer Refractor",
+    "serialRun": 99,
+    "cardPrefixes": [
+     "BCP"
+    ]
+   },
+   {
+    "subset": "Chrome Prospects",
+    "name": "Yellow Refractor",
+    "serialRun": 75,
+    "cardPrefixes": [
+     "BCP"
+    ]
+   },
+   {
+    "subset": "Chrome Prospects",
+    "name": "Yellow Lunar Refractor",
+    "serialRun": 75,
+    "cardPrefixes": [
+     "BCP"
+    ]
+   },
+   {
+    "subset": "Chrome Prospects",
+    "name": "Gold Refractor",
+    "serialRun": 50,
+    "cardPrefixes": [
+     "BCP"
+    ]
+   },
+   {
+    "subset": "Chrome Prospects",
+    "name": "Gold Shimmer Refractor",
+    "serialRun": 50,
+    "cardPrefixes": [
+     "BCP"
+    ]
+   },
+   {
+    "subset": "Chrome Prospects",
+    "name": "Rose Gold Refractor",
+    "serialRun": 10,
+    "cardPrefixes": [
+     "BCP"
+    ]
+   },
+   {
+    "subset": "Chrome Prospects",
+    "name": "Rose Gold Mini-Diamond",
+    "serialRun": 10,
+    "cardPrefixes": [
+     "BCP"
+    ]
+   },
+   {
+    "subset": "Chrome Prospects",
+    "name": "Red Refractor",
+    "serialRun": 5,
+    "cardPrefixes": [
+     "BCP"
+    ]
+   },
+   {
+    "subset": "Chrome Prospects",
+    "name": "Red Lava Refractor",
+    "serialRun": 5,
+    "cardPrefixes": [
+     "BCP"
+    ]
+   },
+   {
+    "subset": "Chrome Prospects",
+    "name": "Printing Plates",
+    "serialRun": 1,
+    "cardPrefixes": [
+     "BCP"
+    ]
+   }
+  ]
  }
 ]
