@@ -80,6 +80,11 @@
     "team": "Miami Marlins"
   },
   {
+    "name": "Aidan Miller",
+    "sport": "Baseball",
+    "team": "Philadelphia Phillies"
+  },
+  {
     "name": "AJ Blubaugh",
     "sport": "Baseball",
     "team": "Houston Astros"
@@ -1072,6 +1077,11 @@
     "team": "Los Angeles Dodgers"
   },
   {
+    "name": "Charlie Condon",
+    "sport": "Baseball",
+    "team": "Colorado Rockies"
+  },
+  {
     "name": "Chase Burns",
     "sport": "Baseball",
     "team": "Cincinnati Reds"
@@ -1734,6 +1744,11 @@
     "team": "Colorado Rockies"
   },
   {
+    "name": "Eli Willits",
+    "sport": "Baseball",
+    "team": "Washington Nationals"
+  },
+  {
     "name": "Elias Diaz",
     "sport": "Baseball",
     "team": "Texas Rangers"
@@ -1836,6 +1851,11 @@
     "name": "Esteury Ruiz",
     "sport": "Baseball",
     "team": "Miami Marlins"
+  },
+  {
+    "name": "Ethan Holliday",
+    "sport": "Baseball",
+    "team": "Colorado Rockies"
   },
   {
     "name": "Ethan Pecko",
@@ -2735,6 +2755,11 @@
     "team": "Philadelphia Phillies"
   },
   {
+    "name": "Jesus Made",
+    "sport": "Baseball",
+    "team": "Milwaukee Brewers"
+  },
+  {
     "name": "Jhoan Duran",
     "sport": "Baseball",
     "team": "Philadelphia Phillies"
@@ -3509,6 +3534,11 @@
     "name": "Leo Bernal",
     "sport": "Baseball",
     "team": "St. Louis Cardinals"
+  },
+  {
+    "name": "Leo De Vries",
+    "sport": "Baseball",
+    "team": "Athletics"
   },
   {
     "name": "Leo Rivas",
@@ -4879,6 +4909,11 @@
     "team": "Los Angeles Angels"
   },
   {
+    "name": "Sebastian Walcott",
+    "sport": "Baseball",
+    "team": "Texas Rangers"
+  },
+  {
     "name": "Seiya Suzuki",
     "sport": "Baseball",
     "team": "Chicago Cubs"
@@ -5351,6 +5386,11 @@
     "name": "Tyler Alexander",
     "sport": "Baseball",
     "team": "Texas Rangers"
+  },
+  {
+    "name": "Tyler Bremner",
+    "sport": "Baseball",
+    "team": "Los Angeles Angels"
   },
   {
     "name": "Tyler Callihan",

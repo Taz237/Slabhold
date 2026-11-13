@@ -1659,5 +1659,620 @@
     "serialRun": null
    }
   ]
+ },
+ {
+  "sport": "Baseball",
+  "yearLabel": "2025",
+  "product": "Bowman",
+  "manufacturer": "Topps",
+  "source": "https://cdn.shopify.com/s/files/1/0662/9749/5709/files/2025_Bowman_Baseball_Odds.pdf",
+  "official": true,
+  "parallels": [
+   {
+    "subset": "Base",
+    "name": "Base",
+    "serialRun": null
+   },
+   {
+    "subset": "Base and Paper Prospects",
+    "name": "Bowman Retro Logo Foil Pattern",
+    "serialRun": null
+   },
+   {
+    "subset": "Base and Paper Prospects",
+    "name": "Sky Blue Border",
+    "serialRun": null
+   },
+   {
+    "subset": "Base and Paper Prospects",
+    "name": "Neon Green Border",
+    "serialRun": null
+   },
+   {
+    "subset": "Base and Paper Prospects",
+    "name": "Fuchsia Border",
+    "serialRun": null
+   },
+   {
+    "subset": "Base and Paper Prospects",
+    "name": "Purple Border",
+    "serialRun": null
+   },
+   {
+    "subset": "Base and Paper Prospects",
+    "name": "Purple Pattern Border",
+    "serialRun": null
+   },
+   {
+    "subset": "Base and Paper Prospects",
+    "name": "Pink Border",
+    "serialRun": null
+   },
+   {
+    "subset": "Base and Paper Prospects",
+    "name": "Blue Border",
+    "serialRun": null
+   },
+   {
+    "subset": "Base and Paper Prospects",
+    "name": "Blue Pattern Border",
+    "serialRun": null
+   },
+   {
+    "subset": "Base and Paper Prospects",
+    "name": "Green Border",
+    "serialRun": null
+   },
+   {
+    "subset": "Base and Paper Prospects",
+    "name": "Green Pattern Border",
+    "serialRun": null
+   },
+   {
+    "subset": "Base and Paper Prospects",
+    "name": "Yellow Border",
+    "serialRun": null
+   },
+   {
+    "subset": "Base and Paper Prospects",
+    "name": "Yellow Pattern Border",
+    "serialRun": null
+   },
+   {
+    "subset": "Base and Paper Prospects",
+    "name": "Gold Border",
+    "serialRun": null
+   },
+   {
+    "subset": "Base and Paper Prospects",
+    "name": "Orange Border",
+    "serialRun": null
+   },
+   {
+    "subset": "Base and Paper Prospects",
+    "name": "Black Border",
+    "serialRun": null
+   },
+   {
+    "subset": "Base and Paper Prospects",
+    "name": "Black Pattern Border",
+    "serialRun": null
+   },
+   {
+    "subset": "Base and Paper Prospects",
+    "name": "Red Border",
+    "serialRun": null
+   },
+   {
+    "subset": "Base and Paper Prospects",
+    "name": "Platinum Border",
+    "serialRun": null
+   },
+   {
+    "subset": "Base and Paper Prospects",
+    "name": "Printing Plates",
+    "serialRun": null
+   },
+   {
+    "subset": "Chrome Prospects",
+    "name": "Mini Diamond",
+    "serialRun": null
+   },
+   {
+    "subset": "Chrome Prospects",
+    "name": "X-Fractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Chrome Prospects",
+    "name": "Pearl Refractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Chrome Prospects",
+    "name": "Gum Ball Refractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Chrome Prospects",
+    "name": "Sunflower Seeds Refractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Chrome Prospects",
+    "name": "Peanuts Refractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Chrome Prospects",
+    "name": "Popcorn Refractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Chrome Prospects",
+    "name": "Reptilian Refractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Chrome Prospects",
+    "name": "Refractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Chrome Prospects",
+    "name": "Lava",
+    "serialRun": null
+   },
+   {
+    "subset": "Chrome Prospects",
+    "name": "Wave Refractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Chrome Prospects",
+    "name": "Speckle",
+    "serialRun": null
+   },
+   {
+    "subset": "Chrome Prospects",
+    "name": "Purple Refractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Chrome Prospects",
+    "name": "Purple Raywave",
+    "serialRun": null
+   },
+   {
+    "subset": "Chrome Prospects",
+    "name": "Fuchsia Refractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Chrome Prospects",
+    "name": "Reptilian Fuchsia Refractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Chrome Prospects",
+    "name": "Fuchsia Wave Refractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Chrome Prospects",
+    "name": "Reptilian Blue Refractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Chrome Prospects",
+    "name": "Blue Refractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Chrome Prospects",
+    "name": "Blue Shimmer",
+    "serialRun": null
+   },
+   {
+    "subset": "Chrome Prospects",
+    "name": "Blue Raywave",
+    "serialRun": null
+   },
+   {
+    "subset": "Chrome Prospects",
+    "name": "Aqua X-Fractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Chrome Prospects",
+    "name": "Aqua Shimmer",
+    "serialRun": null
+   },
+   {
+    "subset": "Chrome Prospects",
+    "name": "Steel Metal",
+    "serialRun": null
+   },
+   {
+    "subset": "Chrome Prospects",
+    "name": "Green Grass Refractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Chrome Prospects",
+    "name": "Reptilian Green Refractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Chrome Prospects",
+    "name": "Green Refractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Chrome Prospects",
+    "name": "Green Shimmer",
+    "serialRun": null
+   },
+   {
+    "subset": "Chrome Prospects",
+    "name": "Yellow Refractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Chrome Prospects",
+    "name": "Yellow X-Fractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Chrome Prospects",
+    "name": "Yellow Wave Refractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Chrome Prospects",
+    "name": "Gold Refractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Chrome Prospects",
+    "name": "Gold Shimmer",
+    "serialRun": null
+   },
+   {
+    "subset": "Chrome Prospects",
+    "name": "Reptilian Gold Refractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Chrome Prospects",
+    "name": "Orange Refractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Chrome Prospects",
+    "name": "Orange Shimmer",
+    "serialRun": null
+   },
+   {
+    "subset": "Chrome Prospects",
+    "name": "Reptilian Orange Refractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Chrome Prospects",
+    "name": "Rose Gold Refractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Chrome Prospects",
+    "name": "Rose Gold Mini Diamond",
+    "serialRun": null
+   },
+   {
+    "subset": "Chrome Prospects",
+    "name": "Black Refractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Chrome Prospects",
+    "name": "Black X-Fractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Chrome Prospects",
+    "name": "Red Refractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Chrome Prospects",
+    "name": "Red Lava",
+    "serialRun": null
+   },
+   {
+    "subset": "Chrome Prospects",
+    "name": "Reptilian Red Refractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Chrome Prospects",
+    "name": "Firefractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Chrome Prospects",
+    "name": "Superfractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Chrome Prospects",
+    "name": "Purple Geometric",
+    "serialRun": null
+   },
+   {
+    "subset": "Chrome Prospects",
+    "name": "Blue Geometric",
+    "serialRun": null
+   },
+   {
+    "subset": "Chrome Prospects",
+    "name": "Green Geometric",
+    "serialRun": null
+   },
+   {
+    "subset": "Chrome Prospects",
+    "name": "Yellow Geometric",
+    "serialRun": null
+   },
+   {
+    "subset": "Chrome Prospects",
+    "name": "Gold Geometric",
+    "serialRun": null
+   },
+   {
+    "subset": "Chrome Prospects",
+    "name": "Orange Geometric",
+    "serialRun": null
+   },
+   {
+    "subset": "Chrome Prospects",
+    "name": "Black Geometric",
+    "serialRun": null
+   },
+   {
+    "subset": "Chrome Prospects",
+    "name": "Red Geometric",
+    "serialRun": null
+   }
+  ]
+ },
+ {
+  "sport": "Baseball",
+  "yearLabel": "2025",
+  "product": "Topps Update",
+  "manufacturer": "Topps",
+  "source": "https://cdn.shopify.com/s/files/1/0662/9749/5709/files/2025_Topps_Updates_Baseball_Odds.pdf",
+  "official": true,
+  "parallels": [
+   {
+    "subset": "Base",
+    "name": "Base",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "First Card",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Silver Crackle Foilboard",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Holo",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Pink Diamante Foil",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Gold",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Rainbow",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Aqua Rainbow",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Aqua Holo",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Pink Holo",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Purple Rainbow",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Purple Holo",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Blue Rainbow",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Blue Holo",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Green Rainbow",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Green Holo",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Independence Day",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Gold Rainbow",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Gold Holo",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Gold Diamante Foil",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Canvas",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Memorial Day Camo",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Orange Rainbow",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Orange Holo",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Orange Diamante Foil",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Wood",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Black Rainbow",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Black Holo",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Black Diamante Foil",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Red Rainbow",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Red Holo",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Red Diamante Foil",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Foilfractor",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Platinum Holo",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Topps Logo Foil",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Sandglitter Foilboard",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Value Box Holiday Base Foilboard",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Value Box Holiday Jack O'Lantern Foilboard",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Value Box Holiday Ghost Foilboard",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Value Box Holiday Mummy Foilboard",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Value Box Holiday Black Cat Foilboard",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Value Box Holiday Witches Hat Foilboard",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Value Box Holiday Bats Foilboard",
+    "serialRun": null
+   },
+   {
+    "subset": "Base",
+    "name": "Printing Plates",
+    "serialRun": null
+   }
+  ]
  }
 ]
