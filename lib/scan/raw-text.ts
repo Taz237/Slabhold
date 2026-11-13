@@ -446,7 +446,7 @@ function hasPhrase(lineWords: string[][], phrase: string[]): boolean {
 }
 
 /** Sets a single word never guesses. */
-const RULE_ONLY_SETS = new Set(["Bowman U Chrome"]);
+const RULE_ONLY_SETS = new Set(["Bowman U Chrome", "Bowman U Chrome Sapphire", "Bowman Draft Sapphire"]);
 
 /** Sets that are only a maker's name. On a back they're legal text; anywhere, a product name beats them. */
 const BARE_MAKER_SETS = new Set(["Topps", "Upper Deck", "Leaf"]);

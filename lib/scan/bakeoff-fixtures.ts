@@ -32,6 +32,10 @@ export type BakeoffTruth = {
   subset?: string;
   /** The name was read off the card and isn't in our player list. */
   playerNew?: boolean;
+  /** The "Is this Sapphire?" quick pick is offered (true) or not (false). */
+  sapphirePick?: boolean;
+  /** The set was named by most of the card's sold titles, not by its print. */
+  setFromSales?: boolean;
 };
 
 /** A mocked Trawl answer: eBay sold titles, served only at this rung of the search ladder (0 = the first). */

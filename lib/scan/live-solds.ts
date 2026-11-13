@@ -336,7 +336,7 @@ function groupSummary(group: ParallelGroup) {
 }
 
 function emptyDropped(): ScanSalesResult["dropped"] {
-  return { junk: 0, player: 0, number: 0, run: 0, year: 0, grade: 0, removed: 0 };
+  return { junk: 0, player: 0, number: 0, run: 0, year: 0, grade: 0, removed: 0, set: 0 };
 }
 
 function toCleanedSale(sale: ScanSale): CleanedSale {

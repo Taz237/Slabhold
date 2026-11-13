@@ -306,3 +306,16 @@ export const PREVIEW_WITH_PHOTOS: ScanMatch[] = [
     index === 0 ? { ...match, listing: { imageUrl: "/quick-comp/sample-card.svg", url: null, soldAt: "2026-10-20T18:00:00.000Z" } } : match,
   ),
 ];
+
+/** Knight as read with nothing saying Sapphire: plain Bowman U Chrome, with the Sapphire question. Made up. */
+export const PREVIEW_SAPPHIRE_ASK: ScanMatch = { ...PREVIEW_NEW_PRODUCT, sapphireOption: "Bowman U Chrome Sapphire" };
+
+/** The same card once most sold titles (or the collector) say Sapphire. */
+export const PREVIEW_SAPPHIRE: ScanMatch = { ...PREVIEW_NEW_PRODUCT, setBrand: "Bowman U Chrome Sapphire", setSource: "sales" };
+
+/** One sale, and it names a parallel: "Black · 1 sale $40.00". The parallel stays open until it is tapped. */
+export const PREVIEW_SOLDS_NAMES_BLACK: SoldsState = {
+  status: "done",
+  comp: { status: "split", groups: [{ label: "Black", nSales: 1, lastPriceCents: 4000, lastSoldAt: "2026-11-08T18:00:00.000Z" }] },
+  query: "preview",
+};

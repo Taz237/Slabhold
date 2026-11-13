@@ -153,6 +153,8 @@ export function ScanHub({
   const [photo, setPhoto] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const run = useRef<AbortController | null>(null);
+  // The scan on the sheet, as settled, so "Is this Sapphire?" can read it again.
+  const lastCapture = useRef<ScanCapture | null>(null);
   const opened = useRef(false);
   const cameraRef = useRef<HTMLInputElement>(null);
   const libraryRef = useRef<HTMLInputElement>(null);
@@ -168,6 +170,7 @@ export function ScanHub({
       // Alternates are settled once, here, so the phone and the server read the same lines.
       const capture = await deps.settle(scanned).catch(() => scanned);
       if (controller.signal.aborted) return;
+      lastCapture.current = capture;
       const result = await deps.identify(capture, controller.signal).catch(() => null);
       if (controller.signal.aborted) return;
       const online = deps.online();
@@ -197,6 +200,16 @@ export function ScanHub({
     },
     [deps],
   );
+
+  /**
+   * The collector says the card is the Sapphire Edition (it often prints nothing to say so): the
+   * same scan is read again as if it printed SAPPHIRE, and its sales are looked up as that set.
+   */
+  const asSapphire = useCallback(() => {
+    const capture = lastCapture.current;
+    if (!capture || capture.lines.some((line) => /\bsapphire\b/i.test(line))) return;
+    void identify({ ...capture, lines: [...capture.lines, "SAPPHIRE"] });
+  }, [identify]);
 
   const startScan = useCallback(async () => {
     let capture: ScanCapture | null = null;
@@ -351,6 +364,7 @@ export function ScanHub({
           onConfirm={toAddCard}
           onStepByStep={stepByStep}
           onRetake={() => void startScan()}
+          onSapphire={asSapphire}
           onClose={closeSheet}
         />
       ) : null}
@@ -362,6 +376,7 @@ export function ScanHub({
           onAdd={toAddCard}
           onScanAnother={() => void startScan()}
           onSearch={() => router.push("/comp")}
+          onSapphire={asSapphire}
           onClose={closeSheet}
         />
       ) : null}

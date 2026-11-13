@@ -233,6 +233,42 @@ describe("ScanHub: identify, then last eBay solds", () => {
     }
   });
 
+  it("Is this Sapphire? reads the same scan again as Sapphire and re-runs the solds lookup", async () => {
+    const identified: string[][] = [];
+    const looked: string[][] = [];
+    const sapphire = (lines: readonly string[]) => lines.some((line) => /sapphire/i.test(line));
+    const view = await mount(
+      "add",
+      nativeDeps({
+        settle: async (capture) => capture,
+        identify: async (capture) => {
+          identified.push([...capture.lines]);
+          return result([sapphire(capture.lines) ? fixtures.PREVIEW_SAPPHIRE : fixtures.PREVIEW_SAPPHIRE_ASK]);
+        },
+        solds: async (capture) => {
+          looked.push([...capture.lines]);
+          return { matches: [sapphire(capture.lines) ? { ...fixtures.PREVIEW_SAPPHIRE, setSource: undefined } : fixtures.PREVIEW_SAPPHIRE_ASK], comp: { status: "none", searched: true }, query: "q" };
+        },
+      }),
+    );
+    try {
+      await waitFor(() => text().includes("Is this Sapphire?"));
+      assert.ok(text().includes("2026 Bowman U Chrome #BCP-68"));
+      await act(async () => {
+        button("Is this Sapphire?").click();
+      });
+      await waitFor(() => text().includes("Bowman U Chrome Sapphire #BCP-68"));
+      // The same scan, with SAPPHIRE added once: read again and looked up again.
+      assert.equal(identified.length, 2);
+      assert.equal(looked.length, 2);
+      assert.deepEqual(identified[1], [...identified[0], "SAPPHIRE"]);
+      assert.deepEqual(looked[1], identified[1]);
+      assert.equal(text().includes("Is this Sapphire?"), false);
+    } finally {
+      view.unmount();
+    }
+  });
+
   it("with nothing found either way, says so", async () => {
     const view = await mount(
       "add",

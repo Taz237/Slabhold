@@ -10,6 +10,8 @@ import {
   MatchSummary,
   MatchingSkeleton,
   OtherMatches,
+  SetNotes,
+  withSoldGroups,
   ParallelStrip,
   SheetFrame,
   SplitGroups,
@@ -35,7 +37,6 @@ import { CONFIRM_COPY, confirmMatch, initialChoice, matchesKey, promoteMatch, re
 import type { ScanEstimate } from "@/lib/scan/estimate";
 import type { ScanMatch } from "@/lib/scan/match";
 import { isUnnamedRunLabel } from "@/lib/scan/scan-sales";
-import type { ProductParallel } from "@/lib/cards/product-data";
 
 /**
  * Sold prices for another parallel or grade on this sheet. GET /api/scan/comp
@@ -56,6 +57,8 @@ type Props = {
   onScanAnother: () => void;
   /** None of these: type the card into Quick Comp instead. */
   onSearch: () => void;
+  /** "Is this Sapphire?": read the card again as its Sapphire Edition and look its sales up. */
+  onSapphire?: () => void;
   onClose: () => void;
 };
 
@@ -65,7 +68,7 @@ type Props = {
  * sales we already have). A different parallel, grade or card is one tap, and
  * its prices load in place from the same search. No sales is said plainly.
  */
-export function CompSheet({ photo, state, lookup, onAdd, onScanAnother, onSearch, onClose }: Props) {
+export function CompSheet({ photo, state, lookup, onAdd, onScanAnother, onSearch, onSapphire, onClose }: Props) {
   const title = state.kind === "none" ? CONFIRM_COPY.noMatchTitle : COMP_COPY.title;
   return (
     <SheetFrame title={title} busy={state.kind === "matching"} onClose={onClose}>
@@ -94,6 +97,7 @@ export function CompSheet({ photo, state, lookup, onAdd, onScanAnother, onSearch
           onAdd={onAdd}
           onScanAnother={onScanAnother}
           onSearch={onSearch}
+          onSapphire={onSapphire}
         />
       ) : null}
     </SheetFrame>
@@ -139,28 +143,6 @@ function SimilarEstimate({ estimate }: { estimate: ScanEstimate }) {
   );
 }
 
-/** The parallels the scan's sales name join the chips, so one tapped from the sales list reads selected. */
-function withSoldGroups(
-  options: ProductParallel[],
-  solds: SoldsState | undefined,
-  serialRun: number | null,
-  assumedBase: boolean,
-): ProductParallel[] {
-  if (solds?.status !== "done") return options;
-  const comp = solds.comp;
-  const groups = comp.status === "ok" || comp.status === "split" ? (comp.groups ?? []) : [];
-  const out = [...options];
-  const has = (name: string) => out.some((option) => option.name.toLowerCase() === name.toLowerCase());
-  // The Base the sheet is showing reads first and selected.
-  if (assumedBase && groups.length > 0 && !has("Base")) out.unshift({ name: "Base", serialRun: null });
-  for (const group of groups) {
-    if (isUnnamedRunLabel(group.label) || has(group.label)) continue;
-    out.push({ name: group.label, serialRun });
-  }
-  // No sales yet on a numbered card with no parallel named: last year's parallels at this print run, to tap.
-  for (const name of solds.similar?.parallels ?? []) if (!has(name)) out.push({ name, serialRun });
-  return out;
-}
 
 function gradeChoices(scanned: string): string[] {
   const presets: string[] = [...QUICK_GRADES];
@@ -175,6 +157,7 @@ function Ready({
   onAdd,
   onScanAnother,
   onSearch,
+  onSapphire,
 }: {
   photo: string | null;
   matches: ScanMatch[];
@@ -183,6 +166,7 @@ function Ready({
   onAdd: Props["onAdd"];
   onScanAnother: () => void;
   onSearch: () => void;
+  onSapphire?: () => void;
 }) {
   const [rows, setRows] = useState(matches);
   const top = rows[0];
@@ -251,6 +235,7 @@ function Ready({
   return (
     <div className="space-y-6">
       <MatchSummary photo={photo} match={top} />
+      <SetNotes match={top} onSapphire={top === matches[0] ? onSapphire : undefined} />
 
       {target ? (
         <ValuePanel

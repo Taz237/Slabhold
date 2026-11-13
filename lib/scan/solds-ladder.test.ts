@@ -122,7 +122,7 @@ describe("the search ladder", () => {
     assert.ok(hit.ok);
     assert.equal(hit.results, MILLER_RESULTS.length);
     assert.equal(hit.kept, 3);
-    assert.deepEqual(hit.dropped, { junk: 2, player: 1, number: 1, run: 2, year: 0, grade: 1, removed: 0 });
+    assert.deepEqual(hit.dropped, { junk: 2, player: 1, number: 1, run: 2, year: 0, grade: 1, removed: 0, set: 0 });
   });
 });
 

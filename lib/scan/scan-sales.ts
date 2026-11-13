@@ -12,6 +12,7 @@ import type { TrawlSoldResult } from "@/lib/comps/types";
 import type { IndexedDirectoryPlayer } from "@/lib/players/types";
 import { toMatchCard, type QuickCompIdentity } from "@/lib/quick-comp/identity";
 import { parallelLabel, type ScanMatch } from "./match";
+import { SAPPHIRE_WORD, inSapphireFamily, isSapphireSet, withoutSapphire } from "./sapphire";
 import { COLOR_NAME_PHRASES, readRawCardText } from "./raw-text";
 
 /**
@@ -23,7 +24,7 @@ import { COLOR_NAME_PHRASES, readRawCardText } from "./raw-text";
  * Pink/Red /299 never prices from Base sales.
  */
 
-export type DropReason = "junk" | "player" | "number" | "run" | "year" | "grade" | "removed";
+export type DropReason = "junk" | "player" | "number" | "run" | "year" | "grade" | "removed" | "set";
 
 export type ScanSale = {
   itemId: string;
@@ -193,7 +194,12 @@ export function scanSalesFor(
   results: readonly TrawlSoldResult[],
   directory: readonly IndexedDirectoryPlayer[],
 ): ScanSalesResult {
-  const dropped: Record<DropReason, number> = { junk: 0, player: 0, number: 0, run: 0, year: 0, grade: 0, removed: 0 };
+  const dropped: Record<DropReason, number> = { junk: 0, player: 0, number: 0, run: 0, year: 0, grade: 0, removed: 0, set: 0 };
+  // Sapphire Edition is its own product with the same card #s: its sales never price the regular
+  // card, and the regular card's never price it.
+  const setBrand = identity.setBrand ?? "";
+  const sapphireFamily = inSapphireFamily(setBrand);
+  const sapphireCard = isSapphireSet(setBrand);
   const card = toMatchCard({
     playerName: match.playerName,
     year: startYear(match.yearLabel) ?? 0,
@@ -230,6 +236,10 @@ export function scanSalesFor(
       dropped.run += 1;
       continue;
     }
+    if (sapphireFamily && SAPPHIRE_WORD.test(title) !== sapphireCard) {
+      dropped.set += 1;
+      continue;
+    }
     const years = titleYears(title);
     if (year && years.length > 0 && !years.includes(year)) {
       dropped.year += 1;
@@ -255,7 +265,8 @@ export function scanSalesFor(
       dropped.junk += 1;
       continue;
     }
-    const named = titleParallel(title, directory, identity.setBrand ?? "");
+    // "Sapphire" in the title is the product, not the parallel: "Sapphire Black /10" is Black.
+    const named = titleParallel(sapphireCard ? withoutSapphire(title) : title, directory, setBrand);
     const parallel = named === "Base" && match.serialRun ? unnamedRunLabel(match.serialRun) : named;
     kept.push({ itemId: result.item_id, title, price, soldAt: result.date_sold ?? null, parallel });
   }
