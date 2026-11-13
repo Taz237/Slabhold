@@ -85,6 +85,9 @@ describe("App Store privacy manifest", () => {
     "NSPrivacyCollectedDataTypeUserID",
     "NSPrivacyCollectedDataTypeOtherUserContent",
     "NSPrivacyCollectedDataTypePhotosorVideos",
+    // DMs are stored on our servers; the push token is a device-level ID kept with the account.
+    "NSPrivacyCollectedDataTypeEmailsOrTextMessages",
+    "NSPrivacyCollectedDataTypeDeviceID",
   ];
   for (const type of linked) {
     it(`collects ${type.replace("NSPrivacyCollectedDataType", "")}: linked, not tracking, for app functionality`, () => {
@@ -100,6 +103,8 @@ describe("App Store privacy manifest", () => {
   for (const [type, purpose] of [
     ["NSPrivacyCollectedDataTypeProductInteraction", "NSPrivacyCollectedDataTypePurposeAnalytics"],
     ["NSPrivacyCollectedDataTypePerformanceData", "NSPrivacyCollectedDataTypePurposeAppFunctionality"],
+    // Analytics records the country, never linked to an account.
+    ["NSPrivacyCollectedDataTypeCoarseLocation", "NSPrivacyCollectedDataTypePurposeAnalytics"],
   ] as const) {
     it(`collects ${type.replace("NSPrivacyCollectedDataType", "")}: not linked, not tracking`, () => {
       assert.deepEqual(byType.get(type), {
@@ -112,7 +117,7 @@ describe("App Store privacy manifest", () => {
   }
 
   it("declares nothing else", () => {
-    assert.equal(collected.length, 7);
+    assert.equal(collected.length, 10);
   });
 
   it("ships in the App target's Resources", () => {
