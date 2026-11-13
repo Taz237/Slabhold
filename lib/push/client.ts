@@ -77,15 +77,6 @@ export async function authHeaders(): Promise<Record<string, string>> {
   }
 }
 
-/** Fire and forget: tell the server to send the pushes this user's action caused. */
-export function firePushFlush(): void {
-  if (!pushFeatureOn()) return;
-  void (async () => {
-    const headers = await authHeaders();
-    await fetch("/api/push/flush", { method: "POST", keepalive: true, credentials: "same-origin", headers });
-  })().catch(() => undefined);
-}
-
 /** GET /api/push/subscribe: whether the server can send right now. */
 export async function pushServerAvailable(): Promise<boolean> {
   if (!pushFeatureOn()) return false;

@@ -4,8 +4,17 @@ import type { ApnsConfig } from "./apns-config";
 import { sameOriginPath, trimmedForRetry, truncate, type PushPayload } from "./payload";
 import { DM_TTL_SECONDS, SOCIAL_TTL_SECONDS, pushTopic, type DeliveryResult } from "./send";
 
-/** Production only: TestFlight and App Store builds both use it. */
+/** Production: TestFlight and App Store builds. Tried first. */
 export const APNS_ORIGIN = "https://api.push.apple.com";
+/**
+ * Sandbox: builds run from Xcode get tokens only this server knows.
+ * Production answers those with BadDeviceToken, so we try here before giving up.
+ */
+export const APNS_SANDBOX_ORIGIN = "https://api.sandbox.push.apple.com";
+type ApnsEnv = "production" | "sandbox";
+const ORIGINS: Record<ApnsEnv, string> = { production: APNS_ORIGIN, sandbox: APNS_SANDBOX_ORIGIN };
+/** Most tokens we remember as sandbox ones, per server instance. */
+const SANDBOX_MEMORY = 500;
 /** Apple wants the provider token refreshed between 20 and 60 minutes. */
 export const JWT_MAX_AGE_MS = 40 * 60 * 1000;
 export const APNS_MAX_BYTES = 4096;
@@ -35,8 +44,10 @@ export type ApnsSender = {
   ): Promise<DeliveryResult>;
 };
 
-/** 400 reasons that mean this token will never work again for us. */
-const GONE_REASONS = new Set(["BadDeviceToken", "DeviceTokenNotForTopic"]);
+/** A 400 that means this token will never work again for us. */
+const GONE_REASON = "DeviceTokenNotForTopic";
+/** A 400 that means "not this server's token": try the other one before deleting. */
+const WRONG_SERVER_REASON = "BadDeviceToken";
 
 function base64url(value: string | Buffer): string {
   return Buffer.from(value).toString("base64url");
@@ -70,8 +81,10 @@ function badgeCount(badge: number): number {
 }
 
 function bodyJson(title: string, body: string, payload: PushPayload): string {
+  // A Settings test has no unread count of its own: no badge key leaves the icon as it is.
+  const badge = payload.kind === "test" ? {} : { badge: badgeCount(payload.badge) };
   return JSON.stringify({
-    aps: { alert: { title, body }, sound: "default", "thread-id": payload.tag, badge: badgeCount(payload.badge) },
+    aps: { alert: { title, body }, sound: "default", "thread-id": payload.tag, ...badge },
     url: sameOriginPath(payload.url),
   });
 }
@@ -182,17 +195,23 @@ export function http2Transport(): ApnsTransport {
 
 /**
  * Sends to iPhones through APNs, mapped like web push's deliver(): 200
- * delivered; 410, or 400 BadDeviceToken / DeviceTokenNotForTopic, gone;
- * 413 resends a shorter body once; 403 ExpiredProviderToken rebuilds the
- * token once; 429/5xx/network retry once after a pause; anything else failed.
+ * delivered; 410 or 400 DeviceTokenNotForTopic gone; 400 BadDeviceToken
+ * tries the other server (production, then sandbox) and is gone only when
+ * both say it; 413 resends a shorter body once; 403 ExpiredProviderToken
+ * rebuilds the token once; 429/5xx/network retry once after a pause;
+ * anything else failed. Logs Apple's answers as counts per send: the server,
+ * status and reason only, never a token, key or text.
  */
 export function createApnsSender(
   config: ApnsConfig,
-  deps: { transport?: ApnsTransport; now?: () => number } = {},
+  deps: { transport?: ApnsTransport; now?: () => number; log?: (...args: unknown[]) => void } = {},
 ): ApnsSender {
   const transport = deps.transport ?? http2Transport();
   const now = deps.now ?? Date.now;
+  const log = deps.log ?? ((...args: unknown[]) => console.info(...args));
   let cached: { jwt: string; at: number } | null = null;
+  /** Tokens that last worked on sandbox, so the next send skips the wasted production try. */
+  const sandboxTokens = new Set<string>();
 
   function providerToken(fresh = false): string {
     const at = now();
@@ -207,13 +226,21 @@ export function createApnsSender(
       const result: DeliveryResult = { delivered: [], gone: [], failed: [] };
       if (devices.length === 0) return result;
       const sleep = options.sleep ?? defaultSleep;
-      let connection: ApnsConnection;
-      try {
-        connection = transport.connect(APNS_ORIGIN);
-      } catch {
-        result.failed.push(...devices.map((device) => device.id));
-        return result;
-      }
+      // One connection per Apple server, opened only when a device needs it.
+      const open = new Map<ApnsEnv, ApnsConnection>();
+      const connectionFor = (env: ApnsEnv): ApnsConnection => {
+        let connection = open.get(env);
+        if (!connection) {
+          connection = transport.connect(ORIGINS[env]);
+          open.set(env, connection);
+        }
+        return connection;
+      };
+      const answers: Record<string, number> = {};
+      const note = (env: ApnsEnv, reply: ApnsReply | null) => {
+        const key = reply ? `${env} ${reply.status}${reply.reason ? ` ${reply.reason}` : ""}` : `${env} network`;
+        answers[key] = (answers[key] ?? 0) + 1;
+      };
       try {
         await Promise.all(
           devices.map(async (device) => {
@@ -221,10 +248,12 @@ export function createApnsSender(
             let retried = false;
             let trimmed = false;
             let refreshed = false;
+            let env: ApnsEnv = sandboxTokens.has(device.token) ? "sandbox" : "production";
+            let switched = false;
             for (;;) {
               let reply: ApnsReply | null;
               try {
-                reply = await connection.post(
+                reply = await connectionFor(env).post(
                   `/3/device/${device.token}`,
                   apnsHeaders(current, providerToken(), config.bundleId, now()),
                   apnsBody(current),
@@ -232,12 +261,29 @@ export function createApnsSender(
               } catch {
                 reply = null;
               }
+              note(env, reply);
               const status = reply?.status ?? null;
               if (status === 200) {
+                if (env === "sandbox") {
+                  if (sandboxTokens.size >= SANDBOX_MEMORY) sandboxTokens.clear();
+                  sandboxTokens.add(device.token);
+                } else {
+                  sandboxTokens.delete(device.token);
+                }
                 result.delivered.push(device.id);
                 return;
               }
-              if (status === 410 || (status === 400 && GONE_REASONS.has(reply?.reason ?? ""))) {
+              if (status === 400 && reply?.reason === WRONG_SERVER_REASON) {
+                if (!switched) {
+                  switched = true;
+                  env = env === "production" ? "sandbox" : "production";
+                  continue;
+                }
+                sandboxTokens.delete(device.token);
+                result.gone.push(device.id);
+                return;
+              }
+              if (status === 410 || (status === 400 && reply?.reason === GONE_REASON)) {
                 result.gone.push(device.id);
                 return;
               }
@@ -263,7 +309,8 @@ export function createApnsSender(
           }),
         );
       } finally {
-        connection.close();
+        for (const connection of open.values()) connection.close();
+        log("[push] apns", answers);
       }
       return result;
     },

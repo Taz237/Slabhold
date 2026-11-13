@@ -6,7 +6,7 @@ import webpush from "web-push";
 import { getSupabaseConfig } from "@/lib/supabase/client";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
 import { getAuthUserId } from "@/lib/supabase/server";
-import { apnsConfig, type ApnsConfig } from "./apns-config";
+import { apnsConfig, apnsConfigProblems, type ApnsConfig } from "./apns-config";
 import { createApnsSender, type ApnsSender } from "./apns";
 import { pushServerConfig } from "./config";
 import type { Dispatcher } from "./dispatch";
@@ -43,6 +43,8 @@ function apnsState() {
     .digest("hex");
   if (apnsCache?.fingerprint !== fingerprint) {
     const config = apnsConfig(env);
+    // Once per server instance: why iPhone push is off. Setting names only.
+    if (!config) console.warn(`[push] apns off: ${apnsConfigProblems(env).join(", ")}`);
     apnsCache = { fingerprint, config, sender: config ? createApnsSender(config) : null };
   }
   return apnsCache;

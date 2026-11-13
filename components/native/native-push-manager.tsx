@@ -9,10 +9,10 @@ import { trackEvent } from "@/lib/analytics";
 import { setSignOutHook } from "@/lib/auth/sign-out-hook";
 import { isAuthPage, isChromelessPath } from "@/lib/auth/guest-paths";
 import { loadNative } from "@/lib/ios/platform";
-import { deviceOptedIn, pushFeatureOn, rememberOptIn } from "@/lib/push/client";
+import { deviceOptedIn, rememberOptIn } from "@/lib/push/client";
 import {
   apnsServerAvailable,
-  fireNativeFlush,
+  flushAfterAction,
   forgetApnsToken,
   nativeAskSurface,
   saveApnsToken,
@@ -68,6 +68,8 @@ export function clearNativeBadge(native: Pick<BadgeNative, "nativeExtrasAvailabl
 
 const ASK_ACTIONS = new Set<SocialAction>(["follow", "post", "like"]);
 const RESAVED_KEY = "slabhold.apns.resaved";
+/** Coming back to the app saves the token again at most this often. */
+const RESAVE_EVERY_MS = 60 * 60 * 1000;
 
 function readStorage(storage: "local" | "session", key: string): string | null {
   try {
@@ -128,21 +130,37 @@ export function NativePushManager({ user }: { user: Profile }) {
     writeStorage("local", key, JSON.stringify({ ...state, firstSeenAt: now }));
   }, [accountCreatedAt, userId]);
 
-  // Each launch: when this user turned push on here and iOS still allows it,
-  // save the (possibly new) token again. Never prompts.
+  // Each launch, and when the app comes back after a while: when this user
+  // turned push on here and iOS still allows it, save the (possibly new) token
+  // again. If the server ever dropped it, this puts it back. Never prompts.
   useEffect(() => {
-    if (!deviceOptedIn(userId) || readStorage("session", RESAVED_KEY) === userId) return;
     let cancelled = false;
-    void (async () => {
-      if (!(await apnsServerAvailable())) return;
+    let savedAt = 0;
+    const resave = async () => {
+      if (!deviceOptedIn(userId) || !(await apnsServerAvailable())) return;
       const native = await loadNative();
       if (cancelled || !native.nativePushAvailable()) return;
       const token = await native.nativePushToken();
       if (cancelled || !token) return;
-      if (await saveApnsToken(token)) writeStorage("session", RESAVED_KEY, userId);
-    })().catch(() => undefined);
+      if (await saveApnsToken(token)) {
+        savedAt = Date.now();
+        writeStorage("session", RESAVED_KEY, userId);
+      }
+    };
+    if (readStorage("session", RESAVED_KEY) !== userId) void resave().catch(() => undefined);
+    let stopResume = () => {};
+    void loadNative()
+      .then((native) => {
+        if (cancelled) return;
+        stopResume = native.onAppResume(() => {
+          if (Date.now() - savedAt < RESAVE_EVERY_MS) return;
+          void resave().catch(() => undefined);
+        });
+      })
+      .catch(() => undefined);
     return () => {
       cancelled = true;
+      stopResume();
     };
   }, [userId]);
 
@@ -227,9 +245,7 @@ export function NativePushManager({ user }: { user: Profile }) {
   useEffect(() => {
     const timers = new Set<number>();
     const stop = onSocialAction((action) => {
-      void apnsServerAvailable().then((on) => {
-        if (on || pushFeatureOn()) fireNativeFlush();
-      });
+      void flushAfterAction();
       if (!ASK_ACTIONS.has(action)) return;
       const timer = window.setTimeout(() => {
         timers.delete(timer);

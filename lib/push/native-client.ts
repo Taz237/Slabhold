@@ -1,4 +1,4 @@
-import { authHeaders } from "./client";
+import { authHeaders, pushFeatureOn } from "./client";
 import type { AskSurface } from "./soft-ask";
 
 /** The iPhone app's notification permission, from the PushNotifications plugin. */
@@ -98,4 +98,26 @@ export function fireNativeFlush(): void {
     const headers = await authHeaders();
     await fetch("/api/push/flush", { method: "POST", keepalive: true, credentials: "same-origin", headers });
   })().catch(() => undefined);
+}
+
+/**
+ * After the signed-in user's like, reply, follow, repost, post or DM: tell the
+ * server to send the pushes it caused. Runs on the website and in the app,
+ * when either web push or the iPhone app's push is on, so a like from a
+ * browser still reaches an iPhone. Resolves true when it sent the request.
+ */
+export async function flushAfterAction(
+  deps: { webPushOn: () => boolean; apnsOn: () => Promise<boolean>; flush: () => void } = {
+    webPushOn: pushFeatureOn,
+    apnsOn: apnsServerAvailable,
+    flush: fireNativeFlush,
+  },
+): Promise<boolean> {
+  try {
+    if (!deps.webPushOn() && !(await deps.apnsOn())) return false;
+    deps.flush();
+    return true;
+  } catch {
+    return false;
+  }
 }

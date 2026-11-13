@@ -30,13 +30,32 @@ export function apnsConfig(env: Env = process.env): ApnsConfig | null {
   const keyId = env.APNS_KEY_ID?.trim();
   const teamId = env.APNS_TEAM_ID?.trim();
   const bundleId = env.APNS_BUNDLE_ID?.trim();
-  const pem = env.APNS_PRIVATE_KEY?.trim();
-  if (!keyId || !teamId || !bundleId || !pem) return null;
+  const privateKey = parseKey(env.APNS_PRIVATE_KEY);
+  if (!keyId || !teamId || !bundleId || !privateKey) return null;
+  return { keyId, teamId, bundleId, privateKey };
+}
+
+function parseKey(raw: string | undefined): KeyObject | null {
+  const pem = raw?.trim();
+  if (!pem) return null;
   try {
     const privateKey = createPrivateKey({ key: normalizePem(pem), format: "pem" });
-    if (privateKey.asymmetricKeyType !== "ec") return null;
-    return { keyId, teamId, bundleId, privateKey };
+    return privateKey.asymmetricKeyType === "ec" ? privateKey : null;
   } catch {
     return null;
   }
+}
+
+const NAMES = ["APNS_KEY_ID", "APNS_TEAM_ID", "APNS_BUNDLE_ID", "APNS_PRIVATE_KEY"] as const;
+
+/**
+ * Why apnsConfig() is null, for the server log: which settings are missing,
+ * or that the key doesn't parse. Setting names only, never a value.
+ */
+export function apnsConfigProblems(env: Env = process.env): string[] {
+  const problems: string[] = NAMES.filter((name) => !env[name]?.trim()).map((name) => `${name} missing`);
+  if (env.APNS_PRIVATE_KEY?.trim() && !parseKey(env.APNS_PRIVATE_KEY)) {
+    problems.push("APNS_PRIVATE_KEY is not a valid .p8 key");
+  }
+  return problems;
 }

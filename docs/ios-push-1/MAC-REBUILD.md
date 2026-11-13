@@ -46,7 +46,7 @@ This is what lets slabhold.app links open the app. Sign-in with Google already u
 4. Pick **App Store Connect**, then **Upload**. Click **Next** / **Upload** through the screens.
 5. Wait for the email from Apple saying build 4 is ready in TestFlight (often 10 to 30 minutes).
 
-Test push and the badge only from a **TestFlight** install, never from Xcode's ▶ Run. A Run build gets a test-only push token, and Apple's real push server turns it away.
+Test push and the badge from a **TestFlight** install: that's what the App Store ships. A build from Xcode's ▶ Run gets a test-only push token. The server now tries Apple's test push server for those too, so **Send a test** also works from a Run build.
 
 ## 6. Test it on your phone
 
