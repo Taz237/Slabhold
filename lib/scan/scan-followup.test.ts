@@ -150,6 +150,27 @@ describe("1) a throttled or failed Trawl search gets one retry, inside the cap, 
     assert.equal(warnings.length, 2);
   });
 
+  it("a 429 that's out of credits (no Retry-After) isn't retried: 1 call, unavailable", async () => {
+    const { run, calls, waits } = search([{ ok: false, status: 429, error: "rate limited", outOfCredits: true }]);
+    assert.deepEqual(await run("Aidan Miller BP-27", "u1"), { ok: false, reason: "unavailable" });
+    assert.equal(calls.length, 1);
+    assert.deepEqual(waits, []);
+  });
+
+  it("a 429 whose error says credits or quota isn't retried either", async () => {
+    for (const error of ["Out of credits", "Monthly quota exceeded"]) {
+      const { run, calls } = search([{ ok: false, status: 429, error, outOfCredits: false }]);
+      assert.deepEqual(await run("Aidan Miller BP-27", "u1"), { ok: false, reason: "unavailable" });
+      assert.equal(calls.length, 1, error);
+    }
+  });
+
+  it("a 429 with Retry-After is still retried once", async () => {
+    const { run, calls } = search([{ ok: false, status: 429, error: "slow down", outOfCredits: false }, { ok: true, body: { results: PINK_RED } }]);
+    assert.equal((await run("Aidan Miller BP-27", "u1")).ok, true);
+    assert.equal(calls.length, 2);
+  });
+
   it("a 400 isn't retried", async () => {
     const { run, calls, waits, warnings } = search([{ ok: false, status: 400, error: "bad query" }]);
     assert.deepEqual(await run("Aidan Miller BP-27", "u1"), { ok: false, reason: "unavailable" });

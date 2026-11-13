@@ -25,7 +25,7 @@ export type LiveSearchDeps = {
   fetchSold: (
     query: string,
     options: { days: number; maxPages: number },
-  ) => Promise<{ ok: true; body: { results?: TrawlSoldResult[] } } | { ok: false; status?: number; error?: string }>;
+  ) => Promise<{ ok: true; body: { results?: TrawlSoldResult[] } } | { ok: false; status?: number; error?: string; outOfCredits?: boolean }>;
   limits: QuickCompLimitDeps;
   cache: CacheFn;
   now: () => number;
@@ -38,7 +38,19 @@ export type LiveSearchDeps = {
 /** A 429 or a 5xx gets one more try, this long after. */
 export const LIVE_SEARCH_RETRY_MS = 400;
 
-function retryable(status: number | undefined): boolean {
+/**
+ * Trawl's answer to a spent account: a 429 with no Retry-After (Trawl's own outOfCredits), or an
+ * error that says credits or quota. Retrying only spends another call; the sheet says it plainly.
+ */
+function outOfCredits(result: { status?: number; error?: string; outOfCredits?: boolean }): boolean {
+  if (result.status !== 429) return false;
+  return Boolean(result.outOfCredits) || /\b(?:credits?|quota)\b/i.test(result.error ?? "");
+}
+
+/** A throttled search or a server error: worth one more try. Never an account that's out of credits. */
+function retryable(result: { status?: number; error?: string; outOfCredits?: boolean }): boolean {
+  const status = result.status;
+  if (outOfCredits(result)) return false;
   return status === 429 || (status != null && status >= 500 && status < 600);
 }
 
@@ -116,7 +128,7 @@ export function makeLiveSearch(deps: LiveSearchDeps) {
           };
           let result = await fetchOnce();
           // Throttled or a server error: one more try, still inside the lookup's call cap.
-          if (!result.ok && retryable(result.status) && budget.calls < MAX_LOOKUP_CALLS) {
+          if (!result.ok && retryable(result) && budget.calls < MAX_LOOKUP_CALLS) {
             (deps.warn ?? defaultWarn)({ query, status: result.status ?? 0, reason: result.error ?? "failed", retried: false });
             await (deps.sleep ?? defaultSleep)(LIVE_SEARCH_RETRY_MS);
             result = await fetchOnce();
