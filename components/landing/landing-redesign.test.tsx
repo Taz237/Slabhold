@@ -371,6 +371,17 @@ describe("landing redesign: feature carousel", () => {
     assert.equal(tabs[0].getAttribute("aria-selected"), "true", "wraps around");
   });
 
+  it("gives the collection chart the room its slide has, and keeps the old height elsewhere", async () => {
+    state.reducedMotion = true;
+    const { default: GraphsDemo } = await import("@/components/landing/showcase/graphs-demo");
+    let host = await mount(createElement(GraphsDemo, { run: 0, gain: null }));
+    assert.equal(host.querySelector<HTMLElement>(".chart-surface")?.style.height, "176px");
+    cleanup?.();
+    cleanup = null;
+    host = await mount(createElement(GraphsDemo, { run: 0, gain: null, chartHeight: 300 }));
+    assert.equal(host.querySelector<HTMLElement>(".chart-surface")?.style.height, "300px");
+  });
+
   it("marks the leaderboard as sample accounts, with names as plain text", async () => {
     const { FeaturePanels } = await import("@/components/landing/feature-panels");
     const html = renderToStaticMarkup(createElement(FeaturePanels));
