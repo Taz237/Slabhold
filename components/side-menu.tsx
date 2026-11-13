@@ -33,7 +33,6 @@ import {
   Trophy,
   User,
   UserPlus,
-  UserX,
   WalletCards,
   Wrench,
   type LucideIcon,
@@ -748,7 +747,7 @@ export function SideMenu({
             </li>
             <li>
               <Link href={SIDE_MENU_DELETE.href} onClick={onClose} className={`${settingsRow} ${rowTone(false)}`}>
-                <UserX aria-hidden className={`h-5 w-5 shrink-0 ${iconTone(false)}`} />
+                <User aria-hidden className={`h-5 w-5 shrink-0 ${iconTone(false)}`} />
                 {SIDE_MENU_DELETE.label}
               </Link>
             </li>
