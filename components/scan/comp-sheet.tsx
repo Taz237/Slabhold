@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Chip, PrimaryButton, QuietButton, SectionLabel } from "@/components/add-card/flow-ui";
 import { MoveArrow } from "@/components/move-arrow";
 import type { ConfirmSheetState } from "@/components/scan/confirm-sheet";
+import { SalesDots } from "@/components/scan/sales-dots";
 import {
   CardPhoto,
   MatchSummary,
@@ -407,6 +408,8 @@ function ValuePanel({
       ) : (
         <p className="text-[15px] font-semibold">{COMP_COPY.fewSales}</p>
       )}
+
+      <SalesDots sales={result.sales} medianCents={result.medianCents} lowCents={result.lowCents} highCents={result.highCents} />
 
       <p className="mt-4 text-[13px] font-medium text-zinc-500">
         {COMP_COPY.sales}
