@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it } from "node:test";
 import { appHomeLoginPath, standaloneLoginPath } from "@/lib/pwa/install-step";
-import { HUB_COPY } from "@/lib/scan/entry";
+import { HUB_ERRORS } from "@/lib/scan/hub-errors";
 import { COMP_COPY } from "@/lib/scan/comp";
 import { REPLY_PHOTOS_UNAVAILABLE } from "@/lib/social/reply-images";
 import { SIDE_MENU_DELETE } from "@/lib/ui/side-menu";
@@ -44,16 +44,16 @@ describe("2.1: nothing in the app reads as unfinished", () => {
   });
 
   it("a scanner that didn't load in the app is a plain error with a way forward", () => {
-    assert.match(HUB_COPY.scannerDown, /^The scanner couldn't start\./);
-    assert.match(HUB_COPY.compScannerDown, /^The scanner couldn't start\./);
+    assert.match(HUB_ERRORS.scannerDown, /^The scanner couldn't start\./);
+    assert.match(HUB_ERRORS.compScannerDown, /^The scanner couldn't start\./);
     const hub = read("components/scan/scan-hub.tsx");
-    assert.match(hub, /deps\.nativeApp\(\)\s*\? comp\s*\? HUB_COPY\.compScannerDown\s*: HUB_COPY\.scannerDown/);
+    assert.match(hub, /deps\.nativeApp\(\)\s*\? comp\s*\? HUB_ERRORS\.compScannerDown\s*: HUB_ERRORS\.scannerDown/);
   });
 
   it("no 'yet', 'coming' or 'getting ready' in what the app can show", () => {
     const shown = [
-      HUB_COPY.scannerDown,
-      HUB_COPY.compScannerDown,
+      HUB_ERRORS.scannerDown,
+      HUB_ERRORS.compScannerDown,
       REPLY_PHOTOS_UNAVAILABLE,
       read("components/native/notifications-gate.tsx"),
       read("components/push/notification-settings.tsx").replace(/\/\*[\s\S]*?\*\/|\/\/.*/g, ""),
