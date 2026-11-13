@@ -7,6 +7,7 @@ import {
   titleLooksExcluded,
   titleSerialRuns,
 } from "@/lib/comps/match";
+import { parallelMatchKey, parallelsForSet } from "@/lib/cards/parallels";
 import type { TrawlSoldResult } from "@/lib/comps/types";
 import type { IndexedDirectoryPlayer } from "@/lib/players/types";
 import { toMatchCard, type QuickCompIdentity } from "@/lib/quick-comp/identity";
@@ -38,6 +39,70 @@ export type ScanSalesResult = {
   dropped: Record<DropReason, number>;
 };
 
+/**
+ * Listings that aren't one copy of this card, on top of the card-page junk list: a pick-your or
+ * choose listing, a break or a random case hit, a digital card, "2x".
+ */
+const SCAN_JUNK =
+  /\b(?:lots?|bundle|you\s+pick|pick\s+your|choose|complete\s+set|team\s+set|reprint|rp|custom|proxy|digital)\b|(?<!\bfast\s)\bbreak\b|\b(?:random|spot)\b.*\bcase\s+hit\b|\bcase\s+hit\b.*\b(?:random|spot)\b|\bx\s?[2-9]\b|\b[2-9]\s?x\b/i;
+
+/** "X-Fractor", "X Fractor", "Xfractor": a parallel, never the "x" in "2x". */
+const X_FRACTOR = /\bx[\s-]*fractor\b/gi;
+
+/** The title with any X-Fractor written as one word, for the junk checks. */
+function junkText(title: string): string {
+  return title.replace(X_FRACTOR, "xfractor");
+}
+
+/** A raw card never prices from these: a grader's name, "graded", "gem mint". */
+const SCAN_GRADED = /\b(?:psa|bgs|sgc|cgc|csg|hga|tag|beckett|graded|slab(?:bed)?)\b|\bgem\s*mi?nt\b/i;
+
+/**
+ * Finishes a title can name that the color reader may miss. Any of them keeps a sale out of Base:
+ * "Silver", "Refractor", "Mojo", "Cracked Ice".
+ */
+const FINISH_WORDS =
+  /\b(silver|refractor|x[\s-]*fractor|holo|mojo|shimmer|wave|disco|hyper|pulsar|scope|velocity|sparkle|cracked\s+ice|blue\s+ice|ice|camo|tie[\s-]?dye|laser|lazer|neon|choice|zebra|tiger(?:\s+stripes?)?|snakeskin|nebula|no\s+huddle|kaboom|vinyl|fast\s+break|prizm\s+(?:red|blue|green|gold|orange|purple|pink|black|white))\b/i;
+
+/** A checklist parallel's name as a pattern: hyphens and spaces alike ("X-Fractor", "X Fractor", "Xfractor"). */
+function namePattern(name: string): RegExp {
+  const body = name
+    .trim()
+    .split(/[\s-]+/)
+    .map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+    .join("[\\s-]*");
+  return new RegExp(`\\b${body}\\b`, "i");
+}
+
+/** The set's own parallels (Choice, Snakeskin, X-Fractor...), longest first, Base left out. */
+function checklistNames(setBrand: string, checklist?: readonly string[]): string[] {
+  return [...(checklist ?? parallelsForSet(setBrand))]
+    .filter((name) => parallelMatchKey(name) !== "base" && !BASE_LEVELS.has(parallelMatchKey(name)))
+    .sort((a, b) => b.length - a.length);
+}
+
+/**
+ * Base subsets and levels, never parallels: Optic's Rated Rookie, Select's Concourse, Premier
+ * (Level), Courtside and Field Level.
+ */
+const BASE_LEVELS = new Set(["rated rookie", "rated rookies", "concourse", "premier", "premier level", "courtside", "field level"]);
+
+/**
+ * Team names with a color or finish word in them. They're taken out before the parallel is read,
+ * so "Tulane Green Wave" and "Dallas Stars" stay Base.
+ */
+const TEAM_PHRASES =
+  /\b(?:(?:tulane\s+)?green\s+wave|(?:dallas|(?:minnesota\s+)?north)\s+stars|red\s+sox|white\s+sox|blue\s+jays|red\s+wings|blue\s+jackets|golden\s+(?:knights|state|bears|gophers|eagles|hurricane)|green\s+bay|crimson\s+tide|blue\s+devils|red\s+raiders|red\s+storm|scarlet\s+knights|black\s+knights|orange\s+crush)\b/gi;
+
+/** A color phrase inside a longer one is the same parallel: "Gold Vinyl" and "Gold" are Gold Vinyl. */
+function withoutRepeats(phrases: readonly string[]): string[] {
+  const words = (phrase: string) => phrase.toUpperCase().split(/[\s/-]+/).filter(Boolean);
+  return phrases.filter(
+    (phrase, index) =>
+      !phrases.some((other, at) => at !== index && words(other).length > words(phrase).length && words(phrase).every((word) => words(other).includes(word))),
+  );
+}
+
 const YEAR_IN_TITLE = /\b(19[5-9]\d|20[0-3]\d)(?:\s*[-/]\s*(\d{2}))?\b(?!\s*\/\s*\d)/g;
 
 function titleYears(title: string): number[] {
@@ -61,13 +126,66 @@ export function isUnnamedRunLabel(label: string | null | undefined): boolean {
   return Boolean(label && /^\/\d+, parallel not named$/.test(label));
 }
 
-/** The parallel a sold title names, from its color and finish words and insert. "Base" when none. */
-export function titleParallel(title: string, directory: readonly IndexedDirectoryPlayer[]): string {
+/**
+ * The parallel a sold title names, from its color and finish words and insert, then the set's own
+ * checklist (Choice, Snakeskin, X-Fractor). "Base" only when the title names no parallel or finish.
+ */
+export function titleParallel(
+  rawTitle: string,
+  directory: readonly IndexedDirectoryPlayer[],
+  setBrand = "",
+  /** The set's checklist names, when known. Defaults to our own list for the set. */
+  checklist?: readonly string[],
+): string {
+  const title = rawTitle.replace(TEAM_PHRASES, " ");
   const read = readRawCardText([title], directory);
-  const colors = [...read.parallelWords].sort((a, b) => title.toUpperCase().indexOf(a) - title.toUpperCase().indexOf(b));
+  const colors = withoutRepeats([...read.parallelWords]).sort((a, b) => title.toUpperCase().indexOf(a) - title.toUpperCase().indexOf(b));
   const label = parallelLabel(colors);
   if (read.insert) return label ? `${read.insert} ${label}` : read.insert;
-  return label || "Base";
+  if (label) {
+    // In the checklist's spelling when it lists it ("X Fractor" reads "X-Fractor").
+    const same = checklistNames(setBrand, checklist).find((name) => parallelMatchKey(name) === parallelMatchKey(label));
+    return same ?? (/^x[\s-]*fractor$/i.test(label) ? "X-Fractor" : label);
+  }
+  // A parallel on the set's checklist, in the checklist's spelling.
+  const listed = checklistNames(setBrand, checklist).find((name) => namePattern(name).test(title));
+  if (listed) return listed;
+  // A finish the color reader doesn't know still isn't Base.
+  const finish = FINISH_WORDS.exec(title)?.[1];
+  if (!finish) return "Base";
+  if (/^x[\s-]*fractor$/i.test(finish)) return "X-Fractor";
+  return finish.toLowerCase().replace(/\s+/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+/** Sold listings from a cache (title, price, day) in the shape the scan's filter reads. */
+export function asTrawlResults(items: readonly { title: string; price: number; soldAt?: string | null }[]): TrawlSoldResult[] {
+  return items.map((item, index) => ({
+    title: item.title,
+    sale_price: item.price,
+    shipping_price: null,
+    currency: "USD",
+    condition: "",
+    condition_raw: null,
+    date_sold: item.soldAt ?? "",
+    buying_format: "",
+    item_id: `cached-${index}-${item.title}`,
+    item_link: "",
+    image_url: null,
+    details: null,
+  }));
+}
+
+/** Outliers out of one parallel's sales. Unclean: just 2 sales, more than 10x apart. */
+export function guardOutliers(sales: readonly ScanSale[]): { sales: ScanSale[]; unclean: boolean } {
+  if (sales.length === 2) {
+    const [low, high] = [...sales].map((sale) => sale.price).sort((a, b) => a - b);
+    return { sales: [...sales], unclean: low > 0 && high / low > 10 };
+  }
+  if (sales.length < 3) return { sales: [...sales], unclean: false };
+  const sorted = sales.map((sale) => sale.price).sort((a, b) => a - b);
+  const middle = sorted.length % 2 ? sorted[(sorted.length - 1) / 2] : (sorted[sorted.length / 2 - 1] + sorted[sorted.length / 2]) / 2;
+  if (!(middle > 0)) return { sales: [...sales], unclean: false };
+  return { sales: sales.filter((sale) => sale.price <= middle * 4 && sale.price >= middle / 4), unclean: false };
 }
 
 function salePrice(result: TrawlSoldResult): number {
@@ -102,7 +220,7 @@ export function scanSalesFor(
       dropped.removed += 1;
       continue;
     }
-    if (titleLooksExcluded(title)) {
+    if (titleLooksExcluded(junkText(title)) || SCAN_JUNK.test(junkText(title))) {
       dropped.junk += 1;
       continue;
     }
@@ -125,7 +243,7 @@ export function scanSalesFor(
       continue;
     }
     if (raw) {
-      if (listingLooksProfessionallyGraded(result)) {
+      if (listingLooksProfessionallyGraded(result) || SCAN_GRADED.test(title)) {
         dropped.grade += 1;
         continue;
       }
@@ -144,7 +262,7 @@ export function scanSalesFor(
       dropped.junk += 1;
       continue;
     }
-    const named = titleParallel(title, directory);
+    const named = titleParallel(title, directory, identity.setBrand ?? "");
     const parallel = named === "Base" && match.serialRun ? unnamedRunLabel(match.serialRun) : named;
     kept.push({ itemId: result.item_id, title, price, soldAt: result.date_sold ?? null, parallel });
   }

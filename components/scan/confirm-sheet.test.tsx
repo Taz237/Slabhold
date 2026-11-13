@@ -267,6 +267,34 @@ describe("ConfirmSheet: last eBay solds", () => {
     }
   });
 
+  it("2 sales more than 10x apart: no last sold, 'Not enough clean sales yet'", async () => {
+    const solds = {
+      status: "done" as const,
+      comp: {
+        status: "ok" as const,
+        sales: [{ priceCents: 14000, soldAt: "2026-11-12T12:00:00Z" }, { priceCents: 60, soldAt: "2026-11-12T10:00:00Z" }],
+        nSales: 2,
+        medianCents: null,
+        lowCents: null,
+        highCents: null,
+        trend: null,
+        asOf: null,
+        source: "live" as const,
+        parallel: "Base",
+        unclean: true,
+      },
+      query: "q",
+    };
+    const view = await mount({ kind: "ready", matches: [fixtures.PREVIEW_SLAB], solds });
+    try {
+      assert.ok(text().includes("Not enough clean sales yet"));
+      assert.doesNotMatch(text(), /Last sold/);
+      assert.doesNotMatch(text(), /\$140\.00|\$0\.60/);
+    } finally {
+      view.unmount();
+    }
+  });
+
   it("then shows the last sold, via Trawl", async () => {
     const view = await mount({ kind: "ready", matches: [fixtures.PREVIEW_SLAB], solds: fixtures.PREVIEW_SOLDS });
     try {

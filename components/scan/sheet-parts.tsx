@@ -413,13 +413,15 @@ export function LastSold({ solds }: { solds: SoldsState }) {
     );
   }
   const message =
-    comp.status === "limited"
-      ? quickCompLimitMessage(comp.reason)
-      : comp.status === "unavailable"
-        ? COMP_COPY.unavailable
-        : comp.status === "none" && comp.searched
-          ? COMP_COPY.noneSearched
-          : COMP_COPY.none;
+    comp.status === "ok" && comp.unclean
+      ? COMP_COPY.notClean
+      : comp.status === "limited"
+        ? quickCompLimitMessage(comp.reason)
+        : comp.status === "unavailable"
+          ? COMP_COPY.unavailable
+          : comp.status === "none" && comp.searched
+            ? COMP_COPY.noneSearched
+            : COMP_COPY.none;
   return (
     <div className={box} role="status">
       <p className="text-sm text-zinc-600 dark:text-zinc-400">{message}</p>

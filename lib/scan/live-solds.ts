@@ -5,8 +5,9 @@ import type { CleanedSale, TrawlSoldResult } from "@/lib/comps/types";
 import type { IndexedDirectoryPlayer } from "@/lib/players/types";
 import { toMatchCard, type QuickCompIdentity } from "@/lib/quick-comp/identity";
 import type { QuickCompLimitReason } from "@/lib/quick-comp/limits";
-import { compIdentityFromMatch, scanCompGrade, summarizeSales, type ScanCompResult } from "./comp";
-import { cachedSalesFor, salesForCard, type QuickCompCachedSale } from "./comp-lookup";
+import { compIdentityFromMatch, scanCompGrade, type ScanCompResult } from "./comp";
+import { type QuickCompCachedSale } from "./comp-lookup";
+import { cleanCompFor, priceScanGroup } from "./clean-sales";
 import {
   liveSearchLadder,
   rankScanMatches,
@@ -15,7 +16,7 @@ import {
   type SoldTitle,
 } from "./match";
 import { newLookupBudget, type LookupBudget } from "./live-search";
-import { groupByParallel, groupFor, isUnnamedRunLabel, scanSalesFor, type ParallelGroup, type ScanSale, type ScanSalesResult } from "./scan-sales";
+import { asTrawlResults, groupByParallel, groupFor, isUnnamedRunLabel, scanSalesFor, type ParallelGroup, type ScanSale, type ScanSalesResult } from "./scan-sales";
 import { scanReadFrom, type ScanCapture } from "./session";
 
 /** One rung of the search ladder, for the dev log. Queries carry card names only, never user data. */
@@ -93,21 +94,19 @@ async function cachedComp(
   titles: readonly SoldTitle[],
   deps: LiveSoldsDeps,
 ): Promise<ScanCompResult | null> {
+  // Every cached sale goes through the same filter as a live one: titles only, junk and grades out.
   try {
     const cached = await deps.quickCompCache(identity);
-    const comps = cached ? cachedSalesFor(identity, cached.comps, deps.directory) : [];
-    if (cached && !cached.sample && comps.length > 0) {
-      const result = summarizeSales(
-        comps.map((comp) => ({ price: comp.soldPrice, soldAt: comp.soldDate })),
-        { asOf: cached.fetchedAt, source: "quick-comp" },
-      );
+    if (cached && !cached.sample && cached.comps.length > 0) {
+      const results = asTrawlResults(cached.comps.filter((comp) => comp.title).map((comp) => ({ title: comp.title!, price: comp.soldPrice, soldAt: comp.soldDate })));
+      const result = cleanCompFor(identity, results, deps.directory, { serialRun: top.serialRun, asOf: cached.fetchedAt, source: "quick-comp" });
       if (result.status === "ok") return result;
     }
   } catch {
     // A failed cache read falls through to the saved listings, then a live search.
   }
-  const sales = salesForCard(titles, identity, { serialRun: top.serialRun });
-  const result = summarizeSales(sales, { asOf: newest(sales), source: "sold-cache" });
+  const saved = asTrawlResults(titles.map((item) => ({ title: item.title, price: Number(item.price), soldAt: item.soldAt ?? null })));
+  const result = cleanCompFor(identity, saved, deps.directory, { serialRun: top.serialRun, asOf: newest(titles), source: "sold-cache" });
   return result.status === "ok" ? result : null;
 }
 
@@ -210,7 +209,7 @@ export async function lookupLiveSolds(
   if (!best.parallel && best.serialRun == null) {
     const base = groupFor(groups, "Base");
     if (!base) return { matches, comp: { status: "split", groups: groups.map(groupSummary), missing: "Base" }, query: usedQuery };
-    const priced = summarizeSales(base.sales.map((sale) => ({ price: sale.price, soldAt: sale.soldAt })), { asOf: fetchedAt || null, source: "live" });
+    const priced = priceScanGroup(base.sales, { asOf: fetchedAt || null, source: "live" });
     if (priced.status !== "ok") return { matches, comp: { status: "none", searched: true }, query: usedQuery };
     return {
       matches,
@@ -226,10 +225,7 @@ export async function lookupLiveSolds(
   if (!best.parallel && leader.label !== "Base" && !isUnnamedRunLabel(leader.label)) matches = [withSalesParallel(best, leader.label), ...matches.slice(1)];
   const group = best.parallel ? groupFor(groups, best.parallel) : leader;
   if (!group) return { matches, comp: { status: "split", groups: groups.map(groupSummary) }, query: usedQuery };
-  const comp = summarizeSales(
-    group.sales.map((sale) => ({ price: sale.price, soldAt: sale.soldAt })),
-    { asOf: fetchedAt || null, source: "live" },
-  );
+  const comp = priceScanGroup(group.sales, { asOf: fetchedAt || null, source: "live" });
   if (comp.status !== "ok") return { matches, comp: { status: "none", searched: true }, query: usedQuery };
 
   // Stored for the next scan or Quick Comp only when the parallel was known: an open one would file under Base.
