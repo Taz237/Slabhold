@@ -461,6 +461,61 @@ export const WIDE_BAKEOFF_CASES: BakeoffCase[] = [
     truth: { player: "Luka Doncic", year: "2018-19", set: "Panini Prizm", number: "280", parallel: "Silver", run: null, grade: "PSA 10", cert: "45678912" },
   },
 
+  // ── Brand-new products, no sales yet (Donnie's device tests) ───────────────
+  {
+    name: "New product: Knight, 2026 Bowman U Chrome 1st Bowman /10, not in our list, SKU on the back",
+    front: ["BOWMAN", "1ST", "WAYNE KNIGHT", "RB", "03/10"],
+    back: [
+      "BCP-68",
+      "RUNNING BACK",
+      "WAYNE KNIGHT",
+      "UCLA",
+      "HT: 5-7 WT: 190",
+      "Knight ran for 1,046 yards as a sophomore and caught 31 passes out of the backfield.",
+      "© 2026 THE TOPPS COMPANY, INC. ALL RIGHTS RESERVED.",
+      "TOPPS AND BOWMAN CHROME ARE REGISTERED TRADEMARKS OF THE TOPPS COMPANY, INC.",
+      "WWW.TOPPS.COM",
+      "CMP#148134",
+    ],
+    truth: { player: "Wayne Knight", year: "2026", set: "Bowman U Chrome", number: "BCP-68", parallel: "", run: 10, firstBowman: true, auto: false, playerNew: true },
+  },
+  {
+    name: "New product: Knight, the front name unread, the position line above the name on the back",
+    front: ["1ST BOWMAN", "03/10"],
+    back: ["RUNNING BACK", "WAYNE KNIGHT", "UCLA", "BCP-68", "© 2026 THE TOPPS COMPANY", "TOPPS AND BOWMAN CHROME ARE REGISTERED TRADEMARKS", "WWW.TOPPS.COM", "CMP#148134"],
+    truth: { player: "Wayne Knight", year: "2026", set: "Bowman U Chrome", number: "BCP-68", parallel: "", run: 10, firstBowman: true, auto: false, playerNew: true },
+  },
+  {
+    name: "New product: Lemon, 2026 Topps Inception rookie auto variation, no sales yet",
+    front: ["INCEPTION", "MAKAI LEMON", "PHILADELPHIA EAGLES", "WR", "RC", "TOPPS CERTIFIED AUTOGRAPH ISSUE"],
+    back: [
+      "RAV-ML",
+      "INCEPTION",
+      "MAKAI LEMON",
+      "PHILADELPHIA EAGLES",
+      "ROOKIE AUTOGRAPH VARIATIONS CARD",
+      "FROM 2026 TOPPS INCEPTION FOOTBALL",
+      "© 2026 THE TOPPS COMPANY, INC. ALL RIGHTS RESERVED.",
+    ],
+    truth: { player: "Makai Lemon", year: "2026", set: "Topps Inception", number: "RAV-ML", parallel: "Green", run: null, auto: true, rookie: true, subset: "Rookie Autograph Variations" },
+  },
+  {
+    name: "New product: Lemon, sold titles agree on Green",
+    front: ["INCEPTION", "MAKAI LEMON", "PHILADELPHIA EAGLES", "WR", "RC", "TOPPS CERTIFIED AUTOGRAPH ISSUE"],
+    back: ["RAV-ML", "INCEPTION", "MAKAI LEMON", "ROOKIE AUTOGRAPH VARIATIONS CARD", "FROM 2026 TOPPS INCEPTION FOOTBALL", "© 2026 THE TOPPS COMPANY, INC."],
+    titles: [
+      { title: "Makai Lemon 2026 Topps Inception Variation Green Rookie RC Auto #RAV-ML", price: 310, soldAt: "2026-11-02" },
+      { title: "2026 Topps Inception Makai Lemon Green Rookie Auto Variation RAV-ML Eagles", price: 285, soldAt: "2026-11-06" },
+    ],
+    truth: { player: "Makai Lemon", year: "2026", set: "Topps Inception", number: "RAV-ML", parallel: "Green", run: null, auto: true, rookie: true, subset: "Rookie Autograph Variations" },
+  },
+  {
+    name: "New product trap: only QUARTERBACK and a school read, so the player stays open",
+    front: ["BOWMAN", "1ST"],
+    back: ["QUARTERBACK", "ALABAMA", "© 2026 THE TOPPS COMPANY", "TOPPS AND BOWMAN CHROME ARE REGISTERED TRADEMARKS"],
+    truth: { player: "", year: "2026", set: "Bowman U Chrome", number: "BCP-12", parallel: "", run: null },
+  },
+
   // ── Hockey ─────────────────────────────────────────────────────────────────
   {
     name: "Upper Deck: Celebrini Young Guns, series on the back",

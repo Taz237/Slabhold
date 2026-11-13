@@ -11,6 +11,8 @@ export { scannerEnabled };
  */
 
 export const CONFIRM_COPY = {
+  /** The name was read off the card; our player list doesn't have them yet. */
+  playerNew: "Not in our list yet",
   title: "Is this your card?",
   yes: "Yes, that's it",
   add: "Yes, add it",

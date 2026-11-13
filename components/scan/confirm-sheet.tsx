@@ -22,6 +22,7 @@ import {
   readyToSave,
   type ParallelPick,
 } from "@/lib/scan/confirm";
+import type { ProductParallel } from "@/lib/cards/product-data";
 import type { ScanMatch } from "@/lib/scan/match";
 
 export type ConfirmSheetState =
@@ -133,7 +134,7 @@ function Ready({
 
       <div>
         <ParallelStrip
-          options={parallelOptionsFor(top)}
+          options={withYearAgoParallels(parallelOptionsFor(top), top, top === matches[0] ? solds : undefined)}
           pick={pick}
           deferred={deferred}
           hint={
@@ -219,4 +220,14 @@ function NoMatch({
       </div>
     </div>
   );
+}
+
+/** No sales yet on a numbered card with no parallel named: last year's parallels at this print run join the chips. */
+function withYearAgoParallels(options: ProductParallel[], match: ScanMatch, solds: SoldsState | undefined): ProductParallel[] {
+  const names = solds?.status === "done" ? (solds.similar?.parallels ?? []) : [];
+  const out = [...options];
+  for (const name of names) {
+    if (!out.some((option) => option.name.toLowerCase() === name.toLowerCase())) out.push({ name, serialRun: match.serialRun });
+  }
+  return out;
 }

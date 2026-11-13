@@ -268,7 +268,9 @@ describe("live eBay solds: cache first", () => {
     const rows = [row({ id: "dart-prizm", playerName: "Jaxson Dart", yearLabel: "2025", setBrand: "Panini Prizm", cardNumber: "332" })];
     await lookupLiveSolds(input(DART_FRONT, null, "card", rows), "u1", value);
     assert.deepEqual(calls.cacheReads, [], "Prizm #332 was only a catalog guess");
-    assert.equal(calls.searches.length, 1);
+    // One search for the card. A numbered card with no sales then looks at last year's similar cards ("2024 ...").
+    assert.equal(calls.searches.filter((query: string) => !/^\d{4} /.test(query)).length, 1);
+    assert.ok(calls.searches.length <= 3);
   });
 
   it("stores the live sales in Quick Comp's shared cache for the next scan", async () => {

@@ -71,8 +71,15 @@ export function scanHandoffFrom(match: ScanMatch, id: string, options: { autoSav
     isAuto: match.isAuto,
     grade: match.grade,
     sureness: match.sureness,
-    autoSave: options.autoSave === true,
+    // An autograph, a variation or a numbered card with its parallel still open is never saved as
+    // Base on its own: the collector picks the parallel on the Add card screen first.
+    autoSave: options.autoSave === true && !parallelStillOpen(match),
   };
+}
+
+/** The parallel is open on a card that can't be Base. */
+export function parallelStillOpen(match: Pick<ScanMatch, "parallel" | "isAuto" | "subset" | "serialRun">): boolean {
+  return !match.parallel && (match.isAuto || Boolean(match.subset) || match.serialRun != null);
 }
 
 function text(value: unknown): string | null {

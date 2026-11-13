@@ -191,7 +191,7 @@ export function ScanHub({
         kind: "ready",
         matches,
         solds: solds
-          ? { status: "done", comp: solds.comp, query: solds.query }
+          ? { status: "done", comp: solds.comp, query: solds.query, ...(solds.similar ? { similar: solds.similar } : {}) }
           : { status: "done", comp: { status: "unavailable" }, query: null },
       });
     },

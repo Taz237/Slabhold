@@ -27,6 +27,8 @@ const KINDS: readonly PreviewKind[] = [
   "comp-none",
   "comp-looking",
   "comp-limited",
+  "comp-estimate",
+  "new-product",
   "hub",
   "hub-comp",
   "door",

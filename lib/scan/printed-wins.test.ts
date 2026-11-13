@@ -134,7 +134,10 @@ describe("Scan to comp gets the same identity", () => {
     assert.equal(result.matches[0].setBrand, "Bowman");
     assert.equal(result.matches[0].cardNumber, "BP-27");
     // No sales anywhere: the whole ladder runs, never with the SKU or Topps.
-    assert.deepEqual(searches, ["Aidan Miller Bowman BP-27 /299", "Aidan Miller BP-27 /299", "Aidan Miller Bowman BP-27", "Aidan Miller BP-27"]);
+    // Then, with no sales yet, last year's similar cards (searches that start with the year): 2 at most.
+    const similar = searches.filter((query) => /^\d{4} /.test(query));
+    assert.ok(similar.length <= 2);
+    assert.deepEqual(searches.filter((query) => !similar.includes(query)), ["Aidan Miller Bowman BP-27 /299", "Aidan Miller BP-27 /299", "Aidan Miller Bowman BP-27", "Aidan Miller BP-27"]);
     assert.doesNotMatch(searches.join(" "), /CMPO73107|Topps/);
   });
 });

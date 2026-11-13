@@ -14,6 +14,8 @@ export type CardRefreshReason =
   | "no_matches"
   | "trawl_error"
   | "budget_exhausted"
+  /** No lookup ran: the card has no card #, so a search would match the whole set. */
+  | "no_number"
   | "unavailable";
 
 /**

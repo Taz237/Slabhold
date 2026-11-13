@@ -77,7 +77,8 @@ function markRun(got: number | null | undefined, scan: BakeoffCase): Mark {
 
 function marks(match: ScanMatch | undefined, scan: BakeoffCase): Record<Field, Mark> {
   return {
-    player: !match ? "open" : match.playerName === scan.truth.player ? "right" : "wrong",
+    // A trap with no player to read (truth.player ""): the player must stay open, and that is right.
+    player: !scan.truth.player ? (!match?.playerName ? "right" : "wrong") : !match ? "open" : match.playerName === scan.truth.player ? "right" : "wrong",
     year: scan.truth.year ? mark(match?.yearLabel ?? "", scan.truth.year) : "right",
     set: mark(match?.setBrand ?? "", scan.truth.set),
     number: mark(match?.cardNumber ?? "", scan.truth.number),
@@ -176,6 +177,30 @@ describe("the scanner bake-off", () => {
       const shown = JSON.stringify(top(scan));
       assert.doesNotMatch(shown, /Topps|CMPO73107|FOR-4|SS-3B/i, scan.name);
     }
+  });
+
+  it("the flags a card prints are read: autograph, rookie, 1st Bowman, the subset, a player new to us", () => {
+    let checked = 0;
+    for (const scan of ALL_CASES) {
+      const { auto, rookie, firstBowman, subset, playerNew } = scan.truth;
+      if (auto == null && rookie == null && firstBowman == null && subset == null && playerNew == null) continue;
+      checked += 1;
+      const match = top(scan);
+      assert.ok(match, scan.name);
+      if (auto != null) assert.equal(match.isAuto, auto, `${scan.name}: auto`);
+      if (rookie != null) assert.equal(match.isRookie, rookie, `${scan.name}: rookie`);
+      if (firstBowman != null) assert.equal(Boolean(match.firstBowman), firstBowman, `${scan.name}: 1st Bowman`);
+      if (subset != null) assert.equal(match.subset ?? "", subset, `${scan.name}: subset`);
+      if (playerNew != null) assert.equal(Boolean(match.playerNew), playerNew, `${scan.name}: new player`);
+      // An autograph, a variation and a numbered card are never Base, and never offered Base.
+      if (match.isAuto || match.subset || match.serialRun != null) {
+        assert.notEqual(match.parallel, "Base", scan.name);
+        assert.ok(!match.parallelOptions.some((option) => option.name === "Base"), `${scan.name}: Base offered`);
+      }
+      // A SKU is never the card #.
+      assert.doesNotMatch(match.cardNumber, /148134|CMP/i, scan.name);
+    }
+    assert.ok(checked >= 4);
   });
 
   it("a slab's cert number is never the card #, and its grade is the label's", () => {

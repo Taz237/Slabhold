@@ -147,7 +147,9 @@ export function MatchSummary({ photo, match }: { photo: string | null; match: Sc
           <Field sureness={match.sureness.set}>{match.setBrand}</Field>{" "}
           {match.cardNumber ? <Field sureness={match.sureness.number}>{`#${match.cardNumber}`}</Field> : null}
         </p>
-        {grade || match.isRookie || match.isAuto || match.serialRun ? (
+        {match.subset ? <p className="mt-1 text-sm leading-5 text-zinc-600 dark:text-zinc-400">{match.subset}</p> : null}
+        {match.playerNew ? <p className="mt-1 text-xs leading-5 text-zinc-500">{CONFIRM_COPY.playerNew}</p> : null}
+        {grade || match.isRookie || match.isAuto || match.firstBowman || match.serialRun ? (
           <div className="mt-3 flex flex-wrap items-center gap-2">
             {grade ? (
               <span className="rounded-md border border-zinc-300 px-2 py-0.5 font-mono text-xs leading-5 font-medium tabular-nums dark:border-white/20">
@@ -169,6 +171,7 @@ export function MatchSummary({ photo, match }: { photo: string | null; match: Sc
               </span>
             ) : null}
             {match.isRookie ? <span className="font-mono text-xs leading-5 text-zinc-500">RC</span> : null}
+            {match.firstBowman ? <span className="font-mono text-xs leading-5 text-zinc-500">1st Bowman</span> : null}
             {match.isAuto ? <span className="font-mono text-xs leading-5 text-zinc-500">Auto</span> : null}
           </div>
         ) : null}
@@ -280,7 +283,17 @@ export function RevealName({ match, parallel }: { match: ScanMatch; parallel: st
           <Field sureness={match.sureness.parallel}>{parallel}</Field>
         </p>
       ) : null}
-      {grade || cert || match.isRookie || match.isAuto || match.serialRun ? (
+      {match.subset ? (
+        <p data-stage="parallel" className={`mt-1 text-sm leading-5 text-zinc-600 dark:text-zinc-400 ${pick.className}`} style={pick.style}>
+          {match.subset}
+        </p>
+      ) : null}
+      {match.playerNew ? (
+        <p data-stage="tags" className={`mt-1 text-xs leading-5 text-zinc-500 ${tags.className}`} style={tags.style}>
+          {CONFIRM_COPY.playerNew}
+        </p>
+      ) : null}
+      {grade || cert || match.isRookie || match.isAuto || match.firstBowman || match.serialRun ? (
         <div data-stage="tags" className={`mt-3 flex flex-wrap items-center justify-center gap-2 ${tags.className}`} style={tags.style}>
           {grade ? (
             <span className="rounded-md border border-zinc-300 px-2 py-0.5 font-mono text-xs leading-5 font-medium tabular-nums dark:border-white/20">
@@ -301,6 +314,7 @@ export function RevealName({ match, parallel }: { match: ScanMatch; parallel: st
             </span>
           ) : null}
           {match.isRookie ? <span className="font-mono text-xs leading-5 text-zinc-500">RC</span> : null}
+          {match.firstBowman ? <span className="font-mono text-xs leading-5 text-zinc-500">1st Bowman</span> : null}
           {match.isAuto ? <span className="font-mono text-xs leading-5 text-zinc-500">Auto</span> : null}
         </div>
       ) : null}

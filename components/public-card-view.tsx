@@ -36,7 +36,7 @@ import { isCardOwner } from "@/lib/comps/ownership";
 import { messageOwnerHref, showOpenToOffersBadge } from "@/lib/offers/open-to-offers";
 import { userHref } from "@/lib/social/user-href";
 import { basedOnSalesLabel, countForSalesLabel, valueFromShownSales } from "@/lib/comps/shared-value";
-import { soldNotice } from "@/lib/comps/sold-response";
+import { soldNotice, soldNoticeTitle } from "@/lib/comps/sold-response";
 import { useSoldComps } from "@/lib/comps/use-sold-comps";
 import { canonicalParallelName } from "@/lib/cards/parallels";
 import { cardTitle } from "@/lib/format";
@@ -450,7 +450,7 @@ function PublicCardAnalytics({
           ) : null}
           {soldCopy && !authRequired ? (
             <div className={`mt-4 px-4 py-4 text-center ${compTile}`}>
-              <p className="text-sm font-semibold">Sales are taking a break</p>
+              <p className="text-sm font-semibold">{soldNoticeTitle(soldCopy)}</p>
               <p className="mt-1 text-sm text-zinc-500">{soldCopy}</p>
             </div>
           ) : null}
