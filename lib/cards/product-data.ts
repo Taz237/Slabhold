@@ -13,6 +13,8 @@ export type ProductParallelRow = {
   serialRun: number | null;
   /** Numbered, but the run changes card to card. */
   runVaries?: boolean;
+  /** Card-number prefixes this row belongs to ("BP" for BP-27). None: cards whose prefix no row names. */
+  cardPrefixes?: readonly string[];
 };
 
 export type ProductRecord = {
@@ -148,18 +150,39 @@ export function setNamesIn(
   return names;
 }
 
-/** Base first, then the checklist order. One row per name across subsets. */
+/** "BP-27" → "BP". "" when the number has no letters before a dash. */
+function cardPrefix(cardNumber: string): string {
+  return /^\s*([A-Za-z]+)-/.exec(cardNumber)?.[1].toUpperCase() ?? "";
+}
+
+/**
+ * The rows that can be this card. A product with paper and chrome cards in one box keeps a list
+ * per card-number prefix: BP-27 reads the BP rows, and a number no row names reads the rest.
+ */
+function rowsForCard(rows: readonly ProductParallelRow[], cardNumber: string | undefined): readonly ProductParallelRow[] {
+  if (!cardNumber?.trim()) return rows;
+  const prefix = cardPrefix(cardNumber);
+  const own = (row: ProductParallelRow) => Boolean(prefix) && Boolean(row.cardPrefixes?.some((item) => item.toUpperCase() === prefix));
+  if (rows.some(own)) return rows.filter(own);
+  return rows.filter((row) => !row.cardPrefixes?.length);
+}
+
+/**
+ * Base first, then the checklist order. One row per name across subsets.
+ * With a card number, only the rows for that number's prefix.
+ */
 export function parallelsIn(
   data: readonly ProductRecord[],
   sport: string,
   yearLabel: string,
   setBrand: string,
+  cardNumber?: string,
 ): ProductParallel[] {
   const product = productForSet(data, sport, yearLabel, setBrand);
   if (!product) return [];
   const seen = new Set<string>();
   const list: ProductParallel[] = [];
-  for (const row of product.parallels) {
+  for (const row of rowsForCard(product.parallels, cardNumber)) {
     const name = displayParallelName(row.name);
     const key = parallelMatchKey(name);
     if (!key || seen.has(key)) continue;

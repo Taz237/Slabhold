@@ -624,9 +624,9 @@ export function parallelLabel(colorWords: readonly string[]): string {
 
 function checklistFor(
   products: readonly ProductRecord[] | null,
-  card: Pick<Candidate, "sport" | "yearLabel" | "setBrand">,
+  card: Pick<Candidate, "sport" | "yearLabel" | "setBrand" | "cardNumber">,
 ): ProductParallel[] {
-  const listed = products?.length ? parallelsIn(products, card.sport, card.yearLabel, card.setBrand) : [];
+  const listed = products?.length ? parallelsIn(products, card.sport, card.yearLabel, card.setBrand, card.cardNumber) : [];
   if (listed.length > 0) return listed;
   return parallelsForSet(card.setBrand).map((name) => ({ name, serialRun: null }));
 }
@@ -1146,7 +1146,7 @@ export function rankScanMatches(
           .map((item) => ({ ...item, colors: item.colors.map((phrase) => phrase.replace(/\bsapphire\b/gi, " ").replace(/\s+/g, " ").trim()).filter(Boolean) }))
       : card.titles;
     const lastYear = yearBefore(card.yearLabel);
-    const yearAgo = lastYear && options.products?.length ? parallelsIn(options.products, card.sport, lastYear, card.setBrand) : [];
+    const yearAgo = lastYear && options.products?.length ? parallelsIn(options.products, card.sport, lastYear, card.setBrand, card.cardNumber) : [];
     const parallel = pickParallel(evidence, checklistFor(options.products, card), titles, yearAgo);
     const inDirectory = evidence.players.some((item) => compactName(item.name) === compactName(card.playerName));
     // A slab label prints no run: when every sold title for this parallel names the same one, use it.
