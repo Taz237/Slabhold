@@ -463,4 +463,24 @@ describe("Aidan Miller after #245: a bio 'for-4' on the back, empty catalog", ()
       view.unmount();
     }
   });
+
+  it("draws the sales as dots, one per sale, with the range in words; fewer than 3 sales draw none", async () => {
+    const view = await mount({ kind: "ready", matches: [fixtures.PREVIEW_SLAB], solds: fixtures.PREVIEW_SOLDS });
+    try {
+      await waitFor(() => text().includes("Based on 6 sales"));
+      const chart = win.document.querySelector("[role='img'][aria-label^='6 sales from']");
+      assert.ok(chart, "the chart says what it shows");
+      assert.match(chart.getAttribute("aria-label") ?? "", /\$880\.00 to \$1,100\.00$/);
+      assert.equal(chart.querySelectorAll("span.rounded-full").length, 6);
+    } finally {
+      view.unmount();
+    }
+    const few = await mount({ kind: "ready", matches: [fixtures.PREVIEW_UNNUMBERED], solds: fixtures.PREVIEW_SOLDS_UNCLEAN });
+    try {
+      await waitFor(() => text().includes("Last sales"));
+      assert.equal(win.document.querySelector("[role='img'][aria-label*='sales']"), null);
+    } finally {
+      few.unmount();
+    }
+  });
 });
