@@ -2,6 +2,7 @@ import { titleLooksExcluded, titleSerialRuns } from "@/lib/comps/match";
 import { dollarsToCents, median } from "@/lib/comps/stats";
 import type { TrawlSoldResult } from "@/lib/comps/types";
 import type { IndexedDirectoryPlayer } from "@/lib/players/types";
+import { compactInterest } from "@/lib/social/follow-rank";
 import { productWord, yearBefore, type ScanMatch } from "./match";
 import { cardWord, findPlayers } from "./raw-text";
 import { schoolOnLine } from "./schools";
@@ -118,7 +119,8 @@ export function comparableSales(
 ): Comparable[] {
   const basis = basisOf(card);
   if (!basis) return [];
-  const self = card.playerName.toLowerCase();
+  // Accents and case aside: Rodón is Rodon.
+  const self = compactInterest(card.playerName);
   const out: Comparable[] = [];
   const seen = new Set<string>();
   for (const result of results) {
@@ -143,7 +145,7 @@ export function comparableSales(
     const known = findPlayers([title], directory).filter((hit) => hit.score === 1 && !hit.more);
     if (known.length > 0 && card.sport && !known.some((hit) => hit.sport === card.sport)) continue;
     const player = known.find((hit) => !card.sport || hit.sport === card.sport)?.name ?? nameInTitle(title);
-    if (!player || player.toLowerCase() === self) continue;
+    if (!player || compactInterest(player) === self) continue;
     out.push({ player, price, soldAt: result.date_sold ?? null, parallel: titleParallel(title, directory, basis.set) });
   }
   return out;
