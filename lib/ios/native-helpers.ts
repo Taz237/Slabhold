@@ -85,3 +85,18 @@ export function nativePermissionFrom(receive: string): NativePermission {
   if (receive === "denied") return "denied";
   return "prompt";
 }
+
+/**
+ * True when this app build's plugin has the method. Capacitor lists every native
+ * plugin's methods on the bridge (Capacitor.PluginHeaders), so a method added in
+ * a newer build can be offered only where it exists.
+ */
+export function pluginHasMethod(headers: unknown, plugin: string, method: string): boolean {
+  if (!Array.isArray(headers)) return false;
+  return headers.some((header) => {
+    if (!header || typeof header !== "object") return false;
+    const { name, methods } = header as { name?: unknown; methods?: unknown };
+    if (name !== plugin || !Array.isArray(methods)) return false;
+    return methods.some((entry) => !!entry && typeof entry === "object" && (entry as { name?: unknown }).name === method);
+  });
+}

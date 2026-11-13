@@ -42,7 +42,7 @@
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Slabhold opens your photos so you can add card pictures to your collection and posts.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>Slabhold only saves photos when you ask it to</string>
+	<string>Slabhold only saves photos when you ask it to.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

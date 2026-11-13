@@ -17,11 +17,11 @@ import { oauthReturnPath } from "@/lib/auth/oauth";
 import { appLinkPath, routeLink, routeWindowOpen, safeAppPath } from "@/lib/ios/links";
 import type { PhotoSource } from "@/lib/ios/camera";
 import type { HapticMoment } from "@/lib/ios/haptics";
-import { apnsTokenFrom, asShareAbort, nativePermissionFrom, photoFile, photoPickFailure, pushTapPath } from "@/lib/ios/native-helpers";
+import { apnsTokenFrom, asShareAbort, nativePermissionFrom, photoFile, photoPickFailure, pluginHasMethod, pushTapPath } from "@/lib/ios/native-helpers";
 import { claimReviewAsk, countLaunch, type ReviewMoment } from "@/lib/ios/review-prompt";
 import type { NativePermission } from "@/lib/push/native-client";
 import type { NativeShareData } from "@/lib/share/sheet";
-import { SCANNER_PLUGIN, scanCaptureFrom, type RawScan } from "@/lib/ios/scanner";
+import { SCANNER_PLUGIN, scanCaptureFrom, scanOutcomeFrom, type RawScan, type ScanOutcome } from "@/lib/ios/scanner";
 import type { ScanCapture } from "@/lib/scan/session";
 
 const LAUNCH_KEY = "slabhold.native.launch-url";
@@ -34,6 +34,8 @@ type SlabholdNativePlugin = {
     files: { name: string; mime: string; base64: string }[];
     text?: string;
   }): Promise<{ shown: boolean; completed?: boolean }>;
+  /** Build 5 and up: Slabhold's page in the Settings app. */
+  openSettings(): Promise<{ opened: boolean }>;
 };
 const SlabholdNative = registerPlugin<SlabholdNativePlugin>("SlabholdNative");
 
@@ -423,9 +425,29 @@ export function scannerAvailable(): boolean {
   }
 }
 
-/** Opens the native card scanner. Null when cancelled. Throws only when the plugin fails. */
-export async function scanCard(): Promise<ScanCapture | null> {
-  return scanCaptureFrom(await SlabholdScanner.scanCard({ mode: "auto" }));
+/** Opens the native card scanner. Null when cancelled, "denied" when camera access is off. Throws only when the plugin fails. */
+export async function scanCard(): Promise<ScanOutcome> {
+  return scanOutcomeFrom(await SlabholdScanner.scanCard({ mode: "auto" }));
+}
+
+/** This build can open Slabhold's page in the Settings app (build 5 and up). False on build 4. */
+export function appSettingsAvailable(): boolean {
+  try {
+    const headers = (window as Window & { Capacitor?: { PluginHeaders?: unknown } }).Capacitor?.PluginHeaders;
+    return pluginHasMethod(headers, "SlabholdNative", "openSettings");
+  } catch {
+    return false;
+  }
+}
+
+/** Opens Slabhold's page in the Settings app. False when it couldn't; never throws. */
+export async function openAppSettings(): Promise<boolean> {
+  if (!appSettingsAvailable()) return false;
+  try {
+    return (await SlabholdNative.openSettings()).opened === true;
+  } catch {
+    return false;
+  }
 }
 
 /** Reads a library photo with the scanner's text reader. */

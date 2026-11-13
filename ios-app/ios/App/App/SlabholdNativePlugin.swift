@@ -13,7 +13,8 @@ public class SlabholdNativePlugin: CAPPlugin, CAPBridgedPlugin {
     public let pluginMethods: [CAPPluginMethod] = [
         CAPPluginMethod(name: "requestReview", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "setBadge", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "shareFiles", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "shareFiles", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "openSettings", returnType: CAPPluginReturnPromise)
     ]
 
     /// Most a single share may carry, all files together.
@@ -44,6 +45,21 @@ public class SlabholdNativePlugin: CAPPlugin, CAPBridgedPlugin {
             DispatchQueue.main.async {
                 UIApplication.shared.applicationIconBadgeNumber = count
                 call.resolve()
+            }
+        }
+    }
+
+    /// Slabhold's page in the Settings app, where the collector can turn the camera
+    /// back on. `opened` says whether iOS opened it. Never rejects.
+    @objc func openSettings(_ call: CAPPluginCall) {
+        DispatchQueue.main.async {
+            guard let url = URL(string: UIApplication.openSettingsURLString),
+                  UIApplication.shared.canOpenURL(url) else {
+                call.resolve(["opened": false])
+                return
+            }
+            UIApplication.shared.open(url, options: [:]) { opened in
+                call.resolve(["opened": opened])
             }
         }
     }

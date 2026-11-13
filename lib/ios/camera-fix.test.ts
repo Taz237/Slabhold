@@ -18,7 +18,7 @@ describe("the camera's Info.plist keys", () => {
     }
     assert.match(
       plist,
-      /<key>NSPhotoLibraryAddUsageDescription<\/key>\s*<string>Slabhold only saves photos when you ask it to<\/string>/,
+      /<key>NSPhotoLibraryAddUsageDescription<\/key>\s*<string>Slabhold only saves photos when you ask it to\.<\/string>/,
     );
   });
 
