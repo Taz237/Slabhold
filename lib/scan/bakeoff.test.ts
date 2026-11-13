@@ -149,8 +149,9 @@ describe("the scanner bake-off", () => {
     });
   });
 
-  it("the first set has no known misses", () => {
-    for (const scan of BAKEOFF_CASES) assert.deepEqual(scan.knownWrong ?? [], [], scan.name);
+  it("no scan has a known miss: nothing is wrong on any field", () => {
+    for (const scan of ALL_CASES) assert.deepEqual(scan.knownWrong ?? [], [], scan.name);
+    assert.equal(tally(rows).wrong, 0);
   });
 
   it("the Miller card is never Topps, never a SKU, never FOR-4", () => {

@@ -12,7 +12,7 @@ import type { TrawlSoldResult } from "@/lib/comps/types";
 import type { IndexedDirectoryPlayer } from "@/lib/players/types";
 import { toMatchCard, type QuickCompIdentity } from "@/lib/quick-comp/identity";
 import { parallelLabel, type ScanMatch } from "./match";
-import { readRawCardText } from "./raw-text";
+import { COLOR_NAME_PHRASES, readRawCardText } from "./raw-text";
 
 /**
  * A scanned card's sold sales from eBay results, filtered the way eBay's own
@@ -87,13 +87,6 @@ function checklistNames(setBrand: string, checklist?: readonly string[]): string
  */
 const BASE_LEVELS = new Set(["rated rookie", "rated rookies", "concourse", "premier", "premier level", "courtside", "field level"]);
 
-/**
- * Team names with a color or finish word in them. They're taken out before the parallel is read,
- * so "Tulane Green Wave" and "Dallas Stars" stay Base.
- */
-const TEAM_PHRASES =
-  /\b(?:(?:tulane\s+)?green\s+wave|(?:dallas|(?:minnesota\s+)?north)\s+stars|red\s+sox|white\s+sox|blue\s+jays|red\s+wings|blue\s+jackets|golden\s+(?:knights|state|bears|gophers|eagles|hurricane)|green\s+bay|crimson\s+tide|blue\s+devils|red\s+raiders|red\s+storm|scarlet\s+knights|black\s+knights|orange\s+crush)\b/gi;
-
 /** A color phrase inside a longer one is the same parallel: "Gold Vinyl" and "Gold" are Gold Vinyl. */
 function withoutRepeats(phrases: readonly string[]): string[] {
   const words = (phrase: string) => phrase.toUpperCase().split(/[\s/-]+/).filter(Boolean);
@@ -137,7 +130,7 @@ export function titleParallel(
   /** The set's checklist names, when known. Defaults to our own list for the set. */
   checklist?: readonly string[],
 ): string {
-  const title = rawTitle.replace(TEAM_PHRASES, " ");
+  const title = rawTitle.replace(COLOR_NAME_PHRASES, " ");
   const read = readRawCardText([title], directory);
   const colors = withoutRepeats([...read.parallelWords]).sort((a, b) => title.toUpperCase().indexOf(a) - title.toUpperCase().indexOf(b));
   const label = parallelLabel(colors);

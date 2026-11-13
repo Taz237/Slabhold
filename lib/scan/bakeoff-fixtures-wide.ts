@@ -203,21 +203,18 @@ export const WIDE_BAKEOFF_CASES: BakeoffCase[] = [
   },
   {
     name: "Prizm: Allen, jersey number on the front, front only",
-    knownWrong: ["number"],
     front: ["PRIZM", "JOSH ALLEN", "BILLS", "#17 | QB"],
     back: null,
     truth: { player: "Josh Allen", year: "2024", set: "Panini Prizm", number: "31", parallel: "", run: null },
   },
   {
     name: "Prizm WNBA: Clark, PRIZM logo on the front, WNBA product line on the back",
-    knownWrong: ["year", "set"],
     front: ["PRIZM", "CAITLIN CLARK", "INDIANA FEVER", "RC"],
     back: ["No. 140", "CAITLIN CLARK", "GUARD", "2024 PANINI - PRIZM WNBA", PANINI_2024],
     truth: { player: "Caitlin Clark", year: "2024", set: "Panini Prizm WNBA", number: "140", parallel: "", run: null },
   },
   {
     name: "Prizm Draft Picks: Ward, '#1 OVERALL PICK' on the front, front only",
-    knownWrong: ["set", "number"],
     front: ["PRIZM", "DRAFT PICKS", "CAM WARD", "MIAMI", "#1 OVERALL PICK"],
     back: null,
     truth: { player: "Cam Ward", year: "2025", set: "Prizm Draft Picks", number: "101", parallel: "", run: null },
@@ -230,7 +227,6 @@ export const WIDE_BAKEOFF_CASES: BakeoffCase[] = [
   },
   {
     name: "Donruss: Harrison Jr. Rated Rookie",
-    knownWrong: ["set"],
     front: ["DONRUSS", "RATED ROOKIE", "MARVIN HARRISON JR.", "CARDINALS"],
     back: ["No. 304", "MARVIN HARRISON JR.", "WIDE RECEIVER", "2024 PANINI - DONRUSS FOOTBALL", PANINI_2024],
     truth: { player: "Marvin Harrison Jr.", year: "2024", set: "Panini Donruss", number: "304", parallel: "", run: null },
@@ -269,7 +265,6 @@ export const WIDE_BAKEOFF_CASES: BakeoffCase[] = [
   },
   {
     name: "Bowman Chrome: Jenkins, only 1ST BOWMAN read (the BCP code says Chrome)",
-    knownWrong: ["set"],
     front: ["1ST BOWMAN", "WALKER JENKINS", "MINNESOTA TWINS", "OF"],
     back: ["BCP-91", "WALKER JENKINS", "OUTFIELD", TOPPS_2024],
     truth: { player: "Walker Jenkins", year: "2024", set: "Bowman Chrome", number: "BCP-91", parallel: "", run: null },
@@ -294,7 +289,6 @@ export const WIDE_BAKEOFF_CASES: BakeoffCase[] = [
   },
   {
     name: "Bowman: Wetherholt, 'INF-3B' read and the BP code missed",
-    knownWrong: ["number"],
     front: ["BOWMAN", "1ST BOWMAN", "JJ WETHERHOLT", "ST. LOUIS CARDINALS"],
     back: ["JJ WETHERHOLT", "INF-3B", "ST. LOUIS CARDINALS", "HT: 5-10 WT: 190", "© 2025 THE TOPPS COMPANY, INC. ALL RIGHTS RESERVED."],
     truth: { player: "JJ Wetherholt", year: "2025", set: "Bowman", number: "BP-15", parallel: "", run: null },
@@ -313,14 +307,12 @@ export const WIDE_BAKEOFF_CASES: BakeoffCase[] = [
   },
   {
     name: "Bowman Draft: Bazzana, '#1 OVERALL PICK' in the bio",
-    knownWrong: ["number"],
     front: ["BOWMAN DRAFT", "1ST BOWMAN", "TRAVIS BAZZANA", "CLEVELAND GUARDIANS", "2B"],
     back: ["BD-1", "TRAVIS BAZZANA", "SECOND BASE", "#1 OVERALL PICK 2024 DRAFT", TOPPS_2024],
     truth: { player: "Travis Bazzana", year: "2024", set: "Bowman Draft", number: "BD-1", parallel: "", run: null },
   },
   {
     name: "Bowman Chrome: Anthony, glare turned O into 0 and cut the logo",
-    knownWrong: ["parallel"],
     front: ["1ST B0WMAN", "R0MAN ANTH0NY", "B0ST0N RED S0X", "OF"],
     back: ["BCP-142", "ROMAN ANTHONY", "OUTFIELD", "© 2023 THE TOPPS COMPANY, INC. ALL RIGHTS RESERVED."],
     truth: { player: "Roman Anthony", year: "2023", set: "Bowman Chrome", number: "BCP-142", parallel: "", run: null },
@@ -352,14 +344,12 @@ export const WIDE_BAKEOFF_CASES: BakeoffCase[] = [
   },
   {
     name: "Topps Update: Wood, bare code US1 on the back",
-    knownWrong: ["set"],
     front: ["TOPPS", "JAMES WOOD", "WASHINGTON NATIONALS", "OF", "RC"],
     back: ["US1", "JAMES WOOD", "OUTFIELD", "2024 TOPPS UPDATE SERIES", TOPPS_2024],
     truth: { player: "James Wood", year: "2024", set: "Topps Update", number: "US1", parallel: "", run: null },
   },
   {
     name: "Topps flagship: Merrill, a ratio in the bio (21/25 games)",
-    knownWrong: ["run"],
     front: ["TOPPS", "JACKSON MERRILL", "SAN DIEGO PADRES", "OF", "RC"],
     back: ["#197", "JACKSON MERRILL", "OUTFIELD", "Jackson hit safely in 21/25 games to open the second half of his rookie year.", TOPPS_2024],
     truth: { player: "Jackson Merrill", year: "2024", set: "Topps", number: "197", parallel: "", run: null },
@@ -383,10 +373,35 @@ export const WIDE_BAKEOFF_CASES: BakeoffCase[] = [
     truth: { player: "Julio Rodriguez", year: "2024", set: "Topps Stadium Club", number: "88", parallel: "", run: null },
   },
 
+  // ── Traps for the fill rules ───────────────────────────────────────────────
+  {
+    name: "Topps Chrome: Witt Jr., 'GOLD GLOVE' and 'SILVER SLUGGER' on the back",
+    front: ["TOPPS CHROME", "BOBBY WITT JR.", "KANSAS CITY ROYALS", "SS"],
+    back: ["#150", "BOBBY WITT JR.", "SHORTSTOP", "2024 GOLD GLOVE WINNER", "SILVER SLUGGER", TOPPS_2024],
+    truth: { player: "Bobby Witt Jr.", year: "2024", set: "Topps Chrome", number: "150", parallel: "", run: null },
+  },
+  {
+    name: "Prizm: Burrow, a stat row with a ratio (CMP/ATT 460/652)",
+    front: ["PRIZM", "JOE BURROW", "BENGALS", "QB"],
+    back: ["No. 61", "JOE BURROW", "QUARTERBACK", "YEAR TEAM G CMP/ATT YDS TD", "2024 BENGALS 17 460/652 4918 43", "2025 PANINI - PRIZM FOOTBALL", "© 2025 Panini America, Inc. Printed in the USA."],
+    truth: { player: "Joe Burrow", year: "2025", set: "Panini Prizm", number: "61", parallel: "", run: null },
+  },
+  {
+    name: "Topps Chrome: Judge, a stat table read one cell per line (many lone numbers)",
+    front: ["TOPPS CHROME", "AARON JUDGE", "NEW YORK YANKEES", "OF"],
+    back: ["AARON JUDGE", "OUTFIELD", "G", "158", "HR", "58", "RBI", "144", "AVG", ".322", TOPPS_2024],
+    truth: { player: "Aaron Judge", year: "2024", set: "Topps Chrome", number: "99", parallel: "", run: null },
+  },
+  {
+    name: "Topps Chrome: Henderson, 'No. 1 PROSPECT' in a short line, real number below",
+    front: ["TOPPS CHROME", "GUNNAR HENDERSON", "BALTIMORE ORIOLES", "SS"],
+    back: ["GUNNAR HENDERSON", "FORMER NO. 1 PROSPECT", "#27", "SHORTSTOP", TOPPS_2024],
+    truth: { player: "Gunnar Henderson", year: "2024", set: "Topps Chrome", number: "27", parallel: "", run: null },
+  },
+
   // ── Hockey ─────────────────────────────────────────────────────────────────
   {
     name: "Upper Deck: Celebrini Young Guns, series on the back",
-    knownWrong: ["set"],
     front: ["UPPER DECK", "YOUNG GUNS", "MACKLIN CELEBRINI", "SHARKS", "C"],
     back: ["#201", "MACKLIN CELEBRINI", "CENTER", "2024-25 UPPER DECK SERIES 1 HOCKEY", "© 2024 The Upper Deck Company. All rights reserved."],
     truth: { player: "Macklin Celebrini", year: "2024-25", set: "Upper Deck Series 1", number: "201", parallel: "", run: null },
