@@ -6,7 +6,7 @@ import { INDEXED_DIRECTORY } from "@/lib/players/directory";
 import { CONFIRM_COPY } from "./confirm";
 import { lookupLiveSolds, type LiveSoldsDeps } from "./live-solds";
 import { liveSearchLadder, rankScanMatches, type ScanMatch } from "./match";
-import { SAPPHIRE_BASES, inSapphireFamily, isSapphireSet, sapphireBase, sapphireOf, sapphireSearchSet, withoutSapphire } from "./sapphire";
+import { SAPPHIRE_BASES, SAPPHIRE_FIRST_YEAR, inSapphireFamily, isSapphireSet, sapphireBase, sapphireOf, sapphireOptionFor, sapphireSearchSet, withoutSapphire } from "./sapphire";
 import { scanSalesFor } from "./scan-sales";
 import { scanReadFrom } from "./session";
 
@@ -208,5 +208,63 @@ describe("Sapphire solds", () => {
     assert.equal(result.matches[0].setBrand, "Bowman U Chrome Sapphire");
     // Only a regular sale came back: it is not this card's, so no price.
     assert.deepEqual(result.comp, { status: "none", searched: true });
+  });
+});
+
+describe("the Sapphire quick pick is only asked where it can be true", () => {
+  const ask = (lines: string[], backLines: string[] | null, kind: "card" | "slab" = "card") => {
+    const scan = scanReadFrom({ lines, backLines, image: null, kind, border: null }, INDEXED_DIRECTORY);
+    const match = rankScanMatches(scan, [], { directory: INDEXED_DIRECTORY, products: null, soldTitles: [] }).matches[0];
+    assert.ok(match, lines.join(" "));
+    return match;
+  };
+
+  it("a slab is never asked: its label prints SAPPHIRE when it is one", () => {
+    const slab = ask(["PSA", "2025 BOWMAN CHROME", "PROSPECTS", "#BCP-12", "CHARLIE CONDON", "GEM MT 10", "61234567"], null, "slab");
+    assert.equal(slab.setBrand, "Bowman Chrome");
+    assert.equal(slab.yearLabel, "2025");
+    assert.equal(slab.sapphireOption, undefined);
+  });
+
+  it("a card from before its set had a Sapphire Edition is never asked", () => {
+    const old = ask(["TOPPS CHROME", "MIKE TROUT", "ANGELS"], ["#144", "MIKE TROUT", "2012 TOPPS CHROME", "© 2012 THE TOPPS COMPANY, INC."]);
+    assert.equal(old.setBrand, "Topps Chrome");
+    assert.equal(old.yearLabel, "2012");
+    assert.equal(old.sapphireOption, undefined);
+  });
+
+  it("a raw card from a year that had one is still asked", () => {
+    const raw = ask(["BOWMAN CHROME", "1ST", "ETHAN SALAS", "SAN DIEGO PADRES"], ["ETHAN SALAS", "BCP-103", "2024 BOWMAN CHROME", "© 2024 THE TOPPS COMPANY, INC."]);
+    assert.equal(raw.setBrand, "Bowman Chrome");
+    assert.equal(raw.yearLabel, "2024");
+    assert.equal(raw.sapphireOption, "Bowman Chrome Sapphire");
+  });
+
+  it("each set starts at its first Sapphire year, a season counts by its first year, and an unread year is still asked", () => {
+    const cases: [string, string, boolean][] = [
+      ["Topps Chrome", "2015", false],
+      ["Topps Chrome", "2016", true],
+      ["Bowman Draft", "2018", false],
+      ["Bowman Draft", "2019", true],
+      ["Bowman Chrome", "2019", false],
+      ["Bowman Chrome", "2020", true],
+      ["Bowman U Chrome", "2022", false],
+      ["Bowman U Chrome", "2022-23", false],
+      ["Bowman U Chrome", "2023", true],
+      ["Bowman U Chrome", "2023-24", true],
+      ["Bowman U Chrome", "", true],
+      ["Panini Prizm", "2024", false],
+      ["Bowman U Chrome Sapphire", "2026", false],
+    ];
+    for (const [set, year, asked] of cases) {
+      assert.equal(sapphireOptionFor(set, year) != null, asked, `${year} ${set}`);
+    }
+    assert.equal(sapphireOptionFor("Bowman U Chrome", "2026"), "Bowman U Chrome Sapphire");
+    assert.deepEqual(Object.keys(SAPPHIRE_FIRST_YEAR).sort(), [...SAPPHIRE_BASES].sort());
+  });
+
+  it("SAPPHIRE printed on the card still names it in any year: the gate is only on the question", () => {
+    const printed = ask(["TOPPS CHROME", "SAPPHIRE", "MIKE TROUT", "ANGELS"], ["#144", "MIKE TROUT", "2012 TOPPS CHROME", "© 2012 THE TOPPS COMPANY, INC."]);
+    assert.equal(printed.setBrand, "Topps Chrome Sapphire");
   });
 });
