@@ -12,6 +12,7 @@ import { saveScan, saveScanMatch } from "@/lib/capture";
 import { isNativeApp, loadNative } from "@/lib/ios/platform";
 import { CAMERA_DENIED, type ScanOutcome } from "@/lib/ios/scanner";
 import { PHOTO_READ_ERROR, readPhotoFile } from "@/lib/photos";
+import { CAMERA_OFF_COPY } from "@/lib/scan/camera-off";
 import { compQueryString, type ScanCompResult } from "@/lib/scan/comp";
 import { newScanId, scanAddPath, scanHandoffFrom } from "@/lib/scan/handoff";
 import type { LiveSoldsResult } from "@/lib/scan/live-solds";
@@ -333,15 +334,15 @@ export function ScanHub({
           <div className="flex items-start gap-3">
             <CameraOff className="mt-0.5 size-5 shrink-0 text-zinc-500 dark:text-zinc-400" strokeWidth={1.75} aria-hidden />
             <div className="min-w-0">
-              <h2 className="text-[15px] font-semibold">{HUB_COPY.cameraOff}</h2>
+              <h2 className="text-[15px] font-semibold">{CAMERA_OFF_COPY.title}</h2>
               <p className="mt-1 text-sm leading-5 text-zinc-600 dark:text-zinc-400">
-                {cameraOff.settings ? HUB_COPY.cameraOffBody : HUB_COPY.cameraOffManual}
+                {cameraOff.settings ? CAMERA_OFF_COPY.body : CAMERA_OFF_COPY.manual}
               </p>
             </div>
           </div>
           {cameraOff.settings ? (
             <QuietButton onClick={() => void deps.openSettings().catch(() => {})} className="mt-3 w-full justify-center border border-zinc-200 dark:border-white/15">
-              {HUB_COPY.openSettings}
+              {CAMERA_OFF_COPY.openSettings}
             </QuietButton>
           ) : null}
         </div>
