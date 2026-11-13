@@ -8,7 +8,8 @@ import { scanReadFrom, type ScanCapture } from "./session";
  * thing only: to fill a field the best reading left open. The rules:
  *
  * - Only an open field (card #, print run, year) is filled. A field that was read is never changed.
- * - An alternate counts only if every field that was read stays exactly as it was.
+ * - An alternate may change only the field it fills. Every other field, read or open, must stay
+ *   exactly as it was: an alternate that fills the card # can't also start naming the set.
  * - Every alternate that fills the field must give the same value; when they disagree it stays open.
  * - The alternate is read by the same reader as any line, so every scanner rule still applies:
  *   no SKU or cert as the card #, no maker word as the set, no jersey, rank or position line.
@@ -68,12 +69,13 @@ function fieldsOf(read: ScanRead): Fields {
 const squash = (text: string) => text.replace(/\s+/g, " ").trim();
 
 /**
- * Everything that was read is the same; only open fields may differ. One allowance: a garbled
- * line that had landed in a slab's variety text may leave it when the alternate replaces that line.
+ * Only the target field changed; every other field, read or open, is exactly as it was. One
+ * allowance: a garbled line that had landed in a slab's variety text may leave it when the
+ * alternate replaces that line.
  */
-function keepsWhatWasRead(before: Fields, after: Fields, replaced: string): boolean {
+function keepsWhatWasRead(before: Fields, after: Fields, replaced: string, target: Fillable): boolean {
   return (Object.keys(before) as (keyof Fields)[]).every((key) => {
-    if (!before[key] || before[key] === after[key]) return true;
+    if (key === target || before[key] === after[key]) return true;
     return key === "variety" && before.kind === "slab" && squash(before.variety.replace(replaced, " ")) === squash(after.variety);
   });
 }
@@ -115,7 +117,7 @@ export function withAlternates(capture: ScanCapture, directory: readonly Indexed
       for (const swap of swaps) {
         const after = fieldsOf(scanReadFrom(swapped(current, swap), directory));
         const replaced = (current[swap.side] ?? [])[swap.index] ?? "";
-        if (!after[field] || !keepsWhatWasRead(before, after, replaced)) continue;
+        if (!after[field] || !keepsWhatWasRead(before, after, replaced, field)) continue;
         if (!fills.has(after[field])) fills.set(after[field], swap);
       }
       // One value, however many alternates gave it. Two different values: it stays open.

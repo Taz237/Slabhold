@@ -121,9 +121,7 @@ enum CardTextReader {
         if label, CFAbsoluteTimeGetCurrent() - started < rereadBudgetSeconds {
             details = merged(details, with: labelLines(in: cropped))
         }
-        if CFAbsoluteTimeGetCurrent() - started < rereadBudgetSeconds {
-            details = withSerialRereads(details, in: cropped)
-        }
+        details = withSerialRereads(details, in: cropped, started: started)
         // The barcode is read only on a slab, and only for its cert number.
         let cert = label ? certBarcode(in: cropped) : nil
         details = Array(ordered(details).prefix(maxLines))
@@ -151,10 +149,10 @@ enum CardTextReader {
         }
     }
 
-    /// One camera frame, straightened the same way as the photo, as text lines.
+    /// One camera frame, straightened the same way as the photo, as text lines. A frame with
+    /// no card edge has no vote: its boxes wouldn't line up with the photo's.
     static func linesOfFrame(_ frame: CGImage) -> [TextLine] {
-        let edge = detectCard(in: frame)
-        let cropped = edge.flatMap { straighten(frame, to: $0) } ?? frame
+        guard let edge = detectCard(in: frame), let cropped = straighten(frame, to: edge) else { return [] }
         return recognizeText(in: cropped)
     }
 
@@ -191,8 +189,12 @@ enum CardTextReader {
         replacing(line, text: line.text, confidence: line.confidence, source: line.source, extra: extra)
     }
 
-    /// Three frames vote line by line. Two frames that agree beat the photo; with no two
-    /// agreeing, the surest reading wins. Readings that lost stay as alternates.
+    /// The frames may change a photo line only when Vision was under this sure of it.
+    static let voteBelowConfidence: Float = 0.5
+
+    /// Three frames vote line by line. The other two frames replace a photo line only when
+    /// Vision was unsure of the photo's reading and both of them read the same thing. Every
+    /// other frame reading is kept as an alternate, never as the line.
     static func voted(_ lines: [TextLine], with others: [[TextLine]]) -> [TextLine] {
         guard !others.isEmpty else { return lines }
         var out: [TextLine] = []
@@ -206,13 +208,10 @@ enum CardTextReader {
                 continue
             }
             let extra = differing.map { $0.text }
-            if differing.count >= 2, key(differing[0].text) == key(differing[1].text) {
-                // Both other frames read the same thing, and it isn't what the photo read.
+            let bothAgree = differing.count >= 2 && key(differing[0].text) == key(differing[1].text)
+            if line.confidence < voteBelowConfidence, bothAgree {
                 let confidence = max(differing[0].confidence, differing[1].confidence)
                 out.append(replacing(line, text: differing[0].text, confidence: confidence, source: "vote", extra: extra))
-            } else if matches.count == differing.count, let surest = differing.max(by: { $0.confidence < $1.confidence }), surest.confidence > line.confidence {
-                // No two agree: the surest reading wins.
-                out.append(replacing(line, text: surest.text, confidence: surest.confidence, source: "vote", extra: extra))
             } else {
                 out.append(adding(line, alternates: extra))
             }
@@ -274,27 +273,46 @@ enum CardTextReader {
     }
 
     /// A serial ("23/99") or digits Vision wasn't sure of: that box is cropped with some
-    /// room around it, enlarged and read again. The new reading is kept only when Vision is surer of it.
-    static func withSerialRereads(_ lines: [TextLine], in image: CGImage) -> [TextLine] {
+    /// room around it, enlarged and read again. The new reading replaces the line only when it
+    /// sits on the same spot, keeps the slash if there was one, and Vision is surer of it.
+    /// Anything else is kept as an alternate. The time budget is checked before every re-read.
+    static func withSerialRereads(_ lines: [TextLine], in image: CGImage, started: CFAbsoluteTime) -> [TextLine] {
         var out = lines
         var done = 0
+        let slashPattern = #"\d\s*/\s*\d"#
         for index in out.indices where done < maxSerialRereads {
             let line = out[index]
-            let slash = line.text.range(of: #"\d\s*/\s*\d"#, options: .regularExpression) != nil
+            let slash = line.text.range(of: slashPattern, options: .regularExpression) != nil
             let unsureDigits = line.confidence < 0.5 && line.text.rangeOfCharacter(from: .decimalDigits) != nil
             guard slash || unsureDigits else { continue }
+            guard CFAbsoluteTimeGetCurrent() - started < rereadBudgetSeconds else { break }
             done += 1
-            guard let crop = image.cropping(to: pixelRect(for: line.box, in: image, padding: 0.4)) else { continue }
+            let rect = pixelRect(for: line.box, in: image, padding: 0.4)
+            guard let crop = image.cropping(to: rect) else { continue }
             let larger = upscaled(crop, by: serialScale) ?? crop
-            let again = recognizeText(in: larger).filter { $0.text.rangeOfCharacter(from: .decimalDigits) != nil }
-            guard let best = again.max(by: { $0.confidence < $1.confidence }), key(best.text) != key(line.text) else { continue }
-            if best.confidence > line.confidence {
+            let again = recognizeText(in: larger).filter { $0.text.rangeOfCharacter(from: .decimalDigits) != nil && key($0.text) != key(line.text) }
+            guard let best = again.max(by: { $0.confidence < $1.confidence }) else { continue }
+            // The re-read's box, back in the whole crop: its center must sit inside the line it replaces.
+            let place = cropBox(best.box, from: rect, in: image)
+            let sameSpot = line.box.contains(CGPoint(x: place.midX, y: place.midY))
+            let keepsSlash = !slash || best.text.range(of: slashPattern, options: .regularExpression) != nil
+            if sameSpot, keepsSlash, best.confidence > line.confidence {
                 out[index] = replacing(line, text: best.text, confidence: best.confidence, source: "serial", extra: best.alternates)
             } else {
-                out[index] = adding(line, alternates: [best.text])
+                out[index] = adding(line, alternates: again.map { $0.text })
             }
         }
         return out
+    }
+
+    /// A box read inside a cropped piece (0...1 of the piece, origin bottom left) as a box in
+    /// the whole image (0...1, origin bottom left). `rect` is the piece in pixels, origin top left.
+    static func cropBox(_ box: CGRect, from rect: CGRect, in image: CGImage) -> CGRect {
+        let width = CGFloat(image.width), height = CGFloat(image.height)
+        guard width > 0, height > 0 else { return .zero }
+        let left = rect.minX + box.minX * rect.width
+        let bottom = rect.minY + (1 - box.minY) * rect.height
+        return CGRect(x: left / width, y: 1 - bottom / height, width: box.width * rect.width / width, height: box.height * rect.height / height)
     }
 
     /// A Vision box (0...1, origin bottom left) as pixels (origin top left), grown by a share of its height.

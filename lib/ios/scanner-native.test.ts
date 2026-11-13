@@ -294,16 +294,47 @@ describe("native scanner: small print (OCR settings, alternates, re-reads)", () 
   it("reads a serial's box again, larger, and keeps it only when Vision is surer", () => {
     assert.match(reader, /static let serialScale: CGFloat = 3/);
     assert.match(reader, /static let maxSerialRereads = 4/);
-    const pattern = reader.match(/let slash = line\.text\.range\(of: #"(.+?)"#/)?.[1];
+    const pattern = reader.match(/let slashPattern = #"(.+?)"#/)?.[1];
     assert.ok(pattern);
     const slash = new RegExp(pattern);
     assert.equal(slash.test("23/99"), true);
     assert.equal(slash.test("045 / 149"), true);
     assert.equal(slash.test("LUKA DONCIC"), false);
     const reread = reader.slice(reader.indexOf("static func withSerialRereads"), reader.indexOf("static func pixelRect"));
-    assert.match(reread, /if best\.confidence > line\.confidence \{\s*out\[index\] = replacing\(line, text: best\.text, confidence: best\.confidence, source: "serial"/);
-    // A less sure re-read is kept only as an alternate.
-    assert.match(reread, /\} else \{\s*out\[index\] = adding\(line, alternates: \[best\.text\]\)/);
+    assert.match(reread, /if sameSpot, keepsSlash, best\.confidence > line\.confidence \{\s*out\[index\] = replacing\(line, text: best\.text, confidence: best\.confidence, source: "serial"/);
+    // Anything else is kept only as an alternate.
+    assert.match(reread, /\} else \{\s*out\[index\] = adding\(line, alternates: again\.map \{ \$0\.text \}\)/);
+    assert.equal([...reread.matchAll(/replacing\(/g)].length, 1);
+  });
+
+  it("a serial re-read replaces the line only on the same spot, and keeps the slash", () => {
+    const reread = reader.slice(reader.indexOf("static func withSerialRereads"), reader.indexOf("static func pixelRect"));
+    // The re-read's box is mapped back from the cropped piece; its center must sit inside the line's box.
+    assert.match(reread, /let rect = pixelRect\(for: line\.box, in: image, padding: 0\.4\)/);
+    assert.match(reread, /let place = cropBox\(best\.box, from: rect, in: image\)/);
+    assert.match(reread, /let sameSpot = line\.box\.contains\(CGPoint\(x: place\.midX, y: place\.midY\)\)/);
+    assert.match(reread, /let keepsSlash = !slash \|\| best\.text\.range\(of: slashPattern, options: \.regularExpression\) != nil/);
+    assert.match(reread, /static func cropBox\(_ box: CGRect, from rect: CGRect, in image: CGImage\) -> CGRect/);
+    // The same mapping in JS: a box in the middle of a piece lands in the middle of that piece.
+    const cropBox = (box: number[], rect: number[], width: number, height: number) => {
+      const left = rect[0] + box[0] * rect[2];
+      const bottom = rect[1] + (1 - box[1]) * rect[3];
+      return [left / width, 1 - bottom / height, (box[2] * rect[2]) / width, (box[3] * rect[3]) / height];
+    };
+    assert.match(reread, /let left = rect\.minX \+ box\.minX \* rect\.width/);
+    assert.match(reread, /let bottom = rect\.minY \+ \(1 - box\.minY\) \* rect\.height/);
+    assert.match(reread, /CGRect\(x: left \/ width, y: 1 - bottom \/ height, width: box\.width \* rect\.width \/ width, height: box\.height \* rect\.height \/ height\)/);
+    // A piece at pixels x 100, y 800 (from the top), 200 x 100, in a 1000 x 1000 image.
+    assert.deepEqual(cropBox([0, 0, 1, 1], [100, 800, 200, 100], 1000, 1000).map((n) => Number(n.toFixed(6))), [0.1, 0.1, 0.2, 0.1]);
+  });
+
+  it("checks the time budget before every serial re-read", () => {
+    const reread = reader.slice(reader.indexOf("static func withSerialRereads"), reader.indexOf("static func cropBox"));
+    assert.match(reread, /static func withSerialRereads\(_ lines: \[TextLine\], in image: CGImage, started: CFAbsoluteTime\)/);
+    const loop = reread.slice(reread.indexOf("for index in out.indices"));
+    assert.match(loop, /guard CFAbsoluteTimeGetCurrent\(\) - started < rereadBudgetSeconds else \{ break \}\s*done \+= 1/);
+    assert.ok(loop.indexOf("rereadBudgetSeconds") < loop.indexOf("image.cropping"));
+    assert.match(reader, /details = withSerialRereads\(details, in: cropped, started: started\)/);
   });
 
   it("reads a barcode only on a slab, only as the cert, and the web never makes it the card #", () => {
@@ -325,6 +356,7 @@ describe("native scanner: small print (OCR settings, alternates, re-reads)", () 
     assert.match(reader, /for frame in frames\.prefix\(2\)/);
     assert.match(reader, /_ = group\.wait\(timeout: \.now\(\) \+ voteWaitSeconds\)/);
     assert.equal([...reader.matchAll(/CFAbsoluteTimeGetCurrent\(\) - started < rereadBudgetSeconds/g)].length, 2);
+    assert.match(reader, /if label, CFAbsoluteTimeGetCurrent\(\) - started < rereadBudgetSeconds \{/);
   });
 });
 
@@ -357,9 +389,56 @@ describe("native scanner: capture quality, still tap-to-take", () => {
     assert.match(camera, /voteFrames = sharpestFrames\(\)/);
     assert.match(camera, /\/\/ A library photo has no live frames to vote with\.\s*voteFrames = \[\]/);
     assert.match(reader, /details = voted\(details, with: others\.all\(\)\)/);
-    // Two frames that agree beat the photo; otherwise the surest reading wins; the rest stay as alternates.
-    assert.match(reader, /if differing\.count >= 2, key\(differing\[0\]\.text\) == key\(differing\[1\]\.text\)/);
-    assert.match(reader, /surest\.confidence > line\.confidence/);
+  });
+
+  it("frames replace a photo line only when the photo was unsure and both frames agree", () => {
+    const vote = reader.slice(reader.indexOf("static func voted"), reader.indexOf("static func looksLikeLabel"));
+    assert.match(reader, /static let voteBelowConfidence: Float = 0\.5/);
+    assert.match(vote, /let bothAgree = differing\.count >= 2 && key\(differing\[0\]\.text\) == key\(differing\[1\]\.text\)/);
+    assert.match(vote, /if line\.confidence < voteBelowConfidence, bothAgree \{/);
+    // Every other frame reading is an alternate only: one replace, and no "surest frame wins".
+    assert.match(vote, /\} else \{\s*out\.append\(adding\(line, alternates: extra\)\)/);
+    assert.equal([...vote.matchAll(/replacing\(/g)].length, 1);
+    assert.doesNotMatch(vote, /surest/);
+  });
+
+  it("a frame with no card edge has no vote", () => {
+    const frame = reader.slice(reader.indexOf("static func linesOfFrame"), reader.indexOf("// MARK: Voting"));
+    assert.match(frame, /guard let edge = detectCard\(in: frame\), let cropped = straighten\(frame, to: edge\) else \{ return \[\] \}/);
+    assert.doesNotMatch(frame, /\?\? frame/);
+  });
+
+  it("stops scoring and keeping frames while a read is in progress", () => {
+    const watch = camera.slice(camera.indexOf("final class FrameWatch"));
+    assert.match(watch, /var reading = false/);
+    assert.match(watch, /func score\(_ buffer: CVPixelBuffer\) -> \(soft: Bool, glare: Bool\)\? \{\s*guard !reading else \{ return nil \}/);
+    // Set on the frame queue at the tap (capture() takes the frames there), cleared when the read ends.
+    assert.match(camera, /frameQueue\.sync \{ \[watch\] \(\) -> \[CGImage\] in\s*watch\.reading = true\s*return watch\.takeSharpest\(within: FrameWatch\.steadyWindow\)/);
+    assert.match(camera, /private func resumeFrames\(\) \{\s*frameQueue\.async \{ \[watch\] in watch\.reading = false \}/);
+    assert.match(camera, /private func finishRead\(_ read: CardRead\) \{\s*resumeFrames\(\)/);
+    assert.match(camera, /private func couldNotRead\(\) \{\s*resumeFrames\(\)/);
+    // The flag is written nowhere else but the library pick, also on the frame queue.
+    assert.equal([...camera.matchAll(/watch\.reading = /g)].length, 3);
+    assert.equal([...camera.matchAll(/frameQueue\.(sync|async) \{ \[watch\] (\(\) -> \[CGImage\] )?in\s*watch\.reading = /g)].length, 3);
+  });
+
+  it("keeps the frame state off the main actor, touched only on the frame queue", () => {
+    assert.match(camera, /nonisolated func captureOutput\(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection\)/);
+    assert.match(camera, /private nonisolated let watch = FrameWatch\(\)/);
+    assert.match(camera, /final class FrameWatch: @unchecked Sendable/);
+    assert.match(camera, /frameOutput\.setSampleBufferDelegate\(self, queue: self\.frameQueue\)/);
+    // The controller itself holds no frame state: it lives in FrameWatch.
+    const controller = camera.slice(0, camera.indexOf("final class FrameWatch"));
+    assert.doesNotMatch(controller, /sharpFrames|lastScored|softRun|glareRun|clearRun/);
+    // The delegate only reads the watch and hops to the main queue for the hint.
+    const delegate = controller.slice(controller.indexOf("extension CardScannerViewController: AVCaptureVideoDataOutputSampleBufferDelegate"));
+    assert.match(delegate, /let change = watch\.score\(buffer\)/);
+    assert.match(delegate, /DispatchQueue\.main\.async \{ \[weak self\] in\s*self\?\.showQuality\(soft: change\.soft, glare: change\.glare\)/);
+  });
+
+  it("turns the frames upright: rotation angle on iOS 17 and later, orientation below", () => {
+    assert.match(camera, /if #available\(iOS 17\.0, \*\) \{\s*if connection\.isVideoRotationAngleSupported\(90\) \{ connection\.videoRotationAngle = 90 \}\s*\} else if connection\.isVideoOrientationSupported \{\s*connection\.videoOrientation = \.portrait\s*\}/);
+    assert.equal([...camera.matchAll(/videoOrientation = /g)].length, 1);
   });
 
   it("leaves the camera permission text as it was", () => {

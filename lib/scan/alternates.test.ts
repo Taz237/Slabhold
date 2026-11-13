@@ -106,6 +106,32 @@ describe("alternates never make a wrong answer", () => {
     assert.equal(match.serialRun, null);
   });
 
+  it("an alternate that fills the card # can't newly fill the set", () => {
+    // Nothing named the set. These alternates carry a card #, but a set name too: more than a fill.
+    for (const alternate of ["BOWMAN CHROME BCP-103", "BOWMAN DRAFT BD-103", "No. 103 PRIZM"]) {
+      const scan = capture({
+        lines: ["ETHAN SALAS", "SAN DIEGO PADRES"],
+        backLines: ["ETHAN SALAS", "8P-1O3", TOPPS],
+        backAlternates: [[], [alternate], []],
+      });
+      const match = top(scan);
+      assert.equal(match.setBrand, "", alternate);
+      assert.equal(match.cardNumber, "", alternate);
+      // Read as the line itself it would name both, so it's the merge that holds it back.
+      const plain = top({ ...scan, backLines: ["ETHAN SALAS", alternate, TOPPS], backAlternates: null });
+      assert.notEqual(plain.setBrand, "", alternate);
+      assert.notEqual(plain.cardNumber, "", alternate);
+    }
+    // The same on a one-sided scan, where the set was plainly open.
+    const oneSide = top(capture({ lines: ["ETHAN SALAS", "8P-1O3", TOPPS], alternates: [[], ["BOWMAN CHROME BCP-103"], []] }));
+    assert.equal(oneSide.setBrand, "");
+    assert.equal(oneSide.cardNumber, "");
+    // The bare code fills the # and nothing else.
+    const bare = top(capture({ lines: ["ETHAN SALAS", "SAN DIEGO PADRES"], backLines: ["ETHAN SALAS", "8P-1O3", TOPPS], backAlternates: [[], ["BP-103"], []] }));
+    assert.equal(bare.cardNumber, "BP-103");
+    assert.equal(bare.setBrand, "");
+  });
+
   it("the scanner's rules still hold for an alternate: no SKU, jersey, rank or position line as the card #", () => {
     for (const alternate of ["#CMPO73107", "#17 | QB", "#1 OVERALL PICK", "SS-3B", "INF-3B"]) {
       const scan = capture({
