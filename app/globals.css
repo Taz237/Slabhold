@@ -1226,6 +1226,89 @@ html[data-nav="none"]::view-transition-new(.page-in) {
   }
 }
 
+/* Add card sheet: each tile rises a beat after the sheet. */
+@keyframes add-tile-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Scan reveal: the photo flips in from its back, once. Skipped for reduced motion. */
+@keyframes card-flip-in {
+  0% {
+    opacity: 0;
+    transform: perspective(1000px) rotateY(-180deg) scale(0.86);
+  }
+  45% {
+    opacity: 1;
+  }
+  80% {
+    transform: perspective(1000px) rotateY(8deg) scale(1.02);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Scan reveal: each part of the card's name drops into place in turn. */
+@keyframes name-fill-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+}
+
+/* Added: the card turns over from its back to its face. */
+@keyframes added-flip {
+  0% {
+    transform: perspective(1100px) rotateY(180deg) scale(0.8);
+  }
+  70% {
+    transform: perspective(1100px) rotateY(-6deg) scale(1.03);
+  }
+  100% {
+    transform: none;
+  }
+}
+
+/* Added: a short burst of brand confetti from behind the card. Never with reduced motion. */
+@keyframes added-confetti {
+  0% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) rotate(0deg) scale(0.6);
+  }
+  65% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(var(--dx, 0px), var(--dy, 120px), 0) rotate(var(--spin, 240deg)) scale(1);
+  }
+}
+
+.added-confetti {
+  opacity: 0;
+  animation: added-confetti 1.2s cubic-bezier(0.2, 0.7, 0.3, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .added-confetti {
+    display: none;
+  }
+}
+
 /* "You're in": the toast pops, a shine crosses it, and confetti falls once. */
 @keyframes youre-in-pop {
   from {

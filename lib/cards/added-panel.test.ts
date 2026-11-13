@@ -149,3 +149,19 @@ describe("card dates line", () => {
     assert.match(read("components/card-detail.tsx"), /cardDatesLine\(/);
   });
 });
+
+describe("added big price", () => {
+  it("is the same figure as the value line, split into the price and its sale count", async () => {
+    const { addedBigPrice } = await import("@/lib/cards/added-panel");
+    assert.deepEqual(addedBigPrice(value({})), { amount: "$42.00", detail: "6 recent sales" });
+    assert.deepEqual(addedBigPrice(value({ nSales: 1 })), { amount: "$42.00", detail: "1 recent sale" });
+    assert.ok(addedValueLine(value({}), false).text.includes(addedBigPrice(value({}))!.amount));
+  });
+
+  it("never invents a price: null while pending, with no sales, or with no value", async () => {
+    const { addedBigPrice } = await import("@/lib/cards/added-panel");
+    assert.equal(addedBigPrice(null), null);
+    assert.equal(addedBigPrice(value({ status: "no_sales", median: null, nSales: 0 })), null);
+    assert.equal(addedBigPrice(value({ status: "unavailable", median: null, nSales: 0 })), null);
+  });
+});

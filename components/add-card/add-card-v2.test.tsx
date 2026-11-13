@@ -190,7 +190,7 @@ describe("Add card v2", () => {
       assert.equal(toggle.checked, false);
       assert.equal(toggle.disabled, true);
       assert.ok(textIncludes("Private cards stay off the feed."));
-      await clickText("Public");
+      await rememberPublic("user-1");
       await waitFor(() => checkboxByLabel("Also post to my feed").checked);
       const caption = win.document.querySelector<HTMLTextAreaElement>('textarea[aria-label="Post caption"]')!;
       assert.equal(caption.value, "Just added my 2023-24 Panini Prizm Victor Wembanyama");
@@ -217,7 +217,7 @@ describe("Add card v2", () => {
     try {
       pushed.length = 0;
       await walkToReview();
-      await clickText("Public");
+      await rememberPublic("user-1");
       await clickButton(buttonWithText("Add to collection")!);
       await waitFor(() => pushed.includes("/cards/new-card?added=1"));
       assert.equal(capture.length, 1);
@@ -237,7 +237,7 @@ describe("Add card v2", () => {
     const view = await mount({ guided: true }, [], social);
     try {
       await walkToReview();
-      await clickText("Public");
+      await rememberPublic("user-2");
       const toggle = checkboxByLabel("Also post to my feed");
       assert.equal(toggle.checked, false);
       assert.equal(toggle.disabled, true);
@@ -482,4 +482,10 @@ async function mount(
       host.remove();
     },
   };
+}
+
+/** Public / Private moved to the Added screen; a remembered Public (from the last add) is how a new card starts public. */
+async function rememberPublic(userId: string) {
+  const { writeBrowserVisibilityChoice } = await import("@/lib/cards/visibility-choice");
+  await act(async () => writeBrowserVisibilityChoice(userId, true));
 }

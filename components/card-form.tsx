@@ -1682,13 +1682,8 @@ export function CardForm({
           pickCatalog={applyCatalog}
           onStartOver={startOver}
           header={headerNode}
-          photoBlock={
-            // Photo buttons stay the first controls; who can see the card sits right under them.
-            <div className="space-y-5">
-              {photoNode}
-              {visibilityNode}
-            </div>
-          }
+          // Public / Private comes at the end now: small, on the Added screen.
+          photoBlock={photoNode}
           moreDetails={guidedMore.map((key) => (
             <Fragment key={key}>{guidedMoreNodes[key]}</Fragment>
           ))}

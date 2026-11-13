@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { openSheetFromLink } from "@/components/add-card-link";
 import { type CSSProperties } from "react";
 import { Plus } from "lucide-react";
 import { CardTile, tileFocusRing } from "@/components/card-tile";
@@ -146,6 +147,7 @@ function GhostTile({ index }: { index: number }) {
     >
       <Link
         href="/cards/new"
+        onClick={openSheetFromLink}
         className={`flex aspect-[3/5] min-h-11 w-full flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-zinc-300 text-sm font-semibold text-zinc-500 transition hover:border-violet-500 hover:text-violet-600 motion-safe:active:scale-[0.97] dark:border-white/15 dark:hover:border-violet-400 dark:hover:text-[#A78BFA] ${tileFocusRing}`}
       >
         <span className="grid h-10 w-10 place-items-center rounded-full bg-zinc-100 dark:bg-white/5">

@@ -228,7 +228,7 @@ describe("Add card speed: Add to collection", () => {
     try {
       pushed.length = 0;
       await walkToReview();
-      await clickText("Public");
+      await rememberPublic("user-1");
       await clickButton(buttonWithText("Add to collection")!);
       await waitFor(() => pushed.some((href) => href.endsWith("?added=1")));
       assert.equal(capture.length, 1, "the card saved first");
@@ -266,7 +266,7 @@ describe("Add card speed: Add to collection", () => {
     try {
       pushed.length = 0;
       await walkToReview();
-      await clickText("Public");
+      await rememberPublic("user-1");
       await clickButton(buttonWithText("Add to collection")!);
       await waitFor(() => pushed.some((href) => href.endsWith("?added=1")));
       await waitFor(() => /new-card/.test(win.sessionStorage.getItem("slabhold.card-post-failed") ?? ""));
@@ -488,4 +488,10 @@ async function mount(
       host.remove();
     },
   };
+}
+
+/** Public / Private moved to the Added screen; a remembered Public (from the last add) is how a new card starts public. */
+async function rememberPublic(userId: string) {
+  const { writeBrowserVisibilityChoice } = await import("@/lib/cards/visibility-choice");
+  await act(async () => writeBrowserVisibilityChoice(userId, true));
 }

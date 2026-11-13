@@ -125,7 +125,16 @@ const defaultDeps: ScanHubDeps = {
  * Without it (the web, or an older app build) it says so and falls back to a
  * photo and a search, so no button is a dead end.
  */
-export function ScanHub({ purpose, deps: overrides }: { purpose: ScanPurpose; deps?: Partial<ScanHubDeps> }) {
+export function ScanHub({
+  purpose,
+  start = "camera",
+  deps: overrides,
+}: {
+  purpose: ScanPurpose;
+  /** "library": the Add card sheet's Upload photo. Opens the photo library instead of the camera. */
+  start?: "camera" | "library";
+  deps?: Partial<ScanHubDeps>;
+}) {
   const deps = useMemo(() => ({ ...defaultDeps, ...overrides }), [overrides]);
   const router = useRouter();
   // Null while checking: the app asks its native module; the web knows at once.
@@ -217,12 +226,13 @@ export function ScanHub({ purpose, deps: overrides }: { purpose: ScanPurpose; de
     };
   }, [deps]);
 
-  // The camera opens on arrival: the fewest taps from here to the card.
+  // The camera (or, from Upload photo, the library) opens on arrival: the fewest taps from here to the card.
   useEffect(() => {
     if (!available || opened.current) return;
     opened.current = true;
-    void startScan();
-  }, [available, startScan]);
+    const open = start === "library" ? pickFromLibrary : startScan;
+    void open();
+  }, [available, pickFromLibrary, start, startScan]);
 
   useEffect(() => () => run.current?.abort(), []);
 

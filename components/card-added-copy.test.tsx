@@ -105,7 +105,8 @@ async function render(cardInPanel: SportsCard, extra: Record<string, unknown> = 
     );
   });
   return {
-    host,
+    // The scene renders in a portal on document.body.
+    host: win.document.body as HTMLElement,
     unmount() {
       act(() => root.unmount());
       host.remove();
@@ -113,33 +114,26 @@ async function render(cardInPanel: SportsCard, extra: Record<string, unknown> = 
   };
 }
 
-describe("Added reveal: Copy this card", () => {
+describe("Added screen: Copy this card", () => {
   const label = (el: Element) => (el.getAttribute("aria-label") ?? el.textContent ?? "").trim();
 
-  it("is one quiet 44px text line under the actions, with the number and no parallel or grade", async () => {
+  it("is not on the Added screen, which keeps two buttons; the card page still has it", async () => {
     const view = await render({ ...card, parallel: "Downtown", grade: "PSA 10", conditionType: "graded" } as SportsCard);
     try {
-      const link = view.host.querySelector<HTMLAnchorElement>('a[data-slot="copy-card"]');
-      assert.ok(link);
-      assert.equal(link.textContent?.trim(), "Copy this card");
-      assert.match(link.className, /min-h-11/);
-      assert.match(link.className, /underline/, "a text link, not a second main button");
-      assert.doesNotMatch(link.className, /bg-violet-600/);
-      const url = new URL(link.getAttribute("href") ?? "", "https://slabhold.app");
-      assert.equal(url.searchParams.get("num"), "1");
-      assert.deepEqual([...url.searchParams.keys()].sort(), ["num", "player", "set", "sport", "year"]);
+      assert.equal(view.host.querySelector('a[data-slot="copy-card"]'), null);
       const actions = view.host.querySelector('[data-slot="reveal-actions"]')!;
-      assert.ok(actions.compareDocumentPosition(link) & win.Node.DOCUMENT_POSITION_FOLLOWING, "after Add another and See all sales");
       // Add another keeps its meaning: no number.
       const another = [...actions.querySelectorAll("a")].find((el) => label(el) === "Add another");
       assert.doesNotMatch(another?.getAttribute("href") ?? "", /num=/);
     } finally {
       view.unmount();
     }
+    // Once the Added screen closes, the card page shows its own Copy this card.
+    assert.match(read("components/card-detail.tsx"), /data-slot="copy-card"/);
   });
 
-  it("gives back the slab height the extra line takes, so the reveal still fits 390x844", () => {
+  it("sizes the card by screen height, so the scene still fits 390x844", () => {
     const panel = read("components/card-added-panel.tsx");
-    assert.match(panel, /100svh-36\.5rem-env\(safe-area-inset-bottom\)/);
+    assert.match(panel, /100svh-31rem-env\(safe-area-inset-bottom\)/);
   });
 });

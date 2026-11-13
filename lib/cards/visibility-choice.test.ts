@@ -169,15 +169,16 @@ describe("visibility controls", () => {
 
   });
 
-  it("puts the segment at the top of add card and leaves share-to-feed off", () => {
+  it("leaves the guided add to the Added screen's switch, and keeps the segment elsewhere", () => {
     const form = read("components/card-form.tsx");
-    // Add card: right under the photo buttons, which stay the first controls (guided
-    // picker and sectioned add). Edit: right under the title.
-    assert.match(form, /photoBlock=\{[\s\S]{0,160}\{photoNode\}\s*\{visibilityNode\}/);
+    // Guided Add card: no segment before the card is in. Public / Private sits
+    // small on the Added screen, at the end of the flow.
+    assert.match(form, /photoBlock=\{photoNode\}/);
+    assert.match(read("components/card-added-panel.tsx"), /<VisibilityPill\s+isPublic=\{Boolean\(card\.isPublic\)\}/);
+    // Sectioned add: right under the photo buttons. Edit: in the "Who can see it" row's sheet.
     assert.match(form, /\{visibleNodes\[key\]\}[\s\S]{0,120}\{key === "photo" \? visibilityNode : null\}/);
-    // Edit card: Public / Private in the "Who can see it" row's sheet.
     assert.match(form, /<SheetRow label="Who can see it"[\s\S]{0,200}\{visibilityNode\}/);
-    assert.equal(form.match(/\{visibilityNode\}/g)?.length, 2);
+    assert.equal(form.match(/\{visibilityNode\}/g)?.length, 1);
     assert.match(form, /const visibilityNode = \(\s*<VisibilityChoice/);
     assert.doesNotMatch(form, /isPublic: publicNode/);
     assert.doesNotMatch(read("lib/cards/add-form-sections.ts"), /"isPublic"/);

@@ -105,7 +105,8 @@ async function render(cardInPanel: SportsCard, extra: Record<string, unknown> = 
     );
   });
   return {
-    host,
+    // The scene renders in a portal on document.body.
+    host: win.document.body as HTMLElement,
     unmount() {
       act(() => root.unmount());
       host.remove();
@@ -114,24 +115,69 @@ async function render(cardInPanel: SportsCard, extra: Record<string, unknown> = 
 }
 
 describe("finish reveal", () => {
-  it("shows the tile, the value, three recent sold prices and the two buttons", async () => {
+  it("shows the card, one big price, and only two buttons; recent sales wait behind See sales", async () => {
     fetched.length = 0;
     const view = await render(card);
     try {
-      const text = view.host.textContent ?? "";
+      const text = () => view.host.textContent ?? "";
       assert.ok(view.host.querySelector('[data-reveal="slab"] [data-kind]'), "slab tile");
-      assert.match(text, /Added to your collection/);
-      assert.match(text, /Worth about \$42\.00 based on 6 recent sales\./);
-      const rows = [...view.host.querySelectorAll('ul[aria-label="Recent sold prices"] li')].map(
-        (li) => li.textContent,
-      );
+      assert.match(text(), /Added to your collection/);
+      // The same figure as before, in big type, and the full sentence for screen readers.
+      const price = view.host.querySelector('[data-slot="added-price"]');
+      assert.match(price?.textContent ?? "", /\$42\.00/);
+      assert.match(price?.textContent ?? "", /6 recent sales/);
+      assert.match(text(), /Worth about \$42\.00 based on 6 recent sales\./);
+      // Hidden until a tap.
+      assert.equal(view.host.querySelector('ul[aria-label="Recent sold prices"]'), null);
+      const see = [...view.host.querySelectorAll("button")].find((b) => b.textContent === "See sales");
+      assert.ok(see);
+      assert.equal(see.getAttribute("aria-expanded"), "false");
+      assert.match(see.className, /min-h-11/, "44px tap target");
+      await act(async () => see.click());
+      assert.equal(see.getAttribute("aria-expanded"), "true");
+      const rows = [...view.host.querySelectorAll('ul[aria-label="Recent sold prices"] li')].map((li) => li.textContent);
       assert.deepEqual(rows, ["$44.00Oct 20", "$39.00Oct 10", "$41.00Oct 1"]);
-      assert.match(text, /via Trawl/);
-      assert.doesNotMatch(text, /eBay/);
+      assert.match(text(), /via Trawl/);
+      assert.doesNotMatch(text(), /eBay/);
       const another = [...view.host.querySelectorAll("a")].find((a) => a.textContent === "Add another");
       assert.equal(another?.getAttribute("href"), "/cards/new?sport=Football&player=Fixture%20Player&year=2024&set=Panini%20Prizm");
-      assert.ok([...view.host.querySelectorAll("button")].some((b) => b.textContent === "See all sales"));
       assert.equal(fetched.filter((url) => url.includes("/api/comps")).length, 0, "no sold comps fetch");
+    } finally {
+      view.unmount();
+    }
+  });
+
+  it("sends See sales to the card page's sales when none are loaded here", async () => {
+    let seen = 0;
+    const view = await render(card, { sales: null, onSeeSales: () => seen++ });
+    try {
+      const see = [...view.host.querySelectorAll("button")].find((b) => b.textContent === "See sales");
+      await act(async () => see!.click());
+      assert.equal(seen, 1);
+    } finally {
+      view.unmount();
+    }
+  });
+
+  it("is a labelled modal scene over a blurred, dimmed page that closes on Escape", async () => {
+    let dismissed = 0;
+    const view = await render(card, { onDismiss: () => dismissed++ });
+    try {
+      const dialog = view.host.querySelector('[role="dialog"]');
+      assert.equal(dialog?.getAttribute("aria-modal"), "true");
+      // On document.body, so the tab bar and the page column's layer never cover it.
+      assert.equal(win.document.querySelector('[data-slot="added-scene"]')?.parentElement, win.document.body);
+      const title = win.document.getElementById(dialog?.getAttribute("aria-labelledby") ?? "");
+      assert.match(title?.textContent ?? "", /Added/);
+      assert.match(read("components/card-added-panel.tsx"), /backdrop-blur-xl/);
+      await act(async () => {
+        win.dispatchEvent(new win.KeyboardEvent("keydown", { key: "Escape" }));
+      });
+      assert.equal(dismissed, 1);
+      for (const node of view.host.querySelectorAll("button, a")) {
+        const name = (node.getAttribute("aria-label") ?? node.textContent ?? "").trim();
+        assert.ok(name.length > 0, node.outerHTML.slice(0, 80));
+      }
     } finally {
       view.unmount();
     }
@@ -182,58 +228,33 @@ describe("finish reveal", () => {
 describe("reveal fits one phone screen", () => {
   const label = (el: Element) => (el.getAttribute("aria-label") ?? el.textContent ?? "").trim();
 
-  it("puts Post it first, Add another right under it, then See all sales", async () => {
+  it("has Add another as the main button and Share beside it, both 48px", async () => {
     const view = await render(card);
     try {
       const actions = view.host.querySelector('[data-slot="reveal-actions"]');
       assert.ok(actions, "one actions block");
       const order = [...actions.querySelectorAll("a,button")].map(label);
-      assert.deepEqual(order, ["Post it", "Share card", "Add another", "See all sales"]);
-      const post = [...actions.querySelectorAll("a,button")].find((el) => label(el) === "Post it");
-      assert.match(post?.className ?? "", /bg-violet-600/, "Post it is the main button");
+      assert.deepEqual(order, ["Add another", "Share card"]);
       const another = [...actions.querySelectorAll("a")].find((el) => label(el) === "Add another");
-      assert.match(another?.className ?? "", /min-h-11/);
-      assert.doesNotMatch(another?.className ?? "", /bg-violet-600/, "one main button");
-      const sales = [...actions.querySelectorAll("button")].find((el) => label(el) === "See all sales");
-      assert.match(sales?.className ?? "", /min-h-11/, "44px tap target");
-      assert.match(sales?.className ?? "", /underline/, "a smaller text link");
+      assert.match(another?.className ?? "", /bg-violet-600/, "Add another is the main button");
+      assert.match(another?.className ?? "", /min-h-12/);
+      const share = actions.querySelector('button[aria-label="Share card"]');
+      assert.match(share?.className ?? "", /min-h-12/);
+      assert.doesNotMatch(share?.className ?? "", /bg-violet-600/, "one main button");
+      assert.equal(share?.textContent, "Share");
     } finally {
       view.unmount();
     }
   });
 
-  it("makes Add another the main button once the card is already on the feed", async () => {
-    // This tab's storage, as the add flow leaves it after a post went up.
-    const items = new Map<string, string>();
-    const memory = {
-      getItem: (key: string) => items.get(key) ?? null,
-      setItem: (key: string, next: string) => void items.set(key, next),
-      removeItem: (key: string) => void items.delete(key),
-    };
-    Object.defineProperty(globalThis, "sessionStorage", { configurable: true, value: memory });
-    const { recordCardPost } = await import("@/lib/social/share-to-feed");
-    recordCardPost(memory, card.id, "post-9");
+  it("keeps the heading and price above the buttons", async () => {
     const view = await render(card);
     try {
       const actions = view.host.querySelector('[data-slot="reveal-actions"]');
-      const order = [...(actions?.querySelectorAll("a,button") ?? [])].map(label);
-      assert.deepEqual(order, ["Add another", "Share card", "See all sales"]);
-      const another = [...(actions?.querySelectorAll("a") ?? [])].find((el) => label(el) === "Add another");
-      assert.match(another?.className ?? "", /bg-violet-600/);
-    } finally {
-      view.unmount();
-      Reflect.deleteProperty(globalThis, "sessionStorage");
-    }
-  });
-
-  it("keeps the sold rows and collection line below the buttons", async () => {
-    const view = await render(card);
-    try {
-      const actions = view.host.querySelector('[data-slot="reveal-actions"]');
-      const rows = view.host.querySelector('ul[aria-label="Recent sold prices"]');
-      assert.ok(actions && rows);
-      assert.ok(actions.compareDocumentPosition(rows) & win.Node.DOCUMENT_POSITION_FOLLOWING);
-      const headline = [...view.host.querySelectorAll("h2")].find((h) => /Added to your collection/.test(h.textContent ?? ""));
+      const price = view.host.querySelector('[data-slot="added-price"]');
+      assert.ok(actions && price);
+      assert.ok(price.compareDocumentPosition(actions) & win.Node.DOCUMENT_POSITION_FOLLOWING);
+      const headline = [...view.host.querySelectorAll("h2")].find((h) => /Added/.test(h.textContent ?? ""));
       assert.ok(headline && headline.compareDocumentPosition(actions) & win.Node.DOCUMENT_POSITION_FOLLOWING);
     } finally {
       view.unmount();
@@ -247,16 +268,16 @@ describe("reveal fits one phone screen", () => {
     assert.ok(detail.indexOf("<CardTopBar") < panelAt && panelAt < switchAt && switchAt < detail.indexOf("<CardHero"));
   });
 
-  it("sizes the slab by screen height on phones, never cropped, full size from md up", () => {
+  it("sizes the card by screen height on phones, never cropped, and flips it in only with motion allowed", () => {
     const panel = read("components/card-added-panel.tsx");
     const frame = panel.match(/data-reveal="frame"\s+className="([^"]+)"/)?.[1] ?? "";
     assert.match(frame, /aspect-\[3\/5\]/, "keeps the slab's shape");
-    assert.match(frame, /h-\[clamp\([^\]]*100svh[^\]]*env\(safe-area-inset-bottom\)[^\]]*,15rem\)\]/);
-    assert.match(frame, /md:h-auto md:w-40/);
+    assert.match(frame, /h-\[clamp\([^\]]*100svh[^\]]*env\(safe-area-inset-bottom\)[^\]]*,16rem\)\]/);
     assert.doesNotMatch(frame, /overflow-hidden|object-cover/);
-    // The glow and the slab keep their motion, and only when motion is allowed.
     assert.match(panel, /data-reveal="glow"[\s\S]*?motion-safe:animate-\[reveal-glow/);
-    assert.match(panel, /data-reveal="slab"[^>]*motion-safe:animate-\[slab-reveal/);
+    // The 3D flip, and a plain fade under reduced motion; the card's back is hidden then.
+    assert.match(panel, /data-reveal="flip"[^>]*motion-safe:animate-\[added-flip[^"]*motion-reduce:animate-\[add-fade/);
+    assert.match(panel, /data-reveal="back"[^>]*motion-reduce:hidden/);
   });
 });
 

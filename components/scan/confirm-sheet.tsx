@@ -3,12 +3,12 @@
 import { useId, useState } from "react";
 import { PrimaryButton, QuietButton, focusRing } from "@/components/add-card/flow-ui";
 import {
-  CardPhoto,
-  MatchSummary,
-  MatchingSkeleton,
   LastSold,
   OtherMatches,
   ParallelStrip,
+  RevealCard,
+  RevealName,
+  RevealNameSkeleton,
   SheetFrame,
   parallelOptionsFor,
 } from "@/components/scan/sheet-parts";
@@ -46,21 +46,23 @@ type Props = {
 };
 
 /**
- * "Is this your card?" A bottom sheet over the camera. The top match is one
- * tap to accept; a wrong row or parallel is one tap to fix.
+ * "Is this your card?" The scan reveal over the camera: the photo flips in,
+ * and the card's name fills in under it step by step while the lookup runs.
+ * The top match is one tap to accept; a wrong row or parallel is one tap to fix.
  */
 export function ConfirmSheet({ photo, state, onConfirm, onStepByStep, onRetake, onClose }: Props) {
   const title = state.kind === "none" ? CONFIRM_COPY.noMatchTitle : CONFIRM_COPY.title;
   return (
-    <SheetFrame title={title} busy={state.kind === "matching"} onClose={onClose}>
-      {state.kind === "matching" ? <MatchingSkeleton photo={photo} label={CONFIRM_COPY.finding} /> : null}
+    <SheetFrame title={title} busy={state.kind === "matching"} variant="scene" onClose={onClose}>
+      {/* Mounted once for every state, so the card flips in once and the name lands under it. */}
+      <RevealCard photo={photo} />
+      {state.kind === "matching" ? <RevealNameSkeleton label={CONFIRM_COPY.finding} /> : null}
       {state.kind === "none" ? (
-        <NoMatch photo={photo} offline={Boolean(state.offline)} onStepByStep={onStepByStep} onRetake={onRetake} />
+        <NoMatch offline={Boolean(state.offline)} onStepByStep={onStepByStep} onRetake={onRetake} />
       ) : null}
       {state.kind === "ready" ? (
         <Ready
           key={matchesKey(state.matches)}
-          photo={photo}
           matches={state.matches}
           solds={state.solds}
           onConfirm={onConfirm}
@@ -73,14 +75,12 @@ export function ConfirmSheet({ photo, state, onConfirm, onStepByStep, onRetake, 
 }
 
 function Ready({
-  photo,
   matches,
   solds,
   onConfirm,
   onStepByStep,
   onRetake,
 }: {
-  photo: string | null;
   matches: ScanMatch[];
   solds?: SoldsState;
   onConfirm: (match: ScanMatch, options: { save: boolean }) => void;
@@ -127,7 +127,7 @@ function Ready({
 
   return (
     <div className="space-y-6">
-      <MatchSummary photo={photo} match={top} />
+      <RevealName match={top} parallel={pick?.name ?? null} />
       {/* The last solds are for the card as read; picking another row hides them. */}
       {solds && top === matches[0] ? <LastSold solds={solds} /> : null}
 
@@ -200,24 +200,19 @@ function Ready({
 }
 
 function NoMatch({
-  photo,
   offline,
   onStepByStep,
   onRetake,
 }: {
-  photo: string | null;
   offline: boolean;
   onStepByStep: () => void;
   onRetake: () => void;
 }) {
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-[80px_1fr] items-center gap-4">
-        <CardPhoto photo={photo} name="this card" />
-        <p className="text-sm leading-5 text-zinc-600 dark:text-zinc-400">
-          {offline ? CONFIRM_COPY.offlineBody : CONFIRM_COPY.noMatchBody}
-        </p>
-      </div>
+      <p className="text-center text-sm leading-5 text-zinc-600 dark:text-zinc-400">
+        {offline ? CONFIRM_COPY.offlineBody : CONFIRM_COPY.noMatchBody}
+      </p>
       <PrimaryButton onClick={onStepByStep}>{CONFIRM_COPY.stepByStep}</PrimaryButton>
       <div className="flex justify-center">
         <QuietButton onClick={onRetake}>{CONFIRM_COPY.retake}</QuietButton>

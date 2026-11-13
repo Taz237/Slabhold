@@ -14,7 +14,7 @@ export function visibilityCopy(isPublic: boolean): { label: string; detail: stri
     : { label: "Private", detail: "Only you can see it." };
 }
 
-function useVisibilitySave(onChange: (next: boolean) => VisibilitySave | void) {
+export function useVisibilitySave(onChange: (next: boolean) => VisibilitySave | void) {
   const [state, setState] = useState<SaveState>("idle");
   function toggle(next: boolean) {
     const result = onChange(next);
