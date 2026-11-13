@@ -44,6 +44,8 @@ export type RawCardRead = {
   isRookie: boolean;
   /** Up to 3 names from SETS, best first. */
   setNames: string[];
+  /** The names in setNames the side printed in full ("TOPPS UPDATE"), not guessed from one logo word. */
+  printedSets: string[];
   /** Color and finish words, such as REFRACTOR or CRACKED ICE. */
   parallelWords: string[];
   /** A popular insert named on the card, such as Kaboom. */
@@ -67,6 +69,10 @@ const FUZZY_MAX_LENGTH = 28;
 const PARALLEL_WORDS = [
   // A Donruss parallel family (Optic Preview Pink), not the Donruss Optic set.
   "OPTIC PREVIEW",
+  // One parallel, not Red and Blue.
+  "RED WHITE AND BLUE",
+  "RED WHITE BLUE",
+  "TIGER STRIPE",
   "CRACKED ICE",
   "MAGENTA",
   "FUCHSIA",
@@ -198,6 +204,7 @@ function emptyRead(): RawCardRead {
     serial: null,
     isRookie: false,
     setNames: [],
+    printedSets: [],
     parallelWords: [],
     insert: "",
     side: "unknown",
@@ -372,8 +379,11 @@ function readYear(lines: string[]): string {
   return "";
 }
 
-function readSerial(lines: string[]): RawCardRead["serial"] {
+function readSerial(lines: string[], scanned = false): RawCardRead["serial"] {
   for (const line of lines) {
+    // On a scanned card, a ratio in a bio sentence ("hit safely in 21/25 games") or in a stat row
+    // ("17 460/652 4918 43") is not a stamped serial.
+    if (scanned && (proseLine(line) || statRow(line))) continue;
     const match = SERIAL.exec(line);
     if (!match) continue;
     const number = Number(match[1]);
@@ -381,6 +391,12 @@ function readSerial(lines: string[]): RawCardRead["serial"] {
     if (number >= 1 && run >= 1 && number <= run) return { number: String(number), run: String(run) };
   }
   return null;
+}
+
+/** A line with three or more numbers besides the ratio: a row of a stat table. */
+function statRow(line: string): boolean {
+  const rest = line.replace(SERIAL, " ");
+  return (rest.match(/(?<![\w.])\d[\d,.]*(?![\w])/g) ?? []).length >= 3;
 }
 
 function hasPhrase(lineWords: string[][], phrase: string[]): boolean {
@@ -415,7 +431,7 @@ function printedMakers(lineWords: string[][]): Set<string> {
   return makers;
 }
 
-function readSets(lineWords: string[][], options: { back?: boolean } = {}): string[] {
+function readSets(lineWords: string[][], options: { back?: boolean } = {}): { names: string[]; printed: string[] } {
   const present = new Set(lineWords.flat());
   const makers = printedMakers(lineWords);
   const scored: { name: string; score: number; order: number; phrase: boolean }[] = [];
@@ -438,7 +454,11 @@ function readSets(lineWords: string[][], options: { back?: boolean } = {}): stri
     if (matched === 0) return;
     // "TOPPS CERTIFIED" is legal text, not Panini Certified: a one-word guess at another maker's set doesn't count.
     if (makers.size > 0 && !makers.has(makerOf(name))) return;
-    scored.push({ name, score: matched - 0.1 * (words.length - matched), order, phrase: false });
+    // A set missing one of its own words is a weaker guess than one missing only a maker word:
+    // "DONRUSS" is Panini Donruss, not Donruss Optic; "PRIZM" with "DRAFT PICKS" is Prizm Draft Picks.
+    const missingOwn = distinct.length - matched;
+    const missingCommon = words.filter((word) => GENERIC_SET_WORDS.has(word) && !present.has(word)).length;
+    scored.push({ name, score: matched - 0.5 * missingOwn - 0.1 * missingCommon, order, phrase: false });
   });
   let ranked = scored.sort((a, b) => b.score - a.score || a.order - b.order);
   // On a back, a bare maker name is legal text (TOPPS.COM, MLB TOPPS, PRINTED IN USA TOPPS), never the set.
@@ -448,13 +468,23 @@ function readSets(lineWords: string[][], options: { back?: boolean } = {}): stri
     ranked = ranked.filter((item) => !BARE_MAKER_SETS.has(item.name));
   }
   const names = ranked.map((item) => item.name);
+  const printedNames = ranked.filter((item) => item.phrase).map((item) => item.name);
   // "Optic Preview" is a parallel on a Donruss card, the same rule card-page comps use.
   if (hasPhrase(lineWords, ["optic", "preview"])) {
     const kept = names.filter((name) => !/optic/i.test(name) && name !== "Panini Donruss");
-    return ["Panini Donruss", ...kept].slice(0, MAX_SETS);
+    const top = ["Panini Donruss", ...kept].slice(0, MAX_SETS);
+    return { names: top, printed: printedNames.filter((name) => top.includes(name)) };
   }
-  return names.slice(0, MAX_SETS);
+  const top = names.slice(0, MAX_SETS);
+  return { names: top, printed: printedNames.filter((name) => top.includes(name)) };
 }
+
+/**
+ * Team names and awards with a color or finish word in them. Taken out before the parallel is
+ * read, so "RED SOX", "Tulane Green Wave" and "GOLD GLOVE" are never a parallel.
+ */
+export const COLOR_NAME_PHRASES =
+  /\b(?:(?:tulane\s+)?green\s+wave|(?:dallas|(?:minnesota\s+)?north)\s+stars|red\s+sox|white\s+sox|blue\s+jays|red\s+wings|blue\s+jackets|golden\s+(?:knights|state|bears|gophers|eagles|hurricane)|green\s+bay|crimson\s+tide|blue\s+devils|red\s+raiders|red\s+storm|scarlet\s+knights|black\s+knights|orange\s+crush|gold(?:en)?\s+gloves?|silver\s+slugger|gold\s+medal(?:ist)?|silver\s+medal(?:ist)?|bronze\s+medal(?:ist)?|red\s+zone|blue[\s-]chip|green\s+monster)\b/gi;
 
 /** Color and finish words in the order the card (or title) prints them: "Pink/Red" stays Pink, Red. */
 function readParallelWords(lineWords: string[][]): string[] {
@@ -463,8 +493,30 @@ function readParallelWords(lineWords: string[][]): string[] {
   for (const label of PARALLEL_WORDS) {
     if (hasPhrase(lineWords, normInterest(label).split(" "))) found.push(label);
   }
-  const at = (label: string) => flat.indexOf(normInterest(label).split(" ")[0] ?? "");
-  return found.sort((a, b) => at(a) - at(b));
+  // A phrase inside a longer one found is the same parallel: Tiger in Tiger Stripe, Red in Red White Blue.
+  const wordsOf = (label: string) => normInterest(label).split(" ");
+  const kept = found.filter(
+    (label) => !found.some((other) => other !== label && wordsOf(other).length > wordsOf(label).length && hasPhrase([wordsOf(other)], wordsOf(label))),
+  );
+  const at = (label: string) => flat.indexOf(wordsOf(label)[0] ?? "");
+  return kept.sort((a, b) => at(a) - at(b));
+}
+
+/** The words to read colors from: no team names, no awards, and on a scanned card no bio sentences. */
+function colorLineWords(lines: string[], directory: readonly IndexedDirectoryPlayer[], scanned: boolean): string[][] {
+  const { teams } = teamIndex(directory);
+  return lines
+    .filter((line) => !(scanned && proseLine(line)))
+    .map((line) => {
+      const words = normInterest(fixOcrLetters(line).replace(COLOR_NAME_PHRASES, " ")).split(" ").filter(Boolean);
+      // A team the directory knows ("BOSTON RED SOX", "TORONTO BLUE JAYS") is not a color either.
+      for (let size = Math.min(words.length, 4); size >= 2; size -= 1) {
+        for (let start = 0; start + size <= words.length; start += 1) {
+          if (teams.has(words.slice(start, start + size).join(" "))) words.splice(start, size);
+        }
+      }
+      return words;
+    });
 }
 
 function readInsert(lines: string[]): string {
@@ -556,17 +608,42 @@ function readSide(lines: string[], lineWords: string[][], copyrightYear: string)
 }
 
 const POSITIONS = new Set(["SS", "C", "P", "LF", "CF", "RF", "DH", "OF", "IF", "1B", "2B", "3B", "RHP", "LHP", "SP", "RP"]);
+/** Position words that are never a checklist prefix: "SS-38" is OCR's SS-3B, "INF-3B" a position line. */
+const POSITION_ONLY = new Set(["SS", "C", "P", "LF", "CF", "RF", "DH", "OF", "IF", "INF", "UT", "UTL", "UTIL", "RHP", "LHP", "RP"]);
+/** Every position a card prints beside a jersey number: "#17 | QB", "G-F #23". */
+const JERSEY_POSITIONS = new Set([
+  ...POSITIONS, "INF", "UT", "QB", "RB", "FB", "HB", "WR", "TE", "K", "LB", "ILB", "OLB", "MLB", "CB", "DB", "S", "FS", "DE", "DT",
+  "DL", "OL", "OT", "OG", "EDGE", "PG", "SG", "SF", "PF", "G", "F", "LW", "RW", "D",
+]);
 
 /**
  * A code whose letters are a word from a bio or a stat line ("FOR-4",
- * "A-414", "JUNE-4"), or a position pair ("SS-3B").
+ * "A-414", "JUNE-4"), or a position line ("SS-3B", "INF-3B", OCR's "SS-38").
  */
 function wordCode(number: string): boolean {
   const prefix = /^([A-Z]+)\d?-/.exec(number)?.[1];
   if (prefix && NOT_CODE_PREFIX.has(prefix)) return true;
   const [left, right] = number.split("-");
-  return POSITIONS.has(left ?? "") && POSITIONS.has(right ?? "");
+  if (POSITIONS.has(left ?? "") && POSITIONS.has(right ?? "")) return true;
+  // A base (1B, 2B, 3B) after the hyphen, or a position word in front, is where he plays.
+  return /^[1-3]B$/.test(right ?? "") || POSITION_ONLY.has(left ?? "");
 }
+
+/** "#1 OVERALL PICK", "NO. 1 PROSPECT", "#3 SEED": a rank, never the card #. */
+const RANK_AFTER = /^\s*(?:overall|pick|draft|prospect|seed|ranked|rank|in\b|on\b|among|all[\s-]time)/i;
+
+/** "#17 | QB", "QB #17", "#23 G-F": a jersey number beside a position, never the card #. */
+function jerseyLine(line: string, matched: string): boolean {
+  const rest = line.replace(matched, " ").split(/[\s|/,·•-]+/).filter(Boolean);
+  return rest.length > 0 && rest.length <= 3 && rest.every((word) => JERSEY_POSITIONS.has(word.toUpperCase()));
+}
+
+/** Auto and relic checklists number with letters: CPA-KG, BCPA-MC, RA-JW. */
+const LETTER_CODE = /\b(CPA|BCPA|BPA|CDA|BDA|CRA|RPA|RA|FSA)\s?[-–—‐]\s?([A-Z]{2,4})\b/;
+/** A known checklist code printed with no hyphen, alone on its line: US1, USC150. */
+const BARE_CODE_LINE = /^(US|USC|BCP|BP|BDC|BD|HMT|T)(\d{1,4})$/;
+/** A card # printed alone on a line with no # in front, the way Topps backs print it. */
+const LONE_NUMBER_LINE = /^\d{1,4}$/;
 
 /**
  * The printed card #: "#280" or "NO. 280" first, then a code like BP-27. A
@@ -575,13 +652,24 @@ function wordCode(number: string): boolean {
  * (BP, INS, BCP, US, TC, SP) wins. On a scanned card, a sentence-length line
  * is a bio and never holds the card #. Nothing left: the number stays open.
  */
-function readCardNumber(lines: string[], scanned: boolean): string {
+function readCardNumber(
+  lines: string[],
+  scanned: boolean,
+  side?: "front" | "back",
+  /** True for a line that names a team. A lone number beside one is a jersey or an age. */
+  teamLine: (line: string) => boolean = () => false,
+): string {
   const usable = (line: string) => !(scanned && proseLine(line));
   for (const line of lines) {
     if (!usable(line)) continue;
     for (const match of line.matchAll(CARD_NUMBER)) {
       const number = match[1].toUpperCase();
-      if (!looksLikeCatalogSku(number) && !wordCode(number)) return number;
+      if (looksLikeCatalogSku(number) || wordCode(number)) continue;
+      // A rank ("#1 OVERALL PICK") is not the card #, on a card or in a sold title.
+      if (RANK_AFTER.test(line.slice((match.index ?? 0) + match[0].length))) continue;
+      // On a scanned card, neither is a jersey number beside a position ("#17 | QB").
+      if (scanned && jerseyLine(line, match[0])) continue;
+      return number;
     }
   }
   const codes: string[] = [];
@@ -593,7 +681,48 @@ function readCardNumber(lines: string[], scanned: boolean): string {
       if (!looksLikeCatalogSku(number) && !wordCode(number)) codes.push(number);
     }
   }
-  return codes.find((number) => KNOWN_CODE_PREFIX.has(/^([A-Z]+)/.exec(number)?.[1] ?? "")) ?? codes[0] ?? "";
+  const code = codes.find((number) => KNOWN_CODE_PREFIX.has(/^([A-Z]+)/.exec(number)?.[1] ?? "")) ?? codes[0] ?? "";
+  if (code || side !== "back") return code;
+  // The back of a scanned card, with no "#" and no hyphen code. Three more shapes a back prints:
+  for (const line of lines) {
+    if (MAKER_LINE.test(line) || !usable(line)) continue;
+    const letters = LETTER_CODE.exec(line.toUpperCase());
+    if (letters) return `${letters[1]}-${letters[2]}`;
+  }
+  for (const line of lines) {
+    const bare = BARE_CODE_LINE.exec(line.toUpperCase().trim());
+    if (bare) return `${bare[1]}${bare[2]}`;
+  }
+  // A number alone on a line at the top or the bottom of the back (the bottom when the card was
+  // upside down), and the only lone number on the whole back. A stat table read cell by cell has many.
+  // Only a Topps-made back prints its card # this way (Topps, Bowman): Panini prints "No.", so a lone
+  // number there is a jersey. And never beside a position or team line, where it is a jersey or an age.
+  const toppsMade = lines.some((item) => TOPPS_MADE.test(item)) && !lines.some((item) => OTHER_MAKER.test(item));
+  if (!toppsMade) return "";
+  const lone = lines.map((line, index) => ({ line: line.trim(), index })).filter((item) => LONE_NUMBER_LINE.test(item.line));
+  if (lone.length !== 1) return "";
+  const { line, index } = lone[0];
+  const edge = index <= 1 || index >= lines.length - 2;
+  const year = /^(?:19|20)\d{2}$/.test(line);
+  const beside = [lines[index - 1], lines[index + 1]].filter((item): item is string => Boolean(item));
+  if (beside.some((item) => positionLine(item) || teamLine(item))) return "";
+  return edge && !year && Number(line) > 0 ? String(Number(line)) : "";
+}
+
+const TOPPS_MADE = /\b(?:topps|bowman)\b/i;
+const OTHER_MAKER = /\bpanini\b|\bupper\s+deck\b|\bleaf\b|\bdonruss\b/i;
+/** Words a position line is made of: "QUARTERBACK", "SECOND BASE", "RHP", "SS / 3B". */
+const POSITION_WORDS = new Set([
+  "QUARTERBACK", "RUNNING", "BACK", "WIDE", "RECEIVER", "TIGHT", "END", "KICKER", "PUNTER", "LINEBACKER", "CORNERBACK",
+  "SAFETY", "DEFENSIVE", "OFFENSIVE", "TACKLE", "LINEMAN", "PITCHER", "CATCHER", "SHORTSTOP", "OUTFIELD", "OUTFIELDER",
+  "INFIELD", "INFIELDER", "FIRST", "SECOND", "THIRD", "BASE", "BASEMAN", "DESIGNATED", "HITTER", "STARTING", "RELIEF",
+  "GUARD", "FORWARD", "CENTER", "POINT", "SHOOTING", "SMALL", "POWER", "WING", "LEFT", "RIGHT", "DEFENSEMAN", "DEFENSE",
+  "GOALIE", "GOALTENDER", "UTILITY",
+]);
+
+function positionLine(line: string): boolean {
+  const words = line.toUpperCase().split(/[\s|/,·•-]+/).filter(Boolean);
+  return words.length > 0 && words.length <= 4 && words.every((word) => POSITION_WORDS.has(word) || JERSEY_POSITIONS.has(word));
 }
 
 export function readRawCardText(
@@ -621,14 +750,18 @@ export function readRawCardText(
   if (!read.copyrightYear && options.side === "back") {
     read.copyrightYear = clean.filter((line) => MAKER_ONLY_LINE.test(line)).map((line) => MAKER_YEAR.exec(line)?.[1] ?? "").find(Boolean) ?? "";
   }
-  read.cardNumber = readCardNumber(clean, Boolean(options.side));
-  read.serial = readSerial(clean);
+  read.cardNumber = readCardNumber(clean, Boolean(options.side), options.side, (line) =>
+    Boolean(readTeam([normInterest(line).split(" ").filter(Boolean)], directory)),
+  );
+  read.serial = readSerial(clean, Boolean(options.side));
   read.isRookie = clean.some((line) => /\b(RC|ROOKIE)\b/i.test(line));
-  read.setNames = readSets(
+  const sets = readSets(
     lineWords.filter((_words, i) => !maker(clean[i])),
     { back: options.side === "back" },
   );
-  read.parallelWords = readParallelWords(lineWords);
+  read.setNames = sets.names;
+  read.printedSets = sets.printed;
+  read.parallelWords = readParallelWords(colorLineWords(clean, directory, Boolean(options.side)));
   read.insert = readInsert(clean);
   read.side = readSide(clean, lineWords, read.copyrightYear);
   return read;

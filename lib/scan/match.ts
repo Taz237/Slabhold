@@ -111,6 +111,16 @@ const TITLE_SUPPORT_MAX = 18;
 
 /** Label words that mark an autograph or rookie, not a parallel. */
 const FLAG_WORDS = new Set(["rookie", "rc", "auto", "autos", "autograph", "autographs", "autographed"]);
+/** Label words that name a subset of the set (Prospects, Rookie Ticket, Young Guns), never a parallel. */
+const SLAB_SUBSET_WORDS = new Set(["prospect", "prospects", "ticket", "young", "guns", "rated", "1st"]);
+
+/** The parallel words on a slab's variety line: no flags, subset names, stray numbers, or a trailing "Prizm". */
+function slabParallelWords(varietyText: string): string[] {
+  const kept = words(varietyText).filter((word) => !FLAG_WORDS.has(word) && !SLAB_SUBSET_WORDS.has(word) && !/^\d+$/.test(word));
+  // "SILVER PRIZM" is Silver. "PRIZM" alone is the parallel's own name (2012's Prizm), so it stays.
+  const colors = kept.filter((word) => word !== "prizm" && word !== "prizms");
+  return colors.length > 0 ? colors : kept;
+}
 
 type Evidence = {
   slab: boolean;
@@ -156,7 +166,8 @@ function titleCase(text: string): string {
     .toLowerCase()
     .replace(/\s+/g, " ")
     .trim()
-    .replace(/(^|[\s-])([a-z])/g, (_match, lead: string, letter: string) => `${lead}${letter.toUpperCase()}`);
+    // "C.J. STROUD" is C.J. Stroud: a letter after a period starts a word too.
+    .replace(/(^|[\s.-])([a-z])/g, (_match, lead: string, letter: string) => `${lead}${letter.toUpperCase()}`);
 }
 
 function cardNumberKey(value: string): string {
@@ -169,9 +180,11 @@ function startYear(label: string): number | null {
 }
 
 /** PSA prints 2018 for a 2018-19 basketball card. Add card stores the season. */
-function seasonFor(sport: string, yearLabel: string): string {
+function seasonFor(sport: string, yearLabel: string, setBrand = ""): string {
   if (!/^\d{4}$/.test(yearLabel)) return yearLabel;
   if (sport !== "Basketball" && sport !== "Hockey") return yearLabel;
+  // The WNBA plays inside one calendar year: a 2024 Prizm WNBA card is 2024, not 2024-25.
+  if (/\bwnba\b/i.test(setBrand)) return yearLabel;
   const start = Number(yearLabel);
   return `${start}-${String((start + 1) % 100).padStart(2, "0")}`;
 }
@@ -194,8 +207,8 @@ function evidenceFrom(read: ScanRead, directory: readonly IndexedDirectoryPlayer
       setNames: label.setName ? [label.setName] : [],
       setText: label.setName ? "" : label.setText,
       cardNumber: looksLikeCatalogSku(label.cardNumber) ? "" : label.cardNumber,
-      serial: null,
-      parallelWords: variety.filter((word) => !FLAG_WORDS.has(word)),
+      serial: label.serial ?? null,
+      parallelWords: slabParallelWords(label.varietyText),
       isRookie: label.isRookie,
       isAuto: Boolean(label.autoGrade) || variety.some((word) => word.startsWith("auto")),
       grade: {
@@ -245,14 +258,14 @@ function evidenceFrom(read: ScanRead, directory: readonly IndexedDirectoryPlayer
     }
   }
   const lockedName = players[0]?.name ?? playerText;
-  const setNames: string[] = [];
-  for (const name of sides.flatMap((side) => side.setNames)) if (!setNames.includes(name)) setNames.push(name);
+  // The back is where the card # lives. A front number is usually something else.
+  const backNumber = read.back?.cardNumber ?? "";
+  const cardNumber = backNumber || read.front.cardNumber;
+  const setNames = mergedSetNames(sides, cardNumber);
   const parallelWords: string[] = [];
   for (const phrase of sides.flatMap((side) => side.parallelWords)) {
     for (const word of words(phrase)) if (!parallelWords.includes(word)) parallelWords.push(word);
   }
-  // The back is where the card # lives. A front number is usually something else.
-  const backNumber = read.back?.cardNumber ?? "";
   return {
     slab: false,
     players,
@@ -266,13 +279,48 @@ function evidenceFrom(read: ScanRead, directory: readonly IndexedDirectoryPlayer
     copyrightYear: sides.map((side) => side.copyrightYear).find(Boolean) ?? "",
     setNames,
     setText: "",
-    cardNumber: backNumber || read.front.cardNumber,
+    cardNumber,
     serial: sides.map((side) => side.serial).find(Boolean) ?? null,
     parallelWords,
     isRookie: sides.some((side) => side.isRookie),
     isAuto: false,
     grade: null,
   };
+}
+
+/** Bowman codes for Chrome prospects and prospect autos (in Bowman Chrome and in flagship Bowman), and codes only in Draft. */
+const BOWMAN_CHROME_PREFIXES = new Set(["BCP", "BCPA", "CPA"]);
+const BOWMAN_DRAFT_PREFIXES = new Set(["BD", "BDC", "CDA", "BDA"]);
+
+/**
+ * The set names both sides printed, best first. A name printed in full on either side
+ * ("2024 TOPPS UPDATE SERIES", "PRIZM WNBA") beats a one-word logo guess, and the fuller name
+ * beats the shorter one inside it (Topps Update over Topps, Upper Deck Series 1 over Upper Deck).
+ */
+function mergedSetNames(sides: readonly RawCardRead[], cardNumber: string): string[] {
+  const names: string[] = [];
+  for (const name of sides.flatMap((side) => side.setNames)) if (!names.includes(name)) names.push(name);
+  const printed = new Set(sides.flatMap((side) => side.printedSets ?? []));
+  const within = (short: string, long: string) => {
+    const a = words(short);
+    const b = words(long);
+    return b.length > a.length && a.every((word) => b.includes(word));
+  };
+  const rank = (name: string) => (printed.has(name) ? 0 : 1);
+  const ordered = names
+    .map((name, index) => ({ name, index }))
+    .sort((a, b) => rank(a.name) - rank(b.name) || Number(within(a.name, b.name)) - Number(within(b.name, a.name)) || a.index - b.index)
+    .map((item) => item.name);
+  // "1ST BOWMAN" is on paper and Chrome alike, and flagship Bowman prints BCP Chrome Prospects and
+  // CPA autos too. So with only the Bowman name printed, a BCP, BCPA or CPA code keeps Bowman first
+  // and offers Bowman Chrome second; only "BOWMAN CHROME" printed makes it Chrome. A Draft code
+  // (BD-1, BDC-12) is only in Bowman Draft.
+  if (ordered[0] === "Bowman") {
+    const prefix = /^([A-Z]+)-?/i.exec(cardNumber)?.[1]?.toUpperCase() ?? "";
+    if (BOWMAN_CHROME_PREFIXES.has(prefix) && !ordered.includes("Bowman Chrome")) return ["Bowman", "Bowman Chrome", ...ordered.slice(1)];
+    if (BOWMAN_DRAFT_PREFIXES.has(prefix)) return ["Bowman Draft", ...ordered.filter((name) => name !== "Bowman Draft")];
+  }
+  return ordered;
 }
 
 function bestPlayerName(evidence: Evidence): string {
@@ -466,6 +514,8 @@ const COLOR_WORDS = new Set(["red", "pink", "magenta", "fuchsia", "purple", "blu
 /** "PINK RED" → "Pink/Red" (colors only, the way eBay lists them); "GREEN REFRACTOR" → "Green Refractor". */
 export function parallelLabel(colorWords: readonly string[]): string {
   const list = colorWords.flatMap((phrase) => words(phrase));
+  // One parallel with its own name, not three colors.
+  if (list.filter((word) => word !== "and").join(" ") === "red white blue") return "Red White & Blue";
   if (list.length >= 2 && list.every((word) => COLOR_WORDS.has(word))) return list.map((word) => titleCase(word)).join("/");
   return titleCase(list.join(" "));
 }
@@ -548,17 +598,21 @@ function pickParallel(evidence: Evidence, checklist: ProductParallel[], titles: 
   const runOf = (option: ProductParallel | undefined) => option?.serialRun ?? null;
 
   if (evidence.slab) {
+    // A serial stamped on the label ("432/499", "/99") is the card's run.
+    const labelRun = evidence.serial ? Number(evidence.serial.run) : null;
     if (evidence.parallelWords.length === 0) {
+      // A numbered card is never Base: with no parallel named, it stays open.
+      if (labelRun != null) return { parallel: "", sureness: "unsure", serialRun: labelRun, options: [] };
       const base = checklist.find((option) => parallelMatchKey(option.name) === "base") ?? { name: "Base", serialRun: null };
       return { parallel: "Base", sureness: "sure", serialRun: null, options: [base] };
     }
     const named = longestNamed(checklist, evidence.parallelWords);
     if (named.length === 1) {
-      return { parallel: named[0].name, sureness: "sure", serialRun: runOf(named[0]), options: named };
+      return { parallel: named[0].name, sureness: "sure", serialRun: labelRun ?? runOf(named[0]), options: named };
     }
     // Printed on the label, but not a parallel our lists know: keep the label's words.
     const printed = titleCase(evidence.parallelWords.join(" "));
-    return { parallel: printed, sureness: "likely", serialRun: null, options: [{ name: printed, serialRun: null }] };
+    return { parallel: printed, sureness: "likely", serialRun: labelRun, options: [{ name: printed, serialRun: labelRun }] };
   }
 
   const run = evidence.serial ? Number(evidence.serial.run) : null;
@@ -584,6 +638,15 @@ function pickParallel(evidence: Evidence, checklist: ProductParallel[], titles: 
   const named = longestNamed(fitsRun, evidence.parallelWords);
   if (named.length === 1) {
     return { parallel: named[0].name, sureness: "likely", serialRun: run ?? runOf(named[0]), options: named };
+  }
+  // The card prints its parallel ("REFRACTOR" on the back) and its run, and our list has no runs
+  // for this set: the printed word is the parallel when it names exactly one on the list.
+  if (run != null && fitsRun.length === 0 && printedColor) {
+    const printedOnCard = longestNamed(checklist, evidence.parallelWords);
+    if (printedOnCard.length === 1 && parallelMatchKey(printedOnCard[0].name) !== "base") {
+      const option = { name: printedOnCard[0].name, serialRun: run };
+      return { parallel: option.name, sureness: "likely", serialRun: run, options: [option], source: "card" };
+    }
   }
   if (!printedColor && soldColor && named.length === 0) {
     const fromList = longestNamed(fitsRun.length > 0 ? fitsRun : checklist, words(soldColor));
@@ -634,7 +697,7 @@ function synthesized(evidence: Evidence): Candidate | null {
     catalogId: null,
     playerName,
     sport,
-    yearLabel: seasonFor(sport, year),
+    yearLabel: seasonFor(sport, year, setBrand),
     setBrand,
     cardNumber: evidence.cardNumber,
     isRookie: evidence.isRookie,
@@ -755,7 +818,7 @@ function titleCandidates(
       catalogId: null,
       playerName,
       sport,
-      yearLabel: seasonFor(sport, year),
+      yearLabel: seasonFor(sport, year, group.set),
       setBrand: group.set,
       cardNumber: group.number,
       isRookie: group.isRookie,

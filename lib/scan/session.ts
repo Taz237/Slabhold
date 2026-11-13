@@ -1,7 +1,7 @@
 import type { ConfirmSheetState } from "@/components/scan/confirm-sheet";
 import type { IndexedDirectoryPlayer } from "@/lib/players/types";
 import type { ScanMatchResult, ScanRead } from "./match";
-import { readRawCardText } from "./raw-text";
+import { findPlayers, readRawCardText } from "./raw-text";
 import { looksLikeSlabLabel, readSlabLabel } from "./slab-label";
 
 export { HUB_COPY, addCardScanHref, quickCompScanHref, scanPurposeFrom, type ScanPurpose } from "./entry";
@@ -28,7 +28,11 @@ export type ScanCapture = {
 /** The scanner's slab or card call wins; with no call, a label-looking read is a slab. */
 export function scanReadFrom(capture: ScanCapture, directory: readonly IndexedDirectoryPlayer[]): ScanRead {
   const slab = capture.kind === "slab" || (capture.kind === null && looksLikeSlabLabel(capture.lines));
-  if (slab) return { kind: "slab", label: readSlabLabel(capture.lines) };
+  if (slab) {
+    // The label is gold: the line that names a player we know is the player line, wherever it sits.
+    const playerScore = (line: string) => findPlayers([line], directory)[0]?.score ?? 0;
+    return { kind: "slab", label: readSlabLabel(capture.lines, { playerScore }) };
+  }
   return {
     kind: "raw",
     front: readRawCardText(capture.lines, directory, { side: "front" }),
