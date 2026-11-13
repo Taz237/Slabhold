@@ -13,6 +13,7 @@ import { isNativeApp, loadNative } from "@/lib/ios/platform";
 import { PHOTO_READ_ERROR, readPhotoFile } from "@/lib/photos";
 import { compQueryString, type ScanCompResult } from "@/lib/scan/comp";
 import { newScanId, scanAddPath, scanHandoffFrom } from "@/lib/scan/handoff";
+import { HUB_ERRORS } from "@/lib/scan/hub-errors";
 import type { LiveSoldsResult } from "@/lib/scan/live-solds";
 import type { ScanMatch, ScanMatchResult, SoldTitle } from "@/lib/scan/match";
 import { HUB_COPY, scanReadFrom, sheetStateFrom, type ScanCapture, type ScanPurpose } from "@/lib/scan/session";
@@ -303,8 +304,8 @@ export function ScanHub({
         <p className="mt-6 rounded-2xl border border-zinc-200 p-4 text-sm leading-5 text-zinc-600 dark:border-white/10 dark:text-zinc-400">
           {deps.nativeApp()
             ? comp
-              ? HUB_COPY.compScannerDown
-              : HUB_COPY.scannerDown
+              ? HUB_ERRORS.compScannerDown
+              : HUB_ERRORS.scannerDown
             : comp
               ? HUB_COPY.compReaderSoon
               : HUB_COPY.readerSoon}
