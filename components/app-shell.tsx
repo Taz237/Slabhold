@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Suspense, ViewTransition, useEffect, useState } from "react";
+import { Suspense, ViewTransition, useEffect, useState, useSyncExternalStore } from "react";
 import { Bell, Camera, Compass, Mail, Search, Tag, Trophy, WalletCards, type LucideIcon } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { useSocial } from "@/components/social-provider";
@@ -33,6 +33,13 @@ import { listenForInstallPrompt } from "@/lib/pwa/install-prompt";
 import { loginPath, pathWithQuery } from "@/lib/auth/safe-next";
 import type { TourTarget } from "@/lib/onboarding/first-run";
 import type { Profile } from "@/lib/social/types";
+import {
+  addCardSheetOpen,
+  closeAddCardSheet,
+  openAddCardSheet,
+  opensAddSheet,
+  subscribeAddCardSheet,
+} from "@/lib/cards/add-card-sheet";
 import { BOTTOM_NAV, bottomNavTabs, type BottomNavTab } from "@/lib/ui/bottom-nav";
 import {
   activeTabAction,
@@ -48,6 +55,9 @@ import {
  */
 const AccountMenu = lazyPart(() => import("@/components/side-menu").then((mod) => mod.AccountMenu), AccountSlot);
 const CreateMenu = lazyPart(() => import("@/components/create-menu").then((mod) => mod.CreateMenu));
+const AddCardSheet = lazyPart(() => import("@/components/add-card/add-card-sheet").then((mod) => mod.AddCardSheet), null, {
+  name: "add-card-sheet",
+});
 const FirstRunSetup = lazyPart(() => import("@/components/onboarding/first-run-setup").then((mod) => mod.FirstRunSetup));
 const YoureIn = lazyPart(() => import("@/components/onboarding/youre-in").then((mod) => mod.YoureIn));
 const CoachTour = lazyPart(() => import("@/components/onboarding/coach-tour").then((mod) => mod.CoachTour));
@@ -98,6 +108,8 @@ if (sessionHinted()) {
   else afterFirstIdle(preloadMenus);
   afterFirstIdle(() => {
     for (const part of [FirstRunSetup, YoureIn, CoachTour, BadgeRevealGate]) void part.preload().catch(() => {});
+    // The Add card sheet draws on the first tap of Add card, with no wait for its chunk.
+    void AddCardSheet.preload().catch(() => {});
   });
 }
 
@@ -157,6 +169,12 @@ function isActive(pathname: string, href: string, user: Profile | null) {
     );
   }
   return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+/** The Add card sheet, drawn while open. Mounted for the whole app, so every Add card button opens it. */
+function AddCardSheetSlot() {
+  const open = useSyncExternalStore(subscribeAddCardSheet, addCardSheetOpen, () => false);
+  return open ? <AddCardSheet onClose={closeAddCardSheet} /> : null;
 }
 
 /**
@@ -350,7 +368,12 @@ function Shell({
                   <Link
                     key={tab.href}
                     href={tab.href}
-                    onClick={onTabClick}
+                    onClick={(event) => {
+                      // A plain tap opens the Add card sheet; a new-tab click still goes to /cards/new.
+                      if (!opensAddSheet(event)) return;
+                      event.preventDefault();
+                      openAddCardSheet();
+                    }}
                     data-tour={tab.tour}
                     aria-label="Add card"
                     aria-current={active ? "page" : undefined}
@@ -401,6 +424,7 @@ function Shell({
       ) : null}
       {showJoin && !chromeless ? <JoinBar /> : null}
       {showNav && !chromeless ? <CreateMenu key={pathname} /> : null}
+      <AddCardSheetSlot />
       {user ? <FirstRunSetup /> : null}
       {user ? <YoureIn userId={user.id} username={user.username} /> : null}
       {user ? <CoachTour userId={user.id} /> : null}

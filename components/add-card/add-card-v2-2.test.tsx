@@ -193,7 +193,7 @@ describe("Add card v2 phase 2", () => {
         assert.ok(block.compareDocumentPosition(photo) & win.Node.DOCUMENT_POSITION_FOLLOWING, "value sits above the photo well");
       }
       // Visibility and caption are not part of the card: no second lookup.
-      await clickText("Public");
+      await rememberPublic("user-1");
       await waitFor(() => checkboxByLabel("Also post to my feed").checked);
       const caption = win.document.querySelector<HTMLTextAreaElement>('textarea[aria-label="Post caption"]')!;
       await act(async () => setNativeValue(caption, "Maxey!"));
@@ -421,4 +421,10 @@ async function mount(
       host.remove();
     },
   };
+}
+
+/** Public / Private moved to the Added screen; a remembered Public (from the last add) is how a new card starts public. */
+async function rememberPublic(userId: string) {
+  const { writeBrowserVisibilityChoice } = await import("@/lib/cards/visibility-choice");
+  await act(async () => writeBrowserVisibilityChoice(userId, true));
 }

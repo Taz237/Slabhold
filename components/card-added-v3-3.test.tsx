@@ -95,25 +95,8 @@ async function render(cards: SportsCard[], added: SportsCard, value: CardValueRe
     );
   });
   return {
-    host,
-    unmount() {
-      act(() => root.unmount());
-      host.remove();
-    },
-  };
-}
-
-async function renderLine(props: { count: number; total: number | null; previous: number | null }) {
-  const { CollectionLine } = await import("@/components/card-added-panel");
-  const { createRoot } = await import("react-dom/client");
-  const host = win.document.createElement("div");
-  win.document.body.appendChild(host);
-  const root = createRoot(host);
-  await act(async () => {
-    root.render(createElement(CollectionLine, props));
-  });
-  return {
-    host,
+    // The scene renders in a portal on document.body.
+    host: win.document.body as HTMLElement,
     unmount() {
       act(() => root.unmount());
       host.remove();
@@ -135,14 +118,6 @@ async function waitFor(check: () => boolean, attempts = 100) {
   throw new Error(`timed out: ${win.document.body.textContent?.slice(0, 400)}`);
 }
 
-function shownLine(host: HTMLElement) {
-  return host.querySelector('[data-slot="collection-line"] [aria-hidden]')?.textContent ?? "";
-}
-
-function liveLine(host: HTMLElement) {
-  return host.querySelector('[data-slot="collection-line"] [aria-live]')?.textContent ?? "";
-}
-
 function threeCards() {
   seq += 1;
   const a = card(`a-${seq}`);
@@ -152,93 +127,52 @@ function threeCards() {
   return { cards: [a, b, added], added };
 }
 
-describe("reveal: collection line", () => {
-  it("sits right under the value line, above Post it and Add another", async () => {
+describe("Added: the flip lands", () => {
+  it("drops the collection line for one big price", async () => {
     const { cards, added } = threeCards();
     const view = await render(cards, added, ok(42));
     try {
-      const line = view.host.querySelector('[data-slot="collection-line"]');
-      const actions = view.host.querySelector('[data-slot="reveal-actions"]');
-      assert.ok(line && actions);
-      assert.ok(line.compareDocumentPosition(actions) & win.Node.DOCUMENT_POSITION_FOLLOWING);
-      const value = [...view.host.querySelectorAll("p")].find((p) => /Worth about \$42\.00/.test(p.textContent ?? ""));
-      assert.ok(value && value.compareDocumentPosition(line) & win.Node.DOCUMENT_POSITION_FOLLOWING);
-      assert.match(line.className, /tabular-nums/);
+      assert.equal(view.host.querySelector('[data-slot="collection-line"]'), null);
+      assert.doesNotMatch(view.host.textContent ?? "", /Your collection:/);
+      assert.match(view.host.querySelector('[data-slot="added-price"]')?.textContent ?? "", /\$42\.00/);
     } finally {
       view.unmount();
     }
   });
 
-  it("counts up from the old total to the new one in about 600ms, announcing only the final value", async () => {
+  it("bursts brand confetti once as the flip lands, with motion allowed", async () => {
     state.reducedMotion = false;
-    const view = await renderLine({ count: 3, total: 72, previous: 30 });
+    const { cards, added } = threeCards();
+    const view = await render(cards, added, ok(42));
     try {
-      assert.equal(shownLine(view.host), "Your collection: 3 cards, about $30.00", "starts on the old total");
-      assert.equal(liveLine(view.host), "Your collection: 3 cards, about $72.00", "only the final value is announced");
-      const seen = new Set<string>();
-      for (let step = 0; step < 14; step += 1) {
-        await wait(25);
-        seen.add(shownLine(view.host));
+      assert.equal(view.host.querySelector('[data-reveal="confetti"]'), null, "not before the flip lands");
+      await waitFor(() => view.host.querySelector('[data-reveal="confetti"]') != null);
+      const pieces = [...view.host.querySelectorAll<HTMLElement>('[data-reveal="confetti"] span')];
+      assert.ok(pieces.length >= 10 && pieces.length <= 16, "a short burst");
+      for (const piece of pieces) {
+        assert.match(piece.className, /added-confetti/);
+        assert.ok(["rgb(124, 58, 237)", "rgb(167, 139, 250)", "rgb(91, 33, 182)", "rgb(244, 244, 245)"].includes(piece.style.backgroundColor), piece.style.backgroundColor);
       }
-      assert.ok([...seen].some((text) => /\$(3[1-9]|[4-6]\d|7[01])\.\d\d$/.test(text)), [...seen].join(" | "));
-      await waitFor(() => shownLine(view.host) === "Your collection: 3 cards, about $72.00");
-      await wait(300);
-      assert.equal(shownLine(view.host), "Your collection: 3 cards, about $72.00", "lands on the final figure and stays");
-      assert.equal(liveLine(view.host), "Your collection: 3 cards, about $72.00");
+      assert.equal(view.host.querySelector('[data-reveal="confetti"]')?.getAttribute("aria-hidden"), "true");
     } finally {
       view.unmount();
     }
   });
 
-  it("shows the final figure at once under reduced motion", async () => {
+  it("skips the confetti under reduced motion", async () => {
     state.reducedMotion = true;
     try {
-      const view = await renderLine({ count: 3, total: 72, previous: 30 });
+      const { cards, added } = threeCards();
+      const view = await render(cards, added, ok(42));
       try {
-        for (let step = 0; step < 6; step += 1) {
-          assert.equal(shownLine(view.host), "Your collection: 3 cards, about $72.00");
-          await wait(20);
-        }
+        await wait(20);
+        assert.equal(view.host.querySelector('[data-reveal="confetti"]'), null);
+        assert.match(view.host.querySelector('[data-slot="added-price"]')?.textContent ?? "", /\$42\.00/, "the price still shows");
       } finally {
         view.unmount();
       }
     } finally {
       state.reducedMotion = false;
-    }
-  });
-
-  it("never animates from or to a missing figure, and never shows $0", async () => {
-    for (const props of [
-      { count: 2, total: null, previous: null },
-      { count: 2, total: 42, previous: null },
-      { count: 2, total: null, previous: 30 },
-      { count: 1, total: 0, previous: null },
-    ]) {
-      const view = await renderLine(props);
-      try {
-        const first = shownLine(view.host);
-        await wait(80);
-        assert.equal(shownLine(view.host), first, JSON.stringify(props));
-        assert.doesNotMatch(first, /\$0(?:\.00)?\b/);
-        assert.equal(first, liveLine(view.host));
-      } finally {
-        view.unmount();
-      }
-    }
-  });
-
-  it("without a real total shows the count only: no $0 and nothing animates", async () => {
-    seq += 1;
-    const a = card(`a-${seq}`);
-    const added = card(`new-${seq}`);
-    served = {};
-    const view = await render([a, added], added, null);
-    try {
-      await wait(120);
-      assert.equal(shownLine(view.host), "Your collection: 2 cards");
-      assert.doesNotMatch(view.host.textContent ?? "", /\$0(?:\.00)?\b/);
-    } finally {
-      view.unmount();
     }
   });
 });
@@ -275,36 +209,32 @@ describe("reveal: one milestone line", () => {
   });
 });
 
-describe("reveal: the slab glides in from Review", () => {
-  it("plays one move-and-scale from the Review slab, and skips the turn-in", async () => {
-    const calls: { frames: Keyframe[]; options: KeyframeAnimationOptions }[] = [];
+describe("Added: the 3D flip", () => {
+  it("uses up the Review slab's glide, so only the flip plays", async () => {
+    const calls: unknown[] = [];
     const proto = win.HTMLElement.prototype as unknown as Record<string, unknown>;
     const before = { animate: proto.animate, rect: proto.getBoundingClientRect };
-    proto.animate = function (frames: Keyframe[], options: KeyframeAnimationOptions) {
-      calls.push({ frames, options });
+    proto.animate = function (...args: unknown[]) {
+      calls.push(args);
       return {};
     };
-    proto.getBoundingClientRect = function (this: HTMLElement) {
-      return this.dataset.slabMorph === "source"
-        ? { left: 120, top: 400, width: 128, height: 213, right: 248, bottom: 613, x: 120, y: 400 }
-        : { left: 115, top: 120, width: 144, height: 240, right: 259, bottom: 360, x: 115, y: 120 };
+    proto.getBoundingClientRect = function () {
+      return { left: 120, top: 400, width: 128, height: 213, right: 248, bottom: 613, x: 120, y: 400 };
     };
     const source = win.document.createElement("div");
     source.dataset.slabMorph = "source";
     win.document.body.appendChild(source);
     try {
-      const { captureSlabMorph } = await import("@/lib/cards/slab-morph");
+      const { captureSlabMorph, takeSlabMorph } = await import("@/lib/cards/slab-morph");
       assert.equal(captureSlabMorph(), true);
       source.remove();
       const { cards, added } = threeCards();
       const view = await render(cards, added, ok(42));
       try {
-        const slab = view.host.querySelector<HTMLElement>('[data-reveal="slab"]')!;
-        assert.equal(slab.dataset.morph, "on");
-        assert.match(slab.className, /data-\[morph=on\]:animate-none/);
-        assert.equal(calls.length, 1);
-        assert.equal(calls[0].options.duration, 340);
-        assert.match(String(calls[0].frames[0].transform), /^translate\(5px, 280px\) scale\(/);
+        assert.equal(calls.length, 0, "no glide on top of the flip");
+        assert.equal(takeSlabMorph(), null, "the glide's record is used up");
+        assert.ok(view.host.querySelector('[data-reveal="flip"] [data-reveal="slab"]'));
+        assert.ok(view.host.querySelector('[data-reveal="flip"] [data-reveal="back"]'), "the card's back turns over");
       } finally {
         view.unmount();
       }
@@ -323,12 +253,17 @@ describe("reveal: the slab glides in from Review", () => {
     assert.match(frame, /(?:^|\s)min-w-0(?:\s|$)/);
   });
 
-  it("keeps the glow, off under reduced motion, and adds no confetti, sparkles or second glow", () => {
+  it("keeps one glow and the confetti off under reduced motion, with one haptic as the flip lands", () => {
     const panel = read("components/card-added-panel.tsx");
     assert.match(panel, /data-reveal="glow"[^>]*motion-reduce:hidden/);
     assert.equal(panel.match(/data-reveal="glow"/g)?.length, 1);
-    assert.doesNotMatch(panel, /confetti|sparkle|particle|teal|font-bold|animate-pulse/i);
-    assert.equal((panel.match(/haptic\(/g) ?? []).length, 0, "the haptic stays in card-form");
+    assert.doesNotMatch(panel, /sparkle|particle|teal|font-bold|animate-pulse/i);
+    assert.match(panel, /\{landed && !reduce \? <Confetti \/> : null\}/);
+    const css = read("app/globals.css");
+    assert.match(css, /@media \(prefers-reduced-motion: reduce\) \{\s*\.added-confetti \{\s*display: none;/);
+    assert.equal((panel.match(/haptic\(/g) ?? []).length, 1, "one tap as the flip lands");
+    assert.match(panel, /haptic\("tick"\)/);
+    // The save keeps its own success buzz.
     const form = read("components/card-form.tsx");
     assert.equal((form.match(/haptic\(/g) ?? []).length, 1);
     assert.match(form, /if \(!existing\) haptic\(postedNow \? "post" : "save"\);/);

@@ -15,14 +15,21 @@ import { isUnnamedRunLabel } from "@/lib/scan/scan-sales";
 export function SheetFrame({
   title,
   busy = false,
+  variant = "sheet",
   onClose,
   children,
 }: {
   title: string;
   busy?: boolean;
+  /**
+   * "scene": the scan reveal. Taller, over a blurred and dimmed screen, with a
+   * small title so the card leads. "sheet": the plain bottom sheet.
+   */
+  variant?: "sheet" | "scene";
   onClose: () => void;
   children: ReactNode;
 }) {
+  const scene = variant === "scene";
   const titleId = useId();
   const dialogRef = useRef<HTMLDivElement>(null);
 
@@ -42,7 +49,9 @@ export function SheetFrame({
         aria-label={CONFIRM_COPY.close}
         tabIndex={-1}
         onClick={onClose}
-        className="absolute inset-0 bg-zinc-950/50 motion-safe:animate-[lightbox-fade_180ms_cubic-bezier(0.22,1,0.36,1)_both]"
+        className={`absolute inset-0 motion-safe:animate-[lightbox-fade_180ms_cubic-bezier(0.22,1,0.36,1)_both] ${
+          scene ? "bg-zinc-950/70 backdrop-blur-xl" : "bg-zinc-950/50"
+        }`}
       />
       <div
         ref={dialogRef}
@@ -51,11 +60,16 @@ export function SheetFrame({
         aria-labelledby={titleId}
         aria-busy={busy}
         tabIndex={-1}
-        className="relative flex max-h-[88dvh] w-full max-w-lg flex-col overflow-hidden rounded-t-3xl border border-zinc-200 bg-[var(--background)] pb-[env(safe-area-inset-bottom)] outline-none motion-safe:animate-[composer-in_320ms_cubic-bezier(0.22,1,0.36,1)_both] md:rounded-3xl dark:border-white/10"
+        className={`relative flex w-full max-w-lg flex-col overflow-hidden rounded-t-3xl border border-zinc-200 bg-[var(--background)] pb-[env(safe-area-inset-bottom)] outline-none motion-safe:animate-[composer-in_320ms_cubic-bezier(0.22,1,0.36,1)_both] motion-reduce:animate-[add-fade_200ms_ease-out_both] md:rounded-3xl dark:border-white/10 ${
+          scene ? "max-h-[94dvh] rounded-t-[28px] shadow-[0_-16px_48px_rgba(9,9,11,0.4)]" : "max-h-[88dvh]"
+        }`}
       >
         <div aria-hidden className="mx-auto mt-2 h-1 w-9 rounded-full bg-zinc-300 dark:bg-white/20" />
         <div className="flex items-center justify-between gap-2 pr-2 pl-5 pt-2">
-          <h2 id={titleId} className="text-[17px] font-semibold tracking-tight">
+          <h2
+            id={titleId}
+            className={scene ? "text-[13px] font-medium text-zinc-500" : "text-[17px] font-semibold tracking-tight"}
+          >
             {title}
           </h2>
           <button
@@ -159,6 +173,137 @@ export function MatchSummary({ photo, match }: { photo: string | null; match: Sc
           </div>
         ) : null}
       </div>
+    </div>
+  );
+}
+
+/** The order the scan reveal fills a card's name in: player, year and set, number, parallel, then tags. */
+export const REVEAL_STAGES = ["player", "set", "number", "parallel", "tags"] as const;
+export type RevealStage = (typeof REVEAL_STAGES)[number];
+/** Time between one part of the name and the next. Quick: the whole name lands in under 700ms. */
+export const REVEAL_STEP_MS = 130;
+
+/** Each part slides in after the one before it; with reduced motion it simply fades in. */
+function stageMotion(stage: RevealStage): { className: string; style: { animationDelay: string } } {
+  return {
+    className:
+      "motion-safe:animate-[name-fill-in_320ms_cubic-bezier(0.22,1,0.36,1)_both] motion-reduce:animate-[add-fade_200ms_ease-out_both]",
+    style: { animationDelay: `${REVEAL_STAGES.indexOf(stage) * REVEAL_STEP_MS}ms` },
+  };
+}
+
+/**
+ * The scan reveal's card: the photo, big and centered, flips in once. It stays
+ * mounted while the name fills in under it, so it never flips twice. Reduced
+ * motion fades it in instead.
+ */
+export function RevealCard({ photo }: { photo: string | null }) {
+  return (
+    <div className="flex justify-center pt-1 pb-5" data-reveal="scan-card">
+      <div className="w-36 motion-safe:animate-[card-flip-in_620ms_cubic-bezier(0.2,0.7,0.2,1)_both] motion-reduce:animate-[add-fade_200ms_ease-out_both] [backface-visibility:hidden]">
+        {photo ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={photo}
+            alt="Your scan"
+            width={144}
+            height={202}
+            className="aspect-[5/7] w-36 rounded-xl object-cover shadow-[0_18px_40px_rgba(9,9,11,0.35)] ring-1 ring-zinc-900/10 dark:ring-white/10"
+          />
+        ) : (
+          <div
+            role="img"
+            aria-label="No photo"
+            className="grid aspect-[5/7] w-36 place-items-center rounded-xl bg-gradient-to-b from-zinc-100 to-zinc-200 shadow-[0_18px_40px_rgba(9,9,11,0.25)] ring-1 ring-zinc-900/10 dark:from-white/[0.08] dark:to-white/[0.03] dark:ring-white/10"
+          >
+            <span aria-hidden className="size-8 rounded-full bg-zinc-900/[0.06] dark:bg-white/10" />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** While the scan is matched: the name's lines as skeletons, never a spinner. */
+export function RevealNameSkeleton({ label }: { label: string }) {
+  return (
+    <div className="flex flex-col items-center gap-2 pb-2" data-reveal="name-skeleton">
+      <p className="sr-only" role="status">
+        {label}
+      </p>
+      <div aria-hidden className="h-6 w-44 rounded-md skeleton-shimmer" />
+      <div aria-hidden className="h-4 w-52 rounded-md skeleton-shimmer" />
+      <div aria-hidden className="h-4 w-24 rounded-md skeleton-shimmer" />
+    </div>
+  );
+}
+
+/**
+ * The card's name, filled in step by step under the flipped card: player,
+ * then year and set, then the number, then the parallel picked so far, then
+ * the grade, cert (last 4) and tags. A value the scan wasn't sure of reads muted.
+ */
+export function RevealName({ match, parallel }: { match: ScanMatch; parallel: string | null }) {
+  const grade = gradeLabel(match.grade);
+  const cert = maskCert(match.grade?.certNumber ?? "");
+  const player = stageMotion("player");
+  const set = stageMotion("set");
+  const number = stageMotion("number");
+  const pick = stageMotion("parallel");
+  const tags = stageMotion("tags");
+  return (
+    <div className="flex flex-col items-center text-center" data-reveal="name">
+      <p data-stage="player" className={`text-[22px] leading-7 font-semibold tracking-tight ${player.className}`} style={player.style}>
+        <Field sureness={match.sureness.player}>{match.playerName}</Field>
+      </p>
+      <p className="mt-1 text-[15px] leading-5 text-zinc-600 dark:text-zinc-300">
+        <span data-stage="set" className={`inline-block ${set.className}`} style={set.style}>
+          <Field sureness={match.sureness.year}>{match.yearLabel}</Field>{" "}
+          <Field sureness={match.sureness.set}>{match.setBrand}</Field>
+        </span>
+        {match.cardNumber ? (
+          <>
+            {" "}
+            <span data-stage="number" className={`inline-block font-mono tabular-nums ${number.className}`} style={number.style}>
+              <Field sureness={match.sureness.number}>{`#${match.cardNumber}`}</Field>
+            </span>
+          </>
+        ) : null}
+      </p>
+      {parallel ? (
+        <p
+          data-stage="parallel"
+          className={`mt-2 inline-flex items-center gap-1.5 text-sm font-medium ${pick.className}`}
+          style={pick.style}
+        >
+          <SwatchDot name={parallel} size="sm" />
+          <Field sureness={match.sureness.parallel}>{parallel}</Field>
+        </p>
+      ) : null}
+      {grade || cert || match.isRookie || match.isAuto || match.serialRun ? (
+        <div data-stage="tags" className={`mt-3 flex flex-wrap items-center justify-center gap-2 ${tags.className}`} style={tags.style}>
+          {grade ? (
+            <span className="rounded-md border border-zinc-300 px-2 py-0.5 font-mono text-xs leading-5 font-medium tabular-nums dark:border-white/20">
+              {grade}
+            </span>
+          ) : null}
+          {cert ? (
+            <span className="font-mono text-xs leading-5 text-zinc-500 tabular-nums">
+              <span className="sr-only">Cert ending </span>
+              <span aria-hidden>Cert </span>
+              {cert}
+            </span>
+          ) : null}
+          {match.serialRun ? (
+            <span className="font-mono text-xs leading-5 font-medium tabular-nums">
+              <span className="sr-only">Numbered </span>
+              {match.serialNo ? `${match.serialNo}/${match.serialRun}` : `/${match.serialRun}`}
+            </span>
+          ) : null}
+          {match.isRookie ? <span className="font-mono text-xs leading-5 text-zinc-500">RC</span> : null}
+          {match.isAuto ? <span className="font-mono text-xs leading-5 text-zinc-500">Auto</span> : null}
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -20,6 +20,8 @@ type ShareCard = {
 const buttonStyles = {
   icon: "inline-flex h-11 w-11 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-700 dark:border-white/10 dark:bg-white/5 dark:text-zinc-100",
   row: "inline-flex min-h-11 w-full max-w-sm items-center justify-center gap-2 rounded-full border border-zinc-300 px-5 text-sm font-semibold text-zinc-900 dark:border-white/20 dark:text-zinc-100",
+  /** The Added screen: the second of its two buttons, same height as Add another. */
+  pill: "inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-full border border-zinc-300 px-5 text-[15px] font-semibold text-zinc-900 transition-transform duration-150 motion-safe:active:scale-[0.97] focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:outline-none dark:border-white/20 dark:text-zinc-100",
 };
 
 /**
@@ -35,7 +37,7 @@ export function CardShareButton({
   card: ShareCard;
   username: string | null | undefined;
   onTogglePublic: (next: boolean) => VisibilitySave | void;
-  variant?: "icon" | "row";
+  variant?: "icon" | "row" | "pill";
 }) {
   const state = cardShareState({ isPublic: Boolean(card.isPublic), username, cardId: card.id });
   const name = `${cardTitle(card)} ${card.playerName}`.trim();
@@ -65,7 +67,7 @@ export function CardShareButton({
         className={`${buttonStyles[variant]} disabled:opacity-50`}
       >
         <Share aria-hidden className="h-4 w-4" />
-        {variant === "row" ? <span aria-hidden>Share</span> : null}
+        {variant !== "icon" ? <span aria-hidden>Share</span> : null}
       </button>
       {state.kind === "share" ? sheet : null}
       {privateOpen ? (

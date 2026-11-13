@@ -86,7 +86,8 @@ async function render(cardInPanel: SportsCard) {
     );
   });
   return {
-    host,
+    // The scene renders in a portal on document.body.
+    host: win.document.body as HTMLElement,
     unmount() {
       act(() => root.unmount());
       host.remove();
@@ -96,92 +97,71 @@ async function render(cardInPanel: SportsCard) {
 
 const links = (host: HTMLElement) => [...host.querySelectorAll("a")];
 
-describe("Added reveal v2", () => {
-  it("shows Share, Post it with the card attached, Add another with player/year/set, and Collector progress", async () => {
+describe("Added screen v2", () => {
+  it("has two buttons, Add another (with player/year/set) and Share, and no Post it or progress copy", async () => {
     win.sessionStorage.clear();
     fetched.length = 0;
     const view = await render(card);
     try {
-      assert.ok(view.host.querySelector('button[aria-label="Share card"]'), "Share");
-      const post = links(view.host).find((a) => a.textContent?.includes("Post it"));
-      assert.equal(post?.getAttribute("href"), "/compose?card=card-1");
+      const actions = view.host.querySelector('[data-slot="reveal-actions"]')!;
+      const names = [...actions.querySelectorAll("a,button")].map((el) => (el.getAttribute("aria-label") ?? el.textContent ?? "").trim());
+      assert.deepEqual(names, ["Add another", "Share card"]);
       const another = links(view.host).find((a) => a.textContent === "Add another");
       const url = new URL(another!.getAttribute("href")!, "https://slabhold.app");
       assert.equal(url.searchParams.get("player"), "Tyrese Maxey");
       assert.equal(url.searchParams.get("year"), "2024-25");
       assert.equal(url.searchParams.get("set"), "Donruss Optic");
-      const progress = view.host.querySelector('[data-slot="collector-progress"]')?.textContent ?? "";
-      assert.match(progress, /Collector: 0 of 10 photo cards to Bronze\./);
-      assert.match(progress, /This one needs a photo to count\./, "no photo: does not pretend it counted");
-      assert.equal(links(view.host).find((a) => a.textContent === "Add a photo to this card")?.getAttribute("href"), "/cards/card-1/edit");
+      assert.doesNotMatch(view.host.textContent ?? "", /Post it|Collector:|Your collection:|Copy this card/);
       assert.equal(fetched.filter((u) => u.includes("/api/comps") || u.includes("card_values")).length, 0);
-      // Post it hands the composer the prefilled caption.
-      await act(async () => post!.dispatchEvent(new win.MouseEvent("click", { bubbles: true, cancelable: true })));
-      assert.match(win.sessionStorage.getItem("slabhold.compose-caption") ?? "", /Just added my 2024-25 Donruss Optic Downtown Tyrese Maxey/);
     } finally {
       view.unmount();
     }
   });
 
-  it("hides Post it and shows View post when this add already posted", async () => {
+  it("says plainly when this add's feed post failed", async () => {
     win.sessionStorage.clear();
-    win.sessionStorage.setItem("slabhold.card-posts", JSON.stringify({ "card-1": "post-9" }));
-    win.sessionStorage.setItem("slabhold.shared-post", JSON.stringify({ cardId: "card-1", postId: "post-9" }));
+    win.sessionStorage.setItem("slabhold.card-post-failed", JSON.stringify({ "card-1": "Downtown!" }));
     const view = await render(card);
     try {
-      assert.equal(links(view.host).some((a) => a.textContent?.includes("Post it")), false);
-      const viewPost = links(view.host).find((a) => a.textContent === "View post");
-      assert.equal(viewPost?.getAttribute("href"), "/posts/post-9");
-      assert.match(view.host.textContent ?? "", /Shared to your feed\./);
+      assert.match(view.host.textContent ?? "", /Couldn't post to your feed\./);
     } finally {
       view.unmount();
     }
   });
 
-  it("opens before a background post lands, then shows it without a second post", async () => {
+  it("checks a background post again when it lands", async () => {
     win.sessionStorage.clear();
     const { queueCardPost } = await import("@/lib/social/card-post-queue");
     let finish: (value: { postId: string | null }) => void = () => undefined;
     const running = queueCardPost("card-1", () => new Promise((resolve) => (finish = resolve)));
     const view = await render(card);
     try {
-      assert.match(view.host.textContent ?? "", /Posting to your feed/);
-      assert.equal(links(view.host).some((a) => a.textContent?.includes("Post it")), false, "no Post it while posting");
-      win.sessionStorage.setItem("slabhold.card-posts", JSON.stringify({ "card-1": "post-3" }));
+      assert.doesNotMatch(view.host.textContent ?? "", /Couldn't post/);
+      win.sessionStorage.setItem("slabhold.card-post-failed", JSON.stringify({ "card-1": "Downtown!" }));
       await act(async () => {
-        finish({ postId: "post-3" });
+        finish({ postId: null });
         await running;
       });
-      assert.match(view.host.textContent ?? "", /Shared to your feed\./);
-      assert.equal(links(view.host).find((a) => a.textContent === "View post")?.getAttribute("href"), "/posts/post-3");
+      assert.match(view.host.textContent ?? "", /Couldn't post to your feed\./);
     } finally {
       view.unmount();
     }
   });
 
-  it("says a failed post failed and still offers Post it", async () => {
-    win.sessionStorage.clear();
-    win.sessionStorage.setItem("slabhold.card-post-failed", JSON.stringify({ "card-1": "Downtown!" }));
-    const view = await render(card);
-    try {
-      assert.match(view.host.textContent ?? "", /couldn't post it to your feed/);
-      assert.ok(links(view.host).some((a) => a.textContent?.includes("Post it")));
-    } finally {
-      view.unmount();
-    }
-  });
-
-  it("asks a private card to go public before Post it, without leaking it", async () => {
+  it("puts a small Public / Private switch at the end that saves and remembers the choice", async () => {
     win.sessionStorage.clear();
     const view = await render({ ...card, isPublic: false } as SportsCard);
     try {
-      assert.equal(links(view.host).some((a) => a.getAttribute("href")?.startsWith("/compose")), false);
-      const button = [...view.host.querySelectorAll("button")].find((b) => b.textContent?.includes("Post it"));
-      assert.ok(button);
-      await act(async () => button.click());
-      const dialog = win.document.querySelector('[role="dialog"]');
-      assert.match(dialog?.textContent ?? "", /Make this card public to post it/);
-      assert.equal(dialog?.querySelector('a[href^="/compose"]'), null);
+      const toggle = view.host.querySelector<HTMLButtonElement>('[data-slot="added-visibility"] button[role="switch"]');
+      assert.ok(toggle);
+      assert.equal(toggle.getAttribute("aria-checked"), "false");
+      assert.match(toggle.className, /min-h-11/, "44px tap target");
+      assert.match(toggle.className, /text-\[13px\]/, "small");
+      const actions = view.host.querySelector('[data-slot="reveal-actions"]')!;
+      assert.ok(actions.compareDocumentPosition(toggle) & win.Node.DOCUMENT_POSITION_FOLLOWING, "after the two buttons");
+      await act(async () => toggle.click());
+      const { readBrowserVisibilityChoice } = await import("@/lib/cards/visibility-choice");
+      assert.equal(readBrowserVisibilityChoice("user-1"), true);
     } finally {
       view.unmount();
     }

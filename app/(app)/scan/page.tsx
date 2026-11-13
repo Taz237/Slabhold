@@ -1,5 +1,6 @@
 import { ScanHub } from "@/components/scan/scan-hub";
 import { ScanView } from "@/components/scan-view";
+import { scanStartFrom } from "@/lib/cards/add-card-sheet";
 import { scanPurposeFrom, scannerEnabled } from "@/lib/scan/entry";
 
 /**
@@ -9,8 +10,9 @@ import { scanPurposeFrom, scannerEnabled } from "@/lib/scan/entry";
 export default async function ScanPage({
   searchParams,
 }: {
-  searchParams: Promise<{ for?: string | string[] }>;
+  searchParams: Promise<{ for?: string | string[]; start?: string | string[] }>;
 }) {
   if (!scannerEnabled()) return <ScanView />;
-  return <ScanHub purpose={scanPurposeFrom((await searchParams).for)} />;
+  const params = await searchParams;
+  return <ScanHub purpose={scanPurposeFrom(params.for)} start={scanStartFrom(params.start)} />;
 }

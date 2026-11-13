@@ -55,6 +55,20 @@ export function addedValueLine(
   return { kind: "pending", text: "Finding recent sales…" };
 }
 
+/**
+ * The Added screen's one big price, split for display: the same figure
+ * addedValueLine names ("Worth about $X based on N recent sales"), never
+ * another one. Null whenever that line has no dollar figure.
+ */
+export function addedBigPrice(
+  value: CardValueResult | null,
+  card?: PremiumCardFields | null,
+): { amount: string; detail: string } | null {
+  const amount = shownCardValue(card, value);
+  if (!value || amount == null) return null;
+  return { amount: money(amount), detail: value.nSales === 1 ? "1 recent sale" : `${value.nSales} recent sales` };
+}
+
 /** The collection total, or null until at least one held card has a value. Never 0. */
 function knownTotal(
   cards: SportsCard[],

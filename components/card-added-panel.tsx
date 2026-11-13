@@ -1,55 +1,74 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { Award, Check, PenLine, X } from "lucide-react";
-import { CardShareButton, PrivateShareSheet } from "@/components/card-share";
-import type { VisibilitySave } from "@/components/card-visibility";
+import { useCallback, useEffect, useId, useMemo, useRef, useState, type CSSProperties } from "react";
+import { createPortal } from "react-dom";
+import { Check, ChevronDown, Globe, Lock, X } from "lucide-react";
+import { openSheetFromLink } from "@/components/add-card-link";
+import { CardShareButton } from "@/components/card-share";
+import { useVisibilitySave, type VisibilitySave } from "@/components/card-visibility";
 import { CardSlabArt } from "@/components/card-slab-art";
 import { tileArtCard } from "@/components/card-tile";
 import { useCollection } from "@/components/collection-provider";
+import { Logo } from "@/components/logo";
 import {
   addAnotherPath,
-  addedCollectionTotals,
-  collectionLineText,
-  copyCardPath,
+  addedBigPrice,
   addedValueLine,
   milestoneFor,
   recentSoldPrices,
   type AddedRevealLine,
 } from "@/lib/cards/added-panel";
-import { playSlabMorph, takeSlabMorph } from "@/lib/cards/slab-morph";
+import { takeSlabMorph } from "@/lib/cards/slab-morph";
+import { writeBrowserVisibilityChoice } from "@/lib/cards/visibility-choice";
+import { haptic } from "@/lib/ios/haptics";
+import { cardPostFailed, shareSessionStore, takeSharedPost, cardPostId } from "@/lib/social/share-to-feed";
 import { pendingCardPost } from "@/lib/social/card-post-queue";
-import { collectorReveal, collectorRevealCopy } from "@/lib/badges/collector-reveal";
-import {
-  FEED_POST_FAILED_TEXT,
-  SHARE_CONFIRM_TEXT,
-  SHARE_PRIVATE_REASON,
-  cardPostFailed,
-  cardPostId,
-  composeWithCardPath,
-  justAddedCaption,
-  sharePostPath,
-  shareSessionStore,
-  takeSharedPost,
-  writeComposeCaption,
-} from "@/lib/social/share-to-feed";
 import { photoSource, photoStatusAfter, type PhotoStatus } from "@/lib/collection/grid";
 import type { SportsCard } from "@/lib/types";
 import type { ConfidenceCopy, MatchConfidence } from "@/lib/value/match-confidence";
 import { ScanPeopleLine } from "@/components/scan/scan-people-line";
-import { useCardValues } from "@/lib/value/use-card-values";
 import type { CardValueResult } from "@/lib/value/types";
 
 const focusRing =
-  "outline-none focus-visible:ring-2 focus-visible:ring-violet-600 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]";
+  "outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]";
 
-const primaryButton = `inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-full bg-violet-600 px-5 text-sm font-semibold text-white hover:bg-violet-500 ${focusRing}`;
+const mainButton = `inline-flex min-h-12 flex-1 items-center justify-center rounded-full bg-violet-600 px-5 text-[15px] font-semibold text-white transition-transform duration-150 hover:bg-violet-500 motion-safe:active:scale-[0.97] ${focusRing}`;
+
+/** When the flip lands: the haptic and the confetti go off together. */
+export const ADDED_FLIP_MS = 700;
+const LAND_MS = 460;
+
+/** Brand confetti only: purple, deep purple, light purple and off-white. */
+const CONFETTI = ["#7C3AED", "#A78BFA", "#5B21B6", "#F4F4F5", "#7C3AED", "#A78BFA", "#5B21B6", "#A78BFA", "#F4F4F5", "#7C3AED", "#A78BFA", "#5B21B6", "#7C3AED", "#F4F4F5"];
+
+export const ADDED_COPY = {
+  title: "Added",
+  addAnother: "Add another",
+  share: "Share",
+  seeSales: "See sales",
+  hideSales: "Hide sales",
+  checkDetails: "Check the card details",
+  postFailed: "Couldn't post to your feed.",
+  credit: "Recent sold prices via Trawl",
+} as const;
+
+function prefersReducedMotion(): boolean {
+  try {
+    return typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true;
+  } catch {
+    return false;
+  }
+}
 
 /**
- * Shown once on the card page right after Add card: the slab reveal, its value,
- * and up to three recent sold prices. Reads card_values and the sold comps the
- * card page already loaded. No fetch of its own for prices.
+ * Shown once, right after Add card: a full-screen scene over the card page.
+ * The card flips over with a tap of haptics and a short confetti burst, then
+ * one big price (the value the card page shows, never another), Add another
+ * and Share. Recent sales wait behind See sales; Public / Private sits small
+ * at the end. Reduced motion fades it in with no flip and no confetti.
+ * Reads card_values and the sold comps the card page already loaded: no fetch
+ * of its own for prices.
  */
 export function CardAddedPanel({
   cardId,
@@ -73,21 +92,14 @@ export function CardAddedPanel({
   confidence?: MatchConfidence;
   copy?: ConfidenceCopy | null;
   onDismiss: () => void;
+  /** No sales loaded here: close the scene and go to the card page's sales. */
   onSeeSales: () => void;
-  /** The signed-in owner. Collector progress and Share need it. */
+  /** The signed-in owner. Share needs it. */
   viewer?: { id: string; username: string } | null;
-  /** Same public switch the card page uses. Share and Post it ask for it on a private card. */
+  /** Same public switch the card page uses. */
   onTogglePublic?: (next: boolean) => VisibilitySave | void;
 }) {
   const { cards, ready } = useCollection();
-  const ids = useMemo(() => cards.map((card) => card.id), [cards]);
-  const book = useCardValues(ids);
-  const values = useMemo(() => {
-    if (!value) return book.values;
-    const next = new Map(book.values);
-    next.set(cardId, value);
-    return next;
-  }, [book.values, cardId, value]);
   const card = cards.find((item) => item.id === cardId) ?? null;
   const valueLine = addedValueLine(value, loading, card);
   const line: AddedRevealLine =
@@ -98,94 +110,108 @@ export function CardAddedPanel({
           fix: copy.fix ? { label: copy.fix.label, href: `/cards/${cardId}/edit` } : null,
         }
       : valueLine;
-  const totals = addedCollectionTotals(cards, values, !book.loading && !book.error, cardId);
-  // One quiet line for a moment worth naming (1st, 10th… card, first slab, first numbered).
+  const price = line.kind === "ok" ? addedBigPrice(value, card) : null;
+  // One short heading for a moment worth naming (1st, 10th… card, first slab, first numbered).
   const milestone = card && ready ? milestoneFor(cards, card) : null;
-  const slabRef = useRef<HTMLDivElement>(null);
-  const morphed = useRef(false);
-  // Right after a guided save, the slab glides in from where it sat on Review.
-  useLayoutEffect(() => {
-    const slab = slabRef.current;
-    if (!card || !slab || morphed.current) return;
-    morphed.current = true;
-    const from = takeSlabMorph();
-    if (!from) return;
-    // The glide replaces the turn-in, so the reveal stays one motion.
-    slab.dataset.morph = "on";
-    playSlabMorph(slab, from);
-  }, [card]);
   // Sold prices only back a strong match. A weak one would read like its price.
   const recent = line.kind === "ok" ? recentSoldPrices(sales) : [];
-  const addAnother = addAnotherPath(card);
-  const copyCard = card ? copyCardPath(card) : null;
-  const viewerId = viewer?.id ?? null;
-  const collector = useMemo(
-    () => (viewerId && cards.some((item) => item.id === cardId) ? collectorRevealCopy(collectorReveal(cards, cardId, viewerId)) : null),
-    [cardId, cards, viewerId],
-  );
-  // What this add did on the feed, read once: a post id, or a failed post's caption.
-  const [feed, setFeed] = useState(() => addedFeedState(cardId));
-  // Add card opens this panel as soon as the card saves; its feed post may still be on the way.
-  const [posting, setPosting] = useState(() => pendingCardPost(cardId) != null);
-  useEffect(() => {
-    const running = pendingCardPost(cardId);
-    if (!running) return;
-    let live = true;
-    void running.then(() => {
-      if (!live) return;
-      setFeed(addedFeedState(cardId));
-      setPosting(false);
-    });
-    return () => {
-      live = false;
-    };
-  }, [cardId]);
-  const [postSheet, setPostSheet] = useState(false);
-  const postCaption = feed.failedCaption || (card ? justAddedCaption(card) : "");
-  // Post it leads until this add is on the feed; then Add another does.
-  const postFirst = Boolean(card) && !feed.postId && !posting;
-  const keepCaption = () => {
-    const store = shareSessionStore();
-    if (store && card) writeComposeCaption(store, card.id, postCaption);
-  };
+  const [salesOpen, setSalesOpen] = useState(false);
+  const salesId = useId();
+  const titleId = useId();
+  const [reduce] = useState(prefersReducedMotion);
+  const [landed, setLanded] = useState(false);
+  const dialogRef = useRef<HTMLElement>(null);
+  const failedPost = useFailedPost(cardId);
 
-  return (
-    <section
-      aria-label="Added to your collection"
-      data-slot="added-panel"
-      className="relative overflow-hidden rounded-3xl border border-zinc-200 bg-zinc-50 p-4 dark:border-white/[0.08] dark:bg-white/[0.03] sm:p-6"
-    >
+  // The Review slab's glide is replaced by the flip; take its record so it never plays late.
+  useEffect(() => {
+    takeSlabMorph();
+  }, []);
+
+  // The flip lands: a tap of haptics and, with motion allowed, the confetti.
+  useEffect(() => {
+    if (!card || landed) return;
+    const timer = window.setTimeout(() => {
+      setLanded(true);
+      haptic("tick");
+    }, reduce ? 0 : LAND_MS);
+    return () => window.clearTimeout(timer);
+  }, [card, landed, reduce]);
+
+  useEffect(() => {
+    dialogRef.current?.focus();
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onDismiss();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onDismiss]);
+
+  function seeSales() {
+    if (recent.length > 0 || salesLoading) setSalesOpen((open) => !open);
+    else onSeeSales();
+  }
+
+  const scene = (
+    <div className="fixed inset-0 z-[55] flex items-end justify-center md:items-center" data-slot="added-scene">
       <button
         type="button"
-        onClick={onDismiss}
         aria-label="Dismiss"
-        className={`absolute top-1.5 right-1.5 z-10 grid size-11 place-items-center rounded-full text-zinc-500 hover:bg-zinc-900/5 hover:text-zinc-800 dark:hover:bg-white/10 dark:hover:text-zinc-200 ${focusRing}`}
+        tabIndex={-1}
+        onClick={onDismiss}
+        className="absolute inset-0 bg-zinc-950/75 backdrop-blur-xl motion-safe:animate-[backdrop-in_260ms_ease-out_both]"
+      />
+      <section
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
+        data-slot="added-panel"
+        className="relative flex max-h-[100dvh] w-full max-w-md flex-col overflow-y-auto overscroll-contain rounded-t-[28px] border border-b-0 border-zinc-200 bg-[var(--background)] md:border-b dark:border-white/10 px-5 pt-3 pb-[calc(1rem+env(safe-area-inset-bottom))] outline-none motion-safe:animate-[sheet-up_360ms_cubic-bezier(0.22,1,0.36,1)_both] motion-reduce:animate-[add-fade_200ms_ease-out_both] md:rounded-[28px] md:pb-5"
       >
-        <X className="size-4" aria-hidden />
-      </button>
-
-      <div className="flex flex-col items-center text-center">
-        {/* Phones size the slab by screen height so the buttons below stay on screen.
-            min-w-0: without it, aspect-ratio's automatic minimum lets the slab art's
-            min-content width stretch the frame, and the taller slab covers the line below. */}
-        <div
-          data-reveal="frame"
-          className="relative aspect-[3/5] min-w-0 h-[clamp(8.5rem,calc(100svh-36.5rem-env(safe-area-inset-bottom)),15rem)] md:h-auto md:w-40"
+        <button
+          type="button"
+          onClick={onDismiss}
+          aria-label="Dismiss"
+          className={`absolute top-2 right-2 z-10 grid size-11 place-items-center rounded-full text-zinc-500 hover:bg-zinc-900/5 hover:text-zinc-800 dark:hover:bg-white/10 dark:hover:text-zinc-200 ${focusRing}`}
         >
+          <X className="size-5" aria-hidden />
+        </button>
+
+        <div className="flex flex-col items-center text-center">
+          {/* The flip: the card's back turns over to its face. Phones size it by screen height so the buttons stay on screen. */}
           <div
-            aria-hidden
-            data-reveal="glow"
-            className="pointer-events-none absolute -inset-6 rounded-full bg-[radial-gradient(closest-side,rgb(139_92_246/0.35),rgb(124_58_237/0.12)_55%,transparent)] opacity-70 blur-xl motion-safe:animate-[reveal-glow_900ms_ease-out_both] motion-reduce:hidden"
-          />
-          <div data-reveal="slab" ref={slabRef} className="relative motion-safe:animate-[slab-reveal_700ms_cubic-bezier(0.2,0.7,0.2,1)_both] data-[morph=on]:animate-none">
-            {card ? <RevealSlab card={card} /> : <div className="aspect-[3/5] w-full rounded-xl skeleton-shimmer" />}
+            data-reveal="frame"
+            className="relative mt-3 aspect-[3/5] h-[clamp(9rem,calc(100svh-31rem-env(safe-area-inset-bottom)),16rem)] min-w-0 [perspective:1100px]"
+          >
+            <div
+              aria-hidden
+              data-reveal="glow"
+              className="pointer-events-none absolute -inset-8 rounded-full bg-[radial-gradient(closest-side,rgb(139_92_246/0.35),rgb(124_58_237/0.12)_55%,transparent)] opacity-70 blur-xl motion-safe:animate-[reveal-glow_900ms_ease-out_both] motion-reduce:hidden"
+            />
+            {landed && !reduce ? <Confetti /> : null}
+            <div
+              data-reveal="flip"
+              className="relative h-full w-full [transform-style:preserve-3d] motion-safe:animate-[added-flip_700ms_cubic-bezier(0.2,0.7,0.2,1)_both] motion-reduce:animate-[add-fade_220ms_ease-out_both]"
+            >
+              <div data-reveal="slab" className="absolute inset-0 [backface-visibility:hidden]">
+                {card ? <RevealSlab card={card} /> : <div className="aspect-[3/5] w-full rounded-xl skeleton-shimmer" />}
+              </div>
+              <div
+                aria-hidden
+                data-reveal="back"
+                className="absolute inset-0 grid place-items-center rounded-xl bg-[#18181B] ring-1 ring-white/10 [backface-visibility:hidden] [transform:rotateY(180deg)] motion-reduce:hidden"
+              >
+                <Logo className="size-12" />
+              </div>
+            </div>
           </div>
-        </div>
-        <div className="mt-3 flex items-center gap-2">
-          <span className="grid size-6 shrink-0 place-items-center rounded-full bg-violet-600 text-white">
-            <Check className="size-3.5" strokeWidth={3} aria-hidden />
-          </span>
-          <h2 className="text-lg font-semibold tracking-tight">
+
+          <h2 id={titleId} className="mt-5 flex items-center gap-2 text-[15px] font-semibold tracking-tight">
+            <span className="grid size-5 shrink-0 place-items-center rounded-full bg-violet-600 text-white">
+              <Check className="size-3" strokeWidth={3} aria-hidden />
+            </span>
             {milestone ? (
               <>
                 {/* The milestone takes the visible line; screen readers still hear the confirmation. */}
@@ -193,270 +219,247 @@ export function CardAddedPanel({
                 <span data-slot="milestone">{milestone}</span>
               </>
             ) : (
-              "Added to your collection"
+              <>
+                {ADDED_COPY.title}
+                <span className="sr-only"> to your collection</span>
+              </>
             )}
           </h2>
+          {card ? <p className="mt-0.5 max-w-full truncate text-sm text-zinc-500">{card.playerName}</p> : null}
+
+          <div aria-live="polite" className="mt-3 w-full">
+            {line.kind === "pending" ? (
+              <div className="flex flex-col items-center gap-2" aria-busy="true">
+                <span className="skeleton-shimmer block h-11 w-40 rounded-xl" aria-hidden />
+                <p className="text-sm text-zinc-500">{line.text}</p>
+              </div>
+            ) : price ? (
+              <div data-slot="added-price">
+                {/* The same figure as the value line, in big type; the full line for screen readers. */}
+                <span className="sr-only">{line.text}</span>
+                <p aria-hidden className="font-mono text-[44px] leading-none font-semibold tracking-tight tabular-nums text-zinc-950 dark:text-zinc-50">
+                  {price.amount}
+                </p>
+                <p aria-hidden className="mt-2 text-[13px] text-zinc-500 tabular-nums">
+                  {price.detail}
+                </p>
+              </div>
+            ) : (
+              <div className="text-sm text-zinc-600 dark:text-zinc-300">
+                <p className="text-base font-semibold text-zinc-900 dark:text-zinc-50">{line.text}</p>
+                {"fix" in line && line.fix ? (
+                  <Link
+                    href={line.fix.href}
+                    className="inline-flex min-h-11 items-center font-semibold text-violet-700 underline underline-offset-2 dark:text-[#A78BFA]"
+                  >
+                    {line.fix.label}
+                  </Link>
+                ) : line.kind === "no_sales" ? (
+                  <Link
+                    href={`/cards/${cardId}/edit`}
+                    className="inline-flex min-h-11 items-center font-semibold text-violet-700 underline underline-offset-2 dark:text-[#A78BFA]"
+                  >
+                    {ADDED_COPY.checkDetails}
+                  </Link>
+                ) : null}
+              </div>
+            )}
+          </div>
+          {/* After a scan save only: who else has it, as two counts. */}
+          <ScanPeopleLine cardId={cardId} />
         </div>
-        {card ? (
-          <p className="text-sm text-zinc-500">{card.playerName}</p>
+
+        {line.kind === "ok" ? (
+          <div className="mt-2 flex flex-col items-center">
+            <button
+              type="button"
+              onClick={seeSales}
+              aria-expanded={recent.length > 0 || salesLoading ? salesOpen : undefined}
+              aria-controls={salesOpen ? salesId : undefined}
+              className={`inline-flex min-h-11 items-center gap-1 rounded-full px-4 text-sm font-medium text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 ${focusRing}`}
+            >
+              {salesOpen ? ADDED_COPY.hideSales : ADDED_COPY.seeSales}
+              <ChevronDown
+                aria-hidden
+                className={`size-4 transition-transform duration-200 motion-reduce:transition-none ${salesOpen ? "rotate-180" : ""}`}
+              />
+            </button>
+            {salesOpen ? (
+              <div id={salesId} className="w-full motion-safe:animate-[add-step-in_220ms_ease-out_both] motion-reduce:animate-[add-fade_160ms_ease-out_both]">
+                {salesLoading ? (
+                  <ul className="w-full space-y-1.5" aria-hidden>
+                    {[0, 1, 2].map((row) => (
+                      <li key={row} className="skeleton-shimmer h-10 rounded-xl" />
+                    ))}
+                  </ul>
+                ) : (
+                  <>
+                    <ul
+                      aria-label="Recent sold prices"
+                      className="divide-y divide-zinc-200/70 rounded-2xl border border-zinc-200 text-left dark:divide-white/5 dark:border-white/10"
+                    >
+                      {recent.map((sale) => (
+                        <li key={sale.key} className="flex min-h-10 items-center justify-between gap-3 px-3 text-sm">
+                          <span className="font-mono font-semibold tabular-nums">{sale.priceText}</span>
+                          <span className="font-mono text-xs text-zinc-500 tabular-nums">{sale.dateText ?? "Recently"}</span>
+                        </li>
+                      ))}
+                    </ul>
+                    <p className="mt-1.5 text-center text-[11px] text-zinc-500">{ADDED_COPY.credit}</p>
+                  </>
+                )}
+              </div>
+            ) : null}
+          </div>
         ) : null}
 
-        <div aria-live="polite" className="mt-2 w-full max-w-sm">
-          {line.kind === "pending" ? (
-            <div className="flex flex-col items-center gap-1.5" aria-busy="true">
-              <span className="skeleton-shimmer block h-6 w-40 rounded-lg" aria-hidden />
-              <p className="text-sm text-zinc-500">{line.text}</p>
-            </div>
-          ) : line.kind === "ok" ? (
-            <p className="text-base font-semibold tracking-tight tabular-nums text-balance text-zinc-900 dark:text-zinc-50">
-              {line.text}
-            </p>
-          ) : (
-            <p className="text-sm text-zinc-700 dark:text-zinc-300">
-              <span className="block text-base font-semibold text-zinc-900 dark:text-zinc-50">
-                {line.text}
-              </span>
-              {"fix" in line && line.fix ? (
-                <Link
-                  href={line.fix.href}
-                  className="inline-flex min-h-11 items-center font-semibold text-violet-700 underline underline-offset-2 dark:text-[#A78BFA]"
-                >
-                  {line.fix.label}
-                </Link>
-              ) : line.kind === "no_sales" ? (
-                <Link
-                  href={`/cards/${cardId}/edit`}
-                  className="inline-flex min-h-11 items-center font-semibold text-violet-700 underline underline-offset-2 dark:text-[#A78BFA]"
-                >
-                  Check the card details
-                </Link>
-              ) : null}
-            </p>
-          )}
-        </div>
-        <CollectionLine count={totals.count} total={totals.total} previous={totals.previous} />
-        {/* After a scan save only: who else has it, as two counts. */}
-        <ScanPeopleLine cardId={cardId} />
-      </div>
+        {failedPost ? (
+          <p role="status" className="mt-2 text-center text-sm text-rose-600 dark:text-rose-400">
+            {ADDED_COPY.postFailed}
+          </p>
+        ) : null}
 
-      {posting ? (
-        <p role="status" className="mx-auto mt-3 max-w-sm text-center text-sm text-zinc-500">
-          Posting to your feed…
-        </p>
-      ) : feed.postId ? (
-        <p className="mx-auto mt-3 max-w-sm rounded-xl border border-zinc-200 bg-white px-4 py-2.5 text-center text-sm text-zinc-700 dark:border-white/10 dark:bg-white/[0.03] dark:text-zinc-200">
-          {SHARE_CONFIRM_TEXT}{" "}
-          <Link href={sharePostPath(feed.postId)} className="font-semibold underline underline-offset-2">
-            View post
+        {/* Thumb zone: the only two buttons. */}
+        <div data-slot="reveal-actions" className="mt-4 flex w-full gap-2">
+          <Link
+            href={addAnotherPath(card)}
+            onClick={(event) => {
+              // A plain tap closes this and opens the Add card sheet again.
+              if (openSheetFromLink(event)) onDismiss();
+            }}
+            className={mainButton}
+          >
+            {ADDED_COPY.addAnother}
           </Link>
-        </p>
-      ) : feed.failedCaption != null ? (
-        <p role="status" className="mt-3 text-center text-sm text-rose-600 dark:text-rose-400">
-          {FEED_POST_FAILED_TEXT} Try Post it.
-        </p>
-      ) : null}
-
-      {/* Thumb zone: the main action, Add another right under it, then a quiet link. */}
-      <div data-slot="reveal-actions" className="mx-auto mt-4 flex w-full max-w-sm flex-col gap-2">
-        <div className="flex gap-2">
-          {postFirst && card ? (
-            card.isPublic ? (
-              <Link href={composeWithCardPath(card.id)} onClick={keepCaption} className={primaryButton}>
-                <PenLine className="size-4" aria-hidden />
-                Post it
-              </Link>
-            ) : (
-              <button type="button" onClick={() => setPostSheet(true)} className={primaryButton}>
-                <PenLine className="size-4" aria-hidden />
-                Post it
-              </button>
-            )
-          ) : (
-            <Link href={addAnother} className={primaryButton}>
-              Add another
-            </Link>
-          )}
           {card ? (
             <CardShareButton
               card={card}
               username={viewer?.username}
               onTogglePublic={onTogglePublic ?? (() => undefined)}
+              variant="pill"
             />
           ) : null}
         </div>
-        {postFirst ? (
-          <Link
-            href={addAnother}
-            className={`inline-flex min-h-11 w-full items-center justify-center rounded-full border border-zinc-300 bg-white/60 px-4 text-sm font-semibold text-zinc-800 hover:bg-white dark:border-white/15 dark:bg-white/5 dark:text-zinc-100 dark:hover:bg-white/10 ${focusRing}`}
-          >
-            Add another
-          </Link>
+
+        {card && onTogglePublic ? (
+          <VisibilityPill
+            isPublic={Boolean(card.isPublic)}
+            onChange={(next) => {
+              // The next add starts from this choice, as the old segment on Add card did.
+              if (viewer) writeBrowserVisibilityChoice(viewer.id, next);
+              return onTogglePublic(next);
+            }}
+          />
         ) : null}
-        <button
-          type="button"
-          onClick={onSeeSales}
-          className={`mx-auto inline-flex min-h-11 items-center justify-center rounded-full px-4 text-sm font-medium text-zinc-600 underline decoration-zinc-400/50 underline-offset-4 hover:text-zinc-900 dark:text-zinc-400 dark:decoration-white/20 dark:hover:text-zinc-100 ${focusRing}`}
+      </section>
+    </div>
+  );
+  // On document.body, so the page column's own layer (and the tab bar) never sits over the scene.
+  return typeof document === "undefined" ? scene : createPortal(scene, document.body);
+}
+
+/** Public / Private, small, at the end of the flow. Saves on tap, like the card page switch. */
+function VisibilityPill({
+  isPublic,
+  onChange,
+}: {
+  isPublic: boolean;
+  onChange: (next: boolean) => VisibilitySave | void;
+}) {
+  const { state, toggle } = useVisibilitySave(onChange);
+  const Icon = isPublic ? Globe : Lock;
+  return (
+    <div className="mt-3 flex items-center justify-center gap-2" data-slot="added-visibility">
+      <button
+        type="button"
+        role="switch"
+        aria-checked={isPublic}
+        aria-label="Public on profile"
+        onClick={() => toggle(!isPublic)}
+        className={`inline-flex min-h-11 items-center gap-1.5 rounded-full px-3 text-[13px] font-medium text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 ${focusRing}`}
+      >
+        <Icon className="size-3.5" aria-hidden />
+        <span aria-hidden>{isPublic ? "Public" : "Private"}</span>
+        <span
+          aria-hidden
+          className={`relative ml-1 inline-block h-5 w-8 rounded-full transition-colors duration-150 motion-reduce:transition-none ${
+            isPublic ? "bg-violet-600" : "bg-zinc-300 dark:bg-white/20"
+          }`}
         >
-          See all sales
-        </button>
-      </div>
-      {/* The same card again, for a second parallel or grade. One text line keeps the fit. */}
-      {copyCard ? (
-        <div className="-mt-1 flex justify-center">
-          <Link
-            href={copyCard}
-            data-slot="copy-card"
-            aria-label="Copy this card: add another parallel or grade of it"
-            className={`inline-flex min-h-11 items-center justify-center rounded-full px-4 text-sm font-medium text-violet-700 underline decoration-violet-700/40 underline-offset-4 hover:text-violet-600 dark:text-[#A78BFA] dark:decoration-[#A78BFA]/40 ${focusRing}`}
-          >
-            Copy this card
-          </Link>
-        </div>
-      ) : null}
-      {postSheet && card ? (
-        <PrivateShareSheet
-          isPublic={Boolean(card.isPublic)}
-          onTogglePublic={onTogglePublic ?? (() => undefined)}
-          onShare={() => setPostSheet(false)}
-          onClose={() => setPostSheet(false)}
-          copy={{
-            title: "Make this card public to post it",
-            privateText: SHARE_PRIVATE_REASON,
-            publicTitle: "Ready to post",
-            publicText: "It shows on your profile now. The post opens with this card attached.",
-          }}
-          action={
-            <Link
-              href={composeWithCardPath(card.id)}
-              onClick={keepCaption}
-              className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-violet-600 px-5 text-[15px] font-semibold text-white hover:bg-violet-500"
-            >
-              <PenLine aria-hidden className="size-4" />
-              Post it
-            </Link>
-          }
-        />
-      ) : null}
-
-      {/* The details read below the fold on a phone: sold prices, collection, progress. */}
-      <div className="mt-2 flex flex-col items-center text-center">
-        {line.kind === "ok" && salesLoading ? (
-          <ul className="mt-2 w-full max-w-sm space-y-1.5" aria-hidden>
-            {[0, 1, 2].map((row) => (
-              <li key={row} className="skeleton-shimmer h-10 rounded-xl" />
-            ))}
-          </ul>
-        ) : recent.length > 0 ? (
-          <div className="mt-2 w-full max-w-sm">
-            <ul aria-label="Recent sold prices" className="divide-y divide-zinc-200/70 rounded-2xl border border-zinc-200 bg-white/70 text-left dark:divide-white/5 dark:border-white/10 dark:bg-white/[0.03]">
-              {recent.map((sale) => (
-                <li key={sale.key} className="flex min-h-10 items-center justify-between gap-3 px-3 text-sm">
-                  <span className="font-semibold tabular-nums">{sale.priceText}</span>
-                  <span className="text-xs text-zinc-500 tabular-nums">{sale.dateText ?? "Recently"}</span>
-                </li>
-              ))}
-            </ul>
-            <p className="mt-1.5 text-[11px] text-zinc-500">Recent sold prices via Trawl</p>
-          </div>
-        ) : null}
-
-        {collector ? (
-          <p
-            data-slot="collector-progress"
-            className={`mt-2 flex max-w-sm items-start justify-center gap-1.5 text-sm ${
-              collector.kind === "earned"
-                ? "font-semibold text-violet-700 dark:text-[#A78BFA]"
-                : "text-zinc-600 dark:text-zinc-300"
+          <span
+            className={`absolute top-0.5 left-0 size-4 rounded-full bg-white shadow transition-transform duration-150 motion-reduce:transition-none ${
+              isPublic ? "translate-x-3.5" : "translate-x-0.5"
             }`}
-          >
-            {collector.kind === "earned" ? <Award className="mt-0.5 size-4 shrink-0" aria-hidden /> : null}
-            <span>{collector.text}</span>
-          </p>
-        ) : null}
-        {collector?.kind === "needs_photo" ? (
-          <Link
-            href={`/cards/${cardId}/edit`}
-            className="inline-flex min-h-11 items-center text-sm font-semibold text-violet-700 underline underline-offset-2 dark:text-[#A78BFA]"
-          >
-            Add a photo to this card
-          </Link>
-        ) : null}
-      </div>
-    </section>
+          />
+        </span>
+      </button>
+      {state === "failed" ? (
+        <span role="status" className="text-[13px] text-rose-600 dark:text-rose-400">
+          Couldn&apos;t save
+        </span>
+      ) : null}
+    </div>
   );
 }
 
-const TICK_MS = 600;
-
-function prefersReducedMotion(): boolean {
-  try {
-    return typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true;
-  } catch {
-    return false;
-  }
+/** A short burst from behind the card as the flip lands. Decorative, and never under reduced motion. */
+function Confetti() {
+  return (
+    <div aria-hidden data-reveal="confetti" className="pointer-events-none absolute inset-0 z-10">
+      {CONFETTI.map((color, index) => {
+        const angle = (index / CONFETTI.length) * Math.PI * 2;
+        const reach = 90 + (index % 3) * 26;
+        return (
+          <span
+            key={index}
+            className="added-confetti absolute top-1/2 left-1/2 h-3 w-2 rounded-[2px]"
+            style={
+              {
+                backgroundColor: color,
+                animationDelay: `${(index % 4) * 30}ms`,
+                "--dx": `${Math.round(Math.cos(angle) * reach)}px`,
+                "--dy": `${Math.round(Math.sin(angle) * reach * 0.8 + 40)}px`,
+                "--spin": `${(index % 2 === 0 ? 1 : -1) * (180 + index * 24)}deg`,
+              } as CSSProperties
+            }
+          />
+        );
+      })}
+    </div>
+  );
 }
 
 /**
- * "Your collection: N cards, about $X", right under the value line. When the
- * old and new totals are both real, the figure counts up from one to the
- * other once, in about 600ms. Reduced motion shows the final figure. Screen
- * readers hear only the final line. No real total: the count alone, never $0.
+ * Whether this add's feed post failed, read once from this tab's storage.
+ * A post still on the way is checked again when it lands.
  */
-export function CollectionLine({ count, total, previous }: { count: number; total: number | null; previous: number | null }) {
-  const canTick = total != null && previous != null && previous < total;
-  const [tick, setTick] = useState<{ phase: "idle" | "running" | "done"; value: number | null }>({
-    phase: "idle",
-    value: null,
-  });
-  const [reduce] = useState(prefersReducedMotion);
-  const started = useRef(false);
-
+function useFailedPost(cardId: string): boolean {
+  const [failed, setFailed] = useState(() => readFailedPost(cardId));
   useEffect(() => {
-    if (started.current || !canTick || reduce) return;
-    started.current = true;
-    const from = previous!;
-    const to = total!;
-    let frame = 0;
-    let start: number | null = null;
-    let finished = false;
-    const step = (now: number) => {
-      start ??= now;
-      const t = Math.min(1, (now - start) / TICK_MS);
-      if (t >= 1) {
-        finished = true;
-        setTick({ phase: "done", value: null });
-        return;
-      }
-      const eased = 1 - (1 - t) ** 3;
-      setTick({ phase: "running", value: from + (to - from) * eased });
-      frame = requestAnimationFrame(step);
-    };
-    frame = requestAnimationFrame(step);
+    const running = pendingCardPost(cardId);
+    if (!running) return;
+    let live = true;
+    void running.then(() => {
+      if (live) setFailed(readFailedPost(cardId));
+    });
     return () => {
-      cancelAnimationFrame(frame);
-      // Cut short (a remount, or the total moved): start clean next time.
-      if (!finished) {
-        started.current = false;
-        setTick({ phase: "idle", value: null });
-      }
+      live = false;
     };
-  }, [canTick, reduce, previous, total]);
+  }, [cardId]);
+  return failed;
+}
 
-  const shown =
-    tick.phase === "running" && tick.value != null
-      ? tick.value
-      : tick.phase === "idle" && canTick && !reduce
-        ? previous
-        : total;
-  const finalText = collectionLineText(count, total);
-  return (
-    <p data-slot="collection-line" className="mt-1 text-[13px] leading-5 text-zinc-500 tabular-nums">
-      <span aria-hidden>{collectionLineText(count, shown)}</span>
-      <span aria-live="polite" className="sr-only">
-        {finalText}
-      </span>
-    </p>
-  );
+function readFailedPost(cardId: string): boolean {
+  try {
+    const store = shareSessionStore();
+    if (!store) return false;
+    // The scene stands in for the card page's one-shot "Shared to your feed" note.
+    const oneShot = takeSharedPost(store, cardId);
+    const postId = cardPostId(store, cardId) ?? oneShot;
+    return !postId && cardPostFailed(store, cardId) != null;
+  } catch {
+    return false;
+  }
 }
 
 /** The new card's slab, the same art as its Collection tile. */
@@ -475,28 +478,6 @@ function RevealSlab({ card }: { card: SportsCard }) {
       })),
     [card.photoDataUrl],
   );
-  return (
-    <CardSlabArt
-      card={tileArtCard(card)}
-      index={0}
-      source={source}
-      status={status}
-      onStatus={onStatus}
-      sizes="160px"
-    />
-  );
-}
-
-/** Whether this add already posted, or tried to and failed. Read once from this tab's storage. */
-function addedFeedState(cardId: string): { postId: string | null; failedCaption: string | null } {
-  try {
-    const store = shareSessionStore();
-    if (!store) return { postId: null, failedCaption: null };
-    // The panel shows the "Shared to your feed" note, so the card page's one-shot note is used up here.
-    const oneShot = takeSharedPost(store, cardId);
-    const postId = cardPostId(store, cardId) ?? oneShot;
-    return { postId, failedCaption: postId ? null : cardPostFailed(store, cardId) };
-  } catch {
-    return { postId: null, failedCaption: null };
-  }
+  const art = useMemo(() => tileArtCard(card), [card]);
+  return <CardSlabArt card={art} index={0} source={source} status={status} onStatus={onStatus} sizes="200px" />;
 }

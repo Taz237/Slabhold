@@ -43,7 +43,7 @@ const router = {
   prefetch() {},
 };
 
-let ScanHub: ComponentType<{ purpose: ScanPurpose; deps?: Partial<ScanHubDeps> }>;
+let ScanHub: ComponentType<{ purpose: ScanPurpose; start?: "camera" | "library"; deps?: Partial<ScanHubDeps> }>;
 let fixtures: typeof import("@/lib/scan/preview-fixtures");
 
 before(async () => {
@@ -267,6 +267,34 @@ describe("ScanHub without the native scanner", () => {
       assert.equal(button("Find it by name").getAttribute("href"), "/comp");
     } finally {
       view.unmount();
+    }
+  });
+});
+
+describe("ScanHub from the Add card sheet's Upload photo", () => {
+  it("opens the library on arrival instead of the camera, into the same reveal", async () => {
+    let scans = 0;
+    let reads = 0;
+    pushed.length = 0;
+    win.sessionStorage.clear();
+    const { createRoot } = await import("react-dom/client");
+    const host = win.document.createElement("div");
+    win.document.body.appendChild(host);
+    const root = createRoot(host);
+    const deps = nativeDeps({ scan: async () => (scans++, CAPTURE), pickAndRead: async () => (reads++, CAPTURE) });
+    await act(async () => {
+      root.render(
+        createElement(AppRouterContext.Provider, { value: router }, createElement(ScanHub, { purpose: "add", start: "library", deps })),
+      );
+    });
+    try {
+      await waitFor(() => text().includes("Is this your card?"));
+      assert.equal(reads, 1);
+      assert.equal(scans, 0, "the camera stays closed");
+      assert.ok(win.document.querySelector('[data-reveal="scan-card"]'), "the same flip-in reveal");
+    } finally {
+      act(() => root.unmount());
+      host.remove();
     }
   });
 });

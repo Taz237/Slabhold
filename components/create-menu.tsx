@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useRef, useState } from "react";
+import { openSheetFromLink } from "@/components/add-card-link";
 import { Plus } from "lucide-react";
 import { useSocial } from "@/components/social-provider";
 import { showCreateMenu } from "@/lib/social/show-create-menu";
@@ -78,7 +79,15 @@ function CreateMenuLinks({
       <Link href={postHref} role="menuitem" onClick={onPick} className={item}>
         Post
       </Link>
-      <Link href="/cards/new" role="menuitem" onClick={onPick} className={item}>
+      <Link
+        href="/cards/new"
+        role="menuitem"
+        onClick={(event) => {
+          onPick();
+          openSheetFromLink(event);
+        }}
+        className={item}
+      >
         Add card
       </Link>
     </>
