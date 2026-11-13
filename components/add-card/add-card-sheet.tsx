@@ -9,6 +9,7 @@ import { ADD_SHEET_COPY, addSheetRoute, type AddSheetTile } from "@/lib/cards/ad
 import { isNativeApp } from "@/lib/ios/platform";
 import { PHOTO_READ_ERROR, readPhotoFile } from "@/lib/photos";
 import { scannerEnabled } from "@/lib/scan/entry";
+import { useFocusTrap } from "@/lib/ui/focus-trap";
 
 const tileFocus =
   "outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--background)]";
@@ -39,6 +40,9 @@ export function AddCardSheet({ deps: overrides, onClose }: { deps?: Partial<AddC
   const libraryRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Tab stays on the two tiles while the sheet is open.
+  useFocusTrap(dialogRef);
 
   useEffect(() => {
     const before = document.activeElement as HTMLElement | null;

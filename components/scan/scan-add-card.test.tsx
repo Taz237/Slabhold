@@ -151,7 +151,8 @@ describe("Add card from a scan", () => {
       await settle();
       assert.equal(saved.length, 1, "saves once");
       assert.equal(win.sessionStorage.getItem("cardflip.scan-match"), null);
-      assert.equal(win.sessionStorage.getItem("cardflip.scan-added"), "new-card", "the added screen knows it was a scan");
+      // The owners line is gone from the Added screen, so a scan save leaves no marker for it.
+      assert.equal(win.sessionStorage.getItem("cardflip.scan-added"), null);
     } finally {
       view.unmount();
     }
@@ -181,7 +182,7 @@ describe("Add card from a scan", () => {
     const view = await mountScan(null, "scanmissing1");
     try {
       await waitFor(() => textIncludes("What's on the card?"));
-      assert.equal(win.sessionStorage.getItem("cardflip.scan-added"), null, "not a scan, no marker");
+      assert.equal(win.sessionStorage.getItem("cardflip.scan-added"), null);
     } finally {
       view.unmount();
     }

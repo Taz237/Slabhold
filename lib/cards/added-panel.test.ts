@@ -4,13 +4,11 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
   addedCardPath,
-  addedCollectionLine,
   addedValueLine,
   isAddedParam,
   showAddedPanel,
 } from "@/lib/cards/added-panel";
 import { cardDatesLine } from "@/lib/format";
-import type { SportsCard } from "@/lib/types";
 import type { CardValueResult } from "@/lib/value/types";
 
 function read(path: string) {
@@ -29,29 +27,6 @@ function value(patch: Partial<CardValueResult>): CardValueResult {
   };
 }
 
-function card(id: string, patch: Partial<SportsCard> = {}): SportsCard {
-  return {
-    id,
-    playerName: "Fixture Player",
-    year: 2024,
-    yearLabel: "2024",
-    setBrand: "Panini Prizm",
-    cardNumber: "1",
-    grade: "Raw",
-    parallel: "Base",
-    sport: "Basketball",
-    purchasePrice: null,
-    purchaseDate: "",
-    estimatedSellPrice: 0,
-    sellPrice: null,
-    sellDate: null,
-    notes: "",
-    photoDataUrl: null,
-    accent: "violet",
-    createdAt: "2026-10-28T00:00:00.000Z",
-    ...patch,
-  } as SportsCard;
-}
 
 describe("after Add", () => {
   it("opens the card with added=1", () => {
@@ -107,27 +82,6 @@ describe("added value line", () => {
       kind: "no_sales",
       text: "No recent sales found yet. We'll keep checking daily.",
     });
-  });
-});
-
-describe("added collection line", () => {
-  it("counts cards and sums known values like the collection header", () => {
-    const cards = [card("a"), card("b"), card("c")];
-    const values = new Map<string, CardValueResult>([
-      ["a", value({ median: 40 })],
-      ["b", value({ median: 10.5 })],
-      ["c", value({ status: "no_sales", median: null, nSales: 0 })],
-    ]);
-    assert.equal(addedCollectionLine(cards, values, true), "Your collection: 3 cards, about $50.50");
-  });
-
-  it("shows the count only when the total is unknown", () => {
-    const cards = [card("a")];
-    assert.equal(addedCollectionLine(cards, new Map(), true), "Your collection: 1 card");
-    assert.equal(
-      addedCollectionLine(cards, new Map([["a", value({})]]), false),
-      "Your collection: 1 card",
-    );
   });
 });
 

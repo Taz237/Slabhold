@@ -214,11 +214,6 @@ export function clearCardPostFailed(store: ShareStore, cardId: string) {
   writeMap(store, FAILED_KEY, map);
 }
 
-/** Post it: the composer opens with this card attached. */
-export function composeWithCardPath(cardId: string): string {
-  return `/compose?card=${encodeURIComponent(cardId)}`;
-}
-
 /** A caption for the composer to start with, for this card only. */
 export function writeComposeCaption(store: ShareStore, cardId: string, caption: string) {
   if (!cardId || !caption.trim()) return;

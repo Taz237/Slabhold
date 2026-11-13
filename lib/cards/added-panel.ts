@@ -1,6 +1,4 @@
 import { money } from "@/lib/format";
-import { displayedCollectionTotal } from "@/lib/collection/displayed-value";
-import { summarize } from "@/lib/portfolio";
 import type { SportsCard } from "@/lib/types";
 import { cardValueHasAmount, shownCardValue } from "@/lib/value/format";
 import type { ConfidenceCard, ConfidenceCopy, MatchConfidence } from "@/lib/value/match-confidence";
@@ -67,52 +65,6 @@ export function addedBigPrice(
   const amount = shownCardValue(card, value);
   if (!value || amount == null) return null;
   return { amount: money(amount), detail: value.nSales === 1 ? "1 recent sale" : `${value.nSales} recent sales` };
-}
-
-/** The collection total, or null until at least one held card has a value. Never 0. */
-function knownTotal(
-  cards: SportsCard[],
-  values: Map<string, CardValueResult>,
-  valuesReady: boolean,
-): number | null {
-  if (!valuesReady) return null;
-  const totals = summarize(cards, values);
-  if (totals.heldCount <= totals.withoutValueCount) return null;
-  const total = displayedCollectionTotal(cards, values);
-  return Number.isFinite(total) && total >= 0.01 ? total : null;
-}
-
-/** "Your collection: 3 cards, about $72.00", or just the count without a real total. */
-export function collectionLineText(count: number, total: number | null): string {
-  const cards = `${count} card${count === 1 ? "" : "s"}`;
-  if (total == null || !Number.isFinite(total) || total < 0.01) return `Your collection: ${cards}`;
-  return `Your collection: ${cards}, about ${money(total)}`;
-}
-
-/** Same totals as the collection header. The total shows once at least one held card has a value. */
-export function addedCollectionLine(
-  cards: SportsCard[],
-  values: Map<string, CardValueResult>,
-  valuesReady: boolean,
-): string {
-  return collectionLineText(cards.length, knownTotal(cards, values, valuesReady));
-}
-
-/**
- * The reveal's collection line as numbers: the total now and the total
- * without this card, so the figure can count up from one to the other.
- * Either is null when it isn't a real value; then nothing animates.
- */
-export function addedCollectionTotals(
-  cards: SportsCard[],
-  values: Map<string, CardValueResult>,
-  valuesReady: boolean,
-  cardId: string,
-): { count: number; total: number | null; previous: number | null } {
-  const total = knownTotal(cards, values, valuesReady);
-  const others = cards.filter((item) => item.id !== cardId);
-  const previous = total == null || others.length === cards.length ? null : knownTotal(others, values, valuesReady);
-  return { count: cards.length, total, previous: previous != null && previous <= total! ? previous : null };
 }
 
 const COUNT_MILESTONES = [1, 10, 25, 50, 100, 250, 500] as const;

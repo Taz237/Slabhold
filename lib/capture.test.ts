@@ -2,14 +2,12 @@ import assert from "node:assert/strict";
 import { afterEach, describe, it } from "node:test";
 import {
   clearScanMatch,
-  markScanAdded,
   readScanMatch,
   saveCompose,
   saveScan,
   saveScanMatch,
   takeCompose,
   takeScan,
-  wasScanAdded,
 } from "./capture";
 import { scanHandoffFrom } from "./scan/handoff";
 import type { ScanMatch } from "./scan/match";
@@ -119,19 +117,6 @@ describe("scan match handoff", () => {
     // The in-memory copy still carries this tab through.
     assert.equal(readScanMatch("scan00000005")?.playerName, "Luka Doncic");
     assert.doesNotThrow(() => clearScanMatch());
-  });
-});
-
-describe("scan-added marker", () => {
-  it("remembers only the last card saved from a scan", () => {
-    const { store } = memoryStore();
-    useStore(store);
-    assert.equal(wasScanAdded("card-1"), false);
-    markScanAdded("card-1");
-    assert.equal(wasScanAdded("card-1"), true);
-    markScanAdded("card-2");
-    assert.equal(wasScanAdded("card-1"), false);
-    assert.equal(wasScanAdded(""), false);
   });
 });
 

@@ -22,23 +22,3 @@ export function peopleCounts(people: OwnersAndHunters | null): PeopleCounts | nu
     hunters: people.hunters ? others(people.hunters) : null,
   };
 }
-
-const number = new Intl.NumberFormat("en-US");
-
-/** "4 collectors own this · 2 are hunting it". Null when there is nothing to say. */
-export function peopleCountsLine(counts: PeopleCounts | null): string | null {
-  if (!counts) return null;
-  const owners = counts.owners;
-  const hunters = counts.hunters ?? 0;
-  if (owners <= 0 && hunters <= 0) return null;
-  const parts: string[] = [];
-  if (owners > 0) {
-    parts.push(owners === 1 ? "1 collector owns this" : `${number.format(owners)} collectors own this`);
-  }
-  if (hunters > 0) {
-    const count = number.format(hunters);
-    if (owners > 0) parts.push(hunters === 1 ? "1 is hunting it" : `${count} are hunting it`);
-    else parts.push(hunters === 1 ? "1 collector is hunting it" : `${count} collectors are hunting it`);
-  }
-  return parts.join(" · ");
-}

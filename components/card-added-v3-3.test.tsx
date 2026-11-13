@@ -210,37 +210,14 @@ describe("reveal: one milestone line", () => {
 });
 
 describe("Added: the 3D flip", () => {
-  it("uses up the Review slab's glide, so only the flip plays", async () => {
-    const calls: unknown[] = [];
-    const proto = win.HTMLElement.prototype as unknown as Record<string, unknown>;
-    const before = { animate: proto.animate, rect: proto.getBoundingClientRect };
-    proto.animate = function (...args: unknown[]) {
-      calls.push(args);
-      return {};
-    };
-    proto.getBoundingClientRect = function () {
-      return { left: 120, top: 400, width: 128, height: 213, right: 248, bottom: 613, x: 120, y: 400 };
-    };
-    const source = win.document.createElement("div");
-    source.dataset.slabMorph = "source";
-    win.document.body.appendChild(source);
+  it("turns the card's back over to its face", async () => {
+    const { cards, added } = threeCards();
+    const view = await render(cards, added, ok(42));
     try {
-      const { captureSlabMorph, takeSlabMorph } = await import("@/lib/cards/slab-morph");
-      assert.equal(captureSlabMorph(), true);
-      source.remove();
-      const { cards, added } = threeCards();
-      const view = await render(cards, added, ok(42));
-      try {
-        assert.equal(calls.length, 0, "no glide on top of the flip");
-        assert.equal(takeSlabMorph(), null, "the glide's record is used up");
-        assert.ok(view.host.querySelector('[data-reveal="flip"] [data-reveal="slab"]'));
-        assert.ok(view.host.querySelector('[data-reveal="flip"] [data-reveal="back"]'), "the card's back turns over");
-      } finally {
-        view.unmount();
-      }
+      assert.ok(view.host.querySelector('[data-reveal="flip"] [data-reveal="slab"]'));
+      assert.ok(view.host.querySelector('[data-reveal="flip"] [data-reveal="back"]'), "the card's back turns over");
     } finally {
-      proto.animate = before.animate;
-      proto.getBoundingClientRect = before.rect;
+      view.unmount();
     }
   });
 

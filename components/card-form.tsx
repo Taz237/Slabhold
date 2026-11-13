@@ -42,7 +42,7 @@ import { isOfficialUpdatesAccount } from "@/lib/social/official-updates";
 import { isTestAccount } from "@/lib/test-accounts";
 import { POST_LIMIT } from "@/lib/social/types";
 import { CharacterRing } from "@/components/character-ring";
-import { clearScanMatch, markScanAdded, takeScan } from "@/lib/capture";
+import { clearScanMatch, takeScan } from "@/lib/capture";
 import { scanCardStart, type ScanHandoff } from "@/lib/scan/handoff";
 import { catalogLabel, type CatalogCard } from "@/lib/card-catalog";
 import {
@@ -96,7 +96,6 @@ import {
 } from "@/lib/cards/add-form-sections";
 import { addedCardPath, type AddAnotherPrefill } from "@/lib/cards/added-panel";
 import { browserStorage, lastUsedFromSave, readAddLastUsed, writeAddLastUsed } from "@/lib/cards/add-last-used";
-import { captureSlabMorph } from "@/lib/cards/slab-morph";
 import { preloadCardAddedPanel } from "@/components/card-page-parts";
 import { haptic } from "@/lib/ios/haptics";
 import { askForReview } from "@/lib/ios/review";
@@ -993,7 +992,6 @@ export function CardForm({
         setPendingCardId(card.id);
         clearNewCardDraft();
         clearScanMatch();
-        if (scanStart) markScanAdded(card.id);
         if (user?.id) writeBrowserVisibilityChoice(user.id, payload.isPublic);
       }
       if (offerPrivacy && user) rememberFirstCardPrivacy(user.id, card.id);
@@ -1067,8 +1065,6 @@ export function CardForm({
           else postedNow = true;
         }
       }
-      // The reveal glides its slab in from where the Review slab sits now. Recorded, never awaited.
-      if (guidedAdd) captureSlabMorph();
       if (!existing) haptic(postedNow ? "post" : "save");
       if (postFailedText) {
         setSaveError(postFailedText);
