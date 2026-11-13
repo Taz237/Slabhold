@@ -33,6 +33,8 @@ export const COMP_COPY = {
   splitBody: "Pick yours to see its value.",
   /** An unnumbered card's sales were all another parallel: Base isn't priced from them. */
   noBase: "No recent Base sales",
+  /** Add card: the only sales are too far apart to call one the last sold. */
+  notClean: "Not enough clean sales yet",
   noBaseBody: "Tap your parallel to see its value.",
   /** Under a Base price: what else recent sales name. */
   otherGroups: "Other parallels in recent sales",
@@ -69,6 +71,8 @@ export type ScanCompResult =
       parallel?: string;
       /** Every parallel the search found, so Base never prices a Pink/Red. */
       groups?: { label: string; nSales: number }[];
+      /** Just 2 sales, more than 10x apart: both show, but neither is a clean "Last sold". */
+      unclean?: boolean;
     }
   /** searched: a live eBay search ran for this card and found no matching sale. */
   | { status: "none"; searched?: boolean }
@@ -96,7 +100,7 @@ export type SoldsState =
 
 /** The newest sale, for the one-line "Last sold" on the Add card sheet. */
 export function lastSale(result: ScanCompResult): ScanCompSale | null {
-  return result.status === "ok" ? (result.sales[0] ?? null) : null;
+  return result.status === "ok" && !result.unclean ? (result.sales[0] ?? null) : null;
 }
 
 const MAX_SALES = 10;

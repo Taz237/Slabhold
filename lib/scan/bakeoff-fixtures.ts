@@ -211,6 +211,21 @@ export const BAKEOFF_CASES: BakeoffCase[] = [
     truth: { ...MILLER, parallel: "", run: 299 },
   },
   {
+    name: "Miller /299 regression: Pink/Red with a lot, a break spot and a BGS 9.5 mixed in",
+    front: MILLER_FRONT,
+    back: ["AIDAN MILLER", "TOPPS.COM", "BP-27"],
+    live: {
+      ...MILLER_LIVE,
+      sold: [
+        ...MILLER_LIVE.sold,
+        { title: "2024 Bowman Aidan Miller Pink/Red /299 BP-27 break spot", price: 4, soldAt: "2026-11-01" },
+        { title: "2024 Bowman Aidan Miller Pink/Red /299 BP-27 BGS 9.5", price: 120, soldAt: "2026-10-30" },
+        { title: "Aidan Miller Pink/Red /299 BP-27 x2", price: 70, soldAt: "2026-10-29" },
+      ],
+    },
+    truth: MILLER,
+  },
+  {
     name: "Miller, the Nov 12 Fuchsia /299 sales",
     front: MILLER_FRONT,
     back: ["AIDAN MILLER", "TOPPS.COM", "BP-27"],
@@ -250,6 +265,27 @@ export const BAKEOFF_CASES: BakeoffCase[] = [
         { title: "2025 Panini Prizm Jaxson Dart #332 RC Rookie Giants", price: 9, soldAt: "2026-11-10" },
         { title: "2025 Prizm Jaxson Dart Rookie #332 base", price: 8, soldAt: "2026-11-08" },
         { title: "Jaxson Dart 2025 Panini Prizm RC #332", price: 10, soldAt: "2026-11-05" },
+      ],
+    },
+    truth: { player: "Jaxson Dart", set: "Panini Prizm", number: "332", parallel: "" },
+  },
+  {
+    name: "Dart, Prizm #332 raw base, a PSA 10 at $140, a lot at $0.60, a Silver",
+    front: ["PRIZM", "JAXSON DART", "GIANTS", "QB", "RC"],
+    back: ["JAXSON DART", "#332", "© 2025 PANINI AMERICA, INC."],
+    rows: [
+      { id: "dart-prizm", playerName: "Jaxson Dart", yearLabel: "2025", setBrand: "Panini Prizm", cardNumber: "332", sport: "Football", parallel: "Base", isRookie: true },
+    ],
+    live: {
+      atRung: 0,
+      pricedFrom: "Base",
+      sold: [
+        { title: "2025 Panini Prizm Jaxson Dart #332 RC PSA 10 Gem Mint", price: 140, soldAt: "2026-11-12" },
+        { title: "2025 Panini Prizm Jaxson Dart #332 RC lot of 3", price: 0.6, soldAt: "2026-11-12" },
+        { title: "2025 Panini Prizm Jaxson Dart Silver Prizm #332 RC", price: 12, soldAt: "2026-11-11" },
+        { title: "2025 Panini Prizm Jaxson Dart #332 RC Rookie", price: 2.8, soldAt: "2026-11-12" },
+        { title: "2025 Prizm Jaxson Dart Rookie #332 Giants", price: 3.1, soldAt: "2026-11-09" },
+        { title: "Jaxson Dart 2025 Panini Prizm RC #332", price: 2.5, soldAt: "2026-11-06" },
       ],
     },
     truth: { player: "Jaxson Dart", set: "Panini Prizm", number: "332", parallel: "" },

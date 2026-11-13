@@ -233,10 +233,11 @@ describe("live eBay solds: cache first", () => {
     const { value, calls } = deps({
       live: "daily",
       quickCompCache: () => ({
+        // Quick Comp stores each sale's title; the scan cleans them like a live search.
         comps: [
-          { soldPrice: 900, soldDate: "2026-11-01" },
-          { soldPrice: 950, soldDate: "2026-11-03" },
-          { soldPrice: 1000, soldDate: "2026-11-05" },
+          { soldPrice: 900, soldDate: "2026-11-01", title: "2018 Panini Prizm Luka Doncic Silver Prizm #280 PSA 10" },
+          { soldPrice: 950, soldDate: "2026-11-03", title: "2018 Panini Prizm Luka Doncic Silver #280 PSA 10 Gem Mint" },
+          { soldPrice: 1000, soldDate: "2026-11-05", title: "Luka Doncic 2018 Prizm Silver Prizm #280 RC PSA 10" },
         ],
         fetchedAt: "2026-11-06T00:00:00.000Z",
       }),

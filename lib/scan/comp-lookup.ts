@@ -6,7 +6,11 @@ import type { CardValueSale } from "@/lib/value/types";
 import { summarizeSales, type ScanCompResult } from "./comp";
 import type { IndexedDirectoryPlayer } from "@/lib/players/types";
 import type { SoldTitle } from "./match";
-import { groupByParallel, groupFor, scanSalesFor, titleParallel, unnamedRunLabel } from "./scan-sales";
+import { asTrawlResults, titleParallel } from "./scan-sales";
+import { cleanCompFor } from "./clean-sales";
+
+/** The saved listings answered, with no clean sale: not a failure. */
+class SkipSaved extends Error {}
 
 /**
  * Sold prices for a scanned card from caches only. Never calls Trawl and
@@ -88,7 +92,13 @@ export async function lookupScanComp(
 
   try {
     const cached = await deps.quickCompCache(identity);
-    const comps = cached ? cachedSalesFor(identity, cached.comps, deps.directory) : [];
+    if (cached && !cached.sample && cached.comps.length > 0 && deps.directory) {
+      // The scan's own filter, so this list matches what the scan showed for the same card.
+      const results = asTrawlResults(cached.comps.filter((comp) => comp.title).map((comp) => ({ title: comp.title!, price: comp.soldPrice, soldAt: comp.soldDate })));
+      const result = cleanCompFor(identity, results, deps.directory, { serialRun: options.serialRun, asOf: cached.fetchedAt, source: "quick-comp" });
+      if (result.status === "ok") return result;
+    }
+    const comps = cached && !deps.directory ? cachedSalesFor(identity, cached.comps, deps.directory) : [];
     if (cached && !cached.sample && comps.length > 0) {
       const result = summarizeSales(
         comps.map((comp) => ({ price: comp.soldPrice, soldAt: comp.soldDate })),
@@ -105,7 +115,11 @@ export async function lookupScanComp(
     try {
       const results = await deps.liveCache(options.query);
       if (results) {
-        const sales = deps.directory ? liveGroupSales(identity, options, results, deps.directory) : liveCardSales(identity, options, results);
+        if (deps.directory) {
+          const result = cleanCompFor(identity, results, deps.directory, { serialRun: options.serialRun, asOf: newestSoldAt(results.map((item) => ({ soldAt: item.date_sold }))), source: "live" });
+          return result.status === "ok" ? result : { status: "none", searched: true };
+        }
+        const sales = liveCardSales(identity, options, results);
         const result = summarizeSales(
           sales.map((sale) => ({ price: sale.price, soldAt: sale.soldAt })),
           { asOf: newestSoldAt(sales), source: "live" },
@@ -120,11 +134,18 @@ export async function lookupScanComp(
   if (deps.soldCache) {
     sources += 1;
     try {
-      const sales = salesForCard(await deps.soldCache(identity.playerName), identity, options);
+      const saved = await deps.soldCache(identity.playerName);
+      if (deps.directory) {
+        const results = asTrawlResults(saved.map((item) => ({ title: item.title, price: Number(item.price), soldAt: item.soldAt ?? null })));
+        const result = cleanCompFor(identity, results, deps.directory, { serialRun: options.serialRun, asOf: newestSoldAt(saved.map((item) => ({ soldAt: item.soldAt ?? null }))), source: "sold-cache" });
+        if (result.status === "ok") return result;
+        throw new SkipSaved();
+      }
+      const sales = salesForCard(saved, identity, options);
       const result = summarizeSales(sales, { asOf: newestSoldAt(sales), source: "sold-cache" });
       if (result.status === "ok") return result;
-    } catch {
-      failures += 1;
+    } catch (error) {
+      if (!(error instanceof SkipSaved)) failures += 1;
     }
   }
 
@@ -140,26 +161,6 @@ export async function lookupScanComp(
   }
 
   return failures === sources ? { status: "unavailable" } : { status: "none" };
-}
-
-/** The scan's own filter: same player, # and run, raw or grade, then the picked parallel's group. */
-function liveGroupSales(
-  identity: QuickCompIdentity,
-  options: ScanCompOptions,
-  results: readonly TrawlSoldResult[],
-  directory: readonly IndexedDirectoryPlayer[],
-): { price: number; soldAt: string | null }[] {
-  const { kept } = scanSalesFor(
-    { playerName: identity.playerName, cardNumber: identity.cardNumber, serialRun: options.serialRun ?? null, yearLabel: identity.yearLabel },
-    { grade: identity.grade, setBrand: identity.setBrand, parallel: identity.parallel },
-    results,
-    directory,
-  );
-  // An open parallel on a numbered card is its run's group, never Base.
-  const open = !identity.parallel || identity.parallel.toLowerCase() === "base";
-  const wanted = open && options.serialRun ? unnamedRunLabel(options.serialRun) : identity.parallel || "Base";
-  const group = groupFor(groupByParallel(kept), wanted);
-  return (group?.sales ?? []).map((sale) => ({ price: sale.price, soldAt: sale.soldAt }));
 }
 
 /** Without the directory: the card-page title rules. */

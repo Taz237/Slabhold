@@ -3,7 +3,7 @@ import { describe, it } from "node:test";
 import type { TrawlSoldResult } from "@/lib/comps/types";
 import { INDEXED_DIRECTORY } from "@/lib/players/directory";
 import type { CacheFn } from "@/lib/quick-comp/cache";
-import { COMP_COPY } from "./comp";
+import { COMP_COPY, lastSale } from "./comp";
 import { cachedSalesFor, lookupScanComp } from "./comp-lookup";
 import { matchesKey } from "./confirm";
 import { LIVE_SEARCH_RETRY_MS, makeLiveSearch, MAX_LOOKUP_CALLS, newLookupBudget, type LiveSearchDeps } from "./live-search";
@@ -408,5 +408,134 @@ describe("4) an unnumbered card is never flipped to a parallel by sold titles", 
     const result = await lookupLiveSolds({ capture: capture(FRONT, BACK), rows: [] }, "u1", deps(async () => ok(FUCHSIA)));
     assert.equal(result.matches[0].parallel, "Fuchsia");
     assert.equal(result.matches[0].parallelSource, "sales");
+  });
+});
+
+describe("5) junk never shows or prices: one clean list for Add card and Quick Comp", () => {
+  const DART_ROW = { id: "dart-prizm", playerName: "Jaxson Dart", yearLabel: "2025", setBrand: "Panini Prizm", cardNumber: "332", sport: "Football", parallel: "Base", isRookie: true };
+  const DART_FRONT = ["PRIZM", "JAXSON DART", "GIANTS", "QB", "RC"];
+  const DART_BACK = ["JAXSON DART", "#332", "© 2025 PANINI AMERICA, INC."];
+  /** Donnie's phone after #250: a PSA 10 at $140 and a lot at $0.60 showed as Base sales. */
+  const POLLUTED = [
+    sold("2025 Panini Prizm Jaxson Dart #332 RC PSA 10 Gem Mint", 140, "2026-11-12"),
+    sold("2025 Panini Prizm Jaxson Dart #332 RC lot of 3", 0.6, "2026-11-12"),
+    sold("2025 Panini Prizm Jaxson Dart Silver Prizm #332 RC", 12, "2026-11-11"),
+    sold("2025 Panini Prizm Jaxson Dart #332 RC Rookie", 2.8, "2026-11-12"),
+    sold("2025 Prizm Jaxson Dart Rookie #332 Giants", 3.1, "2026-11-09"),
+    sold("Jaxson Dart 2025 Panini Prizm RC #332", 2.5, "2026-11-06"),
+  ];
+  const DART_IDENTITY = { playerName: "Jaxson Dart", year: 2025, yearLabel: "2025", setBrand: "Panini Prizm", cardNumber: "332", parallel: "Base", grade: "Raw" };
+  const asCache = (results: TrawlSoldResult[]) => ({
+    comps: results.map((item) => ({ soldPrice: item.sale_price, soldDate: item.date_sold, title: item.title })),
+    fetchedAt: "2026-11-12T23:00:00.000Z",
+  });
+  const scanDart = (extra: Partial<LiveSoldsDeps>, results: TrawlSoldResult[] = POLLUTED) =>
+    lookupLiveSolds({ capture: capture(DART_FRONT, DART_BACK), rows: [DART_ROW] }, "u1", deps(async () => ok(results), extra));
+
+  it("Dart raw base: the PSA 10 and the lot are gone, Silver is its own group, priced from the 3 raw base sales", async () => {
+    const result = await scanDart({});
+    assert.ok(result.comp.status === "ok");
+    assert.equal(result.comp.parallel, "Base");
+    assert.deepEqual(cents(result.comp), [250, 280, 310]);
+    assert.equal(result.comp.sales[0].priceCents, 280, "the newest clean sale is what Add card shows");
+    assert.deepEqual(result.comp.groups?.find((group) => group.label !== "Base"), { label: "Silver", nSales: 1 });
+  });
+
+  it("the same polluted sales from Quick Comp's cache or saved titles clean the same way", async () => {
+    const fromCache = await scanDart({ quickCompCache: async () => asCache(POLLUTED) });
+    const fromSaved = await scanDart({
+      cachedTitles: async () => POLLUTED.map((item) => ({ title: item.title, price: item.sale_price, soldAt: item.date_sold })),
+    }, []);
+    for (const result of [fromCache, fromSaved]) {
+      assert.ok(result.comp.status === "ok", JSON.stringify(result.comp));
+      assert.deepEqual(cents(result.comp), [250, 280, 310]);
+    }
+  });
+
+  it("Quick Comp's own lookup for the same card, parallel and grade gets the same list as the scan", async () => {
+    const scan = await scanDart({});
+    const viaCache = await lookupScanComp(DART_IDENTITY, "u1", { quickCompCache: async () => asCache(POLLUTED), collectionSales: async () => [], directory: INDEXED_DIRECTORY });
+    const viaLive = await lookupScanComp(
+      DART_IDENTITY,
+      "u1",
+      { quickCompCache: async () => null, collectionSales: async () => [], liveCache: async () => POLLUTED, directory: INDEXED_DIRECTORY },
+      { query: scan.query },
+    );
+    const viaSaved = await lookupScanComp(DART_IDENTITY, "u1", {
+      quickCompCache: async () => null,
+      collectionSales: async () => [],
+      soldCache: async () => POLLUTED.map((item) => ({ title: item.title, price: item.sale_price, soldAt: item.date_sold })),
+      directory: INDEXED_DIRECTORY,
+    });
+    assert.ok(scan.comp.status === "ok");
+    for (const comp of [viaCache, viaLive, viaSaved]) {
+      assert.ok(comp.status === "ok", JSON.stringify(comp));
+      assert.deepEqual(comp.sales, scan.comp.sales);
+    }
+  });
+
+  it("a PSA 10 chip keeps only PSA 10 sales", async () => {
+    const graded = [...POLLUTED, sold("2025 Panini Prizm Jaxson Dart #332 RC PSA 9", 60), sold("Jaxson Dart 2025 Prizm #332 BGS 10", 150), sold("2025 Prizm Jaxson Dart #332 PSA 10", 130)];
+    const comp = await lookupScanComp({ ...DART_IDENTITY, grade: "PSA 10" }, "u1", {
+      quickCompCache: async () => null,
+      collectionSales: async () => [],
+      liveCache: async () => graded,
+      directory: INDEXED_DIRECTORY,
+    }, { query: "q" });
+    assert.ok(comp.status === "ok");
+    assert.deepEqual(cents(comp), [13000, 14000]);
+  });
+
+  it("junk titles never count", () => {
+    const junk = [
+      "lot", "lots of 5", "bundle", "x2", "x3", "2x", "you pick", "pick your card", "choose your player", "complete set", "team set",
+      "break spot", "random case hit", "reprint", "RP", "custom", "proxy", "digital",
+    ].map((word, index) => sold(`2025 Panini Prizm Jaxson Dart #332 RC ${word}`, 5 + index));
+    const kept = scanSalesFor({ playerName: "Jaxson Dart", cardNumber: "332", serialRun: null, yearLabel: "2025" }, { grade: "Raw" }, junk, INDEXED_DIRECTORY).kept;
+    assert.deepEqual(kept.map((sale) => sale.title), []);
+  });
+
+  it("raw drops every grader, 'graded' and 'gem mint'", () => {
+    const graded = ["PSA 10", "BGS 9.5", "SGC 10", "CGC 9", "CSG 10", "HGA 9", "TAG 10", "graded", "Gem Mint"].map((word) =>
+      sold(`2025 Panini Prizm Jaxson Dart #332 RC ${word}`, 50),
+    );
+    const kept = scanSalesFor({ playerName: "Jaxson Dart", cardNumber: "332", serialRun: null, yearLabel: "2025" }, { grade: "Raw" }, graded, INDEXED_DIRECTORY).kept;
+    assert.deepEqual(kept.map((sale) => sale.title), []);
+  });
+
+  it("a title naming any finish never lands in Base", () => {
+    const finishes = ["Silver", "Refractor", "Holo", "Red Prizm", "Mojo", "Shimmer", "Wave", "Disco", "Hyper", "Cracked Ice", "Neon Green", "Camo"];
+    const kept = scanSalesFor(
+      { playerName: "Jaxson Dart", cardNumber: "332", serialRun: null, yearLabel: "2025" },
+      { grade: "Raw" },
+      finishes.map((word) => sold(`2025 Panini Prizm Jaxson Dart ${word} #332 RC`, 10)),
+      INDEXED_DIRECTORY,
+    ).kept;
+    assert.equal(kept.length, finishes.length);
+    for (const sale of kept) assert.notEqual(sale.parallel, "Base", sale.title);
+  });
+
+  it("outliers: with 3+ sales, over 4x or under 1/4 of the median is dropped", async () => {
+    const results = [2.5, 2.8, 3.1, 3, 14].map((price, index) => sold(`2025 Panini Prizm Jaxson Dart #332 RC ${index}`, price, `2026-11-0${index + 1}`));
+    const result = await scanDart({}, [...results, sold("2025 Panini Prizm Jaxson Dart #332 RC", 0.5, "2026-11-08")]);
+    assert.ok(result.comp.status === "ok");
+    assert.deepEqual(cents(result.comp), [250, 280, 300, 310]);
+  });
+
+  it("2 sales more than 10x apart: both show, but neither is a clean last sold", async () => {
+    const result = await scanDart({}, [sold("2025 Panini Prizm Jaxson Dart #332 RC", 3, "2026-11-10"), sold("2025 Prizm Jaxson Dart #332 RC Giants", 45, "2026-11-12")]);
+    assert.ok(result.comp.status === "ok");
+    assert.equal(result.comp.sales.length, 2);
+    assert.equal(result.comp.unclean, true);
+    assert.equal(lastSale(result.comp), null, "Add card says 'Not enough clean sales yet'");
+    assert.equal(COMP_COPY.notClean, "Not enough clean sales yet");
+  });
+
+  it("Miller /299 is unchanged: Pink/Red, the 3 Pink/Red sales", async () => {
+    const result = await lookupLiveSolds({ capture: capture(FRONT, BACK), rows: [] }, "u1", deps(async () => ok(PINK_RED)));
+    assert.equal(result.matches[0].parallel, "Pink/Red");
+    assert.ok(result.comp.status === "ok");
+    assert.deepEqual(cents(result.comp), [3499, 3600, 3800]);
+    assert.equal(result.comp.unclean, undefined);
   });
 });

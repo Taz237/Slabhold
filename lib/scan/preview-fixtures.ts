@@ -225,6 +225,22 @@ export const PREVIEW_SOLDS_NO_BASE: SoldsState = {
   query: "preview",
 };
 
+/** Two sales more than 10x apart: shown on Quick Comp, never a "Last sold" on Add card. */
+export const PREVIEW_SOLDS_UNCLEAN: SoldsState = {
+  status: "done",
+  comp: {
+    ...summarizeSales(
+      [
+        { price: 45, soldAt: "2026-11-12T12:00:00Z" },
+        { price: 3, soldAt: "2026-11-10T12:00:00Z" },
+      ],
+      { asOf: "2026-11-12T12:00:00Z", source: "live" },
+    ),
+    ...{ parallel: "Base", unclean: true },
+  } as ScanCompResult,
+  query: "preview",
+};
+
 export const PREVIEW_SOLDS_LOOKING: SoldsState = { status: "looking" };
 export const PREVIEW_SOLDS_NONE: SoldsState = { status: "done", comp: { status: "none", searched: true }, query: "preview" };
 export const PREVIEW_SOLDS_LIMITED: SoldsState = {

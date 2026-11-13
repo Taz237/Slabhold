@@ -38,6 +38,23 @@ export type ScanSalesResult = {
   dropped: Record<DropReason, number>;
 };
 
+/**
+ * Listings that aren't one copy of this card, on top of the card-page junk list: a pick-your or
+ * choose listing, a break or a random case hit, a digital card, "2x".
+ */
+const SCAN_JUNK =
+  /\b(?:lots?|bundle|you\s+pick|pick\s+your|choose|complete\s+set|team\s+set|break|reprint|rp|custom|proxy|digital)\b|\b(?:random|spot)\b.*\bcase\s+hit\b|\bcase\s+hit\b.*\b(?:random|spot)\b|\bx\s?[2-9]\b|\b[2-9]\s?x\b/i;
+
+/** A raw card never prices from these: a grader's name, "graded", "gem mint". */
+const SCAN_GRADED = /\b(?:psa|bgs|sgc|cgc|csg|hga|tag|beckett|graded|slab(?:bed)?)\b|\bgem\s*mi?nt\b/i;
+
+/**
+ * Finishes a title can name that the color reader may miss. Any of them keeps a sale out of Base:
+ * "Silver", "Refractor", "Mojo", "Cracked Ice".
+ */
+const FINISH_WORDS =
+  /\b(silver|refractor|holo|mojo|shimmer|wave|disco|hyper|pulsar|scope|velocity|sparkle|cracked\s+ice|ice|camo|tie[\s-]?dye|laser|lazer|neon|prizm\s+(?:red|blue|green|gold|orange|purple|pink|black|white))\b/i;
+
 const YEAR_IN_TITLE = /\b(19[5-9]\d|20[0-3]\d)(?:\s*[-/]\s*(\d{2}))?\b(?!\s*\/\s*\d)/g;
 
 function titleYears(title: string): number[] {
@@ -67,7 +84,41 @@ export function titleParallel(title: string, directory: readonly IndexedDirector
   const colors = [...read.parallelWords].sort((a, b) => title.toUpperCase().indexOf(a) - title.toUpperCase().indexOf(b));
   const label = parallelLabel(colors);
   if (read.insert) return label ? `${read.insert} ${label}` : read.insert;
-  return label || "Base";
+  if (label) return label;
+  // A finish the color reader doesn't know still isn't Base.
+  const finish = FINISH_WORDS.exec(title)?.[1];
+  return finish ? finish.toLowerCase().replace(/\s+/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase()) : "Base";
+}
+
+/** Sold listings from a cache (title, price, day) in the shape the scan's filter reads. */
+export function asTrawlResults(items: readonly { title: string; price: number; soldAt?: string | null }[]): TrawlSoldResult[] {
+  return items.map((item, index) => ({
+    title: item.title,
+    sale_price: item.price,
+    shipping_price: null,
+    currency: "USD",
+    condition: "",
+    condition_raw: null,
+    date_sold: item.soldAt ?? "",
+    buying_format: "",
+    item_id: `cached-${index}-${item.title}`,
+    item_link: "",
+    image_url: null,
+    details: null,
+  }));
+}
+
+/** Outliers out of one parallel's sales. Unclean: just 2 sales, more than 10x apart. */
+export function guardOutliers(sales: readonly ScanSale[]): { sales: ScanSale[]; unclean: boolean } {
+  if (sales.length === 2) {
+    const [low, high] = [...sales].map((sale) => sale.price).sort((a, b) => a - b);
+    return { sales: [...sales], unclean: low > 0 && high / low > 10 };
+  }
+  if (sales.length < 3) return { sales: [...sales], unclean: false };
+  const sorted = sales.map((sale) => sale.price).sort((a, b) => a - b);
+  const middle = sorted.length % 2 ? sorted[(sorted.length - 1) / 2] : (sorted[sorted.length / 2 - 1] + sorted[sorted.length / 2]) / 2;
+  if (!(middle > 0)) return { sales: [...sales], unclean: false };
+  return { sales: sales.filter((sale) => sale.price <= middle * 4 && sale.price >= middle / 4), unclean: false };
 }
 
 function salePrice(result: TrawlSoldResult): number {
@@ -102,7 +153,7 @@ export function scanSalesFor(
       dropped.removed += 1;
       continue;
     }
-    if (titleLooksExcluded(title)) {
+    if (titleLooksExcluded(title) || SCAN_JUNK.test(title)) {
       dropped.junk += 1;
       continue;
     }
@@ -125,7 +176,7 @@ export function scanSalesFor(
       continue;
     }
     if (raw) {
-      if (listingLooksProfessionallyGraded(result)) {
+      if (listingLooksProfessionallyGraded(result) || SCAN_GRADED.test(title)) {
         dropped.grade += 1;
         continue;
       }
