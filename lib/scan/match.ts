@@ -1049,6 +1049,46 @@ function withVerifiedPlayer(evidence: Evidence, rows: readonly CatalogCard[], ti
   return { ...evidence, playerText: "", playerLocked: false, playerBothSides: false, playerOpen: true };
 }
 
+/**
+ * A near match (RONDON for Rodon, one or two letters off a roster name) is a guess until something
+ * else on the card backs it: the card's own team line is that player's team, or a sold or active
+ * title for this card names the player. A title is for this card when it gives the card # the card
+ * printed, or, with no # to compare, the same set (and no other year). With neither, the guess is
+ * dropped and the player stays open: never the near player, never the misread as a new player.
+ * An exact name (accents aside: Rodón is Rodon) is never a guess.
+ */
+function withBackedNearPlayer(
+  evidence: Evidence,
+  read: ScanRead,
+  titles: readonly SoldTitle[],
+  directory: readonly IndexedDirectoryPlayer[],
+): Evidence {
+  if (!evidence.players.some((hit) => hit.score < 1)) return evidence;
+  const cardTeams = read.kind === "raw" ? [read.front, read.back].map((side) => side?.team?.name ?? "").filter(Boolean) : [];
+  const printedNumber = cardNumberKey(evidence.cardNumber);
+  const printedSet = evidence.setNames[0] ?? "";
+  const parsed = titles
+    .slice(0, MAX_SOLD_TITLES)
+    .map((sold) => (typeof sold?.title === "string" ? sold.title.trim() : ""))
+    .filter((title) => title && !TITLE_LOT.test(title))
+    .map((title) => ({ title, read: readRawCardText([title], directory) }));
+  const titled = (name: string) =>
+    parsed.some((item) => {
+      if (!titleNamesPlayer(item.title, name)) return false;
+      const number = cardNumberKey(item.read.cardNumber);
+      if (printedNumber && number) return number === printedNumber;
+      const set = item.read.setNames[0] ?? "";
+      if (!printedSet || !set || !sameSet(set, printedSet)) return false;
+      return !evidence.yearLabel || !item.read.yearLabel || sameSeason(item.read.yearLabel, evidence.yearLabel);
+    });
+  const backed = (hit: RawPlayerHit) => hit.score === 1 || (Boolean(hit.team) && cardTeams.includes(hit.team!)) || titled(hit.name);
+  const players = evidence.players.filter(backed);
+  if (players.length === evidence.players.length) return evidence;
+  if (players.length > 0) return { ...evidence, players };
+  // The guess is dropped, not the card: its set, year, # and run still show, with the player open.
+  return { ...evidence, players: [], playerText: "", playerLocked: false, playerBothSides: false, playerUnverified: false, playerOpen: true };
+}
+
 /** Fewest matching titles before "most of them" means anything. */
 const SAPPHIRE_MIN_TITLES = 2;
 
@@ -1076,7 +1116,11 @@ export function rankScanMatches(
   options: RankOptions,
 ): ScanMatchResult {
   const evidence = withVerifiedPlayer(
-    withAgreedRun(evidenceFrom(read, options.directory), options.soldTitles ?? [], options.directory),
+    withAgreedRun(
+      withBackedNearPlayer(evidenceFrom(read, options.directory), read, options.soldTitles ?? [], options.directory),
+      options.soldTitles ?? [],
+      options.directory,
+    ),
     rows,
     options.soldTitles ?? [],
   );
@@ -1085,7 +1129,7 @@ export function rankScanMatches(
   if (fromTitles.length === 0 && !(evidence.slab && !bestPlayerName(evidence))) {
     const loose = looseTitleFacts(evidence, options.soldTitles ?? [], options.directory);
     for (const card of merged) {
-      if (!card.titles?.length && card.playerName === bestPlayerName(evidence)) card.titles = loose;
+      if (!card.titles?.length && compactName(card.playerName) === compactName(bestPlayerName(evidence))) card.titles = loose;
     }
   }
   const scored = merged.map((found) => {
