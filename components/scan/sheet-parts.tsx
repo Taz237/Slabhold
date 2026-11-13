@@ -10,6 +10,7 @@ import { CONFIRM_COPY, gradeLabel, maskCert, matchLine, type ParallelPick } from
 import type { FieldSureness, ScanMatch } from "@/lib/scan/match";
 import type { ProductParallel } from "@/lib/cards/product-data";
 import { isUnnamedRunLabel } from "@/lib/scan/scan-sales";
+import { ListingThumb } from "@/components/scan/listing-photo";
 
 /** The scanner's bottom sheet: a labelled modal dialog with a grabber, a title and Close. */
 export function SheetFrame({
@@ -140,14 +141,16 @@ export function MatchSummary({ photo, match }: { photo: string | null; match: Sc
       <CardPhoto photo={photo} name={match.playerName} />
       <div className="min-w-0 pt-1">
         <p className="text-[17px] leading-6 font-semibold">
-          <Field sureness={match.sureness.player}>{match.playerName}</Field>
+          <Field sureness={match.sureness.player}>{match.playerName || CONFIRM_COPY.playerOpen}</Field>
         </p>
         <p className="mt-1 text-sm leading-5">
           <Field sureness={match.sureness.year}>{match.yearLabel}</Field>{" "}
           <Field sureness={match.sureness.set}>{match.setBrand}</Field>{" "}
           {match.cardNumber ? <Field sureness={match.sureness.number}>{`#${match.cardNumber}`}</Field> : null}
         </p>
-        {grade || match.isRookie || match.isAuto || match.serialRun ? (
+        {match.subset ? <p className="mt-1 text-sm leading-5 text-zinc-600 dark:text-zinc-400">{match.subset}</p> : null}
+        {match.playerNew ? <p className="mt-1 text-xs leading-5 text-zinc-500">{CONFIRM_COPY.playerNew}</p> : null}
+        {grade || match.isRookie || match.isAuto || match.firstBowman || match.serialRun ? (
           <div className="mt-3 flex flex-wrap items-center gap-2">
             {grade ? (
               <span className="rounded-md border border-zinc-300 px-2 py-0.5 font-mono text-xs leading-5 font-medium tabular-nums dark:border-white/20">
@@ -169,9 +172,13 @@ export function MatchSummary({ photo, match }: { photo: string | null; match: Sc
               </span>
             ) : null}
             {match.isRookie ? <span className="font-mono text-xs leading-5 text-zinc-500">RC</span> : null}
+            {match.firstBowman ? <span className="font-mono text-xs leading-5 text-zinc-500">1st Bowman</span> : null}
             {match.isAuto ? <span className="font-mono text-xs leading-5 text-zinc-500">Auto</span> : null}
           </div>
         ) : null}
+        <div className="mt-2 empty:hidden">
+          <ListingThumb match={match} scan={photo} label />
+        </div>
       </div>
     </div>
   );
@@ -243,7 +250,7 @@ export function RevealNameSkeleton({ label }: { label: string }) {
  * then year and set, then the number, then the parallel picked so far, then
  * the grade, cert (last 4) and tags. A value the scan wasn't sure of reads muted.
  */
-export function RevealName({ match, parallel }: { match: ScanMatch; parallel: string | null }) {
+export function RevealName({ match, parallel, photo = null }: { match: ScanMatch; parallel: string | null; photo?: string | null }) {
   const grade = gradeLabel(match.grade);
   const cert = maskCert(match.grade?.certNumber ?? "");
   const player = stageMotion("player");
@@ -254,7 +261,7 @@ export function RevealName({ match, parallel }: { match: ScanMatch; parallel: st
   return (
     <div className="flex flex-col items-center text-center" data-reveal="name">
       <p data-stage="player" className={`text-[22px] leading-7 font-semibold tracking-tight ${player.className}`} style={player.style}>
-        <Field sureness={match.sureness.player}>{match.playerName}</Field>
+        <Field sureness={match.sureness.player}>{match.playerName || CONFIRM_COPY.playerOpen}</Field>
       </p>
       <p className="mt-1 text-[15px] leading-5 text-zinc-600 dark:text-zinc-300">
         <span data-stage="set" className={`inline-block ${set.className}`} style={set.style}>
@@ -280,7 +287,17 @@ export function RevealName({ match, parallel }: { match: ScanMatch; parallel: st
           <Field sureness={match.sureness.parallel}>{parallel}</Field>
         </p>
       ) : null}
-      {grade || cert || match.isRookie || match.isAuto || match.serialRun ? (
+      {match.subset ? (
+        <p className={`mt-1 text-sm leading-5 text-zinc-600 dark:text-zinc-400 ${pick.className}`} style={pick.style}>
+          {match.subset}
+        </p>
+      ) : null}
+      {match.playerNew ? (
+        <p className={`mt-1 text-xs leading-5 text-zinc-500 ${tags.className}`} style={tags.style}>
+          {CONFIRM_COPY.playerNew}
+        </p>
+      ) : null}
+      {grade || cert || match.isRookie || match.isAuto || match.firstBowman || match.serialRun ? (
         <div data-stage="tags" className={`mt-3 flex flex-wrap items-center justify-center gap-2 ${tags.className}`} style={tags.style}>
           {grade ? (
             <span className="rounded-md border border-zinc-300 px-2 py-0.5 font-mono text-xs leading-5 font-medium tabular-nums dark:border-white/20">
@@ -301,9 +318,13 @@ export function RevealName({ match, parallel }: { match: ScanMatch; parallel: st
             </span>
           ) : null}
           {match.isRookie ? <span className="font-mono text-xs leading-5 text-zinc-500">RC</span> : null}
+          {match.firstBowman ? <span className="font-mono text-xs leading-5 text-zinc-500">1st Bowman</span> : null}
           {match.isAuto ? <span className="font-mono text-xs leading-5 text-zinc-500">Auto</span> : null}
         </div>
       ) : null}
+      <div className={`mt-2 empty:hidden ${tags.className}`} style={tags.style}>
+        <ListingThumb match={match} scan={photo} label />
+      </div>
     </div>
   );
 }
@@ -367,18 +388,29 @@ export function ParallelStrip({
 }
 
 /** "Or one of these": tapping a row makes it the top match. */
-export function OtherMatches({ rows, onPromote }: { rows: ScanMatch[]; onPromote: (index: number) => void }) {
+export function OtherMatches({
+  rows,
+  onPromote,
+  photo = null,
+}: {
+  rows: ScanMatch[];
+  onPromote: (index: number) => void;
+  /** The scan, shown beside a listing's photo when one is enlarged. */
+  photo?: string | null;
+}) {
   if (rows.length <= 1) return null;
   return (
     <div>
       <SectionLabel>{CONFIRM_COPY.others}</SectionLabel>
       <ul className="divide-y divide-zinc-200 rounded-2xl border border-zinc-200 dark:divide-white/10 dark:border-white/10">
         {rows.slice(1).map((match, index) => (
-          <li key={`${match.catalogId ?? "read"}-${index}`}>
+          <li key={`${match.catalogId ?? "read"}-${index}`} className="flex items-center gap-2 py-1 pl-2">
+            {/* That exact card's photo from a sold listing, or an empty card. Its own tap target: it enlarges. */}
+            <ListingThumb match={match} scan={photo} />
             <button
               type="button"
               onClick={() => onPromote(index + 1)}
-              className={`flex min-h-14 w-full items-center justify-between gap-3 px-4 py-2 text-left first:rounded-t-2xl last:rounded-b-2xl hover:bg-zinc-900/[0.03] dark:hover:bg-white/[0.04] ${focusRing}`}
+              className={`flex min-h-14 min-w-0 flex-1 items-center justify-between gap-3 rounded-r-2xl py-2 pr-4 text-left hover:bg-zinc-900/[0.03] dark:hover:bg-white/[0.04] ${focusRing}`}
             >
               <span className="min-w-0">
                 <span className="block truncate text-sm font-medium">{match.playerName}</span>

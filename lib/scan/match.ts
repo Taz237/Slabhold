@@ -4,7 +4,7 @@ import { parallelsIn, sameSeason, type ProductParallel, type ProductRecord } fro
 import { setMatchPhrase } from "@/lib/comps/match";
 import type { IndexedDirectoryPlayer } from "@/lib/players/types";
 import { compactNorm, normInterest } from "@/lib/social/follow-rank";
-import { findPlayers, looksLikeCatalogSku, readRawCardText, type RawCardRead, type RawPlayerHit } from "./raw-text";
+import { AUTO_CODE_PREFIX, findPlayers, looksLikeCatalogSku, readRawCardText, type RawCardRead, type RawPlayerHit } from "./raw-text";
 
 export { looksLikeCatalogSku };
 import type { SlabLabelRead } from "./slab-label";
@@ -71,6 +71,14 @@ export type ScanMatch = {
   sureness: Record<"player" | "year" | "set" | "number" | "parallel", FieldSureness>;
   /** Likely parallels for the picker, best first. One row when the parallel is sure. */
   parallelOptions: ProductParallel[];
+  /** The insert or variation the back names ("Rookie Autograph Variations"). Never the parallel. */
+  subset?: string;
+  /** A photo of this exact card from a sold listing the scan's search returned. Never stored. */
+  listing?: { imageUrl: string; url: string | null; soldAt: string | null };
+  /** The card carries the 1ST BOWMAN mark. */
+  firstBowman?: boolean;
+  /** The player's name was read off the card and isn't in our player list yet. */
+  playerNew?: boolean;
   /** Where a likely parallel came from: the card's print, or sold titles that agree. */
   parallelSource?: "card" | "sales";
   /** The print run read off the card matched no sold title, and 2+ titles agree on a run within 2 of it: theirs is used. */
@@ -129,12 +137,22 @@ type Evidence = {
   playerText: string;
   /** The card printed the player's name clearly: every row must be this player. */
   playerLocked: boolean;
+  /**
+   * The printed name isn't in our list and nothing on the card backs it as a name (no position,
+   * team or school line beside it, and not on both sides). It counts only once a catalog row or
+   * a sold title names it; with neither, the player stays open. Never an invented player.
+   */
+  playerUnverified?: boolean;
+  /** An unverified name was dropped: the card still shows, with no player. */
+  playerOpen?: boolean;
   /** Read on both the front and the back. */
   playerBothSides: boolean;
   /** From a team line when the player is new to us. */
   sport: string;
   /** An insert the card names, such as Instinct. */
   insert: string;
+  /** The insert or variation a raw card's back names ("Rookie Autograph Variations"). */
+  subset: string;
   /** The border color read from the photo, for ties only. */
   border: string | null;
   yearLabel: string;
@@ -201,6 +219,7 @@ function evidenceFrom(read: ScanRead, directory: readonly IndexedDirectoryPlayer
       playerBothSides: false,
       sport: "",
       insert: "",
+      subset: "",
       border: null,
       yearLabel: label.yearLabel,
       copyrightYear: "",
@@ -257,11 +276,20 @@ function evidenceFrom(read: ScanRead, directory: readonly IndexedDirectoryPlayer
       playerLocked = true;
     }
   }
+  const anchoredName =
+    Boolean(playerText) &&
+    ([read.front, read.back].some((side) => side?.printedName === playerText && side.printedNameAnchored) || onBoth(compactName(playerText)));
   const lockedName = players[0]?.name ?? playerText;
   // The back is where the card # lives. A front number is usually something else.
   const backNumber = read.back?.cardNumber ?? "";
-  const cardNumber = backNumber || read.front.cardNumber;
+  // An autograph or relic checklist code ends in the player's initials (RAV-ML for Makai Lemon).
+  // Only that makes a letter code the card #: any other is a word on the card.
+  const initialCode = lockedName
+    ? [read.back, read.front].flatMap((side) => side?.letterCodes ?? []).find((code) => code.split("-")[1] === initialsOf(lockedName)) ?? ""
+    : "";
+  const cardNumber = backNumber || read.front.cardNumber || initialCode;
   const setNames = mergedSetNames(sides, cardNumber);
+  const numberPrefix = /^([A-Z]+)-/.exec(cardNumber)?.[1] ?? "";
   const parallelWords: string[] = [];
   for (const phrase of sides.flatMap((side) => side.parallelWords)) {
     for (const word of words(phrase)) if (!parallelWords.includes(word)) parallelWords.push(word);
@@ -272,8 +300,10 @@ function evidenceFrom(read: ScanRead, directory: readonly IndexedDirectoryPlayer
     playerText,
     playerLocked,
     playerBothSides: Boolean(lockedName) && onBoth(compactName(lockedName)),
-    sport: sides.map((side) => side.team?.sport ?? "").find(Boolean) ?? "",
+    ...(playerText && !anchoredName ? { playerUnverified: true } : {}),
+    sport: sides.map((side) => side.team?.sport ?? "").find(Boolean) ?? sides.map((side) => side.sportHint ?? "").find(Boolean) ?? "",
     insert: sides.map((side) => side.insert).find(Boolean) ?? "",
+    subset: sides.map((side) => side.subset ?? "").find(Boolean) ?? "",
     border: read.border ?? null,
     yearLabel: sides.map((side) => side.yearLabel).find(Boolean) ?? "",
     copyrightYear: sides.map((side) => side.copyrightYear).find(Boolean) ?? "",
@@ -283,10 +313,20 @@ function evidenceFrom(read: ScanRead, directory: readonly IndexedDirectoryPlayer
     serial: sides.map((side) => side.serial).find(Boolean) ?? null,
     parallelWords,
     isRookie: sides.some((side) => side.isRookie),
-    isAuto: false,
+    isAuto: sides.some((side) => side.isAuto) || AUTO_CODE_PREFIX.test(numberPrefix),
     grade: null,
   };
 }
+
+/** "Makai Lemon" is ML; "Ja'Marr Chase" is JC. First and last word only. */
+function initialsOf(name: string): string {
+  const parts = name.replace(/[^a-z\s-]/gi, "").split(/[\s-]+/).filter(Boolean);
+  if (parts.length < 2) return "";
+  return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+}
+
+/** A "Bowman U" or "Bowman Chrome U" logo read. Bowman U Best and Bowman U Now are other products. */
+const BOWMAN_U_LOGO = /\bbowman\s+(?:chrome\s+)?u(?:niversity)?\b(?!\s+(?:best|now))|\bbowman\s+u(?:niversity)?\s+chrome\b/i;
 
 /** Bowman codes for Chrome prospects and prospect autos (in Bowman Chrome and in flagship Bowman), and codes only in Draft. */
 const BOWMAN_CHROME_PREFIXES = new Set(["BCP", "BCPA", "CPA"]);
@@ -315,8 +355,23 @@ function mergedSetNames(sides: readonly RawCardRead[], cardNumber: string): stri
   // CPA autos too. So with only the Bowman name printed, a BCP, BCPA or CPA code keeps Bowman first
   // and offers Bowman Chrome second; only "BOWMAN CHROME" printed makes it Chrome. A Draft code
   // (BD-1, BDC-12) is only in Bowman Draft.
+  const prefix = /^([A-Z]+)-?/i.exec(cardNumber)?.[1]?.toUpperCase() ?? "";
+  // College Bowman: the logo says so, or the card prints a school where a pro card prints its team,
+  // on a Bowman card that is Chrome (the Chrome trademark line, or a BCP code). A school with
+  // plain Bowman and nothing saying Chrome stays as it was read.
+  const lines = sides.flatMap((side) => side.lines);
+  const bowman = ordered.some((name) => name === "Bowman" || name === "Bowman Chrome") || lines.some((line) => /\bbowman\b/i.test(line));
+  const chrome = lines.some((line) => /\bbowman\s+chrome\b/i.test(line)) || BOWMAN_CHROME_PREFIXES.has(prefix);
+  // The school must be the card's team line (beside the name or the position), and Bowman U is
+  // football and basketball only: any sign of baseball on either side rules the school rule out.
+  const baseball = sides.some((side) => side.baseballSign || side.sportHint === "Baseball" || side.team?.sport === "Baseball");
+  const school = sides.some((side) => Boolean(side.school) && side.schoolInHeader) && !sides.some((side) => side.team) && !baseball;
+  if (lines.some((line) => BOWMAN_U_LOGO.test(line)) || (bowman && chrome && school)) {
+    return ["Bowman U Chrome", ...ordered.filter((name) => name !== "Bowman U Chrome" && name !== "Bowman" && name !== "Bowman Chrome")];
+  }
+  // A college Bowman card with nothing saying Chrome: Bowman U has more than one product, so the set stays open.
+  if (bowman && school) return ordered.filter((name) => name !== "Bowman" && name !== "Bowman Chrome");
   if (ordered[0] === "Bowman") {
-    const prefix = /^([A-Z]+)-?/i.exec(cardNumber)?.[1]?.toUpperCase() ?? "";
     if (BOWMAN_CHROME_PREFIXES.has(prefix) && !ordered.includes("Bowman Chrome")) return ["Bowman", "Bowman Chrome", ...ordered.slice(1)];
     if (BOWMAN_DRAFT_PREFIXES.has(prefix)) return ["Bowman Draft", ...ordered.filter((name) => name !== "Bowman Draft")];
   }
@@ -337,6 +392,16 @@ const BARE_MAKER_SET = new Set(["Topps", "Upper Deck", "Leaf"]);
 
 /** Checklist prefixes only Bowman prints. A search hint for solds, never the set on the sheet. */
 const BOWMAN_ONLY_PREFIXES = new Set(["BP", "BCP", "BDC", "BDP", "BPA", "BCPA", "CPA"]);
+
+/** Words that don't name a product on their own: "Topps Chrome" stays whole, "Topps Inception" searches as Inception. */
+const PLAIN_PRODUCT_WORDS = new Set(["chrome", "update", "now", "heritage", "finest", "instant", "certified", "absolute", "select", "draft", "sterling", "score"]);
+
+/** The set as sellers write it: the product's own word when it has one ("Inception"), else the full name. */
+export function productWord(setBrand: string): string {
+  const parts = setBrand.trim().split(/\s+/);
+  if (parts.length !== 2 || !/^(?:topps|panini)$/i.test(parts[0])) return setBrand;
+  return PLAIN_PRODUCT_WORDS.has(parts[1].toLowerCase()) ? setBrand : parts[1];
+}
 
 /** Most Trawl calls one scan's search ladder makes. */
 export const MAX_LADDER_RUNGS = 4;
@@ -369,10 +434,14 @@ export function liveSearchLadder(
   // A run the sold titles corrected (/298 read, /299 sold) searches as theirs.
   const run = evidence.serial ? `/${top?.runUnsure && top.serialRun ? top.serialRun : evidence.serial.run}` : "";
   const grade = evidence.grade?.company && evidence.grade.number ? `${evidence.grade.company} ${evidence.grade.number}` : "";
+  // An autograph searches as one ("... Inception RAV-ML auto"), by the product's own word: sellers
+  // write "Inception", not always "Topps Inception".
+  const auto = evidence.isAuto && !evidence.slab ? "auto" : "";
+  const searchSet = auto ? productWord(set) : set;
   const rung = (...parts: string[]) => [player, ...parts].filter(Boolean).join(" ").replace(/\s+/g, " ").trim();
   const rungs = number
-    ? [rung(set, insert, number, run, grade), rung(insert, number, run, grade), rung(set, insert, number, grade), rung(insert, number, grade)]
-    : [rung(set, insert, run, grade), rung(insert, run, grade), rung(set, insert, grade)];
+    ? [rung(searchSet, insert, number, run, grade, auto), rung(insert, number, run, grade, auto), rung(searchSet, insert, number, grade), rung(insert, number, grade)]
+    : [rung(searchSet, insert, run, grade, auto), rung(insert, run, grade, auto), rung(searchSet, insert, grade)];
   const useful = [...new Set(rungs)].filter((query) => query !== player);
   // Nothing but the name was read: search the player once, and let the titles name the card.
   return (useful.length > 0 ? useful : [player]).slice(0, MAX_LADDER_RUNGS);
@@ -594,7 +663,20 @@ function titleRunFor(titles: readonly TitleFacts[], parallel: string): number | 
   return runs.size === 1 ? [...runs][0] : null;
 }
 
-function pickParallel(evidence: Evidence, checklist: ProductParallel[], titles: readonly TitleFacts[] = []): ParallelPick {
+/** "2026" → "2025"; "2025-26" → "2024-25". "" when the label isn't a year. */
+export function yearBefore(label: string): string {
+  const season = /^(\d{4})-(\d{2})$/.exec(label.trim());
+  if (season) return `${Number(season[1]) - 1}-${String((Number(season[2]) + 99) % 100).padStart(2, "0")}`;
+  return /^\d{4}$/.test(label.trim()) ? String(Number(label.trim()) - 1) : "";
+}
+
+function pickParallel(
+  evidence: Evidence,
+  checklist: ProductParallel[],
+  titles: readonly TitleFacts[] = [],
+  /** Last year's parallels of the same set: quick picks for a numbered card this year's list can't place. */
+  yearAgo: ProductParallel[] = [],
+): ParallelPick {
   const runOf = (option: ProductParallel | undefined) => option?.serialRun ?? null;
 
   if (evidence.slab) {
@@ -620,7 +702,9 @@ function pickParallel(evidence: Evidence, checklist: ProductParallel[], titles: 
   const printedColor = evidence.parallelWords.length > 0;
   // Sold titles may pick a parallel only for a card with a read print run. An unnumbered card's
   // base can look like its Silver/Refractor (Prizm, Optic, Select, Mosaic), so titles never flip it.
-  const soldColor = run != null ? titleColor(titles, run, evidence.border) : "";
+  // An autograph or a named variation is never Base either, so titles that agree may name its color.
+  const neverBase = run != null || evidence.isAuto || Boolean(evidence.subset);
+  const soldColor = neverBase ? titleColor(titles, run, evidence.border) : "";
 
   // A printed insert is the card's own name (Instinct), not a guess. Its color comes from the card or a sold title.
   if (evidence.insert) {
@@ -655,10 +739,13 @@ function pickParallel(evidence: Evidence, checklist: ProductParallel[], titles: 
   }
   // A numbered card is never Base, and with no checklist run that fits, any color would be a guess:
   // leave it open with no chips. The print run the card showed still shows on the sheet.
-  const pool = run != null && fitsRun.length === 0 ? [] : fitsRun;
+  // Then last year's parallels with the same run are offered as quick picks, never preselected.
+  const sameRunLastYear = run != null && fitsRun.length === 0 ? yearAgo.filter((option) => option.serialRun === run && parallelMatchKey(option.name) !== "base") : [];
+  const pool = run != null && fitsRun.length === 0 ? sameRunLastYear : fitsRun;
   const ordered = [
     ...named,
-    ...pool.filter((option) => !named.includes(option) && parallelMatchKey(option.name) === "base"),
+    // An autograph, a variation and a numbered card are never offered Base.
+    ...(neverBase ? [] : pool.filter((option) => !named.includes(option) && parallelMatchKey(option.name) === "base")),
     ...pool.filter((option) => !named.includes(option) && parallelMatchKey(option.name) !== "base"),
   ];
   return { parallel: "", sureness: "unsure", serialRun: run, options: ordered.slice(0, MAX_PARALLEL_OPTIONS) };
@@ -686,7 +773,7 @@ function sureness(evidence: Evidence, card: Candidate, parallel: ParallelPick): 
 
 function synthesized(evidence: Evidence): Candidate | null {
   const playerName = bestPlayerName(evidence);
-  if (!playerName) return null;
+  if (!playerName && !evidence.playerOpen) return null;
   const setBrand = evidence.setNames[0] ?? (evidence.setText ? titleCase(evidence.setText) : "");
   // No year on the front: the back's © year is usually the card's year (marked likely, not sure).
   const year = evidence.yearLabel || (evidence.slab ? "" : evidence.copyrightYear);
@@ -906,12 +993,31 @@ function titleScore(evidence: Evidence, card: Candidate): number {
   return score;
 }
 
+/**
+ * A printed name we don't know and the card doesn't back: real only when a catalog row or a sold
+ * title carries it. With neither, the name is dropped and the player stays open.
+ */
+function withVerifiedPlayer(evidence: Evidence, rows: readonly CatalogCard[], titles: readonly SoldTitle[]): Evidence {
+  if (!evidence.playerUnverified || !evidence.playerText) return evidence;
+  const name = titleCase(evidence.playerText);
+  const named =
+    rows.some((row) => compactName(row.playerName) === compactName(name)) ||
+    titles.slice(0, MAX_SOLD_TITLES).some((item) => titleNamesPlayer(item.title, name));
+  if (named) return { ...evidence, playerUnverified: false };
+  // The name is dropped, not the card: the set, year, # and run it printed still show, with the player open.
+  return { ...evidence, playerText: "", playerLocked: false, playerBothSides: false, playerOpen: true };
+}
+
 export function rankScanMatches(
   read: ScanRead,
   rows: readonly CatalogCard[],
   options: RankOptions,
 ): ScanMatchResult {
-  const evidence = withAgreedRun(evidenceFrom(read, options.directory), options.soldTitles ?? [], options.directory);
+  const evidence = withVerifiedPlayer(
+    withAgreedRun(evidenceFrom(read, options.directory), options.soldTitles ?? [], options.directory),
+    rows,
+    options.soldTitles ?? [],
+  );
   const fromTitles = evidence.slab && !bestPlayerName(evidence) ? [] : titleCandidates(evidence, options.soldTitles ?? [], options.directory);
   const merged = mergeTitleCandidates(candidatesFrom(rows, evidence), fromTitles);
   if (fromTitles.length === 0 && !(evidence.slab && !bestPlayerName(evidence))) {
@@ -921,7 +1027,10 @@ export function rankScanMatches(
     }
   }
   const scored = merged.map((card) => {
-    const parallel = pickParallel(evidence, checklistFor(options.products, card), card.titles);
+    const lastYear = yearBefore(card.yearLabel);
+    const yearAgo = lastYear && options.products?.length ? parallelsIn(options.products, card.sport, lastYear, card.setBrand) : [];
+    const parallel = pickParallel(evidence, checklistFor(options.products, card), card.titles, yearAgo);
+    const inDirectory = evidence.players.some((item) => compactName(item.name) === compactName(card.playerName));
     // A slab label prints no run: when every sold title for this parallel names the same one, use it.
     if (parallel.serialRun == null && parallel.parallel && card.titles?.length) {
       parallel.serialRun = titleRunFor(card.titles, parallel.parallel);
@@ -944,6 +1053,9 @@ export function rankScanMatches(
       score: identityScore(evidence, card) + titleScore(evidence, card) + parallelBonus,
       sureness: sureness(evidence, card, parallel),
       parallelOptions: parallel.options,
+      ...(evidence.subset ? { subset: evidence.subset } : {}),
+      ...(read.kind === "raw" && [read.front, read.back].some((side) => side?.firstBowman) ? { firstBowman: true } : {}),
+      ...(!evidence.slab && !inDirectory && card.playerName && compactName(card.playerName) === compactName(evidence.playerText) ? { playerNew: true } : {}),
       ...(parallel.source ? { parallelSource: parallel.source } : {}),
       ...(evidence.runUnsure ? { runUnsure: true } : {}),
     };

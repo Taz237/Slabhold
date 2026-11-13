@@ -154,6 +154,6 @@ describe("copy", () => {
       assert.equal(/add it to your collection|we'll price it/i.test(text), false, text);
     }
     assert.match(COMP_COPY.none, /No recent sales/);
-    assert.match(COMP_COPY.noneSearched, /No recent eBay sales found/);
+    assert.match(COMP_COPY.noneSearched, /^No sales yet$/);
   });
 });

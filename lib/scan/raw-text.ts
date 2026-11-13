@@ -2,6 +2,7 @@ import { SETS, parseYearLabel } from "@/lib/card-options";
 import { POPULAR_INSERTS, insertKey } from "@/lib/cards/data/popular-inserts";
 import type { IndexedDirectoryPlayer } from "@/lib/players/types";
 import { compactNorm, normInterest } from "@/lib/social/follow-rank";
+import { schoolOnLine } from "./schools";
 
 /**
  * Reads OCR lines from the front or back of a raw card: the player (from the
@@ -31,17 +32,44 @@ export type RawCardRead = {
    * even when the directory doesn't know the player yet (new prospects). "" when none.
    */
   printedName: string;
+  /**
+   * The printed name sits beside the card's position, team or school line: the header of a back or
+   * the nameplate of a front. A name-like line with nothing beside it could be any two words.
+   */
+  printedNameAnchored: boolean;
   /** A team line on the card, from the directory's teams. Gives the sport when the player is new to us. */
   team: { name: string; sport: string } | null;
+  /** A college the card prints as its team (UCLA, Alabama): a Bowman U or draft-picks card. "" when none. */
+  school: string;
+  /** The school line sits beside the name or the position line (the header), not in a stat table or a bio. */
+  schoolInHeader: boolean;
+  /**
+   * Something on this side says Baseball: the product line, a team, a baseball position line
+   * (OF, SS, PITCHER, INFIELD), or a line that is an MLB nickname ("RANGERS").
+   */
+  baseballSign: boolean;
+  /** The sport a position line ("RUNNING BACK") or the product line ("... FOOTBALL") gives. "" when none. */
+  sportHint: string;
   /** "2023-24" or "2017", only when printed next to a brand. */
   yearLabel: string;
   /** The © year on a back. Often the release year, not the card year. */
   copyrightYear: string;
   /** Without the leading # or NO. Also a printed code such as BP-27 or INS-13. */
   cardNumber: string;
+  /**
+   * Letter codes the side prints on a short line (RAV-ML, CPA-AM). One is the card # only when
+   * its last letters are the player's initials: the matcher checks, since the name may be on the other side.
+   */
+  letterCodes: string[];
+  /** The card says it is signed: "CERTIFIED AUTOGRAPH ISSUE", "AUTOGRAPH", or an autograph checklist code. */
+  isAuto: boolean;
+  /** The insert or variation the back names ("Rookie Autograph Variations"). "" when none. */
+  subset: string;
   /** A stamped serial such as 12/99. */
   serial: { number: string; run: string } | null;
   isRookie: boolean;
+  /** The "1ST BOWMAN" mark: "1ST BOWMAN" on a line, or a "1ST" line on a card that prints Bowman. */
+  firstBowman: boolean;
   /** Up to 3 names from SETS, best first. */
   setNames: string[];
   /** The names in setNames the side printed in full ("TOPPS UPDATE"), not guessed from one logo word. */
@@ -197,7 +225,16 @@ function emptyRead(): RawCardRead {
   return {
     players: [],
     printedName: "",
+    printedNameAnchored: false,
     team: null,
+    school: "",
+    schoolInHeader: false,
+    baseballSign: false,
+    sportHint: "",
+    letterCodes: [],
+    isAuto: false,
+    subset: "",
+    firstBowman: false,
     yearLabel: "",
     copyrightYear: "",
     cardNumber: "",
@@ -408,6 +445,9 @@ function hasPhrase(lineWords: string[][], phrase: string[]): boolean {
   });
 }
 
+/** Sets a single word never guesses. */
+const RULE_ONLY_SETS = new Set(["Bowman U Chrome"]);
+
 /** Sets that are only a maker's name. On a back they're legal text; anywhere, a product name beats them. */
 const BARE_MAKER_SETS = new Set(["Topps", "Upper Deck", "Leaf"]);
 
@@ -449,6 +489,8 @@ function readSets(lineWords: string[][], options: { back?: boolean } = {}): { na
       if (!inLonger(words)) scored.push({ name, score: words.length + 1, order, phrase: true });
       return;
     }
+    // Named only in full or by the college rule (lib/scan/match.ts): "CHROME" alone never guesses it.
+    if (RULE_ONLY_SETS.has(name)) return;
     const distinct = words.filter((word) => !GENERIC_SET_WORDS.has(word));
     const matched = distinct.filter((word) => present.has(word)).length;
     if (matched === 0) return;
@@ -571,30 +613,47 @@ function readTeam(lineWords: string[][], directory: readonly IndexedDirectoryPla
 const SET_WORDS = new Set(SETS.flatMap((name) => normInterest(name).split(" ")));
 const PARALLEL_WORD_SET = new Set(PARALLEL_WORDS.flatMap((label) => normInterest(label).split(" ")));
 
+/** A word a card or a sold title prints that is never part of a person's name: set, color, rookie and maker words. */
+export function cardWord(word: string): boolean {
+  const key = word.toLowerCase();
+  return NOT_NAME_WORDS.has(key) || SET_WORDS.has(key) || PARALLEL_WORD_SET.has(key) || BACK_WORDS.has(key);
+}
+
 /**
  * A nameplate: a short line that is only a person's name. Two or three words
  * of letters, no digits, and nothing a card prints that isn't a name (team,
  * set, color, rookie and maker words). Kept even when the directory doesn't
  * know the player, so a new prospect still reads as themselves.
  */
-function readPrintedName(lines: string[], directory: readonly IndexedDirectoryPlayer[]): string {
+function readPrintedName(lines: string[], directory: readonly IndexedDirectoryPlayer[]): { name: string; anchored: boolean } {
   const { teams, nicknames } = teamIndex(directory);
-  for (const line of lines) {
-    if (/\d/.test(line) || line.length > 32) continue;
+  const isTeam = (line: string) => Boolean(readTeam([normInterest(line).split(" ").filter(Boolean)], directory)) || Boolean(schoolOnLine(line));
+  const names: { line: string; index: number }[] = [];
+  lines.forEach((line, index) => {
+    if (/\d/.test(line) || line.length > 32) return;
+    // "RUNNING BACK", "WIDE RECEIVER", "SS / 3B": where he plays, never who he is. Nor is a school.
+    if (positionLine(line) || schoolOnLine(line)) return;
     const words = normInterest(line).split(" ").filter(Boolean);
-    if (words.length < 2 || words.length > 3) continue;
-    if (!words.every((word) => /^[a-z]+$/.test(word) && word.length >= 2)) continue;
-    if (teams.has(words.join(" ")) || nicknames.has(words[words.length - 1])) continue;
+    if (words.length < 2 || words.length > 3) return;
+    if (!words.every((word) => /^[a-z]+$/.test(word) && word.length >= 2)) return;
+    if (teams.has(words.join(" ")) || nicknames.has(words[words.length - 1])) return;
     if (words.some((word) => NOT_NAME_WORDS.has(word) || SET_WORDS.has(word) || PARALLEL_WORD_SET.has(word) || BACK_WORDS.has(word))) {
-      continue;
+      return;
     }
-    return line
-      .toLowerCase()
-      .replace(/\s+/g, " ")
-      .trim()
-      .replace(/(^|[\s-])([a-z])/g, (_match, lead: string, letter: string) => `${lead}${letter.toUpperCase()}`);
-  }
-  return "";
+    names.push({ line, index });
+  });
+  // The header prints the name beside the position or the team: that line wins over any other.
+  const beside = names.find(({ index }) =>
+    [lines[index - 1], lines[index + 1]].some((item) => Boolean(item) && (positionLine(item!) || isTeam(item!))),
+  );
+  const picked = beside ?? names[0];
+  if (!picked) return { name: "", anchored: false };
+  const name = picked.line
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/(^|[\s-])([a-z])/g, (_match, lead: string, letter: string) => `${lead}${letter.toUpperCase()}`);
+  return { name, anchored: Boolean(beside) };
 }
 
 function readSide(lines: string[], lineWords: string[][], copyrightYear: string): RawCardRead["side"] {
@@ -725,6 +784,127 @@ function positionLine(line: string): boolean {
   return words.length > 0 && words.length <= 4 && words.every((word) => POSITION_WORDS.has(word) || JERSEY_POSITIONS.has(word));
 }
 
+/** The sport a position names. Only positions one sport uses: "CENTER" and "GUARD" say nothing. */
+const POSITION_SPORT: [RegExp, string][] = [
+  [/\b(?:QUARTERBACK|RUNNING\s+BACK|WIDE\s+RECEIVER|TIGHT\s+END|LINEBACKER|CORNERBACK|DEFENSIVE\s+(?:END|BACK|TACKLE|LINEMAN)|OFFENSIVE\s+(?:TACKLE|LINEMAN)|QB|RB|WR|TE|LB|CB|EDGE)\b/i, "Football"],
+  [/\b(?:PITCHER|CATCHER|SHORTSTOP|OUTFIELD(?:ER)?|INFIELD(?:ER)?|(?:FIRST|SECOND|THIRD)\s+BASE(?:MAN)?|DESIGNATED\s+HITTER|RHP|LHP|SS|1B|2B|3B|OF|INF)\b/i, "Baseball"],
+  [/\b(?:POINT\s+GUARD|SHOOTING\s+GUARD|SMALL\s+FORWARD|POWER\s+FORWARD|PG|SG|SF|PF)\b/i, "Basketball"],
+  [/\b(?:DEFENSEMAN|GOALIE|GOALTENDER|LEFT\s+WING|RIGHT\s+WING|LW|RW)\b/i, "Hockey"],
+];
+const SPORT_WORD = /\b(FOOTBALL|BASEBALL|BASKETBALL|HOCKEY)\b/i;
+
+/** The sport a position line gives, else the sport the product line names ("... INCEPTION FOOTBALL"). */
+function readSportHint(lines: string[]): string {
+  for (const line of lines) {
+    if (!positionLine(line)) continue;
+    for (const [pattern, sport] of POSITION_SPORT) if (pattern.test(line)) return sport;
+  }
+  for (const line of lines) {
+    // A product line, not a bio ("played football and baseball in high school").
+    if (!/\b(?:topps|panini|bowman|upper\s+deck|leaf)\b/i.test(line)) continue;
+    const word = SPORT_WORD.exec(line)?.[1];
+    if (word) return word[0].toUpperCase() + word.slice(1).toLowerCase();
+  }
+  return "";
+}
+
+/**
+ * A school line, but never a pro team's city ("HOUSTON TEXANS"). `inHeader`: it sits beside the
+ * name or the position line, where a card prints its team. A school alone in a stat table
+ * ("GEORGIA" as a college season's row) is not the card's team.
+ */
+function readSchool(lines: string[], directory: readonly IndexedDirectoryPlayer[], nameLines: ReadonlySet<string>): { school: string; inHeader: boolean } {
+  let found = "";
+  for (const [index, line] of lines.entries()) {
+    const school = schoolOnLine(line);
+    if (!school) continue;
+    if (readTeam([normInterest(line).split(" ").filter(Boolean)], directory)) continue;
+    found ||= school;
+    const beside = [lines[index - 1], lines[index + 1]].filter((item): item is string => Boolean(item));
+    if (beside.some((item) => positionLine(item) || nameLines.has(item.trim().toLowerCase()))) return { school, inHeader: true };
+  }
+  return { school: found, inHeader: false };
+}
+
+/** Positions only baseball prints. */
+const BASEBALL_POSITION =
+  /\b(?:PITCHER|CATCHER|SHORTSTOP|OUTFIELD(?:ER)?|INFIELD(?:ER)?|(?:FIRST|SECOND|THIRD)\s+BASE(?:MAN)?|DESIGNATED\s+HITTER|RHP|LHP|SS|1B|2B|3B|OF|INF|LF|CF|RF|DH|UTIL)\b/i;
+
+const baseballNicknameCache = new WeakMap<readonly IndexedDirectoryPlayer[], Set<string>>();
+/** MLB nicknames from the directory's baseball teams: rangers, phillies, red sox (as "sox"). */
+function baseballNicknames(directory: readonly IndexedDirectoryPlayer[]): Set<string> {
+  const cached = baseballNicknameCache.get(directory);
+  if (cached) return cached;
+  const names = new Set<string>();
+  for (const player of directory) {
+    if (player.sport !== "Baseball" || !player.team) continue;
+    const last = normInterest(player.team).split(" ").pop();
+    if (last) names.add(last);
+  }
+  baseballNicknameCache.set(directory, names);
+  return names;
+}
+
+/** Any sign on this side that the card is a baseball card. */
+function readBaseballSign(lines: string[], read: RawCardRead, directory: readonly IndexedDirectoryPlayer[]): boolean {
+  if (read.sportHint === "Baseball" || read.team?.sport === "Baseball") return true;
+  const nicknames = baseballNicknames(directory);
+  return lines.some((line) => {
+    if (positionLine(line) && BASEBALL_POSITION.test(line)) return true;
+    // A line that is only a team's nickname, or a city and its nickname: "RANGERS", "TEXAS RANGERS".
+    const words = normInterest(line).split(" ").filter(Boolean);
+    return words.length >= 1 && words.length <= 3 && !/\d/.test(line) && nicknames.has(words[words.length - 1]);
+  });
+}
+
+/** Letters, a hyphen, letters, on a short line: an autograph or relic checklist code (RAV-ML). */
+const ANY_LETTER_CODE = /\b([A-Z]{2,5})\s?[-–—‐]\s?([A-Z]{2,4})\b/g;
+
+function readLetterCodes(lines: string[], scanned: boolean): string[] {
+  const codes: string[] = [];
+  for (const line of lines) {
+    if (MAKER_LINE.test(line) || (scanned && proseLine(line)) || line.split(/\s+/).length > 3 || positionLine(line)) continue;
+    for (const match of line.toUpperCase().matchAll(ANY_LETTER_CODE)) {
+      if (NOT_CODE_PREFIX.has(match[1]) || NOT_CODE_PREFIX.has(match[2])) continue;
+      const code = `${match[1]}-${match[2]}`;
+      if (!wordCode(code) && !codes.includes(code)) codes.push(code);
+    }
+  }
+  return codes;
+}
+
+/** Checklist prefixes that are autographs: CPA-AM, BCPA-MC, RA-JW, RAV-ML. */
+export const AUTO_CODE_PREFIX = /^(?:CPA|BCPA|BPA|CDA|BDA|CRA|RPA|RA|RAV|FSA|BSA|RDA|IA|IAV)$/;
+/** The card says it is signed, in full: AUTOGRAPH, AUTOGRAPHS, AUTOGRAPHED, CERTIFIED AUTOGRAPH. */
+const AUTOGRAPH_WORDS = /\bAUTOGRAPH(?:S|ED)?\b/i;
+/** "AUTO" as its own word, never part of a hyphenated one ("auto-pilot"). */
+const AUTO_WORD = /(?<![\w-])AUTO(?![\w-])/i;
+
+/** AUTOGRAPH in any form, or "AUTO" alone on a short line that isn't a bio sentence. */
+function saysAuto(line: string): boolean {
+  if (AUTOGRAPH_WORDS.test(line)) return true;
+  return AUTO_WORD.test(line) && !proseLine(line);
+}
+
+/** Legal and maker text around an autograph, never the subset's name. */
+const NOT_SUBSET = /certified|issue|topps|panini|bowman|upper\s+deck|leaf|congratulations|guarantee|witness|authentic|©|\d/i;
+const SUBSET_LINE = /^((?:[A-Z']+\s+){0,3}(?:AUTOGRAPHS?|SIGNATURES?|RELICS?|VARIATIONS?)(?:\s+(?:VARIATIONS?|RELICS?|PATCH(?:ES)?|BOOK))*)(?:\s+CARDS?)?$/i;
+
+/** "ROOKIE AUTOGRAPH VARIATIONS CARD" names the subset: Rookie Autograph Variations. Two words or more. */
+function readSubset(lines: string[]): string {
+  for (const line of lines) {
+    if (NOT_SUBSET.test(line)) continue;
+    const name = SUBSET_LINE.exec(line.trim())?.[1];
+    if (!name || name.trim().split(/\s+/).length < 2) continue;
+    return name
+      .toLowerCase()
+      .replace(/\s+/g, " ")
+      .trim()
+      .replace(/(^|\s)([a-z])/g, (_match, lead: string, letter: string) => `${lead}${letter.toUpperCase()}`);
+  }
+  return "";
+}
+
 export function readRawCardText(
   lines: readonly string[],
   directory: readonly IndexedDirectoryPlayer[],
@@ -741,7 +921,9 @@ export function readRawCardText(
   const printed = clean.filter((line) => !maker(line));
 
   read.players = findPlayers(clean, directory);
-  read.printedName = readPrintedName(clean, directory);
+  const printedName = readPrintedName(clean, directory);
+  read.printedName = printedName.name;
+  read.printedNameAnchored = printedName.anchored;
   read.team = readTeam(lineWords, directory);
   read.yearLabel = readYear(printed);
   read.copyrightYear =
@@ -753,8 +935,22 @@ export function readRawCardText(
   read.cardNumber = readCardNumber(clean, Boolean(options.side), options.side, (line) =>
     Boolean(readTeam([normInterest(line).split(" ").filter(Boolean)], directory)),
   );
+  const nameLines = new Set<string>([read.printedName.toLowerCase(), ...read.players.filter((hit) => hit.nameplate).map((hit) => hit.line.trim().toLowerCase())].filter(Boolean));
+  const school = readSchool(clean, directory, nameLines);
+  read.school = school.school;
+  read.schoolInHeader = school.inHeader;
+  read.sportHint = readSportHint(clean);
+  read.baseballSign = readBaseballSign(clean, read, directory);
+  read.letterCodes = readLetterCodes(clean, Boolean(options.side));
+  read.isAuto =
+    clean.some(saysAuto) ||
+    [read.cardNumber, ...read.letterCodes].some((code) => AUTO_CODE_PREFIX.test(/^([A-Z]+)-/.exec(code)?.[1] ?? ""));
+  read.subset = readSubset(clean);
   read.serial = readSerial(clean, Boolean(options.side));
   read.isRookie = clean.some((line) => /\b(RC|ROOKIE)\b/i.test(line));
+  read.firstBowman =
+    clean.some((line) => /\b1ST\s+BOWMAN\b/i.test(line)) ||
+    (clean.some((line) => /^1ST$/i.test(line.trim())) && clean.some((line) => /\bbowman\b/i.test(line)));
   const sets = readSets(
     lineWords.filter((_words, i) => !maker(clean[i])),
     { back: options.side === "back" },

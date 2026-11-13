@@ -3,6 +3,7 @@ import { dollarsToCents, filterPriceOutliers, median, middleFifty } from "@/lib/
 import type { QuickCompIdentity } from "@/lib/quick-comp/identity";
 import { NORMAL_ESTIMATE_MIN_SALES } from "@/lib/value/price-fallback";
 import { gradeLabel } from "./confirm";
+import type { ScanEstimateResult } from "./estimate";
 import type { ScanMatch } from "./match";
 
 /**
@@ -19,7 +20,7 @@ export const COMP_COPY = {
   basedOn: "Based on",
   fewSales: "Not enough recent sales for a value yet",
   /** After a live eBay search for this card found no matching sale. */
-  noneSearched: "No recent eBay sales found for this card",
+  noneSearched: "No sales yet",
   noneSearchedBody: "We looked at eBay sales from the last 90 days.",
   /** No live search ran for this pick (another parallel or grade): only saved sales were checked. */
   none: "No recent sales for this one yet",
@@ -38,7 +39,9 @@ export const COMP_COPY = {
   noBaseBody: "Tap your parallel to see its value.",
   /** Under a Base price: what else recent sales name. */
   otherGroups: "Other parallels in recent sales",
+  /** The lookup itself failed. Never shown for a search that worked and found nothing. */
   unavailable: "We couldn't load sold prices",
+  unavailableBody: "The lookup didn't go through. Your card is still read.",
   retry: "Try again",
   assumedBase: "Showing Base. Tap your parallel if it's different.",
   grade: "Grade",
@@ -46,8 +49,16 @@ export const COMP_COPY = {
   next: "Scan another",
   credit: "Recent sold prices via Trawl",
   checking: "Checking recent sales",
+  /** Under "No sales yet": last year's same card for other players. An estimate, never this card's value. */
+  estimate: "Estimate from similar cards",
+  estimateNote: "Not this card's value. It isn't saved as its price.",
+  estimateRange: "Similar cards sold between",
+  estimateExamples: "Similar cards that sold",
+  /** A numbered card with no parallel named: last year's parallels at the same print run. */
+  yearAgoParallels: "Last year's parallels at this print run",
   search: "Look it up by name",
   needYear: "We need the year to show sold prices. Tap the card below that matches.",
+  needPlayer: "We need the player to show sold prices. Add the card and name the player.",
 } as const;
 
 export type ScanCompSale = { priceCents: number; soldAt: string | null };
@@ -96,7 +107,7 @@ export type ScanCompResult =
  */
 export type SoldsState =
   | { status: "looking" }
-  | { status: "done"; comp: ScanCompResult; query: string | null };
+  | { status: "done"; comp: ScanCompResult; query: string | null; similar?: ScanEstimateResult };
 
 /** The newest sale, for the one-line "Last sold" on the Add card sheet. */
 export function lastSale(result: ScanCompResult): ScanCompSale | null {

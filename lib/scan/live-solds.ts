@@ -15,6 +15,8 @@ import {
   type ScanMatch,
   type SoldTitle,
 } from "./match";
+import { comparableSales, ESTIMATE_MAX_CALLS, ESTIMATE_MIN_SALES, estimateFrom, estimateQueries, yearAgoParallels, type ScanEstimateResult } from "./estimate";
+import { withListingPhotos } from "./listing-photo";
 import { newLookupBudget, type LookupBudget } from "./live-search";
 import { asTrawlResults, groupByParallel, groupFor, isUnnamedRunLabel, scanSalesFor, type ParallelGroup, type ScanSale, type ScanSalesResult } from "./scan-sales";
 import { scanReadFrom, type ScanCapture } from "./session";
@@ -61,6 +63,8 @@ export type LiveSoldsDeps = {
   liveSearch: (query: string, userId: string, budget?: LookupBudget) => Promise<LiveSearchResult>;
   /** Dev-only trace of each rung: the query, results back, kept, and why the rest were dropped. No user data. */
   log?: (event: LadderLog) => void;
+  /** The clock, for "this year's and last year's products". Defaults to now. */
+  now?: () => number;
   /** Puts this card's live sales in Quick Comp's shared cache. */
   storeQuickComp: (identity: QuickCompIdentity, sales: CleanedSale[], results: TrawlSoldResult[], meta: { query: string; fetchedAt: string }) => Promise<void>;
 };
@@ -76,6 +80,11 @@ export type LiveSoldsResult = {
   comp: ScanCompResult;
   /** The live search that ran, so another parallel or grade on the sheet can reuse it. */
   query: string | null;
+  /**
+   * Only with "No sales yet" (the search worked and found none): an estimate from last year's
+   * similar cards, and last year's parallels at this print run. Never this card's price, never saved.
+   */
+  similar?: ScanEstimateResult;
 };
 
 /** Pinned down enough to trust a cached price: the card backed the set and the number (or a slab label did). */
@@ -132,6 +141,18 @@ export async function lookupLiveSolds(
   userId: string,
   deps: LiveSoldsDeps,
 ): Promise<LiveSoldsResult> {
+  // The listings the search returned also give each match a photo of that exact card. No extra search.
+  const results: TrawlSoldResult[] = [];
+  const found = await lookupSolds(input, userId, deps, results);
+  return { ...found, matches: withListingPhotos(found.matches, results, deps.directory) };
+}
+
+async function lookupSolds(
+  input: LiveSoldsInput,
+  userId: string,
+  deps: LiveSoldsDeps,
+  results: TrawlSoldResult[],
+): Promise<LiveSoldsResult> {
   const read = scanReadFrom({ ...input.capture, image: null }, deps.directory);
   const player = scanPlayerName(read, deps.directory);
   let products: readonly ProductRecord[] | null = null;
@@ -168,7 +189,6 @@ export async function lookupLiveSolds(
   const ladder = liveSearchLadder(read, top, deps.directory);
   if (ladder.length === 0) return { matches: first, comp: { status: "none" }, query: null };
   const budget = newLookupBudget();
-  const results: TrawlSoldResult[] = [];
   let fetchedAt = "";
   let usedQuery: string | null = null;
   let matches = first;
@@ -192,7 +212,7 @@ export async function lookupLiveSolds(
     // 3. The sold titles help finish the identity (set, #, parallel).
     matches = rank([...saved, ...liveTitles(results)]);
     const best = matches[0];
-    found = best ? scanSalesFor(best, { grade: scanCompGrade(best), setBrand: best.setBrand, parallel: best.parallel }, results, deps.directory) : found;
+    found = best?.playerName ? scanSalesFor(best, { grade: scanCompGrade(best), setBrand: best.setBrand, parallel: best.parallel }, results, deps.directory) : found;
     deps.log?.({ rung: index, query, ok: true, results: live.results.length, kept: found.kept.length, dropped: found.dropped });
     if (found.kept.length > 0) break;
   }
@@ -200,7 +220,13 @@ export async function lookupLiveSolds(
   if (!usedQuery) return { matches, comp: { status: "unavailable" }, query: null };
   const best = matches[0];
   if (!best) return { matches: first, comp: { status: "none", searched: true }, query: usedQuery };
-  if (found.kept.length === 0) return { matches, comp: { status: "none", searched: true }, query: usedQuery };
+  // The player is still open (an unverified name no title carried): nothing is priced for nobody.
+  if (!best.playerName) return { matches, comp: { status: "none", searched: true }, query: usedQuery };
+  if (found.kept.length === 0) {
+    // "No sales yet": the search worked and found none. Only then, last year's similar cards.
+    const similar = await similarCards(best, userId, budget, deps);
+    return { matches, comp: { status: "none", searched: true }, query: usedQuery, ...(similar ? { similar } : {}) };
+  }
 
   // 4. Sales by parallel: the picked parallel's group, labelled. With the parallel open, only a group
   // that's most of the sales (2+) is priced, and the card takes its name; otherwise the groups show.
@@ -208,7 +234,8 @@ export async function lookupLiveSolds(
   const leader = groups[0];
   // An unnumbered card with its parallel open shows Base: priced from Base sales only, with the
   // other parallels offered to tap. Never Silver from a title majority.
-  if (!best.parallel && best.serialRun == null) {
+  // An autograph or a named variation is never Base: its parallel stays open until its sales name it.
+  if (!best.parallel && best.serialRun == null && !best.isAuto && !best.subset) {
     const base = groupFor(groups, "Base");
     if (!base) return { matches, comp: { status: "split", groups: groups.map(groupSummary), missing: "Base" }, query: usedQuery };
     const priced = priceScanGroup(base.sales, { asOf: fetchedAt || null, source: "live" });
@@ -244,6 +271,40 @@ export async function lookupLiveSolds(
     comp: { ...comp, parallel: group.label, groups: groups.map((item) => ({ label: item.label, nSales: item.sales.length })) },
     query: usedQuery,
   };
+}
+
+/**
+ * Last year's similar cards for a card with no sales: at most ESTIMATE_MAX_CALLS more Trawl calls
+ * on the same lookup (no second cap spent), none once Trawl says the account is out of credits.
+ * A failed search here is just no estimate: the sheet still says "No sales yet".
+ */
+async function similarCards(best: ScanMatch, userId: string, budget: LookupBudget, deps: LiveSoldsDeps): Promise<ScanEstimateResult | null> {
+  // Only this year's and last year's products: an older card with no sales spends no extra searches.
+  const thisYear = new Date((deps.now ?? Date.now)()).getUTCFullYear();
+  const cardYear = Number(/^(\d{4})/.exec(best.yearLabel)?.[1] ?? Number.NaN);
+  if (!(cardYear >= thisYear - 1)) return null;
+  const queries = estimateQueries(best);
+  if (queries.length === 0 || budget.outOfCredits) return null;
+  budget.maxCalls = budget.calls + ESTIMATE_MAX_CALLS;
+  const results: TrawlSoldResult[] = [];
+  let answered = false;
+  for (const query of queries) {
+    const live = await deps.liveSearch(query, userId, budget).catch((): LiveSearchResult => ({ ok: false, reason: "unavailable" }));
+    if (!live.ok) {
+      if (budget.outOfCredits || live.reason !== "unavailable") break;
+      continue;
+    }
+    answered = true;
+    results.push(...live.results);
+    const sales = comparableSales(best, results, deps.directory);
+    const narrowed = best.parallel ? sales.filter((sale) => sale.parallel.toLowerCase() === best.parallel.toLowerCase()) : sales;
+    if (narrowed.length >= ESTIMATE_MIN_SALES) break;
+  }
+  if (!answered) return null;
+  const sales = comparableSales(best, results, deps.directory);
+  const estimate = estimateFrom(best, sales);
+  const parallels = yearAgoParallels(best, sales);
+  return estimate || parallels.length > 0 ? { estimate, parallels } : null;
 }
 
 /** Most of the sales (and at least 2) name this parallel. */

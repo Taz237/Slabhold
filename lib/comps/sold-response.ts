@@ -1,6 +1,17 @@
 export const SOLD_UNAVAILABLE_MESSAGE =
   "Sold data unavailable, try again shortly";
 
+/**
+ * No lookup ran because the card has no card #. Not a failure: the collector can fix it.
+ * Never shown as "unavailable".
+ */
+export const SOLD_NEEDS_NUMBER_MESSAGE = "Add the card # to see sold prices";
+
+/** The heading over a sold-prices notice. A card with no card # isn't an outage. */
+export function soldNoticeTitle(message: string | null): string {
+  return message === SOLD_NEEDS_NUMBER_MESSAGE ? "Sold prices need the card #" : "Sales are taking a break";
+}
+
 /** Keep in sync with lib/comps/rate-limit RATE_LIMIT_MESSAGE (avoid server-only import). */
 export const SOLD_RATE_LIMIT_MESSAGE =
   "You're checking sold comps too quickly. Please wait a bit and try again.";
@@ -95,6 +106,9 @@ export async function respondSoldComps(
     if (failed?.attempt.reason === "budget_exhausted") {
       return Response.json({ error: SOLD_RATE_LIMIT_MESSAGE }, { status: 429 });
     }
+    if (failed?.attempt.reason === "no_number" && !failed.payload) {
+      return Response.json({ error: SOLD_NEEDS_NUMBER_MESSAGE }, { status: 409 });
+    }
     return Response.json({ error: SOLD_UNAVAILABLE_MESSAGE }, { status: 503 });
   }
 
@@ -102,6 +116,10 @@ export async function respondSoldComps(
     return Response.json({ error: SOLD_RATE_LIMIT_MESSAGE }, { status: 429 });
   }
   if (!refreshed.payload) {
+    // No card #: no search ran. Say what to do, not "unavailable".
+    if (refreshed.attempt.reason === "no_number") {
+      return Response.json({ error: SOLD_NEEDS_NUMBER_MESSAGE }, { status: 409 });
+    }
     return Response.json({ error: SOLD_UNAVAILABLE_MESSAGE }, { status: 503 });
   }
 

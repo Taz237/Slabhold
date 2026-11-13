@@ -226,7 +226,7 @@ describe("ScanHub: identify, then last eBay solds", () => {
       }),
     );
     try {
-      await waitFor(() => text().includes("No recent eBay sales found for this card"));
+      await waitFor(() => text().includes("No sales yet"));
       assert.ok(text().includes("Luka Doncic"));
     } finally {
       view.unmount();

@@ -308,7 +308,7 @@ describe("ConfirmSheet: last eBay solds", () => {
 
   it("says plainly when the search found nothing, or the day's lookups are used, with no price", async () => {
     for (const [solds, message] of [
-      [fixtures.PREVIEW_SOLDS_NONE, "No recent eBay sales found for this card"],
+      [fixtures.PREVIEW_SOLDS_NONE, "No sales yet"],
       [fixtures.PREVIEW_SOLDS_LIMITED, "You've used today's comps. Saved ones still open"],
     ] as const) {
       const view = await mount({ kind: "ready", matches: [fixtures.PREVIEW_SLAB], solds });

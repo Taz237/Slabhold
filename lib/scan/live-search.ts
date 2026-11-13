@@ -101,7 +101,13 @@ type Cached = { results: TrawlSoldResult[]; fetchedAt: string };
  * MAX_LOOKUP_CALLS Trawl calls per lookup, whatever happens, and none after
  * Trawl says the account is out of credits (outOfCredits).
  */
-export type LookupBudget = { spent: boolean; calls: number; outOfCredits?: boolean };
+export type LookupBudget = {
+  spent: boolean;
+  calls: number;
+  outOfCredits?: boolean;
+  /** The most calls this lookup may make. MAX_LOOKUP_CALLS unless a no-sales estimate adds its own (2 more). */
+  maxCalls?: number;
+};
 export const MAX_LOOKUP_CALLS = 4;
 
 export function newLookupBudget(): LookupBudget {
@@ -114,11 +120,24 @@ export function makeLiveSearch(deps: LiveSearchDeps) {
     userId: string,
     budget: LookupBudget = newLookupBudget(),
   ): Promise<LiveSearchResult> {
-    if (deps.source() !== "trawl" || !deps.hasTrawlKey() || !query.trim()) return { ok: false, reason: "unavailable" };
+    const warn = deps.warn ?? defaultWarn;
+    // Every "unavailable" says why in the log, so it is never mistaken for a search that found nothing.
+    if (deps.source() !== "trawl") {
+      warn({ query, status: 0, reason: "sold source is not live", retried: false });
+      return { ok: false, reason: "unavailable" };
+    }
+    if (!deps.hasTrawlKey()) {
+      warn({ query, status: 0, reason: "no sold data key on the server", retried: false });
+      return { ok: false, reason: "unavailable" };
+    }
+    if (!query.trim()) return { ok: false, reason: "unavailable" };
     try {
       const cached = await deps.cache<Cached>(
         async () => {
-          if (budget.outOfCredits || budget.calls >= MAX_LOOKUP_CALLS) throw new QuickCompFailure("unavailable");
+          if (budget.outOfCredits || budget.calls >= (budget.maxCalls ?? MAX_LOOKUP_CALLS)) {
+            warn({ query, status: 0, reason: budget.outOfCredits ? "out of credits earlier in this lookup" : "lookup call cap reached", retried: false });
+            throw new QuickCompFailure("unavailable");
+          }
           if (!budget.spent) {
             const spent = await spendQuickCompLookup(userId, { ...deps.limits, now: deps.now });
             if (!spent.ok) throw new QuickCompFailure(spent.reason, spent.resetAt);
@@ -130,7 +149,7 @@ export function makeLiveSearch(deps: LiveSearchDeps) {
           };
           let result = await fetchOnce();
           // Throttled or a server error: one more try, still inside the lookup's call cap.
-          if (!result.ok && retryable(result) && budget.calls < MAX_LOOKUP_CALLS) {
+          if (!result.ok && retryable(result) && budget.calls < (budget.maxCalls ?? MAX_LOOKUP_CALLS)) {
             (deps.warn ?? defaultWarn)({ query, status: result.status ?? 0, reason: result.error ?? "failed", retried: false });
             await (deps.sleep ?? defaultSleep)(LIVE_SEARCH_RETRY_MS);
             result = await fetchOnce();
@@ -153,6 +172,10 @@ export function makeLiveSearch(deps: LiveSearchDeps) {
     } catch (error) {
       if (error instanceof QuickCompFailure && error.kind !== "unavailable" && error.resetAt) {
         return { ok: false, reason: error.kind, resetAt: error.resetAt };
+      }
+      // Anything else (the cap check or the shared cache threw): the error's name only, never its message.
+      if (!(error instanceof QuickCompFailure)) {
+        warn({ query, status: 0, reason: `lookup error: ${error instanceof Error ? error.name : "unknown"}`, retried: false });
       }
       return { ok: false, reason: "unavailable" };
     }

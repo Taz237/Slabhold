@@ -11,6 +11,10 @@ export { scannerEnabled };
  */
 
 export const CONFIRM_COPY = {
+  /** The name was read off the card; our player list doesn't have them yet. */
+  playerNew: "Not in our list yet",
+  /** A name-like line the card didn't back and no sold listing carried: the player is left open. */
+  playerOpen: "Player not read",
   title: "Is this your card?",
   yes: "Yes, that's it",
   add: "Yes, add it",

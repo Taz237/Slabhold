@@ -32,6 +32,7 @@ import {
   type SoldsState,
 } from "@/lib/scan/comp";
 import { CONFIRM_COPY, confirmMatch, initialChoice, matchesKey, promoteMatch, readyToSave, type ParallelPick } from "@/lib/scan/confirm";
+import type { ScanEstimate } from "@/lib/scan/estimate";
 import type { ScanMatch } from "@/lib/scan/match";
 import { isUnnamedRunLabel } from "@/lib/scan/scan-sales";
 import type { ProductParallel } from "@/lib/cards/product-data";
@@ -99,6 +100,45 @@ export function CompSheet({ photo, state, lookup, onAdd, onScanAnother, onSearch
   );
 }
 
+/**
+ * Under "No sales yet": what last year's same card sold for, for other players. Set apart by a
+ * rule and its own label, in the muted value style (never the big price), so it can't be read as
+ * this card's value.
+ */
+function SimilarEstimate({ estimate }: { estimate: ScanEstimate }) {
+  return (
+    <section data-slot="similar-estimate" aria-label={COMP_COPY.estimate} className="mt-4 border-t border-zinc-200 pt-4 dark:border-white/10">
+      <p className="text-[13px] font-medium text-zinc-500">{COMP_COPY.estimate}</p>
+      <p className="mt-1 font-mono text-xl leading-7 font-medium text-zinc-700 tabular-nums dark:text-zinc-300">
+        <span className="sr-only">About </span>
+        <span aria-hidden>~</span>
+        {dollars(estimate.medianCents)}
+      </p>
+      <p className="mt-1 text-sm leading-5 text-zinc-600 tabular-nums dark:text-zinc-400">
+        {estimate.lowCents !== estimate.highCents
+          ? `${COMP_COPY.estimateRange} ${dollars(estimate.lowCents)} and ${dollars(estimate.highCents)} · `
+          : ""}
+        {estimate.nSales} sales of {estimate.basis}
+      </p>
+      <p className="mt-4 text-[13px] font-medium text-zinc-500">{COMP_COPY.estimateExamples}</p>
+      <ul className="mt-1 divide-y divide-zinc-200 dark:divide-white/10">
+        {estimate.examples.map((sale, index) => (
+          <li key={`${sale.player}-${index}`} className="flex min-h-10 items-center justify-between gap-3 text-sm">
+            <span className="min-w-0 truncate">
+              {sale.player}
+              <span className="text-zinc-500"> · {saleDay(sale.soldAt)}</span>
+            </span>
+            <span className="shrink-0 font-mono font-medium tabular-nums">{dollars(sale.priceCents)}</span>
+          </li>
+        ))}
+      </ul>
+      <p className="mt-3 text-xs leading-4 text-zinc-500">
+        {COMP_COPY.estimateNote} {COMP_COPY.credit}
+      </p>
+    </section>
+  );
+}
+
 /** The parallels the scan's sales name join the chips, so one tapped from the sales list reads selected. */
 function withSoldGroups(
   options: ProductParallel[],
@@ -117,6 +157,8 @@ function withSoldGroups(
     if (isUnnamedRunLabel(group.label) || has(group.label)) continue;
     out.push({ name: group.label, serialRun });
   }
+  // No sales yet on a numbered card with no parallel named: last year's parallels at this print run, to tap.
+  for (const name of solds.similar?.parallels ?? []) if (!has(name)) out.push({ name, serialRun });
   return out;
 }
 
@@ -154,8 +196,8 @@ function Ready({
     [top, pick, grade],
   );
   const serialRun = pick?.serialRun ?? top?.serialRun ?? null;
-  // A numbered card is never Base: with its parallel open, nothing reads as Base.
-  const assumedBase = Boolean(target?.assumedBase) && top?.serialRun == null;
+  // A numbered card, an autograph and a named variation are never Base: with the parallel open, nothing reads as Base.
+  const assumedBase = Boolean(target?.assumedBase) && top?.serialRun == null && !top?.isAuto && !top?.subset;
   const key = target ? compQueryString(target.identity, serialRun) : "";
   // The card the live search priced: the top match as it arrived, with its own parallel and grade.
   const [scanKey] = useState(() => {
@@ -218,9 +260,11 @@ function Ready({
           assumedBase={assumedBase}
           serialRun={serialRun}
           onPick={(label) => setPick({ name: label, serialRun: top.serialRun })}
+          // Only beside the scan's own "No sales yet": another parallel or grade tapped has no estimate.
+          estimate={fromScan && solds?.status === "done" ? (solds.similar?.estimate ?? null) : null}
         />
       ) : (
-        <p className="text-sm text-zinc-600 dark:text-zinc-400">{COMP_COPY.needYear}</p>
+        <p className="text-sm text-zinc-600 dark:text-zinc-400">{top.playerName ? COMP_COPY.needYear : COMP_COPY.needPlayer}</p>
       )}
 
       <ParallelStrip
@@ -234,7 +278,10 @@ function Ready({
             ? COMP_COPY.assumedBase
             : top.parallelSource === "sales" && pick?.name === top.parallel
               ? COMP_COPY.matchedFromSalesTap
-              : null
+              : // The chips offered are last year's parallels at this print run, not a read of this card.
+                !pick && solds?.status === "done" && (solds.similar?.parallels.length ?? 0) > 0
+                ? COMP_COPY.yearAgoParallels
+                : null
         }
         onChoose={setPick}
       />
@@ -266,7 +313,7 @@ function Ready({
         </div>
       </div>
 
-      <OtherMatches rows={rows} onPromote={promote} />
+      <OtherMatches rows={rows} onPromote={promote} photo={photo} />
 
       <div className="flex justify-center">
         <QuietButton onClick={onSearch}>{CONFIRM_COPY.noneOfThese}</QuietButton>
@@ -295,8 +342,11 @@ function ValuePanel({
   assumedBase,
   serialRun = null,
   onPick,
+  estimate = null,
 }: {
   result: ScanCompResult | undefined;
+  /** Last year's similar cards, only under "No sales yet". */
+  estimate?: ScanEstimate | null;
   /** Tap another parallel the sales name, to price the card as it. */
   onPick?: (label: string) => void;
   /** The card's print run, shown with the parallel the sales are for. */
@@ -333,6 +383,7 @@ function ValuePanel({
     return (
       <div className={box} role="alert">
         <p className="text-sm font-medium">{COMP_COPY.unavailable}</p>
+        <p className="mt-1 text-sm leading-5 text-zinc-600 dark:text-zinc-400">{COMP_COPY.unavailableBody}</p>
         <QuietButton onClick={onRetry} className="-ml-3 mt-1">
           {COMP_COPY.retry}
         </QuietButton>
@@ -363,6 +414,7 @@ function ValuePanel({
         {result.searched ? (
           <p className="mt-1 text-sm leading-5 text-zinc-600 dark:text-zinc-400">{COMP_COPY.noneSearchedBody}</p>
         ) : null}
+        {result.searched && estimate ? <SimilarEstimate estimate={estimate} /> : null}
       </div>
     );
   }

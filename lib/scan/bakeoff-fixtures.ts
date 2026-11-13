@@ -25,6 +25,13 @@ export type BakeoffTruth = {
   grade?: string;
   /** A slab's cert number. It must never show as the card #. */
   cert?: string;
+  /** Checked, not scored: the card is signed, a rookie, a 1st Bowman; the subset its back names. */
+  auto?: boolean;
+  rookie?: boolean;
+  firstBowman?: boolean;
+  subset?: string;
+  /** The name was read off the card and isn't in our player list. */
+  playerNew?: boolean;
 };
 
 /** A mocked Trawl answer: eBay sold titles, served only at this rung of the search ladder (0 = the first). */

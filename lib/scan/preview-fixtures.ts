@@ -242,6 +242,48 @@ export const PREVIEW_SOLDS_UNCLEAN: SoldsState = {
 };
 
 export const PREVIEW_SOLDS_LOOKING: SoldsState = { status: "looking" };
+
+/** A brand-new card: a player new to us, numbered /10, no parallel named, no sales yet. Made up. */
+export const PREVIEW_NEW_PRODUCT: ScanMatch = {
+  ...PREVIEW_RAW[0],
+  catalogId: null,
+  playerName: "Wayne Knight",
+  sport: "Football",
+  yearLabel: "2026",
+  setBrand: "Bowman U Chrome",
+  cardNumber: "BCP-68",
+  parallel: "",
+  serialRun: 10,
+  serialNo: "3",
+  isRookie: false,
+  isAuto: false,
+  firstBowman: true,
+  playerNew: true,
+  sureness: { player: "likely", year: "likely", set: "likely", number: "sure", parallel: "unsure" },
+  parallelOptions: [],
+};
+
+/** "No sales yet", with last year's similar cards and last year's /10 parallels to tap. Made-up sales. */
+export const PREVIEW_SOLDS_ESTIMATE: SoldsState = {
+  status: "done",
+  comp: { status: "none", searched: true },
+  query: "preview",
+  similar: {
+    estimate: {
+      basis: "2025 Bowman U Chrome /10 1st Bowman",
+      nSales: 6,
+      medianCents: 14500,
+      lowCents: 9000,
+      highCents: 31000,
+      examples: [
+        { player: "Player One", priceCents: 16500, soldAt: "2026-10-28T18:00:00.000Z" },
+        { player: "Player Two", priceCents: 12500, soldAt: "2026-10-19T18:00:00.000Z" },
+        { player: "Player Three", priceCents: 31000, soldAt: "2026-10-02T18:00:00.000Z" },
+      ],
+    },
+    parallels: ["Black", "Sapphire Black", "Gold Wave"],
+  },
+};
 export const PREVIEW_SOLDS_NONE: SoldsState = { status: "done", comp: { status: "none", searched: true }, query: "preview" };
 export const PREVIEW_SOLDS_LIMITED: SoldsState = {
   status: "done",
@@ -256,3 +298,11 @@ export async function previewSolds(_capture: unknown, matches: ScanMatch[]): Pro
   const comp = target ? await previewCompLookup(target.identity) : { status: "none" as const, searched: true };
   return { matches, comp: comp.status === "none" ? { status: "none", searched: true } : comp, query: "preview" };
 }
+
+/** "Or one of these" with listing photos: the top match and one alternate have one, one has none. Made up. */
+export const PREVIEW_WITH_PHOTOS: ScanMatch[] = [
+  { ...PREVIEW_RAW[0], listing: { imageUrl: "/quick-comp/sample-card.svg", url: null, soldAt: "2026-11-02T18:00:00.000Z" } },
+  ...PREVIEW_RAW.slice(1).map((match, index) =>
+    index === 0 ? { ...match, listing: { imageUrl: "/quick-comp/sample-card.svg", url: null, soldAt: "2026-10-20T18:00:00.000Z" } } : match,
+  ),
+];

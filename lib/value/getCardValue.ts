@@ -287,7 +287,7 @@ export async function refreshCardValue(
       const existing = await getCardValue(cardId);
       return finish(
         existing ?? emptyResult("unavailable"),
-        emptyAttempt("skipped", "unavailable"),
+        emptyAttempt("skipped", result.skipped === "no_number" ? "no_number" : "unavailable"),
       );
     }
     // Trawl failed. Keep the stored price only when this card's query_key
