@@ -184,3 +184,23 @@ describe("Add card buttons open the sheet", () => {
     assert.match(read("components/add-card-link.tsx"), /href="\/cards\/new"/);
   });
 });
+
+describe("Add card sheet focus", () => {
+  it("keeps Tab on the two tiles while it's open, skipping the hidden photo inputs", async () => {
+    const view = await mount({ native: () => false, scanner: () => false });
+    try {
+      const [scan, upload] = tiles(view.host);
+      upload.focus();
+      await act(async () => {
+        win.document.dispatchEvent(new win.KeyboardEvent("keydown", { key: "Tab", bubbles: true, cancelable: true }));
+      });
+      assert.equal(win.document.activeElement, scan);
+      await act(async () => {
+        win.document.dispatchEvent(new win.KeyboardEvent("keydown", { key: "Tab", shiftKey: true, bubbles: true, cancelable: true }));
+      });
+      assert.equal(win.document.activeElement, upload);
+    } finally {
+      view.unmount();
+    }
+  });
+});

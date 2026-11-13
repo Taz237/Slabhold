@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { assembleCardPeople, type OwnerCandidate } from "./people";
-import { peopleCounts, peopleCountsLine } from "./people-counts";
+import { peopleCounts } from "./people-counts";
 
 /** Made-up collectors for one made-up card identity. */
 const KEY = "victor wembanyama|2023-24|prizm|136|base|raw";
@@ -50,26 +50,6 @@ describe("peopleCounts", () => {
 
   it("is null without data", () => {
     assert.equal(peopleCounts(null), null);
-  });
-});
-
-describe("peopleCountsLine", () => {
-  it("reads like the hobby talks", () => {
-    assert.equal(peopleCountsLine({ owners: 4, hunters: 2 }), "4 collectors own this · 2 are hunting it");
-    assert.equal(peopleCountsLine({ owners: 1, hunters: 1 }), "1 collector owns this · 1 is hunting it");
-    assert.equal(peopleCountsLine({ owners: 4, hunters: 0 }), "4 collectors own this");
-    assert.equal(peopleCountsLine({ owners: 0, hunters: 3 }), "3 collectors are hunting it");
-    assert.equal(peopleCountsLine({ owners: 2, hunters: null }), "2 collectors own this");
-  });
-
-  it("shows nothing rather than a zero", () => {
-    assert.equal(peopleCountsLine({ owners: 0, hunters: 0 }), null);
-    assert.equal(peopleCountsLine({ owners: 0, hunters: null }), null);
-    assert.equal(peopleCountsLine(null), null);
-  });
-
-  it("formats big counts with separators", () => {
-    assert.equal(peopleCountsLine({ owners: 1200, hunters: 0 }), "1,200 collectors own this");
   });
 });
 

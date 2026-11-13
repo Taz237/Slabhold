@@ -750,10 +750,7 @@ function ReviewStep({
     <div className="space-y-5">
       <div className="flex flex-col items-center text-center">
         <div className="relative w-32 sm:w-40">
-          {/* The reveal after the save glides from here (lib/cards/slab-morph.ts). */}
-          <div className="relative" data-slab-morph="source">
-            <DraftSlab art={art} photo={photo} />
-          </div>
+          <DraftSlab art={art} photo={photo} />
         </div>
         <button
           type="button"

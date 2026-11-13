@@ -8,7 +8,6 @@ import {
   cardPostFailed,
   cardPostId,
   clearCardPostFailed,
-  composeWithCardPath,
   feedPostControl,
   justAddedCaption,
   recordCardPost,
@@ -174,11 +173,7 @@ describe("one add, one post", () => {
   });
 });
 
-describe("Post it: the composer with the card attached", () => {
-  it("opens /compose?card=:id", () => {
-    assert.equal(composeWithCardPath("card 1"), "/compose?card=card%201");
-  });
-
+describe("the composer's starter caption", () => {
   it("hands the composer a starter caption once, for that card only", () => {
     const store = memoryStore();
     writeComposeCaption(store, "card-1", "Just added my 2024 Donruss Downtown Tyrese Maxey");

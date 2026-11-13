@@ -107,6 +107,17 @@ async function render(cardInPanel: SportsCard, extra: Record<string, unknown> = 
   return {
     // The scene renders in a portal on document.body.
     host: win.document.body as HTMLElement,
+    async rerender(next: Record<string, unknown>) {
+      await act(async () => {
+        root.render(
+          createElement(
+            CollectionContext.Provider,
+            { value: collection as never },
+            createElement(CardAddedPanel, { ...props, ...next }) as ReactNode,
+          ),
+        );
+      });
+    },
     unmount() {
       act(() => root.unmount());
       host.remove();
@@ -293,5 +304,57 @@ describe("card page value line", () => {
     assert.doesNotMatch(detail, /const estSell = /);
     assert.doesNotMatch(detail, /estimatedSellPrice: storedAmount/);
     assert.match(detail, /data-slot="price-held"/);
+  });
+});
+
+describe("Added scene polish", () => {
+  const seeSalesButton = (host: HTMLElement) =>
+    [...host.querySelectorAll("button")].find((b) => /See sales|Hide sales/.test(b.textContent ?? ""))!;
+
+  it("never shows an empty sales list when the open list's sales come back with nothing", async () => {
+    let seen = 0;
+    const view = await render(card, { sales: null, salesLoading: true, onSeeSales: () => seen++ });
+    try {
+      await act(async () => seeSalesButton(view.host).click());
+      assert.equal(seeSalesButton(view.host).getAttribute("aria-expanded"), "true", "skeleton rows while loading");
+      await view.rerender({ sales: [], salesLoading: false });
+      assert.equal(view.host.querySelector('ul[aria-label="Recent sold prices"]'), null, "no empty list");
+      assert.doesNotMatch(view.host.textContent ?? "", /via Trawl/, "no credit line for nothing");
+      const button = seeSalesButton(view.host);
+      assert.equal(button.textContent, "See sales");
+      assert.equal(button.getAttribute("aria-expanded"), null);
+      await act(async () => button.click());
+      assert.equal(seen, 1, "then it goes to the card page's sales");
+    } finally {
+      view.unmount();
+    }
+  });
+
+  it("keeps Tab inside the scene while it's open", async () => {
+    const view = await render(card);
+    try {
+      const dialog = view.host.querySelector<HTMLElement>('[data-slot="added-panel"]')!;
+      const tabbable = [...dialog.querySelectorAll<HTMLElement>('a[href], button:not([disabled])')].filter(
+        (node) => node.getAttribute("tabindex") !== "-1",
+      );
+      const first = tabbable[0];
+      const last = tabbable[tabbable.length - 1];
+      last.focus();
+      await act(async () => {
+        win.document.dispatchEvent(new win.KeyboardEvent("keydown", { key: "Tab", bubbles: true, cancelable: true }));
+      });
+      assert.equal(win.document.activeElement, first, "Tab from the last control wraps to the first");
+      await act(async () => {
+        win.document.dispatchEvent(new win.KeyboardEvent("keydown", { key: "Tab", shiftKey: true, bubbles: true, cancelable: true }));
+      });
+      assert.equal(win.document.activeElement, last, "Shift+Tab from the first wraps to the last");
+    } finally {
+      view.unmount();
+    }
+  });
+
+  it("is one big price with no owners line", () => {
+    const panel = read("components/card-added-panel.tsx");
+    assert.doesNotMatch(panel, /ScanPeopleLine|collectors own|people/i);
   });
 });

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it } from "node:test";
-import { addedCollectionLine, addedValueLine } from "@/lib/cards/added-panel";
+import { addedValueLine } from "@/lib/cards/added-panel";
 import { displayedCollectionTotal } from "@/lib/collection/displayed-value";
 import { mapPublicCard } from "@/lib/social/cards";
 import type { SportsCard } from "@/lib/types";
@@ -199,16 +199,11 @@ describe("collection total with a lone sale", () => {
       [base.id, lone(3)],
     ]);
     assert.equal(displayedCollectionTotal([autoRed99, base], values), 3);
-    assert.equal(
-      addedCollectionLine([autoRed99, base], values, true),
-      "Your collection: 2 cards, about $3.00",
-    );
   });
 
   it("only an untrusted lone sale means no total yet", () => {
     const values = new Map<string, CardValueResult>([[autoRed99.id, lone(1.99)]]);
     assert.equal(displayedCollectionTotal([autoRed99], values), 0);
-    assert.equal(addedCollectionLine([autoRed99], values, true), "Your collection: 1 card");
   });
 });
 

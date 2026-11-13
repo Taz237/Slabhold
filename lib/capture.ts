@@ -3,7 +3,6 @@ import { parseScanHandoff, type ScanHandoff } from "@/lib/scan/handoff";
 const SCAN_KEY = "cardflip.scan";
 const COMPOSE_KEY = "cardflip.compose";
 const SCAN_MATCH_KEY = "cardflip.scan-match";
-const SCAN_ADDED_KEY = "cardflip.scan-added";
 
 function storage(): Storage | null {
   try {
@@ -99,20 +98,3 @@ export function clearScanMatch() {
   }
 }
 
-/** Add card saved this card from a scan: the card-added screen shows who else owns it. */
-export function markScanAdded(cardId: string) {
-  try {
-    storage()?.setItem(SCAN_ADDED_KEY, cardId);
-  } catch {
-    // Blocked storage: the screen just skips the owners line.
-  }
-}
-
-/** True when this card was just saved from a scan in this tab. */
-export function wasScanAdded(cardId: string): boolean {
-  try {
-    return Boolean(cardId) && storage()?.getItem(SCAN_ADDED_KEY) === cardId;
-  } catch {
-    return false;
-  }
-}

@@ -38,7 +38,7 @@ const dom = new JSDOM("<!doctype html><html><body></body></html>", {
   pretendToBeVisual: true,
 });
 const win = dom.window;
-let reduceMotion = false;
+const reduceMotion = false;
 Object.defineProperty(win, "matchMedia", {
   configurable: true,
   value: (query: string) => ({
@@ -264,8 +264,6 @@ describe("Add card v3 phase 3: Condition on Review", () => {
     try {
       await walkToReview();
       await clickText("BGS");
-      const slab = win.document.querySelector('[data-slab-morph="source"]');
-      assert.ok(slab, "the Review slab is the morph source");
       assert.doesNotMatch(win.document.querySelector('[data-slot="review-value"]')?.textContent ?? "", /\$0/);
       assert.doesNotMatch(win.document.body.textContent ?? "", /\$0\.00/);
     } finally {
@@ -366,21 +364,10 @@ describe("Add card v3 phase 3: motion", () => {
     assert.doesNotMatch(flow, /pointer-events-none[^"]*animate|animate[^"]*pointer-events-none/);
   });
 
-  it("reduced motion: the save records no morph, so the reveal is a plain swap", async () => {
-    reduceMotion = true;
-    try {
-      const { captureSlabMorph, takeSlabMorph } = await import("@/lib/cards/slab-morph");
-      const view = await mount({ guided: true });
-      try {
-        await walkToReview();
-        assert.equal(captureSlabMorph(), false);
-        assert.equal(takeSlabMorph(), null);
-      } finally {
-        view.unmount();
-      }
-    } finally {
-      reduceMotion = false;
-    }
+  it("has no slab glide from Review: the Added scene's flip is the one reveal", () => {
+    assert.doesNotMatch(read("components/add-card/add-card-flow.tsx"), /data-slab-morph/);
+    assert.doesNotMatch(read("components/card-form.tsx"), /SlabMorph|slab-morph/);
+    assert.doesNotMatch(read("components/card-added-panel.tsx"), /SlabMorph|slab-morph/);
   });
 });
 

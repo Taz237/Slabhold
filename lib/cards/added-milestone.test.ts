@@ -1,13 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import {
-  addedCollectionLine,
-  addedCollectionTotals,
-  collectionLineText,
-  milestoneFor,
-} from "@/lib/cards/added-panel";
+import { milestoneFor } from "@/lib/cards/added-panel";
 import type { SportsCard } from "@/lib/types";
-import type { CardValueResult } from "@/lib/value/types";
 
 function card(id: string, patch: Partial<SportsCard> = {}): SportsCard {
   return {
@@ -41,14 +35,6 @@ function many(count: number, patch: Partial<SportsCard> = {}): SportsCard[] {
   return Array.from({ length: count }, (_, index) => card(`c-${index}`, patch));
 }
 
-const ok = (median: number): CardValueResult => ({
-  status: "ok",
-  median,
-  low: median,
-  high: median,
-  nSales: 6,
-  matchedAt: null,
-});
 
 describe("milestoneFor", () => {
   it("names the 1st, 10th, 25th, 50th, 100th, 250th and 500th card", () => {
@@ -102,48 +88,5 @@ describe("milestoneFor", () => {
       assert.doesNotMatch(line, /!|[\u{1F300}-\u{1FAFF}]|free|amazing|congrat/iu);
       assert.ok(line.length <= 32, line);
     }
-  });
-});
-
-describe("collection totals for the tick-up", () => {
-  it("gives the old total (without this card) and the new one", () => {
-    const cards = [card("a"), card("b"), card("new")];
-    const values = new Map([
-      ["a", ok(10)],
-      ["b", ok(20)],
-      ["new", ok(42)],
-    ]);
-    const totals = addedCollectionTotals(cards, values, true, "new");
-    assert.equal(totals.count, 3);
-    assert.equal(totals.total, 72);
-    assert.equal(totals.previous, 30);
-    assert.equal(collectionLineText(totals.count, totals.total), "Your collection: 3 cards, about $72.00");
-    assert.equal(addedCollectionLine(cards, values, true), "Your collection: 3 cards, about $72.00");
-  });
-
-  it("has no previous total for the first valued card, so it never animates from $0", () => {
-    const cards = [card("a"), card("new")];
-    const totals = addedCollectionTotals(cards, new Map([["new", ok(42)]]), true, "new");
-    assert.equal(totals.total, 42);
-    assert.equal(totals.previous, null);
-  });
-
-  it("shows no dollar figure until values are in, and never $0", () => {
-    const cards = [card("a"), card("new")];
-    const pending = addedCollectionTotals(cards, new Map([["a", ok(10)]]), false, "new");
-    assert.equal(pending.total, null);
-    assert.equal(pending.previous, null);
-    assert.equal(collectionLineText(2, null), "Your collection: 2 cards");
-    const none = addedCollectionTotals(cards, new Map(), true, "new");
-    assert.equal(none.total, null);
-    assert.equal(collectionLineText(1, 0), "Your collection: 1 card");
-    assert.doesNotMatch(collectionLineText(2, 0.004), /\$/);
-  });
-
-  it("keeps the old total equal to the new one when this card has no value yet", () => {
-    const cards = [card("a"), card("new")];
-    const totals = addedCollectionTotals(cards, new Map([["a", ok(10)]]), true, "new");
-    assert.equal(totals.total, 10);
-    assert.equal(totals.previous, 10);
   });
 });

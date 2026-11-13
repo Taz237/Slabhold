@@ -19,15 +19,14 @@ import {
   recentSoldPrices,
   type AddedRevealLine,
 } from "@/lib/cards/added-panel";
-import { takeSlabMorph } from "@/lib/cards/slab-morph";
 import { writeBrowserVisibilityChoice } from "@/lib/cards/visibility-choice";
 import { haptic } from "@/lib/ios/haptics";
+import { useFocusTrap } from "@/lib/ui/focus-trap";
 import { cardPostFailed, shareSessionStore, takeSharedPost, cardPostId } from "@/lib/social/share-to-feed";
 import { pendingCardPost } from "@/lib/social/card-post-queue";
 import { photoSource, photoStatusAfter, type PhotoStatus } from "@/lib/collection/grid";
 import type { SportsCard } from "@/lib/types";
 import type { ConfidenceCopy, MatchConfidence } from "@/lib/value/match-confidence";
-import { ScanPeopleLine } from "@/components/scan/scan-people-line";
 import type { CardValueResult } from "@/lib/value/types";
 
 const focusRing =
@@ -123,11 +122,6 @@ export function CardAddedPanel({
   const dialogRef = useRef<HTMLElement>(null);
   const failedPost = useFailedPost(cardId);
 
-  // The Review slab's glide is replaced by the flip; take its record so it never plays late.
-  useEffect(() => {
-    takeSlabMorph();
-  }, []);
-
   // The flip lands: a tap of haptics and, with motion allowed, the confetti.
   useEffect(() => {
     if (!card || landed) return;
@@ -138,6 +132,9 @@ export function CardAddedPanel({
     return () => window.clearTimeout(timer);
   }, [card, landed, reduce]);
 
+  // Tab stays inside the scene while it's open.
+  useFocusTrap(dialogRef);
+
   useEffect(() => {
     dialogRef.current?.focus();
     const onKey = (event: KeyboardEvent) => {
@@ -147,8 +144,13 @@ export function CardAddedPanel({
     return () => window.removeEventListener("keydown", onKey);
   }, [onDismiss]);
 
+  // Sales to show here, or still on the way. With none, See sales goes to the card page's sales,
+  // so an open list never sits empty when the sales come back with nothing.
+  const hasSales = recent.length > 0 || salesLoading;
+  const showSales = salesOpen && hasSales;
+
   function seeSales() {
-    if (recent.length > 0 || salesLoading) setSalesOpen((open) => !open);
+    if (hasSales) setSalesOpen((open) => !open);
     else onSeeSales();
   }
 
@@ -265,8 +267,6 @@ export function CardAddedPanel({
               </div>
             )}
           </div>
-          {/* After a scan save only: who else has it, as two counts. */}
-          <ScanPeopleLine cardId={cardId} />
         </div>
 
         {line.kind === "ok" ? (
@@ -274,17 +274,17 @@ export function CardAddedPanel({
             <button
               type="button"
               onClick={seeSales}
-              aria-expanded={recent.length > 0 || salesLoading ? salesOpen : undefined}
-              aria-controls={salesOpen ? salesId : undefined}
+              aria-expanded={hasSales ? showSales : undefined}
+              aria-controls={showSales ? salesId : undefined}
               className={`inline-flex min-h-11 items-center gap-1 rounded-full px-4 text-sm font-medium text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 ${focusRing}`}
             >
-              {salesOpen ? ADDED_COPY.hideSales : ADDED_COPY.seeSales}
+              {showSales ? ADDED_COPY.hideSales : ADDED_COPY.seeSales}
               <ChevronDown
                 aria-hidden
-                className={`size-4 transition-transform duration-200 motion-reduce:transition-none ${salesOpen ? "rotate-180" : ""}`}
+                className={`size-4 transition-transform duration-200 motion-reduce:transition-none ${showSales ? "rotate-180" : ""}`}
               />
             </button>
-            {salesOpen ? (
+            {showSales ? (
               <div id={salesId} className="w-full motion-safe:animate-[add-step-in_220ms_ease-out_both] motion-reduce:animate-[add-fade_160ms_ease-out_both]">
                 {salesLoading ? (
                   <ul className="w-full space-y-1.5" aria-hidden>
