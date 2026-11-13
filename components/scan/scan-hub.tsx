@@ -24,6 +24,8 @@ export type ScanHubDeps = {
   scan: () => Promise<ScanCapture | null>;
   /** A library photo, read the same way. */
   pickAndRead: () => Promise<ScanCapture | null>;
+  /** Fills open fields from the phone's alternate readings, before anything reads the capture. */
+  settle: (capture: ScanCapture) => Promise<ScanCapture>;
   /** Read and match against the catalog. Null when the search failed. */
   identify: (capture: ScanCapture, signal: AbortSignal) => Promise<ScanMatchResult | null>;
   /**
@@ -34,6 +36,13 @@ export type ScanHubDeps = {
   compLookup: CompLookup;
   online: () => boolean;
 };
+
+/** The phone's alternate readings fill open fields (lib/scan/alternates.ts); the result is plain lines. */
+async function defaultSettle(capture: ScanCapture): Promise<ScanCapture> {
+  if (!capture.alternates?.length && !capture.backAlternates?.length) return capture;
+  const [{ INDEXED_DIRECTORY }, { withAlternates }] = await Promise.all([import("@/lib/players/directory"), import("@/lib/scan/alternates")]);
+  return withAlternates(capture, INDEXED_DIRECTORY);
+}
 
 async function defaultIdentify(capture: ScanCapture, signal: AbortSignal): Promise<ScanMatchResult | null> {
   const [{ INDEXED_DIRECTORY }, { searchCatalogRemote }, { loadProductData }, { matchScan }] = await Promise.all([
@@ -113,6 +122,7 @@ const defaultDeps: ScanHubDeps = {
   scannerAvailable: async () => isNativeApp() && (await loadNative()).scannerAvailable(),
   scan: async () => (await loadNative()).scanCard(),
   pickAndRead: defaultPickAndRead,
+  settle: defaultSettle,
   identify: defaultIdentify,
   solds: defaultSolds,
   compLookup: defaultCompLookup,
@@ -148,13 +158,16 @@ export function ScanHub({
   const libraryRef = useRef<HTMLInputElement>(null);
 
   const identify = useCallback(
-    async (capture: ScanCapture) => {
+    async (scanned: ScanCapture) => {
       run.current?.abort();
       const controller = new AbortController();
       run.current = controller;
       setError(null);
-      setPhoto(capture.image);
+      setPhoto(scanned.image);
       setSheet({ kind: "matching" });
+      // Alternates are settled once, here, so the phone and the server read the same lines.
+      const capture = await deps.settle(scanned).catch(() => scanned);
+      if (controller.signal.aborted) return;
       const result = await deps.identify(capture, controller.signal).catch(() => null);
       if (controller.signal.aborted) return;
       const online = deps.online();

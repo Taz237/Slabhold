@@ -414,6 +414,53 @@ export const WIDE_BAKEOFF_CASES: BakeoffCase[] = [
     truth: { player: "Jackson Holliday", year: "2024", set: "Topps Chrome", number: "200", parallel: "", run: null },
   },
 
+  // ── Alternate readings from the phone: they fill an open field, and never make a wrong one ──
+  {
+    name: "Alternates: Maye, the serial read as 'O45/l49', the next reading is 045/149",
+    front: ["PRIZM", "DRAKE MAYE", "PATRIOTS", "RC", "O45/l49"],
+    alternates: [[], [], [], [], ["045/149"]],
+    back: ["No. 329", "DRAKE MAYE", "QUARTERBACK", "2024 PANINI - PRIZM FOOTBALL", PANINI_2024],
+    truth: { player: "Drake Maye", year: "2024", set: "Panini Prizm", number: "329", parallel: "Orange", run: 149 },
+  },
+  {
+    name: "Alternates: Salas, the code read as '8P-1O3', the next readings agree on BP-103",
+    front: ["BOWMAN", "1ST BOWMAN", "ETHAN SALAS", "SAN DIEGO PADRES", "C"],
+    back: ["ETHAN SALAS", "8P-1O3", "SAN DIEGO PADRES", TOPPS_2024],
+    backAlternates: [[], ["BP-103", "BP-1O3"], [], []],
+    truth: { player: "Ethan Salas", year: "2024", set: "Bowman", number: "BP-103", parallel: "", run: null },
+  },
+  {
+    name: "Alternates trap: Maye, two next readings disagree on the run (/149 or /199)",
+    front: ["PRIZM", "DRAKE MAYE", "PATRIOTS", "RC", "O45/l49"],
+    alternates: [[], [], [], [], ["045/149", "045/199"]],
+    back: ["No. 329", "DRAKE MAYE", "QUARTERBACK", "2024 PANINI - PRIZM FOOTBALL", PANINI_2024],
+    truth: { player: "Drake Maye", year: "2024", set: "Panini Prizm", number: "329", parallel: "Orange", run: 149 },
+  },
+  {
+    name: "Alternates trap: Maye, a next reading would change a card # that read clearly",
+    front: ["PRIZM", "DRAKE MAYE", "PATRIOTS", "RC", "045/149"],
+    alternates: [[], ["DRAKE MAYS"], [], [], ["045/199"]],
+    back: ["No. 329", "DRAKE MAYE", "QUARTERBACK", "2024 PANINI - PRIZM FOOTBALL", PANINI_2024],
+    backAlternates: [["No. 829"], [], [], [], []],
+    truth: { player: "Drake Maye", year: "2024", set: "Panini Prizm", number: "329", parallel: "Orange", run: 149 },
+  },
+  {
+    name: "Alternates trap: Allen, the only next reading with a number is a jersey line",
+    front: ["PRIZM", "JOSH ALLEN", "BILLS", "~17 I QB"],
+    alternates: [[], [], [], ["#17 | QB"]],
+    back: null,
+    truth: { player: "Josh Allen", year: "2024", set: "Panini Prizm", number: "31", parallel: "", run: null },
+  },
+  {
+    name: "Alternates trap: Doncic slab, a next reading turns the cert into a '#' number; the barcode gives the cert",
+    kind: "slab",
+    front: ["PSA", "2018 PANINI PRIZM", "LUKA DONCIC", "SILVER PRIZM", "GEM MT 10", "4567B912"],
+    alternates: [[], [], [], [], [], ["#45678912"]],
+    barcodeCert: "45678912",
+    back: null,
+    truth: { player: "Luka Doncic", year: "2018-19", set: "Panini Prizm", number: "280", parallel: "Silver", run: null, grade: "PSA 10", cert: "45678912" },
+  },
+
   // ── Hockey ─────────────────────────────────────────────────────────────────
   {
     name: "Upper Deck: Celebrini Young Guns, series on the back",

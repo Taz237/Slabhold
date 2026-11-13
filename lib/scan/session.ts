@@ -23,6 +23,12 @@ export type ScanCapture = {
   kind: "card" | "slab" | null;
   /** The border's color name from the photo (pink, red, purple...), read on the phone. Null when unclear. */
   border?: string | null;
+  /** Each line's next best readings, same order as `lines`. Only ever used to fill an open field (alternates.ts). */
+  alternates?: string[][] | null;
+  /** The same for `backLines`. */
+  backAlternates?: string[][] | null;
+  /** A slab's cert number from its barcode. Only ever the cert, never the card #. */
+  cert?: string | null;
 };
 
 /** The scanner's slab or card call wins; with no call, a label-looking read is a slab. */
@@ -31,7 +37,11 @@ export function scanReadFrom(capture: ScanCapture, directory: readonly IndexedDi
   if (slab) {
     // The label is gold: the line that names a player we know is the player line, wherever it sits.
     const playerScore = (line: string) => findPlayers([line], directory)[0]?.score ?? 0;
-    return { kind: "slab", label: readSlabLabel(capture.lines, { playerScore }) };
+    const label = readSlabLabel(capture.lines, { playerScore });
+    // The barcode's cert fills the cert when the label's own wasn't read. It is never the card #.
+    if (!label.certNumber && capture.cert) label.certNumber = capture.cert;
+    if (label.certNumber && label.cardNumber.replace(/\D/g, "") === label.certNumber.replace(/\D/g, "")) label.cardNumber = "";
+    return { kind: "slab", label };
   }
   return {
     kind: "raw",

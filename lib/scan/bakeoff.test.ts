@@ -6,7 +6,8 @@ import { BAKEOFF_CASES, type BakeoffCase } from "./bakeoff-fixtures";
 import { WIDE_BAKEOFF_CASES } from "./bakeoff-fixtures-wide";
 import { lookupLiveSolds } from "./live-solds";
 import { rankScanMatches, type ScanMatch } from "./match";
-import { scanReadFrom } from "./session";
+import { withAlternates } from "./alternates";
+import { scanReadFrom, type ScanCapture } from "./session";
 
 /**
  * The bake-off: every real-world scan through the same path the app takes
@@ -31,8 +32,24 @@ function mark(got: string, truth: string): Mark {
   return norm(got) === norm(truth) ? "right" : "wrong";
 }
 
+/** The capture as the hub hands it on: the phone's alternates settled into plain lines first. */
+function captureOf(scan: BakeoffCase): ScanCapture {
+  return withAlternates(
+    {
+      lines: scan.front,
+      backLines: scan.back,
+      image: null,
+      kind: scan.kind === undefined ? "card" : scan.kind,
+      alternates: scan.alternates ?? null,
+      backAlternates: scan.backAlternates ?? null,
+      cert: scan.barcodeCert ?? null,
+    },
+    INDEXED_DIRECTORY,
+  );
+}
+
 function read(scan: BakeoffCase) {
-  return scanReadFrom({ lines: scan.front, backLines: scan.back, image: null, kind: scan.kind === undefined ? "card" : scan.kind }, INDEXED_DIRECTORY);
+  return scanReadFrom(captureOf(scan), INDEXED_DIRECTORY);
 }
 
 function top(scan: BakeoffCase): ScanMatch | undefined {
