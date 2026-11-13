@@ -58,13 +58,11 @@ export function LandingPage({ founder = null }: { founder?: FounderShowcase | nu
           </div>
         </section>
 
+        <FounderNote />
+
         <FeaturePanels />
 
-        <div className="landing-reveal mt-24 lg:mx-auto lg:mt-32 lg:w-full lg:max-w-md">
-          <FounderNote />
-        </div>
-
-        <section className="landing-reveal mt-10 rounded-[2rem] border border-white/[0.08] bg-white/[0.03] px-6 py-10 text-center">
+        <section className="landing-reveal mt-24 lg:mt-32 rounded-[2rem] border border-white/[0.08] bg-white/[0.03] px-6 py-10 text-center">
           <NoHeadPreload>
             <Logo className="mx-auto h-12 w-12" />
           </NoHeadPreload>

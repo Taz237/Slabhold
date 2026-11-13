@@ -356,6 +356,10 @@ describe("landing founder touch", () => {
     const html = renderToStaticMarkup(createElement(FounderNote));
     assert.match(html, /data-founder-note="plain"/);
     assert.match(text(html), /Built by collectors, for collectors\./);
+    // The slogan is the page's big statement: a heading in display type, right under the hero.
+    assert.match(html, /<h2 class="[^"]*lg:text-\[5\.5rem\]/);
+    const landing = read("components/landing-page.tsx");
+    assert.ok(landing.indexOf("<FounderNote />") < landing.indexOf("<FeaturePanels />"));
     assert.doesNotMatch(html, /<a |rounded-full|avatar|From the founder|Follow on Slabhold/);
     const source = read("components/landing/founder-note.tsx");
     assert.doesNotMatch(source, /showcase|profile|avatar|founder_follow/);
