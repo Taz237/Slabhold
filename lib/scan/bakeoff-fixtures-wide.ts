@@ -11,9 +11,9 @@ import type { BakeoffCase } from "./bakeoff-fixtures";
  * and cert numbers are made up in the real shapes; no real collector's data.
  * Scoring is the same as the first set: right, open or wrong. Open beats wrong.
  *
- * knownWrong marks the fields the scanner gets wrong today, so the misses are
- * written down and the test fails the day one is fixed without being unmarked,
- * or a new one appears. The goal is an empty list.
+ * No fixture here has a known miss: bakeoff.test.ts fails if any field on any
+ * scan reads wrong. A fixture may mark one with knownWrong only while a fix is
+ * in flight, and the test fails the day it stops being a miss.
  */
 
 const PANINI_2024 = "© 2024 Panini America, Inc. Printed in the USA.";
@@ -184,7 +184,8 @@ export const WIDE_BAKEOFF_CASES: BakeoffCase[] = [
     truth: { player: "Caleb Williams", year: "2024", set: "Panini Prizm", number: "301", parallel: "", run: null },
   },
   {
-    name: "Prizm Silver: Daniels, product line and © on one line, bare number",
+    // A lone number on a Panini back is a jersey as often as the card #, so the # stays open.
+    name: "Prizm Silver: Daniels, product line and © on one line, a lone number on a Panini back",
     front: ["PRIZM", "JAYDEN DANIELS", "COMMANDERS", "RC"],
     back: ["347", "JAYDEN DANIELS", "QUARTERBACK", "2024 PANINI - PRIZM FOOTBALL © 2024 Panini America, Inc. Printed in the USA."],
     truth: { player: "Jayden Daniels", year: "2024", set: "Panini Prizm", number: "347", parallel: "Silver", run: null },
