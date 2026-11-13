@@ -1,3 +1,4 @@
+import { usedAppleSignIn } from "@/lib/account/apple-sign-in";
 import { runAccountDelete, type AccountAdmin } from "@/lib/account/delete-account";
 import { flushValueBoardCache } from "@/lib/leaderboard/flush-cache";
 import { createSupabaseAdmin } from "@/lib/supabase/admin";
@@ -19,6 +20,16 @@ export async function POST(request: Request) {
 
   const sessionUserId = await getAuthUserId();
   const admin = sessionUserId ? createSupabaseAdmin() : null;
+  // Read before the delete: afterwards the login is gone. A failed lookup only skips the Apple note.
+  let apple = false;
+  if (admin && sessionUserId) {
+    try {
+      const { data } = await admin.auth.admin.getUserById(sessionUserId);
+      apple = usedAppleSignIn(data?.user);
+    } catch {
+      apple = false;
+    }
+  }
   const result = await runAccountDelete({
     sessionUserId,
     body,
@@ -34,5 +45,7 @@ export async function POST(request: Request) {
       );
     }
   }
-  return Response.json(result.body, { status: result.status });
+  // `apple`: the screen then shows how to remove Slabhold from the person's Apple Account.
+  const reply = result.status === 200 && apple ? { ...result.body, apple: true } : result.body;
+  return Response.json(reply, { status: result.status });
 }

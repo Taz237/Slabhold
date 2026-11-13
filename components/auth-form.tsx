@@ -1,5 +1,6 @@
 "use client";
 
+import { useNativeApp } from "@/components/onboarding/use-install-platform";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, lazy, useEffect, useId, useRef, useState, type ReactNode } from "react";
@@ -131,6 +132,8 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
   const destination = afterAuthPath(next);
   /** Opened from the installed app, which may not share Safari's login. */
   const fromApp = mode === "login" && params.get("app") === "1";
+  // The iPhone app: the confirm link finishes in the browser, so the screen says to come back.
+  const nativeApp = useNativeApp();
   const signedIn = Boolean(user);
   const captchaRef = useRef<CaptchaHandle>(null);
   const resendCaptchaRef = useRef<CaptchaHandle>(null);
@@ -394,6 +397,11 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
           <p className="mt-3 text-sm leading-5 text-zinc-500">
             Tap the link to finish. It usually lands within a minute. Check spam too.
           </p>
+          {nativeApp ? (
+            <p className="mt-2 text-sm leading-5 text-zinc-500 dark:text-zinc-400" data-confirm-in-app="">
+              The link opens in your browser. Once it&apos;s confirmed, come back here and log in.
+            </p>
+          ) : null}
         </div>
         <div className="mt-7 space-y-3">
           <a

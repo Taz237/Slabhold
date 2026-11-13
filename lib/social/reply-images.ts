@@ -2,7 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { isRenderablePostPhoto, normalizePostPhotos } from "./post-photos";
 import type { PostComment } from "./types";
 
-export const REPLY_PHOTOS_UNAVAILABLE = "Reply photos aren't available yet.";
+export const REPLY_PHOTOS_UNAVAILABLE = "Couldn't add the photo. Post the reply without it.";
 
 export const OPTIMISTIC_REPLY_PREFIX = "optimistic-reply-";
 

@@ -300,7 +300,7 @@ export function MessageThread({ username }: { username: string }) {
 
   return (
     <div data-dm-thread="" data-keyboard-inset={keyboardInset} className="-mx-4 -mt-5 -mb-28 flex flex-col" style={{ height: threadHeight(keyboardInset) }}>
-      <div className="flex shrink-0 items-center gap-2 border-b border-zinc-200/80 bg-[color-mix(in_oklab,var(--background)_88%,transparent)] px-2 py-1.5 backdrop-blur-xl dark:border-white/[0.08]">
+      <div className="flex shrink-0 items-center gap-2 border-b border-zinc-200/80 glass bg-[color-mix(in_oklab,var(--background)_88%,transparent)] px-2 py-1.5 backdrop-blur-xl dark:border-white/[0.08]">
         <button
           type="button"
           onClick={() => router.push("/messages")}
@@ -324,7 +324,7 @@ export function MessageThread({ username }: { username: string }) {
               <span className="truncate text-[15px] font-semibold leading-5">{partner.displayName}</span>
               <TeamBadge username={partner.username} inLink />
             </span>
-            <span className="block truncate text-xs text-zinc-500">@{partner.username}</span>
+            <span className="block truncate text-xs text-zinc-500 dark:text-zinc-400">@{partner.username}</span>
           </span>
         </Link>
         <button type="button" onClick={() => setDealOpen(true)} className="inline-flex min-h-11 shrink-0 items-center rounded-full px-3 text-xs font-semibold text-violet-700 dark:text-violet-300">
@@ -373,7 +373,7 @@ export function MessageThread({ username }: { username: string }) {
                 <p
                   key={row.key}
                   data-thread-time=""
-                  className="pt-4 pb-2 text-center text-[13px] font-medium text-zinc-500"
+                  className="pt-4 pb-2 text-center text-[13px] font-medium text-zinc-500 dark:text-zinc-400"
                 >
                   <time dateTime={row.at} title={exactTime(row.at)}>
                     {threadTimeLabel(row.at)}
@@ -401,7 +401,7 @@ export function MessageThread({ username }: { username: string }) {
 
       <form
         onSubmit={submit}
-        className="shrink-0 border-t border-zinc-200/80 bg-[color-mix(in_oklab,var(--background)_92%,transparent)] px-3 py-2 backdrop-blur-xl dark:border-white/[0.08]"
+        className="shrink-0 border-t border-zinc-200/80 glass bg-[color-mix(in_oklab,var(--background)_92%,transparent)] px-3 py-2 backdrop-blur-xl dark:border-white/[0.08]"
       >
         {error ? <p className="mb-1 text-xs text-rose-600 dark:text-rose-400">{error}</p> : null}
         {offerAttachment ? (
@@ -524,18 +524,18 @@ function MessageRow({
           <time
             data-bubble-time=""
             dateTime={message.createdAt}
-            className="mt-1 px-1 text-[11px] text-zinc-500 motion-safe:animate-[add-fade_160ms_ease-out_both]"
+            className="mt-1 px-1 text-[11px] text-zinc-500 dark:text-zinc-400 motion-safe:animate-[add-fade_160ms_ease-out_both]"
           >
             {exactTime(message.createdAt)}
           </time>
         ) : null}
         {sending ? (
-          <span data-sending-label="" className="mt-1 px-1 text-[11px] text-zinc-500">
+          <span data-sending-label="" className="mt-1 px-1 text-[11px] text-zinc-500 dark:text-zinc-400">
             Sending…
           </span>
         ) : null}
         {seen ? (
-          <span data-seen="" className="mt-1 px-1 text-[11px] font-semibold text-zinc-500">
+          <span data-seen="" className="mt-1 px-1 text-[11px] font-semibold text-zinc-500 dark:text-zinc-400">
             Seen
           </span>
         ) : null}
@@ -581,8 +581,8 @@ function ThreadHint({
         {name}
         <TeamBadge username={username} className="ml-1 align-[-2px]" />
       </p>
-      <p className="text-[13px] text-zinc-500">@{username}</p>
-      <p className="mt-4 max-w-[16rem] text-sm leading-5 text-zinc-500">
+      <p className="text-[13px] text-zinc-500 dark:text-zinc-400">@{username}</p>
+      <p className="mt-4 max-w-[16rem] text-sm leading-5 text-zinc-500 dark:text-zinc-400">
         This is the start of your conversation. Say hi, ask about a card, or talk pickups.
       </p>
     </div>

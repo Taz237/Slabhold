@@ -123,6 +123,16 @@ export function standaloneLoginPath(): string {
 }
 
 /**
+ * Where signed-out Home goes inside an app, or null for the landing page.
+ * The iPhone app opens on log in, never on the website's landing page. The
+ * home-screen app gets its "log in once" screen.
+ */
+export function appHomeLoginPath(platform: InstallPlatform | null, nativeApp: boolean): string | null {
+  if (nativeApp) return loginPath("/");
+  return platform === "installed" ? standaloneLoginPath() : null;
+}
+
+/**
  * Remembers the email for the installed app's login screen. iOS may copy
  * Safari's cookies into the app when it's added; localStorage never is.
  */

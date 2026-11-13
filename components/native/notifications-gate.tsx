@@ -37,7 +37,7 @@ export function NotificationsGate() {
   const note = (
     <div className="pb-4">
       <h1 className="text-2xl font-semibold tracking-tight">Notifications</h1>
-      <p className="mt-1.5 text-sm text-zinc-500">Notifications aren&apos;t on in the iPhone app yet</p>
+      <p className="mt-1.5 text-sm text-zinc-500">Push notifications are off in the iPhone app right now</p>
     </div>
   );
   return <NativeNotificationSettings fallback={note} />;

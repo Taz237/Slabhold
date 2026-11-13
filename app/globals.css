@@ -1619,3 +1619,30 @@ html:not([data-get-started-hidden]) [data-after-get-started] {
     animation: backdrop-in 300ms cubic-bezier(0.22, 1, 0.36, 1) both;
   }
 }
+
+/*
+ * Glass fallback. The header, tab bar, sticky bars (.glass) and sheet backdrops
+ * (.glass-scrim) blur what's behind them. With Reduce Transparency on, or in a
+ * browser with no backdrop-filter, they turn solid instead of see-through:
+ * the page background for chrome, a deep zinc for backdrops. Zinc only.
+ */
+@media (prefers-reduced-transparency: reduce) {
+  .glass {
+    background-color: var(--background) !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+  .glass-scrim {
+    background-color: rgb(9 9 11 / 0.9) !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+}
+@supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  .glass {
+    background-color: var(--background) !important;
+  }
+  .glass-scrim {
+    background-color: rgb(9 9 11 / 0.9) !important;
+  }
+}

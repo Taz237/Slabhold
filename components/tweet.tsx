@@ -126,7 +126,7 @@ export const Tweet = memo(function Tweet({
       }`}
     >
       {pinned ? (
-        <p className="flex items-center gap-3 px-4 pt-3 text-[13px] font-medium text-zinc-500">
+        <p className="flex items-center gap-3 px-4 pt-3 text-[13px] font-medium text-zinc-500 dark:text-zinc-400">
           <span className="grid w-10 shrink-0 place-items-center">
             <Pin className="h-4 w-4" aria-hidden="true" />
           </span>
@@ -137,7 +137,7 @@ export const Tweet = memo(function Tweet({
         <Link
           prefetch={false}
           href={userHref(repostedBy.username)}
-          className="flex items-center gap-3 px-4 pt-3 text-[13px] font-medium text-zinc-500"
+          className="flex items-center gap-3 px-4 pt-3 text-[13px] font-medium text-zinc-500 dark:text-zinc-400"
         >
           <span className="grid w-10 shrink-0 place-items-center">
             <Repeat2 className="h-4 w-4" />
@@ -146,7 +146,7 @@ export const Tweet = memo(function Tweet({
         </Link>
       ) : null}
       <div className={`flex gap-3 px-4 pb-1.5 ${pinned || repostedBy ? "pt-1" : "pt-3.5"}`}>
-      <Link prefetch={false} href={userHref(author.username)} className="shrink-0">
+      <Link prefetch={false} href={userHref(author.username)} aria-label={`${author.displayName}'s profile`} className="shrink-0">
         <Avatar name={author.displayName} image={author.avatarDataUrl} accent={author.accent} />
       </Link>
       <div className="min-w-0 flex-1">
@@ -257,17 +257,18 @@ function CommentPreview({ postId, comments }: { postId: string; comments: PostCo
               <Link
                 prefetch={false}
                 href={href}
+                aria-label={`${name}'s profile`}
                 className={`${person?.avatarDataUrl ? "" : "hit-44"} mt-0.5 inline-flex shrink-0`}
               >
                 <Avatar
                   name={name}
                   image={person?.avatarDataUrl}
                   accent={person?.accent}
-                  className="h-6 w-6 text-[9px]"
+                  className="h-6 w-6 text-[11px]"
                 />
               </Link>
             ) : (
-              <Avatar name={name} className="mt-0.5 h-6 w-6 text-[9px]" />
+              <Avatar name={name} className="mt-0.5 h-6 w-6 text-[11px]" />
             )}
             <div className="min-w-0">
               <div className="flex min-w-0 items-center gap-1">
@@ -335,12 +336,12 @@ export function AuthorLine({
       ) : (
         <TeamBadge username={username} />
       )}
-      <span className="min-w-0 truncate text-[14px] text-zinc-500">@{username}</span>
+      <span className="min-w-0 truncate text-[14px] text-zinc-500 dark:text-zinc-400">@{username}</span>
       {relative ? (
         <time
           dateTime={createdAt}
           title={exact || undefined}
-          className="shrink-0 text-[14px] whitespace-nowrap text-zinc-500"
+          className="shrink-0 text-[14px] whitespace-nowrap text-zinc-500 dark:text-zinc-400"
         >
           · {relative}
         </time>
@@ -393,7 +394,7 @@ function PostMenu({ post }: { post: Post }) {
           setConfirming(false);
           setOpen((value) => !value);
         }}
-        className="hit-44 grid h-8 w-8 place-items-center rounded-full text-zinc-500 hover:bg-zinc-100 dark:hover:bg-white/10"
+        className="hit-44 grid h-8 w-8 place-items-center rounded-full text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-white/10"
       >
         <Ellipsis className="h-5 w-5" />
       </button>
@@ -549,7 +550,7 @@ export function Engagement({
   }
 
   return (
-    <div data-engagement="" className="mt-0.5 -ml-2.5 flex min-w-0 items-center text-zinc-500">
+    <div data-engagement="" className="mt-0.5 -ml-2.5 flex min-w-0 items-center text-zinc-500 dark:text-zinc-400">
       <ActionButton label="Reply" count={replyCount} active={false} tone="violet" onClick={onReply}>
         <MessageCircle className="h-[18px] w-[18px]" />
       </ActionButton>

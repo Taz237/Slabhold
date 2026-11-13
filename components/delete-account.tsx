@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSocial } from "@/components/social-provider";
+import { APPLE_FINISH_COPY, APPLE_FINISH_STEPS } from "@/lib/account/apple-sign-in";
 import { isDeleteConfirmation } from "@/lib/account/delete-confirm";
 import { clearNewCardDraft } from "@/lib/cards/new-card-draft";
 
@@ -13,7 +14,15 @@ export function DeleteAccount() {
   const [typed, setTyped] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // The account is gone and it was a Sign in with Apple login: show how to finish with Apple.
+  const [appleStep, setAppleStep] = useState(false);
   const lock = useRef(false);
+
+  async function finish() {
+    clearNewCardDraft();
+    await signOut();
+    router.replace("/?notice=account-deleted");
+  }
 
   function close() {
     if (busy) return;
@@ -29,16 +38,18 @@ export function DeleteAccount() {
     setError(null);
     try {
       const response = await fetch("/api/account/delete", { method: "POST" });
-      const payload = (await response.json().catch(() => ({}))) as { error?: string };
+      const payload = (await response.json().catch(() => ({}))) as { error?: string; apple?: boolean };
       if (!response.ok) {
         setError(payload.error ?? "Couldn't delete your account.");
         lock.current = false;
         setBusy(false);
         return;
       }
-      clearNewCardDraft();
-      await signOut();
-      router.replace("/?notice=account-deleted");
+      if (payload.apple === true) {
+        setAppleStep(true);
+        return;
+      }
+      await finish();
     } catch {
       setError("Couldn't delete your account.");
       lock.current = false;
@@ -47,7 +58,7 @@ export function DeleteAccount() {
   }
 
   return (
-    <section className="mt-4 rounded-3xl border border-rose-300 bg-white p-4 dark:border-rose-400/30 dark:bg-white/[0.03]">
+    <section id="delete-account" className="mt-4 scroll-mt-20 rounded-3xl border border-rose-300 bg-white p-4 dark:border-rose-400/30 dark:bg-white/[0.03]">
       <h2 className="text-sm font-semibold text-rose-700 dark:text-rose-300">Delete account</h2>
       <p className="mt-2 text-sm leading-6 text-zinc-500">
         Permanently delete your Slabhold account and everything stored for it.
@@ -67,6 +78,8 @@ export function DeleteAccount() {
             aria-labelledby="delete-account-title"
             className="w-full max-w-md rounded-2xl bg-white p-5 dark:bg-zinc-950"
           >
+            {appleStep ? <AppleFinishStep onDone={() => void finish()} /> : (
+            <>
             <h2 id="delete-account-title" className="text-lg font-semibold">
               Delete account
             </h2>
@@ -108,9 +121,45 @@ export function DeleteAccount() {
                 {busy ? "Deleting…" : "Delete"}
               </button>
             </div>
+            </>
+            )}
           </div>
         </div>
       ) : null}
     </section>
+  );
+}
+
+/**
+ * After a Sign in with Apple account is deleted: where to remove Slabhold from
+ * the Apple Account, so nothing of the login is left with Apple either.
+ */
+export function AppleFinishStep({ onDone }: { onDone: () => void }) {
+  return (
+    <>
+      <h2 id="delete-account-title" className="text-lg font-semibold">
+        {APPLE_FINISH_COPY.title}
+      </h2>
+      <p className="mt-2 text-sm leading-6 text-zinc-600 dark:text-zinc-300">{APPLE_FINISH_COPY.body}</p>
+      <ol aria-label="Steps on your iPhone" className="mt-3 space-y-1">
+        {APPLE_FINISH_STEPS.map((step, index) => (
+          <li key={step} className="flex min-h-8 items-center gap-3 text-sm font-medium">
+            <span aria-hidden className="w-4 shrink-0 text-right font-mono text-xs tabular-nums text-zinc-500 dark:text-zinc-400">
+              {index + 1}
+            </span>
+            {step}
+          </li>
+        ))}
+      </ol>
+      <div className="mt-4 flex justify-end">
+        <button
+          type="button"
+          onClick={onDone}
+          className="hit-44 rounded-full bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-500 focus-visible:ring-2 focus-visible:ring-violet-600 focus-visible:ring-offset-2 focus-visible:outline-none dark:focus-visible:ring-offset-zinc-950"
+        >
+          {APPLE_FINISH_COPY.done}
+        </button>
+      </div>
+    </>
   );
 }

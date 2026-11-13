@@ -2,8 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { useInstallPlatform } from "@/components/onboarding/use-install-platform";
-import { standaloneLoginPath } from "@/lib/pwa/install-step";
+import { useInstallPlatform, useNativeApp } from "@/components/onboarding/use-install-platform";
+import { appHomeLoginPath } from "@/lib/pwa/install-step";
 
 /**
  * The installed app on signed-out Home: same as StandaloneLoginGate, for a
@@ -12,12 +12,13 @@ import { standaloneLoginPath } from "@/lib/pwa/install-step";
  */
 export function StandaloneRedirect() {
   const router = useRouter();
-  const installed = useInstallPlatform() === "installed";
+  // The iPhone app goes to log in as well: it never shows the website's landing page.
+  const loginPath = appHomeLoginPath(useInstallPlatform(), useNativeApp());
 
   useEffect(() => {
-    if (installed) router.replace(standaloneLoginPath());
-  }, [installed, router]);
+    if (loginPath) router.replace(loginPath);
+  }, [loginPath, router]);
 
-  if (!installed) return null;
+  if (!loginPath) return null;
   return <div className="fixed inset-0 z-50 min-h-dvh bg-[var(--background)]" />;
 }

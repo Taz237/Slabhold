@@ -84,7 +84,7 @@ export function MessagesView() {
       ) : (
         <>
           <label className="mx-4 mt-3 mb-1 flex min-h-11 items-center gap-2 rounded-full bg-zinc-200/60 px-4 focus-within:ring-2 focus-within:ring-violet-600 dark:bg-white/[0.07]">
-            <Search className="h-4 w-4 shrink-0 text-zinc-500" aria-hidden="true" />
+            <Search className="h-4 w-4 shrink-0 text-zinc-500 dark:text-zinc-400" aria-hidden="true" />
             <input
               type="search"
               value={query}
@@ -95,7 +95,7 @@ export function MessagesView() {
             />
           </label>
           {shown.length === 0 ? (
-            <p className="px-6 py-10 text-center text-sm text-zinc-500">No conversations match that.</p>
+            <p className="px-6 py-10 text-center text-sm text-zinc-500 dark:text-zinc-400">No conversations match that.</p>
           ) : (
             <ul className="mt-1">
               {shown.map((conversation) => (
@@ -150,7 +150,7 @@ function ConversationRow({ conversation, viewerId }: { conversation: Conversatio
             {person.displayName}
           </span>
           <TeamBadge username={person.username} inLink />
-          <span className="min-w-0 shrink truncate text-[13px] text-zinc-500">@{person.username}</span>
+          <span className="min-w-0 shrink truncate text-[13px] text-zinc-500 dark:text-zinc-400">@{person.username}</span>
           {stamp ? (
             <time
               dateTime={last.createdAt}
@@ -165,7 +165,7 @@ function ConversationRow({ conversation, viewerId }: { conversation: Conversatio
           {thumb ? <InboxThumb thumb={thumb} /> : null}
           <span
             className={`min-w-0 flex-1 truncate text-sm ${
-              fresh ? "font-semibold text-zinc-900 dark:text-zinc-50" : "text-zinc-500"
+              fresh ? "font-semibold text-zinc-900 dark:text-zinc-50" : "text-zinc-500 dark:text-zinc-400"
             }`}
           >
             {mine ? "You: " : ""}
@@ -209,7 +209,7 @@ function InboxEmpty({ suggestions, onStart }: { suggestions: Profile[]; onStart:
     <div data-inbox-empty="" className="px-6 pt-8 pb-6 text-center">
       <InboxArt />
       <p className="mt-5 text-[20px] leading-7 font-semibold tracking-tight">No messages yet</p>
-      <p className="mx-auto mt-1.5 max-w-[17rem] text-[15px] leading-5 text-zinc-500">
+      <p className="mx-auto mt-1.5 max-w-[17rem] text-[15px] leading-5 text-zinc-500 dark:text-zinc-400">
         Talk cards, trades and pickups with other collectors.
       </p>
       <button
@@ -221,7 +221,7 @@ function InboxEmpty({ suggestions, onStart }: { suggestions: Profile[]; onStart:
       </button>
       {suggestions.length > 0 ? (
         <div className="mx-auto mt-8 max-w-sm text-left">
-          <p className="px-1 font-mono text-[11px] font-semibold text-zinc-500">
+          <p className="px-1 font-mono text-[11px] font-semibold text-zinc-500 dark:text-zinc-400">
             Collectors to message
           </p>
           <ul className="mt-2 overflow-hidden rounded-2xl border border-zinc-200 bg-white dark:border-white/10 dark:bg-white/[0.03]">
@@ -241,7 +241,7 @@ function InboxEmpty({ suggestions, onStart }: { suggestions: Profile[]; onStart:
                     <span className="truncate text-[15px] leading-5 font-semibold tracking-tight">{person.displayName}</span>
                     <TeamBadge username={person.username} />
                   </span>
-                  <span className="block truncate text-[13px] leading-5 text-zinc-500">@{person.username}</span>
+                  <span className="block truncate text-[13px] leading-5 text-zinc-500 dark:text-zinc-400">@{person.username}</span>
                 </span>
                 <Link
                   href={userHref(person.username, "messages")}

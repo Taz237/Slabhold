@@ -36,7 +36,7 @@ describe("install copy in the iOS app", () => {
     assert.match(gate, /useSyncExternalStore\(noopSubscribe, isNativeApp, \(\) => false\)/, "the server renders the web page");
     assert.match(gate, /if \(!native\) return <NotificationSettings \/>;/);
     assert.match(gate, /<h1[^>]*>Notifications<\/h1>/);
-    assert.match(gate, /text-zinc-500">Notifications aren&apos;t on in the iPhone app yet</);
+    assert.match(gate, /text-zinc-500">Push notifications are off in the iPhone app right now</);
     assert.doesNotMatch(read("components/push/notification-settings.tsx"), /lib\/ios/, "notification-settings is hands off");
   });
 });

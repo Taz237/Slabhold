@@ -52,7 +52,7 @@ export function SalesDots({
           />
         ))}
       </div>
-      <figcaption className="mt-1 flex justify-between font-mono text-[11px] text-zinc-500 tabular-nums" aria-hidden>
+      <figcaption className="mt-1 flex justify-between font-mono text-[11px] text-zinc-500 dark:text-zinc-400 tabular-nums" aria-hidden>
         <span>{first}</span>
         {last !== first ? <span>{last}</span> : null}
       </figcaption>

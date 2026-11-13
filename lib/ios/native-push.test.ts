@@ -105,7 +105,7 @@ describe("iPhone app push: wiring", () => {
 
   it("keeps today's note text in the gate for old builds and APNs off", () => {
     const gate = read("components/native/notifications-gate.tsx");
-    assert.match(gate, /Notifications aren&apos;t on in the iPhone app yet/);
+    assert.match(gate, /Push notifications are off in the iPhone app right now/);
     assert.match(gate, /<NativeNotificationSettings fallback=\{note\} \/>/);
     const settings = read("components/native/native-notification-settings.tsx");
     assert.match(settings, /if \(mode === "note"\) return <>\{fallback\}<\/>;/);

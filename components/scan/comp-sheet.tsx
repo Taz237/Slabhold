@@ -112,7 +112,7 @@ export function CompSheet({ photo, state, lookup, onAdd, onScanAnother, onSearch
 function SimilarEstimate({ estimate }: { estimate: ScanEstimate }) {
   return (
     <section data-slot="similar-estimate" aria-label={COMP_COPY.estimate} className="mt-4 border-t border-zinc-200 pt-4 dark:border-white/10">
-      <p className="text-[13px] font-medium text-zinc-500">{COMP_COPY.estimate}</p>
+      <p className="text-[13px] font-medium text-zinc-500 dark:text-zinc-400">{COMP_COPY.estimate}</p>
       <p className="mt-1 font-mono text-xl leading-7 font-medium text-zinc-700 tabular-nums dark:text-zinc-300">
         <span className="sr-only">About </span>
         <span aria-hidden>~</span>
@@ -124,19 +124,19 @@ function SimilarEstimate({ estimate }: { estimate: ScanEstimate }) {
           : ""}
         {estimate.nSales} sales of {estimate.basis}
       </p>
-      <p className="mt-4 text-[13px] font-medium text-zinc-500">{COMP_COPY.estimateExamples}</p>
+      <p className="mt-4 text-[13px] font-medium text-zinc-500 dark:text-zinc-400">{COMP_COPY.estimateExamples}</p>
       <ul className="mt-1 divide-y divide-zinc-200 dark:divide-white/10">
         {estimate.examples.map((sale, index) => (
           <li key={`${sale.player}-${index}`} className="flex min-h-10 items-center justify-between gap-3 text-sm">
             <span className="min-w-0 truncate">
               {sale.player}
-              <span className="text-zinc-500"> · {saleDay(sale.soldAt)}</span>
+              <span className="text-zinc-500 dark:text-zinc-400"> · {saleDay(sale.soldAt)}</span>
             </span>
             <span className="shrink-0 font-mono font-medium tabular-nums">{dollars(sale.priceCents)}</span>
           </li>
         ))}
       </ul>
-      <p className="mt-3 text-xs leading-4 text-zinc-500">
+      <p className="mt-3 text-xs leading-4 text-zinc-500 dark:text-zinc-400">
         {COMP_COPY.estimateNote} {COMP_COPY.credit}
       </p>
     </section>
@@ -347,7 +347,7 @@ function ValuePanel({
     return (
       <div className={box} aria-busy="true">
         {looking ? (
-          <p className="mb-3 text-[13px] font-medium text-zinc-500" role="status">
+          <p className="mb-3 text-[13px] font-medium text-zinc-500 dark:text-zinc-400" role="status">
             {COMP_COPY.looking}
           </p>
         ) : (
@@ -409,7 +409,7 @@ function ValuePanel({
     <div className={box}>
       {result.medianCents != null ? (
         <>
-          <p className="text-[13px] font-medium text-zinc-500">
+          <p className="text-[13px] font-medium text-zinc-500 dark:text-zinc-400">
             {COMP_COPY.value}
             {result.parallel ? (
               // Named by the sales it's priced from, so a Fuchsia /299 is never called Base.
@@ -448,7 +448,7 @@ function ValuePanel({
 
       <SalesDots sales={result.sales} medianCents={result.medianCents} lowCents={result.lowCents} highCents={result.highCents} />
 
-      <p className="mt-4 text-[13px] font-medium text-zinc-500">
+      <p className="mt-4 text-[13px] font-medium text-zinc-500 dark:text-zinc-400">
         {COMP_COPY.sales}
         {result.parallel ? (
           <span>
@@ -469,7 +469,7 @@ function ValuePanel({
       {onPick && result.parallel === "Base" && result.groups ? (
         <OtherGroups groups={result.groups.filter((group) => group.label !== "Base")} onPick={onPick} />
       ) : null}
-      <p className="mt-3 text-xs text-zinc-500">
+      <p className="mt-3 text-xs text-zinc-500 dark:text-zinc-400">
         {COMP_COPY.credit}
         {result.asOf ? ` · updated ${formatRelativeTime(result.asOf)}` : ""}
       </p>

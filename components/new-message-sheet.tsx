@@ -85,7 +85,7 @@ export function NewMessageSheet({ onClose }: { onClose: () => void }) {
         aria-label="Close"
         tabIndex={-1}
         onClick={onClose}
-        className="absolute inset-0 bg-zinc-950/40 backdrop-blur-[2px] motion-safe:animate-[lightbox-fade_180ms_ease-out_both]"
+        className="glass-scrim absolute inset-0 bg-zinc-950/40 backdrop-blur-[2px] motion-safe:animate-[lightbox-fade_180ms_ease-out_both]"
       />
       <div
         role="dialog"

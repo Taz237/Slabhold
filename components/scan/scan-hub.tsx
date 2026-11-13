@@ -39,6 +39,8 @@ export type ScanHubDeps = {
   solds: (capture: ScanCapture, matches: ScanMatch[], signal: AbortSignal) => Promise<LiveSoldsResult | null>;
   compLookup: CompLookup;
   online: () => boolean;
+  /** Inside the iPhone app. There, a scanner that didn't load is an error, not "coming soon". */
+  nativeApp: () => boolean;
 };
 
 /** The phone's alternate readings fill open fields (lib/scan/alternates.ts); the result is plain lines. */
@@ -133,6 +135,7 @@ const defaultDeps: ScanHubDeps = {
   solds: defaultSolds,
   compLookup: defaultCompLookup,
   online: () => (typeof navigator === "undefined" ? true : navigator.onLine !== false),
+  nativeApp: isNativeApp,
 };
 
 /**
@@ -311,11 +314,17 @@ export function ScanHub({
     <div className="flex min-h-[70dvh] flex-col">
       <h1 className="text-2xl font-semibold tracking-tight">{comp ? HUB_COPY.compTitle : HUB_COPY.addTitle}</h1>
       <p className="mt-1 text-sm leading-5 text-zinc-600 dark:text-zinc-400">{comp ? HUB_COPY.compBody : HUB_COPY.addBody}</p>
-      <p className="mt-3 text-[13px] text-zinc-500">{HUB_COPY.unlimited}</p>
+      <p className="mt-3 text-[13px] text-zinc-500 dark:text-zinc-400">{HUB_COPY.unlimited}</p>
 
       {available === false ? (
         <p className="mt-6 rounded-2xl border border-zinc-200 p-4 text-sm leading-5 text-zinc-600 dark:border-white/10 dark:text-zinc-400">
-          {comp ? HUB_COPY.compReaderSoon : HUB_COPY.readerSoon}
+          {deps.nativeApp()
+            ? comp
+              ? HUB_COPY.compScannerDown
+              : HUB_COPY.scannerDown
+            : comp
+              ? HUB_COPY.compReaderSoon
+              : HUB_COPY.readerSoon}
         </p>
       ) : null}
 
