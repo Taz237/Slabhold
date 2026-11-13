@@ -239,3 +239,102 @@ describe("looksLikeSlabLabel", () => {
     assert.equal(looksLikeSlabLabel(["LUKA DONCIC", "DALLAS", "PRIZM", "ROOKIE"]), false);
   });
 });
+
+describe("readSlabLabel: messy reads", () => {
+  it("reads SGC's short grades: 10 GM, 9 MT, 9.5 MT+, 8.5 NM/MT+, 10 PRI", () => {
+    const grade = (line: string) => {
+      const read = readSlabLabel(["SGC", "2011 TOPPS UPDATE", "MIKE TROUT", "#US175", line, "1357924"]);
+      return [read.gradeNumber, read.varietyText];
+    };
+    assert.deepEqual(grade("10 GM"), ["10", ""]);
+    assert.deepEqual(grade("9 MT"), ["9", ""]);
+    assert.deepEqual(grade("9.5 MT+"), ["9.5", ""]);
+    assert.deepEqual(grade("8.5 NM/MT+"), ["8.5", ""]);
+    assert.deepEqual(grade("10 PRI"), ["10", ""]);
+  });
+
+  it("takes a row of four grade numbers as BGS subgrades, not card text", () => {
+    const read = readSlabLabel(["2020 PANINI PRIZM", "#325 JUSTIN HERBERT", "SILVER PRIZM", "GEM MINT 9.5", "9.5 9.5 9.5 10", "0012345678"]);
+    assert.equal(read.hasSubgrades, true);
+    assert.equal(read.grader, "BGS");
+    assert.equal(read.gradeNumber, "9.5");
+    assert.equal(read.varietyText, "SILVER PRIZM");
+  });
+
+  it("reads a grade at the end of card lines when the rows are read across", () => {
+    const read = readSlabLabel(["2018 PANINI PRIZM #280", "LUKA DONCIC GEM MT", "SILVER PRIZM 10", "PSA", "45678912"]);
+    assert.equal(read.gradeNumber, "10");
+    assert.equal(read.playerText, "LUKA DONCIC");
+    assert.equal(read.varietyText, "SILVER PRIZM");
+    assert.equal(read.cardNumber, "280");
+    assert.equal(read.certNumber, "45678912");
+  });
+
+  it("never takes a set's SERIES 2, or a number the grade words don't stand for, as the grade", () => {
+    const read = readSlabLabel(["CGC", "Connor Bedard", "2023 Upper Deck Series 2", "#451 Young Guns", "MINT", "4098765432"]);
+    assert.equal(read.setName, "Upper Deck Series 2");
+    assert.equal(read.gradeNumber, "9");
+    const eight = readSlabLabel(["PSA", "2020 PANINI PRIZM", "#325", "JUSTIN HERBERT", "SILVER PRIZM 10", "NM-MT", "52345678"]);
+    assert.equal(eight.gradeNumber, "8", "NM-MT stands for 8: the 10 stays where it was printed");
+    assert.equal(eight.varietyText, "SILVER PRIZM 10");
+  });
+
+  it("reads a stamped serial off the label and keeps it out of the variety and the card #", () => {
+    const full = readSlabLabel(["BECKETT", "2023 BOWMAN CHROME", "PROSPECT AUTOGRAPHS #CPA-MC", "MAX CLARK", "REFRACTOR AUTO 432/499", "9.5", "AUTOGRAPH 10", "0015551234"]);
+    assert.deepEqual(full.serial, { number: "432", run: "499" });
+    assert.equal(full.cardNumber, "CPA-MC");
+    assert.equal(full.varietyText.includes("499"), false);
+    assert.equal(full.autoGrade, "10");
+    const run = readSlabLabel(["PSA", "2024 PANINI PRIZM", "#301", "CALEB WILLIAMS", "BLUE ICE PRIZM /99", "GEM MT 10", "99887766"]);
+    assert.deepEqual(run.serial, { number: "", run: "99" });
+    assert.equal(run.varietyText, "BLUE ICE PRIZM");
+    assert.equal(readSlabLabel(["PSA", "2023/24 PANINI PRIZM", "#136", "VICTOR WEMBANYAMA", "GEM MT 10"]).serial, null, "a season is not a serial");
+  });
+
+  it("reads PSA's CHR. as Chrome, and a set name that wraps onto the next line", () => {
+    const short = readSlabLabel(["PSA", "2022 BOWMAN CHR.", "PROSPECTS", "#BCP-153", "JACKSON CHOURIO", "GEM MT 10", "71234567"]);
+    assert.equal(short.setName, "Bowman Chrome");
+    assert.equal(short.playerText, "JACKSON CHOURIO");
+    assert.equal(short.varietyText, "PROSPECTS");
+    const wrapped = readSlabLabel(["PSA", "2023 TOPPS CHROME", "UPDATE", "#USC150", "ELLY DE LA CRUZ", "MINT 9", "81234567"]);
+    assert.equal(wrapped.setName, "Topps Chrome Update");
+    assert.equal(wrapped.playerText, "ELLY DE LA CRUZ");
+    assert.equal(wrapped.varietyText, "");
+  });
+
+  it("finds the player line wherever it sits when the caller knows the player", () => {
+    const playerScore = (line: string) => (line.includes("LUKA DONCIC") ? 1 : 0);
+    const read = readSlabLabel(["45678912", "GEM MT 10", "SILVER PRIZM", "LUKA DONCIC", "#280", "2018 PANINI PRIZM", "PSA"], { playerScore });
+    assert.equal(read.playerText, "LUKA DONCIC");
+    assert.equal(read.varietyText, "SILVER PRIZM");
+    assert.equal(read.yearLabel, "2018");
+    assert.equal(read.cardNumber, "280");
+  });
+
+  it("with no known player, takes the first line shaped like a name, never a set or variety line", () => {
+    const read = readSlabLabel(["PSA", "2025 BOWMAN CHROME", "PROSPECTS", "#BCP-12", "CHARLIE CONDON", "GEM MT 10", "61234567"]);
+    assert.equal(read.playerText, "CHARLIE CONDON");
+    assert.equal(read.varietyText, "PROSPECTS");
+    const reversed = readSlabLabel(["61234567", "GEM MT 10", "SILVER PRIZM", "C.J. STROUD", "#339", "2023 PANINI PRIZM", "PSA"]);
+    assert.equal(reversed.playerText, "C.J. STROUD");
+    assert.equal(reversed.varietyText, "SILVER PRIZM");
+  });
+
+  it("takes a rookie mark off the player line and still flags the rookie", () => {
+    const read = readSlabLabel(["BGS", "2020 PANINI PRIZM #325", "JUSTIN HERBERT - RC", "SILVER PRIZM", "9.5", "GEM MINT", "0012345678"]);
+    assert.equal(read.playerText, "JUSTIN HERBERT");
+    assert.equal(read.isRookie, true);
+    assert.equal(readSlabLabel(["2023 TOPPS CHROME UPDATE REFRACTOR", "#USC150", "ELLY DE LA CRUZ RC", "PSA", "MINT 9"]).playerText, "ELLY DE LA CRUZ");
+  });
+
+  it("never reads the cert as the card #, labelled or not", () => {
+    for (const lines of [
+      ["2024 PANINI PRIZM", "CALEB WILLIAMS", "RC", "GEM MT 10", "PSA", "98765432"],
+      ["CGC CARDS", "2023 Panini Prizm", "Victor Wembanyama", "Silver Prizm", "GEM MINT 10", "Cert #4123456789"],
+    ]) {
+      const read = readSlabLabel(lines);
+      assert.equal(read.cardNumber, "", lines.join(" | "));
+      assert.ok(read.certNumber.length >= 8);
+    }
+  });
+});

@@ -111,6 +111,16 @@ const TITLE_SUPPORT_MAX = 18;
 
 /** Label words that mark an autograph or rookie, not a parallel. */
 const FLAG_WORDS = new Set(["rookie", "rc", "auto", "autos", "autograph", "autographs", "autographed"]);
+/** Label words that name a subset of the set (Prospects, Rookie Ticket, Young Guns), never a parallel. */
+const SLAB_SUBSET_WORDS = new Set(["prospect", "prospects", "ticket", "young", "guns", "rated", "1st"]);
+
+/** The parallel words on a slab's variety line: no flags, subset names, stray numbers, or a trailing "Prizm". */
+function slabParallelWords(varietyText: string): string[] {
+  const kept = words(varietyText).filter((word) => !FLAG_WORDS.has(word) && !SLAB_SUBSET_WORDS.has(word) && !/^\d+$/.test(word));
+  // "SILVER PRIZM" is Silver. "PRIZM" alone is the parallel's own name (2012's Prizm), so it stays.
+  const colors = kept.filter((word) => word !== "prizm" && word !== "prizms");
+  return colors.length > 0 ? colors : kept;
+}
 
 type Evidence = {
   slab: boolean;
@@ -156,7 +166,8 @@ function titleCase(text: string): string {
     .toLowerCase()
     .replace(/\s+/g, " ")
     .trim()
-    .replace(/(^|[\s-])([a-z])/g, (_match, lead: string, letter: string) => `${lead}${letter.toUpperCase()}`);
+    // "C.J. STROUD" is C.J. Stroud: a letter after a period starts a word too.
+    .replace(/(^|[\s.-])([a-z])/g, (_match, lead: string, letter: string) => `${lead}${letter.toUpperCase()}`);
 }
 
 function cardNumberKey(value: string): string {
@@ -194,8 +205,8 @@ function evidenceFrom(read: ScanRead, directory: readonly IndexedDirectoryPlayer
       setNames: label.setName ? [label.setName] : [],
       setText: label.setName ? "" : label.setText,
       cardNumber: looksLikeCatalogSku(label.cardNumber) ? "" : label.cardNumber,
-      serial: null,
-      parallelWords: variety.filter((word) => !FLAG_WORDS.has(word)),
+      serial: label.serial ?? null,
+      parallelWords: slabParallelWords(label.varietyText),
       isRookie: label.isRookie,
       isAuto: Boolean(label.autoGrade) || variety.some((word) => word.startsWith("auto")),
       grade: {
@@ -548,17 +559,21 @@ function pickParallel(evidence: Evidence, checklist: ProductParallel[], titles: 
   const runOf = (option: ProductParallel | undefined) => option?.serialRun ?? null;
 
   if (evidence.slab) {
+    // A serial stamped on the label ("432/499", "/99") is the card's run.
+    const labelRun = evidence.serial ? Number(evidence.serial.run) : null;
     if (evidence.parallelWords.length === 0) {
+      // A numbered card is never Base: with no parallel named, it stays open.
+      if (labelRun != null) return { parallel: "", sureness: "unsure", serialRun: labelRun, options: [] };
       const base = checklist.find((option) => parallelMatchKey(option.name) === "base") ?? { name: "Base", serialRun: null };
       return { parallel: "Base", sureness: "sure", serialRun: null, options: [base] };
     }
     const named = longestNamed(checklist, evidence.parallelWords);
     if (named.length === 1) {
-      return { parallel: named[0].name, sureness: "sure", serialRun: runOf(named[0]), options: named };
+      return { parallel: named[0].name, sureness: "sure", serialRun: labelRun ?? runOf(named[0]), options: named };
     }
     // Printed on the label, but not a parallel our lists know: keep the label's words.
     const printed = titleCase(evidence.parallelWords.join(" "));
-    return { parallel: printed, sureness: "likely", serialRun: null, options: [{ name: printed, serialRun: null }] };
+    return { parallel: printed, sureness: "likely", serialRun: labelRun, options: [{ name: printed, serialRun: labelRun }] };
   }
 
   const run = evidence.serial ? Number(evidence.serial.run) : null;

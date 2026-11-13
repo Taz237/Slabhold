@@ -37,7 +37,6 @@ export const WIDE_BAKEOFF_CASES: BakeoffCase[] = [
   },
   {
     name: "Slab PSA: Doncic, label read upside down (lines reversed)",
-    knownWrong: ["player", "year", "parallel"],
     kind: "slab",
     front: ["45678912", "GEM MT 10", "SILVER PRIZM", "LUKA DONCIC", "#280", "2018 PANINI PRIZM", "PSA"],
     back: null,
@@ -66,7 +65,6 @@ export const WIDE_BAKEOFF_CASES: BakeoffCase[] = [
   },
   {
     name: "Slab PSA: Chourio Bowman Chrome, PSA's abbreviations and a wrapped set line",
-    knownWrong: ["player", "set", "parallel"],
     kind: "slab",
     front: ["PSA", "2022 BOWMAN CHR.", "PROSPECTS", "#BCP-153", "JACKSON CHOURIO", "GEM MT 10", "71234567"],
     back: null,
@@ -88,7 +86,6 @@ export const WIDE_BAKEOFF_CASES: BakeoffCase[] = [
   },
   {
     name: "Slab PSA: Williams Blue Ice Prizm /99",
-    knownWrong: ["parallel"],
     kind: "slab",
     front: ["PSA", "2024 PANINI PRIZM", "#301", "CALEB WILLIAMS", "BLUE ICE PRIZM /99", "GEM MT 10", "99887766"],
     back: null,
@@ -96,7 +93,6 @@ export const WIDE_BAKEOFF_CASES: BakeoffCase[] = [
   },
   {
     name: "Slab PSA: Wembanyama Tiger Stripe Prizm",
-    knownWrong: ["parallel"],
     kind: "slab",
     front: ["PSA", "2023 PANINI PRIZM", "#136", "VICTOR WEMBANYAMA", "TIGER STRIPE PRIZM", "GEM MT 10", "77665544"],
     back: null,
@@ -111,7 +107,6 @@ export const WIDE_BAKEOFF_CASES: BakeoffCase[] = [
   },
   {
     name: "Slab PSA: Burrow Contenders Rookie Ticket auto, dual grade",
-    knownWrong: ["parallel"],
     kind: "slab",
     front: ["PSA", "2020 PANINI CONTENDERS", "#103", "JOE BURROW", "ROOKIE TICKET AUTO", "NM-MT 8", "AUTO 10", "55443322"],
     back: null,
@@ -126,7 +121,6 @@ export const WIDE_BAKEOFF_CASES: BakeoffCase[] = [
   },
   {
     name: "Slab PSA: Condon Bowman Chrome, a prospect our directory doesn't have, wrapped set line",
-    knownWrong: ["player", "parallel"],
     kind: "slab",
     front: ["PSA", "2025 BOWMAN CHROME", "PROSPECTS", "#BCP-12", "CHARLIE CONDON", "GEM MT 10", "61234567"],
     back: null,
@@ -148,7 +142,6 @@ export const WIDE_BAKEOFF_CASES: BakeoffCase[] = [
   },
   {
     name: "Slab BGS: Clark Bowman Chrome prospect auto refractor /499",
-    knownWrong: ["player"],
     kind: "slab",
     front: ["BECKETT", "2023 BOWMAN CHROME", "PROSPECT AUTOGRAPHS #CPA-MC", "MAX CLARK", "REFRACTOR AUTO 432/499", "9.5", "AUTOGRAPH 10", "0015551234"],
     back: null,
@@ -156,7 +149,6 @@ export const WIDE_BAKEOFF_CASES: BakeoffCase[] = [
   },
   {
     name: "Slab SGC: Wembanyama Prizm base, '10 GM'",
-    knownWrong: ["parallel"],
     kind: "slab",
     front: ["SGC", "2023-24 PANINI PRIZM", "VICTOR WEMBANYAMA", "#136", "10 GM", "7654321"],
     back: null,
@@ -164,7 +156,6 @@ export const WIDE_BAKEOFF_CASES: BakeoffCase[] = [
   },
   {
     name: "Slab SGC: Trout Topps Update, '9 MT'",
-    knownWrong: ["parallel"],
     kind: "slab",
     front: ["SGC", "2011 TOPPS UPDATE", "MIKE TROUT", "#US175", "9 MT", "1357924"],
     back: null,
@@ -179,7 +170,6 @@ export const WIDE_BAKEOFF_CASES: BakeoffCase[] = [
   },
   {
     name: "Slab CGC: Bedard Young Guns, player first",
-    knownWrong: ["parallel"],
     kind: "slab",
     front: ["CGC", "Connor Bedard", "2023 Upper Deck Series 2", "#451 Young Guns", "MINT 9", "4098765432"],
     back: null,

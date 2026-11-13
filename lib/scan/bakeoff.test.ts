@@ -139,6 +139,16 @@ describe("the scanner bake-off", () => {
     });
   });
 
+  it("slab labels are gold: every slab reads its year, set, player and parallel off the label, with no miss", () => {
+    ALL_CASES.forEach((scan, index) => {
+      if (!scan.truth.cert) return;
+      assert.deepEqual(scan.knownWrong ?? [], [], scan.name);
+      const row = rows[index];
+      for (const field of ["player", "year", "set", "parallel", "run"] as const) assert.equal(row[field], "right", `${scan.name}: ${field}: ${row.shown}`);
+      assert.notEqual(row.number, "wrong", scan.name);
+    });
+  });
+
   it("the first set has no known misses", () => {
     for (const scan of BAKEOFF_CASES) assert.deepEqual(scan.knownWrong ?? [], [], scan.name);
   });
@@ -157,10 +167,8 @@ describe("the scanner bake-off", () => {
       assert.notEqual(match.cardNumber.replace(/\D/g, ""), scan.truth.cert!.replace(/\D/g, ""), `${scan.name}: the cert as the card #`);
       assert.ok(!match.cardNumber.includes(scan.truth.cert!), scan.name);
       if (scan.truth.grade) {
-        // The grader is the label's; the number is the label's or not read yet, never another number.
-        const [company, number] = scan.truth.grade.split(" ");
-        assert.equal(match.grade?.company, company, scan.name);
-        if (match.grade?.number) assert.equal(match.grade.number, number, scan.name);
+        // The grader and the grade are the label's, every time.
+        assert.equal(`${match.grade?.company ?? ""} ${match.grade?.number ?? ""}`.trim(), scan.truth.grade, scan.name);
       }
     }
   });

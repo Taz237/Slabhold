@@ -33,6 +33,8 @@ export type SlabLabelRead = {
   /** Parallel or insert words, such as "SILVER PRIZM". */
   varietyText: string;
   isRookie: boolean;
+  /** A stamped serial on the label: "432/499", or "/99" (number ""). Null when none. */
+  serial: { number: string; run: string } | null;
   /** BGS-style centering, corners, edges and surface lines were read. */
   hasSubgrades: boolean;
   /** The lines left after grader, grade and cert lines are taken out. */
@@ -42,6 +44,12 @@ export type SlabLabelRead = {
 export type SlabLabelOptions = {
   /** A grader the collector picked, used when no grader word is read. */
   graderHint?: string;
+  /**
+   * How sure the caller is that a line names a player it knows (0 to 1). The label can be read
+   * upside down or with a wrapped set line, so the player line is the one that names a player,
+   * wherever it sits. Without it (or with no hit), the first line shaped like a name is used.
+   */
+  playerScore?: (line: string) => number;
 };
 
 const MAX_LINES = 60;
@@ -55,6 +63,8 @@ const DESCRIPTORS = [
   "PRISTINE",
   "NM-MT+",
   "NM-MT",
+  "NM/MT+",
+  "NM/MT",
   "NM MT",
   "EX-MT+",
   "EX-MT",
@@ -62,6 +72,12 @@ const DESCRIPTORS = [
   "VG-EX",
   "MINT+",
   "MINT",
+  // SGC's short forms: 10 PRI, 10 GM, 9.5 MT+, 9 MT, 8.5 NM/MT+.
+  "MT+",
+  "MT",
+  "GEM",
+  "GM",
+  "PRI",
   "NM+",
   "NM",
   "EX+",
@@ -107,6 +123,41 @@ const AUTO_GRADE_LINE = /^AUTO(?:GRAPH)?(?:\s+GRADE)?\s*:?\s*(\S+)$/i;
 const BOILERPLATE = /^(CARDS?|GRADING|SERVICES?|AUTHENTICATION|COLLECTIBLES|DNA|INC\.?|LLC)$/i;
 const CARD_NUMBER = /(?:#|\bNO\.)\s*([A-Z0-9]+(?:-[A-Z0-9]+)*)/i;
 const YEAR_START = /^(\d{4}(?:\s*-\s*\d{2})?)\b\s*(.*)$/;
+const GRADE_NUMBER = "(?:10|[1-9](?:\\.5)?)";
+/** Four grade numbers in a row: BGS subgrades printed without their words. */
+const SUBGRADE_ROW = new RegExp(`^(?:${GRADE_NUMBER}\\s+){3}${GRADE_NUMBER}$`);
+/**
+ * A grade at the end of a card line, when the label's rows are read across:
+ * "LUKA DONCIC GEM MT". Only grade words that can't be card text.
+ */
+const TRAILING_GRADE = new RegExp(
+  `^(.*\\S)\\s+((?:GEM[\\s-]MINT|GEM[\\s-]MT|PRISTINE|NM-MT\\+?|EX-MT\\+?|VG-EX\\+?|MINT\\+?)(?:\\s+${GRADE_NUMBER})?)$`,
+  "i",
+);
+const TRAILING_NUMBER = new RegExp(`^(.*\\S)\\s+(${GRADE_NUMBER})$`);
+/** "432/499", "/99", "#/99". A season written 2023/24 is not a serial. */
+const LABEL_SERIAL = /(?:#\s*)?(?:(\d{1,4})\s*)?\/\s*(\d{1,4})\b/;
+/** PSA shortens Chrome: "BOWMAN CHR.", "TOPPS CHR. UPDATE", "BOWMAN CHR.PROSPECTS". */
+const CHROME_SHORT = /\bCHR\b\.?/gi;
+/** A rookie mark hanging off the player line: "JUSTIN HERBERT - RC", "ELLY DE LA CRUZ RC". */
+const ROOKIE_TAIL = /\s*[-–—]?\s*\b(?:RC|ROOKIE(?:\s+CARD)?)\b\.?\s*$/i;
+/** Words a label prints that are never part of a player's name. */
+const NOT_NAME_WORDS = new Set([
+  ...SETS.flatMap((name) => name.toUpperCase().split(/[\s&-]+/)),
+  "PROSPECT", "PROSPECTS", "AUTOGRAPH", "AUTOGRAPHS", "AUTO", "AUTOS", "ROOKIE", "ROOKIES", "RC", "TICKET", "REFRACTOR",
+  "XFRACTOR", "SUPERFRACTOR", "PRIZM", "PRIZMS", "SILVER", "GOLD", "RED", "BLUE", "GREEN", "ORANGE", "PURPLE", "PINK",
+  "BLACK", "WHITE", "YELLOW", "AQUA", "BRONZE", "HOLO", "MOJO", "WAVE", "SHIMMER", "ICE", "TIGER", "STRIPE", "ZEBRA",
+  "CAMO", "DISCO", "HYPER", "SCOPE", "LAZER", "LASER", "NEON", "ATOMIC", "SPECKLE", "SEPIA", "YOUNG", "GUNS", "RATED",
+  "1ST", "FIRST", "DEBUT", "BASE", "INSERT", "PARALLEL", "VARIATION", "EDITION", "NUMBERED", "PATCH", "RELIC", "JERSEY",
+  "CARD", "CARDS", "SP", "SSP", "THE", "OF", "AND",
+]);
+
+/** A line shaped like a person's name: two to four words of letters, none a label word. */
+function looksLikeName(line: string): boolean {
+  const words = line.replace(ROOKIE_TAIL, "").split(/\s+/).filter(Boolean);
+  if (words.length < 2 || words.length > 4) return false;
+  return words.every((word) => /^[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ.'’-]*$/.test(word) && !NOT_NAME_WORDS.has(word.toUpperCase().replace(/[.'’]/g, "")));
+}
 
 function emptyRead(): SlabLabelRead {
   return {
@@ -123,6 +174,7 @@ function emptyRead(): SlabLabelRead {
     playerText: "",
     varietyText: "",
     isRookie: false,
+    serial: null,
     hasSubgrades: false,
     cardLines: [],
   };
@@ -166,7 +218,17 @@ const DESCRIPTOR_PATTERN = new RegExp(
 const QUALIFIER_PATTERN = new RegExp(`(?:^|\\s)\\(?(${GRADE_QUALIFIERS.join("|")})\\)?(?=\\s|$)`, "i");
 
 /** PSA writes GEM MT, others GEM MINT. Spelling variants share one key. */
-const DESCRIPTOR_ALIASES: Record<string, string> = { "GEM-MT": "GEM MT", "NM MT": "NM-MT" };
+const DESCRIPTOR_ALIASES: Record<string, string> = {
+  "GEM-MT": "GEM MT",
+  "NM MT": "NM-MT",
+  "NM/MT": "NM-MT",
+  "NM/MT+": "NM-MT+",
+  MT: "MINT",
+  "MT+": "MINT+",
+  GM: "GEM MT",
+  GEM: "GEM MT",
+  PRI: "PRISTINE",
+};
 
 function canonicalDescriptor(word: string): string {
   const upper = word.toUpperCase();
@@ -309,12 +371,24 @@ export function readSlabLabel(lines: readonly string[], options: SlabLabelOption
       return;
     }
     if (/\bCERT/i.test(line)) return;
+    if (SUBGRADE_ROW.test(line)) {
+      read.hasSubgrades = true;
+      return;
+    }
     const grade = readGradeLine(line);
     if (grade) {
       gradeLines.push(grade);
       return;
     }
     if (line.split(" ").every((word) => BOILERPLATE.test(word))) return;
+    // Rows read across: the grade words sit at the end of a card line.
+    const tail = TRAILING_GRADE.exec(line);
+    const tailGrade = tail ? readGradeLine(tail[2]) : null;
+    if (tail && tailGrade) {
+      gradeLines.push(tailGrade);
+      cardLines.push(tail[1].trim());
+      return;
+    }
     cardLines.push(line);
   };
 
@@ -327,18 +401,42 @@ export function readSlabLabel(lines: readonly string[], options: SlabLabelOption
 
   read.authentic = gradeLines.some((line) => line.authentic);
   read.gradeQualifier = gradeLines.find((line) => line.qualifier)?.qualifier ?? "";
-  const numbered = gradeLines.find((line) => line.number);
+  let numbered = gradeLines.find((line) => line.number);
   const described = gradeLines.find((line) => line.descriptor);
+  // Rows read across: the grade's number can end a card line ("SILVER PRIZM 10"). It only counts
+  // when it is the number the grade words stand for, so a set's "SERIES 2" is never a grade.
+  if (!numbered && described) {
+    const expected =
+      described.descriptor === "GEM MINT" ? ["10", "9.5"] : [impliedNumber(described.descriptor, read.grader)].filter(Boolean);
+    for (let i = 0; i < cardLines.length && !numbered; i += 1) {
+      const match = TRAILING_NUMBER.exec(cardLines[i]);
+      if (!match || !expected.includes(match[2]) || /\bSERIES$/i.test(match[1])) continue;
+      numbered = { number: match[2], descriptor: "", qualifier: "", authentic: false };
+      cardLines[i] = match[1].trim();
+    }
+  }
   read.gradeNumber = numbered?.number ?? impliedNumber(described?.descriptor ?? "", read.grader);
   if (read.authentic && !numbered) read.gradeNumber = "";
 
-  readCardLines(read, cardLines);
+  readCardLines(read, cardLines, options);
   return read;
 }
 
-function readCardLines(read: SlabLabelRead, lines: string[]) {
+function readCardLines(read: SlabLabelRead, lines: string[], options: SlabLabelOptions = {}) {
   read.cardLines = lines;
-  const rest = [...lines];
+  const rest = lines.map((line) => line.replace(CHROME_SHORT, "CHROME ").replace(/\s+/g, " ").trim());
+  read.isRookie = rest.some((line) => /\b(RC|ROOKIE)\b/i.test(line));
+
+  // A stamped serial ("432/499", "/99"), taken out before anything reads its digits.
+  for (let i = 0; i < rest.length && !read.serial; i += 1) {
+    const match = LABEL_SERIAL.exec(rest[i]);
+    if (!match) continue;
+    const number = match[1] ? Number(match[1]) : null;
+    const run = Number(match[2]);
+    if (!(run > 0) || (number != null && (number < 1 || number > run))) continue;
+    read.serial = { number: number == null ? "" : String(number), run: String(run) };
+    rest[i] = rest[i].replace(match[0], " ").replace(/\s+/g, " ").trim();
+  }
 
   for (let i = 0; i < rest.length; i += 1) {
     const match = CARD_NUMBER.exec(rest[i]);
@@ -359,18 +457,50 @@ function readCardLines(read: SlabLabelRead, lines: string[]) {
     return true;
   });
 
-  const others = rest.filter((line, i) => i !== yearIndex && line);
-  const variety: string[] = [];
-  if (yearIndex >= 0 && yearRest) {
-    const set = matchSet(yearRest);
-    read.setName = set.setName;
-    read.setText = set.setText;
-    if (set.rest) variety.push(set.rest);
+  const others = rest.map((line, i) => (i === yearIndex ? "" : line));
+
+  // The player line names a player the caller knows, wherever it sits. Otherwise the first
+  // line shaped like a name; otherwise the first line, as printed.
+  const score = options.playerScore;
+  let playerIndex = -1;
+  if (score) {
+    let best = 0;
+    others.forEach((line, i) => {
+      const value = line ? score(line) : 0;
+      if (value > best) {
+        best = value;
+        playerIndex = i;
+      }
+    });
   }
-  read.playerText = others[0] ?? "";
-  variety.push(...others.slice(1));
+  if (playerIndex < 0) playerIndex = others.findIndex((line) => line && looksLikeName(line));
+  if (playerIndex < 0) playerIndex = others.findIndex(Boolean);
+  if (playerIndex >= 0) {
+    read.playerText = others[playerIndex].replace(ROOKIE_TAIL, "").trim() || others[playerIndex];
+    others[playerIndex] = "";
+  }
+
+  const variety: string[] = [];
+  if (yearIndex >= 0) {
+    let set = matchSet(yearRest);
+    // The set name can wrap onto the next line ("2023 TOPPS CHROME" / "UPDATE"), or sit under a bare year.
+    const next = others[yearIndex + 1] ?? "";
+    if (next) {
+      const joined = matchSet(`${yearRest} ${next}`.trim());
+      const reach = (match: SetMatch) => (match.setName ? match.setText.split(" ").length : 0);
+      if (reach(joined) > Math.max(reach(set), yearRest ? yearRest.split(" ").length : 0)) {
+        set = joined;
+        others[yearIndex + 1] = "";
+      }
+    }
+    if (yearRest || set.setName) {
+      read.setName = set.setName;
+      read.setText = set.setText;
+      if (set.rest) variety.push(set.rest);
+    }
+  }
+  variety.push(...others.filter(Boolean));
   read.varietyText = variety.join(" ");
-  read.isRookie = /\b(RC|ROOKIE)\b/i.test(read.varietyText);
 }
 
 /** True when the lines read like a grading label rather than a raw card. */
