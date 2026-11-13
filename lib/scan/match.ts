@@ -8,7 +8,7 @@ import { AUTO_CODE_PREFIX, findPlayers, looksLikeCatalogSku, readRawCardText, ty
 
 export { looksLikeCatalogSku };
 import type { SlabLabelRead } from "./slab-label";
-import { SAPPHIRE_WORD, inSapphireFamily, isSapphireSet, sapphireOf, sapphireSearchSet } from "./sapphire";
+import { SAPPHIRE_WORD, inSapphireFamily, isSapphireSet, sapphireOf, sapphireOptionFor, sapphireSearchSet } from "./sapphire";
 
 /**
  * Checks a scan's read (slab label, or raw card front and back) against our
@@ -1120,7 +1120,9 @@ export function rankScanMatches(
       sureness: sureness(evidence, found, parallel),
       parallelOptions: parallel.options,
       ...(fromSales ? { setSource: "sales" as const } : {}),
-      ...(sapphireOf(card.setBrand) ? { sapphireOption: sapphireOf(card.setBrand)! } : {}),
+      // Asked only on a raw card (a slab's label prints SAPPHIRE when it is one), and only from the
+      // year that set first had a Sapphire Edition.
+      ...(!evidence.slab && sapphireOptionFor(card.setBrand, card.yearLabel) ? { sapphireOption: sapphireOptionFor(card.setBrand, card.yearLabel)! } : {}),
       ...(evidence.subset ? { subset: evidence.subset } : {}),
       ...(read.kind === "raw" && [read.front, read.back].some((side) => side?.firstBowman) ? { firstBowman: true } : {}),
       ...(!evidence.slab && !inDirectory && card.playerName && compactName(card.playerName) === compactName(evidence.playerText) ? { playerNew: true } : {}),
