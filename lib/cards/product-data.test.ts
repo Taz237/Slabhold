@@ -57,13 +57,13 @@ describe("product data", () => {
     const topps = JSON.parse(
       readFileSync(new URL("./data/topps-parallels.json", import.meta.url), "utf8"),
     ) as { official: boolean; parallels: unknown[] }[];
-    assert.equal(topps.length, 7);
+    assert.equal(topps.length, 9);
     assert.equal(
       topps.reduce((sum, product) => sum + product.parallels.length, 0),
-      318,
+      437,
     );
     assert.ok(topps.every((product) => product.official === true));
-    assert.equal(data.length, 33 + 7);
+    assert.equal(data.length, 33 + 9);
   });
 
   it("lists Basketball 2023-24 Prizm parallels with Base first and the JSON runs", async () => {

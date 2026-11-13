@@ -284,7 +284,7 @@ describe("player dedupe", () => {
 
 describe("player name links", () => {
   it("keeps accented and punctuated names outside the directory as plain text", () => {
-    for (const name of ["Jesús Made", "C.J. Kayfus", "Ja'Kobi Test"]) {
+    for (const name of ["Jesús Testplayer", "C.J. Kayfus", "Ja'Kobi Test"]) {
       assert.equal(playerNameRoundTrips(name), false);
       assert.equal(linkedPlayerHref(name, "Baseball"), null);
       const html = renderToStaticMarkup(
@@ -301,6 +301,8 @@ describe("player name links", () => {
     assert.equal(linkedPlayerHref("Ethan Holliday", "Baseball"), "/p/ethan-holliday");
     assert.equal(playerNameRoundTrips("Luka Dončić"), false);
     assert.equal(linkedPlayerHref("Luka Dončić", "Basketball"), "/p/luka-doncic");
+    // Jesus Made is a directory prospect now, so the accented spelling links too.
+    assert.equal(linkedPlayerHref("Jesús Made", "Baseball"), "/p/jesus-made");
     assert.match(
       renderToStaticMarkup(createElement(PlayerNameLink, { name: "Ethan Holliday", sport: "Baseball" })),
       /href="\/p\/ethan-holliday"/,
