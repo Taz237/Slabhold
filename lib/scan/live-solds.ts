@@ -16,6 +16,7 @@ import {
   type SoldTitle,
 } from "./match";
 import { comparableSales, ESTIMATE_MAX_CALLS, ESTIMATE_MIN_SALES, estimateFrom, estimateQueries, yearAgoParallels, type ScanEstimateResult } from "./estimate";
+import { withListingPhotos } from "./listing-photo";
 import { newLookupBudget, type LookupBudget } from "./live-search";
 import { asTrawlResults, groupByParallel, groupFor, isUnnamedRunLabel, scanSalesFor, type ParallelGroup, type ScanSale, type ScanSalesResult } from "./scan-sales";
 import { scanReadFrom, type ScanCapture } from "./session";
@@ -138,6 +139,18 @@ export async function lookupLiveSolds(
   userId: string,
   deps: LiveSoldsDeps,
 ): Promise<LiveSoldsResult> {
+  // The listings the search returned also give each match a photo of that exact card. No extra search.
+  const results: TrawlSoldResult[] = [];
+  const found = await lookupSolds(input, userId, deps, results);
+  return { ...found, matches: withListingPhotos(found.matches, results, deps.directory) };
+}
+
+async function lookupSolds(
+  input: LiveSoldsInput,
+  userId: string,
+  deps: LiveSoldsDeps,
+  results: TrawlSoldResult[],
+): Promise<LiveSoldsResult> {
   const read = scanReadFrom({ ...input.capture, image: null }, deps.directory);
   const player = scanPlayerName(read, deps.directory);
   let products: readonly ProductRecord[] | null = null;
@@ -174,7 +187,6 @@ export async function lookupLiveSolds(
   const ladder = liveSearchLadder(read, top, deps.directory);
   if (ladder.length === 0) return { matches: first, comp: { status: "none" }, query: null };
   const budget = newLookupBudget();
-  const results: TrawlSoldResult[] = [];
   let fetchedAt = "";
   let usedQuery: string | null = null;
   let matches = first;

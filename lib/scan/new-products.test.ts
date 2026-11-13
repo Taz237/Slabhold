@@ -375,3 +375,41 @@ describe("the card page: a card with no card # is not an outage", () => {
     assert.equal(soldNoticeTitle(SOLD_UNAVAILABLE_MESSAGE), "Sales are taking a break");
   });
 });
+
+describe("never an invented player", () => {
+  const LONE = ["GOLDEN ARM", "03/10"];
+
+  it("a name-like line the card doesn't back, with no title naming it: the player stays open", () => {
+    assert.equal(top(LONE, ["BCP-68", "© 2026 THE TOPPS COMPANY"]), undefined);
+  });
+
+  it("the same line counts once a sold title names it, and is marked new to us", () => {
+    const match = top(LONE, ["BCP-68", "© 2026 THE TOPPS COMPANY"], [{ title: "2026 Bowman Chrome Golden Arm 1st BCP-68 /10", price: 40 }]);
+    assert.equal(match?.playerName, "Golden Arm");
+    assert.equal(match?.playerNew, true);
+    // A title for somebody else doesn't make it real.
+    assert.equal(top(LONE, ["BCP-68", "© 2026 THE TOPPS COMPANY"], [{ title: "2026 Bowman Chrome Arch Manning 1st BCP-68 /10", price: 40 }]), undefined);
+  });
+
+  it("a name beside its position, team or school line, or printed on both sides, needs no title", () => {
+    assert.equal(top(["1ST BOWMAN"], ["RUNNING BACK", "WAYNE KNIGHT", "UCLA", "BCP-68"])?.playerName, "Wayne Knight");
+    assert.equal(top(["WAYNE KNIGHT", "03/10"], ["BCP-68", "WAYNE KNIGHT", "© 2026 THE TOPPS COMPANY"])?.playerName, "Wayne Knight");
+  });
+
+  it("the live lookup still searches the unverified name, and shows the player only if titles come back with it", async () => {
+    const input = { capture: { lines: LONE, backLines: ["BCP-68", "© 2026 THE TOPPS COMPANY"], kind: "card" as const }, rows: [] };
+    const queries: string[] = [];
+    const none = await lookupLiveSolds(input, "user", deps(async (query) => {
+      queries.push(query);
+      return { ok: true, results: [], fetchedAt: "2026-11-12T20:00:00.000Z" };
+    }));
+    assert.ok(queries.length > 0 && queries[0].startsWith("Golden Arm"));
+    assert.deepEqual(none.matches, []);
+    const named = await lookupLiveSolds(input, "user", deps(async () => ({
+      ok: true,
+      results: [sold("2026 Bowman Chrome Golden Arm 1st Bowman BCP-68 /10", 40)],
+      fetchedAt: "2026-11-12T20:00:00.000Z",
+    })));
+    assert.equal(named.matches[0]?.playerName, "Golden Arm");
+  });
+});

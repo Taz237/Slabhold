@@ -73,6 +73,8 @@ export type ScanMatch = {
   parallelOptions: ProductParallel[];
   /** The insert or variation the back names ("Rookie Autograph Variations"). Never the parallel. */
   subset?: string;
+  /** A photo of this exact card from a sold listing the scan's search returned. Never stored. */
+  listing?: { imageUrl: string; url: string | null; soldAt: string | null };
   /** The card carries the 1ST BOWMAN mark. */
   firstBowman?: boolean;
   /** The player's name was read off the card and isn't in our player list yet. */
@@ -135,6 +137,12 @@ type Evidence = {
   playerText: string;
   /** The card printed the player's name clearly: every row must be this player. */
   playerLocked: boolean;
+  /**
+   * The printed name isn't in our list and nothing on the card backs it as a name (no position,
+   * team or school line beside it, and not on both sides). It counts only once a catalog row or
+   * a sold title names it; with neither, the player stays open. Never an invented player.
+   */
+  playerUnverified?: boolean;
   /** Read on both the front and the back. */
   playerBothSides: boolean;
   /** From a team line when the player is new to us. */
@@ -266,6 +274,9 @@ function evidenceFrom(read: ScanRead, directory: readonly IndexedDirectoryPlayer
       playerLocked = true;
     }
   }
+  const anchoredName =
+    Boolean(playerText) &&
+    ([read.front, read.back].some((side) => side?.printedName === playerText && side.printedNameAnchored) || onBoth(compactName(playerText)));
   const lockedName = players[0]?.name ?? playerText;
   // The back is where the card # lives. A front number is usually something else.
   const backNumber = read.back?.cardNumber ?? "";
@@ -287,6 +298,7 @@ function evidenceFrom(read: ScanRead, directory: readonly IndexedDirectoryPlayer
     playerText,
     playerLocked,
     playerBothSides: Boolean(lockedName) && onBoth(compactName(lockedName)),
+    ...(playerText && !anchoredName ? { playerUnverified: true } : {}),
     sport: sides.map((side) => side.team?.sport ?? "").find(Boolean) ?? sides.map((side) => side.sportHint ?? "").find(Boolean) ?? "",
     insert: sides.map((side) => side.insert).find(Boolean) ?? "",
     subset: sides.map((side) => side.subset ?? "").find(Boolean) ?? "",
@@ -974,12 +986,30 @@ function titleScore(evidence: Evidence, card: Candidate): number {
   return score;
 }
 
+/**
+ * A printed name we don't know and the card doesn't back: real only when a catalog row or a sold
+ * title carries it. With neither, the name is dropped and the player stays open.
+ */
+function withVerifiedPlayer(evidence: Evidence, rows: readonly CatalogCard[], titles: readonly SoldTitle[]): Evidence {
+  if (!evidence.playerUnverified || !evidence.playerText) return evidence;
+  const name = titleCase(evidence.playerText);
+  const named =
+    rows.some((row) => compactName(row.playerName) === compactName(name)) ||
+    titles.slice(0, MAX_SOLD_TITLES).some((item) => titleNamesPlayer(item.title, name));
+  if (named) return { ...evidence, playerUnverified: false };
+  return { ...evidence, playerText: "", playerLocked: false, playerBothSides: false };
+}
+
 export function rankScanMatches(
   read: ScanRead,
   rows: readonly CatalogCard[],
   options: RankOptions,
 ): ScanMatchResult {
-  const evidence = withAgreedRun(evidenceFrom(read, options.directory), options.soldTitles ?? [], options.directory);
+  const evidence = withVerifiedPlayer(
+    withAgreedRun(evidenceFrom(read, options.directory), options.soldTitles ?? [], options.directory),
+    rows,
+    options.soldTitles ?? [],
+  );
   const fromTitles = evidence.slab && !bestPlayerName(evidence) ? [] : titleCandidates(evidence, options.soldTitles ?? [], options.directory);
   const merged = mergeTitleCandidates(candidatesFrom(rows, evidence), fromTitles);
   if (fromTitles.length === 0 && !(evidence.slab && !bestPlayerName(evidence))) {

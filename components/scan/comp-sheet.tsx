@@ -313,7 +313,7 @@ function Ready({
         </div>
       </div>
 
-      <OtherMatches rows={rows} onPromote={promote} />
+      <OtherMatches rows={rows} onPromote={promote} photo={photo} />
 
       <div className="flex justify-center">
         <QuietButton onClick={onSearch}>{CONFIRM_COPY.noneOfThese}</QuietButton>

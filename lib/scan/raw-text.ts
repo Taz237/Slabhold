@@ -32,6 +32,11 @@ export type RawCardRead = {
    * even when the directory doesn't know the player yet (new prospects). "" when none.
    */
   printedName: string;
+  /**
+   * The printed name sits beside the card's position, team or school line: the header of a back or
+   * the nameplate of a front. A name-like line with nothing beside it could be any two words.
+   */
+  printedNameAnchored: boolean;
   /** A team line on the card, from the directory's teams. Gives the sport when the player is new to us. */
   team: { name: string; sport: string } | null;
   /** A college the card prints as its team (UCLA, Alabama): a Bowman U or draft-picks card. "" when none. */
@@ -213,6 +218,7 @@ function emptyRead(): RawCardRead {
   return {
     players: [],
     printedName: "",
+    printedNameAnchored: false,
     team: null,
     school: "",
     sportHint: "",
@@ -610,7 +616,7 @@ export function cardWord(word: string): boolean {
  * set, color, rookie and maker words). Kept even when the directory doesn't
  * know the player, so a new prospect still reads as themselves.
  */
-function readPrintedName(lines: string[], directory: readonly IndexedDirectoryPlayer[]): string {
+function readPrintedName(lines: string[], directory: readonly IndexedDirectoryPlayer[]): { name: string; anchored: boolean } {
   const { teams, nicknames } = teamIndex(directory);
   const isTeam = (line: string) => Boolean(readTeam([normInterest(line).split(" ").filter(Boolean)], directory)) || Boolean(schoolOnLine(line));
   const names: { line: string; index: number }[] = [];
@@ -632,12 +638,13 @@ function readPrintedName(lines: string[], directory: readonly IndexedDirectoryPl
     [lines[index - 1], lines[index + 1]].some((item) => Boolean(item) && (positionLine(item!) || isTeam(item!))),
   );
   const picked = beside ?? names[0];
-  if (!picked) return "";
-  return picked.line
+  if (!picked) return { name: "", anchored: false };
+  const name = picked.line
     .toLowerCase()
     .replace(/\s+/g, " ")
     .trim()
     .replace(/(^|[\s-])([a-z])/g, (_match, lead: string, letter: string) => `${lead}${letter.toUpperCase()}`);
+  return { name, anchored: Boolean(beside) };
 }
 
 function readSide(lines: string[], lineWords: string[][], copyrightYear: string): RawCardRead["side"] {
@@ -858,7 +865,9 @@ export function readRawCardText(
   const printed = clean.filter((line) => !maker(line));
 
   read.players = findPlayers(clean, directory);
-  read.printedName = readPrintedName(clean, directory);
+  const printedName = readPrintedName(clean, directory);
+  read.printedName = printedName.name;
+  read.printedNameAnchored = printedName.anchored;
   read.team = readTeam(lineWords, directory);
   read.yearLabel = readYear(printed);
   read.copyrightYear =

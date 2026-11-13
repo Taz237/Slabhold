@@ -298,3 +298,11 @@ export async function previewSolds(_capture: unknown, matches: ScanMatch[]): Pro
   const comp = target ? await previewCompLookup(target.identity) : { status: "none" as const, searched: true };
   return { matches, comp: comp.status === "none" ? { status: "none", searched: true } : comp, query: "preview" };
 }
+
+/** "Or one of these" with listing photos: the top match and one alternate have one, one has none. Made up. */
+export const PREVIEW_WITH_PHOTOS: ScanMatch[] = [
+  { ...PREVIEW_RAW[0], listing: { imageUrl: "/quick-comp/sample-card.svg", url: null, soldAt: "2026-11-02T18:00:00.000Z" } },
+  ...PREVIEW_RAW.slice(1).map((match, index) =>
+    index === 0 ? { ...match, listing: { imageUrl: "/quick-comp/sample-card.svg", url: null, soldAt: "2026-10-20T18:00:00.000Z" } } : match,
+  ),
+];

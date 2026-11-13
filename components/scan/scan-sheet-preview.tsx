@@ -28,6 +28,7 @@ import {
   PREVIEW_SOLDS_LOOKING,
   PREVIEW_SOLDS_NONE,
   PREVIEW_NEW_PRODUCT,
+  PREVIEW_WITH_PHOTOS,
   PREVIEW_SOLDS_ESTIMATE,
   previewCompLookup,
 } from "@/lib/scan/preview-fixtures";
@@ -46,6 +47,7 @@ export type PreviewKind =
   | "comp-limited"
   | "comp-estimate"
   | "new-product"
+  | "photos"
   | "slab-looking"
   | "from-sales"
   | "comp-from-sales"
@@ -82,6 +84,7 @@ const STATES: Record<Exclude<PreviewKind, "hub" | "hub-comp" | "door">, ConfirmS
   },
   "comp-estimate": { kind: "ready", matches: [PREVIEW_NEW_PRODUCT], solds: PREVIEW_SOLDS_ESTIMATE },
   "new-product": { kind: "ready", matches: [PREVIEW_NEW_PRODUCT], solds: PREVIEW_SOLDS_ESTIMATE },
+  photos: { kind: "ready", matches: PREVIEW_WITH_PHOTOS, solds: PREVIEW_SOLDS_NONE },
   "comp-looking": { kind: "ready", matches: [PREVIEW_SLAB], solds: PREVIEW_SOLDS_LOOKING },
   "comp-limited": { kind: "ready", matches: [PREVIEW_SLAB], solds: PREVIEW_SOLDS_LIMITED },
 };
@@ -100,6 +103,7 @@ const LABELS: Record<PreviewKind, string> = {
   "comp-limited": "Comp, daily cap",
   "comp-estimate": "Comp, no sales yet, estimate",
   "new-product": "New product, no sales yet",
+  photos: "Listing photos on the matches",
   "slab-looking": "Slab, looking up",
   "from-sales": "Parallel from sales",
   "comp-from-sales": "Comp, parallel from sales",

@@ -66,6 +66,7 @@ export function ConfirmSheet({ photo, state, onConfirm, onStepByStep, onRetake, 
           key={matchesKey(state.matches)}
           matches={state.matches}
           solds={state.solds}
+          photo={photo}
           onConfirm={onConfirm}
           onStepByStep={onStepByStep}
           onRetake={onRetake}
@@ -78,12 +79,15 @@ export function ConfirmSheet({ photo, state, onConfirm, onStepByStep, onRetake, 
 function Ready({
   matches,
   solds,
+  photo = null,
   onConfirm,
   onStepByStep,
   onRetake,
 }: {
   matches: ScanMatch[];
   solds?: SoldsState;
+  /** The scan, shown beside a sold listing's photo when one is enlarged. */
+  photo?: string | null;
   onConfirm: (match: ScanMatch, options: { save: boolean }) => void;
   onStepByStep: () => void;
   onRetake: () => void;
@@ -128,7 +132,7 @@ function Ready({
 
   return (
     <div className="space-y-6">
-      <RevealName match={top} parallel={pick?.name ?? null} />
+      <RevealName match={top} parallel={pick?.name ?? null} photo={photo} />
       {/* The last solds are for the card as read; picking another row hides them. */}
       {solds && top === matches[0] ? <LastSold solds={solds} /> : null}
 
@@ -187,7 +191,7 @@ function Ready({
         ) : null}
       </div>
 
-      <OtherMatches rows={rows} onPromote={promote} />
+      <OtherMatches rows={rows} onPromote={promote} photo={photo} />
 
       <div className="flex items-center justify-center gap-2">
         <QuietButton onClick={onStepByStep}>{CONFIRM_COPY.noneOfThese}</QuietButton>
