@@ -652,7 +652,13 @@ const LONE_NUMBER_LINE = /^\d{1,4}$/;
  * (BP, INS, BCP, US, TC, SP) wins. On a scanned card, a sentence-length line
  * is a bio and never holds the card #. Nothing left: the number stays open.
  */
-function readCardNumber(lines: string[], scanned: boolean, side?: "front" | "back"): string {
+function readCardNumber(
+  lines: string[],
+  scanned: boolean,
+  side?: "front" | "back",
+  /** True for a line that names a team. A lone number beside one is a jersey or an age. */
+  teamLine: (line: string) => boolean = () => false,
+): string {
   const usable = (line: string) => !(scanned && proseLine(line));
   for (const line of lines) {
     if (!usable(line)) continue;
@@ -689,12 +695,34 @@ function readCardNumber(lines: string[], scanned: boolean, side?: "front" | "bac
   }
   // A number alone on a line at the top or the bottom of the back (the bottom when the card was
   // upside down), and the only lone number on the whole back. A stat table read cell by cell has many.
+  // Only a Topps-made back prints its card # this way (Topps, Bowman): Panini prints "No.", so a lone
+  // number there is a jersey. And never beside a position or team line, where it is a jersey or an age.
+  const toppsMade = lines.some((item) => TOPPS_MADE.test(item)) && !lines.some((item) => OTHER_MAKER.test(item));
+  if (!toppsMade) return "";
   const lone = lines.map((line, index) => ({ line: line.trim(), index })).filter((item) => LONE_NUMBER_LINE.test(item.line));
   if (lone.length !== 1) return "";
   const { line, index } = lone[0];
   const edge = index <= 1 || index >= lines.length - 2;
   const year = /^(?:19|20)\d{2}$/.test(line);
+  const beside = [lines[index - 1], lines[index + 1]].filter((item): item is string => Boolean(item));
+  if (beside.some((item) => positionLine(item) || teamLine(item))) return "";
   return edge && !year && Number(line) > 0 ? String(Number(line)) : "";
+}
+
+const TOPPS_MADE = /\b(?:topps|bowman)\b/i;
+const OTHER_MAKER = /\bpanini\b|\bupper\s+deck\b|\bleaf\b|\bdonruss\b/i;
+/** Words a position line is made of: "QUARTERBACK", "SECOND BASE", "RHP", "SS / 3B". */
+const POSITION_WORDS = new Set([
+  "QUARTERBACK", "RUNNING", "BACK", "WIDE", "RECEIVER", "TIGHT", "END", "KICKER", "PUNTER", "LINEBACKER", "CORNERBACK",
+  "SAFETY", "DEFENSIVE", "OFFENSIVE", "TACKLE", "LINEMAN", "PITCHER", "CATCHER", "SHORTSTOP", "OUTFIELD", "OUTFIELDER",
+  "INFIELD", "INFIELDER", "FIRST", "SECOND", "THIRD", "BASE", "BASEMAN", "DESIGNATED", "HITTER", "STARTING", "RELIEF",
+  "GUARD", "FORWARD", "CENTER", "POINT", "SHOOTING", "SMALL", "POWER", "WING", "LEFT", "RIGHT", "DEFENSEMAN", "DEFENSE",
+  "GOALIE", "GOALTENDER", "UTILITY",
+]);
+
+function positionLine(line: string): boolean {
+  const words = line.toUpperCase().split(/[\s|/,·•-]+/).filter(Boolean);
+  return words.length > 0 && words.length <= 4 && words.every((word) => POSITION_WORDS.has(word) || JERSEY_POSITIONS.has(word));
 }
 
 export function readRawCardText(
@@ -722,7 +750,9 @@ export function readRawCardText(
   if (!read.copyrightYear && options.side === "back") {
     read.copyrightYear = clean.filter((line) => MAKER_ONLY_LINE.test(line)).map((line) => MAKER_YEAR.exec(line)?.[1] ?? "").find(Boolean) ?? "";
   }
-  read.cardNumber = readCardNumber(clean, Boolean(options.side), options.side);
+  read.cardNumber = readCardNumber(clean, Boolean(options.side), options.side, (line) =>
+    Boolean(readTeam([normInterest(line).split(" ").filter(Boolean)], directory)),
+  );
   read.serial = readSerial(clean, Boolean(options.side));
   read.isRookie = clean.some((line) => /\b(RC|ROOKIE)\b/i.test(line));
   const sets = readSets(

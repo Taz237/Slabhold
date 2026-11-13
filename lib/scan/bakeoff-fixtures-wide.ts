@@ -264,10 +264,11 @@ export const WIDE_BAKEOFF_CASES: BakeoffCase[] = [
     truth: { player: "Walker Jenkins", year: "2024", set: "Bowman Chrome", number: "BCP-91", parallel: "", run: null },
   },
   {
-    name: "Bowman Chrome: Jenkins, only 1ST BOWMAN read (the BCP code says Chrome)",
+    // Flagship Bowman prints BCP Chrome Prospects too, so the code alone can't say which product this is.
+    name: "Bowman: Jenkins, only 1ST BOWMAN read with a BCP code (flagship Bowman has BCP cards too)",
     front: ["1ST BOWMAN", "WALKER JENKINS", "MINNESOTA TWINS", "OF"],
     back: ["BCP-91", "WALKER JENKINS", "OUTFIELD", TOPPS_2024],
-    truth: { player: "Walker Jenkins", year: "2024", set: "Bowman Chrome", number: "BCP-91", parallel: "", run: null },
+    truth: { player: "Walker Jenkins", year: "2024", set: "Bowman", number: "BCP-91", parallel: "", run: null },
   },
   {
     name: "Bowman Chrome: Clark refractor 122/499, REFRACTOR printed on the back",
@@ -397,6 +398,19 @@ export const WIDE_BAKEOFF_CASES: BakeoffCase[] = [
     front: ["TOPPS CHROME", "GUNNAR HENDERSON", "BALTIMORE ORIOLES", "SS"],
     back: ["GUNNAR HENDERSON", "FORMER NO. 1 PROSPECT", "#27", "SHORTSTOP", TOPPS_2024],
     truth: { player: "Gunnar Henderson", year: "2024", set: "Topps Chrome", number: "27", parallel: "", run: null },
+  },
+
+  {
+    name: "Prizm: Dart, a lone jersey number at the top of a Panini back",
+    front: ["PRIZM", "JAXSON DART", "GIANTS", "QB", "RC"],
+    back: ["17", "JAXSON DART", "QUARTERBACK", "NEW YORK GIANTS", "© 2025 Panini America, Inc."],
+    truth: { player: "Jaxson Dart", year: "2025", set: "Panini Prizm", number: "332", parallel: "", run: null },
+  },
+  {
+    name: "Topps Chrome: Holliday, a lone age under the team line at the bottom of the back",
+    front: ["TOPPS CHROME", "JACKSON HOLLIDAY", "BALTIMORE ORIOLES", "2B"],
+    back: ["JACKSON HOLLIDAY", "SECOND BASE", "BALTIMORE ORIOLES", "22", TOPPS_2024],
+    truth: { player: "Jackson Holliday", year: "2024", set: "Topps Chrome", number: "200", parallel: "", run: null },
   },
 
   // ── Hockey ─────────────────────────────────────────────────────────────────

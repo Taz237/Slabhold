@@ -58,14 +58,31 @@ describe("the card # a back prints without a # or a hyphen", () => {
     assert.equal(back(["JAMES WOOD", "TEAM USA U18 US1 ROSTER"]).cardNumber, "", "not inside other text");
   });
 
-  it("reads a number alone at the top or bottom of the back, only when it's the only one", () => {
-    assert.equal(back(["182", "PAUL SKENES", "PITCHER", "HT: 6'6\" WT: 235"]).cardNumber, "182");
-    assert.equal(back(["HT: 6'6\" WT: 235", "PITCHER", "PAUL SKENES", "182"]).cardNumber, "182", "upside down");
-    assert.equal(back(["AARON JUDGE", "OUTFIELD", "G", "158", "HR", "58", "RBI", "144"]).cardNumber, "", "a stat table read cell by cell");
-    assert.equal(back(["PAUL SKENES", "PITCHER", "HT: 6'6\"", "WT: 235", "30", "BORN: 5/29/2002", "ACQ: DRAFT", "PIRATES"]).cardNumber, "", "in the middle of the back");
-    assert.equal(back(["2024", "PAUL SKENES"]).cardNumber, "", "a year");
-    assert.equal(front(["PRIZM", "JOSH ALLEN", "17"]).cardNumber, "", "never from the front");
+  it("reads a number alone at the top or bottom of a Topps-made back, only when it's the only one", () => {
+    const TOPPS = "© 2024 THE TOPPS COMPANY, INC. ALL RIGHTS RESERVED.";
+    assert.equal(back(["182", "PAUL SKENES", "PITCHER", "HT: 6'6\" WT: 235", TOPPS]).cardNumber, "182");
+    assert.equal(back([TOPPS, "HT: 6'6\" WT: 235", "PITCHER", "PAUL SKENES", "182"]).cardNumber, "182", "upside down");
+    assert.equal(back(["147", "BOBBY WITT JR. SS", "KANSAS CITY ROYALS", "2024 TOPPS HERITAGE", TOPPS]).cardNumber, "147");
+    assert.equal(back(["AARON JUDGE", "OUTFIELD", "G", "158", "HR", "58", "RBI", "144", TOPPS]).cardNumber, "", "a stat table read cell by cell");
+    assert.equal(back(["PAUL SKENES", "PITCHER", "HT: 6'6\"", "WT: 235", "30", "BORN: 5/29/2002", "ACQ: DRAFT", "PIRATES", TOPPS]).cardNumber, "", "in the middle of the back");
+    assert.equal(back(["2024", "PAUL SKENES", TOPPS]).cardNumber, "", "a year");
+    assert.equal(front(["TOPPS CHROME", "PAUL SKENES", "30"]).cardNumber, "", "never from the front");
     assert.equal(back(["No. 31", "JOSH ALLEN", "17"]).cardNumber, "31", "a printed No. wins");
+  });
+
+  it("a lone number is a jersey or an age, not the card #, on a Panini or Upper Deck back or with no maker read", () => {
+    assert.equal(back(["17", "JAXSON DART", "QUARTERBACK", "NEW YORK GIANTS", "© 2025 Panini America, Inc."]).cardNumber, "");
+    assert.equal(back(["347", "JAYDEN DANIELS", "QUARTERBACK", "2024 PANINI - PRIZM FOOTBALL © 2024 Panini America, Inc."]).cardNumber, "");
+    assert.equal(back(["98", "CONNOR BEDARD", "CENTER", "© 2023 The Upper Deck Company"]).cardNumber, "");
+    assert.equal(back(["182", "PAUL SKENES", "PITCHER"]).cardNumber, "", "no maker line read: open");
+  });
+
+  it("a lone number beside a position or team line is never the card #, even on a Topps back", () => {
+    const TOPPS = "© 2024 THE TOPPS COMPANY, INC. ALL RIGHTS RESERVED.";
+    assert.equal(back(["JACKSON HOLLIDAY", "SECOND BASE", "BALTIMORE ORIOLES", "22", TOPPS]).cardNumber, "", "under the team line");
+    assert.equal(back(["30", "PITCHER", "PAUL SKENES", TOPPS]).cardNumber, "", "above a position line");
+    assert.equal(back(["7", "SS", "BOBBY WITT JR.", TOPPS]).cardNumber, "");
+    assert.equal(back(["PAUL SKENES", "PITCHER", TOPPS, "PITTSBURGH PIRATES", "30"]).cardNumber, "", "a back ending in a lone number under the team");
   });
 });
 
@@ -94,12 +111,22 @@ describe("the set: the fuller printed name wins", () => {
     assert.equal(clark.yearLabel, "2024", "the WNBA plays in one calendar year");
   });
 
-  it("1ST BOWMAN with a Chrome-only code is Bowman Chrome; with a paper code it stays Bowman; a code alone names no set", () => {
-    assert.equal(scan(["1ST BOWMAN", "WALKER JENKINS"], ["BCP-91", "WALKER JENKINS"]).setBrand, "Bowman Chrome");
-    assert.equal(scan(["1ST BOWMAN", "KONNOR GRIFFIN"], ["CPA-KG", "KONNOR GRIFFIN"]).setBrand, "Bowman Chrome");
+  it("1ST BOWMAN with a BCP or CPA code stays Bowman (flagship has them too); BOWMAN CHROME printed is Chrome; a Draft code is Draft", () => {
+    assert.equal(scan(["1ST BOWMAN", "WALKER JENKINS"], ["BCP-91", "WALKER JENKINS"]).setBrand, "Bowman");
+    assert.equal(scan(["1ST BOWMAN", "KONNOR GRIFFIN"], ["CPA-KG", "KONNOR GRIFFIN"]).setBrand, "Bowman");
+    assert.equal(scan(["BOWMAN CHROME", "1ST BOWMAN", "WALKER JENKINS"], ["BCP-91", "WALKER JENKINS"]).setBrand, "Bowman Chrome");
     assert.equal(scan(["1ST BOWMAN", "TRAVIS BAZZANA"], ["BD-1", "TRAVIS BAZZANA"]).setBrand, "Bowman Draft");
+    assert.equal(scan(["1ST BOWMAN", "TRAVIS BAZZANA"], ["BDC-12", "TRAVIS BAZZANA"]).setBrand, "Bowman Draft");
     assert.equal(scan(["1ST BOWMAN", "ETHAN SALAS"], ["BP-103", "ETHAN SALAS"]).setBrand, "Bowman");
     assert.equal(scan(["WALKER JENKINS", "MINNESOTA TWINS"], ["BCP-91", "WALKER JENKINS"]).setBrand, "", "no Bowman word printed: the code is a search hint only");
+  });
+
+  it("with a BCP code, Bowman Chrome is the second set option: a Bowman Chrome catalog row is still offered", () => {
+    const read = scanReadFrom({ lines: ["1ST BOWMAN", "WALKER JENKINS"], backLines: ["BCP-91", "WALKER JENKINS"], image: null, kind: "card" }, INDEXED_DIRECTORY);
+    const row = (id: string, setBrand: string) => ({ id, playerName: "Walker Jenkins", yearLabel: "2024", setBrand, cardNumber: "BCP-91", sport: "Baseball", parallel: "Base", isRookie: false });
+    const matches = rankScanMatches(read, [row("paper", "Bowman"), row("chrome", "Bowman Chrome")], { directory: INDEXED_DIRECTORY, products: null, soldTitles: [] }).matches;
+    assert.deepEqual(matches.map((match) => match.setBrand), ["Bowman", "Bowman Chrome"]);
+    assert.notEqual(matches[1].sureness.set, "sure");
   });
 });
 

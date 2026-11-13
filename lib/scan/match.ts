@@ -288,7 +288,7 @@ function evidenceFrom(read: ScanRead, directory: readonly IndexedDirectoryPlayer
   };
 }
 
-/** Bowman checklist codes that are only in the Chrome product (prospects and prospect autos), or only in Draft. */
+/** Bowman codes for Chrome prospects and prospect autos (in Bowman Chrome and in flagship Bowman), and codes only in Draft. */
 const BOWMAN_CHROME_PREFIXES = new Set(["BCP", "BCPA", "CPA"]);
 const BOWMAN_DRAFT_PREFIXES = new Set(["BD", "BDC", "CDA", "BDA"]);
 
@@ -311,11 +311,13 @@ function mergedSetNames(sides: readonly RawCardRead[], cardNumber: string): stri
     .map((name, index) => ({ name, index }))
     .sort((a, b) => rank(a.name) - rank(b.name) || Number(within(a.name, b.name)) - Number(within(b.name, a.name)) || a.index - b.index)
     .map((item) => item.name);
-  // "1ST BOWMAN" is on paper and Chrome alike. With the Bowman name printed, a Chrome-only code
-  // (BCP-91, CPA-KG) says which product it is; a Draft code (BD-1, BDC-12) says Bowman Draft.
+  // "1ST BOWMAN" is on paper and Chrome alike, and flagship Bowman prints BCP Chrome Prospects and
+  // CPA autos too. So with only the Bowman name printed, a BCP, BCPA or CPA code keeps Bowman first
+  // and offers Bowman Chrome second; only "BOWMAN CHROME" printed makes it Chrome. A Draft code
+  // (BD-1, BDC-12) is only in Bowman Draft.
   if (ordered[0] === "Bowman") {
     const prefix = /^([A-Z]+)-?/i.exec(cardNumber)?.[1]?.toUpperCase() ?? "";
-    if (BOWMAN_CHROME_PREFIXES.has(prefix)) return ["Bowman Chrome", ...ordered.filter((name) => name !== "Bowman Chrome")];
+    if (BOWMAN_CHROME_PREFIXES.has(prefix) && !ordered.includes("Bowman Chrome")) return ["Bowman", "Bowman Chrome", ...ordered.slice(1)];
     if (BOWMAN_DRAFT_PREFIXES.has(prefix)) return ["Bowman Draft", ...ordered.filter((name) => name !== "Bowman Draft")];
   }
   return ordered;
