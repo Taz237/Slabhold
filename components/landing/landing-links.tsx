@@ -11,7 +11,8 @@ import { afterFirstIdle } from "@/lib/ui/idle";
 
 /*
  * The landing page is drawn on the server. These are its only client parts:
- * links that carry ?next= and count taps, and the panels below the hero.
+ * links that carry ?next= and count taps, the panels below the hero, the App
+ * Store button and the hero phone's tilt.
  */
 
 /**
@@ -138,6 +139,27 @@ export function LandingCta() {
   );
 }
 
+/** The hero's primary action, carrying ?next=. Its secondary (the App Store) sits beside it on the page. */
+export function LandingOpen() {
+  return (
+    <Suspense fallback={<OpenLink next="/" />}>
+      <FromSearch render={(next) => <OpenLink next={next} />} />
+    </Suspense>
+  );
+}
+
+function OpenLink({ next }: { next: string }) {
+  return (
+    <IntentLink
+      href={landingSignupHref(next)}
+      onClick={() => trackEvent("landing_cta_clicked", { button: "open" })}
+      className="flex h-14 w-full items-center justify-center rounded-full bg-[#7C3AED] text-[17px] font-semibold text-white transition-transform duration-150 active:scale-[0.98] motion-reduce:transition-none focus-visible:ring-2 focus-visible:ring-[#A78BFA] focus-visible:ring-offset-2 focus-visible:ring-offset-[#09090b] focus-visible:outline-none"
+    >
+      Open Slabhold
+    </IntentLink>
+  );
+}
+
 /** A link that counts its tap as a landing call to action. */
 export function LandingLink({
   button,
@@ -185,7 +207,7 @@ export function LandingActions({ next }: { next: string }) {
 function PanelsSkeleton() {
   return (
     <div aria-hidden className="mt-14">
-      <div className="skeleton-shimmer h-[392px] w-full rounded-[1.75rem] sm:w-[340px]" />
+      <div className="skeleton-shimmer mx-auto h-[660px] w-[300px] rounded-[44px]" />
       <div className="mt-4 h-11" />
     </div>
   );

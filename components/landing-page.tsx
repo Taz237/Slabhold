@@ -1,10 +1,10 @@
 import Link from "next/link";
-import { AppStoreLink } from "@/components/landing/app-store-link";
+import { AppStoreBadge } from "@/components/landing/app-store-badge";
 import { FounderNote } from "@/components/landing/founder-note";
-import { HeroSlabs } from "@/components/landing/hero-slabs";
+import { HeroPhone } from "@/components/landing/hero-phone";
 import { NoHeadPreload } from "@/components/landing/no-head-preload";
 import { LandingGalaxy } from "@/components/landing/landing-galaxy";
-import { FeaturePanels, LandingCta, LandingLogin } from "@/components/landing/landing-links";
+import { FeaturePanels, LandingCta, LandingLogin, LandingOpen } from "@/components/landing/landing-links";
 import { Logo } from "@/components/logo";
 import type { FounderShowcase } from "@/lib/landing/founder";
 import { quickCompEnabled } from "@/lib/quick-comp/flag";
@@ -13,7 +13,7 @@ import { readFounderShowcase } from "@/lib/landing/founder-showcase";
 /**
  * Signed-out Home, drawn on the server: the hero and its photos paint from
  * the HTML and never redraw. `founder` is the server's hour-cached showcase,
- * so the hero slabs paint with the page. The links that read ?next= and the
+ * so the slabs in the hero's phone paint with the page. The links that read ?next= and the
  * panels below the hero are the only client code, with the galaxy backdrop
  * (the onboarding intro's) fixed behind it all.
  */
@@ -34,37 +34,37 @@ export function LandingPage({ founder = null }: { founder?: FounderShowcase | nu
           <LandingLogin />
         </header>
 
-        <section className="mt-6 lg:mt-14 lg:grid lg:grid-cols-[1.05fr_1fr] lg:items-center lg:gap-12">
-          <div className="lg:order-2">
-            <HeroSlabs cards={showcase ? showcase.cards : null} />
-          </div>
-          <div className="mt-6 text-center lg:mt-0 lg:text-left">
+        <section className="mt-8 lg:mt-14 lg:grid lg:grid-cols-[1.05fr_1fr] lg:items-center lg:gap-12">
+          <div className="text-center lg:text-left">
             <h1 className="text-[2.5rem] leading-[1.05] font-semibold tracking-[-0.035em] text-white sm:text-5xl lg:text-6xl">
-              Your cards.
+              Track your cards.
               <br />
-              Your comps.
+              Comp them.
               <br />
-              <span className="text-[#A78BFA]">
-                Your people.
-              </span>
+              <span className="text-[#A78BFA]">Show them off.</span>
             </h1>
-            <p className="mx-auto mt-4 max-w-sm text-[16px] leading-6 text-zinc-400 lg:mx-0">
+            <p className="mx-auto mt-4 max-w-sm text-[16px] leading-6 text-pretty text-zinc-400 lg:mx-0 lg:text-[18px] lg:leading-7">
               {quickComp
                 ? "Recent sold prices for any card. Then track your cards and share them with collectors who get it."
                 : "Track your sports cards with recent sold prices, and share them with collectors who get it."}
             </p>
-            <LandingCta />
-            <AppStoreLink />
+            <div className="mx-auto mt-7 grid max-w-sm gap-3 lg:mx-0 lg:max-w-md lg:grid-cols-2">
+              <LandingOpen />
+              <AppStoreBadge variant="button" />
+            </div>
+          </div>
+          <div className="mt-10 lg:mt-0">
+            <HeroPhone cards={showcase ? showcase.cards : null} />
           </div>
         </section>
 
         <FeaturePanels />
 
-        <div className="mt-12 lg:mx-auto lg:w-full lg:max-w-md">
+        <div className="landing-reveal mt-24 lg:mx-auto lg:mt-32 lg:w-full lg:max-w-md">
           <FounderNote />
         </div>
 
-        <section className="mt-10 rounded-[2rem] border border-white/[0.08] bg-white/[0.03] px-6 py-10 text-center">
+        <section className="landing-reveal mt-10 rounded-[2rem] border border-white/[0.08] bg-white/[0.03] px-6 py-10 text-center">
           <NoHeadPreload>
             <Logo className="mx-auto h-12 w-12" />
           </NoHeadPreload>
@@ -76,7 +76,7 @@ export function LandingPage({ founder = null }: { founder?: FounderShowcase | nu
           </p>
           <div className="mx-auto max-w-sm">
             <LandingCta />
-            <AppStoreLink />
+            <AppStoreBadge variant="badge" />
           </div>
         </section>
 

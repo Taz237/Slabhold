@@ -149,7 +149,7 @@ describe("landing chapters", () => {
   it("labels the timeline as sample accounts, visibly and on the feed region", async () => {
     const { FeaturePanels } = await import("@/components/landing/feature-panels");
     const html = renderToStaticMarkup(createElement(FeaturePanels));
-    const timeline = html.slice(html.indexOf('data-chapter="timeline"'), html.indexOf('data-chapter="graphs"'));
+    const timeline = html.slice(html.indexOf('data-chapter="timeline"'), html.indexOf('data-chapter="leaderboard"'));
     assert.match(timeline, />Sample accounts</);
     assert.match(timeline, /role="region" aria-label="Sample accounts, not real collectors"/);
     assert.match(timeline, />Sample</);

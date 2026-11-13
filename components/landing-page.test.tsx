@@ -57,13 +57,16 @@ async function mountPanels() {
 }
 
 describe("landing page", () => {
-  it("leads with the headline, Create account and Log in, carrying next", async () => {
+  it("leads with the headline, Open Slabhold and Log in, carrying next, and closes on Create account", async () => {
     const html = await landingHtml();
-    assert.match(text(html), /Your cards\. Your comps\. Your people\./);
+    assert.match(text(html), /Track your cards\. Comp them\. Show them off\./);
+    assert.match(html, /href="\/signup\?next=%2Fleaderboard"[^>]*>Open Slabhold</);
     assert.match(html, /href="\/signup\?next=%2Fleaderboard"[^>]*>Create account</);
     assert.match(html, /href="\/login\?next=%2Fleaderboard"/);
     assert.match(text(html), /Join Slabhold/);
-    assert.equal((html.match(/>Create account</g) ?? []).length, 2, "hero and final call to action");
+    assert.equal((html.match(/>Open Slabhold</g) ?? []).length, 1, "the hero's one primary action");
+    assert.equal((html.match(/>Create account</g) ?? []).length, 1, "the final call to action");
+    assert.ok(html.indexOf(">Open Slabhold<") < html.indexOf(">Create account<"));
     assert.match(html, /data-hero-slabs/);
   });
 
@@ -90,7 +93,7 @@ describe("landing page", () => {
     }
   });
 
-  it("shows the four sample-marked chapters, Quick Comp first with its flag on", async () => {
+  it("shows the sample-marked chapters: the scanner, the carousel (Comp with its flag on) and the tiers", async () => {
     const flag = process.env.NEXT_PUBLIC_QUICK_COMP;
     const realObserver = globalThis.IntersectionObserver;
     // Every chapter is near the viewport, so each demo chunk loads.
@@ -114,15 +117,27 @@ describe("landing page", () => {
       }
       const chapters = [...host.querySelectorAll("[data-chapter]")];
       assert.deepEqual(
-        chapters.map((chapter) => chapter.querySelector("h2")?.textContent),
-        ["Quick Comp", "Collectors talking cards", "Your collection, over time", "Earn every tier"],
+        chapters.map((chapter) => chapter.getAttribute("data-chapter")),
+        ["scan", "scan-result", "quick-comp", "graphs", "timeline", "leaderboard", "achievements"],
+      );
+      assert.deepEqual(
+        chapters.map((chapter) => chapter.querySelector("h2, h3")?.textContent),
+        [
+          "Scan a card, see what it sold for",
+          "Scan to comp",
+          "Quick Comp",
+          "Your collection, over time",
+          "Collectors talking cards",
+          "Weekly leaderboards",
+          "Earn every tier",
+        ],
       );
       for (const chapter of chapters) assert.match(chapter.textContent ?? "", /Sample/);
-      const quickComp = chapters[0];
+      const quickComp = chapters[2];
       assert.match(quickComp.textContent ?? "", /via Trawl/);
       const signup = quickComp.querySelector<HTMLAnchorElement>('a[href="/signup?next=%2Fcomp"]');
       assert.equal(signup?.textContent?.trim(), "Sign up to comp any card");
-      const achievements = chapters[3];
+      const achievements = chapters[6];
       const slides = achievements.querySelectorAll('[aria-roledescription="slide"]');
       assert.equal(slides.length, 6);
       assert.equal(achievements.querySelectorAll("[data-badge]").length, 6);
@@ -137,8 +152,8 @@ describe("landing page", () => {
       delete process.env.NEXT_PUBLIC_QUICK_COMP;
       const off = await mountPanels();
       assert.deepEqual(
-        [...off.querySelectorAll("[data-chapter]")].map((chapter) => chapter.querySelector("h2")?.textContent),
-        ["Collectors talking cards", "Your collection, over time", "Earn every tier"],
+        [...off.querySelectorAll("[data-chapter]")].map((chapter) => chapter.getAttribute("data-chapter")),
+        ["scan", "scan-result", "graphs", "timeline", "leaderboard", "achievements"],
       );
       assert.equal(off.querySelector('[data-chapter="quick-comp"]'), null);
     } finally {
@@ -150,7 +165,7 @@ describe("landing page", () => {
 
   it("jumps without smooth scrolling for reduced motion", async () => {
     const host = await mountPanels();
-    const scroller = host.querySelector<HTMLElement>(".snap-x");
+    const scroller = host.querySelector<HTMLElement>('[data-chapter="achievements"] .snap-x');
     assert.ok(scroller);
     const calls: ScrollToOptions[] = [];
     scroller.scrollTo = ((options: ScrollToOptions) => calls.push(options)) as typeof scroller.scrollTo;

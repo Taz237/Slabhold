@@ -15,6 +15,12 @@ const LANDING_TEXT_FILES = [
   "components/landing/showcase/graphs-demo.tsx",
   "components/landing/showcase/quick-comp-demo.tsx",
   "components/landing/showcase/badge-popup.tsx",
+  "components/landing/hero-phone.tsx",
+  "components/landing/app-store-badge.tsx",
+  "components/landing/showcase/scan-demo.tsx",
+  "components/landing/showcase/scan-result-demo.tsx",
+  "components/landing/showcase/sold-panel.tsx",
+  "components/landing/showcase/leaderboard-demo.tsx",
 ];
 
 function textZinc500(source: string) {

@@ -830,6 +830,175 @@ textarea {
 }
 
 /*
+ * Landing redesign. Scroll-driven reveals run on the compositor from the
+ * scroll position (no JS); browsers without view timelines, and readers who
+ * asked for less motion, simply see the content. Each part rises and settles
+ * to full size as it enters. Transform only: text is never faded, so it keeps
+ * its contrast at every scroll position.
+ */
+@keyframes landing-reveal {
+  from {
+    transform: translateY(40px) scale(0.96);
+  }
+  to {
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  @supports (animation-timeline: view()) {
+    .landing-reveal {
+      animation: landing-reveal linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 320px;
+    }
+  }
+}
+
+/* A card or phone that leans toward the pointer or a touch (components/landing/tilt.tsx). */
+.landing-tilt {
+  transform: perspective(1000px) rotateX(var(--tilt-x, 0deg)) rotateY(var(--tilt-y, 0deg));
+  transition: transform 400ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.landing-tilt[data-tilting] {
+  transition-duration: 80ms;
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-tilt {
+    transform: none;
+    transition: none;
+  }
+}
+
+/* The scanner showcase: a card slides into the camera, the sheet rises, the price pops in. */
+@keyframes scan-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(70%) rotate(-7deg) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes scan-sheet-in {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: none;
+  }
+}
+
+@keyframes scan-pop {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes scan-dot {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* The name's parts land one at a time, slower than in the app, so each reads. */
+  [data-scan-demo] [data-stage="player"] {
+    animation-delay: 0ms !important;
+  }
+  [data-scan-demo] [data-stage="set"] {
+    animation-delay: 320ms !important;
+  }
+  [data-scan-demo] [data-stage="number"] {
+    animation-delay: 640ms !important;
+  }
+  [data-scan-demo] [data-stage="parallel"] {
+    animation-delay: 960ms !important;
+  }
+  [data-scan-demo] [data-stage="tags"] {
+    animation-delay: 1280ms !important;
+  }
+  /* Each sold sale lands on the chart in turn. */
+  [data-scan-demo] [data-sold-panel] [role="img"] > span.rounded-full {
+    animation: scan-dot 360ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  [data-scan-demo] [data-sold-panel] [role="img"] > span.rounded-full:nth-child(3) {
+    animation-delay: 260ms;
+  }
+  [data-scan-demo] [data-sold-panel] [role="img"] > span.rounded-full:nth-child(4) {
+    animation-delay: 340ms;
+  }
+  [data-scan-demo] [data-sold-panel] [role="img"] > span.rounded-full:nth-child(5) {
+    animation-delay: 420ms;
+  }
+  [data-scan-demo] [data-sold-panel] [role="img"] > span.rounded-full:nth-child(6) {
+    animation-delay: 500ms;
+  }
+  [data-scan-demo] [data-sold-panel] [role="img"] > span.rounded-full:nth-child(7) {
+    animation-delay: 580ms;
+  }
+  [data-scan-demo] [data-sold-panel] [role="img"] > span.rounded-full:nth-child(8) {
+    animation-delay: 660ms;
+  }
+  [data-scan-demo] [data-sold-panel] [role="img"] > span.rounded-full:nth-child(9) {
+    animation-delay: 740ms;
+  }
+  [data-scan-demo] [data-sold-panel] [role="img"] > span.rounded-full:nth-child(10) {
+    animation-delay: 820ms;
+  }
+}
+
+/*
+ * The scanner's parts inside the landing showcase: dark in both themes, like
+ * the rest of the page, with the card a little smaller so the value fits the
+ * phone. Small gray labels step up to zinc-400 to clear 4.5:1 on the sheet.
+ */
+[data-scan-demo] .text-zinc-500 {
+  color: var(--color-zinc-400);
+}
+
+[data-scan-demo] [data-reveal="scan-card"] .w-36 {
+  width: 7rem;
+}
+
+@media (prefers-color-scheme: light) {
+  [data-scan-demo] .text-zinc-600 {
+    color: var(--color-zinc-300);
+  }
+  [data-scan-demo] .border-zinc-300 {
+    border-color: rgb(255 255 255 / 0.2);
+  }
+  [data-scan-demo] .bg-violet-600 {
+    background-color: #a78bfa;
+  }
+  [data-scan-demo] .ring-white {
+    --tw-ring-color: #111114;
+  }
+  [data-scan-demo] .bg-zinc-900\/\[0\.04\] {
+    background-color: rgb(255 255 255 / 0.05);
+  }
+  [data-scan-demo] .skeleton-shimmer {
+    background-color: rgb(255 255 255 / 0.06);
+    background-image: linear-gradient(90deg, transparent 0%, rgb(255 255 255 / 0.1) 50%, transparent 100%);
+  }
+}
+
+/*
  * The landing showcase and the onboarding intro are dark in both themes. The
  * app parts they reuse (range bar, chart, post pill) take their dark look
  * there even when the device is in light mode.

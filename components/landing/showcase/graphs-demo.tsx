@@ -13,8 +13,9 @@ const DRAW_MS = 400;
  * The chart draws itself in the first time it is on screen (and again on each
  * Replay, which remounts it), and the value counts up to $412 with it. `gain`
  * is the sample gain chip, passed in so its text stays with the landing panels.
+ * `chartHeight` lets the carousel give the chart the room its slide has.
  */
-export default function GraphsDemo({ run, gain }: { run: number; gain: ReactNode }) {
+export default function GraphsDemo({ run, gain, chartHeight = 176 }: { run: number; gain: ReactNode; chartHeight?: number }) {
   const root = useRef<HTMLDivElement>(null);
   const value = useRef<HTMLSpanElement>(null);
   const [points] = useState(() => sampleValueLine());
@@ -73,7 +74,7 @@ export default function GraphsDemo({ run, gain }: { run: number; gain: ReactNode
           key={run}
           points={points}
           tone="accent"
-          height={176}
+          height={chartHeight}
           ariaLabel={`Sample collection value ${dollars(last)}, up $38 in 90 days`}
         />
       </div>
