@@ -7,6 +7,7 @@ import {
   titleLooksExcluded,
   titleSerialRuns,
 } from "@/lib/comps/match";
+import { parallelMatchKey, parallelsForSet } from "@/lib/cards/parallels";
 import type { TrawlSoldResult } from "@/lib/comps/types";
 import type { IndexedDirectoryPlayer } from "@/lib/players/types";
 import { toMatchCard, type QuickCompIdentity } from "@/lib/quick-comp/identity";
@@ -43,7 +44,15 @@ export type ScanSalesResult = {
  * choose listing, a break or a random case hit, a digital card, "2x".
  */
 const SCAN_JUNK =
-  /\b(?:lots?|bundle|you\s+pick|pick\s+your|choose|complete\s+set|team\s+set|break|reprint|rp|custom|proxy|digital)\b|\b(?:random|spot)\b.*\bcase\s+hit\b|\bcase\s+hit\b.*\b(?:random|spot)\b|\bx\s?[2-9]\b|\b[2-9]\s?x\b/i;
+  /\b(?:lots?|bundle|you\s+pick|pick\s+your|choose|complete\s+set|team\s+set|reprint|rp|custom|proxy|digital)\b|(?<!\bfast\s)\bbreak\b|\b(?:random|spot)\b.*\bcase\s+hit\b|\bcase\s+hit\b.*\b(?:random|spot)\b|\bx\s?[2-9]\b|\b[2-9]\s?x\b/i;
+
+/** "X-Fractor", "X Fractor", "Xfractor": a parallel, never the "x" in "2x". */
+const X_FRACTOR = /\bx[\s-]*fractor\b/gi;
+
+/** The title with any X-Fractor written as one word, for the junk checks. */
+function junkText(title: string): string {
+  return title.replace(X_FRACTOR, "xfractor");
+}
 
 /** A raw card never prices from these: a grader's name, "graded", "gem mint". */
 const SCAN_GRADED = /\b(?:psa|bgs|sgc|cgc|csg|hga|tag|beckett|graded|slab(?:bed)?)\b|\bgem\s*mi?nt\b/i;
@@ -53,7 +62,24 @@ const SCAN_GRADED = /\b(?:psa|bgs|sgc|cgc|csg|hga|tag|beckett|graded|slab(?:bed)
  * "Silver", "Refractor", "Mojo", "Cracked Ice".
  */
 const FINISH_WORDS =
-  /\b(silver|refractor|holo|mojo|shimmer|wave|disco|hyper|pulsar|scope|velocity|sparkle|cracked\s+ice|ice|camo|tie[\s-]?dye|laser|lazer|neon|prizm\s+(?:red|blue|green|gold|orange|purple|pink|black|white))\b/i;
+  /\b(silver|refractor|x[\s-]*fractor|holo|mojo|shimmer|wave|disco|hyper|pulsar|scope|velocity|sparkle|cracked\s+ice|blue\s+ice|ice|camo|tie[\s-]?dye|laser|lazer|neon|choice|zebra|tiger(?:\s+stripes?)?|snakeskin|nebula|no\s+huddle|kaboom|stars|vinyl|fast\s+break|prizm\s+(?:red|blue|green|gold|orange|purple|pink|black|white))\b/i;
+
+/** A checklist parallel's name as a pattern: hyphens and spaces alike ("X-Fractor", "X Fractor", "Xfractor"). */
+function namePattern(name: string): RegExp {
+  const body = name
+    .trim()
+    .split(/[\s-]+/)
+    .map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+    .join("[\\s-]*");
+  return new RegExp(`\\b${body}\\b`, "i");
+}
+
+/** The set's own parallels (Choice, Snakeskin, X-Fractor...), longest first, Base left out. */
+function checklistNames(setBrand: string): string[] {
+  return [...parallelsForSet(setBrand)]
+    .filter((name) => parallelMatchKey(name) !== "base")
+    .sort((a, b) => b.length - a.length);
+}
 
 const YEAR_IN_TITLE = /\b(19[5-9]\d|20[0-3]\d)(?:\s*[-/]\s*(\d{2}))?\b(?!\s*\/\s*\d)/g;
 
@@ -78,16 +104,28 @@ export function isUnnamedRunLabel(label: string | null | undefined): boolean {
   return Boolean(label && /^\/\d+, parallel not named$/.test(label));
 }
 
-/** The parallel a sold title names, from its color and finish words and insert. "Base" when none. */
-export function titleParallel(title: string, directory: readonly IndexedDirectoryPlayer[]): string {
+/**
+ * The parallel a sold title names, from its color and finish words and insert, then the set's own
+ * checklist (Choice, Snakeskin, X-Fractor). "Base" only when the title names no parallel or finish.
+ */
+export function titleParallel(title: string, directory: readonly IndexedDirectoryPlayer[], setBrand = ""): string {
   const read = readRawCardText([title], directory);
   const colors = [...read.parallelWords].sort((a, b) => title.toUpperCase().indexOf(a) - title.toUpperCase().indexOf(b));
   const label = parallelLabel(colors);
   if (read.insert) return label ? `${read.insert} ${label}` : read.insert;
-  if (label) return label;
+  if (label) {
+    // In the checklist's spelling when it lists it ("X Fractor" reads "X-Fractor").
+    const same = checklistNames(setBrand).find((name) => parallelMatchKey(name) === parallelMatchKey(label));
+    return same ?? (/^x[\s-]*fractor$/i.test(label) ? "X-Fractor" : label);
+  }
+  // A parallel on the set's checklist, in the checklist's spelling.
+  const listed = checklistNames(setBrand).find((name) => namePattern(name).test(title));
+  if (listed) return listed;
   // A finish the color reader doesn't know still isn't Base.
   const finish = FINISH_WORDS.exec(title)?.[1];
-  return finish ? finish.toLowerCase().replace(/\s+/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase()) : "Base";
+  if (!finish) return "Base";
+  if (/^x[\s-]*fractor$/i.test(finish)) return "X-Fractor";
+  return finish.toLowerCase().replace(/\s+/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
 /** Sold listings from a cache (title, price, day) in the shape the scan's filter reads. */
@@ -153,7 +191,7 @@ export function scanSalesFor(
       dropped.removed += 1;
       continue;
     }
-    if (titleLooksExcluded(title) || SCAN_JUNK.test(title)) {
+    if (titleLooksExcluded(junkText(title)) || SCAN_JUNK.test(junkText(title))) {
       dropped.junk += 1;
       continue;
     }
@@ -195,7 +233,7 @@ export function scanSalesFor(
       dropped.junk += 1;
       continue;
     }
-    const named = titleParallel(title, directory);
+    const named = titleParallel(title, directory, identity.setBrand ?? "");
     const parallel = named === "Base" && match.serialRun ? unnamedRunLabel(match.serialRun) : named;
     kept.push({ itemId: result.item_id, title, price, soldAt: result.date_sold ?? null, parallel });
   }

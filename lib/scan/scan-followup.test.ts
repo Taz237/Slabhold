@@ -9,7 +9,7 @@ import { matchesKey } from "./confirm";
 import { LIVE_SEARCH_RETRY_MS, makeLiveSearch, MAX_LOOKUP_CALLS, newLookupBudget, type LiveSearchDeps } from "./live-search";
 import { lookupLiveSolds, type LiveSearchResult, type LiveSoldsDeps } from "./live-solds";
 import { liveSearchLadder, rankScanMatches } from "./match";
-import { scanSalesFor } from "./scan-sales";
+import { scanSalesFor, titleParallel } from "./scan-sales";
 import { scanReadFrom, type ScanCapture } from "./session";
 
 /**
@@ -537,5 +537,69 @@ describe("5) junk never shows or prices: one clean list for Add card and Quick C
     assert.ok(result.comp.status === "ok");
     assert.deepEqual(cents(result.comp), [3499, 3600, 3800]);
     assert.equal(result.comp.unclean, undefined);
+  });
+});
+
+describe("5b) the Base group holds only titles naming no parallel or finish", () => {
+  const dart = { playerName: "Jaxson Dart", cardNumber: "332", serialRun: null, yearLabel: "2025" };
+
+  it("a parallel with no color word (Choice Prizm, Zebra, Snakeskin...) is never Base", () => {
+    const names = ["Choice Prizm", "Zebra", "Tiger Stripe", "Tiger", "Snakeskin", "Nebula", "No Huddle", "Kaboom", "Stars", "Vinyl", "Fast Break", "Blue Ice", "Ice"];
+    for (const name of names) {
+      const title = `2025 Panini Prizm Jaxson Dart #332 ${name}`;
+      assert.notEqual(titleParallel(title, INDEXED_DIRECTORY, "Panini Prizm"), "Base", title);
+      assert.notEqual(titleParallel(title, INDEXED_DIRECTORY), "Base", `${title} (no set)`);
+    }
+    assert.equal(titleParallel("2025 Panini Prizm Jaxson Dart #332 RC", INDEXED_DIRECTORY, "Panini Prizm"), "Base");
+  });
+
+  it("any parallel the set's checklist names is not Base, with the checklist's spelling", () => {
+    assert.equal(titleParallel("2024 Bowman Chrome Prospects BCP-2 X Fractor", INDEXED_DIRECTORY, "Bowman Chrome"), "X-Fractor");
+    assert.equal(titleParallel("2024 Bowman Chrome BCP-2 Speckle Refractor", INDEXED_DIRECTORY, "Bowman Chrome") === "Base", false);
+    assert.equal(titleParallel("2024 Bowman Chrome BCP-2 Atomic", INDEXED_DIRECTORY, "Bowman Chrome"), "Atomic");
+  });
+
+  it("Choice and Fast Break sales are kept (not junk), outside Base; RPA and Breakaway are kept too", () => {
+    const titles = [
+      sold("2025 Panini Prizm Jaxson Dart #332 Choice Prizm", 20),
+      sold("2025 Panini Prizm Jaxson Dart #332 Fast Break", 18),
+      sold("2025 Panini Prizm Jaxson Dart #332 RPA", 300),
+      sold("2025 Panini Prizm Jaxson Dart #332 Breakaway", 9),
+    ];
+    const kept = scanSalesFor(dart, { grade: "Raw", setBrand: "Panini Prizm" }, titles, INDEXED_DIRECTORY).kept;
+    assert.deepEqual(kept.map((sale) => sale.price), [20, 18, 300, 9]);
+    assert.notEqual(kept[0].parallel, "Base");
+    assert.notEqual(kept[1].parallel, "Base");
+  });
+});
+
+describe("5c) an X-Fractor after a one-digit card # is not '2x'", () => {
+  const bcp2 = { playerName: "Aidan Miller", cardNumber: "BCP-2", serialRun: null, yearLabel: "2024" };
+
+  it("BCP-2 X-Fractor and #2 X Fractor are kept; 2x, x2 and 2 x are still dropped", () => {
+    const keep = [
+      sold("2024 Bowman Chrome Prospects Aidan Miller BCP-2 X-Fractor", 15),
+      sold("2024 Bowman Chrome Prospects Aidan Miller BCP-2 X Fractor", 16),
+      sold("2024 Bowman Chrome Aidan Miller BCP-2 Xfractor", 17),
+    ];
+    const drop = [
+      sold("2024 Bowman Chrome Aidan Miller BCP-2 2x", 8),
+      sold("2024 Bowman Chrome Aidan Miller BCP-2 x2", 8),
+      sold("2024 Bowman Chrome Aidan Miller BCP-2 2 x lot", 8),
+      sold("2024 Bowman Chrome Aidan Miller BCP-2 2 x", 8),
+    ];
+    const kept = scanSalesFor(bcp2, { grade: "Raw", setBrand: "Bowman Chrome" }, [...keep, ...drop], INDEXED_DIRECTORY).kept;
+    assert.deepEqual(kept.map((sale) => sale.price), [15, 16, 17]);
+    for (const sale of kept) assert.equal(sale.parallel, "X-Fractor", sale.title);
+  });
+
+  it("#2 X Fractor on a card numbered 2", () => {
+    const kept = scanSalesFor(
+      { playerName: "Aidan Miller", cardNumber: "2", serialRun: null, yearLabel: "2024" },
+      { grade: "Raw", setBrand: "Bowman Chrome" },
+      [sold("2024 Bowman Chrome Aidan Miller #2 X Fractor", 15)],
+      INDEXED_DIRECTORY,
+    ).kept;
+    assert.equal(kept.length, 1);
   });
 });
