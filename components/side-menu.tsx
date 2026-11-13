@@ -33,6 +33,7 @@ import {
   Trophy,
   User,
   UserPlus,
+  UserX,
   WalletCards,
   Wrench,
   type LucideIcon,
@@ -60,6 +61,7 @@ import { edgeSwipeClaims } from "@/lib/ui/nav-motion";
 import {
   ADD_TO_HOME_LABEL,
   INVITE_MENU_HREF,
+  SIDE_MENU_DELETE,
   SIDE_MENU_SETTINGS,
   SIDE_MENU_SUPPORT,
   countLabel,
@@ -742,6 +744,12 @@ export function SideMenu({
               >
                 <LifeBuoy aria-hidden className={`h-5 w-5 shrink-0 ${iconTone(supportActive)}`} />
                 {SIDE_MENU_SUPPORT.label}
+              </Link>
+            </li>
+            <li>
+              <Link href={SIDE_MENU_DELETE.href} onClick={onClose} className={`${settingsRow} ${rowTone(false)}`}>
+                <UserX aria-hidden className={`h-5 w-5 shrink-0 ${iconTone(false)}`} />
+                {SIDE_MENU_DELETE.label}
               </Link>
             </li>
             {mountExtras ? (

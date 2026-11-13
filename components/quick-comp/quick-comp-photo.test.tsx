@@ -56,8 +56,8 @@ describe("Quick Comp photo", () => {
     const html = hero(photo);
     assert.equal((html.match(/<img/g) ?? []).length, 1);
     assert.match(html, new RegExp(`src="${photo.url.replace(/[.]/g, "\\.")}"`));
-    assert.match(html, /alt="2023-24 Panini Prizm Fixture Player #136, PSA 10, from a recent eBay sale"/);
-    assert.equal(photoAlt(identity), "2023-24 Panini Prizm Fixture Player #136, PSA 10, from a recent eBay sale");
+    assert.match(html, /alt="2023-24 Panini Prizm Fixture Player #136, PSA 10, from a recent sale"/);
+    assert.equal(photoAlt(identity), "2023-24 Panini Prizm Fixture Player #136, PSA 10, from a recent sale");
     assert.match(html, /referrerPolicy="no-referrer"/i);
     assert.match(html, /decoding="async"/);
     assert.match(html, /width="448"/);

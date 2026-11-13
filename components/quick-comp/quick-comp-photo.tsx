@@ -6,7 +6,7 @@ import type { QuickCompIdentity } from "@/lib/quick-comp/identity";
 import { safePhoto, type QuickCompPhoto } from "@/lib/quick-comp/photo";
 import { textMuted } from "./tokens";
 
-export const PHOTO_CAPTION = "Photo from a recent eBay sale";
+export const PHOTO_CAPTION = "Photo from a recent sale";
 export const NO_PHOTO_LABEL = "No photo in recent sales";
 
 /** 224px at every width, so loading, photo and no photo take the same space. */
@@ -17,7 +17,7 @@ export const photoCaptionRow = "mt-2 flex h-5 items-center";
 
 export function photoAlt(identity: QuickCompIdentity): string {
   const number = identity.cardNumber ? ` #${identity.cardNumber}` : "";
-  return `${identity.yearLabel} ${identity.setBrand} ${identity.playerName}${number}, ${identity.grade}, from a recent eBay sale`;
+  return `${identity.yearLabel} ${identity.setBrand} ${identity.playerName}${number}, ${identity.grade}, from a recent sale`;
 }
 
 /**

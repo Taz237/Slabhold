@@ -21,7 +21,7 @@ export const COMP_COPY = {
   fewSales: "Not enough recent sales for a value yet",
   /** After a live eBay search for this card found no matching sale. */
   noneSearched: "No sales yet",
-  noneSearchedBody: "We looked at eBay sales from the last 90 days.",
+  noneSearchedBody: "We looked at recent sold prices from the last 90 days.",
   /** No live search ran for this pick (another parallel or grade): only saved sales were checked. */
   none: "No recent sales for this one yet",
   looking: "Looking up last solds…",

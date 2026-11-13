@@ -39,6 +39,9 @@ export const SIDE_MENU_SETTINGS = [
 /** Below the settings links. Apple asks for an easy way to reach support. */
 export const SIDE_MENU_SUPPORT = { href: "/support", label: "Help & support" } as const;
 
+/** Straight to Delete account on Privacy & safety. Apple asks that it's easy to find. */
+export const SIDE_MENU_DELETE = { href: "/settings/privacy#delete-account", label: "Delete account" } as const;
+
 /** Replays the quick tour. A button after the settings links. */
 export const TAKE_TOUR_LABEL = "Take the tour";
 

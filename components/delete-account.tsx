@@ -58,7 +58,7 @@ export function DeleteAccount() {
   }
 
   return (
-    <section className="mt-4 rounded-3xl border border-rose-300 bg-white p-4 dark:border-rose-400/30 dark:bg-white/[0.03]">
+    <section id="delete-account" className="mt-4 scroll-mt-20 rounded-3xl border border-rose-300 bg-white p-4 dark:border-rose-400/30 dark:bg-white/[0.03]">
       <h2 className="text-sm font-semibold text-rose-700 dark:text-rose-300">Delete account</h2>
       <p className="mt-2 text-sm leading-6 text-zinc-500">
         Permanently delete your Slabhold account and everything stored for it.

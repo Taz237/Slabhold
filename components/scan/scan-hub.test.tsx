@@ -307,6 +307,19 @@ describe("ScanHub without the native scanner", () => {
   });
 });
 
+describe("ScanHub in the iPhone app when the scanner didn't load", () => {
+  it("says the scanner couldn't start, not that it's coming", async () => {
+    const view = await mount("add", { scannerAvailable: async () => false, nativeApp: () => true });
+    try {
+      await waitFor(() => text().includes("The scanner couldn't start."));
+      assert.equal(text().includes("coming to the iPhone app"), false);
+      assert.ok(button("Choose a photo"));
+    } finally {
+      view.unmount();
+    }
+  });
+});
+
 describe("ScanHub from the Add card sheet's Upload photo", () => {
   it("opens the library on arrival instead of the camera, into the same reveal", async () => {
     let scans = 0;

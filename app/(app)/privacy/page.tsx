@@ -42,8 +42,8 @@ export default function PrivacyPolicyPage() {
       <p>We don&apos;t sell your data.</p>
       <h2 className="pt-2 text-lg font-semibold tracking-tight">Services we use</h2>
       <p>
-        Supabase stores accounts, the database, and photos. Vercel hosts the app. Sold prices are
-        eBay sold-listing lookups. Those requests send card details (player, year, set, number,
+        Supabase stores accounts, the database, and photos. Vercel hosts the app. Recent sold
+        prices come from Trawl, a third-party sold-listing service. Those requests send card details (player, year, set, number,
         parallel, serial, and grade) to Trawl. They do not send your email, username, or account id.
       </p>
       <p>

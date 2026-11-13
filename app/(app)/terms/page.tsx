@@ -22,6 +22,27 @@ export default function TermsPage() {
         and may hide or delete posts.
       </p>
       <p>
+        Reports are reviewed within 24 hours. When content breaks these terms we remove it, and
+        we remove the account that posted it.
+      </p>
+      <h2 className="pt-2 text-lg font-semibold tracking-tight">Using Slabhold</h2>
+      <p>
+        You get a personal licence to use Slabhold on devices you own or control. You can&apos;t
+        resell it, copy it, or use it to break the law. What you post stays yours; posting it
+        lets us show it in Slabhold. You can delete your account and everything stored for it
+        at any time in Settings, under Privacy &amp; safety.
+      </p>
+      <p>
+        The iPhone app is also covered by{" "}
+        <a
+          className="font-medium underline"
+          href="https://www.apple.com/legal/internet-services/itunes/dev/stdeula/"
+        >
+          Apple&apos;s standard licence agreement
+        </a>
+        .
+      </p>
+      <p>
         Contact support:{" "}
         <a className="font-medium underline" href={`mailto:${SUPPORT_EMAIL}`}>
           {SUPPORT_EMAIL}

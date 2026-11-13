@@ -349,8 +349,8 @@ export function NotificationSettings({ deviceSection }: { deviceSection?: ReactN
           <div className={card}>
             {device.kind === "loading" ? <SkeletonRows rows={1} /> : null}
             {device.kind === "off-build" || device.kind === "unavailable" ? (
-              <Note icon={<BellOff className="h-5 w-5" />} title="Notifications aren't available yet">
-                We&apos;re getting push notifications ready. Your notifications list still updates as usual.
+              <Note icon={<BellOff className="h-5 w-5" />} title="Push notifications are off on this device">
+                We couldn&apos;t turn them on here. Your notifications list still updates as usual.
               </Note>
             ) : null}
             {device.kind === "in-app" ? (

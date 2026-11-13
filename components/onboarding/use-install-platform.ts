@@ -26,3 +26,8 @@ function readPlatform(): InstallPlatform {
 export function useInstallPlatform(): InstallPlatform | null {
   return useSyncExternalStore(noopSubscribe, readPlatform, () => null);
 }
+
+/** True inside the iPhone app. False on the server and during hydration. */
+export function useNativeApp(): boolean {
+  return useSyncExternalStore(noopSubscribe, isNativeApp, () => false);
+}

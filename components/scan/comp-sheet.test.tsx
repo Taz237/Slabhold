@@ -270,7 +270,7 @@ describe("CompSheet: the scan's live eBay search", () => {
     const view = await mount({ kind: "ready", matches: [fixtures.PREVIEW_SLAB], solds: fixtures.PREVIEW_SOLDS_NONE });
     try {
       await waitFor(() => text().includes("No sales yet"));
-      assert.ok(text().includes("We looked at eBay sales from the last 90 days."));
+      assert.ok(text().includes("We looked at recent sold prices from the last 90 days."));
     } finally {
       view.unmount();
     }
