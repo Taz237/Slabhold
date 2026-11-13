@@ -181,6 +181,8 @@ export async function lookupLiveSolds(
       if (live.reason === "daily" || live.reason === "hourly" || live.reason === "safety") {
         return { matches, comp: { status: "limited", reason: live.reason, resetAt: live.resetAt }, query: usedQuery };
       }
+      // Out of credits: no more Trawl calls this lookup, and nothing to show but that.
+      if (budget.outOfCredits) return { matches, comp: { status: "unavailable" }, query: usedQuery };
       // One failed search never wipes out the others: try the next rung. "Unavailable" only when none answered.
       continue;
     }

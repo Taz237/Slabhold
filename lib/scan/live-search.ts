@@ -25,7 +25,7 @@ export type LiveSearchDeps = {
   fetchSold: (
     query: string,
     options: { days: number; maxPages: number },
-  ) => Promise<{ ok: true; body: { results?: TrawlSoldResult[] } } | { ok: false; status?: number; error?: string }>;
+  ) => Promise<{ ok: true; body: { results?: TrawlSoldResult[] } } | { ok: false; status?: number; error?: string; outOfCredits?: boolean }>;
   limits: QuickCompLimitDeps;
   cache: CacheFn;
   now: () => number;
@@ -38,7 +38,20 @@ export type LiveSearchDeps = {
 /** A 429 or a 5xx gets one more try, this long after. */
 export const LIVE_SEARCH_RETRY_MS = 400;
 
-function retryable(status: number | undefined): boolean {
+/**
+ * Trawl's answer to a spent account: a 429 with no Retry-After (Trawl's own outOfCredits), or an
+ * error that says credits or quota. Retrying only spends another call; the sheet says it plainly.
+ */
+function outOfCredits(result: { status?: number; error?: string; outOfCredits?: boolean }): boolean {
+  if (result.status === 402) return true;
+  if (result.status !== 429) return false;
+  return Boolean(result.outOfCredits) || /\b(?:credits?|quota)\b/i.test(result.error ?? "");
+}
+
+/** A throttled search or a server error: worth one more try. Never an account that's out of credits. */
+function retryable(result: { status?: number; error?: string; outOfCredits?: boolean }): boolean {
+  const status = result.status;
+  if (outOfCredits(result)) return false;
   return status === 429 || (status != null && status >= 500 && status < 600);
 }
 
@@ -85,9 +98,10 @@ type Cached = { results: TrawlSoldResult[]; fetchedAt: string };
 /**
  * One scan's lookup across the ladder's rungs. The caps are spent once, on the
  * first rung that misses the cache; later rungs ride on it. At most
- * MAX_LOOKUP_CALLS Trawl calls per lookup, whatever happens.
+ * MAX_LOOKUP_CALLS Trawl calls per lookup, whatever happens, and none after
+ * Trawl says the account is out of credits (outOfCredits).
  */
-export type LookupBudget = { spent: boolean; calls: number };
+export type LookupBudget = { spent: boolean; calls: number; outOfCredits?: boolean };
 export const MAX_LOOKUP_CALLS = 4;
 
 export function newLookupBudget(): LookupBudget {
@@ -104,7 +118,7 @@ export function makeLiveSearch(deps: LiveSearchDeps) {
     try {
       const cached = await deps.cache<Cached>(
         async () => {
-          if (budget.calls >= MAX_LOOKUP_CALLS) throw new QuickCompFailure("unavailable");
+          if (budget.outOfCredits || budget.calls >= MAX_LOOKUP_CALLS) throw new QuickCompFailure("unavailable");
           if (!budget.spent) {
             const spent = await spendQuickCompLookup(userId, { ...deps.limits, now: deps.now });
             if (!spent.ok) throw new QuickCompFailure(spent.reason, spent.resetAt);
@@ -116,7 +130,7 @@ export function makeLiveSearch(deps: LiveSearchDeps) {
           };
           let result = await fetchOnce();
           // Throttled or a server error: one more try, still inside the lookup's call cap.
-          if (!result.ok && retryable(result.status) && budget.calls < MAX_LOOKUP_CALLS) {
+          if (!result.ok && retryable(result) && budget.calls < MAX_LOOKUP_CALLS) {
             (deps.warn ?? defaultWarn)({ query, status: result.status ?? 0, reason: result.error ?? "failed", retried: false });
             await (deps.sleep ?? defaultSleep)(LIVE_SEARCH_RETRY_MS);
             result = await fetchOnce();
@@ -124,7 +138,11 @@ export function makeLiveSearch(deps: LiveSearchDeps) {
           } else if (!result.ok) {
             (deps.warn ?? defaultWarn)({ query, status: result.status ?? 0, reason: result.error ?? "failed", retried: false });
           }
-          if (!result.ok) throw new QuickCompFailure("unavailable");
+          if (!result.ok) {
+            // Out of credits: the rest of this lookup makes no more Trawl calls.
+            if (outOfCredits(result)) budget.outOfCredits = true;
+            throw new QuickCompFailure("unavailable");
+          }
           const results = (result.body.results ?? []).filter(Boolean).slice(0, MAX_RESULTS).map(compact);
           return { results, fetchedAt: new Date(deps.now()).toISOString() };
         },
