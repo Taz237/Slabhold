@@ -18,6 +18,11 @@ export type RawScan = {
   image?: unknown;
   kind?: unknown;
   border?: unknown;
+  /** New keys, all optional, so an older app build still works: each line's next best readings. */
+  alternates?: unknown;
+  backAlternates?: unknown;
+  /** A slab's cert number from its barcode. */
+  cert?: unknown;
 };
 
 export const SCANNER_PLUGIN = "SlabholdScanner";
@@ -35,6 +40,24 @@ function lines(value: unknown): string[] | null {
     .map((line) => line.slice(0, MAX_LINE_LENGTH));
 }
 
+const MAX_ALTERNATES = 3;
+
+/** One list of alternates per line, capped like lines. Null when missing or not a list of lists. */
+function alternates(value: unknown, count: number): string[][] | null {
+  if (!Array.isArray(value) || !value.every((item) => Array.isArray(item))) return null;
+  return (value as unknown[][]).slice(0, count).map((list) =>
+    list
+      .filter((item): item is string => typeof item === "string" && item.trim().length > 0)
+      .slice(0, MAX_ALTERNATES)
+      .map((item) => item.slice(0, MAX_LINE_LENGTH)),
+  );
+}
+
+/** A cert number is 7 to 12 digits and nothing else. */
+function cert(value: unknown): string | null {
+  return typeof value === "string" && /^\d{7,12}$/.test(value) ? value : null;
+}
+
 function image(value: unknown): string | null {
   if (typeof value !== "string" || !value || value.length > MAX_IMAGE_LENGTH) return null;
   if (value.startsWith("data:image/jpeg;base64,") || value.startsWith("data:image/png;base64,")) return value;
@@ -49,13 +72,22 @@ export function scanCaptureFrom(raw: unknown): ScanCapture | null {
   if (scan.cancelled) return null;
   const front = lines(scan.lines);
   if (!front) return null;
-  return {
+  const back = lines(scan.backLines);
+  const capture: ScanCapture = {
     lines: front,
-    backLines: lines(scan.backLines),
+    backLines: back,
     image: image(scan.image),
     kind: scan.kind === "card" || scan.kind === "slab" ? scan.kind : null,
     border: borderColorName(scan.border),
   };
+  // The newer app build's extras, only when it sent them: an older build's result is unchanged.
+  const frontAlternates = alternates(scan.alternates, front.length);
+  if (frontAlternates) capture.alternates = frontAlternates;
+  const backAlternates = back ? alternates(scan.backAlternates, back.length) : null;
+  if (backAlternates) capture.backAlternates = backAlternates;
+  const barcode = cert(scan.cert);
+  if (barcode) capture.cert = barcode;
+  return capture;
 }
 
 /**

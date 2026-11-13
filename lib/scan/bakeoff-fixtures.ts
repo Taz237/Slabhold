@@ -53,6 +53,12 @@ export type BakeoffCase = {
    * any sold title can correct it the scan can only show what it read, so that counts as open.
    */
   misreadRun?: number;
+  /** Each front line's next best readings from the phone (Vision's other candidates, re-reads, votes). */
+  alternates?: string[][];
+  /** The same for the back. */
+  backAlternates?: string[][];
+  /** A slab's cert number from its barcode. */
+  barcodeCert?: string;
   /** Fields the scanner gets wrong on this scan today (the wide set). Empty or missing: none may be wrong. */
   knownWrong?: ("player" | "year" | "set" | "number" | "run" | "parallel")[];
   /** What a live eBay search returns, junk included. None: Trawl finds nothing on any rung. */

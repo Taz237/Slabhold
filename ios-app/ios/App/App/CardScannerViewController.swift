@@ -1,4 +1,5 @@
 import AVFoundation
+import CoreImage
 import PhotosUI
 import UIKit
 
@@ -12,6 +13,10 @@ import UIKit
 /// A raw card whose front shows no card number gets one more step: "Flip it
 /// over for the card #", then a second tap (or a photo) for the back, or Skip.
 /// Slabs never ask: the label carries the number.
+///
+/// While the collector frames the card, the live frames are scored for sharpness and glare
+/// (FrameQuality). That only changes the hint ("Hold steady", "Tilt to cut glare") and keeps
+/// the sharpest few frames so their text can vote with the photo. It never takes a picture.
 final class CardScannerViewController: UIViewController {
     enum Outcome {
         case cancelled
@@ -23,6 +28,8 @@ final class CardScannerViewController: UIViewController {
         case frame = "Frame the card, then tap to take it"
         case reading = "Reading the card"
         case flip = "Flip it over for the card #"
+        case steady = "Hold steady"
+        case glare = "Tilt to cut glare"
         case noText = "We couldn't read that one. Try again with the card flat and in good light."
     }
 
@@ -40,7 +47,14 @@ final class CardScannerViewController: UIViewController {
     private let session = AVCaptureSession()
     private let sessionQueue = DispatchQueue(label: "app.slabhold.scanner.session")
     private let photoOutput = AVCapturePhotoOutput()
+    private let frameOutput = AVCaptureVideoDataOutput()
+    private let frameQueue = DispatchQueue(label: "app.slabhold.scanner.frames")
     private var device: AVCaptureDevice?
+
+    /// What the live frames have shown lately. Touched only on `frameQueue`.
+    private nonisolated let watch = FrameWatch()
+    /// The frames whose text votes with the photo. Main thread only.
+    private var voteFrames: [CGImage] = []
     private lazy var previewLayer = AVCaptureVideoPreviewLayer(session: session)
 
     private let hintLabel = UILabel()
@@ -127,9 +141,26 @@ final class CardScannerViewController: UIViewController {
             self.device = device
             if device.isFocusModeSupported(.continuousAutoFocus), (try? device.lockForConfiguration()) != nil {
                 device.focusMode = .continuousAutoFocus
+                // A card is held close: keep the lens hunting near, not across the room.
+                if device.isAutoFocusRangeRestrictionSupported { device.autoFocusRangeRestriction = .near }
                 device.unlockForConfiguration()
             }
             if self.session.canAddOutput(self.photoOutput) { self.session.addOutput(self.photoOutput) }
+            // Live frames, for the sharpness hint and the vote only. Late frames are dropped.
+            self.frameOutput.alwaysDiscardsLateVideoFrames = true
+            self.frameOutput.videoSettings = [kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_420YpCbCr8BiPlanarFullRange]
+            self.frameOutput.setSampleBufferDelegate(self, queue: self.frameQueue)
+            if self.session.canAddOutput(self.frameOutput) {
+                self.session.addOutput(self.frameOutput)
+                if let connection = self.frameOutput.connection(with: .video) {
+                    // Upright frames, so their text lines up with the photo's.
+                    if #available(iOS 17.0, *) {
+                        if connection.isVideoRotationAngleSupported(90) { connection.videoRotationAngle = 90 }
+                    } else if connection.isVideoOrientationSupported {
+                        connection.videoOrientation = .portrait
+                    }
+                }
+            }
             self.session.commitConfiguration()
             let hasTorch = device.hasTorch
             DispatchQueue.main.async { self.torchButton.isHidden = !hasTorch }
@@ -313,9 +344,37 @@ final class CardScannerViewController: UIViewController {
         show(.flip)
     }
 
+    /// The sharpest frames from the last moment, sharpest first, for the vote. From here
+    /// until the read ends, no live frame is scored or kept.
+    private func sharpestFrames() -> [CGImage] {
+        frameQueue.sync { [watch] () -> [CGImage] in
+            watch.reading = true
+            return watch.takeSharpest(within: FrameWatch.steadyWindow)
+        }
+    }
+
+    /// The read is over: live frames are scored again.
+    private func resumeFrames() {
+        frameQueue.async { [watch] in watch.reading = false }
+    }
+
+    /// The hint follows the live frames, only while the collector is framing the card.
+    private func showQuality(soft: Bool, glare: Bool) {
+        guard !capturing, !finished, Date() >= noticeUntil else { return }
+        guard let current = currentHint, current == .frame || current == .flip || current == .steady || current == .glare else { return }
+        if glare {
+            show(.glare)
+        } else if soft {
+            show(.steady)
+        } else {
+            show(front == nil ? .frame : .flip)
+        }
+    }
+
     private func capture() {
         guard !capturing, !finished else { return }
         capturing = true
+        voteFrames = sharpestFrames()
         captureHaptic.impactOccurred()
         doneHaptic.prepare()
         show(.reading)
@@ -324,22 +383,27 @@ final class CardScannerViewController: UIViewController {
     }
 
     /// A snapped frame or a library photo: read it on the phone, then finish or ask for the back.
+    /// A snap also brings the sharpest recent frames, whose text votes with the photo's.
     private func handle(_ image: UIImage) {
         capturing = true
         show(.reading)
+        let frames = voteFrames
+        voteFrames = []
         DispatchQueue.global(qos: .userInitiated).async {
-            let read = CardTextReader.read(image: image)
+            let read = CardTextReader.read(image: image, frames: frames)
             DispatchQueue.main.async { self.finishRead(read) }
         }
     }
 
     private func finishRead(_ read: CardRead) {
+        resumeFrames()
         guard !read.lines.isEmpty else {
             couldNotRead()
             return
         }
         if var front = self.front {
             front.backLines = read.lines
+            front.backDetails = read.details
             doneHaptic.notificationOccurred(.success)
             end(.captured(front))
             return
@@ -353,6 +417,7 @@ final class CardScannerViewController: UIViewController {
     }
 
     private func couldNotRead() {
+        resumeFrames()
         capturing = false
         doneHaptic.notificationOccurred(.warning)
         noticeUntil = Date().addingTimeInterval(Self.noticeSeconds)
@@ -388,7 +453,10 @@ extension CardScannerViewController: PHPickerViewControllerDelegate {
     func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
         picker.dismiss(animated: !UIAccessibility.isReduceMotionEnabled)
         guard let provider = results.first?.itemProvider, provider.canLoadObject(ofClass: UIImage.self) else { return }
+        // A library photo has no live frames to vote with.
+        voteFrames = []
         capturing = true
+        frameQueue.async { [watch] in watch.reading = true }
         show(.reading)
         provider.loadObject(ofClass: UIImage.self) { [weak self] object, _ in
             DispatchQueue.main.async {
@@ -400,5 +468,89 @@ extension CardScannerViewController: PHPickerViewControllerDelegate {
                 self.handle(image)
             }
         }
+    }
+}
+
+extension CardScannerViewController: AVCaptureVideoDataOutputSampleBufferDelegate {
+    /// Scores a live frame, on the frame queue. Sharp ones are kept for the vote; a run of soft
+    /// or glaring ones changes the hint. The picture is still only taken when the collector taps.
+    nonisolated func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
+        guard let buffer = CMSampleBufferGetImageBuffer(sampleBuffer), let change = watch.score(buffer) else { return }
+        DispatchQueue.main.async { [weak self] in
+            self?.showQuality(soft: change.soft, glare: change.glare)
+        }
+    }
+}
+
+/// The live frames' recent sharpness and glare, and the sharpest few frames, kept so their text
+/// can vote with the photo. Every property and method is used only on the scanner's frame queue.
+final class FrameWatch: @unchecked Sendable {
+    /// A recent sharp frame.
+    private struct SharpFrame {
+        let image: CGImage
+        let sharpness: Double
+        let time: CFAbsoluteTime
+    }
+
+    /// Frames are scored about 8 times a second.
+    static let scoreEvery: CFAbsoluteTime = 0.12
+    /// Frames older than this don't vote: the card may have moved.
+    static let steadyWindow: CFAbsoluteTime = 0.6
+    /// This many soft (or glaring, or clear) scores in a row change the hint, so it doesn't flicker.
+    static let hintRun = 3
+
+    /// True from the tap until the read ends: no frame is scored or kept meanwhile.
+    var reading = false
+    private var sharpFrames: [SharpFrame] = []
+    private var lastScored: CFAbsoluteTime = 0
+    private var softRun = 0
+    private var glareRun = 0
+    private var clearRun = 0
+    private let context = CIContext()
+
+    /// The sharpest frames inside the window, sharpest first. The kept frames are dropped.
+    func takeSharpest(within window: CFAbsoluteTime) -> [CGImage] {
+        let now = CFAbsoluteTimeGetCurrent()
+        let frames = sharpFrames
+            .filter { now - $0.time <= window }
+            .sorted { $0.sharpness > $1.sharpness }
+            .prefix(2)
+            .map { $0.image }
+        sharpFrames = []
+        softRun = 0
+        glareRun = 0
+        clearRun = 0
+        return frames
+    }
+
+    /// Scores one frame. Returns the hint to show when a run of frames changes it, else nil.
+    func score(_ buffer: CVPixelBuffer) -> (soft: Bool, glare: Bool)? {
+        guard !reading else { return nil }
+        let now = CFAbsoluteTimeGetCurrent()
+        guard now - lastScored >= Self.scoreEvery else { return nil }
+        lastScored = now
+        guard let quality = FrameQuality.score(buffer) else { return nil }
+        let soft = quality.sharpness < FrameQuality.sharpEnough
+        let glare = quality.glare > FrameQuality.glareShare
+        sharpFrames.removeAll { now - $0.time > Self.steadyWindow }
+        if !soft {
+            let weakest = sharpFrames.min { $0.sharpness < $1.sharpness }
+            if sharpFrames.count < 3 || quality.sharpness > (weakest?.sharpness ?? 0) {
+                let frame = CIImage(cvPixelBuffer: buffer)
+                if let image = context.createCGImage(frame, from: frame.extent) {
+                    if sharpFrames.count >= 3, let index = sharpFrames.indices.min(by: { sharpFrames[$0].sharpness < sharpFrames[$1].sharpness }) {
+                        sharpFrames.remove(at: index)
+                    }
+                    sharpFrames.append(SharpFrame(image: image, sharpness: quality.sharpness, time: now))
+                }
+            }
+        }
+        softRun = soft ? softRun + 1 : 0
+        glareRun = glare ? glareRun + 1 : 0
+        clearRun = (soft || glare) ? 0 : clearRun + 1
+        let showGlare = glareRun >= Self.hintRun
+        let showSoft = softRun >= Self.hintRun
+        guard showGlare || showSoft || clearRun == Self.hintRun else { return nil }
+        return (showSoft, showGlare)
     }
 }
