@@ -118,12 +118,19 @@ export const WIDE_BAKEOFF_CASES: BakeoffCase[] = [
     truth: { player: "Joe Burrow", year: "2020", set: "Panini Contenders", number: "103", parallel: "Base", run: null, grade: "PSA 8", cert: "55443322" },
   },
   {
-    name: "Slab PSA: Stroud Silver Prizm, a player our directory doesn't have",
-    knownWrong: ["player"],
+    name: "Slab PSA: Stroud Silver Prizm, the label prints C.J. and our directory says CJ",
     kind: "slab",
     front: ["PSA", "2023 PANINI PRIZM", "#339", "C.J. STROUD", "SILVER PRIZM", "GEM MT 10", "76543210"],
     back: null,
-    truth: { player: "C.J. Stroud", year: "2023", set: "Panini Prizm", number: "339", parallel: "Silver", run: null, grade: "PSA 10", cert: "76543210" },
+    truth: { player: "CJ Stroud", year: "2023", set: "Panini Prizm", number: "339", parallel: "Silver", run: null, grade: "PSA 10", cert: "76543210" },
+  },
+  {
+    name: "Slab PSA: Condon Bowman Chrome, a prospect our directory doesn't have, wrapped set line",
+    knownWrong: ["player", "parallel"],
+    kind: "slab",
+    front: ["PSA", "2025 BOWMAN CHROME", "PROSPECTS", "#BCP-12", "CHARLIE CONDON", "GEM MT 10", "61234567"],
+    back: null,
+    truth: { player: "Charlie Condon", year: "2025", set: "Bowman Chrome", number: "BCP-12", parallel: "Base", run: null, grade: "PSA 10", cert: "61234567" },
   },
   {
     name: "Slab BGS: Herbert Silver Prizm, subgrades in words",
