@@ -5,6 +5,8 @@ import { PrimaryButton, QuietButton, focusRing } from "@/components/add-card/flo
 import {
   LastSold,
   OtherMatches,
+  SetNotes,
+  withSoldGroups,
   ParallelStrip,
   RevealCard,
   RevealName,
@@ -43,6 +45,8 @@ type Props = {
   /** None of these, or no match: the guided Add card with the photo. */
   onStepByStep: () => void;
   onRetake: () => void;
+  /** "Is this Sapphire?": read the card again as its Sapphire Edition and look its sales up. */
+  onSapphire?: () => void;
   onClose: () => void;
 };
 
@@ -51,7 +55,7 @@ type Props = {
  * and the card's name fills in under it step by step while the lookup runs.
  * The top match is one tap to accept; a wrong row or parallel is one tap to fix.
  */
-export function ConfirmSheet({ photo, state, onConfirm, onStepByStep, onRetake, onClose }: Props) {
+export function ConfirmSheet({ photo, state, onConfirm, onStepByStep, onRetake, onSapphire, onClose }: Props) {
   const title = state.kind === "none" ? CONFIRM_COPY.noMatchTitle : CONFIRM_COPY.title;
   return (
     <SheetFrame title={title} busy={state.kind === "matching"} variant="scene" onClose={onClose}>
@@ -67,6 +71,7 @@ export function ConfirmSheet({ photo, state, onConfirm, onStepByStep, onRetake, 
           matches={state.matches}
           solds={state.solds}
           photo={photo}
+          onSapphire={onSapphire}
           onConfirm={onConfirm}
           onStepByStep={onStepByStep}
           onRetake={onRetake}
@@ -80,6 +85,7 @@ function Ready({
   matches,
   solds,
   photo = null,
+  onSapphire,
   onConfirm,
   onStepByStep,
   onRetake,
@@ -88,6 +94,7 @@ function Ready({
   solds?: SoldsState;
   /** The scan, shown beside a sold listing's photo when one is enlarged. */
   photo?: string | null;
+  onSapphire?: () => void;
   onConfirm: (match: ScanMatch, options: { save: boolean }) => void;
   onStepByStep: () => void;
   onRetake: () => void;
@@ -134,11 +141,19 @@ function Ready({
     <div className="space-y-6">
       <RevealName match={top} parallel={pick?.name ?? null} photo={photo} />
       {/* The last solds are for the card as read; picking another row hides them. */}
-      {solds && top === matches[0] ? <LastSold solds={solds} /> : null}
+      <SetNotes match={top} onSapphire={top === matches[0] ? onSapphire : undefined} center />
+      {solds && top === matches[0] ? (
+        // A parallel the sales name is one tap, from the sales row or from its chip below.
+        <LastSold solds={solds} pick={pick?.name ?? null} onPick={(label) => choose({ name: label, serialRun: top.serialRun })} />
+      ) : null}
 
       <div>
         <ParallelStrip
-          options={withYearAgoParallels(parallelOptionsFor(top), top, top === matches[0] ? solds : undefined)}
+          options={withYearAgoParallels(
+            withSoldGroups(parallelOptionsFor(top), top === matches[0] ? solds : undefined, top.serialRun, false),
+            top,
+            top === matches[0] ? solds : undefined,
+          )}
           pick={pick}
           deferred={deferred}
           hint={

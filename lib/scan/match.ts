@@ -8,6 +8,7 @@ import { AUTO_CODE_PREFIX, findPlayers, looksLikeCatalogSku, readRawCardText, ty
 
 export { looksLikeCatalogSku };
 import type { SlabLabelRead } from "./slab-label";
+import { SAPPHIRE_WORD, inSapphireFamily, isSapphireSet, sapphireOf, sapphireSearchSet } from "./sapphire";
 
 /**
  * Checks a scan's read (slab label, or raw card front and back) against our
@@ -75,6 +76,10 @@ export type ScanMatch = {
   subset?: string;
   /** A photo of this exact card from a sold listing the scan's search returned. Never stored. */
   listing?: { imageUrl: string; url: string | null; soldAt: string | null };
+  /** The set was named by most of this card's sold titles ("Sapphire"), not by the card's print. */
+  setSource?: "sales";
+  /** The Sapphire Edition of this set, offered as a quick pick while nothing confirms it. */
+  sapphireOption?: string;
   /** The card carries the 1ST BOWMAN mark. */
   firstBowman?: boolean;
   /** The player's name was read off the card and isn't in our player list yet. */
@@ -291,8 +296,13 @@ function evidenceFrom(read: ScanRead, directory: readonly IndexedDirectoryPlayer
   const setNames = mergedSetNames(sides, cardNumber);
   const numberPrefix = /^([A-Z]+)-/.exec(cardNumber)?.[1] ?? "";
   const parallelWords: string[] = [];
+  // In a set with a Sapphire Edition, "Sapphire" names the product, never the parallel.
+  const sapphireProduct = Boolean(setNames[0]) && inSapphireFamily(setNames[0]);
   for (const phrase of sides.flatMap((side) => side.parallelWords)) {
-    for (const word of words(phrase)) if (!parallelWords.includes(word)) parallelWords.push(word);
+    for (const word of words(phrase)) {
+      if (sapphireProduct && word === "sapphire") continue;
+      if (!parallelWords.includes(word)) parallelWords.push(word);
+    }
   }
   return {
     slab: false,
@@ -338,6 +348,16 @@ const BOWMAN_DRAFT_PREFIXES = new Set(["BD", "BDC", "CDA", "BDA"]);
  * beats the shorter one inside it (Topps Update over Topps, Upper Deck Series 1 over Upper Deck).
  */
 function mergedSetNames(sides: readonly RawCardRead[], cardNumber: string): string[] {
+  const names = printedSetNames(sides, cardNumber);
+  // "SAPPHIRE" anywhere on the card names the Sapphire Edition of a set that has one.
+  const sapphire = names[0] ? sapphireOf(names[0]) : null;
+  if (sapphire && sides.some((side) => side.lines.some((line) => SAPPHIRE_WORD.test(line)))) {
+    return [sapphire, ...names.filter((name) => name !== sapphire)];
+  }
+  return names;
+}
+
+function printedSetNames(sides: readonly RawCardRead[], cardNumber: string): string[] {
   const names: string[] = [];
   for (const name of sides.flatMap((side) => side.setNames)) if (!names.includes(name)) names.push(name);
   const printed = new Set(sides.flatMap((side) => side.printedSets ?? []));
@@ -437,7 +457,8 @@ export function liveSearchLadder(
   // An autograph searches as one ("... Inception RAV-ML auto"), by the product's own word: sellers
   // write "Inception", not always "Topps Inception".
   const auto = evidence.isAuto && !evidence.slab ? "auto" : "";
-  const searchSet = auto ? productWord(set) : set;
+  // A Sapphire Edition searches the way sellers list it: "Bowman Sapphire".
+  const searchSet = isSapphireSet(set) ? sapphireSearchSet(set) : auto ? productWord(set) : set;
   const rung = (...parts: string[]) => [player, ...parts].filter(Boolean).join(" ").replace(/\s+/g, " ").trim();
   const rungs = number
     ? [rung(searchSet, insert, number, run, grade, auto), rung(insert, number, run, grade, auto), rung(searchSet, insert, number, grade), rung(insert, number, grade)]
@@ -487,7 +508,7 @@ type Candidate = {
  */
 const TITLE_LOT = /\b(?:lot|lots|reprint|proxy|custom|you\s+pick|complete\s+set|team\s+set)\b|\bx[2-9]\b|\b\d+\s*cards?\b/i;
 /** "/199", "#/199", "88/199". A season ("2025/26") is not a run. */
-const TITLE_RUN = /(?:(\d{1,4})\s*)?\/\s*(\d{1,4})\b/g;
+const TITLE_RUN = /(?:(\d{1,4})(\s*))?\/\s*(\d{1,4})\b/g;
 
 function titleNamesPlayer(title: string, playerName: string): boolean {
   const name = compactName(playerName);
@@ -498,9 +519,10 @@ function titleRuns(title: string): number[] {
   const runs: number[] = [];
   for (const match of title.matchAll(TITLE_RUN)) {
     const left = match[1] ? Number(match[1]) : null;
-    const right = Number(match[2]);
+    const right = Number(match[3]);
     if (left != null && left >= 1900 && (right === (left + 1) % 100 || right === left + 1)) continue;
-    if (left != null && left > right) continue;
+    // "BCP-68 /10": the number before the space is the card #, and "/10" is the run. "68/10" is neither.
+    if (left != null && left > right && !match[2]) continue;
     if (right > 0) runs.push(right);
   }
   return runs;
@@ -513,6 +535,8 @@ type TitleFacts = {
   /** Color and finish words, upper case ("ORANGE"). */
   colors: string[];
   insert: string;
+  /** The title says Sapphire. */
+  sapphire?: boolean;
 };
 
 function identityKey(card: { playerName: string; yearLabel: string; setBrand: string; cardNumber: string }): string {
@@ -868,9 +892,17 @@ function titleCandidates(
   const bowmanCard = (number: string) =>
     BOWMAN_ONLY_PREFIXES.has(/^([a-z]+)-/.exec(number)?.[1]?.toUpperCase() ?? "") ||
     parsed.some((item) => item.number === number && item.read.setNames.some((name) => /^bowman/i.test(name)));
+  const printedSet = evidence.setNames[0] ?? "";
   const titleSet = (item: (typeof parsed)[number]) => {
     const set = item.read.setNames[0] ?? "";
     if (BARE_MAKER_SET.has(set) && bowmanCard(item.number || printedNumber)) return "";
+    // A title for this card's product family ("Bowman U Chrome Sapphire", "Bowman Chrome U") backs the
+    // set the card printed: Sapphire is settled separately, by the card or by most of the titles.
+    if (printedSet && inSapphireFamily(printedSet) && inSapphireFamily(set)) return printedSet;
+    // Sellers shorten it: "Bowman Sapphire", "Bowman Chrome U". Any Bowman title for a Bowman U card,
+    // and a Sapphire title by the same maker, is this card's product.
+    if (/^bowman u chrome/i.test(printedSet) && /^bowman\b/i.test(set)) return printedSet;
+    if (printedSet && inSapphireFamily(printedSet) && SAPPHIRE_WORD.test(item.title) && words(set)[0] === words(printedSet)[0]) return printedSet;
     return set;
   };
 
@@ -900,7 +932,7 @@ function titleCandidates(
         const set = titleSet(item);
         return !set || sameSet(set, group.set);
       })
-      .map((item) => ({ runs: item.runs, colors: item.read.parallelWords, insert: item.read.insert }));
+      .map((item) => ({ runs: item.runs, colors: item.read.parallelWords, insert: item.read.insert, sapphire: SAPPHIRE_WORD.test(item.title) }));
     return {
       catalogId: null,
       playerName,
@@ -962,7 +994,7 @@ function looseTitleFacts(
     .map((title) => ({ title, read: readRawCardText([title], directory), runs: titleRuns(title) }))
     .filter((item) => cardNumberKey(item.read.cardNumber) === printedNumber && item.read.setNames.length === 0)
     .filter((item) => printedRun == null || item.runs.includes(printedRun))
-    .map((item) => ({ runs: item.runs, colors: item.read.parallelWords, insert: item.read.insert }));
+    .map((item) => ({ runs: item.runs, colors: item.read.parallelWords, insert: item.read.insert, sapphire: SAPPHIRE_WORD.test(item.title) }));
 }
 
 /** Catalog and sold-listing candidates for the same card become one, keeping the catalog row. */
@@ -1008,6 +1040,27 @@ function withVerifiedPlayer(evidence: Evidence, rows: readonly CatalogCard[], ti
   return { ...evidence, playerText: "", playerLocked: false, playerBothSides: false, playerOpen: true };
 }
 
+/** Fewest matching titles before "most of them" means anything. */
+const SAPPHIRE_MIN_TITLES = 2;
+
+/**
+ * Most sold titles for this exact card say Sapphire: the same player, the same card # (required)
+ * and, on a numbered card, the same print run. Fewer than two such titles is no majority.
+ */
+function mostTitlesSaySapphire(evidence: Evidence, card: Candidate, titles: readonly SoldTitle[]): boolean {
+  const number = cardNumberKey(card.cardNumber);
+  if (!card.playerName || !number || evidence.slab) return false;
+  const run = evidence.serial ? Number(evidence.serial.run) : null;
+  const pattern = new RegExp(`(?:^|[^a-z0-9])${number.replace(/[^a-z0-9]/g, "[^a-z0-9]?")}(?:[^a-z0-9]|$)`, "i");
+  const same = titles
+    .slice(0, MAX_SOLD_TITLES)
+    .map((sold) => (typeof sold?.title === "string" ? sold.title.trim() : ""))
+    .filter((title) => title && !TITLE_LOT.test(title) && titleNamesPlayer(title, card.playerName) && pattern.test(title))
+    .filter((title) => (run == null ? titleRuns(title).length === 0 : titleRuns(title).includes(run)));
+  const sapphire = same.filter((title) => SAPPHIRE_WORD.test(title)).length;
+  return same.length >= SAPPHIRE_MIN_TITLES && sapphire * 2 > same.length;
+}
+
 export function rankScanMatches(
   read: ScanRead,
   rows: readonly CatalogCard[],
@@ -1026,10 +1079,22 @@ export function rankScanMatches(
       if (!card.titles?.length && card.playerName === bestPlayerName(evidence)) card.titles = loose;
     }
   }
-  const scored = merged.map((card) => {
+  const scored = merged.map((found) => {
+    let card = found;
+    // Sapphire the card didn't print: named only when most sold titles for this player, card # and run say so.
+    const sapphireSet = sapphireOf(card.setBrand);
+    const fromSales = sapphireSet && mostTitlesSaySapphire(evidence, card, options.soldTitles ?? []) ? sapphireSet : null;
+    if (fromSales) card = { ...card, setBrand: fromSales };
+    // In these sets "Sapphire" is the product: titles for the other edition don't vote on the parallel,
+    // and the word itself is never a color.
+    const titles = inSapphireFamily(card.setBrand)
+      ? card.titles
+          ?.filter((item) => Boolean(item.sapphire) === isSapphireSet(card.setBrand))
+          .map((item) => ({ ...item, colors: item.colors.map((phrase) => phrase.replace(/\bsapphire\b/gi, " ").replace(/\s+/g, " ").trim()).filter(Boolean) }))
+      : card.titles;
     const lastYear = yearBefore(card.yearLabel);
     const yearAgo = lastYear && options.products?.length ? parallelsIn(options.products, card.sport, lastYear, card.setBrand) : [];
-    const parallel = pickParallel(evidence, checklistFor(options.products, card), card.titles, yearAgo);
+    const parallel = pickParallel(evidence, checklistFor(options.products, card), titles, yearAgo);
     const inDirectory = evidence.players.some((item) => compactName(item.name) === compactName(card.playerName));
     // A slab label prints no run: when every sold title for this parallel names the same one, use it.
     if (parallel.serialRun == null && parallel.parallel && card.titles?.length) {
@@ -1050,9 +1115,12 @@ export function rankScanMatches(
       isRookie: card.isRookie || evidence.isRookie,
       isAuto: evidence.isAuto,
       grade: evidence.grade,
-      score: identityScore(evidence, card) + titleScore(evidence, card) + parallelBonus,
-      sureness: sureness(evidence, card, parallel),
+      // Scored and judged as the set the card printed: Sapphire from sales rides on top of it.
+      score: identityScore(evidence, found) + titleScore(evidence, found) + parallelBonus,
+      sureness: sureness(evidence, found, parallel),
       parallelOptions: parallel.options,
+      ...(fromSales ? { setSource: "sales" as const } : {}),
+      ...(sapphireOf(card.setBrand) ? { sapphireOption: sapphireOf(card.setBrand)! } : {}),
       ...(evidence.subset ? { subset: evidence.subset } : {}),
       ...(read.kind === "raw" && [read.front, read.back].some((side) => side?.firstBowman) ? { firstBowman: true } : {}),
       ...(!evidence.slab && !inDirectory && card.playerName && compactName(card.playerName) === compactName(evidence.playerText) ? { playerNew: true } : {}),

@@ -32,6 +32,9 @@ export const COMP_COPY = {
   matchedFromSalesTap: "Matched from recent sales. Tap yours if it's different.",
   split: "Recent sales name more than one parallel",
   splitBody: "Pick yours to see its value.",
+  /** The sales name just one parallel, and the card's is still open. */
+  splitOne: "Recent sales name a parallel",
+  splitOneBody: "Tap it if it's yours.",
   /** An unnumbered card's sales were all another parallel: Base isn't priced from them. */
   noBase: "No recent Base sales",
   /** Add card: the only sales are too far apart to call one the last sold. */

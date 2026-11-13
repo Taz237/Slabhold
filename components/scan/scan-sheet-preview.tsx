@@ -29,6 +29,9 @@ import {
   PREVIEW_SOLDS_NONE,
   PREVIEW_NEW_PRODUCT,
   PREVIEW_WITH_PHOTOS,
+  PREVIEW_SAPPHIRE_ASK,
+  PREVIEW_SAPPHIRE,
+  PREVIEW_SOLDS_NAMES_BLACK,
   PREVIEW_SOLDS_ESTIMATE,
   previewCompLookup,
 } from "@/lib/scan/preview-fixtures";
@@ -48,6 +51,9 @@ export type PreviewKind =
   | "comp-estimate"
   | "new-product"
   | "photos"
+  | "sapphire-ask"
+  | "sapphire"
+  | "comp-sapphire-ask"
   | "slab-looking"
   | "from-sales"
   | "comp-from-sales"
@@ -85,6 +91,9 @@ const STATES: Record<Exclude<PreviewKind, "hub" | "hub-comp" | "door">, ConfirmS
   "comp-estimate": { kind: "ready", matches: [PREVIEW_NEW_PRODUCT], solds: PREVIEW_SOLDS_ESTIMATE },
   "new-product": { kind: "ready", matches: [PREVIEW_NEW_PRODUCT], solds: PREVIEW_SOLDS_ESTIMATE },
   photos: { kind: "ready", matches: PREVIEW_WITH_PHOTOS, solds: PREVIEW_SOLDS_NONE },
+  "sapphire-ask": { kind: "ready", matches: [PREVIEW_SAPPHIRE_ASK], solds: PREVIEW_SOLDS_NAMES_BLACK },
+  sapphire: { kind: "ready", matches: [PREVIEW_SAPPHIRE], solds: PREVIEW_SOLDS_NAMES_BLACK },
+  "comp-sapphire-ask": { kind: "ready", matches: [PREVIEW_SAPPHIRE_ASK], solds: PREVIEW_SOLDS_NAMES_BLACK },
   "comp-looking": { kind: "ready", matches: [PREVIEW_SLAB], solds: PREVIEW_SOLDS_LOOKING },
   "comp-limited": { kind: "ready", matches: [PREVIEW_SLAB], solds: PREVIEW_SOLDS_LIMITED },
 };
@@ -104,6 +113,9 @@ const LABELS: Record<PreviewKind, string> = {
   "comp-estimate": "Comp, no sales yet, estimate",
   "new-product": "New product, no sales yet",
   photos: "Listing photos on the matches",
+  "sapphire-ask": "Is this Sapphire? and a parallel the sales name",
+  sapphire: "Sapphire from recent sales",
+  "comp-sapphire-ask": "Comp, is this Sapphire?",
   "slab-looking": "Slab, looking up",
   "from-sales": "Parallel from sales",
   "comp-from-sales": "Comp, parallel from sales",
@@ -128,6 +140,8 @@ const PREVIEW_HUB_DEPS = { scannerAvailable: async () => false };
 export function ScanSheetPreview({ kind }: { kind: PreviewKind }) {
   const router = useRouter();
   const [open, setOpen] = useState(true);
+  // "Is this Sapphire?" tapped: the sheet shows the card as its Sapphire Edition.
+  const [sapphire, setSapphire] = useState(false);
 
   function confirm(match: ScanMatch, options: { save: boolean }) {
     const id = newScanId();
@@ -185,9 +199,10 @@ export function ScanSheetPreview({ kind }: { kind: PreviewKind }) {
       ) : null}
       {open && !SCREENS.has(kind) && kind.startsWith("comp") ? (
         <CompSheet
-          key={kind}
+          key={`${kind}-${sapphire}`}
           photo={PREVIEW_PHOTO}
-          state={STATES[kind as keyof typeof STATES]}
+          state={sapphire ? STATES.sapphire : STATES[kind as keyof typeof STATES]}
+          onSapphire={() => setSapphire(true)}
           lookup={previewCompLookup}
           onAdd={confirm}
           onScanAnother={() => setOpen(false)}
@@ -197,9 +212,10 @@ export function ScanSheetPreview({ kind }: { kind: PreviewKind }) {
       ) : null}
       {open && !SCREENS.has(kind) && !kind.startsWith("comp") ? (
         <ConfirmSheet
-          key={kind}
+          key={`${kind}-${sapphire}`}
           photo={PREVIEW_PHOTO}
-          state={STATES[kind as keyof typeof STATES]}
+          state={sapphire ? STATES.sapphire : STATES[kind as keyof typeof STATES]}
+          onSapphire={() => setSapphire(true)}
           onConfirm={confirm}
           onStepByStep={() => {
             saveScan(PREVIEW_PHOTO);

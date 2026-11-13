@@ -527,8 +527,10 @@ export function SplitGroups({
 }) {
   return (
     <div role="status">
-      <p className="text-sm font-medium">{missing ? COMP_COPY.noBase : COMP_COPY.split}</p>
-      <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">{missing ? COMP_COPY.noBaseBody : COMP_COPY.splitBody}</p>
+      <p className="text-sm font-medium">{missing ? COMP_COPY.noBase : groups.length === 1 ? COMP_COPY.splitOne : COMP_COPY.split}</p>
+      <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+        {missing ? COMP_COPY.noBaseBody : groups.length === 1 ? COMP_COPY.splitOneBody : COMP_COPY.splitBody}
+      </p>
       <GroupRows groups={groups} onPick={onPick} />
     </div>
   );
@@ -550,7 +552,17 @@ export function OtherGroups({ groups, onPick }: { groups: readonly { label: stri
  * Looking while the live search runs, then the price and day, or plainly why
  * there isn't one. Never a made-up price.
  */
-export function LastSold({ solds }: { solds: SoldsState }) {
+export function LastSold({
+  solds,
+  pick = null,
+  onPick,
+}: {
+  solds: SoldsState;
+  /** The parallel picked on the sheet: when the sales name it, its own last sale shows. */
+  pick?: string | null;
+  /** Tap a parallel the sales name to pick it. */
+  onPick?: (label: string) => void;
+}) {
   const box = "flex min-h-11 items-center justify-between gap-3 rounded-2xl border border-zinc-200 px-4 py-2.5 dark:border-white/10";
   if (solds.status === "looking") {
     return (
@@ -564,9 +576,28 @@ export function LastSold({ solds }: { solds: SoldsState }) {
   }
   const { comp } = solds;
   if (comp.status === "split") {
+    // The picked parallel is one the sales name: its own last sale, the way a priced card shows.
+    const picked = pick ? comp.groups.find((group) => group.label.toLowerCase() === pick.toLowerCase()) : undefined;
+    if (picked && picked.lastPriceCents != null) {
+      const day = saleDay(picked.lastSoldAt);
+      return (
+        <div className={box} data-slot="last-sold-picked">
+          <div className="min-w-0">
+            <p className="text-[13px] font-medium text-zinc-500">
+              {COMP_COPY.lastSold} · {picked.label}
+            </p>
+            <p className="text-xs text-zinc-500">{COMP_COPY.credit}</p>
+          </div>
+          <p className="shrink-0 text-right">
+            <span className="font-mono text-[17px] font-semibold tabular-nums">{money(picked.lastPriceCents / 100)}</span>
+            {day ? <span className="block font-mono text-xs text-zinc-500 tabular-nums">{day}</span> : null}
+          </p>
+        </div>
+      );
+    }
     return (
       <div className="rounded-2xl border border-zinc-200 px-4 py-3 dark:border-white/10">
-        <SplitGroups groups={comp.groups} missing={comp.missing} />
+        <SplitGroups groups={comp.groups} missing={comp.missing} onPick={onPick} />
       </div>
     );
   }
@@ -602,6 +633,57 @@ export function LastSold({ solds }: { solds: SoldsState }) {
   return (
     <div className={box} role="status">
       <p className="text-sm text-zinc-600 dark:text-zinc-400">{message}</p>
+    </div>
+  );
+}
+
+/** The parallels the scan's sales name join the chips, so one tapped from the sales list reads selected. */
+export function withSoldGroups(
+  options: ProductParallel[],
+  solds: SoldsState | undefined,
+  serialRun: number | null,
+  assumedBase: boolean,
+): ProductParallel[] {
+  if (solds?.status !== "done") return options;
+  const comp = solds.comp;
+  const groups: { label: string }[] = comp.status === "ok" || comp.status === "split" ? [...(comp.groups ?? [])] : [];
+  // A price named by its sales' parallel ("Last sold · Black") offers that parallel too.
+  if (comp.status === "ok" && comp.parallel && !groups.some((group) => group.label === comp.parallel)) groups.push({ label: comp.parallel });
+  const out = [...options];
+  const has = (name: string) => out.some((option) => option.name.toLowerCase() === name.toLowerCase());
+  // The Base the sheet is showing reads first and selected.
+  if (assumedBase && groups.length > 0 && !has("Base")) out.unshift({ name: "Base", serialRun: null });
+  for (const group of groups) {
+    if (isUnnamedRunLabel(group.label) || has(group.label)) continue;
+    out.push({ name: group.label, serialRun });
+  }
+  // No sales yet on a numbered card with no parallel named: last year's parallels at this print run, to tap.
+  for (const name of solds.similar?.parallels ?? []) if (!has(name)) out.push({ name, serialRun });
+  return out;
+}
+
+/**
+ * Under the card's name: how the set was settled, or the one question left about it. Sapphire
+ * Edition shares its checklist with the regular set and often prints nothing to tell them apart,
+ * so it is asked, never guessed.
+ */
+export function SetNotes({ match, onSapphire, center = false }: { match: ScanMatch; onSapphire?: () => void; center?: boolean }) {
+  const fromSales = match.setSource === "sales";
+  const ask = !fromSales && Boolean(match.sapphireOption) && Boolean(onSapphire);
+  if (!fromSales && !ask) return null;
+  return (
+    <div className={center ? "flex justify-center" : ""} data-slot="set-notes">
+      {fromSales ? <p className="text-[13px] leading-5 text-zinc-500">{CONFIRM_COPY.sapphireFromSales}</p> : null}
+      {ask ? (
+        <button
+          type="button"
+          onClick={onSapphire}
+          aria-label={`${CONFIRM_COPY.sapphireAsk} Switch to ${match.sapphireOption} and look up its sales`}
+          className={`inline-flex min-h-11 items-center rounded-full border border-zinc-300 px-4 text-sm font-medium hover:bg-zinc-900/[0.03] dark:border-white/20 dark:hover:bg-white/[0.04] ${focusRing}`}
+        >
+          {CONFIRM_COPY.sapphireAsk}
+        </button>
+      ) : null}
     </div>
   );
 }

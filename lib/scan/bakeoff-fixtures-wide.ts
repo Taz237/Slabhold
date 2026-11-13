@@ -19,6 +19,17 @@ import type { BakeoffCase } from "./bakeoff-fixtures";
 const PANINI_2024 = "© 2024 Panini America, Inc. Printed in the USA.";
 const TOPPS_2024 = "© 2024 THE TOPPS COMPANY, INC. ALL RIGHTS RESERVED.";
 
+const KNIGHT_BACK = [
+  "BCP-68",
+  "RUNNING BACK",
+  "WAYNE KNIGHT",
+  "UCLA",
+  "© 2026 THE TOPPS COMPANY, INC. ALL RIGHTS RESERVED.",
+  "TOPPS AND BOWMAN CHROME ARE REGISTERED TRADEMARKS OF THE TOPPS COMPANY, INC.",
+  "WWW.TOPPS.COM",
+  "CMP#148134",
+];
+
 export const WIDE_BAKEOFF_CASES: BakeoffCase[] = [
   // ── Slab labels ────────────────────────────────────────────────────────────
   {
@@ -570,6 +581,38 @@ export const WIDE_BAKEOFF_CASES: BakeoffCase[] = [
     front: ["PRIZM", "JOHN DOEMAN"],
     back: null,
     truth: { player: "", year: "2024", set: "Panini Prizm", number: "17", parallel: "", run: null },
+  },
+
+  // ── Sapphire Edition: the card often prints nothing to say so ──────────────
+  {
+    name: "Sapphire: Knight, no SAPPHIRE anywhere and sold titles split, so plain Bowman U Chrome with the quick pick",
+    front: ["BOWMAN", "1ST", "WAYNE KNIGHT", "RB", "03/10"],
+    back: KNIGHT_BACK,
+    titles: [
+      { title: "2026 Bowman U Chrome Sapphire Wayne Knight 1st Bowman BCP-68 /10 UCLA", price: 60, soldAt: "2026-11-04" },
+      { title: "2026 Bowman U Chrome Wayne Knight 1st Bowman BCP-68 /10 UCLA", price: 35, soldAt: "2026-11-06" },
+    ],
+    truth: { player: "Wayne Knight", year: "2026", set: "Bowman U Chrome", number: "BCP-68", parallel: "", run: 10, sapphirePick: true, setFromSales: false },
+  },
+  {
+    name: "Sapphire: Knight, most sold titles for BCP-68 /10 say Sapphire",
+    front: ["BOWMAN", "1ST", "WAYNE KNIGHT", "RB", "03/10"],
+    back: KNIGHT_BACK,
+    titles: [
+      { title: "2026 Bowman U Chrome Sapphire Wayne Knight 1st Bowman BCP-68 /10 UCLA", price: 60, soldAt: "2026-11-04" },
+      { title: "Wayne Knight 2026 Bowman Sapphire Edition 1st BCP-68 03/10", price: 55, soldAt: "2026-11-05" },
+      { title: "2026 Bowman U Chrome Wayne Knight 1st Bowman BCP-68 /10 UCLA", price: 35, soldAt: "2026-11-06" },
+      // Another card # and another run say nothing about this card.
+      { title: "2026 Bowman U Chrome Wayne Knight 1st Bowman BCP-68 /50", price: 12, soldAt: "2026-11-07" },
+      { title: "2026 Bowman U Chrome Wayne Knight BCP-12 /10", price: 20, soldAt: "2026-11-07" },
+    ],
+    truth: { player: "Wayne Knight", year: "2026", set: "Bowman U Chrome Sapphire", number: "BCP-68", parallel: "", run: 10, sapphirePick: false, setFromSales: true },
+  },
+  {
+    name: "Sapphire: Knight, a SAPPHIRE line in the OCR",
+    front: ["BOWMAN", "1ST", "SAPPHIRE", "WAYNE KNIGHT", "RB", "03/10"],
+    back: KNIGHT_BACK,
+    truth: { player: "Wayne Knight", year: "2026", set: "Bowman U Chrome Sapphire", number: "BCP-68", parallel: "", run: 10, sapphirePick: false, setFromSales: false },
   },
 
   // ── Hockey ─────────────────────────────────────────────────────────────────

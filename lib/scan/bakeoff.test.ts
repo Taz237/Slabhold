@@ -182,8 +182,8 @@ describe("the scanner bake-off", () => {
   it("the flags a card prints are read: autograph, rookie, 1st Bowman, the subset, a player new to us", () => {
     let checked = 0;
     for (const scan of ALL_CASES) {
-      const { auto, rookie, firstBowman, subset, playerNew } = scan.truth;
-      if (auto == null && rookie == null && firstBowman == null && subset == null && playerNew == null) continue;
+      const { auto, rookie, firstBowman, subset, playerNew, sapphirePick, setFromSales } = scan.truth;
+      if (auto == null && rookie == null && firstBowman == null && subset == null && playerNew == null && sapphirePick == null && setFromSales == null) continue;
       checked += 1;
       const match = top(scan);
       assert.ok(match, scan.name);
@@ -192,6 +192,10 @@ describe("the scanner bake-off", () => {
       if (firstBowman != null) assert.equal(Boolean(match.firstBowman), firstBowman, `${scan.name}: 1st Bowman`);
       if (subset != null) assert.equal(match.subset ?? "", subset, `${scan.name}: subset`);
       if (playerNew != null) assert.equal(Boolean(match.playerNew), playerNew, `${scan.name}: new player`);
+      if (sapphirePick != null) assert.equal(Boolean(match.sapphireOption), sapphirePick, `${scan.name}: the Sapphire quick pick`);
+      if (setFromSales != null) assert.equal(match.setSource === "sales", setFromSales, `${scan.name}: set from sales`);
+      // Sapphire is the product, never the parallel.
+      assert.doesNotMatch(match.parallel, /sapphire/i, scan.name);
       // An autograph, a variation and a numbered card are never Base, and never offered Base.
       if (match.isAuto || match.subset || match.serialRun != null) {
         assert.notEqual(match.parallel, "Base", scan.name);

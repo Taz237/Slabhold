@@ -13,6 +13,10 @@ export { scannerEnabled };
 export const CONFIRM_COPY = {
   /** The name was read off the card; our player list doesn't have them yet. */
   playerNew: "Not in our list yet",
+  /** A set with a Sapphire Edition, and nothing on the card or in its sales says which it is. */
+  sapphireAsk: "Is this Sapphire?",
+  /** Most of this card's sold titles say Sapphire; the card itself doesn't print it. */
+  sapphireFromSales: "Sapphire matched from recent sales",
   /** A name-like line the card didn't back and no sold listing carried: the player is left open. */
   playerOpen: "Player not read",
   title: "Is this your card?",
