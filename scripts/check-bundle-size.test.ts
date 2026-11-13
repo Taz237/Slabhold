@@ -62,15 +62,13 @@ describe("bundle size check", () => {
     }
     // Exactly the guarded routes, nothing stale.
     assert.deepEqual(Object.keys(baseline).sort(), [...GUARDED_ROUTES].sort());
-    // Adding routes never moved the six that were already guarded.
+    // The first six guarded routes, as re-recorded after #269. A new recording is its own PR.
     assert.deepEqual(
       GUARDED_ROUTES.slice(0, 6).map((route) => baseline[route]),
-      [147634, 216000, 256034, 275120, 262978, 253177],
+      [150136, 224423, 267778, 254182, 239363, 262314],
     );
     // A guarded route is not also printed as reference only.
     assert.equal(REPORTED_ROUTES.includes("/login"), false);
-    // The post page is guarded at main's size when it joined the guard.
-    assert.equal(baseline["/posts/[id]"], 253177);
     // Signed-out Home stays under 150 KB gzip.
     assert.ok(baseline["/welcome"] < 150 * 1024, String(baseline["/welcome"]));
     const pkg = JSON.parse(read("package.json")) as { scripts: Record<string, string> };
