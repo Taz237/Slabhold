@@ -176,3 +176,50 @@ export const SAMPLE_ALERTS: readonly { id: string; kind: "follow" | "like" | "re
   { id: "a3", kind: "reply", persona: PERSONAS.dev, text: "replied: Clean corners on that one" },
   { id: "a4", kind: "dm", persona: PERSONAS.femi, text: "sent you a message" },
 ];
+
+/**
+ * The scanner showcase's made-up card: what a scan reads off a raw card
+ * (player, year and set, number, parallel, the rookie tag). No real player,
+ * no cert. Typed loosely here so this file needs no scanner imports.
+ */
+/** A made-up raw card drawn in SVG: a silver frame and a purple panel. No player, no logos. */
+export const SAMPLE_SCAN_PHOTO = "/landing/sample-raw-card.svg";
+
+export const SAMPLE_SCAN = {
+  catalogId: null,
+  playerName: "Sample Rookie",
+  sport: "Basketball",
+  yearLabel: "2023",
+  setBrand: "Prizm",
+  cardNumber: "101",
+  parallel: "Silver",
+  serialRun: null,
+  serialNo: "",
+  isRookie: true,
+  isAuto: false,
+  grade: null,
+  score: 100,
+  sureness: { player: "sure", year: "sure", set: "sure", number: "sure", parallel: "sure" },
+  parallelOptions: [{ name: "Silver", serialRun: null }],
+} as const;
+
+/** Sample sold sales for the scanned card, oldest first, whole dollars. */
+export const SAMPLE_SCAN_SALES: readonly { price: number; soldAt: string }[] = [
+  { price: 118, soldAt: "2026-10-12T12:00:00Z" },
+  { price: 124, soldAt: "2026-10-16T12:00:00Z" },
+  { price: 121, soldAt: "2026-10-21T12:00:00Z" },
+  { price: 131, soldAt: "2026-10-25T12:00:00Z" },
+  { price: 127, soldAt: "2026-10-29T12:00:00Z" },
+  { price: 136, soldAt: "2026-11-02T12:00:00Z" },
+  { price: 129, soldAt: "2026-11-06T12:00:00Z" },
+  { price: 138, soldAt: "2026-11-10T12:00:00Z" },
+];
+
+/** A sample weekly board: sample accounts and made-up scores, in the app's Rising collectors shape. */
+export const SAMPLE_BOARD: readonly { persona: Persona; score: number }[] = [
+  { persona: PERSONAS.femi, score: 14 },
+  { persona: PERSONAS.paolo, score: 11 },
+  { persona: PERSONAS.minh, score: 9 },
+  { persona: PERSONAS.andre, score: 6 },
+  { persona: PERSONAS.diego, score: 4 },
+];

@@ -98,7 +98,7 @@ describe("Quick Comp chapter tag", () => {
     try {
       const { FeaturePanels } = await import("@/components/landing/feature-panels");
       const html = renderToStaticMarkup(createElement(FeaturePanels, { comp: REAL }));
-      const quickComp = html.slice(html.indexOf('data-chapter="quick-comp"'), html.indexOf('data-chapter="timeline"'));
+      const quickComp = html.slice(html.indexOf('data-chapter="quick-comp"'), html.indexOf('data-chapter="graphs"'));
       assert.match(quickComp, /class="truncate font-mono text-\[10px\] leading-4 text-zinc-400">From a Slabhold collection</);
       assert.doesNotMatch(quickComp, /From @|donnietaz/);
       assert.doesNotMatch(quickComp, />Sample</);
@@ -106,7 +106,7 @@ describe("Quick Comp chapter tag", () => {
       assert.match(timeline, />Sample</, "the other chapters keep their Sample tag");
 
       const sample = renderToStaticMarkup(createElement(FeaturePanels));
-      const sampleQuickComp = sample.slice(sample.indexOf('data-chapter="quick-comp"'), sample.indexOf('data-chapter="timeline"'));
+      const sampleQuickComp = sample.slice(sample.indexOf('data-chapter="quick-comp"'), sample.indexOf('data-chapter="graphs"'));
       assert.match(sampleQuickComp, />Sample</);
       assert.doesNotMatch(sampleQuickComp, /collection/);
     } finally {

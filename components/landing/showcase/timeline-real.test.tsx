@@ -101,7 +101,7 @@ describe("timeline pickup with a real card", () => {
   it("keeps the Sample accounts tag on the timeline with the real card", async () => {
     const { FeaturePanels } = await import("@/components/landing/feature-panels");
     const html = renderToStaticMarkup(createElement(FeaturePanels, { pickup: REAL }));
-    const timeline = html.slice(html.indexOf('data-chapter="timeline"'), html.indexOf('data-chapter="graphs"'));
+    const timeline = html.slice(html.indexOf('data-chapter="timeline"'), html.indexOf('data-chapter="leaderboard"'));
     assert.match(timeline, />Sample accounts</);
     assert.match(timeline, />Sample</);
   });

@@ -183,9 +183,11 @@ describe("launch copy: App Store link", () => {
     assert.match(server, /data-app-store-link=""[^>]*class="[^"]*min-h-11/);
     assert.doesNotMatch(server, /<a\b/);
     assert.doesNotMatch(read("components/landing-page.tsx"), /"use client"/);
+    // The landing page draws it as buttons now: the hero's "Get the app" and the closing store badge.
     const landing = read("components/landing-page.tsx");
-    assert.equal(count(landing, "<AppStoreLink />"), 2);
-    assert.ok(landing.indexOf("<AppStoreLink />") > landing.indexOf("<LandingCta />"));
+    assert.equal(count(landing, '<AppStoreBadge variant="button" />'), 1);
+    assert.equal(count(landing, '<AppStoreBadge variant="badge" />'), 1);
+    assert.ok(landing.indexOf('<AppStoreBadge variant="badge" />') > landing.indexOf("<LandingCta />"));
   });
 
   it("shows the link on the web and hides it inside the iOS app", () => {
