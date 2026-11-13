@@ -15,10 +15,16 @@ export type BakeoffTruth = {
   player: string;
   set: string;
   number: string;
-  /** The parallel's words, any order: "Pink/Red" matches "Pink Red". */
+  /** The parallel's words, any order: "Pink/Red" matches "Pink Red". "" or "Base" for a base card. */
   parallel: string;
-  /** The card's print run, when the case checks it (OCR misread /298 for /299). */
-  run?: number;
+  /** The card's year or season: "2024", "2025-26". */
+  year?: string;
+  /** The card's print run (/299). Null or missing: the card isn't numbered. */
+  run?: number | null;
+  /** A slab's grade ("PSA 10"). Checked, not scored. */
+  grade?: string;
+  /** A slab's cert number. It must never show as the card #. */
+  cert?: string;
 };
 
 /** A mocked Trawl answer: eBay sold titles, served only at this rung of the search ladder (0 = the first). */
@@ -37,16 +43,24 @@ export type BakeoffCase = {
   name: string;
   front: string[];
   back: string[] | null;
-  kind?: "card" | "slab";
+  /** What the scanner called it from the shape. Null: it couldn't tell. Missing: a raw card. */
+  kind?: "card" | "slab" | null;
   rows?: CatalogCard[];
   /** Saved sold listings (sold_comps_cache) for the player. Empty: a cold cache. */
   titles?: SoldTitle[];
+  /**
+   * The print run as the OCR lines carry it, when they misread it (137/298 on a /299 card). Before
+   * any sold title can correct it the scan can only show what it read, so that counts as open.
+   */
+  misreadRun?: number;
+  /** Fields the scanner gets wrong on this scan today (the wide set). Empty or missing: none may be wrong. */
+  knownWrong?: ("player" | "year" | "set" | "number" | "run" | "parallel")[];
   /** What a live eBay search returns, junk included. None: Trawl finds nothing on any rung. */
   live?: BakeoffLive;
   truth: BakeoffTruth;
 };
 
-const MILLER: BakeoffTruth = { player: "Aidan Miller", set: "Bowman", number: "BP-27", parallel: "Pink/Red" };
+const MILLER: BakeoffTruth = { player: "Aidan Miller", year: "2024", set: "Bowman", number: "BP-27", parallel: "Pink/Red", run: 299 };
 const MILLER_FRONT = ["3B", "1ST BOWMAN", "PHILADELPHIA PHILLIES", "137/299", "AIDAN MILLER"];
 /** The stylized 1ST BOWMAN logo often doesn't read. */
 const MILLER_FRONT_NO_LOGO = ["3B", "PHILADELPHIA PHILLIES", "137/299", "AIDAN MILLER"];
@@ -166,6 +180,7 @@ export const BAKEOFF_CASES: BakeoffCase[] = [
   {
     name: "Miller, OCR read 137/298 (the card is /299)",
     front: ["3B", "1ST BOWMAN", "PHILADELPHIA PHILLIES", "137/298", "AIDAN MILLER"],
+    misreadRun: 298,
     back: ["AIDAN MILLER", "TOPPS.COM", "BP-27"],
     live: { ...MILLER_LIVE, atRung: 2 },
     truth: { ...MILLER, run: 299 },
@@ -180,6 +195,7 @@ export const BAKEOFF_CASES: BakeoffCase[] = [
   {
     name: "Miller, 137/298, only 'Bowman BP-27' answers, 5 unnumbered among 2 /299",
     front: ["3B", "1ST BOWMAN", "PHILADELPHIA PHILLIES", "137/298", "AIDAN MILLER"],
+    misreadRun: 298,
     back: ["AIDAN MILLER", "BP-27"],
     live: {
       atRung: 2,
@@ -267,7 +283,7 @@ export const BAKEOFF_CASES: BakeoffCase[] = [
         { title: "Jaxson Dart 2025 Panini Prizm RC #332", price: 10, soldAt: "2026-11-05" },
       ],
     },
-    truth: { player: "Jaxson Dart", set: "Panini Prizm", number: "332", parallel: "" },
+    truth: { player: "Jaxson Dart", year: "2025", set: "Panini Prizm", number: "332", parallel: "" },
   },
   {
     name: "Dart, Prizm #332 raw base, a PSA 10 at $140, a lot at $0.60, a Silver",
@@ -288,7 +304,7 @@ export const BAKEOFF_CASES: BakeoffCase[] = [
         { title: "Jaxson Dart 2025 Panini Prizm RC #332", price: 2.5, soldAt: "2026-11-06" },
       ],
     },
-    truth: { player: "Jaxson Dart", set: "Panini Prizm", number: "332", parallel: "" },
+    truth: { player: "Jaxson Dart", year: "2025", set: "Panini Prizm", number: "332", parallel: "" },
   },
   {
     name: "Dart, Mosaic #362 base (unnumbered), a Silver majority",
@@ -308,7 +324,7 @@ export const BAKEOFF_CASES: BakeoffCase[] = [
         { title: "2025 Mosaic Jaxson Dart Rookie #362", price: 7, soldAt: "2026-11-04" },
       ],
     },
-    truth: { player: "Jaxson Dart", set: "Panini Mosaic", number: "362", parallel: "" },
+    truth: { player: "Jaxson Dart", year: "2025", set: "Panini Mosaic", number: "362", parallel: "" },
   },
   {
     name: "Dart, logo-only Mosaic, saved sales",
@@ -321,7 +337,7 @@ export const BAKEOFF_CASES: BakeoffCase[] = [
       { title: "Jaxson Dart /199 Rookie 2025 Panini Mosaic - Orange Prizm #362 RC Giants", price: 45, soldAt: "2026-08-05" },
       { title: "2025 Panini Mosaic Jaxson Dart Orange Prizm 88/199 #362 Rookie", price: 52, soldAt: "2026-08-20" },
     ],
-    truth: { player: "Jaxson Dart", set: "Panini Mosaic", number: "362", parallel: "Orange" },
+    truth: { player: "Jaxson Dart", year: "2025", set: "Panini Mosaic", number: "362", parallel: "Orange", run: 199 },
   },
   {
     name: "Dart, logo-only Mosaic, cold cache",
@@ -336,7 +352,7 @@ export const BAKEOFF_CASES: BakeoffCase[] = [
         { title: "Jaxson Dart 2025 Panini Mosaic Orange /199 #362 PSA 10", price: 140, soldAt: "2026-08-21", graded: { grader: "PSA", grade: "10" } },
       ],
     },
-    truth: { player: "Jaxson Dart", set: "Panini Mosaic", number: "362", parallel: "Orange" },
+    truth: { player: "Jaxson Dart", year: "2025", set: "Panini Mosaic", number: "362", parallel: "Orange", run: 199 },
   },
   {
     name: "Edgecombe, Topps Chrome Instinct /99",
@@ -346,7 +362,7 @@ export const BAKEOFF_CASES: BakeoffCase[] = [
       { title: "2025-26 Topps Chrome VJ Edgecombe Instinct Green Refractor /99 #INS-7 RC 76ers", price: 120, soldAt: "2026-10-30" },
       { title: "VJ Edgecombe 2025-26 Topps Chrome Instinct Green 61/99 Rookie #INS-7", price: 110, soldAt: "2026-10-12" },
     ],
-    truth: { player: "VJ Edgecombe", set: "Topps Chrome", number: "INS-7", parallel: "Instinct Green" },
+    truth: { player: "VJ Edgecombe", year: "2025-26", set: "Topps Chrome", number: "INS-7", parallel: "Instinct Green", run: 99 },
   },
   {
     name: "Brown, Topps Now front",
@@ -360,7 +376,7 @@ export const BAKEOFF_CASES: BakeoffCase[] = [
         { title: "2024 Topps Now Jayson Tatum #NBA-11 Finals Celtics", price: 9, soldAt: "2026-06-21" },
       ],
     },
-    truth: { player: "Jaylen Brown", set: "Topps Now", number: "NBA-12", parallel: "" },
+    truth: { player: "Jaylen Brown", year: "2024-25", set: "Topps Now", number: "NBA-12", parallel: "" },
   },
   {
     name: "McCarthy, Optic Preview Pink, saved sales",
@@ -370,6 +386,6 @@ export const BAKEOFF_CASES: BakeoffCase[] = [
       { title: "2024 Panini Donruss Optic Preview Pink J.J. McCarthy #303 RC Vikings", price: 22, soldAt: "2026-11-02" },
       { title: "J.J. McCarthy 2024 Donruss Optic Preview Pink #303 Rated Rookie", price: 19, soldAt: "2026-10-25" },
     ],
-    truth: { player: "J.J. McCarthy", set: "Panini Donruss", number: "303", parallel: "Optic Preview Pink" },
+    truth: { player: "J.J. McCarthy", year: "2024", set: "Panini Donruss", number: "303", parallel: "Optic Preview Pink" },
   },
 ];
